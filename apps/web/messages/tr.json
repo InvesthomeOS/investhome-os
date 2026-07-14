@@ -27,6 +27,7 @@
       "permissions": "Yetkiler"
     },
     "activity": "Aktivite Geçmişi",
+    "documents": "Belgeler",
     "modules": {
       "executive": {
         "title": "Yönetici Özeti",
@@ -994,7 +995,8 @@
       "transaction": "İşlem",
       "project_budget": "Proje bütçesi",
       "funding_commitment": "Finansman taahhüdü",
-      "payment_obligation": "Ödeme yükümlülüğü"
+      "payment_obligation": "Ödeme yükümlülüğü",
+      "document": "Belge"
     },
     "sources": {
       "web": "Web",
@@ -1049,6 +1051,125 @@
         "created": "Rol oluşturuldu",
         "updated": "Rol güncellendi",
         "permission_changed": "Rol yetkileri değiştirildi"
+      },
+      "document": {
+        "uploaded": "Belge yüklendi: {title}",
+        "updated": "Belge meta verileri güncellendi: {title}",
+        "version_uploaded": "Yeni belge sürümü yüklendi: {title}",
+        "linked": "Belge ilişkilendirildi: {title}",
+        "unlinked": "Belge ilişkisi kaldırıldı: {title}",
+        "archived": "Belge arşivlendi: {title}",
+        "restored": "Belge geri yüklendi: {title}",
+        "downloaded": "Belge indirildi: {title}"
+      }
+    }
+  },
+  "documents": {
+    "eyebrow": "Belge Merkezi",
+    "title": "Belgeler",
+    "subtitle": "Dosyaları yükleyin, sınıflandırın, sürümleyin ve iş kayıtlarına bağlayın.",
+    "demoBanner": "{count} geliştirme demo belgesi yerel test için yüklendi.",
+    "loadError": "Belgeler yüklenemedi.",
+    "actionError": "İşlem tamamlanamadı.",
+    "searchLabel": "Ara",
+    "searchPlaceholder": "Başlık, dosya adı, etiket…",
+    "typeLabel": "Tür",
+    "statusLabel": "Durum",
+    "confidentialityLabel": "Gizlilik",
+    "allTypes": "Tüm türler",
+    "allStatuses": "Tüm durumlar",
+    "allConfidentiality": "Tüm gizlilik seviyeleri",
+    "uploadDocuments": "Belge Yükle",
+    "tableView": "Tablo",
+    "gridView": "Izgara",
+    "viewModeLabel": "Görünüm modu",
+    "emptyTitle": "Henüz belge yok",
+    "emptyDescription": "Dosyaları sürükleyip bırakarak veya yükleme düğmesini kullanarak başlayın.",
+    "summary": "{shown} / {total} belge gösteriliyor",
+    "detailEyebrow": "Belge detayı",
+    "previewUnavailable": "Bu dosya türü için tarayıcı önizlemesi kullanılamıyor. Meta verileri inceleyin veya indirin.",
+    "versionHistory": "Sürüm geçmişi",
+    "noVersions": "Sürüm geçmişi bulunamadı.",
+    "relatedRecords": "İlgili kayıtlar",
+    "activityTitle": "Belge aktivitesi",
+    "entitySectionTitle": "Belgeler",
+    "entityEmpty": "Bu kayıtla ilişkili belge yok.",
+    "download": "İndir",
+    "archive": "Arşivle",
+    "restore": "Geri yükle",
+    "labels": { "unknown": "—" },
+    "columns": {
+      "document": "Belge",
+      "type": "Tür",
+      "relatedRecord": "İlgili Kayıt",
+      "version": "Versiyon",
+      "status": "Durum",
+      "confidentiality": "Gizlilik",
+      "uploadedBy": "Yükleyen",
+      "documentDate": "Belge Tarihi",
+      "updatedDate": "Güncellenme Tarihi",
+      "fileSize": "Dosya Boyutu"
+    },
+    "types": {
+      "contract": "Sözleşme",
+      "operating_agreement": "İşletme anlaşması",
+      "subscription_agreement": "Abonelik anlaşması",
+      "offering_document": "Sunum belgesi",
+      "investor_document": "Yatırımcı belgesi",
+      "project_document": "Proje belgesi",
+      "construction_drawing": "İnşaat çizimi",
+      "architectural_drawing": "Mimari çizim",
+      "permit": "İzin",
+      "inspection": "Denetim",
+      "title_document": "Tapu belgesi",
+      "closing_document": "Kapanış belgesi",
+      "loan_document": "Kredi belgesi",
+      "insurance": "Sigorta",
+      "appraisal": "Ekspertiz",
+      "lease": "Kira",
+      "invoice": "Fatura",
+      "receipt": "Makbuz",
+      "bank_statement": "Banka ekstresi",
+      "financial_report": "Finansal rapor",
+      "presentation": "Sunum",
+      "marketing_material": "Pazarlama materyali",
+      "photo": "Fotoğraf",
+      "spreadsheet": "Tablo",
+      "correspondence": "Yazışma",
+      "legal_document": "Hukuki belge",
+      "tax_document": "Vergi belgesi",
+      "other": "Diğer"
+    },
+    "statuses": {
+      "draft": "Taslak",
+      "active": "Aktif",
+      "expired": "Süresi doldu",
+      "superseded": "Yerini aldı",
+      "archived": "Arşivlendi"
+    },
+    "confidentiality": {
+      "public": "Herkese açık",
+      "internal": "Dahili",
+      "confidential": "Gizli",
+      "highly_confidential": "Çok gizli"
+    },
+    "upload": {
+      "title": "Belge yükle",
+      "dropHint": "Dosyaları buraya sürükleyin veya seçin",
+      "formTitle": "Başlık",
+      "documentType": "Belge türü",
+      "category": "Kategori",
+      "confidentiality": "Gizlilik",
+      "description": "Açıklama",
+      "tags": "Etiketler",
+      "submit": "Yükle",
+      "uploading": "Yükleniyor…",
+      "failed": "Yükleme başarısız",
+      "status": {
+        "pending": "Bekliyor",
+        "uploading": "Yükleniyor",
+        "success": "Başarılı",
+        "error": "Hata"
       }
     }
   },
@@ -1192,7 +1313,7 @@
   },
   "search": {
     "placeholder": "Ara...",
-    "hint": "Lead, yatırımcı, proje, finans, kullanıcı, bildirim ve aktivite kayıtlarında arayın.",
+    "hint": "Lead, yatırımcı, proje, finans, belge, kullanıcı, bildirim ve aktivite kayıtlarında arayın.",
     "empty": "Sorgunuz için sonuç bulunamadı.",
     "errors": {
       "failed": "Arama başarısız oldu. Lütfen tekrar deneyin."
@@ -1221,7 +1342,7 @@
       "user": "Kullanıcılar",
       "notification": "Bildirimler",
       "activity": "Aktivite",
-      "document": "Belgeler (yakında)",
+      "document": "Belgeler",
       "unit": "Üniteler (yakında)",
       "construction": "İnşaat (yakında)",
       "email": "E-postalar (yakında)"
@@ -1232,7 +1353,8 @@
       "projects": "Projeler",
       "finance": "Finans",
       "admin_users": "Kullanıcılar",
-      "activity": "Aktivite"
+      "activity": "Aktivite",
+      "documents": "Belgeler"
     }
   },
   "validation": {

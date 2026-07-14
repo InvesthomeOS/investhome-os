@@ -994,7 +994,8 @@
       "transaction": "Transaction",
       "project_budget": "Project budget",
       "funding_commitment": "Funding commitment",
-      "payment_obligation": "Payment obligation"
+      "payment_obligation": "Payment obligation",
+      "document": "Document"
     },
     "sources": {
       "web": "Web",
@@ -1049,6 +1050,125 @@
         "created": "Role created",
         "updated": "Role updated",
         "permission_changed": "Role permissions changed"
+      },
+      "document": {
+        "uploaded": "Document uploaded: {title}",
+        "updated": "Document metadata updated: {title}",
+        "version_uploaded": "New document version uploaded: {title}",
+        "linked": "Document linked: {title}",
+        "unlinked": "Document unlinked: {title}",
+        "archived": "Document archived: {title}",
+        "restored": "Document restored: {title}",
+        "downloaded": "Document downloaded: {title}"
+      }
+    }
+  },
+  "documents": {
+    "eyebrow": "Document Center",
+    "title": "Documents",
+    "subtitle": "Upload, classify, version, and link files to business records.",
+    "demoBanner": "{count} development demo document(s) loaded for local testing.",
+    "loadError": "Failed to load documents.",
+    "actionError": "Action could not be completed.",
+    "searchLabel": "Search",
+    "searchPlaceholder": "Title, file name, tags…",
+    "typeLabel": "Type",
+    "statusLabel": "Status",
+    "confidentialityLabel": "Confidentiality",
+    "allTypes": "All types",
+    "allStatuses": "All statuses",
+    "allConfidentiality": "All confidentiality levels",
+    "uploadDocuments": "Upload Documents",
+    "tableView": "Table",
+    "gridView": "Grid",
+    "viewModeLabel": "View mode",
+    "emptyTitle": "No documents yet",
+    "emptyDescription": "Drag and drop files or use the upload button to get started.",
+    "summary": "Showing {shown} of {total} documents",
+    "detailEyebrow": "Document detail",
+    "previewUnavailable": "Browser preview is not available for this file type. Review metadata or download the file.",
+    "versionHistory": "Version history",
+    "noVersions": "No version history found.",
+    "relatedRecords": "Related records",
+    "activityTitle": "Document activity",
+    "entitySectionTitle": "Documents",
+    "entityEmpty": "No documents linked to this record.",
+    "download": "Download",
+    "archive": "Archive",
+    "restore": "Restore",
+    "labels": { "unknown": "—" },
+    "columns": {
+      "document": "Document",
+      "type": "Type",
+      "relatedRecord": "Related Record",
+      "version": "Version",
+      "status": "Status",
+      "confidentiality": "Confidentiality",
+      "uploadedBy": "Uploaded By",
+      "documentDate": "Document Date",
+      "updatedDate": "Updated Date",
+      "fileSize": "File Size"
+    },
+    "types": {
+      "contract": "Contract",
+      "operating_agreement": "Operating agreement",
+      "subscription_agreement": "Subscription agreement",
+      "offering_document": "Offering document",
+      "investor_document": "Investor document",
+      "project_document": "Project document",
+      "construction_drawing": "Construction drawing",
+      "architectural_drawing": "Architectural drawing",
+      "permit": "Permit",
+      "inspection": "Inspection",
+      "title_document": "Title document",
+      "closing_document": "Closing document",
+      "loan_document": "Loan document",
+      "insurance": "Insurance",
+      "appraisal": "Appraisal",
+      "lease": "Lease",
+      "invoice": "Invoice",
+      "receipt": "Receipt",
+      "bank_statement": "Bank statement",
+      "financial_report": "Financial report",
+      "presentation": "Presentation",
+      "marketing_material": "Marketing material",
+      "photo": "Photo",
+      "spreadsheet": "Spreadsheet",
+      "correspondence": "Correspondence",
+      "legal_document": "Legal document",
+      "tax_document": "Tax document",
+      "other": "Other"
+    },
+    "statuses": {
+      "draft": "Draft",
+      "active": "Active",
+      "expired": "Expired",
+      "superseded": "Superseded",
+      "archived": "Archived"
+    },
+    "confidentiality": {
+      "public": "Public",
+      "internal": "Internal",
+      "confidential": "Confidential",
+      "highly_confidential": "Highly confidential"
+    },
+    "upload": {
+      "title": "Upload documents",
+      "dropHint": "Drag files here or browse",
+      "formTitle": "Title",
+      "documentType": "Document type",
+      "category": "Category",
+      "confidentiality": "Confidentiality",
+      "description": "Description",
+      "tags": "Tags",
+      "submit": "Upload",
+      "uploading": "Uploading…",
+      "failed": "Upload failed",
+      "status": {
+        "pending": "Pending",
+        "uploading": "Uploading",
+        "success": "Success",
+        "error": "Error"
       }
     }
   },
@@ -1192,7 +1312,7 @@
   },
   "search": {
     "placeholder": "Search...",
-    "hint": "Search leads, investors, projects, finance, users, notifications, and activity.",
+    "hint": "Search leads, investors, projects, finance, documents, users, notifications, and activity.",
     "empty": "No results found for your query.",
     "errors": {
       "failed": "Search failed. Please try again."
@@ -1221,7 +1341,7 @@
       "user": "Users",
       "notification": "Notifications",
       "activity": "Activity",
-      "document": "Documents (coming soon)",
+      "document": "Documents",
       "unit": "Units (coming soon)",
       "construction": "Construction (coming soon)",
       "email": "Emails (coming soon)"
@@ -1232,7 +1352,8 @@
       "projects": "Projects",
       "finance": "Finance",
       "admin_users": "Users",
-      "activity": "Activity"
+      "activity": "Activity",
+      "documents": "Documents"
     }
   },
   "validation": {

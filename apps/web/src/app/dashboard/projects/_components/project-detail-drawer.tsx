@@ -11,6 +11,7 @@ import {
   type Project,
 } from '@/lib/api/projects';
 import { EntityActivityTimeline } from '@/app/dashboard/_components/entity-activity-timeline';
+import { EntityDocumentsPanel } from '@/app/dashboard/_components/entity-documents-panel';
 import { useProjectLabels } from '@/lib/i18n/project-labels';
 
 interface ProjectDetailDrawerProps {
@@ -215,6 +216,8 @@ export function ProjectDetailDrawer({
         <DetailSection title={t('sections.notes')}>
           <DetailField label={t('detail.notes')} value={project.notes ?? t('noNotes')} />
         </DetailSection>
+
+        <EntityDocumentsPanel entityType="project" entityId={project.id} projectId={project.id} />
 
         <EntityActivityTimeline entityType="project" entityId={project.id} />
 

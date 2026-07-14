@@ -39,7 +39,8 @@ export type ActivityEntityType =
   | 'transaction'
   | 'project_budget'
   | 'funding_commitment'
-  | 'payment_obligation';
+  | 'payment_obligation'
+  | 'document';
 
 export type ActivitySource =
   | 'web'

@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 
 import { DashboardHeaderActions } from '@/app/dashboard/_components/dashboard-header-actions';
 import { EntityActivityTimeline } from '@/app/dashboard/_components/entity-activity-timeline';
-import {
+import { EntityDocumentsPanel } from '@/app/dashboard/_components/entity-documents-panel';
   assignUserRoles,
   canViewUsers,
   createUser,
@@ -190,6 +190,7 @@ export function UsersAdminWorkspace() {
           <p>{selected.email}</p>
           <p>{selected.job_title ?? tCommon('noValue')}</p>
           {selected.is_demo && <span className="dashboard-shell__nav-badge">{tCommon('demo')}</span>}
+          <EntityDocumentsPanel entityType="user" entityId={selected.id} />
           <EntityActivityTimeline entityType="user" entityId={selected.id} />
         </section>
       )}

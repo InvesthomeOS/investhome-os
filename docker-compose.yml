@@ -63,6 +63,8 @@ services:
       start_period: 20s
     networks:
       - investhome-net
+    volumes:
+      - document_storage:/var/lib/investhome/documents
 
   web:
     build:
@@ -123,6 +125,7 @@ volumes:
   postgres_data:
   redis_data:
   n8n_data:
+  document_storage:
 
 networks:
   investhome-net:

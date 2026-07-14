@@ -78,12 +78,12 @@ export const SEARCH_ENTITY_TYPES = [
   'user',
   'notification',
   'activity',
+  'document',
 ] as const;
 
 export type SearchEntityType = (typeof SEARCH_ENTITY_TYPES)[number];
 
 export const FUTURE_SEARCH_ENTITY_TYPES = [
-  'document',
   'unit',
   'construction',
   'email',

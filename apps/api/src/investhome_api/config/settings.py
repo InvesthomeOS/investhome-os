@@ -44,6 +44,16 @@ class Settings(BaseSettings):
         alias="API_CORS_ORIGINS",
     )
 
+    document_storage_root: str = Field(
+        default="/var/lib/investhome/documents",
+        alias="DOCUMENT_STORAGE_ROOT",
+    )
+    document_storage_provider: str = Field(default="local", alias="DOCUMENT_STORAGE_PROVIDER")
+    document_max_upload_bytes: int = Field(
+        default=52_428_800,
+        alias="DOCUMENT_MAX_UPLOAD_BYTES",
+    )
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, value: Any) -> list[str]:

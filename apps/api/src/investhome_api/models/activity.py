@@ -64,6 +64,7 @@ class ActivityEntityType(str, enum.Enum):
     PROJECT_BUDGET = "project_budget"
     FUNDING_COMMITMENT = "funding_commitment"
     PAYMENT_OBLIGATION = "payment_obligation"
+    DOCUMENT = "document"
 
 
 class ActivityLog(Base):

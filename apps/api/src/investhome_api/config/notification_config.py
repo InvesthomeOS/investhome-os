@@ -33,6 +33,7 @@ ENTITY_RESOURCE_MAP: dict[str, str] = {
     "payment_obligation": "finance",
     "user": "users",
     "role": "roles",
+    "document": "documents",
 }
 
 SECURITY_ENTITY_TYPES = frozenset({"user", "role"})

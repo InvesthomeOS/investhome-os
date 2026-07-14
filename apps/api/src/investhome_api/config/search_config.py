@@ -16,13 +16,13 @@ SEARCH_ENTITY_TYPES = frozenset(
         "user",
         "notification",
         "activity",
+        "document",
     }
 )
 
 # Future entity types (UI may show as disabled filters).
 FUTURE_SEARCH_ENTITY_TYPES = frozenset(
     {
-        "document",
         "unit",
         "construction",
         "email",
@@ -40,6 +40,7 @@ ENTITY_PERMISSION_RESOURCE: dict[str, str] = {
     "user": "users",
     "notification": "notifications",
     "activity": "activity",
+    "document": "documents",
 }
 
 ENTITY_LINK_MODULES: dict[str, str] = {
@@ -53,6 +54,7 @@ ENTITY_LINK_MODULES: dict[str, str] = {
     "user": "admin/users",
     "notification": "dashboard",
     "activity": "activity",
+    "document": "documents",
 }
 
 FINANCE_TAB_BY_ENTITY: dict[str, str] = {

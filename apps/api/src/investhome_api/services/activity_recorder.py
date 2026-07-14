@@ -125,6 +125,30 @@ def log_entity_archived(
     )
 
 
+def log_entity_restored(
+    db: Session,
+    *,
+    entity_type: ActivityEntityType,
+    entity_id: UUID,
+    description_key: str,
+    actor: User | None,
+    metadata: dict[str, Any] | None = None,
+    request: Request | None = None,
+    is_demo: bool = False,
+) -> None:
+    log_activity(
+        db,
+        action=ActivityAction.RESTORED,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        description_key=description_key,
+        actor_user=actor,
+        metadata=metadata,
+        request_context=activity_context_from_request(request),
+        is_demo=is_demo,
+    )
+
+
 def log_security_event(
     db: Session,
     *,

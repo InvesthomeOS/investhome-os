@@ -36,6 +36,7 @@ ENTITY_RESOURCE_MAP: dict[ActivityEntityType, str] = {
     ActivityEntityType.PROJECT_BUDGET: "finance",
     ActivityEntityType.FUNDING_COMMITMENT: "finance",
     ActivityEntityType.PAYMENT_OBLIGATION: "finance",
+    ActivityEntityType.DOCUMENT: "documents",
 }
 
 SECURITY_ENTITY_TYPES = frozenset(

@@ -7,6 +7,9 @@ from investhome_api.config.settings import get_settings
 from investhome_api.db.base import Base
 from investhome_api.models import (  # noqa: F401
     ActivityLog,
+    Document,
+    DocumentAnalysis,
+    DocumentLink,
     FinanceTransaction,
     FinancialAccount,
     FundingCommitment,

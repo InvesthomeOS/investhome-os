@@ -233,3 +233,72 @@ def notify_users_with_permission(
                 source=source,
                 created_by=created_by,
             )
+
+
+def notify_document_uploaded_confidential(
+    db: Session,
+    *,
+    document,
+    actor,
+) -> None:
+    notify_users_with_permission(
+        db,
+        resource="documents",
+        action="view_highly_confidential",
+        type=NotificationType.DOCUMENT,
+        priority=NotificationPriority.HIGH,
+        title_key="notifications.document.confidential_uploaded.title",
+        message_key="notifications.document.confidential_uploaded.message",
+        rule_key="document.confidential_uploaded",
+        related_entity_type="document",
+        related_entity_id=document.id,
+        metadata={"title": document.title},
+        created_by=actor.id if actor is not None else None,
+    )
+
+
+def notify_document_version_uploaded(
+    db: Session,
+    *,
+    document,
+    actor,
+) -> None:
+    notify_users_with_permission(
+        db,
+        resource="documents",
+        action="view",
+        type=NotificationType.DOCUMENT,
+        priority=NotificationPriority.MEDIUM,
+        title_key="notifications.document.version_uploaded.title",
+        message_key="notifications.document.version_uploaded.message",
+        rule_key="document.version_uploaded",
+        related_entity_type="document",
+        related_entity_id=document.id,
+        metadata={
+            "title": document.title,
+            "version_number": document.version_number,
+        },
+        created_by=actor.id if actor is not None else None,
+    )
+
+
+def notify_document_expiration_approaching(
+    db: Session,
+    *,
+    recipient_user_id: UUID,
+    document_id: UUID,
+    metadata: dict[str, object] | None = None,
+) -> None:
+    create_notification(
+        db,
+        recipient_user_id=recipient_user_id,
+        type=NotificationType.DOCUMENT,
+        priority=NotificationPriority.MEDIUM,
+        title_key="notifications.document.expiration_approaching.title",
+        message_key="notifications.document.expiration_approaching.message",
+        rule_key="document.expiration_approaching",
+        related_entity_type="document",
+        related_entity_id=document_id,
+        metadata=metadata,
+        source=NotificationSource.SYSTEM,
+    )

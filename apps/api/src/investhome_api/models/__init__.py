@@ -5,6 +5,16 @@ from investhome_api.models.activity import (
     ActivityLog,
     ActivitySource,
 )
+from investhome_api.models.document import (
+    ConfidentialityLevel,
+    Document,
+    DocumentAnalysis,
+    DocumentLink,
+    DocumentStatus,
+    DocumentType,
+    ProcessingStatus,
+    StorageProvider,
+)
 from investhome_api.models.finance import (
     AccountStatus,
     AccountType,
@@ -60,6 +70,14 @@ __all__ = [
     "ActivityActorType",
     "ActivityEntityType",
     "ActivitySource",
+    "Document",
+    "DocumentLink",
+    "DocumentAnalysis",
+    "DocumentType",
+    "DocumentStatus",
+    "ConfidentialityLevel",
+    "ProcessingStatus",
+    "StorageProvider",
     "Notification",
     "NotificationType",
     "NotificationPriority",

@@ -27,6 +27,7 @@ export function SidebarNav() {
   const tCommon = useTranslations('common');
   const { user, canViewAdmin } = useAuth();
   const canViewActivity = user ? hasPermission(user, 'activity', 'view') : false;
+  const canViewDocuments = user ? hasPermission(user, 'documents', 'view') : false;
 
   return (
     <aside className="dashboard-shell__sidebar">
@@ -68,6 +69,20 @@ export function SidebarNav() {
             </Link>
           );
         })}
+
+        {canViewDocuments && (
+          <Link
+            href={'/dashboard/documents' as Route}
+            className={`dashboard-shell__nav-link${
+              pathname === '/dashboard/documents' || pathname.startsWith('/dashboard/documents/')
+                ? ' dashboard-shell__nav-link--active'
+                : ''
+            }`}
+            aria-current={pathname.startsWith('/dashboard/documents') ? 'page' : undefined}
+          >
+            <span>{t('documents')}</span>
+          </Link>
+        )}
 
         {canViewActivity && (
           <Link

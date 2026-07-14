@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from 'next-intl';
 
 import { formatBudget, formatDate, type Lead } from '@/lib/api/leads';
 import { EntityActivityTimeline } from '@/app/dashboard/_components/entity-activity-timeline';
+import { EntityDocumentsPanel } from '@/app/dashboard/_components/entity-documents-panel';
 import { useLeadLabels } from '@/lib/i18n/lead-labels';
 
 interface LeadDetailDrawerProps {
@@ -99,6 +100,8 @@ export function LeadDetailDrawer({
           <h3>{t('detail.notes')}</h3>
           <p>{lead.notes?.trim() ? lead.notes : t('noNotes')}</p>
         </div>
+
+        <EntityDocumentsPanel entityType="lead" entityId={lead.id} leadId={lead.id} />
 
         <EntityActivityTimeline entityType="lead" entityId={lead.id} />
 

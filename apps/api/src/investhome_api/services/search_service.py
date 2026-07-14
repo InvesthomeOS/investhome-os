@@ -23,6 +23,7 @@ from investhome_api.config.search_config import (
     SEARCH_ENTITY_TYPES,
 )
 from investhome_api.models.activity import ActivityLog
+from investhome_api.models.document import Document
 from investhome_api.models.finance import (
     FinanceTransaction,
     FinancialAccount,
@@ -41,6 +42,7 @@ from investhome_api.services.activity_service import (
 )
 from investhome_api.services.notification_service import user_can_view_notification
 from investhome_api.services.permission_service import is_super_admin, user_has_permission
+from investhome_api.services.document_service import confidentiality_filter, user_can_view_document
 
 
 @dataclass
@@ -764,6 +766,69 @@ def _search_activity(
     return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
 
 
+def _search_documents(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "document"):
+        return []
+    pattern = _pattern(query)
+    stmt = select(Document).where(
+        Document.archived_at.is_(None),
+        Document.is_latest_version.is_(True),
+    )
+    conf_filter = confidentiality_filter(user)
+    if conf_filter is not True:
+        stmt = stmt.where(conf_filter)
+    if filters.status:
+        stmt = stmt.where(Document.status == filters.status)
+    stmt = stmt.where(
+        or_(
+            Document.title.ilike(pattern),
+            Document.original_file_name.ilike(pattern),
+            Document.category.ilike(pattern),
+            Document.description.ilike(pattern),
+            Document.tags.ilike(pattern),
+            cast(Document.document_type, String).ilike(pattern),
+        )
+    )
+    documents = db.scalars(stmt.limit(limit * 2)).all()
+    results: list[InternalSearchResult] = []
+    for document in documents:
+        if not user_can_view_document(user, document):
+            continue
+        if not _apply_date_filter(document.updated_at, filters):
+            continue
+        fields = {
+            "title": document.title,
+            "file_name": document.original_file_name,
+            "category": document.category,
+            "description": document.description,
+            "tags": document.tags,
+            "document_type": _enum_value(document.document_type),
+        }
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="document",
+                entity_id=document.id,
+                title=document.title,
+                subtitle=document.original_file_name,
+                preview=document.description or document.category,
+                status=_enum_value(document.status),
+                created_at=document.created_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
 PROVIDER_MAP = {
     "lead": _search_leads,
     "investor": _search_investors,
@@ -775,6 +840,7 @@ PROVIDER_MAP = {
     "user": _search_users,
     "notification": _search_notifications,
     "activity": _search_activity,
+    "document": _search_documents,
 }
 
 ENTITY_LABEL_KEYS = {
@@ -788,6 +854,7 @@ ENTITY_LABEL_KEYS = {
     "user": "search.entities.user",
     "notification": "search.entities.notification",
     "activity": "search.entities.activity",
+    "document": "search.entities.document",
 }
 
 

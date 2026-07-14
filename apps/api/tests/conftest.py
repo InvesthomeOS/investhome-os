@@ -10,7 +10,7 @@ from investhome_api.config.settings import get_settings
 from investhome_api.db.base import Base
 from investhome_api.db.session import get_db
 from investhome_api.main import app
-from investhome_api.models.activity import ActivityLog  # noqa: F401
+from investhome_api.models.document import Document, DocumentAnalysis, DocumentLink  # noqa: F401
 from investhome_api.models.notification import Notification  # noqa: F401
 from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole  # noqa: F401
 
@@ -60,8 +60,8 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
 
     db = TestingSessionLocal()
     permission_map: dict[tuple[str, str], Permission] = {}
-    for resource in {"leads", "users", "roles", "executive", "activity", "finance", "investors", "projects", "notifications", "search"}:
-        for action in {"view", "create", "update", "manage", "archive"}:
+    for resource in {"leads", "users", "roles", "executive", "activity", "finance", "investors", "projects", "notifications", "search", "documents"}:
+        for action in {"view", "create", "update", "manage", "archive", "download", "view_confidential", "view_highly_confidential"}:
             key = (resource, action)
             if key in permission_map:
                 continue
@@ -98,6 +98,13 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
             permission_id=permission_map[("activity", "view")].id,
         )
     )
+    for resource, action in (("documents", "view"), ("documents", "download")):
+        db.add(
+            RolePermission(
+                role_id=roles["read_only"].id,
+                permission_id=permission_map[(resource, action)].id,
+            )
+        )
     for resource in ("leads", "investors", "projects", "finance"):
         db.add(
             RolePermission(
@@ -123,6 +130,13 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
             permission_id=permission_map[("search", "view")].id,
         )
     )
+    for action in ("view", "create", "update", "archive", "download", "view_confidential", "view_highly_confidential"):
+        db.add(
+            RolePermission(
+                role_id=roles["super_admin"].id,
+                permission_id=permission_map[("documents", action)].id,
+            )
+        )
 
     hashed = hash_password("Demo123!")
     specs = {
