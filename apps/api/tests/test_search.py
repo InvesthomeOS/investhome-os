@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from investhome_api.models.lead import Lead, LeadStatus
-from investhome_api.models.user_auth import User
+from investhome_api.models.user_auth import Permission, User
 from investhome_api.services.search_service import global_search
 
 
@@ -105,6 +105,49 @@ def test_search_empty_query_rejected(auth_client: TestClient) -> None:
     _login(auth_client, "admin@example.com")
     response = auth_client.get("/search?q=%20")
     assert response.status_code == 422
+
+
+def test_search_excludes_archived_leads(client: TestClient) -> None:
+    create = client.post(
+        "/leads",
+        json={
+            "full_name": "Archived Search Lead",
+            "email": "archived.search@example.com",
+            "status": LeadStatus.NEW.value,
+        },
+    )
+    assert create.status_code == 201
+    lead_id = create.json()["id"]
+
+    archive = client.delete(f"/leads/{lead_id}")
+    assert archive.status_code == 200
+
+    response = client.get("/search?q=Archived%20Search%20Lead")
+    assert response.status_code == 200
+    payload = response.json()
+    lead_group = next((group for group in payload["groups"] if group["entity_type"] == "lead"), None)
+    if lead_group is not None:
+        assert all(item["entity_id"] != lead_id for item in lead_group["items"])
+
+
+def test_sync_system_permissions_adds_search_grants(auth_client: TestClient) -> None:
+    from investhome_api.db.auth_seed import sync_system_permissions
+    from investhome_api.models.user_auth import Permission
+
+    session = _session(auth_client)
+    try:
+        before = session.scalar(select(Permission).where(Permission.resource == "search", Permission.action == "view"))
+        if before is None:
+            synced = sync_system_permissions()
+            assert synced >= 1
+        else:
+            sync_system_permissions()
+    finally:
+        session.close()
+
+    _login(auth_client, "sales@example.com")
+    response = auth_client.get("/search?q=Lead")
+    assert response.status_code == 200
 
 
 def test_search_user_isolated_from_other_recipients(auth_client: TestClient) -> None:

@@ -135,6 +135,60 @@ def seed_permissions_and_roles() -> tuple[int, int]:
         return len(permission_map), len(role_map)
 
 
+def sync_system_permissions() -> int:
+    """Ensure new resources/actions and default role grants exist on upgraded databases."""
+    with SessionLocal() as session:
+        permission_map: dict[str, Permission] = {
+            _permission_key(permission.resource, permission.action): permission
+            for permission in session.scalars(select(Permission)).all()
+        }
+        added = 0
+
+        for resource in sorted(RESOURCES):
+            for action in sorted(ACTIONS):
+                key = _permission_key(resource, action)
+                if key in permission_map:
+                    continue
+                permission = Permission(
+                    resource=resource,
+                    action=action,
+                    description=f"{action.title()} {resource.replace('_', ' ')}",
+                )
+                session.add(permission)
+                permission_map[key] = permission
+                added += 1
+
+        session.flush()
+
+        roles = {
+            role.code: role
+            for role in session.scalars(select(Role).where(Role.is_system_role.is_(True))).all()
+        }
+        existing_grants = {
+            (grant.role_id, grant.permission_id)
+            for grant in session.scalars(select(RolePermission)).all()
+        }
+
+        for role_code, grants in DEFAULT_ROLE_PERMISSIONS.items():
+            role = roles.get(role_code)
+            if role is None:
+                continue
+            for resource, action in grants:
+                permission = permission_map.get(_permission_key(resource, action))
+                if permission is None:
+                    continue
+                key = (role.id, permission.id)
+                if key in existing_grants:
+                    continue
+                session.add(RolePermission(role_id=role.id, permission_id=permission.id))
+                existing_grants.add(key)
+                added += 1
+
+        if added:
+            session.commit()
+        return added
+
+
 def seed_demo_users() -> int:
     with SessionLocal() as session:
         existing = session.scalar(select(User.id).limit(1))

@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from investhome_api.db.activity_seed import seed_activity_logs
 from investhome_api.db.notification_seed import seed_notifications
-from investhome_api.db.auth_seed import seed_demo_users, seed_permissions_and_roles
+from investhome_api.db.auth_seed import seed_demo_users, seed_permissions_and_roles, sync_system_permissions
 from investhome_api.db.finance_seed import seed_demo_finance
 from investhome_api.db.investor_seed import DEMO_INVESTORS
 from investhome_api.db.project_seed import DEMO_PROJECTS
@@ -183,6 +183,7 @@ def seed_demo_projects() -> int:
 
 def main() -> None:
     permissions_inserted, roles_inserted = seed_permissions_and_roles()
+    permissions_synced = sync_system_permissions()
     users_inserted = seed_demo_users()
     leads_inserted = seed_demo_leads()
     investors_inserted = seed_demo_investors()
@@ -191,6 +192,8 @@ def main() -> None:
     activity_inserted = seed_activity_logs()
     notifications_inserted = seed_notifications()
     print(f"Seeded {permissions_inserted} permission(s) and {roles_inserted} role(s).")
+    if permissions_synced:
+        print(f"Synced {permissions_synced} permission grant(s).")
     print(f"Seeded {users_inserted} demo user(s).")
     print(f"Seeded {leads_inserted} demo lead(s).")
     print(f"Seeded {investors_inserted} demo investor(s).")
