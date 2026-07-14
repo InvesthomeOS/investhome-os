@@ -24,6 +24,10 @@ export default async function ModulePage({ params }: ModulePageProps) {
     redirect('/dashboard/investors' as Route);
   }
 
+  if (module === 'projects') {
+    redirect('/dashboard/projects' as Route);
+  }
+
   const t = await getTranslations('navigation');
   const tDashboard = await getTranslations('dashboard');
   const tCommon = await getTranslations('common');

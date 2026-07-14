@@ -5,9 +5,11 @@ from decimal import Decimal
 from sqlalchemy import select
 
 from investhome_api.db.investor_seed import DEMO_INVESTORS
+from investhome_api.db.project_seed import DEMO_PROJECTS
 from investhome_api.db.session import SessionLocal
 from investhome_api.models.investor import Investor
 from investhome_api.models.lead import Lead, LeadStatus
+from investhome_api.models.project import Project
 
 DEMO_LEADS: list[dict[str, object]] = [
     {
@@ -161,11 +163,27 @@ def seed_demo_investors() -> int:
         return len(DEMO_INVESTORS)
 
 
+def seed_demo_projects() -> int:
+    """Insert demo projects when the table is empty. Returns number of rows inserted."""
+    with SessionLocal() as session:
+        existing = session.scalar(select(Project.id).limit(1))
+        if existing is not None:
+            return 0
+
+        for payload in DEMO_PROJECTS:
+            session.add(Project(**payload, is_demo=True))
+
+        session.commit()
+        return len(DEMO_PROJECTS)
+
+
 def main() -> None:
     leads_inserted = seed_demo_leads()
     investors_inserted = seed_demo_investors()
+    projects_inserted = seed_demo_projects()
     print(f"Seeded {leads_inserted} demo lead(s).")
     print(f"Seeded {investors_inserted} demo investor(s).")
+    print(f"Seeded {projects_inserted} demo project(s).")
 
 
 if __name__ == "__main__":

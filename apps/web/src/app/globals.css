@@ -612,3 +612,57 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.projects__stats {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.leads__meta {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+  margin-top: 0.125rem;
+}
+
+.leads-form__section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0.25rem 0 0;
+}
+
+.leads-drawer__panel--wide {
+  width: min(640px, 100vw);
+}
+
+.leads-drawer__section {
+  margin-top: 1.25rem;
+}
+
+.leads-drawer__section:first-of-type {
+  margin-top: 0;
+}
+
+.leads-drawer__section h3 {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 0.625rem;
+}
+
+@media (max-width: 1200px) {
+  .projects__stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 960px) {
+  .projects__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
