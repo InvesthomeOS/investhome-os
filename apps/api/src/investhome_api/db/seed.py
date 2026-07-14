@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from sqlalchemy import select
 
+from investhome_api.db.finance_seed import seed_demo_finance
 from investhome_api.db.investor_seed import DEMO_INVESTORS
 from investhome_api.db.project_seed import DEMO_PROJECTS
 from investhome_api.db.session import SessionLocal
@@ -181,9 +182,11 @@ def main() -> None:
     leads_inserted = seed_demo_leads()
     investors_inserted = seed_demo_investors()
     projects_inserted = seed_demo_projects()
+    finance_inserted = seed_demo_finance()
     print(f"Seeded {leads_inserted} demo lead(s).")
     print(f"Seeded {investors_inserted} demo investor(s).")
     print(f"Seeded {projects_inserted} demo project(s).")
+    print(f"Seeded {finance_inserted} demo finance record(s).")
 
 
 if __name__ == "__main__":

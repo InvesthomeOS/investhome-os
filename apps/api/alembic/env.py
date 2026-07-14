@@ -5,7 +5,16 @@ from sqlalchemy import engine_from_config, pool
 
 from investhome_api.config.settings import get_settings
 from investhome_api.db.base import Base
-from investhome_api.models import Investor, Lead, Project  # noqa: F401
+from investhome_api.models import (  # noqa: F401
+    FinanceTransaction,
+    FinancialAccount,
+    FundingCommitment,
+    Investor,
+    Lead,
+    PaymentObligation,
+    Project,
+    ProjectBudget,
+)
 
 config = context.config
 

@@ -28,6 +28,10 @@ export default async function ModulePage({ params }: ModulePageProps) {
     redirect('/dashboard/projects' as Route);
   }
 
+  if (module === 'finance') {
+    redirect('/dashboard/finance' as Route);
+  }
+
   const t = await getTranslations('navigation');
   const tDashboard = await getTranslations('dashboard');
   const tCommon = await getTranslations('common');

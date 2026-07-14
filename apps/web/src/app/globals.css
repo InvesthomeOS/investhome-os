@@ -666,3 +666,59 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.finance__stats {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.finance__stats .investors__stat-card strong {
+  font-size: 1.125rem;
+}
+
+.finance__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.75rem;
+}
+
+.finance__tab {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.finance__tab:hover {
+  color: var(--foreground);
+  background: var(--surface);
+}
+
+.finance__tab--active {
+  color: var(--foreground);
+  background: var(--surface);
+  border-color: var(--border);
+  font-weight: 600;
+}
+
+@media (max-width: 1400px) {
+  .finance__stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 960px) {
+  .finance__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
