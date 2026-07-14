@@ -3,10 +3,11 @@ from decimal import Decimal
 from math import ceil
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import asc, desc, func, or_, select
 from sqlalchemy.orm import Session
 
+from investhome_api.api.deps.auth import require_permission
 from investhome_api.db.session import get_db
 from investhome_api.models.finance import (
     AccountStatus,
@@ -27,6 +28,7 @@ from investhome_api.models.finance import (
     TransactionType,
 )
 from investhome_api.models.investor import Investor
+from investhome_api.models.user_auth import User
 from investhome_api.models.project import Project
 from investhome_api.schemas.finance import (
     FinanceStatsResponse,
@@ -58,6 +60,12 @@ from investhome_api.services.finance_service import (
 )
 
 router = APIRouter(prefix="/finance", tags=["finance"])
+
+_finance_view = Depends(require_permission("finance", "view"))
+_finance_create = Depends(require_permission("finance", "create"))
+_finance_update = Depends(require_permission("finance", "update"))
+_finance_archive = Depends(require_permission("finance", "archive"))
+_finance_delete = Depends(require_permission("finance", "delete"))
 
 accounts_router = APIRouter(prefix="/accounts", tags=["finance"])
 transactions_router = APIRouter(prefix="/transactions", tags=["finance"])
@@ -279,12 +287,18 @@ def _validate_transaction_fks(
 
 
 @router.get("/stats", response_model=FinanceStatsResponse)
-def get_finance_stats(db: Session = Depends(get_db)) -> FinanceStatsResponse:
+def get_finance_stats(
+    db: Session = Depends(get_db),
+    _user: User = _finance_view,
+) -> FinanceStatsResponse:
     return FinanceStatsResponse(**compute_finance_stats(db))
 
 
 @router.get("/summary", response_model=FinanceSummaryResponse)
-def get_finance_summary(db: Session = Depends(get_db)) -> FinanceSummaryResponse:
+def get_finance_summary(
+    db: Session = Depends(get_db),
+    _user: User = _finance_view,
+) -> FinanceSummaryResponse:
     return FinanceSummaryResponse(**compute_executive_summary(db))
 
 
@@ -303,6 +317,7 @@ def list_accounts(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
+    _user: User = _finance_view,
 ) -> FinancialAccountListResponse:
     sort_column = ACCOUNT_SORTABLE_FIELDS.get(sort_by, FinancialAccount.updated_at)
     order_fn = asc if sort_order == "asc" else desc
@@ -344,7 +359,11 @@ def list_accounts(
 
 
 @accounts_router.get("/{account_id}", response_model=FinancialAccountResponse)
-def get_account(account_id: UUID, db: Session = Depends(get_db)) -> FinancialAccountResponse:
+def get_account(
+    account_id: UUID,
+    db: Session = Depends(get_db),
+    _user: User = _finance_view,
+) -> FinancialAccountResponse:
     account = _get_account_or_404(account_id, db)
     return FinancialAccountResponse.model_validate(account)
 
@@ -353,6 +372,7 @@ def get_account(account_id: UUID, db: Session = Depends(get_db)) -> FinancialAcc
 def create_account(
     payload: FinancialAccountCreate,
     db: Session = Depends(get_db),
+    _user: User = _finance_create,
 ) -> FinancialAccountResponse:
     account = FinancialAccount(**payload.model_dump())
     db.add(account)
@@ -366,6 +386,7 @@ def update_account(
     account_id: UUID,
     payload: FinancialAccountUpdate,
     db: Session = Depends(get_db),
+    _user: User = _finance_update,
 ) -> FinancialAccountResponse:
     account = _get_account_or_404(account_id, db)
     updates = payload.model_dump(exclude_unset=True)
@@ -383,7 +404,11 @@ def update_account(
 
 
 @accounts_router.delete("/{account_id}", response_model=FinancialAccountResponse)
-def archive_account(account_id: UUID, db: Session = Depends(get_db)) -> FinancialAccountResponse:
+def archive_account(
+    account_id: UUID,
+    db: Session = Depends(get_db),
+    _user: User = _finance_archive,
+) -> FinancialAccountResponse:
     account = _get_account_or_404(account_id, db)
     if account.archived_at is not None:
         raise HTTPException(
@@ -417,6 +442,7 @@ def list_transactions(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
+    _user: User = _finance_view,
 ) -> FinanceTransactionListResponse:
     sort_column = TRANSACTION_SORTABLE_FIELDS.get(sort_by, FinanceTransaction.transaction_date)
     order_fn = asc if sort_order == "asc" else desc
@@ -471,6 +497,7 @@ def list_transactions(
 def get_transaction(
     transaction_id: UUID,
     db: Session = Depends(get_db),
+    _user: User = _finance_view,
 ) -> FinanceTransactionResponse:
     transaction = _get_transaction_or_404(transaction_id, db)
     return _enrich_transaction(transaction, db)
@@ -483,7 +510,9 @@ def get_transaction(
 )
 def create_transaction(
     payload: FinanceTransactionCreate,
+    request: Request,
     db: Session = Depends(get_db),
+    actor: User = _finance_create,
 ) -> FinanceTransactionResponse:
     _validate_transaction_fks(
         db,
@@ -493,6 +522,15 @@ def create_transaction(
     )
     transaction = FinanceTransaction(**payload.model_dump())
     db.add(transaction)
+    db.flush()
+    from investhome_api.services.activity_recorder import log_finance_transaction_event
+
+    log_finance_transaction_event(
+        db,
+        transaction=transaction,
+        actor=actor,
+        request=request,
+    )
     db.commit()
     db.refresh(transaction)
     return _enrich_transaction(transaction, db)
@@ -502,9 +540,12 @@ def create_transaction(
 def update_transaction(
     transaction_id: UUID,
     payload: FinanceTransactionUpdate,
+    request: Request,
     db: Session = Depends(get_db),
+    actor: User = _finance_update,
 ) -> FinanceTransactionResponse:
     transaction = _get_transaction_or_404(transaction_id, db)
+    previous_status = transaction.status
     updates = payload.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(
@@ -520,6 +561,16 @@ def update_transaction(
     for field, value in updates.items():
         setattr(transaction, field, value)
     transaction.updated_at = datetime.now(UTC)
+    db.flush()
+    from investhome_api.services.activity_recorder import log_finance_transaction_event
+
+    log_finance_transaction_event(
+        db,
+        transaction=transaction,
+        actor=actor,
+        request=request,
+        previous_status=previous_status,
+    )
     db.commit()
     db.refresh(transaction)
     return _enrich_transaction(transaction, db)
@@ -529,6 +580,7 @@ def update_transaction(
 def archive_transaction(
     transaction_id: UUID,
     db: Session = Depends(get_db),
+    _user: User = _finance_archive,
 ) -> FinanceTransactionResponse:
     transaction = _get_transaction_or_404(transaction_id, db)
     if transaction.archived_at is not None:
@@ -554,6 +606,7 @@ def list_budgets(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
+    _user: User = _finance_view,
 ) -> ProjectBudgetListResponse:
     sort_column = BUDGET_SORTABLE_FIELDS.get(sort_by, ProjectBudget.updated_at)
     order_fn = asc if sort_order == "asc" else desc
@@ -579,7 +632,11 @@ def list_budgets(
 
 
 @budgets_router.get("/{budget_id}", response_model=ProjectBudgetResponse)
-def get_budget(budget_id: UUID, db: Session = Depends(get_db)) -> ProjectBudgetResponse:
+def get_budget(
+    budget_id: UUID,
+    db: Session = Depends(get_db),
+    _user: User = _finance_view,
+) -> ProjectBudgetResponse:
     budget = _get_budget_or_404(budget_id, db)
     return _enrich_budget(budget, db)
 
@@ -588,6 +645,7 @@ def get_budget(budget_id: UUID, db: Session = Depends(get_db)) -> ProjectBudgetR
 def create_budget(
     payload: ProjectBudgetCreate,
     db: Session = Depends(get_db),
+    _user: User = _finance_create,
 ) -> ProjectBudgetResponse:
     _ensure_project_exists(payload.project_id, db)
     budget = ProjectBudget(**payload.model_dump())
@@ -602,6 +660,7 @@ def update_budget(
     budget_id: UUID,
     payload: ProjectBudgetUpdate,
     db: Session = Depends(get_db),
+    _user: User = _finance_update,
 ) -> ProjectBudgetResponse:
     budget = _get_budget_or_404(budget_id, db)
     updates = payload.model_dump(exclude_unset=True)
@@ -621,7 +680,11 @@ def update_budget(
 
 
 @budgets_router.delete("/{budget_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_budget(budget_id: UUID, db: Session = Depends(get_db)) -> None:
+def delete_budget(
+    budget_id: UUID,
+    db: Session = Depends(get_db),
+    _user: User = _finance_delete,
+) -> None:
     budget = _get_budget_or_404(budget_id, db)
     db.delete(budget)
     db.commit()
@@ -639,6 +702,7 @@ def list_commitments(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
+    _user: User = _finance_view,
 ) -> FundingCommitmentListResponse:
     sort_column = COMMITMENT_SORTABLE_FIELDS.get(sort_by, FundingCommitment.updated_at)
     order_fn = asc if sort_order == "asc" else desc
@@ -669,6 +733,7 @@ def list_commitments(
 def get_commitment(
     commitment_id: UUID,
     db: Session = Depends(get_db),
+    _user: User = _finance_view,
 ) -> FundingCommitmentResponse:
     commitment = _get_commitment_or_404(commitment_id, db)
     return _enrich_commitment(commitment, db)
@@ -682,6 +747,7 @@ def get_commitment(
 def create_commitment(
     payload: FundingCommitmentCreate,
     db: Session = Depends(get_db),
+    _user: User = _finance_create,
 ) -> FundingCommitmentResponse:
     _ensure_project_exists(payload.project_id, db)
     _ensure_investor_exists(payload.investor_id, db)
@@ -697,6 +763,7 @@ def update_commitment(
     commitment_id: UUID,
     payload: FundingCommitmentUpdate,
     db: Session = Depends(get_db),
+    _user: User = _finance_update,
 ) -> FundingCommitmentResponse:
     commitment = _get_commitment_or_404(commitment_id, db)
     updates = payload.model_dump(exclude_unset=True)
@@ -718,7 +785,11 @@ def update_commitment(
 
 
 @commitments_router.delete("/{commitment_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_commitment(commitment_id: UUID, db: Session = Depends(get_db)) -> None:
+def delete_commitment(
+    commitment_id: UUID,
+    db: Session = Depends(get_db),
+    _user: User = _finance_delete,
+) -> None:
     commitment = _get_commitment_or_404(commitment_id, db)
     db.delete(commitment)
     db.commit()
@@ -740,6 +811,7 @@ def list_obligations(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
+    _user: User = _finance_view,
 ) -> PaymentObligationListResponse:
     sort_column = OBLIGATION_SORTABLE_FIELDS.get(sort_by, PaymentObligation.due_date)
     order_fn = asc if sort_order == "asc" else desc
@@ -778,6 +850,7 @@ def list_obligations(
 def get_obligation(
     obligation_id: UUID,
     db: Session = Depends(get_db),
+    _user: User = _finance_view,
 ) -> PaymentObligationResponse:
     obligation = _get_obligation_or_404(obligation_id, db)
     return _enrich_obligation(obligation, db)
@@ -791,6 +864,7 @@ def get_obligation(
 def create_obligation(
     payload: PaymentObligationCreate,
     db: Session = Depends(get_db),
+    _user: User = _finance_create,
 ) -> PaymentObligationResponse:
     if payload.project_id is not None:
         _ensure_project_exists(payload.project_id, db)
@@ -807,9 +881,12 @@ def create_obligation(
 def update_obligation(
     obligation_id: UUID,
     payload: PaymentObligationUpdate,
+    request: Request,
     db: Session = Depends(get_db),
+    actor: User = _finance_update,
 ) -> PaymentObligationResponse:
     obligation = _get_obligation_or_404(obligation_id, db)
+    previous_status = obligation.status
     updates = payload.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(
@@ -823,6 +900,16 @@ def update_obligation(
     for field, value in updates.items():
         setattr(obligation, field, value)
     obligation.updated_at = datetime.now(UTC)
+    db.flush()
+    from investhome_api.services.activity_recorder import log_payment_obligation_event
+
+    log_payment_obligation_event(
+        db,
+        obligation=obligation,
+        actor=actor,
+        request=request,
+        previous_status=previous_status,
+    )
     db.commit()
     db.refresh(obligation)
     return _enrich_obligation(obligation, db)
@@ -832,6 +919,7 @@ def update_obligation(
 def archive_obligation(
     obligation_id: UUID,
     db: Session = Depends(get_db),
+    _user: User = _finance_archive,
 ) -> PaymentObligationResponse:
     obligation = _get_obligation_or_404(obligation_id, db)
     if obligation.archived_at is not None:

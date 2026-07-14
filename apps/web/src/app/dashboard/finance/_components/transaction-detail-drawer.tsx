@@ -7,6 +7,7 @@ import {
   formatShortDate,
   type FinanceTransaction,
 } from '@/lib/api/finance';
+import { EntityActivityTimeline } from '@/app/dashboard/_components/entity-activity-timeline';
 import { useFinanceLabels } from '@/lib/i18n/finance-labels';
 
 interface TransactionDetailDrawerProps {
@@ -130,6 +131,8 @@ export function TransactionDetailDrawer({
             <p>{transaction.notes}</p>
           </section>
         )}
+
+        <EntityActivityTimeline entityType="transaction" entityId={transaction.id} />
 
         <footer className="leads-drawer__footer">
           <button

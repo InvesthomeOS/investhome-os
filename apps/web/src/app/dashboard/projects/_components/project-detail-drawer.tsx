@@ -10,6 +10,7 @@ import {
   formatShortDate,
   type Project,
 } from '@/lib/api/projects';
+import { EntityActivityTimeline } from '@/app/dashboard/_components/entity-activity-timeline';
 import { useProjectLabels } from '@/lib/i18n/project-labels';
 
 interface ProjectDetailDrawerProps {
@@ -214,6 +215,8 @@ export function ProjectDetailDrawer({
         <DetailSection title={t('sections.notes')}>
           <DetailField label={t('detail.notes')} value={project.notes ?? t('noNotes')} />
         </DetailSection>
+
+        <EntityActivityTimeline entityType="project" entityId={project.id} />
 
         <footer className="leads-drawer__footer">
           <button

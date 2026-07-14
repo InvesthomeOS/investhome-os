@@ -20,6 +20,13 @@
   },
   "navigation": {
     "ariaLabel": "Module navigation",
+    "adminSection": "Administration",
+    "admin": {
+      "users": "Users",
+      "roles": "Roles",
+      "permissions": "Permissions"
+    },
+    "activity": "Activity",
     "modules": {
       "executive": {
         "title": "Executive",
@@ -735,6 +742,306 @@
       "critical": "Critical"
     }
   },
+  "executive": {
+    "eyebrow": "Leadership",
+    "title": "Executive Dashboard",
+    "subtitle": "Portfolio intelligence, exceptions, and decision priorities.",
+    "filters": {
+      "period": "Period",
+      "today": "Today",
+      "last7Days": "Last 7 Days",
+      "last30Days": "Last 30 Days",
+      "thisQuarter": "This Quarter",
+      "thisYear": "This Year",
+      "customRange": "Custom Range",
+      "dateFrom": "Start date",
+      "dateTo": "End date",
+      "project": "Project",
+      "allProjects": "All projects",
+      "assignedTo": "Assigned team member",
+      "assignedPlaceholder": "Name",
+      "currency": "Currency"
+    },
+    "cards": {
+      "total_leads": "Total Leads",
+      "qualified_leads": "Qualified Leads",
+      "active_investors": "Active Investors",
+      "total_investment_capacity": "Total Investment Capacity",
+      "active_projects": "Active Projects",
+      "total_portfolio_value": "Total Portfolio Value",
+      "available_cash": "Available Cash",
+      "remaining_funding_need": "Remaining Funding Need",
+      "noComparison": "No prior period comparison"
+    },
+    "severity": {
+      "information": "Information",
+      "warning": "Warning",
+      "critical": "Critical"
+    },
+    "health": {
+      "on_track": "On Track",
+      "attention": "Attention",
+      "at_risk": "At Risk"
+    },
+    "attention": {
+      "title": "Attention Required",
+      "empty": "No exceptions require attention for the current filters.",
+      "overdue_payment": {
+        "title": "Overdue payment",
+        "description": "{payee} — {amount} {currency} is overdue."
+      },
+      "critical_obligation": {
+        "title": "Critical payment obligation",
+        "description": "{payee} requires immediate attention ({amount} {currency})."
+      },
+      "project_overdue": {
+        "title": "Project behind schedule",
+        "description": "{project} is past its target completion date."
+      },
+      "funding_gap": {
+        "title": "Project funding gap",
+        "description": "{project} has an unfunded equity gap of {gap}."
+      },
+      "project_at_risk": {
+        "title": "Project at risk",
+        "description": "{project} has material schedule, budget, or funding exceptions."
+      },
+      "investor_follow_up": {
+        "title": "Investor follow-up overdue",
+        "description": "Follow-up with {name} is overdue."
+      },
+      "inactive_qualified_lead": {
+        "title": "Qualified lead inactive",
+        "description": "{name} has had no recent activity."
+      },
+      "transaction_overdue": {
+        "title": "Transaction past due",
+        "description": "{description} ({amount} {currency}) is past due."
+      },
+      "low_balance": {
+        "title": "Low available balance",
+        "description": "{account} has limited available cash ({currency})."
+      }
+    },
+    "pipeline": {
+      "title": "Sales Pipeline",
+      "wonLost": "Won in period: {won} · Lost in period: {lost}"
+    },
+    "investors": {
+      "title": "Investor Overview",
+      "capacity": "Total investment capacity",
+      "committed": "Total committed",
+      "funded": "Total funded",
+      "remaining": "Remaining committed",
+      "upcoming_follow_up": {
+        "title": "Upcoming investor follow-up",
+        "description": "Follow up with {name}."
+      }
+    },
+    "portfolio": {
+      "title": "Project Portfolio",
+      "totalUnits": "Total units",
+      "portfolioValue": "Portfolio value",
+      "equityRaised": "Equity raised",
+      "table": {
+        "project": "Project",
+        "status": "Status",
+        "completion": "Completion Target",
+        "fundingGap": "Funding Gap",
+        "budgetVariance": "Budget Variance",
+        "health": "Health"
+      }
+    },
+    "financial": {
+      "title": "Financial Overview",
+      "availableCash": "Available cash",
+      "income": "Income in period",
+      "expenses": "Expenses in period",
+      "overdue": "Overdue payments",
+      "inflows": "Inflows",
+      "outflows": "Outflows"
+    },
+    "deadlines": {
+      "title": "Upcoming Deadlines",
+      "empty": "No deadlines match the current filters.",
+      "windows": {
+        "overdue": "Overdue",
+        "next_7_days": "Next 7 Days",
+        "next_30_days": "Next 30 Days",
+        "later": "Later"
+      }
+    },
+    "activity": {
+      "title": "Recent Activity",
+      "empty": "No recent activity for the selected period.",
+      "lead_created": "Lead created: {name}",
+      "investor_created": "Investor added: {name}",
+      "project_created": "Project created: {name}",
+      "project_updated": "Project updated: {name}",
+      "transaction_completed": "Transaction completed: {description} ({amount} {currency})",
+      "funding_commitment_added": "Funding commitment added ({amount} {currency})",
+      "payment_obligation_paid": "Payment marked paid: {payee} ({amount} {currency})"
+    },
+    "quickActions": {
+      "title": "Quick Actions",
+      "addLead": "Add Lead",
+      "addInvestor": "Add Investor",
+      "addProject": "Add Project",
+      "addTransaction": "Add Transaction",
+      "addPaymentObligation": "Add Payment Obligation",
+      "addFundingCommitment": "Add Funding Commitment"
+    },
+    "errors": {
+      "summary": "Unable to load summary metrics.",
+      "section": "Unable to load this section."
+    }
+  },
+  "activity": {
+    "title": "Activity",
+    "subtitle": "Audit trail of meaningful business and security events.",
+    "systemActor": "System",
+    "loadError": "Unable to load activity records.",
+    "empty": "No activity matches your filters.",
+    "resultsCount": "{count} events",
+    "viewMode": {
+      "label": "View mode",
+      "timeline": "Timeline",
+      "table": "Table"
+    },
+    "filters": {
+      "search": "Search",
+      "searchPlaceholder": "Actor or description…",
+      "dateFrom": "From",
+      "dateTo": "To",
+      "entityType": "Record type",
+      "action": "Action",
+      "source": "Source",
+      "all": "All"
+    },
+    "columns": {
+      "dateTime": "Date and Time",
+      "actor": "Actor",
+      "action": "Action",
+      "entityType": "Entity Type",
+      "record": "Record",
+      "source": "Source",
+      "summary": "Summary"
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "pageOf": "Page {page} of {pages}"
+    },
+    "detail": {
+      "eyebrow": "Audit detail",
+      "title": "Activity detail",
+      "requestId": "Request ID",
+      "changedFields": "Changed fields",
+      "viewRecord": "View related record",
+      "notFound": "Activity record not found."
+    },
+    "timeline": {
+      "title": "Activity history",
+      "loading": "Loading activity…",
+      "error": "Unable to load activity history.",
+      "retry": "Retry",
+      "empty": "No activity recorded for this record yet."
+    },
+    "actions": {
+      "created": "Created",
+      "viewed": "Viewed",
+      "updated": "Updated",
+      "status_changed": "Status changed",
+      "archived": "Archived",
+      "restored": "Restored",
+      "deleted": "Deleted",
+      "exported": "Exported",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "login": "Login",
+      "logout": "Logout",
+      "login_failed": "Failed login",
+      "role_assigned": "Role assigned",
+      "role_removed": "Role removed",
+      "permission_changed": "Permission changed",
+      "password_changed": "Password changed",
+      "invited": "Invited",
+      "activated": "Activated",
+      "deactivated": "Deactivated",
+      "payment_completed": "Payment completed",
+      "funding_added": "Funding added",
+      "file_uploaded": "File uploaded",
+      "note_added": "Note added",
+      "other": "Other"
+    },
+    "entityTypes": {
+      "user": "User",
+      "role": "Role",
+      "lead": "Lead",
+      "investor": "Investor",
+      "project": "Project",
+      "financial_account": "Financial account",
+      "transaction": "Transaction",
+      "project_budget": "Project budget",
+      "funding_commitment": "Funding commitment",
+      "payment_obligation": "Payment obligation"
+    },
+    "sources": {
+      "web": "Web",
+      "api": "API",
+      "background_job": "Background job",
+      "automation": "Automation",
+      "import": "Import",
+      "integration": "Integration",
+      "ai_service": "AI service"
+    },
+    "descriptions": {
+      "lead": {
+        "created": "Lead created: {name}",
+        "updated": "Lead updated: {name}",
+        "status_changed": "Lead status changed: {name}",
+        "archived": "Lead archived: {name}"
+      },
+      "investor": {
+        "created": "Investor added: {name}",
+        "updated": "Investor updated: {name}",
+        "status_changed": "Investor status changed: {name}",
+        "archived": "Investor archived: {name}"
+      },
+      "project": {
+        "created": "Project created: {name}",
+        "updated": "Project updated: {name}",
+        "status_changed": "Project status changed: {name}",
+        "financial_updated": "Project financial information updated: {name}",
+        "archived": "Project archived: {name}"
+      },
+      "transaction": {
+        "created": "Transaction created: {description} ({amount} {currency})",
+        "completed": "Transaction completed: {description} ({amount} {currency})"
+      },
+      "payment_obligation": {
+        "paid": "Payment marked paid: {payee} ({amount} {currency})"
+      },
+      "funding_commitment": {
+        "created": "Funding commitment added ({amount} {currency})"
+      },
+      "user": {
+        "login": "User signed in",
+        "logout": "User signed out",
+        "login_failed": "Failed sign-in attempt for {email}",
+        "password_changed": "Password changed",
+        "invited": "User invited",
+        "updated": "User updated",
+        "deactivated": "User deactivated",
+        "role_assigned": "Role assigned to user"
+      },
+      "role": {
+        "created": "Role created",
+        "updated": "Role updated",
+        "permission_changed": "Role permissions changed"
+      }
+    }
+  },
   "validation": {
     "required": "This field is required.",
     "invalidEmail": "Enter a valid email address."
@@ -742,5 +1049,107 @@
   "errors": {
     "requestFailed": "Request failed with status {status}.",
     "generic": "An unexpected error occurred."
+  },
+  "auth": {
+    "eyebrow": "Investhome OS",
+    "title": "Sign in",
+    "subtitle": "Use your internal account to continue.",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "logout": "Sign out",
+    "redirectHint": "You need to sign in to access that page.",
+    "backToLogin": "Back to sign in",
+    "backToDashboard": "Back to dashboard",
+    "unauthorizedTitle": "Authentication required",
+    "unauthorizedDescription": "You must sign in to view this page.",
+    "forbiddenTitle": "Access denied",
+    "forbiddenDescription": "You do not have permission to access this resource.",
+    "demoTitle": "Development demo accounts",
+    "demoAdmin": "superadmin@investhome.demo",
+    "demoSales": "sales@investhome.demo",
+    "demoReadOnly": "readonly@investhome.demo",
+    "demoPassword": "Password: Demo123!",
+    "errors": {
+      "invalidCredentials": "Invalid email or password.",
+      "accountInactive": "Your account is not active.",
+      "loginFailed": "Sign in failed."
+    }
+  },
+  "profile": {
+    "eyebrow": "Account",
+    "title": "Profile",
+    "roles": "Roles",
+    "language": "Language",
+    "timezone": "Timezone",
+    "changePassword": "Change password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "updatePassword": "Update password",
+    "passwordUpdated": "Your password was updated.",
+    "passwordUpdateFailed": "Unable to update password."
+  },
+  "adminUsers": {
+    "eyebrow": "Administration",
+    "title": "Users",
+    "subtitle": "Manage internal users, roles, and account status.",
+    "createUser": "Create user",
+    "deactivate": "Deactivate",
+    "loadError": "Unable to load users.",
+    "columns": {
+      "name": "Name",
+      "email": "Email",
+      "department": "Department",
+      "status": "Status",
+      "roles": "Roles",
+      "language": "Language",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "suspended": "Suspended",
+      "invited": "Invited"
+    },
+    "fields": {
+      "fullName": "Full name",
+      "email": "Email",
+      "password": "Password",
+      "jobTitle": "Job title",
+      "department": "Department",
+      "role": "Role",
+      "selectRole": "Select role"
+    }
+  },
+  "adminRoles": {
+    "eyebrow": "Administration",
+    "title": "Roles",
+    "subtitle": "Manage system roles and permission assignments.",
+    "createRole": "Create role",
+    "loadError": "Unable to load roles.",
+    "yes": "Yes",
+    "no": "No",
+    "columns": {
+      "name": "Name",
+      "code": "Code",
+      "system": "System role"
+    },
+    "fields": {
+      "name": "Role name",
+      "code": "Code",
+      "description": "Description"
+    }
+  },
+  "adminPermissions": {
+    "eyebrow": "Administration",
+    "title": "Permissions",
+    "subtitle": "Resource and action permission matrix.",
+    "loadError": "Unable to load permissions.",
+    "defined": "Defined",
+    "rolesCount": "{count} roles configured.",
+    "columns": {
+      "resource": "Resource"
+    }
   }
 }

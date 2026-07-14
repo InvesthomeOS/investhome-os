@@ -1,0 +1,151 @@
+"""Authorization resource and action constants."""
+
+RESOURCES = frozenset(
+    {
+        "executive",
+        "leads",
+        "investors",
+        "projects",
+        "finance",
+        "users",
+        "roles",
+        "settings",
+        "activity",
+        "documents",
+        "construction",
+        "marketing",
+        "reports",
+    }
+)
+
+ACTIONS = frozenset(
+    {
+        "view",
+        "create",
+        "update",
+        "archive",
+        "delete",
+        "export",
+        "approve",
+        "manage",
+    }
+)
+
+SYSTEM_ROLE_CODES = frozenset(
+    {
+        "super_admin",
+        "executive",
+        "partner",
+        "sales",
+        "investor_relations",
+        "finance",
+        "construction",
+        "marketing",
+        "operations",
+        "assistant",
+        "read_only",
+    }
+)
+
+# Default permission grants per system role: {role_code: [(resource, action), ...]}
+DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
+    "super_admin": [(resource, action) for resource in RESOURCES for action in ACTIONS],
+    "executive": [
+        ("executive", "view"),
+        ("executive", "export"),
+        ("leads", "view"),
+        ("investors", "view"),
+        ("projects", "view"),
+        ("finance", "view"),
+        ("finance", "export"),
+        ("activity", "view"),
+        ("reports", "view"),
+        ("reports", "export"),
+        ("users", "view"),
+    ],
+    "partner": [
+        ("executive", "view"),
+        ("leads", "view"),
+        ("investors", "view"),
+        ("projects", "view"),
+        ("finance", "view"),
+        ("reports", "view"),
+    ],
+    "sales": [
+        ("leads", "view"),
+        ("leads", "create"),
+        ("leads", "update"),
+        ("leads", "archive"),
+        ("investors", "view"),
+        ("investors", "create"),
+        ("investors", "update"),
+        ("projects", "view"),
+    ],
+    "investor_relations": [
+        ("investors", "view"),
+        ("investors", "create"),
+        ("investors", "update"),
+        ("investors", "archive"),
+        ("leads", "view"),
+        ("leads", "update"),
+        ("projects", "view"),
+        ("finance", "view"),
+        ("executive", "view"),
+    ],
+    "finance": [
+        ("finance", "view"),
+        ("finance", "create"),
+        ("finance", "update"),
+        ("finance", "archive"),
+        ("finance", "export"),
+        ("finance", "approve"),
+        ("projects", "view"),
+        ("investors", "view"),
+        ("executive", "view"),
+        ("reports", "view"),
+        ("reports", "export"),
+    ],
+    "construction": [
+        ("projects", "view"),
+        ("projects", "update"),
+        ("construction", "view"),
+        ("construction", "create"),
+        ("construction", "update"),
+        ("finance", "view"),
+        ("documents", "view"),
+    ],
+    "marketing": [
+        ("leads", "view"),
+        ("projects", "view"),
+        ("marketing", "view"),
+        ("marketing", "create"),
+        ("marketing", "update"),
+    ],
+    "operations": [
+        ("projects", "view"),
+        ("projects", "update"),
+        ("finance", "view"),
+        ("documents", "view"),
+        ("documents", "create"),
+        ("documents", "update"),
+        ("activity", "view"),
+    ],
+    "assistant": [
+        ("leads", "view"),
+        ("leads", "create"),
+        ("leads", "update"),
+        ("investors", "view"),
+        ("investors", "create"),
+        ("investors", "update"),
+        ("projects", "view"),
+    ],
+    "read_only": [
+        ("executive", "view"),
+        ("leads", "view"),
+        ("investors", "view"),
+        ("projects", "view"),
+        ("finance", "view"),
+        ("activity", "view"),
+        ("reports", "view"),
+    ],
+}

@@ -1,3 +1,10 @@
+from investhome_api.models.activity import (
+    ActivityAction,
+    ActivityActorType,
+    ActivityEntityType,
+    ActivityLog,
+    ActivitySource,
+)
 from investhome_api.models.finance import (
     AccountStatus,
     AccountType,
@@ -31,7 +38,21 @@ from investhome_api.models.project import (
     ProjectType,
 )
 
+from investhome_api.models.user_auth import (
+    Permission,
+    Role,
+    RolePermission,
+    User,
+    UserRole,
+    UserStatus,
+)
+
 __all__ = [
+    "ActivityLog",
+    "ActivityAction",
+    "ActivityActorType",
+    "ActivityEntityType",
+    "ActivitySource",
     "Lead",
     "LeadStatus",
     "Investor",
@@ -59,4 +80,10 @@ __all__ = [
     "ObligationType",
     "ObligationStatus",
     "ObligationPriority",
+    "Permission",
+    "Role",
+    "RolePermission",
+    "User",
+    "UserRole",
+    "UserStatus",
 ]

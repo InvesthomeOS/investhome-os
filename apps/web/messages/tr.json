@@ -20,6 +20,13 @@
   },
   "navigation": {
     "ariaLabel": "Modül gezinmesi",
+    "adminSection": "Yönetim",
+    "admin": {
+      "users": "Kullanıcılar",
+      "roles": "Roller",
+      "permissions": "Yetkiler"
+    },
+    "activity": "Aktivite Geçmişi",
     "modules": {
       "executive": {
         "title": "Yönetici Özeti",
@@ -735,6 +742,306 @@
       "critical": "Kritik"
     }
   },
+  "executive": {
+    "eyebrow": "Yönetim",
+    "title": "Yönetici Özeti",
+    "subtitle": "Portföy görünürlüğü, istisnalar ve karar öncelikleri.",
+    "filters": {
+      "period": "Dönem",
+      "today": "Bugün",
+      "last7Days": "Son 7 Gün",
+      "last30Days": "Son 30 Gün",
+      "thisQuarter": "Bu Çeyrek",
+      "thisYear": "Bu Yıl",
+      "customRange": "Özel Tarih Aralığı",
+      "dateFrom": "Başlangıç tarihi",
+      "dateTo": "Bitiş tarihi",
+      "project": "Proje",
+      "allProjects": "Tüm projeler",
+      "assignedTo": "Atanan ekip üyesi",
+      "assignedPlaceholder": "Ad",
+      "currency": "Para birimi"
+    },
+    "cards": {
+      "total_leads": "Toplam Potansiyel Müşteri",
+      "qualified_leads": "Nitelikli Potansiyel Müşteri",
+      "active_investors": "Aktif Yatırımcı",
+      "total_investment_capacity": "Toplam Yatırım Kapasitesi",
+      "active_projects": "Aktif Proje",
+      "total_portfolio_value": "Toplam Portföy Değeri",
+      "available_cash": "Kullanılabilir Nakit",
+      "remaining_funding_need": "Kalan Finansman İhtiyacı",
+      "noComparison": "Önceki dönem karşılaştırması yok"
+    },
+    "severity": {
+      "information": "Bilgi",
+      "warning": "Uyarı",
+      "critical": "Kritik"
+    },
+    "health": {
+      "on_track": "Yolunda",
+      "attention": "Dikkat Gerektiriyor",
+      "at_risk": "Risk Altında"
+    },
+    "attention": {
+      "title": "Dikkat Gerektirenler",
+      "empty": "Mevcut filtrelere göre dikkat gerektiren istisna yok.",
+      "overdue_payment": {
+        "title": "Gecikmiş ödeme",
+        "description": "{payee} — {amount} {currency} gecikmiş."
+      },
+      "critical_obligation": {
+        "title": "Kritik ödeme yükümlülüğü",
+        "description": "{payee} acil ilgi gerektiriyor ({amount} {currency})."
+      },
+      "project_overdue": {
+        "title": "Proje takviminin gerisinde",
+        "description": "{project} hedef tamamlanma tarihini geçti."
+      },
+      "funding_gap": {
+        "title": "Proje finansman açığı",
+        "description": "{project} için {gap} tutarında fonlanmamış özsermaye açığı var."
+      },
+      "project_at_risk": {
+        "title": "Risk altındaki proje",
+        "description": "{project} için önemli takvim, bütçe veya finansman istisnaları var."
+      },
+      "investor_follow_up": {
+        "title": "Gecikmiş yatırımcı takibi",
+        "description": "{name} ile takip gecikmiş."
+      },
+      "inactive_qualified_lead": {
+        "title": "Etkin olmayan nitelikli lead",
+        "description": "{name} için son dönemde aktivite yok."
+      },
+      "transaction_overdue": {
+        "title": "Vadesi geçmiş işlem",
+        "description": "{description} ({amount} {currency}) vadesini geçti."
+      },
+      "low_balance": {
+        "title": "Düşük kullanılabilir bakiye",
+        "description": "{account} hesabında sınırlı kullanılabilir nakit ({currency})."
+      }
+    },
+    "pipeline": {
+      "title": "Satış Hattı",
+      "wonLost": "Dönemde kazanılan: {won} · Kaybedilen: {lost}"
+    },
+    "investors": {
+      "title": "Yatırımcı Özeti",
+      "capacity": "Toplam yatırım kapasitesi",
+      "committed": "Toplam taahhüt",
+      "funded": "Toplam fonlanan",
+      "remaining": "Kalan taahhüt",
+      "upcoming_follow_up": {
+        "title": "Yaklaşan yatırımcı takibi",
+        "description": "{name} ile takip yapılmalı."
+      }
+    },
+    "portfolio": {
+      "title": "Proje Portföyü",
+      "totalUnits": "Toplam birim",
+      "portfolioValue": "Portföy değeri",
+      "equityRaised": "Toplanan özsermaye",
+      "table": {
+        "project": "Proje",
+        "status": "Durum",
+        "completion": "Hedef Tamamlanma",
+        "fundingGap": "Finansman Açığı",
+        "budgetVariance": "Bütçe Sapması",
+        "health": "Sağlık Durumu"
+      }
+    },
+    "financial": {
+      "title": "Finansal Özet",
+      "availableCash": "Kullanılabilir nakit",
+      "income": "Dönem geliri",
+      "expenses": "Dönem gideri",
+      "overdue": "Gecikmiş ödemeler",
+      "inflows": "Girişler",
+      "outflows": "Çıkışlar"
+    },
+    "deadlines": {
+      "title": "Yaklaşan Son Tarihler",
+      "empty": "Mevcut filtrelere uygun son tarih yok.",
+      "windows": {
+        "overdue": "Gecikmiş",
+        "next_7_days": "Önümüzdeki 7 Gün",
+        "next_30_days": "Önümüzdeki 30 Gün",
+        "later": "Daha Sonra"
+      }
+    },
+    "activity": {
+      "title": "Son Aktiviteler",
+      "empty": "Seçilen dönem için aktivite yok.",
+      "lead_created": "Potansiyel müşteri oluşturuldu: {name}",
+      "investor_created": "Yatırımcı eklendi: {name}",
+      "project_created": "Proje oluşturuldu: {name}",
+      "project_updated": "Proje güncellendi: {name}",
+      "transaction_completed": "İşlem tamamlandı: {description} ({amount} {currency})",
+      "funding_commitment_added": "Finansman taahhüdü eklendi ({amount} {currency})",
+      "payment_obligation_paid": "Ödeme tamamlandı: {payee} ({amount} {currency})"
+    },
+    "quickActions": {
+      "title": "Hızlı İşlemler",
+      "addLead": "Potansiyel Müşteri Ekle",
+      "addInvestor": "Yatırımcı Ekle",
+      "addProject": "Proje Ekle",
+      "addTransaction": "İşlem Ekle",
+      "addPaymentObligation": "Ödeme Yükümlülüğü Ekle",
+      "addFundingCommitment": "Finansman Taahhüdü Ekle"
+    },
+    "errors": {
+      "summary": "Özet metrikler yüklenemedi.",
+      "section": "Bu bölüm yüklenemedi."
+    }
+  },
+  "activity": {
+    "title": "Aktivite Geçmişi",
+    "subtitle": "Anlamlı iş ve güvenlik olaylarının denetim kaydı.",
+    "systemActor": "Sistem",
+    "loadError": "Aktivite kayıtları yüklenemedi.",
+    "empty": "Filtrelerinize uygun aktivite bulunamadı.",
+    "resultsCount": "{count} olay",
+    "viewMode": {
+      "label": "Görünüm",
+      "timeline": "Zaman çizelgesi",
+      "table": "Tablo"
+    },
+    "filters": {
+      "search": "Ara",
+      "searchPlaceholder": "İşlemi yapan veya açıklama…",
+      "dateFrom": "Başlangıç",
+      "dateTo": "Bitiş",
+      "entityType": "Kayıt türü",
+      "action": "İşlem",
+      "source": "Kaynak",
+      "all": "Tümü"
+    },
+    "columns": {
+      "dateTime": "Tarih ve Saat",
+      "actor": "İşlemi Yapan",
+      "action": "İşlem",
+      "entityType": "Kayıt Türü",
+      "record": "Kayıt",
+      "source": "Kaynak",
+      "summary": "Özet"
+    },
+    "pagination": {
+      "previous": "Önceki",
+      "next": "Sonraki",
+      "pageOf": "Sayfa {page} / {pages}"
+    },
+    "detail": {
+      "eyebrow": "Denetim detayı",
+      "title": "Aktivite detayı",
+      "requestId": "İstek kimliği",
+      "changedFields": "Değişen alanlar",
+      "viewRecord": "İlgili kaydı görüntüle",
+      "notFound": "Aktivite kaydı bulunamadı."
+    },
+    "timeline": {
+      "title": "Aktivite geçmişi",
+      "loading": "Aktivite yükleniyor…",
+      "error": "Aktivite geçmişi yüklenemedi.",
+      "retry": "Yeniden dene",
+      "empty": "Bu kayıt için henüz aktivite yok."
+    },
+    "actions": {
+      "created": "Oluşturuldu",
+      "viewed": "Görüntülendi",
+      "updated": "Güncellendi",
+      "status_changed": "Durum değişti",
+      "archived": "Arşivlendi",
+      "restored": "Geri yüklendi",
+      "deleted": "Silindi",
+      "exported": "Dışa aktarıldı",
+      "approved": "Onaylandı",
+      "rejected": "Reddedildi",
+      "login": "Giriş",
+      "logout": "Çıkış",
+      "login_failed": "Başarısız giriş",
+      "role_assigned": "Rol atandı",
+      "role_removed": "Rol kaldırıldı",
+      "permission_changed": "Yetki değişti",
+      "password_changed": "Şifre değişti",
+      "invited": "Davet edildi",
+      "activated": "Etkinleştirildi",
+      "deactivated": "Devre dışı bırakıldı",
+      "payment_completed": "Ödeme tamamlandı",
+      "funding_added": "Finansman eklendi",
+      "file_uploaded": "Dosya yüklendi",
+      "note_added": "Not eklendi",
+      "other": "Diğer"
+    },
+    "entityTypes": {
+      "user": "Kullanıcı",
+      "role": "Rol",
+      "lead": "Potansiyel müşteri",
+      "investor": "Yatırımcı",
+      "project": "Proje",
+      "financial_account": "Finansal hesap",
+      "transaction": "İşlem",
+      "project_budget": "Proje bütçesi",
+      "funding_commitment": "Finansman taahhüdü",
+      "payment_obligation": "Ödeme yükümlülüğü"
+    },
+    "sources": {
+      "web": "Web",
+      "api": "API",
+      "background_job": "Arka plan işi",
+      "automation": "Otomasyon",
+      "import": "İçe aktarma",
+      "integration": "Entegrasyon",
+      "ai_service": "Yapay zeka servisi"
+    },
+    "descriptions": {
+      "lead": {
+        "created": "Potansiyel müşteri oluşturuldu: {name}",
+        "updated": "Potansiyel müşteri güncellendi: {name}",
+        "status_changed": "Potansiyel müşteri durumu değiştirildi: {name}",
+        "archived": "Potansiyel müşteri arşivlendi: {name}"
+      },
+      "investor": {
+        "created": "Yatırımcı eklendi: {name}",
+        "updated": "Yatırımcı güncellendi: {name}",
+        "status_changed": "Yatırımcı durumu değiştirildi: {name}",
+        "archived": "Yatırımcı arşivlendi: {name}"
+      },
+      "project": {
+        "created": "Proje oluşturuldu: {name}",
+        "updated": "Proje güncellendi: {name}",
+        "status_changed": "Proje durumu değiştirildi: {name}",
+        "financial_updated": "Proje finansal bilgileri güncellendi: {name}",
+        "archived": "Proje arşivlendi: {name}"
+      },
+      "transaction": {
+        "created": "İşlem oluşturuldu: {description} ({amount} {currency})",
+        "completed": "Finansal işlem tamamlandı: {description} ({amount} {currency})"
+      },
+      "payment_obligation": {
+        "paid": "Ödeme tamamlandı: {payee} ({amount} {currency})"
+      },
+      "funding_commitment": {
+        "created": "Finansman taahhüdü eklendi ({amount} {currency})"
+      },
+      "user": {
+        "login": "Kullanıcı giriş yaptı",
+        "logout": "Kullanıcı çıkış yaptı",
+        "login_failed": "{email} için başarısız giriş denemesi",
+        "password_changed": "Şifre değiştirildi",
+        "invited": "Kullanıcı davet edildi",
+        "updated": "Kullanıcı güncellendi",
+        "deactivated": "Kullanıcı devre dışı bırakıldı",
+        "role_assigned": "Kullanıcıya rol atandı"
+      },
+      "role": {
+        "created": "Rol oluşturuldu",
+        "updated": "Rol güncellendi",
+        "permission_changed": "Rol yetkileri değiştirildi"
+      }
+    }
+  },
   "validation": {
     "required": "Bu alan zorunludur.",
     "invalidEmail": "Geçerli bir e-posta adresi girin."
@@ -742,5 +1049,107 @@
   "errors": {
     "requestFailed": "İstek {status} durum kodu ile başarısız oldu.",
     "generic": "Beklenmeyen bir hata oluştu."
+  },
+  "auth": {
+    "eyebrow": "Investhome OS",
+    "title": "Giriş Yap",
+    "subtitle": "Devam etmek için kurumsal hesabınızla oturum açın.",
+    "emailLabel": "E-posta",
+    "passwordLabel": "Şifre",
+    "submit": "Giriş Yap",
+    "submitting": "Giriş yapılıyor…",
+    "logout": "Çıkış",
+    "redirectHint": "Bu sayfaya erişmek için oturum açmanız gerekiyor.",
+    "backToLogin": "Giriş sayfasına dön",
+    "backToDashboard": "Ana panele dön",
+    "unauthorizedTitle": "Oturum gerekli",
+    "unauthorizedDescription": "Bu sayfayı görüntülemek için giriş yapmalısınız.",
+    "forbiddenTitle": "Erişim reddedildi",
+    "forbiddenDescription": "Bu kaynağa erişim yetkiniz bulunmuyor.",
+    "demoTitle": "Geliştirme demo hesapları",
+    "demoAdmin": "superadmin@investhome.demo",
+    "demoSales": "sales@investhome.demo",
+    "demoReadOnly": "readonly@investhome.demo",
+    "demoPassword": "Şifre: Demo123!",
+    "errors": {
+      "invalidCredentials": "Geçersiz e-posta veya şifre.",
+      "accountInactive": "Hesabınız aktif değil.",
+      "loginFailed": "Giriş başarısız oldu."
+    }
+  },
+  "profile": {
+    "eyebrow": "Hesap",
+    "title": "Profil",
+    "roles": "Roller",
+    "language": "Dil",
+    "timezone": "Saat dilimi",
+    "changePassword": "Şifre Değiştir",
+    "currentPassword": "Mevcut şifre",
+    "newPassword": "Yeni şifre",
+    "updatePassword": "Şifreyi Güncelle",
+    "passwordUpdated": "Şifreniz güncellendi.",
+    "passwordUpdateFailed": "Şifre güncellenemedi."
+  },
+  "adminUsers": {
+    "eyebrow": "Yönetim",
+    "title": "Kullanıcılar",
+    "subtitle": "Dahili kullanıcıları, rollerini ve durumlarını yönetin.",
+    "createUser": "Kullanıcı Oluştur",
+    "deactivate": "Devre Dışı Bırak",
+    "loadError": "Kullanıcılar yüklenemedi.",
+    "columns": {
+      "name": "Ad",
+      "email": "E-posta",
+      "department": "Departman",
+      "status": "Durum",
+      "roles": "Roller",
+      "language": "Dil",
+      "actions": "İşlemler"
+    },
+    "status": {
+      "active": "Aktif",
+      "inactive": "Pasif",
+      "suspended": "Askıya alındı",
+      "invited": "Davetli"
+    },
+    "fields": {
+      "fullName": "Ad Soyad",
+      "email": "E-posta",
+      "password": "Şifre",
+      "jobTitle": "Ünvan",
+      "department": "Departman",
+      "role": "Rol",
+      "selectRole": "Rol seçin"
+    }
+  },
+  "adminRoles": {
+    "eyebrow": "Yönetim",
+    "title": "Roller",
+    "subtitle": "Sistem rollerini ve yetki atamalarını yönetin.",
+    "createRole": "Rol Oluştur",
+    "loadError": "Roller yüklenemedi.",
+    "yes": "Evet",
+    "no": "Hayır",
+    "columns": {
+      "name": "Ad",
+      "code": "Kod",
+      "system": "Sistem rolü"
+    },
+    "fields": {
+      "name": "Rol adı",
+      "code": "Kod",
+      "description": "Açıklama"
+    }
+  },
+  "adminPermissions": {
+    "eyebrow": "Yönetim",
+    "title": "Yetkiler",
+    "subtitle": "Kaynak ve eylem bazında yetki matrisi.",
+    "loadError": "Yetkiler yüklenemedi.",
+    "defined": "Tanımlı",
+    "rolesCount": "{count} rol yapılandırıldı.",
+    "columns": {
+      "resource": "Kaynak"
+    }
   }
 }

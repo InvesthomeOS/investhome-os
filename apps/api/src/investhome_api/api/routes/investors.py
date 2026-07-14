@@ -3,17 +3,20 @@ from decimal import Decimal
 from math import ceil
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import asc, desc, func, or_, select
 from sqlalchemy.orm import Session
 
+from investhome_api.api.deps.auth import require_permission
 from investhome_api.db.session import get_db
+from investhome_api.models.activity import ActivityEntityType
 from investhome_api.models.investor import (
     InvestmentModel,
     Investor,
     InvestorStatus,
     InvestorType,
 )
+from investhome_api.models.user_auth import User
 from investhome_api.schemas.investor import (
     InvestorCreate,
     InvestorListResponse,
@@ -22,7 +25,25 @@ from investhome_api.schemas.investor import (
     InvestorUpdate,
 )
 
+from investhome_api.services.activity_recorder import (
+    log_entity_archived,
+    log_entity_created,
+    log_entity_updated,
+)
+from investhome_api.services.activity_service import snapshot_entity
+
 router = APIRouter(prefix="/investors", tags=["investors"])
+
+INVESTOR_ACTIVITY_FIELDS = [
+    "full_name",
+    "email",
+    "phone",
+    "country",
+    "investor_type",
+    "status",
+    "investment_capacity",
+    "preferred_investment_model",
+]
 
 SORTABLE_FIELDS = {
     "full_name": Investor.full_name,
@@ -93,7 +114,10 @@ def _apply_filters(
 
 
 @router.get("/stats", response_model=InvestorStatsResponse)
-def get_investor_stats(db: Session = Depends(get_db)) -> InvestorStatsResponse:
+def get_investor_stats(
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_permission("investors", "view")),
+) -> InvestorStatsResponse:
     base = select(Investor).where(Investor.archived_at.is_(None))
     investors = db.scalars(base).all()
 
@@ -125,6 +149,7 @@ def list_investors(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
+    _user: User = Depends(require_permission("investors", "view")),
 ) -> InvestorListResponse:
     sort_column = SORTABLE_FIELDS.get(sort_by, Investor.updated_at)
     order_fn = asc if sort_order == "asc" else desc
@@ -159,15 +184,35 @@ def list_investors(
 
 
 @router.get("/{investor_id}", response_model=InvestorResponse)
-def get_investor(investor_id: UUID, db: Session = Depends(get_db)) -> InvestorResponse:
+def get_investor(
+    investor_id: UUID,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_permission("investors", "view")),
+) -> InvestorResponse:
     investor = _get_investor_or_404(investor_id, db)
     return InvestorResponse.model_validate(investor)
 
 
 @router.post("", response_model=InvestorResponse, status_code=status.HTTP_201_CREATED)
-def create_investor(payload: InvestorCreate, db: Session = Depends(get_db)) -> InvestorResponse:
+def create_investor(
+    payload: InvestorCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_permission("investors", "create")),
+) -> InvestorResponse:
     investor = Investor(**payload.model_dump())
     db.add(investor)
+    db.flush()
+    log_entity_created(
+        db,
+        entity_type=ActivityEntityType.INVESTOR,
+        entity_id=investor.id,
+        description_key="activity.investor.created",
+        actor=actor,
+        metadata={"name": investor.full_name},
+        request=request,
+        is_demo=investor.is_demo,
+    )
     db.commit()
     db.refresh(investor)
     return InvestorResponse.model_validate(investor)
@@ -177,7 +222,9 @@ def create_investor(payload: InvestorCreate, db: Session = Depends(get_db)) -> I
 def update_investor(
     investor_id: UUID,
     payload: InvestorUpdate,
+    request: Request,
     db: Session = Depends(get_db),
+    actor: User = Depends(require_permission("investors", "update")),
 ) -> InvestorResponse:
     investor = _get_investor_or_404(investor_id, db)
     updates = payload.model_dump(exclude_unset=True)
@@ -188,17 +235,36 @@ def update_investor(
             detail="No fields provided for update",
         )
 
+    before = snapshot_entity(investor, INVESTOR_ACTIVITY_FIELDS)
     for field, value in updates.items():
         setattr(investor, field, value)
 
     investor.updated_at = datetime.now(UTC)
+    db.flush()
+    log_entity_updated(
+        db,
+        entity_type=ActivityEntityType.INVESTOR,
+        entity_id=investor.id,
+        description_key="activity.investor.updated",
+        actor=actor,
+        before=before,
+        after=snapshot_entity(investor, INVESTOR_ACTIVITY_FIELDS),
+        metadata={"name": investor.full_name},
+        request=request,
+        is_demo=investor.is_demo,
+    )
     db.commit()
     db.refresh(investor)
     return InvestorResponse.model_validate(investor)
 
 
 @router.delete("/{investor_id}", response_model=InvestorResponse)
-def archive_investor(investor_id: UUID, db: Session = Depends(get_db)) -> InvestorResponse:
+def archive_investor(
+    investor_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_permission("investors", "archive")),
+) -> InvestorResponse:
     investor = _get_investor_or_404(investor_id, db)
 
     if investor.archived_at is not None:
@@ -209,6 +275,17 @@ def archive_investor(investor_id: UUID, db: Session = Depends(get_db)) -> Invest
 
     investor.archived_at = datetime.now(UTC)
     investor.updated_at = datetime.now(UTC)
+    db.flush()
+    log_entity_archived(
+        db,
+        entity_type=ActivityEntityType.INVESTOR,
+        entity_id=investor.id,
+        description_key="activity.investor.archived",
+        actor=actor,
+        metadata={"name": investor.full_name},
+        request=request,
+        is_demo=investor.is_demo,
+    )
     db.commit()
     db.refresh(investor)
     return InvestorResponse.model_validate(investor)

@@ -28,6 +28,17 @@ class Settings(BaseSettings):
         alias="DATABASE_URL",
     )
 
+    jwt_secret: str = Field(
+        default="dev-only-change-in-production-use-long-random-string",
+        alias="JWT_SECRET",
+    )
+    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
+    jwt_expire_minutes: int = Field(default=480, alias="JWT_EXPIRE_MINUTES")
+    auth_enabled: bool = Field(default=True, alias="API_AUTH_ENABLED")
+    auth_cookie_name: str = Field(default="ih_session", alias="AUTH_COOKIE_NAME")
+    auth_cookie_secure: bool = Field(default=False, alias="AUTH_COOKIE_SECURE")
+    auth_cookie_samesite: str = Field(default="lax", alias="AUTH_COOKIE_SAMESITE")
+
     cors_origins: Annotated[list[str], NoDecode] = Field(
         default=["http://localhost:3000"],
         alias="API_CORS_ORIGINS",

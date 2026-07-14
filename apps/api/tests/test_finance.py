@@ -4,13 +4,7 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
-from investhome_api.db.base import Base
-from investhome_api.db.session import get_db
-from investhome_api.main import app
 from investhome_api.models.finance import (
     AccountStatus,
     AccountType,
@@ -26,33 +20,6 @@ from investhome_api.models.finance import (
 )
 from investhome_api.models.investor import InvestorStatus, InvestorType
 from investhome_api.models.project import DevelopmentType, ProjectStatus, ProjectType
-
-SQLALCHEMY_DATABASE_URL = "sqlite+pysqlite:///:memory:"
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-@pytest.fixture
-def client() -> TestClient:
-    Base.metadata.create_all(bind=engine)
-
-    def override_get_db():
-        db = TestingSessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
-
-    app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.clear()
-    Base.metadata.drop_all(bind=engine)
 
 
 def _create_project(client: TestClient, **overrides: object) -> dict[str, object]:

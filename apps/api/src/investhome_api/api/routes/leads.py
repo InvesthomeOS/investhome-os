@@ -1,15 +1,37 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from investhome_api.api.deps.auth import require_permission
 from investhome_api.db.session import get_db
+from investhome_api.models.activity import ActivityEntityType
 from investhome_api.models.lead import Lead, LeadStatus
+from investhome_api.models.user_auth import User
 from investhome_api.schemas.lead import LeadCreate, LeadListResponse, LeadResponse, LeadUpdate
+from investhome_api.services.activity_recorder import (
+    log_entity_archived,
+    log_entity_created,
+    log_entity_updated,
+)
+from investhome_api.services.activity_service import snapshot_entity
 
 router = APIRouter(prefix="/leads", tags=["leads"])
+
+LEAD_ACTIVITY_FIELDS = [
+    "full_name",
+    "email",
+    "phone",
+    "country",
+    "source",
+    "status",
+    "assigned_to",
+    "estimated_budget",
+    "interested_project",
+    "notes",
+]
 
 
 def _get_lead_or_404(lead_id: UUID, db: Session, *, include_archived: bool = False) -> Lead:
@@ -26,6 +48,7 @@ def list_leads(
     source: str | None = Query(default=None, max_length=100),
     include_archived: bool = Query(default=False),
     db: Session = Depends(get_db),
+    _user: User = Depends(require_permission("leads", "view")),
 ) -> LeadListResponse:
     query = select(Lead)
 
@@ -59,15 +82,35 @@ def list_leads(
 
 
 @router.get("/{lead_id}", response_model=LeadResponse)
-def get_lead(lead_id: UUID, db: Session = Depends(get_db)) -> LeadResponse:
+def get_lead(
+    lead_id: UUID,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_permission("leads", "view")),
+) -> LeadResponse:
     lead = _get_lead_or_404(lead_id, db)
     return LeadResponse.model_validate(lead)
 
 
 @router.post("", response_model=LeadResponse, status_code=status.HTTP_201_CREATED)
-def create_lead(payload: LeadCreate, db: Session = Depends(get_db)) -> LeadResponse:
+def create_lead(
+    payload: LeadCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_permission("leads", "create")),
+) -> LeadResponse:
     lead = Lead(**payload.model_dump())
     db.add(lead)
+    db.flush()
+    log_entity_created(
+        db,
+        entity_type=ActivityEntityType.LEAD,
+        entity_id=lead.id,
+        description_key="activity.lead.created",
+        actor=actor,
+        metadata={"name": lead.full_name, "status": lead.status.value},
+        request=request,
+        is_demo=lead.is_demo,
+    )
     db.commit()
     db.refresh(lead)
     return LeadResponse.model_validate(lead)
@@ -77,7 +120,9 @@ def create_lead(payload: LeadCreate, db: Session = Depends(get_db)) -> LeadRespo
 def update_lead(
     lead_id: UUID,
     payload: LeadUpdate,
+    request: Request,
     db: Session = Depends(get_db),
+    actor: User = Depends(require_permission("leads", "update")),
 ) -> LeadResponse:
     lead = _get_lead_or_404(lead_id, db)
     updates = payload.model_dump(exclude_unset=True)
@@ -88,17 +133,36 @@ def update_lead(
             detail="No fields provided for update",
         )
 
+    before = snapshot_entity(lead, LEAD_ACTIVITY_FIELDS)
     for field, value in updates.items():
         setattr(lead, field, value)
 
     lead.updated_at = datetime.now(UTC)
+    db.flush()
+    log_entity_updated(
+        db,
+        entity_type=ActivityEntityType.LEAD,
+        entity_id=lead.id,
+        description_key="activity.lead.updated",
+        actor=actor,
+        before=before,
+        after=snapshot_entity(lead, LEAD_ACTIVITY_FIELDS),
+        metadata={"name": lead.full_name},
+        request=request,
+        is_demo=lead.is_demo,
+    )
     db.commit()
     db.refresh(lead)
     return LeadResponse.model_validate(lead)
 
 
 @router.delete("/{lead_id}", response_model=LeadResponse)
-def archive_lead(lead_id: UUID, db: Session = Depends(get_db)) -> LeadResponse:
+def archive_lead(
+    lead_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_permission("leads", "archive")),
+) -> LeadResponse:
     lead = _get_lead_or_404(lead_id, db)
 
     if lead.archived_at is not None:
@@ -106,6 +170,17 @@ def archive_lead(lead_id: UUID, db: Session = Depends(get_db)) -> LeadResponse:
 
     lead.archived_at = datetime.now(UTC)
     lead.updated_at = datetime.now(UTC)
+    db.flush()
+    log_entity_archived(
+        db,
+        entity_type=ActivityEntityType.LEAD,
+        entity_id=lead.id,
+        description_key="activity.lead.archived",
+        actor=actor,
+        metadata={"name": lead.full_name},
+        request=request,
+        is_demo=lead.is_demo,
+    )
     db.commit()
     db.refresh(lead)
     return LeadResponse.model_validate(lead)

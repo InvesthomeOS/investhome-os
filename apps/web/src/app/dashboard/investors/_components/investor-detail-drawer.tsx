@@ -8,6 +8,7 @@ import {
   formatShortDate,
   type Investor,
 } from '@/lib/api/investors';
+import { EntityActivityTimeline } from '@/app/dashboard/_components/entity-activity-timeline';
 import { useInvestorLabels } from '@/lib/i18n/investor-labels';
 
 interface InvestorDetailDrawerProps {
@@ -149,6 +150,8 @@ export function InvestorDetailDrawer({
           <h3>{t('detail.notes')}</h3>
           <p>{investor.notes?.trim() ? investor.notes : t('noNotes')}</p>
         </div>
+
+        <EntityActivityTimeline entityType="investor" entityId={investor.id} />
 
         <footer className="leads-drawer__footer">
           <button

@@ -3,12 +3,14 @@ from decimal import Decimal
 from math import ceil
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import asc, desc, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from investhome_api.api.deps.auth import require_permission
 from investhome_api.db.session import get_db
+from investhome_api.models.activity import ActivityEntityType
 from investhome_api.models.project import (
     ACTIVE_PROJECT_STATUSES,
     DevelopmentType,
@@ -16,6 +18,7 @@ from investhome_api.models.project import (
     ProjectStatus,
     ProjectType,
 )
+from investhome_api.models.user_auth import User
 from investhome_api.schemas.project import (
     ProjectCreate,
     ProjectListResponse,
@@ -24,7 +27,26 @@ from investhome_api.schemas.project import (
     ProjectUpdate,
 )
 
+from investhome_api.services.activity_recorder import (
+    log_entity_archived,
+    log_entity_created,
+    log_entity_updated,
+)
+from investhome_api.services.activity_service import snapshot_entity
+
 router = APIRouter(prefix="/projects", tags=["projects"])
+
+PROJECT_ACTIVITY_FIELDS = [
+    "project_code",
+    "project_name",
+    "city",
+    "project_type",
+    "project_status",
+    "total_development_cost",
+    "current_project_value",
+    "equity_required",
+    "equity_raised",
+]
 
 SORTABLE_FIELDS = {
     "project_code": Project.project_code,
@@ -104,7 +126,10 @@ def _apply_filters(
 
 
 @router.get("/stats", response_model=ProjectStatsResponse)
-def get_project_stats(db: Session = Depends(get_db)) -> ProjectStatsResponse:
+def get_project_stats(
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_permission("projects", "view")),
+) -> ProjectStatsResponse:
     projects = db.scalars(select(Project).where(Project.archived_at.is_(None))).all()
 
     active_projects = [p for p in projects if p.project_status in ACTIVE_PROJECT_STATUSES]
@@ -139,6 +164,7 @@ def list_projects(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
+    _user: User = Depends(require_permission("projects", "view")),
 ) -> ProjectListResponse:
     sort_column = SORTABLE_FIELDS.get(sort_by, Project.updated_at)
     order_fn = asc if sort_order == "asc" else desc
@@ -174,16 +200,36 @@ def list_projects(
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)
-def get_project(project_id: UUID, db: Session = Depends(get_db)) -> ProjectResponse:
+def get_project(
+    project_id: UUID,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_permission("projects", "view")),
+) -> ProjectResponse:
     project = _get_project_or_404(project_id, db)
     return ProjectResponse.model_validate(project)
 
 
 @router.post("", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
-def create_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> ProjectResponse:
+def create_project(
+    payload: ProjectCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_permission("projects", "create")),
+) -> ProjectResponse:
     project = Project(**payload.model_dump())
     db.add(project)
     try:
+        db.flush()
+        log_entity_created(
+            db,
+            entity_type=ActivityEntityType.PROJECT,
+            entity_id=project.id,
+            description_key="activity.project.created",
+            actor=actor,
+            metadata={"name": project.project_name},
+            request=request,
+            is_demo=project.is_demo,
+        )
         db.commit()
     except IntegrityError as exc:
         db.rollback()
@@ -199,7 +245,9 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Pro
 def update_project(
     project_id: UUID,
     payload: ProjectUpdate,
+    request: Request,
     db: Session = Depends(get_db),
+    actor: User = Depends(require_permission("projects", "update")),
 ) -> ProjectResponse:
     project = _get_project_or_404(project_id, db)
     updates = payload.model_dump(exclude_unset=True)
@@ -210,11 +258,37 @@ def update_project(
             detail="No fields provided for update",
         )
 
+    before = snapshot_entity(project, PROJECT_ACTIVITY_FIELDS)
     for field, value in updates.items():
         setattr(project, field, value)
 
     project.updated_at = datetime.now(UTC)
+    financial_fields = {
+        "total_development_cost",
+        "current_project_value",
+        "equity_required",
+        "equity_raised",
+    }
+    changed = {field for field in updates if before.get(field) != getattr(project, field)}
+    description_key = (
+        "activity.project.financial_updated"
+        if changed & financial_fields
+        else "activity.project.updated"
+    )
     try:
+        db.flush()
+        log_entity_updated(
+            db,
+            entity_type=ActivityEntityType.PROJECT,
+            entity_id=project.id,
+            description_key=description_key,
+            actor=actor,
+            before=before,
+            after=snapshot_entity(project, PROJECT_ACTIVITY_FIELDS),
+            metadata={"name": project.project_name},
+            request=request,
+            is_demo=project.is_demo,
+        )
         db.commit()
     except IntegrityError as exc:
         db.rollback()
@@ -227,7 +301,12 @@ def update_project(
 
 
 @router.delete("/{project_id}", response_model=ProjectResponse)
-def archive_project(project_id: UUID, db: Session = Depends(get_db)) -> ProjectResponse:
+def archive_project(
+    project_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_permission("projects", "archive")),
+) -> ProjectResponse:
     project = _get_project_or_404(project_id, db)
 
     if project.archived_at is not None:
@@ -238,6 +317,17 @@ def archive_project(project_id: UUID, db: Session = Depends(get_db)) -> ProjectR
 
     project.archived_at = datetime.now(UTC)
     project.updated_at = datetime.now(UTC)
+    db.flush()
+    log_entity_archived(
+        db,
+        entity_type=ActivityEntityType.PROJECT,
+        entity_id=project.id,
+        description_key="activity.project.archived",
+        actor=actor,
+        metadata={"name": project.project_name},
+        request=request,
+        is_demo=project.is_demo,
+    )
     db.commit()
     db.refresh(project)
     return ProjectResponse.model_validate(project)
