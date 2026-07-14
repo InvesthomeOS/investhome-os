@@ -1190,6 +1190,51 @@
       }
     }
   },
+  "search": {
+    "placeholder": "Search...",
+    "hint": "Search leads, investors, projects, finance, users, notifications, and activity.",
+    "empty": "No results found for your query.",
+    "errors": {
+      "failed": "Search failed. Please try again."
+    },
+    "filters": {
+      "toggle": "Filters",
+      "entityType": "Entity type",
+      "status": "Status",
+      "assignedTo": "Assigned user",
+      "dateFrom": "From date",
+      "dateTo": "To date"
+    },
+    "keyboard": {
+      "navigate": "↑↓ Navigate",
+      "open": "Enter Open",
+      "close": "Esc Close"
+    },
+    "entities": {
+      "lead": "Leads",
+      "investor": "Investors",
+      "project": "Projects",
+      "financial_transaction": "Transactions",
+      "financial_account": "Accounts",
+      "funding_commitment": "Funding commitments",
+      "payment_obligation": "Payment obligations",
+      "user": "Users",
+      "notification": "Notifications",
+      "activity": "Activity",
+      "document": "Documents (coming soon)",
+      "unit": "Units (coming soon)",
+      "construction": "Construction (coming soon)",
+      "email": "Emails (coming soon)"
+    },
+    "modules": {
+      "leads": "Leads",
+      "investors": "Investors",
+      "projects": "Projects",
+      "finance": "Finance",
+      "admin_users": "Users",
+      "activity": "Activity"
+    }
+  },
   "validation": {
     "required": "This field is required.",
     "invalidEmail": "Enter a valid email address."

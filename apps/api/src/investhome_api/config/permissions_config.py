@@ -12,6 +12,7 @@ RESOURCES = frozenset(
         "settings",
         "activity",
         "notifications",
+        "search",
         "documents",
         "construction",
         "marketing",
@@ -61,6 +62,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("finance", "export"),
         ("activity", "view"),
         ("notifications", "view"),
+        ("search", "view"),
         ("reports", "view"),
         ("reports", "export"),
         ("users", "view"),
@@ -71,6 +73,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("investors", "view"),
         ("projects", "view"),
         ("finance", "view"),
+        ("search", "view"),
         ("reports", "view"),
     ],
     "sales": [
@@ -83,6 +86,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("investors", "update"),
         ("projects", "view"),
         ("notifications", "view"),
+        ("search", "view"),
     ],
     "investor_relations": [
         ("investors", "view"),
@@ -95,6 +99,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("finance", "view"),
         ("executive", "view"),
         ("notifications", "view"),
+        ("search", "view"),
     ],
     "finance": [
         ("finance", "view"),
@@ -109,6 +114,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("reports", "view"),
         ("reports", "export"),
         ("notifications", "view"),
+        ("search", "view"),
     ],
     "construction": [
         ("projects", "view"),
@@ -118,6 +124,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("construction", "update"),
         ("finance", "view"),
         ("documents", "view"),
+        ("search", "view"),
     ],
     "marketing": [
         ("leads", "view"),
@@ -125,6 +132,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("marketing", "view"),
         ("marketing", "create"),
         ("marketing", "update"),
+        ("search", "view"),
     ],
     "operations": [
         ("projects", "view"),
@@ -135,6 +143,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("documents", "update"),
         ("activity", "view"),
         ("notifications", "view"),
+        ("search", "view"),
     ],
     "assistant": [
         ("leads", "view"),
@@ -144,6 +153,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("investors", "create"),
         ("investors", "update"),
         ("projects", "view"),
+        ("search", "view"),
     ],
     "read_only": [
         ("executive", "view"),
@@ -153,6 +163,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("finance", "view"),
         ("activity", "view"),
         ("notifications", "view"),
+        ("search", "view"),
         ("reports", "view"),
     ],
 }

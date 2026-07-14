@@ -7,6 +7,7 @@ import { DashboardHeaderActions } from '@/app/dashboard/_components/dashboard-he
 import {
   archiveLead,
   createLead,
+  fetchLead,
   fetchLeads,
   formatBudget,
   formatDate,
@@ -18,6 +19,7 @@ import {
 import {
   useLeadLabels,
 } from '@/lib/i18n/lead-labels';
+import { useRecordDeepLink } from '@/lib/hooks/use-record-deep-link';
 
 import { LeadDetailDrawer } from './lead-detail-drawer';
 import { LeadFormModal } from './lead-form-modal';
@@ -64,6 +66,9 @@ export function LeadsWorkspace() {
   useEffect(() => {
     void loadLeads(appliedFilters);
   }, [appliedFilters, loadLeads]);
+
+  const handleOpenLead = useCallback((lead: Lead) => setSelectedLead(lead), []);
+  useRecordDeepLink(fetchLead, handleOpenLead);
 
   const demoCount = useMemo(() => leads.filter((lead) => lead.is_demo).length, [leads]);
 

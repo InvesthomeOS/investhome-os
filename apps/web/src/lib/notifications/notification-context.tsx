@@ -79,6 +79,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     return () => window.clearInterval(timer);
   }, [canView, refresh]);
 
+  useEffect(() => {
+    if (!canView || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('openNotifications') === '1') {
+      setDrawerOpen(true);
+    }
+  }, [canView]);
+
   const markRead = useCallback(
     async (id: string) => {
       await markNotificationRead(id);

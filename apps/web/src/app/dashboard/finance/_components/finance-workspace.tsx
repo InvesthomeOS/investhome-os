@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { usePathname } from 'next/navigation';
 
 import { DashboardHeaderActions } from '@/app/dashboard/_components/dashboard-header-actions';
 import {
@@ -13,6 +14,7 @@ import {
   fetchFundingCommitments,
   fetchPaymentObligations,
   fetchProjectBudgets,
+  fetchTransaction,
   fetchTransactions,
   formatCurrencyTotals,
   formatMoney,
@@ -357,6 +359,28 @@ export function FinanceWorkspace() {
     void loadStats();
     void loadReferenceData();
   }, [loadReferenceData, loadStats]);
+
+  const pathname = usePathname();
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    const recordId = params.get('id');
+    const validTabs: FinanceTab[] = [
+      'overview',
+      'accounts',
+      'transactions',
+      'budgets',
+      'funding',
+      'payments',
+    ];
+    if (tab && validTabs.includes(tab as FinanceTab)) {
+      setActiveTab(tab as FinanceTab);
+    }
+    if (recordId && tab === 'transactions') {
+      void fetchTransaction(recordId).then(setSelectedTransaction).catch(() => undefined);
+    }
+  }, [pathname]);
 
   useEffect(() => {
     if (activeTab === 'overview') {

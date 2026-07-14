@@ -7,6 +7,7 @@ import { DashboardHeaderActions } from '@/app/dashboard/_components/dashboard-he
 import {
   archiveProject,
   createProject,
+  fetchProject,
   fetchProjectStats,
   fetchProjects,
   formatCurrency,
@@ -20,6 +21,7 @@ import {
   updateProject,
 } from '@/lib/api/projects';
 import { useProjectLabels } from '@/lib/i18n/project-labels';
+import { useRecordDeepLink } from '@/lib/hooks/use-record-deep-link';
 
 import { ProjectDetailDrawer } from './project-detail-drawer';
 import { ProjectFormModal } from './project-form-modal';
@@ -99,6 +101,9 @@ export function ProjectsWorkspace() {
   useEffect(() => {
     void loadProjects(appliedFilters);
   }, [appliedFilters, loadProjects]);
+
+  const handleOpenProject = useCallback((project: Project) => setSelectedProject(project), []);
+  useRecordDeepLink(fetchProject, handleOpenProject);
 
   const demoCount = useMemo(
     () => projects.filter((project) => project.is_demo).length,

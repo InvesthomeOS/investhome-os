@@ -60,7 +60,7 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
 
     db = TestingSessionLocal()
     permission_map: dict[tuple[str, str], Permission] = {}
-    for resource in {"leads", "users", "roles", "executive", "activity", "finance", "investors", "projects", "notifications"}:
+    for resource in {"leads", "users", "roles", "executive", "activity", "finance", "investors", "projects", "notifications", "search"}:
         for action in {"view", "create", "update", "manage", "archive"}:
             key = (resource, action)
             if key in permission_map:
@@ -115,6 +115,12 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
         RolePermission(
             role_id=roles["super_admin"].id,
             permission_id=permission_map[("notifications", "view")].id,
+        )
+    )
+    db.add(
+        RolePermission(
+            role_id=roles["super_admin"].id,
+            permission_id=permission_map[("search", "view")].id,
         )
     )
 

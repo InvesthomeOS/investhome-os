@@ -1190,6 +1190,51 @@
       }
     }
   },
+  "search": {
+    "placeholder": "Ara...",
+    "hint": "Lead, yatırımcı, proje, finans, kullanıcı, bildirim ve aktivite kayıtlarında arayın.",
+    "empty": "Sorgunuz için sonuç bulunamadı.",
+    "errors": {
+      "failed": "Arama başarısız oldu. Lütfen tekrar deneyin."
+    },
+    "filters": {
+      "toggle": "Filtreler",
+      "entityType": "Varlık türü",
+      "status": "Durum",
+      "assignedTo": "Atanan kullanıcı",
+      "dateFrom": "Başlangıç tarihi",
+      "dateTo": "Bitiş tarihi"
+    },
+    "keyboard": {
+      "navigate": "↑↓ Gezin",
+      "open": "Enter Aç",
+      "close": "Esc Kapat"
+    },
+    "entities": {
+      "lead": "Leadler",
+      "investor": "Yatırımcılar",
+      "project": "Projeler",
+      "financial_transaction": "İşlemler",
+      "financial_account": "Hesaplar",
+      "funding_commitment": "Fon taahhütleri",
+      "payment_obligation": "Ödeme yükümlülükleri",
+      "user": "Kullanıcılar",
+      "notification": "Bildirimler",
+      "activity": "Aktivite",
+      "document": "Belgeler (yakında)",
+      "unit": "Üniteler (yakında)",
+      "construction": "İnşaat (yakında)",
+      "email": "E-postalar (yakında)"
+    },
+    "modules": {
+      "leads": "Leadler",
+      "investors": "Yatırımcılar",
+      "projects": "Projeler",
+      "finance": "Finans",
+      "admin_users": "Kullanıcılar",
+      "activity": "Aktivite"
+    }
+  },
   "validation": {
     "required": "Bu alan zorunludur.",
     "invalidEmail": "Geçerli bir e-posta adresi girin."

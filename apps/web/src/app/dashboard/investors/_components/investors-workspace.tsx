@@ -7,6 +7,7 @@ import { DashboardHeaderActions } from '@/app/dashboard/_components/dashboard-he
 import {
   archiveInvestor,
   createInvestor,
+  fetchInvestor,
   fetchInvestorStats,
   fetchInvestors,
   formatCurrency,
@@ -18,6 +19,7 @@ import {
   updateInvestor,
 } from '@/lib/api/investors';
 import { useInvestorLabels } from '@/lib/i18n/investor-labels';
+import { useRecordDeepLink } from '@/lib/hooks/use-record-deep-link';
 
 import { InvestorDetailDrawer } from './investor-detail-drawer';
 import { InvestorFormModal } from './investor-form-modal';
@@ -93,6 +95,9 @@ export function InvestorsWorkspace() {
   useEffect(() => {
     void loadInvestors(appliedFilters);
   }, [appliedFilters, loadInvestors]);
+
+  const handleOpenInvestor = useCallback((investor: Investor) => setSelectedInvestor(investor), []);
+  useRecordDeepLink(fetchInvestor, handleOpenInvestor);
 
   const demoCount = useMemo(
     () => investors.filter((investor) => investor.is_demo).length,

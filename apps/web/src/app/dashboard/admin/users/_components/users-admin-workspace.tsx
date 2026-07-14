@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 import { DashboardHeaderActions } from '@/app/dashboard/_components/dashboard-header-actions';
 import { EntityActivityTimeline } from '@/app/dashboard/_components/entity-activity-timeline';
@@ -52,6 +52,13 @@ export function UsersAdminWorkspace() {
     }
     void load();
   }, [currentUser, load, router]);
+
+  const pathname = usePathname();
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const recordId = new URLSearchParams(window.location.search).get('id');
+    if (recordId) setSelectedId(recordId);
+  }, [pathname]);
 
   const selected = users.find((item) => item.id === selectedId) ?? null;
 
