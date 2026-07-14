@@ -1,0 +1,151 @@
+{
+  "common": {
+    "appName": "Investhome OS",
+    "operations": "Operations",
+    "close": "Close",
+    "cancel": "Cancel",
+    "apply": "Apply",
+    "reset": "Reset",
+    "retry": "Retry",
+    "edit": "Edit",
+    "loading": "Loading…",
+    "soon": "Soon",
+    "demo": "Demo",
+    "demoData": "Demo data",
+    "noValue": "—",
+    "backToDashboard": "← Dashboard",
+    "languageLabel": "Language",
+    "languageTurkish": "Türkçe",
+    "languageEnglish": "English"
+  },
+  "navigation": {
+    "ariaLabel": "Module navigation",
+    "modules": {
+      "executive": {
+        "title": "Executive",
+        "description": "Strategic overview and portfolio intelligence."
+      },
+      "leads": {
+        "title": "Leads",
+        "description": "Pipeline visibility and acquisition funnel metrics."
+      },
+      "investors": {
+        "title": "Investors",
+        "description": "Capital partners, commitments, and relations."
+      },
+      "projects": {
+        "title": "Projects",
+        "description": "Development lifecycle and delivery tracking."
+      },
+      "finance": {
+        "title": "Finance",
+        "description": "Treasury, reporting, and compliance posture."
+      }
+    }
+  },
+  "dashboard": {
+    "eyebrow": "Investhome OS",
+    "title": "Dashboard",
+    "operational": {
+      "loading": "Checking…",
+      "operational": "Operational",
+      "degraded": "Degraded",
+      "unavailable": "Unavailable"
+    },
+    "placeholder": {
+      "title": "Module workspace",
+      "description": "API integration and live data are not yet implemented for this section."
+    }
+  },
+  "leads": {
+    "eyebrow": "Pipeline",
+    "title": "Leads",
+    "subtitle": "Pipeline visibility and acquisition funnel metrics.",
+    "demoBanner": "Showing {count} development demo leads seeded for local testing.",
+    "searchLabel": "Search",
+    "searchPlaceholder": "Name, email, phone, project",
+    "statusLabel": "Status",
+    "sourceLabel": "Source",
+    "allStatuses": "All statuses",
+    "allSources": "All sources",
+    "addLead": "Add Lead",
+    "editLead": "Edit Lead",
+    "createLead": "Create Lead",
+    "saveChanges": "Save Changes",
+    "saving": "Saving…",
+    "loading": "Loading leads…",
+    "loadError": "Unable to load leads.",
+    "saveError": "Unable to save lead.",
+    "archiveError": "Unable to archive lead.",
+    "emptyState": "No leads match the current filters.",
+    "detailEyebrow": "Lead detail",
+    "archiveLead": "Archive Lead",
+    "archiving": "Archiving…",
+    "noNotes": "No notes recorded.",
+    "table": {
+      "name": "Name",
+      "contact": "Contact",
+      "country": "Country",
+      "source": "Source",
+      "status": "Status",
+      "assignedTo": "Assigned To",
+      "budget": "Budget",
+      "project": "Project",
+      "updated": "Updated"
+    },
+    "form": {
+      "fullName": "Full name *",
+      "email": "Email",
+      "phone": "Phone",
+      "country": "Country",
+      "source": "Source",
+      "status": "Status",
+      "assignedTo": "Assigned to",
+      "estimatedBudget": "Estimated budget (USD)",
+      "interestedProject": "Interested project",
+      "notes": "Notes"
+    },
+    "detail": {
+      "email": "Email",
+      "phone": "Phone",
+      "country": "Country",
+      "source": "Source",
+      "status": "Status",
+      "assignedTo": "Assigned to",
+      "budget": "Budget",
+      "project": "Project",
+      "created": "Created",
+      "updated": "Updated",
+      "notes": "Notes"
+    },
+    "statuses": {
+      "new": "New",
+      "contacted": "Contacted",
+      "qualified": "Qualified",
+      "meeting_scheduled": "Meeting Scheduled",
+      "proposal_sent": "Proposal Sent",
+      "negotiation": "Negotiation",
+      "won": "Won",
+      "lost": "Lost"
+    },
+    "sources": {
+      "website": "Website",
+      "referral": "Referral",
+      "exhibition": "Exhibition",
+      "linkedin": "LinkedIn",
+      "partner": "Partner",
+      "cold_outreach": "Cold Outreach"
+    }
+  },
+  "investors": {},
+  "projects": {},
+  "finance": {},
+  "validation": {
+    "required": "This field is required.",
+    "invalidEmail": "Enter a valid email address."
+  },
+  "errors": {
+    "requestFailed": "Request failed with status {status}.",
+    "generic": "An unexpected error occurred."
+  }
+}

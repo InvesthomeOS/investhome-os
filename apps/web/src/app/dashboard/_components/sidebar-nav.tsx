@@ -2,11 +2,10 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
+import { useTranslations } from 'next-intl';
 import { usePathname } from 'next/navigation';
 
 import { MODULE_NAMES, type ModuleName } from '@investhome/shared';
-
-import { MODULE_SECTIONS } from '@/lib/modules';
 
 function moduleHref(module: ModuleName): Route {
   return `/dashboard/${module}` as Route;
@@ -14,21 +13,22 @@ function moduleHref(module: ModuleName): Route {
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const t = useTranslations('navigation');
+  const tCommon = useTranslations('common');
 
   return (
     <aside className="dashboard-shell__sidebar">
       <div className="dashboard-shell__brand">
         <Link href="/dashboard" className="dashboard-shell__brand-link">
-          <span className="dashboard__eyebrow">Investhome OS</span>
-          <span className="dashboard-shell__brand-title">Operations</span>
+          <span className="dashboard__eyebrow">{tCommon('appName')}</span>
+          <span className="dashboard-shell__brand-title">{tCommon('operations')}</span>
         </Link>
       </div>
 
-      <nav className="dashboard-shell__nav" aria-label="Module navigation">
+      <nav className="dashboard-shell__nav" aria-label={t('ariaLabel')}>
         {MODULE_NAMES.map((module) => {
           const href = moduleHref(module);
           const isActive = pathname === href || pathname.startsWith(`${href}/`);
-          const section = MODULE_SECTIONS[module];
           const isImplemented = module === 'leads';
 
           return (
@@ -38,8 +38,10 @@ export function SidebarNav() {
               className={`dashboard-shell__nav-link${isActive ? ' dashboard-shell__nav-link--active' : ''}`}
               aria-current={isActive ? 'page' : undefined}
             >
-              <span>{section.title}</span>
-              {!isImplemented && <span className="dashboard-shell__nav-badge">Soon</span>}
+              <span>{t(`modules.${module}.title`)}</span>
+              {!isImplemented && (
+                <span className="dashboard-shell__nav-badge">{tCommon('soon')}</span>
+              )}
             </Link>
           );
         })}

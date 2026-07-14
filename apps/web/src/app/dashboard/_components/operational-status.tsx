@@ -1,19 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { fetchHealth } from '@/lib/api/health';
 
 type OperationalState = 'loading' | 'operational' | 'degraded' | 'unavailable';
 
-const STATUS_LABELS: Record<OperationalState, string> = {
-  loading: 'Checking…',
-  operational: 'Operational',
-  degraded: 'Degraded',
-  unavailable: 'Unavailable',
-};
-
 export function OperationalStatus() {
+  const t = useTranslations('dashboard.operational');
   const [state, setState] = useState<OperationalState>('loading');
 
   useEffect(() => {
@@ -45,7 +40,7 @@ export function OperationalStatus() {
 
   return (
     <span className={`dashboard__status dashboard__status--${state}`}>
-      {STATUS_LABELS[state]}
+      {t(state)}
     </span>
   );
 }

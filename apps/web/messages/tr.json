@@ -1,0 +1,151 @@
+{
+  "common": {
+    "appName": "Investhome OS",
+    "operations": "Operasyonlar",
+    "close": "Kapat",
+    "cancel": "İptal",
+    "apply": "Uygula",
+    "reset": "Sıfırla",
+    "retry": "Yeniden Dene",
+    "edit": "Düzenle",
+    "loading": "Yükleniyor…",
+    "soon": "Yakında",
+    "demo": "Demo",
+    "demoData": "Demo verisi",
+    "noValue": "—",
+    "backToDashboard": "← Ana Panele Dön",
+    "languageLabel": "Dil",
+    "languageTurkish": "Türkçe",
+    "languageEnglish": "English"
+  },
+  "navigation": {
+    "ariaLabel": "Modül gezinmesi",
+    "modules": {
+      "executive": {
+        "title": "Yönetici Özeti",
+        "description": "Stratejik genel bakış ve portföy analitiği."
+      },
+      "leads": {
+        "title": "Potansiyel Müşteriler",
+        "description": "Satış hattı görünürlüğü ve edinim hunisi metrikleri."
+      },
+      "investors": {
+        "title": "Yatırımcılar",
+        "description": "Sermaye ortakları, taahhütler ve ilişkiler."
+      },
+      "projects": {
+        "title": "Projeler",
+        "description": "Geliştirme yaşam döngüsü ve teslimat takibi."
+      },
+      "finance": {
+        "title": "Finans",
+        "description": "Hazine, raporlama ve uyum durumu."
+      }
+    }
+  },
+  "dashboard": {
+    "eyebrow": "Investhome OS",
+    "title": "Ana Panel",
+    "operational": {
+      "loading": "Kontrol ediliyor…",
+      "operational": "Sistem Aktif",
+      "degraded": "Kısıtlı",
+      "unavailable": "Kullanılamıyor"
+    },
+    "placeholder": {
+      "title": "Modül çalışma alanı",
+      "description": "Bu bölüm için API entegrasyonu ve canlı veri henüz uygulanmadı."
+    }
+  },
+  "leads": {
+    "eyebrow": "Satış Hattı",
+    "title": "Potansiyel Müşteriler",
+    "subtitle": "Satış hattı görünürlüğü ve edinim hunisi metrikleri.",
+    "demoBanner": "{count} geliştirme demo kaydı yerel test için yüklendi.",
+    "searchLabel": "Ara",
+    "searchPlaceholder": "Ad, e-posta, telefon, proje",
+    "statusLabel": "Durum",
+    "sourceLabel": "Kaynak",
+    "allStatuses": "Tüm durumlar",
+    "allSources": "Tüm kaynaklar",
+    "addLead": "Potansiyel Müşteri Ekle",
+    "editLead": "Potansiyel Müşteriyi Düzenle",
+    "createLead": "Potansiyel Müşteri Oluştur",
+    "saveChanges": "Değişiklikleri Kaydet",
+    "saving": "Kaydediliyor…",
+    "loading": "Potansiyel müşteriler yükleniyor…",
+    "loadError": "Potansiyel müşteriler yüklenemedi.",
+    "saveError": "Potansiyel müşteri kaydedilemedi.",
+    "archiveError": "Potansiyel müşteri arşivlenemedi.",
+    "emptyState": "Mevcut filtrelere uygun potansiyel müşteri bulunamadı.",
+    "detailEyebrow": "Potansiyel müşteri detayı",
+    "archiveLead": "Potansiyel Müşteriyi Arşivle",
+    "archiving": "Arşivleniyor…",
+    "noNotes": "Not kaydı bulunmuyor.",
+    "table": {
+      "name": "Ad Soyad",
+      "contact": "İletişim",
+      "country": "Ülke",
+      "source": "Kaynak",
+      "status": "Durum",
+      "assignedTo": "Atanan",
+      "budget": "Bütçe",
+      "project": "Proje",
+      "updated": "Güncellenme"
+    },
+    "form": {
+      "fullName": "Ad soyad *",
+      "email": "E-posta",
+      "phone": "Telefon",
+      "country": "Ülke",
+      "source": "Kaynak",
+      "status": "Durum",
+      "assignedTo": "Atanan kişi",
+      "estimatedBudget": "Tahmini bütçe (USD)",
+      "interestedProject": "İlgilenilen proje",
+      "notes": "Notlar"
+    },
+    "detail": {
+      "email": "E-posta",
+      "phone": "Telefon",
+      "country": "Ülke",
+      "source": "Kaynak",
+      "status": "Durum",
+      "assignedTo": "Atanan kişi",
+      "budget": "Bütçe",
+      "project": "Proje",
+      "created": "Oluşturulma",
+      "updated": "Güncellenme",
+      "notes": "Notlar"
+    },
+    "statuses": {
+      "new": "Yeni",
+      "contacted": "İletişime Geçildi",
+      "qualified": "Nitelikli",
+      "meeting_scheduled": "Toplantı Planlandı",
+      "proposal_sent": "Teklif Gönderildi",
+      "negotiation": "Görüşme Aşamasında",
+      "won": "Kazanıldı",
+      "lost": "Kaybedildi"
+    },
+    "sources": {
+      "website": "Web Sitesi",
+      "referral": "Referans",
+      "exhibition": "Fuar / Etkinlik",
+      "linkedin": "LinkedIn",
+      "partner": "İş Ortağı",
+      "cold_outreach": "Doğrudan İletişim"
+    }
+  },
+  "investors": {},
+  "projects": {},
+  "finance": {},
+  "validation": {
+    "required": "Bu alan zorunludur.",
+    "invalidEmail": "Geçerli bir e-posta adresi girin."
+  },
+  "errors": {
+    "requestFailed": "İstek {status} durum kodu ile başarısız oldu.",
+    "generic": "Beklenmeyen bir hata oluştu."
+  }
+}

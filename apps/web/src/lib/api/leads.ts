@@ -111,7 +111,7 @@ export async function archiveLead(id: string): Promise<Lead> {
   });
 }
 
-export function formatBudget(value: string | null): string {
+export function formatBudget(value: string | null, locale = 'tr'): string {
   if (!value) {
     return '—';
   }
@@ -121,15 +121,19 @@ export function formatBudget(value: string | null): string {
     return value;
   }
 
-  return new Intl.NumberFormat('en-US', {
+  const intlLocale = locale === 'tr' ? 'tr-TR' : 'en-US';
+
+  return new Intl.NumberFormat(intlLocale, {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 0,
   }).format(amount);
 }
 
-export function formatDate(value: string): string {
-  return new Intl.DateTimeFormat('en-GB', {
+export function formatDate(value: string, locale = 'tr'): string {
+  const intlLocale = locale === 'tr' ? 'tr-TR' : 'en-GB';
+
+  return new Intl.DateTimeFormat(intlLocale, {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value));

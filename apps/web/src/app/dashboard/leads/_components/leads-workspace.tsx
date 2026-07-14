@@ -1,21 +1,23 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 
-import { OperationalStatus } from '@/app/dashboard/_components/operational-status';
+import { DashboardHeaderActions } from '@/app/dashboard/_components/dashboard-header-actions';
 import {
   archiveLead,
   createLead,
   fetchLeads,
   formatBudget,
   formatDate,
-  LEAD_SOURCES,
-  LEAD_STATUSES,
   type Lead,
   type LeadFilters,
   type LeadInput,
   updateLead,
 } from '@/lib/api/leads';
+import {
+  useLeadLabels,
+} from '@/lib/i18n/lead-labels';
 
 import { LeadDetailDrawer } from './lead-detail-drawer';
 import { LeadFormModal } from './lead-form-modal';
@@ -29,6 +31,11 @@ const EMPTY_FILTERS: LeadFilters = {
 };
 
 export function LeadsWorkspace() {
+  const t = useTranslations('leads');
+  const tCommon = useTranslations('common');
+  const locale = useLocale();
+  const { getStatusLabel, getSourceLabel, statusOptions, sourceOptions } = useLeadLabels();
+
   const [leads, setLeads] = useState<Lead[]>([]);
   const [filters, setFilters] = useState<LeadFilters>(EMPTY_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState<LeadFilters>(EMPTY_FILTERS);
@@ -46,15 +53,13 @@ export function LeadsWorkspace() {
     try {
       const response = await fetchLeads(nextFilters);
       setLeads(response.items);
-    } catch (loadError) {
-      const message =
-        loadError instanceof Error ? loadError.message : 'Unable to load leads.';
-      setError(message);
+    } catch {
+      setError(t('loadError'));
       setLeads([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void loadLeads(appliedFilters);
@@ -99,10 +104,8 @@ export function LeadsWorkspace() {
         setSelectedLead(updated);
       }
       setFormMode(null);
-    } catch (submitError) {
-      const message =
-        submitError instanceof Error ? submitError.message : 'Unable to save lead.';
-      setActionError(message);
+    } catch {
+      setActionError(t('saveError'));
     } finally {
       setSubmitting(false);
     }
@@ -116,10 +119,8 @@ export function LeadsWorkspace() {
       await archiveLead(lead.id);
       setLeads((current) => current.filter((item) => item.id !== lead.id));
       setSelectedLead(null);
-    } catch (archiveError) {
-      const message =
-        archiveError instanceof Error ? archiveError.message : 'Unable to archive lead.';
-      setActionError(message);
+    } catch {
+      setActionError(t('archiveError'));
     } finally {
       setSubmitting(false);
     }
@@ -129,17 +130,16 @@ export function LeadsWorkspace() {
     <main className="dashboard leads">
       <header className="dashboard__header leads__header">
         <div>
-          <p className="dashboard__eyebrow">Pipeline</p>
-          <h1 className="dashboard__title">Leads</h1>
-          <p className="leads__subtitle">Pipeline visibility and acquisition funnel metrics.</p>
+          <p className="dashboard__eyebrow">{t('eyebrow')}</p>
+          <h1 className="dashboard__title">{t('title')}</h1>
+          <p className="leads__subtitle">{t('subtitle')}</p>
         </div>
-        <OperationalStatus />
+        <DashboardHeaderActions />
       </header>
 
       {demoCount > 0 && (
         <div className="leads__demo-banner" role="status">
-          Showing {demoCount} development demo lead{demoCount === 1 ? '' : 's'} seeded for local
-          testing.
+          {t('demoBanner', { count: demoCount })}
         </div>
       )}
 
@@ -147,11 +147,11 @@ export function LeadsWorkspace() {
         <div className="leads__toolbar">
           <div className="leads__filters">
             <label className="leads__field">
-              <span>Search</span>
+              <span>{t('searchLabel')}</span>
               <input
                 type="search"
                 value={filters.search ?? ''}
-                placeholder="Name, email, phone, project"
+                placeholder={t('searchPlaceholder')}
                 onChange={(event) =>
                   setFilters((current) => ({ ...current, search: event.target.value }))
                 }
@@ -159,7 +159,7 @@ export function LeadsWorkspace() {
             </label>
 
             <label className="leads__field">
-              <span>Status</span>
+              <span>{t('statusLabel')}</span>
               <select
                 value={filters.status ?? ''}
                 onChange={(event) =>
@@ -169,65 +169,85 @@ export function LeadsWorkspace() {
                   }))
                 }
               >
-                <option value="">All statuses</option>
-                {LEAD_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
+                <option value="">{t('allStatuses')}</option>
+                {statusOptions.map((status) => (
+                  <option key={status.value} value={status.value}>
+                    {status.label}
                   </option>
                 ))}
               </select>
             </label>
 
             <label className="leads__field">
-              <span>Source</span>
+              <span>{t('sourceLabel')}</span>
               <select
                 value={filters.source ?? ''}
                 onChange={(event) =>
                   setFilters((current) => ({ ...current, source: event.target.value }))
                 }
               >
-                <option value="">All sources</option>
-                {LEAD_SOURCES.map((source) => (
-                  <option key={source} value={source}>
-                    {source}
+                <option value="">{t('allSources')}</option>
+                {sourceOptions.map((source) => (
+                  <option key={source.value} value={source.value}>
+                    {source.label}
                   </option>
                 ))}
               </select>
             </label>
 
             <div className="leads__filter-actions">
-              <button type="button" className="leads__button leads__button--secondary" onClick={handleApplyFilters}>
-                Apply
+              <button
+                type="button"
+                className="leads__button leads__button--secondary"
+                onClick={handleApplyFilters}
+              >
+                {tCommon('apply')}
               </button>
-              <button type="button" className="leads__button leads__button--ghost" onClick={handleResetFilters}>
-                Reset
+              <button
+                type="button"
+                className="leads__button leads__button--ghost"
+                onClick={handleResetFilters}
+              >
+                {tCommon('reset')}
               </button>
             </div>
           </div>
 
-          <button type="button" className="leads__button leads__button--primary" onClick={handleOpenCreate}>
-            Add Lead
+          <button
+            type="button"
+            className="leads__button leads__button--primary"
+            onClick={handleOpenCreate}
+          >
+            {t('addLead')}
           </button>
         </div>
 
         {actionError && <p className="leads__error">{actionError}</p>}
 
-        {loading && <p className="dashboard__placeholder">Loading leads…</p>}
+        {loading && <p className="dashboard__placeholder">{t('loading')}</p>}
 
         {!loading && error && (
           <div className="leads__state leads__state--error">
             <p>{error}</p>
-            <button type="button" className="leads__button leads__button--secondary" onClick={() => void loadLeads(appliedFilters)}>
-              Retry
+            <button
+              type="button"
+              className="leads__button leads__button--secondary"
+              onClick={() => void loadLeads(appliedFilters)}
+            >
+              {tCommon('retry')}
             </button>
           </div>
         )}
 
         {!loading && !error && leads.length === 0 && (
           <div className="leads__state">
-            <p>No leads match the current filters.</p>
-            <button type="button" className="leads__button leads__button--primary" onClick={handleOpenCreate}>
-              Add Lead
+            <p>{t('emptyState')}</p>
+            <button
+              type="button"
+              className="leads__button leads__button--primary"
+              onClick={handleOpenCreate}
+            >
+              {t('addLead')}
             </button>
           </div>
         )}
@@ -237,15 +257,15 @@ export function LeadsWorkspace() {
             <table className="leads__table">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Contact</th>
-                  <th>Country</th>
-                  <th>Source</th>
-                  <th>Status</th>
-                  <th>Assigned To</th>
-                  <th>Budget</th>
-                  <th>Project</th>
-                  <th>Updated</th>
+                  <th>{t('table.name')}</th>
+                  <th>{t('table.contact')}</th>
+                  <th>{t('table.country')}</th>
+                  <th>{t('table.source')}</th>
+                  <th>{t('table.status')}</th>
+                  <th>{t('table.assignedTo')}</th>
+                  <th>{t('table.budget')}</th>
+                  <th>{t('table.project')}</th>
+                  <th>{t('table.updated')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -257,25 +277,29 @@ export function LeadsWorkspace() {
                   >
                     <td>
                       <span className="leads__name">{lead.full_name}</span>
-                      {lead.is_demo && <span className="leads__demo-tag">Demo</span>}
+                      {lead.is_demo && (
+                        <span className="leads__demo-tag">{tCommon('demo')}</span>
+                      )}
                     </td>
                     <td>
                       <div className="leads__contact">
-                        <span>{lead.email ?? '—'}</span>
-                        <span className="leads__muted">{lead.phone ?? '—'}</span>
+                        <span>{lead.email ?? tCommon('noValue')}</span>
+                        <span className="leads__muted">{lead.phone ?? tCommon('noValue')}</span>
                       </div>
                     </td>
-                    <td>{lead.country ?? '—'}</td>
-                    <td>{lead.source ?? '—'}</td>
+                    <td>{lead.country ?? tCommon('noValue')}</td>
+                    <td>{getSourceLabel(lead.source)}</td>
                     <td>
-                      <span className={`leads__status leads__status--${lead.status.toLowerCase().replace(/\s+/g, '-')}`}>
-                        {lead.status}
+                      <span
+                        className={`leads__status leads__status--${lead.status.toLowerCase().replace(/\s+/g, '-')}`}
+                      >
+                        {getStatusLabel(lead.status)}
                       </span>
                     </td>
-                    <td>{lead.assigned_to ?? '—'}</td>
-                    <td>{formatBudget(lead.estimated_budget)}</td>
-                    <td>{lead.interested_project ?? '—'}</td>
-                    <td>{formatDate(lead.updated_at)}</td>
+                    <td>{lead.assigned_to ?? tCommon('noValue')}</td>
+                    <td>{formatBudget(lead.estimated_budget, locale)}</td>
+                    <td>{lead.interested_project ?? tCommon('noValue')}</td>
+                    <td>{formatDate(lead.updated_at, locale)}</td>
                   </tr>
                 ))}
               </tbody>

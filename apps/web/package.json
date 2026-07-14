@@ -14,6 +14,7 @@
     "@investhome/shared": "workspace:*",
     "@investhome/ui": "workspace:*",
     "next": "^15.1.0",
+    "next-intl": "^4.13.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

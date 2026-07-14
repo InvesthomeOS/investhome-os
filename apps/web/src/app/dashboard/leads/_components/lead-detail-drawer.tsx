@@ -1,6 +1,9 @@
 'use client';
 
+import { useLocale, useTranslations } from 'next-intl';
+
 import { formatBudget, formatDate, type Lead } from '@/lib/api/leads';
+import { useLeadLabels } from '@/lib/i18n/lead-labels';
 
 interface LeadDetailDrawerProps {
   lead: Lead | null;
@@ -17,6 +20,11 @@ export function LeadDetailDrawer({
   onEdit,
   onArchive,
 }: LeadDetailDrawerProps) {
+  const t = useTranslations('leads');
+  const tCommon = useTranslations('common');
+  const locale = useLocale();
+  const { getStatusLabel, getSourceLabel } = useLeadLabels();
+
   if (!lead) {
     return null;
   }
@@ -32,66 +40,72 @@ export function LeadDetailDrawer({
       >
         <header className="leads-drawer__header">
           <div>
-            <p className="dashboard__eyebrow">Lead detail</p>
+            <p className="dashboard__eyebrow">{t('detailEyebrow')}</p>
             <h2 id="lead-detail-title">{lead.full_name}</h2>
-            {lead.is_demo && <span className="leads__demo-tag">Demo data</span>}
+            {lead.is_demo && (
+              <span className="leads__demo-tag">{tCommon('demoData')}</span>
+            )}
           </div>
           <button type="button" className="leads__button leads__button--ghost" onClick={onClose}>
-            Close
+            {tCommon('close')}
           </button>
         </header>
 
         <dl className="leads-drawer__grid">
           <div>
-            <dt>Email</dt>
-            <dd>{lead.email ?? '—'}</dd>
+            <dt>{t('detail.email')}</dt>
+            <dd>{lead.email ?? tCommon('noValue')}</dd>
           </div>
           <div>
-            <dt>Phone</dt>
-            <dd>{lead.phone ?? '—'}</dd>
+            <dt>{t('detail.phone')}</dt>
+            <dd>{lead.phone ?? tCommon('noValue')}</dd>
           </div>
           <div>
-            <dt>Country</dt>
-            <dd>{lead.country ?? '—'}</dd>
+            <dt>{t('detail.country')}</dt>
+            <dd>{lead.country ?? tCommon('noValue')}</dd>
           </div>
           <div>
-            <dt>Source</dt>
-            <dd>{lead.source ?? '—'}</dd>
+            <dt>{t('detail.source')}</dt>
+            <dd>{getSourceLabel(lead.source)}</dd>
           </div>
           <div>
-            <dt>Status</dt>
-            <dd>{lead.status}</dd>
+            <dt>{t('detail.status')}</dt>
+            <dd>{getStatusLabel(lead.status)}</dd>
           </div>
           <div>
-            <dt>Assigned to</dt>
-            <dd>{lead.assigned_to ?? '—'}</dd>
+            <dt>{t('detail.assignedTo')}</dt>
+            <dd>{lead.assigned_to ?? tCommon('noValue')}</dd>
           </div>
           <div>
-            <dt>Budget</dt>
-            <dd>{formatBudget(lead.estimated_budget)}</dd>
+            <dt>{t('detail.budget')}</dt>
+            <dd>{formatBudget(lead.estimated_budget, locale)}</dd>
           </div>
           <div>
-            <dt>Project</dt>
-            <dd>{lead.interested_project ?? '—'}</dd>
+            <dt>{t('detail.project')}</dt>
+            <dd>{lead.interested_project ?? tCommon('noValue')}</dd>
           </div>
           <div>
-            <dt>Created</dt>
-            <dd>{formatDate(lead.created_at)}</dd>
+            <dt>{t('detail.created')}</dt>
+            <dd>{formatDate(lead.created_at, locale)}</dd>
           </div>
           <div>
-            <dt>Updated</dt>
-            <dd>{formatDate(lead.updated_at)}</dd>
+            <dt>{t('detail.updated')}</dt>
+            <dd>{formatDate(lead.updated_at, locale)}</dd>
           </div>
         </dl>
 
         <div className="leads-drawer__notes">
-          <h3>Notes</h3>
-          <p>{lead.notes?.trim() ? lead.notes : 'No notes recorded.'}</p>
+          <h3>{t('detail.notes')}</h3>
+          <p>{lead.notes?.trim() ? lead.notes : t('noNotes')}</p>
         </div>
 
         <footer className="leads-drawer__footer">
-          <button type="button" className="leads__button leads__button--secondary" onClick={() => onEdit(lead)}>
-            Edit
+          <button
+            type="button"
+            className="leads__button leads__button--secondary"
+            onClick={() => onEdit(lead)}
+          >
+            {tCommon('edit')}
           </button>
           <button
             type="button"
@@ -99,7 +113,7 @@ export function LeadDetailDrawer({
             disabled={archiving}
             onClick={() => onArchive(lead)}
           >
-            {archiving ? 'Archiving…' : 'Archive Lead'}
+            {archiving ? t('archiving') : t('archiveLead')}
           </button>
         </footer>
       </aside>

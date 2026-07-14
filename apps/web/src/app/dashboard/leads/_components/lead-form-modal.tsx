@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 import {
-  LEAD_SOURCES,
-  LEAD_STATUSES,
   type Lead,
   type LeadInput,
 } from '@/lib/api/leads';
+import { useLeadLabels } from '@/lib/i18n/lead-labels';
 
 interface LeadFormModalProps {
   mode: 'create' | 'edit' | null;
@@ -39,6 +39,9 @@ export function LeadFormModal({
   onClose,
   onSubmit,
 }: LeadFormModalProps) {
+  const t = useTranslations('leads');
+  const tCommon = useTranslations('common');
+  const { statusOptions, sourceOptions } = useLeadLabels();
   const [form, setForm] = useState<LeadInput>(EMPTY_FORM);
 
   useEffect(() => {
@@ -91,15 +94,15 @@ export function LeadFormModal({
         onClick={(event) => event.stopPropagation()}
       >
         <header className="leads-modal__header">
-          <h2 id="lead-form-title">{mode === 'create' ? 'Add Lead' : 'Edit Lead'}</h2>
+          <h2 id="lead-form-title">{mode === 'create' ? t('addLead') : t('editLead')}</h2>
           <button type="button" className="leads__button leads__button--ghost" onClick={onClose}>
-            Close
+            {tCommon('close')}
           </button>
         </header>
 
         <form className="leads-form" onSubmit={handleSubmit}>
           <label className="leads__field">
-            <span>Full name *</span>
+            <span>{t('form.fullName')}</span>
             <input
               required
               value={form.full_name}
@@ -109,7 +112,7 @@ export function LeadFormModal({
 
           <div className="leads-form__grid">
             <label className="leads__field">
-              <span>Email</span>
+              <span>{t('form.email')}</span>
               <input
                 type="email"
                 value={form.email ?? ''}
@@ -117,7 +120,7 @@ export function LeadFormModal({
               />
             </label>
             <label className="leads__field">
-              <span>Phone</span>
+              <span>{t('form.phone')}</span>
               <input
                 value={form.phone ?? ''}
                 onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
@@ -127,21 +130,21 @@ export function LeadFormModal({
 
           <div className="leads-form__grid">
             <label className="leads__field">
-              <span>Country</span>
+              <span>{t('form.country')}</span>
               <input
                 value={form.country ?? ''}
                 onChange={(event) => setForm((current) => ({ ...current, country: event.target.value }))}
               />
             </label>
             <label className="leads__field">
-              <span>Source</span>
+              <span>{t('form.source')}</span>
               <select
                 value={form.source ?? ''}
                 onChange={(event) => setForm((current) => ({ ...current, source: event.target.value }))}
               >
-                {LEAD_SOURCES.map((source) => (
-                  <option key={source} value={source}>
-                    {source}
+                {sourceOptions.map((source) => (
+                  <option key={source.value} value={source.value}>
+                    {source.label}
                   </option>
                 ))}
               </select>
@@ -150,7 +153,7 @@ export function LeadFormModal({
 
           <div className="leads-form__grid">
             <label className="leads__field">
-              <span>Status</span>
+              <span>{t('form.status')}</span>
               <select
                 value={form.status ?? 'New'}
                 onChange={(event) =>
@@ -160,15 +163,15 @@ export function LeadFormModal({
                   }))
                 }
               >
-                {LEAD_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
+                {statusOptions.map((status) => (
+                  <option key={status.value} value={status.value}>
+                    {status.label}
                   </option>
                 ))}
               </select>
             </label>
             <label className="leads__field">
-              <span>Assigned to</span>
+              <span>{t('form.assignedTo')}</span>
               <input
                 value={form.assigned_to ?? ''}
                 onChange={(event) =>
@@ -180,7 +183,7 @@ export function LeadFormModal({
 
           <div className="leads-form__grid">
             <label className="leads__field">
-              <span>Estimated budget (USD)</span>
+              <span>{t('form.estimatedBudget')}</span>
               <input
                 type="number"
                 min="0"
@@ -195,7 +198,7 @@ export function LeadFormModal({
               />
             </label>
             <label className="leads__field">
-              <span>Interested project</span>
+              <span>{t('form.interestedProject')}</span>
               <input
                 value={form.interested_project ?? ''}
                 onChange={(event) =>
@@ -206,7 +209,7 @@ export function LeadFormModal({
           </div>
 
           <label className="leads__field">
-            <span>Notes</span>
+            <span>{t('form.notes')}</span>
             <textarea
               rows={4}
               value={form.notes ?? ''}
@@ -218,10 +221,14 @@ export function LeadFormModal({
 
           <footer className="leads-modal__footer">
             <button type="button" className="leads__button leads__button--ghost" onClick={onClose}>
-              Cancel
+              {tCommon('cancel')}
             </button>
             <button type="submit" className="leads__button leads__button--primary" disabled={submitting}>
-              {submitting ? 'Saving…' : mode === 'create' ? 'Create Lead' : 'Save Changes'}
+              {submitting
+                ? t('saving')
+                : mode === 'create'
+                  ? t('createLead')
+                  : t('saveChanges')}
             </button>
           </footer>
         </form>

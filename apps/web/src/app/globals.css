@@ -48,6 +48,44 @@ body {
   margin-bottom: 2.5rem;
 }
 
+.dashboard__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.dashboard__language {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dashboard__language-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.dashboard__language-select {
+  appearance: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.375rem 0.75rem;
+  cursor: pointer;
+}
+
+.dashboard__language-select:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .dashboard__eyebrow {
   font-size: 0.75rem;
   font-weight: 600;
