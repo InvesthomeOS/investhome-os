@@ -35,6 +35,8 @@ import { useLeadLabels } from '@/lib/i18n/lead-labels';
 import { useProjectLabels } from '@/lib/i18n/project-labels';
 import { metadataForI18n } from '@/lib/api/activity';
 import { useActivityLabels } from '@/lib/i18n/activity-labels';
+import { fetchNotificationSummary, type NotificationSummary } from '@/lib/api/notifications';
+import { useNotifications } from '@/lib/notifications/notification-context';
 
 type LoadState = 'idle' | 'loading' | 'error' | 'success';
 
@@ -223,6 +225,84 @@ function CashFlowChart({
         );
       })}
     </div>
+  );
+}
+
+function ExecutiveNotificationSummary() {
+  const t = useTranslations('executive.notifications');
+  const tExecutive = useTranslations('executive');
+  const tCommon = useTranslations('common');
+  const { canView, openDrawer } = useNotifications();
+  const [state, setState] = useState<LoadState>('loading');
+  const [summary, setSummary] = useState<NotificationSummary | null>(null);
+
+  const load = useCallback(async () => {
+    if (!canView) {
+      setState('success');
+      setSummary(null);
+      return;
+    }
+    setState('loading');
+    try {
+      const data = await fetchNotificationSummary(true);
+      setSummary(data);
+      setState('success');
+    } catch {
+      setSummary(null);
+      setState('error');
+    }
+  }, [canView]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (!canView) return null;
+
+  return (
+    <section className="dashboard__panel leads__panel executive__notification-summary">
+      <div className="executive__notification-summary-header">
+        <div>
+          <h2 className="leads-form__section-title">{t('title')}</h2>
+          <p className="leads__subtitle">{t('subtitle')}</p>
+        </div>
+        <button type="button" className="leads__button leads__button--secondary" onClick={openDrawer}>
+          {t('openCenter')}
+        </button>
+      </div>
+      {state === 'loading' && <div className="executive__skeleton" aria-hidden="true" />}
+      {state === 'error' && (
+        <div className="leads__state leads__state--error">
+          <p>{tExecutive('errors.section')}</p>
+          <button type="button" className="leads__button leads__button--secondary" onClick={() => void load()}>
+            {tCommon('retry')}
+          </button>
+        </div>
+      )}
+      {state === 'success' && summary && summary.unread === 0 && (
+        <p className="leads__state">{t('empty')}</p>
+      )}
+      {state === 'success' && summary && summary.unread > 0 && (
+        <div className="executive__notification-summary-grid">
+          <div className="executive__notification-stat executive__notification-stat--critical">
+            <span>{t('critical')}</span>
+            <strong>{summary.critical}</strong>
+          </div>
+          <div className="executive__notification-stat executive__notification-stat--high">
+            <span>{t('high')}</span>
+            <strong>{summary.high}</strong>
+          </div>
+          <div className="executive__notification-stat executive__notification-stat--medium">
+            <span>{t('medium')}</span>
+            <strong>{summary.medium}</strong>
+          </div>
+          <div className="executive__notification-stat">
+            <span>{t('unread')}</span>
+            <strong>{summary.unread}</strong>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -516,6 +596,8 @@ export function ExecutiveWorkspace() {
             />
           ))}
       </section>
+
+      <ExecutiveNotificationSummary />
 
       <div className="executive__layout">
         <SectionShell

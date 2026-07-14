@@ -64,6 +64,59 @@ def record_auth_event(
         request=request,
         commit=commit,
     )
+    _emit_notification_for_auth_event(
+        event_type,
+        db=db,
+        actor=actor,
+        target_id=target_id,
+        metadata=metadata,
+    )
+
+
+def _emit_notification_for_auth_event(
+    event_type: str,
+    *,
+    db: Session,
+    actor: User | None,
+    target_id: UUID | None,
+    metadata: dict[str, object] | None,
+) -> None:
+    from investhome_api.services.notification_hooks import (
+        notify_password_changed,
+        notify_user_deactivated,
+        notify_user_invited,
+        notify_users_with_permission,
+    )
+    from investhome_api.models.notification import NotificationPriority, NotificationSource, NotificationType
+
+    actor_id = actor.id if actor is not None else None
+    if event_type == "users.created" and target_id is not None:
+        notify_user_invited(
+            db,
+            recipient_user_id=target_id,
+            actor_user_id=actor_id,
+            metadata=metadata,
+        )
+    elif event_type == "users.deactivated" and target_id is not None:
+        notify_user_deactivated(db, recipient_user_id=target_id, actor_user_id=actor_id)
+    elif event_type == "auth.password_changed" and actor is not None:
+        notify_password_changed(db, recipient_user_id=actor.id)
+    elif event_type == "roles.permissions_assigned" and target_id is not None:
+        notify_users_with_permission(
+            db,
+            resource="roles",
+            action="view",
+            type=NotificationType.SYSTEM,
+            priority=NotificationPriority.CRITICAL,
+            title_key="notifications.activity.permission_changed.title",
+            message_key="notifications.activity.permission_changed.message",
+            rule_key="activity.permission_changed",
+            related_entity_type="role",
+            related_entity_id=target_id,
+            metadata=metadata,
+            source=NotificationSource.ACTIVITY,
+            created_by=actor_id,
+        )
 
 
 def record_login_failed(

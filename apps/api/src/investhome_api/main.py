@@ -1,5 +1,5 @@
 from investhome_api.config.settings import get_settings
-from investhome_api.api.routes import activity, auth, executive, finance, health, investors, leads, projects, roles, users
+from investhome_api.api.routes import activity, auth, executive, finance, health, investors, leads, notifications, projects, roles, users
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -33,6 +33,7 @@ def create_app() -> FastAPI:
     app.include_router(projects.router)
     app.include_router(finance.router)
     app.include_router(activity.router)
+    app.include_router(notifications.router)
     app.include_router(executive.router)
 
     return app

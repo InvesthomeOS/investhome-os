@@ -183,6 +183,29 @@ def log_finance_transaction_event(
             request_context=activity_context_from_request(request),
             is_demo=transaction.is_demo,
         )
+        from investhome_api.services.notification_hooks import notify_users_with_permission
+        from investhome_api.models.notification import NotificationPriority, NotificationSource, NotificationType
+
+        meta = {
+            "amount": str(transaction.amount),
+            "currency": transaction.currency,
+            "description": transaction.description or "",
+        }
+        notify_users_with_permission(
+            db,
+            resource="finance",
+            action="view",
+            type=NotificationType.FINANCE,
+            priority=NotificationPriority.MEDIUM,
+            title_key="notifications.finance.funding_received.title",
+            message_key="notifications.finance.funding_received.message",
+            rule_key="finance.funding_received",
+            related_entity_type="transaction",
+            related_entity_id=transaction.id,
+            metadata=meta,
+            source=NotificationSource.ACTIVITY,
+            created_by=actor.id if actor is not None else None,
+        )
     elif previous_status is None:
         log_entity_created(
             db,
@@ -225,4 +248,48 @@ def log_payment_obligation_event(
             },
             request_context=activity_context_from_request(request),
             is_demo=obligation.is_demo,
+        )
+        from investhome_api.services.notification_hooks import notify_users_with_permission
+        from investhome_api.models.notification import NotificationPriority, NotificationSource, NotificationType
+
+        notify_users_with_permission(
+            db,
+            resource="finance",
+            action="view",
+            type=NotificationType.PAYMENT,
+            priority=NotificationPriority.INFO,
+            title_key="notifications.finance.payment_completed.title",
+            message_key="notifications.finance.payment_completed.message",
+            rule_key="finance.payment_completed",
+            related_entity_type="payment_obligation",
+            related_entity_id=obligation.id,
+            metadata={
+                "payee": obligation.payee or "",
+                "amount": str(obligation.amount),
+                "currency": obligation.currency,
+            },
+            source=NotificationSource.ACTIVITY,
+            created_by=actor.id if actor is not None else None,
+        )
+        from investhome_api.services.notification_hooks import notify_users_with_permission
+        from investhome_api.models.notification import NotificationPriority, NotificationSource, NotificationType
+
+        notify_users_with_permission(
+            db,
+            resource="finance",
+            action="view",
+            type=NotificationType.PAYMENT,
+            priority=NotificationPriority.INFO,
+            title_key="notifications.finance.payment_completed.title",
+            message_key="notifications.finance.payment_completed.message",
+            rule_key="finance.payment_completed",
+            related_entity_type="payment_obligation",
+            related_entity_id=obligation.id,
+            metadata={
+                "payee": obligation.payee or "",
+                "amount": str(obligation.amount),
+                "currency": obligation.currency,
+            },
+            source=NotificationSource.ACTIVITY,
+            created_by=actor.id if actor is not None else None,
         )

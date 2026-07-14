@@ -773,6 +773,16 @@
       "remaining_funding_need": "Kalan Finansman İhtiyacı",
       "noComparison": "Önceki dönem karşılaştırması yok"
     },
+    "notifications": {
+      "title": "Bildirim Merkezi",
+      "subtitle": "Önceliğe göre okunmamış uyarılar",
+      "critical": "Kritik",
+      "high": "Yüksek",
+      "medium": "Orta",
+      "unread": "Toplam okunmamış",
+      "openCenter": "Bildirim Merkezini Aç",
+      "empty": "Okunmamış bildirim yok."
+    },
     "severity": {
       "information": "Bilgi",
       "warning": "Uyarı",
@@ -1039,6 +1049,144 @@
         "created": "Rol oluşturuldu",
         "updated": "Rol güncellendi",
         "permission_changed": "Rol yetkileri değiştirildi"
+      }
+    }
+  },
+  "notifications": {
+    "title": "Bildirimler",
+    "drawerEyebrow": "Gelen kutusu",
+    "unreadCount": "{count, plural, =0 {Okunmamış bildirim yok} one {# okunmamış bildirim} other {# okunmamış bildirim}}",
+    "empty": "Henüz bildirim yok.",
+    "bellAriaLabel": "Bildirimler, {count} okunmamış",
+    "actions": {
+      "markRead": "Okundu işaretle",
+      "markAllRead": "Tümünü okundu işaretle",
+      "dismiss": "Kapat",
+      "openRecord": "Kaydı aç"
+    },
+    "groups": {
+      "today": "Bugün",
+      "yesterday": "Dün",
+      "earlier": "Daha önce"
+    },
+    "priorities": {
+      "critical": "Kritik",
+      "high": "Yüksek",
+      "medium": "Orta",
+      "low": "Düşük",
+      "info": "Bilgi"
+    },
+    "types": {
+      "reminder": "Hatırlatma",
+      "warning": "Uyarı",
+      "approval": "Onay",
+      "payment": "Ödeme",
+      "investor": "Yatırımcı",
+      "project": "Proje",
+      "finance": "Finans",
+      "system": "Sistem",
+      "ai": "Yapay zeka",
+      "document": "Belge",
+      "construction": "İnşaat"
+    },
+    "lead": {
+      "no_followup": {
+        "title": "Lead takibi gecikti",
+        "message": "{name} için {days} gündür takip yapılmadı."
+      },
+      "qualified_waiting": {
+        "title": "Nitelikli lead bekliyor",
+        "message": "{name} nitelikli durumda ve sonraki adımı bekliyor."
+      },
+      "proposal_not_sent": {
+        "title": "Teklif gönderilmedi",
+        "message": "{name} ile toplantı yapıldı ancak teklif gönderilmedi."
+      },
+      "meeting_today": {
+        "title": "Bugün toplantı var",
+        "message": "Bugün {name} ile planlanmış bir toplantınız var."
+      },
+      "inactive_qualified": {
+        "title": "Nitelikli lead pasif",
+        "message": "{name} nitelikli olmasına rağmen uzun süredir pasif."
+      }
+    },
+    "investor": {
+      "follow_up_overdue": {
+        "title": "Yatırımcı takibi gecikti",
+        "message": "{name} ile takip süresi geçti."
+      },
+      "funding_commitment_due": {
+        "title": "Fon taahhüdü yaklaşıyor",
+        "message": "{name} için fon taahhüdü süresi yaklaşıyor."
+      },
+      "assigned": {
+        "title": "Yeni yatırımcı atandı",
+        "message": "{name} size atandı."
+      }
+    },
+    "project": {
+      "completion_approaching": {
+        "title": "Tamamlanma hedefi yaklaşıyor",
+        "message": "{project} tamamlanma hedefine yaklaşıyor."
+      },
+      "overdue": {
+        "title": "Proje gecikti",
+        "message": "{project} hedef tamamlanma tarihini geçti."
+      },
+      "funding_gap": {
+        "title": "Fon açığı eşiği aşıldı",
+        "message": "{project} için {gap} tutarında fonlanmamış öz sermaye açığı var."
+      },
+      "budget_variance": {
+        "title": "Bütçe sapması eşiği aşıldı",
+        "message": "{project} bütçe sapması %{variance_pct}."
+      }
+    },
+    "finance": {
+      "payment_due": {
+        "title": "Ödeme vadesi yaklaşıyor",
+        "message": "{payee} için {amount} {currency} tutarında ödeme vadesi yaklaşıyor."
+      },
+      "payment_overdue": {
+        "title": "Ödeme gecikti",
+        "message": "{payee} için {amount} {currency} tutarında ödeme gecikti."
+      },
+      "low_cash_balance": {
+        "title": "Düşük nakit bakiyesi",
+        "message": "{account} kullanılabilir bakiyesi düşük ({currency})."
+      },
+      "funding_received": {
+        "title": "Fon alındı",
+        "message": "{amount} {currency} tutarında fon alındı."
+      },
+      "payment_completed": {
+        "title": "Ödeme tamamlandı",
+        "message": "{payee} ödemesi ({amount} {currency}) tamamlandı."
+      },
+      "transaction_failed": {
+        "title": "İşlem vadesi geçti",
+        "message": "{description} ({amount} {currency}) vadesi geçti."
+      }
+    },
+    "user": {
+      "invited": {
+        "title": "Investhome OS'a hoş geldiniz",
+        "message": "Hesabınız oluşturuldu. Giriş yapın ve profilinizi tamamlayın."
+      },
+      "deactivated": {
+        "title": "Hesap devre dışı",
+        "message": "Hesabınız devre dışı bırakıldı. Beklenmeyen bir durumsa yöneticinize başvurun."
+      },
+      "password_changed": {
+        "title": "Şifre değiştirildi",
+        "message": "Şifreniz başarıyla değiştirildi."
+      }
+    },
+    "activity": {
+      "permission_changed": {
+        "title": "Rol yetkileri değiştirildi",
+        "message": "Bir sistem rolünün yetkileri güncellendi."
       }
     }
   },

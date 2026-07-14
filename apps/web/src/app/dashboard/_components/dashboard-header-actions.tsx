@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useAuth } from '@/lib/auth/auth-context';
 
 import { LanguageSelector } from './language-selector';
+import { NotificationBell } from './notification-bell';
 import { OperationalStatus } from './operational-status';
 
 export function DashboardHeaderActions() {
@@ -15,6 +16,7 @@ export function DashboardHeaderActions() {
   return (
     <div className="dashboard__header-actions">
       <LanguageSelector />
+      <NotificationBell />
       <OperationalStatus />
       {!loading && user && (
         <div className="dashboard__user-menu">

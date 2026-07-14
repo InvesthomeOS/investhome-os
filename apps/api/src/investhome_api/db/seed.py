@@ -5,6 +5,7 @@ from decimal import Decimal
 from sqlalchemy import select
 
 from investhome_api.db.activity_seed import seed_activity_logs
+from investhome_api.db.notification_seed import seed_notifications
 from investhome_api.db.auth_seed import seed_demo_users, seed_permissions_and_roles
 from investhome_api.db.finance_seed import seed_demo_finance
 from investhome_api.db.investor_seed import DEMO_INVESTORS
@@ -188,6 +189,7 @@ def main() -> None:
     projects_inserted = seed_demo_projects()
     finance_inserted = seed_demo_finance()
     activity_inserted = seed_activity_logs()
+    notifications_inserted = seed_notifications()
     print(f"Seeded {permissions_inserted} permission(s) and {roles_inserted} role(s).")
     print(f"Seeded {users_inserted} demo user(s).")
     print(f"Seeded {leads_inserted} demo lead(s).")
@@ -195,6 +197,7 @@ def main() -> None:
     print(f"Seeded {projects_inserted} demo project(s).")
     print(f"Seeded {finance_inserted} demo finance record(s).")
     print(f"Seeded {activity_inserted} activity log record(s).")
+    print(f"Seeded {notifications_inserted} notification(s).")
 
 
 if __name__ == "__main__":

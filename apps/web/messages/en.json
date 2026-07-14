@@ -773,6 +773,16 @@
       "remaining_funding_need": "Remaining Funding Need",
       "noComparison": "No prior period comparison"
     },
+    "notifications": {
+      "title": "Notification Center",
+      "subtitle": "Unread alerts by priority",
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "unread": "Unread total",
+      "openCenter": "Open Notification Center",
+      "empty": "No unread notifications."
+    },
     "severity": {
       "information": "Information",
       "warning": "Warning",
@@ -1039,6 +1049,144 @@
         "created": "Role created",
         "updated": "Role updated",
         "permission_changed": "Role permissions changed"
+      }
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "drawerEyebrow": "Inbox",
+    "unreadCount": "{count, plural, =0 {No unread notifications} one {# unread notification} other {# unread notifications}}",
+    "empty": "No notifications yet.",
+    "bellAriaLabel": "Notifications, {count} unread",
+    "actions": {
+      "markRead": "Mark read",
+      "markAllRead": "Mark all read",
+      "dismiss": "Dismiss",
+      "openRecord": "Open record"
+    },
+    "groups": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "earlier": "Earlier"
+    },
+    "priorities": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "info": "Info"
+    },
+    "types": {
+      "reminder": "Reminder",
+      "warning": "Warning",
+      "approval": "Approval",
+      "payment": "Payment",
+      "investor": "Investor",
+      "project": "Project",
+      "finance": "Finance",
+      "system": "System",
+      "ai": "AI",
+      "document": "Document",
+      "construction": "Construction"
+    },
+    "lead": {
+      "no_followup": {
+        "title": "Lead follow-up overdue",
+        "message": "{name} has had no follow-up in {days} days."
+      },
+      "qualified_waiting": {
+        "title": "Qualified lead waiting",
+        "message": "{name} is qualified and awaiting next action."
+      },
+      "proposal_not_sent": {
+        "title": "Proposal not sent",
+        "message": "Meeting completed for {name}, but no proposal has been sent."
+      },
+      "meeting_today": {
+        "title": "Meeting scheduled today",
+        "message": "You have a meeting scheduled with {name} today."
+      },
+      "inactive_qualified": {
+        "title": "Qualified lead inactive",
+        "message": "{name} has been inactive despite qualified status."
+      }
+    },
+    "investor": {
+      "follow_up_overdue": {
+        "title": "Investor follow-up overdue",
+        "message": "Follow-up with {name} is overdue."
+      },
+      "funding_commitment_due": {
+        "title": "Funding commitment due",
+        "message": "{name} has a funding commitment due soon."
+      },
+      "assigned": {
+        "title": "New investor assigned",
+        "message": "{name} has been assigned to you."
+      }
+    },
+    "project": {
+      "completion_approaching": {
+        "title": "Completion target approaching",
+        "message": "{project} is approaching its target completion date."
+      },
+      "overdue": {
+        "title": "Project overdue",
+        "message": "{project} is past its target completion date."
+      },
+      "funding_gap": {
+        "title": "Funding gap exceeds threshold",
+        "message": "{project} has an unfunded equity gap of {gap}."
+      },
+      "budget_variance": {
+        "title": "Budget variance exceeds threshold",
+        "message": "{project} budget variance is {variance_pct}%."
+      }
+    },
+    "finance": {
+      "payment_due": {
+        "title": "Payment due",
+        "message": "{payee} payment of {amount} {currency} is due."
+      },
+      "payment_overdue": {
+        "title": "Payment overdue",
+        "message": "{payee} payment of {amount} {currency} is overdue."
+      },
+      "low_cash_balance": {
+        "title": "Low cash balance",
+        "message": "{account} available balance is low ({currency})."
+      },
+      "funding_received": {
+        "title": "Funding received",
+        "message": "Funding of {amount} {currency} was received."
+      },
+      "payment_completed": {
+        "title": "Payment completed",
+        "message": "Payment to {payee} ({amount} {currency}) was completed."
+      },
+      "transaction_failed": {
+        "title": "Transaction past due",
+        "message": "{description} ({amount} {currency}) is past due."
+      }
+    },
+    "user": {
+      "invited": {
+        "title": "Welcome to Investhome OS",
+        "message": "Your account has been created. Please sign in and set up your profile."
+      },
+      "deactivated": {
+        "title": "Account deactivated",
+        "message": "Your account has been deactivated. Contact an administrator if this is unexpected."
+      },
+      "password_changed": {
+        "title": "Password changed",
+        "message": "Your password was changed successfully."
+      }
+    },
+    "activity": {
+      "permission_changed": {
+        "title": "Role permissions changed",
+        "message": "Permissions were updated for a system role."
       }
     }
   },

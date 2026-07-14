@@ -11,6 +11,7 @@ RESOURCES = frozenset(
         "roles",
         "settings",
         "activity",
+        "notifications",
         "documents",
         "construction",
         "marketing",
@@ -59,6 +60,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("finance", "view"),
         ("finance", "export"),
         ("activity", "view"),
+        ("notifications", "view"),
         ("reports", "view"),
         ("reports", "export"),
         ("users", "view"),
@@ -80,6 +82,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("investors", "create"),
         ("investors", "update"),
         ("projects", "view"),
+        ("notifications", "view"),
     ],
     "investor_relations": [
         ("investors", "view"),
@@ -91,6 +94,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("projects", "view"),
         ("finance", "view"),
         ("executive", "view"),
+        ("notifications", "view"),
     ],
     "finance": [
         ("finance", "view"),
@@ -104,6 +108,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("executive", "view"),
         ("reports", "view"),
         ("reports", "export"),
+        ("notifications", "view"),
     ],
     "construction": [
         ("projects", "view"),
@@ -129,6 +134,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("documents", "create"),
         ("documents", "update"),
         ("activity", "view"),
+        ("notifications", "view"),
     ],
     "assistant": [
         ("leads", "view"),
@@ -146,6 +152,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("projects", "view"),
         ("finance", "view"),
         ("activity", "view"),
+        ("notifications", "view"),
         ("reports", "view"),
     ],
 }

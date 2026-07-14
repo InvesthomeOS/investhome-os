@@ -11,6 +11,7 @@ from investhome_api.db.base import Base
 from investhome_api.db.session import get_db
 from investhome_api.main import app
 from investhome_api.models.activity import ActivityLog  # noqa: F401
+from investhome_api.models.notification import Notification  # noqa: F401
 from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole  # noqa: F401
 
 SQLALCHEMY_DATABASE_URL = "sqlite+pysqlite:///:memory:"
@@ -59,7 +60,7 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
 
     db = TestingSessionLocal()
     permission_map: dict[tuple[str, str], Permission] = {}
-    for resource in {"leads", "users", "roles", "executive", "activity", "finance", "investors", "projects"}:
+    for resource in {"leads", "users", "roles", "executive", "activity", "finance", "investors", "projects", "notifications"}:
         for action in {"view", "create", "update", "manage", "archive"}:
             key = (resource, action)
             if key in permission_map:
@@ -108,6 +109,12 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
         RolePermission(
             role_id=roles["super_admin"].id,
             permission_id=permission_map[("activity", "view")].id,
+        )
+    )
+    db.add(
+        RolePermission(
+            role_id=roles["super_admin"].id,
+            permission_id=permission_map[("notifications", "view")].id,
         )
     )
 

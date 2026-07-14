@@ -213,6 +213,15 @@ def create_investor(
         request=request,
         is_demo=investor.is_demo,
     )
+    from investhome_api.services.notification_hooks import notify_investor_assigned
+
+    notify_investor_assigned(
+        db,
+        investor_id=investor.id,
+        investor_name=investor.full_name,
+        assigned_to=investor.assigned_to,
+        actor_user_id=actor.id,
+    )
     db.commit()
     db.refresh(investor)
     return InvestorResponse.model_validate(investor)

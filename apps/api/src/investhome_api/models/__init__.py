@@ -38,6 +38,13 @@ from investhome_api.models.project import (
     ProjectType,
 )
 
+from investhome_api.models.notification import (
+    Notification,
+    NotificationPriority,
+    NotificationSource,
+    NotificationStatus,
+    NotificationType,
+)
 from investhome_api.models.user_auth import (
     Permission,
     Role,
@@ -53,6 +60,11 @@ __all__ = [
     "ActivityActorType",
     "ActivityEntityType",
     "ActivitySource",
+    "Notification",
+    "NotificationType",
+    "NotificationPriority",
+    "NotificationStatus",
+    "NotificationSource",
     "Lead",
     "LeadStatus",
     "Investor",
