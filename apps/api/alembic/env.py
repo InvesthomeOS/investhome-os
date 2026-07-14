@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from investhome_api.config.settings import get_settings
 from investhome_api.db.base import Base
-from investhome_api.models import Lead  # noqa: F401
+from investhome_api.models import Investor, Lead  # noqa: F401
 
 config = context.config
 

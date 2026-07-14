@@ -1,5 +1,5 @@
 from investhome_api.config.settings import get_settings
-from investhome_api.api.routes import health, leads
+from investhome_api.api.routes import health, investors, leads
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -25,6 +25,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(leads.router)
+    app.include_router(investors.router)
 
     return app
 

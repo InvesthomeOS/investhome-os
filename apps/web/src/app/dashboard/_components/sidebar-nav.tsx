@@ -29,7 +29,7 @@ export function SidebarNav() {
         {MODULE_NAMES.map((module) => {
           const href = moduleHref(module);
           const isActive = pathname === href || pathname.startsWith(`${href}/`);
-          const isImplemented = module === 'leads';
+          const isImplemented = module === 'leads' || module === 'investors';
 
           return (
             <Link
