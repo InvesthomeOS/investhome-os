@@ -173,6 +173,10 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("documents", "create"),
         ("documents", "update"),
         ("documents", "download"),
+        ("documents", "view_analysis"),
+        ("documents", "ask"),
+        ("documents", "reprocess"),
+        ("documents", "approve"),
         ("search", "view"),
     ],
     "marketing": [

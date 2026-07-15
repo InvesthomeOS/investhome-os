@@ -1067,7 +1067,16 @@
         "reprocessed": "Belge yeniden işlendi: {title}",
         "classification_accepted": "AI sınıflandırma kabul edildi: {title}",
         "classification_rejected": "AI sınıflandırma reddedildi: {title}",
-        "question_asked": "Belgeye soru soruldu: {title}"
+        "question_asked": "Belgeye soru soruldu: {title}",
+        "drawing_processing_started": "Çizim işleme başladı: {title}",
+        "drawing_processing_completed": "Çizim analizi tamamlandı: {title}",
+        "drawing_processing_failed": "Çizim işleme başarısız: {title}",
+        "drawing_scale_corrected": "Çizim ölçeği düzeltildi: {title}",
+        "drawing_annotation_added": "Çizim notu eklendi: {title}",
+        "drawing_version_compared": "Çizim sürümleri karşılaştırıldı: {title}",
+        "drawing_question_asked": "Çizime soru soruldu: {title}",
+        "drawing_unit_proposed": "Çizimden birim önerildi: {title}",
+        "drawing_unit_approved": "Çizim birimi onaylandı: {title}"
       }
     }
   },
@@ -1235,6 +1244,36 @@
         "completed": "Tamamlandı",
         "failed": "Başarısız",
         "not_supported": "Desteklenmiyor"
+      },
+      "drawing": {
+        "tab": "Çizim Zekası",
+        "loading": "Çizim analizi yükleniyor…",
+        "previewUnavailable": "Bu dosya formatı için çizim önizlemesi kullanılamıyor.",
+        "discipline": "Disiplin",
+        "drawingType": "Çizim türü",
+        "scale": "Ölçek",
+        "scaleLowConfidence": "Düşük güvenilirlikli ölçek",
+        "correctScale": "Ölçeği düzelt",
+        "sheets": "Sayfalar",
+        "elements": "Tespit edilen öğeler",
+        "lowConfidence": "Düşük güven",
+        "rooms": "Odalar",
+        "walls": "Duvarlar",
+        "dimensions": "Ölçüler",
+        "annotations": "Notlar",
+        "addAnnotation": "Not ekle",
+        "unitProposals": "Birim önerileri",
+        "approveUnit": "Birimi onayla",
+        "askPlaceholder": "Bu çizim hakkında soru sorun…",
+        "reprocess": "Çizimi yeniden işle",
+        "compareVersions": "Sürümleri karşılaştır",
+        "processing": {
+          "converting": "Dönüştürülüyor",
+          "extracting_geometry": "Geometri çıkarılıyor",
+          "detecting_elements": "Öğeler tespit ediliyor",
+          "completed": "Tamamlandı",
+          "preview_unavailable": "Önizleme yok"
+        }
       },
       "fields": {
         "parties": "Taraflar",
@@ -1409,6 +1448,10 @@
       "expiration_soon": {
         "title": "Belge süresi yaklaşıyor",
         "message": "{title} belgesinin süresi yakında doluyor."
+      },
+      "drawing_processing_failed": {
+        "title": "Çizim işleme başarısız",
+        "message": "{title} çizim analizi tamamlanamadı."
       }
     },
     "user": {

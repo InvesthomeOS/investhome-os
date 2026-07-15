@@ -171,6 +171,12 @@ class Document(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    drawing_analysis: Mapped["DrawingAnalysis | None"] = relationship(
+        "DrawingAnalysis",
+        back_populates="document",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         Index("ix_documents_status", "status"),

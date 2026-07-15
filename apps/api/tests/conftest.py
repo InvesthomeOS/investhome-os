@@ -17,6 +17,14 @@ from investhome_api.models.document_intelligence import (  # noqa: F401
     DocumentConversation,
     DocumentMessage,
 )
+from investhome_api.models.drawing_intelligence import (  # noqa: F401
+    DrawingAnalysis,
+    DrawingAnnotation,
+    DrawingElement,
+    DrawingSheet,
+    DrawingUnitProposal,
+    DrawingVersionComparison,
+)
 from investhome_api.models.notification import Notification  # noqa: F401
 from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole  # noqa: F401
 
@@ -80,7 +88,7 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
         for action in {
             "view", "create", "update", "manage", "archive", "download",
             "view_confidential", "view_highly_confidential",
-            "analyze", "reprocess", "view_analysis", "ask", "export_analysis", "view_sensitive_analysis",
+            "analyze", "reprocess", "view_analysis", "ask", "export_analysis", "view_sensitive_analysis", "approve",
         }:
             key = (resource, action)
             if key in permission_map:
@@ -152,7 +160,7 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
     )
     for action in (
         "view", "create", "update", "archive", "download", "view_confidential", "view_highly_confidential",
-        "analyze", "reprocess", "view_analysis", "ask", "export_analysis", "view_sensitive_analysis",
+        "analyze", "reprocess", "view_analysis", "ask", "export_analysis", "view_sensitive_analysis", "approve",
     ):
         db.add(
             RolePermission(

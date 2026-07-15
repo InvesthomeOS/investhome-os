@@ -24,6 +24,7 @@ from investhome_api.config.search_config import (
 )
 from investhome_api.models.activity import ActivityLog
 from investhome_api.models.document import Document, DocumentAnalysis
+from investhome_api.models.drawing_intelligence import DrawingAnalysis
 from investhome_api.models.finance import (
     FinanceTransaction,
     FinancialAccount,
@@ -779,7 +780,9 @@ def _search_documents(
     stmt = (
         select(Document)
         .outerjoin(DocumentAnalysis, DocumentAnalysis.document_id == Document.id)
+        .outerjoin(DrawingAnalysis, DrawingAnalysis.document_id == Document.id)
         .options(joinedload(Document.analysis))
+        .options(joinedload(Document.drawing_analysis))
         .where(
             Document.archived_at.is_(None),
             Document.is_latest_version.is_(True),
@@ -803,6 +806,10 @@ def _search_documents(
             DocumentAnalysis.extracted_text_preview.ilike(pattern),
             DocumentAnalysis.detected_document_type.ilike(pattern),
             DocumentAnalysis.extracted_entities_json.ilike(pattern),
+            DrawingAnalysis.summary.ilike(pattern),
+            DrawingAnalysis.summary_en.ilike(pattern),
+            DrawingAnalysis.discipline.ilike(pattern),
+            DrawingAnalysis.drawing_type.ilike(pattern),
         )
     )
     documents = db.scalars(stmt.limit(limit * 2)).all()
@@ -822,6 +829,8 @@ def _search_documents(
             "ai_summary": document.analysis.ai_summary if document.analysis else None,
             "detected_type": document.analysis.detected_document_type if document.analysis else None,
             "extracted_preview": document.analysis.extracted_text_preview if document.analysis else None,
+            "drawing_summary": document.drawing_analysis.summary_en if document.drawing_analysis else None,
+            "drawing_discipline": document.drawing_analysis.discipline if document.drawing_analysis else None,
         }
         score = _score_match(query, *fields.values())
         if score <= 0:

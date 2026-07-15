@@ -46,3 +46,6 @@ class LocalStorageProvider(StorageProviderBase):
         target = self._resolve_key(storage_key)
         if target.is_file():
             os.remove(target)
+
+    def get_local_path(self, storage_key: str) -> str:
+        return str(self._resolve_key(storage_key))

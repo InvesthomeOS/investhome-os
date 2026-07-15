@@ -4,6 +4,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import {
+  addDrawingAnnotation,
+  askDrawing,
+  drawingPreviewUrl,
+  fetchDrawingAnalysis,
+  fetchDrawingProcessingStatus,
+  reprocessDrawing,
+  type DrawingAnalysis,
+} from '@/lib/api/drawing-intelligence';
+import {
   acceptClassification,
   askDocument,
   exportDocumentAnalysis,
@@ -30,6 +39,7 @@ import { EntityActivityTimeline } from '@/app/dashboard/_components/entity-activ
 type TabId =
   | 'overview'
   | 'preview'
+  | 'drawing'
   | 'summary'
   | 'extracted'
   | 'risks'
@@ -38,17 +48,7 @@ type TabId =
   | 'related'
   | 'activity';
 
-interface DocumentDetailDrawerProps {
-  document: Document | null;
-  archiving: boolean;
-  canArchive: boolean;
-  canDownload: boolean;
-  onClose: () => void;
-  onArchive: (document: Document) => void;
-  onRefresh: () => void;
-}
-
-const TABS: TabId[] = [
+const BASE_TABS: TabId[] = [
   'overview',
   'preview',
   'summary',
@@ -59,6 +59,18 @@ const TABS: TabId[] = [
   'related',
   'activity',
 ];
+
+const DRAWING_TYPES = new Set(['architectural_drawing', 'construction_drawing']);
+
+interface DocumentDetailDrawerProps {
+  document: Document | null;
+  archiving: boolean;
+  canArchive: boolean;
+  canDownload: boolean;
+  onClose: () => void;
+  onArchive: (document: Document) => void;
+  onRefresh: () => void;
+}
 
 export function DocumentDetailDrawer({
   document,
@@ -75,13 +87,17 @@ export function DocumentDetailDrawer({
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [versions, setVersions] = useState<DocumentVersion[]>([]);
   const [analysis, setAnalysis] = useState<DocumentAnalysis | null>(null);
+  const [drawingAnalysis, setDrawingAnalysis] = useState<DrawingAnalysis | null>(null);
+  const [drawingStatus, setDrawingStatus] = useState<string | null>(null);
+  const [drawingQuestion, setDrawingQuestion] = useState('');
+  const [drawingAnswer, setDrawingAnswer] = useState<string | null>(null);
   const [processingStatus, setProcessingStatus] = useState<string | null>(null);
   const [question, setQuestion] = useState('');
   const [askResult, setAskResult] = useState<AskDocumentResponse | null>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const [actionPending, setActionPending] = useState(false);
 
-  const loadIntelligence = useCallback(async (docId: string) => {
+  const loadIntelligence = useCallback(async (docId: string, docType: string) => {
     setLoadingAnalysis(true);
     try {
       const [statusPayload, analysisPayload] = await Promise.all([
@@ -90,8 +106,20 @@ export function DocumentDetailDrawer({
       ]);
       setProcessingStatus(statusPayload.processing_status);
       setAnalysis(analysisPayload);
+      if (DRAWING_TYPES.has(docType)) {
+        const [drawingStatusPayload, drawingPayload] = await Promise.all([
+          fetchDrawingProcessingStatus(docId).catch(() => null),
+          fetchDrawingAnalysis(docId).catch(() => null),
+        ]);
+        setDrawingStatus(drawingStatusPayload?.processing_status ?? null);
+        setDrawingAnalysis(drawingPayload);
+      } else {
+        setDrawingStatus(null);
+        setDrawingAnalysis(null);
+      }
     } catch {
       setAnalysis(null);
+      setDrawingAnalysis(null);
     } finally {
       setLoadingAnalysis(false);
     }
@@ -108,8 +136,13 @@ export function DocumentDetailDrawer({
     void fetchDocumentVersions(document.id)
       .then((response) => setVersions(response.items))
       .catch(() => setVersions([]));
-    void loadIntelligence(document.id);
+    void loadIntelligence(document.id, document.document_type);
   }, [document, loadIntelligence]);
+
+  const isDrawing = document ? DRAWING_TYPES.has(document.document_type) : false;
+  const tabs: TabId[] = isDrawing
+    ? ['overview', 'preview', 'drawing', ...BASE_TABS.filter((tab) => tab !== 'overview' && tab !== 'preview')]
+    : BASE_TABS;
 
   useEffect(() => {
     if (!document || !processingStatus) return;
@@ -171,14 +204,14 @@ export function DocumentDetailDrawer({
         </header>
 
         <nav className="documents-tabs" aria-label={t('intelligence.tabsLabel')}>
-          {TABS.map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab}
               type="button"
               className={activeTab === tab ? 'documents-tabs__tab documents-tabs__tab--active' : 'documents-tabs__tab'}
               onClick={() => setActiveTab(tab)}
             >
-              {t(`intelligence.tabs.${tab}` as never)}
+              {tab === 'drawing' ? t('intelligence.drawing.tab') : t(`intelligence.tabs.${tab}` as never)}
             </button>
           ))}
         </nav>
@@ -212,7 +245,86 @@ export function DocumentDetailDrawer({
             )
           )}
 
-          {activeTab === 'summary' && (
+          {activeTab === 'drawing' && isDrawing && (
+            <section className="documents-intelligence-section">
+              {loadingAnalysis && <p>{t('intelligence.drawing.loading')}</p>}
+              {drawingStatus && (
+                <span className="documents-processing-badge">
+                  {t(`intelligence.drawing.processing.${drawingStatus}` as never, {
+                    defaultValue: drawingStatus,
+                  })}
+                </span>
+              )}
+              {drawingAnalysis?.preview_status === 'ready' && canDownload ? (
+                <div className="documents-preview">
+                  <iframe title={document.title} src={drawingPreviewUrl(document.id)} className="documents-preview__frame" />
+                </div>
+              ) : (
+                <p>{t('intelligence.drawing.previewUnavailable')}</p>
+              )}
+              {drawingAnalysis && (
+                <dl className="leads-drawer__grid">
+                  <div><dt>{t('intelligence.drawing.discipline')}</dt><dd>{drawingAnalysis.discipline ?? tCommon('noValue')}</dd></div>
+                  <div><dt>{t('intelligence.drawing.drawingType')}</dt><dd>{drawingAnalysis.drawing_type ?? tCommon('noValue')}</dd></div>
+                  <div>
+                    <dt>{t('intelligence.drawing.scale')}</dt>
+                    <dd>
+                      {drawingAnalysis.scale_corrected ?? drawingAnalysis.scale_detected ?? tCommon('noValue')}
+                      {drawingAnalysis.scale_confidence === 'low' && ` (${t('intelligence.drawing.scaleLowConfidence')})`}
+                    </dd>
+                  </div>
+                  <div><dt>{t('intelligence.drawing.sheets')}</dt><dd>{drawingAnalysis.sheet_count ?? 0}</dd></div>
+                  <div><dt>{t('intelligence.drawing.lowConfidence')}</dt><dd>{drawingAnalysis.low_confidence_count}</dd></div>
+                </dl>
+              )}
+              {drawingAnalysis?.summary && (
+                <p>{locale === 'en' ? drawingAnalysis.summary_en ?? drawingAnalysis.summary : drawingAnalysis.summary}</p>
+              )}
+              <div className="documents-intelligence-actions">
+                <button
+                  type="button"
+                  className="leads__button leads__button--ghost"
+                  disabled={actionPending}
+                  onClick={async () => {
+                    setActionPending(true);
+                    try {
+                      await reprocessDrawing(document.id);
+                      await loadIntelligence(document.id, document.document_type);
+                    } finally {
+                      setActionPending(false);
+                    }
+                  }}
+                >
+                  {t('intelligence.drawing.reprocess')}
+                </button>
+              </div>
+              <div className="documents-ask">
+                <textarea
+                  value={drawingQuestion}
+                  onChange={(e) => setDrawingQuestion(e.target.value)}
+                  placeholder={t('intelligence.drawing.askPlaceholder')}
+                />
+                <button
+                  type="button"
+                  className="leads__button"
+                  disabled={actionPending || !drawingQuestion.trim()}
+                  onClick={async () => {
+                    setActionPending(true);
+                    try {
+                      const response = await askDrawing(document.id, drawingQuestion.trim(), locale === 'en' ? 'en' : 'tr');
+                      setDrawingAnswer(response.answer);
+                    } finally {
+                      setActionPending(false);
+                    }
+                  }}
+                >
+                  {t('intelligence.askSubmit')}
+                </button>
+                {drawingAnswer && <p>{drawingAnswer}</p>}
+              </div>
+            </section>
+          )}
+
             <section className="documents-intelligence-section">
               {loadingAnalysis && <p>{t('intelligence.loading')}</p>}
               {!loadingAnalysis && !summaryText && <p>{t('intelligence.emptySummary')}</p>}

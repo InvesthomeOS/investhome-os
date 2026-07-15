@@ -88,10 +88,13 @@ def is_previewable(extension: str) -> bool:
 
 
 from investhome_api.services.document_intelligence.extraction import is_processable
+from investhome_api.services.drawing_intelligence.config import should_process_as_drawing
 
 
-def initial_processing_status(extension: str) -> ProcessingStatus:
+def initial_processing_status(extension: str, document_type: str = "other") -> ProcessingStatus:
     ext = extension.lower().lstrip(".")
+    if should_process_as_drawing(ext, document_type):
+        return ProcessingStatus.UPLOADED
     if is_processable(ext):
         return ProcessingStatus.UPLOADED
     return ProcessingStatus.NOT_SUPPORTED

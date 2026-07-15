@@ -1066,7 +1066,16 @@
         "reprocessed": "Document reprocessed: {title}",
         "classification_accepted": "AI classification accepted: {title}",
         "classification_rejected": "AI classification rejected: {title}",
-        "question_asked": "Document question asked: {title}"
+        "question_asked": "Document question asked: {title}",
+        "drawing_processing_started": "Drawing processing started: {title}",
+        "drawing_processing_completed": "Drawing analysis completed: {title}",
+        "drawing_processing_failed": "Drawing processing failed: {title}",
+        "drawing_scale_corrected": "Drawing scale corrected: {title}",
+        "drawing_annotation_added": "Drawing annotation added: {title}",
+        "drawing_version_compared": "Drawing versions compared: {title}",
+        "drawing_question_asked": "Drawing question asked: {title}",
+        "drawing_unit_proposed": "Unit proposed from drawing: {title}",
+        "drawing_unit_approved": "Drawing unit approved: {title}"
       }
     }
   },
@@ -1234,6 +1243,36 @@
         "completed": "Completed",
         "failed": "Failed",
         "not_supported": "Unsupported"
+      },
+      "drawing": {
+        "tab": "Drawing Intelligence",
+        "loading": "Loading drawing analysis…",
+        "previewUnavailable": "Drawing preview is not available for this file format.",
+        "discipline": "Discipline",
+        "drawingType": "Drawing type",
+        "scale": "Scale",
+        "scaleLowConfidence": "Low confidence scale",
+        "correctScale": "Correct scale",
+        "sheets": "Sheets",
+        "elements": "Detected elements",
+        "lowConfidence": "Low confidence",
+        "rooms": "Rooms",
+        "walls": "Walls",
+        "dimensions": "Dimensions",
+        "annotations": "Annotations",
+        "addAnnotation": "Add annotation",
+        "unitProposals": "Unit proposals",
+        "approveUnit": "Approve unit",
+        "askPlaceholder": "Ask about this drawing…",
+        "reprocess": "Reprocess drawing",
+        "compareVersions": "Compare versions",
+        "processing": {
+          "converting": "Converting",
+          "extracting_geometry": "Extracting geometry",
+          "detecting_elements": "Detecting elements",
+          "completed": "Completed",
+          "preview_unavailable": "Preview unavailable"
+        }
       },
       "fields": {
         "parties": "Parties",
@@ -1408,6 +1447,10 @@
       "expiration_soon": {
         "title": "Document expiration approaching",
         "message": "{title} expiration date is approaching."
+      },
+      "drawing_processing_failed": {
+        "title": "Drawing processing failed",
+        "message": "{title} drawing analysis could not be completed."
       }
     },
     "user": {

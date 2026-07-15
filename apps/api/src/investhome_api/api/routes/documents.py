@@ -68,6 +68,8 @@ from investhome_api.services.notification_hooks import (
 )
 from investhome_api.services.storage import get_storage_provider, provider_enum
 from investhome_api.services.document_intelligence.queue import enqueue_document_processing
+from investhome_api.services.drawing_intelligence.config import should_process_as_drawing
+from investhome_api.services.drawing_intelligence.queue import enqueue_drawing_processing
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -286,7 +288,7 @@ async def upload_documents(
                 document_date=_parse_optional_date(document_date),
                 expiration_date=_parse_optional_date(expiration_date),
                 is_latest_version=True,
-                processing_status=initial_processing_status(ext),
+                processing_status=initial_processing_status(ext, document_type.value),
             )
             db.add(document)
             db.flush()
@@ -309,7 +311,12 @@ async def upload_documents(
 
             db.commit()
             db.refresh(document)
-            if document.processing_status == ProcessingStatus.UPLOADED:
+            doc_type = document.document_type.value if hasattr(document.document_type, "value") else str(document.document_type)
+            if should_process_as_drawing(document.file_extension, doc_type):
+                document.processing_status = ProcessingStatus.QUEUED
+                db.commit()
+                enqueue_drawing_processing(document.id)
+            elif document.processing_status == ProcessingStatus.UPLOADED:
                 document.processing_status = ProcessingStatus.QUEUED
                 if document.analysis:
                     document.analysis.processing_status = ProcessingStatus.QUEUED.value
@@ -455,7 +462,7 @@ async def upload_new_version(
         document_date=previous.document_date,
         expiration_date=previous.expiration_date,
         is_latest_version=True,
-        processing_status=initial_processing_status(ext),
+        processing_status=initial_processing_status(ext, previous.document_type.value),
         version_notes=version_notes,
         is_demo=previous.is_demo,
     )
@@ -496,7 +503,12 @@ async def upload_new_version(
 
     db.commit()
     db.refresh(new_version)
-    if new_version.processing_status == ProcessingStatus.UPLOADED:
+    doc_type = new_version.document_type.value if hasattr(new_version.document_type, "value") else str(new_version.document_type)
+    if should_process_as_drawing(new_version.file_extension, doc_type):
+        new_version.processing_status = ProcessingStatus.QUEUED
+        db.commit()
+        enqueue_drawing_processing(new_version.id)
+    elif new_version.processing_status == ProcessingStatus.UPLOADED:
         new_version.processing_status = ProcessingStatus.QUEUED
         if new_version.analysis:
             new_version.analysis.processing_status = ProcessingStatus.QUEUED.value

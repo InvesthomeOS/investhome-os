@@ -28,3 +28,7 @@ class StorageProviderBase(ABC):
     def get_signed_url(self, storage_key: str, *, expires_seconds: int = 3600) -> str | None:
         """Return a time-limited URL for direct download (cloud providers)."""
         return None
+
+    def get_local_path(self, storage_key: str) -> str:
+        """Return absolute filesystem path for local providers."""
+        raise NotImplementedError

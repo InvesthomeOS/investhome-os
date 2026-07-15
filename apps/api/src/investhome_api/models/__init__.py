@@ -22,6 +22,14 @@ from investhome_api.models.document_intelligence import (
     DocumentMessage,
     MessageRole,
 )
+from investhome_api.models.drawing_intelligence import (
+    DrawingAnalysis,
+    DrawingAnnotation,
+    DrawingElement,
+    DrawingSheet,
+    DrawingUnitProposal,
+    DrawingVersionComparison,
+)
 from investhome_api.models.finance import (
     AccountStatus,
     AccountType,
@@ -90,6 +98,12 @@ __all__ = [
     "DocumentMessage",
     "MessageRole",
     "AIUsage",
+    "DrawingAnalysis",
+    "DrawingSheet",
+    "DrawingElement",
+    "DrawingAnnotation",
+    "DrawingUnitProposal",
+    "DrawingVersionComparison",
     "Notification",
     "NotificationType",
     "NotificationPriority",
