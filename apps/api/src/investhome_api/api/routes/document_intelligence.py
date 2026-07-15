@@ -77,12 +77,15 @@ def get_processing_status(
 ) -> ProcessingStatusResponse:
     document = get_document_or_404(db, document_id, user)
     analysis_status = document.analysis.processing_status if document.analysis else None
+    processing_error = None
+    if document.analysis and user_can_view_analysis(user, document):
+        processing_error = document.analysis.processing_error
     return ProcessingStatusResponse(
         document_id=document.id,
         processing_status=document.processing_status,
         analysis_status=analysis_status,
         processed_at=document.analysis.processed_at if document.analysis else None,
-        processing_error=document.analysis.processing_error if document.analysis else None,
+        processing_error=processing_error,
     )
 
 

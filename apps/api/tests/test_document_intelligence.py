@@ -112,9 +112,7 @@ def test_ask_without_answer_does_not_hallucinate(client: TestClient) -> None:
 
 def test_pipeline_direct_call(client: TestClient) -> None:
     doc = _upload_txt(client, b"Permit number 12345 issued by city agency on 2026-02-01", document_type="permit")
-    db = next(app.dependency_overrides[get_db]())
-    process_document(db, UUID(doc["id"]))
-    db.commit()
+    _wait_for_processing(client, doc["id"])
     refreshed = client.get(f"/documents/{doc['id']}/analysis")
     assert refreshed.status_code == 200
     assert refreshed.json()["detected_document_type"] in {"permit", "other"}

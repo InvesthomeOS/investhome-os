@@ -59,6 +59,7 @@ class DocumentAnalysisDetailResponse(BaseModel):
     model_provider: str | None
     model_name: str | None
     prompt_version: str | None
+    retry_count: int = 0
     processing_started_at: datetime | None
     processed_at: datetime | None
     processing_error: str | None = None
@@ -164,6 +165,7 @@ def build_analysis_response(analysis, *, user_document_type: str | None) -> Docu
         model_provider=analysis.model_provider,
         model_name=analysis.model_name,
         prompt_version=analysis.prompt_version,
+        retry_count=analysis.retry_count or 0,
         processing_started_at=analysis.processing_started_at,
         processed_at=analysis.processed_at,
         processing_error=analysis.processing_error,

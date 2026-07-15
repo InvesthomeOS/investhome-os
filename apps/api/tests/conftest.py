@@ -150,7 +150,10 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
             permission_id=permission_map[("search", "view")].id,
         )
     )
-    for action in ("view", "create", "update", "archive", "download", "view_confidential", "view_highly_confidential"):
+    for action in (
+        "view", "create", "update", "archive", "download", "view_confidential", "view_highly_confidential",
+        "analyze", "reprocess", "view_analysis", "ask", "export_analysis", "view_sensitive_analysis",
+    ):
         db.add(
             RolePermission(
                 role_id=roles["super_admin"].id,

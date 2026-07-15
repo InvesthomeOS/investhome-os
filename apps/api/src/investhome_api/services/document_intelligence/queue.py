@@ -28,16 +28,10 @@ def _run_sync(document_id: uuid.UUID, *, force: bool = False) -> None:
 
 
 def enqueue_document_processing(document_id: uuid.UUID, *, force: bool = False) -> None:
-    """Enqueue async processing or run in background thread when sync/redis unavailable."""
+    """Enqueue async processing or run synchronously when sync mode is enabled."""
     settings = get_settings()
     if settings.document_processing_sync:
-        thread = threading.Thread(
-            target=_run_sync,
-            args=(document_id,),
-            kwargs={"force": force},
-            daemon=True,
-        )
-        thread.start()
+        _run_sync(document_id, force=force)
         return
 
     try:

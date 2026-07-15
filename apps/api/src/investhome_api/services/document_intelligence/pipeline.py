@@ -85,6 +85,17 @@ def process_document(db: Session, document_id: uuid.UUID, *, force: bool = False
     ):
         return
 
+    in_progress = {
+        ProcessingStatus.PROCESSING.value,
+        ProcessingStatus.EXTRACTING_TEXT.value,
+        ProcessingStatus.RUNNING_OCR.value,
+        ProcessingStatus.CLASSIFYING.value,
+        ProcessingStatus.ANALYZING.value,
+    }
+    if not force and analysis.processing_status in in_progress:
+        logger.info("Document %s already processing; skipping duplicate job", document_id)
+        return
+
     if not is_processable(document.file_extension):
         _set_status(db, document, analysis, ProcessingStatus.NOT_SUPPORTED)
         analysis.processing_error = "unsupported_format"
@@ -95,6 +106,11 @@ def process_document(db: Session, document_id: uuid.UUID, *, force: bool = False
     analysis.processing_started_at = datetime.now(UTC)
     analysis.retry_count = (analysis.retry_count or 0) + (1 if force else 0)
     _set_status(db, document, analysis, ProcessingStatus.PROCESSING)
+    db.commit()
+
+    from investhome_api.services.document_intelligence.activity import record_processing_started
+
+    record_processing_started(db, document)
     db.commit()
 
     try:
