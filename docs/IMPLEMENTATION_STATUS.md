@@ -2,7 +2,7 @@
 
 **Audit date:** 2026-07-15  
 **Repository:** `investhome-os`  
-**Latest commit:** (pending) — `feat: enterprise architecture foundation`  
+**Latest commit:** `ab62106` — `feat: enterprise architecture foundation`  
 **Branch:** `main`
 
 ---
