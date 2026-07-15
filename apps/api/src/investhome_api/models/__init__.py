@@ -81,6 +81,7 @@ from investhome_api.models.company_foundation import (  # noqa: F401
     UserDepartment,
     UserTeam,
 )
+from investhome_api.models.design_studio import DesignProject, DesignVersion, FurnitureItem, MaterialPackage, StylePreset  # noqa: F401
 from investhome_api.models.user_auth import (
     Permission,
     Role,

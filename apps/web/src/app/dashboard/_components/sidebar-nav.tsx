@@ -30,6 +30,7 @@ export function SidebarNav() {
   const { displayName, slogan } = useCompanyBranding();
   const canViewActivity = user ? hasPermission(user, 'activity', 'view') : false;
   const canViewDocuments = user ? hasPermission(user, 'documents', 'view') : false;
+  const canViewDesign = user ? hasPermission(user, 'design', 'view') : false;
   const canViewSettings = user ? hasPermission(user, 'settings', 'view') || hasPermission(user, 'company', 'view') : false;
 
   return (
@@ -84,6 +85,20 @@ export function SidebarNav() {
             aria-current={pathname.startsWith('/dashboard/documents') ? 'page' : undefined}
           >
             <span>{t('documents')}</span>
+          </Link>
+        )}
+
+        {canViewDesign && (
+          <Link
+            href={'/dashboard/design' as Route}
+            className={`dashboard-shell__nav-link${
+              pathname === '/dashboard/design' || pathname.startsWith('/dashboard/design/')
+                ? ' dashboard-shell__nav-link--active'
+                : ''
+            }`}
+            aria-current={pathname.startsWith('/dashboard/design') ? 'page' : undefined}
+          >
+            <span>{t('designStudio')}</span>
           </Link>
         )}
 

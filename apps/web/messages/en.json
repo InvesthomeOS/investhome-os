@@ -28,6 +28,7 @@
     },
     "activity": "Activity",
     "documents": "Documents",
+    "designStudio": "Design Studio",
     "settings": "Settings",
     "modules": {
       "executive": {
@@ -997,7 +998,8 @@
       "project_budget": "Project budget",
       "funding_commitment": "Funding commitment",
       "payment_obligation": "Payment obligation",
-      "document": "Document"
+      "document": "Document",
+      "design_project": "Design project"
     },
     "sources": {
       "web": "Web",
@@ -1052,6 +1054,27 @@
         "created": "Role created",
         "updated": "Role updated",
         "permission_changed": "Role permissions changed"
+      },
+      "design": {
+        "project_created": "Design project created: {title}",
+        "source_plan_selected": "Source plan selected: {document_title} ({title})",
+        "color_overlay_updated": "Color overlay updated: {title} ({mode})",
+        "version_saved": "Design version saved: {title} (v{version_number})",
+        "approved": "Design approved: {title}",
+        "rejected": "Design rejected: {title}",
+        "archived": "Design project archived: {title}",
+        "style_preset_created": "Style preset created: {name}",
+        "style_preset_updated": "Style preset updated: {name}",
+        "material_package_created": "Material package created: {name}",
+        "material_package_applied": "Material package applied: {package_name} ({title})",
+        "furniture_layout_updated": "Furniture layout updated: {title} ({item_count} items)",
+        "furniture_added": "Furniture added: {item_name} ({title})",
+        "furniture_removed": "Furniture removed: {item_name} ({title})",
+        "furniture_moved": "Furniture moved: {item_name} ({title})",
+        "style_changed": "Style changed: {preset_name} ({title})",
+        "material_changed": "Material changed: {package_name} ({title})",
+        "submitted_for_review": "Submitted for review: {title}",
+        "revision_requested": "Revision requested: {title}"
       },
       "document": {
         "uploaded": "Document uploaded: {title}",
@@ -1512,6 +1535,11 @@
       "department": "Departments",
       "team": "Teams",
       "brand_asset": "Brand assets",
+      "design_project": "Design projects",
+      "style_preset": "Style presets",
+      "material_package": "Material packages",
+      "furniture_item": "Furniture items",
+      "design_version": "Design versions",
       "unit": "Units (coming soon)",
       "construction": "Construction (coming soon)",
       "email": "Emails (coming soon)"
@@ -1524,6 +1552,249 @@
       "admin_users": "Users",
       "activity": "Activity",
       "documents": "Documents"
+    }
+  },
+  "design": {
+    "eyebrow": "Visual Design",
+    "title": "Design Studio",
+    "subtitle": "Floor plan coloring and design versions.",
+    "loadError": "Could not load design projects.",
+    "empty": "No design projects yet.",
+    "createButton": "Create Design",
+    "noVersion": "—",
+    "filters": {
+      "search": "Search title, project, or document…",
+      "allProjects": "All projects",
+      "allTypes": "All types",
+      "allStatuses": "All statuses"
+    },
+    "columns": {
+      "title": "Title",
+      "project": "Related Project",
+      "sourceDrawing": "Source Drawing",
+      "designType": "Design Type",
+      "status": "Status",
+      "currentVersion": "Current Version",
+      "updated": "Updated",
+      "createdBy": "Created By"
+    },
+    "types": {
+      "coloredFloorPlan": "Colored Floor Plan",
+      "marketingFloorPlan": "Marketing Floor Plan",
+      "furnitureLayout": "Furniture Layout",
+      "materialPlan": "Material Plan",
+      "interiorConcept": "Interior Concept",
+      "exteriorConcept": "Exterior Concept",
+      "other": "Other"
+    },
+    "statuses": {
+      "draft": "Draft",
+      "readyForReview": "Ready for Review",
+      "revisionRequested": "Revision Requested",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "failed": "Failed",
+      "archived": "Archived"
+    },
+    "create": {
+      "title": "New Design Project",
+      "project": "Project",
+      "selectProject": "Select project",
+      "sourceDocument": "Source Document",
+      "selectDocument": "Select source document",
+      "hasRegions": "room regions available",
+      "designType": "Design Type",
+      "titleLabel": "Title",
+      "descriptionLabel": "Description",
+      "sourcePreview": "Source Preview",
+      "previewUnavailable": "Preview unavailable",
+      "submit": "Create Design",
+      "validationRequired": "Project, source document, and title are required.",
+      "submitError": "Could not create design project."
+    },
+    "detail": {
+      "backToList": "← Back to design projects",
+      "loadError": "Could not load design project.",
+      "actionError": "Action could not be completed.",
+      "approve": "Approve",
+      "reject": "Reject",
+      "archive": "Archive",
+      "submitReview": "Submit for Review",
+      "requestRevision": "Request Revision",
+      "reviewComment": "Review comment",
+      "lastReviewComment": "Last review comment",
+      "tabsLabel": "Design detail tabs",
+      "noVersion": "—",
+      "noVersions": "No saved versions yet.",
+      "versionLabel": "Version {number}",
+      "versionSavedAt": "Saved at",
+      "versionSavedBy": "Saved by",
+      "tabs": {
+        "overview": "Overview",
+        "sourcePlan": "Source Plan",
+        "colorStudio": "Color Studio",
+        "furnitureLayout": "Furniture Layout",
+        "materialsStyle": "Materials and Style",
+        "compareVersions": "Compare Versions",
+        "versions": "Versions",
+        "relatedRecords": "Related Records",
+        "activity": "Activity"
+      },
+      "fields": {
+        "project": "Project",
+        "sourceDrawing": "Source Drawing",
+        "designType": "Design Type",
+        "status": "Status",
+        "currentVersion": "Current Version",
+        "createdBy": "Created By",
+        "updated": "Updated",
+        "description": "Description"
+      }
+    },
+    "nav": {
+      "ariaLabel": "Design studio navigation",
+      "projects": "Design Projects",
+      "stylePresets": "Style Presets",
+      "materialPackages": "Material Packages",
+      "furnitureLibrary": "Furniture Library"
+    },
+    "stylePresets": {
+      "eyebrow": "Visual Design",
+      "title": "Style Presets",
+      "subtitle": "System and custom style presets.",
+      "loadError": "Could not load style presets.",
+      "empty": "No style presets found.",
+      "system": "System",
+      "custom": "Custom",
+      "columns": {
+        "name": "Name",
+        "code": "Code",
+        "type": "Type",
+        "description": "Description"
+      }
+    },
+    "materialPackages": {
+      "eyebrow": "Visual Design",
+      "title": "Material Packages",
+      "subtitle": "Flooring, wall, and kitchen material packages.",
+      "loadError": "Could not load material packages.",
+      "empty": "No material packages found.",
+      "columns": {
+        "name": "Name",
+        "flooring": "Flooring",
+        "walls": "Walls",
+        "description": "Description"
+      }
+    },
+    "furnitureLibrary": {
+      "eyebrow": "Visual Design",
+      "title": "Furniture Library",
+      "subtitle": "2D furniture catalog — not photorealistic 3D models.",
+      "loadError": "Could not load furniture catalog.",
+      "empty": "No furniture items found.",
+      "columns": {
+        "name": "Name",
+        "code": "Code",
+        "type": "Type",
+        "dimensions": "Dimensions",
+        "room": "Room"
+      }
+    },
+    "furnitureTypes": {
+      "sofa": "Sofa",
+      "armchair": "Armchair",
+      "coffeeTable": "Coffee Table",
+      "diningTable": "Dining Table",
+      "diningChair": "Dining Chair",
+      "bed": "Bed",
+      "bedsideTable": "Bedside Table",
+      "wardrobe": "Wardrobe",
+      "desk": "Desk",
+      "mediaUnit": "Media Unit",
+      "rug": "Rug",
+      "kitchenIsland": "Kitchen Island",
+      "stool": "Stool",
+      "vanity": "Vanity",
+      "bathtub": "Bathtub",
+      "shower": "Shower",
+      "toilet": "Toilet",
+      "other": "Other"
+    },
+    "furnitureLayout": {
+      "title": "Furniture Layout",
+      "modeGeometry": "Geometry-assisted layout",
+      "modeFreeLayout": "Manual free-layout mode",
+      "disclaimer": "Not construction documentation — no code compliance claims.",
+      "catalog": "Catalog",
+      "undo": "Undo",
+      "redo": "Redo",
+      "reset": "Reset",
+      "saveVersion": "Save Version",
+      "duplicate": "Duplicate",
+      "rotate": "Rotate",
+      "lock": "Lock",
+      "delete": "Delete",
+      "loadError": "Could not load furniture layout.",
+      "saveError": "Could not save version.",
+      "overlapWarning": "Overlap warning: {items}"
+    },
+    "materialsStyle": {
+      "title": "Materials and Style",
+      "stylePreset": "Style Preset",
+      "materialPackage": "Material Package",
+      "selectPreset": "Select style preset",
+      "selectPackage": "Select material package",
+      "system": "system",
+      "saveStyle": "Save Style",
+      "applyMaterials": "Apply Materials",
+      "loadError": "Could not load materials and style.",
+      "saveError": "Save failed.",
+      "fields": {
+        "flooring": "Flooring",
+        "wall_finish": "Walls",
+        "countertop": "Countertop",
+        "cabinetry": "Cabinetry",
+        "metal_finish": "Metal"
+      }
+    },
+    "compareVersions": {
+      "title": "Compare Versions",
+      "honestNote": "Metadata comparison only — not pixel-perfect visual diff.",
+      "versionA": "Version A",
+      "versionB": "Version B",
+      "selectVersion": "Select version",
+      "selectTwo": "Select two different versions to compare.",
+      "compare": "Compare",
+      "compareError": "Comparison failed.",
+      "versionLabel": "Version {number}",
+      "diff": {
+        "status": "Approval status",
+        "style": "Style",
+        "materials": "Materials",
+        "furnitureCount": "Furniture count",
+        "furnitureAdded": "Added",
+        "furnitureRemoved": "Removed",
+        "furnitureMoved": "Moved",
+        "colors": "Colors",
+        "colorsChanged": "Colors changed",
+        "noChange": "No change"
+      }
+    },
+    "colorStudio": {
+      "title": "Color Studio",
+      "modeRoomRegions": "Room regions mode",
+      "modeBasicOverlay": "Basic overlay mode",
+      "showBefore": "Show before",
+      "showAfter": "Show after",
+      "beforeLabel": "Before",
+      "afterLabel": "After",
+      "reset": "Reset",
+      "saveVersion": "Save Version",
+      "palette": "Color Palette",
+      "backgroundColor": "Background color",
+      "basicOverlayHint": "When drawing analysis does not provide room boundaries, a single background color is applied. The source file is never modified.",
+      "loadError": "Could not load color studio.",
+      "saveError": "Could not save version."
     }
   },
   "validation": {

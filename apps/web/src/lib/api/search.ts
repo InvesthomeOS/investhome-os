@@ -79,6 +79,15 @@ export const SEARCH_ENTITY_TYPES = [
   'notification',
   'activity',
   'document',
+  'office',
+  'department',
+  'team',
+  'brand_asset',
+  'design_project',
+  'style_preset',
+  'material_package',
+  'furniture_item',
+  'design_version',
 ] as const;
 
 export type SearchEntityType = (typeof SEARCH_ENTITY_TYPES)[number];

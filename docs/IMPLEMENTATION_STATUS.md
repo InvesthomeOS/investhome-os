@@ -75,7 +75,7 @@ Investhome OS is a **production-shaped enterprise platform** with Phase 1–3 mo
 
 **Units & Inventory** has a **complete blueprint** (`docs/UNITS_INVENTORY_BLUEPRINT.md`) but **zero production implementation** — drawing intelligence unit approval uses placeholder IDs pending this module.
 
-**Visual Design Studio** remains **not implemented**.
+**Visual Design Studio** is **PARTIAL** — **Sprint 1 complete** (2026-07-15): design project CRUD, source plan linking, Color Studio, version save/history, archive, permissions, activity log, global search, TR/EN UI. **Sprint 2 complete** (2026-07-15): style presets, material packages, furniture catalog/library, furniture layout editor, materials & style tab, version compare (metadata diff), design review workflow (submit/approve/reject), extended `design_parameters`, migrations `0015`/`0016`. **Not implemented:** 2D-to-3D, photorealistic rendering, video generation, automatic AI furniture placement.
 
 External provider integrations (AI, storage, mail, calendar, WhatsApp, accounting, banking) are **readiness-only** — configuration status pages without verified connections or secrets in API responses.
 
@@ -140,14 +140,14 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 | Document Engine Foundation | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | BLOCKED | **PARTIAL** |
 | Document AI (text/OCR/classify/Q&A) | PARTIAL | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | BLOCKED | **PARTIAL** |
 | Drawing/CAD Intelligence | PARTIAL | PARTIAL | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | BLOCKED | **PARTIAL** |
-| Visual Design Studio | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
-| Floor-plan coloring | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
-| Furniture placement | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
-| Material packages | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
-| Style presets | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
+| Visual Design Studio | PARTIAL | PARTIAL | PARTIAL | COMPLETE | COMPLETE | PARTIAL | COMPLETE | COMPLETE | **PARTIAL** |
+| Floor-plan coloring | PARTIAL | PARTIAL | PARTIAL | COMPLETE | COMPLETE | PARTIAL | COMPLETE | COMPLETE | **PARTIAL** |
+| Furniture placement | PARTIAL | PARTIAL | PARTIAL | COMPLETE | COMPLETE | PARTIAL | COMPLETE | COMPLETE | **PARTIAL** |
+| Material packages | PARTIAL | PARTIAL | PARTIAL | COMPLETE | COMPLETE | PARTIAL | COMPLETE | COMPLETE | **PARTIAL** |
+| Style presets | PARTIAL | PARTIAL | PARTIAL | COMPLETE | COMPLETE | PARTIAL | COMPLETE | COMPLETE | **PARTIAL** |
 | 2D-to-3D preparation | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
 | Rendering pipeline | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
-| Design approval workflow | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
+| Design approval workflow | PARTIAL | PARTIAL | PARTIAL | COMPLETE | COMPLETE | PARTIAL | COMPLETE | NEEDS VERIFICATION | **PARTIAL** |
 | **PHASE 3.5 — UNITS & INVENTORY** |
 | Units & Inventory | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
 | Units blueprint | — | — | — | — | — | — | — | — | **BLUEPRINT IN PROGRESS** |
@@ -507,7 +507,7 @@ No conflicting migration heads in source. Single linear chain.
 | Profile (header) | `/dashboard/profile` | Auth | Yes | Yes |
 | Global Search | Overlay | `search.view` | Yes | Yes |
 | Notifications | Drawer | `notifications.view` | Yes | Yes |
-| Visual Design Studio | — | — | — | NOT IMPLEMENTED |
+| Visual Design Studio | `/dashboard/design` | `design.view` | Yes | Yes |
 
 ---
 
@@ -536,15 +536,49 @@ docker compose logs worker --tail 50
 
 Update `apps/api/src/investhome_api/worker/settings.py` to parse `REDIS_URL` from settings (same pattern as queue enqueue) instead of `host="localhost"`.
 
-### Then — Visual Design Studio (Phase 4)
+### Visual Design Studio — Sprint 1 & 2 verified (PARTIAL module)
 
-First greenfield module with **zero implementation**. Recommended scope for first slice:
+**Sprint 1 verified 2026-07-15:**
 
-1. Data model: `design_projects`, `design_scenes`, `material_packages`, `style_presets`
-2. API: CRUD + link to project/document drawing analysis
-3. Frontend route: `/dashboard/design` with permission `construction.view` or new `design.view`
-4. Floor-plan coloring on existing SVG preview (extends drawing intelligence preview)
-5. Do **not** start rendering pipeline until coloring + furniture placement foundations exist
+| Check | Status |
+|-------|--------|
+| Migration `0014_visual_design_studio` | Applied |
+| API routes registered (`/design/*`) | COMPLETE |
+| Permissions `design.view/create/update/save_version/approve/archive` | COMPLETE |
+| Frontend `/dashboard/design` nav (authorized users) | COMPLETE |
+| Detail tabs: Overview, Source Plan, Color Studio, Versions, Related, Activity | COMPLETE |
+| `basic_overlay` mode honestly labeled when no room geometry | COMPLETE |
+| Activity events (`activity.design.*`) | COMPLETE |
+| Global search `design_project` entity | COMPLETE |
+| TR/EN `design` namespace | COMPLETE |
+| API tests `test_design_studio.py` | 5/5 pass |
+
+**Sprint 2 verified 2026-07-15:**
+
+| Check | Status |
+|-------|--------|
+| Migrations `0015_design_studio_sprint2`, `0016_design_studio_sprint2a_seed` | Applied (head) |
+| Models: `StylePreset`, `MaterialPackage`, `FurnitureItem`; extended `design_parameters` | COMPLETE |
+| Permissions `design.manage_styles/materials/furniture/submit_review` | COMPLETE |
+| Catalog workspaces: Style Presets, Material Packages, Furniture Library | COMPLETE |
+| Detail tabs: Furniture Layout, Materials and Style, Compare Versions | COMPLETE |
+| Review workflow: submit, request revision, approve, reject with comments | COMPLETE |
+| Global search: style_preset, material_package, furniture_item, design_version | COMPLETE |
+| Activity log for catalog/layout/version/review events | COMPLETE |
+| API tests `test_design_studio_sprint2.py` + Sprint 1 regression | **16/16 pass** |
+| API E2E flow (preset → materials → furniture → v1/v2 → compare → review) | COMPLETE (curl) |
+| Browser E2E (cursor-ide-browser MCP) | **NOT RUN** — MCP tab unavailable; web serves `/dashboard/design` (307→login) |
+
+**NOT implemented:** 2D-to-3D, photorealistic rendering, video generation, automatic AI furniture placement.
+
+### Recommended Sprint 3 scope
+
+1. Room-geometry-assisted furniture snapping (walls/doors from drawing analysis)
+2. Thumbnail/preview generation for design versions (non-photorealistic)
+3. Design export (PDF/image bundle) with disclaimer
+4. Reviewer assignment and multi-step approval chains
+5. Custom style/material templates per project brand profile
+6. Browser E2E automation for full design studio flows
 
 ---
 

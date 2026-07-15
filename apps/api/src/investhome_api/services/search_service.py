@@ -24,6 +24,7 @@ from investhome_api.config.search_config import (
 )
 from investhome_api.models.activity import ActivityLog
 from investhome_api.models.company_foundation import BrandAsset, Department, Office, Team
+from investhome_api.models.design_studio import DesignProject, DesignVersion, FurnitureItem, MaterialPackage, StylePreset
 from investhome_api.models.document import Document, DocumentAnalysis
 from investhome_api.models.drawing_intelligence import DrawingAnalysis
 from investhome_api.models.finance import (
@@ -151,6 +152,14 @@ def _link_query(entity_type: str, entity_id: UUID) -> dict[str, str]:
         return {"tab": "organization"}
     if entity_type == "brand_asset":
         return {"tab": "brandAssets"}
+    if entity_type == "design_version":
+        return {}
+    if entity_type == "style_preset":
+        return {"tab": "style-presets"}
+    if entity_type == "material_package":
+        return {"tab": "material-packages"}
+    if entity_type == "furniture_item":
+        return {"tab": "furniture"}
     return query
 
 
@@ -1020,6 +1029,238 @@ def _search_brand_assets(
     return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
 
 
+def _search_design_projects(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "design_project"):
+        return []
+
+    pattern = _pattern(query)
+    design_projects = db.scalars(
+        select(DesignProject)
+        .where(
+            DesignProject.archived_at.is_(None),
+            or_(
+                DesignProject.title.ilike(pattern),
+                cast(DesignProject.design_type, String).ilike(pattern),
+                cast(DesignProject.status, String).ilike(pattern),
+            ),
+        )
+        .order_by(DesignProject.updated_at.desc())
+        .limit(limit * 3)
+    ).all()
+
+    results: list[InternalSearchResult] = []
+    for design_project in design_projects:
+        project = db.get(Project, design_project.project_id)
+        document = db.get(Document, design_project.document_id)
+        fields = {
+            "title": design_project.title,
+            "design_type": _enum_value(design_project.design_type),
+            "status": _enum_value(design_project.status),
+            "project_name": project.project_name if project else None,
+            "document_title": document.title if document else None,
+        }
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        subtitle_parts = [
+            part
+            for part in (
+                project.project_name if project else None,
+                document.title if document else None,
+                _enum_value(design_project.design_type),
+            )
+            if part
+        ]
+        results.append(
+            InternalSearchResult(
+                entity_type="design_project",
+                entity_id=design_project.id,
+                title=design_project.title,
+                subtitle=" · ".join(subtitle_parts) if subtitle_parts else None,
+                preview=design_project.description,
+                status=_enum_value(design_project.status),
+                created_at=design_project.created_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
+def _search_style_presets(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "style_preset"):
+        return []
+    pattern = _pattern(query)
+    presets = db.scalars(
+        select(StylePreset)
+        .where(
+            StylePreset.archived_at.is_(None),
+            or_(StylePreset.name.ilike(pattern), StylePreset.code.ilike(pattern)),
+        )
+        .order_by(StylePreset.name)
+        .limit(limit * 2)
+    ).all()
+    results: list[InternalSearchResult] = []
+    for preset in presets:
+        fields = {"name": preset.name, "code": preset.code, "description": preset.description}
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="style_preset",
+                entity_id=preset.id,
+                title=preset.name,
+                subtitle=preset.code,
+                preview=preset.description,
+                created_at=preset.created_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
+def _search_material_packages(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "material_package"):
+        return []
+    pattern = _pattern(query)
+    packages = db.scalars(
+        select(MaterialPackage)
+        .where(
+            MaterialPackage.archived_at.is_(None),
+            or_(MaterialPackage.name.ilike(pattern), MaterialPackage.description.ilike(pattern)),
+        )
+        .order_by(MaterialPackage.name)
+        .limit(limit * 2)
+    ).all()
+    results: list[InternalSearchResult] = []
+    for package in packages:
+        fields = {"name": package.name, "description": package.description, "flooring": package.flooring}
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="material_package",
+                entity_id=package.id,
+                title=package.name,
+                subtitle=package.flooring,
+                preview=package.description,
+                created_at=package.created_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
+def _search_furniture_items(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "furniture_item"):
+        return []
+    pattern = _pattern(query)
+    items = db.scalars(
+        select(FurnitureItem)
+        .where(
+            FurnitureItem.archived_at.is_(None),
+            or_(FurnitureItem.name.ilike(pattern), FurnitureItem.code.ilike(pattern)),
+        )
+        .order_by(FurnitureItem.name)
+        .limit(limit * 2)
+    ).all()
+    results: list[InternalSearchResult] = []
+    for item in items:
+        fields = {
+            "name": item.name,
+            "code": item.code,
+            "furniture_type": _enum_value(item.furniture_type),
+        }
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="furniture_item",
+                entity_id=item.id,
+                title=item.name,
+                subtitle=_enum_value(item.furniture_type),
+                created_at=item.created_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
+def _search_design_versions(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "design_version"):
+        return []
+    pattern = _pattern(query)
+    rows = db.execute(
+        select(DesignVersion, DesignProject)
+        .join(DesignProject, DesignVersion.design_project_id == DesignProject.id)
+        .where(
+            DesignProject.archived_at.is_(None),
+            or_(
+                DesignProject.title.ilike(pattern),
+                cast(DesignVersion.version_number, String).ilike(pattern),
+            ),
+        )
+        .order_by(DesignVersion.created_at.desc())
+        .limit(limit * 2)
+    ).all()
+    results: list[InternalSearchResult] = []
+    for version, project in rows:
+        title = f"{project.title} v{version.version_number}"
+        fields = {"title": title, "project_title": project.title}
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="design_version",
+                entity_id=version.id,
+                title=title,
+                subtitle=project.title,
+                status=_enum_value(project.status),
+                created_at=version.created_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
 PROVIDER_MAP = {
     "lead": _search_leads,
     "investor": _search_investors,
@@ -1036,6 +1277,11 @@ PROVIDER_MAP = {
     "department": _search_departments,
     "team": _search_teams,
     "brand_asset": _search_brand_assets,
+    "design_project": _search_design_projects,
+    "style_preset": _search_style_presets,
+    "material_package": _search_material_packages,
+    "furniture_item": _search_furniture_items,
+    "design_version": _search_design_versions,
 }
 
 ENTITY_LABEL_KEYS = {
@@ -1054,6 +1300,11 @@ ENTITY_LABEL_KEYS = {
     "department": "search.entities.department",
     "team": "search.entities.team",
     "brand_asset": "search.entities.brand_asset",
+    "design_project": "search.entities.design_project",
+    "style_preset": "search.entities.style_preset",
+    "material_package": "search.entities.material_package",
+    "furniture_item": "search.entities.furniture_item",
+    "design_version": "search.entities.design_version",
 }
 
 

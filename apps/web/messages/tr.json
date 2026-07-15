@@ -28,6 +28,7 @@
     },
     "activity": "Aktivite Geçmişi",
     "documents": "Belgeler",
+    "designStudio": "Tasarım Stüdyosu",
     "settings": "Ayarlar",
     "modules": {
       "executive": {
@@ -997,7 +998,8 @@
       "project_budget": "Proje bütçesi",
       "funding_commitment": "Finansman taahhüdü",
       "payment_obligation": "Ödeme yükümlülüğü",
-      "document": "Belge"
+      "document": "Belge",
+      "design_project": "Tasarım projesi"
     },
     "sources": {
       "web": "Web",
@@ -1052,6 +1054,27 @@
         "created": "Rol oluşturuldu",
         "updated": "Rol güncellendi",
         "permission_changed": "Rol yetkileri değiştirildi"
+      },
+      "design": {
+        "project_created": "Tasarım projesi oluşturuldu: {title}",
+        "source_plan_selected": "Kaynak plan seçildi: {document_title} ({title})",
+        "color_overlay_updated": "Renk katmanı güncellendi: {title} ({mode})",
+        "version_saved": "Tasarım sürümü kaydedildi: {title} (v{version_number})",
+        "approved": "Tasarım onaylandı: {title}",
+        "rejected": "Tasarım reddedildi: {title}",
+        "archived": "Tasarım projesi arşivlendi: {title}",
+        "style_preset_created": "Stil şablonu oluşturuldu: {name}",
+        "style_preset_updated": "Stil şablonu güncellendi: {name}",
+        "material_package_created": "Malzeme paketi oluşturuldu: {name}",
+        "material_package_applied": "Malzeme paketi uygulandı: {package_name} ({title})",
+        "furniture_layout_updated": "Mobilya yerleşimi güncellendi: {title} ({item_count} öğe)",
+        "furniture_added": "Mobilya eklendi: {item_name} ({title})",
+        "furniture_removed": "Mobilya kaldırıldı: {item_name} ({title})",
+        "furniture_moved": "Mobilya taşındı: {item_name} ({title})",
+        "style_changed": "Stil değiştirildi: {preset_name} ({title})",
+        "material_changed": "Malzeme değiştirildi: {package_name} ({title})",
+        "submitted_for_review": "İncelemeye gönderildi: {title}",
+        "revision_requested": "Revizyon istendi: {title}"
       },
       "document": {
         "uploaded": "Belge yüklendi: {title}",
@@ -1512,6 +1535,11 @@
       "department": "Departmanlar",
       "team": "Ekipler",
       "brand_asset": "Marka varlıkları",
+      "design_project": "Tasarım projeleri",
+      "style_preset": "Stil şablonları",
+      "material_package": "Malzeme paketleri",
+      "furniture_item": "Mobilya öğeleri",
+      "design_version": "Tasarım sürümleri",
       "unit": "Üniteler (yakında)",
       "construction": "İnşaat (yakında)",
       "email": "E-postalar (yakında)"
@@ -1524,6 +1552,249 @@
       "admin_users": "Kullanıcılar",
       "activity": "Aktivite",
       "documents": "Belgeler"
+    }
+  },
+  "design": {
+    "eyebrow": "Görsel Tasarım",
+    "title": "Tasarım Stüdyosu",
+    "subtitle": "Kat planı renklendirme ve tasarım sürümleri.",
+    "loadError": "Tasarım projeleri yüklenemedi.",
+    "empty": "Henüz tasarım projesi yok.",
+    "createButton": "Tasarım Oluştur",
+    "noVersion": "—",
+    "filters": {
+      "search": "Başlık, proje veya belge ara…",
+      "allProjects": "Tüm projeler",
+      "allTypes": "Tüm türler",
+      "allStatuses": "Tüm durumlar"
+    },
+    "columns": {
+      "title": "Başlık",
+      "project": "İlgili Proje",
+      "sourceDrawing": "Kaynak Çizim",
+      "designType": "Tasarım Türü",
+      "status": "Durum",
+      "currentVersion": "Güncel Sürüm",
+      "updated": "Güncellenme",
+      "createdBy": "Oluşturan"
+    },
+    "types": {
+      "coloredFloorPlan": "Renkli Kat Planı",
+      "marketingFloorPlan": "Pazarlama Kat Planı",
+      "furnitureLayout": "Mobilya Yerleşimi",
+      "materialPlan": "Malzeme Planı",
+      "interiorConcept": "İç Mekân Konsepti",
+      "exteriorConcept": "Dış Mekân Konsepti",
+      "other": "Diğer"
+    },
+    "statuses": {
+      "draft": "Taslak",
+      "readyForReview": "İncelemeye Hazır",
+      "revisionRequested": "Revizyon İstendi",
+      "approved": "Onaylandı",
+      "rejected": "Reddedildi",
+      "failed": "Başarısız",
+      "archived": "Arşivlendi"
+    },
+    "create": {
+      "title": "Yeni Tasarım Projesi",
+      "project": "Proje",
+      "selectProject": "Proje seçin",
+      "sourceDocument": "Kaynak Belge",
+      "selectDocument": "Kaynak belge seçin",
+      "hasRegions": "oda bölgeleri mevcut",
+      "designType": "Tasarım Türü",
+      "titleLabel": "Başlık",
+      "descriptionLabel": "Açıklama",
+      "sourcePreview": "Kaynak Önizleme",
+      "previewUnavailable": "Önizleme kullanılamıyor",
+      "submit": "Tasarım Oluştur",
+      "validationRequired": "Proje, kaynak belge ve başlık zorunludur.",
+      "submitError": "Tasarım projesi oluşturulamadı."
+    },
+    "detail": {
+      "backToList": "← Tasarım projelerine dön",
+      "loadError": "Tasarım projesi yüklenemedi.",
+      "actionError": "İşlem tamamlanamadı.",
+      "approve": "Onayla",
+      "reject": "Reddet",
+      "archive": "Arşivle",
+      "submitReview": "İncelemeye Gönder",
+      "requestRevision": "Revizyon İste",
+      "reviewComment": "İnceleme yorumu",
+      "lastReviewComment": "Son inceleme yorumu",
+      "tabsLabel": "Tasarım detay sekmeleri",
+      "noVersion": "—",
+      "noVersions": "Henüz kayıtlı sürüm yok.",
+      "versionLabel": "Sürüm {number}",
+      "versionSavedAt": "Kayıt tarihi",
+      "versionSavedBy": "Kaydeden",
+      "tabs": {
+        "overview": "Genel Bakış",
+        "sourcePlan": "Kaynak Plan",
+        "colorStudio": "Renk Stüdyosu",
+        "furnitureLayout": "Mobilya Yerleşimi",
+        "materialsStyle": "Malzeme ve Stil",
+        "compareVersions": "Sürümleri Karşılaştır",
+        "versions": "Sürümler",
+        "relatedRecords": "İlgili Kayıtlar",
+        "activity": "Aktivite"
+      },
+      "fields": {
+        "project": "Proje",
+        "sourceDrawing": "Kaynak Çizim",
+        "designType": "Tasarım Türü",
+        "status": "Durum",
+        "currentVersion": "Güncel Sürüm",
+        "createdBy": "Oluşturan",
+        "updated": "Güncellenme",
+        "description": "Açıklama"
+      }
+    },
+    "nav": {
+      "ariaLabel": "Tasarım stüdyosu gezinme",
+      "projects": "Tasarım Projeleri",
+      "stylePresets": "Stil Şablonları",
+      "materialPackages": "Malzeme Paketleri",
+      "furnitureLibrary": "Mobilya Kütüphanesi"
+    },
+    "stylePresets": {
+      "eyebrow": "Görsel Tasarım",
+      "title": "Stil Şablonları",
+      "subtitle": "Sistem ve özel stil şablonları.",
+      "loadError": "Stil şablonları yüklenemedi.",
+      "empty": "Stil şablonu bulunamadı.",
+      "system": "Sistem",
+      "custom": "Özel",
+      "columns": {
+        "name": "Ad",
+        "code": "Kod",
+        "type": "Tür",
+        "description": "Açıklama"
+      }
+    },
+    "materialPackages": {
+      "eyebrow": "Görsel Tasarım",
+      "title": "Malzeme Paketleri",
+      "subtitle": "Zemin, duvar ve mutfak malzeme paketleri.",
+      "loadError": "Malzeme paketleri yüklenemedi.",
+      "empty": "Malzeme paketi bulunamadı.",
+      "columns": {
+        "name": "Ad",
+        "flooring": "Zemin",
+        "walls": "Duvar",
+        "description": "Açıklama"
+      }
+    },
+    "furnitureLibrary": {
+      "eyebrow": "Görsel Tasarım",
+      "title": "Mobilya Kütüphanesi",
+      "subtitle": "2D mobilya kataloğu — gerçekçi 3D modeller değil.",
+      "loadError": "Mobilya kataloğu yüklenemedi.",
+      "empty": "Mobilya öğesi bulunamadı.",
+      "columns": {
+        "name": "Ad",
+        "code": "Kod",
+        "type": "Tür",
+        "dimensions": "Boyutlar",
+        "room": "Oda"
+      }
+    },
+    "furnitureTypes": {
+      "sofa": "Kanepe",
+      "armchair": "Koltuk",
+      "coffeeTable": "Sehpa",
+      "diningTable": "Yemek Masası",
+      "diningChair": "Yemek Sandalyesi",
+      "bed": "Yatak",
+      "bedsideTable": "Komodin",
+      "wardrobe": "Gardırop",
+      "desk": "Çalışma Masası",
+      "mediaUnit": "TV Ünitesi",
+      "rug": "Halı",
+      "kitchenIsland": "Mutfak Adası",
+      "stool": "Tabure",
+      "vanity": "Banyo Dolabı",
+      "bathtub": "Küvet",
+      "shower": "Duş",
+      "toilet": "Klozet",
+      "other": "Diğer"
+    },
+    "furnitureLayout": {
+      "title": "Mobilya Yerleşimi",
+      "modeGeometry": "Geometri destekli yerleşim",
+      "modeFreeLayout": "Serbest yerleşim modu",
+      "disclaimer": "Bu görünüm yapı belgesi değildir; kod uyumluluğu iddiası içermez.",
+      "catalog": "Katalog",
+      "undo": "Geri Al",
+      "redo": "Yinele",
+      "reset": "Sıfırla",
+      "saveVersion": "Sürüm Kaydet",
+      "duplicate": "Çoğalt",
+      "rotate": "Döndür",
+      "lock": "Kilitle",
+      "delete": "Sil",
+      "loadError": "Mobilya yerleşimi yüklenemedi.",
+      "saveError": "Sürüm kaydedilemedi.",
+      "overlapWarning": "Çakışma uyarısı: {items}"
+    },
+    "materialsStyle": {
+      "title": "Malzeme ve Stil",
+      "stylePreset": "Stil Şablonu",
+      "materialPackage": "Malzeme Paketi",
+      "selectPreset": "Stil şablonu seçin",
+      "selectPackage": "Malzeme paketi seçin",
+      "system": "sistem",
+      "saveStyle": "Stili Kaydet",
+      "applyMaterials": "Malzemeleri Uygula",
+      "loadError": "Malzeme ve stil yüklenemedi.",
+      "saveError": "Kayıt başarısız.",
+      "fields": {
+        "flooring": "Zemin",
+        "wall_finish": "Duvar",
+        "countertop": "Tezgah",
+        "cabinetry": "Dolap",
+        "metal_finish": "Metal"
+      }
+    },
+    "compareVersions": {
+      "title": "Sürümleri Karşılaştır",
+      "honestNote": "Yalnızca meta veri karşılaştırması — piksel düzeyinde görsel fark desteklenmez.",
+      "versionA": "Sürüm A",
+      "versionB": "Sürüm B",
+      "selectVersion": "Sürüm seçin",
+      "selectTwo": "Karşılaştırmak için iki farklı sürüm seçin.",
+      "compare": "Karşılaştır",
+      "compareError": "Karşılaştırma başarısız.",
+      "versionLabel": "Sürüm {number}",
+      "diff": {
+        "status": "Onay durumu",
+        "style": "Stil",
+        "materials": "Malzemeler",
+        "furnitureCount": "Mobilya sayısı",
+        "furnitureAdded": "Eklenen",
+        "furnitureRemoved": "Kaldırılan",
+        "furnitureMoved": "Taşınan",
+        "colors": "Renkler",
+        "colorsChanged": "Renkler değişti",
+        "noChange": "Değişiklik yok"
+      }
+    },
+    "colorStudio": {
+      "title": "Renk Stüdyosu",
+      "modeRoomRegions": "Oda bölgeleri modu",
+      "modeBasicOverlay": "Temel katman modu",
+      "showBefore": "Önce göster",
+      "showAfter": "Sonra göster",
+      "beforeLabel": "Önce",
+      "afterLabel": "Sonra",
+      "reset": "Sıfırla",
+      "saveVersion": "Sürüm Kaydet",
+      "palette": "Renk Paleti",
+      "backgroundColor": "Arka plan rengi",
+      "basicOverlayHint": "Çizim analizi oda sınırları sağlamadığında tek arka plan rengi uygulanır. Kaynak dosya değiştirilmez.",
+      "loadError": "Renk stüdyosu yüklenemedi.",
+      "saveError": "Sürüm kaydedilemedi."
     }
   },
   "validation": {

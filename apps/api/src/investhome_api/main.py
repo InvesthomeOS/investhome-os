@@ -2,7 +2,7 @@ from investhome_api.api.exception_handlers import register_exception_handlers
 from investhome_api.config.settings import get_settings
 from investhome_api.core.logging_config import configure_logging
 from investhome_api.middleware.request_id import RequestIdMiddleware
-from investhome_api.api.routes import activity, auth, company_foundation, document_intelligence, documents, drawing_intelligence, executive, finance, health, investors, leads, meta, notifications, projects, roles, search, users
+from investhome_api.api.routes import activity, auth, company_foundation, design_studio, document_intelligence, documents, drawing_intelligence, executive, finance, health, investors, leads, meta, notifications, projects, roles, search, users
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -49,6 +49,7 @@ def create_app() -> FastAPI:
     app.include_router(drawing_intelligence.router)
     app.include_router(executive.router)
     app.include_router(company_foundation.router)
+    app.include_router(design_studio.router)
 
     return app
 

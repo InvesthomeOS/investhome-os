@@ -5,6 +5,8 @@ from decimal import Decimal
 from sqlalchemy import select
 
 from investhome_api.db.company_foundation_seed import seed_company_foundation
+from investhome_api.db.design_studio_seed import seed_demo_design_studio_sprint2
+from investhome_api.db.document_seed import seed_demo_documents
 from investhome_api.db.activity_seed import seed_activity_logs
 from investhome_api.db.notification_seed import seed_notifications
 from investhome_api.db.auth_seed import seed_demo_users, seed_permissions_and_roles, sync_system_permissions
@@ -194,6 +196,7 @@ def main() -> None:
     notifications_inserted = seed_notifications()
     documents_inserted = seed_demo_documents()
     foundation = seed_company_foundation()
+    design_sprint2 = seed_demo_design_studio_sprint2()
     print(f"Seeded {permissions_inserted} permission(s) and {roles_inserted} role(s).")
     if permissions_synced:
         print(f"Synced {permissions_synced} permission grant(s).")
@@ -209,6 +212,14 @@ def main() -> None:
         print(
             "Seeded company foundation: "
             f"{foundation['offices']} office(s), {foundation['departments']} department(s)."
+        )
+    if any(design_sprint2.values()):
+        print(
+            "Seeded design studio sprint 2: "
+            f"{design_sprint2['material_packages']} material package(s), "
+            f"{design_sprint2['furniture_items']} furniture item(s), "
+            f"{design_sprint2['design_projects']} design project(s), "
+            f"{design_sprint2['design_versions']} version(s)."
         )
 
 

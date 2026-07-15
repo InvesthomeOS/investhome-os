@@ -70,6 +70,7 @@ class ActivityEntityType(str, enum.Enum):
     DEPARTMENT = "department"
     TEAM = "team"
     BRAND = "brand"
+    DESIGN_PROJECT = "design_project"
 
 
 class ActivityLog(Base):

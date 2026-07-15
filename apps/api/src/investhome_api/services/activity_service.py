@@ -20,6 +20,7 @@ from investhome_api.config.activity_config import (
     SENSITIVE_FIELD_NAMES,
     SENSITIVE_PARTIAL_MATCH,
 )
+from investhome_api.config.settings import get_settings
 from investhome_api.models.activity import (
     ActivityAction,
     ActivityActorType,
@@ -182,6 +183,8 @@ def log_activity(
 
 
 def user_can_view_entity_type_events(user: User, entity_type: ActivityEntityType) -> bool:
+    if not get_settings().auth_enabled:
+        return True
     if is_super_admin(user):
         return True
     if entity_type in SECURITY_ENTITY_TYPES:
@@ -351,6 +354,7 @@ ENTITY_LINK_MODULES: dict[ActivityEntityType, str] = {
     ActivityEntityType.USER: "admin/users",
     ActivityEntityType.ROLE: "admin/roles",
     ActivityEntityType.DOCUMENT: "documents",
+    ActivityEntityType.DESIGN_PROJECT: "design",
 }
 
 

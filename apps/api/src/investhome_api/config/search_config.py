@@ -21,6 +21,11 @@ SEARCH_ENTITY_TYPES = frozenset(
         "department",
         "team",
         "brand_asset",
+        "design_project",
+        "style_preset",
+        "material_package",
+        "furniture_item",
+        "design_version",
     }
 )
 
@@ -49,6 +54,11 @@ ENTITY_PERMISSION_RESOURCE: dict[str, str] = {
     "department": "organization",
     "team": "organization",
     "brand_asset": "brand",
+    "design_project": "design",
+    "style_preset": "design",
+    "material_package": "design",
+    "furniture_item": "design",
+    "design_version": "design",
 }
 
 ENTITY_LINK_MODULES: dict[str, str] = {
@@ -67,6 +77,11 @@ ENTITY_LINK_MODULES: dict[str, str] = {
     "department": "settings",
     "team": "settings",
     "brand_asset": "settings",
+    "design_project": "design",
+    "style_preset": "design",
+    "material_package": "design",
+    "furniture_item": "design",
+    "design_version": "design",
 }
 
 FINANCE_TAB_BY_ENTITY: dict[str, str] = {

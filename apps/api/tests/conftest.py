@@ -36,6 +36,13 @@ from investhome_api.models.company_foundation import (  # noqa: F401
     UserDepartment,
     UserTeam,
 )
+from investhome_api.models.design_studio import (  # noqa: F401
+    DesignProject,
+    DesignVersion,
+    FurnitureItem,
+    MaterialPackage,
+    StylePreset,
+)
 from investhome_api.models.notification import Notification  # noqa: F401
 from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole  # noqa: F401
 
@@ -76,6 +83,57 @@ def client() -> TestClient:
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
+    db = TestingSessionLocal()
+    from investhome_api.models.design_studio import FurnitureItem, MaterialPackage, StylePreset
+
+    if db.query(StylePreset).first() is None:
+        for code, name in (
+            ("modern", "Modern"),
+            ("luxury", "Luxury"),
+            ("scandinavian", "Scandinavian"),
+            ("industrial", "Industrial"),
+            ("minimalist", "Minimalist"),
+        ):
+            db.add(
+                StylePreset(
+                    name=name,
+                    code=code,
+                    description=f"{name} system preset",
+                    color_palette={"primary": "#333333", "secondary": "#EEEEEE", "accent": "#999999"},
+                    is_system_preset=True,
+                )
+            )
+    if db.query(FurnitureItem).first() is None:
+        for name, code, ftype, w, d, h in (
+            ("Sofa", "sofa", "sofa", 220, 95, 85),
+            ("Bed", "bed", "bed", 160, 210, 110),
+            ("Dining Table", "dining_table", "dining_table", 180, 90, 75),
+            ("Chair", "chair", "dining_chair", 45, 50, 85),
+            ("Coffee Table", "coffee_table", "coffee_table", 120, 60, 45),
+            ("Toilet", "toilet", "toilet", 40, 65, 80),
+            ("Shower", "shower", "shower", 90, 90, 200),
+            ("Kitchen Island", "kitchen_island", "kitchen_island", 180, 90, 90),
+        ):
+            db.add(
+                FurnitureItem(
+                    name=name,
+                    code=code,
+                    furniture_type=ftype,
+                    width=w,
+                    depth=d,
+                    height=h,
+                    is_system_item=True,
+                )
+            )
+    if db.query(MaterialPackage).first() is None:
+        for name, flooring in (
+            ("Urban Loft Package", "Polished Concrete"),
+            ("Coastal Calm Package", "Light Oak"),
+            ("Warm Modern Package", "Wide Plank Oak"),
+        ):
+            db.add(MaterialPackage(name=name, flooring=flooring, wall_finish="Paint"))
+    db.commit()
+    db.close()
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
@@ -144,7 +202,7 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
                 permission_id=permission_map[(resource, action)].id,
             )
         )
-    for resource in ("leads", "investors", "projects", "finance"):
+    for resource in ("leads", "investors", "finance"):
         db.add(
             RolePermission(
                 role_id=roles["super_admin"].id,
@@ -179,6 +237,55 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
                 permission_id=permission_map[("documents", action)].id,
             )
         )
+    for action in ("create", "update", "archive"):
+        key = ("projects", action)
+        if key not in permission_map:
+            perm = Permission(resource="projects", action=action)
+            db.add(perm)
+            db.flush()
+            permission_map[key] = perm
+        existing = (
+            db.query(RolePermission)
+            .filter_by(role_id=roles["super_admin"].id, permission_id=permission_map[key].id)
+            .first()
+        )
+        if existing is None:
+            db.add(
+                RolePermission(
+                    role_id=roles["super_admin"].id,
+                    permission_id=permission_map[key].id,
+                )
+            )
+    for resource, action in (
+        ("design", "view"),
+        ("design", "create"),
+        ("design", "update"),
+        ("design", "save_version"),
+        ("design", "approve"),
+        ("design", "archive"),
+        ("design", "manage_styles"),
+        ("design", "manage_materials"),
+        ("design", "manage_furniture"),
+        ("design", "submit_review"),
+    ):
+        key = (resource, action)
+        if key not in permission_map:
+            perm = Permission(resource=resource, action=action)
+            db.add(perm)
+            db.flush()
+            permission_map[key] = perm
+        existing = (
+            db.query(RolePermission)
+            .filter_by(role_id=roles["super_admin"].id, permission_id=permission_map[key].id)
+            .first()
+        )
+        if existing is None:
+            db.add(
+                RolePermission(
+                    role_id=roles["super_admin"].id,
+                    permission_id=permission_map[key].id,
+                )
+            )
 
     hashed = hash_password("Demo123!")
     specs = {

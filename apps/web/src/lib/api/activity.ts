@@ -40,7 +40,8 @@ export type ActivityEntityType =
   | 'project_budget'
   | 'funding_commitment'
   | 'payment_obligation'
-  | 'document';
+  | 'document'
+  | 'design_project';
 
 export type ActivitySource =
   | 'web'

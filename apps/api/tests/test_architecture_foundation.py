@@ -2,7 +2,7 @@
 
 from fastapi.testclient import TestClient
 
-from tests.support.api_helpers import assert_error_envelope, assert_ok_envelope
+from support.api_helpers import assert_error_envelope, assert_ok_envelope
 
 
 def test_request_id_header_on_health(client: TestClient) -> None:
