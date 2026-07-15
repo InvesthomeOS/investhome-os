@@ -2,8 +2,51 @@
 
 **Audit date:** 2026-07-15  
 **Repository:** `investhome-os`  
-**Latest commit:** `ab62106` — `feat: enterprise architecture foundation`  
+**Latest commit:** `ab62106` — `feat: enterprise architecture foundation` (+ constitution docs pending commit)  
 **Branch:** `main`
+
+---
+
+## Governance Constitution
+
+Canonical architecture and product governance documents:
+
+| Document | Purpose |
+|----------|---------|
+| [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md) | Immutable IAD-001–IAD-018 decision records |
+| [PRODUCT_VISION.md](./PRODUCT_VISION.md) | Internal product strategy and long-term direction |
+| [DOMAIN_MODEL.md](./DOMAIN_MODEL.md) | Entity relationships (conceptual) |
+| [EVENT_MODEL.md](./EVENT_MODEL.md) | Business events vs Activity Log vs audit |
+| [DATA_OWNERSHIP.md](./DATA_OWNERSHIP.md) | Single source of truth per entity |
+| [WORKSPACE_ARCHITECTURE.md](./WORKSPACE_ARCHITECTURE.md) | Role workspaces over one domain model |
+| [AI_PRINCIPLES.md](./AI_PRINCIPLES.md) | Human-in-the-loop, confidentiality, AI levels |
+| [AUTOMATION_PRINCIPLES.md](./AUTOMATION_PRINCIPLES.md) | ARQ, n8n, approval gates, retry policy |
+| [NAMING_CONVENTIONS.md](./NAMING_CONVENTIONS.md) | Entities, APIs, files, permissions, events |
+| [CODING_STANDARDS.md](./CODING_STANDARDS.md) | Backend, frontend, DB, testing, security |
+| [SECURITY_PRINCIPLES.md](./SECURITY_PRINCIPLES.md) | Auth, secrets, uploads, AI safety |
+| [PERMISSION_MODEL.md](./PERMISSION_MODEL.md) | RBAC roles, resources, actions |
+| [VERSIONING_POLICY.md](./VERSIONING_POLICY.md) | Documents, API, database, prices |
+| [DOCUMENT_STANDARDS.md](./DOCUMENT_STANDARDS.md) | Naming, metadata, confidentiality, retention |
+| [API_PRINCIPLES.md](./API_PRINCIPLES.md) | REST, pagination, errors, envelopes |
+| [DATABASE_GUIDELINES.md](./DATABASE_GUIDELINES.md) | UUID, archive, money, migrations |
+| [TESTING_STANDARD.md](./TESTING_STANDARD.md) | Unit, integration, E2E, acceptance criteria |
+| [RELEASE_POLICY.md](./RELEASE_POLICY.md) | Branches, tags, checkpoints, rollback |
+| [CHANGE_MANAGEMENT.md](./CHANGE_MANAGEMENT.md) | Proposal through documentation workflow |
+| [TECHNICAL_DEBT.md](./TECHNICAL_DEBT.md) | Running debt register TD-01–TD-14 |
+| [ROADMAP.md](./ROADMAP.md) | Completed / in progress / blueprint / planned |
+
+### Supporting architecture docs
+
+| Document | Purpose |
+|----------|---------|
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | System overview and request lifecycle |
+| [API_GUIDELINES.md](./API_GUIDELINES.md) | API response examples |
+| [AI_ARCHITECTURE.md](./AI_ARCHITECTURE.md) | AI pipeline implementation |
+| [TESTING_GUIDE.md](./TESTING_GUIDE.md) | Practical test commands |
+| [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) | Provider readiness |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | Deploy procedures |
+| [UNITS_INVENTORY_BLUEPRINT.md](./UNITS_INVENTORY_BLUEPRINT.md) | Units module specification |
+| [ARCHITECTURE_REFACTORING_REPORT.md](./ARCHITECTURE_REFACTORING_REPORT.md) | EA foundation refactor analysis |
 
 ---
 
