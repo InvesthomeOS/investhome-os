@@ -1882,7 +1882,29 @@ body {
   border-radius: 0.5rem;
 }
 
-.settings-tabs {
+.ih-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.ih-badge--success { color: #166534; background: #dcfce7; }
+.ih-badge--warning { color: #92400e; background: #fef3c7; }
+.ih-badge--danger { color: #991b1b; background: #fee2e2; }
+.ih-badge--info { color: #1e40af; background: #dbeafe; }
+
+.dashboard__loading {
+  color: var(--text-secondary, #64748b);
+  padding: 0.5rem 0;
+}
+
+.dashboard__subtitle {
+  margin-top: 0.25rem;
+  color: var(--text-secondary, #64748b);
+}
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;

@@ -2,16 +2,20 @@
 
 **Audit date:** 2026-07-15  
 **Repository:** `investhome-os`  
-**Latest commit:** `b3295cf` — `feat: add company and brand foundation`  
+**Latest commit:** (pending) — `feat: enterprise architecture foundation`  
 **Branch:** `main`
 
 ---
 
 ## Executive Summary
 
-Investhome OS is a **production-shaped enterprise platform** with strong Phase 1 (core business), Phase 2 (platform foundation), and **Company Foundation** coverage. Document Engine Foundation, Document Intelligence Phase 2, and Architectural Drawing Intelligence Phase 3 are implemented in source with **128 passing API tests**.
+Investhome OS is a **production-shaped enterprise platform** with Phase 1–3 modules, **Company Foundation**, and **Enterprise Architecture Foundation**. **133+ API tests** (128 baseline + architecture foundation).
+
+**Enterprise Architecture Foundation** adds request ID middleware, standardized API error envelopes (backward compatible), response helpers, feature flags (`FEATURE_*`), structured logging, `@investhome/ui` design system primitives, enhanced API client, worker Redis URL parsing, and comprehensive `docs/` library.
 
 **Company Foundation** (migration `0013`) delivers centralized company profile, offices, brand profiles, brand assets (via Document Engine), system preferences, organization structure (departments/teams), Settings UI (12 sections TR/EN), permissions, activity/search integration, and global branding context with safe fallbacks.
+
+**Units & Inventory** has a **complete blueprint** (`docs/UNITS_INVENTORY_BLUEPRINT.md`) but **zero production implementation** — drawing intelligence unit approval uses placeholder IDs pending this module.
 
 **Visual Design Studio** remains **not implemented**.
 
@@ -24,14 +28,17 @@ Intelligence layers use **local deterministic/heuristic providers** with honest 
 | Gap | Impact |
 |-----|--------|
 | Worker `entrypoint.sh` ignores `arq` CMD | Async document/drawing jobs stay queued when worker container runs |
-| Worker `RedisSettings(host="localhost")` | Worker cannot reach `redis` service when started in Compose |
 | Migration `0013` requires `alembic upgrade head` after deploy | Company Foundation tables absent until migration applied |
+
+**Resolved this phase:** Worker Redis now parses `REDIS_URL` (was hardcoded `localhost`).
 
 ### Verified next step
 
 1. Apply migration `0013_company_foundation` and rebuild/restart API
 2. Fix worker entrypoint + Redis host for async job processing
-3. Begin **Visual Design Studio** or deepen **Company Foundation** (user org assignment UI, brand asset picker from Document Center)
+3. Begin **Units & Inventory S1** (schema + buildings/floors API) or deepen **Company Foundation** (user org assignment UI, brand asset picker from Document Center)
+
+See also: `docs/ROADMAP.md`, `docs/UNITS_INVENTORY_BLUEPRINT.md`.
 
 ---
 
@@ -56,6 +63,13 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 | Activity Log | COMPLETE | COMPLETE | COMPLETE | COMPLETE | N/A | COMPLETE | COMPLETE | COMPLETE | **COMPLETE** |
 | Notification Center | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | N/A | PARTIAL | COMPLETE | **COMPLETE** |
 | Universal Global Search | COMPLETE | COMPLETE | COMPLETE | PARTIAL | COMPLETE | PARTIAL | N/A | COMPLETE | **COMPLETE** |
+| **ENTERPRISE ARCHITECTURE** |
+| Request ID / logging | COMPLETE | N/A | COMPLETE | N/A | N/A | N/A | N/A | COMPLETE | **COMPLETE** |
+| API response standards | PARTIAL | PARTIAL | COMPLETE | N/A | N/A | N/A | N/A | COMPLETE | **PARTIAL** |
+| Error handling (API + web) | COMPLETE | PARTIAL | COMPLETE | N/A | N/A | N/A | N/A | COMPLETE | **PARTIAL** |
+| Feature flags | COMPLETE | PARTIAL | COMPLETE | N/A | N/A | N/A | N/A | COMPLETE | **PARTIAL** |
+| Design system (`@investhome/ui`) | N/A | PARTIAL | N/A | N/A | N/A | N/A | N/A | COMPLETE | **PARTIAL** |
+| Architecture documentation | COMPLETE | N/A | N/A | N/A | N/A | N/A | N/A | COMPLETE | **COMPLETE** |
 | **COMPANY FOUNDATION** |
 | Company Profile | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | PARTIAL | N/A | NEEDS VERIFICATION | **PARTIAL** |
 | Settings (12 sections) | COMPLETE | COMPLETE | PARTIAL | COMPLETE | COMPLETE | PARTIAL | N/A | NEEDS VERIFICATION | **PARTIAL** |
@@ -76,7 +90,9 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 | 2D-to-3D preparation | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
 | Rendering pipeline | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
 | Design approval workflow | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
-| Brand Profile / Brand Assets | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
+| **PHASE 3.5 — UNITS & INVENTORY** |
+| Units & Inventory | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
+| Units blueprint | — | — | — | — | — | — | — | — | **BLUEPRINT IN PROGRESS** |
 
 ---
 
@@ -172,6 +188,29 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 | English merge-over-Turkish fallback | COMPLETE |
 | Enum label hooks | COMPLETE for core modules |
 | Gaps | `navigation.documents` was missing in `en.json` (fixed in audit); API error strings in English; permissions matrix shows raw resource/action keys |
+
+### Units & Inventory — BLUEPRINT IN PROGRESS
+
+| Check | Status |
+|-------|--------|
+| Specification document | **COMPLETE** — `docs/UNITS_INVENTORY_BLUEPRINT.md` (22 sections) |
+| Data models (Building, Floor, Unit, +9 entities) | NOT IMPLEMENTED |
+| Migration `0014_units_inventory` | NOT IMPLEMENTED |
+| API routes (`/units`, `/buildings`, `/floors`, etc.) | NOT IMPLEMENTED |
+| Permissions resource `"units"` | NOT IMPLEMENTED — `"construction"` reserved in `permissions_config.py` |
+| Frontend workspace + drawer | NOT IMPLEMENTED |
+| Global search entity `unit` | PLACEHOLDER — listed in `FUTURE_SEARCH_ENTITY_TYPES` (`search_config.py`) |
+| Drawing unit approval bridge | PARTIAL — placeholder `created_unit_id = proposal.id` in `drawing_intelligence.py` |
+| Finance `unit_id` FK on transactions | NOT IMPLEMENTED — `finance.py` has `project_id` only |
+| Project unit aggregates | PARTIAL — manual counters on `Project` model (`project.py`) |
+| Activity / notification integration | NOT IMPLEMENTED — no unit entity types in `activity.py` |
+| TR/EN `units` namespace | NOT IMPLEMENTED — search chip shows "coming soon" in `en.json` / `tr.json` |
+| Demo seed inventory | NOT IMPLEMENTED |
+| API tests | NOT IMPLEMENTED |
+
+**Blueprint highlights:** Company → Project → Building → Floor → Unit hierarchy; accessory units (`unit_category=accessory`); four status dimensions (construction, sales, closing, leasing); 14 UX screens; finance/document/drawing integration; sprints S0–S7 defined.
+
+**Prerequisites before S1:** Apply migration `0013_company_foundation`; fix worker Redis host and entrypoint.
 
 ---
 
