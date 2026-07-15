@@ -1170,6 +1170,17 @@
         "success": "Success",
         "error": "Error"
       }
+    },
+    "errors": {
+      "missing_extension": "File extension is required.",
+      "blocked_type": "This file type is not allowed.",
+      "unsupported_type": "Unsupported file type.",
+      "mime_mismatch": "File type does not match content.",
+      "file_too_large": "File exceeds the maximum allowed size.",
+      "empty_file": "Empty files cannot be uploaded.",
+      "upload_failed": "Upload failed.",
+      "preview_unavailable": "Preview is not available.",
+      "not_latest_version": "Only the latest version can be updated."
     }
   },
   "notifications": {
@@ -1287,6 +1298,20 @@
       "transaction_failed": {
         "title": "Transaction past due",
         "message": "{description} ({amount} {currency}) is past due."
+      }
+    },
+    "document": {
+      "confidential_uploaded": {
+        "title": "Highly confidential document uploaded",
+        "message": "{title} was uploaded as highly confidential."
+      },
+      "version_uploaded": {
+        "title": "New document version",
+        "message": "Version {version_number} of {title} was uploaded."
+      },
+      "expiration_approaching": {
+        "title": "Document expiration approaching",
+        "message": "{title} will expire soon."
       }
     },
     "user": {

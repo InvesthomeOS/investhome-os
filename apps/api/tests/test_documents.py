@@ -157,6 +157,76 @@ def test_search_includes_documents(client: TestClient) -> None:
     assert "document" in groups
 
 
+def test_preview_requires_download_permission(auth_client: TestClient) -> None:
+    from investhome_api.db.session import get_db
+    from investhome_api.main import app
+    from investhome_api.models.user_auth import Permission, Role, RolePermission
+
+    db: Session = next(app.dependency_overrides[get_db]())
+    sales = db.query(Role).filter_by(code="sales").first()
+    download_perm = db.query(Permission).filter_by(resource="documents", action="download").first()
+    assert sales is not None
+    if download_perm:
+        db.query(RolePermission).filter_by(
+            role_id=sales.id,
+            permission_id=download_perm.id,
+        ).delete()
+    db.commit()
+
+    _login(auth_client, "admin@example.com")
+    files = {"files": ("preview-only.txt", io.BytesIO(b"secret preview"), "text/plain")}
+    upload = auth_client.post("/documents/upload", files=files)
+    doc_id = upload.json()["results"][0]["document"]["id"]
+    _login(auth_client, "sales@example.com")
+    preview = auth_client.get(f"/documents/{doc_id}/preview")
+    assert preview.status_code == 403
+
+
+def test_confidential_document_hidden_from_activity(auth_client: TestClient) -> None:
+    _grant_documents_permissions(auth_client)
+    _login(auth_client, "admin@example.com")
+    files = {"files": ("secret-activity.txt", io.BytesIO(b"secret"), "text/plain")}
+    upload = auth_client.post(
+        "/documents/upload",
+        files=files,
+        data={"confidentiality_level": "highly_confidential", "title": "Secret Activity Doc"},
+    )
+    doc_id = upload.json()["results"][0]["document"]["id"]
+    _login(auth_client, "readonly@example.com")
+    activity = auth_client.get(f"/activity/entity/document/{doc_id}")
+    assert activity.status_code == 200
+    assert activity.json()["total"] == 0
+
+
+def test_unlink_clears_entity_listing(client: TestClient) -> None:
+    doc = _upload(client, "unlink-test.txt", b"linked")
+    entity_id = str(uuid4())
+    link_resp = client.post(
+        f"/documents/{doc['id']}/links",
+        json={"entity_type": "lead", "entity_id": entity_id},
+    )
+    link_id = link_resp.json()["id"]
+    assert client.get(f"/documents/by-entity/lead/{entity_id}").json()["total"] == 1
+    client.delete(f"/documents/{doc['id']}/links/{link_id}")
+    assert client.get(f"/documents/by-entity/lead/{entity_id}").json()["total"] == 0
+
+
+def test_confidential_level_requires_view_confidential(auth_client: TestClient) -> None:
+    _grant_documents_permissions(auth_client)
+    _login(auth_client, "admin@example.com")
+    files = {"files": ("confidential.txt", io.BytesIO(b"confidential data"), "text/plain")}
+    upload = auth_client.post(
+        "/documents/upload",
+        files=files,
+        data={"confidentiality_level": "confidential"},
+    )
+    assert upload.status_code == 201
+    _login(auth_client, "sales@example.com")
+    response = auth_client.get("/documents")
+    assert response.status_code == 200
+    assert response.json()["total"] == 0
+
+
 def test_link_document_to_entity(client: TestClient) -> None:
     doc = _upload(client, "linked.txt", b"linked")
     entity_id = str(uuid4())

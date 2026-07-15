@@ -55,6 +55,28 @@ export function DocumentUploadPanel({
     handleFiles(event.dataTransfer.files);
   };
 
+  const translateUploadError = (error: string | undefined) => {
+    if (!error) return undefined;
+    if (error.startsWith('documents.errors.')) {
+      const key = error.replace('documents.errors.', '') as
+        | 'missing_extension'
+        | 'blocked_type'
+        | 'unsupported_type'
+        | 'mime_mismatch'
+        | 'file_too_large'
+        | 'empty_file'
+        | 'upload_failed'
+        | 'preview_unavailable'
+        | 'not_latest_version';
+      try {
+        return t(`errors.${key}`);
+      } catch {
+        return error;
+      }
+    }
+    return error;
+  };
+
   const handleUpload = async () => {
     if (items.length === 0) return;
     setSubmitting(true);
@@ -153,7 +175,9 @@ export function DocumentUploadPanel({
               <li key={item.file.name}>
                 <span>{item.file.name}</span>
                 <span>{t(`upload.status.${item.status}`)}</span>
-                {item.error && <span className="documents-upload-list__error">{item.error}</span>}
+                {translateUploadError(item.error) && (
+                  <span className="documents-upload-list__error">{translateUploadError(item.error)}</span>
+                )}
               </li>
             ))}
           </ul>

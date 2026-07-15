@@ -62,10 +62,8 @@ from investhome_api.services.document_validation import (
     read_and_validate_upload,
 )
 from investhome_api.services.notification_hooks import (
-    notify_document_expiration_approaching,
     notify_document_uploaded_confidential,
     notify_document_version_uploaded,
-    notify_users_with_permission,
 )
 from investhome_api.services.storage import get_storage_provider, provider_enum
 
@@ -341,6 +339,18 @@ def _sync_direct_links(db: Session, document: Document) -> None:
         ("transaction", document.transaction_id),
     ]
     for entity_type, entity_id in mappings:
+        primary_links = list(
+            db.scalars(
+                select(DocumentLink).where(
+                    DocumentLink.document_id == document.id,
+                    DocumentLink.entity_type == entity_type,
+                    DocumentLink.relationship_type == "primary",
+                )
+            ).all()
+        )
+        for link in primary_links:
+            if entity_id is None or link.entity_id != entity_id:
+                db.delete(link)
         if entity_id:
             existing = db.scalar(
                 select(DocumentLink).where(
@@ -554,6 +564,8 @@ def preview_document(
     user: User = Depends(require_permission("documents", "view")),
 ):
     document = get_document_or_404(db, document_id, user)
+    if not user_can_download_document(user, document):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Download not permitted")
     if not is_previewable(document.file_extension):
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="documents.errors.preview_unavailable")
 
@@ -669,6 +681,7 @@ def link_document(
         description_key="activity.document.linked",
         actor_user=actor,
         metadata={
+            "title": document.title,
             "entity_type": payload.entity_type,
             "entity_id": str(payload.entity_id),
         },
@@ -708,11 +721,20 @@ def unlink_document(
         description_key="activity.document.unlinked",
         actor_user=actor,
         metadata={
+            "title": document.title,
             "entity_type": link.entity_type,
             "entity_id": str(link.entity_id),
         },
         request_context=None,
         is_demo=document.is_demo,
     )
+    if link.entity_type == "project" and document.project_id == link.entity_id:
+        document.project_id = None
+    elif link.entity_type == "investor" and document.investor_id == link.entity_id:
+        document.investor_id = None
+    elif link.entity_type == "lead" and document.lead_id == link.entity_id:
+        document.lead_id = None
+    elif link.entity_type == "transaction" and document.transaction_id == link.entity_id:
+        document.transaction_id = None
     db.delete(link)
     db.commit()

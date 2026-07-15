@@ -213,9 +213,13 @@ def build_list_query(
         query = query.where(Document.confidentiality_level == confidentiality)
         count_query = count_query.where(Document.confidentiality_level == confidentiality)
     if date_from:
-        query = query.where(Document.document_date >= date_from.date() if hasattr(date_from, "date") else date_from)
+        date_val = date_from.date() if hasattr(date_from, "date") else date_from
+        query = query.where(Document.document_date >= date_val)
+        count_query = count_query.where(Document.document_date >= date_val)
     if date_to:
-        query = query.where(Document.document_date <= date_to.date() if hasattr(date_to, "date") else date_to)
+        date_val = date_to.date() if hasattr(date_to, "date") else date_to
+        query = query.where(Document.document_date <= date_val)
+        count_query = count_query.where(Document.document_date <= date_val)
 
     if entity_type and entity_id:
         link_subq = select(DocumentLink.document_id).where(

@@ -22,7 +22,9 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY alembic.ini ./alembic.ini
 COPY alembic ./alembic
 COPY entrypoint.sh ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh
-USER appuser
+RUN chmod +x ./entrypoint.sh \
+    && mkdir -p /var/lib/investhome/documents \
+    && chown -R appuser:appuser /var/lib/investhome
+USER root
 EXPOSE 8000
 ENTRYPOINT ["./entrypoint.sh"]

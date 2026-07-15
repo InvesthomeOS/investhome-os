@@ -200,8 +200,20 @@ def user_can_view_entity_activity(user: User, entity_type: ActivityEntityType) -
     return user_can_view_entity_type_events(user, entity_type)
 
 
-def user_can_view_activity_entry(user: User, entry: ActivityLog) -> bool:
-    return user_can_view_entity_activity(user, entry.entity_type)
+def user_can_view_activity_entry(user: User, entry: ActivityLog, db: Session | None = None) -> bool:
+    if not user_can_view_entity_activity(user, entry.entity_type):
+        return False
+    if entry.entity_type == ActivityEntityType.DOCUMENT:
+        if db is None:
+            return False
+        from investhome_api.models.document import Document
+        from investhome_api.services.document_service import user_can_view_document
+
+        document = db.get(Document, entry.entity_id)
+        if document is None:
+            return False
+        return user_can_view_document(user, document)
+    return True
 
 
 def list_activities(
@@ -267,7 +279,7 @@ def get_activity_entry(db: Session, user: User, activity_id: UUID) -> ActivityLo
     entry = db.get(ActivityLog, activity_id)
     if entry is None:
         return None
-    if not user_can_view_activity_entry(user, entry):
+    if not user_can_view_activity_entry(user, entry, db):
         return None
     return entry
 
@@ -282,6 +294,13 @@ def list_entity_activity(
 ) -> list[ActivityLog]:
     if not user_can_view_entity_type_events(user, entity_type):
         return []
+    if entity_type == ActivityEntityType.DOCUMENT:
+        from investhome_api.models.document import Document
+        from investhome_api.services.document_service import user_can_view_document
+
+        document = db.get(Document, entity_id)
+        if document is None or not user_can_view_document(user, document):
+            return []
     return list(
         db.scalars(
             select(ActivityLog)
@@ -312,7 +331,7 @@ def list_recent_activity(
     entries = list(db.scalars(query).all())
     if user is None:
         return entries
-    return [entry for entry in entries if user_can_view_activity_entry(user, entry)]
+    return [entry for entry in entries if user_can_view_activity_entry(user, entry, db)]
 
 
 def pagination_meta(total: int, page: int, page_size: int) -> dict[str, int]:
@@ -331,13 +350,14 @@ ENTITY_LINK_MODULES: dict[ActivityEntityType, str] = {
     ActivityEntityType.PAYMENT_OBLIGATION: "finance",
     ActivityEntityType.USER: "admin/users",
     ActivityEntityType.ROLE: "admin/roles",
+    ActivityEntityType.DOCUMENT: "documents",
 }
 
 
 def resolve_entity_label(metadata: dict[str, object] | None) -> str | None:
     if not metadata:
         return None
-    for key in ("name", "full_name", "project_name", "description", "email"):
+    for key in ("title", "name", "full_name", "project_name", "description", "email"):
         value = metadata.get(key)
         if value:
             return str(value)

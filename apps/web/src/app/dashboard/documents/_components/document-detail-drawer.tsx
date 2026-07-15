@@ -63,7 +63,7 @@ export function DocumentDetailDrawer({
           <button type="button" className="leads__button leads__button--ghost" onClick={onClose}>{tCommon('close')}</button>
         </header>
 
-        {document.is_previewable ? (
+        {document.is_previewable && canDownload ? (
           <div className="documents-preview">
             {document.file_extension === 'txt' || document.file_extension === 'csv' ? (
               <iframe title={document.title} src={documentPreviewUrl(document.id)} className="documents-preview__frame" />

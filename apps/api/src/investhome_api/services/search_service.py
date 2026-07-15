@@ -733,7 +733,7 @@ def _search_activity(
     entries = db.scalars(stmt.order_by(ActivityLog.created_at.desc()).limit(limit * 3)).all()
     results: list[InternalSearchResult] = []
     for entry in entries:
-        if not user_can_view_activity_entry(user, entry):
+        if not user_can_view_activity_entry(user, entry, db):
             continue
         if not _apply_date_filter(entry.created_at, filters):
             continue

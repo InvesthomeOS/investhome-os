@@ -1171,6 +1171,17 @@
         "success": "Başarılı",
         "error": "Hata"
       }
+    },
+    "errors": {
+      "missing_extension": "Dosya uzantısı gerekli.",
+      "blocked_type": "Bu dosya türüne izin verilmiyor.",
+      "unsupported_type": "Desteklenmeyen dosya türü.",
+      "mime_mismatch": "Dosya türü içerikle eşleşmiyor.",
+      "file_too_large": "Dosya boyutu izin verilen sınırı aşıyor.",
+      "empty_file": "Boş dosya yüklenemez.",
+      "upload_failed": "Yükleme başarısız oldu.",
+      "preview_unavailable": "Önizleme kullanılamıyor.",
+      "not_latest_version": "Yalnızca en güncel sürüm güncellenebilir."
     }
   },
   "notifications": {
@@ -1288,6 +1299,20 @@
       "transaction_failed": {
         "title": "İşlem vadesi geçti",
         "message": "{description} ({amount} {currency}) vadesi geçti."
+      }
+    },
+    "document": {
+      "confidential_uploaded": {
+        "title": "Çok gizli belge yüklendi",
+        "message": "{title} çok gizli olarak yüklendi."
+      },
+      "version_uploaded": {
+        "title": "Yeni belge sürümü",
+        "message": "{title} için sürüm {version_number} yüklendi."
+      },
+      "expiration_approaching": {
+        "title": "Belge süresi yaklaşıyor",
+        "message": "{title} belgesinin süresi yakında dolacak."
       }
     },
     "user": {

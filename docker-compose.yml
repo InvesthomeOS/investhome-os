@@ -50,6 +50,7 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-investhome}:${POSTGRES_PASSWORD:-investhome}@postgres:5432/${POSTGRES_DB:-investhome}
       API_ENVIRONMENT: ${API_ENVIRONMENT:-development}
       API_CORS_ORIGINS: ${API_CORS_ORIGINS:-'["http://localhost:3000"]'}
+      DOCUMENT_STORAGE_ROOT: /var/lib/investhome/documents
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
