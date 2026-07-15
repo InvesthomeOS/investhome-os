@@ -2,7 +2,7 @@
 
 **Audit date:** 2026-07-15  
 **Repository:** `investhome-os`  
-**Latest commit:** (pending) — `feat: add company and brand foundation`  
+**Latest commit:** `b3295cf` — `feat: add company and brand foundation`  
 **Branch:** `main`
 
 ---
