@@ -35,6 +35,21 @@ Canonical architecture and product governance documents:
 | [TECHNICAL_DEBT.md](./TECHNICAL_DEBT.md) | Running debt register TD-01–TD-14 |
 | [ROADMAP.md](./ROADMAP.md) | Completed / in progress / blueprint / planned |
 
+### Product Design
+
+| Document | Sprint | Purpose |
+|----------|--------|---------|
+| [INFORMATION_ARCHITECTURE.md](./INFORMATION_ARCHITECTURE.md) | **1A** ✅ | Navigation blueprint — target IA with implementation honesty |
+| [HOME_EXPERIENCE.md](./HOME_EXPERIENCE.md) | **1B** ✅ | Home daily operating center — widgets, AI brief, personalization |
+| [WORKSPACE_NAVIGATION.md](./WORKSPACE_NAVIGATION.md) | **1C** ✅ | Workspace navigation — sidebar, switching, cross-workspace, keyboard model |
+| [WORKSPACE_FRAMEWORK.md](./WORKSPACE_FRAMEWORK.md) | **1D** ✅ | Universal workspace framework — layout regions, drawer, state, template, principles |
+| [DESIGN_LANGUAGE.md](./DESIGN_LANGUAGE.md) | **2** ✅ | **IODL** — official design language (philosophy, components, principles, acceptance criteria) |
+| [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md) | **2** ✅ | Technical tokens, CSS variables, `@investhome/ui` mapping, theming strategy |
+| [UI_COMPONENT_GUIDELINES.md](./UI_COMPONENT_GUIDELINES.md) | **2** ✅ | Per-component usage — anatomy, states, accessibility, i18n |
+| [UI_GUIDELINES.md](./UI_GUIDELINES.md) | EA + 2 | Layout patterns, BEM conventions, incremental adoption rules |
+
+**Sprint 2 status (2026-07-15):** Documentation complete — no UI implementation. IODL catalogs 48 component/pattern entries: **9** ✅ `@investhome/ui`, **~32** 🟡 CSS-only, **~12** 📋 spec-only. **Sprint 1D** ([WORKSPACE_FRAMEWORK.md](./WORKSPACE_FRAMEWORK.md)) completes the product design documentation layer. Next recommended sprint: **Executive Workspace Blueprint** (documentation only) — see [DESIGN_LANGUAGE.md § Next Sprint](./DESIGN_LANGUAGE.md#next-sprint--executive-workspace-blueprint).
+
 ### Supporting architecture docs
 
 | Document | Purpose |
