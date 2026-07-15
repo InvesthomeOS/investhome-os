@@ -1792,6 +1792,68 @@ body {
   background: var(--surface-muted, var(--surface));
 }
 
+.documents-drawer--tabs .documents-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 1rem;
+}
+
+.documents-tabs__tab {
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.documents-tabs__tab--active {
+  background: var(--accent, #1d4ed8);
+  color: #fff;
+  border-color: transparent;
+}
+
+.documents-tab-panel {
+  max-height: 55vh;
+  overflow: auto;
+}
+
+.documents-processing-badge {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.documents-disclaimer {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+}
+
+.documents-ask-input {
+  width: 100%;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  padding: 0.5rem;
+}
+
+.documents-risk-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.documents-risk-table th,
+.documents-risk-table td {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+
 .entity-documents-panel {
   margin: 1rem 0;
   padding-top: 1rem;

@@ -20,6 +20,7 @@ from investhome_api.models.document import (
     DocumentLink,
     DocumentStatus,
     DocumentType,
+    ProcessingStatus,
 )
 from investhome_api.models.finance import FinanceTransaction
 from investhome_api.models.investor import Investor
@@ -66,6 +67,7 @@ from investhome_api.services.notification_hooks import (
     notify_document_version_uploaded,
 )
 from investhome_api.services.storage import get_storage_provider, provider_enum
+from investhome_api.services.document_intelligence.queue import enqueue_document_processing
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -307,6 +309,12 @@ async def upload_documents(
 
             db.commit()
             db.refresh(document)
+            if document.processing_status == ProcessingStatus.UPLOADED:
+                document.processing_status = ProcessingStatus.QUEUED
+                if document.analysis:
+                    document.analysis.processing_status = ProcessingStatus.QUEUED.value
+                db.commit()
+                enqueue_document_processing(document.id)
             results.append(
                 DocumentUploadResult(
                     success=True,
@@ -488,6 +496,12 @@ async def upload_new_version(
 
     db.commit()
     db.refresh(new_version)
+    if new_version.processing_status == ProcessingStatus.UPLOADED:
+        new_version.processing_status = ProcessingStatus.QUEUED
+        if new_version.analysis:
+            new_version.analysis.processing_status = ProcessingStatus.QUEUED.value
+        db.commit()
+        enqueue_document_processing(new_version.id)
     return _to_response(db, new_version)
 
 

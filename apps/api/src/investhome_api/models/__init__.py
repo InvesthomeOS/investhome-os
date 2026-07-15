@@ -15,6 +15,13 @@ from investhome_api.models.document import (
     ProcessingStatus,
     StorageProvider,
 )
+from investhome_api.models.document_intelligence import (
+    AIUsage,
+    DocumentChunk,
+    DocumentConversation,
+    DocumentMessage,
+    MessageRole,
+)
 from investhome_api.models.finance import (
     AccountStatus,
     AccountType,
@@ -78,6 +85,11 @@ __all__ = [
     "ConfidentialityLevel",
     "ProcessingStatus",
     "StorageProvider",
+    "DocumentChunk",
+    "DocumentConversation",
+    "DocumentMessage",
+    "MessageRole",
+    "AIUsage",
     "Notification",
     "NotificationType",
     "NotificationPriority",

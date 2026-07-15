@@ -51,10 +51,17 @@ services:
       API_ENVIRONMENT: ${API_ENVIRONMENT:-development}
       API_CORS_ORIGINS: ${API_CORS_ORIGINS:-'["http://localhost:3000"]'}
       DOCUMENT_STORAGE_ROOT: /var/lib/investhome/documents
+      REDIS_URL: redis://redis:6379/0
+      DOCUMENT_PROCESSING_SYNC: ${DOCUMENT_PROCESSING_SYNC:-false}
+      AI_PROVIDER: ${AI_PROVIDER:-local}
+      AI_MODEL: ${AI_MODEL:-local-heuristic-v1}
+      OCR_PROVIDER: ${OCR_PROVIDER:-local}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
@@ -62,6 +69,33 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+    networks:
+      - investhome-net
+    volumes:
+      - document_storage:/var/lib/investhome/documents
+
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: investhome-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-investhome}:${POSTGRES_PASSWORD:-investhome}@postgres:5432/${POSTGRES_DB:-investhome}
+      REDIS_URL: redis://redis:6379/0
+      DOCUMENT_STORAGE_ROOT: /var/lib/investhome/documents
+      DOCUMENT_PROCESSING_SYNC: "false"
+      AI_PROVIDER: ${AI_PROVIDER:-local}
+      AI_MODEL: ${AI_MODEL:-local-heuristic-v1}
+      OCR_PROVIDER: ${OCR_PROVIDER:-local}
+    command: ["arq", "investhome_api.worker.settings.WorkerSettings"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - investhome-net
     volumes:

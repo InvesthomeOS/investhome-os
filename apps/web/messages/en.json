@@ -1059,7 +1059,14 @@
         "unlinked": "Document unlinked: {title}",
         "archived": "Document archived: {title}",
         "restored": "Document restored: {title}",
-        "downloaded": "Document downloaded: {title}"
+        "downloaded": "Document downloaded: {title}",
+        "processing_started": "Document processing started: {title}",
+        "processing_completed": "Document processing completed: {title}",
+        "processing_failed": "Document processing failed: {title}",
+        "reprocessed": "Document reprocessed: {title}",
+        "classification_accepted": "AI classification accepted: {title}",
+        "classification_rejected": "AI classification rejected: {title}",
+        "question_asked": "Document question asked: {title}"
       }
     }
   },
@@ -1180,7 +1187,84 @@
       "empty_file": "Empty files cannot be uploaded.",
       "upload_failed": "Upload failed.",
       "preview_unavailable": "Preview is not available.",
-      "not_latest_version": "Only the latest version can be updated."
+      "not_latest_version": "Only the latest version can be updated.",
+      "analysis_forbidden": "You do not have access to analysis for this document.",
+      "analysis_not_found": "Analysis not found.",
+      "analysis_not_ready": "Analysis is not ready yet.",
+      "reprocess_forbidden": "You are not allowed to reprocess this document.",
+      "ask_forbidden": "You are not allowed to ask questions about this document.",
+      "export_forbidden": "You are not allowed to export this analysis.",
+      "conversation_not_found": "Conversation not found."
+    },
+    "intelligence": {
+      "disclaimer": "AI analysis requires human verification; legal conclusions are not guaranteed.",
+      "tabsLabel": "Document detail tabs",
+      "loading": "Loading analysis…",
+      "userType": "User Type",
+      "aiDetectedType": "AI Detected Type",
+      "copySummary": "Copy summary",
+      "reprocess": "Reprocess",
+      "acceptClassification": "Accept AI classification",
+      "rejectClassification": "Reject AI classification",
+      "export": "Export analysis",
+      "askPlaceholder": "Ask a question about this document…",
+      "askSubmit": "Ask",
+      "emptySummary": "No AI summary yet.",
+      "emptyExtracted": "No structured extracted data yet.",
+      "emptyRisks": "No risks recorded.",
+      "tabs": {
+        "overview": "Overview",
+        "preview": "Preview",
+        "summary": "AI Summary",
+        "extracted": "Extracted Data",
+        "risks": "Risks and Actions",
+        "ask": "Ask Document",
+        "versions": "Versions",
+        "related": "Related Records",
+        "activity": "Activity"
+      },
+      "processing": {
+        "uploaded": "Uploaded",
+        "queued": "Waiting",
+        "processing": "Processing",
+        "extracting_text": "Extracting Text",
+        "running_ocr": "Running OCR",
+        "classifying": "Classifying",
+        "analyzing": "Analyzing",
+        "completed": "Completed",
+        "failed": "Failed",
+        "not_supported": "Unsupported"
+      },
+      "fields": {
+        "parties": "Parties",
+        "dates": "Dates",
+        "amounts": "Amounts",
+        "obligations": "Obligations"
+      },
+      "severity": {
+        "information": "Information",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "critical": "Critical"
+      },
+      "riskCategories": {
+        "financial": "Financial",
+        "legal": "Legal",
+        "regulatory": "Regulatory",
+        "operational": "Operational",
+        "construction": "Construction",
+        "insurance": "Insurance",
+        "deadline": "Deadline",
+        "missing_information": "Missing information",
+        "inconsistency": "Inconsistency",
+        "other": "Other"
+      },
+      "risk": {
+        "severity": "Severity",
+        "category": "Category",
+        "description": "Description"
+      }
     }
   },
   "notifications": {
@@ -1312,6 +1396,18 @@
       "expiration_approaching": {
         "title": "Document expiration approaching",
         "message": "{title} will expire soon."
+      },
+      "processing_failed": {
+        "title": "Document processing failed",
+        "message": "{title} could not be processed."
+      },
+      "critical_risk": {
+        "title": "Critical risk detected",
+        "message": "{title} has {risk_count} high/critical risk item(s)."
+      },
+      "expiration_soon": {
+        "title": "Document expiration approaching",
+        "message": "{title} expiration date is approaching."
       }
     },
     "user": {

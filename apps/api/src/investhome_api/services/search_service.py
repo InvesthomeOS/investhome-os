@@ -12,7 +12,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import String, cast, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from investhome_api.config.search_config import (
     DEFAULT_PER_ENTITY_LIMIT,
@@ -23,7 +23,7 @@ from investhome_api.config.search_config import (
     SEARCH_ENTITY_TYPES,
 )
 from investhome_api.models.activity import ActivityLog
-from investhome_api.models.document import Document
+from investhome_api.models.document import Document, DocumentAnalysis
 from investhome_api.models.finance import (
     FinanceTransaction,
     FinancialAccount,
@@ -776,9 +776,14 @@ def _search_documents(
     if not _user_can_search_entity(user, "document"):
         return []
     pattern = _pattern(query)
-    stmt = select(Document).where(
-        Document.archived_at.is_(None),
-        Document.is_latest_version.is_(True),
+    stmt = (
+        select(Document)
+        .outerjoin(DocumentAnalysis, DocumentAnalysis.document_id == Document.id)
+        .options(joinedload(Document.analysis))
+        .where(
+            Document.archived_at.is_(None),
+            Document.is_latest_version.is_(True),
+        )
     )
     conf_filter = confidentiality_filter(user)
     if conf_filter is not True:
@@ -793,6 +798,11 @@ def _search_documents(
             Document.description.ilike(pattern),
             Document.tags.ilike(pattern),
             cast(Document.document_type, String).ilike(pattern),
+            DocumentAnalysis.ai_summary.ilike(pattern),
+            DocumentAnalysis.ai_summary_en.ilike(pattern),
+            DocumentAnalysis.extracted_text_preview.ilike(pattern),
+            DocumentAnalysis.detected_document_type.ilike(pattern),
+            DocumentAnalysis.extracted_entities_json.ilike(pattern),
         )
     )
     documents = db.scalars(stmt.limit(limit * 2)).all()
@@ -809,6 +819,9 @@ def _search_documents(
             "description": document.description,
             "tags": document.tags,
             "document_type": _enum_value(document.document_type),
+            "ai_summary": document.analysis.ai_summary if document.analysis else None,
+            "detected_type": document.analysis.detected_document_type if document.analysis else None,
+            "extracted_preview": document.analysis.extracted_text_preview if document.analysis else None,
         }
         score = _score_match(query, *fields.values())
         if score <= 0:

@@ -11,6 +11,12 @@ from investhome_api.db.base import Base
 from investhome_api.db.session import get_db
 from investhome_api.main import app
 from investhome_api.models.document import Document, DocumentAnalysis, DocumentLink  # noqa: F401
+from investhome_api.models.document_intelligence import (  # noqa: F401
+    AIUsage,
+    DocumentChunk,
+    DocumentConversation,
+    DocumentMessage,
+)
 from investhome_api.models.notification import Notification  # noqa: F401
 from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole  # noqa: F401
 
@@ -28,12 +34,20 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 def _configure_auth(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
     enabled = "test_auth.py" in str(request.fspath)
     monkeypatch.setenv("API_AUTH_ENABLED", "true" if enabled else "false")
+    monkeypatch.setenv("DOCUMENT_PROCESSING_SYNC", "true")
     get_settings.cache_clear()
 
 
 @pytest.fixture
 def client() -> TestClient:
     Base.metadata.create_all(bind=engine)
+
+    import investhome_api.db.session as session_module
+
+    original_engine = session_module.engine
+    original_session_local = session_module.SessionLocal
+    session_module.engine = engine
+    session_module.SessionLocal = TestingSessionLocal
 
     def override_get_db():
         db = TestingSessionLocal()
@@ -46,6 +60,8 @@ def client() -> TestClient:
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
+    session_module.engine = original_engine
+    session_module.SessionLocal = original_session_local
     Base.metadata.drop_all(bind=engine)
 
 
@@ -61,7 +77,11 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
     db = TestingSessionLocal()
     permission_map: dict[tuple[str, str], Permission] = {}
     for resource in {"leads", "users", "roles", "executive", "activity", "finance", "investors", "projects", "notifications", "search", "documents"}:
-        for action in {"view", "create", "update", "manage", "archive", "download", "view_confidential", "view_highly_confidential"}:
+        for action in {
+            "view", "create", "update", "manage", "archive", "download",
+            "view_confidential", "view_highly_confidential",
+            "analyze", "reprocess", "view_analysis", "ask", "export_analysis", "view_sensitive_analysis",
+        }:
             key = (resource, action)
             if key in permission_map:
                 continue

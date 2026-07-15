@@ -70,6 +70,10 @@ class ProcessingStatus(str, enum.Enum):
     UPLOADED = "uploaded"
     QUEUED = "queued"
     PROCESSING = "processing"
+    EXTRACTING_TEXT = "extracting_text"
+    RUNNING_OCR = "running_ocr"
+    CLASSIFYING = "classifying"
+    ANALYZING = "analyzing"
     COMPLETED = "completed"
     FAILED = "failed"
     NOT_SUPPORTED = "not_supported"
@@ -212,7 +216,7 @@ class DocumentLink(Base):
 
 
 class DocumentAnalysis(Base):
-    """AI readiness fields — processing not implemented in Phase 1."""
+    """Document intelligence analysis results."""
 
     __tablename__ = "document_analyses"
 
@@ -223,11 +227,34 @@ class DocumentAnalysis(Base):
         nullable=False,
         unique=True,
     )
-    extracted_text_location: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-    ai_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
-    ai_metadata: Mapped[str | None] = mapped_column(Text, nullable=True)
+    document_version_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    processing_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    extraction_method: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    detected_language: Mapped[str | None] = mapped_column(String(20), nullable=True)
     detected_document_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    classification_confidence: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    classification_explanation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    classification_status: Mapped[str | None] = mapped_column(String(20), nullable=True, default="pending")
+    extracted_text_location: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    extracted_text_preview: Mapped[str | None] = mapped_column(Text, nullable=True)
+    page_count: Mapped[int | None] = mapped_column(nullable=True)
+    word_count: Mapped[int | None] = mapped_column(nullable=True)
+    ai_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ai_summary_en: Mapped[str | None] = mapped_column(Text, nullable=True)
+    structured_data_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    extracted_entities_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    extracted_dates_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    extracted_amounts_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    extracted_parties_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    extracted_obligations_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    extracted_risks_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ai_metadata: Mapped[str | None] = mapped_column(Text, nullable=True)
+    model_provider: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    model_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    prompt_version: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    processing_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     processing_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retry_count: Mapped[int] = mapped_column(nullable=False, default=0)
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -242,3 +269,9 @@ class DocumentAnalysis(Base):
     )
 
     document: Mapped["Document"] = relationship("Document", back_populates="analysis")
+    chunks: Mapped[list["DocumentChunk"]] = relationship(
+        "DocumentChunk",
+        back_populates="analysis",
+        cascade="all, delete-orphan",
+        foreign_keys="DocumentChunk.analysis_id",
+    )

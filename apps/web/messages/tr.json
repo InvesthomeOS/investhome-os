@@ -1060,7 +1060,14 @@
         "unlinked": "Belge ilişkisi kaldırıldı: {title}",
         "archived": "Belge arşivlendi: {title}",
         "restored": "Belge geri yüklendi: {title}",
-        "downloaded": "Belge indirildi: {title}"
+        "downloaded": "Belge indirildi: {title}",
+        "processing_started": "Belge işleme başladı: {title}",
+        "processing_completed": "Belge işleme tamamlandı: {title}",
+        "processing_failed": "Belge işleme başarısız: {title}",
+        "reprocessed": "Belge yeniden işlendi: {title}",
+        "classification_accepted": "AI sınıflandırma kabul edildi: {title}",
+        "classification_rejected": "AI sınıflandırma reddedildi: {title}",
+        "question_asked": "Belgeye soru soruldu: {title}"
       }
     }
   },
@@ -1181,7 +1188,84 @@
       "empty_file": "Boş dosya yüklenemez.",
       "upload_failed": "Yükleme başarısız oldu.",
       "preview_unavailable": "Önizleme kullanılamıyor.",
-      "not_latest_version": "Yalnızca en güncel sürüm güncellenebilir."
+      "not_latest_version": "Yalnızca en güncel sürüm güncellenebilir.",
+      "analysis_forbidden": "Bu belge için analiz erişiminiz yok.",
+      "analysis_not_found": "Analiz bulunamadı.",
+      "analysis_not_ready": "Analiz henüz tamamlanmadı.",
+      "reprocess_forbidden": "Yeniden işleme izniniz yok.",
+      "ask_forbidden": "Belgeye soru sorma izniniz yok.",
+      "export_forbidden": "Analiz dışa aktarma izniniz yok.",
+      "conversation_not_found": "Sohbet bulunamadı."
+    },
+    "intelligence": {
+      "disclaimer": "Yapay zeka analizi insan doğrulaması gerektirir; hukuki sonuç garanti edilmez.",
+      "tabsLabel": "Belge detay sekmeleri",
+      "loading": "Analiz yükleniyor…",
+      "userType": "Kullanıcı Türü",
+      "aiDetectedType": "AI Tespit Türü",
+      "copySummary": "Özeti kopyala",
+      "reprocess": "Yeniden işle",
+      "acceptClassification": "AI sınıflandırmayı kabul et",
+      "rejectClassification": "AI sınıflandırmayı reddet",
+      "export": "Analizi dışa aktar",
+      "askPlaceholder": "Belge hakkında soru sorun…",
+      "askSubmit": "Sor",
+      "emptySummary": "Henüz AI özeti yok.",
+      "emptyExtracted": "Çıkarılan yapılandırılmış veri yok.",
+      "emptyRisks": "Kayıtlı risk bulunamadı.",
+      "tabs": {
+        "overview": "Genel Bakış",
+        "preview": "Önizleme",
+        "summary": "AI Özeti",
+        "extracted": "Çıkarılan Veriler",
+        "risks": "Riskler ve Aksiyonlar",
+        "ask": "Belgeye Sor",
+        "versions": "Versiyonlar",
+        "related": "İlgili Kayıtlar",
+        "activity": "Aktivite"
+      },
+      "processing": {
+        "uploaded": "Yüklendi",
+        "queued": "Bekliyor",
+        "processing": "İşleniyor",
+        "extracting_text": "Metin çıkarılıyor",
+        "running_ocr": "OCR çalışıyor",
+        "classifying": "Sınıflandırılıyor",
+        "analyzing": "Analiz ediliyor",
+        "completed": "Tamamlandı",
+        "failed": "Başarısız",
+        "not_supported": "Desteklenmiyor"
+      },
+      "fields": {
+        "parties": "Taraflar",
+        "dates": "Tarihler",
+        "amounts": "Tutarlar",
+        "obligations": "Yükümlülükler"
+      },
+      "severity": {
+        "information": "Bilgi",
+        "low": "Düşük",
+        "medium": "Orta",
+        "high": "Yüksek",
+        "critical": "Kritik"
+      },
+      "riskCategories": {
+        "financial": "Finansal",
+        "legal": "Hukuki",
+        "regulatory": "Düzenleyici",
+        "operational": "Operasyonel",
+        "construction": "İnşaat",
+        "insurance": "Sigorta",
+        "deadline": "Son tarih",
+        "missing_information": "Eksik bilgi",
+        "inconsistency": "Tutarsızlık",
+        "other": "Diğer"
+      },
+      "risk": {
+        "severity": "Önem",
+        "category": "Kategori",
+        "description": "Açıklama"
+      }
     }
   },
   "notifications": {
@@ -1313,6 +1397,18 @@
       "expiration_approaching": {
         "title": "Belge süresi yaklaşıyor",
         "message": "{title} belgesinin süresi yakında dolacak."
+      },
+      "processing_failed": {
+        "title": "Belge işleme başarısız",
+        "message": "{title} işlenemedi."
+      },
+      "critical_risk": {
+        "title": "Kritik risk tespit edildi",
+        "message": "{title} belgesinde {risk_count} kritik/yüksek risk bulundu."
+      },
+      "expiration_soon": {
+        "title": "Belge süresi yaklaşıyor",
+        "message": "{title} belgesinin süresi yakında doluyor."
       }
     },
     "user": {

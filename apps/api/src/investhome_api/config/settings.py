@@ -54,6 +54,32 @@ class Settings(BaseSettings):
         alias="DOCUMENT_MAX_UPLOAD_BYTES",
     )
 
+    redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
+    document_processing_sync: bool = Field(default=False, alias="DOCUMENT_PROCESSING_SYNC")
+    document_processing_max_retries: int = Field(default=3, alias="DOCUMENT_PROCESSING_MAX_RETRIES")
+    document_text_preview_chars: int = Field(default=2000, alias="DOCUMENT_TEXT_PREVIEW_CHARS")
+    document_extracted_text_subdir: str = Field(
+        default="extracted-text",
+        alias="DOCUMENT_EXTRACTED_TEXT_SUBDIR",
+    )
+
+    ai_provider: str = Field(default="local", alias="AI_PROVIDER")
+    ai_model: str = Field(default="local-heuristic-v1", alias="AI_MODEL")
+    ai_api_key: str | None = Field(default=None, alias="AI_API_KEY")
+    ai_allow_external_for_confidential: bool = Field(
+        default=False,
+        alias="AI_ALLOW_EXTERNAL_FOR_CONFIDENTIAL",
+    )
+    ai_allow_external_for_highly_confidential: bool = Field(
+        default=False,
+        alias="AI_ALLOW_EXTERNAL_FOR_HIGHLY_CONFIDENTIAL",
+    )
+    ocr_provider: str = Field(default="local", alias="OCR_PROVIDER")
+    document_qa_history_retention_days: int = Field(
+        default=90,
+        alias="DOCUMENT_QA_HISTORY_RETENTION_DAYS",
+    )
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, value: Any) -> list[str]:

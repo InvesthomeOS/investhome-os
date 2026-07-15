@@ -49,6 +49,43 @@ def user_can_download_document(user: User, document: Document) -> bool:
     return user_has_permission(user, "documents", "download")
 
 
+def user_can_view_analysis(user: User, document: Document) -> bool:
+    if not user_can_view_document(user, document):
+        return False
+    if _auth_bypass() or is_super_admin(user):
+        return True
+    if document.confidentiality_level in {
+        ConfidentialityLevel.CONFIDENTIAL,
+        ConfidentialityLevel.HIGHLY_CONFIDENTIAL,
+    }:
+        return user_has_permission(user, "documents", "view_sensitive_analysis")
+    return user_has_permission(user, "documents", "view_analysis")
+
+
+def user_can_reprocess_document(user: User, document: Document) -> bool:
+    if not user_can_view_document(user, document):
+        return False
+    if _auth_bypass() or is_super_admin(user):
+        return True
+    return user_has_permission(user, "documents", "reprocess")
+
+
+def user_can_ask_document(user: User, document: Document) -> bool:
+    if not user_can_view_analysis(user, document):
+        return False
+    if _auth_bypass() or is_super_admin(user):
+        return True
+    return user_has_permission(user, "documents", "ask")
+
+
+def user_can_export_analysis(user: User, document: Document) -> bool:
+    if not user_can_view_analysis(user, document):
+        return False
+    if _auth_bypass() or is_super_admin(user):
+        return True
+    return user_has_permission(user, "documents", "export_analysis")
+
+
 def _require_view(user: User, document: Document) -> None:
     if not user_can_view_document(user, document):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
@@ -262,7 +299,11 @@ def build_list_query(
 
 
 def create_document_analysis(db: Session, document_id: UUID) -> DocumentAnalysis:
-    analysis = DocumentAnalysis(document_id=document_id)
+    analysis = DocumentAnalysis(
+        document_id=document_id,
+        document_version_id=document_id,
+        classification_status="pending",
+    )
     db.add(analysis)
     return analysis
 

@@ -87,8 +87,11 @@ def is_previewable(extension: str) -> bool:
     return extension.lower().lstrip(".") in PREVIEWABLE_EXTENSIONS
 
 
+from investhome_api.services.document_intelligence.extraction import is_processable
+
+
 def initial_processing_status(extension: str) -> ProcessingStatus:
     ext = extension.lower().lstrip(".")
-    if ext in PREVIEWABLE_EXTENSIONS:
+    if is_processable(ext):
         return ProcessingStatus.UPLOADED
     return ProcessingStatus.NOT_SUPPORTED
