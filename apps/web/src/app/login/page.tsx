@@ -6,9 +6,11 @@ import { useSearchParams } from 'next/navigation';
 
 import { ApiError } from '@/lib/api/client';
 import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
+import { PublicBrandingProvider, useCompanyBranding } from '@/lib/company/company-context';
 
 function LoginForm() {
   const t = useTranslations('auth');
+  const { displayName, slogan } = useCompanyBranding();
   const searchParams = useSearchParams();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
@@ -42,8 +44,8 @@ function LoginForm() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <p className="dashboard__eyebrow">{t('eyebrow')}</p>
-        <h1 className="auth-card__title">{t('title')}</h1>
+        <p className="dashboard__eyebrow">{displayName}</p>
+        <h1 className="auth-card__title">{slogan ?? t('title')}</h1>
         <p className="auth-card__subtitle">{t('subtitle')}</p>
 
         {searchParams.get('next') && (
@@ -97,10 +99,12 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <AuthProvider>
-      <Suspense fallback={<div className="auth-page" />}>
-        <LoginForm />
-      </Suspense>
-    </AuthProvider>
+    <PublicBrandingProvider>
+      <AuthProvider>
+        <Suspense fallback={<div className="auth-page" />}>
+          <LoginForm />
+        </Suspense>
+      </AuthProvider>
+    </PublicBrandingProvider>
   );
 }

@@ -17,6 +17,10 @@ SEARCH_ENTITY_TYPES = frozenset(
         "notification",
         "activity",
         "document",
+        "office",
+        "department",
+        "team",
+        "brand_asset",
     }
 )
 
@@ -41,6 +45,10 @@ ENTITY_PERMISSION_RESOURCE: dict[str, str] = {
     "notification": "notifications",
     "activity": "activity",
     "document": "documents",
+    "office": "offices",
+    "department": "organization",
+    "team": "organization",
+    "brand_asset": "brand",
 }
 
 ENTITY_LINK_MODULES: dict[str, str] = {
@@ -55,6 +63,10 @@ ENTITY_LINK_MODULES: dict[str, str] = {
     "notification": "dashboard",
     "activity": "activity",
     "document": "documents",
+    "office": "settings",
+    "department": "settings",
+    "team": "settings",
+    "brand_asset": "settings",
 }
 
 FINANCE_TAB_BY_ENTITY: dict[str, str] = {

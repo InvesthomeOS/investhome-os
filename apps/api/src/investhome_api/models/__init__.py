@@ -70,6 +70,17 @@ from investhome_api.models.notification import (
     NotificationStatus,
     NotificationType,
 )
+from investhome_api.models.company_foundation import (  # noqa: F401
+    BrandAsset,
+    BrandProfile,
+    CompanyProfile,
+    Department,
+    Office,
+    SystemPreference,
+    Team,
+    UserDepartment,
+    UserTeam,
+)
 from investhome_api.models.user_auth import (
     Permission,
     Role,
@@ -136,10 +147,19 @@ __all__ = [
     "ObligationType",
     "ObligationStatus",
     "ObligationPriority",
+    "UserTeam",
     "Permission",
     "Role",
     "RolePermission",
     "User",
     "UserRole",
     "UserStatus",
+    "CompanyProfile",
+    "Office",
+    "BrandProfile",
+    "BrandAsset",
+    "SystemPreference",
+    "Department",
+    "Team",
+    "UserDepartment",
 ]

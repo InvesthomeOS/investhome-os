@@ -65,6 +65,11 @@ class ActivityEntityType(str, enum.Enum):
     FUNDING_COMMITMENT = "funding_commitment"
     PAYMENT_OBLIGATION = "payment_obligation"
     DOCUMENT = "document"
+    COMPANY = "company"
+    OFFICE = "office"
+    DEPARTMENT = "department"
+    TEAM = "team"
+    BRAND = "brand"
 
 
 class ActivityLog(Base):

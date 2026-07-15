@@ -28,6 +28,7 @@
     },
     "activity": "Aktivite Geçmişi",
     "documents": "Belgeler",
+    "settings": "Ayarlar",
     "modules": {
       "executive": {
         "title": "Yönetici Özeti",
@@ -1507,6 +1508,10 @@
       "notification": "Bildirimler",
       "activity": "Aktivite",
       "document": "Belgeler",
+      "office": "Ofisler",
+      "department": "Departmanlar",
+      "team": "Ekipler",
+      "brand_asset": "Marka varlıkları",
       "unit": "Üniteler (yakında)",
       "construction": "İnşaat (yakında)",
       "email": "E-postalar (yakında)"
@@ -1629,6 +1634,133 @@
     "rolesCount": "{count} rol yapılandırıldı.",
     "columns": {
       "resource": "Kaynak"
+    }
+  },
+  "settings": {
+    "eyebrow": "Platform",
+    "title": "Ayarlar",
+    "subtitle": "Şirket kimliği, marka, ofisler, organizasyon ve sistem tercihleri.",
+    "tabsLabel": "Ayar bölümleri",
+    "accessDenied": "Ayarları görüntüleme yetkiniz yok.",
+    "loadFailed": "Ayarlar yüklenemedi.",
+    "saveFailed": "Değişiklikler kaydedilemedi.",
+    "saved": "Değişiklikler kaydedildi.",
+    "saveCompany": "Şirket profilini kaydet",
+    "saveBrand": "Marka profilini kaydet",
+    "savePreferences": "Tercihleri kaydet",
+    "readinessNotice": "Yalnızca sağlayıcı yapılandırma hazırlığı. Gizli anahtarlar ortam değişkenleriyle yönetilir ve burada gösterilmez.",
+    "tabs": {
+      "company": "Şirket",
+      "offices": "Ofisler",
+      "brand": "Marka",
+      "brandAssets": "Marka Varlıkları",
+      "organization": "Organizasyon",
+      "localization": "Dil ve Bölge",
+      "currency": "Para Birimi ve Ölçüler",
+      "documents": "Belgeler",
+      "notifications": "Bildirimler",
+      "ai": "AI Sağlayıcıları",
+      "storage": "Depolama",
+      "integrations": "Entegrasyonlar"
+    },
+    "company": {
+      "fields": {
+        "company_name": "Şirket adı",
+        "legal_name": "Yasal ad",
+        "short_name": "Kısa ad",
+        "slogan": "Slogan",
+        "primary_email": "Birincil e-posta",
+        "primary_phone": "Birincil telefon",
+        "website": "Web sitesi",
+        "country": "Ülke",
+        "city": "Şehir",
+        "default_language": "Varsayılan dil",
+        "default_timezone": "Varsayılan saat dilimi",
+        "default_currency": "Varsayılan para birimi"
+      }
+    },
+    "offices": {
+      "add": "Ofis ekle",
+      "newName": "Yeni ofis",
+      "name": "Ofis",
+      "code": "Kod",
+      "type": "Tür",
+      "city": "Şehir",
+      "primary": "Birincil",
+      "actions": "İşlemler",
+      "archive": "Arşivle",
+      "yes": "Evet",
+      "no": "Hayır"
+    },
+    "officeTypes": {
+      "headquarters": "Merkez",
+      "regional": "Bölgesel",
+      "sales": "Satış",
+      "operations": "Operasyon",
+      "development": "Geliştirme",
+      "representative": "Temsilcilik",
+      "virtual": "Sanal",
+      "other": "Diğer"
+    },
+    "brand": {
+      "defaultSelector": "Marka profili",
+      "default": "Varsayılan",
+      "setDefault": "Varsayılan marka yap",
+      "fields": {
+        "brand_name": "Marka adı",
+        "slogan": "Slogan",
+        "brand_description": "Açıklama",
+        "primary_color": "Birincil renk",
+        "secondary_color": "İkincil renk",
+        "accent_color": "Vurgu rengi",
+        "font_heading": "Başlık yazı tipi",
+        "font_body": "Gövde yazı tipi",
+        "standard_disclaimer_tr": "Sorumluluk reddi (TR)",
+        "standard_disclaimer_en": "Sorumluluk reddi (EN)"
+      }
+    },
+    "brandPreview": {
+      "noBrand": "Seçili marka profili yok.",
+      "sampleHeading": "Örnek rapor başlığı",
+      "sampleBody": "Yapılandırılmış tipografi ve renklerle gövde metni önizlemesi.",
+      "sampleButton": "Birincil eylem",
+      "sampleCard": "Örnek kart yüzeyi",
+      "success": "Başarılı",
+      "warning": "Uyarı",
+      "error": "Hata"
+    },
+    "brandAssets": {
+      "link": "Belgeyi varlık olarak bağla",
+      "documentIdPrompt": "Belge Merkezi'nden belge kimliğini girin",
+      "linkedAsset": "Bağlı marka varlığı",
+      "title": "Başlık",
+      "type": "Tür",
+      "document": "Belge"
+    },
+    "organization": {
+      "addDepartment": "Departman ekle",
+      "addTeam": "Ekip ekle",
+      "newDepartment": "Yeni departman",
+      "newTeam": "Yeni ekip",
+      "name": "Departman",
+      "teamName": "Ekip",
+      "code": "Kod"
+    },
+    "currency": {
+      "supported": "Desteklenen para birimleri"
+    },
+    "providers": {
+      "provider": "Sağlayıcı",
+      "status": "Durum",
+      "configured": "Yapılandırıldı",
+      "yes": "Evet",
+      "no": "Hayır",
+      "statuses": {
+        "ready": "Hazır",
+        "available": "Kullanılabilir",
+        "configured": "Yapılandırıldı",
+        "not_configured": "Yapılandırılmadı"
+      }
     }
   }
 }

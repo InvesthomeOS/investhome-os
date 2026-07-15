@@ -25,6 +25,17 @@ from investhome_api.models.drawing_intelligence import (  # noqa: F401
     DrawingUnitProposal,
     DrawingVersionComparison,
 )
+from investhome_api.models.company_foundation import (  # noqa: F401
+    BrandAsset,
+    BrandProfile,
+    CompanyProfile,
+    Department,
+    Office,
+    SystemPreference,
+    Team,
+    UserDepartment,
+    UserTeam,
+)
 from investhome_api.models.notification import Notification  # noqa: F401
 from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole  # noqa: F401
 

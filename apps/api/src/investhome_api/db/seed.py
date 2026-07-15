@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from sqlalchemy import select
 
-from investhome_api.db.document_seed import seed_demo_documents
+from investhome_api.db.company_foundation_seed import seed_company_foundation
 from investhome_api.db.activity_seed import seed_activity_logs
 from investhome_api.db.notification_seed import seed_notifications
 from investhome_api.db.auth_seed import seed_demo_users, seed_permissions_and_roles, sync_system_permissions
@@ -193,6 +193,7 @@ def main() -> None:
     activity_inserted = seed_activity_logs()
     notifications_inserted = seed_notifications()
     documents_inserted = seed_demo_documents()
+    foundation = seed_company_foundation()
     print(f"Seeded {permissions_inserted} permission(s) and {roles_inserted} role(s).")
     if permissions_synced:
         print(f"Synced {permissions_synced} permission grant(s).")
@@ -204,6 +205,11 @@ def main() -> None:
     print(f"Seeded {activity_inserted} activity log record(s).")
     print(f"Seeded {notifications_inserted} notification(s).")
     print(f"Seeded {documents_inserted} demo document(s).")
+    if foundation["company"]:
+        print(
+            "Seeded company foundation: "
+            f"{foundation['offices']} office(s), {foundation['departments']} department(s)."
+        )
 
 
 if __name__ == "__main__":

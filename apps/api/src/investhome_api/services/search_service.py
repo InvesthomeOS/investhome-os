@@ -23,6 +23,7 @@ from investhome_api.config.search_config import (
     SEARCH_ENTITY_TYPES,
 )
 from investhome_api.models.activity import ActivityLog
+from investhome_api.models.company_foundation import BrandAsset, Department, Office, Team
 from investhome_api.models.document import Document, DocumentAnalysis
 from investhome_api.models.drawing_intelligence import DrawingAnalysis
 from investhome_api.models.finance import (
@@ -144,6 +145,12 @@ def _link_query(entity_type: str, entity_id: UUID) -> dict[str, str]:
         return {"openNotifications": "1"}
     if entity_type == "activity":
         return {"activityId": str(entity_id)}
+    if entity_type == "office":
+        return {"tab": "offices"}
+    if entity_type == "department" or entity_type == "team":
+        return {"tab": "organization"}
+    if entity_type == "brand_asset":
+        return {"tab": "brandAssets"}
     return query
 
 
@@ -851,6 +858,168 @@ def _search_documents(
     return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
 
 
+def _search_offices(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "office"):
+        return []
+    pattern = _pattern(query)
+    stmt = select(Office).where(Office.archived_at.is_(None)).where(
+        or_(
+            Office.office_name.ilike(pattern),
+            Office.office_code.ilike(pattern),
+            Office.city.ilike(pattern),
+            Office.country.ilike(pattern),
+        )
+    )
+    offices = db.scalars(stmt.limit(limit * 2)).all()
+    results: list[InternalSearchResult] = []
+    for office in offices:
+        fields = {
+            "office_name": office.office_name,
+            "office_code": office.office_code,
+            "city": office.city,
+            "country": office.country,
+        }
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="office",
+                entity_id=office.id,
+                title=office.office_name,
+                subtitle=office.city,
+                preview=office.country,
+                status=office.status,
+                created_at=office.created_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
+def _search_departments(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "department"):
+        return []
+    pattern = _pattern(query)
+    stmt = select(Department).where(
+        or_(Department.name.ilike(pattern), Department.code.ilike(pattern), Department.description.ilike(pattern))
+    )
+    departments = db.scalars(stmt.limit(limit * 2)).all()
+    results: list[InternalSearchResult] = []
+    for dept in departments:
+        fields = {"name": dept.name, "code": dept.code, "description": dept.description}
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="department",
+                entity_id=dept.id,
+                title=dept.name,
+                subtitle=dept.code,
+                preview=dept.description,
+                status=dept.status,
+                created_at=dept.created_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
+def _search_teams(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "team"):
+        return []
+    pattern = _pattern(query)
+    stmt = select(Team).where(
+        or_(Team.name.ilike(pattern), Team.code.ilike(pattern), Team.description.ilike(pattern))
+    )
+    teams = db.scalars(stmt.limit(limit * 2)).all()
+    results: list[InternalSearchResult] = []
+    for team in teams:
+        fields = {"name": team.name, "code": team.code, "description": team.description}
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="team",
+                entity_id=team.id,
+                title=team.name,
+                subtitle=team.code,
+                preview=team.description,
+                status=team.status,
+                created_at=team.created_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
+def _search_brand_assets(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "brand_asset"):
+        return []
+    pattern = _pattern(query)
+    stmt = select(BrandAsset).where(BrandAsset.archived_at.is_(None)).where(
+        or_(
+            BrandAsset.title.ilike(pattern),
+            BrandAsset.asset_type.ilike(pattern),
+            BrandAsset.usage_notes.ilike(pattern),
+        )
+    )
+    assets = db.scalars(stmt.limit(limit * 2)).all()
+    results: list[InternalSearchResult] = []
+    for asset in assets:
+        fields = {
+            "title": asset.title,
+            "asset_type": asset.asset_type,
+            "usage_notes": asset.usage_notes,
+        }
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="brand_asset",
+                entity_id=asset.id,
+                title=asset.title or asset.asset_type,
+                subtitle=asset.asset_type,
+                preview=asset.usage_notes,
+                status=asset.status,
+                created_at=asset.created_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
 PROVIDER_MAP = {
     "lead": _search_leads,
     "investor": _search_investors,
@@ -863,6 +1032,10 @@ PROVIDER_MAP = {
     "notification": _search_notifications,
     "activity": _search_activity,
     "document": _search_documents,
+    "office": _search_offices,
+    "department": _search_departments,
+    "team": _search_teams,
+    "brand_asset": _search_brand_assets,
 }
 
 ENTITY_LABEL_KEYS = {
@@ -877,6 +1050,10 @@ ENTITY_LABEL_KEYS = {
     "notification": "search.entities.notification",
     "activity": "search.entities.activity",
     "document": "search.entities.document",
+    "office": "search.entities.office",
+    "department": "search.entities.department",
+    "team": "search.entities.team",
+    "brand_asset": "search.entities.brand_asset",
 }
 
 

@@ -28,6 +28,7 @@
     },
     "activity": "Activity",
     "documents": "Documents",
+    "settings": "Settings",
     "modules": {
       "executive": {
         "title": "Executive",
@@ -1507,6 +1508,10 @@
       "notification": "Notifications",
       "activity": "Activity",
       "document": "Documents",
+      "office": "Offices",
+      "department": "Departments",
+      "team": "Teams",
+      "brand_asset": "Brand assets",
       "unit": "Units (coming soon)",
       "construction": "Construction (coming soon)",
       "email": "Emails (coming soon)"
@@ -1629,6 +1634,133 @@
     "rolesCount": "{count} roles configured.",
     "columns": {
       "resource": "Resource"
+    }
+  },
+  "settings": {
+    "eyebrow": "Platform",
+    "title": "Settings",
+    "subtitle": "Company identity, brand, offices, organization, and system preferences.",
+    "tabsLabel": "Settings sections",
+    "accessDenied": "You do not have permission to view settings.",
+    "loadFailed": "Unable to load settings.",
+    "saveFailed": "Unable to save changes.",
+    "saved": "Changes saved.",
+    "saveCompany": "Save company profile",
+    "saveBrand": "Save brand profile",
+    "savePreferences": "Save preferences",
+    "readinessNotice": "Provider configuration readiness only. Secrets are managed via environment variables and are never shown here.",
+    "tabs": {
+      "company": "Company",
+      "offices": "Offices",
+      "brand": "Brand",
+      "brandAssets": "Brand Assets",
+      "organization": "Organization",
+      "localization": "Localization",
+      "currency": "Currency & Measurement",
+      "documents": "Documents",
+      "notifications": "Notifications",
+      "ai": "AI Providers",
+      "storage": "Storage",
+      "integrations": "Integrations"
+    },
+    "company": {
+      "fields": {
+        "company_name": "Company name",
+        "legal_name": "Legal name",
+        "short_name": "Short name",
+        "slogan": "Slogan",
+        "primary_email": "Primary email",
+        "primary_phone": "Primary phone",
+        "website": "Website",
+        "country": "Country",
+        "city": "City",
+        "default_language": "Default language",
+        "default_timezone": "Default timezone",
+        "default_currency": "Default currency"
+      }
+    },
+    "offices": {
+      "add": "Add office",
+      "newName": "New office",
+      "name": "Office",
+      "code": "Code",
+      "type": "Type",
+      "city": "City",
+      "primary": "Primary",
+      "actions": "Actions",
+      "archive": "Archive",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "officeTypes": {
+      "headquarters": "Headquarters",
+      "regional": "Regional",
+      "sales": "Sales",
+      "operations": "Operations",
+      "development": "Development",
+      "representative": "Representative",
+      "virtual": "Virtual",
+      "other": "Other"
+    },
+    "brand": {
+      "defaultSelector": "Brand profile",
+      "default": "Default",
+      "setDefault": "Set as default brand",
+      "fields": {
+        "brand_name": "Brand name",
+        "slogan": "Slogan",
+        "brand_description": "Description",
+        "primary_color": "Primary color",
+        "secondary_color": "Secondary color",
+        "accent_color": "Accent color",
+        "font_heading": "Heading font",
+        "font_body": "Body font",
+        "standard_disclaimer_tr": "Disclaimer (TR)",
+        "standard_disclaimer_en": "Disclaimer (EN)"
+      }
+    },
+    "brandPreview": {
+      "noBrand": "No brand profile selected.",
+      "sampleHeading": "Sample report heading",
+      "sampleBody": "Body text preview using configured typography and colors.",
+      "sampleButton": "Primary action",
+      "sampleCard": "Sample card surface",
+      "success": "Success",
+      "warning": "Warning",
+      "error": "Error"
+    },
+    "brandAssets": {
+      "link": "Link document as asset",
+      "documentIdPrompt": "Enter document ID from Document Center",
+      "linkedAsset": "Linked brand asset",
+      "title": "Title",
+      "type": "Type",
+      "document": "Document"
+    },
+    "organization": {
+      "addDepartment": "Add department",
+      "addTeam": "Add team",
+      "newDepartment": "New department",
+      "newTeam": "New team",
+      "name": "Department",
+      "teamName": "Team",
+      "code": "Code"
+    },
+    "currency": {
+      "supported": "Supported currencies"
+    },
+    "providers": {
+      "provider": "Provider",
+      "status": "Status",
+      "configured": "Configured",
+      "yes": "Yes",
+      "no": "No",
+      "statuses": {
+        "ready": "Ready",
+        "available": "Available",
+        "configured": "Configured",
+        "not_configured": "Not configured"
+      }
     }
   }
 }

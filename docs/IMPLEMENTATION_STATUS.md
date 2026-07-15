@@ -2,38 +2,36 @@
 
 **Audit date:** 2026-07-15  
 **Repository:** `investhome-os`  
-**Latest commit:** `fd8ddd3` — `feat: complete architectural drawing intelligence`  
-**Branch:** `main` (clean checkpoint; 4 uncommitted audit fixes — see Git Status)
+**Latest commit:** (pending) — `feat: add company and brand foundation`  
+**Branch:** `main`
 
 ---
 
 ## Executive Summary
 
-Investhome OS is a **production-shaped enterprise platform** with strong Phase 1 (core business) and Phase 2 (platform foundation) coverage. Document Engine Foundation, Document Intelligence Phase 2, and Architectural Drawing Intelligence Phase 3 are **implemented in source** with **119 passing API tests**, but the **live Docker environment is behind**: the running API container is at migration `0010` (missing `0011` document intelligence and `0012` drawing intelligence tables), and the **ARQ worker service is not running**.
+Investhome OS is a **production-shaped enterprise platform** with strong Phase 1 (core business), Phase 2 (platform foundation), and **Company Foundation** coverage. Document Engine Foundation, Document Intelligence Phase 2, and Architectural Drawing Intelligence Phase 3 are implemented in source with **128 passing API tests**.
 
-**Visual Design Studio**, **Brand Profile**, and **Brand Assets** are **not implemented** (zero code references).
+**Company Foundation** (migration `0013`) delivers centralized company profile, offices, brand profiles, brand assets (via Document Engine), system preferences, organization structure (departments/teams), Settings UI (12 sections TR/EN), permissions, activity/search integration, and global branding context with safe fallbacks.
 
-Intelligence layers (document AI, drawing detection, OCR, CAD) use **local deterministic/heuristic providers** with honest degradation — not production LLM/CAD/OCR integrations.
+**Visual Design Studio** remains **not implemented**.
+
+External provider integrations (AI, storage, mail, calendar, WhatsApp, accounting, banking) are **readiness-only** — configuration status pages without verified connections or secrets in API responses.
+
+Intelligence layers use **local deterministic/heuristic providers** with honest degradation — not production LLM/CAD/OCR integrations.
 
 ### Critical runtime gaps (verified 2026-07-15)
 
 | Gap | Impact |
 |-----|--------|
-| Live DB at migration `0010`, code expects `0012` | Document AI + drawing APIs fail or are absent in running API image |
-| `worker` container not running | Async document/drawing processing does not execute in Docker |
+| Worker `entrypoint.sh` ignores `arq` CMD | Async document/drawing jobs stay queued when worker container runs |
 | Worker `RedisSettings(host="localhost")` | Worker cannot reach `redis` service when started in Compose |
-| Frontend had syntax errors (fixed in audit, uncommitted) | Typecheck was failing; production build blocked on Windows symlinks |
+| Migration `0013` requires `alembic upgrade head` after deploy | Company Foundation tables absent until migration applied |
 
 ### Verified next step
 
-**Stabilize Phase 3 runtime before Visual Design Studio:**
-
-1. Rebuild and redeploy `api` + `worker` images from `fd8ddd3`
-2. Apply migrations `0011` and `0012` (`alembic upgrade head`)
-3. Fix worker Redis host to use `REDIS_URL` / `redis` service name
-4. Start `worker` and verify job processing end-to-end
-5. Commit audit syntax/i18n fixes
-6. Begin **Visual Design Studio** (first major feature with zero implementation)
+1. Apply migration `0013_company_foundation` and rebuild/restart API
+2. Fix worker entrypoint + Redis host for async job processing
+3. Begin **Visual Design Studio** or deepen **Company Foundation** (user org assignment UI, brand asset picker from Document Center)
 
 ---
 
@@ -58,6 +56,14 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 | Activity Log | COMPLETE | COMPLETE | COMPLETE | COMPLETE | N/A | COMPLETE | COMPLETE | COMPLETE | **COMPLETE** |
 | Notification Center | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | N/A | PARTIAL | COMPLETE | **COMPLETE** |
 | Universal Global Search | COMPLETE | COMPLETE | COMPLETE | PARTIAL | COMPLETE | PARTIAL | N/A | COMPLETE | **COMPLETE** |
+| **COMPANY FOUNDATION** |
+| Company Profile | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | PARTIAL | N/A | NEEDS VERIFICATION | **PARTIAL** |
+| Settings (12 sections) | COMPLETE | COMPLETE | PARTIAL | COMPLETE | COMPLETE | PARTIAL | N/A | NEEDS VERIFICATION | **PARTIAL** |
+| Brand Profile | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | PARTIAL | N/A | NEEDS VERIFICATION | **PARTIAL** |
+| Brand Assets | COMPLETE | COMPLETE | PARTIAL | COMPLETE | COMPLETE | PARTIAL | COMPLETE | NEEDS VERIFICATION | **PARTIAL** |
+| Organization (Dept/Team) | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | N/A | COMPLETE | NEEDS VERIFICATION | **PARTIAL** |
+| System Preferences | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | PARTIAL | N/A | NEEDS VERIFICATION | **PARTIAL** |
+| Provider readiness (AI/Storage/Integrations) | PARTIAL | PARTIAL | PARTIAL | COMPLETE | N/A | N/A | N/A | NOT CONNECTED | **PLACEHOLDER** |
 | **PHASE 3 — DOCUMENT & DESIGN INTELLIGENCE** |
 | Document Engine Foundation | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | BLOCKED | **PARTIAL** |
 | Document AI (text/OCR/classify/Q&A) | PARTIAL | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | BLOCKED | **PARTIAL** |

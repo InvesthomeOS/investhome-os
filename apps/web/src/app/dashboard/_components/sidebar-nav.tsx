@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 
 import { hasPermission } from '@/lib/api/auth';
 import { useAuth } from '@/lib/auth/auth-context';
+import { useCompanyBranding } from '@/lib/company/company-context';
 import { MODULE_NAMES, type ModuleName } from '@investhome/shared';
 
 function moduleHref(module: ModuleName): Route {
@@ -26,15 +27,17 @@ export function SidebarNav() {
   const t = useTranslations('navigation');
   const tCommon = useTranslations('common');
   const { user, canViewAdmin } = useAuth();
+  const { displayName, slogan } = useCompanyBranding();
   const canViewActivity = user ? hasPermission(user, 'activity', 'view') : false;
   const canViewDocuments = user ? hasPermission(user, 'documents', 'view') : false;
+  const canViewSettings = user ? hasPermission(user, 'settings', 'view') || hasPermission(user, 'company', 'view') : false;
 
   return (
     <aside className="dashboard-shell__sidebar">
       <div className="dashboard-shell__brand">
         <Link href="/dashboard" className="dashboard-shell__brand-link">
-          <span className="dashboard__eyebrow">{tCommon('appName')}</span>
-          <span className="dashboard-shell__brand-title">{tCommon('operations')}</span>
+          <span className="dashboard__eyebrow">{displayName}</span>
+          <span className="dashboard-shell__brand-title">{slogan ?? tCommon('operations')}</span>
         </Link>
       </div>
 
@@ -95,6 +98,20 @@ export function SidebarNav() {
             aria-current={pathname.startsWith('/dashboard/activity') ? 'page' : undefined}
           >
             <span>{t('activity')}</span>
+          </Link>
+        )}
+
+        {canViewSettings && (
+          <Link
+            href={'/dashboard/settings' as Route}
+            className={`dashboard-shell__nav-link${
+              pathname === '/dashboard/settings' || pathname.startsWith('/dashboard/settings/')
+                ? ' dashboard-shell__nav-link--active'
+                : ''
+            }`}
+            aria-current={pathname.startsWith('/dashboard/settings') ? 'page' : undefined}
+          >
+            <span>{t('settings')}</span>
           </Link>
         )}
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { AuthProvider } from '@/lib/auth/auth-context';
+import { CompanyBrandingProvider } from '@/lib/company/company-context';
 import { NotificationProvider } from '@/lib/notifications/notification-context';
 import { GlobalSearchProvider } from '@/lib/search/global-search-context';
 
@@ -15,16 +16,18 @@ export default function DashboardLayout({
 }>) {
   return (
     <AuthProvider>
-      <NotificationProvider>
-        <GlobalSearchProvider>
-          <div className="dashboard-shell">
-            <SidebarNav />
-            <div className="dashboard-shell__content">{children}</div>
-            <NotificationDrawer />
-            <GlobalSearchPalette />
-          </div>
-        </GlobalSearchProvider>
-      </NotificationProvider>
+      <CompanyBrandingProvider>
+        <NotificationProvider>
+          <GlobalSearchProvider>
+            <div className="dashboard-shell">
+              <SidebarNav />
+              <div className="dashboard-shell__content">{children}</div>
+              <NotificationDrawer />
+              <GlobalSearchPalette />
+            </div>
+          </GlobalSearchProvider>
+        </NotificationProvider>
+      </CompanyBrandingProvider>
     </AuthProvider>
   );
 }
