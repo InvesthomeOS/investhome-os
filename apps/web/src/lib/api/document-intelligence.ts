@@ -1,4 +1,4 @@
-"""Document intelligence API client."""
+/** Document intelligence API client. */
 
 import { getApiBaseUrl } from '@/lib/api/client';
 

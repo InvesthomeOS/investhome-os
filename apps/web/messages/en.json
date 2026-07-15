@@ -27,6 +27,7 @@
       "permissions": "Permissions"
     },
     "activity": "Activity",
+    "documents": "Documents",
     "modules": {
       "executive": {
         "title": "Executive",

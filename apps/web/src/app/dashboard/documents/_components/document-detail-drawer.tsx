@@ -250,9 +250,9 @@ export function DocumentDetailDrawer({
               {loadingAnalysis && <p>{t('intelligence.drawing.loading')}</p>}
               {drawingStatus && (
                 <span className="documents-processing-badge">
-                  {t(`intelligence.drawing.processing.${drawingStatus}` as never, {
-                    defaultValue: drawingStatus,
-                  })}
+                  {t.has(`intelligence.drawing.processing.${drawingStatus}` as never)
+                    ? t(`intelligence.drawing.processing.${drawingStatus}` as never)
+                    : drawingStatus}
                 </span>
               )}
               {drawingAnalysis?.preview_status === 'ready' && canDownload ? (
@@ -325,6 +325,7 @@ export function DocumentDetailDrawer({
             </section>
           )}
 
+          {activeTab === 'summary' && (
             <section className="documents-intelligence-section">
               {loadingAnalysis && <p>{t('intelligence.loading')}</p>}
               {!loadingAnalysis && !summaryText && <p>{t('intelligence.emptySummary')}</p>}

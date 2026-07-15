@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { DashboardHeaderActions } from '@/app/dashboard/_components/dashboard-header-actions';
 import { EntityActivityTimeline } from '@/app/dashboard/_components/entity-activity-timeline';
 import { EntityDocumentsPanel } from '@/app/dashboard/_components/entity-documents-panel';
+import {
   assignUserRoles,
   canViewUsers,
   createUser,
