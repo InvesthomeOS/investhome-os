@@ -33,6 +33,10 @@ export interface Lead {
   source: string | null;
   status: LeadStatus;
   assigned_to: string | null;
+  assigned_manager_id: string | null;
+  company: string | null;
+  preferred_market: string | null;
+  cached_lead_score: number | null;
   estimated_budget: string | null;
   interested_project: string | null;
   notes: string | null;
@@ -64,6 +68,10 @@ export interface LeadFilters {
   search?: string;
   status?: LeadStatus | '';
   source?: string;
+  qualification_status?: string;
+  preferred_market?: string;
+  lead_score_min?: number;
+  lead_score_max?: number;
 }
 
 function buildQuery(filters: LeadFilters = {}): string {
@@ -77,6 +85,18 @@ function buildQuery(filters: LeadFilters = {}): string {
   }
   if (filters.source) {
     params.set('source', filters.source);
+  }
+  if (filters.qualification_status) {
+    params.set('qualification_status', filters.qualification_status);
+  }
+  if (filters.preferred_market) {
+    params.set('preferred_market', filters.preferred_market);
+  }
+  if (filters.lead_score_min != null) {
+    params.set('lead_score_min', String(filters.lead_score_min));
+  }
+  if (filters.lead_score_max != null) {
+    params.set('lead_score_max', String(filters.lead_score_max));
   }
 
   const query = params.toString();

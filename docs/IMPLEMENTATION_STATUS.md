@@ -80,7 +80,7 @@ Investhome OS is a **production-shaped enterprise platform** with Phase 1–3 mo
 
 **Units & Inventory / Inventory Workspace** — **COMPLETE for verified core scope** (Sprint 4B7, 2026-07-16): migrations `0017`–`0021` (single head); buildings/floors/assets; six status dimensions; Soft Hold reservations (`0018`); pricing approval (`0019`); immutable ownership transfers (`0020`); parking/storage assignment (`0021`); permissions, activity/audit/events, notifications, executive summaries, global search; Ownership + Assignment UI tabs; ARQ jobs (soft-hold expiry, reservation reminders, scheduled ownership/assignment apply); **202 API tests**. **NOT IMPLEMENTED (explicit):** bulk import/export, spatial/floor-plan views, closing/leasing/commissions workflows, sales contracts, property-management module, unified party picker, finance `unit_id` FK, drawing→unit approval bridge, Playwright E2E.
 
-**Sales Workspace** — **PARTIAL** (Sprint 5B1, 2026-07-16): blueprint **COMPLETE** (5A); **Opportunity backend COMPLETE** (5B1) — migration `0022_sales_opportunities`; `SalesOpportunity` + junction tables + timeline + probability history; governed pipeline stages; CRUD + stage/probability/next-action APIs; `sales.*` permissions; activity/audit/events; global search provider; dashboard + pipeline + executive summary endpoints; **12 new API tests** (214 total). **NOT IMPLEMENTED:** frontend workspace shell, Qualification, Proposals, Tasks, Calendar, 13 views/drawer (5B2+). Production UI remains Leads CRUD at `/dashboard/leads`.
+**Sales Workspace** — **PARTIAL** (Sprint 5B1–5B2, 2026-07-16): blueprint **COMPLETE** (5A); **Opportunity backend COMPLETE** (5B1) — migration `0022_sales_opportunities`; governed pipeline stages; CRUD + stage/probability/next-action APIs; `sales.*` permissions; activity/audit/events; global search provider; dashboard + pipeline + executive summary endpoints; **12 API tests**. **Sales Home and Pipeline UI COMPLETE** (5B2) — `/dashboard/sales` workspace with KPI row (real backend data, per-currency pipeline/weighted values), pipeline kanban with governed drag-and-drop, opportunity list, filters with localStorage persistence, 11-tab detail drawer, create/edit + stage change modals, next-action UI, executive sales summary wiring, global search for `sales_opportunity`, TR/EN labels; `/dashboard/leads` redirects to Sales. **NOT IMPLEMENTED:** Qualification queue, Proposal Engine, Meetings/Calendar, Communications, Commissions, Closing Management, AI recommendations, remaining 5B3–5B8 views.
 
 **Visual Design Studio** is **PARTIAL** — **Sprint 1 complete** (2026-07-15): design project CRUD, source plan linking, Color Studio, version save/history, archive, permissions, activity log, global search, TR/EN UI. **Sprint 2A complete** (2026-07-16, verified): style presets (Modern, Luxury, Scandinavian, Industrial, Minimalist + extras), material packages, furniture catalog/library, furniture layout editor (add/drag/rotate/duplicate/delete, undo/redo), materials & style tab, extended `design_parameters`, migrations `0015`/`0016`. **Backend-only from Sprint 2 full** (commit `8aef5b6`, not exposed in 2A UI): version compare API, design review workflow (submit/approve/reject). **NOT implemented:** 2D-to-3D, photorealistic rendering, video generation, automatic AI furniture placement.
 
@@ -306,22 +306,24 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 
 **Architecture:** Inventory Asset parent entity; parking/storage as independent asset types; areas in sq ft; six status dimensions; display_id + system_code + legal_identifier; Decimal money fields; immutable ownership history; stale-request protection on concurrent approvals.
 
-### Sales Workspace — Blueprint COMPLETE (5A); Opportunity Backend COMPLETE (5B1); Overall PARTIAL
+### Sales Workspace — Blueprint COMPLETE (5A); Opportunity Backend COMPLETE (5B1); Sales Home & Pipeline UI COMPLETE (5B2); Overall PARTIAL
 
 | Check | Status |
 |-------|--------|
 | Workspace blueprint | **COMPLETE** — `docs/SALES_WORKSPACE_BLUEPRINT.md` (Sprint 5A, 2026-07-16) |
 | Opportunity backend (5B1) | **COMPLETE** — migration `0022_sales_opportunities`; models, services, routes, permissions, activity, search, tests |
-| Current production UI | **Leads CRUD only** — `/dashboard/leads` table + flat drawer (Overview, Documents, Activity) |
+| Sales Home & Pipeline UI (5B2) | **COMPLETE** — `/dashboard/sales` KPI row, kanban, list, filters, 11-tab drawer, modals, executive wiring, TR/EN |
+| Current production UI | **Sales workspace** at `/dashboard/sales`; `/dashboard/leads` redirects to Sales |
 | Opportunity entity (API) | **COMPLETE** — 17 pipeline stages, governed transitions, timeline, probability history |
 | Qualification / Proposal / SalesInteraction / Task entities | **NOT IMPLEMENTED** |
-| Pipeline kanban / 13 views / 13-tab drawer | **NOT IMPLEMENTED** — blueprint only (5B2+) |
-| Inventory integration | **PARTIAL** — opportunity-inventory junction + reservation FK; no Sales UI lens |
+| Remaining blueprint views (inbox, match, proposals, meetings, etc.) | **NOT IMPLEMENTED** — 5B3+ |
+| Inventory integration | **PARTIAL** — junction APIs + link UI; no dedicated match view |
 | Calendar / Tasks | **NOT IMPLEMENTED** — honest empty states in Executive |
 | Commission Engine | **NOT IMPLEMENTED** — explicit non-goal for 5B track |
+| Proposal Engine / Communications / Closing / AI | **NOT IMPLEMENTED** |
 | Document generation | **NOT IMPLEMENTED** — upload/link only per blueprint |
-| Permissions | `sales.*` resource + `leads.*` + inventory reserve for `sales` role |
-| Implementation sprints 5B2–5B8 | **NOT STARTED** |
+| Permissions | `sales.*` resource enforced in UI + API |
+| Implementation sprints 5B3–5B8 | **NOT STARTED** |
 
 See [SALES_WORKSPACE_BLUEPRINT.md](./SALES_WORKSPACE_BLUEPRINT.md).
 

@@ -50,6 +50,10 @@
         "title": "Leads",
         "description": "Pipeline visibility and acquisition funnel metrics."
       },
+      "sales": {
+        "title": "Sales",
+        "description": "Commercial operating center — pipeline and opportunities."
+      },
       "investors": {
         "title": "Investors",
         "description": "Capital partners, commitments, and relations."
@@ -160,6 +164,361 @@
       "linkedin": "LinkedIn",
       "partner": "Partner",
       "cold_outreach": "Cold Outreach"
+    }
+  },
+  "leadQualification": {
+    "loadError": "Unable to load lead detail.",
+    "saveError": "Unable to save qualification.",
+    "statusError": "Unable to change qualification status.",
+    "scoreError": "Unable to recalculate lead score.",
+    "followUpError": "Unable to update follow-up.",
+    "noAccess": "You do not have permission to view this lead.",
+    "backToList": "Back to leads",
+    "tabs": {
+      "overview": "Overview",
+      "contact": "Contact",
+      "qualification": "Qualification",
+      "opportunities": "Opportunities",
+      "inventory": "Inventory Matches",
+      "followUps": "Meetings & Follow-ups",
+      "reservations": "Reservations",
+      "documents": "Documents",
+      "activity": "Activity",
+      "timeline": "Timeline"
+    },
+    "overview": {
+      "qualificationStatus": "Qualification status",
+      "leadScore": "Lead score",
+      "company": "Company",
+      "preferredMarket": "Preferred market",
+      "opportunities": "Opportunities",
+      "reservations": "Reservations",
+      "inventoryMatches": "Inventory matches",
+      "pendingFollowUps": "Pending follow-ups"
+    },
+    "fields": {
+      "investmentObjective": "Investment objective",
+      "budgetMin": "Budget min",
+      "budgetMax": "Budget max",
+      "timeline": "Purchase timeline",
+      "financing": "Cash or financing",
+      "riskTolerance": "Risk tolerance",
+      "salesNotes": "Sales notes",
+      "qualificationStatus": "Qualification status"
+    },
+    "filters": {
+      "allQualificationStatuses": "All qualification statuses",
+      "scoreMin": "Min score",
+      "scoreMax": "Max score"
+    },
+    "actions": {
+      "call": "Call",
+      "email": "Email",
+      "whatsapp": "WhatsApp",
+      "scheduleFollowUp": "Schedule follow-up",
+      "createOpportunity": "Create opportunity",
+      "recalculateScore": "Recalculate score",
+      "removeMatch": "Remove"
+    },
+    "statuses": {
+      "new": "New",
+      "in_review": "In review",
+      "qualified": "Qualified",
+      "requires_more_information": "Requires more information",
+      "unqualified": "Unqualified"
+    },
+    "objectives": {
+      "rental_income": "Rental income",
+      "capital_appreciation": "Capital appreciation",
+      "personal_use": "Personal use",
+      "diversification": "Diversification",
+      "citizenship": "Citizenship",
+      "development": "Development",
+      "other": "Other"
+    },
+    "financing": {
+      "cash": "Cash",
+      "mortgage": "Mortgage",
+      "mixed": "Mixed",
+      "unknown": "Unknown"
+    },
+    "timelines": {
+      "immediate": "Immediate",
+      "3_months": "Within 3 months",
+      "6_months": "Within 6 months",
+      "12_plus": "12+ months",
+      "unknown": "Unknown"
+    },
+    "risk": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "interestTypes": {
+      "matched": "Matched",
+      "shortlisted": "Shortlisted",
+      "favorite": "Favorite",
+      "rejected": "Rejected"
+    },
+    "followUpTypes": {
+      "call": "Call",
+      "email": "Email",
+      "meeting": "Meeting",
+      "whatsapp": "WhatsApp",
+      "site_visit": "Site visit",
+      "other": "Other"
+    },
+    "scoreComponents": {
+      "budget_readiness": "Budget readiness",
+      "timeline": "Timeline",
+      "investment_capacity": "Investment capacity",
+      "engagement": "Engagement",
+      "meeting_completion": "Meeting completion",
+      "document_readiness": "Document readiness",
+      "inventory_match_quality": "Inventory match quality",
+      "sales_confidence": "Sales confidence"
+    },
+    "opportunities": {
+      "empty": "No linked opportunities yet."
+    },
+    "inventory": {
+      "empty": "No inventory matches yet."
+    },
+    "followUps": {
+      "calendarNote": "Calendar integration is not yet available — follow-ups are stored locally.",
+      "empty": "No follow-ups scheduled.",
+      "complete": "Mark complete"
+    },
+    "reservations": {
+      "empty": "No linked reservations."
+    },
+    "timeline": {
+      "empty": "No timeline events yet."
+    },
+    "executive": {
+      "qualifiedLeads": "Qualified leads",
+      "unqualifiedLeads": "Unqualified",
+      "avgLeadScore": "Avg lead score",
+      "awaitingReview": "Awaiting review",
+      "withoutFollowUp": "Without follow-up",
+      "readyForOpportunity": "Ready for opportunity"
+    }
+  },
+  "sales": {
+    "eyebrow": "Sales",
+    "title": "Sales",
+    "subtitle": "Daily commercial operating center — pipeline, opportunities, and deal progression.",
+    "detailEyebrow": "Sales opportunity",
+    "createButton": "New Opportunity",
+    "loadError": "Unable to load sales opportunities.",
+    "loadErrorTitle": "Sales unavailable",
+    "saveError": "Unable to save opportunity.",
+    "archiveError": "Unable to archive opportunity.",
+    "restoreError": "Unable to restore opportunity.",
+    "empty": "No opportunities match your filters.",
+    "emptyHint": "Adjust filters or create a new opportunity from a lead.",
+    "resultCount": "{count} opportunities",
+    "unknownParty": "Unknown party",
+    "noAccessTitle": "Sales access required",
+    "noAccessMessage": "You do not have permission to view the Sales workspace.",
+    "views": {
+      "pipeline": "Pipeline",
+      "list": "List"
+    },
+    "kpis": {
+      "newLeads": "New Leads",
+      "qualifiedLeads": "Qualified Leads",
+      "activeOpportunities": "Active Opportunities",
+      "pipelineValue": "Pipeline Value",
+      "weightedPipeline": "Weighted Pipeline",
+      "meetingsScheduled": "Meetings Scheduled",
+      "proposalsPending": "Proposals Pending",
+      "activeSoftHolds": "Active Soft Holds",
+      "reservationsPending": "Reservations Pending",
+      "depositsPending": "Deposits Pending",
+      "underContract": "Under Contract",
+      "wonThisMonth": "Won This Month",
+      "lostThisMonth": "Lost This Month"
+    },
+    "filters": {
+      "search": "Search",
+      "searchPlaceholder": "Code, notes, source",
+      "stage": "Stage",
+      "allStages": "All stages",
+      "assignee": "Assignee",
+      "allAssignees": "All assignees",
+      "priority": "Priority",
+      "allPriorities": "All priorities",
+      "includeArchived": "Include archived",
+      "clearAll": "Clear all"
+    },
+    "table": {
+      "code": "Code",
+      "party": "Lead / Party",
+      "stage": "Stage",
+      "value": "Value",
+      "probability": "Probability",
+      "assignee": "Assigned",
+      "nextAction": "Next Action",
+      "project": "Project",
+      "priority": "Priority",
+      "expectedClose": "Expected Close",
+      "updated": "Updated",
+      "compact": "Compact",
+      "comfortable": "Comfortable"
+    },
+    "prevPage": "Previous",
+    "nextPage": "Next",
+    "pagination": "Page {page} / {pages} · {total} total",
+    "form": {
+      "createTitle": "Create Opportunity",
+      "editTitle": "Edit Opportunity",
+      "create": "Create",
+      "save": "Save",
+      "partyType": "Party type",
+      "partyId": "Party ID",
+      "leadId": "Lead ID",
+      "assignee": "Assigned sales user",
+      "unassigned": "Unassigned",
+      "stage": "Initial stage",
+      "probability": "Probability (%)",
+      "expectedRevenue": "Expected revenue",
+      "currency": "Currency",
+      "priority": "Priority",
+      "expectedCloseDate": "Expected close date",
+      "source": "Source",
+      "nextAction": "Next action",
+      "nextActionDate": "Next action date",
+      "notes": "Notes"
+    },
+    "stageChange": {
+      "title": "Change Stage",
+      "targetStage": "Target stage",
+      "notes": "Notes",
+      "lossReason": "Loss reason",
+      "lossNotes": "Loss notes",
+      "dormantReviewDate": "Dormant review date",
+      "cancelledReason": "Cancellation reason",
+      "confirm": "Confirm stage change"
+    },
+    "nextAction": {
+      "title": "Update Next Action",
+      "action": "Action",
+      "date": "Date",
+      "save": "Save next action"
+    },
+    "detail": {
+      "ariaLabel": "Sales opportunity detail",
+      "changeStage": "Change stage",
+      "editNextAction": "Edit next action",
+      "archive": "Archive",
+      "restore": "Restore",
+      "linkProject": "Link project",
+      "linkInventory": "Link inventory",
+      "linkProjectPrompt": "Enter project ID to link",
+      "linkInventoryPrompt": "Enter inventory asset ID to link",
+      "noProjects": "No linked projects.",
+      "noInventory": "No linked inventory.",
+      "noTimeline": "No timeline events yet.",
+      "noReservation": "No linked reservation.",
+      "financePlaceholder": "Finance summary is read-only. Deposit and transaction details live in Finance workspace.",
+      "expectedRevenue": "Expected revenue",
+      "tabs": {
+        "overview": "Overview",
+        "party": "Lead / Party",
+        "projects": "Projects",
+        "inventory": "Inventory",
+        "stageHistory": "Stage History",
+        "nextActions": "Next Actions",
+        "reservations": "Reservations",
+        "documents": "Documents",
+        "finance": "Finance",
+        "activity": "Activity",
+        "timeline": "Event Timeline"
+      }
+    },
+    "party": {
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "country": "Country",
+      "loadError": "Unable to load party details."
+    },
+    "reservation": {
+      "status": "Status",
+      "type": "Type",
+      "deposit": "Deposit"
+    },
+    "stages": {
+      "new": "Qualification (New)",
+      "qualified": "Qualified",
+      "meeting_scheduled": "Meeting Scheduled",
+      "meeting_completed": "Meeting Completed",
+      "inventory_matching": "Inventory Matching",
+      "proposal_preparation": "Proposal Preparation",
+      "proposal_sent": "Proposal Sent",
+      "negotiation": "Negotiation",
+      "soft_hold": "Soft Hold",
+      "reservation": "Reservation",
+      "deposit_pending": "Deposit Pending",
+      "contract": "Under Contract",
+      "closing_handoff": "Closing Handoff",
+      "won": "Won",
+      "lost": "Lost",
+      "dormant": "Dormant",
+      "cancelled": "Cancelled"
+    },
+    "nextActions": {
+      "call": "Call",
+      "meeting": "Meeting",
+      "email": "Email",
+      "whatsapp": "WhatsApp",
+      "site_visit": "Site visit",
+      "proposal": "Proposal",
+      "reservation_follow_up": "Reservation follow-up",
+      "deposit_follow_up": "Deposit follow-up",
+      "contract_follow_up": "Contract follow-up",
+      "closing_follow_up": "Closing follow-up"
+    },
+    "lossReasons": {
+      "budget": "Budget",
+      "financing": "Financing",
+      "competitor": "Competitor",
+      "no_response": "No response",
+      "timeline": "Timeline",
+      "location": "Location",
+      "inventory": "Inventory fit",
+      "internal": "Internal",
+      "other": "Other"
+    },
+    "partyTypes": {
+      "lead": "Lead",
+      "investor": "Investor"
+    },
+    "priorities": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "errors": {
+      "invalidStageTransition": "This stage change is not allowed.",
+      "stageChangeFailed": "Unable to change stage.",
+      "nextActionFailed": "Unable to update next action.",
+      "linkProjectFailed": "Unable to link project.",
+      "linkInventoryFailed": "Unable to link inventory.",
+      "party_not_found": "Party not found.",
+      "invalid_stage_transition": "Invalid stage transition.",
+      "stage_unchanged": "Stage is unchanged."
+    },
+    "executive": {
+      "activeOpportunities": "Active opportunities",
+      "pipelineByCurrency": "Pipeline by currency",
+      "weightedPipeline": "Weighted pipeline",
+      "expectedClosings": "Expected closings (30d)",
+      "withoutNextAction": "Without next action",
+      "stalled": "Dormant / stalled",
+      "highRisk": "High risk (<30%)"
     }
   },
   "investors": {
@@ -867,7 +1226,23 @@
       "proposals": "Proposals",
       "won": "Won",
       "lost": "Lost",
-      "conversionRate": "Conversion rate: {rate}"
+      "conversionRate": "Conversion rate: {rate}",
+      "activeOpportunities": "Active opportunities",
+      "pipelineByCurrency": "Pipeline by currency",
+      "weightedPipeline": "Weighted pipeline",
+      "expectedClosings": "Expected closings (30d)",
+      "withoutNextAction": "Without next action",
+      "stalled": "Dormant / stalled",
+      "highRisk": "High risk (<30%)",
+      "viewSales": "Open Sales workspace"
+    },
+    "leadQualification": {
+      "qualifiedLeads": "Qualified leads",
+      "unqualifiedLeads": "Unqualified",
+      "avgLeadScore": "Avg lead score",
+      "awaitingReview": "Awaiting review",
+      "withoutFollowUp": "Without follow-up",
+      "readyForOpportunity": "Ready for opportunity"
     },
     "projects": {
       "title": "Active Projects",
@@ -1698,12 +2073,14 @@
       "floor": "Floors",
       "inventory_asset": "Inventory assets",
       "inventory_reservation": "Reservations",
+      "sales_opportunity": "Sales opportunities",
       "unit": "Units (coming soon)",
       "construction": "Construction (coming soon)",
       "email": "Emails (coming soon)"
     },
     "modules": {
       "leads": "Leads",
+      "sales": "Sales",
       "investors": "Investors",
       "projects": "Projects",
       "finance": "Finance",

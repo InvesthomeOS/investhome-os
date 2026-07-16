@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
@@ -18,10 +19,12 @@ import {
 import {
   useLeadLabels,
 } from '@/lib/i18n/lead-labels';
+import { useLeadQualificationLabels } from '@/lib/i18n/lead-qualification-labels';
 import { useRecordDeepLink } from '@/lib/hooks/use-record-deep-link';
 
-import { LeadDetailDrawer } from './lead-detail-drawer';
 import { LeadFormModal } from './lead-form-modal';
+
+const FILTER_STORAGE_KEY = 'investhome.leads.filters';
 
 type FormMode = 'create' | 'edit' | null;
 
@@ -29,23 +32,55 @@ const EMPTY_FILTERS: LeadFilters = {
   search: '',
   status: '',
   source: '',
+  qualification_status: '',
+  preferred_market: '',
+  lead_score_min: undefined,
+  lead_score_max: undefined,
 };
+
+function loadStoredFilters(): LeadFilters {
+  if (typeof window === 'undefined') return EMPTY_FILTERS;
+  try {
+    const raw = localStorage.getItem(FILTER_STORAGE_KEY);
+    if (!raw) return EMPTY_FILTERS;
+    return { ...EMPTY_FILTERS, ...JSON.parse(raw) };
+  } catch {
+    return EMPTY_FILTERS;
+  }
+}
 
 export function LeadsWorkspace() {
   const t = useTranslations('leads');
+  const tQual = useTranslations('leadQualification');
   const tCommon = useTranslations('common');
   const locale = useLocale();
+  const router = useRouter();
   const { getStatusLabel, getSourceLabel, statusOptions, sourceOptions } = useLeadLabels();
+  const { qualificationStatusOptions } = useLeadQualificationLabels();
 
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [filters, setFilters] = useState<LeadFilters>(EMPTY_FILTERS);
-  const [appliedFilters, setAppliedFilters] = useState<LeadFilters>(EMPTY_FILTERS);
+  const [filters, setFilters] = useState<LeadFilters>(() => loadStoredFilters());
+  const [appliedFilters, setAppliedFilters] = useState<LeadFilters>(() => loadStoredFilters());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [formMode, setFormMode] = useState<FormMode>(null);
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  const activeFilterChips = useMemo(() => {
+    const chips: string[] = [];
+    if (appliedFilters.search) chips.push(`${t('searchLabel')}: ${appliedFilters.search}`);
+    if (appliedFilters.status) chips.push(`${t('statusLabel')}: ${getStatusLabel(appliedFilters.status)}`);
+    if (appliedFilters.source) chips.push(`${t('sourceLabel')}: ${getSourceLabel(appliedFilters.source)}`);
+    if (appliedFilters.qualification_status) {
+      chips.push(`${tQual('fields.qualificationStatus')}: ${appliedFilters.qualification_status}`);
+    }
+    if (appliedFilters.preferred_market) chips.push(`${tQual('overview.preferredMarket')}: ${appliedFilters.preferred_market}`);
+    if (appliedFilters.lead_score_min != null) chips.push(`${tQual('filters.scoreMin')}: ${appliedFilters.lead_score_min}`);
+    if (appliedFilters.lead_score_max != null) chips.push(`${tQual('filters.scoreMax')}: ${appliedFilters.lead_score_max}`);
+    return chips;
+  }, [appliedFilters, t, tQual, getStatusLabel, getSourceLabel]);
 
   const loadLeads = useCallback(async (nextFilters: LeadFilters) => {
     setLoading(true);
@@ -66,29 +101,29 @@ export function LeadsWorkspace() {
     void loadLeads(appliedFilters);
   }, [appliedFilters, loadLeads]);
 
-  const handleOpenLead = useCallback((lead: Lead) => setSelectedLead(lead), []);
+  const handleOpenLead = useCallback(
+    (lead: Lead) => router.push(`/dashboard/leads/${lead.id}`),
+    [router],
+  );
   useRecordDeepLink(fetchLead, handleOpenLead);
 
-  const demoCount = useMemo(() => leads.filter((lead) => lead.is_demo).length, [leads]);
-
   const handleApplyFilters = () => {
-    setAppliedFilters({ ...filters });
+    const next = { ...filters };
+    setAppliedFilters(next);
+    localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(next));
   };
 
   const handleResetFilters = () => {
     setFilters(EMPTY_FILTERS);
     setAppliedFilters(EMPTY_FILTERS);
+    localStorage.removeItem(FILTER_STORAGE_KEY);
   };
+
+  const demoCount = useMemo(() => leads.filter((lead) => lead.is_demo).length, [leads]);
 
   const handleOpenCreate = () => {
     setActionError(null);
     setFormMode('create');
-  };
-
-  const handleOpenEdit = (lead: Lead) => {
-    setActionError(null);
-    setSelectedLead(lead);
-    setFormMode('edit');
   };
 
   const handleSubmitLead = async (input: LeadInput) => {
@@ -110,21 +145,6 @@ export function LeadsWorkspace() {
       setFormMode(null);
     } catch {
       setActionError(t('saveError'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleArchiveLead = async (lead: Lead) => {
-    setSubmitting(true);
-    setActionError(null);
-
-    try {
-      await archiveLead(lead.id);
-      setLeads((current) => current.filter((item) => item.id !== lead.id));
-      setSelectedLead(null);
-    } catch {
-      setActionError(t('archiveError'));
     } finally {
       setSubmitting(false);
     }
@@ -196,6 +216,66 @@ export function LeadsWorkspace() {
               </select>
             </label>
 
+            <label className="leads__field">
+              <span>{tQual('fields.qualificationStatus')}</span>
+              <select
+                value={filters.qualification_status ?? ''}
+                onChange={(event) =>
+                  setFilters((current) => ({ ...current, qualification_status: event.target.value }))
+                }
+              >
+                <option value="">{tQual('filters.allQualificationStatuses')}</option>
+                {qualificationStatusOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="leads__field">
+              <span>{tQual('overview.preferredMarket')}</span>
+              <input
+                type="text"
+                value={filters.preferred_market ?? ''}
+                onChange={(event) =>
+                  setFilters((current) => ({ ...current, preferred_market: event.target.value }))
+                }
+              />
+            </label>
+
+            <label className="leads__field">
+              <span>{tQual('filters.scoreMin')}</span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={filters.lead_score_min ?? ''}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    lead_score_min: event.target.value ? Number(event.target.value) : undefined,
+                  }))
+                }
+              />
+            </label>
+
+            <label className="leads__field">
+              <span>{tQual('filters.scoreMax')}</span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={filters.lead_score_max ?? ''}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    lead_score_max: event.target.value ? Number(event.target.value) : undefined,
+                  }))
+                }
+              />
+            </label>
+
             <div className="leads__filter-actions">
               <button
                 type="button"
@@ -222,6 +302,16 @@ export function LeadsWorkspace() {
             {t('addLead')}
           </button>
         </div>
+
+        {activeFilterChips.length > 0 && (
+          <div className="leads__filter-chips" role="status">
+            {activeFilterChips.map((chip) => (
+              <span key={chip} className="leads__demo-tag">
+                {chip}
+              </span>
+            ))}
+          </div>
+        )}
 
         {actionError && <p className="leads__error">{actionError}</p>}
 
@@ -266,6 +356,7 @@ export function LeadsWorkspace() {
                   <th>{t('table.assignedTo')}</th>
                   <th>{t('table.budget')}</th>
                   <th>{t('table.project')}</th>
+                  <th>{tQual('overview.leadScore')}</th>
                   <th>{t('table.updated')}</th>
                 </tr>
               </thead>
@@ -273,8 +364,8 @@ export function LeadsWorkspace() {
                 {leads.map((lead) => (
                   <tr
                     key={lead.id}
-                    className="leads__row"
-                    onClick={() => setSelectedLead(lead)}
+                    className="leads__row leads__row--link"
+                    onClick={() => handleOpenLead(lead)}
                   >
                     <td>
                       <span className="leads__name">{lead.full_name}</span>
@@ -300,6 +391,7 @@ export function LeadsWorkspace() {
                     <td>{lead.assigned_to ?? tCommon('noValue')}</td>
                     <td>{formatBudget(lead.estimated_budget, locale)}</td>
                     <td>{lead.interested_project ?? tCommon('noValue')}</td>
+                    <td>{lead.cached_lead_score ?? tCommon('noValue')}</td>
                     <td>{formatDate(lead.updated_at, locale)}</td>
                   </tr>
                 ))}
@@ -308,14 +400,6 @@ export function LeadsWorkspace() {
           </div>
         )}
       </section>
-
-      <LeadDetailDrawer
-        lead={selectedLead}
-        onClose={() => setSelectedLead(null)}
-        onEdit={handleOpenEdit}
-        onArchive={(lead) => void handleArchiveLead(lead)}
-        archiving={submitting}
-      />
 
       <LeadFormModal
         mode={formMode}

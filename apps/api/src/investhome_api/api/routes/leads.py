@@ -9,6 +9,7 @@ from investhome_api.api.deps.auth import require_permission
 from investhome_api.db.session import get_db
 from investhome_api.models.activity import ActivityEntityType
 from investhome_api.models.lead import Lead, LeadStatus
+from investhome_api.models.lead_qualification import LeadQualification, QualificationStatus
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.lead import LeadCreate, LeadListResponse, LeadResponse, LeadUpdate
 from investhome_api.services.activity_recorder import (
@@ -46,6 +47,10 @@ def list_leads(
     search: str | None = Query(default=None, max_length=255),
     status_filter: LeadStatus | None = Query(default=None, alias="status"),
     source: str | None = Query(default=None, max_length=100),
+    qualification_status: QualificationStatus | None = Query(default=None),
+    preferred_market: str | None = Query(default=None, max_length=100),
+    lead_score_min: int | None = Query(default=None, ge=0, le=100),
+    lead_score_max: int | None = Query(default=None, ge=0, le=100),
     include_archived: bool = Query(default=False),
     db: Session = Depends(get_db),
     _user: User = Depends(require_permission("leads", "view")),
@@ -61,6 +66,20 @@ def list_leads(
     if source:
         query = query.where(Lead.source == source)
 
+    if preferred_market:
+        query = query.where(Lead.preferred_market == preferred_market)
+
+    if lead_score_min is not None:
+        query = query.where(Lead.cached_lead_score >= lead_score_min)
+
+    if lead_score_max is not None:
+        query = query.where(Lead.cached_lead_score <= lead_score_max)
+
+    if qualification_status is not None:
+        query = query.join(LeadQualification, LeadQualification.lead_id == Lead.id).where(
+            LeadQualification.qualification_status == qualification_status
+        )
+
     if search:
         pattern = f"%{search.strip()}%"
         query = query.where(
@@ -69,6 +88,8 @@ def list_leads(
                 Lead.email.ilike(pattern),
                 Lead.phone.ilike(pattern),
                 Lead.interested_project.ilike(pattern),
+                Lead.company.ilike(pattern),
+                Lead.preferred_market.ilike(pattern),
             )
         )
 

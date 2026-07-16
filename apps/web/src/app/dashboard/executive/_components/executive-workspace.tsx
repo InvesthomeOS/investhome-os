@@ -34,12 +34,20 @@ import {
   moduleHref,
   resolvePeriodDates,
 } from '@/lib/api/executive';
+import {
+  fetchDashboardMetrics,
+  fetchExecutiveSalesSummary,
+  fetchOpportunities,
+  formatCurrencyTotals as formatSalesCurrencyTotals,
+  type ExecutiveSalesSummary,
+} from '@/lib/api/sales';
 import { fetchProjects } from '@/lib/api/projects';
 import { hasPermission } from '@/lib/api/auth';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useLeadLabels } from '@/lib/i18n/lead-labels';
 import { useProjectLabels } from '@/lib/i18n/project-labels';
 import { metadataForI18n } from '@/lib/api/activity';
+import { fetchLeadQualificationExecutiveSummary, type LeadQualificationExecutiveSummary } from '@/lib/api/lead-qualification';
 import { useActivityLabels } from '@/lib/i18n/activity-labels';
 
 type LoadState = 'idle' | 'loading' | 'error' | 'success';
@@ -405,6 +413,11 @@ export function ExecutiveWorkspace() {
 
   const [summaryCards, setSummaryCards] = useState<SummaryCard[]>([]);
   const [pipeline, setPipeline] = useState<Awaited<ReturnType<typeof fetchExecutiveLeadsPipeline>> | null>(null);
+  const [salesSummary, setSalesSummary] = useState<ExecutiveSalesSummary | null>(null);
+  const [qualificationSummary, setQualificationSummary] = useState<LeadQualificationExecutiveSummary | null>(null);
+  const [salesMetrics, setSalesMetrics] = useState<Awaited<ReturnType<typeof fetchDashboardMetrics>> | null>(null);
+  const [salesPipelineByCurrency, setSalesPipelineByCurrency] = useState<Record<string, string>>({});
+  const [salesWeightedByCurrency, setSalesWeightedByCurrency] = useState<Record<string, string>>({});
   const [investors, setInvestors] = useState<Awaited<ReturnType<typeof fetchExecutiveInvestorOverview>> | null>(null);
   const [portfolio, setPortfolio] = useState<Awaited<ReturnType<typeof fetchExecutiveProjectPortfolio>> | null>(null);
   const [financial, setFinancial] = useState<Awaited<ReturnType<typeof fetchExecutiveFinancialOverview>> | null>(null);
@@ -480,7 +493,33 @@ export function ExecutiveWorkspace() {
   const loadPipeline = useCallback(async () => {
     setPipelineState('loading');
     try {
-      setPipeline(await fetchExecutiveLeadsPipeline(filterParams));
+      const [leadsPipeline, summary, metrics, openOpps, qualSummary] = await Promise.all([
+        fetchExecutiveLeadsPipeline(filterParams),
+        fetchExecutiveSalesSummary().catch(() => null),
+        fetchDashboardMetrics().catch(() => null),
+        fetchOpportunities({ limit: 200 }).catch(() => ({ items: [], total: 0, offset: 0, limit: 0 })),
+        fetchLeadQualificationExecutiveSummary().catch(() => null),
+      ]);
+      setPipeline(leadsPipeline);
+      setSalesSummary(summary);
+      setQualificationSummary(qualSummary);
+      setSalesMetrics(metrics);
+      const pipelineTotals: Record<string, number> = {};
+      const weightedTotals: Record<string, number> = {};
+      for (const opp of openOpps.items) {
+        if (['won', 'lost', 'dormant', 'cancelled'].includes(opp.stage) || !opp.expected_revenue) continue;
+        const amount = Number(opp.expected_revenue);
+        if (Number.isNaN(amount)) continue;
+        const currency = opp.currency || 'USD';
+        pipelineTotals[currency] = (pipelineTotals[currency] ?? 0) + amount;
+        weightedTotals[currency] = (weightedTotals[currency] ?? 0) + (amount * opp.probability) / 100;
+      }
+      setSalesPipelineByCurrency(
+        Object.fromEntries(Object.entries(pipelineTotals).map(([c, v]) => [c, String(v)])),
+      );
+      setSalesWeightedByCurrency(
+        Object.fromEntries(Object.entries(weightedTotals).map(([c, v]) => [c, String(v)])),
+      );
       setPipelineState('success');
     } catch {
       setPipelineState('error');
@@ -811,6 +850,46 @@ export function ExecutiveWorkspace() {
                       rate: `${(Number(pipeline.conversion_rate) * 100).toFixed(1)}%`,
                     })}
                   </p>
+                )}
+                {qualificationSummary && (
+                  <div className="executive__metric-list executive__qualification-kpis">
+                    <p>{t('leadQualification.qualifiedLeads')}: {qualificationSummary.qualified_count}</p>
+                    <p>{t('leadQualification.unqualifiedLeads')}: {qualificationSummary.unqualified_count}</p>
+                    <p>{t('leadQualification.avgLeadScore')}: {qualificationSummary.avg_lead_score}</p>
+                    <p>{t('leadQualification.awaitingReview')}: {qualificationSummary.awaiting_review_count}</p>
+                    <p>{t('leadQualification.withoutFollowUp')}: {qualificationSummary.without_follow_up_count}</p>
+                    <p>{t('leadQualification.readyForOpportunity')}: {qualificationSummary.ready_for_opportunity_count}</p>
+                  </div>
+                )}
+                {(salesMetrics || salesSummary) && (
+                  <div className="executive__metric-list executive__sales-opportunities">
+                    {salesMetrics && (
+                      <p>{t('sales.activeOpportunities')}: {salesMetrics.open_opportunities}</p>
+                    )}
+                    {Object.keys(salesPipelineByCurrency).length > 0 && (
+                      <p>
+                        {t('sales.pipelineByCurrency')}:{' '}
+                        {formatSalesCurrencyTotals(salesPipelineByCurrency, locale)}
+                      </p>
+                    )}
+                    {Object.keys(salesWeightedByCurrency).length > 0 && (
+                      <p>
+                        {t('sales.weightedPipeline')}:{' '}
+                        {formatSalesCurrencyTotals(salesWeightedByCurrency, locale)}
+                      </p>
+                    )}
+                    {salesSummary && (
+                      <>
+                        <p>{t('sales.expectedClosings')}: {salesSummary.expected_closings_30d}</p>
+                        <p>{t('sales.withoutNextAction')}: {salesSummary.no_follow_up_count}</p>
+                        <p>{t('sales.stalled')}: {salesSummary.dormant_count}</p>
+                        <p>{t('sales.highRisk')}: {salesSummary.high_risk_count}</p>
+                      </>
+                    )}
+                    <Link href={'/dashboard/sales' as Route} className="executive__view-all">
+                      {t('sales.viewSales')}
+                    </Link>
+                  </div>
                 )}
                 <p className="executive__meta">
                   {t('pipeline.wonLost', {

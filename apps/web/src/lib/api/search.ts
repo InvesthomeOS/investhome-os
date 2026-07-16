@@ -91,6 +91,7 @@ export const SEARCH_ENTITY_TYPES = [
   'inventory_asset',
   'building',
   'floor',
+  'sales_opportunity',
 ] as const;
 
 export type SearchEntityType = (typeof SEARCH_ENTITY_TYPES)[number];

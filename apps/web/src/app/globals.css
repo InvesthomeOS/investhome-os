@@ -2764,3 +2764,240 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Sales workspace */
+.sales__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: var(--space-5);
+  margin-bottom: var(--space-7);
+}
+
+.sales__kpi-button {
+  all: unset;
+  cursor: pointer;
+  display: block;
+  width: 100%;
+}
+
+.sales__kpi-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.sales__kpi-button--active .sales__kpi-card {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+}
+
+.sales__kpi-card {
+  height: 100%;
+}
+
+.sales__toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-5);
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.sales__view-switch {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.sales__filters-wrap {
+  margin-bottom: var(--space-6);
+}
+
+.sales__filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.sales__filter-chip {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: 0.75rem;
+  padding: 0.25rem 0.65rem;
+  cursor: pointer;
+}
+
+.sales__filter-chip:hover {
+  border-color: var(--accent);
+}
+
+.sales__sort-button {
+  all: unset;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.sales__row {
+  cursor: pointer;
+}
+
+.sales__row:hover {
+  background: var(--surface-muted);
+}
+
+.sales__kanban {
+  display: flex;
+  gap: var(--space-5);
+  overflow-x: auto;
+  padding-bottom: var(--space-5);
+  min-height: 24rem;
+}
+
+.sales__kanban-column {
+  flex: 0 0 16rem;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+}
+
+.sales__kanban-column--active {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+}
+
+.sales__kanban-column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+
+.sales__kanban-column-header h3 {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.sales__kanban-cards {
+  padding: var(--space-4);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  flex: 1;
+}
+
+.sales__kanban-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  cursor: pointer;
+  text-align: left;
+}
+
+.sales__kanban-card--dragging {
+  opacity: 0.5;
+}
+
+.sales__kanban-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.sales__kanban-party {
+  font-size: 0.875rem;
+  margin: 0 0 var(--space-2);
+}
+
+.sales__kanban-value {
+  font-size: 0.8125rem;
+  margin: 0 0 var(--space-2);
+}
+
+.sales__kanban-meta,
+.sales__kanban-next {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin: 0 0 var(--space-2);
+}
+
+.sales__kanban-chip {
+  display: inline-block;
+  font-size: 0.7rem;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 0.1rem 0.45rem;
+  margin: 0 var(--space-2) var(--space-2) 0;
+}
+
+.sales__modal-subtitle {
+  color: var(--muted);
+  font-size: 0.875rem;
+  margin-bottom: var(--space-5);
+}
+
+.sales__drawer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.sales__drawer-header-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.sales__linked-list {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-5) 0 0;
+}
+
+.sales__linked-list li + li {
+  margin-top: var(--space-3);
+}
+
+.executive__sales-opportunities {
+  margin-top: var(--space-5);
+}
+
+.leads__field--checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.leads-form--grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+.leads__field--full {
+  grid-column: 1 / -1;
+}
+
+.leads-modal__panel--wide {
+  max-width: 42rem;
+}
+
+@media (max-width: 720px) {
+  .leads-form--grid {
+    grid-template-columns: 1fr;
+  }
+}
+

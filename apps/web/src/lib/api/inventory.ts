@@ -589,6 +589,7 @@ export interface ReservationFilters {
   inventory_asset_id?: string;
   investor_id?: string;
   lead_id?: string;
+  reservation_type?: 'soft_hold' | 'reservation';
   status?: ReservationRecordStatus | '';
   active_only?: boolean;
   expiring_within_hours?: number;
@@ -626,6 +627,7 @@ export async function fetchReservations(
       inventory_asset_id: filters.inventory_asset_id,
       investor_id: filters.investor_id,
       lead_id: filters.lead_id,
+      reservation_type: filters.reservation_type,
       status: filters.status,
       active_only: filters.active_only,
       expiring_within_hours: filters.expiring_within_hours,

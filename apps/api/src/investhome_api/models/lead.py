@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Enum, Numeric, String, Text, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from investhome_api.db.base import Base
@@ -35,6 +35,14 @@ class Lead(Base):
         default=LeadStatus.NEW,
     )
     assigned_to: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    assigned_manager_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    company: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    preferred_market: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    cached_lead_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     estimated_budget: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
     interested_project: Mapped[str | None] = mapped_column(String(255), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

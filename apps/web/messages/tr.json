@@ -50,6 +50,10 @@
         "title": "Potansiyel Müşteriler",
         "description": "Satış hattı görünürlüğü ve edinim hunisi metrikleri."
       },
+      "sales": {
+        "title": "Satış",
+        "description": "Ticari operasyon merkezi — satış hattı ve fırsatlar."
+      },
       "investors": {
         "title": "Yatırımcılar",
         "description": "Sermaye ortakları, taahhütler ve ilişkiler."
@@ -160,6 +164,361 @@
       "linkedin": "LinkedIn",
       "partner": "İş Ortağı",
       "cold_outreach": "Doğrudan İletişim"
+    }
+  },
+  "leadQualification": {
+    "loadError": "Aday detayı yüklenemedi.",
+    "saveError": "Nitelendirme kaydedilemedi.",
+    "statusError": "Nitelendirme durumu değiştirilemedi.",
+    "scoreError": "Aday skoru yeniden hesaplanamadı.",
+    "followUpError": "Takip güncellenemedi.",
+    "noAccess": "Bu adayı görüntüleme yetkiniz yok.",
+    "backToList": "Aday listesine dön",
+    "tabs": {
+      "overview": "Genel Bakış",
+      "contact": "İletişim",
+      "qualification": "Nitelendirme",
+      "opportunities": "Fırsatlar",
+      "inventory": "Envanter Eşleşmeleri",
+      "followUps": "Toplantılar ve Takipler",
+      "reservations": "Rezervasyonlar",
+      "documents": "Belgeler",
+      "activity": "Aktivite",
+      "timeline": "Zaman Çizelgesi"
+    },
+    "overview": {
+      "qualificationStatus": "Nitelendirme durumu",
+      "leadScore": "Aday skoru",
+      "company": "Şirket",
+      "preferredMarket": "Tercih edilen pazar",
+      "opportunities": "Fırsatlar",
+      "reservations": "Rezervasyonlar",
+      "inventoryMatches": "Envanter eşleşmeleri",
+      "pendingFollowUps": "Bekleyen takipler"
+    },
+    "fields": {
+      "investmentObjective": "Yatırım hedefi",
+      "budgetMin": "Min bütçe",
+      "budgetMax": "Max bütçe",
+      "timeline": "Satın alma zaman çizelgesi",
+      "financing": "Nakit veya finansman",
+      "riskTolerance": "Risk toleransı",
+      "salesNotes": "Satış notları",
+      "qualificationStatus": "Nitelendirme durumu"
+    },
+    "filters": {
+      "allQualificationStatuses": "Tüm nitelendirme durumları",
+      "scoreMin": "Min skor",
+      "scoreMax": "Max skor"
+    },
+    "actions": {
+      "call": "Ara",
+      "email": "E-posta",
+      "whatsapp": "WhatsApp",
+      "scheduleFollowUp": "Takip planla",
+      "createOpportunity": "Fırsat oluştur",
+      "recalculateScore": "Skoru yeniden hesapla",
+      "removeMatch": "Kaldır"
+    },
+    "statuses": {
+      "new": "Yeni",
+      "in_review": "İncelemede",
+      "qualified": "Nitelikli",
+      "requires_more_information": "Daha fazla bilgi gerekli",
+      "unqualified": "Niteliksiz"
+    },
+    "objectives": {
+      "rental_income": "Kira geliri",
+      "capital_appreciation": "Sermaye değer artışı",
+      "personal_use": "Kişisel kullanım",
+      "diversification": "Çeşitlendirme",
+      "citizenship": "Vatandaşlık",
+      "development": "Geliştirme",
+      "other": "Diğer"
+    },
+    "financing": {
+      "cash": "Nakit",
+      "mortgage": "Mortgage",
+      "mixed": "Karma",
+      "unknown": "Bilinmiyor"
+    },
+    "timelines": {
+      "immediate": "Acil",
+      "3_months": "3 ay içinde",
+      "6_months": "6 ay içinde",
+      "12_plus": "12+ ay",
+      "unknown": "Bilinmiyor"
+    },
+    "risk": {
+      "low": "Düşük",
+      "medium": "Orta",
+      "high": "Yüksek"
+    },
+    "interestTypes": {
+      "matched": "Eşleşti",
+      "shortlisted": "Kısa listeye alındı",
+      "favorite": "Favori",
+      "rejected": "Reddedildi"
+    },
+    "followUpTypes": {
+      "call": "Arama",
+      "email": "E-posta",
+      "meeting": "Toplantı",
+      "whatsapp": "WhatsApp",
+      "site_visit": "Saha ziyareti",
+      "other": "Diğer"
+    },
+    "scoreComponents": {
+      "budget_readiness": "Bütçe hazırlığı",
+      "timeline": "Zaman çizelgesi",
+      "investment_capacity": "Yatırım kapasitesi",
+      "engagement": "Etkileşim",
+      "meeting_completion": "Toplantı tamamlama",
+      "document_readiness": "Belge hazırlığı",
+      "inventory_match_quality": "Envanter eşleşme kalitesi",
+      "sales_confidence": "Satış güveni"
+    },
+    "opportunities": {
+      "empty": "Bağlı fırsat yok."
+    },
+    "inventory": {
+      "empty": "Envanter eşleşmesi yok."
+    },
+    "followUps": {
+      "calendarNote": "Takvim entegrasyonu henüz mevcut değil — takipler yerel olarak saklanır.",
+      "empty": "Planlanmış takip yok.",
+      "complete": "Tamamlandı işaretle"
+    },
+    "reservations": {
+      "empty": "Bağlı rezervasyon yok."
+    },
+    "timeline": {
+      "empty": "Henüz zaman çizelgesi olayı yok."
+    },
+    "executive": {
+      "qualifiedLeads": "Nitelikli adaylar",
+      "unqualifiedLeads": "Niteliksiz",
+      "avgLeadScore": "Ort. aday skoru",
+      "awaitingReview": "İnceleme bekleyen",
+      "withoutFollowUp": "Takipsiz",
+      "readyForOpportunity": "Fırsata hazır"
+    }
+  },
+  "sales": {
+    "eyebrow": "Satış",
+    "title": "Satış",
+    "subtitle": "Günlük ticari operasyon merkezi — satış hattı, fırsatlar ve süreç takibi.",
+    "detailEyebrow": "Satış fırsatı",
+    "createButton": "Yeni Fırsat",
+    "loadError": "Satış fırsatları yüklenemedi.",
+    "loadErrorTitle": "Satış kullanılamıyor",
+    "saveError": "Fırsat kaydedilemedi.",
+    "archiveError": "Fırsat arşivlenemedi.",
+    "restoreError": "Fırsat geri yüklenemedi.",
+    "empty": "Filtrelere uyan fırsat bulunamadı.",
+    "emptyHint": "Filtreleri değiştirin veya bir lead'den yeni fırsat oluşturun.",
+    "resultCount": "{count} fırsat",
+    "unknownParty": "Bilinmeyen taraf",
+    "noAccessTitle": "Satış erişimi gerekli",
+    "noAccessMessage": "Satış çalışma alanını görüntüleme izniniz yok.",
+    "views": {
+      "pipeline": "Satış Hattı",
+      "list": "Liste"
+    },
+    "kpis": {
+      "newLeads": "Yeni Leadler",
+      "qualifiedLeads": "Nitelikli Leadler",
+      "activeOpportunities": "Aktif Fırsatlar",
+      "pipelineValue": "Hatt Değeri",
+      "weightedPipeline": "Ağırlıklı Hat",
+      "meetingsScheduled": "Planlanan Görüşmeler",
+      "proposalsPending": "Bekleyen Teklifler",
+      "activeSoftHolds": "Aktif Soft Hold",
+      "reservationsPending": "Bekleyen Rezervasyonlar",
+      "depositsPending": "Bekleyen Depozitolar",
+      "underContract": "Sözleşme Altında",
+      "wonThisMonth": "Bu Ay Kazanılan",
+      "lostThisMonth": "Bu Ay Kaybedilen"
+    },
+    "filters": {
+      "search": "Ara",
+      "searchPlaceholder": "Kod, not, kaynak",
+      "stage": "Aşama",
+      "allStages": "Tüm aşamalar",
+      "assignee": "Atanan",
+      "allAssignees": "Tüm atananlar",
+      "priority": "Öncelik",
+      "allPriorities": "Tüm öncelikler",
+      "includeArchived": "Arşivlenenleri dahil et",
+      "clearAll": "Tümünü temizle"
+    },
+    "table": {
+      "code": "Kod",
+      "party": "Lead / Taraf",
+      "stage": "Aşama",
+      "value": "Değer",
+      "probability": "Olasılık",
+      "assignee": "Atanan",
+      "nextAction": "Sonraki Aksiyon",
+      "project": "Proje",
+      "priority": "Öncelik",
+      "expectedClose": "Tahmini Kapanış",
+      "updated": "Güncellendi",
+      "compact": "Sıkı",
+      "comfortable": "Rahat"
+    },
+    "prevPage": "Önceki",
+    "nextPage": "Sonraki",
+    "pagination": "Sayfa {page} / {pages} · toplam {total}",
+    "form": {
+      "createTitle": "Fırsat Oluştur",
+      "editTitle": "Fırsatı Düzenle",
+      "create": "Oluştur",
+      "save": "Kaydet",
+      "partyType": "Taraf türü",
+      "partyId": "Taraf ID",
+      "leadId": "Lead ID",
+      "assignee": "Atanan satış kullanıcısı",
+      "unassigned": "Atanmamış",
+      "stage": "Başlangıç aşaması",
+      "probability": "Olasılık (%)",
+      "expectedRevenue": "Beklenen gelir",
+      "currency": "Para birimi",
+      "priority": "Öncelik",
+      "expectedCloseDate": "Tahmini kapanış tarihi",
+      "source": "Kaynak",
+      "nextAction": "Sonraki aksiyon",
+      "nextActionDate": "Sonraki aksiyon tarihi",
+      "notes": "Notlar"
+    },
+    "stageChange": {
+      "title": "Aşama Değiştir",
+      "targetStage": "Hedef aşama",
+      "notes": "Notlar",
+      "lossReason": "Kayıp nedeni",
+      "lossNotes": "Kayıp notları",
+      "dormantReviewDate": "Pasif inceleme tarihi",
+      "cancelledReason": "İptal nedeni",
+      "confirm": "Aşamayı onayla"
+    },
+    "nextAction": {
+      "title": "Sonraki Aksiyonu Güncelle",
+      "action": "Aksiyon",
+      "date": "Tarih",
+      "save": "Sonraki aksiyonu kaydet"
+    },
+    "detail": {
+      "ariaLabel": "Satış fırsatı detayı",
+      "changeStage": "Aşamayı değiştir",
+      "editNextAction": "Sonraki aksiyonu düzenle",
+      "archive": "Arşivle",
+      "restore": "Geri yükle",
+      "linkProject": "Proje bağla",
+      "linkInventory": "Envanter bağla",
+      "linkProjectPrompt": "Bağlanacak proje ID'sini girin",
+      "linkInventoryPrompt": "Bağlanacak envanter varlık ID'sini girin",
+      "noProjects": "Bağlı proje yok.",
+      "noInventory": "Bağlı envanter yok.",
+      "noTimeline": "Henüz zaman çizelgesi olayı yok.",
+      "noReservation": "Bağlı rezervasyon yok.",
+      "financePlaceholder": "Finans özeti salt okunurdur. Depozito ve işlem detayları Finans alanındadır.",
+      "expectedRevenue": "Beklenen gelir",
+      "tabs": {
+        "overview": "Genel Bakış",
+        "party": "Lead / Taraf",
+        "projects": "Projeler",
+        "inventory": "Envanter",
+        "stageHistory": "Aşama Geçmişi",
+        "nextActions": "Sonraki Aksiyonlar",
+        "reservations": "Rezervasyonlar",
+        "documents": "Belgeler",
+        "finance": "Finans",
+        "activity": "Aktivite",
+        "timeline": "Olay Zaman Çizelgesi"
+      }
+    },
+    "party": {
+      "name": "Ad",
+      "email": "E-posta",
+      "phone": "Telefon",
+      "country": "Ülke",
+      "loadError": "Taraf detayları yüklenemedi."
+    },
+    "reservation": {
+      "status": "Durum",
+      "type": "Tür",
+      "deposit": "Depozito"
+    },
+    "stages": {
+      "new": "Nitelendirme (Yeni)",
+      "qualified": "Nitelikli",
+      "meeting_scheduled": "Görüşme Planlandı",
+      "meeting_completed": "Görüşme Tamamlandı",
+      "inventory_matching": "Envanter Eşleştirme",
+      "proposal_preparation": "Teklif Hazırlığı",
+      "proposal_sent": "Teklif Gönderildi",
+      "negotiation": "Müzakere",
+      "soft_hold": "Soft Hold",
+      "reservation": "Rezervasyon",
+      "deposit_pending": "Depozito Bekliyor",
+      "contract": "Sözleşme Altında",
+      "closing_handoff": "Kapanış Devir",
+      "won": "Kazanıldı",
+      "lost": "Kaybedildi",
+      "dormant": "Pasif",
+      "cancelled": "İptal"
+    },
+    "nextActions": {
+      "call": "Arama",
+      "meeting": "Görüşme",
+      "email": "E-posta",
+      "whatsapp": "WhatsApp",
+      "site_visit": "Saha ziyareti",
+      "proposal": "Teklif",
+      "reservation_follow_up": "Rezervasyon takibi",
+      "deposit_follow_up": "Depozito takibi",
+      "contract_follow_up": "Sözleşme takibi",
+      "closing_follow_up": "Kapanış takibi"
+    },
+    "lossReasons": {
+      "budget": "Bütçe",
+      "financing": "Finansman",
+      "competitor": "Rakip",
+      "no_response": "Yanıt yok",
+      "timeline": "Zaman çizelgesi",
+      "location": "Konum",
+      "inventory": "Envanter uyumu",
+      "internal": "Dahili",
+      "other": "Diğer"
+    },
+    "partyTypes": {
+      "lead": "Lead",
+      "investor": "Yatırımcı"
+    },
+    "priorities": {
+      "low": "Düşük",
+      "medium": "Orta",
+      "high": "Yüksek",
+      "urgent": "Acil"
+    },
+    "errors": {
+      "invalidStageTransition": "Bu aşama değişikliğine izin verilmiyor.",
+      "stageChangeFailed": "Aşama değiştirilemedi.",
+      "nextActionFailed": "Sonraki aksiyon güncellenemedi.",
+      "linkProjectFailed": "Proje bağlanamadı.",
+      "linkInventoryFailed": "Envanter bağlanamadı.",
+      "party_not_found": "Taraf bulunamadı.",
+      "invalid_stage_transition": "Geçersiz aşama geçişi.",
+      "stage_unchanged": "Aşama değişmedi."
+    },
+    "executive": {
+      "activeOpportunities": "Aktif fırsatlar",
+      "pipelineByCurrency": "Para birimine göre hat",
+      "weightedPipeline": "Ağırlıklı hat",
+      "expectedClosings": "Beklenen kapanışlar (30g)",
+      "withoutNextAction": "Sonraki aksiyonu olmayan",
+      "stalled": "Pasif / duraklamış",
+      "highRisk": "Yüksek risk (%30 altı)"
     }
   },
   "investors": {
@@ -865,7 +1224,23 @@
       "proposals": "Teklifler",
       "won": "Kazanılan",
       "lost": "Kaybedilen",
-      "conversionRate": "Dönüşüm oranı: {rate}"
+      "conversionRate": "Dönüşüm oranı: {rate}",
+      "activeOpportunities": "Aktif fırsatlar",
+      "pipelineByCurrency": "Para birimine göre hat",
+      "weightedPipeline": "Ağırlıklı hat",
+      "expectedClosings": "Beklenen kapanışlar (30g)",
+      "withoutNextAction": "Sonraki aksiyonu olmayan",
+      "stalled": "Pasif / duraklamış",
+      "highRisk": "Yüksek risk (%30 altı)",
+      "viewSales": "Satış alanını aç"
+    },
+    "leadQualification": {
+      "qualifiedLeads": "Nitelikli adaylar",
+      "unqualifiedLeads": "Niteliksiz",
+      "avgLeadScore": "Ort. aday skoru",
+      "awaitingReview": "İnceleme bekleyen",
+      "withoutFollowUp": "Takipsiz",
+      "readyForOpportunity": "Fırsata hazır"
     },
     "projects": {
       "title": "Aktif Projeler",
@@ -1673,12 +2048,14 @@
       "building": "Binalar",
       "floor": "Katlar",
       "inventory_asset": "Envanter varlıkları",
+      "sales_opportunity": "Satış fırsatları",
       "unit": "Üniteler (yakında)",
       "construction": "İnşaat (yakında)",
       "email": "E-postalar (yakında)"
     },
     "modules": {
       "leads": "Leadler",
+      "sales": "Satış",
       "investors": "Yatırımcılar",
       "projects": "Projeler",
       "finance": "Finans",

@@ -61,6 +61,8 @@ function entityIcon(entityType: string) {
       return 'B';
     case 'floor':
       return 'F';
+    case 'sales_opportunity':
+      return 'S';
     default:
       return '?';
   }

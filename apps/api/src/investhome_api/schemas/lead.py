@@ -32,6 +32,9 @@ class LeadUpdate(BaseModel):
     source: str | None = Field(default=None, max_length=100)
     status: LeadStatus | None = None
     assigned_to: str | None = Field(default=None, max_length=255)
+    assigned_manager_id: UUID | None = None
+    company: str | None = Field(default=None, max_length=255)
+    preferred_market: str | None = Field(default=None, max_length=100)
     estimated_budget: Decimal | None = Field(default=None, ge=0)
     interested_project: str | None = Field(default=None, max_length=255)
     notes: str | None = None
@@ -41,6 +44,10 @@ class LeadResponse(LeadBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    assigned_manager_id: UUID | None = None
+    company: str | None = None
+    preferred_market: str | None = None
+    cached_lead_score: int | None = None
     is_demo: bool
     archived_at: datetime | None
     created_at: datetime
