@@ -13,12 +13,15 @@ import { MODULE_NAMES, type ModuleName } from '@investhome/shared';
 import { useSidebarCollapsed } from './use-sidebar-collapsed';
 
 function moduleHref(module: ModuleName): Route {
+  if (module === 'leads') {
+    return '/dashboard/sales' as Route;
+  }
   return `/dashboard/${module}` as Route;
 }
 
-const MODULE_PERMISSIONS: Record<ModuleName, { resource: string; action: string }> = {
+const MODULE_PERMISSIONS: Record<ModuleName, { resource: string; action: string; fallback?: { resource: string; action: string } }> = {
   executive: { resource: 'executive', action: 'view' },
-  leads: { resource: 'leads', action: 'view' },
+  leads: { resource: 'sales', action: 'view', fallback: { resource: 'leads', action: 'view' } },
   investors: { resource: 'investors', action: 'view' },
   projects: { resource: 'projects', action: 'view' },
   inventory: { resource: 'inventory', action: 'view' },
@@ -74,7 +77,12 @@ export function SidebarNav() {
         <div className="dashboard-shell__nav-section">{t('workspacesSection')}</div>
         {MODULE_NAMES.map((module) => {
           const permission = MODULE_PERMISSIONS[module];
-          const allowed = user ? hasPermission(user, permission.resource, permission.action) : false;
+          const allowed = user
+            ? hasPermission(user, permission.resource, permission.action) ||
+              (permission.fallback
+                ? hasPermission(user, permission.fallback.resource, permission.fallback.action)
+                : false)
+            : false;
           if (!allowed) {
             return null;
           }
@@ -89,15 +97,18 @@ export function SidebarNav() {
             module === 'inventory' ||
             module === 'finance';
 
+          const navTitle =
+            module === 'leads' ? t('modules.sales.title') : t(`modules.${module}.title`);
+
           return (
             <Link
               key={module}
               href={href}
               className={`dashboard-shell__nav-link${isActive ? ' dashboard-shell__nav-link--active' : ''}`}
               aria-current={isActive ? 'page' : undefined}
-              title={collapsed ? t(`modules.${module}.title`) : undefined}
+              title={collapsed ? navTitle : undefined}
             >
-              <span className="dashboard-shell__nav-link-label">{t(`modules.${module}.title`)}</span>
+              <span className="dashboard-shell__nav-link-label">{navTitle}</span>
               {!collapsed && !isImplemented && (
                 <span className="dashboard-shell__nav-badge">{tCommon('soon')}</span>
               )}

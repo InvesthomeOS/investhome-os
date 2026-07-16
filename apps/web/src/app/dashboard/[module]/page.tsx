@@ -15,7 +15,7 @@ export default async function ModulePage({ params }: ModulePageProps) {
   }
 
   if (module === 'leads') {
-    redirect('/dashboard/leads' as Route);
+    redirect('/dashboard/sales' as Route);
   }
 
   if (module === 'investors') {
