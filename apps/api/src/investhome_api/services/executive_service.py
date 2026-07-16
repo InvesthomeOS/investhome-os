@@ -1290,6 +1290,38 @@ def build_approvals(
                 )
             )
 
+    if user is None or user_has_permission(user, "sales", "review_proposal"):
+        from investhome_api.models.sales_proposal import ProposalStatus, SalesProposal
+
+        proposal_query = select(SalesProposal).where(
+            SalesProposal.status == ProposalStatus.INTERNAL_REVIEW,
+            SalesProposal.archived_at.is_(None),
+        )
+        if filters.project_id:
+            proposal_query = proposal_query.where(
+                SalesProposal.primary_project_id == filters.project_id
+            )
+        for proposal in db.scalars(proposal_query).all():
+            submitted_at = proposal.updated_at
+            age_days = (today - submitted_at.date()).days if submitted_at else None
+            items.append(
+                ApprovalItem(
+                    approval_type="sales_proposal_review",
+                    title_key="executive.approvals.sales_proposal.title",
+                    entity_type="sales_proposal",
+                    entity_id=proposal.id,
+                    related_label=f"{proposal.proposal_number} · {proposal.title}",
+                    submitted_at=submitted_at,
+                    age_days=age_days,
+                    link_module="sales",
+                    link_query={"proposalId": str(proposal.id), "tab": "approval"},
+                    metadata={
+                        "proposal_number": proposal.proposal_number,
+                        "currency": proposal.currency,
+                    },
+                )
+            )
+
     items.sort(key=lambda item: (item.age_days if item.age_days is not None else -1), reverse=True)
     return ExecutiveApprovalsResponse(items=items, total_pending=len(items))
 

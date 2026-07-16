@@ -81,6 +81,7 @@ class ActivityEntityType(str, enum.Enum):
     PRICE_CHANGE_REQUEST = "price_change_request"
     SALES_OPPORTUNITY = "sales_opportunity"
     LEAD_QUALIFICATION = "lead_qualification"
+    SALES_PROPOSAL = "sales_proposal"
 
 
 class ActivityLog(Base):

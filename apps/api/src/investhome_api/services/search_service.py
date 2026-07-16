@@ -1646,15 +1646,14 @@ def _search_sales_proposals(
             SalesProposal.proposal_number.ilike(pattern),
         ),
     )
-    if filters.project_id:
-        stmt = stmt.where(SalesProposal.primary_project_id == filters.project_id)
     proposals = db.scalars(stmt.limit(limit)).all()
     results: list[InternalSearchResult] = []
     for proposal in proposals:
-        score, matched = _score_fields(
-            query,
-            {"title": proposal.title, "proposal_number": proposal.proposal_number},
-        )
+        fields = {"title": proposal.title, "proposal_number": proposal.proposal_number}
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        matched = _collect_matched_fields(query, fields)
         results.append(
             InternalSearchResult(
                 entity_type="sales_proposal",
