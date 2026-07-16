@@ -2,7 +2,7 @@
 
 **Audit date:** 2026-07-16  
 **Repository:** `investhome-os`  
-**Latest commit:** `51697b0` — `feat: complete inventory workspace core`  
+**Latest commit:** `ecc0b42` — `feat: complete inventory workspace core`  
 **Branch:** `main`
 
 ---
@@ -47,6 +47,9 @@ Canonical architecture and product governance documents:
 | [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md) | **2** ✅ | Technical tokens, CSS variables, `@investhome/ui` mapping, theming strategy |
 | [UI_COMPONENT_GUIDELINES.md](./UI_COMPONENT_GUIDELINES.md) | **2** ✅ | Per-component usage — anatomy, states, accessibility, i18n |
 | [UI_GUIDELINES.md](./UI_GUIDELINES.md) | EA + 2 | Layout patterns, BEM conventions, incremental adoption rules |
+| [EXECUTIVE_WORKSPACE.md](./EXECUTIVE_WORKSPACE.md) | **3A** ✅ | Executive decision workspace UX blueprint |
+| [INVENTORY_WORKSPACE_BLUEPRINT.md](./INVENTORY_WORKSPACE_BLUEPRINT.md) | **4A** ✅ | Inventory workspace UX — 10 views, 14-tab drawer, sprints 4B1–4B7 |
+| [SALES_WORKSPACE_BLUEPRINT.md](./SALES_WORKSPACE_BLUEPRINT.md) | **5A** ✅ | Sales workspace UX — 13 views, 13-tab drawer, commercial journey, sprints 5B1–5B8 — blueprint **COMPLETE**; **NOT IMPLEMENTED** |
 
 **Sprint 2 status (2026-07-15):** Documentation complete — no UI implementation. IODL catalogs 48 component/pattern entries. **Brand & Light UI Foundation (2026-07-16):** light-default theme, shell redesign, 24 `@investhome/ui` primitives, 5 workspace pages migrated — see Executive Summary. Next recommended sprint: **Executive Workspace Blueprint** (documentation only) — see [DESIGN_LANGUAGE.md § Next Sprint](./DESIGN_LANGUAGE.md#next-sprint--executive-workspace-blueprint).
 
@@ -61,6 +64,8 @@ Canonical architecture and product governance documents:
 | [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) | Provider readiness |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Deploy procedures |
 | [UNITS_INVENTORY_BLUEPRINT.md](./UNITS_INVENTORY_BLUEPRINT.md) | Units module specification |
+| [INVENTORY_WORKSPACE_BLUEPRINT.md](./INVENTORY_WORKSPACE_BLUEPRINT.md) | Inventory workspace specification |
+| [SALES_WORKSPACE_BLUEPRINT.md](./SALES_WORKSPACE_BLUEPRINT.md) | Sales workspace specification — blueprint **COMPLETE** (5A); **NOT IMPLEMENTED** |
 | [ARCHITECTURE_REFACTORING_REPORT.md](./ARCHITECTURE_REFACTORING_REPORT.md) | EA foundation refactor analysis |
 
 ---
@@ -74,6 +79,8 @@ Investhome OS is a **production-shaped enterprise platform** with Phase 1–3 mo
 **Company Foundation** (migration `0013`) delivers centralized company profile, offices, brand profiles, brand assets (via Document Engine), system preferences, organization structure (departments/teams), Settings UI (12 sections TR/EN), permissions, activity/search integration, and global branding context with safe fallbacks.
 
 **Units & Inventory / Inventory Workspace** — **COMPLETE for verified core scope** (Sprint 4B7, 2026-07-16): migrations `0017`–`0021` (single head); buildings/floors/assets; six status dimensions; Soft Hold reservations (`0018`); pricing approval (`0019`); immutable ownership transfers (`0020`); parking/storage assignment (`0021`); permissions, activity/audit/events, notifications, executive summaries, global search; Ownership + Assignment UI tabs; ARQ jobs (soft-hold expiry, reservation reminders, scheduled ownership/assignment apply); **202 API tests**. **NOT IMPLEMENTED (explicit):** bulk import/export, spatial/floor-plan views, closing/leasing/commissions workflows, sales contracts, property-management module, unified party picker, finance `unit_id` FK, drawing→unit approval bridge, Playwright E2E.
+
+**Sales Workspace** — **BLUEPRINT COMPLETE (Sprint 5A, 2026-07-16)**; **NOT IMPLEMENTED**: `docs/SALES_WORKSPACE_BLUEPRINT.md` defines the commercial operating center (13 views, 13-tab drawer, Opportunity domain, sprints 5B1–5B8). **Current production surface remains Leads CRUD only** at `/dashboard/leads` — no Opportunity, Qualification, Proposal, Task, or Calendar entities. Inventory reservations support `lead_id` for partial integration. **Do not mark Sales Workspace as implemented.**
 
 **Visual Design Studio** is **PARTIAL** — **Sprint 1 complete** (2026-07-15): design project CRUD, source plan linking, Color Studio, version save/history, archive, permissions, activity log, global search, TR/EN UI. **Sprint 2A complete** (2026-07-16, verified): style presets (Modern, Luxury, Scandinavian, Industrial, Minimalist + extras), material packages, furniture catalog/library, furniture layout editor (add/drag/rotate/duplicate/delete, undo/redo), materials & style tab, extended `design_parameters`, migrations `0015`/`0016`. **Backend-only from Sprint 2 full** (commit `8aef5b6`, not exposed in 2A UI): version compare API, design review workflow (submit/approve/reject). **NOT implemented:** 2D-to-3D, photorealistic rendering, video generation, automatic AI furniture placement.
 
@@ -154,6 +161,11 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 | Units & Inventory | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | **COMPLETE** |
 | Units blueprint | — | — | — | — | — | — | — | — | **BLUEPRINT COMPLETE** |
 | Inventory backend foundation (4B1) | — | — | — | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | **COMPLETE** |
+| **SALES WORKSPACE** |
+| Sales Workspace blueprint (5A) | — | — | — | — | — | — | — | — | **BLUEPRINT COMPLETE** |
+| Leads (current Sales surface) | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | PARTIAL | COMPLETE | COMPLETE | **COMPLETE** |
+| Opportunity / Qualification / Proposals | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
+| Sales interactions / Tasks / Calendar | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
 
 ---
 
@@ -292,6 +304,24 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 | Unified party picker | **NOT IMPLEMENTED** — Lead/Investor FKs only |
 
 **Architecture:** Inventory Asset parent entity; parking/storage as independent asset types; areas in sq ft; six status dimensions; display_id + system_code + legal_identifier; Decimal money fields; immutable ownership history; stale-request protection on concurrent approvals.
+
+### Sales Workspace — BLUEPRINT COMPLETE (Sprint 5A); NOT IMPLEMENTED
+
+| Check | Status |
+|-------|--------|
+| Workspace blueprint | **COMPLETE** — `docs/SALES_WORKSPACE_BLUEPRINT.md` (Sprint 5A, 2026-07-16) |
+| Current production surface | **Leads CRUD only** — `/dashboard/leads` table + flat drawer (Overview, Documents, Activity) |
+| Opportunity entity | **NOT IMPLEMENTED** |
+| Qualification / Proposal / SalesInteraction / Task entities | **NOT IMPLEMENTED** |
+| Pipeline kanban / 13 views / 13-tab drawer | **NOT IMPLEMENTED** — blueprint only |
+| Inventory integration | **PARTIAL** — reservations support `lead_id`; no Sales-filtered view or match UI |
+| Calendar / Tasks | **NOT IMPLEMENTED** — honest empty states in Executive |
+| Commission Engine | **NOT IMPLEMENTED** — explicit non-goal for 5B track |
+| Document generation | **NOT IMPLEMENTED** — upload/link only per blueprint |
+| Permissions | `leads.*` + inventory reserve for `sales` role — no `sales` resource yet |
+| Implementation sprints 5B1–5B8 | **NOT STARTED** |
+
+**Do not mark Sales Workspace as implemented** until 5B8 stabilization verifies migration, API, UI, permissions, and tests. See [SALES_WORKSPACE_BLUEPRINT.md](./SALES_WORKSPACE_BLUEPRINT.md).
 
 ---
 

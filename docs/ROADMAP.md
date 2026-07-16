@@ -3,7 +3,7 @@
 **Last updated:** 2026-07-16  
 **Canonical status:** [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md)
 
-**Related:** [PRODUCT_VISION.md](./PRODUCT_VISION.md) · [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md) · [UNITS_INVENTORY_BLUEPRINT.md](./UNITS_INVENTORY_BLUEPRINT.md) · [INVENTORY_WORKSPACE_BLUEPRINT.md](./INVENTORY_WORKSPACE_BLUEPRINT.md) · [TECHNICAL_DEBT.md](./TECHNICAL_DEBT.md)
+**Related:** [PRODUCT_VISION.md](./PRODUCT_VISION.md) · [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md) · [UNITS_INVENTORY_BLUEPRINT.md](./UNITS_INVENTORY_BLUEPRINT.md) · [INVENTORY_WORKSPACE_BLUEPRINT.md](./INVENTORY_WORKSPACE_BLUEPRINT.md) · [SALES_WORKSPACE_BLUEPRINT.md](./SALES_WORKSPACE_BLUEPRINT.md) · [TECHNICAL_DEBT.md](./TECHNICAL_DEBT.md)
 
 ---
 
@@ -50,6 +50,7 @@ Active work or blocked partial implementations.
 | **Drawing → unit bridge** | Placeholder | `created_unit_id = proposal.id` until inventory |
 | **Frontend tests** | Not started | TD-04 |
 | **Users/Roles API tests** | Not started | TD-05 |
+| **Sales Workspace blueprint (Sprint 5A)** | **BLUEPRINT COMPLETE** — implementation not started | See [SALES_WORKSPACE_BLUEPRINT.md](./SALES_WORKSPACE_BLUEPRINT.md); Leads CRUD exists at `/dashboard/leads`; full commercial workspace 5B1–5B8 not started |
 
 ---
 
@@ -59,6 +60,7 @@ Specification complete; implementation not started.
 
 | Module | Document | Scope summary |
 |--------|----------|---------------|
+| **Sales Workspace** | [SALES_WORKSPACE_BLUEPRINT.md](./SALES_WORKSPACE_BLUEPRINT.md) | Route `/dashboard/sales` (alias `/dashboard/leads`); 13 views; 13-tab drawer; Opportunity domain; commercial journey; sprints **5B1–5B8** — blueprint **COMPLETE** (5A); **NOT IMPLEMENTED** |
 | **Inventory Workspace** | [INVENTORY_WORKSPACE_BLUEPRINT.md](./INVENTORY_WORKSPACE_BLUEPRINT.md) | Route `/dashboard/inventory`; 10 views; 14-tab drawer; Soft Hold 48h; six status dimensions; sprints **4B1–4B7** |
 | **Units & Inventory (domain)** | [UNITS_INVENTORY_BLUEPRINT.md](./UNITS_INVENTORY_BLUEPRINT.md) | Company → Project → Building → Floor → Inventory Asset; domain entities; reconcile with workspace blueprint in 4B1 |
 | **Visual Design Studio** | Referenced in IMPLEMENTATION_STATUS | Floor coloring, materials, rendering — partial implementation |
@@ -94,13 +96,32 @@ Ordered by recommended implementation sequence (post-infrastructure hardening).
 
 See [INVENTORY_WORKSPACE_BLUEPRINT.md §22](./INVENTORY_WORKSPACE_BLUEPRINT.md#22-implementation-sprints) for original deliverable detail.
 
+### Sales Workspace (5B track) — BLUEPRINT COMPLETE (5A)
+
+| Sprint | Focus | Status |
+|--------|-------|--------|
+| **5A** | Sales Workspace blueprint — documentation only | **COMPLETE** |
+| **5B1** | Domain foundation — Opportunity, Qualification, permissions | Not started |
+| **5B2** | Workspace shell — `/dashboard/sales`, Home KPIs, Pipeline view | Not started |
+| **5B3** | Interactions + Tasks — meetings, follow-ups, task queues | Not started |
+| **5B4** | Inventory match + Sales reservations lens | Not started |
+| **5B5** | Proposals + deposit/contract readiness | Not started |
+| **5B6** | Qualification UX + brokers/referrals | Not started |
+| **5B7** | Closing handoff + reports | Not started |
+| **5B8** | Stabilization, regression, i18n, tests | Not started |
+
+**Prerequisite:** Inventory Workspace 4B7 core ✅ complete. **Explicitly NOT in 5B:** Commission Engine, document generation, calendar sync, legal auto-completion.
+
+See [SALES_WORKSPACE_BLUEPRINT.md §24](./SALES_WORKSPACE_BLUEPRINT.md#24-implementation-sprints) for deliverable detail.
+
 ### Recommended next workspace
 
 | Priority | Module | Rationale |
 |----------|--------|-----------|
-| **1** | **Construction workspace** | Permissions exist; RFIs/inspections align with inventory assets |
-| **2** | Company Foundation depth | User org assignment UI, brand asset picker |
-| **3** | Finance ↔ Inventory FK | Link transactions to `inventory_asset_id` |
+| **1** | **Sales Workspace (5B1–5B8)** | Blueprint complete (5A); Leads CRUD exists; Inventory reservations ready for commercial journey |
+| **2** | **Construction workspace** | Permissions exist; RFIs/inspections align with inventory assets |
+| **3** | Company Foundation depth | User org assignment UI, brand asset picker |
+| **4** | Finance ↔ Inventory FK | Link transactions to `inventory_asset_id` |
 
 ### Medium term
 
