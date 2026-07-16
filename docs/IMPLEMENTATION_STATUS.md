@@ -72,9 +72,9 @@ Canonical architecture and product governance documents:
 
 ## Executive Summary
 
-Investhome OS is a **production-shaped enterprise platform** with Phase 1–3 modules, **Company Foundation**, and **Enterprise Architecture Foundation**. **251+ API tests** (Sprint 5B6 verification: **15 work-item tests passing**).
+Investhome OS is a **production-shaped enterprise platform** with Phase 1–3 modules, **Company Foundation**, and **Enterprise Architecture Foundation**. **263+ API tests** (Sprint 5B7 verification: **12 sales-readiness tests passing**).
 
-**Sales Workspace** — **PARTIAL** (Sprint 5A–5B6, 2026-07-16): blueprint **COMPLETE** (5A); **Opportunity backend COMPLETE** (5B1); **Sales Home COMPLETE** (5B2); **Lead Detail & Qualification COMPLETE** (5B3); **Inventory Matching & Shortlists COMPLETE** (5B4); **Proposal Engine COMPLETE** (5B5); **Follow-up Center COMPLETE** (5B6) — migration `0026_work_items`; shared `WorkItem` model with `MeetingRecord`, `FollowUpRecord`, participants, status history; `LeadFollowUp` data migrated + legacy API bridged; internal calendar (no external sync); ARQ reminder jobs; `/dashboard/sales/follow-up`; **15 API tests**. **NOT IMPLEMENTED:** External calendar/email/Zoom/Teams/WhatsApp integrations, Communications Center, Commissions, Closing Management, AI recommendations, remaining 5B7–5B8 views.
+**Sales Workspace** — **PARTIAL** (Sprint 5A–5B7, 2026-07-16): blueprint **COMPLETE** (5A); **Opportunity backend COMPLETE** (5B1); **Sales Home COMPLETE** (5B2); **Lead Detail & Qualification COMPLETE** (5B3); **Inventory Matching & Shortlists COMPLETE** (5B4); **Proposal Engine COMPLETE** (5B5); **Follow-up Center COMPLETE** (5B6); **Contract Readiness COMPLETE** (5B7) — migration `0027_sales_readiness`; `SalesReadinessCase` coordinating layer over Inventory reservations, Finance deposits, Documents, Proposals, Work Items; configurable templates; handoff workflow (manual signature only); `/dashboard/sales/readiness`; opportunity Contract Readiness tab; **12 API tests**. **NOT IMPLEMENTED:** External calendar/email/Zoom/Teams/WhatsApp integrations, Communications Center, Commissions, Closing Management, AI recommendations, remaining 5B8 views.
 
 **Enterprise Architecture Foundation** adds request ID middleware, standardized API error envelopes (backward compatible), response helpers, feature flags (`FEATURE_*`), structured logging, `@investhome/ui` design system primitives, enhanced API client, worker Redis URL parsing, and comprehensive `docs/` library.
 
@@ -167,6 +167,7 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 | Leads (current Sales surface) | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | PARTIAL | COMPLETE | COMPLETE | **COMPLETE** |
 | Qualification / Proposals | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
 | Sales Follow-up Center / Work Items (5B6) | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | **COMPLETE** |
+| Sales Contract Readiness (5B7) | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | **COMPLETE** |
 | Sales interactions / External Calendar | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
 
 ---
@@ -307,7 +308,7 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 
 **Architecture:** Inventory Asset parent entity; parking/storage as independent asset types; areas in sq ft; six status dimensions; display_id + system_code + legal_identifier; Decimal money fields; immutable ownership history; stale-request protection on concurrent approvals.
 
-### Sales Workspace — Blueprint COMPLETE (5A); Opportunity Backend COMPLETE (5B1); Sales Home COMPLETE (5B2); Lead Detail & Qualification COMPLETE (5B3); Inventory Matching COMPLETE (5B4); Proposal Engine COMPLETE (5B5); Follow-up Center COMPLETE (5B6); Overall PARTIAL
+### Sales Workspace — Blueprint COMPLETE (5A); Opportunity Backend COMPLETE (5B1); Sales Home COMPLETE (5B2); Lead Detail & Qualification COMPLETE (5B3); Inventory Matching COMPLETE (5B4); Proposal Engine COMPLETE (5B5); Follow-up Center COMPLETE (5B6); Contract Readiness COMPLETE (5B7); Overall PARTIAL
 
 | Check | Status |
 |-------|--------|
@@ -318,20 +319,21 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 | Inventory Matching & Shortlists (5B4) | **COMPLETE** — migration `0024_sales_inventory_matching`; preferences/matches/shortlists/compare/stale-check; soft-hold via Inventory API; lead + opportunity inventory tabs; **12 API tests** |
 | Proposal Engine (5B5) | **COMPLETE** — migration `0025_sales_proposals`; versioning, approval workflow, stale checks, HTML output, Proposal Builder UI at `/dashboard/sales/proposals/[id]`; **16 API tests** |
 | Follow-up Center / Work Items (5B6) | **COMPLETE** — migration `0026_work_items`; `WorkItem` + meeting/follow-up records; `/sales/work/*` API; `/dashboard/sales/follow-up` UI (Today, Overdue, Upcoming, Meetings, Calls, Follow-ups, Waiting, Completed, My Work, Team Work, internal calendar); `LeadFollowUp` migrated + bridged; opportunity next-action sync; ARQ reminder jobs; global search; **15 API tests** |
-| Current production UI | **Sales** at `/dashboard/sales`; **Follow-up Center** at `/dashboard/sales/follow-up`; **Leads** at `/dashboard/leads` with full detail page; **Proposals** in opportunity drawer + builder page |
+| Contract Readiness (5B7) | **COMPLETE** — migration `0027_sales_readiness`; `SalesReadinessCase` + requirements + templates + status history; idempotent sync from reservation/deposit/proposal/documents/signature; handoff request/approve/return; `/sales/readiness/*` API; `/dashboard/sales/readiness` UI (KPI cards, filtered views, 11-tab drawer); opportunity Contract Readiness tab; work-item follow-ups from blockers; global search; notifications (deduped); **12 API tests** |
+| Current production UI | **Sales** at `/dashboard/sales`; **Follow-up Center** at `/dashboard/sales/follow-up`; **Contract Readiness** at `/dashboard/sales/readiness`; **Leads** at `/dashboard/leads` with full detail page; **Proposals** in opportunity drawer + builder page |
 | Opportunity entity (API) | **COMPLETE** — 17 pipeline stages, governed transitions, timeline, probability history |
 | SalesProposal entity (API) | **COMPLETE** — 11 statuses, immutable versions, approved-price enforcement, manual sent/viewed/accepted |
 | WorkItem / MeetingRecord / FollowUpRecord | **COMPLETE** (5B6) — shared work foundation; internal calendar only |
 | External calendar / comms integrations | **NOT IMPLEMENTED** — `meeting_url` stored as reference only |
-| Remaining blueprint views (comms, closing, etc.) | **NOT IMPLEMENTED** — 5B7+ |
-| Inventory integration | **PARTIAL** — match/shortlist UI + reservation proxy; dedicated Sales Reservations lens pending |
+| Remaining blueprint views (comms, closing, etc.) | **NOT IMPLEMENTED** — 5B8+ |
+| Inventory integration | **PARTIAL** — match/shortlist UI + reservation proxy + readiness sync; dedicated Sales Reservations lens pending |
 | Internal tasks / meetings / follow-ups | **COMPLETE** (5B6) — `LeadFollowUp` superseded by `WorkItem` with legacy bridge |
 | Commission Engine | **NOT IMPLEMENTED** — explicit non-goal for 5B track |
 | Proposal Engine | **COMPLETE** (5B5) — HTML preview/download; no AI/e-sign |
 | Communications / Closing / AI | **NOT IMPLEMENTED** |
 | Document generation (AI/mail-merge) | **NOT IMPLEMENTED** — HTML print view + manual upload only |
-| Permissions | `sales.*` + `work.*` (`view`, `create`, `update`, `assign`, `complete`, `cancel`, `archive`, `view_private`, `view_team`) + `sales.manage_followups`, `sales.manage_meetings` enforced in UI + API |
-| Implementation sprints 5B7–5B8 | **NOT STARTED** |
+| Permissions | `sales.*` + `work.*` + readiness actions (`view_readiness`, `create_readiness`, `verify_readiness`, `request_handoff`, `approve_handoff`, `return_handoff`, `view_deposit_status`, `view_contract_documents`, `waive_requirement`, `manage_readiness_template`) enforced in UI + API |
+| Implementation sprints 5B8 | **NOT STARTED** |
 
 See [SALES_WORKSPACE_BLUEPRINT.md](./SALES_WORKSPACE_BLUEPRINT.md).
 

@@ -240,6 +240,10 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
             "review_proposal", "approve_proposal", "reject_proposal", "generate_proposal",
             "mark_proposal_sent", "mark_proposal_viewed", "mark_proposal_accepted",
             "view_sensitive_proposal_price", "archive_proposal",
+            "manage_followups", "manage_meetings", "view_team", "reassign", "complete", "cancel", "view_private",
+            "view_readiness", "create_readiness", "update_readiness", "verify_readiness",
+            "request_handoff", "approve_handoff", "return_handoff", "view_deposit_status",
+            "view_contract_documents", "waive_requirement", "manage_readiness_template",
             "view_price", "reserve", "release_hold", "request_reservation",
         }:
             key = (resource, action)
@@ -258,11 +262,45 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
     db.flush()
 
     for resource, action in DEFAULT_ROLE_PERMISSIONS["sales"]:
-        if (resource, action) in permission_map:
+        if (resource, action) not in permission_map:
+            continue
+        existing = (
+            db.query(RolePermission)
+            .filter_by(role_id=roles["sales"].id, permission_id=permission_map[(resource, action)].id)
+            .first()
+        )
+        if existing is None:
             db.add(
                 RolePermission(
                     role_id=roles["sales"].id,
                     permission_id=permission_map[(resource, action)].id,
+                )
+            )
+
+    for key in (
+        ("sales", "create_opportunity"),
+        ("sales", "view_readiness"),
+        ("sales", "create_readiness"),
+        ("sales", "update_readiness"),
+        ("sales", "verify_readiness"),
+        ("sales", "request_handoff"),
+        ("sales", "approve_handoff"),
+        ("sales", "return_handoff"),
+        ("sales", "waive_requirement"),
+        ("sales", "manage_followups"),
+    ):
+        if key not in permission_map:
+            continue
+        existing = (
+            db.query(RolePermission)
+            .filter_by(role_id=roles["super_admin"].id, permission_id=permission_map[key].id)
+            .first()
+        )
+        if existing is None:
+            db.add(
+                RolePermission(
+                    role_id=roles["super_admin"].id,
+                    permission_id=permission_map[key].id,
                 )
             )
 

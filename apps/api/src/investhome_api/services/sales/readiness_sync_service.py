@@ -56,6 +56,12 @@ def _update_if_changed(
     """Return True if status changed."""
     if requirement.status in {ReadinessRequirementStatus.WAIVED, ReadinessRequirementStatus.NOT_APPLICABLE}:
         return False
+    if (
+        requirement.verified_by_user_id is not None
+        and requirement.status == ReadinessRequirementStatus.VERIFIED
+        and new_status != ReadinessRequirementStatus.VERIFIED
+    ):
+        return False
     changed = requirement.status != new_status
     requirement.status = new_status
     requirement.last_sync_event = source_event

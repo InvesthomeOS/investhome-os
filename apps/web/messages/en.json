@@ -782,6 +782,7 @@
     "backToSales": "Back to Sales",
     "loadError": "Unable to load contract readiness.",
     "loading": "Loading…",
+    "retry": "Retry",
     "permissionDenied": "You do not have permission to view contract readiness.",
     "viewsLabel": "Readiness views",
     "mandatory": "Mandatory",

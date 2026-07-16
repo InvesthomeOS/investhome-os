@@ -114,10 +114,10 @@ def _create_asset(client: TestClient, project_id: str) -> dict:
             "building_id": building["id"],
             "floor_id": floor["id"],
             "display_id": f"RDY-{datetime.now().strftime('%H%M%S')}",
-            "asset_type": "apartment",
+            "asset_type": "residential_unit",
             "usage_type": UsageType.RESIDENTIAL.value,
             "availability_status": AvailabilityStatus.AVAILABLE.value,
-            "sales_status": InventorySalesStatus.AVAILABLE.value,
+            "sales_status": InventorySalesStatus.AVAILABLE_FOR_SALE.value,
             "currency": "USD",
             "list_price": "250000.00",
         },
@@ -143,15 +143,22 @@ def _create_readiness_case(client: TestClient, opp_id: str, asset_id: str) -> di
     return response.json()
 
 
-def test_readiness_case_creation(auth_client: TestClient, db: Session) -> None:
-    _login(auth_client, "sales@investhome.com")
-    seed_default_template(db)
-    db.commit()
-    lead = _create_lead(auth_client)
+def _setup_opportunity_with_asset(auth_client: TestClient, *, name: str = "Readiness Lead", as_admin: bool = True) -> tuple[dict, dict]:
+    if as_admin:
+        _login(auth_client, "admin@example.com")
+    lead = _create_lead(auth_client, name=name)
     opp = _create_opportunity(auth_client, lead)
     project = _create_project(auth_client)
     asset = _create_asset(auth_client, project["id"])
     _link_inventory(auth_client, opp["id"], asset["id"])
+    return opp, asset
+
+
+def test_readiness_case_creation(auth_client: TestClient, db: Session) -> None:
+    seed_default_template(db)
+    db.commit()
+    opp, asset = _setup_opportunity_with_asset(auth_client)
+    _login(auth_client, "sales@example.com")
     case = _create_readiness_case(auth_client, opp["id"], asset["id"])
     assert case["case_code"].startswith("RDY-")
     assert case["opportunity_id"] == opp["id"]
@@ -160,14 +167,10 @@ def test_readiness_case_creation(auth_client: TestClient, db: Session) -> None:
 
 
 def test_one_active_case_per_opportunity_asset(auth_client: TestClient, db: Session) -> None:
-    _login(auth_client, "sales@investhome.com")
     seed_default_template(db)
     db.commit()
-    lead = _create_lead(auth_client, name="Unique Lead")
-    opp = _create_opportunity(auth_client, lead)
-    project = _create_project(auth_client)
-    asset = _create_asset(auth_client, project["id"])
-    _link_inventory(auth_client, opp["id"], asset["id"])
+    opp, asset = _setup_opportunity_with_asset(auth_client, name="Unique Lead")
+    _login(auth_client, "sales@example.com")
     _create_readiness_case(auth_client, opp["id"], asset["id"])
     dup = auth_client.post(
         f"/sales/readiness/opportunities/{opp['id']}/cases",
@@ -185,14 +188,10 @@ def test_percentage_calculation(db: Session) -> None:
 
 
 def test_verify_and_waive_permissions(auth_client: TestClient, db: Session) -> None:
-    _login(auth_client, "sales@investhome.com")
     seed_default_template(db)
     db.commit()
-    lead = _create_lead(auth_client, name="Waiver Lead")
-    opp = _create_opportunity(auth_client, lead)
-    project = _create_project(auth_client)
-    asset = _create_asset(auth_client, project["id"])
-    _link_inventory(auth_client, opp["id"], asset["id"])
+    opp, asset = _setup_opportunity_with_asset(auth_client, name="Waiver Lead")
+    _login(auth_client, "sales@example.com")
     case = _create_readiness_case(auth_client, opp["id"], asset["id"])
     req = next(r for r in case["requirements"] if r["requirement_type"] == "party_organization_documents")
     verify = auth_client.post(f"/sales/readiness/requirements/{req['id']}/verify", json={"notes": "OK"})
@@ -205,43 +204,44 @@ def test_verify_and_waive_permissions(auth_client: TestClient, db: Session) -> N
     assert sales_waive.status_code == 403
 
 
+def _verify_all_mandatory(auth_client: TestClient, case_id: str) -> None:
+    reqs = auth_client.get(f"/sales/readiness/cases/{case_id}/requirements").json()
+    for req in reqs:
+        if not req["is_mandatory"]:
+            continue
+        if req["status"] in {"verified", "waived", "not_applicable"}:
+            continue
+        response = auth_client.post(
+            f"/sales/readiness/requirements/{req['id']}/verify",
+            json={"notes": "Test verification"},
+        )
+        assert response.status_code == 200, response.text
+
+
 def test_handoff_workflow(auth_client: TestClient, db: Session) -> None:
-    _login(auth_client, "superadmin@investhome.demo")
     seed_default_template(db)
     db.commit()
-    lead = _create_lead(auth_client, name="Handoff Lead")
-    opp = _create_opportunity(auth_client, lead)
-    project = _create_project(auth_client)
-    asset = _create_asset(auth_client, project["id"])
-    _link_inventory(auth_client, opp["id"], asset["id"])
+    opp, asset = _setup_opportunity_with_asset(auth_client, name="Handoff Lead")
     case = _create_readiness_case(auth_client, opp["id"], asset["id"])
     case_id = case["id"]
-    for req in case["requirements"]:
-        if req["is_mandatory"]:
-            auth_client.post(f"/sales/readiness/requirements/{req['id']}/verify", json={})
+    _verify_all_mandatory(auth_client, case_id)
     recalc = auth_client.post(f"/sales/readiness/cases/{case_id}/recalculate")
-    assert recalc.status_code == 200
+    assert recalc.status_code == 200, recalc.text
+    _verify_all_mandatory(auth_client, case_id)
     request = auth_client.post(f"/sales/readiness/cases/{case_id}/handoff/request", json={"notes": "Ready"})
-    assert request.status_code == 200
+    assert request.status_code == 200, request.text
     approve = auth_client.post(f"/sales/readiness/cases/{case_id}/handoff/approve", json={})
-    assert approve.status_code == 200
+    assert approve.status_code == 200, approve.text
     assert approve.json()["status"] == ReadinessCaseStatus.HANDED_OFF.value
 
 
 def test_handoff_return(auth_client: TestClient, db: Session) -> None:
-    _login(auth_client, "superadmin@investhome.demo")
     seed_default_template(db)
     db.commit()
-    lead = _create_lead(auth_client, name="Return Lead")
-    opp = _create_opportunity(auth_client, lead)
-    project = _create_project(auth_client)
-    asset = _create_asset(auth_client, project["id"])
-    _link_inventory(auth_client, opp["id"], asset["id"])
+    opp, asset = _setup_opportunity_with_asset(auth_client, name="Return Lead")
     case = _create_readiness_case(auth_client, opp["id"], asset["id"])
     case_id = case["id"]
-    for req in case["requirements"]:
-        if req["is_mandatory"]:
-            auth_client.post(f"/sales/readiness/requirements/{req['id']}/verify", json={})
+    _verify_all_mandatory(auth_client, case_id)
     auth_client.post(f"/sales/readiness/cases/{case_id}/handoff/request", json={})
     returned = auth_client.post(
         f"/sales/readiness/cases/{case_id}/handoff/return",
@@ -252,21 +252,17 @@ def test_handoff_return(auth_client: TestClient, db: Session) -> None:
 
 
 def test_contract_signed_requires_document(auth_client: TestClient, db: Session) -> None:
-    _login(auth_client, "sales@investhome.com")
     seed_default_template(db)
     db.commit()
-    lead = _create_lead(auth_client, name="Signed Lead")
-    opp = _create_opportunity(auth_client, lead)
-    project = _create_project(auth_client)
-    asset = _create_asset(auth_client, project["id"])
-    _link_inventory(auth_client, opp["id"], asset["id"])
+    opp, asset = _setup_opportunity_with_asset(auth_client, name="Signed Lead")
+    _login(auth_client, "sales@example.com")
     case = _create_readiness_case(auth_client, opp["id"], asset["id"])
     fail = auth_client.post(f"/sales/readiness/cases/{case['id']}/contract-signed", json={})
     assert fail.status_code == 422
 
 
 def test_dashboard_kpis(auth_client: TestClient, db: Session) -> None:
-    _login(auth_client, "sales@investhome.com")
+    _login(auth_client, "sales@example.com")
     seed_default_template(db)
     db.commit()
     kpis = auth_client.get("/sales/readiness/dashboard/kpis")
@@ -275,14 +271,10 @@ def test_dashboard_kpis(auth_client: TestClient, db: Session) -> None:
 
 
 def test_global_search_readiness(auth_client: TestClient, db: Session) -> None:
-    _login(auth_client, "sales@investhome.com")
     seed_default_template(db)
     db.commit()
-    lead = _create_lead(auth_client, name="Search Lead")
-    opp = _create_opportunity(auth_client, lead)
-    project = _create_project(auth_client)
-    asset = _create_asset(auth_client, project["id"])
-    _link_inventory(auth_client, opp["id"], asset["id"])
+    opp, asset = _setup_opportunity_with_asset(auth_client, name="Search Lead")
+    _login(auth_client, "sales@example.com")
     case = _create_readiness_case(auth_client, opp["id"], asset["id"])
     search = auth_client.get(f"/search?q={case['case_code'][:10]}")
     assert search.status_code == 200
@@ -290,14 +282,10 @@ def test_global_search_readiness(auth_client: TestClient, db: Session) -> None:
 
 
 def test_activity_on_case_create(auth_client: TestClient, db: Session) -> None:
-    _login(auth_client, "sales@investhome.com")
     seed_default_template(db)
     db.commit()
-    lead = _create_lead(auth_client, name="Activity Lead")
-    opp = _create_opportunity(auth_client, lead)
-    project = _create_project(auth_client)
-    asset = _create_asset(auth_client, project["id"])
-    _link_inventory(auth_client, opp["id"], asset["id"])
+    opp, asset = _setup_opportunity_with_asset(auth_client, name="Activity Lead")
+    _login(auth_client, "sales@example.com")
     case = _create_readiness_case(auth_client, opp["id"], asset["id"])
     logs = db.scalars(
         select(ActivityLog).where(
@@ -309,14 +297,10 @@ def test_activity_on_case_create(auth_client: TestClient, db: Session) -> None:
 
 
 def test_opportunity_summary(auth_client: TestClient, db: Session) -> None:
-    _login(auth_client, "sales@investhome.com")
     seed_default_template(db)
     db.commit()
-    lead = _create_lead(auth_client, name="Summary Lead")
-    opp = _create_opportunity(auth_client, lead)
-    project = _create_project(auth_client)
-    asset = _create_asset(auth_client, project["id"])
-    _link_inventory(auth_client, opp["id"], asset["id"])
+    opp, asset = _setup_opportunity_with_asset(auth_client, name="Summary Lead")
+    _login(auth_client, "sales@example.com")
     _create_readiness_case(auth_client, opp["id"], asset["id"])
     summary = auth_client.get(f"/sales/readiness/opportunities/{opp['id']}/summary")
     assert summary.status_code == 200
@@ -324,14 +308,10 @@ def test_opportunity_summary(auth_client: TestClient, db: Session) -> None:
 
 
 def test_follow_up_from_readiness(auth_client: TestClient, db: Session) -> None:
-    _login(auth_client, "sales@investhome.com")
     seed_default_template(db)
     db.commit()
-    lead = _create_lead(auth_client, name="Followup Lead")
-    opp = _create_opportunity(auth_client, lead)
-    project = _create_project(auth_client)
-    asset = _create_asset(auth_client, project["id"])
-    _link_inventory(auth_client, opp["id"], asset["id"])
+    opp, asset = _setup_opportunity_with_asset(auth_client, name="Followup Lead")
+    _login(auth_client, "sales@example.com")
     case = _create_readiness_case(auth_client, opp["id"], asset["id"])
     follow = auth_client.post(
         f"/sales/readiness/cases/{case['id']}/follow-ups",

@@ -94,7 +94,13 @@ export function ReadinessWorkspace() {
       </nav>
 
       {loading && <LoadingState label={t('loading')} />}
-      {error && <ErrorState title={error} message={error} onRetry={() => void loadData()} />}
+      {error && (
+        <ErrorState
+          title={error}
+          message={error}
+          action={<Button variant="secondary" onClick={() => void loadData()}>{t('retry')}</Button>}
+        />
+      )}
       {!loading && !error && (
         <ReadinessList
           items={items}

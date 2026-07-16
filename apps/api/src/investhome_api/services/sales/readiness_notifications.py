@@ -8,7 +8,33 @@ from sqlalchemy.orm import Session
 
 from investhome_api.models.notification import NotificationPriority, NotificationType
 from investhome_api.models.sales_readiness import SalesReadinessCase, SalesReadinessRequirement
-from investhome_api.services.notification_hooks import notify_user, notify_users_with_permission
+from investhome_api.services.notification_hooks import notify_users_with_permission
+from investhome_api.services.notification_service import create_notification
+
+
+def _notify_user(
+    db: Session,
+    *,
+    user_id: UUID,
+    rule_key: str,
+    title_key: str,
+    message_key: str,
+    case: SalesReadinessCase,
+    priority: NotificationPriority = NotificationPriority.MEDIUM,
+    extra: dict | None = None,
+) -> None:
+    create_notification(
+        db,
+        recipient_user_id=user_id,
+        type=NotificationType.SYSTEM,
+        priority=priority,
+        title_key=title_key,
+        message_key=message_key,
+        rule_key=rule_key,
+        related_entity_type="sales_readiness_case",
+        related_entity_id=case.id,
+        metadata={**_case_metadata(case), **(extra or {})},
+    )
 
 
 def _case_metadata(case: SalesReadinessCase) -> dict:
@@ -23,17 +49,13 @@ def _case_metadata(case: SalesReadinessCase) -> dict:
 def notify_case_assigned(db: Session, case: SalesReadinessCase) -> None:
     if case.assigned_sales_user_id is None:
         return
-    notify_user(
+    _notify_user(
         db,
         user_id=case.assigned_sales_user_id,
-        type=NotificationType.SYSTEM,
-        priority=NotificationPriority.MEDIUM,
+        rule_key=f"sales.readiness.assigned.{case.id}",
         title_key="notifications.sales.readiness.assigned.title",
         message_key="notifications.sales.readiness.assigned.message",
-        rule_key=f"sales.readiness.assigned.{case.id}",
-        related_entity_type="sales_readiness_case",
-        related_entity_id=case.id,
-        metadata=_case_metadata(case),
+        case=case,
     )
 
 
@@ -152,17 +174,15 @@ def notify_handoff_requested(db: Session, case: SalesReadinessCase) -> None:
 
 def notify_handoff_returned(db: Session, case: SalesReadinessCase, *, reason: str) -> None:
     if case.assigned_sales_user_id:
-        notify_user(
+        _notify_user(
             db,
             user_id=case.assigned_sales_user_id,
-            type=NotificationType.SYSTEM,
-            priority=NotificationPriority.HIGH,
+            rule_key=f"sales.readiness.handoff_returned.{case.id}",
             title_key="notifications.sales.readiness.handoff_returned.title",
             message_key="notifications.sales.readiness.handoff_returned.message",
-            rule_key=f"sales.readiness.handoff_returned.{case.id}",
-            related_entity_type="sales_readiness_case",
-            related_entity_id=case.id,
-            metadata={**_case_metadata(case), "reason": reason},
+            case=case,
+            priority=NotificationPriority.HIGH,
+            extra={"reason": reason},
         )
 
 

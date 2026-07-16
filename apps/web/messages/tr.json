@@ -739,6 +739,7 @@
     "backToSales": "Satışa Dön",
     "loadError": "Sözleşme hazırlığı yüklenemedi.",
     "loading": "Yükleniyor…",
+    "retry": "Yeniden Dene",
     "permissionDenied": "Sözleşme hazırlığını görüntüleme izniniz yok.",
     "viewsLabel": "Hazırlık görünümleri",
     "mandatory": "Zorunlu",
