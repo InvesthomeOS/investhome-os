@@ -74,6 +74,9 @@ class ActivityEntityType(str, enum.Enum):
     BUILDING = "building"
     FLOOR = "floor"
     INVENTORY_ASSET = "inventory_asset"
+    INVENTORY_RESERVATION = "inventory_reservation"
+    INVENTORY_PRICE = "inventory_price"
+    PRICE_CHANGE_REQUEST = "price_change_request"
 
 
 class ActivityLog(Base):

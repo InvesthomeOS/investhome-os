@@ -22,7 +22,9 @@ import {
   fetchInventoryAsset,
   fetchInventoryAssets,
   fetchInventoryKpis,
+  fetchReservations,
   formatArea,
+  formatCountdown,
   formatDateTime,
   getAreaDisplayUnit,
   isParkingAsset,
@@ -35,8 +37,14 @@ import {
   type InventoryAsset,
   type InventoryAssetInput,
   type InventoryKpis,
+  type InventoryReservation,
   type StatusUpdateInput,
 } from '@/lib/api/inventory';
+import {
+  fetchAssetPricingSummary,
+  formatMoney,
+  type AssetPricingSummary,
+} from '@/lib/api/inventory-pricing';
 import { ApiError } from '@/lib/api/client';
 import { hasPermission } from '@/lib/api/auth';
 import { fetchProjects, type Project } from '@/lib/api/projects';
@@ -51,6 +59,7 @@ import {
   type InventoryFilterState,
 } from './inventory-filters';
 import { InventoryKpiRow, type InventoryKpiKey } from './inventory-kpi-row';
+import { SoftHoldModal } from './soft-hold-modal';
 import { StatusUpdateModal } from './status-update-modal';
 
 const FILTER_STORAGE_KEY = 'investhome.inventory.filters';
@@ -135,6 +144,7 @@ export function InventoryWorkspace() {
     getAssetTypeLabel,
     getAvailabilityLabel,
     getReservationLabel,
+    getReservationRecordLabel,
     getSalesLabel,
     getConstructionLabel,
     getClosingLabel,
@@ -147,8 +157,13 @@ export function InventoryWorkspace() {
   const canArchive = user ? hasPermission(user, 'inventory', 'archive') : false;
   const canRestore = user ? hasPermission(user, 'inventory', 'restore') : false;
   const canManageStatus = user ? hasPermission(user, 'inventory', 'manage_status') : false;
+  const canReserve = user ? hasPermission(user, 'inventory', 'reserve') : false;
+  const canViewPrice = user ? hasPermission(user, 'inventory', 'view_price') : false;
+  const canRequestPrice = user ? hasPermission(user, 'inventory', 'request_price_change') : false;
 
   const [assets, setAssets] = useState<InventoryAsset[]>([]);
+  const [activeReservations, setActiveReservations] = useState<Map<string, InventoryReservation>>(new Map());
+  const [pricingSummaries, setPricingSummaries] = useState<Map<string, AssetPricingSummary>>(new Map());
   const [projects, setProjects] = useState<Project[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [floors, setFloors] = useState<Floor[]>([]);
@@ -169,6 +184,8 @@ export function InventoryWorkspace() {
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [density, setDensity] = useState<TableDensity>('comfortable');
+  const [softHoldAsset, setSoftHoldAsset] = useState<InventoryAsset | null>(null);
+  const [pricingTabRequest, setPricingTabRequest] = useState(0);
 
   const projectMap = useMemo(
     () => new Map(projects.map((project) => [project.id, project.project_name])),
@@ -278,6 +295,37 @@ export function InventoryWorkspace() {
         setAssets(response.items);
         setTotal(response.total);
         setPages(response.pages);
+        try {
+          const reservations = await fetchReservations({
+            project_id: apiFilters.project_id,
+            active_only: true,
+            page_size: 100,
+          });
+          setActiveReservations(
+            new Map(reservations.items.map((item) => [item.inventory_asset_id, item])),
+          );
+        } catch {
+          setActiveReservations(new Map());
+        }
+        if (canViewPrice) {
+          const summaries = await Promise.all(
+            response.items.map(async (asset) => {
+              try {
+                const summary = await fetchAssetPricingSummary(asset.id);
+                return [asset.id, summary] as const;
+              } catch {
+                return [asset.id, null] as const;
+              }
+            }),
+          );
+          setPricingSummaries(
+            new Map(
+              summaries.filter((entry): entry is [string, AssetPricingSummary] => entry[1] !== null),
+            ),
+          );
+        } else {
+          setPricingSummaries(new Map());
+        }
       } catch {
         setError(t('loadError'));
         setAssets([]);
@@ -287,7 +335,7 @@ export function InventoryWorkspace() {
         setLoading(false);
       }
     },
-    [t],
+    [t, canViewPrice],
   );
 
   useEffect(() => {
@@ -468,6 +516,19 @@ export function InventoryWorkspace() {
                   {t('createButton')}
                 </Button>
               )}
+              {canRequestPrice && selectedAsset && (
+                <Button
+                  variant="secondary"
+                  onClick={() => setPricingTabRequest((value) => value + 1)}
+                >
+                  {t('pricing.proposeChange')}
+                </Button>
+              )}
+              {canReserve && selectedAsset && selectedAsset.availability_status === 'available' && (
+                <Button variant="secondary" onClick={() => { setActionError(null); setSoftHoldAsset(selectedAsset); }}>
+                  {t('reservation.placeSoftHold')}
+                </Button>
+              )}
             </>
           }
         >
@@ -518,8 +579,14 @@ export function InventoryWorkspace() {
                   <th>{t('columns.building')}</th>
                   <th>{t('columns.floor')}</th>
                   <th>{t('columns.interiorArea')}</th>
+                  {canViewPrice && <th>{t('columns.listPrice')}</th>}
+                  {canViewPrice && <th>{t('columns.promoPrice')}</th>}
+                  {canViewPrice && <th>{t('columns.currency')}</th>}
+                  {canViewPrice && <th>{t('columns.pricePending')}</th>}
                   <th>{t('columns.availability')}</th>
                   <th>{t('columns.reservation')}</th>
+                  <th>{t('columns.party')}</th>
+                  <th>{t('columns.countdown')}</th>
                   <th>{t('columns.sales')}</th>
                   <th>{t('columns.construction')}</th>
                   <th>{t('columns.closing')}</th>
@@ -530,6 +597,8 @@ export function InventoryWorkspace() {
               <tbody>
                 {assets.map((asset) => {
                   const isSelected = selectedAsset?.id === asset.id;
+                  const reservation = activeReservations.get(asset.id);
+                  const pricing = pricingSummaries.get(asset.id);
                   return (
                     <tr
                       key={asset.id}
@@ -551,12 +620,38 @@ export function InventoryWorkspace() {
                       <td className="ih-table__numeric">
                         {formatArea(asset.interior_area_sqft, locale, areaUnit)}
                       </td>
+                      {canViewPrice && (
+                        <td className="ih-table__numeric">
+                          {formatMoney(pricing?.list_price, pricing?.currency ?? asset.currency, locale)}
+                        </td>
+                      )}
+                      {canViewPrice && (
+                        <td className="ih-table__numeric">
+                          {formatMoney(pricing?.promotional_price, pricing?.currency ?? asset.currency, locale)}
+                        </td>
+                      )}
+                      {canViewPrice && <td>{pricing?.currency ?? asset.currency}</td>}
+                      {canViewPrice && (
+                        <td>
+                          {(pricing?.pending_price_requests ?? 0) > 0 ? (
+                            <StatusChip tone="warning">{t('pricing.pendingApproval')}</StatusChip>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                      )}
                       <td>
                         <StatusChip tone="info">{getAvailabilityLabel(asset.availability_status)}</StatusChip>
                       </td>
                       <td>
-                        <StatusChip>{getReservationLabel(asset.reservation_status)}</StatusChip>
+                        <StatusChip>
+                          {reservation
+                            ? getReservationRecordLabel(reservation.status)
+                            : getReservationLabel(asset.reservation_status)}
+                        </StatusChip>
                       </td>
+                      <td>{reservation?.party_name ?? '—'}</td>
+                      <td>{formatCountdown(reservation?.seconds_until_expiry)}</td>
                       <td>
                         <StatusChip>{getSalesLabel(asset.sales_status)}</StatusChip>
                       </td>
@@ -605,6 +700,20 @@ export function InventoryWorkspace() {
         onArchive={handleArchiveAsset}
         onRestore={handleRestoreAsset}
         onStatusUpdate={() => { setActionError(null); setStatusModalOpen(true); }}
+        onReservationChanged={() => void refreshAll()}
+        onPricingChanged={() => void refreshAll()}
+        pricingTabRequest={pricingTabRequest}
+      />
+
+      <SoftHoldModal
+        asset={softHoldAsset}
+        open={softHoldAsset !== null}
+        submitting={submitting}
+        error={actionError}
+        onClose={() => setSoftHoldAsset(null)}
+        onSubmittingChange={setSubmitting}
+        onError={setActionError}
+        onSuccess={() => void refreshAll()}
       />
 
       <InventoryCreateModal

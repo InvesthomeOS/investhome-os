@@ -29,6 +29,8 @@ SEARCH_ENTITY_TYPES = frozenset(
         "building",
         "floor",
         "inventory_asset",
+        "inventory_reservation",
+        "price_change_request",
     }
 )
 
@@ -65,6 +67,8 @@ ENTITY_PERMISSION_RESOURCE: dict[str, str] = {
     "building": "inventory",
     "floor": "inventory",
     "inventory_asset": "inventory",
+    "inventory_reservation": "inventory",
+    "price_change_request": "inventory",
 }
 
 ENTITY_LINK_MODULES: dict[str, str] = {
@@ -91,6 +95,8 @@ ENTITY_LINK_MODULES: dict[str, str] = {
     "building": "inventory",
     "floor": "inventory",
     "inventory_asset": "inventory",
+    "inventory_reservation": "inventory",
+    "price_change_request": "inventory",
 }
 
 FINANCE_TAB_BY_ENTITY: dict[str, str] = {

@@ -34,7 +34,15 @@ from investhome_api.models.finance import (
     PaymentObligation,
 )
 from investhome_api.models.investor import Investor
-from investhome_api.models.inventory import Building, Floor, InventoryAsset
+from investhome_api.models.inventory import (
+    Building,
+    Floor,
+    InventoryAsset,
+    InventoryReservation,
+    PENDING_PRICE_REQUEST_STATUSES,
+    PriceChangeRequest,
+    SENSITIVE_PRICE_TYPES,
+)
 from investhome_api.models.lead import Lead
 from investhome_api.models.notification import Notification, NotificationStatus
 from investhome_api.models.project import Project
@@ -1403,6 +1411,114 @@ def _search_inventory_assets(
     return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
 
 
+def _search_inventory_reservations(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "inventory_reservation"):
+        return []
+    pattern = _pattern(query)
+    stmt = (
+        select(InventoryReservation, InventoryAsset)
+        .join(InventoryAsset, InventoryAsset.id == InventoryReservation.inventory_asset_id)
+        .where(
+            or_(
+                InventoryAsset.display_id.ilike(pattern),
+                InventoryAsset.system_code.ilike(pattern),
+                InventoryReservation.notes.ilike(pattern),
+            )
+        )
+    )
+    rows = db.execute(stmt.limit(limit * 2)).all()
+    results: list[InternalSearchResult] = []
+    for reservation, asset in rows:
+        if not _apply_date_filter(reservation.updated_at, filters):
+            continue
+        fields = {
+            "display_id": asset.display_id,
+            "system_code": asset.system_code,
+            "status": reservation.status.value,
+        }
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="inventory_reservation",
+                entity_id=reservation.id,
+                title=f"{asset.display_id} — {reservation.status.value}",
+                subtitle=asset.system_code,
+                status=reservation.status.value,
+                created_at=reservation.updated_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
+def _search_price_change_requests(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "price_change_request"):
+        return []
+    if not user_has_permission(user, "inventory", "view_price"):
+        return []
+    pattern = _pattern(query)
+    stmt = (
+        select(PriceChangeRequest, InventoryAsset)
+        .join(InventoryAsset, InventoryAsset.id == PriceChangeRequest.inventory_asset_id)
+        .where(
+            or_(
+                InventoryAsset.display_id.ilike(pattern),
+                InventoryAsset.system_code.ilike(pattern),
+                PriceChangeRequest.reason.ilike(pattern),
+            ),
+            PriceChangeRequest.archived_at.is_(None),
+        )
+    )
+    rows = db.execute(stmt.limit(limit * 2)).all()
+    results: list[InternalSearchResult] = []
+    for price_request, asset in rows:
+        if not _apply_date_filter(price_request.updated_at, filters):
+            continue
+        can_show_amount = user_has_permission(user, "inventory", "view_sensitive_price") or (
+            price_request.price_type not in SENSITIVE_PRICE_TYPES
+        )
+        amount_label = (
+            str(price_request.proposed_amount) if can_show_amount else "—"
+        )
+        fields = {
+            "display_id": asset.display_id,
+            "system_code": asset.system_code,
+            "price_type": price_request.price_type.value,
+            "status": price_request.status.value,
+        }
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="price_change_request",
+                entity_id=price_request.id,
+                title=f"{asset.display_id} — {price_request.price_type.value} ({amount_label})",
+                subtitle=price_request.status.value,
+                status=price_request.status.value,
+                created_at=price_request.updated_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
 PROVIDER_MAP = {
     "lead": _search_leads,
     "investor": _search_investors,
@@ -1427,6 +1543,8 @@ PROVIDER_MAP = {
     "building": _search_buildings,
     "floor": _search_floors,
     "inventory_asset": _search_inventory_assets,
+    "inventory_reservation": _search_inventory_reservations,
+    "price_change_request": _search_price_change_requests,
 }
 
 ENTITY_LABEL_KEYS = {
@@ -1453,6 +1571,8 @@ ENTITY_LABEL_KEYS = {
     "building": "search.entities.building",
     "floor": "search.entities.floor",
     "inventory_asset": "search.entities.inventory_asset",
+    "inventory_reservation": "search.entities.inventory_reservation",
+    "price_change_request": "search.entities.price_change_request",
 }
 
 

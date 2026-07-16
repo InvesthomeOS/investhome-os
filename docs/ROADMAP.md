@@ -1,9 +1,9 @@
 # Investhome OS — Product Roadmap
 
-**Last updated:** 2026-07-15  
+**Last updated:** 2026-07-16  
 **Canonical status:** [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md)
 
-**Related:** [PRODUCT_VISION.md](./PRODUCT_VISION.md) · [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md) · [UNITS_INVENTORY_BLUEPRINT.md](./UNITS_INVENTORY_BLUEPRINT.md) · [TECHNICAL_DEBT.md](./TECHNICAL_DEBT.md)
+**Related:** [PRODUCT_VISION.md](./PRODUCT_VISION.md) · [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md) · [UNITS_INVENTORY_BLUEPRINT.md](./UNITS_INVENTORY_BLUEPRINT.md) · [INVENTORY_WORKSPACE_BLUEPRINT.md](./INVENTORY_WORKSPACE_BLUEPRINT.md) · [TECHNICAL_DEBT.md](./TECHNICAL_DEBT.md)
 
 ---
 
@@ -44,7 +44,8 @@ Active work or blocked partial implementations.
 | **Migration deploy** | Needs verification | Apply `0011`–`0013` in live Docker |
 | **API envelope migration** | Partial | High-traffic list endpoints still legacy format |
 | **`@investhome/ui` adoption** | Partial | 8 primitives exist; app mostly custom CSS (TD-07) |
-| **Units & Inventory blueprint** | Blueprint complete | Zero production code — ready for S1 |
+| **Inventory Workspace blueprint (Sprint 4A)** | Blueprint complete | [INVENTORY_WORKSPACE_BLUEPRINT.md](./INVENTORY_WORKSPACE_BLUEPRINT.md) — zero production code |
+| **Units & Inventory module blueprint** | Blueprint complete (align in 4B1) | [UNITS_INVENTORY_BLUEPRINT.md](./UNITS_INVENTORY_BLUEPRINT.md) — zero production code |
 | **Drawing → unit bridge** | Placeholder | `created_unit_id = proposal.id` until inventory |
 | **Frontend tests** | Not started | TD-04 |
 | **Users/Roles API tests** | Not started | TD-05 |
@@ -57,8 +58,9 @@ Specification complete; implementation not started.
 
 | Module | Document | Scope summary |
 |--------|----------|---------------|
-| **Units & Inventory** | [UNITS_INVENTORY_BLUEPRINT.md](./UNITS_INVENTORY_BLUEPRINT.md) | Company → Project → Building → Floor → Unit; 12 entities; S0–S7 sprints |
-| **Visual Design Studio** | Referenced in IMPLEMENTATION_STATUS | Floor coloring, materials, rendering — **no spec doc yet** |
+| **Inventory Workspace** | [INVENTORY_WORKSPACE_BLUEPRINT.md](./INVENTORY_WORKSPACE_BLUEPRINT.md) | Route `/dashboard/inventory`; 10 views; 14-tab drawer; Soft Hold 48h; six status dimensions; sprints **4B1–4B7** |
+| **Units & Inventory (domain)** | [UNITS_INVENTORY_BLUEPRINT.md](./UNITS_INVENTORY_BLUEPRINT.md) | Company → Project → Building → Floor → Inventory Asset; domain entities; reconcile with workspace blueprint in 4B1 |
+| **Visual Design Studio** | Referenced in IMPLEMENTATION_STATUS | Floor coloring, materials, rendering — partial implementation |
 
 Blueprint ≠ implemented. Do not mark complete until migration + API + UI + tests land.
 
@@ -75,11 +77,24 @@ Ordered by recommended implementation sequence (post-infrastructure hardening).
 3. Rebuild Docker images; start worker service
 4. Commit missing checkpoints (auth platform, executive)
 
-### Next business module
+### Next business module — Inventory Workspace (4B track)
+
+| Priority | Sprint | Focus | Rationale |
+|----------|--------|-------|-----------|
+| **1** | **4B1** | Domain foundation — migration `0017_inventory_assets`, API, permissions | Unblocks all inventory UX; resolves Design Studio migration collision |
+| **2** | **4B2** | Workspace shell — `/dashboard/inventory`, Home KPIs, Table view | First user-visible inventory surface |
+| **3** | **4B3** | Status model + detail core — six dimensions, Grid, project tab | Operational status governance |
+| **4** | **4B4** | Soft Hold reservations — 48h, Reservation view, notifications | Unblocks Sales + Executive reservation widgets |
+| **5** | **4B5** | Pricing + approval workflow | Finance gate for contract prices |
+| **6** | **4B6** | Ownership (immutable), parking/storage, search, finance FK, drawing bridge | Cross-workspace SSOT integration |
+| **7** | **4B7** | Spatial views + bulk import/export implementation + acceptance | Full workspace v1 |
+
+See [INVENTORY_WORKSPACE_BLUEPRINT.md §22](./INVENTORY_WORKSPACE_BLUEPRINT.md#22-implementation-sprints) for deliverable detail.
+
+### Other near-term items
 
 | Priority | Module | Rationale |
 |----------|--------|-----------|
-| **1** | **Units & Inventory S1** | Unblocks drawing approval, finance attribution, search `unit` chip |
 | 2 | Company Foundation depth | User org assignment UI, brand asset picker |
 | 3 | API client consolidation | Unify on `apiFetch` (TD-06) |
 | 4 | Finance route split | TD-02 — sub-routers |
@@ -141,7 +156,7 @@ Long-horizon capabilities — **not scheduled, not partially implemented.**
 | Prior claim | Corrected status |
 |-------------|------------------|
 | Phase 3 Document/Drawing "Complete" | **Partial** — source complete; runtime BLOCKED (worker, migrations) |
-| Units & Inventory "referenced" only | **Blueprint complete** (`UNITS_INVENTORY_BLUEPRINT.md` v1.0) — still zero code |
+| Units & Inventory "referenced" only | **Domain blueprint complete** (`UNITS_INVENTORY_BLUEPRINT.md` v1.0) + **Workspace blueprint complete** (`INVENTORY_WORKSPACE_BLUEPRINT.md` Sprint 4A) — still zero code |
 | EA foundation "10 doc files" | Expanded to **full governance constitution** this release |
 | 128 tests | **133+** (includes architecture foundation + company foundation tests) |
 | Worker Redis localhost | **Resolved** in EA foundation — entrypoint still open (TD-01) |

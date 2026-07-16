@@ -11,7 +11,10 @@ from investhome_api.db.session import get_db
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.executive import (
     ExecutiveActivityResponse,
+    ExecutiveAiInsightsResponse,
+    ExecutiveApprovalsResponse,
     ExecutiveAttentionResponse,
+    ExecutiveConstructionSnapshotResponse,
     ExecutiveDeadlinesResponse,
     ExecutiveFilters,
     ExecutiveFinancialOverviewResponse,
@@ -22,7 +25,10 @@ from investhome_api.schemas.executive import (
 )
 from investhome_api.services.executive_service import (
     build_activity_feed,
+    build_ai_insights,
+    build_approvals,
     build_attention_items,
+    build_construction_snapshot,
     build_deadlines,
     build_executive_summary,
     build_financial_overview,
@@ -81,8 +87,9 @@ def _filter_depends(
 def get_executive_summary(
     filters: ExecutiveFilters = Depends(_filter_depends),
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ) -> ExecutiveSummaryResponse:
-    return build_executive_summary(db, filters)
+    return build_executive_summary(db, filters, user)
 
 
 @router.get("/attention", response_model=ExecutiveAttentionResponse)
@@ -140,3 +147,29 @@ def get_executive_activity(
     user: User = Depends(get_current_user),
 ) -> ExecutiveActivityResponse:
     return build_activity_feed(db, filters, user)
+
+
+@router.get("/approvals", response_model=ExecutiveApprovalsResponse)
+def get_executive_approvals(
+    filters: ExecutiveFilters = Depends(_filter_depends),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ExecutiveApprovalsResponse:
+    return build_approvals(db, filters, user)
+
+
+@router.get("/construction-snapshot", response_model=ExecutiveConstructionSnapshotResponse)
+def get_executive_construction_snapshot(
+    filters: ExecutiveFilters = Depends(_filter_depends),
+    db: Session = Depends(get_db),
+) -> ExecutiveConstructionSnapshotResponse:
+    return build_construction_snapshot(db, filters)
+
+
+@router.get("/ai-insights", response_model=ExecutiveAiInsightsResponse)
+def get_executive_ai_insights(
+    filters: ExecutiveFilters = Depends(_filter_depends),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ExecutiveAiInsightsResponse:
+    return build_ai_insights(db, filters, user)

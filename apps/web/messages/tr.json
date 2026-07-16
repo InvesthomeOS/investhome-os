@@ -936,7 +936,8 @@
       "types": {
         "design_review": "Tasarım incelemesi",
         "finance_transaction": "Finans işlemi",
-        "drawing_unit_proposal": "Çizim birimi"
+        "drawing_unit_proposal": "Çizim birimi",
+        "inventory_price_change": "Envanter fiyat değişikliği"
       },
       "design_review": {
         "title": "Tasarım incelemesi bekliyor"
@@ -946,6 +947,9 @@
       },
       "drawing_proposal": {
         "title": "Çizim birimi onayı"
+      },
+      "inventory_price_change": {
+        "title": "Fiyat değişikliği onayı bekliyor"
       }
     },
     "calendar": {
@@ -1775,6 +1779,10 @@
       "construction": "İnşaat",
       "closing": "Kapanış",
       "leasing": "Kiralama",
+      "listPrice": "Liste Fiyatı",
+      "promoPrice": "Kampanya Fiyatı",
+      "currency": "Para Birimi",
+      "pricePending": "Fiyat Onayı",
       "updated": "Güncellendi"
     },
     "statusCategories": {
@@ -1837,6 +1845,8 @@
       "tabs": {
         "overview": "Genel Bakış",
         "status": "Durum",
+        "reservation": "Rezervasyon",
+        "pricing": "Fiyatlandırma",
         "physical": "Fiziksel Detaylar",
         "assignments": "Atamalar",
         "dates": "Tarihler",
@@ -1939,9 +1949,99 @@
       "leased": "Kiralandı",
       "notice_given": "İhtar verildi",
       "off_market": "Piyasada değil"
+    },
+    "pricing": {
+      "proposeChange": "Fiyat Değişikliği Öner",
+      "pendingApproval": "Onay Bekliyor",
+      "loading": "Fiyatlar yükleniyor…",
+      "loadError": "Fiyat bilgisi yüklenemedi.",
+      "actionError": "Fiyat işlemi başarısız.",
+      "noPermission": "Fiyat görüntüleme yetkiniz yok.",
+      "addInitialPrice": "İlk Fiyat Ekle",
+      "currentPrices": "Güncel Fiyatlar",
+      "noCurrentPrices": "Henüz aktif fiyat yok.",
+      "pendingRequests": "Bekleyen Talepler",
+      "noPendingRequests": "Bekleyen fiyat talebi yok.",
+      "priceHistory": "Fiyat Geçmişi",
+      "noHistory": "Henüz fiyat geçmişi yok.",
+      "approvalHistory": "Onay Geçmişi",
+      "noApprovalHistory": "Henüz onay kaydı yok.",
+      "highImpact": "Yüksek etki",
+      "approve": "Onayla",
+      "reject": "Reddet",
+      "requestRevision": "Revizyon İste",
+      "withdraw": "Geri Çek",
+      "decisionNotesPlaceholder": "Karar notu (red/revizyon için zorunlu)",
+      "priceTypes": {
+        "original": "Orijinal Fiyat",
+        "launch": "Lansman Fiyatı",
+        "list": "Liste Fiyatı",
+        "promotional": "Kampanya Fiyatı",
+        "reservation": "Rezervasyon Fiyatı",
+        "contracted": "Sözleşme Fiyatı",
+        "closing": "Kapanış Fiyatı",
+        "appraised": "Ekspertiz Değeri",
+        "estimated_rent": "Tahmini Kira"
+      },
+      "priceStatuses": {
+        "draft": "Taslak",
+        "pending": "Beklemede",
+        "active": "Aktif",
+        "expired": "Süresi doldu",
+        "superseded": "Önceki Fiyat",
+        "rejected": "Reddedildi",
+        "archived": "Arşivlendi"
+      },
+      "requestStatuses": {
+        "draft": "Taslak",
+        "submitted": "Gönderildi",
+        "under_review": "İncelemede",
+        "approved": "Onaylandı",
+        "rejected": "Reddedildi",
+        "withdrawn": "Geri çekildi",
+        "expired": "Süresi doldu",
+        "applied": "Uygulandı"
+      },
+      "form": {
+        "initialTitle": "İlk Fiyat",
+        "changeTitle": "Fiyat Değişiklik Talebi",
+        "priceType": "Fiyat Türü",
+        "currentPrice": "Güncel Fiyat",
+        "amount": "Tutar",
+        "proposedPrice": "Önerilen Fiyat",
+        "currency": "Para Birimi",
+        "effectiveFrom": "Geçerlilik Tarihi",
+        "effectiveTo": "Bitiş Tarihi",
+        "reason": "Gerekçe",
+        "changeAmount": "Mutlak değişim",
+        "changePercent": "Yüzde değişim",
+        "largeChangeWarning": "Büyük fiyat değişimi — onay gerekebilir.",
+        "cancel": "İptal",
+        "saveDraft": "Taslak Kaydet",
+        "submit": "Onaya Gönder",
+        "create": "Oluştur"
+      },
+      "errors": {
+        "asset_not_found": "Envanter varlığı bulunamadı.",
+        "permission_denied": "Bu işlem için yetkiniz yok.",
+        "sensitive_price_denied": "Hassas fiyat görüntüleme yetkisi gerekli.",
+        "sensitive_approve_denied": "Hassas fiyat onayı için ek yetki gerekli.",
+        "self_approval_blocked": "Kendi talebinizi onaylayamazsınız.",
+        "stale_request": "Güncel fiyat değişti — talep güncellenmeli.",
+        "currency_mismatch": "Para birimi varlık para birimi ile uyuşmuyor.",
+        "active_price_exists": "Bu tür için zaten aktif fiyat var.",
+        "overlap_active_price": "Aynı tür ve para biriminde çakışan aktif fiyat.",
+        "invalid_effective_dates": "Geçerlilik tarihleri geçersiz.",
+        "request_not_editable": "Talep düzenlenemez.",
+        "request_not_submittable": "Talep gönderilemez.",
+        "request_not_reviewable": "Talep incelenemez.",
+        "request_not_approvable": "Talep onaylanamaz.",
+        "request_not_rejectable": "Talep reddedilemez.",
+        "request_not_withdrawable": "Talep geri çekilemez.",
+        "cannot_archive_price": "Bu fiyat arşivlenemez."
+      }
     }
   },
-  "design": {
     "eyebrow": "Görsel Tasarım",
     "title": "Tasarım Stüdyosu",
     "subtitle": "Kat planı renklendirme ve tasarım sürümleri.",

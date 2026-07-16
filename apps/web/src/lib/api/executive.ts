@@ -52,10 +52,64 @@ export interface AttentionItem {
   link_query?: Record<string, string> | null;
 }
 
+export interface LeadsPipelineSummary {
+  total: number;
+  qualified: number;
+  meetings: number;
+  proposals: number;
+  won: number;
+  lost: number;
+}
+
+export interface ApprovalItem {
+  approval_type: string;
+  title_key: string;
+  entity_type: string;
+  entity_id: string;
+  related_label: string | null;
+  submitted_at: string | null;
+  age_days: number | null;
+  link_module: string;
+  link_query?: Record<string, string> | null;
+  metadata?: Record<string, string | number | null>;
+}
+
+export interface DelayedProjectRow {
+  project_id: string;
+  project_name: string;
+  completion_target: string | null;
+  health_status: 'on_track' | 'attention' | 'at_risk';
+  days_overdue: number | null;
+  link_module: string;
+  link_query?: Record<string, string> | null;
+}
+
+export interface RecentTransactionRow {
+  transaction_id: string;
+  transaction_date: string;
+  description: string | null;
+  amount: string;
+  currency: string;
+  transaction_type: string;
+  status: string;
+  link_module: string;
+  link_query?: Record<string, string> | null;
+}
+
 export interface PipelineStage {
   status: string;
   count: number;
   estimated_budget_total: string;
+}
+
+export interface AiInsightItem {
+  kind: 'priority' | 'risk' | 'opportunity';
+  title_key: string;
+  description_key: string;
+  metadata: Record<string, string | number | null>;
+  link_module: string;
+  link_query?: Record<string, string> | null;
+  severity?: 'information' | 'warning' | 'critical' | null;
 }
 
 export interface ProjectHealthRow {
@@ -173,6 +227,7 @@ export async function fetchExecutiveAttention(params: ExecutiveFilterParams) {
 export async function fetchExecutiveLeadsPipeline(params: ExecutiveFilterParams) {
   return apiFetch<{
     stages: PipelineStage[];
+    summary: LeadsPipelineSummary;
     conversion_rate: string | null;
     won_in_period: number;
     lost_in_period: number;
@@ -234,6 +289,7 @@ export async function fetchExecutiveFinancialOverview(params: ExecutiveFilterPar
       funding_gap: string;
     }[];
     cash_flow_trend: CashFlowPoint[];
+    recent_transactions: RecentTransactionRow[];
   }>(`/executive/financial-overview${buildQuery(params)}`);
 }
 
@@ -243,6 +299,33 @@ export async function fetchExecutiveDeadlines(params: ExecutiveFilterParams) {
 
 export async function fetchExecutiveActivity(params: ExecutiveFilterParams) {
   return apiFetch<{ items: ActivityItem[] }>(`/executive/activity${buildQuery(params)}`);
+}
+
+export async function fetchExecutiveApprovals(params: ExecutiveFilterParams) {
+  return apiFetch<{ items: ApprovalItem[]; total_pending: number }>(
+    `/executive/approvals${buildQuery(params)}`,
+  );
+}
+
+export async function fetchExecutiveConstructionSnapshot(params: ExecutiveFilterParams) {
+  return apiFetch<{
+    limited_data: boolean;
+    delayed_projects: DelayedProjectRow[];
+    upcoming_inspections_available: boolean;
+    open_rfis_available: boolean;
+    open_punch_items_available: boolean;
+    drawing_proposals_pending: number;
+  }>(`/executive/construction-snapshot${buildQuery(params)}`);
+}
+
+export async function fetchExecutiveAiInsights(params: ExecutiveFilterParams) {
+  return apiFetch<{
+    priorities: AiInsightItem[];
+    risks: AiInsightItem[];
+    opportunities: AiInsightItem[];
+    generated_at: string;
+    ai_level: string;
+  }>(`/executive/ai-insights${buildQuery(params)}`);
 }
 
 export function formatCurrencyTotals(

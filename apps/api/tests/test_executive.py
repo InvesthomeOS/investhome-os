@@ -101,8 +101,9 @@ def test_executive_summary_and_attention(client: TestClient) -> None:
     summary = client.get("/executive/summary")
     assert summary.status_code == 200
     body = summary.json()
-    assert len(body["cards"]) == 8
-    assert any(card["key"] == "total_leads" and card["value"] == 1 for card in body["cards"])
+    assert len(body["cards"]) == 9
+    assert any(card["key"] == "active_soft_holds" for card in body["cards"])
+    assert any(card["key"] == "active_leads" and card["value"] == 1 for card in body["cards"])
 
     attention = client.get("/executive/attention")
     assert attention.status_code == 200
@@ -117,7 +118,10 @@ def test_executive_pipeline_and_portfolio(client: TestClient) -> None:
 
     pipeline = client.get("/executive/leads-pipeline")
     assert pipeline.status_code == 200
-    assert pipeline.json()["stages"]
+    pipeline_body = pipeline.json()
+    assert pipeline_body["stages"]
+    assert "summary" in pipeline_body
+    assert pipeline_body["summary"]["total"] == 1
 
     portfolio = client.get("/executive/project-portfolio")
     assert portfolio.status_code == 200
@@ -159,3 +163,54 @@ def test_executive_invalid_date_range(client: TestClient) -> None:
         params={"date_from": "2026-07-10", "date_to": "2026-07-01"},
     )
     assert response.status_code == 422
+
+
+def test_executive_approvals_and_ai_insights(client: TestClient) -> None:
+    _seed_project(client)
+
+    approvals = client.get("/executive/approvals")
+    assert approvals.status_code == 200
+    assert "items" in approvals.json()
+    assert "total_pending" in approvals.json()
+
+    ai = client.get("/executive/ai-insights")
+    assert ai.status_code == 200
+    body = ai.json()
+    assert "priorities" in body
+    assert "risks" in body
+    assert "opportunities" in body
+    assert body["ai_level"] == "L2"
+
+
+def test_executive_construction_snapshot(client: TestClient) -> None:
+    _seed_project(client)
+
+    response = client.get("/executive/construction-snapshot")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["limited_data"] is True
+    assert body["open_rfis_available"] is False
+    assert isinstance(body["delayed_projects"], list)
+
+
+def test_executive_financial_recent_transactions(client: TestClient) -> None:
+    account = _seed_account(client)
+    project = _seed_project(client)
+
+    client.post(
+        "/finance/transactions",
+        json={
+            "transaction_date": date.today().isoformat(),
+            "transaction_type": "rental_income",
+            "amount": "12000.00",
+            "currency": "USD",
+            "description": "Recent executive txn",
+            "account_id": account["id"],
+            "project_id": project["id"],
+            "status": "completed",
+        },
+    )
+
+    financial = client.get("/executive/financial-overview")
+    assert financial.status_code == 200
+    assert len(financial.json()["recent_transactions"]) >= 1

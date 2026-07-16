@@ -788,7 +788,9 @@
       "active_investors": "Active Investors",
       "available_cash": "Available Cash",
       "upcoming_closings": "Upcoming Closings",
-      "pending_approvals": "Pending Approvals"
+      "pending_approvals": "Pending Approvals",
+      "active_soft_holds": "Active Soft Holds",
+      "expiring_reservations": "Expiring Reservations"
     },
     "cards": {
       "noComparison": "No prior period comparison"
@@ -936,7 +938,8 @@
       "types": {
         "design_review": "Design review",
         "finance_transaction": "Finance transaction",
-        "drawing_unit_proposal": "Drawing unit"
+        "drawing_unit_proposal": "Drawing unit",
+        "inventory_price_change": "Inventory price change"
       },
       "design_review": {
         "title": "Design review pending"
@@ -946,6 +949,9 @@
       },
       "drawing_proposal": {
         "title": "Drawing unit approval"
+      },
+      "inventory_price_change": {
+        "title": "Price change approval pending"
       }
     },
     "calendar": {
@@ -1530,6 +1536,28 @@
         "message": "{name} has been assigned to you."
       }
     },
+    "inventory": {
+      "soft_hold_created": {
+        "title": "Soft hold placed",
+        "message": "Soft hold on {display_id} for {party_name}."
+      },
+      "reservation_expiring": {
+        "title": "Reservation expiring soon",
+        "message": "Soft hold on {display_id} expires in {hours} hours."
+      },
+      "reservation_expired": {
+        "title": "Soft hold expired",
+        "message": "Soft hold on {display_id} has expired."
+      },
+      "reservation_approved": {
+        "title": "Reservation approved",
+        "message": "Reservation for {display_id} was approved."
+      },
+      "deposit_overdue": {
+        "title": "Deposit overdue",
+        "message": "Deposit for {display_id} is {days} days overdue."
+      }
+    },
     "project": {
       "completion_approaching": {
         "title": "Completion target approaching",
@@ -1669,6 +1697,7 @@
       "building": "Buildings",
       "floor": "Floors",
       "inventory_asset": "Inventory assets",
+      "inventory_reservation": "Reservations",
       "unit": "Units (coming soon)",
       "construction": "Construction (coming soon)",
       "email": "Emails (coming soon)"
@@ -1775,7 +1804,53 @@
       "construction": "Construction",
       "closing": "Closing",
       "leasing": "Leasing",
-      "updated": "Updated"
+      "updated": "Updated",
+      "party": "Party",
+      "countdown": "Expires in",
+      "reservationStatus": "Hold status",
+      "listPrice": "List price",
+      "promoPrice": "Promotional price",
+      "currency": "Currency",
+      "pricePending": "Price approval"
+    },
+    "reservation": {
+      "softHoldTitle": "Place soft hold",
+      "placeSoftHold": "Place soft hold",
+      "softHoldExpiryHint": "Default expiry: {expiry} (48 hours)",
+      "partyLabel": "Party",
+      "partyPlaceholder": "Select investor or lead",
+      "partyRequired": "A party is required for reservations.",
+      "depositAmount": "Deposit amount",
+      "depositOptional": "Optional",
+      "notes": "Notes",
+      "createError": "Could not create soft hold.",
+      "actionError": "Reservation action failed.",
+      "activeReservation": "Active reservation",
+      "noActiveReservation": "No active reservation on this asset.",
+      "status": "Status",
+      "party": "Party",
+      "expiresAt": "Expires",
+      "releaseHold": "Release hold",
+      "requestReservation": "Request reservation",
+      "approve": "Approve",
+      "approvalNotes": "Approval notes",
+      "markDepositReceived": "Mark deposit received",
+      "convert": "Convert to confirmed",
+      "cancel": "Cancel",
+      "history": "Reservation history",
+      "noHistory": "No reservation history yet."
+    },
+    "reservationRecordStatus": {
+      "active": "Soft hold (active)",
+      "requested": "Requested",
+      "approved": "Approved",
+      "deposit_pending": "Deposit pending",
+      "deposit_received": "Deposit received",
+      "converted": "Converted",
+      "expired": "Expired",
+      "cancelled": "Cancelled",
+      "rejected": "Rejected",
+      "released": "Released"
     },
     "statusCategories": {
       "availability": "Availability",
@@ -1844,7 +1919,9 @@
         "drawings": "Drawings",
         "design": "Design",
         "activity": "Activity",
-        "statusHistory": "Status history"
+        "statusHistory": "Status history",
+        "reservation": "Reservation",
+        "pricing": "Pricing"
       },
       "sections": {
         "identifiers": "Identifiers",
@@ -1870,7 +1947,14 @@
       "display_id_duplicate": "Display ID already exists for this project.",
       "system_code_immutable": "System code cannot be changed after creation.",
       "invalid_status_value": "Invalid status value for this category.",
-      "status_unchanged": "Status is already set to this value."
+      "status_unchanged": "Status is already set to this value.",
+      "party_required": "Party is required.",
+      "asset_not_available": "Asset is not available for reservation.",
+      "active_reservation_exists": "An active reservation already exists for this asset.",
+      "asset_under_contract": "Asset is under contract.",
+      "reservation_expired": "Reservation has expired.",
+      "invalid_reservation_state": "Action is not allowed in the current state.",
+      "self_approval_blocked": "You cannot approve your own reservation request."
     },
     "assetTypes": {
       "residential_unit": "Residential unit",
@@ -1939,6 +2023,97 @@
       "leased": "Leased",
       "notice_given": "Notice given",
       "off_market": "Off market"
+    },
+    "pricing": {
+      "proposeChange": "Propose price change",
+      "pendingApproval": "Pending approval",
+      "loading": "Loading prices…",
+      "loadError": "Could not load pricing.",
+      "actionError": "Pricing action failed.",
+      "noPermission": "You do not have permission to view prices.",
+      "addInitialPrice": "Add initial price",
+      "currentPrices": "Current prices",
+      "noCurrentPrices": "No active prices yet.",
+      "pendingRequests": "Pending requests",
+      "noPendingRequests": "No pending price requests.",
+      "priceHistory": "Price history",
+      "noHistory": "No price history yet.",
+      "approvalHistory": "Approval history",
+      "noApprovalHistory": "No approval records yet.",
+      "highImpact": "High impact",
+      "approve": "Approve",
+      "reject": "Reject",
+      "requestRevision": "Request revision",
+      "withdraw": "Withdraw",
+      "decisionNotesPlaceholder": "Decision notes (required for reject/revision)",
+      "priceTypes": {
+        "original": "Original price",
+        "launch": "Launch price",
+        "list": "List price",
+        "promotional": "Promotional price",
+        "reservation": "Reservation price",
+        "contracted": "Contracted price",
+        "closing": "Closing price",
+        "appraised": "Appraised value",
+        "estimated_rent": "Estimated rent"
+      },
+      "priceStatuses": {
+        "draft": "Draft",
+        "pending": "Pending",
+        "active": "Active",
+        "expired": "Expired",
+        "superseded": "Superseded",
+        "rejected": "Rejected",
+        "archived": "Archived"
+      },
+      "requestStatuses": {
+        "draft": "Draft",
+        "submitted": "Submitted",
+        "under_review": "Under review",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "withdrawn": "Withdrawn",
+        "expired": "Expired",
+        "applied": "Applied"
+      },
+      "form": {
+        "initialTitle": "Initial price",
+        "changeTitle": "Price change request",
+        "priceType": "Price type",
+        "currentPrice": "Current price",
+        "amount": "Amount",
+        "proposedPrice": "Proposed price",
+        "currency": "Currency",
+        "effectiveFrom": "Effective date",
+        "effectiveTo": "Expiration date",
+        "reason": "Reason",
+        "changeAmount": "Absolute change",
+        "changePercent": "Percentage change",
+        "largeChangeWarning": "Large price change — approval may be required.",
+        "cancel": "Cancel",
+        "saveDraft": "Save draft",
+        "submit": "Submit for approval",
+        "create": "Create"
+      },
+      "errors": {
+        "asset_not_found": "Inventory asset not found.",
+        "permission_denied": "Insufficient permissions.",
+        "sensitive_price_denied": "Sensitive price view permission required.",
+        "sensitive_approve_denied": "Sensitive price approval permission required.",
+        "self_approval_blocked": "You cannot approve your own request.",
+        "stale_request": "Active price changed — request must be refreshed.",
+        "currency_mismatch": "Currency must match the asset currency.",
+        "active_price_exists": "An active price of this type already exists.",
+        "overlap_active_price": "Overlapping active price for this type and currency.",
+        "invalid_effective_dates": "Invalid effective dates.",
+        "request_not_editable": "Request cannot be edited.",
+        "request_not_submittable": "Request cannot be submitted.",
+        "request_not_reviewable": "Request cannot be reviewed.",
+        "request_not_approvable": "Request cannot be approved.",
+        "request_not_rejectable": "Request cannot be rejected.",
+        "request_not_withdrawable": "Request cannot be withdrawn.",
+        "cannot_archive_price": "This price cannot be archived."
+      }
     }
   },
   "design": {

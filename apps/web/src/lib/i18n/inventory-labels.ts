@@ -15,23 +15,37 @@ import {
   type ConstructionStatus,
   type InventoryAssetType,
   type LeasingStatus,
+  type ReservationRecordStatus,
   type ReservationStatus,
   type SalesStatus,
   type StatusCategory,
   type UsageType,
 } from '@/lib/api/inventory';
+import {
+  PRICE_REQUEST_STATUSES,
+  PRICE_STATUSES,
+  PRICE_TYPES,
+  type PriceRequestStatus,
+  type PriceStatus,
+  type PriceType,
+} from '@/lib/api/inventory-pricing';
 
 export function useInventoryLabels() {
   const tAssetTypes = useTranslations('inventory.assetTypes');
   const tUsage = useTranslations('inventory.usageTypes');
   const tAvailability = useTranslations('inventory.availabilityStatus');
   const tReservation = useTranslations('inventory.reservationStatus');
+  const tReservationRecord = useTranslations('inventory.reservationRecordStatus');
   const tSales = useTranslations('inventory.salesStatus');
   const tConstruction = useTranslations('inventory.constructionStatus');
   const tClosing = useTranslations('inventory.closingStatus');
   const tLeasing = useTranslations('inventory.leasingStatus');
   const tCategories = useTranslations('inventory.statusCategories');
+  const tPriceTypes = useTranslations('inventory.pricing.priceTypes');
+  const tPriceStatuses = useTranslations('inventory.pricing.priceStatuses');
+  const tPriceRequestStatuses = useTranslations('inventory.pricing.requestStatuses');
   const tErrors = useTranslations('inventory.errors');
+  const tPricingErrors = useTranslations('inventory.pricing.errors');
 
   const getAssetTypeLabel = (value: InventoryAssetType | string) =>
     tAssetTypes(value as InventoryAssetType);
@@ -40,6 +54,8 @@ export function useInventoryLabels() {
     tAvailability(value as AvailabilityStatus);
   const getReservationLabel = (value: ReservationStatus | string) =>
     tReservation(value as ReservationStatus);
+  const getReservationRecordLabel = (value: ReservationRecordStatus | string) =>
+    tReservationRecord(value as ReservationRecordStatus);
   const getSalesLabel = (value: SalesStatus | string) => tSales(value as SalesStatus);
   const getConstructionLabel = (value: ConstructionStatus | string) =>
     tConstruction(value as ConstructionStatus);
@@ -47,8 +63,22 @@ export function useInventoryLabels() {
   const getLeasingLabel = (value: LeasingStatus | string) => tLeasing(value as LeasingStatus);
   const getStatusCategoryLabel = (value: StatusCategory | string) =>
     tCategories(value as StatusCategory);
+  const getPriceTypeLabel = (value: PriceType | string) => tPriceTypes(value as PriceType);
+  const getPriceStatusLabel = (value: PriceStatus | string) => tPriceStatuses(value as PriceStatus);
+  const getPriceRequestStatusLabel = (value: PriceRequestStatus | string) =>
+    tPriceRequestStatuses(value as PriceRequestStatus);
 
   const getErrorLabel = (key: string): string => {
+    const pricingKey = key.startsWith('inventory.pricing.errors.')
+      ? key.replace('inventory.pricing.errors.', '')
+      : null;
+    if (pricingKey) {
+      try {
+        return tPricingErrors(pricingKey as never);
+      } catch {
+        return key;
+      }
+    }
     const normalized = key.startsWith('inventory.errors.') ? key.replace('inventory.errors.', '') : key;
     try {
       return tErrors(normalized as never);
@@ -81,6 +111,7 @@ export function useInventoryLabels() {
     value,
     label: tCategories(value),
   }));
+  const priceTypeOptions = PRICE_TYPES.map((value) => ({ value, label: tPriceTypes(value) }));
 
   const statusOptionsByCategory: Record<StatusCategory, { value: string; label: string }[]> = {
     availability: availabilityOptions,
@@ -96,11 +127,15 @@ export function useInventoryLabels() {
     getUsageTypeLabel,
     getAvailabilityLabel,
     getReservationLabel,
+    getReservationRecordLabel,
     getSalesLabel,
     getConstructionLabel,
     getClosingLabel,
     getLeasingLabel,
     getStatusCategoryLabel,
+    getPriceTypeLabel,
+    getPriceStatusLabel,
+    getPriceRequestStatusLabel,
     getErrorLabel,
     assetTypeOptions,
     usageTypeOptions,
@@ -110,6 +145,7 @@ export function useInventoryLabels() {
     constructionOptions,
     closingOptions,
     leasingOptions,
+    priceTypeOptions,
     statusCategoryOptions,
     statusOptionsByCategory,
   };

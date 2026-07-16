@@ -10,6 +10,14 @@ from investhome_api.services.drawing_intelligence.queue import (
     get_drawing_worker_timeout,
     process_drawing_job,
 )
+from investhome_api.services.inventory.reservation_jobs import (
+    JOB_EXPIRE_SOFT_HOLDS,
+    JOB_OVERDUE_DEPOSITS,
+    JOB_RESERVATION_REMINDERS,
+    expire_soft_holds_job,
+    overdue_deposits_job,
+    reservation_reminders_job,
+)
 from investhome_api.worker.redis_config import redis_settings_from_url
 
 configure_logging()
@@ -21,7 +29,18 @@ redis_settings = redis_settings_from_url(_settings.redis_url)
 
 class WorkerSettings:
     redis_settings = redis_settings
-    functions = [process_document_job, process_drawing_job]
+    functions = [
+        process_document_job,
+        process_drawing_job,
+        expire_soft_holds_job,
+        reservation_reminders_job,
+        overdue_deposits_job,
+    ]
+    cron_jobs = [
+        {"name": JOB_EXPIRE_SOFT_HOLDS, "coroutine": expire_soft_holds_job, "minute": {0, 15, 30, 45}},
+        {"name": JOB_RESERVATION_REMINDERS, "coroutine": reservation_reminders_job, "minute": {5, 35}},
+        {"name": JOB_OVERDUE_DEPOSITS, "coroutine": overdue_deposits_job, "minute": {10, 40}},
+    ]
     job_timeout = 600
     max_tries = 3
     retry_jobs = True
@@ -34,5 +53,8 @@ class WorkerSettings:
     job_name_map = {
         JOB_NAME: process_document_job,
         DRAWING_JOB_NAME: process_drawing_job,
+        JOB_EXPIRE_SOFT_HOLDS: expire_soft_holds_job,
+        JOB_RESERVATION_REMINDERS: reservation_reminders_job,
+        JOB_OVERDUE_DEPOSITS: overdue_deposits_job,
     }
     drawing_job_timeout = get_drawing_worker_timeout()

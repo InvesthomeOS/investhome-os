@@ -17,6 +17,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -334,6 +335,8 @@ class InventoryAsset(Base):
         default=LeasingStatus.NOT_APPLICABLE,
     )
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD")
+    list_price: Mapped[Decimal | None] = mapped_column(Numeric(16, 2), nullable=True)
+    promotional_price: Mapped[Decimal | None] = mapped_column(Numeric(16, 2), nullable=True)
     release_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     delivery_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -366,6 +369,17 @@ class InventoryReservation(Base):
         Index("ix_inventory_reservations_lead_id", "lead_id"),
         Index("ix_inventory_reservations_status", "status"),
         Index("ix_inventory_reservations_expires_at", "expires_at"),
+        Index(
+            "uq_inventory_reservations_active_asset",
+            "inventory_asset_id",
+            unique=True,
+            sqlite_where=text(
+                "status IN ('active', 'requested', 'approved', 'deposit_pending', 'deposit_received')"
+            ),
+            postgresql_where=text(
+                "status IN ('active', 'requested', 'approved', 'deposit_pending', 'deposit_received')"
+            ),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -447,6 +461,246 @@ class InventoryReservationEvent(Base):
     to_status: Mapped[str] = mapped_column(String(50), nullable=False)
     actor_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
+class PriceType(str, enum.Enum):
+    ORIGINAL = "original"
+    LAUNCH = "launch"
+    LIST = "list"
+    PROMOTIONAL = "promotional"
+    RESERVATION = "reservation"
+    CONTRACTED = "contracted"
+    CLOSING = "closing"
+    APPRAISED = "appraised"
+    ESTIMATED_RENT = "estimated_rent"
+
+
+SENSITIVE_PRICE_TYPES = frozenset({PriceType.CONTRACTED, PriceType.CLOSING})
+
+
+class PriceStatus(str, enum.Enum):
+    DRAFT = "draft"
+    PENDING = "pending"
+    ACTIVE = "active"
+    EXPIRED = "expired"
+    SUPERSEDED = "superseded"
+    REJECTED = "rejected"
+    ARCHIVED = "archived"
+
+
+class PriceSource(str, enum.Enum):
+    INITIAL = "initial"
+    MANUAL_REQUEST = "manual_request"
+    PROMOTION = "promotion"
+    CONTRACT = "contract"
+    CLOSING = "closing"
+    APPRAISAL = "appraisal"
+    RENT_ESTIMATE = "rent_estimate"
+    IMPORT = "import"
+    OTHER = "other"
+
+
+class PriceRequestStatus(str, enum.Enum):
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    UNDER_REVIEW = "under_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    WITHDRAWN = "withdrawn"
+    EXPIRED = "expired"
+    APPLIED = "applied"
+
+
+PENDING_PRICE_REQUEST_STATUSES = frozenset(
+    {
+        PriceRequestStatus.SUBMITTED,
+        PriceRequestStatus.UNDER_REVIEW,
+    }
+)
+
+
+class PriceApprovalDecision(str, enum.Enum):
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    REVISION_REQUESTED = "revision_requested"
+
+
+class InventoryAssetPrice(Base):
+    __tablename__ = "inventory_asset_prices"
+    __table_args__ = (
+        Index("ix_inventory_asset_prices_asset_id", "inventory_asset_id"),
+        Index("ix_inventory_asset_prices_type_status", "price_type", "status"),
+        Index(
+            "uq_inventory_asset_prices_active",
+            "inventory_asset_id",
+            "price_type",
+            "currency",
+            unique=True,
+            postgresql_where="status = 'active'",
+            sqlite_where="status = 'active'",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    inventory_asset_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("inventory_assets.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    price_type: Mapped[PriceType] = mapped_column(
+        Enum(PriceType, native_enum=False, length=50),
+        nullable=False,
+    )
+    amount: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    effective_from: Mapped[date] = mapped_column(Date, nullable=False)
+    effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[PriceStatus] = mapped_column(
+        Enum(PriceStatus, native_enum=False, length=50),
+        nullable=False,
+    )
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source: Mapped[PriceSource] = mapped_column(
+        Enum(PriceSource, native_enum=False, length=50),
+        nullable=False,
+    )
+    approved_request_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("price_change_requests.id", ondelete="SET NULL", use_alter=True),
+        nullable=True,
+    )
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    is_demo: Mapped[bool] = mapped_column(default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class PriceChangeRequest(Base):
+    __tablename__ = "price_change_requests"
+    __table_args__ = (
+        Index("ix_price_change_requests_asset_id", "inventory_asset_id"),
+        Index("ix_price_change_requests_status", "status"),
+        Index("ix_price_change_requests_requester", "requested_by_user_id"),
+        Index("ix_price_change_requests_approver", "assigned_approver_user_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    inventory_asset_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("inventory_assets.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    price_type: Mapped[PriceType] = mapped_column(
+        Enum(PriceType, native_enum=False, length=50),
+        nullable=False,
+    )
+    current_price_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("inventory_asset_prices.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    current_amount: Mapped[Decimal | None] = mapped_column(Numeric(16, 2), nullable=True)
+    proposed_amount: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    change_amount: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    change_percentage: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)
+    effective_from: Mapped[date] = mapped_column(Date, nullable=False)
+    effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    supporting_document_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("documents.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    requested_by_user_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    assigned_approver_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    status: Mapped[PriceRequestStatus] = mapped_column(
+        Enum(PriceRequestStatus, native_enum=False, length=50),
+        nullable=False,
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    decision_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_demo: Mapped[bool] = mapped_column(default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class PriceApprovalRecord(Base):
+    __tablename__ = "price_approval_records"
+    __table_args__ = (Index("ix_price_approval_records_request_id", "price_change_request_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    price_change_request_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("price_change_requests.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    reviewer_user_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    decision: Mapped[PriceApprovalDecision] = mapped_column(
+        Enum(PriceApprovalDecision, native_enum=False, length=50),
+        nullable=False,
+    )
+    comments: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
+class InventoryPriceEvent(Base):
+    __tablename__ = "inventory_price_events"
+    __table_args__ = (
+        Index("ix_inventory_price_events_asset_id", "inventory_asset_id"),
+        Index("ix_inventory_price_events_request_id", "price_change_request_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    inventory_asset_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("inventory_assets.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    price_change_request_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("price_change_requests.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    inventory_asset_price_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("inventory_asset_prices.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    event_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

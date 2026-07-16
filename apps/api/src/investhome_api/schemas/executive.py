@@ -68,8 +68,18 @@ class PipelineStage(BaseModel):
     estimated_budget_total: Decimal
 
 
+class LeadsPipelineSummary(BaseModel):
+    total: int
+    qualified: int
+    meetings: int
+    proposals: int
+    won: int
+    lost: int
+
+
 class ExecutiveLeadsPipelineResponse(BaseModel):
     stages: list[PipelineStage]
+    summary: LeadsPipelineSummary
     conversion_rate: Decimal | None
     won_in_period: int
     lost_in_period: int
@@ -158,6 +168,18 @@ class ProjectFundingGap(BaseModel):
     funding_gap: Decimal
 
 
+class RecentTransactionRow(BaseModel):
+    transaction_id: UUID
+    transaction_date: date
+    description: str | None
+    amount: Decimal
+    currency: str
+    transaction_type: str
+    status: str
+    link_module: str = "finance"
+    link_query: dict[str, str] | None = None
+
+
 class ExecutiveFinancialOverviewResponse(BaseModel):
     cash_by_account: list[AccountCashRow]
     available_cash: dict[str, Decimal]
@@ -172,6 +194,7 @@ class ExecutiveFinancialOverviewResponse(BaseModel):
     total_paid: dict[str, Decimal]
     funding_gap_by_project: list[ProjectFundingGap]
     cash_flow_trend: list[CashFlowPoint]
+    recent_transactions: list[RecentTransactionRow] = Field(default_factory=list)
 
 
 class DeadlineItem(BaseModel):
@@ -212,3 +235,58 @@ class ActivityItem(BaseModel):
 
 class ExecutiveActivityResponse(BaseModel):
     items: list[ActivityItem]
+
+
+class ApprovalItem(BaseModel):
+    approval_type: str
+    title_key: str
+    entity_type: str
+    entity_id: UUID
+    related_label: str | None = None
+    submitted_at: datetime | None = None
+    age_days: int | None = None
+    link_module: str
+    link_query: dict[str, str] | None = None
+    metadata: dict[str, str | int | float | None] = Field(default_factory=dict)
+
+
+class ExecutiveApprovalsResponse(BaseModel):
+    items: list[ApprovalItem]
+    total_pending: int
+
+
+class DelayedProjectRow(BaseModel):
+    project_id: UUID
+    project_name: str
+    completion_target: date | None
+    health_status: Literal["on_track", "attention", "at_risk"]
+    days_overdue: int | None = None
+    link_module: str = "projects"
+    link_query: dict[str, str] | None = None
+
+
+class ExecutiveConstructionSnapshotResponse(BaseModel):
+    limited_data: bool = True
+    delayed_projects: list[DelayedProjectRow]
+    upcoming_inspections_available: bool = False
+    open_rfis_available: bool = False
+    open_punch_items_available: bool = False
+    drawing_proposals_pending: int = 0
+
+
+class AiInsightItem(BaseModel):
+    kind: Literal["priority", "risk", "opportunity"]
+    title_key: str
+    description_key: str
+    metadata: dict[str, str | int | float | None] = Field(default_factory=dict)
+    link_module: str
+    link_query: dict[str, str] | None = None
+    severity: Literal["information", "warning", "critical"] | None = None
+
+
+class ExecutiveAiInsightsResponse(BaseModel):
+    priorities: list[AiInsightItem]
+    risks: list[AiInsightItem]
+    opportunities: list[AiInsightItem]
+    generated_at: datetime
+    ai_level: str = "L2"

@@ -47,7 +47,13 @@ from investhome_api.models.inventory import (  # noqa: F401
     Building,
     Floor,
     InventoryAsset,
+    InventoryAssetPrice,
     InventoryAssetStatusHistory,
+    InventoryPriceEvent,
+    InventoryReservation,
+    InventoryReservationEvent,
+    PriceApprovalRecord,
+    PriceChangeRequest,
 )
 from investhome_api.models.notification import Notification  # noqa: F401
 from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole  # noqa: F401

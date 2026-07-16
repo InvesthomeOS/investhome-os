@@ -512,3 +512,210 @@ export async function fetchInventoryKpis(
     leased: leased.total,
   };
 }
+
+export const RESERVATION_RECORD_STATUSES = [
+  'active',
+  'requested',
+  'approved',
+  'deposit_pending',
+  'deposit_received',
+  'converted',
+  'expired',
+  'cancelled',
+  'rejected',
+  'released',
+] as const;
+
+export type ReservationRecordStatus = (typeof RESERVATION_RECORD_STATUSES)[number];
+
+export interface InventoryReservation {
+  id: string;
+  inventory_asset_id: string;
+  reservation_type: 'soft_hold' | 'reservation';
+  status: ReservationRecordStatus;
+  source: string;
+  investor_id: string | null;
+  lead_id: string | null;
+  reserved_by_user_id: string | null;
+  approved_by_user_id: string | null;
+  expires_at: string | null;
+  deposit_due_at: string | null;
+  deposit_amount: string | null;
+  deposit_currency: string | null;
+  finance_transaction_id: string | null;
+  extension_count: number;
+  notes: string | null;
+  cancellation_reason: string | null;
+  requested_at: string | null;
+  approved_at: string | null;
+  deposit_received_at: string | null;
+  converted_at: string | null;
+  expired_at: string | null;
+  cancelled_at: string | null;
+  released_at: string | null;
+  is_demo: boolean;
+  created_at: string;
+  updated_at: string;
+  asset_display_id?: string | null;
+  asset_system_code?: string | null;
+  party_name?: string | null;
+  seconds_until_expiry?: number | null;
+  valid_actions?: string[];
+}
+
+export interface InventoryReservationEvent {
+  id: string;
+  reservation_id: string;
+  event_type: string;
+  from_status: string | null;
+  to_status: string;
+  actor_user_id: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface SoftHoldInput {
+  inventory_asset_id: string;
+  investor_id?: string | null;
+  lead_id?: string | null;
+  expires_at?: string | null;
+  deposit_amount?: number | null;
+  deposit_currency?: string | null;
+  notes?: string | null;
+}
+
+export interface ReservationFilters {
+  project_id?: string;
+  inventory_asset_id?: string;
+  investor_id?: string;
+  lead_id?: string;
+  status?: ReservationRecordStatus | '';
+  active_only?: boolean;
+  expiring_within_hours?: number;
+  search?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export type ReservationListResponse = PaginatedResponse<InventoryReservation>;
+
+export interface ReservationHistoryEntry {
+  reservation: InventoryReservation;
+  events: InventoryReservationEvent[];
+}
+
+export function formatCountdown(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined) return '—';
+  if (seconds <= 0) return 'Expired';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    return `${days}d ${hours % 24}h`;
+  }
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+export async function fetchReservations(
+  filters: ReservationFilters = {},
+): Promise<ReservationListResponse> {
+  return apiFetch<ReservationListResponse>(
+    `/inventory/reservations${buildQuery({
+      project_id: filters.project_id,
+      inventory_asset_id: filters.inventory_asset_id,
+      investor_id: filters.investor_id,
+      lead_id: filters.lead_id,
+      status: filters.status,
+      active_only: filters.active_only,
+      expiring_within_hours: filters.expiring_within_hours,
+      search: filters.search?.trim(),
+      page: filters.page,
+      page_size: filters.page_size,
+    })}`,
+  );
+}
+
+export async function fetchReservation(id: string): Promise<InventoryReservation> {
+  return apiFetch<InventoryReservation>(`/inventory/reservations/${id}`);
+}
+
+export async function fetchReservationHistoryByAsset(
+  assetId: string,
+): Promise<ReservationHistoryEntry[]> {
+  return apiFetch<ReservationHistoryEntry[]>(`/inventory/reservations/by-asset/${assetId}/history`);
+}
+
+export async function createSoftHold(input: SoftHoldInput): Promise<InventoryReservation> {
+  return apiFetch<InventoryReservation>('/inventory/reservations/soft-hold', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function releaseSoftHold(
+  id: string,
+  reason?: string | null,
+): Promise<InventoryReservation> {
+  return apiFetch<InventoryReservation>(`/inventory/reservations/${id}/release`, {
+    method: 'POST',
+    body: JSON.stringify({ reason: reason ?? null }),
+  });
+}
+
+export async function requestReservation(
+  id: string,
+  input: { notes?: string | null; deposit_amount?: number | null; deposit_due_at?: string | null } = {},
+): Promise<InventoryReservation> {
+  return apiFetch<InventoryReservation>(`/inventory/reservations/${id}/request`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function approveReservation(
+  id: string,
+  notes?: string | null,
+): Promise<InventoryReservation> {
+  return apiFetch<InventoryReservation>(`/inventory/reservations/${id}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ notes: notes ?? null }),
+  });
+}
+
+export async function rejectReservation(id: string, reason: string): Promise<InventoryReservation> {
+  return apiFetch<InventoryReservation>(`/inventory/reservations/${id}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export async function cancelReservation(
+  id: string,
+  reason?: string | null,
+): Promise<InventoryReservation> {
+  return apiFetch<InventoryReservation>(`/inventory/reservations/${id}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({ reason: reason ?? null }),
+  });
+}
+
+export async function markDepositReceived(
+  id: string,
+  input: { finance_transaction_id?: string | null; reference_number?: string | null } = {},
+): Promise<InventoryReservation> {
+  return apiFetch<InventoryReservation>(`/inventory/reservations/${id}/deposit-received`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function convertReservation(
+  id: string,
+  notes?: string | null,
+): Promise<InventoryReservation> {
+  return apiFetch<InventoryReservation>(`/inventory/reservations/${id}/convert`, {
+    method: 'POST',
+    body: JSON.stringify({ notes: notes ?? null }),
+  });
+}

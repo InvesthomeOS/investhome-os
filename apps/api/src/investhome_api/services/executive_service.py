@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from investhome_api.config.executive_config import (
@@ -20,6 +20,8 @@ from investhome_api.config.executive_config import (
     LEAD_INACTIVITY_DAYS,
     LOW_AVAILABLE_BALANCE_RATIO,
 )
+from investhome_api.models.design_studio import DesignProject, DesignStatus
+from investhome_api.models.drawing_intelligence import DrawingAnalysis, DrawingUnitProposal, UnitProposalStatus
 from investhome_api.models.finance import (
     AccountStatus,
     CommitmentStatus,
@@ -35,17 +37,31 @@ from investhome_api.models.finance import (
     TransactionType,
 )
 from investhome_api.models.investor import Investor, InvestorStatus
+from investhome_api.models.inventory import (
+    InventoryAsset,
+    InventoryReservation,
+    PENDING_PRICE_REQUEST_STATUSES,
+    PriceChangeRequest,
+    ReservationRecordStatus,
+    SENSITIVE_PRICE_TYPES,
+)
 from investhome_api.models.lead import Lead, LeadStatus
 from investhome_api.models.project import ACTIVE_PROJECT_STATUSES, Project, ProjectStatus
 from investhome_api.schemas.executive import (
     AccountCashRow,
     ActivityItem,
+    AiInsightItem,
+    ApprovalItem,
     AttentionItem,
     CashFlowPoint,
     CurrencyMetricComparison,
     DeadlineItem,
+    DelayedProjectRow,
     ExecutiveActivityResponse,
+    ExecutiveAiInsightsResponse,
+    ExecutiveApprovalsResponse,
     ExecutiveAttentionResponse,
+    ExecutiveConstructionSnapshotResponse,
     ExecutiveDeadlinesResponse,
     ExecutiveFilters,
     ExecutiveFinancialOverviewResponse,
@@ -56,11 +72,13 @@ from investhome_api.schemas.executive import (
     InvestorCountryCount,
     InvestorModelCount,
     InvestorStatusCount,
+    LeadsPipelineSummary,
     MetricComparison,
     PipelineStage,
     ProjectFundingGap,
     ProjectHealthRow,
     ProjectStatusCount,
+    RecentTransactionRow,
     SummaryCard,
 )
 from investhome_api.services.activity_service import (
@@ -69,6 +87,7 @@ from investhome_api.services.activity_service import (
     resolve_entity_label,
 )
 from investhome_api.services.finance_service import _sum_by_currency, compute_finance_stats
+from investhome_api.services.permission_service import user_has_permission
 
 OUTFLOW_TRANSACTION_TYPES = frozenset(
     {
@@ -227,14 +246,68 @@ def compute_project_health(
     return "on_track"
 
 
-def build_executive_summary(db: Session, filters: ExecutiveFilters) -> ExecutiveSummaryResponse:
-    window = resolve_period_window(filters.date_from, filters.date_to)
+def _count_upcoming_closings(db: Session, filters: ExecutiveFilters) -> int:
     today = date.today()
+    horizon = today + timedelta(days=30)
+    leads = db.scalars(_lead_query(db, filters)).all()
+    closing_leads = sum(
+        1
+        for lead in leads
+        if lead.status in {LeadStatus.NEGOTIATION, LeadStatus.WON}
+    )
+
+    obligation_query = select(PaymentObligation).where(
+        PaymentObligation.archived_at.is_(None),
+        PaymentObligation.status.not_in([ObligationStatus.PAID, ObligationStatus.CANCELLED]),
+        PaymentObligation.due_date.is_not(None),
+        PaymentObligation.due_date >= today,
+        PaymentObligation.due_date <= horizon,
+    )
+    if filters.project_id:
+        obligation_query = obligation_query.where(PaymentObligation.project_id == filters.project_id)
+    obligations = db.scalars(obligation_query).all()
+    closing_obligations = len(
+        [o for o in obligations if not filters.currency or o.currency == filters.currency.upper()]
+    )
+    return closing_leads + closing_obligations
+
+
+def _count_pending_approvals(db: Session, filters: ExecutiveFilters, user: "User | None") -> int:
+    return len(build_approvals(db, filters, user).items)
+
+
+def _count_inventory_reservations(db: Session, filters: ExecutiveFilters) -> tuple[int, int]:
+    """Return (active_soft_holds, expiring_within_48h)."""
+    now = datetime.now()
+    cutoff = now + timedelta(hours=48)
+    query = select(InventoryReservation).join(
+        InventoryAsset, InventoryAsset.id == InventoryReservation.inventory_asset_id
+    )
+    if filters.project_id:
+        query = query.where(InventoryAsset.project_id == filters.project_id)
+    reservations = db.scalars(query).all()
+    soft_holds = sum(
+        1 for r in reservations if r.status == ReservationRecordStatus.ACTIVE
+    )
+    expiring = sum(
+        1
+        for r in reservations
+        if r.status == ReservationRecordStatus.ACTIVE
+        and r.expires_at is not None
+        and now < r.expires_at <= cutoff
+    )
+    return soft_holds, expiring
+
+
+def build_executive_summary(
+    db: Session,
+    filters: ExecutiveFilters,
+    user: "User | None" = None,
+) -> ExecutiveSummaryResponse:
+    window = resolve_period_window(filters.date_from, filters.date_to)
 
     leads = db.scalars(_lead_query(db, filters)).all()
-    total_leads = len(leads)
-    qualified_leads = sum(1 for lead in leads if lead.status in QUALIFIED_STATUSES)
-
+    active_leads = len(leads)
     leads_created_current = sum(
         1 for lead in leads if window.current_from <= lead.created_at.date() <= window.current_to
     )
@@ -255,13 +328,10 @@ def build_executive_summary(db: Session, filters: ExecutiveFilters) -> Executive
         if window.previous_from <= inv.created_at.date() <= window.previous_to
     )
 
-    total_capacity = sum((inv.investment_capacity or Decimal("0")) for inv in investors)
-
     projects = db.scalars(_project_query(db, filters)).all()
     active_projects = sum(
         1 for project in projects if project.project_status in ACTIVE_PROJECT_STATUSES
     )
-    portfolio_value = sum((p.current_project_value or Decimal("0")) for p in projects)
 
     finance_stats = compute_finance_stats(db)
     available_cash = finance_stats["available_cash"]
@@ -269,29 +339,27 @@ def build_executive_summary(db: Session, filters: ExecutiveFilters) -> Executive
         key = filters.currency.upper()
         available_cash = {key: available_cash.get(key, Decimal("0"))}
 
-    remaining_funding = finance_stats["remaining_funding_need"]
-    if filters.currency:
-        key = filters.currency.upper()
-        remaining_funding = {key: remaining_funding.get(key, Decimal("0"))}
+    upcoming_closings = _count_upcoming_closings(db, filters)
+    pending_approvals = _count_pending_approvals(db, filters, user)
+    soft_holds, expiring_holds = _count_inventory_reservations(db, filters)
 
     cards = [
         SummaryCard(
-            key="total_leads",
-            value=total_leads,
+            key="active_projects",
+            value=active_projects,
+            comparison=MetricComparison(current=active_projects, change_available=False),
+            link_module="projects",
+            link_query={"status": "active"},
+        ),
+        SummaryCard(
+            key="active_leads",
+            value=active_leads,
             comparison=MetricComparison(
-                current=total_leads,
-                previous=total_leads - leads_created_current + leads_created_previous,
+                current=active_leads,
                 change=leads_created_current - leads_created_previous,
                 change_available=True,
             ),
             link_module="leads",
-        ),
-        SummaryCard(
-            key="qualified_leads",
-            value=qualified_leads,
-            comparison=MetricComparison(current=qualified_leads, change_available=False),
-            link_module="leads",
-            link_query={"status": LeadStatus.QUALIFIED.value},
         ),
         SummaryCard(
             key="active_investors",
@@ -305,37 +373,40 @@ def build_executive_summary(db: Session, filters: ExecutiveFilters) -> Executive
             link_query={"status": InvestorStatus.ACTIVE.value},
         ),
         SummaryCard(
-            key="total_investment_capacity",
-            value=total_capacity,
-            comparison=MetricComparison(current=int(total_capacity), change_available=False),
-            link_module="investors",
-        ),
-        SummaryCard(
-            key="active_projects",
-            value=active_projects,
-            comparison=MetricComparison(current=active_projects, change_available=False),
-            link_module="projects",
-        ),
-        SummaryCard(
-            key="total_portfolio_value",
-            value=portfolio_value,
-            comparison=MetricComparison(current=int(portfolio_value), change_available=False),
-            link_module="projects",
-        ),
-        SummaryCard(
             key="available_cash",
             value=None,
             currency_totals=available_cash,
             currency_comparison=CurrencyMetricComparison(totals=available_cash, change_available=False),
             link_module="finance",
+            link_query={"tab": "accounts"},
         ),
         SummaryCard(
-            key="remaining_funding_need",
-            value=None,
-            currency_totals=remaining_funding,
-            currency_comparison=CurrencyMetricComparison(totals=remaining_funding, change_available=False),
-            link_module="finance",
-            link_query={"tab": "funding"},
+            key="upcoming_closings",
+            value=upcoming_closings,
+            comparison=MetricComparison(current=upcoming_closings, change_available=False),
+            link_module="leads",
+            link_query={"status": LeadStatus.NEGOTIATION.value},
+        ),
+        SummaryCard(
+            key="pending_approvals",
+            value=pending_approvals,
+            comparison=MetricComparison(current=pending_approvals, change_available=False),
+            link_module="executive",
+            link_query={"section": "approvals"},
+        ),
+        SummaryCard(
+            key="active_soft_holds",
+            value=soft_holds,
+            comparison=MetricComparison(current=soft_holds, change_available=False),
+            link_module="inventory",
+            link_query={"reservation_status": "soft_hold"},
+        ),
+        SummaryCard(
+            key="expiring_reservations",
+            value=expiring_holds,
+            comparison=MetricComparison(current=expiring_holds, change_available=False),
+            link_module="inventory",
+            link_query={"view": "reservations", "expiring": "48"},
         ),
     ]
 
@@ -596,8 +667,17 @@ def build_leads_pipeline(db: Session, filters: ExecutiveFilters) -> ExecutiveLea
         conversion_rate = Decimal(won_count) / Decimal(new_count + won_count)
 
     total_budget = sum((lead.estimated_budget or Decimal("0")) for lead in leads)
+    summary = LeadsPipelineSummary(
+        total=len(leads),
+        qualified=sum(1 for lead in leads if lead.status in QUALIFIED_STATUSES),
+        meetings=sum(1 for lead in leads if lead.status == LeadStatus.MEETING_SCHEDULED),
+        proposals=sum(1 for lead in leads if lead.status == LeadStatus.PROPOSAL_SENT),
+        won=sum(1 for lead in leads if lead.status == LeadStatus.WON),
+        lost=sum(1 for lead in leads if lead.status == LeadStatus.LOST),
+    )
     return ExecutiveLeadsPipelineResponse(
         stages=stages,
+        summary=summary,
         conversion_rate=conversion_rate,
         won_in_period=won_in_period,
         lost_in_period=lost_in_period,
@@ -893,6 +973,30 @@ def build_financial_overview(db: Session, filters: ExecutiveFilters) -> Executiv
         loan_draws = {key: loan_draws.get(key, Decimal("0"))}
         loan_payments = {key: loan_payments.get(key, Decimal("0"))}
 
+    recent_txns = db.scalars(
+        _txn_query(db, filters)
+        .where(
+            FinanceTransaction.status == TransactionStatus.COMPLETED,
+            FinanceTransaction.transaction_date >= filters.date_from,
+            FinanceTransaction.transaction_date <= filters.date_to,
+        )
+        .order_by(FinanceTransaction.transaction_date.desc(), FinanceTransaction.created_at.desc())
+        .limit(8)
+    ).all()
+    recent_transactions = [
+        RecentTransactionRow(
+            transaction_id=txn.id,
+            transaction_date=txn.transaction_date,
+            description=txn.description,
+            amount=txn.amount,
+            currency=txn.currency,
+            transaction_type=txn.transaction_type.value,
+            status=txn.status.value,
+            link_query={"tab": "transactions", "id": str(txn.id)},
+        )
+        for txn in recent_txns
+    ]
+
     return ExecutiveFinancialOverviewResponse(
         cash_by_account=cash_rows,
         available_cash=available,
@@ -907,6 +1011,7 @@ def build_financial_overview(db: Session, filters: ExecutiveFilters) -> Executiv
         total_paid=total_paid,
         funding_gap_by_project=funding_gaps,
         cash_flow_trend=trend,
+        recent_transactions=recent_transactions,
     )
 
 
@@ -1059,3 +1164,296 @@ def build_activity_feed(
         for entry in entries
     ]
     return ExecutiveActivityResponse(items=items)
+
+
+def build_approvals(
+    db: Session,
+    filters: ExecutiveFilters,
+    user: "User | None" = None,
+) -> ExecutiveApprovalsResponse:
+    today = date.today()
+    items: list[ApprovalItem] = []
+
+    if user is None or user_has_permission(user, "design", "approve"):
+        design_query = select(DesignProject).where(
+            DesignProject.archived_at.is_(None),
+            DesignProject.status == DesignStatus.READY_FOR_REVIEW,
+        )
+        if filters.project_id:
+            design_query = design_query.where(DesignProject.project_id == filters.project_id)
+        for design_project in db.scalars(design_query).all():
+            submitted_at = design_project.review_submitted_at or design_project.updated_at
+            age_days = (today - submitted_at.date()).days if submitted_at else None
+            items.append(
+                ApprovalItem(
+                    approval_type="design_review",
+                    title_key="executive.approvals.design_review.title",
+                    entity_type="design_project",
+                    entity_id=design_project.id,
+                    related_label=design_project.title,
+                    submitted_at=submitted_at,
+                    age_days=age_days,
+                    link_module="design",
+                    link_query={"id": str(design_project.id)},
+                )
+            )
+
+    if user is None or user_has_permission(user, "finance", "approve"):
+        txn_query = _txn_query(db, filters).where(
+            FinanceTransaction.status == TransactionStatus.PENDING,
+            FinanceTransaction.archived_at.is_(None),
+        )
+        for txn in db.scalars(txn_query).all():
+            submitted_at = txn.created_at
+            items.append(
+                ApprovalItem(
+                    approval_type="finance_transaction",
+                    title_key="executive.approvals.finance_transaction.title",
+                    entity_type="transaction",
+                    entity_id=txn.id,
+                    related_label=txn.description,
+                    submitted_at=submitted_at,
+                    age_days=(today - submitted_at.date()).days if submitted_at else None,
+                    link_module="finance",
+                    link_query={"tab": "transactions", "id": str(txn.id)},
+                    metadata={
+                        "amount": str(txn.amount),
+                        "currency": txn.currency,
+                    },
+                )
+            )
+
+    if user is None or user_has_permission(user, "documents", "approve"):
+        proposal_query = (
+            select(DrawingUnitProposal, DrawingAnalysis.document_id)
+            .join(DrawingAnalysis, DrawingUnitProposal.analysis_id == DrawingAnalysis.id)
+            .where(DrawingUnitProposal.status == UnitProposalStatus.PROPOSED.value)
+        )
+        for proposal, document_id in db.execute(proposal_query).all():
+            submitted_at = proposal.created_at
+            items.append(
+                ApprovalItem(
+                    approval_type="drawing_unit_proposal",
+                    title_key="executive.approvals.drawing_proposal.title",
+                    entity_type="drawing_unit_proposal",
+                    entity_id=proposal.id,
+                    related_label=proposal.unit_label,
+                    submitted_at=submitted_at,
+                    age_days=(today - submitted_at.date()).days if submitted_at else None,
+                    link_module="documents",
+                    link_query={"id": str(document_id)},
+                    metadata={"unit_label": proposal.unit_label},
+                )
+            )
+
+    if user is None or user_has_permission(user, "inventory", "review_price_change"):
+        price_query = (
+            select(PriceChangeRequest, InventoryAsset, Project)
+            .join(InventoryAsset, InventoryAsset.id == PriceChangeRequest.inventory_asset_id)
+            .join(Project, Project.id == InventoryAsset.project_id)
+            .where(
+                PriceChangeRequest.status.in_(PENDING_PRICE_REQUEST_STATUSES),
+                PriceChangeRequest.archived_at.is_(None),
+            )
+        )
+        if filters.project_id:
+            price_query = price_query.where(InventoryAsset.project_id == filters.project_id)
+        for price_request, asset, project in db.execute(price_query).all():
+            submitted_at = price_request.created_at
+            age_days = (today - submitted_at.date()).days if submitted_at else None
+            metadata: dict[str, str | int | float | None] = {
+                "price_type": price_request.price_type.value,
+                "currency": price_request.currency,
+            }
+            if user_has_permission(user, "inventory", "view_sensitive_price") or price_request.price_type not in SENSITIVE_PRICE_TYPES:
+                metadata["current_amount"] = (
+                    str(price_request.current_amount) if price_request.current_amount is not None else None
+                )
+                metadata["proposed_amount"] = str(price_request.proposed_amount)
+                metadata["change_percentage"] = (
+                    str(price_request.change_percentage)
+                    if price_request.change_percentage is not None
+                    else None
+                )
+            items.append(
+                ApprovalItem(
+                    approval_type="inventory_price_change",
+                    title_key="executive.approvals.inventory_price_change.title",
+                    entity_type="price_change_request",
+                    entity_id=price_request.id,
+                    related_label=f"{asset.display_id} · {project.project_name}",
+                    submitted_at=submitted_at,
+                    age_days=age_days,
+                    link_module="inventory",
+                    link_query={"id": str(asset.id), "tab": "pricing", "requestId": str(price_request.id)},
+                    metadata=metadata,
+                )
+            )
+
+    items.sort(key=lambda item: (item.age_days if item.age_days is not None else -1), reverse=True)
+    return ExecutiveApprovalsResponse(items=items, total_pending=len(items))
+
+
+def build_construction_snapshot(
+    db: Session,
+    filters: ExecutiveFilters,
+) -> ExecutiveConstructionSnapshotResponse:
+    today = date.today()
+    projects = db.scalars(_project_query(db, filters)).all()
+
+    critical_rows = db.scalars(
+        select(PaymentObligation.project_id).where(
+            PaymentObligation.priority == ObligationPriority.CRITICAL,
+            PaymentObligation.status.not_in(
+                [ObligationStatus.PAID, ObligationStatus.CANCELLED]
+            ),
+            PaymentObligation.project_id.is_not(None),
+        )
+    ).all()
+    critical_project_ids = {row for row in critical_rows if row is not None}
+
+    delayed_projects: list[DelayedProjectRow] = []
+    for project in projects:
+        health = compute_project_health(
+            db,
+            project,
+            today=today,
+            has_critical_obligation=project.id in critical_project_ids,
+        )
+        overdue = (
+            project.target_completion_date is not None
+            and project.target_completion_date < today
+            and project.project_status.value not in COMPLETED_PROJECT_STATUSES
+        )
+        if health in {"at_risk", "attention"} or overdue:
+            days_overdue = (
+                (today - project.target_completion_date).days
+                if overdue and project.target_completion_date
+                else None
+            )
+            delayed_projects.append(
+                DelayedProjectRow(
+                    project_id=project.id,
+                    project_name=project.project_name,
+                    completion_target=project.target_completion_date,
+                    health_status=health,
+                    days_overdue=days_overdue,
+                    link_query={"id": str(project.id)},
+                )
+            )
+
+    drawing_pending = db.scalar(
+        select(func.count())
+        .select_from(DrawingUnitProposal)
+        .where(DrawingUnitProposal.status == UnitProposalStatus.PROPOSED.value)
+    ) or 0
+
+    delayed_projects.sort(
+        key=lambda row: (
+            0 if row.health_status == "at_risk" else 1,
+            row.days_overdue if row.days_overdue is not None else -1,
+        ),
+        reverse=True,
+    )
+
+    return ExecutiveConstructionSnapshotResponse(
+        limited_data=True,
+        delayed_projects=delayed_projects[:6],
+        upcoming_inspections_available=False,
+        open_rfis_available=False,
+        open_punch_items_available=False,
+        drawing_proposals_pending=drawing_pending,
+    )
+
+
+def build_ai_insights(
+    db: Session,
+    filters: ExecutiveFilters,
+    user: "User | None" = None,
+) -> ExecutiveAiInsightsResponse:
+    now = datetime.now()
+    priorities: list[AiInsightItem] = []
+    risks: list[AiInsightItem] = []
+    opportunities: list[AiInsightItem] = []
+
+    attention = build_attention_items(db, filters)
+    for item in attention.items[:5]:
+        risks.append(
+            AiInsightItem(
+                kind="risk",
+                title_key=item.title_key,
+                description_key=item.description_key,
+                metadata=item.metadata,
+                link_module=item.link_module,
+                link_query=item.link_query,
+                severity=item.severity,
+            )
+        )
+
+    deadlines = build_deadlines(db, filters)
+    for deadline in deadlines.items[:5]:
+        if deadline.window in {"overdue", "next_7_days"}:
+            priorities.append(
+                AiInsightItem(
+                    kind="priority",
+                    title_key="executive.aiPanel.deadline_priority.title",
+                    description_key="executive.aiPanel.deadline_priority.description",
+                    metadata={
+                        "title": deadline.title,
+                        "due_date": deadline.due_date.isoformat(),
+                        "window": deadline.window,
+                    },
+                    link_module=deadline.link_module,
+                    link_query=deadline.link_query,
+                    severity="critical" if deadline.window == "overdue" else "warning",
+                )
+            )
+
+    pipeline = build_leads_pipeline(db, filters)
+    if pipeline.summary.won > 0:
+        opportunities.append(
+            AiInsightItem(
+                kind="opportunity",
+                title_key="executive.aiPanel.pipeline_wins.title",
+                description_key="executive.aiPanel.pipeline_wins.description",
+                metadata={"won": pipeline.summary.won},
+                link_module="leads",
+                link_query={"status": LeadStatus.WON.value},
+            )
+        )
+
+    investors = build_investor_overview(db, filters)
+    for currency, amount in investors.remaining_committed.items():
+        if amount > 0:
+            opportunities.append(
+                AiInsightItem(
+                    kind="opportunity",
+                    title_key="executive.aiPanel.funding_headroom.title",
+                    description_key="executive.aiPanel.funding_headroom.description",
+                    metadata={"amount": str(amount), "currency": currency},
+                    link_module="investors",
+                )
+            )
+            break
+
+    approvals = build_approvals(db, filters, user)
+    if approvals.total_pending > 0:
+        priorities.append(
+            AiInsightItem(
+                kind="priority",
+                title_key="executive.aiPanel.pending_approvals.title",
+                description_key="executive.aiPanel.pending_approvals.description",
+                metadata={"count": approvals.total_pending},
+                link_module="executive",
+                link_query={"section": "approvals"},
+                severity="warning",
+            )
+        )
+
+    return ExecutiveAiInsightsResponse(
+        priorities=priorities[:5],
+        risks=risks[:5],
+        opportunities=opportunities[:3],
+        generated_at=now,
+        ai_level="L2",
+    )

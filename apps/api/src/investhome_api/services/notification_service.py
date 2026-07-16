@@ -42,6 +42,7 @@ ENTITY_LINK_MODULES: dict[str, str] = {
     "project_budget": "finance",
     "funding_commitment": "finance",
     "payment_obligation": "finance",
+    "inventory_reservation": "inventory",
     "user": "admin/users",
     "role": "admin/roles",
 }

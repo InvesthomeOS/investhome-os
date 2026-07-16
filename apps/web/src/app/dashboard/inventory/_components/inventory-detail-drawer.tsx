@@ -8,6 +8,8 @@ import { Button, Drawer, StatusChip, Tabs } from '@investhome/ui';
 
 import { EntityActivityTimeline } from '@/app/dashboard/_components/entity-activity-timeline';
 import { EntityDocumentsPanel } from '@/app/dashboard/_components/entity-documents-panel';
+import { PricingPanel } from './pricing-panel';
+import { ReservationPanel } from './reservation-panel';
 import {
   fetchInventoryAssetStatusHistory,
   formatArea,
@@ -29,6 +31,8 @@ import { useInventoryLabels } from '@/lib/i18n/inventory-labels';
 type DetailTab =
   | 'overview'
   | 'status'
+  | 'reservation'
+  | 'pricing'
   | 'physical'
   | 'assignments'
   | 'dates'
@@ -53,6 +57,9 @@ interface InventoryDetailDrawerProps {
   onArchive: (asset: InventoryAsset) => void;
   onRestore: (asset: InventoryAsset) => void;
   onStatusUpdate: (asset: InventoryAsset) => void;
+  onReservationChanged?: () => void;
+  onPricingChanged?: () => void;
+  pricingTabRequest?: number;
 }
 
 function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
@@ -94,6 +101,9 @@ export function InventoryDetailDrawer({
   onArchive,
   onRestore,
   onStatusUpdate,
+  onReservationChanged,
+  onPricingChanged,
+  pricingTabRequest = 0,
 }: InventoryDetailDrawerProps) {
   const t = useTranslations('inventory');
   const tCommon = useTranslations('common');
@@ -119,6 +129,7 @@ export function InventoryDetailDrawer({
   const canViewDocuments = user ? hasPermission(user, 'documents', 'view') : false;
   const canViewDesign = user ? hasPermission(user, 'design', 'view') : false;
   const canViewActivity = user ? hasPermission(user, 'activity', 'view') : false;
+  const canViewPricing = user ? hasPermission(user, 'inventory', 'view_price') : false;
 
   const project = useMemo(
     () => (asset ? projects.find((p) => p.id === asset.project_id) : undefined),
@@ -152,11 +163,19 @@ export function InventoryDetailDrawer({
     }
   }, [asset, activeTab, loadHistory]);
 
+  useEffect(() => {
+    if (pricingTabRequest > 0 && canViewPricing) {
+      setActiveTab('pricing');
+    }
+  }, [pricingTabRequest, canViewPricing]);
+
   if (!asset) return null;
 
   const tabs = [
     { id: 'overview', label: t('detail.tabs.overview') },
     { id: 'status', label: t('detail.tabs.status') },
+    { id: 'reservation', label: t('detail.tabs.reservation') },
+    ...(canViewPricing ? [{ id: 'pricing', label: t('detail.tabs.pricing') }] : []),
     { id: 'physical', label: t('detail.tabs.physical') },
     { id: 'assignments', label: t('detail.tabs.assignments') },
     { id: 'dates', label: t('detail.tabs.dates') },
@@ -342,6 +361,14 @@ export function InventoryDetailDrawer({
             </div>
           )}
         </DetailSection>
+      )}
+
+      {activeTab === 'reservation' && (
+        <ReservationPanel asset={asset} onChanged={() => onReservationChanged?.()} />
+      )}
+
+      {activeTab === 'pricing' && (
+        <PricingPanel asset={asset} onChanged={() => onPricingChanged?.()} />
       )}
 
       {activeTab === 'physical' && (
