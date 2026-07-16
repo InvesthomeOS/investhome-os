@@ -49,6 +49,12 @@ def _now(clock: datetime | None = None) -> datetime:
     return clock or datetime.now(UTC)
 
 
+def _ensure_aware(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value
+
+
 def _append_event(
     db: Session,
     reservation: InventoryReservation,
@@ -236,7 +242,7 @@ def _ensure_not_expired(reservation: InventoryReservation, *, clock: datetime | 
     if (
         reservation.status == ReservationRecordStatus.ACTIVE
         and reservation.expires_at is not None
-        and reservation.expires_at <= now
+        and _ensure_aware(reservation.expires_at) <= now
     ):
         raise ReservationError("inventory.errors.reservation_expired")
 
@@ -598,7 +604,7 @@ def expire_reservation(
     if reservation.status not in ACTIVE_RESERVATION_STATUSES:
         return None
     if reservation.status == ReservationRecordStatus.ACTIVE and reservation.expires_at:
-        if reservation.expires_at > _now(clock):
+        if _ensure_aware(reservation.expires_at) > _now(clock):
             return None
 
     asset = _lock_asset(db, reservation.inventory_asset_id)
@@ -621,7 +627,7 @@ def get_valid_actions(reservation: InventoryReservation, *, clock: datetime | No
 
     actions: list[str] = []
     if reservation.status == ReservationRecordStatus.ACTIVE:
-        if reservation.expires_at is None or reservation.expires_at > now:
+        if reservation.expires_at is None or _ensure_aware(reservation.expires_at) > now:
             actions.extend(["release", "request"])
     if reservation.status == ReservationRecordStatus.REQUESTED:
         actions.extend(["approve", "reject", "cancel"])
@@ -651,7 +657,7 @@ def enrich_reservation(
 
     seconds_until_expiry = None
     if reservation.expires_at and reservation.status == ReservationRecordStatus.ACTIVE:
-        delta = reservation.expires_at - _now(clock)
+        delta = _ensure_aware(reservation.expires_at) - _now(clock)
         seconds_until_expiry = max(int(delta.total_seconds()), 0)
 
     return {
@@ -675,13 +681,17 @@ def list_reservation_events(db: Session, reservation_id: UUID) -> list[Inventory
 
 def expire_due_soft_holds(db: Session, *, clock: datetime | None = None) -> list[InventoryReservation]:
     now = _now(clock)
-    due = db.scalars(
+    candidates = db.scalars(
         select(InventoryReservation).where(
             InventoryReservation.status == ReservationRecordStatus.ACTIVE,
             InventoryReservation.expires_at.is_not(None),
-            InventoryReservation.expires_at <= now,
         )
     ).all()
+    due = [
+        reservation
+        for reservation in candidates
+        if reservation.expires_at is not None and _ensure_aware(reservation.expires_at) <= now
+    ]
     expired: list[InventoryReservation] = []
     for reservation in due:
         result = expire_reservation(db, reservation, clock=clock)

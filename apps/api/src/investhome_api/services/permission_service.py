@@ -3,6 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from investhome_api.config.settings import get_settings
 from investhome_api.models.user_auth import Permission, Role, User
 
 
@@ -31,6 +32,8 @@ def _has_permission_direct(user: User, resource: str, action: str) -> bool:
 
 
 def user_has_permission(user: User, resource: str, action: str) -> bool:
+    if not get_settings().auth_enabled:
+        return True
     if is_super_admin(user):
         return True
     return _has_permission_direct(user, resource, action)

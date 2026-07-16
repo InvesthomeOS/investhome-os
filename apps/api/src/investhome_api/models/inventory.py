@@ -54,6 +54,23 @@ class InventoryAssetType(str, enum.Enum):
     RETAIL_UNIT = "retail_unit"
 
 
+CHILD_ASSIGNMENT_ASSET_TYPES = frozenset(
+    {
+        InventoryAssetType.PARKING_SPACE,
+        InventoryAssetType.STORAGE_UNIT,
+    }
+)
+
+PARENT_ASSIGNMENT_ASSET_TYPES = frozenset(
+    {
+        InventoryAssetType.RESIDENTIAL_UNIT,
+        InventoryAssetType.COMMERCIAL_UNIT,
+        InventoryAssetType.OFFICE_UNIT,
+        InventoryAssetType.RETAIL_UNIT,
+    }
+)
+
+
 class UsageType(str, enum.Enum):
     RESIDENTIAL = "residential"
     COMMERCIAL = "commercial"
@@ -542,8 +559,8 @@ class InventoryAssetPrice(Base):
             "price_type",
             "currency",
             unique=True,
-            postgresql_where="status = 'active'",
-            sqlite_where="status = 'active'",
+            postgresql_where=text("status = 'active'"),
+            sqlite_where=text("status = 'active'"),
         ),
     )
 
@@ -737,3 +754,33 @@ class InventoryAssetStatusHistory(Base):
         server_default=func.now(),
         nullable=False,
     )
+
+
+from investhome_api.models.inventory_workflows import (  # noqa: E402, F401
+    LEGAL_OWNERSHIP_TYPES,
+    PENDING_ASSIGNMENT_STATUSES,
+    PENDING_TRANSFER_STATUSES,
+    SCHEDULED_TRANSFER_STATUSES,
+    AcquisitionMethod,
+    AssignmentApprovalDecision,
+    AssignmentRecordStatus,
+    AssignmentRequestStatus,
+    AssignmentRequestType,
+    AssignmentType,
+    InventoryAssetAssignment,
+    InventoryAssetAssignmentApproval,
+    InventoryAssetAssignmentEvent,
+    InventoryAssetAssignmentRequest,
+    InventoryOwnership,
+    InventoryOwnershipEvent,
+    OwnershipApprovalDecision,
+    OwnershipApprovalRecord,
+    OwnershipRecordStatus,
+    OwnershipSource,
+    OwnershipTransferParty,
+    OwnershipTransferRequest,
+    OwnershipType,
+    TransferPartyRole,
+    TransferRequestStatus,
+    TransferType,
+)

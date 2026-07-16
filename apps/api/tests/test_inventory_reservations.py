@@ -23,6 +23,13 @@ from investhome_api.services.inventory.reservation_jobs import run_expire_soft_h
 from investhome_api.services.inventory.reservation_service import SOFT_HOLD_DEFAULT_HOURS
 
 
+def _parse_utc(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed
+
+
 def _create_project(client: TestClient, *, code: str = "PRJ-RSV-001") -> dict:
     response = client.post(
         "/projects",
@@ -143,7 +150,7 @@ def test_soft_hold_default_48h(client: TestClient) -> None:
     assert body["reservation_type"] == "soft_hold"
     assert body["expires_at"] is not None
 
-    expires = datetime.fromisoformat(body["expires_at"])
+    expires = _parse_utc(body["expires_at"])
     delta_hours = (expires - before).total_seconds() / 3600
     assert SOFT_HOLD_DEFAULT_HOURS - 0.1 <= delta_hours <= SOFT_HOLD_DEFAULT_HOURS + 1
 
