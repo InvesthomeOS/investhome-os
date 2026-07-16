@@ -304,6 +304,100 @@
       "readyForOpportunity": "Fırsata hazır"
     }
   },
+  "salesInventoryMatching": {
+    "loading": "Envanter eşleştirme yükleniyor…",
+    "priceHidden": "Gizli",
+    "errors": { "loadFailed": "Envanter eşleştirme verileri yüklenemedi." },
+    "sections": {
+      "searchCriteria": "Arama Kriterleri",
+      "matchingResults": "Eşleşme Sonuçları",
+      "shortlists": "Kısa Listeler",
+      "favorites": "Favoriler",
+      "primary": "Birincil Seçim",
+      "rejected": "Reddedilenler",
+      "compare": "Karşılaştır",
+      "reservationActions": "Rezervasyon İşlemleri",
+      "activeMatches": "Aktif Eşleşmeler"
+    },
+    "fields": {
+      "budgetMin": "Min bütçe",
+      "budgetMax": "Max bütçe",
+      "bedroomsMin": "Min yatak odası",
+      "search": "Ara",
+      "availability": "Müsaitlik",
+      "price": "Liste fiyatı",
+      "area": "Alan (sqft)",
+      "shortlistTitle": "Kısa liste başlığı",
+      "assetId": "Varlık ID"
+    },
+    "actions": {
+      "search": "Envanter ara",
+      "searching": "Aranıyor…",
+      "saveCriteria": "Kriterleri kaydet",
+      "match": "Eşleştir",
+      "compare": "Karşılaştır",
+      "compareSelected": "Seçildi",
+      "runCompare": "{count} varlığı karşılaştır",
+      "createShortlist": "Kısa liste oluştur",
+      "addToShortlist": "Varlık ekle",
+      "favorite": "Favorile",
+      "setPrimary": "Birincil yap",
+      "reject": "Reddet",
+      "cancel": "İptal",
+      "confirmReject": "Reddi onayla",
+      "placeSoftHold": "Soft hold oluştur"
+    },
+    "empty": {
+      "searchResults": "Eşleşen envanter bulmak için arama yapın.",
+      "shortlists": "Henüz kısa liste yok.",
+      "favorites": "Henüz favori yok.",
+      "rejected": "Reddedilen varlık yok."
+    },
+    "badges": { "stale": "Değişti" },
+    "availability": {
+      "available": "Müsait",
+      "unavailable": "Müsait değil",
+      "hold": "Hold",
+      "not_released": "Satışa açılmadı"
+    },
+    "rejectionReasons": {
+      "budget": "Bütçe",
+      "size": "Boyut",
+      "layout": "Plan",
+      "location": "Konum",
+      "floor": "Kat",
+      "exposure": "Cephe",
+      "delivery_timing": "Teslim zamanı",
+      "availability": "Müsaitlik",
+      "financing": "Finansman",
+      "client_preference": "Müşteri tercihi",
+      "other": "Diğer"
+    },
+    "reject": {
+      "title": "Envanter eşleşmesini reddet",
+      "reason": "Red nedeni",
+      "notes": "Notlar"
+    },
+    "compare": {
+      "field": "Alan",
+      "display_id": "Ünite",
+      "asset_type": "Tip",
+      "bedrooms": "Yatak odası",
+      "bathrooms": "Banyo",
+      "interior_area_sqft": "Alan",
+      "availability_status": "Müsaitlik",
+      "list_price": "Fiyat",
+      "project_name": "Proje"
+    },
+    "reservation": {
+      "selectAsset": "Soft hold için arama sonuçlarından bir varlık seçin.",
+      "selectedAsset": "Seçili varlık {id}",
+      "notes": "Notlar",
+      "softHoldCreated": "Soft hold oluşturuldu ({id})",
+      "error": "Soft hold oluşturulamadı.",
+      "inventoryNote": "Rezervasyonlar Envanter Workspace tarafından yönetilir — burada yinelenen kayıt oluşturulmaz."
+    }
+  },
   "sales": {
     "eyebrow": "Satış",
     "title": "Satış",
@@ -421,6 +515,7 @@
       "noInventory": "Bağlı envanter yok.",
       "noTimeline": "Henüz zaman çizelgesi olayı yok.",
       "noReservation": "Bağlı rezervasyon yok.",
+      "createProposal": "Teklif Oluştur",
       "financePlaceholder": "Finans özeti salt okunurdur. Depozito ve işlem detayları Finans alanındadır.",
       "expectedRevenue": "Beklenen gelir",
       "tabs": {
@@ -428,6 +523,7 @@
         "party": "Lead / Taraf",
         "projects": "Projeler",
         "inventory": "Envanter",
+        "proposals": "Teklifler",
         "stageHistory": "Aşama Geçmişi",
         "nextActions": "Sonraki Aksiyonlar",
         "reservations": "Rezervasyonlar",
@@ -519,6 +615,50 @@
       "withoutNextAction": "Sonraki aksiyonu olmayan",
       "stalled": "Pasif / duraklamış",
       "highRisk": "Yüksek risk (%30 altı)"
+    }
+  },
+  "salesProposals": {
+    "loading": "Teklif yükleniyor…",
+    "loadError": "Teklif yüklenemedi.",
+    "loadErrorTitle": "Teklif kullanılamıyor",
+    "actionError": "İşlem tamamlanamadı.",
+    "empty": "Bu fırsat için henüz teklif yok.",
+    "createButton": "Teklif Oluştur",
+    "backToSales": "Satışa dön",
+    "builderAriaLabel": "Teklif oluşturucu bölümleri",
+    "table": { "number": "Numara", "title": "Başlık", "status": "Durum", "validUntil": "Geçerlilik", "updated": "Güncellendi" },
+    "tabs": {
+      "overview": "Genel Bakış", "recipient": "Alıcı", "items": "Envanter Kalemleri", "pricing": "Fiyatlandırma",
+      "terms": "Şartlar", "documents": "Belgeler ve Medya", "branding": "Marka", "preview": "Önizleme",
+      "approval": "Onay", "versions": "Sürümler", "activity": "Aktivite"
+    },
+    "actions": {
+      "submit": "İncelemeye gönder", "markSent": "Gönderildi işaretle", "markViewed": "Görüntülendi işaretle",
+      "markAccepted": "Kabul edildi işaretle", "markRejected": "Reddedildi işaretle", "newVersion": "Yeni sürüm"
+    },
+    "statuses": {
+      "draft": "Taslak", "internal_review": "İç inceleme", "revision_requested": "Revizyon istendi",
+      "approved": "Onaylandı", "sent": "Gönderildi", "viewed": "Görüntülendi", "accepted": "Kabul edildi",
+      "rejected": "Reddedildi", "expired": "Süresi doldu", "superseded": "Yerini aldı", "archived": "Arşivlendi"
+    },
+    "overview": { "number": "Teklif numarası", "status": "Durum", "currency": "Para birimi", "validUntil": "Geçerlilik", "version": "Sürüm", "notes": "Notlar" },
+    "recipient": { "empty": "Alıcı yok.", "primary": "Birincil" },
+    "items": { "empty": "Envanter kalemi yok.", "title": "Kalem", "amount": "Tutar", "currency": "Para birimi" },
+    "pricing": { "summary": "Toplam: {currency} {total}", "approvedPriceNote": "Fiyatlar onaylı envanter fiyat kayıtlarına referans verir." },
+    "terms": { "payment": "Ödeme şartları", "promotional": "Promosyon şartları", "disclaimer": "Sorumluluk reddi", "defaultDisclaimer": "Yalnızca bilgilendirme amaçlıdır." },
+    "documents": { "hint": "Belge Motoru'ndan belge bağlayın.", "noGeneration": "Otomatik belge üretimi yok — yalnızca manuel yükleme." },
+    "branding": { "hint": "Marka profili varlıkları çıktıda referans alınır.", "defaults": "Varsayılan marka kullanılıyor." },
+    "preview": { "loading": "Önizleme oluşturuluyor…", "error": "Önizleme kullanılamıyor.", "download": "HTML indir", "refresh": "Yenile" },
+    "approval": { "commentsPlaceholder": "İnceleme yorumları", "approve": "Onayla", "revision": "Revizyon iste", "reject": "Reddet" },
+    "versions": { "version": "Sürüm {number}", "approved": "Onaylandı" },
+    "activity": { "empty": "Henüz aktivite yok." },
+    "stale": { "title": "Eski veri tespit edildi", "message": "{count} kalemde güncel olmayan fiyat/envanter var.", "refresh": "Fiyatları yenile", "refreshing": "Yenileniyor…" },
+    "errors": {
+      "not_found": "Teklif bulunamadı.", "not_editable": "Bu durumda teklif düzenlenemez.",
+      "no_items": "Göndermeden önce en az bir envanter kalemi ekleyin.",
+      "stale_on_submit": "Göndermeden önce eski fiyat/envanter sorunlarını çözün.",
+      "send_requires_approved": "Gönderilmeden önce teklif onaylanmalıdır.",
+      "expired": "Teklifin süresi doldu.", "expired_requires_renewal": "Süresi dolmuş teklifler kabul için yeni sürüm gerektirir."
     }
   },
   "investors": {

@@ -47,6 +47,8 @@ from investhome_api.models.lead import Lead
 from investhome_api.models.notification import Notification, NotificationStatus
 from investhome_api.models.project import Project
 from investhome_api.models.sales import OpportunityPartyType, SalesOpportunity
+from investhome_api.models.sales_inventory_matching import SalesInventoryMatch, SalesShortlist
+from investhome_api.models.sales_proposal import SalesProposal
 from investhome_api.models.user_auth import User, UserStatus
 from investhome_api.schemas.search import SearchGroup, SearchHighlight, SearchResponse, SearchResultItem
 from investhome_api.services.activity_service import (
@@ -1590,6 +1592,130 @@ def _search_sales_opportunities(
     return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
 
 
+def _search_sales_shortlists(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "sales_shortlist"):
+        return []
+    pattern = _pattern(query)
+    stmt = select(SalesShortlist).where(
+        SalesShortlist.archived_at.is_(None),
+        or_(SalesShortlist.title.ilike(pattern), SalesShortlist.description.ilike(pattern)),
+    )
+    shortlists = db.scalars(stmt.limit(limit)).all()
+    results: list[InternalSearchResult] = []
+    for shortlist in shortlists:
+        fields = {"title": shortlist.title, "description": shortlist.description}
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        matched = _collect_matched_fields(query, fields)
+        results.append(
+            InternalSearchResult(
+                entity_type="sales_shortlist",
+                entity_id=shortlist.id,
+                title=shortlist.title,
+                subtitle=shortlist.description,
+                status=_enum_value(shortlist.status),
+                created_at=shortlist.created_at,
+                score=score,
+                matched_fields=matched,
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
+def _search_sales_proposals(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "sales_proposal"):
+        return []
+    pattern = _pattern(query)
+    stmt = select(SalesProposal).where(
+        SalesProposal.archived_at.is_(None),
+        or_(
+            SalesProposal.title.ilike(pattern),
+            SalesProposal.proposal_number.ilike(pattern),
+        ),
+    )
+    if filters.project_id:
+        stmt = stmt.where(SalesProposal.primary_project_id == filters.project_id)
+    proposals = db.scalars(stmt.limit(limit)).all()
+    results: list[InternalSearchResult] = []
+    for proposal in proposals:
+        score, matched = _score_fields(
+            query,
+            {"title": proposal.title, "proposal_number": proposal.proposal_number},
+        )
+        results.append(
+            InternalSearchResult(
+                entity_type="sales_proposal",
+                entity_id=proposal.id,
+                title=proposal.title,
+                subtitle=proposal.proposal_number,
+                status=_enum_value(proposal.status),
+                created_at=proposal.created_at,
+                score=score,
+                matched_fields=matched,
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
+def _search_sales_inventory_matches(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "sales_inventory_match"):
+        return []
+    pattern = _pattern(query)
+    stmt = (
+        select(SalesInventoryMatch, InventoryAsset)
+        .join(InventoryAsset, SalesInventoryMatch.inventory_asset_id == InventoryAsset.id)
+        .where(
+            SalesInventoryMatch.archived_at.is_(None),
+            or_(
+                SalesInventoryMatch.match_reason.ilike(pattern),
+                InventoryAsset.display_id.ilike(pattern),
+                InventoryAsset.system_code.ilike(pattern),
+            ),
+        )
+    )
+    rows = db.execute(stmt.limit(limit)).all()
+    results: list[InternalSearchResult] = []
+    for match, asset in rows:
+        title = asset.display_id or asset.system_code or str(asset.id)
+        fields = {"display_id": asset.display_id, "match_reason": match.match_reason}
+        score = _score_match(query, *(fields.values()))
+        if score <= 0:
+            continue
+        matched = _collect_matched_fields(query, fields)
+        results.append(
+            InternalSearchResult(
+                entity_type="sales_inventory_match",
+                entity_id=match.id,
+                title=title,
+                subtitle=match.match_reason,
+                status=_enum_value(match.relationship_type),
+                created_at=match.created_at,
+                score=score,
+                matched_fields=matched,
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
 PROVIDER_MAP = {
     "lead": _search_leads,
     "investor": _search_investors,
@@ -1617,6 +1743,9 @@ PROVIDER_MAP = {
     "inventory_reservation": _search_inventory_reservations,
     "price_change_request": _search_price_change_requests,
     "sales_opportunity": _search_sales_opportunities,
+    "sales_shortlist": _search_sales_shortlists,
+    "sales_inventory_match": _search_sales_inventory_matches,
+    "sales_proposal": _search_sales_proposals,
 }
 
 ENTITY_LABEL_KEYS = {
@@ -1646,6 +1775,9 @@ ENTITY_LABEL_KEYS = {
     "inventory_reservation": "search.entities.inventory_reservation",
     "price_change_request": "search.entities.price_change_request",
     "sales_opportunity": "search.entities.sales_opportunity",
+    "sales_shortlist": "search.entities.sales_shortlist",
+    "sales_inventory_match": "search.entities.sales_inventory_match",
+    "sales_proposal": "search.entities.sales_proposal",
 }
 
 

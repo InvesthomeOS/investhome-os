@@ -225,6 +225,7 @@ class OpportunityInventory(Base):
     match_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     rejection_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_favorite: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     shortlisted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

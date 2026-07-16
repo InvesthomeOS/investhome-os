@@ -304,6 +304,100 @@
       "readyForOpportunity": "Ready for opportunity"
     }
   },
+  "salesInventoryMatching": {
+    "loading": "Loading inventory matching…",
+    "priceHidden": "Hidden",
+    "errors": { "loadFailed": "Unable to load inventory matching data." },
+    "sections": {
+      "searchCriteria": "Search Criteria",
+      "matchingResults": "Matching Results",
+      "shortlists": "Shortlists",
+      "favorites": "Favorites",
+      "primary": "Primary Selection",
+      "rejected": "Rejected",
+      "compare": "Compare",
+      "reservationActions": "Reservation Actions",
+      "activeMatches": "Active Matches"
+    },
+    "fields": {
+      "budgetMin": "Budget min",
+      "budgetMax": "Budget max",
+      "bedroomsMin": "Bedrooms min",
+      "search": "Search",
+      "availability": "Availability",
+      "price": "List price",
+      "area": "Area (sqft)",
+      "shortlistTitle": "Shortlist title",
+      "assetId": "Asset ID"
+    },
+    "actions": {
+      "search": "Search inventory",
+      "searching": "Searching…",
+      "saveCriteria": "Save criteria",
+      "match": "Match",
+      "compare": "Compare",
+      "compareSelected": "Selected",
+      "runCompare": "Compare {count} assets",
+      "createShortlist": "Create shortlist",
+      "addToShortlist": "Add asset",
+      "favorite": "Favorite",
+      "setPrimary": "Set primary",
+      "reject": "Reject",
+      "cancel": "Cancel",
+      "confirmReject": "Confirm rejection",
+      "placeSoftHold": "Place soft hold"
+    },
+    "empty": {
+      "searchResults": "Run a search to find matching inventory.",
+      "shortlists": "No shortlists yet.",
+      "favorites": "No favorites yet.",
+      "rejected": "No rejected assets."
+    },
+    "badges": { "stale": "Changed" },
+    "availability": {
+      "available": "Available",
+      "unavailable": "Unavailable",
+      "hold": "On hold",
+      "not_released": "Not released"
+    },
+    "rejectionReasons": {
+      "budget": "Budget",
+      "size": "Size",
+      "layout": "Layout",
+      "location": "Location",
+      "floor": "Floor",
+      "exposure": "Exposure",
+      "delivery_timing": "Delivery timing",
+      "availability": "Availability",
+      "financing": "Financing",
+      "client_preference": "Client preference",
+      "other": "Other"
+    },
+    "reject": {
+      "title": "Reject inventory match",
+      "reason": "Rejection reason",
+      "notes": "Notes"
+    },
+    "compare": {
+      "field": "Field",
+      "display_id": "Unit",
+      "asset_type": "Type",
+      "bedrooms": "Bedrooms",
+      "bathrooms": "Bathrooms",
+      "interior_area_sqft": "Area",
+      "availability_status": "Availability",
+      "list_price": "Price",
+      "project_name": "Project"
+    },
+    "reservation": {
+      "selectAsset": "Select an asset from search results to place a soft hold.",
+      "selectedAsset": "Selected asset {id}",
+      "notes": "Notes",
+      "softHoldCreated": "Soft hold created ({id})",
+      "error": "Unable to create soft hold.",
+      "inventoryNote": "Reservations are managed by Inventory Workspace — no duplicate records are created here."
+    }
+  },
   "sales": {
     "eyebrow": "Sales",
     "title": "Sales",
@@ -421,6 +515,7 @@
       "noInventory": "No linked inventory.",
       "noTimeline": "No timeline events yet.",
       "noReservation": "No linked reservation.",
+      "createProposal": "Create Proposal",
       "financePlaceholder": "Finance summary is read-only. Deposit and transaction details live in Finance workspace.",
       "expectedRevenue": "Expected revenue",
       "tabs": {
@@ -428,6 +523,7 @@
         "party": "Lead / Party",
         "projects": "Projects",
         "inventory": "Inventory",
+        "proposals": "Proposals",
         "stageHistory": "Stage History",
         "nextActions": "Next Actions",
         "reservations": "Reservations",
@@ -519,6 +615,85 @@
       "withoutNextAction": "Without next action",
       "stalled": "Dormant / stalled",
       "highRisk": "High risk (<30%)"
+    }
+  },
+  "salesProposals": {
+    "loading": "Loading proposal…",
+    "loadError": "Unable to load proposal.",
+    "loadErrorTitle": "Proposal unavailable",
+    "actionError": "Unable to complete action.",
+    "empty": "No proposals for this opportunity yet.",
+    "createButton": "Create Proposal",
+    "backToSales": "Back to Sales",
+    "builderAriaLabel": "Proposal builder sections",
+    "table": {
+      "number": "Number",
+      "title": "Title",
+      "status": "Status",
+      "validUntil": "Valid until",
+      "updated": "Updated"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "recipient": "Recipient",
+      "items": "Inventory Items",
+      "pricing": "Pricing",
+      "terms": "Terms",
+      "documents": "Documents & Media",
+      "branding": "Branding",
+      "preview": "Preview",
+      "approval": "Approval",
+      "versions": "Versions",
+      "activity": "Activity"
+    },
+    "actions": {
+      "submit": "Submit for review",
+      "markSent": "Mark sent",
+      "markViewed": "Mark viewed",
+      "markAccepted": "Mark accepted",
+      "markRejected": "Mark rejected",
+      "newVersion": "New version"
+    },
+    "statuses": {
+      "draft": "Draft",
+      "internal_review": "Internal review",
+      "revision_requested": "Revision requested",
+      "approved": "Approved",
+      "sent": "Sent",
+      "viewed": "Viewed",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "expired": "Expired",
+      "superseded": "Superseded",
+      "archived": "Archived"
+    },
+    "overview": {
+      "number": "Proposal number",
+      "status": "Status",
+      "currency": "Currency",
+      "validUntil": "Valid until",
+      "version": "Version",
+      "notes": "Notes"
+    },
+    "recipient": { "empty": "No recipients.", "primary": "Primary" },
+    "items": { "empty": "No inventory items.", "title": "Item", "amount": "Amount", "currency": "Currency" },
+    "pricing": { "summary": "Total: {currency} {total}", "approvedPriceNote": "Prices reference approved inventory price records." },
+    "terms": { "payment": "Payment terms", "promotional": "Promotional terms", "disclaimer": "Disclaimer", "defaultDisclaimer": "For informational purposes only." },
+    "documents": { "hint": "Link documents from the Document Engine.", "noGeneration": "No automated document generation — manual upload only." },
+    "branding": { "hint": "Brand profile assets are referenced for output.", "defaults": "Using safe default branding." },
+    "preview": { "loading": "Generating preview…", "error": "Preview unavailable.", "download": "Download HTML", "refresh": "Refresh" },
+    "approval": { "commentsPlaceholder": "Review comments", "approve": "Approve", "revision": "Request revision", "reject": "Reject" },
+    "versions": { "version": "Version {number}", "approved": "Approved" },
+    "activity": { "empty": "No activity yet." },
+    "stale": { "title": "Stale data detected", "message": "{count} item(s) have outdated pricing or inventory.", "refresh": "Refresh pricing", "refreshing": "Refreshing…" },
+    "errors": {
+      "not_found": "Proposal not found.",
+      "not_editable": "Proposal cannot be edited in this status.",
+      "no_items": "Add at least one inventory item before submitting.",
+      "stale_on_submit": "Resolve stale pricing/inventory before submitting.",
+      "send_requires_approved": "Proposal must be approved before marking sent.",
+      "expired": "Proposal has expired.",
+      "expired_requires_renewal": "Expired proposals require a new version before acceptance."
     }
   },
   "investors": {
@@ -1327,6 +1502,9 @@
       },
       "inventory_price_change": {
         "title": "Price change approval pending"
+      },
+      "sales_proposal": {
+        "title": "Sales proposal review pending"
       }
     },
     "calendar": {
@@ -2074,6 +2252,7 @@
       "inventory_asset": "Inventory assets",
       "inventory_reservation": "Reservations",
       "sales_opportunity": "Sales opportunities",
+      "sales_proposal": "Sales proposals",
       "unit": "Units (coming soon)",
       "construction": "Construction (coming soon)",
       "email": "Emails (coming soon)"

@@ -32,6 +32,8 @@ SEARCH_ENTITY_TYPES = frozenset(
         "inventory_reservation",
         "price_change_request",
         "sales_opportunity",
+        "sales_shortlist",
+        "sales_inventory_match",
     }
 )
 
@@ -71,6 +73,8 @@ ENTITY_PERMISSION_RESOURCE: dict[str, str] = {
     "inventory_reservation": "inventory",
     "price_change_request": "inventory",
     "sales_opportunity": "sales",
+    "sales_shortlist": "sales",
+    "sales_inventory_match": "sales",
 }
 
 ENTITY_LINK_MODULES: dict[str, str] = {
@@ -100,6 +104,8 @@ ENTITY_LINK_MODULES: dict[str, str] = {
     "inventory_reservation": "inventory",
     "price_change_request": "inventory",
     "sales_opportunity": "sales",
+    "sales_shortlist": "sales",
+    "sales_inventory_match": "sales",
 }
 
 FINANCE_TAB_BY_ENTITY: dict[str, str] = {

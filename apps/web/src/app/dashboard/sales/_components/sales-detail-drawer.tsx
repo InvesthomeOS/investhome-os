@@ -7,12 +7,18 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Button, Drawer, StatusChip, Tabs } from '@investhome/ui';
 
 import { EntityActivityTimeline } from '@/app/dashboard/_components/entity-activity-timeline';
+import { InventoryMatchingPanel } from '@/app/dashboard/sales/_components/inventory-matching/inventory-matching-panel';
 import { EntityDocumentsPanel } from '@/app/dashboard/_components/entity-documents-panel';
 import { fetchLead, type Lead } from '@/lib/api/leads';
 import { fetchInvestor, type Investor } from '@/lib/api/investors';
 import { fetchInventoryAsset, fetchReservation, type InventoryAsset, type InventoryReservation } from '@/lib/api/inventory';
 import type { Project } from '@/lib/api/projects';
 import { hasPermission } from '@/lib/api/auth';
+import {
+  createProposal,
+  fetchProposals,
+  type SalesProposal,
+} from '@/lib/api/sales-proposals';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
   fetchOpportunityTimeline,
@@ -23,11 +29,14 @@ import {
 } from '@/lib/api/sales';
 import { useSalesLabels } from '@/lib/i18n/sales-labels';
 
+import { ProposalList } from './proposals/proposal-list';
+
 type DetailTab =
   | 'overview'
   | 'party'
   | 'projects'
   | 'inventory'
+  | 'proposals'
   | 'stageHistory'
   | 'nextActions'
   | 'reservations'
@@ -110,7 +119,12 @@ export function SalesDetailDrawer({
   const [partyInvestor, setPartyInvestor] = useState<Investor | null>(null);
   const [inventoryAssets, setInventoryAssets] = useState<InventoryAsset[]>([]);
   const [reservation, setReservation] = useState<InventoryReservation | null>(null);
+  const [proposals, setProposals] = useState<SalesProposal[]>([]);
+  const [proposalsLoading, setProposalsLoading] = useState(false);
+  const [creatingProposal, setCreatingProposal] = useState(false);
 
+  const canViewProposals = user ? hasPermission(user, 'sales', 'view_proposal') : false;
+  const canCreateProposal = user ? hasPermission(user, 'sales', 'create_proposal') : false;
   const canViewDocuments = user ? hasPermission(user, 'documents', 'view') : false;
   const canViewActivity = user ? hasPermission(user, 'activity', 'view') : false;
   const canViewFinance = user ? hasPermission(user, 'finance', 'view') : false;
@@ -193,6 +207,49 @@ export function SalesDetailDrawer({
     }
   }, [opportunity, activeTab, loadTimeline]);
 
+  const loadProposals = useCallback(async () => {
+    if (!opportunity) return;
+    setProposalsLoading(true);
+    try {
+      const result = await fetchProposals({ opportunity_id: opportunity.id, limit: 50 });
+      setProposals(result.items);
+    } catch {
+      setProposals([]);
+    } finally {
+      setProposalsLoading(false);
+    }
+  }, [opportunity]);
+
+  useEffect(() => {
+    if (opportunity && activeTab === 'proposals' && canViewProposals) {
+      void loadProposals();
+    }
+  }, [opportunity, activeTab, canViewProposals, loadProposals]);
+
+  const handleCreateProposal = useCallback(async () => {
+    if (!opportunity) return;
+    setCreatingProposal(true);
+    try {
+      const email =
+        partyLead?.email ??
+        partyInvestor?.email ??
+        undefined;
+      const created = await createProposal({
+        opportunity_id: opportunity.id,
+        lead_id: opportunity.lead_id ?? undefined,
+        party_id: opportunity.party_id,
+        title: `${opportunity.display_id ?? opportunity.opportunity_code} Proposal`,
+        currency: opportunity.currency,
+        assigned_sales_user_id: opportunity.assigned_sales_user_id ?? undefined,
+        recipient_email: email,
+      });
+      await loadProposals();
+      window.location.href = `/dashboard/sales/proposals/${created.id}`;
+    } finally {
+      setCreatingProposal(false);
+    }
+  }, [loadProposals, opportunity, partyInvestor?.email, partyLead?.email]);
+
   const linkedProjects = useMemo(
     () => projects.filter((p) => linkedProjectIds.includes(p.id)),
     [linkedProjectIds, projects],
@@ -205,6 +262,7 @@ export function SalesDetailDrawer({
     { id: 'party', label: t('detail.tabs.party') },
     { id: 'projects', label: t('detail.tabs.projects') },
     { id: 'inventory', label: t('detail.tabs.inventory') },
+    ...(canViewProposals ? [{ id: 'proposals', label: t('detail.tabs.proposals') }] : []),
     { id: 'stageHistory', label: t('detail.tabs.stageHistory') },
     { id: 'nextActions', label: t('detail.tabs.nextActions') },
     { id: 'reservations', label: t('detail.tabs.reservations') },
@@ -331,24 +389,22 @@ export function SalesDetailDrawer({
 
         {activeTab === 'inventory' && (
           <section className="leads-drawer__section">
-            {canUpdate && (
-              <Button variant="secondary" onClick={() => onLinkInventory(opportunity)}>
-                {t('detail.linkInventory')}
+            <InventoryMatchingPanel leadId={opportunity.lead_id ?? undefined} opportunityId={opportunity.id} />
+          </section>
+        )}
+
+        {activeTab === 'proposals' && canViewProposals && (
+          <section className="leads-drawer__section">
+            {canCreateProposal && (
+              <Button variant="secondary" disabled={creatingProposal} onClick={() => void handleCreateProposal()}>
+                {t('detail.createProposal')}
               </Button>
             )}
-            {inventoryAssets.length === 0 ? (
-              <p className="leads__state">{t('detail.noInventory')}</p>
-            ) : (
-              <ul className="sales__linked-list">
-                {inventoryAssets.map((asset) => (
-                  <li key={asset.id}>
-                    <Link href={`/dashboard/inventory?id=${asset.id}`}>
-                      {asset.display_id ?? asset.system_code}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <ProposalList
+              proposals={proposals}
+              loading={proposalsLoading}
+              onCreate={canCreateProposal ? () => void handleCreateProposal() : undefined}
+            />
           </section>
         )}
 

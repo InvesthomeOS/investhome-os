@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Button, StatusChip, Tabs } from '@investhome/ui';
 
 import { EntityActivityTimeline } from '@/app/dashboard/_components/entity-activity-timeline';
+import { InventoryMatchingPanel } from '@/app/dashboard/sales/_components/inventory-matching/inventory-matching-panel';
 import { EntityDocumentsPanel } from '@/app/dashboard/_components/entity-documents-panel';
 import { hasPermission } from '@/lib/api/auth';
 import {
@@ -516,30 +517,7 @@ export function LeadDetailPage({ leadId }: LeadDetailPageProps) {
 
           {activeTab === 'inventory' && (
             <section>
-              {interests.length === 0 ? (
-                <p className="leads__state">{t('inventory.empty')}</p>
-              ) : (
-                <ul>
-                  {interests.map((item) => (
-                    <li key={item.id}>
-                      <Link href={`/dashboard/inventory?id=${item.inventory_asset_id}`}>
-                        {item.inventory_asset_id.slice(0, 8)}…
-                      </Link>
-                      {' — '}
-                      {getInterestTypeLabel(item.interest_type)}
-                      {canUpdate && (
-                        <button
-                          type="button"
-                          className="leads__button leads__button--ghost"
-                          onClick={() => void deleteLeadInventoryInterest(leadId, item.id).then(loadAll)}
-                        >
-                          {t('actions.removeMatch')}
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <InventoryMatchingPanel leadId={leadId} />
             </section>
           )}
 

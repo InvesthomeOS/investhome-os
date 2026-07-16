@@ -69,6 +69,24 @@ from investhome_api.models.sales import (  # noqa: F401
     OpportunityTimeline,
     SalesOpportunity,
 )
+from investhome_api.models.sales_inventory_matching import (  # noqa: F401
+    SalesInventoryMatch,
+    SalesInventoryPreference,
+    SalesInventoryPreferenceAssetType,
+    SalesInventoryPreferenceBuilding,
+    SalesInventoryPreferenceProject,
+    SalesInventoryPreferenceUsageType,
+    SalesShortlist,
+    SalesShortlistItem,
+)
+from investhome_api.models.sales_proposal import (  # noqa: F401
+    SalesProposal,
+    SalesProposalActivity,
+    SalesProposalApproval,
+    SalesProposalItem,
+    SalesProposalRecipient,
+    SalesProposalVersion,
+)
 from investhome_api.models.notification import Notification  # noqa: F401
 from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole  # noqa: F401
 
@@ -198,6 +216,17 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
             "view_confidential", "view_highly_confidential",
             "analyze", "reprocess", "view_analysis", "ask", "export_analysis", "view_sensitive_analysis", "approve",
             "assign", "change_stage", "change_probability", "view_pipeline",
+            "view_lead", "update_lead", "qualify_lead", "score_lead", "assign_lead",
+            "view_documents", "upload_documents", "create_opportunity", "view_reservations",
+            "export_lead", "view_inventory_matching", "save_inventory_preferences",
+            "create_shortlist", "update_shortlist", "archive_shortlist", "add_inventory_match",
+            "reject_inventory_match", "set_primary_inventory", "compare_inventory",
+            "view_sensitive_inventory_price", "create_soft_hold", "request_reservation",
+            "view_proposal", "create_proposal", "update_proposal", "submit_proposal",
+            "review_proposal", "approve_proposal", "reject_proposal", "generate_proposal",
+            "mark_proposal_sent", "mark_proposal_viewed", "mark_proposal_accepted",
+            "view_sensitive_proposal_price", "archive_proposal",
+            "view_price", "reserve", "release_hold", "request_reservation",
         }:
             key = (resource, action)
             if key in permission_map:
