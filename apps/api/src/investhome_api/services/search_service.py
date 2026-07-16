@@ -46,6 +46,7 @@ from investhome_api.models.inventory import (
 from investhome_api.models.lead import Lead
 from investhome_api.models.notification import Notification, NotificationStatus
 from investhome_api.models.project import Project
+from investhome_api.models.sales import OpportunityPartyType, SalesOpportunity
 from investhome_api.models.user_auth import User, UserStatus
 from investhome_api.schemas.search import SearchGroup, SearchHighlight, SearchResponse, SearchResultItem
 from investhome_api.services.activity_service import (
@@ -248,6 +249,8 @@ def _search_leads(
             Lead.phone.ilike(pattern),
             Lead.notes.ilike(pattern),
             Lead.interested_project.ilike(pattern),
+            Lead.company.ilike(pattern),
+            Lead.preferred_market.ilike(pattern),
         )
     )
     leads = db.scalars(stmt.limit(limit * 2)).all()
@@ -260,6 +263,9 @@ def _search_leads(
             "email": lead.email,
             "phone": lead.phone,
             "notes": lead.notes,
+            "company": lead.company,
+            "preferred_market": lead.preferred_market,
+            "interested_project": lead.interested_project,
         }
         score = _score_match(query, *fields.values())
         if score <= 0:
@@ -1519,6 +1525,71 @@ def _search_price_change_requests(
     return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
 
 
+def _search_sales_opportunities(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "sales_opportunity"):
+        return []
+    pattern = _pattern(query)
+    stmt = select(SalesOpportunity).where(SalesOpportunity.archived_at.is_(None))
+    if filters.status:
+        stmt = stmt.where(SalesOpportunity.stage == filters.status)
+    stmt = stmt.where(
+        or_(
+            SalesOpportunity.opportunity_code.ilike(pattern),
+            SalesOpportunity.display_id.ilike(pattern),
+            SalesOpportunity.notes.ilike(pattern),
+            SalesOpportunity.source.ilike(pattern),
+        )
+    )
+    opportunities = db.scalars(stmt.limit(limit * 3)).all()
+    results: list[InternalSearchResult] = []
+    for opportunity in opportunities:
+        if not _apply_date_filter(opportunity.updated_at, filters):
+            continue
+        party_name: str | None = None
+        if opportunity.party_type == OpportunityPartyType.LEAD:
+            lead = db.get(Lead, opportunity.party_id)
+            party_name = lead.full_name if lead else None
+        else:
+            investor = db.get(Investor, opportunity.party_id)
+            party_name = investor.full_name if investor else None
+        assignee_name: str | None = None
+        if opportunity.assigned_sales_user_id is not None:
+            assignee = db.get(User, opportunity.assigned_sales_user_id)
+            assignee_name = assignee.full_name if assignee else None
+        fields = {
+            "opportunity_code": opportunity.opportunity_code,
+            "display_id": opportunity.display_id,
+            "party": party_name,
+            "assignee": assignee_name,
+            "notes": opportunity.notes,
+        }
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        matched = _collect_matched_fields(query, fields)
+        results.append(
+            InternalSearchResult(
+                entity_type="sales_opportunity",
+                entity_id=opportunity.id,
+                title=opportunity.opportunity_code,
+                subtitle=party_name,
+                preview=opportunity.notes,
+                status=_enum_value(opportunity.stage),
+                assigned_to=assignee_name,
+                created_at=opportunity.created_at,
+                score=score,
+                matched_fields=matched,
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
 PROVIDER_MAP = {
     "lead": _search_leads,
     "investor": _search_investors,
@@ -1545,6 +1616,7 @@ PROVIDER_MAP = {
     "inventory_asset": _search_inventory_assets,
     "inventory_reservation": _search_inventory_reservations,
     "price_change_request": _search_price_change_requests,
+    "sales_opportunity": _search_sales_opportunities,
 }
 
 ENTITY_LABEL_KEYS = {
@@ -1573,6 +1645,7 @@ ENTITY_LABEL_KEYS = {
     "inventory_asset": "search.entities.inventory_asset",
     "inventory_reservation": "search.entities.inventory_reservation",
     "price_change_request": "search.entities.price_change_request",
+    "sales_opportunity": "search.entities.sales_opportunity",
 }
 
 

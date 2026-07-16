@@ -27,6 +27,7 @@ RESOURCES = frozenset(
         "inventory",
         "marketing",
         "reports",
+        "sales",
     }
 )
 
@@ -92,6 +93,20 @@ ACTIONS = frozenset(
         "view_assignment_price",
         "correct_assignment",
         "self_approve_assignment",
+        "assign",
+        "change_stage",
+        "change_probability",
+        "view_pipeline",
+        "view_lead",
+        "update_lead",
+        "qualify_lead",
+        "score_lead",
+        "assign_lead",
+        "view_documents",
+        "upload_documents",
+        "create_opportunity",
+        "view_reservations",
+        "export_lead",
     }
 )
 
@@ -158,6 +173,11 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("inventory", "reject_assignment"),
         ("inventory", "view_assignment_history"),
         ("inventory", "view_assignment_price"),
+        ("sales", "view"),
+        ("sales", "view_pipeline"),
+        ("sales", "view_lead"),
+        ("sales", "view_reservations"),
+        ("sales", "export_lead"),
     ],
     "partner": [
         ("executive", "view"),
@@ -212,6 +232,25 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("inventory", "view_ownership"),
         ("inventory", "request_ownership_change"),
         ("inventory", "view_ownership_history"),
+        ("sales", "view"),
+        ("sales", "create"),
+        ("sales", "update"),
+        ("sales", "assign"),
+        ("sales", "change_stage"),
+        ("sales", "change_probability"),
+        ("sales", "archive"),
+        ("sales", "restore"),
+        ("sales", "view_pipeline"),
+        ("sales", "view_lead"),
+        ("sales", "update_lead"),
+        ("sales", "qualify_lead"),
+        ("sales", "score_lead"),
+        ("sales", "assign_lead"),
+        ("sales", "view_documents"),
+        ("sales", "upload_documents"),
+        ("sales", "create_opportunity"),
+        ("sales", "view_reservations"),
+        ("sales", "export_lead"),
     ],
     "investor_relations": [
         ("investors", "view"),
@@ -247,6 +286,10 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("inventory", "convert_reservation"),
         ("inventory", "view_price"),
         ("inventory", "view_price_history"),
+        ("sales", "view"),
+        ("sales", "update"),
+        ("sales", "view_lead"),
+        ("sales", "qualify_lead"),
     ],
     "finance": [
         ("finance", "view"),
@@ -296,6 +339,8 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("inventory", "approve_assignment"),
         ("inventory", "view_assignment_history"),
         ("inventory", "view_assignment_price"),
+        ("sales", "view"),
+        ("sales", "view_lead"),
     ],
     "construction": [
         ("projects", "view"),
@@ -346,6 +391,8 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("brand_assets", "view"),
         ("inventory", "view"),
         ("inventory", "view_price"),
+        ("sales", "view"),
+        ("sales", "view_lead"),
     ],
     "operations": [
         ("projects", "view"),
@@ -406,6 +453,10 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("inventory", "view_assignment_history"),
         ("inventory", "view_assignment_price"),
         ("inventory", "correct_assignment"),
+        ("sales", "view"),
+        ("sales", "view_pipeline"),
+        ("sales", "change_stage"),
+        ("sales", "assign"),
     ],
     "assistant": [
         ("leads", "view"),
@@ -419,6 +470,8 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("inventory", "view"),
         ("inventory", "view_price"),
         ("inventory", "request_price_change"),
+        ("sales", "view"),
+        ("sales", "view_lead"),
     ],
     "read_only": [
         ("executive", "view"),
@@ -440,5 +493,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("design", "view"),
         ("inventory", "view"),
         ("inventory", "view_price"),
+        ("sales", "view"),
+        ("sales", "view_pipeline"),
     ],
 }

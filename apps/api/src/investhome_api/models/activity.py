@@ -79,6 +79,8 @@ class ActivityEntityType(str, enum.Enum):
     INVENTORY_OWNERSHIP = "inventory_ownership"
     INVENTORY_ASSIGNMENT = "inventory_assignment"
     PRICE_CHANGE_REQUEST = "price_change_request"
+    SALES_OPPORTUNITY = "sales_opportunity"
+    LEAD_QUALIFICATION = "lead_qualification"
 
 
 class ActivityLog(Base):
