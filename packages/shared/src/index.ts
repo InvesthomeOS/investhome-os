@@ -6,6 +6,7 @@ export type ModuleName =
   | 'leads'
   | 'investors'
   | 'projects'
+  | 'inventory'
   | 'finance';
 
 export const MODULE_NAMES: readonly ModuleName[] = [
@@ -13,6 +14,7 @@ export const MODULE_NAMES: readonly ModuleName[] = [
   'leads',
   'investors',
   'projects',
+  'inventory',
   'finance',
 ] as const;
 

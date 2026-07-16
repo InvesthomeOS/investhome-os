@@ -26,6 +26,9 @@ SEARCH_ENTITY_TYPES = frozenset(
         "material_package",
         "furniture_item",
         "design_version",
+        "building",
+        "floor",
+        "inventory_asset",
     }
 )
 
@@ -59,6 +62,9 @@ ENTITY_PERMISSION_RESOURCE: dict[str, str] = {
     "material_package": "design",
     "furniture_item": "design",
     "design_version": "design",
+    "building": "inventory",
+    "floor": "inventory",
+    "inventory_asset": "inventory",
 }
 
 ENTITY_LINK_MODULES: dict[str, str] = {
@@ -82,6 +88,9 @@ ENTITY_LINK_MODULES: dict[str, str] = {
     "material_package": "design",
     "furniture_item": "design",
     "design_version": "design",
+    "building": "inventory",
+    "floor": "inventory",
+    "inventory_asset": "inventory",
 }
 
 FINANCE_TAB_BY_ENTITY: dict[str, str] = {

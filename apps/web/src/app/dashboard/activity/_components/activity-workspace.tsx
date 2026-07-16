@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
-import { DashboardHeaderActions } from '@/app/dashboard/_components/dashboard-header-actions';
 import {
   EMPTY_ACTIVITY_FILTERS,
   activityRecordHref,
@@ -96,12 +95,9 @@ export function ActivityWorkspace() {
   return (
     <main className="dashboard__main">
       <header className="dashboard__header">
-        <div>
-          <p className="dashboard__eyebrow">{tCommon('appName')}</p>
-          <h1>{t('title')}</h1>
-          <p className="dashboard__subtitle">{t('subtitle')}</p>
-        </div>
-        <DashboardHeaderActions />
+        <p className="dashboard__eyebrow">{tCommon('appName')}</p>
+        <h1>{t('title')}</h1>
+        <p className="dashboard__subtitle">{t('subtitle')}</p>
       </header>
 
       <section className="dashboard__panel leads__panel">

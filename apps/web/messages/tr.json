@@ -18,8 +18,19 @@
     "languageTurkish": "Türkçe",
     "languageEnglish": "English"
   },
+  "theme": {
+    "label": "Tema",
+    "light": "Açık",
+    "dark": "Koyu",
+    "system": "Sistem"
+  },
   "navigation": {
     "ariaLabel": "Modül gezinmesi",
+    "breadcrumbs": "Konum",
+    "workspacesSection": "Çalışma Alanları",
+    "toolsSection": "Araçlar",
+    "collapseSidebar": "Kenar çubuğunu daralt",
+    "expandSidebar": "Kenar çubuğunu genişlet",
     "adminSection": "Yönetim",
     "admin": {
       "users": "Kullanıcılar",
@@ -46,6 +57,10 @@
       "projects": {
         "title": "Projeler",
         "description": "Geliştirme yaşam döngüsü ve teslimat takibi."
+      },
+      "inventory": {
+        "title": "Envanter",
+        "description": "Satılabilir ve kiralanabilir envanterin tek kaynağı."
       },
       "finance": {
         "title": "Finans",
@@ -763,17 +778,19 @@
       "allProjects": "Tüm projeler",
       "assignedTo": "Atanan ekip üyesi",
       "assignedPlaceholder": "Ad",
-      "currency": "Para birimi"
+      "currency": "Para birimi",
+      "currencyPlaceholder": "USD"
+    },
+    "companyOverview": {
+      "title": "Şirket Özeti",
+      "active_projects": "Aktif Projeler",
+      "active_leads": "Aktif Potansiyel Müşteriler",
+      "active_investors": "Aktif Yatırımcılar",
+      "available_cash": "Kullanılabilir Nakit",
+      "upcoming_closings": "Yaklaşan Kapanışlar",
+      "pending_approvals": "Bekleyen Onaylar"
     },
     "cards": {
-      "total_leads": "Toplam Potansiyel Müşteri",
-      "qualified_leads": "Nitelikli Potansiyel Müşteri",
-      "active_investors": "Aktif Yatırımcı",
-      "total_investment_capacity": "Toplam Yatırım Kapasitesi",
-      "active_projects": "Aktif Proje",
-      "total_portfolio_value": "Toplam Portföy Değeri",
-      "available_cash": "Kullanılabilir Nakit",
-      "remaining_funding_need": "Kalan Finansman İhtiyacı",
       "noComparison": "Önceki dönem karşılaştırması yok"
     },
     "notifications": {
@@ -840,12 +857,35 @@
       "title": "Satış Hattı",
       "wonLost": "Dönemde kazanılan: {won} · Kaybedilen: {lost}"
     },
+    "sales": {
+      "title": "Potansiyel Müşteriler ve Satış",
+      "total": "Toplam lead",
+      "qualified": "Nitelikli",
+      "meetings": "Toplantılar",
+      "proposals": "Teklifler",
+      "won": "Kazanılan",
+      "lost": "Kaybedilen",
+      "conversionRate": "Dönüşüm oranı: {rate}"
+    },
+    "projects": {
+      "title": "Aktif Projeler",
+      "empty": "Mevcut filtrelere uygun proje yok.",
+      "viewAll": "Tüm projeleri görüntüle",
+      "openProject": "Projeyi aç",
+      "currentValue": "Güncel değer",
+      "fundingGap": "Finansman açığı",
+      "completionTarget": "Hedef tamamlanma",
+      "completionUnavailable": "Tamamlanma % mevcut değil"
+    },
     "investors": {
-      "title": "Yatırımcı Özeti",
-      "capacity": "Toplam yatırım kapasitesi",
-      "committed": "Toplam taahhüt",
-      "funded": "Toplam fonlanan",
+      "title": "Yatırımcılar",
+      "active": "Aktif yatırımcılar",
+      "capacity": "Para birimine göre kapasite",
+      "committed": "Taahhüt",
+      "funded": "Fonlanan",
       "remaining": "Kalan taahhüt",
+      "followUps": "Yaklaşan takipler",
+      "viewAll": "Tüm yatırımcıları görüntüle",
       "upcoming_follow_up": {
         "title": "Yaklaşan yatırımcı takibi",
         "description": "{name} ile takip yapılmalı."
@@ -866,17 +906,54 @@
       }
     },
     "financial": {
-      "title": "Finansal Özet",
-      "availableCash": "Kullanılabilir nakit",
+      "title": "Finans Özeti",
+      "availableCash": "Para birimine göre nakit",
+      "receivables": "Alacaklar (dönem geliri)",
+      "payables": "Borçlar (dönem gideri)",
+      "upcoming": "Yaklaşan ödemeler",
+      "overdue": "Gecikmiş ödemeler",
+      "fundingNeed": "Finansman ihtiyacı",
       "income": "Dönem geliri",
       "expenses": "Dönem gideri",
-      "overdue": "Gecikmiş ödemeler",
       "inflows": "Girişler",
       "outflows": "Çıkışlar"
     },
+    "construction": {
+      "title": "İnşaat Özeti",
+      "limitedBadge": "Sınırlı veri",
+      "empty": "Mevcut filtrelere uygun gecikmiş proje yok.",
+      "unavailableNote": "RFI, denetim ve punch item verileri İnşaat çalışma alanı yayınlanana kadar mevcut değil."
+    },
+    "tasks": {
+      "title": "Görevler",
+      "comingSoonBadge": "Yakında",
+      "empty": "Görev yönetimi henüz mevcut değil. Aksiyon öğeleri için Onaylar ve Takvim son tarihlerini kullanın."
+    },
+    "approvals": {
+      "title": "Onaylar",
+      "empty": "İzinlerinize uygun bekleyen onay yok.",
+      "ageDays": "{days} gün bekliyor",
+      "types": {
+        "design_review": "Tasarım incelemesi",
+        "finance_transaction": "Finans işlemi",
+        "drawing_unit_proposal": "Çizim birimi"
+      },
+      "design_review": {
+        "title": "Tasarım incelemesi bekliyor"
+      },
+      "finance_transaction": {
+        "title": "İşlem onayı"
+      },
+      "drawing_proposal": {
+        "title": "Çizim birimi onayı"
+      }
+    },
+    "calendar": {
+      "title": "Takvim",
+      "comingSoonBadge": "Takvim yakında",
+      "empty": "Mevcut filtrelere uygun yaklaşan son tarih yok."
+    },
     "deadlines": {
-      "title": "Yaklaşan Son Tarihler",
-      "empty": "Mevcut filtrelere uygun son tarih yok.",
       "windows": {
         "overdue": "Gecikmiş",
         "next_7_days": "Önümüzdeki 7 Gün",
@@ -887,6 +964,7 @@
     "activity": {
       "title": "Son Aktiviteler",
       "empty": "Seçilen dönem için aktivite yok.",
+      "viewAll": "Tüm aktivite geçmişini görüntüle",
       "lead_created": "Potansiyel müşteri oluşturuldu: {name}",
       "investor_created": "Yatırımcı eklendi: {name}",
       "project_created": "Proje oluşturuldu: {name}",
@@ -897,12 +975,39 @@
     },
     "quickActions": {
       "title": "Hızlı İşlemler",
-      "addLead": "Potansiyel Müşteri Ekle",
-      "addInvestor": "Yatırımcı Ekle",
-      "addProject": "Proje Ekle",
+      "addLead": "Yeni Lead",
+      "addInvestor": "Yeni Yatırımcı",
+      "addProject": "Yeni Proje",
+      "uploadDocument": "Belge Yükle",
       "addTransaction": "İşlem Ekle",
       "addPaymentObligation": "Ödeme Yükümlülüğü Ekle",
       "addFundingCommitment": "Finansman Taahhüdü Ekle"
+    },
+    "aiPanel": {
+      "title": "YZ Öngörüleri",
+      "priorities": "Öncelikler",
+      "risks": "Riskler",
+      "opportunities": "Fırsatlar",
+      "emptyPriorities": "Mevcut verilerden öncelik öğesi yok.",
+      "emptyRisks": "Mevcut verilerden risk sinyali yok.",
+      "emptyOpportunities": "Mevcut verilerden fırsat tespit edilmedi.",
+      "footer": "{level} sezgisel · Oluşturulma {time}",
+      "deadline_priority": {
+        "title": "Yaklaşan son tarih: {title}",
+        "description": "Vade {due_date} ({window})"
+      },
+      "pipeline_wins": {
+        "title": "Satış hattında kazanımlar",
+        "description": "Portföyde {won} kazanılan lead."
+      },
+      "funding_headroom": {
+        "title": "Fonlanmamış taahhütler",
+        "description": "Fonlanacak {amount} {currency} kaldı."
+      },
+      "pending_approvals": {
+        "title": "Onay bekleyen öğeler",
+        "description": "{count} öğe inceleme gerektiriyor."
+      }
     },
     "errors": {
       "summary": "Özet metrikler yüklenemedi.",
@@ -1029,6 +1134,27 @@
         "status_changed": "Proje durumu değiştirildi: {name}",
         "financial_updated": "Proje finansal bilgileri güncellendi: {name}",
         "archived": "Proje arşivlendi: {name}"
+      },
+      "inventory": {
+        "building": {
+          "created": "Bina oluşturuldu: {name} ({code})",
+          "updated": "Bina güncellendi: {name} ({code})",
+          "archived": "Bina arşivlendi: {name} ({code})",
+          "restored": "Bina geri yüklendi: {name} ({code})"
+        },
+        "floor": {
+          "created": "Kat oluşturuldu: seviye {floor_number}",
+          "updated": "Kat güncellendi: seviye {floor_number}",
+          "archived": "Kat arşivlendi: seviye {floor_number}",
+          "restored": "Kat geri yüklendi: seviye {floor_number}"
+        },
+        "asset": {
+          "created": "Envanter varlığı oluşturuldu: {display_id} ({system_code})",
+          "updated": "Envanter varlığı güncellendi: {display_id} ({system_code})",
+          "status_changed": "Envanter durumu değişti: {display_id} ({system_code})",
+          "archived": "Envanter varlığı arşivlendi: {display_id} ({system_code})",
+          "restored": "Envanter varlığı geri yüklendi: {display_id} ({system_code})"
+        }
       },
       "transaction": {
         "created": "İşlem oluşturuldu: {description} ({amount} {currency})",
@@ -1540,6 +1666,9 @@
       "material_package": "Malzeme paketleri",
       "furniture_item": "Mobilya öğeleri",
       "design_version": "Tasarım sürümleri",
+      "building": "Binalar",
+      "floor": "Katlar",
+      "inventory_asset": "Envanter varlıkları",
       "unit": "Üniteler (yakında)",
       "construction": "İnşaat (yakında)",
       "email": "E-postalar (yakında)"
@@ -1551,7 +1680,265 @@
       "finance": "Finans",
       "admin_users": "Kullanıcılar",
       "activity": "Aktivite",
-      "documents": "Belgeler"
+      "documents": "Belgeler",
+      "inventory": "Envanter"
+    }
+  },
+  "inventory": {
+    "eyebrow": "Envanter",
+    "title": "Envanter",
+    "subtitle": "Projeler genelinde satılabilir ve kiralanabilir envanterin tek kaynağı.",
+    "loadError": "Envanter varlıkları yüklenemedi.",
+    "loadErrorTitle": "Envanter kullanılamıyor",
+    "saveError": "Envanter varlığı kaydedilemedi.",
+    "archiveError": "Envanter varlığı arşivlenemedi.",
+    "restoreError": "Envanter varlığı geri yüklenemedi.",
+    "createButton": "Yeni Varlık",
+    "empty": "Filtrelerinize uygun envanter varlığı yok.",
+    "emptyHint": "Filtreleri değiştirin veya yeni bir varlık oluşturun.",
+    "demoBanner": "Bu görünümde {count} demo varlık",
+    "resultCount": "{count} varlık",
+    "prevPage": "Önceki",
+    "nextPage": "Sonraki",
+    "pagination": "Sayfa {page} / {pages} · toplam {total}",
+    "kpis": {
+      "total": "Toplam envanter",
+      "available": "Müsait",
+      "softHold": "Ön rezervasyon",
+      "reserved": "Kesin rezervasyon",
+      "underContract": "Sözleşme altında",
+      "sold": "Satıldı",
+      "closed": "Kapanış tamam",
+      "leased": "Kiralandı"
+    },
+    "navViews": {
+      "label": "Görünüm",
+      "all": "Tüm envanter",
+      "byProject": "Projeye göre",
+      "byBuilding": "Binaya göre",
+      "byFloor": "Kata göre"
+    },
+    "filters": {
+      "apply": "Filtreleri uygula",
+      "clearAll": "Tümünü temizle",
+      "activeChips": "Aktif filtreler",
+      "search": "Ara",
+      "searchPlaceholder": "Görünen kod, sistem kodu, tapu…",
+      "project": "Proje",
+      "building": "Bina",
+      "floor": "Kat",
+      "assetType": "Varlık türü",
+      "usageType": "Kullanım türü",
+      "availability": "Müsaitlik",
+      "reservation": "Rezervasyon",
+      "sales": "Satış",
+      "construction": "İnşaat",
+      "closing": "Kapanış",
+      "leasing": "Kiralama",
+      "sort": "Sırala",
+      "includeArchived": "Arşivlenenleri dahil et",
+      "archived": "Arşivli",
+      "allProjects": "Tüm projeler",
+      "allBuildings": "Tüm binalar",
+      "allFloors": "Tüm katlar",
+      "allTypes": "Tüm türler",
+      "allUsage": "Tüm kullanımlar",
+      "allStatuses": "Tüm durumlar"
+    },
+    "sort": {
+      "updatedDesc": "Güncelleme (yeniden eskiye)",
+      "updatedAsc": "Güncelleme (eskiden yeniye)",
+      "displayAsc": "Görünen kod (A–Z)",
+      "displayDesc": "Görünen kod (Z–A)",
+      "systemAsc": "Sistem kodu (A–Z)",
+      "systemDesc": "Sistem kodu (Z–A)"
+    },
+    "table": {
+      "compact": "Sıkı görünüm",
+      "comfortable": "Rahat görünüm"
+    },
+    "columns": {
+      "displayId": "Görünen Kod",
+      "systemCode": "Sistem Kodu",
+      "legalIdentifier": "Yasal Kimlik",
+      "assetType": "Tür",
+      "usageType": "Kullanım",
+      "project": "Proje",
+      "building": "Bina",
+      "floor": "Kat",
+      "interiorArea": "İç alan",
+      "exteriorArea": "Dış alan",
+      "totalArea": "Toplam alan",
+      "availability": "Müsaitlik",
+      "reservation": "Rezervasyon",
+      "sales": "Satış",
+      "construction": "İnşaat",
+      "closing": "Kapanış",
+      "leasing": "Kiralama",
+      "updated": "Güncellendi"
+    },
+    "statusCategories": {
+      "availability": "Müsaitlik",
+      "reservation": "Rezervasyon",
+      "sales": "Satış",
+      "construction": "İnşaat",
+      "closing": "Kapanış",
+      "leasing": "Kiralama"
+    },
+    "statusUpdate": {
+      "title": "Durum güncelle",
+      "category": "Durum kategorisi",
+      "newStatus": "Yeni durum",
+      "selectStatus": "Durum seçin",
+      "reason": "Gerekçe (isteğe bağlı)",
+      "submit": "Durumu güncelle"
+    },
+    "form": {
+      "createTitle": "Yeni envanter varlığı",
+      "editTitle": "Envanter varlığını düzenle",
+      "project": "Proje",
+      "selectProject": "Proje seçin",
+      "displayId": "Görünen Kod",
+      "legalIdentifier": "Tapu / Yasal Kimlik",
+      "assetType": "Varlık türü",
+      "usageType": "Kullanım türü",
+      "building": "Bina",
+      "selectBuilding": "Bina seçin",
+      "floor": "Kat",
+      "selectFloor": "Kat seçin",
+      "unitSubtype": "Alt tür",
+      "bedrooms": "Yatak odası",
+      "bathrooms": "Banyo",
+      "interiorArea": "İç alan (ft² saklanır)",
+      "exteriorArea": "Dış alan (ft² saklanır)",
+      "totalArea": "Toplam alan (ft² saklanır)",
+      "orientation": "Cephe",
+      "viewType": "Manzara",
+      "releaseDate": "Satışa çıkış tarihi",
+      "deliveryDate": "Teslim tarihi",
+      "description": "Açıklama",
+      "notes": "Notlar",
+      "systemCode": "Sistem kodu"
+    },
+    "detail": {
+      "ariaLabel": "Envanter varlık detayı",
+      "tabsLabel": "Envanter detay sekmeleri",
+      "changeStatus": "Durumu değiştir",
+      "archive": "Arşivle",
+      "restore": "Geri yükle",
+      "archivedBadge": "Arşivli",
+      "created": "Oluşturuldu",
+      "recentChanges": "Son değişiklikler",
+      "assignmentsEmpty": "Otopark ve depo atamaları gelecek sürümde kullanılabilir olacak.",
+      "drawingsEmpty": "Henüz bağlı çizim yok. Belgeler veya çizim zekası üzerinden bağlayın.",
+      "designEmpty": "Bu varlık için henüz Tasarım Stüdyosu projesi bağlı değil.",
+      "openDesignStudio": "Tasarım Stüdyosu'nu aç",
+      "statusHistoryEmpty": "Henüz durum geçmişi kaydı yok.",
+      "tabs": {
+        "overview": "Genel Bakış",
+        "status": "Durum",
+        "physical": "Fiziksel Detaylar",
+        "assignments": "Atamalar",
+        "dates": "Tarihler",
+        "documents": "Belgeler",
+        "drawings": "Çizimler",
+        "design": "Tasarım",
+        "activity": "Aktivite",
+        "statusHistory": "Durum geçmişi"
+      },
+      "sections": {
+        "identifiers": "Tanımlayıcılar",
+        "location": "Konum",
+        "statusSummary": "Durum özeti",
+        "description": "Açıklama",
+        "currentStatus": "Güncel durum",
+        "physical": "Fiziksel detaylar",
+        "dates": "Önemli tarihler"
+      }
+    },
+    "errors": {
+      "building_required": "Bu varlık türü için bina zorunludur.",
+      "floor_required": "Bu varlık türü için kat zorunludur.",
+      "land_parcel_no_structure": "Arsa parselleri bina veya kata atanamaz.",
+      "building_not_found": "Bina bulunamadı veya arşivlenmiş.",
+      "floor_not_found": "Kat bulunamadı veya arşivlenmiş.",
+      "building_project_mismatch": "Bina seçilen projeye ait değil.",
+      "floor_project_mismatch": "Kat seçilen projeye ait değil.",
+      "floor_building_mismatch": "Kat seçilen binaya ait değil.",
+      "building_code_duplicate": "Bu proje için bina kodu zaten mevcut.",
+      "floor_identifier_duplicate": "Bu bina için kat tanımlayıcısı zaten mevcut.",
+      "display_id_duplicate": "Bu proje için görünen kod zaten mevcut.",
+      "system_code_immutable": "Sistem kodu oluşturulduktan sonra değiştirilemez.",
+      "invalid_status_value": "Bu kategori için geçersiz durum değeri.",
+      "status_unchanged": "Durum zaten bu değere ayarlı."
+    },
+    "assetTypes": {
+      "residential_unit": "Konut ünitesi",
+      "commercial_unit": "Ticari ünite",
+      "parking_space": "Otopark yeri",
+      "storage_unit": "Depo",
+      "land_parcel": "Arsa parseli",
+      "office_unit": "Ofis ünitesi",
+      "retail_unit": "Perakende ünitesi"
+    },
+    "usageTypes": {
+      "residential": "Konut",
+      "commercial": "Ticari",
+      "retail": "Perakende",
+      "office": "Ofis",
+      "parking": "Otopark",
+      "storage": "Depo",
+      "industrial": "Endüstriyel",
+      "mixed": "Karma"
+    },
+    "availabilityStatus": {
+      "not_released": "Satışa açılmadı",
+      "available": "Müsait",
+      "unavailable": "Müsait değil",
+      "hold": "Beklemede"
+    },
+    "reservationStatus": {
+      "none": "Yok",
+      "soft_hold": "Ön rezervasyon",
+      "confirmed": "Kesin rezervasyon",
+      "expired": "Süresi doldu",
+      "cancelled": "İptal"
+    },
+    "salesStatus": {
+      "not_for_sale": "Satılık değil",
+      "available_for_sale": "Satışa açık",
+      "under_contract": "Sözleşme altında",
+      "sold": "Satıldı"
+    },
+    "constructionStatus": {
+      "planned": "Planlandı",
+      "foundation": "Temel",
+      "structure": "Karkas",
+      "envelope": "Kabuk",
+      "interior": "İç mekân",
+      "finishing": "Bitirme",
+      "inspection": "Denetim",
+      "ready": "Hazır",
+      "delivered": "Teslim edildi",
+      "on_hold": "Beklemede"
+    },
+    "closingStatus": {
+      "not_started": "Başlamadı",
+      "in_progress": "Devam ediyor",
+      "title_clear": "Tapu temiz",
+      "funding_pending": "Finansman bekleniyor",
+      "scheduled": "Kapanış planlandı",
+      "closed": "Kapandı",
+      "fallen_through": "Düştü"
+    },
+    "leasingStatus": {
+      "not_applicable": "Uygulanamaz",
+      "vacant": "Boş",
+      "listed": "Kiralık ilan",
+      "application": "Başvuru",
+      "leased": "Kiralandı",
+      "notice_given": "İhtar verildi",
+      "off_market": "Piyasada değil"
     }
   },
   "design": {

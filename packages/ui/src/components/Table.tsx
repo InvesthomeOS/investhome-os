@@ -6,7 +6,7 @@ export interface TableProps {
   wrapClassName?: string;
 }
 
-export function Table({ children, className = 'admin-table', wrapClassName = 'admin-table-wrap' }: TableProps) {
+export function Table({ children, className = 'ih-table admin-table', wrapClassName = 'ih-table-wrap admin-table-wrap' }: TableProps) {
   return (
     <div className={wrapClassName}>
       <table className={className}>{children}</table>

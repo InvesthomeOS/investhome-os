@@ -34,6 +34,7 @@ from investhome_api.models.finance import (
     PaymentObligation,
 )
 from investhome_api.models.investor import Investor
+from investhome_api.models.inventory import Building, Floor, InventoryAsset
 from investhome_api.models.lead import Lead
 from investhome_api.models.notification import Notification, NotificationStatus
 from investhome_api.models.project import Project
@@ -160,6 +161,8 @@ def _link_query(entity_type: str, entity_id: UUID) -> dict[str, str]:
         return {"tab": "material-packages"}
     if entity_type == "furniture_item":
         return {"tab": "furniture"}
+    if entity_type in {"building", "floor", "inventory_asset"}:
+        return query
     return query
 
 
@@ -1261,6 +1264,145 @@ def _search_design_versions(
     return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
 
 
+def _search_buildings(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "building"):
+        return []
+    pattern = _pattern(query)
+    stmt = select(Building).where(Building.archived_at.is_(None)).where(
+        or_(
+            Building.name.ilike(pattern),
+            Building.code.ilike(pattern),
+            Building.address.ilike(pattern),
+            Building.description.ilike(pattern),
+        )
+    )
+    buildings = db.scalars(stmt.limit(limit * 2)).all()
+    results: list[InternalSearchResult] = []
+    for building in buildings:
+        if not _apply_date_filter(building.updated_at, filters):
+            continue
+        fields = {"name": building.name, "code": building.code, "address": building.address}
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="building",
+                entity_id=building.id,
+                title=building.name,
+                subtitle=building.code,
+                status=_enum_value(building.status),
+                created_at=building.updated_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
+def _search_floors(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "floor"):
+        return []
+    pattern = _pattern(query)
+    stmt = (
+        select(Floor, Building)
+        .join(Building, Floor.building_id == Building.id)
+        .where(Floor.archived_at.is_(None))
+        .where(
+            or_(
+                Floor.display_name.ilike(pattern),
+                Floor.level_code.ilike(pattern),
+                Floor.description.ilike(pattern),
+            )
+        )
+    )
+    rows = db.execute(stmt.limit(limit * 2)).all()
+    results: list[InternalSearchResult] = []
+    for floor, building in rows:
+        if not _apply_date_filter(floor.updated_at, filters):
+            continue
+        title = floor.display_name or f"Floor {floor.floor_number}"
+        fields = {
+            "display_name": floor.display_name,
+            "level_code": floor.level_code,
+            "building_code": building.code,
+        }
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="floor",
+                entity_id=floor.id,
+                title=title,
+                subtitle=building.code,
+                status=_enum_value(floor.status),
+                created_at=floor.updated_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
+def _search_inventory_assets(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "inventory_asset"):
+        return []
+    pattern = _pattern(query)
+    stmt = select(InventoryAsset).where(InventoryAsset.archived_at.is_(None)).where(
+        or_(
+            InventoryAsset.display_id.ilike(pattern),
+            InventoryAsset.system_code.ilike(pattern),
+            InventoryAsset.legal_identifier.ilike(pattern),
+            InventoryAsset.description.ilike(pattern),
+        )
+    )
+    assets = db.scalars(stmt.limit(limit * 2)).all()
+    results: list[InternalSearchResult] = []
+    for asset in assets:
+        if not _apply_date_filter(asset.updated_at, filters):
+            continue
+        fields = {
+            "display_id": asset.display_id,
+            "system_code": asset.system_code,
+            "legal_identifier": asset.legal_identifier,
+        }
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="inventory_asset",
+                entity_id=asset.id,
+                title=asset.display_id,
+                subtitle=asset.system_code,
+                status=_enum_value(asset.availability_status),
+                created_at=asset.updated_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
 PROVIDER_MAP = {
     "lead": _search_leads,
     "investor": _search_investors,
@@ -1282,6 +1424,9 @@ PROVIDER_MAP = {
     "material_package": _search_material_packages,
     "furniture_item": _search_furniture_items,
     "design_version": _search_design_versions,
+    "building": _search_buildings,
+    "floor": _search_floors,
+    "inventory_asset": _search_inventory_assets,
 }
 
 ENTITY_LABEL_KEYS = {
@@ -1305,6 +1450,9 @@ ENTITY_LABEL_KEYS = {
     "material_package": "search.entities.material_package",
     "furniture_item": "search.entities.furniture_item",
     "design_version": "search.entities.design_version",
+    "building": "search.entities.building",
+    "floor": "search.entities.floor",
+    "inventory_asset": "search.entities.inventory_asset",
 }
 
 

@@ -10,6 +10,8 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { useCompanyBranding } from '@/lib/company/company-context';
 import { MODULE_NAMES, type ModuleName } from '@investhome/shared';
 
+import { useSidebarCollapsed } from './use-sidebar-collapsed';
+
 function moduleHref(module: ModuleName): Route {
   return `/dashboard/${module}` as Route;
 }
@@ -19,6 +21,7 @@ const MODULE_PERMISSIONS: Record<ModuleName, { resource: string; action: string 
   leads: { resource: 'leads', action: 'view' },
   investors: { resource: 'investors', action: 'view' },
   projects: { resource: 'projects', action: 'view' },
+  inventory: { resource: 'inventory', action: 'view' },
   finance: { resource: 'finance', action: 'view' },
 };
 
@@ -28,21 +31,47 @@ export function SidebarNav() {
   const tCommon = useTranslations('common');
   const { user, canViewAdmin } = useAuth();
   const { displayName, slogan } = useCompanyBranding();
+  const [collapsed, toggleCollapsed] = useSidebarCollapsed();
   const canViewActivity = user ? hasPermission(user, 'activity', 'view') : false;
   const canViewDocuments = user ? hasPermission(user, 'documents', 'view') : false;
   const canViewDesign = user ? hasPermission(user, 'design', 'view') : false;
   const canViewSettings = user ? hasPermission(user, 'settings', 'view') || hasPermission(user, 'company', 'view') : false;
 
+  const shellClass = collapsed
+    ? 'dashboard-shell__sidebar dashboard-shell__sidebar--collapsed'
+    : 'dashboard-shell__sidebar';
+
   return (
-    <aside className="dashboard-shell__sidebar">
-      <div className="dashboard-shell__brand">
-        <Link href="/dashboard" className="dashboard-shell__brand-link">
-          <span className="dashboard__eyebrow">{displayName}</span>
-          <span className="dashboard-shell__brand-title">{slogan ?? tCommon('operations')}</span>
-        </Link>
+    <aside className={shellClass}>
+      <div className="dashboard-shell__sidebar-top">
+        <div className="dashboard-shell__brand">
+          <Link href="/dashboard" className="dashboard-shell__brand-link">
+            <span className="dashboard-shell__brand-mark" aria-hidden="true">
+              IH
+            </span>
+            <span className="dashboard-shell__brand-text">
+              <span className="dashboard-shell__brand-title">{displayName}</span>
+              {!collapsed && (
+                <span className="dashboard-shell__brand-subtitle">
+                  {slogan ?? tCommon('operations')}
+                </span>
+              )}
+            </span>
+          </Link>
+        </div>
+        <button
+          type="button"
+          className="dashboard-shell__collapse"
+          onClick={toggleCollapsed}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? t('expandSidebar') : t('collapseSidebar')}
+        >
+          {collapsed ? '›' : '‹'}
+        </button>
       </div>
 
       <nav className="dashboard-shell__nav" aria-label={t('ariaLabel')}>
+        <div className="dashboard-shell__nav-section">{t('workspacesSection')}</div>
         {MODULE_NAMES.map((module) => {
           const permission = MODULE_PERMISSIONS[module];
           const allowed = user ? hasPermission(user, permission.resource, permission.action) : false;
@@ -57,6 +86,7 @@ export function SidebarNav() {
             module === 'leads' ||
             module === 'investors' ||
             module === 'projects' ||
+            module === 'inventory' ||
             module === 'finance';
 
           return (
@@ -65,14 +95,17 @@ export function SidebarNav() {
               href={href}
               className={`dashboard-shell__nav-link${isActive ? ' dashboard-shell__nav-link--active' : ''}`}
               aria-current={isActive ? 'page' : undefined}
+              title={collapsed ? t(`modules.${module}.title`) : undefined}
             >
-              <span>{t(`modules.${module}.title`)}</span>
-              {!isImplemented && (
+              <span className="dashboard-shell__nav-link-label">{t(`modules.${module}.title`)}</span>
+              {!collapsed && !isImplemented && (
                 <span className="dashboard-shell__nav-badge">{tCommon('soon')}</span>
               )}
             </Link>
           );
         })}
+
+        <div className="dashboard-shell__nav-section">{t('toolsSection')}</div>
 
         {canViewDocuments && (
           <Link
@@ -83,8 +116,9 @@ export function SidebarNav() {
                 : ''
             }`}
             aria-current={pathname.startsWith('/dashboard/documents') ? 'page' : undefined}
+            title={collapsed ? t('documents') : undefined}
           >
-            <span>{t('documents')}</span>
+            <span className="dashboard-shell__nav-link-label">{t('documents')}</span>
           </Link>
         )}
 
@@ -97,8 +131,9 @@ export function SidebarNav() {
                 : ''
             }`}
             aria-current={pathname.startsWith('/dashboard/design') ? 'page' : undefined}
+            title={collapsed ? t('designStudio') : undefined}
           >
-            <span>{t('designStudio')}</span>
+            <span className="dashboard-shell__nav-link-label">{t('designStudio')}</span>
           </Link>
         )}
 
@@ -111,8 +146,9 @@ export function SidebarNav() {
                 : ''
             }`}
             aria-current={pathname.startsWith('/dashboard/activity') ? 'page' : undefined}
+            title={collapsed ? t('activity') : undefined}
           >
-            <span>{t('activity')}</span>
+            <span className="dashboard-shell__nav-link-label">{t('activity')}</span>
           </Link>
         )}
 
@@ -125,8 +161,9 @@ export function SidebarNav() {
                 : ''
             }`}
             aria-current={pathname.startsWith('/dashboard/settings') ? 'page' : undefined}
+            title={collapsed ? t('settings') : undefined}
           >
-            <span>{t('settings')}</span>
+            <span className="dashboard-shell__nav-link-label">{t('settings')}</span>
           </Link>
         )}
 
@@ -145,8 +182,9 @@ export function SidebarNav() {
                   href={item.href}
                   className={`dashboard-shell__nav-link${isActive ? ' dashboard-shell__nav-link--active' : ''}`}
                   aria-current={isActive ? 'page' : undefined}
+                  title={collapsed ? item.label : undefined}
                 >
-                  <span>{item.label}</span>
+                  <span className="dashboard-shell__nav-link-label">{item.label}</span>
                 </Link>
               );
             })}

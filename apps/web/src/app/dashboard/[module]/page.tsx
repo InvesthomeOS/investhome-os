@@ -26,6 +26,10 @@ export default async function ModulePage({ params }: ModulePageProps) {
     redirect('/dashboard/projects' as Route);
   }
 
+  if (module === 'inventory') {
+    redirect('/dashboard/inventory' as Route);
+  }
+
   if (module === 'finance') {
     redirect('/dashboard/finance' as Route);
   }

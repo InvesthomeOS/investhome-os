@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from 'next/navigation';
 
-import { DashboardHeaderActions } from '@/app/dashboard/_components/dashboard-header-actions';
 import { EntityActivityTimeline } from '@/app/dashboard/_components/entity-activity-timeline';
 import { EntityDocumentsPanel } from '@/app/dashboard/_components/entity-documents-panel';
 import {
@@ -97,12 +96,9 @@ export function UsersAdminWorkspace() {
   return (
     <main className="dashboard">
       <header className="dashboard__header">
-        <div>
-          <p className="dashboard__eyebrow">{t('eyebrow')}</p>
-          <h1 className="dashboard__title">{t('title')}</h1>
-          <p className="dashboard__subtitle">{t('subtitle')}</p>
-        </div>
-        <DashboardHeaderActions />
+        <p className="dashboard__eyebrow">{t('eyebrow')}</p>
+        <h1 className="dashboard__title">{t('title')}</h1>
+        <p className="dashboard__subtitle">{t('subtitle')}</p>
       </header>
 
       {canManage && (

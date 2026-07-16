@@ -55,6 +55,12 @@ function entityIcon(entityType: string) {
       return 'N';
     case 'activity':
       return '•';
+    case 'inventory_asset':
+      return 'V';
+    case 'building':
+      return 'B';
+    case 'floor':
+      return 'F';
     default:
       return '?';
   }

@@ -48,7 +48,7 @@ Canonical architecture and product governance documents:
 | [UI_COMPONENT_GUIDELINES.md](./UI_COMPONENT_GUIDELINES.md) | **2** ✅ | Per-component usage — anatomy, states, accessibility, i18n |
 | [UI_GUIDELINES.md](./UI_GUIDELINES.md) | EA + 2 | Layout patterns, BEM conventions, incremental adoption rules |
 
-**Sprint 2 status (2026-07-15):** Documentation complete — no UI implementation. IODL catalogs 48 component/pattern entries: **9** ✅ `@investhome/ui`, **~32** 🟡 CSS-only, **~12** 📋 spec-only. **Sprint 1D** ([WORKSPACE_FRAMEWORK.md](./WORKSPACE_FRAMEWORK.md)) completes the product design documentation layer. Next recommended sprint: **Executive Workspace Blueprint** (documentation only) — see [DESIGN_LANGUAGE.md § Next Sprint](./DESIGN_LANGUAGE.md#next-sprint--executive-workspace-blueprint).
+**Sprint 2 status (2026-07-15):** Documentation complete — no UI implementation. IODL catalogs 48 component/pattern entries. **Brand & Light UI Foundation (2026-07-16):** light-default theme, shell redesign, 24 `@investhome/ui` primitives, 5 workspace pages migrated — see Executive Summary. Next recommended sprint: **Executive Workspace Blueprint** (documentation only) — see [DESIGN_LANGUAGE.md § Next Sprint](./DESIGN_LANGUAGE.md#next-sprint--executive-workspace-blueprint).
 
 ### Supporting architecture docs
 
@@ -73,11 +73,13 @@ Investhome OS is a **production-shaped enterprise platform** with Phase 1–3 mo
 
 **Company Foundation** (migration `0013`) delivers centralized company profile, offices, brand profiles, brand assets (via Document Engine), system preferences, organization structure (departments/teams), Settings UI (12 sections TR/EN), permissions, activity/search integration, and global branding context with safe fallbacks.
 
-**Units & Inventory** has a **complete blueprint** (`docs/UNITS_INVENTORY_BLUEPRINT.md`) but **zero production implementation** — drawing intelligence unit approval uses placeholder IDs pending this module.
+**Units & Inventory** — **Sprint 4B1 backend foundation complete** (2026-07-16): migration `0017_inventory_assets`; Building/Floor/InventoryAsset models with six status dimensions; `/inventory` API (buildings, floors, assets CRUD, archive/restore, status history); centralized system code generator and conditional validation; `inventory` permissions; activity + global search providers; idempotent demo seed (Temple + UniLoft); **8 new API tests** (**160 total**). **Sprint 4B2 list/detail UI complete** (2026-07-16): route `/dashboard/inventory`; 8 KPI cards; filterable/paginated table; building/floor navigation views; 10-tab detail drawer; create/edit forms; status update modal; archive/restore; TR/EN `inventory` namespace; sidebar nav; global search deep links. **Overall: PARTIAL** — reservations, pricing, ownership, bulk import, spatial views, finance `unit_id` FK not implemented.
 
 **Visual Design Studio** is **PARTIAL** — **Sprint 1 complete** (2026-07-15): design project CRUD, source plan linking, Color Studio, version save/history, archive, permissions, activity log, global search, TR/EN UI. **Sprint 2A complete** (2026-07-16, verified): style presets (Modern, Luxury, Scandinavian, Industrial, Minimalist + extras), material packages, furniture catalog/library, furniture layout editor (add/drag/rotate/duplicate/delete, undo/redo), materials & style tab, extended `design_parameters`, migrations `0015`/`0016`. **Backend-only from Sprint 2 full** (commit `8aef5b6`, not exposed in 2A UI): version compare API, design review workflow (submit/approve/reject). **NOT implemented:** 2D-to-3D, photorealistic rendering, video generation, automatic AI furniture placement.
 
 External provider integrations (AI, storage, mail, calendar, WhatsApp, accounting, banking) are **readiness-only** — configuration status pages without verified connections or secrets in API responses.
+
+**Brand and Light UI Foundation** — **COMPLETE** (2026-07-16): light theme default with dark/system toggle and `localStorage` persistence; centralized design tokens (`theme-tokens.css`, `ih-components.css`); Company Foundation brand color runtime injection; redesigned app shell (collapsible sidebar, sticky header, breadcrumbs, theme selector); `@investhome/ui` expanded to 24 primitives (KpiCard, DataCard, Tabs, Drawer, Dialog, FilterBar, Pagination, Alert, etc.); styling applied to Executive, Leads, Investors, Projects, Finance workspaces; TR/EN theme labels. **Remaining on legacy styling:** Home dashboard launcher, Activity, Documents, Design Studio, Settings, Admin, Profile, Auth pages (inherit tokens but not fully migrated layouts).
 
 Intelligence layers use **local deterministic/heuristic providers** with honest degradation — not production LLM/CAD/OCR integrations.
 
@@ -149,8 +151,9 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 | Rendering pipeline | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
 | Design approval workflow | PARTIAL | PARTIAL | PARTIAL | COMPLETE | COMPLETE | PARTIAL | COMPLETE | NEEDS VERIFICATION | **PARTIAL** |
 | **PHASE 3.5 — UNITS & INVENTORY** |
-| Units & Inventory | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
-| Units blueprint | — | — | — | — | — | — | — | — | **BLUEPRINT IN PROGRESS** |
+| Units & Inventory | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | PARTIAL | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NEEDS VERIFICATION | **PARTIAL** |
+| Units blueprint | — | — | — | — | — | — | — | — | **BLUEPRINT COMPLETE** |
+| Inventory backend foundation (4B1) | — | — | — | COMPLETE | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NEEDS VERIFICATION | **COMPLETE** |
 
 ---
 
@@ -257,28 +260,32 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 | Enum label hooks | COMPLETE for core modules |
 | Gaps | `navigation.documents` was missing in `en.json` (fixed in audit); API error strings in English; permissions matrix shows raw resource/action keys |
 
-### Units & Inventory — BLUEPRINT IN PROGRESS
+### Units & Inventory — BACKEND FOUNDATION COMPLETE (Sprint 4B1)
 
 | Check | Status |
 |-------|--------|
-| Specification document | **COMPLETE** — `docs/UNITS_INVENTORY_BLUEPRINT.md` (22 sections) |
-| Data models (Building, Floor, Unit, +9 entities) | NOT IMPLEMENTED |
-| Migration `0014_units_inventory` | NOT IMPLEMENTED |
-| API routes (`/units`, `/buildings`, `/floors`, etc.) | NOT IMPLEMENTED |
-| Permissions resource `"units"` | NOT IMPLEMENTED — `"construction"` reserved in `permissions_config.py` |
-| Frontend workspace + drawer | NOT IMPLEMENTED |
-| Global search entity `unit` | PLACEHOLDER — listed in `FUTURE_SEARCH_ENTITY_TYPES` (`search_config.py`) |
-| Drawing unit approval bridge | PARTIAL — placeholder `created_unit_id = proposal.id` in `drawing_intelligence.py` |
-| Finance `unit_id` FK on transactions | NOT IMPLEMENTED — `finance.py` has `project_id` only |
-| Project unit aggregates | PARTIAL — manual counters on `Project` model (`project.py`) |
-| Activity / notification integration | NOT IMPLEMENTED — no unit entity types in `activity.py` |
-| TR/EN `units` namespace | NOT IMPLEMENTED — search chip shows "coming soon" in `en.json` / `tr.json` |
-| Demo seed inventory | NOT IMPLEMENTED |
-| API tests | NOT IMPLEMENTED |
+| Workspace blueprint | **COMPLETE** — `docs/INVENTORY_WORKSPACE_BLUEPRINT.md` |
+| Module blueprint | **COMPLETE** — `docs/UNITS_INVENTORY_BLUEPRINT.md` (superseded UX decisions in workspace doc) |
+| Data models (Building, Floor, InventoryAsset, StatusHistory) | **COMPLETE** — `models/inventory.py` |
+| Migration `0017_inventory_assets` | **COMPLETE** — single head after `0016` |
+| API routes (`/inventory/buildings`, `/floors`, `/assets`) | **COMPLETE** — CRUD, archive/restore, status update + history |
+| System code generator | **COMPLETE** — globally unique, immutable (`services/inventory/system_code_service.py`) |
+| Conditional validation | **COMPLETE** — centralized (`services/inventory/validation_service.py`) |
+| Permissions resource `"inventory"` | **COMPLETE** — view/create/update/archive/restore/manage_status |
+| Activity integration | **COMPLETE** — building, floor, inventory_asset entity types |
+| Global search | **COMPLETE** — building, floor, inventory_asset providers |
+| TR/EN inventory namespace | **COMPLETE** — enum labels + validation errors in `en.json` / `tr.json` |
+| Demo seed inventory | **COMPLETE** — Temple + UniLoft buildings/floors/assets (`inventory_seed.py`) |
+| API tests | **COMPLETE** — `test_inventory_foundation.py` (8 tests); **160 total** |
+| Frontend workspace `/dashboard/inventory` | **COMPLETE** — Sprint 4B2 (KPIs, table, filters, drawer, forms, status modal) |
+| Reservations / Soft Hold | NOT IMPLEMENTED — Sprint 4B4 |
+| Pricing / approval | NOT IMPLEMENTED — Sprint 4B5 |
+| Ownership history | NOT IMPLEMENTED — Sprint 4B6 |
+| Finance `unit_id` FK | NOT IMPLEMENTED |
+| Drawing unit approval bridge | PARTIAL — placeholder `created_unit_id = proposal.id` |
+| Bulk import/export | NOT IMPLEMENTED — Sprint 4B7 |
 
-**Blueprint highlights:** Company → Project → Building → Floor → Unit hierarchy; accessory units (`unit_category=accessory`); four status dimensions (construction, sales, closing, leasing); 14 UX screens; finance/document/drawing integration; sprints S0–S7 defined.
-
-**Prerequisites before S1:** Apply migration `0013_company_foundation`; fix worker Redis host and entrypoint.
+**Architecture:** Inventory Asset parent entity; parking/storage as independent asset types; areas in sq ft; six status dimensions; display_id + system_code + legal_identifier.
 
 ---
 

@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 
-import { DashboardHeaderActions } from '@/app/dashboard/_components/dashboard-header-actions';
 import { changePassword } from '@/lib/api/auth';
 import { ApiError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -41,11 +40,8 @@ export default function ProfilePage() {
   return (
     <main className="dashboard">
       <header className="dashboard__header">
-        <div>
-          <p className="dashboard__eyebrow">{t('eyebrow')}</p>
-          <h1 className="dashboard__title">{t('title')}</h1>
-        </div>
-        <DashboardHeaderActions />
+        <p className="dashboard__eyebrow">{t('eyebrow')}</p>
+        <h1 className="dashboard__title">{t('title')}</h1>
       </header>
 
       <section className="admin-detail">

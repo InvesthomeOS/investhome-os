@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { useDocumentLabels } from '@/lib/i18n/document-labels';
 
 interface EntityDocumentsPanelProps {
-  entityType: 'lead' | 'investor' | 'project' | 'transaction' | 'user';
+  entityType: 'lead' | 'investor' | 'project' | 'transaction' | 'user' | 'inventory_asset';
   entityId: string;
   projectId?: string;
   investorId?: string;

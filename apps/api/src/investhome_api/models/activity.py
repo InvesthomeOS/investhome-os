@@ -71,6 +71,9 @@ class ActivityEntityType(str, enum.Enum):
     TEAM = "team"
     BRAND = "brand"
     DESIGN_PROJECT = "design_project"
+    BUILDING = "building"
+    FLOOR = "floor"
+    INVENTORY_ASSET = "inventory_asset"
 
 
 class ActivityLog(Base):

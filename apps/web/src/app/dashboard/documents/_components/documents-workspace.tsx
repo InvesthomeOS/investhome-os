@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
-import { DashboardHeaderActions } from '@/app/dashboard/_components/dashboard-header-actions';
 import {
   archiveDocument,
   fetchDocument,
@@ -111,12 +110,9 @@ export function DocumentsWorkspace() {
   return (
     <div className="leads-page">
       <header className="leads-page__header">
-        <div>
-          <p className="dashboard__eyebrow">{t('eyebrow')}</p>
-          <h1>{t('title')}</h1>
-          <p className="leads-page__subtitle">{t('subtitle')}</p>
-        </div>
-        <DashboardHeaderActions />
+        <p className="dashboard__eyebrow">{t('eyebrow')}</p>
+        <h1>{t('title')}</h1>
+        <p className="leads-page__subtitle">{t('subtitle')}</p>
       </header>
 
       {demoCount > 0 && (

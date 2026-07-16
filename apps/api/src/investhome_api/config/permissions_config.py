@@ -24,6 +24,7 @@ RESOURCES = frozenset(
         "documents",
         "construction",
         "design",
+        "inventory",
         "marketing",
         "reports",
     }
@@ -55,6 +56,8 @@ ACTIONS = frozenset(
         "manage_materials",
         "manage_furniture",
         "submit_review",
+        "restore",
+        "manage_status",
     }
 )
 
@@ -102,6 +105,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("offices", "view"),
         ("design", "view"),
         ("design", "approve"),
+        ("inventory", "view"),
     ],
     "partner": [
         ("executive", "view"),
@@ -117,6 +121,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("documents", "ask"),
         ("reports", "view"),
         ("design", "view"),
+        ("inventory", "view"),
     ],
     "sales": [
         ("leads", "view"),
@@ -132,6 +137,9 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("documents", "download"),
         ("notifications", "view"),
         ("search", "view"),
+        ("inventory", "view"),
+        ("inventory", "create"),
+        ("inventory", "update"),
     ],
     "investor_relations": [
         ("investors", "view"),
@@ -156,6 +164,8 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("documents", "view_sensitive_analysis"),
         ("notifications", "view"),
         ("search", "view"),
+        ("inventory", "view"),
+        ("inventory", "update"),
     ],
     "finance": [
         ("finance", "view"),
@@ -183,6 +193,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("reports", "export"),
         ("notifications", "view"),
         ("search", "view"),
+        ("inventory", "view"),
     ],
     "construction": [
         ("projects", "view"),
@@ -210,6 +221,10 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("documents", "reprocess"),
         ("documents", "approve"),
         ("search", "view"),
+        ("inventory", "view"),
+        ("inventory", "create"),
+        ("inventory", "update"),
+        ("inventory", "manage_status"),
     ],
     "marketing": [
         ("leads", "view"),
@@ -254,6 +269,11 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("integrations", "view"),
         ("ai_providers", "view"),
         ("storage", "view"),
+        ("inventory", "view"),
+        ("inventory", "update"),
+        ("inventory", "archive"),
+        ("inventory", "restore"),
+        ("inventory", "manage_status"),
     ],
     "assistant": [
         ("leads", "view"),
@@ -264,6 +284,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("investors", "update"),
         ("projects", "view"),
         ("search", "view"),
+        ("inventory", "view"),
     ],
     "read_only": [
         ("executive", "view"),
@@ -283,5 +304,6 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("brand", "view"),
         ("offices", "view"),
         ("design", "view"),
+        ("inventory", "view"),
     ],
 }

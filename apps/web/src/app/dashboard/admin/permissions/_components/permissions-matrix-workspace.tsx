@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 
-import { DashboardHeaderActions } from '@/app/dashboard/_components/dashboard-header-actions';
 import { canViewRoles, fetchPermissions, fetchRoles, type PermissionRecord, type RoleSummary } from '@/lib/api/auth';
 import { useAuth } from '@/lib/auth/auth-context';
 
@@ -56,12 +55,9 @@ export function PermissionsMatrixWorkspace() {
   return (
     <main className="dashboard">
       <header className="dashboard__header">
-        <div>
-          <p className="dashboard__eyebrow">{t('eyebrow')}</p>
-          <h1 className="dashboard__title">{t('title')}</h1>
-          <p className="dashboard__subtitle">{t('subtitle')}</p>
-        </div>
-        <DashboardHeaderActions />
+        <p className="dashboard__eyebrow">{t('eyebrow')}</p>
+        <h1 className="dashboard__title">{t('title')}</h1>
+        <p className="dashboard__subtitle">{t('subtitle')}</p>
       </header>
 
       {loading && <p>{tCommon('loading')}</p>}

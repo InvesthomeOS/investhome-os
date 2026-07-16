@@ -5,18 +5,20 @@ import { useTranslations } from 'next-intl';
 
 import { useAuth } from '@/lib/auth/auth-context';
 
-import { LanguageSelector } from './language-selector';
 import { GlobalSearchTrigger } from './global-search-trigger';
+import { LanguageSelector } from './language-selector';
 import { NotificationBell } from './notification-bell';
 import { OperationalStatus } from './operational-status';
+import { ThemeToggle } from './theme-toggle';
 
 export function DashboardHeaderActions() {
   const t = useTranslations('auth');
   const { user, logout, loading } = useAuth();
 
   return (
-    <div className="dashboard__header-actions">
+    <div className="dashboard__header-actions app-header__actions">
       <GlobalSearchTrigger />
+      <ThemeToggle />
       <LanguageSelector />
       <NotificationBell />
       <OperationalStatus />

@@ -43,6 +43,12 @@ from investhome_api.models.design_studio import (  # noqa: F401
     MaterialPackage,
     StylePreset,
 )
+from investhome_api.models.inventory import (  # noqa: F401
+    Building,
+    Floor,
+    InventoryAsset,
+    InventoryAssetStatusHistory,
+)
 from investhome_api.models.notification import Notification  # noqa: F401
 from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole  # noqa: F401
 
@@ -153,9 +159,12 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
 
     db = TestingSessionLocal()
     permission_map: dict[tuple[str, str], Permission] = {}
-    for resource in {"leads", "users", "roles", "executive", "activity", "finance", "investors", "projects", "notifications", "search", "documents"}:
+    for resource in {
+        "leads", "users", "roles", "executive", "activity", "finance", "investors", "projects",
+        "notifications", "search", "documents", "inventory",
+    }:
         for action in {
-            "view", "create", "update", "manage", "archive", "download",
+            "view", "create", "update", "manage", "archive", "restore", "manage_status", "download",
             "view_confidential", "view_highly_confidential",
             "analyze", "reprocess", "view_analysis", "ask", "export_analysis", "view_sensitive_analysis", "approve",
         }:
@@ -195,20 +204,30 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
             permission_id=permission_map[("activity", "view")].id,
         )
     )
-    for resource, action in (("documents", "view"), ("documents", "download")):
+    for resource, action in (("documents", "view"), ("documents", "download"), ("inventory", "view")):
         db.add(
             RolePermission(
                 role_id=roles["read_only"].id,
                 permission_id=permission_map[(resource, action)].id,
             )
         )
-    for resource in ("leads", "investors", "finance"):
-        db.add(
-            RolePermission(
-                role_id=roles["super_admin"].id,
-                permission_id=permission_map[(resource, "view")].id,
+    for resource in ("leads", "investors", "finance", "inventory"):
+        for action in ("view", "create", "update", "archive", "restore", "manage_status"):
+            key = (resource, action)
+            if key not in permission_map:
+                continue
+            existing = (
+                db.query(RolePermission)
+                .filter_by(role_id=roles["super_admin"].id, permission_id=permission_map[key].id)
+                .first()
             )
-        )
+            if existing is None:
+                db.add(
+                    RolePermission(
+                        role_id=roles["super_admin"].id,
+                        permission_id=permission_map[key].id,
+                    )
+                )
     db.add(
         RolePermission(
             role_id=roles["super_admin"].id,

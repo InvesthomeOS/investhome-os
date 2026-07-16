@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 
-import { DashboardHeaderActions } from '@/app/dashboard/_components/dashboard-header-actions';
 import {
   assignRolePermissions,
   canViewRoles,
@@ -90,12 +89,9 @@ export function RolesAdminWorkspace() {
   return (
     <main className="dashboard">
       <header className="dashboard__header">
-        <div>
-          <p className="dashboard__eyebrow">{t('eyebrow')}</p>
-          <h1 className="dashboard__title">{t('title')}</h1>
-          <p className="dashboard__subtitle">{t('subtitle')}</p>
-        </div>
-        <DashboardHeaderActions />
+        <p className="dashboard__eyebrow">{t('eyebrow')}</p>
+        <h1 className="dashboard__title">{t('title')}</h1>
+        <p className="dashboard__subtitle">{t('subtitle')}</p>
       </header>
 
       {canManage && (

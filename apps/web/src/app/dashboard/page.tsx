@@ -4,8 +4,6 @@ import { getTranslations } from 'next-intl/server';
 
 import { MODULE_NAMES } from '@investhome/shared';
 
-import { DashboardHeaderActions } from './_components/dashboard-header-actions';
-
 export default async function DashboardPage() {
   const t = await getTranslations('dashboard');
   const tNav = await getTranslations('navigation');
@@ -13,11 +11,8 @@ export default async function DashboardPage() {
   return (
     <main className="dashboard">
       <header className="dashboard__header">
-        <div>
-          <p className="dashboard__eyebrow">{t('eyebrow')}</p>
-          <h1 className="dashboard__title">{t('title')}</h1>
-        </div>
-        <DashboardHeaderActions />
+        <p className="dashboard__eyebrow">{t('eyebrow')}</p>
+        <h1 className="dashboard__title">{t('title')}</h1>
       </header>
 
       <section className="dashboard__grid">

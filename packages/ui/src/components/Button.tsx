@@ -8,10 +8,10 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const VARIANT_CLASS: Record<ButtonVariant, string> = {
-  primary: 'leads__button leads__button--primary',
-  secondary: 'leads__button leads__button--secondary',
-  ghost: 'leads__button leads__button--ghost',
-  danger: 'leads__button leads__button--danger',
+  primary: 'ih-btn ih-btn--primary',
+  secondary: 'ih-btn ih-btn--secondary',
+  ghost: 'ih-btn ih-btn--ghost',
+  danger: 'ih-btn ih-btn--danger',
 };
 
 export function Button({ variant = 'primary', className, children, ...props }: ButtonProps) {

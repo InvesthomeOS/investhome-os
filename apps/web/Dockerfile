@@ -28,6 +28,7 @@ COPY packages/ui ./packages/ui
 ARG NEXT_PUBLIC_API_URL=http://localhost:8000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm --filter @investhome/ui build
 RUN pnpm --filter @investhome/web build
 
 FROM base AS runner

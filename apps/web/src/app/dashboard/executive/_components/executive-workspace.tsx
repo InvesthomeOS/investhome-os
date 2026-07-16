@@ -5,20 +5,23 @@ import type { Route } from 'next';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
-import { DashboardHeaderActions } from '@/app/dashboard/_components/dashboard-header-actions';
-import { fetchProjects } from '@/lib/api/projects';
 import {
   EXECUTIVE_FILTER_STORAGE_KEY,
   type ActivityItem,
-  type AttentionItem,
+  type AiInsightItem,
+  type ApprovalItem,
   type CashFlowPoint,
   type DeadlineItem,
+  type DelayedProjectRow,
   type ExecutiveFilterParams,
   type ExecutivePeriodPreset,
   type ProjectHealthRow,
+  type RecentTransactionRow,
   type SummaryCard,
   fetchExecutiveActivity,
-  fetchExecutiveAttention,
+  fetchExecutiveAiInsights,
+  fetchExecutiveApprovals,
+  fetchExecutiveConstructionSnapshot,
   fetchExecutiveDeadlines,
   fetchExecutiveFinancialOverview,
   fetchExecutiveInvestorOverview,
@@ -31,12 +34,13 @@ import {
   moduleHref,
   resolvePeriodDates,
 } from '@/lib/api/executive';
+import { fetchProjects } from '@/lib/api/projects';
+import { hasPermission } from '@/lib/api/auth';
+import { useAuth } from '@/lib/auth/auth-context';
 import { useLeadLabels } from '@/lib/i18n/lead-labels';
 import { useProjectLabels } from '@/lib/i18n/project-labels';
 import { metadataForI18n } from '@/lib/api/activity';
 import { useActivityLabels } from '@/lib/i18n/activity-labels';
-import { fetchNotificationSummary, type NotificationSummary } from '@/lib/api/notifications';
-import { useNotifications } from '@/lib/notifications/notification-context';
 
 type LoadState = 'idle' | 'loading' | 'error' | 'success';
 
@@ -49,6 +53,21 @@ interface StoredFilters {
   currency: string;
 }
 
+const DEFAULT_STORED: StoredFilters = {
+  preset: 'last30Days',
+  customFrom: '',
+  customTo: '',
+  project_id: '',
+  assigned_to: '',
+  currency: '',
+};
+
+const HEALTH_SORT: Record<ProjectHealthRow['health_status'], number> = {
+  at_risk: 0,
+  attention: 1,
+  on_track: 2,
+};
+
 function metadataForExecutiveI18n(metadata: Record<string, string | number | null>) {
   return Object.fromEntries(
     Object.entries(metadata).map(([key, value]) => [key, value ?? '']),
@@ -59,24 +78,19 @@ function stripExecutivePrefix(key: string): string {
   return key.startsWith('executive.') ? key.slice('executive.'.length) : key;
 }
 
-const DEFAULT_STORED: StoredFilters = {
-  preset: 'last30Days',
-  customFrom: '',
-  customTo: '',
-  project_id: '',
-  assigned_to: '',
-  currency: '',
-};
-
 function SectionShell({
+  id,
   title,
+  badge,
   children,
   state,
   errorMessage,
   onRetry,
   retryLabel,
 }: {
+  id?: string;
   title: string;
+  badge?: string;
   children: React.ReactNode;
   state: LoadState;
   errorMessage?: string | null;
@@ -84,8 +98,11 @@ function SectionShell({
   retryLabel: string;
 }) {
   return (
-    <section className="dashboard__panel leads__panel executive__section">
-      <h2 className="leads-form__section-title">{title}</h2>
+    <section id={id} className="dashboard__panel leads__panel executive__section">
+      <div className="executive__section-header">
+        <h2 className="leads-form__section-title">{title}</h2>
+        {badge && <span className="executive__section-badge">{badge}</span>}
+      </div>
       {state === 'loading' && <div className="executive__skeleton" aria-hidden="true" />}
       {state === 'error' && (
         <div className="leads__state leads__state--error">
@@ -113,16 +130,14 @@ function SummaryCardView({
   label: string;
   comparisonUnavailable: string;
 }) {
-  const href = moduleHref(card.link_module, card.link_query);
-  const moneyKeys = new Set(['total_investment_capacity', 'total_portfolio_value']);
-  let displayValue =
+  const href =
+    card.key === 'pending_approvals'
+      ? ('#executive-approvals' as Route)
+      : moduleHref(card.link_module, card.link_query);
+  const displayValue =
     card.currency_totals && Object.keys(card.currency_totals).length > 0
       ? formatCurrencyTotals(card.currency_totals, locale)
       : card.value ?? '—';
-
-  if (moneyKeys.has(card.key) && card.value !== null && card.value !== undefined) {
-    displayValue = formatMoney(card.value, 'USD', locale);
-  }
 
   let changeLabel = comparisonUnavailable;
   if (card.comparison?.change_available && card.comparison.change !== null && card.comparison.change !== undefined) {
@@ -141,16 +156,75 @@ function SummaryCardView({
   );
 }
 
+function ProjectCard({
+  project,
+  locale,
+  getStatusLabel,
+  healthLabel,
+  unavailableLabel,
+  openLabel,
+  currentValueLabel,
+  fundingGapLabel,
+  completionLabel,
+}: {
+  project: ProjectHealthRow;
+  locale: string;
+  getStatusLabel: (status: string) => string;
+  healthLabel: string;
+  unavailableLabel: string;
+  openLabel: string;
+  currentValueLabel: string;
+  fundingGapLabel: string;
+  completionLabel: string;
+}) {
+  return (
+    <article className={`executive__project-card executive__project-card--${project.health_status}`}>
+      <div className="executive__project-card-header">
+        <span className={`executive__health executive__health--${project.health_status}`}>{healthLabel}</span>
+        <h3>{project.project_name}</h3>
+      </div>
+      <p className="executive__project-card-meta">
+        {getStatusLabel(project.status)}
+        {' · '}
+        {unavailableLabel}
+      </p>
+      <dl className="executive__project-card-stats">
+        <div>
+          <dt>{currentValueLabel}</dt>
+          <dd>{formatMoney(project.current_value, 'USD', locale)}</dd>
+        </div>
+        <div>
+          <dt>{fundingGapLabel}</dt>
+          <dd>{formatMoney(project.funding_gap, 'USD', locale)}</dd>
+        </div>
+        <div>
+          <dt>{completionLabel}</dt>
+          <dd>{formatShortDate(project.completion_target, locale)}</dd>
+        </div>
+      </dl>
+      <Link
+        href={moduleHref('projects', { id: project.project_id })}
+        className="leads__button leads__button--secondary executive__project-card-link"
+      >
+        {openLabel}
+      </Link>
+    </article>
+  );
+}
+
 function PipelineChart({
   stages,
   getStatusLabel,
   locale,
+  filterCurrency,
 }: {
   stages: { status: string; count: number; estimated_budget_total: string }[];
   getStatusLabel: (status: string) => string;
   locale: string;
+  filterCurrency?: string;
 }) {
   const max = Math.max(...stages.map((stage) => stage.count), 1);
+  const currency = filterCurrency || 'USD';
   return (
     <div className="executive__pipeline" role="list">
       {stages.map((stage) => (
@@ -169,7 +243,7 @@ function PipelineChart({
           </div>
           <span className="executive__pipeline-count">{stage.count}</span>
           <span className="executive__pipeline-budget">
-            {formatMoney(stage.estimated_budget_total, 'USD', locale)}
+            {formatMoney(stage.estimated_budget_total, currency, locale)}
           </span>
         </Link>
       ))}
@@ -200,9 +274,11 @@ function CashFlowChart({
   return (
     <div className="executive__cashflow">
       {points.map((point) => {
-        const netUsd = Number(point.net.USD ?? Object.values(point.net)[0] ?? 0);
-        const inflowUsd = Number(point.inflows.USD ?? Object.values(point.inflows)[0] ?? 0);
-        const outflowUsd = Number(point.outflows.USD ?? Object.values(point.outflows)[0] ?? 0);
+        const currencies = Object.keys(point.net);
+        const currency = currencies[0] ?? 'USD';
+        const netVal = Number(point.net[currency] ?? 0);
+        const inflowVal = Number(point.inflows[currency] ?? 0);
+        const outflowVal = Number(point.outflows[currency] ?? 0);
         return (
           <div key={`${point.period_start}-${point.period_end}`} className="executive__cashflow-row">
             <span className="executive__cashflow-label">
@@ -211,16 +287,16 @@ function CashFlowChart({
             <div className="executive__cashflow-bars">
               <div
                 className="executive__cashflow-in"
-                style={{ width: `${(inflowUsd / maxNet) * 50}%` }}
-                title={`${inflowsLabel}: ${formatMoney(inflowUsd, 'USD', locale)}`}
+                style={{ width: `${(inflowVal / maxNet) * 50}%` }}
+                title={`${inflowsLabel}: ${formatMoney(inflowVal, currency, locale)}`}
               />
               <div
                 className="executive__cashflow-out"
-                style={{ width: `${(outflowUsd / maxNet) * 50}%` }}
-                title={`${outflowsLabel}: ${formatMoney(outflowUsd, 'USD', locale)}`}
+                style={{ width: `${(outflowVal / maxNet) * 50}%` }}
+                title={`${outflowsLabel}: ${formatMoney(outflowVal, currency, locale)}`}
               />
             </div>
-            <span className="executive__cashflow-net">{formatMoney(netUsd, 'USD', locale)}</span>
+            <span className="executive__cashflow-net">{formatMoney(netVal, currency, locale)}</span>
           </div>
         );
       })}
@@ -228,81 +304,89 @@ function CashFlowChart({
   );
 }
 
-function ExecutiveNotificationSummary() {
-  const t = useTranslations('executive.notifications');
-  const tExecutive = useTranslations('executive');
-  const tCommon = useTranslations('common');
-  const { canView, openDrawer } = useNotifications();
-  const [state, setState] = useState<LoadState>('loading');
-  const [summary, setSummary] = useState<NotificationSummary | null>(null);
-
-  const load = useCallback(async () => {
-    if (!canView) {
-      setState('success');
-      setSummary(null);
-      return;
+function AiInsightsPanel({
+  state,
+  insights,
+  expanded,
+  onToggle,
+  onRetry,
+  locale,
+  t,
+  tCommon,
+}: {
+  state: LoadState;
+  insights: Awaited<ReturnType<typeof fetchExecutiveAiInsights>> | null;
+  expanded: boolean;
+  onToggle: () => void;
+  onRetry: () => void;
+  locale: string;
+  t: ReturnType<typeof useTranslations<'executive'>>;
+  tCommon: ReturnType<typeof useTranslations<'common'>>;
+}) {
+  const renderItems = (items: AiInsightItem[], emptyKey: string) => {
+    if (items.length === 0) {
+      return <p className="leads__state">{t(emptyKey as 'aiPanel.emptyPriorities')}</p>;
     }
-    setState('loading');
-    try {
-      const data = await fetchNotificationSummary(true);
-      setSummary(data);
-      setState('success');
-    } catch {
-      setSummary(null);
-      setState('error');
-    }
-  }, [canView]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  if (!canView) return null;
+    return (
+      <ul className="executive__ai-list">
+        {items.map((item, index) => (
+          <li key={`${item.kind}-${item.title_key}-${index}`}>
+            <Link href={moduleHref(item.link_module, item.link_query)}>
+              <strong>
+                {t(stripExecutivePrefix(item.title_key) as 'aiPanel.deadline_priority.title', metadataForExecutiveI18n(item.metadata))}
+              </strong>
+              <p>
+                {t(stripExecutivePrefix(item.description_key) as 'aiPanel.deadline_priority.description', metadataForExecutiveI18n(item.metadata))}
+              </p>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    );
+  };
 
   return (
-    <section className="dashboard__panel leads__panel executive__notification-summary">
-      <div className="executive__notification-summary-header">
-        <div>
-          <h2 className="leads-form__section-title">{t('title')}</h2>
-          <p className="leads__subtitle">{t('subtitle')}</p>
-        </div>
-        <button type="button" className="leads__button leads__button--secondary" onClick={openDrawer}>
-          {t('openCenter')}
-        </button>
-      </div>
-      {state === 'loading' && <div className="executive__skeleton" aria-hidden="true" />}
-      {state === 'error' && (
-        <div className="leads__state leads__state--error">
-          <p>{tExecutive('errors.section')}</p>
-          <button type="button" className="leads__button leads__button--secondary" onClick={() => void load()}>
-            {tCommon('retry')}
-          </button>
-        </div>
-      )}
-      {state === 'success' && summary && summary.unread === 0 && (
-        <p className="leads__state">{t('empty')}</p>
-      )}
-      {state === 'success' && summary && summary.unread > 0 && (
-        <div className="executive__notification-summary-grid">
-          <div className="executive__notification-stat executive__notification-stat--critical">
-            <span>{t('critical')}</span>
-            <strong>{summary.critical}</strong>
-          </div>
-          <div className="executive__notification-stat executive__notification-stat--high">
-            <span>{t('high')}</span>
-            <strong>{summary.high}</strong>
-          </div>
-          <div className="executive__notification-stat executive__notification-stat--medium">
-            <span>{t('medium')}</span>
-            <strong>{summary.medium}</strong>
-          </div>
-          <div className="executive__notification-stat">
-            <span>{t('unread')}</span>
-            <strong>{summary.unread}</strong>
-          </div>
+    <aside className={`executive__ai-panel ${expanded ? 'executive__ai-panel--expanded' : ''}`}>
+      <button type="button" className="executive__ai-panel-toggle" onClick={onToggle}>
+        {t('aiPanel.title')}
+        <span>{expanded ? '−' : '+'}</span>
+      </button>
+      {expanded && (
+        <div className="executive__ai-panel-body">
+          {state === 'loading' && <div className="executive__skeleton" aria-hidden="true" />}
+          {state === 'error' && (
+            <div className="leads__state leads__state--error">
+              <p>{t('errors.section')}</p>
+              <button type="button" className="leads__button leads__button--secondary" onClick={onRetry}>
+                {tCommon('retry')}
+              </button>
+            </div>
+          )}
+          {state === 'success' && insights && (
+            <>
+              <section>
+                <h3>{t('aiPanel.priorities')}</h3>
+                {renderItems(insights.priorities, 'aiPanel.emptyPriorities')}
+              </section>
+              <section>
+                <h3>{t('aiPanel.risks')}</h3>
+                {renderItems(insights.risks, 'aiPanel.emptyRisks')}
+              </section>
+              <section>
+                <h3>{t('aiPanel.opportunities')}</h3>
+                {renderItems(insights.opportunities, 'aiPanel.emptyOpportunities')}
+              </section>
+              <footer className="executive__ai-footer">
+                {t('aiPanel.footer', {
+                  level: insights.ai_level,
+                  time: formatShortDate(insights.generated_at, locale),
+                })}
+              </footer>
+            </>
+          )}
         </div>
       )}
-    </section>
+    </aside>
   );
 }
 
@@ -310,30 +394,36 @@ export function ExecutiveWorkspace() {
   const t = useTranslations('executive');
   const tCommon = useTranslations('common');
   const locale = useLocale();
+  const { user } = useAuth();
   const { getStatusLabel: getLeadStatusLabel } = useLeadLabels();
   const { getStatusLabel: getProjectStatusLabel } = useProjectLabels();
   const { getDescription: getActivityDescription } = useActivityLabels();
 
   const [stored, setStored] = useState<StoredFilters>(DEFAULT_STORED);
   const [projectOptions, setProjectOptions] = useState<{ id: string; label: string }[]>([]);
+  const [aiExpanded, setAiExpanded] = useState(true);
 
   const [summaryCards, setSummaryCards] = useState<SummaryCard[]>([]);
-  const [attentionItems, setAttentionItems] = useState<AttentionItem[]>([]);
   const [pipeline, setPipeline] = useState<Awaited<ReturnType<typeof fetchExecutiveLeadsPipeline>> | null>(null);
   const [investors, setInvestors] = useState<Awaited<ReturnType<typeof fetchExecutiveInvestorOverview>> | null>(null);
   const [portfolio, setPortfolio] = useState<Awaited<ReturnType<typeof fetchExecutiveProjectPortfolio>> | null>(null);
   const [financial, setFinancial] = useState<Awaited<ReturnType<typeof fetchExecutiveFinancialOverview>> | null>(null);
+  const [construction, setConstruction] = useState<Awaited<ReturnType<typeof fetchExecutiveConstructionSnapshot>> | null>(null);
+  const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
   const [deadlines, setDeadlines] = useState<DeadlineItem[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [aiInsights, setAiInsights] = useState<Awaited<ReturnType<typeof fetchExecutiveAiInsights>> | null>(null);
 
   const [summaryState, setSummaryState] = useState<LoadState>('loading');
-  const [attentionState, setAttentionState] = useState<LoadState>('loading');
   const [pipelineState, setPipelineState] = useState<LoadState>('loading');
   const [investorState, setInvestorState] = useState<LoadState>('loading');
   const [portfolioState, setPortfolioState] = useState<LoadState>('loading');
   const [financialState, setFinancialState] = useState<LoadState>('loading');
+  const [constructionState, setConstructionState] = useState<LoadState>('loading');
+  const [approvalsState, setApprovalsState] = useState<LoadState>('loading');
   const [deadlineState, setDeadlineState] = useState<LoadState>('loading');
   const [activityState, setActivityState] = useState<LoadState>('loading');
+  const [aiState, setAiState] = useState<LoadState>('idle');
 
   useEffect(() => {
     try {
@@ -387,17 +477,6 @@ export function ExecutiveWorkspace() {
     }
   }, [filterParams]);
 
-  const loadAttention = useCallback(async () => {
-    setAttentionState('loading');
-    try {
-      const response = await fetchExecutiveAttention(filterParams);
-      setAttentionItems(response.items);
-      setAttentionState('success');
-    } catch {
-      setAttentionState('error');
-    }
-  }, [filterParams]);
-
   const loadPipeline = useCallback(async () => {
     setPipelineState('loading');
     try {
@@ -438,6 +517,27 @@ export function ExecutiveWorkspace() {
     }
   }, [filterParams]);
 
+  const loadConstruction = useCallback(async () => {
+    setConstructionState('loading');
+    try {
+      setConstruction(await fetchExecutiveConstructionSnapshot(filterParams));
+      setConstructionState('success');
+    } catch {
+      setConstructionState('error');
+    }
+  }, [filterParams]);
+
+  const loadApprovals = useCallback(async () => {
+    setApprovalsState('loading');
+    try {
+      const response = await fetchExecutiveApprovals(filterParams);
+      setApprovals(response.items);
+      setApprovalsState('success');
+    } catch {
+      setApprovalsState('error');
+    }
+  }, [filterParams]);
+
   const loadDeadlines = useCallback(async () => {
     setDeadlineState('loading');
     try {
@@ -460,18 +560,31 @@ export function ExecutiveWorkspace() {
     }
   }, [filterParams]);
 
+  const loadAiInsights = useCallback(async () => {
+    if (!aiExpanded) return;
+    setAiState('loading');
+    try {
+      setAiInsights(await fetchExecutiveAiInsights(filterParams));
+      setAiState('success');
+    } catch {
+      setAiState('error');
+    }
+  }, [aiExpanded, filterParams]);
+
   useEffect(() => {
     void loadSummary();
-    void loadAttention();
     void loadPipeline();
     void loadInvestors();
     void loadPortfolio();
     void loadFinancial();
+    void loadConstruction();
+    void loadApprovals();
     void loadDeadlines();
     void loadActivity();
   }, [
     loadActivity,
-    loadAttention,
+    loadApprovals,
+    loadConstruction,
     loadDeadlines,
     loadFinancial,
     loadInvestors,
@@ -480,32 +593,54 @@ export function ExecutiveWorkspace() {
     loadSummary,
   ]);
 
-  const cardLabel = (key: string) => t(`cards.${key}` as 'cards.total_leads');
+  useEffect(() => {
+    void loadAiInsights();
+  }, [loadAiInsights]);
 
-  const severityLabel = (severity: AttentionItem['severity']) => t(`severity.${severity}`);
+  const sortedProjects = useMemo(() => {
+    if (!portfolio) return [];
+    return [...portfolio.projects]
+      .sort((a, b) => {
+        const healthDiff = HEALTH_SORT[a.health_status] - HEALTH_SORT[b.health_status];
+        if (healthDiff !== 0) return healthDiff;
+        const aDate = a.completion_target ? new Date(a.completion_target).getTime() : Infinity;
+        const bDate = b.completion_target ? new Date(b.completion_target).getTime() : Infinity;
+        return aDate - bDate;
+      })
+      .slice(0, 6);
+  }, [portfolio]);
+
+  const cardLabel = (key: string) => t(`companyOverview.${key}` as 'companyOverview.active_projects');
 
   const healthLabel = (status: ProjectHealthRow['health_status']) => t(`health.${status}`);
 
   const deadlineWindowLabel = (window: DeadlineItem['window']) => t(`deadlines.windows.${window}`);
 
-  const quickActions: { href: Route; label: string }[] = [
-    { href: '/dashboard/leads' as Route, label: t('quickActions.addLead') },
-    { href: '/dashboard/investors' as Route, label: t('quickActions.addInvestor') },
-    { href: '/dashboard/projects' as Route, label: t('quickActions.addProject') },
-    { href: '/dashboard/finance' as Route, label: t('quickActions.addTransaction') },
-    { href: '/dashboard/finance' as Route, label: t('quickActions.addPaymentObligation') },
-    { href: '/dashboard/finance' as Route, label: t('quickActions.addFundingCommitment') },
-  ];
+  const quickActions = useMemo(() => {
+    const actions: { href: Route; label: string }[] = [];
+    if (user && hasPermission(user, 'leads', 'create')) {
+      actions.push({ href: '/dashboard/leads' as Route, label: t('quickActions.addLead') });
+    }
+    if (user && hasPermission(user, 'investors', 'create')) {
+      actions.push({ href: '/dashboard/investors' as Route, label: t('quickActions.addInvestor') });
+    }
+    if (user && hasPermission(user, 'projects', 'create')) {
+      actions.push({ href: '/dashboard/projects' as Route, label: t('quickActions.addProject') });
+    }
+    if (user && hasPermission(user, 'documents', 'create')) {
+      actions.push({ href: '/dashboard/documents' as Route, label: t('quickActions.uploadDocument') });
+    }
+    return actions;
+  }, [t, user]);
+
+  const activeInvestorCount = investors?.by_status.find((row) => row.status === 'active')?.count ?? 0;
 
   return (
     <main className="dashboard leads investors finance executive">
       <header className="dashboard__header leads__header">
-        <div>
-          <p className="dashboard__eyebrow">{t('eyebrow')}</p>
-          <h1 className="dashboard__title">{t('title')}</h1>
-          <p className="leads__subtitle">{t('subtitle')}</p>
-        </div>
-        <DashboardHeaderActions />
+        <p className="dashboard__eyebrow">{t('eyebrow')}</p>
+        <h1 className="dashboard__title">{t('title')}</h1>
+        <p className="leads__subtitle">{t('subtitle')}</p>
       </header>
 
       <section className="executive__filters">
@@ -574,282 +709,371 @@ export function ExecutiveWorkspace() {
             type="text"
             value={stored.currency}
             onChange={(event) => persistFilters({ ...stored, currency: event.target.value.toUpperCase() })}
-            placeholder="USD"
+            placeholder={t('filters.currencyPlaceholder')}
           />
         </label>
-      </section>
-
-      <section className="finance__stats executive__summary-grid">
-        {summaryState === 'loading' &&
-          Array.from({ length: 8 }).map((_, index) => (
-            <div key={index} className="investors__stat-card executive__skeleton" aria-hidden="true" />
-          ))}
-        {summaryState === 'error' && <p className="leads__state leads__state--error">{t('errors.summary')}</p>}
-        {summaryState === 'success' &&
-          summaryCards.map((card) => (
-            <SummaryCardView
-              key={card.key}
-              card={card}
-              locale={locale}
-              label={cardLabel(card.key)}
-              comparisonUnavailable={t('cards.noComparison')}
-            />
-          ))}
-      </section>
-
-      <ExecutiveNotificationSummary />
-
-      <div className="executive__layout">
-        <SectionShell
-          title={t('attention.title')}
-          state={attentionState}
-          errorMessage={t('errors.section')}
-          onRetry={() => void loadAttention()}
-          retryLabel={tCommon('retry')}
-        >
-          {attentionItems.length === 0 ? (
-            <p className="leads__state">{t('attention.empty')}</p>
-          ) : (
-            <ul className="executive__attention-list">
-              {attentionItems.map((item) => (
-                <li key={`${item.entity_type}-${item.entity_id}-${item.title_key}`}>
-                  <Link
-                    href={moduleHref(item.link_module, item.link_query)}
-                    className={`executive__attention-item executive__attention-item--${item.severity}`}
-                  >
-                    <span className="executive__attention-severity">{severityLabel(item.severity)}</span>
-                    <strong>{t(stripExecutivePrefix(item.title_key) as 'attention.overdue_payment.title', metadataForExecutiveI18n(item.metadata))}</strong>
-                    <p>{t(stripExecutivePrefix(item.description_key) as 'attention.overdue_payment.description', metadataForExecutiveI18n(item.metadata))}</p>
-                    <span className="executive__attention-meta">
-                      {item.related_label ?? tCommon('noValue')}
-                      {item.due_date ? ` · ${formatShortDate(item.due_date, locale)}` : ''}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </SectionShell>
-
-        <section className="dashboard__panel leads__panel executive__quick-actions">
-          <h2 className="leads-form__section-title">{t('quickActions.title')}</h2>
-          <ul className="executive__actions-list">
+        {quickActions.length > 0 && (
+          <div className="executive__quick-actions-inline">
             {quickActions.map((action) => (
-              <li key={action.label}>
-                <Link href={action.href} className="leads__button leads__button--secondary">
-                  {action.label}
-                </Link>
-              </li>
+              <Link key={action.label} href={action.href} className="leads__button leads__button--secondary">
+                {action.label}
+              </Link>
             ))}
-          </ul>
-        </section>
-      </div>
+          </div>
+        )}
+      </section>
 
-      <div className="executive__grid-two">
-        <SectionShell
-          title={t('pipeline.title')}
-          state={pipelineState}
-          errorMessage={t('errors.section')}
-          onRetry={() => void loadPipeline()}
-          retryLabel={tCommon('retry')}
-        >
-          {pipeline && (
-            <>
-              <PipelineChart
-                stages={pipeline.stages}
-                getStatusLabel={getLeadStatusLabel}
-                locale={locale}
-              />
-              <p className="executive__meta">
-                {t('pipeline.wonLost', {
-                  won: pipeline.won_in_period,
-                  lost: pipeline.lost_in_period,
-                })}
-              </p>
-            </>
-          )}
-        </SectionShell>
-
-        <SectionShell
-          title={t('investors.title')}
-          state={investorState}
-          errorMessage={t('errors.section')}
-          onRetry={() => void loadInvestors()}
-          retryLabel={tCommon('retry')}
-        >
-          {investors && (
-            <div className="executive__metric-list">
-              <p>
-                {t('investors.capacity')}:{' '}
-                {formatCurrencyTotals(investors.total_investment_capacity, locale)}
-              </p>
-              <p>
-                {t('investors.committed')}: {formatCurrencyTotals(investors.total_committed, locale)}
-              </p>
-              <p>
-                {t('investors.funded')}: {formatCurrencyTotals(investors.total_funded, locale)}
-              </p>
-              <p>
-                {t('investors.remaining')}: {formatCurrencyTotals(investors.remaining_committed, locale)}
-              </p>
+      <div className="executive__workspace-body">
+        <div className="executive__main-column">
+          <section className="executive__company-overview">
+            <h2 className="leads-form__section-title">{t('companyOverview.title')}</h2>
+            <div className="finance__stats executive__summary-grid">
+              {summaryState === 'loading' &&
+                Array.from({ length: 6 }).map((_, index) => (
+                  <div key={index} className="investors__stat-card executive__skeleton" aria-hidden="true" />
+                ))}
+              {summaryState === 'error' && (
+                <p className="leads__state leads__state--error">{t('errors.summary')}</p>
+              )}
+              {summaryState === 'success' &&
+                summaryCards.map((card) => (
+                  <SummaryCardView
+                    key={card.key}
+                    card={card}
+                    locale={locale}
+                    label={cardLabel(card.key)}
+                    comparisonUnavailable={t('cards.noComparison')}
+                  />
+                ))}
             </div>
-          )}
-        </SectionShell>
-      </div>
+          </section>
 
-      <SectionShell
-        title={t('portfolio.title')}
-        state={portfolioState}
-        errorMessage={t('errors.section')}
-        onRetry={() => void loadPortfolio()}
-        retryLabel={tCommon('retry')}
-      >
-        {portfolio && (
-          <>
-            <div className="executive__metric-list">
-              <span>
-                {t('portfolio.totalUnits')}: {portfolio.total_units}
-              </span>
-              <span>
-                {t('portfolio.portfolioValue')}: {formatMoney(portfolio.current_portfolio_value, 'USD', locale)}
-              </span>
-              <span>
-                {t('portfolio.equityRaised')}: {formatMoney(portfolio.total_equity_raised, 'USD', locale)}
-              </span>
-            </div>
-            <div className="leads__table-wrap">
-              <table className="leads__table">
-                <thead>
-                  <tr>
-                    <th>{t('portfolio.table.project')}</th>
-                    <th>{t('portfolio.table.status')}</th>
-                    <th>{t('portfolio.table.completion')}</th>
-                    <th>{t('portfolio.table.fundingGap')}</th>
-                    <th>{t('portfolio.table.budgetVariance')}</th>
-                    <th>{t('portfolio.table.health')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {portfolio.projects.map((row) => (
-                    <tr key={row.project_id} className="leads__row">
-                      <td>
-                        <Link href={moduleHref('projects')}>{row.project_name}</Link>
-                      </td>
-                      <td>{getProjectStatusLabel(row.status)}</td>
-                      <td>{formatShortDate(row.completion_target, locale)}</td>
-                      <td>{formatMoney(row.funding_gap, 'USD', locale)}</td>
-                      <td>{formatMoney(row.budget_variance, 'USD', locale)}</td>
-                      <td>
-                        <span className={`executive__health executive__health--${row.health_status}`}>
-                          {healthLabel(row.health_status)}
-                        </span>
-                      </td>
-                    </tr>
+          <SectionShell
+            title={t('projects.title')}
+            state={portfolioState}
+            errorMessage={t('errors.section')}
+            onRetry={() => void loadPortfolio()}
+            retryLabel={tCommon('retry')}
+          >
+            {sortedProjects.length === 0 ? (
+              <p className="leads__state">{t('projects.empty')}</p>
+            ) : (
+              <>
+                <div className="executive__project-grid">
+                  {sortedProjects.map((project) => (
+                    <ProjectCard
+                      key={project.project_id}
+                      project={project}
+                      locale={locale}
+                      getStatusLabel={getProjectStatusLabel}
+                      healthLabel={healthLabel(project.health_status)}
+                      unavailableLabel={t('projects.completionUnavailable')}
+                      openLabel={t('projects.openProject')}
+                      currentValueLabel={t('projects.currentValue')}
+                      fundingGapLabel={t('projects.fundingGap')}
+                      completionLabel={t('projects.completionTarget')}
+                    />
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </SectionShell>
+                </div>
+                <Link href={moduleHref('projects')} className="executive__view-all">
+                  {t('projects.viewAll')}
+                </Link>
+              </>
+            )}
+          </SectionShell>
 
-      <SectionShell
-        title={t('financial.title')}
-        state={financialState}
-        errorMessage={t('errors.section')}
-        onRetry={() => void loadFinancial()}
-        retryLabel={tCommon('retry')}
-      >
-        {financial && (
-          <>
-            <div className="executive__metric-list">
-              <p>
-                {t('financial.availableCash')}: {formatCurrencyTotals(financial.available_cash, locale)}
-              </p>
-              <p>
-                {t('financial.income')}: {formatCurrencyTotals(financial.income_in_period, locale)}
-              </p>
-              <p>
-                {t('financial.expenses')}: {formatCurrencyTotals(financial.expenses_in_period, locale)}
-              </p>
-              <p>
-                {t('financial.overdue')}: {formatCurrencyTotals(financial.overdue_payments, locale)}
-              </p>
-            </div>
-            <CashFlowChart
-              points={financial.cash_flow_trend}
-              locale={locale}
-              inflowsLabel={t('financial.inflows')}
-              outflowsLabel={t('financial.outflows')}
-            />
-          </>
-        )}
-      </SectionShell>
+          <SectionShell
+            title={t('sales.title')}
+            state={pipelineState}
+            errorMessage={t('errors.section')}
+            onRetry={() => void loadPipeline()}
+            retryLabel={tCommon('retry')}
+          >
+            {pipeline && (
+              <>
+                <div className="executive__sales-summary">
+                  <span>{t('sales.total')}: {pipeline.summary.total}</span>
+                  <span>{t('sales.qualified')}: {pipeline.summary.qualified}</span>
+                  <span>{t('sales.meetings')}: {pipeline.summary.meetings}</span>
+                  <span>{t('sales.proposals')}: {pipeline.summary.proposals}</span>
+                  <span>{t('sales.won')}: {pipeline.summary.won}</span>
+                  <span>{t('sales.lost')}: {pipeline.summary.lost}</span>
+                </div>
+                <PipelineChart
+                  stages={pipeline.stages}
+                  getStatusLabel={getLeadStatusLabel}
+                  locale={locale}
+                  filterCurrency={stored.currency || undefined}
+                />
+                {pipeline.conversion_rate && (
+                  <p className="executive__meta">
+                    {t('sales.conversionRate', {
+                      rate: `${(Number(pipeline.conversion_rate) * 100).toFixed(1)}%`,
+                    })}
+                  </p>
+                )}
+                <p className="executive__meta">
+                  {t('pipeline.wonLost', {
+                    won: pipeline.won_in_period,
+                    lost: pipeline.lost_in_period,
+                  })}
+                </p>
+              </>
+            )}
+          </SectionShell>
 
-      <div className="executive__grid-two">
-        <SectionShell
-          title={t('deadlines.title')}
-          state={deadlineState}
-          errorMessage={t('errors.section')}
-          onRetry={() => void loadDeadlines()}
-          retryLabel={tCommon('retry')}
-        >
-          {deadlines.length === 0 ? (
-            <p className="leads__state">{t('deadlines.empty')}</p>
-          ) : (
-            <ul className="executive__deadline-list">
-              {deadlines.slice(0, 20).map((item) => (
-                <li key={`${item.entity_type}-${item.entity_id}-${item.due_date}`}>
-                  <Link href={moduleHref(item.link_module, item.link_query)}>
-                    <span className="executive__deadline-window">{deadlineWindowLabel(item.window)}</span>
-                    <strong>{item.title}</strong>
-                    <span>{formatShortDate(item.due_date, locale)}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </SectionShell>
+          <SectionShell
+            title={t('investors.title')}
+            state={investorState}
+            errorMessage={t('errors.section')}
+            onRetry={() => void loadInvestors()}
+            retryLabel={tCommon('retry')}
+          >
+            {investors && (
+              <div className="executive__metric-list">
+                <p>{t('investors.active')}: {activeInvestorCount}</p>
+                <p>
+                  {t('investors.capacity')}: {formatCurrencyTotals(investors.total_investment_capacity, locale)}
+                </p>
+                <p>
+                  {t('investors.committed')}: {formatCurrencyTotals(investors.total_committed, locale)}
+                </p>
+                <p>
+                  {t('investors.funded')}: {formatCurrencyTotals(investors.total_funded, locale)}
+                </p>
+                <p>
+                  {t('investors.remaining')}: {formatCurrencyTotals(investors.remaining_committed, locale)}
+                </p>
+                {investors.upcoming_follow_ups.length > 0 && (
+                  <p>{t('investors.followUps')}: {investors.upcoming_follow_ups.length}</p>
+                )}
+                <Link href={moduleHref('investors')} className="executive__view-all">
+                  {t('investors.viewAll')}
+                </Link>
+              </div>
+            )}
+          </SectionShell>
 
-        <SectionShell
-          title={t('activity.title')}
-          state={activityState}
-          errorMessage={t('errors.section')}
-          onRetry={() => void loadActivity()}
-          retryLabel={tCommon('retry')}
-        >
-          {activity.length === 0 ? (
-            <p className="leads__state">{t('activity.empty')}</p>
-          ) : (
-            <ul className="executive__activity-list">
-              {activity.map((item) => {
-                const href = item.link_module ? moduleHref(item.link_module) : null;
-                const summary = getActivityDescription(
-                  item.description_key,
-                  metadataForI18n(item.metadata),
-                );
-                const content = (
-                  <>
-                    <span>{formatShortDate(item.created_at, locale)}</span>
-                    <p>{summary}</p>
-                    {item.actor && <span className="activity-timeline__actor">{item.actor}</span>}
-                  </>
-                );
-                return (
-                  <li key={item.id}>
-                    {href ? (
-                      <Link href={href} className="executive__activity-link">
-                        {content}
-                      </Link>
-                    ) : (
-                      content
+          <SectionShell
+            title={t('financial.title')}
+            state={financialState}
+            errorMessage={t('errors.section')}
+            onRetry={() => void loadFinancial()}
+            retryLabel={tCommon('retry')}
+          >
+            {financial && (
+              <>
+                <div className="executive__metric-list">
+                  <p>
+                    {t('financial.availableCash')}: {formatCurrencyTotals(financial.available_cash, locale)}
+                  </p>
+                  <p>
+                    {t('financial.receivables')}: {formatCurrencyTotals(financial.income_in_period, locale)}
+                  </p>
+                  <p>
+                    {t('financial.payables')}: {formatCurrencyTotals(financial.expenses_in_period, locale)}
+                  </p>
+                  <p>
+                    {t('financial.upcoming')}: {formatCurrencyTotals(financial.upcoming_payments, locale)}
+                  </p>
+                  <p>
+                    {t('financial.overdue')}: {formatCurrencyTotals(financial.overdue_payments, locale)}
+                  </p>
+                  <p>
+                    {t('financial.fundingNeed')}:{' '}
+                    {formatCurrencyTotals(
+                      Object.fromEntries(
+                        Object.entries(
+                          financial.funding_gap_by_project.reduce<Record<string, number>>((acc, gap) => {
+                            acc[gap.currency] = (acc[gap.currency] ?? 0) + Number(gap.funding_gap);
+                            return acc;
+                          }, {}),
+                        ).map(([currency, amount]) => [currency, String(amount)]),
+                      ),
+                      locale,
                     )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </SectionShell>
+                  </p>
+                </div>
+                <CashFlowChart
+                  points={financial.cash_flow_trend}
+                  locale={locale}
+                  inflowsLabel={t('financial.inflows')}
+                  outflowsLabel={t('financial.outflows')}
+                />
+                {financial.recent_transactions.length > 0 && (
+                  <ul className="executive__transaction-list">
+                    {financial.recent_transactions.map((txn: RecentTransactionRow) => (
+                      <li key={txn.transaction_id}>
+                        <Link href={moduleHref(txn.link_module, txn.link_query)}>
+                          <span>{formatShortDate(txn.transaction_date, locale)}</span>
+                          <strong>{txn.description ?? txn.transaction_type}</strong>
+                          <span>{formatMoney(txn.amount, txn.currency, locale)}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+          </SectionShell>
+
+          <SectionShell
+            title={t('construction.title')}
+            badge={t('construction.limitedBadge')}
+            state={constructionState}
+            errorMessage={t('errors.section')}
+            onRetry={() => void loadConstruction()}
+            retryLabel={tCommon('retry')}
+          >
+            {construction && (
+              <>
+                {construction.delayed_projects.length === 0 ? (
+                  <p className="leads__state">{t('construction.empty')}</p>
+                ) : (
+                  <ul className="executive__delayed-list">
+                    {construction.delayed_projects.map((project: DelayedProjectRow) => (
+                      <li key={project.project_id}>
+                        <Link href={moduleHref(project.link_module, project.link_query)}>
+                          <strong>{project.project_name}</strong>
+                          <span>{healthLabel(project.health_status)}</span>
+                          <span>{formatShortDate(project.completion_target, locale)}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="executive__meta">{t('construction.unavailableNote')}</p>
+              </>
+            )}
+          </SectionShell>
+
+          <div className="executive__grid-three">
+            <SectionShell
+              title={t('tasks.title')}
+              badge={t('tasks.comingSoonBadge')}
+              state={'success'}
+              retryLabel={tCommon('retry')}
+            >
+              <p className="leads__state">{t('tasks.empty')}</p>
+            </SectionShell>
+
+            <SectionShell
+              id="executive-approvals"
+              title={t('approvals.title')}
+              state={approvalsState}
+              errorMessage={t('errors.section')}
+              onRetry={() => void loadApprovals()}
+              retryLabel={tCommon('retry')}
+            >
+              {approvals.length === 0 ? (
+                <p className="leads__state">{t('approvals.empty')}</p>
+              ) : (
+                <ul className="executive__approval-list">
+                  {approvals.map((item) => (
+                    <li key={`${item.approval_type}-${item.entity_id}`}>
+                      <Link href={moduleHref(item.link_module, item.link_query)}>
+                        <span className="executive__approval-type">{t(`approvals.types.${item.approval_type}` as 'approvals.types.design_review')}</span>
+                        <strong>
+                          {t(stripExecutivePrefix(item.title_key) as 'approvals.design_review.title', metadataForExecutiveI18n(item.metadata ?? {}))}
+                          {item.related_label ? `: ${item.related_label}` : ''}
+                        </strong>
+                        {item.age_days !== null && (
+                          <span className="executive__approval-age">
+                            {t('approvals.ageDays', { days: item.age_days })}
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </SectionShell>
+
+            <SectionShell
+              title={t('calendar.title')}
+              badge={t('calendar.comingSoonBadge')}
+              state={deadlineState}
+              errorMessage={t('errors.section')}
+              onRetry={() => void loadDeadlines()}
+              retryLabel={tCommon('retry')}
+            >
+              {deadlines.length === 0 ? (
+                <p className="leads__state">{t('calendar.empty')}</p>
+              ) : (
+                <ul className="executive__deadline-list">
+                  {deadlines.slice(0, 8).map((item) => (
+                    <li key={`${item.entity_type}-${item.entity_id}-${item.due_date}`}>
+                      <Link href={moduleHref(item.link_module, item.link_query)}>
+                        <span className="executive__deadline-window">{deadlineWindowLabel(item.window)}</span>
+                        <strong>{item.title}</strong>
+                        <span>{formatShortDate(item.due_date, locale)}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </SectionShell>
+          </div>
+
+          <SectionShell
+            title={t('activity.title')}
+            state={activityState}
+            errorMessage={t('errors.section')}
+            onRetry={() => void loadActivity()}
+            retryLabel={tCommon('retry')}
+          >
+            {activity.length === 0 ? (
+              <p className="leads__state">{t('activity.empty')}</p>
+            ) : (
+              <>
+                <ul className="executive__activity-list">
+                  {activity.map((item) => {
+                    const href = item.link_module
+                      ? moduleHref(item.link_module, { id: item.entity_id })
+                      : null;
+                    const summary = getActivityDescription(
+                      item.description_key,
+                      metadataForI18n(item.metadata),
+                    );
+                    const content = (
+                      <>
+                        <span>{formatShortDate(item.created_at, locale)}</span>
+                        <p>{summary}</p>
+                        {item.actor && <span className="activity-timeline__actor">{item.actor}</span>}
+                        {item.entity_label && <span>{item.entity_label}</span>}
+                      </>
+                    );
+                    return (
+                      <li key={item.id}>
+                        {href ? (
+                          <Link href={href} className="executive__activity-link">
+                            {content}
+                          </Link>
+                        ) : (
+                          content
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+                <Link href={'/dashboard/activity' as Route} className="executive__view-all">
+                  {t('activity.viewAll')}
+                </Link>
+              </>
+            )}
+          </SectionShell>
+        </div>
+
+        <AiInsightsPanel
+          state={aiState}
+          insights={aiInsights}
+          expanded={aiExpanded}
+          onToggle={() => setAiExpanded((value) => !value)}
+          onRetry={() => void loadAiInsights()}
+          locale={locale}
+          t={t}
+          tCommon={tCommon}
+        />
       </div>
     </main>
   );

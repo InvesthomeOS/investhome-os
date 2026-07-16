@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: 'Enterprise real-estate investment operating system',
 };
 
+const themeInitScript = `(function(){try{var m=localStorage.getItem('investhome-theme');var t='light';if(m==='dark'){t='dark';}else if(m==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches){t='dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();`;
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -18,7 +20,10 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
+    <html lang={locale} data-theme="light" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body>
         <NextIntlClientProvider locale={locale} messages={messages}>
           {children}

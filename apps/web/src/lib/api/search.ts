@@ -88,6 +88,9 @@ export const SEARCH_ENTITY_TYPES = [
   'material_package',
   'furniture_item',
   'design_version',
+  'inventory_asset',
+  'building',
+  'floor',
 ] as const;
 
 export type SearchEntityType = (typeof SEARCH_ENTITY_TYPES)[number];

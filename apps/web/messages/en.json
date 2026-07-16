@@ -18,8 +18,19 @@
     "languageTurkish": "Türkçe",
     "languageEnglish": "English"
   },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
   "navigation": {
     "ariaLabel": "Module navigation",
+    "breadcrumbs": "Breadcrumb",
+    "workspacesSection": "Workspaces",
+    "toolsSection": "Tools",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar",
     "adminSection": "Administration",
     "admin": {
       "users": "Users",
@@ -46,6 +57,10 @@
       "projects": {
         "title": "Projects",
         "description": "Development lifecycle and delivery tracking."
+      },
+      "inventory": {
+        "title": "Inventory",
+        "description": "Canonical sellable and leasable inventory."
       },
       "finance": {
         "title": "Finance",
@@ -763,17 +778,19 @@
       "allProjects": "All projects",
       "assignedTo": "Assigned team member",
       "assignedPlaceholder": "Name",
-      "currency": "Currency"
+      "currency": "Currency",
+      "currencyPlaceholder": "USD"
+    },
+    "companyOverview": {
+      "title": "Company Overview",
+      "active_projects": "Active Projects",
+      "active_leads": "Active Leads",
+      "active_investors": "Active Investors",
+      "available_cash": "Available Cash",
+      "upcoming_closings": "Upcoming Closings",
+      "pending_approvals": "Pending Approvals"
     },
     "cards": {
-      "total_leads": "Total Leads",
-      "qualified_leads": "Qualified Leads",
-      "active_investors": "Active Investors",
-      "total_investment_capacity": "Total Investment Capacity",
-      "active_projects": "Active Projects",
-      "total_portfolio_value": "Total Portfolio Value",
-      "available_cash": "Available Cash",
-      "remaining_funding_need": "Remaining Funding Need",
       "noComparison": "No prior period comparison"
     },
     "notifications": {
@@ -840,12 +857,35 @@
       "title": "Sales Pipeline",
       "wonLost": "Won in period: {won} · Lost in period: {lost}"
     },
+    "sales": {
+      "title": "Leads & Sales",
+      "total": "Total leads",
+      "qualified": "Qualified",
+      "meetings": "Meetings",
+      "proposals": "Proposals",
+      "won": "Won",
+      "lost": "Lost",
+      "conversionRate": "Conversion rate: {rate}"
+    },
+    "projects": {
+      "title": "Active Projects",
+      "empty": "No projects match the current filters.",
+      "viewAll": "View all projects",
+      "openProject": "Open project",
+      "currentValue": "Current value",
+      "fundingGap": "Funding gap",
+      "completionTarget": "Target completion",
+      "completionUnavailable": "Completion % unavailable"
+    },
     "investors": {
-      "title": "Investor Overview",
-      "capacity": "Total investment capacity",
-      "committed": "Total committed",
-      "funded": "Total funded",
+      "title": "Investors",
+      "active": "Active investors",
+      "capacity": "Capacity by currency",
+      "committed": "Committed",
+      "funded": "Funded",
       "remaining": "Remaining committed",
+      "followUps": "Upcoming follow-ups",
+      "viewAll": "View all investors",
       "upcoming_follow_up": {
         "title": "Upcoming investor follow-up",
         "description": "Follow up with {name}."
@@ -866,17 +906,54 @@
       }
     },
     "financial": {
-      "title": "Financial Overview",
-      "availableCash": "Available cash",
+      "title": "Finance Snapshot",
+      "availableCash": "Cash by currency",
+      "receivables": "Receivables (period income)",
+      "payables": "Payables (period expenses)",
+      "upcoming": "Upcoming payments",
+      "overdue": "Overdue payments",
+      "fundingNeed": "Funding need",
       "income": "Income in period",
       "expenses": "Expenses in period",
-      "overdue": "Overdue payments",
       "inflows": "Inflows",
       "outflows": "Outflows"
     },
+    "construction": {
+      "title": "Construction Snapshot",
+      "limitedBadge": "Limited data",
+      "empty": "No delayed projects for the current filters.",
+      "unavailableNote": "RFIs, inspections, and punch items are unavailable until Construction workspace ships."
+    },
+    "tasks": {
+      "title": "Tasks",
+      "comingSoonBadge": "Coming soon",
+      "empty": "Task management is not yet available. Use Approvals and Calendar deadlines for action items."
+    },
+    "approvals": {
+      "title": "Approvals",
+      "empty": "No pending approvals for your permissions.",
+      "ageDays": "{days}d pending",
+      "types": {
+        "design_review": "Design review",
+        "finance_transaction": "Finance transaction",
+        "drawing_unit_proposal": "Drawing unit"
+      },
+      "design_review": {
+        "title": "Design review pending"
+      },
+      "finance_transaction": {
+        "title": "Transaction approval"
+      },
+      "drawing_proposal": {
+        "title": "Drawing unit approval"
+      }
+    },
+    "calendar": {
+      "title": "Calendar",
+      "comingSoonBadge": "Calendar coming soon",
+      "empty": "No upcoming deadlines for the current filters."
+    },
     "deadlines": {
-      "title": "Upcoming Deadlines",
-      "empty": "No deadlines match the current filters.",
       "windows": {
         "overdue": "Overdue",
         "next_7_days": "Next 7 Days",
@@ -887,6 +964,7 @@
     "activity": {
       "title": "Recent Activity",
       "empty": "No recent activity for the selected period.",
+      "viewAll": "View full activity log",
       "lead_created": "Lead created: {name}",
       "investor_created": "Investor added: {name}",
       "project_created": "Project created: {name}",
@@ -897,12 +975,39 @@
     },
     "quickActions": {
       "title": "Quick Actions",
-      "addLead": "Add Lead",
-      "addInvestor": "Add Investor",
-      "addProject": "Add Project",
+      "addLead": "New Lead",
+      "addInvestor": "New Investor",
+      "addProject": "New Project",
+      "uploadDocument": "Upload Document",
       "addTransaction": "Add Transaction",
       "addPaymentObligation": "Add Payment Obligation",
       "addFundingCommitment": "Add Funding Commitment"
+    },
+    "aiPanel": {
+      "title": "AI Insights",
+      "priorities": "Priorities",
+      "risks": "Risks",
+      "opportunities": "Opportunities",
+      "emptyPriorities": "No priority items from current data.",
+      "emptyRisks": "No risk signals from current data.",
+      "emptyOpportunities": "No opportunities identified from current data.",
+      "footer": "{level} heuristic · Generated {time}",
+      "deadline_priority": {
+        "title": "Upcoming deadline: {title}",
+        "description": "Due {due_date} ({window})"
+      },
+      "pipeline_wins": {
+        "title": "Pipeline wins available",
+        "description": "{won} won leads in portfolio."
+      },
+      "funding_headroom": {
+        "title": "Unfunded commitments",
+        "description": "{amount} {currency} remaining to fund."
+      },
+      "pending_approvals": {
+        "title": "Approvals awaiting action",
+        "description": "{count} items need review."
+      }
     },
     "errors": {
       "summary": "Unable to load summary metrics.",
@@ -1029,6 +1134,27 @@
         "status_changed": "Project status changed: {name}",
         "financial_updated": "Project financial information updated: {name}",
         "archived": "Project archived: {name}"
+      },
+      "inventory": {
+        "building": {
+          "created": "Building created: {name} ({code})",
+          "updated": "Building updated: {name} ({code})",
+          "archived": "Building archived: {name} ({code})",
+          "restored": "Building restored: {name} ({code})"
+        },
+        "floor": {
+          "created": "Floor created: level {floor_number}",
+          "updated": "Floor updated: level {floor_number}",
+          "archived": "Floor archived: level {floor_number}",
+          "restored": "Floor restored: level {floor_number}"
+        },
+        "asset": {
+          "created": "Inventory asset created: {display_id} ({system_code})",
+          "updated": "Inventory asset updated: {display_id} ({system_code})",
+          "status_changed": "Inventory status changed: {display_id} ({system_code})",
+          "archived": "Inventory asset archived: {display_id} ({system_code})",
+          "restored": "Inventory asset restored: {display_id} ({system_code})"
+        }
       },
       "transaction": {
         "created": "Transaction created: {description} ({amount} {currency})",
@@ -1540,6 +1666,9 @@
       "material_package": "Material packages",
       "furniture_item": "Furniture items",
       "design_version": "Design versions",
+      "building": "Buildings",
+      "floor": "Floors",
+      "inventory_asset": "Inventory assets",
       "unit": "Units (coming soon)",
       "construction": "Construction (coming soon)",
       "email": "Emails (coming soon)"
@@ -1551,7 +1680,265 @@
       "finance": "Finance",
       "admin_users": "Users",
       "activity": "Activity",
-      "documents": "Documents"
+      "documents": "Documents",
+      "inventory": "Inventory"
+    }
+  },
+  "inventory": {
+    "eyebrow": "Inventory",
+    "title": "Inventory",
+    "subtitle": "Canonical sellable and leasable inventory across projects.",
+    "loadError": "Could not load inventory assets.",
+    "loadErrorTitle": "Inventory unavailable",
+    "saveError": "Could not save inventory asset.",
+    "archiveError": "Could not archive inventory asset.",
+    "restoreError": "Could not restore inventory asset.",
+    "createButton": "New Asset",
+    "empty": "No inventory assets match your filters.",
+    "emptyHint": "Adjust filters or create a new asset.",
+    "demoBanner": "{count, plural, one {# demo asset in this view} other {# demo assets in this view}}",
+    "resultCount": "{count} assets",
+    "prevPage": "Previous",
+    "nextPage": "Next",
+    "pagination": "Page {page} of {pages} · {total} total",
+    "kpis": {
+      "total": "Total inventory",
+      "available": "Available",
+      "softHold": "Soft hold",
+      "reserved": "Reserved",
+      "underContract": "Under contract",
+      "sold": "Sold",
+      "closed": "Closed",
+      "leased": "Leased"
+    },
+    "navViews": {
+      "label": "View",
+      "all": "All inventory",
+      "byProject": "By project",
+      "byBuilding": "By building",
+      "byFloor": "By floor"
+    },
+    "filters": {
+      "apply": "Apply filters",
+      "clearAll": "Clear all",
+      "activeChips": "Active filters",
+      "search": "Search",
+      "searchPlaceholder": "Display ID, system code, legal ID…",
+      "project": "Project",
+      "building": "Building",
+      "floor": "Floor",
+      "assetType": "Asset type",
+      "usageType": "Usage type",
+      "availability": "Availability",
+      "reservation": "Reservation",
+      "sales": "Sales",
+      "construction": "Construction",
+      "closing": "Closing",
+      "leasing": "Leasing",
+      "sort": "Sort",
+      "includeArchived": "Include archived",
+      "archived": "Archived",
+      "allProjects": "All projects",
+      "allBuildings": "All buildings",
+      "allFloors": "All floors",
+      "allTypes": "All types",
+      "allUsage": "All usage",
+      "allStatuses": "All statuses"
+    },
+    "sort": {
+      "updatedDesc": "Updated (newest)",
+      "updatedAsc": "Updated (oldest)",
+      "displayAsc": "Display ID (A–Z)",
+      "displayDesc": "Display ID (Z–A)",
+      "systemAsc": "System code (A–Z)",
+      "systemDesc": "System code (Z–A)"
+    },
+    "table": {
+      "compact": "Compact density",
+      "comfortable": "Comfortable density"
+    },
+    "columns": {
+      "displayId": "Display ID",
+      "systemCode": "System Code",
+      "legalIdentifier": "Legal ID",
+      "assetType": "Type",
+      "usageType": "Usage",
+      "project": "Project",
+      "building": "Building",
+      "floor": "Floor",
+      "interiorArea": "Interior area",
+      "exteriorArea": "Exterior area",
+      "totalArea": "Total area",
+      "availability": "Availability",
+      "reservation": "Reservation",
+      "sales": "Sales",
+      "construction": "Construction",
+      "closing": "Closing",
+      "leasing": "Leasing",
+      "updated": "Updated"
+    },
+    "statusCategories": {
+      "availability": "Availability",
+      "reservation": "Reservation",
+      "sales": "Sales",
+      "construction": "Construction",
+      "closing": "Closing",
+      "leasing": "Leasing"
+    },
+    "statusUpdate": {
+      "title": "Update status",
+      "category": "Status category",
+      "newStatus": "New status",
+      "selectStatus": "Select status",
+      "reason": "Reason (optional)",
+      "submit": "Update status"
+    },
+    "form": {
+      "createTitle": "New inventory asset",
+      "editTitle": "Edit inventory asset",
+      "project": "Project",
+      "selectProject": "Select project",
+      "displayId": "Display ID",
+      "legalIdentifier": "Legal identifier",
+      "assetType": "Asset type",
+      "usageType": "Usage type",
+      "building": "Building",
+      "selectBuilding": "Select building",
+      "floor": "Floor",
+      "selectFloor": "Select floor",
+      "unitSubtype": "Subtype",
+      "bedrooms": "Bedrooms",
+      "bathrooms": "Bathrooms",
+      "interiorArea": "Interior area (sq ft stored)",
+      "exteriorArea": "Exterior area (sq ft stored)",
+      "totalArea": "Total area (sq ft stored)",
+      "orientation": "Orientation",
+      "viewType": "View",
+      "releaseDate": "Release date",
+      "deliveryDate": "Delivery date",
+      "description": "Description",
+      "notes": "Notes",
+      "systemCode": "System code"
+    },
+    "detail": {
+      "ariaLabel": "Inventory asset detail",
+      "tabsLabel": "Inventory detail tabs",
+      "changeStatus": "Change status",
+      "archive": "Archive",
+      "restore": "Restore",
+      "archivedBadge": "Archived",
+      "created": "Created",
+      "recentChanges": "Recent changes",
+      "assignmentsEmpty": "Parking and storage assignments will be available in a future release.",
+      "drawingsEmpty": "No linked drawings yet. Connect via Documents or Drawing intelligence.",
+      "designEmpty": "No linked Design Studio project for this asset yet.",
+      "openDesignStudio": "Open Design Studio",
+      "statusHistoryEmpty": "No status history recorded yet.",
+      "tabs": {
+        "overview": "Overview",
+        "status": "Status",
+        "physical": "Physical details",
+        "assignments": "Assignments",
+        "dates": "Dates",
+        "documents": "Documents",
+        "drawings": "Drawings",
+        "design": "Design",
+        "activity": "Activity",
+        "statusHistory": "Status history"
+      },
+      "sections": {
+        "identifiers": "Identifiers",
+        "location": "Location",
+        "statusSummary": "Status summary",
+        "description": "Description",
+        "currentStatus": "Current status",
+        "physical": "Physical details",
+        "dates": "Key dates"
+      }
+    },
+    "errors": {
+      "building_required": "Building is required for this asset type.",
+      "floor_required": "Floor is required for this asset type.",
+      "land_parcel_no_structure": "Land parcels cannot be assigned to a building or floor.",
+      "building_not_found": "Building not found or archived.",
+      "floor_not_found": "Floor not found or archived.",
+      "building_project_mismatch": "Building does not belong to the selected project.",
+      "floor_project_mismatch": "Floor does not belong to the selected project.",
+      "floor_building_mismatch": "Floor does not belong to the selected building.",
+      "building_code_duplicate": "Building code already exists for this project.",
+      "floor_identifier_duplicate": "Floor identifier already exists for this building.",
+      "display_id_duplicate": "Display ID already exists for this project.",
+      "system_code_immutable": "System code cannot be changed after creation.",
+      "invalid_status_value": "Invalid status value for this category.",
+      "status_unchanged": "Status is already set to this value."
+    },
+    "assetTypes": {
+      "residential_unit": "Residential unit",
+      "commercial_unit": "Commercial unit",
+      "parking_space": "Parking space",
+      "storage_unit": "Storage unit",
+      "land_parcel": "Land parcel",
+      "office_unit": "Office unit",
+      "retail_unit": "Retail unit"
+    },
+    "usageTypes": {
+      "residential": "Residential",
+      "commercial": "Commercial",
+      "retail": "Retail",
+      "office": "Office",
+      "parking": "Parking",
+      "storage": "Storage",
+      "industrial": "Industrial",
+      "mixed": "Mixed"
+    },
+    "availabilityStatus": {
+      "not_released": "Not released",
+      "available": "Available",
+      "unavailable": "Unavailable",
+      "hold": "On hold"
+    },
+    "reservationStatus": {
+      "none": "None",
+      "soft_hold": "Soft hold",
+      "confirmed": "Confirmed",
+      "expired": "Expired",
+      "cancelled": "Cancelled"
+    },
+    "salesStatus": {
+      "not_for_sale": "Not for sale",
+      "available_for_sale": "Available for sale",
+      "under_contract": "Under contract",
+      "sold": "Sold"
+    },
+    "constructionStatus": {
+      "planned": "Planned",
+      "foundation": "Foundation",
+      "structure": "Structure",
+      "envelope": "Envelope",
+      "interior": "Interior",
+      "finishing": "Finishing",
+      "inspection": "Inspection",
+      "ready": "Ready",
+      "delivered": "Delivered",
+      "on_hold": "On hold"
+    },
+    "closingStatus": {
+      "not_started": "Not started",
+      "in_progress": "In progress",
+      "title_clear": "Title clear",
+      "funding_pending": "Funding pending",
+      "scheduled": "Closing scheduled",
+      "closed": "Closed",
+      "fallen_through": "Fallen through"
+    },
+    "leasingStatus": {
+      "not_applicable": "N/A",
+      "vacant": "Vacant",
+      "listed": "Listed",
+      "application": "Application",
+      "leased": "Leased",
+      "notice_given": "Notice given",
+      "off_market": "Off market"
     }
   },
   "design": {

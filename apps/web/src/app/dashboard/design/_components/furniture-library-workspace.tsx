@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
-import { DashboardHeaderActions } from '@/app/dashboard/_components/dashboard-header-actions';
 import { fetchFurnitureItems, type FurnitureItem } from '@/lib/api/design';
 import { useDesignLabels } from '@/lib/i18n/design-labels';
 
@@ -37,12 +36,9 @@ export function FurnitureLibraryWorkspace() {
   return (
     <main className="dashboard design">
       <header className="dashboard__header">
-        <div>
-          <p className="dashboard__eyebrow">{t('eyebrow')}</p>
-          <h1 className="dashboard__title">{t('title')}</h1>
-          <p className="dashboard__subtitle">{t('subtitle')}</p>
-        </div>
-        <DashboardHeaderActions />
+        <p className="dashboard__eyebrow">{t('eyebrow')}</p>
+        <h1 className="dashboard__title">{t('title')}</h1>
+        <p className="dashboard__subtitle">{t('subtitle')}</p>
       </header>
 
       <DesignStudioNav />
