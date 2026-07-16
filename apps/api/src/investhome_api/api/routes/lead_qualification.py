@@ -308,7 +308,6 @@ def create_lead_follow_up(
             request=request,
         )
         db.commit()
-        db.refresh(follow_up)
     except qual_svc.QualificationError as exc:
         db.rollback()
         raise _handle_error(exc) from exc
@@ -332,7 +331,6 @@ def complete_lead_follow_up(
             request=request,
         )
         db.commit()
-        db.refresh(follow_up)
     except qual_svc.QualificationError as exc:
         db.rollback()
         raise _handle_error(exc) from exc

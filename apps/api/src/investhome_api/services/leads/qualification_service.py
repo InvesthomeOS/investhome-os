@@ -296,8 +296,10 @@ def _work_item_as_lead_follow_up(item: WorkItem) -> dict:
         WorkItemStatus.OVERDUE: FollowUpStatus.OVERDUE,
     }
     wi_status = status_map.get(item.status, FollowUpStatus.PENDING)
-    if item.due_at and _ensure_aware(item.due_at) < _now() and wi_status == FollowUpStatus.PENDING:
-        wi_status = FollowUpStatus.OVERDUE
+    if item.due_at:
+        due = item.due_at.replace(tzinfo=UTC) if item.due_at.tzinfo is None else item.due_at
+        if due < datetime.now(UTC) and wi_status == FollowUpStatus.PENDING:
+            wi_status = FollowUpStatus.OVERDUE
     return {
         "id": item.legacy_lead_follow_up_id or item.id,
         "lead_id": item.lead_id,
@@ -411,7 +413,7 @@ def complete_follow_up(
         request=request,
         is_demo=lead.is_demo,
     )
-    return follow_up
+    return LeadFollowUpResponse.model_validate(follow_up).model_dump()
 
 
 def build_lead_timeline(db: Session, lead_id: UUID, *, limit: int = 100) -> list[dict[str, Any]]:
