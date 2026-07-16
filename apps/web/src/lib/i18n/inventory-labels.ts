@@ -22,6 +22,15 @@ import {
   type UsageType,
 } from '@/lib/api/inventory';
 import {
+  type AssignmentRequestStatus,
+  type AssignmentRequestType,
+} from '@/lib/api/inventory-assignment';
+import {
+  type OwnershipType,
+  type TransferRequestStatus,
+  type TransferType,
+} from '@/lib/api/inventory-ownership';
+import {
   PRICE_REQUEST_STATUSES,
   PRICE_STATUSES,
   PRICE_TYPES,
@@ -46,6 +55,12 @@ export function useInventoryLabels() {
   const tPriceRequestStatuses = useTranslations('inventory.pricing.requestStatuses');
   const tErrors = useTranslations('inventory.errors');
   const tPricingErrors = useTranslations('inventory.pricing.errors');
+  const tAssignmentTypes = useTranslations('inventory.assignments.requestTypes');
+  const tAssignmentStatuses = useTranslations('inventory.assignments.requestStatuses');
+  const tOwnershipTypes = useTranslations('inventory.ownership.ownershipTypes');
+  const tTransferTypes = useTranslations('inventory.ownership.transferTypes');
+  const tTransferStatuses = useTranslations('inventory.ownership.requestStatuses');
+  const tOwnershipStatuses = useTranslations('inventory.ownership.ownershipStatuses');
 
   const getAssetTypeLabel = (value: InventoryAssetType | string) =>
     tAssetTypes(value as InventoryAssetType);
@@ -67,6 +82,17 @@ export function useInventoryLabels() {
   const getPriceStatusLabel = (value: PriceStatus | string) => tPriceStatuses(value as PriceStatus);
   const getPriceRequestStatusLabel = (value: PriceRequestStatus | string) =>
     tPriceRequestStatuses(value as PriceRequestStatus);
+  const getAssignmentRequestTypeLabel = (value: AssignmentRequestType | string) =>
+    tAssignmentTypes(value as AssignmentRequestType);
+  const getAssignmentRequestStatusLabel = (value: AssignmentRequestStatus | string) =>
+    tAssignmentStatuses(value as AssignmentRequestStatus);
+  const getOwnershipTypeLabel = (value: OwnershipType | string) =>
+    tOwnershipTypes(value as OwnershipType);
+  const getTransferTypeLabel = (value: TransferType | string) =>
+    tTransferTypes(value as TransferType);
+  const getTransferStatusLabel = (value: TransferRequestStatus | string) =>
+    tTransferStatuses(value as TransferRequestStatus);
+  const getOwnershipStatusLabel = (value: string) => tOwnershipStatuses(value as never);
 
   const getErrorLabel = (key: string): string => {
     const pricingKey = key.startsWith('inventory.pricing.errors.')
@@ -136,6 +162,12 @@ export function useInventoryLabels() {
     getPriceTypeLabel,
     getPriceStatusLabel,
     getPriceRequestStatusLabel,
+    getAssignmentRequestTypeLabel,
+    getAssignmentRequestStatusLabel,
+    getOwnershipTypeLabel,
+    getTransferTypeLabel,
+    getTransferStatusLabel,
+    getOwnershipStatusLabel,
     getErrorLabel,
     assetTypeOptions,
     usageTypeOptions,

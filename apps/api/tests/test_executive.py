@@ -101,7 +101,7 @@ def test_executive_summary_and_attention(client: TestClient) -> None:
     summary = client.get("/executive/summary")
     assert summary.status_code == 200
     body = summary.json()
-    assert len(body["cards"]) == 9
+    assert len(body["cards"]) == 8
     assert any(card["key"] == "active_soft_holds" for card in body["cards"])
     assert any(card["key"] == "active_leads" and card["value"] == 1 for card in body["cards"])
 

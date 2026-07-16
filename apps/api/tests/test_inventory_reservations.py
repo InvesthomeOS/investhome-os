@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -366,11 +367,12 @@ def test_notification_dedupe_on_soft_hold(client: TestClient) -> None:
         json=_soft_hold_payload(asset["id"], investor["id"]),
     )
     assert created.status_code == 201
+    reservation_id = UUID(created.json()["id"])
 
     with SessionLocal() as db:
         count = db.query(Notification).filter(
-            Notification.rule_key == "inventory.reservation.soft_hold_created",
-            Notification.related_entity_id == created.json()["id"],
+            Notification.title_key == "notifications.inventory.soft_hold_created.title",
+            Notification.related_entity_id == reservation_id,
         ).count()
         assert count <= 1
 

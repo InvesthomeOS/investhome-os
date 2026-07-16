@@ -47,11 +47,18 @@ from investhome_api.models.inventory import (  # noqa: F401
     Building,
     Floor,
     InventoryAsset,
+    InventoryAssetAssignment,
+    InventoryAssetAssignmentEvent,
     InventoryAssetPrice,
     InventoryAssetStatusHistory,
+    InventoryOwnership,
+    InventoryOwnershipEvent,
     InventoryPriceEvent,
     InventoryReservation,
     InventoryReservationEvent,
+    OwnershipApprovalRecord,
+    OwnershipTransferParty,
+    OwnershipTransferRequest,
     PriceApprovalRecord,
     PriceChangeRequest,
 )
@@ -152,6 +159,16 @@ def client() -> TestClient:
     session_module.engine = original_engine
     session_module.SessionLocal = original_session_local
     Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture
+def db(client: TestClient):
+    """SQLAlchemy session bound to the in-memory test database."""
+    session = TestingSessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 @pytest.fixture

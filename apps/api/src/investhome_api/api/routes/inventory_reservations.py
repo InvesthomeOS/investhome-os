@@ -189,8 +189,17 @@ def list_expiring_reservations(
     _user: User = Depends(require_permission("inventory", "view")),
 ) -> ReservationListResponse:
     return list_reservations(
+        project_id=None,
+        inventory_asset_id=None,
+        investor_id=None,
+        lead_id=None,
+        reservation_type=None,
+        status_filter=None,
         active_only=False,
         expiring_within_hours=within_hours,
+        search=None,
+        sort_by="updated_at",
+        sort_order="desc",
         page=page,
         page_size=page_size,
         db=db,

@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from investhome_api.db.session import SessionLocal
+from investhome_api.db import session as db_session
 from investhome_api.models.inventory import (
     InventoryAsset,
     InventoryReservation,
@@ -24,6 +24,12 @@ from investhome_api.services.inventory.reservation_service import (
     SOFT_HOLD_REMINDER_HOURS,
     expire_due_soft_holds,
 )
+
+
+def _ensure_aware(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value
 
 JOB_EXPIRE_SOFT_HOLDS = "inventory_expire_soft_holds"
 JOB_RESERVATION_REMINDERS = "inventory_reservation_reminders"
@@ -56,7 +62,7 @@ def _reservation_users(db: Session, reservation: InventoryReservation) -> list[U
 def run_expire_soft_holds(*, clock: datetime | None = None) -> dict[str, int]:
     """Expire active soft holds past expires_at. Idempotent."""
     now = clock or datetime.now(UTC)
-    with SessionLocal() as db:
+    with db_session.SessionLocal() as db:
         expired = expire_due_soft_holds(db, clock=now)
         for reservation in expired:
             asset = db.get(InventoryAsset, reservation.inventory_asset_id)
@@ -75,7 +81,7 @@ def run_reservation_reminders(*, clock: datetime | None = None) -> dict[str, int
     """Send 24h and 4h expiry reminders for active soft holds."""
     now = clock or datetime.now(UTC)
     sent = 0
-    with SessionLocal() as db:
+    with db_session.SessionLocal() as db:
         active = db.scalars(
             select(InventoryReservation).where(
                 InventoryReservation.status == ReservationRecordStatus.ACTIVE,
@@ -86,7 +92,7 @@ def run_reservation_reminders(*, clock: datetime | None = None) -> dict[str, int
         for reservation in active:
             if reservation.expires_at is None:
                 continue
-            hours_left = (reservation.expires_at - now).total_seconds() / 3600
+            hours_left = (_ensure_aware(reservation.expires_at) - now).total_seconds() / 3600
             for threshold in SOFT_HOLD_REMINDER_HOURS:
                 if threshold - 0.5 <= hours_left <= threshold + 0.5:
                     asset = db.get(InventoryAsset, reservation.inventory_asset_id)
@@ -107,7 +113,7 @@ def run_overdue_deposit_reminders(*, clock: datetime | None = None) -> dict[str,
     """Notify on overdue deposit due dates and upcoming 3-day/1-day reminders."""
     now = clock or datetime.now(UTC)
     sent = 0
-    with SessionLocal() as db:
+    with db_session.SessionLocal() as db:
         pending = db.scalars(
             select(InventoryReservation).where(
                 InventoryReservation.status == ReservationRecordStatus.DEPOSIT_PENDING,

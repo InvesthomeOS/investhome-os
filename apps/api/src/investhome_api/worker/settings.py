@@ -10,6 +10,14 @@ from investhome_api.services.drawing_intelligence.queue import (
     get_drawing_worker_timeout,
     process_drawing_job,
 )
+from investhome_api.services.inventory.assignment_jobs import (
+    JOB_APPLY_SCHEDULED_ASSIGNMENTS,
+    apply_scheduled_assignments_job,
+)
+from investhome_api.services.inventory.ownership_jobs import (
+    JOB_APPLY_SCHEDULED_TRANSFERS,
+    apply_scheduled_transfers_job,
+)
 from investhome_api.services.inventory.reservation_jobs import (
     JOB_EXPIRE_SOFT_HOLDS,
     JOB_OVERDUE_DEPOSITS,
@@ -35,11 +43,15 @@ class WorkerSettings:
         expire_soft_holds_job,
         reservation_reminders_job,
         overdue_deposits_job,
+        apply_scheduled_transfers_job,
+        apply_scheduled_assignments_job,
     ]
     cron_jobs = [
         {"name": JOB_EXPIRE_SOFT_HOLDS, "coroutine": expire_soft_holds_job, "minute": {0, 15, 30, 45}},
         {"name": JOB_RESERVATION_REMINDERS, "coroutine": reservation_reminders_job, "minute": {5, 35}},
         {"name": JOB_OVERDUE_DEPOSITS, "coroutine": overdue_deposits_job, "minute": {10, 40}},
+        {"name": JOB_APPLY_SCHEDULED_TRANSFERS, "coroutine": apply_scheduled_transfers_job, "minute": {0, 30}},
+        {"name": JOB_APPLY_SCHEDULED_ASSIGNMENTS, "coroutine": apply_scheduled_assignments_job, "minute": {0, 30}},
     ]
     job_timeout = 600
     max_tries = 3
@@ -56,5 +68,7 @@ class WorkerSettings:
         JOB_EXPIRE_SOFT_HOLDS: expire_soft_holds_job,
         JOB_RESERVATION_REMINDERS: reservation_reminders_job,
         JOB_OVERDUE_DEPOSITS: overdue_deposits_job,
+        JOB_APPLY_SCHEDULED_TRANSFERS: apply_scheduled_transfers_job,
+        JOB_APPLY_SCHEDULED_ASSIGNMENTS: apply_scheduled_assignments_job,
     }
     drawing_job_timeout = get_drawing_worker_timeout()

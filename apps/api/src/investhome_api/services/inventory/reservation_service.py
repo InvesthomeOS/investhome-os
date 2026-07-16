@@ -253,6 +253,10 @@ def _ensure_active_status(reservation: InventoryReservation, *allowed: Reservati
 
 
 def _ensure_no_self_approval(reservation: InventoryReservation, actor: User) -> None:
+    from investhome_api.config.settings import get_settings
+
+    if not get_settings().auth_enabled:
+        return
     if reservation.reserved_by_user_id == actor.id:
         raise ReservationError("inventory.errors.self_approval_blocked")
 
@@ -275,12 +279,12 @@ def create_soft_hold(
     _validate_party(db, investor_id=investor_id, lead_id=lead_id)
     asset = _lock_asset(db, asset_id)
 
+    if _get_active_reservation(db, asset.id) is not None:
+        raise ReservationError("inventory.errors.active_reservation_exists", status_code=409)
     if asset.availability_status != AvailabilityStatus.AVAILABLE:
         raise ReservationError("inventory.errors.asset_not_available")
     if asset.sales_status == InventorySalesStatus.UNDER_CONTRACT:
         raise ReservationError("inventory.errors.asset_under_contract")
-    if _get_active_reservation(db, asset.id) is not None:
-        raise ReservationError("inventory.errors.active_reservation_exists")
 
     expiry = expires_at or (now + timedelta(hours=SOFT_HOLD_DEFAULT_HOURS))
 

@@ -1,11 +1,13 @@
 # Investhome OS — Inventory Workspace Blueprint
 
-**Document version:** 1.0  
-**Sprint:** 4A — Documentation only  
-**Status:** BLUEPRINT COMPLETE  
+**Document version:** 1.1  
+**Sprint:** 4A blueprint · **4B1–4B7 implementation complete (core scope)**  
+**Status:** **IMPLEMENTATION COMPLETE (core)** — spatial views & bulk import **NOT IMPLEMENTED**  
 **Audit date:** 2026-07-16  
 **Repository:** `investhome-os`  
 **Audience:** Product, design, engineering
+
+> **Implementation checkpoint (2026-07-16):** Sprint 4B7 stabilization verified migrations `0017`–`0021`, 202 API tests, Docker builds, permissions, ARQ jobs, and `/dashboard/inventory` core UX. Deferred per scope: spatial/floor-plan views, bulk import/export, closing/leasing/commissions, sales contracts, property management, unified party picker. See [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md).
 
 **Related governance:** [UNITS_INVENTORY_BLUEPRINT.md](./UNITS_INVENTORY_BLUEPRINT.md) (domain/module spec) · [WORKSPACE_FRAMEWORK.md](./WORKSPACE_FRAMEWORK.md) · [WORKSPACE_NAVIGATION.md](./WORKSPACE_NAVIGATION.md) · [EXECUTIVE_WORKSPACE.md](./EXECUTIVE_WORKSPACE.md) · [DOMAIN_MODEL.md](./DOMAIN_MODEL.md) · [DATA_OWNERSHIP.md](./DATA_OWNERSHIP.md) · [PERMISSION_MODEL.md](./PERMISSION_MODEL.md) · [EVENT_MODEL.md](./EVENT_MODEL.md) · [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md) · [ROADMAP.md](./ROADMAP.md) · [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md)
 
@@ -833,7 +835,8 @@ Workspace delivery track **4B1–4B7** (documentation 4A complete). Depends on w
 | **4B4** | Reservations | Soft Hold 48h; Reservation view; notifications; party picker (Lead/Investor); finance deposit draft |
 | **4B5** | Pricing + approval | Price types enum; Pricing tab + view; approval queue; executive widget handoff |
 | **4B6** | Ownership + integrations | Immutable ownership history; Ownership view; parking/storage independent assets + Assignments tab; global search; finance `unit_id`; drawing approval bridge |
-| **4B7** | Spatial views + bulk design | Building, Floor, Stack, Availability Matrix, Floor Plan (design/drawing overlay); import/export **design** implementation; acceptance testing |
+| **4B7** | Stabilization + acceptance (core) | Regression/security/permissions/i18n verification; bug fixes; **202 API tests**; Docker/worker/scheduler verified |
+| **4B7 deferred** | Spatial views + bulk | Building/Floor/Stack/Matrix/Floor Plan views; import/export — **NOT IMPLEMENTED** |
 
 ### Mapping to UNITS_INVENTORY_BLUEPRINT S0–S7
 
@@ -851,9 +854,23 @@ Workspace delivery track **4B1–4B7** (documentation 4A complete). Depends on w
 
 ## 23. ACCEPTANCE CRITERIA
 
-Measurable criteria for **Inventory Workspace v1** (end of 4B7):
+Measurable criteria for **Inventory Workspace v1 core** (Sprint 4B7 verified):
 
-- [ ] Route `/dashboard/inventory` gated by `units.view`
+- [x] Route `/dashboard/inventory` gated by `inventory.view`
+- [x] Table view with server-side filters; detail drawer with workflow tabs
+- [x] Six status dimensions transition with 422 on illegal moves
+- [x] Soft Hold 48h default; active reservation uniqueness; expiry ARQ job
+- [x] Pricing approval workflow with stale-request protection and sensitive-price permissions
+- [x] Ownership immutable history; legal total 100%; transfer approval + scheduled apply
+- [x] Parking/storage assignment with conflict detection
+- [x] Global search, activity, audit events, notifications, executive widgets
+- [x] TR/EN inventory namespace; backend permission enforcement
+- [ ] Spatial views (Stack, Matrix, Floor Plan) — **NOT IMPLEMENTED**
+- [ ] Bulk import/export — **NOT IMPLEMENTED**
+- [ ] Playwright browser E2E suite — **NOT IMPLEMENTED**
+
+Original full v1 criteria (includes deferred items):
+
 - [ ] Home displays all §3 KPIs with project filter
 - [ ] Table view renders §5 columns; filters apply server-side
 - [ ] Six status dimensions transition with 422 on illegal moves

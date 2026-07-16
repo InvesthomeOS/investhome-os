@@ -1811,7 +1811,10 @@
       "listPrice": "List price",
       "promoPrice": "Promotional price",
       "currency": "Currency",
-      "pricePending": "Price approval"
+      "pricePending": "Price approval",
+      "primaryOwner": "Primary owner",
+      "ownerCount": "Owners",
+      "ownershipStatus": "Ownership"
     },
     "reservation": {
       "softHoldTitle": "Place soft hold",
@@ -1921,7 +1924,8 @@
         "activity": "Activity",
         "statusHistory": "Status history",
         "reservation": "Reservation",
-        "pricing": "Pricing"
+        "pricing": "Pricing",
+        "ownership": "Ownership"
       },
       "sections": {
         "identifiers": "Identifiers",
@@ -2113,6 +2117,161 @@
         "request_not_rejectable": "Request cannot be rejected.",
         "request_not_withdrawable": "Request cannot be withdrawn.",
         "cannot_archive_price": "This price cannot be archived."
+      }
+    },
+    "assignments": {
+      "loading": "Loading assignments…",
+      "loadError": "Could not load assignments.",
+      "actionError": "Assignment action failed.",
+      "noPermission": "You do not have permission to view assignments.",
+      "currentAssignment": "Current assignment",
+      "accessoriesTitle": "Assigned parking & storage",
+      "scheduledTitle": "Scheduled assignments",
+      "pendingTitle": "Pending approval",
+      "historyTitle": "Assignment history",
+      "noAccessories": "No parking or storage assigned.",
+      "unassigned": "Unassigned",
+      "assign": "Assign",
+      "reassign": "Reassign",
+      "unassign": "Unassign",
+      "approve": "Approve",
+      "reject": "Reject",
+      "requestRevision": "Request revision",
+      "decisionNotesPlaceholder": "Decision notes (required for reject/revision)",
+      "formTitle": "Assignment request",
+      "formError": "Could not submit assignment request.",
+      "close": "Close",
+      "cancel": "Cancel",
+      "submitRequest": "Submit request",
+      "fields": {
+        "action": "Action",
+        "parentUnit": "Parent unit",
+        "effectiveDate": "Effective date",
+        "reason": "Reason",
+        "assignmentPrice": "Assignment price",
+        "currency": "Currency",
+        "supportingDocumentId": "Supporting document ID",
+        "relatedTransactionId": "Related transaction ID"
+      },
+      "columns": {
+        "parentUnit": "Parent unit",
+        "childAsset": "Parking / storage",
+        "assignmentType": "Type",
+        "assignmentPrice": "Assignment price",
+        "effectiveDate": "Effective date",
+        "effectiveFrom": "Effective from",
+        "effectiveTo": "Effective to",
+        "status": "Status"
+      },
+      "requestTypes": {
+        "assign": "Assign",
+        "reassign": "Reassign",
+        "unassign": "Unassign"
+      },
+      "requestStatuses": {
+        "draft": "Draft",
+        "submitted": "Submitted",
+        "under_review": "Under review",
+        "approved": "Approved (scheduled)",
+        "rejected": "Rejected",
+        "revision_requested": "Revision requested",
+        "withdrawn": "Withdrawn",
+        "applied": "Applied",
+        "stale": "Stale"
+      }
+    },
+    "ownership": {
+      "loading": "Loading ownership…",
+      "loadError": "Could not load ownership.",
+      "actionError": "Ownership action failed.",
+      "noPermission": "You do not have permission to view ownership.",
+      "noRecords": "No ownership records.",
+      "noHistory": "No ownership history yet.",
+      "currentLegal": "Current legal ownership",
+      "beneficial": "Beneficial ownership",
+      "economic": "Economic ownership",
+      "legalTotal": "Legal total",
+      "pendingRequests": "Pending transfer requests",
+      "scheduledTransfers": "Scheduled transfers",
+      "scheduledFor": "Scheduled for {date}",
+      "history": "Ownership history",
+      "recordTransfer": "Record transfer",
+      "approve": "Approve",
+      "reject": "Reject",
+      "requestRevision": "Request revision",
+      "decisionNotesPlaceholder": "Decision notes (required for reject/revision)",
+      "transferFormTitle": "Ownership transfer request",
+      "close": "Close",
+      "cancel": "Cancel",
+      "submitTransfer": "Submit transfer",
+      "proposedTotal": "Proposed legal total",
+      "fields": {
+        "transferType": "Transfer type",
+        "effectiveDate": "Effective date",
+        "partyId": "Owner party ID",
+        "partyIdHint": "Investor UUID",
+        "continuingPercentage": "Continuing owner %",
+        "incomingPartyId": "Incoming owner party ID",
+        "incomingPercentage": "Incoming owner %",
+        "percentage": "Ownership %",
+        "supportingDocument": "Supporting document",
+        "documentOptional": "Document ID (optional for initial ownership)",
+        "reason": "Reason"
+      },
+      "columns": {
+        "party": "Party",
+        "ownershipType": "Ownership type",
+        "percentage": "Percentage",
+        "effectiveFrom": "Effective from",
+        "effectiveDate": "Effective date",
+        "status": "Status",
+        "currentTotal": "Current legal total",
+        "proposedTotal": "Proposed legal total"
+      },
+      "ownershipTypes": {
+        "legal_owner": "Legal owner",
+        "beneficial_owner": "Beneficial owner",
+        "economic_owner": "Economic owner",
+        "joint_owner": "Joint owner",
+        "trustee": "Trustee",
+        "nominee": "Nominee",
+        "manager": "Manager",
+        "other": "Other"
+      },
+      "transferTypes": {
+        "initial_ownership": "Initial ownership",
+        "full_transfer": "Full transfer",
+        "partial_transfer": "Partial transfer",
+        "percentage_change": "Percentage change",
+        "owner_addition": "Owner addition",
+        "owner_removal": "Owner removal",
+        "ownership_type_change": "Ownership type change",
+        "correction": "Correction",
+        "other": "Other"
+      },
+      "requestStatuses": {
+        "draft": "Draft",
+        "submitted": "Submitted",
+        "under_review": "Under review",
+        "approved": "Approved (scheduled)",
+        "rejected": "Rejected",
+        "revision_requested": "Revision requested",
+        "withdrawn": "Withdrawn",
+        "applied": "Applied",
+        "stale": "Stale"
+      },
+      "ownershipStatuses": {
+        "none": "No ownership",
+        "complete": "Complete (100%)",
+        "incomplete": "Incomplete",
+        "disputed": "Disputed",
+        "unknown": "—"
+      },
+      "recordStatuses": {
+        "active": "Active",
+        "historical": "Historical",
+        "complete": "100% allocated",
+        "incomplete": "Incomplete allocation"
       }
     }
   },

@@ -27,6 +27,7 @@ Verified by checkpoint commits and implementation audit.
 | 3 | **Document Intelligence** | `d37257d` | Pipeline, extraction, heuristic AI — runtime blocked by worker/migrations |
 | 3 | **Drawing Intelligence** | `fd8ddd3` | DXF, detection, proposals — runtime blocked |
 | 3.5 | **Company Foundation** | `b3295cf` | Migration `0013`, settings, brand, org |
+| 4 | **Inventory Workspace (4B1–4B7 core)** | pending | Migrations `0017`–`0021`; reservations, pricing, ownership, assignment; 202 API tests; `/dashboard/inventory` |
 | 4 | **Enterprise Architecture Foundation** | `ab62106` | Request IDs, envelopes, flags, `@investhome/ui`, logging |
 | 4 | **Governance Constitution** | This release | 18 IADs + governance doc library |
 
@@ -44,8 +45,8 @@ Active work or blocked partial implementations.
 | **Migration deploy** | Needs verification | Apply `0011`–`0013` in live Docker |
 | **API envelope migration** | Partial | High-traffic list endpoints still legacy format |
 | **`@investhome/ui` adoption** | Partial | 8 primitives exist; app mostly custom CSS (TD-07) |
-| **Inventory Workspace blueprint (Sprint 4A)** | Blueprint complete | [INVENTORY_WORKSPACE_BLUEPRINT.md](./INVENTORY_WORKSPACE_BLUEPRINT.md) — zero production code |
-| **Units & Inventory module blueprint** | Blueprint complete (align in 4B1) | [UNITS_INVENTORY_BLUEPRINT.md](./UNITS_INVENTORY_BLUEPRINT.md) — zero production code |
+| **Inventory Workspace blueprint (Sprint 4A)** | Implemented (4B1–4B7 core) | See [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) — spatial views & bulk import deferred |
+| **Units & Inventory module blueprint** | Implemented (core domain) | Migrations `0017`–`0021`; finance FK + drawing bridge remain |
 | **Drawing → unit bridge** | Placeholder | `created_unit_id = proposal.id` until inventory |
 | **Frontend tests** | Not started | TD-04 |
 | **Users/Roles API tests** | Not started | TD-05 |
@@ -77,27 +78,29 @@ Ordered by recommended implementation sequence (post-infrastructure hardening).
 3. Rebuild Docker images; start worker service
 4. Commit missing checkpoints (auth platform, executive)
 
-### Next business module — Inventory Workspace (4B track)
+### Inventory Workspace (4B track) — COMPLETE (core scope)
 
-| Priority | Sprint | Focus | Rationale |
-|----------|--------|-------|-----------|
-| **1** | **4B1** | Domain foundation — migration `0017_inventory_assets`, API, permissions | Unblocks all inventory UX; resolves Design Studio migration collision |
-| **2** | **4B2** | Workspace shell — `/dashboard/inventory`, Home KPIs, Table view | First user-visible inventory surface |
-| **3** | **4B3** | Status model + detail core — six dimensions, Grid, project tab | Operational status governance |
-| **4** | **4B4** | Soft Hold reservations — 48h, Reservation view, notifications | Unblocks Sales + Executive reservation widgets |
-| **5** | **4B5** | Pricing + approval workflow | Finance gate for contract prices |
-| **6** | **4B6** | Ownership (immutable), parking/storage, search, finance FK, drawing bridge | Cross-workspace SSOT integration |
-| **7** | **4B7** | Spatial views + bulk import/export implementation + acceptance | Full workspace v1 |
+| Sprint | Focus | Status |
+|--------|-------|--------|
+| **4B1** | Domain foundation — migration `0017_inventory_assets`, API, permissions | **COMPLETE** |
+| **4B2** | Workspace shell — `/dashboard/inventory`, KPIs, Table view | **COMPLETE** |
+| **4B3** | Reservations / Soft Hold — 48h, notifications, ARQ jobs | **COMPLETE** |
+| **4B4** | Pricing + approval workflow | **COMPLETE** |
+| **4B5** | Ownership (immutable), transfer approval, scheduled apply | **COMPLETE** |
+| **4B6** | Parking/storage assignment | **COMPLETE** |
+| **4B7** | Stabilization, regression, permissions, data integrity, i18n | **COMPLETE** |
 
-See [INVENTORY_WORKSPACE_BLUEPRINT.md §22](./INVENTORY_WORKSPACE_BLUEPRINT.md#22-implementation-sprints) for deliverable detail.
+**Deferred (NOT IMPLEMENTED):** spatial/floor-plan views, bulk import/export, closing/leasing/commissions, sales contracts, property management.
 
-### Other near-term items
+See [INVENTORY_WORKSPACE_BLUEPRINT.md §22](./INVENTORY_WORKSPACE_BLUEPRINT.md#22-implementation-sprints) for original deliverable detail.
+
+### Recommended next workspace
 
 | Priority | Module | Rationale |
 |----------|--------|-----------|
-| 2 | Company Foundation depth | User org assignment UI, brand asset picker |
-| 3 | API client consolidation | Unify on `apiFetch` (TD-06) |
-| 4 | Finance route split | TD-02 — sub-routers |
+| **1** | **Construction workspace** | Permissions exist; RFIs/inspections align with inventory assets |
+| **2** | Company Foundation depth | User org assignment UI, brand asset picker |
+| **3** | Finance ↔ Inventory FK | Link transactions to `inventory_asset_id` |
 
 ### Medium term
 

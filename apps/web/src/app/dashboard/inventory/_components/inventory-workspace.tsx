@@ -45,6 +45,10 @@ import {
   formatMoney,
   type AssetPricingSummary,
 } from '@/lib/api/inventory-pricing';
+import {
+  fetchOwnershipSummary,
+  type OwnershipSummary,
+} from '@/lib/api/inventory-ownership';
 import { ApiError } from '@/lib/api/client';
 import { hasPermission } from '@/lib/api/auth';
 import { fetchProjects, type Project } from '@/lib/api/projects';
@@ -149,6 +153,7 @@ export function InventoryWorkspace() {
     getConstructionLabel,
     getClosingLabel,
     getLeasingLabel,
+    getOwnershipStatusLabel,
     getErrorLabel,
   } = useInventoryLabels();
 
@@ -160,10 +165,12 @@ export function InventoryWorkspace() {
   const canReserve = user ? hasPermission(user, 'inventory', 'reserve') : false;
   const canViewPrice = user ? hasPermission(user, 'inventory', 'view_price') : false;
   const canRequestPrice = user ? hasPermission(user, 'inventory', 'request_price_change') : false;
+  const canViewOwnership = user ? hasPermission(user, 'inventory', 'view_ownership') : false;
 
   const [assets, setAssets] = useState<InventoryAsset[]>([]);
   const [activeReservations, setActiveReservations] = useState<Map<string, InventoryReservation>>(new Map());
   const [pricingSummaries, setPricingSummaries] = useState<Map<string, AssetPricingSummary>>(new Map());
+  const [ownershipSummaries, setOwnershipSummaries] = useState<Map<string, OwnershipSummary>>(new Map());
   const [projects, setProjects] = useState<Project[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [floors, setFloors] = useState<Floor[]>([]);
@@ -326,6 +333,25 @@ export function InventoryWorkspace() {
         } else {
           setPricingSummaries(new Map());
         }
+        if (canViewOwnership) {
+          const summaries = await Promise.all(
+            response.items.map(async (asset) => {
+              try {
+                const summary = await fetchOwnershipSummary(asset.id);
+                return [asset.id, summary] as const;
+              } catch {
+                return [asset.id, null] as const;
+              }
+            }),
+          );
+          setOwnershipSummaries(
+            new Map(
+              summaries.filter((entry): entry is [string, OwnershipSummary] => entry[1] !== null),
+            ),
+          );
+        } else {
+          setOwnershipSummaries(new Map());
+        }
       } catch {
         setError(t('loadError'));
         setAssets([]);
@@ -335,7 +361,7 @@ export function InventoryWorkspace() {
         setLoading(false);
       }
     },
-    [t, canViewPrice],
+    [t, canViewPrice, canViewOwnership],
   );
 
   useEffect(() => {
@@ -583,6 +609,9 @@ export function InventoryWorkspace() {
                   {canViewPrice && <th>{t('columns.promoPrice')}</th>}
                   {canViewPrice && <th>{t('columns.currency')}</th>}
                   {canViewPrice && <th>{t('columns.pricePending')}</th>}
+                  {canViewOwnership && <th>{t('columns.primaryOwner')}</th>}
+                  {canViewOwnership && <th>{t('columns.ownerCount')}</th>}
+                  {canViewOwnership && <th>{t('columns.ownershipStatus')}</th>}
                   <th>{t('columns.availability')}</th>
                   <th>{t('columns.reservation')}</th>
                   <th>{t('columns.party')}</th>
@@ -599,6 +628,7 @@ export function InventoryWorkspace() {
                   const isSelected = selectedAsset?.id === asset.id;
                   const reservation = activeReservations.get(asset.id);
                   const pricing = pricingSummaries.get(asset.id);
+                  const ownership = ownershipSummaries.get(asset.id);
                   return (
                     <tr
                       key={asset.id}
@@ -635,6 +665,23 @@ export function InventoryWorkspace() {
                         <td>
                           {(pricing?.pending_price_requests ?? 0) > 0 ? (
                             <StatusChip tone="warning">{t('pricing.pendingApproval')}</StatusChip>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                      )}
+                      {canViewOwnership && (
+                        <td>{ownership?.primary_legal_owner ?? '—'}</td>
+                      )}
+                      {canViewOwnership && (
+                        <td className="ih-table__numeric">{ownership?.owner_count ?? '—'}</td>
+                      )}
+                      {canViewOwnership && (
+                        <td>
+                          {ownership ? (
+                            <StatusChip tone="default">
+                              {getOwnershipStatusLabel(ownership.ownership_status)}
+                            </StatusChip>
                           ) : (
                             '—'
                           )}
@@ -702,6 +749,7 @@ export function InventoryWorkspace() {
         onStatusUpdate={() => { setActionError(null); setStatusModalOpen(true); }}
         onReservationChanged={() => void refreshAll()}
         onPricingChanged={() => void refreshAll()}
+        onOwnershipChanged={() => void refreshAll()}
         pricingTabRequest={pricingTabRequest}
       />
 

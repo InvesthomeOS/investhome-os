@@ -1,8 +1,8 @@
 # Investhome OS — Implementation Status
 
-**Audit date:** 2026-07-15  
+**Audit date:** 2026-07-16  
 **Repository:** `investhome-os`  
-**Latest commit:** `ab62106` — `feat: enterprise architecture foundation` (+ constitution docs pending commit)  
+**Latest commit:** `51697b0` — `feat: complete inventory workspace core`  
 **Branch:** `main`
 
 ---
@@ -67,13 +67,13 @@ Canonical architecture and product governance documents:
 
 ## Executive Summary
 
-Investhome OS is a **production-shaped enterprise platform** with Phase 1–3 modules, **Company Foundation**, and **Enterprise Architecture Foundation**. **133+ API tests** (128 baseline + architecture foundation).
+Investhome OS is a **production-shaped enterprise platform** with Phase 1–3 modules, **Company Foundation**, and **Enterprise Architecture Foundation**. **202 API tests** (all passing, Sprint 4B7 verification).
 
 **Enterprise Architecture Foundation** adds request ID middleware, standardized API error envelopes (backward compatible), response helpers, feature flags (`FEATURE_*`), structured logging, `@investhome/ui` design system primitives, enhanced API client, worker Redis URL parsing, and comprehensive `docs/` library.
 
 **Company Foundation** (migration `0013`) delivers centralized company profile, offices, brand profiles, brand assets (via Document Engine), system preferences, organization structure (departments/teams), Settings UI (12 sections TR/EN), permissions, activity/search integration, and global branding context with safe fallbacks.
 
-**Units & Inventory** — **Sprint 4B4 pricing approval workflow complete** (2026-07-16): migration `0019_inventory_pricing`; versioned `InventoryAssetPrice` records; `PriceChangeRequest` draft/submit/approve/reject/revision/withdraw; centralized `pricing_service.py` with stale protection, overlap prevention, sensitive-price gates; `/inventory/prices` + `/inventory/price-requests` APIs; inventory Pricing tab + propose-change form; executive approval integration; permissions, activity/audit/events, notifications, global search; **10 API tests**. **Sprint 4B3** reservation workflow complete (`0018`). **Sprint 4B1–4B2** foundation + list/detail UI complete. **Overall: PARTIAL** — ownership, bulk import, spatial views remain.
+**Units & Inventory / Inventory Workspace** — **COMPLETE for verified core scope** (Sprint 4B7, 2026-07-16): migrations `0017`–`0021` (single head); buildings/floors/assets; six status dimensions; Soft Hold reservations (`0018`); pricing approval (`0019`); immutable ownership transfers (`0020`); parking/storage assignment (`0021`); permissions, activity/audit/events, notifications, executive summaries, global search; Ownership + Assignment UI tabs; ARQ jobs (soft-hold expiry, reservation reminders, scheduled ownership/assignment apply); **202 API tests**. **NOT IMPLEMENTED (explicit):** bulk import/export, spatial/floor-plan views, closing/leasing/commissions workflows, sales contracts, property-management module, unified party picker, finance `unit_id` FK, drawing→unit approval bridge, Playwright E2E.
 
 **Visual Design Studio** is **PARTIAL** — **Sprint 1 complete** (2026-07-15): design project CRUD, source plan linking, Color Studio, version save/history, archive, permissions, activity log, global search, TR/EN UI. **Sprint 2A complete** (2026-07-16, verified): style presets (Modern, Luxury, Scandinavian, Industrial, Minimalist + extras), material packages, furniture catalog/library, furniture layout editor (add/drag/rotate/duplicate/delete, undo/redo), materials & style tab, extended `design_parameters`, migrations `0015`/`0016`. **Backend-only from Sprint 2 full** (commit `8aef5b6`, not exposed in 2A UI): version compare API, design review workflow (submit/approve/reject). **NOT implemented:** 2D-to-3D, photorealistic rendering, video generation, automatic AI furniture placement.
 
@@ -151,9 +151,9 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 | Rendering pipeline | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | **NOT IMPLEMENTED** |
 | Design approval workflow | PARTIAL | PARTIAL | PARTIAL | COMPLETE | COMPLETE | PARTIAL | COMPLETE | NEEDS VERIFICATION | **PARTIAL** |
 | **PHASE 3.5 — UNITS & INVENTORY** |
-| Units & Inventory | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | PARTIAL | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NEEDS VERIFICATION | **PARTIAL** |
+| Units & Inventory | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | **COMPLETE** |
 | Units blueprint | — | — | — | — | — | — | — | — | **BLUEPRINT COMPLETE** |
-| Inventory backend foundation (4B1) | — | — | — | COMPLETE | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NEEDS VERIFICATION | **COMPLETE** |
+| Inventory backend foundation (4B1) | — | — | — | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | **COMPLETE** |
 
 ---
 
@@ -260,32 +260,38 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 | Enum label hooks | COMPLETE for core modules |
 | Gaps | `navigation.documents` was missing in `en.json` (fixed in audit); API error strings in English; permissions matrix shows raw resource/action keys |
 
-### Units & Inventory — BACKEND FOUNDATION COMPLETE (Sprint 4B1)
+### Units & Inventory — COMPLETE (Sprint 4B7 core verification)
 
 | Check | Status |
 |-------|--------|
 | Workspace blueprint | **COMPLETE** — `docs/INVENTORY_WORKSPACE_BLUEPRINT.md` |
 | Module blueprint | **COMPLETE** — `docs/UNITS_INVENTORY_BLUEPRINT.md` (superseded UX decisions in workspace doc) |
 | Data models (Building, Floor, InventoryAsset, StatusHistory) | **COMPLETE** — `models/inventory.py` |
-| Migration `0017_inventory_assets` | **COMPLETE** — single head after `0016` |
-| API routes (`/inventory/buildings`, `/floors`, `/assets`) | **COMPLETE** — CRUD, archive/restore, status update + history |
+| Workflow models (reservations, pricing, ownership, assignment) | **COMPLETE** — `models/inventory_workflows.py` |
+| Migrations `0017`–`0021` | **COMPLETE** — single Alembic head |
+| API routes (`/inventory/*`) | **COMPLETE** — buildings, floors, assets, reservations, prices, ownership, assignments |
 | System code generator | **COMPLETE** — globally unique, immutable (`services/inventory/system_code_service.py`) |
 | Conditional validation | **COMPLETE** — centralized (`services/inventory/validation_service.py`) |
-| Permissions resource `"inventory"` | **COMPLETE** — view/create/update/archive/restore/manage_status |
-| Activity integration | **COMPLETE** — building, floor, inventory_asset entity types |
-| Global search | **COMPLETE** — building, floor, inventory_asset providers |
+| Permissions resource `"inventory"` | **COMPLETE** — full matrix including ownership, assignment, pricing, reservations |
+| Activity / audit / business events | **COMPLETE** — inventory entity types + ownership/assignment |
+| Notifications | **COMPLETE** — reservation, pricing, ownership, assignment workflows |
+| Global search | **COMPLETE** — building, floor, inventory_asset providers with permission gating |
+| Executive summaries | **COMPLETE** — reservation/pricing/ownership widgets |
 | TR/EN inventory namespace | **COMPLETE** — enum labels + validation errors in `en.json` / `tr.json` |
 | Demo seed inventory | **COMPLETE** — Temple + UniLoft buildings/floors/assets (`inventory_seed.py`) |
-| API tests | **COMPLETE** — `test_inventory_foundation.py` (8 tests); **160 total** |
-| Frontend workspace `/dashboard/inventory` | **COMPLETE** — Sprint 4B2 (KPIs, table, filters, drawer, forms, status modal) |
-| Reservations / Soft Hold | **COMPLETE** — Sprint 4B3: `0018_inventory_reservations`; workflow service; `/inventory/reservations` API; ARQ expiry/reminder jobs; finance deposit draft linkage; notifications; executive widgets; search provider; reservation tab + soft hold UI; **13 new API tests** |
-| Pricing / approval | **COMPLETE** — Sprint 4B4: `0019_inventory_pricing`; versioned prices + approval workflow; `/inventory/prices` + `/inventory/price-requests`; Pricing tab, propose-change form, executive approvals; sensitive-price permissions; **10 new API tests** |
-| Ownership history | NOT IMPLEMENTED — Sprint 4B6 |
-| Finance `unit_id` FK | NOT IMPLEMENTED |
-| Drawing unit approval bridge | PARTIAL — placeholder `created_unit_id = proposal.id` |
-| Bulk import/export | NOT IMPLEMENTED — Sprint 4B7 |
+| Frontend workspace `/dashboard/inventory` | **COMPLETE** — table, filters, drawer (14 tabs), ownership + assignment panels |
+| ARQ background jobs | **COMPLETE** — soft-hold expiry, reservation reminders, scheduled ownership/assignment apply |
+| API tests | **COMPLETE** — **202 total** (foundation, reservations, pricing, ownership, assignments, executive) |
+| Docker build (api + web) | **COMPLETE** — verified 2026-07-16 |
+| Browser E2E (9 flows) | **PARTIAL** — MCP browser verification attempted; see Sprint 4B7 report |
+| Finance `unit_id` FK | **NOT IMPLEMENTED** |
+| Drawing unit approval bridge | **PARTIAL** — placeholder `created_unit_id = proposal.id` |
+| Bulk import/export | **NOT IMPLEMENTED** |
+| Spatial / floor-plan views | **NOT IMPLEMENTED** |
+| Closing / leasing / commissions | **NOT IMPLEMENTED** — out of 4B7 scope |
+| Unified party picker | **NOT IMPLEMENTED** — Lead/Investor FKs only |
 
-**Architecture:** Inventory Asset parent entity; parking/storage as independent asset types; areas in sq ft; six status dimensions; display_id + system_code + legal_identifier.
+**Architecture:** Inventory Asset parent entity; parking/storage as independent asset types; areas in sq ft; six status dimensions; display_id + system_code + legal_identifier; Decimal money fields; immutable ownership history; stale-request protection on concurrent approvals.
 
 ---
 

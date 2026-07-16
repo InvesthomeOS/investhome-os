@@ -46,7 +46,10 @@ ENTITY_RESOURCE_MAP: dict[ActivityEntityType, str] = {
     ActivityEntityType.BUILDING: "inventory",
     ActivityEntityType.FLOOR: "inventory",
     ActivityEntityType.INVENTORY_ASSET: "inventory",
+    ActivityEntityType.INVENTORY_RESERVATION: "inventory",
     ActivityEntityType.INVENTORY_PRICE: "inventory",
+    ActivityEntityType.INVENTORY_OWNERSHIP: "inventory",
+    ActivityEntityType.INVENTORY_ASSIGNMENT: "inventory",
     ActivityEntityType.PRICE_CHANGE_REQUEST: "inventory",
 }
 

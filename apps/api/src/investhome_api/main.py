@@ -2,7 +2,7 @@ from investhome_api.api.exception_handlers import register_exception_handlers
 from investhome_api.config.settings import get_settings
 from investhome_api.core.logging_config import configure_logging
 from investhome_api.middleware.request_id import RequestIdMiddleware
-from investhome_api.api.routes import activity, auth, company_foundation, design_studio, document_intelligence, documents, drawing_intelligence, executive, finance, health, inventory, inventory_pricing, inventory_reservations, investors, leads, meta, notifications, projects, roles, search, users
+from investhome_api.api.routes import activity, auth, company_foundation, design_studio, document_intelligence, documents, drawing_intelligence, executive, finance, health, inventory, inventory_assignment, inventory_ownership, inventory_pricing, inventory_reservations, investors, leads, meta, notifications, projects, roles, search, users
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -54,6 +54,10 @@ def create_app() -> FastAPI:
     app.include_router(inventory_pricing.prices_router)
     app.include_router(inventory_pricing.requests_router)
     app.include_router(inventory_reservations.router)
+    app.include_router(inventory_ownership.ownership_router)
+    app.include_router(inventory_ownership.transfers_router)
+    app.include_router(inventory_assignment.assignments_router)
+    app.include_router(inventory_assignment.requests_router)
 
     return app
 

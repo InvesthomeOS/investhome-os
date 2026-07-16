@@ -76,6 +76,8 @@ class ActivityEntityType(str, enum.Enum):
     INVENTORY_ASSET = "inventory_asset"
     INVENTORY_RESERVATION = "inventory_reservation"
     INVENTORY_PRICE = "inventory_price"
+    INVENTORY_OWNERSHIP = "inventory_ownership"
+    INVENTORY_ASSIGNMENT = "inventory_assignment"
     PRICE_CHANGE_REQUEST = "price_change_request"
 
 

@@ -9,6 +9,7 @@ import { Button, Drawer, StatusChip, Tabs } from '@investhome/ui';
 import { EntityActivityTimeline } from '@/app/dashboard/_components/entity-activity-timeline';
 import { EntityDocumentsPanel } from '@/app/dashboard/_components/entity-documents-panel';
 import { PricingPanel } from './pricing-panel';
+import { OwnershipPanel } from './ownership-panel';
 import { ReservationPanel } from './reservation-panel';
 import {
   fetchInventoryAssetStatusHistory,
@@ -33,6 +34,7 @@ type DetailTab =
   | 'status'
   | 'reservation'
   | 'pricing'
+  | 'ownership'
   | 'physical'
   | 'assignments'
   | 'dates'
@@ -59,6 +61,7 @@ interface InventoryDetailDrawerProps {
   onStatusUpdate: (asset: InventoryAsset) => void;
   onReservationChanged?: () => void;
   onPricingChanged?: () => void;
+  onOwnershipChanged?: () => void;
   pricingTabRequest?: number;
 }
 
@@ -103,6 +106,7 @@ export function InventoryDetailDrawer({
   onStatusUpdate,
   onReservationChanged,
   onPricingChanged,
+  onOwnershipChanged,
   pricingTabRequest = 0,
 }: InventoryDetailDrawerProps) {
   const t = useTranslations('inventory');
@@ -130,6 +134,7 @@ export function InventoryDetailDrawer({
   const canViewDesign = user ? hasPermission(user, 'design', 'view') : false;
   const canViewActivity = user ? hasPermission(user, 'activity', 'view') : false;
   const canViewPricing = user ? hasPermission(user, 'inventory', 'view_price') : false;
+  const canViewOwnership = user ? hasPermission(user, 'inventory', 'view_ownership') : false;
 
   const project = useMemo(
     () => (asset ? projects.find((p) => p.id === asset.project_id) : undefined),
@@ -176,6 +181,7 @@ export function InventoryDetailDrawer({
     { id: 'status', label: t('detail.tabs.status') },
     { id: 'reservation', label: t('detail.tabs.reservation') },
     ...(canViewPricing ? [{ id: 'pricing', label: t('detail.tabs.pricing') }] : []),
+    ...(canViewOwnership ? [{ id: 'ownership', label: t('detail.tabs.ownership') }] : []),
     { id: 'physical', label: t('detail.tabs.physical') },
     { id: 'assignments', label: t('detail.tabs.assignments') },
     { id: 'dates', label: t('detail.tabs.dates') },
@@ -369,6 +375,10 @@ export function InventoryDetailDrawer({
 
       {activeTab === 'pricing' && (
         <PricingPanel asset={asset} onChanged={() => onPricingChanged?.()} />
+      )}
+
+      {activeTab === 'ownership' && (
+        <OwnershipPanel asset={asset} onChanged={() => onOwnershipChanged?.()} />
       )}
 
       {activeTab === 'physical' && (
