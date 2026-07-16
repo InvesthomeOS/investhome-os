@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { Route } from 'next';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
@@ -19,6 +20,7 @@ import {
   fetchProposals,
   type SalesProposal,
 } from '@/lib/api/sales-proposals';
+import { fetchOpportunityWorkItems, type WorkItem } from '@/lib/api/work-items';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
   fetchOpportunityTimeline,
@@ -122,8 +124,11 @@ export function SalesDetailDrawer({
   const [proposals, setProposals] = useState<SalesProposal[]>([]);
   const [proposalsLoading, setProposalsLoading] = useState(false);
   const [creatingProposal, setCreatingProposal] = useState(false);
+  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+  const [workItemsLoading, setWorkItemsLoading] = useState(false);
 
   const canViewProposals = user ? hasPermission(user, 'sales', 'view_proposal') : false;
+  const canViewWork = user ? hasPermission(user, 'work', 'view') : false;
   const canCreateProposal = user ? hasPermission(user, 'sales', 'create_proposal') : false;
   const canViewDocuments = user ? hasPermission(user, 'documents', 'view') : false;
   const canViewActivity = user ? hasPermission(user, 'activity', 'view') : false;
@@ -225,6 +230,25 @@ export function SalesDetailDrawer({
       void loadProposals();
     }
   }, [opportunity, activeTab, canViewProposals, loadProposals]);
+
+  const loadWorkItems = useCallback(async () => {
+    if (!opportunity) return;
+    setWorkItemsLoading(true);
+    try {
+      const result = await fetchOpportunityWorkItems(opportunity.id);
+      setWorkItems(result.items);
+    } catch {
+      setWorkItems([]);
+    } finally {
+      setWorkItemsLoading(false);
+    }
+  }, [opportunity]);
+
+  useEffect(() => {
+    if (opportunity && activeTab === 'nextActions' && canViewWork) {
+      void loadWorkItems();
+    }
+  }, [opportunity, activeTab, canViewWork, loadWorkItems]);
 
   const handleCreateProposal = useCallback(async () => {
     if (!opportunity) return;
@@ -433,6 +457,9 @@ export function SalesDetailDrawer({
 
         {activeTab === 'nextActions' && (
           <section className="leads-drawer__section">
+            {(!opportunity.next_action || !opportunity.next_action_date) && (
+              <p className="sales-work-warning">{t('detail.nextActionWarning')}</p>
+            )}
             <dl className="leads-drawer__grid">
               <DetailField
                 label={t('nextAction.action')}
@@ -451,6 +478,26 @@ export function SalesDetailDrawer({
               <Button variant="secondary" onClick={() => onEditNextAction(opportunity)}>
                 {t('detail.editNextAction')}
               </Button>
+            )}
+            {canViewWork && (
+              <div className="sales-work-opportunity-items">
+                <h4>{t('detail.linkedWorkItems')}</h4>
+                {workItemsLoading ? (
+                  <p>{tCommon('loading')}</p>
+                ) : workItems.length === 0 ? (
+                  <p>{t('detail.noWorkItems')}</p>
+                ) : (
+                  <ul>
+                    {workItems.map((item) => (
+                      <li key={item.id}>
+                        <strong>{item.title}</strong>
+                        <span>{item.work_item_type} · {item.effective_status ?? item.status}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <Link href={'/dashboard/sales/follow-up' as Route}>{t('detail.openFollowUpCenter')}</Link>
+              </div>
             )}
           </section>
         )}

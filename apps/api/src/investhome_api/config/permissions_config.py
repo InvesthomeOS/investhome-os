@@ -28,6 +28,7 @@ RESOURCES = frozenset(
         "marketing",
         "reports",
         "sales",
+        "work",
     }
 )
 
@@ -132,6 +133,13 @@ ACTIONS = frozenset(
         "mark_proposal_accepted",
         "view_sensitive_proposal_price",
         "archive_proposal",
+        "manage_followups",
+        "manage_meetings",
+        "view_team",
+        "reassign",
+        "complete",
+        "cancel",
+        "view_private",
     }
 )
 
@@ -209,6 +217,9 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("sales", "approve_proposal"),
         ("sales", "reject_proposal"),
         ("sales", "view_sensitive_proposal_price"),
+        ("work", "view"),
+        ("work", "view_team"),
+        ("work", "view_private"),
     ],
     "partner": [
         ("executive", "view"),
@@ -304,6 +315,18 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("sales", "mark_proposal_accepted"),
         ("sales", "view_sensitive_proposal_price"),
         ("sales", "archive_proposal"),
+        ("sales", "manage_followups"),
+        ("sales", "manage_meetings"),
+        ("work", "view"),
+        ("work", "view_team"),
+        ("work", "create"),
+        ("work", "update"),
+        ("work", "assign"),
+        ("work", "reassign"),
+        ("work", "complete"),
+        ("work", "cancel"),
+        ("work", "archive"),
+        ("work", "view_private"),
     ],
     "investor_relations": [
         ("investors", "view"),

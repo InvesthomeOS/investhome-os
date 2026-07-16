@@ -35,6 +35,7 @@ SEARCH_ENTITY_TYPES = frozenset(
         "sales_shortlist",
         "sales_inventory_match",
         "sales_proposal",
+        "work_item",
     }
 )
 
@@ -77,6 +78,7 @@ ENTITY_PERMISSION_RESOURCE: dict[str, str] = {
     "sales_shortlist": "sales",
     "sales_inventory_match": "sales",
     "sales_proposal": "sales",
+    "work_item": "work",
 }
 
 ENTITY_LINK_MODULES: dict[str, str] = {
@@ -109,6 +111,7 @@ ENTITY_LINK_MODULES: dict[str, str] = {
     "sales_shortlist": "sales",
     "sales_inventory_match": "sales",
     "sales_proposal": "sales",
+    "work_item": "sales/follow-up",
 }
 
 FINANCE_TAB_BY_ENTITY: dict[str, str] = {

@@ -3074,3 +3074,33 @@ body {
   color: var(--color-danger);
 }
 
+.sales-work-page { display: flex; flex-direction: column; gap: var(--space-5); }
+.sales-work-page__header { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-4); }
+.sales-work-page__eyebrow a { color: var(--text-muted); text-decoration: none; }
+.sales-work-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: var(--space-4); }
+.sales-work-kpis__card { border: none; background: transparent; padding: 0; cursor: pointer; text-align: left; }
+.sales-work-kpis__card--active .ih-kpi-card { border-color: var(--accent); }
+.sales-work-page__toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-3); }
+.sales-work-page__views, .sales-work-page__layouts { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.sales-work-page__views button, .sales-work-page__layouts button {
+  border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3);
+}
+.sales-work-page__view--active, .sales-work-page__layout--active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.sales-work-list__table { width: 100%; border-collapse: collapse; }
+.sales-work-list__table th, .sales-work-list__table td { padding: var(--space-3); border-bottom: 1px solid var(--border-subtle); text-align: left; }
+.sales-work-list__row--selected { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.sales-work-form { display: flex; flex-direction: column; gap: var(--space-3); }
+.sales-work-form label { display: flex; flex-direction: column; gap: var(--space-1); }
+.sales-work-form__checkbox { flex-direction: row; align-items: center; gap: var(--space-2); }
+.sales-work-form__actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+.sales-work-drawer__actions { display: flex; gap: var(--space-2); margin-bottom: var(--space-4); }
+.sales-work-drawer__fields { display: grid; gap: var(--space-3); }
+.sales-work-drawer__hint { color: var(--text-muted); font-size: 0.85rem; }
+.sales-work-calendar__toolbar { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+.sales-work-calendar__hint { color: var(--text-muted); font-size: 0.85rem; margin-left: auto; }
+.sales-work-calendar__grid { display: grid; gap: var(--space-4); }
+.sales-work-calendar__day ul { list-style: none; padding: 0; margin: var(--space-2) 0 0; }
+.sales-work-team__group { border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-3); }
+.sales-work-warning { color: var(--color-warning); background: color-mix(in srgb, var(--color-warning) 12%, transparent); padding: var(--space-3); border-radius: var(--radius-sm); }
+.sales-work-opportunity-items { margin-top: var(--space-4); }
+

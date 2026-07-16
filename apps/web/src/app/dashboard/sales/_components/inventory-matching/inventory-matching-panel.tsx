@@ -28,6 +28,7 @@ import {
   type MatchRejectionReason,
   type SalesShortlist,
 } from '@/lib/api/sales-inventory-matching';
+import { createProposalFromShortlist } from '@/lib/api/sales-proposals';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useSalesInventoryMatchingLabels } from '@/lib/i18n/sales-inventory-matching-labels';
 
@@ -64,6 +65,7 @@ export function InventoryMatchingPanel({ leadId, opportunityId }: InventoryMatch
   const canCompare = hasPermission(user, 'sales', 'compare_inventory');
   const canSoftHold = hasPermission(user, 'sales', 'create_soft_hold');
   const canSetPrimary = hasPermission(user, 'sales', 'set_primary_inventory');
+  const canCreateProposal = hasPermission(user, 'sales', 'create_proposal');
 
   const contextParams = useMemo(
     () => ({ leadId, opportunityId }),
@@ -210,6 +212,7 @@ export function InventoryMatchingPanel({ leadId, opportunityId }: InventoryMatch
           <h3>{t('sections.shortlists')}</h3>
           <ShortlistPanel
             shortlists={shortlists}
+            canCreateProposal={canCreateProposal && Boolean(opportunityId)}
             onCreate={async (title) => {
               await createShortlist({ lead_id: leadId, opportunity_id: opportunityId, title });
               await reload();
@@ -218,6 +221,19 @@ export function InventoryMatchingPanel({ leadId, opportunityId }: InventoryMatch
               await addShortlistItem(shortlistId, { inventory_asset_id: assetId });
               await reload();
             }}
+            onCreateProposal={
+              opportunityId
+                ? async (shortlistId, title) => {
+                    const proposal = await createProposalFromShortlist({
+                      opportunity_id: opportunityId,
+                      shortlist_id: shortlistId,
+                      title,
+                      lead_id: leadId,
+                    });
+                    window.location.href = `/dashboard/sales/proposals/${proposal.id}`;
+                  }
+                : undefined
+            }
             onReload={reload}
           />
         </section>

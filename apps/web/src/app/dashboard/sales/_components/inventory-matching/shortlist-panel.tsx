@@ -9,12 +9,21 @@ import type { SalesShortlist } from '@/lib/api/sales-inventory-matching';
 
 interface ShortlistPanelProps {
   shortlists: SalesShortlist[];
+  canCreateProposal?: boolean;
   onCreate: (title: string) => Promise<void>;
   onAddItem: (shortlistId: string, assetId: string) => Promise<void>;
+  onCreateProposal?: (shortlistId: string, title: string) => Promise<void>;
   onReload: () => Promise<void>;
 }
 
-export function ShortlistPanel({ shortlists, onCreate, onAddItem, onReload }: ShortlistPanelProps) {
+export function ShortlistPanel({
+  shortlists,
+  canCreateProposal = false,
+  onCreate,
+  onAddItem,
+  onCreateProposal,
+  onReload,
+}: ShortlistPanelProps) {
   const t = useTranslations('salesInventoryMatching');
   const [title, setTitle] = useState('');
   const [assetId, setAssetId] = useState('');
@@ -73,6 +82,18 @@ export function ShortlistPanel({ shortlists, onCreate, onAddItem, onReload }: Sh
                 {t('actions.addToShortlist')}
               </Button>
             </div>
+            {canCreateProposal && onCreateProposal && list.items.length > 0 ? (
+              <div className="shortlist-panel__proposal">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    void onCreateProposal(list.id, list.title);
+                  }}
+                >
+                  {t('actions.createProposalFromShortlist')}
+                </Button>
+              </div>
+            ) : null}
           </article>
         ))
       )}

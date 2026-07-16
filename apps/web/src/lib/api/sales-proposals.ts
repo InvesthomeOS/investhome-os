@@ -181,6 +181,22 @@ export async function importShortlistToProposal(id: string, shortlistId: string)
   });
 }
 
+export async function createProposalFromShortlist(input: {
+  opportunity_id: string;
+  shortlist_id: string;
+  title: string;
+  lead_id?: string | null;
+  recipient_email?: string | null;
+}) {
+  const proposal = await createProposal({
+    opportunity_id: input.opportunity_id,
+    title: input.title,
+    lead_id: input.lead_id,
+    recipient_email: input.recipient_email,
+  });
+  return importShortlistToProposal(proposal.id, input.shortlist_id);
+}
+
 export async function refreshProposalPricing(id: string) {
   return apiFetch<SalesProposalDetail>(`/sales/proposals/${id}/refresh-pricing`, { method: 'POST' });
 }

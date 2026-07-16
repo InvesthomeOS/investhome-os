@@ -49,6 +49,7 @@ from investhome_api.models.project import Project
 from investhome_api.models.sales import OpportunityPartyType, SalesOpportunity
 from investhome_api.models.sales_inventory_matching import SalesInventoryMatch, SalesShortlist
 from investhome_api.models.sales_proposal import SalesProposal
+from investhome_api.models.work_item import WorkItem
 from investhome_api.models.user_auth import User, UserStatus
 from investhome_api.schemas.search import SearchGroup, SearchHighlight, SearchResponse, SearchResultItem
 from investhome_api.services.activity_service import (
@@ -1669,6 +1670,53 @@ def _search_sales_proposals(
     return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
 
 
+def _search_work_items(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "work_item"):
+        return []
+    from investhome_api.services.permission_service import user_has_permission
+
+    pattern = _pattern(query)
+    stmt = select(WorkItem).where(
+        WorkItem.archived_at.is_(None),
+        or_(WorkItem.title.ilike(pattern), WorkItem.description.ilike(pattern)),
+    )
+    if not user_has_permission(user, "work", "view_private"):
+        stmt = stmt.where(
+            or_(
+                WorkItem.is_private.is_(False),
+                WorkItem.assigned_user_id == user.id,
+                WorkItem.created_by_user_id == user.id,
+            )
+        )
+    items = db.scalars(stmt.limit(limit)).all()
+    results: list[InternalSearchResult] = []
+    for item in items:
+        fields = {"title": item.title, "description": item.description or ""}
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        matched = _collect_matched_fields(query, fields)
+        results.append(
+            InternalSearchResult(
+                entity_type="work_item",
+                entity_id=item.id,
+                title=item.title,
+                subtitle=_enum_value(item.work_item_type),
+                status=_enum_value(item.status),
+                created_at=item.created_at,
+                score=score,
+                matched_fields=matched,
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
 def _search_sales_inventory_matches(
     db: Session,
     user: User,
@@ -1745,6 +1793,7 @@ PROVIDER_MAP = {
     "sales_shortlist": _search_sales_shortlists,
     "sales_inventory_match": _search_sales_inventory_matches,
     "sales_proposal": _search_sales_proposals,
+    "work_item": _search_work_items,
 }
 
 ENTITY_LABEL_KEYS = {
@@ -1777,6 +1826,7 @@ ENTITY_LABEL_KEYS = {
     "sales_shortlist": "search.entities.sales_shortlist",
     "sales_inventory_match": "search.entities.sales_inventory_match",
     "sales_proposal": "search.entities.sales_proposal",
+    "work_item": "search.entities.work_item",
 }
 
 

@@ -345,7 +345,8 @@
       "reject": "Reject",
       "cancel": "Cancel",
       "confirmReject": "Confirm rejection",
-      "placeSoftHold": "Place soft hold"
+      "placeSoftHold": "Place soft hold",
+      "createProposalFromShortlist": "Create proposal from shortlist"
     },
     "empty": {
       "searchResults": "Run a search to find matching inventory.",
@@ -419,6 +420,7 @@
       "pipeline": "Pipeline",
       "list": "List"
     },
+    "followUpCenter": "Follow-up Center",
     "kpis": {
       "newLeads": "New Leads",
       "qualifiedLeads": "Qualified Leads",
@@ -516,6 +518,10 @@
       "noTimeline": "No timeline events yet.",
       "noReservation": "No linked reservation.",
       "createProposal": "Create Proposal",
+      "nextActionWarning": "Active opportunity requires a future next action or closed status.",
+      "linkedWorkItems": "Related work items",
+      "noWorkItems": "No work items linked to this opportunity.",
+      "openFollowUpCenter": "Open Follow-up Center",
       "financePlaceholder": "Finance summary is read-only. Deposit and transaction details live in Finance workspace.",
       "expectedRevenue": "Expected revenue",
       "tabs": {
@@ -695,6 +701,78 @@
       "expired": "Proposal has expired.",
       "expired_requires_renewal": "Expired proposals require a new version before acceptance."
     }
+  },
+  "work": {
+    "title": "Follow-up Center",
+    "subtitle": "Tasks, meetings, calls, and follow-ups — internal planning only.",
+    "nav": "Follow-up Center",
+    "loading": "Loading work items…",
+    "loadError": "Unable to load follow-up center.",
+    "createButton": "New work item",
+    "meetingUrlHint": "Meeting URL is stored for reference only — no external calendar sync.",
+    "noOutcome": "No outcome recorded yet.",
+    "tabPlaceholder": "Details available in related records.",
+    "empty": { "title": "No work items", "description": "Create a task, meeting, or follow-up to get started." },
+    "kpis": {
+      "today": "Due today",
+      "overdue": "Overdue",
+      "meetingsToday": "Meetings today",
+      "blocked": "Blocked",
+      "waiting": "Waiting",
+      "myWork": "My work",
+      "noNextAction": "No next action"
+    },
+    "views": {
+      "today": "Today",
+      "overdue": "Overdue",
+      "upcoming": "Upcoming",
+      "meetings": "Meetings",
+      "calls": "Calls",
+      "follow_ups": "Follow-ups",
+      "waiting": "Waiting",
+      "blocked": "Blocked",
+      "completed": "Completed",
+      "my_work": "My Work",
+      "team_work": "Team Work"
+    },
+    "types": {
+      "task": "Task", "call": "Call", "meeting": "Meeting", "follow_up": "Follow-up",
+      "site_visit": "Site visit", "document_request": "Document request",
+      "proposal_follow_up": "Proposal follow-up", "reservation_follow_up": "Reservation follow-up",
+      "deposit_follow_up": "Deposit follow-up", "contract_follow_up": "Contract follow-up",
+      "closing_follow_up": "Closing follow-up", "other": "Other"
+    },
+    "statuses": {
+      "open": "Open", "in_progress": "In progress", "waiting": "Waiting", "blocked": "Blocked",
+      "completed": "Completed", "cancelled": "Cancelled", "overdue": "Overdue", "archived": "Archived"
+    },
+    "priorities": { "low": "Low", "medium": "Medium", "high": "High", "urgent": "Urgent" },
+    "columns": { "title": "Title", "type": "Type", "status": "Status", "priority": "Priority", "due": "Due" },
+    "tabs": {
+      "overview": "Overview", "details": "Details", "meeting": "Meeting", "followUp": "Follow-up",
+      "participants": "Participants", "related": "Related", "outcome": "Outcome", "history": "History", "activity": "Activity"
+    },
+    "fields": {
+      "type": "Type", "status": "Status", "priority": "Priority", "due": "Due date", "description": "Description",
+      "meetingType": "Meeting type", "location": "Location", "meetingUrl": "Meeting URL", "agenda": "Agenda",
+      "contactMethod": "Contact method", "responseStatus": "Response", "notes": "Notes",
+      "lead": "Lead", "opportunity": "Opportunity", "proposal": "Proposal"
+    },
+    "actions": { "complete": "Complete", "edit": "Edit" },
+    "form": {
+      "createTitle": "Create work item", "editTitle": "Edit work item", "title": "Title", "type": "Type",
+      "priority": "Priority", "due": "Due date", "description": "Description", "private": "Private item",
+      "cancel": "Cancel", "save": "Save"
+    },
+    "complete": {
+      "title": "Complete work item", "outcome": "Outcome", "createNext": "Schedule next follow-up", "submit": "Complete"
+    },
+    "calendar": {
+      "day": "Day", "week": "Week", "month": "Month", "internalOnly": "Internal calendar — no external sync",
+      "emptyTitle": "No scheduled items", "emptyDescription": "Work items with due dates appear here."
+    },
+    "team": { "emptyTitle": "No team work", "emptyDescription": "Assigned work items appear grouped by user.", "unassigned": "Unassigned" },
+    "layout": { "list": "List", "calendar": "Calendar", "team": "Team" }
   },
   "investors": {
     "eyebrow": "Capital",
@@ -2253,6 +2331,7 @@
       "inventory_reservation": "Reservations",
       "sales_opportunity": "Sales opportunities",
       "sales_proposal": "Sales proposals",
+      "work_item": "Work items",
       "unit": "Units (coming soon)",
       "construction": "Construction (coming soon)",
       "email": "Emails (coming soon)"

@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import type { Route } from 'next';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
@@ -508,6 +510,11 @@ export function SalesWorkspace() {
             >
               {t('views.list')}
             </button>
+            {user && hasPermission(user, 'work', 'view') && (
+              <Link href={'/dashboard/sales/follow-up' as Route} className="leads__button leads__button--secondary">
+                {t('followUpCenter')}
+              </Link>
+            )}
           </div>
           {canCreate && (
             <Button onClick={() => { setFormMode('create'); setActionError(null); }}>

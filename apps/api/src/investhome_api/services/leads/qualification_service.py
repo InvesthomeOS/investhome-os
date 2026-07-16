@@ -7,19 +7,21 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import Request
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from investhome_api.models.activity import ActivityEntityType
 from investhome_api.models.lead import Lead, LeadStatus
 from investhome_api.models.lead_qualification import (
     FollowUpStatus,
+    FollowUpType,
     LeadFollowUp,
     LeadInventoryInterest,
     LeadQualification,
     LeadTimeline,
     QualificationStatus,
 )
+from investhome_api.models.work_item import FollowUpRecord, WorkItem
 from investhome_api.models.user_auth import User
 from investhome_api.services.activity_recorder import log_entity_created, log_entity_updated
 from investhome_api.services.activity_service import snapshot_entity
@@ -253,7 +255,20 @@ def remove_inventory_interest(db: Session, lead_id: UUID, interest_id: UUID) -> 
 
 
 def list_follow_ups(db: Session, lead_id: UUID) -> list[LeadFollowUp]:
+    """List follow-ups for a lead — reads from shared WorkItem store."""
+    from investhome_api.models.work_item import WorkItem
+
     _get_lead_or_raise(db, lead_id)
+    work_items = list(
+        db.scalars(
+            select(WorkItem)
+            .where(WorkItem.lead_id == lead_id, WorkItem.archived_at.is_(None))
+            .order_by(WorkItem.due_at.asc())
+        ).all()
+    )
+    if work_items:
+        return [_work_item_as_lead_follow_up(item) for item in work_items]
+
     return list(
         db.scalars(
             select(LeadFollowUp)
@@ -261,6 +276,36 @@ def list_follow_ups(db: Session, lead_id: UUID) -> list[LeadFollowUp]:
             .order_by(LeadFollowUp.due_at.asc())
         ).all()
     )
+
+
+def _work_item_as_lead_follow_up(item: WorkItem) -> LeadFollowUp:
+    """Adapt WorkItem to legacy LeadFollowUp shape for API compatibility."""
+    from investhome_api.models.work_item import WorkItemStatus, WorkItemType
+
+    type_map = {
+        WorkItemType.CALL: FollowUpType.CALL,
+        WorkItemType.MEETING: FollowUpType.MEETING,
+        WorkItemType.SITE_VISIT: FollowUpType.SITE_VISIT,
+        WorkItemType.FOLLOW_UP: FollowUpType.EMAIL,
+    }
+    status_map = {
+        WorkItemStatus.COMPLETED: FollowUpStatus.COMPLETED,
+        WorkItemStatus.CANCELLED: FollowUpStatus.CANCELLED,
+        WorkItemStatus.OVERDUE: FollowUpStatus.OVERDUE,
+    }
+    follow_up = LeadFollowUp(
+        id=item.legacy_lead_follow_up_id or item.id,
+        lead_id=item.lead_id,
+        follow_up_type=type_map.get(item.work_item_type, FollowUpType.OTHER),
+        due_at=item.due_at or item.created_at,
+        completed_at=item.completed_at,
+        assigned_user_id=item.assigned_user_id,
+        notes=item.description,
+        status=status_map.get(item.status, FollowUpStatus.PENDING),
+        created_at=item.created_at,
+        updated_at=item.updated_at,
+    )
+    return follow_up
 
 
 def create_follow_up(
@@ -271,29 +316,45 @@ def create_follow_up(
     actor: User,
     request: Request | None = None,
 ) -> LeadFollowUp:
-    lead = _get_lead_or_raise(db, lead_id)
-    follow_up = LeadFollowUp(lead_id=lead_id, **data)
-    db.add(follow_up)
-    db.flush()
+    """Create follow-up via shared WorkItem — bridges legacy LeadFollowUp API."""
+    from investhome_api.models.work_item import ContactMethod, WorkItemType
+    from investhome_api.services.work import work_item_service as work_svc
 
-    log_entity_created(
+    lead = _get_lead_or_raise(db, lead_id)
+    type_map = {
+        FollowUpType.CALL: WorkItemType.CALL,
+        FollowUpType.EMAIL: WorkItemType.FOLLOW_UP,
+        FollowUpType.MEETING: WorkItemType.MEETING,
+        FollowUpType.WHATSAPP: WorkItemType.FOLLOW_UP,
+        FollowUpType.SITE_VISIT: WorkItemType.SITE_VISIT,
+        FollowUpType.OTHER: WorkItemType.OTHER,
+    }
+    wi_type = type_map.get(data["follow_up_type"], WorkItemType.FOLLOW_UP)
+    item, _ = work_svc.create_follow_up(
         db,
-        entity_type=ActivityEntityType.LEAD,
-        entity_id=lead_id,
-        description_key="activity.lead.follow_up_created",
+        {
+            "title": f"Lead follow-up ({data['follow_up_type'].value})",
+            "work_item_type": wi_type,
+            "due_at": data["due_at"],
+            "assigned_user_id": data.get("assigned_user_id"),
+            "notes": data.get("notes"),
+            "lead_id": lead_id,
+            "related_entity_type": "lead",
+            "related_entity_id": lead_id,
+            "contact_method": ContactMethod.CALL,
+        },
         actor=actor,
-        metadata={"follow_up_type": follow_up.follow_up_type.value, "due_at": follow_up.due_at.isoformat()},
         request=request,
-        is_demo=lead.is_demo,
     )
+
     _append_timeline(
         db,
         lead_id,
         event_type="sales.lead.followup_due",
         actor=actor,
-        metadata={"follow_up_id": str(follow_up.id), "due_at": follow_up.due_at.isoformat()},
+        metadata={"work_item_id": str(item.id), "due_at": item.due_at.isoformat() if item.due_at else None},
     )
-    return follow_up
+    return _work_item_as_lead_follow_up(item)
 
 
 def complete_follow_up(
@@ -304,7 +365,27 @@ def complete_follow_up(
     actor: User,
     request: Request | None = None,
 ) -> LeadFollowUp:
+    from investhome_api.models.work_item import WorkItem
+    from investhome_api.services.work import work_item_service as work_svc
+
     lead = _get_lead_or_raise(db, lead_id)
+    item = db.scalar(
+        select(WorkItem).where(
+            WorkItem.lead_id == lead_id,
+            or_(
+                WorkItem.id == follow_up_id,
+                WorkItem.legacy_lead_follow_up_id == follow_up_id,
+            ),
+        )
+    )
+    if item is not None:
+        record = db.scalar(select(FollowUpRecord).where(FollowUpRecord.work_item_id == item.id))
+        if record:
+            work_svc.complete_follow_up(db, item, record, actor=actor, data={}, request=request)
+        else:
+            work_svc.complete_work_item(db, item, actor=actor, request=request)
+        return _work_item_as_lead_follow_up(item)
+
     follow_up = db.get(LeadFollowUp, follow_up_id)
     if follow_up is None or follow_up.lead_id != lead_id:
         raise QualificationError("leads.errors.follow_up_not_found", status_code=404)

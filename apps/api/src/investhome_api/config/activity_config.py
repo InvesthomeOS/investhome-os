@@ -54,6 +54,7 @@ ENTITY_RESOURCE_MAP: dict[ActivityEntityType, str] = {
     ActivityEntityType.SALES_OPPORTUNITY: "sales",
     ActivityEntityType.LEAD_QUALIFICATION: "sales",
     ActivityEntityType.SALES_PROPOSAL: "sales",
+    ActivityEntityType.WORK_ITEM: "work",
 }
 
 SECURITY_ENTITY_TYPES = frozenset(

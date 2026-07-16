@@ -345,7 +345,8 @@
       "reject": "Reddet",
       "cancel": "İptal",
       "confirmReject": "Reddi onayla",
-      "placeSoftHold": "Soft hold oluştur"
+      "placeSoftHold": "Soft hold oluştur",
+      "createProposalFromShortlist": "Shortlist'ten teklif oluştur"
     },
     "empty": {
       "searchResults": "Eşleşen envanter bulmak için arama yapın.",
@@ -419,6 +420,7 @@
       "pipeline": "Satış Hattı",
       "list": "Liste"
     },
+    "followUpCenter": "Takip Merkezi",
     "kpis": {
       "newLeads": "Yeni Leadler",
       "qualifiedLeads": "Nitelikli Leadler",
@@ -516,6 +518,10 @@
       "noTimeline": "Henüz zaman çizelgesi olayı yok.",
       "noReservation": "Bağlı rezervasyon yok.",
       "createProposal": "Teklif Oluştur",
+      "nextActionWarning": "Aktif fırsatlar için gelecekte bir sonraki aksiyon veya kapalı durum gerekir.",
+      "linkedWorkItems": "İlgili iş öğeleri",
+      "noWorkItems": "Bu fırsata bağlı iş öğesi yok.",
+      "openFollowUpCenter": "Takip Merkezini Aç",
       "financePlaceholder": "Finans özeti salt okunurdur. Depozito ve işlem detayları Finans alanındadır.",
       "expectedRevenue": "Beklenen gelir",
       "tabs": {
@@ -660,6 +666,70 @@
       "send_requires_approved": "Gönderilmeden önce teklif onaylanmalıdır.",
       "expired": "Teklifin süresi doldu.", "expired_requires_renewal": "Süresi dolmuş teklifler kabul için yeni sürüm gerektirir."
     }
+  },
+  "work": {
+    "title": "Takip Merkezi",
+    "subtitle": "Görevler, toplantılar, aramalar ve takipler — yalnızca dahili planlama.",
+    "nav": "Takip Merkezi",
+    "loading": "İş öğeleri yükleniyor…",
+    "loadError": "Takip merkezi yüklenemedi.",
+    "createButton": "Yeni iş öğesi",
+    "meetingUrlHint": "Toplantı URL'si yalnızca referans olarak saklanır — harici takvim senkronizasyonu yok.",
+    "noOutcome": "Henüz sonuç kaydedilmedi.",
+    "tabPlaceholder": "Detaylar ilgili kayıtlarda mevcuttur.",
+    "empty": { "title": "İş öğesi yok", "description": "Başlamak için görev, toplantı veya takip oluşturun." },
+    "kpis": {
+      "today": "Bugün vadesi gelen",
+      "overdue": "Gecikmiş",
+      "meetingsToday": "Bugünkü toplantılar",
+      "blocked": "Engelli",
+      "waiting": "Beklemede",
+      "myWork": "İşlerim",
+      "noNextAction": "Sonraki aksiyon yok"
+    },
+    "views": {
+      "today": "Bugün", "overdue": "Gecikmiş", "upcoming": "Yaklaşan", "meetings": "Toplantılar",
+      "calls": "Aramalar", "follow_ups": "Takipler", "waiting": "Beklemede", "blocked": "Engelli",
+      "completed": "Tamamlanan", "my_work": "İşlerim", "team_work": "Ekip İşleri"
+    },
+    "types": {
+      "task": "Görev", "call": "Arama", "meeting": "Toplantı", "follow_up": "Takip",
+      "site_visit": "Saha ziyareti", "document_request": "Belge talebi",
+      "proposal_follow_up": "Teklif takibi", "reservation_follow_up": "Rezervasyon takibi",
+      "deposit_follow_up": "Depozito takibi", "contract_follow_up": "Sözleşme takibi",
+      "closing_follow_up": "Kapanış takibi", "other": "Diğer"
+    },
+    "statuses": {
+      "open": "Açık", "in_progress": "Devam ediyor", "waiting": "Beklemede", "blocked": "Engelli",
+      "completed": "Tamamlandı", "cancelled": "İptal", "overdue": "Gecikmiş", "archived": "Arşivlendi"
+    },
+    "priorities": { "low": "Düşük", "medium": "Orta", "high": "Yüksek", "urgent": "Acil" },
+    "columns": { "title": "Başlık", "type": "Tür", "status": "Durum", "priority": "Öncelik", "due": "Vade" },
+    "tabs": {
+      "overview": "Genel Bakış", "details": "Detaylar", "meeting": "Toplantı", "followUp": "Takip",
+      "participants": "Katılımcılar", "related": "İlişkili", "outcome": "Sonuç", "history": "Geçmiş", "activity": "Aktivite"
+    },
+    "fields": {
+      "type": "Tür", "status": "Durum", "priority": "Öncelik", "due": "Vade tarihi", "description": "Açıklama",
+      "meetingType": "Toplantı türü", "location": "Konum", "meetingUrl": "Toplantı URL", "agenda": "Gündem",
+      "contactMethod": "İletişim yöntemi", "responseStatus": "Yanıt", "notes": "Notlar",
+      "lead": "Lead", "opportunity": "Fırsat", "proposal": "Teklif"
+    },
+    "actions": { "complete": "Tamamla", "edit": "Düzenle" },
+    "form": {
+      "createTitle": "İş öğesi oluştur", "editTitle": "İş öğesini düzenle", "title": "Başlık", "type": "Tür",
+      "priority": "Öncelik", "due": "Vade tarihi", "description": "Açıklama", "private": "Özel öğe",
+      "cancel": "İptal", "save": "Kaydet"
+    },
+    "complete": {
+      "title": "İş öğesini tamamla", "outcome": "Sonuç", "createNext": "Sonraki takibi planla", "submit": "Tamamla"
+    },
+    "calendar": {
+      "day": "Gün", "week": "Hafta", "month": "Ay", "internalOnly": "Dahili takvim — harici senkronizasyon yok",
+      "emptyTitle": "Planlanmış öğe yok", "emptyDescription": "Vade tarihi olan iş öğeleri burada görünür."
+    },
+    "team": { "emptyTitle": "Ekip işi yok", "emptyDescription": "Atanan iş öğeleri kullanıcıya göre gruplanır.", "unassigned": "Atanmamış" },
+    "layout": { "list": "Liste", "calendar": "Takvim", "team": "Ekip" }
   },
   "investors": {
     "eyebrow": "Sermaye",
