@@ -75,7 +75,7 @@ Investhome OS is a **production-shaped enterprise platform** with Phase 1–3 mo
 
 **Units & Inventory** has a **complete blueprint** (`docs/UNITS_INVENTORY_BLUEPRINT.md`) but **zero production implementation** — drawing intelligence unit approval uses placeholder IDs pending this module.
 
-**Visual Design Studio** is **PARTIAL** — **Sprint 1 complete** (2026-07-15): design project CRUD, source plan linking, Color Studio, version save/history, archive, permissions, activity log, global search, TR/EN UI. **Sprint 2 complete** (2026-07-15): style presets, material packages, furniture catalog/library, furniture layout editor, materials & style tab, version compare (metadata diff), design review workflow (submit/approve/reject), extended `design_parameters`, migrations `0015`/`0016`. **Not implemented:** 2D-to-3D, photorealistic rendering, video generation, automatic AI furniture placement.
+**Visual Design Studio** is **PARTIAL** — **Sprint 1 complete** (2026-07-15): design project CRUD, source plan linking, Color Studio, version save/history, archive, permissions, activity log, global search, TR/EN UI. **Sprint 2A complete** (2026-07-16, verified): style presets (Modern, Luxury, Scandinavian, Industrial, Minimalist + extras), material packages, furniture catalog/library, furniture layout editor (add/drag/rotate/duplicate/delete, undo/redo), materials & style tab, extended `design_parameters`, migrations `0015`/`0016`. **Backend-only from Sprint 2 full** (commit `8aef5b6`, not exposed in 2A UI): version compare API, design review workflow (submit/approve/reject). **NOT implemented:** 2D-to-3D, photorealistic rendering, video generation, automatic AI furniture placement.
 
 External provider integrations (AI, storage, mail, calendar, WhatsApp, accounting, banking) are **readiness-only** — configuration status pages without verified connections or secrets in API responses.
 
@@ -111,7 +111,7 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 | Investors | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | PARTIAL | COMPLETE | COMPLETE | **COMPLETE** |
 | Projects | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | PARTIAL | COMPLETE | COMPLETE | **COMPLETE** |
 | Finance | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | PARTIAL | COMPLETE | COMPLETE | **COMPLETE** |
-| Executive Dashboard | COMPLETE | COMPLETE | PARTIAL | PARTIAL | COMPLETE | COMPLETE | N/A | COMPLETE | **PARTIAL** |
+| Executive Dashboard | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | N/A | COMPLETE | **COMPLETE** |
 | TR/EN localization | COMPLETE | PARTIAL | N/A | PARTIAL | COMPLETE | COMPLETE | COMPLETE | COMPLETE | **PARTIAL** |
 | **PHASE 2 — PLATFORM FOUNDATION** |
 | Authentication | COMPLETE | COMPLETE | PARTIAL | COMPLETE | COMPLETE | COMPLETE | N/A | COMPLETE | **PARTIAL** |
@@ -173,16 +173,26 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 
 ## Partially Completed Modules
 
-### Executive Dashboard — PARTIAL
+### Executive Dashboard — COMPLETE (Sprint 3B)
 
 | Check | Status |
 |-------|--------|
-| 8 API endpoints, aggregates | COMPLETE |
-| Frontend workspace with filters | COMPLETE |
-| Activity + notification integration | COMPLETE |
-| Tests | 4 tests only |
-| i18n | Hardcoded `USD` placeholder in filters |
-| Checkpoint commit | **Missing** dedicated `feat: complete executive` |
+| 11-section decision workspace UI | COMPLETE |
+| 11 API endpoints (8 existing + 3 new) | COMPLETE |
+| Company Overview 6 KPI cards | COMPLETE |
+| Project card grid | COMPLETE |
+| Approvals queue (design + finance + drawing) | COMPLETE |
+| Construction snapshot (limited data, honest) | COMPLETE |
+| Tasks / Calendar honest empty states | COMPLETE |
+| Compact AI insights panel (L2 heuristic) | COMPLETE |
+| Global filters session-persisted | COMPLETE |
+| Section-level skeleton/error/retry | COMPLETE |
+| TR/EN i18n for all new widgets | COMPLETE |
+| API tests | 7 executive tests; **152 total** |
+| Browser E2E (cursor-ide-browser MCP) | **NOT RUN** — MCP tab unavailable; API verified with demo login |
+| Checkpoint commit | `feat: implement executive workspace` |
+
+**Honest gaps (unchanged):** Tasks module, Calendar/Google/Microsoft sync, Inventory/Reservations, Construction RFIs/inspections/punch items, production LLM AI provider, mixed-currency FX conversion (TD-14).
 
 ### Authentication / Users / Roles — PARTIAL
 
@@ -379,7 +389,7 @@ No conflicting migration heads in source. Single linear chain.
 
 | Command | Result |
 |---------|--------|
-| `pytest /app/tests` (Docker) | **119 passed**, 4 warnings |
+| `pytest /app/tests` (Docker) | **152 passed**, 4 warnings |
 | `pnpm --filter @investhome/web typecheck` | **Pass** (after audit fixes) |
 | `pnpm --filter @investhome/web lint` | **Pass** (2 warnings: unused vars) |
 | `pnpm --filter @investhome/web build` | Compile OK; **standalone symlink EPERM** on Windows |
@@ -402,7 +412,7 @@ No conflicting migration heads in source. Single linear chain.
 | Auth | 7 |
 | Activity | 5 |
 | Document intelligence | 4 |
-| Executive | 4 |
+| Executive | 7 |
 | Projects / Investors | 4 each |
 | Leads | 3 |
 | Health | 1 |
@@ -536,7 +546,7 @@ docker compose logs worker --tail 50
 
 Update `apps/api/src/investhome_api/worker/settings.py` to parse `REDIS_URL` from settings (same pattern as queue enqueue) instead of `host="localhost"`.
 
-### Visual Design Studio — Sprint 1 & 2 verified (PARTIAL module)
+### Visual Design Studio — Sprint 1 & 2A verified (PARTIAL module)
 
 **Sprint 1 verified 2026-07-15:**
 
@@ -553,21 +563,26 @@ Update `apps/api/src/investhome_api/worker/settings.py` to parse `REDIS_URL` fro
 | TR/EN `design` namespace | COMPLETE |
 | API tests `test_design_studio.py` | 5/5 pass |
 
-**Sprint 2 verified 2026-07-15:**
+**Sprint 2A verified 2026-07-16:**
 
 | Check | Status |
 |-------|--------|
-| Migrations `0015_design_studio_sprint2`, `0016_design_studio_sprint2a_seed` | Applied (head) |
+| Migrations `0015_design_studio_sprint2`, `0016_design_studio_sprint2a_seed` | Applied (head `0016`) |
 | Models: `StylePreset`, `MaterialPackage`, `FurnitureItem`; extended `design_parameters` | COMPLETE |
-| Permissions `design.manage_styles/materials/furniture/submit_review` | COMPLETE |
-| Catalog workspaces: Style Presets, Material Packages, Furniture Library | COMPLETE |
-| Detail tabs: Furniture Layout, Materials and Style, Compare Versions | COMPLETE |
-| Review workflow: submit, request revision, approve, reject with comments | COMPLETE |
-| Global search: style_preset, material_package, furniture_item, design_version | COMPLETE |
-| Activity log for catalog/layout/version/review events | COMPLETE |
-| API tests `test_design_studio_sprint2.py` + Sprint 1 regression | **16/16 pass** |
-| API E2E flow (preset → materials → furniture → v1/v2 → compare → review) | COMPLETE (curl) |
-| Browser E2E (cursor-ide-browser MCP) | **NOT RUN** — MCP tab unavailable; web serves `/dashboard/design` (307→login) |
+| Permissions `design.manage_styles/materials/furniture/submit_review` | COMPLETE (backend) |
+| Catalog pages: Style Presets, Material Packages, Furniture Library | COMPLETE (nav wired 2026-07-16) |
+| Detail tabs: Furniture Layout, Materials and Style | COMPLETE (wired 2026-07-16) |
+| Style presets: Modern, Luxury, Scandinavian, Industrial, Minimalist (+ extras) | COMPLETE (API + UI) |
+| Material package select/persist | COMPLETE (API + UI) |
+| Furniture: add, drag, rotate, duplicate, delete, undo/redo | COMPLETE (UI; activity on save only) |
+| Version save v1/v2; prior versions immutable | COMPLETE (API verified) |
+| Source drawings unchanged by design saves | COMPLETE (read-only link; verified API) |
+| Unauthorized API returns 401 | COMPLETE |
+| Activity log meaningful actions (not per-drag) | COMPLETE |
+| API tests Sprint 1 + Sprint 2 | **16/16 pass**; full suite **149/149 pass** |
+| Browser E2E (cursor-ide-browser MCP) | **BLOCKED** — MCP tabs fail to persist; API + Docker build verified |
+| Compare Versions UI | **NOT WIRED** — `compare-versions.tsx` exists; backend API only |
+| Review workflow UI | **NOT WIRED** — submit/approve/reject API only (Sprint 2 full backend) |
 
 **NOT implemented:** 2D-to-3D, photorealistic rendering, video generation, automatic AI furniture placement.
 

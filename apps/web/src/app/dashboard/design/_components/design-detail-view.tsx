@@ -20,11 +20,16 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { useDesignLabels } from '@/lib/i18n/design-labels';
 
 import { ColorStudio } from './color-studio';
+import { DesignStudioNav } from './design-studio-nav';
+import { FurnitureLayout } from './furniture-layout';
+import { MaterialsStyle } from './materials-style';
 
 type DetailTab =
   | 'overview'
   | 'source'
   | 'colorStudio'
+  | 'furnitureLayout'
+  | 'materialsStyle'
   | 'versions'
   | 'related'
   | 'activity';
@@ -111,6 +116,8 @@ export function DesignDetailView({ designId }: DesignDetailViewProps) {
     { id: 'overview', label: t('tabs.overview') },
     { id: 'source', label: t('tabs.sourcePlan') },
     { id: 'colorStudio', label: t('tabs.colorStudio') },
+    { id: 'furnitureLayout', label: t('tabs.furnitureLayout') },
+    { id: 'materialsStyle', label: t('tabs.materialsStyle') },
     { id: 'versions', label: t('tabs.versions') },
     { id: 'related', label: t('tabs.relatedRecords') },
     { id: 'activity', label: t('tabs.activity') },
@@ -118,6 +125,7 @@ export function DesignDetailView({ designId }: DesignDetailViewProps) {
 
   return (
     <main className="dashboard design design-detail">
+      <DesignStudioNav />
       <header className="dashboard__header">
         <div>
           <Link href={'/dashboard/design' as Route} className="dashboard__eyebrow">
@@ -181,6 +189,14 @@ export function DesignDetailView({ designId }: DesignDetailViewProps) {
 
         {activeTab === 'colorStudio' && (
           <ColorStudio design={design} latestVersion={latestVersion} onVersionSaved={() => void load()} />
+        )}
+
+        {activeTab === 'furnitureLayout' && (
+          <FurnitureLayout design={design} latestVersion={latestVersion} onVersionSaved={() => void load()} />
+        )}
+
+        {activeTab === 'materialsStyle' && (
+          <MaterialsStyle design={design} latestVersion={latestVersion} onVersionSaved={() => void load()} />
         )}
 
         {activeTab === 'versions' && (

@@ -7,6 +7,9 @@ import { useTranslations } from 'next-intl';
 
 const NAV_ITEMS = [
   { href: '/dashboard/design', key: 'projects' as const, exact: true },
+  { href: '/dashboard/design/style-presets', key: 'stylePresets' as const, exact: false },
+  { href: '/dashboard/design/material-packages', key: 'materialPackages' as const, exact: false },
+  { href: '/dashboard/design/furniture', key: 'furnitureLibrary' as const, exact: false },
 ];
 
 export function DesignStudioNav() {
