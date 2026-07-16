@@ -44,7 +44,8 @@ export type ActivityEntityType =
   | 'design_project'
   | 'inventory_asset'
   | 'building'
-  | 'floor';
+  | 'floor'
+  | 'sales_readiness';
 
 export type ActivitySource =
   | 'web'

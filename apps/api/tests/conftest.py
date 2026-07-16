@@ -87,6 +87,20 @@ from investhome_api.models.sales_proposal import (  # noqa: F401
     SalesProposalRecipient,
     SalesProposalVersion,
 )
+from investhome_api.models.sales_readiness import (  # noqa: F401
+    SalesReadinessCase,
+    SalesReadinessRequirement,
+    SalesReadinessStatusHistory,
+    SalesReadinessTemplate,
+    SalesReadinessTemplateItem,
+)
+from investhome_api.models.work_item import (  # noqa: F401
+    FollowUpRecord,
+    MeetingRecord,
+    WorkItem,
+    WorkItemParticipant,
+    WorkItemStatusHistory,
+)
 from investhome_api.models.notification import Notification  # noqa: F401
 from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole  # noqa: F401
 

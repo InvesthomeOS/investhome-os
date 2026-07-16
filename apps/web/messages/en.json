@@ -421,6 +421,7 @@
       "list": "List"
     },
     "followUpCenter": "Follow-up Center",
+    "contractReadiness": "Contract Readiness",
     "kpis": {
       "newLeads": "New Leads",
       "qualifiedLeads": "Qualified Leads",
@@ -773,6 +774,151 @@
     },
     "team": { "emptyTitle": "No team work", "emptyDescription": "Assigned work items appear grouped by user.", "unassigned": "Unassigned" },
     "layout": { "list": "List", "calendar": "Calendar", "team": "Team" }
+  },
+  "salesReadiness": {
+    "title": "Contract Readiness",
+    "subtitle": "Reservation, deposit, documents, contract, and closing handoff coordination.",
+    "nav": "Contract Readiness",
+    "backToSales": "Back to Sales",
+    "loadError": "Unable to load contract readiness.",
+    "loading": "Loading…",
+    "permissionDenied": "You do not have permission to view contract readiness.",
+    "viewsLabel": "Readiness views",
+    "mandatory": "Mandatory",
+    "requirementStatus": "Requirement status",
+    "yes": "Yes",
+    "no": "No",
+    "empty": { "title": "No readiness cases", "description": "Create a readiness case from an opportunity with inventory selected." },
+    "kpis": {
+      "activeCases": "Active Readiness Cases",
+      "blocked": "Blocked",
+      "reservationApproved": "Reservation Approved",
+      "depositPending": "Deposit Pending",
+      "depositReceived": "Deposit Received",
+      "documentsMissing": "Documents Missing",
+      "contractPreparation": "Contract Preparation",
+      "signaturePending": "Signature Pending",
+      "readyForHandoff": "Ready for Handoff",
+      "handedOffThisMonth": "Handed Off This Month"
+    },
+    "views": {
+      "overview": "Overview",
+      "in_progress": "In Progress",
+      "blocked": "Blocked",
+      "deposit_pending": "Deposit Pending",
+      "documents_missing": "Documents Missing",
+      "signature_pending": "Signature Pending",
+      "ready_for_handoff": "Ready for Handoff",
+      "handed_off": "Handed Off",
+      "archived": "Archived"
+    },
+    "status": {
+      "not_started": "Not Started",
+      "in_progress": "In Progress",
+      "blocked": "Blocked",
+      "ready_for_contract": "Ready for Contract",
+      "contract_preparation": "Contract Preparation",
+      "signature_pending": "Signature Pending",
+      "contract_signed": "Contract Signed",
+      "ready_for_closing_handoff": "Ready for Closing Handoff",
+      "handed_off": "Handed Off",
+      "cancelled": "Cancelled",
+      "archived": "Archived"
+    },
+    "requirementStatus": {
+      "missing": "Missing",
+      "pending": "Pending",
+      "received": "Received",
+      "under_review": "Under Review",
+      "verified": "Verified",
+      "rejected": "Rejected",
+      "waived": "Waived",
+      "expired": "Expired",
+      "not_applicable": "Not Applicable"
+    },
+    "groups": {
+      "reservation": "Reservation",
+      "deposit": "Deposit",
+      "party": "Party",
+      "documents": "Documents",
+      "contract": "Contract",
+      "handoff": "Handoff",
+      "other": "Other"
+    },
+    "columns": {
+      "opportunity": "Opportunity",
+      "party": "Party",
+      "asset": "Inventory Asset",
+      "percentage": "Readiness %",
+      "status": "Status",
+      "blocker": "Blocker"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "reservation": "Reservation",
+      "deposit": "Deposit",
+      "party": "Party",
+      "documents": "Documents",
+      "contract": "Contract",
+      "signature": "Signature",
+      "handoff": "Handoff",
+      "requirements": "Requirements",
+      "activity": "Activity",
+      "statusHistory": "Status History"
+    },
+    "fields": {
+      "opportunity": "Opportunity",
+      "party": "Party",
+      "asset": "Inventory Asset",
+      "targetContract": "Target Contract Date",
+      "targetHandoff": "Target Handoff Date",
+      "missingMandatory": "Missing Mandatory Items"
+    },
+    "deposit": {
+      "required": "Required deposit",
+      "received": "Received",
+      "remaining": "Remaining",
+      "currency": "Currency",
+      "overdue": "Overdue"
+    },
+    "signature": {
+      "manualNotice": "Manual signature tracking only — no external e-signature integration.",
+      "status": "Signature status",
+      "notRequested": "Not requested",
+      "markPending": "Mark signature pending"
+    },
+    "handoff": {
+      "checklistIntro": "Handoff readiness checklist — handed off does not mean closing completed.",
+      "request": "Request Handoff",
+      "review": "Review Handoff",
+      "openOpportunity": "Open Opportunity",
+      "requestTitle": "Request Closing Handoff",
+      "requestDescription": "Submit this readiness case for closing handoff approval.",
+      "notes": "Notes",
+      "cancel": "Cancel",
+      "requestSubmit": "Submit Request",
+      "approveTitle": "Approve Closing Handoff",
+      "approveDescription": "Approve handoff for case {caseCode}?",
+      "return": "Return for Correction",
+      "approveSubmit": "Approve Handoff",
+      "returnReasonPrompt": "Reason for returning handoff"
+    },
+    "waiver": {
+      "title": "Waive Requirement",
+      "description": "Waive mandatory requirement: {title}",
+      "reason": "Waiver reason",
+      "cancel": "Cancel",
+      "submit": "Waive"
+    },
+    "actions": { "verify": "Verify", "waive": "Waive" },
+    "detail": { "title": "Readiness Case" },
+    "opportunityTab": {
+      "title": "Contract Readiness",
+      "empty": "No active readiness case.",
+      "create": "Create Readiness Case",
+      "open": "Open Readiness Case",
+      "createFollowUp": "Create Follow-up"
+    }
   },
   "investors": {
     "eyebrow": "Capital",

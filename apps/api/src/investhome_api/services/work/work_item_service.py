@@ -66,6 +66,12 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
+def _ensure_aware(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value
+
+
 def _company_timezone(db: Session) -> ZoneInfo:
     profile = db.scalar(select(CompanyProfile).limit(1))
     tz_name = profile.default_timezone if profile else "Europe/Istanbul"
@@ -87,7 +93,7 @@ def derive_effective_status(item: WorkItem, *, clock: datetime | None = None) ->
     now = clock or _now()
     if item.status in TERMINAL_WORK_ITEM_STATUSES or item.archived_at is not None:
         return item.status
-    if item.due_at is not None and item.due_at < now and item.status in ACTIVE_WORK_ITEM_STATUSES:
+    if item.due_at is not None and _ensure_aware(item.due_at) < now and item.status in ACTIVE_WORK_ITEM_STATUSES:
         return WorkItemStatus.OVERDUE
     return item.status
 
@@ -205,15 +211,10 @@ def sync_opportunity_next_action(db: Session, opportunity_id: UUID, *, actor: Us
     next_date = nearest.due_at.date() if nearest.due_at else None
     if next_date is None:
         return
-    if actor is None:
-        return
-    opp_svc.update_next_action(
-        db,
-        opportunity,
-        next_action=OpportunityNextAction(action_key),
-        next_action_date=next_date,
-        actor=actor,
-    )
+    opportunity.next_action = OpportunityNextAction(action_key)
+    opportunity.next_action_date = next_date
+    opportunity.updated_at = _now()
+    db.flush()
 
 
 def create_work_item(
@@ -797,7 +798,8 @@ def list_overdue(db: Session, user: User, *, limit: int = 100) -> list[WorkItem]
         WorkItem.due_at < now,
         WorkItem.status.in_(list(ACTIVE_WORK_ITEM_STATUSES)),
     )
-    return list(db.scalars(query.order_by(WorkItem.due_at.asc()).limit(limit)).all())
+    items = list(db.scalars(query.order_by(WorkItem.due_at.asc()).limit(limit)).all())
+    return [item for item in items if item.due_at and _ensure_aware(item.due_at) < now]
 
 
 def list_upcoming(

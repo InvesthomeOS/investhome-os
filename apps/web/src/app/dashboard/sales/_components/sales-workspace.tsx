@@ -511,9 +511,16 @@ export function SalesWorkspace() {
               {t('views.list')}
             </button>
             {user && hasPermission(user, 'work', 'view') && (
-              <Link href={'/dashboard/sales/follow-up' as Route} className="leads__button leads__button--secondary">
-                {t('followUpCenter')}
-              </Link>
+              <>
+                <Link href={'/dashboard/sales/follow-up' as Route} className="leads__button leads__button--secondary">
+                  {t('followUpCenter')}
+                </Link>
+                {hasPermission(user, 'sales', 'view_readiness') && (
+                  <Link href={'/dashboard/sales/readiness' as Route} className="leads__button leads__button--secondary">
+                    {t('contractReadiness')}
+                  </Link>
+                )}
+              </>
             )}
           </div>
           {canCreate && (

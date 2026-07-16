@@ -421,6 +421,7 @@
       "list": "Liste"
     },
     "followUpCenter": "Takip Merkezi",
+    "contractReadiness": "Sözleşme Hazırlığı",
     "kpis": {
       "newLeads": "Yeni Leadler",
       "qualifiedLeads": "Nitelikli Leadler",
@@ -730,6 +731,151 @@
     },
     "team": { "emptyTitle": "Ekip işi yok", "emptyDescription": "Atanan iş öğeleri kullanıcıya göre gruplanır.", "unassigned": "Atanmamış" },
     "layout": { "list": "Liste", "calendar": "Takvim", "team": "Ekip" }
+  },
+  "salesReadiness": {
+    "title": "Sözleşme Hazırlığı",
+    "subtitle": "Rezervasyon, kapora, belgeler, sözleşme ve kapanış devir koordinasyonu.",
+    "nav": "Sözleşme Hazırlığı",
+    "backToSales": "Satışa Dön",
+    "loadError": "Sözleşme hazırlığı yüklenemedi.",
+    "loading": "Yükleniyor…",
+    "permissionDenied": "Sözleşme hazırlığını görüntüleme izniniz yok.",
+    "viewsLabel": "Hazırlık görünümleri",
+    "mandatory": "Zorunlu",
+    "requirementStatus": "Gereklilik durumu",
+    "yes": "Evet",
+    "no": "Hayır",
+    "empty": { "title": "Hazırlık dosyası yok", "description": "Envanter seçili bir fırsattan hazırlık dosyası oluşturun." },
+    "kpis": {
+      "activeCases": "Aktif Hazırlık Dosyaları",
+      "blocked": "Engellendi",
+      "reservationApproved": "Rezervasyon Onaylandı",
+      "depositPending": "Kapora Bekleniyor",
+      "depositReceived": "Kapora Alındı",
+      "documentsMissing": "Eksik Belgeler",
+      "contractPreparation": "Sözleşme Hazırlığı",
+      "signaturePending": "İmza Bekleniyor",
+      "readyForHandoff": "Kapanışa Devre Hazır",
+      "handedOffThisMonth": "Bu Ay Devredilen"
+    },
+    "views": {
+      "overview": "Genel Bakış",
+      "in_progress": "Devam Eden",
+      "blocked": "Engelli",
+      "deposit_pending": "Kapora Bekleyen",
+      "documents_missing": "Eksik Belgeler",
+      "signature_pending": "İmza Bekleyen",
+      "ready_for_handoff": "Devre Hazır",
+      "handed_off": "Devredildi",
+      "archived": "Arşiv"
+    },
+    "status": {
+      "not_started": "Başlamadı",
+      "in_progress": "Devam Ediyor",
+      "blocked": "Engellendi",
+      "ready_for_contract": "Sözleşmeye Hazır",
+      "contract_preparation": "Sözleşme Hazırlığı",
+      "signature_pending": "İmza Bekleniyor",
+      "contract_signed": "Sözleşme İmzalandı",
+      "ready_for_closing_handoff": "Kapanışa Devre Hazır",
+      "handed_off": "Devredildi",
+      "cancelled": "İptal",
+      "archived": "Arşivlendi"
+    },
+    "requirementStatus": {
+      "missing": "Eksik",
+      "pending": "Beklemede",
+      "received": "Alındı",
+      "under_review": "İncelemede",
+      "verified": "Doğrulandı",
+      "rejected": "Reddedildi",
+      "waived": "Muaf Tutuldu",
+      "expired": "Süresi Doldu",
+      "not_applicable": "Uygulanamaz"
+    },
+    "groups": {
+      "reservation": "Rezervasyon",
+      "deposit": "Kapora",
+      "party": "Taraf",
+      "documents": "Belgeler",
+      "contract": "Sözleşme",
+      "handoff": "Devir",
+      "other": "Diğer"
+    },
+    "columns": {
+      "opportunity": "Fırsat",
+      "party": "Taraf",
+      "asset": "Envanter",
+      "percentage": "Hazırlık %",
+      "status": "Durum",
+      "blocker": "Engel"
+    },
+    "tabs": {
+      "overview": "Genel Bakış",
+      "reservation": "Rezervasyon",
+      "deposit": "Kapora",
+      "party": "Taraf",
+      "documents": "Belgeler",
+      "contract": "Sözleşme",
+      "signature": "İmza",
+      "handoff": "Devir",
+      "requirements": "Gereklilikler",
+      "activity": "Aktivite",
+      "statusHistory": "Durum Geçmişi"
+    },
+    "fields": {
+      "opportunity": "Fırsat",
+      "party": "Taraf",
+      "asset": "Envanter",
+      "targetContract": "Hedef Sözleşme Tarihi",
+      "targetHandoff": "Hedef Devir Tarihi",
+      "missingMandatory": "Eksik Zorunlu Gereklilikler"
+    },
+    "deposit": {
+      "required": "Gerekli kapora",
+      "received": "Alınan",
+      "remaining": "Kalan",
+      "currency": "Para birimi",
+      "overdue": "Gecikmiş"
+    },
+    "signature": {
+      "manualNotice": "Yalnızca manuel imza takibi — harici e-imza entegrasyonu yok.",
+      "status": "İmza durumu",
+      "notRequested": "Talep edilmedi",
+      "markPending": "İmza bekleniyor işaretle"
+    },
+    "handoff": {
+      "checklistIntro": "Devir hazırlık kontrol listesi — devredildi kapanış tamamlandı anlamına gelmez.",
+      "request": "Devir Talep Et",
+      "review": "Devri İncele",
+      "openOpportunity": "Fırsatı Aç",
+      "requestTitle": "Kapanış Devri Talep Et",
+      "requestDescription": "Bu hazırlık dosyasını kapanış devri onayına gönderin.",
+      "notes": "Notlar",
+      "cancel": "İptal",
+      "requestSubmit": "Talebi Gönder",
+      "approveTitle": "Kapanış Devrini Onayla",
+      "approveDescription": "{caseCode} dosyası için devir onaylansın mı?",
+      "return": "Düzeltme İçin İade",
+      "approveSubmit": "Devri Onayla",
+      "returnReasonPrompt": "İade nedeni"
+    },
+    "waiver": {
+      "title": "Gerekliliği Muaf Tut",
+      "description": "Zorunlu gerekliliği muaf tut: {title}",
+      "reason": "Muafiyet nedeni",
+      "cancel": "İptal",
+      "submit": "Muaf Tut"
+    },
+    "actions": { "verify": "Doğrula", "waive": "Muaf Tut" },
+    "detail": { "title": "Hazırlık Dosyası" },
+    "opportunityTab": {
+      "title": "Sözleşme Hazırlığı",
+      "empty": "Aktif hazırlık dosyası yok.",
+      "create": "Hazırlık Dosyası Oluştur",
+      "open": "Hazırlık Dosyasını Aç",
+      "createFollowUp": "Takip Oluştur"
+    }
   },
   "investors": {
     "eyebrow": "Sermaye",

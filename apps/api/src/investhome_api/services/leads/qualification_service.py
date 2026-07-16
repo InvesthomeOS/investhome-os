@@ -21,6 +21,7 @@ from investhome_api.models.lead_qualification import (
     LeadTimeline,
     QualificationStatus,
 )
+from investhome_api.schemas.lead_qualification import LeadFollowUpResponse
 from investhome_api.models.work_item import FollowUpRecord, WorkItem
 from investhome_api.models.user_auth import User
 from investhome_api.services.activity_recorder import log_entity_created, log_entity_updated
@@ -254,7 +255,7 @@ def remove_inventory_interest(db: Session, lead_id: UUID, interest_id: UUID) -> 
     db.flush()
 
 
-def list_follow_ups(db: Session, lead_id: UUID) -> list[LeadFollowUp]:
+def list_follow_ups(db: Session, lead_id: UUID) -> list[dict]:
     """List follow-ups for a lead — reads from shared WorkItem store."""
     from investhome_api.models.work_item import WorkItem
 
@@ -269,17 +270,18 @@ def list_follow_ups(db: Session, lead_id: UUID) -> list[LeadFollowUp]:
     if work_items:
         return [_work_item_as_lead_follow_up(item) for item in work_items]
 
-    return list(
+    legacy = list(
         db.scalars(
             select(LeadFollowUp)
             .where(LeadFollowUp.lead_id == lead_id)
             .order_by(LeadFollowUp.due_at.asc())
         ).all()
     )
+    return [LeadFollowUpResponse.model_validate(row).model_dump() for row in legacy]
 
 
-def _work_item_as_lead_follow_up(item: WorkItem) -> LeadFollowUp:
-    """Adapt WorkItem to legacy LeadFollowUp shape for API compatibility."""
+def _work_item_as_lead_follow_up(item: WorkItem) -> dict:
+    """Adapt WorkItem to legacy LeadFollowUp response shape."""
     from investhome_api.models.work_item import WorkItemStatus, WorkItemType
 
     type_map = {
@@ -293,19 +295,21 @@ def _work_item_as_lead_follow_up(item: WorkItem) -> LeadFollowUp:
         WorkItemStatus.CANCELLED: FollowUpStatus.CANCELLED,
         WorkItemStatus.OVERDUE: FollowUpStatus.OVERDUE,
     }
-    follow_up = LeadFollowUp(
-        id=item.legacy_lead_follow_up_id or item.id,
-        lead_id=item.lead_id,
-        follow_up_type=type_map.get(item.work_item_type, FollowUpType.OTHER),
-        due_at=item.due_at or item.created_at,
-        completed_at=item.completed_at,
-        assigned_user_id=item.assigned_user_id,
-        notes=item.description,
-        status=status_map.get(item.status, FollowUpStatus.PENDING),
-        created_at=item.created_at,
-        updated_at=item.updated_at,
-    )
-    return follow_up
+    wi_status = status_map.get(item.status, FollowUpStatus.PENDING)
+    if item.due_at and _ensure_aware(item.due_at) < _now() and wi_status == FollowUpStatus.PENDING:
+        wi_status = FollowUpStatus.OVERDUE
+    return {
+        "id": item.legacy_lead_follow_up_id or item.id,
+        "lead_id": item.lead_id,
+        "follow_up_type": type_map.get(item.work_item_type, FollowUpType.OTHER),
+        "due_at": item.due_at or item.created_at,
+        "completed_at": item.completed_at,
+        "assigned_user_id": item.assigned_user_id,
+        "notes": item.description,
+        "status": wi_status,
+        "created_at": item.created_at,
+        "updated_at": item.updated_at,
+    }
 
 
 def create_follow_up(
@@ -315,9 +319,9 @@ def create_follow_up(
     *,
     actor: User,
     request: Request | None = None,
-) -> LeadFollowUp:
+) -> dict:
     """Create follow-up via shared WorkItem — bridges legacy LeadFollowUp API."""
-    from investhome_api.models.work_item import ContactMethod, WorkItemType
+    from investhome_api.models.work_item import ContactMethod, RelatedEntityType, WorkItemType
     from investhome_api.services.work import work_item_service as work_svc
 
     lead = _get_lead_or_raise(db, lead_id)
@@ -339,7 +343,7 @@ def create_follow_up(
             "assigned_user_id": data.get("assigned_user_id"),
             "notes": data.get("notes"),
             "lead_id": lead_id,
-            "related_entity_type": "lead",
+            "related_entity_type": RelatedEntityType.LEAD,
             "related_entity_id": lead_id,
             "contact_method": ContactMethod.CALL,
         },
@@ -364,7 +368,7 @@ def complete_follow_up(
     *,
     actor: User,
     request: Request | None = None,
-) -> LeadFollowUp:
+) -> dict:
     from investhome_api.models.work_item import WorkItem
     from investhome_api.services.work import work_item_service as work_svc
 

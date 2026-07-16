@@ -20,6 +20,11 @@ import {
   fetchProposals,
   type SalesProposal,
 } from '@/lib/api/sales-proposals';
+import {
+  createReadinessCase,
+  fetchOpportunityReadiness,
+  type ReadinessCase,
+} from '@/lib/api/sales-readiness';
 import { fetchOpportunityWorkItems, type WorkItem } from '@/lib/api/work-items';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
@@ -44,6 +49,7 @@ type DetailTab =
   | 'reservations'
   | 'documents'
   | 'finance'
+  | 'readiness'
   | 'activity'
   | 'timeline';
 
@@ -103,6 +109,7 @@ export function SalesDetailDrawer({
   onLinkInventory,
 }: SalesDetailDrawerProps) {
   const t = useTranslations('sales');
+  const tReadiness = useTranslations('salesReadiness');
   const tCommon = useTranslations('common');
   const locale = useLocale();
   const { user } = useAuth();
@@ -126,8 +133,13 @@ export function SalesDetailDrawer({
   const [creatingProposal, setCreatingProposal] = useState(false);
   const [workItems, setWorkItems] = useState<WorkItem[]>([]);
   const [workItemsLoading, setWorkItemsLoading] = useState(false);
+  const [readinessCase, setReadinessCase] = useState<ReadinessCase | null>(null);
+  const [readinessLoading, setReadinessLoading] = useState(false);
+  const [creatingReadiness, setCreatingReadiness] = useState(false);
 
   const canViewProposals = user ? hasPermission(user, 'sales', 'view_proposal') : false;
+  const canViewReadiness = user ? hasPermission(user, 'sales', 'view_readiness') : false;
+  const canCreateReadiness = user ? hasPermission(user, 'sales', 'create_readiness') : false;
   const canViewWork = user ? hasPermission(user, 'work', 'view') : false;
   const canCreateProposal = user ? hasPermission(user, 'sales', 'create_proposal') : false;
   const canViewDocuments = user ? hasPermission(user, 'documents', 'view') : false;
@@ -250,6 +262,36 @@ export function SalesDetailDrawer({
     }
   }, [opportunity, activeTab, canViewWork, loadWorkItems]);
 
+  const loadReadiness = useCallback(async () => {
+    if (!opportunity) return;
+    setReadinessLoading(true);
+    try {
+      setReadinessCase(await fetchOpportunityReadiness(opportunity.id));
+    } catch {
+      setReadinessCase(null);
+    } finally {
+      setReadinessLoading(false);
+    }
+  }, [opportunity]);
+
+  useEffect(() => {
+    if (opportunity && activeTab === 'readiness' && canViewReadiness) {
+      void loadReadiness();
+    }
+  }, [opportunity, activeTab, canViewReadiness, loadReadiness]);
+
+  const handleCreateReadiness = async () => {
+    if (!opportunity) return;
+    setCreatingReadiness(true);
+    try {
+      const assetId = linkedInventoryIds[0];
+      const created = await createReadinessCase(opportunity.id, assetId ? { inventory_asset_id: assetId } : {});
+      setReadinessCase(created);
+    } finally {
+      setCreatingReadiness(false);
+    }
+  };
+
   const handleCreateProposal = useCallback(async () => {
     if (!opportunity) return;
     setCreatingProposal(true);
@@ -292,6 +334,7 @@ export function SalesDetailDrawer({
     { id: 'reservations', label: t('detail.tabs.reservations') },
     ...(canViewDocuments ? [{ id: 'documents', label: t('detail.tabs.documents') }] : []),
     ...(canViewFinance ? [{ id: 'finance', label: t('detail.tabs.finance') }] : []),
+    ...(canViewReadiness ? [{ id: 'readiness', label: tReadiness('opportunityTab.title') }] : []),
     ...(canViewActivity ? [{ id: 'activity', label: t('detail.tabs.activity') }] : []),
     { id: 'timeline', label: t('detail.tabs.timeline') },
   ];
@@ -543,6 +586,37 @@ export function SalesDetailDrawer({
               <p>
                 {t('stageChange.lossReason')}: {getLossReasonLabel(opportunity.loss_reason)}
               </p>
+            )}
+          </section>
+        )}
+
+        {activeTab === 'readiness' && canViewReadiness && (
+          <section className="leads-drawer__section">
+            {readinessLoading && <p>{tCommon('loading')}</p>}
+            {!readinessLoading && !readinessCase && (
+              <>
+                <p className="leads__state">{tReadiness('opportunityTab.empty')}</p>
+                {canCreateReadiness && linkedInventoryIds.length > 0 && (
+                  <Button variant="secondary" disabled={creatingReadiness} onClick={() => void handleCreateReadiness()}>
+                    {tReadiness('opportunityTab.create')}
+                  </Button>
+                )}
+              </>
+            )}
+            {readinessCase && (
+              <dl className="leads-drawer__grid">
+                <DetailField label={tReadiness('fields.opportunity')} value={readinessCase.case_code} />
+                <DetailField label={tReadiness('columns.percentage')} value={`${readinessCase.readiness_percentage}%`} />
+                <DetailField label={tReadiness('columns.status')} value={readinessCase.status} />
+                <DetailField label={tReadiness('columns.blocker')} value={readinessCase.blocker_summary ?? '—'} />
+                <DetailField label={tReadiness('deposit.required')} value={readinessCase.deposit_summary?.deposit_amount ?? '—'} />
+              </dl>
+            )}
+            {readinessCase && (
+              <div className="sales-readiness-opportunity-actions">
+                <Link href={'/dashboard/sales/readiness' as Route}>{tReadiness('opportunityTab.open')}</Link>
+                <Link href={'/dashboard/sales/follow-up' as Route}>{tReadiness('opportunityTab.createFollowUp')}</Link>
+              </div>
             )}
           </section>
         )}

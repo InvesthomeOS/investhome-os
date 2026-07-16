@@ -140,6 +140,17 @@ ACTIONS = frozenset(
         "complete",
         "cancel",
         "view_private",
+        "view_readiness",
+        "create_readiness",
+        "update_readiness",
+        "verify_readiness",
+        "request_handoff",
+        "approve_handoff",
+        "return_handoff",
+        "view_deposit_status",
+        "view_contract_documents",
+        "waive_requirement",
+        "manage_readiness_template",
     }
 )
 
@@ -220,6 +231,9 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("work", "view"),
         ("work", "view_team"),
         ("work", "view_private"),
+        ("sales", "view_readiness"),
+        ("sales", "approve_handoff"),
+        ("sales", "view_deposit_status"),
     ],
     "partner": [
         ("executive", "view"),
@@ -327,6 +341,13 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("work", "cancel"),
         ("work", "archive"),
         ("work", "view_private"),
+        ("sales", "view_readiness"),
+        ("sales", "create_readiness"),
+        ("sales", "update_readiness"),
+        ("sales", "verify_readiness"),
+        ("sales", "request_handoff"),
+        ("sales", "view_deposit_status"),
+        ("sales", "view_contract_documents"),
     ],
     "investor_relations": [
         ("investors", "view"),
@@ -417,6 +438,10 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("inventory", "view_assignment_price"),
         ("sales", "view"),
         ("sales", "view_lead"),
+        ("sales", "view_readiness"),
+        ("sales", "view_deposit_status"),
+        ("sales", "verify_readiness"),
+        ("sales", "waive_requirement"),
     ],
     "construction": [
         ("projects", "view"),
