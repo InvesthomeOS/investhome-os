@@ -2,7 +2,7 @@
 
 **Audit date:** 2026-07-16  
 **Repository:** `investhome-os`  
-**Latest commit:** `1a67df7` — `feat: add sales follow-up center`  
+**Latest commit:** `39af186` — `fix: harden sales contract readiness verification` (5B7 feature: `c5f208f`)  
 **Branch:** `main`
 
 ---
