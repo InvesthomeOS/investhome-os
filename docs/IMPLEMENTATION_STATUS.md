@@ -2,7 +2,7 @@
 
 **Audit date:** 2026-07-16  
 **Repository:** `investhome-os`  
-**Latest commit:** `ad28d1f` — `feat: sales opportunity backend foundation`  
+**Latest commit:** `6c75135` — `feat: sales opportunity backend foundation`  
 **Branch:** `main`
 
 ---
