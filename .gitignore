@@ -53,8 +53,12 @@ logs/
 npm-debug.log*
 pnpm-debug.log*
 
-# Docker
-docker-data/
+# TailAdmin compatibility spike (temporary clone — not production)
+.tmp-tailadmin/
+
+# GitHub UI audit clones (temporary — not production)
+.tmp-github-ui/
+
 
 # n8n
 automations/n8n/.n8n/
@@ -65,3 +69,11 @@ automations/n8n/.n8n/
 
 # Alembic
 # Keep versions tracked; ignore local overrides if any
+
+# G12 real migration extracts (PII / financial) — keep folder via .gitkeep
+data/migration-sources/**
+!data/migration-sources/.gitkeep
+
+# Mosaic Lite evaluation clone (temporary — not production)
+.tmp-mosaic/
+

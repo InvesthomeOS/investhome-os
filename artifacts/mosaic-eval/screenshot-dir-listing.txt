@@ -1,0 +1,3 @@
+mosaic-customer.png	176594
+mosaic-dashboard.png	273301
+mosaic-leads.png	195785

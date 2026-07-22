@@ -1,0 +1,37 @@
+{
+  "base": "http://localhost:3000",
+  "results": [
+    {
+      "name": "mosaic-dashboard.png",
+      "path": "/ui-preview/mosaic/dashboard",
+      "size": 273301,
+      "ok": true
+    },
+    {
+      "name": "mosaic-leads.png",
+      "path": "/ui-preview/mosaic/leads",
+      "size": 195785,
+      "ok": true
+    },
+    {
+      "name": "mosaic-customer.png",
+      "path": "/ui-preview/mosaic/customer",
+      "size": 176594,
+      "ok": true
+    }
+  ],
+  "listing": [
+    {
+      "name": "mosaic-customer.png",
+      "size": 176594
+    },
+    {
+      "name": "mosaic-dashboard.png",
+      "size": 273301
+    },
+    {
+      "name": "mosaic-leads.png",
+      "size": 195785
+    }
+  ]
+}
