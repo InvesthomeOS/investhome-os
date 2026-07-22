@@ -5,6 +5,7 @@
 **Date:** 2026-07-22  
 **Branch:** `ui/mosaic-evaluation`  
 **Baseline commit (branch point / dirty HEAD):** `b5a79c6efba889978e90023cc153d2487d8b65c2`  
+**Evaluation commit SHA:** `22b770289afaeddc3593575cd19c944ad2a686b6`  
 **Official source:** [cruip/tailwind-dashboard-template](https://github.com/cruip/tailwind-dashboard-template) (Mosaic Lite)
 
 ---
