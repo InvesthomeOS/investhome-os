@@ -1,22 +1,21 @@
 /* UXR1 Review Package — shared visual system */
 :root {
-  /* UXR1 V2 palette overlay for review chrome */
-  --bg: #f8fafc;
+  --bg: #f6f7f9;
   --bg-elevated: #ffffff;
-  --ink: #0f2744;
-  --ink-muted: #64748b;
+  --ink: #1a1f2e;
+  --ink-muted: #5c6578;
   --ink-soft: #8b93a7;
-  --stroke: #e2e8f0;
-  --accent: #2563eb;
-  --accent-soft: #eff6ff;
+  --stroke: #e4e7ee;
+  --accent: #1e4d6b;
+  --accent-soft: #e8f1f6;
   --danger: #9b3a3a;
   --danger-soft: #f8ecec;
   --warn: #8a5a12;
   --warn-soft: #f7f0e4;
   --ok: #1f5c45;
   --ok-soft: #e8f3ee;
-  --radius: 16px;
-  --shadow: 0 1px 2px rgba(15, 39, 68, 0.04), 0 6px 20px rgba(15, 39, 68, 0.07);
+  --radius: 12px;
+  --shadow: 0 1px 0 rgba(26, 31, 46, 0.04);
   --max: 1120px;
   --font: "Instrument Sans", system-ui, sans-serif;
   --serif: "Source Serif 4", Georgia, serif;
