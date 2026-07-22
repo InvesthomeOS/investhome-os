@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UXR1 · Section 06 — Sales Pipeline · INVESTHOME OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="_shared.css" />
+</head>
+<body>
+
+<div class="wrap">
+  <nav class="crumb">
+    <a href="index.html">UXR1 Review Package</a>
+    <span>/</span>
+    <span>Visual review · no code</span>
+  </nav>
+  <div class="topline">
+    <div class="brand">
+      <div class="brand-mark">IH</div>
+      <div>
+        <div class="brand-name">INVESTHOME OS</div>
+        <div class="brand-sub">UXR1 Simplification · Visual deliverables only</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge ok">APPROVED · V2</span>
+      <span class="badge pending">V2 REFINE</span>
+    </div>
+  </div>
+
+  <header class="hero">
+    <div class="eyebrow">Section 06 · Wireframe + mockup</div>
+    <h1>Sales Pipeline</h1>
+    <p class="lede">Kanban-first pipeline with matching drawer — stages from New through Won/Lost, soft-hold urgency visible on cards.</p>
+    <div class="meta-row">
+      <span><strong>Route</strong> <code>/dashboard/sales</code></span>
+      <span><strong>Audience</strong> Sales team · managers</span>
+      <span><strong>Primary UI</strong> Kanban board · List secondary</span>
+    </div>
+    <nav class="toc">
+      <a href="#today">Today's work</a>
+      <a href="#wireframe">Low-fi wireframe</a>
+      <a href="#hifi">High-fidelity</a>
+      <a href="#desktop">Desktop</a>
+      <a href="#mobile">Mobile</a>
+      <a href="#journey">Journey</a>
+      <a href="#actions">Actions</a>
+      <a href="#fields">Fields</a>
+      <a href="#rationale">Rationale</a>
+    </nav>
+  </header>
+
+  <section id="today">
+    <div class="section-head">
+      <h2>Today's work</h2>
+      <span class="section-note">Who finishes faster · operational, not decorative</span>
+    </div>
+    <div class="today-work">
+      <div class="today-work-grid">
+        
+        <div class="today-card">
+          <div class="today-role">Salesperson</div>
+          <div class="today-task">Move Ada from Proposal → Soft hold with a matched unit</div>
+          <div class="today-faster">Board + drawer match panel — no spreadsheet hop mid-deal.</div>
+        </div>
+        <div class="today-card">
+          <div class="today-role">Marketer</div>
+          <div class="today-task">See which Meta leads stall after handoff</div>
+          <div class="today-faster">Source on cards + overdue KPI show stall without a second pipeline.</div>
+        </div>
+        <div class="today-card">
+          <div class="today-role">Investor manager</div>
+          <div class="today-task">Track holds that need capital follow-up</div>
+          <div class="today-faster">Soft-hold column makes expiring urgency visible on the card.</div>
+        </div>
+        <div class="today-card">
+          <div class="today-role">Executive</div>
+          <div class="today-task">Know open / overdue / closing this week</div>
+          <div class="today-faster">KPI strip answers pipeline health; board is the workspace, not a report.</div>
+        </div>
+      </div>
+      <p class="today-principle">Operational kanban first. List, attribution payloads, and finance settlement stay progressive — backend capable, UI calm.</p>
+    </div>
+  </section>
+
+  <section id="wireframe">
+    <div class="section-head">
+      <h2>Low-fidelity wireframe</h2>
+      <span class="section-note">Structured layout · boxes only</span>
+    </div>
+    <p class="section-intro">Board columns are the product. Card click opens a drawer; Match inventory is a visual panel, not a spreadsheet detour.</p>
+    <div class="wire">
+      <div class="wire-frame">
+        <div class="wire-top"><span>Sales · [Board ●] [List] · Owner ▾ Project ▾</span><span>Open 86 · Overdue 8 · Holds 5</span></div>
+        <div class="wire-main">
+          <div class="wire-row" style="flex-wrap:nowrap;overflow:auto">
+            <div class="wire-box tall" style="min-width:110px;flex:0"><div class="wire-label">New</div><div class="wire-box muted" style="margin-top:6px">Ada Y. 8–12M Meta</div></div><div class="wire-box tall" style="min-width:110px;flex:0"><div class="wire-label">Qualified</div><div class="wire-box muted" style="margin-top:6px">M. Kaya Budget?</div></div><div class="wire-box tall" style="min-width:110px;flex:0"><div class="wire-label">Meeting</div><div class="wire-box muted" style="margin-top:6px">—</div></div><div class="wire-box tall" style="min-width:110px;flex:0"><div class="wire-label">Proposal</div><div class="wire-box muted" style="margin-top:6px">PDF sent</div></div><div class="wire-box tall" style="min-width:110px;flex:0"><div class="wire-label">Soft hold</div><div class="wire-box muted" style="margin-top:6px">Unit A12 expires</div></div>
+          </div>
+          <div class="wire-box muted"><div class="wire-label">Drawer · Opportunity Ada Yılmaz</div>Stage Proposal → Change · Customer · Match 3 units · Follow-up Today</div>
+        </div>
+      </div></div>
+  </section>
+
+  <section id="hifi">
+    <div class="section-head">
+      <h2>High-fidelity mockup</h2>
+      <span class="section-note">Premium light SaaS · sales/marketing friendly</span>
+    </div>
+    <p class="section-intro">Spacious kanban with KPI strip and soft-hold emphasis — CRM that feels commercial, not enterprise-dense.</p>
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Desktop frame · Sales Pipeline</span>
+        <span class="badge pending">Mockup</span>
+      </div>
+      <img class="mock-img" src="mockups/06-sales-pipeline-desktop.png" alt="Sales Pipeline high-fidelity desktop mockup" />
+      <div class="mock-caption">High-fidelity desktop · Sales board with stage columns and opportunity cards.</div>
+    </div>
+  </section>
+
+  <section id="desktop">
+    <div class="section-head">
+      <h2>Desktop layout</h2>
+      <span class="section-note">Primary working surface</span>
+    </div>
+    <div class="split">
+      <div class="card">
+        <h3>Composition</h3>
+        <ul><li>Header: Board/List toggle · Owner · Project filters · KPI strip</li><li>Columns: New → Qualified → Meeting → Proposal → Soft hold → Reservation → Deposit → Contract → (Won/Lost via Closed filter)</li><li>Cards: name, budget band, source, unit if held, follow-up cue</li><li>Drawer: stage change, customer link, match panel, notes/docs</li></ul>
+      </div>
+      <div class="card">
+        <h3>Density & hierarchy</h3>
+        <ul><li>Won/Lost collapse into Closed filter on smaller widths</li><li>Soft hold / Reservation / Deposit / Contract confirm before move</li><li>Lost requires reason; Won requires closing checklist handoff</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="mobile">
+    <div class="section-head">
+      <h2>Mobile behavior &amp; preview</h2>
+      <span class="section-note">Phone-first adaptations · operational queue first</span>
+    </div>
+    <div class="split">
+      <div class="mobile-preview">
+        <div class="wire">
+      <div class="wire-phone">
+        <div class="ph-top">Sales · Board</div>
+        <div class="ph-body">
+          <div class="wire-box"><div class="wire-label">Stage chips (scroll)</div>New · Qual · Meet · Prop · Hold…</div>
+          <div class="wire-box tall"><div class="wire-label">Cards in selected stage</div>Ada Y. · 8–12M · Meta</div>
+        </div>
+        <div class="ph-tabbar">
+          <div class="ph-tab">Home</div>
+          <div class="ph-tab active">Sales</div>
+          <div class="ph-tab">Inv</div>
+          <div class="ph-tab">More</div>
+        </div>
+      </div></div>
+        <p class="mobile-note">Primary mobile job: finish today’s queue — not recreate the desktop dashboard.</p>
+      </div>
+      <div class="card">
+        <h3>Behavior rules</h3>
+        <ul><li>Horizontal stage selector; one column visible at a time</li><li>Swipe between stages optional; List view default for bulk</li><li>Drawer becomes full-screen sheet</li><li>Match panel: vertical mini-cards with Hold/View</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="journey">
+    <div class="section-head">
+      <h2>User journey</h2>
+    </div>
+    <div class="journey">
+      <span class="j-step">New lead card</span><span class="j-arrow">→</span><span class="j-step">Qualify</span><span class="j-arrow">→</span><span class="j-step">Meeting</span><span class="j-arrow">→</span><span class="j-step">Proposal</span><span class="j-arrow">→</span><span class="j-step">Soft hold</span><span class="j-arrow">→</span><span class="j-step">Reserve → Win</span>
+    </div>
+    <p class="section-intro" style="margin-top:14px">Matching can start from board drawer, inventory card, or customer Matches tab — same panel contract.</p>
+  </section>
+
+  <section id="actions">
+    <div class="section-head">
+      <h2>Primary actions</h2>
+    </div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Action</th><th>Where</th><th>Outcome</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Drag / Change stage</strong></td><td>Card or drawer</td><td>Moves opportunity; gated stages confirm</td></tr><tr><td><strong>Match inventory</strong></td><td>Drawer / card</td><td>Visual unit mini-cards + Hold</td></tr><tr><td><strong>Open customer</strong></td><td>Drawer</td><td>Unified profile</td></tr><tr><td><strong>Set follow-up</strong></td><td>Drawer</td><td>Updates urgency on card</td></tr><tr><td><strong>Mark Lost / Won</strong></td><td>Stage change</td><td>Reason or closing checklist</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="fields">
+    <div class="section-head">
+      <h2>Visible &amp; hidden fields</h2>
+      <span class="section-note">Progressive disclosure · docs 12–13</span>
+    </div>
+    <div class="field-grid">
+      <div class="card field-box ok">
+        <h3>Visible (daily)</h3>
+        <ul><li>Customer name · stage · owner</li><li>Budget band / value · project interest / held unit</li><li>Follow-up due · source (small)</li><li>KPI: open, overdue, soft holds, closing this week</li></ul>
+      </div>
+      <div class="card field-box hide">
+        <h3>Hidden (Details / Advanced)</h3>
+        <ul><li>Full attribution payload · score internals</li><li>Legal/reservation document fields until stage needs them</li><li>Finance settlement details (post-Won handoff)</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="rationale">
+    <div class="section-head">
+      <h2>Design rationale</h2>
+      <span class="section-note">Why better than current</span>
+    </div>
+    <div class="callout">
+      <h3>Pipeline is the workspace, not a report</h3>
+      <p>Current sales surfaces bury matching and stage discipline. Kanban-first with a shared match panel makes soft holds and unit linkage obvious.</p>
+    </div>
+    <ul class="card" style="margin-top:12px;list-style:none">
+      <li style="padding-left:14px;position:relative;font-size:14px;color:var(--ink-muted);margin:8px 0">Reduces spreadsheet-first inventory hopping mid-deal</li><li style="padding-left:14px;position:relative;font-size:14px;color:var(--ink-muted);margin:8px 0">Stage rules encode risk (holds, lost reasons) in UX</li><li style="padding-left:14px;position:relative;font-size:14px;color:var(--ink-muted);margin:8px 0">List remains available for power bulk ops</li>
+    </ul>
+  </section>
+
+  <div class="checkpoint">
+    <div class="eyebrow">Approval gate</div>
+    <h2>Section 06 ready for review</h2>
+    <p>Visual package only. No routes, components, or APIs changed. Approve or request changes before any implementation.</p>
+    <div class="actions">
+      <a class="btn" href="index.html">Back to package index</a>
+      <a class="btn ghost" href="07-inventory.html">Next: Inventory</a>
+    </div>
+  </div>
+
+  <div class="nav-pager">
+    <a href="05-customer-profile.html">← 05 Customer</a>
+    <a href="index.html">Review index</a>
+    <a href="07-inventory.html">07 Inventory →</a>
+  </div>
+</div>
+</body>
+</html>

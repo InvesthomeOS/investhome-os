@@ -1,0 +1,78 @@
+'use client';
+
+import Link from 'next/link';
+import type { Route } from 'next';
+import { useTranslations } from 'next-intl';
+import { usePathname } from 'next/navigation';
+
+const SEGMENT_KEYS: Record<string, string> = {
+  workspaces: 'title',
+  crm: 'title',
+  dashboard: 'nav.dashboard',
+  contacts: 'nav.contacts',
+  companies: 'nav.companies',
+  relationships: 'nav.relationships',
+  timeline: 'nav.timeline',
+  activities: 'nav.activities',
+  tasks: 'nav.tasks',
+  notes: 'nav.notes',
+  files: 'nav.files',
+  tags: 'nav.tags',
+  communication: 'nav.communication',
+  documents: 'nav.documents',
+  search: 'nav.search',
+  reports: 'nav.reports',
+  settings: 'nav.settings',
+};
+
+export function CrmBreadcrumbs() {
+  const pathname = usePathname();
+  const t = useTranslations('crm');
+  const tCommon = useTranslations('common');
+
+  const segments = pathname.split('/').filter(Boolean);
+  const crmIndex = segments.indexOf('crm');
+  if (crmIndex === -1) {
+    return null;
+  }
+
+  const crumbs: { href: Route; label: string }[] = [
+    { href: '/workspaces/crm/dashboard' as Route, label: t('title') },
+  ];
+
+  const section = segments[crmIndex + 1];
+  if (section && section !== 'dashboard') {
+    const key = SEGMENT_KEYS[section];
+    crumbs.push({
+      href: pathname as Route,
+      label: key ? t(key as 'nav.dashboard') : section,
+    });
+  }
+
+  if (crumbs.length <= 1) {
+    return null;
+  }
+
+  return (
+    <nav className="app-breadcrumbs" aria-label={tCommon('appName')}>
+      <ol className="app-breadcrumbs__list">
+        {crumbs.map((crumb, index) => {
+          const isLast = index === crumbs.length - 1;
+          return (
+            <li key={crumb.href} className="app-breadcrumbs__item">
+              {isLast ? (
+                <span className="app-breadcrumbs__current" aria-current="page">
+                  {crumb.label}
+                </span>
+              ) : (
+                <Link href={crumb.href} className="app-breadcrumbs__link">
+                  {crumb.label}
+                </Link>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}

@@ -23,7 +23,10 @@ from investhome_api.config.search_config import (
     SEARCH_ENTITY_TYPES,
 )
 from investhome_api.models.activity import ActivityLog
-from investhome_api.models.company_foundation import BrandAsset, Department, Office, Team
+from investhome_api.models.branch import Branch
+from investhome_api.models.company import Company
+from investhome_api.models.company_foundation import BrandAsset, CompanyProfile, Department, Office, Team
+from investhome_api.models.department import CompanyDepartment as CompanyDepartment
 from investhome_api.models.design_studio import DesignProject, DesignVersion, FurnitureItem, MaterialPackage, StylePreset
 from investhome_api.models.document import Document, DocumentAnalysis
 from investhome_api.models.drawing_intelligence import DrawingAnalysis
@@ -51,7 +54,7 @@ from investhome_api.models.sales_inventory_matching import SalesInventoryMatch, 
 from investhome_api.models.sales_proposal import SalesProposal
 from investhome_api.models.sales_readiness import SalesReadinessCase
 from investhome_api.models.work_item import WorkItem
-from investhome_api.models.user_auth import User, UserStatus
+from investhome_api.models.user_auth import Role, User, UserStatus
 from investhome_api.schemas.search import SearchGroup, SearchHighlight, SearchResponse, SearchResultItem
 from investhome_api.services.activity_service import (
     resolve_entity_label,
@@ -162,6 +165,16 @@ def _link_query(entity_type: str, entity_id: UUID) -> dict[str, str]:
         return {"activityId": str(entity_id)}
     if entity_type == "office":
         return {"tab": "offices"}
+    if entity_type == "company":
+        return {"tab": "company"}
+    if entity_type == "managed_company":
+        return {"id": str(entity_id)}
+    if entity_type == "branch":
+        return {"id": str(entity_id)}
+    if entity_type == "company_department":
+        return {"id": str(entity_id)}
+    if entity_type == "role":
+        return {"id": str(entity_id)}
     if entity_type == "department" or entity_type == "team":
         return {"tab": "organization"}
     if entity_type == "brand_asset":
@@ -219,7 +232,7 @@ def _user_can_search_entity(user: User, entity_type: str) -> bool:
     resource = ENTITY_PERMISSION_RESOURCE.get(entity_type)
     if resource is None:
         return False
-    return user_has_permission(user, resource, "view")
+    return user_has_permission(user, resource, "view") or user_has_permission(user, resource, "read")
 
 
 def _collect_matched_fields(query: str, field_map: dict[str, str | None]) -> dict[str, str]:
@@ -999,6 +1012,244 @@ def _search_teams(
                 preview=team.description,
                 status=team.status,
                 created_at=team.created_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
+def _search_roles(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "role"):
+        return []
+    pattern = _pattern(query)
+    stmt = select(Role).where(
+        or_(Role.name.ilike(pattern), Role.code.ilike(pattern), Role.description.ilike(pattern))
+    )
+    roles = db.scalars(stmt.limit(limit * 2)).all()
+    results: list[InternalSearchResult] = []
+    for role in roles:
+        fields = {"name": role.name, "code": role.code, "description": role.description}
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="role",
+                entity_id=role.id,
+                title=role.name,
+                subtitle=role.code,
+                preview=role.description,
+                status="system" if role.is_system_role else "custom",
+                created_at=role.created_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
+def _search_companies(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "company"):
+        return []
+    pattern = _pattern(query)
+    stmt = select(CompanyProfile).where(
+        or_(
+            CompanyProfile.company_name.ilike(pattern),
+            CompanyProfile.legal_name.ilike(pattern),
+            CompanyProfile.short_name.ilike(pattern),
+            CompanyProfile.company_code.ilike(pattern),
+            CompanyProfile.city.ilike(pattern),
+            CompanyProfile.country.ilike(pattern),
+        )
+    )
+    companies = db.scalars(stmt.limit(limit * 2)).all()
+    results: list[InternalSearchResult] = []
+    for company in companies:
+        fields = {
+            "company_name": company.company_name,
+            "legal_name": company.legal_name,
+            "short_name": company.short_name,
+            "company_code": company.company_code,
+            "city": company.city,
+            "country": company.country,
+        }
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="company",
+                entity_id=company.id,
+                title=company.company_name,
+                subtitle=company.company_code,
+                preview=company.city,
+                status=company.status,
+                created_at=company.created_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
+def _search_managed_companies(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "managed_company"):
+        return []
+    pattern = _pattern(query)
+    stmt = select(Company).where(
+        Company.archived_at.is_(None),
+        or_(
+            Company.company_name.ilike(pattern),
+            Company.legal_name.ilike(pattern),
+            Company.registration_number.ilike(pattern),
+            Company.tax_id.ilike(pattern),
+            Company.city.ilike(pattern),
+            Company.country.ilike(pattern),
+        ),
+    )
+    companies = db.scalars(stmt.limit(limit * 2)).all()
+    results: list[InternalSearchResult] = []
+    for company in companies:
+        if not _apply_date_filter(company.updated_at, filters):
+            continue
+        fields = {
+            "company_name": company.company_name,
+            "legal_name": company.legal_name,
+            "registration_number": company.registration_number,
+            "tax_id": company.tax_id,
+            "city": company.city,
+            "country": company.country,
+        }
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="managed_company",
+                entity_id=company.id,
+                title=company.company_name,
+                subtitle=company.legal_name or company.registration_number,
+                preview=company.city,
+                status=_enum_value(company.status),
+                created_at=company.created_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
+def _search_branches(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "branch"):
+        return []
+    pattern = _pattern(query)
+    stmt = select(Branch).where(
+        Branch.archived_at.is_(None),
+        or_(
+            Branch.branch_name.ilike(pattern),
+            Branch.branch_code.ilike(pattern),
+            Branch.city.ilike(pattern),
+            Branch.country.ilike(pattern),
+            Branch.state.ilike(pattern),
+        ),
+    )
+    branches = db.scalars(stmt.limit(limit * 2)).all()
+    results: list[InternalSearchResult] = []
+    for branch in branches:
+        if not _apply_date_filter(branch.updated_at, filters):
+            continue
+        company = db.get(Company, branch.company_id)
+        fields = {
+            "branch_name": branch.branch_name,
+            "branch_code": branch.branch_code,
+            "city": branch.city,
+            "country": branch.country,
+            "company_name": company.company_name if company else None,
+        }
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="branch",
+                entity_id=branch.id,
+                title=branch.branch_name,
+                subtitle=branch.branch_code,
+                preview=company.company_name if company else branch.city,
+                status=_enum_value(branch.status),
+                created_at=branch.created_at,
+                score=score,
+                matched_fields=_collect_matched_fields(query, fields),
+            )
+        )
+    return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+
+
+def _search_company_departments(
+    db: Session,
+    user: User,
+    query: str,
+    filters: SearchFilters,
+    limit: int,
+) -> list[InternalSearchResult]:
+    if not _user_can_search_entity(user, "company_department"):
+        return []
+    pattern = _pattern(query)
+    stmt = select(CompanyDepartment).where(
+        CompanyDepartment.archived_at.is_(None),
+        or_(
+            CompanyDepartment.department_name.ilike(pattern),
+            CompanyDepartment.department_code.ilike(pattern),
+            CompanyDepartment.description.ilike(pattern),
+        ),
+    )
+    departments = db.scalars(stmt.limit(limit * 2)).all()
+    results: list[InternalSearchResult] = []
+    for dept in departments:
+        if not _apply_date_filter(dept.updated_at, filters):
+            continue
+        fields = {
+            "department_name": dept.department_name,
+            "department_code": dept.department_code,
+            "description": dept.description,
+        }
+        score = _score_match(query, *fields.values())
+        if score <= 0:
+            continue
+        results.append(
+            InternalSearchResult(
+                entity_type="company_department",
+                entity_id=dept.id,
+                title=dept.department_name,
+                subtitle=dept.department_code,
+                preview=dept.description,
+                status=_enum_value(dept.status),
+                created_at=dept.created_at,
                 score=score,
                 matched_fields=_collect_matched_fields(query, fields),
             )
@@ -1819,6 +2070,11 @@ PROVIDER_MAP = {
     "funding_commitment": _search_funding_commitments,
     "payment_obligation": _search_payment_obligations,
     "user": _search_users,
+    "role": _search_roles,
+    "company": _search_companies,
+    "managed_company": _search_managed_companies,
+    "branch": _search_branches,
+    "company_department": _search_company_departments,
     "notification": _search_notifications,
     "activity": _search_activity,
     "document": _search_documents,
@@ -1853,6 +2109,11 @@ ENTITY_LABEL_KEYS = {
     "funding_commitment": "search.entities.funding_commitment",
     "payment_obligation": "search.entities.payment_obligation",
     "user": "search.entities.user",
+    "role": "search.entities.role",
+    "company": "search.entities.company",
+    "managed_company": "search.entities.company",
+    "branch": "search.entities.branch",
+    "company_department": "search.entities.department",
     "notification": "search.entities.notification",
     "activity": "search.entities.activity",
     "document": "search.entities.document",

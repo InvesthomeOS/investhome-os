@@ -6,7 +6,9 @@ import { useTranslations } from 'next-intl';
 import {
   uploadDocuments,
   type ConfidentialityLevel,
+  type DocumentFolder,
   type DocumentType,
+  type DocumentVisibility,
 } from '@/lib/api/documents';
 import { useDocumentLabels } from '@/lib/i18n/document-labels';
 
@@ -35,11 +37,13 @@ export function DocumentUploadPanel({
 }: DocumentUploadPanelProps) {
   const t = useTranslations('documents');
   const tCommon = useTranslations('common');
-  const { typeOptions, confidentialityOptions } = useDocumentLabels();
+  const { typeOptions, confidentialityOptions, folderOptions, visibilityOptions } = useDocumentLabels();
   const [items, setItems] = useState<UploadItem[]>([]);
   const [title, setTitle] = useState('');
   const [documentType, setDocumentType] = useState<DocumentType>('other');
   const [category, setCategory] = useState('');
+  const [folder, setFolder] = useState<DocumentFolder>('general');
+  const [visibility, setVisibility] = useState<DocumentVisibility>('organization');
   const [confidentiality, setConfidentiality] = useState<ConfidentialityLevel>('internal');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
@@ -87,6 +91,8 @@ export function DocumentUploadPanel({
           title: title || undefined,
           document_type: documentType,
           category: category || undefined,
+          folder,
+          visibility,
           confidentiality_level: confidentiality,
           description: description || undefined,
           tags: tags || undefined,
@@ -143,6 +149,22 @@ export function DocumentUploadPanel({
             <span>{t('upload.documentType')}</span>
             <select value={documentType} onChange={(e) => setDocumentType(e.target.value as DocumentType)}>
               {typeOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>{t('upload.folder')}</span>
+            <select value={folder} onChange={(e) => setFolder(e.target.value as DocumentFolder)}>
+              {folderOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>{t('upload.visibility')}</span>
+            <select value={visibility} onChange={(e) => setVisibility(e.target.value as DocumentVisibility)}>
+              {visibilityOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>

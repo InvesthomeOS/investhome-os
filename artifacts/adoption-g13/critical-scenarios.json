@@ -1,0 +1,149 @@
+{
+  "results": [
+    {
+      "id": 1,
+      "name": "First login onboarding",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 2,
+      "name": "Complete profile / role setup visible",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 3,
+      "name": "Start role-based tour",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 4,
+      "name": "Complete guided action (next)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 5,
+      "name": "Pause and resume tour",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 6,
+      "name": "Complete daily checklist item",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 7,
+      "name": "Open help search",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 8,
+      "name": "Find contextual article",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 9,
+      "name": "Complete workflow tutorial view",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 10,
+      "name": "Complete knowledge check",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 11,
+      "name": "Run safe simulation",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 12,
+      "name": "Review adoption dashboard",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 13,
+      "name": "Create training content",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 14,
+      "name": "Preview training content",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 15,
+      "name": "Publish training content",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 16,
+      "name": "Assign / view learning path",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 17,
+      "name": "Submit feedback",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 18,
+      "name": "Create support request",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 19,
+      "name": "Verify Turkish",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 20,
+      "name": "Verify English",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 21,
+      "name": "Verify tablet",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 22,
+      "name": "Verify portal guidance",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "id": 23,
+      "name": "Unauthorized content hidden",
+      "pass": true,
+      "detail": "http://localhost:3000/dashboard/admin/adoption"
+    },
+    {
+      "id": 24,
+      "name": "Training mode cannot trigger real actions",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "failed": 0
+}

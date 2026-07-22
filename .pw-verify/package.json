@@ -1,0 +1,13 @@
+{
+  "name": "pw-verify",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@playwright/test": "^1.49.1",
+    "playwright": "^1.49.1"
+  },
+  "scripts": {
+    "test:e2e": "playwright test --config=playwright.config.ts",
+    "test:e2e:ui": "playwright test --config=playwright.config.ts --ui"
+  }
+}

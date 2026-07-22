@@ -1,0 +1,25 @@
+{
+  "pass": true,
+  "login_ok": true,
+  "route_ok": true,
+  "tabs": {
+    "sales": true,
+    "projects": true,
+    "marketing": true
+  },
+  "drawer_ok": true,
+  "screenshots": [
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\github-ui-g1\\pipeline-1440.png",
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\github-ui-g1\\pipeline.png",
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\github-ui-g1\\opportunity-drawer-1440.png",
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\github-ui-g1\\opportunity-drawer.png",
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\github-ui-g1\\project-operations-1440.png",
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\github-ui-g1\\project-operations.png",
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\github-ui-g1\\marketing-analytics-1440.png",
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\github-ui-g1\\marketing-analytics.png",
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\github-ui-g1\\pipeline-1280.png",
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\github-ui-g1\\project-operations-1280.png",
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\github-ui-g1\\marketing-analytics-1280.png"
+  ],
+  "errors": []
+}

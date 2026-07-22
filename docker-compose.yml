@@ -113,6 +113,7 @@ services:
       - .env
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      PORTAL_SESSION_SECRET: ${PORTAL_SESSION_SECRET:-investhome-portal-demo-session-secret}
     ports:
       - "${WEB_PORT:-3000}:3000"
     depends_on:

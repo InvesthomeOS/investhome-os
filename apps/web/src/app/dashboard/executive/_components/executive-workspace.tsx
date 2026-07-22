@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
@@ -10,6 +11,7 @@ import {
   type ActivityItem,
   type AiInsightItem,
   type ApprovalItem,
+  type AttentionItem,
   type CashFlowPoint,
   type DeadlineItem,
   type DelayedProjectRow,
@@ -21,6 +23,7 @@ import {
   fetchExecutiveActivity,
   fetchExecutiveAiInsights,
   fetchExecutiveApprovals,
+  fetchExecutiveAttention,
   fetchExecutiveConstructionSnapshot,
   fetchExecutiveDeadlines,
   fetchExecutiveFinancialOverview,
@@ -49,6 +52,35 @@ import { useProjectLabels } from '@/lib/i18n/project-labels';
 import { metadataForI18n } from '@/lib/api/activity';
 import { fetchLeadQualificationExecutiveSummary, type LeadQualificationExecutiveSummary } from '@/lib/api/lead-qualification';
 import { useActivityLabels } from '@/lib/i18n/activity-labels';
+import { useNotifications } from '@/lib/notifications/notification-context';
+import { useNotificationLabels } from '@/lib/i18n/notification-labels';
+import { metadataForNotification } from '@/lib/api/notifications';
+import { fetchDocuments } from '@/lib/api/documents';
+import { canReadMarketing } from '@/lib/marketing/marketing-permissions';
+import { fetchFinanceStats, type FinanceStats } from '@/lib/api/finance';
+import { fetchExecutiveDashboard as fetchMarketingExecutiveDashboard } from '@/workspaces/marketing/api/analytics';
+
+import { AlertCenter } from './command-center/alert-center';
+import { ProductionExecutiveDashboard } from './production-dashboard/production-executive-dashboard';
+import { trackExecutiveUiEvent } from './production-dashboard/executive-ui-analytics';
+import {
+  G8ExecutiveDashboard,
+  type MarketingPulse,
+} from './production-dashboard/g8/g8-executive-dashboard';
+import {
+  activityModuleLabel,
+  buildExecutiveKpis,
+  deriveCompanyHealth,
+  mergeAlerts,
+  toPriorityViews,
+} from './command-center/build-metrics';
+import { CompanyHealthPanel } from './command-center/company-health-panel';
+import { ExecutiveKpiBar } from './command-center/executive-kpi-bar';
+import { GlobalSearchEntry } from './command-center/global-search-entry';
+import { MyWorkPanel } from './command-center/my-work-panel';
+import { QuickActionsBar } from './command-center/quick-actions-bar';
+import { TodaysPriorities } from './command-center/todays-priorities';
+import type { AlertItemView, LoadState as EccLoadState, MyWorkItem } from './command-center/types';
 
 type LoadState = 'idle' | 'loading' | 'error' | 'success';
 
@@ -402,14 +434,31 @@ export function ExecutiveWorkspace() {
   const t = useTranslations('executive');
   const tCommon = useTranslations('common');
   const locale = useLocale();
-  const { user } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user, loading: authLoading } = useAuth();
   const { getStatusLabel: getLeadStatusLabel } = useLeadLabels();
   const { getStatusLabel: getProjectStatusLabel } = useProjectLabels();
   const { getDescription: getActivityDescription } = useActivityLabels();
+  const {
+    items: notifications,
+    canView: canViewNotifications,
+    openDrawer: openNotificationsDrawer,
+  } = useNotifications();
+  const { getTitle: getNotificationTitle } = useNotificationLabels();
 
   const [stored, setStored] = useState<StoredFilters>(DEFAULT_STORED);
   const [projectOptions, setProjectOptions] = useState<{ id: string; label: string }[]>([]);
   const [aiExpanded, setAiExpanded] = useState(true);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
+  const viewParam = searchParams.get('view');
+  // D1D.2 / G8: default → G8 command center; ?view=d1d → prior production; ?view=legacy → OLD ECC.
+  const useLegacyLayout = viewParam === 'legacy';
+  const useD1dLayout = viewParam === 'd1d' || viewParam === 'production';
+  const useG8Layout = !useLegacyLayout && !useD1dLayout;
+  const useProductionLayout = useG8Layout || useD1dLayout;
+  const forcePartialDemo = searchParams.get('partial') === '1';
+  const canViewExecutive = !!(user && hasPermission(user, 'executive', 'view'));
 
   const [summaryCards, setSummaryCards] = useState<SummaryCard[]>([]);
   const [pipeline, setPipeline] = useState<Awaited<ReturnType<typeof fetchExecutiveLeadsPipeline>> | null>(null);
@@ -426,6 +475,10 @@ export function ExecutiveWorkspace() {
   const [deadlines, setDeadlines] = useState<DeadlineItem[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [aiInsights, setAiInsights] = useState<Awaited<ReturnType<typeof fetchExecutiveAiInsights>> | null>(null);
+  const [attention, setAttention] = useState<AttentionItem[]>([]);
+  const [attentionState, setAttentionState] = useState<LoadState>('loading');
+  const [documents, setDocuments] = useState<{ id: string; title: string; updated_at?: string; created_at?: string }[]>([]);
+  const [documentsState, setDocumentsState] = useState<LoadState>('idle');
 
   const [summaryState, setSummaryState] = useState<LoadState>('loading');
   const [pipelineState, setPipelineState] = useState<LoadState>('loading');
@@ -437,6 +490,15 @@ export function ExecutiveWorkspace() {
   const [deadlineState, setDeadlineState] = useState<LoadState>('loading');
   const [activityState, setActivityState] = useState<LoadState>('loading');
   const [aiState, setAiState] = useState<LoadState>('idle');
+  const [financeStats, setFinanceStats] = useState<FinanceStats | null>(null);
+  const [financeStatsState, setFinanceStatsState] = useState<LoadState>('idle');
+  const [marketingPulse, setMarketingPulse] = useState<MarketingPulse>({
+    kpis: [],
+    funnelStages: [],
+    bestChannel: null,
+    state: 'idle',
+    classification: 'NOT_CONFIGURED',
+  });
 
   useEffect(() => {
     try {
@@ -448,6 +510,18 @@ export function ExecutiveWorkspace() {
       setStored(DEFAULT_STORED);
     }
   }, []);
+
+  useEffect(() => {
+    if (useG8Layout) {
+      setAiExpanded(true);
+      trackExecutiveUiEvent('executive_layout_mode', { layout: 'g8' });
+    } else if (useD1dLayout) {
+      setAiExpanded(true);
+      trackExecutiveUiEvent('executive_layout_mode', { layout: 'production' });
+    } else {
+      trackExecutiveUiEvent('executive_layout_mode', { layout: 'legacy' });
+    }
+  }, [useD1dLayout, useG8Layout]);
 
   useEffect(() => {
     void fetchProjects({ page: 1, page_size: 100, sort_by: 'project_name', sort_order: 'asc' })
@@ -600,7 +674,7 @@ export function ExecutiveWorkspace() {
   }, [filterParams]);
 
   const loadAiInsights = useCallback(async () => {
-    if (!aiExpanded) return;
+    if (!aiExpanded && !useProductionLayout) return;
     setAiState('loading');
     try {
       setAiInsights(await fetchExecutiveAiInsights(filterParams));
@@ -608,9 +682,113 @@ export function ExecutiveWorkspace() {
     } catch {
       setAiState('error');
     }
-  }, [aiExpanded, filterParams]);
+  }, [aiExpanded, filterParams, useProductionLayout]);
+
+  const loadAttention = useCallback(async () => {
+    setAttentionState('loading');
+    try {
+      const response = await fetchExecutiveAttention(filterParams);
+      setAttention(response.items);
+      setAttentionState('success');
+    } catch {
+      setAttentionState('error');
+    }
+  }, [filterParams]);
+
+  const loadDocuments = useCallback(async () => {
+    if (!user || !hasPermission(user, 'documents', 'view')) {
+      setDocumentsState('idle');
+      setDocuments([]);
+      return;
+    }
+    setDocumentsState('loading');
+    try {
+      const response = await fetchDocuments({ page: 1, page_size: 5, sort_by: 'updated_at', sort_dir: 'desc' });
+      setDocuments(
+        response.items.map((doc) => ({
+          id: doc.id,
+          title: doc.title || doc.original_file_name || doc.id,
+          updated_at: doc.updated_at,
+          created_at: doc.created_at,
+        })),
+      );
+      setDocumentsState('success');
+    } catch {
+      setDocumentsState('error');
+    }
+  }, [user]);
+
+  const loadFinanceStats = useCallback(async () => {
+    if (!user || !hasPermission(user, 'finance', 'view')) {
+      setFinanceStats(null);
+      setFinanceStatsState('idle');
+      return;
+    }
+    setFinanceStatsState('loading');
+    try {
+      setFinanceStats(await fetchFinanceStats());
+      setFinanceStatsState('success');
+    } catch {
+      setFinanceStatsState('error');
+    }
+  }, [user]);
+
+  const loadMarketingPulse = useCallback(async () => {
+    if (!canReadMarketing(user)) {
+      setMarketingPulse({
+        kpis: [],
+        funnelStages: [],
+        bestChannel: null,
+        state: 'idle',
+        classification: 'BLOCKED',
+      });
+      return;
+    }
+    setMarketingPulse((prev) => ({ ...prev, state: 'loading' }));
+    try {
+      const data = await fetchMarketingExecutiveDashboard({ preset: 'last_30_days' });
+      const readyKpis = (data.kpis || []).filter((k) => k.state === 'ready' || k.value != null);
+      setMarketingPulse({
+        kpis: data.kpis || [],
+        funnelStages: (data.funnel?.stages || []).map((s) => ({
+          key: s.key,
+          label: s.label,
+          count: s.count ?? null,
+        })),
+        bestChannel:
+          typeof data.health?.categories?.find((c) => c.key.includes('channel'))?.label === 'string'
+            ? data.health.categories.find((c) => c.key.includes('channel'))!.label
+            : null,
+        state: 'success',
+        classification: readyKpis.length > 0 ? 'LIVE' : 'PARTIAL',
+      });
+    } catch {
+      setMarketingPulse({
+        kpis: [],
+        funnelStages: [],
+        bestChannel: null,
+        state: 'error',
+        classification: 'PARTIAL',
+      });
+    }
+  }, [user]);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!canViewExecutive) {
+      setSummaryState('idle');
+      setPipelineState('idle');
+      setInvestorState('idle');
+      setPortfolioState('idle');
+      setFinancialState('idle');
+      setConstructionState('idle');
+      setApprovalsState('idle');
+      setDeadlineState('idle');
+      setActivityState('idle');
+      setAttentionState('idle');
+      setAiState('idle');
+      return;
+    }
     void loadSummary();
     void loadPipeline();
     void loadInvestors();
@@ -620,21 +798,33 @@ export function ExecutiveWorkspace() {
     void loadApprovals();
     void loadDeadlines();
     void loadActivity();
+    void loadAttention();
+    void loadDocuments();
+    void loadFinanceStats();
+    void loadMarketingPulse();
+    setLastRefreshedAt(new Date().toISOString());
   }, [
+    authLoading,
+    canViewExecutive,
     loadActivity,
     loadApprovals,
+    loadAttention,
     loadConstruction,
     loadDeadlines,
+    loadDocuments,
+    loadFinanceStats,
     loadFinancial,
     loadInvestors,
+    loadMarketingPulse,
     loadPipeline,
     loadPortfolio,
     loadSummary,
   ]);
 
   useEffect(() => {
+    if (authLoading || !canViewExecutive) return;
     void loadAiInsights();
-  }, [loadAiInsights]);
+  }, [authLoading, canViewExecutive, loadAiInsights]);
 
   const sortedProjects = useMemo(() => {
     if (!portfolio) return [];
@@ -656,30 +846,502 @@ export function ExecutiveWorkspace() {
   const deadlineWindowLabel = (window: DeadlineItem['window']) => t(`deadlines.windows.${window}`);
 
   const quickActions = useMemo(() => {
-    const actions: { href: Route; label: string }[] = [];
-    if (user && hasPermission(user, 'leads', 'create')) {
-      actions.push({ href: '/dashboard/leads' as Route, label: t('quickActions.addLead') });
-    }
-    if (user && hasPermission(user, 'investors', 'create')) {
-      actions.push({ href: '/dashboard/investors' as Route, label: t('quickActions.addInvestor') });
-    }
-    if (user && hasPermission(user, 'projects', 'create')) {
-      actions.push({ href: '/dashboard/projects' as Route, label: t('quickActions.addProject') });
-    }
-    if (user && hasPermission(user, 'documents', 'create')) {
-      actions.push({ href: '/dashboard/documents' as Route, label: t('quickActions.uploadDocument') });
-    }
+    const actions: { href: Route; label: string; show: boolean }[] = [
+      {
+        href: '/dashboard/leads' as Route,
+        label: t('commandCenter.quickActions.createLead'),
+        show: !!(user && hasPermission(user, 'leads', 'create')),
+      },
+      {
+        href: '/dashboard/investors' as Route,
+        label: t('commandCenter.quickActions.createInvestor'),
+        show: !!(user && hasPermission(user, 'investors', 'create')),
+      },
+      {
+        href: '/dashboard/projects' as Route,
+        label: t('commandCenter.quickActions.addProject'),
+        show: !!(user && hasPermission(user, 'projects', 'create')),
+      },
+      {
+        href: '/workspaces/marketing/campaigns' as Route,
+        label: t('commandCenter.quickActions.sendCampaign'),
+        show: canReadMarketing(user),
+      },
+      {
+        href: '/dashboard/finance' as Route,
+        label: t('commandCenter.quickActions.approveExpense'),
+        show: !!(user && hasPermission(user, 'finance', 'view')),
+      },
+      {
+        href: '/dashboard/finance?view=approvals' as Route,
+        label: t('commandCenter.quickActions.reviewApprovals'),
+        show: !!(user && hasPermission(user, 'finance', 'view')),
+      },
+      {
+        href: '/workspaces/marketing/reports' as Route,
+        label: t('commandCenter.quickActions.openReports'),
+        show: canReadMarketing(user),
+      },
+      {
+        href: '/dashboard/documents' as Route,
+        label: t('quickActions.uploadDocument'),
+        show: !!(user && hasPermission(user, 'documents', 'create')),
+      },
+    ];
     return actions;
   }, [t, user]);
 
   const activeInvestorCount = investors?.by_status.find((row) => row.status === 'active')?.count ?? 0;
 
+  const overduePaymentsPresent =
+    financial !== null &&
+    Object.values(financial.overdue_payments || {}).some((v) => Number(v) > 0);
+
+  const health = deriveCompanyHealth({
+    attention,
+    projects: portfolio?.projects ?? [],
+    overduePaymentsPresent,
+  });
+
+  const priorityItems = useMemo(() => {
+    const resolveTitle = (item: AttentionItem) => {
+      try {
+        return t(stripExecutivePrefix(item.title_key) as 'attention.overdue_payment.title', metadataForExecutiveI18n(item.metadata));
+      } catch {
+        return item.related_label ?? item.title_key;
+      }
+    };
+    const resolveDescription = (item: AttentionItem) => {
+      try {
+        return t(stripExecutivePrefix(item.description_key) as 'attention.overdue_payment.description', metadataForExecutiveI18n(item.metadata));
+      } catch {
+        return item.related_label ?? '';
+      }
+    };
+    const resolveDue = (item: AttentionItem) =>
+      item.due_date ? formatShortDate(item.due_date, locale) : item.age_days != null ? t('approvals.ageDays', { days: item.age_days }) : null;
+    const resolveCategory = (item: AttentionItem) => activityModuleLabel(item.entity_type);
+    return toPriorityViews(attention, resolveTitle, resolveDescription, resolveDue, resolveCategory);
+  }, [attention, locale, t]);
+
+  const kpiMetrics = useMemo(() => {
+    const pipelineValue =
+      Object.keys(salesPipelineByCurrency).length > 0
+        ? formatSalesCurrencyTotals(salesPipelineByCurrency, locale)
+        : null;
+    const revenue =
+      financial && Object.keys(financial.income_in_period || {}).length > 0
+        ? formatCurrencyTotals(financial.income_in_period, locale)
+        : null;
+    return buildExecutiveKpis({
+      locale,
+      labels: {
+        revenue: t('commandCenter.kpi.revenue'),
+        cash: t('commandCenter.kpi.cash'),
+        pipeline: t('commandCenter.kpi.pipeline'),
+        investors: t('commandCenter.kpi.investors'),
+        openDeals: t('commandCenter.kpi.openDeals'),
+        projects: t('commandCenter.kpi.projects'),
+        marketingRoi: t('commandCenter.kpi.marketingRoi'),
+        tasksDue: t('commandCenter.kpi.tasksDue'),
+      },
+      hints: {
+        revenue: t('commandCenter.kpiHints.revenue'),
+        pipeline: t('commandCenter.kpiHints.pipeline'),
+        openDeals: t('commandCenter.kpiHints.openDeals'),
+        marketingRoi: t('commandCenter.kpiHints.marketingRoi'),
+        tasksDue: t('commandCenter.kpiHints.tasksDue'),
+      },
+      summaryCards,
+      pipelineValue,
+      openDeals: salesMetrics ? salesMetrics.open_opportunities : null,
+      revenue,
+      marketingRoiAvailable: false,
+      tasksAvailable: false,
+    });
+  }, [financial, locale, salesMetrics, salesPipelineByCurrency, summaryCards, t]);
+
+  const alertItems = useMemo(() => {
+    const fromAttention: AlertItemView[] = attention.map((item) => ({
+      id: `att-${item.entity_type}-${item.entity_id}-${item.title_key}`,
+      severity: item.severity,
+      title: (() => {
+        try {
+          return t(stripExecutivePrefix(item.title_key) as 'attention.overdue_payment.title', metadataForExecutiveI18n(item.metadata));
+        } catch {
+          return item.related_label ?? item.title_key;
+        }
+      })(),
+      description: (() => {
+        try {
+          return t(stripExecutivePrefix(item.description_key) as 'attention.overdue_payment.description', metadataForExecutiveI18n(item.metadata));
+        } catch {
+          return item.related_label ?? '';
+        }
+      })(),
+      href: moduleHref(item.link_module, item.link_query),
+      source: activityModuleLabel(item.entity_type),
+    }));
+    const fromNotifications: AlertItemView[] = canViewNotifications
+      ? notifications
+          .filter((n) => n.status === 'unread' || !n.read_at)
+          .slice(0, 20)
+          .map((n) => ({
+            id: `notif-${n.id}`,
+            severity:
+              n.priority === 'critical' ? 'critical' : n.priority === 'high' ? 'warning' : 'information',
+            title: getNotificationTitle(n.title_key, metadataForNotification(n.metadata)),
+            description: n.related_label ?? '',
+            href: null,
+            source: t('commandCenter.alertSources.notifications'),
+          }))
+      : [];
+    return mergeAlerts(fromAttention, fromNotifications);
+  }, [attention, canViewNotifications, getNotificationTitle, notifications, t]);
+
+  const myWorkItems = useMemo(() => {
+    const items: MyWorkItem[] = [];
+    for (const item of approvals.slice(0, 5)) {
+      items.push({
+        id: `appr-${item.approval_type}-${item.entity_id}`,
+        title: (() => {
+          try {
+            return t(stripExecutivePrefix(item.title_key) as 'approvals.design_review.title', metadataForExecutiveI18n(item.metadata ?? {}));
+          } catch {
+            return item.related_label ?? item.approval_type;
+          }
+        })(),
+        meta: item.age_days != null ? t('approvals.ageDays', { days: item.age_days }) : t(`approvals.types.${item.approval_type}` as 'approvals.types.design_review'),
+        href: moduleHref(item.link_module, item.link_query),
+        kind: 'approval',
+      });
+    }
+    for (const item of deadlines.filter((d) => d.window === 'overdue' || d.window === 'next_7_days').slice(0, 4)) {
+      items.push({
+        id: `dl-${item.entity_type}-${item.entity_id}-${item.due_date}`,
+        title: item.title,
+        meta: formatShortDate(item.due_date, locale),
+        href: moduleHref(item.link_module, item.link_query),
+        kind: 'meeting',
+      });
+    }
+    for (const doc of documents.slice(0, 3)) {
+      items.push({
+        id: `doc-${doc.id}`,
+        title: doc.title,
+        meta: formatShortDate(doc.updated_at || doc.created_at || '', locale),
+        href: `/dashboard/documents` as Route,
+        kind: 'document',
+      });
+    }
+    for (const act of activity.slice(0, 3)) {
+      items.push({
+        id: `act-${act.id}`,
+        title: getActivityDescription(act.description_key, metadataForI18n(act.metadata)),
+        meta: `${activityModuleLabel(act.entity_type)} · ${formatShortDate(act.created_at, locale)}`,
+        href: act.link_module ? moduleHref(act.link_module, { id: act.entity_id }) : ('/dashboard/activity' as Route),
+        kind: 'activity',
+      });
+    }
+    return items;
+  }, [activity, approvals, deadlines, documents, getActivityDescription, locale, t]);
+
+  const kpiLoadState: EccLoadState =
+    summaryState === 'error' || financialState === 'error' || pipelineState === 'error'
+      ? 'error'
+      : summaryState === 'loading' || financialState === 'loading' || pipelineState === 'loading'
+        ? 'loading'
+        : 'success';
+
+  const healthState: EccLoadState =
+    attentionState === 'loading' || portfolioState === 'loading' || financialState === 'loading'
+      ? 'loading'
+      : attentionState === 'error' && portfolioState === 'error'
+        ? 'error'
+        : 'success';
+
+  const myWorkState: EccLoadState =
+    approvalsState === 'error' || deadlineState === 'error'
+      ? 'error'
+      : approvalsState === 'loading' || deadlineState === 'loading' || documentsState === 'loading'
+        ? 'loading'
+        : 'success';
+
+  const refreshAll = useCallback(() => {
+    void loadSummary();
+    void loadPipeline();
+    void loadInvestors();
+    void loadPortfolio();
+    void loadFinancial();
+    void loadConstruction();
+    void loadApprovals();
+    void loadDeadlines();
+    void loadActivity();
+    void loadAttention();
+    void loadDocuments();
+    void loadAiInsights();
+    void loadFinanceStats();
+    void loadMarketingPulse();
+    setLastRefreshedAt(new Date().toISOString());
+  }, [
+    loadActivity,
+    loadAiInsights,
+    loadApprovals,
+    loadAttention,
+    loadConstruction,
+    loadDeadlines,
+    loadDocuments,
+    loadFinanceStats,
+    loadFinancial,
+    loadInvestors,
+    loadMarketingPulse,
+    loadPipeline,
+    loadPortfolio,
+    loadSummary,
+  ]);
+
+  const handleProductionRetry = useCallback(
+    (widgetId: string) => {
+      if (widgetId === 'exec.cash_trend') void loadFinancial();
+      else if (widgetId === 'exec.tasks_approvals') void loadApprovals();
+      else if (widgetId === 'exec.calendar_deadlines') void loadDeadlines();
+      else if (widgetId === 'exec.sales_funnel') void loadPipeline();
+      else if (widgetId === 'exec.investor_pulse') void loadInvestors();
+      else if (widgetId === 'exec.projects_progress') void loadPortfolio();
+      else refreshAll();
+    },
+    [
+      loadApprovals,
+      loadDeadlines,
+      loadFinancial,
+      loadInvestors,
+      loadPipeline,
+      loadPortfolio,
+      refreshAll,
+    ],
+  );
+
+  if (useProductionLayout) {
+    if (authLoading) {
+      return (
+        <main className="dashboard executive" data-testid="executive-dashboard-auth-loading">
+          <div className="executive__skeleton" aria-busy="true" aria-label={tCommon('loading')} />
+        </main>
+      );
+    }
+
+    const pipelineValue =
+      Object.keys(salesPipelineByCurrency).length > 0
+        ? formatSalesCurrencyTotals(salesPipelineByCurrency, locale)
+        : null;
+
+    const sharedResolveInsightTitle = (item: AiInsightItem) => {
+      try {
+        return t(
+          stripExecutivePrefix(item.title_key) as 'aiPanel.deadline_priority.title',
+          metadataForExecutiveI18n(item.metadata),
+        );
+      } catch {
+        return item.title_key;
+      }
+    };
+    const sharedResolveInsightDescription = (item: AiInsightItem) => {
+      try {
+        return t(
+          stripExecutivePrefix(item.description_key) as 'aiPanel.deadline_priority.description',
+          metadataForExecutiveI18n(item.metadata),
+        );
+      } catch {
+        return item.description_key;
+      }
+    };
+    const sharedResolveApprovalTitle = (item: ApprovalItem) => {
+      try {
+        return t(
+          stripExecutivePrefix(item.title_key) as 'approvals.design_review.title',
+          metadataForExecutiveI18n(item.metadata ?? {}),
+        );
+      } catch {
+        return item.related_label ?? item.approval_type;
+      }
+    };
+    const sharedResolveAttentionTitle = (item: AttentionItem) => {
+      try {
+        return t(
+          stripExecutivePrefix(item.title_key) as 'attention.overdue_payment.title',
+          metadataForExecutiveI18n(item.metadata),
+        );
+      } catch {
+        return item.related_label ?? item.title_key;
+      }
+    };
+    const sharedResolveAttentionReason = (item: AttentionItem) => {
+      try {
+        return t(
+          stripExecutivePrefix(item.description_key) as 'attention.overdue_payment.description',
+          metadataForExecutiveI18n(item.metadata),
+        );
+      } catch {
+        return item.related_label ?? '';
+      }
+    };
+
+    if (useG8Layout) {
+      return (
+        <G8ExecutiveDashboard
+          user={user}
+          periodPreset={stored.preset}
+          dateFrom={filterParams.date_from ?? ''}
+          dateTo={filterParams.date_to ?? ''}
+          onPeriodChange={(from, to) =>
+            persistFilters({ ...stored, preset: 'custom', customFrom: from, customTo: to })
+          }
+          onPeriodPresetChange={(preset) => persistFilters({ ...stored, preset })}
+          onRefresh={refreshAll}
+          lastRefreshedAt={lastRefreshedAt}
+          onOpenLegacy={() => {
+            const params = new URLSearchParams(searchParams.toString());
+            params.set('view', 'legacy');
+            router.push(`/dashboard/executive?${params.toString()}` as Route);
+          }}
+          projectOptions={projectOptions}
+          projectId={stored.project_id}
+          onProjectChange={(id) => persistFilters({ ...stored, project_id: id })}
+          assignedTo={stored.assigned_to}
+          onAssignedChange={(value) => persistFilters({ ...stored, assigned_to: value })}
+          currency={stored.currency}
+          onCurrencyChange={(value) => persistFilters({ ...stored, currency: value })}
+          summaryCards={summaryCards}
+          summaryState={summaryState}
+          financial={financial}
+          financialState={financialState}
+          financeStats={financeStats}
+          financeStatsState={financeStatsState}
+          pipeline={pipeline}
+          pipelineState={pipelineState}
+          salesPipelineValue={pipelineValue}
+          openDeals={salesMetrics ? salesMetrics.open_opportunities : null}
+          pipelineStateForKpi={pipelineState}
+          investors={investors}
+          investorState={investorState}
+          portfolio={portfolio}
+          portfolioState={portfolioState}
+          construction={construction}
+          constructionState={constructionState}
+          approvals={approvals}
+          approvalsState={approvalsState}
+          deadlines={deadlines}
+          deadlineState={deadlineState}
+          activity={activity}
+          activityState={activityState}
+          attention={attention}
+          aiInsights={aiInsights}
+          aiState={aiState}
+          onRetryAi={() => void loadAiInsights()}
+          alertItems={alertItems}
+          attentionState={attentionState}
+          onRetryAttention={() => void loadAttention()}
+          notifications={notifications}
+          canViewNotifications={canViewNotifications}
+          onOpenNotifications={openNotificationsDrawer}
+          getNotificationTitle={getNotificationTitle}
+          marketing={marketingPulse}
+          canReadMarketing={canReadMarketing(user)}
+          canViewExecutive={canViewExecutive}
+          quickActions={quickActions}
+          getLeadStatusLabel={getLeadStatusLabel}
+          getProjectStatusLabel={getProjectStatusLabel}
+          resolveInsightTitle={sharedResolveInsightTitle}
+          resolveInsightDescription={sharedResolveInsightDescription}
+          resolveApprovalTitle={sharedResolveApprovalTitle}
+          resolveAttentionTitle={sharedResolveAttentionTitle}
+          resolveAttentionReason={sharedResolveAttentionReason}
+          resolveActivityTitle={(item) =>
+            getActivityDescription(item.description_key, metadataForI18n(item.metadata))
+          }
+          onRetry={handleProductionRetry}
+          forcePartialDemo={forcePartialDemo}
+        />
+      );
+    }
+
+    return (
+      <ProductionExecutiveDashboard
+        periodPreset={stored.preset}
+        dateFrom={filterParams.date_from ?? ''}
+        dateTo={filterParams.date_to ?? ''}
+        onPeriodChange={(from, to) =>
+          persistFilters({ ...stored, preset: 'custom', customFrom: from, customTo: to })
+        }
+        onRefresh={refreshAll}
+        lastRefreshedAt={lastRefreshedAt}
+        onOpenLegacy={() => {
+          const params = new URLSearchParams(searchParams.toString());
+          params.set('view', 'legacy');
+          router.push(`/dashboard/executive?${params.toString()}` as Route);
+        }}
+        projectOptions={projectOptions}
+        projectId={stored.project_id}
+        onProjectChange={(id) => persistFilters({ ...stored, project_id: id })}
+        assignedTo={stored.assigned_to}
+        onAssignedChange={(value) => persistFilters({ ...stored, assigned_to: value })}
+        currency={stored.currency}
+        onCurrencyChange={(value) => persistFilters({ ...stored, currency: value })}
+        summaryCards={summaryCards}
+        summaryState={summaryState}
+        financial={financial}
+        financialState={financialState}
+        pipeline={pipeline}
+        pipelineState={pipelineState}
+        salesPipelineValue={pipelineValue}
+        openDeals={salesMetrics ? salesMetrics.open_opportunities : null}
+        pipelineStateForKpi={pipelineState}
+        investors={investors}
+        investorState={investorState}
+        portfolio={portfolio}
+        portfolioState={portfolioState}
+        approvals={approvals}
+        approvalsState={approvalsState}
+        deadlines={deadlines}
+        deadlineState={deadlineState}
+        aiInsights={aiInsights}
+        aiState={aiState}
+        onRetryAi={() => void loadAiInsights()}
+        alertItems={alertItems}
+        attentionState={attentionState}
+        onRetryAttention={() => void loadAttention()}
+        notifications={notifications}
+        canViewNotifications={canViewNotifications}
+        onOpenNotifications={openNotificationsDrawer}
+        getNotificationTitle={getNotificationTitle}
+        canReadMarketing={canReadMarketing(user)}
+        canViewExecutive={canViewExecutive}
+        quickActions={quickActions}
+        getLeadStatusLabel={getLeadStatusLabel}
+        getProjectStatusLabel={getProjectStatusLabel}
+        resolveInsightTitle={sharedResolveInsightTitle}
+        resolveInsightDescription={sharedResolveInsightDescription}
+        resolveApprovalTitle={sharedResolveApprovalTitle}
+        onRetry={handleProductionRetry}
+      />
+    );
+  }
+
   return (
-    <main className="dashboard leads investors finance executive">
+    <main
+      className="dashboard leads investors finance executive executive--premium"
+      data-testid="executive-dashboard-legacy"
+      data-sprint="D1D-legacy"
+    >
       <header className="dashboard__header leads__header">
-        <p className="dashboard__eyebrow">{t('eyebrow')}</p>
-        <h1 className="dashboard__title">{t('title')}</h1>
+        <p className="dashboard__eyebrow executive__eyebrow-premium">{t('eyebrow')}</p>
+        <h1 className="dashboard__title executive__title-premium">{t('title')}</h1>
         <p className="leads__subtitle">{t('subtitle')}</p>
+        <p className="leads__subtitle">
+          <Link href={'/dashboard/executive?view=production' as Route}>
+            {t('production.openProduction')}
+          </Link>
+        </p>
       </header>
 
       <section className="executive__filters">
@@ -751,16 +1413,132 @@ export function ExecutiveWorkspace() {
             placeholder={t('filters.currencyPlaceholder')}
           />
         </label>
-        {quickActions.length > 0 && (
-          <div className="executive__quick-actions-inline">
-            {quickActions.map((action) => (
-              <Link key={action.label} href={action.href} className="leads__button leads__button--secondary">
-                {action.label}
-              </Link>
-            ))}
-          </div>
-        )}
       </section>
+
+      <div className="ecc-command">
+        <GlobalSearchEntry
+          title={t('commandCenter.search.title')}
+          hint={t('commandCenter.search.hint')}
+          cta={t('commandCenter.search.cta')}
+          unavailable={t('commandCenter.search.unavailable')}
+        />
+
+        <CompanyHealthPanel
+          state={healthState}
+          tone={health.tone}
+          title={t('commandCenter.companyHealth.title')}
+          statusLabel={t(`commandCenter.companyHealth.tones.${health.tone}`)}
+          summary={t('commandCenter.companyHealth.summary')}
+          criticalCount={health.criticalCount}
+          warningCount={health.warningCount}
+          atRiskProjects={health.atRiskProjects}
+          overduePayments={overduePaymentsPresent}
+          labels={{
+            critical: t('commandCenter.companyHealth.critical'),
+            warning: t('commandCenter.companyHealth.warning'),
+            atRiskProjects: t('commandCenter.companyHealth.atRiskProjects'),
+            overduePayments: t('commandCenter.companyHealth.overduePayments'),
+            noSignals: t('commandCenter.companyHealth.noSignals'),
+          }}
+          onRetry={() => {
+            void loadAttention();
+            void loadPortfolio();
+            void loadFinancial();
+          }}
+          retryLabel={tCommon('retry')}
+          href={'#executive-priorities' as Route}
+        />
+
+        <ExecutiveKpiBar
+          title={t('commandCenter.kpi.title')}
+          metrics={kpiMetrics}
+          state={kpiLoadState}
+          labels={{
+            unavailable: t('commandCenter.metric.unavailable'),
+            empty: t('commandCenter.metric.empty'),
+            loading: t('commandCenter.metric.loading'),
+          }}
+          onRetry={() => {
+            void loadSummary();
+            void loadFinancial();
+            void loadPipeline();
+          }}
+          retryLabel={tCommon('retry')}
+        />
+
+        <QuickActionsBar
+          title={t('commandCenter.quickActions.title')}
+          actions={quickActions}
+          empty={t('commandCenter.quickActions.empty')}
+        />
+
+        <div className="ecc-split">
+          <TodaysPriorities
+            id="executive-priorities"
+            title={t('commandCenter.priorities.title')}
+            hint={t('commandCenter.priorities.hint')}
+            items={priorityItems}
+            state={attentionState}
+            emptyTitle={t('commandCenter.priorities.emptyTitle')}
+            emptyBody={t('commandCenter.priorities.emptyBody')}
+            severityLabels={{
+              critical: t('severity.critical'),
+              warning: t('severity.warning'),
+              information: t('severity.information'),
+            }}
+            onRetry={() => void loadAttention()}
+            retryLabel={tCommon('retry')}
+            errorMessage={t('errors.section')}
+          />
+          <AlertCenter
+            title={t('commandCenter.alerts.title')}
+            items={alertItems}
+            state={attentionState}
+            empty={t('commandCenter.alerts.empty')}
+            filterLabels={{
+              all: t('commandCenter.alerts.filters.all'),
+              critical: t('severity.critical'),
+              warning: t('severity.warning'),
+              information: t('severity.information'),
+            }}
+            severityLabels={{
+              critical: t('severity.critical'),
+              warning: t('severity.warning'),
+              information: t('severity.information'),
+            }}
+            onRetry={() => void loadAttention()}
+            retryLabel={tCommon('retry')}
+            errorMessage={t('errors.section')}
+          />
+        </div>
+
+        <div className="ecc-split">
+          <MyWorkPanel
+            title={t('commandCenter.myWork.title')}
+            hint={t('commandCenter.myWork.hint')}
+            items={myWorkItems}
+            state={myWorkState}
+            empty={t('commandCenter.myWork.empty')}
+            unavailableTasks={t('commandCenter.myWork.unavailableTasks')}
+            unavailableMeetings={t('commandCenter.myWork.unavailableMeetings')}
+            kindLabels={{
+              approval: t('commandCenter.myWork.kinds.approval'),
+              task: t('commandCenter.myWork.kinds.task'),
+              meeting: t('commandCenter.myWork.kinds.meeting'),
+              document: t('commandCenter.myWork.kinds.document'),
+              activity: t('commandCenter.myWork.kinds.activity'),
+            }}
+            onRetry={() => {
+              void loadApprovals();
+              void loadDeadlines();
+              void loadDocuments();
+            }}
+            retryLabel={tCommon('retry')}
+            errorMessage={t('errors.section')}
+          />
+          <section className="ecc-note-panel" hidden aria-hidden="true" />
+        </div>
+      </div>
 
       <div className="executive__workspace-body">
         <div className="executive__main-column">
@@ -1116,6 +1894,7 @@ export function ExecutiveWorkspace() {
                     );
                     const content = (
                       <>
+                        <span className="ecc-activity-module">{activityModuleLabel(item.entity_type)}</span>
                         <span>{formatShortDate(item.created_at, locale)}</span>
                         <p>{summary}</p>
                         {item.actor && <span className="activity-timeline__actor">{item.actor}</span>}

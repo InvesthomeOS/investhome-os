@@ -22,8 +22,8 @@ type CompanyBrandingContextValue = {
 };
 
 const FALLBACK_NAME = 'Investhome OS';
-const FALLBACK_PRIMARY = '#1e3a5f';
-const FALLBACK_ACCENT = '#0ea5e9';
+const FALLBACK_PRIMARY = '#9D7B55';
+const FALLBACK_ACCENT = '#77BFBB';
 
 const CompanyBrandingContext = createContext<CompanyBrandingContextValue | null>(null);
 

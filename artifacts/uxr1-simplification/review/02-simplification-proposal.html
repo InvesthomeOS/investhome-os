@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UXR1 · Section 2 — Simplification Proposal · INVESTHOME OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --bg-elevated: #ffffff;
+      --ink: #1a1f2e;
+      --ink-muted: #5c6578;
+      --ink-soft: #8b93a7;
+      --stroke: #e4e7ee;
+      --accent: #1e4d6b;
+      --accent-soft: #e8f1f6;
+      --danger: #9b3a3a;
+      --danger-soft: #f8ecec;
+      --warn: #8a5a12;
+      --warn-soft: #f7f0e4;
+      --ok: #1f5c45;
+      --ok-soft: #e8f3ee;
+      --radius: 12px;
+      --shadow: 0 1px 0 rgba(26, 31, 46, 0.04);
+      --max: 1080px;
+      --font: "Instrument Sans", system-ui, sans-serif;
+      --serif: "Source Serif 4", Georgia, serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #eaf2f7 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, #f0f2f6 0%, transparent 50%),
+        var(--bg);
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+    .wrap { max-width: var(--max); margin: 0 auto; padding: 48px 28px 96px; }
+    .topline { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 40px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 36px; height: 36px; border-radius: 9px; background: var(--accent); color: #fff;
+      display: grid; place-items: center; font-weight: 700; font-size: 13px;
+    }
+    .brand-name { font-size: 14px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+    .brand-sub { font-size: 12px; color: var(--ink-muted); }
+    .badge-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .badge {
+      font-size: 12px; font-weight: 500; padding: 5px 10px; border-radius: 6px;
+      background: var(--bg-elevated); border: 1px solid var(--stroke); color: var(--ink-muted);
+    }
+    .badge.warn { background: var(--warn-soft); color: var(--warn); border-color: #ead9b8; }
+    .badge.gate { background: var(--danger-soft); color: var(--danger); border-color: #e5c8c8; }
+    .badge.ok { background: var(--ok-soft); color: var(--ok); border-color: #c5ddd1; }
+    .hero { margin-bottom: 48px; }
+    .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+    h1 { font-family: var(--serif); font-size: clamp(1.8rem, 3vw, 2.4rem); font-weight: 600; line-height: 1.2; margin-bottom: 14px; }
+    .lede { font-size: 17px; color: var(--ink-muted); max-width: 62ch; margin-bottom: 28px; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    @media (max-width: 800px) { .stats { grid-template-columns: 1fr 1fr; } }
+    .stat {
+      background: var(--bg-elevated); border: 1px solid var(--stroke); border-radius: var(--radius);
+      padding: 18px 20px; box-shadow: var(--shadow);
+    }
+    .stat-value { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; color: var(--accent); }
+    .stat-label { font-size: 12px; color: var(--ink-muted); margin-top: 4px; }
+    section { margin-top: 48px; }
+    .section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
+    .section-head h2 { font-size: 1.25rem; font-weight: 600; }
+    .section-note { font-size: 13px; color: var(--ink-soft); }
+    .section-intro { font-size: 15px; color: var(--ink-muted); max-width: 70ch; margin-bottom: 16px; }
+    .panel {
+      background: var(--bg-elevated); border: 1px solid var(--stroke); border-radius: var(--radius);
+      overflow: hidden; box-shadow: var(--shadow);
+    }
+    .panel-head {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 14px 18px; border-bottom: 1px solid var(--stroke); background: #fafbfc;
+    }
+    .panel-title { font-size: 13px; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--stroke); vertical-align: top; }
+    th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); font-weight: 600; background: #fafbfc; }
+    tr:last-child td { border-bottom: none; }
+    .tone-ok { color: var(--ok); }
+    .tone-warn { color: var(--warn); }
+    .tone-danger { color: var(--danger); }
+    code { font-size: 12px; background: #eef1f5; padding: 1px 5px; border-radius: 4px; }
+    .ia-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    }
+    @media (max-width: 900px) { .ia-grid { grid-template-columns: 1fr 1fr; } }
+    .ia-group {
+      background: var(--bg-elevated); border: 1px solid var(--stroke); border-radius: var(--radius);
+      padding: 16px 18px; box-shadow: var(--shadow);
+    }
+    .ia-group.restricted { background: var(--accent-soft); border-color: #c5d8e4; }
+    .ia-group.admin { background: #f3f4f7; }
+    .ia-label {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+      color: var(--ink-soft); margin-bottom: 10px;
+    }
+    .ia-group ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+    .ia-group li { font-size: 14px; font-weight: 500; }
+    .ia-group li span { display: block; font-size: 11px; font-weight: 400; color: var(--ink-soft); margin-top: 1px; }
+    .journey {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+      padding: 18px 20px; background: var(--bg-elevated); border: 1px solid var(--stroke);
+      border-radius: var(--radius); box-shadow: var(--shadow);
+    }
+    .j-step {
+      background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 600;
+      padding: 8px 12px; border-radius: 8px;
+    }
+    .j-arrow { color: var(--ink-soft); font-size: 14px; }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 800px) { .split { grid-template-columns: 1fr; } }
+    .split-card {
+      border-radius: var(--radius); padding: 22px 24px; border: 1px solid var(--stroke); box-shadow: var(--shadow);
+    }
+    .split-card.merge { background: var(--warn-soft); border-color: #ead9b8; }
+    .split-card.hide { background: var(--danger-soft); border-color: #e5c8c8; }
+    .split-card.keep { background: var(--ok-soft); border-color: #c5ddd1; }
+    .split-card.principles { background: var(--accent-soft); border-color: #c5d8e4; }
+    .split-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    .split-card .hint { font-size: 13px; color: var(--ink-muted); margin-bottom: 14px; }
+    .split-card ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .split-card li {
+      font-size: 14px; padding-left: 16px; position: relative;
+    }
+    .split-card li::before {
+      content: ""; position: absolute; left: 0; top: 8px; width: 6px; height: 6px;
+      border-radius: 50%; background: currentColor; opacity: 0.45;
+    }
+    .callout {
+      background: var(--bg-elevated); border: 1px solid var(--stroke); border-left: 3px solid var(--accent);
+      border-radius: var(--radius); padding: 20px 24px; box-shadow: var(--shadow); margin-top: 12px;
+    }
+    .callout h3 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+    .callout p { font-size: 14px; color: var(--ink-muted); max-width: 70ch; }
+    .checkpoint {
+      margin-top: 56px; padding: 32px; background: var(--ink); color: #f4f6f9; border-radius: 16px;
+    }
+    .checkpoint .eyebrow { color: #9ec3d8; }
+    .checkpoint h2 { font-family: var(--serif); color: #fff; font-size: 1.6rem; margin-bottom: 10px; }
+    .checkpoint > p { color: #b8c0d0; font-size: 15px; max-width: 54ch; margin-bottom: 24px; }
+    .checkpoint-box {
+      background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px; padding: 20px 22px; margin-bottom: 20px;
+    }
+    .checkpoint-box strong { display: block; font-size: 14px; margin-bottom: 6px; color: #fff; }
+    .checkpoint-box span { font-size: 13.5px; color: #b8c0d0; line-height: 1.5; }
+    .checkpoint-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 11px 18px; border-radius: 9px; font-size: 14px; font-weight: 600;
+      font-family: inherit; border: none; cursor: default;
+    }
+    .btn-primary { background: #fff; color: var(--ink); }
+    .btn-ghost { background: transparent; color: #c5ccd8; border: 1px solid rgba(255, 255, 255, 0.18); }
+    .checkpoint-note { margin-top: 18px; font-size: 12px; color: #8b93a7; }
+    footer {
+      margin-top: 40px; font-size: 12px; color: var(--ink-soft);
+      display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topline">
+      <div class="brand">
+        <div class="brand-mark">IH</div>
+        <div class="brand-text">
+          <div class="brand-name">InvestHome OS</div>
+          <div class="brand-sub">UXR1 · Product Simplification</div>
+        </div>
+      </div>
+      <div class="badge-row">
+        <span class="badge">Section 2 of 20</span>
+        <span class="badge ok">Proposal only</span>
+        <span class="badge gate">No implementation</span>
+      </div>
+    </header>
+
+    <div class="hero">
+      <div class="eyebrow">Simplification Proposal · 2026-07-21</div>
+      <h1>One daily OS — not a platform catalog</h1>
+      <p class="lede">
+        Collapse 292 routes into a calm staff shell: unified Customers, one Sales board,
+        visual Inventory &amp; Projects, Marketing home + Content Studio. Preserve every
+        backend; redirect and permission-gate instead of deleting.
+      </p>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-value">≤12</div>
+          <div class="stat-label">Primary nav items (target)</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">1</div>
+          <div class="stat-label">Customer profile shell</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">1</div>
+          <div class="stat-label">Sales commercial board</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">0</div>
+          <div class="stat-label">Schema drops in UXR1</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- IA model -->
+    <section>
+      <div class="section-head">
+        <h2>Canonical IA model</h2>
+        <p class="section-note">Staff OS · from 00-simplification-proposal.md</p>
+      </div>
+      <p class="section-intro">
+        Normal users see Work + Grow + Coordinate. Platform, BI internals, and dual workspace
+        rails leave the daily story.
+      </p>
+      <div class="ia-grid">
+        <div class="ia-group">
+          <div class="ia-label">Command</div>
+          <ul>
+            <li>Dashboard<span>/dashboard</span></li>
+          </ul>
+        </div>
+        <div class="ia-group">
+          <div class="ia-label">Work</div>
+          <ul>
+            <li>Customers<span>/dashboard/customers</span></li>
+            <li>Sales<span>/dashboard/sales</span></li>
+            <li>Inventory<span>/dashboard/inventory</span></li>
+            <li>Projects<span>/dashboard/projects</span></li>
+          </ul>
+        </div>
+        <div class="ia-group">
+          <div class="ia-label">Grow</div>
+          <ul>
+            <li>Marketing<span>/dashboard/marketing</span></li>
+            <li>Content Studio<span>/dashboard/marketing/content</span></li>
+          </ul>
+        </div>
+        <div class="ia-group">
+          <div class="ia-label">Coordinate</div>
+          <ul>
+            <li>Calendar<span>/dashboard/calendar</span></li>
+            <li>Tasks<span>/dashboard/tasks</span></li>
+            <li>Documents<span>/dashboard/documents</span></li>
+            <li>Reports<span>/dashboard/reports</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="ia-grid" style="margin-top: 10px; grid-template-columns: 1fr 1fr;">
+        <div class="ia-group restricted">
+          <div class="ia-label">Secondary (role-gated)</div>
+          <ul>
+            <li>Finance · AI · Settings</li>
+          </ul>
+        </div>
+        <div class="ia-group admin">
+          <div class="ia-label">Admin only</div>
+          <ul>
+            <li>Admin · users/roles · platform G15 (collapsed)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Identity journey -->
+    <section>
+      <div class="section-head">
+        <h2>Identity journey</h2>
+        <p class="section-note">One profile · lifecycle badges</p>
+      </div>
+      <div class="journey">
+        <div class="j-step">Lead (new)</div>
+        <span class="j-arrow">→</span>
+        <div class="j-step">Qualified</div>
+        <span class="j-arrow">→</span>
+        <div class="j-step">Opportunity (Sales)</div>
+        <span class="j-arrow">→</span>
+        <div class="j-step">Buyer / Reservee</div>
+        <span class="j-arrow">→</span>
+        <div class="j-step">Investor (if capital)</div>
+        <span class="j-arrow">→</span>
+        <div class="j-step">Customer (active)</div>
+      </div>
+      <div class="callout">
+        <h3>Do not maintain three apps for one person</h3>
+        <p>
+          CRM contacts/companies become detail/relationship layers under Customers.
+          Sales stages stay on existing opportunity enums (New → Won/Lost). Matching
+          inventory is a first-class panel from the opportunity.
+        </p>
+      </div>
+    </section>
+
+    <!-- Merges & hides -->
+    <section>
+      <div class="section-head">
+        <h2>What merges · what hides</h2>
+        <p class="section-note">UI redirects · backends preserved</p>
+      </div>
+      <div class="split">
+        <div class="split-card merge">
+          <h3>Merges into canonical homes</h3>
+          <p class="hint">From 17-screens-merge / route map</p>
+          <ul>
+            <li>Lead detail + investors + CRM contacts → <strong>Customers</strong></li>
+            <li>CRM pipeline → <strong>Sales</strong> kanban</li>
+            <li>G6 + marketing workspace dashboards → one <strong>Marketing</strong> home</li>
+            <li>Social / email / content → <strong>Content Studio</strong></li>
+            <li>Knowledge docs UX → <strong>Documents</strong></li>
+            <li>CRM tasks/calendar → cross-module <strong>Tasks / Calendar</strong></li>
+            <li>Narrow analytics reports → thin <strong>Reports</strong></li>
+          </ul>
+        </div>
+        <div class="split-card hide">
+          <h3>Hidden from normal users</h3>
+          <p class="hint">From 14-modules-hidden — keep APIs</p>
+          <ul>
+            <li>Platform G15 (flags, API clients, webhooks, entitlements)</li>
+            <li>Data platform / lineage / metric catalog</li>
+            <li>BI explorer &amp; thin analytics domains</li>
+            <li>Automation engine · Design-system spikes</li>
+            <li>Marketing Advanced (ads, attribution, forecast, vendors, multi-AI)</li>
+            <li>CRM relationships intelligence / network</li>
+            <li>Company org tree as primary · dual CRM/Marketing rails</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visual reset principles -->
+    <section>
+      <div class="section-head">
+        <h2>Design principles (post-approval)</h2>
+        <p class="section-note">Visual reset direction — wireframe-level now</p>
+      </div>
+      <div class="split">
+        <div class="split-card principles">
+          <h3>Daily UX</h3>
+          <ul>
+            <li>Calm real-estate OS: clear hierarchy, generous whitespace</li>
+            <li>One composition per viewport; brand-forward shell</li>
+            <li>Cards only where interaction needs them (inventory/project grids, kanban)</li>
+            <li>Inventory &amp; Projects: <strong>card grid primary</strong>; table = power toggle</li>
+            <li>Progressive disclosure on create/edit forms</li>
+            <li>Wizards: short happy path (e.g. campaign 12→5 steps)</li>
+          </ul>
+        </div>
+        <div class="split-card principles">
+          <h3>Charts &amp; motion</h3>
+          <ul>
+            <li>Every widget: definition · time · source · drill · empty</li>
+            <li><strong>Exceptions:</strong> Sales FunnelChart · Unit Availability DonutChart</li>
+            <li>Prefer Bar / Area / Sparkline / Progress elsewhere</li>
+            <li>Motion: board transitions, card hover, empty→ready — not noise</li>
+            <li>Avoid purple-gradient / cream-serif / broadsheet clichés</li>
+            <li>No Inter/Roboto stacks — keep distinctive DS fonts</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Backend preserved -->
+    <section>
+      <div class="section-head">
+        <h2>What the backend keeps</h2>
+        <p class="section-note">No schema drops in UXR1</p>
+      </div>
+      <div class="panel">
+        <table>
+          <thead>
+            <tr>
+              <th>Keep (API / domain)</th>
+              <th>UI treatment</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Leads, Opportunities, Investors, Parties</strong></td>
+              <td>Unify in Customers + Sales UI</td>
+            </tr>
+            <tr>
+              <td><strong>Inventory assets, reservations, pricing</strong></td>
+              <td>Inventory cards + Sales match</td>
+            </tr>
+            <tr>
+              <td><strong>Projects, milestones, costs</strong></td>
+              <td>Project cards + simplified detail tabs</td>
+            </tr>
+            <tr>
+              <td><strong>Marketing campaigns, content, channels</strong></td>
+              <td>Marketing home + Content Studio; deep = Advanced</td>
+            </tr>
+            <tr>
+              <td><strong>Finance, Documents, Knowledge, AI, Automation</strong></td>
+              <td>Restricted or merged nav</td>
+            </tr>
+            <tr>
+              <td><strong>Admin platform / G15 entities</strong></td>
+              <td>Admin-only; no delete; stop expansion messaging</td>
+            </tr>
+            <tr>
+              <td><strong>Portal / Investor exteriors</strong></td>
+              <td>Out of staff-shell scope; dual-portal risk flagged</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <h3>Archive = hide + redirect</h3>
+        <p>
+          Soft-deprecate routes. No hard deletes of modules, tables, or APIs.
+          Success later: ≤12 nav items, one Customer profile, one Sales board,
+          card-first Inventory/Projects, contracted Dashboard widgets, Content Studio
+          as single content home, platform invisible to non-admins.
+        </p>
+      </div>
+    </section>
+
+    <!-- APPROVAL -->
+    <div class="checkpoint" id="approval">
+      <div class="eyebrow">Approval checkpoint · Section 2</div>
+      <h2>Approve Simplification Proposal to continue</h2>
+      <p>
+        Confirm the canonical IA model, merge/hide map, design principles, and backend
+        preservation strategy before opening wireframes (Sections 4–11) and detailed
+        field/module lists.
+      </p>
+      <div class="checkpoint-box">
+        <strong>Decision required</strong>
+        <span>
+          ☐ Approve Section 2 — proceed to route map / navigation / wireframes<br />
+          ☐ Changes requested — revise simplification proposal first<br />
+          Hard stop: no apps/web or apps/api UI or production route changes until the full UXR1 package is signed off.
+        </span>
+      </div>
+      <div class="checkpoint-actions">
+        <span class="btn btn-primary">Approve Section 2 → Wireframes &amp; maps</span>
+        <span class="btn btn-ghost">Request changes to proposal</span>
+      </div>
+      <p class="checkpoint-note">
+        Gate: APPROVAL-GATE.md · Source: 00-simplification-proposal.md · Related: 02-route-simplification-map.md · 03-proposed-navigation.md
+      </p>
+    </div>
+
+    <footer>
+      <span>INVESTHOME OS · UXR1 Section 2 · Visual review only</span>
+      <span>
+        Source:
+        <a href="../00-simplification-proposal.md">00-simplification-proposal.md</a>
+      </span>
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,41 @@
+{
+  "screenshots": {
+    "overview_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\overview-desktop.png",
+    "documents_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\documents-desktop.png",
+    "collections_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\collections-desktop.png",
+    "search_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\search-desktop.png",
+    "review_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\review-desktop.png",
+    "retention_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\retention-desktop.png",
+    "audit_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\audit-desktop.png",
+    "settings_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\settings-desktop.png",
+    "overview_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\overview-laptop.png",
+    "documents_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\documents-laptop.png",
+    "collections_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\collections-laptop.png",
+    "search_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\search-laptop.png",
+    "review_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\review-laptop.png",
+    "retention_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\retention-laptop.png",
+    "audit_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\audit-laptop.png",
+    "settings_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\settings-laptop.png",
+    "overview_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\overview-tablet.png",
+    "documents_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\documents-tablet.png",
+    "collections_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\collections-tablet.png",
+    "search_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\search-tablet.png",
+    "review_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\review-tablet.png",
+    "retention_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\retention-tablet.png",
+    "audit_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\audit-tablet.png",
+    "settings_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\settings-tablet.png",
+    "overview_tr": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p10\\overview-tr.png"
+  },
+  "checks": {
+    "knowledge_nav_visible": true,
+    "knowledge_hub_present": true,
+    "overview_widgets": true,
+    "tabs_present": true,
+    "unavailable_providers_honest": true,
+    "overflow_issues": [],
+    "layouts_ok": true
+  },
+  "base": "http://localhost:3000",
+  "at": "2026-07-20T09:07:14.444Z",
+  "ok": true
+}

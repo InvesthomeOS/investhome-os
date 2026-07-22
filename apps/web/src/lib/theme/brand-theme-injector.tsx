@@ -14,14 +14,22 @@ export function BrandThemeInjector() {
 
     if (brand?.primary_color) {
       root.style.setProperty('--brand-primary', brand.primary_color);
+      root.style.setProperty('--brand-gold', brand.primary_color);
+      root.style.setProperty(
+        '--brand-primary-soft',
+        `color-mix(in srgb, ${brand.primary_color} 12%, transparent)`,
+      );
     } else if (primaryColor) {
       root.style.setProperty('--brand-primary', primaryColor);
+      root.style.setProperty('--brand-gold', primaryColor);
     }
 
     if (brand?.accent_color) {
+      root.style.setProperty('--brand-accent', brand.accent_color);
       root.style.setProperty('--accent', brand.accent_color);
       root.style.setProperty('--focus-ring', brand.accent_color);
     } else if (accentColor) {
+      root.style.setProperty('--brand-accent', accentColor);
       root.style.setProperty('--accent', accentColor);
       root.style.setProperty('--focus-ring', accentColor);
     }
@@ -38,16 +46,19 @@ export function BrandThemeInjector() {
     if (brand?.surface_color) {
       root.style.setProperty('--surface', brand.surface_color);
       root.style.setProperty('--surface-elevated', brand.surface_color);
+      root.style.setProperty('--brand-surface', brand.surface_color);
     }
 
     if (brand?.text_primary_color) {
       root.style.setProperty('--text', brand.text_primary_color);
       root.style.setProperty('--foreground', brand.text_primary_color);
+      root.style.setProperty('--brand-text', brand.text_primary_color);
     }
 
     if (brand?.text_secondary_color) {
       root.style.setProperty('--text-secondary', brand.text_secondary_color);
       root.style.setProperty('--muted', brand.text_secondary_color);
+      root.style.setProperty('--brand-text-muted', brand.text_secondary_color);
     }
 
     if (brand?.success_color) {
@@ -66,7 +77,13 @@ export function BrandThemeInjector() {
     return () => {
       [
         '--brand-primary',
+        '--brand-primary-soft',
         '--brand-secondary',
+        '--brand-accent',
+        '--brand-gold',
+        '--brand-surface',
+        '--brand-text',
+        '--brand-text-muted',
         '--accent',
         '--focus-ring',
         '--bg',

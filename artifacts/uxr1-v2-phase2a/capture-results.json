@@ -1,0 +1,37 @@
+{
+  "ok": true,
+  "routes": [
+    {
+      "route": "/dashboard",
+      "v2": true,
+      "status": "ok"
+    },
+    {
+      "route": "/dashboard/executive",
+      "v2": true,
+      "status": "ok"
+    },
+    {
+      "route": "/dashboard/leads",
+      "v2": false,
+      "status": 200,
+      "label": "leads",
+      "shell": "legacy"
+    },
+    {
+      "route": "/dashboard/investors",
+      "v2": false,
+      "status": 200,
+      "label": "investors",
+      "shell": "legacy"
+    },
+    {
+      "route": "/dashboard/marketing",
+      "v2": false,
+      "status": 200,
+      "label": "marketing",
+      "shell": "legacy"
+    }
+  ],
+  "warnings": []
+}

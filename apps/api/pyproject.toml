@@ -36,6 +36,10 @@ dev = [
     "mypy>=1.13.0",
 ]
 
+[project.scripts]
+investhome-demo = "investhome_api.db.demo.cli:console_main"
+investhome-migrate = "investhome_api.migration.cli:console_main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

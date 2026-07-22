@@ -33,6 +33,7 @@ import {
   type OpportunityStage,
   type OpportunityLossReason,
 } from '@/lib/api/sales';
+import { ContextualAiActions } from '@/components/ai/contextual-ai-actions';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useRecordDeepLink } from '@/lib/hooks/use-record-deep-link';
 import { useSalesLabels } from '@/lib/i18n/sales-labels';
@@ -474,6 +475,8 @@ export function SalesWorkspace() {
         <h1 className="dashboard__title">{t('title')}</h1>
         <p className="leads__subtitle">{t('subtitle')}</p>
       </header>
+
+      <ContextualAiActions module="sales" />
 
       <SalesKpiRow
         kpis={kpis}

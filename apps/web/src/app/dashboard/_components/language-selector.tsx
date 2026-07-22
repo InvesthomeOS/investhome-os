@@ -4,16 +4,15 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 
-import { LOCALE_COOKIE, locales, type AppLocale } from '@/i18n/config';
-
-function setLocaleCookie(locale: AppLocale) {
-  document.cookie = `${LOCALE_COOKIE}=${locale};path=/;max-age=${60 * 60 * 24 * 365};samesite=lax`;
-}
+import { locales, type AppLocale } from '@/i18n/config';
+import { useAuth } from '@/lib/auth/auth-context';
+import { writeLocaleCookie } from '@/lib/i18n/locale-cookie';
 
 export function LanguageSelector() {
   const locale = useLocale() as AppLocale;
   const router = useRouter();
   const t = useTranslations('common');
+  const { setPreferredLocale } = useAuth();
   const [isPending, startTransition] = useTransition();
 
   const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -23,9 +22,13 @@ export function LanguageSelector() {
       return;
     }
 
-    setLocaleCookie(nextLocale);
+    // Explicit selection always wins (cookie + preferred_language sync).
+    writeLocaleCookie(nextLocale);
     startTransition(() => {
-      router.refresh();
+      void (async () => {
+        await setPreferredLocale(nextLocale);
+        router.refresh();
+      })();
     });
   };
 

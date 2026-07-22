@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UXR1 · Section 03 — Navigation / Information Architecture · INVESTHOME OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="_shared.css" />
+</head>
+<body>
+
+<div class="wrap">
+  <nav class="crumb">
+    <a href="index.html">UXR1 Review Package</a>
+    <span>/</span>
+    <span>Visual review · no code</span>
+  </nav>
+  <div class="topline">
+    <div class="brand">
+      <div class="brand-mark">IH</div>
+      <div>
+        <div class="brand-name">INVESTHOME OS</div>
+        <div class="brand-sub">UXR1 Simplification · Visual deliverables only</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge pending">PENDING REVIEW</span>
+      <span class="badge gate">NO IMPLEMENTATION</span>
+    </div>
+  </div>
+
+  <header class="hero">
+    <div class="eyebrow">Section 03 · Navigation / IA</div>
+    <h1>Proposed information architecture</h1>
+    <p class="lede">Hide technical platform modules from normal users. Eliminate dual CRM/Marketing rails. Deep tools open as in-page sections — not a second sidebar.</p>
+    <div class="meta-row">
+      <span><strong>Source</strong> <code>03-proposed-navigation.md</code></span>
+      <span><strong>Rule</strong> Preserve backends · hide in chrome</span>
+    </div>
+    <nav class="toc">
+      <a href="#compare">Current vs proposed</a>
+      <a href="#primary">Primary tree</a>
+      <a href="#restricted">Restricted</a>
+      <a href="#routes">Routes &amp; permissions</a>
+      <a href="#removed">Removed from nav</a>
+    </nav>
+  </header>
+
+  <section id="compare">
+    <div class="section-head">
+      <h2>Current vs proposed</h2>
+      <span class="section-note">Visual tree comparison</span>
+    </div>
+    <div class="tree-compare">
+      <div class="tree">
+        <h3>Current (pain)</h3>
+        <ul>
+          <li><div class="group">Competing homes</div>
+            <div class="leaf strike">CRM workspace rail</div>
+            <div class="leaf strike">Marketing 30-item rail</div>
+            <div class="leaf strike">BI explorer as peer</div>
+            <div class="leaf strike">Executive as separate top item</div>
+            <div class="leaf strike">Activity / Onboarding / Company tree in primary</div>
+          </li>
+          <li><div class="group">Platform noise</div>
+            <div class="leaf strike">Automation</div>
+            <div class="leaf strike">Design Studio (product) in staff OS</div>
+            <div class="leaf strike">G15 platform children</div>
+          </li>
+        </ul>
+      </div>
+      <div class="tree proposed">
+        <h3>Proposed (target)</h3>
+        <ul>
+          <li><div class="group">Command</div><div class="leaf primary">Dashboard</div></li>
+          <li><div class="group">Work</div>
+            <div class="leaf primary">Customers</div>
+            <div class="leaf primary">Sales</div>
+            <div class="leaf primary">Inventory</div>
+            <div class="leaf primary">Projects</div>
+          </li>
+          <li><div class="group">Grow</div>
+            <div class="leaf primary">Marketing</div>
+            <div class="leaf primary">Content Studio</div>
+          </li>
+          <li><div class="group">Coordinate</div>
+            <div class="leaf primary">Calendar · Tasks · Documents · Reports</div>
+          </li>
+          <li><div class="group">Secondary (role-gated)</div>
+            <div class="leaf dim">Finance · AI · Settings</div>
+          </li>
+          <li><div class="group">Admin only</div>
+            <div class="leaf dim">Admin (users, roles, platform collapsed)</div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="primary">
+    <div class="section-head"><h2>Primary navigation groups</h2></div>
+    <div class="ia-grid">
+      <div class="ia-group">
+        <div class="ia-label">Command</div>
+        <ul><li>Dashboard<span>/dashboard</span></li></ul>
+      </div>
+      <div class="ia-group">
+        <div class="ia-label">Work</div>
+        <ul>
+          <li>Customers<span>/dashboard/customers</span></li>
+          <li>Sales<span>/dashboard/sales</span></li>
+          <li>Inventory<span>/dashboard/inventory</span></li>
+          <li>Projects<span>/dashboard/projects</span></li>
+        </ul>
+      </div>
+      <div class="ia-group">
+        <div class="ia-label">Grow</div>
+        <ul>
+          <li>Marketing<span>/dashboard/marketing</span></li>
+          <li>Content Studio<span>/dashboard/marketing/content</span></li>
+        </ul>
+      </div>
+      <div class="ia-group">
+        <div class="ia-label">Coordinate</div>
+        <ul>
+          <li>Calendar<span>/dashboard/calendar</span></li>
+          <li>Tasks<span>/dashboard/tasks</span></li>
+          <li>Documents<span>/dashboard/documents</span></li>
+          <li>Reports<span>/dashboard/reports</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="restricted">
+    <div class="section-head"><h2>Restricted &amp; admin</h2></div>
+    <div class="ia-grid" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="ia-group restricted">
+        <div class="ia-label">Secondary · role-gated</div>
+        <ul>
+          <li>Finance<span>finance view</span></li>
+          <li>AI<span>AI workspace view</span></li>
+          <li>Settings<span>settings/company</span></li>
+        </ul>
+      </div>
+      <div class="ia-group admin">
+        <div class="ia-label">Admin only</div>
+        <ul>
+          <li>Admin<span>users · roles · platform collapsed</span></li>
+        </ul>
+      </div>
+      <div class="ia-group removed">
+        <div class="ia-label">Out of normal nav</div>
+        <ul>
+          <li>CRM / Marketing dual rails</li>
+          <li>BI explorer · Automation</li>
+          <li>Design Studio product · G15 children</li>
+          <li>Onboarding → Help menu</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="routes">
+    <div class="section-head"><h2>Item → route → permission</h2></div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Label</th><th>Route</th><th>Min permission (proposal)</th></tr></thead>
+        <tbody>
+          <tr><td>Dashboard</td><td><code>/dashboard</code></td><td>authenticated</td></tr>
+          <tr><td>Customers</td><td><code>/dashboard/customers</code></td><td>customers/leads/investors view (unified)</td></tr>
+          <tr><td>Sales</td><td><code>/dashboard/sales</code></td><td>sales/leads view</td></tr>
+          <tr><td>Inventory</td><td><code>/dashboard/inventory</code></td><td>inventory view</td></tr>
+          <tr><td>Projects</td><td><code>/dashboard/projects</code></td><td>projects view</td></tr>
+          <tr><td>Marketing</td><td><code>/dashboard/marketing</code></td><td>marketing view</td></tr>
+          <tr><td>Content Studio</td><td><code>/dashboard/marketing/content</code></td><td>marketing content view</td></tr>
+          <tr><td>Calendar</td><td><code>/dashboard/calendar</code></td><td>calendar/tasks view</td></tr>
+          <tr><td>Tasks</td><td><code>/dashboard/tasks</code></td><td>tasks view</td></tr>
+          <tr><td>Documents</td><td><code>/dashboard/documents</code></td><td>documents/knowledge view</td></tr>
+          <tr><td>Reports</td><td><code>/dashboard/reports</code></td><td>reports or analytics (narrow)</td></tr>
+          <tr><td>Finance</td><td><code>/dashboard/finance</code></td><td>finance view</td></tr>
+          <tr><td>AI</td><td><code>/dashboard/ai</code></td><td>AI workspace view</td></tr>
+          <tr><td>Settings</td><td><code>/dashboard/settings</code></td><td>settings/company view</td></tr>
+          <tr><td>Admin</td><td><code>/dashboard/admin</code></td><td>admin</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="removed">
+    <div class="section-head"><h2>Secondary rails proposal</h2></div>
+    <div class="callout">
+      <h3>Eliminate dual CRM/Marketing rails for normal users</h3>
+      <p>Deep tools open as <strong>in-page sections / tabs</strong>, not a second sidebar. Power users may later get an “Advanced” toggle (post-approval). Routes still exist; chrome stops advertising them.</p>
+    </div>
+  </section>
+
+  <div class="checkpoint">
+    <div class="eyebrow">Approval gate</div>
+    <h2>Section 03 ready for review</h2>
+    <p>Canonical nav model for UXR1. Approve with wireframes 04–11 before any implementation.</p>
+    <div class="actions">
+      <a class="btn" href="index.html">Package index</a>
+      <a class="btn ghost" href="04-dashboard.html">Next: Dashboard wireframe</a>
+    </div>
+  </div>
+
+  <div class="nav-pager">
+    <a href="02-simplification-proposal.html">← 02 Proposal</a>
+    <a href="index.html">Review index</a>
+    <a href="04-dashboard.html">04 Dashboard →</a>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,1 @@
+﻿{"status":"ok","service":"Investhome OS API","version":"0.1.0","environment":"development","timestamp":"2026-07-20T15:38:05.250200Z","database":"connected","request_id":"8852da5a-e296-4f14-ba49-598a24f186af"}

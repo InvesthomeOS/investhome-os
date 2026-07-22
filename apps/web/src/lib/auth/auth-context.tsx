@@ -12,10 +12,12 @@ import {
   hasPermission,
   login as loginRequest,
   logout as logoutRequest,
+  updateUser,
   type CurrentUser,
 } from '@/lib/api/auth';
 import { ApiError } from '@/lib/api/client';
-import { LOCALE_COOKIE, type AppLocale } from '@/i18n/config';
+import type { AppLocale } from '@/i18n/config';
+import { readLocaleCookie, resolveClientLocale, writeLocaleCookie } from '@/lib/i18n/locale-cookie';
 
 type AuthContextValue = {
   user: CurrentUser | null;
@@ -24,6 +26,7 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
+  setPreferredLocale: (locale: AppLocale) => Promise<void>;
   hasPermission: (resource: string, action: string) => boolean;
   canViewAdmin: boolean;
   canManageUsers: boolean;
@@ -32,8 +35,12 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function setLocaleCookie(locale: AppLocale) {
-  document.cookie = `${LOCALE_COOKIE}=${locale};path=/;max-age=${60 * 60 * 24 * 365};samesite=lax`;
+function applyLocaleFromUser(preferredLanguage?: string | null) {
+  // Precedence: existing cookie (explicit selection) wins over preferred_language.
+  const resolved = resolveClientLocale(preferredLanguage);
+  if (resolved && !readLocaleCookie()) {
+    writeLocaleCookie(resolved);
+  }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -48,9 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const current = await fetchCurrentUser();
       setUser(current);
-      if (current.preferred_language === 'tr' || current.preferred_language === 'en') {
-        setLocaleCookie(current.preferred_language);
-      }
+      applyLocaleFromUser(current.preferred_language);
     } catch (err) {
       setUser(null);
       if (err instanceof ApiError && err.status === 401) {
@@ -72,9 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       const current = await loginRequest(email, password);
       setUser(current);
-      if (current.preferred_language === 'tr' || current.preferred_language === 'en') {
-        setLocaleCookie(current.preferred_language);
-      }
+      // Keep explicit cookie if present; otherwise seed from profile preference.
+      applyLocaleFromUser(current.preferred_language);
       router.push('/dashboard');
       router.refresh();
     },
@@ -91,6 +95,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [router]);
 
+  const setPreferredLocale = useCallback(
+    async (locale: AppLocale) => {
+      writeLocaleCookie(locale);
+      if (user?.id) {
+        try {
+          const updated = await updateUser(user.id, { preferred_language: locale });
+          setUser((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  preferred_language: updated.preferred_language ?? locale,
+                }
+              : prev,
+          );
+        } catch {
+          // Cookie already updated; profile sync is best-effort.
+        }
+      }
+    },
+    [user?.id],
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -99,12 +125,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       logout,
       refresh,
+      setPreferredLocale,
       hasPermission: (resource, action) => hasPermission(user, resource, action),
-      canViewAdmin: canViewUsers(user) || canViewRoles(user),
+      canViewAdmin:
+        canViewUsers(user) ||
+        canViewRoles(user) ||
+        (user?.permissions.includes('security:view') ?? false) ||
+        (user?.permissions.includes('*:*') ?? false),
       canManageUsers: canManageUsers(user),
       canManageRoles: canManageRoles(user),
     }),
-    [user, loading, error, login, logout, refresh],
+    [user, loading, error, login, logout, refresh, setPreferredLocale],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

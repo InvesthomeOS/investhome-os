@@ -1,0 +1,65 @@
+{
+  "base": "http://localhost:3000",
+  "startedAt": "2026-07-20T07:50:36.528Z",
+  "checks": {
+    "navAiWorkspace": {
+      "present": true
+    },
+    "globalButton": {
+      "present": true
+    },
+    "home": {
+      "hasRoot": true,
+      "panels": 6,
+      "brand": true,
+      "brandPrimary": "#9D7B55",
+      "overflowX": false,
+      "navLinks": [
+        "Ana sayfa",
+        "Prompt kütüphanesi",
+        "Geçmiş",
+        "Ayarlar"
+      ]
+    },
+    "copilotOpen": true,
+    "copilotSuggestions": 6,
+    "promptLibrary": {
+      "cards": 13
+    },
+    "history": {
+      "present": true
+    },
+    "settings": {
+      "present": true
+    },
+    "contextualSales": {
+      "present": true
+    },
+    "actionDialog": true,
+    "responsive_desktop": {
+      "overflowX": false
+    },
+    "responsive_laptop": {
+      "overflowX": false
+    },
+    "responsive_tablet": {
+      "overflowX": false
+    }
+  },
+  "screenshots": {
+    "nav": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p6\\nav-ai.png",
+    "home": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p6\\desktop-home.png",
+    "copilot": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p6\\copilot-open.png",
+    "prompts": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p6\\prompts.png",
+    "history": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p6\\history.png",
+    "settings": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p6\\settings.png",
+    "actionDialog": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p6\\action-dialog.png",
+    "ai-desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p6\\desktop-ai-home.png",
+    "ai-laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p6\\laptop-ai-home.png",
+    "ai-tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p6\\tablet-ai-home.png"
+  },
+  "failures": [],
+  "consoleErrors": [],
+  "finishedAt": "2026-07-20T07:51:22.782Z",
+  "ok": true
+}

@@ -76,6 +76,10 @@ Investhome OS is a **production-shaped enterprise platform** with Phase 1–3 mo
 
 **Sales Workspace** — **PARTIAL** (Sprint 5A–5B7, 2026-07-16): blueprint **COMPLETE** (5A); **Opportunity backend COMPLETE** (5B1); **Sales Home COMPLETE** (5B2); **Lead Detail & Qualification COMPLETE** (5B3); **Inventory Matching & Shortlists COMPLETE** (5B4); **Proposal Engine COMPLETE** (5B5); **Follow-up Center COMPLETE** (5B6); **Contract Readiness COMPLETE** (5B7) — migration `0027_sales_readiness`; `SalesReadinessCase` coordinating layer over Inventory reservations, Finance deposits, Documents, Proposals, Work Items; configurable templates; handoff workflow (manual signature only); `/dashboard/sales/readiness`; opportunity Contract Readiness tab; **12 API tests**. **NOT IMPLEMENTED:** External calendar/email/Zoom/Teams/WhatsApp integrations, Communications Center, Commissions, Closing Management, AI recommendations, remaining 5B8 views.
 
+**CRM Workspace** — **CONTACT MANAGEMENT COMPLETE** (2026-07-16): migrations `0031_crm_contacts`, `0032_merge_heads`, `0032_crm_contact_management`; extended `CrmContact` model with lifecycle/relationship intelligence, profile tables (investment/buyer/broker/vendor), tags, saved views, merge history; full `/crm/contacts` API (CRUD, archive/restore, merge, bulk, import/export, duplicates, saved views, timeline, relationships); field-level stripping for `view_financial`/`view_compliance`; permissions `crm:read|create|update|delete|archive|restore|export|import|merge|view_financial|view_compliance|transfer_ownership|bulk_actions`; frontend at `/workspaces/crm/contacts` with DataTable list, detail tabs, create modal, import wizard, bulk actions, TR/EN i18n; **18+ API tests**. **NOT IMPLEMENTED:** Full detail tabs (activities/opportunities/investments wired to external modules), Excel/PDF export, duplicate candidate staging UI, Lead/Investor auto-sync jobs, remaining CRM submodule shells (relationships/timeline/reports).
+
+**Marketing Workspace** — **Sprint 8A1 FOUNDATION COMPLETE** (2026-07-19): Extends existing `MarketingCampaign` stack (does not replace advanced modules). Migration `0051_marketing_campaign_foundation_8a1` adds `notes`, `lead_source_id`, `target_project_id`, `primary_channel` (META/GOOGLE/SEO/EMAIL/…), `company_id`. Honest `MetricValue` workspace overview KPIs (`GET /marketing/overview`, `/marketing/campaigns/overview`, dashboard `workspace_overview`). Campaign list filters (status/type/project/owner/channel), sorting, server CSV export (`marketing.export`). Campaign detail Overview + Budget panels wired; Calendar/Assets/Reports/Settings remain foundation shells. Project Related Campaigns via `GET /projects/{id}/campaigns`. Permissions aligned to `marketing.view` / `create|update|manage_campaigns` / `export`. Audit keys: created/updated/archived/restored/budget_updated/project_linked. **Advanced modules preserved for later sprints** (email engine, social posting, ads APIs, automation builder, AI content, SEO, analytics platform, A/B, funnel/landing builders). Ready for **8A2**.
+
 **Enterprise Architecture Foundation** adds request ID middleware, standardized API error envelopes (backward compatible), response helpers, feature flags (`FEATURE_*`), structured logging, `@investhome/ui` design system primitives, enhanced API client, worker Redis URL parsing, and comprehensive `docs/` library.
 
 **Company Foundation** (migration `0013`) delivers centralized company profile, offices, brand profiles, brand assets (via Document Engine), system preferences, organization structure (departments/teams), Settings UI (12 sections TR/EN), permissions, activity/search integration, and global branding context with safe fallbacks.
@@ -124,9 +128,10 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 | TR/EN localization | COMPLETE | PARTIAL | N/A | PARTIAL | COMPLETE | COMPLETE | COMPLETE | COMPLETE | **PARTIAL** |
 | **PHASE 2 — PLATFORM FOUNDATION** |
 | Authentication | COMPLETE | COMPLETE | PARTIAL | COMPLETE | COMPLETE | COMPLETE | N/A | COMPLETE | **PARTIAL** |
-| Users admin | COMPLETE | COMPLETE | NOT IMPLEMENTED | COMPLETE | COMPLETE | PARTIAL | N/A | COMPLETE | **PARTIAL** |
-| Roles admin | COMPLETE | COMPLETE | NOT IMPLEMENTED | COMPLETE | N/A | N/A | N/A | COMPLETE | **PARTIAL** |
-| Permissions matrix | COMPLETE | COMPLETE | NOT IMPLEMENTED | PARTIAL | N/A | N/A | N/A | COMPLETE | **PARTIAL** |
+| Users admin | COMPLETE | COMPLETE | PARTIAL | COMPLETE | COMPLETE | PARTIAL | COMPLETE | COMPLETE | **PARTIAL** |
+| Roles admin | COMPLETE | COMPLETE | PARTIAL | COMPLETE | COMPLETE | N/A | COMPLETE | COMPLETE | **PARTIAL** |
+| Permissions matrix | COMPLETE | COMPLETE | PARTIAL | PARTIAL | COMPLETE | N/A | N/A | COMPLETE | **PARTIAL** |
+| Admin Workspace (6A8) | COMPLETE | PARTIAL | PARTIAL | COMPLETE | COMPLETE | N/A | PARTIAL | COMPLETE | **PARTIAL** |
 | Activity Log | COMPLETE | COMPLETE | COMPLETE | COMPLETE | N/A | COMPLETE | COMPLETE | COMPLETE | **COMPLETE** |
 | Notification Center | COMPLETE | COMPLETE | COMPLETE | COMPLETE | COMPLETE | N/A | PARTIAL | COMPLETE | **COMPLETE** |
 | Universal Global Search | COMPLETE | COMPLETE | COMPLETE | PARTIAL | COMPLETE | PARTIAL | N/A | COMPLETE | **COMPLETE** |
@@ -179,6 +184,12 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 - **Leads** — CRUD, filters, stats, activity, search, permissions, demo seed, TR/EN UI
 - **Investors** — CRUD, filters, stats, entity documents, activity, search
 - **Projects** — CRUD, filters, stats, finance links, entity documents
+- **Projects Workspace Foundation (10A1)** — incremental expansion of `/dashboard/projects` (2026-07-19): additive schema (`priority`, `development_stage`, location/finance/schedule fields, `slug`, manager/user FKs), `project_team_members`, service-layer CRUD, status transition map, restore, financial field RBAC (`view_financial` / `edit_financial`), team APIs, UI permission gating + team/status controls. Migration head `0048_projects_foundation`.
+- **Projects Dashboard & Portfolio Overview (10A2)** — executive portfolio dashboard on `/dashboard/projects` (2026-07-19): `GET /projects/dashboard` (+ milestones/critical-items/recent-activity), `ProjectDashboardService` aggregations (portfolio/status/units/construction/sales/leasing proxies), derived milestones & critical alerts, financials null when unauthorized (no misleading zeros), MetricValue availability pattern, CSS charts + KPI/panels UI, CSV export of filtered list. No new migration.
+- **Project Detail Workspace (10A3)** — project-centric operating workspace at `/dashboard/projects/[projectId]/[tab]` (2026-07-19): `ProjectDetailService` + shell/overview/financials/schedule/construction/units/sales/leasing/investors/documents/activity/alerts/milestones endpoints, permission-aware tab navigation, persistent header, async team user directory (`GET /projects/{id}/directory-users`), MetricValue availability (no fabricated zeros), reuses inventory/opportunities/funding commitments/documents/activity. No new migration. Known limitations: no lease contracts, no construction permits/inspections/change orders, ROI/IRR unavailable, sales volume from opportunity expected revenue only when linked.
+- **Project Budget Foundation (10A4A)** — normalized budget architecture under Projects (2026-07-19): system/org budget categories + cost codes, `ProjectBudgetVersion` / `ProjectBudgetLine` / revisions, centralized status transitions, summary with honest MetricValue availability (actual/committed/forecast unavailable), CSV import preview+confirm (transactional) and export, Financials tab sub-nav (Summary/Budget/Revisions/Funding). **Migration strategy (Option B):** legacy `project_budgets` (`ProjectBudget`) kept intact for finance workspace + dashboard spent maps; new tables additive; backfill creates one APPROVED current version per project that has legacy rows (lines linked via `legacy_project_budget_id`). Permissions: reuse `projects.view_financial` / `edit_financial` / `export`; added `manage_budget`, `approve_budget`, `manage_cost_codes`. Migration head `0049_project_budget_foundation`. Out of scope: vendor invoices, POs, commitments engine, draws, forecasting, GL.
+- **Commitments, Vendor Bills & Actual Cost (10A4B)** — AP cost tracking on Projects (2026-07-19): finance `Vendor` + `ProjectVendor`, `ProjectCommitment` (+ lines, change orders), `ProjectVendorBill` (+ lines), `ProjectPayment` (+ allocations), `ProjectRetainageRelease`. **Recognition:** committed = approved/executed/active/completed commitment current amounts; actual = posted bill line `net_amount + tax`; paid = posted payment allocations; draft/in-review bills do not create actual cost. Budget control default WARNING (override reason). `basic_forecast_at_completion = actual + max(committed−actual, 0)` (labeled, not a full forecast engine). Dashboard spent/total precedence: NORMALIZED when cost data exists, else LEGACY `ProjectBudget.paid_amount` — never double-count. Financials sub-nav adds Commitments/Bills/Payments/Retainage. Permissions: `manage_commitments`, `approve_commitments`, `manage_bills`, `approve_bills`, `post_bills`, `manage_payments`, `post_payments`, `manage_retainage`, `approve_retainage`, `override_budget_control`, `manage_project_vendors`. Migration head `0050_project_cost_tracking`. Out of scope: GL, bank feeds, payment initiation, AIA billing, vendor portal, loan draws, IRR.
+- **Executive Finance Refactor & Scope Alignment (10A4C)** — strategic scope alignment (2026-07-19): Projects Finance is executive decision support, not Construction/Accounting ERP. Centralized `ProjectExecutiveFinanceService` computes MetricValue executive summary (expected/received revenue, forecast/actual cost, expected profit, margin, current cash, funding gap, 30/60/90 need, financial health Healthy|Watch|At Risk|Critical|Unavailable), cash-flow summary, executive-only alerts, and AI-ready summary payload (no AI inference). New endpoints `GET /projects/{id}/executive-finance` and `GET /projects/{id}/cash-flow-summary`; all prior budget/cost/financials APIs preserved. Financials primary sub-nav: Overview (default) | Cash Flow | Profitability | Funding | Budget | Advanced Budget Management (versions/lines/revisions + 10A4B commitments/bills/payments/retainage nested). Portfolio dashboard KPIs prioritize expected revenue, forecast cost, expected profit, funding gap, cash position, attention list, upcoming large cash events. ERP operational cost alerts gated out of primary executive alert surfaces (`include_operational_cost_alerts=False` by default). No new migration (computed service). Permissions reused: `view_financial` / `edit_financial`. **Scope verdict:** Projects Finance is complete enough for executive use; future roadmap should return to CRM, Marketing, AI, Investor Management, and Automation.
 - **Finance** — Accounts, transactions, budgets, funding commitments, payment obligations; `Numeric(16,2)` for money fields
 
 ### Phase 2 — Platform Foundation
@@ -337,6 +348,55 @@ Legend: **COMPLETE** · **PARTIAL** · **PLACEHOLDER** · **NOT IMPLEMENTED** ·
 
 See [SALES_WORKSPACE_BLUEPRINT.md](./SALES_WORKSPACE_BLUEPRINT.md).
 
+### Admin Workspace — PARTIAL (Sprint 6A8 stabilization, 2026-07-16)
+
+| Check | Status |
+|-------|--------|
+| Admin routes verified | **PARTIAL** — `/dashboard/admin` hub + `/users`, `/roles`, `/permissions` only |
+| Company / offices / org | **EXTERNAL** — lives under `/dashboard/settings` (Company Foundation); linked from admin shell |
+| Activity / notifications | **LINKED** — platform routes `/dashboard/activity`, settings notifications tab |
+| Messages / Tasks admin | **NOT IMPLEMENTED** — no admin modules in repo (Investor Messages separate; no Tasks module) |
+| Shared admin shell + sub-nav | **COMPLETE** — cross-links Users → Roles → Permissions → Settings org → Activity |
+| Toast / loading / error / empty / retry | **COMPLETE** — `AdminToastProvider`, `AdminPageStates`, `@investhome/ui` |
+| Shared filters (status, role, dept, date) | **COMPLETE** — `AdminFilters` on users/roles/permissions |
+| Shared data table (sort, export, columns, pagination) | **COMPLETE** — `AdminDataTable` on users/roles |
+| RBAC frontend + backend | **COMPLETE** — existing `require_permission` / `canView*` guards preserved + action toasts |
+| Audit log for auth mutations | **COMPLETE** — existing `record_auth_event` on user/role CRUD (verified in tests) |
+| Global search admin entities | **PARTIAL** — added `role`, `company`; existing `user`, `office`, `department`, `team` |
+| Lazy-loaded admin pages | **COMPLETE** — dynamic imports on users/roles/permissions pages |
+| API tests | **PARTIAL** — **7 new** tests in `test_admin_workspace_stabilization.py` (Users/Roles 0 → 7) |
+| Frontend tests | **NOT IMPLEMENTED** |
+| Sales / Investor workspaces | **UNTOUCHED** — no edits under `sales/` or `investor/` |
+
+**Honest gaps:** No dedicated admin dashboard widgets; no admin-local Messages/Tasks/Branches modules; permissions matrix still shows raw resource/action keys; React Query not used in admin (manual fetch + reload); no frontend E2E.
+
+### Company Workspace — PARTIAL (Sprint 7A8 stabilization, 2026-07-16)
+
+| Check | Status |
+|-------|--------|
+| Workspace route `/company` | **COMPLETE** — dedicated shell, sidebar, header, branding |
+| Overview dashboard | **COMPLETE** — KPIs, recent activity, quick actions |
+| Companies module (7A1) | **COMPLETE** — CRUD, import/export, profile panel, RBAC |
+| Branches module (7A2) | **COMPLETE** — list, drawer, filters, manager assign, transfer stub |
+| Departments module (7A3) | **PARTIAL** — backend **COMPLETE**; frontend list wired in 7A8; no detail drawer |
+| Teams module (7A4) | **NOT IMPLEMENTED** — `team_service.py` + models exist; **no migration** (`company_teams`); no `/teams` API; UI stub |
+| Employees module (7A5) | **PARTIAL** — user directory list via `/users`; no dedicated employee HR fields (salary, visa, passport) |
+| Company documents (7A6) | **PARTIAL** — `company_documents` API + workspace UI; folders, upload, drawer; malware scan **NOT IMPLEMENTED** |
+| Settings (7A7) | **PARTIAL** — redirects to `/dashboard/settings`; Company Foundation remains canonical |
+| Global search | **COMPLETE** — `/companies/search` extended: managed companies, branches, departments, users, documents, projects |
+| Shared filters / table | **COMPLETE** — `CompanyFilters`, `CompanyDataTable` (wraps admin table pattern) |
+| RBAC | **COMPLETE** — `require_permission` on API; frontend `can*` gates; readonly → 403 verified |
+| Field-level security | **PARTIAL** — bank accounts masked without `finance.view`/`company.update`; branch `emergency_contact` masked without `branch.update`; no employee PII module yet |
+| Document security | **PARTIAL** — download audit log on all downloads; signed URLs **NOT IMPLEMENTED** (local storage); watermark/encryption at rest **NOT IMPLEMENTED** |
+| Audit log | **COMPLETE** — company/branch/department CRUD + manager/head assignment logged |
+| Notifications | **PARTIAL** — branch manager + department head assignment rules; doc expiration helper stubbed |
+| Lazy-loaded routes | **COMPLETE** — dynamic imports on companies, branches, departments, employees, documents |
+| API tests | **COMPLETE** — `test_company_workspace_stabilization.py` (**9 tests**) + module tests |
+| Load test | **PARTIAL** — search latency check with 10-company seed (<2s threshold) |
+| Sales / Investor workspaces | **UNTOUCHED** |
+
+**Honest gaps:** Teams backend incomplete (no DB migration); employee HR module not started; virtual scroll not wired; folder entity in search stub only; React Query prefetch on nav not added; no Playwright E2E; cloud signed URLs / malware scan / watermark remain future work.
+
 ---
 
 ## Placeholder or Mock-Only Features
@@ -473,7 +533,7 @@ No conflicting migration heads in source. Single linear chain.
 | Projects / Investors | 4 each |
 | Leads | 3 |
 | Health | 1 |
-| Users / Roles | 0 |
+| Users / Roles | 7 |
 
 ---
 
@@ -564,10 +624,11 @@ No conflicting migration heads in source. Single linear chain.
 | Executive | `/dashboard/executive` | `executive.view` | Yes | Yes |
 | Leads | `/dashboard/leads` | `leads.view` | Yes | Yes |
 | Investors | `/dashboard/investors` | `investors.view` | Yes | Yes |
-| Projects | `/dashboard/projects` | `projects.view` | Yes | Yes |
+| Projects | `/dashboard/projects` | `projects.view` (+ create/update/archive/restore/manage_status/view_financial/edit_financial/view_team/manage_team) | Yes | Yes |
 | Finance | `/dashboard/finance` | `finance.view` | Yes | Yes |
 | Documents | `/dashboard/documents` | `documents.view` | Yes | Yes (fixed) |
 | Activity | `/dashboard/activity` | `activity.view` | Yes | Yes |
+| Admin → Overview | `/dashboard/admin` | `canViewAdmin` | N/A | Yes |
 | Admin → Users | `/dashboard/admin/users` | `canViewAdmin` | Yes | Yes |
 | Admin → Roles | `/dashboard/admin/roles` | `canViewAdmin` | Yes | Yes |
 | Admin → Permissions | `/dashboard/admin/permissions` | `canViewAdmin` | Yes | Partial (raw keys) |

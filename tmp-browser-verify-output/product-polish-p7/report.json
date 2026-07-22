@@ -1,0 +1,148 @@
+{
+  "base": "http://localhost:3000",
+  "at": "2026-07-20T07:54:18.361Z",
+  "routes": [
+    {
+      "id": "home",
+      "path": "/",
+      "ok": true,
+      "status": 200,
+      "error": null
+    },
+    {
+      "id": "projects",
+      "path": "/projects",
+      "ok": true,
+      "status": 200,
+      "error": null
+    },
+    {
+      "id": "project-detail",
+      "path": "/projects/marina-residences",
+      "ok": true,
+      "status": 200,
+      "error": null
+    },
+    {
+      "id": "calculators",
+      "path": "/calculators",
+      "ok": true,
+      "status": 200,
+      "error": null
+    },
+    {
+      "id": "calc-roi",
+      "path": "/calculators/roi",
+      "ok": true,
+      "status": 200,
+      "error": null
+    },
+    {
+      "id": "insights",
+      "path": "/insights",
+      "ok": true,
+      "status": 200,
+      "error": null
+    },
+    {
+      "id": "article",
+      "path": "/insights/first-time-investor-checklist",
+      "ok": true,
+      "status": 200,
+      "error": null
+    },
+    {
+      "id": "contact",
+      "path": "/contact",
+      "ok": true,
+      "status": 200,
+      "error": null
+    },
+    {
+      "id": "lead-consultation",
+      "path": "/lead/consultation",
+      "ok": true,
+      "status": 200,
+      "error": null
+    },
+    {
+      "id": "workflow",
+      "path": "/workflow",
+      "ok": true,
+      "status": 200,
+      "error": null
+    },
+    {
+      "id": "sitemap",
+      "path": "/sitemap.xml",
+      "ok": true,
+      "status": 200,
+      "error": null
+    },
+    {
+      "id": "robots",
+      "path": "/robots.txt",
+      "ok": true,
+      "status": 200,
+      "error": null
+    }
+  ],
+  "consoleErrors": [
+    {
+      "text": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\n%s%s https://react.dev/link/hydration-mismatch \n\n  ...\n    <LoadingBoundary loading={null}>\n      <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n        <RedirectBoundary>\n          <RedirectErrorBoundary router={{...}}>\n            <InnerLayoutRouter url=\"/calculato...\" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>\n              <SegmentViewNode type=\"page\" pagePath=\"(site)/cal...\">\n                <SegmentTrieNode>\n                <CalculatorDetailPage>\n                  <div className=\"site-page\">\n                    <div className=\"site-page_...\">\n                      <div>\n                      <CalculatorClient slug=\"roi\">\n                        <div className=\"site-calc\">\n                          <div className=\"site-calc_...\">\n                            <h2>\n                            <div className=\"site-calc_...\">\n                              <label className=\"site-calc_...\">\n                                <span>\n                                <input\n                                  type=\"number\"\n                                  value={250000}\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                              <label className=\"site-calc_...\">\n                                <span>\n                                <input\n                                  type=\"number\"\n                                  value={320000}\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                              <label className=\"site-calc_...\">\n                                <span>\n                                <input\n                                  type=\"number\"\n                                  value={5}\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                          ...\n                      ...\n              ...\n            ...\n",
+      "url": "http://localhost:3000/calculators/roi"
+    },
+    {
+      "text": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\n%s%s https://react.dev/link/hydration-mismatch \n\n  ...\n    <RenderFromTemplateContext>\n      <ScrollAndFocusHandler segmentPath={[...]}>\n        <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>\n          <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>\n            <LoadingBoundary loading={null}>\n              <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n                <RedirectBoundary>\n                  <RedirectErrorBoundary router={{...}}>\n                    <InnerLayoutRouter url=\"/insights\" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>\n                      <SegmentViewNode type=\"page\" pagePath=\"(site)/ins...\">\n                        <SegmentTrieNode>\n                        <InsightsPage>\n                          <div className=\"site-page\">\n                            <div className=\"site-page_...\">\n                              <div>\n                              <form className=\"site-search\" action=\"/insights\" method=\"get\">\n                                <label>\n                                <input\n                                  id=\"site-insights-q\"\n                                  name=\"q\"\n                                  defaultValue=\"\"\n                                  placeholder=\"Başlık, etiket, konu ara…\"\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                                ...\n                              ...\n                      ...\n                    ...\n          ...\n",
+      "url": "http://localhost:3000/insights"
+    },
+    {
+      "text": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\n%s%s https://react.dev/link/hydration-mismatch \n\n  ...\n    <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>\n      <LoadingBoundary loading={null}>\n        <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n          <RedirectBoundary>\n            <RedirectErrorBoundary router={{...}}>\n              <InnerLayoutRouter url=\"/contact\" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>\n                <SegmentViewNode type=\"page\" pagePath=\"(site)/con...\">\n                  <SegmentTrieNode>\n                  <ContactPage>\n                    <div className=\"site-page\">\n                      <div className=\"site-page_...\">\n                        <div>\n                          <div>\n                          <SiteLeadForm intent=\"contact\">\n                            <form className=\"site-form\" onSubmit={function onSubmit} noValidate={true}>\n                              <label className=\"site-form_...\">\n                                <span>\n                                <input\n                                  name=\"full_name\"\n                                  type=\"text\"\n                                  required={true}\n                                  value=\"\"\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                              <label className=\"site-form_...\">\n                                <span>\n                                <input\n                                  name=\"email\"\n                                  type=\"email\"\n                                  required={true}\n                                  value=\"\"\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                              <label className=\"site-form_...\">\n                                <span>\n                                <input\n                                  name=\"phone\"\n                                  type=\"tel\"\n                                  required={undefined}\n                                  value=\"\"\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                              <label className=\"site-form_...\">\n                                <span>\n                                <textarea\n                                  name=\"message\"\n                                  rows={4}\n                                  required={true}\n                                  value=\"\"\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                              <label className=\"site-form_...\">\n                                <input\n                                  type=\"checkbox\"\n                                  checked={false}\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                                ...\n                              ...\n                        ...\n                ...\n              ...\n",
+      "url": "http://localhost:3000/contact"
+    },
+    {
+      "text": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\n%s%s https://react.dev/link/hydration-mismatch \n\n  ...\n    <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>\n      <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>\n        <LoadingBoundary loading={null}>\n          <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n            <RedirectBoundary>\n              <RedirectErrorBoundary router={{...}}>\n                <InnerLayoutRouter url=\"/lead/cons...\" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>\n                  <SegmentViewNode type=\"page\" pagePath=\"(site)/lea...\">\n                    <SegmentTrieNode>\n                    <LeadIntentPage>\n                      <div className=\"site-page\">\n                        <div className=\"site-page_...\">\n                          <div>\n                          <SiteLeadForm intent=\"consultation\" defaults={{}}>\n                            <form className=\"site-form\" onSubmit={function onSubmit} noValidate={true}>\n                              <label className=\"site-form_...\">\n                                <span>\n                                <input\n                                  name=\"full_name\"\n                                  type=\"text\"\n                                  required={true}\n                                  value=\"\"\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                              <label className=\"site-form_...\">\n                                <span>\n                                <input\n                                  name=\"email\"\n                                  type=\"email\"\n                                  required={true}\n                                  value=\"\"\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                              <label className=\"site-form_...\">\n                                <span>\n                                <input\n                                  name=\"phone\"\n                                  type=\"tel\"\n                                  required={undefined}\n                                  value=\"\"\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                              <label className=\"site-form_...\">\n                                <span>\n                                <textarea\n                                  name=\"message\"\n                                  rows={4}\n                                  required={undefined}\n                                  value=\"\"\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                              <label className=\"site-form_...\">\n                                <input\n                                  type=\"checkbox\"\n                                  checked={false}\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                                ...\n                              ...\n                  ...\n                ...\n      ...\n",
+      "url": "http://localhost:3000/lead/consultation"
+    },
+    {
+      "text": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\n%s%s https://react.dev/link/hydration-mismatch \n\n  ...\n    <LoadingBoundary loading={null}>\n      <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n        <RedirectBoundary>\n          <RedirectErrorBoundary router={{...}}>\n            <InnerLayoutRouter url=\"/calculato...\" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>\n              <SegmentViewNode type=\"page\" pagePath=\"(site)/cal...\">\n                <SegmentTrieNode>\n                <CalculatorDetailPage>\n                  <div className=\"site-page\">\n                    <div className=\"site-page_...\">\n                      <div>\n                      <CalculatorClient slug=\"roi\">\n                        <div className=\"site-calc\">\n                          <div className=\"site-calc_...\">\n                            <h2>\n                            <div className=\"site-calc_...\">\n                              <label className=\"site-calc_...\">\n                                <span>\n                                <input\n                                  type=\"number\"\n                                  value={250000}\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                              <label className=\"site-calc_...\">\n                                <span>\n                                <input\n                                  type=\"number\"\n                                  value={320000}\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                              <label className=\"site-calc_...\">\n                                <span>\n                                <input\n                                  type=\"number\"\n                                  value={5}\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                          ...\n                      ...\n              ...\n            ...\n",
+      "url": "http://localhost:3000/calculators/roi"
+    },
+    {
+      "text": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\n%s%s https://react.dev/link/hydration-mismatch \n\n  ...\n    <LoadingBoundary loading={null}>\n      <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n        <RedirectBoundary>\n          <RedirectErrorBoundary router={{...}}>\n            <InnerLayoutRouter url=\"/calculato...\" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>\n              <SegmentViewNode type=\"page\" pagePath=\"(site)/cal...\">\n                <SegmentTrieNode>\n                <CalculatorDetailPage>\n                  <div className=\"site-page\">\n                    <div className=\"site-page_...\">\n                      <div>\n                      <CalculatorClient slug=\"roi\">\n                        <div className=\"site-calc\">\n                          <div className=\"site-calc_...\">\n                            <h2>\n                            <div className=\"site-calc_...\">\n                              <label className=\"site-calc_...\">\n                                <span>\n                                <input\n                                  type=\"number\"\n                                  value={250000}\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                              <label className=\"site-calc_...\">\n                                <span>\n                                <input\n                                  type=\"number\"\n                                  value={320000}\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                              <label className=\"site-calc_...\">\n                                <span>\n                                <input\n                                  type=\"number\"\n                                  value={5}\n                                  onChange={function onChange}\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                          ...\n                      ...\n              ...\n            ...\n",
+      "url": "http://localhost:3000/calculators/roi"
+    },
+    {
+      "text": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\n%s%s https://react.dev/link/hydration-mismatch \n\n  ...\n    <LoadingBoundary loading={null}>\n      <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>\n        <RedirectBoundary>\n          <RedirectErrorBoundary router={{...}}>\n            <InnerLayoutRouter url=\"/calculato...\" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>\n              <SegmentViewNode type=\"page\" pagePath=\"(site)/cal...\">\n                <SegmentTrieNode>\n                <CalculatorDetailPage>\n                  <div className=\"site-page\">\n                    <div className=\"site-page_...\">\n                      <div>\n                      <CalculatorClient slug=\"roi\">\n                        <div className=\"site-calc\">\n                          <div className=\"site-calc_...\">\n                            <h2>\n                            <div className=\"site-calc_...\">\n                              <label className=\"site-calc_...\">\n                                <span>\n                                <input\n                                  type=\"number\"\n                                  value={250000}\n                                  onChange={function onChange}\n-                                 style={{}}\n                                >\n                              <label className=\"site-calc_...\">\n                                <span>\n                                <input\n                                  type=\"number\"\n                                  value={320000}\n                                  onChange={function onChange}\n-                                 style={{}}\n                                >\n                              <label className=\"site-calc_...\">\n                                <span>\n                                <input\n                                  type=\"number\"\n                                  value={5}\n                                  onChange={function onChange}\n-                                 style={{}}\n                                >\n                          ...\n                      ...\n              ...\n            ...\n",
+      "url": "http://localhost:3000/calculators/roi"
+    },
+    {
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "http://localhost:3000/lead/consultation"
+    }
+  ],
+  "brand": {
+    "brandPrimary": "#9d7b55",
+    "brandSecondary": "#c3a47f",
+    "brandAccent": "#77bfbb",
+    "fontSans": "\"Helvetica Neue\", Helvetica, Arial, sans-serif",
+    "hasHero": true,
+    "hasHeaderLogo": true,
+    "hasFooter": true,
+    "overflowX": false
+  },
+  "formSubmit": {
+    "success": true,
+    "error": null,
+    "text": "Teşekkürler — talebiniz yerel olarak kaydedildi. Canlı CRM yakalama için eşleşen marketing form slug’ını yayımlayın."
+  },
+  "dashboardIntact": {
+    "status": 200,
+    "url": "http://localhost:3000/login?next=%2Fdashboard",
+    "redirectedToLogin": true
+  },
+  "summary": {
+    "pass": 12,
+    "fail": 0
+  }
+}

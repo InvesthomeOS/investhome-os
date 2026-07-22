@@ -1,0 +1,142 @@
+﻿{
+    "verified":  [
+                     {
+                         "file":  "01-welcome.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\01-welcome.png",
+                         "bytes":  172105,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "02-role-confirmation.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\02-role-confirmation.png",
+                         "bytes":  172571,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "03-interactive-tour.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\03-interactive-tour.png",
+                         "bytes":  156246,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "04-highlight-arrow.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\04-highlight-arrow.png",
+                         "bytes":  156246,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "05-daily-checklist.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\05-daily-checklist.png",
+                         "bytes":  144106,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "06-weekly-checklist.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\06-weekly-checklist.png",
+                         "bytes":  142700,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "07-learning-path.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\07-learning-path.png",
+                         "bytes":  139068,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "08-workflow-tutorial.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\08-workflow-tutorial.png",
+                         "bytes":  167045,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "09-training-library.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\09-training-library.png",
+                         "bytes":  157383,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "10-searchable-help.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\10-searchable-help.png",
+                         "bytes":  191446,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "11-guided-simulation.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\11-guided-simulation.png",
+                         "bytes":  145604,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "12-knowledge-check.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\12-knowledge-check.png",
+                         "bytes":  115634,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "13-adoption-dashboard.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\13-adoption-dashboard.png",
+                         "bytes":  161872,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "14-feature-adoption.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\14-feature-adoption.png",
+                         "bytes":  134054,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "15-training-builder.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\15-training-builder.png",
+                         "bytes":  139280,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "16-operations-playbook.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\16-operations-playbook.png",
+                         "bytes":  185077,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "17-sla-settings.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\17-sla-settings.png",
+                         "bytes":  165134,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "18-support-request.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\18-support-request.png",
+                         "bytes":  191319,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "19-portal-guidance.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\19-portal-guidance.png",
+                         "bytes":  87582,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "20-turkish.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\20-turkish.png",
+                         "bytes":  167207,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "21-english.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\21-english.png",
+                         "bytes":  172105,
+                         "ok":  true
+                     },
+                     {
+                         "file":  "22-tablet.png",
+                         "absolutePath":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13\\22-tablet.png",
+                         "bytes":  104149,
+                         "ok":  true
+                     }
+                 ],
+    "countExpected":  22,
+    "pass":  true,
+    "directory":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\adoption-g13",
+    "countOk":  22,
+    "verifiedAt":  "2026-07-20T16:25:55.4221050Z",
+    "minBytes":  10240
+}

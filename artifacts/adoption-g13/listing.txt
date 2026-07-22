@@ -1,0 +1,28 @@
+﻿G13 adoption-g13 PNG verification
+Generated: 2026-07-20T19:25:55.3825861+03:00
+Directory: C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13
+
+01-welcome.png	172105	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\01-welcome.png
+02-role-confirmation.png	172571	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\02-role-confirmation.png
+03-interactive-tour.png	156246	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\03-interactive-tour.png
+04-highlight-arrow.png	156246	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\04-highlight-arrow.png
+05-daily-checklist.png	144106	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\05-daily-checklist.png
+06-weekly-checklist.png	142700	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\06-weekly-checklist.png
+07-learning-path.png	139068	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\07-learning-path.png
+08-workflow-tutorial.png	167045	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\08-workflow-tutorial.png
+09-training-library.png	157383	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\09-training-library.png
+10-searchable-help.png	191446	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\10-searchable-help.png
+11-guided-simulation.png	145604	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\11-guided-simulation.png
+12-knowledge-check.png	115634	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\12-knowledge-check.png
+13-adoption-dashboard.png	161872	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\13-adoption-dashboard.png
+14-feature-adoption.png	134054	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\14-feature-adoption.png
+15-training-builder.png	139280	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\15-training-builder.png
+16-operations-playbook.png	185077	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\16-operations-playbook.png
+17-sla-settings.png	165134	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\17-sla-settings.png
+18-support-request.png	191319	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\18-support-request.png
+19-portal-guidance.png	87582	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\19-portal-guidance.png
+20-turkish.png	167207	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\20-turkish.png
+21-english.png	172105	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\21-english.png
+22-tablet.png	104149	OK	C:\Users\eminb\Projects\investhome-os\artifacts\adoption-g13\22-tablet.png
+
+RESULT: 22/22 PNGs >10KB

@@ -1,0 +1,295 @@
+/* Product Polish P8 — Automation Center & Workflow Orchestration */
+
+.automation-center {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  animation: ih-fade-in var(--motion-duration-md, 220ms) ease;
+}
+
+.automation-center__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.automation-center__eyebrow {
+  margin: 0 0 0.25rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand-primary);
+  font-weight: 600;
+}
+
+.automation-center__title {
+  margin: 0;
+  font-size: clamp(1.5rem, 2vw, 1.85rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.automation-center__subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  max-width: 46rem;
+  line-height: 1.45;
+}
+
+.automation-center__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--surface) 92%, var(--brand-primary) 8%);
+}
+
+.automation-center__nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.55rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition:
+    background var(--motion-duration-fast, 140ms) ease,
+    color var(--motion-duration-fast, 140ms) ease;
+}
+
+.automation-center__nav-link:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+
+.automation-center__nav-link--active {
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.automation-center__banner {
+  padding: 0.85rem 1rem;
+  border-radius: 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 28%, var(--border));
+  background: color-mix(in srgb, var(--surface) 88%, var(--brand-primary) 12%);
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.automation-center__banner--warn {
+  border-color: color-mix(in srgb, #b45309 35%, var(--border));
+  background: color-mix(in srgb, var(--surface) 90%, #b45309 10%);
+}
+
+.automation-center__kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.automation-center__kpi {
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  background: var(--surface);
+}
+
+.automation-center__kpi-label {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.automation-center__kpi-value {
+  margin: 0.35rem 0 0;
+  font-size: 1.35rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.automation-center__kpi-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.automation-center__grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.automation-center__panel {
+  grid-column: span 6;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  min-width: 0;
+}
+
+.automation-center__panel--full {
+  grid-column: span 12;
+}
+
+.automation-center__panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.automation-center__panel-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.automation-center__panel-link {
+  font-size: 0.8rem;
+  color: var(--brand-primary);
+  text-decoration: none;
+}
+
+.automation-center__panel-link:hover {
+  text-decoration: underline;
+}
+
+.automation-center__table-wrap {
+  overflow-x: auto;
+}
+
+.automation-center__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.automation-center__table th,
+.automation-center__table td {
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.automation-center__table th {
+  color: var(--muted);
+  font-weight: 560;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.automation-center__table a {
+  color: var(--brand-primary);
+  text-decoration: none;
+  font-weight: 550;
+}
+
+.automation-center__table a:hover {
+  text-decoration: underline;
+}
+
+.automation-center__muted {
+  color: var(--muted);
+}
+
+.automation-center__empty {
+  padding: 1.25rem 0.25rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.automation-center__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: end;
+}
+
+.automation-center__filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.automation-center__filters input,
+.automation-center__filters select {
+  min-width: 11rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.automation-center__integration-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.automation-center__integration {
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  background: var(--surface);
+}
+
+.automation-center__integration h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.automation-center__integration p {
+  margin: 0.4rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.automation-center__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.automation-center__step {
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: color-mix(in srgb, var(--surface) 94%, var(--bg));
+}
+
+.automation-center__step strong {
+  display: block;
+  font-size: 0.875rem;
+}
+
+.automation-center__step span {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+@media (max-width: 960px) {
+  .automation-center__panel {
+    grid-column: span 12;
+  }
+}

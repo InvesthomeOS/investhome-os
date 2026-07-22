@@ -16,7 +16,11 @@
     "test": "turbo run test",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
-    "clean": "turbo run clean && rimraf node_modules"
+    "clean": "turbo run clean && rimraf node_modules",
+    "demo:seed": "cd apps/api && python -m investhome_api.db.demo seed",
+    "demo:reset": "cd apps/api && python -m investhome_api.db.demo reset",
+    "demo:validate": "cd apps/api && python -m investhome_api.db.demo validate",
+    "test:e2e": "pnpm --dir .pw-verify test:e2e"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

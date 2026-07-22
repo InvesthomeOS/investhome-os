@@ -1,0 +1,56 @@
+﻿Investhome OS — Full API pytest suite (final run)
+Date: 2026-07-19 (local)
+Repo: C:\Users\eminb\Projects\investhome-os
+
+================================================================================
+PRE-RUN VERIFICATIONS
+================================================================================
+
+1) Health: curl http://localhost:8000/health
+   Status: OK (HTTP 200)
+   Body: {"status":"ok","service":"Investhome OS API","version":"0.1.0","environment":"development","database":"connected",...}
+
+2) Alembic (investhome-api):
+   current: 0047_mkt_automation_meta (head)
+   heads:   0047_mkt_automation_meta (head)
+
+3) Worker logs (investhome-worker --tail 20):
+   No errors. Normal arq cron jobs (inventory_reservation_reminders, work_meeting_approaching) completing successfully.
+
+================================================================================
+PYTEST EXECUTION
+================================================================================
+
+Command:
+  docker run --rm --network investhome-os_investhome-net --entrypoint bash \
+    -v "//c/Users/eminb/Projects/investhome-os/apps/api:/app" -w /app \
+    investhome-os-api:latest -lc "pip install -q -e '.[dev]' && pytest -q --tb=no -ra"
+
+Note: --network investhome-os_investhome-net required so pip can reach PyPI (plain docker run without network failed on dev deps).
+
+Duration: 345.67s (~5m 46s)
+Exit code: 0
+
+================================================================================
+RESULTS (exact totals)
+================================================================================
+
+  collected: 608
+  passed:    608
+  failed:    0
+  errors:    0
+  skipped:   0
+
+Summary line: 608 passed, 25 warnings in 345.67s (0:05:45)
+
+================================================================================
+WARNINGS SUMMARY (25 total)
+================================================================================
+
+- StarletteDeprecationWarning (httpx/testclient): install httpx2 instead of httpx with starlette.testclient (1)
+- StarletteDeprecationWarning HTTP_422_UNPROCESSABLE_ENTITY -> HTTP_422_UNPROCESSABLE_CONTENT (many tests across branches, companies, CRM, departments, executive, inventory, marketing routes, search)
+- StarletteDeprecationWarning HTTP_413_REQUEST_ENTITY_TOO_LARGE -> HTTP_413_CONTENT_TOO_LARGE (test_documents.py::test_file_size_limit)
+
+No test failures or errors.
+
+Log file: .pw-verify/final-api-suite-run.log

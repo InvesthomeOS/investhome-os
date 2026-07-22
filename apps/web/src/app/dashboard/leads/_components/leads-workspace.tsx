@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import {
-  archiveLead,
   createLead,
   fetchLead,
   fetchLeads,

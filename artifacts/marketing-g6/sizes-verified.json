@@ -1,0 +1,28 @@
+﻿{
+    "ok":  20,
+    "sizes":  {
+                  "18-tablet.png":  136803,
+                  "07-website-analytics.png":  131664,
+                  "05-funnel.png":  132279,
+                  "04-attribution.png":  141255,
+                  "06-lead-sources.png":  142999,
+                  "03-campaign-drawer.png":  150874,
+                  "14-landing-pages.png":  127989,
+                  "17-ai-insights.png":  125566,
+                  "01-overview.png":  159810,
+                  "15-calculators.png":  129889,
+                  "16-calendar.png":  122697,
+                  "10-blog.png":  126841,
+                  "11-social.png":  131853,
+                  "12-email.png":  129681,
+                  "09-content-studio.png":  123140,
+                  "08-seo.png":  134379,
+                  "02-campaigns.png":  168154,
+                  "19-turkish.png":  159847,
+                  "20-english.png":  168214,
+                  "13-paid-ads.png":  131373
+              },
+    "verifiedAt":  "2026-07-20T19:16:54.2081751+03:00",
+    "outDir":  "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\marketing-g6",
+    "total":  20
+}

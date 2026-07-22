@@ -1,0 +1,22 @@
+﻿{
+  "meta": {
+    "source": "docker compose exec api python (SessionLocal)",
+    "scope": "demo_only (is_demo=True where applicable)",
+    "environment": "local docker demo database",
+    "note": "Integrity checks scoped to DEMO-marked rows only. Not production claims. No secrets included."
+  },
+  "financial_account_current_balance_sum": "500000.00",
+  "finance_transaction_by_status": {
+    "completed": 3
+  },
+  "orphans": {
+    "finance_transaction_missing_account_id_fk": 0,
+    "finance_transaction_null_account_id": 0,
+    "inventory_reservation_missing_inventory_asset": 0
+  },
+  "expectations": {
+    "finance_transaction_orphans": 0,
+    "inventory_reservation_orphans": 0
+  },
+  "result": "PASS"
+}

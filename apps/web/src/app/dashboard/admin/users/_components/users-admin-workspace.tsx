@@ -1,8 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from 'next/navigation';
+
+import { Button, PageHeader } from '@investhome/ui';
 
 import { EntityActivityTimeline } from '@/app/dashboard/_components/entity-activity-timeline';
 import { EntityDocumentsPanel } from '@/app/dashboard/_components/entity-documents-panel';
@@ -17,33 +19,58 @@ import {
   type UserRecord,
   updateUser,
 } from '@/lib/api/auth';
+import {
+  forceLogoutUser,
+  resetUserPassword,
+  suspendUser,
+} from '@/lib/api/security-center';
 import { useAuth } from '@/lib/auth/auth-context';
+
+import { AdminDataTable, type AdminTableColumn } from '../../_components/admin-data-table';
+import { AdminFilters, DEFAULT_ADMIN_FILTERS, type AdminFilterState } from '../../_components/admin-filters';
+import { AdminFormModal } from '../../_components/admin-form-modal';
+import { AdminPageStates } from '../../_components/admin-page-states';
+import { useAdminToast } from '../../_components/use-admin-toast';
 
 export function UsersAdminWorkspace() {
   const t = useTranslations('adminUsers');
+  const tShell = useTranslations('adminShell');
+  const tSec = useTranslations('adminSecurity');
   const tCommon = useTranslations('common');
   const router = useRouter();
+  const pathname = usePathname();
   const { user: currentUser, canManageUsers: canManage } = useAuth();
+  const { notifySuccess, notifyError } = useAdminToast();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [roles, setRoles] = useState<RoleSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [formDirty, setFormDirty] = useState(false);
+  const [draftFilters, setDraftFilters] = useState<AdminFilterState>(DEFAULT_ADMIN_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState<AdminFilterState>(DEFAULT_ADMIN_FILTERS);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [usersResponse, rolesResponse] = await Promise.all([fetchUsers(), fetchRoles()]);
+      const [usersResponse, rolesResponse] = await Promise.all([
+        fetchUsers({
+          search: appliedFilters.search || undefined,
+          status: appliedFilters.status || undefined,
+        }),
+        fetchRoles(),
+      ]);
       setUsers(usersResponse.items);
       setRoles(rolesResponse.items);
-    } catch {
+    } catch (loadError) {
+      notifyError(loadError, t('loadError'));
       setError(t('loadError'));
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [appliedFilters.search, appliedFilters.status, notifyError, t]);
 
   useEffect(() => {
     if (currentUser && !canViewUsers(currentUser)) {
@@ -53,193 +80,343 @@ export function UsersAdminWorkspace() {
     void load();
   }, [currentUser, load, router]);
 
-  const pathname = usePathname();
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const recordId = new URLSearchParams(window.location.search).get('id');
     if (recordId) setSelectedId(recordId);
   }, [pathname]);
 
-  const selected = users.find((item) => item.id === selectedId) ?? null;
+  const filteredUsers = useMemo(() => {
+    return users.filter((item) => {
+      if (appliedFilters.roleId && item.roles[0]?.id !== appliedFilters.roleId) {
+        return false;
+      }
+      if (
+        appliedFilters.department &&
+        !(item.department ?? '').toLowerCase().includes(appliedFilters.department.toLowerCase())
+      ) {
+        return false;
+      }
+      if (appliedFilters.dateFrom) {
+        const created = new Date(item.created_at);
+        if (created < new Date(`${appliedFilters.dateFrom}T00:00:00`)) {
+          return false;
+        }
+      }
+      if (appliedFilters.dateTo) {
+        const created = new Date(item.created_at);
+        if (created > new Date(`${appliedFilters.dateTo}T23:59:59`)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [appliedFilters.dateFrom, appliedFilters.dateTo, appliedFilters.department, appliedFilters.roleId, users]);
+
+  const selected = filteredUsers.find((item) => item.id === selectedId) ?? null;
+
+  const handleDeactivate = async (userId: string) => {
+    try {
+      await deactivateUser(userId);
+      notifySuccess(tShell('deactivatedUser'));
+      await load();
+    } catch (deactivateError) {
+      notifyError(deactivateError, tShell('saveFailed'));
+    }
+  };
+
+  const handleRoleChange = async (userId: string, roleId: string) => {
+    try {
+      await assignUserRoles(userId, [roleId]);
+      notifySuccess(tShell('roleAssigned'));
+      await load();
+    } catch (roleError) {
+      notifyError(roleError, tShell('saveFailed'));
+    }
+  };
+
+  const handleLanguageChange = async (userId: string, preferredLanguage: string) => {
+    try {
+      await updateUser(userId, { preferred_language: preferredLanguage });
+      notifySuccess(tShell('savedUser'));
+      await load();
+    } catch (updateError) {
+      notifyError(updateError, tShell('saveFailed'));
+    }
+  };
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    await createUser({
-      full_name: String(form.get('full_name')),
-      email: String(form.get('email')),
-      password: String(form.get('password')),
-      job_title: String(form.get('job_title') || ''),
-      department: String(form.get('department') || ''),
-      status: 'active',
-      role_ids: [String(form.get('role_id'))],
-    });
-    setFormOpen(false);
-    await load();
+    try {
+      await createUser({
+        full_name: String(form.get('full_name')),
+        email: String(form.get('email')),
+        password: String(form.get('password')),
+        job_title: String(form.get('job_title') || ''),
+        department: String(form.get('department') || ''),
+        status: 'active',
+        role_ids: [String(form.get('role_id'))],
+      });
+      setFormOpen(false);
+      setFormDirty(false);
+      notifySuccess(tShell('savedUser'));
+      await load();
+    } catch (createError) {
+      notifyError(createError, tShell('saveFailed'));
+    }
   };
 
-  const handleDeactivate = async (userId: string) => {
-    await deactivateUser(userId);
-    await load();
-  };
-
-  const handleRoleChange = async (userId: string, roleId: string) => {
-    await assignUserRoles(userId, [roleId]);
-    await load();
-  };
-
-  const handleLanguageChange = async (userId: string, preferredLanguage: string) => {
-    await updateUser(userId, { preferred_language: preferredLanguage });
-    await load();
-  };
+  const columns: AdminTableColumn<UserRecord>[] = [
+    {
+      id: 'name',
+      header: t('columns.name'),
+      sortable: true,
+      exportValue: (row) => row.full_name,
+      render: (row) => row.full_name,
+    },
+    {
+      id: 'email',
+      header: t('columns.email'),
+      sortable: true,
+      exportValue: (row) => row.email,
+      render: (row) => row.email,
+    },
+    {
+      id: 'department',
+      header: t('columns.department'),
+      sortable: true,
+      exportValue: (row) => row.department ?? '',
+      render: (row) => row.department ?? tCommon('noValue'),
+    },
+    {
+      id: 'status',
+      header: t('columns.status'),
+      sortable: true,
+      exportValue: (row) => row.status,
+      render: (row) => t(`status.${row.status}`),
+    },
+    {
+      id: 'roles',
+      header: t('columns.roles'),
+      render: (row) =>
+        canManage ? (
+          <select
+            value={row.roles[0]?.id ?? ''}
+            onClick={(event) => event.stopPropagation()}
+            onChange={(event) => void handleRoleChange(row.id, event.target.value)}
+          >
+            {roles.map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          row.roles.map((role) => role.name).join(', ')
+        ),
+    },
+    {
+      id: 'language',
+      header: t('columns.language'),
+      render: (row) =>
+        canManage ? (
+          <select
+            value={row.preferred_language}
+            onClick={(event) => event.stopPropagation()}
+            onChange={(event) => void handleLanguageChange(row.id, event.target.value)}
+          >
+            <option value="tr">{tCommon('languageTurkish')}</option>
+            <option value="en">{tCommon('languageEnglish')}</option>
+          </select>
+        ) : (
+          row.preferred_language
+        ),
+    },
+    {
+      id: 'lastLogin',
+      header: tSec('lastLogin'),
+      sortable: true,
+      exportValue: (row) => row.last_login_at ?? '',
+      render: (row) =>
+        row.last_login_at ? new Date(row.last_login_at).toLocaleString() : tCommon('noValue'),
+    },
+    {
+      id: 'mfa',
+      header: tSec('mfaStatus'),
+      exportValue: (row) => (row.mfa_enabled ? 'enabled' : 'off'),
+      render: (row) => (row.mfa_enabled ? row.mfa_method ?? 'on' : 'off'),
+    },
+    {
+      id: 'actions',
+      header: t('columns.actions'),
+      render: (row) => (
+        <>
+          <Button type="button" variant="ghost" onClick={() => setSelectedId(row.id)}>
+            {tCommon('edit')}
+          </Button>
+          {canManage && row.id !== currentUser?.id ? (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={async () => {
+                  try {
+                    await forceLogoutUser(row.id);
+                    notifySuccess(tSec('forceLogoutDone'));
+                  } catch (err) {
+                    notifyError(err, tShell('saveFailed'));
+                  }
+                }}
+              >
+                {tSec('forceLogout')}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={async () => {
+                  try {
+                    await resetUserPassword(row.id);
+                    notifySuccess(tSec('resetPasswordDone'));
+                  } catch (err) {
+                    notifyError(err, tShell('saveFailed'));
+                  }
+                }}
+              >
+                {tSec('resetPassword')}
+              </Button>
+              {row.status === 'active' ? (
+                <Button
+                  type="button"
+                  variant="danger"
+                  onClick={async () => {
+                    try {
+                      await suspendUser(row.id);
+                      notifySuccess(tSec('suspendDone'));
+                      await load();
+                    } catch (err) {
+                      notifyError(err, tShell('saveFailed'));
+                    }
+                  }}
+                >
+                  {tSec('suspend')}
+                </Button>
+              ) : null}
+              {row.status === 'active' ? (
+                <Button type="button" variant="danger" onClick={() => void handleDeactivate(row.id)}>
+                  {t('deactivate')}
+                </Button>
+              ) : null}
+            </>
+          ) : null}
+        </>
+      ),
+    },
+  ];
 
   return (
     <main className="dashboard">
-      <header className="dashboard__header">
-        <p className="dashboard__eyebrow">{t('eyebrow')}</p>
-        <h1 className="dashboard__title">{t('title')}</h1>
-        <p className="dashboard__subtitle">{t('subtitle')}</p>
-      </header>
+      <PageHeader
+        eyebrow={t('eyebrow')}
+        title={t('title')}
+        subtitle={t('subtitle')}
+        actions={
+          canManage ? (
+            <Button type="button" onClick={() => setFormOpen(true)}>
+              {t('createUser')}
+            </Button>
+          ) : null
+        }
+      />
 
-      {canManage && (
-        <div className="leads__toolbar">
-          <button className="leads__primary-button" type="button" onClick={() => setFormOpen(true)}>
-            {t('createUser')}
-          </button>
-        </div>
-      )}
+      <AdminFilters
+        filters={draftFilters}
+        onChange={setDraftFilters}
+        onApply={() => setAppliedFilters(draftFilters)}
+        onReset={() => {
+          setDraftFilters(DEFAULT_ADMIN_FILTERS);
+          setAppliedFilters(DEFAULT_ADMIN_FILTERS);
+        }}
+        roleOptions={roles.map((role) => ({ value: role.id, label: role.name }))}
+        showRole
+        showDepartment
+        showDate
+      />
 
-      {loading && <p>{tCommon('loading')}</p>}
-      {error && <p className="leads__error">{error}</p>}
+      <AdminPageStates
+        loading={loading}
+        error={error}
+        empty={!loading && !error && filteredUsers.length === 0}
+        onRetry={() => void load()}
+        emptyTitle={tShell('emptyUsers')}
+        emptyDescription={tShell('emptyUsersHint')}
+      >
+        <AdminDataTable
+          rows={filteredUsers}
+          columns={columns}
+          rowKey={(row) => row.id}
+          activeRowKey={selectedId}
+          onRowClick={(row) => setSelectedId(row.id)}
+          exportFileName="users.csv"
+        />
+      </AdminPageStates>
 
-      {!loading && !error && (
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>{t('columns.name')}</th>
-                <th>{t('columns.email')}</th>
-                <th>{t('columns.department')}</th>
-                <th>{t('columns.status')}</th>
-                <th>{t('columns.roles')}</th>
-                <th>{t('columns.language')}</th>
-                <th>{t('columns.actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id} className={selectedId === user.id ? 'admin-table__row--active' : ''}>
-                  <td>{user.full_name}</td>
-                  <td>{user.email}</td>
-                  <td>{user.department ?? tCommon('noValue')}</td>
-                  <td>{t(`status.${user.status}`)}</td>
-                  <td>
-                    {canManage ? (
-                      <select
-                        value={user.roles[0]?.id ?? ''}
-                        onChange={(event) => void handleRoleChange(user.id, event.target.value)}
-                      >
-                        {roles.map((role) => (
-                          <option key={role.id} value={role.id}>
-                            {role.name}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      user.roles.map((role) => role.name).join(', ')
-                    )}
-                  </td>
-                  <td>
-                    {canManage ? (
-                      <select
-                        value={user.preferred_language}
-                        onChange={(event) =>
-                          void handleLanguageChange(user.id, event.target.value)
-                        }
-                      >
-                        <option value="tr">{tCommon('languageTurkish')}</option>
-                        <option value="en">{tCommon('languageEnglish')}</option>
-                      </select>
-                    ) : (
-                      user.preferred_language
-                    )}
-                  </td>
-                  <td>
-                    <button type="button" onClick={() => setSelectedId(user.id)}>
-                      {tCommon('edit')}
-                    </button>
-                    {canManage && user.status === 'active' && user.id !== currentUser?.id && (
-                      <button type="button" onClick={() => void handleDeactivate(user.id)}>
-                        {t('deactivate')}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {selected && (
+      {selected ? (
         <section className="admin-detail">
           <h2>{selected.full_name}</h2>
           <p>{selected.email}</p>
           <p>{selected.job_title ?? tCommon('noValue')}</p>
-          {selected.is_demo && <span className="dashboard-shell__nav-badge">{tCommon('demo')}</span>}
+          {selected.is_demo ? <span className="dashboard-shell__nav-badge">{tCommon('demo')}</span> : null}
           <EntityDocumentsPanel entityType="user" entityId={selected.id} />
           <EntityActivityTimeline entityType="user" entityId={selected.id} />
         </section>
-      )}
+      ) : null}
 
-      {formOpen && (
-        <div className="leads__modal-backdrop">
-          <form className="leads__modal" onSubmit={(event) => void handleCreate(event)}>
-            <h2>{t('createUser')}</h2>
-            <label>
-              {t('fields.fullName')}
-              <input name="full_name" required />
-            </label>
-            <label>
-              {t('fields.email')}
-              <input name="email" type="email" required />
-            </label>
-            <label>
-              {t('fields.password')}
-              <input name="password" type="password" minLength={8} required />
-            </label>
-            <label>
-              {t('fields.jobTitle')}
-              <input name="job_title" />
-            </label>
-            <label>
-              {t('fields.department')}
-              <input name="department" />
-            </label>
-            <label>
-              {t('fields.role')}
-              <select name="role_id" required defaultValue="">
-                <option value="" disabled>
-                  {t('fields.selectRole')}
-                </option>
-                {roles.map((role) => (
-                  <option key={role.id} value={role.id}>
-                    {role.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="leads__modal-actions">
-              <button type="button" onClick={() => setFormOpen(false)}>
-                {tCommon('cancel')}
-              </button>
-              <button className="leads__primary-button" type="submit">
-                {t('createUser')}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      <AdminFormModal
+        open={formOpen}
+        title={t('createUser')}
+        submitLabel={t('createUser')}
+        dirty={formDirty}
+        onClose={() => {
+          setFormOpen(false);
+          setFormDirty(false);
+        }}
+        onSubmit={handleCreate}
+      >
+        <label>
+          {t('fields.fullName')}
+          <input name="full_name" required onChange={() => setFormDirty(true)} />
+        </label>
+        <label>
+          {t('fields.email')}
+          <input name="email" type="email" required onChange={() => setFormDirty(true)} />
+        </label>
+        <label>
+          {t('fields.password')}
+          <input name="password" type="password" minLength={8} required onChange={() => setFormDirty(true)} />
+        </label>
+        <label>
+          {t('fields.jobTitle')}
+          <input name="job_title" onChange={() => setFormDirty(true)} />
+        </label>
+        <label>
+          {t('fields.department')}
+          <input name="department" onChange={() => setFormDirty(true)} />
+        </label>
+        <label>
+          {t('fields.role')}
+          <select name="role_id" required defaultValue="" onChange={() => setFormDirty(true)}>
+            <option value="" disabled>
+              {t('fields.selectRole')}
+            </option>
+            {roles.map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </AdminFormModal>
     </main>
   );
 }

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UXR1 · Section 05 — Customer Profile · INVESTHOME OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="_shared.css" />
+</head>
+<body>
+
+<div class="wrap">
+  <nav class="crumb">
+    <a href="index.html">UXR1 Review Package</a>
+    <span>/</span>
+    <span>Visual review · no code</span>
+  </nav>
+  <div class="topline">
+    <div class="brand">
+      <div class="brand-mark">IH</div>
+      <div>
+        <div class="brand-name">INVESTHOME OS</div>
+        <div class="brand-sub">UXR1 Simplification · Visual deliverables only</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge ok">APPROVED · V2</span>
+      <span class="badge pending">V2 REFINE</span>
+    </div>
+  </div>
+
+  <header class="hero">
+    <div class="eyebrow">Section 05 · Wireframe + mockup</div>
+    <h1>Customer Profile</h1>
+    <p class="lede">One person, one URL — Lead, Buyer, and Investor as badges on a unified profile with progressive disclosure.</p>
+    <div class="meta-row">
+      <span><strong>Route</strong> <code>/dashboard/customers/[id]</code></span>
+      <span><strong>Audience</strong> Sales · CRM · Investor relations</span>
+      <span><strong>Primary UI</strong> Header + tabs · Overview default</span>
+    </div>
+    <nav class="toc">
+      <a href="#today">Today's work</a>
+      <a href="#wireframe">Low-fi wireframe</a>
+      <a href="#hifi">High-fidelity</a>
+      <a href="#desktop">Desktop</a>
+      <a href="#mobile">Mobile</a>
+      <a href="#journey">Journey</a>
+      <a href="#actions">Actions</a>
+      <a href="#fields">Fields</a>
+      <a href="#rationale">Rationale</a>
+    </nav>
+  </header>
+
+  <section id="today">
+    <div class="section-head">
+      <h2>Today's work</h2>
+      <span class="section-note">Who finishes faster · operational, not decorative</span>
+    </div>
+    <div class="today-work">
+      <div class="today-work-grid">
+        
+        <div class="today-card">
+          <div class="today-role">Salesperson</div>
+          <div class="today-task">Call / WhatsApp the next action due today</div>
+          <div class="today-faster">Next-action card + channel buttons sit above the form dump.</div>
+        </div>
+        <div class="today-card">
+          <div class="today-role">Marketer</div>
+          <div class="today-task">Hand off a hot lead with context intact</div>
+          <div class="today-faster">One URL keeps source, preferences, and timeline — no re-entry into CRM.</div>
+        </div>
+        <div class="today-card">
+          <div class="today-role">Investor manager</div>
+          <div class="today-task">Confirm KYC / ticket only when Investor badge applies</div>
+          <div class="today-faster">Compliance fields stay in Details until the capital path is real.</div>
+        </div>
+        <div class="today-card">
+          <div class="today-role">Executive</div>
+          <div class="today-task">Understand where this person is in the journey</div>
+          <div class="today-faster">Lifecycle badges + journey strip replace three module names.</div>
+        </div>
+      </div>
+      <p class="today-principle">One person, one profile. Advanced identity, UTM, and accreditation stay expandable so daily sales work stays fast.</p>
+    </div>
+  </section>
+
+  <section id="wireframe">
+    <div class="section-head">
+      <h2>Low-fidelity wireframe</h2>
+      <span class="section-note">Structured layout · boxes only</span>
+    </div>
+    <p class="section-intro">Unifies lead detail, CRM contact, and investor record. Overview surfaces next action, active deal, and preference snapshot before deep fields.</p>
+    <div class="wire">
+      <div class="wire-frame" style="min-width:680px">
+        <div class="wire-top"><span>← Customers / Ada Yılmaz</span><span></span></div>
+        <div class="wire-main" style="padding:16px">
+          <div class="wire-row" style="align-items:center">
+            <div class="wire-box" style="flex:0;min-width:56px;height:56px;display:grid;place-items:center">AV</div>
+            <div style="flex:1">
+              <div class="wire-value">Ada Yılmaz <span class="wire-chip">Lead</span><span class="wire-chip">Buyer</span></div>
+              <div style="margin-top:4px">+90 … · ada@… · Owner: Selim · Lifecycle: Proposal sent</div>
+            </div>
+          </div>
+          <div class="wire-row" style="margin-top:8px">
+            <span class="wire-chip">Call</span><span class="wire-chip">WhatsApp</span><span class="wire-chip">Email</span>
+            <span class="wire-chip">Schedule</span><span class="wire-chip">Match units</span><span class="wire-chip">More ▾</span>
+          </div>
+          <div style="margin:12px 0;border-bottom:1.5px solid #9aa3b5;padding-bottom:6px">
+            <strong>Overview</strong> · Journey · Opportunities · Matches · Docs · Activity · Details
+          </div>
+          <div class="wire-row">
+            <div class="wire-box tall"><div class="wire-label">Next action</div>Follow up proposal<br/>Due Today 16:00<br/>[Done] [Snooze]</div>
+            <div class="wire-box tall"><div class="wire-label">Active opportunity</div>North Towers A-1204<br/>Stage: Proposal<br/>[Open in Sales]</div>
+            <div class="wire-box tall"><div class="wire-label">Preference snapshot</div>2+1 · 8–12M TRY<br/>Marina preferred<br/>[Edit]</div>
+          </div>
+          <div class="wire-box muted"><div class="wire-label">Timeline</div>• Today — Proposal PDF sent<br/>• Mon — Site visit<br/>• 12 Jun — Lead created</div>
+        </div>
+      </div></div>
+  </section>
+
+  <section id="hifi">
+    <div class="section-head">
+      <h2>High-fidelity mockup</h2>
+      <span class="section-note">Premium light SaaS · sales/marketing friendly</span>
+    </div>
+    <p class="section-intro">Premium CRM profile: identity first, actions second, tabs for depth — not a form dump.</p>
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Desktop frame · Customer Profile</span>
+        <span class="badge pending">Mockup</span>
+      </div>
+      <img class="mock-img" src="mockups/05-customer-profile-desktop.png" alt="Customer Profile high-fidelity desktop mockup" />
+      <div class="mock-caption">High-fidelity desktop · Ada Yılmaz profile with Overview cards and journey tabs.</div>
+    </div>
+  </section>
+
+  <section id="desktop">
+    <div class="section-head">
+      <h2>Desktop layout</h2>
+      <span class="section-note">Primary working surface</span>
+    </div>
+    <div class="split">
+      <div class="card">
+        <h3>Composition</h3>
+        <ul><li>Breadcrumb + identity header (avatar, badges, contact, owner, lifecycle)</li><li>Action bar: Call / WhatsApp / Email / Schedule / Match units / More</li><li>Tabs: Overview (default), Journey, Opportunities, Matches, Docs, Activity, Details</li><li>Overview: next action · active opportunity · preference snapshot · compact timeline</li><li>Details accordion collapsed: identity, qualification, investor, UTM, compliance</li></ul>
+      </div>
+      <div class="card">
+        <h3>Density & hierarchy</h3>
+        <ul><li>One URL per person — badges reflect roles, not separate apps</li><li>Create/edit: 5–8 daily fields; rest in Details</li><li>Investor path adds fields without cloning the record</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="mobile">
+    <div class="section-head">
+      <h2>Mobile behavior &amp; preview</h2>
+      <span class="section-note">Phone-first adaptations · operational queue first</span>
+    </div>
+    <div class="split">
+      <div class="mobile-preview">
+        <div class="wire">
+      <div class="wire-phone">
+        <div class="ph-top">Ada Yılmaz</div>
+        <div class="ph-body">
+          <div class="wire-box"><span class="wire-chip">Lead</span> Proposal sent</div>
+          <div class="wire-row">
+            <div class="wire-chip">Call</div><div class="wire-chip">WA</div><div class="wire-chip">Mail</div>
+          </div>
+          <div class="wire-box tall"><div class="wire-label">Next action</div>Follow up · Today</div>
+          <div class="wire-box"><div class="wire-label">Active deal</div>A-1204 Proposal</div>
+        </div>
+        <div class="ph-tabbar">
+          <div class="ph-tab active">Overview</div>
+          <div class="ph-tab">Journey</div>
+          <div class="ph-tab">More</div>
+        </div>
+      </div></div>
+        <p class="mobile-note">Primary mobile job: finish today’s queue — not recreate the desktop dashboard.</p>
+      </div>
+      <div class="card">
+        <h3>Behavior rules</h3>
+        <ul><li>Sticky identity + primary Call/WhatsApp</li><li>Tabs become horizontal scroll chips</li><li>Overview cards stack full-width</li><li>Details accordion only — no long forms on mobile create</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="journey">
+    <div class="section-head">
+      <h2>User journey</h2>
+    </div>
+    <div class="journey">
+      <span class="j-step">Lead</span><span class="j-arrow">→</span><span class="j-step">Qualified</span><span class="j-arrow">→</span><span class="j-step">Opportunity</span><span class="j-arrow">→</span><span class="j-step">Reserved</span><span class="j-arrow">→</span><span class="j-step">Customer</span>
+    </div>
+    <p class="section-intro" style="margin-top:14px">Optional Investor badge branches from opportunity without a disconnected record. Convert to investor = add role + fields.</p>
+  </section>
+
+  <section id="actions">
+    <div class="section-head">
+      <h2>Primary actions</h2>
+    </div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Action</th><th>Where</th><th>Outcome</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Call / WhatsApp / Email</strong></td><td>Action bar</td><td>Opens channel with context</td></tr><tr><td><strong>Schedule</strong></td><td>Action bar</td><td>Calendar event linked to person</td></tr><tr><td><strong>Match units</strong></td><td>Action bar</td><td>Inventory match panel prefills prefs</td></tr><tr><td><strong>Done / Snooze follow-up</strong></td><td>Next action card</td><td>Clears or postpones</td></tr><tr><td><strong>Open in Sales</strong></td><td>Active opportunity</td><td>Pipeline drawer / board</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="fields">
+    <div class="section-head">
+      <h2>Visible &amp; hidden fields</h2>
+      <span class="section-note">Progressive disclosure · docs 12–13</span>
+    </div>
+    <div class="field-grid">
+      <div class="card field-box ok">
+        <h3>Visible (daily)</h3>
+        <ul><li>Full name · phone · email · owner</li><li>Lifecycle / status · source · next follow-up</li><li>Active opportunity stage · preference snapshot (budget band, beds, project)</li><li>Short notes · timeline highlights</li></ul>
+      </div>
+      <div class="card field-box hide">
+        <h3>Hidden (Details / Advanced)</h3>
+        <ul><li>Full address / geography</li><li>UTM deep attribution · campaign internals</li><li>Score breakdown · exact budget</li><li>Secondary phones · LinkedIn · WhatsApp id</li><li>KYC / accreditation (show when Investor)</li><li>Investment ticket/risk prefs (Investor Details)</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="rationale">
+    <div class="section-head">
+      <h2>Design rationale</h2>
+      <span class="section-note">Why better than current</span>
+    </div>
+    <div class="callout">
+      <h3>Stop splitting one human across three apps</h3>
+      <p>Today lead, CRM, and investor UIs fragment history and force staff to relearn chrome. A unified profile with badges and progressive disclosure matches how sales actually work.</p>
+    </div>
+    <ul class="card" style="margin-top:12px;list-style:none">
+      <li style="padding-left:14px;position:relative;font-size:14px;color:var(--ink-muted);margin:8px 0">Journey strip is the mental model — not module names</li><li style="padding-left:14px;position:relative;font-size:14px;color:var(--ink-muted);margin:8px 0">Matching and opportunities live on the same person</li><li style="padding-left:14px;position:relative;font-size:14px;color:var(--ink-muted);margin:8px 0">Compliance/investor depth appear only when relevant</li>
+    </ul>
+  </section>
+
+  <div class="checkpoint">
+    <div class="eyebrow">Approval gate</div>
+    <h2>Section 05 ready for review</h2>
+    <p>Visual package only. No routes, components, or APIs changed. Approve or request changes before any implementation.</p>
+    <div class="actions">
+      <a class="btn" href="index.html">Back to package index</a>
+      <a class="btn ghost" href="06-sales-pipeline.html">Next: Sales Pipeline</a>
+    </div>
+  </div>
+
+  <div class="nav-pager">
+    <a href="04-dashboard.html">← 04 Dashboard</a>
+    <a href="index.html">Review index</a>
+    <a href="06-sales-pipeline.html">06 Sales Pipeline →</a>
+  </div>
+</div>
+</body>
+</html>

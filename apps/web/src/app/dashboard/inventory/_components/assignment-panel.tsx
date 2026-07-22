@@ -112,7 +112,7 @@ function RequestCard({
   );
 }
 
-export function AssignmentPanel({ asset, parentUnits, onChanged, focusRequestId: _focusRequestId }: AssignmentPanelProps) {
+export function AssignmentPanel({ asset, parentUnits, onChanged }: AssignmentPanelProps) {
   const t = useTranslations('inventory.assignments');
   const locale = useLocale();
   const { user } = useAuth();

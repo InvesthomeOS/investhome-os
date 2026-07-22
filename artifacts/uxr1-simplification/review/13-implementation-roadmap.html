@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UXR1 · Section 13 — Implementation Roadmap · INVESTHOME OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="_shared.css" />
+</head>
+<body>
+
+<div class="wrap">
+  <nav class="crumb">
+    <a href="index.html">UXR1 Review Package</a>
+    <span>/</span>
+    <span>Visual review · no code</span>
+  </nav>
+  <div class="topline">
+    <div class="brand">
+      <div class="brand-mark">IH</div>
+      <div>
+        <div class="brand-name">INVESTHOME OS</div>
+        <div class="brand-sub">UXR1 Simplification · Visual deliverables only</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge pending">PENDING REVIEW</span>
+      <span class="badge gate">NO IMPLEMENTATION</span>
+    </div>
+  </div>
+
+  <header class="hero">
+    <div class="eyebrow">Section 13 · Implementation roadmap (design only)</div>
+    <h1>Phased plan — blocked until product sign-off</h1>
+    <p class="lede">Design-only sequencing for after approval. Mirrors <code>20-implementation-plan.md</code>. <strong>WAITING FOR FINAL PRODUCT REVIEW — NO IMPLEMENTATION.</strong> No routes, apps/web, or apps/api work in this deliverable.</p>
+    <div class="meta-row">
+      <span><strong>S1</strong> Conditional</span>
+      <span><strong>S2</strong> Approved</span>
+      <span><strong>S3–11</strong> Pending product review</span>
+      <span><strong>Code</strong> Blocked</span>
+    </div>
+    <nav class="toc">
+      <a href="#gate">Phase 0</a>
+      <a href="#phases">Phases 1–8</a>
+      <a href="#non">Non-phases</a>
+      <a href="#question">Approval question</a>
+    </nav>
+  </header>
+
+  <section id="gate">
+    <div class="section-head"><h2>Phase 0 — Approval &amp; freeze</h2></div>
+    <div class="phase-list">
+      <div class="phase-item blocked">
+        <div class="phase-num">Phase 0</div>
+        <div>
+          <h3>Current state · YOU ARE HERE</h3>
+          <p>Review principles, IA, wireframes 04–11, design-system recs. Sign APPROVAL-GATE. Freeze G15B and ecosystem expansion. <strong>No code until written approval.</strong></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="phases">
+    <div class="section-head"><h2>Post-approval phases (design sequencing)</h2></div>
+    <div class="phase-list">
+      <div class="phase-item">
+        <div class="phase-num">Phase 1</div>
+        <div>
+          <h3>IA cutover (nav only)</h3>
+          <p>Proposed sidebar · hide modules behind permissions · high-traffic redirects. No full visual redesign yet beyond nav.</p>
+        </div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-num">Phase 2</div>
+        <div>
+          <h3>Customers unify (UI shell)</h3>
+          <p>List + profile · link lead/investor/contact APIs · progressive fields · deprecate parallel list homes in nav.</p>
+        </div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-num">Phase 3</div>
+        <div>
+          <h3>Sales + Matching</h3>
+          <p>Single kanban · shared match panel · CRM pipeline redirect.</p>
+        </div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-num">Phase 4</div>
+        <div>
+          <h3>Visual Inventory &amp; Projects</h3>
+          <p>Cards default · simplified drawers/tabs · primary status rules.</p>
+        </div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-num">Phase 5</div>
+        <div>
+          <h3>Dashboard widgets</h3>
+          <p>Rebuild per chart contract · document funnel/donut exceptions · remove decorative charts.</p>
+        </div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-num">Phase 6</div>
+        <div>
+          <h3>Marketing + Content Studio</h3>
+          <p>Slim marketing home · canonical Content Studio · Advanced collapse for deep channels.</p>
+        </div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-num">Phase 7</div>
+        <div>
+          <h3>Coordinate + Documents + Reports</h3>
+          <p>Calendar/Tasks cross-module · Documents absorb knowledge UX · thin Reports; BI restricted.</p>
+        </div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-num">Phase 8</div>
+        <div>
+          <h3>Hardening</h3>
+          <p>Permission QA · redirect/bookmark guide · empty states / i18n · card-grid performance · docs update.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="non">
+    <div class="section-head"><h2>Explicit non-phases</h2></div>
+    <div class="card">
+      <ul>
+        <li>No Contractor / Vendor / MGA / Mobile app / API Marketplace expansion (G15B freeze)</li>
+        <li>No production redesign before Phase 0 sign-off</li>
+        <li>No backend deletions — preserve tables and APIs; hide in chrome</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="question">
+    <div class="section-head"><h2>Suggested approval question</h2></div>
+    <div class="callout">
+      <h3>Product decision</h3>
+      <p>“Approve canonical nav + wireframes 04–11 + donut/funnel exceptions + design-system recommendations + phased plan 1–8?” Until yes: <strong>WAITING FOR FINAL PRODUCT REVIEW — NO IMPLEMENTATION.</strong></p>
+    </div>
+  </section>
+
+  <div class="checkpoint">
+    <div class="eyebrow">Final gate</div>
+    <h2>Roadmap is design-only</h2>
+    <p>This page does not authorize engineering work. Sign APPROVAL-GATE.md before any apps/web or apps/api changes.</p>
+    <div class="actions">
+      <a class="btn" href="index.html">Package index</a>
+      <a class="btn ghost" href="00-ux-principles.html">Back to Principles</a>
+    </div>
+  </div>
+
+  <div class="nav-pager">
+    <a href="12-design-system-recommendations.html">← 12 Design System</a>
+    <a href="index.html">Review index</a>
+    <a href="index.html">Package index →</a>
+  </div>
+</div>
+</body>
+</html>

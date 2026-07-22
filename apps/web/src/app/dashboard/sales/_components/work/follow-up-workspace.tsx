@@ -5,7 +5,7 @@ import type { Route } from 'next';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
-import { Button, ErrorState, LoadingState } from '@investhome/ui';
+import { Button, ErrorState } from '@investhome/ui';
 
 import { hasPermission } from '@/lib/api/auth';
 import {

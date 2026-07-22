@@ -1,0 +1,22 @@
+{
+  "policy": {
+    "non_financial": "suggest_merge only \u2014 operator confirms",
+    "financial": "never_auto_merge \u2014 review_only",
+    "financial_entities": [
+      "finance_transactions",
+      "financial_accounts",
+      "funding_commitments",
+      "inventory_reservations",
+      "payment_obligations",
+      "project_budgets",
+      "project_payments",
+      "vendor_bills"
+    ]
+  },
+  "groups": [],
+  "counts": {
+    "total_groups": 0,
+    "suggest_merge": 0,
+    "never_auto_merge": 0
+  }
+}

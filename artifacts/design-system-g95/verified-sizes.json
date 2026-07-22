@@ -1,0 +1,179 @@
+{
+  "pass": true,
+  "expected": 24,
+  "listedPngCount": 24,
+  "okCount": 24,
+  "directory": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95",
+  "rows": [
+    {
+      "file": "01-overview.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\01-overview.png",
+      "bytes": 101696,
+      "ok": true
+    },
+    {
+      "file": "02-colors-typography.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\02-colors-typography.png",
+      "bytes": 12025,
+      "ok": true
+    },
+    {
+      "file": "03-buttons.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\03-buttons.png",
+      "bytes": 23327,
+      "ok": true
+    },
+    {
+      "file": "04-forms.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\04-forms.png",
+      "bytes": 19428,
+      "ok": true
+    },
+    {
+      "file": "05-tables.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\05-tables.png",
+      "bytes": 24705,
+      "ok": true
+    },
+    {
+      "file": "06-filters.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\06-filters.png",
+      "bytes": 18274,
+      "ok": true
+    },
+    {
+      "file": "07-cards.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\07-cards.png",
+      "bytes": 26038,
+      "ok": true
+    },
+    {
+      "file": "08-drawers.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\08-drawers.png",
+      "bytes": 37608,
+      "ok": true
+    },
+    {
+      "file": "09-modals.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\09-modals.png",
+      "bytes": 24201,
+      "ok": true
+    },
+    {
+      "file": "10-tabs-nav.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\10-tabs-nav.png",
+      "bytes": 79109,
+      "ok": true
+    },
+    {
+      "file": "11-badges.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\11-badges.png",
+      "bytes": 10556,
+      "ok": true
+    },
+    {
+      "file": "12-empty.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\12-empty.png",
+      "bytes": 92763,
+      "ok": true
+    },
+    {
+      "file": "13-loading.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\13-loading.png",
+      "bytes": 16425,
+      "ok": true
+    },
+    {
+      "file": "14-errors.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\14-errors.png",
+      "bytes": 88531,
+      "ok": true
+    },
+    {
+      "file": "15-charts.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\15-charts.png",
+      "bytes": 28671,
+      "ok": true
+    },
+    {
+      "file": "16-responsive.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\16-responsive.png",
+      "bytes": 12252,
+      "ok": true
+    },
+    {
+      "file": "17-crm.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\17-crm.png",
+      "bytes": 65105,
+      "ok": true
+    },
+    {
+      "file": "18-investor.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\18-investor.png",
+      "bytes": 56066,
+      "ok": true
+    },
+    {
+      "file": "19-project.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\19-project.png",
+      "bytes": 58730,
+      "ok": true
+    },
+    {
+      "file": "20-executive.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\20-executive.png",
+      "bytes": 67542,
+      "ok": true
+    },
+    {
+      "file": "21-portal.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\21-portal.png",
+      "bytes": 125368,
+      "ok": true
+    },
+    {
+      "file": "22-turkish.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\22-turkish.png",
+      "bytes": 97332,
+      "ok": true
+    },
+    {
+      "file": "23-english.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\23-english.png",
+      "bytes": 100005,
+      "ok": true
+    },
+    {
+      "file": "24-tablet.png",
+      "abs": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\design-system-g95\\24-tablet.png",
+      "bytes": 14377,
+      "ok": true
+    }
+  ],
+  "listedPng": [
+    "01-overview.png",
+    "02-colors-typography.png",
+    "03-buttons.png",
+    "04-forms.png",
+    "05-tables.png",
+    "06-filters.png",
+    "07-cards.png",
+    "08-drawers.png",
+    "09-modals.png",
+    "10-tabs-nav.png",
+    "11-badges.png",
+    "12-empty.png",
+    "13-loading.png",
+    "14-errors.png",
+    "15-charts.png",
+    "16-responsive.png",
+    "17-crm.png",
+    "18-investor.png",
+    "19-project.png",
+    "20-executive.png",
+    "21-portal.png",
+    "22-turkish.png",
+    "23-english.png",
+    "24-tablet.png"
+  ]
+}

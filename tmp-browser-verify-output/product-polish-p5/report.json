@@ -1,0 +1,66 @@
+{
+  "base": "http://localhost:3000",
+  "startedAt": "2026-07-20T07:59:35.549Z",
+  "checks": {
+    "login_ok": true,
+    "has_ecc_command": true,
+    "has_ecc_health": true,
+    "has_ecc_kpi": true,
+    "has_ecc_priorities": true,
+    "has_ecc_alerts": true,
+    "has_ecc_quick": true,
+    "has_ecc_search": true,
+    "has_ecc_mywork": true,
+    "has_ai_panel": true,
+    "kpi_card_count": 8,
+    "brand_primary": "#9D7B55",
+    "executive_overflow_x": false,
+    "home_ex_home": true,
+    "home_ecc_search": true,
+    "home_overflow_x": false,
+    "no_overflow": true,
+    "no_breaking_console": true,
+    "critical_widgets": true
+  },
+  "widgets": {
+    "hasEccCommand": true,
+    "hasEccHealth": true,
+    "hasEccKpi": true,
+    "hasEccPriorities": true,
+    "hasEccAlerts": true,
+    "hasEccQuick": true,
+    "hasEccSearch": true,
+    "hasEccMywork": true,
+    "hasAiPanel": true,
+    "kpiCardCount": 8,
+    "overflowX": false,
+    "brandPrimary": "#9D7B55",
+    "unavailableHints": true,
+    "sampleText": "Investhome OS\nKOMUTA\nAna Sayfa\nÇALIŞMA ALANLARI\nYönetici Özeti\nSatış\nYatırımcılar\nProjeler\nEnvanter\nFinans\nCRM\nPazarlama\nARAÇLAR\nİş Zekâsı\nYZ Çalışma Alanı\nBelgeler\nTasarım Stüdyosu\nAktivite Geçmişi\nOtomasyon\nAyarlar\nYÖNETİM\nYönetim\nKullanıcılar\nRoller\nYetkiler\n\nYönetici Özeti\n\nInvesthome OS\nYönetici Özeti\nAra...\nCtrl+K\nYZ Copilot\nYeni lead\nTEMA\nAçık\nKoyu\nSistem\nDİL\nTürkçe\nEnglish\nSA\nSuper Admin (Demo)\n\nYÖNETİM\n\nYönetici Özeti\n\nŞirket sağlığı, öncelikler ve karar sinyalleri tek liderlik görünümü"
+  },
+  "home": {
+    "hasExHome": true,
+    "hasEccSearch": true,
+    "overflowX": false,
+    "unavailableHints": true
+  },
+  "screenshots": {
+    "home_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p5\\home-desktop.png",
+    "home_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p5\\home-laptop.png",
+    "home_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p5\\home-tablet.png",
+    "home_wide": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p5\\home-wide.png",
+    "executive_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p5\\executive-desktop.png",
+    "executive_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p5\\executive-laptop.png",
+    "executive_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p5\\executive-tablet.png",
+    "executive_wide": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p5\\executive-wide.png"
+  },
+  "failures": [],
+  "softFailures": [],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "pageErrors": [],
+  "unexpectedConsole": [],
+  "ok": true,
+  "finishedAt": "2026-07-20T07:59:46.735Z"
+}

@@ -1,0 +1,811 @@
+/* Investhome OS — unified motion system (P4)
+   Prefer transform/opacity. Tokens drive all shared UI polish.
+   Brand tokens and shell structure are untouched. */
+
+:root,
+[data-theme='light'],
+[data-theme='dark'] {
+  /* Durations */
+  --motion-duration-instant: 0ms;
+  --motion-duration-fast: 120ms;
+  --motion-duration-base: 200ms;
+  --motion-duration-moderate: 280ms;
+  --motion-duration-slow: 360ms;
+  --motion-duration-toast: 320ms;
+  --motion-duration-page: 240ms;
+
+  /* Easing */
+  --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-spring: cubic-bezier(0.34, 1.2, 0.64, 1);
+
+  /* Backward-compatible aliases (existing shell/components) */
+  --duration-fast: var(--motion-duration-fast);
+  --duration-base: var(--motion-duration-base);
+  --ease-out: var(--motion-ease-out);
+
+  /* Distances */
+  --motion-distance-xs: 2px;
+  --motion-distance-sm: 4px;
+  --motion-distance-md: 8px;
+  --motion-distance-lg: 12px;
+}
+
+/* ---------- Shared keyframes (GPU-friendly) ---------- */
+
+@keyframes ih-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ih-fade-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(var(--motion-distance-sm));
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes ih-slide-in-right {
+  from {
+    opacity: 0.92;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes ih-slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-lg));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ih-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-sm));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ih-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes ih-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ih-press {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(0.98);
+  }
+}
+
+/* Alias used by executive / marketing skeletons */
+@keyframes executive-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ---------- Utility classes ---------- */
+
+.ih-motion-fade-in {
+  animation: ih-fade-in var(--motion-duration-base) var(--motion-ease-out) both;
+}
+
+.ih-motion-scale-in {
+  animation: ih-fade-scale-in var(--motion-duration-moderate) var(--motion-ease-out) both;
+}
+
+.ih-motion-slide-in-right {
+  animation: ih-slide-in-right var(--motion-duration-moderate) var(--motion-ease-emphasized) both;
+}
+
+.ih-motion-slide-in-up {
+  animation: ih-slide-in-up var(--motion-duration-base) var(--motion-ease-out) both;
+}
+
+.ih-page-enter {
+  animation: ih-page-enter var(--motion-duration-page) var(--motion-ease-out) both;
+}
+
+.ih-interactive {
+  transition:
+    color var(--motion-duration-fast) var(--motion-ease-out),
+    background-color var(--motion-duration-fast) var(--motion-ease-out),
+    border-color var(--motion-duration-fast) var(--motion-ease-out),
+    box-shadow var(--motion-duration-fast) var(--motion-ease-out),
+    opacity var(--motion-duration-fast) var(--motion-ease-out),
+    transform var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.ih-interactive:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* ---------- Buttons ---------- */
+
+.leads__button,
+.ih-btn {
+  position: relative;
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-ease-out),
+    border-color var(--motion-duration-fast) var(--motion-ease-out),
+    color var(--motion-duration-fast) var(--motion-ease-out),
+    box-shadow var(--motion-duration-fast) var(--motion-ease-out),
+    opacity var(--motion-duration-fast) var(--motion-ease-out),
+    transform var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.leads__button:hover:not(:disabled),
+.ih-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.leads__button:active:not(:disabled),
+.ih-btn:active:not(:disabled) {
+  transform: translateY(0.5px) scale(0.985);
+}
+
+.leads__button:focus-visible,
+.ih-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.ih-btn--loading,
+.leads__button--loading {
+  color: transparent !important;
+  pointer-events: none;
+}
+
+.ih-btn--loading::after,
+.leads__button--loading::after {
+  content: '';
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 1rem;
+  height: 1rem;
+  margin: -0.5rem 0 0 -0.5rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  color: var(--brand-on-primary);
+  animation: ih-spin 0.7s linear infinite;
+}
+
+.ih-btn--secondary.ih-btn--loading::after,
+.ih-btn--ghost.ih-btn--loading::after,
+.leads__button--secondary.leads__button--loading::after,
+.leads__button--ghost.leads__button--loading::after {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--text) 35%, transparent);
+  border-right-color: transparent;
+}
+
+.ih-btn--success,
+.leads__button--success {
+  background: var(--success) !important;
+  color: var(--brand-white) !important;
+  border-color: transparent !important;
+}
+
+.ih-btn:disabled,
+.leads__button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ---------- Tables ---------- */
+
+.admin-table tbody tr,
+.ih-table tbody tr,
+.leads__table tbody tr {
+  transition: background-color var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.admin-table tbody tr:hover,
+.ih-table tbody tr:hover,
+.leads__table tbody tr:hover,
+.leads__row:hover {
+  background: color-mix(in srgb, var(--brand-primary) 6%, var(--surface));
+}
+
+.admin-table tbody tr[aria-selected='true'],
+.ih-table tbody tr[aria-selected='true'],
+.leads__table tbody tr[aria-selected='true'],
+.ih-table__row--selected,
+.admin-table__row--selected {
+  background: color-mix(in srgb, var(--brand-accent) 10%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--brand-accent);
+}
+
+.admin-table-wrap--sticky thead th,
+.ih-table-wrap--sticky thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-muted);
+  box-shadow: 0 1px 0 var(--border);
+}
+
+.admin-data-table__sort,
+.ih-table__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: color var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.admin-data-table__sort:hover,
+.ih-table__sort:hover {
+  color: var(--text);
+}
+
+.ih-table__sort-indicator {
+  display: inline-block;
+  opacity: 0.45;
+  font-size: 0.65rem;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-out), transform var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.ih-table__sort[aria-sort='ascending'] .ih-table__sort-indicator,
+.ih-table__sort[data-sort='asc'] .ih-table__sort-indicator {
+  opacity: 1;
+  transform: rotate(0deg);
+}
+
+.ih-table__sort[aria-sort='descending'] .ih-table__sort-indicator,
+.ih-table__sort[data-sort='desc'] .ih-table__sort-indicator {
+  opacity: 1;
+  transform: rotate(180deg);
+}
+
+.ih-table-wrap--loading,
+.admin-table-wrap--loading {
+  position: relative;
+  pointer-events: none;
+}
+
+.ih-table-wrap--loading::after,
+.admin-table-wrap--loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  backdrop-filter: blur(1px);
+  animation: ih-fade-in var(--motion-duration-fast) var(--motion-ease-out) both;
+}
+
+.ih-pagination__actions .ih-btn {
+  min-width: 5.5rem;
+}
+
+/* ---------- Search ---------- */
+
+.ih-search-input,
+.global-search-trigger,
+.global-search-palette__input {
+  transition:
+    border-color var(--motion-duration-fast) var(--motion-ease-out),
+    box-shadow var(--motion-duration-fast) var(--motion-ease-out),
+    color var(--motion-duration-fast) var(--motion-ease-out),
+    background-color var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.ih-search-input:focus-visible,
+.global-search-trigger:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.ih-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.ih-search__input {
+  padding-inline-end: 2.25rem;
+}
+
+.ih-search__clear {
+  position: absolute;
+  right: 0.4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color var(--motion-duration-fast) var(--motion-ease-out),
+    background-color var(--motion-duration-fast) var(--motion-ease-out),
+    opacity var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.ih-search__clear:hover {
+  color: var(--text);
+  background: var(--surface-muted);
+}
+
+.ih-search__spinner {
+  position: absolute;
+  right: 0.55rem;
+  top: 50%;
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-top: -0.45rem;
+  border: 2px solid color-mix(in srgb, var(--muted) 35%, transparent);
+  border-right-color: var(--brand-primary);
+  border-radius: 50%;
+  animation: ih-spin 0.7s linear infinite;
+}
+
+.global-search-overlay {
+  animation: ih-fade-in var(--motion-duration-fast) var(--motion-ease-out) both;
+  backdrop-filter: blur(2px);
+}
+
+.global-search-palette {
+  animation: ih-fade-scale-in var(--motion-duration-moderate) var(--motion-ease-out) both;
+}
+
+.global-search-palette__item,
+.global-search-palette__item-link {
+  transition: background-color var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.global-search-empty {
+  animation: ih-fade-in var(--motion-duration-base) var(--motion-ease-out) both;
+}
+
+/* ---------- Sidebar (premium-shell) ---------- */
+
+.dashboard-shell__sidebar {
+  transition:
+    width var(--motion-duration-base) var(--motion-ease-emphasized),
+    padding var(--motion-duration-base) var(--motion-ease-emphasized),
+    box-shadow var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.dashboard-shell__nav-link,
+.dashboard-shell__nav-group-toggle {
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-ease-out),
+    color var(--motion-duration-fast) var(--motion-ease-out),
+    border-color var(--motion-duration-fast) var(--motion-ease-out),
+    box-shadow var(--motion-duration-fast) var(--motion-ease-out),
+    opacity var(--motion-duration-fast) var(--motion-ease-out),
+    transform var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.dashboard-shell__nav-submenu {
+  overflow: hidden;
+  transition:
+    opacity var(--motion-duration-fast) var(--motion-ease-out),
+    max-height var(--motion-duration-moderate) var(--motion-ease-emphasized);
+}
+
+.dashboard-shell__nav-link--active {
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-ease-out),
+    color var(--motion-duration-fast) var(--motion-ease-out),
+    box-shadow var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.dashboard-shell__collapse {
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-ease-out),
+    border-color var(--motion-duration-fast) var(--motion-ease-out),
+    transform var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.dashboard-shell__collapse:active {
+  transform: scale(0.96);
+}
+
+/* ---------- Forms ---------- */
+
+.ih-input,
+.ih-select,
+.ih-search-input,
+.leads__field input,
+.leads__field select,
+.leads__field textarea {
+  transition:
+    border-color var(--motion-duration-fast) var(--motion-ease-out),
+    box-shadow var(--motion-duration-fast) var(--motion-ease-out),
+    background-color var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.ih-input:focus-visible,
+.ih-select:focus-visible,
+.ih-search-input:focus-visible,
+.leads__field input:focus-visible,
+.leads__field select:focus-visible,
+.leads__field textarea:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.ih-field--error .ih-input,
+.ih-field--error .ih-select,
+.ih-field--error .ih-search-input,
+.ih-input[aria-invalid='true'],
+.ih-select[aria-invalid='true'] {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 16%, transparent);
+}
+
+.ih-field--success .ih-input,
+.ih-field--success .ih-select,
+.ih-input[data-state='success'] {
+  border-color: var(--success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 14%, transparent);
+}
+
+.ih-field__error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.75rem;
+  font-weight: 500;
+  animation: ih-fade-in var(--motion-duration-fast) var(--motion-ease-out) both;
+}
+
+.ih-field__hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.ih-field--loading .ih-input,
+.ih-field--loading .ih-select {
+  opacity: 0.7;
+}
+
+/* ---------- Tabs / cards / menus ---------- */
+
+.ih-tabs__tab,
+.finance__tab {
+  transition:
+    color var(--motion-duration-fast) var(--motion-ease-out),
+    background-color var(--motion-duration-fast) var(--motion-ease-out),
+    border-color var(--motion-duration-fast) var(--motion-ease-out),
+    transform var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.ih-tabs__tab:active:not(:disabled),
+.finance__tab:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.ih-card,
+.ih-data-card,
+.ih-panel,
+.admin-hub-card {
+  transition:
+    border-color var(--motion-duration-fast) var(--motion-ease-out),
+    box-shadow var(--motion-duration-fast) var(--motion-ease-out),
+    transform var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.ih-card:hover,
+.admin-hub-card:hover {
+  border-color: color-mix(in srgb, var(--brand-primary) 22%, var(--border));
+  box-shadow: var(--shadow-md);
+}
+
+/* ---------- Modals / dialogs / drawers ---------- */
+
+.leads-modal,
+.ih-dialog,
+.ih-drawer,
+.notification-drawer,
+.global-search-overlay {
+  animation: ih-fade-in var(--motion-duration-fast) var(--motion-ease-out) both;
+}
+
+.leads-modal,
+.ih-dialog {
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+
+.ih-dialog__panel,
+.leads-modal__dialog {
+  animation: ih-fade-scale-in var(--motion-duration-moderate) var(--motion-ease-out) both;
+  will-change: transform, opacity;
+}
+
+.ih-drawer,
+.notification-drawer,
+.leads-drawer {
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.ih-drawer__panel,
+.leads-drawer__panel,
+.notification-drawer__panel {
+  animation: ih-slide-in-right var(--motion-duration-moderate) var(--motion-ease-emphasized) both;
+  will-change: transform, opacity;
+}
+
+.ih-dialog__close,
+.ih-drawer__close {
+  transition:
+    color var(--motion-duration-fast) var(--motion-ease-out),
+    background-color var(--motion-duration-fast) var(--motion-ease-out),
+    border-color var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.ih-dialog__close:hover,
+.ih-drawer__close:hover {
+  color: var(--text);
+  background: var(--surface-muted);
+}
+
+/* ---------- Notifications / toasts ---------- */
+
+.admin-toast-stack__item,
+.company-toast,
+.inv-investments__toast,
+.ih-toast {
+  animation: ih-slide-in-up var(--motion-duration-toast) var(--motion-ease-out) both;
+}
+
+.ih-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  font-size: 0.875rem;
+}
+
+.ih-toast__icon {
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-top: 0.1rem;
+  border-radius: 50%;
+}
+
+.ih-toast--info {
+  border-color: color-mix(in srgb, var(--info) 35%, var(--border));
+}
+.ih-toast--info .ih-toast__icon {
+  background: var(--info);
+}
+
+.ih-toast--success {
+  border-color: color-mix(in srgb, var(--success) 35%, var(--border));
+}
+.ih-toast--success .ih-toast__icon {
+  background: var(--success);
+}
+
+.ih-toast--warning {
+  border-color: color-mix(in srgb, var(--warning) 35%, var(--border));
+}
+.ih-toast--warning .ih-toast__icon {
+  background: var(--warning);
+}
+
+.ih-toast--error {
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+}
+.ih-toast--error .ih-toast__icon {
+  background: var(--danger);
+}
+
+.notification-item {
+  transition:
+    border-color var(--motion-duration-fast) var(--motion-ease-out),
+    box-shadow var(--motion-duration-fast) var(--motion-ease-out),
+    background-color var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.notification-item:hover {
+  border-color: color-mix(in srgb, var(--brand-primary) 25%, var(--border));
+}
+
+.notification-bell {
+  transition: transform var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.notification-bell:active {
+  transform: scale(0.96);
+}
+
+.notification-bell__badge {
+  transition: transform var(--motion-duration-fast) var(--motion-ease-spring);
+}
+
+/* ---------- Loading / skeletons ---------- */
+
+.ih-skeleton,
+.executive__skeleton,
+.mkt-ai-skeleton__row,
+.mkt-ai-skeleton__card,
+.mkt-ai-skeleton__panel,
+.mkt-ai-skeleton__line {
+  background: linear-gradient(
+    90deg,
+    var(--surface-muted) 25%,
+    color-mix(in srgb, var(--border) 80%, var(--surface)) 50%,
+    var(--surface-muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: ih-shimmer 1.2s ease-in-out infinite;
+}
+
+.ih-skeleton-block {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-6) 0;
+}
+
+.ih-skeleton-block__line {
+  height: 0.85rem;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--surface-muted) 25%,
+    color-mix(in srgb, var(--border) 80%, var(--surface)) 50%,
+    var(--surface-muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: ih-shimmer 1.2s ease-in-out infinite;
+}
+
+.ih-skeleton-block__line--title {
+  height: 1.25rem;
+  width: 42%;
+}
+
+.ih-skeleton-block__line--short {
+  width: 58%;
+}
+
+.ih-skeleton-block__line--full {
+  width: 100%;
+}
+
+.dashboard__loading {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.dashboard__loading::before {
+  content: '';
+  width: 0.85rem;
+  height: 0.85rem;
+  border: 2px solid color-mix(in srgb, var(--muted) 35%, transparent);
+  border-right-color: var(--brand-primary);
+  border-radius: 50%;
+  animation: ih-spin 0.75s linear infinite;
+}
+
+.ih-loading-skeleton {
+  animation: ih-fade-in var(--motion-duration-fast) var(--motion-ease-out) both;
+}
+
+/* ---------- Main content enter ---------- */
+
+.dashboard-shell__main > *:first-child,
+.company-shell__main > *:first-child,
+.crm-shell__main > *:first-child,
+.marketing-shell__main > *:first-child,
+.investor-shell__main > *:first-child {
+  animation: ih-page-enter var(--motion-duration-page) var(--motion-ease-out) both;
+}
+
+/* ---------- Reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  :root,
+  [data-theme='light'],
+  [data-theme='dark'] {
+    --motion-duration-instant: 0ms;
+    --motion-duration-fast: 0ms;
+    --motion-duration-base: 0ms;
+    --motion-duration-moderate: 0ms;
+    --motion-duration-slow: 0ms;
+    --motion-duration-toast: 0ms;
+    --motion-duration-page: 0ms;
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .ih-btn:hover:not(:disabled),
+  .leads__button:hover:not(:disabled),
+  .ih-kpi-card--link:hover,
+  .ih-card:hover,
+  .admin-hub-card:hover {
+    transform: none !important;
+  }
+
+  .ih-skeleton,
+  .executive__skeleton,
+  .ih-skeleton-block__line,
+  .mkt-ai-skeleton__row,
+  .mkt-ai-skeleton__card,
+  .mkt-ai-skeleton__panel,
+  .mkt-ai-skeleton__line,
+  .dashboard__loading::before,
+  .ih-btn--loading::after,
+  .ih-search__spinner {
+    animation: none !important;
+  }
+
+  .leads-modal,
+  .ih-dialog,
+  .ih-drawer,
+  .notification-drawer,
+  .global-search-overlay {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

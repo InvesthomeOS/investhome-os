@@ -1,0 +1,87 @@
+{
+  "ok": true,
+  "checks": {
+    "motion_tokens_present": true,
+    "reduced_motion_shortens": true,
+    "dialog_focus_trap": true,
+    "search_palette_anim": true,
+    "sidebar_collapse_transition": true,
+    "toast_or_notification_anim": true,
+    "skeleton_available": true,
+    "layouts_ok": true,
+    "dark_theme_ok": true,
+    "light_theme_ok": true
+  },
+  "evidence": {
+    "login_motion": {
+      "durationFast": "120ms",
+      "durationBase": "200ms",
+      "easeOut": "cubic-bezier(0.22, 1, 0.36, 1)",
+      "durationModerate": "280ms",
+      "durationPage": "240ms"
+    },
+    "dashboard_motion": {
+      "durationFast": "120ms",
+      "durationBase": "200ms",
+      "easeOut": "cubic-bezier(0.22, 1, 0.36, 1)",
+      "durationModerate": "280ms",
+      "durationPage": "240ms"
+    },
+    "search_animation": {
+      "animationName": "ih-fade-scale-in",
+      "animationDuration": "0.28s"
+    },
+    "notification_animation": {
+      "animationName": "ih-slide-in-right",
+      "animationDuration": "0.28s"
+    },
+    "sidebar_widths": {
+      "beforeWidth": "272px",
+      "afterWidth": "76px"
+    },
+    "dialog_animation": {
+      "animationName": "ih-fade-scale-in",
+      "animationDuration": "0.28s",
+      "role": "dialog",
+      "ariaModal": "true"
+    },
+    "reduced_motion": {
+      "durationFast": "0ms",
+      "durationBase": "0ms",
+      "easeOut": "cubic-bezier(0.22, 1, 0.36, 1)",
+      "durationModerate": "0ms",
+      "durationPage": "0ms"
+    }
+  },
+  "screenshots": {
+    "login_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\login-desktop.png",
+    "dashboard_expanded_desktop_light": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\dashboard-expanded-desktop-light.png",
+    "search_palette_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\search-palette-desktop.png",
+    "notifications_drawer_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\notifications-drawer-desktop.png",
+    "dashboard_collapsed_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\dashboard-collapsed-desktop.png",
+    "dashboard_expanded_desktop_dark": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\dashboard-expanded-desktop-dark.png",
+    "dialog_open_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\dialog-open-desktop.png",
+    "dashboard_reduced_motion": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\dashboard-reduced-motion-desktop.png",
+    "dashboard_expanded_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\dashboard-expanded-desktop.png",
+    "dashboard_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\dashboard-laptop.png",
+    "dashboard_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\dashboard-tablet.png",
+    "crm_expanded_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\crm-expanded-desktop.png",
+    "crm_collapsed_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\crm-collapsed-desktop.png",
+    "crm_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\crm-laptop.png",
+    "crm_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\crm-tablet.png",
+    "marketing_expanded_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\marketing-expanded-desktop.png",
+    "marketing_collapsed_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\marketing-collapsed-desktop.png",
+    "marketing_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\marketing-laptop.png",
+    "marketing_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\marketing-tablet.png",
+    "company_expanded_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\company-expanded-desktop.png",
+    "company_collapsed_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\company-collapsed-desktop.png",
+    "company_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\company-laptop.png",
+    "company_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\company-tablet.png",
+    "admin_expanded_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\admin-expanded-desktop.png",
+    "admin_collapsed_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\admin-collapsed-desktop.png",
+    "admin_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\admin-laptop.png",
+    "admin_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p4\\admin-tablet.png"
+  },
+  "base": "http://localhost:3000",
+  "generatedAt": "2026-07-20T07:53:15.585Z"
+}

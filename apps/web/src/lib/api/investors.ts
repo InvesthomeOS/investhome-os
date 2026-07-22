@@ -14,9 +14,24 @@ export const INVESTOR_TYPES = [
 export type InvestorType = (typeof INVESTOR_TYPES)[number];
 
 export const INVESTOR_STATUSES = [
-  'prospect',
+  'new_investor',
   'contacted',
   'qualified',
+  'meeting_scheduled',
+  'interested',
+  'nda_signed',
+  'project_presented',
+  'reservation',
+  'contract',
+  'payment_pending',
+  'wire_received',
+  'construction',
+  'closing',
+  'rental',
+  'portfolio',
+  'lost',
+  // Legacy (still returned by API for older rows)
+  'prospect',
   'active',
   'invested',
   'follow_up',

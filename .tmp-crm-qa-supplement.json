@@ -1,0 +1,35 @@
+﻿node : node:internal/modules/run_main:107
+At C:\Users\eminb\AppData\Local\Temp\ps-script-108f4914-97cd-4e2b-b290-c53a6716074d.ps1:106 char:62
++ ... inb\AppData\Local\Temp\crm-qa-crawl; node supplement.mjs 2>&1 | Out-F ...
++                                          ~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (node:internal/modules/run_main:107:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    triggerUncaughtException(
+    ^
+
+locator.selectOption: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator('select').last()
+    - locator resolved to <select>ÔÇĞ</select>
+  - attempting select option action
+    2 ├ù waiting for element to be visible and enabled
+      - did not find some options
+    - retrying select option action
+    - waiting 20ms
+    2 ├ù waiting for element to be visible and enabled
+      - did not find some options
+    - retrying select option action
+      - waiting 100ms
+    59 ├ù waiting for element to be visible and enabled
+       - did not find some options
+     - retrying select option action
+       - waiting 500ms
+
+    at setLang (C:\Users\eminb\AppData\Local\Temp\crm-qa-crawl\supplement.mjs:85:15)
+    at C:\Users\eminb\AppData\Local\Temp\crm-qa-crawl\async file:\C:\Users\eminb\AppData\Local\Temp\crm-qa-crawl\supple
+ment.mjs:128:1 {
+  name: 'TimeoutError'
+}
+
+Node.js v24.18.0

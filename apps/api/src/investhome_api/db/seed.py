@@ -144,17 +144,22 @@ DEMO_LEADS: list[dict[str, object]] = [
 
 
 def seed_demo_leads() -> int:
-    """Insert demo leads when the table is empty. Returns number of rows inserted."""
+    """Insert missing demo leads idempotently by email. Returns number of rows inserted."""
     with SessionLocal() as session:
-        existing = session.scalar(select(Lead.id).limit(1))
-        if existing is not None:
-            return 0
-
+        inserted = 0
         for payload in DEMO_LEADS:
+            email = str(payload.get("email") or "").lower()
+            if email:
+                existing = session.scalar(select(Lead).where(Lead.email == email))
+                if existing is not None:
+                    if not existing.is_demo:
+                        existing.is_demo = True
+                    continue
             session.add(Lead(**payload, is_demo=True))
-
-        session.commit()
-        return len(DEMO_LEADS)
+            inserted += 1
+        if inserted:
+            session.commit()
+        return inserted
 
 
 def seed_demo_investors() -> int:
@@ -229,6 +234,29 @@ def main() -> None:
             f"{inventory['buildings']} building(s), "
             f"{inventory['floors']} floor(s), "
             f"{inventory['assets']} asset(s)."
+        )
+
+    from investhome_api.db.demo.integrated import seed_integrated_demo
+    from investhome_api.db.demo.safety import DemoSeedSafetyError
+
+    try:
+        integrated = seed_integrated_demo()
+    except DemoSeedSafetyError as exc:
+        print(f"Skipping integrated demo seed: {exc}")
+    except Exception as exc:
+        # Non-fatal: API must still boot for local validation even if a domain seed fails.
+        print(f"Integrated demo seed failed (non-fatal): {type(exc).__name__}: {exc}")
+    else:
+        print(
+            "Seeded integrated demo layers: "
+            f"users+{integrated['users_extended']}, "
+            f"projects+{integrated['projects_extended']}, "
+            f"inventory={integrated['inventory_units']}, "
+            f"crm={integrated['crm']}, "
+            f"sales={integrated['sales_chain']}, "
+            f"marketing={integrated['marketing']}, "
+            f"finance={integrated['finance_links']}, "
+            f"ops={integrated['ops_reports_ai']}."
         )
 
 

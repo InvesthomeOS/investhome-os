@@ -1,0 +1,28 @@
+﻿{
+    "API_ENVIRONMENT":  "development",
+    "timestamp":  "2026-07-20T15:50:03.2007121Z",
+    "real_sources_found":  false,
+    "docker":  {
+                   "services":  {
+                                    "redis":  "Up (healthy)",
+                                    "web":  "Up",
+                                    "api":  "Up (healthy)",
+                                    "n8n":  "Up",
+                                    "worker":  "Up",
+                                    "postgres":  "Up (healthy)"
+                                },
+                   "status":  "up"
+               },
+    "real_sources":  {
+                         "csv_xlsx_found":  [
+
+                                            ],
+                         "data_dir_exists":  false,
+                         "note":  "No .csv/.xlsx/.xls/.tsv under data/, docs/, or artifacts/. data/ directory does not exist.",
+                         "scanned_roots":  [
+                                               "data/",
+                                               "docs/",
+                                               "artifacts/"
+                                           ]
+                     }
+}

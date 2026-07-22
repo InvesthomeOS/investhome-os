@@ -3,7 +3,6 @@ import { useTranslations } from 'next-intl';
 import {
   ACCREDITATION_STATUSES,
   INVESTMENT_MODELS,
-  INVESTOR_STATUSES,
   INVESTOR_TYPES,
   RISK_PROFILES,
   type AccreditationStatus,
@@ -12,6 +11,26 @@ import {
   type InvestorType,
   type RiskProfile,
 } from '@/lib/api/investors';
+
+/** Primary lifecycle statuses shown in filters/forms (legacy still labelable). */
+const LIFECYCLE_STATUS_OPTIONS = [
+  'new_investor',
+  'contacted',
+  'qualified',
+  'meeting_scheduled',
+  'interested',
+  'nda_signed',
+  'project_presented',
+  'reservation',
+  'contract',
+  'payment_pending',
+  'wire_received',
+  'construction',
+  'closing',
+  'rental',
+  'portfolio',
+  'lost',
+] as const;
 
 export function useInvestorLabels() {
   const tType = useTranslations('investors.types');
@@ -39,7 +58,10 @@ export function useInvestorLabels() {
   };
 
   const typeOptions = INVESTOR_TYPES.map((value) => ({ value, label: tType(value) }));
-  const statusOptions = INVESTOR_STATUSES.map((value) => ({ value, label: tStatus(value) }));
+  const statusOptions = LIFECYCLE_STATUS_OPTIONS.map((value) => ({
+    value,
+    label: tStatus(value),
+  }));
   const modelOptions = INVESTMENT_MODELS.map((value) => ({ value, label: tModel(value) }));
   const accreditationOptions = ACCREDITATION_STATUSES.map((value) => ({
     value,

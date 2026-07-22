@@ -12,12 +12,18 @@ from investhome_api.models.lead import Lead, LeadStatus
 from investhome_api.models.lead_qualification import LeadQualification, QualificationStatus
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.lead import LeadCreate, LeadListResponse, LeadResponse, LeadUpdate
+from investhome_api.schemas.marketing_performance import LeadAttributionFields
 from investhome_api.services.activity_recorder import (
     log_entity_archived,
     log_entity_created,
     log_entity_updated,
 )
 from investhome_api.services.activity_service import snapshot_entity
+from investhome_api.services.marketing.lead_attribution_service import (
+    attribution_to_response,
+    get_attribution_by_lead,
+    upsert_lead_attribution,
+)
 
 router = APIRouter(prefix="/leads", tags=["leads"])
 
@@ -40,6 +46,14 @@ def _get_lead_or_404(lead_id: UUID, db: Session, *, include_archived: bool = Fal
     if lead is None or (lead.archived_at is not None and not include_archived):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lead not found")
     return lead
+
+
+def _lead_response(db: Session, lead: Lead) -> LeadResponse:
+    base = LeadResponse.model_validate(lead)
+    row = get_attribution_by_lead(db, lead.id)
+    if row is not None:
+        base.attribution = attribution_to_response(db, row)
+    return base
 
 
 @router.get("", response_model=LeadListResponse)
@@ -97,7 +111,7 @@ def list_leads(
     leads = db.scalars(query).all()
 
     return LeadListResponse(
-        items=[LeadResponse.model_validate(lead) for lead in leads],
+        items=[_lead_response(db, lead) for lead in leads],
         total=len(leads),
     )
 
@@ -109,7 +123,7 @@ def get_lead(
     _user: User = Depends(require_permission("leads", "view")),
 ) -> LeadResponse:
     lead = _get_lead_or_404(lead_id, db)
-    return LeadResponse.model_validate(lead)
+    return _lead_response(db, lead)
 
 
 @router.post("", response_model=LeadResponse, status_code=status.HTTP_201_CREATED)
@@ -119,9 +133,13 @@ def create_lead(
     db: Session = Depends(get_db),
     actor: User = Depends(require_permission("leads", "create")),
 ) -> LeadResponse:
-    lead = Lead(**payload.model_dump())
+    data = payload.model_dump(exclude={"attribution"})
+    attribution: LeadAttributionFields | None = payload.attribution
+    lead = Lead(**data)
     db.add(lead)
     db.flush()
+    if attribution is not None:
+        upsert_lead_attribution(db, lead.id, attribution, actor=actor, default_source="crm")
     log_entity_created(
         db,
         entity_type=ActivityEntityType.LEAD,
@@ -134,7 +152,7 @@ def create_lead(
     )
     db.commit()
     db.refresh(lead)
-    return LeadResponse.model_validate(lead)
+    return _lead_response(db, lead)
 
 
 @router.patch("/{lead_id}", response_model=LeadResponse)
@@ -147,8 +165,9 @@ def update_lead(
 ) -> LeadResponse:
     lead = _get_lead_or_404(lead_id, db)
     updates = payload.model_dump(exclude_unset=True)
+    attribution = updates.pop("attribution", None)
 
-    if not updates:
+    if not updates and attribution is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No fields provided for update",
@@ -160,6 +179,14 @@ def update_lead(
 
     lead.updated_at = datetime.now(UTC)
     db.flush()
+    if attribution is not None:
+        upsert_lead_attribution(
+            db,
+            lead.id,
+            LeadAttributionFields(**attribution),
+            actor=actor,
+            default_source="crm",
+        )
     log_entity_updated(
         db,
         entity_type=ActivityEntityType.LEAD,
@@ -174,7 +201,7 @@ def update_lead(
     )
     db.commit()
     db.refresh(lead)
-    return LeadResponse.model_validate(lead)
+    return _lead_response(db, lead)
 
 
 @router.delete("/{lead_id}", response_model=LeadResponse)
@@ -204,4 +231,4 @@ def archive_lead(
     )
     db.commit()
     db.refresh(lead)
-    return LeadResponse.model_validate(lead)
+    return _lead_response(db, lead)

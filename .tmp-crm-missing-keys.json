@@ -1,0 +1,21 @@
+{
+  "filesScanned": 117,
+  "usedKeys": 692,
+  "presentLeaves": 692,
+  "missingLeaves": 0,
+  "missingSample": [],
+  "missingAll": [],
+  "doublePrefixCount": 0,
+  "doublePrefixSample": [],
+  "namespaceMisuseCount": 0,
+  "namespaceMisuse": [],
+  "objectPathCollisions": [],
+  "catalogParity": {
+    "enLeaves": 1002,
+    "trLeaves": 1002,
+    "missingTr": 0,
+    "missingEn": 0
+  },
+  "stringObjectCollisions": [],
+  "ok": true
+}

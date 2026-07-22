@@ -17,6 +17,7 @@
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "node src/design-system.test.mjs && node src/design-asset-registry.test.mjs",
     "clean": "rimraf dist"
   },
   "peerDependencies": {

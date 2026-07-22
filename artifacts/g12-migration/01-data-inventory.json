@@ -1,0 +1,231 @@
+{
+  "phase": 1,
+  "title": "DATA INVENTORY",
+  "sources": [
+    {
+      "source_name": "Salesforce / legacy CRM export",
+      "owner": "Sales / Ops owner (TBD)",
+      "location": "NOT PROVIDED \u2014 need .csv/.xlsx export",
+      "est_count": "unknown",
+      "quality": "unknown",
+      "duplicates_risk": "high (email/phone)",
+      "risk": "high \u2014 relationship loss",
+      "import_difficulty": "medium (map stages)",
+      "status": "MISSING"
+    },
+    {
+      "source_name": "HubSpot / marketing contacts",
+      "owner": "Marketing owner (TBD)",
+      "location": "NOT PROVIDED",
+      "est_count": "unknown",
+      "quality": "unknown",
+      "duplicates_risk": "high",
+      "risk": "medium",
+      "import_difficulty": "low (CRM import exists)",
+      "status": "MISSING"
+    },
+    {
+      "source_name": "QuickBooks / accounting ledger",
+      "owner": "Finance owner (TBD)",
+      "location": "NOT PROVIDED \u2014 bank + AP/AR exports required",
+      "est_count": "unknown",
+      "quality": "unknown",
+      "duplicates_risk": "critical if merged blindly",
+      "risk": "critical \u2014 financial integrity",
+      "import_difficulty": "high (never auto-merge)",
+      "status": "MISSING"
+    },
+    {
+      "source_name": "Bank statements / balances",
+      "owner": "Finance / Controller (TBD)",
+      "location": "NOT PROVIDED",
+      "est_count": "unknown",
+      "quality": "unknown",
+      "duplicates_risk": "n/a",
+      "risk": "critical \u2014 recon blocker",
+      "import_difficulty": "high",
+      "status": "MISSING"
+    },
+    {
+      "source_name": "Google Drive / SharePoint documents",
+      "owner": "Ops / Legal (TBD)",
+      "location": "NOT PROVIDED \u2014 need folder export + manifest",
+      "est_count": "unknown",
+      "quality": "unknown",
+      "duplicates_risk": "medium (filename collisions)",
+      "risk": "high \u2014 contract loss",
+      "import_difficulty": "medium",
+      "status": "MISSING"
+    },
+    {
+      "source_name": "Excel project / unit inventory workbooks",
+      "owner": "Projects / Sales (TBD)",
+      "location": "NOT PROVIDED",
+      "est_count": "unknown",
+      "quality": "unknown",
+      "duplicates_risk": "high (unit codes)",
+      "risk": "high \u2014 sales blockers",
+      "import_difficulty": "high (bulk import deferred in product)",
+      "status": "MISSING"
+    },
+    {
+      "source_name": "Investor roster + commitments",
+      "owner": "Investor relations (TBD)",
+      "location": "NOT PROVIDED",
+      "est_count": "unknown",
+      "quality": "unknown",
+      "duplicates_risk": "medium",
+      "risk": "critical for capital",
+      "import_difficulty": "high (financial commitments)",
+      "status": "MISSING"
+    },
+    {
+      "source_name": "Vendor master + open AP",
+      "owner": "Finance / Procurement (TBD)",
+      "location": "NOT PROVIDED",
+      "est_count": "unknown",
+      "quality": "unknown",
+      "duplicates_risk": "medium",
+      "risk": "high",
+      "import_difficulty": "high",
+      "status": "MISSING"
+    },
+    {
+      "source_name": "Staff user roster (HR)",
+      "owner": "Admin / IT (TBD)",
+      "location": "NOT PROVIDED \u2014 real emails + roles",
+      "est_count": "unknown",
+      "quality": "unknown",
+      "duplicates_risk": "low",
+      "risk": "high \u2014 access control",
+      "import_difficulty": "low",
+      "status": "MISSING"
+    },
+    {
+      "source_name": "Investhome OS demo seed (local Docker)",
+      "owner": "Engineering",
+      "location": "apps/api/src/investhome_api/db/seed*.py + db/demo/*",
+      "est_count": "see demo inventory JSON",
+      "quality": "synthetic demo (is_demo / integrated_demo_seed)",
+      "duplicates_risk": "intentional demo overlap possible",
+      "risk": "must not be treated as production",
+      "import_difficulty": "n/a \u2014 already loaded",
+      "status": "PRESENT (DEMO ONLY)"
+    },
+    {
+      "source_name": "Existing CSV import APIs (CRM/companies/branches/budgets)",
+      "owner": "Engineering",
+      "location": "apps/api services + web import pages",
+      "est_count": "n/a tooling",
+      "quality": "production-capable for non-ledger CSV",
+      "duplicates_risk": "handled by import modes",
+      "risk": "medium if used without dry-run",
+      "import_difficulty": "low\u2013medium",
+      "status": "PRESENT (TOOLING)"
+    }
+  ],
+  "filesystem_scan": {
+    "scanned_roots": [
+      "/workspace/data",
+      "/workspace/docs",
+      "/workspace/artifacts",
+      "/workspace/data/migration-sources"
+    ],
+    "files": [
+      "/workspace/artifacts/g12-migration/templates/buildings.csv",
+      "/workspace/artifacts/g12-migration/templates/crm_companies.csv",
+      "/workspace/artifacts/g12-migration/templates/crm_contacts.csv",
+      "/workspace/artifacts/g12-migration/templates/documents_manifest.csv",
+      "/workspace/artifacts/g12-migration/templates/finance_transactions.csv",
+      "/workspace/artifacts/g12-migration/templates/financial_accounts.csv",
+      "/workspace/artifacts/g12-migration/templates/floors.csv",
+      "/workspace/artifacts/g12-migration/templates/funding_commitments.csv",
+      "/workspace/artifacts/g12-migration/templates/inventory_assets.csv",
+      "/workspace/artifacts/g12-migration/templates/inventory_reservations.csv",
+      "/workspace/artifacts/g12-migration/templates/investors.csv",
+      "/workspace/artifacts/g12-migration/templates/leads.csv",
+      "/workspace/artifacts/g12-migration/templates/payment_obligations.csv",
+      "/workspace/artifacts/g12-migration/templates/projects.csv",
+      "/workspace/artifacts/g12-migration/templates/project_budget_lines.csv",
+      "/workspace/artifacts/g12-migration/templates/users.csv",
+      "/workspace/artifacts/g12-migration/templates/vendors.csv",
+      "/workspace/artifacts/g12-migration/templates/vendor_bills.csv"
+    ],
+    "count": 18,
+    "real_business_extracts_confirmed": false,
+    "note": "Any CSV under artifacts/g12-migration/templates are EMPTY HEADER TEMPLATES, not production data. Do not treat templates as migrated sources."
+  },
+  "connected_db_snapshot": {
+    "captured_at": "2026-07-20T15:56:43.856949+00:00",
+    "entities": {
+      "users": {
+        "total": 11,
+        "demo_marked": 11
+      },
+      "leads": {
+        "total": 21,
+        "demo_marked": 20
+      },
+      "investors": {
+        "total": 13,
+        "demo_marked": 12
+      },
+      "crm_contacts": {
+        "total": 25,
+        "demo_marked": 22
+      },
+      "crm_companies": {
+        "total": 12
+      },
+      "crm_activities": {
+        "total": 45
+      },
+      "sales_opportunities": {
+        "total": 16,
+        "demo_marked": 15
+      },
+      "projects": {
+        "total": 14,
+        "demo_marked": 12
+      },
+      "buildings": {
+        "total": 6,
+        "demo_marked": 6
+      },
+      "floors": {
+        "total": 14,
+        "demo_marked": 14
+      },
+      "inventory_assets": {
+        "total": 31,
+        "demo_marked": 31
+      },
+      "inventory_reservations": {
+        "total": 5,
+        "demo_marked": 5
+      },
+      "financial_accounts": {
+        "total": 1,
+        "demo_marked": 1
+      },
+      "finance_transactions": {
+        "total": 3,
+        "demo_marked": 3
+      },
+      "funding_commitments": {
+        "total": 0,
+        "demo_marked": 0
+      },
+      "payment_obligations": {
+        "total": 3,
+        "demo_marked": 3
+      },
+      "documents": {
+        "total": 7,
+        "demo_marked": 5
+      }
+    },
+    "warning": "These counts reflect the CONNECTED database (typically local demo). They are NOT production go-live counts."
+  },
+  "verdict": "REVISION REQUIRED \u2014 no validated real business source extracts located. Only demo seed + import tooling present."
+}

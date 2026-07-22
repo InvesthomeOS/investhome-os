@@ -1,0 +1,79 @@
+{
+  "phase": "before",
+  "base": "http://localhost:3000",
+  "startedAt": "2026-07-20T07:29:24.885Z",
+  "checks": {
+    "login_logo": true
+  },
+  "evidence": {
+    "home": {
+      "hasHome": true,
+      "kpiCount": 0,
+      "panelCount": 10,
+      "chartCount": 1,
+      "skeletons": 0,
+      "loadingText": [],
+      "brandPrimary": "#9D7B55",
+      "focusOutline": {
+        "outline": "color(srgb 0.615686 0.482353 0.333333 / 0.55) solid 2px",
+        "boxShadow": "rgb(157, 123, 85) 2px 0px 0px 0px inset",
+        "outlineColor": "color(srgb 0.615686 0.482353 0.333333 / 0.55)"
+      },
+      "overflowX": false,
+      "kpiStyles": [],
+      "panelPad": [
+        {
+          "bodyPad": "16px 20px",
+          "headerPad": "16px 20px"
+        },
+        {
+          "bodyPad": "16px 20px",
+          "headerPad": "16px 20px"
+        },
+        {
+          "bodyPad": "16px 20px",
+          "headerPad": "16px 20px"
+        }
+      ],
+      "button": null,
+      "legendPresent": false
+    },
+    "executive": {
+      "hasHome": false,
+      "kpiCount": 0,
+      "panelCount": 0,
+      "chartCount": 0,
+      "skeletons": 0,
+      "loadingText": [],
+      "brandPrimary": "#9D7B55",
+      "focusOutline": {
+        "outline": "color(srgb 0.615686 0.482353 0.333333 / 0.55) solid 2px",
+        "boxShadow": "none",
+        "outlineColor": "color(srgb 0.615686 0.482353 0.333333 / 0.55)"
+      },
+      "overflowX": false,
+      "kpiStyles": [],
+      "panelPad": [],
+      "button": null,
+      "legendPresent": false
+    },
+    "executiveTable": {
+      "present": false
+    }
+  },
+  "screenshots": {
+    "login_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\before-login-desktop.png",
+    "home_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\before-home-desktop.png",
+    "home_focus": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\before-home-focus-hero.png",
+    "home_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\before-home-laptop.png",
+    "home_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\before-home-tablet.png",
+    "home_wide": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\before-home-wide.png",
+    "executive_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\before-executive-desktop.png",
+    "executive_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\before-executive-laptop.png",
+    "executive_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\before-executive-tablet.png"
+  },
+  "failures": [],
+  "ok": false,
+  "error": "page.goto: Timeout 60000ms exceeded.\nCall log:\n  - navigating to \"http://localhost:3000/dashboard/sales\", waiting until \"networkidle\"\n\n    at run (C:\\Users\\eminb\\Projects\\investhome-os\\.pw-verify\\product-polish-p3-qa.mjs:171:20)",
+  "finishedAt": "2026-07-20T07:31:29.682Z"
+}

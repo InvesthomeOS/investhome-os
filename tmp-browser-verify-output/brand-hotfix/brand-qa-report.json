@@ -1,0 +1,68 @@
+{
+  "generatedAt": "2026-07-19T16:29:33.505Z",
+  "baseUrl": "http://localhost:3000",
+  "outputDir": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\brand-hotfix",
+  "checks": {
+    "logo_visible_login": true,
+    "logo_visible_sidebar": true,
+    "favicon_present": true,
+    "font_helvetica": true,
+    "brand_primary_token": true,
+    "light_theme_ok": true,
+    "dark_theme_ok": true,
+    "collapsed_sidebar_ok": true,
+    "collapsed_mark_src_ok": true
+  },
+  "allPassed": true,
+  "screenshots": {
+    "login_light": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\brand-hotfix\\login-light.png",
+    "dashboard_light": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\brand-hotfix\\dashboard-light.png",
+    "sidebar_expanded": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\brand-hotfix\\sidebar-expanded.png",
+    "sidebar_collapsed": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\brand-hotfix\\sidebar-collapsed.png",
+    "header_light": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\brand-hotfix\\header-light.png",
+    "dashboard_dark": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\brand-hotfix\\dashboard-dark.png",
+    "login_dark": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\brand-hotfix\\login-dark.png"
+  },
+  "evidence": {
+    "login_light": {
+      "logoVisible": true,
+      "logoSrc": "/brand/logos/investhome-logo-color.png",
+      "faviconPresent": true,
+      "faviconHref": "/brand/favicons/favicon-32x32.png",
+      "bodyFont": "\"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      "brandPrimary": "#9d7b55",
+      "dataTheme": "light"
+    },
+    "brand_primary": {
+      "raw": "#9d7b55",
+      "parsed": {
+        "r": 157,
+        "g": 123,
+        "b": 85
+      },
+      "target": {
+        "r": 157,
+        "g": 123,
+        "b": 85
+      }
+    },
+    "sidebar_logo": {
+      "visible": true,
+      "src": "/brand/logos/investhome-logo-color.png",
+      "dataTheme": "light"
+    },
+    "collapsed_mark": {
+      "src": "/brand/logos/investhome-mark-color.png",
+      "isMark": true
+    },
+    "login_dark": {
+      "logoVisible": true,
+      "logoSrc": "/brand/logos/investhome-logo-white.png",
+      "faviconPresent": true,
+      "faviconHref": "/brand/favicons/favicon-32x32.png",
+      "bodyFont": "\"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      "brandPrimary": "#c3a47f",
+      "dataTheme": "dark"
+    }
+  }
+}

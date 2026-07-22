@@ -72,6 +72,25 @@ def seed_company_foundation() -> dict[str, int]:
     with SessionLocal() as session:
         existing = session.scalar(select(CompanyProfile.id).limit(1))
         if existing is not None:
+            brand = session.scalar(
+                select(BrandProfile).where(BrandProfile.is_default.is_(True)).limit(1)
+            )
+            if brand is not None and (
+                brand.primary_color in {None, "", "#1e3a5f", "#1E3A5F"}
+                or brand.font_body in {None, "", "Plus Jakarta Sans"}
+                or brand.font_heading in {None, "", "Fraunces"}
+            ):
+                brand.primary_color = "#9D7B55"
+                brand.secondary_color = "#C3A47F"
+                brand.accent_color = "#77BFBB"
+                brand.background_color = "#F7F4EF"
+                brand.surface_color = "#FFFFFF"
+                brand.text_primary_color = "#000000"
+                brand.text_secondary_color = "#7C7B7A"
+                brand.font_heading = "Helvetica Neue"
+                brand.font_body = "Helvetica Neue"
+                brand.font_monospace = "Helvetica Neue"
+                counts["brand"] = 1
             ensure_default_preferences(session)
             session.commit()
             return counts
@@ -86,19 +105,19 @@ def seed_company_foundation() -> dict[str, int]:
             legal_display_name="Investhome",
             slogan="Building tomorrow's communities",
             brand_description="Default Investhome brand profile (development seed).",
-            primary_color="#1e3a5f",
-            secondary_color="#64748b",
-            accent_color="#0ea5e9",
-            background_color="#f8fafc",
-            surface_color="#ffffff",
-            text_primary_color="#0f172a",
-            text_secondary_color="#64748b",
+            primary_color="#9D7B55",
+            secondary_color="#C3A47F",
+            accent_color="#77BFBB",
+            background_color="#F7F4EF",
+            surface_color="#FFFFFF",
+            text_primary_color="#000000",
+            text_secondary_color="#7C7B7A",
             success_color="#16a34a",
             warning_color="#d97706",
             error_color="#dc2626",
-            font_heading="Inter",
-            font_body="Inter",
-            font_monospace="JetBrains Mono",
+            font_heading="Helvetica Neue",
+            font_body="Helvetica Neue",
+            font_monospace="Helvetica Neue",
             border_radius_style="medium",
             is_default=True,
         )

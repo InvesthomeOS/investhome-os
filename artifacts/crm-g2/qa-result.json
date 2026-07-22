@@ -1,0 +1,38 @@
+{
+  "pass": true,
+  "login_ok": true,
+  "routes": {
+    "leads": {
+      "url": "http://localhost:3000/workspaces/crm/leads",
+      "ok": true
+    },
+    "pipeline": {
+      "url": "http://localhost:3000/workspaces/crm/pipeline",
+      "ok": true
+    },
+    "contacts": {
+      "url": "http://localhost:3000/workspaces/crm/contacts",
+      "ok": true
+    },
+    "companies": {
+      "url": "http://localhost:3000/workspaces/crm/companies",
+      "ok": true
+    },
+    "dashboard": {
+      "url": "http://localhost:3000/workspaces/crm/dashboard",
+      "ok": true
+    }
+  },
+  "drawer_ok": true,
+  "screenshots": [
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\crm-g2\\leads-1440.png",
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\crm-g2\\leads-1280.png",
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\crm-g2\\leads-768.png",
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\crm-g2\\pipeline-board-1440.png",
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\crm-g2\\pipeline-drawer-1440.png",
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\crm-g2\\contacts-1440.png",
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\crm-g2\\companies-1440.png",
+    "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\crm-g2\\dashboard-1440.png"
+  ],
+  "errors": []
+}

@@ -1,0 +1,107 @@
+{
+  "scope": "connected_db_integrity",
+  "checks": [
+    {
+      "name": "finance_transactions.account_fk",
+      "status": "PASS",
+      "expected": "0 orphans",
+      "actual": "0",
+      "diff": null,
+      "notes": "Transactions must reference an existing financial account"
+    },
+    {
+      "name": "inventory_reservations.asset_fk",
+      "status": "PASS",
+      "expected": "0 orphans",
+      "actual": "0",
+      "diff": null,
+      "notes": "Reservations must reference an existing inventory asset"
+    },
+    {
+      "name": "financial_accounts.balance_sum",
+      "status": "N/A",
+      "expected": "bank statement total (not provided)",
+      "actual": "500000.00",
+      "diff": null,
+      "notes": "Cannot certify bank reconciliation without source bank exports. Current DB balance sum is informational only."
+    },
+    {
+      "name": "finance_transactions.count_vs_source",
+      "status": "N/A",
+      "expected": "QuickBooks/bank export count (not provided)",
+      "actual": "3",
+      "diff": null,
+      "notes": "No source ledger file available for count reconciliation"
+    },
+    {
+      "name": "invoices_vs_vendor_bills",
+      "status": "SKIP",
+      "expected": "source extract",
+      "actual": null,
+      "diff": null,
+      "notes": "Blocked \u2014 real source files not provided"
+    },
+    {
+      "name": "reservations_deposits_vs_bank",
+      "status": "SKIP",
+      "expected": "source extract",
+      "actual": null,
+      "diff": null,
+      "notes": "Blocked \u2014 real source files not provided"
+    },
+    {
+      "name": "contracts_vs_documents",
+      "status": "SKIP",
+      "expected": "source extract",
+      "actual": null,
+      "diff": null,
+      "notes": "Blocked \u2014 real source files not provided"
+    },
+    {
+      "name": "investor_payments_vs_commitments",
+      "status": "SKIP",
+      "expected": "source extract",
+      "actual": null,
+      "diff": null,
+      "notes": "Blocked \u2014 real source files not provided"
+    },
+    {
+      "name": "vendor_payments_vs_bills",
+      "status": "SKIP",
+      "expected": "source extract",
+      "actual": null,
+      "diff": null,
+      "notes": "Blocked \u2014 real source files not provided"
+    },
+    {
+      "name": "budgets_vs_workbook_totals",
+      "status": "SKIP",
+      "expected": "source extract",
+      "actual": null,
+      "diff": null,
+      "notes": "Blocked \u2014 real source files not provided"
+    },
+    {
+      "name": "cash_position_vs_bank",
+      "status": "SKIP",
+      "expected": "source extract",
+      "actual": null,
+      "diff": null,
+      "notes": "Blocked \u2014 real source files not provided"
+    }
+  ],
+  "open_issues": [
+    "Missing source for invoices_vs_vendor_bills",
+    "Missing source for reservations_deposits_vs_bank",
+    "Missing source for contracts_vs_documents",
+    "Missing source for investor_payments_vs_commitments",
+    "Missing source for vendor_payments_vs_bills",
+    "Missing source for budgets_vs_workbook_totals",
+    "Missing source for cash_position_vs_bank"
+  ],
+  "summary": {
+    "pass": 2,
+    "fail": 0,
+    "skip": 9
+  }
+}

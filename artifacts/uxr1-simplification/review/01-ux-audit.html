@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UXR1 · Section 1 — Current UX Audit · INVESTHOME OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --bg-elevated: #ffffff;
+      --ink: #1a1f2e;
+      --ink-muted: #5c6578;
+      --ink-soft: #8b93a7;
+      --stroke: #e4e7ee;
+      --stroke-strong: #d0d5e0;
+      --accent: #1e4d6b;
+      --accent-soft: #e8f1f6;
+      --danger: #9b3a3a;
+      --danger-soft: #f8ecec;
+      --warn: #8a5a12;
+      --warn-soft: #f7f0e4;
+      --ok: #1f5c45;
+      --ok-soft: #e8f3ee;
+      --radius: 12px;
+      --shadow: 0 1px 0 rgba(26, 31, 46, 0.04);
+      --max: 1080px;
+      --font: "Instrument Sans", system-ui, sans-serif;
+      --serif: "Source Serif 4", Georgia, serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #eaf2f7 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, #f0f2f6 0%, transparent 50%),
+        var(--bg);
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+
+    .wrap {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 48px 28px 96px;
+    }
+
+    /* Top bar */
+    .topline {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      background: var(--accent);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand-name {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+
+    .brand-sub {
+      font-size: 12px;
+      color: var(--ink-muted);
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .badge {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 11px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: var(--bg-elevated);
+      color: var(--ink-muted);
+    }
+
+    .badge.warn {
+      background: var(--warn-soft);
+      border-color: #ead9b8;
+      color: var(--warn);
+    }
+
+    .badge.gate {
+      background: var(--danger-soft);
+      border-color: #e8c9c9;
+      color: var(--danger);
+    }
+
+    /* Hero */
+    .hero {
+      margin-bottom: 48px;
+      padding-bottom: 40px;
+      border-bottom: 1px solid var(--stroke);
+    }
+
+    .eyebrow {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      font-family: var(--serif);
+      font-size: clamp(2rem, 4vw, 2.75rem);
+      font-weight: 600;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      max-width: 16ch;
+      margin-bottom: 16px;
+    }
+
+    .lede {
+      font-size: 1.125rem;
+      color: var(--ink-muted);
+      max-width: 54ch;
+      margin-bottom: 28px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 800px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .stat {
+      background: var(--bg-elevated);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat-value {
+      font-family: var(--serif);
+      font-size: 1.75rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      line-height: 1.1;
+    }
+
+    .stat-label {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--ink-muted);
+      font-weight: 500;
+    }
+
+    /* Sections */
+    section {
+      margin-bottom: 44px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      font-family: var(--serif);
+      font-size: 1.45rem;
+      font-weight: 600;
+      letter-spacing: -0.015em;
+    }
+
+    .section-note {
+      font-size: 13px;
+      color: var(--ink-soft);
+      text-align: right;
+      max-width: 28ch;
+    }
+
+    .section-intro {
+      font-size: 15px;
+      color: var(--ink-muted);
+      max-width: 62ch;
+      margin-bottom: 20px;
+    }
+
+    /* Cards / panels */
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel + .panel { margin-top: 12px; }
+
+    .panel-head {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--stroke);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: #fafbfc;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .panel-body { padding: 4px 0; }
+
+    .finding {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 12px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--stroke);
+    }
+
+    .finding:last-child { border-bottom: none; }
+
+    .finding-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+    }
+
+    .finding h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .finding p {
+      font-size: 14px;
+      color: var(--ink-muted);
+    }
+
+    /* Grid of issues */
+    .issue-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 900px) {
+      .issue-grid { grid-template-columns: 1fr; }
+    }
+
+    .issue {
+      background: var(--bg-elevated);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .issue-tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--danger);
+      margin-bottom: 10px;
+    }
+
+    .issue h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .issue p {
+      font-size: 14px;
+      color: var(--ink-muted);
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--stroke);
+      vertical-align: top;
+    }
+
+    th {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      background: #fafbfc;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    td strong { font-weight: 600; color: var(--ink); }
+
+    .tone-danger { color: var(--danger); font-weight: 500; }
+    .tone-warn { color: var(--warn); font-weight: 500; }
+    .tone-ok { color: var(--ok); font-weight: 500; }
+
+    /* Duplicate concept map */
+    .dup-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 800px) {
+      .dup-grid { grid-template-columns: 1fr; }
+    }
+
+    .dup {
+      background: var(--bg-elevated);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .dup-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin-bottom: 8px;
+    }
+
+    .dup-concepts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .chip {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 10px;
+      border-radius: 6px;
+      background: var(--warn-soft);
+      color: var(--warn);
+      border: 1px solid #ead9b8;
+    }
+
+    .dup p {
+      font-size: 13.5px;
+      color: var(--ink-muted);
+    }
+
+    /* Route inventory bars */
+    .route-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .route-row {
+      display: grid;
+      grid-template-columns: 160px 1fr 52px;
+      gap: 14px;
+      align-items: center;
+    }
+
+    @media (max-width: 640px) {
+      .route-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
+    }
+
+    .route-name {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .bar-track {
+      height: 10px;
+      background: #eef0f4;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--accent);
+      opacity: 0.85;
+    }
+
+    .route-count {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink-muted);
+      text-align: right;
+    }
+
+    /* Split: backend vs UI */
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    @media (max-width: 800px) {
+      .split { grid-template-columns: 1fr; }
+    }
+
+    .split-card {
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      border: 1px solid var(--stroke);
+      box-shadow: var(--shadow);
+    }
+
+    .split-card.keep {
+      background: var(--ok-soft);
+      border-color: #c5ddd1;
+    }
+
+    .split-card.change {
+      background: var(--accent-soft);
+      border-color: #c5d8e4;
+    }
+
+    .split-card h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .split-card .hint {
+      font-size: 13px;
+      color: var(--ink-muted);
+      margin-bottom: 14px;
+    }
+
+    .split-card ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .split-card li {
+      font-size: 14px;
+      padding-left: 16px;
+      position: relative;
+      color: var(--ink);
+    }
+
+    .split-card li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 8px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.45;
+    }
+
+    /* Pain callout */
+    .callout {
+      background: var(--bg-elevated);
+      border: 1px solid var(--stroke);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .callout h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .callout p {
+      font-size: 14px;
+      color: var(--ink-muted);
+      max-width: 70ch;
+    }
+
+    .callout ul {
+      margin-top: 12px;
+      list-style: none;
+      display: grid;
+      gap: 8px;
+    }
+
+    .callout li {
+      font-size: 14px;
+      color: var(--ink);
+      padding-left: 14px;
+      position: relative;
+    }
+
+    .callout li::before {
+      content: "–";
+      position: absolute;
+      left: 0;
+      color: var(--ink-soft);
+    }
+
+    /* Approval checkpoint */
+    .checkpoint {
+      margin-top: 56px;
+      padding: 32px;
+      background: var(--ink);
+      color: #f4f6f9;
+      border-radius: 16px;
+    }
+
+    .checkpoint .eyebrow {
+      color: #9ec3d8;
+    }
+
+    .checkpoint h2 {
+      font-family: var(--serif);
+      color: #fff;
+      font-size: 1.6rem;
+      margin-bottom: 10px;
+    }
+
+    .checkpoint > p {
+      color: #b8c0d0;
+      font-size: 15px;
+      max-width: 54ch;
+      margin-bottom: 24px;
+    }
+
+    .checkpoint-box {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 20px 22px;
+      margin-bottom: 20px;
+    }
+
+    .checkpoint-box strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 6px;
+      color: #fff;
+    }
+
+    .checkpoint-box span {
+      font-size: 13.5px;
+      color: #b8c0d0;
+      line-height: 1.5;
+    }
+
+    .checkpoint-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 11px 18px;
+      border-radius: 9px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      cursor: default;
+    }
+
+    .btn-primary {
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: #c5ccd8;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .checkpoint-note {
+      margin-top: 18px;
+      font-size: 12px;
+      color: #8b93a7;
+    }
+
+    footer {
+      margin-top: 40px;
+      font-size: 12px;
+      color: var(--ink-soft);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 20px;
+      justify-content: space-between;
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topline">
+      <div class="brand">
+        <div class="brand-mark">IH</div>
+        <div class="brand-text">
+          <div class="brand-name">InvestHome OS</div>
+          <div class="brand-sub">UXR1 · Product Simplification</div>
+        </div>
+      </div>
+      <div class="badge-row">
+        <span class="badge">Section 1 of 20</span>
+        <span class="badge warn">Read-only audit</span>
+        <span class="badge gate">No implementation</span>
+      </div>
+    </header>
+
+    <div class="hero">
+      <div class="eyebrow">Current UX Audit · 2026-07-21</div>
+      <h1>The product reads like a spreadsheet OS</h1>
+      <p class="lede">
+        Across ~292 App Router pages, daily sales and marketing users face duplicate concepts,
+        table-first screens, decorative charts, and platform tools leaking into the main workday.
+        Backend domain logic is largely sound — the UI information architecture is not.
+      </p>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-value">292</div>
+          <div class="stat-label">page.tsx routes (exact)</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">124</div>
+          <div class="stat-label">Keep destinations</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">88</div>
+          <div class="stat-label">Merge into canonical</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">80</div>
+          <div class="stat-label">Archive from nav</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expanded audit tables -->
+    <section>
+      <div class="section-head">
+        <h2>Expanded audit tables</h2>
+        <p class="section-note">From App Router inventory + 01b-audit-tables.md</p>
+      </div>
+      <p class="section-intro">
+        Conditional-approval follow-up: six structured tables grounded in exact
+        <code>page.tsx</code> counts (292) and disposition proposals. UI treatment only — backends stay.
+      </p>
+
+      <div class="panel" style="margin-bottom: 12px;">
+        <div class="panel-head">
+          <span class="panel-title">1. Workspace Route Inventory</span>
+          <span class="badge">292 = 124 + 88 + 80</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Disposition</th>
+              <th>Count</th>
+              <th>%</th>
+              <th>Examples</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Keep</strong></td>
+              <td>124</td>
+              <td>42%</td>
+              <td class="tone-ok">/dashboard, sales, inventory, projects, marketing+content, admin/*, portal, investor, company, site</td>
+            </tr>
+            <tr>
+              <td><strong>Merge</strong></td>
+              <td>88</td>
+              <td>30%</td>
+              <td class="tone-warn">investors→Customers · CRM pipeline→Sales · contacts→Customers · knowledge→Documents · dual marketing homes</td>
+            </tr>
+            <tr>
+              <td><strong>Archive</strong></td>
+              <td>80</td>
+              <td>27%</td>
+              <td class="tone-danger">Mkt forecast/attribution/AI · CRM relationships intel · analytics explorer · automation · DS spikes</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel" style="margin-bottom: 12px;">
+        <div class="panel-head">
+          <span class="panel-title">Area baseline (exact)</span>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Scope</th><th>Count</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>dashboard (all)</td><td>107</td></tr>
+            <tr><td>└ admin / analytics</td><td>37 / 16</td></tr>
+            <tr><td>workspaces/marketing</td><td>82</td></tr>
+            <tr><td>workspaces/crm</td><td>38</td></tr>
+            <tr><td>portal · investor · company · (site)</td><td>19 · 20 · 13 · 10</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel" style="margin-bottom: 12px;">
+        <div class="panel-head">
+          <span class="panel-title">2. Duplicate Matrix</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>Current locations</th>
+              <th>Final location</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Person identity</strong></td>
+              <td>leads/[id] · CRM contacts · investors</td>
+              <td>Customers <code>/dashboard/customers/[id]</code></td>
+            </tr>
+            <tr>
+              <td><strong>Commercial board</strong></td>
+              <td>Sales · CRM pipeline · Exec funnel</td>
+              <td>Sales kanban only</td>
+            </tr>
+            <tr>
+              <td><strong>Marketing home</strong></td>
+              <td>/dashboard/marketing · /workspaces/marketing (82)</td>
+              <td>One /dashboard/marketing</td>
+            </tr>
+            <tr>
+              <td><strong>Content authoring</strong></td>
+              <td>content · social · email · CRM templates</td>
+              <td>Content Studio</td>
+            </tr>
+            <tr>
+              <td><strong>Documents</strong></td>
+              <td>Documents · Knowledge · CRM/company docs</td>
+              <td>Documents (single home)</td>
+            </tr>
+            <tr>
+              <td><strong>Investor exterior</strong></td>
+              <td>/portal · /investor</td>
+              <td>Retain both; converge later</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel" style="margin-bottom: 12px;">
+        <div class="panel-head">
+          <span class="panel-title">3. Dashboard Widget Audit</span>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Verdict</th><th>Widgets / patterns</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="tone-ok"><strong>Keep</strong></td>
+              <td>Today · New Leads · Follow-Ups · Tasks · Meetings · Active Projects progress</td>
+            </tr>
+            <tr>
+              <td class="tone-warn"><strong>Redesign</strong></td>
+              <td>Sales Funnel (FunnelChart) · Unit Availability (Donut exception) · Monthly Sales · Marketing Production</td>
+            </tr>
+            <tr>
+              <td class="tone-danger"><strong>Remove</strong></td>
+              <td>Duplicate funnels · decorative donuts · placeholder BI · fake marketing health · TailAdmin demos</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel" style="margin-bottom: 12px;">
+        <div class="panel-head">
+          <span class="panel-title">4. Wizard Audit</span>
+          <span class="badge">types.ts + onboarding</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Wizard</th>
+              <th>Current</th>
+              <th>Target</th>
+              <th>Cut</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Campaign</strong></td><td>12</td><td>5</td><td>−7</td></tr>
+            <tr><td><strong>Content</strong></td><td>14</td><td>5</td><td>−9</td></tr>
+            <tr><td><strong>Audience</strong></td><td>11</td><td>4</td><td>−7</td></tr>
+            <tr><td><strong>Email campaign</strong></td><td>14</td><td>5</td><td>−9</td></tr>
+            <tr><td><strong>Onboarding</strong></td><td>10</td><td>5</td><td>−5</td></tr>
+          </tbody>
+        </table>
+        <p style="padding: 12px 16px 16px; font-size: 13.5px; color: var(--ink-muted);">
+          Campaign target path: basics · audience · channels · schedule+budget · review.
+          Advanced steps move behind progressive disclosure — backends stay.
+        </p>
+      </div>
+
+      <div class="panel" style="margin-bottom: 12px;">
+        <div class="panel-head">
+          <span class="panel-title">5. Navigation Audit</span>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Surface</th><th>Current</th><th>Proposed</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>OS sidebar</strong></td>
+              <td>~20+ modules, tools, admin cluster</td>
+              <td>≤ ~12 primary: Dashboard · Customers · Sales · Inventory · Projects · Marketing · Content Studio · Calendar · Tasks · Documents · Reports</td>
+            </tr>
+            <tr>
+              <td><strong>CRM rail</strong></td>
+              <td>~18 items</td>
+              <td>Eliminate for normals — merge into Customers / Sales / tabs</td>
+            </tr>
+            <tr>
+              <td><strong>Marketing rail</strong></td>
+              <td>30 items / 5 groups</td>
+              <td>Eliminate for normals — home + Content Studio; Advanced deep links</td>
+            </tr>
+            <tr>
+              <td><strong>Secondary</strong></td>
+              <td>Mixed with primary</td>
+              <td>Finance · AI · Settings · Admin (role-gated)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">6. Screen Priority Matrix</span>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Tier</th><th>Screens</th><th>Role</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="tone-ok"><strong>Tier 1</strong></td>
+              <td>Dashboard · Customers · Sales · Inventory · Projects · Marketing · Content Studio</td>
+              <td>Daily path — fast &amp; visual</td>
+            </tr>
+            <tr>
+              <td class="tone-warn"><strong>Tier 2</strong></td>
+              <td>Calendar · Tasks · Documents · Reports · Finance · matching · project detail</td>
+              <td>Frequent / role-gated</td>
+            </tr>
+            <tr>
+              <td><strong>Tier 3</strong></td>
+              <td>Admin/G15 · BI explorer · Automation · Design Studio · Mkt Advanced · CRM intel</td>
+              <td>Hidden or gated; backends kept</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- What's broken -->
+    <section>
+      <div class="section-head">
+        <h2>What’s broken</h2>
+        <p class="section-note">Structural UX debt, not missing features</p>
+      </div>
+      <p class="section-intro">
+        The default mental model is dense, technical, and table-heavy. Visual card modes exist
+        but are underused for inventory and projects — the surfaces operators live in every day.
+      </p>
+      <div class="issue-grid">
+        <article class="issue">
+          <div class="issue-tag">Density</div>
+          <h3>Table-first everywhere</h3>
+          <p>
+            Marketing lists, CRM contacts/companies, inventory units, sales lists, investors,
+            admin, BI, and portals all default to spreadsheet layouts. High cognitive load for
+            status scanning and matching work.
+          </p>
+        </article>
+        <article class="issue">
+          <div class="issue-tag">Fragmentation</div>
+          <h3>Same person, three apps</h3>
+          <p>
+            Lead detail, CRM contact, and investor record model one human across separate UIs.
+            Sales leads, CRM leads, and marketing leads create triple intake paths.
+          </p>
+        </article>
+        <article class="issue">
+          <div class="issue-tag">Clutter</div>
+          <h3>Technical platform leakage</h3>
+          <p>
+            Data platform, flags, API clients, design-system spikes, BI explorer, and automation
+            engines sit near daily OS navigation — overwhelming the “daily work” story.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <!-- Duplicate concepts -->
+    <section>
+      <div class="section-head">
+        <h2>Duplicate concepts</h2>
+        <p class="section-note">Parallel shells for one job</p>
+      </div>
+      <div class="dup-grid">
+        <div class="dup">
+          <div class="dup-label">Person identity</div>
+          <div class="dup-concepts">
+            <span class="chip">Sales lead</span>
+            <span class="chip">CRM contact</span>
+            <span class="chip">Investor</span>
+          </div>
+          <p>One person needs three UIs. No single customer journey shell.</p>
+        </div>
+        <div class="dup">
+          <div class="dup-label">Commercial board</div>
+          <div class="dup-concepts">
+            <span class="chip">Sales pipeline</span>
+            <span class="chip">CRM pipeline</span>
+            <span class="chip">Executive funnel</span>
+          </div>
+          <p>Triple boards for the same opportunity flow.</p>
+        </div>
+        <div class="dup">
+          <div class="dup-label">Marketing shell</div>
+          <div class="dup-concepts">
+            <span class="chip">/dashboard/marketing</span>
+            <span class="chip">/workspaces/marketing</span>
+          </div>
+          <p>Dual marketing homes; ~82 workspace routes plus G6 dashboard shell.</p>
+        </div>
+        <div class="dup">
+          <div class="dup-label">Investor exterior</div>
+          <div class="dup-concepts">
+            <span class="chip">/portal</span>
+            <span class="chip">/investor</span>
+          </div>
+          <p>Two external investor experiences for one audience.</p>
+        </div>
+        <div class="dup">
+          <div class="dup-label">Files &amp; knowledge</div>
+          <div class="dup-concepts">
+            <span class="chip">Documents</span>
+            <span class="chip">Knowledge</span>
+            <span class="chip">CRM / company docs</span>
+          </div>
+          <p>Fragmented file homes across modules.</p>
+        </div>
+        <div class="dup">
+          <div class="dup-label">AI &amp; automation</div>
+          <div class="dup-concepts">
+            <span class="chip">AI workspace</span>
+            <span class="chip">Marketing AI</span>
+            <span class="chip">Automation center</span>
+            <span class="chip">Mkt automations</span>
+          </div>
+          <p>Dual AI and dual automation surfaces without a clear daily owner.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Charts -->
+    <section>
+      <div class="section-head">
+        <h2>Charts &amp; clutter</h2>
+        <p class="section-note">Meaningful vs decorative</p>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Chart audit verdict</span>
+          <span class="badge">Source: 01-current-ux-audit.md</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Location</th>
+              <th>Types</th>
+              <th>Verdict</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Executive G8 production</strong></td>
+              <td>Line, Area, Bar, Progress, Timeline</td>
+              <td class="tone-ok">Meaningful when API-backed</td>
+            </tr>
+            <tr>
+              <td><strong>Older executive / BI domains</strong></td>
+              <td>Donut, Funnel, placeholders</td>
+              <td class="tone-warn">Thin data → decorative risk</td>
+            </tr>
+            <tr>
+              <td><strong>CRM / Sales / Marketing strips</strong></td>
+              <td>Line, Bar, Sparkline, Funnel</td>
+              <td class="tone-ok">Generally meaningful</td>
+            </tr>
+            <tr>
+              <td><strong>Admin design-system / TailAdmin</strong></td>
+              <td>All chart types</td>
+              <td class="tone-danger">Demo only — not product</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout" style="margin-top: 12px;">
+        <h3>Unsupported pattern</h3>
+        <p>
+          Charts without definition, time window, source endpoint, drill-down, or an honest empty state
+          become noise. Donuts and funnels should only remain where intentional and contracted
+          (see chart design policy).
+        </p>
+      </div>
+    </section>
+
+    <!-- Daily user pain -->
+    <section>
+      <div class="section-head">
+        <h2>Pain for sales &amp; marketing</h2>
+        <p class="section-note">Who lives in the product daily</p>
+      </div>
+      <div class="callout">
+        <h3>Daily operators pay the tax of a platform OS</h3>
+        <p>
+          Sales and marketing teams need a short path from lead → match → close / nurture.
+          Today they navigate dual rails, progressive-disclosure failures on create forms,
+          and status grids that expose every dimension at once.
+        </p>
+        <ul>
+          <li><strong>Sales:</strong> Public lead → Sales board → lead-centric detail with many tabs → optional CRM conversion → inventory match / hold.</li>
+          <li><strong>Marketing:</strong> Workspace dashboard → 12-step campaign wizard → audiences → channels → attribution, while a parallel G6 shell still exists.</li>
+          <li><strong>Inventory:</strong> Filter tree + unit table with 6+ status dimensions visible simultaneously.</li>
+          <li><strong>Forms:</strong> Lead / investor / inventory / project creates bury essentials under advanced fields (UTM, accreditation, lat/long, ~15 financials).</li>
+          <li><strong>Nav load:</strong> OS sidebar + CRM ~18 + Marketing ~30 + separate portal/company shells.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Route evidence -->
+    <section>
+      <div class="section-head">
+        <h2>Key evidence · ~292 routes</h2>
+        <p class="section-note">Relative surface area (approx.)</p>
+      </div>
+      <div class="panel" style="padding: 22px 24px;">
+        <div class="route-list">
+          <div class="route-row">
+            <div class="route-name">Marketing workspace</div>
+            <div class="bar-track"><div class="bar-fill" style="width: 100%;"></div></div>
+            <div class="route-count">~82</div>
+          </div>
+          <div class="route-row">
+            <div class="route-name">CRM workspace</div>
+            <div class="bar-track"><div class="bar-fill" style="width: 46%;"></div></div>
+            <div class="route-count">~38</div>
+          </div>
+          <div class="route-row">
+            <div class="route-name">Investor (legacy)</div>
+            <div class="bar-track"><div class="bar-fill" style="width: 24%;"></div></div>
+            <div class="route-count">~20</div>
+          </div>
+          <div class="route-row">
+            <div class="route-name">Portal G9</div>
+            <div class="bar-track"><div class="bar-fill" style="width: 23%;"></div></div>
+            <div class="route-count">~19</div>
+          </div>
+          <div class="route-row">
+            <div class="route-name">Company shell</div>
+            <div class="bar-track"><div class="bar-fill" style="width: 16%;"></div></div>
+            <div class="route-count">~13</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top: 12px;">
+        <div class="panel-head">
+          <span class="panel-title">Table-heavy clusters (examples)</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Cluster</th>
+              <th>Examples</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Marketing lists</strong></td>
+              <td>campaigns, content, assets, audiences, automations, leads, sources, segments, budgets, forms, events, landing pages</td>
+            </tr>
+            <tr>
+              <td><strong>Core ops</strong></td>
+              <td>inventory units, sales list, leads list, investors list, projects portfolio table modes</td>
+            </tr>
+            <tr>
+              <td><strong>CRM / Company / Admin / BI / Portals</strong></td>
+              <td>contacts, companies, employees, users/roles, reports/explorer, investments &amp; documents</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Backend vs UI -->
+    <section>
+      <div class="section-head">
+        <h2>What stays · what must change</h2>
+        <p class="section-note">Preserve backends; simplify UI</p>
+      </div>
+      <div class="split">
+        <div class="split-card keep">
+          <h3>Stays on backend</h3>
+          <p class="hint">Do not delete modules, tables, or APIs</p>
+          <ul>
+            <li>Domain APIs, schemas, and stage enums (Sales opportunity stages)</li>
+            <li>CRM / Marketing / Finance / Inventory capabilities</li>
+            <li>Platform G15, BI internals, automation engines (permission-gated)</li>
+            <li>Portal &amp; investor data services</li>
+            <li>Redirect + archive strategy instead of hard deletes</li>
+          </ul>
+        </div>
+        <div class="split-card change">
+          <h3>UI must change</h3>
+          <p class="hint">Information architecture &amp; daily UX only</p>
+          <ul>
+            <li>Unify person identity under <strong>Customers</strong></li>
+            <li>One commercial board: <strong>Sales</strong> (CRM pipeline secondary)</li>
+            <li>Collapse Marketing to home + Content Studio; demote deep channels</li>
+            <li>Visual-first Inventory &amp; Projects</li>
+            <li>Chart contracts + honest empties; hide platform from normal nav</li>
+            <li>Progressive disclosure on create/edit forms</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Audit levers summary -->
+    <section>
+      <div class="section-head">
+        <h2>Simplification levers (from audit)</h2>
+      </div>
+      <div class="panel">
+        <div class="panel-body">
+          <div class="finding">
+            <div class="finding-num">1</div>
+            <div>
+              <h3>Unify identity</h3>
+              <p>One customer profile with lifecycle badges — not lead / contact / investor apps.</p>
+            </div>
+          </div>
+          <div class="finding">
+            <div class="finding-num">2</div>
+            <div>
+              <h3>One sales board</h3>
+              <p>Canonical kanban; archive CRM pipeline as secondary / power-user.</p>
+            </div>
+          </div>
+          <div class="finding">
+            <div class="finding-num">3</div>
+            <div>
+              <h3>Shrink marketing surface</h3>
+              <p>Home + Content Studio first; demote channel sprawl from the primary rail.</p>
+            </div>
+          </div>
+          <div class="finding">
+            <div class="finding-num">4</div>
+            <div>
+              <h3>Visual ops</h3>
+              <p>Inventory and projects become card-first; tables as alternate density mode.</p>
+            </div>
+          </div>
+          <div class="finding">
+            <div class="finding-num">5</div>
+            <div>
+              <h3>Honest charts &amp; gated platform</h3>
+              <p>Full chart contracts; hide admin/BI/platform internals from normal users.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- APPROVAL -->
+    <div class="checkpoint" id="approval">
+      <div class="eyebrow">Approval checkpoint</div>
+      <h2>Approve expanded Section 1 to continue</h2>
+      <p>
+        Confirm these audit tables (route inventory, duplicates, widgets, wizards,
+        navigation, screen tiers) accurately describe today’s product before approving
+        Section 2 — Simplification Proposal.
+      </p>
+      <div class="checkpoint-box">
+        <strong>Decision required</strong>
+        <span>
+          ☐ Approve Section 1 (expanded) — proceed to Simplification Proposal<br />
+          ☐ Changes requested — revise audit tables first<br />
+          Hard stop: no apps/web or apps/api UI changes until the full UXR1 package is signed off.
+        </span>
+      </div>
+      <div class="checkpoint-actions">
+        <span class="btn btn-primary">Approve Section 1 → Simplification Proposal</span>
+        <span class="btn btn-ghost">Request changes to audit</span>
+      </div>
+      <p class="checkpoint-note">
+        Gate: APPROVAL-GATE.md · Sources: 01-current-ux-audit.md · 01b-audit-tables.md · No product UI in this section.
+      </p>
+    </div>
+
+    <footer>
+      <span>INVESTHOME OS · UXR1 Section 1 (expanded) · Visual review only</span>
+      <span>
+        Sources:
+        <a href="../01-current-ux-audit.md">01-current-ux-audit.md</a>
+        ·
+        <a href="../01b-audit-tables.md">01b-audit-tables.md</a>
+      </span>
+    </footer>
+  </div>
+</body>
+</html>

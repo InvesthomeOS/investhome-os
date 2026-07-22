@@ -1,0 +1,241 @@
+{
+  "site": {
+    "nav": {
+      "primary": "Ana menü",
+      "projects": "Projeler",
+      "calculators": "Hesaplayıcılar",
+      "insights": "İçgörüler",
+      "contact": "İletişim",
+      "cta": "Danışmanlık alın",
+      "login": "Platform girişi",
+      "menu": "Menü",
+      "language": "Dil"
+    },
+    "footer": {
+      "tagline": "Premium gayrimenkul yatırımı — Investhome OS’in kamuya açık ön kapısı.",
+      "explore": "Keşfet",
+      "invest": "Yatırım",
+      "company": "Kurum",
+      "projects": "Projeler",
+      "calculators": "Hesaplayıcılar",
+      "insights": "İçgörüler",
+      "workflow": "İçerik iş akışı",
+      "consultation": "Danışmanlık randevusu",
+      "analysis": "Yatırım analizi",
+      "brochure": "Broşür talep et",
+      "meeting": "Toplantı planla",
+      "contact": "İletişim",
+      "newsletter": "Bülten",
+      "guide": "Rehber indir",
+      "platform": "Yatırımcı platformu",
+      "disclaimer": "Yalnızca bilgilendirme amaçlıdır. Yatırım, hukuki veya vergi tavsiyesi değildir."
+    },
+    "home": {
+      "headline": "Netlikle yatırım yapın.",
+      "lead": "Seçilmiş projeler, disiplinli değerlendirme ve ilgiyi bilinçli karara dönüştüren araçlar.",
+      "ctaPrimary": "Projeleri keşfedin",
+      "ctaSecondary": "Danışmanlık alın",
+      "trustTitle": "Teslim disiplini üzerine kurulu",
+      "trustLead": "Gösteriş metrikleri değil, teslim sinyalleri. İncelemeler doğrulanmış geri bildirim geldiğinde görünür.",
+      "trustEmpty": "Yatırımcı yorumları ve referanslar, doğrulanmış geri bildirim yayımlandığında burada yer alacak.",
+      "highlightsTitle": "Yatırımcılar neden Investhome’u seçer",
+      "highlightsLead": "Keşiften due diligence’a tek bir kompozisyon — marka, ürün ve işletim sistemi hizalı.",
+      "h1Title": "Marka odaklı fırsatlar",
+      "h1Body": "Her kamuya açık yüzey, Investhome OS içindeki Pantone sistemi ve yönetişimi yansıtır.",
+      "h2Title": "Önce değerlendirme",
+      "h2Body": "Hesaplayıcılar ve rehberler, danışmanlarla konuşmadan önce varsayımları stres testinden geçirmenize yardım eder.",
+      "h3Title": "CRM’e hazır niyet",
+      "h3Body": "Danışmanlık, indirme ve analiz talepleri formlar yayımlandığında Marketing ve CRM’e akar.",
+      "projectsTitle": "Öne çıkan projeler",
+      "projectsLead": "Konut, ofis ve yaşam tarzı varlıklarında seçici bir pipeline.",
+      "projectsCta": "Tüm projeler",
+      "insightsTitle": "Son içgörüler",
+      "insightsLead": "Bilgi merkezinden rehberler ve piyasa notları.",
+      "insightsCta": "İçgörülere göz atın",
+      "ctaTitle": "Odaklı bir konuşmaya hazır mısınız?",
+      "ctaLead": "Hedeflerinizi paylaşın — talepleri Marketing lead capture üzerinden yatırım ekibine yönlendiririz.",
+      "ctaPrimaryBand": "Danışmanlık alın",
+      "ctaSecondaryBand": "Analiz talep edin"
+    },
+    "projects": {
+      "title": "Projeler",
+      "lead": "Öne çıkan ve pipeline varlıkları keşfedin. Kamuya açık katalog, yayımlanmış proje API’leri gelene kadar yapılandırılmış yer tutucular kullanır.",
+      "status": {
+        "selling": "Satışta",
+        "coming_soon": "Yakında",
+        "completed": "Tamamlandı"
+      },
+      "view": "Projeyi gör",
+      "gallery": "Galeri",
+      "highlights": "Öne çıkanlar",
+      "amenities": "Olanaklar",
+      "floorPlans": "Kat planları",
+      "location": "Konum",
+      "downloads": "İndirmeler",
+      "investment": "Yatırım özeti",
+      "reserve": "Rezervasyon görüşmesi talep et",
+      "units": "Ünite",
+      "yield": "Projekte getiri",
+      "ticket": "Bilet",
+      "area": "Alan",
+      "rooms": "Oda",
+      "mapNote": "Harita koordinatları ileride harita sağlayıcı entegrasyonu için hazır.",
+      "apiNote": "Veriler kamuya açık içerik katmanından gösterilir. Canlı envanter, kamuya açık proje uçları geldiğinde bunun yerini alacak.",
+      "notFound": "Proje bulunamadı"
+    },
+    "calculators": {
+      "title": "Yatırım hesaplayıcıları",
+      "lead": "ROI, nakit akışı, getiri, mortgage, refinansman, değer artışı ve 1031 senaryolarını modelleyin. Sonuçları kaydedin veya paylaşın; hazır olduğunuzda lead oluşturun.",
+      "open": "Hesaplayıcıyı aç",
+      "inputs": "Girdiler",
+      "results": "Sonuçlar",
+      "share": "Paylaşım bağlantısını kopyala",
+      "shared": "Bağlantı kopyalandı",
+      "saveLead": "Sonuçları kaydet ve bize yazın",
+      "disclaimer": "Yalnızca örnek amaçlıdır. Kredi teklifi, vergi veya yatırım tavsiyesi değildir.",
+      "fields": {
+        "totalInvested": "Toplam yatırım",
+        "totalReturned": "Toplam getiri / çıkış değeri",
+        "years": "Elde tutulan yıl",
+        "purchasePrice": "Alış fiyatı",
+        "annualRent": "Yıllık kira",
+        "annualCosts": "Yıllık maliyetler",
+        "monthlyRent": "Aylık kira",
+        "vacancyPct": "Boşluk %",
+        "monthlyOpex": "Aylık işletme gideri",
+        "monthlyDebt": "Aylık borç servisi",
+        "principal": "Kredi anaparası",
+        "annualRatePct": "Yıllık faiz %",
+        "currentPayment": "Mevcut aylık ödeme",
+        "newPrincipal": "Yeni anapara",
+        "newRatePct": "Yeni faiz %",
+        "newYears": "Yeni vade (yıl)",
+        "closingCosts": "Kapanış maliyetleri",
+        "currentValue": "Güncel değer",
+        "annualPct": "Yıllık değer artışı %",
+        "salePrice": "Satış fiyatı",
+        "adjustedBasis": "Düzeltilmiş maliyet esası",
+        "sellingCosts": "Satış maliyetleri",
+        "replacementPrice": "Yerine konan mülk fiyatı"
+      },
+      "metrics": {
+        "profit": "Kâr",
+        "simpleRoi": "Basit ROI",
+        "annualizedRoi": "Yıllıklandırılmış ROI",
+        "grossYield": "Brüt getiri",
+        "netYield": "Net getiri",
+        "netIncome": "Net gelir",
+        "payment": "Aylık ödeme",
+        "totalInterest": "Toplam faiz",
+        "totalPaid": "Toplam ödenen",
+        "effectiveRent": "Efektif kira",
+        "monthlyCashFlow": "Aylık nakit akışı",
+        "annualCashFlow": "Yıllık nakit akışı",
+        "newPayment": "Yeni ödeme",
+        "monthlySavings": "Aylık tasarruf",
+        "breakEven": "Başabaş (ay)",
+        "futureValue": "Gelecek değer",
+        "gain": "Projekte kazanç",
+        "realizedGain": "Realize kazanç",
+        "boot": "Boot (vergilendirilebilir)",
+        "deferred": "Ertelenmiş kazanç (tahmini)"
+      }
+    },
+    "insights": {
+      "title": "İçgörüler ve bilgi merkezi",
+      "lead": "Rehberler, piyasa notları ve yatırım primerleri. Marketing Content Studio / CMS için hazır içerik katmanı.",
+      "search": "Makale ara",
+      "searchPlaceholder": "Başlık, etiket, konu ara…",
+      "all": "Tümü",
+      "minRead": "{n} dk okuma",
+      "by": "{name}",
+      "related": "İlgili okumalar",
+      "tags": "Etiketler",
+      "notFound": "Makale bulunamadı",
+      "empty": "Bu filtreye uyan makale yok."
+    },
+    "contact": {
+      "title": "İletişim",
+      "lead": "İhtiyacınızı anlatın — danışmanlık, materyal veya toplantı. Talepler kamuya açık marketing form capture üzerinden akar.",
+      "altTitle": "Diğer yollar",
+      "consultation": "Danışmanlık alın",
+      "guide": "Yatırımcı rehberini indirin",
+      "newsletter": "Bültene katılın"
+    },
+    "lead": {
+      "consultation": {
+        "title": "Danışmanlık randevusu",
+        "lead": "Hedeflerinizi paylaşın. Ekibimiz CRM / Marketing el değiştirmesiyle dönüş yapar."
+      },
+      "guide": {
+        "title": "Yatırımcı rehberini indirin",
+        "lead": "Formlar ve varlıklar bağlandığında giriş rehberini alın."
+      },
+      "brochure": {
+        "title": "Broşür talep edin",
+        "lead": "Talebiniz alındıktan sonra proje materyalleri iletilir."
+      },
+      "analysis": {
+        "title": "Yatırım analizi talep edin",
+        "lead": "Kısıtlarınızı gönderin — yapılandırılmış bir inceleme görüşmesi hazırlarız."
+      },
+      "newsletter": {
+        "title": "Bülten",
+        "lead": "Ara sıra içgörüler — spam yok. Onayınıza saygı duyulur."
+      },
+      "meeting": {
+        "title": "Toplantı planlayın",
+        "lead": "Bir zaman aralığı önerin; yatırım masası onaylar."
+      },
+      "calculator": {
+        "title": "Hesaplayıcı sonuçlarını kaydedin",
+        "lead": "Senaryo özetinizi ekleyin ve takip talep edin."
+      },
+      "contact": {
+        "title": "Investhome ile iletişim",
+        "lead": "Genel sorular ve iş birliği notları."
+      }
+    },
+    "workflow": {
+      "title": "AI içerik iş akışı",
+      "lead": "Marketing AI için hazır: taslak → insan incelemesi → yayın → SEO → iç bağlantılar. Otonom yayın yok.",
+      "s1": "AI taslak",
+      "s1Body": "Marketing AI asistanı ile taslak ve kısa metin üretin (yetkili workspace).",
+      "s2": "İnsan incelemesi",
+      "s2Body": "Editörler iddia, ton ve uyumu onaylamadan hiçbir şey canlıya çıkmaz.",
+      "s3": "Yayın",
+      "s3Body": "Yayımlanan içerik SEO metadata ile bilgi merkezine iner.",
+      "s4": "İç bağlantılar",
+      "s4Body": "Makaleler tasarım gereği projelere, hesaplayıcılara ve lead niyetlerine bağlanır.",
+      "note": "Bu kamuya açık sayfa bir iş akışı önizlemesidir. Üretim API’leri /workspaces/marketing/ai altında yetkilidir.",
+      "cta": "Marketing workspace’i aç (giriş)"
+    },
+    "forms": {
+      "success": "Teşekkürler — talebiniz Marketing lead capture’a iletildi.",
+      "offlineSuccess": "Teşekkürler — talebiniz yerel olarak kaydedildi. Canlı CRM yakalama için eşleşen marketing form slug’ını yayımlayın.",
+      "submitting": "Gönderiliyor…",
+      "marketingConsent": "Pazarlama güncellemeleri almak istiyorum (isteğe bağlı).",
+      "fields": {
+        "full_name": "Ad soyad",
+        "email": "E-posta",
+        "phone": "Telefon",
+        "message": "Mesaj",
+        "project": "İlgilenilen proje",
+        "budget": "Bütçe aralığı",
+        "preferred_time": "Tercih edilen zaman",
+        "calculator": "Hesaplayıcı",
+        "results_summary": "Sonuç özeti"
+      },
+      "submit": {
+        "consultation": "Danışmanlık talep et",
+        "guide": "Rehberi al",
+        "brochure": "Broşür talep et",
+        "analysis": "Analiz talep et",
+        "newsletter": "Abone ol",
+        "meeting": "Toplantı talep et",
+        "calculator": "Sonuçları gönder",
+        "contact": "Mesaj gönder"
+      }
+    }
+  }
+}

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UXR1 · Section 00 — UX Principles · INVESTHOME OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="_shared.css" />
+</head>
+<body>
+
+<div class="wrap">
+  <nav class="crumb">
+    <a href="index.html">UXR1 Review Package</a>
+    <span>/</span>
+    <span>Visual review · no code</span>
+  </nav>
+  <div class="topline">
+    <div class="brand">
+      <div class="brand-mark">IH</div>
+      <div>
+        <div class="brand-name">INVESTHOME OS</div>
+        <div class="brand-sub">UXR1 Simplification · Visual deliverables only</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge pending">PENDING REVIEW</span>
+      <span class="badge gate">NO IMPLEMENTATION</span>
+    </div>
+  </div>
+
+  <header class="hero">
+    <div class="eyebrow">Section 00 · UX Principles</div>
+    <h1>Design as a real production product</h1>
+    <p class="lede">Every screen in this package must help a salesperson, marketer, investor manager, or executive finish today’s work faster — not look like a generic admin template or a decorative dashboard.</p>
+    <div class="meta-row">
+      <span><strong>Applies to</strong> Sections 03–11</span>
+      <span><strong>Rule</strong> Backend capable · UI hides complexity</span>
+    </div>
+    <nav class="toc">
+      <a href="#north">North star</a>
+      <a href="#roles">Role outcomes</a>
+      <a href="#rules">Hard rules</a>
+      <a href="#disclosure">Progressive disclosure</a>
+      <a href="#anti">Anti-patterns</a>
+    </nav>
+  </header>
+
+  <section id="north">
+    <div class="section-head">
+      <h2>North star</h2>
+      <span class="section-note">Operational over decorative</span>
+    </div>
+    <div class="callout">
+      <h3>Finish today’s work</h3>
+      <p>Prefer workflows (call, match, hold, ship, approve) over data density. Charts exist only when they answer a commercial question and drill somewhere useful. Empty states are honest. Advanced power stays expandable.</p>
+    </div>
+  </section>
+
+  <section id="roles">
+    <div class="section-head"><h2>Who must finish faster</h2></div>
+    <div class="principle-grid">
+      <div class="card">
+        <h3>Salesperson</h3>
+        <ul>
+          <li>Clear follow-ups and stage moves without leaving the deal context</li>
+          <li>Match and soft-hold units visually</li>
+          <li>Reach the person on Call / WhatsApp / Email in one surface</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Marketer</h3>
+        <ul>
+          <li>See production and campaigns without a 30-item rail</li>
+          <li>Ship blog / social / email from Content Studio</li>
+          <li>Open Advanced tools only when the job needs them</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Investor manager</h3>
+        <ul>
+          <li>See capital-path people on the same profile as buyers</li>
+          <li>Surface holds and proposals that need attention</li>
+          <li>Keep KYC / ticket fields behind Details until relevant</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Executive</h3>
+        <ul>
+          <li>Glance funnel, availability, and project health in seconds</li>
+          <li>No BI explorer or platform widgets on the default path</li>
+          <li>Trust empty states over fake charts</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="rules">
+    <div class="section-head"><h2>Hard product rules</h2></div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Rule</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Real product, not admin chrome</strong></td><td>Image-led inventory/projects; sales-native stages; marketing as a studio.</td></tr>
+          <tr><td><strong>One job per surface</strong></td><td>Dashboard routes work; Sales moves deals; Inventory sells stock; Marketing ships.</td></tr>
+          <tr><td><strong>Workflow &gt; density</strong></td><td>Primary actions and queues beat multi-widget decoration.</td></tr>
+          <tr><td><strong>Progressive disclosure</strong></td><td>Daily fields visible; Advanced / Details expand for power and compliance.</td></tr>
+          <tr><td><strong>Preserve backends</strong></td><td>Hide/archive in navigation only after approval — do not delete modules or APIs in UXR1 design.</td></tr>
+          <tr><td><strong>Chart honesty</strong></td><td>Allowed exceptions: sales funnel + unit availability donut. Everything else must earn its place.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="disclosure">
+    <div class="section-head"><h2>Progressive disclosure pattern</h2></div>
+    <div class="split">
+      <div class="card field-box ok">
+        <h3>Default (daily)</h3>
+        <ul>
+          <li>Identity, status, next action, money band, unit/project link</li>
+          <li>Primary CTAs that finish a task</li>
+          <li>One status language on cards</li>
+        </ul>
+      </div>
+      <div class="card field-box hide">
+        <h3>Hidden until needed</h3>
+        <ul>
+          <li>UTM / attribution internals · score breakdowns</li>
+          <li>Finance P&amp;L · permits · legal enums</li>
+          <li>Platform, automation, AI telemetry, BI explorer</li>
+          <li>Marketing Advanced channels and vendors</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="anti">
+    <div class="section-head"><h2>Anti-patterns (reject in review)</h2></div>
+    <div class="card">
+      <ul>
+        <li>Decorative dashboards, placeholder charts, or “widget walls” with no drill</li>
+        <li>Generic SaaS admin tables as the default for units or projects</li>
+        <li>Dual CRM + Marketing sidebars competing for the same person</li>
+        <li>Exposing G15 / platform / design-system spikes next to daily work</li>
+        <li>Purple AI glow aesthetics or dark trading-terminal skins</li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="checkpoint">
+    <div class="eyebrow">Approval gate</div>
+    <h2>Principles ready for review</h2>
+    <p>These rules govern Sections 03–11. No production implementation until the full package is signed.</p>
+    <div class="actions">
+      <a class="btn" href="index.html">Package index</a>
+      <a class="btn ghost" href="01-ux-audit.html">Next: UX Audit</a>
+    </div>
+  </div>
+
+  <div class="nav-pager">
+    <a href="index.html">← Package index</a>
+    <a href="index.html">Review index</a>
+    <a href="01-ux-audit.html">01 UX Audit →</a>
+  </div>
+</div>
+</body>
+</html>

@@ -51,6 +51,16 @@ function entityIcon(entityType: string) {
       return 'O';
     case 'user':
       return 'U';
+    case 'role':
+      return 'R';
+    case 'company':
+      return 'C';
+    case 'office':
+      return 'O';
+    case 'department':
+      return 'D';
+    case 'team':
+      return 'T';
     case 'notification':
       return 'N';
     case 'activity':
@@ -307,13 +317,18 @@ export function GlobalSearchPalette() {
         )}
 
         <div className="global-search-palette__body">
-          {loading && <p className="global-search-palette__state">{tCommon('loading')}</p>}
+          {loading && (
+            <div className="global-search-palette__state global-search-empty" role="status" aria-busy="true">
+              <span className="ih-search__spinner" aria-hidden="true" />
+              <span>{tCommon('loading')}</span>
+            </div>
+          )}
           {!loading && error && <p className="global-search-palette__state global-search-palette__state--error">{error}</p>}
           {!loading && !error && query.trim() && flatItems.length === 0 && (
-            <p className="global-search-palette__state">{t('empty')}</p>
+            <p className="global-search-palette__state global-search-empty">{t('empty')}</p>
           )}
           {!loading && !error && !query.trim() && (
-            <p className="global-search-palette__state">{t('hint')}</p>
+            <p className="global-search-palette__state global-search-empty">{t('hint')}</p>
           )}
 
           {!loading &&

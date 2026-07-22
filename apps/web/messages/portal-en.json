@@ -1,0 +1,179 @@
+{
+  "portalG9": {
+    "brand": "Investhome",
+    "portal": "Investor Portal",
+    "secureNote": "Secure private investment portal",
+    "dataDemo": "Demo",
+    "dataPartial": "Partial",
+    "dataLive": "Live",
+    "dataBlocked": "Blocked",
+    "gapBanner": "No dedicated portal API yet — data is session-scoped demo for the signed-in investor. Other investors’ data is never shown.",
+    "nav": {
+      "dashboard": "Dashboard",
+      "portfolio": "Portfolio",
+      "projects": "Projects",
+      "reservations": "Reservations",
+      "contracts": "Contracts",
+      "payments": "Payments",
+      "rental": "Rental Income",
+      "documents": "Documents",
+      "reports": "Reports",
+      "messages": "Messages",
+      "tasks": "Tasks",
+      "meetings": "Meetings",
+      "notifications": "Notifications",
+      "help": "Help",
+      "support": "Support",
+      "account": "Account & Security",
+      "sectionPortfolio": "Investments",
+      "sectionOps": "Activity",
+      "sectionAccount": "Account"
+    },
+    "login": {
+      "title": "Investor sign-in",
+      "subtitle": "Monitor your portfolio, documents, and payments securely.",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "error": "Invalid email or password.",
+      "hint": "Demo investor A: investor.a@investhome.demo / Portal123!\nIsolation test B: investor.b@investhome.demo / Portal123!"
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "subtitle": "Portfolio snapshot, upcoming payments, and items needing attention.",
+      "navValue": "Portfolio value",
+      "invested": "Invested",
+      "irr": "IRR",
+      "cashDue": "Amount due",
+      "unread": "Unread messages",
+      "tasksOpen": "Open tasks",
+      "activity": "Recent activity",
+      "holdings": "Active holdings",
+      "valueTrend": "Value trend"
+    },
+    "portfolio": {
+      "title": "Portfolio",
+      "subtitle": "Commitments, current value, returns, and concentration — private-banking density.",
+      "committed": "Committed",
+      "current": "Current value",
+      "ownership": "Ownership",
+      "roi": "ROI",
+      "allocation": "Allocation by project"
+    },
+    "projects": {
+      "title": "Projects",
+      "subtitle": "Developments you are invested in — progress, milestones, and projections.",
+      "open": "Open",
+      "completion": "Completion",
+      "overview": "Overview",
+      "photos": "Photos",
+      "progress": "Progress",
+      "milestones": "Milestones",
+      "budget": "Budget",
+      "docs": "Documents",
+      "news": "News",
+      "rental": "Rental projection",
+      "map": "Map",
+      "notFound": "This project is not visible for this session."
+    },
+    "reservations": {
+      "title": "Reservations",
+      "subtitle": "Unit holds and expiry dates.",
+      "unit": "Unit",
+      "expires": "Expires"
+    },
+    "contracts": {
+      "title": "Contracts",
+      "subtitle": "Signature status and contract values.",
+      "signed": "Signed",
+      "value": "Value"
+    },
+    "payments": {
+      "title": "Payments",
+      "subtitle": "Capital calls, deposits, and payment tracking.",
+      "due": "Due",
+      "amount": "Amount",
+      "mix": "Payment mix"
+    },
+    "rental": {
+      "title": "Rental income",
+      "subtitle": "Gross / net rent and occupancy.",
+      "gross": "Gross",
+      "net": "Net",
+      "occupancy": "Occupancy"
+    },
+    "documents": {
+      "title": "Documents",
+      "subtitle": "Categories, versions, preview, and permission-checked download.",
+      "category": "Category",
+      "version": "Version",
+      "preview": "Preview",
+      "download": "Download",
+      "forbidden": "Download denied — document is not owned by this investor session.",
+      "all": "All"
+    },
+    "reports": {
+      "title": "Reports",
+      "subtitle": "Preset report packs — generate on demand.",
+      "portfolioSummary": "Portfolio summary",
+      "portfolioSummaryDesc": "NAV, IRR, and holding breakdown.",
+      "cashActivity": "Cash activity",
+      "cashActivityDesc": "Calls, payments, and distributions.",
+      "taxPack": "Tax pack",
+      "taxPackDesc": "Annual tax certificates.",
+      "construction": "Construction status",
+      "constructionDesc": "Progress and milestone summary.",
+      "generate": "Generate"
+    },
+    "messages": {
+      "title": "Messages",
+      "subtitle": "Secure correspondence with IR / project office only.",
+      "inbox": "Inbox",
+      "empty": "Select a conversation"
+    },
+    "tasks": {
+      "title": "Tasks",
+      "subtitle": "Signature, upload, and approval tasks.",
+      "due": "Due",
+      "priority": "Priority"
+    },
+    "meetings": {
+      "title": "Meetings",
+      "subtitle": "Scheduled reviews and site visits.",
+      "with": "With",
+      "where": "Location"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "subtitle": "Payment, document, project, message, and security alerts.",
+      "types": "Types"
+    },
+    "support": {
+      "title": "Support center",
+      "subtitle": "IR desk, document requests, and FAQs.",
+      "contact": "Contact IR",
+      "faq1": "How do I fund a capital call?",
+      "faq1a": "Open the due item under Payments; wire instructions are in Documents.",
+      "faq2": "I cannot download a document.",
+      "faq2a": "Downloads are permission-checked against your investor session."
+    },
+    "account": {
+      "title": "Account & security",
+      "subtitle": "Profile, 2FA, devices, sessions, language, and notification preferences.",
+      "profile": "Profile",
+      "security": "Security",
+      "twofa": "Two-factor authentication",
+      "devices": "Devices & sessions",
+      "language": "Language",
+      "notifPrefs": "Notification preferences",
+      "logout": "Sign out",
+      "emailNotif": "Email notifications",
+      "pushNotif": "In-app notifications",
+      "smsNotif": "SMS alerts"
+    },
+    "header": {
+      "search": "Search portfolio…",
+      "logout": "Sign out"
+    }
+  }
+}

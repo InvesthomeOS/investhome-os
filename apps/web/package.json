@@ -8,15 +8,23 @@
     "start": "next start --port 3000",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "clean": "rimraf .next"
+    "test": "node src/components/design-system/__tests__/design-system.test.mjs && node src/components/design-system/__tests__/executive-dashboard-prototype.test.mjs && node src/components/design-system/__tests__/executive-dashboard-production.test.mjs && node src/components/design-system/__tests__/design-asset-registry.test.mjs",
+    "clean": "rimraf .next",
+    "test:e2e": "node ../../.pw-verify/run-e2e.mjs"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.4.0",
     "@investhome/shared": "workspace:*",
     "@investhome/ui": "workspace:*",
+    "@tanstack/react-query": "^5.62.8",
     "next": "^15.1.0",
     "next-intl": "^4.13.2",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-force-graph-2d": "^1.29.1",
+    "react-hook-form": "^7.81.0",
+    "zod": "^4.4.3",
+    "zustand": "^5.0.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

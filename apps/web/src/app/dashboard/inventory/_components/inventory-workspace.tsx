@@ -297,7 +297,9 @@ export function InventoryWorkspace() {
       setLoading(true);
       setError(null);
       try {
-        const { nav_view, ...apiFilters } = nextFilters;
+        const apiFilters = Object.fromEntries(
+          Object.entries(nextFilters).filter(([key]) => key !== 'nav_view'),
+        ) as Omit<InventoryFilterState, 'nav_view'>;
         const response = await fetchInventoryAssets(apiFilters);
         setAssets(response.items);
         setTotal(response.total);

@@ -11,6 +11,7 @@ interface ProjectFormModalProps {
   project: Project | null;
   submitting: boolean;
   error: string | null;
+  canEditFinancials: boolean;
   onClose: () => void;
   onSubmit: (input: ProjectInput) => void;
 }
@@ -19,19 +20,30 @@ const EMPTY_FORM: ProjectInput = {
   project_code: '',
   project_name: '',
   address: '',
+  address_line2: '',
   city: '',
   state: '',
   postal_code: '',
   country: '',
+  latitude: null,
+  longitude: null,
+  timezone: '',
   project_type: 'residential',
   development_type: 'ground_up',
   project_status: 'pipeline',
+  priority: 'medium',
+  development_stage: null,
   ownership_entity: '',
   total_units: null,
   residential_units: null,
   commercial_units: null,
   gross_square_feet: null,
+  net_sellable_square_feet: null,
+  lot_size: null,
   acquisition_price: null,
+  land_cost: null,
+  construction_budget: null,
+  soft_cost_budget: null,
   total_development_cost: null,
   current_project_value: null,
   projected_sale_value: null,
@@ -43,9 +55,14 @@ const EMPTY_FORM: ProjectInput = {
   projected_profit: null,
   projected_roi: null,
   projected_irr: null,
+  currency: 'USD',
+  completion_percentage: null,
+  acquisition_date: null,
   start_date: null,
+  actual_start_date: null,
   target_completion_date: null,
   actual_completion_date: null,
+  estimated_closing_date: null,
   assigned_project_manager: '',
   description: '',
   notes: '',
@@ -65,17 +82,45 @@ function parseOptionalInt(value: string): number | null {
   return parsed === null ? null : Math.trunc(parsed);
 }
 
+type NumberFieldKey =
+  | 'total_units'
+  | 'residential_units'
+  | 'commercial_units'
+  | 'gross_square_feet'
+  | 'net_sellable_square_feet'
+  | 'lot_size'
+  | 'acquisition_price'
+  | 'land_cost'
+  | 'construction_budget'
+  | 'soft_cost_budget'
+  | 'total_development_cost'
+  | 'current_project_value'
+  | 'projected_sale_value'
+  | 'equity_required'
+  | 'equity_raised'
+  | 'debt_amount'
+  | 'loan_to_cost'
+  | 'projected_revenue'
+  | 'projected_profit'
+  | 'projected_roi'
+  | 'projected_irr'
+  | 'completion_percentage'
+  | 'latitude'
+  | 'longitude';
+
 export function ProjectFormModal({
   mode,
   project,
   submitting,
   error,
+  canEditFinancials,
   onClose,
   onSubmit,
 }: ProjectFormModalProps) {
   const t = useTranslations('projects');
   const tCommon = useTranslations('common');
-  const { typeOptions, developmentTypeOptions, statusOptions } = useProjectLabels();
+  const { typeOptions, developmentTypeOptions, statusOptions, priorityOptions, stageOptions } =
+    useProjectLabels();
   const [form, setForm] = useState<ProjectInput>(EMPTY_FORM);
 
   useEffect(() => {
@@ -84,19 +129,32 @@ export function ProjectFormModal({
         project_code: project.project_code,
         project_name: project.project_name,
         address: project.address ?? '',
+        address_line2: project.address_line2 ?? '',
         city: project.city ?? '',
         state: project.state ?? '',
         postal_code: project.postal_code ?? '',
         country: project.country ?? '',
+        latitude: project.latitude ? Number(project.latitude) : null,
+        longitude: project.longitude ? Number(project.longitude) : null,
+        timezone: project.timezone ?? '',
         project_type: project.project_type,
         development_type: project.development_type,
         project_status: project.project_status,
+        priority: project.priority ?? 'medium',
+        development_stage: project.development_stage,
         ownership_entity: project.ownership_entity ?? '',
         total_units: project.total_units,
         residential_units: project.residential_units,
         commercial_units: project.commercial_units,
         gross_square_feet: project.gross_square_feet,
+        net_sellable_square_feet: project.net_sellable_square_feet,
+        lot_size: project.lot_size ? Number(project.lot_size) : null,
         acquisition_price: project.acquisition_price ? Number(project.acquisition_price) : null,
+        land_cost: project.land_cost ? Number(project.land_cost) : null,
+        construction_budget: project.construction_budget
+          ? Number(project.construction_budget)
+          : null,
+        soft_cost_budget: project.soft_cost_budget ? Number(project.soft_cost_budget) : null,
         total_development_cost: project.total_development_cost
           ? Number(project.total_development_cost)
           : null,
@@ -114,9 +172,16 @@ export function ProjectFormModal({
         projected_profit: project.projected_profit ? Number(project.projected_profit) : null,
         projected_roi: project.projected_roi ? Number(project.projected_roi) : null,
         projected_irr: project.projected_irr ? Number(project.projected_irr) : null,
+        currency: project.currency ?? 'USD',
+        completion_percentage: project.completion_percentage
+          ? Number(project.completion_percentage)
+          : null,
+        acquisition_date: project.acquisition_date,
         start_date: project.start_date,
+        actual_start_date: project.actual_start_date,
         target_completion_date: project.target_completion_date,
         actual_completion_date: project.actual_completion_date,
+        estimated_closing_date: project.estimated_closing_date,
         assigned_project_manager: project.assigned_project_manager ?? '',
         description: project.description ?? '',
         notes: project.notes ?? '',
@@ -138,46 +203,37 @@ export function ProjectFormModal({
     onSubmit({
       ...form,
       address: form.address?.trim() || null,
+      address_line2: form.address_line2?.trim() || null,
       city: form.city?.trim() || null,
       state: form.state?.trim() || null,
       postal_code: form.postal_code?.trim() || null,
       country: form.country?.trim() || null,
+      timezone: form.timezone?.trim() || null,
       ownership_entity: form.ownership_entity?.trim() || null,
       assigned_project_manager: form.assigned_project_manager?.trim() || null,
       description: form.description?.trim() || null,
       notes: form.notes?.trim() || null,
+      currency: form.currency?.trim() || 'USD',
+      acquisition_date: form.acquisition_date || null,
       start_date: form.start_date || null,
+      actual_start_date: form.actual_start_date || null,
       target_completion_date: form.target_completion_date || null,
       actual_completion_date: form.actual_completion_date || null,
+      estimated_closing_date: form.estimated_closing_date || null,
     });
   };
 
   const numberField = (
-    key:
-      | 'total_units'
-      | 'residential_units'
-      | 'commercial_units'
-      | 'gross_square_feet'
-      | 'acquisition_price'
-      | 'total_development_cost'
-      | 'current_project_value'
-      | 'projected_sale_value'
-      | 'equity_required'
-      | 'equity_raised'
-      | 'debt_amount'
-      | 'loan_to_cost'
-      | 'projected_revenue'
-      | 'projected_profit'
-      | 'projected_roi'
-      | 'projected_irr',
+    key: NumberFieldKey,
     label: string,
     parser: (value: string) => number | null = parseOptionalNumber,
+    step = '0.01',
   ) => (
     <label className="leads__field" key={key}>
       <span>{label}</span>
       <input
         type="number"
-        step={key.includes('units') || key === 'gross_square_feet' ? '1' : '0.01'}
+        step={step}
         value={form[key] ?? ''}
         onChange={(event) =>
           setForm((current) => ({ ...current, [key]: parser(event.target.value) }))
@@ -289,6 +345,47 @@ export function ProjectFormModal({
               </select>
             </label>
             <label className="leads__field">
+              <span>{t('form.priority')}</span>
+              <select
+                value={form.priority ?? 'medium'}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    priority: event.target.value as ProjectInput['priority'],
+                  }))
+                }
+              >
+                {priorityOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="leads-form__grid">
+            <label className="leads__field">
+              <span>{t('form.developmentStage')}</span>
+              <select
+                value={form.development_stage ?? ''}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    development_stage:
+                      (event.target.value as ProjectInput['development_stage']) || null,
+                  }))
+                }
+              >
+                <option value="">{tCommon('noValue')}</option>
+                {stageOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="leads__field">
               <span>{t('form.ownershipEntity')}</span>
               <input
                 value={form.ownership_entity ?? ''}
@@ -318,6 +415,16 @@ export function ProjectFormModal({
               value={form.address ?? ''}
               onChange={(event) =>
                 setForm((current) => ({ ...current, address: event.target.value }))
+              }
+            />
+          </label>
+
+          <label className="leads__field">
+            <span>{t('form.addressLine2')}</span>
+            <input
+              value={form.address_line2 ?? ''}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, address_line2: event.target.value }))
               }
             />
           </label>
@@ -362,55 +469,123 @@ export function ProjectFormModal({
             </label>
           </div>
 
+          <div className="leads-form__grid">
+            {numberField('latitude', t('form.latitude'), parseOptionalNumber, 'any')}
+            {numberField('longitude', t('form.longitude'), parseOptionalNumber, 'any')}
+          </div>
+
+          <label className="leads__field">
+            <span>{t('form.timezone')}</span>
+            <input
+              value={form.timezone ?? ''}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, timezone: event.target.value }))
+              }
+            />
+          </label>
+
           <p className="leads-form__section-title">{t('sections.developmentProgram')}</p>
 
           <div className="leads-form__grid">
-            {numberField('total_units', t('form.totalUnits'), parseOptionalInt)}
-            {numberField('gross_square_feet', t('form.grossSquareFeet'), parseOptionalInt)}
+            {numberField('total_units', t('form.totalUnits'), parseOptionalInt, '1')}
+            {numberField('gross_square_feet', t('form.grossSquareFeet'), parseOptionalInt, '1')}
           </div>
 
           <div className="leads-form__grid">
-            {numberField('residential_units', t('form.residentialUnits'), parseOptionalInt)}
-            {numberField('commercial_units', t('form.commercialUnits'), parseOptionalInt)}
-          </div>
-
-          <p className="leads-form__section-title">{t('sections.financialSummary')}</p>
-
-          <div className="leads-form__grid">
-            {numberField('acquisition_price', t('form.acquisitionPrice'))}
-            {numberField('total_development_cost', t('form.totalDevelopmentCost'))}
+            {numberField('residential_units', t('form.residentialUnits'), parseOptionalInt, '1')}
+            {numberField('commercial_units', t('form.commercialUnits'), parseOptionalInt, '1')}
           </div>
 
           <div className="leads-form__grid">
-            {numberField('current_project_value', t('form.currentProjectValue'))}
-            {numberField('projected_sale_value', t('form.projectedSaleValue'))}
+            {numberField(
+              'net_sellable_square_feet',
+              t('form.netSellableSquareFeet'),
+              parseOptionalInt,
+              '1',
+            )}
+            {numberField('lot_size', t('form.lotSize'))}
           </div>
 
-          <div className="leads-form__grid">
-            {numberField('projected_revenue', t('form.projectedRevenue'))}
-            {numberField('projected_profit', t('form.projectedProfit'))}
-          </div>
+          {canEditFinancials && (
+            <>
+              <p className="leads-form__section-title">{t('sections.financialSummary')}</p>
 
-          <div className="leads-form__grid">
-            {numberField('projected_roi', t('form.projectedRoi'))}
-            {numberField('projected_irr', t('form.projectedIrr'))}
-          </div>
+              <div className="leads-form__grid">
+                <label className="leads__field">
+                  <span>{t('form.currency')}</span>
+                  <input
+                    value={form.currency ?? 'USD'}
+                    maxLength={3}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        currency: event.target.value.toUpperCase(),
+                      }))
+                    }
+                  />
+                </label>
+                {numberField('completion_percentage', t('form.completionPercentage'), parseOptionalNumber, '0.1')}
+              </div>
 
-          <p className="leads-form__section-title">{t('sections.financing')}</p>
+              <div className="leads-form__grid">
+                {numberField('acquisition_price', t('form.acquisitionPrice'))}
+                {numberField('land_cost', t('form.landCost'))}
+              </div>
 
-          <div className="leads-form__grid">
-            {numberField('equity_required', t('form.equityRequired'))}
-            {numberField('equity_raised', t('form.equityRaised'))}
-          </div>
+              <div className="leads-form__grid">
+                {numberField('construction_budget', t('form.constructionBudget'))}
+                {numberField('soft_cost_budget', t('form.softCostBudget'))}
+              </div>
 
-          <div className="leads-form__grid">
-            {numberField('debt_amount', t('form.debtAmount'))}
-            {numberField('loan_to_cost', t('form.loanToCost'))}
-          </div>
+              <div className="leads-form__grid">
+                {numberField('total_development_cost', t('form.totalDevelopmentCost'))}
+                {numberField('current_project_value', t('form.currentProjectValue'))}
+              </div>
+
+              <div className="leads-form__grid">
+                {numberField('projected_sale_value', t('form.projectedSaleValue'))}
+                {numberField('projected_revenue', t('form.projectedRevenue'))}
+              </div>
+
+              <div className="leads-form__grid">
+                {numberField('projected_profit', t('form.projectedProfit'))}
+                {numberField('projected_roi', t('form.projectedRoi'))}
+              </div>
+
+              <div className="leads-form__grid">
+                {numberField('projected_irr', t('form.projectedIrr'))}
+              </div>
+
+              <p className="leads-form__section-title">{t('sections.financing')}</p>
+
+              <div className="leads-form__grid">
+                {numberField('equity_required', t('form.equityRequired'))}
+                {numberField('equity_raised', t('form.equityRaised'))}
+              </div>
+
+              <div className="leads-form__grid">
+                {numberField('debt_amount', t('form.debtAmount'))}
+                {numberField('loan_to_cost', t('form.loanToCost'))}
+              </div>
+            </>
+          )}
 
           <p className="leads-form__section-title">{t('sections.timeline')}</p>
 
           <div className="leads-form__grid">
+            <label className="leads__field">
+              <span>{t('form.acquisitionDate')}</span>
+              <input
+                type="date"
+                value={form.acquisition_date ?? ''}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    acquisition_date: event.target.value || null,
+                  }))
+                }
+              />
+            </label>
             <label className="leads__field">
               <span>{t('form.startDate')}</span>
               <input
@@ -418,6 +593,22 @@ export function ProjectFormModal({
                 value={form.start_date ?? ''}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, start_date: event.target.value || null }))
+                }
+              />
+            </label>
+          </div>
+
+          <div className="leads-form__grid">
+            <label className="leads__field">
+              <span>{t('form.actualStartDate')}</span>
+              <input
+                type="date"
+                value={form.actual_start_date ?? ''}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    actual_start_date: event.target.value || null,
+                  }))
                 }
               />
             </label>
@@ -436,19 +627,34 @@ export function ProjectFormModal({
             </label>
           </div>
 
-          <label className="leads__field">
-            <span>{t('form.actualCompletionDate')}</span>
-            <input
-              type="date"
-              value={form.actual_completion_date ?? ''}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  actual_completion_date: event.target.value || null,
-                }))
-              }
-            />
-          </label>
+          <div className="leads-form__grid">
+            <label className="leads__field">
+              <span>{t('form.actualCompletionDate')}</span>
+              <input
+                type="date"
+                value={form.actual_completion_date ?? ''}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    actual_completion_date: event.target.value || null,
+                  }))
+                }
+              />
+            </label>
+            <label className="leads__field">
+              <span>{t('form.estimatedClosingDate')}</span>
+              <input
+                type="date"
+                value={form.estimated_closing_date ?? ''}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    estimated_closing_date: event.target.value || null,
+                  }))
+                }
+              />
+            </label>
+          </div>
 
           <p className="leads-form__section-title">{t('sections.team')}</p>
 

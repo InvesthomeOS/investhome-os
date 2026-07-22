@@ -76,6 +76,8 @@ export const SEARCH_ENTITY_TYPES = [
   'funding_commitment',
   'payment_obligation',
   'user',
+  'role',
+  'company',
   'notification',
   'activity',
   'document',

@@ -79,6 +79,8 @@ class UserResponse(BaseModel):
     avatar_url: str | None
     is_demo: bool
     last_login_at: datetime | None
+    mfa_enabled: bool = False
+    mfa_method: str | None = None
     archived_at: datetime | None
     created_at: datetime
     updated_at: datetime

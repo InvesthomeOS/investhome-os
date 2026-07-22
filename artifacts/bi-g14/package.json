@@ -1,0 +1,11 @@
+{
+  "name": "bi-g14-capture",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "capture": "node capture-screenshots.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}

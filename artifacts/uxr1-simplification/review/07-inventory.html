@@ -1,0 +1,254 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UXR1 · Section 07 — Inventory · INVESTHOME OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="_shared.css" />
+</head>
+<body>
+
+<div class="wrap">
+  <nav class="crumb">
+    <a href="index.html">UXR1 Review Package</a>
+    <span>/</span>
+    <span>Visual review · no code</span>
+  </nav>
+  <div class="topline">
+    <div class="brand">
+      <div class="brand-mark">IH</div>
+      <div>
+        <div class="brand-name">INVESTHOME OS</div>
+        <div class="brand-sub">UXR1 Simplification · Visual deliverables only</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge ok">APPROVED · V2</span>
+      <span class="badge pending">V2 REFINE</span>
+    </div>
+  </div>
+
+  <header class="hero">
+    <div class="eyebrow">Section 07 · Wireframe + mockup</div>
+    <h1>Inventory</h1>
+    <p class="lede">Image-led unit cards with one primary availability status — table is a power toggle, not the default.</p>
+    <div class="meta-row">
+      <span><strong>Route</strong> <code>/dashboard/inventory</code></span>
+      <span><strong>Audience</strong> Sales · inventory ops</span>
+      <span><strong>Primary UI</strong> Visual cards · Table toggle</span>
+    </div>
+    <nav class="toc">
+      <a href="#today">Today's work</a>
+      <a href="#wireframe">Low-fi wireframe</a>
+      <a href="#hifi">High-fidelity</a>
+      <a href="#desktop">Desktop</a>
+      <a href="#mobile">Mobile</a>
+      <a href="#journey">Journey</a>
+      <a href="#actions">Actions</a>
+      <a href="#fields">Fields</a>
+      <a href="#rationale">Rationale</a>
+    </nav>
+  </header>
+
+  <section id="today">
+    <div class="section-head">
+      <h2>Today's work</h2>
+      <span class="section-note">Who finishes faster · operational, not decorative</span>
+    </div>
+    <div class="today-work">
+      <div class="today-work-grid">
+        
+        <div class="today-card">
+          <div class="today-role">Salesperson</div>
+          <div class="today-task">Find an available 2+1 and soft-hold for today’s meeting</div>
+          <div class="today-faster">Image cards + one status chip; Hold/Match on the card face.</div>
+        </div>
+        <div class="today-card">
+          <div class="today-role">Marketer</div>
+          <div class="today-task">Pull hero units for campaign creative</div>
+          <div class="today-faster">Visual grid shows sellable stock without multi-status table noise.</div>
+        </div>
+        <div class="today-card">
+          <div class="today-role">Investor manager</div>
+          <div class="today-task">Confirm which units are truly available vs held</div>
+          <div class="today-faster">Single primary availability language matches Dashboard donut.</div>
+        </div>
+        <div class="today-card">
+          <div class="today-role">Executive</div>
+          <div class="today-task">Scan availability mix by project</div>
+          <div class="today-faster">Summary chips answer stock health; Advanced statuses stay in drawer.</div>
+        </div>
+      </div>
+      <p class="today-principle">Sell what you can see. Table, legal IDs, and secondary construction statuses remain capable in Advanced — not on the default face.</p>
+    </div>
+  </section>
+
+  <section id="wireframe">
+    <div class="section-head">
+      <h2>Low-fidelity wireframe</h2>
+      <span class="section-note">Structured layout · boxes only</span>
+    </div>
+    <p class="section-intro">Project/building/floor tree filters a card grid. Primary status is a single chip; secondary statuses hide until hover/drawer.</p>
+    <div class="wire">
+      <div class="wire-frame">
+        <div class="wire-top"><span>Inventory · [Cards ●] [Table]</span><span>Avail 120 · Reserved 34 · Sold 210 · Hold 12</span></div>
+        <div class="wire-body">
+          <div class="wire-nav">
+            <div class="wire-label">Projects</div>
+            <div class="item active">North Tow.</div>
+            <div class="item">· B1</div>
+            <div class="item">· B2</div>
+            <div class="item">Marina</div>
+            <div class="wire-label" style="margin-top:8px">Floors</div>
+            <div class="item">10 11 12</div>
+          </div>
+          <div class="wire-main">
+            <div class="wire-row">
+              <div class="wire-box tall" style="min-width:120px"><div class="wire-label">[ image ]</div><strong>A-1204</strong><br/>2+1 · 95m<br/>9.2M<br/><span class="wire-chip">AVAILABLE</span></div><div class="wire-box tall" style="min-width:120px"><div class="wire-label">[ image ]</div><strong>A-1208</strong><br/>2+1 · 98m<br/>9.8M<br/><span class="wire-chip">HOLD</span></div><div class="wire-box tall" style="min-width:120px"><div class="wire-label">[ image ]</div><strong>B-402</strong><br/>1+1 · 62m<br/>6.1M<br/><span class="wire-chip">RESERVED</span></div><div class="wire-box tall" style="min-width:120px"><div class="wire-label">[ image ]</div><strong>B-410</strong><br/>3+1 · 140m<br/>14.2M<br/><span class="wire-chip">SOLD</span></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+  </section>
+
+  <section id="hifi">
+    <div class="section-head">
+      <h2>High-fidelity mockup</h2>
+      <span class="section-note">Premium light SaaS · sales/marketing friendly</span>
+    </div>
+    <p class="section-intro">Property-software feel: large photos, clear price and status, match actions on hover.</p>
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Desktop frame · Inventory</span>
+        <span class="badge pending">Mockup</span>
+      </div>
+      <img class="mock-img" src="mockups/07-inventory-desktop.png" alt="Inventory high-fidelity desktop mockup" />
+      <div class="mock-caption">High-fidelity desktop · Visual inventory grid with project tree and status summary.</div>
+    </div>
+  </section>
+
+  <section id="desktop">
+    <div class="section-head">
+      <h2>Desktop layout</h2>
+      <span class="section-note">Primary working surface</span>
+    </div>
+    <div class="split">
+      <div class="card">
+        <h3>Composition</h3>
+        <ul><li>Summary chips + optional mini donut (same contract as Dashboard)</li><li>Left: project / building / floor filters</li><li>Main: responsive card grid (image, id, beds, area, price, one status)</li><li>Drawer: Overview | Pricing | History | Docs | Advanced ▸</li></ul>
+      </div>
+      <div class="card">
+        <h3>Density & hierarchy</h3>
+        <ul><li>One primary availability chip only on card face</li><li>Construction/closing/leasing statuses in Advanced or hover</li><li>Table toggle for bulk/power users</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="mobile">
+    <div class="section-head">
+      <h2>Mobile behavior &amp; preview</h2>
+      <span class="section-note">Phone-first adaptations · operational queue first</span>
+    </div>
+    <div class="split">
+      <div class="mobile-preview">
+        <div class="wire">
+      <div class="wire-phone">
+        <div class="ph-top">Inventory</div>
+        <div class="ph-body">
+          <div class="wire-box"><div class="wire-label">Filters sheet</div>Project · Status</div>
+          <div class="wire-box tall"><div class="wire-label">[image] A-1204</div>2+1 · 9.2M · AVAILABLE</div>
+          <div class="wire-box tall"><div class="wire-label">[image] A-1208</div>HOLD</div>
+        </div>
+        <div class="ph-tabbar">
+          <div class="ph-tab">Home</div>
+          <div class="ph-tab">Sales</div>
+          <div class="ph-tab active">Inv</div>
+          <div class="ph-tab">More</div>
+        </div>
+      </div></div>
+        <p class="mobile-note">Primary mobile job: finish today’s queue — not recreate the desktop dashboard.</p>
+      </div>
+      <div class="card">
+        <h3>Behavior rules</h3>
+        <ul><li>Single-column image cards</li><li>Filters in bottom sheet</li><li>Tree becomes project picker</li><li>Soft hold / Reserve as sticky drawer actions</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="journey">
+    <div class="section-head">
+      <h2>User journey</h2>
+    </div>
+    <div class="journey">
+      <span class="j-step">Browse / filter</span><span class="j-arrow">→</span><span class="j-step">Open unit</span><span class="j-arrow">→</span><span class="j-step">Match or Hold</span><span class="j-arrow">→</span><span class="j-step">Return to Sales deal</span>
+    </div>
+    <p class="section-intro" style="margin-top:14px">Entry points: Sales match panel, Inventory card “Match to customer”, Customer Matches tab.</p>
+  </section>
+
+  <section id="actions">
+    <div class="section-head">
+      <h2>Primary actions</h2>
+    </div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Action</th><th>Where</th><th>Outcome</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Soft hold / Reserve</strong></td><td>Card or drawer</td><td>Status change + sales link</td></tr><tr><td><strong>Match to customer</strong></td><td>Card</td><td>Opens match with unit fixed</td></tr><tr><td><strong>Release hold</strong></td><td>Hold card</td><td>Returns to Available</td></tr><tr><td><strong>Toggle Table</strong></td><td>Header</td><td>Power dense view</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="fields">
+    <div class="section-head">
+      <h2>Visible &amp; hidden fields</h2>
+      <span class="section-note">Progressive disclosure · docs 12–13</span>
+    </div>
+    <div class="field-grid">
+      <div class="card field-box ok">
+        <h3>Visible (daily)</h3>
+        <ul><li>Unit id · project (+ building)</li><li>Beds / typology · primary area</li><li>List price + currency</li><li>One primary availability status · thumbnail</li></ul>
+      </div>
+      <div class="card field-box hide">
+        <h3>Hidden (Details / Advanced)</h3>
+        <ul><li>legal_identifier · orientation · view · exterior split</li><li>Release/delivery dates</li><li>Construction / closing / leasing secondary statuses</li><li>Long description · internal notes</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="rationale">
+    <div class="section-head">
+      <h2>Design rationale</h2>
+      <span class="section-note">Why better than current</span>
+    </div>
+    <div class="callout">
+      <h3>Sell what you can see</h3>
+      <p>Dense multi-status tables train nobody and hide the product. Image-led cards with one status match how agents pitch units.</p>
+    </div>
+    <ul class="card" style="margin-top:12px;list-style:none">
+      <li style="padding-left:14px;position:relative;font-size:14px;color:var(--ink-muted);margin:8px 0">Aligns inventory glance with Dashboard donut contract</li><li style="padding-left:14px;position:relative;font-size:14px;color:var(--ink-muted);margin:8px 0">Keeps power table without making it the default</li><li style="padding-left:14px;position:relative;font-size:14px;color:var(--ink-muted);margin:8px 0">Matching stays visual across Sales and Inventory</li>
+    </ul>
+  </section>
+
+  <div class="checkpoint">
+    <div class="eyebrow">Approval gate</div>
+    <h2>Section 07 ready for review</h2>
+    <p>Visual package only. No routes, components, or APIs changed. Approve or request changes before any implementation.</p>
+    <div class="actions">
+      <a class="btn" href="index.html">Back to package index</a>
+      <a class="btn ghost" href="08-project-cards.html">Next: Project Cards</a>
+    </div>
+  </div>
+
+  <div class="nav-pager">
+    <a href="06-sales-pipeline.html">← 06 Sales</a>
+    <a href="index.html">Review index</a>
+    <a href="08-project-cards.html">08 Project Cards →</a>
+  </div>
+</div>
+</body>
+</html>
+

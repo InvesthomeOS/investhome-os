@@ -1,0 +1,88 @@
+{
+  "env": "localhost-docker-compose",
+  "notProduction": true,
+  "base": "http://localhost:3000",
+  "capturedAt": "2026-07-20T16:05:48.131Z",
+  "shots": [
+    {
+      "name": "01-login.png",
+      "bytes": 101073,
+      "url": "http://localhost:3000/login"
+    },
+    {
+      "name": "02-home-dashboard.png",
+      "bytes": 142472,
+      "url": "http://localhost:3000/dashboard"
+    },
+    {
+      "name": "03-admin-launch-health.png",
+      "bytes": 135542,
+      "url": "http://localhost:3000/dashboard/admin/launch-health"
+    },
+    {
+      "name": "04-admin-system.png",
+      "bytes": 84048,
+      "url": "http://localhost:3000/dashboard/admin/system"
+    },
+    {
+      "name": "05-executive.png",
+      "bytes": 60210,
+      "url": "http://localhost:3000/dashboard/executive"
+    },
+    {
+      "name": "06-crm.png",
+      "bytes": 56382,
+      "url": "http://localhost:3000/workspaces/crm"
+    },
+    {
+      "name": "07-projects.png",
+      "bytes": 54831,
+      "url": "http://localhost:3000/dashboard/projects"
+    },
+    {
+      "name": "08-investors.png",
+      "bytes": 51587,
+      "url": "http://localhost:3000/dashboard/investors"
+    },
+    {
+      "name": "09-finance.png",
+      "bytes": 51983,
+      "url": "http://localhost:3000/dashboard/finance"
+    },
+    {
+      "name": "10-documents.png",
+      "bytes": 70757,
+      "url": "http://localhost:3000/dashboard/documents"
+    },
+    {
+      "name": "11-marketing.png",
+      "bytes": 57179,
+      "url": "http://localhost:3000/workspaces/marketing"
+    },
+    {
+      "name": "12-automation.png",
+      "bytes": 90416,
+      "url": "http://localhost:3000/dashboard/automation"
+    },
+    {
+      "name": "13-security.png",
+      "bytes": 69830,
+      "url": "http://localhost:3000/dashboard/admin/security"
+    },
+    {
+      "name": "14-settings.png",
+      "bytes": 56067,
+      "url": "http://localhost:3000/dashboard/settings"
+    },
+    {
+      "name": "15-mobile-home.png",
+      "bytes": 67760,
+      "url": "http://localhost:3000/dashboard"
+    },
+    {
+      "name": "16-tablet-launch-health.png",
+      "bytes": 27979,
+      "url": "http://localhost:3000/dashboard/admin/launch-health"
+    }
+  ]
+}

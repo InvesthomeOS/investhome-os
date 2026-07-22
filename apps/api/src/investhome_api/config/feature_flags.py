@@ -29,6 +29,13 @@ class FeatureFlags(BaseSettings):
     n8n_automation: bool = Field(default=False)
     external_ai: bool = Field(default=False)
     external_storage: bool = Field(default=False)
+    # G15A platform module flags (env defaults — DB overrides / kill switches win)
+    platform_admin: bool = Field(default=True)
+    contractor_portal: bool = Field(default=False)
+    partner_workspace: bool = Field(default=False)
+    vendor_portal: bool = Field(default=False)
+    agent_crm_lite: bool = Field(default=False)
+    mga_insurance: bool = Field(default=False)
 
 
 @lru_cache

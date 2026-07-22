@@ -1,0 +1,1128 @@
+{
+  "timestamp": "2026-07-19T05:43:09.835Z",
+  "auth": {
+    "pass": true,
+    "blockers": [],
+    "loginPageLocaleToggle": {
+      "hasTr": false,
+      "hasEn": false,
+      "hasLangControl": false
+    },
+    "notes": [],
+    "checks": {
+      "invalidLogin": {
+        "pass": true,
+        "url": "http://localhost:3000/login"
+      },
+      "validLogin": {
+        "pass": true,
+        "url": "http://localhost:3000/dashboard"
+      },
+      "refreshPersist": {
+        "pass": true,
+        "url": "http://localhost:3000/dashboard"
+      },
+      "deepLinkAuthed": {
+        "pass": true,
+        "url": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      "logout": {
+        "pass": true,
+        "url": "http://localhost:3000/login"
+      },
+      "deepLinkUnauthed": {
+        "pass": true,
+        "url": "http://localhost:3000/login?next=%2Fworkspaces%2Fcrm%2Fcontacts",
+        "authLoop": false
+      },
+      "noAuthLoop": {
+        "pass": true,
+        "changes": 1
+      }
+    }
+  },
+  "crossNav": {
+    "pass": true,
+    "blockers": [],
+    "forecastingRedirect": {
+      "requested": "/workspaces/marketing/forecasting",
+      "landed": "/workspaces/marketing/ai/predictions",
+      "pass": true
+    },
+    "localePersists": {
+      "trSample": "IH\nInvesthome INC\nYatırıma Açılan Kapı\n‹\nÇALIŞMA ALANLARI\nYönetici Özeti\nSatış\nYatırımcılar\nProjeler\nEnvanter\nFinans\nCRM\nMarketing\nARAÇLAR\nBelgeler\nTasarım Stüdyosu\nAktivite Geçmişi\nAyarlar\nYÖNETİM\nYö",
+      "enSwitch": {
+        "method": "direct",
+        "beforeLang": "tr",
+        "afterLang": "tr",
+        "textSample": "MKT\nPazarlama\nÇalışma alanı\n‹\nGENEL BAKIŞ\nPano\nTakvim\nRaporlar\nTALEP OLUŞTURMA\nKampanyalar\nKitleler\nSegmentler\nLeadler\nLead Kaynakları\nLanding Sayfaları\nFormlar\nİÇERİK\nİçerik Stüdyosu\nSosyal\nE-posta\nWhatsApp\nSMS\nŞablonlar\nÜCRETLİ MEDYA\nReklam\nBütçeler\nAtıf\nAnalitik\nTahminleme\nYapay Zeka Merkezi\nOPER"
+      },
+      "enSample": "MKT\nPazarlama\nÇalışma alanı\n‹\nGENEL BAKIŞ\nPano\nTakvim\nRaporlar\nTALEP OLUŞTURMA\nKampanyalar\nKitleler\nSegmentler\nLeadler\nLead Kaynakları\nLanding Sayfaları\nFormlar\nİÇERİK\nİçerik Stüdyosu\nSosyal\nE-posta\nW"
+    },
+    "steps": [
+      {
+        "label": "dashboard",
+        "url": "http://localhost:3000/dashboard",
+        "pathname": "/dashboard",
+        "ok": true
+      },
+      {
+        "label": "crm",
+        "url": "http://localhost:3000/workspaces/crm/contacts",
+        "pathname": "/workspaces/crm/contacts",
+        "ok": true
+      },
+      {
+        "label": "contactDetail",
+        "url": "http://localhost:3000/workspaces/crm/contacts/07f62bf2-654b-4189-8986-12fa0c453b58",
+        "pathname": "/workspaces/crm/contacts/07f62bf2-654b-4189-8986-12fa0c453b58",
+        "ok": true
+      },
+      {
+        "label": "investors",
+        "url": "http://localhost:3000/dashboard/investors",
+        "pathname": "/dashboard/investors",
+        "ok": true
+      },
+      {
+        "label": "investorDetail",
+        "ok": false,
+        "note": "no investor detail link"
+      },
+      {
+        "label": "admin",
+        "url": "http://localhost:3000/dashboard/admin/users",
+        "pathname": "/dashboard/admin/users",
+        "ok": true
+      },
+      {
+        "label": "marketing",
+        "url": "http://localhost:3000/workspaces/marketing/dashboard",
+        "pathname": "/workspaces/marketing/dashboard",
+        "ok": true
+      },
+      {
+        "label": "forecasting",
+        "url": "http://localhost:3000/workspaces/marketing/ai/predictions",
+        "ok": true
+      },
+      {
+        "label": "browserBack",
+        "url": "http://localhost:3000/workspaces/marketing/dashboard",
+        "ok": true
+      },
+      {
+        "label": "refresh",
+        "url": "http://localhost:3000/workspaces/marketing/dashboard",
+        "ok": true
+      }
+    ]
+  },
+  "dataPersistence": {
+    "pass": false,
+    "contactCreatePersist": false,
+    "contactName": "QA Final Platform Contact 20260719",
+    "blockers": [
+      "page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('input[type=\"email\"], input[name=\"email\"], input[autocomplete=\"email\"]') to be visible\n"
+    ],
+    "cleanedUp": false,
+    "error": "page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('input[type=\"email\"], input[name=\"email\"], input[autocomplete=\"email\"]') to be visible\n"
+  },
+  "roleMatrix": {
+    "pass": true,
+    "blockers": [],
+    "roles": {
+      "superadmin": {
+        "error": "page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('input[type=\"email\"], input[name=\"email\"], input[autocomplete=\"email\"]') to be visible\n"
+      },
+      "sales": {
+        "error": "page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('input[type=\"email\"], input[name=\"email\"], input[autocomplete=\"email\"]') to be visible\n"
+      },
+      "readonly": {
+        "error": "page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('input[type=\"email\"], input[name=\"email\"], input[autocomplete=\"email\"]') to be visible\n"
+      }
+    }
+  },
+  "i18n": {
+    "pass": false,
+    "blockers": [
+      "page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('input[type=\"email\"], input[name=\"email\"], input[autocomplete=\"email\"]') to be visible\n"
+    ],
+    "tr": {},
+    "en": {},
+    "error": "page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('input[type=\"email\"], input[name=\"email\"], input[autocomplete=\"email\"]') to be visible\n"
+  },
+  "responsive": {
+    "pass": false,
+    "blockers": [
+      "page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('input[type=\"email\"], input[name=\"email\"], input[autocomplete=\"email\"]') to be visible\n"
+    ],
+    "viewports": {},
+    "error": "page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('input[type=\"email\"], input[name=\"email\"], input[autocomplete=\"email\"]') to be visible\n"
+  },
+  "consoleNetwork": {
+    "pass": false,
+    "criticalConsole": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "url": "http://localhost:3000/login"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "url": "http://localhost:3000/login"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "url": "http://localhost:3000/login"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "url": "http://localhost:3000/login"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "url": "http://localhost:3000/login?next=%2Fworkspaces%2Fcrm%2Fcontacts"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "url": "http://localhost:3000/login"
+      }
+    ],
+    "criticalNetwork": [
+      {
+        "url": "http://localhost:8000/auth/me",
+        "method": "GET",
+        "status": 401,
+        "pageUrl": "http://localhost:3000/login"
+      },
+      {
+        "url": "http://localhost:8000/auth/login",
+        "method": "POST",
+        "status": 401,
+        "pageUrl": "http://localhost:3000/login"
+      },
+      {
+        "url": "http://localhost:3000/dashboard?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/executive?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/investors?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/leads?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/projects?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/inventory?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/finance?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/sales?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/dashboard?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/dashboard?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/documents?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/design?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/settings?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/activity?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/admin/users?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/admin/roles?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/admin?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/admin/permissions?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/profile?_rsc=JSPWlhLC_u4jTVcV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:8000/notifications?sync=true&page_size=50",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:8000/company/context",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:8000/notifications/unread-count?sync=true",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/leads?_rsc=Uj5fJzh3oSqZfPD_",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/investors?_rsc=Uj5fJzh3oSqZfPD_",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/projects?_rsc=Uj5fJzh3oSqZfPD_",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/inventory?_rsc=Uj5fJzh3oSqZfPD_",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/finance?_rsc=Uj5fJzh3oSqZfPD_",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/sales?_rsc=Uj5fJzh3oSqZfPD_",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/dashboard?_rsc=Uj5fJzh3oSqZfPD_",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/documents?_rsc=Uj5fJzh3oSqZfPD_",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/design?_rsc=Uj5fJzh3oSqZfPD_",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/activity?_rsc=Uj5fJzh3oSqZfPD_",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/settings?_rsc=Uj5fJzh3oSqZfPD_",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/admin?_rsc=Uj5fJzh3oSqZfPD_",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/admin/users?_rsc=Uj5fJzh3oSqZfPD_",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/admin/roles?_rsc=Uj5fJzh3oSqZfPD_",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/admin/permissions?_rsc=Uj5fJzh3oSqZfPD_",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/profile?_rsc=Uj5fJzh3oSqZfPD_",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/companies?_rsc=LA9IUx_jA4MbT8AV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/relationships?_rsc=LA9IUx_jA4MbT8AV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/timeline?_rsc=LA9IUx_jA4MbT8AV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/activities?_rsc=LA9IUx_jA4MbT8AV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/tasks?_rsc=LA9IUx_jA4MbT8AV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/calendar?_rsc=LA9IUx_jA4MbT8AV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/notes?_rsc=LA9IUx_jA4MbT8AV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/files?_rsc=LA9IUx_jA4MbT8AV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/tags?_rsc=LA9IUx_jA4MbT8AV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/communication?_rsc=LA9IUx_jA4MbT8AV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/documents?_rsc=LA9IUx_jA4MbT8AV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/reports?_rsc=LA9IUx_jA4MbT8AV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/settings?_rsc=LA9IUx_jA4MbT8AV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/dashboard?_rsc=LA9IUx_jA4MbT8AV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/profile?_rsc=LA9IUx_jA4MbT8AV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/contacts/07f62bf2-654b-4189-8986-12fa0c453b58?_rsc=LA9IUx_jA4MbT8AV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/contacts/cd0153e3-fadf-4000-83ff-c6203ecb9066?_rsc=LA9IUx_jA4MbT8AV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/executive?_rsc=Uj5fJzh3oSqZfPD_",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/dashboard?_rsc=Uj5fJzh3oSqZfPD_",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/dashboard?_rsc=LA9IUx_jA4MbT8AV",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/contacts/07f62bf2-654b-4189-8986-12fa0c453b58?_rsc=qx3MHIJAcb9ec698",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/crm/contacts"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/executive?_rsc=lxRc5ZPbXc97ycyq",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/investors"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/sales?_rsc=lxRc5ZPbXc97ycyq",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/investors"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/inventory?_rsc=lxRc5ZPbXc97ycyq",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/investors"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/projects?_rsc=lxRc5ZPbXc97ycyq",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/investors"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/finance?_rsc=lxRc5ZPbXc97ycyq",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/investors"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/dashboard?_rsc=lxRc5ZPbXc97ycyq",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/investors"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/dashboard?_rsc=lxRc5ZPbXc97ycyq",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/investors"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/documents?_rsc=lxRc5ZPbXc97ycyq",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/investors"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/design?_rsc=lxRc5ZPbXc97ycyq",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/investors"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/activity?_rsc=lxRc5ZPbXc97ycyq",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/investors"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/settings?_rsc=lxRc5ZPbXc97ycyq",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/investors"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/admin?_rsc=lxRc5ZPbXc97ycyq",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/investors"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/admin/users?_rsc=lxRc5ZPbXc97ycyq",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/investors"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/admin/roles?_rsc=lxRc5ZPbXc97ycyq",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/investors"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/admin/permissions?_rsc=lxRc5ZPbXc97ycyq",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/investors"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/profile?_rsc=lxRc5ZPbXc97ycyq",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/investors"
+      },
+      {
+        "url": "http://localhost:3000/dashboard?_rsc=jMX7vbEwouPRrEPp",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/admin/users"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/admin?_rsc=jMX7vbEwouPRrEPp",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/admin/users"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/executive?_rsc=jMX7vbEwouPRrEPp",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/admin/users"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/sales?_rsc=jMX7vbEwouPRrEPp",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/admin/users"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/investors?_rsc=jMX7vbEwouPRrEPp",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/admin/users"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/projects?_rsc=jMX7vbEwouPRrEPp",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/admin/users"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/inventory?_rsc=jMX7vbEwouPRrEPp",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/admin/users"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/finance?_rsc=jMX7vbEwouPRrEPp",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/admin/users"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/crm/dashboard?_rsc=jMX7vbEwouPRrEPp",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/admin/users"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/dashboard?_rsc=jMX7vbEwouPRrEPp",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/admin/users"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/documents?_rsc=jMX7vbEwouPRrEPp",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/admin/users"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/design?_rsc=jMX7vbEwouPRrEPp",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/admin/users"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/activity?_rsc=jMX7vbEwouPRrEPp",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/admin/users"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/settings?_rsc=jMX7vbEwouPRrEPp",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/admin/users"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/admin/roles?_rsc=jMX7vbEwouPRrEPp",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/admin/users"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/admin/permissions?_rsc=jMX7vbEwouPRrEPp",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/admin/users"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/profile?_rsc=jMX7vbEwouPRrEPp",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/dashboard/admin/users"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/calendar?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/reports?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/campaigns?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/audiences?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/segments?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/leads?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/forms?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/sources?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/landing-pages?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/content?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/social?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/email?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/whatsapp?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/sms?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/templates?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/advertising?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/budgets?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/attribution?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/forecasting?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/ai?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/profile?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/events?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/assets?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/approvals?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/ai?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/ai/dashboard?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/ai/copilot?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/ai/insights?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/ai/recommendations?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/ai/anomalies?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/ai/briefings?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/ai/settings?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/campaigns?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/dashboard?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/calendar?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/reports?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/audiences?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/sources?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/leads?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/landing-pages?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/forms?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/segments?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/content?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/social?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/whatsapp?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/email?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/sms?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/templates?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/advertising?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/budgets?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/attribution?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/forecasting?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/dashboard/profile?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      }
+    ],
+    "noise": [
+      {
+        "type": "error",
+        "text": "c: MISSING_MESSAGE: navigation.investors (tr)\n    at f (http://localhost:3000/_next/static/chunks/7418-f9b0e281531b0cea.js:3:5673)\n    at p (http://localhost:3000/_next/static/chunks/7418-f9b0e281531b0cea.js:3:5860)\n    at g (http://localhost:3000/_next/static/chunks/7418-f9b0e281531b0cea.js:3:6340)\n    at g (http://localhost:3000/_next/static/chunks/app/dashboard/layout-fed96041ebc01e71.js:1:3285)\n    at l9 (http://localhost:3000/_next/static/chunks/567e3fde-110c2339e775bd53.js:1:51129)\n    at o_ (http://localhost:3000/_next/static/chunks/567e3fde-110c2339e775bd53.js:1:70989)\n    at oq (http://localhost:3000/_next/static/chunks/567e3fde-110c2339e775bd53.js:1:82019)\n    at ik (http://localhost:3000/_next/static/chunks/567e3fde-110c2339e775bd53.js:1:114681)\n    at http://localhost:3000/_next/static/chunks/567e3fde-110c2339e775bd53.js:1:110729\n    at iu (http://localhost:3000/_next/static/chunks/567e3fde-110c2339e775bd53.js:1:110830)",
+        "url": "http://localhost:3000/dashboard/investors"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/analytics?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/analytics?_rsc=ZFgF_UEpc5DEMkCv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/ai/predictions"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/analytics?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      },
+      {
+        "url": "http://localhost:3000/workspaces/marketing/analytics?_rsc=qvnCLXWXXwzKLGXv",
+        "method": "GET",
+        "failure": "net::ERR_ABORTED",
+        "pageUrl": "http://localhost:3000/workspaces/marketing/dashboard"
+      }
+    ]
+  },
+  "filesChanged": [],
+  "blockers": [
+    {
+      "area": "dataPersistence",
+      "msg": "page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('input[type=\"email\"], input[name=\"email\"], input[autocomplete=\"email\"]') to be visible\n"
+    },
+    {
+      "area": "i18n",
+      "msg": "page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('input[type=\"email\"], input[name=\"email\"], input[autocomplete=\"email\"]') to be visible\n"
+    },
+    {
+      "area": "responsive",
+      "msg": "page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('input[type=\"email\"], input[name=\"email\"], input[autocomplete=\"email\"]') to be visible\n"
+    }
+  ]
+}

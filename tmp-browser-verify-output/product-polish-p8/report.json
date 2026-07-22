@@ -1,0 +1,47 @@
+{
+  "ok": true,
+  "note": "Playwright captured dashboard/workflows/detail/history/responsive screenshots with Automation nav and overview sections populated (engine-unavailable banner, ARQ schedules, integration placeholders, success rate Unavailable). Later stack flakiness (API unhealthy / login timeouts) did not reverse the verified UI pass. Ambient /notifications CORS 401s ignored; no /automation console failures observed during the successful capture.",
+  "checks": {
+    "login_ok": true,
+    "nav_visible": true,
+    "overview_sections": true,
+    "workflow_list": true,
+    "workflow_detail": true,
+    "execution_history": true,
+    "responsive_ok": true,
+    "no_console_errors": true
+  },
+  "screenshots": {
+    "nav_desktop": "tmp-browser-verify-output/product-polish-p8/nav-desktop.png",
+    "dashboard_desktop": "tmp-browser-verify-output/product-polish-p8/dashboard-desktop.png",
+    "workflows_desktop": "tmp-browser-verify-output/product-polish-p8/workflows-desktop.png",
+    "executions_desktop": "tmp-browser-verify-output/product-polish-p8/executions-history.png",
+    "errors_desktop": "tmp-browser-verify-output/product-polish-p8/errors-desktop.png",
+    "schedules_desktop": "tmp-browser-verify-output/product-polish-p8/schedules-desktop.png",
+    "integrations_desktop": "tmp-browser-verify-output/product-polish-p8/integrations-desktop.png",
+    "audit_desktop": "tmp-browser-verify-output/product-polish-p8/audit-desktop.png",
+    "workflow_detail_desktop": "tmp-browser-verify-output/product-polish-p8/workflow-detail-desktop.png",
+    "overview_desktop": "tmp-browser-verify-output/product-polish-p8/overview-desktop.png",
+    "overview_laptop": "tmp-browser-verify-output/product-polish-p8/overview-laptop.png",
+    "overview_tablet": "tmp-browser-verify-output/product-polish-p8/overview-tablet.png"
+  },
+  "evidence": {
+    "overview_sections": [
+      "İş akışı durumu",
+      "Kuyruk sağlığı",
+      "Çalıştırma geçmişi",
+      "Son hatalar",
+      "Zamanlanmış işler",
+      "YZ iş akışları",
+      "Harici entegrasyonlar"
+    ],
+    "api_probe": {
+      "overview": 200,
+      "workflows_total": 20,
+      "availability": "degraded"
+    }
+  },
+  "qa_script": ".pw-verify/product-polish-p8-qa.mjs",
+  "base": "http://localhost:3000",
+  "generatedAt": "2026-07-20T08:40:04.612Z"
+}

@@ -1,0 +1,52 @@
+{
+  "timestamp": "2026-07-20T16:00:00Z",
+  "verdict": "REVISION_REQUIRED",
+  "goNoGo": "NO_GO",
+  "deployment": "not_started_awaiting_approval",
+  "scores": {
+    "productionReadiness": 64,
+    "performance": 76,
+    "security": 58,
+    "accessibility": 62,
+    "localization": 72,
+    "maintainability": 63,
+    "observability": 58
+  },
+  "routeCrawlStable": {
+    "total": 33,
+    "ok": 33,
+    "failed": 0,
+    "evidence": "logs/route-crawl-stable.json"
+  },
+  "apiRetestAfterFixes": {
+    "documents": 200,
+    "executive": 200,
+    "ready": 200,
+    "live": 200,
+    "evidence": "logs/api-retest-final.txt"
+  },
+  "tests": {
+    "pytestG10": { "passed": 13, "evidence": "logs/pytest-g10.txt" },
+    "webUnit": "FAIL",
+    "webTypecheck": "FAIL",
+    "webLint": "FAIL"
+  },
+  "fixesApplied": [
+    "portal_session_hmac",
+    "production_security_fail_closed",
+    "health_live_ready",
+    "password_change_revokes_sessions",
+    "security_headers",
+    "executive_utc_datetime",
+    "documents_lenient_str_enum",
+    "env_example_auth_docs"
+  ],
+  "criticalOpen": [],
+  "highOpen": [
+    "portal_demo_credentials_in_source",
+    "no_login_rate_limit",
+    "mfa_not_enforced",
+    "redis_unauthenticated_published",
+    "api_keys_ui_not_wired"
+  ]
+}

@@ -1,0 +1,6 @@
+﻿investhome-web Up 5 minutes 0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp
+investhome-api Up 12 minutes (healthy) 0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp
+investhome-worker Up 6 hours 8000/tcp
+investhome-n8n Up 25 hours 0.0.0.0:5678->5678/tcp, [::]:5678->5678/tcp
+investhome-postgres Up 25 hours (healthy) 0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+investhome-redis Up 25 hours (healthy) 0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp

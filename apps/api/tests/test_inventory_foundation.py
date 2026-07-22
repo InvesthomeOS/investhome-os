@@ -325,7 +325,7 @@ def test_global_search_inventory_entities(client: TestClient) -> None:
 
 
 def test_inventory_permissions(auth_client: TestClient) -> None:
-    from tests.test_auth import DEMO_PASSWORD, _login
+    from test_auth import DEMO_PASSWORD, _login
 
     _login(auth_client, "admin@example.com")
     project_response = auth_client.post(

@@ -1,0 +1,27 @@
+﻿{
+    "counts":  {
+                   "crm_activities":  45,
+                   "crm_tasks":  12,
+                   "sales_opportunities":  16,
+                   "marketing_segments":  1,
+                   "crm_contacts":  25,
+                   "marketing_content_assets":  4,
+                   "marketing_lead_sources":  4,
+                   "inventory_assets":  31,
+                   "projects":  14,
+                   "users":  11,
+                   "leads":  21,
+                   "work_items_demo":  10,
+                   "crm_companies":  12,
+                   "marketing_audiences":  1,
+                   "marketing_ai_insights":  12,
+                   "marketing_campaigns":  5,
+                   "bi_saved_reports":  12,
+                   "automation_workflows_demo":  3,
+                   "crm_notes":  12
+               },
+    "status":  "ok",
+    "result":  "PASS",
+    "source":  "docker compose exec api python -m investhome_api.db.demo validate",
+    "note":  "BiSavedReport / MarketingAIInsight / WorkItem / CrmActivity / CrmCompany use metadata_json, layout_json, evidence_refs, or source markers (source=integrated_demo_seed) because is_demo is absent."
+}

@@ -1,0 +1,251 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UXR1 · Section 09 — Project Detail · INVESTHOME OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="_shared.css" />
+</head>
+<body>
+
+<div class="wrap">
+  <nav class="crumb">
+    <a href="index.html">UXR1 Review Package</a>
+    <span>/</span>
+    <span>Visual review · no code</span>
+  </nav>
+  <div class="topline">
+    <div class="brand">
+      <div class="brand-mark">IH</div>
+      <div>
+        <div class="brand-name">INVESTHOME OS</div>
+        <div class="brand-sub">UXR1 Simplification · Visual deliverables only</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge ok">APPROVED · V2</span>
+      <span class="badge pending">V2 REFINE</span>
+    </div>
+  </div>
+
+  <header class="hero">
+    <div class="eyebrow">Section 09 · Wireframe + mockup</div>
+    <h1>Project Detail</h1>
+    <p class="lede">One job on Overview: status of the project. Units, timeline, team, docs daily; Finance and Advanced role-gated.</p>
+    <div class="meta-row">
+      <span><strong>Route</strong> <code>/dashboard/projects/[projectId]</code></span>
+      <span><strong>Audience</strong> PM · sales · restricted finance</span>
+      <span><strong>Primary UI</strong> Hero + tabs</span>
+    </div>
+    <nav class="toc">
+      <a href="#today">Today's work</a>
+      <a href="#wireframe">Low-fi wireframe</a>
+      <a href="#hifi">High-fidelity</a>
+      <a href="#desktop">Desktop</a>
+      <a href="#mobile">Mobile</a>
+      <a href="#journey">Journey</a>
+      <a href="#actions">Actions</a>
+      <a href="#fields">Fields</a>
+      <a href="#rationale">Rationale</a>
+    </nav>
+  </header>
+
+  <section id="today">
+    <div class="section-head">
+      <h2>Today's work</h2>
+      <span class="section-note">Who finishes faster · operational, not decorative</span>
+    </div>
+    <div class="today-work">
+      <div class="today-work-grid">
+        
+        <div class="today-card">
+          <div class="today-role">Salesperson</div>
+          <div class="today-task">See available units and soft holds for this project</div>
+          <div class="today-faster">Overview KPIs + Units tab reuse inventory cards — one mental model.</div>
+        </div>
+        <div class="today-card">
+          <div class="today-role">Marketer</div>
+          <div class="today-task">Check next milestone before a launch asset</div>
+          <div class="today-faster">Milestone + activity on Overview without digging permits.</div>
+        </div>
+        <div class="today-card">
+          <div class="today-role">Investor manager</div>
+          <div class="today-task">Review commercial pulse; open Finance only if permitted</div>
+          <div class="today-faster">Finance/Advanced tabs disclose depth — Overview stays daily.</div>
+        </div>
+        <div class="today-card">
+          <div class="today-role">Executive</div>
+          <div class="today-task">Answer “how is North Towers?” in one screen</div>
+          <div class="today-faster">Hero + sold/available/holds + progress — no domain dump.</div>
+        </div>
+      </div>
+      <p class="today-principle">One job on Overview: project status. Backend finance and permits remain; UI hides them behind role-gated tabs.</p>
+    </div>
+  </section>
+
+  <section id="wireframe">
+    <div class="section-head">
+      <h2>Low-fidelity wireframe</h2>
+      <span class="section-note">Structured layout · boxes only</span>
+    </div>
+    <p class="section-intro">Hero cover strip, KPIs, progress, activity. Units tab embeds inventory cards filtered to the project — not a 6-status table.</p>
+    <div class="wire">
+      <div class="wire-frame">
+        <div class="wire-top"><span>← Projects / North Towers</span><span>[Edit] [Add unit] [Upload]</span></div>
+        <div class="wire-main">
+          <div class="wire-box muted tall" style="min-height:48px"><div class="wire-label">[ hero / cover strip ]</div>North Towers · Construction · On track · Owner: PM Ayşe</div>
+          <div style="border-bottom:1.5px solid #9aa3b5;padding-bottom:6px"><strong>Overview</strong> · Units · Timeline · Team · Docs · Finance ▸ · Advanced ▸</div>
+          <div class="wire-row">
+            <div class="wire-box"><div class="wire-label">Units sold</div><div class="wire-value">210/400</div></div>
+            <div class="wire-box"><div class="wire-label">Available</div><div class="wire-value">120</div></div>
+            <div class="wire-box"><div class="wire-label">Soft holds</div><div class="wire-value">12</div></div>
+            <div class="wire-box"><div class="wire-label">Next milestone</div><div class="wire-value">Facade</div></div>
+          </div>
+          <div class="wire-box"><div class="wire-label">Progress 72%</div>Sales funnel mini → Sales filtered<br/>Recent: A-1204 reserved — Ada Yılmaz</div>
+        </div>
+      </div></div>
+  </section>
+
+  <section id="hifi">
+    <div class="section-head">
+      <h2>High-fidelity mockup</h2>
+      <span class="section-note">Premium light SaaS · sales/marketing friendly</span>
+    </div>
+    <p class="section-intro">Hero-led project home with calm KPIs — construction + sales pulse without packing permits and ROI into the default view.</p>
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Desktop frame · Project Detail</span>
+        <span class="badge pending">Mockup</span>
+      </div>
+      <img class="mock-img" src="mockups/09-project-detail-desktop.png" alt="Project Detail high-fidelity desktop mockup" />
+      <div class="mock-caption">High-fidelity desktop · North Towers detail with hero, KPIs, and overview tabs.</div>
+    </div>
+  </section>
+
+  <section id="desktop">
+    <div class="section-head">
+      <h2>Desktop layout</h2>
+      <span class="section-note">Primary working surface</span>
+    </div>
+    <div class="split">
+      <div class="card">
+        <h3>Composition</h3>
+        <ul><li>Hero cover + title row (phase, health, PM) + primary actions</li><li>Tabs with discipline: Overview daily; Finance/Advanced disclosed</li><li>Overview KPIs + progress + mini funnel + activity</li><li>Units tab = inventory card embed for this project</li></ul>
+      </div>
+      <div class="card">
+        <h3>Density & hierarchy</h3>
+        <ul><li>Avoid packing construction + permits + costs + sales into default</li><li>Finance hidden for pure sales roles without permission</li><li>Timeline is visual milestones, not spreadsheet-first</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="mobile">
+    <div class="section-head">
+      <h2>Mobile behavior &amp; preview</h2>
+      <span class="section-note">Phone-first adaptations · operational queue first</span>
+    </div>
+    <div class="split">
+      <div class="mobile-preview">
+        <div class="wire">
+      <div class="wire-phone">
+        <div class="ph-top">North Towers</div>
+        <div class="ph-body">
+          <div class="wire-box tall"><div class="wire-label">[hero]</div>On track · 72%</div>
+          <div class="wire-row">
+            <div class="wire-box"><div class="wire-value">210</div><div class="wire-label">Sold</div></div>
+            <div class="wire-box"><div class="wire-value">120</div><div class="wire-label">Avail</div></div>
+          </div>
+          <div class="wire-box">Next: Facade</div>
+        </div>
+        <div class="ph-tabbar">
+          <div class="ph-tab active">Overview</div>
+          <div class="ph-tab">Units</div>
+          <div class="ph-tab">More</div>
+        </div>
+      </div></div>
+        <p class="mobile-note">Primary mobile job: finish today’s queue — not recreate the desktop dashboard.</p>
+      </div>
+      <div class="card">
+        <h3>Behavior rules</h3>
+        <ul><li>Hero compresses to banner</li><li>Tab chips scroll; Finance behind More if permitted</li><li>Units = same inventory cards single column</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="journey">
+    <div class="section-head">
+      <h2>User journey</h2>
+    </div>
+    <div class="journey">
+      <span class="j-step">Open from cards</span><span class="j-arrow">→</span><span class="j-step">Scan Overview</span><span class="j-arrow">→</span><span class="j-step">Units or Timeline</span><span class="j-arrow">→</span><span class="j-step">Finance if role</span>
+    </div>
+    <p class="section-intro" style="margin-top:14px">Sales funnel mini drills to Sales filtered by this project.</p>
+  </section>
+
+  <section id="actions">
+    <div class="section-head">
+      <h2>Primary actions</h2>
+    </div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Action</th><th>Where</th><th>Outcome</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Edit project</strong></td><td>Header</td><td>Daily fields; Advanced collapsed</td></tr><tr><td><strong>Add unit</strong></td><td>Header</td><td>Inventory create scoped to project</td></tr><tr><td><strong>Upload doc</strong></td><td>Header / Docs</td><td>Files tab</td></tr><tr><td><strong>Open unit</strong></td><td>Units tab</td><td>Inventory drawer</td></tr><tr><td><strong>Drill Sales</strong></td><td>Mini funnel</td><td>Pipeline filtered</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="fields">
+    <div class="section-head">
+      <h2>Visible &amp; hidden fields</h2>
+      <span class="section-note">Progressive disclosure · docs 12–13</span>
+    </div>
+    <div class="field-grid">
+      <div class="card field-box ok">
+        <h3>Visible (daily)</h3>
+        <ul><li>Name, status, health, PM</li><li>Units sold / available / soft holds</li><li>Next milestone · recent activity · progress %</li></ul>
+      </div>
+      <div class="card field-box hide">
+        <h3>Hidden (Details / Advanced)</h3>
+        <ul><li>Geo lat/long · ownership · legal enums</li><li>Budgets ROI/IRR equity debt (Finance tab)</li><li>Permits · cost lines (Advanced / construction roles)</li><li>Full sqft planning breakdowns on create</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="rationale">
+    <div class="section-head">
+      <h2>Design rationale</h2>
+      <span class="section-note">Why better than current</span>
+    </div>
+    <div class="callout">
+      <h3>Detail without the dump</h3>
+      <p>Project pages today over-expose every domain. Tab discipline and progressive Finance/Advanced let sales use the page daily.</p>
+    </div>
+    <ul class="card" style="margin-top:12px;list-style:none">
+      <li style="padding-left:14px;position:relative;font-size:14px;color:var(--ink-muted);margin:8px 0">Units reuse inventory visual language</li><li style="padding-left:14px;position:relative;font-size:14px;color:var(--ink-muted);margin:8px 0">Role-gated finance prevents accidental overwhelm</li><li style="padding-left:14px;position:relative;font-size:14px;color:var(--ink-muted);margin:8px 0">Overview answers “how is this project?” in one screen</li>
+    </ul>
+  </section>
+
+  <div class="checkpoint">
+    <div class="eyebrow">Approval gate</div>
+    <h2>Section 09 ready for review</h2>
+    <p>Visual package only. No routes, components, or APIs changed. Approve or request changes before any implementation.</p>
+    <div class="actions">
+      <a class="btn" href="index.html">Back to package index</a>
+      <a class="btn ghost" href="10-marketing-home.html">Next: Marketing Home</a>
+    </div>
+  </div>
+
+  <div class="nav-pager">
+    <a href="08-project-cards.html">← 08 Project Cards</a>
+    <a href="index.html">Review index</a>
+    <a href="10-marketing-home.html">10 Marketing Home →</a>
+  </div>
+</div>
+</body>
+</html>
+

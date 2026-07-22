@@ -1,0 +1,10 @@
+01-dashboard-home-desktop.png	186500
+02-dashboard-home-shell.png	83717
+03-executive-g8-desktop.png	268079
+04-executive-g8-kpi.png	124796
+05-executive-g8-tablet.png	95833
+06-legacy-leads-no-v2.png	51314
+07-legacy-investors-spot.png	53863
+08-legacy-marketing-spot.png	54141
+09-executive-turkish.png	317590
+10-executive-english.png	277982

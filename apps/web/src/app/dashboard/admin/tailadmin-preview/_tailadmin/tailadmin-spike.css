@@ -1,0 +1,646 @@
+/**
+ * Isolated TailAdmin Free visual language for the compatibility spike.
+ * All selectors are scoped under `.ta-spike` so this stylesheet can be deleted cleanly.
+ * Inspired by TailAdmin free-nextjs-admin-dashboard v2.3 (MIT) — not a full template copy.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+
+.ta-spike {
+  --ta-brand: #465fff;
+  --ta-brand-soft: #ecf3ff;
+  --ta-success: #12b76a;
+  --ta-success-soft: #ecfdf3;
+  --ta-error: #f04438;
+  --ta-error-soft: #fef3f2;
+  --ta-warn: #f79009;
+  --ta-warn-soft: #fffaeb;
+  --ta-gray-25: #fcfcfd;
+  --ta-gray-50: #f9fafb;
+  --ta-gray-100: #f2f4f7;
+  --ta-gray-200: #e4e7ec;
+  --ta-gray-300: #d0d5dd;
+  --ta-gray-400: #98a2b3;
+  --ta-gray-500: #667085;
+  --ta-gray-700: #344054;
+  --ta-gray-800: #1d2939;
+  --ta-gray-900: #101828;
+  --ta-radius: 1rem;
+  --ta-radius-sm: 0.75rem;
+  --ta-sidebar-w: 280px;
+
+  font-family: Outfit, system-ui, sans-serif;
+  color: var(--ta-gray-800);
+  background: var(--ta-gray-50);
+  border: 1px solid var(--ta-gray-200);
+  border-radius: 1.25rem;
+  overflow: hidden;
+  min-height: 920px;
+  display: grid;
+  grid-template-columns: var(--ta-sidebar-w) 1fr;
+  box-shadow: 0 1px 2px rgb(16 24 40 / 6%);
+}
+
+.ta-spike *,
+.ta-spike *::before,
+.ta-spike *::after {
+  box-sizing: border-box;
+}
+
+.ta-spike a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* —— Sidebar (TailAdmin-style chrome + OS labels) —— */
+.ta-spike__sidebar {
+  background: #fff;
+  border-right: 1px solid var(--ta-gray-200);
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 1.25rem 1rem 1.5rem;
+}
+
+.ta-spike__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.25rem 0.5rem 1.25rem;
+  border-bottom: 1px solid var(--ta-gray-100);
+  margin-bottom: 1rem;
+}
+
+.ta-spike__brand img {
+  height: 28px;
+  width: auto;
+  display: block;
+}
+
+.ta-spike__brand-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.ta-spike__brand-meta strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ta-gray-800);
+  line-height: 1.2;
+}
+
+.ta-spike__brand-meta span {
+  font-size: 0.6875rem;
+  color: var(--ta-gray-500);
+}
+
+.ta-spike__nav-section {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ta-gray-400);
+  padding: 0.85rem 0.75rem 0.4rem;
+}
+
+.ta-spike__nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.65rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ta-gray-700);
+  transition: background 0.15s ease;
+}
+
+.ta-spike__nav-link:hover {
+  background: var(--ta-gray-50);
+}
+
+.ta-spike__nav-link--active {
+  background: var(--ta-brand-soft);
+  color: var(--ta-brand);
+}
+
+.ta-spike__nav-ico {
+  width: 1.25rem;
+  height: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.ta-spike__nav-ico svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.ta-spike__sidebar-foot {
+  margin-top: auto;
+  padding: 0.75rem;
+  border-radius: var(--ta-radius-sm);
+  background: var(--ta-brand-soft);
+  color: var(--ta-gray-700);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.ta-spike__sidebar-foot strong {
+  display: block;
+  color: var(--ta-brand);
+  font-size: 0.8125rem;
+  margin-bottom: 0.2rem;
+}
+
+/* —— Main column —— */
+.ta-spike__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--ta-gray-50);
+}
+
+.ta-spike__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: #fff;
+  border-bottom: 1px solid var(--ta-gray-200);
+}
+
+.ta-spike__header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--ta-gray-800);
+}
+
+.ta-spike__header p {
+  margin: 0.2rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--ta-gray-500);
+}
+
+.ta-spike__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--ta-warn-soft);
+  color: #b54708;
+  border: 1px solid #fedf89;
+  white-space: nowrap;
+}
+
+.ta-spike__content {
+  padding: 1.25rem 1.5rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* —— Cards / grid —— */
+.ta-spike__card {
+  background: #fff;
+  border: 1px solid var(--ta-gray-200);
+  border-radius: var(--ta-radius);
+  padding: 1.15rem 1.25rem;
+}
+
+.ta-spike__card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.ta-spike__card-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ta-gray-800);
+}
+
+.ta-spike__card-head p {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--ta-gray-500);
+}
+
+.ta-spike__kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.ta-spike__kpi {
+  background: #fff;
+  border: 1px solid var(--ta-gray-200);
+  border-radius: var(--ta-radius);
+  padding: 1.1rem 1.15rem;
+}
+
+.ta-spike__kpi-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.75rem;
+  background: var(--ta-gray-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ta-gray-800);
+  margin-bottom: 1rem;
+}
+
+.ta-spike__kpi-icon svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.ta-spike__kpi-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ta-spike__kpi-label {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--ta-gray-500);
+}
+
+.ta-spike__kpi-value {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ta-gray-800);
+  line-height: 1.15;
+}
+
+.ta-spike__delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.ta-spike__delta--up {
+  background: var(--ta-success-soft);
+  color: #027a48;
+}
+
+.ta-spike__delta--down {
+  background: var(--ta-error-soft);
+  color: #b42318;
+}
+
+.ta-spike__grid-2 {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 1.25rem;
+}
+
+.ta-spike__grid-3 {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.ta-spike__grid-2eq {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+/* —— Charts —— */
+.ta-spike__chart {
+  width: 100%;
+  height: 260px;
+  display: block;
+}
+
+.ta-spike__chart-legend {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--ta-gray-500);
+}
+
+.ta-spike__legend-dot {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  margin-right: 0.35rem;
+  vertical-align: middle;
+}
+
+.ta-spike__bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.45rem;
+  height: 140px;
+  padding-top: 0.5rem;
+}
+
+.ta-spike__bar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.ta-spike__bar-fill {
+  width: 100%;
+  max-width: 28px;
+  border-radius: 6px 6px 2px 2px;
+  background: var(--ta-brand);
+  min-height: 8px;
+}
+
+.ta-spike__bar span {
+  font-size: 0.625rem;
+  color: var(--ta-gray-400);
+}
+
+/* —— Tables / lists —— */
+.ta-spike__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.ta-spike__table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--ta-gray-500);
+  padding: 0.55rem 0.4rem;
+  border-bottom: 1px solid var(--ta-gray-100);
+}
+
+.ta-spike__table td {
+  padding: 0.7rem 0.4rem;
+  border-bottom: 1px solid var(--ta-gray-100);
+  color: var(--ta-gray-700);
+  vertical-align: middle;
+}
+
+.ta-spike__table tr:last-child td {
+  border-bottom: 0;
+}
+
+.ta-spike__pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.ta-spike__pill--ok {
+  background: var(--ta-success-soft);
+  color: #027a48;
+}
+
+.ta-spike__pill--watch {
+  background: var(--ta-warn-soft);
+  color: #b54708;
+}
+
+.ta-spike__pill--risk {
+  background: var(--ta-error-soft);
+  color: #b42318;
+}
+
+.ta-spike__progress {
+  height: 0.4rem;
+  border-radius: 999px;
+  background: var(--ta-gray-100);
+  overflow: hidden;
+  min-width: 72px;
+}
+
+.ta-spike__progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ta-brand);
+}
+
+.ta-spike__pipeline {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ta-spike__pipe-stage {
+  flex: 1;
+  min-width: 0;
+  padding: 0.75rem 0.65rem;
+  border-radius: var(--ta-radius-sm);
+  background: var(--ta-gray-50);
+  border: 1px solid var(--ta-gray-100);
+  text-align: center;
+}
+
+.ta-spike__pipe-stage strong {
+  display: block;
+  font-size: 1.125rem;
+  color: var(--ta-gray-800);
+  margin: 0.2rem 0;
+}
+
+.ta-spike__pipe-stage span {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--ta-gray-500);
+}
+
+.ta-spike__pipe-stage em {
+  display: block;
+  font-style: normal;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ta-brand);
+  margin-top: 0.25rem;
+}
+
+.ta-spike__task {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 0.75rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--ta-gray-100);
+  font-size: 0.8125rem;
+}
+
+.ta-spike__task:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.ta-spike__task:first-child {
+  padding-top: 0;
+}
+
+.ta-spike__task strong {
+  color: var(--ta-gray-800);
+  font-weight: 500;
+}
+
+.ta-spike__task-meta {
+  color: var(--ta-gray-500);
+  font-size: 0.75rem;
+}
+
+.ta-spike__pri {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ta-spike__pri--high {
+  color: #b42318;
+}
+
+.ta-spike__pri--med {
+  color: #b54708;
+}
+
+.ta-spike__pri--low {
+  color: var(--ta-gray-400);
+}
+
+.ta-spike__cal {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.35rem;
+}
+
+.ta-spike__cal-cell {
+  aspect-ratio: 1;
+  border-radius: 0.55rem;
+  border: 1px solid var(--ta-gray-100);
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--ta-gray-500);
+  min-height: 2.75rem;
+}
+
+.ta-spike__cal-cell--muted {
+  opacity: 0.45;
+}
+
+.ta-spike__cal-cell--event {
+  border-color: transparent;
+  color: #fff;
+  font-weight: 600;
+}
+
+.ta-spike__cal-cell--brand {
+  background: var(--ta-brand);
+}
+
+.ta-spike__cal-cell--success {
+  background: var(--ta-success);
+}
+
+.ta-spike__cal-cell--warn {
+  background: var(--ta-warn);
+}
+
+.ta-spike__cal-cell small {
+  font-size: 0.55rem;
+  font-weight: 500;
+  line-height: 1.1;
+  text-align: center;
+  padding: 0 0.15rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ta-spike__ai {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ta-spike__ai-item {
+  padding: 0.85rem 0.95rem;
+  border-radius: var(--ta-radius-sm);
+  background: linear-gradient(135deg, #f2f7ff 0%, #fff 55%);
+  border: 1px solid var(--ta-gray-200);
+}
+
+.ta-spike__ai-item strong {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--ta-gray-800);
+  margin-bottom: 0.25rem;
+}
+
+.ta-spike__ai-item p {
+  margin: 0;
+  font-size: 0.775rem;
+  color: var(--ta-gray-500);
+  line-height: 1.45;
+}
+
+.ta-spike__note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--ta-gray-500);
+  text-align: center;
+}
+
+@media (max-width: 1200px) {
+  .ta-spike__kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ta-spike__grid-2,
+  .ta-spike__grid-3,
+  .ta-spike__grid-2eq {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .ta-spike {
+    grid-template-columns: 1fr;
+  }
+
+  .ta-spike__sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--ta-gray-200);
+  }
+}

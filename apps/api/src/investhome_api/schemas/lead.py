@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from investhome_api.models.lead import LeadStatus
+from investhome_api.schemas.marketing_performance import LeadAttributionFields, LeadAttributionResponse
 
 
 class LeadBase(BaseModel):
@@ -21,7 +22,7 @@ class LeadBase(BaseModel):
 
 
 class LeadCreate(LeadBase):
-    pass
+    attribution: LeadAttributionFields | None = None
 
 
 class LeadUpdate(BaseModel):
@@ -38,6 +39,7 @@ class LeadUpdate(BaseModel):
     estimated_budget: Decimal | None = Field(default=None, ge=0)
     interested_project: str | None = Field(default=None, max_length=255)
     notes: str | None = None
+    attribution: LeadAttributionFields | None = None
 
 
 class LeadResponse(LeadBase):
@@ -52,6 +54,7 @@ class LeadResponse(LeadBase):
     archived_at: datetime | None
     created_at: datetime
     updated_at: datetime
+    attribution: LeadAttributionResponse | None = None
 
 
 class LeadListResponse(BaseModel):

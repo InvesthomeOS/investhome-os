@@ -12,7 +12,7 @@ import { InventoryMatchingPanel } from '@/app/dashboard/sales/_components/invent
 import { EntityDocumentsPanel } from '@/app/dashboard/_components/entity-documents-panel';
 import { fetchLead, type Lead } from '@/lib/api/leads';
 import { fetchInvestor, type Investor } from '@/lib/api/investors';
-import { fetchInventoryAsset, fetchReservation, type InventoryAsset, type InventoryReservation } from '@/lib/api/inventory';
+import { fetchReservation, type InventoryReservation } from '@/lib/api/inventory';
 import type { Project } from '@/lib/api/projects';
 import { hasPermission } from '@/lib/api/auth';
 import {
@@ -106,7 +106,6 @@ export function SalesDetailDrawer({
   onChangeStage,
   onEditNextAction,
   onLinkProject,
-  onLinkInventory,
 }: SalesDetailDrawerProps) {
   const t = useTranslations('sales');
   const tReadiness = useTranslations('salesReadiness');
@@ -126,7 +125,6 @@ export function SalesDetailDrawer({
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [partyLead, setPartyLead] = useState<Lead | null>(null);
   const [partyInvestor, setPartyInvestor] = useState<Investor | null>(null);
-  const [inventoryAssets, setInventoryAssets] = useState<InventoryAsset[]>([]);
   const [reservation, setReservation] = useState<InventoryReservation | null>(null);
   const [proposals, setProposals] = useState<SalesProposal[]>([]);
   const [proposalsLoading, setProposalsLoading] = useState(false);
@@ -181,24 +179,6 @@ export function SalesDetailDrawer({
       cancelled = true;
     };
   }, [opportunity]);
-
-  useEffect(() => {
-    if (!linkedInventoryIds.length) {
-      setInventoryAssets([]);
-      return;
-    }
-    let cancelled = false;
-    void Promise.all(linkedInventoryIds.map((id) => fetchInventoryAsset(id)))
-      .then((assets) => {
-        if (!cancelled) setInventoryAssets(assets);
-      })
-      .catch(() => {
-        if (!cancelled) setInventoryAssets([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [linkedInventoryIds]);
 
   useEffect(() => {
     if (!opportunity?.reservation_id) {

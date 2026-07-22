@@ -31,12 +31,32 @@ def _has_permission_direct(user: User, resource: str, action: str) -> bool:
     return False
 
 
-def user_has_permission(user: User, resource: str, action: str) -> bool:
+def user_has_permission(user: User, resource: str, action: str, db: Session | None = None) -> bool:
     if not get_settings().auth_enabled:
         return True
     if is_super_admin(user):
         return True
-    return _has_permission_direct(user, resource, action)
+    if _has_permission_direct(user, resource, action):
+        return True
+    # Company workspace aliases: read ↔ view for backward compatibility.
+    if resource == "company":
+        aliases = {
+            "read": ("view",),
+            "view": ("read",),
+        }
+        for alias in aliases.get(action, ()):
+            if _has_permission_direct(user, resource, alias):
+                return True
+    # Temporary permission grants (P11 foundation)
+    if db is not None:
+        try:
+            from investhome_api.services.security_center_service import user_has_temporary_permission
+
+            if user_has_temporary_permission(db, user.id, resource, action):
+                return True
+        except Exception:
+            pass
+    return False
 
 
 def load_user_with_roles(db: Session, user_id) -> User | None:

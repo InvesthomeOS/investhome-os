@@ -4,6 +4,7 @@ import { Suspense, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 
+import { BrandLogo } from '@/components/brand/brand-logo';
 import { ApiError } from '@/lib/api/client';
 import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
 import { PublicBrandingProvider, useCompanyBranding } from '@/lib/company/company-context';
@@ -44,6 +45,9 @@ function LoginForm() {
   return (
     <div className="auth-page">
       <div className="auth-card">
+        <div className="auth-card__brand">
+          <BrandLogo tone="auto" layout="full" className="auth-card__logo" priority />
+        </div>
         <p className="dashboard__eyebrow">{displayName}</p>
         <h1 className="auth-card__title">{slogan ?? t('title')}</h1>
         <p className="auth-card__subtitle">{t('subtitle')}</p>

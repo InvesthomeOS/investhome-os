@@ -1,0 +1,100 @@
+{
+  "phase": "after",
+  "base": "http://localhost:3000",
+  "startedAt": "2026-07-20T07:56:50.435Z",
+  "checks": {
+    "login_logo": true,
+    "brand_primary": true,
+    "home_surface": true,
+    "home_kpis_or_error": true,
+    "no_abrupt_loading_text": true,
+    "no_overflow": true,
+    "chart_legend": true,
+    "button_system": true,
+    "focus_visible": true,
+    "primary_secondary_hierarchy": true
+  },
+  "evidence": {
+    "home": {
+      "hasHome": true,
+      "kpiCount": 0,
+      "panelCount": 11,
+      "chartCount": 0,
+      "skeletons": 0,
+      "loadingText": [],
+      "brandPrimary": "#9D7B55",
+      "focusOutline": {
+        "outline": "rgb(119, 191, 187) solid 2px",
+        "boxShadow": "rgb(157, 123, 85) 2px 0px 0px 0px inset",
+        "outlineColor": "rgb(119, 191, 187)"
+      },
+      "overflowX": false,
+      "kpiStyles": [],
+      "panelPad": [
+        {
+          "bodyPad": "16px 20px",
+          "headerPad": "16px 20px"
+        },
+        {
+          "bodyPad": "16px 20px",
+          "headerPad": "16px 20px"
+        },
+        {
+          "bodyPad": "16px 20px",
+          "headerPad": "16px 20px"
+        }
+      ],
+      "button": null,
+      "legendPresent": false
+    },
+    "executive": {
+      "hasHome": false,
+      "kpiCount": 0,
+      "panelCount": 0,
+      "chartCount": 0,
+      "skeletons": 0,
+      "loadingText": [],
+      "brandPrimary": "#9D7B55",
+      "focusOutline": {
+        "outline": "rgb(119, 191, 187) solid 2px",
+        "boxShadow": "none",
+        "outlineColor": "rgb(119, 191, 187)"
+      },
+      "overflowX": false,
+      "kpiStyles": [],
+      "panelPad": [],
+      "button": null,
+      "legendPresent": false
+    },
+    "executiveTable": {
+      "present": false
+    },
+    "salesTable": {
+      "present": false
+    },
+    "adminTable": {
+      "present": false
+    }
+  },
+  "screenshots": {
+    "login_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\after-login-desktop.png",
+    "home_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\after-home-desktop.png",
+    "home_focus": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\after-home-focus-hero.png",
+    "home_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\after-home-laptop.png",
+    "home_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\after-home-tablet.png",
+    "home_wide": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\after-home-wide.png",
+    "executive_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\after-executive-desktop.png",
+    "executive_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\after-executive-laptop.png",
+    "executive_tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\after-executive-tablet.png",
+    "sales_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\after-sales-desktop.png",
+    "sales_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\after-sales-laptop.png",
+    "finance_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\after-finance-desktop.png",
+    "finance_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\after-finance-laptop.png",
+    "admin_desktop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\after-admin-desktop.png",
+    "admin_laptop": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\after-admin-laptop.png",
+    "sidebar_collapsed": "C:\\Users\\eminb\\Projects\\investhome-os\\tmp-browser-verify-output\\product-polish-p3\\after-home-sidebar-collapsed.png"
+  },
+  "failures": [],
+  "ok": true,
+  "finishedAt": "2026-07-20T07:57:18.793Z"
+}

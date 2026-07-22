@@ -1,0 +1,22 @@
+﻿python : Python bulunamad
+At C:\Users\eminb\AppData\Local\Temp\ps-script-cbce375f-4025-4647-80b4-6f6916154488.ps1:7 char:1
++ python --version 2>&1 | Out-File -FilePath "C:\Users\eminb\Projects\i ...
++ ~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Python bulunamad:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+
+    Directory: C:\Users\eminb\Projects\investhome-os\apps\web\public\brand\logos
+
+
+Mode                 LastWriteTime         Length Name                                                                 
+----                 -------------         ------ ----                                                                 
+-a----        16.06.2026     19:46         165927 investhome logo beyaz.png                                            
+-a----        16.06.2026     19:46         180098 investhome logo renkli.png                                           
+-a----        16.06.2026     19:46         173729 investhome logo siyah.png                                            
+-a----        16.06.2026     19:46         752342 Investhome_Logo.ai                                                   
+-a----        14.06.2026     08:52         846244 Investhome_Logo.pdf                                                  
+-a----        19.07.2026     18:38            483 README.md                                                            
+
+

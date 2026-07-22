@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "sizes": {
+    "01-dashboard.png": 113993,
+    "02-portfolio.png": 111373,
+    "03-project-detail.png": 187503,
+    "04-reservations.png": 95633,
+    "05-contracts.png": 96571,
+    "06-payments.png": 112964,
+    "07-rental-income.png": 94532,
+    "08-documents.png": 125149,
+    "09-reports.png": 102677,
+    "10-messages.png": 108296,
+    "11-notifications.png": 114321,
+    "12-account-security.png": 113786,
+    "13-tablet.png": 57784,
+    "14-turkish.png": 113993,
+    "15-english.png": 117256
+  },
+  "outDir": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\portal-g9"
+}

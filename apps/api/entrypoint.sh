@@ -4,22 +4,23 @@ set -e
 STORAGE_ROOT="${DOCUMENT_STORAGE_ROOT:-/var/lib/investhome/documents}"
 mkdir -p "$STORAGE_ROOT"
 
-run_as_appuser() {
-  if [ "$(id -u)" = "0" ]; then
-    chown -R appuser:appuser "$STORAGE_ROOT" 2>/dev/null || true
-    exec su -s /bin/sh appuser -c "$*"
-  else
-    exec sh -c "$*"
-  fi
-}
+# Honor Docker CMD / compose command (API uvicorn or ARQ worker).
+if [ "$#" -eq 0 ]; then
+  set -- uvicorn investhome_api.main:app --host 0.0.0.0 --port 8000
+fi
 
 if [ "$(id -u)" = "0" ]; then
   chown -R appuser:appuser "$STORAGE_ROOT" 2>/dev/null || true
-  su -s /bin/sh appuser -c "alembic upgrade head"
-  su -s /bin/sh appuser -c "python -m investhome_api.db.seed"
-  exec su -s /bin/sh appuser -c "uvicorn investhome_api.main:app --host 0.0.0.0 --port 8000"
+  runuser -u appuser -- alembic upgrade head
+  # Seed only when starting the HTTP API — not the background worker.
+  if [ "$1" = "uvicorn" ]; then
+    runuser -u appuser -- python -m investhome_api.db.seed
+  fi
+  exec runuser -u appuser -- "$@"
 fi
 
 alembic upgrade head
-python -m investhome_api.db.seed
-exec uvicorn investhome_api.main:app --host 0.0.0.0 --port 8000
+if [ "$1" = "uvicorn" ]; then
+  python -m investhome_api.db.seed
+fi
+exec "$@"

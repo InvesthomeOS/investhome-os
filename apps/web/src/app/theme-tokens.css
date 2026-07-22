@@ -1,30 +1,47 @@
-/* Investhome OS — design tokens (light default, dark ready) */
+/* Investhome OS — design tokens
+   Brand source: Kurumsal-font-renk color guide
+   Pantone 464 U (#9D7B55) · Pantone 466 U (#C3A47F) · accent teal (#77BFBB)
+*/
 
 :root,
 [data-theme='light'] {
   color-scheme: light;
 
-  /* Surfaces */
-  --bg: #f8fafc;
-  --surface: #ffffff;
-  --surface-elevated: #ffffff;
-  --surface-muted: #f1f5f9;
-  --border: #e2e8f0;
-  --border-subtle: #f1f5f9;
+  /* Official brand palette */
+  --brand-primary: #9d7b55;
+  --brand-primary-hover: #866848;
+  --brand-primary-soft: color-mix(in srgb, #9d7b55 12%, transparent);
+  --brand-secondary: #c3a47f;
+  --brand-accent: #77bfbb;
+  --brand-black: #000000;
+  --brand-white: #ffffff;
+  --brand-surface: #ffffff;
+  --brand-surface-muted: #f6f2ec;
+  --brand-border: #e4dcd2;
+  --brand-text: #000000;
+  --brand-text-muted: #7c7b7a;
+
+  /* Surfaces — warm neutrals aligned to brand beige */
+  --bg: #f7f4ef;
+  --surface: var(--brand-surface);
+  --surface-elevated: var(--brand-surface);
+  --surface-muted: var(--brand-surface-muted);
+  --border: var(--brand-border);
+  --border-subtle: #ebe4da;
 
   /* Text */
-  --text: #0f172a;
-  --text-secondary: #64748b;
-  --muted: #64748b;
-  --foreground: #0f172a;
-  --background: #f8fafc;
+  --text: var(--brand-text);
+  --text-secondary: var(--brand-text-muted);
+  --muted: var(--brand-text-muted);
+  --foreground: var(--brand-text);
+  --background: #f7f4ef;
 
-  /* Brand (overridden at runtime from Company Foundation when available) */
-  --brand-primary: #1e3a5f;
-  --brand-secondary: #64748b;
-  --accent: #0ea5e9;
-  --accent-muted: #0284c7;
-  --accent-hover: #0284c7;
+  /* Compatibility aliases used across shell/dashboard */
+  --brand-gold: var(--brand-primary);
+  --brand-gold-soft: var(--brand-primary-soft);
+  --accent: var(--brand-accent);
+  --accent-muted: #5aa8a4;
+  --accent-hover: #5aa8a4;
 
   /* Semantic */
   --success: #16a34a;
@@ -37,24 +54,24 @@
   --error: #dc2626;
   --danger-bg: #fee2e2;
   --danger-fg: #991b1b;
-  --info: #0284c7;
-  --info-bg: #dbeafe;
-  --info-fg: #1e40af;
+  --info: #5aa8a4;
+  --info-bg: color-mix(in srgb, #77bfbb 18%, transparent);
+  --info-fg: #2f6f6c;
 
-  /* Focus & shadows */
-  --focus-ring: #0ea5e9;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 24px 48px rgba(15, 23, 42, 0.12);
-  --shadow-drawer: -8px 0 24px rgba(15, 23, 42, 0.1);
-  --scrim-modal: rgba(15, 23, 42, 0.45);
-  --scrim-drawer: rgba(15, 23, 42, 0.2);
-  --scrim-overlay: rgba(15, 23, 42, 0.35);
+  /* Focus & elevation */
+  --focus-ring: var(--brand-accent);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.1);
+  --shadow-drawer: -8px 0 24px rgba(0, 0, 0, 0.08);
+  --scrim-modal: rgba(0, 0, 0, 0.45);
+  --scrim-drawer: rgba(0, 0, 0, 0.18);
+  --scrim-overlay: rgba(0, 0, 0, 0.32);
 
   /* Radius */
   --radius-sm: 0.375rem;
-  --radius-md: 0.625rem;
-  --radius-lg: 0.875rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
   --radius-xl: 1rem;
   --radius-pill: 999px;
 
@@ -70,37 +87,311 @@
   --space-9: 2.5rem;
 
   /* Layout */
-  --sidebar-width: 260px;
-  --sidebar-width-collapsed: 4.5rem;
-  --header-height: 3.5rem;
-  --content-max-width: 75rem;
+  --sidebar-width: 272px;
+  --sidebar-width-collapsed: 4.75rem;
+  --header-height: 3.75rem;
+  --content-max-width: 80rem;
+  --control-height: 2.375rem;
+  --control-height-sm: 2rem;
+  --control-height-lg: 2.75rem;
+  --icon-size-sm: 0.875rem;
+  --icon-size-md: 1.125rem;
+  --icon-size-nav: 1.125rem;
+  --icon-size-lg: 1.25rem;
+  --icon-stroke: 1.75;
 
-  /* Typography */
-  --font-sans: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  /* Text-on-light brand ink (Pantone fill kept; ink improves contrast) */
+  --brand-primary-ink: #6f563c;
+  --brand-on-primary: #1a1404;
+
+  /* Typography — Helvetica Neue (official); system fallbacks */
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "Helvetica Neue", Helvetica, Arial, ui-monospace, monospace;
+  --font-body: var(--font-sans);
+
+  /* Motion — canonical tokens live in motion-system.css;
+     keep lightweight aliases here for early cascade / non-app consumers */
+  --motion-duration-fast: 120ms;
+  --motion-duration-base: 200ms;
+  --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out: var(--motion-ease-out);
+  --duration-fast: var(--motion-duration-fast);
+  --duration-base: var(--motion-duration-base);
+
+  /* ── Design System v1.0 semantic aliases (map onto brand; do not fork HEX) ── */
+
+  /* Backgrounds */
+  --background-canvas: var(--bg);
+  --background-subtle: var(--surface-muted);
+  --background-elevated: var(--surface-elevated);
+
+  /* Surfaces */
+  --surface-default: var(--surface);
+  --surface-subtle: var(--surface-muted);
+  --surface-elevated-ds: var(--surface-elevated);
+  --surface-sunken: color-mix(in srgb, var(--brand-border) 35%, var(--bg));
+  --surface-overlay: var(--surface);
+
+  /* Borders */
+  --border-default: var(--border);
+  --border-subtle-ds: var(--border-subtle);
+  --border-strong: color-mix(in srgb, var(--brand-text) 18%, var(--border));
+  --border-focus: var(--focus-ring);
+
+  /* Text */
+  --text-primary: var(--text);
+  --text-secondary-ds: var(--text-secondary);
+  --text-muted-ds: var(--muted);
+  --text-inverse: var(--brand-white);
+  --text-link: var(--brand-primary-ink);
+  --text-on-brand: var(--brand-on-primary);
+
+  /* Brand (semantic names → Pantone) */
+  --brand-primary-ds: var(--brand-primary);
+  --brand-secondary-ds: var(--brand-secondary);
+
+  /* Status */
+  --status-success: var(--success);
+  --status-success-bg: var(--success-bg);
+  --status-success-fg: var(--success-fg);
+  --status-warning: var(--warning);
+  --status-warning-bg: var(--warning-bg);
+  --status-warning-fg: var(--warning-fg);
+  --status-danger: var(--danger);
+  --status-danger-bg: var(--danger-bg);
+  --status-danger-fg: var(--danger-fg);
+  --status-info: var(--info);
+  --status-info-bg: var(--info-bg);
+  --status-info-fg: var(--info-fg);
+  --status-ai: #6b5b95;
+  --status-ai-bg: color-mix(in srgb, #6b5b95 14%, transparent);
+  --status-ai-fg: #4a3f6b;
+
+  /* Spacing scale (px): 2, 4, 6, 8, 12, 16, 20, 24, 32, 40, 48, 64 */
+  --space-2px: 2px;
+  --space-4px: 4px;
+  --space-6px: 6px;
+  --space-8px: 8px;
+  --space-12px: 12px;
+  --space-16px: 16px;
+  --space-20px: 20px;
+  --space-24px: 24px;
+  --space-32px: 32px;
+  --space-40px: 40px;
+  --space-48px: 48px;
+  --space-64px: 64px;
+
+  /* Disabled / focus / chart series (semantic) */
+  --state-disabled-fg: color-mix(in srgb, var(--text) 38%, transparent);
+  --state-disabled-bg: color-mix(in srgb, var(--border) 55%, var(--bg));
+  --chart-series-1: var(--brand-primary);
+  --chart-series-2: var(--brand-accent);
+  --chart-series-3: var(--status-info);
+  --chart-series-4: var(--status-warning);
+  --chart-series-5: var(--status-success);
+  --shadow-medium: 0 2px 8px rgba(26, 20, 4, 0.07);
+
+  /* Radius (semantic) */
+  --radius-small: var(--radius-sm);
+  --radius-medium: var(--radius-md);
+  --radius-large: var(--radius-lg);
+  --radius-extra-large: var(--radius-xl);
+  --radius-full: var(--radius-pill);
+
+  /* Shadow (semantic) — card separates widgets without heaviness */
+  --shadow-none: none;
+  --shadow-subtle: 0 1px 2px rgba(26, 20, 4, 0.04);
+  --shadow-card: 0 1px 3px rgba(26, 20, 4, 0.06), 0 1px 2px rgba(26, 20, 4, 0.04);
+  --shadow-elevated: 0 4px 16px rgba(26, 20, 4, 0.08);
+  --shadow-overlay: 0 12px 32px rgba(26, 20, 4, 0.14);
+
+  /* Typography scale */
+  --font-size-display: 2rem;
+  --font-weight-display: 600;
+  --line-height-display: 1.2;
+
+  --font-size-page-title: 1.5rem;
+  --font-weight-page-title: 600;
+  --line-height-page-title: 1.25;
+
+  --font-size-section-title: 1.125rem;
+  --font-weight-section-title: 600;
+  --line-height-section-title: 1.35;
+
+  --font-size-card-title: 1rem;
+  --font-weight-card-title: 600;
+  --line-height-card-title: 1.4;
+
+  --font-size-body: 0.9375rem;
+  --font-weight-body: 400;
+  --line-height-body: 1.5;
+
+  --font-size-body-small: 0.875rem;
+  --font-weight-body-small: 400;
+  --line-height-body-small: 1.45;
+
+  --font-size-label: 0.8125rem;
+  --font-weight-label: 500;
+  --line-height-label: 1.35;
+
+  --font-size-caption: 0.75rem;
+  --font-weight-caption: 400;
+  --line-height-caption: 1.4;
+
+  --font-size-metric-large: 1.75rem;
+  --font-weight-metric-large: 600;
+  --line-height-metric-large: 1.15;
+
+  --font-size-metric-medium: 1.25rem;
+  --font-weight-metric-medium: 600;
+  --line-height-metric-medium: 1.2;
+
+  /* Grid */
+  --ds-grid-gap-desktop: var(--space-24px);
+  --ds-grid-gap-mobile: var(--space-16px);
+  --ds-grid-cols-desktop: 12;
+  --ds-grid-cols-tablet: 8;
+  --ds-grid-cols-mobile: 1;
+  --breakpoint-tablet: 768px;
+  --breakpoint-desktop: 1100px;
+
+  /* ── UXR1 V2 product UI palette (additive) ──
+     Logo / Pantone brand colors do NOT dictate UI chrome.
+     Product surfaces: white canvas · navy · blue · light gray.
+     Opt-in remapping: [data-ds-version="v2"] (showcase + phased migration).
+     No dark mode this sprint. */
+  --ih-navy-900: #0b1f3a;
+  --ih-navy-800: #0f2744;
+  --ih-navy-700: #1a3a5c;
+  --ih-navy-100: #e8eef5;
+  --ih-navy-50: #f2f6fa;
+  --ih-blue-600: #2563eb;
+  --ih-blue-500: #3b82f6;
+  --ih-blue-100: #dbeafe;
+  --ih-blue-50: #eff6ff;
+  --ih-gray-50: #f8fafc;
+  --ih-gray-100: #f1f5f9;
+  --ih-gray-200: #e2e8f0;
+  --ih-gray-300: #cbd5e1;
+  --ih-gray-500: #64748b;
+  --ih-gray-700: #334155;
+  --ih-gray-900: #0f172a;
+
+  /* Global card system V2 — larger radius, premium separation (not whitespace-only) */
+  --radius-card: 1rem;
+  --radius-card-lg: 1.25rem;
+  --shadow-card-premium: 0 1px 2px rgba(15, 39, 68, 0.04), 0 6px 20px rgba(15, 39, 68, 0.07);
+  --card-padding-y: var(--space-20px);
+  --card-padding-x: var(--space-24px);
+  --border-card: var(--ih-gray-200);
+
+  /* Pipeline column stage tints (subtle) */
+  --pipeline-tint-lead: #f0f7ff;
+  --pipeline-tint-qualify: #eef8f4;
+  --pipeline-tint-proposal: #f5f3ff;
+  --pipeline-tint-negotiation: #fff7ed;
+  --pipeline-tint-won: #ecfdf5;
+  --pipeline-tint-lost: #f8fafc;
+
+  /* V2 semantic aliases (do not override legacy brand vars until Phase 2) */
+  --ih-ui-canvas: #ffffff;
+  --ih-ui-canvas-muted: var(--ih-gray-50);
+  --ih-ui-accent: var(--ih-blue-600);
+  --ih-ui-accent-soft: var(--ih-blue-50);
+  --ih-ui-ink: var(--ih-navy-800);
+  --ih-ui-ink-muted: var(--ih-gray-500);
+  --ih-ui-border: var(--ih-gray-200);
+}
+
+/* UXR1 V2 opt-in theme — white canvas + navy/blue chrome; light-only this sprint */
+[data-ds-version='v2'] {
+  color-scheme: light;
+
+  --bg: var(--ih-ui-canvas-muted);
+  --background: var(--ih-ui-canvas-muted);
+  --background-canvas: var(--ih-ui-canvas-muted);
+  --background-subtle: var(--ih-gray-100);
+  --background-elevated: var(--ih-ui-canvas);
+  --surface: var(--ih-ui-canvas);
+  --surface-default: var(--ih-ui-canvas);
+  --surface-elevated: var(--ih-ui-canvas);
+  --surface-muted: var(--ih-gray-50);
+  --surface-subtle: var(--ih-gray-50);
+  --border: var(--ih-ui-border);
+  --border-default: var(--ih-ui-border);
+  --border-subtle: var(--ih-gray-100);
+  --border-subtle-ds: var(--ih-gray-100);
+  --border-card: var(--ih-gray-200);
+  --text: var(--ih-ui-ink);
+  --text-primary: var(--ih-ui-ink);
+  --text-secondary: var(--ih-ui-ink-muted);
+  --text-secondary-ds: var(--ih-ui-ink-muted);
+  --muted: var(--ih-ui-ink-muted);
+  --text-muted-ds: var(--ih-ui-ink-muted);
+  --text-link: var(--ih-blue-600);
+  --accent: var(--ih-blue-600);
+  --focus-ring: var(--ih-blue-500);
+  --brand-primary-ds: var(--ih-navy-800);
+  --brand-secondary-ds: var(--ih-navy-700);
+  --brand-primary-ink: var(--ih-navy-800);
+  --shadow-card: var(--shadow-card-premium);
+  --shadow-subtle: 0 1px 2px rgba(15, 39, 68, 0.04);
+  --shadow-elevated: 0 8px 24px rgba(15, 39, 68, 0.1);
+  --shadow-medium: 0 2px 8px rgba(15, 39, 68, 0.08);
+  /* Align control/card radii to V2 card system without touching legacy root */
+  --radius-large: var(--radius-card);
+  --radius-lg: var(--radius-card);
+  --radius-xl: var(--radius-card-lg);
+  /* Shell / content spacing aliases */
+  --ih-shell-content-pad-x: 1.75rem;
+  --ih-shell-content-pad-y: 1.25rem;
+  --ih-section-gap: 1.25rem;
+  --info: var(--ih-blue-600);
+  --info-bg: var(--ih-blue-50);
+  --info-fg: var(--ih-navy-800);
+  --status-info: var(--ih-blue-600);
+  --status-info-bg: var(--ih-blue-50);
+  --status-info-fg: var(--ih-navy-800);
+  --chart-series-1: var(--ih-navy-800);
+  --chart-series-2: var(--ih-blue-600);
+  --chart-series-3: var(--ih-blue-500);
 }
 
 [data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #0b1220;
-  --surface: #111a2e;
-  --surface-elevated: #162036;
-  --surface-muted: #0f1729;
-  --border: #1f2a44;
-  --border-subtle: #1a2438;
+  --brand-primary: #c3a47f;
+  --brand-primary-hover: #d4b892;
+  --brand-primary-soft: color-mix(in srgb, #c3a47f 16%, transparent);
+  --brand-secondary: #9d7b55;
+  --brand-accent: #77bfbb;
+  --brand-black: #000000;
+  --brand-white: #ffffff;
+  --brand-surface: #141210;
+  --brand-surface-muted: #1c1916;
+  --brand-border: #2e2924;
+  --brand-text: #f5f1eb;
+  --brand-text-muted: #a39e97;
 
-  --text: #e8edf7;
-  --text-secondary: #9aa8c7;
-  --muted: #9aa8c7;
-  --foreground: #e8edf7;
-  --background: #0b1220;
+  --bg: #0e0d0b;
+  --surface: var(--brand-surface);
+  --surface-elevated: #1a1714;
+  --surface-muted: var(--brand-surface-muted);
+  --border: var(--brand-border);
+  --border-subtle: #25211c;
 
-  --brand-primary: #3b82f6;
-  --brand-secondary: #64748b;
-  --accent: #3b82f6;
-  --accent-muted: #1d4ed8;
-  --accent-hover: #2563eb;
+  --text: var(--brand-text);
+  --text-secondary: var(--brand-text-muted);
+  --muted: var(--brand-text-muted);
+  --foreground: var(--brand-text);
+  --background: #0e0d0b;
+
+  --brand-gold: var(--brand-primary);
+  --brand-gold-soft: var(--brand-primary-soft);
+  --accent: var(--brand-accent);
+  --accent-muted: #5aa8a4;
+  --accent-hover: #8fd0cc;
 
   --success: #22c55e;
   --success-bg: rgba(34, 197, 94, 0.12);
@@ -112,26 +403,61 @@
   --error: #ef4444;
   --danger-bg: rgba(239, 68, 68, 0.12);
   --danger-fg: #fca5a5;
-  --info: #3498db;
-  --info-bg: rgba(52, 152, 219, 0.12);
-  --info-fg: #93c5fd;
+  --info: #77bfbb;
+  --info-bg: rgba(119, 191, 187, 0.14);
+  --info-fg: #a8ddd9;
 
-  --focus-ring: #3b82f6;
+  --focus-ring: var(--brand-accent);
+  --brand-primary-ink: #e2c9a4;
+  --brand-on-primary: #1a1404;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25);
-  --shadow-lg: 0 24px 48px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.28);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.4);
   --shadow-drawer: -8px 0 24px rgba(0, 0, 0, 0.3);
-  --scrim-modal: rgba(3, 7, 18, 0.72);
-  --scrim-drawer: rgba(15, 23, 42, 0.45);
-  --scrim-overlay: rgba(15, 23, 42, 0.55);
+  --scrim-modal: rgba(0, 0, 0, 0.72);
+  --scrim-drawer: rgba(0, 0, 0, 0.45);
+  --scrim-overlay: rgba(0, 0, 0, 0.55);
+
+  /* Design System v1.0 dark aliases */
+  --background-canvas: var(--bg);
+  --background-subtle: var(--surface-muted);
+  --background-elevated: var(--surface-elevated);
+  --surface-default: var(--surface);
+  --surface-subtle: var(--surface-muted);
+  --surface-elevated-ds: var(--surface-elevated);
+  --surface-sunken: #0a0908;
+  --surface-overlay: var(--surface-elevated);
+  --border-default: var(--border);
+  --border-subtle-ds: var(--border-subtle);
+  --border-strong: #3d372f;
+  --border-focus: var(--focus-ring);
+  --text-primary: var(--text);
+  --text-secondary-ds: var(--text-secondary);
+  --text-muted-ds: var(--muted);
+  --text-inverse: #0e0d0b;
+  --text-link: var(--brand-primary-ink);
+  --text-on-brand: var(--brand-on-primary);
+  --brand-primary-ds: var(--brand-primary);
+  --brand-secondary-ds: var(--brand-secondary);
+  --status-success: var(--success);
+  --status-success-bg: var(--success-bg);
+  --status-success-fg: var(--success-fg);
+  --status-warning: var(--warning);
+  --status-warning-bg: var(--warning-bg);
+  --status-warning-fg: var(--warning-fg);
+  --status-danger: var(--danger);
+  --status-danger-bg: var(--danger-bg);
+  --status-danger-fg: var(--danger-fg);
+  --status-info: var(--info);
+  --status-info-bg: var(--info-bg);
+  --status-info-fg: var(--info-fg);
+  --status-ai: #a78bfa;
+  --status-ai-bg: rgba(167, 139, 250, 0.14);
+  --status-ai-fg: #c4b5fd;
+  --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.32);
+  --shadow-overlay: 0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
+/* prefers-reduced-motion handled in motion-system.css (full token collapse + utilities) */

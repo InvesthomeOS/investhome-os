@@ -29,12 +29,42 @@ from investhome_api.models.company_foundation import (  # noqa: F401
     BrandAsset,
     BrandProfile,
     CompanyProfile,
-    Department,
     Office,
     SystemPreference,
     Team,
     UserDepartment,
     UserTeam,
+)
+from investhome_api.models.branch import Branch, BranchAsset, BranchDocument, BranchWorkingHours  # noqa: F401
+from investhome_api.models.company import (  # noqa: F401
+    Company,
+    CompanyAddress,
+    CompanyBankAccount,
+    CompanyContact,
+    CompanyDocument,
+    CompanyRelationship,
+)
+from investhome_api.models.department import (  # noqa: F401
+    CompanyDepartment as ManagedDepartment,
+    DepartmentBudget,
+    DepartmentEmployeeAssignment,
+    DepartmentKPI,
+    DepartmentProjectLink,
+    DepartmentResponsibility,
+)
+from investhome_api.models.company_workspace_document import (  # noqa: F401
+    CompanyDocumentApprovalStep,
+    CompanyDocumentApprovalWorkflow,
+    CompanyDocumentFavorite,
+    CompanyDocumentLegalHold,
+    CompanyDocumentPermission,
+    CompanyDocumentRetentionPolicy,
+    CompanyDocumentShareLink,
+    CompanyDocumentSignatureRequest,
+    CompanyDocumentTemplate,
+    CompanyDocumentVersion,
+    CompanyWorkspaceDocument,
+    DocumentFolder,
 )
 from investhome_api.models.design_studio import (  # noqa: F401
     DesignProject,
@@ -100,6 +130,149 @@ from investhome_api.models.work_item import (  # noqa: F401
     WorkItem,
     WorkItemParticipant,
     WorkItemStatusHistory,
+)
+from investhome_api.models.crm_contact import CrmContact, CrmContactStatus, CrmContactType, CrmRecordKind  # noqa: F401
+from investhome_api.models.crm_company import (  # noqa: F401
+    CrmCompany,
+    CrmCompanyAddress,
+    CrmCompanyContact,
+    CrmCompanyFinancialProfile,
+    CrmCompanyRelationship,
+    CrmCompanyTypeAssignment,
+)
+from investhome_api.models.crm_relationship import (  # noqa: F401
+    CrmDecisionMapRole,
+    CrmReferral,
+    CrmRelationship,
+    CrmRelationshipAlert,
+    CrmRelationshipReview,
+    CrmRelationshipSavedView,
+    CrmRelationshipScoreSnapshot,
+    CrmRelationshipTypeConfig,
+)
+from investhome_api.models.crm_activity import (  # noqa: F401
+    CrmActivity,
+    CrmActivityComment,
+    CrmActivityEntityLink,
+    CrmFollowUpRule,
+)
+from investhome_api.models.crm_search import CrmRecentSearch, CrmSavedSearch, CrmSearchAuditLog  # noqa: F401
+from investhome_api.models.marketing_lead_attribution import (  # noqa: F401
+    MarketingLeadAttribution,
+    MarketingLeadAttributionAudit,
+)
+from investhome_api.models.marketing import (  # noqa: F401
+    AudienceConsentRequirement,
+    AudienceMembership,
+    AudienceSavedView,
+    LeadSourceMapping,
+    LeadSourceNormalization,
+    MarketingAlert,
+    MarketingApproval,
+    MarketingAudience,
+    MarketingBudget,
+    MarketingCampaign,
+    MarketingChannel,
+    MarketingContentAsset,
+    MarketingEvent,
+    MarketingLeadContext,
+    MarketingLeadSource,
+    MarketingRecommendation,
+    MarketingSegment,
+    SegmentCalculationRun,
+    SegmentRule,
+    SegmentRuleGroup,
+    SegmentSavedView,
+    SegmentVersion,
+)
+from investhome_api.models.marketing_content_studio import (  # noqa: F401
+    AIContentGenerationRecord,
+    ApprovedClaim,
+    AssetRights,
+    AssetUsageRecord,
+    BrandComplianceResult,
+    BrandTerminology,
+    ContentTranslation,
+    ContentTypeFieldRegistry,
+    ContentVariant,
+    ContentVersion,
+    MarketingAsset,
+    MarketingBrandProfile,
+    MarketingContent,
+    MarketingContentBrief,
+    MarketingTemplate,
+    ProhibitedClaim,
+    TemplatePlaceholder,
+    TemplateVersion,
+)
+from investhome_api.models.marketing_channel_communications import (  # noqa: F401
+    ChannelDeliveryEvent,
+    ChannelSendOperation,
+    EmailCampaign,
+    EmailSenderProfile,
+    EmailSendingDomain,
+    EmailSequence,
+    EmailSequenceStep,
+    EmailTemplate,
+    MarketingFrequencyPolicy,
+    SmsCampaign,
+    SmsSenderProfile,
+    SmsTemplate,
+    SocialAccount,
+    SocialInboxItem,
+    SocialPost,
+    SocialPostVariant,
+    WhatsAppCampaign,
+    WhatsAppConversation,
+    WhatsAppSenderProfile,
+    WhatsAppTemplate,
+)
+from investhome_api.models.marketing_analytics import (  # noqa: F401
+    MarketingDashboardLayout,
+    MarketingDashboardSavedView,
+    MarketingExecutiveAlert,
+    MarketingHealthSnapshot,
+    MarketingMetricsRegistry,
+)
+from investhome_api.models.marketing_ai import (  # noqa: F401
+    MarketingAIAnomaly,
+    MarketingAIBriefing,
+    MarketingAICopilotQuery,
+    MarketingAIInsight,
+    MarketingAIOutput,
+    MarketingAIPrediction,
+    MarketingAIRecommendation,
+)
+from investhome_api.models.marketing_automation import (  # noqa: F401
+    MarketingAutomationExecution,
+    MarketingAutomationTemplate,
+    MarketingAutomationVersion,
+    MarketingAutomationWorkflow,
+)
+from investhome_api.models.marketing_landing_conversion import (  # noqa: F401
+    ConsentEvidence,
+    FormFieldRegistry,
+    FormLogicGroup,
+    FormVersion,
+    HandoffSLA,
+    LandingPageDomain,
+    LandingPageExperiment,
+    LandingPageExperimentVariant,
+    LandingPageSection,
+    LandingPageSectionRegistry,
+    LandingPageVersion,
+    MarketingConversionEvent,
+    MarketingForm,
+    MarketingFormField,
+    MarketingFormSubmission,
+    MarketingLandingPage,
+    MarketingLeadRoutingRule,
+    MarketingSalesHandoff,
+    MarketingTrackingContext,
+    MarketingWebhook,
+    PublicDataFieldRegistry,
+    SubmissionReviewItem,
+    WebhookDelivery,
 )
 from investhome_api.models.notification import Notification  # noqa: F401
 from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole  # noqa: F401
@@ -223,7 +396,8 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
     permission_map: dict[tuple[str, str], Permission] = {}
     for resource in {
         "leads", "users", "roles", "executive", "activity", "finance", "investors", "projects",
-        "notifications", "search", "documents", "inventory", "sales",
+        "notifications", "search", "documents", "inventory", "sales", "work", "crm", "marketing",
+        "company", "branch", "department",
     }:
         for action in {
             "view", "create", "update", "manage", "archive", "restore", "manage_status", "download",
@@ -245,6 +419,19 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
             "request_handoff", "approve_handoff", "return_handoff", "view_deposit_status",
             "view_contract_documents", "waive_requirement", "manage_readiness_template",
             "view_price", "reserve", "release_hold", "request_reservation",
+            "read", "create", "update", "delete", "archive", "restore", "export",
+            "import", "merge", "view_financial", "edit_financial", "view_compliance",
+            "transfer_ownership", "bulk_actions",
+            "manage_budget", "manage_cost_codes", "manage_team",
+            "manage_commitments", "approve_commitments", "manage_bills", "approve_bills",
+            "post_bills", "manage_payments", "post_payments", "manage_retainage",
+            "approve_retainage", "override_budget_control", "manage_project_vendors",
+            "view_dashboard", "manage_campaigns", "activate_campaign", "pause_campaign",
+            "manage_audiences", "manage_segments", "refresh_segments", "view_leads", "view_attribution",
+            "publish_content", "approve_content", "send_email", "send_whatsapp", "send_sms",
+            "manage_advertising", "view_spend", "manage_events", "manage_assets", "manage_brand",
+            "manage_budgets", "approve_budget", "export_analytics", "manage_automations",
+            "manage_settings", "manage_provider_connections",
         }:
             key = (resource, action)
             if key in permission_map:
@@ -418,6 +605,25 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
                 )
             )
 
+    for resource, action in DEFAULT_ROLE_PERMISSIONS.get("marketing", []):
+        key = (resource, action)
+        if key not in permission_map:
+            perm = Permission(resource=resource, action=action)
+            db.add(perm)
+            db.flush()
+            permission_map[key] = perm
+        existing = (
+            db.query(RolePermission)
+            .filter_by(role_id=roles["super_admin"].id, permission_id=permission_map[key].id)
+            .first()
+        )
+        if existing is None:
+            db.add(
+                RolePermission(
+                    role_id=roles["super_admin"].id,
+                    permission_id=permission_map[key].id,
+                )
+            )
     hashed = hash_password("Demo123!")
     specs = {
         "admin@example.com": "super_admin",

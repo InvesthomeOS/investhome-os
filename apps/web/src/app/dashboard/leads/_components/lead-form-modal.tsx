@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useQuery } from '@tanstack/react-query';
 
 import {
   type Lead,
   type LeadInput,
 } from '@/lib/api/leads';
 import { useLeadLabels } from '@/lib/i18n/lead-labels';
+import { fetchCampaigns } from '@/workspaces/marketing/api/campaigns';
 
 interface LeadFormModalProps {
   mode: 'create' | 'edit' | null;
@@ -29,6 +31,15 @@ const EMPTY_FORM: LeadInput = {
   estimated_budget: null,
   interested_project: '',
   notes: '',
+  attribution: {
+    campaign_id: null,
+    attribution_source: 'crm',
+    utm_source: '',
+    utm_medium: '',
+    utm_campaign: '',
+    utm_term: '',
+    utm_content: '',
+  },
 };
 
 export function LeadFormModal({
@@ -44,6 +55,12 @@ export function LeadFormModal({
   const { statusOptions, sourceOptions } = useLeadLabels();
   const [form, setForm] = useState<LeadInput>(EMPTY_FORM);
 
+  const campaignsQuery = useQuery({
+    queryKey: ['marketing', 'campaigns', 'picker'],
+    queryFn: () => fetchCampaigns({ page: 1, page_size: 100, include_archived: false }),
+    enabled: mode !== null,
+  });
+
   useEffect(() => {
     if (mode === 'edit' && lead) {
       setForm({
@@ -57,6 +74,15 @@ export function LeadFormModal({
         estimated_budget: lead.estimated_budget ? Number(lead.estimated_budget) : null,
         interested_project: lead.interested_project ?? '',
         notes: lead.notes ?? '',
+        attribution: {
+          campaign_id: lead.attribution?.campaign_id ?? null,
+          attribution_source: lead.attribution?.attribution_source ?? 'crm',
+          utm_source: lead.attribution?.utm_source ?? '',
+          utm_medium: lead.attribution?.utm_medium ?? '',
+          utm_campaign: lead.attribution?.utm_campaign ?? '',
+          utm_term: lead.attribution?.utm_term ?? '',
+          utm_content: lead.attribution?.utm_content ?? '',
+        },
       });
       return;
     }
@@ -72,6 +98,15 @@ export function LeadFormModal({
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const attribution = form.attribution;
+    const hasAttribution = Boolean(
+      attribution?.campaign_id ||
+        attribution?.utm_source ||
+        attribution?.utm_medium ||
+        attribution?.utm_campaign ||
+        attribution?.utm_term ||
+        attribution?.utm_content,
+    );
     onSubmit({
       ...form,
       email: form.email?.trim() || null,
@@ -81,8 +116,33 @@ export function LeadFormModal({
       assigned_to: form.assigned_to?.trim() || null,
       interested_project: form.interested_project?.trim() || null,
       notes: form.notes?.trim() || null,
+      attribution: hasAttribution
+        ? {
+            campaign_id: attribution?.campaign_id || null,
+            attribution_source: attribution?.attribution_source || 'crm',
+            utm_source: attribution?.utm_source?.trim() || null,
+            utm_medium: attribution?.utm_medium?.trim() || null,
+            utm_campaign: attribution?.utm_campaign?.trim() || null,
+            utm_term: attribution?.utm_term?.trim() || null,
+            utm_content: attribution?.utm_content?.trim() || null,
+          }
+        : undefined,
     });
   };
+
+  const setAttribution = (field: string, value: string) => {
+    setForm((current) => ({
+      ...current,
+      attribution: {
+        ...(current.attribution ?? {}),
+        [field]: value || null,
+      },
+    }));
+  };
+
+  const campaignOptions = (campaignsQuery.data?.items ?? []).filter(
+    (campaign) => campaign.status !== 'archived',
+  );
 
   return (
     <div className="leads-modal" role="presentation" onClick={onClose}>
@@ -207,6 +267,47 @@ export function LeadFormModal({
               />
             </label>
           </div>
+
+          <fieldset className="leads-form__grid" style={{ border: 0, padding: 0, margin: 0 }}>
+            <legend className="leads__field">
+              <span>{t('form.attributionSection')}</span>
+            </legend>
+            <label className="leads__field">
+              <span>{t('form.campaign')}</span>
+              <select
+                value={form.attribution?.campaign_id ?? ''}
+                onChange={(event) => setAttribution('campaign_id', event.target.value)}
+              >
+                <option value="">{t('form.noCampaign')}</option>
+                {campaignOptions.map((campaign) => (
+                  <option key={campaign.id} value={campaign.id}>
+                    {campaign.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="leads__field">
+              <span>{t('form.utmSource')}</span>
+              <input
+                value={form.attribution?.utm_source ?? ''}
+                onChange={(event) => setAttribution('utm_source', event.target.value)}
+              />
+            </label>
+            <label className="leads__field">
+              <span>{t('form.utmMedium')}</span>
+              <input
+                value={form.attribution?.utm_medium ?? ''}
+                onChange={(event) => setAttribution('utm_medium', event.target.value)}
+              />
+            </label>
+            <label className="leads__field">
+              <span>{t('form.utmCampaign')}</span>
+              <input
+                value={form.attribution?.utm_campaign ?? ''}
+                onChange={(event) => setAttribution('utm_campaign', event.target.value)}
+              />
+            </label>
+          </fieldset>
 
           <label className="leads__field">
             <span>{t('form.notes')}</span>

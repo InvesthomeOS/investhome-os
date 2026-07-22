@@ -2,7 +2,6 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-import pytest
 from fastapi.testclient import TestClient
 
 from investhome_api.models.project import DevelopmentType, ProjectStatus, ProjectType
@@ -54,6 +53,9 @@ def test_projects_crud_flow(client: TestClient) -> None:
     project_id = created["id"]
     assert created["project_name"] == "Test Project"
     assert created["project_status"] == ProjectStatus.PIPELINE.value
+    assert created["slug"]
+    assert created["priority"] == "medium"
+    assert created["currency"] == "USD"
 
     list_response = client.get("/projects")
     assert list_response.status_code == 200
@@ -65,12 +67,24 @@ def test_projects_crud_flow(client: TestClient) -> None:
     assert get_response.status_code == 200
     assert get_response.json()["project_code"] == "PRJ-TEST-001"
 
+    # Valid transition path: pipeline -> pre_development -> construction
     update_response = client.patch(
         f"/projects/{project_id}",
-        json={"project_status": ProjectStatus.CONSTRUCTION.value, "notes": "Updated in test"},
+        json={
+            "project_status": ProjectStatus.PRE_DEVELOPMENT.value,
+            "notes": "Updated in test",
+            "completion_percentage": "15.00",
+        },
     )
     assert update_response.status_code == 200
-    assert update_response.json()["project_status"] == ProjectStatus.CONSTRUCTION.value
+    assert update_response.json()["project_status"] == ProjectStatus.PRE_DEVELOPMENT.value
+
+    status_response = client.post(
+        f"/projects/{project_id}/status",
+        json={"status": ProjectStatus.CONSTRUCTION.value},
+    )
+    assert status_response.status_code == 200
+    assert status_response.json()["project_status"] == ProjectStatus.CONSTRUCTION.value
 
     archive_response = client.delete(f"/projects/{project_id}")
     assert archive_response.status_code == 200
@@ -81,6 +95,11 @@ def test_projects_crud_flow(client: TestClient) -> None:
 
     archived_list_response = client.get("/projects?include_archived=true")
     assert archived_list_response.json()["total"] == 1
+
+    restore_response = client.post(f"/projects/{project_id}/restore")
+    assert restore_response.status_code == 200
+    assert restore_response.json()["archived_at"] is None
+    assert client.get("/projects").json()["total"] == 1
 
 
 def test_projects_filters_pagination_and_sorting(client: TestClient) -> None:
@@ -94,9 +113,12 @@ def test_projects_filters_pagination_and_sorting(client: TestClient) -> None:
             project_code="PRJ-B-002",
             project_name="Beta Project",
             city="Arlington",
+            state="VA",
             project_type=ProjectType.COMMERCIAL.value,
             development_type=DevelopmentType.RENOVATION.value,
             project_status=ProjectStatus.CONSTRUCTION.value,
+            priority="high",
+            development_stage="construction",
             assigned_project_manager="Marcus Webb",
         ),
     )
@@ -121,6 +143,15 @@ def test_projects_filters_pagination_and_sorting(client: TestClient) -> None:
         params={"assigned_project_manager": "Marcus"},
     )
     assert manager_filtered.json()["total"] == 1
+
+    priority_filtered = client.get("/projects", params={"priority": "high"})
+    assert priority_filtered.json()["total"] == 1
+
+    stage_filtered = client.get("/projects", params={"development_stage": "construction"})
+    assert stage_filtered.json()["total"] == 1
+
+    state_filtered = client.get("/projects", params={"state": "VA"})
+    assert state_filtered.json()["total"] == 1
 
     paged = client.get(
         "/projects",
@@ -164,7 +195,10 @@ def test_project_stats(client: TestClient) -> None:
     body = stats.json()
     assert body["total"] == 2
     assert body["active"] == 1
+    assert body["under_construction"] == 1
+    assert body["completed"] == 1
     assert body["units_under_development"] == 30
+    assert body["total_units"] == 40
     assert Decimal(body["total_development_cost"]) == Decimal("30000000.00")
     assert Decimal(body["current_portfolio_value"]) == Decimal("34000000.00")
     assert Decimal(body["equity_raised"]) == Decimal("8000000.00")
@@ -173,3 +207,74 @@ def test_project_stats(client: TestClient) -> None:
 def test_get_missing_project_returns_404(client: TestClient) -> None:
     response = client.get(f"/projects/{UUID('00000000-0000-0000-0000-000000000003')}")
     assert response.status_code == 404
+
+
+def test_invalid_status_transition_blocked(client: TestClient) -> None:
+    created = client.post("/projects", json=_create_payload()).json()
+    project_id = created["id"]
+
+    response = client.post(
+        f"/projects/{project_id}/status",
+        json={"status": ProjectStatus.COMPLETED.value},
+    )
+    assert response.status_code == 409
+
+    patch_response = client.patch(
+        f"/projects/{project_id}",
+        json={"project_status": ProjectStatus.COMPLETED.value},
+    )
+    assert patch_response.status_code == 409
+
+
+def test_archived_project_cannot_be_edited(client: TestClient) -> None:
+    created = client.post("/projects", json=_create_payload()).json()
+    project_id = created["id"]
+    client.delete(f"/projects/{project_id}")
+
+    response = client.patch(
+        f"/projects/{project_id}",
+        json={"notes": "should fail"},
+    )
+    assert response.status_code == 404
+
+    archived = client.get(f"/projects/{project_id}")
+    assert archived.status_code == 404
+
+
+def test_unique_project_code(client: TestClient) -> None:
+    assert client.post("/projects", json=_create_payload()).status_code == 201
+    duplicate = client.post("/projects", json=_create_payload())
+    assert duplicate.status_code == 409
+
+
+def test_project_team_assignment(client: TestClient) -> None:
+    created = client.post("/projects", json=_create_payload()).json()
+    project_id = created["id"]
+    user_id = "00000000-0000-0000-0000-000000000001"
+
+    add = client.post(
+        f"/projects/{project_id}/team",
+        json={
+            "user_id": user_id,
+            "role": "project_manager",
+            "is_primary": True,
+        },
+    )
+    assert add.status_code == 201
+    member = add.json()
+    assert member["role"] == "project_manager"
+    assert member["is_primary"] is True
+
+    team = client.get(f"/projects/{project_id}/team")
+    assert team.status_code == 200
+    assert team.json()["total"] == 1
+
+    duplicate = client.post(
+        f"/projects/{project_id}/team",
+        json={"user_id": user_id, "role": "project_manager", "is_primary": True},
+    )
+    assert duplicate.status_code == 409
+
+    remove = client.delete(f"/projects/{project_id}/team/{member['id']}")
+    assert remove.status_code == 204
+    assert client.get(f"/projects/{project_id}/team").json()["total"] == 0

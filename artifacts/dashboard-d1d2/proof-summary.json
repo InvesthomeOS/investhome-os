@@ -1,0 +1,156 @@
+{
+  "base": "http://localhost:3000",
+  "startedAt": "2026-07-20T12:37:41.211Z",
+  "screenshots": {
+    "01-prototype": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\dashboard-d1d2\\01-prototype.png",
+    "02-production": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\dashboard-d1d2\\02-production.png",
+    "03-legacy": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\dashboard-d1d2\\03-legacy.png",
+    "04-production-1280": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\dashboard-d1d2\\04-production-1280.png",
+    "05-tablet": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\dashboard-d1d2\\05-tablet.png",
+    "06-mobile": "C:\\Users\\eminb\\Projects\\investhome-os\\artifacts\\dashboard-d1d2\\06-mobile.png"
+  },
+  "http": {
+    "prototype": 200,
+    "production": 200,
+    "legacy": 200
+  },
+  "assertions": {
+    "prototype": {
+      "http200": true,
+      "marketing": true,
+      "tasks": true,
+      "calendar": true,
+      "tasksNeCalendar": true,
+      "ai": true,
+      "comms": true,
+      "aiNeComms": true
+    },
+    "production": {
+      "http200": true,
+      "isNew": true,
+      "notLegacy": true,
+      "marketing": true,
+      "tasks": true,
+      "calendar": true,
+      "ai": true,
+      "comms": true,
+      "kpiStrip": true,
+      "mutatingOnLoad": []
+    },
+    "legacy": {
+      "http200": true,
+      "isLegacy": true,
+      "notProduction": true
+    },
+    "unknownViewIsNew": true,
+    "tabletNoHOverflow": true,
+    "mobileNoHOverflow": true,
+    "designSystemClassPresent": true
+  },
+  "consoleErrors": [
+    {
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "url": "http://localhost:3000/login"
+    },
+    {
+      "text": "Access to fetch at 'http://localhost:8000/documents?sort_by=updated_at&sort_dir=desc&page=1&page_size=5' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+      "url": "http://localhost:3000/dashboard/executive"
+    },
+    {
+      "text": "Failed to load resource: net::ERR_FAILED",
+      "url": "http://localhost:3000/dashboard/executive"
+    },
+    {
+      "text": "Access to fetch at 'http://localhost:8000/executive/summary?date_from=2026-06-21&date_to=2026-07-20' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+      "url": "http://localhost:3000/dashboard/executive"
+    },
+    {
+      "text": "Failed to load resource: net::ERR_FAILED",
+      "url": "http://localhost:3000/dashboard/executive"
+    },
+    {
+      "text": "Access to fetch at 'http://localhost:8000/documents?sort_by=updated_at&sort_dir=desc&page=1&page_size=5' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+      "url": "http://localhost:3000/dashboard/executive?view=legacy"
+    },
+    {
+      "text": "Failed to load resource: net::ERR_FAILED",
+      "url": "http://localhost:3000/dashboard/executive?view=legacy"
+    },
+    {
+      "text": "Access to fetch at 'http://localhost:8000/executive/summary?date_from=2026-06-21&date_to=2026-07-20' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+      "url": "http://localhost:3000/dashboard/executive?view=legacy"
+    },
+    {
+      "text": "Failed to load resource: net::ERR_FAILED",
+      "url": "http://localhost:3000/dashboard/executive?view=legacy"
+    },
+    {
+      "text": "Access to fetch at 'http://localhost:8000/documents?sort_by=updated_at&sort_dir=desc&page=1&page_size=5' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+      "url": "http://localhost:3000/dashboard/executive?view=foobar"
+    },
+    {
+      "text": "Failed to load resource: net::ERR_FAILED",
+      "url": "http://localhost:3000/dashboard/executive?view=foobar"
+    },
+    {
+      "text": "Access to fetch at 'http://localhost:8000/executive/summary?date_from=2026-06-21&date_to=2026-07-20' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+      "url": "http://localhost:3000/dashboard/executive?view=foobar"
+    },
+    {
+      "text": "Failed to load resource: net::ERR_FAILED",
+      "url": "http://localhost:3000/dashboard/executive?view=foobar"
+    },
+    {
+      "text": "Access to fetch at 'http://localhost:8000/documents?sort_by=updated_at&sort_dir=desc&page=1&page_size=5' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+      "url": "http://localhost:3000/dashboard/executive"
+    },
+    {
+      "text": "Failed to load resource: net::ERR_FAILED",
+      "url": "http://localhost:3000/dashboard/executive"
+    },
+    {
+      "text": "Access to fetch at 'http://localhost:8000/executive/summary?date_from=2026-06-21&date_to=2026-07-20' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+      "url": "http://localhost:3000/dashboard/executive"
+    },
+    {
+      "text": "Failed to load resource: net::ERR_FAILED",
+      "url": "http://localhost:3000/dashboard/executive"
+    },
+    {
+      "text": "Access to fetch at 'http://localhost:8000/documents?sort_by=updated_at&sort_dir=desc&page=1&page_size=5' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+      "url": "http://localhost:3000/dashboard/executive"
+    },
+    {
+      "text": "Failed to load resource: net::ERR_FAILED",
+      "url": "http://localhost:3000/dashboard/executive"
+    },
+    {
+      "text": "Access to fetch at 'http://localhost:8000/executive/summary?date_from=2026-06-21&date_to=2026-07-20' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+      "url": "http://localhost:3000/dashboard/executive"
+    },
+    {
+      "text": "Failed to load resource: net::ERR_FAILED",
+      "url": "http://localhost:3000/dashboard/executive"
+    },
+    {
+      "text": "Access to fetch at 'http://localhost:8000/documents?sort_by=updated_at&sort_dir=desc&page=1&page_size=5' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+      "url": "http://localhost:3000/dashboard/executive"
+    },
+    {
+      "text": "Failed to load resource: net::ERR_FAILED",
+      "url": "http://localhost:3000/dashboard/executive"
+    },
+    {
+      "text": "Access to fetch at 'http://localhost:8000/executive/summary?date_from=2026-06-21&date_to=2026-07-20' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+      "url": "http://localhost:3000/dashboard/executive"
+    },
+    {
+      "text": "Failed to load resource: net::ERR_FAILED",
+      "url": "http://localhost:3000/dashboard/executive"
+    }
+  ],
+  "css404": [],
+  "mutatingOnLoad": [],
+  "finishedAt": "2026-07-20T12:38:56.963Z",
+  "verdict": "PASS"
+}

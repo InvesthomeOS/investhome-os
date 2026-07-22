@@ -1,0 +1,304 @@
+[
+  {
+    "url": "/workspaces/crm/activities",
+    "file": "apps/web/src/app/workspaces/crm/activities/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "./_components/activities-workspace"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/calendar",
+    "file": "apps/web/src/app/workspaces/crm/calendar/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "./_components/calendar-workspace"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/communication/analytics",
+    "file": "apps/web/src/app/workspaces/crm/communication/analytics/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../../_components/crm-module-shell",
+      "../_components/analytics-view"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/communication/calls",
+    "file": "apps/web/src/app/workspaces/crm/communication/calls/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../../_components/crm-module-shell",
+      "../_components/calls-view"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/communication/meetings",
+    "file": "apps/web/src/app/workspaces/crm/communication/meetings/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../../_components/crm-module-shell",
+      "../_components/meetings-view"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/communication",
+    "file": "apps/web/src/app/workspaces/crm/communication/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../_components/crm-module-shell",
+      "./_components/communication-workspace"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/communication/preferences",
+    "file": "apps/web/src/app/workspaces/crm/communication/preferences/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../../_components/crm-module-shell",
+      "../_components/preferences-view"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/communication/sequences",
+    "file": "apps/web/src/app/workspaces/crm/communication/sequences/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../../_components/crm-module-shell",
+      "../_components/sequences-view"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/communication/signatures",
+    "file": "apps/web/src/app/workspaces/crm/communication/signatures/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../../_components/crm-module-shell",
+      "../_components/signatures-view"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/communication/templates",
+    "file": "apps/web/src/app/workspaces/crm/communication/templates/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../../_components/crm-module-shell",
+      "../_components/templates-view"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/companies/:companyId",
+    "file": "apps/web/src/app/workspaces/crm/companies/[companyId]/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../../_components/crm-module-shell",
+      "../../_components/crm-company-detail"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/companies/import",
+    "file": "apps/web/src/app/workspaces/crm/companies/import/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../../_components/crm-module-shell",
+      "../../_components/crm-company-import-wizard"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/companies/new",
+    "file": "apps/web/src/app/workspaces/crm/companies/new/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../../_components/crm-module-shell",
+      "../../_components/crm-company-form"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/companies",
+    "file": "apps/web/src/app/workspaces/crm/companies/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../_components/crm-module-shell",
+      "../_components/crm-companies-list"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/contacts/:contactId",
+    "file": "apps/web/src/app/workspaces/crm/contacts/[contactId]/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../_components/contact-detail-view",
+      "../../_components/crm-module-shell"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/contacts/import",
+    "file": "apps/web/src/app/workspaces/crm/contacts/import/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../_components/contact-import-wizard",
+      "../../_components/crm-module-shell"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/contacts/new",
+    "file": "apps/web/src/app/workspaces/crm/contacts/new/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../_components/contact-form-modal",
+      "../../_components/crm-module-shell"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/contacts",
+    "file": "apps/web/src/app/workspaces/crm/contacts/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "./_components/contacts-workspace",
+      "../_components/crm-module-shell"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/dashboard",
+    "file": "apps/web/src/app/workspaces/crm/dashboard/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../_components/crm-dashboard"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/documents",
+    "file": "apps/web/src/app/workspaces/crm/documents/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../_components/crm-module-shell"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/files",
+    "file": "apps/web/src/app/workspaces/crm/files/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../_components/crm-module-shell"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/notes",
+    "file": "apps/web/src/app/workspaces/crm/notes/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "./_components/notes-workspace"
+    ]
+  },
+  {
+    "url": "/workspaces/crm",
+    "file": "apps/web/src/app/workspaces/crm/page.tsx",
+    "namespaces": [],
+    "importsComponent": []
+  },
+  {
+    "url": "/workspaces/crm/relationships/:relationshipId",
+    "file": "apps/web/src/app/workspaces/crm/relationships/[relationshipId]/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../_components/relationship-detail-view"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/relationships/intelligence",
+    "file": "apps/web/src/app/workspaces/crm/relationships/intelligence/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../_components/relationship-intelligence-dashboard"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/relationships/network",
+    "file": "apps/web/src/app/workspaces/crm/relationships/network/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../_components/relationship-network-view"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/relationships/new",
+    "file": "apps/web/src/app/workspaces/crm/relationships/new/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../_components/relationship-create-wizard"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/relationships",
+    "file": "apps/web/src/app/workspaces/crm/relationships/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "./_components/relationships-workspace"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/reports",
+    "file": "apps/web/src/app/workspaces/crm/reports/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../_components/crm-module-shell"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/search/advanced",
+    "file": "apps/web/src/app/workspaces/crm/search/advanced/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../_components/advanced-query-builder"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/search",
+    "file": "apps/web/src/app/workspaces/crm/search/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "./_components/search-workspace"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/search/saved",
+    "file": "apps/web/src/app/workspaces/crm/search/saved/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../_components/saved-searches-workspace"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/settings",
+    "file": "apps/web/src/app/workspaces/crm/settings/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../_components/crm-module-shell"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/tags",
+    "file": "apps/web/src/app/workspaces/crm/tags/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "../_components/crm-module-shell"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/tasks",
+    "file": "apps/web/src/app/workspaces/crm/tasks/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "./_components/tasks-workspace"
+    ]
+  },
+  {
+    "url": "/workspaces/crm/timeline",
+    "file": "apps/web/src/app/workspaces/crm/timeline/page.tsx",
+    "namespaces": [],
+    "importsComponent": [
+      "./_components/timeline-workspace"
+    ]
+  }
+]

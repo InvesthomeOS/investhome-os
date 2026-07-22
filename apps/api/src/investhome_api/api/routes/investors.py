@@ -125,10 +125,32 @@ def get_investor_stats(
         (inv.investment_capacity or Decimal("0")) for inv in investors
     )
 
+    active_statuses = {
+        InvestorStatus.ACTIVE,
+        InvestorStatus.CONTACTED,
+        InvestorStatus.QUALIFIED,
+        InvestorStatus.MEETING_SCHEDULED,
+        InvestorStatus.INTERESTED,
+        InvestorStatus.NDA_SIGNED,
+        InvestorStatus.PROJECT_PRESENTED,
+        InvestorStatus.RESERVATION,
+        InvestorStatus.CONTRACT,
+        InvestorStatus.PAYMENT_PENDING,
+        InvestorStatus.FOLLOW_UP,
+    }
+    invested_statuses = {
+        InvestorStatus.INVESTED,
+        InvestorStatus.WIRE_RECEIVED,
+        InvestorStatus.CONSTRUCTION,
+        InvestorStatus.CLOSING,
+        InvestorStatus.RENTAL,
+        InvestorStatus.PORTFOLIO,
+    }
+
     return InvestorStatsResponse(
         total=len(investors),
-        active=sum(1 for inv in investors if inv.status == InvestorStatus.ACTIVE),
-        invested=sum(1 for inv in investors if inv.status == InvestorStatus.INVESTED),
+        active=sum(1 for inv in investors if inv.status in active_statuses),
+        invested=sum(1 for inv in investors if inv.status in invested_statuses),
         total_investment_capacity=total_capacity,
     )
 

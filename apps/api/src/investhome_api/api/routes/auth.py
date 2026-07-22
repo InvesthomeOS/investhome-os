@@ -1,6 +1,6 @@
 """Authentication routes."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
@@ -16,6 +16,7 @@ from investhome_api.schemas.auth import (
     LoginRequest,
     MessageResponse,
 )
+from investhome_api.services import session_service
 from investhome_api.services.audit_service import record_auth_event, record_login_failed
 from investhome_api.services.auth_service import (
     create_access_token,
@@ -69,7 +70,12 @@ def login(
     loaded = load_user_with_roles(db, user.id)
     assert loaded is not None
 
-    token, expires_at = create_access_token(loaded.id)
+    expires_at_preview = datetime.now(UTC) + timedelta(minutes=settings.jwt_expire_minutes)
+    auth_session = session_service.create_session(
+        db, user=loaded, expires_at=expires_at_preview, request=request
+    )
+    token, expires_at, _jti = create_access_token(loaded.id, jti=auth_session.token_jti)
+    auth_session.expires_at = expires_at
     response.set_cookie(
         key=settings.auth_cookie_name,
         value=token,
@@ -101,6 +107,11 @@ def logout(
     user: User = Depends(get_current_user),
 ) -> MessageResponse:
     settings = get_settings()
+    jti = getattr(user, "_session_jti", None)
+    if jti:
+        session = session_service.get_active_session(db, jti)
+        if session is not None:
+            session_service.revoke_session(db, session, reason="logout")
     response.delete_cookie(key=settings.auth_cookie_name, path="/")
     record_auth_event(
         "auth.logout",
@@ -140,6 +151,13 @@ def change_password(
 
     user.hashed_password = hash_password(payload.new_password)
     user.updated_at = datetime.now(UTC)
+    current_jti = getattr(user, "_session_jti", None)
+    session_service.revoke_user_sessions(
+        db,
+        user.id,
+        reason="password_changed",
+        except_jti=current_jti,
+    )
     record_auth_event(
         "auth.password_changed",
         db=db,

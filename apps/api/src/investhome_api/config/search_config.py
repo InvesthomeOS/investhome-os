@@ -14,6 +14,11 @@ SEARCH_ENTITY_TYPES = frozenset(
         "funding_commitment",
         "payment_obligation",
         "user",
+        "role",
+        "company",
+        "managed_company",
+        "branch",
+        "company_department",
         "notification",
         "activity",
         "document",
@@ -37,6 +42,12 @@ SEARCH_ENTITY_TYPES = frozenset(
         "sales_proposal",
         "work_item",
         "sales_readiness_case",
+        "marketing_campaign",
+        "marketing_audience",
+        "marketing_segment",
+        "marketing_lead_source",
+        "marketing_content_asset",
+        "marketing_event",
     }
 )
 
@@ -58,6 +69,11 @@ ENTITY_PERMISSION_RESOURCE: dict[str, str] = {
     "funding_commitment": "finance",
     "payment_obligation": "finance",
     "user": "users",
+    "role": "roles",
+    "company": "company",
+    "managed_company": "company",
+    "branch": "branch",
+    "company_department": "department",
     "notification": "notifications",
     "activity": "activity",
     "document": "documents",
@@ -81,6 +97,12 @@ ENTITY_PERMISSION_RESOURCE: dict[str, str] = {
     "sales_proposal": "sales",
     "work_item": "work",
     "sales_readiness_case": "sales",
+    "marketing_campaign": "marketing",
+    "marketing_audience": "marketing",
+    "marketing_segment": "marketing",
+    "marketing_lead_source": "marketing",
+    "marketing_content_asset": "marketing",
+    "marketing_event": "marketing",
 }
 
 ENTITY_LINK_MODULES: dict[str, str] = {
@@ -92,9 +114,14 @@ ENTITY_LINK_MODULES: dict[str, str] = {
     "funding_commitment": "finance",
     "payment_obligation": "finance",
     "user": "admin/users",
+    "role": "admin/roles",
+    "company": "settings",
+    "managed_company": "company/companies",
+    "branch": "company/branches",
+    "company_department": "company/departments",
     "notification": "dashboard",
     "activity": "activity",
-    "document": "documents",
+    "document": "knowledge",
     "office": "settings",
     "department": "settings",
     "team": "settings",
@@ -115,6 +142,12 @@ ENTITY_LINK_MODULES: dict[str, str] = {
     "sales_proposal": "sales",
     "work_item": "sales/follow-up",
     "sales_readiness_case": "sales/readiness",
+    "marketing_campaign": "workspaces/marketing/campaigns",
+    "marketing_audience": "workspaces/marketing/audiences",
+    "marketing_segment": "workspaces/marketing/segments",
+    "marketing_lead_source": "workspaces/marketing/sources",
+    "marketing_content_asset": "workspaces/marketing/assets",
+    "marketing_event": "workspaces/marketing/events",
 }
 
 FINANCE_TAB_BY_ENTITY: dict[str, str] = {

@@ -102,6 +102,35 @@ class Settings(BaseSettings):
         raise ValueError(msg)
 
 
+_DEV_JWT_SECRET = "dev-only-change-in-production-use-long-random-string"
+
+
+def validate_production_security(settings: Settings) -> None:
+    """Fail closed on known-dangerous auth defaults when environment=production."""
+    if settings.environment.lower() != "production":
+        return
+    problems: list[str] = []
+    if not settings.auth_enabled:
+        problems.append("API_AUTH_ENABLED must be true in production")
+    if settings.jwt_secret == _DEV_JWT_SECRET or len(settings.jwt_secret.strip()) < 32:
+        problems.append(
+            "JWT_SECRET must be set to a unique secret (>=32 chars) in production"
+        )
+    if not settings.auth_cookie_secure:
+        problems.append("AUTH_COOKIE_SECURE must be true in production")
+    if settings.debug:
+        problems.append("API_DEBUG must be false in production")
+    if settings.enable_openapi:
+        problems.append("API_ENABLE_OPENAPI must be false in production")
+    if problems:
+        raise RuntimeError(
+            "Refusing to start with insecure production configuration: "
+            + "; ".join(problems)
+        )
+
+
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    validate_production_security(settings)
+    return settings

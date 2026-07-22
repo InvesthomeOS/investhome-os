@@ -40,6 +40,29 @@ def record_auth_event(
             ActivityAction.PERMISSION_CHANGED,
             "activity.role.permission_changed",
         ),
+        "security.session_terminated": (ActivityAction.OTHER, "activity.security.session_terminated"),
+        "security.sessions_terminated": (ActivityAction.OTHER, "activity.security.sessions_terminated"),
+        "security.api_key_created": (ActivityAction.CREATED, "activity.security.api_key_created"),
+        "security.api_key_rotated": (ActivityAction.UPDATED, "activity.security.api_key_rotated"),
+        "security.api_key_revoked": (ActivityAction.DELETED, "activity.security.api_key_revoked"),
+        "security.temp_grant_created": (
+            ActivityAction.PERMISSION_CHANGED,
+            "activity.security.temp_grant_created",
+        ),
+        "security.temp_grant_revoked": (
+            ActivityAction.PERMISSION_CHANGED,
+            "activity.security.temp_grant_revoked",
+        ),
+        "security.feature_flag_updated": (ActivityAction.UPDATED, "activity.security.feature_flag_updated"),
+        "security.incident_created": (ActivityAction.CREATED, "activity.security.incident_created"),
+        "security.audit_exported": (ActivityAction.EXPORTED, "activity.security.audit_exported"),
+        "security.force_logout": (ActivityAction.OTHER, "activity.security.force_logout"),
+        "security.password_reset": (ActivityAction.PASSWORD_CHANGED, "activity.security.password_reset"),
+        "security.user_suspended": (ActivityAction.DEACTIVATED, "activity.security.user_suspended"),
+        "platform.module_updated": (ActivityAction.UPDATED, "activity.platform.module_updated"),
+        "platform.feature_flag_updated": (ActivityAction.UPDATED, "activity.platform.feature_flag_updated"),
+        "platform.api_client_created": (ActivityAction.CREATED, "activity.platform.api_client_created"),
+        "platform.webhook_enqueued": (ActivityAction.CREATED, "activity.platform.webhook_enqueued"),
     }
     mapped = action_map.get(event_type)
     if mapped is None:

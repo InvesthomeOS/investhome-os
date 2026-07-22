@@ -1,0 +1,242 @@
+{
+  "dataPersistence": {
+    "pass": false,
+    "contactCreatePersist": false,
+    "foundAfterCreate": false,
+    "foundAfterRefresh": false,
+    "usedExisting": false,
+    "contactName": "QA Final Platform Contact 20260719"
+  },
+  "roleMatrix": {
+    "pass": false,
+    "roles": {
+      "superadmin": {
+        "dashboard": {
+          "pass": true,
+          "denied": false,
+          "loaded": true,
+          "pathname": "/dashboard"
+        },
+        "crm": {
+          "pass": true,
+          "denied": false,
+          "loaded": true,
+          "pathname": "/workspaces/crm/contacts"
+        },
+        "investors": {
+          "pass": true,
+          "denied": false,
+          "loaded": true,
+          "pathname": "/dashboard/investors"
+        },
+        "admin": {
+          "pass": true,
+          "denied": false,
+          "loaded": true,
+          "pathname": "/dashboard/admin/users"
+        },
+        "marketing": {
+          "pass": true,
+          "denied": false,
+          "loaded": true,
+          "pathname": "/workspaces/marketing/dashboard"
+        }
+      },
+      "sales": {
+        "dashboard": {
+          "pass": true,
+          "denied": false,
+          "loaded": true,
+          "pathname": "/dashboard"
+        },
+        "crm": {
+          "pass": true,
+          "denied": false,
+          "loaded": true,
+          "pathname": "/workspaces/crm/contacts"
+        },
+        "investors": {
+          "pass": true,
+          "denied": false,
+          "loaded": true,
+          "pathname": "/dashboard/investors"
+        },
+        "admin": {
+          "pass": true,
+          "denied": true,
+          "loaded": false,
+          "pathname": "/forbidden"
+        },
+        "marketing": {
+          "pass": false,
+          "denied": false,
+          "loaded": true,
+          "pathname": "/workspaces/marketing/dashboard"
+        }
+      },
+      "readonly": {
+        "dashboard": {
+          "pass": true,
+          "denied": false,
+          "loaded": true,
+          "pathname": "/dashboard"
+        },
+        "crm": {
+          "pass": true,
+          "denied": false,
+          "loaded": true,
+          "pathname": "/workspaces/crm/contacts"
+        },
+        "investors": {
+          "pass": true,
+          "denied": false,
+          "loaded": true,
+          "pathname": "/dashboard/investors"
+        },
+        "admin": {
+          "pass": true,
+          "denied": true,
+          "loaded": false,
+          "pathname": "/forbidden"
+        },
+        "marketing": {
+          "pass": true,
+          "denied": true,
+          "loaded": true,
+          "pathname": "/workspaces/marketing/dashboard"
+        }
+      }
+    }
+  },
+  "i18n": {
+    "pass": true,
+    "tr": {
+      "crmDashboard": {
+        "h1": "Kişiler",
+        "rawKeys": [],
+        "marketingLeak": false
+      },
+      "marketingSidebar": {
+        "labels": [
+          "MKTPazarlamaÇalışma alanı",
+          "Pano",
+          "Takvim",
+          "Raporlar",
+          "Kampanyalar",
+          "Kitleler",
+          "Segmentler",
+          "Leadler",
+          "Lead Kaynakları",
+          "Landing Sayfaları",
+          "Formlar",
+          "İçerik Stüdyosu",
+          "Sosyal",
+          "E-posta",
+          "WhatsApp"
+        ],
+        "marketingLeak": false
+      },
+      "investorBreadcrumbs": {
+        "breadcrumbs": [
+          "Investhome OSYatırımcılar",
+          "Investhome OS",
+          "Investhome OS",
+          "Yatırımcılar",
+          "Yatırımcılar"
+        ],
+        "rawKeys": []
+      }
+    },
+    "en": {
+      "crmDashboard": {
+        "h1": "Kişiler",
+        "rawKeys": [],
+        "turkishLeak": true
+      },
+      "marketingSidebar": {
+        "labels": [
+          "MKTPazarlamaÇalışma alanı",
+          "Pano",
+          "Takvim",
+          "Raporlar",
+          "Kampanyalar",
+          "Kitleler",
+          "Segmentler",
+          "Leadler",
+          "Lead Kaynakları",
+          "Landing Sayfaları",
+          "Formlar",
+          "İçerik Stüdyosu",
+          "Sosyal",
+          "E-posta",
+          "WhatsApp"
+        ],
+        "turkishLeak": true
+      },
+      "investorBreadcrumbs": {
+        "breadcrumbs": [
+          "Investhome OSYatırımcılar",
+          "Investhome OS",
+          "Investhome OS",
+          "Yatırımcılar",
+          "Yatırımcılar"
+        ],
+        "rawKeys": []
+      }
+    },
+    "issues": []
+  },
+  "responsive": {
+    "pass": false,
+    "viewports": {
+      "390": {
+        "dashboard": {
+          "overflow": true,
+          "scrollW": 472,
+          "clientW": 390
+        },
+        "crm": {
+          "overflow": true,
+          "scrollW": 518,
+          "clientW": 390
+        }
+      },
+      "768": {
+        "dashboard": {
+          "overflow": false,
+          "scrollW": 768,
+          "clientW": 768
+        },
+        "crm": {
+          "overflow": false,
+          "scrollW": 768,
+          "clientW": 768
+        }
+      },
+      "1024": {
+        "dashboard": {
+          "overflow": true,
+          "scrollW": 1150,
+          "clientW": 1024
+        },
+        "crm": {
+          "overflow": true,
+          "scrollW": 1084,
+          "clientW": 1024
+        }
+      },
+      "1440": {
+        "dashboard": {
+          "overflow": false,
+          "scrollW": 1440,
+          "clientW": 1440
+        },
+        "crm": {
+          "overflow": false,
+          "scrollW": 1440,
+          "clientW": 1440
+        }
+      }
+    }
+  }
+}

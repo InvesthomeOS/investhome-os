@@ -31,8 +31,6 @@ import {
   type TransferType,
 } from '@/lib/api/inventory-ownership';
 import {
-  PRICE_REQUEST_STATUSES,
-  PRICE_STATUSES,
   PRICE_TYPES,
   type PriceRequestStatus,
   type PriceStatus,

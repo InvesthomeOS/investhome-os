@@ -24,6 +24,23 @@ export const LEAD_SOURCES = [
 
 export type LeadSource = (typeof LEAD_SOURCES)[number];
 
+export interface LeadAttribution {
+  id?: string | null;
+  campaign_id?: string | null;
+  campaign_name?: string | null;
+  campaign_type?: string | null;
+  project_id?: string | null;
+  attribution_source?: string | null;
+  utm_source?: string | null;
+  utm_medium?: string | null;
+  utm_campaign?: string | null;
+  utm_term?: string | null;
+  utm_content?: string | null;
+  first_touch_at?: string | null;
+  converted_at?: string | null;
+  attribution_status?: string | null;
+}
+
 export interface Lead {
   id: string;
   full_name: string;
@@ -44,6 +61,7 @@ export interface Lead {
   archived_at: string | null;
   created_at: string;
   updated_at: string;
+  attribution?: LeadAttribution | null;
 }
 
 export interface LeadListResponse {
@@ -62,6 +80,15 @@ export interface LeadInput {
   estimated_budget?: number | null;
   interested_project?: string | null;
   notes?: string | null;
+  attribution?: {
+    campaign_id?: string | null;
+    attribution_source?: string | null;
+    utm_source?: string | null;
+    utm_medium?: string | null;
+    utm_campaign?: string | null;
+    utm_term?: string | null;
+    utm_content?: string | null;
+  } | null;
 }
 
 export interface LeadFilters {

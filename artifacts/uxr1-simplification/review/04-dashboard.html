@@ -1,0 +1,288 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UXR1 · Section 04 — Dashboard · INVESTHOME OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="_shared.css" />
+</head>
+<body>
+
+<div class="wrap">
+  <nav class="crumb">
+    <a href="index.html">UXR1 Review Package</a>
+    <span>/</span>
+    <span>Visual review · no code</span>
+  </nav>
+  <div class="topline">
+    <div class="brand">
+      <div class="brand-mark">IH</div>
+      <div>
+        <div class="brand-name">INVESTHOME OS</div>
+        <div class="brand-sub">UXR1 Simplification · Visual deliverables only</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge ok">APPROVED · V2</span>
+      <span class="badge pending">V2 REFINE</span>
+    </div>
+  </div>
+
+  <header class="hero">
+    <div class="eyebrow">Section 04 · Wireframe + mockup</div>
+    <h1>Dashboard</h1>
+    <p class="lede">One calm command surface: today strip, sales funnel, unit availability, projects, marketing production, and follow-ups — without BI explorer noise.</p>
+    <div class="meta-row">
+      <span><strong>Route</strong> <code>/dashboard</code></span>
+      <span><strong>Audience</strong> All authenticated staff</span>
+      <span><strong>Primary UI</strong> Widget grid + drill-downs</span>
+    </div>
+    <nav class="toc">
+      <a href="#today">Today's work</a>
+      <a href="#wireframe">Low-fi wireframe</a>
+      <a href="#hifi">High-fidelity</a>
+      <a href="#desktop">Desktop</a>
+      <a href="#mobile">Mobile</a>
+      <a href="#journey">Journey</a>
+      <a href="#actions">Actions</a>
+      <a href="#fields">Fields</a>
+      <a href="#rationale">Rationale</a>
+    </nav>
+  </header>
+
+  <section id="today">
+    <div class="section-head">
+      <h2>Today's work</h2>
+      <span class="section-note">Who finishes faster · operational, not decorative</span>
+    </div>
+    <div class="today-work">
+      <div class="today-work-grid">
+        
+        <div class="today-card">
+          <div class="today-role">Salesperson</div>
+          <div class="today-task">Clear overdue follow-ups before noon</div>
+          <div class="today-faster">Today strip + Follow-ups list open the person or deal in one tap — no BI tour.</div>
+        </div>
+        <div class="today-card">
+          <div class="today-role">Marketer</div>
+          <div class="today-task">Confirm this week’s content shipped</div>
+          <div class="today-faster">Marketing production widget drills to Content Studio, not a 30-item rail.</div>
+        </div>
+        <div class="today-card">
+          <div class="today-role">Investor manager</div>
+          <div class="today-task">See which deals need capital-path attention</div>
+          <div class="today-faster">Funnel + follow-ups surface stuck proposals without a separate investor app.</div>
+        </div>
+        <div class="today-card">
+          <div class="today-role">Executive</div>
+          <div class="today-task">Glance commercial health in 30 seconds</div>
+          <div class="today-faster">Funnel + availability + projects only — no decorative charts or platform widgets.</div>
+        </div>
+      </div>
+      <p class="today-principle">Backend still powers reports and BI; the default Dashboard hides that complexity and routes people into today’s work.</p>
+    </div>
+  </section>
+
+  <section id="wireframe">
+    <div class="section-head">
+      <h2>Low-fidelity wireframe</h2>
+      <span class="section-note">Structured layout · boxes only</span>
+    </div>
+    <p class="section-intro">Sidebar uses the proposed primary nav. Content prioritizes personal today metrics, then commercial glance widgets with explicit empty states and drill targets.</p>
+    <div class="wire">
+      <div class="wire-frame">
+        <div class="wire-top"><span>INVESTHOME OS</span><span>[Search] [+] [Avatar]</span></div>
+        <div class="wire-body">
+          <div class="wire-nav">
+            <div class="item active">Dashboard</div>
+            <div class="item">Customers</div>
+            <div class="item">Sales</div>
+            <div class="item">Inventory</div>
+            <div class="item">Projects</div>
+            <div class="item">Marketing</div>
+            <div class="item">Content</div>
+            <div class="item">Calendar</div>
+            <div class="item">Tasks</div>
+            <div class="item">Documents</div>
+            <div class="item">Reports</div>
+            <div class="item" style="opacity:.5">Finance</div>
+            <div class="item" style="opacity:.5">AI</div>
+          </div>
+          <div class="wire-main">
+            <div class="wire-label">Today · Tue 21 Jul</div>
+            <div class="wire-row">
+              <div class="wire-box"><div class="wire-label">New Leads</div><div class="wire-value">12 ↑3</div></div>
+              <div class="wire-box"><div class="wire-label">Follow-Ups</div><div class="wire-value">8 overdue</div></div>
+              <div class="wire-box"><div class="wire-label">Tasks due</div><div class="wire-value">5</div></div>
+              <div class="wire-box"><div class="wire-label">Meetings</div><div class="wire-value">3 today</div></div>
+            </div>
+            <div class="wire-row">
+              <div class="wire-box tall" style="flex:1.2">
+                <div class="wire-label">Sales Funnel → Sales</div>
+                <div class="wire-bars">
+                  <div class="wire-bar" style="--w:90%"></div>
+                  <div class="wire-bar" style="--w:70%"></div>
+                  <div class="wire-bar" style="--w:50%"></div>
+                  <div class="wire-bar" style="--w:35%"></div>
+                </div>
+              </div>
+              <div class="wire-box tall">
+                <div class="wire-label">Unit Availability (donut) → Inventory</div>
+                <div style="margin-top:10px;text-align:center;font-size:11px">Available · Reserved · Sold</div>
+              </div>
+            </div>
+            <div class="wire-row">
+              <div class="wire-box tall"><div class="wire-label">Monthly Sales</div><div class="wire-bars"><div class="wire-bar" style="--w:40%"></div><div class="wire-bar" style="--w:65%"></div><div class="wire-bar" style="--w:80%"></div></div></div>
+              <div class="wire-box tall"><div class="wire-label">Active Projects</div><div style="margin-top:6px">North Towers ████░ 72%<br/>Marina ██░░░ 41%</div></div>
+            </div>
+            <div class="wire-box muted"><div class="wire-label">Follow-ups</div>Ada Yılmaz — Proposal sent — due today — [Open]</div>
+          </div>
+        </div>
+      </div></div>
+  </section>
+
+  <section id="hifi">
+    <div class="section-head">
+      <h2>High-fidelity mockup</h2>
+      <span class="section-note">Premium light SaaS · sales/marketing friendly</span>
+    </div>
+    <p class="section-intro">Light, spacious command center. FunnelChart + DonutChart are intentional UXR1 sales-UX exceptions.</p>
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Desktop frame · Dashboard</span>
+        <span class="badge pending">Mockup</span>
+      </div>
+      <img class="mock-img" src="mockups/04-dashboard-desktop.png" alt="Dashboard high-fidelity desktop mockup" />
+      <div class="mock-caption">High-fidelity desktop mock · Today KPIs, sales funnel, unit availability donut, projects, marketing, calendar/tasks.</div>
+    </div>
+  </section>
+
+  <section id="desktop">
+    <div class="section-head">
+      <h2>Desktop layout</h2>
+      <span class="section-note">Primary working surface</span>
+    </div>
+    <div class="split">
+      <div class="card">
+        <h3>Composition</h3>
+        <ul><li>Fixed left nav (proposed IA) + sticky top chrome (search, quick add, avatar)</li><li>Row 1: personal Today KPIs (leads, follow-ups, tasks, meetings)</li><li>Row 2: Sales Funnel (FunnelChart) + Unit Availability (DonutChart)</li><li>Row 3: Monthly Sales bars + Active Projects progress</li><li>Row 4: Marketing production + Calendar + Tasks</li><li>Footer list: Follow-ups with Open deep links</li></ul>
+      </div>
+      <div class="card">
+        <h3>Density & hierarchy</h3>
+        <ul><li>Wide whitespace; one job per widget</li><li>Every chart declares source + drill target + empty CTA</li><li>No BI explorer, activity feed, or dual rails on default</li><li>Restricted Finance/AI sit below divider, role-gated</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="mobile">
+    <div class="section-head">
+      <h2>Mobile behavior &amp; preview</h2>
+      <span class="section-note">Phone-first adaptations · operational queue first</span>
+    </div>
+    <div class="split">
+      <div class="mobile-preview">
+        <div class="wire">
+      <div class="wire-phone">
+        <div class="ph-top">Today · Clear queue</div>
+        <div class="ph-body">
+          <div class="wire-row">
+            <div class="wire-box"><div class="wire-value">12</div><div class="wire-label">Leads</div></div>
+            <div class="wire-box"><div class="wire-value">8</div><div class="wire-label">Follow-ups</div></div>
+          </div>
+          <div class="wire-box muted"><div class="wire-label">Do next</div>Ada Y. — Proposal — Call · Open</div>
+          <div class="wire-box muted"><div class="wire-label">Do next</div>M. Kaya — Qualify — Open</div>
+          <div class="wire-box"><div class="wire-label">Funnel chips</div>New 24 · Prop 11 · Hold 5</div>
+        </div>
+        <div class="ph-tabbar">
+          <div class="ph-tab active">Home</div>
+          <div class="ph-tab">Sales</div>
+          <div class="ph-tab">Inv</div>
+          <div class="ph-tab">More</div>
+        </div>
+      </div></div>
+        <p class="mobile-note">Primary mobile job: finish today’s queue — not recreate the desktop dashboard.</p>
+      </div>
+      <div class="card">
+        <h3>Behavior rules</h3>
+        <ul><li>Bottom tab: Home / Sales / Inventory / More</li><li>Follow-ups queue is the primary scroll — not a chart wall</li><li>KPI cards 2×2; funnel becomes horizontal stage chips + counts</li><li>Donut collapses to status chips on narrow widths</li><li>Every row opens person or deal in one tap</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="journey">
+    <div class="section-head">
+      <h2>User journey</h2>
+    </div>
+    <div class="journey">
+      <span class="j-step">Open OS</span><span class="j-arrow">→</span><span class="j-step">Scan Today</span><span class="j-arrow">→</span><span class="j-step">Drill funnel or follow-up</span><span class="j-arrow">→</span><span class="j-step">Act in Sales / Tasks</span>
+    </div>
+    <p class="section-intro" style="margin-top:14px">Dashboard is a router to work — not a second BI product. Each widget has one drill destination.</p>
+  </section>
+
+  <section id="actions">
+    <div class="section-head">
+      <h2>Primary actions</h2>
+    </div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Action</th><th>Where</th><th>Outcome</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Open follow-up</strong></td><td>Follow-ups list</td><td>Customer or opportunity</td></tr><tr><td><strong>Drill Sales Funnel</strong></td><td>Funnel widget</td><td>/dashboard/sales</td></tr><tr><td><strong>Drill Unit Availability</strong></td><td>Donut widget</td><td>/dashboard/inventory</td></tr><tr><td><strong>Open project</strong></td><td>Active Projects</td><td>/dashboard/projects/[id]</td></tr><tr><td><strong>Plan day</strong></td><td>Empty Today CTA</td><td>Calendar / Tasks</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="fields">
+    <div class="section-head">
+      <h2>Visible &amp; hidden fields</h2>
+      <span class="section-note">Progressive disclosure · docs 12–13</span>
+    </div>
+    <div class="field-grid">
+      <div class="card field-box ok">
+        <h3>Visible (daily)</h3>
+        <ul><li>New leads count · Follow-ups overdue/due</li><li>Tasks due · Meetings today</li><li>Funnel stage counts · Unit status mix</li><li>Monthly closed sales · Project progress/health</li><li>Marketing shipped this week · Next calendar/tasks</li></ul>
+      </div>
+      <div class="card field-box hide">
+        <h3>Hidden (Details / Advanced)</h3>
+        <ul><li>BI explorer dimensions / ad-hoc queries</li><li>Platform / G15 admin widgets</li><li>Dense finance P&L (Finance role)</li><li>Automation run logs · AI prompt telemetry</li><li>Full activity feed (optional later under Dashboard)</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="rationale">
+    <div class="section-head">
+      <h2>Design rationale</h2>
+      <span class="section-note">Why better than current</span>
+    </div>
+    <div class="callout">
+      <h3>One glance replaces three competing homes</h3>
+      <p>Current staff land in crowded rails and analytics surfaces that require training. The proposed Dashboard answers “what needs me today?” with sales-native visuals and honest empty states.</p>
+    </div>
+    <ul class="card" style="margin-top:12px;list-style:none">
+      <li style="padding-left:14px;position:relative;font-size:14px;color:var(--ink-muted);margin:8px 0">Removes dual CRM/Marketing chrome from the default path</li><li style="padding-left:14px;position:relative;font-size:14px;color:var(--ink-muted);margin:8px 0">Documents chart exceptions (funnel + availability donut) instead of fighting sales UX</li><li style="padding-left:14px;position:relative;font-size:14px;color:var(--ink-muted);margin:8px 0">Every widget contracts definition, time window, source, drill, empty</li>
+    </ul>
+  </section>
+
+  <div class="checkpoint">
+    <div class="eyebrow">Approval gate</div>
+    <h2>Section 04 ready for review</h2>
+    <p>Visual package only. No routes, components, or APIs changed. Approve or request changes before any implementation.</p>
+    <div class="actions">
+      <a class="btn" href="index.html">Back to package index</a>
+      <a class="btn ghost" href="05-customer-profile.html">Next: Customer Profile</a>
+    </div>
+  </div>
+
+  <div class="nav-pager">
+    <a href="03-navigation-ia.html">← 03 Navigation</a>
+    <a href="index.html">Review index</a>
+    <a href="05-customer-profile.html">05 Customer Profile →</a>
+  </div>
+</div>
+</body>
+</html>
+

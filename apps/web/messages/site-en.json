@@ -1,0 +1,241 @@
+{
+  "site": {
+    "nav": {
+      "primary": "Primary",
+      "projects": "Projects",
+      "calculators": "Calculators",
+      "insights": "Insights",
+      "contact": "Contact",
+      "cta": "Book consultation",
+      "login": "Platform login",
+      "menu": "Menu",
+      "language": "Language"
+    },
+    "footer": {
+      "tagline": "Premium real estate investment — the public front door of Investhome OS.",
+      "explore": "Explore",
+      "invest": "Invest",
+      "company": "Company",
+      "projects": "Projects",
+      "calculators": "Calculators",
+      "insights": "Insights",
+      "workflow": "Content workflow",
+      "consultation": "Book consultation",
+      "analysis": "Investment analysis",
+      "brochure": "Request brochure",
+      "meeting": "Schedule meeting",
+      "contact": "Contact",
+      "newsletter": "Newsletter",
+      "guide": "Download guide",
+      "platform": "Investor platform",
+      "disclaimer": "Educational content only. Not investment, legal, or tax advice."
+    },
+    "home": {
+      "headline": "Invest with clarity.",
+      "lead": "Curated projects, disciplined underwriting, and tools that turn interest into informed decisions.",
+      "ctaPrimary": "Explore projects",
+      "ctaSecondary": "Book a consultation",
+      "trustTitle": "Built on delivery discipline",
+      "trustLead": "Track record signals — not vanity metrics. Reviews appear when real investor feedback is available.",
+      "trustEmpty": "Investor reviews and testimonials will appear here once verified feedback is published.",
+      "highlightsTitle": "Why investors choose Investhome",
+      "highlightsLead": "One composition from discovery to diligence — brand, product, and operating system aligned.",
+      "h1Title": "Brand-led opportunities",
+      "h1Body": "Every public surface reflects the same Pantone system and governance used inside Investhome OS.",
+      "h2Title": "Underwriting first",
+      "h2Body": "Calculators and guides help you stress-test assumptions before a conversation with advisors.",
+      "h3Title": "CRM-ready intent",
+      "h3Body": "Consultations, downloads, and analyses flow into Marketing and CRM when forms are published.",
+      "projectsTitle": "Featured projects",
+      "projectsLead": "A selective pipeline across residential, office, and lifestyle assets.",
+      "projectsCta": "View all projects",
+      "insightsTitle": "Latest insights",
+      "insightsLead": "Guides and market notes from the knowledge center.",
+      "insightsCta": "Browse insights",
+      "ctaTitle": "Ready for a focused conversation?",
+      "ctaLead": "Share your objectives — we route requests into the investment team through Marketing lead capture.",
+      "ctaPrimaryBand": "Book consultation",
+      "ctaSecondaryBand": "Request analysis"
+    },
+    "projects": {
+      "title": "Projects",
+      "lead": "Explore featured and pipeline assets. Public catalog uses structured placeholders until published project APIs are available.",
+      "status": {
+        "selling": "Selling",
+        "coming_soon": "Coming soon",
+        "completed": "Completed"
+      },
+      "view": "View project",
+      "gallery": "Gallery",
+      "highlights": "Highlights",
+      "amenities": "Amenities",
+      "floorPlans": "Floor plans",
+      "location": "Location",
+      "downloads": "Downloads",
+      "investment": "Investment summary",
+      "reserve": "Request reservation discussion",
+      "units": "Units",
+      "yield": "Projected yield",
+      "ticket": "Ticket",
+      "area": "Area",
+      "rooms": "Rooms",
+      "mapNote": "Map coordinates prepared for future map provider integration.",
+      "apiNote": "Data shown from the public content layer. Live inventory will replace this when public project endpoints ship.",
+      "notFound": "Project not found"
+    },
+    "calculators": {
+      "title": "Investment calculators",
+      "lead": "Model ROI, cash flow, yield, mortgage, refinance, appreciation, and 1031 scenarios. Save or share results and generate a lead when you are ready.",
+      "open": "Open calculator",
+      "inputs": "Inputs",
+      "results": "Results",
+      "share": "Copy share link",
+      "shared": "Link copied",
+      "saveLead": "Save results & talk to us",
+      "disclaimer": "Illustrative only. Not a loan offer, tax advice, or investment recommendation.",
+      "fields": {
+        "totalInvested": "Total invested",
+        "totalReturned": "Total returned / exit value",
+        "years": "Years held",
+        "purchasePrice": "Purchase price",
+        "annualRent": "Annual rent",
+        "annualCosts": "Annual costs",
+        "monthlyRent": "Monthly rent",
+        "vacancyPct": "Vacancy %",
+        "monthlyOpex": "Monthly operating costs",
+        "monthlyDebt": "Monthly debt service",
+        "principal": "Loan principal",
+        "annualRatePct": "Annual rate %",
+        "currentPayment": "Current monthly payment",
+        "newPrincipal": "New principal",
+        "newRatePct": "New rate %",
+        "newYears": "New term (years)",
+        "closingCosts": "Closing costs",
+        "currentValue": "Current value",
+        "annualPct": "Annual appreciation %",
+        "salePrice": "Sale price",
+        "adjustedBasis": "Adjusted basis",
+        "sellingCosts": "Selling costs",
+        "replacementPrice": "Replacement property price"
+      },
+      "metrics": {
+        "profit": "Profit",
+        "simpleRoi": "Simple ROI",
+        "annualizedRoi": "Annualized ROI",
+        "grossYield": "Gross yield",
+        "netYield": "Net yield",
+        "netIncome": "Net income",
+        "payment": "Monthly payment",
+        "totalInterest": "Total interest",
+        "totalPaid": "Total paid",
+        "effectiveRent": "Effective rent",
+        "monthlyCashFlow": "Monthly cash flow",
+        "annualCashFlow": "Annual cash flow",
+        "newPayment": "New payment",
+        "monthlySavings": "Monthly savings",
+        "breakEven": "Break-even (months)",
+        "futureValue": "Future value",
+        "gain": "Projected gain",
+        "realizedGain": "Realized gain",
+        "boot": "Boot (taxable)",
+        "deferred": "Deferred gain (est.)"
+      }
+    },
+    "insights": {
+      "title": "Insights & knowledge center",
+      "lead": "Guides, market notes, and investment primers. Content layer ready for Marketing Content Studio / CMS.",
+      "search": "Search articles",
+      "searchPlaceholder": "Search titles, tags, topics…",
+      "all": "All",
+      "minRead": "{n} min read",
+      "by": "By {name}",
+      "related": "Related reading",
+      "tags": "Tags",
+      "notFound": "Article not found",
+      "empty": "No articles match this filter."
+    },
+    "contact": {
+      "title": "Contact",
+      "lead": "Tell us what you need — consultation, materials, or a meeting. Requests route through public marketing form capture.",
+      "altTitle": "Other ways to engage",
+      "consultation": "Book a consultation",
+      "guide": "Download investor guide",
+      "newsletter": "Join the newsletter"
+    },
+    "lead": {
+      "consultation": {
+        "title": "Book a consultation",
+        "lead": "Share your objectives. Our team follows up through CRM / Marketing handoff."
+      },
+      "guide": {
+        "title": "Download investor guide",
+        "lead": "Receive the introductory guide when published forms and assets are connected."
+      },
+      "brochure": {
+        "title": "Request a brochure",
+        "lead": "Project materials delivered after your request is captured."
+      },
+      "analysis": {
+        "title": "Request investment analysis",
+        "lead": "Send your constraints — we prepare a structured review discussion."
+      },
+      "newsletter": {
+        "title": "Newsletter",
+        "lead": "Occasional insights — no spam. Consent respected."
+      },
+      "meeting": {
+        "title": "Schedule a meeting",
+        "lead": "Propose a time window; we confirm via the investment desk."
+      },
+      "calculator": {
+        "title": "Save calculator results",
+        "lead": "Attach your scenario summary and request a follow-up."
+      },
+      "contact": {
+        "title": "Contact Investhome",
+        "lead": "General inquiries and partnership notes."
+      }
+    },
+    "workflow": {
+      "title": "AI content workflow",
+      "lead": "Prepared for Marketing AI: draft → human review → publish → SEO → internal links. No autonomous publishing.",
+      "s1": "AI draft",
+      "s1Body": "Generate outlines and short drafts via Marketing AI assistant (auth workspace).",
+      "s2": "Human review",
+      "s2Body": "Editors approve claims, tone, and compliance before anything goes live.",
+      "s3": "Publish",
+      "s3Body": "Published content lands in the knowledge center with SEO metadata.",
+      "s4": "Internal linking",
+      "s4Body": "Articles link to projects, calculators, and lead intents by design.",
+      "note": "This public page is a workflow preview. Generation APIs remain permissioned under /workspaces/marketing/ai.",
+      "cta": "Open marketing workspace (login)"
+    },
+    "forms": {
+      "success": "Thank you — your request was submitted to Marketing lead capture.",
+      "offlineSuccess": "Thank you — your request was saved locally. Publish the matching marketing form slug to enable live CRM capture.",
+      "submitting": "Sending…",
+      "marketingConsent": "I agree to receive marketing updates (optional).",
+      "fields": {
+        "full_name": "Full name",
+        "email": "Email",
+        "phone": "Phone",
+        "message": "Message",
+        "project": "Project interest",
+        "budget": "Budget range",
+        "preferred_time": "Preferred time window",
+        "calculator": "Calculator",
+        "results_summary": "Results summary"
+      },
+      "submit": {
+        "consultation": "Request consultation",
+        "guide": "Get the guide",
+        "brochure": "Request brochure",
+        "analysis": "Request analysis",
+        "newsletter": "Subscribe",
+        "meeting": "Request meeting",
+        "calculator": "Send results",
+        "contact": "Send message"
+      }
+    }
+  }
+}

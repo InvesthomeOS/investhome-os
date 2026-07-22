@@ -80,6 +80,20 @@ class LocalHeuristicProvider(AIProvider):
 
     def answer_question(self, question: str, chunks: list[tuple[str, str]], language: str) -> QAAnswer:
         q_lower = question.lower()
+        meta_markers = ("system prompt", "ignore previous", "hidden instruction", "reveal the")
+        if any(marker in q_lower for marker in meta_markers):
+            not_found = (
+                "Belgede bu bilgi bulunamadı."
+                if language == "tr"
+                else "The requested information was not found in this document."
+            )
+            return QAAnswer(
+                answer=not_found,
+                found=False,
+                source_references=[],
+                provider=self.name,
+                model=self.model,
+            )
         best_match: tuple[str, str] | None = None
         for ref, content in chunks:
             content_lower = content.lower()

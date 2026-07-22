@@ -10,6 +10,8 @@ export interface PaginationProps {
   nextLabel: string;
   summary?: ReactNode;
   className?: string;
+  /** Accessible name for the pagination nav. Defaults to nextLabel locale-agnostic "Pagination". */
+  ariaLabel?: string;
 }
 
 export function Pagination({
@@ -22,13 +24,14 @@ export function Pagination({
   nextLabel,
   summary,
   className,
+  ariaLabel = 'Pagination',
 }: PaginationProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const canPrevious = page > 1;
   const canNext = page < totalPages;
 
   return (
-    <nav className={`ih-pagination${className ? ` ${className}` : ''}`} aria-label="Pagination">
+    <nav className={`ih-pagination${className ? ` ${className}` : ''}`} aria-label={ariaLabel}>
       {summary ? <div className="ih-pagination__summary">{summary}</div> : null}
       <div className="ih-pagination__actions">
         <button type="button" className="ih-btn ih-btn--secondary" disabled={!canPrevious} onClick={onPrevious}>

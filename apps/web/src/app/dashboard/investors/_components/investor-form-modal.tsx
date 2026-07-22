@@ -33,7 +33,7 @@ const EMPTY_FORM: InvestorInput = {
   preferred_markets: '',
   preferred_projects: '',
   risk_profile: 'balanced',
-  status: 'prospect',
+  status: 'new_investor',
   assigned_to: '',
   source: '',
   notes: '',

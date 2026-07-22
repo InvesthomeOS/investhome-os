@@ -20,9 +20,32 @@ class InvestorType(str, enum.Enum):
 
 
 class InvestorStatus(str, enum.Enum):
-    PROSPECT = "prospect"
+    """Investor lifecycle + legacy statuses.
+
+    Stored as VARCHAR (native_enum=False). New lifecycle values are additive;
+    legacy values remain valid for existing rows and are mapped in the UI.
+    """
+
+    # G3 investor lifecycle (primary board stages)
+    NEW_INVESTOR = "new_investor"
     CONTACTED = "contacted"
     QUALIFIED = "qualified"
+    MEETING_SCHEDULED = "meeting_scheduled"
+    INTERESTED = "interested"
+    NDA_SIGNED = "nda_signed"
+    PROJECT_PRESENTED = "project_presented"
+    RESERVATION = "reservation"
+    CONTRACT = "contract"
+    PAYMENT_PENDING = "payment_pending"
+    WIRE_RECEIVED = "wire_received"
+    CONSTRUCTION = "construction"
+    CLOSING = "closing"
+    RENTAL = "rental"
+    PORTFOLIO = "portfolio"
+    LOST = "lost"
+
+    # Legacy statuses (kept for backward compatibility)
+    PROSPECT = "prospect"
     ACTIVE = "active"
     INVESTED = "invested"
     FOLLOW_UP = "follow_up"

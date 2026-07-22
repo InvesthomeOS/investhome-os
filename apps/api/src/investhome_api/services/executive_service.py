@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
@@ -278,7 +278,7 @@ def _count_pending_approvals(db: Session, filters: ExecutiveFilters, user: "User
 
 def _count_inventory_reservations(db: Session, filters: ExecutiveFilters) -> tuple[int, int]:
     """Return (active_soft_holds, expiring_within_48h)."""
-    now = datetime.now()
+    now = datetime.now(UTC)
     cutoff = now + timedelta(hours=48)
     query = select(InventoryReservation).join(
         InventoryAsset, InventoryAsset.id == InventoryReservation.inventory_asset_id
@@ -1403,7 +1403,7 @@ def build_ai_insights(
     filters: ExecutiveFilters,
     user: "User | None" = None,
 ) -> ExecutiveAiInsightsResponse:
-    now = datetime.now()
+    now = datetime.now(UTC)
     priorities: list[AiInsightItem] = []
     risks: list[AiInsightItem] = []
     opportunities: list[AiInsightItem] = []

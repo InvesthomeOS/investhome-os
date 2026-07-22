@@ -1,0 +1,179 @@
+{
+  "portalG9": {
+    "brand": "Investhome",
+    "portal": "Yatırımcı Portalı",
+    "secureNote": "Güvenli özel yatırım portalı",
+    "dataDemo": "Demo",
+    "dataPartial": "Kısmi",
+    "dataLive": "Canlı",
+    "dataBlocked": "Engelli",
+    "gapBanner": "Portal API henüz yok — gösterilen veriler oturum yatırımcısına kapsamlı demo veridir. Başka yatırımcı verisi gösterilmez.",
+    "nav": {
+      "dashboard": "Panel",
+      "portfolio": "Portföy",
+      "projects": "Projeler",
+      "reservations": "Rezervasyonlar",
+      "contracts": "Sözleşmeler",
+      "payments": "Ödemeler",
+      "rental": "Kira Geliri",
+      "documents": "Belgeler",
+      "reports": "Raporlar",
+      "messages": "Mesajlar",
+      "tasks": "Görevler",
+      "meetings": "Toplantılar",
+      "notifications": "Bildirimler",
+      "help": "Yardım",
+      "support": "Destek",
+      "account": "Hesap & Güvenlik",
+      "sectionPortfolio": "Yatırımlar",
+      "sectionOps": "İşlemler",
+      "sectionAccount": "Hesap"
+    },
+    "login": {
+      "title": "Yatırımcı girişi",
+      "subtitle": "Portföyünüzü, belgelerinizi ve ödemelerinizi güvenle izleyin.",
+      "email": "E-posta",
+      "password": "Şifre",
+      "submit": "Giriş yap",
+      "error": "Geçersiz e-posta veya şifre.",
+      "hint": "Demo yatırımcı A: investor.a@investhome.demo / Portal123!\nİzolasyon testi için B: investor.b@investhome.demo / Portal123!"
+    },
+    "dashboard": {
+      "title": "Panel",
+      "subtitle": "Portföy özeti, yaklaşan ödemeler ve dikkat gerektiren öğeler.",
+      "navValue": "Portföy değeri",
+      "invested": "Yatırılan",
+      "irr": "IRR",
+      "cashDue": "Vadesi gelen",
+      "unread": "Okunmamış mesaj",
+      "tasksOpen": "Açık görev",
+      "activity": "Son hareketler",
+      "holdings": "Aktif yatırımlar",
+      "valueTrend": "Değer eğilimi"
+    },
+    "portfolio": {
+      "title": "Portföy",
+      "subtitle": "Taahhüt, güncel değer, getiri ve yoğunluk — özel bankacılık yoğunluğu.",
+      "committed": "Taahhüt",
+      "current": "Güncel değer",
+      "ownership": "Pay",
+      "roi": "ROI",
+      "allocation": "Proje dağılımı"
+    },
+    "projects": {
+      "title": "Projeler",
+      "subtitle": "Yatırım yaptığınız geliştirmeler — ilerleme, kilometre taşları ve projeksiyon.",
+      "open": "Detay",
+      "completion": "Tamamlanma",
+      "overview": "Genel bakış",
+      "photos": "Fotoğraflar",
+      "progress": "İlerleme",
+      "milestones": "Kilometre taşları",
+      "budget": "Bütçe",
+      "docs": "Belgeler",
+      "news": "Haberler",
+      "rental": "Kira projeksiyonu",
+      "map": "Konum",
+      "notFound": "Bu proje bu oturum için görünür değil."
+    },
+    "reservations": {
+      "title": "Rezervasyonlar",
+      "subtitle": "Birim rezervasyonları ve son tarihler.",
+      "unit": "Birim",
+      "expires": "Bitiş"
+    },
+    "contracts": {
+      "title": "Sözleşmeler",
+      "subtitle": "İmza durumu ve sözleşme değerleri.",
+      "signed": "İmzalandı",
+      "value": "Değer"
+    },
+    "payments": {
+      "title": "Ödemeler",
+      "subtitle": "Sermaye çağrıları, depozitolar ve ödeme takibi.",
+      "due": "Vade",
+      "amount": "Tutar",
+      "mix": "Ödeme dağılımı"
+    },
+    "rental": {
+      "title": "Kira geliri",
+      "subtitle": "Brüt / net kira ve doluluk.",
+      "gross": "Brüt",
+      "net": "Net",
+      "occupancy": "Doluluk"
+    },
+    "documents": {
+      "title": "Belgeler",
+      "subtitle": "Kategoriler, sürümler, önizleme ve izin kontrollü indirme.",
+      "category": "Kategori",
+      "version": "Sürüm",
+      "preview": "Önizle",
+      "download": "İndir",
+      "forbidden": "İndirme reddedildi — bu belge oturum yatırımcısına ait değil.",
+      "all": "Tümü"
+    },
+    "reports": {
+      "title": "Raporlar",
+      "subtitle": "Hazır rapor setleri — talep üzerine oluşturma.",
+      "portfolioSummary": "Portföy özeti",
+      "portfolioSummaryDesc": "NAV, IRR ve holding kırılımı.",
+      "cashActivity": "Nakit hareketleri",
+      "cashActivityDesc": "Çağrılar, ödemeler ve dağıtımlar.",
+      "taxPack": "Vergi paketi",
+      "taxPackDesc": "Yıllık vergi sertifikaları.",
+      "construction": "İnşaat durumu",
+      "constructionDesc": "İlerleme ve kilometre taşı özeti.",
+      "generate": "Oluştur"
+    },
+    "messages": {
+      "title": "Mesajlar",
+      "subtitle": "Yalnızca sizinle IR / proje ofisi arasındaki güvenli yazışmalar.",
+      "inbox": "Gelen kutusu",
+      "empty": "Konuşma seçin"
+    },
+    "tasks": {
+      "title": "Görevler",
+      "subtitle": "İmza, yükleme ve onay görevleri.",
+      "due": "Son tarih",
+      "priority": "Öncelik"
+    },
+    "meetings": {
+      "title": "Toplantılar",
+      "subtitle": "Planlanan görüşmeler ve saha ziyaretleri.",
+      "with": "Katılımcı",
+      "where": "Konum"
+    },
+    "notifications": {
+      "title": "Bildirimler",
+      "subtitle": "Ödeme, belge, proje, mesaj ve güvenlik uyarıları.",
+      "types": "Türler"
+    },
+    "support": {
+      "title": "Destek merkezi",
+      "subtitle": "IR masası, belge talepleri ve sık sorular.",
+      "contact": "IR ile iletişime geç",
+      "faq1": "Sermaye çağrısını nasıl öderim?",
+      "faq1a": "Ödemeler ekranındaki vadesi gelen kalemi açın; talimatlar Belgeler’de.",
+      "faq2": "Belge indiremiyorum.",
+      "faq2a": "İndirmeler oturum yatırımcısına göre izin kontrolünden geçer."
+    },
+    "account": {
+      "title": "Hesap & güvenlik",
+      "subtitle": "Profil, 2FA, cihazlar, oturumlar, dil ve bildirim tercihleri.",
+      "profile": "Profil",
+      "security": "Güvenlik",
+      "twofa": "İki adımlı doğrulama",
+      "devices": "Cihazlar & oturumlar",
+      "language": "Dil",
+      "notifPrefs": "Bildirim tercihleri",
+      "logout": "Çıkış yap",
+      "emailNotif": "E-posta bildirimleri",
+      "pushNotif": "Uygulama bildirimleri",
+      "smsNotif": "SMS uyarıları"
+    },
+    "header": {
+      "search": "Portföyde ara…",
+      "logout": "Çıkış"
+    }
+  }
+}

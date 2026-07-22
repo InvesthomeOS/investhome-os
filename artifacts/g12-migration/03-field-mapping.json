@@ -1,0 +1,2120 @@
+{
+  "entities": [
+    {
+      "key": "users",
+      "table": "users",
+      "domain": "platform",
+      "financial_class": "auth",
+      "merge_policy": "create_only",
+      "existing_import": null,
+      "notes": "Real staff emails only; never import demo *@investhome.demo as production users."
+    },
+    {
+      "key": "roles",
+      "table": "roles",
+      "domain": "platform",
+      "financial_class": "auth",
+      "merge_policy": "skip_allowed",
+      "existing_import": null,
+      "notes": "System roles seeded from permissions_config; map custom roles carefully."
+    },
+    {
+      "key": "crm_contacts",
+      "table": "crm_contacts",
+      "domain": "crm",
+      "financial_class": "non_financial",
+      "merge_policy": "suggest_only",
+      "existing_import": "POST /crm/contacts/import",
+      "notes": "Deduplicate on primary_email; merge suggestions only."
+    },
+    {
+      "key": "crm_companies",
+      "table": "crm_companies",
+      "domain": "crm",
+      "financial_class": "non_financial",
+      "merge_policy": "suggest_only",
+      "existing_import": "POST /crm/companies/import",
+      "notes": "Deduplicate on legal/trade name + domain."
+    },
+    {
+      "key": "companies",
+      "table": "companies",
+      "domain": "org",
+      "financial_class": "non_financial",
+      "merge_policy": "suggest_only",
+      "existing_import": "POST /companies/import",
+      "notes": "Org chart companies (not CRM)."
+    },
+    {
+      "key": "branches",
+      "table": "branches",
+      "domain": "org",
+      "financial_class": "non_financial",
+      "merge_policy": "suggest_only",
+      "existing_import": "POST /branches/import",
+      "notes": "Office/branch roster."
+    },
+    {
+      "key": "leads",
+      "table": "leads",
+      "domain": "sales",
+      "financial_class": "non_financial",
+      "merge_policy": "suggest_only",
+      "existing_import": null,
+      "notes": "No bulk import API yet \u2014 use migration CLI dry-run then staged commit."
+    },
+    {
+      "key": "investors",
+      "table": "investors",
+      "domain": "investors",
+      "financial_class": "non_financial",
+      "merge_policy": "suggest_only",
+      "existing_import": null,
+      "notes": "Profile only; funding amounts live on funding_commitments (financial)."
+    },
+    {
+      "key": "sales_opportunities",
+      "table": "sales_opportunities",
+      "domain": "sales",
+      "financial_class": "non_financial",
+      "merge_policy": "suggest_only",
+      "existing_import": null,
+      "notes": "Link to lead/contact/project/inventory; amounts are commercial not bank ledger."
+    },
+    {
+      "key": "projects",
+      "table": "projects",
+      "domain": "projects",
+      "financial_class": "non_financial",
+      "merge_policy": "suggest_only",
+      "existing_import": null,
+      "notes": "Master project roster; financial totals must reconcile separately."
+    },
+    {
+      "key": "buildings",
+      "table": "buildings",
+      "domain": "inventory",
+      "financial_class": "non_financial",
+      "merge_policy": "suggest_only",
+      "existing_import": null,
+      "notes": "Bulk inventory import currently deferred in product; migration CLI provides templates."
+    },
+    {
+      "key": "floors",
+      "table": "floors",
+      "domain": "inventory",
+      "financial_class": "non_financial",
+      "merge_policy": "suggest_only",
+      "existing_import": null,
+      "notes": "Requires building_code FK."
+    },
+    {
+      "key": "inventory_assets",
+      "table": "inventory_assets",
+      "domain": "inventory",
+      "financial_class": "non_financial",
+      "merge_policy": "suggest_only",
+      "existing_import": null,
+      "notes": "Units/parking/storage; list prices are commercial \u2014 deposits are financial."
+    },
+    {
+      "key": "inventory_reservations",
+      "table": "inventory_reservations",
+      "domain": "inventory",
+      "financial_class": "financial",
+      "merge_policy": "never_auto_merge",
+      "existing_import": null,
+      "notes": "Deposit/hold money implications \u2014 never auto-merge."
+    },
+    {
+      "key": "financial_accounts",
+      "table": "financial_accounts",
+      "domain": "finance",
+      "financial_class": "financial",
+      "merge_policy": "never_auto_merge",
+      "existing_import": null,
+      "notes": "Bank/operating/escrow accounts \u2014 balances must reconcile to bank statements."
+    },
+    {
+      "key": "finance_transactions",
+      "table": "finance_transactions",
+      "domain": "finance",
+      "financial_class": "financial",
+      "merge_policy": "never_auto_merge",
+      "existing_import": null,
+      "notes": "Ledger lines \u2014 never auto-merge; reject unexplained diffs."
+    },
+    {
+      "key": "funding_commitments",
+      "table": "funding_commitments",
+      "domain": "finance",
+      "financial_class": "financial",
+      "merge_policy": "never_auto_merge",
+      "existing_import": null,
+      "notes": "Investor capital commitments."
+    },
+    {
+      "key": "payment_obligations",
+      "table": "payment_obligations",
+      "domain": "finance",
+      "financial_class": "financial",
+      "merge_policy": "never_auto_merge",
+      "existing_import": null,
+      "notes": "Scheduled payables/distributions."
+    },
+    {
+      "key": "project_budgets",
+      "table": "project_budgets",
+      "domain": "finance",
+      "financial_class": "financial",
+      "merge_policy": "never_auto_merge",
+      "existing_import": "POST .../budgets/{id}/import/preview+confirm",
+      "notes": "Budget lines via preview/confirm; totals must match source workbook."
+    },
+    {
+      "key": "vendors",
+      "table": "vendors",
+      "domain": "finance",
+      "financial_class": "non_financial",
+      "merge_policy": "suggest_only",
+      "existing_import": null,
+      "notes": "Vendor master; bills/payments are financial."
+    },
+    {
+      "key": "vendor_bills",
+      "table": "project_vendor_bills",
+      "domain": "finance",
+      "financial_class": "financial",
+      "merge_policy": "never_auto_merge",
+      "existing_import": null,
+      "notes": "AP invoices \u2014 reconcile to vendor statements."
+    },
+    {
+      "key": "project_payments",
+      "table": "project_payments",
+      "domain": "finance",
+      "financial_class": "financial",
+      "merge_policy": "never_auto_merge",
+      "existing_import": null,
+      "notes": "AP payments \u2014 never auto-merge."
+    },
+    {
+      "key": "documents",
+      "table": "documents",
+      "domain": "documents",
+      "financial_class": "document",
+      "merge_policy": "create_only",
+      "existing_import": null,
+      "notes": "Metadata + binary path; preserve checksums and original filenames."
+    },
+    {
+      "key": "document_links",
+      "table": "document_links",
+      "domain": "documents",
+      "financial_class": "document",
+      "merge_policy": "create_only",
+      "existing_import": null,
+      "notes": "Entity attachments; reject if target entity missing."
+    }
+  ],
+  "mappings": [
+    {
+      "source_field": "Email",
+      "destination_field": "primary_email",
+      "transformation": "lower(trim)",
+      "validation": "email format; unique",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "invalid/missing email",
+      "entity": "crm_contacts"
+    },
+    {
+      "source_field": "Full Name / Display Name",
+      "destination_field": "display_name",
+      "transformation": "trim",
+      "validation": "len 1..255",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "blank name",
+      "entity": "crm_contacts"
+    },
+    {
+      "source_field": "Phone",
+      "destination_field": "primary_phone",
+      "transformation": "normalize_e164_or_passthrough",
+      "validation": "optional",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "\u2014",
+      "entity": "crm_contacts"
+    },
+    {
+      "source_field": "Company / Organization",
+      "destination_field": "organization_name",
+      "transformation": "trim",
+      "validation": "optional",
+      "required": false,
+      "default": null,
+      "relationship": "crm_companies.name?",
+      "rejected_if": "\u2014",
+      "entity": "crm_contacts"
+    },
+    {
+      "source_field": "Contact Type",
+      "destination_field": "contact_type",
+      "transformation": "enum_map",
+      "validation": "person|company|\u2026",
+      "required": false,
+      "default": "person",
+      "relationship": null,
+      "rejected_if": "unknown type",
+      "entity": "crm_contacts"
+    },
+    {
+      "source_field": "Tags",
+      "destination_field": "tags",
+      "transformation": "split_comma",
+      "validation": "list[str]",
+      "required": false,
+      "default": "[]",
+      "relationship": null,
+      "rejected_if": "\u2014",
+      "entity": "crm_contacts"
+    },
+    {
+      "source_field": "Company Name",
+      "destination_field": "display_name",
+      "transformation": "trim",
+      "validation": "len 1..255; unique-ish",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "blank name",
+      "entity": "crm_companies"
+    },
+    {
+      "source_field": "Domain / Website",
+      "destination_field": "website",
+      "transformation": "normalize_url",
+      "validation": "optional url",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "\u2014",
+      "entity": "crm_companies"
+    },
+    {
+      "source_field": "Industry",
+      "destination_field": "industry",
+      "transformation": "trim",
+      "validation": "optional",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "\u2014",
+      "entity": "crm_companies"
+    },
+    {
+      "source_field": "Phone",
+      "destination_field": "phone",
+      "transformation": "normalize",
+      "validation": "optional",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "\u2014",
+      "entity": "crm_companies"
+    },
+    {
+      "source_field": "Full Name",
+      "destination_field": "full_name",
+      "transformation": "trim",
+      "validation": "required",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "blank",
+      "entity": "leads"
+    },
+    {
+      "source_field": "Email",
+      "destination_field": "email",
+      "transformation": "lower(trim)",
+      "validation": "email optional but preferred",
+      "required": false,
+      "default": null,
+      "relationship": "crm_contacts?",
+      "rejected_if": "invalid email",
+      "entity": "leads"
+    },
+    {
+      "source_field": "Phone",
+      "destination_field": "phone",
+      "transformation": "normalize",
+      "validation": "optional",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "\u2014",
+      "entity": "leads"
+    },
+    {
+      "source_field": "Country",
+      "destination_field": "country",
+      "transformation": "trim",
+      "validation": "optional",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "\u2014",
+      "entity": "leads"
+    },
+    {
+      "source_field": "Source",
+      "destination_field": "source",
+      "transformation": "trim|map",
+      "validation": "optional",
+      "required": false,
+      "default": "import",
+      "relationship": null,
+      "rejected_if": "\u2014",
+      "entity": "leads"
+    },
+    {
+      "source_field": "Status / Stage",
+      "destination_field": "status",
+      "transformation": "enum_map LeadStatus",
+      "validation": "New|Contacted|\u2026",
+      "required": false,
+      "default": "New",
+      "relationship": null,
+      "rejected_if": "unknown status",
+      "entity": "leads"
+    },
+    {
+      "source_field": "Company",
+      "destination_field": "company",
+      "transformation": "trim",
+      "validation": "optional",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "\u2014",
+      "entity": "leads"
+    },
+    {
+      "source_field": "Estimated Budget",
+      "destination_field": "estimated_budget",
+      "transformation": "decimal(14,2)",
+      "validation": ">=0; currency separate",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "negative/non-numeric",
+      "entity": "leads"
+    },
+    {
+      "source_field": "Interested Project",
+      "destination_field": "interested_project",
+      "transformation": "trim|resolve_project_code",
+      "validation": "soft ref",
+      "required": false,
+      "default": null,
+      "relationship": "projects.project_code",
+      "rejected_if": "orphan soft-ref logged",
+      "entity": "leads"
+    },
+    {
+      "source_field": "Assigned To",
+      "destination_field": "assigned_to",
+      "transformation": "trim",
+      "validation": "legacy string",
+      "required": false,
+      "default": null,
+      "relationship": "users.email?",
+      "rejected_if": "\u2014",
+      "entity": "leads"
+    },
+    {
+      "source_field": "Investor Name",
+      "destination_field": "full_name",
+      "transformation": "trim",
+      "validation": "required",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "blank",
+      "entity": "investors"
+    },
+    {
+      "source_field": "Email",
+      "destination_field": "email",
+      "transformation": "lower(trim)",
+      "validation": "unique preferred",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "invalid email",
+      "entity": "investors"
+    },
+    {
+      "source_field": "Type",
+      "destination_field": "investor_type",
+      "transformation": "enum_map InvestorType",
+      "validation": "individual|company|\u2026",
+      "required": false,
+      "default": "individual",
+      "relationship": null,
+      "rejected_if": "unknown type",
+      "entity": "investors"
+    },
+    {
+      "source_field": "Status",
+      "destination_field": "status",
+      "transformation": "enum_map InvestorStatus",
+      "validation": "lifecycle",
+      "required": false,
+      "default": "new_investor",
+      "relationship": null,
+      "rejected_if": "unknown status",
+      "entity": "investors"
+    },
+    {
+      "source_field": "Country",
+      "destination_field": "country",
+      "transformation": "trim",
+      "validation": "optional",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "\u2014",
+      "entity": "investors"
+    },
+    {
+      "source_field": "Phone",
+      "destination_field": "phone",
+      "transformation": "normalize",
+      "validation": "optional",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "\u2014",
+      "entity": "investors"
+    },
+    {
+      "source_field": "Project Code",
+      "destination_field": "project_code",
+      "transformation": "upper(trim)",
+      "validation": "unique required",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "blank/duplicate",
+      "entity": "projects"
+    },
+    {
+      "source_field": "Project Name",
+      "destination_field": "project_name",
+      "transformation": "trim",
+      "validation": "required",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "blank",
+      "entity": "projects"
+    },
+    {
+      "source_field": "Status",
+      "destination_field": "status",
+      "transformation": "enum_map",
+      "validation": "pipeline|\u2026",
+      "required": false,
+      "default": "pipeline",
+      "relationship": null,
+      "rejected_if": "unknown",
+      "entity": "projects"
+    },
+    {
+      "source_field": "Project Type",
+      "destination_field": "project_type",
+      "transformation": "trim|enum",
+      "validation": "optional",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "\u2014",
+      "entity": "projects"
+    },
+    {
+      "source_field": "City / Location",
+      "destination_field": "location_city",
+      "transformation": "trim",
+      "validation": "optional",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "\u2014",
+      "entity": "projects"
+    },
+    {
+      "source_field": "Total Units (manual)",
+      "destination_field": "total_units",
+      "transformation": "int",
+      "validation": ">=0; prefer rollup later",
+      "required": false,
+      "default": "0",
+      "relationship": null,
+      "rejected_if": "negative",
+      "entity": "projects"
+    },
+    {
+      "source_field": "Unit Code",
+      "destination_field": "asset_code",
+      "transformation": "trim",
+      "validation": "unique per project",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "blank",
+      "entity": "inventory_assets"
+    },
+    {
+      "source_field": "Project Code",
+      "destination_field": "project_id",
+      "transformation": "resolve_project",
+      "validation": "required FK",
+      "required": true,
+      "default": null,
+      "relationship": "projects.project_code",
+      "rejected_if": "unknown project",
+      "entity": "inventory_assets"
+    },
+    {
+      "source_field": "Building Code",
+      "destination_field": "building_id",
+      "transformation": "resolve_building",
+      "validation": "required FK",
+      "required": true,
+      "default": null,
+      "relationship": "buildings.code",
+      "rejected_if": "unknown building",
+      "entity": "inventory_assets"
+    },
+    {
+      "source_field": "Floor Code",
+      "destination_field": "floor_id",
+      "transformation": "resolve_floor",
+      "validation": "optional FK",
+      "required": false,
+      "default": null,
+      "relationship": "floors.code",
+      "rejected_if": "unknown floor",
+      "entity": "inventory_assets"
+    },
+    {
+      "source_field": "Asset Type",
+      "destination_field": "asset_type",
+      "transformation": "enum_map InventoryAssetType",
+      "validation": "residential_unit|\u2026",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "unknown type",
+      "entity": "inventory_assets"
+    },
+    {
+      "source_field": "Sales Status",
+      "destination_field": "sales_status",
+      "transformation": "enum_map",
+      "validation": "available_for_sale|\u2026",
+      "required": false,
+      "default": "not_for_sale",
+      "relationship": null,
+      "rejected_if": "unknown",
+      "entity": "inventory_assets"
+    },
+    {
+      "source_field": "List Price",
+      "destination_field": "list_price",
+      "transformation": "decimal",
+      "validation": ">=0 currency USD/TRY",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "negative",
+      "entity": "inventory_assets"
+    },
+    {
+      "source_field": "Currency",
+      "destination_field": "currency",
+      "transformation": "upper ISO-4217",
+      "validation": "3-letter",
+      "required": false,
+      "default": "USD",
+      "relationship": null,
+      "rejected_if": "invalid currency",
+      "entity": "inventory_assets"
+    },
+    {
+      "source_field": "Reservation ID (source)",
+      "destination_field": "external_ref",
+      "transformation": "trim",
+      "validation": "unique source key",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "blank",
+      "entity": "inventory_reservations"
+    },
+    {
+      "source_field": "Unit Code",
+      "destination_field": "inventory_asset_id",
+      "transformation": "resolve_asset",
+      "validation": "required FK",
+      "required": true,
+      "default": null,
+      "relationship": "inventory_assets",
+      "rejected_if": "orphan unit",
+      "entity": "inventory_reservations"
+    },
+    {
+      "source_field": "Party Email",
+      "destination_field": "party_ref",
+      "transformation": "resolve_contact_or_lead",
+      "validation": "required",
+      "required": true,
+      "default": null,
+      "relationship": "crm_contacts|leads",
+      "rejected_if": "unknown party",
+      "entity": "inventory_reservations"
+    },
+    {
+      "source_field": "Status",
+      "destination_field": "status",
+      "transformation": "enum_map ReservationRecordStatus",
+      "validation": "required",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "unknown",
+      "entity": "inventory_reservations"
+    },
+    {
+      "source_field": "Deposit Amount",
+      "destination_field": "deposit_amount",
+      "transformation": "decimal",
+      "validation": ">=0; NEVER auto-merge",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "negative/non-numeric",
+      "entity": "inventory_reservations"
+    },
+    {
+      "source_field": "Account Name",
+      "destination_field": "account_name",
+      "transformation": "trim",
+      "validation": "required",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "blank",
+      "entity": "financial_accounts"
+    },
+    {
+      "source_field": "Account Type",
+      "destination_field": "account_type",
+      "transformation": "enum_map AccountType",
+      "validation": "operating|project|escrow|\u2026",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "unknown",
+      "entity": "financial_accounts"
+    },
+    {
+      "source_field": "Institution",
+      "destination_field": "institution_name",
+      "transformation": "trim",
+      "validation": "optional",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "\u2014",
+      "entity": "financial_accounts"
+    },
+    {
+      "source_field": "Currency",
+      "destination_field": "currency",
+      "transformation": "ISO-4217",
+      "validation": "required",
+      "required": true,
+      "default": "USD",
+      "relationship": null,
+      "rejected_if": "invalid",
+      "entity": "financial_accounts"
+    },
+    {
+      "source_field": "Current Balance (source)",
+      "destination_field": "current_balance",
+      "transformation": "decimal",
+      "validation": "must match bank stmt",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "non-numeric",
+      "entity": "financial_accounts"
+    },
+    {
+      "source_field": "Account Reference",
+      "destination_field": "account_reference",
+      "transformation": "trim; mask in logs",
+      "validation": "optional last4",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "\u2014",
+      "entity": "financial_accounts"
+    },
+    {
+      "source_field": "Txn Date",
+      "destination_field": "transaction_date",
+      "transformation": "parse_date ISO",
+      "validation": "required date",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "bad date",
+      "entity": "finance_transactions"
+    },
+    {
+      "source_field": "Type",
+      "destination_field": "transaction_type",
+      "transformation": "enum_map TransactionType",
+      "validation": "required",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "unknown type",
+      "entity": "finance_transactions"
+    },
+    {
+      "source_field": "Amount",
+      "destination_field": "amount",
+      "transformation": "decimal abs+sign rules",
+      "validation": "required !=0",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "zero/non-numeric",
+      "entity": "finance_transactions"
+    },
+    {
+      "source_field": "Currency",
+      "destination_field": "currency",
+      "transformation": "ISO-4217",
+      "validation": "match account",
+      "required": true,
+      "default": "USD",
+      "relationship": "financial_accounts.currency",
+      "rejected_if": "mismatch",
+      "entity": "finance_transactions"
+    },
+    {
+      "source_field": "Account Name/Ref",
+      "destination_field": "account_id",
+      "transformation": "resolve_account",
+      "validation": "required FK",
+      "required": true,
+      "default": null,
+      "relationship": "financial_accounts",
+      "rejected_if": "unknown account",
+      "entity": "finance_transactions"
+    },
+    {
+      "source_field": "Project Code",
+      "destination_field": "project_id",
+      "transformation": "resolve_project",
+      "validation": "optional FK",
+      "required": false,
+      "default": null,
+      "relationship": "projects",
+      "rejected_if": "unknown project",
+      "entity": "finance_transactions"
+    },
+    {
+      "source_field": "Description",
+      "destination_field": "description",
+      "transformation": "trim",
+      "validation": "len<=500",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "\u2014",
+      "entity": "finance_transactions"
+    },
+    {
+      "source_field": "Status",
+      "destination_field": "status",
+      "transformation": "enum_map TransactionStatus",
+      "validation": "required",
+      "required": false,
+      "default": "completed",
+      "relationship": null,
+      "rejected_if": "unknown",
+      "entity": "finance_transactions"
+    },
+    {
+      "source_field": "External ID",
+      "destination_field": "external_ref",
+      "transformation": "trim",
+      "validation": "unique for idempotency",
+      "required": false,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "duplicate external_ref",
+      "entity": "finance_transactions"
+    },
+    {
+      "source_field": "Investor Email/Name",
+      "destination_field": "investor_id",
+      "transformation": "resolve_investor",
+      "validation": "required FK",
+      "required": true,
+      "default": null,
+      "relationship": "investors",
+      "rejected_if": "unknown investor",
+      "entity": "funding_commitments"
+    },
+    {
+      "source_field": "Project Code",
+      "destination_field": "project_id",
+      "transformation": "resolve_project",
+      "validation": "required FK",
+      "required": true,
+      "default": null,
+      "relationship": "projects",
+      "rejected_if": "unknown project",
+      "entity": "funding_commitments"
+    },
+    {
+      "source_field": "Commitment Type",
+      "destination_field": "commitment_type",
+      "transformation": "enum_map",
+      "validation": "equity|debt|\u2026",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "unknown",
+      "entity": "funding_commitments"
+    },
+    {
+      "source_field": "Committed Amount",
+      "destination_field": "committed_amount",
+      "transformation": "decimal",
+      "validation": ">0; never auto-merge",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "<=0",
+      "entity": "funding_commitments"
+    },
+    {
+      "source_field": "Funded Amount",
+      "destination_field": "funded_amount",
+      "transformation": "decimal",
+      "validation": "0..committed",
+      "required": false,
+      "default": "0",
+      "relationship": null,
+      "rejected_if": ">committed",
+      "entity": "funding_commitments"
+    },
+    {
+      "source_field": "Status",
+      "destination_field": "status",
+      "transformation": "enum_map CommitmentStatus",
+      "validation": "required",
+      "required": false,
+      "default": "proposed",
+      "relationship": null,
+      "rejected_if": "unknown",
+      "entity": "funding_commitments"
+    },
+    {
+      "source_field": "Currency",
+      "destination_field": "currency",
+      "transformation": "ISO-4217",
+      "validation": "required",
+      "required": true,
+      "default": "USD",
+      "relationship": null,
+      "rejected_if": "invalid",
+      "entity": "funding_commitments"
+    },
+    {
+      "source_field": "Title / Payee",
+      "destination_field": "title",
+      "transformation": "trim",
+      "validation": "required",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "blank",
+      "entity": "payment_obligations"
+    },
+    {
+      "source_field": "Obligation Type",
+      "destination_field": "obligation_type",
+      "transformation": "enum_map",
+      "validation": "vendor_payment|\u2026",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "unknown",
+      "entity": "payment_obligations"
+    },
+    {
+      "source_field": "Amount",
+      "destination_field": "amount",
+      "transformation": "decimal",
+      "validation": ">0",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "<=0",
+      "entity": "payment_obligations"
+    },
+    {
+      "source_field": "Due Date",
+      "destination_field": "due_date",
+      "transformation": "parse_date",
+      "validation": "required",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "bad date",
+      "entity": "payment_obligations"
+    },
+    {
+      "source_field": "Status",
+      "destination_field": "status",
+      "transformation": "enum_map ObligationStatus",
+      "validation": "required",
+      "required": false,
+      "default": "upcoming",
+      "relationship": null,
+      "rejected_if": "unknown",
+      "entity": "payment_obligations"
+    },
+    {
+      "source_field": "Project Code",
+      "destination_field": "project_id",
+      "transformation": "resolve_project",
+      "validation": "optional",
+      "required": false,
+      "default": null,
+      "relationship": "projects",
+      "rejected_if": "unknown",
+      "entity": "payment_obligations"
+    },
+    {
+      "source_field": "Currency",
+      "destination_field": "currency",
+      "transformation": "ISO-4217",
+      "validation": "required",
+      "required": true,
+      "default": "USD",
+      "relationship": null,
+      "rejected_if": "invalid",
+      "entity": "payment_obligations"
+    },
+    {
+      "source_field": "File Path / URI",
+      "destination_field": "storage_path",
+      "transformation": "normalize_path",
+      "validation": "file must exist",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "missing file",
+      "entity": "documents"
+    },
+    {
+      "source_field": "Original Filename",
+      "destination_field": "original_filename",
+      "transformation": "basename",
+      "validation": "required",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "blank",
+      "entity": "documents"
+    },
+    {
+      "source_field": "Document Type",
+      "destination_field": "document_type",
+      "transformation": "enum_map",
+      "validation": "contract|invoice|\u2026",
+      "required": false,
+      "default": "other",
+      "relationship": null,
+      "rejected_if": "unknown",
+      "entity": "documents"
+    },
+    {
+      "source_field": "Checksum SHA256",
+      "destination_field": "checksum",
+      "transformation": "hex",
+      "validation": "required for recon",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "mismatch",
+      "entity": "documents"
+    },
+    {
+      "source_field": "Entity Type",
+      "destination_field": "link.entity_type",
+      "transformation": "enum",
+      "validation": "project|lead|investor|\u2026",
+      "required": false,
+      "default": null,
+      "relationship": "document_links",
+      "rejected_if": "unknown entity type",
+      "entity": "documents"
+    },
+    {
+      "source_field": "Entity Key",
+      "destination_field": "link.entity_id",
+      "transformation": "resolve_entity",
+      "validation": "optional FK",
+      "required": false,
+      "default": null,
+      "relationship": "target table",
+      "rejected_if": "orphan link",
+      "entity": "documents"
+    },
+    {
+      "source_field": "Email",
+      "destination_field": "email",
+      "transformation": "lower(trim)",
+      "validation": "unique required; not *.demo",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "demo domain / invalid",
+      "entity": "users"
+    },
+    {
+      "source_field": "Full Name",
+      "destination_field": "full_name",
+      "transformation": "trim",
+      "validation": "required",
+      "required": true,
+      "default": null,
+      "relationship": null,
+      "rejected_if": "blank",
+      "entity": "users"
+    },
+    {
+      "source_field": "Role Codes",
+      "destination_field": "roles",
+      "transformation": "split_comma\u2192Role.code",
+      "validation": "must exist",
+      "required": true,
+      "default": null,
+      "relationship": "roles.code",
+      "rejected_if": "unknown role",
+      "entity": "users"
+    },
+    {
+      "source_field": "Active",
+      "destination_field": "is_active",
+      "transformation": "bool",
+      "validation": "default true",
+      "required": false,
+      "default": "true",
+      "relationship": null,
+      "rejected_if": "\u2014",
+      "entity": "users"
+    },
+    {
+      "source_field": "Force Password Reset",
+      "destination_field": "must_reset_password",
+      "transformation": "bool",
+      "validation": "default true for import",
+      "required": false,
+      "default": "true",
+      "relationship": null,
+      "rejected_if": "\u2014",
+      "entity": "users"
+    }
+  ],
+  "by_entity": {
+    "crm_contacts": [
+      {
+        "source_field": "Email",
+        "destination_field": "primary_email",
+        "transformation": "lower(trim)",
+        "validation": "email format; unique",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "invalid/missing email",
+        "entity": "crm_contacts"
+      },
+      {
+        "source_field": "Full Name / Display Name",
+        "destination_field": "display_name",
+        "transformation": "trim",
+        "validation": "len 1..255",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "blank name",
+        "entity": "crm_contacts"
+      },
+      {
+        "source_field": "Phone",
+        "destination_field": "primary_phone",
+        "transformation": "normalize_e164_or_passthrough",
+        "validation": "optional",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "\u2014",
+        "entity": "crm_contacts"
+      },
+      {
+        "source_field": "Company / Organization",
+        "destination_field": "organization_name",
+        "transformation": "trim",
+        "validation": "optional",
+        "required": false,
+        "default": null,
+        "relationship": "crm_companies.name?",
+        "rejected_if": "\u2014",
+        "entity": "crm_contacts"
+      },
+      {
+        "source_field": "Contact Type",
+        "destination_field": "contact_type",
+        "transformation": "enum_map",
+        "validation": "person|company|\u2026",
+        "required": false,
+        "default": "person",
+        "relationship": null,
+        "rejected_if": "unknown type",
+        "entity": "crm_contacts"
+      },
+      {
+        "source_field": "Tags",
+        "destination_field": "tags",
+        "transformation": "split_comma",
+        "validation": "list[str]",
+        "required": false,
+        "default": "[]",
+        "relationship": null,
+        "rejected_if": "\u2014",
+        "entity": "crm_contacts"
+      }
+    ],
+    "crm_companies": [
+      {
+        "source_field": "Company Name",
+        "destination_field": "display_name",
+        "transformation": "trim",
+        "validation": "len 1..255; unique-ish",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "blank name",
+        "entity": "crm_companies"
+      },
+      {
+        "source_field": "Domain / Website",
+        "destination_field": "website",
+        "transformation": "normalize_url",
+        "validation": "optional url",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "\u2014",
+        "entity": "crm_companies"
+      },
+      {
+        "source_field": "Industry",
+        "destination_field": "industry",
+        "transformation": "trim",
+        "validation": "optional",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "\u2014",
+        "entity": "crm_companies"
+      },
+      {
+        "source_field": "Phone",
+        "destination_field": "phone",
+        "transformation": "normalize",
+        "validation": "optional",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "\u2014",
+        "entity": "crm_companies"
+      }
+    ],
+    "leads": [
+      {
+        "source_field": "Full Name",
+        "destination_field": "full_name",
+        "transformation": "trim",
+        "validation": "required",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "blank",
+        "entity": "leads"
+      },
+      {
+        "source_field": "Email",
+        "destination_field": "email",
+        "transformation": "lower(trim)",
+        "validation": "email optional but preferred",
+        "required": false,
+        "default": null,
+        "relationship": "crm_contacts?",
+        "rejected_if": "invalid email",
+        "entity": "leads"
+      },
+      {
+        "source_field": "Phone",
+        "destination_field": "phone",
+        "transformation": "normalize",
+        "validation": "optional",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "\u2014",
+        "entity": "leads"
+      },
+      {
+        "source_field": "Country",
+        "destination_field": "country",
+        "transformation": "trim",
+        "validation": "optional",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "\u2014",
+        "entity": "leads"
+      },
+      {
+        "source_field": "Source",
+        "destination_field": "source",
+        "transformation": "trim|map",
+        "validation": "optional",
+        "required": false,
+        "default": "import",
+        "relationship": null,
+        "rejected_if": "\u2014",
+        "entity": "leads"
+      },
+      {
+        "source_field": "Status / Stage",
+        "destination_field": "status",
+        "transformation": "enum_map LeadStatus",
+        "validation": "New|Contacted|\u2026",
+        "required": false,
+        "default": "New",
+        "relationship": null,
+        "rejected_if": "unknown status",
+        "entity": "leads"
+      },
+      {
+        "source_field": "Company",
+        "destination_field": "company",
+        "transformation": "trim",
+        "validation": "optional",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "\u2014",
+        "entity": "leads"
+      },
+      {
+        "source_field": "Estimated Budget",
+        "destination_field": "estimated_budget",
+        "transformation": "decimal(14,2)",
+        "validation": ">=0; currency separate",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "negative/non-numeric",
+        "entity": "leads"
+      },
+      {
+        "source_field": "Interested Project",
+        "destination_field": "interested_project",
+        "transformation": "trim|resolve_project_code",
+        "validation": "soft ref",
+        "required": false,
+        "default": null,
+        "relationship": "projects.project_code",
+        "rejected_if": "orphan soft-ref logged",
+        "entity": "leads"
+      },
+      {
+        "source_field": "Assigned To",
+        "destination_field": "assigned_to",
+        "transformation": "trim",
+        "validation": "legacy string",
+        "required": false,
+        "default": null,
+        "relationship": "users.email?",
+        "rejected_if": "\u2014",
+        "entity": "leads"
+      }
+    ],
+    "investors": [
+      {
+        "source_field": "Investor Name",
+        "destination_field": "full_name",
+        "transformation": "trim",
+        "validation": "required",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "blank",
+        "entity": "investors"
+      },
+      {
+        "source_field": "Email",
+        "destination_field": "email",
+        "transformation": "lower(trim)",
+        "validation": "unique preferred",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "invalid email",
+        "entity": "investors"
+      },
+      {
+        "source_field": "Type",
+        "destination_field": "investor_type",
+        "transformation": "enum_map InvestorType",
+        "validation": "individual|company|\u2026",
+        "required": false,
+        "default": "individual",
+        "relationship": null,
+        "rejected_if": "unknown type",
+        "entity": "investors"
+      },
+      {
+        "source_field": "Status",
+        "destination_field": "status",
+        "transformation": "enum_map InvestorStatus",
+        "validation": "lifecycle",
+        "required": false,
+        "default": "new_investor",
+        "relationship": null,
+        "rejected_if": "unknown status",
+        "entity": "investors"
+      },
+      {
+        "source_field": "Country",
+        "destination_field": "country",
+        "transformation": "trim",
+        "validation": "optional",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "\u2014",
+        "entity": "investors"
+      },
+      {
+        "source_field": "Phone",
+        "destination_field": "phone",
+        "transformation": "normalize",
+        "validation": "optional",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "\u2014",
+        "entity": "investors"
+      }
+    ],
+    "projects": [
+      {
+        "source_field": "Project Code",
+        "destination_field": "project_code",
+        "transformation": "upper(trim)",
+        "validation": "unique required",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "blank/duplicate",
+        "entity": "projects"
+      },
+      {
+        "source_field": "Project Name",
+        "destination_field": "project_name",
+        "transformation": "trim",
+        "validation": "required",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "blank",
+        "entity": "projects"
+      },
+      {
+        "source_field": "Status",
+        "destination_field": "status",
+        "transformation": "enum_map",
+        "validation": "pipeline|\u2026",
+        "required": false,
+        "default": "pipeline",
+        "relationship": null,
+        "rejected_if": "unknown",
+        "entity": "projects"
+      },
+      {
+        "source_field": "Project Type",
+        "destination_field": "project_type",
+        "transformation": "trim|enum",
+        "validation": "optional",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "\u2014",
+        "entity": "projects"
+      },
+      {
+        "source_field": "City / Location",
+        "destination_field": "location_city",
+        "transformation": "trim",
+        "validation": "optional",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "\u2014",
+        "entity": "projects"
+      },
+      {
+        "source_field": "Total Units (manual)",
+        "destination_field": "total_units",
+        "transformation": "int",
+        "validation": ">=0; prefer rollup later",
+        "required": false,
+        "default": "0",
+        "relationship": null,
+        "rejected_if": "negative",
+        "entity": "projects"
+      }
+    ],
+    "inventory_assets": [
+      {
+        "source_field": "Unit Code",
+        "destination_field": "asset_code",
+        "transformation": "trim",
+        "validation": "unique per project",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "blank",
+        "entity": "inventory_assets"
+      },
+      {
+        "source_field": "Project Code",
+        "destination_field": "project_id",
+        "transformation": "resolve_project",
+        "validation": "required FK",
+        "required": true,
+        "default": null,
+        "relationship": "projects.project_code",
+        "rejected_if": "unknown project",
+        "entity": "inventory_assets"
+      },
+      {
+        "source_field": "Building Code",
+        "destination_field": "building_id",
+        "transformation": "resolve_building",
+        "validation": "required FK",
+        "required": true,
+        "default": null,
+        "relationship": "buildings.code",
+        "rejected_if": "unknown building",
+        "entity": "inventory_assets"
+      },
+      {
+        "source_field": "Floor Code",
+        "destination_field": "floor_id",
+        "transformation": "resolve_floor",
+        "validation": "optional FK",
+        "required": false,
+        "default": null,
+        "relationship": "floors.code",
+        "rejected_if": "unknown floor",
+        "entity": "inventory_assets"
+      },
+      {
+        "source_field": "Asset Type",
+        "destination_field": "asset_type",
+        "transformation": "enum_map InventoryAssetType",
+        "validation": "residential_unit|\u2026",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "unknown type",
+        "entity": "inventory_assets"
+      },
+      {
+        "source_field": "Sales Status",
+        "destination_field": "sales_status",
+        "transformation": "enum_map",
+        "validation": "available_for_sale|\u2026",
+        "required": false,
+        "default": "not_for_sale",
+        "relationship": null,
+        "rejected_if": "unknown",
+        "entity": "inventory_assets"
+      },
+      {
+        "source_field": "List Price",
+        "destination_field": "list_price",
+        "transformation": "decimal",
+        "validation": ">=0 currency USD/TRY",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "negative",
+        "entity": "inventory_assets"
+      },
+      {
+        "source_field": "Currency",
+        "destination_field": "currency",
+        "transformation": "upper ISO-4217",
+        "validation": "3-letter",
+        "required": false,
+        "default": "USD",
+        "relationship": null,
+        "rejected_if": "invalid currency",
+        "entity": "inventory_assets"
+      }
+    ],
+    "inventory_reservations": [
+      {
+        "source_field": "Reservation ID (source)",
+        "destination_field": "external_ref",
+        "transformation": "trim",
+        "validation": "unique source key",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "blank",
+        "entity": "inventory_reservations"
+      },
+      {
+        "source_field": "Unit Code",
+        "destination_field": "inventory_asset_id",
+        "transformation": "resolve_asset",
+        "validation": "required FK",
+        "required": true,
+        "default": null,
+        "relationship": "inventory_assets",
+        "rejected_if": "orphan unit",
+        "entity": "inventory_reservations"
+      },
+      {
+        "source_field": "Party Email",
+        "destination_field": "party_ref",
+        "transformation": "resolve_contact_or_lead",
+        "validation": "required",
+        "required": true,
+        "default": null,
+        "relationship": "crm_contacts|leads",
+        "rejected_if": "unknown party",
+        "entity": "inventory_reservations"
+      },
+      {
+        "source_field": "Status",
+        "destination_field": "status",
+        "transformation": "enum_map ReservationRecordStatus",
+        "validation": "required",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "unknown",
+        "entity": "inventory_reservations"
+      },
+      {
+        "source_field": "Deposit Amount",
+        "destination_field": "deposit_amount",
+        "transformation": "decimal",
+        "validation": ">=0; NEVER auto-merge",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "negative/non-numeric",
+        "entity": "inventory_reservations"
+      }
+    ],
+    "financial_accounts": [
+      {
+        "source_field": "Account Name",
+        "destination_field": "account_name",
+        "transformation": "trim",
+        "validation": "required",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "blank",
+        "entity": "financial_accounts"
+      },
+      {
+        "source_field": "Account Type",
+        "destination_field": "account_type",
+        "transformation": "enum_map AccountType",
+        "validation": "operating|project|escrow|\u2026",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "unknown",
+        "entity": "financial_accounts"
+      },
+      {
+        "source_field": "Institution",
+        "destination_field": "institution_name",
+        "transformation": "trim",
+        "validation": "optional",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "\u2014",
+        "entity": "financial_accounts"
+      },
+      {
+        "source_field": "Currency",
+        "destination_field": "currency",
+        "transformation": "ISO-4217",
+        "validation": "required",
+        "required": true,
+        "default": "USD",
+        "relationship": null,
+        "rejected_if": "invalid",
+        "entity": "financial_accounts"
+      },
+      {
+        "source_field": "Current Balance (source)",
+        "destination_field": "current_balance",
+        "transformation": "decimal",
+        "validation": "must match bank stmt",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "non-numeric",
+        "entity": "financial_accounts"
+      },
+      {
+        "source_field": "Account Reference",
+        "destination_field": "account_reference",
+        "transformation": "trim; mask in logs",
+        "validation": "optional last4",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "\u2014",
+        "entity": "financial_accounts"
+      }
+    ],
+    "finance_transactions": [
+      {
+        "source_field": "Txn Date",
+        "destination_field": "transaction_date",
+        "transformation": "parse_date ISO",
+        "validation": "required date",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "bad date",
+        "entity": "finance_transactions"
+      },
+      {
+        "source_field": "Type",
+        "destination_field": "transaction_type",
+        "transformation": "enum_map TransactionType",
+        "validation": "required",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "unknown type",
+        "entity": "finance_transactions"
+      },
+      {
+        "source_field": "Amount",
+        "destination_field": "amount",
+        "transformation": "decimal abs+sign rules",
+        "validation": "required !=0",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "zero/non-numeric",
+        "entity": "finance_transactions"
+      },
+      {
+        "source_field": "Currency",
+        "destination_field": "currency",
+        "transformation": "ISO-4217",
+        "validation": "match account",
+        "required": true,
+        "default": "USD",
+        "relationship": "financial_accounts.currency",
+        "rejected_if": "mismatch",
+        "entity": "finance_transactions"
+      },
+      {
+        "source_field": "Account Name/Ref",
+        "destination_field": "account_id",
+        "transformation": "resolve_account",
+        "validation": "required FK",
+        "required": true,
+        "default": null,
+        "relationship": "financial_accounts",
+        "rejected_if": "unknown account",
+        "entity": "finance_transactions"
+      },
+      {
+        "source_field": "Project Code",
+        "destination_field": "project_id",
+        "transformation": "resolve_project",
+        "validation": "optional FK",
+        "required": false,
+        "default": null,
+        "relationship": "projects",
+        "rejected_if": "unknown project",
+        "entity": "finance_transactions"
+      },
+      {
+        "source_field": "Description",
+        "destination_field": "description",
+        "transformation": "trim",
+        "validation": "len<=500",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "\u2014",
+        "entity": "finance_transactions"
+      },
+      {
+        "source_field": "Status",
+        "destination_field": "status",
+        "transformation": "enum_map TransactionStatus",
+        "validation": "required",
+        "required": false,
+        "default": "completed",
+        "relationship": null,
+        "rejected_if": "unknown",
+        "entity": "finance_transactions"
+      },
+      {
+        "source_field": "External ID",
+        "destination_field": "external_ref",
+        "transformation": "trim",
+        "validation": "unique for idempotency",
+        "required": false,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "duplicate external_ref",
+        "entity": "finance_transactions"
+      }
+    ],
+    "funding_commitments": [
+      {
+        "source_field": "Investor Email/Name",
+        "destination_field": "investor_id",
+        "transformation": "resolve_investor",
+        "validation": "required FK",
+        "required": true,
+        "default": null,
+        "relationship": "investors",
+        "rejected_if": "unknown investor",
+        "entity": "funding_commitments"
+      },
+      {
+        "source_field": "Project Code",
+        "destination_field": "project_id",
+        "transformation": "resolve_project",
+        "validation": "required FK",
+        "required": true,
+        "default": null,
+        "relationship": "projects",
+        "rejected_if": "unknown project",
+        "entity": "funding_commitments"
+      },
+      {
+        "source_field": "Commitment Type",
+        "destination_field": "commitment_type",
+        "transformation": "enum_map",
+        "validation": "equity|debt|\u2026",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "unknown",
+        "entity": "funding_commitments"
+      },
+      {
+        "source_field": "Committed Amount",
+        "destination_field": "committed_amount",
+        "transformation": "decimal",
+        "validation": ">0; never auto-merge",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "<=0",
+        "entity": "funding_commitments"
+      },
+      {
+        "source_field": "Funded Amount",
+        "destination_field": "funded_amount",
+        "transformation": "decimal",
+        "validation": "0..committed",
+        "required": false,
+        "default": "0",
+        "relationship": null,
+        "rejected_if": ">committed",
+        "entity": "funding_commitments"
+      },
+      {
+        "source_field": "Status",
+        "destination_field": "status",
+        "transformation": "enum_map CommitmentStatus",
+        "validation": "required",
+        "required": false,
+        "default": "proposed",
+        "relationship": null,
+        "rejected_if": "unknown",
+        "entity": "funding_commitments"
+      },
+      {
+        "source_field": "Currency",
+        "destination_field": "currency",
+        "transformation": "ISO-4217",
+        "validation": "required",
+        "required": true,
+        "default": "USD",
+        "relationship": null,
+        "rejected_if": "invalid",
+        "entity": "funding_commitments"
+      }
+    ],
+    "payment_obligations": [
+      {
+        "source_field": "Title / Payee",
+        "destination_field": "title",
+        "transformation": "trim",
+        "validation": "required",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "blank",
+        "entity": "payment_obligations"
+      },
+      {
+        "source_field": "Obligation Type",
+        "destination_field": "obligation_type",
+        "transformation": "enum_map",
+        "validation": "vendor_payment|\u2026",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "unknown",
+        "entity": "payment_obligations"
+      },
+      {
+        "source_field": "Amount",
+        "destination_field": "amount",
+        "transformation": "decimal",
+        "validation": ">0",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "<=0",
+        "entity": "payment_obligations"
+      },
+      {
+        "source_field": "Due Date",
+        "destination_field": "due_date",
+        "transformation": "parse_date",
+        "validation": "required",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "bad date",
+        "entity": "payment_obligations"
+      },
+      {
+        "source_field": "Status",
+        "destination_field": "status",
+        "transformation": "enum_map ObligationStatus",
+        "validation": "required",
+        "required": false,
+        "default": "upcoming",
+        "relationship": null,
+        "rejected_if": "unknown",
+        "entity": "payment_obligations"
+      },
+      {
+        "source_field": "Project Code",
+        "destination_field": "project_id",
+        "transformation": "resolve_project",
+        "validation": "optional",
+        "required": false,
+        "default": null,
+        "relationship": "projects",
+        "rejected_if": "unknown",
+        "entity": "payment_obligations"
+      },
+      {
+        "source_field": "Currency",
+        "destination_field": "currency",
+        "transformation": "ISO-4217",
+        "validation": "required",
+        "required": true,
+        "default": "USD",
+        "relationship": null,
+        "rejected_if": "invalid",
+        "entity": "payment_obligations"
+      }
+    ],
+    "documents": [
+      {
+        "source_field": "File Path / URI",
+        "destination_field": "storage_path",
+        "transformation": "normalize_path",
+        "validation": "file must exist",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "missing file",
+        "entity": "documents"
+      },
+      {
+        "source_field": "Original Filename",
+        "destination_field": "original_filename",
+        "transformation": "basename",
+        "validation": "required",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "blank",
+        "entity": "documents"
+      },
+      {
+        "source_field": "Document Type",
+        "destination_field": "document_type",
+        "transformation": "enum_map",
+        "validation": "contract|invoice|\u2026",
+        "required": false,
+        "default": "other",
+        "relationship": null,
+        "rejected_if": "unknown",
+        "entity": "documents"
+      },
+      {
+        "source_field": "Checksum SHA256",
+        "destination_field": "checksum",
+        "transformation": "hex",
+        "validation": "required for recon",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "mismatch",
+        "entity": "documents"
+      },
+      {
+        "source_field": "Entity Type",
+        "destination_field": "link.entity_type",
+        "transformation": "enum",
+        "validation": "project|lead|investor|\u2026",
+        "required": false,
+        "default": null,
+        "relationship": "document_links",
+        "rejected_if": "unknown entity type",
+        "entity": "documents"
+      },
+      {
+        "source_field": "Entity Key",
+        "destination_field": "link.entity_id",
+        "transformation": "resolve_entity",
+        "validation": "optional FK",
+        "required": false,
+        "default": null,
+        "relationship": "target table",
+        "rejected_if": "orphan link",
+        "entity": "documents"
+      }
+    ],
+    "users": [
+      {
+        "source_field": "Email",
+        "destination_field": "email",
+        "transformation": "lower(trim)",
+        "validation": "unique required; not *.demo",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "demo domain / invalid",
+        "entity": "users"
+      },
+      {
+        "source_field": "Full Name",
+        "destination_field": "full_name",
+        "transformation": "trim",
+        "validation": "required",
+        "required": true,
+        "default": null,
+        "relationship": null,
+        "rejected_if": "blank",
+        "entity": "users"
+      },
+      {
+        "source_field": "Role Codes",
+        "destination_field": "roles",
+        "transformation": "split_comma\u2192Role.code",
+        "validation": "must exist",
+        "required": true,
+        "default": null,
+        "relationship": "roles.code",
+        "rejected_if": "unknown role",
+        "entity": "users"
+      },
+      {
+        "source_field": "Active",
+        "destination_field": "is_active",
+        "transformation": "bool",
+        "validation": "default true",
+        "required": false,
+        "default": "true",
+        "relationship": null,
+        "rejected_if": "\u2014",
+        "entity": "users"
+      },
+      {
+        "source_field": "Force Password Reset",
+        "destination_field": "must_reset_password",
+        "transformation": "bool",
+        "validation": "default true for import",
+        "required": false,
+        "default": "true",
+        "relationship": null,
+        "rejected_if": "\u2014",
+        "entity": "users"
+      }
+    ]
+  }
+}

@@ -11,7 +11,6 @@ import { InventoryMatchingPanel } from '@/app/dashboard/sales/_components/invent
 import { EntityDocumentsPanel } from '@/app/dashboard/_components/entity-documents-panel';
 import { hasPermission } from '@/lib/api/auth';
 import {
-  fetchLeadInventoryInterests,
   fetchLeadDetailSummary,
   fetchLeadFollowUps,
   fetchLeadQualification,
@@ -22,11 +21,9 @@ import {
   recalculateLeadScore,
   createLeadFollowUp,
   completeLeadFollowUp,
-  deleteLeadInventoryInterest,
   type LeadQualification,
   type LeadScore,
   type LeadFollowUp,
-  type LeadInventoryInterest,
   type LeadTimelineEntry,
   type LeadDetailSummary,
   type QualificationStatus,
@@ -74,7 +71,6 @@ export function LeadDetailPage({ leadId }: LeadDetailPageProps) {
     getQualificationStatusLabel,
     getFollowUpTypeLabel,
     getScoreComponentLabel,
-    getInterestTypeLabel,
     qualificationStatusOptions,
     investmentObjectiveOptions,
     cashOrFinancingOptions,
@@ -88,7 +84,6 @@ export function LeadDetailPage({ leadId }: LeadDetailPageProps) {
   const [qualification, setQualification] = useState<LeadQualification | null>(null);
   const [score, setScore] = useState<LeadScore | null>(null);
   const [opportunities, setOpportunities] = useState<SalesOpportunity[]>([]);
-  const [interests, setInterests] = useState<LeadInventoryInterest[]>([]);
   const [followUps, setFollowUps] = useState<LeadFollowUp[]>([]);
   const [reservations, setReservations] = useState<InventoryReservation[]>([]);
   const [timeline, setTimeline] = useState<LeadTimelineEntry[]>([]);
@@ -110,14 +105,13 @@ export function LeadDetailPage({ leadId }: LeadDetailPageProps) {
     setLoading(true);
     setError(null);
     try {
-      const [leadData, summaryData, qualData, scoreData, opps, interestData, followUpData, timelineData] =
+      const [leadData, summaryData, qualData, scoreData, opps, followUpData, timelineData] =
         await Promise.all([
           fetchLead(leadId),
           fetchLeadDetailSummary(leadId),
           fetchLeadQualification(leadId),
           fetchLeadScore(leadId),
           fetchOpportunities({ lead_id: leadId, limit: 50 }),
-          fetchLeadInventoryInterests(leadId),
           fetchLeadFollowUps(leadId),
           fetchLeadTimeline(leadId),
         ]);
@@ -126,7 +120,6 @@ export function LeadDetailPage({ leadId }: LeadDetailPageProps) {
       setQualification(qualData);
       setScore(scoreData);
       setOpportunities(opps.items);
-      setInterests(interestData);
       setFollowUps(followUpData);
       setTimeline(timelineData);
       if (canViewReservations) {
@@ -327,6 +320,22 @@ export function LeadDetailPage({ leadId }: LeadDetailPageProps) {
               <DetailField label={tLeads('detail.assignedTo')} value={lead.assigned_to ?? tCommon('noValue')} />
               <DetailField label={tLeads('detail.budget')} value={formatBudget(lead.estimated_budget, locale)} />
               <DetailField label={tLeads('detail.project')} value={lead.interested_project ?? tCommon('noValue')} />
+              <DetailField
+                label={tLeads('detail.attribution')}
+                value={lead.attribution?.campaign_name ?? tCommon('noValue')}
+              />
+              <DetailField
+                label={tLeads('detail.attributionSource')}
+                value={lead.attribution?.attribution_source ?? tCommon('noValue')}
+              />
+              <DetailField
+                label={tLeads('detail.utmSource')}
+                value={lead.attribution?.utm_source ?? tCommon('noValue')}
+              />
+              <DetailField
+                label={tLeads('detail.attributionStatus')}
+                value={lead.attribution?.attribution_status ?? tCommon('noValue')}
+              />
               <DetailField label={t('overview.company')} value={lead.company ?? tCommon('noValue')} />
               <DetailField label={t('overview.preferredMarket')} value={lead.preferred_market ?? tCommon('noValue')} />
               <DetailField label={t('overview.opportunities')} value={summary?.opportunity_count ?? 0} />

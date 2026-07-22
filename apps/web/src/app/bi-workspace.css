@@ -1,0 +1,472 @@
+/* Product Polish P9 — Business Intelligence Workspace */
+
+.bi-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  animation: ih-fade-in var(--motion-duration-md, 220ms) ease;
+}
+
+.bi-workspace__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.bi-workspace__eyebrow {
+  margin: 0 0 0.25rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand-primary);
+  font-weight: 600;
+}
+
+.bi-workspace__title {
+  margin: 0;
+  font-size: clamp(1.5rem, 2vw, 1.85rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.bi-workspace__subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  max-width: 46rem;
+  line-height: 1.45;
+}
+
+.bi-workspace__header-actions,
+.bi-workspace__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.bi-workspace__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--surface) 92%, var(--brand-primary) 8%);
+  overflow-x: auto;
+}
+
+.bi-workspace__nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.75rem;
+  border-radius: 0.55rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background var(--motion-duration-fast, 140ms) ease, color var(--motion-duration-fast, 140ms) ease;
+}
+
+.bi-workspace__nav-link:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+
+.bi-workspace__nav-link--active {
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.bi-workspace__ai-label {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding: 0.65rem 0.85rem;
+  border-left: 3px solid var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--surface));
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.bi-workspace__empty,
+.bi-workspace__error {
+  margin: 0;
+  padding: 1rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.bi-workspace__error {
+  color: var(--danger, #b42318);
+}
+
+.bi-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+.bi-filters__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.bi-filters__chip {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.bi-filters__chip--active,
+.bi-filters__chip[aria-pressed='true'] {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--brand-primary) 45%, var(--border));
+  background: color-mix(in srgb, var(--brand-primary) 12%, var(--surface));
+}
+
+.bi-filters__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.65rem;
+}
+
+.bi-filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.bi-filters__field input,
+.bi-filters__field select,
+.bi-builder input,
+.bi-builder select {
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  background: var(--bg, var(--surface));
+  color: var(--text);
+  padding: 0.4rem 0.5rem;
+  font-size: 0.85rem;
+  min-width: 0;
+}
+
+.bi-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 0.85rem;
+  margin-top: 0.75rem;
+}
+
+.bi-metric__link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.bi-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--surface) 96%, var(--brand-primary) 4%);
+  min-height: 8.5rem;
+}
+
+.bi-metric--unavailable,
+.bi-metric--permission {
+  opacity: 0.85;
+  background: color-mix(in srgb, var(--surface) 94%, #888 6%);
+}
+
+.bi-metric__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.bi-metric__label {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.bi-metric__freshness {
+  font-size: 0.7rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.bi-metric__value {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.bi-metric__unit {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.bi-metric__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.bi-metric__delta--neg {
+  color: var(--danger, #b42318);
+}
+
+.bi-metric__delta--na {
+  opacity: 0.8;
+}
+
+.bi-metric__def,
+.bi-metric__source,
+.bi-metric__reason {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.bi-section {
+  margin-top: 0.25rem;
+}
+
+.bi-section__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.bi-section__notes {
+  margin: 0 0 0.75rem;
+  padding-left: 1.1rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.bi-section__charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+  overflow: hidden;
+}
+
+.bi-chart__svg {
+  width: 100%;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.bi-chart__area {
+  fill: color-mix(in srgb, var(--brand-primary) 22%, transparent);
+}
+
+.bi-chart__line {
+  stroke: var(--brand-primary);
+  stroke-width: 2;
+}
+
+.bi-chart__labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 0.35rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.bi-funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.bi-funnel__row {
+  display: grid;
+  grid-template-columns: 7rem 1fr 3rem;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
+.bi-funnel__bar-track {
+  height: 0.65rem;
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bi-funnel__bar {
+  height: 100%;
+  background: var(--brand-primary);
+  border-radius: 999px;
+}
+
+.bi-funnel__bar--unavailable,
+.bi-funnel__bar--empty {
+  background: color-mix(in srgb, var(--muted) 40%, transparent);
+}
+
+.bi-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+}
+
+.bi-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.bi-table th,
+.bi-table td {
+  text-align: left;
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.bi-table th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bi-missing ul {
+  margin: 0.5rem 0 0.75rem;
+  padding-left: 1.1rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.bi-dq-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.bi-dq-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+}
+
+.bi-dq-list__item--critical {
+  border-color: color-mix(in srgb, var(--danger, #b42318) 45%, var(--border));
+}
+
+.bi-dq-list__item--warning {
+  border-color: color-mix(in srgb, #b54708 40%, var(--border));
+}
+
+.bi-dq-list__item small {
+  color: var(--muted);
+}
+
+.bi-builder__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.bi-builder__metrics {
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  padding: 0.75rem;
+}
+
+.bi-builder__metric-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 0.65rem;
+  max-height: 22rem;
+  overflow: auto;
+}
+
+.bi-builder__metric {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  font-size: 0.82rem;
+}
+
+.bi-builder__metric small,
+.bi-builder__metric em {
+  display: block;
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.72rem;
+}
+
+.bi-section__charts .inv-portfolio-donut__legend,
+.bi-section__charts .inv-portfolio-hbar,
+.bi-section__charts .inv-detail-chart__labels {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .bi-funnel__row {
+    grid-template-columns: 1fr;
+  }
+
+  .bi-metric-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .bi-metric-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  .bi-workspace__nav,
+  .bi-filters,
+  .bi-workspace__header-actions,
+  .dashboard-shell__sidebar,
+  .dashboard-shell__header {
+    display: none !important;
+  }
+
+  .bi-workspace {
+    gap: 0.75rem;
+  }
+}
