@@ -1,7 +1,6 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { AdvancedQueryBuilder } from '../_components/advanced-query-builder';
-
+/** Standalone CRM Search removed — use Dashboard header Ctrl/Cmd+K. */
 export default function CrmAdvancedSearchPage() {
-  return <AdvancedQueryBuilder />;
+  redirect('/workspaces/crm/dashboard');
 }

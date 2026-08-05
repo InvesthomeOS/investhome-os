@@ -1,11 +1,9 @@
-import { CrmModuleShell } from '../_components/crm-module-shell';
+import { redirect } from 'next/navigation';
 
-export default function CrmFilesPage() {
-  return (
-    <CrmModuleShell
-      titleKey="modules.files.title"
-      descriptionKey="modules.files.description"
-      initializing
-    />
-  );
+/**
+ * Files module merged into Documents (CRM Belgeler).
+ * Preserve bookmark compatibility by redirecting to the unified workspace.
+ */
+export default function CrmFilesRedirectPage() {
+  redirect('/workspaces/crm/documents');
 }

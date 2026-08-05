@@ -1,7 +1,6 @@
 'use client';
 
-import Link from 'next/link';
-import type { Route } from 'next';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
@@ -20,11 +19,14 @@ export function CrmHeader() {
   const tCrm = useTranslations('crm');
   const { canRead } = useCrmAccess();
   const { openPalette } = useCrmSearchStore();
+  const [shortcut, setShortcut] = useState('Ctrl+K');
 
   useCrmSearchShortcuts();
 
-  const isMac = typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac');
-  const shortcut = isMac ? '⌘K' : 'Ctrl+K';
+  useEffect(() => {
+    const isMac = /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent);
+    setShortcut(isMac ? '⌘K' : 'Ctrl+K');
+  }, []);
 
   return (
     <header className="app-header">
@@ -39,12 +41,11 @@ export function CrmHeader() {
               <path d="M20 20 16.5 16.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
             <span className="global-search-trigger__label">{tCrm('searchTrigger')}</span>
-            <kbd className="global-search-trigger__kbd">{shortcut}</kbd>
+            <kbd className="global-search-trigger__kbd" suppressHydrationWarning>
+              {shortcut}
+            </kbd>
           </button>
         )}
-        <Link href={'/workspaces/crm/search' as Route} className="app-header__quick crm-search-link">
-          {tCrm('nav.search')}
-        </Link>
         <AiGlobalButton />
         <ThemeToggle />
         <LanguageSelector />

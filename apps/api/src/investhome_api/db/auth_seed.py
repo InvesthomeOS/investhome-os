@@ -19,7 +19,7 @@ from investhome_api.models.user_auth import (
 )
 from investhome_api.services.auth_service import hash_password
 
-DEMO_PASSWORD = "Demo123!"
+DEMO_PASSWORD = "Investhome2026!"
 
 ROLE_LABELS: dict[str, tuple[str, str]] = {
     "super_admin": ("Super Admin", "Full platform access"),

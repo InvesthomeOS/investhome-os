@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useTranslations } from 'next-intl';
-import { LoadingState } from '@investhome/ui';
+import { EmptyState, LoadingState } from '@investhome/ui';
 
 import { BiAreaPlaceholder, BiFunnel, DonutChart, HorizontalBarChart } from '@/components/analytics/bi-charts';
 import { useAiCopilot } from '@/lib/ai/ai-copilot-context';
@@ -142,7 +142,7 @@ export function BiDomainPage({
     >
       <p className="bi-workspace__ai-label">{t('ai.disclaimer')}</p>
 
-      {loading ? <LoadingState label={t('states.loading')} /> : null}
+      {loading ? <LoadingState label={t('states.loading')} lines={6} /> : null}
       {error ? (
         <div className="ih-panel">
           <div className="ih-panel__body">
@@ -151,7 +151,15 @@ export function BiDomainPage({
         </div>
       ) : null}
 
-      {!loading && !error && data
+      {!loading && !error && data && data.sections.length === 0 ? (
+        <EmptyState
+          title={t('states.empty')}
+          description={t('states.unavailable')}
+          className="bi-workspace__empty-panel"
+        />
+      ) : null}
+
+      {!loading && !error && data && data.sections.length > 0
         ? data.sections.map((section) => (
             <section key={section.key} className="bi-section ih-panel">
               <div className="ih-panel__body">

@@ -232,7 +232,11 @@ export function LeadDetailPage({ leadId }: LeadDetailPageProps) {
   }
 
   if (loading) {
-    return <p className="leads__state">{tCommon('loading')}</p>;
+    return (
+      <div className="leads__state" role="status" aria-live="polite">
+        <p>{tCommon('loading')}</p>
+      </div>
+    );
   }
 
   if (error || !lead) {

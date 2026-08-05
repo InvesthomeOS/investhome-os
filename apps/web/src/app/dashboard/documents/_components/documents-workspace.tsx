@@ -23,6 +23,7 @@ import { useDocumentLabels } from '@/lib/i18n/document-labels';
 import { useRecordDeepLink } from '@/lib/hooks/use-record-deep-link';
 import { hasPermission } from '@/lib/api/auth';
 import { useAuth } from '@/lib/auth/auth-context';
+import { EmptyState, LoadingState } from '@investhome/ui';
 
 import { DocumentUploadPanel } from './document-upload-panel';
 
@@ -474,17 +475,20 @@ export function DocumentsWorkspace() {
       )}
 
       {loading ? (
-        <p className="leads-page__loading">{tCommon('loading')}</p>
+        <LoadingState label={tCommon('loading')} lines={6} />
       ) : documents.length === 0 ? (
-        <div className="documents-empty">
-          <h2>{t('emptyTitle')}</h2>
-          <p>{t('emptyDescription')}</p>
-          {canCreate && (
-            <button type="button" className="leads__button leads__button--primary" onClick={() => setShowUpload(true)}>
-              {t('uploadDocuments')}
-            </button>
-          )}
-        </div>
+        <EmptyState
+          title={t('emptyTitle')}
+          description={t('emptyDescription')}
+          className="documents-empty"
+          action={
+            canCreate ? (
+              <button type="button" className="leads__button leads__button--primary" onClick={() => setShowUpload(true)}>
+                {t('uploadDocuments')}
+              </button>
+            ) : undefined
+          }
+        />
       ) : viewMode === 'table' ? (
         <div className="leads-table-wrap">
           <table className="leads-table documents-table">

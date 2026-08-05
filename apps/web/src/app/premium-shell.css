@@ -4,6 +4,7 @@
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   min-height: 100vh;
+  overflow-x: clip;
   background:
     radial-gradient(1200px 480px at 0% 0%, color-mix(in srgb, var(--brand-primary) 5%, transparent), transparent 62%),
     var(--bg);
@@ -132,6 +133,7 @@
 
 .dashboard-shell__sidebar--collapsed .dashboard-shell__brand-text,
 .dashboard-shell__sidebar--collapsed .dashboard-shell__workspace-chip,
+.dashboard-shell__sidebar--collapsed .dashboard-shell__brand-text,
 .dashboard-shell__sidebar--collapsed .dashboard-shell__nav-section,
 .dashboard-shell__sidebar--collapsed .dashboard-shell__nav-badge,
 .dashboard-shell__sidebar--collapsed .dashboard-shell__nav-link-label,
@@ -192,7 +194,8 @@
   margin-top: 0;
 }
 
-.dashboard-shell__nav-link {
+.dashboard-shell__nav-link,
+.dashboard-shell__nav-group-toggle {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -210,6 +213,63 @@
     color var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.dashboard-shell__nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.dashboard-shell__nav-group-toggle {
+  width: 100%;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.dashboard-shell__nav-group-toggle:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-muted) 88%, var(--workspace-accent, var(--brand-primary)) 12%);
+}
+
+.dashboard-shell__nav-group-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.dashboard-shell__nav-group-toggle--active {
+  color: var(--brand-primary-ink);
+  font-weight: 650;
+}
+
+.dashboard-shell__nav-group-chevron {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-left: auto;
+  opacity: 0.7;
+}
+
+.dashboard-shell__nav-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding-left: var(--space-2);
+}
+
+.dashboard-shell__nav-link--child {
+  min-height: 2.1rem;
+  padding-left: calc(var(--space-3) + 0.35rem);
+  font-size: 0.8125rem;
+}
+
+.dashboard-shell__sidebar--collapsed .dashboard-shell__nav-submenu {
+  padding-left: 0;
+}
+
+.dashboard-shell__sidebar--collapsed .dashboard-shell__nav-group-chevron {
+  display: none;
 }
 
 .dashboard-shell__nav-link-icon {
@@ -269,6 +329,11 @@
   padding-inline: 0.55rem;
 }
 
+.dashboard-shell__sidebar--collapsed .dashboard-shell__nav-group-toggle {
+  justify-content: center;
+  padding-inline: 0.55rem;
+}
+
 .dashboard-shell__nav-badge {
   font-size: 0.625rem;
   text-transform: uppercase;
@@ -284,7 +349,9 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  max-width: 100%;
   min-height: 100vh;
+  overflow-x: clip;
 }
 
 .app-header {
@@ -295,6 +362,8 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-6);
+  min-width: 0;
+  max-width: 100%;
   min-height: var(--header-height);
   padding: 0.7rem var(--space-8);
   border-bottom: 1px solid var(--border);
@@ -323,7 +392,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .app-header__icon-btn {
@@ -439,12 +509,64 @@
 
 .dashboard-shell__content {
   min-width: 0;
+  max-width: 100%;
   flex: 1;
   background: transparent;
+  overflow-x: clip;
 }
 
-/* Shared control rhythm */
-.dashboard-shell button:not(.dashboard-shell__collapse):not(.app-header__logout):not(.app-header__icon-btn),
+/* Shared content column — prevent child min-widths from expanding the shell */
+.dashboard-shell__content > *,
+.os-workspace-chrome__content > * {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.dashboard-shell__content > .dashboard,
+.os-workspace-chrome__content > .dashboard {
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin-inline: auto;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-shell__content > .dashboard,
+  .os-workspace-chrome__content > .dashboard {
+    padding-inline: var(--space-6);
+  }
+
+  .dashboard__header,
+  .leads-page__header,
+  .bi-workspace__header,
+  .ds-page-header {
+    flex-wrap: wrap;
+  }
+
+  .dashboard__header-actions,
+  .ds-page-header__actions,
+  .bi-workspace__header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-shell__content > .dashboard,
+  .os-workspace-chrome__content > .dashboard {
+    padding-inline: var(--space-4);
+  }
+}
+
+/* Shared control rhythm — exclude compact chrome (dots + WB icon/menu controls) */
+.dashboard-shell
+  button:not(.dashboard-shell__collapse):not(.app-header__logout):not(
+    .app-header__icon-btn
+  ):not(.cs-carousel-dots__dot):not(.wb-ws__icon-btn):not(
+    .wb-ws__section-more-item
+  ):not(.wb-ws__chip):not(.wb-ws__fit-btn):not(.wb-ws__collapse-trigger):not(
+    .wb-ws__step
+  ):not(.wb-ws__block-chip):not(.wb-ws__rail-asset):not(.wb-ws__quick-ai-card),
 .dashboard-shell .btn,
 .dashboard-shell input[type='text'],
 .dashboard-shell input[type='search'],
@@ -469,10 +591,62 @@
   transform: translateY(0.5px);
 }
 
-@media (max-width: 1100px) {
+/* G2: compact header before sidebar stacks — closes 961–1100px overflow gap */
+@media (max-width: 1200px) {
+  .app-header {
+    gap: 0.75rem;
+    padding-inline: var(--space-6);
+    overflow-x: clip;
+  }
+
+  .app-header__actions,
+  .dashboard__header-actions {
+    flex-shrink: 1;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .app-header__quick .app-header__quick-label,
-  .global-search-trigger__label {
+  .app-header__theme-label,
+  .dashboard__language-label,
+  .global-search-trigger__label,
+  .global-search-trigger__kbd,
+  .app-header__user-meta {
     display: none;
+  }
+
+  .global-search-trigger,
+  .global-search-trigger.crm-search-trigger {
+    min-width: auto;
+    padding-inline: 0.55rem;
+  }
+
+  .app-header__quick {
+    padding-inline: 0.55rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .app-header {
+    padding-inline: var(--space-4);
+  }
+
+  .app-header__quick {
+    /* icon-only quick action at tablet widths */
+    font-size: 0;
+    gap: 0;
+    padding: 0.4rem;
+    width: 2.25rem;
+    height: 2.25rem;
+    justify-content: center;
+  }
+
+  .app-header__quick > svg,
+  .app-header__quick .ih-icon {
+    font-size: 0.9375rem;
   }
 }
 

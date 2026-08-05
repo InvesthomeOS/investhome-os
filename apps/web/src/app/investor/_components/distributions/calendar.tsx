@@ -100,7 +100,11 @@ export function DistributionCalendar({ events }: DistributionCalendarProps) {
               ‹
             </button>
             <strong>
-              {displayMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              {displayMonth.toLocaleDateString('en-US', {
+                month: 'long',
+                year: 'numeric',
+                timeZone: 'UTC',
+              })}
             </strong>
             <button type="button" onClick={() => setMonthOffset((o) => o + 1)} aria-label="Next month">
               ›

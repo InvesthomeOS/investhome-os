@@ -97,7 +97,6 @@ export function CrmSearchPalette() {
     if (canTasks) {
       actions.push({ id: 'create-task', label: t('actions.createTask'), href: '/workspaces/crm/tasks' as Route, show: true });
     }
-    actions.push({ id: 'open-search', label: t('actions.openSearch'), href: '/workspaces/crm/search' as Route, show: true });
     return actions.filter((a) => a.show);
   }, [canCreate, canTasks, t]);
 
@@ -174,9 +173,6 @@ export function CrmSearchPalette() {
             aria-label={t('placeholder')}
             className="crm-search-palette__input"
           />
-          <Link href={'/workspaces/crm/search' as Route} className="crm-search-palette__advanced" onClick={closePalette}>
-            {t('advanced')}
-          </Link>
           <button type="button" className="crm-search-palette__close" onClick={closePalette}>
             {tCommon('close')}
           </button>

@@ -535,9 +535,10 @@ export function computePerformanceSeries(
       const monthKey = point.date.slice(0, 7);
       const existing = dateMap.get(monthKey) ?? {
         date: `${monthKey}-01`,
-        label: new Date(`${monthKey}-01`).toLocaleDateString('en-US', {
+        label: new Date(`${monthKey}-01T12:00:00.000Z`).toLocaleDateString('en-US', {
           month: 'short',
           year: '2-digit',
+          timeZone: 'UTC',
         }),
         investedCapital: 0,
         portfolioValue: 0,
@@ -622,7 +623,11 @@ export function computeCashFlow(investments: EnrichedPortfolioInvestment[]): Por
     .slice(-24)
     .map(([monthKey, data]) => ({
       date: `${monthKey}-01`,
-      label: new Date(`${monthKey}-01`).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+      label: new Date(`${monthKey}-01T12:00:00.000Z`).toLocaleDateString('en-US', {
+        month: 'short',
+        year: '2-digit',
+        timeZone: 'UTC',
+      }),
       actual: data.actual,
       projected: data.projected,
     }));
@@ -643,7 +648,7 @@ export function computeCashFlow(investments: EnrichedPortfolioInvestment[]): Por
     const projected = investments.reduce((s, inv) => s + inv.performance.annualCashFlow / 12, 0);
     nextTwelveMonths.push({
       date: `${monthKey}-01`,
-      label: d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      label: d.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }),
       actual: 0,
       projected,
     });

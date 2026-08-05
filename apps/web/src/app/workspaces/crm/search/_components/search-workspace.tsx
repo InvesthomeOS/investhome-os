@@ -11,10 +11,16 @@ import { Button, EmptyState, ErrorState, LoadingState } from '@investhome/ui';
 import { canExportCrm } from '@/lib/crm/crm-permissions';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import {
+  useClearRecentSearches,
   useCrmGlobalSearch,
+  useCrmQuickSearch,
+  useCrmRecentSearches,
   useExportSearchResults,
   useRecordRecentSearch,
+  useRemoveRecentSearch,
+  crmSearchQueries,
 } from '@/workspaces/crm/hooks/use-crm-search';
+import { useQuery } from '@tanstack/react-query';
 import { useCrmSearchStore } from '@/workspaces/crm/stores/crm-search-store';
 import { CRM_SEARCH_ENTITY_TYPES } from '@/workspaces/crm/types/search';
 import type { CrmSearchEntityType, CrmSearchResultItem } from '@/workspaces/crm/types/search';
@@ -76,6 +82,21 @@ export function SearchWorkspace() {
 
   const recordRecent = useRecordRecentSearch();
   const exportMutation = useExportSearchResults();
+  const recentQuery = useCrmRecentSearches();
+  const clearRecent = useClearRecentSearches();
+  const removeRecent = useRemoveRecentSearch();
+  const quickQuery = useCrmQuickSearch(query, query.trim().length >= 2 && !appliedQuery.trim());
+  const suggestionsQuery = useQuery({
+    ...crmSearchQueries.suggestions(query.trim().length >= 2 ? query : 'marina'),
+    enabled: !authLoading && canRead && !appliedQuery.trim(),
+  });
+
+  const SUGGESTED_FALLBACK = [
+    { label: 'Marina Heights', query: 'Marina Heights' },
+    { label: 'Ahmet Yılmaz', query: 'Ahmet Yılmaz' },
+    { label: 'VIP', query: 'tag:VIP' },
+    { label: 'Open opportunities', query: 'status:open' },
+  ];
 
   const entityTypes = useMemo(
     () => (activeEntityTab === 'all' ? undefined : [activeEntityTab]),
@@ -266,7 +287,106 @@ export function SearchWorkspace() {
           )}
 
           {!appliedQuery.trim() && (
-            <EmptyState title={t('hintTitle')} description={t('hint')} />
+            <div className="crm-search-home" data-testid="crm-search-home">
+              <section className="crm-search-home__section" aria-label={t('recentSearches')}>
+                <div className="crm-search-home__section-head">
+                  <h2>{t('recentSearches')}</h2>
+                  {recentQuery.data && recentQuery.data.length > 0 ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => void clearRecent.mutateAsync()}
+                    >
+                      {t('clearRecent')}
+                    </Button>
+                  ) : null}
+                </div>
+                {recentQuery.isLoading ? <LoadingState label={tCommon('loading')} /> : null}
+                {recentQuery.isError ? (
+                  <ErrorState title={t('errors.failed')} message={t('errors.failed')} />
+                ) : null}
+                {!recentQuery.isLoading && (!recentQuery.data || recentQuery.data.length === 0) ? (
+                  <EmptyState title={t('recentEmptyTitle')} description={t('recentEmpty')} />
+                ) : (
+                  <ul className="crm-search-home__list">
+                    {(recentQuery.data ?? []).slice(0, 8).map((item) => (
+                      <li key={item.id}>
+                        <button
+                          type="button"
+                          className="crm-search-home__chip"
+                          onClick={() => {
+                            setQuery(item.query);
+                            setAppliedQuery(item.query);
+                            router.replace(`/workspaces/crm/search?q=${encodeURIComponent(item.query)}` as Route);
+                          }}
+                        >
+                          {item.query}
+                        </button>
+                        <button
+                          type="button"
+                          className="crm-search-home__remove"
+                          aria-label={t('removeRecent')}
+                          onClick={() => void removeRecent.mutateAsync(item.id)}
+                        >
+                          ×
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              <section className="crm-search-home__section" aria-label={t('suggestedResults')}>
+                <h2>{t('suggestedResults')}</h2>
+                <ul className="crm-search-home__list">
+                  {(suggestionsQuery.data?.suggestions?.length
+                    ? suggestionsQuery.data.suggestions.slice(0, 6).map((s) => ({
+                        label: s.text,
+                        query: s.text,
+                      }))
+                    : SUGGESTED_FALLBACK
+                  ).map((item) => (
+                    <li key={item.query}>
+                      <button
+                        type="button"
+                        className="crm-search-home__chip"
+                        onClick={() => {
+                          setQuery(item.query);
+                          setAppliedQuery(item.query);
+                          router.replace(
+                            `/workspaces/crm/search?q=${encodeURIComponent(item.query)}` as Route,
+                          );
+                        }}
+                      >
+                        {item.label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              {query.trim().length >= 2 ? (
+                <section className="crm-search-home__section" aria-label={t('quickResults')}>
+                  <h2>{t('quickResults')}</h2>
+                  {quickQuery.isLoading ? <LoadingState label={tCommon('loading')} /> : null}
+                  {quickQuery.isError ? (
+                    <ErrorState title={t('errors.failed')} message={t('errors.failed')} />
+                  ) : null}
+                  {!quickQuery.isLoading && (!quickQuery.data?.items || quickQuery.data.items.length === 0) ? (
+                    <EmptyState title={t('empty')} description={t('zeroHint')} />
+                  ) : (
+                    <div className="crm-search-page__list crm-search-page__list--compact">
+                      {(quickQuery.data?.items ?? []).slice(0, 6).map((item) => (
+                        <SearchResultRow key={item.id} item={item} viewMode="compact" />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              ) : (
+                <EmptyState title={t('hintTitle')} description={t('hint')} />
+              )}
+            </div>
           )}
 
           {appliedQuery.trim() && !searchQuery.isLoading && searchQuery.data?.total === 0 && (

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { EmptyState, LoadingState } from '@investhome/ui';
 
 import {
   fetchKnowledgeOverview,
@@ -85,10 +86,12 @@ export function KnowledgeOverviewPage() {
 
   return (
     <KnowledgeHubShell>
-      {loading && <p>{t('loading')}</p>}
-      {error && <p className="leads-page__error" role="alert">{error}</p>}
+      {loading ? <LoadingState label={t('loading')} lines={6} /> : null}
+      {error ? (
+        <EmptyState title={t('loadError')} description={error} className="leads-page__error" />
+      ) : null}
 
-      {overview && (
+      {!loading && !error && overview ? (
         <>
           <section className="documents-overview knowledge-hub__widgets" aria-label={t('widgets.title')}>
             {widgets.map((w) => {
@@ -116,7 +119,7 @@ export function KnowledgeOverviewPage() {
             <p className="knowledge-hub__note">{t('providers.honestyNote')}</p>
           </section>
 
-          {pipeline && (
+          {pipeline ? (
             <section className="knowledge-hub__pipeline" aria-label={t('pipeline.title')}>
               <div className="knowledge-hub__section-head">
                 <h2 className="knowledge-hub__section-title">{t('pipeline.title')}</h2>
@@ -135,11 +138,11 @@ export function KnowledgeOverviewPage() {
                   </div>
                 ))}
               </div>
-              {pipeline.note && <p className="knowledge-hub__note">{pipeline.note}</p>}
+              {pipeline.note ? <p className="knowledge-hub__note">{pipeline.note}</p> : null}
             </section>
-          )}
+          ) : null}
         </>
-      )}
+      ) : null}
     </KnowledgeHubShell>
   );
 }

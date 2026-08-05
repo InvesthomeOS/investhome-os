@@ -120,6 +120,8 @@
   gap: 0.25rem;
   padding: 0.45rem 0.85rem;
   overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
   background: var(--mkt-surface-2);
   border-bottom: 1px solid var(--mkt-border);
 }
@@ -150,6 +152,8 @@
 .mkt-g6__body {
   flex: 1;
   min-height: 0;
+  min-width: 0;
+  max-width: 100%;
   padding: 0.75rem 0.85rem 1rem;
   display: flex;
   flex-direction: column;

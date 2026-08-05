@@ -188,7 +188,7 @@ export function computeCashFlowSeries(
 
     if (granularity === 'monthly') {
       key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
-      label = dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      label = dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
     } else {
       const q = Math.floor(dt.getMonth() / 3) + 1;
       key = `${dt.getFullYear()}-Q${q}`;
@@ -309,7 +309,7 @@ export function computeProjections(
         : monthlyAvg * 0.85;
     projections.push({
       period: `month-${m}`,
-      label: monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      label: monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }),
       projectedGross: net * 1.12,
       projectedNet: net,
       probability: scheduledInMonth.length > 0 ? 'high' : 'medium',
@@ -343,7 +343,7 @@ function addDays(date: Date, days: number): Date {
 
 function formatWindowLabel(start: Date, end: Date): string {
   const fmt = (d: Date) =>
-    d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
   return `${fmt(start)} – ${fmt(end)}`;
 }
 

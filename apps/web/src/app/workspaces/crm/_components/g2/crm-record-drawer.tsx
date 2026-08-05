@@ -9,6 +9,10 @@ import { Drawer, Tabs } from '@investhome/ui';
 export type CrmRecordDrawerSectionId =
   | 'summary'
   | 'timeline'
+  | 'nextAction'
+  | 'customer'
+  | 'proposal'
+  | 'reservation'
   | 'notes'
   | 'activities'
   | 'emails'
@@ -33,6 +37,10 @@ export type CrmRecordDrawerProps = {
 const SECTION_ORDER: CrmRecordDrawerSectionId[] = [
   'summary',
   'timeline',
+  'nextAction',
+  'customer',
+  'proposal',
+  'reservation',
   'notes',
   'activities',
   'emails',

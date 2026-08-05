@@ -39,6 +39,110 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      // CRM Search Consolidation — standalone search → CRM dashboard (global search is Ctrl/Cmd+K)
+      {
+        source: '/workspaces/crm/search',
+        destination: '/workspaces/crm/dashboard',
+        permanent: false,
+      },
+      {
+        source: '/workspaces/crm/search/:path*',
+        destination: '/workspaces/crm/dashboard',
+        permanent: false,
+      },
+      // Creative Studio — standalone TOOLS module (out of Marketing)
+      {
+        source: '/workspaces/marketing/creative-studio',
+        destination: '/workspaces/creative-studio',
+        permanent: false,
+      },
+      {
+        source: '/workspaces/marketing/creative-studio/:path*',
+        destination: '/workspaces/creative-studio',
+        permanent: false,
+      },
+      // Creative Studio — Website Builder AI production workspace
+      {
+        source: '/workspaces/creative-studio/produce/website',
+        destination: '/workspaces/creative-studio/website-builder',
+        permanent: false,
+      },
+      {
+        source: '/workspaces/creative-studio/produce/websiteBuilder',
+        destination: '/workspaces/creative-studio/website-builder',
+        permanent: false,
+      },
+      // Creative Studio produce aliases (short QA / IA keys)
+      {
+        source: '/workspaces/creative-studio/produce/blog',
+        destination: '/workspaces/creative-studio/produce/blogStudio',
+        permanent: false,
+      },
+      {
+        source: '/workspaces/creative-studio/produce/social',
+        destination: '/workspaces/creative-studio/produce/socialStudio',
+        permanent: false,
+      },
+      {
+        source: '/workspaces/creative-studio/produce/video',
+        destination: '/workspaces/creative-studio/produce/videoStudio',
+        permanent: false,
+      },
+      {
+        source: '/workspaces/creative-studio/produce/architectural',
+        destination: '/workspaces/creative-studio/architectural-studio',
+        permanent: false,
+      },
+      {
+        source: '/workspaces/creative-studio/produce/architecturalStudio',
+        destination: '/workspaces/creative-studio/architectural-studio',
+        permanent: false,
+      },
+      // Platform Freeze G1 — canonical OS routes
+      {
+        source: '/workspaces/marketing',
+        destination: '/dashboard/marketing',
+        permanent: false,
+      },
+      {
+        source: '/workspaces/admin',
+        destination: '/dashboard/admin',
+        permanent: false,
+      },
+      {
+        source: '/workspaces/admin/system-logs',
+        destination: '/dashboard/admin/audit',
+        permanent: false,
+      },
+      {
+        source: '/workspaces/admin/integrations',
+        destination: '/dashboard/admin/platform/integrations',
+        permanent: false,
+      },
+      {
+        source: '/workspaces/admin/:path*',
+        destination: '/dashboard/admin',
+        permanent: false,
+      },
+      {
+        source: '/dashboard/documents',
+        destination: '/dashboard/knowledge',
+        permanent: false,
+      },
+      {
+        source: '/dashboard/analytics/investors',
+        destination: '/dashboard/analytics/investor',
+        permanent: false,
+      },
+      {
+        source: '/dashboard/analytics/projects',
+        destination: '/dashboard/analytics/project',
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default withNextIntl(nextConfig);

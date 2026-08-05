@@ -1,10 +1,13 @@
-import { ContactsWorkspace } from './_components/contacts-workspace';
-import { CrmModuleShell } from '../_components/crm-module-shell';
+import { ContactsDsWorkspace } from './_components/ds/contacts-ds-workspace';
 
+/**
+ * Canonical Contacts nav route (`/workspaces/crm/contacts`).
+ * Projects-quality DS presentation — detail routes under `/contacts/[contactId]` unchanged.
+ */
 export default function CrmContactsPage() {
   return (
-    <CrmModuleShell titleKey="modules.contacts.title" descriptionKey="modules.contacts.description">
-      <ContactsWorkspace />
-    </CrmModuleShell>
+    <main className="dashboard crm-module-shell" data-testid="crm-contacts-page">
+      <ContactsDsWorkspace />
+    </main>
   );
 }

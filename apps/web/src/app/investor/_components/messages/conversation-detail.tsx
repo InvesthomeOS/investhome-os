@@ -16,12 +16,14 @@ interface ConversationDetailProps {
 }
 
 function formatDateSeparator(dateStr: string): string {
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? `${dateStr}T12:00:00.000Z` : dateStr;
   return new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
     year: 'numeric',
-  }).format(new Date(dateStr));
+    timeZone: 'UTC',
+  }).format(new Date(iso));
 }
 
 function groupMessagesByDate(messages: Conversation['messages']) {

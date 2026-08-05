@@ -1,0 +1,1017 @@
+.cs-fw {
+  --cs-fw-rail: 44px;
+  --cs-fw-drawer-w: min(340px, 42vw);
+  --cs-fw-navy: #075b75;
+  --cs-fw-cyan: #58aebb;
+  --cs-fw-ink: #1e2b33;
+  --cs-fw-muted: #718087;
+  --cs-fw-border: #e1e7e9;
+  --cs-fw-bg: #f6f8fa;
+  --cs-fw-surface: #ffffff;
+  --cs-fw-radius: 8px;
+  --cs-fw-shadow: 0 2px 7px rgba(31, 57, 68, 0.05);
+  --cs-fw-drawer-ms: 200ms;
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+/* Normal inherits builder layoutClassName grid columns; ensure slots fill */
+.cs-fw--normal > .cs-fw__panel-slot--left,
+.cs-fw--normal > .cs-fw__panel-slot--center,
+.cs-fw--normal > .cs-fw__panel-slot--right {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.cs-fw--normal .cs-fw__panel-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.cs-fw--normal .cs-fw__panel-body > * {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+/* Focus: rail | center | rail */
+.cs-fw--focus {
+  grid-template-columns: var(--cs-fw-rail) minmax(0, 1fr) var(--cs-fw-rail) !important;
+  gap: 6px !important;
+}
+
+/* Explicit grid placement so absolute drawers do not steal columns */
+.cs-fw--focus > .cs-fw__rail--left {
+  grid-column: 1;
+  grid-row: 1;
+}
+.cs-fw--focus > .cs-fw__panel-slot--center {
+  grid-column: 2;
+  grid-row: 1;
+}
+.cs-fw--focus > .cs-fw__rail--right {
+  grid-column: 3;
+  grid-row: 1;
+}
+.cs-fw--focus > .cs-fw__panel-slot--left.is-drawer,
+.cs-fw--focus > .cs-fw__panel-slot--right.is-drawer {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+
+/* Preview: single column — no rails, no editing chrome */
+.cs-fw--preview {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 0 !important;
+}
+
+/*
+ * Fullscreen Focus Workspace — full viewport shell with rails visible.
+ * Fullscreen ≠ Clean Preview. Uses fixed container; browser Fullscreen API is optional.
+ */
+.cs-fw--fullscreen {
+  --cs-fw-rail: 56px;
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  width: 100vw;
+  height: 100dvh;
+  max-width: 100vw;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 8px;
+  box-sizing: border-box;
+  background: var(--cs-fw-bg);
+  border-radius: 0;
+  overflow: hidden;
+}
+.cs-fw--fullscreen.cs-fw--focus {
+  grid-template-columns: var(--cs-fw-rail) minmax(0, 1fr) var(--cs-fw-rail) !important;
+  gap: 6px !important;
+}
+.cs-fw__fullscreen-bar {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--cs-fw-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 4px 16px rgba(31, 57, 68, 0.1);
+}
+.cs-fw__fullscreen-hint {
+  color: var(--cs-fw-muted);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Rails */
+.cs-fw__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px;
+  border: 1px solid var(--cs-fw-border);
+  border-radius: var(--cs-fw-radius);
+  background: var(--cs-fw-surface);
+  box-shadow: var(--cs-fw-shadow);
+  min-height: 0;
+  overflow: auto;
+}
+.cs-fw__rail-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--cs-fw-navy);
+  cursor: pointer;
+  transition: background var(--cs-fw-drawer-ms) ease, border-color var(--cs-fw-drawer-ms) ease, color var(--cs-fw-drawer-ms) ease;
+}
+.cs-fw__rail-btn:hover {
+  background: #eef6f8;
+  border-color: #d5e6ea;
+}
+.cs-fw__rail-btn.is-active {
+  background: #e7f4f7;
+  border-color: var(--cs-fw-cyan);
+  color: var(--cs-fw-navy);
+}
+.cs-fw__rail-btn.is-pinned {
+  box-shadow: inset 0 0 0 1px var(--cs-fw-navy);
+}
+
+/* Focus drawers overlay from sides */
+.cs-fw--focus .cs-fw__panel-slot--left.is-drawer,
+.cs-fw--focus .cs-fw__panel-slot--right.is-drawer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 20;
+  width: var(--cs-fw-drawer-w);
+  display: flex;
+  flex-direction: column;
+  background: var(--cs-fw-surface);
+  border: 1px solid var(--cs-fw-border);
+  border-radius: var(--cs-fw-radius);
+  box-shadow: 0 8px 24px rgba(31, 57, 68, 0.12);
+  overflow: hidden;
+  transition: transform var(--cs-fw-drawer-ms) ease, opacity var(--cs-fw-drawer-ms) ease;
+  opacity: 0;
+  pointer-events: none;
+}
+.cs-fw--focus .cs-fw__panel-slot--left.is-drawer {
+  left: calc(var(--cs-fw-rail) + 6px);
+  transform: translateX(-12px);
+}
+.cs-fw--focus .cs-fw__panel-slot--right.is-drawer {
+  right: calc(var(--cs-fw-rail) + 6px);
+  transform: translateX(12px);
+}
+.cs-fw--focus .cs-fw__panel-slot--left.is-drawer.is-open,
+.cs-fw--focus .cs-fw__panel-slot--right.is-drawer.is-open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+/* Center expands in focus */
+.cs-fw--focus > .cs-fw__panel-slot--center {
+  grid-column: 2;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.cs-fw--focus .cs-fw__panel-slot--center > *,
+.cs-fw--focus .cs-fw__panel-body > * {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.cs-fw__panel-slot--center {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.cs-fw__panel-slot--center > * {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+}
+
+.cs-fw__drawer-chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid #eef1f2;
+  flex: 0 0 auto;
+}
+.cs-fw__drawer-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #152a36;
+}
+.cs-fw__drawer-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cs-fw__pin,
+.cs-fw__drawer-close {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--cs-fw-border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--cs-fw-navy);
+  font-size: 10px;
+  font-weight: 650;
+  padding: 3px 7px;
+  cursor: pointer;
+  transition: background var(--cs-fw-drawer-ms) ease, border-color var(--cs-fw-drawer-ms) ease;
+}
+.cs-fw__pin.is-active {
+  background: #e7f4f7;
+  border-color: var(--cs-fw-cyan);
+}
+.cs-fw__drawer-close {
+  padding: 3px 5px;
+}
+.cs-fw__panel-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.cs-fw__panel-body > * {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+/* Preview */
+.cs-fw--preview .cs-fw__panel-slot--center {
+  width: 100%;
+}
+.cs-fw__preview-bar {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--cs-fw-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 4px 16px rgba(31, 57, 68, 0.1);
+}
+.cs-fw__preview-hint {
+  color: var(--cs-fw-muted);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Mode switcher (toolbar) */
+.cs-fw-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--cs-fw-border, #e1e7e9);
+  border-radius: 8px;
+  background: #fff;
+  flex: 0 0 auto;
+}
+.cs-fw-switcher__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #075b75;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease;
+}
+.cs-fw-switcher__btn:hover {
+  background: #eef6f8;
+}
+.cs-fw-switcher__btn.is-active {
+  background: #e7f4f7;
+  border-color: #58aebb;
+}
+.cs-fw-switcher__label {
+  line-height: 1;
+}
+
+/* Hide builder chrome in preview — cover all 8 builders */
+[data-cs-workspace-mode="preview"] [class$="-ws__header"],
+[data-cs-workspace-mode="preview"] [class$="-ws__toolbar"],
+[data-cs-workspace-mode="preview"] [class$="-ws__steps"],
+[data-cs-workspace-mode="preview"] [class$="-ws__steps--global"],
+[data-cs-workspace-mode="preview"] [class$="-ws__ai-status"],
+[data-cs-workspace-mode="preview"] .prb-ws__header,
+[data-cs-workspace-mode="preview"] .prb-ws__toolbar,
+[data-cs-workspace-mode="preview"] .prb-ws__steps,
+[data-cs-workspace-mode="preview"] .prb-ws__ai-status,
+[data-cs-workspace-mode="preview"] .wb-ws__header,
+[data-cs-workspace-mode="preview"] .wb-ws__toolbar,
+[data-cs-workspace-mode="preview"] .wb-ws__steps,
+[data-cs-workspace-mode="preview"] .wb-ws__ai-status,
+[data-cs-workspace-mode="preview"] .lpb-ws__header,
+[data-cs-workspace-mode="preview"] .lpb-ws__toolbar,
+[data-cs-workspace-mode="preview"] .lpb-ws__steps,
+[data-cs-workspace-mode="preview"] .lpb-ws__ai-status,
+[data-cs-workspace-mode="preview"] .bb-ws__header,
+[data-cs-workspace-mode="preview"] .bb-ws__toolbar,
+[data-cs-workspace-mode="preview"] .bb-ws__steps,
+[data-cs-workspace-mode="preview"] .bb-ws__ai-status,
+[data-cs-workspace-mode="preview"] .eb-ws__header,
+[data-cs-workspace-mode="preview"] .eb-ws__toolbar,
+[data-cs-workspace-mode="preview"] .eb-ws__steps,
+[data-cs-workspace-mode="preview"] .eb-ws__ai-status,
+[data-cs-workspace-mode="preview"] .vb-ws__header,
+[data-cs-workspace-mode="preview"] .vb-ws__toolbar,
+[data-cs-workspace-mode="preview"] .vb-ws__steps,
+[data-cs-workspace-mode="preview"] .vb-ws__ai-status,
+[data-cs-workspace-mode="preview"] .ib-ws__header,
+[data-cs-workspace-mode="preview"] .ib-ws__toolbar,
+[data-cs-workspace-mode="preview"] .ib-ws__steps,
+[data-cs-workspace-mode="preview"] .ib-ws__ai-status,
+[data-cs-workspace-mode="preview"] .pb-ws__header,
+[data-cs-workspace-mode="preview"] .pb-ws__toolbar,
+[data-cs-workspace-mode="preview"] .pb-ws__steps,
+[data-cs-workspace-mode="preview"] .pb-ws__ai-status {
+  display: none !important;
+}
+
+[data-cs-workspace-mode="preview"] .prb-ws,
+[data-cs-workspace-mode="preview"] .wb-ws,
+[data-cs-workspace-mode="preview"] .lpb-ws,
+[data-cs-workspace-mode="preview"] .bb-ws,
+[data-cs-workspace-mode="preview"] .eb-ws,
+[data-cs-workspace-mode="preview"] .vb-ws,
+[data-cs-workspace-mode="preview"] .ib-ws,
+[data-cs-workspace-mode="preview"] .pb-ws {
+  grid-template-rows: minmax(0, 1fr) !important;
+}
+
+@media (max-width: 1279px) {
+  .cs-fw-switcher__label {
+    display: none;
+  }
+  .cs-fw {
+    --cs-fw-drawer-w: min(300px, 48vw);
+  }
+}
+
+@media (max-width: 1024px) {
+  .cs-fw {
+    --cs-fw-rail: 40px;
+    --cs-fw-drawer-w: min(280px, 70vw);
+  }
+}
+
+/* ── Fullscreen canvas layout: max stage + collapsible tray/dock ── */
+
+.cs-fw-fs-layout {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.cs-fw-fs__toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cs-fw-fs__toolbar > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cs-fw-fs__pin-bottom {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 3px 8px;
+  border: 1px solid var(--cs-fw-border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--cs-fw-navy);
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cs-fw-fs__pin-bottom input {
+  margin: 0;
+  accent-color: var(--cs-fw-navy);
+}
+
+.cs-fw-fs__above {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.cs-fw-fs__stage {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.cs-fw-fs__stage > * {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+/* Overlay mode: stage takes all remaining height; tray/dock do not permanently shrink it */
+.cs-fw-fs-layout--fullscreen.is-overlay-tools .cs-fw-fs__stage {
+  flex: 1 1 auto;
+}
+
+.cs-fw-fs-layout--fullscreen.is-overlay-tools {
+  /* Reserve only tray handle height at bottom */
+  padding-bottom: 0;
+}
+
+/* Secondary tray */
+.cs-fw-tray {
+  flex: 0 0 auto;
+  min-width: 0;
+  background: linear-gradient(180deg, #f8fafb 0%, #fff 55%);
+  border-top: 1px solid #eef1f2;
+}
+
+.cs-fw-tray--pinned {
+  max-height: 148px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cs-fw-tray__chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 10px 2px;
+  flex: 0 0 auto;
+}
+
+.cs-fw-tray__heading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cs-fw-tray__title {
+  margin: 0;
+  color: #152a36;
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.cs-fw-tray__count {
+  color: var(--cs-fw-muted, #718087);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+
+.cs-fw-tray__hint {
+  color: var(--cs-fw-muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.cs-fw-tray__body {
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  padding: 0 8px 6px;
+}
+
+.cs-fw-tray--overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 25;
+  border-top: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+.cs-fw-tray--overlay > * {
+  pointer-events: auto;
+}
+
+.cs-fw-tray__handle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 auto 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--cs-fw-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 4px 14px rgba(31, 57, 68, 0.12);
+  color: var(--cs-fw-navy);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.cs-fw-tray__handle:hover {
+  background: #eef6f8;
+  border-color: var(--cs-fw-cyan);
+}
+
+.cs-fw-tray__panel {
+  margin: 0 8px 8px;
+  border: 1px solid var(--cs-fw-border);
+  border-radius: 10px 10px 8px 8px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 -8px 28px rgba(31, 57, 68, 0.16);
+  max-height: min(200px, 28vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: cs-fw-tray-up 160ms ease;
+}
+
+@keyframes cs-fw-tray-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cs-fw-tray__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--cs-fw-border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--cs-fw-navy);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Action dock — premium CS navy/teal ribbon (WB reference = global default) */
+.cs-fw-dock,
+.cs-fw-dock.cs-bat {
+  --cs-bat-navy-top: #0a4558;
+  --cs-bat-navy-bot: #075b75;
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+  padding: 10px 14px 12px;
+  border: 0;
+  border-top: 0;
+  border-radius: 14px 14px 0 0;
+  background: linear-gradient(180deg, var(--cs-bat-navy-top) 0%, var(--cs-bat-navy-bot) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 -6px 18px rgba(7, 40, 52, 0.12);
+  color: #fff;
+}
+
+.cs-fw-dock__primary,
+.cs-fw-dock__secondary {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cs-fw-dock__primary {
+  flex: 1 1 auto;
+  width: 100%;
+}
+
+.cs-fw-dock__primary:has(.cs-bat__row) {
+  display: block;
+}
+
+.cs-fw-dock--pinned {
+  position: relative;
+  z-index: 4;
+}
+
+.cs-fw-dock--float {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 26;
+  width: min(920px, calc(100% - 24px));
+  max-width: calc(100% - 24px);
+  padding: 8px 12px;
+  border-radius: 14px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 10px 28px rgba(7, 40, 52, 0.28);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.cs-fw-dock--float.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(8px);
+}
+
+.cs-fw-dock--float.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.cs-fw-dock__more-wrap {
+  position: relative;
+}
+
+.cs-fw-dock__overflow {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 168px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #0a4a5e 0%, #064a60 100%);
+  box-shadow: 0 12px 28px rgba(7, 40, 52, 0.35);
+  color: #fff;
+}
+
+.cs-fw-dock__overflow .ih-btn,
+.cs-fw-dock__overflow button,
+.cs-fw-dock__overflow .cs-bat__overflow-item {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+/* Legacy ih-btn children inside ribbon docks */
+.cs-fw-dock .ih-btn--primary,
+.cs-fw-dock button.ih-btn--primary {
+  background: #fff !important;
+  color: var(--shot-navy, #075b75) !important;
+  border-color: transparent !important;
+  border-radius: 999px !important;
+}
+
+.cs-fw-dock .ih-btn--secondary,
+.cs-fw-dock button.ih-btn--secondary {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+.cs-fw-dock .ih-btn--secondary:hover,
+.cs-fw-dock button.ih-btn--secondary:hover {
+  background: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Filmstrip / tray sits above dock; never cover */
+.cs-fw-fs-layout > .cs-fw-dock,
+.cs-fw-fs-layout > .cs-fw-dock--pinned {
+  order: 4;
+}
+
+.cs-fw-fs-layout > .cs-fw-tray,
+.cs-fw-fs-layout > .cs-fw-tray--pinned {
+  order: 3;
+}
+
+/* Fullscreen stage mats: center page and avoid permanent scroll clipping */
+.cs-fw--fullscreen .cs-fw-fs__stage [class$='__preview-shell'],
+.cs-fw--fullscreen .cs-fw-fs__stage [class$='__preview-mat'],
+.cs-fw--fullscreen .cs-fw-fs__stage [class$='__canvas-stage'] {
+  min-height: 0;
+  height: 100%;
+}
+
+.cs-fw--fullscreen .cs-fw-fs-layout--fullscreen.is-overlay-tools [class$='__preview-mat'] {
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 12px;
+}
+
+.cs-fw--fullscreen .cs-fw-fs-layout--fullscreen.is-overlay-tools [class$='__preview-shell'] {
+  overflow: hidden;
+}
+
+/* Allow Fit to use full available stage — do not clamp page width in FS overlay */
+.cs-fw--fullscreen .cs-fw-fs-layout--fullscreen.is-overlay-tools .prb-ws__slide-stage,
+.cs-fw--fullscreen .cs-fw-fs-layout--fullscreen.is-overlay-tools .pb-ws__slide-stage {
+  max-width: none;
+}
+
+.cs-fw--fullscreen .cs-fw-fs-layout--fullscreen.is-overlay-tools .prb-ws__preview-mat,
+.cs-fw--fullscreen .cs-fw-fs-layout--fullscreen.is-overlay-tools .pb-ws__preview-mat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  height: 100%;
+  padding: 10px 12px;
+  overflow: hidden;
+}
+
+/* ── Fit-To-View engine (shared) ─────────────────────────────────────────── */
+.cs-ftv-toolbar {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cs-ftv-toolbar__modes,
+.cs-ftv-toolbar__zoom {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid #e2e8ec;
+  border-radius: 8px;
+  background: #f7fafb;
+}
+
+.cs-ftv-toolbar__btn {
+  appearance: none;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #1f3944;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 5px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cs-ftv-toolbar__btn:hover {
+  background: #eef5f7;
+}
+
+.cs-ftv-toolbar__btn.is-active {
+  background: #fff;
+  color: #0b5f73;
+  box-shadow: 0 1px 2px rgba(31, 57, 68, 0.1);
+}
+
+.cs-ftv-toolbar__btn--zoom {
+  min-width: 36px;
+  padding-inline: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cs-ftv-toolbar__stepper {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.cs-ftv-toolbar__zoom .cs-zoom-controls {
+  border: 0;
+  background: transparent;
+}
+
+.cs-ftv-toolbar__auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 2px;
+  color: #3d5560;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.cs-ftv-toolbar__auto input {
+  margin: 0;
+  accent-color: var(--cs-fw-navy, #1f3944);
+}
+
+.cs-ftv-viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, #eceff1 0%, #e4e8ea 100%);
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+
+.cs-ftv-viewport[data-ftv-canvas='document'] {
+  touch-action: pan-y;
+}
+
+.cs-ftv-viewport.is-space-pan,
+.cs-ftv-viewport.is-space-pan * {
+  cursor: grab !important;
+}
+
+.cs-ftv-viewport.is-space-pan:active,
+.cs-ftv-viewport.is-space-pan:active * {
+  cursor: grabbing !important;
+}
+
+.cs-ftv-workspace {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 8px;
+}
+
+.cs-ftv-viewport[data-ftv-canvas='document'] .cs-ftv-workspace {
+  align-items: flex-start;
+  justify-content: center;
+  padding: 8px 8px 4px;
+}
+
+.cs-ftv-artboard {
+  position: relative;
+  flex: 0 0 auto;
+  max-width: none;
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgba(31, 57, 68, 0.06),
+    0 12px 28px rgba(31, 57, 68, 0.12);
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.cs-ftv-artboard[data-ftv-canvas='document'] {
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.cs-ftv-artboard > * {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.cs-ftv-artboard[data-ftv-canvas='document'] > * {
+  width: 100%;
+  height: auto;
+  min-height: 100%;
+}
+
+/* Artwork stages filling the shared artboard (not document editors) */
+.cs-ftv-artboard[data-ftv-canvas='artwork'] .prb-ws__slide-stage,
+.cs-ftv-artboard[data-ftv-canvas='artwork'] .pb-ws__slide-stage,
+.cs-ftv-artboard[data-ftv-canvas='artwork'] .ib-ws__preview,
+.cs-ftv-artboard[data-ftv-canvas='artwork'] .ib-ws__preview-stage,
+.cs-ftv-artboard[data-ftv-canvas='artwork'] .vb-ws__preview,
+.cs-ftv-artboard[data-ftv-canvas='artwork'] .vb-ws__player,
+.cs-ftv-artboard[data-ftv-canvas='artwork'] .smb-ws__ftv-post {
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  aspect-ratio: auto !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+
+/* Document / browser previews: keep natural flow + scroll */
+.cs-ftv-artboard[data-ftv-canvas='document'] .lpb-ws__preview,
+.cs-ftv-artboard[data-ftv-canvas='document'] .lpb-ws__preview-zoom,
+.cs-ftv-artboard[data-ftv-canvas='document'] .eb-ws__preview,
+.cs-ftv-artboard[data-ftv-canvas='document'] .bb-ws__preview,
+.cs-ftv-artboard[data-ftv-canvas='document'] .wb-ws__preview {
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+
+/* Image Builder: contain — never clip. Social cover is local to SMB CSS. */
+.cs-ftv-artboard .ib-ws__preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* Focus Mode (non-FS): same fit stage semantics */
+.cs-fw--focus:not(.cs-fw--fullscreen) .cs-fw-fs__stage .cs-ftv-viewport,
+.cs-fw--fullscreen .cs-fw-fs__stage .cs-ftv-viewport {
+  min-height: 0;
+  height: 100%;
+}
+
+.cs-fw--focus .cs-fw-fs__stage [class$='__preview-shell']:has(> .cs-ftv-viewport),
+.cs-fw--fullscreen .cs-fw-fs__stage [class$='__preview-shell']:has(> .cs-ftv-viewport) {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+

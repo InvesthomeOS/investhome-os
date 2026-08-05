@@ -317,12 +317,23 @@ export function formatInvestorPercent(value: number, locale = 'en-US'): string {
   }).format(value / 100);
 }
 
+/** Parse ISO / date-only strings in a timezone-stable way for SSR + client hydration. */
+function parseInvestorDateInput(dateStr: string): Date {
+  const trimmed = dateStr.trim();
+  // Date-only (YYYY-MM-DD) — pin to noon UTC so day never shifts across timezones.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return new Date(`${trimmed}T12:00:00.000Z`);
+  }
+  return new Date(trimmed);
+}
+
 export function formatInvestorDate(dateStr: string, locale = 'en-US'): string {
   return new Intl.DateTimeFormat(locale, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }).format(new Date(dateStr));
+    timeZone: 'UTC',
+  }).format(parseInvestorDateInput(dateStr));
 }
 
 export function formatInvestorDateTime(dateStr: string, locale = 'en-US'): string {
@@ -332,5 +343,6 @@ export function formatInvestorDateTime(dateStr: string, locale = 'en-US'): strin
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(new Date(dateStr));
+    timeZone: 'UTC',
+  }).format(parseInvestorDateInput(dateStr));
 }

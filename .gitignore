@@ -77,3 +77,15 @@ data/migration-sources/**
 # Mosaic Lite evaluation clone (temporary � not production)
 .tmp-mosaic/
 
+
+# Local Playwright / QA harness dumps
+.pw-verify/
+apps/web/.pw-verify/
+
+# One-off local patch dumps
+tmp-patch-*.txt
+
+# Playwright default output dirs
+test-results/
+playwright-report/
+blob-report/

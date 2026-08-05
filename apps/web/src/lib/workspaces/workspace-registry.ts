@@ -70,6 +70,18 @@ export function isWorkspaceRouteActive(pathname: string, workspace: WorkspaceDef
   if (workspace.id === 'company') {
     return pathname === '/company' || pathname.startsWith('/company/');
   }
+  if (workspace.id === 'crm' && pathname.startsWith('/ui-preview/crm')) {
+    return true;
+  }
+  // Marketing canonical OS entry is /dashboard/marketing (legacy /workspaces/marketing still active-matched).
+  if (workspace.id === 'marketing') {
+    return (
+      pathname === '/dashboard/marketing' ||
+      pathname.startsWith('/dashboard/marketing/') ||
+      pathname === '/workspaces/marketing' ||
+      pathname.startsWith('/workspaces/marketing/')
+    );
+  }
   const base = `/workspaces/${workspace.id}`;
   return pathname === base || pathname.startsWith(`${base}/`);
 }

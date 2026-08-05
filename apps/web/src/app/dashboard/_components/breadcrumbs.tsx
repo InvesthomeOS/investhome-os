@@ -23,7 +23,7 @@ const MODULE_KEYS: Record<string, string> = {
   analytics: 'businessIntelligence',
   ai: 'aiWorkspace',
   automation: 'automation',
-  knowledge: 'knowledgeHub',
+  knowledge: 'documents',
 };
 
 function humanize(segment: string): string {
@@ -52,7 +52,12 @@ export function Breadcrumbs() {
   // /workspaces/crm/... or /workspaces/marketing/...
   if (segments[0] === 'workspaces' && segments[1]) {
     const workspaceId = segments[1];
-    const workspaceHref = `/workspaces/${workspaceId}/dashboard` as Route;
+    const workspaceHref =
+      workspaceId === 'marketing'
+        ? ('/dashboard/marketing' as Route)
+        : workspaceId === 'crm'
+          ? ('/workspaces/crm/dashboard' as Route)
+          : (`/workspaces/${workspaceId}/dashboard` as Route);
     const workspaceLabel =
       workspaceId === 'crm'
         ? t('modules.crm.title')

@@ -16,6 +16,7 @@ type HubCard = {
   titleKey: string;
   descriptionKey: string;
   visible: boolean;
+  tourAttr?: string;
 };
 
 export default function AdminOverviewPage() {
@@ -53,6 +54,7 @@ export default function AdminOverviewPage() {
       titleKey: 'nav.trainingBuilder',
       descriptionKey: 'cards.trainingBuilder',
       visible: canViewUsers(user) || hasPermission(user, 'security', 'view'),
+      tourAttr: 'nav-training-builder',
     },
     {
       href: '/dashboard/admin/operations' as Route,
@@ -199,7 +201,13 @@ export default function AdminOverviewPage() {
       <PageHeader eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')} />
       <div className="admin-hub-grid" role="list">
         {cards.map((card) => (
-          <Link key={card.href} href={card.href} className="admin-hub-card" role="listitem">
+          <Link
+            key={card.href}
+            href={card.href}
+            className="admin-hub-card"
+            role="listitem"
+            data-tour={card.tourAttr}
+          >
             <h2>{t(card.titleKey as 'nav.users')}</h2>
             <p>{t(card.descriptionKey as 'cards.users')}</p>
           </Link>

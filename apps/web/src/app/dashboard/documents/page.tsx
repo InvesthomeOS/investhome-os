@@ -1,5 +1,7 @@
-import { DocumentsWorkspace } from './_components/documents-workspace';
+import { redirect } from 'next/navigation';
+import type { Route } from 'next';
 
+/** G1: /dashboard/documents list → canonical OS Documents (/dashboard/knowledge). */
 export default function DocumentsPage() {
-  return <DocumentsWorkspace />;
+  redirect('/dashboard/knowledge' as Route);
 }

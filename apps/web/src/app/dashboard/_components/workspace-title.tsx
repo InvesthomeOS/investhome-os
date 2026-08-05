@@ -21,17 +21,19 @@ function resolveWorkspaceTitle(
   if (pathname.startsWith('/dashboard/marketing')) return t('modules.marketing.title');
   if (pathname.startsWith('/dashboard/finance')) return t('modules.finance.title');
   if (pathname.startsWith('/dashboard/documents')) return t('documents');
+  if (pathname.startsWith('/dashboard/knowledge')) return t('documents');
   if (pathname.startsWith('/dashboard/design')) return t('designStudio');
   if (pathname.startsWith('/dashboard/activity')) return t('activity');
   if (pathname.startsWith('/dashboard/settings')) return t('settings');
   if (pathname.startsWith('/dashboard/admin')) return t('adminSection');
-  if (pathname.startsWith('/workspaces/crm')) return t('modules.crm.title');
+  if (pathname.startsWith('/workspaces/crm') || pathname.startsWith('/ui-preview/crm')) {
+    return t('modules.crm.title');
+  }
   if (pathname.startsWith('/workspaces/marketing')) return t('modules.marketing.title');
   if (pathname.startsWith('/company')) return t('modules.company.title');
   if (pathname.startsWith('/dashboard/analytics')) return t('businessIntelligence');
   if (pathname.startsWith('/dashboard/ai')) return t('aiWorkspace');
   if (pathname.startsWith('/dashboard/automation')) return t('automation');
-  if (pathname.startsWith('/dashboard/knowledge')) return t('knowledgeHub');
   return tHome('workspaceTitle');
 }
 

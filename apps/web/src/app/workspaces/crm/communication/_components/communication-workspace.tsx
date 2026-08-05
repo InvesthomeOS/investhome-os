@@ -11,6 +11,7 @@ import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { communicationQueries } from '@/workspaces/crm/hooks/use-communication';
 import { useCommunicationUiStore } from '@/workspaces/crm/stores/communication-ui-store';
 
+import { CommunicationChannelHub } from './communication-channel-hub';
 import { CommunicationComposer } from './communication-composer';
 import { CommunicationConversationPanel } from './communication-conversation-panel';
 import { CommunicationSidebar } from './communication-sidebar';
@@ -88,6 +89,8 @@ export function CommunicationWorkspace() {
           )}
         </div>
       </header>
+
+      <CommunicationChannelHub />
 
       <div className="crm-communication__layout">
         <CommunicationSidebar collapsed={panelCollapsed === 'folders'} />

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { IhIcon } from '@/components/icons/ih-icons';
 
@@ -10,6 +11,7 @@ import { investorProfile, notifications } from '../_data/mock-data';
 import { formatInvestorDateTime } from '../_data/mock-data';
 
 export function InvestorHeader() {
+  const t = useTranslations('investorPortal');
   const [searchQuery, setSearchQuery] = useState('');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -40,17 +42,17 @@ export function InvestorHeader() {
         <input
           type="search"
           className="investor-header__search-input"
-          placeholder="Search investments, documents, messages…"
+          placeholder={t('header.searchPlaceholder')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          aria-label="Search investor workspace"
+          aria-label={t('header.searchAria')}
         />
       </div>
 
       <div className="investor-header__actions app-header__actions">
         <button type="button" className="app-header__quick investor-header__action-btn--primary">
           <IhIcon name="plus" size={15} />
-          <span>Quick Actions</span>
+          <span>{t('header.quickActions')}</span>
         </button>
 
         <div className="investor-header__notification" ref={dropdownRef}>
@@ -60,7 +62,11 @@ export function InvestorHeader() {
             onClick={() => setNotificationsOpen((prev) => !prev)}
             aria-expanded={notificationsOpen}
             aria-haspopup="true"
-            aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
+            aria-label={
+              unreadCount > 0
+                ? t('header.notificationsUnread', { count: unreadCount })
+                : t('header.notifications')
+            }
           >
             <IhIcon name="bell" size={18} />
             {unreadCount > 0 ? (
@@ -70,7 +76,7 @@ export function InvestorHeader() {
 
           {notificationsOpen ? (
             <div className="investor-header__dropdown" role="menu">
-              <div className="investor-header__dropdown-header">Notifications</div>
+              <div className="investor-header__dropdown-header">{t('header.notifications')}</div>
               {notifications.map((notif) => (
                 <div
                   key={notif.id}

@@ -6,6 +6,8 @@ import type { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
+import { LoadingState } from '@investhome/ui';
+
 import { IhIcon } from '@/components/icons/ih-icons';
 import { useAuth } from '@/lib/auth/auth-context';
 import { canViewKnowledge } from '@/lib/knowledge/knowledge-permissions';
@@ -25,7 +27,12 @@ export function KnowledgeHubShell({ children, title, subtitle }: KnowledgeHubShe
   if (loading) {
     return (
       <main className="leads-page" data-knowledge-hub aria-busy="true">
-        <p>{t('loading')}</p>
+        <header className="leads-page__header">
+          <p className="dashboard__eyebrow">{t('eyebrow')}</p>
+          <h1>{t('title')}</h1>
+          <p className="leads-page__subtitle">{t('subtitle')}</p>
+        </header>
+        <LoadingState label={t('loading')} lines={5} />
       </main>
     );
   }

@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react';
+
 export interface SegmentedOption<T extends string = string> {
   value: T;
-  label: string;
+  label: ReactNode;
   disabled?: boolean;
 }
 

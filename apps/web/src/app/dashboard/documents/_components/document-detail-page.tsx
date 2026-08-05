@@ -217,7 +217,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
       <div className="leads-page">
         <div className="leads-page__error">
           <p>{error ?? t('loadError')}</p>
-          <Link href="/dashboard/documents" className="leads__button leads__button--secondary">
+          <Link href="/dashboard/knowledge/documents" className="leads__button leads__button--secondary">
             {t('detailBack')}
           </Link>
         </div>
@@ -236,7 +236,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
       } else {
         await archiveDocument(document.id);
       }
-      router.push('/dashboard/documents');
+      router.push('/dashboard/knowledge/documents');
     } catch {
       setActionError(t('actionError'));
     } finally {
@@ -301,7 +301,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
           )}
         </div>
         <div className="leads-page__actions">
-          <Link href="/dashboard/documents" className="leads__button leads__button--ghost">
+          <Link href="/dashboard/knowledge/documents" className="leads__button leads__button--ghost">
             {t('detailBack')}
           </Link>
           {canDownload && (

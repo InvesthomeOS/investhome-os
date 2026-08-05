@@ -71,7 +71,7 @@ const SEED: Omit<AiActionItem, 'id' | 'createdAt' | 'status'>[] = [
     module: 'marketing',
     severity: 'warning',
     sensitive: 'pause_campaign',
-    sourceHref: '/workspaces/marketing',
+    sourceHref: '/dashboard/marketing',
     sourceLabel: 'marketing',
     confidence: 'low',
   },

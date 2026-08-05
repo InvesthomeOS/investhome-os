@@ -148,3 +148,36 @@ export function useAuth(): AuthContextValue {
   }
   return context;
 }
+
+/**
+ * Preview-only auth bridge for unauthenticated UX review routes.
+ * Does not fetch or mutate session state. Production AuthProvider is unchanged.
+ */
+export function StaticAuthProvider({
+  user,
+  children,
+}: {
+  user: CurrentUser;
+  children: React.ReactNode;
+}) {
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      loading: false,
+      error: null,
+      login: async () => undefined,
+      logout: async () => undefined,
+      refresh: async () => undefined,
+      setPreferredLocale: async (locale: AppLocale) => {
+        writeLocaleCookie(locale);
+      },
+      hasPermission: (resource, action) => hasPermission(user, resource, action),
+      canViewAdmin: false,
+      canManageUsers: false,
+      canManageRoles: false,
+    }),
+    [user],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}

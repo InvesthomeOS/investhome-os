@@ -1,0 +1,80 @@
+/* Shared Creative Studio carousel pagination dots — reusable across builders. */
+
+.cs-carousel-dots {
+  --cs-dot-inactive: #c9d6db;
+  --cs-dot-active: var(--shot-navy, #075b75);
+  --cs-dot-size: 8px;
+  --cs-dot-active-size: 11px;
+  --cs-dot-gap: 9px;
+
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cs-dot-gap);
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+  height: auto;
+  line-height: 0;
+}
+
+.cs-carousel-dots--sm {
+  --cs-dot-size: 6px;
+  --cs-dot-active-size: 9px;
+  --cs-dot-gap: 8px;
+}
+
+.cs-carousel-dots--md {
+  --cs-dot-size: 8px;
+  --cs-dot-active-size: 11px;
+  --cs-dot-gap: 9px;
+}
+
+.cs-carousel-dots__dot {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: var(--cs-dot-size);
+  height: var(--cs-dot-size);
+  min-width: var(--cs-dot-size);
+  /* Beat shell control-rhythm min-height on buttons when exclusion is missed */
+  min-height: var(--cs-dot-size) !important;
+  max-width: var(--cs-dot-size);
+  max-height: var(--cs-dot-size);
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--cs-dot-inactive);
+  cursor: pointer;
+  align-self: center;
+  appearance: none;
+  -webkit-appearance: none;
+  line-height: 0;
+  font-size: 0;
+  transition: background 0.15s ease, width 0.15s ease, height 0.15s ease,
+    min-width 0.15s ease, min-height 0.15s ease, max-width 0.15s ease,
+    max-height 0.15s ease;
+}
+
+.cs-carousel-dots__dot:hover {
+  background: color-mix(in srgb, var(--cs-dot-active) 45%, var(--cs-dot-inactive));
+}
+
+.cs-carousel-dots__dot:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--cs-dot-active) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.cs-carousel-dots__dot.is-active {
+  width: var(--cs-dot-active-size);
+  height: var(--cs-dot-active-size);
+  min-width: var(--cs-dot-active-size);
+  min-height: var(--cs-dot-active-size) !important;
+  max-width: var(--cs-dot-active-size);
+  max-height: var(--cs-dot-active-size);
+  border-radius: 50%;
+  background: var(--cs-dot-active);
+}

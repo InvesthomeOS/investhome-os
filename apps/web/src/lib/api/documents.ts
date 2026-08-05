@@ -525,7 +525,11 @@ export function formatFileSize(bytes: number): string {
 
 export function formatDocumentDate(value: string | null, locale: string): string {
   if (!value) return '—';
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(value));
+  const trimmed = value.trim();
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(trimmed)
+    ? new Date(`${trimmed}T12:00:00.000Z`)
+    : new Date(trimmed);
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(date);
 }
 
 export function downloadCsvFile(filename: string, csv: string): void {

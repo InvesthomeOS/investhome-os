@@ -1,0 +1,64 @@
+/* Creative Studio shell — cool DS remaps + Phase 1 shared tokens.
+   Matches CRM/Contacts freeze: kill Marketing beige/brown brand bleed.
+   Extends existing palette only — no new colors. */
+
+.creative-studio-shell {
+  --workspace-accent: #075b75;
+  --shot-navy: #075b75;
+  --shot-cyan: #58aebb;
+  --shot-ink: #1e2b33;
+  --shot-muted: #718087;
+  --shot-font-caption: 8.8px;
+  --shot-font-small: 10.45px;
+  --shot-font-body: 11.55px;
+  --shot-font-heading: 13.2px;
+  --shot-font-title: 24.2px;
+  --shot-gap: 10px;
+  --cs-ink: var(--shot-ink);
+  --cs-muted: var(--shot-muted);
+  --cs-navy: var(--shot-navy);
+  --cs-cyan: var(--shot-cyan);
+  --cs-border: #e1e7e9;
+  --cs-border-strong: #dce4e7;
+  --cs-card-shadow: 0 2px 7px rgba(31, 57, 68, 0.05);
+  --cs-card-radius: 8px;
+  --cs-control-height: 1.95rem;
+  --cs-icon-size: 28px;
+  --cs-rail-width: 44px;
+  /* Spacing scale (shared chrome only) */
+  --cs-space-4: 4px;
+  --cs-space-8: 8px;
+  --cs-space-12: 12px;
+  --cs-space-16: 16px;
+  --cs-space-24: 24px;
+  --cs-space-32: 32px;
+  /* Viewport height — app chrome offset (dashboard header) */
+  --cs-ws-chrome: 4.75rem;
+  --cs-ws-height: calc(100dvh - var(--cs-ws-chrome));
+  --brand-primary: #075b75;
+  --brand-primary-hover: #064a5f;
+  --brand-primary-soft: color-mix(in srgb, #075b75 12%, transparent);
+  --brand-primary-ink: #075b75;
+  --brand-primary-ds: #075b75;
+  --brand-surface: #ffffff;
+  --brand-surface-muted: #f1f6f8;
+  --brand-border: #dce4e7;
+  --bg: #f6f8fa;
+  --background: #f6f8fa;
+  --surface: #ffffff;
+  --surface-default: #ffffff;
+  --surface-muted: #f1f6f8;
+  --surface-subtle: #f1f6f8;
+  --surface-elevated: #ffffff;
+  --border: #dce4e7;
+  --border-default: #dce4e7;
+  --border-subtle: #e6eef1;
+  --text: #1e2b33;
+  --text-primary: #1e2b33;
+  --text-secondary: #58717d;
+  --text-secondary-ds: #58717d;
+  --muted: #718087;
+  --shadow-subtle: 0 1px 2px rgba(7, 91, 117, 0.06);
+  --radius-medium: 8px;
+  --focus-ring: #2794ad;
+}

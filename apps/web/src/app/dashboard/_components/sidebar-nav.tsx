@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { useTranslations } from 'next-intl';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 import { canViewAiWorkspace } from '@/lib/ai/ai-permissions';
@@ -16,6 +17,7 @@ import { MODULE_NAMES, type ModuleName } from '@investhome/shared';
 
 import { WorkspaceSidebarBrand } from '@/components/shell/workspace-sidebar-brand';
 import { canViewAutomation } from '@/lib/automation/automation-permissions';
+import { canReadMarketing } from '@/lib/marketing/marketing-permissions';
 
 import { useSidebarCollapsed } from './use-sidebar-collapsed';
 
@@ -53,25 +55,164 @@ const WORKSPACE_ICONS: Record<string, IhIconName> = {
   company: 'executive',
 };
 
+type NavLinkItem = {
+  href: Route;
+  label: string;
+  icon: IhIconName;
+  tour?: string;
+  testId?: string;
+};
+
+function pathMatches(pathname: string, href: string, exactRoot = false): boolean {
+  if (pathname === href) return true;
+  if (exactRoot) return false;
+  return pathname.startsWith(`${href}/`);
+}
+
+function NavLink({
+  item,
+  pathname,
+  collapsed,
+  exactRoot = false,
+  child = false,
+}: {
+  item: NavLinkItem;
+  pathname: string;
+  collapsed: boolean;
+  exactRoot?: boolean;
+  child?: boolean;
+}) {
+  const isActive = pathMatches(pathname, item.href, exactRoot);
+  return (
+    <Link
+      href={item.href}
+      className={`dashboard-shell__nav-link${child ? ' dashboard-shell__nav-link--child' : ''}${
+        isActive ? ' dashboard-shell__nav-link--active' : ''
+      }`}
+      aria-current={isActive ? 'page' : undefined}
+      title={collapsed ? item.label : undefined}
+      data-tour={item.tour}
+      data-testid={item.testId}
+    >
+      <span className="dashboard-shell__nav-link-icon">
+        <IhIcon name={item.icon} size="nav" />
+      </span>
+      <span className="dashboard-shell__nav-link-label">{item.label}</span>
+    </Link>
+  );
+}
+
+function NavGroup({
+  id,
+  label,
+  icon,
+  collapsed,
+  open,
+  onToggle,
+  active,
+  children,
+}: {
+  id: string;
+  label: string;
+  icon: IhIconName;
+  collapsed: boolean;
+  open: boolean;
+  onToggle: () => void;
+  active: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className="dashboard-shell__nav-group" data-nav-group={id}>
+      <button
+        type="button"
+        className={`dashboard-shell__nav-group-toggle${active ? ' dashboard-shell__nav-group-toggle--active' : ''}`}
+        aria-expanded={open}
+        aria-controls={`os-nav-group-${id}`}
+        onClick={onToggle}
+        title={collapsed ? label : undefined}
+      >
+        <span className="dashboard-shell__nav-link-icon">
+          <IhIcon name={icon} size="nav" />
+        </span>
+        <span className="dashboard-shell__nav-link-label">{label}</span>
+        {!collapsed && (
+          <span className="dashboard-shell__nav-group-chevron" aria-hidden="true">
+            <IhIcon name={open ? 'chevronDown' : 'chevronRight'} size={14} />
+          </span>
+        )}
+      </button>
+      {open ? (
+        <div id={`os-nav-group-${id}`} className="dashboard-shell__nav-submenu" role="group" aria-label={label}>
+          {children}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Unified OS sidebar map — one StandardSidebarNav for all OsShell routes including /dashboard. */
 export function SidebarNav() {
   const pathname = usePathname();
   const t = useTranslations('navigation');
-  const tCommon = useTranslations('common');
   const { user, canViewAdmin } = useAuth();
   const { displayName } = useCompanyBranding();
   const [collapsed, toggleCollapsed] = useSidebarCollapsed();
-  const canViewActivity = user ? hasPermission(user, 'activity', 'view') : false;
-  const canViewKnowledge =
-    user
-      ? hasPermission(user, 'knowledge', 'view') || hasPermission(user, 'documents', 'view')
-      : false;
   const canViewAi = canViewAiWorkspace(user);
   const canViewBi = canViewAnalytics(user);
   const canViewAutomationCenter = canViewAutomation(user);
-  const canViewDesign = user ? hasPermission(user, 'design', 'view') : false;
+  const canViewCreativeStudio = canReadMarketing(user);
   const canViewSettings =
     user ? hasPermission(user, 'settings', 'view') || hasPermission(user, 'company', 'view') : false;
   const operationalWorkspaces = getVisibleWorkspaces(user);
+
+  const identityChildren: NavLinkItem[] = [
+    { href: '/dashboard/admin/users' as Route, label: t('admin.users'), icon: 'users' },
+    { href: '/dashboard/admin/roles' as Route, label: t('admin.roles'), icon: 'roles' },
+    {
+      href: '/dashboard/admin/permissions' as Route,
+      label: t('admin.permissions'),
+      icon: 'permissions',
+    },
+  ];
+
+  const platformChildren: NavLinkItem[] = [
+    {
+      href: '/dashboard/admin/operations' as Route,
+      label: t('admin.operations'),
+      icon: 'activity',
+      tour: 'nav-operations',
+    },
+    {
+      href: '/dashboard/admin/data-platform' as Route,
+      label: t('admin.dataPlatform'),
+      icon: 'barChart',
+    },
+    {
+      href: '/dashboard/admin/metric-catalog' as Route,
+      label: t('admin.metricCatalog'),
+      icon: 'barChart',
+    },
+    {
+      href: '/dashboard/admin/adoption' as Route,
+      label: t('admin.adoption'),
+      icon: 'barChart',
+      tour: 'nav-admin-adoption',
+    },
+  ];
+
+  const identityActive = identityChildren.some((item) => pathMatches(pathname, item.href));
+  const platformActive = platformChildren.some((item) => pathMatches(pathname, item.href));
+
+  const [identityOpen, setIdentityOpen] = useState(identityActive);
+  const [platformOpen, setPlatformOpen] = useState(platformActive);
+
+  useEffect(() => {
+    if (identityActive) setIdentityOpen(true);
+  }, [identityActive]);
+
+  useEffect(() => {
+    if (platformActive) setPlatformOpen(true);
+  }, [platformActive]);
 
   const shellClass = collapsed
     ? 'dashboard-shell__sidebar dashboard-shell__sidebar--collapsed'
@@ -131,14 +272,6 @@ export function SidebarNav() {
 
           const href = moduleHref(module);
           const isActive = pathname === href || pathname.startsWith(`${href}/`);
-          const isImplemented =
-            module === 'executive' ||
-            module === 'leads' ||
-            module === 'investors' ||
-            module === 'projects' ||
-            module === 'inventory' ||
-            module === 'finance';
-
           const navTitle =
             module === 'leads' ? t('modules.sales.title') : t(`modules.${module}.title`);
 
@@ -155,9 +288,6 @@ export function SidebarNav() {
                 <IhIcon name={MODULE_ICONS[module]} size="nav" />
               </span>
               <span className="dashboard-shell__nav-link-label">{navTitle}</span>
-              {!collapsed && !isImplemented && (
-                <span className="dashboard-shell__nav-badge">{tCommon('soon')}</span>
-              )}
             </Link>
           );
         })}
@@ -188,259 +318,139 @@ export function SidebarNav() {
 
         <div className="dashboard-shell__nav-section">{t('toolsSection')}</div>
 
-        {canViewBi && (
-          <Link
-            href={'/dashboard/analytics' as Route}
-            className={`dashboard-shell__nav-link${
-              pathname === '/dashboard/analytics' || pathname.startsWith('/dashboard/analytics/')
-                ? ' dashboard-shell__nav-link--active'
-                : ''
-            }`}
-            aria-current={pathname.startsWith('/dashboard/analytics') ? 'page' : undefined}
-            title={collapsed ? t('businessIntelligence') : undefined}
-          >
-            <span className="dashboard-shell__nav-link-icon">
-              <IhIcon name="barChart" size="nav" />
-            </span>
-            <span className="dashboard-shell__nav-link-label">{t('businessIntelligence')}</span>
-          </Link>
+        {canViewCreativeStudio && (
+          <NavLink
+            pathname={pathname}
+            collapsed={collapsed}
+            item={{
+              href: '/workspaces/creative-studio' as Route,
+              label: t('creativeStudio'),
+              icon: 'design',
+              testId: 'os-nav-creative-studio',
+            }}
+          />
         )}
 
-        <Link
-          href={'/dashboard/onboarding' as Route}
-          className={`dashboard-shell__nav-link${
-            pathname === '/dashboard/onboarding' || pathname.startsWith('/dashboard/onboarding/')
-              ? ' dashboard-shell__nav-link--active'
-              : ''
-          }`}
-          aria-current={pathname.startsWith('/dashboard/onboarding') ? 'page' : undefined}
-          title={collapsed ? t('onboarding') : undefined}
-          data-testid="os-nav-onboarding"
-          data-tour="nav-onboarding"
-        >
-          <span className="dashboard-shell__nav-link-icon">
-            <IhIcon name="target" size="nav" />
-          </span>
-          <span className="dashboard-shell__nav-link-label">{t('onboarding')}</span>
-        </Link>
-
-        <Link
-          href={'/dashboard/training' as Route}
-          className={`dashboard-shell__nav-link${
-            pathname === '/dashboard/training' || pathname.startsWith('/dashboard/training/')
-              ? ' dashboard-shell__nav-link--active'
-              : ''
-          }`}
-          aria-current={pathname.startsWith('/dashboard/training') ? 'page' : undefined}
-          title={collapsed ? t('training') : undefined}
-          data-testid="os-nav-training"
-          data-tour="nav-training"
-        >
-          <span className="dashboard-shell__nav-link-icon">
-            <IhIcon name="check" size="nav" />
-          </span>
-          <span className="dashboard-shell__nav-link-label">{t('training')}</span>
-        </Link>
-
-        <Link
-          href={'/dashboard/help' as Route}
-          className={`dashboard-shell__nav-link${
-            pathname === '/dashboard/help' || pathname.startsWith('/dashboard/help/')
-              ? ' dashboard-shell__nav-link--active'
-              : ''
-          }`}
-          aria-current={pathname.startsWith('/dashboard/help') ? 'page' : undefined}
-          title={collapsed ? t('help') : undefined}
-          data-testid="os-nav-help"
-          data-tour="nav-help"
-        >
-          <span className="dashboard-shell__nav-link-icon">
-            <IhIcon name="inbox" size="nav" />
-          </span>
-          <span className="dashboard-shell__nav-link-label">{t('help')}</span>
-        </Link>
+        {canViewBi && (
+          <NavLink
+            pathname={pathname}
+            collapsed={collapsed}
+            item={{
+              href: '/dashboard/analytics' as Route,
+              label: t('businessIntelligence'),
+              icon: 'barChart',
+            }}
+          />
+        )}
 
         {canViewAi && (
-          <Link
-            href={'/dashboard/ai' as Route}
-            className={`dashboard-shell__nav-link${
-              pathname === '/dashboard/ai' || pathname.startsWith('/dashboard/ai/')
-                ? ' dashboard-shell__nav-link--active'
-                : ''
-            }`}
-            aria-current={pathname.startsWith('/dashboard/ai') ? 'page' : undefined}
-            title={collapsed ? t('aiWorkspace') : undefined}
-          >
-            <span className="dashboard-shell__nav-link-icon">
-              <IhIcon name="sparkles" size="nav" />
-            </span>
-            <span className="dashboard-shell__nav-link-label">{t('aiWorkspace')}</span>
-          </Link>
+          <NavLink
+            pathname={pathname}
+            collapsed={collapsed}
+            item={{
+              href: '/dashboard/ai' as Route,
+              label: t('aiWorkspace'),
+              icon: 'sparkles',
+            }}
+          />
         )}
 
-        {canViewKnowledge && (
-          <Link
-            href={'/dashboard/knowledge' as Route}
-            className={`dashboard-shell__nav-link${
-              pathname === '/dashboard/knowledge' ||
-              pathname.startsWith('/dashboard/knowledge/') ||
-              pathname === '/dashboard/documents' ||
-              pathname.startsWith('/dashboard/documents/')
-                ? ' dashboard-shell__nav-link--active'
-                : ''
-            }`}
-            aria-current={
-              pathname.startsWith('/dashboard/knowledge') || pathname.startsWith('/dashboard/documents')
-                ? 'page'
-                : undefined
-            }
-            title={collapsed ? t('knowledgeHub') : undefined}
-          >
-            <span className="dashboard-shell__nav-link-icon">
-              <IhIcon name="documents" size="nav" />
-            </span>
-            <span className="dashboard-shell__nav-link-label">{t('knowledgeHub')}</span>
-          </Link>
-        )}
-
-        {canViewDesign && (
-          <Link
-            href={'/dashboard/design' as Route}
-            className={`dashboard-shell__nav-link${
-              pathname === '/dashboard/design' || pathname.startsWith('/dashboard/design/')
-                ? ' dashboard-shell__nav-link--active'
-                : ''
-            }`}
-            aria-current={pathname.startsWith('/dashboard/design') ? 'page' : undefined}
-            title={collapsed ? t('designStudio') : undefined}
-          >
-            <span className="dashboard-shell__nav-link-icon">
-              <IhIcon name="design" size="nav" />
-            </span>
-            <span className="dashboard-shell__nav-link-label">{t('designStudio')}</span>
-          </Link>
-        )}
-
-        {canViewActivity && (
-          <Link
-            href={'/dashboard/activity' as Route}
-            className={`dashboard-shell__nav-link${
-              pathname === '/dashboard/activity' || pathname.startsWith('/dashboard/activity/')
-                ? ' dashboard-shell__nav-link--active'
-                : ''
-            }`}
-            aria-current={pathname.startsWith('/dashboard/activity') ? 'page' : undefined}
-            title={collapsed ? t('activity') : undefined}
-          >
-            <span className="dashboard-shell__nav-link-icon">
-              <IhIcon name="activity" size="nav" />
-            </span>
-            <span className="dashboard-shell__nav-link-label">{t('activity')}</span>
-          </Link>
-        )}
+        <NavLink
+          pathname={pathname}
+          collapsed={collapsed}
+          item={{
+            href: '/dashboard/training' as Route,
+            label: t('training'),
+            icon: 'check',
+            testId: 'os-nav-training',
+            tour: 'nav-training',
+          }}
+        />
 
         {canViewAutomationCenter && (
-          <Link
-            href={'/dashboard/automation' as Route}
-            className={`dashboard-shell__nav-link${
-              pathname === '/dashboard/automation' || pathname.startsWith('/dashboard/automation/')
-                ? ' dashboard-shell__nav-link--active'
-                : ''
-            }`}
-            aria-current={pathname.startsWith('/dashboard/automation') ? 'page' : undefined}
-            title={collapsed ? t('automation') : undefined}
-          >
-            <span className="dashboard-shell__nav-link-icon">
-              <IhIcon name="refresh" size="nav" />
-            </span>
-            <span className="dashboard-shell__nav-link-label">{t('automation')}</span>
-          </Link>
+          <NavLink
+            pathname={pathname}
+            collapsed={collapsed}
+            item={{
+              href: '/dashboard/automation' as Route,
+              label: t('automation'),
+              icon: 'refresh',
+            }}
+          />
         )}
 
-        {canViewSettings && (
-          <Link
-            href={'/dashboard/settings' as Route}
-            className={`dashboard-shell__nav-link${
-              pathname === '/dashboard/settings' || pathname.startsWith('/dashboard/settings/')
-                ? ' dashboard-shell__nav-link--active'
-                : ''
-            }`}
-            aria-current={pathname.startsWith('/dashboard/settings') ? 'page' : undefined}
-            title={collapsed ? t('settings') : undefined}
-          >
-            <span className="dashboard-shell__nav-link-icon">
-              <IhIcon name="settings" size="nav" />
-            </span>
-            <span className="dashboard-shell__nav-link-label">{t('settings')}</span>
-          </Link>
-        )}
+        <NavLink
+          pathname={pathname}
+          collapsed={collapsed}
+          item={{
+            href: '/dashboard/help' as Route,
+            label: t('help'),
+            icon: 'inbox',
+            testId: 'os-nav-help',
+            tour: 'nav-help',
+          }}
+        />
 
-        {canViewAdmin && (
+        {(canViewSettings || canViewAdmin) && (
           <>
             <div className="dashboard-shell__nav-section">{t('adminSection')}</div>
-            {(
-              [
-                { href: '/dashboard/admin' as Route, label: t('adminSection'), icon: 'admin' as const, tour: undefined },
-                { href: '/dashboard/admin/users' as Route, label: t('admin.users'), icon: 'users' as const, tour: undefined },
-                { href: '/dashboard/admin/roles' as Route, label: t('admin.roles'), icon: 'roles' as const, tour: undefined },
-                {
-                  href: '/dashboard/admin/permissions' as Route,
-                  label: t('admin.permissions'),
-                  icon: 'permissions' as const,
-                  tour: undefined,
-                },
-                {
-                  href: '/dashboard/admin/adoption' as Route,
-                  label: t('admin.adoption'),
-                  icon: 'barChart' as const,
-                  tour: 'nav-admin-adoption',
-                },
-                {
-                  href: '/dashboard/admin/training-builder' as Route,
-                  label: t('admin.trainingBuilder'),
-                  icon: 'design' as const,
-                  tour: 'nav-training-builder',
-                },
-                {
-                  href: '/dashboard/admin/operations' as Route,
-                  label: t('admin.operations'),
-                  icon: 'activity' as const,
-                  tour: 'nav-operations',
-                },
-                {
-                  href: '/dashboard/admin/data-platform' as Route,
-                  label: t('admin.dataPlatform'),
-                  icon: 'barChart' as const,
-                  tour: undefined,
-                },
-                {
-                  href: '/dashboard/admin/metric-catalog' as Route,
-                  label: t('admin.metricCatalog'),
-                  icon: 'barChart' as const,
-                  tour: undefined,
-                },
-              ] as const
-            ).map((item) => {
-              const isActive =
-                pathname === item.href ||
-                (item.href === ('/dashboard/admin' as Route) && pathname === '/dashboard/admin') ||
-                (item.href !== ('/dashboard/admin' as Route) && pathname.startsWith(`${item.href}/`));
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`dashboard-shell__nav-link${isActive ? ' dashboard-shell__nav-link--active' : ''}`}
-                  aria-current={isActive ? 'page' : undefined}
-                  title={collapsed ? item.label : undefined}
-                  data-tour={item.tour}
+
+            {canViewAdmin && (
+              <NavLink
+                pathname={pathname}
+                collapsed={collapsed}
+                exactRoot
+                item={{
+                  href: '/dashboard/admin' as Route,
+                  label: t('adminSection'),
+                  icon: 'admin',
+                }}
+              />
+            )}
+
+            {canViewSettings && (
+              <NavLink
+                pathname={pathname}
+                collapsed={collapsed}
+                item={{
+                  href: '/dashboard/settings' as Route,
+                  label: t('settings'),
+                  icon: 'settings',
+                }}
+              />
+            )}
+
+            {canViewAdmin && (
+              <>
+                <NavGroup
+                  id="identity"
+                  label={t('identityAccess')}
+                  icon="users"
+                  collapsed={collapsed}
+                  open={identityOpen}
+                  onToggle={() => setIdentityOpen((value) => !value)}
+                  active={identityActive}
                 >
-                  <span className="dashboard-shell__nav-link-icon">
-                    <IhIcon name={item.icon} size="nav" />
-                  </span>
-                  <span className="dashboard-shell__nav-link-label">{item.label}</span>
-                </Link>
-              );
-            })}
+                  {identityChildren.map((item) => (
+                    <NavLink key={item.href} item={item} pathname={pathname} collapsed={collapsed} child />
+                  ))}
+                </NavGroup>
+
+                <NavGroup
+                  id="platform"
+                  label={t('platform')}
+                  icon="activity"
+                  collapsed={collapsed}
+                  open={platformOpen}
+                  onToggle={() => setPlatformOpen((value) => !value)}
+                  active={platformActive}
+                >
+                  {platformChildren.map((item) => (
+                    <NavLink key={item.href} item={item} pathname={pathname} collapsed={collapsed} child />
+                  ))}
+                </NavGroup>
+              </>
+            )}
           </>
         )}
       </nav>

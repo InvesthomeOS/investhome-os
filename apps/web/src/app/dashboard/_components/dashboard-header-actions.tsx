@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useTranslations } from 'next-intl';
+import { usePathname } from 'next/navigation';
 
 import { IhIcon } from '@/components/icons/ih-icons';
 import { WorkspaceHeaderUser } from '@/components/shell/workspace-header-user';
@@ -14,9 +15,19 @@ import { AiGlobalButton } from '@/components/ai/ai-global-button';
 import { GlobalSearchTrigger } from './global-search-trigger';
 import { LanguageSelector } from './language-selector';
 import { NotificationBell } from './notification-bell';
+import { ScreenshotDashboardHeader } from './screenshot-dashboard-header';
 import { ThemeToggle } from './theme-toggle';
 
 export function DashboardHeaderActions() {
+  const pathname = usePathname();
+  if (pathname === '/dashboard') {
+    return <ScreenshotDashboardHeader />;
+  }
+
+  return <StandardDashboardHeaderActions />;
+}
+
+function StandardDashboardHeaderActions() {
   const tHome = useTranslations('home');
   const { user } = useAuth();
   const canCreateLead = user
@@ -28,7 +39,11 @@ export function DashboardHeaderActions() {
       <GlobalSearchTrigger />
       <AiGlobalButton />
       {canCreateLead && (
-        <Link href={'/dashboard/sales' as Route} className="app-header__quick">
+        <Link
+          href={'/workspaces/crm/leads' as Route}
+          className="app-header__quick"
+          data-testid="header-new-lead"
+        >
           <IhIcon name="plus" size={15} />
           {tHome('quickActions.newLead')}
         </Link>

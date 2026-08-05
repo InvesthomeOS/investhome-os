@@ -8,6 +8,7 @@ import './globals.css';
 import './premium-shell.css';
 import './shell-v2.css';
 import './executive-home.css';
+import './screenshot-dashboard.css';
 
 export const metadata: Metadata = {
   title: 'Investhome OS',

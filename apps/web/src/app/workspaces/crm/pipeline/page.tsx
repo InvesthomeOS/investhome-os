@@ -1,4 +1,5 @@
 import { CrmPipelineWorkspace } from '../_components/g2/crm-pipeline-workspace';
+import '../opportunities-foundation.css';
 
 export default function CrmPipelinePage() {
   return (

@@ -1,7 +1,6 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { SavedSearchesWorkspace } from '../_components/saved-searches-workspace';
-
+/** Standalone CRM Search removed — use Dashboard header Ctrl/Cmd+K. */
 export default function CrmSavedSearchesPage() {
-  return <SavedSearchesWorkspace />;
+  redirect('/workspaces/crm/dashboard');
 }

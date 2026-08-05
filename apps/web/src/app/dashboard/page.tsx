@@ -1,5 +1,5 @@
-import { ExecutiveHome } from './_components/executive-home';
+import { ScreenshotDashboard } from './_components/screenshot-dashboard';
 
 export default function DashboardPage() {
-  return <ExecutiveHome />;
+  return <ScreenshotDashboard />;
 }

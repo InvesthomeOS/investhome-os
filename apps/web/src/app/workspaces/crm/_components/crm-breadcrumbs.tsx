@@ -16,11 +16,10 @@ const SEGMENT_KEYS: Record<string, string> = {
   activities: 'nav.activities',
   tasks: 'nav.tasks',
   notes: 'nav.notes',
-  files: 'nav.files',
+  files: 'nav.documents',
   tags: 'nav.tags',
   communication: 'nav.communication',
   documents: 'nav.documents',
-  search: 'nav.search',
   reports: 'nav.reports',
   settings: 'nav.settings',
 };

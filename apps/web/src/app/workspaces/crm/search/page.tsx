@@ -1,7 +1,6 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { SearchWorkspace } from './_components/search-workspace';
-
+/** Standalone CRM Search removed — use Dashboard header Ctrl/Cmd+K. */
 export default function CrmSearchPage() {
-  return <SearchWorkspace />;
+  redirect('/workspaces/crm/dashboard');
 }

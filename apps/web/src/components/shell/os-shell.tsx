@@ -7,6 +7,7 @@ import { AiShellHost } from '@/components/ai/ai-shell-host';
 import { AppHeader } from '@/app/dashboard/_components/app-header';
 import { GlobalSearchPalette } from '@/app/dashboard/_components/global-search-palette';
 import { NotificationDrawer } from '@/app/dashboard/_components/notification-drawer';
+import { ScreenshotDashboardPreferencesProvider } from '@/app/dashboard/_components/screenshot-dashboard-preferences';
 import { SidebarNav } from '@/app/dashboard/_components/sidebar-nav';
 import { AuthProvider } from '@/lib/auth/auth-context';
 import { CompanyBrandingProvider } from '@/lib/company/company-context';
@@ -42,38 +43,47 @@ export function OsShell({
   const shellClass = [
     'dashboard-shell',
     dsV2 ? 'dashboard-shell--v2' : '',
+    pathname === '/dashboard' ? 'dashboard-shell--home' : '',
     shellClassName,
   ]
     .filter(Boolean)
     .join(' ');
+
+  const shell = (
+    <AiShellHost>
+      <div
+        className={shellClass}
+        data-ds-version={dsV2 ? DS_VERSION_V2 : undefined}
+        data-testid={dsV2 ? 'os-shell-v2' : 'os-shell'}
+      >
+        <SidebarNav />
+        <div className="dashboard-shell__main">
+          <AppHeader />
+          {workspaceChrome ? (
+            <div className="os-workspace-chrome">
+              {workspaceChrome}
+              <div className="dashboard-shell__content os-workspace-chrome__content">{children}</div>
+            </div>
+          ) : (
+            <div className="dashboard-shell__content">{children}</div>
+          )}
+        </div>
+        <NotificationDrawer />
+        <GlobalSearchPalette />
+      </div>
+    </AiShellHost>
+  );
 
   const body = (
     <CompanyBrandingProvider>
       <BrandThemeInjector />
       <NotificationProvider>
         <GlobalSearchProvider>
-          <AiShellHost>
-            <div
-              className={shellClass}
-              data-ds-version={dsV2 ? DS_VERSION_V2 : undefined}
-              data-testid={dsV2 ? 'os-shell-v2' : 'os-shell'}
-            >
-              <SidebarNav />
-              <div className="dashboard-shell__main">
-                <AppHeader />
-                {workspaceChrome ? (
-                  <div className="os-workspace-chrome">
-                    {workspaceChrome}
-                    <div className="dashboard-shell__content os-workspace-chrome__content">{children}</div>
-                  </div>
-                ) : (
-                  <div className="dashboard-shell__content">{children}</div>
-                )}
-              </div>
-              <NotificationDrawer />
-              <GlobalSearchPalette />
-            </div>
-          </AiShellHost>
+          {pathname === '/dashboard' ? (
+            <ScreenshotDashboardPreferencesProvider>{shell}</ScreenshotDashboardPreferencesProvider>
+          ) : (
+            shell
+          )}
         </GlobalSearchProvider>
       </NotificationProvider>
     </CompanyBrandingProvider>
