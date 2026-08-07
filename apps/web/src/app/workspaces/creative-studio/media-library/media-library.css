@@ -1262,3 +1262,118 @@
   justify-content: flex-end;
   gap: 6px;
 }
+
+/* Drive source visibility */
+.ml-ws__source-inline {
+  color: #5b6b75;
+  font-weight: 700;
+}
+
+.ml-ws__dup-inline {
+  color: #8a5a12;
+  font-weight: 700;
+}
+
+.ml-ws__sync-badge {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 1;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
+.ml-ws__sync-badge.is-missing {
+  background: #fff1f0;
+  border: 1px solid #f0c9c3;
+  color: #7a2e24;
+}
+
+.ml-ws__drive-block {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--cs-border);
+}
+
+.ml-ws__drive-missing,
+.ml-ws__drive-dup {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+}
+
+.ml-ws__drive-missing {
+  background: #fff1f0;
+  border: 1px solid #f0c9c3;
+  color: #7a2e24;
+}
+
+.ml-ws__drive-dup {
+  background: #fff8eb;
+  border: 1px solid #f0d9a8;
+  color: #8a5a12;
+}
+
+.ml-ws__mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.ml-ws__drive-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  color: var(--shot-navy);
+  font-size: var(--shot-font-caption);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ml-ws__drive-link::after {
+  content: '↗';
+  font-size: 10px;
+}
+
+.ml-ws__source-filter select {
+  max-width: 140px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--cs-border);
+  border-radius: 7px;
+  background: #fff;
+  color: #152a36;
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+}
+
+.ml-ws__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 1024px) {
+  .ml-ws__source-filter select {
+    max-width: 120px;
+  }
+}

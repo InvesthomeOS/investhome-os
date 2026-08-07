@@ -39,6 +39,7 @@ import {
   type ProjectDetailDsTab,
   type UnitStatus,
 } from './projects-detail-ds-model';
+import { ProjectDriveSyncPanel } from './project-drive-sync-panel';
 import { ProjectsDetailDigitalTwin } from './projects-detail-digital-twin';
 
 import './projects-ds.css';
@@ -384,7 +385,9 @@ export function ProjectsDetailDsWorkspace({
       {resolvedTab === 'investors' ? (
         <InvestorsTab model={model} tD={tD} locale={locale} />
       ) : null}
-      {resolvedTab === 'documents' ? <DocumentsTab model={model} tD={tD} /> : null}
+      {resolvedTab === 'documents' ? (
+        <DocumentsTab model={model} tD={tD} projectId={projectId} />
+      ) : null}
       {resolvedTab === 'tasks' ? (
         <TasksTab
           model={model}
@@ -817,12 +820,21 @@ function InvestorsTab({
   );
 }
 
-function DocumentsTab({ model, tD }: { model: Model; tD: TranslateFn }) {
+function DocumentsTab({
+  model,
+  tD,
+  projectId,
+}: {
+  model: Model;
+  tD: TranslateFn;
+  projectId: string;
+}) {
   const categories = Object.keys(model.docCategoryCounts) as Array<
     keyof typeof model.docCategoryCounts
   >;
   return (
     <div style={{ display: 'grid', gap: 12 }}>
+      <ProjectDriveSyncPanel projectId={projectId} />
       <section className="proj-detail-ds__doc-cats" aria-label={tD('documents.categories')}>
         {categories.map((cat) => (
           <article key={cat} className="proj-detail-ds__doc-cat">

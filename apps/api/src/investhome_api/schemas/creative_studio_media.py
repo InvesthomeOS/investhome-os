@@ -63,6 +63,15 @@ class CreativeStudioMediaAssetResponse(BaseModel):
     archived_at: datetime | None
     # Thumbnail pipeline stub — null key means not generated yet
     thumbnail_pending: bool = True
+    # Google Drive sync visibility (nullable — uploads omit these)
+    source_type: str | None = None
+    external_file_id: str | None = None
+    external_modified_at: datetime | None = None
+    sync_status: str | None = None
+    folder_category: str | None = None
+    possible_duplicate: bool = False
+    web_view_link: str | None = None
+    external_checksum: str | None = None
 
 
 class CreativeStudioMediaAssetListResponse(BaseModel):

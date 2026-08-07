@@ -2322,6 +2322,63 @@
             "neighborhoodGrowth": "Local growth index"
           }
         }
+      },
+      "drive": {
+        "title": "Google Drive",
+        "subtitle": "Project folder mapping and Media Library sync status.",
+        "loading": "Loading Drive status…",
+        "loadError": "Could not load Drive status.",
+        "unmapped": "No Google Drive folder is mapped to this project yet.",
+        "mapped": "Mapped",
+        "yes": "Enabled",
+        "no": "Disabled",
+        "never": "Never",
+        "fields": {
+          "mapping": "Mapping",
+          "folderId": "Drive folder ID",
+          "syncEnabled": "Sync enabled",
+          "lastSync": "Last sync",
+          "lastSuccessful": "Last successful",
+          "currentStatus": "Current status",
+          "syncType": "Sync type",
+          "automaticSync": "Automatic Sync"
+        },
+        "status": {
+          "IDLE": "Idle",
+          "RUNNING": "Running",
+          "SUCCESS": "Success",
+          "FAILED": "Failed"
+        },
+        "syncType": {
+          "none": "—",
+          "incremental": "Incremental",
+          "full": "Full scan",
+          "fullPending": "Full rescan pending"
+        },
+        "error": {
+          "title": "Last sync failed.",
+          "fallback": "Sync failed. Try Sync Now.",
+          "at": "Failed at {time}"
+        },
+        "actions": {
+          "syncNow": "Sync Now",
+          "syncing": "Syncing…",
+          "forceFull": "Force Full Sync",
+          "retry": "Retry"
+        },
+        "forceConfirm": {
+          "title": "Force full sync?",
+          "body": "This performs a complete rescan of the mapped Drive folder. It does not delete Media Library assets.",
+          "cancel": "Cancel",
+          "confirm": "Run full sync"
+        },
+        "toasts": {
+          "syncDone": "Sync finished — created {created}, updated {updated}, missing {missing}.",
+          "syncFailed": "Sync failed.",
+          "autoOn": "Automatic sync enabled.",
+          "autoOff": "Automatic sync disabled.",
+          "toggleFailed": "Could not update automatic sync."
+        }
       }
     },
     "types": {
@@ -19809,6 +19866,40 @@
           "menu": "Asset menu",
           "samplesOnly": "Sample assets — upload to replace with your media",
           "trashReadOnly": "Trash is read-only — restore is not available"
+        },
+        "sourceFilter": {
+          "aria": "Filter by source",
+          "all": "All sources",
+          "googleDrive": "Google Drive",
+          "uploaded": "Uploaded"
+        },
+        "drive": {
+          "sectionTitle": "Google Drive",
+          "sourceGoogleDrive": "Google Drive",
+          "sourceShort": "Google Drive",
+          "possibleDuplicate": "Possible duplicate — review Asset IDs before making changes. No automatic merge.",
+          "possibleDuplicateShort": "Possible duplicate",
+          "missingRetainId": "This Drive file is missing. The Asset ID is retained and the asset is not selectable as an active builder source.",
+          "openInDrive": "Open in Google Drive",
+          "opensExternal": "(opens in a new tab)",
+          "fields": {
+            "source": "Source",
+            "assetId": "Asset ID",
+            "filename": "Drive filename",
+            "fileId": "Drive File ID",
+            "lastModified": "Last modified",
+            "syncStatus": "Sync status",
+            "category": "Category",
+            "project": "Project",
+            "checksum": "Checksum"
+          },
+          "sync": {
+            "active": "Active",
+            "changed": "Changed",
+            "missing": "Missing",
+            "error": "Error",
+            "unknown": "Unknown"
+          }
         }
       },
       "architecturalStudio": {

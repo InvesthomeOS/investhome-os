@@ -48,6 +48,9 @@ export type BottomActionKey =
 export type ViewMode = 'grid' | 'list';
 export type SortKey = 'newest' | 'oldest' | 'nameAsc' | 'sizeDesc';
 export type SizePreset = 'small' | 'medium' | 'large';
+export type SourceFilterId = 'all' | 'google_drive' | 'upload';
+export type MediaAssetSourceType = 'upload' | 'google_drive' | string;
+export type MediaAssetSyncStatus = 'active' | 'changed' | 'missing' | 'error' | string;
 
 export type MediaFolder = {
   id: string;
@@ -91,7 +94,25 @@ export type MediaAsset = {
   tags: string[];
   usages: AssetUsage[];
   history: AssetHistory[];
+  /** Drive / source visibility (optional — uploads omit). */
+  sourceType?: MediaAssetSourceType | null;
+  syncStatus?: MediaAssetSyncStatus | null;
+  externalFileId?: string | null;
+  externalModifiedAt?: string | null;
+  folderCategory?: string | null;
+  linkedProjectId?: string | null;
+  possibleDuplicate?: boolean;
+  webViewLink?: string | null;
+  externalChecksum?: string | null;
 };
+
+export function isGoogleDriveAsset(asset: MediaAsset): boolean {
+  return asset.sourceType === 'google_drive';
+}
+
+export function isMissingDriveAsset(asset: MediaAsset): boolean {
+  return isGoogleDriveAsset(asset) && asset.syncStatus === 'missing';
+}
 
 export const SIDEBAR_TYPES: { id: SidebarTypeId; icon: IhIconName }[] = [
   { id: 'all', icon: 'inventory' },
@@ -613,9 +634,11 @@ export function filterAssets(
     tab: CenterTabId;
     folderId: string | null;
     query: string;
+    sourceFilter?: SourceFilterId;
   },
 ): MediaAsset[] {
   const q = opts.query.trim().toLowerCase();
+  const sourceFilter = opts.sourceFilter ?? 'all';
   return assets.filter((a) => {
     if (opts.sidebar === 'trash') {
       if (!a.trashed) return false;
@@ -626,6 +649,8 @@ export function filterAssets(
     if (!kindMatchesSidebar(a.kind, opts.sidebar)) return false;
     if (!kindMatchesTab(a.kind, opts.tab)) return false;
     if (opts.folderId && a.folderId !== opts.folderId) return false;
+    if (sourceFilter === 'google_drive' && !isGoogleDriveAsset(a)) return false;
+    if (sourceFilter === 'upload' && isGoogleDriveAsset(a)) return false;
     if (q) {
       const hay = `${a.name} ${a.description} ${a.tags.join(' ')} ${a.ext}`.toLowerCase();
       if (!hay.includes(q)) return false;

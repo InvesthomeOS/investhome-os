@@ -77,6 +77,14 @@ def build_asset_response(asset: CreativeStudioMediaAsset) -> CreativeStudioMedia
         updated_at=asset.updated_at,
         archived_at=asset.archived_at,
         thumbnail_pending=asset.thumbnail_storage_key is None,
+        source_type=asset.source_type,
+        external_file_id=asset.external_file_id,
+        external_modified_at=asset.external_modified_at,
+        sync_status=asset.sync_status,
+        folder_category=asset.folder_category,
+        possible_duplicate=bool(asset.possible_duplicate),
+        web_view_link=asset.web_view_link,
+        external_checksum=asset.external_checksum,
     )
 
 

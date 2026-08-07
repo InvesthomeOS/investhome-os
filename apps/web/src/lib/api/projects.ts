@@ -1499,3 +1499,105 @@ export async function transitionVendorBill(
     method: 'POST',
   });
 }
+
+// --- Google Drive mapping / sync (Creative Studio) ---
+
+export type DriveSyncStatusValue = 'IDLE' | 'RUNNING' | 'SUCCESS' | 'FAILED' | string;
+
+export type ProjectDriveMapping = {
+  id: string;
+  project_id: string;
+  drive_folder_id: string;
+  drive_sync_enabled: boolean;
+  last_drive_sync_at: string | null;
+  last_successful_sync_at: string | null;
+  last_sync_status: DriveSyncStatusValue;
+  last_sync_error: string | null;
+  force_full_sync: boolean;
+  created_at: string;
+  updated_at: string;
+  archived_at: string | null;
+};
+
+export type ProjectDriveMappingUpsert = {
+  drive_folder_id: string;
+  drive_sync_enabled: boolean;
+};
+
+export type ProjectDriveStatus = {
+  project_id: string;
+  mapped: boolean;
+  drive_folder_id?: string | null;
+  drive_sync_enabled: boolean;
+  last_sync_status: DriveSyncStatusValue;
+  last_drive_sync_at: string | null;
+  last_successful_sync_at: string | null;
+  last_sync_error: string | null;
+  force_full_sync: boolean;
+  sync_started_at?: string | null;
+  has_change_token: boolean;
+  background_sync_enabled: boolean;
+  background_sync_interval_minutes: number;
+};
+
+export type DriveSyncDuplicateItem = {
+  drive_file_id: string;
+  existing_asset_id: string;
+  checksum: string;
+  filename: string;
+};
+
+export type DriveSyncErrorItem = {
+  path: string;
+  code: string;
+  message: string;
+};
+
+export type DriveSyncResult = {
+  scanned: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  missing: number;
+  skipped: number;
+  possible_duplicates: DriveSyncDuplicateItem[];
+  errors: DriveSyncErrorItem[];
+  dry_run: boolean;
+  warnings: string[];
+};
+
+export async function fetchProjectDriveMapping(
+  projectId: string,
+): Promise<ProjectDriveMapping> {
+  return apiFetch<ProjectDriveMapping>(`/projects/${projectId}/drive/mapping`);
+}
+
+export async function upsertProjectDriveMapping(
+  projectId: string,
+  input: ProjectDriveMappingUpsert,
+): Promise<ProjectDriveMapping> {
+  return apiFetch<ProjectDriveMapping>(`/projects/${projectId}/drive/mapping`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function fetchProjectDriveStatus(
+  projectId: string,
+): Promise<ProjectDriveStatus> {
+  return apiFetch<ProjectDriveStatus>(`/projects/${projectId}/drive/status`);
+}
+
+export async function syncProjectDrive(
+  projectId: string,
+  options?: { dryRun?: boolean; forceFull?: boolean },
+): Promise<DriveSyncResult> {
+  const params = new URLSearchParams();
+  if (options?.dryRun) params.set('dry_run', 'true');
+  if (options?.forceFull) params.set('force_full', 'true');
+  const query = params.toString();
+  return apiFetch<DriveSyncResult>(
+    `/projects/${projectId}/drive/sync${query ? `?${query}` : ''}`,
+    { method: 'POST' },
+  );
+}

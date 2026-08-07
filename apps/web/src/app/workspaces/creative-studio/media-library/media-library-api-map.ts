@@ -193,6 +193,17 @@ export function mapApiAssetToMediaAsset(
     history: created
       ? [{ id: `${asset.id}-uploaded`, action: 'Uploaded', actor: '—', at: absoluteDateLabel(created) }]
       : [],
+    sourceType: asset.source_type ?? null,
+    syncStatus: asset.sync_status ?? null,
+    externalFileId: asset.external_file_id ?? null,
+    externalModifiedAt: asset.external_modified_at
+      ? absoluteDateLabel(asset.external_modified_at) || asset.external_modified_at
+      : null,
+    folderCategory: asset.folder_category ?? null,
+    linkedProjectId: asset.linked_project_id ?? null,
+    possibleDuplicate: Boolean(asset.possible_duplicate),
+    webViewLink: asset.web_view_link ?? null,
+    externalChecksum: asset.external_checksum ?? null,
   };
 }
 

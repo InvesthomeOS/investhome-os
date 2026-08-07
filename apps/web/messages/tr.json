@@ -2315,6 +2315,63 @@
             "neighborhoodGrowth": "Yerel büyüme endeksi"
           }
         }
+      },
+      "drive": {
+        "title": "Google Drive",
+        "subtitle": "Proje klasör eşlemesi ve Medya Kütüphanesi senkron durumu.",
+        "loading": "Drive durumu yükleniyor…",
+        "loadError": "Drive durumu yüklenemedi.",
+        "unmapped": "Bu projeye henüz bir Google Drive klasörü eşlenmemiş.",
+        "mapped": "Eşlenmiş",
+        "yes": "Açık",
+        "no": "Kapalı",
+        "never": "Hiç",
+        "fields": {
+          "mapping": "Eşleme",
+          "folderId": "Drive klasör ID",
+          "syncEnabled": "Senkron açık",
+          "lastSync": "Son senkron",
+          "lastSuccessful": "Son başarılı",
+          "currentStatus": "Güncel durum",
+          "syncType": "Senkron türü",
+          "automaticSync": "Otomatik Senkron"
+        },
+        "status": {
+          "IDLE": "Boşta",
+          "RUNNING": "Çalışıyor",
+          "SUCCESS": "Başarılı",
+          "FAILED": "Başarısız"
+        },
+        "syncType": {
+          "none": "—",
+          "incremental": "Artımlı",
+          "full": "Tam tarama",
+          "fullPending": "Tam tarama bekliyor"
+        },
+        "error": {
+          "title": "Son senkron başarısız.",
+          "fallback": "Senkron başarısız. Şimdi Senkronize Et’i deneyin.",
+          "at": "Hata zamanı: {time}"
+        },
+        "actions": {
+          "syncNow": "Şimdi Senkronize Et",
+          "syncing": "Senkronize ediliyor…",
+          "forceFull": "Zorla Tam Senkron",
+          "retry": "Yeniden dene"
+        },
+        "forceConfirm": {
+          "title": "Tam senkron zorlansın mı?",
+          "body": "Eşlenen Drive klasörünün tam taramasını yapar. Medya Kütüphanesi varlıklarını silmez.",
+          "cancel": "İptal",
+          "confirm": "Tam senkronu çalıştır"
+        },
+        "toasts": {
+          "syncDone": "Senkron tamam — oluşturulan {created}, güncellenen {updated}, eksik {missing}.",
+          "syncFailed": "Senkron başarısız.",
+          "autoOn": "Otomatik senkron açıldı.",
+          "autoOff": "Otomatik senkron kapatıldı.",
+          "toggleFailed": "Otomatik senkron güncellenemedi."
+        }
       }
     },
     "types": {
@@ -14486,6 +14543,40 @@
           "menu": "Varlık menüsü",
           "samplesOnly": "Örnek varlıklar — medyanızı kullanmak için yükleyin",
           "trashReadOnly": "Çöp kutusu salt okunur — geri yükleme yok"
+        },
+        "sourceFilter": {
+          "aria": "Kaynağa göre filtrele",
+          "all": "Tüm kaynaklar",
+          "googleDrive": "Google Drive",
+          "uploaded": "Yüklenenler"
+        },
+        "drive": {
+          "sectionTitle": "Google Drive",
+          "sourceGoogleDrive": "Google Drive",
+          "sourceShort": "Google Drive",
+          "possibleDuplicate": "Olası kopya — değişiklik yapmadan önce Asset ID’leri kontrol edin. Otomatik birleştirme yok.",
+          "possibleDuplicateShort": "Olası kopya",
+          "missingRetainId": "Bu Drive dosyası eksik. Asset ID korunur ve varlık aktif builder kaynağı olarak seçilemez.",
+          "openInDrive": "Google Drive’da aç",
+          "opensExternal": "(yeni sekmede açılır)",
+          "fields": {
+            "source": "Kaynak",
+            "assetId": "Asset ID",
+            "filename": "Drive dosya adı",
+            "fileId": "Drive Dosya ID",
+            "lastModified": "Son değişiklik",
+            "syncStatus": "Senkron durumu",
+            "category": "Kategori",
+            "project": "Proje",
+            "checksum": "Kontrol özeti"
+          },
+          "sync": {
+            "active": "Aktif",
+            "changed": "Değişti",
+            "missing": "Eksik",
+            "error": "Hata",
+            "unknown": "Bilinmiyor"
+          }
         }
       },
       "architecturalStudio": {

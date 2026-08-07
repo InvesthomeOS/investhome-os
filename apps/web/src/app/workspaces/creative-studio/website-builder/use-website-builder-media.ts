@@ -132,7 +132,10 @@ export function useWebsiteBuilderMedia(options?: {
   };
 
   const applyList = useCallback((items: CreativeStudioMediaAsset[]) => {
-    const active = items.filter((a) => !a.archived_at);
+    // Missing Drive assets stay in Media Library but are not newly selectable in builders.
+    const active = items.filter(
+      (a) => !a.archived_at && String(a.sync_status || '').toLowerCase() !== 'missing',
+    );
     rawByIdRef.current = new Map(active.map((a) => [a.id, a]));
     setRawAssets(active);
 

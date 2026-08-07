@@ -149,6 +149,13 @@ describe('API methods used', () => {
       assert.match(hook, new RegExp(name));
     });
   }
+
+  it('client exposes Drive visibility fields on CreativeStudioMediaAsset', () => {
+    assert.match(client, /source_type\?:/);
+    assert.match(client, /sync_status\?:/);
+    assert.match(client, /possible_duplicate\?:/);
+    assert.match(client, /web_view_link\?:/);
+  });
 });
 
 describe('upload behavior', () => {

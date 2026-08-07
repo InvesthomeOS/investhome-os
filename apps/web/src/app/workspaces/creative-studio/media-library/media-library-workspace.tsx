@@ -41,6 +41,8 @@ import {
   STORAGE,
   docIcon,
   filterAssets,
+  isGoogleDriveAsset,
+  isMissingDriveAsset,
   sortAssets,
   type BottomActionKey,
   type CenterTabId,
@@ -50,6 +52,7 @@ import {
   type SidebarTypeId,
   type SizePreset,
   type SortKey,
+  type SourceFilterId,
   type ViewMode,
 } from './media-library-model';
 import { MediaLibraryQuickTagPopover } from './media-library-quick-tag-popover';
@@ -104,6 +107,7 @@ export function MediaLibraryWorkspace() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sort, setSort] = useState<SortKey>('newest');
   const [size, setSize] = useState<SizePreset>('medium');
+  const [sourceFilter, setSourceFilter] = useState<SourceFilterId>('all');
   const [saved, setSaved] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
   const [activeQuick, setActiveQuick] = useState<QuickActionId | null>('info');
@@ -156,7 +160,7 @@ export function MediaLibraryWorkspace() {
     lastRangeAnchorRef.current = null;
     setCardMenuId(null);
     setQuickTagAssetId(null);
-  }, [debouncedQuery, apiFolderId, sidebar, centerTab, folderId]);
+  }, [debouncedQuery, apiFolderId, sidebar, centerTab, folderId, sourceFilter]);
 
   useEffect(() => {
     if (!media.usingSamples) {
@@ -197,7 +201,13 @@ export function MediaLibraryWorkspace() {
   const filtered = useMemo(() => {
     if (media.usingSamples) {
       return sortAssets(
-        filterAssets(media.assets, { sidebar, tab: centerTab, folderId, query: debouncedQuery }),
+        filterAssets(media.assets, {
+          sidebar,
+          tab: centerTab,
+          folderId,
+          query: debouncedQuery,
+          sourceFilter,
+        }),
         sort,
       );
     }
@@ -207,10 +217,20 @@ export function MediaLibraryWorkspace() {
         tab: centerTab,
         folderId: null,
         query: '',
+        sourceFilter,
       }),
       sort,
     );
-  }, [media.assets, media.usingSamples, sidebar, centerTab, folderId, debouncedQuery, sort]);
+  }, [
+    media.assets,
+    media.usingSamples,
+    sidebar,
+    centerTab,
+    folderId,
+    debouncedQuery,
+    sort,
+    sourceFilter,
+  ]);
 
   const orderedIds = useMemo(() => filtered.map((a) => a.id), [filtered]);
 
@@ -824,6 +844,14 @@ export function MediaLibraryWorkspace() {
                       </div>
                     )}
                     <span className="ml-ws__badge">{asset.ext}</span>
+                    {isMissingDriveAsset(asset) ? (
+                      <span
+                        className="ml-ws__sync-badge is-missing"
+                        data-testid={`ml-missing-badge-${asset.id}`}
+                      >
+                        {t('drive.sync.missing')}
+                      </span>
+                    ) : null}
                     {asset.kind === 'video' ? (
                       <>
                         <div className="ml-ws__play" aria-hidden="true">
@@ -932,6 +960,24 @@ export function MediaLibraryWorkspace() {
                       </div>
                     </div>
                     <div className="ml-ws__card-sub">
+                      {isGoogleDriveAsset(asset) ? (
+                        <span
+                          className="ml-ws__source-inline"
+                          data-testid={`ml-drive-badge-${asset.id}`}
+                        >
+                          {t('drive.sourceShort')}
+                          {' · '}
+                        </span>
+                      ) : null}
+                      {asset.possibleDuplicate ? (
+                        <span
+                          className="ml-ws__dup-inline"
+                          data-testid={`ml-duplicate-badge-${asset.id}`}
+                        >
+                          {t('drive.possibleDuplicateShort')}
+                          {' · '}
+                        </span>
+                      ) : null}
                       {asset.sizeLabel}
                       {asset.resolution ? ` · ${asset.resolution}` : null}
                       {asset.duration && asset.kind !== 'video' ? ` · ${asset.duration}` : null}
@@ -1092,6 +1138,94 @@ export function MediaLibraryWorkspace() {
             </div>
           </dl>
         </div>
+
+        {isGoogleDriveAsset(selected) ? (
+          <div className="ml-ws__drive-block" data-testid="ml-drive-detail">
+            <p className="ml-ws__block-label">{t('drive.sectionTitle')}</p>
+            {isMissingDriveAsset(selected) ? (
+              <p className="ml-ws__drive-missing" data-testid="ml-drive-missing-note">
+                {t('drive.missingRetainId')}
+              </p>
+            ) : null}
+            {selected.possibleDuplicate ? (
+              <p className="ml-ws__drive-dup" data-testid="ml-drive-duplicate-warning" role="status">
+                {t('drive.possibleDuplicate')}
+              </p>
+            ) : null}
+            <dl className="ml-ws__meta-list">
+              <div>
+                <dt>{t('drive.fields.source')}</dt>
+                <dd>{t('drive.sourceGoogleDrive')}</dd>
+              </div>
+              <div>
+                <dt>{t('drive.fields.assetId')}</dt>
+                <dd className="ml-ws__mono">{selected.id}</dd>
+              </div>
+              <div>
+                <dt>{t('drive.fields.filename')}</dt>
+                <dd>{selected.name}</dd>
+              </div>
+              <div>
+                <dt>{t('drive.fields.fileId')}</dt>
+                <dd className="ml-ws__mono">{selected.externalFileId || '—'}</dd>
+              </div>
+              <div>
+                <dt>{t('drive.fields.lastModified')}</dt>
+                <dd>{selected.externalModifiedAt || '—'}</dd>
+              </div>
+              <div>
+                <dt>{t('drive.fields.syncStatus')}</dt>
+                <dd>
+                  <StatusChip
+                    tone={
+                      selected.syncStatus === 'missing' || selected.syncStatus === 'error'
+                        ? 'danger'
+                        : selected.syncStatus === 'changed'
+                          ? 'warning'
+                          : 'success'
+                    }
+                  >
+                    {selected.syncStatus === 'active'
+                      ? t('drive.sync.active')
+                      : selected.syncStatus === 'changed'
+                        ? t('drive.sync.changed')
+                        : selected.syncStatus === 'missing'
+                          ? t('drive.sync.missing')
+                          : selected.syncStatus === 'error'
+                            ? t('drive.sync.error')
+                            : t('drive.sync.unknown')}
+                  </StatusChip>
+                </dd>
+              </div>
+              <div>
+                <dt>{t('drive.fields.category')}</dt>
+                <dd>{selected.folderCategory || '—'}</dd>
+              </div>
+              <div>
+                <dt>{t('drive.fields.project')}</dt>
+                <dd className="ml-ws__mono">{selected.linkedProjectId || '—'}</dd>
+              </div>
+              {selected.externalChecksum ? (
+                <div>
+                  <dt>{t('drive.fields.checksum')}</dt>
+                  <dd className="ml-ws__mono">{selected.externalChecksum}</dd>
+                </div>
+              ) : null}
+            </dl>
+            {selected.webViewLink ? (
+              <a
+                className="ml-ws__drive-link"
+                href={selected.webViewLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="ml-open-in-drive"
+              >
+                {t('drive.openInDrive')}
+                <span className="ml-ws__sr-only">{t('drive.opensExternal')}</span>
+              </a>
+            ) : null}
+          </div>
+        ) : null}
 
         {selected.description ? (
           <div className="ml-ws__desc-block">
@@ -1401,10 +1535,19 @@ export function MediaLibraryWorkspace() {
           ) : null}
 
           <div className="ml-ws__toolbar-controls">
-            <Button variant="secondary" size="sm" data-testid="ml-filter">
-              <IhIcon name="activity" size={12} />
-              {t('actions.filter')}
-            </Button>
+            <label className="ml-ws__source-filter">
+              <span className="ml-ws__sr-only">{t('sourceFilter.aria')}</span>
+              <select
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value as SourceFilterId)}
+                aria-label={t('sourceFilter.aria')}
+                data-testid="ml-source-filter"
+              >
+                <option value="all">{t('sourceFilter.all')}</option>
+                <option value="google_drive">{t('sourceFilter.googleDrive')}</option>
+                <option value="upload">{t('sourceFilter.uploaded')}</option>
+              </select>
+            </label>
             <div className="ml-ws__view-toggle" role="group" aria-label={t('viewAria')}>
               <button
                 type="button"

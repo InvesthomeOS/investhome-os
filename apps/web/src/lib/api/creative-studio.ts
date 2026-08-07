@@ -204,6 +204,9 @@ export async function restoreCreativeStudioVersion(
 
 // --- Media Library ---
 
+export type MediaAssetSourceType = 'upload' | 'google_drive';
+export type MediaAssetSyncStatus = 'active' | 'changed' | 'missing' | 'error';
+
 export type CreativeStudioMediaAsset = {
   id: string;
   filename: string;
@@ -225,6 +228,15 @@ export type CreativeStudioMediaAsset = {
   updated_at: string;
   archived_at: string | null;
   thumbnail_pending: boolean;
+  /** Drive sync visibility — omitted/null for classic uploads. */
+  source_type?: MediaAssetSourceType | string | null;
+  external_file_id?: string | null;
+  external_modified_at?: string | null;
+  sync_status?: MediaAssetSyncStatus | string | null;
+  folder_category?: string | null;
+  possible_duplicate?: boolean;
+  web_view_link?: string | null;
+  external_checksum?: string | null;
 };
 
 export type CreativeStudioMediaAssetListResponse = {
