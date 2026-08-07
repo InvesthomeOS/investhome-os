@@ -89,3 +89,18 @@ tmp-patch-*.txt
 test-results/
 playwright-report/
 blob-report/
+
+# Local Creative Studio design / QA dumps (not product source)
+apps/web/design-archive/
+apps/web/scripts/_tmp-*
+tmp-*-smoke/
+tmp-wb-media-smoke/
+
+# Local UX review / screenshot harness spikes (not product source)
+apps/web/src/app/ui-preview/admin/
+apps/web/src/app/ui-preview/crm/
+apps/web/src/app/ui-preview/customer-profile/
+
+# One-off local verify screenshots under artifacts/
+artifacts/superadmin-login-verify.png
+artifacts/*-verify.png
