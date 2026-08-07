@@ -54,6 +54,12 @@ class Settings(BaseSettings):
         alias="DOCUMENT_MAX_UPLOAD_BYTES",
     )
 
+    # Google Drive (Creative Studio asset scanner) — never hardcode secrets
+    google_drive_client_id: str | None = Field(default=None, alias="GOOGLE_DRIVE_CLIENT_ID")
+    google_drive_client_secret: str | None = Field(default=None, alias="GOOGLE_DRIVE_CLIENT_SECRET")
+    google_drive_refresh_token: str | None = Field(default=None, alias="GOOGLE_DRIVE_REFRESH_TOKEN")
+    google_drive_root_folder_id: str | None = Field(default=None, alias="GOOGLE_DRIVE_ROOT_FOLDER_ID")
+
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
     document_processing_sync: bool = Field(default=False, alias="DOCUMENT_PROCESSING_SYNC")
     document_processing_max_retries: int = Field(default=3, alias="DOCUMENT_PROCESSING_MAX_RETRIES")

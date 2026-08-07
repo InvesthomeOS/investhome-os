@@ -25,6 +25,8 @@ dependencies = [
     "chardet>=5.2.0",
     "httpx>=0.28.0",
     "pillow>=11.0.0",
+    "google-api-python-client>=2.150.0",
+    "google-auth>=2.36.0",
 ]
 
 [project.optional-dependencies]

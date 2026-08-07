@@ -196,6 +196,18 @@ from investhome_api.models.company_foundation import (  # noqa: F401
 )
 from investhome_api.models.branch import Branch, BranchAsset, BranchDocument, BranchWorkingHours  # noqa: F401
 from investhome_api.models.design_studio import DesignProject, DesignVersion, FurnitureItem, MaterialPackage, StylePreset  # noqa: F401
+from investhome_api.models.creative_studio import (  # noqa: F401
+    CreativeStudioDocument,
+    CreativeStudioDocumentVersion,
+    CreativeStudioProject,
+)
+from investhome_api.models.creative_studio_media import (  # noqa: F401
+    CreativeStudioMediaAsset,
+    CreativeStudioMediaFolder,
+    MediaAssetSourceType,
+    MediaAssetSyncStatus,
+)
+from investhome_api.models.project_drive import ProjectDriveMapping  # noqa: F401
 from investhome_api.models.user_auth import (
     Permission,
     Role,

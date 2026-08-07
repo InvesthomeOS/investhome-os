@@ -2,7 +2,7 @@ from investhome_api.api.exception_handlers import register_exception_handlers
 from investhome_api.config.settings import get_settings
 from investhome_api.core.logging_config import configure_logging
 from investhome_api.middleware.request_id import RequestIdMiddleware
-from investhome_api.api.routes import activity, analytics_bi, analytics_warehouse, auth, automation_center, branches, companies, company_documents, company_foundation, crm, crm_activities, crm_communications, crm_companies, crm_contacts, crm_relationships, crm_search, departments, design_studio, document_intelligence, documents, drawing_intelligence, executive, finance, health, inventory, inventory_assignment, inventory_ownership, inventory_pricing, inventory_reservations, investors, knowledge, lead_qualification, leads, marketing, marketing_ai, marketing_analytics, marketing_assets, marketing_attribution, marketing_audiences, marketing_automation, marketing_brand, marketing_campaigns, marketing_channel, marketing_content, marketing_conversions, marketing_email, marketing_forms, marketing_landing_pages, marketing_lead_capture, marketing_leads, marketing_performance, marketing_segments, marketing_sms, marketing_social, marketing_sources, marketing_submissions, marketing_templates, marketing_webhooks, marketing_whatsapp, meta, notifications, platform, project_budgets, project_costs, projects, roles, sales_inventory_matching, sales_opportunities, sales_proposals, sales_readiness, search, security_center, users, work_items
+from investhome_api.api.routes import activity, analytics_bi, analytics_warehouse, auth, automation_center, branches, companies, company_documents, company_foundation, creative_studio, creative_studio_media, crm, crm_activities, crm_communications, crm_companies, crm_contacts, crm_relationships, crm_search, departments, design_studio, document_intelligence, documents, drawing_intelligence, executive, finance, health, inventory, inventory_assignment, inventory_ownership, inventory_pricing, inventory_reservations, investors, knowledge, lead_qualification, leads, marketing, marketing_ai, marketing_analytics, marketing_assets, marketing_attribution, marketing_audiences, marketing_automation, marketing_brand, marketing_campaigns, marketing_channel, marketing_content, marketing_conversions, marketing_email, marketing_forms, marketing_landing_pages, marketing_lead_capture, marketing_leads, marketing_performance, marketing_segments, marketing_sms, marketing_social, marketing_sources, marketing_submissions, marketing_templates, marketing_webhooks, marketing_whatsapp, meta, notifications, platform, project_budgets, project_costs, project_drive, projects, roles, sales_inventory_matching, sales_opportunities, sales_proposals, sales_readiness, search, security_center, users, work_items
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -49,6 +49,7 @@ def create_app() -> FastAPI:
     app.include_router(work_items.router)
     app.include_router(investors.router)
     app.include_router(projects.router)
+    app.include_router(project_drive.router)
     app.include_router(project_budgets.router)
     app.include_router(project_costs.router)
     app.include_router(finance.router)
@@ -69,6 +70,8 @@ def create_app() -> FastAPI:
     app.include_router(company_documents.router)
     app.include_router(company_foundation.router)
     app.include_router(design_studio.router)
+    app.include_router(creative_studio.router)
+    app.include_router(creative_studio_media.router)
     app.include_router(inventory.router)
     app.include_router(inventory_pricing.prices_router)
     app.include_router(inventory_pricing.requests_router)

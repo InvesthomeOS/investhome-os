@@ -2,7 +2,7 @@
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -73,6 +73,16 @@ from investhome_api.models.design_studio import (  # noqa: F401
     MaterialPackage,
     StylePreset,
 )
+from investhome_api.models.creative_studio import (  # noqa: F401
+    CreativeStudioDocument,
+    CreativeStudioDocumentVersion,
+    CreativeStudioProject,
+)
+from investhome_api.models.creative_studio_media import (  # noqa: F401
+    CreativeStudioMediaAsset,
+    CreativeStudioMediaFolder,
+)
+from investhome_api.models.project_drive import ProjectDriveMapping  # noqa: F401
 from investhome_api.models.inventory import (  # noqa: F401
     Building,
     Floor,
@@ -276,6 +286,7 @@ from investhome_api.models.marketing_landing_conversion import (  # noqa: F401
 )
 from investhome_api.models.notification import Notification  # noqa: F401
 from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole  # noqa: F401
+from investhome_api.models import analytics_warehouse as _analytics_warehouse  # noqa: F401
 
 SQLALCHEMY_DATABASE_URL = "sqlite+pysqlite:///:memory:"
 
@@ -284,6 +295,16 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
     poolclass=StaticPool,
 )
+
+
+@event.listens_for(engine, "connect")
+def _sqlite_attach_analytics_schema(dbapi_connection, _connection_record) -> None:
+    """SQLite has no real schemas — ATTACH an in-memory DB named `analytics` for warehouse tables."""
+    cursor = dbapi_connection.cursor()
+    cursor.execute("ATTACH DATABASE ':memory:' AS analytics")
+    cursor.close()
+
+
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -585,6 +606,13 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
         ("design", "manage_materials"),
         ("design", "manage_furniture"),
         ("design", "submit_review"),
+        ("creative_studio", "view"),
+        ("creative_studio", "create"),
+        ("creative_studio", "update"),
+        ("creative_studio", "archive"),
+        ("creative_studio", "save_draft"),
+        ("creative_studio", "save_version"),
+        ("creative_studio", "restore"),
     ):
         key = (resource, action)
         if key not in permission_map:
