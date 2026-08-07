@@ -8806,6 +8806,15 @@
         "generate": "AI ile üret",
         "generating": "Üretiliyor…",
         "saved": "Kaydedildi",
+        "saving": "Kaydediliyor…",
+        "saveFailed": "Kayıt başarısız",
+        "loadErrorTitle": "Website Builder yüklenemedi",
+        "loadError": "Creative Studio belgesi yüklenemedi. Bağlantınızı kontrol edip yeniden deneyin.",
+        "restoreConfirmTitle": "Sürümü geri yükle",
+        "restoreConfirm": "{version} sürümü geri yüklensin mi? Mevcut taslak değişir; sürüm geçmişi korunur.",
+        "confirmRestore": "Geri yükle",
+        "createVersion": "Sürüm oluştur",
+        "versionLabelPlaceholder": "Sürüm etiketi (örn. V1 API Test)",
         "approvalPending": "Onay bekliyor",
         "status": {
           "draft": "Taslak",
@@ -9178,8 +9187,12 @@
           "assets": {
             "title": "Varlıklar",
             "upload": "Yeni varlık yükle",
+            "uploading": "Yükleniyor…",
             "gallery": "Proje galerisi · {project}",
             "empty": "Bu grupta varlık yok",
+            "loading": "Medya kütüphanesi yükleniyor…",
+            "loadFailed": "Medya kütüphanesi yüklenemedi.",
+            "retry": "Yeniden dene",
             "inUse": "Kullanımda",
             "available": "Uygun",
             "groups": {
@@ -9460,11 +9473,17 @@
         },
         "toasts": {
           "saved": "Taslak kaydedildi",
+          "saveFailed": "Taslak kaydedilemedi — düzenlemeleriniz editörde duruyor",
+          "versionCreated": "{label} sürümü oluşturuldu",
+          "versionRenameLocal": "Yeniden adlandırma için etiket alanından yeni sürüm oluşturun",
           "generated": "YZ üretimi tamamlandı",
           "preview": "Canlı önizleme açılıyor…",
           "replaceImage": "Görseli değiştirmek için varlık seçin",
           "sectionPreview": "{section} önizleniyor",
           "upload": "Yükleme kuyruğa alındı (sunum)",
+          "uploading": "Yükleniyor…",
+          "uploadSucceeded": "{file} yüklendi",
+          "uploadFailed": "Yükleme başarısız",
           "restored": "{version} geri yüklendi",
           "commentAdded": "Yorum eklendi",
           "published": "Site yayınlandı",
@@ -14259,7 +14278,8 @@
           "create": "Oluştur",
           "filter": "Filtrele",
           "refresh": "Yenile",
-          "save": "Kaydet"
+          "save": "Kaydet",
+          "archive": "Arşivle"
         },
         "storage": {
           "label": "Depolama Kullanımı",
@@ -14302,8 +14322,17 @@
         "center": {
           "aria": "Varlık ızgarası",
           "title": "Tüm Varlıklar ({count})",
+          "trashTitle": "Çöp Kutusu ({count})",
           "tabsAria": "Varlık kategorileri",
           "empty": "Bu filtrelerle eşleşen varlık yok.",
+          "trashEmpty": "Arşivlenmiş varlık yok.",
+          "trashReadOnly": "Çöp kutusu salt okunur — geri yükleme henüz desteklenmiyor.",
+          "loading": "Medya yükleniyor…",
+          "error": "Medya kütüphanesi yüklenemedi.",
+          "retry": "Yeniden dene",
+          "samplesHint": "Örnek varlıklar gösteriliyor — kütüphanenizi kullanmak için yükleyin.",
+          "uploading": "Yükleniyor…",
+          "dropHint": "Yüklemek için dosyaları bırakın",
           "tabs": {
             "all": "Tümü",
             "images": "Görseller",
@@ -14316,7 +14345,32 @@
         "card": {
           "favorite": "Favori",
           "select": "Seç",
+          "quickTag": "Hızlı etiket",
           "more": "Daha fazla"
+        },
+        "bulk": {
+          "aria": "Toplu işlemler",
+          "selected": "{count} seçildi",
+          "clear": "Seçimi temizle",
+          "addTags": "Etiket ekle",
+          "removeTags": "Etiket kaldır",
+          "addTagsTitle": "Toplu etiket ekle",
+          "removeTagsTitle": "Toplu etiket kaldır"
+        },
+        "tags": {
+          "quickTitle": "Hızlı etiket",
+          "searchPlaceholder": "Etiket ara veya oluştur…",
+          "create": "Oluştur",
+          "createWithName": "“{name}” oluştur",
+          "selected": "Seçilen etiketler",
+          "suggestions": "Öneriler",
+          "recent": "Son kullanılanlar",
+          "emptySuggestions": "Eşleşen etiket yok",
+          "emptySelection": "En az bir etiket seçin",
+          "remove": "Etiketi kaldır",
+          "apply": "Uygula",
+          "cancel": "İptal",
+          "applying": "Uygulanıyor…"
         },
         "kinds": {
           "image": "Görsel",
@@ -14362,7 +14416,7 @@
             "link": "Link",
             "share": "Paylaş",
             "download": "İndir",
-            "delete": "Sil"
+            "delete": "Arşivle"
           }
         },
         "bottomBar": {
@@ -14401,16 +14455,37 @@
         "toasts": {
           "saved": "Kaydedildi",
           "favorite": "Favori güncellendi",
-          "folderCreated": "Yeni klasör oluşturuldu (demo)",
-          "uploaded": "Yükleme başlatıldı (demo)",
+          "favoriteUnavailable": "Favoriler henüz kullanılamıyor",
+          "folderCreated": "Klasör oluşturuldu",
+          "folderCreateFailed": "Klasör oluşturulamadı",
+          "folderNamePrompt": "Klasör adı",
+          "uploaded": "{file} yüklendi",
+          "uploadFailed": "Yükleme başarısız",
+          "uploading": "Yükleniyor…",
+          "unsupportedType": "Desteklenmeyen dosya türü",
           "create": "Oluşturma menüsü (demo)",
           "refreshed": "Kütüphane yenilendi",
+          "refreshFailed": "Kütüphane yenilenemedi",
           "linkCopied": "Bağlantı kopyalandı",
           "shared": "Paylaşım bağlantısı hazır",
-          "downloaded": "İndirme başladı (demo)",
-          "trashed": "Çöp kutusuna taşındı",
-          "addTag": "Etiket ekleme (demo)",
-          "menu": "Varlık menüsü"
+          "downloaded": "İndirme başladı",
+          "downloadFailed": "İndirme başarısız",
+          "trashed": "Arşivlendi",
+          "archiving": "Arşivleniyor…",
+          "archiveFailed": "Varlık arşivlenemedi",
+          "archiveConfirm": "Bu varlığı arşivleyin? Kütüphaneden kalkar, dosya saklanır.",
+          "bulkArchiveConfirm": "{count} varlığı arşivleyin? Kütüphaneden kalkarlar, dosyalar saklanır.",
+          "bulkArchived": "{count} varlık arşivlendi",
+          "addTag": "Etiket eklendi",
+          "tagsUpdated": "Etiketler güncellendi",
+          "bulkTagsAdded": "Etiketler eklendi",
+          "bulkTagsRemoved": "Etiketler kaldırıldı",
+          "tagPrompt": "Etiket adı",
+          "tagFailed": "Etiketler güncellenemedi",
+          "tagRemoved": "Etiket kaldırıldı",
+          "menu": "Varlık menüsü",
+          "samplesOnly": "Örnek varlıklar — medyanızı kullanmak için yükleyin",
+          "trashReadOnly": "Çöp kutusu salt okunur — geri yükleme yok"
         }
       },
       "architecturalStudio": {

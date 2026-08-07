@@ -8,7 +8,6 @@ import { IhIcon } from '@/components/icons/ih-icons';
 
 import {
   QUICK_AI_ACTIONS,
-  WB_ASSETS,
   type AiActionKey,
   type WbAsset,
   type WbProject,
@@ -104,6 +103,12 @@ export type WbLeftRailDrawerProps = {
   toggleGroup: (key: string) => void;
   selectedAssets: string[];
   toggleAsset: (id: string) => void;
+  /** Media Library (or sample fallback) assets for the Assets rail. */
+  libraryAssets: WbAsset[];
+  onUploadAsset?: () => void;
+  uploadingAsset?: boolean;
+  mediaStatus?: 'idle' | 'loading' | 'ready' | 'error';
+  onRetryMedia?: () => void;
   device: string;
   setDevice: (v: 'desktop' | 'tablet' | 'mobile') => void;
   metaTitle: string;
@@ -232,8 +237,9 @@ export function WbLeftRailDrawer(props: WbLeftRailDrawerProps) {
   }
 
   if (id === 'assets') {
+    const library = props.libraryAssets ?? [];
     const byKinds = (...kinds: WbAsset['kind'][]) =>
-      WB_ASSETS.filter((a) => kinds.includes(a.kind));
+      library.filter((a) => kinds.includes(a.kind));
     const groups: Array<{ key: string; title: string; defaultOpen?: boolean; items: WbAsset[] }> = [
       {
         key: 'images',
@@ -266,13 +272,30 @@ export function WbLeftRailDrawer(props: WbLeftRailDrawerProps) {
       <div className="wb-ws__rail-panel" data-testid="wb-rail-left-assets">
         <div className="wb-ws__rail-panel-head">
           <h2>{t('rails.assets.title')}</h2>
-          <Button type="button" size="sm" variant="secondary">
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={props.uploadingAsset}
+            onClick={() => props.onUploadAsset?.()}
+          >
             <IhIcon name="plus" size={12} />
-            {t('rails.assets.upload')}
+            {props.uploadingAsset ? t('rails.assets.uploading') : t('rails.assets.upload')}
           </Button>
         </div>
         <div className="wb-ws__rail-panel-body">
           <p className="wb-ws__muted">{t('rails.assets.gallery', { project: props.project.name })}</p>
+          {props.mediaStatus === 'error' ? (
+            <p className="wb-ws__muted">
+              {t('rails.assets.loadFailed')}{' '}
+              <button type="button" className="wb-ws__asset-action" onClick={() => props.onRetryMedia?.()}>
+                {t('rails.assets.retry')}
+              </button>
+            </p>
+          ) : null}
+          {props.mediaStatus === 'loading' && library.length === 0 ? (
+            <p className="wb-ws__muted">{t('rails.assets.loading')}</p>
+          ) : null}
           {groups.map((g) => {
             const open = openGroups[`assets-${g.key}`] ?? !!g.defaultOpen;
             return (

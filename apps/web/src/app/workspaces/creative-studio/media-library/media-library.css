@@ -636,7 +636,8 @@
 }
 
 .ml-ws__fav,
-.ml-ws__select-handle {
+.ml-ws__select-handle,
+.ml-ws__check {
   position: absolute;
   top: 6px;
   display: inline-grid;
@@ -659,9 +660,29 @@
 .ml-ws__fav > svg,
 .ml-ws__select-handle > svg,
 .ml-ws__fav .ih-icon,
-.ml-ws__select-handle .ih-icon {
+.ml-ws__select-handle .ih-icon,
+.ml-ws__check .ih-icon {
   transform: scale(0.85);
   transform-origin: center;
+}
+
+.ml-ws__check {
+  left: 6px;
+  right: auto;
+}
+
+.ml-ws__check input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.ml-ws__check.is-on {
+  background: var(--shot-navy);
+  color: #fff;
+  border-color: var(--shot-navy);
 }
 
 .ml-ws__fav {
@@ -765,6 +786,24 @@
   min-height: 180px;
   color: var(--cs-muted);
   text-align: center;
+}
+
+.ml-ws__center.is-drop-active {
+  outline: 1px dashed var(--cs-cyan);
+  outline-offset: -4px;
+}
+
+.ml-ws__tag-btn {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ml-ws__tag-btn:disabled {
+  cursor: default;
+  opacity: 0.7;
 }
 
 /* Right panel */
@@ -1049,4 +1088,177 @@
     order: 3;
     flex: 1 1 100%;
   }
+}
+
+/* --- Quick tag / bulk / shared tag editor (additive) --- */
+
+.ml-ws__bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ml-ws__bulk-count {
+  color: var(--shot-navy);
+  font-size: var(--shot-font-caption);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ml-ws__card-more-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.ml-ws__card-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 8;
+  min-width: 140px;
+  padding: 4px;
+  border: 1px solid var(--cs-border);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(15, 40, 55, 0.12);
+}
+
+.ml-ws__card-menu button {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #152a36;
+  font-size: var(--shot-font-caption);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ml-ws__card-menu button:hover:not(:disabled) {
+  background: #f1f6f8;
+}
+
+.ml-ws__card-menu button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ml-ws__detail-actions {
+  margin-top: 12px;
+}
+
+.ml-quick-tag {
+  position: fixed;
+  z-index: 60;
+  max-height: min(420px, calc(100vh - 16px));
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--cs-border);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 40, 55, 0.16);
+}
+
+.ml-quick-tag__head {
+  margin-bottom: 8px;
+  color: #152a36;
+  font-size: var(--shot-font-small);
+  font-weight: 750;
+}
+
+.ml-tag-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.ml-tag-editor__search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--cs-border);
+  border-radius: 8px;
+  background: #f7fafb;
+  color: var(--cs-muted);
+}
+
+.ml-tag-editor__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: #152a36;
+  font-size: var(--shot-font-caption);
+  font-weight: 600;
+  outline: none;
+}
+
+.ml-tag-editor__section {
+  display: grid;
+  gap: 6px;
+}
+
+.ml-tag-editor__label {
+  margin: 0;
+  color: var(--cs-muted);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ml-tag-editor__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ml-tag-editor__chip-btn {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ml-tag-editor__chip-btn.is-selected {
+  outline: 1px solid rgba(7, 91, 117, 0.35);
+  border-radius: 999px;
+}
+
+.ml-tag-editor__create {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px dashed var(--cs-border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--shot-navy);
+  font-size: var(--shot-font-caption);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ml-tag-editor__empty {
+  margin: 0;
+  color: var(--cs-muted);
+  font-size: var(--shot-font-caption);
+}
+
+.ml-tag-editor__error {
+  margin: 0;
+  color: #b42318;
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+}
+
+.ml-tag-editor__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
 }

@@ -204,6 +204,7 @@ const THUMBS = [
   'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=640&h=480&q=80',
 ];
 
+/** Empty-library samples only — never mix with API assets or treat ids as UUIDs. */
 export const DEMO_ASSETS: MediaAsset[] = [
   {
     id: 'a1',

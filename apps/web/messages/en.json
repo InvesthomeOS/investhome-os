@@ -14128,6 +14128,15 @@
         "generate": "Generate with AI",
         "generating": "Generating…",
         "saved": "Saved",
+        "saving": "Saving…",
+        "saveFailed": "Save failed",
+        "loadErrorTitle": "Unable to load Website Builder",
+        "loadError": "Could not load the Creative Studio document. Check your connection and try again.",
+        "restoreConfirmTitle": "Restore version",
+        "restoreConfirm": "Restore version {version}? The current draft will be replaced. Version history stays intact.",
+        "confirmRestore": "Restore",
+        "createVersion": "Create version",
+        "versionLabelPlaceholder": "Version label (e.g. V1 API Test)",
         "approvalPending": "Pending approval",
         "status": {
           "draft": "Draft",
@@ -14500,8 +14509,12 @@
           "assets": {
             "title": "Assets",
             "upload": "Upload new asset",
+            "uploading": "Uploading…",
             "gallery": "Project gallery · {project}",
             "empty": "No assets in this group",
+            "loading": "Loading media library…",
+            "loadFailed": "Could not load media library.",
+            "retry": "Retry",
             "inUse": "In use",
             "available": "Available",
             "groups": {
@@ -14782,11 +14795,17 @@
         },
         "toasts": {
           "saved": "Draft saved",
+          "saveFailed": "Could not save draft — your edits are still in the editor",
+          "versionCreated": "Version {label} created",
+          "versionRenameLocal": "Rename is available on new versions via the label field",
           "generated": "AI generation complete",
           "preview": "Opening live preview…",
           "replaceImage": "Pick an asset to replace the image",
           "sectionPreview": "Previewing {section}",
           "upload": "Upload queued (presentation)",
+          "uploading": "Uploading…",
+          "uploadSucceeded": "Uploaded {file}",
+          "uploadFailed": "Upload failed",
           "restored": "Restored {version}",
           "commentAdded": "Comment added",
           "published": "Site published",
@@ -19582,7 +19601,8 @@
           "create": "Create",
           "filter": "Filter",
           "refresh": "Refresh",
-          "save": "Save"
+          "save": "Save",
+          "archive": "Archive"
         },
         "storage": {
           "label": "Storage Usage",
@@ -19625,8 +19645,17 @@
         "center": {
           "aria": "Asset grid",
           "title": "All Assets ({count})",
+          "trashTitle": "Trash ({count})",
           "tabsAria": "Asset categories",
           "empty": "No assets match these filters.",
+          "trashEmpty": "No archived assets.",
+          "trashReadOnly": "Trash is read-only — restore is not available yet.",
+          "loading": "Loading media…",
+          "error": "Could not load media library.",
+          "retry": "Retry",
+          "samplesHint": "Showing sample assets — upload to use your library.",
+          "uploading": "Uploading…",
+          "dropHint": "Drop files to upload",
           "tabs": {
             "all": "All",
             "images": "Images",
@@ -19639,7 +19668,32 @@
         "card": {
           "favorite": "Favorite",
           "select": "Select",
+          "quickTag": "Quick tag",
           "more": "More"
+        },
+        "bulk": {
+          "aria": "Bulk actions",
+          "selected": "{count} selected",
+          "clear": "Clear selection",
+          "addTags": "Add tags",
+          "removeTags": "Remove tags",
+          "addTagsTitle": "Bulk add tags",
+          "removeTagsTitle": "Bulk remove tags"
+        },
+        "tags": {
+          "quickTitle": "Quick tag",
+          "searchPlaceholder": "Search or create a tag…",
+          "create": "Create",
+          "createWithName": "Create “{name}”",
+          "selected": "Selected tags",
+          "suggestions": "Suggestions",
+          "recent": "Recent",
+          "emptySuggestions": "No matching tags",
+          "emptySelection": "Select at least one tag",
+          "remove": "Remove tag",
+          "apply": "Apply",
+          "cancel": "Cancel",
+          "applying": "Applying…"
         },
         "kinds": {
           "image": "Image",
@@ -19685,7 +19739,7 @@
             "link": "Link",
             "share": "Share",
             "download": "Download",
-            "delete": "Delete"
+            "delete": "Archive"
           }
         },
         "bottomBar": {
@@ -19724,16 +19778,37 @@
         "toasts": {
           "saved": "Saved",
           "favorite": "Favorite updated",
-          "folderCreated": "New folder created (demo)",
-          "uploaded": "Upload started (demo)",
+          "favoriteUnavailable": "Favorites are not available yet",
+          "folderCreated": "Folder created",
+          "folderCreateFailed": "Could not create folder",
+          "folderNamePrompt": "Folder name",
+          "uploaded": "Uploaded {file}",
+          "uploadFailed": "Upload failed",
+          "uploading": "Uploading…",
+          "unsupportedType": "Unsupported file type",
           "create": "Create menu (demo)",
           "refreshed": "Library refreshed",
+          "refreshFailed": "Could not refresh library",
           "linkCopied": "Link copied",
           "shared": "Share link ready",
-          "downloaded": "Download started (demo)",
-          "trashed": "Moved to trash",
-          "addTag": "Add tag (demo)",
-          "menu": "Asset menu"
+          "downloaded": "Download started",
+          "downloadFailed": "Download failed",
+          "trashed": "Archived",
+          "archiving": "Archiving…",
+          "archiveFailed": "Could not archive asset",
+          "archiveConfirm": "Archive this asset? It will leave the library but the file is kept.",
+          "bulkArchiveConfirm": "Archive {count} assets? They leave the library but files are kept.",
+          "bulkArchived": "Archived {count} assets",
+          "addTag": "Tag added",
+          "tagsUpdated": "Tags updated",
+          "bulkTagsAdded": "Tags added",
+          "bulkTagsRemoved": "Tags removed",
+          "tagPrompt": "Tag name",
+          "tagFailed": "Could not update tags",
+          "tagRemoved": "Tag removed",
+          "menu": "Asset menu",
+          "samplesOnly": "Sample assets — upload to replace with your media",
+          "trashReadOnly": "Trash is read-only — restore is not available"
         }
       },
       "architecturalStudio": {

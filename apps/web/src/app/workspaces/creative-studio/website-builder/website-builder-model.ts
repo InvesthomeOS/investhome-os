@@ -673,6 +673,8 @@ export const WB_PROJECTS: WbProject[] = [
 ];
 
 export const WB_ASSETS: WbAsset[] = [
+  // Sample fallback for the Assets picker when Media Library is empty.
+  // Demo ids (`a1`…) are never treated as Creative Studio Media UUIDs.
   {
     id: 'a1',
     kind: 'images',

@@ -13,7 +13,7 @@ import {
 } from 'react';
 import { useTranslations } from 'next-intl';
 
-import { Button, SegmentedControl, Select, StatusChip } from '@investhome/ui';
+import { Button, ErrorState, SegmentedControl, Select, StatusChip } from '@investhome/ui';
 
 import { IhIcon } from '@/components/icons/ih-icons';
 
@@ -48,20 +48,15 @@ import {
   SPLIT_PRESETS,
   SUGGESTED_PROMPTS,
   VERSION_ACTIONS,
-  WB_ASSETS,
   WB_CHAT,
   WB_HOME,
   WB_PROJECTS,
-  WB_VERSIONS,
   WORKFLOW_STEPS,
   ZOOM_DEFAULT,
   ZOOM_SEGMENTS,
   ZOOM_MAX,
   ZOOM_MIN,
   ZOOM_STEP,
-  getProject,
-  loadPersistedDraft,
-  savePersistedDraft,
   type AiActionKey,
   type AiStatusKey,
   type AssetKind,
@@ -72,7 +67,6 @@ import {
   type LeftSectionKey,
   type MemoryKey,
   type PreviewDevice,
-  type ProjectId,
   type PublishCheckKey,
   type PublishStatus,
   type RightTab,
@@ -80,9 +74,21 @@ import {
   type SplitPanePreset,
   type WbAsset,
   type WbChatMessage,
+  type WbProject,
   type WbSection,
   type WbVersion,
 } from './website-builder-model';
+import type { WbDocumentDraft, WbEditorPersistInput, WbImageRef } from './website-builder-persistence';
+import { useWebsiteBuilderDocument } from './use-website-builder-document';
+import { useWebsiteBuilderMedia } from './use-website-builder-media';
+import {
+  imageRefFromMediaAsset,
+  imageRefFromWbAsset,
+  isMediaAssetUuid,
+  resolveDisplayUrl,
+  resolveGalleryDisplayUrls,
+  WB_IMAGE_PLACEHOLDER,
+} from './website-builder-media';
 
 import {
   CreativeStudioFocusModeSwitcher,
@@ -153,13 +159,47 @@ function clampZoom(value: number): number {
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(value / ZOOM_STEP) * ZOOM_STEP));
 }
 
+function visualTemplateForProject(projectId: string): WbProject {
+  let hash = 0;
+  for (let i = 0; i < projectId.length; i += 1) {
+    hash = (hash + projectId.charCodeAt(i) * (i + 1)) % WB_PROJECTS.length;
+  }
+  return WB_PROJECTS[hash] ?? WB_PROJECTS[0]!;
+}
+
+function buildDisplayProject(
+  constructionProjectId: string | null,
+  projectName: string,
+  city: string,
+  slug: string,
+): WbProject {
+  const visual = visualTemplateForProject(constructionProjectId || projectName || 'default');
+  return {
+    ...visual,
+    name: projectName || visual.name,
+    city: city || visual.city,
+    slug: slug || visual.slug,
+    featuredLabel: projectName || visual.featuredLabel,
+  };
+}
+
 export function WebsiteBuilderWorkspace() {
   const t = useTranslations('creativeStudio.ds.websiteBuilder');
   const tFocus = useTranslations('creativeStudio.focusWorkspace');
   const tTools = useTranslations('creativeStudio.ds.tools');
+  const tCommon = useTranslations('common');
+
+  const docApi = useWebsiteBuilderDocument();
+  const mediaApi = useWebsiteBuilderMedia({
+    linkedProjectId: docApi.constructionProjectId,
+    enabled: true,
+  });
+  const { ensureDisplayUrl, search: searchMedia, refresh: refreshMedia } = mediaApi;
+  const contentDefaultsAppliedRef = useRef(false);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const [restoreConfirmId, setRestoreConfirmId] = useState<string | null>(null);
 
   const [hydrated, setHydrated] = useState(false);
-  const [projectId, setProjectId] = useState<ProjectId>('temple');
   const [device, setDevice] = useState<DevicePreview>('desktop');
   const [splitPreset, setSplitPreset] = useState<SplitPanePreset>(DEFAULT_SPLIT_PRESET);
   const [zoom, setZoom] = useState(ZOOM_DEFAULT);
@@ -180,8 +220,6 @@ export function WebsiteBuilderWorkspace() {
   const [sections, setSections] = useState<WbSection[]>(DEFAULT_SECTIONS);
   const [selectedSectionId, setSelectedSectionId] = useState('s-hero');
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
-  const [versions, setVersions] = useState<WbVersion[]>(WB_VERSIONS);
-  const [activeVersionId, setActiveVersionId] = useState(WB_VERSIONS[0].id);
   const [compareVersionId, setCompareVersionId] = useState<string | null>(null);
   const [versionComment, setVersionComment] = useState('');
   const [metaTitle, setMetaTitle] = useState('Investhome | THE TEMPLE Residences');
@@ -219,8 +257,10 @@ export function WebsiteBuilderWorkspace() {
   const [reusedAssets, setReusedAssets] = useState<string[]>([]);
   const [historyPast, setHistoryPast] = useState<WbSection[][]>([]);
   const [historyFuture, setHistoryFuture] = useState<WbSection[][]>([]);
-  const [heroCoverOverride, setHeroCoverOverride] = useState<string | null>(null);
-  const [galleryOverride, setGalleryOverride] = useState<string[] | null>(null);
+  const [heroImage, setHeroImage] = useState<WbImageRef | null>(null);
+  const [galleryImages, setGalleryImages] = useState<WbImageRef[]>([]);
+  const [resolvedHeroUrl, setResolvedHeroUrl] = useState<string | null>(null);
+  const [resolvedGalleryUrls, setResolvedGalleryUrls] = useState<Record<string, string>>({});
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishChecks, setPublishChecks] = useState<Record<PublishCheckKey, boolean>>(() =>
     Object.fromEntries(PUBLISH_CHECKS.map((c) => [c.key, c.defaultPass])) as Record<
@@ -308,16 +348,58 @@ export function WebsiteBuilderWorkspace() {
   const scrollPreserveRef = useRef(0);
   const genTimerRef = useRef<number[]>([]);
 
-  const project = useMemo(() => getProject(projectId), [projectId]);
+  const selectedConstruction = useMemo(
+    () =>
+      docApi.constructionProjects.find((p) => p.id === docApi.constructionProjectId) ?? null,
+    [docApi.constructionProjects, docApi.constructionProjectId],
+  );
+
+  const project = useMemo(() => {
+    const city = [selectedConstruction?.city, selectedConstruction?.state]
+      .filter(Boolean)
+      .join(', ');
+    return buildDisplayProject(
+      docApi.constructionProjectId,
+      selectedConstruction?.project_name ?? '',
+      city,
+      selectedConstruction?.slug ?? '',
+    );
+  }, [docApi.constructionProjectId, selectedConstruction]);
+
+  const versions = docApi.versions;
+  const activeVersionId = docApi.activeVersionId;
   const selectedSection = sections.find((s) => s.id === selectedSectionId) ?? sections[0];
-  const activeVersion = versions.find((v) => v.id === activeVersionId) ?? versions[0];
-  const previewAsset = WB_ASSETS.find((a) => a.id === previewAssetId) ?? null;
+  const activeVersion: WbVersion =
+    versions.find((v) => v.id === activeVersionId) ??
+    versions[0] ?? {
+      id: '',
+      label: '—',
+      status: 'draft',
+      updatedAt: '—',
+      noteKey: 'initial',
+    };
+  const libraryAssets = mediaApi.assets;
+  const previewAsset = libraryAssets.find((a) => a.id === previewAssetId) ?? null;
   const selectedPrimaryAsset = useMemo(() => {
     const id = selectedAssets[0];
-    return id ? WB_ASSETS.find((a) => a.id === id) ?? null : null;
-  }, [selectedAssets]);
-  const heroCover = heroCoverOverride || project.coverUrl;
-  const galleryUrls = galleryOverride || project.galleryUrls;
+    return id ? libraryAssets.find((a) => a.id === id) ?? null : null;
+  }, [libraryAssets, selectedAssets]);
+  const heroCover =
+    resolveDisplayUrl({
+      ref: heroImage,
+      resolvedAssetUrl: resolvedHeroUrl,
+      templateUrl: project.coverUrl,
+      placeholderUrl: WB_IMAGE_PLACEHOLDER,
+    }) || WB_IMAGE_PLACEHOLDER;
+  const galleryUrls = (() => {
+    const resolved = resolveGalleryDisplayUrls({
+      refs: galleryImages,
+      resolvedByAssetId: resolvedGalleryUrls,
+      templateUrls: project.galleryUrls,
+      placeholderUrl: WB_IMAGE_PLACEHOLDER,
+    });
+    return resolved.length ? resolved : project.galleryUrls;
+  })();
   const splitPanes = SPLIT_PRESETS[splitPreset];
   const allQualityChecksPass = PUBLISH_QUALITY_CHECK_KEYS.every((k) => publishChecks[k]);
   const canPublish = allQualityChecksPass || publishOverride;
@@ -450,7 +532,7 @@ export function WebsiteBuilderWorkspace() {
 
   const filteredAssets = useMemo(() => {
     const q = assetQuery.trim().toLowerCase();
-    const list = WB_ASSETS.filter((a) => {
+    const list = libraryAssets.filter((a) => {
       if (assetFilter !== 'all' && a.kind !== assetFilter) return false;
       if (assetFolder !== 'all' && a.folder !== assetFolder) return false;
       if (!q) return true;
@@ -467,19 +549,19 @@ export function WebsiteBuilderWorkspace() {
       if (assetSort === 'type') return a.kind.localeCompare(b.kind);
       return b.id.localeCompare(a.id);
     });
-  }, [assetFilter, assetFolder, assetQuery, assetSort]);
+  }, [assetFilter, assetFolder, assetQuery, assetSort, libraryAssets]);
 
   const aiContextCounts = useMemo(() => {
-    const brandKit = WB_ASSETS.filter((a) => a.kind === 'brand').length;
+    const brandKit = libraryAssets.filter((a) => a.kind === 'brand').length;
     const crm = 86; // demo dataset row count
     const photos = PROJECT_DATA_STATS.photos;
     const floorPlans = PROJECT_DATA_STATS.plans;
     const brochures = PROJECT_DATA_STATS.brochures;
-    const investorDocs = WB_ASSETS.filter((a) =>
+    const investorDocs = libraryAssets.filter((a) =>
       ['investorDeck', 'word', 'powerpoint', 'documents'].includes(a.kind),
     ).length;
     return { brandKit, crm, photos, floorPlans, brochures, investorDocs };
-  }, []);
+  }, [libraryAssets]);
 
   const deviceOptions = useMemo(
     () =>
@@ -529,47 +611,110 @@ export function WebsiteBuilderWorkspace() {
     window.setTimeout(() => setToast(null), 2200);
   }, []);
 
-  const persistNow = useCallback(
-    (markSaved = true) => {
-      savePersistedDraft({
-        projectId,
-        selectedSectionId,
-        device,
-        language,
-        tone,
-        publishStatus,
-        sections,
-        activeVersionId,
-        metaTitle,
-        metaDesc,
-        slug,
-        zoom,
-        splitPreset,
-        savedAt: Date.now(),
-      });
-      if (markSaved) {
-        setSaved(true);
-        setLastSavedLabel(t('savedJustNow'));
-        showToast(t('toasts.saved'));
-      }
-    },
-    [
-      projectId,
-      selectedSectionId,
-      device,
-      language,
-      tone,
-      publishStatus,
+  const buildPersistInput = useCallback((): WbEditorPersistInput => {
+    return {
+      linkedProjectId: docApi.constructionProjectId,
       sections,
-      activeVersionId,
+      selectedSectionId,
       metaTitle,
       metaDesc,
       slug,
+      publishStatus,
+      language,
+      tone,
+      brief,
+      siteGoal,
+      audience,
+      mainMessage,
+      heroTitle,
+      heroBody,
+      ctaPrimary,
+      ctaSecondary,
+      heroImage,
+      galleryImages,
+      device,
       zoom,
       splitPreset,
-      showToast,
-      t,
-    ],
+    };
+  }, [
+    docApi.constructionProjectId,
+    sections,
+    selectedSectionId,
+    metaTitle,
+    metaDesc,
+    slug,
+    publishStatus,
+    language,
+    tone,
+    brief,
+    siteGoal,
+    audience,
+    mainMessage,
+    heroTitle,
+    heroBody,
+    ctaPrimary,
+    ctaSecondary,
+    heroImage,
+    galleryImages,
+    device,
+    zoom,
+    splitPreset,
+  ]);
+
+  const applyDraftToEditor = useCallback(
+    (draft: WbDocumentDraft | null, options?: { applyContentDefaults?: boolean }) => {
+      if (!draft) {
+        if (options?.applyContentDefaults !== false) {
+          contentDefaultsAppliedRef.current = false;
+        }
+        return;
+      }
+      setSelectedSectionId(draft.selectedSectionId || 's-hero');
+      if (draft.device) setDevice(draft.device);
+      setLanguage(draft.language || 'tr');
+      setTone(draft.tone || 'luxury');
+      setPublishStatus(draft.publishStatus || 'draft');
+      setSections(normalizeWbSections(draft.sections));
+      setMetaTitle(draft.metaTitle);
+      setMetaDesc(draft.metaDesc);
+      setSlug(draft.slug);
+      if (typeof draft.zoom === 'number') setZoom(clampZoom(draft.zoom));
+      if (draft.splitPreset) setSplitPreset(draft.splitPreset);
+      setBrief(draft.brief);
+      setSiteGoal(draft.siteGoal);
+      setAudience(draft.audience);
+      setMainMessage(draft.mainMessage);
+      setHeroTitle(draft.heroTitle);
+      setHeroBody(draft.heroBody);
+      setCtaPrimary(draft.ctaPrimary);
+      setCtaSecondary(draft.ctaSecondary);
+      setHeroImage(draft.heroImage);
+      setGalleryImages(draft.galleryImages ?? []);
+      const hasContent = Boolean(
+        draft.heroTitle.trim() ||
+          draft.heroBody.trim() ||
+          draft.ctaPrimary.trim() ||
+          draft.ctaSecondary.trim(),
+      );
+      contentDefaultsAppliedRef.current = hasContent;
+    },
+    [],
+  );
+
+  const persistNow = useCallback(
+    async (markSaved = true) => {
+      if (docApi.loadStatus !== 'ready') return;
+      const ok = await docApi.saveDraft(buildPersistInput());
+      if (ok && markSaved) {
+        setSaved(true);
+        setLastSavedLabel(t('savedJustNow'));
+        showToast(t('toasts.saved'));
+      } else if (!ok) {
+        setSaved(false);
+        showToast(t('toasts.saveFailed'));
+      }
+    },
+    [buildPersistInput, docApi, showToast, t],
   );
 
   const focusLeftDrawer = (
@@ -596,6 +741,13 @@ export function WebsiteBuilderWorkspace() {
       toggleGroup={toggleRailGroup}
       selectedAssets={selectedAssets}
       toggleAsset={toggleSelectedAsset}
+      libraryAssets={libraryAssets}
+      onUploadAsset={openUploadPicker}
+      uploadingAsset={mediaApi.uploading}
+      mediaStatus={mediaApi.status}
+      onRetryMedia={() => {
+        void refreshMedia(assetQuery);
+      }}
       device={device === 'split' ? 'desktop' : device}
       setDevice={(d) => setDevice(d)}
       metaTitle={metaTitle}
@@ -641,40 +793,52 @@ export function WebsiteBuilderWorkspace() {
       }}
       onPreview={() => focus.setMode('preview')}
       onPublish={() => setPublishOpen(true)}
-      onSaveVersion={() => persistNow(true)}
+      onSaveVersion={() => {
+        void (async () => {
+          try {
+            const label = versionComment.trim() || `v${versions.length + 1}`;
+            const created = await docApi.createVersion(buildPersistInput(), label);
+            if (created) {
+              setVersionComment('');
+              setSaved(true);
+              setLastSavedLabel(t('savedJustNow'));
+              showToast(t('toasts.versionCreated', { label: created.label }));
+            }
+          } catch {
+            showToast(t('toasts.saveFailed'));
+          }
+        })();
+      }}
       publishStatus={publishStatus}
       versions={versions}
       activeVersionId={activeVersionId}
       onRestoreVersion={(id) => {
-        setActiveVersionId(id);
-        showToast(t('rails.history.restore'));
+        setRestoreConfirmId(id);
       }}
     />
   );
 
   useEffect(() => {
-    const draft = loadPersistedDraft();
-    if (draft) {
-      setProjectId(draft.projectId);
-      setSelectedSectionId(draft.selectedSectionId || 's-hero');
-      setDevice(draft.device || 'desktop');
-      setLanguage(draft.language || 'tr');
-      setTone(draft.tone || 'luxury');
-      setPublishStatus(draft.publishStatus || 'draft');
-      setSections(normalizeWbSections(draft.sections));
-      setActiveVersionId(draft.activeVersionId || WB_VERSIONS[0].id);
-      setMetaTitle(draft.metaTitle);
-      setMetaDesc(draft.metaDesc);
-      setSlug(draft.slug);
-      if (typeof draft.zoom === 'number') setZoom(clampZoom(draft.zoom));
-      if (draft.splitPreset) setSplitPreset(draft.splitPreset);
-      setSaved(true);
-      const mins = Math.max(1, Math.round((Date.now() - (draft.savedAt || Date.now())) / 60000));
-      setLastSavedLabel(t('savedMinutesAgo', { minutes: mins }));
-    } else {
-      setLastSavedLabel(t('notSavedYet'));
-    }
-    setHydrated(true);
+    let cancelled = false;
+    void (async () => {
+      const result = await docApi.bootstrap();
+      if (cancelled) return;
+      if (!result.ok) {
+        setHydrated(false);
+        return;
+      }
+      applyDraftToEditor(result.draft, { applyContentDefaults: true });
+      if (result.draft) {
+        setSaved(true);
+        setLastSavedLabel(t('savedJustNow'));
+      } else {
+        setLastSavedLabel(t('notSavedYet'));
+      }
+      setHydrated(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -686,50 +850,94 @@ export function WebsiteBuilderWorkspace() {
     return () => window.clearInterval(id);
   }, [hydrated, galleryUrls.length]);
 
+  // Resolve auth-gated Media Library blobs for hero / gallery refs.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const assetId = heroImage?.asset_id;
+      if (!assetId || !isMediaAssetUuid(assetId)) {
+        if (!cancelled) setResolvedHeroUrl(null);
+        return;
+      }
+      const url = await ensureDisplayUrl(assetId);
+      if (!cancelled) setResolvedHeroUrl(url);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [heroImage?.asset_id, ensureDisplayUrl]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const next: Record<string, string> = {};
+      for (const ref of galleryImages) {
+        if (!ref.asset_id || !isMediaAssetUuid(ref.asset_id)) continue;
+        const url = await ensureDisplayUrl(ref.asset_id);
+        if (url) next[ref.asset_id] = url;
+      }
+      if (!cancelled) setResolvedGalleryUrls(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [galleryImages, ensureDisplayUrl]);
+
+  // Debounced Media Library search from the assets panel query.
   useEffect(() => {
     if (!hydrated) return;
+    const id = window.setTimeout(() => {
+      void searchMedia(assetQuery);
+    }, 320);
+    return () => window.clearTimeout(id);
+  }, [assetQuery, hydrated, searchMedia]);
+
+  useEffect(() => {
+    if (!hydrated || docApi.loadStatus !== 'ready') return;
+    if (contentDefaultsAppliedRef.current) return;
     setHeroTitle(t('site.heroTitle'));
     setHeroBody(t('site.heroBody', { project: project.name, city: project.city }));
     setCtaPrimary(t('site.ctaInvest'));
     setCtaSecondary(t('site.ctaExplore'));
-  }, [hydrated, project.name, project.city, t]);
+    contentDefaultsAppliedRef.current = true;
+  }, [hydrated, docApi.loadStatus, project.name, project.city, t]);
 
+  // Conservative API autosave (debounced) — after load, not during restore.
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || docApi.loadStatus !== 'ready' || docApi.restoring) return;
     const id = window.setTimeout(() => {
-      savePersistedDraft({
-        projectId,
-        selectedSectionId,
-        device,
-        language,
-        tone,
-        publishStatus,
-        sections,
-        activeVersionId,
-        metaTitle,
-        metaDesc,
-        slug,
-        zoom,
-        splitPreset,
-        savedAt: Date.now(),
-      });
-    }, 400);
+      void (async () => {
+        const ok = await docApi.saveDraft(buildPersistInput());
+        if (ok) {
+          setSaved(true);
+          setLastSavedLabel(t('savedJustNow'));
+        }
+      })();
+    }, 2000);
     return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     hydrated,
-    projectId,
+    docApi.loadStatus,
+    docApi.restoring,
+    sections,
     selectedSectionId,
-    device,
     language,
     tone,
     publishStatus,
-    sections,
-    activeVersionId,
     metaTitle,
     metaDesc,
     slug,
-    zoom,
-    splitPreset,
+    brief,
+    siteGoal,
+    audience,
+    mainMessage,
+    heroTitle,
+    heroBody,
+    ctaPrimary,
+    ctaSecondary,
+    heroImage,
+    galleryImages,
   ]);
 
   useEffect(() => {
@@ -737,7 +945,7 @@ export function WebsiteBuilderWorkspace() {
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key.toLowerCase() === 's') {
         e.preventDefault();
-        persistNow(true);
+        void persistNow(true);
       }
       if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -811,18 +1019,22 @@ export function WebsiteBuilderWorkspace() {
   }
 
   function createVersion(noteKey: WbVersion['noteKey'], comment?: string) {
-    const next: WbVersion = {
-      id: `v-${Date.now()}`,
-      label: `v0.${versions.length + 1}`,
-      status: 'draft',
-      updatedAt: 'Just now',
-      noteKey,
-      comment,
-    };
-    setVersions((prev) => [next, ...prev]);
-    setActiveVersionId(next.id);
-    setPublishStatus('draft');
-    setSaved(false);
+    const label =
+      comment?.trim() ||
+      t(`versionNotes.${noteKey}`) ||
+      `v${versions.length + 1}`;
+    void (async () => {
+      try {
+        const created = await docApi.createVersion(buildPersistInput(), label);
+        if (created) {
+          setPublishStatus('draft');
+          setSaved(true);
+          setLastSavedLabel(t('savedJustNow'));
+        }
+      } catch {
+        showToast(t('toasts.saveFailed'));
+      }
+    })();
   }
 
   function handleGenerate(
@@ -926,26 +1138,52 @@ export function WebsiteBuilderWorkspace() {
     else handleGenerate('generic');
   }
 
-  function handleProjectChange(id: ProjectId) {
-    const next = getProject(id);
-    setProjectId(id);
-    setSlug(next.slug);
-    setMetaTitle(`Investhome | ${next.name}`);
-    setMetaDesc(
-      `Premium U.S. real-estate investment opportunities by Investhome — featuring ${next.name}.`,
-    );
-    setHeroCoverOverride(null);
-    setGalleryOverride(null);
-    setSaved(false);
+  function handleProjectChange(id: string) {
+    void (async () => {
+      setSaved(false);
+      contentDefaultsAppliedRef.current = false;
+      const next = docApi.constructionProjects.find((p) => p.id === id);
+      const draft = await docApi.selectConstructionProject(id);
+      applyDraftToEditor(draft);
+      if (!draft && next) {
+        setSlug(next.slug || next.project_name.toLowerCase().replace(/\s+/g, '-'));
+        setMetaTitle(`Investhome | ${next.project_name}`);
+        setMetaDesc(
+          `Premium U.S. real-estate investment opportunities by Investhome — featuring ${next.project_name}.`,
+        );
+        setHeroImage(null);
+        setGalleryImages([]);
+        setResolvedHeroUrl(null);
+        setResolvedGalleryUrls({});
+      }
+      if (draft) {
+        setSaved(true);
+        setLastSavedLabel(t('savedJustNow'));
+      } else {
+        setLastSavedLabel(t('notSavedYet'));
+      }
+    })();
   }
 
   function reorderGalleryImages() {
-    const list = [...galleryUrls];
-    if (!list.length) return;
-    // Rotate left to simulate “reorder” without adding a new drag workflow.
-    const [first, ...rest] = list;
-    const next = [...rest, first];
-    setGalleryOverride(next);
+    if (!galleryImages.length) {
+      const list = [...galleryUrls];
+      if (!list.length) return;
+      const [first, ...rest] = list;
+      setGalleryImages(
+        [...rest, first].map((url) => ({
+          asset_id: null,
+          url,
+          role: 'gallery',
+        })),
+      );
+      return;
+    }
+    setGalleryImages((prev) => {
+      if (prev.length < 2) return prev;
+      const [first, ...rest] = prev;
+      return [...rest, first!];
+    });
   }
 
   function moveSection(id: string, dir: -1 | 1) {
@@ -1108,21 +1346,42 @@ export function WebsiteBuilderWorkspace() {
   }
 
   function applyAssetToPreview(asset: WbAsset) {
-    if (asset.thumbUrl && (asset.kind === 'images' || asset.kind === 'logos')) {
+    const ref = imageRefFromWbAsset(asset, selectedSection?.key === 'gallery' ? 'gallery' : 'hero');
+    if (ref && (asset.kind === 'images' || asset.kind === 'logos')) {
       if (selectedSection?.key === 'gallery') {
-        setGalleryOverride([asset.thumbUrl, ...galleryUrls.slice(0, 2)]);
+        setGalleryImages((prev) =>
+          [ref, ...prev.filter((r) => {
+            if (ref.asset_id && r.asset_id) return r.asset_id !== ref.asset_id;
+            return r.url !== ref.url;
+          })].slice(0, 12),
+        );
+        if (ref.asset_id) {
+          void ensureDisplayUrl(ref.asset_id).then((url) => {
+            if (url) setResolvedGalleryUrls((prev) => ({ ...prev, [ref.asset_id!]: url }));
+          });
+        }
         showToast(t('toasts.imageReplaced'));
       } else {
-        setHeroCoverOverride(asset.thumbUrl.replace('w=200&h=140', 'w=1600&h=900'));
+        setHeroImage(ref);
+        if (ref.asset_id) {
+          void ensureDisplayUrl(ref.asset_id).then((url) => {
+            setResolvedHeroUrl(url);
+          });
+        } else {
+          setResolvedHeroUrl(null);
+        }
         const hero = sections.find((s) => s.key === 'hero');
         if (hero) selectSection(hero, 'image');
         showToast(t('toasts.imageReplaced'));
       }
+      setSelectedAssets([asset.id]);
+      setPreviewAssetId(asset.id);
+      setSaved(false);
       return;
     }
     if (asset.kind === 'pdf' || asset.kind === 'documents' || asset.tags.includes('brochure')) {
-      const ref = `[${asset.filename}]`;
-      setBrief((prev) => (prev.trim() ? `${prev.trim()} ${ref}` : ref));
+      const briefRef = `[${asset.filename}]`;
+      setBrief((prev) => (prev.trim() ? `${prev.trim()} ${briefRef}` : briefRef));
       setOpenLeft((prev) => ({ ...prev, conversation: true }));
       showToast(t('toasts.assetReferenced', { file: asset.filename }));
     }
@@ -1144,7 +1403,7 @@ export function WebsiteBuilderWorkspace() {
   function onPreviewDrop(e: DragEvent) {
     e.preventDefault();
     const id = e.dataTransfer.getData('application/wb-asset') || e.dataTransfer.getData('text/plain');
-    const asset = WB_ASSETS.find((a) => a.id === id);
+    const asset = libraryAssets.find((a) => a.id === id);
     if (asset) applyAssetToPreview(asset);
   }
 
@@ -1158,11 +1417,50 @@ export function WebsiteBuilderWorkspace() {
   function onChatDrop(e: DragEvent) {
     e.preventDefault();
     const id = e.dataTransfer.getData('application/wb-asset') || e.dataTransfer.getData('text/plain');
-    const asset = WB_ASSETS.find((a) => a.id === id);
+    const asset = libraryAssets.find((a) => a.id === id);
     if (!asset) return;
     const ref = `[${asset.filename}]`;
     setBrief((prev) => (prev.trim() ? `${prev.trim()} ${ref}` : ref));
     showToast(t('toasts.assetReferenced', { file: asset.filename }));
+  }
+
+  async function handleUploadFile(file: File | null | undefined) {
+    if (!file || mediaApi.uploading) return;
+    const accepted =
+      !file.size
+        ? false
+        : /^(image\/jpeg|image\/png|image\/webp|image\/gif)$/i.test(file.type) ||
+          /\.(jpe?g|png|gif|webp)$/i.test(file.name);
+    if (!accepted) {
+      showToast(t('toasts.uploadFailed'));
+      return;
+    }
+    const uploaded = await mediaApi.uploadImage(file);
+    if (!uploaded) {
+      showToast(t('toasts.uploadFailed'));
+      return;
+    }
+    const ref = imageRefFromMediaAsset(uploaded, selectedSection?.key === 'gallery' ? 'gallery' : 'hero');
+    setSelectedAssets([uploaded.id]);
+    setPreviewAssetId(uploaded.id);
+    if (selectedSection?.key === 'gallery') {
+      setGalleryImages((prev) => [ref, ...prev].slice(0, 12));
+      const url = await ensureDisplayUrl(uploaded.id);
+      if (url) setResolvedGalleryUrls((prev) => ({ ...prev, [uploaded.id]: url }));
+    } else {
+      setHeroImage(ref);
+      const url = await ensureDisplayUrl(uploaded.id);
+      setResolvedHeroUrl(url);
+      const hero = sections.find((s) => s.key === 'hero');
+      if (hero) selectSection(hero, 'image');
+    }
+    setSaved(false);
+    showToast(t('toasts.uploadSucceeded', { file: uploaded.filename }));
+  }
+
+  function openUploadPicker() {
+    if (mediaApi.uploading) return;
+    uploadInputRef.current?.click();
   }
 
   function onStructureDragStart(e: DragEvent, id: string) {
@@ -1200,53 +1498,64 @@ export function WebsiteBuilderWorkspace() {
     if (!current) return;
     switch (action) {
       case 'restore':
-        setPublishStatus(current.status);
-        showToast(t('toasts.restored', { version: current.label }));
+        setRestoreConfirmId(current.id);
         break;
       case 'compare':
         setCompareVersionId((prev) => (prev === current.id ? null : current.id));
         break;
-      case 'rename': {
-        const label = `${current.label}·renamed`;
-        setVersions((prev) => prev.map((v) => (v.id === current.id ? { ...v, label } : v)));
+      case 'rename':
+        showToast(t('toasts.versionRenameLocal'));
         break;
-      }
-      case 'duplicate': {
-        const copy: WbVersion = {
-          ...current,
-          id: `v-${Date.now()}`,
-          label: `${current.label}-copy`,
-          updatedAt: 'Just now',
-        };
-        setVersions((prev) => [copy, ...prev]);
-        setActiveVersionId(copy.id);
+      case 'duplicate':
+      case 'branch':
+        void (async () => {
+          try {
+            const label =
+              action === 'branch'
+                ? `${current.label}-branch`
+                : `${current.label}-copy`;
+            const created = await docApi.createVersion(buildPersistInput(), label);
+            if (created) {
+              showToast(t('toasts.versionCreated', { label: created.label }));
+            }
+          } catch {
+            showToast(t('toasts.saveFailed'));
+          }
+        })();
         break;
-      }
-      case 'branch': {
-        const branch: WbVersion = {
-          ...current,
-          id: `v-${Date.now()}`,
-          label: `${current.label}-branch`,
-          status: 'draft',
-          updatedAt: 'Just now',
-          comment: t('versionActions.branchNote'),
-        };
-        setVersions((prev) => [branch, ...prev]);
-        setActiveVersionId(branch.id);
-        break;
-      }
       case 'comment':
         if (!versionComment.trim()) break;
-        setVersions((prev) =>
-          prev.map((v) =>
-            v.id === current.id ? { ...v, comment: versionComment.trim() } : v,
-          ),
-        );
-        setVersionComment('');
-        showToast(t('toasts.commentAdded'));
+        void (async () => {
+          try {
+            const created = await docApi.createVersion(
+              buildPersistInput(),
+              versionComment.trim(),
+            );
+            if (created) {
+              setVersionComment('');
+              showToast(t('toasts.versionCreated', { label: created.label }));
+            }
+          } catch {
+            showToast(t('toasts.saveFailed'));
+          }
+        })();
         break;
       default:
         break;
+    }
+  }
+
+  async function confirmRestoreVersion(versionId: string) {
+    setRestoreConfirmId(null);
+    try {
+      const draft = await docApi.restoreVersion(versionId);
+      applyDraftToEditor(draft);
+      const version = versions.find((v) => v.id === versionId);
+      showToast(t('toasts.restored', { version: version?.label ?? versionId }));
+      setSaved(true);
+      setLastSavedLabel(t('savedJustNow'));
+    } catch {
+      showToast(t('toasts.saveFailed'));
     }
   }
 
@@ -1785,6 +2094,39 @@ export function WebsiteBuilderWorkspace() {
     );
   }
 
+  if (docApi.loadStatus === 'error' && !hydrated) {
+    return (
+      <main className="dashboard" data-testid="wb-workspace-page">
+        <div className="wb-ws" data-testid="wb-workspace">
+          <ErrorState
+            title={t('loadErrorTitle')}
+            message={docApi.loadError || t('loadError')}
+            action={
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  void (async () => {
+                    const result = await docApi.bootstrap();
+                    if (!result.ok) return;
+                    applyDraftToEditor(result.draft);
+                    setHydrated(true);
+                    if (result.draft) {
+                      setSaved(true);
+                      setLastSavedLabel(t('savedJustNow'));
+                    }
+                  })();
+                }}
+              >
+                {tCommon('retry')}
+              </Button>
+            }
+          />
+        </div>
+      </main>
+    );
+  }
+
   if (!hydrated) {
     return (
       <main className="dashboard" data-testid="wb-workspace-page">
@@ -1801,9 +2143,41 @@ export function WebsiteBuilderWorkspace() {
     );
   }
 
+  const saveChipTone =
+    docApi.saveStatus === 'error'
+      ? 'danger'
+      : docApi.saveStatus === 'saving'
+        ? 'warning'
+        : saved || docApi.saveStatus === 'saved'
+          ? 'success'
+          : 'warning';
+  const saveChipLabel =
+    docApi.saveStatus === 'saving'
+      ? t('saving')
+      : docApi.saveStatus === 'error'
+        ? t('saveFailed')
+        : saved || docApi.saveStatus === 'saved'
+          ? t('saved')
+          : t('approvalPending');
+
   return (
     <main className="dashboard" data-testid="wb-workspace-page">
       <div className="wb-ws" data-testid="wb-workspace" data-cs-workspace-mode={focus.mode} data-cs-fullscreen={focus.isFullscreen ? 'true' : 'false'}>
+        {/* Always mounted so focus-mode Assets rail "Yeni Varlık Yükle" can trigger the picker. */}
+        <input
+          ref={uploadInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          hidden
+          aria-hidden="true"
+          tabIndex={-1}
+          data-testid="wb-upload-input"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            void handleUploadFile(file);
+          }}
+        />
         <header className="wb-ws__header cs-page-header">
           <div>
             <Link href={WB_HOME as Route} className="wb-ws__back">
@@ -1840,12 +2214,12 @@ export function WebsiteBuilderWorkspace() {
               <Select
                 id="wb-project"
                 label={t('fields.project')}
-                value={projectId}
-                onChange={(e) => handleProjectChange(e.target.value as ProjectId)}
+                value={docApi.constructionProjectId ?? ''}
+                onChange={(e) => handleProjectChange(e.target.value)}
               >
-                {WB_PROJECTS.map((p) => (
+                {docApi.constructionProjects.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name}
+                    {p.project_name}
                   </option>
                 ))}
               </Select>
@@ -1853,20 +2227,27 @@ export function WebsiteBuilderWorkspace() {
             <StatusChip tone={PUBLISH_STATUS_TONE[publishStatus]}>
               {t(`status.${publishStatus}`)}
             </StatusChip>
-            <StatusChip tone={saved ? 'success' : 'warning'}>
-              {saved ? t('saved') : t('approvalPending')}
-            </StatusChip>
+            <StatusChip tone={saveChipTone}>{saveChipLabel}</StatusChip>
             <span className="wb-ws__saved-meta">{lastSavedLabel}</span>
           </div>
           <div className="wb-ws__toolbar-right">
             <CreativeStudioFocusModeSwitcher mode={focus.mode} setMode={focus.setMode} />
-            <Button variant="secondary" size="sm" onClick={() => persistNow(true)} data-testid="wb-save">
-              {t('saveDraft')}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void persistNow(true)}
+              disabled={docApi.saveStatus === 'saving'}
+              data-testid="wb-save"
+            >
+              {docApi.saveStatus === 'saving' ? t('saving') : t('saveDraft')}
             </Button>
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => setRightTab('publishing')}
+              onClick={() => {
+                setRightTab('publishing');
+                void docApi.refreshVersions();
+              }}
               data-testid="wb-versions"
             >
               {t('versions')}
@@ -2208,12 +2589,14 @@ export function WebsiteBuilderWorkspace() {
                           <div
                             className="wb-ws__drop"
                             onDragOver={(e) => e.preventDefault()}
+                            onClick={() => openUploadPicker()}
                             onDrop={(e) => {
                               e.preventDefault();
-                              showToast(t('toasts.upload'));
+                              const file = e.dataTransfer.files?.[0];
+                              void handleUploadFile(file);
                             }}
                           >
-                            {t('assets.drop')}
+                            {mediaApi.uploading ? t('toasts.uploading') : t('assets.drop')}
                           </div>
                           {selectedAssets.length > 0 ? (
                             <p className="wb-ws__asset-selection">
@@ -2876,19 +3259,47 @@ export function WebsiteBuilderWorkspace() {
                   </div>
 
                   <p className="wb-ws__section-label">{t('right.versions')}</p>
+                  {restoreConfirmId ? (
+                    <div className="wb-ws__publish-card" role="alertdialog" aria-label={t('restoreConfirmTitle')}>
+                      <p>
+                        {t('restoreConfirm', {
+                          version:
+                            versions.find((v) => v.id === restoreConfirmId)?.label ??
+                            restoreConfirmId,
+                        })}
+                      </p>
+                      <div className="wb-ws__version-actions">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          disabled={docApi.restoring}
+                          onClick={() => void confirmRestoreVersion(restoreConfirmId)}
+                        >
+                          {t('confirmRestore')}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setRestoreConfirmId(null)}
+                        >
+                          {tCommon('cancel')}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="wb-ws__version-list">
                     {versions.map((version) => (
                       <button
                         key={version.id}
                         type="button"
                         className={`wb-ws__version-row${activeVersionId === version.id ? ' is-active' : ''}${compareVersionId === version.id ? ' is-compare' : ''}`}
-                        onClick={() => setActiveVersionId(version.id)}
+                        onClick={() => docApi.setActiveVersionId(version.id)}
                       >
                         <span>
                           {version.label}
                           <span className="wb-ws__version-meta">
                             {' '}
-                            · {t(`versionNotes.${version.noteKey}`)}
+                            · {version.comment || t(`versionNotes.${version.noteKey}`)}
                           </span>
                           {version.comment ? (
                             <span className="wb-ws__version-comment">{version.comment}</span>
@@ -2906,10 +3317,36 @@ export function WebsiteBuilderWorkspace() {
                       id="wb-version-comment"
                       value={versionComment}
                       onChange={(e) => setVersionComment(e.target.value)}
-                      placeholder={t('versionActions.commentPlaceholder')}
+                      placeholder={t('versionLabelPlaceholder')}
                     />
                   </div>
                   <div className="wb-ws__version-actions">
+                    <button
+                      type="button"
+                      className="wb-ws__block-chip"
+                      onClick={() => {
+                        void (async () => {
+                          try {
+                            const label =
+                              versionComment.trim() || `v${versions.length + 1}`;
+                            const created = await docApi.createVersion(
+                              buildPersistInput(),
+                              label,
+                            );
+                            if (created) {
+                              setVersionComment('');
+                              showToast(
+                                t('toasts.versionCreated', { label: created.label }),
+                              );
+                            }
+                          } catch {
+                            showToast(t('toasts.saveFailed'));
+                          }
+                        })();
+                      }}
+                    >
+                      {t('createVersion')}
+                    </button>
                     {VERSION_ACTIONS.map((key) => (
                       <button
                         key={key}
@@ -2940,7 +3377,7 @@ export function WebsiteBuilderWorkspace() {
                       {t('aiStatus.reusing', { count: reusedAssets.length })} —{' '}
                       {reusedAssets
                         .map((id) => {
-                          const a = WB_ASSETS.find((x) => x.id === id);
+                          const a = libraryAssets.find((x) => x.id === id);
                           return a ? a.filename : id;
                         })
                         .join(', ')}
@@ -3069,6 +3506,29 @@ export function WebsiteBuilderWorkspace() {
           </div>
         ) : null}
 
+        {restoreConfirmId ? (
+          <div className="wb-ws__toast wb-ws__toast--confirm" role="alertdialog" aria-label={t('restoreConfirmTitle')}>
+            <p>
+              {t('restoreConfirm', {
+                version:
+                  versions.find((v) => v.id === restoreConfirmId)?.label ?? restoreConfirmId,
+              })}
+            </p>
+            <div className="wb-ws__version-actions">
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={docApi.restoring}
+                onClick={() => void confirmRestoreVersion(restoreConfirmId)}
+              >
+                {t('confirmRestore')}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setRestoreConfirmId(null)}>
+                {tCommon('cancel')}
+              </Button>
+            </div>
+          </div>
+        ) : null}
         {toast ? (
           <div className="wb-ws__toast" role="status" aria-live="polite">
             {toast}
