@@ -83,6 +83,7 @@ from investhome_api.models.creative_studio_media import (  # noqa: F401
     CreativeStudioMediaFolder,
 )
 from investhome_api.models.ai_index import AiDocument  # noqa: F401
+from investhome_api.models.ai_search import AiChunk, AiEmbedding  # noqa: F401
 from investhome_api.models.project_drive import ProjectDriveMapping  # noqa: F401
 from investhome_api.models.inventory import (  # noqa: F401
     Building,

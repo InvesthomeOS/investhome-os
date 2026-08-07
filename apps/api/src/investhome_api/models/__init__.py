@@ -212,6 +212,7 @@ from investhome_api.models.ai_index import (  # noqa: F401
     AiDocumentStatus,
     AiDocumentType,
 )
+from investhome_api.models.ai_search import AiChunk, AiEmbedding  # noqa: F401
 from investhome_api.models.project_drive import (  # noqa: F401
     DriveSyncStatus,
     GoogleDriveSyncCursor,

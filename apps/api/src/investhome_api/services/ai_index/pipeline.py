@@ -199,6 +199,7 @@ def mark_inactive_for_asset(db: Session, asset_id: UUID) -> None:
     doc.is_active = False
     doc.index_status = AiDocumentStatus.INACTIVE.value
     doc.updated_at = _utcnow()
+    _maybe_reindex_vectors(db, doc)
 
 
 def mark_inactive_for_drive_file(db: Session, *, project_id: UUID, drive_file_id: str) -> None:
@@ -213,6 +214,37 @@ def mark_inactive_for_drive_file(db: Session, *, project_id: UUID, drive_file_id
     doc.is_active = False
     doc.index_status = AiDocumentStatus.INACTIVE.value
     doc.updated_at = _utcnow()
+    _maybe_reindex_vectors(db, doc)
+
+
+def _maybe_reindex_vectors(db: Session, doc: AiDocument) -> None:
+    """Additive Sprint 6 hook — chunk/embed after AI Index updates (never touches Drive)."""
+    try:
+        from investhome_api.services.ai_search.reindex import reindex_after_ai_document_update
+
+        reindex_after_ai_document_update(db, doc)
+    except Exception:  # noqa: BLE001
+        logger.warning(
+            "ai_search_hook_failed",
+            extra={"document_id": str(doc.id)},
+            exc_info=True,
+        )
+
+
+def _ensure_vectors_if_missing(db: Session, doc: AiDocument) -> None:
+    """Backfill chunks/embeddings when AI Index was ready before Sprint 6."""
+    try:
+        from investhome_api.models.ai_search import AiChunk
+
+        has_chunk = db.scalar(select(AiChunk.id).where(AiChunk.document_id == doc.id).limit(1))
+        if has_chunk is None:
+            _maybe_reindex_vectors(db, doc)
+    except Exception:  # noqa: BLE001
+        logger.warning(
+            "ai_search_backfill_check_failed",
+            extra={"document_id": str(doc.id)},
+            exc_info=True,
+        )
 
 
 def index_asset(
@@ -248,6 +280,7 @@ def index_asset(
             document_type=AiDocumentType.UNSUPPORTED.value,
         )
         db.flush()
+        _maybe_reindex_vectors(db, doc)
         return doc
 
     doc = _get_or_create_by_asset(db, asset)
@@ -262,6 +295,7 @@ def index_asset(
             and doc.index_status == AiDocumentStatus.READY.value
             and doc.checksum == legal_checksum
         ):
+            _ensure_vectors_if_missing(db, doc)
             return doc
         meta = {
             "filename": asset.filename,
@@ -290,11 +324,13 @@ def index_asset(
             metadata_extra={"legal_meta_only": True, "asset_meta": meta},
         )
         db.flush()
+        _maybe_reindex_vectors(db, doc)
         return doc
 
     if not is_text_extension(asset.filename) and not is_special_filename(asset.filename):
         _mark_skipped(doc, f"unsupported_format:{asset.filename}", document_type=AiDocumentType.UNSUPPORTED.value)
         db.flush()
+        _maybe_reindex_vectors(db, doc)
         return doc
 
     if (
@@ -304,6 +340,7 @@ def index_asset(
         and doc.index_status == AiDocumentStatus.READY.value
         and doc.checksum == source_checksum
     ):
+        _ensure_vectors_if_missing(db, doc)
         return doc
 
     try:
@@ -324,6 +361,7 @@ def index_asset(
         and doc.index_status == AiDocumentStatus.READY.value
         and doc.checksum == checksum
     ):
+        _ensure_vectors_if_missing(db, doc)
         return doc
 
     extracted = extract_bytes(content, asset.filename)
@@ -331,6 +369,7 @@ def index_asset(
         _mark_skipped(doc, extracted.skip_reason or "unsupported", document_type=extracted.document_type)
         doc.checksum = checksum
         db.flush()
+        _maybe_reindex_vectors(db, doc)
         return doc
 
     _apply_ready(
@@ -344,6 +383,7 @@ def index_asset(
         metadata_extra={"extraction_method": extracted.method},
     )
     db.flush()
+    _maybe_reindex_vectors(db, doc)
     return doc
 
 
@@ -373,6 +413,7 @@ def index_special_drive_file(
         and doc.index_status == AiDocumentStatus.READY.value
         and doc.checksum == checksum
     ):
+        _ensure_vectors_if_missing(db, doc)
         return doc
 
     try:
@@ -389,6 +430,7 @@ def index_special_drive_file(
         and doc.index_status == AiDocumentStatus.READY.value
         and doc.checksum == content_checksum
     ):
+        _ensure_vectors_if_missing(db, doc)
         return doc
 
     extracted = extract_bytes(content, filename)
@@ -396,6 +438,7 @@ def index_special_drive_file(
         _mark_skipped(doc, extracted.skip_reason or "unsupported", document_type=extracted.document_type)
         doc.checksum = content_checksum
         db.flush()
+        _maybe_reindex_vectors(db, doc)
         return doc
 
     _apply_ready(
@@ -412,6 +455,7 @@ def index_special_drive_file(
         },
     )
     db.flush()
+    _maybe_reindex_vectors(db, doc)
     return doc
 
 

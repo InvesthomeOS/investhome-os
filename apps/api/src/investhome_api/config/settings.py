@@ -76,6 +76,24 @@ class Settings(BaseSettings):
     document_processing_max_retries: int = Field(default=3, alias="DOCUMENT_PROCESSING_MAX_RETRIES")
     ai_index_processing_sync: bool = Field(default=False, alias="AI_INDEX_PROCESSING_SYNC")
     ai_index_max_download_bytes: int = Field(default=5_000_000, alias="AI_INDEX_MAX_DOWNLOAD_BYTES")
+
+    # Semantic search / embeddings (local default — no external calls without keys)
+    embedding_provider: str = Field(default="local", alias="EMBEDDING_PROVIDER")
+    embedding_model: str = Field(default="local-hash-v1", alias="EMBEDDING_MODEL")
+    embedding_dimensions: int = Field(default=64, alias="EMBEDDING_DIMENSIONS")
+    embedding_api_key: str | None = Field(default=None, alias="EMBEDDING_API_KEY")
+    embedding_base_url: str | None = Field(default=None, alias="EMBEDDING_BASE_URL")
+    embedding_azure_endpoint: str | None = Field(default=None, alias="EMBEDDING_AZURE_ENDPOINT")
+    embedding_azure_deployment: str | None = Field(default=None, alias="EMBEDDING_AZURE_DEPLOYMENT")
+    embedding_azure_api_version: str = Field(
+        default="2024-02-01",
+        alias="EMBEDDING_AZURE_API_VERSION",
+    )
+    embedding_batch_size: int = Field(default=32, alias="EMBEDDING_BATCH_SIZE")
+    vector_store_backend: str = Field(default="local", alias="VECTOR_STORE_BACKEND")
+    ai_search_chunk_min_chars: int = Field(default=600, alias="AI_SEARCH_CHUNK_MIN_CHARS")
+    ai_search_chunk_max_chars: int = Field(default=1200, alias="AI_SEARCH_CHUNK_MAX_CHARS")
+
     document_text_preview_chars: int = Field(default=2000, alias="DOCUMENT_TEXT_PREVIEW_CHARS")
     document_extracted_text_subdir: str = Field(
         default="extracted-text",
