@@ -51,3 +51,37 @@ export type {
 } from './use-cs-media-library';
 export { useBuilderCoverAsset, coverRefFromAsset } from './use-builder-cover-asset';
 export type { UseBuilderCoverAssetResult } from './use-builder-cover-asset';
+export {
+  BUILDER_KIND_LABELS,
+  BUILDER_MEDIA_DOCUMENT_TYPES,
+  BUILDER_MEDIA_DRAFT_SCHEMA_VERSION,
+  assertSafeBuilderMediaDraft,
+  deserializeBuilderMediaDraft,
+  isBuilderMediaDraftEmpty,
+  isBuilderMediaDocumentType,
+  normalizeBuilderCoverFields,
+  serializeBuilderMediaDraft,
+} from './builder-media-persistence';
+export type {
+  BuilderMediaDocumentType,
+  BuilderMediaDraft,
+  BuilderMediaPersistInput,
+} from './builder-media-persistence';
+export {
+  documentTitleForProject,
+  mapApiVersionToCsVersion,
+  resolveCreativeStudioDocument,
+  resolveCreativeStudioProject,
+} from './cs-document-session';
+export type {
+  CsDocumentVersion,
+  ResolveDocumentDeps,
+  ResolveProjectDeps,
+} from './cs-document-session';
+export { useBuilderDocument } from './use-builder-document';
+export type {
+  BuilderBootstrapResult,
+  BuilderLoadStatus,
+  BuilderSaveStatus,
+  UseBuilderDocumentResult,
+} from './use-builder-document';

@@ -3,7 +3,7 @@
 import type { Route } from 'next';
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { Button, Select, StatusChip } from '@investhome/ui';
@@ -47,6 +47,7 @@ import {
 
 import { CsBottomActionToolbar, CsMediaPickerDialog } from '../_components';
 import { useBuilderCoverAsset } from '../_components/use-builder-cover-asset';
+import { useBuilderDocument } from '../_components/use-builder-document';
 import {
   CreativeStudioFocusModeSwitcher,
   CreativeStudioFocusWorkspace,
@@ -61,12 +62,23 @@ import './presentation-builder.css';
 
 const AI_PRESENT_INTERVAL_MS = 4200;
 
+function visualTemplateForProject(
+  projectId: string,
+  templates: typeof PB_PROJECTS,
+): (typeof PB_PROJECTS)[number] {
+  let hash = 0;
+  const key = projectId || 'default';
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash + key.charCodeAt(i) * (i + 1)) % templates.length;
+  }
+  return templates[hash] ?? templates[0]!;
+}
 export function PresentationBuilderWorkspace() {
   const t = useTranslations('creativeStudio.ds.presentationBuilder');
   const tTools = useTranslations('creativeStudio.ds.tools');
 
+  const docApi = useBuilderDocument({ documentType: 'presentation' });
   const [hydrated, setHydrated] = useState(false);
-  const [projectId, setProjectId] = useState<ProjectId>('temple');
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus>('ready');
   const [saved, setSaved] = useState(true);
   const [brief, setBrief] = useState<PresentationBrief>(DEFAULT_BRIEF);
@@ -90,8 +102,23 @@ export function PresentationBuilderWorkspace() {
   const floatingMoreRef = useRef<HTMLButtonElement | null>(null);
   const presentTimerRef = useRef<number | null>(null);
 
-  const project = useMemo(() => getProject(projectId), [projectId]);
-  const coverAsset = useBuilderCoverAsset({ templateCoverUrl: project.coverUrl });
+  const selectedConstruction = useMemo(
+    () =>
+      docApi.constructionProjects.find((p) => p.id === docApi.constructionProjectId) ?? null,
+    [docApi.constructionProjects, docApi.constructionProjectId],
+  );
+  const project = useMemo(() => {
+    const visualProj = visualTemplateForProject(
+      docApi.constructionProjectId || selectedConstruction?.project_name || 'default',
+      PB_PROJECTS,
+    );
+    if (!selectedConstruction) return visualProj;
+    return { ...visualProj, name: selectedConstruction.project_name || visualProj.name };
+  }, [docApi.constructionProjectId, selectedConstruction]);
+  const coverAsset = useBuilderCoverAsset({
+    templateCoverUrl: project.coverUrl,
+    linkedProjectId: docApi.constructionProjectId,
+  });
   const selectedSlide = slides.find((s) => s.id === selectedSlideId) ?? slides[0]!;
   const selectedIndex = slides.findIndex((s) => s.id === selectedSlide.id);
   const presentSlide = slides[aiPresentIndex] ?? slides[0]!;
@@ -137,11 +164,37 @@ export function PresentationBuilderWorkspace() {
   });
 
   useEffect(() => {
-    setHydrated(true);
+    let cancelled = false;
+    void (async () => {
+      const result = await docApi.bootstrap();
+      if (cancelled) return;
+      if (result.ok) {
+        coverAsset.hydrateMedia(result.draft?.coverImage ?? null, result.draft?.galleryImages ?? []);
+        setSaved(Boolean(result.draft));
+      }
+      setHydrated(true);
+    })();
     return () => {
+      cancelled = true;
       if (presentTimerRef.current) window.clearInterval(presentTimerRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!hydrated || docApi.loadStatus !== 'ready') return;
+    const id = window.setTimeout(() => {
+      void (async () => {
+        const ok = await docApi.saveDraft({
+          linkedProjectId: docApi.constructionProjectId,
+          coverImage: coverAsset.coverImage,
+        });
+        if (ok) setSaved(true);
+      })();
+    }, 2000);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, docApi.loadStatus, coverAsset.coverImage]);
 
   useEffect(() => {
     if (!floatingMoreOpen) return;
@@ -210,9 +263,33 @@ export function PresentationBuilderWorkspace() {
     window.setTimeout(() => setToast(null), 2200);
   }
 
-  function persistNow(announce = false) {
-    setSaved(true);
-    if (announce) showToast(t('toasts.saved'));
+  const persistNow = useCallback(
+    async (announce = false) => {
+      if (docApi.loadStatus !== 'ready') return;
+      const ok = await docApi.saveDraft({
+        linkedProjectId: docApi.constructionProjectId,
+        coverImage: coverAsset.coverImage,
+      });
+      if (ok) {
+        setSaved(true);
+        if (announce) showToast(t('toasts.saved'));
+      } else if (announce) {
+        showToast(t('toasts.saveFailed'));
+      }
+    },
+    [coverAsset.coverImage, docApi, t],
+  );
+
+  async function handleProjectChange(id: string) {
+    const draft = await docApi.selectConstructionProject(id);
+    coverAsset.hydrateMedia(draft?.coverImage ?? null, draft?.galleryImages ?? []);
+    const name =
+      docApi.constructionProjects.find((p) => p.id === id)?.project_name || project.name;
+    setBrief((prev) => ({
+      ...prev,
+      topic: name + ' ? Investment Deck',
+    }));
+    setSaved(Boolean(draft));
   }
 
   function markDirty() {
@@ -411,7 +488,7 @@ export function PresentationBuilderWorkspace() {
               </StatusChip>
               <span className="pb-ws__saved-ago">{saved ? t('savedAgo') : t('notSavedYet')}</span>
             </div>
-            <Button variant="secondary" size="sm" onClick={() => persistNow(true)} data-testid="pb-save">
+            <Button variant="secondary" size="sm" onClick={() => void persistNow(true)} data-testid="pb-save" disabled={docApi.saveStatus === 'saving' || docApi.loadStatus !== 'ready'}>
               {t('saveDraft')}
             </Button>
             <Button
@@ -476,20 +553,14 @@ export function PresentationBuilderWorkspace() {
               <Select
                 id="pb-project"
                 label={t('fields.project')}
-                value={projectId}
+                value={docApi.constructionProjectId ?? ''}
                 onChange={(e) => {
-                  const id = e.target.value as ProjectId;
-                  setProjectId(id);
-                  setBrief((prev) => ({
-                    ...prev,
-                    topic: `${getProject(id).name} — Investment Deck`,
-                  }));
-                  setSaved(false);
+                  void handleProjectChange(e.target.value);
                 }}
               >
-                {PB_PROJECTS.map((p) => (
+                {docApi.constructionProjects.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name}
+                    {p.project_name}
                   </option>
                 ))}
               </Select>
@@ -801,6 +872,7 @@ export function PresentationBuilderWorkspace() {
           open={coverAsset.pickerOpen}
           onClose={coverAsset.closePicker}
           media={coverAsset.media}
+          linkedProjectId={docApi.constructionProjectId}
           selectedAssetId={coverAsset.coverImage?.asset_id ?? null}
           onSelect={(ref) => {
             coverAsset.setCoverImage(ref);

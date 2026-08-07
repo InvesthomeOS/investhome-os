@@ -2,7 +2,7 @@
 
 import type { Route } from 'next';
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { Button, Select, StatusChip } from '@investhome/ui';
@@ -38,6 +38,7 @@ import {
 
 import { CsBottomActionToolbar, CsMediaPickerDialog } from '../_components';
 import { useBuilderCoverAsset } from '../_components/use-builder-cover-asset';
+import { useBuilderDocument } from '../_components/use-builder-document';
 import {
   CreativeStudioFocusModeSwitcher,
   CreativeStudioFocusWorkspace,
@@ -61,12 +62,24 @@ import {
 
 import './email-builder.css';
 
+function visualTemplateForProject(
+  projectId: string,
+  templates: typeof EB_PROJECTS,
+): (typeof EB_PROJECTS)[number] {
+  let hash = 0;
+  const key = projectId || 'default';
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash + key.charCodeAt(i) * (i + 1)) % templates.length;
+  }
+  return templates[hash] ?? templates[0]!;
+}
+
 export function EmailBuilderWorkspace() {
   const t = useTranslations('creativeStudio.ds.emailBuilder');
   const tTools = useTranslations('creativeStudio.ds.tools');
 
+  const docApi = useBuilderDocument({ documentType: 'email' });
   const [hydrated, setHydrated] = useState(false);
-  const [projectId, setProjectId] = useState<ProjectId>('temple');
   const [device, setDevice] = useState<DevicePreview>('desktop');
   const [publishStatus, setPublishStatus] = useState<PublishStatus>('draft');
   const [saved, setSaved] = useState(true);
@@ -93,8 +106,23 @@ export function EmailBuilderWorkspace() {
   const focus = useCreativeStudioFocusMode({ storageKey: 'email-builder' });
   const filmstripRef = useRef<HTMLDivElement | null>(null);
   const floatingMoreRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const project = useMemo(() => getProject(projectId), [projectId]);
-  const coverAsset = useBuilderCoverAsset({ templateCoverUrl: project.coverUrl });
+  const selectedConstruction = useMemo(
+    () =>
+      docApi.constructionProjects.find((p) => p.id === docApi.constructionProjectId) ?? null,
+    [docApi.constructionProjects, docApi.constructionProjectId],
+  );
+  const project = useMemo(() => {
+    const visual = visualTemplateForProject(
+      docApi.constructionProjectId || selectedConstruction?.project_name || 'default',
+      EB_PROJECTS,
+    );
+    if (!selectedConstruction) return visual;
+    return { ...visual, name: selectedConstruction.project_name || visual.name };
+  }, [docApi.constructionProjectId, selectedConstruction]);
+  const coverAsset = useBuilderCoverAsset({
+    templateCoverUrl: project.coverUrl,
+    linkedProjectId: docApi.constructionProjectId,
+  });
   const deviceSize = DEVICE_CONTENT[device];
   const ftv = useFitToViewEngine({
     contentWidth: deviceSize.w,
@@ -136,15 +164,48 @@ export function EmailBuilderWorkspace() {
   );
 
   useEffect(() => {
-    setHydrated(true);
-    setSubject(t('canvas.subjectValue'));
-    setPreviewText(t('canvas.previewValue'));
-    setHeading(t('canvas.headline'));
-    setBodyCopy(t('canvas.lead'));
-    setLastSavedLabel(t('savedJustNow'));
-    // intentionally once on mount for demo content bootstrap
+    let cancelled = false;
+    void (async () => {
+      const result = await docApi.bootstrap();
+      if (cancelled) return;
+      setSubject(t('canvas.subjectValue'));
+      setPreviewText(t('canvas.previewValue'));
+      setHeading(t('canvas.headline'));
+      setBodyCopy(t('canvas.lead'));
+      if (result.ok) {
+        coverAsset.hydrateMedia(result.draft?.coverImage ?? null, result.draft?.galleryImages ?? []);
+        if (result.draft) {
+          setSaved(true);
+          setLastSavedLabel(t('savedJustNow'));
+        } else {
+          setLastSavedLabel(t('notSavedYet'));
+        }
+      }
+      setHydrated(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!hydrated || docApi.loadStatus !== 'ready') return;
+    const id = window.setTimeout(() => {
+      void (async () => {
+        const ok = await docApi.saveDraft({
+          linkedProjectId: docApi.constructionProjectId,
+          coverImage: coverAsset.coverImage,
+        });
+        if (ok) {
+          setSaved(true);
+          setLastSavedLabel(t('savedJustNow'));
+        }
+      })();
+    }, 2000);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, docApi.loadStatus, coverAsset.coverImage]);
 
   useEffect(() => {
     if (focus.isFocus || focus.isFullscreen) {
@@ -175,10 +236,29 @@ export function EmailBuilderWorkspace() {
     window.setTimeout(() => setToast(null), 2200);
   }
 
-  function persistNow(announce = false) {
-    setSaved(true);
-    setLastSavedLabel(t('savedJustNow'));
-    if (announce) showToast(t('toasts.saved'));
+  const persistNow = useCallback(
+    async (announce = false) => {
+      if (docApi.loadStatus !== 'ready') return;
+      const ok = await docApi.saveDraft({
+        linkedProjectId: docApi.constructionProjectId,
+        coverImage: coverAsset.coverImage,
+      });
+      if (ok) {
+        setSaved(true);
+        setLastSavedLabel(t('savedJustNow'));
+        if (announce) showToast(t('toasts.saved'));
+      } else if (announce) {
+        showToast(t('toasts.saveFailed'));
+      }
+    },
+    [coverAsset.coverImage, docApi, t],
+  );
+
+  async function handleProjectChange(id: string) {
+    const draft = await docApi.selectConstructionProject(id);
+    coverAsset.hydrateMedia(draft?.coverImage ?? null, draft?.galleryImages ?? []);
+    setSaved(Boolean(draft));
+    setLastSavedLabel(draft ? t('savedJustNow') : t('notSavedYet'));
   }
 
   function scrollFilmstrip(dir: -1 | 1) {
@@ -725,7 +805,7 @@ export function EmailBuilderWorkspace() {
               </StatusChip>
               <span className="eb-ws__saved-ago">{lastSavedLabel}</span>
             </div>
-            <Button variant="secondary" size="sm" onClick={() => persistNow(true)} data-testid="eb-save">
+            <Button variant="secondary" size="sm" onClick={() => void persistNow(true)} data-testid="eb-save" disabled={docApi.saveStatus === 'saving' || docApi.loadStatus !== 'ready'}>
               {t('saveDraft')}
             </Button>
             <Button
@@ -774,15 +854,14 @@ export function EmailBuilderWorkspace() {
               <Select
                 id="eb-project"
                 label={t('fields.project')}
-                value={projectId}
+                value={docApi.constructionProjectId ?? ''}
                 onChange={(e) => {
-                  setProjectId(e.target.value as ProjectId);
-                  markDirty();
+                  void handleProjectChange(e.target.value);
                 }}
               >
-                {EB_PROJECTS.map((p) => (
+                {docApi.constructionProjects.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name}
+                    {p.project_name}
                   </option>
                 ))}
               </Select>
@@ -1004,6 +1083,7 @@ export function EmailBuilderWorkspace() {
           open={coverAsset.pickerOpen}
           onClose={coverAsset.closePicker}
           media={coverAsset.media}
+          linkedProjectId={docApi.constructionProjectId}
           selectedAssetId={coverAsset.coverImage?.asset_id ?? null}
           onSelect={(ref) => {
             coverAsset.setCoverImage(ref);

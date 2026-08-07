@@ -10065,7 +10065,8 @@
           "downloaded": "İndirme başladı",
           "pageAdded": "Sayfa eklendi",
           "undo": "Geri alınacak işlem yok",
-          "redo": "Yinelenecek işlem yok"
+          "redo": "Yinelenecek işlem yok",
+          "saveFailed": "Taslak kaydedilemedi — düzenlemeleriniz editörde duruyor"
         },
         "share": "Paylaş",
         "download": "İndir",
@@ -10643,7 +10644,8 @@
           "sectionSettings": "Bölüm ayarları açıldı",
           "sectionDuplicated": "Bölüm kopyalandı",
           "sectionDeleted": "Bölüm silindi",
-          "cannotDeleteLastSection": "En az bir bölüm bırakın"
+          "cannotDeleteLastSection": "En az bir bölüm bırakın",
+          "saveFailed": "Taslak kaydedilemedi — düzenlemeleriniz editörde duruyor"
         },
         "share": "Paylaş",
         "download": "İndir",
@@ -11199,7 +11201,8 @@
           "sectionSettings": "Bölüm ayarları açıldı",
           "sectionDuplicated": "Bölüm kopyalandı",
           "sectionDeleted": "Bölüm silindi",
-          "cannotDeleteLastSection": "En az bir bölüm bırakın"
+          "cannotDeleteLastSection": "En az bir bölüm bırakın",
+          "saveFailed": "Taslak kaydedilemedi — düzenlemeleriniz editörde duruyor"
         },
         "download": "İndir",
         "publish": "Yayınla",
@@ -12657,7 +12660,8 @@
           "redo": "Yinelendi",
           "help": "Presentation Builder yardımı",
           "exportedPdf": "PDF dışa aktarma başladı",
-          "exportedPptx": "PPTX dışa aktarma başladı"
+          "exportedPptx": "PPTX dışa aktarma başladı",
+          "saveFailed": "Taslak kaydedilemedi — düzenlemeleriniz editörde duruyor"
         },
         "versionHistory": "Sürüm Geçmişi",
         "publish": "Yayınla",
@@ -13483,7 +13487,8 @@
             "addPage": "Sayfa eklendi",
             "duplicate": "Sayfa çoğaltıldı",
             "delete": "Sayfa silindi"
-          }
+          },
+          "saveFailed": "Taslak kaydedilemedi — düzenlemeleriniz editörde duruyor"
         }
       },
       "socialMediaBuilder": {

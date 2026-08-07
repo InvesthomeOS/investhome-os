@@ -30,15 +30,23 @@ export type UseBuilderCoverAssetResult = {
   pickerMode: 'cover' | 'gallery';
   applyPickerSelection: (ref: CsImageRef, item: CsMediaPickerItem) => void;
   clearCover: () => void;
+  /** Apply draft refs (or re-seed from template when null/empty). */
+  hydrateMedia: (cover: CsImageRef | null, gallery?: CsImageRef[]) => void;
 };
 
 export function useBuilderCoverAsset(options: {
   templateCoverUrl: string;
   templateGalleryUrls?: string[];
+  linkedProjectId?: string | null;
   enabled?: boolean;
 }): UseBuilderCoverAssetResult {
-  const { templateCoverUrl, templateGalleryUrls = [], enabled = true } = options;
-  const media = useCsMediaLibrary({ enabled, imagesOnly: true });
+  const {
+    templateCoverUrl,
+    templateGalleryUrls = [],
+    linkedProjectId = null,
+    enabled = true,
+  } = options;
+  const media = useCsMediaLibrary({ enabled, imagesOnly: true, linkedProjectId });
 
   const [coverImage, setCoverImage] = useState<CsImageRef | null>(null);
   const [galleryImages, setGalleryImages] = useState<CsImageRef[]>([]);
@@ -145,6 +153,30 @@ export function useBuilderCoverAsset(options: {
     setResolvedCover(null);
   }, []);
 
+  const hydrateMedia = useCallback(
+    (cover: CsImageRef | null, gallery?: CsImageRef[]) => {
+      if (cover) {
+        setCoverImage(cover);
+      } else {
+        setCoverImage(imageRefFromLegacyUrl(templateCoverUrl, 'cover'));
+      }
+      if (gallery && gallery.length > 0) {
+        setGalleryImages(gallery);
+      } else if (templateGalleryUrls.length) {
+        setGalleryImages(
+          templateGalleryUrls
+            .map((u) => imageRefFromLegacyUrl(u, 'gallery'))
+            .filter((r): r is CsImageRef => r != null),
+        );
+      } else {
+        setGalleryImages([]);
+      }
+      setResolvedCover(null);
+      setResolvedGallery({});
+    },
+    [templateCoverUrl, templateGalleryUrls],
+  );
+
   return {
     media,
     coverImage,
@@ -159,6 +191,7 @@ export function useBuilderCoverAsset(options: {
     pickerMode,
     applyPickerSelection,
     clearCover,
+    hydrateMedia,
   };
 }
 

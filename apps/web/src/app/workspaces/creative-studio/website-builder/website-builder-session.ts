@@ -1,88 +1,40 @@
 /**
  * Creative Studio project/document resolution for Website Builder.
- * Injectable deps keep resolution unit-testable without network.
+ * Delegates to shared cs-document-session helpers; keeps WB-specific wrappers.
  */
 
-import type {
-  CreativeStudioDocument,
-  CreativeStudioDocumentCreate,
-  CreativeStudioProject,
-  CreativeStudioProjectCreate,
-  CreativeStudioVersion,
-} from '@/lib/api/creative-studio';
+import type { CreativeStudioVersion } from '@/lib/api/creative-studio';
 
+import {
+  documentTitleForProject,
+  resolveCreativeStudioDocument,
+  resolveCreativeStudioProject,
+  type ResolveDocumentDeps as SharedResolveDocumentDeps,
+  type ResolveProjectDeps,
+} from '../_components/cs-document-session';
 import type { PublishStatus, WbVersion } from './website-builder-model';
 
-export type ResolveProjectDeps = {
-  linkedProjectId: string;
-  linkedProjectName: string;
-  listProjects: () => Promise<{ items: CreativeStudioProject[]; total: number }>;
-  createProject: (input: CreativeStudioProjectCreate) => Promise<CreativeStudioProject>;
-};
+export type { ResolveProjectDeps };
+export { resolveCreativeStudioProject };
 
-export type ResolveDocumentDeps = {
-  csProjectId: string;
-  documentTitle: string;
-  listDocuments: (
-    projectId: string,
-  ) => Promise<{ items: CreativeStudioDocument[]; total: number }>;
-  createDocument: (
-    projectId: string,
-    input: CreativeStudioDocumentCreate,
-  ) => Promise<CreativeStudioDocument>;
-  getDocument: (documentId: string) => Promise<CreativeStudioDocument>;
-};
-
-/** Match by linked_project_id; create once if missing. */
-export async function resolveCreativeStudioProject(
-  deps: ResolveProjectDeps,
-): Promise<{ project: CreativeStudioProject; created: boolean }> {
-  const listed = await deps.listProjects();
-  const existing = listed.items.find(
-    (item) =>
-      item.linked_project_id === deps.linkedProjectId && item.archived_at == null,
-  );
-  if (existing) {
-    return { project: existing, created: false };
-  }
-  const project = await deps.createProject({
-    name: deps.linkedProjectName.trim() || 'Website project',
-    linked_project_id: deps.linkedProjectId,
-    status: 'active',
-  });
-  return { project, created: true };
-}
+export type ResolveDocumentDeps = Omit<SharedResolveDocumentDeps, 'documentType'>;
 
 /** Prefer existing website document; create once with stable title. */
 export async function resolveWebsiteDocument(
   deps: ResolveDocumentDeps,
-): Promise<{ document: CreativeStudioDocument; created: boolean }> {
-  const listed = await deps.listDocuments(deps.csProjectId);
-  const existing = listed.items.find(
-    (item) => item.document_type === 'website' && item.archived_at == null,
-  );
-  if (existing) {
-    const document = await deps.getDocument(existing.id);
-    return { document, created: false };
-  }
-  const document = await deps.createDocument(deps.csProjectId, {
-    title: deps.documentTitle.trim() || 'Website',
-    document_type: 'website',
-    status: 'draft',
-    draft_body_json: {},
+): Promise<{ document: Awaited<ReturnType<typeof resolveCreativeStudioDocument>>['document']; created: boolean }> {
+  return resolveCreativeStudioDocument({
+    ...deps,
+    documentType: 'website',
   });
-  return { document, created: true };
 }
 
 export function websiteDocumentTitleForProject(projectName: string): string {
-  const name = projectName.trim() || 'Project';
-  return `${name} Website`;
+  return documentTitleForProject(projectName, 'Website');
 }
 
 export function mapApiVersionToWbVersion(version: CreativeStudioVersion): WbVersion {
-  const label =
-    version.label?.trim() ||
-    `v${version.version_number}`;
+  const label = version.label?.trim() || `v${version.version_number}`;
   return {
     id: version.id,
     label,

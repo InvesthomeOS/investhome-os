@@ -2,7 +2,7 @@
 
 import type { Route } from 'next';
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { Button, Select, StatusChip } from '@investhome/ui';
@@ -70,6 +70,7 @@ import {
 
 import { CsBottomActionToolbar, CsMediaPickerDialog } from '../_components';
 import { useBuilderCoverAsset } from '../_components/use-builder-cover-asset';
+import { useBuilderDocument } from '../_components/use-builder-document';
 import {
   CreativeStudioFocusModeSwitcher,
   CreativeStudioFocusWorkspace,
@@ -93,6 +94,18 @@ import {
 
 import './landing-page-builder.css';
 
+function visualTemplateForProject(
+  projectId: string,
+  templates: typeof LPB_PROJECTS,
+): (typeof LPB_PROJECTS)[number] {
+  let hash = 0;
+  const key = projectId || 'default';
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash + key.charCodeAt(i) * (i + 1)) % templates.length;
+  }
+  return templates[hash] ?? templates[0]!;
+}
+
 const ZOOM_DEFAULT = 100;
 const DEVICE_CONTENT: Record<'desktop' | 'tablet' | 'mobile' | 'ab', { w: number; h: number }> = {
   desktop: { w: 1440, h: 900 },
@@ -105,8 +118,8 @@ export function LandingPageBuilderWorkspace() {
   const t = useTranslations('creativeStudio.ds.landingPageBuilder');
   const tTools = useTranslations('creativeStudio.ds.tools');
 
+  const docApi = useBuilderDocument({ documentType: 'landing' });
   const [hydrated, setHydrated] = useState(false);
-  const [projectId, setProjectId] = useState<ProjectId>('temple');
   const [device, setDevice] = useState<DevicePreview>('desktop');
   // Legacy zoom state kept for A/B preview scale fallback; Fit-To-View owns Focus zoom.
   const [zoom] = useState(ZOOM_DEFAULT);
@@ -176,11 +189,28 @@ export function LandingPageBuilderWorkspace() {
   const [ctaSecondary, setCtaSecondary] = useState('');
 
   const genTimerRef = useRef<number[]>([]);
-  const project = useMemo(() => getProject(projectId), [projectId]);
+  const selectedConstruction = useMemo(
+    () =>
+      docApi.constructionProjects.find((p) => p.id === docApi.constructionProjectId) ?? null,
+    [docApi.constructionProjects, docApi.constructionProjectId],
+  );
+  const project = useMemo(() => {
+    const visual = visualTemplateForProject(
+      docApi.constructionProjectId || selectedConstruction?.project_name || 'default',
+      LPB_PROJECTS,
+    );
+    if (!selectedConstruction) return visual;
+    return {
+      ...visual,
+      name: selectedConstruction.project_name || visual.name,
+      featuredLabel: selectedConstruction.project_name || visual.featuredLabel,
+    };
+  }, [docApi.constructionProjectId, selectedConstruction]);
   const templateGalleryUrls = useMemo(() => project.galleryUrls, [project.galleryUrls]);
   const coverAsset = useBuilderCoverAsset({
     templateCoverUrl: project.coverUrl,
     templateGalleryUrls,
+    linkedProjectId: docApi.constructionProjectId,
   });
   const deviceSize = DEVICE_CONTENT[device] ?? DEVICE_CONTENT.desktop;
   const ftv = useFitToViewEngine({
@@ -231,18 +261,55 @@ export function LandingPageBuilderWorkspace() {
   );
 
   useEffect(() => {
-    setHydrated(true);
-    setHeroTitle(t('canvas.heroTitle'));
-    setHeroBody(t('canvas.heroBody'));
-    setCtaPrimary(t(`cta.options.${selectedCta}`));
-    setCtaSecondary(t('cta.options.downloadPackage'));
-    setLastSavedLabel(t('notSavedYet'));
+    let cancelled = false;
+    void (async () => {
+      const result = await docApi.bootstrap();
+      if (cancelled) return;
+      setHeroTitle(t('canvas.heroTitle'));
+      setHeroBody(t('canvas.heroBody'));
+      setCtaPrimary(t(`cta.options.${selectedCta}`));
+      setCtaSecondary(t('cta.options.downloadPackage'));
+      if (result.ok) {
+        coverAsset.hydrateMedia(
+          result.draft?.coverImage ?? null,
+          result.draft?.galleryImages ?? [],
+        );
+        if (result.draft) {
+          setSaved(true);
+          setLastSavedLabel(t('savedJustNow'));
+        } else {
+          setLastSavedLabel(t('notSavedYet'));
+        }
+      } else {
+        setLastSavedLabel(t('notSavedYet'));
+      }
+      setHydrated(true);
+    })();
     return () => {
+      cancelled = true;
       genTimerRef.current.forEach((id) => window.clearTimeout(id));
     };
-    // intentionally once on mount for demo content bootstrap
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!hydrated || docApi.loadStatus !== 'ready') return;
+    const id = window.setTimeout(() => {
+      void (async () => {
+        const ok = await docApi.saveDraft({
+          linkedProjectId: docApi.constructionProjectId,
+          coverImage: coverAsset.coverImage,
+          galleryImages: coverAsset.galleryImages,
+        });
+        if (ok) {
+          setSaved(true);
+          setLastSavedLabel(t('savedJustNow'));
+        }
+      })();
+    }, 2000);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, docApi.loadStatus, coverAsset.coverImage, coverAsset.galleryImages]);
 
   useEffect(() => {
     if (!floatingMoreId) return;
@@ -268,10 +335,30 @@ export function LandingPageBuilderWorkspace() {
     window.setTimeout(() => setToast(null), 2200);
   }
 
-  function persistNow(announce = false) {
-    setSaved(true);
-    setLastSavedLabel(t('savedJustNow'));
-    if (announce) showToast(t('toasts.saved'));
+  const persistNow = useCallback(
+    async (announce = false) => {
+      if (docApi.loadStatus !== 'ready') return;
+      const ok = await docApi.saveDraft({
+        linkedProjectId: docApi.constructionProjectId,
+        coverImage: coverAsset.coverImage,
+        galleryImages: coverAsset.galleryImages,
+      });
+      if (ok) {
+        setSaved(true);
+        setLastSavedLabel(t('savedJustNow'));
+        if (announce) showToast(t('toasts.saved'));
+      } else if (announce) {
+        showToast(t('toasts.saveFailed'));
+      }
+    },
+    [coverAsset.coverImage, coverAsset.galleryImages, docApi, t],
+  );
+
+  async function handleProjectChange(id: string) {
+    const draft = await docApi.selectConstructionProject(id);
+    coverAsset.hydrateMedia(draft?.coverImage ?? null, draft?.galleryImages ?? []);
+    setSaved(Boolean(draft));
+    setLastSavedLabel(draft ? t('savedJustNow') : t('notSavedYet'));
   }
 
   function clearGenTimers() {
@@ -1179,7 +1266,13 @@ export function LandingPageBuilderWorkspace() {
               </StatusChip>
               <span className="lpb-ws__saved-ago">{lastSavedLabel}</span>
             </div>
-            <Button variant="secondary" size="sm" onClick={() => persistNow(true)} data-testid="lpb-save">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void persistNow(true)}
+              data-testid="lpb-save"
+              disabled={docApi.saveStatus === 'saving' || docApi.loadStatus !== 'ready'}
+            >
               {t('saveDraft')}
             </Button>
             <Button
@@ -1231,15 +1324,14 @@ export function LandingPageBuilderWorkspace() {
               <Select
                 id="lpb-project"
                 label={t('fields.project')}
-                value={projectId}
+                value={docApi.constructionProjectId ?? ''}
                 onChange={(e) => {
-                  setProjectId(e.target.value as ProjectId);
-                  markDirty();
+                  void handleProjectChange(e.target.value);
                 }}
               >
-                {LPB_PROJECTS.map((p) => (
+                {docApi.constructionProjects.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name}
+                    {p.project_name}
                   </option>
                 ))}
               </Select>
@@ -1493,6 +1585,7 @@ export function LandingPageBuilderWorkspace() {
           open={coverAsset.pickerOpen}
           onClose={coverAsset.closePicker}
           media={coverAsset.media}
+          linkedProjectId={docApi.constructionProjectId}
           selectedAssetId={coverAsset.coverImage?.asset_id ?? null}
           onSelect={(ref) => {
             coverAsset.setCoverImage(ref);

@@ -2,7 +2,7 @@
 
 import type { Route } from 'next';
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { Button, Select, StatusChip } from '@investhome/ui';
@@ -57,6 +57,7 @@ import {
 
 import { CsBottomActionToolbar, CsMediaPickerDialog } from '../_components';
 import { useBuilderCoverAsset } from '../_components/use-builder-cover-asset';
+import { useBuilderDocument } from '../_components/use-builder-document';
 import {
   CreativeStudioFocusModeSwitcher,
   CreativeStudioFocusWorkspace,
@@ -79,13 +80,24 @@ import './proposal-builder.css';
 const A4_PAGE_W = 794;
 const LETTER_PAGE_W = 816;
 
+function visualTemplateForProject(
+  projectId: string,
+  templates: typeof PRB_PROJECTS,
+): (typeof PRB_PROJECTS)[number] {
+  let hash = 0;
+  const key = projectId || 'default';
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash + key.charCodeAt(i) * (i + 1)) % templates.length;
+  }
+  return templates[hash] ?? templates[0]!;
+}
 export function ProposalBuilderWorkspace() {
   const t = useTranslations('creativeStudio.ds.proposalBuilder');
   const tTools = useTranslations('creativeStudio.ds.tools');
   const tFocus = useTranslations('creativeStudio.focusWorkspace');
 
+  const docApi = useBuilderDocument({ documentType: 'proposal' });
   const [hydrated, setHydrated] = useState(false);
-  const [projectId, setProjectId] = useState<ProjectId>('temple');
   const [activeStep, setActiveStep] = useState(0);
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus>('ready');
   const [saved, setSaved] = useState(true);
@@ -129,8 +141,23 @@ export function ProposalBuilderWorkspace() {
   const filmstripRef = useRef<HTMLDivElement | null>(null);
   const genTimerRef = useRef<number[]>([]);
 
-  const project = useMemo(() => getProject(projectId), [projectId]);
-  const coverAsset = useBuilderCoverAsset({ templateCoverUrl: project.coverUrl });
+  const selectedConstruction = useMemo(
+    () =>
+      docApi.constructionProjects.find((p) => p.id === docApi.constructionProjectId) ?? null,
+    [docApi.constructionProjects, docApi.constructionProjectId],
+  );
+  const project = useMemo(() => {
+    const visualProj = visualTemplateForProject(
+      docApi.constructionProjectId || selectedConstruction?.project_name || 'default',
+      PRB_PROJECTS,
+    );
+    if (!selectedConstruction) return visualProj;
+    return { ...visualProj, name: selectedConstruction.project_name || visualProj.name };
+  }, [docApi.constructionProjectId, selectedConstruction]);
+  const coverAsset = useBuilderCoverAsset({
+    templateCoverUrl: project.coverUrl,
+    linkedProjectId: docApi.constructionProjectId,
+  });
   const selectedPage = pages.find((p) => p.id === selectedPageId) ?? pages[0]!;
   const selectedIndex = pages.findIndex((p) => p.id === selectedPage.id);
   const minutes = readingMinutes(pages.length);
@@ -191,11 +218,37 @@ export function ProposalBuilderWorkspace() {
   );
 
   useEffect(() => {
-    setHydrated(true);
+    let cancelled = false;
+    void (async () => {
+      const result = await docApi.bootstrap();
+      if (cancelled) return;
+      if (result.ok) {
+        coverAsset.hydrateMedia(result.draft?.coverImage ?? null, result.draft?.galleryImages ?? []);
+        setSaved(Boolean(result.draft));
+      }
+      setHydrated(true);
+    })();
     return () => {
+      cancelled = true;
       genTimerRef.current.forEach((id) => window.clearTimeout(id));
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!hydrated || docApi.loadStatus !== 'ready') return;
+    const id = window.setTimeout(() => {
+      void (async () => {
+        const ok = await docApi.saveDraft({
+          linkedProjectId: docApi.constructionProjectId,
+          coverImage: coverAsset.coverImage,
+        });
+        if (ok) setSaved(true);
+      })();
+    }, 2000);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, docApi.loadStatus, coverAsset.coverImage]);
 
   useEffect(() => {
     if (!floatingMoreOpen) return;
@@ -229,9 +282,33 @@ export function ProposalBuilderWorkspace() {
     setSaved(false);
   }
 
-  function persistNow(announce = false) {
-    setSaved(true);
-    if (announce) showToast(t('toasts.saved'));
+  const persistNow = useCallback(
+    async (announce = false) => {
+      if (docApi.loadStatus !== 'ready') return;
+      const ok = await docApi.saveDraft({
+        linkedProjectId: docApi.constructionProjectId,
+        coverImage: coverAsset.coverImage,
+      });
+      if (ok) {
+        setSaved(true);
+        if (announce) showToast(t('toasts.saved'));
+      } else if (announce) {
+        showToast(t('toasts.saveFailed'));
+      }
+    },
+    [coverAsset.coverImage, docApi, t],
+  );
+
+  async function handleProjectChange(id: string) {
+    const draft = await docApi.selectConstructionProject(id);
+    coverAsset.hydrateMedia(draft?.coverImage ?? null, draft?.galleryImages ?? []);
+    const name =
+      docApi.constructionProjects.find((p) => p.id === id)?.project_name || project.name;
+    setBrief((prev) => ({
+      ...prev,
+      topic: name + ' ? Investor Proposal',
+    }));
+    setSaved(Boolean(draft));
   }
 
   function clearGenTimers() {
@@ -679,7 +756,7 @@ export function ProposalBuilderWorkspace() {
               </StatusChip>
               <span className="prb-ws__saved-ago">{saved ? t('savedAgo') : t('unsaved')}</span>
             </div>
-            <Button variant="secondary" size="sm" onClick={() => persistNow(true)} data-testid="prb-save">
+            <Button variant="secondary" size="sm" onClick={() => void persistNow(true)} data-testid="prb-save" disabled={docApi.saveStatus === 'saving' || docApi.loadStatus !== 'ready'}>
               {t('saveDraft')}
             </Button>
             <Button
@@ -735,20 +812,14 @@ export function ProposalBuilderWorkspace() {
               <Select
                 id="prb-project"
                 label={t('fields.project')}
-                value={projectId}
+                value={docApi.constructionProjectId ?? ''}
                 onChange={(e) => {
-                  const id = e.target.value as ProjectId;
-                  setProjectId(id);
-                  setBrief((prev) => ({
-                    ...prev,
-                    topic: `${getProject(id).name} — Investor Proposal`,
-                  }));
-                  markDirty();
+                  void handleProjectChange(e.target.value);
                 }}
               >
-                {PRB_PROJECTS.map((p) => (
+                {docApi.constructionProjects.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name}
+                    {p.project_name}
                   </option>
                 ))}
               </Select>
@@ -1153,6 +1224,7 @@ export function ProposalBuilderWorkspace() {
           open={coverAsset.pickerOpen}
           onClose={coverAsset.closePicker}
           media={coverAsset.media}
+          linkedProjectId={docApi.constructionProjectId}
           selectedAssetId={coverAsset.coverImage?.asset_id ?? null}
           onSelect={(ref) => {
             coverAsset.setCoverImage(ref);

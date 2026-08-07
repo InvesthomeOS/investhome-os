@@ -15387,7 +15387,8 @@
           "downloaded": "Download started",
           "pageAdded": "Page added",
           "undo": "Nothing to undo",
-          "redo": "Nothing to redo"
+          "redo": "Nothing to redo",
+          "saveFailed": "Could not save draft — your edits are still in the editor"
         },
         "share": "Share",
         "download": "Download",
@@ -15965,7 +15966,8 @@
           "sectionSettings": "Section settings opened",
           "sectionDuplicated": "Section duplicated",
           "sectionDeleted": "Section deleted",
-          "cannotDeleteLastSection": "Keep at least one section"
+          "cannotDeleteLastSection": "Keep at least one section",
+          "saveFailed": "Could not save draft — your edits are still in the editor"
         },
         "share": "Share",
         "download": "Download",
@@ -16521,7 +16523,8 @@
           "sectionSettings": "Section settings opened",
           "sectionDuplicated": "Section duplicated",
           "sectionDeleted": "Section deleted",
-          "cannotDeleteLastSection": "Keep at least one section"
+          "cannotDeleteLastSection": "Keep at least one section",
+          "saveFailed": "Could not save draft — your edits are still in the editor"
         },
         "download": "Download",
         "publish": "Publish",
@@ -17979,7 +17982,8 @@
           "redo": "Redo",
           "help": "Presentation Builder help",
           "exportedPdf": "PDF export started",
-          "exportedPptx": "PPTX export started"
+          "exportedPptx": "PPTX export started",
+          "saveFailed": "Could not save draft — your edits are still in the editor"
         },
         "versionHistory": "Version history",
         "publish": "Publish",
@@ -18806,7 +18810,8 @@
             "addPage": "Page added",
             "duplicate": "Page duplicated",
             "delete": "Page deleted"
-          }
+          },
+          "saveFailed": "Could not save draft — your edits are still in the editor"
         }
       },
       "socialMediaBuilder": {
