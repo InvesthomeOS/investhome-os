@@ -749,7 +749,11 @@ class DriveSyncOrchestrator:
             # Folder / metadata.json changes → scoped re-walk of project (safe, no binary media)
             needs_folder_rewalk = any(
                 (c.file is not None and c.file.is_folder)
-                or (c.file is not None and c.file.name.lower() == METADATA_FILENAME.lower())
+                or (
+                    c.file is not None
+                    and c.file.name.lower()
+                    in {METADATA_FILENAME.lower(), README_FILENAME.lower()}
+                )
                 for c in changes
             )
             if needs_folder_rewalk:
@@ -821,6 +825,9 @@ class DriveSyncOrchestrator:
                 if asset.archived_at is None:
                     asset.archived_at = _utcnow()
                 asset.updated_at = _utcnow()
+                from investhome_api.services.ai_index.hooks import notify_asset_missing
+
+                notify_asset_missing(self.db, asset)
                 continue
 
             meta = change.file
@@ -839,6 +846,20 @@ class DriveSyncOrchestrator:
             name_lower = meta.name.lower()
             if name_lower in {METADATA_FILENAME.lower(), README_FILENAME.lower()}:
                 summary.skipped += 1
+                parent_id = meta.parent_ids[0] if meta.parent_ids else mapping.drive_folder_id
+                category, under_archive, _folder_meta, _indexable = self._resolve_context(
+                    mapping.drive_folder_id, parent_id
+                )
+                if not under_archive and category != ARCHIVE_CATEGORY:
+                    from investhome_api.services.ai_index.hooks import maybe_index_special_change
+
+                    maybe_index_special_change(
+                        self.db,
+                        project_id=mapping.project_id,
+                        provider=self.provider,
+                        meta=meta,
+                        category=category,
+                    )
                 continue
 
             parent_id = meta.parent_ids[0] if meta.parent_ids else mapping.drive_folder_id
@@ -853,6 +874,9 @@ class DriveSyncOrchestrator:
                     asset.sync_status = MediaAssetSyncStatus.MISSING.value
                     if asset.archived_at is None:
                         asset.archived_at = _utcnow()
+                    from investhome_api.services.ai_index.hooks import notify_asset_missing
+
+                    notify_asset_missing(self.db, asset)
                 else:
                     summary.skipped += 1
                 continue

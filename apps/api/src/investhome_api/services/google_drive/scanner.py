@@ -121,6 +121,10 @@ class DriveAssetScanner:
         self.provider = provider
         self.project_id = project_id
         self.company_id = company_id
+        # Additive AI index collection (README / metadata.json — not Media Library assets)
+        self._ai_special_files: list[Any] = []
+        self._ai_touched_asset_ids: list[UUID] = []
+        self._ai_missing_assets: list[CreativeStudioMediaAsset] = []
 
     def sync(self, *, dry_run: bool = False) -> DriveSyncSummary:
         summary = DriveSyncSummary(dry_run=dry_run)
@@ -173,6 +177,9 @@ class DriveAssetScanner:
             return summary
 
         discovered: list[_DiscoveredFile] = []
+        self._ai_special_files = []
+        self._ai_touched_asset_ids = []
+        self._ai_missing_assets = []
         try:
             self._walk_folder(
                 mapping.drive_folder_id,
@@ -236,10 +243,12 @@ class DriveAssetScanner:
                 if asset.archived_at is None:
                     asset.archived_at = datetime.now(UTC)
                 asset.updated_at = datetime.now(UTC)
+                self._ai_missing_assets.append(asset)
 
         if not dry_run:
             mapping.last_drive_sync_at = datetime.now(UTC)
             self.db.flush()
+            self._enqueue_ai_index_after_sync()
 
         logger.info(
             "drive_sync_complete",
@@ -323,9 +332,29 @@ class DriveAssetScanner:
             name_lower = child.name.lower()
             if name_lower == METADATA_FILENAME.lower():
                 summary.skipped += 1
+                if not under_archive and folder_category != ARCHIVE_CATEGORY:
+                    from investhome_api.services.ai_index.hooks import SpecialDriveFile
+
+                    self._ai_special_files.append(
+                        SpecialDriveFile(
+                            meta=child,
+                            folder_category=folder_category,
+                            parent_folder_id=folder_id,
+                        )
+                    )
                 continue
             if name_lower == README_FILENAME.lower():
                 summary.skipped += 1
+                if not under_archive and folder_category != ARCHIVE_CATEGORY:
+                    from investhome_api.services.ai_index.hooks import SpecialDriveFile
+
+                    self._ai_special_files.append(
+                        SpecialDriveFile(
+                            meta=child,
+                            folder_category=folder_category,
+                            parent_folder_id=folder_id,
+                        )
+                    )
                 continue
             if under_archive or folder_category == ARCHIVE_CATEGORY:
                 # Sprint rule: no active Media Library assets from 10_ARCHIVE
@@ -430,6 +459,10 @@ class DriveAssetScanner:
             existing_by_file_id[meta.id] = asset
             if meta.md5_checksum:
                 checksum_index.setdefault(meta.md5_checksum, []).append(asset)
+            self._ai_touched_asset_ids.append(asset.id)
+            from investhome_api.services.ai_index.hooks import notify_asset_upserted
+
+            notify_asset_upserted(self.db, asset, content_changed=True, provider=self.provider)
             return
 
         # Same drive_file_id → same Asset ID (rename/move preserve id)
@@ -465,8 +498,18 @@ class DriveAssetScanner:
         was_missing = existing.sync_status == MediaAssetSyncStatus.MISSING.value
         if was_missing:
             changed = True
-        if item.folder_meta is not None and existing.drive_meta_json != item.folder_meta:
+        meta_json_changed = (
+            item.folder_meta is not None and existing.drive_meta_json != item.folder_meta
+        )
+        if meta_json_changed:
             changed = True
+
+        checksum_changed = existing.external_checksum != meta.md5_checksum
+        category_changed = existing.folder_category != item.folder_category
+        # AI reindex when content/identity signals change (not rename-only)
+        ai_content_changed = bool(
+            checksum_changed or modified_changed or was_missing or meta_json_changed or category_changed
+        )
 
         if changed:
             summary.updated += 1
@@ -505,8 +548,29 @@ class DriveAssetScanner:
             existing.drive_meta_json = item.folder_meta
         if changed:
             existing.updated_at = datetime.now(UTC)
+            self._ai_touched_asset_ids.append(existing.id)
+            from investhome_api.services.ai_index.hooks import notify_asset_upserted
+
+            notify_asset_upserted(
+                self.db, existing, content_changed=ai_content_changed, provider=self.provider
+            )
         elif existing.sync_status == MediaAssetSyncStatus.CHANGED.value:
             existing.sync_status = MediaAssetSyncStatus.ACTIVE.value
+
+    def _enqueue_ai_index_after_sync(self) -> None:
+        """Additive AI index side-effects after a successful (non-dry-run) sync."""
+        from investhome_api.services.ai_index.hooks import index_special_files, notify_asset_missing
+
+        for asset in self._ai_missing_assets:
+            notify_asset_missing(self.db, asset)
+        if self._ai_special_files:
+            index_special_files(
+                self.db,
+                project_id=self.project_id,
+                provider=self.provider,
+                special_files=self._ai_special_files,
+            )
+        self.db.flush()
 
 
 def upsert_project_drive_mapping(

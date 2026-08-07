@@ -58,6 +58,12 @@ from investhome_api.services.google_drive.jobs import (
     JOB_DRIVE_BACKGROUND_SYNC,
     google_drive_background_sync_job,
 )
+from investhome_api.services.ai_index.queue import (
+    JOB_NAME as AI_INDEX_JOB_NAME,
+    JOB_NAME_PROJECT as AI_INDEX_PROJECT_JOB_NAME,
+    process_ai_index_job,
+    process_ai_index_project_job,
+)
 from investhome_api.worker.redis_config import redis_settings_from_url
 
 configure_logging()
@@ -96,6 +102,8 @@ class WorkerSettings:
         warehouse_ingestion_incremental_job,
         warehouse_ingestion_full_refresh_job,
         google_drive_background_sync_job,
+        process_ai_index_job,
+        process_ai_index_project_job,
     ]
     cron_jobs = [
         cron(expire_soft_holds_job, name=JOB_EXPIRE_SOFT_HOLDS, minute={0, 15, 30, 45}),
@@ -157,5 +165,7 @@ class WorkerSettings:
         JOB_NAME_INCREMENTAL: warehouse_ingestion_incremental_job,
         JOB_NAME_FULL_REFRESH: warehouse_ingestion_full_refresh_job,
         JOB_DRIVE_BACKGROUND_SYNC: google_drive_background_sync_job,
+        AI_INDEX_JOB_NAME: process_ai_index_job,
+        AI_INDEX_PROJECT_JOB_NAME: process_ai_index_project_job,
     }
     drawing_job_timeout = get_drawing_worker_timeout()

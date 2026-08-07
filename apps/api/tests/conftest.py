@@ -82,6 +82,7 @@ from investhome_api.models.creative_studio_media import (  # noqa: F401
     CreativeStudioMediaAsset,
     CreativeStudioMediaFolder,
 )
+from investhome_api.models.ai_index import AiDocument  # noqa: F401
 from investhome_api.models.project_drive import ProjectDriveMapping  # noqa: F401
 from investhome_api.models.inventory import (  # noqa: F401
     Building,
@@ -313,6 +314,7 @@ def _configure_auth(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPa
     enabled = "test_auth.py" in str(request.fspath)
     monkeypatch.setenv("API_AUTH_ENABLED", "true" if enabled else "false")
     monkeypatch.setenv("DOCUMENT_PROCESSING_SYNC", "true")
+    monkeypatch.setenv("AI_INDEX_PROCESSING_SYNC", "true")
     get_settings.cache_clear()
 
 

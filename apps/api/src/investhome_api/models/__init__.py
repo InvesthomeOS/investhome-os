@@ -207,6 +207,11 @@ from investhome_api.models.creative_studio_media import (  # noqa: F401
     MediaAssetSourceType,
     MediaAssetSyncStatus,
 )
+from investhome_api.models.ai_index import (  # noqa: F401
+    AiDocument,
+    AiDocumentStatus,
+    AiDocumentType,
+)
 from investhome_api.models.project_drive import (  # noqa: F401
     DriveSyncStatus,
     GoogleDriveSyncCursor,

@@ -1,0 +1,117 @@
+"""Rule-based keyword extraction — frequency minus stopwords. No embeddings."""
+
+from __future__ import annotations
+
+import re
+from collections import Counter
+
+_TOKEN_RE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9ğüşıöçĞÜŞİÖÇ]{3,}")
+
+STOPWORDS: frozenset[str] = frozenset(
+    {
+        "the",
+        "and",
+        "for",
+        "are",
+        "but",
+        "not",
+        "you",
+        "all",
+        "can",
+        "had",
+        "her",
+        "was",
+        "one",
+        "our",
+        "out",
+        "has",
+        "have",
+        "been",
+        "from",
+        "they",
+        "with",
+        "this",
+        "that",
+        "will",
+        "your",
+        "what",
+        "when",
+        "make",
+        "like",
+        "time",
+        "just",
+        "know",
+        "take",
+        "into",
+        "year",
+        "some",
+        "them",
+        "than",
+        "then",
+        "look",
+        "only",
+        "come",
+        "over",
+        "also",
+        "back",
+        "after",
+        "about",
+        "many",
+        "before",
+        "other",
+        "such",
+        "within",
+        "between",
+        "through",
+        "their",
+        "there",
+        "these",
+        "those",
+        "which",
+        "while",
+        "where",
+        "would",
+        "could",
+        "should",
+        "project",
+        "file",
+        "files",
+        "document",
+        "documents",
+        "page",
+        "pages",
+        "http",
+        "https",
+        "www",
+        "com",
+        "null",
+        "true",
+        "false",
+        "none",
+        "ve",
+        "bir",
+        "için",
+        "ile",
+        "bu",
+        "da",
+        "de",
+        "olan",
+        "olarak",
+        "daha",
+        "çok",
+        "gibi",
+        "kadar",
+        "veya",
+        "her",
+        "şey",
+    }
+)
+
+
+def extract_keywords(text: str, *, limit: int = 15) -> list[str]:
+    if not text or not text.strip():
+        return []
+    tokens = [t.lower() for t in _TOKEN_RE.findall(text)]
+    filtered = [t for t in tokens if t not in STOPWORDS and not t.isdigit()]
+    counts = Counter(filtered)
+    return [word for word, _ in counts.most_common(limit)]

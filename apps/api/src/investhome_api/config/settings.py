@@ -74,6 +74,8 @@ class Settings(BaseSettings):
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
     document_processing_sync: bool = Field(default=False, alias="DOCUMENT_PROCESSING_SYNC")
     document_processing_max_retries: int = Field(default=3, alias="DOCUMENT_PROCESSING_MAX_RETRIES")
+    ai_index_processing_sync: bool = Field(default=False, alias="AI_INDEX_PROCESSING_SYNC")
+    ai_index_max_download_bytes: int = Field(default=5_000_000, alias="AI_INDEX_MAX_DOWNLOAD_BYTES")
     document_text_preview_chars: int = Field(default=2000, alias="DOCUMENT_TEXT_PREVIEW_CHARS")
     document_extracted_text_subdir: str = Field(
         default="extracted-text",
