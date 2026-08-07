@@ -2372,6 +2372,22 @@
           "autoOff": "Otomatik senkron kapatıldı.",
           "toggleFailed": "Otomatik senkron güncellenemedi."
         }
+      },
+      "assistant": {
+        "title": "Proje Asistanı",
+        "subtitle": "Dizinlenen proje belgelerine dayalı sorular sorun. Yanıtlar yalnızca doğrulanmış kaynakları kullanır.",
+        "questionLabel": "Soru",
+        "placeholder": "örn. Bu projede hangi olanaklar planlandı?",
+        "ask": "Sor",
+        "asking": "Sorgulanıyor…",
+        "loading": "Proje bilgisi aranıyor…",
+        "answer": "Yanıt",
+        "sources": "Kaynaklar",
+        "noSources": "Bu yanıt için doğrulanmış kaynak yok.",
+        "confidence": "Güven",
+        "latency": "Gecikme",
+        "assetId": "Varlık",
+        "error": "Yanıt alınamadı."
       }
     },
     "types": {

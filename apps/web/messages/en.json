@@ -2379,6 +2379,22 @@
           "autoOff": "Automatic sync disabled.",
           "toggleFailed": "Could not update automatic sync."
         }
+      },
+      "assistant": {
+        "title": "Project Assistant",
+        "subtitle": "Ask questions grounded in indexed project documents. Answers cite verified sources only.",
+        "questionLabel": "Question",
+        "placeholder": "e.g. What amenities are planned for this project?",
+        "ask": "Ask",
+        "asking": "Asking…",
+        "loading": "Searching project knowledge…",
+        "answer": "Answer",
+        "sources": "Sources",
+        "noSources": "No verified sources for this answer.",
+        "confidence": "Confidence",
+        "latency": "Latency",
+        "assetId": "Asset",
+        "error": "Could not get an answer."
       }
     },
     "types": {

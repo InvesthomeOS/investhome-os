@@ -71,6 +71,8 @@ ENTITY_RESOURCE_MAP: dict[ActivityEntityType, str] = {
     ActivityEntityType.MARKETING_APPROVAL: "marketing",
     ActivityEntityType.MARKETING_CHANNEL: "marketing",
     ActivityEntityType.MARKETING_DASHBOARD: "marketing",
+    ActivityEntityType.MARKETING_AI: "marketing",
+    ActivityEntityType.PROJECT_AI: "creative_studio",
 }
 
 SECURITY_ENTITY_TYPES = frozenset(

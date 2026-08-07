@@ -103,6 +103,16 @@ class Settings(BaseSettings):
     ai_provider: str = Field(default="local", alias="AI_PROVIDER")
     ai_model: str = Field(default="local-heuristic-v1", alias="AI_MODEL")
     ai_api_key: str | None = Field(default=None, alias="AI_API_KEY")
+    ai_base_url: str | None = Field(default=None, alias="AI_BASE_URL")
+    ai_azure_endpoint: str | None = Field(default=None, alias="AI_AZURE_ENDPOINT")
+    ai_azure_deployment: str | None = Field(default=None, alias="AI_AZURE_DEPLOYMENT")
+    ai_azure_api_version: str = Field(default="2024-02-01", alias="AI_AZURE_API_VERSION")
+    ai_assistant_retrieval_limit: int = Field(default=8, alias="AI_ASSISTANT_RETRIEVAL_LIMIT")
+    ai_assistant_min_score: float = Field(default=0.12, alias="AI_ASSISTANT_MIN_SCORE")
+    ai_assistant_max_prompt_chars: int = Field(
+        default=12_000,
+        alias="AI_ASSISTANT_MAX_PROMPT_CHARS",
+    )
     ai_allow_external_for_confidential: bool = Field(
         default=False,
         alias="AI_ALLOW_EXTERNAL_FOR_CONFIDENTIAL",

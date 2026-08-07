@@ -113,6 +113,7 @@ class ActivityEntityType(str, enum.Enum):
     MARKETING_ATTRIBUTION = "marketing_attribution"
     MARKETING_AI = "marketing_ai"
     MARKETING_AUTOMATION = "marketing_automation"
+    PROJECT_AI = "project_ai"
 
 
 class ActivityLog(Base):

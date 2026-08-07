@@ -40,6 +40,7 @@ import {
   type UnitStatus,
 } from './projects-detail-ds-model';
 import { ProjectDriveSyncPanel } from './project-drive-sync-panel';
+import { ProjectAssistantPanel } from './project-assistant-panel';
 import { ProjectsDetailDigitalTwin } from './projects-detail-digital-twin';
 
 import './projects-ds.css';
@@ -835,6 +836,7 @@ function DocumentsTab({
   return (
     <div style={{ display: 'grid', gap: 12 }}>
       <ProjectDriveSyncPanel projectId={projectId} />
+      <ProjectAssistantPanel projectId={projectId} />
       <section className="proj-detail-ds__doc-cats" aria-label={tD('documents.categories')}>
         {categories.map((cat) => (
           <article key={cat} className="proj-detail-ds__doc-cat">

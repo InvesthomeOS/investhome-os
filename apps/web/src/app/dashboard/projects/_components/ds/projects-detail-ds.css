@@ -2322,6 +2322,117 @@
   box-shadow: 0 8px 20px rgba(21, 42, 54, 0.18);
 }
 
+.proj-detail-ds__assistant-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.proj-detail-ds__assistant-label {
+  margin: 0;
+  color: #5b6b75;
+  font-size: var(--shot-font-small);
+  font-weight: 650;
+}
+
+.proj-detail-ds__assistant-input {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--pd-border);
+  border-radius: 8px;
+  background: #fbfcfd;
+  color: #152a36;
+  font: inherit;
+  font-size: var(--shot-font-body);
+  line-height: 1.45;
+}
+
+.proj-detail-ds__assistant-input:focus {
+  outline: 2px solid rgba(21, 42, 54, 0.18);
+  outline-offset: 1px;
+  border-color: #9bb0ba;
+}
+
+.proj-detail-ds__assistant-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.proj-detail-ds__assistant-loading {
+  margin: 0;
+  color: #445560;
+  font-size: var(--shot-font-body);
+}
+
+.proj-detail-ds__assistant-result {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.proj-detail-ds__assistant-section-title {
+  margin: 4px 0 0;
+  color: #152a36;
+  font-size: var(--shot-font-small);
+  font-weight: 750;
+}
+
+.proj-detail-ds__assistant-answer {
+  margin: 0;
+  color: #243842;
+  font-size: var(--shot-font-body);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.proj-detail-ds__assistant-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: #5b6b75;
+  font-size: var(--shot-font-caption);
+  font-weight: 600;
+}
+
+.proj-detail-ds__assistant-sources {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.proj-detail-ds__assistant-sources li {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid #eef2f4;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.proj-detail-ds__assistant-sources strong {
+  color: #152a36;
+  font-size: var(--shot-font-small);
+}
+
+.proj-detail-ds__assistant-sources span {
+  color: #5b6b75;
+  font-size: var(--shot-font-caption);
+}
+
+.proj-detail-ds__assistant-sources em {
+  color: #445560;
+  font-size: var(--shot-font-caption);
+  font-style: normal;
+  line-height: 1.4;
+}
+
 @media (max-width: 1024px) {
   .proj-detail-ds__drive-meta {
     grid-template-columns: 1fr 1fr;
