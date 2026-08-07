@@ -46,8 +46,24 @@ class DriveFileMeta:
         return self.mime_type == DRIVE_FOLDER_MIME
 
 
+@dataclass(frozen=True)
+class DriveChange:
+    """One item from Drive Changes API (file may be None when removed)."""
+
+    file_id: str
+    removed: bool
+    file: DriveFileMeta | None = None
+
+
+@dataclass(frozen=True)
+class DriveChangesPage:
+    changes: tuple[DriveChange, ...]
+    next_page_token: str | None
+    new_start_page_token: str | None
+
+
 class GoogleDriveProviderProtocol(Protocol):
-    """Testable surface used by DriveAssetScanner."""
+    """Testable surface used by DriveAssetScanner / incremental sync."""
 
     @property
     def root_folder_id(self) -> str: ...
@@ -59,6 +75,15 @@ class GoogleDriveProviderProtocol(Protocol):
     def is_descendant_of_root(self, folder_id: str) -> bool: ...
 
     def download_bytes(self, file_id: str, *, max_bytes: int | None = None) -> bytes: ...
+
+    def get_start_page_token(self) -> str: ...
+
+    def list_changes(
+        self,
+        page_token: str,
+        *,
+        page_size: int = 100,
+    ) -> DriveChangesPage: ...
 
 
 def _parse_rfc3339(value: str | None) -> datetime | None:
@@ -98,12 +123,20 @@ def _map_http_error(exc: BaseException) -> GoogleDriveError:
     elif isinstance(status, int):
         code = status
     message = str(exc)
-    if code == 401 or "invalid_grant" in message.lower() or "credentials" in message.lower():
+    lower = message.lower()
+    if code == 401 or "invalid_grant" in lower or "credentials" in lower:
         return GoogleDriveAuthError(message)
     if code == 403:
         return GoogleDrivePermissionError(message)
     if code == 404:
         return GoogleDriveNotFoundError(message)
+    # Changes API returns 410 when startPageToken is invalid/expired
+    if code == 410 or "page token" in lower or "startpagetoken" in lower.replace(" ", ""):
+        return GoogleDriveApiError(message, code="drive_invalid_page_token")
+    if code == 429:
+        return GoogleDriveApiError(message, code="drive_rate_limited")
+    if code is not None and code >= 500:
+        return GoogleDriveApiError(message, code="drive_server_error")
     return GoogleDriveApiError(message)
 
 
@@ -257,6 +290,64 @@ class GoogleDriveProvider:
         except Exception as exc:
             raise _map_http_error(exc) from exc
         return buffer.getvalue()
+
+    def get_start_page_token(self) -> str:
+        """Initial Changes API cursor for this credential (global per user)."""
+        service = self._build_service()
+        try:
+            response = service.changes().getStartPageToken(supportsAllDrives=True).execute()
+        except Exception as exc:
+            raise _map_http_error(exc) from exc
+        token = response.get("startPageToken")
+        if not token:
+            raise GoogleDriveApiError("Drive did not return startPageToken")
+        return str(token)
+
+    def list_changes(
+        self,
+        page_token: str,
+        *,
+        page_size: int = 100,
+    ) -> DriveChangesPage:
+        """One page of Drive changes since ``page_token``."""
+        service = self._build_service()
+        try:
+            response = (
+                service.changes()
+                .list(
+                    pageToken=page_token,
+                    spaces="drive",
+                    pageSize=min(page_size, 1000),
+                    fields=(
+                        "nextPageToken,newStartPageToken,"
+                        f"changes(fileId,removed,file({_FILE_FIELDS}))"
+                    ),
+                    includeItemsFromAllDrives=True,
+                    supportsAllDrives=True,
+                    includeRemoved=True,
+                )
+                .execute()
+            )
+        except Exception as exc:
+            raise _map_http_error(exc) from exc
+
+        changes: list[DriveChange] = []
+        for raw in response.get("changes", []) or []:
+            file_id = str(raw.get("fileId") or "")
+            if not file_id:
+                continue
+            removed = bool(raw.get("removed"))
+            file_raw = raw.get("file")
+            meta = _normalize_file(file_raw) if isinstance(file_raw, dict) else None
+            if meta is not None and meta.trashed:
+                removed = True
+            changes.append(DriveChange(file_id=file_id, removed=removed, file=meta))
+
+        return DriveChangesPage(
+            changes=tuple(changes),
+            next_page_token=response.get("nextPageToken"),
+            new_start_page_token=response.get("newStartPageToken"),
+        )
 
 
 def get_google_drive_provider(settings: Settings | None = None) -> GoogleDriveProvider:

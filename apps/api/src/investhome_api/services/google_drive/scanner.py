@@ -547,11 +547,16 @@ def upsert_project_drive_mapping(
             project_id=project_id,
             drive_folder_id=folder_id,
             drive_sync_enabled=drive_sync_enabled,
+            force_full_sync=True,
         )
         db.add(mapping)
     else:
+        folder_changed = mapping.drive_folder_id != folder_id
         mapping.drive_folder_id = folder_id
         mapping.drive_sync_enabled = drive_sync_enabled
         mapping.archived_at = None
+        if folder_changed:
+            # Mapping change → next sync must full-scan (Sprint 2 recovery rule)
+            mapping.force_full_sync = True
     db.flush()
     return mapping

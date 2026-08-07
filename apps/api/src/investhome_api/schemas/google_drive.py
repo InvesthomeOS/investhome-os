@@ -21,6 +21,10 @@ class ProjectDriveMappingResponse(BaseModel):
     drive_folder_id: str
     drive_sync_enabled: bool
     last_drive_sync_at: datetime | None
+    last_successful_sync_at: datetime | None = None
+    last_sync_status: str = "IDLE"
+    last_sync_error: str | None = None
+    force_full_sync: bool = False
     created_at: datetime
     updated_at: datetime
     archived_at: datetime | None
@@ -50,3 +54,19 @@ class DriveSyncResponse(BaseModel):
     errors: list[DriveSyncErrorItem] = Field(default_factory=list)
     dry_run: bool
     warnings: list[str] = Field(default_factory=list)
+
+
+class DriveStatusResponse(BaseModel):
+    project_id: UUID
+    mapped: bool
+    drive_folder_id: str | None = None
+    drive_sync_enabled: bool = False
+    last_sync_status: str = "IDLE"
+    last_drive_sync_at: datetime | None = None
+    last_successful_sync_at: datetime | None = None
+    last_sync_error: str | None = None
+    force_full_sync: bool = False
+    sync_started_at: datetime | None = None
+    has_change_token: bool = False
+    background_sync_enabled: bool = False
+    background_sync_interval_minutes: int = 5

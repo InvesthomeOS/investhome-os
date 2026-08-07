@@ -54,6 +54,10 @@ from investhome_api.services.analytics_warehouse.ingestion import (
     warehouse_ingestion_full_refresh_job,
     warehouse_ingestion_incremental_job,
 )
+from investhome_api.services.google_drive.jobs import (
+    JOB_DRIVE_BACKGROUND_SYNC,
+    google_drive_background_sync_job,
+)
 from investhome_api.worker.redis_config import redis_settings_from_url
 
 configure_logging()
@@ -61,6 +65,14 @@ logger = get_logger("investhome.worker")
 
 _settings = get_settings()
 redis_settings = redis_settings_from_url(_settings.redis_url)
+
+
+def _drive_sync_cron_minutes() -> set[int]:
+    """Build ARQ cron minute set from GOOGLE_DRIVE_SYNC_INTERVAL_MINUTES (default 5)."""
+    interval = max(1, min(60, int(_settings.google_drive_sync_interval_minutes or 5)))
+    if interval >= 60:
+        return {0}
+    return set(range(0, 60, interval))
 
 
 class WorkerSettings:
@@ -83,6 +95,7 @@ class WorkerSettings:
         proposal_expiring_reminders_job,
         warehouse_ingestion_incremental_job,
         warehouse_ingestion_full_refresh_job,
+        google_drive_background_sync_job,
     ]
     cron_jobs = [
         cron(expire_soft_holds_job, name=JOB_EXPIRE_SOFT_HOLDS, minute={0, 15, 30, 45}),
@@ -108,6 +121,12 @@ class WorkerSettings:
             name=JOB_NAME_INCREMENTAL,
             hour={2, 8, 14, 20},
             minute={15},
+        ),
+        # Google Drive Changes API background sync (interval from settings, default 5 min)
+        cron(
+            google_drive_background_sync_job,
+            name=JOB_DRIVE_BACKGROUND_SYNC,
+            minute=_drive_sync_cron_minutes(),
         ),
     ]
     job_timeout = 600
@@ -137,5 +156,6 @@ class WorkerSettings:
         JOB_PROPOSAL_EXPIRING_REMINDERS: proposal_expiring_reminders_job,
         JOB_NAME_INCREMENTAL: warehouse_ingestion_incremental_job,
         JOB_NAME_FULL_REFRESH: warehouse_ingestion_full_refresh_job,
+        JOB_DRIVE_BACKGROUND_SYNC: google_drive_background_sync_job,
     }
     drawing_job_timeout = get_drawing_worker_timeout()

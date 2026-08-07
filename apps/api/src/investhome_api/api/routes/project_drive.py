@@ -1,4 +1,4 @@
-"""Google Drive mapping + manual sync endpoints (construction projects)."""
+"""Google Drive mapping + manual sync + status endpoints (construction projects)."""
 
 from __future__ import annotations
 
@@ -15,16 +15,15 @@ from investhome_api.models.project import Project
 from investhome_api.models.project_drive import ProjectDriveMapping
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.google_drive import (
+    DriveStatusResponse,
     DriveSyncResponse,
     ProjectDriveMappingResponse,
     ProjectDriveMappingUpsert,
 )
 from investhome_api.services.google_drive.errors import GoogleDriveConfigError, GoogleDriveError
 from investhome_api.services.google_drive.provider import get_google_drive_provider
-from investhome_api.services.google_drive.scanner import (
-    DriveAssetScanner,
-    upsert_project_drive_mapping,
-)
+from investhome_api.services.google_drive.scanner import upsert_project_drive_mapping
+from investhome_api.services.google_drive.sync_service import DriveSyncOrchestrator, get_drive_status
 
 logger = logging.getLogger(__name__)
 
@@ -92,30 +91,41 @@ def upsert_drive_mapping(
     return _mapping_response(mapping)
 
 
+@router.get("/{project_id}/drive/status", response_model=DriveStatusResponse)
+def get_project_drive_status(
+    project_id: UUID,
+    db: Session = Depends(get_db),
+    _user: User = _cs_view,
+) -> DriveStatusResponse:
+    _project_or_404(project_id, db)
+    payload = get_drive_status(db, project_id)
+    return DriveStatusResponse.model_validate(payload)
+
+
 @router.post("/{project_id}/drive/sync", response_model=DriveSyncResponse)
 def sync_project_drive(
     project_id: UUID,
     dry_run: bool = Query(default=False),
+    force_full: bool = Query(default=False),
     db: Session = Depends(get_db),
     _user: User = _cs_sync,
 ) -> DriveSyncResponse:
     """Manual Drive → Media Library sync. ``dry_run=true`` reports diffs without DB writes."""
     project = _project_or_404(project_id, db)
     provider = get_google_drive_provider()
-    scanner = DriveAssetScanner(
-        db,
-        provider,
-        project_id=project.id,
-        company_id=project.company_id,
-    )
+    orchestrator = DriveSyncOrchestrator(db, provider)
     try:
-        summary = scanner.sync(dry_run=dry_run)
+        summary = orchestrator.sync_project(
+            project.id,
+            dry_run=dry_run,
+            force_full=force_full,
+        )
     except GoogleDriveConfigError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=exc.message) from exc
     except GoogleDriveError as exc:
         logger.warning(
             "drive_sync_endpoint_failed",
-            extra={"project_id": str(project_id), "code": exc.code},
+            extra={"project_id": str(project_id), "code": getattr(exc, "code", None)},
         )
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=exc.message) from exc
 

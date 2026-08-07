@@ -207,7 +207,11 @@ from investhome_api.models.creative_studio_media import (  # noqa: F401
     MediaAssetSourceType,
     MediaAssetSyncStatus,
 )
-from investhome_api.models.project_drive import ProjectDriveMapping  # noqa: F401
+from investhome_api.models.project_drive import (  # noqa: F401
+    DriveSyncStatus,
+    GoogleDriveSyncCursor,
+    ProjectDriveMapping,
+)
 from investhome_api.models.user_auth import (
     Permission,
     Role,

@@ -59,6 +59,17 @@ class Settings(BaseSettings):
     google_drive_client_secret: str | None = Field(default=None, alias="GOOGLE_DRIVE_CLIENT_SECRET")
     google_drive_refresh_token: str | None = Field(default=None, alias="GOOGLE_DRIVE_REFRESH_TOKEN")
     google_drive_root_folder_id: str | None = Field(default=None, alias="GOOGLE_DRIVE_ROOT_FOLDER_ID")
+    # Background incremental sync (safe local defaults: enabled, every 5 minutes)
+    google_drive_sync_enabled: bool = Field(default=True, alias="GOOGLE_DRIVE_SYNC_ENABLED")
+    google_drive_sync_interval_minutes: int = Field(
+        default=5,
+        alias="GOOGLE_DRIVE_SYNC_INTERVAL_MINUTES",
+    )
+    google_drive_sync_lock_ttl_minutes: int = Field(
+        default=15,
+        alias="GOOGLE_DRIVE_SYNC_LOCK_TTL_MINUTES",
+    )
+    google_drive_sync_max_retries: int = Field(default=3, alias="GOOGLE_DRIVE_SYNC_MAX_RETRIES")
 
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
     document_processing_sync: bool = Field(default=False, alias="DOCUMENT_PROCESSING_SYNC")
