@@ -68,7 +68,8 @@ import {
   type TrustElementKey,
 } from './landing-page-builder-model';
 
-import { CsBottomActionToolbar } from '../_components';
+import { CsBottomActionToolbar, CsMediaPickerDialog } from '../_components';
+import { useBuilderCoverAsset } from '../_components/use-builder-cover-asset';
 import {
   CreativeStudioFocusModeSwitcher,
   CreativeStudioFocusWorkspace,
@@ -176,6 +177,11 @@ export function LandingPageBuilderWorkspace() {
 
   const genTimerRef = useRef<number[]>([]);
   const project = useMemo(() => getProject(projectId), [projectId]);
+  const templateGalleryUrls = useMemo(() => project.galleryUrls, [project.galleryUrls]);
+  const coverAsset = useBuilderCoverAsset({
+    templateCoverUrl: project.coverUrl,
+    templateGalleryUrls,
+  });
   const deviceSize = DEVICE_CONTENT[device] ?? DEVICE_CONTENT.desktop;
   const ftv = useFitToViewEngine({
     contentWidth: deviceSize.w,
@@ -413,6 +419,7 @@ export function LandingPageBuilderWorkspace() {
     }
     if (action === 'replaceImage') {
       selectSection(section);
+      coverAsset.openPicker('cover');
       showToast(t('toasts.sectionReplaceImage'));
       return;
     }
@@ -479,7 +486,7 @@ export function LandingPageBuilderWorkspace() {
     const page: LpbPage = {
       id,
       kind: 'custom',
-      thumbUrl: project.coverUrl,
+      thumbUrl: coverAsset.coverDisplayUrl,
     };
     setPages((prev) => [...prev, page]);
     setSelectedPageId(id);
@@ -781,7 +788,7 @@ export function LandingPageBuilderWorkspace() {
                   <div
                     key={section.id}
                     className={`lpb-ws__hero lpb-ws__editable${selected ? ' is-selected' : ''}`}
-                    style={{ backgroundImage: `url(${project.coverUrl})` }}
+                    style={{ backgroundImage: `url(${coverAsset.coverDisplayUrl})` }}
                     onClick={() => selectSection(section)}
                     role="presentation"
                   >
@@ -908,7 +915,7 @@ export function LandingPageBuilderWorkspace() {
                       <h4>{t('canvas.galleryTitle')}</h4>
                       <p>{t('canvas.galleryBody')}</p>
                       <div className="lpb-ws__gallery">
-                        {project.galleryUrls.map((url) => (
+                        {coverAsset.galleryDisplayUrls.map((url) => (
                           <img key={url} src={url} alt="" />
                         ))}
                       </div>
@@ -1044,7 +1051,13 @@ export function LandingPageBuilderWorkspace() {
         };
         handleGenerate(map[type] ?? 'investorLanding');
       }}
-      onSelectAsset={(name) => showToast(t('toasts.assetSelected', { name }))}
+      media={coverAsset.media}
+      coverAssetId={coverAsset.coverImage?.asset_id ?? null}
+      onSelectMediaAsset={(ref) => {
+        coverAsset.setCoverImage(ref);
+        markDirty();
+        showToast(t('toasts.assetSelected', { name: ref.alt || ref.asset_id || 'asset' }));
+      }}
       onToast={showToast}
     />
   );
@@ -1473,6 +1486,22 @@ export function LandingPageBuilderWorkspace() {
             </div>
           </aside>
         </>
+      ) : null}
+
+      {coverAsset.pickerOpen ? (
+        <CsMediaPickerDialog
+          open={coverAsset.pickerOpen}
+          onClose={coverAsset.closePicker}
+          media={coverAsset.media}
+          selectedAssetId={coverAsset.coverImage?.asset_id ?? null}
+          onSelect={(ref) => {
+            coverAsset.setCoverImage(ref);
+            coverAsset.closePicker();
+            markDirty();
+            showToast(t('toasts.assetSelected', { name: ref.alt || ref.asset_id || 'asset' }));
+          }}
+          testId="lpb-media-picker-dialog"
+        />
       ) : null}
 
       {toast ? (

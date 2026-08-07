@@ -280,7 +280,7 @@ export function WbLeftRailDrawer(props: WbLeftRailDrawerProps) {
             onClick={() => props.onUploadAsset?.()}
           >
             <IhIcon name="plus" size={12} />
-            {props.uploadingAsset ? t('rails.assets.uploading') : t('rails.assets.upload')}
+            {props.uploadingAsset ? t('rails.assets.uploading') : t('rails.assets.chooseAsset')}
           </Button>
         </div>
         <div className="wb-ws__rail-panel-body">

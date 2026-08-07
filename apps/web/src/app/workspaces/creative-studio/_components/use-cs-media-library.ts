@@ -1,5 +1,10 @@
 'use client';
 
+/**
+ * Shared Media Library hook for Creative Studio builders.
+ * Lists/search/upload go through the Asset Registry API; builders store Asset IDs only.
+ */
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
@@ -10,56 +15,110 @@ import {
   type CreativeStudioMediaAsset,
 } from '@/lib/api/creative-studio';
 
+import { isMediaAssetUuid } from './cs-image-ref';
 import {
-  isMediaAssetUuid,
-  mapMediaAssetToWbAsset,
-} from './website-builder-media';
-import type { WbAsset } from './website-builder-model';
-import { WB_ASSETS } from './website-builder-model';
+  getAssetSelectability,
+  shouldShowInBuilderPicker,
+  type CsAssetDisabledReason,
+} from './cs-media-selectability';
 
-export type WbMediaStatus = 'idle' | 'loading' | 'ready' | 'error';
+export type CsMediaStatus = 'idle' | 'loading' | 'ready' | 'error';
 
-export type UseWebsiteBuilderMediaResult = {
-  status: WbMediaStatus;
+export type CsMediaPickerItem = {
+  id: string;
+  name: string;
+  contentType: string;
+  thumbUrl?: string | null;
+  meta: string;
+  tags: string[];
+  sourceType?: string | null;
+  syncStatus?: string | null;
+  folderCategory?: string | null;
+  linkedProjectId?: string | null;
+  selectable: boolean;
+  disabledReason: CsAssetDisabledReason | null;
+  updatedAt: string;
+  createdAt: string;
+  fileSize: number;
+};
+
+export type UseCsMediaLibraryResult = {
+  status: CsMediaStatus;
   error: string | null;
-  /** Picker cards — API assets when available; sample WB_ASSETS only when library empty. */
-  assets: WbAsset[];
+  items: CsMediaPickerItem[];
   rawAssets: CreativeStudioMediaAsset[];
-  usingSamples: boolean;
   uploading: boolean;
   displayUrls: Record<string, string>;
   refresh: (query?: string) => Promise<void>;
   search: (query: string) => Promise<void>;
-  uploadImage: (file: File) => Promise<CreativeStudioMediaAsset | null>;
+  /** Upload via Media Library API — returns registry asset (never builder-owned). */
+  uploadAsset: (file: File) => Promise<CreativeStudioMediaAsset | null>;
   ensureDisplayUrl: (assetId: string) => Promise<string | null>;
   getCachedDisplayUrl: (assetId: string) => string | null;
   getRawAsset: (assetId: string) => CreativeStudioMediaAsset | null;
 };
 
-function isImageFile(file: File): boolean {
-  if (file.type && file.type.startsWith('image/')) return true;
-  return /\.(jpe?g|png|gif|webp|avif|bmp|svg)$/i.test(file.name);
+function formatBytes(size: number): string {
+  if (!Number.isFinite(size) || size <= 0) return '';
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function markSamples(list: WbAsset[]): WbAsset[] {
-  return list.map((sample) => ({
-    ...sample,
-    tags: sample.tags.includes('sample') ? sample.tags : [...sample.tags, 'sample'],
-  }));
+function mapToPickerItem(
+  asset: CreativeStudioMediaAsset,
+  displayThumbUrl?: string | null,
+): CsMediaPickerItem {
+  const { selectable, reason } = getAssetSelectability(asset);
+  const resolution =
+    asset.width && asset.height ? `${asset.width}×${asset.height}` : '';
+  const metaParts = [resolution, formatBytes(asset.file_size)].filter(Boolean);
+  if (reason === 'missing') metaParts.push('Missing');
+  if (reason === 'error') metaParts.push('Error');
+  const thumb =
+    displayThumbUrl ||
+    (asset.thumbnail_url && !asset.thumbnail_url.startsWith('blob:')
+      ? asset.thumbnail_url
+      : null) ||
+    (asset.content_type?.startsWith('image/') &&
+    asset.url &&
+    !asset.url.startsWith('blob:')
+      ? asset.url
+      : null);
+
+  return {
+    id: asset.id,
+    name: asset.filename,
+    contentType: asset.content_type || '',
+    thumbUrl: thumb,
+    meta: metaParts.join(' · ') || asset.content_type || 'FILE',
+    tags: Array.isArray(asset.tags) ? asset.tags : [],
+    sourceType: asset.source_type ?? null,
+    syncStatus: asset.sync_status ?? null,
+    folderCategory: asset.folder_category ?? null,
+    linkedProjectId: asset.linked_project_id ?? null,
+    selectable,
+    disabledReason: reason,
+    updatedAt: asset.updated_at || asset.created_at,
+    createdAt: asset.created_at,
+    fileSize: asset.file_size,
+  };
 }
 
-export function useWebsiteBuilderMedia(options?: {
+export function useCsMediaLibrary(options?: {
   linkedProjectId?: string | null;
   enabled?: boolean;
-}): UseWebsiteBuilderMediaResult {
+  /** When true, only image/* content types are listed (default true for builder image slots). */
+  imagesOnly?: boolean;
+}): UseCsMediaLibraryResult {
   const linkedProjectId = options?.linkedProjectId ?? null;
   const enabled = options?.enabled !== false;
+  const imagesOnly = options?.imagesOnly !== false;
 
-  const [status, setStatus] = useState<WbMediaStatus>('idle');
+  const [status, setStatus] = useState<CsMediaStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [rawAssets, setRawAssets] = useState<CreativeStudioMediaAsset[]>([]);
-  const [assets, setAssets] = useState<WbAsset[]>([]);
-  const [usingSamples, setUsingSamples] = useState(false);
+  const [items, setItems] = useState<CsMediaPickerItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [displayUrls, setDisplayUrls] = useState<Record<string, string>>({});
 
@@ -124,44 +183,43 @@ export function useWebsiteBuilderMedia(options?: {
     for (const id of ids) {
       void ensureDisplayUrl(id).then((url) => {
         if (!url || !mountedRef.current) return;
-        setAssets((prev) =>
+        setItems((prev) =>
           prev.map((card) => (card.id === id ? { ...card, thumbUrl: url } : card)),
         );
       });
     }
   };
 
-  const applyList = useCallback((items: CreativeStudioMediaAsset[]) => {
-    // Archived stay out of builder pickers. MISSING remain visible but are not selectable
-    // (enforced in apply paths via sync_status / canApplyMediaAsset).
-    const visible = items.filter((a) => !a.archived_at);
-    rawByIdRef.current = new Map(visible.map((a) => [a.id, a]));
-    setRawAssets(visible);
+  const applyList = useCallback(
+    (list: CreativeStudioMediaAsset[]) => {
+      const visible = list.filter((a) => {
+        if (!shouldShowInBuilderPicker(a)) return false;
+        if (imagesOnly && a.content_type && !a.content_type.startsWith('image/')) {
+          return false;
+        }
+        return true;
+      });
+      rawByIdRef.current = new Map(visible.map((a) => [a.id, a]));
+      setRawAssets(visible);
+      setItems(
+        visible.map((asset) =>
+          mapToPickerItem(asset, blobCacheRef.current.get(asset.id) ?? null),
+        ),
+      );
 
-    if (!visible.length) {
-      setUsingSamples(true);
-      setAssets(markSamples(WB_ASSETS));
-      return;
-    }
-
-    setUsingSamples(false);
-    setAssets(
-      visible.map((asset) =>
-        mapMediaAssetToWbAsset(asset, blobCacheRef.current.get(asset.id) ?? null),
-      ),
-    );
-
-    const imageIds = visible
-      .filter(
-        (a) =>
-          a.content_type?.startsWith('image/') &&
-          isMediaAssetUuid(a.id) &&
-          String(a.sync_status || '').toLowerCase() !== 'missing' &&
-          String(a.sync_status || '').toLowerCase() !== 'error',
-      )
-      .map((a) => a.id);
-    warmThumbsRef.current(imageIds);
-  }, []);
+      const warmIds = visible
+        .filter(
+          (a) =>
+            a.content_type?.startsWith('image/') &&
+            isMediaAssetUuid(a.id) &&
+            getAssetSelectability(a).selectable,
+        )
+        .map((a) => a.id)
+        .slice(0, 24);
+      warmThumbsRef.current(warmIds);
+    },
+    [imagesOnly],
+  );
 
   const getCachedDisplayUrl = useCallback((assetId: string) => {
     return blobCacheRef.current.get(assetId) ?? null;
@@ -235,14 +293,10 @@ export function useWebsiteBuilderMedia(options?: {
     [fetchList],
   );
 
-  const uploadImage = useCallback(
+  const uploadAsset = useCallback(
     async (file: File): Promise<CreativeStudioMediaAsset | null> => {
       if (!enabled) return null;
       if (uploadLockRef.current) return null;
-      if (!isImageFile(file)) {
-        setError('Only image files can be uploaded');
-        return null;
-      }
       uploadLockRef.current = true;
       setUploading(true);
       setError(null);
@@ -278,14 +332,13 @@ export function useWebsiteBuilderMedia(options?: {
   return {
     status,
     error,
-    assets,
+    items,
     rawAssets,
-    usingSamples,
     uploading,
     displayUrls,
     refresh,
     search,
-    uploadImage,
+    uploadAsset,
     ensureDisplayUrl,
     getCachedDisplayUrl,
     getRawAsset,

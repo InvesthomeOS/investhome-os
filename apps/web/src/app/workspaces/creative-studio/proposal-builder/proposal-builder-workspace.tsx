@@ -55,7 +55,8 @@ import {
   type ViewMode,
 } from './proposal-builder-model';
 
-import { CsBottomActionToolbar } from '../_components';
+import { CsBottomActionToolbar, CsMediaPickerDialog } from '../_components';
+import { useBuilderCoverAsset } from '../_components/use-builder-cover-asset';
 import {
   CreativeStudioFocusModeSwitcher,
   CreativeStudioFocusWorkspace,
@@ -129,6 +130,7 @@ export function ProposalBuilderWorkspace() {
   const genTimerRef = useRef<number[]>([]);
 
   const project = useMemo(() => getProject(projectId), [projectId]);
+  const coverAsset = useBuilderCoverAsset({ templateCoverUrl: project.coverUrl });
   const selectedPage = pages.find((p) => p.id === selectedPageId) ?? pages[0]!;
   const selectedIndex = pages.findIndex((p) => p.id === selectedPage.id);
   const minutes = readingMinutes(pages.length);
@@ -283,7 +285,7 @@ export function ProposalBuilderWorkspace() {
               const extra: PrbPage = {
                 id: `pg-${Date.now()}`,
                 kind: 'attachments',
-                thumbUrl: project.coverUrl,
+                thumbUrl: coverAsset.coverDisplayUrl,
                 status: 'ready',
               };
               return [...prev, extra];
@@ -310,7 +312,7 @@ export function ProposalBuilderWorkspace() {
     const copy: PrbPage = {
       id: `pg-${Date.now()}`,
       kind: 'attachments',
-      thumbUrl: project.coverUrl,
+      thumbUrl: coverAsset.coverDisplayUrl,
       status: 'draft',
     };
     setPages((prev) => [...prev, copy]);
@@ -378,7 +380,14 @@ export function ProposalBuilderWorkspace() {
       return (
         <div className="prb-ws__doc-page prb-ws__doc-page--cover" data-testid="prb-doc-cover">
           <div className="prb-ws__doc-cover-hero">
-            <img src={selectedPage.thumbUrl} alt={t('canvas.previewAlt')} />
+            <img
+              src={
+                selectedPage.kind === 'cover'
+                  ? coverAsset.coverDisplayUrl
+                  : selectedPage.thumbUrl
+              }
+              alt={t('canvas.previewAlt')}
+            />
             <div className="prb-ws__doc-cover-overlay">
               <p className="prb-ws__doc-kicker">{t('canvas.coverKicker')}</p>
               <h2 className="prb-ws__doc-title">{project.name}</h2>
@@ -587,6 +596,7 @@ export function ProposalBuilderWorkspace() {
         showToast(t('toasts.downloaded'));
       }}
       onToast={showToast}
+      onChooseAsset={() => coverAsset.openPicker('cover')}
     />
   );
 
@@ -1053,7 +1063,7 @@ export function ProposalBuilderWorkspace() {
                                     type="button"
                                     role="menuitem"
                                     onClick={() => {
-                                      showToast(t('toasts.toolbar.replaceImage'));
+                                      coverAsset.openPicker('cover');
                                       setFloatingMoreOpen(false);
                                     }}
                                   >
@@ -1137,6 +1147,22 @@ export function ProposalBuilderWorkspace() {
           right={rightDrawer}
         />
       </div>
+
+      {coverAsset.pickerOpen ? (
+        <CsMediaPickerDialog
+          open={coverAsset.pickerOpen}
+          onClose={coverAsset.closePicker}
+          media={coverAsset.media}
+          selectedAssetId={coverAsset.coverImage?.asset_id ?? null}
+          onSelect={(ref) => {
+            coverAsset.setCoverImage(ref);
+            coverAsset.closePicker();
+            markDirty();
+            showToast(t('toasts.toolbar.replaceImage'));
+          }}
+          testId="prb-media-picker-dialog"
+        />
+      ) : null}
 
       {toast ? (
         <div className="prb-ws__toast" role="status" data-testid="prb-toast">

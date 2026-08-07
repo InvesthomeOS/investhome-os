@@ -631,6 +631,7 @@ export type PrbRightRailDrawerProps = {
   setShowFooter: (v: boolean) => void;
   onDownload: () => void;
   onToast: (msg: string) => void;
+  onChooseAsset?: () => void;
 };
 
 export function PrbRightRailDrawer(props: PrbRightRailDrawerProps) {
@@ -661,8 +662,10 @@ function PageSettingsDrawer({
   showFooter,
   setShowFooter,
   onToast,
+  onChooseAsset,
 }: PrbRightRailDrawerProps) {
   const t = useTranslations('creativeStudio.ds.proposalBuilder');
+  const tPicker = useTranslations('creativeStudio.mediaPicker');
 
   function updateMargin(edge: keyof Omit<PageMargins, 'linked'>, value: number) {
     setMargins((prev) => {
@@ -762,9 +765,12 @@ function PageSettingsDrawer({
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => onToast(t('rails.page.uploadToast'))}
+              onClick={() => {
+                if (onChooseAsset) onChooseAsset();
+                else onToast(t('rails.page.uploadToast'));
+              }}
             >
-              {t('rails.page.upload')}
+              {tPicker('chooseAsset')}
             </Button>
           </div>
         </div>

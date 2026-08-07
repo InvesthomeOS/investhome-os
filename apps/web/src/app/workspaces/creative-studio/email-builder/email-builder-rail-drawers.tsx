@@ -257,6 +257,8 @@ export type EbRightRailDrawerProps = {
   previewText: string;
   setPreviewText: (v: string) => void;
   coverUrl: string;
+  onChangeCover?: () => void;
+  onRemoveCover?: () => void;
   linkType: string;
   setLinkType: (v: string) => void;
   linkUrl: string;
@@ -311,6 +313,8 @@ function ContentDrawer({
   previewText,
   setPreviewText,
   coverUrl,
+  onChangeCover,
+  onRemoveCover,
   linkType,
   setLinkType,
   linkUrl,
@@ -389,7 +393,8 @@ function ContentDrawer({
             size="sm"
             onClick={() => {
               markDirty();
-              onToast(t('toasts.imageChanged'));
+              if (onChangeCover) onChangeCover();
+              else onToast(t('toasts.imageChanged'));
             }}
           >
             {t('rails.content.changeImage')}
@@ -399,7 +404,8 @@ function ContentDrawer({
             size="sm"
             onClick={() => {
               markDirty();
-              onToast(t('toasts.imageRemoved'));
+              if (onRemoveCover) onRemoveCover();
+              else onToast(t('toasts.imageRemoved'));
             }}
           >
             {t('rails.content.removeImage')}

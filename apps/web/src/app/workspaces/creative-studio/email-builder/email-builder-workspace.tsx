@@ -36,7 +36,8 @@ import {
   type SectionTrayActionKey,
 } from './email-builder-model';
 
-import { CsBottomActionToolbar } from '../_components';
+import { CsBottomActionToolbar, CsMediaPickerDialog } from '../_components';
+import { useBuilderCoverAsset } from '../_components/use-builder-cover-asset';
 import {
   CreativeStudioFocusModeSwitcher,
   CreativeStudioFocusWorkspace,
@@ -93,6 +94,7 @@ export function EmailBuilderWorkspace() {
   const filmstripRef = useRef<HTMLDivElement | null>(null);
   const floatingMoreRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const project = useMemo(() => getProject(projectId), [projectId]);
+  const coverAsset = useBuilderCoverAsset({ templateCoverUrl: project.coverUrl });
   const deviceSize = DEVICE_CONTENT[device];
   const ftv = useFitToViewEngine({
     contentWidth: deviceSize.w,
@@ -439,7 +441,7 @@ export function EmailBuilderWorkspace() {
           if (section.key === 'hero') {
             return sectionShell(
               section,
-              <div className="eb-ws__hero" style={{ backgroundImage: `url(${project.coverUrl})` }}>
+              <div className="eb-ws__hero" style={{ backgroundImage: `url(${coverAsset.coverDisplayUrl})` }}>
                 <div className="eb-ws__hero-inner">
                   <span className="eb-ws__hero-badge">{t('canvas.eyebrow')}</span>
                   <h3>{heading || t('canvas.headline')}</h3>
@@ -622,7 +624,13 @@ export function EmailBuilderWorkspace() {
       setReplyTo={setReplyTo}
       previewText={previewText}
       setPreviewText={setPreviewText}
-      coverUrl={project.coverUrl}
+      coverUrl={coverAsset.coverDisplayUrl}
+      onChangeCover={() => coverAsset.openPicker('cover')}
+      onRemoveCover={() => {
+        coverAsset.clearCover();
+        markDirty();
+        showToast(t('toasts.imageRemoved'));
+      }}
       linkType={linkType}
       setLinkType={setLinkType}
       linkUrl={linkUrl}
@@ -989,6 +997,22 @@ export function EmailBuilderWorkspace() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {coverAsset.pickerOpen ? (
+        <CsMediaPickerDialog
+          open={coverAsset.pickerOpen}
+          onClose={coverAsset.closePicker}
+          media={coverAsset.media}
+          selectedAssetId={coverAsset.coverImage?.asset_id ?? null}
+          onSelect={(ref) => {
+            coverAsset.setCoverImage(ref);
+            coverAsset.closePicker();
+            markDirty();
+            showToast(t('toasts.imageChanged'));
+          }}
+          testId="eb-media-picker-dialog"
+        />
       ) : null}
 
       {toast ? (

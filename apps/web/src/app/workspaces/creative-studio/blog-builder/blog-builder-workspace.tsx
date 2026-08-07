@@ -39,7 +39,8 @@ import {
   type SectionTrayActionKey,
 } from './blog-builder-model';
 
-import { CsBottomActionToolbar } from '../_components';
+import { CsBottomActionToolbar, CsMediaPickerDialog } from '../_components';
+import { useBuilderCoverAsset } from '../_components/use-builder-cover-asset';
 import {
   CreativeStudioFocusModeSwitcher,
   CreativeStudioFocusWorkspace,
@@ -100,6 +101,7 @@ export function BlogBuilderWorkspace() {
   const filmstripRef = useRef<HTMLDivElement | null>(null);
   const floatingMoreRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const project = useMemo(() => getProject(projectId), [projectId]);
+  const coverAsset = useBuilderCoverAsset({ templateCoverUrl: project.coverUrl });
   const deviceSize = DEVICE_CONTENT[device];
   const ftv = useFitToViewEngine({
     contentWidth: deviceSize.w,
@@ -523,7 +525,7 @@ export function BlogBuilderWorkspace() {
               >
                 {toolbar}
                 <figure className="bb-ws__doc-cover">
-                  <img src={project.coverUrl} alt={t('canvas.heroAlt')} />
+                  <img src={coverAsset.coverDisplayUrl} alt={t('canvas.heroAlt')} />
                 </figure>
               </div>
             );
@@ -675,7 +677,13 @@ export function BlogBuilderWorkspace() {
       setTags={setTags}
       featured={featured}
       setFeatured={setFeatured}
-      coverUrl={project.coverUrl}
+      coverUrl={coverAsset.coverDisplayUrl}
+      onChangeCover={() => coverAsset.openPicker('cover')}
+      onRemoveCover={() => {
+        coverAsset.clearCover();
+        markDirty();
+        showToast(t('toasts.imageRemoved'));
+      }}
       publishStatus={publishStatus}
       seoTitle={seoTitle}
       setSeoTitle={setSeoTitle}
@@ -1042,6 +1050,22 @@ export function BlogBuilderWorkspace() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {coverAsset.pickerOpen ? (
+        <CsMediaPickerDialog
+          open={coverAsset.pickerOpen}
+          onClose={coverAsset.closePicker}
+          media={coverAsset.media}
+          selectedAssetId={coverAsset.coverImage?.asset_id ?? null}
+          onSelect={(ref) => {
+            coverAsset.setCoverImage(ref);
+            coverAsset.closePicker();
+            markDirty();
+            showToast(t('toasts.imageChanged'));
+          }}
+          testId="bb-media-picker-dialog"
+        />
       ) : null}
 
       {toast ? (

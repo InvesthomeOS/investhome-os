@@ -9258,7 +9258,8 @@
               "plans": "Kat Planları",
               "docs": "Belgeler",
               "library": "Medya Kütüphanesi"
-            }
+            },
+            "chooseAsset": "Varlık Seç"
           },
           "brand": {
             "title": "Marka",
@@ -9548,7 +9549,8 @@
           "historyOpened": "Sürüm geçmişi açılıyor…",
           "memoryInserted": "{memory} YZ istemine eklendi",
           "imageReplaced": "Önizlemede görsel değiştirildi",
-          "assetReferenced": "{file} YZ sohbetine referanslandı"
+          "assetReferenced": "{file} YZ sohbetine referanslandı",
+          "assetNotSelectable": "Bu varlık seçilemez"
         },
         "shortcuts": {
           "title": "Klavye kısayolları",
@@ -15143,6 +15145,31 @@
           }
         }
       }
+    },
+    "mediaPicker": {
+      "title": "Varlık Seç",
+      "chooseAsset": "Varlık Seç",
+      "search": "Varlık ara…",
+      "sourceAll": "Tüm kaynaklar",
+      "sourceDrive": "Google Drive",
+      "sourceUpload": "Yüklemeler",
+      "categoryAll": "Tüm kategoriler",
+      "projectAll": "Tüm projeler",
+      "recent": "Son kullanılanlar",
+      "nameSort": "Ad",
+      "favoritesHint": "Favoriler henüz kullanılamıyor — etiket veya arama kullanın.",
+      "missing": "Drive’da eksik",
+      "error": "Senkron hatası",
+      "empty": "Varlık bulunamadı",
+      "loading": "Medya Kütüphanesi yükleniyor…",
+      "loadFailed": "Medya Kütüphanesi yüklenemedi",
+      "retry": "Yeniden dene",
+      "upload": "Medya Kütüphanesine yükle",
+      "uploading": "Yükleniyor…",
+      "select": "Varlığı kullan",
+      "cancel": "İptal",
+      "preview": "Önizleme",
+      "notSelectable": "Bu varlık seçilemez"
     }
   },
   "adminShell": {

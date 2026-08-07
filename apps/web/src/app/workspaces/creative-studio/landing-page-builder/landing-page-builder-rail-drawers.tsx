@@ -8,8 +8,13 @@ import { Button, StatusChip } from '@investhome/ui';
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 
 import {
+  CsMediaPicker,
+  type CsImageRef,
+  type UseCsMediaLibraryResult,
+} from '../_components';
+
+import {
   COMPONENT_LIBRARY,
-  LPB_ASSETS,
   STYLE_PRESETS,
   type CampaignBrief,
   type ConversionScores,
@@ -69,7 +74,9 @@ export type LpbLeftRailDrawerProps = {
   templates: LpbTemplate[];
   onInsertComponent: (key: string) => void;
   onApplyTemplate: (type: string) => void;
-  onSelectAsset: (name: string) => void;
+  media: UseCsMediaLibraryResult;
+  coverAssetId?: string | null;
+  onSelectMediaAsset: (ref: CsImageRef) => void;
   onToast: (msg: string) => void;
 };
 
@@ -167,8 +174,9 @@ function TemplatesDrawer({ templates, onApplyTemplate }: LpbLeftRailDrawerProps)
   );
 }
 
-function MediaDrawer({ onSelectAsset }: LpbLeftRailDrawerProps) {
+function MediaDrawer({ media, coverAssetId, onSelectMediaAsset }: LpbLeftRailDrawerProps) {
   const t = useTranslations('creativeStudio.ds.landingPageBuilder');
+  const tPicker = useTranslations('creativeStudio.mediaPicker');
 
   return (
     <div className="lpb-ws__rail-panel" data-testid="lpb-rail-left-media">
@@ -177,23 +185,19 @@ function MediaDrawer({ onSelectAsset }: LpbLeftRailDrawerProps) {
       </div>
       <div className="lpb-ws__rail-panel-body">
         <p className="lpb-ws__muted">{t('rails.media.help')}</p>
-        <div className="lpb-ws__asset-grid">
-          {LPB_ASSETS.map((asset) => (
-            <button
-              key={asset.id}
-              type="button"
-              className="lpb-ws__asset"
-              data-testid={`lpb-asset-${asset.id}`}
-              onClick={() => onSelectAsset(asset.title)}
-            >
-              <img src={asset.thumbUrl} alt="" />
-              <span>{asset.title}</span>
-            </button>
-          ))}
-        </div>
-        <Button variant="secondary" size="sm">
-          {t('left.uploadMore')}
-        </Button>
+        <CsMediaPicker
+          media={media}
+          variant="inline"
+          selectedAssetId={coverAssetId ?? null}
+          onSelect={(ref) => onSelectMediaAsset(ref)}
+          allowUpload
+          testId="lpb-media-picker"
+          labels={{
+            title: tPicker('chooseAsset'),
+            chooseAsset: tPicker('chooseAsset'),
+            upload: tPicker('upload'),
+          }}
+        />
       </div>
     </div>
   );

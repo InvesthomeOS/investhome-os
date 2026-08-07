@@ -14580,7 +14580,8 @@
               "plans": "Floor plans",
               "docs": "Documents",
               "library": "Media library"
-            }
+            },
+            "chooseAsset": "Choose Asset"
           },
           "brand": {
             "title": "Brand",
@@ -14870,7 +14871,8 @@
           "historyOpened": "Opening version history…",
           "memoryInserted": "Inserted {memory} into AI prompt",
           "imageReplaced": "Image replaced in preview",
-          "assetReferenced": "Referenced {file} in AI chat"
+          "assetReferenced": "Referenced {file} in AI chat",
+          "assetNotSelectable": "This asset cannot be selected"
         },
         "shortcuts": {
           "title": "Keyboard shortcuts",
@@ -20466,6 +20468,31 @@
           }
         }
       }
+    },
+    "mediaPicker": {
+      "title": "Choose Asset",
+      "chooseAsset": "Choose Asset",
+      "search": "Search assets…",
+      "sourceAll": "All sources",
+      "sourceDrive": "Google Drive",
+      "sourceUpload": "Uploads",
+      "categoryAll": "All categories",
+      "projectAll": "All projects",
+      "recent": "Recent",
+      "nameSort": "Name",
+      "favoritesHint": "Favorites are not available yet — use tags or search instead.",
+      "missing": "Missing on Drive",
+      "error": "Sync error",
+      "empty": "No assets found",
+      "loading": "Loading Media Library…",
+      "loadFailed": "Could not load Media Library",
+      "retry": "Retry",
+      "upload": "Upload to Media Library",
+      "uploading": "Uploading…",
+      "select": "Use asset",
+      "cancel": "Cancel",
+      "preview": "Preview",
+      "notSelectable": "This asset cannot be selected"
     }
   },
   "ai": {

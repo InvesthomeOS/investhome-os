@@ -177,9 +177,16 @@ describe('13. existing Media Library selection still works', () => {
 });
 
 describe('builder safety + i18n', () => {
-  it('excludes MISSING assets from Website Builder picker lists', () => {
+  it('shows MISSING in Website Builder lists but blocks apply (Sprint 4)', () => {
+    assert.match(wbMediaHook, /!a\.archived_at/);
     assert.match(wbMediaHook, /sync_status/);
+    // Warm thumbs skip missing; workspace apply path blocks selection.
     assert.match(wbMediaHook, /!== 'missing'/);
+    const wbWorkspace = readRel(
+      webSrc,
+      'app/workspaces/creative-studio/website-builder/website-builder-workspace.tsx',
+    );
+    assert.match(wbWorkspace, /assetNotSelectable|sync === 'missing'/);
   });
 
   it('adds en/tr Drive copy under Media Library and project detail', () => {

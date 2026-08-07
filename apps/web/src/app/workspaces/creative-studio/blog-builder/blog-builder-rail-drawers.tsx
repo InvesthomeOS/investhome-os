@@ -261,6 +261,8 @@ export type BbRightRailDrawerProps = {
   featured: boolean;
   setFeatured: (v: boolean) => void;
   coverUrl: string;
+  onChangeCover?: () => void;
+  onRemoveCover?: () => void;
   publishStatus: PublishStatus;
   seoTitle: string;
   setSeoTitle: (v: string) => void;
@@ -316,6 +318,8 @@ function PostDrawer({
   featured,
   setFeatured,
   coverUrl,
+  onChangeCover,
+  onRemoveCover,
   publishStatus,
   markDirty,
   onToast,
@@ -365,7 +369,8 @@ function PostDrawer({
             size="sm"
             onClick={() => {
               markDirty();
-              onToast(t('toasts.imageChanged'));
+              if (onChangeCover) onChangeCover();
+              else onToast(t('toasts.imageChanged'));
             }}
           >
             {t('rails.post.changeImage')}
@@ -375,7 +380,8 @@ function PostDrawer({
             size="sm"
             onClick={() => {
               markDirty();
-              onToast(t('toasts.imageRemoved'));
+              if (onRemoveCover) onRemoveCover();
+              else onToast(t('toasts.imageRemoved'));
             }}
           >
             {t('rails.post.removeImage')}

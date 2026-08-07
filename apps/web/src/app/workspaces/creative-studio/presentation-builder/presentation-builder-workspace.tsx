@@ -45,7 +45,8 @@ import {
   type PbRightRailId,
 } from './presentation-builder-rail-drawers';
 
-import { CsBottomActionToolbar } from '../_components';
+import { CsBottomActionToolbar, CsMediaPickerDialog } from '../_components';
+import { useBuilderCoverAsset } from '../_components/use-builder-cover-asset';
 import {
   CreativeStudioFocusModeSwitcher,
   CreativeStudioFocusWorkspace,
@@ -90,6 +91,7 @@ export function PresentationBuilderWorkspace() {
   const presentTimerRef = useRef<number | null>(null);
 
   const project = useMemo(() => getProject(projectId), [projectId]);
+  const coverAsset = useBuilderCoverAsset({ templateCoverUrl: project.coverUrl });
   const selectedSlide = slides.find((s) => s.id === selectedSlideId) ?? slides[0]!;
   const selectedIndex = slides.findIndex((s) => s.id === selectedSlide.id);
   const presentSlide = slides[aiPresentIndex] ?? slides[0]!;
@@ -221,7 +223,7 @@ export function PresentationBuilderWorkspace() {
     const copy: PbSlide = {
       id: `sl-${Date.now()}`,
       kind: 'appendix',
-      thumbUrl: project.coverUrl,
+      thumbUrl: coverAsset.coverDisplayUrl,
     };
     setSlides((prev) => [...prev, copy]);
     setSelectedSlideId(copy.id);
@@ -665,7 +667,14 @@ export function PresentationBuilderWorkspace() {
                               ) : null}
                             </div>
                             <div className="pb-ws__slide-media">
-                              <img src={selectedSlide.thumbUrl} alt={t('canvas.previewAlt')} />
+                              <img
+                                src={
+                                  selectedIndex === 0
+                                    ? coverAsset.coverDisplayUrl
+                                    : selectedSlide.thumbUrl
+                                }
+                                alt={t('canvas.previewAlt')}
+                              />
                             </div>
                           </div>
                           {showSlideNumber ? (
@@ -734,7 +743,7 @@ export function PresentationBuilderWorkspace() {
                 type="button"
                 role="menuitem"
                 onClick={() => {
-                  showToast(t('toasts.toolbar.replaceImage'));
+                  coverAsset.openPicker('cover');
                   setFloatingMoreOpen(false);
                 }}
               >
@@ -785,6 +794,30 @@ export function PresentationBuilderWorkspace() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {coverAsset.pickerOpen ? (
+        <CsMediaPickerDialog
+          open={coverAsset.pickerOpen}
+          onClose={coverAsset.closePicker}
+          media={coverAsset.media}
+          selectedAssetId={coverAsset.coverImage?.asset_id ?? null}
+          onSelect={(ref) => {
+            coverAsset.setCoverImage(ref);
+            coverAsset.closePicker();
+            if (ref.asset_id) {
+              void coverAsset.media.ensureDisplayUrl(ref.asset_id).then((url) => {
+                if (!url) return;
+                setSlides((prev) =>
+                  prev.map((s) => (s.id === selectedSlideId ? { ...s, thumbUrl: url } : s)),
+                );
+              });
+            }
+            markDirty();
+            showToast(t('toasts.toolbar.replaceImage'));
+          }}
+          testId="pb-media-picker-dialog"
+        />
       ) : null}
 
       {toast ? (

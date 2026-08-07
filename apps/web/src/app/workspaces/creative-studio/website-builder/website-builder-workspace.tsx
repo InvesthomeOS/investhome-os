@@ -1346,6 +1346,14 @@ export function WebsiteBuilderWorkspace() {
   }
 
   function applyAssetToPreview(asset: WbAsset) {
+    const raw = mediaApi.getRawAsset(asset.id);
+    if (raw) {
+      const sync = String(raw.sync_status || '').toLowerCase();
+      if (raw.archived_at || sync === 'missing' || sync === 'error') {
+        showToast(t('toasts.assetNotSelectable'));
+        return;
+      }
+    }
     const ref = imageRefFromWbAsset(asset, selectedSection?.key === 'gallery' ? 'gallery' : 'hero');
     if (ref && (asset.kind === 'images' || asset.kind === 'logos')) {
       if (selectedSection?.key === 'gallery') {
