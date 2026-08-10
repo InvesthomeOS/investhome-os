@@ -20,10 +20,14 @@ import { fetchProjects, type Project } from '@/lib/api/projects';
 import type { WbEditorPersistInput, WbDocumentDraft } from './website-builder-persistence';
 import {
   isLegacyMigrationDone,
+  loadLastConstructionProjectId,
   loadLegacyLocalStorageDraft,
+  loadPersistedLinkedProjectIdHint,
   markLegacyMigrationDone,
   resolveInitialDraft,
+  resolvePreferredConstructionProjectId,
   saveEmergencySnapshot,
+  saveLastConstructionProjectId,
   serializeWebsiteBuilderDraft,
 } from './website-builder-persistence';
 import {
@@ -85,56 +89,104 @@ export function useWebsiteBuilderDocument(): UseWebsiteBuilderDocumentResult {
   const readyRef = useRef(false);
   const restoringRef = useRef(false);
   const documentIdRef = useRef<string | null>(null);
+  const constructionProjectIdRef = useRef<string | null>(null);
+  constructionProjectIdRef.current = constructionProjectId;
 
-  const applyDocument = useCallback(async (document: CreativeStudioDocument) => {
-    documentIdRef.current = document.id;
-    setCsDocumentId(document.id);
-    const resolved = resolveInitialDraft({
-      apiDraftBody: document.draft_body_json,
-      legacyDraft: loadLegacyLocalStorageDraft(),
-      migrationDone: isLegacyMigrationDone(),
-    });
-
-    if (resolved.shouldMigrateToApi && resolved.draft) {
-      const body = serializeWebsiteBuilderDraft({
-        linkedProjectId: resolved.draft.linkedProjectId,
-        sections: resolved.draft.sections,
-        selectedSectionId: resolved.draft.selectedSectionId,
-        metaTitle: resolved.draft.metaTitle,
-        metaDesc: resolved.draft.metaDesc,
-        slug: resolved.draft.slug,
-        publishStatus: resolved.draft.publishStatus,
-        language: resolved.draft.language,
-        tone: resolved.draft.tone,
-        brief: resolved.draft.brief,
-        siteGoal: resolved.draft.siteGoal,
-        audience: resolved.draft.audience,
-        mainMessage: resolved.draft.mainMessage,
-        heroTitle: resolved.draft.heroTitle,
-        heroBody: resolved.draft.heroBody,
-        ctaPrimary: resolved.draft.ctaPrimary,
-        ctaSecondary: resolved.draft.ctaSecondary,
-        heroImage: resolved.draft.heroImage,
-        galleryImages: resolved.draft.galleryImages,
-        legacyProjectId: resolved.draft.legacyProjectId,
-        device: resolved.draft.device,
-        zoom: resolved.draft.zoom,
-        splitPreset: resolved.draft.splitPreset,
+  const applyDocument = useCallback(
+    async (document: CreativeStudioDocument, linkedProjectId: string) => {
+      documentIdRef.current = document.id;
+      setCsDocumentId(document.id);
+      const resolved = resolveInitialDraft({
+        apiDraftBody: document.draft_body_json,
+        legacyDraft: loadLegacyLocalStorageDraft(),
+        migrationDone: isLegacyMigrationDone(),
       });
-      await saveCreativeStudioDraft(document.id, body);
-      markLegacyMigrationDone();
-      saveEmergencySnapshot(body);
-    } else if (!resolved.shouldMigrateToApi) {
-      markLegacyMigrationDone();
-    }
 
-    const listed = await listCreativeStudioVersions(document.id);
-    const mapped = listed.items.map(mapApiVersionToWbVersion);
-    setVersions(mapped);
-    setActiveVersionId(mapped[0]?.id ?? document.current_version_id ?? '');
+      const withLinked = (draft: WbDocumentDraft | null): WbDocumentDraft | null => {
+        if (!draft) return null;
+        if (draft.linkedProjectId === linkedProjectId) return draft;
+        return { ...draft, linkedProjectId };
+      };
 
-    return resolved.draft;
-  }, []);
+      let draft = withLinked(resolved.draft);
+
+      if (resolved.shouldMigrateToApi && draft) {
+        const body = serializeWebsiteBuilderDraft({
+          linkedProjectId: draft.linkedProjectId,
+          sections: draft.sections,
+          selectedSectionId: draft.selectedSectionId,
+          metaTitle: draft.metaTitle,
+          metaDesc: draft.metaDesc,
+          slug: draft.slug,
+          publishStatus: draft.publishStatus,
+          language: draft.language,
+          tone: draft.tone,
+          brief: draft.brief,
+          siteGoal: draft.siteGoal,
+          audience: draft.audience,
+          mainMessage: draft.mainMessage,
+          heroTitle: draft.heroTitle,
+          heroBody: draft.heroBody,
+          ctaPrimary: draft.ctaPrimary,
+          ctaSecondary: draft.ctaSecondary,
+          heroImage: draft.heroImage,
+          galleryImages: draft.galleryImages,
+          legacyProjectId: draft.legacyProjectId,
+          device: draft.device,
+          zoom: draft.zoom,
+          splitPreset: draft.splitPreset,
+        });
+        await saveCreativeStudioDraft(document.id, body);
+        markLegacyMigrationDone();
+        saveEmergencySnapshot(body);
+      } else {
+        if (!resolved.shouldMigrateToApi) {
+          markLegacyMigrationDone();
+        }
+        // Keep linkedProjectId durable even when the API draft body omitted it.
+        if (
+          draft &&
+          resolved.draft?.linkedProjectId !== linkedProjectId
+        ) {
+          const body = serializeWebsiteBuilderDraft({
+            linkedProjectId: draft.linkedProjectId,
+            sections: draft.sections,
+            selectedSectionId: draft.selectedSectionId,
+            metaTitle: draft.metaTitle,
+            metaDesc: draft.metaDesc,
+            slug: draft.slug,
+            publishStatus: draft.publishStatus,
+            language: draft.language,
+            tone: draft.tone,
+            brief: draft.brief,
+            siteGoal: draft.siteGoal,
+            audience: draft.audience,
+            mainMessage: draft.mainMessage,
+            heroTitle: draft.heroTitle,
+            heroBody: draft.heroBody,
+            ctaPrimary: draft.ctaPrimary,
+            ctaSecondary: draft.ctaSecondary,
+            heroImage: draft.heroImage,
+            galleryImages: draft.galleryImages,
+            legacyProjectId: draft.legacyProjectId,
+            device: draft.device,
+            zoom: draft.zoom,
+            splitPreset: draft.splitPreset,
+          });
+          await saveCreativeStudioDraft(document.id, body);
+          saveEmergencySnapshot(body);
+        }
+      }
+
+      const listed = await listCreativeStudioVersions(document.id);
+      const mapped = listed.items.map(mapApiVersionToWbVersion);
+      setVersions(mapped);
+      setActiveVersionId(mapped[0]?.id ?? document.current_version_id ?? '');
+
+      return draft;
+    },
+    [],
+  );
 
   const resolveForConstructionProject = useCallback(
     async (project: Project): Promise<WbDocumentDraft | null> => {
@@ -154,7 +206,7 @@ export function useWebsiteBuilderDocument(): UseWebsiteBuilderDocumentResult {
         getDocument: (id) => getCreativeStudioDocument(id),
       });
 
-      return applyDocument(document);
+      return applyDocument(document, project.id);
     },
     [applyDocument],
   );
@@ -175,7 +227,20 @@ export function useWebsiteBuilderDocument(): UseWebsiteBuilderDocumentResult {
       if (!projects.length) {
         throw new Error('No construction projects available');
       }
-      const selected = projects[0]!;
+
+      const preferredId = resolvePreferredConstructionProjectId({
+        projectIds: projects.map((p) => p.id),
+        lastSelectedId: loadLastConstructionProjectId(),
+        draftLinkedProjectId: loadPersistedLinkedProjectIdHint(),
+      });
+      const selected =
+        projects.find((p) => p.id === preferredId) ?? projects.at(0) ?? null;
+      if (!selected) {
+        throw new Error('No construction projects available');
+      }
+      // Persist immediately so subsequent reloads restore explicit selection
+      // instead of re-deriving from list order.
+      saveLastConstructionProjectId(selected.id);
       setConstructionProjectId(selected.id);
       const draft = await resolveForConstructionProject(selected);
       readyRef.current = true;
@@ -199,6 +264,7 @@ export function useWebsiteBuilderDocument(): UseWebsiteBuilderDocumentResult {
       setLoadError(null);
       readyRef.current = false;
       try {
+        saveLastConstructionProjectId(projectId);
         setConstructionProjectId(projectId);
         const draft = await resolveForConstructionProject(project);
         readyRef.current = true;
@@ -272,20 +338,18 @@ export function useWebsiteBuilderDocument(): UseWebsiteBuilderDocumentResult {
 
   const restoreVersion = useCallback(async (versionId: string) => {
     const documentId = documentIdRef.current;
-    if (!documentId || !readyRef.current) return null;
+    const linkedProjectId = constructionProjectIdRef.current;
+    if (!documentId || !readyRef.current || !linkedProjectId) return null;
     restoringRef.current = true;
     setRestoring(true);
     try {
-      const result = await restoreCreativeStudioVersion(documentId, versionId, {
+      await restoreCreativeStudioVersion(documentId, versionId, {
         create_version: true,
       });
       const fresh = await getCreativeStudioDocument(documentId);
       documentIdRef.current = fresh.id;
-      const draft = await applyDocument(fresh);
+      const draft = await applyDocument(fresh, linkedProjectId);
       setActiveVersionId(versionId);
-      if (result.new_version) {
-        // history intact — refresh already done in applyDocument
-      }
       setSaveStatus('saved');
       return draft;
     } finally {

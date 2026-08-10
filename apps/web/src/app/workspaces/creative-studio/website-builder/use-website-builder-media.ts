@@ -15,16 +15,16 @@ import {
   mapMediaAssetToWbAsset,
 } from './website-builder-media';
 import type { WbAsset } from './website-builder-model';
-import { WB_ASSETS } from './website-builder-model';
 
 export type WbMediaStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 export type UseWebsiteBuilderMediaResult = {
   status: WbMediaStatus;
   error: string | null;
-  /** Picker cards — API assets when available; sample WB_ASSETS only when library empty. */
+  /** Picker cards from Media Library scoped to linked_project_id. Empty library = empty list. */
   assets: WbAsset[];
   rawAssets: CreativeStudioMediaAsset[];
+  /** Always false in production — demo sample assets are not used. */
   usingSamples: boolean;
   uploading: boolean;
   displayUrls: Record<string, string>;
@@ -41,25 +41,17 @@ function isImageFile(file: File): boolean {
   return /\.(jpe?g|png|gif|webp|avif|bmp|svg)$/i.test(file.name);
 }
 
-function markSamples(list: WbAsset[]): WbAsset[] {
-  return list.map((sample) => ({
-    ...sample,
-    tags: sample.tags.includes('sample') ? sample.tags : [...sample.tags, 'sample'],
-  }));
-}
-
 export function useWebsiteBuilderMedia(options?: {
   linkedProjectId?: string | null;
   enabled?: boolean;
 }): UseWebsiteBuilderMediaResult {
   const linkedProjectId = options?.linkedProjectId ?? null;
-  const enabled = options?.enabled !== false;
+  const enabled = options?.enabled !== false && Boolean(linkedProjectId);
 
   const [status, setStatus] = useState<WbMediaStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [rawAssets, setRawAssets] = useState<CreativeStudioMediaAsset[]>([]);
   const [assets, setAssets] = useState<WbAsset[]>([]);
-  const [usingSamples, setUsingSamples] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [displayUrls, setDisplayUrls] = useState<Record<string, string>>({});
 
@@ -73,6 +65,8 @@ export function useWebsiteBuilderMedia(options?: {
   const mountedRef = useRef(true);
   const rawByIdRef = useRef<Map<string, CreativeStudioMediaAsset>>(new Map());
   const warmThumbsRef = useRef<(ids: string[]) => void>(() => {});
+  const linkedProjectIdRef = useRef(linkedProjectId);
+  linkedProjectIdRef.current = linkedProjectId;
 
   const revokeAll = useCallback(() => {
     for (const url of blobCacheRef.current.values()) {
@@ -134,17 +128,17 @@ export function useWebsiteBuilderMedia(options?: {
   const applyList = useCallback((items: CreativeStudioMediaAsset[]) => {
     // Archived stay out of builder pickers. MISSING remain visible but are not selectable
     // (enforced in apply paths via sync_status / canApplyMediaAsset).
-    const visible = items.filter((a) => !a.archived_at);
+    // Scope strictly to the active construction project — never leak cross-project assets.
+    const scopeId = linkedProjectIdRef.current;
+    const visible = items.filter(
+      (a) =>
+        !a.archived_at &&
+        Boolean(scopeId) &&
+        a.linked_project_id === scopeId,
+    );
     rawByIdRef.current = new Map(visible.map((a) => [a.id, a]));
     setRawAssets(visible);
-
-    if (!visible.length) {
-      setUsingSamples(true);
-      setAssets(markSamples(WB_ASSETS));
-      return;
-    }
-
-    setUsingSamples(false);
+    // Empty Media Library = empty picker (no demo/sample fallback assets).
     setAssets(
       visible.map((asset) =>
         mapMediaAssetToWbAsset(asset, blobCacheRef.current.get(asset.id) ?? null),
@@ -173,10 +167,10 @@ export function useWebsiteBuilderMedia(options?: {
 
   const fetchList = useCallback(
     async (query?: string) => {
-      if (!enabled) return;
+      if (!enabled || !linkedProjectId) return;
       const q = (query ?? lastQueryRef.current).trim();
       lastQueryRef.current = q;
-      const key = q || '__all__';
+      const key = `${linkedProjectId}:${q || '__all__'}`;
       const gen = ++listGenRef.current;
 
       if (listInflightKeyRef.current === key && listInflightPromiseRef.current) {
@@ -188,9 +182,14 @@ export function useWebsiteBuilderMedia(options?: {
         setStatus('loading');
         setError(null);
         try {
+          const listParams = {
+            linked_project_id: linkedProjectId,
+            page: 1 as const,
+            page_size: 100 as const,
+          };
           const response = q
-            ? await searchCreativeStudioMediaAssets({ q, page: 1, page_size: 100 })
-            : await listCreativeStudioMediaAssets({ page: 1, page_size: 100 });
+            ? await searchCreativeStudioMediaAssets({ q, ...listParams })
+            : await listCreativeStudioMediaAssets(listParams);
           if (gen !== listGenRef.current || !mountedRef.current) return;
           applyList(response.items ?? []);
           setStatus('ready');
@@ -216,7 +215,7 @@ export function useWebsiteBuilderMedia(options?: {
       listInflightPromiseRef.current = pending;
       await pending;
     },
-    [applyList, enabled],
+    [applyList, enabled, linkedProjectId],
   );
 
   const refresh = useCallback(
@@ -237,7 +236,7 @@ export function useWebsiteBuilderMedia(options?: {
 
   const uploadImage = useCallback(
     async (file: File): Promise<CreativeStudioMediaAsset | null> => {
-      if (!enabled) return null;
+      if (!enabled || !linkedProjectId) return null;
       if (uploadLockRef.current) return null;
       if (!isImageFile(file)) {
         setError('Only image files can be uploaded');
@@ -271,16 +270,28 @@ export function useWebsiteBuilderMedia(options?: {
   );
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !linkedProjectId) {
+      listGenRef.current += 1;
+      listInflightKeyRef.current = null;
+      listInflightPromiseRef.current = null;
+      rawByIdRef.current = new Map();
+      setRawAssets([]);
+      setAssets([]);
+      setStatus('idle');
+      setError(null);
+      return;
+    }
+    revokeAll();
+    lastQueryRef.current = '';
     void fetchList('');
-  }, [enabled, fetchList]);
+  }, [enabled, linkedProjectId, fetchList, revokeAll]);
 
   return {
     status,
     error,
     assets,
     rawAssets,
-    usingSamples,
+    usingSamples: false,
     uploading,
     displayUrls,
     refresh,

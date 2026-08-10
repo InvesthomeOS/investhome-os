@@ -27,6 +27,8 @@ import {
 export const WB_DRAFT_SCHEMA_VERSION = 2 as const;
 export const WB_MIGRATION_FLAG_KEY = 'ih-wb-draft-v3-migrated';
 export const WB_EMERGENCY_SNAPSHOT_KEY = 'ih-wb-draft-v3-emergency';
+/** Last explicitly selected construction project for Website Builder reload. */
+export const WB_LAST_CONSTRUCTION_PROJECT_KEY = 'ih-wb-last-construction-project-id';
 
 export type { WbImageRef };
 
@@ -239,6 +241,69 @@ export function isWebsiteBuilderDraftEmpty(raw: unknown): boolean {
     if (onlyDefaults) return true;
   }
   return false;
+}
+
+export function loadLastConstructionProjectId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(WB_LAST_CONSTRUCTION_PROJECT_KEY);
+    return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveLastConstructionProjectId(projectId: string): void {
+  if (typeof window === 'undefined') return;
+  const id = projectId.trim();
+  if (!id) return;
+  try {
+    window.localStorage.setItem(WB_LAST_CONSTRUCTION_PROJECT_KEY, id);
+  } catch {
+    /* ignore quota */
+  }
+}
+
+/** Prefer last explicit selection, then draft/emergency linkedProjectId. */
+export function resolvePreferredConstructionProjectId(options: {
+  projectIds: string[];
+  lastSelectedId?: string | null;
+  draftLinkedProjectId?: string | null;
+}): string | null {
+  const ids = new Set(options.projectIds.filter(Boolean));
+  if (!ids.size) return null;
+  const candidates = [options.lastSelectedId, options.draftLinkedProjectId];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && ids.has(candidate)) return candidate;
+  }
+  return null;
+}
+
+function peekLinkedProjectIdFromSnapshot(raw: string | null): string | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const linked = (parsed as Record<string, unknown>).linkedProjectId;
+    return typeof linked === 'string' && linked.trim() ? linked.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Best-effort linkedProjectId from emergency snapshot or legacy draft. */
+export function loadPersistedLinkedProjectIdHint(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const fromEmergency = peekLinkedProjectIdFromSnapshot(
+      window.localStorage.getItem(WB_EMERGENCY_SNAPSHOT_KEY),
+    );
+    if (fromEmergency) return fromEmergency;
+    const legacy = loadLegacyLocalStorageDraft();
+    return legacy?.linkedProjectId ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export function loadLegacyLocalStorageDraft(): WbDocumentDraft | null {

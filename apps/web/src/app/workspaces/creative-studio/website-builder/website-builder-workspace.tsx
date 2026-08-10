@@ -192,7 +192,7 @@ export function WebsiteBuilderWorkspace() {
   const docApi = useWebsiteBuilderDocument();
   const mediaApi = useWebsiteBuilderMedia({
     linkedProjectId: docApi.constructionProjectId,
-    enabled: true,
+    enabled: Boolean(docApi.constructionProjectId),
   });
   const { ensureDisplayUrl, search: searchMedia, refresh: refreshMedia } = mediaApi;
   const contentDefaultsAppliedRef = useRef(false);

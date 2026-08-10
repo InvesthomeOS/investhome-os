@@ -537,11 +537,16 @@ describe('real list vs demo primary', () => {
     assert.equal(isMediaAssetUuid(SAMPLE_UUID), true);
   });
 
-  it('source files prefer Media Library over hardcoded WB_ASSETS as primary', () => {
+  it('production media hook never falls back to WB_ASSETS / Unsplash samples', () => {
     const hook = read('use-website-builder-media.ts');
     assert.match(hook, /listCreativeStudioMediaAssets/);
-    assert.match(hook, /usingSamples/);
-    assert.match(hook, /WB_ASSETS/);
+    assert.match(hook, /searchCreativeStudioMediaAssets/);
+    assert.match(hook, /linked_project_id:\s*linkedProjectId/);
+    assert.doesNotMatch(hook, /\bWB_ASSETS\b/);
+    assert.doesNotMatch(hook, /markSamples/);
+    assert.doesNotMatch(hook, /images\.unsplash\.com/);
+    assert.match(hook, /usingSamples:\s*false/);
+    assert.match(hook, /Empty Media Library = empty picker/);
     const workspace = read('website-builder-workspace.tsx');
     assert.match(workspace, /mediaApi\.assets|libraryAssets/);
     assert.match(workspace, /useWebsiteBuilderMedia/);
@@ -847,5 +852,77 @@ describe('versions create / list / restore', () => {
     );
     assert.equal(restored.heroTitle, 'V1 Heading');
     assert.equal(restored.heroImage.asset_id, SAMPLE_UUID);
+  });
+});
+
+describe('explicit construction project selection (no projects[0] force)', () => {
+  function resolvePreferredConstructionProjectId(options) {
+    const ids = new Set((options.projectIds || []).filter(Boolean));
+    if (!ids.size) return null;
+    for (const candidate of [options.lastSelectedId, options.draftLinkedProjectId]) {
+      if (typeof candidate === 'string' && ids.has(candidate)) return candidate;
+    }
+    return null;
+  }
+
+  it('prefers last selected id over draft linkedProjectId', () => {
+    const temple = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+    const other = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
+    assert.equal(
+      resolvePreferredConstructionProjectId({
+        projectIds: [other, temple],
+        lastSelectedId: temple,
+        draftLinkedProjectId: other,
+      }),
+      temple,
+    );
+  });
+
+  it('falls back to draft linkedProjectId when last selected missing', () => {
+    const temple = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+    assert.equal(
+      resolvePreferredConstructionProjectId({
+        projectIds: [temple],
+        lastSelectedId: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+        draftLinkedProjectId: temple,
+      }),
+      temple,
+    );
+  });
+
+  it('returns null when nothing matches (caller may cold-start)', () => {
+    assert.equal(
+      resolvePreferredConstructionProjectId({
+        projectIds: ['aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'],
+        lastSelectedId: null,
+        draftLinkedProjectId: null,
+      }),
+      null,
+    );
+  });
+
+  it('document hook persists last project and does not force projects[0]', () => {
+    const hook = read('use-website-builder-document.ts');
+    assert.doesNotMatch(hook, /projects\[0\]/);
+    assert.match(hook, /resolvePreferredConstructionProjectId/);
+    assert.match(hook, /loadLastConstructionProjectId/);
+    assert.match(hook, /saveLastConstructionProjectId/);
+    assert.match(hook, /loadPersistedLinkedProjectIdHint/);
+    const persistence = read('website-builder-persistence.ts');
+    assert.match(persistence, /WB_LAST_CONSTRUCTION_PROJECT_KEY/);
+    assert.match(persistence, /export function saveLastConstructionProjectId/);
+    assert.match(persistence, /export function resolvePreferredConstructionProjectId/);
+  });
+
+  it('media list/search and client filter are scoped by linked_project_id', () => {
+    const hook = read('use-website-builder-media.ts');
+    assert.match(hook, /linked_project_id:\s*linkedProjectId/);
+    assert.match(hook, /a\.linked_project_id === scopeId/);
+    assert.match(hook, /Boolean\(linkedProjectId\)/);
+  });
+
+  it('workspace always persists constructionProjectId as linkedProjectId', () => {
+    const workspace = read('website-builder-workspace.tsx');
+    assert.match(workspace, /linkedProjectId:\s*docApi\.constructionProjectId/);
   });
 });
