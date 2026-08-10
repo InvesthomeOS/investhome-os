@@ -13618,6 +13618,9 @@
           "lockCanvas": "Kilitle",
           "fullscreenShort": "Tam Ekran",
           "cta": "Özel tur planlayın",
+          "imageEmpty": "Proje görseli seçilmedi",
+          "imageLoading": "Proje görseli yükleniyor…",
+          "imageError": "Görsel kullanılamıyor — Medya Kütüphanesinden başka bir görsel seçin",
           "fitModes": {
             "fit": "Sığdır",
             "actual": "Gerçek Boyut"
@@ -13814,6 +13817,7 @@
           "preview": "Önizleme modu",
           "testSent": "Test paketi gönderildi (demo)",
           "downloaded": "İndirme hazır",
+          "downloadFailed": "İndirme başarısız — önce geçerli bir proje görseli seçin",
           "published": "Yayınlandı (demo)",
           "undo": "Geri alındı",
           "redo": "Yinelendi",
@@ -13827,7 +13831,8 @@
           "generateFailed": "AI üretimi başarısız oldu",
           "logoChanged": "Logo güncellendi",
           "logoRemoved": "Logo kaldırıldı",
-          "imageChanged": "Arka plan görseli güncellendi"
+          "imageChanged": "Arka plan görseli güncellendi",
+          "imageRemoved": "Görsel gönderiden kaldırıldı"
         }
       },
       "adsBuilder": {

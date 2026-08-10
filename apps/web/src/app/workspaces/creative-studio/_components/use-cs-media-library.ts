@@ -172,7 +172,12 @@ export function useCsMediaLibrary(options?: {
 
     const promise = (async () => {
       try {
-        const blob = await fetchCreativeStudioMediaBlob(assetId);
+        const scopeId = scopeToLinkedProjectRef.current
+          ? linkedProjectIdRef.current
+          : null;
+        const blob = await fetchCreativeStudioMediaBlob(assetId, {
+          linked_project_id: scopeId,
+        });
         if (!mountedRef.current) return null;
         const prev = blobCacheRef.current.get(assetId);
         const url = URL.createObjectURL(blob);

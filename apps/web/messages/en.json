@@ -18941,6 +18941,9 @@
           "lockCanvas": "Lock",
           "fullscreenShort": "Fullscreen",
           "cta": "Schedule a private tour",
+          "imageEmpty": "No project image selected",
+          "imageLoading": "Loading project image…",
+          "imageError": "Image unavailable — pick another from the Media Library",
           "fitModes": {
             "fit": "Fit",
             "actual": "Actual Size"
@@ -19137,6 +19140,7 @@
           "preview": "Preview mode",
           "testSent": "Test pack sent (demo)",
           "downloaded": "Download ready",
+          "downloadFailed": "Download failed — select a valid project image first",
           "published": "Published (demo)",
           "undo": "Undo",
           "redo": "Redo",
@@ -19150,7 +19154,8 @@
           "generateFailed": "AI generation failed",
           "logoChanged": "Logo updated",
           "logoRemoved": "Logo removed",
-          "imageChanged": "Background image updated"
+          "imageChanged": "Background image updated",
+          "imageRemoved": "Image removed from post"
         }
       },
       "adsBuilder": {

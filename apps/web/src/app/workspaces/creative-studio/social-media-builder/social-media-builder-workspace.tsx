@@ -52,6 +52,7 @@ import {
   saveEmergencySnapshot,
   saveLastConstructionProjectId,
 } from './social-media-builder-persistence';
+import { exportSocialPostPng } from './social-media-builder-export';
 
 import {
   SmbLeftRailDrawer,
@@ -154,8 +155,12 @@ export function SocialMediaBuilderWorkspace() {
 
   const selectedPost = posts.find((p) => p.id === selectedPostId) ?? posts[0]!;
   const contentSize = resolveFormatSize(formatPreset);
+  /** Authenticated Media Library blob only — never Unsplash / template fallback. */
   const artboardSrc =
-    coverAsset.coverDisplayUrl || selectedPost.thumbUrl || project.coverUrl;
+    coverAsset.coverStatus === 'ready' && coverAsset.coverDisplayUrl
+      ? coverAsset.coverDisplayUrl
+      : null;
+  const artboardState = coverAsset.coverStatus;
 
   const smbFitPadX = focus.isFullscreen ? 16 : 24;
   const smbFitPadY = focus.isFullscreen ? 16 : 32;
@@ -329,7 +334,7 @@ export function SocialMediaBuilderWorkspace() {
     const next = createPostFromPreset(
       formatPreset,
       posts.length + 1,
-      coverAsset.coverDisplayUrl || project.coverUrl,
+      artboardSrc || '',
     );
     setPosts((prev) => [...prev, next]);
     setSelectedPostId(next.id);
@@ -337,19 +342,66 @@ export function SocialMediaBuilderWorkspace() {
     showToast(t('toasts.postAdded'));
   }
 
+  const runDownload = useCallback(async () => {
+    if (!artboardSrc || artboardState !== 'ready') {
+      showToast(t('toasts.downloadFailed'));
+      return;
+    }
+    try {
+      await exportSocialPostPng({
+        width: contentSize.w,
+        height: contentSize.h,
+        imageUrl: artboardSrc,
+        headline: selectedPost.headline,
+        caption: selectedPost.caption,
+        cta: t('canvas.cta'),
+        brandLogo,
+        filename: `${selectedPost.name || 'social-post'}.png`,
+      });
+      showToast(t('toasts.downloaded'));
+    } catch {
+      showToast(t('toasts.downloadFailed'));
+    }
+  }, [
+    artboardSrc,
+    artboardState,
+    brandLogo,
+    contentSize.h,
+    contentSize.w,
+    selectedPost.caption,
+    selectedPost.headline,
+    selectedPost.name,
+    t,
+  ]);
+
   function handleFloating(action: FloatingActionKey | 'more') {
     if (action === 'more') {
       setFloatingMoreOpen((v) => !v);
       return;
     }
     if (action === 'delete') {
+      coverAsset.clearCover();
+      setPosts((prev) =>
+        prev.map((p) => (p.id === selectedPost.id ? { ...p, thumbUrl: '' } : p)),
+      );
       setSelected(false);
-      showToast(t('floating.delete'));
+      markDirty();
+      void (async () => {
+        const ok = await docApi.saveDraft({
+          linkedProjectId: docApi.constructionProjectId,
+          coverImage: null,
+        });
+        if (ok) {
+          setSaved(true);
+          showToast(t('toasts.imageRemoved'));
+        } else {
+          showToast(t('toasts.saveFailed'));
+        }
+      })();
       return;
     }
     if (action === 'edit') {
       setRightRailId('content');
-      showToast(t('floating.edit'));
       return;
     }
     if (action === 'copy') {
@@ -375,8 +427,7 @@ export function SocialMediaBuilderWorkspace() {
       return;
     }
     if (action === 'image') {
-      setLeftRailId('media');
-      showToast(t('bottomBar.toasts.image'));
+      coverAsset.openPicker('cover');
       return;
     }
     showToast(t(`bottomBar.toasts.${action}`));
@@ -523,6 +574,11 @@ export function SocialMediaBuilderWorkspace() {
       setBgMode={setBgMode}
       markDirty={markDirty}
       onToast={showToast}
+      onChangeImage={() => coverAsset.openPicker('cover')}
+      coverDisplayUrl={artboardSrc ?? ''}
+      onDownload={() => {
+        void runDownload();
+      }}
     />
   );
 
@@ -633,7 +689,6 @@ export function SocialMediaBuilderWorkspace() {
               data-testid="smb-preview"
               onClick={() => {
                 focus.setMode('preview');
-                showToast(t('toasts.preview'));
               }}
             >
               {t('preview')}
@@ -650,7 +705,9 @@ export function SocialMediaBuilderWorkspace() {
               variant="secondary"
               size="sm"
               data-testid="smb-download-header"
-              onClick={() => showToast(t('toasts.downloaded'))}
+              onClick={() => {
+                void runDownload();
+              }}
             >
               <IhIcon name="inbox" size={12} />
               {t('download')}
@@ -806,14 +863,11 @@ export function SocialMediaBuilderWorkspace() {
                             <div
                               className={`smb-ws__page-thumb ${aspectThumbClass(post.formatPreset)}`}
                             >
-                              <img
-                                src={
-                                  selectedPostId === post.id
-                                    ? artboardSrc
-                                    : post.thumbUrl || coverAsset.coverDisplayUrl || project.coverUrl
-                                }
-                                alt=""
-                              />
+                              {artboardSrc ? (
+                                <img src={artboardSrc} alt="" />
+                              ) : (
+                                <span className="smb-ws__page-thumb-empty" aria-hidden="true" />
+                              )}
                             </div>
                             <strong>{post.name}</strong>
                           </button>
@@ -869,8 +923,9 @@ export function SocialMediaBuilderWorkspace() {
                 <div className="smb-ws__canvas-stage" data-testid="smb-preview-shell">
                   <FocusFitStage engine={ftv} artboardTestId="smb-ftv-artboard">
                     <div
-                      className={`smb-ws__artboard${selected ? ' is-selected' : ''}`}
+                      className={`smb-ws__artboard${selected ? ' is-selected' : ''}${artboardState !== 'ready' ? ' is-empty' : ''}`}
                       data-testid="smb-artboard"
+                      data-image-state={artboardState}
                       onClick={() => setSelected(true)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') setSelected(true);
@@ -878,9 +933,51 @@ export function SocialMediaBuilderWorkspace() {
                       role="button"
                       tabIndex={0}
                     >
-                      <img className="smb-ws__artboard-img" src={artboardSrc} alt="" />
-                      <div className="smb-ws__artboard-overlay" aria-hidden="true" />
-                      {brandLogo ? (
+                      {artboardState === 'ready' && artboardSrc ? (
+                        <img
+                          className="smb-ws__artboard-img"
+                          src={artboardSrc}
+                          alt=""
+                          data-testid="smb-artboard-img"
+                        />
+                      ) : (
+                        <div
+                          className="smb-ws__artboard-fallback"
+                          data-testid={
+                            artboardState === 'error'
+                              ? 'smb-artboard-error'
+                              : artboardState === 'loading'
+                                ? 'smb-artboard-loading'
+                                : 'smb-artboard-empty'
+                          }
+                          role="status"
+                        >
+                          <strong>
+                            {artboardState === 'error'
+                              ? t('canvas.imageError')
+                              : artboardState === 'loading'
+                                ? t('canvas.imageLoading')
+                                : t('canvas.imageEmpty')}
+                          </strong>
+                          {artboardState === 'empty' || artboardState === 'error' ? (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              data-testid="smb-artboard-pick-image"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                coverAsset.openPicker('cover');
+                              }}
+                            >
+                              {t('rails.content.changeImage')}
+                            </Button>
+                          ) : null}
+                        </div>
+                      )}
+                      {artboardState === 'ready' ? (
+                        <div className="smb-ws__artboard-overlay" aria-hidden="true" />
+                      ) : null}
+                      {brandLogo && artboardState === 'ready' ? (
                         <span
                           className="smb-ws__logo-preview"
                           style={{ position: 'absolute', top: '6%', left: '6%', zIndex: 2 }}
@@ -888,11 +985,13 @@ export function SocialMediaBuilderWorkspace() {
                           IH
                         </span>
                       ) : null}
-                      <div className="smb-ws__artboard-copy">
-                        <strong>{selectedPost.headline}</strong>
-                        <p>{selectedPost.caption}</p>
-                        <span className="smb-ws__artboard-cta">{t('canvas.cta')}</span>
-                      </div>
+                      {artboardState === 'ready' ? (
+                        <div className="smb-ws__artboard-copy">
+                          <strong>{selectedPost.headline}</strong>
+                          <p>{selectedPost.caption}</p>
+                          <span className="smb-ws__artboard-cta">{t('canvas.cta')}</span>
+                        </div>
+                      ) : null}
                       {selected ? (
                         <div
                           className="smb-ws__floating-actions"
@@ -1018,16 +1117,15 @@ export function SocialMediaBuilderWorkspace() {
           lockLinkedProject
           selectedAssetId={coverAsset.coverImage?.asset_id ?? null}
           onSelect={(ref) => {
-            coverAsset.setCoverImage(ref);
+            // Persist Asset ID only — never blob:/object: thumb URLs.
+            coverAsset.setCoverImage({
+              asset_id: ref.asset_id,
+              url: ref.asset_id ? null : ref.url ?? null,
+              alt: ref.alt ?? null,
+              role: 'cover',
+            });
             coverAsset.closePicker();
-            if (ref.asset_id) {
-              void coverAsset.media.ensureDisplayUrl(ref.asset_id).then((url) => {
-                if (!url) return;
-                patchPost({ thumbUrl: url });
-              });
-            } else if (ref.url) {
-              patchPost({ thumbUrl: ref.url });
-            }
+            patchPost({ thumbUrl: '' });
             markDirty();
             showToast(t('toasts.imageChanged'));
           }}

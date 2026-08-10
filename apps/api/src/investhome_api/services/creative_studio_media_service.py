@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from datetime import UTC, datetime
 from io import BytesIO
-from typing import Any
+from typing import Any, BinaryIO
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException, UploadFile, status
@@ -17,6 +18,7 @@ from investhome_api.config.settings import get_settings
 from investhome_api.models.creative_studio_media import (
     CreativeStudioMediaAsset,
     CreativeStudioMediaFolder,
+    MediaAssetSourceType,
 )
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.creative_studio_media import (
@@ -30,10 +32,24 @@ from investhome_api.services.document_validation import (
     validate_extension,
     validate_mime_type,
 )
+from investhome_api.services.google_drive.errors import (
+    GoogleDriveAuthError,
+    GoogleDriveConfigError,
+    GoogleDriveError,
+    GoogleDriveNotFoundError,
+    GoogleDrivePermissionError,
+)
+from investhome_api.services.google_drive.provider import (
+    GoogleDriveProviderProtocol,
+    get_google_drive_provider,
+)
 from investhome_api.services.storage.factory import get_storage_provider, provider_enum
 
 MEDIA_STORAGE_PREFIX = "creative-studio-media"
+GDRIVE_STORAGE_PREFIX = "gdrive:"
 IMAGE_EXTENSIONS = frozenset({"jpg", "jpeg", "png", "webp", "gif"})
+
+logger = logging.getLogger(__name__)
 
 
 def asset_content_url(asset_id: UUID) -> str:
@@ -115,6 +131,107 @@ def get_asset_or_404(
     if asset.archived_at is not None and not include_archived:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media asset not found")
     return asset
+
+
+def assert_asset_project_access(
+    asset: CreativeStudioMediaAsset,
+    *,
+    linked_project_id: UUID | None,
+) -> None:
+    """When a project scope is supplied, reject cross-project content reads (404)."""
+    if linked_project_id is None:
+        return
+    if asset.linked_project_id != linked_project_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media asset not found")
+
+
+def is_drive_backed_asset(asset: CreativeStudioMediaAsset) -> bool:
+    key = (asset.storage_key or "").strip()
+    if key.startswith(GDRIVE_STORAGE_PREFIX):
+        return True
+    return (asset.source_type or "") == MediaAssetSourceType.GOOGLE_DRIVE.value
+
+
+def resolve_drive_file_id(asset: CreativeStudioMediaAsset) -> str | None:
+    external = (asset.external_file_id or "").strip()
+    if external:
+        return external
+    key = (asset.storage_key or "").strip()
+    if key.startswith(GDRIVE_STORAGE_PREFIX):
+        return key[len(GDRIVE_STORAGE_PREFIX) :].strip() or None
+    return None
+
+
+def open_asset_content(
+    asset: CreativeStudioMediaAsset,
+    *,
+    linked_project_id: UUID | None = None,
+    drive_provider: GoogleDriveProviderProtocol | None = None,
+) -> tuple[BinaryIO, str]:
+    """
+    Open binary content for an asset after auth (caller) + optional project isolation.
+
+    Drive-backed assets (storage_key ``gdrive:{id}``) stream via GoogleDriveProvider —
+    no permanent local duplicate. Local uploads use storage.open as before.
+    Tokens never leave the provider / this process.
+    """
+    assert_asset_project_access(asset, linked_project_id=linked_project_id)
+    media_type = asset.content_type or "application/octet-stream"
+
+    if is_drive_backed_asset(asset):
+        file_id = resolve_drive_file_id(asset)
+        if not file_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Drive file reference missing",
+            )
+        provider = drive_provider or get_google_drive_provider()
+        try:
+            payload = provider.download_bytes(file_id)
+        except GoogleDrivePermissionError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Drive file access denied",
+            ) from exc
+        except (GoogleDriveAuthError, GoogleDriveConfigError) as exc:
+            logger.warning(
+                "creative_studio_media_drive_unavailable",
+                extra={"asset_id": str(asset.id), "error_code": exc.code},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Google Drive is unavailable",
+            ) from exc
+        except GoogleDriveError as exc:
+            if isinstance(exc, GoogleDriveNotFoundError) or exc.code == "drive_not_found":
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Drive file not found",
+                ) from exc
+            logger.warning(
+                "creative_studio_media_drive_error",
+                extra={"asset_id": str(asset.id), "error_code": exc.code},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Failed to fetch Drive file",
+            ) from exc
+        return BytesIO(payload), media_type
+
+    storage = get_storage_provider()
+    try:
+        stream = storage.open(asset.storage_key)
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid storage key",
+        ) from exc
+    return stream, media_type
 
 
 def create_folder(

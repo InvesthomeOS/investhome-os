@@ -290,13 +290,75 @@ describe('media scoped by linked_project_id + no Unsplash production seed', () =
     assert.doesNotMatch(floatingBlock[0], /openPicker/);
   });
 
+  it('Content change-image and bottom image open CsMediaPicker', () => {
+    const rail = readSmb('social-media-builder-rail-drawers.tsx');
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    assert.match(rail, /onChangeImage/);
+    assert.match(rail, /smb-content-change-image/);
+    assert.match(workspace, /onChangeImage=\{\(\) => coverAsset\.openPicker\('cover'\)\}/);
+    assert.match(workspace, /action === 'image'[\s\S]*coverAsset\.openPicker\('cover'\)/);
+  });
+
+  it('Sil clears cover Asset ID and persists via saveDraft', () => {
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    assert.match(workspace, /action === 'delete'/);
+    assert.match(workspace, /coverAsset\.clearCover\(\)/);
+    assert.match(workspace, /coverImage:\s*null/);
+    assert.match(workspace, /toasts\.imageRemoved/);
+  });
+
+  it('preview uses focus mode without toast-only success', () => {
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    assert.match(workspace, /focus\.setMode\('preview'\)/);
+    const previewBlock = workspace.match(
+      /data-testid="smb-preview"[\s\S]*?\{t\('preview'\)\}/,
+    );
+    assert.ok(previewBlock, 'expected preview button');
+    assert.doesNotMatch(previewBlock[0], /toasts\.preview/);
+  });
+
+  it('download exports real PNG via exportSocialPostPng', () => {
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    assert.match(workspace, /exportSocialPostPng/);
+    assert.match(workspace, /runDownload/);
+    assert.match(workspace, /toasts\.downloadFailed/);
+    assert.equal(existsSync(join(smbDir, 'social-media-builder-export.ts')), true);
+    const exportSrc = readSmb('social-media-builder-export.ts');
+    assert.match(exportSrc, /canvas\.toBlob/);
+    assert.match(exportSrc, /No image to export/);
+  });
+
+  it('artboard uses authenticated cover blob only — no Unsplash fallback', () => {
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    assert.match(workspace, /coverAsset\.coverStatus/);
+    assert.match(workspace, /smb-artboard-empty|smb-artboard-error/);
+    assert.match(workspace, /data-image-state=\{artboardState\}/);
+    assert.doesNotMatch(
+      workspace,
+      /artboardSrc\s*=\s*coverAsset\.coverDisplayUrl\s*\|\|\s*selectedPost\.thumbUrl\s*\|\|\s*project\.coverUrl/,
+    );
+    assert.doesNotMatch(workspace, /unsplash\.com/);
+  });
+
+  it('cover hook exposes coverStatus and skips template fallback when seedFromTemplate false', () => {
+    const hook = readComponent('use-builder-cover-asset.ts');
+    assert.match(hook, /coverStatus/);
+    assert.match(hook, /CoverResolveStatus/);
+    assert.match(hook, /Asset-backed slot: never fall back to template/);
+  });
+
+  it('media blob fetch passes linked_project_id when scoped', () => {
+    const hook = readComponent('use-cs-media-library.ts');
+    assert.match(hook, /fetchCreativeStudioMediaBlob\(assetId,\s*\{/);
+    assert.match(hook, /linked_project_id:\s*scopeId/);
+  });
+
   it('production selection path does not seed picker from Unsplash samples', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
     assert.doesNotMatch(workspace, /WB_ASSETS/);
     assert.doesNotMatch(workspace, /SMB_ASSETS/);
     assert.match(workspace, /useBuilderCoverAsset/);
     assert.match(workspace, /CsMediaPickerDialog/);
-    // templateCoverUrl still used for display atmosphere, not picker seeding
     assert.match(workspace, /seedFromTemplate:\s*false/);
   });
 

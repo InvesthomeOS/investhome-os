@@ -384,6 +384,12 @@ export type SmbRightRailDrawerProps = {
   setBgMode: (v: BgMode) => void;
   markDirty: () => void;
   onToast: (msg: string) => void;
+  /** Opens CsMediaPicker scoped to linked project — Content "change image". */
+  onChangeImage?: () => void;
+  /** Display URL for the current cover (authenticated blob), not Unsplash. */
+  coverDisplayUrl?: string;
+  /** Real PNG export of the current post. */
+  onDownload?: () => void;
 };
 
 export function SmbRightRailDrawer(props: SmbRightRailDrawerProps) {
@@ -428,9 +434,12 @@ function ContentDrawer({
   setBgMode,
   markDirty,
   onToast,
+  onChangeImage,
+  coverDisplayUrl,
 }: SmbRightRailDrawerProps) {
   const t = useTranslations('creativeStudio.ds.socialMediaBuilder');
   const size = FORMAT_PRESETS.find((f) => f.key === formatPreset) ?? FORMAT_PRESETS[0]!;
+  const featuredSrc = coverDisplayUrl || '';
 
   return (
     <div className="smb-ws__rail-panel-body smb-ws__left-stack" data-testid="smb-content-drawer">
@@ -558,12 +567,23 @@ function ContentDrawer({
       </div>
       {bgMode === 'image' ? (
         <div className="smb-ws__featured">
-          <img src={post.thumbUrl} alt="" />
+          {featuredSrc ? (
+            <img src={featuredSrc} alt="" data-testid="smb-content-featured-img" />
+          ) : (
+            <div className="smb-ws__featured-empty" data-testid="smb-content-featured-empty">
+              {t('canvas.imageEmpty')}
+            </div>
+          )}
           <div className="smb-ws__featured-actions">
             <Button
               variant="secondary"
               size="sm"
+              data-testid="smb-content-change-image"
               onClick={() => {
+                if (onChangeImage) {
+                  onChangeImage();
+                  return;
+                }
                 markDirty();
                 onToast(t('toasts.imageChanged'));
               }}
@@ -662,7 +682,7 @@ function StyleDrawer({ markDirty, onToast }: SmbRightRailDrawerProps) {
   );
 }
 
-function SettingsDrawer({ onToast }: SmbRightRailDrawerProps) {
+function SettingsDrawer({ onToast, onDownload }: SmbRightRailDrawerProps) {
   const t = useTranslations('creativeStudio.ds.socialMediaBuilder');
 
   return (
@@ -689,7 +709,18 @@ function SettingsDrawer({ onToast }: SmbRightRailDrawerProps) {
             <option value="zip">ZIP</option>
           </select>
         </Field>
-        <Button variant="secondary" size="sm" onClick={() => onToast(t('toasts.downloaded'))}>
+        <Button
+          variant="secondary"
+          size="sm"
+          data-testid="smb-settings-download"
+          onClick={() => {
+            if (onDownload) {
+              onDownload();
+              return;
+            }
+            onToast(t('toasts.downloadFailed'));
+          }}
+        >
           {t('download')}
         </Button>
       </details>

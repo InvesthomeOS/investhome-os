@@ -10,11 +10,14 @@ import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetState
 import {
   imageRefFromLegacyUrl,
   imageRefFromMediaAsset,
+  isPersistableUrl,
   resolveDisplayUrl,
   type CsImageRef,
 } from './cs-image-ref';
 import type { CsMediaPickerItem } from './use-cs-media-library';
 import { useCsMediaLibrary } from './use-cs-media-library';
+
+export type CoverResolveStatus = 'empty' | 'loading' | 'ready' | 'error';
 
 export type UseBuilderCoverAssetResult = {
   media: ReturnType<typeof useCsMediaLibrary>;
@@ -23,6 +26,7 @@ export type UseBuilderCoverAssetResult = {
   galleryImages: CsImageRef[];
   setGalleryImages: Dispatch<SetStateAction<CsImageRef[]>>;
   coverDisplayUrl: string;
+  coverStatus: CoverResolveStatus;
   galleryDisplayUrls: string[];
   pickerOpen: boolean;
   openPicker: (mode?: 'cover' | 'gallery') => void;
@@ -40,13 +44,13 @@ export function useBuilderCoverAsset(options: {
   linkedProjectId?: string | null;
   enabled?: boolean;
   /**
-   * When false (Landing Page Builder), never seed cover/gallery from Unsplash/template URLs.
-   * Empty selection stays empty; template URLs remain display-only fallbacks.
+   * When false (Landing Page Builder / Social Media Builder), never seed cover/gallery
+   * from Unsplash/template URLs. Empty selection stays empty; no template display fallback.
    * Other builders keep default true.
    */
   seedFromTemplate?: boolean;
   /**
-   * When true (Landing Page Builder), scope Media Library queries to linkedProjectId.
+   * When true (Landing Page Builder / SMB), scope Media Library queries to linkedProjectId.
    * Other builders omit this (unchanged unscoped list).
    */
   scopeToLinkedProject?: boolean;
@@ -69,6 +73,7 @@ export function useBuilderCoverAsset(options: {
   const [coverImage, setCoverImage] = useState<CsImageRef | null>(null);
   const [galleryImages, setGalleryImages] = useState<CsImageRef[]>([]);
   const [resolvedCover, setResolvedCover] = useState<string | null>(null);
+  const [coverFailed, setCoverFailed] = useState(false);
   const [resolvedGallery, setResolvedGallery] = useState<Record<string, string>>({});
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerMode, setPickerMode] = useState<'cover' | 'gallery'>('cover');
@@ -97,11 +102,20 @@ export function useBuilderCoverAsset(options: {
     const assetId = coverImage?.asset_id;
     if (!assetId) {
       setResolvedCover(null);
+      setCoverFailed(false);
       return;
     }
     let cancelled = false;
+    setCoverFailed(false);
     void media.ensureDisplayUrl(assetId).then((url) => {
-      if (!cancelled) setResolvedCover(url);
+      if (cancelled) return;
+      if (url) {
+        setResolvedCover(url);
+        setCoverFailed(false);
+      } else {
+        setResolvedCover(null);
+        setCoverFailed(true);
+      }
     });
     return () => {
       cancelled = true;
@@ -119,15 +133,36 @@ export function useBuilderCoverAsset(options: {
     }
   }, [galleryImages, media.ensureDisplayUrl]);
 
-  const coverDisplayUrl = useMemo(
-    () =>
-      resolveDisplayUrl({
-        ref: coverImage,
-        resolvedAssetUrl: resolvedCover,
-        templateUrl: templateCoverUrl,
-      }) ?? templateCoverUrl,
-    [coverImage, resolvedCover, templateCoverUrl],
-  );
+  const coverStatus: CoverResolveStatus = useMemo(() => {
+    if (coverImage?.asset_id) {
+      if (resolvedCover) return 'ready';
+      if (coverFailed) return 'error';
+      return 'loading';
+    }
+    if (coverImage?.url && isPersistableUrl(coverImage.url)) return 'ready';
+    return 'empty';
+  }, [coverFailed, coverImage, resolvedCover]);
+
+  const coverDisplayUrl = useMemo(() => {
+    if (resolvedCover) return resolvedCover;
+    if (coverImage?.asset_id) {
+      // Asset-backed slot: never fall back to template/Unsplash while loading or after error.
+      return '';
+    }
+    if (coverImage?.url && isPersistableUrl(coverImage.url)) {
+      return coverImage.url;
+    }
+    if (seedFromTemplate) {
+      return (
+        resolveDisplayUrl({
+          ref: coverImage,
+          resolvedAssetUrl: null,
+          templateUrl: templateCoverUrl,
+        }) ?? templateCoverUrl
+      );
+    }
+    return '';
+  }, [coverImage, resolvedCover, seedFromTemplate, templateCoverUrl]);
 
   const galleryDisplayUrls = useMemo(() => {
     if (galleryImages.length) {
@@ -136,13 +171,22 @@ export function useBuilderCoverAsset(options: {
           resolveDisplayUrl({
             ref,
             resolvedAssetUrl: ref.asset_id ? resolvedGallery[ref.asset_id] : null,
-            templateUrl: templateGalleryUrls[0] ?? templateCoverUrl,
+            templateUrl: seedFromTemplate
+              ? (templateGalleryUrls[0] ?? templateCoverUrl)
+              : null,
           }),
         )
         .filter((u): u is string => Boolean(u));
     }
-    return templateGalleryUrls.length ? [...templateGalleryUrls] : [];
-  }, [galleryImages, resolvedGallery, templateCoverUrl, templateGalleryUrls]);
+    if (seedFromTemplate && templateGalleryUrls.length) return [...templateGalleryUrls];
+    return [];
+  }, [
+    galleryImages,
+    resolvedGallery,
+    seedFromTemplate,
+    templateCoverUrl,
+    templateGalleryUrls,
+  ]);
 
   const openPicker = useCallback((mode: 'cover' | 'gallery' = 'cover') => {
     setPickerMode(mode);
@@ -171,6 +215,7 @@ export function useBuilderCoverAsset(options: {
   const clearCover = useCallback(() => {
     setCoverImage(null);
     setResolvedCover(null);
+    setCoverFailed(false);
   }, []);
 
   const hydrateMedia = useCallback(
@@ -194,6 +239,7 @@ export function useBuilderCoverAsset(options: {
         setGalleryImages([]);
       }
       setResolvedCover(null);
+      setCoverFailed(false);
       setResolvedGallery({});
     },
     [seedFromTemplate, templateCoverUrl, templateGalleryUrls],
@@ -206,6 +252,7 @@ export function useBuilderCoverAsset(options: {
     galleryImages,
     setGalleryImages,
     coverDisplayUrl,
+    coverStatus,
     galleryDisplayUrls,
     pickerOpen,
     openPicker,

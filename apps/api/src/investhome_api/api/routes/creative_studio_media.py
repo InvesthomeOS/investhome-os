@@ -20,7 +20,6 @@ from investhome_api.schemas.creative_studio_media import (
     CreativeStudioMediaFolderResponse,
 )
 from investhome_api.services import creative_studio_media_service as svc
-from investhome_api.services.storage.factory import get_storage_provider
 
 router = APIRouter(prefix="/creative-studio/media", tags=["creative-studio-media"])
 
@@ -187,14 +186,18 @@ def archive_asset(
 @router.get("/assets/{asset_id}/content")
 def download_asset_content(
     asset_id: UUID,
+    linked_project_id: UUID | None = Query(default=None),
     db: Session = Depends(get_db),
     _user: User = _cs_view,
 ) -> StreamingResponse:
-    """Auth-gated binary stream — mirrors Document Center download (no public URL)."""
+    """Auth-gated binary stream — local storage or Drive-backed (no public URL / no tokens)."""
     asset = svc.get_asset_or_404(asset_id, db, include_archived=True)
-    storage = get_storage_provider()
-    stream = storage.open(asset.storage_key)
+    stream, media_type = svc.open_asset_content(
+        asset,
+        linked_project_id=linked_project_id,
+    )
+    safe_name = (asset.filename or "asset").replace('"', "")
     headers = {
-        "Content-Disposition": f'inline; filename="{asset.filename}"',
+        "Content-Disposition": f'inline; filename="{safe_name}"',
     }
-    return StreamingResponse(stream, media_type=asset.content_type, headers=headers)
+    return StreamingResponse(stream, media_type=media_type, headers=headers)

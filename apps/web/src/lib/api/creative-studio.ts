@@ -360,12 +360,23 @@ export async function uploadCreativeStudioMediaAsset(
   return response.json() as Promise<CreativeStudioMediaAsset>;
 }
 
-export function getCreativeStudioMediaContentUrl(assetId: string): string {
-  return `${getApiBaseUrl()}/creative-studio/media/assets/${assetId}/content`;
+export function getCreativeStudioMediaContentUrl(
+  assetId: string,
+  options?: { linked_project_id?: string | null },
+): string {
+  const base = `${getApiBaseUrl()}/creative-studio/media/assets/${assetId}/content`;
+  const projectId = options?.linked_project_id?.trim();
+  if (projectId) {
+    return `${base}?linked_project_id=${encodeURIComponent(projectId)}`;
+  }
+  return base;
 }
 
-export async function fetchCreativeStudioMediaBlob(assetId: string): Promise<Blob> {
-  const response = await fetch(getCreativeStudioMediaContentUrl(assetId), {
+export async function fetchCreativeStudioMediaBlob(
+  assetId: string,
+  options?: { linked_project_id?: string | null },
+): Promise<Blob> {
+  const response = await fetch(getCreativeStudioMediaContentUrl(assetId, options), {
     credentials: 'include',
     cache: 'no-store',
   });

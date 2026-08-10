@@ -341,3 +341,156 @@ def test_permission_failures(auth_client: TestClient, tmp_path: Path, monkeypatc
     _login(auth_client, "csmedia@example.com")
     archive_ok = auth_client.delete(f"/creative-studio/media/assets/{asset['id']}")
     assert archive_ok.status_code == 200
+
+
+def test_local_content_download_and_missing_file(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DOCUMENT_STORAGE_ROOT", str(tmp_path / "media-storage"))
+    get_settings.cache_clear()
+    get_storage_provider.cache_clear()
+
+    asset = _upload(client, filename="local-hero.png")
+    content = client.get(f"/creative-studio/media/assets/{asset['id']}/content")
+    assert content.status_code == 200
+    assert content.headers["content-type"].startswith("image/png")
+    assert content.content[:8] == b"\x89PNG\r\n\x1a\n"
+
+    storage = get_storage_provider()
+    storage.delete(asset["storage_key"])
+    missing = client.get(f"/creative-studio/media/assets/{asset['id']}/content")
+    assert missing.status_code == 404
+
+
+def test_drive_content_streams_via_provider(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from investhome_api.models.creative_studio_media import (
+        CreativeStudioMediaAsset,
+        MediaAssetSourceType,
+        MediaAssetSyncStatus,
+    )
+    from investhome_api.models.project import Project, ProjectStatus, ProjectType
+    from investhome_api.services.google_drive.errors import GoogleDriveApiError
+
+    png = _png_bytes(48, 36, (210, 40, 40))
+
+    class _DriveStub:
+        def download_bytes(self, file_id: str, *, max_bytes: int | None = None) -> bytes:
+            if file_id != "drive-file-temple":
+                raise GoogleDriveApiError("missing", code="drive_not_found")
+            return png
+
+    monkeypatch.setattr(
+        "investhome_api.services.creative_studio_media_service.get_google_drive_provider",
+        lambda: _DriveStub(),
+    )
+
+    db: Session = next(app.dependency_overrides[get_db]())
+    project = Project(
+        id=uuid4(),
+        project_code=f"PRJ-DRV-{uuid4().hex[:6]}",
+        project_name="Temple Drive Content",
+        project_type=ProjectType.RESIDENTIAL,
+        project_status=ProjectStatus.CONSTRUCTION,
+    )
+    db.add(project)
+    db.flush()
+    asset = CreativeStudioMediaAsset(
+        id=uuid4(),
+        filename="temple-render.png",
+        content_type="image/png",
+        file_size=len(png),
+        width=48,
+        height=36,
+        storage_provider="google_drive",
+        storage_key="gdrive:drive-file-temple",
+        linked_project_id=project.id,
+        source_type=MediaAssetSourceType.GOOGLE_DRIVE.value,
+        external_file_id="drive-file-temple",
+        sync_status=MediaAssetSyncStatus.ACTIVE.value,
+    )
+    db.add(asset)
+    db.commit()
+    asset_id = str(asset.id)
+    project_id = str(project.id)
+
+    ok = client.get(
+        f"/creative-studio/media/assets/{asset_id}/content",
+        params={"linked_project_id": project_id},
+    )
+    assert ok.status_code == 200, ok.text
+    assert ok.headers["content-type"].startswith("image/png")
+    assert ok.content == png
+    # Provider tokens must never appear in headers/body.
+    joined = " ".join(f"{k}:{v}" for k, v in ok.headers.items()).lower()
+    assert "refresh_token" not in joined
+    assert "Bearer" not in (ok.headers.get("authorization") or "")
+
+
+def test_content_rejects_cross_project_scope(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from investhome_api.models.creative_studio_media import (
+        CreativeStudioMediaAsset,
+        MediaAssetSourceType,
+        MediaAssetSyncStatus,
+    )
+    from investhome_api.models.project import Project, ProjectStatus, ProjectType
+
+    png = _png_bytes()
+
+    class _DriveStub:
+        def download_bytes(self, file_id: str, *, max_bytes: int | None = None) -> bytes:
+            return png
+
+    monkeypatch.setattr(
+        "investhome_api.services.creative_studio_media_service.get_google_drive_provider",
+        lambda: _DriveStub(),
+    )
+
+    db: Session = next(app.dependency_overrides[get_db]())
+    project_a = Project(
+        id=uuid4(),
+        project_code=f"PRJ-A-{uuid4().hex[:6]}",
+        project_name="Project A",
+        project_type=ProjectType.RESIDENTIAL,
+        project_status=ProjectStatus.CONSTRUCTION,
+    )
+    project_b = Project(
+        id=uuid4(),
+        project_code=f"PRJ-B-{uuid4().hex[:6]}",
+        project_name="Project B",
+        project_type=ProjectType.RESIDENTIAL,
+        project_status=ProjectStatus.CONSTRUCTION,
+    )
+    db.add(project_a)
+    db.add(project_b)
+    db.flush()
+    asset = CreativeStudioMediaAsset(
+        id=uuid4(),
+        filename="scoped.png",
+        content_type="image/png",
+        file_size=len(png),
+        storage_provider="google_drive",
+        storage_key="gdrive:file-scoped",
+        linked_project_id=project_a.id,
+        source_type=MediaAssetSourceType.GOOGLE_DRIVE.value,
+        external_file_id="file-scoped",
+        sync_status=MediaAssetSyncStatus.ACTIVE.value,
+    )
+    db.add(asset)
+    db.commit()
+
+    rejected = client.get(
+        f"/creative-studio/media/assets/{asset.id}/content",
+        params={"linked_project_id": str(project_b.id)},
+    )
+    assert rejected.status_code == 404
+
+    allowed = client.get(
+        f"/creative-studio/media/assets/{asset.id}/content",
+        params={"linked_project_id": str(project_a.id)},
+    )
+    assert allowed.status_code == 200
+    assert allowed.content == png
