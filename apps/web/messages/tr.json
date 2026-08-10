@@ -2093,7 +2093,27 @@
       },
       "documents": {
         "categories": "Belge kategorileri",
-        "recent": "Son Yüklemeler",
+        "recent": "Proje Belgeleri",
+        "loading": "Proje belgeleri yükleniyor…",
+        "loadError": "Proje belgeleri yüklenemedi.",
+        "empty": "Henüz senkronize edilmiş proje belgesi yok. Google Drive klasörünü eşleyip senkronize ederek bu listeyi doldurun.",
+        "uncategorized": "Kategorisiz",
+        "unknownType": "DOSYA",
+        "sourceGoogleDrive": "Google Drive",
+        "sourceUpload": "Yükleme",
+        "folderCats": {
+          "00_PROJECT_INFO": "Proje Bilgisi",
+          "01_BRAND": "Marka",
+          "02_RENDER": "Render",
+          "03_FLOOR_PLANS": "Kat Planları",
+          "04_UNIT_PLANS": "Ünite Planları",
+          "05_LOCATION": "Konum",
+          "06_MEDIA": "Medya",
+          "07_CATALOG": "Katalog",
+          "08_MARKETING": "Pazarlama",
+          "09_DOCUMENTS": "Belgeler",
+          "10_ARCHIVE": "Arşiv"
+        },
         "cats": {
           "contracts": "Sözleşmeler",
           "permits": "Ruhsatlar",

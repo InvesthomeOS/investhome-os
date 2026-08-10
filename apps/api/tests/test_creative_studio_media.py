@@ -74,6 +74,7 @@ def _upload(
     content_type: str = "image/png",
     tags: str | None = "hero,landing",
     folder_id: str | None = None,
+    linked_project_id: str | None = None,
 ) -> dict:
     payload = content if content is not None else _png_bytes()
     files = {"file": (filename, io.BytesIO(payload), content_type)}
@@ -82,6 +83,8 @@ def _upload(
         data["tags"] = tags
     if folder_id is not None:
         data["folder_id"] = folder_id
+    if linked_project_id is not None:
+        data["linked_project_id"] = linked_project_id
     response = client.post("/creative-studio/media/upload", files=files, data=data)
     assert response.status_code == 201, response.text
     return response.json()
@@ -178,6 +181,70 @@ def test_update_tags(client: TestClient, tmp_path: Path, monkeypatch: pytest.Mon
     )
     assert patched.status_code == 200
     assert patched.json()["tags"] == ["new", "featured"]
+
+
+def test_list_assets_filters_by_linked_project_id(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DOCUMENT_STORAGE_ROOT", str(tmp_path / "media-storage"))
+    get_settings.cache_clear()
+    get_storage_provider.cache_clear()
+
+    from investhome_api.models.project import Project, ProjectStatus, ProjectType
+
+    db: Session = next(app.dependency_overrides[get_db]())
+    project_a = Project(
+        id=uuid4(),
+        project_code=f"PRJ-A-{uuid4().hex[:6]}",
+        project_name="Project A Docs",
+        project_type=ProjectType.RESIDENTIAL,
+        project_status=ProjectStatus.CONSTRUCTION,
+    )
+    project_b = Project(
+        id=uuid4(),
+        project_code=f"PRJ-B-{uuid4().hex[:6]}",
+        project_name="Project B Docs",
+        project_type=ProjectType.RESIDENTIAL,
+        project_status=ProjectStatus.CONSTRUCTION,
+    )
+    db.add(project_a)
+    db.add(project_b)
+    db.commit()
+
+    asset_a = _upload(
+        client,
+        filename="project-a-brief.png",
+        tags=None,
+        linked_project_id=str(project_a.id),
+    )
+    asset_b = _upload(
+        client,
+        filename="project-b-render.png",
+        tags=None,
+        linked_project_id=str(project_b.id),
+    )
+    orphan = _upload(client, filename="orphan-upload.png", tags=None)
+
+    listed_a = client.get(
+        "/creative-studio/media/assets",
+        params={"linked_project_id": str(project_a.id)},
+    )
+    assert listed_a.status_code == 200, listed_a.text
+    body_a = listed_a.json()
+    ids_a = {item["id"] for item in body_a["items"]}
+    assert asset_a["id"] in ids_a
+    assert asset_b["id"] not in ids_a
+    assert orphan["id"] not in ids_a
+    assert all(item["linked_project_id"] == str(project_a.id) for item in body_a["items"])
+
+    listed_b = client.get(
+        "/creative-studio/media/assets",
+        params={"linked_project_id": str(project_b.id)},
+    )
+    assert listed_b.status_code == 200
+    ids_b = {item["id"] for item in listed_b.json()["items"]}
+    assert asset_b["id"] in ids_b
+    assert asset_a["id"] not in ids_b
 
 
 def test_unauthenticated_rejected(auth_client: TestClient) -> None:

@@ -264,6 +264,7 @@ def list_assets(
     *,
     folder_id: UUID | None = None,
     tag: str | None = None,
+    linked_project_id: UUID | None = None,
     include_archived: bool = False,
     page: int = 1,
     page_size: int = 50,
@@ -273,6 +274,8 @@ def list_assets(
         query = query.where(CreativeStudioMediaAsset.archived_at.is_(None))
     if folder_id is not None:
         query = query.where(CreativeStudioMediaAsset.folder_id == folder_id)
+    if linked_project_id is not None:
+        query = query.where(CreativeStudioMediaAsset.linked_project_id == linked_project_id)
     if tag:
         query = query.where(cast(CreativeStudioMediaAsset.tags, String).ilike(f"%{tag.strip()}%"))
 
@@ -293,6 +296,7 @@ def search_assets(
     q: str,
     folder_id: UUID | None = None,
     tag: str | None = None,
+    linked_project_id: UUID | None = None,
     include_archived: bool = False,
     page: int = 1,
     page_size: int = 50,
@@ -303,6 +307,8 @@ def search_assets(
         query = query.where(CreativeStudioMediaAsset.archived_at.is_(None))
     if folder_id is not None:
         query = query.where(CreativeStudioMediaAsset.folder_id == folder_id)
+    if linked_project_id is not None:
+        query = query.where(CreativeStudioMediaAsset.linked_project_id == linked_project_id)
 
     filters: list[Any] = [
         CreativeStudioMediaAsset.filename.ilike(pattern),

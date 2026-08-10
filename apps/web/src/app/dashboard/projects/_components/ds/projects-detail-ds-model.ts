@@ -271,16 +271,16 @@ const INVESTOR_NAMES = [
   'Burak Şahin',
 ];
 
-const DOC_NAMES: Record<DocCategory, string[]> = {
-  contracts: ['EPC Agreement.pdf', 'Land Purchase Deed.pdf', 'JV Term Sheet.pdf'],
-  permits: ['Building Permit.pdf', 'Fire Safety Approval.pdf', 'Zoning Certificate.pdf'],
-  invoices: ['Steel Package Invoice.pdf', 'MEP Progress Invoice.pdf', 'Consultant Fee.pdf'],
-  drawings: ['Architectural Set Rev.C.dwg', 'Structural Plans.pdf', 'Facade Details.pdf'],
-  videos: ['Site Progress Week 24.mp4', 'Drone Flyover Q2.mp4'],
-  photos: ['Tower Core Progress.jpg', 'Lobby Mockup.jpg', 'Facade Sample.jpg'],
-  certificates: ['ISO Site Certificate.pdf', 'Occupancy Pre-Cert.pdf'],
-  specifications: ['Technical Spec Book.pdf', 'Material Schedule.xlsx'],
-};
+const DOC_CATEGORIES: DocCategory[] = [
+  'contracts',
+  'permits',
+  'invoices',
+  'drawings',
+  'videos',
+  'photos',
+  'certificates',
+  'specifications',
+];
 
 function num(value: string | number | null | undefined, fallback = 0): number {
   const n = Number(value);
@@ -503,21 +503,12 @@ export function buildProjectDetailDsModel(
     };
   });
 
-  const categories = Object.keys(DOC_NAMES) as DocCategory[];
-  const documents: DetailDocument[] = categories.flatMap((category, ci) =>
-    DOC_NAMES[category].slice(0, 2).map((name, ni) => ({
-      id: `${seed}-doc-${category}-${ni}`,
-      name,
-      category,
-      size: `${1.2 + ((ci + ni) % 5) * 0.7} MB`,
-      updatedAt: addDays(null, -1 - ci - ni * 2),
-      owner: manager,
-    })),
-  );
-
-  const docCategoryCounts = categories.reduce(
+  // Documents are loaded live from project-scoped Creative Studio media assets
+  // (Documents tab). Keep empty placeholders so the detail model stays typed.
+  const documents: DetailDocument[] = [];
+  const docCategoryCounts = DOC_CATEGORIES.reduce(
     (acc, category) => {
-      acc[category] = documents.filter((d) => d.category === category).length;
+      acc[category] = 0;
       return acc;
     },
     {} as Record<DocCategory, number>,

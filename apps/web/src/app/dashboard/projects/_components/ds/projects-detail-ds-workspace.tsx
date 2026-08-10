@@ -20,6 +20,11 @@ import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 import { hasPermission } from '@/lib/api/auth';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
+  listCreativeStudioMediaAssets,
+  type CreativeStudioMediaAsset,
+} from '@/lib/api/creative-studio';
+import { formatFileSize } from '@/lib/api/documents';
+import {
   fetchProjectDetail,
   fetchProjects,
   formatShortDate,
@@ -387,7 +392,7 @@ export function ProjectsDetailDsWorkspace({
         <InvestorsTab model={model} tD={tD} locale={locale} />
       ) : null}
       {resolvedTab === 'documents' ? (
-        <DocumentsTab model={model} tD={tD} projectId={projectId} />
+        <DocumentsTab tD={tD} projectId={projectId} />
       ) : null}
       {resolvedTab === 'tasks' ? (
         <TasksTab
@@ -822,41 +827,160 @@ function InvestorsTab({
 }
 
 function DocumentsTab({
-  model,
   tD,
   projectId,
 }: {
-  model: Model;
   tD: TranslateFn;
   projectId: string;
 }) {
-  const categories = Object.keys(model.docCategoryCounts) as Array<
-    keyof typeof model.docCategoryCounts
-  >;
+  const [assets, setAssets] = useState<CreativeStudioMediaAsset[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
+    void listCreativeStudioMediaAssets({
+      linked_project_id: projectId,
+      include_archived: false,
+      page: 1,
+      page_size: 100,
+    })
+      .then((res) => {
+        if (cancelled) return;
+        // Defense in depth: never surface another project's assets.
+        setAssets(
+          res.items.filter(
+            (item) => item.linked_project_id === projectId && item.archived_at == null,
+          ),
+        );
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : tD('documents.loadError');
+        setLoadError(message || tD('documents.loadError'));
+        setAssets([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, tD]);
+
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const asset of assets) {
+      const key = asset.folder_category?.trim() || '__uncategorized__';
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [assets]);
+
+  const folderCatLabels = useMemo(
+    () =>
+      ({
+        '00_PROJECT_INFO': tD('documents.folderCats.00_PROJECT_INFO'),
+        '01_BRAND': tD('documents.folderCats.01_BRAND'),
+        '02_RENDER': tD('documents.folderCats.02_RENDER'),
+        '03_FLOOR_PLANS': tD('documents.folderCats.03_FLOOR_PLANS'),
+        '04_UNIT_PLANS': tD('documents.folderCats.04_UNIT_PLANS'),
+        '05_LOCATION': tD('documents.folderCats.05_LOCATION'),
+        '06_MEDIA': tD('documents.folderCats.06_MEDIA'),
+        '07_CATALOG': tD('documents.folderCats.07_CATALOG'),
+        '08_MARKETING': tD('documents.folderCats.08_MARKETING'),
+        '09_DOCUMENTS': tD('documents.folderCats.09_DOCUMENTS'),
+        '10_ARCHIVE': tD('documents.folderCats.10_ARCHIVE'),
+      }) as Record<string, string>,
+    [tD],
+  );
+
+  const categoryLabel = (key: string) => {
+    if (key === '__uncategorized__') return tD('documents.uncategorized');
+    return folderCatLabels[key] ?? key.replace(/^\d+_/, '').replace(/_/g, ' ');
+  };
+
+  const fileTypeLabel = (asset: CreativeStudioMediaAsset) => {
+    const mime = (asset.content_type || '').trim();
+    if (mime) {
+      const subtype = mime.split('/')[1]?.split(';')[0]?.trim();
+      if (subtype) return subtype.toUpperCase();
+    }
+    const ext = asset.filename.includes('.')
+      ? asset.filename.split('.').pop()?.trim()
+      : null;
+    return ext ? ext.toUpperCase() : tD('documents.unknownType');
+  };
+
   return (
-    <div style={{ display: 'grid', gap: 12 }}>
+    <div style={{ display: 'grid', gap: 12 }} data-testid="project-documents-tab">
       <ProjectDriveSyncPanel projectId={projectId} />
       <ProjectAssistantPanel projectId={projectId} />
       <section className="proj-detail-ds__doc-cats" aria-label={tD('documents.categories')}>
-        {categories.map((cat) => (
-          <article key={cat} className="proj-detail-ds__doc-cat">
-            <strong>{model.docCategoryCounts[cat]}</strong>
-            <span>{tD(`documents.cats.${cat}`)}</span>
+        {loading ? (
+          <article className="proj-detail-ds__doc-cat">
+            <strong>—</strong>
+            <span>{tD('documents.loading')}</span>
           </article>
-        ))}
+        ) : categoryCounts.length === 0 ? (
+          <article className="proj-detail-ds__doc-cat">
+            <strong>0</strong>
+            <span>{tD('documents.uncategorized')}</span>
+          </article>
+        ) : (
+          categoryCounts.map(([cat, count]) => (
+            <article key={cat} className="proj-detail-ds__doc-cat">
+              <strong>{count}</strong>
+              <span>{categoryLabel(cat)}</span>
+            </article>
+          ))
+        )}
       </section>
       <article className="proj-detail-ds__panel">
         <h3>{tD('documents.recent')}</h3>
-        <div className="proj-detail-ds__doc-list">
-          {model.documents.slice(0, 10).map((doc) => (
-            <div key={doc.id} className="proj-detail-ds__doc-row">
-              <strong>{doc.name}</strong>
-              <span>{tD(`documents.cats.${doc.category}`)}</span>
-              <span>{doc.size}</span>
-              <StatusChip tone="default">{doc.owner}</StatusChip>
-            </div>
-          ))}
-        </div>
+        {loading ? (
+          <p className="proj-detail-ds__drive-empty" data-testid="project-documents-loading">
+            {tD('documents.loading')}
+          </p>
+        ) : loadError ? (
+          <div className="proj-detail-ds__drive-error" data-testid="project-documents-error">
+            <p>{loadError}</p>
+          </div>
+        ) : assets.length === 0 ? (
+          <p className="proj-detail-ds__drive-empty" data-testid="project-documents-empty">
+            {tD('documents.empty')}
+          </p>
+        ) : (
+          <div className="proj-detail-ds__doc-list" data-testid="project-documents-list">
+            {assets.slice(0, 50).map((doc) => {
+              const isDrive = doc.source_type === 'google_drive';
+              return (
+                <div
+                  key={doc.id}
+                  className="proj-detail-ds__doc-row"
+                  data-testid={`project-document-row-${doc.id}`}
+                >
+                  <strong title={doc.filename}>{doc.filename}</strong>
+                  <span>{categoryLabel(doc.folder_category?.trim() || '__uncategorized__')}</span>
+                  <span>
+                    {fileTypeLabel(doc)} · {formatFileSize(doc.file_size)}
+                  </span>
+                  {isDrive ? (
+                    <StatusChip tone="info">
+                      <span data-testid={`project-document-drive-${doc.id}`}>
+                        {tD('documents.sourceGoogleDrive')}
+                      </span>
+                    </StatusChip>
+                  ) : (
+                    <StatusChip tone="default">{tD('documents.sourceUpload')}</StatusChip>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </article>
     </div>
   );

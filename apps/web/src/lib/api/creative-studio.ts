@@ -273,6 +273,7 @@ export type CreativeStudioMediaUploadInput = {
 export type CreativeStudioMediaListParams = {
   folder_id?: string | null;
   tag?: string | null;
+  linked_project_id?: string | null;
   include_archived?: boolean;
   page?: number;
   page_size?: number;
@@ -289,6 +290,7 @@ function buildMediaQuery(
   if (params?.q) search.set('q', params.q);
   if (params?.folder_id) search.set('folder_id', params.folder_id);
   if (params?.tag) search.set('tag', params.tag);
+  if (params?.linked_project_id) search.set('linked_project_id', params.linked_project_id);
   if (params?.include_archived) search.set('include_archived', 'true');
   if (params?.page != null) search.set('page', String(params.page));
   if (params?.page_size != null) search.set('page_size', String(params.page_size));

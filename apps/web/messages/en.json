@@ -2100,7 +2100,27 @@
       },
       "documents": {
         "categories": "Document categories",
-        "recent": "Recent Uploads",
+        "recent": "Project Documents",
+        "loading": "Loading project documents…",
+        "loadError": "Could not load project documents.",
+        "empty": "No synced project documents yet. Map a Google Drive folder and sync to populate this list.",
+        "uncategorized": "Uncategorized",
+        "unknownType": "FILE",
+        "sourceGoogleDrive": "Google Drive",
+        "sourceUpload": "Upload",
+        "folderCats": {
+          "00_PROJECT_INFO": "Project Info",
+          "01_BRAND": "Brand",
+          "02_RENDER": "Render",
+          "03_FLOOR_PLANS": "Floor Plans",
+          "04_UNIT_PLANS": "Unit Plans",
+          "05_LOCATION": "Location",
+          "06_MEDIA": "Media",
+          "07_CATALOG": "Catalog",
+          "08_MARKETING": "Marketing",
+          "09_DOCUMENTS": "Documents",
+          "10_ARCHIVE": "Archive"
+        },
         "cats": {
           "contracts": "Contracts",
           "permits": "Permits",
