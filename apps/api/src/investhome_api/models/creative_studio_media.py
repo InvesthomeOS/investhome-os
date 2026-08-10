@@ -68,6 +68,15 @@ class CreativeStudioMediaFolder(Base):
     )
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Google Drive hierarchy (nullable — manual upload folders omit these)
+    external_folder_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    external_parent_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    linked_project_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     parent: Mapped["CreativeStudioMediaFolder | None"] = relationship(
         "CreativeStudioMediaFolder",
         remote_side="CreativeStudioMediaFolder.id",
@@ -86,6 +95,9 @@ class CreativeStudioMediaFolder(Base):
         Index("ix_cs_media_folders_parent_id", "parent_id"),
         Index("ix_cs_media_folders_company_id", "company_id"),
         Index("ix_cs_media_folders_archived_at", "archived_at"),
+        Index("ix_cs_media_folders_external_folder_id", "external_folder_id", unique=True),
+        Index("ix_cs_media_folders_external_parent_id", "external_parent_id"),
+        Index("ix_cs_media_folders_linked_project_id", "linked_project_id"),
     )
 
 

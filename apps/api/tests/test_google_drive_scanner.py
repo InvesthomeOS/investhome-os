@@ -290,6 +290,12 @@ def test_move_preserves_asset_id(db_session: Session) -> None:
     assert asset is not None
     assert asset.external_parent_id == "folder-media"
     assert asset.folder_category == "06_MEDIA"
+    assert asset.folder_id is not None
+    from investhome_api.models.creative_studio_media import CreativeStudioMediaFolder
+
+    media_row = db_session.get(CreativeStudioMediaFolder, asset.folder_id)
+    assert media_row is not None
+    assert media_row.external_folder_id == "folder-media"
 
 
 def test_modified_updates_asset(db_session: Session) -> None:
@@ -572,6 +578,116 @@ def test_checksum_possible_duplicate_no_merge(db_session: Session) -> None:
     assert db_session.query(CreativeStudioMediaAsset).filter_by(linked_project_id=project.id).count() == 2
 
 
+def test_sync_persists_drive_folder_hierarchy(db_session: Session) -> None:
+    project = _create_project(db_session)
+    _map_project(db_session, project)
+    nested = _meta("folder-nested", "subfolder", parent="folder-render", is_folder=True)
+    empty = _meta("folder-empty", "empty-bin", parent="folder-render", is_folder=True)
+    media = _meta("file-1", "hero.png", parent="folder-nested", md5="checksum-1")
+    cat = _meta("folder-render", "02_RENDER", parent=PROJECT_FOLDER, is_folder=True)
+    provider = FakeDriveProvider(
+        children={
+            ROOT_ID: [_meta(PROJECT_FOLDER, "My Project", parent=ROOT_ID, is_folder=True)],
+            PROJECT_FOLDER: [cat],
+            "folder-render": [nested, empty],
+            "folder-nested": [media],
+            "folder-empty": [],
+        },
+        files={
+            ROOT_ID: _meta(ROOT_ID, "Root", parent="", is_folder=True),
+            PROJECT_FOLDER: _meta(PROJECT_FOLDER, "My Project", parent=ROOT_ID, is_folder=True),
+            "folder-render": cat,
+            "folder-nested": nested,
+            "folder-empty": empty,
+            "file-1": media,
+        },
+    )
+    summary = DriveAssetScanner(db_session, provider, project_id=project.id).sync()
+    db_session.commit()
+
+    assert summary.created == 1
+    assert summary.folders_discovered >= 4  # project + render + nested + empty
+    assert summary.folders_upserted >= 4
+
+    from investhome_api.models.creative_studio_media import CreativeStudioMediaFolder
+
+    folders = {
+        f.external_folder_id: f
+        for f in db_session.query(CreativeStudioMediaFolder)
+        .filter_by(linked_project_id=project.id)
+        .all()
+    }
+    assert set(folders) >= {PROJECT_FOLDER, "folder-render", "folder-nested", "folder-empty"}
+    assert folders[PROJECT_FOLDER].name == "My Project"
+    assert folders[PROJECT_FOLDER].parent_id is None
+    assert folders["folder-render"].name == "02_RENDER"
+    assert folders["folder-render"].parent_id == folders[PROJECT_FOLDER].id
+    assert folders["folder-render"].external_parent_id == PROJECT_FOLDER
+    assert folders["folder-nested"].parent_id == folders["folder-render"].id
+    assert folders["folder-empty"].parent_id == folders["folder-render"].id
+
+    asset = db_session.query(CreativeStudioMediaAsset).filter_by(external_file_id="file-1").one()
+    assert asset.folder_id == folders["folder-nested"].id
+    asset_id = asset.id
+
+    # Re-sync must not recreate assets or duplicate folders
+    summary2 = DriveAssetScanner(db_session, provider, project_id=project.id).sync()
+    db_session.commit()
+    assert summary2.created == 0
+    assert (
+        db_session.query(CreativeStudioMediaAsset).filter_by(external_file_id="file-1").one().id
+        == asset_id
+    )
+    assert (
+        db_session.query(CreativeStudioMediaFolder)
+        .filter_by(linked_project_id=project.id)
+        .count()
+        == len(folders)
+    )
+
+
+def test_resync_links_existing_assets_to_folders(db_session: Session) -> None:
+    """Backfill path: assets already exist with external_parent_id but no folder_id."""
+    project = _create_project(db_session)
+    _map_project(db_session, project)
+    orphan = CreativeStudioMediaAsset(
+        id=uuid4(),
+        filename="hero.png",
+        content_type="image/png",
+        file_size=100,
+        storage_provider="google_drive",
+        storage_key="gdrive:file-1",
+        linked_project_id=project.id,
+        source_type=MediaAssetSourceType.GOOGLE_DRIVE.value,
+        external_file_id="file-1",
+        external_parent_id="folder-render",
+        external_checksum="checksum-1",
+        sync_status=MediaAssetSyncStatus.ACTIVE.value,
+        folder_category="02_RENDER",
+        folder_id=None,
+    )
+    db_session.add(orphan)
+    db_session.commit()
+    orphan_id = orphan.id
+
+    summary = DriveAssetScanner(db_session, _standard_tree(), project_id=project.id).sync()
+    db_session.commit()
+
+    assert summary.created == 0
+    assert summary.updated == 1
+    from investhome_api.models.creative_studio_media import CreativeStudioMediaFolder
+
+    render = (
+        db_session.query(CreativeStudioMediaFolder)
+        .filter_by(external_folder_id="folder-render")
+        .one()
+    )
+    asset = db_session.get(CreativeStudioMediaAsset, orphan_id)
+    assert asset is not None
+    assert asset.folder_id == render.id
+    assert asset.external_file_id == "file-1"
+
+
 def test_sync_endpoint_dry_run(client, db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
     project = _create_project(db_session)
     _map_project(db_session, project)
@@ -587,4 +703,5 @@ def test_sync_endpoint_dry_run(client, db_session: Session, monkeypatch: pytest.
     body = response.json()
     assert body["dry_run"] is True
     assert body["created"] == 1
+    assert body["folders_discovered"] >= 2
     assert db_session.query(CreativeStudioMediaAsset).filter_by(external_file_id="file-1").count() == 0

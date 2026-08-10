@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from investhome_api.models.creative_studio_media import (
     CreativeStudioMediaAsset,
+    CreativeStudioMediaFolder,
     MediaAssetSourceType,
     MediaAssetSyncStatus,
 )
@@ -67,6 +68,8 @@ class DriveSyncSummary:
     unchanged: int = 0
     missing: int = 0
     skipped: int = 0
+    folders_upserted: int = 0
+    folders_discovered: int = 0
     possible_duplicates: list[PossibleDuplicateItem] = field(default_factory=list)
     errors: list[SyncErrorItem] = field(default_factory=list)
     dry_run: bool = False
@@ -80,6 +83,8 @@ class DriveSyncSummary:
             "unchanged": self.unchanged,
             "missing": self.missing,
             "skipped": self.skipped,
+            "folders_upserted": self.folders_upserted,
+            "folders_discovered": self.folders_discovered,
             "possible_duplicates": [
                 {
                     "drive_file_id": d.drive_file_id,
@@ -125,6 +130,9 @@ class DriveAssetScanner:
         self._ai_special_files: list[Any] = []
         self._ai_touched_asset_ids: list[UUID] = []
         self._ai_missing_assets: list[CreativeStudioMediaAsset] = []
+        # Drive folder id → media_folders row (populated during sync walk / ensure)
+        self._folders_by_external_id: dict[str, CreativeStudioMediaFolder] = {}
+        self._project_drive_folder_id: str | None = None
 
     def sync(self, *, dry_run: bool = False) -> DriveSyncSummary:
         summary = DriveSyncSummary(dry_run=dry_run)
@@ -180,13 +188,27 @@ class DriveAssetScanner:
         self._ai_special_files = []
         self._ai_touched_asset_ids = []
         self._ai_missing_assets = []
+        self._folders_by_external_id = {}
+        self._project_drive_folder_id = mapping.drive_folder_id
+        self._load_existing_drive_folders()
+
         try:
+            root_meta = self.provider.get_file(mapping.drive_folder_id)
+            self._upsert_drive_folder(
+                drive_folder_id=mapping.drive_folder_id,
+                name=root_meta.name or "Project",
+                drive_parent_id=root_meta.parent_ids[0] if root_meta.parent_ids else None,
+                parent_media_id=None,
+                summary=summary,
+                dry_run=dry_run,
+            )
             self._walk_folder(
                 mapping.drive_folder_id,
                 folder_category=None,
                 discovered=discovered,
                 summary=summary,
                 under_archive=False,
+                dry_run=dry_run,
             )
         except GoogleDriveError as exc:
             summary.errors.append(
@@ -199,6 +221,7 @@ class DriveAssetScanner:
             return summary
 
         summary.scanned = len(discovered)
+        summary.folders_discovered = len(self._folders_by_external_id)
         seen_file_ids = {item.meta.id for item in discovered}
 
         existing_by_file_id = self._load_existing_drive_assets()
@@ -260,6 +283,8 @@ class DriveAssetScanner:
                 "assets_updated": summary.updated,
                 "assets_unchanged": summary.unchanged,
                 "assets_missing": summary.missing,
+                "folders_upserted": summary.folders_upserted,
+                "folders_discovered": summary.folders_discovered,
                 "error_count": len(summary.errors),
             },
         )
@@ -283,6 +308,176 @@ class DriveAssetScanner:
         ).all()
         return {a.external_file_id: a for a in rows if a.external_file_id}
 
+    def _load_existing_drive_folders(self) -> None:
+        rows = self.db.scalars(
+            select(CreativeStudioMediaFolder).where(
+                CreativeStudioMediaFolder.linked_project_id == self.project_id,
+                CreativeStudioMediaFolder.external_folder_id.is_not(None),
+            )
+        ).all()
+        for folder in rows:
+            if folder.external_folder_id:
+                self._folders_by_external_id[folder.external_folder_id] = folder
+
+    def _upsert_drive_folder(
+        self,
+        *,
+        drive_folder_id: str,
+        name: str,
+        drive_parent_id: str | None,
+        parent_media_id: UUID | None,
+        summary: DriveSyncSummary,
+        dry_run: bool,
+    ) -> CreativeStudioMediaFolder | None:
+        """Create/update a media_folders row keyed by Drive folder id. Never duplicates."""
+        existing = self._folders_by_external_id.get(drive_folder_id)
+        if existing is None:
+            existing = self.db.scalar(
+                select(CreativeStudioMediaFolder).where(
+                    CreativeStudioMediaFolder.external_folder_id == drive_folder_id
+                )
+            )
+            if existing is not None:
+                self._folders_by_external_id[drive_folder_id] = existing
+
+        clean_name = (name or "Untitled").strip()[:255] or "Untitled"
+        if existing is None:
+            summary.folders_upserted += 1
+            if dry_run:
+                # Synthetic stand-in so dry_run asset linking can resolve folder_id locally
+                placeholder = CreativeStudioMediaFolder(
+                    id=uuid4(),
+                    name=clean_name,
+                    parent_id=parent_media_id,
+                    company_id=self.company_id,
+                    external_folder_id=drive_folder_id,
+                    external_parent_id=drive_parent_id,
+                    linked_project_id=self.project_id,
+                )
+                self._folders_by_external_id[drive_folder_id] = placeholder
+                return placeholder
+            folder = CreativeStudioMediaFolder(
+                id=uuid4(),
+                name=clean_name,
+                parent_id=parent_media_id,
+                company_id=self.company_id,
+                external_folder_id=drive_folder_id,
+                external_parent_id=drive_parent_id,
+                linked_project_id=self.project_id,
+            )
+            self.db.add(folder)
+            self.db.flush()
+            self._folders_by_external_id[drive_folder_id] = folder
+            return folder
+
+        changed = False
+        if existing.name != clean_name:
+            existing.name = clean_name
+            changed = True
+        if existing.external_parent_id != drive_parent_id:
+            existing.external_parent_id = drive_parent_id
+            changed = True
+        if existing.parent_id != parent_media_id:
+            existing.parent_id = parent_media_id
+            changed = True
+        if existing.linked_project_id != self.project_id:
+            existing.linked_project_id = self.project_id
+            changed = True
+        if existing.company_id is None and self.company_id is not None:
+            existing.company_id = self.company_id
+            changed = True
+        if existing.archived_at is not None:
+            existing.archived_at = None
+            changed = True
+        if changed:
+            summary.folders_upserted += 1
+            if not dry_run:
+                existing.updated_at = datetime.now(UTC)
+        self._folders_by_external_id[drive_folder_id] = existing
+        return existing
+
+    def ensure_folder_chain(
+        self,
+        drive_folder_id: str,
+        *,
+        summary: DriveSyncSummary | None = None,
+        dry_run: bool = False,
+    ) -> CreativeStudioMediaFolder | None:
+        """Ensure Drive folder + ancestors under the project root exist in media_folders.
+
+        Used by incremental file sync when a full folder walk did not run.
+        """
+        if not drive_folder_id:
+            return None
+        if drive_folder_id in self._folders_by_external_id:
+            return self._folders_by_external_id[drive_folder_id]
+
+        project_root = self._project_drive_folder_id
+        if project_root is None:
+            mapping = self._get_active_mapping()
+            if mapping is None:
+                return None
+            project_root = mapping.drive_folder_id
+            self._project_drive_folder_id = project_root
+            self._load_existing_drive_folders()
+
+        # Climb to project root (inclusive), then upsert top-down
+        chain: list[DriveFileMeta] = []
+        current = drive_folder_id
+        seen: set[str] = set()
+        while current and current not in seen:
+            seen.add(current)
+            try:
+                meta = self.provider.get_file(current)
+            except GoogleDriveError:
+                break
+            chain.append(meta)
+            if current == project_root:
+                break
+            if not meta.parent_ids:
+                break
+            current = meta.parent_ids[0]
+
+        if not chain or chain[-1].id != project_root:
+            # Parent is outside mapped project tree — best-effort single folder
+            if drive_folder_id in self._folders_by_external_id:
+                return self._folders_by_external_id[drive_folder_id]
+            try:
+                meta = self.provider.get_file(drive_folder_id)
+            except GoogleDriveError:
+                return None
+            sync_summary = summary or DriveSyncSummary(dry_run=dry_run)
+            return self._upsert_drive_folder(
+                drive_folder_id=meta.id,
+                name=meta.name,
+                drive_parent_id=meta.parent_ids[0] if meta.parent_ids else None,
+                parent_media_id=None,
+                summary=sync_summary,
+                dry_run=dry_run,
+            )
+
+        sync_summary = summary or DriveSyncSummary(dry_run=dry_run)
+        parent_media_id: UUID | None = None
+        last: CreativeStudioMediaFolder | None = None
+        for meta in reversed(chain):
+            drive_parent = meta.parent_ids[0] if meta.parent_ids else None
+            # Project root is the tree root in Media Library (no parent_id FK)
+            is_root = meta.id == project_root
+            last = self._upsert_drive_folder(
+                drive_folder_id=meta.id,
+                name=meta.name,
+                drive_parent_id=drive_parent,
+                parent_media_id=None if is_root else parent_media_id,
+                summary=sync_summary,
+                dry_run=dry_run,
+            )
+            parent_media_id = last.id if last is not None else None
+        return last
+
+    def _media_folder_id_for_drive_parent(self, drive_parent_id: str) -> UUID | None:
+        folder = self._folders_by_external_id.get(drive_parent_id)
+        return folder.id if folder is not None else None
+
     def _build_checksum_index(
         self,
         existing_by_file_id: dict[str, CreativeStudioMediaAsset],
@@ -302,6 +497,7 @@ class DriveAssetScanner:
         discovered: list[_DiscoveredFile],
         summary: DriveSyncSummary,
         under_archive: bool,
+        dry_run: bool = False,
     ) -> None:
         children = list(self.provider.list_children(folder_id))
         folder_meta: dict[str, Any] | None = None
@@ -316,8 +512,19 @@ class DriveAssetScanner:
                 summary.warnings.extend(meta_warnings)
                 break
 
+        parent_media = self._folders_by_external_id.get(folder_id)
+        parent_media_id = parent_media.id if parent_media is not None else None
+
         for child in children:
             if child.is_folder:
+                self._upsert_drive_folder(
+                    drive_folder_id=child.id,
+                    name=child.name,
+                    drive_parent_id=folder_id,
+                    parent_media_id=parent_media_id,
+                    summary=summary,
+                    dry_run=dry_run,
+                )
                 category = resolve_folder_category(child.name) or folder_category
                 is_archive = under_archive or category == ARCHIVE_CATEGORY
                 self._walk_folder(
@@ -326,6 +533,7 @@ class DriveAssetScanner:
                     discovered=discovered,
                     summary=summary,
                     under_archive=is_archive,
+                    dry_run=dry_run,
                 )
                 continue
 
@@ -408,6 +616,7 @@ class DriveAssetScanner:
     ) -> None:
         meta = item.meta
         existing = existing_by_file_id.get(meta.id)
+        folder_uuid = self._media_folder_id_for_drive_parent(item.parent_folder_id)
 
         # Checksum possible-duplicate (different drive_file_id) — never auto-merge
         if meta.md5_checksum and not existing:
@@ -434,6 +643,7 @@ class DriveAssetScanner:
                 file_size=meta.size or 0,
                 storage_provider=STORAGE_PROVIDER_GOOGLE_DRIVE,
                 storage_key=f"gdrive:{meta.id}",
+                folder_id=folder_uuid,
                 linked_project_id=self.project_id,
                 company_id=self.company_id,
                 source_type=MediaAssetSourceType.GOOGLE_DRIVE.value,
@@ -467,6 +677,7 @@ class DriveAssetScanner:
 
         # Same drive_file_id → same Asset ID (rename/move preserve id)
         changed = False
+        folder_link_changed = existing.folder_id != folder_uuid
         new_filename = meta.name[:255]
         new_content_type = meta.mime_type[:120]
         new_size = meta.size or 0
@@ -506,12 +717,12 @@ class DriveAssetScanner:
 
         checksum_changed = existing.external_checksum != meta.md5_checksum
         category_changed = existing.folder_category != item.folder_category
-        # AI reindex when content/identity signals change (not rename-only)
+        # AI reindex when content/identity signals change (not rename-only / folder-link-only)
         ai_content_changed = bool(
             checksum_changed or modified_changed or was_missing or meta_json_changed or category_changed
         )
 
-        if changed:
+        if changed or folder_link_changed:
             summary.updated += 1
         else:
             summary.unchanged += 1
@@ -527,6 +738,8 @@ class DriveAssetScanner:
             existing.file_size = new_size
         if existing.external_parent_id != item.parent_folder_id:
             existing.external_parent_id = item.parent_folder_id
+        if folder_link_changed:
+            existing.folder_id = folder_uuid
         if existing.folder_category != item.folder_category:
             existing.folder_category = item.folder_category
         if existing.external_checksum != meta.md5_checksum:
@@ -546,8 +759,10 @@ class DriveAssetScanner:
             existing.sync_status = MediaAssetSyncStatus.ACTIVE.value
         if item.folder_meta is not None and existing.drive_meta_json != item.folder_meta:
             existing.drive_meta_json = item.folder_meta
-        if changed:
+        if changed or folder_link_changed:
             existing.updated_at = datetime.now(UTC)
+        # Folder-link repair alone must not enqueue AI reindex
+        if changed:
             self._ai_touched_asset_ids.append(existing.id)
             from investhome_api.services.ai_index.hooks import notify_asset_upserted
 

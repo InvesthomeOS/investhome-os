@@ -50,6 +50,8 @@ class DriveSyncResponse(BaseModel):
     unchanged: int
     missing: int
     skipped: int = 0
+    folders_upserted: int = 0
+    folders_discovered: int = 0
     possible_duplicates: list[DriveSyncDuplicateItem] = Field(default_factory=list)
     errors: list[DriveSyncErrorItem] = Field(default_factory=list)
     dry_run: bool

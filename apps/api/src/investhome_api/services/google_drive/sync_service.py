@@ -744,6 +744,8 @@ class DriveSyncOrchestrator:
             company_id=project.company_id,
         )
         summary = DriveSyncSummary(dry_run=False)
+        scanner._project_drive_folder_id = mapping.drive_folder_id
+        scanner._load_existing_drive_folders()
 
         try:
             # Folder / metadata.json changes → scoped re-walk of project (safe, no binary media)
@@ -880,6 +882,8 @@ class DriveSyncOrchestrator:
                 else:
                     summary.skipped += 1
                 continue
+
+            scanner.ensure_folder_chain(parent_id, summary=summary, dry_run=False)
 
             item = _DiscoveredFile(
                 meta=meta,
