@@ -3,14 +3,15 @@
 import type { Route } from 'next';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { Button, Select, StatusChip } from '@investhome/ui';
 
 import { IhIcon } from '@/components/icons/ih-icons';
+import { ApiError } from '@/lib/api/client';
+import { generateCreativeStudioContent } from '@/lib/api/creative-studio';
 
 import {
-  AI_STATUS_SEQUENCE,
   BOTTOM_ACTIONS,
   CAMPAIGN_STATUS_TONE,
   DEFAULT_POSTS,
@@ -36,6 +37,14 @@ import {
   type SmbRightRailId,
   type SocialPost,
 } from './social-media-builder-model';
+import {
+  applyGeneratedCopyToPost,
+  buildSocialGenerateRequest,
+  defaultSocialInstruction,
+  hasInsufficientContext,
+  toGenerationMeta,
+  type SocialGenerationMeta,
+} from './social-media-builder-generation';
 import {
   loadLastConstructionProjectId,
   loadPersistedLinkedProjectIdHint,
@@ -81,6 +90,7 @@ function visualTemplateForProject(
 export function SocialMediaBuilderWorkspace() {
   const t = useTranslations('creativeStudio.ds.socialMediaBuilder');
   const tTools = useTranslations('creativeStudio.ds.tools');
+  const locale = useLocale();
 
   const docApi = useBuilderDocument({
     documentType: 'social',
@@ -97,6 +107,8 @@ export function SocialMediaBuilderWorkspace() {
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus>('ready');
   const [saved, setSaved] = useState(true);
   const [aiStatus, setAiStatus] = useState<AiStatusKey>('idle');
+  const [generating, setGenerating] = useState(false);
+  const [generationMeta, setGenerationMeta] = useState<SocialGenerationMeta | null>(null);
   const [leftRailId, setLeftRailId] = useState<SmbLeftRailId>('templates');
   const [rightRailId, setRightRailId] = useState<SmbRightRailId>('content');
   const focus = useCreativeStudioFocusMode({ storageKey: 'social-media-builder' });
@@ -116,7 +128,8 @@ export function SocialMediaBuilderWorkspace() {
   const [toast, setToast] = useState<string | null>(null);
 
   const filmstripRef = useRef<HTMLDivElement | null>(null);
-  const genTimerRef = useRef<number[]>([]);
+  const genIdleTimerRef = useRef<number | null>(null);
+  const generateAbortRef = useRef(0);
 
   const selectedConstruction = useMemo(
     () =>
@@ -209,7 +222,8 @@ export function SocialMediaBuilderWorkspace() {
     })();
     return () => {
       cancelled = true;
-      genTimerRef.current.forEach((id) => window.clearTimeout(id));
+      if (genIdleTimerRef.current != null) window.clearTimeout(genIdleTimerRef.current);
+      generateAbortRef.current += 1;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -274,6 +288,7 @@ export function SocialMediaBuilderWorkspace() {
   async function handleProjectChange(id: string) {
     const draft = await docApi.selectConstructionProject(id);
     coverAsset.hydrateMedia(draft?.coverImage ?? null, draft?.galleryImages ?? []);
+    setGenerationMeta(null);
     setSaved(Boolean(draft));
   }
 
@@ -385,24 +400,98 @@ export function SocialMediaBuilderWorkspace() {
     el.scrollBy({ left: dir * 160, behavior: 'smooth' });
   }
 
-  function runAiDemo() {
-    genTimerRef.current.forEach((id) => window.clearTimeout(id));
-    genTimerRef.current = [];
-    setAiStatus('thinking');
-    setCampaignStatus('draft');
-    AI_STATUS_SEQUENCE.forEach((status, index) => {
-      const id = window.setTimeout(() => {
-        setAiStatus(status);
-        if (status === 'completed') {
-          setCampaignStatus('ready');
-          void persistNow();
-          showToast(t('toasts.generated'));
-          window.setTimeout(() => setAiStatus('idle'), 1600);
+  const runAiGenerate = useCallback(
+    async (instruction: string) => {
+      const built = buildSocialGenerateRequest({
+        linkedProjectId: docApi.constructionProjectId,
+        instruction,
+        coverImage: coverAsset.coverImage,
+        galleryImages: coverAsset.galleryImages,
+        language: locale,
+        platforms,
+        formatPreset,
+        platform: selectedPost.platform,
+        postName: selectedPost.name,
+        format: selectedPost.format,
+      });
+
+      if (!built.ok) {
+        if (built.reason === 'missing_project') {
+          showToast(t('toasts.projectRequired'));
+        } else {
+          showToast(t('toasts.instructionRequired'));
         }
-      }, 320 * (index + 1));
-      genTimerRef.current.push(id);
-    });
-  }
+        return;
+      }
+
+      if (genIdleTimerRef.current != null) {
+        window.clearTimeout(genIdleTimerRef.current);
+        genIdleTimerRef.current = null;
+      }
+
+      const token = ++generateAbortRef.current;
+      setGenerating(true);
+      setAiStatus('thinking');
+      setCampaignStatus('draft');
+
+      try {
+        const response = await generateCreativeStudioContent(built.request);
+        if (token !== generateAbortRef.current) return;
+
+        const meta = toGenerationMeta(response);
+        setGenerationMeta(meta);
+
+        const copy = applyGeneratedCopyToPost(response.generated_content);
+        if (Object.keys(copy).length) {
+          setPosts((prev) =>
+            prev.map((p) => (p.id === selectedPostId ? { ...p, ...copy } : p)),
+          );
+          markDirty();
+          setRightRailId('content');
+        }
+
+        if (hasInsufficientContext(response)) {
+          showToast(t('toasts.insufficientContext'));
+        } else if (meta.warnings.length) {
+          showToast(t('toasts.generationWarning', { warning: meta.warnings[0]! }));
+        } else {
+          showToast(t('toasts.generated'));
+        }
+
+        setAiStatus('completed');
+        setCampaignStatus('ready');
+        void persistNow();
+        genIdleTimerRef.current = window.setTimeout(() => {
+          if (token === generateAbortRef.current) setAiStatus('idle');
+        }, 1600);
+      } catch (err) {
+        if (token !== generateAbortRef.current) return;
+        setAiStatus('idle');
+        setCampaignStatus('failed');
+        const message =
+          err instanceof ApiError && err.message
+            ? err.message
+            : t('toasts.generateFailed');
+        showToast(message);
+      } finally {
+        if (token === generateAbortRef.current) setGenerating(false);
+      }
+    },
+    [
+      coverAsset.coverImage,
+      coverAsset.galleryImages,
+      docApi.constructionProjectId,
+      formatPreset,
+      locale,
+      platforms,
+      persistNow,
+      selectedPost.format,
+      selectedPost.name,
+      selectedPost.platform,
+      selectedPostId,
+      t,
+    ],
+  );
 
   const leftDrawerContent = (
     <SmbLeftRailDrawer
@@ -411,6 +500,10 @@ export function SocialMediaBuilderWorkspace() {
       onApplyTemplate={handleApplyTemplate}
       onToast={showToast}
       onOpenMediaPicker={() => coverAsset.openPicker('cover')}
+      onGenerate={(instruction) => {
+        void runAiGenerate(instruction);
+      }}
+      generating={generating}
     />
   );
 
@@ -480,6 +573,15 @@ export function SocialMediaBuilderWorkspace() {
         data-testid="smb-workspace"
         data-cs-workspace-mode={focus.mode}
         data-cs-fullscreen={focus.isFullscreen ? 'true' : 'false'}
+        data-generation-grounded={
+          generationMeta == null ? undefined : generationMeta.grounded ? 'true' : 'false'
+        }
+        data-generation-citations={
+          generationMeta == null ? undefined : String(generationMeta.citations.length)
+        }
+        data-generation-warnings={
+          generationMeta == null ? undefined : generationMeta.warnings.join(',')
+        }
       >
         <header className="smb-ws__header cs-page-header">
           <div className="smb-ws__header-copy cs-page-header__copy">
@@ -824,9 +926,11 @@ export function SocialMediaBuilderWorkspace() {
                                 <button
                                   type="button"
                                   role="menuitem"
+                                  data-testid="smb-floating-ai-edit"
+                                  disabled={generating}
                                   onClick={() => {
                                     setLeftRailId('ai');
-                                    runAiDemo();
+                                    void runAiGenerate(defaultSocialInstruction(selectedPost));
                                     setFloatingMoreOpen(false);
                                   }}
                                 >

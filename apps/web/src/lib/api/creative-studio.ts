@@ -419,3 +419,98 @@ export async function deleteCreativeStudioMediaAsset(
     method: 'DELETE',
   });
 }
+
+// --- Shared Creative Studio AI generation ---
+
+export type CreativeStudioCitation = {
+  asset_id: string | null;
+  document_id: string;
+  document_name: string;
+  chunk_id: string;
+  chunk_reference: string;
+  chunk_order: number;
+  project_id: string;
+  score: number;
+  excerpt: string | null;
+  category: string | null;
+};
+
+export type CreativeStudioSelectedAsset = {
+  asset_id: string;
+  filename: string;
+  project_id: string;
+  folder_category: string | null;
+  content_type: string | null;
+};
+
+export type CreativeStudioBrandContext = {
+  available: boolean;
+  reason: string | null;
+  excerpts: string[];
+  document_ids: string[];
+  source_categories: string[];
+};
+
+export type CreativeStudioProjectIdentity = {
+  project_id: string;
+  project_code: string;
+  project_name: string;
+  project_type: string | null;
+  project_status: string | null;
+  city: string | null;
+  country: string | null;
+};
+
+export type CreativeStudioGenerationContext = {
+  project_identity: CreativeStudioProjectIdentity;
+  verified_facts: string[];
+  retrieved_content: Record<string, unknown>[];
+  selected_assets: CreativeStudioSelectedAsset[];
+  citations: CreativeStudioCitation[];
+  brand_context: CreativeStudioBrandContext;
+  builder_type: string;
+  language: string | null;
+  warnings: string[];
+};
+
+export type CreativeStudioGenerateRequest = {
+  linked_project_id: string;
+  builder_type: CreativeStudioDocumentType | string;
+  instruction: string;
+  selected_asset_ids?: string[];
+  language?: string | null;
+  builder_context?: Record<string, unknown> | null;
+};
+
+export type CreativeStudioGenerateResponse = {
+  generated_content: string;
+  project_id: string;
+  builder_type: string;
+  asset_ids_used: string[];
+  citations: CreativeStudioCitation[];
+  retrieval_confidence: number;
+  warnings: string[];
+  brand_context: CreativeStudioBrandContext;
+  grounded: boolean;
+  provider: string;
+  model: string;
+  search_time_ms: number;
+  latency_ms: number;
+  context: CreativeStudioGenerationContext | null;
+};
+
+export async function generateCreativeStudioContent(
+  input: CreativeStudioGenerateRequest,
+): Promise<CreativeStudioGenerateResponse> {
+  return apiFetch('/ai/creative-studio/generate', {
+    method: 'POST',
+    body: JSON.stringify({
+      linked_project_id: input.linked_project_id,
+      builder_type: input.builder_type,
+      instruction: input.instruction,
+      selected_asset_ids: input.selected_asset_ids ?? [],
+      language: input.language ?? undefined,
+      builder_context: input.builder_context ?? undefined,
+    }),
+  });
+}

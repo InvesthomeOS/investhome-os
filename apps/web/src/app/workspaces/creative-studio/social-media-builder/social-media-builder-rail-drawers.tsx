@@ -75,6 +75,9 @@ export type SmbLeftRailDrawerProps = {
   onToast: (msg: string) => void;
   /** Opens CsMediaPickerDialog — production media entry only from MediaDrawer. */
   onOpenMediaPicker?: () => void;
+  /** Shared Creative Studio generation — real API, not toast demo. */
+  onGenerate?: (instruction: string) => void;
+  generating?: boolean;
 };
 
 export function SmbLeftRailDrawer(props: SmbLeftRailDrawerProps) {
@@ -315,7 +318,7 @@ function BrandDrawer({ onToast }: SmbLeftRailDrawerProps) {
   );
 }
 
-function AiDrawer({ onToast }: SmbLeftRailDrawerProps) {
+function AiDrawer({ onToast, onGenerate, generating }: SmbLeftRailDrawerProps) {
   const t = useTranslations('creativeStudio.ds.socialMediaBuilder');
   const [prompt, setPrompt] = useState('');
 
@@ -323,7 +326,9 @@ function AiDrawer({ onToast }: SmbLeftRailDrawerProps) {
     <div className="smb-ws__rail-panel" data-testid="smb-rail-left-ai">
       <div className="smb-ws__rail-panel-head">
         <h2>{t('rails.ai.title')}</h2>
-        <StatusChip tone="info">{t('left.ready')}</StatusChip>
+        <StatusChip tone={generating ? 'warning' : 'info'}>
+          {generating ? t('aiStatus.thinking') : t('left.ready')}
+        </StatusChip>
       </div>
       <div className="smb-ws__rail-panel-body smb-ws__left-stack">
         <p className="smb-ws__muted">{t('rails.ai.help')}</p>
@@ -334,15 +339,26 @@ function AiDrawer({ onToast }: SmbLeftRailDrawerProps) {
             onChange={(e) => setPrompt(e.target.value)}
             placeholder={t('rails.ai.placeholder')}
             data-testid="smb-ai-prompt"
+            disabled={generating}
           />
         </Field>
         <Button
           variant="primary"
           size="sm"
           data-testid="smb-ai-generate"
+          disabled={generating}
           onClick={() => {
-            onToast(t('rails.ai.generated'));
-            setPrompt('');
+            const instruction = prompt.trim();
+            if (!instruction) {
+              onToast(t('toasts.instructionRequired'));
+              return;
+            }
+            if (onGenerate) {
+              onGenerate(instruction);
+              setPrompt('');
+              return;
+            }
+            onToast(t('toasts.generateFailed'));
           }}
         >
           <IhIcon name="sparkles" size={12} />

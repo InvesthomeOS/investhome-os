@@ -19143,6 +19143,11 @@
           "postAdded": "New post added",
           "templateApplied": "Template applied",
           "generated": "AI content ready",
+          "projectRequired": "Select a linked construction project before generating",
+          "instructionRequired": "Enter a generation prompt first",
+          "insufficientContext": "Not enough verified project context to generate grounded copy",
+          "generationWarning": "Generated with warnings: {warning}",
+          "generateFailed": "AI generation failed",
           "logoChanged": "Logo updated",
           "logoRemoved": "Logo removed",
           "imageChanged": "Background image updated"

@@ -13820,6 +13820,11 @@
           "postAdded": "Yeni gönderi eklendi",
           "templateApplied": "Şablon uygulandı",
           "generated": "AI içerik hazır",
+          "projectRequired": "Üretimden önce bağlı bir inşaat projesi seçin",
+          "instructionRequired": "Önce bir üretim komutu girin",
+          "insufficientContext": "Doğrulanmış proje bağlamı yetersiz — grounded metin üretilemedi",
+          "generationWarning": "Uyarılarla üretildi: {warning}",
+          "generateFailed": "AI üretimi başarısız oldu",
           "logoChanged": "Logo güncellendi",
           "logoRemoved": "Logo kaldırıldı",
           "imageChanged": "Arka plan görseli güncellendi"
