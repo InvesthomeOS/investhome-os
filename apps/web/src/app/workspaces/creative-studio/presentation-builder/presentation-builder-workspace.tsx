@@ -44,6 +44,13 @@ import {
   type PbLeftRailId,
   type PbRightRailId,
 } from './presentation-builder-rail-drawers';
+import {
+  loadLastConstructionProjectId,
+  loadPersistedLinkedProjectIdHint,
+  resolvePreferredConstructionProjectId,
+  saveEmergencySnapshot,
+  saveLastConstructionProjectId,
+} from './presentation-builder-persistence';
 
 import { CsBottomActionToolbar, CsMediaPickerDialog } from '../_components';
 import { useBuilderCoverAsset } from '../_components/use-builder-cover-asset';
@@ -77,7 +84,16 @@ export function PresentationBuilderWorkspace() {
   const t = useTranslations('creativeStudio.ds.presentationBuilder');
   const tTools = useTranslations('creativeStudio.ds.tools');
 
-  const docApi = useBuilderDocument({ documentType: 'presentation' });
+  const docApi = useBuilderDocument({
+    documentType: 'presentation',
+    preferredConstructionProject: {
+      loadLastId: loadLastConstructionProjectId,
+      saveLastId: saveLastConstructionProjectId,
+      loadDraftLinkedHint: loadPersistedLinkedProjectIdHint,
+      resolvePreferredId: resolvePreferredConstructionProjectId,
+      onDraftSaved: saveEmergencySnapshot,
+    },
+  });
   const [hydrated, setHydrated] = useState(false);
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus>('ready');
   const [saved, setSaved] = useState(true);
@@ -118,6 +134,8 @@ export function PresentationBuilderWorkspace() {
   const coverAsset = useBuilderCoverAsset({
     templateCoverUrl: project.coverUrl,
     linkedProjectId: docApi.constructionProjectId,
+    seedFromTemplate: false,
+    scopeToLinkedProject: true,
   });
   const selectedSlide = slides.find((s) => s.id === selectedSlideId) ?? slides[0]!;
   const selectedIndex = slides.findIndex((s) => s.id === selectedSlide.id);
@@ -873,6 +891,7 @@ export function PresentationBuilderWorkspace() {
           onClose={coverAsset.closePicker}
           media={coverAsset.media}
           linkedProjectId={docApi.constructionProjectId}
+          lockLinkedProject
           selectedAssetId={coverAsset.coverImage?.asset_id ?? null}
           onSelect={(ref) => {
             coverAsset.setCoverImage(ref);

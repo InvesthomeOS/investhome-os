@@ -276,11 +276,4 @@ describe('media scoped by linked_project_id + no Unsplash production seed', () =
     assert.match(workspace, /seedFromTemplate:\s*false/);
   });
 
-  it('other builders omit preferredConstructionProject (opt-in only)', () => {
-    const presentation = readFileSync(
-      join(ebDir, '../presentation-builder/presentation-builder-workspace.tsx'),
-      'utf8',
-    );
-    assert.doesNotMatch(presentation, /preferredConstructionProject/);
-  });
 });
