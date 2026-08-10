@@ -75,6 +75,7 @@ export type LpbLeftRailDrawerProps = {
   onInsertComponent: (key: string) => void;
   onApplyTemplate: (type: string) => void;
   media: UseCsMediaLibraryResult;
+  linkedProjectId?: string | null;
   coverAssetId?: string | null;
   onSelectMediaAsset: (ref: CsImageRef) => void;
   onToast: (msg: string) => void;
@@ -174,7 +175,12 @@ function TemplatesDrawer({ templates, onApplyTemplate }: LpbLeftRailDrawerProps)
   );
 }
 
-function MediaDrawer({ media, coverAssetId, onSelectMediaAsset }: LpbLeftRailDrawerProps) {
+function MediaDrawer({
+  media,
+  linkedProjectId,
+  coverAssetId,
+  onSelectMediaAsset,
+}: LpbLeftRailDrawerProps) {
   const t = useTranslations('creativeStudio.ds.landingPageBuilder');
   const tPicker = useTranslations('creativeStudio.mediaPicker');
 
@@ -188,6 +194,8 @@ function MediaDrawer({ media, coverAssetId, onSelectMediaAsset }: LpbLeftRailDra
         <CsMediaPicker
           media={media}
           variant="inline"
+          linkedProjectId={linkedProjectId}
+          lockLinkedProject
           selectedAssetId={coverAssetId ?? null}
           onSelect={(ref) => onSelectMediaAsset(ref)}
           allowUpload

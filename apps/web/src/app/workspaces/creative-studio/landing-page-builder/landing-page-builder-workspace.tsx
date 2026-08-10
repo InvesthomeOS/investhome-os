@@ -82,6 +82,13 @@ import {
 } from '../_components/focus-workspace';
 
 import {
+  loadLastConstructionProjectId,
+  loadPersistedLinkedProjectIdHint,
+  resolvePreferredConstructionProjectId,
+  saveEmergencySnapshot,
+  saveLastConstructionProjectId,
+} from './landing-page-builder-persistence';
+import {
   LpbLeftRailDrawer,
   LpbLocalRail,
   LpbRightRailDrawer,
@@ -118,7 +125,16 @@ export function LandingPageBuilderWorkspace() {
   const t = useTranslations('creativeStudio.ds.landingPageBuilder');
   const tTools = useTranslations('creativeStudio.ds.tools');
 
-  const docApi = useBuilderDocument({ documentType: 'landing' });
+  const docApi = useBuilderDocument({
+    documentType: 'landing',
+    preferredConstructionProject: {
+      loadLastId: loadLastConstructionProjectId,
+      saveLastId: saveLastConstructionProjectId,
+      loadDraftLinkedHint: loadPersistedLinkedProjectIdHint,
+      resolvePreferredId: resolvePreferredConstructionProjectId,
+      onDraftSaved: saveEmergencySnapshot,
+    },
+  });
   const [hydrated, setHydrated] = useState(false);
   const [device, setDevice] = useState<DevicePreview>('desktop');
   // Legacy zoom state kept for A/B preview scale fallback; Fit-To-View owns Focus zoom.
@@ -211,6 +227,8 @@ export function LandingPageBuilderWorkspace() {
     templateCoverUrl: project.coverUrl,
     templateGalleryUrls,
     linkedProjectId: docApi.constructionProjectId,
+    seedFromTemplate: false,
+    scopeToLinkedProject: true,
   });
   const deviceSize = DEVICE_CONTENT[device] ?? DEVICE_CONTENT.desktop;
   const ftv = useFitToViewEngine({
@@ -1139,6 +1157,7 @@ export function LandingPageBuilderWorkspace() {
         handleGenerate(map[type] ?? 'investorLanding');
       }}
       media={coverAsset.media}
+      linkedProjectId={docApi.constructionProjectId}
       coverAssetId={coverAsset.coverImage?.asset_id ?? null}
       onSelectMediaAsset={(ref) => {
         coverAsset.setCoverImage(ref);
@@ -1586,6 +1605,7 @@ export function LandingPageBuilderWorkspace() {
           onClose={coverAsset.closePicker}
           media={coverAsset.media}
           linkedProjectId={docApi.constructionProjectId}
+          lockLinkedProject
           selectedAssetId={coverAsset.coverImage?.asset_id ?? null}
           onSelect={(ref) => {
             coverAsset.setCoverImage(ref);

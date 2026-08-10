@@ -48,6 +48,11 @@ export type CsMediaPickerProps = {
   /** When false, render inline (rail) without dialog chrome. Default true for dialog usage. */
   variant?: 'inline' | 'panel';
   linkedProjectId?: string | null;
+  /**
+   * When true and linkedProjectId is set, lock the project filter to that id
+   * and hide the "all projects" option (Landing Page Builder).
+   */
+  lockLinkedProject?: boolean;
   selectedAssetId?: string | null;
   onSelect: (ref: CsImageRef, item: CsMediaPickerItem) => void;
   onClose?: () => void;
@@ -97,6 +102,7 @@ export function CsMediaPicker({
   media,
   variant = 'panel',
   linkedProjectId,
+  lockLinkedProject = false,
   selectedAssetId,
   onSelect,
   onClose,
@@ -132,6 +138,9 @@ export function CsMediaPicker({
     notSelectable: labelOverrides?.notSelectable ?? t('notSelectable'),
   };
 
+  const lockedProjectId =
+    lockLinkedProject && linkedProjectId ? linkedProjectId : null;
+
   const [query, setQuery] = useState('');
   const [source, setSource] = useState<CsMediaSourceFilter>('all');
   const [category, setCategory] = useState('all');
@@ -147,6 +156,10 @@ export function CsMediaPicker({
   useEffect(() => {
     setProjectFilter(linkedProjectId ? linkedProjectId : 'all');
   }, [linkedProjectId]);
+
+  useEffect(() => {
+    if (lockedProjectId) setProjectFilter(lockedProjectId);
+  }, [lockedProjectId]);
 
   useEffect(() => {
     if (searchTimer.current) window.clearTimeout(searchTimer.current);
@@ -168,13 +181,16 @@ export function CsMediaPicker({
   }, [media.items]);
 
   const projects = useMemo(() => {
+    if (lockedProjectId) return [lockedProjectId];
     const set = new Set<string>();
     for (const item of media.items) {
       if (item.linkedProjectId) set.add(item.linkedProjectId);
     }
     if (linkedProjectId) set.add(linkedProjectId);
     return [...set].sort();
-  }, [linkedProjectId, media.items]);
+  }, [linkedProjectId, lockedProjectId, media.items]);
+
+  const effectiveProjectFilter = lockedProjectId ?? projectFilter;
 
   const filtered = useMemo(
     () =>
@@ -182,10 +198,10 @@ export function CsMediaPicker({
         query: '',
         source,
         category,
-        projectId: projectFilter,
+        projectId: effectiveProjectFilter,
         sort,
       }),
-    [category, media.items, projectFilter, sort, source],
+    [category, effectiveProjectFilter, media.items, sort, source],
   );
 
   const preview = filtered.find((i) => i.id === previewId) ?? null;
@@ -286,11 +302,15 @@ export function CsMediaPicker({
             ))}
           </select>
           <select
-            value={projectFilter}
-            onChange={(e) => setProjectFilter(e.target.value)}
+            value={effectiveProjectFilter}
+            onChange={(e) => {
+              if (lockedProjectId) return;
+              setProjectFilter(e.target.value);
+            }}
+            disabled={Boolean(lockedProjectId)}
             data-testid={`${testId}-project`}
           >
-            <option value="all">{labels.projectAll}</option>
+            {lockedProjectId ? null : <option value="all">{labels.projectAll}</option>}
             {projects.map((p) => (
               <option key={p} value={p}>
                 {p.slice(0, 8)}…

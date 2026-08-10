@@ -3,6 +3,8 @@
 /**
  * Creative Studio Document API hook for Landing/Blog/Email/Proposal/Presentation.
  * Resolves CS project by linked_project_id + document by document_type; persists media Asset IDs.
+ *
+ * Project restore (last selected + draft linkedProjectId) is opt-in so Blog/Email/etc stay unchanged.
  */
 
 import { useCallback, useRef, useState } from 'react';
@@ -38,6 +40,20 @@ export type BuilderBootstrapResult =
   | { ok: true; draft: BuilderMediaDraft | null }
   | { ok: false; error: string };
 
+/** Opt-in construction project restore (Landing Page Builder). */
+export type BuilderPreferredConstructionProject = {
+  loadLastId: () => string | null;
+  saveLastId: (projectId: string) => void;
+  loadDraftLinkedHint?: () => string | null;
+  /** Called after a successful draft save (emergency linkedProjectId hint). */
+  onDraftSaved?: (body: Record<string, unknown>) => void;
+  resolvePreferredId?: (options: {
+    projectIds: string[];
+    lastSelectedId?: string | null;
+    draftLinkedProjectId?: string | null;
+  }) => string | null;
+};
+
 export type UseBuilderDocumentResult = {
   loadStatus: BuilderLoadStatus;
   loadError: string | null;
@@ -51,11 +67,31 @@ export type UseBuilderDocumentResult = {
   saveDraft: (input: Omit<BuilderMediaPersistInput, 'documentType'>) => Promise<boolean>;
 };
 
+function defaultResolvePreferredId(options: {
+  projectIds: string[];
+  lastSelectedId?: string | null;
+  draftLinkedProjectId?: string | null;
+}): string | null {
+  const ids = new Set(options.projectIds.filter(Boolean));
+  if (!ids.size) return null;
+  for (const candidate of [options.lastSelectedId, options.draftLinkedProjectId]) {
+    if (typeof candidate === 'string' && ids.has(candidate)) return candidate;
+  }
+  return null;
+}
+
 export function useBuilderDocument(options: {
   documentType: BuilderMediaDocumentType;
+  /**
+   * When set, restore last selected / draft linkedProjectId instead of always projects[0].
+   * Landing Page Builder enables this; other builders omit it (unchanged behavior).
+   */
+  preferredConstructionProject?: BuilderPreferredConstructionProject;
 }): UseBuilderDocumentResult {
-  const { documentType } = options;
+  const { documentType, preferredConstructionProject } = options;
   const kindLabel = BUILDER_KIND_LABELS[documentType];
+  const preferredRef = useRef(preferredConstructionProject);
+  preferredRef.current = preferredConstructionProject;
 
   const [loadStatus, setLoadStatus] = useState<BuilderLoadStatus>('idle');
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -73,16 +109,34 @@ export function useBuilderDocument(options: {
   documentTypeRef.current = documentType;
 
   const applyDocument = useCallback(
-    async (document: {
-      id: string;
-      draft_body_json: Record<string, unknown> | null;
-    }) => {
+    async (
+      document: {
+        id: string;
+        draft_body_json: Record<string, unknown> | null;
+      },
+      linkedProjectId: string,
+    ) => {
       documentIdRef.current = document.id;
       setCsDocumentId(document.id);
-      return deserializeBuilderMediaDraft(
+      let draft = deserializeBuilderMediaDraft(
         document.draft_body_json,
         documentTypeRef.current,
       );
+
+      // Keep linkedProjectId durable when preferred restore is enabled (LPB).
+      if (preferredRef.current && draft && draft.linkedProjectId !== linkedProjectId) {
+        draft = { ...draft, linkedProjectId };
+        const body = serializeBuilderMediaDraft({
+          documentType: documentTypeRef.current,
+          linkedProjectId,
+          coverImage: draft.coverImage,
+          galleryImages: draft.galleryImages,
+        });
+        await saveCreativeStudioDraft(document.id, body);
+        preferredRef.current.onDraftSaved?.(body);
+      }
+
+      return draft;
     },
     [],
   );
@@ -106,7 +160,7 @@ export function useBuilderDocument(options: {
         getDocument: (id) => getCreativeStudioDocument(id),
       });
 
-      return applyDocument(document);
+      return applyDocument(document, project.id);
     },
     [applyDocument, kindLabel],
   );
@@ -127,7 +181,26 @@ export function useBuilderDocument(options: {
       if (!projects.length) {
         throw new Error('No construction projects available');
       }
-      const selected = projects[0]!;
+
+      const preferred = preferredRef.current;
+      let selected: Project;
+      if (preferred) {
+        const resolvePreferred =
+          preferred.resolvePreferredId ?? defaultResolvePreferredId;
+        const preferredId = resolvePreferred({
+          projectIds: projects.map((p) => p.id),
+          lastSelectedId: preferred.loadLastId(),
+          draftLinkedProjectId: preferred.loadDraftLinkedHint?.() ?? null,
+        });
+        selected =
+          projects.find((p) => p.id === preferredId) ?? projects.at(0)!;
+        // Persist immediately so subsequent reloads restore explicit selection
+        // instead of re-deriving from list order.
+        preferred.saveLastId(selected.id);
+      } else {
+        selected = projects[0]!;
+      }
+
       setConstructionProjectId(selected.id);
       const draft = await resolveForConstructionProject(selected);
       readyRef.current = true;
@@ -151,6 +224,7 @@ export function useBuilderDocument(options: {
       setLoadError(null);
       readyRef.current = false;
       try {
+        preferredRef.current?.saveLastId(projectId);
         setConstructionProjectId(projectId);
         const draft = await resolveForConstructionProject(project);
         readyRef.current = true;
@@ -183,6 +257,7 @@ export function useBuilderDocument(options: {
         });
         await saveCreativeStudioDraft(documentId, body);
         if (gen !== saveGenRef.current) return false;
+        preferredRef.current?.onDraftSaved?.(body);
         setSaveStatus('saved');
         return true;
       } catch {

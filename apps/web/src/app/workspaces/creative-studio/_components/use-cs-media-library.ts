@@ -110,10 +110,22 @@ export function useCsMediaLibrary(options?: {
   enabled?: boolean;
   /** When true, only image/* content types are listed (default true for builder image slots). */
   imagesOnly?: boolean;
+  /**
+   * When true (Landing Page Builder), require linkedProjectId and scope list/search
+   * to that project. Other builders omit this and keep unscoped list behavior.
+   */
+  scopeToLinkedProject?: boolean;
 }): UseCsMediaLibraryResult {
   const linkedProjectId = options?.linkedProjectId ?? null;
-  const enabled = options?.enabled !== false;
+  const scopeToLinkedProject = options?.scopeToLinkedProject === true;
+  const enabled =
+    options?.enabled !== false &&
+    (!scopeToLinkedProject || Boolean(linkedProjectId));
   const imagesOnly = options?.imagesOnly !== false;
+  const linkedProjectIdRef = useRef(linkedProjectId);
+  linkedProjectIdRef.current = linkedProjectId;
+  const scopeToLinkedProjectRef = useRef(scopeToLinkedProject);
+  scopeToLinkedProjectRef.current = scopeToLinkedProject;
 
   const [status, setStatus] = useState<CsMediaStatus>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -192,15 +204,22 @@ export function useCsMediaLibrary(options?: {
 
   const applyList = useCallback(
     (list: CreativeStudioMediaAsset[]) => {
+      const scopeId = linkedProjectIdRef.current;
+      const mustScope = scopeToLinkedProjectRef.current;
       const visible = list.filter((a) => {
         if (!shouldShowInBuilderPicker(a)) return false;
         if (imagesOnly && a.content_type && !a.content_type.startsWith('image/')) {
           return false;
         }
+        // Scope strictly to the active construction project — never leak cross-project assets.
+        if (mustScope) {
+          if (!scopeId || a.linked_project_id !== scopeId) return false;
+        }
         return true;
       });
       rawByIdRef.current = new Map(visible.map((a) => [a.id, a]));
       setRawAssets(visible);
+      // Empty Media Library = empty picker (no demo/sample fallback assets).
       setItems(
         visible.map((asset) =>
           mapToPickerItem(asset, blobCacheRef.current.get(asset.id) ?? null),
@@ -232,9 +251,12 @@ export function useCsMediaLibrary(options?: {
   const fetchList = useCallback(
     async (query?: string) => {
       if (!enabled) return;
+      if (scopeToLinkedProject && !linkedProjectId) return;
       const q = (query ?? lastQueryRef.current).trim();
       lastQueryRef.current = q;
-      const key = q || '__all__';
+      const key = scopeToLinkedProject
+        ? `${linkedProjectId}:${q || '__all__'}`
+        : q || '__all__';
       const gen = ++listGenRef.current;
 
       if (listInflightKeyRef.current === key && listInflightPromiseRef.current) {
@@ -246,9 +268,16 @@ export function useCsMediaLibrary(options?: {
         setStatus('loading');
         setError(null);
         try {
+          const listParams = {
+            page: 1 as const,
+            page_size: 100 as const,
+            ...(scopeToLinkedProject && linkedProjectId
+              ? { linked_project_id: linkedProjectId }
+              : {}),
+          };
           const response = q
-            ? await searchCreativeStudioMediaAssets({ q, page: 1, page_size: 100 })
-            : await listCreativeStudioMediaAssets({ page: 1, page_size: 100 });
+            ? await searchCreativeStudioMediaAssets({ q, ...listParams })
+            : await listCreativeStudioMediaAssets(listParams);
           if (gen !== listGenRef.current || !mountedRef.current) return;
           applyList(response.items ?? []);
           setStatus('ready');
@@ -274,7 +303,7 @@ export function useCsMediaLibrary(options?: {
       listInflightPromiseRef.current = pending;
       await pending;
     },
-    [applyList, enabled],
+    [applyList, enabled, linkedProjectId, scopeToLinkedProject],
   );
 
   const refresh = useCallback(
@@ -296,6 +325,7 @@ export function useCsMediaLibrary(options?: {
   const uploadAsset = useCallback(
     async (file: File): Promise<CreativeStudioMediaAsset | null> => {
       if (!enabled) return null;
+      if (scopeToLinkedProject && !linkedProjectId) return null;
       if (uploadLockRef.current) return null;
       uploadLockRef.current = true;
       setUploading(true);
@@ -321,13 +351,34 @@ export function useCsMediaLibrary(options?: {
         if (mountedRef.current) setUploading(false);
       }
     },
-    [enabled, ensureDisplayUrl, linkedProjectId, refresh],
+    [enabled, ensureDisplayUrl, linkedProjectId, refresh, scopeToLinkedProject],
   );
 
+  // Default (Blog/Email/etc): unchanged — fetch when enabled; linkedProjectId is upload-only.
   useEffect(() => {
+    if (scopeToLinkedProject) return;
     if (!enabled) return;
     void fetchList('');
-  }, [enabled, fetchList]);
+  }, [enabled, fetchList, scopeToLinkedProject]);
+
+  // Landing Page Builder: require linkedProjectId and re-scope on project switch.
+  useEffect(() => {
+    if (!scopeToLinkedProject) return;
+    if (!enabled || !linkedProjectId) {
+      listGenRef.current += 1;
+      listInflightKeyRef.current = null;
+      listInflightPromiseRef.current = null;
+      rawByIdRef.current = new Map();
+      setRawAssets([]);
+      setItems([]);
+      setStatus('idle');
+      setError(null);
+      return;
+    }
+    revokeAll();
+    lastQueryRef.current = '';
+    void fetchList('');
+  }, [enabled, linkedProjectId, scopeToLinkedProject, fetchList, revokeAll]);
 
   return {
     status,

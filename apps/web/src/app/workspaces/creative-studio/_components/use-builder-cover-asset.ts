@@ -30,7 +30,7 @@ export type UseBuilderCoverAssetResult = {
   pickerMode: 'cover' | 'gallery';
   applyPickerSelection: (ref: CsImageRef, item: CsMediaPickerItem) => void;
   clearCover: () => void;
-  /** Apply draft refs (or re-seed from template when null/empty). */
+  /** Apply draft refs (or re-seed from template when null/empty and seeding enabled). */
   hydrateMedia: (cover: CsImageRef | null, gallery?: CsImageRef[]) => void;
 };
 
@@ -39,14 +39,32 @@ export function useBuilderCoverAsset(options: {
   templateGalleryUrls?: string[];
   linkedProjectId?: string | null;
   enabled?: boolean;
+  /**
+   * When false (Landing Page Builder), never seed cover/gallery from Unsplash/template URLs.
+   * Empty selection stays empty; template URLs remain display-only fallbacks.
+   * Other builders keep default true.
+   */
+  seedFromTemplate?: boolean;
+  /**
+   * When true (Landing Page Builder), scope Media Library queries to linkedProjectId.
+   * Other builders omit this (unchanged unscoped list).
+   */
+  scopeToLinkedProject?: boolean;
 }): UseBuilderCoverAssetResult {
   const {
     templateCoverUrl,
     templateGalleryUrls = [],
     linkedProjectId = null,
     enabled = true,
+    seedFromTemplate = true,
+    scopeToLinkedProject = false,
   } = options;
-  const media = useCsMediaLibrary({ enabled, imagesOnly: true, linkedProjectId });
+  const media = useCsMediaLibrary({
+    enabled,
+    imagesOnly: true,
+    linkedProjectId,
+    scopeToLinkedProject,
+  });
 
   const [coverImage, setCoverImage] = useState<CsImageRef | null>(null);
   const [galleryImages, setGalleryImages] = useState<CsImageRef[]>([]);
@@ -57,13 +75,15 @@ export function useBuilderCoverAsset(options: {
 
   // Project/template switch: keep Asset ID refs; seed URL-only legacy from template when empty.
   useEffect(() => {
+    if (!seedFromTemplate) return;
     setCoverImage((prev) => {
       if (prev?.asset_id) return prev;
       return imageRefFromLegacyUrl(templateCoverUrl, 'cover');
     });
-  }, [templateCoverUrl]);
+  }, [seedFromTemplate, templateCoverUrl]);
 
   useEffect(() => {
+    if (!seedFromTemplate) return;
     setGalleryImages((prev) => {
       if (prev.some((r) => r.asset_id)) return prev;
       if (!templateGalleryUrls.length) return prev;
@@ -71,7 +91,7 @@ export function useBuilderCoverAsset(options: {
         .map((u) => imageRefFromLegacyUrl(u, 'gallery'))
         .filter((r): r is CsImageRef => r != null);
     });
-  }, [templateGalleryUrls]);
+  }, [seedFromTemplate, templateGalleryUrls]);
 
   useEffect(() => {
     const assetId = coverImage?.asset_id;
@@ -157,12 +177,14 @@ export function useBuilderCoverAsset(options: {
     (cover: CsImageRef | null, gallery?: CsImageRef[]) => {
       if (cover) {
         setCoverImage(cover);
-      } else {
+      } else if (seedFromTemplate) {
         setCoverImage(imageRefFromLegacyUrl(templateCoverUrl, 'cover'));
+      } else {
+        setCoverImage(null);
       }
       if (gallery && gallery.length > 0) {
         setGalleryImages(gallery);
-      } else if (templateGalleryUrls.length) {
+      } else if (seedFromTemplate && templateGalleryUrls.length) {
         setGalleryImages(
           templateGalleryUrls
             .map((u) => imageRefFromLegacyUrl(u, 'gallery'))
@@ -174,7 +196,7 @@ export function useBuilderCoverAsset(options: {
       setResolvedCover(null);
       setResolvedGallery({});
     },
-    [templateCoverUrl, templateGalleryUrls],
+    [seedFromTemplate, templateCoverUrl, templateGalleryUrls],
   );
 
   return {
