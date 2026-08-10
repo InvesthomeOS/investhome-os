@@ -2336,6 +2336,8 @@
         "fields": {
           "mapping": "Mapping",
           "folderId": "Drive folder ID",
+          "folderIdHint": "Paste the Google Drive folder ID for this project.",
+          "folderIdPlaceholder": "e.g. 1AbCDefGhIjK…",
           "syncEnabled": "Sync enabled",
           "lastSync": "Last sync",
           "lastSuccessful": "Last successful",
@@ -2364,7 +2366,9 @@
           "syncNow": "Sync Now",
           "syncing": "Syncing…",
           "forceFull": "Force Full Sync",
-          "retry": "Retry"
+          "retry": "Retry",
+          "mapFolder": "Map folder",
+          "mapping": "Saving…"
         },
         "forceConfirm": {
           "title": "Force full sync?",
@@ -2377,7 +2381,9 @@
           "syncFailed": "Sync failed.",
           "autoOn": "Automatic sync enabled.",
           "autoOff": "Automatic sync disabled.",
-          "toggleFailed": "Could not update automatic sync."
+          "toggleFailed": "Could not update automatic sync.",
+          "mapped": "Drive folder mapped.",
+          "mapFailed": "Could not map Drive folder."
         }
       },
       "assistant": {

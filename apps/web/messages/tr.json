@@ -2329,6 +2329,8 @@
         "fields": {
           "mapping": "Eşleme",
           "folderId": "Drive klasör ID",
+          "folderIdHint": "Bu proje için Google Drive klasör ID’sini yapıştırın.",
+          "folderIdPlaceholder": "örn. 1AbCDefGhIjK…",
           "syncEnabled": "Senkron açık",
           "lastSync": "Son senkron",
           "lastSuccessful": "Son başarılı",
@@ -2357,7 +2359,9 @@
           "syncNow": "Şimdi Senkronize Et",
           "syncing": "Senkronize ediliyor…",
           "forceFull": "Zorla Tam Senkron",
-          "retry": "Yeniden dene"
+          "retry": "Yeniden dene",
+          "mapFolder": "Klasörü eşle",
+          "mapping": "Kaydediliyor…"
         },
         "forceConfirm": {
           "title": "Tam senkron zorlansın mı?",
@@ -2370,7 +2374,9 @@
           "syncFailed": "Senkron başarısız.",
           "autoOn": "Otomatik senkron açıldı.",
           "autoOff": "Otomatik senkron kapatıldı.",
-          "toggleFailed": "Otomatik senkron güncellenemedi."
+          "toggleFailed": "Otomatik senkron güncellenemedi.",
+          "mapped": "Drive klasörü eşlendi.",
+          "mapFailed": "Drive klasörü eşlenemedi."
         }
       },
       "assistant": {

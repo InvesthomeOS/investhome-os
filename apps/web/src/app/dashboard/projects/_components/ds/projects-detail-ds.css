@@ -2298,6 +2298,19 @@
   font-size: var(--shot-font-body);
 }
 
+.proj-detail-ds__drive-unmapped {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.proj-detail-ds__drive-map {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  max-width: 420px;
+}
+
 .proj-detail-ds__drive-error {
   display: grid;
   gap: 6px;

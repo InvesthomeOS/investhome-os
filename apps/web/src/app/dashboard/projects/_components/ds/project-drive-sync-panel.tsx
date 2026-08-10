@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
-import { Button, Dialog, StatusChip } from '@investhome/ui';
+import { Button, Dialog, Input, StatusChip } from '@investhome/ui';
 
 import { hasPermission } from '@/lib/api/auth';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -82,6 +82,9 @@ export function ProjectDriveSyncPanel({ projectId }: ProjectDriveSyncPanelProps)
   const [loadError, setLoadError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [mapping, setMapping] = useState(false);
+  const [folderIdDraft, setFolderIdDraft] = useState('');
+  const [mapError, setMapError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [forceConfirmOpen, setForceConfirmOpen] = useState(false);
   const syncLockRef = useRef(false);
@@ -161,6 +164,27 @@ export function ProjectDriveSyncPanel({ projectId }: ProjectDriveSyncPanelProps)
     }
   }, [canSync, projectId, refreshStatus, showToast, status, t, toggling]);
 
+  const onSaveMapping = useCallback(async () => {
+    const folderId = folderIdDraft.trim();
+    if (!canSync || !folderId || mapping) return;
+    setMapping(true);
+    setMapError(null);
+    try {
+      await upsertProjectDriveMapping(projectId, {
+        drive_folder_id: folderId,
+        drive_sync_enabled: true,
+      });
+      setFolderIdDraft('');
+      showToast(t('toasts.mapped'));
+      await refreshStatus();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('toasts.mapFailed');
+      setMapError(sanitizeError(message, t('toasts.mapFailed')));
+    } finally {
+      setMapping(false);
+    }
+  }, [canSync, folderIdDraft, mapping, projectId, refreshStatus, showToast, t]);
+
   const running =
     syncing || String(status?.last_sync_status || '').toUpperCase() === 'RUNNING';
   const failed = String(status?.last_sync_status || '').toUpperCase() === 'FAILED';
@@ -196,9 +220,47 @@ export function ProjectDriveSyncPanel({ projectId }: ProjectDriveSyncPanelProps)
           </Button>
         </div>
       ) : !status?.mapped ? (
-        <p className="proj-detail-ds__drive-empty" data-testid="project-drive-unmapped">
-          {t('unmapped')}
-        </p>
+        <div className="proj-detail-ds__drive-unmapped" data-testid="project-drive-unmapped">
+          <p className="proj-detail-ds__drive-empty">{t('unmapped')}</p>
+          {canSync ? (
+            <div className="proj-detail-ds__drive-map" data-testid="project-drive-map-form">
+              <Input
+                id="project-drive-folder-id"
+                label={t('fields.folderId')}
+                hint={t('fields.folderIdHint')}
+                value={folderIdDraft}
+                disabled={mapping}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder={t('fields.folderIdPlaceholder')}
+                onChange={(e) => {
+                  setFolderIdDraft(e.target.value);
+                  if (mapError) setMapError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    void onSaveMapping();
+                  }
+                }}
+                error={mapError ?? undefined}
+                data-testid="project-drive-folder-id"
+              />
+              <div className="proj-detail-ds__drive-actions">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={mapping || !folderIdDraft.trim()}
+                  aria-busy={mapping}
+                  onClick={() => void onSaveMapping()}
+                  data-testid="project-drive-map-save"
+                >
+                  {mapping ? t('actions.mapping') : t('actions.mapFolder')}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </div>
       ) : (
         <>
           <dl className="proj-detail-ds__drive-meta" data-testid="project-drive-meta">

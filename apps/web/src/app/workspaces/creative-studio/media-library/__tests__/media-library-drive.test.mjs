@@ -164,6 +164,20 @@ describe('12. Automatic Sync toggle', () => {
   });
 });
 
+describe('12b. Unmapped folder mapping form', () => {
+  it('exposes Drive folder ID input and PUT mapping save on Documents panel', () => {
+    assert.match(drivePanel, /data-testid="project-drive-unmapped"/);
+    assert.match(drivePanel, /data-testid="project-drive-map-form"/);
+    assert.match(drivePanel, /data-testid="project-drive-folder-id"/);
+    assert.match(drivePanel, /data-testid="project-drive-map-save"/);
+    assert.match(drivePanel, /onSaveMapping/);
+    assert.match(drivePanel, /drive_folder_id: folderId/);
+    assert.match(drivePanel, /drive_sync_enabled: true/);
+    assert.match(detailWorkspace, /DocumentsTab/);
+    assert.match(detailWorkspace, /<ProjectDriveSyncPanel projectId=\{projectId\} \/>/);
+  });
+});
+
 describe('13. existing Media Library selection still works', () => {
   it('keeps select / multi-select / UUID guards intact', () => {
     assert.match(workspace, /selectAsset\(asset\.id\)/);
@@ -194,6 +208,8 @@ describe('builder safety + i18n', () => {
     assert.equal(tr.creativeStudio.ds.mediaLibrary.drive.openInDrive, 'Google Drive’da aç');
     assert.equal(en.projects.detail.drive.actions.syncNow, 'Sync Now');
     assert.equal(tr.projects.detail.drive.actions.syncNow, 'Şimdi Senkronize Et');
+    assert.equal(en.projects.detail.drive.actions.mapFolder, 'Map folder');
+    assert.equal(tr.projects.detail.drive.actions.mapFolder, 'Klasörü eşle');
     assert.ok(en.projects.detail.drive.forceConfirm.body.includes('does not delete'));
   });
 
