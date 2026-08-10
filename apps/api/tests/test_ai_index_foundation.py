@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from investhome_api.db.session import get_db
 from investhome_api.main import app
+from investhome_api.config.settings import get_settings
 from investhome_api.models.ai_index import AiDocument, AiDocumentStatus, AiDocumentType
 from investhome_api.models.creative_studio_media import (
     CreativeStudioMediaAsset,
@@ -481,3 +482,49 @@ def test_api_list_and_asset_ai_document(client, db_session: Session) -> None:
     assert one.status_code == 200
     assert one.json()["asset_id"] == str(asset.id)
     assert one.json()["document_type"] == "txt"
+
+
+def test_enqueue_asset_ai_index_waits_for_commit(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Async enqueue must not fire until the sync transaction commits (Drive race fix)."""
+    from investhome_api.services.ai_index import queue as ai_queue
+
+    monkeypatch.setenv("AI_INDEX_PROCESSING_SYNC", "false")
+    get_settings.cache_clear()
+
+    dispatched: list[tuple[object, bool]] = []
+
+    def _capture(asset_id, *, force: bool = False) -> None:
+        dispatched.append((asset_id, force))
+
+    monkeypatch.setattr(ai_queue, "_dispatch_asset_enqueue", _capture)
+
+    asset_id = uuid4()
+    ai_queue.enqueue_asset_ai_index(asset_id, force=True, db=db_session)
+    assert dispatched == []
+
+    db_session.commit()
+    assert dispatched == [(asset_id, True)]
+
+    # Restore sync mode for other autouse expectations within the same process
+    monkeypatch.setenv("AI_INDEX_PROCESSING_SYNC", "true")
+    get_settings.cache_clear()
+
+
+def test_enqueue_asset_ai_index_skips_on_rollback(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    from investhome_api.services.ai_index import queue as ai_queue
+
+    monkeypatch.setenv("AI_INDEX_PROCESSING_SYNC", "false")
+    get_settings.cache_clear()
+
+    dispatched: list[object] = []
+    monkeypatch.setattr(
+        ai_queue, "_dispatch_asset_enqueue", lambda asset_id, *, force=False: dispatched.append(asset_id)
+    )
+
+    asset_id = uuid4()
+    ai_queue.enqueue_asset_ai_index(asset_id, db=db_session)
+    db_session.rollback()
+    assert dispatched == []
+
+    monkeypatch.setenv("AI_INDEX_PROCESSING_SYNC", "true")
+    get_settings.cache_clear()

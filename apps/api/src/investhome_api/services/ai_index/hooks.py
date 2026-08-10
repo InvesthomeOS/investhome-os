@@ -52,7 +52,8 @@ def notify_asset_upserted(
             # Same session — asset may not be committed yet (tests / local sync mode)
             index_asset(db, asset.id, provider=provider, force=False)
         else:
-            enqueue_asset_ai_index(asset.id)
+            # Defer ARQ until sync transaction commits (avoids ai_index_asset_missing race)
+            enqueue_asset_ai_index(asset.id, db=db)
     except Exception:  # noqa: BLE001
         logger.warning("ai_index_enqueue_failed", extra={"asset_id": str(asset.id)}, exc_info=True)
 

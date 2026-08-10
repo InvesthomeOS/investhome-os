@@ -136,7 +136,7 @@ def reindex_project_ai_index(
             stats=stats,
         )
 
-    enqueue_project_ai_index(project_id, force=force)
+    enqueue_project_ai_index(project_id, force=force, db=db)
     return AiIndexReindexResponse(project_id=project_id, queued=True, mode="async", stats=None)
 
 
