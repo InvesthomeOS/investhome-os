@@ -59,6 +59,13 @@ import {
   EbSectionOverflowMenu,
   type EbOverflowMenuItem,
 } from './eb-section-overflow-menu';
+import {
+  loadLastConstructionProjectId,
+  loadPersistedLinkedProjectIdHint,
+  resolvePreferredConstructionProjectId,
+  saveEmergencySnapshot,
+  saveLastConstructionProjectId,
+} from './email-builder-persistence';
 
 import './email-builder.css';
 
@@ -78,7 +85,16 @@ export function EmailBuilderWorkspace() {
   const t = useTranslations('creativeStudio.ds.emailBuilder');
   const tTools = useTranslations('creativeStudio.ds.tools');
 
-  const docApi = useBuilderDocument({ documentType: 'email' });
+  const docApi = useBuilderDocument({
+    documentType: 'email',
+    preferredConstructionProject: {
+      loadLastId: loadLastConstructionProjectId,
+      saveLastId: saveLastConstructionProjectId,
+      loadDraftLinkedHint: loadPersistedLinkedProjectIdHint,
+      resolvePreferredId: resolvePreferredConstructionProjectId,
+      onDraftSaved: saveEmergencySnapshot,
+    },
+  });
   const [hydrated, setHydrated] = useState(false);
   const [device, setDevice] = useState<DevicePreview>('desktop');
   const [publishStatus, setPublishStatus] = useState<PublishStatus>('draft');
@@ -122,6 +138,8 @@ export function EmailBuilderWorkspace() {
   const coverAsset = useBuilderCoverAsset({
     templateCoverUrl: project.coverUrl,
     linkedProjectId: docApi.constructionProjectId,
+    seedFromTemplate: false,
+    scopeToLinkedProject: true,
   });
   const deviceSize = DEVICE_CONTENT[device];
   const ftv = useFitToViewEngine({
@@ -1084,6 +1102,7 @@ export function EmailBuilderWorkspace() {
           onClose={coverAsset.closePicker}
           media={coverAsset.media}
           linkedProjectId={docApi.constructionProjectId}
+          lockLinkedProject
           selectedAssetId={coverAsset.coverImage?.asset_id ?? null}
           onSelect={(ref) => {
             coverAsset.setCoverImage(ref);

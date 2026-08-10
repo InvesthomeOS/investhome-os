@@ -1,6 +1,6 @@
 /**
- * Blog Builder production project + media wiring.
- * Run: node --test src/app/workspaces/creative-studio/blog-builder/__tests__/blog-builder-persistence.test.mjs
+ * Email Builder production project + media wiring.
+ * Run: node --test src/app/workspaces/creative-studio/email-builder/__tests__/email-builder-persistence.test.mjs
  */
 
 import assert from 'node:assert/strict';
@@ -10,11 +10,11 @@ import { fileURLToPath } from 'node:url';
 import { describe, it } from 'node:test';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const bbDir = join(here, '..');
+const ebDir = join(here, '..');
 const componentsDir = join(here, '../../_components');
 
-function readBb(name) {
-  return readFileSync(join(bbDir, name), 'utf8');
+function readEb(name) {
+  return readFileSync(join(ebDir, name), 'utf8');
 }
 
 function readComponent(name) {
@@ -112,9 +112,9 @@ function resolvePreferredConstructionProjectId(options) {
 }
 
 describe('source modules exist', () => {
-  it('ships BB persistence helpers', () => {
-    assert.equal(existsSync(join(bbDir, 'blog-builder-persistence.ts')), true);
-    assert.equal(existsSync(join(bbDir, 'blog-builder-workspace.tsx')), true);
+  it('ships EB persistence helpers', () => {
+    assert.equal(existsSync(join(ebDir, 'email-builder-persistence.ts')), true);
+    assert.equal(existsSync(join(ebDir, 'email-builder-workspace.tsx')), true);
   });
 });
 
@@ -153,9 +153,9 @@ describe('explicit construction project selection (no projects[0] force)', () =>
   });
 
   it('persistence module exports last-project + prefer helpers', () => {
-    const src = readBb('blog-builder-persistence.ts');
-    assert.match(src, /BB_LAST_CONSTRUCTION_PROJECT_KEY/);
-    assert.match(src, /ih-bb-last-construction-project-id/);
+    const src = readEb('email-builder-persistence.ts');
+    assert.match(src, /EB_LAST_CONSTRUCTION_PROJECT_KEY/);
+    assert.match(src, /ih-eb-last-construction-project-id/);
     assert.match(src, /export function saveLastConstructionProjectId/);
     assert.match(src, /export function loadLastConstructionProjectId/);
     assert.match(src, /export function resolvePreferredConstructionProjectId/);
@@ -164,7 +164,7 @@ describe('explicit construction project selection (no projects[0] force)', () =>
   });
 
   it('workspace wires preferredConstructionProject (not bare projects[0])', () => {
-    const workspace = readBb('blog-builder-workspace.tsx');
+    const workspace = readEb('email-builder-workspace.tsx');
     assert.match(workspace, /preferredConstructionProject/);
     assert.match(workspace, /loadLastConstructionProjectId/);
     assert.match(workspace, /saveLastConstructionProjectId/);
@@ -172,7 +172,7 @@ describe('explicit construction project selection (no projects[0] force)', () =>
     assert.match(workspace, /resolvePreferredConstructionProjectId/);
     assert.match(workspace, /saveEmergencySnapshot/);
     assert.match(workspace, /linkedProjectId:\s*docApi\.constructionProjectId/);
-    assert.match(workspace, /documentType:\s*'blog'/);
+    assert.match(workspace, /documentType:\s*'email'/);
   });
 
   it('shared document hook only forces projects[0] when preferred restore omitted', () => {
@@ -187,12 +187,12 @@ describe('explicit construction project selection (no projects[0] force)', () =>
 describe('linkedProjectId + Asset ID draft roundtrip', () => {
   it('persists Temple linkedProjectId and cover/gallery Asset IDs', () => {
     const saved = serializeBuilderMediaDraft({
-      documentType: 'blog',
+      documentType: 'email',
       linkedProjectId: TEMPLE_UUID,
       coverImage: { asset_id: SAMPLE_UUID, url: null, alt: 'Cover', role: 'cover' },
       galleryImages: [{ asset_id: SAMPLE_UUID, role: 'gallery' }],
     });
-    const loaded = deserializeBuilderMediaDraft(saved, 'blog');
+    const loaded = deserializeBuilderMediaDraft(saved, 'email');
     assert.equal(loaded.linkedProjectId, TEMPLE_UUID);
     assert.equal(loaded.coverImage.asset_id, SAMPLE_UUID);
     assert.equal(loaded.galleryImages[0].asset_id, SAMPLE_UUID);
@@ -201,12 +201,12 @@ describe('linkedProjectId + Asset ID draft roundtrip', () => {
 
   it('linkedProjectId-only draft still restores project binding', () => {
     const saved = serializeBuilderMediaDraft({
-      documentType: 'blog',
+      documentType: 'email',
       linkedProjectId: TEMPLE_UUID,
       coverImage: null,
       galleryImages: [],
     });
-    const loaded = deserializeBuilderMediaDraft(saved, 'blog');
+    const loaded = deserializeBuilderMediaDraft(saved, 'email');
     assert.equal(loaded.linkedProjectId, TEMPLE_UUID);
     assert.equal(loaded.coverImage, null);
     assert.equal(loaded.galleryImages.length, 0);
@@ -214,23 +214,23 @@ describe('linkedProjectId + Asset ID draft roundtrip', () => {
 
   it('cross-project isolation: different linkedProjectId does not share media ids in draft', () => {
     const temple = serializeBuilderMediaDraft({
-      documentType: 'blog',
+      documentType: 'email',
       linkedProjectId: TEMPLE_UUID,
       coverImage: { asset_id: SAMPLE_UUID, role: 'cover' },
     });
     const other = serializeBuilderMediaDraft({
-      documentType: 'blog',
+      documentType: 'email',
       linkedProjectId: OTHER_UUID,
       coverImage: null,
     });
     assert.notEqual(temple.linkedProjectId, other.linkedProjectId);
-    assert.equal(deserializeBuilderMediaDraft(other, 'blog').coverImage, null);
+    assert.equal(deserializeBuilderMediaDraft(other, 'email').coverImage, null);
   });
 });
 
 describe('media scoped by linked_project_id + no Unsplash production seed', () => {
-  it('BB enables scopeToLinkedProject and seedFromTemplate false', () => {
-    const workspace = readBb('blog-builder-workspace.tsx');
+  it('EB enables scopeToLinkedProject and seedFromTemplate false', () => {
+    const workspace = readEb('email-builder-workspace.tsx');
     assert.match(workspace, /seedFromTemplate:\s*false/);
     assert.match(workspace, /scopeToLinkedProject:\s*true/);
     assert.match(workspace, /lockLinkedProject/);
@@ -251,7 +251,7 @@ describe('media scoped by linked_project_id + no Unsplash production seed', () =
     assert.match(hook, /scopeToLinkedProject/);
   });
 
-  it('CsMediaPicker can lock off project "all" for BB', () => {
+  it('CsMediaPicker can lock off project "all" for EB', () => {
     const picker = readComponent('cs-media-picker.tsx');
     assert.match(picker, /lockLinkedProject/);
     assert.match(picker, /lockedProjectId/);
@@ -259,17 +259,17 @@ describe('media scoped by linked_project_id + no Unsplash production seed', () =
   });
 
   it('dialog media picker locks linked project and uses CsMediaPickerDialog only', () => {
-    const workspace = readBb('blog-builder-workspace.tsx');
+    const workspace = readEb('email-builder-workspace.tsx');
     assert.match(workspace, /CsMediaPickerDialog/);
     assert.match(workspace, /lockLinkedProject/);
     assert.match(workspace, /linkedProjectId=\{docApi\.constructionProjectId\}/);
-    assert.doesNotMatch(workspace, /BB_ASSETS\.map/);
+    assert.doesNotMatch(workspace, /EB_ASSETS\.map/);
   });
 
   it('production selection path does not seed picker from Unsplash samples', () => {
-    const workspace = readBb('blog-builder-workspace.tsx');
+    const workspace = readEb('email-builder-workspace.tsx');
     assert.doesNotMatch(workspace, /WB_ASSETS/);
-    assert.doesNotMatch(workspace, /BB_ASSETS/);
+    assert.doesNotMatch(workspace, /EB_ASSETS/);
     assert.match(workspace, /useBuilderCoverAsset/);
     assert.match(workspace, /CsMediaPickerDialog/);
     // templateCoverUrl still used for display atmosphere, not picker seeding
@@ -278,11 +278,11 @@ describe('media scoped by linked_project_id + no Unsplash production seed', () =
 
   it('other builders omit preferredConstructionProject (opt-in only)', () => {
     const proposal = readFileSync(
-      join(bbDir, '../proposal-builder/proposal-builder-workspace.tsx'),
+      join(ebDir, '../proposal-builder/proposal-builder-workspace.tsx'),
       'utf8',
     );
     const presentation = readFileSync(
-      join(bbDir, '../presentation-builder/presentation-builder-workspace.tsx'),
+      join(ebDir, '../presentation-builder/presentation-builder-workspace.tsx'),
       'utf8',
     );
     assert.doesNotMatch(proposal, /preferredConstructionProject/);
