@@ -83,7 +83,14 @@ function imageRefFromLegacyUrl(url, role) {
   return { asset_id: null, url: url.trim(), alt: null, focal: null, crop: null, role: role ?? null };
 }
 
-const BUILDER_MEDIA_DOCUMENT_TYPES = ['landing', 'blog', 'email', 'proposal', 'presentation'];
+const BUILDER_MEDIA_DOCUMENT_TYPES = [
+  'landing',
+  'blog',
+  'email',
+  'proposal',
+  'presentation',
+  'social',
+];
 function isBuilderMediaDocumentType(value) {
   return BUILDER_MEDIA_DOCUMENT_TYPES.includes(value);
 }
@@ -205,6 +212,7 @@ describe('source modules exist', () => {
       'email-builder/email-builder-workspace.tsx',
       'proposal-builder/proposal-builder-workspace.tsx',
       'presentation-builder/presentation-builder-workspace.tsx',
+      'social-media-builder/social-media-builder-workspace.tsx',
     ]) {
       const src = readFileSync(join(studioDir, rel), 'utf8');
       assert.match(src, /useBuilderDocument/);

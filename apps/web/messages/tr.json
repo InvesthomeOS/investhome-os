@@ -13733,7 +13733,9 @@
           },
           "media": {
             "title": "Medya",
-            "help": "Bağlı varlıklardan görsel, video, logo veya sticker ekleyin."
+            "help": "Bağlı varlıklardan görsel, video, logo veya sticker ekleyin.",
+            "openLibrary": "Medya kütüphanesini aç",
+            "libraryUnavailable": "Medya kütüphanesi kullanılamıyor"
           },
           "brand": {
             "title": "Marka",
@@ -13808,6 +13810,7 @@
         },
         "toasts": {
           "saved": "Taslak kaydedildi",
+          "saveFailed": "Taslak kaydedilemedi — düzenlemeleriniz editörde duruyor",
           "preview": "Önizleme modu",
           "testSent": "Test paketi gönderildi (demo)",
           "downloaded": "İndirme hazır",

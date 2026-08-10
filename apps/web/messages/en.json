@@ -19056,7 +19056,9 @@
           },
           "media": {
             "title": "Media",
-            "help": "Insert images, video, logo, or stickers from connected assets."
+            "help": "Insert images, video, logo, or stickers from connected assets.",
+            "openLibrary": "Open media library",
+            "libraryUnavailable": "Media library is unavailable"
           },
           "brand": {
             "title": "Brand",
@@ -19131,6 +19133,7 @@
         },
         "toasts": {
           "saved": "Draft saved",
+          "saveFailed": "Could not save draft — your edits are still in the editor",
           "preview": "Preview mode",
           "testSent": "Test pack sent (demo)",
           "downloaded": "Download ready",

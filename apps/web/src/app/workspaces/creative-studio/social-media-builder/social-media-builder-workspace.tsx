@@ -2,7 +2,7 @@
 
 import type { Route } from 'next';
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { Button, Select, StatusChip } from '@investhome/ui';
@@ -24,7 +24,6 @@ import {
   SMB_RIGHT_RAIL_IDS,
   aspectThumbClass,
   createPostFromPreset,
-  getProject,
   resolveFormatSize,
   type AiStatusKey,
   type BgMode,
@@ -33,11 +32,17 @@ import {
   type FloatingActionKey,
   type FormatPresetKey,
   type PlatformKey,
-  type ProjectId,
   type SmbLeftRailId,
   type SmbRightRailId,
   type SocialPost,
 } from './social-media-builder-model';
+import {
+  loadLastConstructionProjectId,
+  loadPersistedLinkedProjectIdHint,
+  resolvePreferredConstructionProjectId,
+  saveEmergencySnapshot,
+  saveLastConstructionProjectId,
+} from './social-media-builder-persistence';
 
 import {
   SmbLeftRailDrawer,
@@ -46,7 +51,9 @@ import {
   SmbZoomToolbar,
 } from './social-media-builder-rail-drawers';
 
-import { CsBottomActionToolbar } from '../_components';
+import { CsBottomActionToolbar, CsMediaPickerDialog } from '../_components';
+import { useBuilderCoverAsset } from '../_components/use-builder-cover-asset';
+import { useBuilderDocument } from '../_components/use-builder-document';
 import {
   CreativeStudioFocusModeSwitcher,
   CreativeStudioFocusWorkspace,
@@ -59,12 +66,34 @@ import {
 
 import './social-media-builder.css';
 
+function visualTemplateForProject(
+  projectId: string,
+  templates: typeof SMB_PROJECTS,
+): (typeof SMB_PROJECTS)[number] {
+  let hash = 0;
+  const key = projectId || 'default';
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash + key.charCodeAt(i) * (i + 1)) % templates.length;
+  }
+  return templates[hash] ?? templates[0]!;
+}
+
 export function SocialMediaBuilderWorkspace() {
   const t = useTranslations('creativeStudio.ds.socialMediaBuilder');
   const tTools = useTranslations('creativeStudio.ds.tools');
 
+  const docApi = useBuilderDocument({
+    documentType: 'social',
+    preferredConstructionProject: {
+      loadLastId: loadLastConstructionProjectId,
+      saveLastId: saveLastConstructionProjectId,
+      loadDraftLinkedHint: loadPersistedLinkedProjectIdHint,
+      resolvePreferredId: resolvePreferredConstructionProjectId,
+      onDraftSaved: saveEmergencySnapshot,
+    },
+  });
+
   const [hydrated, setHydrated] = useState(false);
-  const [projectId, setProjectId] = useState<ProjectId>('temple');
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus>('ready');
   const [saved, setSaved] = useState(true);
   const [aiStatus, setAiStatus] = useState<AiStatusKey>('idle');
@@ -89,9 +118,31 @@ export function SocialMediaBuilderWorkspace() {
   const filmstripRef = useRef<HTMLDivElement | null>(null);
   const genTimerRef = useRef<number[]>([]);
 
-  const project = useMemo(() => getProject(projectId), [projectId]);
+  const selectedConstruction = useMemo(
+    () =>
+      docApi.constructionProjects.find((p) => p.id === docApi.constructionProjectId) ?? null,
+    [docApi.constructionProjects, docApi.constructionProjectId],
+  );
+  const project = useMemo(() => {
+    const visualProj = visualTemplateForProject(
+      docApi.constructionProjectId || selectedConstruction?.project_name || 'default',
+      SMB_PROJECTS,
+    );
+    if (!selectedConstruction) return visualProj;
+    return { ...visualProj, name: selectedConstruction.project_name || visualProj.name };
+  }, [docApi.constructionProjectId, selectedConstruction]);
+
+  const coverAsset = useBuilderCoverAsset({
+    templateCoverUrl: project.coverUrl,
+    linkedProjectId: docApi.constructionProjectId,
+    seedFromTemplate: false,
+    scopeToLinkedProject: true,
+  });
+
   const selectedPost = posts.find((p) => p.id === selectedPostId) ?? posts[0]!;
   const contentSize = resolveFormatSize(formatPreset);
+  const artboardSrc =
+    coverAsset.coverDisplayUrl || selectedPost.thumbUrl || project.coverUrl;
 
   const smbFitPadX = focus.isFullscreen ? 16 : 24;
   const smbFitPadY = focus.isFullscreen ? 16 : 32;
@@ -146,11 +197,37 @@ export function SocialMediaBuilderWorkspace() {
   }, [focus.mode, focus.isFullscreen, formatPreset, selectedPostId, smbFitPadX, smbFitPadY]);
 
   useEffect(() => {
-    setHydrated(true);
+    let cancelled = false;
+    void (async () => {
+      const result = await docApi.bootstrap();
+      if (cancelled) return;
+      if (result.ok) {
+        coverAsset.hydrateMedia(result.draft?.coverImage ?? null, result.draft?.galleryImages ?? []);
+        setSaved(Boolean(result.draft));
+      }
+      setHydrated(true);
+    })();
     return () => {
+      cancelled = true;
       genTimerRef.current.forEach((id) => window.clearTimeout(id));
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!hydrated || docApi.loadStatus !== 'ready') return;
+    const id = window.setTimeout(() => {
+      void (async () => {
+        const ok = await docApi.saveDraft({
+          linkedProjectId: docApi.constructionProjectId,
+          coverImage: coverAsset.coverImage,
+        });
+        if (ok) setSaved(true);
+      })();
+    }, 2000);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, docApi.loadStatus, coverAsset.coverImage]);
 
   useEffect(() => {
     if (!floatingMoreOpen) return;
@@ -177,9 +254,27 @@ export function SocialMediaBuilderWorkspace() {
     window.setTimeout(() => setToast(null), 2200);
   }
 
-  function persistNow(announce = false) {
-    setSaved(true);
-    if (announce) showToast(t('toasts.saved'));
+  const persistNow = useCallback(
+    async (announce = false) => {
+      if (docApi.loadStatus !== 'ready') return;
+      const ok = await docApi.saveDraft({
+        linkedProjectId: docApi.constructionProjectId,
+        coverImage: coverAsset.coverImage,
+      });
+      if (ok) {
+        setSaved(true);
+        if (announce) showToast(t('toasts.saved'));
+      } else if (announce) {
+        showToast(t('toasts.saveFailed'));
+      }
+    },
+    [coverAsset.coverImage, docApi, t],
+  );
+
+  async function handleProjectChange(id: string) {
+    const draft = await docApi.selectConstructionProject(id);
+    coverAsset.hydrateMedia(draft?.coverImage ?? null, draft?.galleryImages ?? []);
+    setSaved(Boolean(draft));
   }
 
   function patchPost(patch: Partial<SocialPost>) {
@@ -216,7 +311,11 @@ export function SocialMediaBuilderWorkspace() {
   }
 
   function addPost() {
-    const next = createPostFromPreset(formatPreset, posts.length + 1, project.coverUrl);
+    const next = createPostFromPreset(
+      formatPreset,
+      posts.length + 1,
+      coverAsset.coverDisplayUrl || project.coverUrl,
+    );
     setPosts((prev) => [...prev, next]);
     setSelectedPostId(next.id);
     markDirty();
@@ -260,6 +359,11 @@ export function SocialMediaBuilderWorkspace() {
       showToast(t('bottomBar.toasts.addComponent'));
       return;
     }
+    if (action === 'image') {
+      setLeftRailId('media');
+      showToast(t('bottomBar.toasts.image'));
+      return;
+    }
     showToast(t(`bottomBar.toasts.${action}`));
   }
 
@@ -291,7 +395,7 @@ export function SocialMediaBuilderWorkspace() {
         setAiStatus(status);
         if (status === 'completed') {
           setCampaignStatus('ready');
-          persistNow();
+          void persistNow();
           showToast(t('toasts.generated'));
           window.setTimeout(() => setAiStatus('idle'), 1600);
         }
@@ -306,6 +410,7 @@ export function SocialMediaBuilderWorkspace() {
       onInsertComponent={handleInsertComponent}
       onApplyTemplate={handleApplyTemplate}
       onToast={showToast}
+      onOpenMediaPicker={() => coverAsset.openPicker('cover')}
     />
   );
 
@@ -411,7 +516,13 @@ export function SocialMediaBuilderWorkspace() {
               </StatusChip>
               <span className="smb-ws__saved-ago">{saved ? t('savedAgo') : t('notSavedYet')}</span>
             </div>
-            <Button variant="secondary" size="sm" onClick={() => persistNow(true)} data-testid="smb-save">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void persistNow(true)}
+              data-testid="smb-save"
+              disabled={docApi.saveStatus === 'saving' || docApi.loadStatus !== 'ready'}
+            >
               {t('saveDraft')}
             </Button>
             <Button
@@ -460,15 +571,14 @@ export function SocialMediaBuilderWorkspace() {
               <Select
                 id="smb-project"
                 label={t('fields.project')}
-                value={projectId}
+                value={docApi.constructionProjectId ?? ''}
                 onChange={(e) => {
-                  setProjectId(e.target.value as ProjectId);
-                  markDirty();
+                  void handleProjectChange(e.target.value);
                 }}
               >
-                {SMB_PROJECTS.map((p) => (
+                {docApi.constructionProjects.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name}
+                    {p.project_name}
                   </option>
                 ))}
               </Select>
@@ -594,7 +704,14 @@ export function SocialMediaBuilderWorkspace() {
                             <div
                               className={`smb-ws__page-thumb ${aspectThumbClass(post.formatPreset)}`}
                             >
-                              <img src={post.thumbUrl} alt="" />
+                              <img
+                                src={
+                                  selectedPostId === post.id
+                                    ? artboardSrc
+                                    : post.thumbUrl || coverAsset.coverDisplayUrl || project.coverUrl
+                                }
+                                alt=""
+                              />
                             </div>
                             <strong>{post.name}</strong>
                           </button>
@@ -659,11 +776,7 @@ export function SocialMediaBuilderWorkspace() {
                       role="button"
                       tabIndex={0}
                     >
-                      <img
-                        className="smb-ws__artboard-img"
-                        src={selectedPost.thumbUrl || project.coverUrl}
-                        alt=""
-                      />
+                      <img className="smb-ws__artboard-img" src={artboardSrc} alt="" />
                       <div className="smb-ws__artboard-overlay" aria-hidden="true" />
                       {brandLogo ? (
                         <span
@@ -781,7 +894,7 @@ export function SocialMediaBuilderWorkspace() {
                 onClick={() => {
                   setPublishOpen(false);
                   setCampaignStatus('published');
-                  persistNow();
+                  void persistNow();
                   showToast(t('toasts.published'));
                 }}
               >
@@ -790,6 +903,32 @@ export function SocialMediaBuilderWorkspace() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {coverAsset.pickerOpen ? (
+        <CsMediaPickerDialog
+          open={coverAsset.pickerOpen}
+          onClose={coverAsset.closePicker}
+          media={coverAsset.media}
+          linkedProjectId={docApi.constructionProjectId}
+          lockLinkedProject
+          selectedAssetId={coverAsset.coverImage?.asset_id ?? null}
+          onSelect={(ref) => {
+            coverAsset.setCoverImage(ref);
+            coverAsset.closePicker();
+            if (ref.asset_id) {
+              void coverAsset.media.ensureDisplayUrl(ref.asset_id).then((url) => {
+                if (!url) return;
+                patchPost({ thumbUrl: url });
+              });
+            } else if (ref.url) {
+              patchPost({ thumbUrl: ref.url });
+            }
+            markDirty();
+            showToast(t('toasts.imageChanged'));
+          }}
+          testId="smb-media-picker-dialog"
+        />
       ) : null}
 
       {toast ? (

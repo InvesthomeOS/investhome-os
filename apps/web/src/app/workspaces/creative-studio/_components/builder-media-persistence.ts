@@ -1,6 +1,6 @@
 /**
  * Shared Creative Studio builder draft ↔ draft_body_json mapping for media Asset IDs.
- * Used by Landing, Blog, Email, Proposal, Presentation builders.
+ * Used by Landing, Blog, Email, Proposal, Presentation, Social builders.
  *
  * Persists CsImageRef (asset_id primary). Never Drive paths, blob URLs, or filenames as identity.
  * Legacy URL-only drafts remain readable; replacing with ML asset saves Asset ID format.
@@ -21,7 +21,8 @@ export type BuilderMediaDocumentType =
   | 'blog'
   | 'email'
   | 'proposal'
-  | 'presentation';
+  | 'presentation'
+  | 'social';
 
 export const BUILDER_MEDIA_DOCUMENT_TYPES: BuilderMediaDocumentType[] = [
   'landing',
@@ -29,6 +30,7 @@ export const BUILDER_MEDIA_DOCUMENT_TYPES: BuilderMediaDocumentType[] = [
   'email',
   'proposal',
   'presentation',
+  'social',
 ];
 
 export const BUILDER_KIND_LABELS: Record<BuilderMediaDocumentType, string> = {
@@ -37,6 +39,7 @@ export const BUILDER_KIND_LABELS: Record<BuilderMediaDocumentType, string> = {
   email: 'Email',
   proposal: 'Proposal',
   presentation: 'Presentation',
+  social: 'Social',
 };
 
 export type BuilderMediaDraft = {

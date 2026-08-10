@@ -73,6 +73,8 @@ export type SmbLeftRailDrawerProps = {
   onInsertComponent: (key: string) => void;
   onApplyTemplate: (format: FormatPresetKey, thumbUrl: string) => void;
   onToast: (msg: string) => void;
+  /** Opens CsMediaPickerDialog — production media entry only from MediaDrawer. */
+  onOpenMediaPicker?: () => void;
 };
 
 export function SmbLeftRailDrawer(props: SmbLeftRailDrawerProps) {
@@ -236,7 +238,7 @@ function TextDrawer({ onInsertComponent, onToast }: SmbLeftRailDrawerProps) {
   );
 }
 
-function MediaDrawer({ onInsertComponent, onToast }: SmbLeftRailDrawerProps) {
+function MediaDrawer({ onInsertComponent, onToast, onOpenMediaPicker }: SmbLeftRailDrawerProps) {
   const t = useTranslations('creativeStudio.ds.socialMediaBuilder');
 
   return (
@@ -246,12 +248,28 @@ function MediaDrawer({ onInsertComponent, onToast }: SmbLeftRailDrawerProps) {
       </div>
       <div className="smb-ws__rail-panel-body smb-ws__left-stack">
         <p className="smb-ws__muted">{t('rails.media.help')}</p>
+        <Button
+          variant="primary"
+          size="sm"
+          data-testid="smb-media-open-picker"
+          onClick={() => {
+            if (onOpenMediaPicker) onOpenMediaPicker();
+            else onToast(t('rails.media.libraryUnavailable'));
+          }}
+        >
+          <IhIcon name="inventory" size={12} />
+          {t('rails.media.openLibrary')}
+        </Button>
         {(['image', 'video', 'logo', 'sticker'] as const).map((key) => (
           <Button
             key={key}
             variant="secondary"
             size="sm"
             onClick={() => {
+              if (key === 'image' && onOpenMediaPicker) {
+                onOpenMediaPicker();
+                return;
+              }
               onInsertComponent(key);
               onToast(t('rails.components.toasts.inserted', { name: t(`rails.components.items.${key}`) }));
             }}
