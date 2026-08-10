@@ -53,6 +53,9 @@ logs/
 npm-debug.log*
 pnpm-debug.log*
 
+# Local one-off developer utilities (not production)
+tmp/
+
 # TailAdmin compatibility spike (temporary clone � not production)
 .tmp-tailadmin/
 
