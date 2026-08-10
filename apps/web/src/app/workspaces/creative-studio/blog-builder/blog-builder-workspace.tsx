@@ -62,6 +62,13 @@ import {
   BbSectionOverflowMenu,
   type BbOverflowMenuItem,
 } from './bb-section-overflow-menu';
+import {
+  loadLastConstructionProjectId,
+  loadPersistedLinkedProjectIdHint,
+  resolvePreferredConstructionProjectId,
+  saveEmergencySnapshot,
+  saveLastConstructionProjectId,
+} from './blog-builder-persistence';
 
 import './blog-builder.css';
 
@@ -81,7 +88,16 @@ export function BlogBuilderWorkspace() {
   const t = useTranslations('creativeStudio.ds.blogBuilder');
   const tTools = useTranslations('creativeStudio.ds.tools');
 
-  const docApi = useBuilderDocument({ documentType: 'blog' });
+  const docApi = useBuilderDocument({
+    documentType: 'blog',
+    preferredConstructionProject: {
+      loadLastId: loadLastConstructionProjectId,
+      saveLastId: saveLastConstructionProjectId,
+      loadDraftLinkedHint: loadPersistedLinkedProjectIdHint,
+      resolvePreferredId: resolvePreferredConstructionProjectId,
+      onDraftSaved: saveEmergencySnapshot,
+    },
+  });
   const [hydrated, setHydrated] = useState(false);
   const [device, setDevice] = useState<DevicePreview>('desktop');
   const [publishStatus, setPublishStatus] = useState<PublishStatus>('published');
@@ -129,6 +145,8 @@ export function BlogBuilderWorkspace() {
   const coverAsset = useBuilderCoverAsset({
     templateCoverUrl: project.coverUrl,
     linkedProjectId: docApi.constructionProjectId,
+    seedFromTemplate: false,
+    scopeToLinkedProject: true,
   });
   const deviceSize = DEVICE_CONTENT[device];
   const ftv = useFitToViewEngine({
@@ -1137,6 +1155,7 @@ export function BlogBuilderWorkspace() {
           onClose={coverAsset.closePicker}
           media={coverAsset.media}
           linkedProjectId={docApi.constructionProjectId}
+          lockLinkedProject
           selectedAssetId={coverAsset.coverImage?.asset_id ?? null}
           onSelect={(ref) => {
             coverAsset.setCoverImage(ref);

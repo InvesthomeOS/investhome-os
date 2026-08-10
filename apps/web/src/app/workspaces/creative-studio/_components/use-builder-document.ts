@@ -4,7 +4,7 @@
  * Creative Studio Document API hook for Landing/Blog/Email/Proposal/Presentation.
  * Resolves CS project by linked_project_id + document by document_type; persists media Asset IDs.
  *
- * Project restore (last selected + draft linkedProjectId) is opt-in so Blog/Email/etc stay unchanged.
+ * Project restore (last selected + draft linkedProjectId) is opt-in (Landing/Blog); Email/etc stay unchanged.
  */
 
 import { useCallback, useRef, useState } from 'react';
@@ -84,7 +84,7 @@ export function useBuilderDocument(options: {
   documentType: BuilderMediaDocumentType;
   /**
    * When set, restore last selected / draft linkedProjectId instead of always projects[0].
-   * Landing Page Builder enables this; other builders omit it (unchanged behavior).
+   * Landing/Blog enable this; Email/Proposal/Presentation omit it (unchanged behavior).
    */
   preferredConstructionProject?: BuilderPreferredConstructionProject;
 }): UseBuilderDocumentResult {
@@ -123,7 +123,7 @@ export function useBuilderDocument(options: {
         documentTypeRef.current,
       );
 
-      // Keep linkedProjectId durable when preferred restore is enabled (LPB).
+      // Keep linkedProjectId durable when preferred restore is enabled (LPB/BB).
       if (preferredRef.current && draft && draft.linkedProjectId !== linkedProjectId) {
         draft = { ...draft, linkedProjectId };
         const body = serializeBuilderMediaDraft({
