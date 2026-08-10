@@ -247,6 +247,65 @@ def test_list_assets_filters_by_linked_project_id(
     assert asset_a["id"] not in ids_b
 
 
+def test_list_folders_filters_by_linked_project_id(client: TestClient) -> None:
+    from investhome_api.models.creative_studio_media import CreativeStudioMediaFolder
+    from investhome_api.models.project import Project, ProjectStatus, ProjectType
+
+    db: Session = next(app.dependency_overrides[get_db]())
+    project_a = Project(
+        id=uuid4(),
+        project_code=f"PRJ-FA-{uuid4().hex[:6]}",
+        project_name="Folder Project A",
+        project_type=ProjectType.RESIDENTIAL,
+        project_status=ProjectStatus.CONSTRUCTION,
+    )
+    project_b = Project(
+        id=uuid4(),
+        project_code=f"PRJ-FB-{uuid4().hex[:6]}",
+        project_name="Folder Project B",
+        project_type=ProjectType.RESIDENTIAL,
+        project_status=ProjectStatus.CONSTRUCTION,
+    )
+    db.add(project_a)
+    db.add(project_b)
+    db.flush()
+
+    root_a = CreativeStudioMediaFolder(
+        id=uuid4(),
+        name="Project A Root",
+        parent_id=None,
+        linked_project_id=project_a.id,
+    )
+    child_a = CreativeStudioMediaFolder(
+        id=uuid4(),
+        name="01_BRAND",
+        parent_id=root_a.id,
+        linked_project_id=project_a.id,
+    )
+    root_b = CreativeStudioMediaFolder(
+        id=uuid4(),
+        name="Project B Root",
+        parent_id=None,
+        linked_project_id=project_b.id,
+    )
+    orphan = CreativeStudioMediaFolder(id=uuid4(), name="Manual Orphan", parent_id=None)
+    db.add_all([root_a, child_a, root_b, orphan])
+    db.commit()
+
+    listed = client.get(
+        "/creative-studio/media/folders",
+        params={"linked_project_id": str(project_a.id)},
+    )
+    assert listed.status_code == 200, listed.text
+    body = listed.json()
+    ids = {item["id"] for item in body["items"]}
+    assert str(root_a.id) in ids
+    assert str(child_a.id) in ids
+    assert str(root_b.id) not in ids
+    assert str(orphan.id) not in ids
+    assert all(item["linked_project_id"] == str(project_a.id) for item in body["items"])
+
+
 def test_unauthenticated_rejected(auth_client: TestClient) -> None:
     response = auth_client.get("/creative-studio/media/assets")
     assert response.status_code == 401

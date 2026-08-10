@@ -1,5 +1,5 @@
 /**
- * Phase B — Project Documents tab loads real project-scoped media assets.
+ * Phase B/C2 — Project Documents tab loads project-scoped media and Drive folders.
  * Run: node --test src/app/dashboard/projects/_components/ds/__tests__/project-documents-media.test.mjs
  */
 
@@ -44,10 +44,10 @@ describe('Project Documents — real media assets', () => {
     assert.match(detailWorkspace, /item\.archived_at == null/);
   });
 
-  it('keeps Drive sync panel and shows filename / category / type / size / Drive badge', () => {
+  it('keeps Drive sync panel and Project Assistant unchanged', () => {
     assert.match(detailWorkspace, /<ProjectDriveSyncPanel projectId=\{projectId\} \/>/);
+    assert.match(detailWorkspace, /<ProjectAssistantPanel projectId=\{projectId\} \/>/);
     assert.match(detailWorkspace, /doc\.filename/);
-    assert.match(detailWorkspace, /folder_category/);
     assert.match(detailWorkspace, /formatFileSize\(doc\.file_size\)/);
     assert.match(detailWorkspace, /source_type === 'google_drive'/);
     assert.match(detailWorkspace, /documents\.sourceGoogleDrive/);
@@ -68,7 +68,53 @@ describe('Project Documents — real media assets', () => {
     assert.ok(en.projects.detail.documents.empty.includes('synced'));
     assert.ok(tr.projects.detail.documents.empty.length > 10);
     assert.equal(en.projects.detail.documents.loading.includes('Loading'), true);
-    assert.equal(en.projects.detail.documents.folderCats['09_DOCUMENTS'], 'Documents');
-    assert.equal(tr.projects.detail.documents.folderCats['09_DOCUMENTS'], 'Belgeler');
+  });
+});
+
+describe('Project Documents — Drive folder hierarchy browse (C2)', () => {
+  it('loads media_folders scoped by linked_project_id and filters assets by folder_id', () => {
+    assert.match(detailWorkspace, /listCreativeStudioMediaFolders/);
+    assert.match(detailWorkspace, /linked_project_id:\s*projectId/);
+    assert.match(detailWorkspace, /folder_id:\s*selectedFolderId/);
+    assert.match(detailWorkspace, /item\.linked_project_id === projectId/);
+    assert.match(detailWorkspace, /item\.folder_id !== selectedFolderId/);
+  });
+
+  it('navigates root → child → nested with back to parent/all', () => {
+    assert.match(detailWorkspace, /data-testid="project-documents-folder-nav"/);
+    assert.match(detailWorkspace, /data-testid="project-documents-folder-all"/);
+    assert.match(detailWorkspace, /data-testid="project-documents-folder-back"/);
+    assert.match(detailWorkspace, /data-testid="project-documents-folder-chip-all"/);
+    assert.match(detailWorkspace, /goToFolder\(null\)/);
+    assert.match(detailWorkspace, /goToFolder\(parentFolderId\)/);
+    assert.match(detailWorkspace, /goToFolder\(folder\.id\)/);
+    assert.match(detailWorkspace, /projectRootIds/);
+    assert.match(detailWorkspace, /childFolders/);
+  });
+
+  it('uses persisted Drive folder names — no hardcoded taxonomy in DocumentsTab', () => {
+    assert.doesNotMatch(detailWorkspace, /folderCats\.00_PROJECT_INFO/);
+    assert.doesNotMatch(detailWorkspace, /folder_category/);
+    assert.match(detailWorkspace, /folderById\.get\(folderId\)\?\.name/);
+    assert.match(detailWorkspace, /folder\.name/);
+  });
+
+  it('exposes folder list linked_project_id on API client', () => {
+    assert.match(client, /listCreativeStudioMediaFolders/);
+    assert.match(
+      client,
+      /export async function listCreativeStudioMediaFolders\(options\?: \{[\s\S]*linked_project_id\?:/,
+    );
+    assert.match(client, /linked_project_id\?: string \| null;/);
+  });
+
+  it('adds en/tr copy for folder navigation empty/loading/error', () => {
+    assert.equal(en.projects.detail.documents.allFolders, 'All documents');
+    assert.equal(tr.projects.detail.documents.allFolders, 'Tüm belgeler');
+    assert.equal(en.projects.detail.documents.backToAll, 'Back to all');
+    assert.equal(tr.projects.detail.documents.backToParent, 'Üst klasöre dön');
+    assert.ok(en.projects.detail.documents.folderEmpty.length > 5);
+    assert.ok(tr.projects.detail.documents.foldersLoadError.length > 5);
+    assert.equal(en.projects.detail.documents.foldersLoading.includes('Loading'), true);
   });
 });

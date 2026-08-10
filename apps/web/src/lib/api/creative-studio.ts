@@ -251,6 +251,7 @@ export type CreativeStudioMediaFolder = {
   name: string;
   parent_id: string | null;
   company_id: string | null;
+  linked_project_id?: string | null;
   created_by_user_id: string | null;
   created_at: string;
   updated_at: string;
@@ -374,11 +375,13 @@ export async function fetchCreativeStudioMediaBlob(assetId: string): Promise<Blo
 
 export async function listCreativeStudioMediaFolders(options?: {
   parent_id?: string | null;
+  linked_project_id?: string | null;
   include_archived?: boolean;
 }): Promise<CreativeStudioMediaFolderListResponse> {
   return apiFetch(
     `/creative-studio/media/folders${buildMediaQuery({
       parent_id: options?.parent_id,
+      linked_project_id: options?.linked_project_id,
       include_archived: options?.include_archived,
     })}`,
   );

@@ -21,7 +21,9 @@ import { hasPermission } from '@/lib/api/auth';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
   listCreativeStudioMediaAssets,
+  listCreativeStudioMediaFolders,
   type CreativeStudioMediaAsset,
+  type CreativeStudioMediaFolder,
 } from '@/lib/api/creative-studio';
 import { formatFileSize } from '@/lib/api/documents';
 import {
@@ -833,9 +835,45 @@ function DocumentsTab({
   tD: TranslateFn;
   projectId: string;
 }) {
+  const [folders, setFolders] = useState<CreativeStudioMediaFolder[]>([]);
+  const [foldersLoading, setFoldersLoading] = useState(true);
+  const [foldersError, setFoldersError] = useState<string | null>(null);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [assets, setAssets] = useState<CreativeStudioMediaAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setFoldersLoading(true);
+    setFoldersError(null);
+    setSelectedFolderId(null);
+    void listCreativeStudioMediaFolders({
+      linked_project_id: projectId,
+      include_archived: false,
+    })
+      .then((res) => {
+        if (cancelled) return;
+        // Defense in depth: never surface another project's folders.
+        setFolders(
+          res.items.filter(
+            (item) => item.linked_project_id === projectId && item.archived_at == null,
+          ),
+        );
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : tD('documents.foldersLoadError');
+        setFoldersError(message || tD('documents.foldersLoadError'));
+        setFolders([]);
+      })
+      .finally(() => {
+        if (!cancelled) setFoldersLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, tD]);
 
   useEffect(() => {
     let cancelled = false;
@@ -843,6 +881,7 @@ function DocumentsTab({
     setLoadError(null);
     void listCreativeStudioMediaAssets({
       linked_project_id: projectId,
+      folder_id: selectedFolderId ?? undefined,
       include_archived: false,
       page: 1,
       page_size: 100,
@@ -851,9 +890,11 @@ function DocumentsTab({
         if (cancelled) return;
         // Defense in depth: never surface another project's assets.
         setAssets(
-          res.items.filter(
-            (item) => item.linked_project_id === projectId && item.archived_at == null,
-          ),
+          res.items.filter((item) => {
+            if (item.linked_project_id !== projectId || item.archived_at != null) return false;
+            if (selectedFolderId != null && item.folder_id !== selectedFolderId) return false;
+            return true;
+          }),
         );
       })
       .catch((err: unknown) => {
@@ -868,38 +909,52 @@ function DocumentsTab({
     return () => {
       cancelled = true;
     };
-  }, [projectId, tD]);
+  }, [projectId, selectedFolderId, tD]);
 
-  const categoryCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const asset of assets) {
-      const key = asset.folder_category?.trim() || '__uncategorized__';
-      counts.set(key, (counts.get(key) ?? 0) + 1);
+  const folderById = useMemo(() => {
+    const map = new Map<string, CreativeStudioMediaFolder>();
+    for (const folder of folders) map.set(folder.id, folder);
+    return map;
+  }, [folders]);
+
+  const projectRootIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const folder of folders) {
+      if (folder.parent_id == null) ids.add(folder.id);
     }
-    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [assets]);
+    return ids;
+  }, [folders]);
 
-  const folderCatLabels = useMemo(
-    () =>
-      ({
-        '00_PROJECT_INFO': tD('documents.folderCats.00_PROJECT_INFO'),
-        '01_BRAND': tD('documents.folderCats.01_BRAND'),
-        '02_RENDER': tD('documents.folderCats.02_RENDER'),
-        '03_FLOOR_PLANS': tD('documents.folderCats.03_FLOOR_PLANS'),
-        '04_UNIT_PLANS': tD('documents.folderCats.04_UNIT_PLANS'),
-        '05_LOCATION': tD('documents.folderCats.05_LOCATION'),
-        '06_MEDIA': tD('documents.folderCats.06_MEDIA'),
-        '07_CATALOG': tD('documents.folderCats.07_CATALOG'),
-        '08_MARKETING': tD('documents.folderCats.08_MARKETING'),
-        '09_DOCUMENTS': tD('documents.folderCats.09_DOCUMENTS'),
-        '10_ARCHIVE': tD('documents.folderCats.10_ARCHIVE'),
-      }) as Record<string, string>,
-    [tD],
-  );
+  const childFolders = useMemo(() => {
+    const rows =
+      selectedFolderId == null
+        ? folders.filter((f) => f.parent_id != null && projectRootIds.has(f.parent_id))
+        : folders.filter((f) => f.parent_id === selectedFolderId);
+    return rows.slice().sort((a, b) => a.name.localeCompare(b.name));
+  }, [folders, projectRootIds, selectedFolderId]);
 
-  const categoryLabel = (key: string) => {
-    if (key === '__uncategorized__') return tD('documents.uncategorized');
-    return folderCatLabels[key] ?? key.replace(/^\d+_/, '').replace(/_/g, ' ');
+  const breadcrumb = useMemo(() => {
+    const trail: CreativeStudioMediaFolder[] = [];
+    let current = selectedFolderId ? folderById.get(selectedFolderId) : undefined;
+    const seen = new Set<string>();
+    while (current && !seen.has(current.id)) {
+      seen.add(current.id);
+      trail.unshift(current);
+      current = current.parent_id ? folderById.get(current.parent_id) : undefined;
+    }
+    // Hide the mapped Drive project root in the crumb — "All" already represents project scope.
+    return trail.filter((folder) => folder.parent_id != null);
+  }, [folderById, selectedFolderId]);
+
+  const selectedFolder = selectedFolderId ? folderById.get(selectedFolderId) : undefined;
+  const parentFolderId =
+    selectedFolder?.parent_id && !projectRootIds.has(selectedFolder.parent_id)
+      ? selectedFolder.parent_id
+      : null;
+
+  const folderLabel = (folderId: string | null | undefined) => {
+    if (!folderId) return tD('documents.uncategorized');
+    return folderById.get(folderId)?.name ?? tD('documents.uncategorized');
   };
 
   const fileTypeLabel = (asset: CreativeStudioMediaAsset) => {
@@ -914,32 +969,119 @@ function DocumentsTab({
     return ext ? ext.toUpperCase() : tD('documents.unknownType');
   };
 
+  const goToFolder = (folderId: string | null) => {
+    setSelectedFolderId(folderId);
+  };
+
   return (
     <div style={{ display: 'grid', gap: 12 }} data-testid="project-documents-tab">
       <ProjectDriveSyncPanel projectId={projectId} />
       <ProjectAssistantPanel projectId={projectId} />
-      <section className="proj-detail-ds__doc-cats" aria-label={tD('documents.categories')}>
-        {loading ? (
+
+      <nav
+        className="proj-detail-ds__crumb"
+        aria-label={tD('documents.folderNav')}
+        data-testid="project-documents-folder-nav"
+      >
+        <button
+          type="button"
+          className="proj-detail-ds__doc-nav-link"
+          onClick={() => goToFolder(null)}
+          aria-current={selectedFolderId == null ? 'page' : undefined}
+          data-testid="project-documents-folder-all"
+        >
+          {tD('documents.allFolders')}
+        </button>
+        {breadcrumb.map((folder, index) => {
+          const isLast = index === breadcrumb.length - 1;
+          return (
+            <span key={folder.id} className="proj-detail-ds__doc-nav-segment">
+              <span className="proj-detail-ds__crumb-sep" aria-hidden>
+                /
+              </span>
+              {isLast ? (
+                <span className="proj-detail-ds__crumb-current" title={folder.name}>
+                  {folder.name}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="proj-detail-ds__doc-nav-link"
+                  onClick={() => goToFolder(folder.id)}
+                  data-testid={`project-documents-folder-crumb-${folder.id}`}
+                >
+                  {folder.name}
+                </button>
+              )}
+            </span>
+          );
+        })}
+        {selectedFolderId != null ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            onClick={() => goToFolder(parentFolderId)}
+            data-testid="project-documents-folder-back"
+          >
+            {parentFolderId == null ? tD('documents.backToAll') : tD('documents.backToParent')}
+          </Button>
+        ) : null}
+      </nav>
+
+      <section className="proj-detail-ds__doc-cats" aria-label={tD('documents.folders')}>
+        {foldersLoading ? (
           <article className="proj-detail-ds__doc-cat">
             <strong>—</strong>
-            <span>{tD('documents.loading')}</span>
+            <span>{tD('documents.foldersLoading')}</span>
           </article>
-        ) : categoryCounts.length === 0 ? (
-          <article className="proj-detail-ds__doc-cat">
-            <strong>0</strong>
-            <span>{tD('documents.uncategorized')}</span>
+        ) : foldersError ? (
+          <article className="proj-detail-ds__doc-cat" data-testid="project-documents-folders-error">
+            <strong>—</strong>
+            <span>{foldersError}</span>
           </article>
         ) : (
-          categoryCounts.map(([cat, count]) => (
-            <article key={cat} className="proj-detail-ds__doc-cat">
-              <strong>{count}</strong>
-              <span>{categoryLabel(cat)}</span>
-            </article>
-          ))
+          <>
+            <button
+              type="button"
+              className={`proj-detail-ds__doc-cat${selectedFolderId == null ? ' proj-detail-ds__doc-cat--active' : ''}`}
+              onClick={() => goToFolder(null)}
+              aria-pressed={selectedFolderId == null}
+              data-testid="project-documents-folder-chip-all"
+            >
+              <strong>{tD('documents.allFolders')}</strong>
+              <span>{tD('documents.recent')}</span>
+            </button>
+            {childFolders.length === 0 && selectedFolderId != null ? (
+              <article className="proj-detail-ds__doc-cat">
+                <strong>0</strong>
+                <span>{tD('documents.noSubfolders')}</span>
+              </article>
+            ) : null}
+            {childFolders.map((folder) => (
+              <button
+                key={folder.id}
+                type="button"
+                className={`proj-detail-ds__doc-cat${selectedFolderId === folder.id ? ' proj-detail-ds__doc-cat--active' : ''}`}
+                onClick={() => goToFolder(folder.id)}
+                aria-pressed={selectedFolderId === folder.id}
+                title={folder.name}
+                data-testid={`project-documents-folder-chip-${folder.id}`}
+              >
+                <strong>{folder.name}</strong>
+                <span>{tD('documents.folder')}</span>
+              </button>
+            ))}
+          </>
         )}
       </section>
+
       <article className="proj-detail-ds__panel">
-        <h3>{tD('documents.recent')}</h3>
+        <h3>
+          {selectedFolder
+            ? selectedFolder.name
+            : tD('documents.recent')}
+        </h3>
         {loading ? (
           <p className="proj-detail-ds__drive-empty" data-testid="project-documents-loading">
             {tD('documents.loading')}
@@ -950,7 +1092,7 @@ function DocumentsTab({
           </div>
         ) : assets.length === 0 ? (
           <p className="proj-detail-ds__drive-empty" data-testid="project-documents-empty">
-            {tD('documents.empty')}
+            {selectedFolderId == null ? tD('documents.empty') : tD('documents.folderEmpty')}
           </p>
         ) : (
           <div className="proj-detail-ds__doc-list" data-testid="project-documents-list">
@@ -963,7 +1105,7 @@ function DocumentsTab({
                   data-testid={`project-document-row-${doc.id}`}
                 >
                   <strong title={doc.filename}>{doc.filename}</strong>
-                  <span>{categoryLabel(doc.folder_category?.trim() || '__uncategorized__')}</span>
+                  <span title={folderLabel(doc.folder_id)}>{folderLabel(doc.folder_id)}</span>
                   <span>
                     {fileTypeLabel(doc)} · {formatFileSize(doc.file_size)}
                   </span>

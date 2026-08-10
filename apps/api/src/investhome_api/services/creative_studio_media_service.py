@@ -47,6 +47,7 @@ def build_folder_response(folder: CreativeStudioMediaFolder) -> CreativeStudioMe
         name=folder.name,
         parent_id=folder.parent_id,
         company_id=folder.company_id,
+        linked_project_id=folder.linked_project_id,
         created_by_user_id=folder.created_by_user_id,
         created_at=folder.created_at,
         updated_at=folder.updated_at,
@@ -141,6 +142,7 @@ def list_folders(
     db: Session,
     *,
     parent_id: UUID | None = None,
+    linked_project_id: UUID | None = None,
     include_archived: bool = False,
 ) -> list[CreativeStudioMediaFolderResponse]:
     query = select(CreativeStudioMediaFolder)
@@ -148,6 +150,8 @@ def list_folders(
         query = query.where(CreativeStudioMediaFolder.archived_at.is_(None))
     if parent_id is not None:
         query = query.where(CreativeStudioMediaFolder.parent_id == parent_id)
+    if linked_project_id is not None:
+        query = query.where(CreativeStudioMediaFolder.linked_project_id == linked_project_id)
     rows = list(db.scalars(query.order_by(CreativeStudioMediaFolder.name.asc())).all())
     return [build_folder_response(row) for row in rows]
 

@@ -51,11 +51,17 @@ def create_folder(
 @router.get("/folders", response_model=CreativeStudioMediaFolderListResponse)
 def list_folders(
     parent_id: UUID | None = Query(default=None),
+    linked_project_id: UUID | None = Query(default=None),
     include_archived: bool = Query(default=False),
     db: Session = Depends(get_db),
     _user: User = _cs_view,
 ) -> CreativeStudioMediaFolderListResponse:
-    items = svc.list_folders(db, parent_id=parent_id, include_archived=include_archived)
+    items = svc.list_folders(
+        db,
+        parent_id=parent_id,
+        linked_project_id=linked_project_id,
+        include_archived=include_archived,
+    )
     return CreativeStudioMediaFolderListResponse(items=items, total=len(items))
 
 

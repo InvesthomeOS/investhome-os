@@ -24,6 +24,7 @@ class CreativeStudioMediaFolderResponse(BaseModel):
     name: str
     parent_id: UUID | None
     company_id: UUID | None
+    linked_project_id: UUID | None = None
     created_by_user_id: UUID | None
     created_at: datetime
     updated_at: datetime
