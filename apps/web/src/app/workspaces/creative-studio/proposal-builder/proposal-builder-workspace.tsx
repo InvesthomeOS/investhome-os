@@ -74,6 +74,13 @@ import {
   PrbRightRailDrawer,
   PrbZoomToolbar,
 } from './proposal-builder-rail-drawers';
+import {
+  loadLastConstructionProjectId,
+  loadPersistedLinkedProjectIdHint,
+  resolvePreferredConstructionProjectId,
+  saveEmergencySnapshot,
+  saveLastConstructionProjectId,
+} from './proposal-builder-persistence';
 
 import './proposal-builder.css';
 
@@ -96,7 +103,16 @@ export function ProposalBuilderWorkspace() {
   const tTools = useTranslations('creativeStudio.ds.tools');
   const tFocus = useTranslations('creativeStudio.focusWorkspace');
 
-  const docApi = useBuilderDocument({ documentType: 'proposal' });
+  const docApi = useBuilderDocument({
+    documentType: 'proposal',
+    preferredConstructionProject: {
+      loadLastId: loadLastConstructionProjectId,
+      saveLastId: saveLastConstructionProjectId,
+      loadDraftLinkedHint: loadPersistedLinkedProjectIdHint,
+      resolvePreferredId: resolvePreferredConstructionProjectId,
+      onDraftSaved: saveEmergencySnapshot,
+    },
+  });
   const [hydrated, setHydrated] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus>('ready');
@@ -157,6 +173,8 @@ export function ProposalBuilderWorkspace() {
   const coverAsset = useBuilderCoverAsset({
     templateCoverUrl: project.coverUrl,
     linkedProjectId: docApi.constructionProjectId,
+    seedFromTemplate: false,
+    scopeToLinkedProject: true,
   });
   const selectedPage = pages.find((p) => p.id === selectedPageId) ?? pages[0]!;
   const selectedIndex = pages.findIndex((p) => p.id === selectedPage.id);
@@ -1225,6 +1243,7 @@ export function ProposalBuilderWorkspace() {
           onClose={coverAsset.closePicker}
           media={coverAsset.media}
           linkedProjectId={docApi.constructionProjectId}
+          lockLinkedProject
           selectedAssetId={coverAsset.coverImage?.asset_id ?? null}
           onSelect={(ref) => {
             coverAsset.setCoverImage(ref);
