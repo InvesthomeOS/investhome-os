@@ -40,8 +40,14 @@ from investhome_api.services.project_assistant.llm_provider import (
     get_llm_provider,
 )
 from investhome_api.services.social_design_engine.apply import apply_ops
+from investhome_api.services.social_design_engine.intent import (
+    classify_edit_intents,
+    enrich_color_intents,
+    filter_ops_for_copy_protection,
+    build_ops_from_intent_plan,
+)
 from investhome_api.services.social_design_engine.media import list_media_candidates, pick_best_asset
-from investhome_api.services.social_design_engine.ops import normalize_raw_ops, validate_ops
+from investhome_api.services.social_design_engine.ops import find_post, normalize_raw_ops, validate_ops
 from investhome_api.services.social_design_engine.planner import (
     build_design_prompt,
     build_heuristic_ops,
@@ -97,14 +103,31 @@ def _infer_mode(requested: str, posts: list[dict[str, Any]], instruction: str) -
         "renk",
         "color",
         "taşı",
+        "tasi",
         "büyüt",
         "küçült",
+        "kucult",
         "ortala",
         "align",
         "arka plan",
         "background",
         "başlığı",
+        "basligi",
+        "başlık",
         "cta",
+        "buton",
+        "buluta",
+        "sola",
+        "sağa",
+        "saga",
+        "aşağı",
+        "asagi",
+        "yukarı",
+        "yukari",
+        "görsel",
+        "gorsel",
+        "exterior",
+        "kullan",
     )
     if mode == "create" and posts and any(h in instr for h in edit_hints):
         return "edit"
@@ -214,6 +237,26 @@ def generate_social_design(
     if picked:
         allowed_asset_ids.add(picked)
 
+    # Prefer a different cover/image asset when user asks to replace ("başka …")
+    intent_plan = enrich_color_intents(classify_edit_intents(instruction), instruction)
+    if mode == "edit" and any(i.intent == "REPLACE_IMAGE" for i in intent_plan.intents):
+        current_cover = None
+        active = find_post(draft_posts, selected_post_id) if selected_post_id else None
+        if active is None and draft_posts:
+            active = draft_posts[0]
+        if active is not None:
+            current_cover = active.get("coverAssetId") or active.get("cover_asset_id")
+            for el in active.get("elements") or []:
+                if isinstance(el, dict) and el.get("type") == "IMAGE" and (el.get("assetId") or el.get("asset_id")):
+                    current_cover = el.get("assetId") or el.get("asset_id")
+                    break
+        if current_cover is not None:
+            for cand in media_candidates:
+                if str(cand.asset_id) != str(current_cover) and (cand.content_type or "").startswith("image/"):
+                    picked = cand.asset_id
+                    allowed_asset_ids.add(picked)
+                    break
+
     try:
         provider = get_llm_provider(settings)
     except LLMProviderConfigError as exc:
@@ -236,18 +279,35 @@ def generate_social_design(
     raw_ops: list[dict[str, Any]] = []
     summary = ""
     llm = None
+    intent_rejected: list[tuple[dict[str, Any], str]] = []
 
-    try:
-        llm = provider.generate(system=system, user=user_prompt, timeout_seconds=60.0)
-        parsed_ops, summary = parse_ops_from_llm(llm.answer or "")
-        if parsed_ops:
-            raw_ops = parsed_ops
-            planner_name = "llm"
-    except LLMProviderError as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=exc.message) from exc
-    except Exception:
-        context.warnings.append("design_planner_fallback")
-        raw_ops = []
+    # Structural-only EDIT: deterministic intent ops — skip LLM copy invention.
+    if mode == "edit" and intent_plan.structural_only and intent_plan.intents:
+        active = find_post(draft_posts, selected_post_id) if selected_post_id else None
+        if active is None and draft_posts:
+            active = draft_posts[0]
+        if active is not None:
+            raw_ops = build_ops_from_intent_plan(
+                plan=intent_plan,
+                linked_project_id=str(linked_project_id),
+                post=active,
+                picked_asset_id=picked,
+            )
+            planner_name = "intent"
+            summary = f"Applied {len(intent_plan.intent_names)} structural intent(s)."
+
+    if not raw_ops:
+        try:
+            llm = provider.generate(system=system, user=user_prompt, timeout_seconds=60.0)
+            parsed_ops, summary = parse_ops_from_llm(llm.answer or "")
+            if parsed_ops:
+                raw_ops = parsed_ops
+                planner_name = "llm"
+        except LLMProviderError as exc:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=exc.message) from exc
+        except Exception:
+            context.warnings.append("design_planner_fallback")
+            raw_ops = []
 
     if not raw_ops:
         raw_ops = build_heuristic_ops(
@@ -259,7 +319,7 @@ def generate_social_design(
             selected_post_id=selected_post_id,
             picked_asset_id=picked,
         )
-        planner_name = "heuristic"
+        planner_name = "heuristic" if planner_name != "intent" else planner_name
         if summary == "ops_parse_failed" and "ops_parse_failed" not in context.warnings:
             context.warnings.append("ops_parse_failed")
 
@@ -269,6 +329,23 @@ def generate_social_design(
         fallback_asset_id=picked,
         default_post_id=selected_post_id,
     )
+
+    # Copy-protection + structural filter (EDIT mode)
+    raw_ops, intent_rejected = filter_ops_for_copy_protection(
+        raw_ops,
+        intent_plan,
+        mode=mode,
+    )
+    # Strip internal intent markers before validation
+    cleaned_ops: list[dict[str, Any]] = []
+    for op in raw_ops:
+        if not isinstance(op, dict):
+            continue
+        cleaned = dict(op)
+        cleaned.pop("_intent", None)
+        cleaned.pop("_target", None)
+        cleaned_ops.append(cleaned)
+    raw_ops = cleaned_ops
 
     # If LLM referenced assets outside candidates, allow only after remap to picked
     for op in raw_ops:
@@ -292,26 +369,62 @@ def generate_social_design(
         posts=draft_posts,
         allowed_asset_ids=allowed_asset_ids,
     )
+    rejected = list(intent_rejected) + list(rejected)
 
-    # If LLM ops all rejected, fall back to heuristic once
+    # If LLM ops all rejected, fall back to heuristic / intent once
     if not accepted:
-        fallback = build_heuristic_ops(
-            instruction=instruction,
-            mode=mode,
-            linked_project_id=linked_project_id,
-            context=context,
-            draft_posts=draft_posts,
-            selected_post_id=selected_post_id,
-            picked_asset_id=picked,
-        )
-        accepted, rejected2 = validate_ops(
-            fallback,
-            linked_project_id=linked_project_id,
-            posts=draft_posts,
-            allowed_asset_ids=allowed_asset_ids,
-        )
-        rejected.extend(rejected2)
-        planner_name = "heuristic"
+        if mode == "edit" and intent_plan.intents:
+            active = find_post(draft_posts, selected_post_id) if selected_post_id else None
+            if active is None and draft_posts:
+                active = draft_posts[0]
+            fallback = (
+                build_ops_from_intent_plan(
+                    plan=intent_plan,
+                    linked_project_id=str(linked_project_id),
+                    post=active,
+                    picked_asset_id=picked,
+                )
+                if active is not None
+                else []
+            )
+            fallback, intent_rej2 = filter_ops_for_copy_protection(fallback, intent_plan, mode=mode)
+            for op in fallback:
+                if isinstance(op, dict):
+                    op.pop("_intent", None)
+                    op.pop("_target", None)
+            accepted, rejected2 = validate_ops(
+                fallback,
+                linked_project_id=linked_project_id,
+                posts=draft_posts,
+                allowed_asset_ids=allowed_asset_ids,
+            )
+            rejected.extend(intent_rej2)
+            rejected.extend(rejected2)
+            planner_name = "intent"
+        else:
+            fallback = build_heuristic_ops(
+                instruction=instruction,
+                mode=mode,
+                linked_project_id=linked_project_id,
+                context=context,
+                draft_posts=draft_posts,
+                selected_post_id=selected_post_id,
+                picked_asset_id=picked,
+            )
+            fallback, intent_rej2 = filter_ops_for_copy_protection(fallback, intent_plan, mode=mode)
+            for op in fallback:
+                if isinstance(op, dict):
+                    op.pop("_intent", None)
+                    op.pop("_target", None)
+            accepted, rejected2 = validate_ops(
+                fallback,
+                linked_project_id=linked_project_id,
+                posts=draft_posts,
+                allowed_asset_ids=allowed_asset_ids,
+            )
+            rejected.extend(intent_rej2)
+            rejected.extend(rejected2)
+            planner_name = "heuristic"
         if "design_ops_all_rejected" not in context.warnings:
             context.warnings.append("design_ops_all_rejected")
 
@@ -396,6 +509,11 @@ def generate_social_design(
         latency_ms=latency_ms,
         mode=mode,  # type: ignore[arg-type]
         planner=planner_name,
+        intents=intent_plan.intent_names,
+        intent_targets=intent_plan.targets,
+        applied_intents=[str(op.op) for op in accepted],
+        rejected_reasons=[reason for _, reason in rejected][:40],
+        copy_protected=mode == "edit" and not intent_plan.allow_copy_rewrite,
     )
 
     return SocialDesignResponse(

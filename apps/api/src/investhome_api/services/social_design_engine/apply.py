@@ -320,17 +320,24 @@ def apply_ops(
         if op.op == "MOVE_ELEMENT":
             cw, ch = canvas_size(post)
             full_bleed = el.get("type") == "IMAGE"
-            geo = clamp_safe_geometry(
-                x=op.payload.get("x", el.get("x", 0)),
-                y=op.payload.get("y", el.get("y", 0)),
-                width=el.get("width", 100),
-                height=el.get("height", 40),
-                canvas_w=cw,
-                canvas_h=ch,
-                full_bleed=full_bleed,
-            )
-            el["x"] = geo["x"]
-            el["y"] = geo["y"]
+            if el.get("type") in {"BUTTON", "CTA"}:
+                pad = 24
+                w = clamp_int(el.get("width"), 8, cw - pad * 2, 100)
+                h = clamp_int(el.get("height"), 8, ch - pad * 2, 40)
+                el["x"] = clamp_int(op.payload.get("x", el.get("x", 0)), pad, max(pad, cw - w - pad), pad)
+                el["y"] = clamp_int(op.payload.get("y", el.get("y", 0)), pad, max(pad, ch - h - pad), pad)
+            else:
+                geo = clamp_safe_geometry(
+                    x=op.payload.get("x", el.get("x", 0)),
+                    y=op.payload.get("y", el.get("y", 0)),
+                    width=el.get("width", 100),
+                    height=el.get("height", 40),
+                    canvas_w=cw,
+                    canvas_h=ch,
+                    full_bleed=full_bleed,
+                )
+                el["x"] = geo["x"]
+                el["y"] = geo["y"]
             continue
 
         if op.op == "RESIZE_ELEMENT":

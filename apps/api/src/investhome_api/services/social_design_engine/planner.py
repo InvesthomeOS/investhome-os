@@ -16,7 +16,7 @@ from investhome_api.services.social_design_engine.ops import (
     looks_like_rag_or_debug_copy,
 )
 
-PROMPT_VERSION = "social-design-ops-v2"
+PROMPT_VERSION = "social-design-ops-v3"
 
 SYSTEM_INSTRUCTIONS = """You are the InvestHome OS Social Media Builder AI Design Planner.
 You output ONLY a JSON object with a Design Ops array. Never mutate a database.
@@ -31,7 +31,16 @@ Rules:
 - Allowed ops: {ops}
 - CREATE mode: build a complete social post (format, background Asset ID if available, headline TEXT, body TEXT, CTA).
   Layout grammar (server): full-bleed background → overlay → HEADLINE upper/middle → BODY below → CTA lower safe region.
-- EDIT mode: emit minimal ops against CURRENT draft (UPDATE_STYLE, UPDATE_TEXT, MOVE_ELEMENT, REPLACE_IMAGE, etc.). Do not full-regenerate unless needed.
+- EDIT mode: emit ONLY the minimal ops requested. Do not full-regenerate.
+- EDIT COPY PROTECTION (critical):
+  Existing headline, body, and CTA label are IMMUTABLE by default.
+  NEVER emit UPDATE_TEXT with new content or UPDATE_CTA with a new label unless the user
+  EXPLICITLY asks to change wording/copy (e.g. "başlığı şuna çevir", "rewrite headline", "CTA olsun …").
+  Spatial language is MOVE, not copy: "üste/aşağı/sola/sağa/ortala/mavi buluta al/taşı" → MOVE_ELEMENT only.
+  "küçült/büyüt" → UPDATE_STYLE fontSize or RESIZE_ELEMENT — keep existing text unchanged.
+  "başka görsel/exterior/render" → REPLACE_IMAGE / SET_BACKGROUND — keep all copy unchanged.
+- Target mapping: başlık→headline TEXT, body/açıklama→body TEXT, CTA/buton→BUTTON, görsel/arka plan→IMAGE.
+  Do not ADD duplicate headline/body/CTA when the target already exists — UPDATE/MOVE existing element_id.
 - linked_project_id must equal the given project id on every op.
 - Asset fields must be real Asset UUIDs from media_candidates or selected_assets.
 - If brand_context.available is false, use neutral premium styling (white/dark text) and do not invent brand voice.
@@ -317,6 +326,12 @@ def build_heuristic_ops(
 
     # -------- EDIT MODE --------
     if mode == "edit":
+        from investhome_api.services.social_design_engine.intent import (
+            build_ops_from_intent_plan,
+            classify_edit_intents,
+            enrich_color_intents,
+        )
+
         post = None
         if selected_post_id:
             post = find_post(draft_posts, selected_post_id)
@@ -326,91 +341,52 @@ def build_heuristic_ops(
             mode = "create"
         else:
             post_id = str(post.get("id"))
-            ops: list[dict[str, Any]] = []
-            elements = post.get("elements") if isinstance(post.get("elements"), list) else []
+            plan = enrich_color_intents(classify_edit_intents(instruction), instruction)
+            ops = build_ops_from_intent_plan(
+                plan=plan,
+                linked_project_id=pid,
+                post=post,
+                picked_asset_id=picked_asset_id,
+            )
 
-            # Style color change
-            color_match = re.search(r"#([0-9a-fA-F]{3,8})\b", instruction or "")
-            wants_white = any(k in instr for k in ("beyaz", "white", "açık"))
-            wants_dark = any(k in instr for k in ("siyah", "dark", "black"))
-            target_color = None
-            if color_match:
-                target_color = f"#{color_match.group(1)}"
-            elif wants_white:
-                target_color = "#ffffff"
-            elif wants_dark:
-                target_color = "#0f172a"
-
-            if target_color:
-                for el in elements:
-                    if isinstance(el, dict) and el.get("type") == "TEXT":
-                        ops.append(
-                            {
-                                "op": "UPDATE_STYLE",
-                                "linked_project_id": pid,
-                                "post_id": post_id,
-                                "element_id": el.get("id"),
-                                "payload": {"color": target_color},
-                            }
-                        )
-
-            # Replace / set background image
-            if any(k in instr for k in ("görsel", "image", "foto", "photo", "background", "arka plan", "değiştir", "replace")):
-                if picked_asset_id:
-                    ops.append(
-                        {
-                            "op": "SET_BACKGROUND",
-                            "linked_project_id": pid,
-                            "post_id": post_id,
-                            "element_id": None,
-                            "payload": {"asset_id": str(picked_asset_id)},
-                        }
-                    )
+            # Explicit copy intents only — never refresh wording as a fallback.
+            if plan.allow_copy_rewrite:
+                elements = post.get("elements") if isinstance(post.get("elements"), list) else []
+                for item in plan.intents:
+                    if item.intent != "CHANGE_TEXT":
+                        continue
                     for el in elements:
-                        if isinstance(el, dict) and el.get("type") == "IMAGE":
+                        if not isinstance(el, dict) or el.get("type") != "TEXT":
+                            continue
+                        role = el.get("role")
+                        if item.target == "headline" and role == "headline":
                             ops.append(
                                 {
-                                    "op": "REPLACE_IMAGE",
+                                    "op": "UPDATE_TEXT",
                                     "linked_project_id": pid,
                                     "post_id": post_id,
                                     "element_id": el.get("id"),
-                                    "payload": {"asset_id": str(picked_asset_id)},
+                                    "payload": {"content": headline},
+                                    "_intent": "CHANGE_TEXT",
+                                    "_target": "headline",
                                 }
                             )
-                            break
-
-            # Text updates
-            if any(k in instr for k in ("başlık", "headline", "title", "metin", "caption", "yazı", "cta", "buton")):
+                        elif item.target == "body" and role == "body":
+                            ops.append(
+                                {
+                                    "op": "UPDATE_TEXT",
+                                    "linked_project_id": pid,
+                                    "post_id": post_id,
+                                    "element_id": el.get("id"),
+                                    "payload": {"content": body},
+                                    "_intent": "CHANGE_TEXT",
+                                    "_target": "body",
+                                }
+                            )
+            if plan.allow_cta_rewrite:
+                elements = post.get("elements") if isinstance(post.get("elements"), list) else []
                 for el in elements:
-                    if not isinstance(el, dict):
-                        continue
-                    if el.get("type") == "TEXT" and el.get("role") == "headline" and any(
-                        k in instr for k in ("başlık", "headline", "title")
-                    ):
-                        ops.append(
-                            {
-                                "op": "UPDATE_TEXT",
-                                "linked_project_id": pid,
-                                "post_id": post_id,
-                                "element_id": el.get("id"),
-                                "payload": {"content": headline},
-                            }
-                        )
-                    if el.get("type") == "TEXT" and el.get("role") == "body" and any(
-                        k in instr for k in ("caption", "metin", "body", "açıklama")
-                    ):
-                        ops.append(
-                            {
-                                "op": "UPDATE_TEXT",
-                                "linked_project_id": pid,
-                                "post_id": post_id,
-                                "element_id": el.get("id"),
-                                "payload": {"content": body},
-                            }
-                        )
-                    if el.get("type") in {"BUTTON", "CTA"} and any(
-                        k in instr for k in ("cta", "buton", "button")
-                    ):
+                    if isinstance(el, dict) and el.get("type") in {"BUTTON", "CTA"}:
                         ops.append(
                             {
                                 "op": "UPDATE_CTA",
@@ -418,41 +394,13 @@ def build_heuristic_ops(
                                 "post_id": post_id,
                                 "element_id": el.get("id"),
                                 "payload": {"label": cta},
-                            }
-                        )
-
-            # Move / align
-            if any(k in instr for k in ("ortala", "center", "align")):
-                for el in elements:
-                    if isinstance(el, dict) and el.get("type") == "TEXT" and el.get("role") == "headline":
-                        ops.append(
-                            {
-                                "op": "ALIGN_ELEMENT",
-                                "linked_project_id": pid,
-                                "post_id": post_id,
-                                "element_id": el.get("id"),
-                                "payload": {"align": "center"},
+                                "_intent": "CHANGE_CTA_TEXT",
+                                "_target": "cta",
                             }
                         )
                         break
 
-            if any(k in instr for k in ("yukarı", "up", "aşağı", "down", "taşı", "move")):
-                for el in elements:
-                    if isinstance(el, dict) and el.get("type") == "TEXT" and el.get("role") == "headline":
-                        y = int(el.get("y") or 0)
-                        dy = -40 if any(k in instr for k in ("yukarı", "up")) else 40
-                        ops.append(
-                            {
-                                "op": "MOVE_ELEMENT",
-                                "linked_project_id": pid,
-                                "post_id": post_id,
-                                "element_id": el.get("id"),
-                                "payload": {"x": el.get("x", 0), "y": max(0, y + dy)},
-                            }
-                        )
-                        break
-
-            # Format change
+            # Format change (explicit)
             new_format = _detect_format(instruction, str(post.get("formatPreset") or "square"))
             if new_format != str(post.get("formatPreset") or "") and any(
                 k in instr for k in ("format", "story", "portrait", "landscape", "square", "reel")
@@ -467,32 +415,6 @@ def build_heuristic_ops(
                     }
                 )
 
-            if ops:
-                return ops
-            # Fallback edit: refresh copy on existing elements
-            for el in elements:
-                if not isinstance(el, dict):
-                    continue
-                if el.get("type") == "TEXT" and el.get("role") == "headline":
-                    ops.append(
-                        {
-                            "op": "UPDATE_TEXT",
-                            "linked_project_id": pid,
-                            "post_id": post_id,
-                            "element_id": el.get("id"),
-                            "payload": {"content": headline},
-                        }
-                    )
-                elif el.get("type") == "TEXT" and el.get("role") == "body":
-                    ops.append(
-                        {
-                            "op": "UPDATE_TEXT",
-                            "linked_project_id": pid,
-                            "post_id": post_id,
-                            "element_id": el.get("id"),
-                            "payload": {"content": body},
-                        }
-                    )
             return ops
 
     # -------- CREATE MODE --------

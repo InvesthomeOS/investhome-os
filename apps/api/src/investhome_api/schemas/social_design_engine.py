@@ -94,6 +94,12 @@ class SocialDesignGenerationMeta(BaseModel):
     latency_ms: int = 0
     mode: DesignMode
     planner: str = "llm"
+    # Edit-intent audit (never rendered on canvas)
+    intents: list[str] = Field(default_factory=list)
+    intent_targets: list[str] = Field(default_factory=list)
+    applied_intents: list[str] = Field(default_factory=list)
+    rejected_reasons: list[str] = Field(default_factory=list)
+    copy_protected: bool = False
 
 
 class SocialDesignResponse(BaseModel):

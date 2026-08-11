@@ -221,8 +221,17 @@ describe('canonical canvas fit / layout safety (renderer contract)', () => {
 
   it('artboard elements render absolute design-pixel coords', () => {
     const binder = readSmb('smb-artboard-elements.tsx');
-    assert.match(binder, /left:\s*el\.x/);
-    assert.match(binder, /top:\s*el\.y/);
-    assert.match(binder, /fontSize:\s*el\.fontSize/);
+    assert.match(binder, /left:\s*finiteOr\(el\.x/);
+    assert.match(binder, /top:\s*finiteOr\(el\.y/);
+    assert.match(binder, /fontSize/);
+    assert.match(binder, /isRenderableElement/);
+  });
+
+  it('sequential AI edits read latest posts via refs (no stale snapshot)', () => {
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    assert.match(workspace, /postsRef\.current/);
+    assert.match(workspace, /selectedPostIdRef\.current/);
+    assert.match(workspace, /const latestPosts = postsRef\.current/);
+    assert.match(workspace, /buildSocialDesignRequest\(\{[\s\S]*posts:\s*latestPosts/);
   });
 });

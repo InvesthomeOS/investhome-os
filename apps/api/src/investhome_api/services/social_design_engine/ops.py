@@ -299,16 +299,27 @@ def validate_op(
         cw, ch = canvas_size(target)
         from investhome_api.services.social_design_engine.layout import clamp_safe_geometry
 
-        geo = clamp_safe_geometry(
-            x=payload.get("x", 0),
-            y=payload.get("y", 0),
-            width=payload.get("width", min(400, cw)),
-            height=payload.get("height", min(80, ch)),
-            canvas_w=cw,
-            canvas_h=ch,
-            full_bleed=op_name == "ADD_IMAGE",
-        )
-        payload.update(geo)
+        # BUTTON/CTA may sit in the lower band; keep edge pad instead of text safe-box.
+        el = find_element(target, element_id) if element_id else None
+        is_button = bool(el and el.get("type") in {"BUTTON", "CTA"})
+        if op_name == "MOVE_ELEMENT" and is_button:
+            pad = 24
+            w = clamp_int(el.get("width") if el else payload.get("width"), 8, cw - pad * 2, 100)
+            h = clamp_int(el.get("height") if el else payload.get("height"), 8, ch - pad * 2, 40)
+            x = clamp_int(payload.get("x", el.get("x") if el else 0), pad, max(pad, cw - w - pad), pad)
+            y = clamp_int(payload.get("y", el.get("y") if el else 0), pad, max(pad, ch - h - pad), pad)
+            payload.update({"x": x, "y": y, "width": w, "height": h})
+        else:
+            geo = clamp_safe_geometry(
+                x=payload.get("x", 0),
+                y=payload.get("y", 0),
+                width=payload.get("width", min(400, cw)),
+                height=payload.get("height", min(80, ch)),
+                canvas_w=cw,
+                canvas_h=ch,
+                full_bleed=op_name == "ADD_IMAGE" or (el or {}).get("type") == "IMAGE",
+            )
+            payload.update(geo)
 
     # ADD_TEXT / ADD_CTA: do NOT invent free pixel coords here — layout grammar owns placement.
     # If LLM sent geometry, clamp into safe margins; otherwise leave unset for apply().

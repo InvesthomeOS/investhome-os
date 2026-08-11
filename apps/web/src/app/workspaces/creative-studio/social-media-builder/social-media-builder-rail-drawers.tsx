@@ -703,7 +703,7 @@ function StyleDrawer({ selectedElement, patchElement, markDirty }: SmbRightRailD
             type="number"
             min={8}
             max={200}
-            value={selectedElement.fontSize}
+            value={Number.isFinite(selectedElement.fontSize) ? selectedElement.fontSize : 24}
             data-testid="smb-style-font-size"
             onChange={(e) => {
               patchElement({ fontSize: Number(e.target.value) || 16 });
@@ -713,7 +713,7 @@ function StyleDrawer({ selectedElement, patchElement, markDirty }: SmbRightRailD
         </Field>
         <Field label={t('rails.style.fontWeight')}>
           <select
-            value={selectedElement.fontWeight}
+            value={selectedElement.fontWeight === 'bold' ? 'bold' : 'normal'}
             data-testid="smb-style-font-weight"
             onChange={(e) => {
               patchElement({
@@ -728,7 +728,11 @@ function StyleDrawer({ selectedElement, patchElement, markDirty }: SmbRightRailD
         </Field>
         <Field label={t('rails.style.align')}>
           <select
-            value={selectedElement.align}
+            value={
+              selectedElement.align === 'left' || selectedElement.align === 'right'
+                ? selectedElement.align
+                : 'center'
+            }
             data-testid="smb-style-align"
             onChange={(e) => {
               const align = e.target.value;

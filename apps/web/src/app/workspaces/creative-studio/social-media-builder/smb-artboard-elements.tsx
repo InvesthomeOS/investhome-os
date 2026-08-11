@@ -28,6 +28,18 @@ type DragState = {
   origH: number;
 };
 
+function finiteOr(n: unknown, fallback: number): number {
+  const v = typeof n === 'number' ? n : Number(n);
+  return Number.isFinite(v) ? v : fallback;
+}
+
+function isRenderableElement(el: SocialElement | null | undefined): el is SocialElement {
+  if (!el || typeof el !== 'object') return false;
+  if (typeof el.id !== 'string' || !el.id) return false;
+  if (el.type !== 'TEXT' && el.type !== 'BUTTON' && el.type !== 'IMAGE') return false;
+  return Number.isFinite(finiteOr(el.x, NaN)) && Number.isFinite(finiteOr(el.y, NaN));
+}
+
 export function SmbArtboardElements({
   elements,
   selectedElementId,
@@ -37,7 +49,7 @@ export function SmbArtboardElements({
   onSelect,
   onPatchElement,
 }: SmbArtboardElementsProps) {
-  const sorted = sortElementsByZ(elements);
+  const sorted = sortElementsByZ(elements.filter(isRenderableElement));
 
   function beginDrag(
     event: ReactPointerEvent<HTMLElement>,
@@ -45,45 +57,54 @@ export function SmbArtboardElements({
     mode: 'move' | 'resize',
   ) {
     if (canvasLocked || previewMode) return;
+    if (!isRenderableElement(el)) return;
     event.stopPropagation();
     // Do not preventDefault — keeps click/selection stable inside CSS-transform + FS shells.
+    // Do not use setPointerCapture — release throws InvalidStateError after FS remounts.
     onSelect(el.id);
     const target = event.currentTarget;
+    if (!target || typeof target.closest !== 'function') return;
+
     const drag: DragState = {
       id: el.id,
       mode,
       startX: event.clientX,
       startY: event.clientY,
-      origX: el.x,
-      origY: el.y,
-      origW: el.width,
-      origH: el.height,
+      origX: finiteOr(el.x, 0),
+      origY: finiteOr(el.y, 0),
+      origW: Math.max(24, finiteOr(el.width, 100)),
+      origH: Math.max(24, finiteOr(el.height, 40)),
     };
     let dragging = false;
+    let alive = true;
 
     function readScale(): { scaleX: number; scaleY: number } {
-      // Prefer the design-pixel layer (transform scale) over the fitted frame size.
-      const design = target.closest('[data-testid="smb-artboard-design"]') as HTMLElement | null;
-      if (design) {
-        const rect = design.getBoundingClientRect();
-        const scaleX = rect.width / Math.max(1, design.offsetWidth);
-        const scaleY = rect.height / Math.max(1, design.offsetHeight);
-        if (scaleX > 0.001 && scaleY > 0.001) return { scaleX, scaleY };
+      try {
+        const design = target.closest('[data-testid="smb-artboard-design"]') as HTMLElement | null;
+        if (design && design.offsetWidth > 0 && design.offsetHeight > 0) {
+          const rect = design.getBoundingClientRect();
+          const scaleX = rect.width / design.offsetWidth;
+          const scaleY = rect.height / design.offsetHeight;
+          if (scaleX > 0.001 && scaleY > 0.001) return { scaleX, scaleY };
+        }
+        const artboard = target.closest('[data-testid="smb-artboard"]') as HTMLElement | null;
+        const scaleX = artboard
+          ? artboard.clientWidth / Math.max(1, Number(artboard.dataset.width) || artboard.clientWidth)
+          : 1;
+        const scaleY = artboard
+          ? artboard.clientHeight / Math.max(1, Number(artboard.dataset.height) || artboard.clientHeight)
+          : 1;
+        return {
+          scaleX: scaleX > 0.001 ? scaleX : 1,
+          scaleY: scaleY > 0.001 ? scaleY : 1,
+        };
+      } catch {
+        return { scaleX: 1, scaleY: 1 };
       }
-      const artboard = target.closest('[data-testid="smb-artboard"]') as HTMLElement | null;
-      const scaleX = artboard
-        ? artboard.clientWidth / Math.max(1, Number(artboard.dataset.width) || artboard.clientWidth)
-        : 1;
-      const scaleY = artboard
-        ? artboard.clientHeight / Math.max(1, Number(artboard.dataset.height) || artboard.clientHeight)
-        : 1;
-      return {
-        scaleX: scaleX > 0.001 ? scaleX : 1,
-        scaleY: scaleY > 0.001 ? scaleY : 1,
-      };
     }
 
     function onMove(ev: PointerEvent) {
+      if (!alive) return;
       const dx = ev.clientX - drag.startX;
       const dy = ev.clientY - drag.startY;
       if (!dragging && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
@@ -103,6 +124,7 @@ export function SmbArtboardElements({
     }
 
     function onUp() {
+      alive = false;
       // Window-level listeners only — avoid pointer capture APIs.
       // Capture release throws InvalidStateError after FS/transform re-renders remount nodes.
       window.removeEventListener('pointermove', onMove);
@@ -121,24 +143,25 @@ export function SmbArtboardElements({
         const selected = selectedElementId === el.id;
         const style: CSSProperties = {
           position: 'absolute',
-          left: el.x,
-          top: el.y,
-          width: el.width,
-          height: el.height,
-          zIndex: el.zIndex + 10,
+          left: finiteOr(el.x, 0),
+          top: finiteOr(el.y, 0),
+          width: Math.max(8, finiteOr(el.width, 100)),
+          height: Math.max(8, finiteOr(el.height, 40)),
+          zIndex: Math.round(finiteOr(el.zIndex, 1)) + 10,
         };
 
         if (el.type === 'TEXT') {
+          const fontSize = Math.max(8, finiteOr(el.fontSize, 24));
           return (
             <div
               key={el.id}
               className={`smb-ws__el smb-ws__el--text${selected ? ' is-selected' : ''}`}
               style={{
                 ...style,
-                color: el.color,
-                fontSize: el.fontSize,
+                color: typeof el.color === 'string' && el.color.trim() ? el.color : '#ffffff',
+                fontSize,
                 fontWeight: el.fontWeight === 'bold' ? 700 : 400,
-                textAlign: el.align,
+                textAlign: el.align === 'left' || el.align === 'right' ? el.align : 'center',
               }}
               data-testid={`smb-el-${el.id}`}
               data-el-type="TEXT"
@@ -151,7 +174,7 @@ export function SmbArtboardElements({
               role="button"
               tabIndex={0}
             >
-              {el.content}
+              {typeof el.content === 'string' ? el.content : ''}
               {selected && !previewMode && !canvasLocked ? (
                 <span
                   className="smb-ws__el-resize"
@@ -164,15 +187,22 @@ export function SmbArtboardElements({
         }
 
         if (el.type === 'BUTTON') {
-          const btnFont = Math.max(12, Math.round(el.height * 0.42));
+          const btnH = Math.max(8, finiteOr(el.height, 40));
+          const btnFont = Math.max(12, Math.round(btnH * 0.42));
           return (
             <div
               key={el.id}
               className={`smb-ws__el smb-ws__el--button${selected ? ' is-selected' : ''}`}
               style={{
                 ...style,
-                background: el.backgroundColor,
-                color: el.textColor,
+                background:
+                  typeof el.backgroundColor === 'string' && el.backgroundColor.trim()
+                    ? el.backgroundColor
+                    : '#ffffff',
+                color:
+                  typeof el.textColor === 'string' && el.textColor.trim()
+                    ? el.textColor
+                    : '#111827',
                 fontSize: btnFont,
               }}
               data-testid={`smb-el-${el.id}`}
@@ -185,7 +215,7 @@ export function SmbArtboardElements({
               role="button"
               tabIndex={0}
             >
-              <span>{el.label}</span>
+              <span>{typeof el.label === 'string' ? el.label : ''}</span>
               {selected && !previewMode && !canvasLocked ? (
                 <span
                   className="smb-ws__el-resize"
@@ -214,7 +244,11 @@ export function SmbArtboardElements({
             role="button"
             tabIndex={0}
           >
-            {url ? <img src={url} alt="" draggable={false} /> : <span className="smb-ws__el-image-empty" />}
+            {url ? (
+              <img src={url} alt="" draggable={false} />
+            ) : (
+              <span className="smb-ws__el-image-empty" />
+            )}
             {selected && !previewMode && !canvasLocked ? (
               <span
                 className="smb-ws__el-resize"

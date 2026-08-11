@@ -331,5 +331,6 @@ export function toColorInputValue(value: string | null | undefined, fallback = '
     const b = raw[3]!;
     return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
   }
-  return fallback;
+  // Named / rgb() / invalid values crash <input type="color"> — always fall back.
+  return /^#[0-9a-fA-F]{6}$/.test(fallback) ? fallback.toLowerCase() : '#ffffff';
 }

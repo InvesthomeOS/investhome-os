@@ -543,4 +543,23 @@ describe('fullscreen selection / color input safety', () => {
     assert.match(workspace, /data-testid="smb-center"[\s\S]*\{aiDesignCommand\}/);
     assert.match(workspace, /data-fs-ai=/);
   });
+
+  it('uses safe selectElement + postsRef for FS selection and sequential AI', () => {
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    assert.match(workspace, /function selectElement/);
+    assert.match(workspace, /onSelect=\{selectElement\}/);
+    assert.match(workspace, /postsRef\.current/);
+    assert.match(workspace, /selectedPostIdRef\.current/);
+    assert.match(workspace, /latestPosts/);
+    // Cover image clicks must not bubble into FTV capture paths
+    assert.match(workspace, /smb-artboard-img[\s\S]*onPointerDown=\{\(e\) => e\.stopPropagation\(\)\}/);
+  });
+
+  it('guards artboard element render + drag against invalid geometry (FS)', () => {
+    const binder = readSmb('smb-artboard-elements.tsx');
+    assert.match(binder, /isRenderableElement/);
+    assert.match(binder, /finiteOr/);
+    assert.match(binder, /Do not use setPointerCapture/);
+    assert.doesNotMatch(binder, /\.setPointerCapture\(/);
+  });
 });

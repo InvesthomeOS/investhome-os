@@ -159,6 +159,8 @@ export function SocialMediaBuilderWorkspace() {
   const generateAbortRef = useRef(0);
   const postsRef = useRef(posts);
   postsRef.current = posts;
+  const selectedPostIdRef = useRef(selectedPostId);
+  selectedPostIdRef.current = selectedPostId;
 
   const selectedConstruction = useMemo(
     () =>
@@ -467,6 +469,19 @@ export function SocialMediaBuilderWorkspace() {
     updateSelectedPost((p) => ({ ...p, ...patch }));
   }
 
+  function selectElement(elementId: string | null) {
+    if (!elementId) {
+      setSelectedElementId(null);
+      return;
+    }
+    const exists = selectedPost.elements.some((el) => el.id === elementId);
+    if (!exists) {
+      setSelectedElementId(null);
+      return;
+    }
+    setSelectedElementId(elementId);
+  }
+
   function patchElement(elementId: string, patch: Partial<SocialElement>) {
     updateSelectedPost((p) => ({
       ...p,
@@ -693,11 +708,14 @@ export function SocialMediaBuilderWorkspace() {
 
   const runAiGenerate = useCallback(
     async (instruction: string) => {
+      // Always read latest canvas — sequential edits must not use a stale snapshot.
+      const latestPosts = postsRef.current;
+      const latestSelectedPostId = selectedPostIdRef.current;
       const built = buildSocialDesignRequest({
         linkedProjectId: docApi.constructionProjectId,
         instruction,
-        posts,
-        selectedPostId,
+        posts: latestPosts,
+        selectedPostId: latestSelectedPostId,
         coverImage: coverAsset.coverImage,
         galleryImages: coverAsset.galleryImages,
         language: locale,
@@ -789,8 +807,6 @@ export function SocialMediaBuilderWorkspace() {
       locale,
       persistNow,
       platforms,
-      posts,
-      selectedPostId,
       t,
     ],
   );
@@ -1276,7 +1292,7 @@ export function SocialMediaBuilderWorkspace() {
                       data-image-state={artboardState}
                       data-width={contentSize.w}
                       data-height={contentSize.h}
-                      onClick={() => setSelectedElementId(null)}
+                      onClick={() => selectElement(null)}
                       role="presentation"
                     >
                       {/*
@@ -1299,6 +1315,12 @@ export function SocialMediaBuilderWorkspace() {
                           src={artboardSrc}
                           alt=""
                           data-testid="smb-artboard-img"
+                          draggable={false}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            selectElement(null);
+                          }}
                         />
                       ) : (
                         <div
@@ -1351,7 +1373,7 @@ export function SocialMediaBuilderWorkspace() {
                         imageUrlsByAssetId={elementDisplayUrls}
                         canvasLocked={canvasLocked}
                         previewMode={previewMode}
-                        onSelect={setSelectedElementId}
+                        onSelect={selectElement}
                         onPatchElement={(id, patch) => patchElement(id, patch)}
                       />
                       </div>

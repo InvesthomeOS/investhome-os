@@ -798,3 +798,265 @@ def test_draft_backward_compat_empty_elements_still_create(client, db_session: S
     )
     assert resp.status_code == 200, resp.text
     assert len(resp.json()["posts"]) >= 1
+
+def test_edit_intent_move_sky_does_not_rewrite_copy() -> None:
+    """P0: sky-move instruction moves headline only — no copy rewrite."""
+    from investhome_api.services.social_design_engine.intent import (
+        classify_edit_intents,
+        build_ops_from_intent_plan,
+        filter_ops_for_copy_protection,
+    )
+    from investhome_api.services.social_design_engine.apply import apply_ops
+    from investhome_api.schemas.social_design_engine import SocialDesignOp
+
+    pid = TEMPLE_PROJECT_ID
+    headline = "Temple Residences Quiet Luxury"
+    body = "Verified amenities and Columbia Heights living."
+    cta = "Schedule a private tour"
+    post = {
+        "id": "p1",
+        "formatPreset": "square",
+        "width": 1080,
+        "height": 1080,
+        "coverAssetId": str(uuid4()),
+        "elements": [
+            {
+                "id": "h1",
+                "type": "TEXT",
+                "role": "headline",
+                "content": headline,
+                "x": 80,
+                "y": 420,
+                "width": 920,
+                "height": 120,
+                "fontSize": 48,
+                "color": "#ffffff",
+            },
+            {
+                "id": "b1",
+                "type": "TEXT",
+                "role": "body",
+                "content": body,
+                "x": 80,
+                "y": 580,
+                "width": 920,
+                "height": 100,
+                "fontSize": 24,
+                "color": "#ffffff",
+            },
+            {
+                "id": "c1",
+                "type": "BUTTON",
+                "label": cta,
+                "x": 340,
+                "y": 900,
+                "width": 400,
+                "height": 56,
+            },
+        ],
+    }
+    plan = classify_edit_intents("Başlığı mavi buluta al.")
+    assert "MOVE" in plan.intent_names
+    assert plan.structural_only
+    assert not plan.allow_copy_rewrite
+    ops = build_ops_from_intent_plan(plan=plan, linked_project_id=str(pid), post=post)
+    assert ops and all(o["op"] == "MOVE_ELEMENT" for o in ops)
+    assert ops[0]["element_id"] == "h1"
+    assert ops[0]["payload"]["y"] < 420
+
+    # Unauthorized LLM copy rewrite must be rejected
+    rogue = [
+        {
+            "op": "UPDATE_TEXT",
+            "linked_project_id": str(pid),
+            "post_id": "p1",
+            "element_id": "h1",
+            "payload": {"content": "Mavi Bulutların Üzerinde"},
+        },
+        {
+            "op": "UPDATE_CTA",
+            "linked_project_id": str(pid),
+            "post_id": "p1",
+            "element_id": "c1",
+            "payload": {"label": "Hemen Bak"},
+        },
+        ops[0],
+    ]
+    kept, rejected = filter_ops_for_copy_protection(rogue, plan, mode="edit")
+    assert any("copy_rewrite_rejected" in r[1] for r in rejected)
+    assert all(o.get("op") != "UPDATE_TEXT" for o in kept)
+    assert all(o.get("op") != "UPDATE_CTA" or "label" not in (o.get("payload") or {}) for o in kept)
+
+    validated = [
+        SocialDesignOp(
+            op=o["op"],
+            linked_project_id=pid,
+            post_id=o["post_id"],
+            element_id=o.get("element_id"),
+            payload={k: v for k, v in (o.get("payload") or {}).items()},
+        )
+        for o in ops
+    ]
+    out, _ = apply_ops([post], validated, linked_project_id=pid, selected_post_id="p1")
+    el_map = {e["id"]: e for e in out[0]["elements"]}
+    assert el_map["h1"]["content"] == headline
+    assert el_map["b1"]["content"] == body
+    assert el_map["c1"]["label"] == cta
+    assert el_map["h1"]["y"] < 420
+
+
+def test_edit_intent_resize_preserves_copy() -> None:
+    from investhome_api.services.social_design_engine.intent import (
+        classify_edit_intents,
+        build_ops_from_intent_plan,
+    )
+    from investhome_api.services.social_design_engine.apply import apply_ops
+    from investhome_api.schemas.social_design_engine import SocialDesignOp
+
+    pid = TEMPLE_PROJECT_ID
+    post = {
+        "id": "p1",
+        "formatPreset": "square",
+        "width": 1080,
+        "height": 1080,
+        "elements": [
+            {
+                "id": "h1",
+                "type": "TEXT",
+                "role": "headline",
+                "content": "Keep Me",
+                "x": 80,
+                "y": 200,
+                "width": 900,
+                "height": 100,
+                "fontSize": 48,
+            },
+            {"id": "c1", "type": "BUTTON", "label": "Tour", "x": 400, "y": 900, "width": 280, "height": 48},
+        ],
+    }
+    plan = classify_edit_intents("Başlığı biraz küçült.")
+    assert "RESIZE" in plan.intent_names
+    assert not plan.allow_copy_rewrite
+    ops = build_ops_from_intent_plan(plan=plan, linked_project_id=str(pid), post=post)
+    assert ops[0]["op"] == "UPDATE_STYLE"
+    assert ops[0]["payload"]["fontSize"] < 48
+    validated = [
+        SocialDesignOp(
+            op=o["op"],
+            linked_project_id=pid,
+            post_id="p1",
+            element_id=o["element_id"],
+            payload=o["payload"],
+        )
+        for o in ops
+    ]
+    out, _ = apply_ops([post], validated, linked_project_id=pid)
+    assert out[0]["elements"][0]["content"] == "Keep Me"
+    assert out[0]["elements"][0]["fontSize"] < 48
+    assert out[0]["elements"][1]["label"] == "Tour"
+
+
+def test_edit_intent_cta_move_preserves_label() -> None:
+    from investhome_api.services.social_design_engine.intent import (
+        classify_edit_intents,
+        build_ops_from_intent_plan,
+    )
+    from investhome_api.services.social_design_engine.apply import apply_ops
+    from investhome_api.schemas.social_design_engine import SocialDesignOp
+
+    pid = TEMPLE_PROJECT_ID
+    post = {
+        "id": "p1",
+        "formatPreset": "square",
+        "width": 1080,
+        "height": 1080,
+        "elements": [
+            {"id": "c1", "type": "BUTTON", "label": "Schedule a private tour", "x": 340, "y": 800, "width": 400, "height": 56},
+        ],
+    }
+    plan = classify_edit_intents("CTA'yı biraz aşağı taşı.")
+    ops = build_ops_from_intent_plan(plan=plan, linked_project_id=str(pid), post=post)
+    assert ops and ops[0]["op"] == "MOVE_ELEMENT"
+    y0 = post["elements"][0]["y"]
+    validated = [
+        SocialDesignOp(op=ops[0]["op"], linked_project_id=pid, post_id="p1", element_id="c1", payload=ops[0]["payload"])
+    ]
+    out, _ = apply_ops([post], validated, linked_project_id=pid)
+    assert out[0]["elements"][0]["label"] == "Schedule a private tour"
+    assert out[0]["elements"][0]["y"] > y0
+
+
+def test_edit_intent_replace_image_preserves_copy() -> None:
+    from investhome_api.services.social_design_engine.intent import (
+        classify_edit_intents,
+        build_ops_from_intent_plan,
+    )
+
+    pid = TEMPLE_PROJECT_ID
+    asset_a = uuid4()
+    asset_b = uuid4()
+    post = {
+        "id": "p1",
+        "formatPreset": "square",
+        "width": 1080,
+        "height": 1080,
+        "coverAssetId": str(asset_a),
+        "elements": [
+            {"id": "h1", "type": "TEXT", "role": "headline", "content": "H", "x": 10, "y": 10, "width": 100, "height": 40},
+            {"id": "img1", "type": "IMAGE", "assetId": str(asset_a), "x": 0, "y": 0, "width": 1080, "height": 1080},
+            {"id": "c1", "type": "BUTTON", "label": "CTA", "x": 10, "y": 900, "width": 200, "height": 40},
+        ],
+    }
+    plan = classify_edit_intents("Başka exterior render kullan.")
+    assert "REPLACE_IMAGE" in plan.intent_names
+    assert not plan.allow_copy_rewrite
+    ops = build_ops_from_intent_plan(
+        plan=plan, linked_project_id=str(pid), post=post, picked_asset_id=asset_b
+    )
+    assert any(o["op"] == "SET_BACKGROUND" for o in ops)
+    assert all(o["op"] not in {"UPDATE_TEXT", "UPDATE_CTA"} for o in ops)
+
+
+def test_explicit_copy_edit_allowed() -> None:
+    from investhome_api.services.social_design_engine.intent import classify_edit_intents
+
+    plan = classify_edit_intents('Başlığı "Yeni Lansman" olarak değiştir')
+    assert plan.allow_copy_rewrite
+    assert "CHANGE_TEXT" in plan.intent_names
+
+    plan2 = classify_edit_intents('CTA label olsun "Şimdi İncele"')
+    assert plan2.allow_cta_rewrite or plan2.allow_copy_rewrite
+
+
+def test_multi_intent_only_requested_ops() -> None:
+    from investhome_api.services.social_design_engine.intent import (
+        classify_edit_intents,
+        build_ops_from_intent_plan,
+    )
+
+    pid = TEMPLE_PROJECT_ID
+    post = {
+        "id": "p1",
+        "formatPreset": "square",
+        "width": 1080,
+        "height": 1080,
+        "elements": [
+            {"id": "h1", "type": "TEXT", "role": "headline", "content": "H", "x": 200, "y": 300, "width": 600, "height": 80, "fontSize": 40},
+            {"id": "c1", "type": "BUTTON", "label": "CTA", "x": 340, "y": 880, "width": 400, "height": 56},
+            {"id": "img1", "type": "IMAGE", "assetId": str(uuid4()), "x": 0, "y": 0, "width": 1080, "height": 1080},
+        ],
+    }
+    instr = "Başlığı biraz sola al, CTA'yı yukarı taşı ve görseli başka exterior render ile değiştir."
+    plan = classify_edit_intents(instr)
+    assert "MOVE" in plan.intent_names
+    assert "REPLACE_IMAGE" in plan.intent_names
+    assert not plan.allow_copy_rewrite
+    ops = build_ops_from_intent_plan(
+        plan=plan, linked_project_id=str(pid), post=post, picked_asset_id=uuid4()
+    )
+    names = {o["op"] for o in ops}
+    assert "MOVE_ELEMENT" in names
+    assert "SET_BACKGROUND" in names or "REPLACE_IMAGE" in names
+    assert "UPDATE_TEXT" not in names
+    assert "UPDATE_CTA" not in names
+    assert "ADD_TEXT" not in names
