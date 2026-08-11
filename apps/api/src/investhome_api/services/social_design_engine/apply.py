@@ -8,10 +8,16 @@ from typing import Any
 from uuid import UUID
 
 from investhome_api.schemas.social_design_engine import SocialDesignOp
+from investhome_api.services.social_design_engine.layout import (
+    apply_layout_grammar,
+    clamp_safe_geometry,
+    layout_cta_element,
+    layout_text_element,
+    social_layout_slots,
+)
 from investhome_api.services.social_design_engine.ops import (
     FORMAT_PRESETS,
     canvas_size,
-    clamp_geometry,
     clamp_int,
     find_element,
     find_post,
@@ -70,6 +76,8 @@ def apply_ops(
     """Apply validated ops to a deep-copied draft. Returns (posts, selected_post_id)."""
     working: list[dict[str, Any]] = copy.deepcopy(posts)
     current_selected = selected_post_id
+    # Posts that received structural create/add ops get deterministic layout grammar.
+    layout_post_ids: set[str] = set()
 
     for op in ops:
         if op.linked_project_id != linked_project_id:
@@ -101,6 +109,7 @@ def apply_ops(
                 }
             )
             current_selected = op.post_id
+            layout_post_ids.add(op.post_id)
             continue
 
         post = find_post(working, op.post_id)
@@ -125,45 +134,72 @@ def apply_ops(
 
         if op.op == "ADD_TEXT":
             cw, ch = canvas_size(post)
-            geo = clamp_geometry(
-                x=op.payload.get("x", int(cw * 0.08)),
-                y=op.payload.get("y", int(ch * 0.68)),
-                width=op.payload.get("width", int(cw * 0.84)),
-                height=op.payload.get("height", 120),
-                canvas_w=cw,
-                canvas_h=ch,
-            )
+            role = str(op.payload.get("role") or "custom").lower()
+            if role not in {"headline", "body", "custom"}:
+                role = "custom"
             eid = op.element_id or _new_element_id("text")
             content = sanitize_creative_copy(op.payload.get("content"), max_len=2000)
             if not content:
                 continue
-            _ensure_elements(post).append(
-                {
-                    "id": eid,
-                    "type": "TEXT",
-                    "role": op.payload.get("role") or "custom",
-                    "content": content,
-                    "fontSize": clamp_int(op.payload.get("fontSize"), 8, 200, 28),
-                    "fontWeight": op.payload.get("fontWeight") or "normal",
-                    "align": op.payload.get("align") or "center",
-                    "color": sanitize_color(op.payload.get("color"), "#ffffff"),
-                    "zIndex": clamp_int(op.payload.get("zIndex"), 0, 10_000, 2),
-                    **geo,
-                }
-            )
+            draft = {
+                "id": eid,
+                "type": "TEXT",
+                "role": role,
+                "content": content,
+                "fontSize": clamp_int(op.payload.get("fontSize"), 8, 200, 28),
+                "fontWeight": op.payload.get("fontWeight") or ("bold" if role == "headline" else "normal"),
+                "align": op.payload.get("align") or "center",
+                "color": sanitize_color(op.payload.get("color"), "#ffffff"),
+                "zIndex": clamp_int(op.payload.get("zIndex"), 0, 10_000, 2),
+                "x": op.payload.get("x"),
+                "y": op.payload.get("y"),
+                "width": op.payload.get("width"),
+                "height": op.payload.get("height"),
+            }
+            # Prefer role slots when geometry omitted (AI must not invent free pixels).
+            slots = social_layout_slots(cw, ch)
+            slot = slots.get(role) if role in {"headline", "body"} else None
+            if op.payload.get("x") is None or op.payload.get("y") is None:
+                laid = layout_text_element(draft, canvas_w=cw, canvas_h=ch, slot=slot)
+            else:
+                # Explicit edit geometry: clamp + fit text into provided box.
+                geo = clamp_safe_geometry(
+                    x=op.payload.get("x"),
+                    y=op.payload.get("y"),
+                    width=op.payload.get("width", int(cw * 0.84)),
+                    height=op.payload.get("height", 120),
+                    canvas_w=cw,
+                    canvas_h=ch,
+                    full_bleed=False,
+                )
+                draft.update(geo)
+                laid = layout_text_element(
+                    draft,
+                    canvas_w=cw,
+                    canvas_h=ch,
+                    slot={
+                        "x": geo["x"],
+                        "y": geo["y"],
+                        "width": geo["width"],
+                        "max_height": geo["height"],
+                    },
+                )
+            _ensure_elements(post).append(laid)
+            layout_post_ids.add(op.post_id)
             _sync_copy_fields(post)
             continue
 
         if op.op == "ADD_IMAGE":
             cw, ch = canvas_size(post)
             box = min(cw, ch) // 3
-            geo = clamp_geometry(
+            geo = clamp_safe_geometry(
                 x=op.payload.get("x", (cw - box) // 2),
                 y=op.payload.get("y", (ch - box) // 2),
                 width=op.payload.get("width", box),
                 height=op.payload.get("height", box),
                 canvas_w=cw,
                 canvas_h=ch,
+                full_bleed=True,
             )
             eid = op.element_id or _new_element_id("img")
             asset_id = op.payload.get("asset_id")
@@ -180,35 +216,42 @@ def apply_ops(
 
         if op.op == "ADD_CTA":
             cw, ch = canvas_size(post)
-            btn_w = min(cw, max(160, int(cw * 0.38)))
-            btn_h = max(36, int(ch * 0.045))
-            geo = clamp_geometry(
-                x=op.payload.get("x", (cw - btn_w) // 2),
-                y=op.payload.get("y", int(ch * 0.88)),
-                width=op.payload.get("width", btn_w),
-                height=op.payload.get("height", btn_h),
-                canvas_w=cw,
-                canvas_h=ch,
-            )
             eid = op.element_id or _new_element_id("cta")
             label = sanitize_creative_copy(
                 op.payload.get("label") or "Learn more",
                 fallback="Learn more",
                 max_len=80,
             )
-            _ensure_elements(post).append(
-                {
-                    "id": eid,
-                    "type": "BUTTON",
-                    "label": label or "Learn more",
-                    "backgroundColor": sanitize_color(
-                        op.payload.get("backgroundColor"), "#ffffff"
-                    ),
-                    "textColor": sanitize_color(op.payload.get("textColor"), "#111827"),
-                    "zIndex": clamp_int(op.payload.get("zIndex"), 0, 10_000, 4),
-                    **geo,
-                }
-            )
+            draft = {
+                "id": eid,
+                "type": "BUTTON",
+                "label": label or "Learn more",
+                "backgroundColor": sanitize_color(
+                    op.payload.get("backgroundColor"), "#ffffff"
+                ),
+                "textColor": sanitize_color(op.payload.get("textColor"), "#111827"),
+                "zIndex": clamp_int(op.payload.get("zIndex"), 0, 10_000, 4),
+                "x": op.payload.get("x"),
+                "y": op.payload.get("y"),
+                "width": op.payload.get("width"),
+                "height": op.payload.get("height"),
+            }
+            if op.payload.get("x") is None or op.payload.get("y") is None:
+                laid = layout_cta_element(draft, canvas_w=cw, canvas_h=ch)
+            else:
+                geo = clamp_safe_geometry(
+                    x=op.payload.get("x"),
+                    y=op.payload.get("y"),
+                    width=op.payload.get("width", min(cw, max(160, int(cw * 0.38)))),
+                    height=op.payload.get("height", max(36, int(ch * 0.045))),
+                    canvas_w=cw,
+                    canvas_h=ch,
+                    full_bleed=False,
+                )
+                draft.update(geo)
+                laid = draft
+            _ensure_elements(post).append(laid)
+            layout_post_ids.add(op.post_id)
             continue
 
         if op.op == "DELETE_ELEMENT" and op.element_id:
@@ -263,13 +306,15 @@ def apply_ops(
 
         if op.op == "MOVE_ELEMENT":
             cw, ch = canvas_size(post)
-            geo = clamp_geometry(
+            full_bleed = el.get("type") == "IMAGE"
+            geo = clamp_safe_geometry(
                 x=op.payload.get("x", el.get("x", 0)),
                 y=op.payload.get("y", el.get("y", 0)),
                 width=el.get("width", 100),
                 height=el.get("height", 40),
                 canvas_w=cw,
                 canvas_h=ch,
+                full_bleed=full_bleed,
             )
             el["x"] = geo["x"]
             el["y"] = geo["y"]
@@ -277,13 +322,15 @@ def apply_ops(
 
         if op.op == "RESIZE_ELEMENT":
             cw, ch = canvas_size(post)
-            geo = clamp_geometry(
+            full_bleed = el.get("type") == "IMAGE"
+            geo = clamp_safe_geometry(
                 x=el.get("x", 0),
                 y=el.get("y", 0),
                 width=op.payload.get("width", el.get("width", 100)),
                 height=op.payload.get("height", el.get("height", 40)),
                 canvas_w=cw,
                 canvas_h=ch,
+                full_bleed=full_bleed,
             )
             el.update(geo)
             continue
@@ -323,5 +370,12 @@ def apply_ops(
         current_selected = str(working[0]["id"]) if working else None
     elif current_selected is None and working:
         current_selected = str(working[0]["id"])
+
+    # Deterministic grammar: safe stacking + text fit for create/add batches.
+    for post in working:
+        pid = str(post.get("id") or "")
+        if pid in layout_post_ids:
+            apply_layout_grammar(post)
+            _sync_copy_fields(post)
 
     return working, current_selected

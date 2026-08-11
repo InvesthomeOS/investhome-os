@@ -16,7 +16,7 @@ from investhome_api.services.social_design_engine.ops import (
     looks_like_rag_or_debug_copy,
 )
 
-PROMPT_VERSION = "social-design-ops-v1"
+PROMPT_VERSION = "social-design-ops-v2"
 
 SYSTEM_INSTRUCTIONS = """You are the InvestHome OS Social Media Builder AI Design Planner.
 You output ONLY a JSON object with a Design Ops array. Never mutate a database.
@@ -25,15 +25,17 @@ Never invent Unsplash/stock/mock media. Use only provided Asset UUIDs.
 Rules:
 - Reply with JSON only: {"ops":[...], "summary":"..."}
 - Each op must include: op, linked_project_id, post_id, element_id (null if creating), payload
-- ADD_TEXT/UPDATE_TEXT payload must use flat fields: content, role, fontSize, color, x, y, width, height (pixels). Do not nest text under payload.text/style/position.
-- ADD_CTA/UPDATE_CTA payload must use label, backgroundColor, textColor, x, y, width, height.
+- ADD_TEXT/UPDATE_TEXT payload: content, role (headline|body|custom), optional fontSize/color/fontWeight/align.
+  Do NOT invent unrestricted x/y/width/height pixels — the server applies a safe layout grammar.
+- ADD_CTA/UPDATE_CTA payload: label, optional backgroundColor/textColor. Do NOT invent free pixel geometry.
 - Allowed ops: {ops}
 - CREATE mode: build a complete social post (format, background Asset ID if available, headline TEXT, body TEXT, CTA).
+  Layout grammar (server): full-bleed background → overlay → HEADLINE upper/middle → BODY below → CTA lower safe region.
 - EDIT mode: emit minimal ops against CURRENT draft (UPDATE_STYLE, UPDATE_TEXT, MOVE_ELEMENT, REPLACE_IMAGE, etc.). Do not full-regenerate unless needed.
 - linked_project_id must equal the given project id on every op.
 - Asset fields must be real Asset UUIDs from media_candidates or selected_assets.
 - If brand_context.available is false, use neutral premium styling (white/dark text) and do not invent brand voice.
-- Coordinates are absolute pixels within the post canvas.
+- Canvas is format-canonical pixels (square=1080×1080, portrait=1080×1350, story=1080×1920, etc.). Never use browser CSS pixels.
 - If evidence is insufficient and you cannot ground copy, still return valid structural ops with conservative placeholder copy from verified facts only, or empty ops with summary noting insufficiency.
 - CRITICAL — creative copy only: ADD_TEXT/UPDATE_TEXT content and CTA labels must be short human marketing copy (headline/body/CTA).
 - NEVER put retrieval/RAG diagnostics into canvas text: no citations, Sources:, metadata.json, chunk IDs, searchable, index, asset_type, versioning, builders, provider/model, Asset ID lists, selection reasoning, document filenames, or evidence JSON keys.
@@ -249,7 +251,13 @@ def parse_ops_from_llm(text: str) -> tuple[list[dict[str, Any]], str]:
     return [], "ops_parse_failed"
 
 
-def _cta_label(language: str | None) -> str:
+def _cta_label(language: str | None, instruction: str = "") -> str:
+    instr = (instruction or "").lower()
+    invest = any(k in instr for k in ("yatırım", "invest", "investor", "opportunity", "fırsat"))
+    if invest:
+        if (language or "").lower().startswith("tr"):
+            return "Yatırım fırsatını incele"
+        return "Explore the investment"
     if (language or "").lower().startswith("tr"):
         return "Özel tur planla"
     return "Schedule a private tour"
@@ -304,7 +312,7 @@ def build_heuristic_ops(
             if (language or "").lower().startswith("tr")
             else f"Social creative grounded in verified {project_name} project knowledge."
         )
-    cta = _cta_label(language)
+    cta = _cta_label(language, instruction)
     instr = (instruction or "").lower()
 
     # -------- EDIT MODE --------
@@ -490,13 +498,6 @@ def build_heuristic_ops(
     # -------- CREATE MODE --------
     post_id = str(uuid4())
     preset = _detect_format(instruction, None)
-    w, h = FORMAT_PRESETS[preset]
-    pad_x = int(w * 0.08)
-    content_w = max(40, w - pad_x * 2)
-    headline_size = max(22, int(w * 0.055))
-    body_size = max(14, int(w * 0.028))
-    cta_h = max(36, int(h * 0.045))
-    cta_w = min(content_w, max(160, int(w * 0.38)))
 
     ops = [
         {
@@ -529,23 +530,8 @@ def build_heuristic_ops(
                 "payload": {"asset_id": str(picked_asset_id)},
             }
         )
-        ops.append(
-            {
-                "op": "ADD_IMAGE",
-                "linked_project_id": pid,
-                "post_id": post_id,
-                "element_id": None,
-                "payload": {
-                    "asset_id": str(picked_asset_id),
-                    "x": int((w - min(w, h) * 0.35) / 2),
-                    "y": int(h * 0.12),
-                    "width": int(min(w, h) * 0.35),
-                    "height": int(min(w, h) * 0.35),
-                    "zIndex": 1,
-                },
-            }
-        )
 
+    # Content + style intent only — server layout grammar owns safe geometry / text fit.
     ops.extend(
         [
             {
@@ -556,14 +542,9 @@ def build_heuristic_ops(
                 "payload": {
                     "role": "headline",
                     "content": headline,
-                    "fontSize": headline_size,
                     "fontWeight": "bold",
                     "align": "center",
                     "color": "#ffffff",
-                    "x": pad_x,
-                    "y": int(h * 0.68),
-                    "width": content_w,
-                    "height": int(headline_size * 2.4),
                     "zIndex": 2,
                 },
             },
@@ -575,14 +556,9 @@ def build_heuristic_ops(
                 "payload": {
                     "role": "body",
                     "content": body,
-                    "fontSize": body_size,
                     "fontWeight": "normal",
                     "align": "center",
                     "color": "#ffffff",
-                    "x": pad_x,
-                    "y": int(h * 0.78),
-                    "width": content_w,
-                    "height": int(body_size * 3.2),
                     "zIndex": 3,
                 },
             },
@@ -595,10 +571,6 @@ def build_heuristic_ops(
                     "label": cta,
                     "backgroundColor": "#ffffff",
                     "textColor": "#111827",
-                    "x": int((w - cta_w) / 2),
-                    "y": int(h * 0.88),
-                    "width": cta_w,
-                    "height": cta_h,
                     "zIndex": 4,
                 },
             },

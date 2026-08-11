@@ -1249,6 +1249,20 @@ export function SocialMediaBuilderWorkspace() {
                       onClick={() => setSelectedElementId(null)}
                       role="presentation"
                     >
+                      {/*
+                        Design-pixel layer: elements stay in format-canonical coords (e.g. 1080²).
+                        Fit / Focus / Fullscreen only change ftv.stageSize.scale — never mutate geometry.
+                      */}
+                      <div
+                        className="smb-ws__artboard-design"
+                        data-testid="smb-artboard-design"
+                        style={{
+                          width: contentSize.w,
+                          height: contentSize.h,
+                          transform: `scale(${ftv.stageSize.scale})`,
+                          transformOrigin: 'top left',
+                        }}
+                      >
                       {artboardState === 'ready' && artboardSrc ? (
                         <img
                           className="smb-ws__artboard-img"
@@ -1310,6 +1324,7 @@ export function SocialMediaBuilderWorkspace() {
                         onSelect={setSelectedElementId}
                         onPatchElement={(id, patch) => patchElement(id, patch)}
                       />
+                      </div>
                       {!previewMode && selectedElementId ? (
                         <div
                           className="smb-ws__floating-actions"

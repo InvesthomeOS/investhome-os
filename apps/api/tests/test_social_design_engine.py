@@ -422,6 +422,185 @@ def test_create_and_edit_apply_ops() -> None:
     assert h2["y"] == 640
 
 
+def test_layout_grammar_safe_bounds_and_text_fit() -> None:
+    """AI create layout uses canonical 1:1 bounds, safe margins, and text fitting."""
+    from investhome_api.services.social_design_engine.layout import (
+        SAFE_MARGIN_RATIO,
+        apply_layout_grammar,
+        element_within_bounds,
+        estimate_wrap_lines,
+        fit_font_size,
+        social_layout_slots,
+    )
+    from investhome_api.services.social_design_engine.ops import normalize_raw_ops
+
+    pid = TEMPLE_PROJECT_ID
+    # Long headline that would overflow a narrow box at huge fontSize
+    lines = estimate_wrap_lines("Invest in The Temple Residences Today", 96, 900, bold=True)
+    assert len(lines) >= 1
+    font, height = fit_font_size(
+        "Invest in The Temple Residences Today",
+        max_width=900,
+        max_height=200,
+        preferred=96,
+        min_size=22,
+        max_size=72,
+        bold=True,
+        max_lines=4,
+    )
+    assert font <= 72
+    assert height <= 200
+
+    slots = social_layout_slots(1080, 1080)
+    assert slots["headline"]["y"] < slots["body"]["y"] < slots["cta"]["y"]
+    margin = int(round(1080 * SAFE_MARGIN_RATIO))
+    assert slots["headline"]["x"] >= margin - 1
+
+    # LLM free pixels are stripped before apply
+    normalized = normalize_raw_ops(
+        [
+            {
+                "op": "ADD_TEXT",
+                "linked_project_id": str(pid),
+                "post_id": "p1",
+                "payload": {
+                    "role": "headline",
+                    "content": "Invest in The Temple",
+                    "x": 9999,
+                    "y": -40,
+                    "width": 5000,
+                    "height": 900,
+                    "fontSize": 200,
+                },
+            },
+            {
+                "op": "ADD_CTA",
+                "linked_project_id": str(pid),
+                "post_id": "p1",
+                "payload": {"label": "Explore the investment", "x": 10, "y": 1070},
+            },
+        ],
+        linked_project_id=pid,
+        fallback_asset_id=None,
+    )
+    assert "x" not in normalized[0]["payload"]
+    assert "y" not in normalized[0]["payload"]
+    assert "x" not in normalized[1]["payload"]
+
+    create_ops = [
+        SocialDesignOp(
+            op="CREATE_POST",
+            linked_project_id=pid,
+            post_id="layout-post",
+            element_id=None,
+            payload={"formatPreset": "square", "platform": "instagram", "name": "Safe"},
+        ),
+        SocialDesignOp(
+            op="ADD_TEXT",
+            linked_project_id=pid,
+            post_id="layout-post",
+            element_id=None,
+            payload={
+                "role": "headline",
+                "content": "Invest in The Temple",
+                "fontWeight": "bold",
+                "color": "#ffffff",
+            },
+        ),
+        SocialDesignOp(
+            op="ADD_TEXT",
+            linked_project_id=pid,
+            post_id="layout-post",
+            element_id=None,
+            payload={
+                "role": "body",
+                "content": "A premium investment opportunity grounded in verified project knowledge.",
+                "color": "#ffffff",
+            },
+        ),
+        SocialDesignOp(
+            op="ADD_CTA",
+            linked_project_id=pid,
+            post_id="layout-post",
+            element_id=None,
+            payload={"label": "Explore the investment"},
+        ),
+    ]
+    posts, _ = apply_ops([], create_ops, linked_project_id=pid)
+    post = posts[0]
+    assert post["width"] == 1080 and post["height"] == 1080
+    elements = post["elements"]
+    headline = next(e for e in elements if e.get("role") == "headline")
+    body = next(e for e in elements if e.get("role") == "body")
+    cta = next(e for e in elements if e.get("type") == "BUTTON")
+    assert headline["content"] == "Invest in The Temple"
+    assert body["content"]
+    assert cta["label"]
+    assert headline["y"] < body["y"] < cta["y"]
+    for el in (headline, body, cta):
+        assert element_within_bounds(el, 1080, 1080)
+        assert el["x"] >= margin - 1
+        assert el["y"] >= margin - 1
+        assert el["x"] + el["width"] <= 1080 - margin + 1
+        assert el["y"] + el["height"] <= 1080 - margin + 1
+
+    # Persistence-shaped grammar remains stable
+    again = apply_layout_grammar(dict(post))
+    h2 = next(e for e in again["elements"] if e.get("role") == "headline")
+    assert h2["content"] == headline["content"]
+    assert element_within_bounds(h2, 1080, 1080)
+
+
+def test_viewport_fit_does_not_require_mutating_geometry_contract() -> None:
+    """Documented contract: fit/fullscreen scale display only; stored geometry stays canonical."""
+    pid = TEMPLE_PROJECT_ID
+    ops = [
+        SocialDesignOp(
+            op="CREATE_POST",
+            linked_project_id=pid,
+            post_id="geo-post",
+            element_id=None,
+            payload={"formatPreset": "square"},
+        ),
+        SocialDesignOp(
+            op="ADD_TEXT",
+            linked_project_id=pid,
+            post_id="geo-post",
+            element_id=None,
+            payload={"role": "headline", "content": "Temple", "fontWeight": "bold"},
+        ),
+        SocialDesignOp(
+            op="ADD_TEXT",
+            linked_project_id=pid,
+            post_id="geo-post",
+            element_id=None,
+            payload={"role": "body", "content": "Quiet luxury residences."},
+        ),
+        SocialDesignOp(
+            op="ADD_CTA",
+            linked_project_id=pid,
+            post_id="geo-post",
+            element_id=None,
+            payload={"label": "Learn more"},
+        ),
+    ]
+    posts, _ = apply_ops([], ops, linked_project_id=pid)
+    snapshot = [
+        (e.get("id"), e.get("x"), e.get("y"), e.get("width"), e.get("height"), e.get("fontSize"))
+        for e in posts[0]["elements"]
+        if isinstance(e, dict)
+    ]
+    # Re-apply empty edit batch must not mutate geometry
+    posts2, _ = apply_ops(posts, [], linked_project_id=pid, selected_post_id="geo-post")
+    snapshot2 = [
+        (e.get("id"), e.get("x"), e.get("y"), e.get("width"), e.get("height"), e.get("fontSize"))
+        for e in posts2[0]["elements"]
+        if isinstance(e, dict)
+    ]
+    assert snapshot == snapshot2
+    assert posts2[0]["width"] == 1080
+
+
 def test_media_candidates_project_isolation_and_pick(client, db_session: Session) -> None:
     db = db_session
     temple = _create_project(db, project_id=TEMPLE_PROJECT_ID)

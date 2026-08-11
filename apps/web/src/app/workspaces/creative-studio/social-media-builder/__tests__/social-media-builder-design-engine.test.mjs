@@ -187,3 +187,32 @@ describe('persistence includes generation metadata', () => {
     assert.doesNotMatch(eng, /unsplash/i);
   });
 });
+
+describe('canonical canvas fit / layout safety (renderer contract)', () => {
+  it('scales a design-pixel artboard layer — fit does not mutate element geometry', () => {
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    assert.match(workspace, /smb-ws__artboard-design/);
+    assert.match(workspace, /data-testid="smb-artboard-design"/);
+    assert.match(workspace, /transform:\s*`scale\(\$\{ftv\.stageSize\.scale\}\)`/);
+    assert.match(workspace, /transformOrigin:\s*'top left'/);
+    assert.match(workspace, /data-width=\{contentSize\.w\}/);
+    assert.match(workspace, /data-height=\{contentSize\.h\}/);
+    // Geometry stays on elements; scale is display-only
+    assert.match(workspace, /never mutate geometry/);
+  });
+
+  it('default element grammar uses safe margins + upper/middle headline', () => {
+    const els = readSmb('social-media-builder-elements.ts');
+    assert.match(els, /0\.07/);
+    assert.match(els, /h \* 0\.22/);
+    assert.match(els, /h \* 0\.46/);
+    assert.match(els, /h \* 0\.88/);
+  });
+
+  it('artboard elements render absolute design-pixel coords', () => {
+    const binder = readSmb('smb-artboard-elements.tsx');
+    assert.match(binder, /left:\s*el\.x/);
+    assert.match(binder, /top:\s*el\.y/);
+    assert.match(binder, /fontSize:\s*el\.fontSize/);
+  });
+});

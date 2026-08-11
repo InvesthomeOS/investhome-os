@@ -293,19 +293,46 @@ def validate_op(
                 raise OpValidationError("invalid_text_align")
             payload["align"] = al
 
-    if op_name in {"MOVE_ELEMENT", "RESIZE_ELEMENT", "ADD_TEXT", "ADD_IMAGE", "ADD_CTA"}:
+    if op_name in {"MOVE_ELEMENT", "RESIZE_ELEMENT", "ADD_IMAGE"}:
         assert post is not None or op_name == "CREATE_POST"
         target = post or {"width": 1080, "height": 1080, "formatPreset": "square"}
         cw, ch = canvas_size(target)
-        geo = clamp_geometry(
+        from investhome_api.services.social_design_engine.layout import clamp_safe_geometry
+
+        geo = clamp_safe_geometry(
             x=payload.get("x", 0),
             y=payload.get("y", 0),
             width=payload.get("width", min(400, cw)),
             height=payload.get("height", min(80, ch)),
             canvas_w=cw,
             canvas_h=ch,
+            full_bleed=op_name == "ADD_IMAGE",
         )
         payload.update(geo)
+
+    # ADD_TEXT / ADD_CTA: do NOT invent free pixel coords here — layout grammar owns placement.
+    # If LLM sent geometry, clamp into safe margins; otherwise leave unset for apply().
+    if op_name in {"ADD_TEXT", "ADD_CTA"}:
+        assert post is not None or True
+        target = post or {"width": 1080, "height": 1080, "formatPreset": "square"}
+        cw, ch = canvas_size(target)
+        has_geo = payload.get("x") is not None and payload.get("y") is not None
+        if has_geo:
+            from investhome_api.services.social_design_engine.layout import clamp_safe_geometry
+
+            geo = clamp_safe_geometry(
+                x=payload.get("x"),
+                y=payload.get("y"),
+                width=payload.get("width", min(400, cw)),
+                height=payload.get("height", min(80, ch)),
+                canvas_w=cw,
+                canvas_h=ch,
+                full_bleed=False,
+            )
+            payload.update(geo)
+        else:
+            for key in ("x", "y", "width", "height"):
+                payload.pop(key, None)
 
     if op_name == "SET_Z_INDEX":
         payload["zIndex"] = clamp_int(payload.get("zIndex", payload.get("z_index", 1)), 0, 10_000, 1)
@@ -500,15 +527,23 @@ def normalize_raw_ops(
             if looks_like_rag_or_debug_copy(payload.get("label")):
                 payload["label"] = "Learn more"
 
-        # Scale percent-like coords (0-100) to canvas pixels when LLM uses layout percentages.
-        if op["op"] in {"ADD_TEXT", "ADD_CTA", "ADD_IMAGE", "MOVE_ELEMENT"}:
-            for axis, canvas in (("x", 1080), ("y", 1080)):
+        # Strip free pixel geometry from LLM text/CTA creates — deterministic layout owns coords.
+        if op["op"] in {"ADD_TEXT", "ADD_CTA"}:
+            from investhome_api.services.social_design_engine.layout import strip_llm_geometry
+
+            payload = strip_llm_geometry(payload)
+            # Keep style intent only (fontSize/color/weight/align/label/content/role).
+
+        # Scale percent-like coords (0-100) to canvas pixels when LLM uses layout percentages
+        # on MOVE/RESIZE/IMAGE only (text/CTA geometry already stripped).
+        if op["op"] in {"ADD_IMAGE", "MOVE_ELEMENT", "RESIZE_ELEMENT"}:
+            for axis, canvas in (("x", 1080), ("y", 1080), ("width", 1080), ("height", 1080)):
                 val = payload.get(axis)
                 try:
                     num = float(val)
                 except (TypeError, ValueError):
                     continue
-                if 0 <= num <= 100:
+                if 0 <= num <= 100 and axis in {"x", "y"}:
                     payload[axis] = int(round(num / 100 * canvas))
 
         op["payload"] = payload

@@ -55,12 +55,14 @@ export function createDefaultElements(
 ): SocialElement[] {
   const w = Math.max(1, Math.round(width));
   const h = Math.max(1, Math.round(height));
-  const padX = Math.round(w * 0.08);
-  const contentW = Math.max(40, w - padX * 2);
+  const margin = Math.max(24, Math.round(w * 0.07));
+  const contentW = Math.max(40, w - margin * 2);
   const headlineSize = Math.max(22, Math.round(w * 0.055));
   const bodySize = Math.max(14, Math.round(w * 0.028));
   const ctaH = Math.max(36, Math.round(h * 0.045));
   const ctaW = Math.min(contentW, Math.max(160, Math.round(w * 0.38)));
+  const headlineH = Math.round(headlineSize * 2.4);
+  const bodyH = Math.round(bodySize * 3.2);
 
   return [
     {
@@ -72,10 +74,10 @@ export function createDefaultElements(
       fontWeight: 'bold',
       align: 'center',
       color: '#ffffff',
-      x: padX,
-      y: Math.round(h * 0.68),
+      x: margin,
+      y: Math.round(h * 0.22),
       width: contentW,
-      height: Math.round(headlineSize * 2.4),
+      height: headlineH,
       zIndex: 2,
     },
     {
@@ -87,10 +89,10 @@ export function createDefaultElements(
       fontWeight: 'normal',
       align: 'center',
       color: '#ffffff',
-      x: padX,
-      y: Math.round(h * 0.78),
+      x: margin,
+      y: Math.round(h * 0.46),
       width: contentW,
-      height: Math.round(bodySize * 3.2),
+      height: bodyH,
       zIndex: 3,
     },
     {
@@ -100,7 +102,7 @@ export function createDefaultElements(
       backgroundColor: '#ffffff',
       textColor: '#111827',
       x: Math.round((w - ctaW) / 2),
-      y: Math.round(h * 0.88),
+      y: Math.min(h - margin - ctaH, Math.round(h * 0.88)),
       width: ctaW,
       height: ctaH,
       zIndex: 4,

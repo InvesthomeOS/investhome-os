@@ -141,6 +141,7 @@ export function SmbArtboardElements({
         }
 
         if (el.type === 'BUTTON') {
+          const btnFont = Math.max(12, Math.round(el.height * 0.42));
           return (
             <div
               key={el.id}
@@ -149,6 +150,7 @@ export function SmbArtboardElements({
                 ...style,
                 background: el.backgroundColor,
                 color: el.textColor,
+                fontSize: btnFont,
               }}
               data-testid={`smb-el-${el.id}`}
               data-el-type="BUTTON"
