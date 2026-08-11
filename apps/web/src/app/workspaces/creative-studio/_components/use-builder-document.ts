@@ -133,6 +133,10 @@ export function useBuilderDocument(options: {
           linkedProjectId,
           coverImage: draft.coverImage,
           galleryImages: draft.galleryImages,
+          posts: draft.posts,
+          selectedPostId: draft.selectedPostId,
+          brandLogo: draft.brandLogo,
+          platforms: draft.platforms,
         });
         await saveCreativeStudioDraft(document.id, body);
         preferredRef.current.onDraftSaved?.(body);

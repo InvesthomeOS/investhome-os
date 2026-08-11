@@ -13635,6 +13635,14 @@
           "layer": "Katman",
           "align": "Hizala",
           "more": "Diğer",
+          "layerForward": "Öne getir",
+          "layerBackward": "Alta gönder",
+          "alignModes": {
+            "left": "Sola hizala",
+            "center": "Ortala",
+            "right": "Sağa hizala",
+            "vcenter": "Dikey ortala"
+          },
           "menu": {
             "aiEdit": "AI düzenle",
             "duplicate": "Çoğalt",
@@ -13778,12 +13786,27 @@
             "advanced": "Gelişmiş ayarlar",
             "sharing": "Paylaşım ayarları",
             "sharingHelp": "Zamanlama pencereleri ve entegrasyon hedefleri dışa aktarmadan sonra görünür.",
-            "sizeHint": "Aktif tuval boyutu: {size}"
+            "sizeHint": "Aktif tuval boyutu: {size}",
+            "elementText": "Seçili metin",
+            "elementButton": "Seçili buton",
+            "headline": "Metin içeriği",
+            "buttonBg": "Buton arka planı",
+            "buttonTextColor": "Buton metin rengi",
+            "selectElementHint": "Düzenlemek için tuvalde bir metin veya buton öğesi seçin."
           },
           "style": {
             "typography": "Tipografi",
             "headingFont": "Başlık yazı tipi",
             "bodyFont": "Gövde yazı tipi",
+            "fontSize": "Yazı boyutu",
+            "fontWeight": "Kalınlık",
+            "align": "Hizalama",
+            "textColor": "Metin rengi",
+            "selectTextHint": "Tipografi için bir metin öğesi seçin.",
+            "weights": {
+              "normal": "Normal",
+              "bold": "Kalın"
+            },
             "fonts": {
               "sans": "Sans",
               "serif": "Serif"
@@ -13834,7 +13857,10 @@
           "logoChanged": "Logo güncellendi",
           "logoRemoved": "Logo kaldırıldı",
           "imageChanged": "Arka plan görseli güncellendi",
-          "imageRemoved": "Görsel gönderiden kaldırıldı"
+          "imageRemoved": "Görsel gönderiden kaldırıldı",
+          "elementRemoved": "Öğe silindi",
+          "selectElement": "Önce bir öğe seçin",
+          "notAvailable": "Bu sürümde kullanılamıyor"
         }
       },
       "adsBuilder": {

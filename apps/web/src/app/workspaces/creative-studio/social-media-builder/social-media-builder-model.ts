@@ -103,6 +103,11 @@ export type ComponentItemKey =
   | 'qr'
   | 'sticker';
 
+import type { SocialElement } from './social-media-builder-elements';
+import { createDefaultElements } from './social-media-builder-elements';
+
+export type { SocialElement } from './social-media-builder-elements';
+
 export type SocialPost = {
   id: string;
   platform: PlatformKey;
@@ -111,11 +116,18 @@ export type SocialPost = {
   width: number;
   height: number;
   status: PostStatus;
+  /** Legacy filmstrip hint — never Unsplash; prefer coverAssetId. */
   thumbUrl: string;
   name: string;
+  /** Synced from headline TEXT element for AI / inspector compat. */
   headline: string;
   description: string;
+  /** Synced from body TEXT element. */
   caption: string;
+  /** Per-post background / cover Media Library Asset ID. */
+  coverAssetId: string | null;
+  linkedProjectId: string | null;
+  elements: SocialElement[];
 };
 
 export type SmbProject = {
@@ -289,61 +301,68 @@ export const AI_STATUS_SEQUENCE: AiStatusKey[] = [
   'completed',
 ];
 
-const THUMBS = [
-  'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=720&h=900&q=80',
-  'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=720&h=900&q=80',
-  'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=720&h=1280&q=80',
-  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=720&h=900&q=80',
-  'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=720&h=400&q=80',
-  'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=720&h=900&q=80',
-  'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=720&h=1280&q=80',
-  'https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=720&h=400&q=80',
-];
-
+/** Visual placeholders only — never used as production artboard media. */
 export const SMB_PROJECTS: SmbProject[] = [
   {
     id: 'temple',
     name: 'THE TEMPLE Residences',
     campaignName: 'THE TEMPLE Social Launch',
-    coverUrl:
-      'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&h=1600&q=85',
+    coverUrl: '',
   },
   {
     id: '309h',
     name: '309 H ST NE',
     campaignName: '309 H ST Social Campaign',
-    coverUrl:
-      'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&h=1600&q=85',
+    coverUrl: '',
   },
   {
     id: 'uniloft',
     name: 'UNILOFT DC',
     campaignName: 'UNILOFT Awareness',
-    coverUrl:
-      'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&h=1600&q=85',
+    coverUrl: '',
   },
   {
     id: 'campus',
     name: 'The Campus 3224',
     campaignName: 'Campus Construction Updates',
-    coverUrl:
-      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&h=1600&q=85',
+    coverUrl: '',
   },
 ];
 
 export const SMB_TEMPLATES: SmbTemplate[] = [
-  { id: 't1', category: 'instagram', thumbUrl: THUMBS[0]!, format: 'square' },
-  { id: 't2', category: 'instagram', thumbUrl: THUMBS[1]!, format: 'portrait' },
-  { id: 't3', category: 'story', thumbUrl: THUMBS[6]!, format: 'story' },
-  { id: 't4', category: 'reels', thumbUrl: THUMBS[2]!, format: 'reelsCover' },
-  { id: 't5', category: 'facebook', thumbUrl: THUMBS[4]!, format: 'landscape' },
-  { id: 't6', category: 'linkedin', thumbUrl: THUMBS[5]!, format: 'square' },
-  { id: 't7', category: 'x', thumbUrl: THUMBS[7]!, format: 'landscape' },
-  { id: 't8', category: 'carousel', thumbUrl: THUMBS[3]!, format: 'carousel' },
+  { id: 't1', category: 'instagram', thumbUrl: '', format: 'square' },
+  { id: 't2', category: 'instagram', thumbUrl: '', format: 'portrait' },
+  { id: 't3', category: 'story', thumbUrl: '', format: 'story' },
+  { id: 't4', category: 'reels', thumbUrl: '', format: 'reelsCover' },
+  { id: 't5', category: 'facebook', thumbUrl: '', format: 'landscape' },
+  { id: 't6', category: 'linkedin', thumbUrl: '', format: 'square' },
+  { id: 't7', category: 'x', thumbUrl: '', format: 'landscape' },
+  { id: 't8', category: 'carousel', thumbUrl: '', format: 'carousel' },
 ];
 
+function seedPost(partial: Omit<SocialPost, 'elements' | 'coverAssetId' | 'linkedProjectId' | 'thumbUrl'> & {
+  thumbUrl?: string;
+  coverAssetId?: string | null;
+  linkedProjectId?: string | null;
+  elements?: SocialElement[];
+}): SocialPost {
+  const elements =
+    partial.elements ??
+    createDefaultElements(partial.width, partial.height, {
+      headline: partial.headline,
+      caption: partial.caption,
+    });
+  return {
+    ...partial,
+    thumbUrl: partial.thumbUrl ?? '',
+    coverAssetId: partial.coverAssetId ?? null,
+    linkedProjectId: partial.linkedProjectId ?? null,
+    elements,
+  };
+}
+
 export const DEFAULT_POSTS: SocialPost[] = [
-  {
+  seedPost({
     id: 'p1',
     platform: 'instagram',
     format: 'feed',
@@ -351,14 +370,13 @@ export const DEFAULT_POSTS: SocialPost[] = [
     width: 1080,
     height: 1080,
     status: 'ready',
-    thumbUrl: THUMBS[0]!,
     name: 'Square Launch',
     headline: 'Enter THE TEMPLE',
     description: 'Square feed post for Instagram / LinkedIn launch.',
     caption:
       'Washington DC’de zamansız lüks. THE TEMPLE Residences — sınırlı birimlerle özel lansman.',
-  },
-  {
+  }),
+  seedPost({
     id: 'p2',
     platform: 'instagram',
     format: 'feed',
@@ -366,13 +384,12 @@ export const DEFAULT_POSTS: SocialPost[] = [
     width: 1080,
     height: 1350,
     status: 'ready',
-    thumbUrl: THUMBS[1]!,
     name: 'Portrait Feed',
     headline: 'Quiet Luxury',
     description: '4:5 vertical feed for higher IG reach.',
     caption: 'Mimari zarafet ve yatırım potansiyeli — THE TEMPLE Residences.',
-  },
-  {
+  }),
+  seedPost({
     id: 'p3',
     platform: 'facebook',
     format: 'post',
@@ -380,68 +397,11 @@ export const DEFAULT_POSTS: SocialPost[] = [
     width: 1920,
     height: 1080,
     status: 'draft',
-    thumbUrl: THUMBS[4]!,
     name: 'Landscape Cover',
     headline: 'Washington DC Opportunity',
     description: '16:9 landscape for Facebook / LinkedIn cover-style posts.',
     caption: 'Discover THE TEMPLE Residences — schedule a private briefing.',
-  },
-  {
-    id: 'p4',
-    platform: 'instagram',
-    format: 'story',
-    formatPreset: 'story',
-    width: 1080,
-    height: 1920,
-    status: 'ready',
-    thumbUrl: THUMBS[6]!,
-    name: 'Story Invite',
-    headline: 'Private Launch',
-    description: '9:16 story with safe-area CTA.',
-    caption: 'Swipe up · Özel tur rezervasyonu',
-  },
-  {
-    id: 'p5',
-    platform: 'instagram',
-    format: 'reel',
-    formatPreset: 'reelsCover',
-    width: 1080,
-    height: 1920,
-    status: 'ready',
-    thumbUrl: THUMBS[2]!,
-    name: 'Reels Cover',
-    headline: 'Lobby Arrival',
-    description: 'Reels cover frame — vertical cinematic still.',
-    caption: 'İlk izlenim: THE TEMPLE lobisi.',
-  },
-  {
-    id: 'p6',
-    platform: 'instagram',
-    format: 'carousel',
-    formatPreset: 'carousel',
-    width: 1080,
-    height: 1080,
-    status: 'draft',
-    thumbUrl: THUMBS[3]!,
-    name: 'Carousel Pack',
-    headline: 'Residence Highlights',
-    description: 'Multi-slide carousel pack for amenities story.',
-    caption: '1/5 · Suites · Amenities · Views · Investment · Contact',
-  },
-  {
-    id: 'p7',
-    platform: 'linkedin',
-    format: 'post',
-    formatPreset: 'square',
-    width: 1080,
-    height: 1080,
-    status: 'scheduled',
-    thumbUrl: THUMBS[5]!,
-    name: 'LinkedIn Square',
-    headline: 'Investor Briefing',
-    description: 'LinkedIn investor-facing square creative.',
-    caption: 'Capital resilience meets design quality at THE TEMPLE.',
-  },
+  }),
 ];
 
 export const BRAND_COLORS = ['#0F172A', '#1F4B99', '#C4A574', '#F5F1EA', '#FFFFFF'] as const;
@@ -468,21 +428,42 @@ export function resolveFormatSize(key: FormatPresetKey): { w: number; h: number 
 export function createPostFromPreset(
   preset: FormatPresetKey,
   index: number,
-  coverUrl: string,
+  options?: {
+    coverAssetId?: string | null;
+    linkedProjectId?: string | null;
+    cta?: string;
+  },
 ): SocialPost {
   const size = resolveFormatSize(preset);
+  const headline = 'New social post';
+  const caption = '';
+  const elements = createDefaultElements(size.w, size.h, {
+    headline,
+    caption,
+    cta: options?.cta,
+  });
   return {
     id: `p-new-${Date.now()}-${index}`,
     platform: 'instagram',
-    format: preset === 'story' ? 'story' : preset === 'reelsCover' ? 'reel' : preset === 'carousel' ? 'carousel' : 'feed',
+    format:
+      preset === 'story'
+        ? 'story'
+        : preset === 'reelsCover'
+          ? 'reel'
+          : preset === 'carousel'
+            ? 'carousel'
+            : 'feed',
     formatPreset: preset,
     width: size.w,
     height: size.h,
     status: 'draft',
-    thumbUrl: coverUrl,
+    thumbUrl: '',
     name: `New ${preset}`,
-    headline: 'New social post',
+    headline,
     description: '',
-    caption: '',
+    caption,
+    coverAssetId: options?.coverAssetId ?? null,
+    linkedProjectId: options?.linkedProjectId ?? null,
+    elements,
   };
 }

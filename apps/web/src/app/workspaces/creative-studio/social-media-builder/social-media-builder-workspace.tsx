@@ -38,21 +38,39 @@ import {
   type SocialPost,
 } from './social-media-builder-model';
 import {
+  P0_BOTTOM_ACTIONS,
+  P0_COMPONENT_KEYS,
+  alignElement,
+  bringElementForward,
+  captionFromElements,
+  createButtonElement,
+  createImageElement,
+  createTextElement,
+  duplicateElement,
+  sendElementBackward,
+  type SocialElement,
+} from './social-media-builder-elements';
+import {
+  applyGeneratedCopyToElements,
   applyGeneratedCopyToPost,
   buildSocialGenerateRequest,
   defaultSocialInstruction,
   hasInsufficientContext,
+  syncPostCopyFields,
   toGenerationMeta,
   type SocialGenerationMeta,
 } from './social-media-builder-generation';
 import {
+  hydrateSocialPostsFromDraft,
   loadLastConstructionProjectId,
   loadPersistedLinkedProjectIdHint,
   resolvePreferredConstructionProjectId,
   saveEmergencySnapshot,
   saveLastConstructionProjectId,
+  serializeSocialPosts,
 } from './social-media-builder-persistence';
 import { exportSocialPostPng } from './social-media-builder-export';
+import { SmbArtboardElements } from './smb-artboard-elements';
 
 import {
   SmbLeftRailDrawer,
@@ -118,7 +136,8 @@ export function SocialMediaBuilderWorkspace() {
   const focus = useCreativeStudioFocusMode({ storageKey: 'social-media-builder' });
 
   const [posts, setPosts] = useState<SocialPost[]>(DEFAULT_POSTS);
-  const [selectedPostId, setSelectedPostId] = useState('p1');
+  const [selectedPostId, setSelectedPostId] = useState(DEFAULT_POSTS[0]?.id ?? 'p1');
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [formatPreset, setFormatPreset] = useState<FormatPresetKey>('square');
   const [platforms, setPlatforms] = useState<Set<PlatformKey>>(
     () => new Set(['instagram', 'facebook', 'linkedin', 'x']),
@@ -126,14 +145,19 @@ export function SocialMediaBuilderWorkspace() {
   const [brandLogo, setBrandLogo] = useState(true);
   const [bgMode, setBgMode] = useState<BgMode>('image');
   const [canvasLocked, setCanvasLocked] = useState(false);
-  const [selected, setSelected] = useState(true);
   const [floatingMoreOpen, setFloatingMoreOpen] = useState(false);
+  const [alignMenuOpen, setAlignMenuOpen] = useState(false);
+  const [layerMenuOpen, setLayerMenuOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [elementImagePickerOpen, setElementImagePickerOpen] = useState(false);
+  const [elementDisplayUrls, setElementDisplayUrls] = useState<Record<string, string>>({});
 
   const filmstripRef = useRef<HTMLDivElement | null>(null);
   const genIdleTimerRef = useRef<number | null>(null);
   const generateAbortRef = useRef(0);
+  const postsRef = useRef(posts);
+  postsRef.current = posts;
 
   const selectedConstruction = useMemo(
     () =>
@@ -157,6 +181,8 @@ export function SocialMediaBuilderWorkspace() {
   });
 
   const selectedPost = posts.find((p) => p.id === selectedPostId) ?? posts[0]!;
+  const selectedElement =
+    selectedPost.elements.find((el) => el.id === selectedElementId) ?? null;
   const contentSize = resolveFormatSize(formatPreset);
   /** Authenticated Media Library blob only — never Unsplash / template fallback. */
   const artboardSrc =
@@ -217,10 +243,56 @@ export function SocialMediaBuilderWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus.mode, focus.isFullscreen, formatPreset, selectedPostId, smbFitPadX, smbFitPadY]);
 
+  const applyDraftPosts = useCallback(
+    (draft: {
+      posts?: Record<string, unknown>[];
+      coverImage?: { asset_id?: string | null } | null;
+      selectedPostId?: string | null;
+      brandLogo?: boolean;
+      platforms?: string[];
+      linkedProjectId?: string | null;
+    } | null) => {
+      const coverId = draft?.coverImage?.asset_id ?? null;
+      const hydrated = hydrateSocialPostsFromDraft({
+        posts: draft?.posts,
+        coverAssetId: coverId,
+        linkedProjectId: draft?.linkedProjectId ?? docApi.constructionProjectId,
+        selectedPostId: draft?.selectedPostId,
+      });
+      setPosts(hydrated.posts);
+      setSelectedPostId(hydrated.selectedPostId);
+      const active = hydrated.posts.find((p) => p.id === hydrated.selectedPostId) ?? hydrated.posts[0]!;
+      setFormatPreset(active.formatPreset);
+      setSelectedElementId(null);
+      if (typeof draft?.brandLogo === 'boolean') setBrandLogo(draft.brandLogo);
+      if (Array.isArray(draft?.platforms) && draft.platforms.length) {
+        setPlatforms(
+          new Set(
+            draft.platforms.filter(
+              (p): p is PlatformKey =>
+                p === 'instagram' || p === 'facebook' || p === 'linkedin' || p === 'x',
+            ),
+          ),
+        );
+      }
+      const coverRef =
+        active.coverAssetId || coverId
+          ? {
+              asset_id: active.coverAssetId || coverId,
+              url: null,
+              alt: null,
+              role: 'cover' as const,
+            }
+          : null;
+      coverAsset.hydrateMedia(coverRef, draft ? [] : []);
+    },
+    [coverAsset, docApi.constructionProjectId],
+  );
+
   const hydration = useCsBuilderHydration({
     bootstrap: docApi.bootstrap,
     onSuccess: (draft) => {
-      coverAsset.hydrateMedia(draft?.coverImage ?? null, draft?.galleryImages ?? []);
+      applyDraftPosts(draft);
       setSaved(Boolean(draft));
     },
   });
@@ -233,36 +305,31 @@ export function SocialMediaBuilderWorkspace() {
     };
   }, []);
 
+  // Resolve IMAGE element display URLs via scoped Media Library.
   useEffect(() => {
-    if (!hydrated || docApi.loadStatus !== 'ready') return;
-    const id = window.setTimeout(() => {
-      void (async () => {
-        const ok = await docApi.saveDraft({
-          linkedProjectId: docApi.constructionProjectId,
-          coverImage: coverAsset.coverImage,
-        });
-        if (ok) setSaved(true);
-      })();
-    }, 2000);
-    return () => window.clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, docApi.loadStatus, coverAsset.coverImage]);
-
-  useEffect(() => {
-    if (!floatingMoreOpen) return;
-    function onDocPointer() {
-      setFloatingMoreOpen(false);
+    let cancelled = false;
+    const assetIds = new Set<string>();
+    for (const post of posts) {
+      for (const el of post.elements) {
+        if (el.type === 'IMAGE' && el.assetId) assetIds.add(el.assetId);
+      }
     }
-    function onKey(event: globalThis.KeyboardEvent) {
-      if (event.key === 'Escape') setFloatingMoreOpen(false);
-    }
-    document.addEventListener('mousedown', onDocPointer);
-    document.addEventListener('keydown', onKey);
+    void (async () => {
+      const next: Record<string, string> = {};
+      for (const id of assetIds) {
+        try {
+          const url = await coverAsset.media.ensureDisplayUrl(id);
+          if (url) next[id] = url;
+        } catch {
+          /* skip */
+        }
+      }
+      if (!cancelled) setElementDisplayUrls(next);
+    })();
     return () => {
-      document.removeEventListener('mousedown', onDocPointer);
-      document.removeEventListener('keydown', onKey);
+      cancelled = true;
     };
-  }, [floatingMoreOpen]);
+  }, [posts, coverAsset.media]);
 
   function markDirty() {
     setSaved(false);
@@ -273,13 +340,42 @@ export function SocialMediaBuilderWorkspace() {
     window.setTimeout(() => setToast(null), 2200);
   }
 
+  const buildPersistPayload = useCallback(() => {
+    const current = postsRef.current;
+    const active = current.find((p) => p.id === selectedPostId) ?? current[0]!;
+    const coverFromPost = active?.coverAssetId
+      ? {
+          asset_id: active.coverAssetId,
+          url: null as string | null,
+          alt: null as string | null,
+          role: 'cover' as const,
+        }
+      : coverAsset.coverImage;
+    return {
+      linkedProjectId: docApi.constructionProjectId,
+      coverImage: coverFromPost,
+      posts: serializeSocialPosts(
+        current.map((p) => ({
+          ...p,
+          linkedProjectId: docApi.constructionProjectId,
+        })),
+      ),
+      selectedPostId,
+      brandLogo,
+      platforms: Array.from(platforms),
+    };
+  }, [
+    brandLogo,
+    coverAsset.coverImage,
+    docApi.constructionProjectId,
+    platforms,
+    selectedPostId,
+  ]);
+
   const persistNow = useCallback(
     async (announce = false) => {
       if (docApi.loadStatus !== 'ready') return;
-      const ok = await docApi.saveDraft({
-        linkedProjectId: docApi.constructionProjectId,
-        coverImage: coverAsset.coverImage,
-      });
+      const ok = await docApi.saveDraft(buildPersistPayload());
       if (ok) {
         setSaved(true);
         if (announce) showToast(t('toasts.saved'));
@@ -287,20 +383,75 @@ export function SocialMediaBuilderWorkspace() {
         showToast(t('toasts.saveFailed'));
       }
     },
-    [coverAsset.coverImage, docApi, t],
+    [buildPersistPayload, docApi, t],
   );
+
+  useEffect(() => {
+    if (!hydrated || docApi.loadStatus !== 'ready') return;
+    const id = window.setTimeout(() => {
+      void (async () => {
+        const ok = await docApi.saveDraft(buildPersistPayload());
+        if (ok) setSaved(true);
+      })();
+    }, 2000);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, docApi.loadStatus, coverAsset.coverImage, posts, selectedPostId, brandLogo, platforms]);
+
+  useEffect(() => {
+    if (!floatingMoreOpen && !alignMenuOpen && !layerMenuOpen) return;
+    function onDocPointer() {
+      setFloatingMoreOpen(false);
+      setAlignMenuOpen(false);
+      setLayerMenuOpen(false);
+    }
+    function onKey(event: globalThis.KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setFloatingMoreOpen(false);
+        setAlignMenuOpen(false);
+        setLayerMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onDocPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [floatingMoreOpen, alignMenuOpen, layerMenuOpen]);
 
   async function handleProjectChange(id: string) {
     const draft = await docApi.selectConstructionProject(id);
-    coverAsset.hydrateMedia(draft?.coverImage ?? null, draft?.galleryImages ?? []);
+    applyDraftPosts(draft);
     setGenerationMeta(null);
     setSaved(Boolean(draft));
   }
 
-  function patchPost(patch: Partial<SocialPost>) {
+  function updateSelectedPost(updater: (post: SocialPost) => SocialPost) {
     setPosts((prev) =>
-      prev.map((p) => (p.id === selectedPost.id ? { ...p, ...patch } : p)),
+      prev.map((p) => {
+        if (p.id !== selectedPostId) return p;
+        return syncPostCopyFields(updater(p));
+      }),
     );
+    markDirty();
+  }
+
+  function patchPost(patch: Partial<SocialPost>) {
+    updateSelectedPost((p) => ({ ...p, ...patch }));
+  }
+
+  function patchElement(elementId: string, patch: Partial<SocialElement>) {
+    updateSelectedPost((p) => ({
+      ...p,
+      elements: p.elements.map((el) =>
+        el.id === elementId ? ({ ...el, ...patch } as SocialElement) : el,
+      ),
+    }));
+  }
+
+  function replaceElements(elements: SocialElement[]) {
+    updateSelectedPost((p) => ({ ...p, elements }));
   }
 
   function togglePlatform(key: PlatformKey) {
@@ -313,37 +464,48 @@ export function SocialMediaBuilderWorkspace() {
       }
       return next;
     });
+    markDirty();
   }
 
   function selectPost(post: SocialPost) {
     setSelectedPostId(post.id);
     setFormatPreset(post.formatPreset);
-    setSelected(true);
+    setSelectedElementId(null);
+    const coverRef = post.coverAssetId
+      ? { asset_id: post.coverAssetId, url: null, alt: null, role: 'cover' as const }
+      : null;
+    coverAsset.hydrateMedia(coverRef, []);
   }
 
   function handleFormatChange(key: FormatPresetKey) {
     setFormatPreset(key);
     const size = resolveFormatSize(key);
     patchPost({ formatPreset: key, width: size.w, height: size.h });
-    markDirty();
-    const match = posts.find((p) => p.formatPreset === key);
-    if (match) setSelectedPostId(match.id);
   }
 
   function addPost() {
-    const next = createPostFromPreset(
-      formatPreset,
-      posts.length + 1,
-      artboardSrc || '',
-    );
+    const next = createPostFromPreset(formatPreset, posts.length + 1, {
+      coverAssetId: coverAsset.coverImage?.asset_id ?? null,
+      linkedProjectId: docApi.constructionProjectId,
+      cta: t('canvas.cta'),
+    });
     setPosts((prev) => [...prev, next]);
     setSelectedPostId(next.id);
+    setSelectedElementId(null);
     markDirty();
     showToast(t('toasts.postAdded'));
   }
 
+  function addElement(el: SocialElement) {
+    updateSelectedPost((p) => ({ ...p, elements: [...p.elements, el] }));
+    setSelectedElementId(el.id);
+    setRightRailId('content');
+  }
+
   const runDownload = useCallback(async () => {
-    if (!artboardSrc || artboardState !== 'ready') {
+    const hasCover = Boolean(artboardSrc && artboardState === 'ready');
+    const hasElements = selectedPost.elements.length > 0;
+    if (!hasCover && !hasElements) {
       showToast(t('toasts.downloadFailed'));
       return;
     }
@@ -351,10 +513,9 @@ export function SocialMediaBuilderWorkspace() {
       await exportSocialPostPng({
         width: contentSize.w,
         height: contentSize.h,
-        imageUrl: artboardSrc,
-        headline: selectedPost.headline,
-        caption: selectedPost.caption,
-        cta: t('canvas.cta'),
+        coverImageUrl: hasCover ? artboardSrc : null,
+        elements: selectedPost.elements,
+        imageUrlsByAssetId: elementDisplayUrls,
         brandLogo,
         filename: `${selectedPost.name || 'social-post'}.png`,
       });
@@ -368,8 +529,8 @@ export function SocialMediaBuilderWorkspace() {
     brandLogo,
     contentSize.h,
     contentSize.w,
-    selectedPost.caption,
-    selectedPost.headline,
+    elementDisplayUrls,
+    selectedPost.elements,
     selectedPost.name,
     t,
   ]);
@@ -377,21 +538,53 @@ export function SocialMediaBuilderWorkspace() {
   function handleFloating(action: FloatingActionKey | 'more') {
     if (action === 'more') {
       setFloatingMoreOpen((v) => !v);
+      setAlignMenuOpen(false);
+      setLayerMenuOpen(false);
+      return;
+    }
+    if (action === 'edit') {
+      if (!selectedElementId) {
+        const first = selectedPost.elements[0];
+        if (first) setSelectedElementId(first.id);
+      }
+      setRightRailId('content');
+      return;
+    }
+    if (action === 'copy') {
+      if (!selectedElement) {
+        showToast(t('toasts.selectElement'));
+        return;
+      }
+      const clone = duplicateElement(selectedElement);
+      addElement(clone);
+      showToast(t('floating.copy'));
       return;
     }
     if (action === 'delete') {
+      if (selectedElement) {
+        replaceElements(selectedPost.elements.filter((el) => el.id !== selectedElement.id));
+        setSelectedElementId(null);
+        markDirty();
+        void persistNow();
+        showToast(t('toasts.elementRemoved'));
+        return;
+      }
+      // No element selected → clear cover background (existing Sil behavior).
       coverAsset.clearCover();
-      setPosts((prev) =>
-        prev.map((p) => (p.id === selectedPost.id ? { ...p, thumbUrl: '' } : p)),
-      );
-      setSelected(false);
-      markDirty();
+      updateSelectedPost((p) => ({ ...p, coverAssetId: null, thumbUrl: '' }));
       void (async () => {
         let ok = false;
         for (let attempt = 0; attempt < 8 && !ok; attempt += 1) {
           ok = await docApi.saveDraft({
-            linkedProjectId: docApi.constructionProjectId,
+            ...buildPersistPayload(),
             coverImage: null,
+            posts: serializeSocialPosts(
+              postsRef.current.map((p) =>
+                p.id === selectedPostId
+                  ? { ...p, coverAssetId: null, linkedProjectId: docApi.constructionProjectId }
+                  : { ...p, linkedProjectId: docApi.constructionProjectId },
+              ),
+            ),
           });
           if (!ok) {
             await new Promise((resolve) => {
@@ -408,49 +601,62 @@ export function SocialMediaBuilderWorkspace() {
       })();
       return;
     }
-    if (action === 'edit') {
-      setRightRailId('content');
+    if (action === 'layer') {
+      setLayerMenuOpen((v) => !v);
+      setAlignMenuOpen(false);
+      setFloatingMoreOpen(false);
       return;
     }
-    if (action === 'copy') {
-      const clone: SocialPost = {
-        ...selectedPost,
-        id: `p-copy-${Date.now()}`,
-        name: `${selectedPost.name} (copy)`,
-        status: 'draft',
-      };
-      setPosts((prev) => [...prev, clone]);
-      setSelectedPostId(clone.id);
-      markDirty();
-      showToast(t('floating.copy'));
+    if (action === 'align') {
+      setAlignMenuOpen((v) => !v);
+      setLayerMenuOpen(false);
+      setFloatingMoreOpen(false);
       return;
     }
-    showToast(t(`floating.${action}`));
   }
 
   function handleBottomAction(action: BottomActionKey) {
+    if (!P0_BOTTOM_ACTIONS.has(action)) return;
     if (action === 'addComponent') {
       setLeftRailId('components');
-      showToast(t('bottomBar.toasts.addComponent'));
+      return;
+    }
+    if (action === 'text') {
+      addElement(createTextElement(contentSize.w, contentSize.h, 'custom'));
+      return;
+    }
+    if (action === 'button') {
+      addElement(createButtonElement(contentSize.w, contentSize.h));
       return;
     }
     if (action === 'image') {
-      coverAsset.openPicker('cover');
+      setElementImagePickerOpen(true);
       return;
     }
-    showToast(t(`bottomBar.toasts.${action}`));
   }
 
-  function handleApplyTemplate(format: FormatPresetKey, thumbUrl: string) {
-    setFormatPreset(format);
-    const size = resolveFormatSize(format);
-    patchPost({ formatPreset: format, width: size.w, height: size.h, thumbUrl });
-    markDirty();
+  function handleApplyTemplate(format: FormatPresetKey) {
+    handleFormatChange(format);
     showToast(t('toasts.templateApplied'));
   }
 
   function handleInsertComponent(key: string) {
-    showToast(t('rails.components.toasts.inserted', { name: t(`rails.components.items.${key}` as 'rails.components.items.text') }));
+    if (!P0_COMPONENT_KEYS.has(key)) return;
+    if (key === 'title') {
+      addElement(createTextElement(contentSize.w, contentSize.h, 'headline'));
+      return;
+    }
+    if (key === 'text') {
+      addElement(createTextElement(contentSize.w, contentSize.h, 'body'));
+      return;
+    }
+    if (key === 'button' || key === 'cta') {
+      addElement(createButtonElement(contentSize.w, contentSize.h));
+      return;
+    }
+    if (key === 'image') {
+      setElementImagePickerOpen(true);
+    }
   }
 
   function scrollFilmstrip(dir: -1 | 1) {
@@ -501,9 +707,17 @@ export function SocialMediaBuilderWorkspace() {
         setGenerationMeta(meta);
 
         const copy = applyGeneratedCopyToPost(response.generated_content);
-        if (Object.keys(copy).length) {
+        if (copy.headline || copy.caption) {
           setPosts((prev) =>
-            prev.map((p) => (p.id === selectedPostId ? { ...p, ...copy } : p)),
+            prev.map((p) => {
+              if (p.id !== selectedPostId) return p;
+              const elements = applyGeneratedCopyToElements(p.elements, response.generated_content);
+              return syncPostCopyFields({
+                ...p,
+                ...copy,
+                elements,
+              });
+            }),
           );
           markDirty();
           setRightRailId('content');
@@ -559,6 +773,7 @@ export function SocialMediaBuilderWorkspace() {
       onApplyTemplate={handleApplyTemplate}
       onToast={showToast}
       onOpenMediaPicker={() => coverAsset.openPicker('cover')}
+      enabledComponentKeys={P0_COMPONENT_KEYS}
       onGenerate={(instruction) => {
         void runAiGenerate(instruction);
       }}
@@ -572,12 +787,20 @@ export function SocialMediaBuilderWorkspace() {
       onSelectTab={setRightRailId}
       post={selectedPost}
       patchPost={patchPost}
+      selectedElement={selectedElement}
+      patchElement={(patch) => {
+        if (!selectedElementId) return;
+        patchElement(selectedElementId, patch);
+      }}
       formatPreset={formatPreset}
       setFormatPreset={handleFormatChange}
       platforms={platforms}
       togglePlatform={togglePlatform}
       brandLogo={brandLogo}
-      setBrandLogo={setBrandLogo}
+      setBrandLogo={(v) => {
+        setBrandLogo(v);
+        markDirty();
+      }}
       bgMode={bgMode}
       setBgMode={setBgMode}
       markDirty={markDirty}
@@ -637,6 +860,8 @@ export function SocialMediaBuilderWorkspace() {
       />
     );
   }
+
+  const previewMode = focus.mode === 'preview';
 
   return (
     <main className="dashboard" data-testid="smb-workspace-page">
@@ -705,6 +930,7 @@ export function SocialMediaBuilderWorkspace() {
               data-testid="smb-preview"
               onClick={() => {
                 focus.setMode('preview');
+                setSelectedElementId(null);
               }}
             >
               {t('preview')}
@@ -713,7 +939,8 @@ export function SocialMediaBuilderWorkspace() {
               variant="secondary"
               size="sm"
               data-testid="smb-send-test"
-              onClick={() => showToast(t('toasts.testSent'))}
+              disabled
+              title={t('toasts.notAvailable')}
             >
               {t('sendTest')}
             </Button>
@@ -732,7 +959,8 @@ export function SocialMediaBuilderWorkspace() {
               variant="primary"
               size="sm"
               data-testid="smb-publish"
-              onClick={() => setPublishOpen(true)}
+              disabled
+              title={t('toasts.notAvailable')}
             >
               {t('publish')}
               <IhIcon name="chevronDown" size={10} />
@@ -764,7 +992,8 @@ export function SocialMediaBuilderWorkspace() {
                 className="smb-ws__icon-btn"
                 aria-label={t('undo')}
                 data-testid="smb-undo"
-                onClick={() => showToast(t('toasts.undo'))}
+                disabled
+                title={t('toasts.notAvailable')}
               >
                 <IhIcon name="refresh" size={12} />
               </button>
@@ -773,7 +1002,8 @@ export function SocialMediaBuilderWorkspace() {
                 className="smb-ws__icon-btn"
                 aria-label={t('redo')}
                 data-testid="smb-redo"
-                onClick={() => showToast(t('toasts.redo'))}
+                disabled
+                title={t('toasts.notAvailable')}
               >
                 <IhIcon name="arrowRight" size={12} />
               </button>
@@ -879,7 +1109,7 @@ export function SocialMediaBuilderWorkspace() {
                             <div
                               className={`smb-ws__page-thumb ${aspectThumbClass(post.formatPreset)}`}
                             >
-                              {artboardSrc ? (
+                              {selectedPostId === post.id && artboardSrc ? (
                                 <img src={artboardSrc} alt="" />
                               ) : (
                                 <span className="smb-ws__page-thumb-empty" aria-hidden="true" />
@@ -931,6 +1161,8 @@ export function SocialMediaBuilderWorkspace() {
                         label: t(`bottomBar.actions.${action.key}`),
                         onClick: () => handleBottomAction(action.key),
                         testId: `smb-action-${action.key}`,
+                        disabled: !P0_BOTTOM_ACTIONS.has(action.key),
+                        priority: P0_BOTTOM_ACTIONS.has(action.key) ? 'high' : 'low',
                       }))}
                     />
                   ),
@@ -939,15 +1171,13 @@ export function SocialMediaBuilderWorkspace() {
                 <div className="smb-ws__canvas-stage" data-testid="smb-preview-shell">
                   <FocusFitStage engine={ftv} artboardTestId="smb-ftv-artboard">
                     <div
-                      className={`smb-ws__artboard${selected ? ' is-selected' : ''}${artboardState !== 'ready' ? ' is-empty' : ''}`}
+                      className={`smb-ws__artboard${selectedElementId || artboardState === 'ready' ? ' is-selected' : ''}${artboardState !== 'ready' ? ' is-empty' : ''}`}
                       data-testid="smb-artboard"
                       data-image-state={artboardState}
-                      onClick={() => setSelected(true)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') setSelected(true);
-                      }}
-                      role="button"
-                      tabIndex={0}
+                      data-width={contentSize.w}
+                      data-height={contentSize.h}
+                      onClick={() => setSelectedElementId(null)}
+                      role="presentation"
                     >
                       {artboardState === 'ready' && artboardSrc ? (
                         <img
@@ -993,7 +1223,7 @@ export function SocialMediaBuilderWorkspace() {
                       {artboardState === 'ready' ? (
                         <div className="smb-ws__artboard-overlay" aria-hidden="true" />
                       ) : null}
-                      {brandLogo && artboardState === 'ready' ? (
+                      {brandLogo ? (
                         <span
                           className="smb-ws__logo-preview"
                           style={{ position: 'absolute', top: '6%', left: '6%', zIndex: 2 }}
@@ -1001,14 +1231,16 @@ export function SocialMediaBuilderWorkspace() {
                           IH
                         </span>
                       ) : null}
-                      {artboardState === 'ready' ? (
-                        <div className="smb-ws__artboard-copy">
-                          <strong>{selectedPost.headline}</strong>
-                          <p>{selectedPost.caption}</p>
-                          <span className="smb-ws__artboard-cta">{t('canvas.cta')}</span>
-                        </div>
-                      ) : null}
-                      {selected ? (
+                      <SmbArtboardElements
+                        elements={selectedPost.elements}
+                        selectedElementId={previewMode ? null : selectedElementId}
+                        imageUrlsByAssetId={elementDisplayUrls}
+                        canvasLocked={canvasLocked}
+                        previewMode={previewMode}
+                        onSelect={setSelectedElementId}
+                        onPatchElement={(id, patch) => patchElement(id, patch)}
+                      />
+                      {!previewMode && selectedElementId ? (
                         <div
                           className="smb-ws__floating-actions"
                           data-testid="smb-floating-actions"
@@ -1054,8 +1286,9 @@ export function SocialMediaBuilderWorkspace() {
                                 <button
                                   type="button"
                                   role="menuitem"
+                                  data-testid="smb-floating-duplicate"
                                   onClick={() => {
-                                    showToast(t('floating.menu.duplicate'));
+                                    handleFloating('copy');
                                     setFloatingMoreOpen(false);
                                   }}
                                 >
@@ -1071,6 +1304,63 @@ export function SocialMediaBuilderWorkspace() {
                                 >
                                   {t('floating.menu.export')}
                                 </button>
+                              </div>
+                            ) : null}
+                            {layerMenuOpen ? (
+                              <div className="smb-ws__floating-menu" role="menu" data-testid="smb-layer-menu">
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  data-testid="smb-layer-forward"
+                                  onClick={() => {
+                                    if (!selectedElementId) return;
+                                    replaceElements(
+                                      bringElementForward(selectedPost.elements, selectedElementId),
+                                    );
+                                    setLayerMenuOpen(false);
+                                  }}
+                                >
+                                  {t('floating.layerForward')}
+                                </button>
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  data-testid="smb-layer-backward"
+                                  onClick={() => {
+                                    if (!selectedElementId) return;
+                                    replaceElements(
+                                      sendElementBackward(selectedPost.elements, selectedElementId),
+                                    );
+                                    setLayerMenuOpen(false);
+                                  }}
+                                >
+                                  {t('floating.layerBackward')}
+                                </button>
+                              </div>
+                            ) : null}
+                            {alignMenuOpen ? (
+                              <div className="smb-ws__floating-menu" role="menu" data-testid="smb-align-menu">
+                                {(['left', 'center', 'right', 'vcenter'] as const).map((mode) => (
+                                  <button
+                                    key={mode}
+                                    type="button"
+                                    role="menuitem"
+                                    data-testid={`smb-align-${mode}`}
+                                    onClick={() => {
+                                      if (!selectedElement) return;
+                                      const next = alignElement(
+                                        selectedElement,
+                                        mode,
+                                        contentSize.w,
+                                        contentSize.h,
+                                      );
+                                      patchElement(selectedElement.id, next);
+                                      setAlignMenuOpen(false);
+                                    }}
+                                  >
+                                    {t(`floating.alignModes.${mode}`)}
+                                  </button>
+                                ))}
                               </div>
                             ) : null}
                           </div>
@@ -1110,12 +1400,8 @@ export function SocialMediaBuilderWorkspace() {
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => {
-                  setPublishOpen(false);
-                  setCampaignStatus('published');
-                  void persistNow();
-                  showToast(t('toasts.published'));
-                }}
+                disabled
+                title={t('toasts.notAvailable')}
               >
                 {t('publishModal.confirm')}
               </Button>
@@ -1133,19 +1419,41 @@ export function SocialMediaBuilderWorkspace() {
           lockLinkedProject
           selectedAssetId={coverAsset.coverImage?.asset_id ?? null}
           onSelect={(ref) => {
-            // Persist Asset ID only — never blob:/object: thumb URLs.
             coverAsset.setCoverImage({
               asset_id: ref.asset_id,
               url: ref.asset_id ? null : ref.url ?? null,
               alt: ref.alt ?? null,
               role: 'cover',
             });
+            updateSelectedPost((p) => ({
+              ...p,
+              coverAssetId: ref.asset_id,
+              thumbUrl: '',
+            }));
             coverAsset.closePicker();
-            patchPost({ thumbUrl: '' });
             markDirty();
             showToast(t('toasts.imageChanged'));
           }}
           testId="smb-media-picker-dialog"
+        />
+      ) : null}
+
+      {elementImagePickerOpen ? (
+        <CsMediaPickerDialog
+          open={elementImagePickerOpen}
+          onClose={() => setElementImagePickerOpen(false)}
+          media={coverAsset.media}
+          linkedProjectId={docApi.constructionProjectId}
+          lockLinkedProject
+          selectedAssetId={null}
+          onSelect={(ref) => {
+            if (!ref.asset_id) return;
+            const el = createImageElement(contentSize.w, contentSize.h, ref.asset_id);
+            addElement(el);
+            setElementImagePickerOpen(false);
+            showToast(t('toasts.imageChanged'));
+          }}
+          testId="smb-element-media-picker-dialog"
         />
       ) : null}
 

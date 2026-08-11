@@ -18958,6 +18958,14 @@
           "layer": "Layer",
           "align": "Align",
           "more": "More",
+          "layerForward": "Bring forward",
+          "layerBackward": "Send backward",
+          "alignModes": {
+            "left": "Align left",
+            "center": "Align center",
+            "right": "Align right",
+            "vcenter": "Vertical center"
+          },
           "menu": {
             "aiEdit": "AI edit",
             "duplicate": "Duplicate",
@@ -19101,12 +19109,27 @@
             "advanced": "Advanced settings",
             "sharing": "Sharing settings",
             "sharingHelp": "Schedule windows and integration targets appear after export.",
-            "sizeHint": "Active canvas size: {size}"
+            "sizeHint": "Active canvas size: {size}",
+            "elementText": "Selected text",
+            "elementButton": "Selected button",
+            "headline": "Text content",
+            "buttonBg": "Button background",
+            "buttonTextColor": "Button text color",
+            "selectElementHint": "Select a text or button element on the canvas to edit it."
           },
           "style": {
             "typography": "Typography",
             "headingFont": "Heading font",
             "bodyFont": "Body font",
+            "fontSize": "Font size",
+            "fontWeight": "Weight",
+            "align": "Alignment",
+            "textColor": "Text color",
+            "selectTextHint": "Select a text element to edit typography.",
+            "weights": {
+              "normal": "Normal",
+              "bold": "Bold"
+            },
             "fonts": {
               "sans": "Sans",
               "serif": "Serif"
@@ -19157,7 +19180,10 @@
           "logoChanged": "Logo updated",
           "logoRemoved": "Logo removed",
           "imageChanged": "Background image updated",
-          "imageRemoved": "Image removed from post"
+          "imageRemoved": "Image removed from post",
+          "elementRemoved": "Element deleted",
+          "selectElement": "Select an element first",
+          "notAvailable": "Not available in this release"
         }
       },
       "adsBuilder": {

@@ -15,6 +15,8 @@ import {
 import type { CreativeStudioDocumentType } from '@/lib/api/creative-studio';
 
 export const BUILDER_MEDIA_DRAFT_SCHEMA_VERSION = 1 as const;
+/** Social Media Builder posts[] schema (backward-compatible overlay on v1). */
+export const BUILDER_MEDIA_SOCIAL_POSTS_SCHEMA_VERSION = 2 as const;
 
 export type BuilderMediaDocumentType =
   | 'landing'
@@ -43,13 +45,23 @@ export const BUILDER_KIND_LABELS: Record<BuilderMediaDocumentType, string> = {
 };
 
 export type BuilderMediaDraft = {
-  schemaVersion: typeof BUILDER_MEDIA_DRAFT_SCHEMA_VERSION;
+  schemaVersion:
+    | typeof BUILDER_MEDIA_DRAFT_SCHEMA_VERSION
+    | typeof BUILDER_MEDIA_SOCIAL_POSTS_SCHEMA_VERSION;
   documentType: BuilderMediaDocumentType;
   linkedProjectId: string | null;
   /** Cover / hero / featured image — Asset ID preferred. */
   coverImage: CsImageRef | null;
   /** Optional gallery (Landing); empty for cover-only builders. */
   galleryImages: CsImageRef[];
+  /**
+   * Social Media Builder persistent posts (elements, per-post cover Asset ID).
+   * Opaque records — typed parse lives in social-media-builder-persistence.
+   */
+  posts?: Record<string, unknown>[];
+  selectedPostId?: string | null;
+  brandLogo?: boolean;
+  platforms?: string[];
   savedAt?: number;
 };
 
@@ -58,6 +70,10 @@ export type BuilderMediaPersistInput = {
   linkedProjectId: string | null;
   coverImage: CsImageRef | null;
   galleryImages?: CsImageRef[];
+  posts?: Record<string, unknown>[];
+  selectedPostId?: string | null;
+  brandLogo?: boolean;
+  platforms?: string[];
 };
 
 export function isBuilderMediaDocumentType(
@@ -74,14 +90,26 @@ export function serializeBuilderMediaDraft(
     .map((ref) => serializeImageRef(ref))
     .filter((ref): ref is Record<string, unknown> => ref != null);
 
-  return {
-    schemaVersion: BUILDER_MEDIA_DRAFT_SCHEMA_VERSION,
+  const hasPosts = Array.isArray(input.posts) && input.posts.length > 0;
+  const draft: Record<string, unknown> = {
+    schemaVersion: hasPosts
+      ? BUILDER_MEDIA_SOCIAL_POSTS_SCHEMA_VERSION
+      : BUILDER_MEDIA_DRAFT_SCHEMA_VERSION,
     documentType: input.documentType,
     linkedProjectId: input.linkedProjectId,
     coverImage: coverSerialized,
     galleryImages: gallerySerialized,
     savedAt: Date.now(),
   };
+
+  if (hasPosts) {
+    draft.posts = input.posts;
+    if (input.selectedPostId) draft.selectedPostId = input.selectedPostId;
+  }
+  if (typeof input.brandLogo === 'boolean') draft.brandLogo = input.brandLogo;
+  if (Array.isArray(input.platforms)) draft.platforms = input.platforms;
+
+  return draft;
 }
 
 /**
@@ -145,10 +173,22 @@ export function deserializeBuilderMediaDraft(
     ? typeRaw
     : fallbackType;
 
+  const posts = Array.isArray(body.posts)
+    ? (body.posts.filter(
+        (item): item is Record<string, unknown> =>
+          Boolean(item) && typeof item === 'object' && !Array.isArray(item),
+      ) as Record<string, unknown>[])
+    : undefined;
+
   // Empty object → null draft (caller seeds from template)
   const keys = Object.keys(body);
   if (keys.length === 0) return null;
-  if (!coverImage && galleryImages.length === 0 && keys.length <= 2) {
+  if (
+    !coverImage &&
+    galleryImages.length === 0 &&
+    !(posts && posts.length) &&
+    keys.length <= 2
+  ) {
     // schemaVersion / documentType only
     const onlyMeta = keys.every((k) =>
       ['schemaVersion', 'documentType', 'linkedProjectId', 'savedAt'].includes(k),
@@ -156,13 +196,27 @@ export function deserializeBuilderMediaDraft(
     if (onlyMeta) return null;
   }
 
+  const schemaRaw = body.schemaVersion;
+  const schemaVersion =
+    schemaRaw === BUILDER_MEDIA_SOCIAL_POSTS_SCHEMA_VERSION ||
+    (posts && posts.length > 0)
+      ? BUILDER_MEDIA_SOCIAL_POSTS_SCHEMA_VERSION
+      : BUILDER_MEDIA_DRAFT_SCHEMA_VERSION;
+
   return {
-    schemaVersion: BUILDER_MEDIA_DRAFT_SCHEMA_VERSION,
+    schemaVersion,
     documentType,
     linkedProjectId:
       typeof body.linkedProjectId === 'string' ? body.linkedProjectId : null,
     coverImage,
     galleryImages,
+    posts,
+    selectedPostId:
+      typeof body.selectedPostId === 'string' ? body.selectedPostId : null,
+    brandLogo: typeof body.brandLogo === 'boolean' ? body.brandLogo : undefined,
+    platforms: Array.isArray(body.platforms)
+      ? body.platforms.filter((p): p is string => typeof p === 'string')
+      : undefined,
     savedAt: typeof body.savedAt === 'number' ? body.savedAt : undefined,
   };
 }
@@ -173,10 +227,10 @@ export function isBuilderMediaDraftEmpty(raw: unknown): boolean {
   if (typeof raw !== 'object' || Array.isArray(raw)) return true;
   const keys = Object.keys(raw as object);
   if (keys.length === 0) return true;
-  const { coverImage, galleryImages } = normalizeBuilderCoverFields(
-    raw as Record<string, unknown>,
-  );
-  return !coverImage && galleryImages.length === 0;
+  const body = raw as Record<string, unknown>;
+  const { coverImage, galleryImages } = normalizeBuilderCoverFields(body);
+  const hasPosts = Array.isArray(body.posts) && body.posts.length > 0;
+  return !coverImage && galleryImages.length === 0 && !hasPosts;
 }
 
 /** Assert serialized draft never contains Drive paths or ephemeral URLs. */

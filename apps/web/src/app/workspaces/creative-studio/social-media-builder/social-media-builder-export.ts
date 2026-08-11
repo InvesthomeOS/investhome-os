@@ -1,15 +1,21 @@
 /**
- * Minimum Social Media Builder post export — canvas PNG with image + text.
+ * Social Media Builder post export — PNG of CURRENT persistent post elements.
  * Uses authenticated blob/display URLs only (never taints with third-party CDN).
  */
+
+import {
+  sortElementsByZ,
+  type SocialElement,
+} from './social-media-builder-elements';
 
 export type SocialPostExportInput = {
   width: number;
   height: number;
-  imageUrl: string | null;
-  headline: string;
-  caption: string;
-  cta: string;
+  /** Background / cover display URL (authenticated blob). */
+  coverImageUrl: string | null;
+  elements: SocialElement[];
+  /** assetId → authenticated display URL for IMAGE elements. */
+  imageUrlsByAssetId?: Record<string, string>;
   brandLogo: boolean;
   filename: string;
 };
@@ -77,9 +83,69 @@ function wrapText(
   return lines;
 }
 
+async function drawElement(
+  ctx: CanvasRenderingContext2D,
+  el: SocialElement,
+  imageUrlsByAssetId: Record<string, string>,
+) {
+  if (el.type === 'TEXT') {
+    ctx.fillStyle = el.color;
+    ctx.textAlign = el.align;
+    ctx.textBaseline = 'top';
+    const weight = el.fontWeight === 'bold' ? 700 : 400;
+    ctx.font = `${weight} ${el.fontSize}px system-ui, sans-serif`;
+    const anchorX =
+      el.align === 'left'
+        ? el.x
+        : el.align === 'right'
+          ? el.x + el.width
+          : el.x + el.width / 2;
+    let cursorY = el.y;
+    for (const line of wrapText(ctx, el.content || '', el.width).slice(0, 8)) {
+      ctx.fillText(line, anchorX, cursorY);
+      cursorY += el.fontSize * 1.2;
+      if (cursorY > el.y + el.height) break;
+    }
+    return;
+  }
+
+  if (el.type === 'BUTTON') {
+    ctx.fillStyle = el.backgroundColor;
+    roundRect(ctx, el.x, el.y, el.width, el.height, el.height / 2);
+    ctx.fill();
+    ctx.fillStyle = el.textColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const fontSize = Math.max(12, Math.round(el.height * 0.42));
+    ctx.font = `600 ${fontSize}px system-ui, sans-serif`;
+    ctx.fillText(el.label || '', el.x + el.width / 2, el.y + el.height / 2);
+    return;
+  }
+
+  if (el.type === 'IMAGE' && el.assetId) {
+    const url = imageUrlsByAssetId[el.assetId];
+    if (!url) return;
+    try {
+      const img = await loadImage(url);
+      const scale = Math.max(el.width / img.naturalWidth, el.height / img.naturalHeight);
+      const w = img.naturalWidth * scale;
+      const h = img.naturalHeight * scale;
+      const x = el.x + (el.width - w) / 2;
+      const y = el.y + (el.height - h) / 2;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(el.x, el.y, el.width, el.height);
+      ctx.clip();
+      ctx.drawImage(img, x, y, w, h);
+      ctx.restore();
+    } catch {
+      /* skip failed image element */
+    }
+  }
+}
+
 /**
- * Renders the current post to a PNG and triggers a browser download.
- * Throws on missing canvas support, image load failure, or empty blob.
+ * Renders the current persistent post (cover + elements) to a PNG and downloads it.
  */
 export async function exportSocialPostPng(input: SocialPostExportInput): Promise<void> {
   const width = Math.max(1, Math.round(input.width));
@@ -95,16 +161,20 @@ export async function exportSocialPostPng(input: SocialPostExportInput): Promise
   ctx.fillStyle = '#1f2937';
   ctx.fillRect(0, 0, width, height);
 
-  if (input.imageUrl) {
-    const img = await loadImage(input.imageUrl);
-    drawCover(ctx, img, width, height);
-  } else {
+  const hasCover = Boolean(input.coverImageUrl);
+  const hasElements = input.elements.length > 0;
+  if (!hasCover && !hasElements) {
     throw new Error('No image to export');
+  }
+
+  if (input.coverImageUrl) {
+    const img = await loadImage(input.coverImageUrl);
+    drawCover(ctx, img, width, height);
   }
 
   const gradient = ctx.createLinearGradient(0, height * 0.35, 0, height);
   gradient.addColorStop(0, 'rgba(0,0,0,0)');
-  gradient.addColorStop(1, 'rgba(0,0,0,0.62)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0.45)');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);
 
@@ -120,45 +190,9 @@ export async function exportSocialPostPng(input: SocialPostExportInput): Promise
     ctx.fillText('IH', width * 0.06 + badge * 0.8, height * 0.06 + badge / 2);
   }
 
-  const padX = width * 0.08;
-  const maxText = width - padX * 2;
-  let cursorY = height * 0.72;
-
-  ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  const headlineSize = Math.max(22, Math.round(width * 0.055));
-  ctx.font = `700 ${headlineSize}px system-ui, sans-serif`;
-  for (const line of wrapText(ctx, input.headline || '', maxText).slice(0, 3)) {
-    ctx.fillText(line, width / 2, cursorY);
-    cursorY += headlineSize * 1.15;
-  }
-
-  const captionSize = Math.max(14, Math.round(width * 0.028));
-  ctx.font = `400 ${captionSize}px system-ui, sans-serif`;
-  ctx.globalAlpha = 0.92;
-  for (const line of wrapText(ctx, input.caption || '', maxText).slice(0, 3)) {
-    ctx.fillText(line, width / 2, cursorY);
-    cursorY += captionSize * 1.25;
-  }
-  ctx.globalAlpha = 1;
-
-  if (input.cta) {
-    cursorY += Math.round(height * 0.02);
-    ctx.font = `600 ${captionSize}px system-ui, sans-serif`;
-    const label = input.cta;
-    const textW = ctx.measureText(label).width;
-    const btnPadX = captionSize * 0.9;
-    const btnPadY = captionSize * 0.45;
-    const btnW = textW + btnPadX * 2;
-    const btnH = captionSize + btnPadY * 2;
-    const btnX = (width - btnW) / 2;
-    ctx.fillStyle = '#ffffff';
-    roundRect(ctx, btnX, cursorY, btnW, btnH, btnH / 2);
-    ctx.fill();
-    ctx.fillStyle = '#111827';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(label, width / 2, cursorY + btnH / 2);
+  const urls = input.imageUrlsByAssetId ?? {};
+  for (const el of sortElementsByZ(input.elements)) {
+    await drawElement(ctx, el, urls);
   }
 
   const blob = await new Promise<Blob | null>((resolve) => {

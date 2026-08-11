@@ -12,6 +12,12 @@ import type {
 import { isMediaAssetUuid, type CsImageRef } from '../_components/cs-image-ref';
 
 import type { PlatformKey, SocialPost } from './social-media-builder-model';
+import {
+  applyCopyToElements,
+  captionFromElements,
+  ctaFromElements,
+  headlineFromElements,
+} from './social-media-builder-elements';
 
 export type SocialGenerationMeta = {
   citations: CreativeStudioCitation[];
@@ -143,7 +149,12 @@ export function defaultSocialInstruction(post: Pick<SocialPost, 'name' | 'platfo
   return bits.join(' ');
 }
 
-export function applyGeneratedCopyToPost(content: string): Partial<SocialPost> {
+export function applyGeneratedCopyToPost(content: string): {
+  headline?: string;
+  caption?: string;
+  description?: string;
+  cta?: string;
+} {
   const text = (content || '').trim();
   if (!text) return {};
   const lines = text
@@ -154,11 +165,48 @@ export function applyGeneratedCopyToPost(content: string): Partial<SocialPost> {
   const rest = lines.slice(1).join('\n').trim();
   const headline = first.length <= 120 ? first : first.slice(0, 117).trimEnd() + '…';
   const caption = rest || text;
+  let cta: string | undefined;
+  const last = lines[lines.length - 1];
+  if (
+    last &&
+    last !== first &&
+    last.length <= 48 &&
+    /^(book|schedule|learn|discover|join|get|contact|rezerv|hemen|keşfet)/i.test(last)
+  ) {
+    cta = last;
+  }
   return {
     headline,
     caption,
     description: text,
+    ...(cta ? { cta } : {}),
   };
+}
+
+/** Apply AI copy onto persistent TEXT / BUTTON elements (same canvas model). */
+export function applyGeneratedCopyToElements(
+  elements: SocialPost['elements'],
+  content: string,
+): SocialPost['elements'] {
+  const copy = applyGeneratedCopyToPost(content);
+  if (!copy.headline && !copy.caption) return elements;
+  return applyCopyToElements(elements, {
+    headline: copy.headline,
+    caption: copy.caption,
+    cta: copy.cta,
+  });
+}
+
+export function syncPostCopyFields(post: SocialPost): SocialPost {
+  return {
+    ...post,
+    headline: headlineFromElements(post.elements) || post.headline,
+    caption: captionFromElements(post.elements) || post.caption,
+  };
+}
+
+export function peekCtaLabel(post: SocialPost): string {
+  return ctaFromElements(post.elements);
 }
 
 export function hasInsufficientContext(

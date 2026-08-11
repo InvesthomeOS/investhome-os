@@ -23,6 +23,7 @@ import {
   type SocialPost,
   type TemplateCategoryKey,
 } from './social-media-builder-model';
+import type { SocialElement } from './social-media-builder-elements';
 import { SmbZoomControls } from './smb-zoom-controls';
 
 type LocalRailProps = {
@@ -71,13 +72,15 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 export type SmbLeftRailDrawerProps = {
   id: SmbLeftRailId;
   onInsertComponent: (key: string) => void;
-  onApplyTemplate: (format: FormatPresetKey, thumbUrl: string) => void;
+  onApplyTemplate: (format: FormatPresetKey) => void;
   onToast: (msg: string) => void;
   /** Opens CsMediaPickerDialog — production media entry only from MediaDrawer. */
   onOpenMediaPicker?: () => void;
   /** Shared Creative Studio generation — real API, not toast demo. */
   onGenerate?: (instruction: string) => void;
   generating?: boolean;
+  /** When set, non-listed component keys are disabled (honest P0 UI). */
+  enabledComponentKeys?: ReadonlySet<string>;
 };
 
 export function SmbLeftRailDrawer(props: SmbLeftRailDrawerProps) {
@@ -144,9 +147,9 @@ function TemplatesDrawer({ onApplyTemplate }: SmbLeftRailDrawerProps) {
               type="button"
               className="smb-ws__template"
               data-testid={`smb-template-${tpl.id}`}
-              onClick={() => onApplyTemplate(tpl.format, tpl.thumbUrl)}
+              onClick={() => onApplyTemplate(tpl.format)}
             >
-              <img src={tpl.thumbUrl} alt="" />
+              {tpl.thumbUrl ? <img src={tpl.thumbUrl} alt="" /> : <span className="smb-ws__template-swatch" />}
               <span>{t(`formats.${tpl.format}`)}</span>
             </button>
           ))}
@@ -156,7 +159,7 @@ function TemplatesDrawer({ onApplyTemplate }: SmbLeftRailDrawerProps) {
   );
 }
 
-function ComponentsDrawer({ onInsertComponent }: SmbLeftRailDrawerProps) {
+function ComponentsDrawer({ onInsertComponent, enabledComponentKeys }: SmbLeftRailDrawerProps) {
   const t = useTranslations('creativeStudio.ds.socialMediaBuilder');
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
@@ -189,20 +192,30 @@ function ComponentsDrawer({ onInsertComponent }: SmbLeftRailDrawerProps) {
             <div key={group.group} className="smb-ws__comp-group">
               <p className="smb-ws__section-label">{t(`rails.components.groups.${group.group}`)}</p>
               <div className="smb-ws__component-grid">
-                {items.map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    className="smb-ws__component-card"
-                    data-testid={`smb-component-${item.key}`}
-                    onClick={() => onInsertComponent(item.key)}
-                  >
-                    <span className="smb-ws__component-card-icon">
-                      <IhIcon name={item.icon} size={14} />
-                    </span>
-                    <span>{t(`rails.components.items.${item.key}`)}</span>
-                  </button>
-                ))}
+                {items.map((item) => {
+                  const enabled =
+                    !enabledComponentKeys || enabledComponentKeys.has(item.key);
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      className="smb-ws__component-card"
+                      data-testid={`smb-component-${item.key}`}
+                      disabled={!enabled}
+                      aria-disabled={!enabled}
+                      title={enabled ? undefined : t('toasts.notAvailable')}
+                      onClick={() => {
+                        if (!enabled) return;
+                        onInsertComponent(item.key);
+                      }}
+                    >
+                      <span className="smb-ws__component-card-icon">
+                        <IhIcon name={item.icon} size={14} />
+                      </span>
+                      <span>{t(`rails.components.items.${item.key}`)}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           );
@@ -212,7 +225,7 @@ function ComponentsDrawer({ onInsertComponent }: SmbLeftRailDrawerProps) {
   );
 }
 
-function TextDrawer({ onInsertComponent, onToast }: SmbLeftRailDrawerProps) {
+function TextDrawer({ onInsertComponent, enabledComponentKeys }: SmbLeftRailDrawerProps) {
   const t = useTranslations('creativeStudio.ds.socialMediaBuilder');
 
   return (
@@ -222,26 +235,34 @@ function TextDrawer({ onInsertComponent, onToast }: SmbLeftRailDrawerProps) {
       </div>
       <div className="smb-ws__rail-panel-body smb-ws__left-stack">
         <p className="smb-ws__muted">{t('rails.text.help')}</p>
-        {(['title', 'text', 'iconText'] as const).map((key) => (
-          <Button
-            key={key}
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              onInsertComponent(key);
-              onToast(t('rails.components.toasts.inserted', { name: t(`rails.components.items.${key}`) }));
-            }}
-          >
-            <IhIcon name="documents" size={12} />
-            {t(`rails.components.items.${key}`)}
-          </Button>
-        ))}
+        {(['title', 'text', 'iconText'] as const).map((key) => {
+          const enabled = !enabledComponentKeys || enabledComponentKeys.has(key);
+          return (
+            <Button
+              key={key}
+              variant="secondary"
+              size="sm"
+              disabled={!enabled}
+              onClick={() => {
+                if (!enabled) return;
+                onInsertComponent(key);
+              }}
+            >
+              <IhIcon name="documents" size={12} />
+              {t(`rails.components.items.${key}`)}
+            </Button>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function MediaDrawer({ onInsertComponent, onToast, onOpenMediaPicker }: SmbLeftRailDrawerProps) {
+function MediaDrawer({
+  onInsertComponent,
+  onOpenMediaPicker,
+  enabledComponentKeys,
+}: SmbLeftRailDrawerProps) {
   const t = useTranslations('creativeStudio.ds.socialMediaBuilder');
 
   return (
@@ -257,36 +278,39 @@ function MediaDrawer({ onInsertComponent, onToast, onOpenMediaPicker }: SmbLeftR
           data-testid="smb-media-open-picker"
           onClick={() => {
             if (onOpenMediaPicker) onOpenMediaPicker();
-            else onToast(t('rails.media.libraryUnavailable'));
           }}
         >
           <IhIcon name="inventory" size={12} />
           {t('rails.media.openLibrary')}
         </Button>
-        {(['image', 'video', 'logo', 'sticker'] as const).map((key) => (
-          <Button
-            key={key}
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              if (key === 'image' && onOpenMediaPicker) {
-                onOpenMediaPicker();
-                return;
-              }
-              onInsertComponent(key);
-              onToast(t('rails.components.toasts.inserted', { name: t(`rails.components.items.${key}`) }));
-            }}
-          >
-            <IhIcon name="inventory" size={12} />
-            {t(`rails.components.items.${key}`)}
-          </Button>
-        ))}
+        {(['image', 'video', 'logo', 'sticker'] as const).map((key) => {
+          const enabled = !enabledComponentKeys || enabledComponentKeys.has(key);
+          return (
+            <Button
+              key={key}
+              variant="secondary"
+              size="sm"
+              disabled={!enabled}
+              onClick={() => {
+                if (!enabled) return;
+                if (key === 'image' && onOpenMediaPicker) {
+                  onOpenMediaPicker();
+                  return;
+                }
+                onInsertComponent(key);
+              }}
+            >
+              <IhIcon name="inventory" size={12} />
+              {t(`rails.components.items.${key}`)}
+            </Button>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function BrandDrawer({ onToast }: SmbLeftRailDrawerProps) {
+function BrandDrawer(_props: SmbLeftRailDrawerProps) {
   const t = useTranslations('creativeStudio.ds.socialMediaBuilder');
 
   return (
@@ -304,13 +328,14 @@ function BrandDrawer({ onToast }: SmbLeftRailDrawerProps) {
               type="button"
               className="smb-ws__chip"
               style={{ background: color, color: color === '#FFFFFF' || color === '#F5F1EA' ? '#111' : '#fff' }}
-              onClick={() => onToast(t('rails.brand.colorApplied', { color }))}
+              disabled
+              title={t('toasts.notAvailable')}
             >
               {color}
             </button>
           ))}
         </div>
-        <Button variant="secondary" size="sm" onClick={() => onToast(t('rails.brand.kitApplied'))}>
+        <Button variant="secondary" size="sm" disabled title={t('toasts.notAvailable')}>
           {t('rails.brand.applyKit')}
         </Button>
       </div>
@@ -374,6 +399,8 @@ export type SmbRightRailDrawerProps = {
   onSelectTab: (id: SmbRightRailId) => void;
   post: SocialPost;
   patchPost: (patch: Partial<SocialPost>) => void;
+  selectedElement: SocialElement | null;
+  patchElement: (patch: Partial<SocialElement>) => void;
   formatPreset: FormatPresetKey;
   setFormatPreset: (v: FormatPresetKey) => void;
   platforms: Set<PlatformKey>;
@@ -424,6 +451,8 @@ export function SmbRightRailDrawer(props: SmbRightRailDrawerProps) {
 function ContentDrawer({
   post,
   patchPost,
+  selectedElement,
+  patchElement,
   formatPreset,
   setFormatPreset,
   platforms,
@@ -433,7 +462,6 @@ function ContentDrawer({
   bgMode,
   setBgMode,
   markDirty,
-  onToast,
   onChangeImage,
   coverDisplayUrl,
 }: SmbRightRailDrawerProps) {
@@ -506,6 +534,67 @@ function ContentDrawer({
         />
       </Field>
 
+      {selectedElement?.type === 'TEXT' ? (
+        <>
+          <p className="smb-ws__section-label">{t('rails.content.elementText')}</p>
+          <Field label={t('rails.content.headline')}>
+            <textarea
+              rows={3}
+              value={selectedElement.content}
+              data-testid="smb-element-text-content"
+              onChange={(e) => {
+                patchElement({ content: e.target.value });
+                markDirty();
+              }}
+            />
+          </Field>
+        </>
+      ) : null}
+
+      {selectedElement?.type === 'BUTTON' ? (
+        <>
+          <p className="smb-ws__section-label">{t('rails.content.elementButton')}</p>
+          <Field label={t('rails.style.ctaLabel')}>
+            <input
+              value={selectedElement.label}
+              data-testid="smb-element-button-label"
+              onChange={(e) => {
+                patchElement({ label: e.target.value });
+                markDirty();
+              }}
+            />
+          </Field>
+          <Field label={t('rails.content.buttonBg')}>
+            <input
+              type="color"
+              value={selectedElement.backgroundColor}
+              data-testid="smb-element-button-bg"
+              onChange={(e) => {
+                patchElement({ backgroundColor: e.target.value });
+                markDirty();
+              }}
+            />
+          </Field>
+          <Field label={t('rails.content.buttonTextColor')}>
+            <input
+              type="color"
+              value={selectedElement.textColor}
+              data-testid="smb-element-button-color"
+              onChange={(e) => {
+                patchElement({ textColor: e.target.value });
+                markDirty();
+              }}
+            />
+          </Field>
+        </>
+      ) : null}
+
+      {!selectedElement ? (
+        <p className="smb-ws__muted" data-testid="smb-content-no-selection">
+          {t('rails.content.selectElementHint')}
+        </p>
+      ) : null}
+
       <p className="smb-ws__section-label">{t('rails.content.brandLogo')}</p>
       <div className="smb-ws__logo-row">
         <span className="smb-ws__logo-preview" aria-hidden="true">
@@ -525,14 +614,7 @@ function ContentDrawer({
         </label>
       </div>
       <div className="smb-ws__chip-row">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => {
-            markDirty();
-            onToast(t('toasts.logoChanged'));
-          }}
-        >
+        <Button variant="secondary" size="sm" disabled title={t('toasts.notAvailable')}>
           {t('rails.content.changeLogo')}
         </Button>
         <Button
@@ -541,7 +623,6 @@ function ContentDrawer({
           onClick={() => {
             setBrandLogo(false);
             markDirty();
-            onToast(t('toasts.logoRemoved'));
           }}
         >
           {t('rails.content.removeLogo')}
@@ -556,7 +637,10 @@ function ContentDrawer({
             type="button"
             className={bgMode === mode ? 'is-active' : undefined}
             data-testid={`smb-bg-${mode}`}
+            disabled={mode !== 'image'}
+            title={mode !== 'image' ? t('toasts.notAvailable') : undefined}
             onClick={() => {
+              if (mode !== 'image') return;
               setBgMode(mode);
               markDirty();
             }}
@@ -580,34 +664,12 @@ function ContentDrawer({
               size="sm"
               data-testid="smb-content-change-image"
               onClick={() => {
-                if (onChangeImage) {
-                  onChangeImage();
-                  return;
-                }
-                markDirty();
-                onToast(t('toasts.imageChanged'));
+                onChangeImage?.();
               }}
             >
               {t('rails.content.changeImage')}
             </Button>
           </div>
-        </div>
-      ) : null}
-      {bgMode === 'color' ? (
-        <div className="smb-ws__chip-row">
-          {BRAND_COLORS.map((color) => (
-            <button
-              key={color}
-              type="button"
-              className="smb-ws__chip"
-              style={{ background: color, minWidth: '1.75rem', minHeight: '1.75rem' }}
-              aria-label={color}
-              onClick={() => {
-                markDirty();
-                onToast(t('rails.brand.colorApplied', { color }));
-              }}
-            />
-          ))}
         </div>
       ) : null}
 
@@ -617,65 +679,80 @@ function ContentDrawer({
           {t('rails.content.sizeHint', { size: formatDimensions(size.width, size.height) })}
         </p>
       </details>
-      <details className="smb-ws__accordion">
-        <summary>{t('rails.content.sharing')}</summary>
-        <p className="smb-ws__muted">{t('rails.content.sharingHelp')}</p>
-      </details>
     </div>
   );
 }
 
-function StyleDrawer({ markDirty, onToast }: SmbRightRailDrawerProps) {
+function StyleDrawer({ selectedElement, patchElement, markDirty }: SmbRightRailDrawerProps) {
   const t = useTranslations('creativeStudio.ds.socialMediaBuilder');
+
+  if (!selectedElement || selectedElement.type !== 'TEXT') {
+    return (
+      <div className="smb-ws__rail-panel-body smb-ws__left-stack" data-testid="smb-style-drawer">
+        <p className="smb-ws__muted">{t('rails.style.selectTextHint')}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="smb-ws__rail-panel-body smb-ws__left-stack" data-testid="smb-style-drawer">
       <details className="smb-ws__accordion" open>
         <summary>{t('rails.style.typography')}</summary>
-        <Field label={t('rails.style.headingFont')}>
+        <Field label={t('rails.style.fontSize')}>
+          <input
+            type="number"
+            min={8}
+            max={200}
+            value={selectedElement.fontSize}
+            data-testid="smb-style-font-size"
+            onChange={(e) => {
+              patchElement({ fontSize: Number(e.target.value) || 16 });
+              markDirty();
+            }}
+          />
+        </Field>
+        <Field label={t('rails.style.fontWeight')}>
           <select
-            defaultValue="sans"
-            onChange={() => markDirty()}
-            data-testid="smb-style-heading-font"
+            value={selectedElement.fontWeight}
+            data-testid="smb-style-font-weight"
+            onChange={(e) => {
+              patchElement({
+                fontWeight: e.target.value === 'bold' ? 'bold' : 'normal',
+              });
+              markDirty();
+            }}
           >
-            <option value="sans">{t('rails.style.fonts.sans')}</option>
-            <option value="serif">{t('rails.style.fonts.serif')}</option>
+            <option value="normal">{t('rails.style.weights.normal')}</option>
+            <option value="bold">{t('rails.style.weights.bold')}</option>
           </select>
         </Field>
-        <Field label={t('rails.style.bodyFont')}>
-          <select defaultValue="sans" onChange={() => markDirty()}>
-            <option value="sans">{t('rails.style.fonts.sans')}</option>
-            <option value="serif">{t('rails.style.fonts.serif')}</option>
-          </select>
-        </Field>
-      </details>
-      <details className="smb-ws__accordion" open>
-        <summary>{t('rails.style.overlay')}</summary>
-        <Field label={t('rails.style.overlayStrength')}>
-          <input type="range" min={0} max={100} defaultValue={45} onChange={() => markDirty()} />
-        </Field>
-      </details>
-      <details className="smb-ws__accordion" open>
-        <summary>{t('rails.style.brandColors')}</summary>
-        <div className="smb-ws__chip-row">
-          {BRAND_COLORS.map((color) => (
-            <button
-              key={color}
-              type="button"
-              className="smb-ws__chip"
-              style={{ background: color, minWidth: '1.75rem', minHeight: '1.75rem' }}
-              onClick={() => {
+        <Field label={t('rails.style.align')}>
+          <select
+            value={selectedElement.align}
+            data-testid="smb-style-align"
+            onChange={(e) => {
+              const align = e.target.value;
+              if (align === 'left' || align === 'center' || align === 'right') {
+                patchElement({ align });
                 markDirty();
-                onToast(t('rails.brand.colorApplied', { color }));
-              }}
-            />
-          ))}
-        </div>
-      </details>
-      <details className="smb-ws__accordion">
-        <summary>{t('rails.style.cta')}</summary>
-        <Field label={t('rails.style.ctaLabel')}>
-          <input defaultValue={t('rails.style.ctaDefault')} onChange={() => markDirty()} />
+              }
+            }}
+          >
+            <option value="left">{t('floating.alignModes.left')}</option>
+            <option value="center">{t('floating.alignModes.center')}</option>
+            <option value="right">{t('floating.alignModes.right')}</option>
+          </select>
+        </Field>
+        <Field label={t('rails.style.textColor')}>
+          <input
+            type="color"
+            value={selectedElement.color}
+            data-testid="smb-style-text-color"
+            onChange={(e) => {
+              patchElement({ color: e.target.value });
+              markDirty();
+            }}
+          />
         </Field>
       </details>
     </div>

@@ -1,0 +1,316 @@
+/**
+ * Persistent Social Media Builder canvas elements (TEXT | IMAGE | BUTTON).
+ * Coordinates are absolute pixels in the post's format size.
+ */
+
+export type SocialTextAlign = 'left' | 'center' | 'right';
+export type SocialElementType = 'TEXT' | 'IMAGE' | 'BUTTON';
+export type SocialTextRole = 'headline' | 'body' | 'custom';
+
+export type SocialElementBase = {
+  id: string;
+  type: SocialElementType;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  zIndex: number;
+};
+
+export type SocialTextElement = SocialElementBase & {
+  type: 'TEXT';
+  content: string;
+  fontSize: number;
+  fontWeight: 'normal' | 'bold';
+  align: SocialTextAlign;
+  color: string;
+  role: SocialTextRole;
+};
+
+export type SocialImageElement = SocialElementBase & {
+  type: 'IMAGE';
+  assetId: string | null;
+};
+
+export type SocialButtonElement = SocialElementBase & {
+  type: 'BUTTON';
+  label: string;
+  backgroundColor: string;
+  textColor: string;
+};
+
+export type SocialElement = SocialTextElement | SocialImageElement | SocialButtonElement;
+
+const UUID_FRAGMENT = () =>
+  `e-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+export function nextElementId(prefix = 'el'): string {
+  return `${prefix}-${UUID_FRAGMENT()}`;
+}
+
+export function createDefaultElements(
+  width: number,
+  height: number,
+  opts?: { headline?: string; caption?: string; cta?: string },
+): SocialElement[] {
+  const w = Math.max(1, Math.round(width));
+  const h = Math.max(1, Math.round(height));
+  const padX = Math.round(w * 0.08);
+  const contentW = Math.max(40, w - padX * 2);
+  const headlineSize = Math.max(22, Math.round(w * 0.055));
+  const bodySize = Math.max(14, Math.round(w * 0.028));
+  const ctaH = Math.max(36, Math.round(h * 0.045));
+  const ctaW = Math.min(contentW, Math.max(160, Math.round(w * 0.38)));
+
+  return [
+    {
+      id: nextElementId('headline'),
+      type: 'TEXT',
+      role: 'headline',
+      content: opts?.headline ?? 'New social post',
+      fontSize: headlineSize,
+      fontWeight: 'bold',
+      align: 'center',
+      color: '#ffffff',
+      x: padX,
+      y: Math.round(h * 0.68),
+      width: contentW,
+      height: Math.round(headlineSize * 2.4),
+      zIndex: 2,
+    },
+    {
+      id: nextElementId('body'),
+      type: 'TEXT',
+      role: 'body',
+      content: opts?.caption ?? '',
+      fontSize: bodySize,
+      fontWeight: 'normal',
+      align: 'center',
+      color: '#ffffff',
+      x: padX,
+      y: Math.round(h * 0.78),
+      width: contentW,
+      height: Math.round(bodySize * 3.2),
+      zIndex: 3,
+    },
+    {
+      id: nextElementId('cta'),
+      type: 'BUTTON',
+      label: opts?.cta ?? 'Schedule a private tour',
+      backgroundColor: '#ffffff',
+      textColor: '#111827',
+      x: Math.round((w - ctaW) / 2),
+      y: Math.round(h * 0.88),
+      width: ctaW,
+      height: ctaH,
+      zIndex: 4,
+    },
+  ];
+}
+
+export function createTextElement(
+  width: number,
+  height: number,
+  role: SocialTextRole = 'custom',
+): SocialTextElement {
+  const fontSize = role === 'headline' ? Math.max(22, Math.round(width * 0.05)) : 24;
+  return {
+    id: nextElementId('text'),
+    type: 'TEXT',
+    role,
+    content: role === 'headline' ? 'Headline' : 'Body text',
+    fontSize,
+    fontWeight: role === 'headline' ? 'bold' : 'normal',
+    align: 'center',
+    color: '#ffffff',
+    x: Math.round(width * 0.1),
+    y: Math.round(height * 0.4),
+    width: Math.round(width * 0.8),
+    height: Math.round(fontSize * 2.5),
+    zIndex: 10,
+  };
+}
+
+export function createButtonElement(width: number, height: number): SocialButtonElement {
+  const btnW = Math.min(Math.round(width * 0.4), 420);
+  const btnH = Math.max(40, Math.round(height * 0.05));
+  return {
+    id: nextElementId('btn'),
+    type: 'BUTTON',
+    label: 'Call to action',
+    backgroundColor: '#ffffff',
+    textColor: '#111827',
+    x: Math.round((width - btnW) / 2),
+    y: Math.round(height * 0.55),
+    width: btnW,
+    height: btnH,
+    zIndex: 10,
+  };
+}
+
+export function createImageElement(
+  width: number,
+  height: number,
+  assetId: string | null,
+): SocialImageElement {
+  const box = Math.round(Math.min(width, height) * 0.35);
+  return {
+    id: nextElementId('img'),
+    type: 'IMAGE',
+    assetId,
+    x: Math.round((width - box) / 2),
+    y: Math.round((height - box) / 2),
+    width: box,
+    height: box,
+    zIndex: 10,
+  };
+}
+
+export function duplicateElement(el: SocialElement): SocialElement {
+  return {
+    ...el,
+    id: nextElementId('copy'),
+    x: el.x + 24,
+    y: el.y + 24,
+    zIndex: el.zIndex + 1,
+  };
+}
+
+export function sortElementsByZ(elements: SocialElement[]): SocialElement[] {
+  return [...elements].sort((a, b) => a.zIndex - b.zIndex || a.id.localeCompare(b.id));
+}
+
+export function bringElementForward(
+  elements: SocialElement[],
+  elementId: string,
+): SocialElement[] {
+  const sorted = sortElementsByZ(elements);
+  const idx = sorted.findIndex((e) => e.id === elementId);
+  if (idx < 0 || idx >= sorted.length - 1) return elements;
+  const current = sorted[idx]!;
+  const above = sorted[idx + 1]!;
+  return elements.map((e) => {
+    if (e.id === current.id) return { ...e, zIndex: above.zIndex + 1 };
+    return e;
+  });
+}
+
+export function sendElementBackward(
+  elements: SocialElement[],
+  elementId: string,
+): SocialElement[] {
+  const sorted = sortElementsByZ(elements);
+  const idx = sorted.findIndex((e) => e.id === elementId);
+  if (idx <= 0) return elements;
+  const current = sorted[idx]!;
+  const below = sorted[idx - 1]!;
+  return elements.map((e) => {
+    if (e.id === current.id) return { ...e, zIndex: Math.max(0, below.zIndex - 1) };
+    return e;
+  });
+}
+
+export function alignElement(
+  el: SocialElement,
+  mode: 'left' | 'center' | 'right' | 'vcenter',
+  artboardW: number,
+  artboardH: number,
+): SocialElement {
+  if (mode === 'left') {
+    const next = { ...el, x: 0 };
+    if (next.type === 'TEXT') next.align = 'left';
+    return next;
+  }
+  if (mode === 'right') {
+    const next = { ...el, x: Math.max(0, artboardW - el.width) };
+    if (next.type === 'TEXT') next.align = 'right';
+    return next;
+  }
+  if (mode === 'center') {
+    const next = { ...el, x: Math.max(0, Math.round((artboardW - el.width) / 2)) };
+    if (next.type === 'TEXT') next.align = 'center';
+    return next;
+  }
+  return {
+    ...el,
+    y: Math.max(0, Math.round((artboardH - el.height) / 2)),
+  };
+}
+
+export function headlineFromElements(elements: SocialElement[]): string {
+  const hit = elements.find(
+    (e): e is SocialTextElement => e.type === 'TEXT' && e.role === 'headline',
+  );
+  if (hit) return hit.content;
+  const any = elements.find((e): e is SocialTextElement => e.type === 'TEXT');
+  return any?.content ?? '';
+}
+
+export function captionFromElements(elements: SocialElement[]): string {
+  const hit = elements.find(
+    (e): e is SocialTextElement => e.type === 'TEXT' && e.role === 'body',
+  );
+  if (hit) return hit.content;
+  const texts = elements.filter((e): e is SocialTextElement => e.type === 'TEXT');
+  return texts.length > 1 ? texts[1]!.content : '';
+}
+
+export function ctaFromElements(elements: SocialElement[]): string {
+  const btn = elements.find((e): e is SocialButtonElement => e.type === 'BUTTON');
+  return btn?.label ?? '';
+}
+
+export function applyCopyToElements(
+  elements: SocialElement[],
+  copy: { headline?: string; caption?: string; cta?: string },
+): SocialElement[] {
+  let appliedHeadline = false;
+  let appliedBody = false;
+  let appliedCta = false;
+  const next = elements.map((el) => {
+    if (el.type === 'TEXT' && el.role === 'headline' && copy.headline != null) {
+      appliedHeadline = true;
+      return { ...el, content: copy.headline };
+    }
+    if (el.type === 'TEXT' && el.role === 'body' && copy.caption != null) {
+      appliedBody = true;
+      return { ...el, content: copy.caption };
+    }
+    if (el.type === 'BUTTON' && copy.cta != null) {
+      appliedCta = true;
+      return { ...el, label: copy.cta };
+    }
+    return el;
+  });
+
+  const extras: SocialElement[] = [];
+  const maxZ = next.reduce((m, e) => Math.max(m, e.zIndex), 0);
+  if (copy.headline != null && !appliedHeadline) {
+    const el = createTextElement(1080, 1080, 'headline');
+    el.content = copy.headline;
+    el.zIndex = maxZ + 1;
+    extras.push(el);
+  }
+  if (copy.caption != null && !appliedBody) {
+    const el = createTextElement(1080, 1080, 'body');
+    el.content = copy.caption;
+    el.zIndex = maxZ + 2;
+    extras.push(el);
+  }
+  if (copy.cta != null && !appliedCta) {
+    const el = createButtonElement(1080, 1080);
+    el.label = copy.cta;
+    el.zIndex = maxZ + 3;
+    extras.push(el);
+  }
+  return extras.length ? [...next, ...extras] : next;
+}
+
+export const P0_BOTTOM_ACTIONS = new Set(['addComponent', 'text', 'image', 'button']);
+export const P0_COMPONENT_KEYS = new Set([
+  'title',
+  'text',
+  'image',
+  'button',
+  'cta',
+]);

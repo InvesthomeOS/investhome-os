@@ -11,6 +11,7 @@ export type CsBottomActionItem = {
   icon: IhIconName;
   onClick: () => void;
   testId?: string;
+  disabled?: boolean;
   /** Low-priority items collapse into More first when space is tight. */
   priority?: 'high' | 'normal' | 'low';
 };
@@ -149,7 +150,12 @@ export function CsBottomActionToolbar({
             className="cs-bat__action"
             data-testid={action.testId}
             title={action.label}
-            onClick={action.onClick}
+            disabled={action.disabled}
+            aria-disabled={action.disabled || undefined}
+            onClick={() => {
+              if (action.disabled) return;
+              action.onClick();
+            }}
           >
             <span className="cs-bat__action-icon" aria-hidden="true">
               <IhIcon name={action.icon} size={16} />
@@ -183,7 +189,10 @@ export function CsBottomActionToolbar({
                     role="menuitem"
                     className="cs-bat__overflow-item"
                     data-testid={action.testId}
+                    disabled={action.disabled}
+                    aria-disabled={action.disabled || undefined}
                     onClick={() => {
+                      if (action.disabled) return;
                       setOverflowOpen(false);
                       action.onClick();
                     }}

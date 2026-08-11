@@ -4194,6 +4194,65 @@
   background: linear-gradient(180deg, transparent 35%, rgba(0,0,0,0.55) 100%);
   pointer-events: none;
 }
+.smb-ws__el {
+  box-sizing: border-box;
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+.smb-ws__el.is-selected {
+  outline: 2px solid var(--ih-accent, #1f4b99);
+  outline-offset: 2px;
+}
+.smb-ws__el--text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.smb-ws__el--button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: clamp(0.6rem, 1.6cqi, 0.85rem);
+  padding: 0.2rem 0.5rem;
+}
+.smb-ws__el--image {
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.12);
+}
+.smb-ws__el--image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.smb-ws__el-image-empty {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.08) 8px,
+    rgba(255, 255, 255, 0.16) 8px,
+    rgba(255, 255, 255, 0.16) 16px
+  );
+}
+.smb-ws__el-resize {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: #fff;
+  border: 1px solid var(--ih-accent, #1f4b99);
+  cursor: nwse-resize;
+  z-index: 2;
+}
 .smb-ws__artboard-copy {
   position: absolute;
   left: 8%;

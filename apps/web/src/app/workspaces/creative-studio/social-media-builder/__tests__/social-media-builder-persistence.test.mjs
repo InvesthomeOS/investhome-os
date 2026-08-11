@@ -296,7 +296,8 @@ describe('media scoped by linked_project_id + no Unsplash production seed', () =
     assert.match(rail, /onChangeImage/);
     assert.match(rail, /smb-content-change-image/);
     assert.match(workspace, /onChangeImage=\{\(\) => coverAsset\.openPicker\('cover'\)\}/);
-    assert.match(workspace, /action === 'image'[\s\S]*coverAsset\.openPicker\('cover'\)/);
+    assert.match(workspace, /action === 'image'/);
+    assert.match(workspace, /setElementImagePickerOpen\(true\)/);
   });
 
   it('Sil clears cover Asset ID and persists via saveDraft', () => {
