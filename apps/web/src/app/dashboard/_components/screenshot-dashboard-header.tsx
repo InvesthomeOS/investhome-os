@@ -3,9 +3,10 @@
 import { IconButton } from '@investhome/ui';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
 
 import { IhIcon } from '@/components/icons/ih-icons';
+import { WorkspaceHeaderUser } from '@/components/shell/workspace-header-user';
 import { locales, type AppLocale } from '@/i18n/config';
 import { useAuth } from '@/lib/auth/auth-context';
 import { writeLocaleCookie } from '@/lib/i18n/locale-cookie';
@@ -27,6 +28,8 @@ type ScreenshotDashboardHeaderCoreProps = {
   locale: AppLocale;
   isPending: boolean;
   changeLocale: (locale: AppLocale) => void;
+  /** Production uses WorkspaceHeaderUser; preview keeps a static chrome stub. */
+  profile: ReactNode;
 };
 
 function ScreenshotDashboardHeaderCore({
@@ -35,6 +38,7 @@ function ScreenshotDashboardHeaderCore({
   locale,
   isPending,
   changeLocale,
+  profile,
 }: ScreenshotDashboardHeaderCoreProps) {
   const { openAi, openQuickAction, openNotifications, unreadCount } =
     useScreenshotDashboardInteractions();
@@ -207,15 +211,22 @@ function ScreenshotDashboardHeaderCore({
           </span>
         </button>
         <span className="screenshot-header__divider" aria-hidden="true" />
-        <div className="screenshot-header__profile">
-          <span className="screenshot-header__avatar" aria-hidden="true">EB</span>
-          <span className="screenshot-header__identity">
-            <strong>Emin Bilgin</strong>
-            <small>{t('header.profileRole')}</small>
-          </span>
-          <IhIcon name="chevronDown" size={13} />
-        </div>
+        {profile}
       </div>
+    </div>
+  );
+}
+
+function ScreenshotDashboardPreviewProfile() {
+  const t = useTranslations('screenshotDashboard');
+  return (
+    <div className="screenshot-header__profile" aria-hidden="true">
+      <span className="screenshot-header__avatar">EB</span>
+      <span className="screenshot-header__identity">
+        <strong>Emin Bilgin</strong>
+        <small>{t('header.profileRole')}</small>
+      </span>
+      <IhIcon name="chevronDown" size={13} />
     </div>
   );
 }
@@ -247,6 +258,7 @@ export function ScreenshotDashboardHeader() {
       locale={locale}
       isPending={isPending}
       changeLocale={changeLocale}
+      profile={<WorkspaceHeaderUser variant="screenshot" />}
     />
   );
 }
@@ -266,6 +278,7 @@ export function ScreenshotDashboardPreviewHeader() {
       locale={locale}
       isPending={false}
       changeLocale={setLocale}
+      profile={<ScreenshotDashboardPreviewProfile />}
     />
   );
 }

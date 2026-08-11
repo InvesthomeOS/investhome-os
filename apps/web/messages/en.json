@@ -27,6 +27,8 @@
       "notifications": "Notifications",
       "unreadCount": "{count} unread notifications",
       "profileRole": "Sales Manager",
+      "profile": "Profile",
+      "accountMenu": "Account menu",
       "displaySettings": "Display settings"
     },
     "preferences": {

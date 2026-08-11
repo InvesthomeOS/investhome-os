@@ -386,8 +386,68 @@
   background: #e1e7e9;
 }
 
+.screenshot-header__profile-wrap {
+  position: relative;
+}
+
 .screenshot-header__profile {
   gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.screenshot-header__profile:focus-visible {
+  outline: 2px solid var(--shot-navy, #1f3a45);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.screenshot-header__account-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  min-width: 148px;
+  padding: 4px;
+  border: 1px solid #dce4e7;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(24, 39, 46, 0.12);
+}
+
+.screenshot-header__account-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--shot-navy, #1f3a45);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.screenshot-header__account-item:hover,
+.screenshot-header__account-item:focus-visible {
+  background: #f3f6f7;
+  outline: none;
+}
+
+.screenshot-header__account-item--logout {
+  color: #9b3b3b;
 }
 
 .screenshot-header__avatar {

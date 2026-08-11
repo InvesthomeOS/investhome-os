@@ -27,6 +27,8 @@
       "notifications": "Bildirimler",
       "unreadCount": "{count} okunmamış bildirim",
       "profileRole": "Satış Müdürü",
+      "profile": "Profil",
+      "accountMenu": "Hesap menüsü",
       "displaySettings": "Görünüm ayarları"
     },
     "preferences": {
