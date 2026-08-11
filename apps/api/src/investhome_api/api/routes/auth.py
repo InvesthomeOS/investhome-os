@@ -1,13 +1,14 @@
 """Authentication routes."""
 
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from investhome_api.api.deps.auth import get_current_user
-from investhome_api.config.settings import get_settings
+from investhome_api.api.deps.auth import extract_token, get_current_user
+from investhome_api.config.settings import Settings, get_settings
 from investhome_api.db.session import get_db
 from investhome_api.models.user_auth import User, UserStatus
 from investhome_api.schemas.auth import (
@@ -20,6 +21,7 @@ from investhome_api.services import session_service
 from investhome_api.services.audit_service import record_auth_event, record_login_failed
 from investhome_api.services.auth_service import (
     create_access_token,
+    decode_access_token,
     hash_password,
     verify_password,
 )
@@ -27,6 +29,26 @@ from investhome_api.services.permission_service import load_user_with_roles
 from investhome_api.services.user_service import serialize_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+_SameSite = Literal["lax", "strict", "none"]
+
+
+def _cookie_samesite(settings: Settings) -> _SameSite:
+    value = (settings.auth_cookie_samesite or "lax").lower()
+    if value in {"lax", "strict", "none"}:
+        return value  # type: ignore[return-value]
+    return "lax"
+
+
+def _clear_auth_cookie(response: Response, settings: Settings) -> None:
+    """Clear ih_session with the same attributes used by set_cookie on login."""
+    response.delete_cookie(
+        key=settings.auth_cookie_name,
+        path="/",
+        secure=settings.auth_cookie_secure,
+        httponly=True,
+        samesite=_cookie_samesite(settings),
+    )
 
 
 @router.post("/login", response_model=CurrentUserResponse)
@@ -81,7 +103,7 @@ def login(
         value=token,
         httponly=True,
         secure=settings.auth_cookie_secure,
-        samesite=settings.auth_cookie_samesite,
+        samesite=_cookie_samesite(settings),
         max_age=settings.jwt_expire_minutes * 60,
         expires=expires_at,
         path="/",
@@ -104,24 +126,45 @@ def logout(
     response: Response,
     request: Request,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    authorization: str | None = Header(default=None),
+    ih_session: str | None = Cookie(default=None),
 ) -> MessageResponse:
+    """Always clear the session cookie — even when the JWT/session is already invalid.
+
+    Never 401 before clearing: stale cookies must be removable so the shell can recover.
+    """
     settings = get_settings()
-    jti = getattr(user, "_session_jti", None)
-    if jti:
-        session = session_service.get_active_session(db, jti)
-        if session is not None:
-            session_service.revoke_session(db, session, reason="logout")
-    response.delete_cookie(key=settings.auth_cookie_name, path="/")
-    record_auth_event(
-        "auth.logout",
-        db=db,
-        actor=user,
-        actor_id=user.id,
-        target_id=user.id,
-        request=request,
-        commit=True,
-    )
+    token = extract_token(authorization, ih_session)
+    user: User | None = None
+    did_mutate = False
+
+    if token:
+        decoded = decode_access_token(token)
+        if decoded is not None:
+            user_id, jti = decoded
+            if jti:
+                auth_session = session_service.get_active_session(db, jti)
+                if auth_session is not None:
+                    session_service.revoke_session(db, auth_session, reason="logout")
+                    did_mutate = True
+            user = load_user_with_roles(db, user_id)
+
+    # Clear cookie before any audit/commit so clients always get Set-Cookie deletion.
+    _clear_auth_cookie(response, settings)
+
+    if user is not None:
+        record_auth_event(
+            "auth.logout",
+            db=db,
+            actor=user,
+            actor_id=user.id,
+            target_id=user.id,
+            request=request,
+            commit=True,
+        )
+    elif did_mutate:
+        db.commit()
+
     return MessageResponse(message="Logged out")
 
 

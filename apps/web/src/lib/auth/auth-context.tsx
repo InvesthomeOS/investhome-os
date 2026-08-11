@@ -1,7 +1,7 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 
 import {
   canManageRoles,
@@ -18,12 +18,13 @@ import {
 import { ApiError } from '@/lib/api/client';
 import type { AppLocale } from '@/i18n/config';
 import { readLocaleCookie, resolveClientLocale, writeLocaleCookie } from '@/lib/i18n/locale-cookie';
+import { safeInternalPath } from '@/lib/auth/session-cookie';
 
 type AuthContextValue = {
   user: CurrentUser | null;
   loading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, options?: { next?: string | null }) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
   setPreferredLocale: (locale: AppLocale) => Promise<void>;
@@ -45,9 +46,32 @@ function applyLocaleFromUser(preferredLanguage?: string | null) {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const clearingSessionRef = useRef(false);
+
+  const clearStaleSession = useCallback(async () => {
+    if (clearingSessionRef.current) return;
+    clearingSessionRef.current = true;
+    try {
+      await logoutRequest();
+    } catch {
+      // Best-effort cookie clear; API logout is designed to succeed even with a bad cookie.
+    } finally {
+      setUser(null);
+      setError(null);
+      const currentPath = pathnameRef.current;
+      const onLogin = currentPath === '/login' || currentPath.startsWith('/login/');
+      if (!onLogin) {
+        router.replace('/login');
+      }
+      clearingSessionRef.current = false;
+    }
+  }, [router]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -59,27 +83,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       setUser(null);
       if (err instanceof ApiError && err.status === 401) {
-        setError(null);
+        await clearStaleSession();
       } else {
         setError(err instanceof Error ? err.message : 'Unable to load session');
       }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [clearStaleSession]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, options?: { next?: string | null }) => {
       setError(null);
       const current = await loginRequest(email, password);
       setUser(current);
       // Keep explicit cookie if present; otherwise seed from profile preference.
       applyLocaleFromUser(current.preferred_language);
-      router.push('/dashboard');
+      router.replace(safeInternalPath(options?.next));
       router.refresh();
     },
     [router],
@@ -88,9 +112,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     try {
       await logoutRequest();
+    } catch {
+      // Still clear client state and leave the app shell.
     } finally {
       setUser(null);
-      router.push('/login');
+      setError(null);
+      router.replace('/login');
       router.refresh();
     }
   }, [router]);

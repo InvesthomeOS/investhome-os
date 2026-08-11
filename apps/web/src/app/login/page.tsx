@@ -24,7 +24,7 @@ function LoginForm() {
     setSubmitting(true);
     setError(null);
     try {
-      await login(email.trim(), password);
+      await login(email.trim(), password, { next: searchParams.get('next') });
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 401) {

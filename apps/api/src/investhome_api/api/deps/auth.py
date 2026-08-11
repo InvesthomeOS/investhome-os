@@ -18,7 +18,7 @@ from investhome_api.services.permission_service import (
 from investhome_api.services import session_service
 
 
-def _extract_token(
+def extract_token(
     authorization: str | None = None,
     session_cookie: str | None = None,
 ) -> str | None:
@@ -38,7 +38,7 @@ def get_current_user(
     if not settings.auth_enabled:
         return _dev_bypass_user(db)
 
-    token = _extract_token(authorization, ih_session)
+    token = extract_token(authorization, ih_session)
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
