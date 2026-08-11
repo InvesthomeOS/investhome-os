@@ -369,6 +369,17 @@ def validate_op(
             role = str(payload.get("role") or "").lower()
             if role in {"headline", "body", "custom"}:
                 payload["role"] = role
+        if "fontSize" in payload:
+            payload["fontSize"] = clamp_int(payload.get("fontSize"), 8, 200, 28)
+        if "fontWeight" in payload:
+            payload["fontWeight"] = (
+                "bold" if str(payload.get("fontWeight") or "").lower() == "bold" else "normal"
+            )
+        if "align" in payload:
+            al = str(payload.get("align") or "center").lower()
+            payload["align"] = al if al in {"left", "center", "right"} else "center"
+        if "color" in payload:
+            payload["color"] = sanitize_color(payload.get("color"), "#ffffff")
 
     if op_name in {"ADD_CTA", "UPDATE_CTA"}:
         if "label" not in payload:

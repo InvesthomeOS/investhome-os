@@ -46,11 +46,9 @@ export function SmbArtboardElements({
   ) {
     if (canvasLocked || previewMode) return;
     event.stopPropagation();
-    event.preventDefault();
+    // Do not preventDefault — keeps click/selection stable inside CSS-transform + FS shells.
     onSelect(el.id);
     const target = event.currentTarget;
-    const pointerId = event.pointerId;
-    target.setPointerCapture(pointerId);
     const drag: DragState = {
       id: el.id,
       mode,
@@ -61,14 +59,36 @@ export function SmbArtboardElements({
       origW: el.width,
       origH: el.height,
     };
+    let dragging = false;
+
+    function readScale(): { scaleX: number; scaleY: number } {
+      // Prefer the design-pixel layer (transform scale) over the fitted frame size.
+      const design = target.closest('[data-testid="smb-artboard-design"]') as HTMLElement | null;
+      if (design) {
+        const rect = design.getBoundingClientRect();
+        const scaleX = rect.width / Math.max(1, design.offsetWidth);
+        const scaleY = rect.height / Math.max(1, design.offsetHeight);
+        if (scaleX > 0.001 && scaleY > 0.001) return { scaleX, scaleY };
+      }
+      const artboard = target.closest('[data-testid="smb-artboard"]') as HTMLElement | null;
+      const scaleX = artboard
+        ? artboard.clientWidth / Math.max(1, Number(artboard.dataset.width) || artboard.clientWidth)
+        : 1;
+      const scaleY = artboard
+        ? artboard.clientHeight / Math.max(1, Number(artboard.dataset.height) || artboard.clientHeight)
+        : 1;
+      return {
+        scaleX: scaleX > 0.001 ? scaleX : 1,
+        scaleY: scaleY > 0.001 ? scaleY : 1,
+      };
+    }
 
     function onMove(ev: PointerEvent) {
       const dx = ev.clientX - drag.startX;
       const dy = ev.clientY - drag.startY;
-      // Artboard uses CSS container; approximate 1 CSS px ≈ scale via offsetParent size.
-      const artboard = target.closest('[data-testid="smb-artboard"]') as HTMLElement | null;
-      const scaleX = artboard ? artboard.clientWidth / Math.max(1, Number(artboard.dataset.width) || artboard.clientWidth) : 1;
-      const scaleY = artboard ? artboard.clientHeight / Math.max(1, Number(artboard.dataset.height) || artboard.clientHeight) : 1;
+      if (!dragging && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+      dragging = true;
+      const { scaleX, scaleY } = readScale();
       if (drag.mode === 'move') {
         onPatchElement(drag.id, {
           x: Math.round(drag.origX + dx / scaleX),
@@ -83,13 +103,16 @@ export function SmbArtboardElements({
     }
 
     function onUp() {
-      target.releasePointerCapture(pointerId);
+      // Window-level listeners only — avoid pointer capture APIs.
+      // Capture release throws InvalidStateError after FS/transform re-renders remount nodes.
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
     }
 
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   }
 
   return (

@@ -66,10 +66,20 @@ describe('workspace wires design engine (same canvas)', () => {
     assert.match(workspace, /aiDesign\.title/);
     assert.match(workspace, /aiDesign\.submit/);
     assert.match(workspace, /aiDesign\.placeholder/);
-    // Command bar sits before the focus workspace JSX mount (not only left rail)
-    const cmdIdx = workspace.indexOf('data-testid="smb-ai-design-command"');
-    const focusMountIdx = workspace.indexOf('<CreativeStudioFocusWorkspace');
-    assert.ok(cmdIdx > 0 && focusMountIdx > cmdIdx);
+    // Single shared command lives inside center shell so Normal + Fullscreen share state
+    assert.match(workspace, /data-testid="smb-center"[\s\S]*\{aiDesignCommand\}/);
+    assert.match(workspace, /\{aiDesignCommand\}[\s\S]*<FocusCanvasLayout/);
+  });
+
+  it('keeps AI Design available in fullscreen without a second engine', () => {
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    assert.match(workspace, /data-fs-ai=\{focus\.isFullscreen \? 'true' : 'false'\}/);
+    assert.match(workspace, /smb-ws__ai-design--fs/);
+    assert.match(workspace, /aiDesignCollapsed/);
+    assert.match(workspace, /runAiGenerate/);
+    // One command node only
+    const matches = workspace.match(/data-testid="smb-ai-design-command"/g) || [];
+    assert.equal(matches.length, 1);
   });
 });
 

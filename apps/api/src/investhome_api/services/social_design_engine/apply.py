@@ -276,6 +276,19 @@ def apply_ops(
                 el["content"] = content
             if "role" in op.payload:
                 el["role"] = op.payload["role"]
+            # Style fields may arrive on UPDATE_TEXT (e.g. "shrink headline") — apply when present.
+            if "fontSize" in op.payload:
+                el["fontSize"] = clamp_int(op.payload.get("fontSize"), 8, 200, el.get("fontSize") or 28)
+            if "fontWeight" in op.payload:
+                el["fontWeight"] = (
+                    "bold" if str(op.payload.get("fontWeight") or "").lower() == "bold" else "normal"
+                )
+            if "align" in op.payload:
+                al = str(op.payload.get("align") or "").lower()
+                if al in {"left", "center", "right"}:
+                    el["align"] = al
+            if "color" in op.payload:
+                el["color"] = sanitize_color(op.payload.get("color"), el.get("color") or "#ffffff")
             _sync_copy_fields(post)
             continue
 

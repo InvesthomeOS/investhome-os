@@ -152,6 +152,7 @@ export function SocialMediaBuilderWorkspace() {
   const [toast, setToast] = useState<string | null>(null);
   const [elementImagePickerOpen, setElementImagePickerOpen] = useState(false);
   const [elementDisplayUrls, setElementDisplayUrls] = useState<Record<string, string>>({});
+  const [aiDesignCollapsed, setAiDesignCollapsed] = useState(false);
 
   const filmstripRef = useRef<HTMLDivElement | null>(null);
   const genIdleTimerRef = useRef<number | null>(null);
@@ -242,6 +243,10 @@ export function SocialMediaBuilderWorkspace() {
     else ftv.refit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus.mode, focus.isFullscreen, formatPreset, selectedPostId, smbFitPadX, smbFitPadY]);
+
+  useEffect(() => {
+    if (!focus.isFullscreen) setAiDesignCollapsed(false);
+  }, [focus.isFullscreen]);
 
   const applyDraftPosts = useCallback(
     (draft: {
@@ -885,6 +890,76 @@ export function SocialMediaBuilderWorkspace() {
     );
   }
 
+  function submitAiDesign() {
+    const instruction = aiPrompt.trim();
+    if (!instruction) {
+      showToast(t('toasts.instructionRequired'));
+      return;
+    }
+    void runAiGenerate(instruction);
+  }
+
+  const aiDesignCommand = (
+    <div
+      className={[
+        'smb-ws__ai-design',
+        focus.isFullscreen ? 'smb-ws__ai-design--fs' : '',
+        aiDesignCollapsed && focus.isFullscreen ? 'is-collapsed' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      data-testid="smb-ai-design-command"
+      data-fs-ai={focus.isFullscreen ? 'true' : 'false'}
+    >
+      <div className="smb-ws__ai-design-head">
+        <label className="smb-ws__ai-design-label" htmlFor="smb-ai-design-input">
+          {t('aiDesign.title')}
+        </label>
+        {focus.isFullscreen ? (
+          <button
+            type="button"
+            className="smb-ws__ai-design-toggle"
+            data-testid="smb-ai-design-toggle"
+            aria-expanded={!aiDesignCollapsed}
+            onClick={() => setAiDesignCollapsed((v) => !v)}
+          >
+            {aiDesignCollapsed ? t('aiDesign.expand') : t('aiDesign.collapse')}
+          </button>
+        ) : null}
+      </div>
+      {!aiDesignCollapsed || !focus.isFullscreen ? (
+        <div className="smb-ws__ai-design-row">
+          <input
+            id="smb-ai-design-input"
+            className="smb-ws__ai-design-input"
+            type="text"
+            value={aiPrompt}
+            onChange={(e) => setAiPrompt(e.target.value)}
+            placeholder={t('aiDesign.placeholder')}
+            data-testid="smb-ai-design-input"
+            disabled={generating}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitAiDesign();
+              }
+            }}
+          />
+          <Button
+            variant="primary"
+            size="sm"
+            data-testid="smb-ai-design-submit"
+            disabled={generating}
+            onClick={submitAiDesign}
+          >
+            <IhIcon name="sparkles" size={12} />
+            {generating ? t('aiDesign.generating') : t('aiDesign.submit')}
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+
   const previewMode = focus.mode === 'preview';
 
   return (
@@ -1055,52 +1130,6 @@ export function SocialMediaBuilderWorkspace() {
           <span>{aiStatus === 'idle' ? t('aiStatus.idle') : t(`aiStatus.${aiStatus}`)}</span>
         </div>
 
-        <div className="smb-ws__ai-design" data-testid="smb-ai-design-command">
-          <label className="smb-ws__ai-design-label" htmlFor="smb-ai-design-input">
-            {t('aiDesign.title')}
-          </label>
-          <div className="smb-ws__ai-design-row">
-            <input
-              id="smb-ai-design-input"
-              className="smb-ws__ai-design-input"
-              type="text"
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              placeholder={t('aiDesign.placeholder')}
-              data-testid="smb-ai-design-input"
-              disabled={generating}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  const instruction = aiPrompt.trim();
-                  if (!instruction) {
-                    showToast(t('toasts.instructionRequired'));
-                    return;
-                  }
-                  void runAiGenerate(instruction);
-                }
-              }}
-            />
-            <Button
-              variant="primary"
-              size="sm"
-              data-testid="smb-ai-design-submit"
-              disabled={generating}
-              onClick={() => {
-                const instruction = aiPrompt.trim();
-                if (!instruction) {
-                  showToast(t('toasts.instructionRequired'));
-                  return;
-                }
-                void runAiGenerate(instruction);
-              }}
-            >
-              <IhIcon name="sparkles" size={12} />
-              {generating ? t('aiDesign.generating') : t('aiDesign.submit')}
-            </Button>
-          </div>
-        </div>
-
         <CreativeStudioFocusWorkspace
           mode={focus.mode}
           onModeChange={focus.setMode}
@@ -1126,6 +1155,7 @@ export function SocialMediaBuilderWorkspace() {
               aria-label={t('canvas.aria')}
               data-testid="smb-center"
             >
+              {aiDesignCommand}
               <FocusCanvasLayout
                 isFullscreen={focus.isFullscreen}
                 stageTestId="smb-canvas-stage"

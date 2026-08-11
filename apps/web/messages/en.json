@@ -18910,7 +18910,9 @@
           "title": "AI Design",
           "placeholder": "What do you want to design or change?",
           "submit": "Design with AI",
-          "generating": "Designing…"
+          "generating": "Designing…",
+          "collapse": "Hide",
+          "expand": "Show"
         },
         "left": {
           "aria": "Templates and components",

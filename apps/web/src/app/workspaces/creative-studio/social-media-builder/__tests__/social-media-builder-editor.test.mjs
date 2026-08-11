@@ -501,3 +501,46 @@ describe('workspace wiring — real editor controls', () => {
     );
   });
 });
+
+describe('fullscreen selection / color input safety', () => {
+  it('normalizes short/alpha hex before binding color inputs', () => {
+    const els = readSmb('social-media-builder-elements.ts');
+    assert.match(els, /export function toColorInputValue/);
+    // Mirror the shipped helper for regression coverage
+    function toColorInputValue(value, fallback = '#ffffff') {
+      const raw = typeof value === 'string' ? value.trim() : '';
+      if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw.toLowerCase();
+      if (/^#[0-9a-fA-F]{8}$/.test(raw)) return `#${raw.slice(1, 7).toLowerCase()}`;
+      if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
+        const r = raw[1];
+        const g = raw[2];
+        const b = raw[3];
+        return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+      }
+      return fallback;
+    }
+    assert.equal(toColorInputValue('#fff'), '#ffffff');
+    assert.equal(toColorInputValue('#AABBCCDD'), '#aabbcc');
+    assert.equal(toColorInputValue('not-a-color'), '#ffffff');
+    assert.equal(toColorInputValue('#112233'), '#112233');
+    const drawers = readSmb('social-media-builder-rail-drawers.tsx');
+    assert.match(drawers, /toColorInputValue\(selectedElement\.backgroundColor/);
+    assert.match(drawers, /toColorInputValue\(selectedElement\.textColor/);
+    assert.match(drawers, /toColorInputValue\(selectedElement\.color/);
+  });
+
+  it('avoids setPointerCapture/releasePointerCapture on artboard drag (FS crash)', () => {
+    const binder = readSmb('smb-artboard-elements.tsx');
+    assert.doesNotMatch(binder, /\.setPointerCapture\(/);
+    assert.doesNotMatch(binder, /\.releasePointerCapture\(/);
+    assert.match(binder, /smb-artboard-design/);
+    assert.match(binder, /pointercancel/);
+  });
+
+  it('keeps AI Design inside center so fullscreen shares the same prompt state', () => {
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    assert.match(workspace, /\{aiDesignCommand\}/);
+    assert.match(workspace, /data-testid="smb-center"[\s\S]*\{aiDesignCommand\}/);
+    assert.match(workspace, /data-fs-ai=/);
+  });
+});

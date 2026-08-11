@@ -316,3 +316,20 @@ export const P0_COMPONENT_KEYS = new Set([
   'button',
   'cta',
 ]);
+
+/**
+ * Normalize any stored/AI color to `#rrggbb` for `<input type="color">`.
+ * Short (#rgb) / alpha (#rrggbbaa) hex values crash React color inputs.
+ */
+export function toColorInputValue(value: string | null | undefined, fallback = '#ffffff'): string {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw.toLowerCase();
+  if (/^#[0-9a-fA-F]{8}$/.test(raw)) return `#${raw.slice(1, 7).toLowerCase()}`;
+  if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
+    const r = raw[1]!;
+    const g = raw[2]!;
+    const b = raw[3]!;
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+  }
+  return fallback;
+}

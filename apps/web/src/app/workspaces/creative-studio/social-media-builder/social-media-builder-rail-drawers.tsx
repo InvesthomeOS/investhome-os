@@ -23,7 +23,7 @@ import {
   type SocialPost,
   type TemplateCategoryKey,
 } from './social-media-builder-model';
-import type { SocialElement } from './social-media-builder-elements';
+import { toColorInputValue, type SocialElement } from './social-media-builder-elements';
 import { SmbZoomControls } from './smb-zoom-controls';
 
 type LocalRailProps = {
@@ -567,7 +567,7 @@ function ContentDrawer({
           <Field label={t('rails.content.buttonBg')}>
             <input
               type="color"
-              value={selectedElement.backgroundColor}
+              value={toColorInputValue(selectedElement.backgroundColor, '#ffffff')}
               data-testid="smb-element-button-bg"
               onChange={(e) => {
                 patchElement({ backgroundColor: e.target.value });
@@ -578,7 +578,7 @@ function ContentDrawer({
           <Field label={t('rails.content.buttonTextColor')}>
             <input
               type="color"
-              value={selectedElement.textColor}
+              value={toColorInputValue(selectedElement.textColor, '#111827')}
               data-testid="smb-element-button-color"
               onChange={(e) => {
                 patchElement({ textColor: e.target.value });
@@ -746,7 +746,7 @@ function StyleDrawer({ selectedElement, patchElement, markDirty }: SmbRightRailD
         <Field label={t('rails.style.textColor')}>
           <input
             type="color"
-            value={selectedElement.color}
+            value={toColorInputValue(selectedElement.color, '#ffffff')}
             data-testid="smb-style-text-color"
             onChange={(e) => {
               patchElement({ color: e.target.value });

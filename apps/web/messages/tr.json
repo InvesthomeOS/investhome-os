@@ -13587,7 +13587,9 @@
           "title": "AI Design",
           "placeholder": "Ne tasarlamak veya değiştirmek istiyorsunuz?",
           "submit": "AI ile Tasarla",
-          "generating": "Tasarlanıyor…"
+          "generating": "Tasarlanıyor…",
+          "collapse": "Gizle",
+          "expand": "Göster"
         },
         "left": {
           "aria": "Şablonlar ve bileşenler",
