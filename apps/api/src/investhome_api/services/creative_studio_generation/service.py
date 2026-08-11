@@ -34,6 +34,8 @@ from investhome_api.services.creative_studio_generation.prompt_builder import bu
 from investhome_api.services.project_assistant.grounding import evaluate_grounding
 from investhome_api.services.project_assistant.llm_provider import (
     INSUFFICIENT_EVIDENCE_MESSAGE,
+    LLMProviderConfigError,
+    LLMProviderError,
     get_llm_provider,
 )
 
@@ -203,7 +205,13 @@ def generate_creative_content(
 
     assert_context_has_no_forbidden_media(context)
 
-    provider = get_llm_provider(settings)
+    try:
+        provider = get_llm_provider(settings)
+    except LLMProviderConfigError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=exc.message,
+        ) from exc
     event_id = uuid4()
     asset_ids_used = [a.asset_id for a in selected_assets]
     # Also record retrieved asset ids that belong to this project
@@ -273,6 +281,11 @@ def generate_creative_content(
             citations = []
             if "insufficient_context" not in context.warnings:
                 context.warnings.append("insufficient_context")
+    except LLMProviderError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=exc.message,
+        ) from exc
     except Exception:
         content = INSUFFICIENT_EVIDENCE_MESSAGE
         grounded = False

@@ -316,6 +316,11 @@ def _configure_auth(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPa
     monkeypatch.setenv("API_AUTH_ENABLED", "true" if enabled else "false")
     monkeypatch.setenv("DOCUMENT_PROCESSING_SYNC", "true")
     monkeypatch.setenv("AI_INDEX_PROCESSING_SYNC", "true")
+    # Tests must not inherit developer .env AI_PROVIDER=openai without a key.
+    # Explicit mock alias — never silent OpenAI→local fallback in production code.
+    monkeypatch.setenv("AI_PROVIDER", "mock")
+    monkeypatch.setenv("AI_MODEL", "local-grounded-v1")
+    monkeypatch.delenv("AI_API_KEY", raising=False)
     get_settings.cache_clear()
 
 

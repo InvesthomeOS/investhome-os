@@ -25,7 +25,11 @@ from investhome_api.services.creative_studio_generation.context import (
     load_brand_context,
     sanitize_builder_context,
 )
-from investhome_api.services.project_assistant.llm_provider import INSUFFICIENT_EVIDENCE_MESSAGE
+from investhome_api.services.project_assistant.llm_provider import (
+    INSUFFICIENT_EVIDENCE_MESSAGE,
+    LLMProviderConfigError,
+    get_llm_provider,
+)
 
 # Temple Residences — prefer this id when seeded in docker; otherwise create fixture.
 TEMPLE_PROJECT_ID = UUID("d50708cb-60b3-465a-8b16-6d30f802af8d")
@@ -204,6 +208,7 @@ def test_temple_generation_context_and_citations(client, db_session: Session) ->
     assert str(asset.id) in data["asset_ids_used"]
     assert data["retrieval_confidence"] > 0
     assert data["grounded"] is True
+    assert data["provider"] == "local"
     assert data["citations"], "expected citation/source metadata"
     for cit in data["citations"]:
         assert cit["project_id"] == str(TEMPLE_PROJECT_ID)
@@ -399,6 +404,48 @@ def test_generate_request_requires_linked_project_id() -> None:
             builder_type="blog",
             instruction="Write something",
         )  # type: ignore[call-arg]
+
+
+def test_openai_missing_key_fails_closed_on_generate(
+    client, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """AI_PROVIDER=openai without AI_API_KEY must not succeed via silent mock."""
+    monkeypatch.setenv("AI_PROVIDER", "openai")
+    monkeypatch.setenv("AI_MODEL", "gpt-4o")
+    monkeypatch.delenv("AI_API_KEY", raising=False)
+    get_settings.cache_clear()
+
+    db = db_session
+    temple = _create_project(db, "Temple Residences", project_id=TEMPLE_PROJECT_ID)
+    asset = _asset(db, temple, filename="amenities.md")
+    doc = _ready_document(
+        db,
+        temple,
+        text=_long_text("Temple rooftop spa infinity pool Columbia Heights amenities"),
+        title="amenities.md",
+        asset=asset,
+        builders=["blog"],
+    )
+    reindex_document(db, doc.id)
+    db.commit()
+
+    with pytest.raises(LLMProviderConfigError):
+        get_llm_provider()
+
+    resp = client.post(
+        "/ai/creative-studio/generate",
+        json={
+            "linked_project_id": str(TEMPLE_PROJECT_ID),
+            "builder_type": "blog",
+            "instruction": "Write a short blog intro about Temple amenities and spa",
+            "selected_asset_ids": [str(asset.id)],
+            "language": "en",
+        },
+    )
+    assert resp.status_code == 503, resp.text
+    detail = resp.json()["detail"]
+    assert "AI_API_KEY" in detail
+    assert "openai" in detail.lower()
 
 
 def test_citation_source_metadata_present(client, db_session: Session) -> None:

@@ -23,7 +23,9 @@ from investhome_api.services.ai_search.reindex import reindex_document
 from investhome_api.services.project_assistant.conversation import clear_conversations_for_tests
 from investhome_api.services.project_assistant.llm_provider import (
     INSUFFICIENT_EVIDENCE_MESSAGE,
+    LLMProviderConfigError,
     LocalGroundedLLMProvider,
+    OpenAILLMProvider,
     get_llm_provider,
 )
 from investhome_api.services.project_assistant.prompt_builder import build_rag_prompt
@@ -142,12 +144,74 @@ def test_local_llm_provider_grounded_from_chunks() -> None:
     assert "amenities.md" in filled.answer
 
 
-def test_get_llm_provider_falls_back_without_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("AI_PROVIDER", "openai")
+def test_get_llm_provider_mock_explicit(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AI_PROVIDER", "mock")
     monkeypatch.delenv("AI_API_KEY", raising=False)
     get_settings.cache_clear()
     provider = get_llm_provider()
+    assert isinstance(provider, LocalGroundedLLMProvider)
     assert provider.name == "local"
+
+
+def test_get_llm_provider_openai_missing_key_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AI_PROVIDER", "openai")
+    monkeypatch.setenv("AI_MODEL", "gpt-4o")
+    monkeypatch.delenv("AI_API_KEY", raising=False)
+    get_settings.cache_clear()
+    with pytest.raises(LLMProviderConfigError) as exc_info:
+        get_llm_provider()
+    assert exc_info.value.category == "missing_api_key"
+    assert "AI_API_KEY" in exc_info.value.message
+    assert "silent mock" in exc_info.value.message.lower()
+
+
+def test_get_llm_provider_openai_blank_key_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AI_PROVIDER", "openai")
+    monkeypatch.setenv("AI_API_KEY", "   ")
+    get_settings.cache_clear()
+    with pytest.raises(LLMProviderConfigError) as exc_info:
+        get_llm_provider()
+    assert exc_info.value.category == "missing_api_key"
+
+
+def test_get_llm_provider_invalid_provider_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AI_PROVIDER", "not-a-real-provider")
+    get_settings.cache_clear()
+    with pytest.raises(LLMProviderConfigError) as exc_info:
+        get_llm_provider()
+    assert exc_info.value.category == "unknown_provider"
+
+
+def test_get_llm_provider_openai_with_key_is_real(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AI_PROVIDER", "openai")
+    monkeypatch.setenv("AI_MODEL", "gpt-4o")
+    monkeypatch.setenv("AI_API_KEY", "sk-test-not-real")
+    get_settings.cache_clear()
+    provider = get_llm_provider()
+    assert isinstance(provider, OpenAILLMProvider)
+    assert provider.name == "openai"
+    assert provider.model == "gpt-4o"
+
+
+def test_get_llm_provider_selection_deterministic(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AI_PROVIDER", "heuristic")
+    monkeypatch.setenv("AI_MODEL", "local-heuristic-v1")
+    get_settings.cache_clear()
+    a = get_llm_provider()
+    b = get_llm_provider()
+    assert type(a) is type(b)
+    assert a.name == b.name == "local"
+    assert a.model == b.model
+
+
+def test_no_silent_openai_to_mock_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Regression: AI_PROVIDER=openai without key must NOT return LocalGroundedLLMProvider."""
+    monkeypatch.setenv("AI_PROVIDER", "openai")
+    monkeypatch.setenv("AI_MODEL", "gpt-4o")
+    monkeypatch.delenv("AI_API_KEY", raising=False)
+    get_settings.cache_clear()
+    with pytest.raises(LLMProviderConfigError):
+        get_llm_provider()
 
 
 def test_prompt_builder_token_budget(db_session: Session) -> None:

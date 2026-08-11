@@ -29,6 +29,8 @@ from investhome_api.services.project_assistant.conversation import (
 from investhome_api.services.project_assistant.grounding import evaluate_grounding
 from investhome_api.services.project_assistant.llm_provider import (
     INSUFFICIENT_EVIDENCE_MESSAGE,
+    LLMProviderConfigError,
+    LLMProviderError,
     get_llm_provider,
 )
 from investhome_api.services.project_assistant.prompt_builder import build_rag_prompt
@@ -219,7 +221,13 @@ def ask_project_assistant(
     search_time_ms = int((time.perf_counter() - search_started) * 1000)
 
     grounding = evaluate_grounding(hits, min_score=min_score)
-    provider = get_llm_provider(settings)
+    try:
+        provider = get_llm_provider(settings)
+    except LLMProviderConfigError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=exc.message,
+        ) from exc
     event_id = uuid4()
 
     if not grounding.sufficient:
@@ -294,6 +302,11 @@ def ask_project_assistant(
                 grounded = False
                 confidence = min(confidence, 0.2)
                 evidence = []
+    except LLMProviderError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=exc.message,
+        ) from exc
     except Exception:
         answer = INSUFFICIENT_EVIDENCE_MESSAGE
         confidence = 0.0

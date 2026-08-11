@@ -102,6 +102,7 @@ class Settings(BaseSettings):
 
     ai_provider: str = Field(default="local", alias="AI_PROVIDER")
     ai_model: str = Field(default="local-heuristic-v1", alias="AI_MODEL")
+    # Required when AI_PROVIDER is openai or azure_openai; never hardcode secrets.
     ai_api_key: str | None = Field(default=None, alias="AI_API_KEY")
     ai_base_url: str | None = Field(default=None, alias="AI_BASE_URL")
     ai_azure_endpoint: str | None = Field(default=None, alias="AI_AZURE_ENDPOINT")
