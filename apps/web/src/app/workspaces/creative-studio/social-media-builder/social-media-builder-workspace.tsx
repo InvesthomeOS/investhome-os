@@ -305,31 +305,50 @@ export function SocialMediaBuilderWorkspace() {
     };
   }, []);
 
+  // Stable key of IMAGE asset IDs — do not depend on posts[] or coverAsset.media object identity.
+  const imageAssetIdsKey = useMemo(() => {
+    const ids = new Set<string>();
+    for (const post of posts) {
+      for (const el of post.elements) {
+        if (el.type === 'IMAGE' && el.assetId) ids.add(el.assetId);
+      }
+    }
+    return Array.from(ids).sort().join('|');
+  }, [posts]);
+
+  const ensureElementDisplayUrl = coverAsset.media.ensureDisplayUrl;
+
   // Resolve IMAGE element display URLs via scoped Media Library.
   useEffect(() => {
     let cancelled = false;
-    const assetIds = new Set<string>();
-    for (const post of posts) {
-      for (const el of post.elements) {
-        if (el.type === 'IMAGE' && el.assetId) assetIds.add(el.assetId);
-      }
-    }
+    const assetIds = imageAssetIdsKey ? imageAssetIdsKey.split('|') : [];
     void (async () => {
       const next: Record<string, string> = {};
       for (const id of assetIds) {
         try {
-          const url = await coverAsset.media.ensureDisplayUrl(id);
+          const url = await ensureElementDisplayUrl(id);
           if (url) next[id] = url;
         } catch {
           /* skip */
         }
       }
-      if (!cancelled) setElementDisplayUrls(next);
+      if (cancelled) return;
+      setElementDisplayUrls((prev) => {
+        const prevKeys = Object.keys(prev);
+        const nextKeys = Object.keys(next);
+        if (
+          prevKeys.length === nextKeys.length &&
+          nextKeys.every((key) => prev[key] === next[key])
+        ) {
+          return prev;
+        }
+        return next;
+      });
     })();
     return () => {
       cancelled = true;
     };
-  }, [posts, coverAsset.media]);
+  }, [imageAssetIdsKey, ensureElementDisplayUrl]);
 
   function markDirty() {
     setSaved(false);

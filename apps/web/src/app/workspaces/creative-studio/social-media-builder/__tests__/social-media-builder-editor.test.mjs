@@ -486,4 +486,18 @@ describe('workspace wiring — real editor controls', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
     assert.doesNotMatch(workspace, /unsplash\.com/);
   });
+
+  it('IMAGE URL effect uses stable deps + identical-map bail-out (no media object loop)', () => {
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    // Must not depend on coverAsset.media object identity (new every render from useCsMediaLibrary).
+    assert.doesNotMatch(workspace, /\[posts,\s*coverAsset\.media\]/);
+    assert.match(workspace, /imageAssetIdsKey/);
+    assert.match(workspace, /ensureElementDisplayUrl/);
+    assert.match(workspace, /\[imageAssetIdsKey,\s*ensureElementDisplayUrl\]/);
+    // Redundant-state guard: return prev when map unchanged.
+    assert.match(
+      workspace,
+      /setElementDisplayUrls\(\(prev\)\s*=>\s*\{[\s\S]*?return prev;[\s\S]*?return next;/,
+    );
+  });
 });
