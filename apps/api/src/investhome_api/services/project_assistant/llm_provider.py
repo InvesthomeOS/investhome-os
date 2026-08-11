@@ -100,6 +100,18 @@ class LocalGroundedLLMProvider(LLMProvider):
 
     def generate(self, *, system: str, user: str, timeout_seconds: float = 45.0) -> LLMResult:
         _ = system, timeout_seconds
+        # Social Design Engine asks for structured Design Ops JSON.
+        if "DESIGN_OPS_JSON" in (user or "") or "DESIGN_OPS_JSON" in (system or ""):
+            answer = _local_design_ops_answer(user)
+            return LLMResult(
+                answer=answer,
+                provider=self.name,
+                model=self._model,
+                input_tokens=max(1, (len(system) + len(user)) // 4),
+                output_tokens=max(1, len(answer) // 4),
+                raw={"grounded": True, "mode": "mock", "kind": "design_ops"},
+            )
+
         chunks = _extract_evidence_chunks(user)
         if not chunks:
             answer = INSUFFICIENT_EVIDENCE_MESSAGE
@@ -314,6 +326,20 @@ _EVIDENCE_BLOCK_RE = re.compile(
     r"---\s*EVIDENCE_START\s*---\s*(.*?)\s*---\s*EVIDENCE_END\s*---",
     re.DOTALL | re.IGNORECASE,
 )
+
+
+def _local_design_ops_answer(user_prompt: str) -> str:
+    """Deterministic Design Ops JSON for local/mock provider (no fabricated media)."""
+    # Empty ops → design service falls back to heuristic with real media candidates.
+    # Returning empty keeps local provider from inventing Asset IDs.
+    _ = user_prompt
+    return json.dumps(
+        {
+            "ops": [],
+            "summary": "local_provider_defers_to_heuristic",
+        },
+        ensure_ascii=False,
+    )
 
 
 def _clip(text: str, n: int) -> str:

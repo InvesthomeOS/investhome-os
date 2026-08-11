@@ -416,7 +416,7 @@ describe('AI → canvas elements', () => {
     assert.match(gen, /applyGeneratedCopyToElements/);
     assert.match(gen, /applyCopyToElements/);
     const workspace = readSmb('social-media-builder-workspace.tsx');
-    assert.match(workspace, /applyGeneratedCopyToElements/);
+    assert.match(workspace, /applyDesignResponseToPosts|generateSocialDesign/);
   });
 });
 

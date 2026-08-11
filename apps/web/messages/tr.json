@@ -13759,12 +13759,12 @@
             "colorApplied": "{color} rengi uygulandı"
           },
           "ai": {
-            "title": "AI İçerik",
-            "help": "İhtiyacınız olan gönderiyi tanımlayın — AI aktif format için kreatif + caption taslağı üretir.",
-            "prompt": "Komut",
-            "placeholder": "örn. THE TEMPLE soft launch için lüks Instagram karesi…",
-            "generate": "AI ile oluştur",
-            "generated": "AI taslak hazır"
+            "title": "AI Tasarım",
+            "help": "Yeni bir kreatif tanımlayın veya mevcut tuvali düzenleyin — AI aynı gönderiye yapılandırılmış tasarım işlemleri uygular.",
+            "prompt": "Tasarım komutu",
+            "placeholder": "örn. THE TEMPLE soft launch için çatı ameni görselli lüks Instagram karesi oluştur…",
+            "generate": "AI ile Oluştur / Düzenle",
+            "generated": "AI tasarım hazır"
           },
           "content": {
             "postSettings": "Gönderi ayarları",
@@ -13849,9 +13849,11 @@
           "postAdded": "Yeni gönderi eklendi",
           "templateApplied": "Şablon uygulandı",
           "generated": "AI içerik hazır",
+          "designed": "AI tasarım tuvale uygulandı",
           "projectRequired": "Üretimden önce bağlı bir inşaat projesi seçin",
           "instructionRequired": "Önce bir üretim komutu girin",
-          "insufficientContext": "Doğrulanmış proje bağlamı yetersiz — grounded metin üretilemedi",
+          "insufficientContext": "Doğrulanmış proje bağlamı yetersiz — grounded tasarım üretilemedi",
+          "noProjectMedia": "Geçerli proje medya Asset bulunamadı — tasarım görselsiz uygulandı",
           "generationWarning": "Uyarılarla üretildi: {warning}",
           "generateFailed": "AI üretimi başarısız oldu",
           "logoChanged": "Logo güncellendi",

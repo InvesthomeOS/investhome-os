@@ -62,6 +62,11 @@ export type BuilderMediaDraft = {
   selectedPostId?: string | null;
   brandLogo?: boolean;
   platforms?: string[];
+  /**
+   * AI Design Engine generation metadata (citations, Asset IDs, provider/model, warnings).
+   * Never treated as design canvas text.
+   */
+  generationMeta?: Record<string, unknown> | null;
   savedAt?: number;
 };
 
@@ -74,6 +79,7 @@ export type BuilderMediaPersistInput = {
   selectedPostId?: string | null;
   brandLogo?: boolean;
   platforms?: string[];
+  generationMeta?: Record<string, unknown> | null;
 };
 
 export function isBuilderMediaDocumentType(
@@ -108,6 +114,9 @@ export function serializeBuilderMediaDraft(
   }
   if (typeof input.brandLogo === 'boolean') draft.brandLogo = input.brandLogo;
   if (Array.isArray(input.platforms)) draft.platforms = input.platforms;
+  if (input.generationMeta && typeof input.generationMeta === 'object') {
+    draft.generationMeta = input.generationMeta;
+  }
 
   return draft;
 }
@@ -217,6 +226,12 @@ export function deserializeBuilderMediaDraft(
     platforms: Array.isArray(body.platforms)
       ? body.platforms.filter((p): p is string => typeof p === 'string')
       : undefined,
+    generationMeta:
+      body.generationMeta &&
+      typeof body.generationMeta === 'object' &&
+      !Array.isArray(body.generationMeta)
+        ? (body.generationMeta as Record<string, unknown>)
+        : undefined,
     savedAt: typeof body.savedAt === 'number' ? body.savedAt : undefined,
   };
 }

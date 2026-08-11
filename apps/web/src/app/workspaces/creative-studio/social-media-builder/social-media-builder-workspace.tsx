@@ -9,7 +9,7 @@ import { Button, Select, StatusChip } from '@investhome/ui';
 
 import { IhIcon } from '@/components/icons/ih-icons';
 import { ApiError } from '@/lib/api/client';
-import { generateCreativeStudioContent } from '@/lib/api/creative-studio';
+import { generateSocialDesign } from '@/lib/api/creative-studio';
 
 import {
   BOTTOM_ACTIONS,
@@ -50,16 +50,15 @@ import {
   sendElementBackward,
   type SocialElement,
 } from './social-media-builder-elements';
+import { defaultSocialInstruction } from './social-media-builder-generation';
 import {
-  applyGeneratedCopyToElements,
-  applyGeneratedCopyToPost,
-  buildSocialGenerateRequest,
-  defaultSocialInstruction,
-  hasInsufficientContext,
-  syncPostCopyFields,
-  toGenerationMeta,
-  type SocialGenerationMeta,
-} from './social-media-builder-generation';
+  applyDesignResponseToPosts,
+  buildSocialDesignRequest,
+  hasDesignInsufficientContext,
+  serializeGenerationMetaForDraft,
+  toDesignGenerationMeta,
+  type DesignGenerationMeta,
+} from './social-media-builder-design-engine';
 import {
   hydrateSocialPostsFromDraft,
   loadLastConstructionProjectId,
@@ -130,7 +129,7 @@ export function SocialMediaBuilderWorkspace() {
   const [saved, setSaved] = useState(true);
   const [aiStatus, setAiStatus] = useState<AiStatusKey>('idle');
   const [generating, setGenerating] = useState(false);
-  const [generationMeta, setGenerationMeta] = useState<SocialGenerationMeta | null>(null);
+  const [generationMeta, setGenerationMeta] = useState<DesignGenerationMeta | null>(null);
   const [leftRailId, setLeftRailId] = useState<SmbLeftRailId>('templates');
   const [rightRailId, setRightRailId] = useState<SmbRightRailId>('content');
   const focus = useCreativeStudioFocusMode({ storageKey: 'social-media-builder' });
@@ -382,11 +381,13 @@ export function SocialMediaBuilderWorkspace() {
       selectedPostId,
       brandLogo,
       platforms: Array.from(platforms),
+      generationMeta: serializeGenerationMetaForDraft(generationMeta),
     };
   }, [
     brandLogo,
     coverAsset.coverImage,
     docApi.constructionProjectId,
+    generationMeta,
     platforms,
     selectedPostId,
   ]);
@@ -686,17 +687,15 @@ export function SocialMediaBuilderWorkspace() {
 
   const runAiGenerate = useCallback(
     async (instruction: string) => {
-      const built = buildSocialGenerateRequest({
+      const built = buildSocialDesignRequest({
         linkedProjectId: docApi.constructionProjectId,
         instruction,
+        posts,
+        selectedPostId,
         coverImage: coverAsset.coverImage,
         galleryImages: coverAsset.galleryImages,
         language: locale,
         platforms,
-        formatPreset,
-        platform: selectedPost.platform,
-        postName: selectedPost.name,
-        format: selectedPost.format,
       });
 
       if (!built.ok) {
@@ -715,39 +714,47 @@ export function SocialMediaBuilderWorkspace() {
 
       const token = ++generateAbortRef.current;
       setGenerating(true);
-      setAiStatus('thinking');
+      setAiStatus('designingCreatives');
       setCampaignStatus('draft');
 
       try {
-        const response = await generateCreativeStudioContent(built.request);
+        const response = await generateSocialDesign(built.request);
         if (token !== generateAbortRef.current) return;
 
-        const meta = toGenerationMeta(response);
+        const meta = toDesignGenerationMeta(response);
         setGenerationMeta(meta);
 
-        const copy = applyGeneratedCopyToPost(response.generated_content);
-        if (copy.headline || copy.caption) {
-          setPosts((prev) =>
-            prev.map((p) => {
-              if (p.id !== selectedPostId) return p;
-              const elements = applyGeneratedCopyToElements(p.elements, response.generated_content);
-              return syncPostCopyFields({
-                ...p,
-                ...copy,
-                elements,
-              });
-            }),
-          );
+        const applied = applyDesignResponseToPosts(
+          response,
+          docApi.constructionProjectId,
+        );
+        if (applied.posts.length) {
+          setPosts(applied.posts);
+          if (applied.selectedPostId) setSelectedPostId(applied.selectedPostId);
+          // Sync cover from selected post for shared media rail
+          const active =
+            applied.posts.find((p) => p.id === applied.selectedPostId) ??
+            applied.posts[0];
+          if (active?.coverAssetId) {
+            coverAsset.setCoverImage({
+              asset_id: active.coverAssetId,
+              url: null,
+              alt: null,
+              role: 'cover',
+            });
+          }
           markDirty();
           setRightRailId('content');
         }
 
-        if (hasInsufficientContext(response)) {
+        if (hasDesignInsufficientContext(response)) {
           showToast(t('toasts.insufficientContext'));
+        } else if (meta.warnings.includes('no_valid_project_media')) {
+          showToast(t('toasts.noProjectMedia'));
         } else if (meta.warnings.length) {
           showToast(t('toasts.generationWarning', { warning: meta.warnings[0]! }));
         } else {
-          showToast(t('toasts.generated'));
+          showToast(t('toasts.designed'));
         }
 
         setAiStatus('completed');
@@ -770,16 +777,12 @@ export function SocialMediaBuilderWorkspace() {
       }
     },
     [
-      coverAsset.coverImage,
-      coverAsset.galleryImages,
+      coverAsset,
       docApi.constructionProjectId,
-      formatPreset,
       locale,
-      platforms,
       persistNow,
-      selectedPost.format,
-      selectedPost.name,
-      selectedPost.platform,
+      platforms,
+      posts,
       selectedPostId,
       t,
     ],

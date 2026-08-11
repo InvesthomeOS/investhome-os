@@ -263,15 +263,15 @@ describe('copy apply + insufficient context', () => {
 });
 
 describe('workspace wires shared generate API (no toast/fake AI)', () => {
-  it('calls generateCreativeStudioContent and drops runAiDemo', () => {
+  it('calls generateSocialDesign design engine and drops runAiDemo', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
-    assert.match(workspace, /generateCreativeStudioContent/);
-    assert.match(workspace, /buildSocialGenerateRequest/);
+    assert.match(workspace, /generateSocialDesign/);
+    assert.match(workspace, /buildSocialDesignRequest/);
     assert.match(workspace, /runAiGenerate/);
     assert.match(workspace, /toasts\.projectRequired/);
     assert.match(workspace, /toasts\.insufficientContext/);
     assert.match(workspace, /setGenerationMeta/);
-    assert.match(workspace, /applyGeneratedCopyToPost/);
+    assert.match(workspace, /applyDesignResponseToPosts/);
     assert.match(workspace, /constructionProjectId/);
     assert.match(workspace, /coverAsset\.coverImage/);
     assert.doesNotMatch(workspace, /runAiDemo/);

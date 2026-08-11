@@ -525,3 +525,86 @@ export async function generateCreativeStudioContent(
     }),
   });
 }
+
+/** Social Media Builder AI Design Engine (Phase 1) — structured Design Ops. */
+export type SocialDesignMode = 'create' | 'edit';
+
+export type SocialDesignOp = {
+  op: string;
+  linked_project_id: string;
+  post_id: string;
+  element_id: string | null;
+  payload: Record<string, unknown>;
+};
+
+export type SocialDesignMediaCandidate = {
+  asset_id: string;
+  filename: string;
+  content_type: string | null;
+  folder_id: string | null;
+  folder_category: string | null;
+  tags: string[];
+  score: number;
+  linked_project_id: string;
+};
+
+export type SocialDesignRequest = {
+  linked_project_id: string;
+  instruction: string;
+  mode?: SocialDesignMode;
+  draft?: {
+    posts?: Record<string, unknown>[];
+    selected_post_id?: string | null;
+  };
+  selected_asset_ids?: string[];
+  language?: string | null;
+  builder_context?: Record<string, unknown> | null;
+};
+
+export type SocialDesignGenerationMeta = {
+  citations: CreativeStudioCitation[];
+  warnings: string[];
+  grounded: boolean;
+  retrieval_confidence: number;
+  asset_ids_used: string[];
+  provider: string;
+  model: string;
+  brand_context: CreativeStudioBrandContext;
+  brand_context_status: string;
+  search_time_ms: number;
+  latency_ms: number;
+  mode: SocialDesignMode;
+  planner: string;
+};
+
+export type SocialDesignResponse = {
+  linked_project_id: string;
+  mode: SocialDesignMode;
+  ops: SocialDesignOp[];
+  rejected_ops: { op: Record<string, unknown>; reason: string }[];
+  posts: Record<string, unknown>[];
+  selected_post_id: string | null;
+  media_candidates: SocialDesignMediaCandidate[];
+  meta: SocialDesignGenerationMeta;
+  generated_content: string;
+};
+
+export async function generateSocialDesign(
+  input: SocialDesignRequest,
+): Promise<SocialDesignResponse> {
+  return apiFetch('/ai/creative-studio/social/design', {
+    method: 'POST',
+    body: JSON.stringify({
+      linked_project_id: input.linked_project_id,
+      instruction: input.instruction,
+      mode: input.mode ?? 'create',
+      draft: {
+        posts: input.draft?.posts ?? [],
+        selected_post_id: input.draft?.selected_post_id ?? null,
+      },
+      selected_asset_ids: input.selected_asset_ids ?? [],
+      language: input.language ?? undefined,
+      builder_context: input.builder_context ?? undefined,
+    }),
+  });
+}

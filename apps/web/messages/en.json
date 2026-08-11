@@ -19082,12 +19082,12 @@
             "colorApplied": "Color {color} applied"
           },
           "ai": {
-            "title": "AI Content",
-            "help": "Describe the post you need — AI drafts creative + caption for the active format.",
-            "prompt": "Prompt",
-            "placeholder": "e.g. Luxury Instagram square for THE TEMPLE soft launch…",
-            "generate": "Generate with AI",
-            "generated": "AI draft ready"
+            "title": "AI Design",
+            "help": "Describe a new creative or edit the current canvas — AI applies structured design operations to the same post.",
+            "prompt": "Design command",
+            "placeholder": "e.g. Create a luxury Instagram square for THE TEMPLE soft launch with rooftop amenity visual…",
+            "generate": "Generate / Edit with AI",
+            "generated": "AI design ready"
           },
           "content": {
             "postSettings": "Post settings",
@@ -19172,9 +19172,11 @@
           "postAdded": "New post added",
           "templateApplied": "Template applied",
           "generated": "AI content ready",
+          "designed": "AI design applied to canvas",
           "projectRequired": "Select a linked construction project before generating",
           "instructionRequired": "Enter a generation prompt first",
-          "insufficientContext": "Not enough verified project context to generate grounded copy",
+          "insufficientContext": "Not enough verified project context to generate grounded design",
+          "noProjectMedia": "No valid project media Asset found — design applied without image",
           "generationWarning": "Generated with warnings: {warning}",
           "generateFailed": "AI generation failed",
           "logoChanged": "Logo updated",
