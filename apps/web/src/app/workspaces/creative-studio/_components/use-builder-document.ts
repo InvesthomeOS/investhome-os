@@ -246,7 +246,16 @@ export function useBuilderDocument(options: {
     async (input: Omit<BuilderMediaPersistInput, 'documentType'>) => {
       const documentId = documentIdRef.current;
       if (!documentId || !readyRef.current) return false;
-      if (savingRef.current) return false;
+
+      // Wait out in-flight saves instead of dropping (Sil/clear must not lose to autosave).
+      const waitStarted = Date.now();
+      while (savingRef.current) {
+        if (Date.now() - waitStarted > 15_000) return false;
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 40);
+        });
+      }
+
       savingRef.current = true;
       const gen = ++saveGenRef.current;
       setSaveStatus('saving');

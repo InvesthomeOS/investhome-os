@@ -387,10 +387,18 @@ export function SocialMediaBuilderWorkspace() {
       setSelected(false);
       markDirty();
       void (async () => {
-        const ok = await docApi.saveDraft({
-          linkedProjectId: docApi.constructionProjectId,
-          coverImage: null,
-        });
+        let ok = false;
+        for (let attempt = 0; attempt < 8 && !ok; attempt += 1) {
+          ok = await docApi.saveDraft({
+            linkedProjectId: docApi.constructionProjectId,
+            coverImage: null,
+          });
+          if (!ok) {
+            await new Promise((resolve) => {
+              window.setTimeout(resolve, 80);
+            });
+          }
+        }
         if (ok) {
           setSaved(true);
           showToast(t('toasts.imageRemoved'));
