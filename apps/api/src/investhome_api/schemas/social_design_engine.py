@@ -31,6 +31,7 @@ DESIGN_OP_TYPES: frozenset[str] = frozenset(
         "UPDATE_STYLE",
         "SET_BACKGROUND",
         "SET_Z_INDEX",
+        "APPLY_LAYOUT_INTENT",
     }
 )
 

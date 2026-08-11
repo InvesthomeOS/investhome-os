@@ -12,8 +12,12 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from investhome_api.services.social_design_engine.layout import (
+    VISUAL_LAYOUT_VOCAB,
+    align_element_geometry,
     clamp_safe_geometry,
+    role_font_prefs,
     safe_content_box,
+    subject_safe_regions,
 )
 from investhome_api.services.social_design_engine.ops import canvas_size, clamp_int
 
@@ -28,11 +32,19 @@ EditIntent = Literal[
     "CHANGE_CTA_TEXT",
     "DELETE",
     "DUPLICATE",
+    "INCREASE_WHITESPACE",
+    "REDUCE_TEXT_DENSITY",
+    "EMPHASIZE_HEADLINE",
+    "DEEMPHASIZE_BODY",
+    "MOVE_TEXT_AWAY_FROM_SUBJECT",
+    "INCREASE_IMAGE_PROMINENCE",
+    "SIMPLIFY_LAYOUT",
 ]
 
 ElementTarget = Literal["headline", "body", "cta", "image", "background", "unknown"]
 
 COPY_INTENTS: frozenset[str] = frozenset({"CHANGE_TEXT", "CHANGE_CTA_TEXT"})
+VISUAL_INTENTS: frozenset[str] = frozenset(VISUAL_LAYOUT_VOCAB)
 STRUCTURAL_INTENTS: frozenset[str] = frozenset(
     {
         "MOVE",
@@ -43,6 +55,7 @@ STRUCTURAL_INTENTS: frozenset[str] = frozenset(
         "CHANGE_COLOR",
         "DELETE",
         "DUPLICATE",
+        *VISUAL_LAYOUT_VOCAB,
     }
 )
 
@@ -170,13 +183,87 @@ def _explicit_cta_label_change(instr: str) -> bool:
     )
 
 
+def _classify_visual_language(t: str, raw: str) -> list[ClassifiedIntent]:
+    """Map NL premium/spacing/subject phrases → validated visual vocab (not freeform)."""
+    found: list[ClassifiedIntent] = []
+    # Subject / sky / don't cover building
+    if any(
+        k in t
+        for k in (
+            "binayı kapatma",
+            "binayi kapatma",
+            "kapatma",
+            "don't cover",
+            "do not cover",
+            "gökyüzüne",
+            "gokyuzune",
+            "gökyüzü",
+            "gokyuzu",
+            "sky",
+            "buluta",
+            "away from subject",
+            "konuyu kapatma",
+        )
+    ) and any(
+        k in t
+        for k in (
+            "bina",
+            "building",
+            "gökyüz",
+            "gokyuz",
+            "sky",
+            "bulut",
+            "yazı",
+            "yazi",
+            "metin",
+            "başlık",
+            "baslik",
+            "cover",
+            "kapat",
+        )
+    ):
+        found.append(
+            ClassifiedIntent("MOVE_TEXT_AWAY_FROM_SUBJECT", "headline", raw.strip(), {"region": "sky"})
+        )
+
+    if any(k in t for k in ("ferahlat", "ferah", "nefes aldır", "nefes aldir", "whitespace", "spacing", "sıkışık", "sikisik", "rahatlat")):
+        if any(k in t for k in ("cta", "buton", "button")):
+            found.append(ClassifiedIntent("INCREASE_WHITESPACE", "cta", raw.strip(), {}))
+        else:
+            found.append(ClassifiedIntent("INCREASE_WHITESPACE", "unknown", raw.strip(), {}))
+
+    if any(k in t for k in ("daha sade", "sadeleştir", "sadelestir", "simplify", "basitleştir", "basitlestir")):
+        found.append(ClassifiedIntent("SIMPLIFY_LAYOUT", "unknown", raw.strip(), {}))
+
+    if any(k in t for k in ("daha premium", "premium yap", "daha güçlü", "daha guclu", "güçlü göster", "guclu goster")):
+        if any(k in t for k in ("başlık", "baslik", "headline", "title")) or "güçlü" in t or "guclu" in t:
+            found.append(ClassifiedIntent("EMPHASIZE_HEADLINE", "headline", raw.strip(), {}))
+        else:
+            found.append(ClassifiedIntent("EMPHASIZE_HEADLINE", "headline", raw.strip(), {}))
+            found.append(ClassifiedIntent("INCREASE_WHITESPACE", "unknown", raw.strip(), {}))
+
+    if any(k in t for k in ("metin yoğun", "yoğunluğu azalt", "yogunlugu azalt", "reduce density", "deemphasize body", "gövdeyi küçült", "govdeyi kucult")):
+        found.append(ClassifiedIntent("REDUCE_TEXT_DENSITY", "body", raw.strip(), {}))
+
+    if any(k in t for k in ("görseli daha", "gorseli daha", "image prominence", "ön plana", "on plana", "görsel öne", "gorsel one")):
+        found.append(ClassifiedIntent("INCREASE_IMAGE_PROMINENCE", "image", raw.strip(), {}))
+
+    if any(k in t for k in ("body küçült", "body kucult", "açıklamayı küçült", "aciklamayi kucult", "deemphasize")):
+        found.append(ClassifiedIntent("DEEMPHASIZE_BODY", "body", raw.strip(), {}))
+
+    return found
+
+
 def classify_edit_intents(instruction: str) -> IntentPlan:
     """Classify P0 edit intents from a natural-language instruction."""
     raw = instruction or ""
     t = _norm(raw)
     found: list[ClassifiedIntent] = []
 
-    # Spatial / move (including "mavi buluta al", taşı, sola/sağa/üste/aşağı)
+    # Higher-level visual language (validated vocab only)
+    found.extend(_classify_visual_language(t, raw))
+
+    # Spatial / move — skip pure visual-subject phrases already classified
     move_markers = (
         "taşı",
         "tasi",
@@ -195,6 +282,8 @@ def classify_edit_intents(instruction: str) -> IntentPlan:
         "buluta",
         "bulut",
         "sky",
+        "gökyüz",
+        "gokyuz",
         "put ",
         "shift",
     )
@@ -226,6 +315,8 @@ def classify_edit_intents(instruction: str) -> IntentPlan:
                         "saga",
                         "bulut",
                         "sky",
+                        "gökyüz",
+                        "gokyuz",
                         "shift",
                     )
                 )
@@ -242,7 +333,7 @@ def classify_edit_intents(instruction: str) -> IntentPlan:
             target = resolve_target(raw, default="headline")
             found.append(ClassifiedIntent("MOVE", target, raw.strip(), _spatial_meta(t)))
 
-    # Resize / shrink / grow
+    # Resize / shrink / grow (compound: font + box resolved by layout engine)
     if any(
         k in t
         for k in (
@@ -257,17 +348,52 @@ def classify_edit_intents(instruction: str) -> IntentPlan:
             "bigger",
             "font size",
             "punto",
+            "büyük yap",
+            "buyuk yap",
+            "daha büyük",
+            "daha buyuk",
         )
     ):
         target = resolve_target(raw, default="headline")
         shrink = any(k in t for k in ("küçült", "kucult", "shrink", "smaller", "biraz küçült", "biraz kucult"))
-        grow = any(k in t for k in ("büyüt", "buyut", "enlarge", "bigger"))
+        grow = any(
+            k in t
+            for k in (
+                "büyüt",
+                "buyut",
+                "enlarge",
+                "bigger",
+                "büyük yap",
+                "buyuk yap",
+                "daha büyük",
+                "daha buyuk",
+            )
+        )
+        one_line = any(
+            k in t
+            for k in (
+                "tek satır",
+                "tek satir",
+                "tek satırda",
+                "tek satirda",
+                "one line",
+                "single line",
+                "bir satır",
+                "bir satir",
+            )
+        )
+        amount = "slight" if ("biraz" in t or "slightly" in t or "a bit" in t) else "normal"
         found.append(
             ClassifiedIntent(
                 "RESIZE",
                 target,
                 raw.strip(),
-                {"direction": "shrink" if shrink and not grow else "grow" if grow else "shrink"},
+                {
+                    "direction": "shrink" if shrink and not grow else "grow" if grow else "shrink",
+                    "one_line": one_line,
+                    "amount": amount,
+                    "compound": True,
+                },
             )
         )
 
@@ -279,6 +405,8 @@ def classify_edit_intents(instruction: str) -> IntentPlan:
             align = "left"
         elif "sağa" in t or "saga" in t or "right" in t:
             align = "right"
+        elif "safe" in t or "güvenli" in t or "guvenli" in t:
+            align = "safe-area"
         found.append(ClassifiedIntent("ALIGN", target, raw.strip(), {"align": align}))
 
     # Replace image / background
@@ -374,9 +502,24 @@ def classify_edit_intents(instruction: str) -> IntentPlan:
 
 def _spatial_meta(cl: str) -> dict[str, Any]:
     meta: dict[str, Any] = {}
-    if any(k in cl for k in ("mavi bulut", "bulut", "sky", "üste", "uste", "yukarı", "yukari", "up")):
-        if "bulut" in cl or "sky" in cl:
+    if any(
+        k in cl
+        for k in (
+            "mavi bulut",
+            "bulut",
+            "sky",
+            "gökyüz",
+            "gokyuz",
+            "üste",
+            "uste",
+            "yukarı",
+            "yukari",
+            "up",
+        )
+    ):
+        if any(k in cl for k in ("bulut", "sky", "gökyüz", "gokyuz")):
             meta["region"] = "sky"
+            meta["direction"] = "up"
         else:
             meta["direction"] = "up"
     if any(k in cl for k in ("aşağı", "asagi", "down")):
@@ -388,6 +531,17 @@ def _spatial_meta(cl: str) -> dict[str, Any]:
         meta["horizontal"] = "right"
     if any(k in cl for k in ("ortala", "center", "ortaya")):
         meta["horizontal"] = "center"
+    if any(
+        k in cl
+        for k in (
+            "kenara yapıştırma",
+            "kenara yapistirma",
+            "kenara değdirme",
+            "safe margin",
+            "kenardan uzak",
+        )
+    ):
+        meta["keep_safe_margin"] = True
     if "biraz" in cl or "slightly" in cl or "a bit" in cl:
         meta["amount"] = "slight"
     else:
@@ -434,12 +588,12 @@ def sky_region_geometry(
     canvas_h: int,
 ) -> dict[str, int]:
     """Safe upper sky region heuristic (no CV) — keep element in safe bounds."""
-    box = safe_content_box(canvas_w, canvas_h)
-    w = clamp_int(el.get("width"), 8, box["width"], min(400, box["width"]))
-    h = clamp_int(el.get("height"), 8, box["height"], min(120, box["height"]))
-    # Upper ~18% of canvas — "mavi bulut" / sky band
-    y = box["y"] + max(0, int(round(canvas_h * 0.06)))
-    x = box["x"] + max(0, (box["width"] - w) // 2)
+    regions = subject_safe_regions(canvas_w, canvas_h)
+    sky = regions["sky"]
+    w = clamp_int(el.get("width"), 8, sky["width"], min(400, sky["width"]))
+    h = clamp_int(el.get("height"), 8, sky["height"], min(120, sky["height"]))
+    y = sky["y"] + max(0, int(round(sky["height"] * 0.12)))
+    x = sky["x"] + max(0, (sky["width"] - w) // 2)
     return clamp_safe_geometry(
         x=x,
         y=y,
@@ -489,8 +643,10 @@ def move_geometry_for_intent(
         x = pad + max(0, (canvas_w - pad * 2 - w) // 2)
 
     if is_button:
-        x = max(pad, min(canvas_w - w - pad, x))
-        y = max(pad, min(canvas_h - h - pad, y))
+        # "kenara yapıştırma" — keep a healthier inset than absolute pad when requested
+        edge_pad = 48 if meta.get("keep_safe_margin") else pad
+        x = max(edge_pad, min(canvas_w - w - edge_pad, x))
+        y = max(edge_pad, min(canvas_h - h - edge_pad, y))
         return {"x": x, "y": y, "width": w, "height": h}
 
     return clamp_safe_geometry(
@@ -519,14 +675,60 @@ def build_ops_from_intent_plan(
 
     for item in plan.intents:
         if item.intent in COPY_INTENTS:
-            # Copy changes are handled by LLM/heuristic only when authorized;
-            # structural builder never invents new wording here.
+            continue
+
+        # Visual language → validated vocab applied deterministically in apply_ops
+        if item.intent in VISUAL_INTENTS:
+            ops.append(
+                {
+                    "op": "APPLY_LAYOUT_INTENT",
+                    "linked_project_id": pid,
+                    "post_id": post_id,
+                    "element_id": None,
+                    "payload": {"intent": item.intent},
+                    "_intent": item.intent,
+                    "_target": item.target,
+                }
+            )
+            if item.intent == "MOVE_TEXT_AWAY_FROM_SUBJECT":
+                for role in ("headline", "body"):
+                    target_el = find_target_element(post, role)  # type: ignore[arg-type]
+                    if target_el is None:
+                        continue
+                    geo = sky_region_geometry(target_el, canvas_w=cw, canvas_h=ch)
+                    # Stagger body under headline in sky band
+                    if role == "body":
+                        geo = dict(geo)
+                        geo["y"] = min(
+                            geo["y"] + max(48, int(round(ch * 0.08))),
+                            int(round(ch * 0.34)),
+                        )
+                    ops.append(
+                        {
+                            "op": "MOVE_ELEMENT",
+                            "linked_project_id": pid,
+                            "post_id": post_id,
+                            "element_id": target_el.get("id"),
+                            "payload": {
+                                "x": geo["x"],
+                                "y": geo["y"],
+                                "_layout_resolve": True,
+                            },
+                            "_intent": item.intent,
+                            "_target": role,
+                        }
+                    )
             continue
 
         el = find_target_element(post, item.target)
         if item.intent == "MOVE":
             if el is None:
                 continue
+            meta = dict(item.meta or {})
+            # CTA down but not flush to edge
+            if item.target == "cta" and meta.get("direction") == "down":
+                meta["keep_safe_margin"] = True
+                item = ClassifiedIntent(item.intent, item.target, item.raw_span, meta)
             geo = move_geometry_for_intent(el, item, canvas_w=cw, canvas_h=ch)
             ops.append(
                 {
@@ -534,7 +736,7 @@ def build_ops_from_intent_plan(
                     "linked_project_id": pid,
                     "post_id": post_id,
                     "element_id": el.get("id"),
-                    "payload": {"x": geo["x"], "y": geo["y"]},
+                    "payload": {"x": geo["x"], "y": geo["y"], "_layout_resolve": True},
                     "_intent": item.intent,
                     "_target": item.target,
                 }
@@ -544,23 +746,38 @@ def build_ops_from_intent_plan(
         if item.intent == "RESIZE":
             if el is None:
                 continue
+            meta = item.meta or {}
             if el.get("type") == "TEXT":
-                current = clamp_int(el.get("fontSize"), 8, 200, 28)
-                direction = (item.meta or {}).get("direction", "shrink")
-                next_size = max(8, current - 6) if direction == "shrink" else min(200, current + 6)
+                prefs = role_font_prefs(str(el.get("role") or "custom"), cw)
+                current = clamp_int(el.get("fontSize"), prefs["min"], prefs["max"], prefs["preferred"])
+                direction = meta.get("direction", "shrink")
+                delta = 4 if meta.get("amount") == "slight" else 8
+                next_size = (
+                    max(prefs["min"], current - delta)
+                    if direction == "shrink"
+                    else min(prefs["max"], current + delta)
+                )
+                payload: dict[str, Any] = {
+                    "fontSize": next_size,
+                    "_layout_resolve": True,
+                    "_compound_resize": True,
+                }
+                if meta.get("one_line"):
+                    payload["maxLines"] = 1
+                    payload["_one_line"] = True
                 ops.append(
                     {
                         "op": "UPDATE_STYLE",
                         "linked_project_id": pid,
                         "post_id": post_id,
                         "element_id": el.get("id"),
-                        "payload": {"fontSize": next_size},
+                        "payload": payload,
                         "_intent": item.intent,
                         "_target": item.target,
                     }
                 )
             else:
-                factor = 0.9 if (item.meta or {}).get("direction") == "shrink" else 1.1
+                factor = 0.9 if meta.get("direction") == "shrink" else 1.1
                 w = max(24, int(round(clamp_int(el.get("width"), 8, cw, 100) * factor)))
                 h = max(24, int(round(clamp_int(el.get("height"), 8, ch, 40) * factor)))
                 ops.append(
@@ -569,7 +786,7 @@ def build_ops_from_intent_plan(
                         "linked_project_id": pid,
                         "post_id": post_id,
                         "element_id": el.get("id"),
-                        "payload": {"width": w, "height": h},
+                        "payload": {"width": w, "height": h, "_layout_resolve": True},
                         "_intent": item.intent,
                         "_target": item.target,
                     }
@@ -579,13 +796,24 @@ def build_ops_from_intent_plan(
         if item.intent == "ALIGN":
             if el is None:
                 continue
+            aligned = align_element_geometry(
+                el,
+                str((item.meta or {}).get("align") or "center"),
+                canvas_w=cw,
+                canvas_h=ch,
+            )
             ops.append(
                 {
                     "op": "ALIGN_ELEMENT",
                     "linked_project_id": pid,
                     "post_id": post_id,
                     "element_id": el.get("id"),
-                    "payload": {"align": (item.meta or {}).get("align") or "center"},
+                    "payload": {
+                        "align": (item.meta or {}).get("align") or "center",
+                        "x": aligned["x"],
+                        "y": aligned["y"],
+                        "_layout_resolve": True,
+                    },
                     "_intent": item.intent,
                     "_target": item.target,
                 }
@@ -596,7 +824,6 @@ def build_ops_from_intent_plan(
             if not picked_asset_id:
                 continue
             aid = str(picked_asset_id)
-            # Prefer REPLACE on existing IMAGE; also set background cover.
             ops.append(
                 {
                     "op": "SET_BACKGROUND",
@@ -625,8 +852,6 @@ def build_ops_from_intent_plan(
         if item.intent == "CHANGE_COLOR":
             if el is None or el.get("type") != "TEXT":
                 continue
-            # Color resolution happens upstream when hex/named color present;
-            # skip if no color in meta — service may inject.
             color = (item.meta or {}).get("color")
             if not color:
                 continue

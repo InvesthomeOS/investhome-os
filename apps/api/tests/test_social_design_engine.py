@@ -905,6 +905,379 @@ def test_edit_intent_move_sky_does_not_rewrite_copy() -> None:
     assert el_map["h1"]["y"] < 420
 
 
+def test_layout_intelligence_font_grow_no_clip_and_collision() -> None:
+    """Compound RESIZE grows font + box and pushes body/CTA without clipping."""
+    from investhome_api.services.social_design_engine.intent import (
+        classify_edit_intents,
+        build_ops_from_intent_plan,
+    )
+    from investhome_api.services.social_design_engine.apply import apply_ops
+    from investhome_api.services.social_design_engine.layout import (
+        element_within_bounds,
+        text_fits_without_clip,
+    )
+    from investhome_api.schemas.social_design_engine import SocialDesignOp
+
+    pid = TEMPLE_PROJECT_ID
+    headline = "Invest in The Temple"
+    body = "Quiet luxury residences in Columbia Heights."
+    cta = "Schedule a private tour"
+    post = {
+        "id": "p1",
+        "formatPreset": "square",
+        "width": 1080,
+        "height": 1080,
+        "elements": [
+            {
+                "id": "h1",
+                "type": "TEXT",
+                "role": "headline",
+                "content": headline,
+                "fontWeight": "bold",
+                "align": "center",
+                "x": 76,
+                "y": 240,
+                "width": 400,
+                "height": 48,
+                "fontSize": 36,
+            },
+            {
+                "id": "b1",
+                "type": "TEXT",
+                "role": "body",
+                "content": body,
+                "x": 76,
+                "y": 300,
+                "width": 900,
+                "height": 60,
+                "fontSize": 22,
+            },
+            {
+                "id": "c1",
+                "type": "BUTTON",
+                "label": cta,
+                "x": 340,
+                "y": 900,
+                "width": 400,
+                "height": 48,
+            },
+        ],
+    }
+    plan = classify_edit_intents("Başlığı biraz büyüt.")
+    assert "RESIZE" in plan.intent_names
+    assert plan.structural_only
+    ops = build_ops_from_intent_plan(plan=plan, linked_project_id=str(pid), post=post)
+    assert ops[0]["payload"].get("_compound_resize") or ops[0]["payload"].get("fontSize")
+    validated = [
+        SocialDesignOp(
+            op=o["op"],
+            linked_project_id=pid,
+            post_id="p1",
+            element_id=o.get("element_id"),
+            payload=o["payload"],
+        )
+        for o in ops
+    ]
+    out, _ = apply_ops([post], validated, linked_project_id=pid)
+    els = {e["id"]: e for e in out[0]["elements"]}
+    assert els["h1"]["content"] == headline
+    assert els["b1"]["content"] == body
+    assert els["c1"]["label"] == cta
+    assert els["h1"]["fontSize"] >= 36
+    assert text_fits_without_clip(els["h1"])
+    assert element_within_bounds(els["h1"], 1080, 1080)
+    assert els["h1"]["y"] + els["h1"]["height"] <= els["b1"]["y"]
+    assert els["b1"]["y"] + els["b1"]["height"] <= els["c1"]["y"]
+
+
+def test_layout_intelligence_one_line_grow() -> None:
+    from investhome_api.services.social_design_engine.intent import (
+        classify_edit_intents,
+        build_ops_from_intent_plan,
+    )
+    from investhome_api.services.social_design_engine.apply import apply_ops
+    from investhome_api.services.social_design_engine.layout import (
+        estimate_wrap_lines,
+        text_fits_without_clip,
+    )
+    from investhome_api.schemas.social_design_engine import SocialDesignOp
+
+    pid = TEMPLE_PROJECT_ID
+    post = {
+        "id": "p1",
+        "formatPreset": "square",
+        "width": 1080,
+        "height": 1080,
+        "elements": [
+            {
+                "id": "h1",
+                "type": "TEXT",
+                "role": "headline",
+                "content": "Temple Residences",
+                "fontWeight": "bold",
+                "align": "center",
+                "x": 200,
+                "y": 200,
+                "width": 280,
+                "height": 40,
+                "fontSize": 32,
+            },
+            {
+                "id": "b1",
+                "type": "TEXT",
+                "role": "body",
+                "content": "Body stays",
+                "x": 76,
+                "y": 500,
+                "width": 900,
+                "height": 40,
+                "fontSize": 20,
+            },
+        ],
+    }
+    plan = classify_edit_intents("Başlığı büyüt ama tek satırda kalsın.")
+    assert any(i.meta.get("one_line") for i in plan.intents if i.intent == "RESIZE")
+    ops = build_ops_from_intent_plan(plan=plan, linked_project_id=str(pid), post=post)
+    validated = [
+        SocialDesignOp(
+            op=o["op"],
+            linked_project_id=pid,
+            post_id="p1",
+            element_id=o.get("element_id"),
+            payload=o["payload"],
+        )
+        for o in ops
+    ]
+    out, _ = apply_ops([post], validated, linked_project_id=pid)
+    h1 = next(e for e in out[0]["elements"] if e["id"] == "h1")
+    assert h1["content"] == "Temple Residences"
+    assert text_fits_without_clip(h1)
+    lines = estimate_wrap_lines(h1["content"], h1["fontSize"], h1["width"], bold=True)
+    assert len(lines) == 1
+    assert h1["width"] >= 280
+
+
+def test_layout_intelligence_visual_whitespace_and_sky() -> None:
+    from investhome_api.services.social_design_engine.intent import (
+        classify_edit_intents,
+        build_ops_from_intent_plan,
+    )
+    from investhome_api.services.social_design_engine.apply import apply_ops
+    from investhome_api.schemas.social_design_engine import SocialDesignOp
+
+    pid = TEMPLE_PROJECT_ID
+    post = {
+        "id": "p1",
+        "formatPreset": "square",
+        "width": 1080,
+        "height": 1080,
+        "elements": [
+            {
+                "id": "h1",
+                "type": "TEXT",
+                "role": "headline",
+                "content": "Temple",
+                "x": 76,
+                "y": 520,
+                "width": 900,
+                "height": 80,
+                "fontSize": 48,
+                "fontWeight": "bold",
+            },
+            {
+                "id": "b1",
+                "type": "TEXT",
+                "role": "body",
+                "content": "Body copy",
+                "x": 76,
+                "y": 600,
+                "width": 900,
+                "height": 60,
+                "fontSize": 22,
+            },
+            {
+                "id": "c1",
+                "type": "BUTTON",
+                "label": "Tour",
+                "x": 340,
+                "y": 780,
+                "width": 400,
+                "height": 48,
+            },
+        ],
+    }
+    plan_ws = classify_edit_intents("Metinleri biraz ferahlat.")
+    assert "INCREASE_WHITESPACE" in plan_ws.intent_names
+    assert not plan_ws.allow_copy_rewrite
+    ops_ws = build_ops_from_intent_plan(plan=plan_ws, linked_project_id=str(pid), post=post)
+    assert any(o["op"] == "APPLY_LAYOUT_INTENT" for o in ops_ws)
+    validated = [
+        SocialDesignOp(
+            op=o["op"],
+            linked_project_id=pid,
+            post_id="p1",
+            element_id=o.get("element_id"),
+            payload=o["payload"],
+        )
+        for o in ops_ws
+    ]
+    out, _ = apply_ops([post], validated, linked_project_id=pid)
+    els = {e["id"]: e for e in out[0]["elements"]}
+    assert els["h1"]["content"] == "Temple"
+    assert els["b1"]["content"] == "Body copy"
+    gap_before = 600 - (520 + 80)
+    gap_after = els["b1"]["y"] - (els["h1"]["y"] + els["h1"]["height"])
+    assert gap_after >= gap_before
+
+    plan_sky = classify_edit_intents("Binayı kapatma, yazıları gökyüzüne taşı.")
+    assert "MOVE_TEXT_AWAY_FROM_SUBJECT" in plan_sky.intent_names
+    ops_sky = build_ops_from_intent_plan(plan=plan_sky, linked_project_id=str(pid), post=post)
+    validated_sky = [
+        SocialDesignOp(
+            op=o["op"],
+            linked_project_id=pid,
+            post_id="p1",
+            element_id=o.get("element_id"),
+            payload=o["payload"],
+        )
+        for o in ops_sky
+    ]
+    out2, _ = apply_ops([post], validated_sky, linked_project_id=pid)
+    h2 = next(e for e in out2[0]["elements"] if e["id"] == "h1")
+    assert h2["content"] == "Temple"
+    assert h2["y"] < 400
+
+
+def test_layout_intelligence_align_and_format_reflow() -> None:
+    from investhome_api.services.social_design_engine.layout import (
+        align_element_geometry,
+        element_within_bounds,
+        reflow_for_format,
+        resolve_layout,
+        text_fits_without_clip,
+    )
+
+    post = {
+        "id": "p1",
+        "formatPreset": "square",
+        "width": 1080,
+        "height": 1080,
+        "elements": [
+            {
+                "id": "h1",
+                "type": "TEXT",
+                "role": "headline",
+                "content": "Temple Headline",
+                "fontWeight": "bold",
+                "align": "left",
+                "x": 40,
+                "y": 200,
+                "width": 600,
+                "height": 80,
+                "fontSize": 44,
+            },
+            {
+                "id": "b1",
+                "type": "TEXT",
+                "role": "body",
+                "content": "Body for format reflow test content.",
+                "x": 40,
+                "y": 400,
+                "width": 600,
+                "height": 80,
+                "fontSize": 22,
+            },
+            {
+                "id": "c1",
+                "type": "BUTTON",
+                "label": "CTA",
+                "x": 400,
+                "y": 900,
+                "width": 280,
+                "height": 48,
+            },
+        ],
+    }
+    h = post["elements"][0]
+    centered = align_element_geometry(h, "center", canvas_w=1080, canvas_h=1080)
+    assert centered["align"] == "center"
+    assert abs(centered["x"] + centered["width"] / 2 - 540) < 40
+
+    story = reflow_for_format(dict(post), "story")
+    assert story["width"] == 1080 and story["height"] == 1920
+    for el in story["elements"]:
+        assert element_within_bounds(el, 1080, 1920) or el.get("type") == "IMAGE"
+        if el.get("type") == "TEXT":
+            assert text_fits_without_clip(el)
+
+    landscape = reflow_for_format(dict(post), "landscape")
+    assert landscape["width"] == 1920 and landscape["height"] == 1080
+    resolved = resolve_layout(landscape, refit_text=True)
+    assert resolved["elements"]
+
+
+def test_layout_intelligence_manual_latest_state_consistency() -> None:
+    """Manual box size then AI shrink+align uses latest dimensions (one state tree)."""
+    from investhome_api.services.social_design_engine.intent import (
+        classify_edit_intents,
+        build_ops_from_intent_plan,
+    )
+    from investhome_api.services.social_design_engine.apply import apply_ops
+    from investhome_api.schemas.social_design_engine import SocialDesignOp
+
+    pid = TEMPLE_PROJECT_ID
+    post = {
+        "id": "p1",
+        "formatPreset": "square",
+        "width": 1080,
+        "height": 1080,
+        "elements": [
+            {
+                "id": "h1",
+                "type": "TEXT",
+                "role": "headline",
+                "content": "Manual Then AI",
+                "fontWeight": "bold",
+                "align": "left",
+                "x": 100,
+                "y": 220,
+                "width": 820,
+                "height": 140,
+                "fontSize": 52,
+            },
+            {
+                "id": "c1",
+                "type": "BUTTON",
+                "label": "Tour",
+                "x": 340,
+                "y": 900,
+                "width": 400,
+                "height": 48,
+            },
+        ],
+    }
+    # Simulate manual resize already persisted in draft state
+    plan = classify_edit_intents("biraz küçült ve ortala")
+    assert "RESIZE" in plan.intent_names
+    assert "ALIGN" in plan.intent_names
+    ops = build_ops_from_intent_plan(plan=plan, linked_project_id=str(pid), post=post)
+    validated = [
+        SocialDesignOp(
+            op=o["op"],
+            linked_project_id=pid,
+            post_id="p1",
+            element_id=o.get("element_id"),
+            payload=o["payload"],
+        )
+        for o in ops
+    ]
+    out, _ = apply_ops([post], validated, linked_project_id=pid)
+    h1 = next(e for e in out[0]["elements"] if e["id"] == "h1")
+    assert h1["content"] == "Manual Then AI"
+    assert h1["fontSize"] < 52
+    assert h1["align"] == "center"
+
+
 def test_edit_intent_resize_preserves_copy() -> None:
     from investhome_api.services.social_design_engine.intent import (
         classify_edit_intents,

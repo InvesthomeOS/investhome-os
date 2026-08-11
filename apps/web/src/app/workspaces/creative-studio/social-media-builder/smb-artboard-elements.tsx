@@ -6,6 +6,7 @@ import {
   sortElementsByZ,
   type SocialElement,
 } from './social-media-builder-elements';
+import { constrainElement, sanitizeGeometryPatch } from './social-media-builder-layout';
 
 export type SmbArtboardElementsProps = {
   elements: SocialElement[];
@@ -13,6 +14,8 @@ export type SmbArtboardElementsProps = {
   imageUrlsByAssetId: Record<string, string>;
   canvasLocked: boolean;
   previewMode: boolean;
+  canvasWidth?: number;
+  canvasHeight?: number;
   onSelect: (elementId: string | null) => void;
   onPatchElement: (elementId: string, patch: Partial<SocialElement>) => void;
 };
@@ -26,6 +29,8 @@ type DragState = {
   origY: number;
   origW: number;
   origH: number;
+  canvasW: number;
+  canvasH: number;
 };
 
 function finiteOr(n: unknown, fallback: number): number {
@@ -46,6 +51,8 @@ export function SmbArtboardElements({
   imageUrlsByAssetId,
   canvasLocked,
   previewMode,
+  canvasWidth = 1080,
+  canvasHeight = 1080,
   onSelect,
   onPatchElement,
 }: SmbArtboardElementsProps) {
@@ -62,71 +69,106 @@ export function SmbArtboardElements({
     // Do not preventDefault — keeps click/selection stable inside CSS-transform + FS shells.
     // Do not use setPointerCapture — release throws InvalidStateError after FS remounts.
     onSelect(el.id);
-    const target = event.currentTarget;
-    if (!target || typeof target.closest !== 'function') return;
+
+    const artboard =
+      typeof event.currentTarget?.closest === 'function'
+        ? (event.currentTarget.closest('[data-testid="smb-artboard"]') as HTMLElement | null)
+        : null;
+    const design =
+      typeof event.currentTarget?.closest === 'function'
+        ? (event.currentTarget.closest('[data-testid="smb-artboard-design"]') as HTMLElement | null)
+        : null;
+
+    const cw = Math.max(
+      1,
+      finiteOr(canvasWidth, finiteOr(artboard?.dataset.width, 1080)),
+    );
+    const ch = Math.max(
+      1,
+      finiteOr(canvasHeight, finiteOr(artboard?.dataset.height, 1080)),
+    );
+
+    // Snapshot scale at pointer-down — avoid reading detached nodes mid-drag after FS remount.
+    let scaleX = 1;
+    let scaleY = 1;
+    try {
+      if (design && design.offsetWidth > 0 && design.offsetHeight > 0) {
+        const rect = design.getBoundingClientRect();
+        const sx = rect.width / design.offsetWidth;
+        const sy = rect.height / design.offsetHeight;
+        if (Number.isFinite(sx) && sx > 0.001) scaleX = sx;
+        if (Number.isFinite(sy) && sy > 0.001) scaleY = sy;
+      } else if (artboard && artboard.clientWidth > 0 && artboard.clientHeight > 0) {
+        const sx = artboard.clientWidth / cw;
+        const sy = artboard.clientHeight / ch;
+        if (Number.isFinite(sx) && sx > 0.001) scaleX = sx;
+        if (Number.isFinite(sy) && sy > 0.001) scaleY = sy;
+      }
+    } catch {
+      scaleX = 1;
+      scaleY = 1;
+    }
 
     const drag: DragState = {
       id: el.id,
       mode,
-      startX: event.clientX,
-      startY: event.clientY,
+      startX: finiteOr(event.clientX, 0),
+      startY: finiteOr(event.clientY, 0),
       origX: finiteOr(el.x, 0),
       origY: finiteOr(el.y, 0),
       origW: Math.max(24, finiteOr(el.width, 100)),
       origH: Math.max(24, finiteOr(el.height, 40)),
+      canvasW: cw,
+      canvasH: ch,
     };
     let dragging = false;
     let alive = true;
 
-    function readScale(): { scaleX: number; scaleY: number } {
-      try {
-        const design = target.closest('[data-testid="smb-artboard-design"]') as HTMLElement | null;
-        if (design && design.offsetWidth > 0 && design.offsetHeight > 0) {
-          const rect = design.getBoundingClientRect();
-          const scaleX = rect.width / design.offsetWidth;
-          const scaleY = rect.height / design.offsetHeight;
-          if (scaleX > 0.001 && scaleY > 0.001) return { scaleX, scaleY };
-        }
-        const artboard = target.closest('[data-testid="smb-artboard"]') as HTMLElement | null;
-        const scaleX = artboard
-          ? artboard.clientWidth / Math.max(1, Number(artboard.dataset.width) || artboard.clientWidth)
-          : 1;
-        const scaleY = artboard
-          ? artboard.clientHeight / Math.max(1, Number(artboard.dataset.height) || artboard.clientHeight)
-          : 1;
-        return {
-          scaleX: scaleX > 0.001 ? scaleX : 1,
-          scaleY: scaleY > 0.001 ? scaleY : 1,
-        };
-      } catch {
-        return { scaleX: 1, scaleY: 1 };
-      }
-    }
-
     function onMove(ev: PointerEvent) {
       if (!alive) return;
-      const dx = ev.clientX - drag.startX;
-      const dy = ev.clientY - drag.startY;
+      const clientX = finiteOr(ev.clientX, drag.startX);
+      const clientY = finiteOr(ev.clientY, drag.startY);
+      const dx = clientX - drag.startX;
+      const dy = clientY - drag.startY;
       if (!dragging && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
       dragging = true;
-      const { scaleX, scaleY } = readScale();
+
       if (drag.mode === 'move') {
-        onPatchElement(drag.id, {
-          x: Math.round(drag.origX + dx / scaleX),
-          y: Math.round(drag.origY + dy / scaleY),
-        } as Partial<SocialElement>);
+        const next = constrainElement(
+          {
+            type: el.type,
+            x: Math.round(drag.origX + dx / scaleX),
+            y: Math.round(drag.origY + dy / scaleY),
+            width: drag.origW,
+            height: drag.origH,
+          },
+          drag.canvasW,
+          drag.canvasH,
+        );
+        onPatchElement(drag.id, sanitizeGeometryPatch({ x: next.x, y: next.y }));
       } else {
-        onPatchElement(drag.id, {
-          width: Math.max(24, Math.round(drag.origW + dx / scaleX)),
-          height: Math.max(24, Math.round(drag.origH + dy / scaleY)),
-        } as Partial<SocialElement>);
+        const rawW = Math.max(24, Math.round(drag.origW + dx / scaleX));
+        const rawH = Math.max(24, Math.round(drag.origH + dy / scaleY));
+        const next = constrainElement(
+          {
+            type: el.type,
+            x: drag.origX,
+            y: drag.origY,
+            width: rawW,
+            height: rawH,
+          },
+          drag.canvasW,
+          drag.canvasH,
+        );
+        onPatchElement(
+          drag.id,
+          sanitizeGeometryPatch({ width: next.width, height: next.height }),
+        );
       }
     }
 
     function onUp() {
       alive = false;
-      // Window-level listeners only — avoid pointer capture APIs.
-      // Capture release throws InvalidStateError after FS/transform re-renders remount nodes.
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
@@ -141,12 +183,14 @@ export function SmbArtboardElements({
     <>
       {sorted.map((el) => {
         const selected = selectedElementId === el.id;
+        const w = Math.max(8, finiteOr(el.width, 100));
+        const h = Math.max(8, finiteOr(el.height, 40));
         const style: CSSProperties = {
           position: 'absolute',
           left: finiteOr(el.x, 0),
           top: finiteOr(el.y, 0),
-          width: Math.max(8, finiteOr(el.width, 100)),
-          height: Math.max(8, finiteOr(el.height, 40)),
+          width: w,
+          height: h,
           zIndex: Math.round(finiteOr(el.zIndex, 1)) + 10,
         };
 
@@ -162,6 +206,7 @@ export function SmbArtboardElements({
                 fontSize,
                 fontWeight: el.fontWeight === 'bold' ? 700 : 400,
                 textAlign: el.align === 'left' || el.align === 'right' ? el.align : 'center',
+                lineHeight: 1.2,
               }}
               data-testid={`smb-el-${el.id}`}
               data-el-type="TEXT"
@@ -179,7 +224,10 @@ export function SmbArtboardElements({
                 <span
                   className="smb-ws__el-resize"
                   data-testid={`smb-el-resize-${el.id}`}
-                  onPointerDown={(e) => beginDrag(e, el, 'resize')}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    beginDrag(e, el, 'resize');
+                  }}
                 />
               ) : null}
             </div>
@@ -220,7 +268,10 @@ export function SmbArtboardElements({
                 <span
                   className="smb-ws__el-resize"
                   data-testid={`smb-el-resize-${el.id}`}
-                  onPointerDown={(e) => beginDrag(e, el, 'resize')}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    beginDrag(e, el, 'resize');
+                  }}
                 />
               ) : null}
             </div>
@@ -253,7 +304,10 @@ export function SmbArtboardElements({
               <span
                 className="smb-ws__el-resize"
                 data-testid={`smb-el-resize-${el.id}`}
-                onPointerDown={(e) => beginDrag(e, el, 'resize')}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  beginDrag(e, el, 'resize');
+                }}
               />
             ) : null}
           </div>

@@ -128,6 +128,15 @@ def _infer_mode(requested: str, posts: list[dict[str, Any]], instruction: str) -
         "gorsel",
         "exterior",
         "kullan",
+        "ferahlat",
+        "premium",
+        "sade",
+        "binayı",
+        "binayi",
+        "gökyüz",
+        "gokyuz",
+        "tek satır",
+        "tek satir",
     )
     if mode == "create" and posts and any(h in instr for h in edit_hints):
         return "edit"

@@ -263,6 +263,12 @@ def validate_op(
                 payload.pop("coverAssetId", None)
                 payload.pop("cover_asset_id", None)
 
+    # Preserve layout-intelligence meta keys from raw payload through validation.
+    raw_for_meta = dict(payload_raw) if isinstance(payload_raw, dict) else {}
+    for hint in ("_layout_resolve", "_compound_resize", "_one_line", "maxLines"):
+        if hint in raw_for_meta and hint not in payload:
+            payload[hint] = raw_for_meta[hint]
+
     if op_name == "SET_FORMAT":
         preset = str(payload.get("formatPreset") or payload.get("format_preset") or "").strip()
         if preset not in FORMAT_PRESETS:
@@ -271,11 +277,26 @@ def validate_op(
 
     if op_name == "ALIGN_ELEMENT":
         mode = str(payload.get("align") or payload.get("mode") or "").strip().lower()
-        if mode not in {"left", "center", "right", "vcenter"}:
+        if mode in {"hcenter", "h-center"}:
+            mode = "center"
+        if mode in {"v-center"}:
+            mode = "vcenter"
+        if mode not in {"left", "center", "right", "vcenter", "safe-area", "safe"}:
             raise OpValidationError("invalid_align_mode")
+        if mode == "safe":
+            mode = "safe-area"
         payload["align"] = mode
 
+    if op_name == "APPLY_LAYOUT_INTENT":
+        intent = str(payload.get("intent") or "").strip().upper()
+        from investhome_api.services.social_design_engine.layout import VISUAL_LAYOUT_VOCAB
+
+        if intent not in VISUAL_LAYOUT_VOCAB:
+            raise OpValidationError("invalid_layout_intent")
+        payload["intent"] = intent
+
     if op_name == "UPDATE_STYLE":
+        raw_payload = dict(payload_raw) if isinstance(payload_raw, dict) else {}
         if "color" in payload:
             payload["color"] = sanitize_color(payload.get("color"), "#ffffff")
         if "backgroundColor" in payload:
@@ -292,6 +313,13 @@ def validate_op(
             if al not in {"left", "center", "right"}:
                 raise OpValidationError("invalid_text_align")
             payload["align"] = al
+        if "maxLines" in payload or "maxLines" in raw_payload:
+            payload["maxLines"] = clamp_int(
+                payload.get("maxLines", raw_payload.get("maxLines")), 1, 12, 3
+            )
+        for hint in ("_layout_resolve", "_compound_resize", "_one_line"):
+            if hint in raw_payload:
+                payload[hint] = bool(raw_payload.get(hint))
 
     if op_name in {"MOVE_ELEMENT", "RESIZE_ELEMENT", "ADD_IMAGE"}:
         assert post is not None or op_name == "CREATE_POST"

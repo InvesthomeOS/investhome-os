@@ -9,10 +9,17 @@ from uuid import UUID
 
 from investhome_api.schemas.social_design_engine import SocialDesignOp
 from investhome_api.services.social_design_engine.layout import (
+    VISUAL_LAYOUT_VOCAB,
+    align_element_geometry,
     apply_layout_grammar,
+    apply_visual_layout_intent,
+    auto_layout_text,
     clamp_safe_geometry,
+    constrain_element,
     layout_cta_element,
     layout_text_element,
+    reflow_for_format,
+    resolve_layout,
     social_layout_slots,
 )
 from investhome_api.services.social_design_engine.ops import (
@@ -66,6 +73,14 @@ def _sync_copy_fields(post: dict[str, Any]) -> None:
         post["caption"] = caption
 
 
+def _strip_layout_meta(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        k: v
+        for k, v in payload.items()
+        if not str(k).startswith("_") and k not in {"maxLines"}
+    }
+
+
 def apply_ops(
     posts: list[dict[str, Any]],
     ops: list[SocialDesignOp],
@@ -76,8 +91,11 @@ def apply_ops(
     """Apply validated ops to a deep-copied draft. Returns (posts, selected_post_id)."""
     working: list[dict[str, Any]] = copy.deepcopy(posts)
     current_selected = selected_post_id
-    # Posts that received structural create/add ops get deterministic layout grammar.
+    # Posts that need deterministic layout resolve (create/add/compound edit/format).
     layout_post_ids: set[str] = set()
+    grammar_post_ids: set[str] = set()
+    text_hints: dict[str, dict[str, dict[str, Any]]] = {}  # post_id -> el_id -> hints
+    visual_intents: dict[str, list[str]] = {}  # post_id -> intents
 
     for op in ops:
         if op.linked_project_id != linked_project_id:
@@ -109,7 +127,7 @@ def apply_ops(
                 }
             )
             current_selected = op.post_id
-            layout_post_ids.add(op.post_id)
+            grammar_post_ids.add(op.post_id)
             continue
 
         post = find_post(working, op.post_id)
@@ -117,28 +135,35 @@ def apply_ops(
             continue
 
         post["linked_project_id"] = str(linked_project_id)
+        payload = dict(op.payload or {})
+
+        if op.op == "APPLY_LAYOUT_INTENT":
+            intent = str(payload.get("intent") or "").upper()
+            if intent in VISUAL_LAYOUT_VOCAB:
+                visual_intents.setdefault(op.post_id, []).append(intent)
+                layout_post_ids.add(op.post_id)
+            continue
 
         if op.op == "SET_FORMAT":
-            preset = str(op.payload.get("formatPreset") or "square")
-            w, h = FORMAT_PRESETS.get(preset, (1080, 1080))
-            post["formatPreset"] = preset
-            post["width"] = w
-            post["height"] = h
+            preset = str(payload.get("formatPreset") or "square")
+            reflow_for_format(post, preset)
             post["format"] = PRESET_TO_FORMAT.get(preset, "feed")
+            grammar_post_ids.add(op.post_id)
+            _sync_copy_fields(post)
             continue
 
         if op.op == "SET_BACKGROUND":
-            asset_id = op.payload.get("asset_id")
+            asset_id = payload.get("asset_id")
             post["coverAssetId"] = str(asset_id) if asset_id else None
             continue
 
         if op.op == "ADD_TEXT":
             cw, ch = canvas_size(post)
-            role = str(op.payload.get("role") or "custom").lower()
+            role = str(payload.get("role") or "custom").lower()
             if role not in {"headline", "body", "custom"}:
                 role = "custom"
             eid = op.element_id or _new_element_id("text")
-            content = sanitize_creative_copy(op.payload.get("content"), max_len=2000)
+            content = sanitize_creative_copy(payload.get("content"), max_len=2000)
             if not content:
                 continue
             draft = {
@@ -146,28 +171,26 @@ def apply_ops(
                 "type": "TEXT",
                 "role": role,
                 "content": content,
-                "fontSize": clamp_int(op.payload.get("fontSize"), 8, 200, 28),
-                "fontWeight": op.payload.get("fontWeight") or ("bold" if role == "headline" else "normal"),
-                "align": op.payload.get("align") or "center",
-                "color": sanitize_color(op.payload.get("color"), "#ffffff"),
-                "zIndex": clamp_int(op.payload.get("zIndex"), 0, 10_000, 2),
-                "x": op.payload.get("x"),
-                "y": op.payload.get("y"),
-                "width": op.payload.get("width"),
-                "height": op.payload.get("height"),
+                "fontSize": clamp_int(payload.get("fontSize"), 8, 200, 28),
+                "fontWeight": payload.get("fontWeight") or ("bold" if role == "headline" else "normal"),
+                "align": payload.get("align") or "center",
+                "color": sanitize_color(payload.get("color"), "#ffffff"),
+                "zIndex": clamp_int(payload.get("zIndex"), 0, 10_000, 2),
+                "x": payload.get("x"),
+                "y": payload.get("y"),
+                "width": payload.get("width"),
+                "height": payload.get("height"),
             }
-            # Prefer role slots when geometry omitted (AI must not invent free pixels).
             slots = social_layout_slots(cw, ch)
             slot = slots.get(role) if role in {"headline", "body"} else None
-            if op.payload.get("x") is None or op.payload.get("y") is None:
+            if payload.get("x") is None or payload.get("y") is None:
                 laid = layout_text_element(draft, canvas_w=cw, canvas_h=ch, slot=slot)
             else:
-                # Explicit edit geometry: clamp + fit text into provided box.
                 geo = clamp_safe_geometry(
-                    x=op.payload.get("x"),
-                    y=op.payload.get("y"),
-                    width=op.payload.get("width", int(cw * 0.84)),
-                    height=op.payload.get("height", 120),
+                    x=payload.get("x"),
+                    y=payload.get("y"),
+                    width=payload.get("width", int(cw * 0.84)),
+                    height=payload.get("height", 120),
                     canvas_w=cw,
                     canvas_h=ch,
                     full_bleed=False,
@@ -185,7 +208,7 @@ def apply_ops(
                     },
                 )
             _ensure_elements(post).append(laid)
-            layout_post_ids.add(op.post_id)
+            grammar_post_ids.add(op.post_id)
             _sync_copy_fields(post)
             continue
 
@@ -193,32 +216,33 @@ def apply_ops(
             cw, ch = canvas_size(post)
             box = min(cw, ch) // 3
             geo = clamp_safe_geometry(
-                x=op.payload.get("x", (cw - box) // 2),
-                y=op.payload.get("y", (ch - box) // 2),
-                width=op.payload.get("width", box),
-                height=op.payload.get("height", box),
+                x=payload.get("x", (cw - box) // 2),
+                y=payload.get("y", (ch - box) // 2),
+                width=payload.get("width", box),
+                height=payload.get("height", box),
                 canvas_w=cw,
                 canvas_h=ch,
                 full_bleed=True,
             )
             eid = op.element_id or _new_element_id("img")
-            asset_id = op.payload.get("asset_id")
+            asset_id = payload.get("asset_id")
             _ensure_elements(post).append(
                 {
                     "id": eid,
                     "type": "IMAGE",
                     "assetId": str(asset_id) if asset_id else None,
-                    "zIndex": clamp_int(op.payload.get("zIndex"), 0, 10_000, 1),
+                    "zIndex": clamp_int(payload.get("zIndex"), 0, 10_000, 1),
                     **geo,
                 }
             )
+            layout_post_ids.add(op.post_id)
             continue
 
         if op.op == "ADD_CTA":
             cw, ch = canvas_size(post)
             eid = op.element_id or _new_element_id("cta")
             label = sanitize_creative_copy(
-                op.payload.get("label") or "Learn more",
+                payload.get("label") or "Learn more",
                 fallback="Learn more",
                 max_len=80,
             )
@@ -226,32 +250,32 @@ def apply_ops(
                 "id": eid,
                 "type": "BUTTON",
                 "label": label or "Learn more",
-                "backgroundColor": sanitize_color(
-                    op.payload.get("backgroundColor"), "#ffffff"
-                ),
-                "textColor": sanitize_color(op.payload.get("textColor"), "#111827"),
-                "zIndex": clamp_int(op.payload.get("zIndex"), 0, 10_000, 4),
-                "x": op.payload.get("x"),
-                "y": op.payload.get("y"),
-                "width": op.payload.get("width"),
-                "height": op.payload.get("height"),
+                "backgroundColor": sanitize_color(payload.get("backgroundColor"), "#ffffff"),
+                "textColor": sanitize_color(payload.get("textColor"), "#111827"),
+                "zIndex": clamp_int(payload.get("zIndex"), 0, 10_000, 4),
+                "x": payload.get("x"),
+                "y": payload.get("y"),
+                "width": payload.get("width"),
+                "height": payload.get("height"),
             }
-            if op.payload.get("x") is None or op.payload.get("y") is None:
+            if payload.get("x") is None or payload.get("y") is None:
                 laid = layout_cta_element(draft, canvas_w=cw, canvas_h=ch)
             else:
-                geo = clamp_safe_geometry(
-                    x=op.payload.get("x"),
-                    y=op.payload.get("y"),
-                    width=op.payload.get("width", min(cw, max(160, int(cw * 0.38)))),
-                    height=op.payload.get("height", max(36, int(ch * 0.045))),
+                geo = constrain_element(
+                    {
+                        **draft,
+                        "x": payload.get("x"),
+                        "y": payload.get("y"),
+                        "width": payload.get("width", min(cw, max(160, int(cw * 0.38)))),
+                        "height": payload.get("height", max(36, int(ch * 0.045))),
+                    },
                     canvas_w=cw,
                     canvas_h=ch,
-                    full_bleed=False,
                 )
                 draft.update(geo)
                 laid = draft
             _ensure_elements(post).append(laid)
-            layout_post_ids.add(op.post_id)
+            grammar_post_ids.add(op.post_id)
             continue
 
         if op.op == "DELETE_ELEMENT" and op.element_id:
@@ -261,129 +285,154 @@ def apply_ops(
                 for el in elements
                 if not (isinstance(el, dict) and str(el.get("id") or "") == op.element_id)
             ]
+            layout_post_ids.add(op.post_id)
             _sync_copy_fields(post)
             continue
 
+        # APPLY_LAYOUT_INTENT already handled; element-required ops below
         el = find_element(post, op.element_id or "") if op.element_id else None
-        if el is None:
+        if el is None and op.op not in {"SET_BACKGROUND", "SET_FORMAT", "CREATE_POST", "APPLY_LAYOUT_INTENT"}:
             continue
 
-        if op.op == "UPDATE_TEXT":
-            if "content" in op.payload:
-                content = sanitize_creative_copy(op.payload.get("content"), max_len=2000)
+        if op.op == "UPDATE_TEXT" and el is not None:
+            if "content" in payload:
+                content = sanitize_creative_copy(payload.get("content"), max_len=2000)
                 if not content:
                     continue
                 el["content"] = content
-            if "role" in op.payload:
-                el["role"] = op.payload["role"]
-            # Style fields may arrive on UPDATE_TEXT (e.g. "shrink headline") — apply when present.
-            if "fontSize" in op.payload:
-                el["fontSize"] = clamp_int(op.payload.get("fontSize"), 8, 200, el.get("fontSize") or 28)
-            if "fontWeight" in op.payload:
+            if "role" in payload:
+                el["role"] = payload["role"]
+            if "fontSize" in payload:
+                el["fontSize"] = clamp_int(payload.get("fontSize"), 8, 200, el.get("fontSize") or 28)
+            if "fontWeight" in payload:
                 el["fontWeight"] = (
-                    "bold" if str(op.payload.get("fontWeight") or "").lower() == "bold" else "normal"
+                    "bold" if str(payload.get("fontWeight") or "").lower() == "bold" else "normal"
                 )
-            if "align" in op.payload:
-                al = str(op.payload.get("align") or "").lower()
+            if "align" in payload:
+                al = str(payload.get("align") or "").lower()
                 if al in {"left", "center", "right"}:
                     el["align"] = al
-            if "color" in op.payload:
-                el["color"] = sanitize_color(op.payload.get("color"), el.get("color") or "#ffffff")
+            if "color" in payload:
+                el["color"] = sanitize_color(payload.get("color"), el.get("color") or "#ffffff")
+            # Refit box after content/style change — no silent clip
+            cw, ch = canvas_size(post)
+            fitted = auto_layout_text(
+                el,
+                canvas_w=cw,
+                canvas_h=ch,
+                preferred_font=int(el.get("fontSize") or 28),
+                max_lines=int(payload["maxLines"]) if payload.get("maxLines") else None,
+            )
+            el.update(fitted)
+            layout_post_ids.add(op.post_id)
             _sync_copy_fields(post)
             continue
 
-        if op.op == "UPDATE_CTA":
+        if op.op == "UPDATE_CTA" and el is not None:
             if el.get("type") not in {"BUTTON", "CTA"}:
                 continue
-            if "label" in op.payload:
+            if "label" in payload:
                 label = sanitize_creative_copy(
-                    op.payload.get("label") or "",
+                    payload.get("label") or "",
                     fallback=str(el.get("label") or "Learn more"),
                     max_len=80,
                 )
                 if label:
                     el["label"] = label
-            if "backgroundColor" in op.payload:
-                el["backgroundColor"] = sanitize_color(op.payload.get("backgroundColor"))
-            if "textColor" in op.payload:
-                el["textColor"] = sanitize_color(op.payload.get("textColor"), "#111827")
+            if "backgroundColor" in payload:
+                el["backgroundColor"] = sanitize_color(payload.get("backgroundColor"))
+            if "textColor" in payload:
+                el["textColor"] = sanitize_color(payload.get("textColor"), "#111827")
+            layout_post_ids.add(op.post_id)
             continue
 
-        if op.op == "REPLACE_IMAGE":
+        if op.op == "REPLACE_IMAGE" and el is not None:
             if el.get("type") != "IMAGE":
-                # Allow SET_BACKGROUND-like replacement when targeting cover via REPLACE on IMAGE only
                 continue
-            asset_id = op.payload.get("asset_id")
+            asset_id = payload.get("asset_id")
             el["assetId"] = str(asset_id) if asset_id else None
             continue
 
-        if op.op == "MOVE_ELEMENT":
+        if op.op == "MOVE_ELEMENT" and el is not None:
             cw, ch = canvas_size(post)
-            full_bleed = el.get("type") == "IMAGE"
-            if el.get("type") in {"BUTTON", "CTA"}:
-                pad = 24
-                w = clamp_int(el.get("width"), 8, cw - pad * 2, 100)
-                h = clamp_int(el.get("height"), 8, ch - pad * 2, 40)
-                el["x"] = clamp_int(op.payload.get("x", el.get("x", 0)), pad, max(pad, cw - w - pad), pad)
-                el["y"] = clamp_int(op.payload.get("y", el.get("y", 0)), pad, max(pad, ch - h - pad), pad)
-            else:
-                geo = clamp_safe_geometry(
-                    x=op.payload.get("x", el.get("x", 0)),
-                    y=op.payload.get("y", el.get("y", 0)),
-                    width=el.get("width", 100),
-                    height=el.get("height", 40),
+            moved = {
+                **el,
+                "x": payload.get("x", el.get("x", 0)),
+                "y": payload.get("y", el.get("y", 0)),
+            }
+            geo = constrain_element(moved, canvas_w=cw, canvas_h=ch)
+            el["x"] = geo["x"]
+            el["y"] = geo["y"]
+            if payload.get("_layout_resolve"):
+                layout_post_ids.add(op.post_id)
+            continue
+
+        if op.op == "RESIZE_ELEMENT" and el is not None:
+            cw, ch = canvas_size(post)
+            resized = {
+                **el,
+                "width": payload.get("width", el.get("width", 100)),
+                "height": payload.get("height", el.get("height", 40)),
+            }
+            geo = constrain_element(resized, canvas_w=cw, canvas_h=ch)
+            el.update(geo)
+            if el.get("type") == "TEXT":
+                fitted = auto_layout_text(
+                    el,
                     canvas_w=cw,
                     canvas_h=ch,
-                    full_bleed=full_bleed,
+                    preferred_font=int(el.get("fontSize") or 28),
+                    allow_grow_width=False,
+                    max_width=geo["width"],
+                    max_height=geo["height"],
                 )
-                el["x"] = geo["x"]
-                el["y"] = geo["y"]
+                # Keep user-requested box; shrink font if needed to avoid clip
+                el["fontSize"] = fitted["fontSize"]
+                el["width"] = geo["width"]
+                el["height"] = max(geo["height"], fitted["height"]) if fitted["height"] > geo["height"] else geo["height"]
+                # If font had to shrink and height still overflows, use fitted height clamped
+                el.update(constrain_element(el, canvas_w=cw, canvas_h=ch))
+            layout_post_ids.add(op.post_id)
             continue
 
-        if op.op == "RESIZE_ELEMENT":
+        if op.op == "ALIGN_ELEMENT" and el is not None:
             cw, ch = canvas_size(post)
-            full_bleed = el.get("type") == "IMAGE"
-            geo = clamp_safe_geometry(
-                x=el.get("x", 0),
-                y=el.get("y", 0),
-                width=op.payload.get("width", el.get("width", 100)),
-                height=op.payload.get("height", el.get("height", 40)),
-                canvas_w=cw,
-                canvas_h=ch,
-                full_bleed=full_bleed,
-            )
-            el.update(geo)
+            mode = str(payload.get("align") or "center")
+            aligned = align_element_geometry(el, mode, canvas_w=cw, canvas_h=ch)
+            el.update(aligned)
+            layout_post_ids.add(op.post_id)
             continue
 
-        if op.op == "ALIGN_ELEMENT":
-            cw, ch = canvas_size(post)
-            mode = str(op.payload.get("align") or "center")
-            w = clamp_int(el.get("width"), 8, cw, 100)
-            h = clamp_int(el.get("height"), 8, ch, 40)
-            if mode == "left":
-                el["x"] = 0
-                if el.get("type") == "TEXT":
-                    el["align"] = "left"
-            elif mode == "right":
-                el["x"] = max(0, cw - w)
-                if el.get("type") == "TEXT":
-                    el["align"] = "right"
-            elif mode == "center":
-                el["x"] = max(0, (cw - w) // 2)
-                if el.get("type") == "TEXT":
-                    el["align"] = "center"
-            elif mode == "vcenter":
-                el["y"] = max(0, (ch - h) // 2)
-            continue
-
-        if op.op == "UPDATE_STYLE":
+        if op.op == "UPDATE_STYLE" and el is not None:
+            clean = _strip_layout_meta(payload)
             for key in ("color", "backgroundColor", "textColor", "fontSize", "fontWeight", "align"):
-                if key in op.payload:
-                    el[key] = op.payload[key]
+                if key in clean:
+                    el[key] = clean[key]
+            if "fontSize" in clean or payload.get("_compound_resize") or payload.get("_one_line"):
+                cw, ch = canvas_size(post)
+                preferred = clamp_int(el.get("fontSize"), 8, 200, 28)
+                max_lines = int(payload["maxLines"]) if payload.get("maxLines") else None
+                if payload.get("_one_line"):
+                    max_lines = 1
+                fitted = auto_layout_text(
+                    el,
+                    canvas_w=cw,
+                    canvas_h=ch,
+                    preferred_font=preferred,
+                    max_lines=max_lines,
+                    allow_grow_width=True,
+                    allow_grow_height=True,
+                )
+                el.update(fitted)
+                text_hints.setdefault(op.post_id, {})[str(el.get("id"))] = {
+                    "preferred_font": preferred,
+                    "max_lines": max_lines,
+                }
+                layout_post_ids.add(op.post_id)
             continue
 
-        if op.op == "SET_Z_INDEX":
-            el["zIndex"] = clamp_int(op.payload.get("zIndex"), 0, 10_000, 1)
+        if op.op == "SET_Z_INDEX" and el is not None:
+            el["zIndex"] = clamp_int(payload.get("zIndex"), 0, 10_000, 1)
             continue
 
     if current_selected and find_post(working, current_selected) is None:
@@ -391,11 +440,21 @@ def apply_ops(
     elif current_selected is None and working:
         current_selected = str(working[0]["id"])
 
-    # Deterministic grammar: safe stacking + text fit for create/add batches.
+    # Compound resolve for edits first, then visual vocab so subject/sky placement wins.
     for post in working:
         pid = str(post.get("id") or "")
-        if pid in layout_post_ids:
+        if pid in grammar_post_ids:
             apply_layout_grammar(post)
+            _sync_copy_fields(post)
+        elif pid in layout_post_ids and pid not in visual_intents:
+            resolve_layout(post, refit_text=True, text_hints=text_hints.get(pid))
+            _sync_copy_fields(post)
+        elif pid in layout_post_ids:
+            # Resolve collisions/fonts, then apply validated visual language on top.
+            resolve_layout(post, refit_text=True, text_hints=text_hints.get(pid))
+            for intent in visual_intents.get(pid, []):
+                apply_visual_layout_intent(post, intent)
+            resolve_layout(post, refit_text=False)
             _sync_copy_fields(post)
 
     return working, current_selected

@@ -60,6 +60,17 @@ const EDIT_HINTS = [
   'bulut',
   'exterior',
   'kullan',
+  'ferahlat',
+  'premium',
+  'sade',
+  'binayı',
+  'binayi',
+  'gökyüz',
+  'gokyuz',
+  'tek satır',
+  'tek satir',
+  'büyük',
+  'buyuk',
 ];
 
 export type DesignGenerationMeta = SocialGenerationMeta & {

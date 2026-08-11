@@ -497,8 +497,6 @@ function ContentDrawer({
           onChange={(e) => {
             const next = e.target.value as FormatPresetKey;
             setFormatPreset(next);
-            const dims = FORMAT_PRESETS.find((f) => f.key === next)!;
-            patchPost({ formatPreset: next, width: dims.width, height: dims.height });
             markDirty();
           }}
           data-testid="smb-content-size"

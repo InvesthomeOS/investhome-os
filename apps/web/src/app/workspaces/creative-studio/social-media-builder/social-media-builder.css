@@ -4310,6 +4310,9 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
   overflow: hidden;
 }
+.smb-ws__el--text.is-selected {
+  overflow: visible;
+}
 .smb-ws__el--button {
   display: inline-flex;
   align-items: center;

@@ -50,6 +50,11 @@ import {
   sendElementBackward,
   type SocialElement,
 } from './social-media-builder-elements';
+import {
+  applyElementPatch,
+  reflowElementsForFormat,
+  sanitizeGeometryPatch,
+} from './social-media-builder-layout';
 import { defaultSocialInstruction } from './social-media-builder-generation';
 import {
   applyDesignResponseToPosts,
@@ -483,12 +488,28 @@ export function SocialMediaBuilderWorkspace() {
   }
 
   function patchElement(elementId: string, patch: Partial<SocialElement>) {
-    updateSelectedPost((p) => ({
-      ...p,
-      elements: p.elements.map((el) =>
-        el.id === elementId ? ({ ...el, ...patch } as SocialElement) : el,
-      ),
-    }));
+    const clean = sanitizeGeometryPatch(patch);
+    updateSelectedPost((p) => {
+      const current = p.elements.find((el) => el.id === elementId);
+      if (!current) return p;
+      const w = Math.max(1, p.width || contentSize.w);
+      const h = Math.max(1, p.height || contentSize.h);
+      const refitText =
+        current.type === 'TEXT' &&
+        ('fontSize' in clean || 'content' in clean) &&
+        !('width' in clean && 'height' in clean);
+      const result = applyElementPatch(current, clean, w, h, {
+        refitText,
+        resolveAll:
+          refitText || 'width' in clean || 'height' in clean || 'y' in clean || 'x' in clean
+            ? p.elements
+            : undefined,
+      });
+      return {
+        ...p,
+        elements: result.elements ?? p.elements.map((el) => (el.id === elementId ? result.element : el)),
+      };
+    });
   }
 
   function replaceElements(elements: SocialElement[]) {
@@ -521,7 +542,13 @@ export function SocialMediaBuilderWorkspace() {
   function handleFormatChange(key: FormatPresetKey) {
     setFormatPreset(key);
     const size = resolveFormatSize(key);
-    patchPost({ formatPreset: key, width: size.w, height: size.h });
+    updateSelectedPost((p) => ({
+      ...p,
+      formatPreset: key,
+      width: size.w,
+      height: size.h,
+      elements: reflowElementsForFormat(p.elements, size.w, size.h),
+    }));
   }
 
   function addPost() {
@@ -596,7 +623,7 @@ export function SocialMediaBuilderWorkspace() {
         showToast(t('toasts.selectElement'));
         return;
       }
-      const clone = duplicateElement(selectedElement);
+      const clone = duplicateElement(selectedElement, contentSize.w, contentSize.h);
       addElement(clone);
       showToast(t('floating.copy'));
       return;
@@ -1373,6 +1400,8 @@ export function SocialMediaBuilderWorkspace() {
                         imageUrlsByAssetId={elementDisplayUrls}
                         canvasLocked={canvasLocked}
                         previewMode={previewMode}
+                        canvasWidth={contentSize.w}
+                        canvasHeight={contentSize.h}
                         onSelect={selectElement}
                         onPatchElement={(id, patch) => patchElement(id, patch)}
                       />

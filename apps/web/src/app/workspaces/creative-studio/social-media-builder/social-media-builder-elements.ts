@@ -1,3 +1,9 @@
+import {
+  alignElementConstrained,
+  constrainElement,
+  type AlignMode,
+} from './social-media-builder-layout';
+
 /**
  * Persistent Social Media Builder canvas elements (TEXT | IMAGE | BUTTON).
  * Coordinates are absolute pixels in the post's format size.
@@ -168,14 +174,15 @@ export function createImageElement(
   };
 }
 
-export function duplicateElement(el: SocialElement): SocialElement {
-  return {
+export function duplicateElement(el: SocialElement, canvasW = 1080, canvasH = 1080): SocialElement {
+  const clone: SocialElement = {
     ...el,
     id: nextElementId('copy'),
     x: el.x + 24,
     y: el.y + 24,
     zIndex: el.zIndex + 1,
   };
+  return { ...clone, ...constrainElement(clone, canvasW, canvasH) };
 }
 
 export function sortElementsByZ(elements: SocialElement[]): SocialElement[] {
@@ -214,29 +221,11 @@ export function sendElementBackward(
 
 export function alignElement(
   el: SocialElement,
-  mode: 'left' | 'center' | 'right' | 'vcenter',
+  mode: AlignMode,
   artboardW: number,
   artboardH: number,
 ): SocialElement {
-  if (mode === 'left') {
-    const next = { ...el, x: 0 };
-    if (next.type === 'TEXT') next.align = 'left';
-    return next;
-  }
-  if (mode === 'right') {
-    const next = { ...el, x: Math.max(0, artboardW - el.width) };
-    if (next.type === 'TEXT') next.align = 'right';
-    return next;
-  }
-  if (mode === 'center') {
-    const next = { ...el, x: Math.max(0, Math.round((artboardW - el.width) / 2)) };
-    if (next.type === 'TEXT') next.align = 'center';
-    return next;
-  }
-  return {
-    ...el,
-    y: Math.max(0, Math.round((artboardH - el.height) / 2)),
-  };
+  return alignElementConstrained(el, mode, artboardW, artboardH);
 }
 
 export function headlineFromElements(elements: SocialElement[]): string {
