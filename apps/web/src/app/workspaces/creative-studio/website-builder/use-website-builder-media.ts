@@ -15,6 +15,7 @@ import {
   mapMediaAssetToWbAsset,
 } from './website-builder-media';
 import type { WbAsset } from './website-builder-model';
+import { withCsMediaContentLimit } from '../_components/cs-media-content-queue';
 
 export type WbMediaStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -64,7 +65,7 @@ export function useWebsiteBuilderMedia(options?: {
   const uploadLockRef = useRef(false);
   const mountedRef = useRef(true);
   const rawByIdRef = useRef<Map<string, CreativeStudioMediaAsset>>(new Map());
-  const warmThumbsRef = useRef<(ids: string[]) => void>(() => {});
+  const listAbortRef = useRef<AbortController | null>(null);
   const linkedProjectIdRef = useRef(linkedProjectId);
   linkedProjectIdRef.current = linkedProjectId;
 
@@ -81,6 +82,7 @@ export function useWebsiteBuilderMedia(options?: {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      listAbortRef.current?.abort();
       revokeAll();
     };
   }, [revokeAll]);
@@ -93,7 +95,7 @@ export function useWebsiteBuilderMedia(options?: {
     const inflight = inflightBlobRef.current.get(assetId);
     if (inflight) return inflight;
 
-    const promise = (async () => {
+    const promise = withCsMediaContentLimit(async () => {
       try {
         const blob = await fetchCreativeStudioMediaBlob(assetId);
         if (!mountedRef.current) return null;
@@ -102,28 +104,20 @@ export function useWebsiteBuilderMedia(options?: {
         blobCacheRef.current.set(assetId, url);
         if (prev && prev !== url) URL.revokeObjectURL(prev);
         setDisplayUrls((prevMap) => ({ ...prevMap, [assetId]: url }));
+        setAssets((prev) =>
+          prev.map((card) => (card.id === assetId ? { ...card, thumbUrl: url } : card)),
+        );
         return url;
       } catch {
         return null;
       } finally {
         inflightBlobRef.current.delete(assetId);
       }
-    })();
+    });
 
     inflightBlobRef.current.set(assetId, promise);
     return promise;
   }, []);
-
-  warmThumbsRef.current = (ids: string[]) => {
-    for (const id of ids) {
-      void ensureDisplayUrl(id).then((url) => {
-        if (!url || !mountedRef.current) return;
-        setAssets((prev) =>
-          prev.map((card) => (card.id === id ? { ...card, thumbUrl: url } : card)),
-        );
-      });
-    }
-  };
 
   const applyList = useCallback((items: CreativeStudioMediaAsset[]) => {
     // Archived stay out of builder pickers. MISSING remain visible but are not selectable
@@ -139,22 +133,13 @@ export function useWebsiteBuilderMedia(options?: {
     rawByIdRef.current = new Map(visible.map((a) => [a.id, a]));
     setRawAssets(visible);
     // Empty Media Library = empty picker (no demo/sample fallback assets).
+    // Do NOT warm Drive /content for every listed image — thumbs load on demand
+    // via ensureDisplayUrl after document bootstrap (preview / apply / visible card).
     setAssets(
       visible.map((asset) =>
         mapMediaAssetToWbAsset(asset, blobCacheRef.current.get(asset.id) ?? null),
       ),
     );
-
-    const imageIds = visible
-      .filter(
-        (a) =>
-          a.content_type?.startsWith('image/') &&
-          isMediaAssetUuid(a.id) &&
-          String(a.sync_status || '').toLowerCase() !== 'missing' &&
-          String(a.sync_status || '').toLowerCase() !== 'error',
-      )
-      .map((a) => a.id);
-    warmThumbsRef.current(imageIds);
   }, []);
 
   const getCachedDisplayUrl = useCallback((assetId: string) => {
@@ -178,6 +163,10 @@ export function useWebsiteBuilderMedia(options?: {
         return;
       }
 
+      listAbortRef.current?.abort();
+      const abort = new AbortController();
+      listAbortRef.current = abort;
+
       const run = async () => {
         setStatus('loading');
         setError(null);
@@ -190,11 +179,15 @@ export function useWebsiteBuilderMedia(options?: {
           const response = q
             ? await searchCreativeStudioMediaAssets({ q, ...listParams })
             : await listCreativeStudioMediaAssets(listParams);
-          if (gen !== listGenRef.current || !mountedRef.current) return;
+          if (abort.signal.aborted || gen !== listGenRef.current || !mountedRef.current) {
+            return;
+          }
           applyList(response.items ?? []);
           setStatus('ready');
         } catch (err) {
-          if (gen !== listGenRef.current || !mountedRef.current) return;
+          if (abort.signal.aborted || gen !== listGenRef.current || !mountedRef.current) {
+            return;
+          }
           const message = err instanceof Error ? err.message : 'Media library load failed';
           setError(message);
           setStatus('error');
@@ -272,6 +265,7 @@ export function useWebsiteBuilderMedia(options?: {
   useEffect(() => {
     if (!enabled || !linkedProjectId) {
       listGenRef.current += 1;
+      listAbortRef.current?.abort();
       listInflightKeyRef.current = null;
       listInflightPromiseRef.current = null;
       rawByIdRef.current = new Map();

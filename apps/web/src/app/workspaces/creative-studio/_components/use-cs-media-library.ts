@@ -16,6 +16,7 @@ import {
 } from '@/lib/api/creative-studio';
 
 import { isMediaAssetUuid } from './cs-image-ref';
+import { withCsMediaContentLimit } from './cs-media-content-queue';
 import {
   getAssetSelectability,
   shouldShowInBuilderPicker,
@@ -143,7 +144,7 @@ export function useCsMediaLibrary(options?: {
   const uploadLockRef = useRef(false);
   const mountedRef = useRef(true);
   const rawByIdRef = useRef<Map<string, CreativeStudioMediaAsset>>(new Map());
-  const warmThumbsRef = useRef<(ids: string[]) => void>(() => {});
+  const listAbortRef = useRef<AbortController | null>(null);
 
   const revokeAll = useCallback(() => {
     for (const url of blobCacheRef.current.values()) {
@@ -158,6 +159,7 @@ export function useCsMediaLibrary(options?: {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      listAbortRef.current?.abort();
       revokeAll();
     };
   }, [revokeAll]);
@@ -170,7 +172,7 @@ export function useCsMediaLibrary(options?: {
     const inflight = inflightBlobRef.current.get(assetId);
     if (inflight) return inflight;
 
-    const promise = (async () => {
+    const promise = withCsMediaContentLimit(async () => {
       try {
         const scopeId = scopeToLinkedProjectRef.current
           ? linkedProjectIdRef.current
@@ -184,28 +186,20 @@ export function useCsMediaLibrary(options?: {
         blobCacheRef.current.set(assetId, url);
         if (prev && prev !== url) URL.revokeObjectURL(prev);
         setDisplayUrls((prevMap) => ({ ...prevMap, [assetId]: url }));
+        setItems((prev) =>
+          prev.map((card) => (card.id === assetId ? { ...card, thumbUrl: url } : card)),
+        );
         return url;
       } catch {
         return null;
       } finally {
         inflightBlobRef.current.delete(assetId);
       }
-    })();
+    });
 
     inflightBlobRef.current.set(assetId, promise);
     return promise;
   }, []);
-
-  warmThumbsRef.current = (ids: string[]) => {
-    for (const id of ids) {
-      void ensureDisplayUrl(id).then((url) => {
-        if (!url || !mountedRef.current) return;
-        setItems((prev) =>
-          prev.map((card) => (card.id === id ? { ...card, thumbUrl: url } : card)),
-        );
-      });
-    }
-  };
 
   const applyList = useCallback(
     (list: CreativeStudioMediaAsset[]) => {
@@ -225,22 +219,13 @@ export function useCsMediaLibrary(options?: {
       rawByIdRef.current = new Map(visible.map((a) => [a.id, a]));
       setRawAssets(visible);
       // Empty Media Library = empty picker (no demo/sample fallback assets).
+      // Do NOT warm Drive /content here — thumbs load lazily via ensureDisplayUrl
+      // (picker visibility / selected cover) after document bootstrap.
       setItems(
         visible.map((asset) =>
           mapToPickerItem(asset, blobCacheRef.current.get(asset.id) ?? null),
         ),
       );
-
-      const warmIds = visible
-        .filter(
-          (a) =>
-            a.content_type?.startsWith('image/') &&
-            isMediaAssetUuid(a.id) &&
-            getAssetSelectability(a).selectable,
-        )
-        .map((a) => a.id)
-        .slice(0, 24);
-      warmThumbsRef.current(warmIds);
     },
     [imagesOnly],
   );
@@ -269,6 +254,10 @@ export function useCsMediaLibrary(options?: {
         return;
       }
 
+      listAbortRef.current?.abort();
+      const abort = new AbortController();
+      listAbortRef.current = abort;
+
       const run = async () => {
         setStatus('loading');
         setError(null);
@@ -283,11 +272,15 @@ export function useCsMediaLibrary(options?: {
           const response = q
             ? await searchCreativeStudioMediaAssets({ q, ...listParams })
             : await listCreativeStudioMediaAssets(listParams);
-          if (gen !== listGenRef.current || !mountedRef.current) return;
+          if (abort.signal.aborted || gen !== listGenRef.current || !mountedRef.current) {
+            return;
+          }
           applyList(response.items ?? []);
           setStatus('ready');
         } catch (err) {
-          if (gen !== listGenRef.current || !mountedRef.current) return;
+          if (abort.signal.aborted || gen !== listGenRef.current || !mountedRef.current) {
+            return;
+          }
           const message = err instanceof Error ? err.message : 'Media library load failed';
           setError(message);
           setStatus('error');
@@ -371,6 +364,7 @@ export function useCsMediaLibrary(options?: {
     if (!scopeToLinkedProject) return;
     if (!enabled || !linkedProjectId) {
       listGenRef.current += 1;
+      listAbortRef.current?.abort();
       listInflightKeyRef.current = null;
       listInflightPromiseRef.current = null;
       rawByIdRef.current = new Map();

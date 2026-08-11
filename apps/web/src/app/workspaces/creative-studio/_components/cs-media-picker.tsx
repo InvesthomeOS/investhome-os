@@ -98,6 +98,60 @@ function filterItems(
   return next;
 }
 
+/** Lazy Drive /content thumb — only when the card enters the viewport. */
+function CsMediaPickerThumb({
+  item,
+  ensureDisplayUrl,
+}: {
+  item: CsMediaPickerItem;
+  ensureDisplayUrl: (assetId: string) => Promise<string | null>;
+}) {
+  const rootRef = useRef<HTMLSpanElement>(null);
+  const [src, setSrc] = useState(item.thumbUrl ?? null);
+
+  useEffect(() => {
+    setSrc(item.thumbUrl ?? null);
+  }, [item.thumbUrl, item.id]);
+
+  useEffect(() => {
+    if (src || !item.contentType?.startsWith('image/')) return;
+    const node = rootRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') {
+      void ensureDisplayUrl(item.id).then((url) => {
+        if (url) setSrc(url);
+      });
+      return;
+    }
+    let cancelled = false;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        observer.disconnect();
+        void ensureDisplayUrl(item.id).then((url) => {
+          if (!cancelled && url) setSrc(url);
+        });
+      },
+      { rootMargin: '80px' },
+    );
+    observer.observe(node);
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
+  }, [ensureDisplayUrl, item.contentType, item.id, src]);
+
+  return (
+    <span ref={rootRef} className="cs-media-picker__thumb">
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt="" loading="lazy" />
+      ) : (
+        <IhIcon name="inventory" size={20} />
+      )}
+    </span>
+  );
+}
+
 export function CsMediaPicker({
   media,
   variant = 'panel',
@@ -171,6 +225,15 @@ export function CsMediaPicker({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- debounce query only
   }, [query]);
+
+  // On-demand preview pane thumb (not mass list warm).
+  useEffect(() => {
+    if (!previewId) return;
+    const item = media.items.find((i) => i.id === previewId);
+    if (!item || item.thumbUrl) return;
+    if (!item.contentType?.startsWith('image/')) return;
+    void media.ensureDisplayUrl(previewId);
+  }, [media.ensureDisplayUrl, media.items, previewId]);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -369,14 +432,7 @@ export function CsMediaPicker({
                   if (!disabled) trySelect(item);
                 }}
               >
-                <span className="cs-media-picker__thumb">
-                  {item.thumbUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.thumbUrl} alt="" loading="lazy" />
-                  ) : (
-                    <IhIcon name="inventory" size={20} />
-                  )}
-                </span>
+                <CsMediaPickerThumb item={item} ensureDisplayUrl={media.ensureDisplayUrl} />
                 <span className="cs-media-picker__card-meta">
                   <strong>{item.name}</strong>
                   <span>{item.meta}</span>
@@ -399,9 +455,9 @@ export function CsMediaPicker({
           <aside className="cs-media-picker__preview" data-testid={`${testId}-preview`}>
             <p className="cs-media-picker__section-label">{labels.preview}</p>
             <div className="cs-media-picker__preview-frame">
-              {preview.thumbUrl ? (
+              {preview.thumbUrl || media.displayUrls[preview.id] ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={preview.thumbUrl} alt="" />
+                <img src={preview.thumbUrl || media.displayUrls[preview.id]} alt="" />
               ) : (
                 <IhIcon name="inventory" size={28} />
               )}

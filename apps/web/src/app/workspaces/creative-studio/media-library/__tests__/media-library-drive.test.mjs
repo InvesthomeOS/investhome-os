@@ -193,9 +193,14 @@ describe('13. existing Media Library selection still works', () => {
 describe('builder safety + i18n', () => {
   it('shows MISSING in Website Builder lists but blocks apply (Sprint 4)', () => {
     assert.match(wbMediaHook, /!a\.archived_at/);
-    assert.match(wbMediaHook, /sync_status/);
-    // Warm thumbs skip missing; workspace apply path blocks selection.
-    assert.match(wbMediaHook, /!== 'missing'/);
+    assert.match(wbMediaHook, /Do NOT warm Drive \/content/);
+    assert.doesNotMatch(wbMediaHook, /warmThumbsRef/);
+    const wbMediaHelpers = readRel(
+      webSrc,
+      'app/workspaces/creative-studio/website-builder/website-builder-media.ts',
+    );
+    assert.match(wbMediaHelpers, /canApplyMediaAsset/);
+    assert.match(wbMediaHelpers, /isActiveSelectableAsset/);
     const wbWorkspace = readRel(
       webSrc,
       'app/workspaces/creative-studio/website-builder/website-builder-workspace.tsx',

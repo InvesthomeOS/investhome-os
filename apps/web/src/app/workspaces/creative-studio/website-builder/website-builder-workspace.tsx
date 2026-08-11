@@ -195,7 +195,8 @@ export function WebsiteBuilderWorkspace() {
   const docApi = useWebsiteBuilderDocument();
   const mediaApi = useWebsiteBuilderMedia({
     linkedProjectId: docApi.constructionProjectId,
-    enabled: Boolean(docApi.constructionProjectId),
+    // constructionProjectId is set only after Document API bootstrap completes.
+    enabled: Boolean(docApi.constructionProjectId) && docApi.loadStatus === 'ready',
   });
   const { ensureDisplayUrl, search: searchMedia, refresh: refreshMedia } = mediaApi;
   const contentDefaultsAppliedRef = useRef(false);
@@ -842,8 +843,9 @@ export function WebsiteBuilderWorkspace() {
     return () => window.clearInterval(id);
   }, [hydrated, galleryUrls.length]);
 
-  // Resolve auth-gated Media Library blobs for hero / gallery refs.
+  // Resolve auth-gated Media Library blobs for hero / gallery refs — only after hydrate.
   useEffect(() => {
+    if (!hydrated) return;
     let cancelled = false;
     void (async () => {
       const assetId = heroImage?.asset_id;
@@ -857,9 +859,10 @@ export function WebsiteBuilderWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [heroImage?.asset_id, ensureDisplayUrl]);
+  }, [hydrated, heroImage?.asset_id, ensureDisplayUrl]);
 
   useEffect(() => {
+    if (!hydrated) return;
     let cancelled = false;
     void (async () => {
       const next: Record<string, string> = {};
@@ -873,7 +876,13 @@ export function WebsiteBuilderWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [galleryImages, ensureDisplayUrl]);
+  }, [hydrated, galleryImages, ensureDisplayUrl]);
+
+  // On-demand library preview thumb only — never mass-warm project media binaries.
+  useEffect(() => {
+    if (!hydrated || !previewAssetId) return;
+    void ensureDisplayUrl(previewAssetId);
+  }, [hydrated, previewAssetId, ensureDisplayUrl]);
 
   // Debounced Media Library search from the assets panel query.
   useEffect(() => {

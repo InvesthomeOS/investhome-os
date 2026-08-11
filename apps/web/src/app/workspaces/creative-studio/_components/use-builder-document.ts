@@ -208,11 +208,14 @@ export function useBuilderDocument(options: {
             selected = projects[0]!;
           }
 
+          // Empty/new docs resolve as draft=null with ok — never leave loading.
+          // Defer setConstructionProjectId until AFTER Document API + draft hydrate
+          // so media hooks cannot warm Drive /content during critical bootstrap.
+          const resolved = await resolveForConstructionProject(selected);
           if (gen === bootGenRef.current) {
             setConstructionProjectId(selected.id);
           }
-          // Empty/new docs resolve as draft=null with ok — never leave loading.
-          return resolveForConstructionProject(selected);
+          return resolved;
         })(),
       );
       if (gen !== bootGenRef.current) {
@@ -244,11 +247,12 @@ export function useBuilderDocument(options: {
       readyRef.current = false;
       try {
         preferredRef.current?.saveLastId(projectId);
-        setConstructionProjectId(projectId);
         const draft = await withCsBuilderTimeout(
           resolveForConstructionProject(project),
         );
         if (gen !== bootGenRef.current) return draft;
+        // Enable media only after the new project's Document API session is ready.
+        setConstructionProjectId(projectId);
         readyRef.current = true;
         setLoadStatus('ready');
         setSaveStatus(draft ? 'saved' : 'idle');

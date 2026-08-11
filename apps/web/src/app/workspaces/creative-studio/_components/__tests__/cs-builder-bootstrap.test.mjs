@@ -101,6 +101,52 @@ describe('shared hydration + bootstrap UI wiring', () => {
     }
   });
 
+  it('defers setConstructionProjectId until after Document API resolve', () => {
+    const builder = read('use-builder-document.ts');
+    const website = readStudio('website-builder/use-website-builder-document.ts');
+    for (const src of [builder, website]) {
+      assert.match(src, /Defer setConstructionProjectId until AFTER Document API/);
+      assert.match(src, /const resolved = await resolveForConstructionProject\(selected\)/);
+      assert.match(src, /Enable media only after the new project's Document API/);
+      // Mid-bootstrap set before resolve must not remain.
+      assert.doesNotMatch(
+        src,
+        /setConstructionProjectId\(selected\.id\);\s*\n\s*\/\/ Empty\/new docs/,
+      );
+    }
+  });
+
+  it('media libraries do not mass-warm Drive \/content on list apply', () => {
+    const shared = read('use-cs-media-library.ts');
+    const website = readStudio('website-builder/use-website-builder-media.ts');
+    for (const src of [shared, website]) {
+      assert.doesNotMatch(src, /warmThumbsRef/);
+      assert.match(src, /Do NOT warm Drive \/content/);
+      assert.match(src, /withCsMediaContentLimit/);
+    }
+    const queue = read('cs-media-content-queue.ts');
+    assert.match(queue, /CS_MEDIA_CONTENT_MAX_CONCURRENT = 2/);
+    assert.match(queue, /withCsMediaContentLimit/);
+  });
+
+  it('CsMediaPicker loads thumbs lazily on viewport intersection', () => {
+    const picker = read('cs-media-picker.tsx');
+    assert.match(picker, /CsMediaPickerThumb/);
+    assert.match(picker, /IntersectionObserver/);
+    assert.match(picker, /ensureDisplayUrl\(item\.id\)/);
+  });
+
+  it('website builder gates media + content resolve on hydrated\/ready', () => {
+    const workspace = readStudio('website-builder/website-builder-workspace.tsx');
+    assert.match(
+      workspace,
+      /enabled:\s*Boolean\(docApi\.constructionProjectId\) && docApi\.loadStatus === 'ready'/,
+    );
+    assert.match(workspace, /On-demand library preview thumb only/);
+    assert.match(workspace, /if \(!hydrated \|\| !previewAssetId\) return/);
+    assert.match(workspace, /only after hydrate/);
+  });
+
   it('all seven production builders use shared hydration gate', () => {
     const builders = [
       ['website-builder/website-builder-workspace.tsx', 'wb-workspace-loading'],
