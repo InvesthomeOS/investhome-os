@@ -69,8 +69,10 @@ import {
 } from './landing-page-builder-model';
 
 import { CsBottomActionToolbar, CsMediaPickerDialog } from '../_components';
+import { CsBuilderBootstrapView } from '../_components/cs-builder-bootstrap-view';
 import { useBuilderCoverAsset } from '../_components/use-builder-cover-asset';
 import { useBuilderDocument } from '../_components/use-builder-document';
+import { useCsBuilderHydration } from '../_components/use-cs-builder-hydration';
 import {
   CreativeStudioFocusModeSwitcher,
   CreativeStudioFocusWorkspace,
@@ -124,6 +126,8 @@ const DEVICE_CONTENT: Record<'desktop' | 'tablet' | 'mobile' | 'ab', { w: number
 export function LandingPageBuilderWorkspace() {
   const t = useTranslations('creativeStudio.ds.landingPageBuilder');
   const tTools = useTranslations('creativeStudio.ds.tools');
+  const tBootstrap = useTranslations('creativeStudio.ds.bootstrap');
+  const tCommon = useTranslations('common');
 
   const docApi = useBuilderDocument({
     documentType: 'landing',
@@ -135,7 +139,6 @@ export function LandingPageBuilderWorkspace() {
       onDraftSaved: saveEmergencySnapshot,
     },
   });
-  const [hydrated, setHydrated] = useState(false);
   const [device, setDevice] = useState<DevicePreview>('desktop');
   // Legacy zoom state kept for A/B preview scale fallback; Fit-To-View owns Focus zoom.
   const [zoom] = useState(ZOOM_DEFAULT);
@@ -278,36 +281,28 @@ export function LandingPageBuilderWorkspace() {
     [lpbRightRail],
   );
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const result = await docApi.bootstrap();
-      if (cancelled) return;
+  const hydration = useCsBuilderHydration({
+    bootstrap: docApi.bootstrap,
+    onSuccess: (draft) => {
       setHeroTitle(t('canvas.heroTitle'));
       setHeroBody(t('canvas.heroBody'));
       setCtaPrimary(t(`cta.options.${selectedCta}`));
       setCtaSecondary(t('cta.options.downloadPackage'));
-      if (result.ok) {
-        coverAsset.hydrateMedia(
-          result.draft?.coverImage ?? null,
-          result.draft?.galleryImages ?? [],
-        );
-        if (result.draft) {
-          setSaved(true);
-          setLastSavedLabel(t('savedJustNow'));
-        } else {
-          setLastSavedLabel(t('notSavedYet'));
-        }
+      coverAsset.hydrateMedia(draft?.coverImage ?? null, draft?.galleryImages ?? []);
+      if (draft) {
+        setSaved(true);
+        setLastSavedLabel(t('savedJustNow'));
       } else {
         setLastSavedLabel(t('notSavedYet'));
       }
-      setHydrated(true);
-    })();
+    },
+  });
+  const hydrated = hydration.hydrated;
+
+  useEffect(() => {
     return () => {
-      cancelled = true;
       genTimerRef.current.forEach((id) => window.clearTimeout(id));
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1229,19 +1224,21 @@ export function LandingPageBuilderWorkspace() {
       </div>
     );
 
-  if (!hydrated) {
+  if (hydration.phase !== 'ready') {
     return (
-      <main className="dashboard" data-testid="lpb-workspace-loading">
-        <div className="lpb-ws">
-          <div className="lpb-ws__skeleton lpb-ws__skeleton--header" />
-          <div className="lpb-ws__skeleton lpb-ws__skeleton--toolbar" />
-          <div className="lpb-ws__layout">
-            <div className="lpb-ws__skeleton lpb-ws__skeleton--panel" />
-            <div className="lpb-ws__skeleton lpb-ws__skeleton--panel lpb-ws__skeleton--center" />
-            <div className="lpb-ws__skeleton lpb-ws__skeleton--panel" />
-          </div>
-        </div>
-      </main>
+      <CsBuilderBootstrapView
+        testId="lpb-workspace-loading"
+        workspaceClassName="lpb-ws"
+        homeHref={LPB_HOME}
+        title={tTools('landingPages.title')}
+        studioLabel={t('creativeStudio')}
+        phase={hydration.phase}
+        loadingLabel={tBootstrap('loading')}
+        errorTitle={tBootstrap('loadErrorTitle')}
+        errorMessage={hydration.error || tBootstrap('loadError')}
+        retryLabel={tCommon('retry')}
+        onRetry={hydration.retry}
+      />
     );
   }
 

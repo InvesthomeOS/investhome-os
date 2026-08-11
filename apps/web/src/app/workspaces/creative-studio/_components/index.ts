@@ -85,3 +85,15 @@ export type {
   BuilderSaveStatus,
   UseBuilderDocumentResult,
 } from './use-builder-document';
+export { useCsBuilderHydration } from './use-cs-builder-hydration';
+export type {
+  CsBuilderBootstrapResult,
+  CsBuilderHydrationPhase,
+  UseCsBuilderHydrationResult,
+} from './use-cs-builder-hydration';
+export { CsBuilderBootstrapView } from './cs-builder-bootstrap-view';
+export type { CsBuilderBootstrapViewProps } from './cs-builder-bootstrap-view';
+export {
+  CS_BUILDER_BOOTSTRAP_TIMEOUT_MS,
+  withCsBuilderTimeout,
+} from './cs-builder-bootstrap';

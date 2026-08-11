@@ -13,7 +13,7 @@ import {
 } from 'react';
 import { useTranslations } from 'next-intl';
 
-import { Button, ErrorState, SegmentedControl, Select, StatusChip } from '@investhome/ui';
+import { Button, SegmentedControl, Select, StatusChip } from '@investhome/ui';
 
 import { IhIcon } from '@/components/icons/ih-icons';
 
@@ -81,6 +81,8 @@ import {
 import type { WbDocumentDraft, WbEditorPersistInput, WbImageRef } from './website-builder-persistence';
 import { useWebsiteBuilderDocument } from './use-website-builder-document';
 import { useWebsiteBuilderMedia } from './use-website-builder-media';
+import { CsBuilderBootstrapView } from '../_components/cs-builder-bootstrap-view';
+import { useCsBuilderHydration } from '../_components/use-cs-builder-hydration';
 import {
   imageRefFromMediaAsset,
   imageRefFromWbAsset,
@@ -188,6 +190,7 @@ export function WebsiteBuilderWorkspace() {
   const tFocus = useTranslations('creativeStudio.focusWorkspace');
   const tTools = useTranslations('creativeStudio.ds.tools');
   const tCommon = useTranslations('common');
+  const tBootstrap = useTranslations('creativeStudio.ds.bootstrap');
 
   const docApi = useWebsiteBuilderDocument();
   const mediaApi = useWebsiteBuilderMedia({
@@ -199,7 +202,6 @@ export function WebsiteBuilderWorkspace() {
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const [restoreConfirmId, setRestoreConfirmId] = useState<string | null>(null);
 
-  const [hydrated, setHydrated] = useState(false);
   const [device, setDevice] = useState<DevicePreview>('desktop');
   const [splitPreset, setSplitPreset] = useState<SplitPanePreset>(DEFAULT_SPLIT_PRESET);
   const [zoom, setZoom] = useState(ZOOM_DEFAULT);
@@ -818,29 +820,19 @@ export function WebsiteBuilderWorkspace() {
     />
   );
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const result = await docApi.bootstrap();
-      if (cancelled) return;
-      if (!result.ok) {
-        setHydrated(false);
-        return;
-      }
-      applyDraftToEditor(result.draft, { applyContentDefaults: true });
-      if (result.draft) {
+  const hydration = useCsBuilderHydration({
+    bootstrap: docApi.bootstrap,
+    onSuccess: (draft) => {
+      applyDraftToEditor(draft, { applyContentDefaults: true });
+      if (draft) {
         setSaved(true);
         setLastSavedLabel(t('savedJustNow'));
       } else {
         setLastSavedLabel(t('notSavedYet'));
       }
-      setHydrated(true);
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    },
+  });
+  const hydrated = hydration.hydrated;
 
   useEffect(() => {
     if (!hydrated) return;
@@ -2102,52 +2094,23 @@ export function WebsiteBuilderWorkspace() {
     );
   }
 
-  if (docApi.loadStatus === 'error' && !hydrated) {
+  if (hydration.phase !== 'ready') {
     return (
-      <main className="dashboard" data-testid="wb-workspace-page">
-        <div className="wb-ws" data-testid="wb-workspace">
-          <ErrorState
-            title={t('loadErrorTitle')}
-            message={docApi.loadError || t('loadError')}
-            action={
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => {
-                  void (async () => {
-                    const result = await docApi.bootstrap();
-                    if (!result.ok) return;
-                    applyDraftToEditor(result.draft);
-                    setHydrated(true);
-                    if (result.draft) {
-                      setSaved(true);
-                      setLastSavedLabel(t('savedJustNow'));
-                    }
-                  })();
-                }}
-              >
-                {tCommon('retry')}
-              </Button>
-            }
-          />
-        </div>
-      </main>
-    );
-  }
-
-  if (!hydrated) {
-    return (
-      <main className="dashboard" data-testid="wb-workspace-page">
-        <div className="wb-ws wb-ws--skeleton" data-testid="wb-workspace">
-          <div className="wb-ws__skeleton wb-ws__skeleton--header" />
-          <div className="wb-ws__skeleton wb-ws__skeleton--toolbar" />
-          <div className="wb-ws__layout">
-            <div className="wb-ws__skeleton wb-ws__skeleton--panel" />
-            <div className="wb-ws__skeleton wb-ws__skeleton--panel wb-ws__skeleton--center" />
-            <div className="wb-ws__skeleton wb-ws__skeleton--panel" />
-          </div>
-        </div>
-      </main>
+      <CsBuilderBootstrapView
+        testId={
+          hydration.phase === 'error' ? 'wb-workspace-page' : 'wb-workspace-loading'
+        }
+        workspaceClassName="wb-ws"
+        homeHref={WB_HOME}
+        title={tTools('websiteBuilder.title')}
+        studioLabel={t('creativeStudio')}
+        phase={hydration.phase}
+        loadingLabel={tBootstrap('loading')}
+        errorTitle={t('loadErrorTitle')}
+        errorMessage={hydration.error || t('loadError')}
+        retryLabel={tCommon('retry')}
+        onRetry={hydration.retry}
+      />
     );
   }
 

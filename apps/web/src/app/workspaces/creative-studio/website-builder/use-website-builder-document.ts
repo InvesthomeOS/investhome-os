@@ -30,6 +30,7 @@ import {
   saveLastConstructionProjectId,
   serializeWebsiteBuilderDraft,
 } from './website-builder-persistence';
+import { withCsBuilderTimeout } from '../_components/cs-builder-bootstrap';
 import {
   mapApiVersionToWbVersion,
   resolveCreativeStudioProject,
@@ -86,6 +87,7 @@ export function useWebsiteBuilderDocument(): UseWebsiteBuilderDocumentResult {
 
   const savingRef = useRef(false);
   const saveGenRef = useRef(0);
+  const bootGenRef = useRef(0);
   const readyRef = useRef(false);
   const restoringRef = useRef(false);
   const documentIdRef = useRef<string | null>(null);
@@ -212,44 +214,60 @@ export function useWebsiteBuilderDocument(): UseWebsiteBuilderDocumentResult {
   );
 
   const bootstrap = useCallback(async (): Promise<WebsiteBuilderBootstrapResult> => {
+    const gen = ++bootGenRef.current;
     setLoadStatus('loading');
     setLoadError(null);
     readyRef.current = false;
     try {
-      const response = await fetchProjects({
-        page: 1,
-        page_size: 100,
-        sort_by: 'project_name',
-        sort_order: 'asc',
-      });
-      const projects = response.items ?? [];
-      setConstructionProjects(projects);
-      if (!projects.length) {
-        throw new Error('No construction projects available');
-      }
+      const draft = await withCsBuilderTimeout(
+        (async () => {
+          const response = await fetchProjects({
+            page: 1,
+            page_size: 100,
+            sort_by: 'project_name',
+            sort_order: 'asc',
+          });
+          const projects = response.items ?? [];
+          if (gen === bootGenRef.current) {
+            setConstructionProjects(projects);
+          }
+          if (!projects.length) {
+            throw new Error('No construction projects available');
+          }
 
-      const preferredId = resolvePreferredConstructionProjectId({
-        projectIds: projects.map((p) => p.id),
-        lastSelectedId: loadLastConstructionProjectId(),
-        draftLinkedProjectId: loadPersistedLinkedProjectIdHint(),
-      });
-      const selected =
-        projects.find((p) => p.id === preferredId) ?? projects.at(0) ?? null;
-      if (!selected) {
-        throw new Error('No construction projects available');
+          const preferredId = resolvePreferredConstructionProjectId({
+            projectIds: projects.map((p) => p.id),
+            lastSelectedId: loadLastConstructionProjectId(),
+            draftLinkedProjectId: loadPersistedLinkedProjectIdHint(),
+          });
+          const selected =
+            projects.find((p) => p.id === preferredId) ?? projects.at(0) ?? null;
+          if (!selected) {
+            throw new Error('No construction projects available');
+          }
+          // Persist immediately so subsequent reloads restore explicit selection
+          // instead of re-deriving from list order.
+          saveLastConstructionProjectId(selected.id);
+          if (gen === bootGenRef.current) {
+            setConstructionProjectId(selected.id);
+          }
+          // Empty/new docs resolve as draft=null with ok — never leave loading.
+          return resolveForConstructionProject(selected);
+        })(),
+      );
+      if (gen !== bootGenRef.current) {
+        return { ok: true, draft };
       }
-      // Persist immediately so subsequent reloads restore explicit selection
-      // instead of re-deriving from list order.
-      saveLastConstructionProjectId(selected.id);
-      setConstructionProjectId(selected.id);
-      const draft = await resolveForConstructionProject(selected);
       readyRef.current = true;
       setLoadStatus('ready');
       setSaveStatus(draft ? 'saved' : 'idle');
       return { ok: true, draft };
     } catch (err) {
-      readyRef.current = false;
       const message = err instanceof Error ? err.message : 'Load failed';
+      if (gen !== bootGenRef.current) {
+        return { ok: false, error: message };
+      }
+      readyRef.current = false;
       setLoadError(message);
       setLoadStatus('error');
       return { ok: false, error: message };
@@ -260,18 +278,23 @@ export function useWebsiteBuilderDocument(): UseWebsiteBuilderDocumentResult {
     async (projectId: string) => {
       const project = constructionProjects.find((p) => p.id === projectId);
       if (!project) return null;
+      const gen = ++bootGenRef.current;
       setLoadStatus('loading');
       setLoadError(null);
       readyRef.current = false;
       try {
         saveLastConstructionProjectId(projectId);
         setConstructionProjectId(projectId);
-        const draft = await resolveForConstructionProject(project);
+        const draft = await withCsBuilderTimeout(
+          resolveForConstructionProject(project),
+        );
+        if (gen !== bootGenRef.current) return draft;
         readyRef.current = true;
         setLoadStatus('ready');
         setSaveStatus(draft ? 'saved' : 'idle');
         return draft;
       } catch (err) {
+        if (gen !== bootGenRef.current) return null;
         readyRef.current = false;
         const message = err instanceof Error ? err.message : 'Load failed';
         setLoadError(message);

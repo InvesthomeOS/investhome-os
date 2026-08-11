@@ -15216,6 +15216,11 @@
             "templatePack": "Şablon Paketi"
           }
         }
+      },
+      "bootstrap": {
+        "loading": "Belge yükleniyor…",
+        "loadErrorTitle": "Oluşturucu yüklenemedi",
+        "loadError": "Creative Studio belgesi yüklenemedi. Bağlantınızı kontrol edip yeniden deneyin."
       }
     },
     "mediaPicker": {

@@ -20539,6 +20539,11 @@
             "templatePack": "Template Pack"
           }
         }
+      },
+      "bootstrap": {
+        "loading": "Loading builder document…",
+        "loadErrorTitle": "Unable to load builder",
+        "loadError": "Could not load the Creative Studio document. Check your connection and try again."
       }
     },
     "mediaPicker": {

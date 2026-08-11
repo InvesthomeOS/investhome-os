@@ -57,7 +57,9 @@ export function Breadcrumbs() {
         ? ('/dashboard/marketing' as Route)
         : workspaceId === 'crm'
           ? ('/workspaces/crm/dashboard' as Route)
-          : (`/workspaces/${workspaceId}/dashboard` as Route);
+          : workspaceId === 'creative-studio'
+            ? ('/workspaces/creative-studio' as Route)
+            : (`/workspaces/${workspaceId}/dashboard` as Route);
     const workspaceLabel =
       workspaceId === 'crm'
         ? t('modules.crm.title')

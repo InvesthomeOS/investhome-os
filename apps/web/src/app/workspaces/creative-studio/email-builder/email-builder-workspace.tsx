@@ -37,8 +37,10 @@ import {
 } from './email-builder-model';
 
 import { CsBottomActionToolbar, CsMediaPickerDialog } from '../_components';
+import { CsBuilderBootstrapView } from '../_components/cs-builder-bootstrap-view';
 import { useBuilderCoverAsset } from '../_components/use-builder-cover-asset';
 import { useBuilderDocument } from '../_components/use-builder-document';
+import { useCsBuilderHydration } from '../_components/use-cs-builder-hydration';
 import {
   CreativeStudioFocusModeSwitcher,
   CreativeStudioFocusWorkspace,
@@ -84,6 +86,8 @@ function visualTemplateForProject(
 export function EmailBuilderWorkspace() {
   const t = useTranslations('creativeStudio.ds.emailBuilder');
   const tTools = useTranslations('creativeStudio.ds.tools');
+  const tBootstrap = useTranslations('creativeStudio.ds.bootstrap');
+  const tCommon = useTranslations('common');
 
   const docApi = useBuilderDocument({
     documentType: 'email',
@@ -95,7 +99,6 @@ export function EmailBuilderWorkspace() {
       onDraftSaved: saveEmergencySnapshot,
     },
   });
-  const [hydrated, setHydrated] = useState(false);
   const [device, setDevice] = useState<DevicePreview>('desktop');
   const [publishStatus, setPublishStatus] = useState<PublishStatus>('draft');
   const [saved, setSaved] = useState(true);
@@ -181,31 +184,23 @@ export function EmailBuilderWorkspace() {
     [ebRightRail],
   );
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const result = await docApi.bootstrap();
-      if (cancelled) return;
+  const hydration = useCsBuilderHydration({
+    bootstrap: docApi.bootstrap,
+    onSuccess: (draft) => {
       setSubject(t('canvas.subjectValue'));
       setPreviewText(t('canvas.previewValue'));
       setHeading(t('canvas.headline'));
       setBodyCopy(t('canvas.lead'));
-      if (result.ok) {
-        coverAsset.hydrateMedia(result.draft?.coverImage ?? null, result.draft?.galleryImages ?? []);
-        if (result.draft) {
-          setSaved(true);
-          setLastSavedLabel(t('savedJustNow'));
-        } else {
-          setLastSavedLabel(t('notSavedYet'));
-        }
+      coverAsset.hydrateMedia(draft?.coverImage ?? null, draft?.galleryImages ?? []);
+      if (draft) {
+        setSaved(true);
+        setLastSavedLabel(t('savedJustNow'));
+      } else {
+        setLastSavedLabel(t('notSavedYet'));
       }
-      setHydrated(true);
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    },
+  });
+  const hydrated = hydration.hydrated;
 
   useEffect(() => {
     if (!hydrated || docApi.loadStatus !== 'ready') return;
@@ -773,13 +768,21 @@ export function EmailBuilderWorkspace() {
       </div>
     );
 
-  if (!hydrated) {
+  if (hydration.phase !== 'ready') {
     return (
-      <main className="dashboard" data-testid="eb-workspace-loading">
-        <div className="eb-ws">
-          <div className="eb-ws__skeleton eb-ws__skeleton--header" />
-        </div>
-      </main>
+      <CsBuilderBootstrapView
+        testId="eb-workspace-loading"
+        workspaceClassName="eb-ws"
+        homeHref={EB_HOME}
+        title={tTools('emailStudio.title')}
+        studioLabel={t('creativeStudio')}
+        phase={hydration.phase}
+        loadingLabel={tBootstrap('loading')}
+        errorTitle={tBootstrap('loadErrorTitle')}
+        errorMessage={hydration.error || tBootstrap('loadError')}
+        retryLabel={tCommon('retry')}
+        onRetry={hydration.retry}
+      />
     );
   }
 

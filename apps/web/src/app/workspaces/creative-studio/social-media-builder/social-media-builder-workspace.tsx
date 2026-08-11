@@ -62,8 +62,10 @@ import {
 } from './social-media-builder-rail-drawers';
 
 import { CsBottomActionToolbar, CsMediaPickerDialog } from '../_components';
+import { CsBuilderBootstrapView } from '../_components/cs-builder-bootstrap-view';
 import { useBuilderCoverAsset } from '../_components/use-builder-cover-asset';
 import { useBuilderDocument } from '../_components/use-builder-document';
+import { useCsBuilderHydration } from '../_components/use-cs-builder-hydration';
 import {
   CreativeStudioFocusModeSwitcher,
   CreativeStudioFocusWorkspace,
@@ -91,6 +93,8 @@ function visualTemplateForProject(
 export function SocialMediaBuilderWorkspace() {
   const t = useTranslations('creativeStudio.ds.socialMediaBuilder');
   const tTools = useTranslations('creativeStudio.ds.tools');
+  const tBootstrap = useTranslations('creativeStudio.ds.bootstrap');
+  const tCommon = useTranslations('common');
   const locale = useLocale();
 
   const docApi = useBuilderDocument({
@@ -104,7 +108,6 @@ export function SocialMediaBuilderWorkspace() {
     },
   });
 
-  const [hydrated, setHydrated] = useState(false);
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus>('ready');
   const [saved, setSaved] = useState(true);
   const [aiStatus, setAiStatus] = useState<AiStatusKey>('idle');
@@ -214,23 +217,20 @@ export function SocialMediaBuilderWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus.mode, focus.isFullscreen, formatPreset, selectedPostId, smbFitPadX, smbFitPadY]);
 
+  const hydration = useCsBuilderHydration({
+    bootstrap: docApi.bootstrap,
+    onSuccess: (draft) => {
+      coverAsset.hydrateMedia(draft?.coverImage ?? null, draft?.galleryImages ?? []);
+      setSaved(Boolean(draft));
+    },
+  });
+  const hydrated = hydration.hydrated;
+
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const result = await docApi.bootstrap();
-      if (cancelled) return;
-      if (result.ok) {
-        coverAsset.hydrateMedia(result.draft?.coverImage ?? null, result.draft?.galleryImages ?? []);
-        setSaved(Boolean(result.draft));
-      }
-      setHydrated(true);
-    })();
     return () => {
-      cancelled = true;
       if (genIdleTimerRef.current != null) window.clearTimeout(genIdleTimerRef.current);
       generateAbortRef.current += 1;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -620,13 +620,21 @@ export function SocialMediaBuilderWorkspace() {
       </div>
     );
 
-  if (!hydrated) {
+  if (hydration.phase !== 'ready') {
     return (
-      <main className="dashboard" data-testid="smb-workspace-loading">
-        <div className="smb-ws">
-          <div className="smb-ws__skeleton smb-ws__skeleton--header" />
-        </div>
-      </main>
+      <CsBuilderBootstrapView
+        testId="smb-workspace-loading"
+        workspaceClassName="smb-ws"
+        homeHref={SMB_HOME}
+        title={tTools('socialStudio.title')}
+        studioLabel={t('creativeStudio')}
+        phase={hydration.phase}
+        loadingLabel={tBootstrap('loading')}
+        errorTitle={tBootstrap('loadErrorTitle')}
+        errorMessage={hydration.error || tBootstrap('loadError')}
+        retryLabel={tCommon('retry')}
+        onRetry={hydration.retry}
+      />
     );
   }
 

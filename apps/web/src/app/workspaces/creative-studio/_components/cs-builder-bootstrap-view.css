@@ -1,0 +1,48 @@
+/* Shared Document API bootstrap shell — visible chrome + DS loading/error body. */
+
+.cs-builder-bootstrap {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--cs-ws-height, calc(100dvh - 4.75rem));
+  padding: 8px 4px 16px;
+  color: var(--cs-ink, #1e2b33);
+  background: var(--bg, #f6f8fa);
+}
+
+.cs-builder-bootstrap__header {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border: 1px solid var(--cs-border, #e1e7e9);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.cs-builder-bootstrap__header-copy {
+  min-width: 0;
+}
+
+.cs-builder-bootstrap__body {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: stretch;
+  min-height: 280px;
+  padding: 20px 16px;
+  border: 1px solid var(--cs-border, #e1e7e9);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.cs-builder-bootstrap__body .ih-loading-skeleton,
+.cs-builder-bootstrap__body .ih-error {
+  width: 100%;
+  max-width: 42rem;
+}
+
+.cs-builder-bootstrap__body .ih-error {
+  margin: 0 auto;
+}
