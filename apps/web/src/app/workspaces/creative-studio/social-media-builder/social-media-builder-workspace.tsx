@@ -130,6 +130,7 @@ export function SocialMediaBuilderWorkspace() {
   const [aiStatus, setAiStatus] = useState<AiStatusKey>('idle');
   const [generating, setGenerating] = useState(false);
   const [generationMeta, setGenerationMeta] = useState<DesignGenerationMeta | null>(null);
+  const [aiPrompt, setAiPrompt] = useState('');
   const [leftRailId, setLeftRailId] = useState<SmbLeftRailId>('templates');
   const [rightRailId, setRightRailId] = useState<SmbRightRailId>('content');
   const focus = useCreativeStudioFocusMode({ storageKey: 'social-media-builder' });
@@ -759,6 +760,7 @@ export function SocialMediaBuilderWorkspace() {
 
         setAiStatus('completed');
         setCampaignStatus('ready');
+        setAiPrompt('');
         void persistNow();
         genIdleTimerRef.current = window.setTimeout(() => {
           if (token === generateAbortRef.current) setAiStatus('idle');
@@ -1051,6 +1053,52 @@ export function SocialMediaBuilderWorkspace() {
         >
           <span className="smb-ws__ai-status-dot" aria-hidden="true" />
           <span>{aiStatus === 'idle' ? t('aiStatus.idle') : t(`aiStatus.${aiStatus}`)}</span>
+        </div>
+
+        <div className="smb-ws__ai-design" data-testid="smb-ai-design-command">
+          <label className="smb-ws__ai-design-label" htmlFor="smb-ai-design-input">
+            {t('aiDesign.title')}
+          </label>
+          <div className="smb-ws__ai-design-row">
+            <input
+              id="smb-ai-design-input"
+              className="smb-ws__ai-design-input"
+              type="text"
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder={t('aiDesign.placeholder')}
+              data-testid="smb-ai-design-input"
+              disabled={generating}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  const instruction = aiPrompt.trim();
+                  if (!instruction) {
+                    showToast(t('toasts.instructionRequired'));
+                    return;
+                  }
+                  void runAiGenerate(instruction);
+                }
+              }}
+            />
+            <Button
+              variant="primary"
+              size="sm"
+              data-testid="smb-ai-design-submit"
+              disabled={generating}
+              onClick={() => {
+                const instruction = aiPrompt.trim();
+                if (!instruction) {
+                  showToast(t('toasts.instructionRequired'));
+                  return;
+                }
+                void runAiGenerate(instruction);
+              }}
+            >
+              <IhIcon name="sparkles" size={12} />
+              {generating ? t('aiDesign.generating') : t('aiDesign.submit')}
+            </Button>
+          </div>
         </div>
 
         <CreativeStudioFocusWorkspace

@@ -16,6 +16,7 @@ from investhome_api.services.social_design_engine.ops import (
     find_element,
     find_post,
     sanitize_color,
+    sanitize_creative_copy,
 )
 
 PRESET_TO_FORMAT = {
@@ -133,12 +134,15 @@ def apply_ops(
                 canvas_h=ch,
             )
             eid = op.element_id or _new_element_id("text")
+            content = sanitize_creative_copy(op.payload.get("content"), max_len=2000)
+            if not content:
+                continue
             _ensure_elements(post).append(
                 {
                     "id": eid,
                     "type": "TEXT",
                     "role": op.payload.get("role") or "custom",
-                    "content": str(op.payload.get("content") or ""),
+                    "content": content,
                     "fontSize": clamp_int(op.payload.get("fontSize"), 8, 200, 28),
                     "fontWeight": op.payload.get("fontWeight") or "normal",
                     "align": op.payload.get("align") or "center",
@@ -187,11 +191,16 @@ def apply_ops(
                 canvas_h=ch,
             )
             eid = op.element_id or _new_element_id("cta")
+            label = sanitize_creative_copy(
+                op.payload.get("label") or "Learn more",
+                fallback="Learn more",
+                max_len=80,
+            )
             _ensure_elements(post).append(
                 {
                     "id": eid,
                     "type": "BUTTON",
-                    "label": str(op.payload.get("label") or "Learn more"),
+                    "label": label or "Learn more",
                     "backgroundColor": sanitize_color(
                         op.payload.get("backgroundColor"), "#ffffff"
                     ),
@@ -218,7 +227,10 @@ def apply_ops(
 
         if op.op == "UPDATE_TEXT":
             if "content" in op.payload:
-                el["content"] = str(op.payload.get("content") or "")
+                content = sanitize_creative_copy(op.payload.get("content"), max_len=2000)
+                if not content:
+                    continue
+                el["content"] = content
             if "role" in op.payload:
                 el["role"] = op.payload["role"]
             _sync_copy_fields(post)
@@ -228,7 +240,13 @@ def apply_ops(
             if el.get("type") not in {"BUTTON", "CTA"}:
                 continue
             if "label" in op.payload:
-                el["label"] = str(op.payload.get("label") or "")
+                label = sanitize_creative_copy(
+                    op.payload.get("label") or "",
+                    fallback=str(el.get("label") or "Learn more"),
+                    max_len=80,
+                )
+                if label:
+                    el["label"] = label
             if "backgroundColor" in op.payload:
                 el["backgroundColor"] = sanitize_color(op.payload.get("backgroundColor"))
             if "textColor" in op.payload:

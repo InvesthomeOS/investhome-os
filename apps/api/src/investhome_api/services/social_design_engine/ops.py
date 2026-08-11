@@ -41,6 +41,68 @@ UUID_RE = re.compile(
 
 HEX_COLOR_RE = re.compile(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
 
+# RAG / index / diagnostic blobs must never become canvas TEXT/CTA copy.
+_METADATA_COPY_MARKERS = (
+    "sources:",
+    "metadata.json",
+    "chunk_id",
+    "chunk:",
+    "document_id",
+    "document_name",
+    "asset_type",
+    "searchable",
+    "versioning",
+    "retrieval_confidence",
+    "evidence_start",
+    "evidence_end",
+    "design_ops_json",
+    "chunk_reference",
+    "chunk_order",
+    "index_status",
+    "provider:",
+    "model:",
+    "asset_ids_used",
+    "selected_asset",
+    "builders:",
+    '"builders"',
+    "folder_category",
+)
+_KEY_VALUE_FACT_RE = re.compile(
+    r"^(project_name|project_code|city|country|address|total_units|project_type|project_status)\s*=",
+    re.I,
+)
+
+
+def looks_like_rag_or_debug_copy(value: Any) -> bool:
+    """True when text is retrieval/metadata diagnostics, not creative copy."""
+    text = str(value or "").strip()
+    if not text:
+        return False
+    lower = text.lower()
+    if any(marker in lower for marker in _METADATA_COPY_MARKERS):
+        return True
+    # Indexed Drive metadata.json payloads often dump bare schema keys.
+    meta_keys = ("searchable", "asset_type", "versioning", "builders", "index")
+    hit_keys = sum(1 for k in meta_keys if re.search(rf"\b{k}\b", lower))
+    if hit_keys >= 2:
+        return True
+    if _KEY_VALUE_FACT_RE.match(text):
+        return True
+    # Citation-style footnotes from grounded assistant answers
+    if re.search(r"\[\s*[^\]\n]{0,80}\s*/\s*chunk\s+\d+\s*\]", lower):
+        return True
+    return False
+
+
+def sanitize_creative_copy(value: Any, *, fallback: str = "", max_len: int = 2000) -> str:
+    """Keep only human creative copy; drop RAG/debug/metadata blobs."""
+    text = str(value or "").strip()
+    if not text:
+        return (fallback or "")[:max_len]
+    if looks_like_rag_or_debug_copy(text):
+        return (fallback or "")[:max_len]
+    return text[:max_len]
+
 
 def clamp_int(value: Any, lo: int, hi: int, default: int) -> int:
     try:
@@ -253,7 +315,13 @@ def validate_op(
         if role not in {"headline", "body", "custom"}:
             role = "custom"
         payload["role"] = role
-        payload["content"] = str(payload.get("content") or "")[:2000]
+        # Accept LLM alias before sanitize
+        if not payload.get("content") and payload.get("text") is not None:
+            payload["content"] = payload.get("text")
+        content = sanitize_creative_copy(payload.get("content"), max_len=2000)
+        if not content:
+            raise OpValidationError("empty_or_debug_copy_rejected")
+        payload["content"] = content
         payload["fontSize"] = clamp_int(payload.get("fontSize"), 8, 200, 28)
         payload["fontWeight"] = (
             "bold" if str(payload.get("fontWeight") or "").lower() == "bold" else "normal"
@@ -263,16 +331,31 @@ def validate_op(
         payload["color"] = sanitize_color(payload.get("color"), "#ffffff")
 
     if op_name == "UPDATE_TEXT":
+        if "content" not in payload and payload.get("text") is not None:
+            payload["content"] = payload.get("text")
         if "content" in payload:
-            payload["content"] = str(payload.get("content") or "")[:2000]
+            content = sanitize_creative_copy(payload.get("content"), max_len=2000)
+            if not content:
+                raise OpValidationError("empty_or_debug_copy_rejected")
+            payload["content"] = content
         if "role" in payload:
             role = str(payload.get("role") or "").lower()
             if role in {"headline", "body", "custom"}:
                 payload["role"] = role
 
     if op_name in {"ADD_CTA", "UPDATE_CTA"}:
+        if "label" not in payload:
+            if payload.get("text") is not None:
+                payload["label"] = payload.get("text")
+            elif payload.get("content") is not None:
+                payload["label"] = payload.get("content")
         if "label" in payload or op_name == "ADD_CTA":
-            payload["label"] = str(payload.get("label") or "Learn more")[:80]
+            label = sanitize_creative_copy(
+                payload.get("label") or "Learn more",
+                fallback="Learn more",
+                max_len=80,
+            )
+            payload["label"] = label or "Learn more"
         if "backgroundColor" in payload or op_name == "ADD_CTA":
             payload["backgroundColor"] = sanitize_color(
                 payload.get("backgroundColor"), "#ffffff"
@@ -342,6 +425,42 @@ def normalize_raw_ops(
         else:
             payload = dict(payload)
 
+        # LLM often emits text/label aliases and nested position/style.
+        if op["op"] in {"ADD_TEXT", "UPDATE_TEXT"}:
+            if "content" not in payload and isinstance(payload.get("text"), str):
+                payload["content"] = payload.get("text")
+            style = payload.get("style") if isinstance(payload.get("style"), dict) else {}
+            if "fontSize" not in payload and "font_size" in style:
+                payload["fontSize"] = style.get("font_size")
+            if "color" not in payload and "color" in style:
+                payload["color"] = style.get("color")
+            if "fontWeight" not in payload:
+                ff = str(style.get("font_family") or style.get("fontFamily") or "").lower()
+                if "bold" in ff:
+                    payload["fontWeight"] = "bold"
+            # Infer common roles when LLM omits them
+            if "role" not in payload and op["op"] == "ADD_TEXT":
+                content = str(payload.get("content") or "")
+                payload["role"] = "headline" if len(content) <= 80 else "body"
+        if op["op"] in {"ADD_CTA", "UPDATE_CTA"}:
+            if "label" not in payload:
+                if isinstance(payload.get("text"), str):
+                    payload["label"] = payload.get("text")
+                elif isinstance(payload.get("content"), str):
+                    payload["label"] = payload.get("content")
+            style = payload.get("style") if isinstance(payload.get("style"), dict) else {}
+            if "backgroundColor" not in payload and style.get("background_color"):
+                payload["backgroundColor"] = style.get("background_color")
+            if "textColor" not in payload and style.get("color"):
+                payload["textColor"] = style.get("color")
+
+        pos = payload.get("position") if isinstance(payload.get("position"), dict) else None
+        if pos is not None:
+            if "x" not in payload and "x" in pos:
+                payload["x"] = pos.get("x")
+            if "y" not in payload and "y" in pos:
+                payload["y"] = pos.get("y")
+
         for key in ("asset_id", "assetId", "cover_asset_id", "coverAssetId"):
             if key not in payload:
                 continue
@@ -367,6 +486,31 @@ def normalize_raw_ops(
                 payload.pop("assetId", None)
                 payload.pop("coverAssetId", None)
                 payload.pop("cover_asset_id", None)
+
+        # Strip RAG/debug blobs from creative text fields before validation.
+        if op["op"] in {"ADD_TEXT", "UPDATE_TEXT"} and "content" in payload:
+            if looks_like_rag_or_debug_copy(payload.get("content")):
+                payload.pop("content", None)
+                if op["op"] == "UPDATE_TEXT" and "role" not in payload:
+                    # Nothing left to apply — drop op entirely.
+                    continue
+                if op["op"] == "ADD_TEXT":
+                    continue
+        if op["op"] in {"ADD_CTA", "UPDATE_CTA"} and "label" in payload:
+            if looks_like_rag_or_debug_copy(payload.get("label")):
+                payload["label"] = "Learn more"
+
+        # Scale percent-like coords (0-100) to canvas pixels when LLM uses layout percentages.
+        if op["op"] in {"ADD_TEXT", "ADD_CTA", "ADD_IMAGE", "MOVE_ELEMENT"}:
+            for axis, canvas in (("x", 1080), ("y", 1080)):
+                val = payload.get(axis)
+                try:
+                    num = float(val)
+                except (TypeError, ValueError):
+                    continue
+                if 0 <= num <= 100:
+                    payload[axis] = int(round(num / 100 * canvas))
+
         op["payload"] = payload
         out.append(op)
     return out

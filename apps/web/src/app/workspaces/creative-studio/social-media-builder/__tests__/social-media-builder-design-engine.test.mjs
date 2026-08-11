@@ -57,6 +57,20 @@ describe('workspace wires design engine (same canvas)', () => {
     assert.match(workspace, /P0_BOTTOM_ACTIONS/);
     assert.match(workspace, /SmbArtboardElements/);
   });
+
+  it('surfaces AI Design command on main workspace (not rail-only)', () => {
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    assert.match(workspace, /data-testid="smb-ai-design-command"/);
+    assert.match(workspace, /data-testid="smb-ai-design-input"/);
+    assert.match(workspace, /data-testid="smb-ai-design-submit"/);
+    assert.match(workspace, /aiDesign\.title/);
+    assert.match(workspace, /aiDesign\.submit/);
+    assert.match(workspace, /aiDesign\.placeholder/);
+    // Command bar sits before the focus workspace JSX mount (not only left rail)
+    const cmdIdx = workspace.indexOf('data-testid="smb-ai-design-command"');
+    const focusMountIdx = workspace.indexOf('<CreativeStudioFocusWorkspace');
+    assert.ok(cmdIdx > 0 && focusMountIdx > cmdIdx);
+  });
 });
 
 describe('design request builder logic (inlined mirror)', () => {

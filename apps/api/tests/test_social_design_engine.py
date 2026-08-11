@@ -177,28 +177,168 @@ def test_ops_reject_unsplash_and_invalid_asset() -> None:
     accepted, rejected = validate_ops(
         [
             {
-                "op": "SET_BACKGROUND",
+                "op": "ADD_IMAGE",
                 "linked_project_id": str(pid),
                 "post_id": "p1",
-                "element_id": None,
-                "payload": {"asset_id": "https://images.unsplash.com/photo-1"},
+                "payload": {
+                    "asset_id": "https://images.unsplash.com/photo-1",
+                    "width": 200,
+                    "height": 200,
+                },
+            }
+        ],
+        linked_project_id=pid,
+        posts=posts,
+        allowed_asset_ids=set(),
+    )
+    assert not accepted
+    assert any("forbidden_media_url" in r[1] or "invalid_asset_id" in r[1] for r in rejected)
+
+
+def test_ops_reject_rag_debug_copy_on_canvas() -> None:
+    """RAG/metadata diagnostics must never become TEXT/CTA content."""
+    from investhome_api.services.social_design_engine.ops import (
+        looks_like_rag_or_debug_copy,
+        normalize_raw_ops,
+    )
+
+    assert looks_like_rag_or_debug_copy(
+        "Sources: metadata.json / chunk 0 — searchable index asset_type versioning builders"
+    )
+    assert looks_like_rag_or_debug_copy("project_name=Temple Residences")
+    assert not looks_like_rag_or_debug_copy("Discover Temple Residences")
+
+    pid = TEMPLE_PROJECT_ID
+    posts = [
+        {
+            "id": "p1",
+            "formatPreset": "square",
+            "width": 1080,
+            "height": 1080,
+            "elements": [{"id": "t1", "type": "TEXT", "role": "headline", "content": "Good"}],
+        }
+    ]
+    accepted, rejected = validate_ops(
+        [
+            {
+                "op": "ADD_TEXT",
+                "linked_project_id": str(pid),
+                "post_id": "p1",
+                "payload": {
+                    "role": "body",
+                    "content": "Sources: metadata.json / chunk 0 searchable asset_type",
+                    "width": 400,
+                    "height": 80,
+                    "x": 40,
+                    "y": 800,
+                },
             },
             {
-                "op": "SET_BACKGROUND",
+                "op": "UPDATE_TEXT",
                 "linked_project_id": str(pid),
                 "post_id": "p1",
-                "element_id": None,
-                "payload": {"asset_id": str(uuid4())},
+                "element_id": "t1",
+                "payload": {"content": "builders versioning searchable index"},
             },
         ],
         linked_project_id=pid,
         posts=posts,
         allowed_asset_ids=set(),
     )
-    assert accepted == []
-    assert len(rejected) == 2
-    assert any("forbidden_media_url" in r[1] for r in rejected)
-    assert any("asset_not_allowed" in r[1] for r in rejected)
+    assert not accepted
+    assert any("empty_or_debug_copy_rejected" in r[1] or "rag_or_debug_copy_rejected" in r[1] for r in rejected)
+
+    normalized = normalize_raw_ops(
+        [
+            {
+                "op": "ADD_TEXT",
+                "linked_project_id": str(pid),
+                "post_id": "p1",
+                "payload": {"content": "Sources: metadata.json / chunk 0", "role": "body"},
+            },
+            {
+                "op": "ADD_TEXT",
+                "linked_project_id": str(pid),
+                "post_id": "p1",
+                "payload": {"content": "Quiet luxury at Temple", "role": "headline"},
+            },
+        ],
+        linked_project_id=pid,
+        fallback_asset_id=None,
+    )
+    assert len(normalized) == 1
+    assert normalized[0]["payload"]["content"] == "Quiet luxury at Temple"
+
+    # LLM alias: payload.text → content/label
+    aliased = normalize_raw_ops(
+        [
+            {
+                "op": "ADD_TEXT",
+                "linked_project_id": str(pid),
+                "post_id": "p1",
+                "payload": {
+                    "text": "Lüksün Yeni Adresi: The Temple",
+                    "position": {"x": 50, "y": 50},
+                    "style": {"font_size": 36, "color": "#F4EFE8", "font_family": "Bold"},
+                },
+            },
+            {
+                "op": "ADD_CTA",
+                "linked_project_id": str(pid),
+                "post_id": "p1",
+                "payload": {"text": "Detayları Keşfedin"},
+            },
+        ],
+        linked_project_id=pid,
+        fallback_asset_id=None,
+    )
+    assert aliased[0]["payload"]["content"] == "Lüksün Yeni Adresi: The Temple"
+    assert aliased[0]["payload"]["role"] == "headline"
+    assert aliased[0]["payload"]["fontSize"] == 36
+    assert aliased[1]["payload"]["label"] == "Detayları Keşfedin"
+
+
+def test_apply_skips_rag_metadata_text() -> None:
+    pid = TEMPLE_PROJECT_ID
+    posts = [{"id": "p1", "formatPreset": "square", "width": 1080, "height": 1080, "elements": []}]
+    ops = [
+        SocialDesignOp(
+            op="ADD_TEXT",
+            linked_project_id=pid,
+            post_id="p1",
+            element_id=None,
+            payload={
+                "role": "headline",
+                "content": "Sources: metadata.json / chunk 0",
+                "x": 40,
+                "y": 700,
+                "width": 900,
+                "height": 80,
+            },
+        ),
+        SocialDesignOp(
+            op="ADD_TEXT",
+            linked_project_id=pid,
+            post_id="p1",
+            element_id=None,
+            payload={
+                "role": "headline",
+                "content": "Temple Residences Soft Launch",
+                "x": 40,
+                "y": 700,
+                "width": 900,
+                "height": 80,
+            },
+        ),
+    ]
+    mutated, _ = apply_ops(posts, ops, linked_project_id=pid, selected_post_id="p1")
+    texts = [
+        str(el.get("content") or "")
+        for el in mutated[0]["elements"]
+        if isinstance(el, dict) and el.get("type") == "TEXT"
+    ]
+    assert texts == ["Temple Residences Soft Launch"]
+    assert all("metadata.json" not in t and "Sources:" not in t for t in texts)
 
 
 def test_create_and_edit_apply_ops() -> None:

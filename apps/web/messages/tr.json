@@ -13579,9 +13579,15 @@
           "readingBrief": "Brief ve hedefler okunuyor…",
           "selectingPlatforms": "Platform ve formatlar seçiliyor…",
           "writingCaptions": "Platforma uyarlı metinler yazılıyor…",
-          "designingCreatives": "Kreatifler ve varyasyonlar tasarlanıyor…",
+          "designingCreatives": "AI Tasarım Motoru işlemleri uyguluyor…",
           "optimizing": "Marka uyumu, CTA ve etkileşim optimize ediliyor…",
-          "completed": "AI sosyal içerik inceleme için hazır."
+          "completed": "AI tasarım tuvale uygulandı"
+        },
+        "aiDesign": {
+          "title": "AI Design",
+          "placeholder": "Ne tasarlamak veya değiştirmek istiyorsunuz?",
+          "submit": "AI ile Tasarla",
+          "generating": "Tasarlanıyor…"
         },
         "left": {
           "aria": "Şablonlar ve bileşenler",
@@ -13688,7 +13694,7 @@
             "text": "Metin",
             "media": "Medya",
             "brand": "Marka",
-            "ai": "AI İçerik",
+            "ai": "AI Design",
             "content": "İçerik",
             "style": "Stil",
             "settings": "Ayarlar"
@@ -13759,11 +13765,11 @@
             "colorApplied": "{color} rengi uygulandı"
           },
           "ai": {
-            "title": "AI Tasarım",
+            "title": "AI Design",
             "help": "Yeni bir kreatif tanımlayın veya mevcut tuvali düzenleyin — AI aynı gönderiye yapılandırılmış tasarım işlemleri uygular.",
             "prompt": "Tasarım komutu",
-            "placeholder": "örn. THE TEMPLE soft launch için çatı ameni görselli lüks Instagram karesi oluştur…",
-            "generate": "AI ile Oluştur / Düzenle",
+            "placeholder": "Ne tasarlamak veya değiştirmek istiyorsunuz?",
+            "generate": "AI ile Tasarla",
             "generated": "AI tasarım hazır"
           },
           "content": {

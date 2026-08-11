@@ -18902,9 +18902,15 @@
           "readingBrief": "Reading brief and goals…",
           "selectingPlatforms": "Selecting platforms and formats…",
           "writingCaptions": "Writing platform-adapted captions…",
-          "designingCreatives": "Designing creatives and variations…",
+          "designingCreatives": "AI Design Engine applying operations…",
           "optimizing": "Optimizing brand fit, CTA and engagement…",
-          "completed": "AI social content ready for review."
+          "completed": "AI design applied to canvas"
+        },
+        "aiDesign": {
+          "title": "AI Design",
+          "placeholder": "What do you want to design or change?",
+          "submit": "Design with AI",
+          "generating": "Designing…"
         },
         "left": {
           "aria": "Templates and components",
@@ -19011,7 +19017,7 @@
             "text": "Text",
             "media": "Media",
             "brand": "Brand",
-            "ai": "AI Content",
+            "ai": "AI Design",
             "content": "Content",
             "style": "Style",
             "settings": "Settings"
@@ -19085,8 +19091,8 @@
             "title": "AI Design",
             "help": "Describe a new creative or edit the current canvas — AI applies structured design operations to the same post.",
             "prompt": "Design command",
-            "placeholder": "e.g. Create a luxury Instagram square for THE TEMPLE soft launch with rooftop amenity visual…",
-            "generate": "Generate / Edit with AI",
+            "placeholder": "What do you want to design or change?",
+            "generate": "Design with AI",
             "generated": "AI design ready"
           },
           "content": {
