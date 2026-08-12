@@ -19194,6 +19194,7 @@
           "insufficientContext": "Not enough verified project context to generate grounded design",
           "noProjectMedia": "No valid project media Asset found — design applied without image",
           "generationWarning": "Generated with warnings: {warning}",
+          "missingRequiredFacts": "Missing required project facts: {facts}. Add them in your prompt to continue — nothing was invented.",
           "generateFailed": "AI generation failed",
           "logoChanged": "Logo updated",
           "logoRemoved": "Logo removed",

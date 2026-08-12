@@ -525,7 +525,7 @@ def asset_preference_tokens(preference: AssetPreference | str) -> set[str]:
             "block",
             "avenue",
         },
-        "aerial": {"aerial", "drone", "birdseye", "bird", "overhead", "site"},
+        "aerial": {"aerial", "drone", "birdseye", "bird", "overhead", "site", "context", "neighborhood"},
         "interior": {
             "interior",
             "lobby",
@@ -1346,6 +1346,9 @@ def build_generation_metadata(
     headline_candidates: list[dict[str, Any]] | None = None,
     structured_metrics: list[dict[str, Any]] | None = None,
     metric_group: dict[str, Any] | None = None,
+    campaign_intelligence: dict[str, Any] | None = None,
+    verified_facts: list[dict[str, Any]] | None = None,
+    missing_facts: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     return {
         "generated_by": "social_design_engine",
@@ -1367,6 +1370,9 @@ def build_generation_metadata(
         "marketing_strategy": marketing_strategy,
         "copy_quality": copy_quality,
         "headline_candidates": headline_candidates or [],
+        "campaign_intelligence": campaign_intelligence,
+        "verified_facts": verified_facts or [],
+        "missing_facts": missing_facts or [],
     }
 
 

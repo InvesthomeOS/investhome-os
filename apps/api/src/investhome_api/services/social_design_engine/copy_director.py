@@ -296,9 +296,20 @@ def generate_headline_candidates(
         if not raw:
             raw.append("A City Address" if en else "Şehir adresinde")
     elif obj == "investment":
-        raw.append(f"Invest in {name}" if en else f"{name} yatırımı")
-        raw.append("An Investment Position" if en else "Yatırım konumu")
-        raw.append("A Considered Return" if en else "Ölçülü bir getiri")
+        place = city or neighborhood
+        if campaign_facts:
+            raw.append("An Investment Position" if en else "Yatırım konumu")
+            raw.append("A Considered Return" if en else "Ölçülü bir getiri")
+            raw.append("Investor Access" if en else "Yatırımcı erişimi")
+        else:
+            # Natural investment brief without metrics — awareness, not invented returns.
+            if place:
+                raw.append(f"Invest in {place}" if en else f"{place} yatırımı")
+                raw.append(f"A {place} Position" if en else f"{place} konumu")
+            raw.append("An Investment Position" if en else "Yatırım konumu")
+            raw.append("A Considered Opportunity" if en else "Ölçülü fırsat")
+            raw.append("Quiet Capital Access" if en else "Sakin sermaye erişimi")
+            # Avoid weak "{name} yatırımı" / bare "Invest in {name}" as the only idea.
         # Never "Target %14" or concatenated "$500,000 · %14".
     elif obj == "architecture":
         raw.extend(
@@ -366,7 +377,50 @@ def _supporting_copy(
     evidence_blob = " ".join(strategy.supporting_evidence)
     if obj == "investment":
         # Structured metrics carry VALUE + MEANING. Support is campaign line, not a dump.
-        return ""
+        if campaign_facts:
+            return ""
+        # Investment awareness without metrics: one grounded value line, no invented returns.
+        city = strategy.city
+        name = strategy.project_name or "the residences"
+        retrieved = next(
+            (
+                f.text
+                for f in strategy.classified_facts
+                if f.source == "retrieved"
+                and not f.suppress_from_copy
+                and not looks_like_street_address(f.text)
+                and not contains_raw_suppress_term(f.text)
+                and not re.search(r"(\d+\s*%|\$\s*\d)", f.text)
+            ),
+            "",
+        )
+        retrieved = _strip_unsupported_claims(retrieved, evidence_blob=evidence_blob)
+        if retrieved and _norm(retrieved) not in _norm(headline):
+            return _clip(retrieved.split(".")[0].strip(), 110)
+        evidence = next(
+            (
+                e
+                for e in strategy.supporting_evidence
+                if e
+                and not looks_like_street_address(e)
+                and not re.search(r"(\d+\s*%|\$\s*\d)", e)
+                and _norm(e) not in _norm(headline)
+            ),
+            "",
+        )
+        if evidence and len(evidence) > 8:
+            return _clip(evidence.split(".")[0].strip(), 110)
+        if city:
+            return (
+                f"A considered position in {city} — grounded in {name}."
+                if en
+                else f"{city} içinde {name} için ölçülü bir konum."
+            )
+        return (
+            f"A considered investment position at {name}."
+            if en
+            else f"{name} için ölçülü bir yatırım konumu."
+        )
     if obj == "location":
         neighborhood = strategy.neighborhood
         city = strategy.city
@@ -524,14 +578,44 @@ def score_copy_quality(
         )
         scores["objective_match"] = 0.9 if loc_hit and "headline_is_address" not in reject else 0.2
     elif obj == "investment":
-        present = "invest" in bn or "return" in bn or "yield" in bn or "yatirim" in bn
+        present = (
+            "invest" in bn
+            or "return" in bn
+            or "yield" in bn
+            or "yatirim" in bn
+            or "opportunity" in bn
+            or "position" in bn
+            or "capital" in bn
+        )
         scores["objective_match"] = 0.95 if present else 0.2
         if looks_like_concatenated_metrics(support) or looks_like_concatenated_metrics(headline):
             reject.append("support_is_raw_data")
             scores["factual_grounding"] = 0.1
+        # Reject weak "{project} yatırımı" / bare project-name investment lines
+        weak_tr = bool(re.search(r"yat[iı]r[iı]m[iı]?\s*$", hn)) and _norm(strategy.project_name) in hn
+        if weak_tr or (_is_project_name_only(headline, strategy.project_name) and "invest" not in hn):
+            reject.append("headline_is_project_name")
+            scores["specificity"] = 0.15
         loc_dump = looks_like_street_address(blob) or contains_raw_suppress_term(blob)
         if loc_dump:
             reject.append("irrelevant_facts")
+        # Invented financial claims (numbers not in campaign facts / evidence)
+        allowed = [cf.display for cf in campaign_facts] + list(strategy.supporting_evidence)
+        if re.search(r"(\d+\s*%|\$\s*[\d,]+)", blob) and campaign_facts:
+            for m in re.finditer(r"\$\s*[\d,]+(?:\.\d+)?|\d+(?:[.,]\d+)?\s*%", blob):
+                tok = m.group(0)
+                if not any(tok in a or tok.replace(" ", "") in a.replace(" ", "") for a in allowed):
+                    reject.append("irrelevant_facts")
+                    scores["factual_grounding"] = 0.1
+                    break
+        elif re.search(r"(\d+\s*%|\$\s*[\d,]+)", blob) and not campaign_facts:
+            # No user metrics and a number appeared — treat as invented unless in evidence
+            for m in re.finditer(r"\$\s*[\d,]+(?:\.\d+)?|\d+(?:[.,]\d+)?\s*%", blob):
+                tok = m.group(0)
+                if not any(tok in a for a in allowed):
+                    reject.append("irrelevant_facts")
+                    scores["factual_grounding"] = 0.05
+                    break
     elif obj == "architecture":
         leak = any(f.display in blob for f in campaign_facts) or looks_like_street_address(blob)
         scores["objective_match"] = 0.2 if leak else 0.85

@@ -74,6 +74,20 @@ from investhome_api.services.social_design_engine.copy_director import (
     copy_package_to_content_package,
     score_copy_quality,
 )
+from investhome_api.services.social_design_engine.campaign_intent import (
+    apply_campaign_intent_to_generation_intent,
+    classify_campaign_intent,
+)
+from investhome_api.services.social_design_engine.project_knowledge import (
+    build_project_knowledge_package,
+)
+from investhome_api.services.social_design_engine.verified_facts import (
+    build_campaign_intelligence,
+    campaign_intelligence_to_dict,
+    financial_metrics_from_verified,
+    missing_facts_to_dicts,
+    verified_facts_to_dicts,
+)
 from investhome_api.services.social_design_engine.localization import choose_investment_cta
 from investhome_api.services.social_design_engine.metrics import (
     MetricGroup,
@@ -157,6 +171,12 @@ def generate_social_design(
         language=body.language,
         project_name=project.project_name,
     )
+    campaign_intent = classify_campaign_intent(
+        instruction,
+        language=body.language,
+        project_name=project.project_name,
+    )
+    gen_intent = apply_campaign_intent_to_generation_intent(campaign_intent, gen_intent)
     campaign_facts = extract_campaign_facts(instruction)
     structured_metrics = campaign_facts_to_structured_metrics(
         campaign_facts,
@@ -244,6 +264,35 @@ def generate_social_design(
     if picked is None and "no_valid_project_media" not in context.warnings:
         context.warnings.append("no_valid_project_media")
 
+    # Project-Aware Campaign Intelligence (before Marketing Strategist)
+    project_knowledge = build_project_knowledge_package(
+        project=project,
+        context=context,
+        media_candidates=media_candidates,
+    )
+    picked_candidate_early = next((c for c in media_candidates if picked and c.asset_id == picked), None)
+    selected_asset_meta = None
+    if picked_candidate_early is not None:
+        selected_asset_meta = {
+            "asset_id": str(picked_candidate_early.asset_id),
+            "filename": picked_candidate_early.filename,
+            "folder_category": picked_candidate_early.folder_category,
+            "tags": list(picked_candidate_early.tags or []),
+        }
+    campaign_intel = build_campaign_intelligence(
+        intent=campaign_intent,
+        knowledge=project_knowledge,
+        campaign_facts=campaign_facts,
+        selected_asset=selected_asset_meta,
+    )
+    # Structured metrics: user campaign inputs first; else verified project financials only.
+    if not structured_metrics:
+        structured_metrics = financial_metrics_from_verified(
+            campaign_intel.verified_campaign_facts,
+            language=gen_intent.language,
+            instruction=instruction,
+        )
+
     allowed_asset_ids: set[UUID] = {a.asset_id for a in selected_assets}
     allowed_asset_ids.update(c.asset_id for c in media_candidates)
     if picked:
@@ -298,6 +347,104 @@ def generate_social_design(
     validation_payload = None
     marketing_strategy = None
     copy_direction = None
+    campaign_intel_payload = campaign_intelligence_to_dict(campaign_intel)
+
+    # -------- Missing required financial fact: do not invent; keep prior design intact --------
+    if mode == "create" and not campaign_intel.can_proceed:
+        warnings = list(dict.fromkeys(list(context.warnings) + ["missing_required_facts"]))
+        for m in campaign_intel.missing_relevant_facts:
+            if m.required:
+                warnings.append(f"missing_fact:{m.key}")
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        brand_status = "available" if brand_context.available else "unavailable_neutral_premium"
+        gen_meta_payload = build_generation_metadata(
+            project_id=linked_project_id,
+            user_prompt=instruction,
+            intent=gen_intent,
+            campaign_facts=campaign_facts,
+            source_document_ids=[],
+            selected_asset_ids=[str(a.asset_id) for a in selected_assets]
+            + ([str(picked)] if picked else []),
+            provider=provider.name,
+            model=provider.model,
+            campaign_intelligence=campaign_intel_payload,
+            verified_facts=verified_facts_to_dicts(campaign_intel.verified_campaign_facts),
+            missing_facts=missing_facts_to_dicts(campaign_intel.missing_relevant_facts),
+        )
+        event_id = uuid4()
+        _audit(
+            db,
+            user,
+            entity_id=event_id,
+            metadata={
+                "kind": "creative_studio_social_design",
+                "linked_project_id": str(linked_project_id),
+                "mode": mode,
+                "instruction": instruction[:500],
+                "provider": provider.name,
+                "model": provider.model,
+                "planner": "campaign_intelligence_blocked",
+                "ops_count": 0,
+                "rejected_count": 0,
+                "latency_ms": latency_ms,
+                "search_time_ms": search_time_ms,
+                "hit_count": len(hits),
+                "warnings": warnings,
+                "block_reason": campaign_intel.block_reason,
+            },
+        )
+        meta = SocialDesignGenerationMeta(
+            citations=list(context.citations),
+            warnings=warnings,
+            grounded=False,
+            retrieval_confidence=min(grounding.confidence, 0.2),
+            asset_ids_used=[a.asset_id for a in selected_assets] + ([picked] if picked else []),
+            provider=provider.name,
+            model=provider.model,
+            brand_context=brand_context,
+            brand_context_status=brand_status,
+            search_time_ms=search_time_ms,
+            latency_ms=latency_ms,
+            mode=mode,  # type: ignore[arg-type]
+            planner="campaign_intelligence_blocked",
+            intents=[],
+            intent_targets=[],
+            applied_intents=[],
+            rejected_reasons=[campaign_intel.block_reason or "missing_required_facts"],
+            copy_protected=False,
+            generated_by="social_design_engine",
+            project_id=linked_project_id,
+            user_prompt=instruction[:2000],
+            generation_intent=gen_meta_payload.get("generation_intent"),
+            source_document_ids=[],
+            selected_asset_ids=[a.asset_id for a in selected_assets] + ([picked] if picked else []),
+            generated_at=gen_meta_payload.get("generated_at"),
+            content_package=None,
+            design_plan=None,
+            campaign_facts=gen_meta_payload.get("campaign_facts") or [],
+            structured_metrics=[],
+            metric_group=None,
+            creative_concept=None,
+            validation=None,
+            marketing_strategy=None,
+            copy_quality=None,
+            headline_candidates=[],
+            campaign_intelligence=campaign_intel_payload,
+            verified_facts=gen_meta_payload.get("verified_facts") or [],
+            missing_facts=gen_meta_payload.get("missing_facts") or [],
+        )
+        return SocialDesignResponse(
+            linked_project_id=linked_project_id,
+            mode=mode,  # type: ignore[arg-type]
+            ops=[],
+            rejected_ops=[],
+            posts=draft_posts,
+            selected_post_id=selected_post_id,
+            media_candidates=media_candidates,
+            meta=meta,
+            generated_content=campaign_intel.block_reason
+            or "Missing required campaign facts. Provide the value(s) to continue.",
+        )
 
     copy_kind, copy_edit_meta = classify_copy_intelligence_edit(instruction)
     if copy_kind == "change_objective" and copy_edit_meta.get("objective"):
@@ -322,6 +469,7 @@ def generate_social_design(
                     intent=gen_intent,
                     context=context,
                     campaign_facts=campaign_facts,
+                    campaign_intelligence=campaign_intel,
                 )
             current_pkg = None
             prev_copy = prev_meta.get("content_package") if isinstance(prev_meta.get("content_package"), dict) else {}
@@ -404,6 +552,7 @@ def generate_social_design(
             intent=gen_intent,
             context=context,
             campaign_facts=campaign_facts,
+            campaign_intelligence=campaign_intel,
         )
         copy_direction = build_copy_package(
             strategy=marketing_strategy,
@@ -505,6 +654,14 @@ def generate_social_design(
             instruction=instruction,
         )
         summary = "Generated complete social post from project knowledge."
+        if any(
+            m.key == "financial_metrics" and not m.required
+            for m in campaign_intel.missing_relevant_facts
+        ):
+            context.warnings.append("investment_without_verified_metrics")
+            if campaign_intel.qa_trace is not None:
+                campaign_intel.qa_trace["adapted_non_metric_investment"] = True
+                campaign_intel_payload = campaign_intelligence_to_dict(campaign_intel)
 
     system, user_prompt, prompt_version = build_design_prompt(
         instruction=instruction,
@@ -745,6 +902,9 @@ def generate_social_design(
         )
         if structured_metrics
         else None,
+        campaign_intelligence=campaign_intel_payload,
+        verified_facts=verified_facts_to_dicts(campaign_intel.verified_campaign_facts),
+        missing_facts=missing_facts_to_dicts(campaign_intel.missing_relevant_facts),
     )
     if (mode == "create" or planner_name == "copy_intelligence") and accepted:
         for post in mutated_posts:
@@ -819,6 +979,9 @@ def generate_social_design(
         marketing_strategy=gen_meta_payload.get("marketing_strategy") if mode == "create" or planner_name == "copy_intelligence" else None,
         copy_quality=gen_meta_payload.get("copy_quality") if mode == "create" or planner_name == "copy_intelligence" else None,
         headline_candidates=gen_meta_payload.get("headline_candidates") or [],
+        campaign_intelligence=gen_meta_payload.get("campaign_intelligence"),
+        verified_facts=gen_meta_payload.get("verified_facts") or [],
+        missing_facts=gen_meta_payload.get("missing_facts") or [],
     )
 
     return SocialDesignResponse(

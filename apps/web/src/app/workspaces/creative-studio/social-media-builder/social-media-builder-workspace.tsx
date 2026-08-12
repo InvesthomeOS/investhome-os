@@ -1014,6 +1014,16 @@ export function SocialMediaBuilderWorkspace() {
 
         if (hasDesignInsufficientContext(response)) {
           showToast(t('toasts.insufficientContext'));
+        } else if (meta.warnings.includes('missing_required_facts')) {
+          const missingLabels = (meta.missing_facts ?? [])
+            .filter((f) => f && typeof f === 'object' && f.required)
+            .map((f) => String(f.label || f.key || ''))
+            .filter(Boolean);
+          showToast(
+            t('toasts.missingRequiredFacts', {
+              facts: missingLabels.join(', ') || 'required fact',
+            }),
+          );
         } else if (meta.warnings.includes('no_valid_project_media')) {
           showToast(t('toasts.noProjectMedia'));
         } else if (meta.warnings.length) {

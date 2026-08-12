@@ -138,6 +138,9 @@ export type DesignGenerationMeta = SocialGenerationMeta & {
   marketing_strategy?: Record<string, unknown> | null;
   copy_quality?: Record<string, unknown> | null;
   headline_candidates?: Record<string, unknown>[];
+  campaign_intelligence?: Record<string, unknown> | null;
+  verified_facts?: Record<string, unknown>[];
+  missing_facts?: Record<string, unknown>[];
 };
 
 export type BuildSocialDesignResult =
@@ -382,6 +385,9 @@ export function toDesignGenerationMeta(response: SocialDesignResponse): DesignGe
     marketing_strategy: meta?.marketing_strategy ?? null,
     copy_quality: meta?.copy_quality ?? null,
     headline_candidates: meta?.headline_candidates ?? [],
+    campaign_intelligence: meta?.campaign_intelligence ?? null,
+    verified_facts: meta?.verified_facts ?? [],
+    missing_facts: meta?.missing_facts ?? [],
   };
 }
 
@@ -418,6 +424,9 @@ export function serializeGenerationMetaForDraft(
     marketing_strategy: meta.marketing_strategy ?? null,
     copy_quality: meta.copy_quality ?? null,
     headline_candidates: meta.headline_candidates ?? [],
+    campaign_intelligence: meta.campaign_intelligence ?? null,
+    verified_facts: meta.verified_facts ?? [],
+    missing_facts: meta.missing_facts ?? [],
   };
 }
 
@@ -491,6 +500,18 @@ export function parseGenerationMetaFromDraft(
         : null,
     headline_candidates: Array.isArray(raw.headline_candidates)
       ? raw.headline_candidates.filter((f): f is Record<string, unknown> => !!f && typeof f === 'object')
+      : [],
+    campaign_intelligence:
+      raw.campaign_intelligence &&
+      typeof raw.campaign_intelligence === 'object' &&
+      !Array.isArray(raw.campaign_intelligence)
+        ? (raw.campaign_intelligence as Record<string, unknown>)
+        : null,
+    verified_facts: Array.isArray(raw.verified_facts)
+      ? raw.verified_facts.filter((f): f is Record<string, unknown> => !!f && typeof f === 'object')
+      : [],
+    missing_facts: Array.isArray(raw.missing_facts)
+      ? raw.missing_facts.filter((f): f is Record<string, unknown> => !!f && typeof f === 'object')
       : [],
   };
 }

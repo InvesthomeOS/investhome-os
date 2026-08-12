@@ -120,6 +120,9 @@ class SocialDesignGenerationMeta(BaseModel):
     marketing_strategy: dict[str, Any] | None = None
     copy_quality: dict[str, Any] | None = None
     headline_candidates: list[dict[str, Any]] = Field(default_factory=list)
+    campaign_intelligence: dict[str, Any] | None = None
+    verified_facts: list[dict[str, Any]] = Field(default_factory=list)
+    missing_facts: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class SocialDesignResponse(BaseModel):

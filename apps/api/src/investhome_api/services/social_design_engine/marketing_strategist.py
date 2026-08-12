@@ -612,6 +612,7 @@ def _single_minded_message(
     neighborhood: str,
     campaign_facts: list[CampaignFact],
     language: str,
+    campaign_intelligence: Any | None = None,
 ) -> str:
     """ONE idea this ad should communicate — not a RAG summary, not a street."""
     en = language != "tr"
@@ -652,13 +653,26 @@ def _single_minded_message(
                 if en
                 else "Bu kampanyanın yatırım tezi, verilen rakamlarla."
             )
-        return f"An investment case for {name}." if en else f"{name} yatırım tezi."
+        # Investment awareness without inventing returns — grounded in place/identity.
+        place = city or neighborhood
+        if place:
+            return (
+                f"A considered investment position in {place}."
+                if en
+                else f"{place} içinde ölçülü bir yatırım konumu."
+            )
+        return (
+            f"A considered investment position at {name}."
+            if en
+            else f"{name} için ölçülü bir yatırım konumu."
+        )
     if objective in {"lifestyle", "interior"}:
         return f"Daily life at {name}." if en else f"{name} günlük yaşamı."
     if objective == "architecture":
         return f"The architectural character of {name}." if en else f"{name} mimari karakteri."
     if objective in {"launch", "project_introduction"}:
         return f"Introduce {name}." if en else f"{name} tanıtımı."
+    _ = campaign_intelligence
     return name
 
 
@@ -685,6 +699,7 @@ def build_marketing_strategy(
     intent: GenerationIntent,
     context: CreativeStudioGenerationContext,
     campaign_facts: list[CampaignFact],
+    campaign_intelligence: Any | None = None,
 ) -> MarketingStrategy:
     """Answer: what ONE idea should this ad communicate?"""
     objective = intent.marketing_objective
@@ -701,6 +716,19 @@ def build_marketing_strategy(
         city=city,
         project_name=name,
     )
+    # Prefer neighborhood/city from Project Knowledge when available.
+    if campaign_intelligence is not None:
+        knowledge = getattr(campaign_intelligence, "project_knowledge", None)
+        if knowledge is not None:
+            nb = (getattr(knowledge, "neighborhood", None) or {}) if knowledge else {}
+            if isinstance(nb, dict) and nb.get("name") and not neighborhood:
+                neighborhood = str(nb["name"])
+            loc = (getattr(knowledge, "location", None) or {}) if knowledge else {}
+            if isinstance(loc, dict) and loc.get("city") and not city:
+                city = str(loc["city"])
+            ident = (getattr(knowledge, "project_identity", None) or {}) if knowledge else {}
+            if isinstance(ident, dict) and ident.get("project_name") and not name:
+                name = str(ident["project_name"])
     angle = choose_campaign_angle(
         objective=objective,
         instruction=instruction,
@@ -718,7 +746,27 @@ def build_marketing_strategy(
     if objective == "location" and city and city not in supporting:
         supporting.insert(0, city)
     if objective == "investment":
-        supporting = [cf.display for cf in campaign_facts][:3]
+        # Prefer verified/selected campaign facts from intelligence; fall back to user inputs.
+        intel_evidence: list[str] = []
+        if campaign_intelligence is not None:
+            from investhome_api.services.social_design_engine.verified_facts import (
+                selected_facts_as_strategy_evidence,
+            )
+
+            intel_evidence = selected_facts_as_strategy_evidence(
+                list(getattr(campaign_intelligence, "verified_campaign_facts", []) or [])
+            )
+        if campaign_facts:
+            supporting = [cf.display for cf in campaign_facts][:3]
+        elif intel_evidence:
+            # Non-metric investment: value prop / identity / place — never invent returns.
+            supporting = [
+                e
+                for e in intel_evidence
+                if not looks_like_street_address(e) and not contains_raw_suppress_term(e)
+            ][:4]
+        else:
+            supporting = [x for x in supporting if not looks_like_street_address(x)][:3]
     excluded = [
         f.text
         for f in classified
@@ -729,6 +777,13 @@ def build_marketing_strategy(
         if f.key == "address" or looks_like_street_address(f.text):
             if f.text not in excluded:
                 excluded.append(f.text)
+    # Exclude off-intent financial figures when intelligence selected none for location etc.
+    if campaign_intelligence is not None and objective == "location":
+        for vf in list(getattr(campaign_intelligence, "verified_campaign_facts", []) or []):
+            if getattr(vf, "is_financial", False) and getattr(vf, "display_value", None):
+                token = str(vf.display_value)
+                if token not in excluded:
+                    excluded.append(token)
     return MarketingStrategy(
         objective=objective,
         audience=intent.audience or ("investors" if objective == "investment" else "general"),
@@ -741,6 +796,7 @@ def build_marketing_strategy(
             neighborhood=neighborhood,
             campaign_facts=campaign_facts,
             language=intent.language,
+            campaign_intelligence=campaign_intelligence,
         ),
         supporting_evidence=supporting[:6],
         excluded_facts=excluded[:24],

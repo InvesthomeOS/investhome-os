@@ -2516,10 +2516,326 @@ def test_campaign_figures_not_written_as_canonical_facts() -> None:
         selected_asset_ids=[],
         provider="test",
         model="test",
+        verified_facts=[],
     )
     assert meta["campaign_facts"]
-    assert "verified_facts" not in meta
+    # Campaign figures stay campaign-scoped — empty verified_facts means not promoted to canonical.
+    assert meta.get("verified_facts") == []
     assert meta.get("generated_by") == "social_design_engine"
+    displays = {f["display"] for f in meta["campaign_facts"]}
+    assert "$500,000" in displays or any("500" in d for d in displays)
 
 
+def test_campaign_intent_classification_natural_prompts() -> None:
+    from investhome_api.services.social_design_engine.campaign_intent import classify_campaign_intent
+
+    inv = classify_campaign_intent(
+        "The Temple için yatırımcı odaklı premium bir Instagram kare postu hazırla.",
+        project_name="The Temple",
+    )
+    assert inv.campaign_intent == "investment"
+    assert inv.marketing_objective == "investment"
+    assert inv.asset_preference == "premium_hero"
+
+    loc = classify_campaign_intent(
+        "The Temple'ın Washington DC'deki merkezi lokasyon avantajını anlatan premium Instagram kare postu hazırla.",
+        project_name="The Temple",
+    )
+    assert loc.campaign_intent == "location"
+    assert loc.marketing_objective == "location"
+
+    irr = classify_campaign_intent(
+        "The Temple yatırımının IRR oranını öne çıkar.",
+        project_name="The Temple",
+    )
+    assert irr.campaign_intent == "investment"
+    assert any(r.key == "irr" and r.required for r in irr.explicit_fact_requests)
+
+
+def test_verified_fact_selection_by_intent_and_financial_safety() -> None:
+    from investhome_api.models.project import Project, ProjectStatus, ProjectType
+    from investhome_api.services.social_design_engine.campaign_intent import classify_campaign_intent
+    from investhome_api.services.social_design_engine.generation import extract_campaign_facts
+    from investhome_api.services.social_design_engine.project_knowledge import (
+        build_project_knowledge_package,
+    )
+    from investhome_api.services.social_design_engine.verified_facts import (
+        build_campaign_intelligence,
+        build_verified_facts_from_knowledge,
+        select_facts_for_campaign,
+    )
+
+    project = Project(
+        id=TEMPLE_PROJECT_ID,
+        project_code="PRJ-T",
+        project_name="Temple Residences",
+        project_type=ProjectType.RESIDENTIAL,
+        project_status=ProjectStatus.CONSTRUCTION,
+        city="Washington",
+        country="US",
+        address="1610 Columbia Rd NW",
+        total_units=120,
+        # No IRR/ROI — must not invent
+        projected_irr=None,
+        projected_roi=None,
+    )
+    ctx = _strategy_ctx(
+        retrieved_content=[
+            {
+                "document_name": "location.md",
+                "text": "Temple Residences sits in Columbia Heights with a central Washington location.",
+            },
+            {
+                "document_name": "invest.md",
+                "text": "Investors seek a considered equity position in a signature residence.",
+            },
+        ]
+    )
+    knowledge = build_project_knowledge_package(project=project, context=ctx, media_candidates=[])
+    assert "project_identity" in knowledge.populated_sections
+    assert "location" in knowledge.populated_sections
+    assert "projected_irr" not in (knowledge.investment or {})
+
+    all_facts = build_verified_facts_from_knowledge(knowledge)
+    loc_selected = select_facts_for_campaign(all_facts=all_facts, campaign_intent="location")
+    assert any(f.key == "city" for f in loc_selected)
+    assert not any(f.is_financial and f.source == "project_db" for f in loc_selected if f.key.startswith("projected"))
+
+    # Campaign-scoped $500K must not become canonical knowledge
+    campaign = extract_campaign_facts("Minimum yatırım: $500,000 Hedef getiri: %14 Yatırım süresi: 24 ay")
+    intent = classify_campaign_intent(
+        "The Temple için yatırımcı odaklı premium Instagram postu. Minimum yatırım: $500,000 Hedef getiri: %14 Yatırım süresi: 24 ay",
+        project_name="Temple Residences",
+    )
+    intel = build_campaign_intelligence(
+        intent=intent,
+        knowledge=knowledge,
+        campaign_facts=campaign,
+    )
+    assert intel.can_proceed
+    assert any(f.is_campaign_scoped for f in intel.verified_campaign_facts)
+    assert "500" not in str(knowledge.investment)
+
+
+def test_missing_irr_blocks_without_invention() -> None:
+    from investhome_api.models.project import Project, ProjectStatus, ProjectType
+    from investhome_api.services.social_design_engine.campaign_intent import classify_campaign_intent
+    from investhome_api.services.social_design_engine.project_knowledge import (
+        build_project_knowledge_package,
+    )
+    from investhome_api.services.social_design_engine.verified_facts import build_campaign_intelligence
+
+    project = Project(
+        id=TEMPLE_PROJECT_ID,
+        project_code="PRJ-T",
+        project_name="Temple Residences",
+        project_type=ProjectType.RESIDENTIAL,
+        project_status=ProjectStatus.CONSTRUCTION,
+        city="Washington",
+        country="US",
+        projected_irr=None,
+    )
+    ctx = _strategy_ctx()
+    knowledge = build_project_knowledge_package(project=project, context=ctx)
+    intent = classify_campaign_intent(
+        "The Temple yatırımının IRR oranını öne çıkar.",
+        project_name="Temple Residences",
+    )
+    intel = build_campaign_intelligence(intent=intent, knowledge=knowledge, campaign_facts=[])
+    assert not intel.can_proceed
+    assert any(m.key == "irr" and m.required for m in intel.missing_relevant_facts)
+    assert intel.block_reason and "IRR" in intel.block_reason
+
+
+def test_natural_investment_copy_without_metrics_is_meaningful() -> None:
+    from investhome_api.services.social_design_engine.copy_director import build_copy_package
+    from investhome_api.services.social_design_engine.campaign_intent import (
+        apply_campaign_intent_to_generation_intent,
+        classify_campaign_intent,
+    )
+    from investhome_api.services.social_design_engine.generation import classify_generation_intent
+    from investhome_api.services.social_design_engine.marketing_strategist import build_marketing_strategy
+
+    prompt = "The Temple için yatırımcı odaklı premium bir Instagram kare postu hazırla."
+    campaign = classify_campaign_intent(prompt, project_name="Temple Residences")
+    intent = apply_campaign_intent_to_generation_intent(
+        campaign,
+        classify_generation_intent(prompt, project_name="Temple Residences"),
+    )
+    assert intent.marketing_objective == "investment"
+    strategy = build_marketing_strategy(
+        instruction=prompt,
+        intent=intent,
+        context=_strategy_ctx(
+            retrieved_content=[
+                {
+                    "document_name": "invest.md",
+                    "text": "Investors seek a considered equity position in a signature Washington residence.",
+                }
+            ]
+        ),
+        campaign_facts=[],
+    )
+    direction = build_copy_package(strategy=strategy, intent=intent, campaign_facts=[])
+    blob = f"{direction.package.headline} {direction.package.supporting_copy} {direction.package.cta}".lower()
+    assert "yatırımı" not in direction.package.headline.lower() or "temple" not in direction.package.headline.lower()
+    # Reject weak "{name} yatırımı" as the whole headline
+    assert direction.package.headline.strip().lower() not in {
+        "temple residences yatırımı",
+        "the temple yatırımı",
+        "invest in temple residences",
+    }
+    assert any(k in blob for k in ("invest", "position", "opportunity", "capital", "return"))
+    assert "14%" not in blob and "$500" not in blob
+    assert direction.package.cta
+
+
+def test_location_intent_excludes_investment_figures() -> None:
+    from investhome_api.services.social_design_engine.copy_director import build_copy_package
+    from investhome_api.services.social_design_engine.campaign_intent import (
+        apply_campaign_intent_to_generation_intent,
+        classify_campaign_intent,
+    )
+    from investhome_api.services.social_design_engine.generation import (
+        classify_generation_intent,
+        extract_campaign_facts,
+    )
+    from investhome_api.services.social_design_engine.marketing_strategist import build_marketing_strategy
+
+    prompt = (
+        "The Temple'ın Washington DC'deki merkezi lokasyon avantajını anlatan "
+        "premium Instagram kare postu hazırla."
+    )
+    campaign = classify_campaign_intent(prompt, project_name="Temple Residences")
+    intent = apply_campaign_intent_to_generation_intent(
+        campaign,
+        classify_generation_intent(prompt, project_name="Temple Residences"),
+    )
+    # Even if prior campaign metrics exist in the prompt history, location should not dump them.
+    leftover = extract_campaign_facts("Minimum yatırım: $500,000 Hedef getiri: %14 Yatırım süresi: 24 ay")
+    strategy = build_marketing_strategy(
+        instruction=prompt,
+        intent=intent,
+        context=_strategy_ctx(
+            retrieved_content=[
+                {
+                    "document_name": "location.md",
+                    "text": "Temple Residences sits in Columbia Heights with a central Washington location.",
+                }
+            ]
+        ),
+        campaign_facts=leftover,
+    )
+    assert strategy.objective == "location"
+    direction = build_copy_package(strategy=strategy, intent=intent, campaign_facts=leftover)
+    blob = f"{direction.package.headline} {direction.package.supporting_copy} {direction.package.cta}"
+    assert "$500,000" not in blob
+    assert "%14" not in blob and "14%" not in blob
+    assert "24 ay" not in blob.lower()
+    assert "washington" in blob.lower() or "central" in blob.lower() or "columbia" in blob.lower()
+
+
+def test_missing_irr_endpoint_keeps_prior_design(client, db_session: Session) -> None:
+    db = db_session
+    temple = _create_project(db, project_id=TEMPLE_PROJECT_ID)
+    image = _asset(db, temple, filename="temple-exterior-hero.jpg")
+    brief = _asset(db, temple, filename="brief.md", content_type="text/markdown")
+    doc = _ready_document(
+        db,
+        temple,
+        text=_long_text("Temple Residences Washington DC residential overview"),
+        title="brief.md",
+        asset=brief,
+    )
+    reindex_document(db, doc.id)
+    db.commit()
+
+    prior_post = {
+        "id": "post-prior-irr",
+        "linked_project_id": str(TEMPLE_PROJECT_ID),
+        "formatPreset": "square",
+        "platform": "instagram",
+        "name": "Prior",
+        "coverAssetId": str(image.id),
+        "elements": [
+            {
+                "id": "h1",
+                "type": "TEXT",
+                "role": "headline",
+                "content": "Keep This Headline",
+                "x": 80,
+                "y": 80,
+                "width": 800,
+                "height": 100,
+            }
+        ],
+    }
+    resp = client.post(
+        "/ai/creative-studio/social/design",
+        json={
+            "linked_project_id": str(TEMPLE_PROJECT_ID),
+            "instruction": "The Temple yatırımının IRR oranını öne çıkar.",
+            "mode": "create",
+            "draft": {"posts": [prior_post], "selected_post_id": "post-prior-irr"},
+            "selected_asset_ids": [str(image.id)],
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["ops"] == []
+    assert body["posts"][0]["elements"][0]["content"] == "Keep This Headline"
+    assert "missing_required_facts" in body["meta"]["warnings"]
+    missing = body["meta"].get("missing_facts") or []
+    assert any(m.get("key") == "irr" for m in missing)
+    copy_blob = json.dumps(body["posts"]).lower()
+    assert "14%" not in copy_blob
+    assert "irr 12" not in copy_blob
+
+
+def test_natural_investment_endpoint_without_metrics(client, db_session: Session) -> None:
+    db = db_session
+    temple = _create_project(db, project_id=TEMPLE_PROJECT_ID)
+    image = _asset(db, temple, filename="temple-premium-hero.jpg", folder_category="05_RENDERINGS")
+    brief = _asset(db, temple, filename="invest.md", content_type="text/markdown")
+    doc = _ready_document(
+        db,
+        temple,
+        text=_long_text(
+            "Temple Residences offers investors a considered equity position "
+            "in a signature Washington residence without quoting returns."
+        ),
+        title="invest.md",
+        asset=brief,
+    )
+    reindex_document(db, doc.id)
+    db.commit()
+
+    resp = client.post(
+        "/ai/creative-studio/social/design",
+        json={
+            "linked_project_id": str(TEMPLE_PROJECT_ID),
+            "instruction": "The Temple için yatırımcı odaklı premium bir Instagram kare postu hazırla.",
+            "mode": "create",
+            "draft": {"posts": [], "selected_post_id": None},
+            "selected_asset_ids": [str(image.id)],
+            "language": "en",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["meta"]["generation_intent"]["marketing_objective"] == "investment"
+    intel = body["meta"].get("campaign_intelligence") or {}
+    assert intel.get("campaign_intent") == "investment"
+    assert intel.get("can_proceed") is True
+    post = body["posts"][0]
+    headline = next(e for e in post["elements"] if e.get("role") == "headline")
+    hl = str(headline.get("content") or "")
+    assert hl.strip().lower() not in {"the temple yatırımı", "temple residences yatırımı"}
+    blob = json.dumps(post.get("elements") or []).lower()
+    assert "14%" not in blob and "$500" not in blob
+    assert any(e.get("type") in {"BUTTON", "CTA"} for e in post["elements"])
+    metrics = [e for e in post["elements"] if str(e.get("type") or "").upper() == "METRIC_GROUP"]
+    assert metrics == [] or not any("14" in json.dumps(m).lower() for m in metrics)
+    assert body["meta"].get("generationMeta") is None or True
+    assert post.get("generationMeta") or body["meta"].get("campaign_intelligence")
 

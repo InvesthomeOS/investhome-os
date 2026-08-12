@@ -13871,6 +13871,7 @@
           "insufficientContext": "Doğrulanmış proje bağlamı yetersiz — grounded tasarım üretilemedi",
           "noProjectMedia": "Geçerli proje medya Asset bulunamadı — tasarım görselsiz uygulandı",
           "generationWarning": "Uyarılarla üretildi: {warning}",
+          "missingRequiredFacts": "Eksik zorunlu proje bilgisi: {facts}. Devam etmek için komuta ekleyin — hiçbir değer uydurulmadı.",
           "generateFailed": "AI üretimi başarısız oldu",
           "logoChanged": "Logo güncellendi",
           "logoRemoved": "Logo kaldırıldı",

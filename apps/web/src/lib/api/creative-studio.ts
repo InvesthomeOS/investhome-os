@@ -592,6 +592,9 @@ export type SocialDesignGenerationMeta = {
   marketing_strategy?: Record<string, unknown> | null;
   copy_quality?: Record<string, unknown> | null;
   headline_candidates?: Record<string, unknown>[];
+  campaign_intelligence?: Record<string, unknown> | null;
+  verified_facts?: Record<string, unknown>[];
+  missing_facts?: Record<string, unknown>[];
 };
 
 export type SocialDesignResponse = {
