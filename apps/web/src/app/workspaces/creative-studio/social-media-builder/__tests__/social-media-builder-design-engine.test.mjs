@@ -42,7 +42,8 @@ describe('workspace wires design engine (same canvas)', () => {
     assert.match(workspace, /applyDesignResponseToPosts/);
     assert.match(workspace, /toDesignGenerationMeta/);
     assert.match(workspace, /serializeGenerationMetaForDraft/);
-    assert.match(workspace, /setPosts\(applied\.posts\)/);
+    assert.match(workspace, /setPosts\(\s*applied\.posts\.map/);
+    assert.match(workspace, /ensureUniqueElementIds\(p\.elements\)/);
     assert.doesNotMatch(workspace, /runAiDemo/);
     assert.doesNotMatch(workspace, /images\.unsplash/);
     assert.match(workspace, /never Unsplash/);
@@ -233,5 +234,12 @@ describe('canonical canvas fit / layout safety (renderer contract)', () => {
     assert.match(workspace, /selectedPostIdRef\.current/);
     assert.match(workspace, /const latestPosts = postsRef\.current/);
     assert.match(workspace, /buildSocialDesignRequest\(\{[\s\S]*posts:\s*latestPosts/);
+  });
+
+  it('includes selected_element in builder_context when provided', () => {
+    const engine = readSmb('social-media-builder-design-engine.ts');
+    assert.match(engine, /selected_element:/);
+    assert.match(engine, /selectedElementId:/);
+    assert.match(engine, /selectedElementToDesignContext/);
   });
 });

@@ -7,6 +7,7 @@ import { isMediaAssetUuid } from '../_components/cs-image-ref';
 import {
   createDefaultElements,
   captionFromElements,
+  ensureUniqueElementIds,
   headlineFromElements,
   type SocialElement,
   type SocialTextAlign,
@@ -298,10 +299,11 @@ export function parseSocialPost(
   const parsedElements = Array.isArray(body.elements)
     ? body.elements.map(parseElement).filter((e): e is SocialElement => e != null)
     : [];
-  const elements =
+  const elements = ensureUniqueElementIds(
     parsedElements.length > 0
       ? parsedElements
-      : createDefaultElements(width, height, { headline, caption });
+      : createDefaultElements(width, height, { headline, caption }),
+  );
 
   const coverRaw =
     typeof body.coverAssetId === 'string'

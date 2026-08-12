@@ -100,11 +100,94 @@ export function inferDesignMode(
   return 'create';
 }
 
+export type SelectedElementDesignContext = {
+  id: string;
+  type: string;
+  role?: string | null;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  zIndex?: number;
+  content?: string | null;
+  label?: string | null;
+  fontSize?: number | null;
+  fontWeight?: string | null;
+  align?: string | null;
+  color?: string | null;
+  backgroundColor?: string | null;
+  textColor?: string | null;
+  assetId?: string | null;
+};
+
+/** Snapshot a canvas element for AI Design builder_context (no media URLs). */
+export function selectedElementToDesignContext(
+  el: {
+    id: string;
+    type: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    zIndex?: number;
+    role?: string;
+    content?: string;
+    label?: string;
+    fontSize?: number;
+    fontWeight?: string;
+    align?: string;
+    color?: string;
+    backgroundColor?: string;
+    textColor?: string;
+    assetId?: string | null;
+  } | null | undefined,
+): SelectedElementDesignContext | null {
+  if (!el || typeof el.id !== 'string' || !el.id) return null;
+  const base: SelectedElementDesignContext = {
+    id: el.id,
+    type: el.type,
+    x: Number.isFinite(el.x) ? el.x : 0,
+    y: Number.isFinite(el.y) ? el.y : 0,
+    width: Math.max(8, Number.isFinite(el.width) ? el.width : 100),
+    height: Math.max(8, Number.isFinite(el.height) ? el.height : 40),
+    zIndex: Number.isFinite(el.zIndex) ? el.zIndex : 1,
+  };
+  if (el.type === 'TEXT') {
+    return {
+      ...base,
+      role: el.role ?? 'custom',
+      content: el.content ?? '',
+      fontSize: el.fontSize ?? null,
+      fontWeight: el.fontWeight ?? null,
+      align: el.align ?? null,
+      color: el.color ?? null,
+    };
+  }
+  if (el.type === 'BUTTON') {
+    return {
+      ...base,
+      role: 'cta',
+      label: el.label ?? '',
+      backgroundColor: el.backgroundColor ?? null,
+      textColor: el.textColor ?? null,
+    };
+  }
+  if (el.type === 'IMAGE') {
+    return {
+      ...base,
+      role: 'image',
+      assetId: el.assetId ?? null,
+    };
+  }
+  return base;
+}
+
 export function buildSocialDesignRequest(input: {
   linkedProjectId: string | null | undefined;
   instruction: string;
   posts: SocialPost[];
   selectedPostId: string | null;
+  selectedElement?: SelectedElementDesignContext | null;
   coverImage?: CsImageRef | null;
   galleryImages?: CsImageRef[] | null;
   language?: string | null;
@@ -139,6 +222,10 @@ export function buildSocialDesignRequest(input: {
     ? Array.from(input.platforms).map(String).filter(Boolean)
     : [];
   const mode = inferDesignMode(instruction, input.posts, input.mode);
+  const selectedElement =
+    input.selectedElement && typeof input.selectedElement.id === 'string'
+      ? input.selectedElement
+      : null;
 
   return {
     ok: true,
@@ -156,6 +243,13 @@ export function buildSocialDesignRequest(input: {
         builder: 'social',
         design_engine: 'phase1',
         platforms,
+        ...(selectedElement
+          ? {
+              selectedElementId: selectedElement.id,
+              selected_element_id: selectedElement.id,
+              selected_element: selectedElement,
+            }
+          : {}),
       },
     },
   };

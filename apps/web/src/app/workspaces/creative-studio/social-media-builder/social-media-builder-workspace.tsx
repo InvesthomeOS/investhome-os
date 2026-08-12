@@ -47,6 +47,7 @@ import {
   createImageElement,
   createTextElement,
   duplicateElement,
+  ensureUniqueElementIds,
   sendElementBackward,
   type SocialElement,
 } from './social-media-builder-elements';
@@ -55,11 +56,12 @@ import {
   reflowElementsForFormat,
   sanitizeGeometryPatch,
 } from './social-media-builder-layout';
-import { defaultSocialInstruction } from './social-media-builder-generation';
+import { defaultSocialInstruction, syncPostCopyFields } from './social-media-builder-generation';
 import {
   applyDesignResponseToPosts,
   buildSocialDesignRequest,
   hasDesignInsufficientContext,
+  selectedElementToDesignContext,
   serializeGenerationMetaForDraft,
   toDesignGenerationMeta,
   type DesignGenerationMeta,
@@ -143,6 +145,9 @@ export function SocialMediaBuilderWorkspace() {
   const [posts, setPosts] = useState<SocialPost[]>(DEFAULT_POSTS);
   const [selectedPostId, setSelectedPostId] = useState(DEFAULT_POSTS[0]?.id ?? 'p1');
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const [editingElementId, setEditingElementId] = useState<string | null>(null);
+  const [historyPast, setHistoryPast] = useState<SocialPost[][]>([]);
+  const [historyFuture, setHistoryFuture] = useState<SocialPost[][]>([]);
   const [formatPreset, setFormatPreset] = useState<FormatPresetKey>('square');
   const [platforms, setPlatforms] = useState<Set<PlatformKey>>(
     () => new Set(['instagram', 'facebook', 'linkedin', 'x']),
@@ -166,6 +171,11 @@ export function SocialMediaBuilderWorkspace() {
   postsRef.current = posts;
   const selectedPostIdRef = useRef(selectedPostId);
   selectedPostIdRef.current = selectedPostId;
+  const selectedElementIdRef = useRef(selectedElementId);
+  selectedElementIdRef.current = selectedElementId;
+  const editingElementIdRef = useRef(editingElementId);
+  editingElementIdRef.current = editingElementId;
+  const gestureHistoryPushedRef = useRef(false);
 
   const selectedConstruction = useMemo(
     () =>
@@ -271,8 +281,16 @@ export function SocialMediaBuilderWorkspace() {
         linkedProjectId: draft?.linkedProjectId ?? docApi.constructionProjectId,
         selectedPostId: draft?.selectedPostId,
       });
-      setPosts(hydrated.posts);
+      setPosts(
+        hydrated.posts.map((p) => ({
+          ...p,
+          elements: ensureUniqueElementIds(p.elements),
+        })),
+      );
       setSelectedPostId(hydrated.selectedPostId);
+      setHistoryPast([]);
+      setHistoryFuture([]);
+      setEditingElementId(null);
       const active = hydrated.posts.find((p) => p.id === hydrated.selectedPostId) ?? hydrated.posts[0]!;
       setFormatPreset(active.formatPreset);
       setSelectedElementId(null);
@@ -371,6 +389,52 @@ export function SocialMediaBuilderWorkspace() {
     window.setTimeout(() => setToast(null), 2200);
   }
 
+  function clonePostsSnapshot(source: SocialPost[] = postsRef.current): SocialPost[] {
+    return source.map((p) => ({
+      ...p,
+      elements: p.elements.map((el) => ({ ...el })),
+    }));
+  }
+
+  function pushHistory() {
+    setHistoryPast((prev) => [...prev.slice(-49), clonePostsSnapshot()]);
+    setHistoryFuture([]);
+  }
+
+  function undoHistory() {
+    setHistoryPast((past) => {
+      if (!past.length) return past;
+      const prev = past[past.length - 1]!;
+      setHistoryFuture((future) => [clonePostsSnapshot(), ...future].slice(0, 50));
+      setPosts(clonePostsSnapshot(prev));
+      setEditingElementId(null);
+      markDirty();
+      return past.slice(0, -1);
+    });
+  }
+
+  function redoHistory() {
+    setHistoryFuture((future) => {
+      if (!future.length) return future;
+      const [next, ...rest] = future;
+      setHistoryPast((past) => [...past, clonePostsSnapshot()].slice(-50));
+      setPosts(clonePostsSnapshot(next));
+      setEditingElementId(null);
+      markDirty();
+      return rest;
+    });
+  }
+
+  function beginGestureHistory() {
+    if (gestureHistoryPushedRef.current) return;
+    gestureHistoryPushedRef.current = true;
+    pushHistory();
+  }
+
+  function endGestureHistory() {
+    gestureHistoryPushedRef.current = false;
+  }
+
   const buildPersistPayload = useCallback(() => {
     const current = postsRef.current;
     const active = current.find((p) => p.id === selectedPostId) ?? current[0]!;
@@ -433,7 +497,9 @@ export function SocialMediaBuilderWorkspace() {
 
   useEffect(() => {
     if (!floatingMoreOpen && !alignMenuOpen && !layerMenuOpen) return;
-    function onDocPointer() {
+    function onDocPointer(event: MouseEvent) {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest?.('[data-testid="smb-floating-actions"]')) return;
       setFloatingMoreOpen(false);
       setAlignMenuOpen(false);
       setLayerMenuOpen(false);
@@ -453,6 +519,82 @@ export function SocialMediaBuilderWorkspace() {
     };
   }, [floatingMoreOpen, alignMenuOpen, layerMenuOpen]);
 
+  useEffect(() => {
+    function onKey(event: globalThis.KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase() ?? '';
+      const typing =
+        tag === 'input' ||
+        tag === 'textarea' ||
+        tag === 'select' ||
+        Boolean(target?.isContentEditable);
+      const editing = Boolean(editingElementIdRef.current);
+      const mod = event.metaKey || event.ctrlKey;
+
+      if (mod && event.key.toLowerCase() === 'z' && !event.shiftKey) {
+        if (typing && !editing) return;
+        event.preventDefault();
+        undoHistory();
+        return;
+      }
+      if ((mod && event.key.toLowerCase() === 'z' && event.shiftKey) || (mod && event.key.toLowerCase() === 'y')) {
+        if (typing && !editing) return;
+        event.preventDefault();
+        redoHistory();
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        if (editing) {
+          event.preventDefault();
+          setEditingElementId(null);
+          return;
+        }
+        if (selectedElementIdRef.current) {
+          event.preventDefault();
+          setSelectedElementId(null);
+        }
+        return;
+      }
+
+      if (editing || typing || canvasLocked || focus.mode === 'preview') return;
+      const selectedId = selectedElementIdRef.current;
+      if (!selectedId) return;
+
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault();
+        const post = postsRef.current.find((p) => p.id === selectedPostIdRef.current);
+        if (!post) return;
+        replaceElements(post.elements.filter((el) => el.id !== selectedId));
+        setSelectedElementId(null);
+        showToast(t('toasts.elementRemoved'));
+        return;
+      }
+
+      const arrow =
+        event.key === 'ArrowLeft' ||
+        event.key === 'ArrowRight' ||
+        event.key === 'ArrowUp' ||
+        event.key === 'ArrowDown';
+      if (!arrow) return;
+      event.preventDefault();
+      const step = event.shiftKey ? 10 : 1;
+      const post = postsRef.current.find((p) => p.id === selectedPostIdRef.current);
+      const el = post?.elements.find((e) => e.id === selectedId);
+      if (!el) return;
+      let dx = 0;
+      let dy = 0;
+      if (event.key === 'ArrowLeft') dx = -step;
+      if (event.key === 'ArrowRight') dx = step;
+      if (event.key === 'ArrowUp') dy = -step;
+      if (event.key === 'ArrowDown') dy = step;
+      patchElement(selectedId, { x: el.x + dx, y: el.y + dy });
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasLocked, focus.mode, t]);
+
   async function handleProjectChange(id: string) {
     const draft = await docApi.selectConstructionProject(id);
     applyDraftPosts(draft);
@@ -460,7 +602,8 @@ export function SocialMediaBuilderWorkspace() {
     setSaved(Boolean(draft));
   }
 
-  function updateSelectedPost(updater: (post: SocialPost) => SocialPost) {
+  function updateSelectedPost(updater: (post: SocialPost) => SocialPost, opts?: { history?: boolean }) {
+    if (opts?.history !== false) pushHistory();
     setPosts((prev) =>
       prev.map((p) => {
         if (p.id !== selectedPostId) return p;
@@ -475,45 +618,70 @@ export function SocialMediaBuilderWorkspace() {
   }
 
   function selectElement(elementId: string | null) {
+    if (editingElementId && editingElementId !== elementId) {
+      setEditingElementId(null);
+    }
     if (!elementId) {
       setSelectedElementId(null);
+      setEditingElementId(null);
+      setAlignMenuOpen(false);
+      setLayerMenuOpen(false);
+      setFloatingMoreOpen(false);
       return;
     }
     const exists = selectedPost.elements.some((el) => el.id === elementId);
     if (!exists) {
       setSelectedElementId(null);
+      setEditingElementId(null);
+      setAlignMenuOpen(false);
+      setLayerMenuOpen(false);
+      setFloatingMoreOpen(false);
       return;
     }
     setSelectedElementId(elementId);
   }
 
-  function patchElement(elementId: string, patch: Partial<SocialElement>) {
+  function patchElement(
+    elementId: string,
+    patch: Partial<SocialElement>,
+    opts?: { live?: boolean; history?: boolean },
+  ) {
     const clean = sanitizeGeometryPatch(patch);
-    updateSelectedPost((p) => {
-      const current = p.elements.find((el) => el.id === elementId);
-      if (!current) return p;
-      const w = Math.max(1, p.width || contentSize.w);
-      const h = Math.max(1, p.height || contentSize.h);
-      const refitText =
-        current.type === 'TEXT' &&
-        ('fontSize' in clean || 'content' in clean) &&
-        !('width' in clean && 'height' in clean);
-      const result = applyElementPatch(current, clean, w, h, {
-        refitText,
-        resolveAll:
-          refitText || 'width' in clean || 'height' in clean || 'y' in clean || 'x' in clean
-            ? p.elements
-            : undefined,
-      });
-      return {
-        ...p,
-        elements: result.elements ?? p.elements.map((el) => (el.id === elementId ? result.element : el)),
-      };
-    });
+    const live = Boolean(opts?.live);
+    if (!live && opts?.history !== false) pushHistory();
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (p.id !== selectedPostId) return p;
+        const current = p.elements.find((el) => el.id === elementId);
+        if (!current) return p;
+        const w = Math.max(1, p.width || contentSize.w);
+        const h = Math.max(1, p.height || contentSize.h);
+        const refitText =
+          current.type === 'TEXT' &&
+          ('fontSize' in clean || 'content' in clean) &&
+          !('width' in clean && 'height' in clean);
+        // Live drag/resize: constrain only the active element — collision resolve on commit would fight the pointer.
+        const result = applyElementPatch(current, clean, w, h, {
+          refitText: live ? false : refitText,
+          resolveAll:
+            live
+              ? undefined
+              : refitText || 'width' in clean || 'height' in clean || 'y' in clean || 'x' in clean
+                ? p.elements
+                : undefined,
+        });
+        const nextElements =
+          result.elements ?? p.elements.map((el) => (el.id === elementId ? result.element : el));
+        return syncPostCopyFields({ ...p, elements: nextElements });
+      }),
+    );
+    markDirty();
   }
 
-  function replaceElements(elements: SocialElement[]) {
-    updateSelectedPost((p) => ({ ...p, elements }));
+  function replaceElements(elements: SocialElement[], opts?: { history?: boolean }) {
+    updateSelectedPost((p) => ({ ...p, elements: ensureUniqueElementIds(elements) }), {
+      history: opts?.history !== false,
+    });
   }
 
   function togglePlatform(key: PlatformKey) {
@@ -605,7 +773,7 @@ export function SocialMediaBuilderWorkspace() {
 
   function handleFloating(action: FloatingActionKey | 'more') {
     if (action === 'more') {
-      setFloatingMoreOpen((v) => !v);
+      setFloatingMoreOpen(!floatingMoreOpen);
       setAlignMenuOpen(false);
       setLayerMenuOpen(false);
       return;
@@ -670,13 +838,13 @@ export function SocialMediaBuilderWorkspace() {
       return;
     }
     if (action === 'layer') {
-      setLayerMenuOpen((v) => !v);
+      setLayerMenuOpen(!layerMenuOpen);
       setAlignMenuOpen(false);
       setFloatingMoreOpen(false);
       return;
     }
     if (action === 'align') {
-      setAlignMenuOpen((v) => !v);
+      setAlignMenuOpen(!alignMenuOpen);
       setLayerMenuOpen(false);
       setFloatingMoreOpen(false);
       return;
@@ -743,6 +911,11 @@ export function SocialMediaBuilderWorkspace() {
         instruction,
         posts: latestPosts,
         selectedPostId: latestSelectedPostId,
+        selectedElement: selectedElementToDesignContext(
+          latestPosts
+            .find((p) => p.id === latestSelectedPostId)
+            ?.elements.find((el) => el.id === selectedElementIdRef.current) ?? null,
+        ),
         coverImage: coverAsset.coverImage,
         galleryImages: coverAsset.galleryImages,
         language: locale,
@@ -780,8 +953,15 @@ export function SocialMediaBuilderWorkspace() {
           docApi.constructionProjectId,
         );
         if (applied.posts.length) {
-          setPosts(applied.posts);
+          pushHistory();
+          setPosts(
+            applied.posts.map((p) => ({
+              ...p,
+              elements: ensureUniqueElementIds(p.elements),
+            })),
+          );
           if (applied.selectedPostId) setSelectedPostId(applied.selectedPostId);
+          setEditingElementId(null);
           // Sync cover from selected post for shared media rail
           const active =
             applied.posts.find((p) => p.id === applied.selectedPostId) ??
@@ -1134,8 +1314,8 @@ export function SocialMediaBuilderWorkspace() {
                 className="smb-ws__icon-btn"
                 aria-label={t('undo')}
                 data-testid="smb-undo"
-                disabled
-                title={t('toasts.notAvailable')}
+                disabled={!historyPast.length}
+                onClick={() => undoHistory()}
               >
                 <IhIcon name="refresh" size={12} />
               </button>
@@ -1144,8 +1324,8 @@ export function SocialMediaBuilderWorkspace() {
                 className="smb-ws__icon-btn"
                 aria-label={t('redo')}
                 data-testid="smb-redo"
-                disabled
-                title={t('toasts.notAvailable')}
+                disabled={!historyFuture.length}
+                onClick={() => redoHistory()}
               >
                 <IhIcon name="arrowRight" size={12} />
               </button>
@@ -1397,32 +1577,119 @@ export function SocialMediaBuilderWorkspace() {
                       <SmbArtboardElements
                         elements={selectedPost.elements}
                         selectedElementId={previewMode ? null : selectedElementId}
+                        editingElementId={previewMode ? null : editingElementId}
                         imageUrlsByAssetId={elementDisplayUrls}
                         canvasLocked={canvasLocked}
                         previewMode={previewMode}
                         canvasWidth={contentSize.w}
                         canvasHeight={contentSize.h}
                         onSelect={selectElement}
-                        onPatchElement={(id, patch) => patchElement(id, patch)}
+                        onPatchElement={(id, patch, opts) =>
+                          patchElement(id, patch, {
+                            live: opts?.live,
+                            history: editingElementId === id ? false : opts?.live ? false : undefined,
+                          })
+                        }
+                        onBeginEdit={(id) => {
+                          pushHistory();
+                          setSelectedElementId(id);
+                          setEditingElementId(id);
+                        }}
+                        onEndEdit={() => setEditingElementId(null)}
+                        onGestureStart={beginGestureHistory}
+                        onGestureEnd={endGestureHistory}
                       />
                       </div>
                       {!previewMode && selectedElementId ? (
                         <div
                           className="smb-ws__floating-actions"
                           data-testid="smb-floating-actions"
+                          data-align-open={alignMenuOpen ? 'true' : 'false'}
+                          data-layer-open={layerMenuOpen ? 'true' : 'false'}
+                          onPointerDown={(e) => e.stopPropagation()}
                           onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
                         >
                           {FLOATING_ACTIONS.map((action) => (
-                            <button
-                              key={action.key}
-                              type="button"
-                              className="smb-ws__floating-btn"
-                              data-testid={`smb-floating-${action.key}`}
-                              onClick={() => handleFloating(action.key)}
-                            >
-                              <IhIcon name={action.icon} size={11} />
-                              {t(`floating.${action.key}`)}
-                            </button>
+                            <div key={action.key} className="smb-ws__floating-more">
+                              <button
+                                type="button"
+                                className={`smb-ws__floating-btn${
+                                  (action.key === 'align' && alignMenuOpen) ||
+                                  (action.key === 'layer' && layerMenuOpen)
+                                    ? ' is-active'
+                                    : ''
+                                }`}
+                                data-testid={`smb-floating-${action.key}`}
+                                onClick={() => handleFloating(action.key)}
+                              >
+                                <IhIcon name={action.icon} size={11} />
+                                {t(`floating.${action.key}`)}
+                              </button>
+                              {action.key === 'layer' && layerMenuOpen ? (
+                                <div className="smb-ws__floating-menu" role="menu" data-testid="smb-layer-menu">
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    data-testid="smb-layer-forward"
+                                    onClick={() => {
+                                      if (!selectedElementId) return;
+                                      replaceElements(
+                                        bringElementForward(selectedPost.elements, selectedElementId),
+                                      );
+                                      setLayerMenuOpen(false);
+                                    }}
+                                  >
+                                    {t('floating.layerForward')}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    data-testid="smb-layer-backward"
+                                    onClick={() => {
+                                      if (!selectedElementId) return;
+                                      replaceElements(
+                                        sendElementBackward(selectedPost.elements, selectedElementId),
+                                      );
+                                      setLayerMenuOpen(false);
+                                    }}
+                                  >
+                                    {t('floating.layerBackward')}
+                                  </button>
+                                </div>
+                              ) : null}
+                              {action.key === 'align' && alignMenuOpen ? (
+                                <div className="smb-ws__floating-menu" role="menu" data-testid="smb-align-menu">
+                                  {(['left', 'center', 'right', 'top', 'middle', 'bottom'] as const).map(
+                                    (mode) => (
+                                      <button
+                                        key={mode}
+                                        type="button"
+                                        role="menuitem"
+                                        data-testid={`smb-align-${mode}`}
+                                        onClick={() => {
+                                          if (!selectedElement) return;
+                                          const next = alignElement(
+                                            selectedElement,
+                                            mode,
+                                            contentSize.w,
+                                            contentSize.h,
+                                          );
+                                          patchElement(selectedElement.id, {
+                                            x: next.x,
+                                            y: next.y,
+                                            ...(next.type === 'TEXT' ? { align: next.align } : {}),
+                                          });
+                                          setAlignMenuOpen(false);
+                                        }}
+                                      >
+                                        {t(`floating.alignModes.${mode}`)}
+                                      </button>
+                                    ),
+                                  )}
+                                </div>
+                              ) : null}
+                            </div>
                           ))}
                           <div className="smb-ws__floating-more">
                             <button
@@ -1470,63 +1737,6 @@ export function SocialMediaBuilderWorkspace() {
                                 >
                                   {t('floating.menu.export')}
                                 </button>
-                              </div>
-                            ) : null}
-                            {layerMenuOpen ? (
-                              <div className="smb-ws__floating-menu" role="menu" data-testid="smb-layer-menu">
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  data-testid="smb-layer-forward"
-                                  onClick={() => {
-                                    if (!selectedElementId) return;
-                                    replaceElements(
-                                      bringElementForward(selectedPost.elements, selectedElementId),
-                                    );
-                                    setLayerMenuOpen(false);
-                                  }}
-                                >
-                                  {t('floating.layerForward')}
-                                </button>
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  data-testid="smb-layer-backward"
-                                  onClick={() => {
-                                    if (!selectedElementId) return;
-                                    replaceElements(
-                                      sendElementBackward(selectedPost.elements, selectedElementId),
-                                    );
-                                    setLayerMenuOpen(false);
-                                  }}
-                                >
-                                  {t('floating.layerBackward')}
-                                </button>
-                              </div>
-                            ) : null}
-                            {alignMenuOpen ? (
-                              <div className="smb-ws__floating-menu" role="menu" data-testid="smb-align-menu">
-                                {(['left', 'center', 'right', 'vcenter'] as const).map((mode) => (
-                                  <button
-                                    key={mode}
-                                    type="button"
-                                    role="menuitem"
-                                    data-testid={`smb-align-${mode}`}
-                                    onClick={() => {
-                                      if (!selectedElement) return;
-                                      const next = alignElement(
-                                        selectedElement,
-                                        mode,
-                                        contentSize.w,
-                                        contentSize.h,
-                                      );
-                                      patchElement(selectedElement.id, next);
-                                      setAlignMenuOpen(false);
-                                    }}
-                                  >
-                                    {t(`floating.alignModes.${mode}`)}
-                                  </button>
-                                ))}
                               </div>
                             ) : null}
                           </div>

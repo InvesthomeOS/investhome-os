@@ -5,7 +5,7 @@ from __future__ import annotations
 import copy
 import time
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from investhome_api.schemas.social_design_engine import SocialDesignOp
 from investhome_api.services.social_design_engine.layout import (
@@ -43,7 +43,7 @@ PRESET_TO_FORMAT = {
 
 
 def _new_element_id(prefix: str) -> str:
-    return f"{prefix}-{int(time.time() * 1000)}-{abs(hash(prefix)) % 100000}"
+    return f"{prefix}-{uuid4().hex[:12]}"
 
 
 def _ensure_elements(post: dict[str, Any]) -> list[dict[str, Any]]:

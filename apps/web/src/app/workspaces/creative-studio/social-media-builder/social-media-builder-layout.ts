@@ -10,7 +10,16 @@ export const LINE_HEIGHT = 1.2;
 const AVG_CHAR_RATIO_NORMAL = 0.52;
 const AVG_CHAR_RATIO_BOLD = 0.58;
 
-export type AlignMode = 'left' | 'center' | 'right' | 'vcenter' | 'safe-area' | 'hcenter';
+export type AlignMode =
+  | 'left'
+  | 'center'
+  | 'right'
+  | 'top'
+  | 'middle'
+  | 'bottom'
+  | 'vcenter'
+  | 'safe-area'
+  | 'hcenter';
 
 function finiteNum(n: unknown, fallback: number): number {
   const v = typeof n === 'number' ? n : Number(n);
@@ -367,8 +376,21 @@ export function alignElementConstrained(
   } else if (m === 'center') {
     next = { ...next, x: box.x + Math.max(0, Math.floor((box.width - next.width) / 2)) };
     if (next.type === 'TEXT') next = { ...next, align: 'center' };
-  } else if (m === 'vcenter') {
+  } else if (m === 'top') {
+    next = {
+      ...next,
+      y: next.type === 'IMAGE' ? 0 : box.y,
+    };
+  } else if (m === 'middle' || m === 'vcenter') {
     next = { ...next, y: box.y + Math.max(0, Math.floor((box.height - next.height) / 2)) };
+  } else if (m === 'bottom') {
+    next = {
+      ...next,
+      y:
+        next.type === 'IMAGE'
+          ? Math.max(0, canvasH - next.height)
+          : box.y + Math.max(0, box.height - next.height),
+    };
   } else if (m === 'safe-area') {
     next = {
       ...next,

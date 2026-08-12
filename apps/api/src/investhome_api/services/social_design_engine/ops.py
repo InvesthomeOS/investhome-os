@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import time
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from investhome_api.schemas.social_design_engine import DESIGN_OP_TYPES, SocialDesignOp
 
@@ -645,7 +645,7 @@ def validate_ops(
                 if not isinstance(elements, list):
                     post["elements"] = []
                     elements = post["elements"]
-                eid = op.element_id or f"pending-{len(elements)}"
+                eid = op.element_id or f"pending-{uuid4().hex[:10]}"
                 elements.append({"id": eid, "type": "TEXT"})
                 if op.element_id is None:
                     op = op.model_copy(update={"element_id": eid})

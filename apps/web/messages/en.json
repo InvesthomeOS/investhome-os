@@ -18972,6 +18972,9 @@
             "left": "Align left",
             "center": "Align center",
             "right": "Align right",
+            "top": "Align top",
+            "middle": "Align middle",
+            "bottom": "Align bottom",
             "vcenter": "Vertical center"
           },
           "menu": {

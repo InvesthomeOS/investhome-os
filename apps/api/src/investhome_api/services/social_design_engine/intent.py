@@ -119,6 +119,96 @@ def resolve_target(instruction_fragment: str, *, default: ElementTarget = "unkno
     return default
 
 
+def target_from_element(el: dict[str, Any] | None) -> ElementTarget:
+    if not isinstance(el, dict):
+        return "unknown"
+    typ = str(el.get("type") or "").upper()
+    role = str(el.get("role") or "").lower()
+    if typ == "TEXT":
+        if role == "headline":
+            return "headline"
+        if role == "body":
+            return "body"
+        return "body" if role == "custom" else "headline"
+    if typ in {"BUTTON", "CTA"}:
+        return "cta"
+    if typ == "IMAGE":
+        return "image"
+    return "unknown"
+
+
+def selected_element_from_builder_context(
+    builder_context: dict[str, Any] | None,
+    post: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    ctx = builder_context if isinstance(builder_context, dict) else {}
+    sel = ctx.get("selected_element") or ctx.get("selectedElement")
+    eid = (
+        (sel.get("id") if isinstance(sel, dict) else None)
+        or ctx.get("selected_element_id")
+        or ctx.get("selectedElementId")
+    )
+    eid_s = str(eid).strip() if eid else ""
+    if post and eid_s:
+        from investhome_api.services.social_design_engine.ops import find_element
+
+        found = find_element(post, eid_s)
+        if found is not None:
+            return found
+    if isinstance(sel, dict) and sel.get("id"):
+        return sel
+    return None
+
+
+def default_target_from_builder_context(
+    builder_context: dict[str, Any] | None,
+    post: dict[str, Any] | None = None,
+) -> ElementTarget:
+    return target_from_element(selected_element_from_builder_context(builder_context, post))
+
+
+def instruction_refers_to_selection(instruction: str) -> bool:
+    t = _norm(instruction)
+    pronouns = ("bunu", "şunu", "sunu", "onu", "this", "that", "seçili", "secili")
+    if any(k in t for k in pronouns):
+        return True
+    if t == "it" or t.startswith("it ") or " it " in f" {t} ":
+        return True
+    return False
+
+
+def apply_selected_element_targets(
+    plan: IntentPlan,
+    *,
+    builder_context: dict[str, Any] | None,
+    post: dict[str, Any] | None = None,
+    instruction: str = "",
+) -> IntentPlan:
+    """Prefer canvas selection when NL is ambiguous or uses pronouns (bunu/this)."""
+    default = default_target_from_builder_context(builder_context, post)
+    if default == "unknown":
+        return plan
+    force = instruction_refers_to_selection(instruction)
+    sel = selected_element_from_builder_context(builder_context, post)
+    sel_id = str(sel.get("id") or "") if isinstance(sel, dict) else ""
+    next_intents: list[ClassifiedIntent] = []
+    for item in plan.intents:
+        target = item.target
+        if force or target == "unknown":
+            target = default
+        meta = dict(item.meta or {})
+        if sel_id:
+            meta["selected_element_id"] = sel_id
+        next_intents.append(ClassifiedIntent(item.intent, target, item.raw_span, meta))
+    return IntentPlan(
+        intents=next_intents,
+        allow_copy_rewrite=plan.allow_copy_rewrite,
+        allow_cta_rewrite=plan.allow_cta_rewrite,
+        structural_only=plan.structural_only,
+    )
+
+
+
 def _explicit_copy_change(instr: str) -> bool:
     """True only when the user clearly asks to change wording/content."""
     t = _norm(instr)
@@ -254,11 +344,16 @@ def _classify_visual_language(t: str, raw: str) -> list[ClassifiedIntent]:
     return found
 
 
-def classify_edit_intents(instruction: str) -> IntentPlan:
+def classify_edit_intents(
+    instruction: str,
+    *,
+    default_target: ElementTarget = "unknown",
+) -> IntentPlan:
     """Classify P0 edit intents from a natural-language instruction."""
     raw = instruction or ""
     t = _norm(raw)
     found: list[ClassifiedIntent] = []
+    fallback: ElementTarget = default_target if default_target != "unknown" else "headline"
 
     # Higher-level visual language (validated vocab only)
     found.extend(_classify_visual_language(t, raw))
@@ -325,12 +420,12 @@ def classify_edit_intents(instruction: str) -> IntentPlan:
             )
             if not is_move:
                 continue
-            target = resolve_target(clause, default="headline")
+            target = resolve_target(clause, default=fallback)
             meta = _spatial_meta(cl)
             found.append(ClassifiedIntent("MOVE", target, clause.strip(), meta))
             move_hits += 1
         if move_hits == 0 and (any(m in t for m in move_markers) or trailing_al):
-            target = resolve_target(raw, default="headline")
+            target = resolve_target(raw, default=fallback)
             found.append(ClassifiedIntent("MOVE", target, raw.strip(), _spatial_meta(t)))
 
     # Resize / shrink / grow (compound: font + box resolved by layout engine)
@@ -354,7 +449,7 @@ def classify_edit_intents(instruction: str) -> IntentPlan:
             "daha buyuk",
         )
     ):
-        target = resolve_target(raw, default="headline")
+        target = resolve_target(raw, default=fallback)
         shrink = any(k in t for k in ("küçült", "kucult", "shrink", "smaller", "biraz küçült", "biraz kucult"))
         grow = any(
             k in t
@@ -399,7 +494,7 @@ def classify_edit_intents(instruction: str) -> IntentPlan:
 
     # Align
     if any(k in t for k in ("ortala", "center", "align", "hizala", "ortadan")):
-        target = resolve_target(raw, default="headline")
+        target = resolve_target(raw, default=fallback)
         align = "center"
         if "sola" in t or "left" in t:
             align = "left"
@@ -454,11 +549,11 @@ def classify_edit_intents(instruction: str) -> IntentPlan:
     ):
         # Avoid treating "mavi bulut" spatial phrase as CHANGE_COLOR
         if "bulut" not in t and "sky" not in t:
-            target = resolve_target(raw, default="headline")
+            target = resolve_target(raw, default=fallback)
             found.append(ClassifiedIntent("CHANGE_COLOR", target, raw.strip(), {}))
 
     if any(k in t for k in ("kalın", "kalin", "bold", "italic", "stil", "style", "font")):
-        target = resolve_target(raw, default="headline")
+        target = resolve_target(raw, default=fallback)
         found.append(ClassifiedIntent("CHANGE_STYLE", target, raw.strip(), {}))
 
     # Delete / duplicate
@@ -472,7 +567,7 @@ def classify_edit_intents(instruction: str) -> IntentPlan:
     allow_copy = _explicit_copy_change(raw)
     allow_cta = _explicit_cta_label_change(raw)
     if allow_copy:
-        target = resolve_target(raw, default="headline")
+        target = resolve_target(raw, default=fallback)
         if target == "cta" or allow_cta:
             found.append(ClassifiedIntent("CHANGE_CTA_TEXT", "cta", raw.strip(), {}))
         else:
@@ -720,7 +815,14 @@ def build_ops_from_intent_plan(
                     )
             continue
 
-        el = find_target_element(post, item.target)
+        sel_id = str((item.meta or {}).get("selected_element_id") or "").strip()
+        el = None
+        if sel_id:
+            from investhome_api.services.social_design_engine.ops import find_element
+
+            el = find_element(post, sel_id)
+        if el is None:
+            el = find_target_element(post, item.target)
         if item.intent == "MOVE":
             if el is None:
                 continue

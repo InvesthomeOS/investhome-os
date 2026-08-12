@@ -123,7 +123,7 @@ describe('layout module wiring', () => {
     const artboard = readSmb('smb-artboard-elements.tsx');
     assert.match(artboard, /constrainElement/);
     assert.match(artboard, /sanitizeGeometryPatch/);
-    assert.match(artboard, /Snapshot scale at pointer-down/);
+    assert.match(artboard, /readCanvasScale|scaleX/);
     assert.doesNotMatch(artboard, /\.setPointerCapture\s*\(/);
     assert.doesNotMatch(artboard, /\.releasePointerCapture\s*\(/);
   });

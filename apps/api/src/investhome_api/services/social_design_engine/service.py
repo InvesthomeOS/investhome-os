@@ -41,7 +41,9 @@ from investhome_api.services.project_assistant.llm_provider import (
 )
 from investhome_api.services.social_design_engine.apply import apply_ops
 from investhome_api.services.social_design_engine.intent import (
+    apply_selected_element_targets,
     classify_edit_intents,
+    default_target_from_builder_context,
     enrich_color_intents,
     filter_ops_for_copy_protection,
     build_ops_from_intent_plan,
@@ -247,12 +249,23 @@ def generate_social_design(
         allowed_asset_ids.add(picked)
 
     # Prefer a different cover/image asset when user asks to replace ("başka …")
-    intent_plan = enrich_color_intents(classify_edit_intents(instruction), instruction)
+    active_for_intent = find_post(draft_posts, selected_post_id) if selected_post_id else None
+    if active_for_intent is None and draft_posts:
+        active_for_intent = draft_posts[0]
+    selected_default = default_target_from_builder_context(builder_context, active_for_intent)
+    intent_plan = enrich_color_intents(
+        classify_edit_intents(instruction, default_target=selected_default),
+        instruction,
+    )
+    intent_plan = apply_selected_element_targets(
+        intent_plan,
+        builder_context=builder_context,
+        post=active_for_intent,
+        instruction=instruction,
+    )
     if mode == "edit" and any(i.intent == "REPLACE_IMAGE" for i in intent_plan.intents):
         current_cover = None
-        active = find_post(draft_posts, selected_post_id) if selected_post_id else None
-        if active is None and draft_posts:
-            active = draft_posts[0]
+        active = active_for_intent
         if active is not None:
             current_cover = active.get("coverAssetId") or active.get("cover_asset_id")
             for el in active.get("elements") or []:

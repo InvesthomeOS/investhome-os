@@ -13649,6 +13649,9 @@
             "left": "Sola hizala",
             "center": "Ortala",
             "right": "Sağa hizala",
+            "top": "Üste hizala",
+            "middle": "Dikey ortala",
+            "bottom": "Alta hizala",
             "vcenter": "Dikey ortala"
           },
           "menu": {

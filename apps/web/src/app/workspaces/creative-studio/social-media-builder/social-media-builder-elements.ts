@@ -54,6 +54,24 @@ export function nextElementId(prefix = 'el'): string {
   return `${prefix}-${UUID_FRAGMENT()}`;
 }
 
+/** Ensure every element id is unique within a post (AI pending-* collisions break selection). */
+export function ensureUniqueElementIds(elements: SocialElement[]): SocialElement[] {
+  const seen = new Set<string>();
+  return elements.map((el) => {
+    const raw = typeof el.id === 'string' ? el.id.trim() : '';
+    if (raw && !seen.has(raw)) {
+      seen.add(raw);
+      return el.id === raw ? el : { ...el, id: raw };
+    }
+    const prefix =
+      el.type === 'TEXT' ? (el.role === 'headline' ? 'headline' : el.role === 'body' ? 'body' : 'text') : el.type === 'BUTTON' ? 'cta' : 'img';
+    let next = nextElementId(prefix);
+    while (seen.has(next)) next = nextElementId(prefix);
+    seen.add(next);
+    return { ...el, id: next };
+  });
+}
+
 export function createDefaultElements(
   width: number,
   height: number,

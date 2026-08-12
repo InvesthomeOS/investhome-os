@@ -41,6 +41,8 @@ Rules:
   "başka görsel/exterior/render" → REPLACE_IMAGE / SET_BACKGROUND — keep all copy unchanged.
 - Target mapping: başlık→headline TEXT, body/açıklama→body TEXT, CTA/buton→BUTTON, görsel/arka plan→IMAGE.
   Do not ADD duplicate headline/body/CTA when the target already exists — UPDATE/MOVE existing element_id.
+- If builder_context.selected_element (or selectedElementId) is present and the user says
+  "bunu/this/şunu/onu" or does not name another element, edit ONLY that selected element_id.
 - linked_project_id must equal the given project id on every op.
 - Asset fields must be real Asset UUIDs from media_candidates or selected_assets.
 - If brand_context.available is false, use neutral premium styling (white/dark text) and do not invent brand voice.

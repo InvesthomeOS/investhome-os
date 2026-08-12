@@ -283,11 +283,13 @@ describe('media scoped by linked_project_id + no Unsplash production seed', () =
     assert.match(rail, /smb-media-open-picker/);
     assert.match(workspace, /onOpenMediaPicker=\{\(\) => coverAsset\.openPicker\('cover'\)\}/);
     // Floating menu must not open the media picker (MediaDrawer-only).
-    const floatingBlock = workspace.match(
-      /data-testid="smb-floating-actions"[\s\S]*?data-testid="smb-floating-more"[\s\S]*?<\/div>\s*<\/div>\s*\) : null/,
-    );
-    assert.ok(floatingBlock, 'expected floating actions block');
-    assert.doesNotMatch(floatingBlock[0], /openPicker/);
+    const start = workspace.indexOf('data-testid="smb-floating-actions"\n');
+    const startAlt = workspace.indexOf('data-testid="smb-floating-actions"\r\n');
+    const idx = start >= 0 ? start : startAlt >= 0 ? startAlt : workspace.lastIndexOf('data-testid="smb-floating-actions"');
+    assert.ok(idx >= 0, 'expected floating actions block');
+    const slice = workspace.slice(idx, idx + 9000);
+    assert.match(slice, /data-testid="smb-floating-more"/);
+    assert.doesNotMatch(slice, /openPicker/);
   });
 
   it('Content change-image and bottom image open CsMediaPicker', () => {

@@ -1,6 +1,13 @@
 'use client';
 
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 
 import {
   sortElementsByZ,
@@ -11,18 +18,28 @@ import { constrainElement, sanitizeGeometryPatch } from './social-media-builder-
 export type SmbArtboardElementsProps = {
   elements: SocialElement[];
   selectedElementId: string | null;
+  editingElementId: string | null;
   imageUrlsByAssetId: Record<string, string>;
   canvasLocked: boolean;
   previewMode: boolean;
   canvasWidth?: number;
   canvasHeight?: number;
   onSelect: (elementId: string | null) => void;
-  onPatchElement: (elementId: string, patch: Partial<SocialElement>) => void;
+  onPatchElement: (
+    elementId: string,
+    patch: Partial<SocialElement>,
+    opts?: { live?: boolean },
+  ) => void;
+  onBeginEdit: (elementId: string) => void;
+  onEndEdit: () => void;
+  onGestureStart: () => void;
+  onGestureEnd: () => void;
 };
 
 type DragState = {
   id: string;
   mode: 'move' | 'resize';
+  type: SocialElement['type'];
   startX: number;
   startY: number;
   origX: number;
@@ -31,6 +48,8 @@ type DragState = {
   origH: number;
   canvasW: number;
   canvasH: number;
+  scaleX: number;
+  scaleY: number;
 };
 
 function finiteOr(n: unknown, fallback: number): number {
@@ -45,9 +64,33 @@ function isRenderableElement(el: SocialElement | null | undefined): el is Social
   return Number.isFinite(finiteOr(el.x, NaN)) && Number.isFinite(finiteOr(el.y, NaN));
 }
 
+function readCanvasScale(
+  design: HTMLElement | null,
+  artboard: HTMLElement | null,
+  canvasW: number,
+  canvasH: number,
+): { scaleX: number; scaleY: number } {
+  let scaleX = 1;
+  let scaleY = 1;
+  if (design && design.offsetWidth > 0 && design.offsetHeight > 0) {
+    const rect = design.getBoundingClientRect();
+    const sx = rect.width / design.offsetWidth;
+    const sy = rect.height / design.offsetHeight;
+    if (Number.isFinite(sx) && sx > 0.001) scaleX = sx;
+    if (Number.isFinite(sy) && sy > 0.001) scaleY = sy;
+  } else if (artboard && artboard.clientWidth > 0 && artboard.clientHeight > 0) {
+    const sx = artboard.clientWidth / canvasW;
+    const sy = artboard.clientHeight / canvasH;
+    if (Number.isFinite(sx) && sx > 0.001) scaleX = sx;
+    if (Number.isFinite(sy) && sy > 0.001) scaleY = sy;
+  }
+  return { scaleX, scaleY };
+}
+
 export function SmbArtboardElements({
   elements,
   selectedElementId,
+  editingElementId,
   imageUrlsByAssetId,
   canvasLocked,
   previewMode,
@@ -55,8 +98,47 @@ export function SmbArtboardElements({
   canvasHeight = 1080,
   onSelect,
   onPatchElement,
+  onBeginEdit,
+  onEndEdit,
+  onGestureStart,
+  onGestureEnd,
 }: SmbArtboardElementsProps) {
   const sorted = sortElementsByZ(elements.filter(isRenderableElement));
+  const [draftText, setDraftText] = useState('');
+  const editRef = useRef<HTMLTextAreaElement | HTMLInputElement | null>(null);
+  const dragAliveRef = useRef(false);
+
+  useEffect(() => {
+    if (!editingElementId) return;
+    const el = elements.find((e) => e.id === editingElementId);
+    if (!el || (el.type !== 'TEXT' && el.type !== 'BUTTON')) {
+      onEndEdit();
+      return;
+    }
+    setDraftText(el.type === 'TEXT' ? el.content : el.label);
+    const id = window.requestAnimationFrame(() => {
+      editRef.current?.focus();
+      editRef.current?.select?.();
+    });
+    return () => window.cancelAnimationFrame(id);
+    // Only re-seed when entering edit for a new id
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingElementId]);
+
+  function commitEdit(elementId: string) {
+    const el = elements.find((e) => e.id === elementId);
+    if (!el) {
+      onEndEdit();
+      return;
+    }
+    const next = draftText;
+    if (el.type === 'TEXT' && next !== el.content) {
+      onPatchElement(elementId, { content: next });
+    } else if (el.type === 'BUTTON' && next !== el.label) {
+      onPatchElement(elementId, { label: next });
+    }
+    onEndEdit();
+  }
 
   function beginDrag(
     event: ReactPointerEvent<HTMLElement>,
@@ -64,54 +146,31 @@ export function SmbArtboardElements({
     mode: 'move' | 'resize',
   ) {
     if (canvasLocked || previewMode) return;
+    if (editingElementId) return;
     if (!isRenderableElement(el)) return;
+    // Only primary button
+    if (typeof event.button === 'number' && event.button !== 0) return;
     event.stopPropagation();
     // Do not preventDefault — keeps click/selection stable inside CSS-transform + FS shells.
     // Do not use setPointerCapture — release throws InvalidStateError after FS remounts.
     onSelect(el.id);
 
-    const artboard =
-      typeof event.currentTarget?.closest === 'function'
-        ? (event.currentTarget.closest('[data-testid="smb-artboard"]') as HTMLElement | null)
-        : null;
-    const design =
-      typeof event.currentTarget?.closest === 'function'
-        ? (event.currentTarget.closest('[data-testid="smb-artboard-design"]') as HTMLElement | null)
-        : null;
+    const currentTarget = event.currentTarget;
+    if (!currentTarget || typeof currentTarget.closest !== 'function') return;
 
-    const cw = Math.max(
-      1,
-      finiteOr(canvasWidth, finiteOr(artboard?.dataset.width, 1080)),
-    );
-    const ch = Math.max(
-      1,
-      finiteOr(canvasHeight, finiteOr(artboard?.dataset.height, 1080)),
-    );
+    const artboard = currentTarget.closest('[data-testid="smb-artboard"]') as HTMLElement | null;
+    const design = currentTarget.closest(
+      '[data-testid="smb-artboard-design"]',
+    ) as HTMLElement | null;
 
-    // Snapshot scale at pointer-down — avoid reading detached nodes mid-drag after FS remount.
-    let scaleX = 1;
-    let scaleY = 1;
-    try {
-      if (design && design.offsetWidth > 0 && design.offsetHeight > 0) {
-        const rect = design.getBoundingClientRect();
-        const sx = rect.width / design.offsetWidth;
-        const sy = rect.height / design.offsetHeight;
-        if (Number.isFinite(sx) && sx > 0.001) scaleX = sx;
-        if (Number.isFinite(sy) && sy > 0.001) scaleY = sy;
-      } else if (artboard && artboard.clientWidth > 0 && artboard.clientHeight > 0) {
-        const sx = artboard.clientWidth / cw;
-        const sy = artboard.clientHeight / ch;
-        if (Number.isFinite(sx) && sx > 0.001) scaleX = sx;
-        if (Number.isFinite(sy) && sy > 0.001) scaleY = sy;
-      }
-    } catch {
-      scaleX = 1;
-      scaleY = 1;
-    }
+    const cw = Math.max(1, finiteOr(canvasWidth, finiteOr(artboard?.dataset.width, 1080)));
+    const ch = Math.max(1, finiteOr(canvasHeight, finiteOr(artboard?.dataset.height, 1080)));
+    const { scaleX, scaleY } = readCanvasScale(design, artboard, cw, ch);
 
     const drag: DragState = {
       id: el.id,
       mode,
+      type: el.type,
       startX: finiteOr(event.clientX, 0),
       startY: finiteOr(event.clientY, 0),
       origX: finiteOr(el.x, 0),
@@ -120,38 +179,51 @@ export function SmbArtboardElements({
       origH: Math.max(24, finiteOr(el.height, 40)),
       canvasW: cw,
       canvasH: ch,
+      scaleX,
+      scaleY,
     };
+
     let dragging = false;
-    let alive = true;
+    dragAliveRef.current = true;
+    let historyArmed = false;
 
     function onMove(ev: PointerEvent) {
-      if (!alive) return;
+      if (!dragAliveRef.current) return;
       const clientX = finiteOr(ev.clientX, drag.startX);
       const clientY = finiteOr(ev.clientY, drag.startY);
       const dx = clientX - drag.startX;
       const dy = clientY - drag.startY;
       if (!dragging && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
-      dragging = true;
+      if (!dragging) {
+        dragging = true;
+        if (!historyArmed) {
+          historyArmed = true;
+          onGestureStart();
+        }
+      }
+
+      const sx = drag.scaleX > 0.001 ? drag.scaleX : 1;
+      const sy = drag.scaleY > 0.001 ? drag.scaleY : 1;
 
       if (drag.mode === 'move') {
         const next = constrainElement(
           {
-            type: el.type,
-            x: Math.round(drag.origX + dx / scaleX),
-            y: Math.round(drag.origY + dy / scaleY),
+            type: drag.type,
+            x: Math.round(drag.origX + dx / sx),
+            y: Math.round(drag.origY + dy / sy),
             width: drag.origW,
             height: drag.origH,
           },
           drag.canvasW,
           drag.canvasH,
         );
-        onPatchElement(drag.id, sanitizeGeometryPatch({ x: next.x, y: next.y }));
+        onPatchElement(drag.id, sanitizeGeometryPatch({ x: next.x, y: next.y }), { live: true });
       } else {
-        const rawW = Math.max(24, Math.round(drag.origW + dx / scaleX));
-        const rawH = Math.max(24, Math.round(drag.origH + dy / scaleY));
+        const rawW = Math.max(24, Math.round(drag.origW + dx / sx));
+        const rawH = Math.max(24, Math.round(drag.origH + dy / sy));
         const next = constrainElement(
           {
-            type: el.type,
+            type: drag.type,
             x: drag.origX,
             y: drag.origY,
             width: rawW,
@@ -162,16 +234,21 @@ export function SmbArtboardElements({
         );
         onPatchElement(
           drag.id,
-          sanitizeGeometryPatch({ width: next.width, height: next.height }),
+          sanitizeGeometryPatch({
+            width: Math.max(8, next.width),
+            height: Math.max(8, next.height),
+          }),
+          { live: true },
         );
       }
     }
 
     function onUp() {
-      alive = false;
+      dragAliveRef.current = false;
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
+      if (dragging) onGestureEnd();
     }
 
     window.addEventListener('pointermove', onMove);
@@ -179,10 +256,32 @@ export function SmbArtboardElements({
     window.addEventListener('pointercancel', onUp);
   }
 
+  function handleDoubleClick(el: SocialElement) {
+    if (canvasLocked || previewMode) return;
+    if (el.type !== 'TEXT' && el.type !== 'BUTTON') return;
+    onSelect(el.id);
+    onBeginEdit(el.id);
+  }
+
+  function onEditKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      onEndEdit();
+      return;
+    }
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      commitEdit(id);
+    }
+  }
+
   return (
     <>
       {sorted.map((el) => {
         const selected = selectedElementId === el.id;
+        const editing = editingElementId === el.id;
         const w = Math.max(8, finiteOr(el.width, 100));
         const h = Math.max(8, finiteOr(el.height, 40));
         const style: CSSProperties = {
@@ -194,12 +293,24 @@ export function SmbArtboardElements({
           zIndex: Math.round(finiteOr(el.zIndex, 1)) + 10,
         };
 
+        const resizeHandle =
+          selected && !previewMode && !canvasLocked && !editing ? (
+            <span
+              className="smb-ws__el-resize"
+              data-testid={`smb-el-resize-${el.id}`}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                beginDrag(e, el, 'resize');
+              }}
+            />
+          ) : null;
+
         if (el.type === 'TEXT') {
           const fontSize = Math.max(8, finiteOr(el.fontSize, 24));
           return (
             <div
               key={el.id}
-              className={`smb-ws__el smb-ws__el--text${selected ? ' is-selected' : ''}`}
+              className={`smb-ws__el smb-ws__el--text${selected ? ' is-selected' : ''}${editing ? ' is-editing' : ''}`}
               style={{
                 ...style,
                 color: typeof el.color === 'string' && el.color.trim() ? el.color : '#ffffff',
@@ -213,23 +324,47 @@ export function SmbArtboardElements({
               data-el-role={el.role}
               onClick={(e) => {
                 e.stopPropagation();
-                onSelect(el.id);
+                if (!editing) onSelect(el.id);
               }}
-              onPointerDown={(e) => beginDrag(e, el, 'move')}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                handleDoubleClick(el);
+              }}
+              onPointerDown={(e) => {
+                if (editing) {
+                  e.stopPropagation();
+                  return;
+                }
+                // Defer drag arming so double-click can enter inline edit without fighting move.
+                if (e.detail >= 2) {
+                  e.stopPropagation();
+                  return;
+                }
+                beginDrag(e, el, 'move');
+              }}
               role="button"
               tabIndex={0}
             >
-              {typeof el.content === 'string' ? el.content : ''}
-              {selected && !previewMode && !canvasLocked ? (
-                <span
-                  className="smb-ws__el-resize"
-                  data-testid={`smb-el-resize-${el.id}`}
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                    beginDrag(e, el, 'resize');
+              {editing ? (
+                <textarea
+                  ref={(node) => {
+                    editRef.current = node;
                   }}
+                  className="smb-ws__el-editor"
+                  data-testid={`smb-el-editor-${el.id}`}
+                  value={draftText}
+                  onChange={(e) => setDraftText(e.target.value)}
+                  onBlur={() => commitEdit(el.id)}
+                  onKeyDown={(e) => onEditKeyDown(e, el.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  rows={Math.max(1, Math.round(h / Math.max(fontSize * 1.2, 12)))}
                 />
-              ) : null}
+              ) : (
+                typeof el.content === 'string' ? el.content : ''
+              )}
+              {resizeHandle}
             </div>
           );
         }
@@ -240,7 +375,7 @@ export function SmbArtboardElements({
           return (
             <div
               key={el.id}
-              className={`smb-ws__el smb-ws__el--button${selected ? ' is-selected' : ''}`}
+              className={`smb-ws__el smb-ws__el--button${selected ? ' is-selected' : ''}${editing ? ' is-editing' : ''}`}
               style={{
                 ...style,
                 background:
@@ -257,23 +392,46 @@ export function SmbArtboardElements({
               data-el-type="BUTTON"
               onClick={(e) => {
                 e.stopPropagation();
-                onSelect(el.id);
+                if (!editing) onSelect(el.id);
               }}
-              onPointerDown={(e) => beginDrag(e, el, 'move')}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                handleDoubleClick(el);
+              }}
+              onPointerDown={(e) => {
+                if (editing) {
+                  e.stopPropagation();
+                  return;
+                }
+                // Defer drag arming so double-click can enter inline edit without fighting move.
+                if (e.detail >= 2) {
+                  e.stopPropagation();
+                  return;
+                }
+                beginDrag(e, el, 'move');
+              }}
               role="button"
               tabIndex={0}
             >
-              <span>{typeof el.label === 'string' ? el.label : ''}</span>
-              {selected && !previewMode && !canvasLocked ? (
-                <span
-                  className="smb-ws__el-resize"
-                  data-testid={`smb-el-resize-${el.id}`}
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                    beginDrag(e, el, 'resize');
+              {editing ? (
+                <input
+                  ref={(node) => {
+                    editRef.current = node;
                   }}
+                  className="smb-ws__el-editor smb-ws__el-editor--button"
+                  data-testid={`smb-el-editor-${el.id}`}
+                  value={draftText}
+                  onChange={(e) => setDraftText(e.target.value)}
+                  onBlur={() => commitEdit(el.id)}
+                  onKeyDown={(e) => onEditKeyDown(e, el.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
                 />
-              ) : null}
+              ) : (
+                <span>{typeof el.label === 'string' ? el.label : ''}</span>
+              )}
+              {resizeHandle}
             </div>
           );
         }
@@ -300,16 +458,7 @@ export function SmbArtboardElements({
             ) : (
               <span className="smb-ws__el-image-empty" />
             )}
-            {selected && !previewMode && !canvasLocked ? (
-              <span
-                className="smb-ws__el-resize"
-                data-testid={`smb-el-resize-${el.id}`}
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  beginDrag(e, el, 'resize');
-                }}
-              />
-            ) : null}
+            {resizeHandle}
           </div>
         );
       })}

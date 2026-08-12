@@ -451,12 +451,16 @@ describe('workspace wiring — real editor controls', () => {
     assert.match(workspace, /smb-element-media-picker-dialog/);
   });
 
-  it('disables non-P0 top actions (send test / publish / undo / redo)', () => {
+  it('enables undo/redo for shared editor history; keeps send-test/publish disabled', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
     assert.match(workspace, /data-testid="smb-send-test"[\s\S]*?disabled/);
     assert.match(workspace, /data-testid="smb-publish"[\s\S]*?disabled/);
-    assert.match(workspace, /data-testid="smb-undo"[\s\S]*?disabled/);
-    assert.match(workspace, /data-testid="smb-redo"[\s\S]*?disabled/);
+    assert.match(workspace, /data-testid="smb-undo"/);
+    assert.match(workspace, /data-testid="smb-redo"/);
+    assert.match(workspace, /disabled=\{!historyPast\.length\}/);
+    assert.match(workspace, /disabled=\{!historyFuture\.length\}/);
+    assert.match(workspace, /undoHistory/);
+    assert.match(workspace, /redoHistory/);
   });
 
   it('preview + PNG export use persistent post elements', () => {
