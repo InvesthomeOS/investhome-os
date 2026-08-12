@@ -111,6 +111,8 @@ class SocialDesignGenerationMeta(BaseModel):
     content_package: dict[str, Any] | None = None
     design_plan: dict[str, Any] | None = None
     campaign_facts: list[dict[str, Any]] = Field(default_factory=list)
+    creative_concept: dict[str, Any] | None = None
+    validation: dict[str, Any] | None = None
 
 
 class SocialDesignResponse(BaseModel):

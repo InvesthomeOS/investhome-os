@@ -120,6 +120,16 @@ def apply_ops(
                 if op.payload.get("description") is not None:
                     existing["description"] = str(op.payload.get("description") or "")
                 existing["linked_project_id"] = str(linked_project_id)
+                if op.payload.get("compositionStrategy"):
+                    existing["compositionStrategy"] = op.payload.get("compositionStrategy")
+                if op.payload.get("overlayStrategy"):
+                    existing["overlayStrategy"] = op.payload.get("overlayStrategy")
+                if op.payload.get("textAlign"):
+                    existing["textAlign"] = op.payload.get("textAlign")
+                if op.payload.get("safeTextZone"):
+                    existing["safeTextZone"] = op.payload.get("safeTextZone")
+                if op.payload.get("textDensity"):
+                    existing["textDensity"] = op.payload.get("textDensity")
                 current_selected = op.post_id
                 grammar_post_ids.add(op.post_id)
                 continue
@@ -139,6 +149,11 @@ def apply_ops(
                     "coverAssetId": None,
                     "linked_project_id": str(linked_project_id),
                     "elements": [],
+                    "compositionStrategy": op.payload.get("compositionStrategy"),
+                    "overlayStrategy": op.payload.get("overlayStrategy"),
+                    "textAlign": op.payload.get("textAlign"),
+                    "safeTextZone": op.payload.get("safeTextZone"),
+                    "textDensity": op.payload.get("textDensity"),
                 }
             )
             current_selected = op.post_id
@@ -175,7 +190,7 @@ def apply_ops(
         if op.op == "ADD_TEXT":
             cw, ch = canvas_size(post)
             role = str(payload.get("role") or "custom").lower()
-            if role not in {"headline", "body", "custom"}:
+            if role not in {"headline", "body", "custom", "eyebrow"}:
                 role = "custom"
             eid = op.element_id or _new_element_id("text")
             content = sanitize_creative_copy(payload.get("content"), max_len=2000)

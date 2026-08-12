@@ -4283,14 +4283,53 @@
 .smb-ws__artboard-overlay {
   position: absolute;
   inset: 0;
+  pointer-events: none;
   background: linear-gradient(
     180deg,
-    rgba(0, 0, 0, 0.28) 0%,
-    transparent 28%,
-    transparent 55%,
-    rgba(0, 0, 0, 0.55) 100%
+    rgba(0, 0, 0, 0.22) 0%,
+    transparent 26%,
+    transparent 100%
   );
-  pointer-events: none;
+}
+.smb-ws__artboard-overlay[data-overlay='localized-top'] {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.38) 0%,
+    rgba(0, 0, 0, 0.12) 22%,
+    transparent 38%
+  );
+}
+.smb-ws__artboard-overlay[data-overlay='localized-bottom'] {
+  background: linear-gradient(
+    180deg,
+    transparent 48%,
+    rgba(0, 0, 0, 0.18) 72%,
+    rgba(0, 0, 0, 0.42) 100%
+  );
+}
+.smb-ws__artboard-overlay[data-overlay='localized-left'] {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.36) 0%,
+    rgba(0, 0, 0, 0.12) 28%,
+    transparent 48%
+  );
+}
+.smb-ws__artboard-overlay[data-overlay='localized-right'] {
+  background: linear-gradient(
+    270deg,
+    rgba(0, 0, 0, 0.36) 0%,
+    rgba(0, 0, 0, 0.12) 28%,
+    transparent 48%
+  );
+}
+.smb-ws__artboard-overlay[data-overlay='none'] {
+  background: none;
+}
+.smb-ws__el--text[data-el-role='eyebrow'] {
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 500;
 }
 .smb-ws__el {
   box-sizing: border-box;

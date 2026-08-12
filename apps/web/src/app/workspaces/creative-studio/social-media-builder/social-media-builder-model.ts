@@ -135,6 +135,10 @@ export type SocialPost = {
   elements: SocialElement[];
   /** Generation metadata — persisted, never rendered on canvas. */
   generationMeta?: Record<string, unknown> | null;
+  compositionStrategy?: string | null;
+  overlayStrategy?: string | null;
+  textAlign?: 'left' | 'center' | 'right' | null;
+  safeTextZone?: string | null;
 };
 
 export type SmbProject = {

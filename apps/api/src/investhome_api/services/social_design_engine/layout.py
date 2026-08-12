@@ -20,20 +20,25 @@ AVG_CHAR_RATIO_NORMAL = 0.52
 AVG_CHAR_RATIO_BOLD = 0.58
 
 ROLE_FONT_DEFAULTS = {
-    "headline": {"preferred_ratio": 0.055, "min": 22, "max": 72},
-    "body": {"preferred_ratio": 0.028, "min": 14, "max": 36},
-    "custom": {"preferred_ratio": 0.032, "min": 14, "max": 48},
+    "eyebrow": {"preferred_ratio": 0.015, "min": 11, "max": 18},
+    "headline": {"preferred_ratio": 0.062, "min": 22, "max": 84},
+    "body": {"preferred_ratio": 0.024, "min": 14, "max": 28},
+    "custom": {"preferred_ratio": 0.028, "min": 14, "max": 40},
 }
 
-# Collision priority: higher stays; lower moves. Headline > body > CTA > image.
+# Collision priority: higher stays; lower moves. Headline > eyebrow > body > CTA > image.
 ROLE_PRIORITY = {
     "headline": 100,
+    "eyebrow": 90,
     "body": 80,
     "custom": 70,
     "cta": 60,
     "button": 60,
     "image": 40,
 }
+
+TEXT_ROLES = frozenset({"headline", "body", "custom", "eyebrow"})
+COMPOSITION_FAMILIES = frozenset({"MINIMAL_HERO", "EDITORIAL", "INVESTMENT", "LOCATION"})
 
 VisualLayoutIntent = Literal[
     "INCREASE_WHITESPACE",
@@ -272,24 +277,137 @@ def role_font_prefs(role: str, canvas_w: int) -> dict[str, int]:
     }
 
 
-def social_layout_slots(canvas_w: int, canvas_h: int) -> dict[str, dict[str, int]]:
+def _axis_x(box: dict[str, int], width: int, align: str) -> int:
+    align_l = (align or "left").strip().lower()
+    if align_l == "right":
+        return box["x"] + max(0, box["width"] - width)
+    if align_l == "center":
+        return box["x"] + max(0, (box["width"] - width) // 2)
+    return box["x"]
+
+
+def social_layout_slots(
+    canvas_w: int,
+    canvas_h: int,
+    *,
+    family: str | None = None,
+    align: str = "center",
+    safe_zone: str = "top",
+) -> dict[str, dict[str, int]]:
     """
-    Default AI social grammar (canonical format pixels):
-      BG full-bleed (cover) → overlay → HEADLINE upper/middle → BODY below → CTA lower safe.
+    Composition-family grammar (canonical format pixels).
+    Default (no family): BG → overlay → HEADLINE upper/middle → BODY below → CTA lower safe.
+    Families share one alignment axis for the content group.
     """
     box = safe_content_box(canvas_w, canvas_h)
     content_w = box["width"]
-    pad_x = box["x"]
+    fam = (family or "").strip().upper()
+    axis = (align or "left").strip().lower()
+    if axis not in {"left", "center", "right"}:
+        axis = "left"
+    zone = (safe_zone or "top").strip().lower()
 
+    cta_h = max(40, int(round(canvas_h * 0.048)))
+    cta_w = min(content_w, max(200, int(round(canvas_w * 0.36))))
+
+    if fam in COMPOSITION_FAMILIES:
+        col_ratio = 0.72 if fam == "EDITORIAL" else 0.78 if axis == "left" else 0.86
+        col_w = min(content_w, max(280, int(round(box["width"] * col_ratio))))
+        x = _axis_x(box, col_w, axis)
+        gap = max(16, int(round(canvas_h * 0.018)))
+
+        if fam == "MINIMAL_HERO":
+            if zone == "bottom":
+                headline_y = int(round(canvas_h * 0.62))
+            else:
+                headline_y = box["y"] + int(round(canvas_h * 0.04))
+            body_y = headline_y + int(round(canvas_h * 0.14))
+            cta_y = min(box["y"] + box["height"] - cta_h, int(round(canvas_h * 0.86)))
+            headline_max_h = int(round(canvas_h * 0.16))
+            body_max_h = int(round(canvas_h * 0.10))
+        elif fam == "LOCATION":
+            headline_y = box["y"] + int(round(canvas_h * 0.03))
+            body_y = headline_y + int(round(canvas_h * 0.15))
+            cta_y = min(box["y"] + box["height"] - cta_h, int(round(canvas_h * 0.86)))
+            headline_max_h = int(round(canvas_h * 0.16))
+            body_max_h = int(round(canvas_h * 0.10))
+        elif fam == "INVESTMENT":
+            headline_y = int(round(canvas_h * 0.50))
+            body_y = headline_y + int(round(canvas_h * 0.14))
+            cta_y = min(box["y"] + box["height"] - cta_h, int(round(canvas_h * 0.86)))
+            headline_max_h = int(round(canvas_h * 0.14))
+            body_max_h = int(round(canvas_h * 0.12))
+        else:  # EDITORIAL
+            eyebrow_y = box["y"] + int(round(canvas_h * 0.06))
+            headline_y = eyebrow_y + int(round(canvas_h * 0.05))
+            body_y = headline_y + int(round(canvas_h * 0.16))
+            cta_y = min(box["y"] + box["height"] - cta_h, int(round(canvas_h * 0.84)))
+            headline_max_h = int(round(canvas_h * 0.18))
+            body_max_h = int(round(canvas_h * 0.12))
+            cta_x = x if axis != "center" else int(round((canvas_w - cta_w) / 2))
+            return {
+                "eyebrow": {
+                    "x": x,
+                    "y": max(box["y"], eyebrow_y),
+                    "width": col_w,
+                    "max_height": max(22, int(round(canvas_h * 0.04))),
+                },
+                "headline": {
+                    "x": x,
+                    "y": max(box["y"], headline_y),
+                    "width": col_w,
+                    "max_height": headline_max_h,
+                },
+                "body": {
+                    "x": x,
+                    "y": max(box["y"], body_y),
+                    "width": col_w,
+                    "max_height": body_max_h,
+                },
+                "cta": {
+                    "x": cta_x,
+                    "y": max(box["y"], min(cta_y, box["y"] + box["height"] - cta_h)),
+                    "width": cta_w,
+                    "height": cta_h,
+                },
+            }
+
+        cta_x = x if axis != "center" else int(round((canvas_w - cta_w) / 2))
+        cta_y = max(box["y"], min(cta_y, box["y"] + box["height"] - cta_h))
+        return {
+            "eyebrow": {
+                "x": x,
+                "y": max(box["y"], headline_y - gap - int(round(canvas_h * 0.03))),
+                "width": col_w,
+                "max_height": max(22, int(round(canvas_h * 0.04))),
+            },
+            "headline": {
+                "x": x,
+                "y": max(box["y"], headline_y),
+                "width": col_w,
+                "max_height": headline_max_h,
+            },
+            "body": {
+                "x": x,
+                "y": max(box["y"], body_y),
+                "width": col_w,
+                "max_height": body_max_h,
+            },
+            "cta": {
+                "x": cta_x,
+                "y": cta_y,
+                "width": cta_w,
+                "height": cta_h,
+            },
+        }
+
+    pad_x = box["x"]
     headline_y = int(round(canvas_h * 0.22))
     headline_max_h = int(round(canvas_h * 0.22))
     body_y = int(round(canvas_h * 0.46))
     body_max_h = int(round(canvas_h * 0.22))
-    cta_h = max(36, int(round(canvas_h * 0.045)))
-    cta_w = min(content_w, max(160, int(round(canvas_w * 0.38))))
     cta_y = min(box["y"] + box["height"] - cta_h, int(round(canvas_h * 0.88)))
     cta_x = int(round((canvas_w - cta_w) / 2))
-
     cta_y = max(box["y"], min(cta_y, box["y"] + box["height"] - cta_h))
 
     return {
@@ -353,7 +471,7 @@ def auto_layout_text(
     Never silently clips: height always fits measured lines at chosen font.
     """
     role = str(el.get("role") or "custom").lower()
-    if role not in {"headline", "body", "custom"}:
+    if role not in TEXT_ROLES:
         role = "custom"
     prefs = role_font_prefs(role, canvas_w)
     box = safe_content_box(canvas_w, canvas_h)
@@ -365,9 +483,11 @@ def auto_layout_text(
     has_hard_breaks = "\n" in content
     if max_lines is None:
         if role == "headline":
-            max_lines = max(3, break_lines) if (has_hard_breaks or len(content) > 28) else 1
+            max_lines = max(2, break_lines) if (has_hard_breaks or len(content) > 28) else 1
+        elif role == "eyebrow":
+            max_lines = 1
         else:
-            max_lines = 6
+            max_lines = 3
     max_lines = max(max_lines, break_lines)
 
     preferred = clamp_int(
@@ -472,6 +592,8 @@ def auto_layout_text(
     out["role"] = role
     if role == "headline":
         out["fontWeight"] = "bold"
+    elif role == "eyebrow":
+        out["fontWeight"] = "normal"
     return out
 
 
@@ -483,7 +605,7 @@ def layout_text_element(
     slot: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     role = str(el.get("role") or "custom").lower()
-    if role not in {"headline", "body", "custom"}:
+    if role not in TEXT_ROLES:
         role = "custom"
     slots = social_layout_slots(canvas_w, canvas_h)
     region = slot or slots.get(role) or slots["body"]
@@ -494,12 +616,15 @@ def layout_text_element(
     draft["y"] = region["y"]
     draft["width"] = region["width"]
     draft["fontSize"] = preferred
+    max_lines = 1 if role in {"headline", "eyebrow"} else 2
+    if role == "headline" and len(str(el.get("content") or "")) > 28:
+        max_lines = 2
     return auto_layout_text(
         draft,
         canvas_w=canvas_w,
         canvas_h=canvas_h,
         preferred_font=preferred,
-        max_lines=4 if role == "headline" else 6,
+        max_lines=max_lines,
         max_width=int(region["width"]),
         max_height=int(region.get("max_height") or region.get("height") or int(canvas_h * 0.2)),
         keep_position=True,
@@ -511,14 +636,26 @@ def layout_cta_element(
     *,
     canvas_w: int,
     canvas_h: int,
+    slot: dict[str, int] | None = None,
+    align: str | None = None,
 ) -> dict[str, Any]:
     slots = social_layout_slots(canvas_w, canvas_h)
-    region = slots["cta"]
+    region = slot or slots["cta"]
     label = str(el.get("label") or "Learn more")
     prefs_w = int(region["width"])
     est_w = int(round(len(label) * region["height"] * 0.42 * 0.6 + region["height"]))
     width = clamp_int(est_w, 120, prefs_w, prefs_w)
-    x = int(round((canvas_w - width) / 2))
+    axis = (align or el.get("align") or "center").strip().lower()
+    if axis == "left":
+        x = int(region["x"])
+    elif axis == "right":
+        x = int(region["x"]) + max(0, int(region["width"]) - width)
+    else:
+        x = int(region.get("x") if slot else round((canvas_w - width) / 2))
+        if not slot:
+            x = int(round((canvas_w - width) / 2))
+        else:
+            x = int(region["x"]) + max(0, (int(region["width"]) - width) // 2)
     geo = constrain_element(
         {**el, "type": "BUTTON", "x": x, "y": region["y"], "width": width, "height": region["height"]},
         canvas_w=canvas_w,
@@ -568,8 +705,14 @@ def resolve_collisions(
 
     # Stack role order vertically when roles known.
     headline = next((e for e in working if e.get("type") == "TEXT" and e.get("role") == "headline"), None)
+    eyebrow = next((e for e in working if e.get("type") == "TEXT" and e.get("role") == "eyebrow"), None)
     body = next((e for e in working if e.get("type") == "TEXT" and e.get("role") == "body"), None)
     cta = next((e for e in working if e.get("type") in {"BUTTON", "CTA"}), None)
+
+    if eyebrow and headline:
+        min_h_y = int(eyebrow["y"]) + int(eyebrow["height"]) + gap
+        if int(headline["y"]) < min_h_y:
+            headline["y"] = min_h_y
 
     if headline and body:
         min_body_y = int(headline["y"]) + int(headline["height"]) + gap
@@ -869,7 +1012,7 @@ def resolve_layout(
 
 def apply_layout_grammar(post: dict[str, Any]) -> dict[str, Any]:
     """
-    Reposition role-based TEXT + CTA into the default social grammar.
+    Reposition role-based TEXT + CTA into the composition-family grammar.
     Cover/background stays full-bleed via coverAssetId (not an element).
     """
     cw, ch = canvas_size_for_post(post)
@@ -880,7 +1023,10 @@ def apply_layout_grammar(post: dict[str, Any]) -> dict[str, Any]:
         post["elements"] = []
         return post
 
-    slots = social_layout_slots(cw, ch)
+    family = str(post.get("compositionStrategy") or post.get("composition_strategy") or "") or None
+    align = str(post.get("textAlign") or post.get("text_align") or "left")
+    safe_zone = str(post.get("safeTextZone") or post.get("safe_text_zone") or "top")
+    slots = social_layout_slots(cw, ch, family=family, align=align, safe_zone=safe_zone)
     next_elements: list[Any] = []
     for el in elements:
         if not isinstance(el, dict):
@@ -888,10 +1034,15 @@ def apply_layout_grammar(post: dict[str, Any]) -> dict[str, Any]:
         el_type = str(el.get("type") or "").upper()
         if el_type == "TEXT":
             role = str(el.get("role") or "custom").lower()
-            slot = slots.get(role) if role in {"headline", "body"} else None
-            next_elements.append(layout_text_element(el, canvas_w=cw, canvas_h=ch, slot=slot))
+            slot = slots.get(role) if role in {"headline", "body", "eyebrow"} else None
+            laid = layout_text_element(el, canvas_w=cw, canvas_h=ch, slot=slot)
+            if align in {"left", "center", "right"}:
+                laid["align"] = align
+            next_elements.append(laid)
         elif el_type in {"BUTTON", "CTA"}:
-            next_elements.append(layout_cta_element(el, canvas_w=cw, canvas_h=ch))
+            next_elements.append(
+                layout_cta_element(el, canvas_w=cw, canvas_h=ch, slot=slots.get("cta"), align=align)
+            )
         elif el_type == "IMAGE":
             geo = constrain_element(el, canvas_w=cw, canvas_h=ch, full_bleed=True)
             img = dict(el)

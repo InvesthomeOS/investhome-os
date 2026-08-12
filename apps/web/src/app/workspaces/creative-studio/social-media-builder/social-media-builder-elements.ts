@@ -12,7 +12,7 @@ import {
 
 export type SocialTextAlign = 'left' | 'center' | 'right';
 export type SocialElementType = 'TEXT' | 'IMAGE' | 'BUTTON';
-export type SocialTextRole = 'headline' | 'body' | 'custom';
+export type SocialTextRole = 'headline' | 'body' | 'custom' | 'eyebrow';
 
 export type SocialElementBase = {
   id: string;
@@ -65,7 +65,14 @@ export function ensureUniqueElementIds(elements: SocialElement[]): SocialElement
       return el.id === raw ? el : { ...el, id: raw };
     }
     const prefix =
-      el.type === 'TEXT' ? (el.role === 'headline' ? 'headline' : el.role === 'body' ? 'body' : 'text') : el.type === 'BUTTON' ? 'cta' : 'img';
+      el.type === 'TEXT'
+        ? el.role === 'headline'
+          ? 'headline'
+          : el.role === 'body'
+            ? 'body'
+            : el.role === 'eyebrow'
+              ? 'eyebrow'
+              : 'text' : el.type === 'BUTTON' ? 'cta' : 'img';
     let next = nextElementId(prefix);
     while (seen.has(next)) next = nextElementId(prefix);
     seen.add(next);

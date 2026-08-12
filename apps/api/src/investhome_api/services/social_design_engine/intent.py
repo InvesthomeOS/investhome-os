@@ -322,20 +322,18 @@ def _classify_visual_language(t: str, raw: str) -> list[ClassifiedIntent]:
         else:
             found.append(ClassifiedIntent("INCREASE_WHITESPACE", "unknown", raw.strip(), {}))
 
-    if any(k in t for k in ("daha sade", "sadeleştir", "sadelestir", "simplify", "basitleştir", "basitlestir")):
+    if any(k in t for k in ("daha sade", "sadeleştir", "sadelestir", "simplify", "basitleştir", "basitlestir", "more minimal")):
         found.append(ClassifiedIntent("SIMPLIFY_LAYOUT", "unknown", raw.strip(), {}))
+        found.append(ClassifiedIntent("REDUCE_TEXT_DENSITY", "body", raw.strip(), {}))
 
-    if any(k in t for k in ("daha premium", "premium yap", "daha güçlü", "daha guclu", "güçlü göster", "guclu goster")):
-        if any(k in t for k in ("başlık", "baslik", "headline", "title")) or "güçlü" in t or "guclu" in t:
-            found.append(ClassifiedIntent("EMPHASIZE_HEADLINE", "headline", raw.strip(), {}))
-        else:
-            found.append(ClassifiedIntent("EMPHASIZE_HEADLINE", "headline", raw.strip(), {}))
-            found.append(ClassifiedIntent("INCREASE_WHITESPACE", "unknown", raw.strip(), {}))
+    if any(k in t for k in ("daha premium", "premium yap", "daha güçlü", "daha guclu", "güçlü göster", "guclu goster", "more premium")):
+        found.append(ClassifiedIntent("EMPHASIZE_HEADLINE", "headline", raw.strip(), {}))
+        found.append(ClassifiedIntent("INCREASE_WHITESPACE", "unknown", raw.strip(), {}))
 
     if any(k in t for k in ("metin yoğun", "yoğunluğu azalt", "yogunlugu azalt", "reduce density", "deemphasize body", "gövdeyi küçült", "govdeyi kucult")):
         found.append(ClassifiedIntent("REDUCE_TEXT_DENSITY", "body", raw.strip(), {}))
 
-    if any(k in t for k in ("görseli daha", "gorseli daha", "image prominence", "ön plana", "on plana", "görsel öne", "gorsel one")):
+    if any(k in t for k in ("görseli daha", "gorseli daha", "image prominence", "ön plana", "on plana", "görsel öne", "gorsel one", "show more photo", "show more of the photo", "show more of the image")):
         found.append(ClassifiedIntent("INCREASE_IMAGE_PROMINENCE", "image", raw.strip(), {}))
 
     if any(k in t for k in ("body küçült", "body kucult", "açıklamayı küçült", "aciklamayi kucult", "deemphasize")):
@@ -493,7 +491,7 @@ def classify_edit_intents(
         )
 
     # Align
-    if any(k in t for k in ("ortala", "center", "align", "hizala", "ortadan")):
+    if any(k in t for k in ("ortala", "center", "align", "hizala", "ortadan", "left-align", "left align")):
         target = resolve_target(raw, default=fallback)
         align = "center"
         if "sola" in t or "left" in t:
@@ -521,6 +519,8 @@ def classify_edit_intents(
             "arka plan",
             "background",
             "image",
+            "photo",
+            "another",
         )
     ) and any(
         k in t
@@ -557,7 +557,7 @@ def classify_edit_intents(
         found.append(ClassifiedIntent("CHANGE_STYLE", target, raw.strip(), {}))
 
     # Delete / duplicate
-    if any(k in t for k in ("sil", "delete", "remove", "kaldır", "kaldir")):
+    if any(k in t for k in ("sil", "delete", "remove", "kaldır", "kaldir", "remove cta", "remove the cta")):
         target = resolve_target(raw, default="unknown")
         found.append(ClassifiedIntent("DELETE", target, raw.strip(), {}))
     if any(k in t for k in ("kopyala", "duplicate", "çoğalt", "cogalt", "clone")):

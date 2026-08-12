@@ -121,6 +121,8 @@ REPLACE_IMAGE_EDIT = (
     "baska bir",
     "another photo",
     "another image",
+    "another temple photo",
+    "another temple",
     "farklı foto",
     "farkli foto",
     "different photo",
@@ -163,6 +165,7 @@ class ContentPackage:
     cta: str
     language: str
     tone: str
+    eyebrow: str = ""
 
 
 @dataclass
@@ -193,6 +196,11 @@ class DesignPlan:
     rebuild: bool
     elements: list[DesignPlanElement] = field(default_factory=list)
     name: str = "AI social post"
+    composition_strategy: str = "LOCATION"
+    alignment: str = "left"
+    overlay_region: str = "top"
+    text_density: str = "sparse"
+    safe_text_zone: str = "top"
 
 
 def _norm(text: str) -> str:
@@ -280,8 +288,15 @@ def extract_campaign_facts(instruction: str) -> list[CampaignFact]:
 
     for m in re.finditer(r"\$\s*[\d]{1,3}(?:,\d{3})+(?:\.\d+)?", raw):
         _add("campaign_money", m.group(0).replace(" ", ""), "money")
-    for m in re.finditer(r"\$\s*\d+(?:\.\d+)?\s*(?:k|m|mn|million)?\b", raw, re.I):
+    for m in re.finditer(r"\$\s*\d+(?:\.\d+)?\s*(?:k|m|mn|million)\b", raw, re.I):
         token = re.sub(r"\s+", "", m.group(0))
+        if token not in seen and not any(token != s and token in s for s in seen):
+            _add("campaign_money", m.group(0).strip(), "money")
+    for m in re.finditer(r"\$\s*\d+(?:\.\d+)?\b", raw):
+        token = m.group(0).replace(" ", "")
+        # Skip `$500` when `$500,000` was already captured.
+        if any(s.startswith(token) and s != token for s in seen):
+            continue
         if token not in seen:
             _add("campaign_money", m.group(0).strip(), "money")
 
@@ -589,6 +604,7 @@ def enforce_campaign_facts(package: ContentPackage, facts: list[CampaignFact]) -
         cta=_clip_copy(cta, 36) or package.cta,
         language=package.language,
         tone=package.tone,
+        eyebrow=_clip_copy(getattr(package, "eyebrow", "") or "", 32),
     )
 
 
@@ -598,79 +614,93 @@ def build_heuristic_content_package(
     intent: GenerationIntent,
     context: CreativeStudioGenerationContext,
     campaign_facts: list[CampaignFact],
+    concept: Any | None = None,
 ) -> ContentPackage:
+    from investhome_api.services.social_design_engine.creative_director import (
+        clip_headline,
+        is_generic_cta,
+        is_generic_headline,
+    )
+
     project_name = context.project_identity.project_name or "Project"
-    city = context.project_identity.city or ""
-    facts = _readable_facts(list(context.verified_facts or []))
-    marketing = _marketing_lines(list(context.retrieved_content or []))
     lang = intent.language
     en = lang != "tr"
 
+    if concept is not None:
+        headline = clip_headline(concept.primary_message or project_name)
+        supporting = concept.supporting_message if concept.include_support else ""
+        eyebrow = concept.eyebrow if concept.include_eyebrow else ""
+        cta = concept.cta if concept.include_cta else ""
+        key_fact = ""
+        if intent.marketing_objective == "investment" and campaign_facts:
+            numbers = " · ".join(f.display for f in campaign_facts)
+            blob = f"{headline} {supporting}"
+            if any(f.display not in blob for f in campaign_facts):
+                supporting = numbers
+        if is_generic_headline(headline):
+            headline = clip_headline(concept.primary_message or project_name)
+        if is_generic_cta(cta):
+            cta = concept.cta
+        package = ContentPackage(
+            headline=_clip_copy(headline, 70) or project_name,
+            supporting_text=_clip_copy(supporting, 160),
+            key_fact="",
+            cta=_clip_copy(cta, 36) or ("Schedule a private tour" if en else "Özel tur planla"),
+            language=lang,
+            tone=intent.tone,
+            eyebrow=_clip_copy(eyebrow, 32),
+        )
+        return enforce_campaign_facts(package, campaign_facts)
+
+    facts = _readable_facts(list(context.verified_facts or []))
+    marketing = _marketing_lines(list(context.retrieved_content or []))
     location_bits = [b for b in facts if b and b.lower() not in {project_name.lower()}]
+    city = context.project_identity.city or ""
     city_bit = next((b for b in location_bits if city and city.lower() in b.lower()), city)
 
     if intent.marketing_objective == "investment":
-        headline = (
-            f"Invest in {project_name}" if en else f"{project_name} yatırım fırsatı"
-        )
+        headline = f"Invest in {project_name}" if en else f"{project_name} yatırım fırsatı"
         numbers = " · ".join(f.display for f in campaign_facts) or (
             marketing[0] if marketing else ""
         )
         supporting = numbers
-        if en:
-            key_fact = campaign_facts[0].display if campaign_facts else ""
-            cta = intent.cta_hint or "Explore the investment"
-        else:
-            key_fact = campaign_facts[0].display if campaign_facts else ""
-            cta = intent.cta_hint or "Yatırım fırsatını incele"
+        key_fact = ""
+        cta = intent.cta_hint or ("Explore the investment" if en else "Yatırım fırsatını incele")
     elif intent.marketing_objective == "location":
         place = city_bit or city or project_name
         headline = (
-            f"{project_name} in {place}" if en and place != project_name else f"{project_name}"
+            f"A Central {place} Address" if en and place and place != project_name else project_name
         )
-        if en:
-            loc_keys = ("location", "neighborhood", "address", city.lower()) if city else ("location",)
-            supporting = next(
-                (m for m in marketing if any(k in m.lower() for k in loc_keys)),
-                marketing[0] if marketing else (f"A refined address in {place}." if place else f"Discover {project_name}."),
-            )
-            cta = intent.cta_hint or "Schedule a private tour"
-        else:
-            supporting = marketing[0] if marketing else f"{place} konumunda {project_name}."
-            cta = intent.cta_hint or "Özel tur planla"
-        key_fact = place if place and place != project_name else ""
+        loc_keys = ("location", "neighborhood", "address", city.lower()) if city else ("location",)
+        supporting = next(
+            (m for m in marketing if any(k in m.lower() for k in loc_keys)),
+            f"A refined address in {place}." if en and place else (marketing[0] if marketing else ""),
+        )
+        key_fact = ""
+        cta = intent.cta_hint or ("Schedule a private tour" if en else "Özel tur planla")
     else:
-        headline = marketing[0] if marketing and 12 <= len(marketing[0]) <= 70 else (
-            f"Discover {project_name}" if en else f"{project_name} — özel lansman"
-        )
-        supporting = next((m for m in marketing[1:] if m != headline), marketing[0] if marketing else "")
-        if not supporting:
-            supporting = (
-                f"Verified {project_name} project details."
-                if en
-                else f"{project_name} için doğrulanmış proje bilgisi."
-            )
-        key_fact = city_bit if city_bit and city_bit != project_name else ""
+        headline = project_name
+        supporting = next((m for m in marketing if m != headline), "")
+        key_fact = ""
         cta = intent.cta_hint or ("Schedule a private tour" if en else "Özel tur planla")
 
-    headline = _clip_copy(headline, 70)
+    from investhome_api.services.social_design_engine.creative_director import clip_headline as _clip_h
+
+    headline = _clip_h(_clip_copy(headline, 70))
     supporting = _clip_copy(supporting, 160)
-    key_fact = _clip_copy(key_fact, 80)
     cta = _clip_copy(cta, 36)
     if looks_like_rag_or_debug_copy(headline):
-        headline = f"Discover {project_name}" if en else f"{project_name}"
+        headline = project_name
     if looks_like_rag_or_debug_copy(supporting):
-        supporting = f"Discover {project_name}." if en else f"{project_name}."
-    if looks_like_rag_or_debug_copy(key_fact):
-        key_fact = ""
+        supporting = ""
     if looks_like_rag_or_debug_copy(cta):
-        cta = "Learn more" if en else "Keşfet"
+        cta = "Schedule a private tour" if en else "Özel tur planla"
 
     package = ContentPackage(
         headline=headline or project_name,
         supporting_text=supporting,
         key_fact=key_fact if key_fact != headline else "",
-        cta=cta or ("Learn more" if en else "Keşfet"),
+        cta=cta or ("Schedule a private tour" if en else "Özel tur planla"),
         language=lang,
         tone=intent.tone,
     )
@@ -683,48 +713,108 @@ def build_content_package_prompt(
     intent: GenerationIntent,
     context: CreativeStudioGenerationContext,
     campaign_facts: list[CampaignFact],
+    concept: Any | None = None,
     max_prompt_chars: int = 10_000,
 ) -> tuple[str, str]:
     system = (
-        "You write concise social-post copy for InvestHome OS. "
+        "You are an advertising copywriter for InvestHome OS Social Media Builder. "
         "Reply with JSON only: "
-        '{"headline":"","supporting_text":"","key_fact":"","cta":"","language":"","tone":""}. '
-        "Rules: use only verified_facts and user_supplied_campaign_facts. "
+        '{"eyebrow":"","headline":"","supporting_text":"","cta":"","language":"","tone":""}. '
+        "You are a premium real-estate creative director, not a data summarizer. "
+        "Follow the supplied creative_concept exactly. "
+        "Rules: use ONLY selected_facts and user_supplied_campaign_facts. "
         "Never invent project facts or financial figures. "
+        "Actively omit information_to_exclude. More facts is worse. "
         "User-supplied campaign numbers must appear EXACTLY as given (do not round, convert, or localize). "
         "If the user wrote $500,000 keep $500,000; if %14 keep %14; if 24 ay keep 24 ay. "
         "Do not persist campaign numbers as canonical project facts — they are this campaign only. "
         "Never include RAG/debug/metadata (Sources, chunk ids, document filenames, asset ids, provider). "
-        "Hierarchy: short headline (≤60 chars), supporting_text (≤140), optional key_fact (≤70), CTA (≤32). "
-        "Not a paragraph dump. Match the requested language and tone."
+        "Headline: 2–8 words, advertising not a database summary. "
+        "Do NOT use generic lines like Explore More Today, Discover More, Premium Living, Unique Opportunity "
+        "unless they are genuinely the right line. "
+        "Support: 1–2 short lines max. CTA must match the marketing objective. "
+        "Optional eyebrow only if creative_concept.include_eyebrow is true. "
+        "Do not add a fifth text block. Image-led posts prefer even less copy. "
+        "Match the requested language and tone. No chain-of-thought."
     )
+    selected = []
+    exclude = []
+    concept_payload: dict[str, Any] = {}
+    if concept is not None:
+        from investhome_api.services.social_design_engine.creative_director import (
+            creative_concept_to_dict,
+            selected_fact_texts,
+        )
+
+        concept_payload = {
+            k: v
+            for k, v in creative_concept_to_dict(concept).items()
+            if k not in {"suppressed_facts", "asset_profile"}
+        }
+        selected = selected_fact_texts(concept)
+        exclude = list(concept.information_to_exclude)
+    else:
+        selected = _readable_facts(list(context.verified_facts or []))
     user_obj = {
         "instruction": instruction.strip(),
         "generation_intent": generation_intent_to_dict(intent),
-        "project_identity": context.project_identity.model_dump(mode="json"),
-        "verified_facts": _readable_facts(list(context.verified_facts or [])),
+        "creative_concept": concept_payload,
+        "project_identity": {
+            "project_name": context.project_identity.project_name,
+            "city": context.project_identity.city,
+            "address": next(
+                (f.text for f in getattr(concept, "selected_facts", []) if getattr(f, "reason", "") == "identity_address"),
+                None,
+            )
+            or getattr(context.project_identity, "address", None),
+        },
+        "selected_facts": selected,
+        "information_to_exclude": exclude,
         "user_supplied_campaign_facts": campaign_facts_to_dicts(campaign_facts),
-        "marketing_excerpts": _marketing_lines(list(context.retrieved_content or [])),
         "language": intent.language,
     }
-    user = f"{CONTENT_PACKAGE_MARKER}\n{json.dumps(user_obj, ensure_ascii=False)}"
+    user = f"{CONTENT_PACKAGE_MARKER}\n{json.dumps(user_obj, ensure_ascii=False, default=str)}"
     if len(system) + len(user) > max_prompt_chars:
-        user_obj["marketing_excerpts"] = user_obj["marketing_excerpts"][:2]
-        user = f"{CONTENT_PACKAGE_MARKER}\n{json.dumps(user_obj, ensure_ascii=False)}"
+        user_obj["selected_facts"] = user_obj["selected_facts"][:4]
+        user = f"{CONTENT_PACKAGE_MARKER}\n{json.dumps(user_obj, ensure_ascii=False, default=str)}"
     return system, user
+
+
+def _json_object_candidates(text: str) -> list[str]:
+    raw = (text or "").strip()
+    if not raw:
+        return []
+    candidates: list[str] = []
+    fence = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw, re.I)
+    if fence:
+        candidates.append(fence.group(1).strip())
+    decoder = json.JSONDecoder()
+    idx = 0
+    while idx < len(raw):
+        start = raw.find("{", idx)
+        if start < 0:
+            break
+        try:
+            _, end = decoder.raw_decode(raw, start)
+            candidates.append(raw[start:end])
+            idx = end
+        except json.JSONDecodeError:
+            idx = start + 1
+    candidates.append(raw)
+    seen: set[str] = set()
+    unique: list[str] = []
+    for item in candidates:
+        if item and item not in seen:
+            seen.add(item)
+            unique.append(item)
+    return unique
 
 
 def parse_content_package_from_llm(text: str) -> ContentPackage | None:
     raw = (text or "").strip()
     if not raw:
         return None
-    candidates = [raw]
-    fence = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw, re.I)
-    if fence:
-        candidates.insert(0, fence.group(1).strip())
-    match = re.search(r"\{[\s\S]*\"headline\"\s*:\s*\"[\s\S]*\}", raw)
-    if match:
-        candidates.insert(0, match.group(0))
+    candidates = _json_object_candidates(raw)
     for candidate in candidates:
         try:
             data = json.loads(candidate)
@@ -736,17 +826,21 @@ def parse_content_package_from_llm(text: str) -> ContentPackage | None:
         supporting = sanitize_creative_copy(data.get("supporting_text") or data.get("body"), max_len=180)
         key_fact = sanitize_creative_copy(data.get("key_fact"), max_len=80)
         cta = sanitize_creative_copy(data.get("cta") or data.get("cta_label"), max_len=40)
+        eyebrow = sanitize_creative_copy(data.get("eyebrow"), max_len=40)
         if not headline:
             continue
         if looks_like_rag_or_debug_copy(headline) or looks_like_rag_or_debug_copy(supporting):
             continue
+        from investhome_api.services.social_design_engine.creative_director import clip_headline
+
         return ContentPackage(
-            headline=_clip_copy(headline, 70),
+            headline=clip_headline(_clip_copy(headline, 70)),
             supporting_text=_clip_copy(supporting, 160),
             key_fact=_clip_copy(key_fact, 80),
-            cta=_clip_copy(cta, 36) or "Learn more",
+            cta=_clip_copy(cta, 36) or "Schedule a private tour",
             language=str(data.get("language") or "en")[:8],
             tone=str(data.get("tone") or "premium")[:32],
+            eyebrow=_clip_copy(eyebrow, 32),
         )
     return None
 
@@ -764,71 +858,146 @@ def build_design_plan(
     rebuild: bool,
     canvas_w: int | None = None,
     canvas_h: int | None = None,
+    concept: Any | None = None,
 ) -> DesignPlan:
+    from investhome_api.services.social_design_engine.layout import measure_text_block, role_font_prefs
+
     preset = intent.format_preset if intent.format_preset in FORMAT_PRESETS else "square"
     w, h = FORMAT_PRESETS.get(preset, (1080, 1080))
     if canvas_w and canvas_h:
         w, h = canvas_w, canvas_h
-    slots = social_layout_slots(w, h)
+
+    family = "LOCATION"
+    align = "left"
+    overlay_region = "top"
+    density = "sparse"
+    safe_zone = "top"
+    overlay = "localized_gradient"
+    if concept is not None:
+        family = concept.composition_strategy
+        align = concept.alignment
+        overlay_region = concept.overlay_region
+        density = concept.text_density
+        safe_zone = concept.safe_text_zone
+        overlay = f"localized-{overlay_region}"
+
+    slots = social_layout_slots(w, h, family=family, align=align, safe_zone=safe_zone)
     hs = slots["headline"]
     bs = slots["body"]
     cs = slots["cta"]
+    es = slots.get("eyebrow")
+
+    include_eyebrow = bool(package.eyebrow) and (concept is None or concept.include_eyebrow)
+    include_support = bool(package.supporting_text) and (concept is None or concept.include_support)
+    include_cta = bool(package.cta) and (concept is None or concept.include_cta)
 
     body_text = package.supporting_text
-    if package.key_fact and package.key_fact not in body_text:
-        body_text = f"{body_text}\n{package.key_fact}".strip() if body_text else package.key_fact
-    body_text = _clip_copy(body_text, 180)
+    if package.key_fact and package.key_fact not in (body_text or "") and include_support:
+        # Never a fifth block — fold key_fact into support.
+        body_text = f"{body_text} · {package.key_fact}".strip(" ·") if body_text else package.key_fact
+    body_text = _clip_copy(body_text, 160) if include_support else ""
 
-    elements = [
+    h_prefs = role_font_prefs("headline", w)
+    b_prefs = role_font_prefs("body", w)
+    e_prefs = role_font_prefs("eyebrow", w)
+    stack_gap = max(16, int(round(h * 0.018)))
+
+    def _block_h(text: str, font: int, width: int, *, bold: bool, cap: int) -> int:
+        _, measured, _ = measure_text_block(text, font, width, bold=bold)
+        return min(cap, max(int(round(font * 1.2)), measured))
+
+    elements: list[DesignPlanElement] = []
+    y_cursor = hs["y"]
+    if include_eyebrow and es:
+        eh = _block_h(package.eyebrow, e_prefs["preferred"], es["width"], bold=False, cap=es["max_height"])
+        elements.append(
+            DesignPlanElement(
+                type="TEXT",
+                role="eyebrow",
+                text=package.eyebrow,
+                x=es["x"],
+                y=es["y"],
+                width=es["width"],
+                height=eh,
+                font_size=e_prefs["preferred"],
+                font_weight="normal",
+                align=align,
+                color="#ffffff",
+                z_index=2,
+            )
+        )
+        y_cursor = max(y_cursor, es["y"] + eh + stack_gap)
+    hh = _block_h(package.headline, h_prefs["preferred"], hs["width"], bold=True, cap=hs["max_height"])
+    headline_y = max(hs["y"], y_cursor)
+    elements.append(
         DesignPlanElement(
             type="TEXT",
             role="headline",
             text=package.headline,
             x=hs["x"],
-            y=hs["y"],
+            y=headline_y,
             width=hs["width"],
-            height=hs["max_height"],
+            height=hh,
+            font_size=h_prefs["preferred"],
             font_weight="bold",
-            align="center",
-            color="#ffffff",
-            z_index=2,
-        ),
-        DesignPlanElement(
-            type="TEXT",
-            role="body",
-            text=body_text,
-            x=bs["x"],
-            y=bs["y"],
-            width=bs["width"],
-            height=bs["max_height"],
-            font_weight="normal",
-            align="center",
+            align=align,
             color="#ffffff",
             z_index=3,
-        ),
-        DesignPlanElement(
-            type="BUTTON",
-            role="cta",
-            text=package.cta,
-            x=cs["x"],
-            y=cs["y"],
-            width=cs["width"],
-            height=cs["height"],
-            align="center",
-            background_color="#ffffff",
-            text_color="#111827",
-            z_index=4,
-        ),
-    ]
+        )
+    )
+    y_cursor = headline_y + hh + stack_gap
+    if include_support and body_text:
+        bh = _block_h(body_text, b_prefs["preferred"], bs["width"], bold=False, cap=bs["max_height"])
+        body_y = max(bs["y"], y_cursor)
+        # Keep support in the same content group; never overlap the headline.
+        if body_y < y_cursor:
+            body_y = y_cursor
+        elements.append(
+            DesignPlanElement(
+                type="TEXT",
+                role="body",
+                text=body_text,
+                x=bs["x"],
+                y=body_y,
+                width=bs["width"],
+                height=bh,
+                font_size=b_prefs["preferred"],
+                font_weight="normal",
+                align=align,
+                color="#ffffff",
+                z_index=4,
+            )
+        )
+    if include_cta:
+        elements.append(
+            DesignPlanElement(
+                type="BUTTON",
+                role="cta",
+                text=package.cta,
+                x=cs["x"],
+                y=cs["y"],
+                width=cs["width"],
+                height=cs["height"],
+                align=align,
+                background_color="#ffffff",
+                text_color="#111827",
+                z_index=5,
+            )
+        )
     return DesignPlan(
         format_preset=preset,
         platform=intent.platform,
         background_asset_id=str(picked_asset_id) if picked_asset_id else None,
-        overlay="gradient",
+        overlay=overlay,
         post_id=post_id,
         rebuild=rebuild,
         elements=elements,
         name=f"AI {preset}",
+        composition_strategy=family,
+        alignment=align,
+        overlay_region=overlay_region,
+        text_density=density,
+        safe_text_zone=safe_zone,
     )
 
 
@@ -841,6 +1010,11 @@ def design_plan_to_dict(plan: DesignPlan) -> dict[str, Any]:
         "post_id": plan.post_id,
         "rebuild": plan.rebuild,
         "name": plan.name,
+        "composition_strategy": plan.composition_strategy,
+        "alignment": plan.alignment,
+        "overlay_region": plan.overlay_region,
+        "text_density": plan.text_density,
+        "safe_text_zone": plan.safe_text_zone,
         "elements": [asdict(el) for el in plan.elements],
     }
 
@@ -866,6 +1040,11 @@ def compose_ops_from_plan(
                 "name": plan.name,
                 "description": (instruction or "")[:240],
                 "rebuild": True,
+                "compositionStrategy": plan.composition_strategy,
+                "overlayStrategy": plan.overlay,
+                "textAlign": plan.alignment,
+                "safeTextZone": plan.safe_text_zone,
+                "textDensity": plan.text_density,
             },
         },
         {
@@ -898,6 +1077,7 @@ def compose_ops_from_plan(
                         "role": el.role,
                         "content": el.text,
                         "fontWeight": el.font_weight or ("bold" if el.role == "headline" else "normal"),
+                        "fontSize": el.font_size,
                         "align": el.align,
                         "color": el.color,
                         "zIndex": el.z_index,
@@ -944,6 +1124,8 @@ def build_generation_metadata(
     model: str,
     content_package: ContentPackage | None = None,
     design_plan: DesignPlan | None = None,
+    creative_concept: dict[str, Any] | None = None,
+    validation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "generated_by": "social_design_engine",
@@ -958,6 +1140,8 @@ def build_generation_metadata(
         "generated_at": datetime.now(UTC).isoformat(),
         "content_package": content_package_to_dict(content_package) if content_package else None,
         "design_plan": design_plan_to_dict(design_plan) if design_plan else None,
+        "creative_concept": creative_concept,
+        "validation": validation,
     }
 
 

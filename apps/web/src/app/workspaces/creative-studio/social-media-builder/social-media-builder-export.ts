@@ -178,9 +178,9 @@ export async function exportSocialPostPng(input: SocialPostExportInput): Promise
     drawCover(ctx, img, width, height);
   }
 
-  const gradient = ctx.createLinearGradient(0, height * 0.35, 0, height);
-  gradient.addColorStop(0, 'rgba(0,0,0,0)');
-  gradient.addColorStop(1, 'rgba(0,0,0,0.45)');
+  const gradient = ctx.createLinearGradient(0, 0, 0, height * 0.36);
+  gradient.addColorStop(0, 'rgba(0,0,0,0.32)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);
 

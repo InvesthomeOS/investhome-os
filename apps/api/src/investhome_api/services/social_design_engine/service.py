@@ -7,6 +7,7 @@ return draft + metadata. Persistence stays on CS Document API (client).
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any
 from uuid import UUID, uuid4
@@ -55,6 +56,10 @@ from investhome_api.services.social_design_engine.generation import (
     parse_content_package_from_llm,
     resolve_generation_post_id,
 )
+from investhome_api.services.social_design_engine.creative_director import (
+    creative_concept_to_dict,
+    direct_creative,
+)
 from investhome_api.services.social_design_engine.intent import (
     apply_selected_element_targets,
     classify_edit_intents,
@@ -72,6 +77,7 @@ from investhome_api.services.social_design_engine.planner import (
 )
 
 DEFAULT_RETRIEVAL_LIMIT = 8
+logger = logging.getLogger(__name__)
 
 
 def _ensure_project(db: Session, project_id: UUID) -> Project:
@@ -262,14 +268,25 @@ def generate_social_design(
     intent_rejected: list[tuple[dict[str, Any], str]] = []
     content_package = None
     design_plan = None
+    creative_concept = None
+    validation_payload = None
 
-    # -------- GENERATION: complete post rebuild via content package + design plan --------
+    # -------- GENERATION: Creative Director → copy package → design plan → validate --------
     if mode == "create":
+        picked_candidate = next((c for c in media_candidates if picked and c.asset_id == picked), None)
+        creative_concept = direct_creative(
+            instruction=instruction,
+            intent=gen_intent,
+            context=context,
+            campaign_facts=campaign_facts,
+            asset=picked_candidate,
+        )
         content_package = build_heuristic_content_package(
             instruction=instruction,
             intent=gen_intent,
             context=context,
             campaign_facts=campaign_facts,
+            concept=creative_concept,
         )
         try:
             c_system, c_user = build_content_package_prompt(
@@ -277,6 +294,7 @@ def generate_social_design(
                 intent=gen_intent,
                 context=context,
                 campaign_facts=campaign_facts,
+                concept=creative_concept,
                 max_prompt_chars=max_prompt_chars,
             )
             llm = provider.generate(system=c_system, user=c_user, timeout_seconds=60.0)
@@ -286,9 +304,13 @@ def generate_social_design(
                 planner_name = "generation+llm"
             else:
                 planner_name = "generation"
+                logger.warning(
+                    "social design content package LLM parse failed; using Creative Director copy"
+                )
         except LLMProviderError as exc:
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=exc.message) from exc
         except Exception:
+            logger.exception("social design content package LLM failed; using Creative Director heuristic")
             context.warnings.append("content_package_fallback")
             planner_name = "generation"
 
@@ -299,7 +321,24 @@ def generate_social_design(
             picked_asset_id=picked,
             post_id=post_id,
             rebuild=rebuild,
+            concept=creative_concept,
         )
+        from investhome_api.services.social_design_engine.validator import validate_and_repair
+
+        content_package, design_plan, creative_concept, report = validate_and_repair(
+            package=content_package,
+            plan=design_plan,
+            concept=creative_concept,
+            intent=gen_intent,
+            campaign_facts=campaign_facts,
+        )
+        validation_payload = {
+            "passed": report.passed,
+            "issues": [i.code for i in report.issues],
+            "repairs": report.repairs,
+        }
+        if report.repairs:
+            context.warnings.append("creative_director_repaired")
         raw_ops = compose_ops_from_plan(
             design_plan,
             linked_project_id=linked_project_id,
@@ -529,6 +568,8 @@ def generate_social_design(
         model=getattr(llm, "model", provider.model) if llm else provider.model,
         content_package=content_package,
         design_plan=design_plan,
+        creative_concept=creative_concept_to_dict(creative_concept) if creative_concept else None,
+        validation=validation_payload,
     )
     if mode == "create" and accepted:
         for post in mutated_posts:
@@ -596,6 +637,8 @@ def generate_social_design(
         content_package=gen_meta_payload.get("content_package") if mode == "create" else None,
         design_plan=gen_meta_payload.get("design_plan") if mode == "create" else None,
         campaign_facts=gen_meta_payload.get("campaign_facts") or [],
+        creative_concept=gen_meta_payload.get("creative_concept") if mode == "create" else None,
+        validation=gen_meta_payload.get("validation") if mode == "create" else None,
     )
 
     return SocialDesignResponse(

@@ -378,7 +378,7 @@ def validate_op(
 
     if op_name == "ADD_TEXT":
         role = str(payload.get("role") or "custom").lower()
-        if role not in {"headline", "body", "custom"}:
+        if role not in {"headline", "body", "custom", "eyebrow"}:
             role = "custom"
         payload["role"] = role
         # Accept LLM alias before sanitize
@@ -406,7 +406,7 @@ def validate_op(
             payload["content"] = content
         if "role" in payload:
             role = str(payload.get("role") or "").lower()
-            if role in {"headline", "body", "custom"}:
+            if role in {"headline", "body", "custom", "eyebrow"}:
                 payload["role"] = role
         if "fontSize" in payload:
             payload["fontSize"] = clamp_int(payload.get("fontSize"), 8, 200, 28)

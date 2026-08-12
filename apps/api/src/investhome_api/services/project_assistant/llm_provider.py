@@ -101,7 +101,7 @@ class LocalGroundedLLMProvider(LLMProvider):
     def generate(self, *, system: str, user: str, timeout_seconds: float = 45.0) -> LLMResult:
         _ = system, timeout_seconds
         if "CONTENT_PACKAGE_JSON" in (user or "") or "CONTENT_PACKAGE_JSON" in (system or ""):
-            answer = json.dumps({"headline": "", "supporting_text": "", "key_fact": "", "cta": ""})
+            answer = _local_content_package_answer(user)
             return LLMResult(
                 answer=answer,
                 provider=self.name,
@@ -167,7 +167,7 @@ class OpenAILLMProvider(LLMProvider):
         return self._model
 
     def generate(self, *, system: str, user: str, timeout_seconds: float = 45.0) -> LLMResult:
-        payload = {
+        payload: dict[str, Any] = {
             "model": self._model,
             "messages": [
                 {"role": "system", "content": system},
@@ -175,6 +175,8 @@ class OpenAILLMProvider(LLMProvider):
             ],
             "temperature": 0.1,
         }
+        if "CONTENT_PACKAGE_JSON" in (user or "") or "CONTENT_PACKAGE_JSON" in (system or ""):
+            payload["response_format"] = {"type": "json_object"}
         try:
             with httpx.Client(timeout=timeout_seconds) as client:
                 response = client.post(
@@ -225,15 +227,16 @@ class OpenAILLMProvider(LLMProvider):
             ) from exc
 
         data = response.json()
-        text = (data.get("choices") or [{}])[0].get("message", {}).get("content") or ""
-        usage = data.get("usage") or {}
+        message = (data.get("choices") or [{}])[0].get("message", {}) if isinstance(data, dict) else {}
+        text = _message_content_text(message)
+        usage = data.get("usage") or {} if isinstance(data, dict) else {}
         return LLMResult(
             answer=text.strip() or INSUFFICIENT_EVIDENCE_MESSAGE,
             provider=self.name,
             model=self._model,
             input_tokens=usage.get("prompt_tokens"),
             output_tokens=usage.get("completion_tokens"),
-            raw={"id": data.get("id"), "mode": "real"},
+            raw={"id": data.get("id") if isinstance(data, dict) else None, "mode": "real"},
         )
 
 
@@ -270,6 +273,8 @@ class AzureOpenAILLMProvider(LLMProvider):
             ],
             "temperature": 0.1,
         }
+        if "CONTENT_PACKAGE_JSON" in (user or "") or "CONTENT_PACKAGE_JSON" in (system or ""):
+            payload["response_format"] = {"type": "json_object"}
         try:
             with httpx.Client(timeout=timeout_seconds) as client:
                 response = client.post(
@@ -320,15 +325,16 @@ class AzureOpenAILLMProvider(LLMProvider):
             ) from exc
 
         data = response.json()
-        text = (data.get("choices") or [{}])[0].get("message", {}).get("content") or ""
-        usage = data.get("usage") or {}
+        message = (data.get("choices") or [{}])[0].get("message", {}) if isinstance(data, dict) else {}
+        text = _message_content_text(message)
+        usage = data.get("usage") or {} if isinstance(data, dict) else {}
         return LLMResult(
             answer=text.strip() or INSUFFICIENT_EVIDENCE_MESSAGE,
             provider=self.name,
             model=self._model,
             input_tokens=usage.get("prompt_tokens"),
             output_tokens=usage.get("completion_tokens"),
-            raw={"id": data.get("id"), "mode": "real"},
+            raw={"id": data.get("id") if isinstance(data, dict) else None, "mode": "real"},
         )
 
 
@@ -352,11 +358,60 @@ def _local_design_ops_answer(user_prompt: str) -> str:
     )
 
 
+def _local_content_package_answer(user_prompt: str) -> str:
+    """Echo Creative Director copy — never invent project facts."""
+    payload: dict[str, Any] = {}
+    raw = user_prompt or ""
+    start = raw.find("{")
+    if start >= 0:
+        try:
+            payload, _ = json.JSONDecoder().raw_decode(raw, start)
+        except json.JSONDecodeError:
+            payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    concept = payload.get("creative_concept") if isinstance(payload.get("creative_concept"), dict) else {}
+    identity = payload.get("project_identity") if isinstance(payload.get("project_identity"), dict) else {}
+    headline = str(concept.get("primary_message") or identity.get("project_name") or "Project").strip()
+    supporting = str(concept.get("supporting_message") or "").strip()
+    cta = str(concept.get("cta") or "Schedule a private tour").strip()
+    eyebrow = str(concept.get("eyebrow") or "").strip() if concept.get("include_eyebrow") else ""
+    return json.dumps(
+        {
+            "eyebrow": eyebrow,
+            "headline": headline,
+            "supporting_text": supporting,
+            "cta": cta,
+            "language": str(payload.get("language") or "en"),
+            "tone": str(concept.get("tone") or "premium"),
+        },
+        ensure_ascii=False,
+    )
+
+
 def _clip(text: str, n: int) -> str:
     t = (text or "").strip()
     if len(t) <= n:
         return t
     return t[: n - 1].rstrip() + "…"
+
+
+def _message_content_text(message: Any) -> str:
+    """Normalize chat-completions message.content (string or content parts)."""
+    if not isinstance(message, dict):
+        return ""
+    content = message.get("content")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                parts.append(str(item.get("text") or ""))
+        return "".join(parts)
+    return ""
 
 
 def _extract_evidence_chunks(user_prompt: str) -> list[dict[str, Any]]:

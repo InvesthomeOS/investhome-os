@@ -1620,7 +1620,16 @@ export function SocialMediaBuilderWorkspace() {
                         </div>
                       )}
                       {artboardState === 'ready' ? (
-                        <div className="smb-ws__artboard-overlay" aria-hidden="true" />
+                        <div
+                          className="smb-ws__artboard-overlay"
+                          data-overlay={
+                            selectedPost.overlayStrategy ||
+                            (typeof generationMeta?.creative_concept?.overlay_region === 'string'
+                              ? `localized-${generationMeta.creative_concept.overlay_region}`
+                              : 'localized-top')
+                          }
+                          aria-hidden="true"
+                        />
                       ) : null}
                       {brandLogo ? (
                         <span

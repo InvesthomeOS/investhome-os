@@ -69,6 +69,12 @@ const SURGICAL_EDIT_HINTS = [
   'baska bir',
   'another photo',
   'another image',
+  'another temple photo',
+  'more minimal',
+  'more premium',
+  'show more photo',
+  'left-align',
+  'remove cta',
 ];
 
 function isCompletePostGeneration(instruction: string): boolean {
@@ -114,6 +120,8 @@ export type DesignGenerationMeta = SocialGenerationMeta & {
   content_package?: Record<string, unknown> | null;
   design_plan?: Record<string, unknown> | null;
   campaign_facts?: Record<string, unknown>[];
+  creative_concept?: Record<string, unknown> | null;
+  validation?: Record<string, unknown> | null;
 };
 
 export type BuildSocialDesignResult =
@@ -319,6 +327,8 @@ export function toDesignGenerationMeta(response: SocialDesignResponse): DesignGe
     content_package: meta?.content_package ?? null,
     design_plan: meta?.design_plan ?? null,
     campaign_facts: meta?.campaign_facts ?? [],
+    creative_concept: meta?.creative_concept ?? null,
+    validation: meta?.validation ?? null,
   };
 }
 
@@ -348,6 +358,8 @@ export function serializeGenerationMetaForDraft(
     content_package: meta.content_package ?? null,
     design_plan: meta.design_plan ?? null,
     campaign_facts: meta.campaign_facts ?? [],
+    creative_concept: meta.creative_concept ?? null,
+    validation: meta.validation ?? null,
   };
 }
 
@@ -396,6 +408,14 @@ export function parseGenerationMetaFromDraft(
     campaign_facts: Array.isArray(raw.campaign_facts)
       ? raw.campaign_facts.filter((f): f is Record<string, unknown> => !!f && typeof f === 'object')
       : [],
+    creative_concept:
+      raw.creative_concept && typeof raw.creative_concept === 'object' && !Array.isArray(raw.creative_concept)
+        ? (raw.creative_concept as Record<string, unknown>)
+        : null,
+    validation:
+      raw.validation && typeof raw.validation === 'object' && !Array.isArray(raw.validation)
+        ? (raw.validation as Record<string, unknown>)
+        : null,
   };
 }
 

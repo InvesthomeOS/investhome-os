@@ -220,9 +220,10 @@ export function growTextBoxToContent(
 
 function roleFontPrefs(role: string, canvasW: number) {
   const specs: Record<string, { preferredRatio: number; min: number; max: number }> = {
-    headline: { preferredRatio: 0.055, min: 22, max: 72 },
-    body: { preferredRatio: 0.028, min: 14, max: 36 },
-    custom: { preferredRatio: 0.032, min: 14, max: 48 },
+    headline: { preferredRatio: 0.062, min: 22, max: 84 },
+    body: { preferredRatio: 0.024, min: 14, max: 28 },
+    eyebrow: { preferredRatio: 0.015, min: 11, max: 18 },
+    custom: { preferredRatio: 0.028, min: 14, max: 40 },
   };
   const spec = specs[role] ?? specs.custom!;
   return {

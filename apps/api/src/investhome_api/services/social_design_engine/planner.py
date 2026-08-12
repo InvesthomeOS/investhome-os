@@ -25,7 +25,7 @@ Never invent Unsplash/stock/mock media. Use only provided Asset UUIDs.
 Rules:
 - Reply with JSON only: {"ops":[...], "summary":"..."}
 - Each op must include: op, linked_project_id, post_id, element_id (null if creating), payload
-- ADD_TEXT/UPDATE_TEXT payload: content, role (headline|body|custom), optional fontSize/color/fontWeight/align.
+- ADD_TEXT/UPDATE_TEXT payload: content, role (headline|body|custom|eyebrow), optional fontSize/color/fontWeight/align.
   Do NOT invent unrestricted x/y/width/height pixels — the server applies a safe layout grammar.
 - ADD_CTA/UPDATE_CTA payload: label, optional backgroundColor/textColor. Do NOT invent free pixel geometry.
 - Allowed ops: {ops}

@@ -1472,6 +1472,18 @@ def test_multi_intent_only_requested_ops() -> None:
     assert "ADD_TEXT" not in names
 
 
+def test_another_temple_photo_is_replace_image_edit() -> None:
+    from investhome_api.services.social_design_engine.generation import infer_design_mode
+    from investhome_api.services.social_design_engine.intent import classify_edit_intents
+
+    existing = [{"id": "p1", "elements": [{"id": "h1", "type": "TEXT"}]}]
+    instr = "another Temple photo"
+    assert infer_design_mode(instr, existing, requested="create") == "edit"
+    plan = classify_edit_intents(instr)
+    assert "REPLACE_IMAGE" in plan.intent_names
+    assert not plan.allow_copy_rewrite
+
+
 def test_infer_design_mode_generation_vs_edit() -> None:
     from investhome_api.services.social_design_engine.generation import infer_design_mode
 
@@ -1517,6 +1529,7 @@ def test_campaign_facts_preserved_exactly() -> None:
     facts = extract_campaign_facts(prompt)
     displays = {f.display for f in facts}
     assert "$500,000" in displays
+    assert "$500" not in displays
     assert "%14" in displays
     assert any("24 ay" in f.display for f in facts)
 
@@ -1749,3 +1762,292 @@ def test_semantic_asset_preference_prefers_exterior_for_location() -> None:
     s_ext = score_asset(_A(), query_tokens={"location", "washington"}, folder_path="Photos / Exterior", preference_tokens=pref)
     s_plan = score_asset(_B(), query_tokens={"location", "washington"}, folder_path="Drawings / Plans", preference_tokens=pref)
     assert s_ext > s_plan
+
+
+def test_creative_director_suppresses_construction_on_location() -> None:
+    from investhome_api.schemas.creative_studio_generation import (
+        CreativeStudioBrandContext,
+        CreativeStudioGenerationContext,
+        CreativeStudioProjectIdentity,
+    )
+    from investhome_api.services.social_design_engine.creative_director import (
+        choose_composition_strategy,
+        direct_creative,
+        select_facts_for_objective,
+    )
+    from investhome_api.services.social_design_engine.generation import (
+        build_design_plan,
+        build_heuristic_content_package,
+        classify_generation_intent,
+        compose_ops_from_plan,
+    )
+
+    prompt = (
+        "The Temple projesinin Washington DC'deki merkezi lokasyonunu öne çıkaran "
+        "premium bir Instagram kare postu hazırla. Proje verilerini kullan. "
+        "En uygun gerçek proje görselini seç. İngilizce hazırla."
+    )
+    intent = classify_generation_intent(prompt, language="tr", project_name="Temple Residences")
+    ctx = CreativeStudioGenerationContext(
+        project_identity=CreativeStudioProjectIdentity(
+            project_id=TEMPLE_PROJECT_ID,
+            project_code="PRJ-T",
+            project_name="Temple Residences",
+            city="Washington",
+            country="US",
+        ),
+        verified_facts=[
+            "project_name=Temple Residences",
+            "city=Washington",
+            "address=1610 Columbia Rd NW",
+            "total_units=120",
+            "project_type=residential",
+            "project_status=construction",
+        ],
+        retrieved_content=[
+            {
+                "document_name": "brief.md",
+                "text": (
+                    "Mixed-use project under construction in Columbia Heights "
+                    "with 120 units and a central Washington DC location."
+                ),
+            },
+            {
+                "document_name": "location.md",
+                "text": "Temple Residences sits in Columbia Heights, steps from neighborhood parks and transit.",
+            },
+        ],
+        selected_assets=[],
+        citations=[],
+        brand_context=CreativeStudioBrandContext(available=False, reason="none"),
+        builder_type="social",
+        language="en",
+    )
+    selected, suppressed = select_facts_for_objective(
+        objective="location", context=ctx, campaign_facts=[], instruction=prompt
+    )
+    suppressed_blob = " ".join(s.text.lower() for s in suppressed)
+    assert "120" in suppressed_blob or any("total_units" in (s.provenance or "") for s in suppressed)
+    assert any("construction" in (s.text + s.provenance).lower() for s in suppressed)
+    selected_blob = " ".join(s.text.lower() for s in selected)
+    assert "mixed-use" not in selected_blob
+    assert "under construction" not in selected_blob
+    assert any(f.reason == "identity_city" for f in selected)
+    assert any(f.reason == "identity_address" for f in selected)
+
+    concept = direct_creative(instruction=prompt, intent=intent, context=ctx, campaign_facts=[])
+    assert concept.composition_strategy == "LOCATION"
+    assert concept.objective == "location"
+    package = build_heuristic_content_package(
+        instruction=prompt, intent=intent, context=ctx, campaign_facts=[], concept=concept
+    )
+    canvas = f"{package.eyebrow} {package.headline} {package.supporting_text} {package.key_fact} {package.cta}".lower()
+    assert "mixed-use" not in canvas
+    assert "under construction" not in canvas
+    assert "120" not in canvas
+    assert "construction" not in canvas
+    words = [w for w in package.headline.split() if w]
+    assert 2 <= len(words) <= 8
+    assert "discover more" not in canvas
+    assert "explore more today" not in canvas
+    assert "premium living" not in canvas
+    assert "columbia heights" not in canvas
+    assert "1610" in canvas or "columbia rd" in canvas
+
+    plan = build_design_plan(
+        package=package,
+        intent=intent,
+        picked_asset_id=uuid4(),
+        post_id="p1",
+        rebuild=True,
+        concept=concept,
+    )
+    text_roles = [el.role for el in plan.elements if el.type in {"TEXT", "BUTTON", "CTA"}]
+    assert text_roles.count("headline") == 1
+    assert "cta" in text_roles
+    assert len(text_roles) <= 4
+    assert plan.composition_strategy == "LOCATION"
+    assert plan.overlay.startswith("localized")
+    headline_el = next(el for el in plan.elements if el.role == "headline")
+    body_el = next((el for el in plan.elements if el.role == "body"), None)
+    if body_el and headline_el.font_size and body_el.font_size:
+        assert headline_el.font_size >= int(body_el.font_size * 1.45)
+    if body_el:
+        assert headline_el.y + headline_el.height + 8 <= body_el.y
+    ops = compose_ops_from_plan(plan, linked_project_id=TEMPLE_PROJECT_ID, instruction=prompt)
+    copy_blob = json.dumps(ops).lower()
+    assert "mixed-use" not in copy_blob
+    assert "metadata.json" not in copy_blob
+    assert "sources:" not in copy_blob
+
+
+def test_composition_strategy_follows_objective() -> None:
+    from investhome_api.services.social_design_engine.creative_director import (
+        AssetVisualProfile,
+        choose_composition_strategy,
+    )
+
+    profile = AssetVisualProfile(subject="building", image_led=True, safe_text_zone="top")
+    assert choose_composition_strategy(objective="location", profile=profile, campaign_facts=[]) == "LOCATION"
+    assert choose_composition_strategy(objective="investment", profile=profile, campaign_facts=[]) == "INVESTMENT"
+    assert choose_composition_strategy(objective="lifestyle", profile=profile, campaign_facts=[]) == "MINIMAL_HERO"
+
+
+def test_content_package_prompt_does_not_require_identity_address() -> None:
+    from investhome_api.schemas.creative_studio_generation import (
+        CreativeStudioBrandContext,
+        CreativeStudioGenerationContext,
+        CreativeStudioProjectIdentity,
+    )
+    from investhome_api.services.social_design_engine.creative_director import direct_creative
+    from investhome_api.services.social_design_engine.generation import (
+        build_content_package_prompt,
+        classify_generation_intent,
+    )
+
+    prompt = "The Temple projesinin Washington DC'deki merkezi lokasyonunu öne çıkaran premium bir Instagram kare postu hazırla."
+    intent = classify_generation_intent(prompt, project_name="The Temple")
+    ctx = CreativeStudioGenerationContext(
+        project_identity=CreativeStudioProjectIdentity(
+            project_id=TEMPLE_PROJECT_ID,
+            project_code="PRJ-T",
+            project_name="The Temple",
+            city="Washington",
+            country="US",
+        ),
+        verified_facts=["project_name=The Temple", "city=Washington", "address=1610 Columbia Rd NW"],
+        retrieved_content=[],
+        selected_assets=[],
+        citations=[],
+        brand_context=CreativeStudioBrandContext(available=False, reason="none"),
+        builder_type="social",
+        language="en",
+    )
+    concept = direct_creative(instruction=prompt, intent=intent, context=ctx, campaign_facts=[])
+    system, user = build_content_package_prompt(
+        instruction=prompt, intent=intent, context=ctx, campaign_facts=[], concept=concept
+    )
+    assert "CONTENT_PACKAGE_JSON" in user
+    assert "1610 Columbia Rd NW" in user
+
+
+def test_validator_repairs_unnecessary_facts_and_density() -> None:
+    from investhome_api.schemas.creative_studio_generation import (
+        CreativeStudioBrandContext,
+        CreativeStudioGenerationContext,
+        CreativeStudioProjectIdentity,
+    )
+    from investhome_api.services.social_design_engine.creative_director import direct_creative
+    from investhome_api.services.social_design_engine.generation import (
+        ContentPackage,
+        build_design_plan,
+        classify_generation_intent,
+    )
+    from investhome_api.services.social_design_engine.validator import validate_and_repair
+
+    prompt = (
+        "The Temple projesinin Washington DC'deki merkezi lokasyonunu öne çıkaran "
+        "premium bir Instagram kare postu hazırla."
+    )
+    intent = classify_generation_intent(prompt, project_name="Temple Residences")
+    ctx = CreativeStudioGenerationContext(
+        project_identity=CreativeStudioProjectIdentity(
+            project_id=TEMPLE_PROJECT_ID,
+            project_code="PRJ-T",
+            project_name="Temple Residences",
+            city="Washington",
+            country="US",
+        ),
+        verified_facts=["project_name=Temple Residences", "city=Washington", "total_units=120"],
+        retrieved_content=[],
+        selected_assets=[],
+        citations=[],
+        brand_context=CreativeStudioBrandContext(available=False, reason="none"),
+        builder_type="social",
+        language="en",
+    )
+    concept = direct_creative(instruction=prompt, intent=intent, context=ctx, campaign_facts=[])
+    dirty = ContentPackage(
+        headline="Discover More Premium Living Unique Opportunity Today Here Now Extra",
+        supporting_text="Mixed-use project under construction with 120 units and financing details for investors.",
+        key_fact="120 units",
+        cta="Learn more",
+        language="en",
+        tone="premium",
+        eyebrow="Columbia Heights",
+    )
+    plan = build_design_plan(
+        package=dirty, intent=intent, picked_asset_id=None, post_id="p1", rebuild=True, concept=concept
+    )
+    repaired, repaired_plan, repaired_concept, report = validate_and_repair(
+        package=dirty, plan=plan, concept=concept, intent=intent, campaign_facts=[]
+    )
+    blob = f"{repaired.headline} {repaired.supporting_text} {repaired.key_fact} {repaired.cta}".lower()
+    assert "mixed-use" not in blob
+    assert "under construction" not in blob
+    assert "learn more" not in blob
+    words = [w for w in repaired.headline.split() if w]
+    assert len(words) <= 8
+    assert len([e for e in repaired_plan.elements if e.type in {"TEXT", "BUTTON", "CTA"}]) <= 4
+    assert report.repairs
+
+
+def test_location_generation_has_no_rag_or_construction(client, db_session: Session) -> None:
+    db = db_session
+    temple = _create_project(db, project_id=TEMPLE_PROJECT_ID)
+    _asset(db, temple, filename="temple-exterior-hero.jpg", folder_category="05_RENDERINGS")
+    brief = _asset(db, temple, filename="location.md", content_type="text/markdown")
+    doc = _ready_document(
+        db,
+        temple,
+        text=_long_text(
+            "Mixed-use project under construction. Temple Residences at 1610 Columbia Rd NW "
+            "Washington DC central location in Columbia Heights."
+        ),
+        title="location.md",
+        asset=brief,
+    )
+    reindex_document(db, doc.id)
+    db.commit()
+
+    resp = client.post(
+        "/ai/creative-studio/social/design",
+        json={
+            "linked_project_id": str(TEMPLE_PROJECT_ID),
+            "instruction": (
+                "The Temple projesinin Washington DC'deki merkezi lokasyonunu öne çıkaran "
+                "premium bir Instagram kare postu hazırla. Proje verilerini kullan. "
+                "En uygun gerçek proje görselini seç. İngilizce hazırla."
+            ),
+            "mode": "create",
+            "draft": {"posts": [], "selected_post_id": None},
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    post = body["posts"][0]
+    copy_parts = []
+    for el in post.get("elements") or []:
+        copy_parts.append(str(el.get("content") or ""))
+        copy_parts.append(str(el.get("label") or ""))
+    copy_blob = " ".join(copy_parts).lower()
+    assert "mixed-use" not in copy_blob
+    assert "under construction" not in copy_blob
+    assert "metadata.json" not in copy_blob
+    assert "sources:" not in copy_blob
+    assert "120 units" not in copy_blob
+    assert "total_units" not in copy_blob
+    meta = body["meta"]
+    concept = meta.get("creative_concept") or {}
+    assert concept.get("composition_strategy") == "LOCATION"
+    assert concept.get("objective") == "location"
+    assert "creative_concept" in (post.get("generationMeta") or {})
+    headline = next(e for e in post["elements"] if e.get("role") == "headline")
+    words = [w for w in str(headline.get("content") or "").split() if w]
+    assert 2 <= len(words) <= 8
+    text_blocks = [e for e in post["elements"] if e.get("type") in {"TEXT", "BUTTON"}]
+    assert len(text_blocks) <= 4
+    assert post.get("overlayStrategy", "").startswith("localized") or (
+        (post.get("generationMeta") or {}).get("creative_concept") or {}
+    ).get("contrast_strategy")
+

@@ -176,7 +176,7 @@ function parseElement(raw: unknown): SocialElement | null {
         : 'center';
     const roleRaw = body.role;
     const role: SocialTextRole =
-      roleRaw === 'headline' || roleRaw === 'body' || roleRaw === 'custom'
+      roleRaw === 'headline' || roleRaw === 'body' || roleRaw === 'custom' || roleRaw === 'eyebrow'
         ? roleRaw
         : 'custom';
     const fontWeight = body.fontWeight === 'bold' ? 'bold' : 'normal';
@@ -283,6 +283,10 @@ export function serializeSocialPost(post: SocialPost): Record<string, unknown> {
     ...(post.generationMeta && typeof post.generationMeta === 'object'
       ? { generationMeta: post.generationMeta }
       : {}),
+    ...(post.compositionStrategy ? { compositionStrategy: post.compositionStrategy } : {}),
+    ...(post.overlayStrategy ? { overlayStrategy: post.overlayStrategy } : {}),
+    ...(post.textAlign ? { textAlign: post.textAlign } : {}),
+    ...(post.safeTextZone ? { safeTextZone: post.safeTextZone } : {}),
   };
 }
 
@@ -342,6 +346,13 @@ export function parseSocialPost(
       body.generationMeta && typeof body.generationMeta === 'object' && !Array.isArray(body.generationMeta)
         ? (body.generationMeta as Record<string, unknown>)
         : null,
+    compositionStrategy: typeof body.compositionStrategy === 'string' ? body.compositionStrategy : null,
+    overlayStrategy: typeof body.overlayStrategy === 'string' ? body.overlayStrategy : null,
+    textAlign:
+      body.textAlign === 'left' || body.textAlign === 'center' || body.textAlign === 'right'
+        ? body.textAlign
+        : null,
+    safeTextZone: typeof body.safeTextZone === 'string' ? body.safeTextZone : null,
   };
 }
 
