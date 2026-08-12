@@ -22,83 +22,103 @@ import type { PlatformKey, SocialPost } from './social-media-builder-model';
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const EDIT_HINTS = [
-  'değiştir',
-  'güncelle',
-  'edit',
-  'update',
-  'move',
-  'resize',
-  'replace',
-  'renk',
-  'color',
-  'taşı',
-  'tasi',
-  'büyüt',
-  'küçült',
-  'kucult',
-  'ortala',
-  'align',
-  'arka plan',
-  'background',
-  'başlığı',
-  'basligi',
-  'başlık',
-  'cta',
-  'buton',
-  'görsel',
-  'gorsel',
-  'yukarı',
-  'yukari',
-  'aşağı',
-  'asagi',
-  'sola',
-  'sağa',
-  'saga',
-  'beyaz',
-  'siyah',
-  'bulut',
-  'exterior',
-  'kullan',
-  'ferahlat',
-  'premium',
-  'sade',
-  'binayı',
-  'binayi',
-  'gökyüz',
-  'gokyuz',
-  'tek satır',
-  'tek satir',
-  'büyük',
-  'buyuk',
+const GENERATION_VERBS = [
+  'hazırla',
+  'hazirla',
+  'oluştur',
+  'olustur',
+  'create a',
+  'create an',
+  'generate a',
+  'prepare a',
+  'postu hazırla',
+  'post hazırla',
+  'instagram post',
+  'kare post',
+  'complete post',
+  'yeni post',
+  'new post',
 ];
 
-export type DesignGenerationMeta = SocialGenerationMeta & {
-  brand_context_status?: string;
-  mode?: SocialDesignMode;
-  planner?: string;
-  ops_count?: number;
-};
+const COMPLETE_POST_MARKERS = ['post', 'instagram', 'kare', 'feed', 'gönderi', 'gonderi', 'creative'];
 
-export type BuildSocialDesignResult =
-  | { ok: true; request: SocialDesignRequest }
-  | { ok: false; reason: 'missing_project' | 'missing_instruction' };
+const SURGICAL_EDIT_HINTS = [
+  'taşı',
+  'tasi',
+  'yukarı al',
+  'yukari al',
+  'aşağı al',
+  'asagi al',
+  'sola al',
+  'sağa al',
+  'saga al',
+  'kaldır',
+  'kaldir',
+  'küçült',
+  'kucult',
+  'büyüt',
+  'rengini',
+  'başlığı biraz',
+  'basligi biraz',
+  'cta\'yı kaldır',
+  'cta\'yi kaldir',
+  'move the',
+  'remove the',
+  'delete the',
+  'başka bir',
+  'baska bir',
+  'another photo',
+  'another image',
+];
+
+function isCompletePostGeneration(instruction: string): boolean {
+  const instr = (instruction || '').toLowerCase();
+  const hasVerb = GENERATION_VERBS.some((v) => instr.includes(v));
+  const hasPost = COMPLETE_POST_MARKERS.some((m) => instr.includes(m));
+  return hasVerb && hasPost;
+}
+
+function isSurgicalEdit(instruction: string): boolean {
+  const instr = (instruction || '').toLowerCase();
+  return SURGICAL_EDIT_HINTS.some((h) => instr.includes(h));
+}
 
 export function inferDesignMode(
   instruction: string,
   posts: SocialPost[],
   preferred?: SocialDesignMode | null,
 ): SocialDesignMode {
-  if (preferred === 'create' || preferred === 'edit') {
-    if (preferred === 'edit' && posts.length === 0) return 'create';
-    return preferred;
-  }
-  const instr = (instruction || '').toLowerCase();
-  if (posts.length > 0 && EDIT_HINTS.some((h) => instr.includes(h))) return 'edit';
-  if (posts.length === 0) return 'create';
-  // Default: create a new post unless clearly editing
+  if (!posts.length) return 'create';
+  const generation = isCompletePostGeneration(instruction);
+  const surgical = isSurgicalEdit(instruction);
+  if (generation && !surgical) return 'create';
+  if (surgical && !generation) return 'edit';
+  if (generation && surgical) return 'create';
+  if (preferred === 'edit') return 'edit';
+  if (preferred === 'create') return 'create';
   return 'create';
 }
+
+export type DesignGenerationMeta = SocialGenerationMeta & {
+  brand_context_status?: string;
+  mode?: SocialDesignMode;
+  planner?: string;
+  ops_count?: number;
+  generated_by?: string | null;
+  project_id?: string | null;
+  user_prompt?: string | null;
+  generation_intent?: Record<string, unknown> | null;
+  source_document_ids?: string[];
+  selected_asset_ids?: string[];
+  generated_at?: string | null;
+  content_package?: Record<string, unknown> | null;
+  design_plan?: Record<string, unknown> | null;
+  campaign_facts?: Record<string, unknown>[];
+};
+
+export type BuildSocialDesignResult =
+  | { ok: true; request: SocialDesignRequest }
+  | { ok: false; reason: 'missing_project' | 'missing_instruction' };
 
 export type SelectedElementDesignContext = {
   id: string;
@@ -289,6 +309,16 @@ export function toDesignGenerationMeta(response: SocialDesignResponse): DesignGe
     mode: meta?.mode ?? response.mode,
     planner: meta?.planner,
     ops_count: response.ops?.length ?? 0,
+    generated_by: meta?.generated_by ?? null,
+    project_id: meta?.project_id ?? null,
+    user_prompt: meta?.user_prompt ?? null,
+    generation_intent: meta?.generation_intent ?? null,
+    source_document_ids: meta?.source_document_ids ?? [],
+    selected_asset_ids: meta?.selected_asset_ids ?? meta?.asset_ids_used ?? [],
+    generated_at: meta?.generated_at ?? null,
+    content_package: meta?.content_package ?? null,
+    design_plan: meta?.design_plan ?? null,
+    campaign_facts: meta?.campaign_facts ?? [],
   };
 }
 
@@ -308,6 +338,64 @@ export function serializeGenerationMetaForDraft(
     mode: meta.mode ?? null,
     planner: meta.planner ?? null,
     ops_count: meta.ops_count ?? null,
+    generated_by: meta.generated_by ?? null,
+    project_id: meta.project_id ?? null,
+    user_prompt: meta.user_prompt ?? null,
+    generation_intent: meta.generation_intent ?? null,
+    source_document_ids: meta.source_document_ids ?? [],
+    selected_asset_ids: meta.selected_asset_ids ?? [],
+    generated_at: meta.generated_at ?? null,
+    content_package: meta.content_package ?? null,
+    design_plan: meta.design_plan ?? null,
+    campaign_facts: meta.campaign_facts ?? [],
+  };
+}
+
+export function parseGenerationMetaFromDraft(
+  raw: Record<string, unknown> | null | undefined,
+): DesignGenerationMeta | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const provider = typeof raw.provider === 'string' ? raw.provider : '';
+  const model = typeof raw.model === 'string' ? raw.model : '';
+  return {
+    citations: Array.isArray(raw.citations) ? (raw.citations as DesignGenerationMeta['citations']) : [],
+    warnings: Array.isArray(raw.warnings) ? raw.warnings.filter((w): w is string => typeof w === 'string') : [],
+    grounded: Boolean(raw.grounded),
+    retrieval_confidence: typeof raw.retrieval_confidence === 'number' ? raw.retrieval_confidence : 0,
+    asset_ids_used: Array.isArray(raw.asset_ids_used)
+      ? raw.asset_ids_used.filter((id): id is string => typeof id === 'string')
+      : [],
+    provider,
+    model,
+    brand_context_status: typeof raw.brand_context_status === 'string' ? raw.brand_context_status : undefined,
+    mode: raw.mode === 'edit' || raw.mode === 'create' ? raw.mode : undefined,
+    planner: typeof raw.planner === 'string' ? raw.planner : undefined,
+    ops_count: typeof raw.ops_count === 'number' ? raw.ops_count : undefined,
+    generated_by: typeof raw.generated_by === 'string' ? raw.generated_by : null,
+    project_id: typeof raw.project_id === 'string' ? raw.project_id : null,
+    user_prompt: typeof raw.user_prompt === 'string' ? raw.user_prompt : null,
+    generation_intent:
+      raw.generation_intent && typeof raw.generation_intent === 'object' && !Array.isArray(raw.generation_intent)
+        ? (raw.generation_intent as Record<string, unknown>)
+        : null,
+    source_document_ids: Array.isArray(raw.source_document_ids)
+      ? raw.source_document_ids.filter((id): id is string => typeof id === 'string')
+      : [],
+    selected_asset_ids: Array.isArray(raw.selected_asset_ids)
+      ? raw.selected_asset_ids.filter((id): id is string => typeof id === 'string')
+      : [],
+    generated_at: typeof raw.generated_at === 'string' ? raw.generated_at : null,
+    content_package:
+      raw.content_package && typeof raw.content_package === 'object' && !Array.isArray(raw.content_package)
+        ? (raw.content_package as Record<string, unknown>)
+        : null,
+    design_plan:
+      raw.design_plan && typeof raw.design_plan === 'object' && !Array.isArray(raw.design_plan)
+        ? (raw.design_plan as Record<string, unknown>)
+        : null,
+    campaign_facts: Array.isArray(raw.campaign_facts)
+      ? raw.campaign_facts.filter((f): f is Record<string, unknown> => !!f && typeof f === 'object')
+      : [],
   };
 }
 

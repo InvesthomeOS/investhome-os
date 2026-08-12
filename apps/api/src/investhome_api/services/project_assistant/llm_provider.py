@@ -100,6 +100,16 @@ class LocalGroundedLLMProvider(LLMProvider):
 
     def generate(self, *, system: str, user: str, timeout_seconds: float = 45.0) -> LLMResult:
         _ = system, timeout_seconds
+        if "CONTENT_PACKAGE_JSON" in (user or "") or "CONTENT_PACKAGE_JSON" in (system or ""):
+            answer = json.dumps({"headline": "", "supporting_text": "", "key_fact": "", "cta": ""})
+            return LLMResult(
+                answer=answer,
+                provider=self.name,
+                model=self._model,
+                input_tokens=max(1, (len(system) + len(user)) // 4),
+                output_tokens=max(1, len(answer) // 4),
+                raw={"grounded": True, "mode": "mock", "kind": "content_package"},
+            )
         # Social Design Engine asks for structured Design Ops JSON.
         if "DESIGN_OPS_JSON" in (user or "") or "DESIGN_OPS_JSON" in (system or ""):
             answer = _local_design_ops_answer(user)

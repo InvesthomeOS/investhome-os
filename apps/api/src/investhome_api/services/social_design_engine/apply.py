@@ -103,11 +103,26 @@ def apply_ops(
 
         if op.op == "CREATE_POST":
             existing = find_post(working, op.post_id)
-            if existing is not None:
-                current_selected = op.post_id
-                continue
             preset = str(op.payload.get("formatPreset") or "square")
             w, h = FORMAT_PRESETS.get(preset, (1080, 1080))
+            if existing is not None:
+                # Rebuild current post composition — keep id, replace elements after success.
+                existing["elements"] = []
+                existing["headline"] = ""
+                existing["caption"] = ""
+                existing["platform"] = op.payload.get("platform") or existing.get("platform") or "instagram"
+                existing["format"] = PRESET_TO_FORMAT.get(preset, existing.get("format") or "feed")
+                existing["formatPreset"] = preset
+                existing["width"] = w
+                existing["height"] = h
+                if op.payload.get("name"):
+                    existing["name"] = op.payload.get("name")
+                if op.payload.get("description") is not None:
+                    existing["description"] = str(op.payload.get("description") or "")
+                existing["linked_project_id"] = str(linked_project_id)
+                current_selected = op.post_id
+                grammar_post_ids.add(op.post_id)
+                continue
             working.append(
                 {
                     "id": op.post_id,

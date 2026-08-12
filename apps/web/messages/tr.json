@@ -13581,11 +13581,16 @@
           "writingCaptions": "Platforma uyarlı metinler yazılıyor…",
           "designingCreatives": "AI Tasarım Motoru işlemleri uyguluyor…",
           "optimizing": "Marka uyumu, CTA ve etkileşim optimize ediliyor…",
+          "preparingProject": "Proje bilgileri hazırlanıyor",
+          "writingContent": "İçerik oluşturuluyor",
+          "selectingVisual": "Görsel seçiliyor",
+          "preparingDesign": "Tasarım hazırlanıyor",
+          "checkingLayout": "Yerleşim kontrol ediliyor",
           "completed": "AI tasarım tuvale uygulandı"
         },
         "aiDesign": {
           "title": "AI Design",
-          "placeholder": "Ne tasarlamak veya değiştirmek istiyorsunuz?",
+          "placeholder": "Örn. The Temple projesinin Washington DC'deki merkezi lokasyonunu öne çıkaran premium bir Instagram kare postu hazırla. Proje verilerini kullan. En uygun gerçek proje görselini seç. İngilizce hazırla.",
           "submit": "AI ile Tasarla",
           "generating": "Tasarlanıyor…",
           "collapse": "Gizle",

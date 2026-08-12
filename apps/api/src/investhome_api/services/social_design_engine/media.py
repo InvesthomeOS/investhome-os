@@ -51,6 +51,7 @@ def score_asset(
     *,
     query_tokens: set[str],
     folder_path: str = "",
+    preference_tokens: set[str] | None = None,
 ) -> float:
     score = 0.0
     ctype = (asset.content_type or "").lower()
@@ -99,6 +100,16 @@ def score_asset(
         elif area >= 300_000:
             score += 0.25
 
+    pref = preference_tokens or set()
+    if pref:
+        hay = " ".join([filename, path_l, " ".join(str(t).lower() for t in tags)])
+        hay_tokens = fname_tokens | path_tokens | tag_tokens
+        overlap = len(pref & hay_tokens)
+        score += overlap * 2.0
+        for tok in pref:
+            if tok in hay:
+                score += 1.25
+
     return score
 
 
@@ -108,6 +119,7 @@ def list_media_candidates(
     linked_project_id: UUID,
     instruction: str,
     limit: int = 24,
+    preference_tokens: set[str] | None = None,
 ) -> list[SocialDesignMediaCandidate]:
     """List project-scoped image assets ranked for the instruction. No Unsplash/mock."""
     query = (
@@ -126,7 +138,12 @@ def list_media_candidates(
         if asset.linked_project_id != linked_project_id:
             continue
         folder_path = _folder_path_hint(db, asset.folder_id)
-        s = score_asset(asset, query_tokens=query_tokens, folder_path=folder_path)
+        s = score_asset(
+            asset,
+            query_tokens=query_tokens,
+            folder_path=folder_path,
+            preference_tokens=preference_tokens,
+        )
         tags = [str(t) for t in (asset.tags or [])] if isinstance(asset.tags, list) else []
         scored.append(
             SocialDesignMediaCandidate(

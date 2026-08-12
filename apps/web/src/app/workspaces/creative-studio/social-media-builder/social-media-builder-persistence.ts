@@ -280,6 +280,9 @@ export function serializeSocialPost(post: SocialPost): Record<string, unknown> {
         ? post.linkedProjectId.trim()
         : null,
     elements: post.elements.map(serializeElement),
+    ...(post.generationMeta && typeof post.generationMeta === 'object'
+      ? { generationMeta: post.generationMeta }
+      : {}),
   };
 }
 
@@ -335,6 +338,10 @@ export function parseSocialPost(
     linkedProjectId:
       typeof linkedRaw === 'string' && linkedRaw.trim() ? linkedRaw.trim() : null,
     elements,
+    generationMeta:
+      body.generationMeta && typeof body.generationMeta === 'object' && !Array.isArray(body.generationMeta)
+        ? (body.generationMeta as Record<string, unknown>)
+        : null,
   };
 }
 

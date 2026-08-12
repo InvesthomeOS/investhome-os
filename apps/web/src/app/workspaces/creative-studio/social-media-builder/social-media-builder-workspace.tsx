@@ -17,6 +17,7 @@ import {
   DEFAULT_POSTS,
   FLOATING_ACTIONS,
   FORMAT_PRESETS,
+  GENERATION_STATUS_STAGES,
   SMB_HOME,
   SMB_LEFT_RAIL_ICONS,
   SMB_LEFT_RAIL_IDS,
@@ -62,6 +63,8 @@ import {
   applyDesignResponseToPosts,
   buildSocialDesignRequest,
   hasDesignInsufficientContext,
+  inferDesignMode,
+  parseGenerationMetaFromDraft,
   selectedElementToDesignContext,
   serializeGenerationMetaForDraft,
   toDesignGenerationMeta,
@@ -167,6 +170,7 @@ export function SocialMediaBuilderWorkspace() {
 
   const filmstripRef = useRef<HTMLDivElement | null>(null);
   const genIdleTimerRef = useRef<number | null>(null);
+  const genStageTimerRef = useRef<number | null>(null);
   const generateAbortRef = useRef(0);
   const postsRef = useRef(posts);
   postsRef.current = posts;
@@ -316,6 +320,13 @@ export function SocialMediaBuilderWorkspace() {
             }
           : null;
       coverAsset.hydrateMedia(coverRef, draft ? [] : []);
+      if (draft && 'generationMeta' in draft) {
+        setGenerationMeta(
+          parseGenerationMetaFromDraft(
+            (draft as { generationMeta?: Record<string, unknown> | null }).generationMeta,
+          ),
+        );
+      }
     },
     [coverAsset, docApi.constructionProjectId],
   );
@@ -942,11 +953,27 @@ export function SocialMediaBuilderWorkspace() {
         window.clearTimeout(genIdleTimerRef.current);
         genIdleTimerRef.current = null;
       }
+      if (genStageTimerRef.current != null) {
+        window.clearInterval(genStageTimerRef.current);
+        genStageTimerRef.current = null;
+      }
 
       const token = ++generateAbortRef.current;
+      const inferredMode = inferDesignMode(instruction, latestPosts);
       setGenerating(true);
-      setAiStatus('designingCreatives');
       setCampaignStatus('draft');
+      if (inferredMode === 'create') {
+        let stageIdx = 0;
+        setAiStatus(GENERATION_STATUS_STAGES[0]!);
+        genStageTimerRef.current = window.setInterval(() => {
+          stageIdx = Math.min(stageIdx + 1, GENERATION_STATUS_STAGES.length - 1);
+          if (token === generateAbortRef.current) {
+            setAiStatus(GENERATION_STATUS_STAGES[stageIdx]!);
+          }
+        }, 900);
+      } else {
+        setAiStatus('designingCreatives');
+      }
 
       try {
         const response = await generateSocialDesign(built.request);
@@ -998,7 +1025,24 @@ export function SocialMediaBuilderWorkspace() {
         setAiStatus('completed');
         setCampaignStatus('ready');
         setAiPrompt('');
-        void persistNow();
+        const nextPosts = (
+          applied.posts.length
+            ? applied.posts.map((p) => ({
+                ...p,
+                elements: ensureUniqueElementIds(p.elements),
+              }))
+            : postsRef.current
+        ).map((p) => ({
+          ...p,
+          linkedProjectId: docApi.constructionProjectId,
+        }));
+        const persistPayload = {
+          ...buildPersistPayload(),
+          generationMeta: serializeGenerationMetaForDraft(meta),
+          posts: serializeSocialPosts(nextPosts),
+          selectedPostId: applied.selectedPostId ?? selectedPostIdRef.current,
+        };
+        void docApi.saveDraft(persistPayload);
         genIdleTimerRef.current = window.setTimeout(() => {
           if (token === generateAbortRef.current) setAiStatus('idle');
         }, 1600);
@@ -1012,14 +1056,18 @@ export function SocialMediaBuilderWorkspace() {
             : t('toasts.generateFailed');
         showToast(message);
       } finally {
+        if (genStageTimerRef.current != null) {
+          window.clearInterval(genStageTimerRef.current);
+          genStageTimerRef.current = null;
+        }
         if (token === generateAbortRef.current) setGenerating(false);
       }
     },
     [
+      buildPersistPayload,
       coverAsset,
-      docApi.constructionProjectId,
+      docApi,
       locale,
-      persistNow,
       platforms,
       t,
     ],

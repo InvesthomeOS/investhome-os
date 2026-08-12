@@ -1,0 +1,975 @@
+"""AI-first complete social post generation.
+
+Generation path (create mode): intent → campaign facts → RAG-grounded copy →
+semantic asset pick → design plan → Design Ops composer → layout.
+
+Edit path stays in intent.py. This module never invents project facts and
+never writes RAG/debug metadata into canvas copy.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import unicodedata
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
+from typing import Any, Literal
+from uuid import UUID, uuid4
+
+from investhome_api.schemas.creative_studio_generation import CreativeStudioGenerationContext
+from investhome_api.services.social_design_engine.layout import social_layout_slots
+from investhome_api.services.social_design_engine.ops import (
+    FORMAT_PRESETS,
+    looks_like_rag_or_debug_copy,
+    sanitize_creative_copy,
+)
+
+MarketingObjective = Literal[
+    "location",
+    "investment",
+    "lifestyle",
+    "launch",
+    "interior",
+    "floor_plan",
+    "general",
+]
+AssetPreference = Literal[
+    "exterior",
+    "neighborhood",
+    "aerial",
+    "interior",
+    "premium_hero",
+    "floor_plan",
+    "any",
+]
+DesignMode = Literal["create", "edit"]
+
+CONTENT_PACKAGE_MARKER = "CONTENT_PACKAGE_JSON"
+
+GENERATION_VERBS = (
+    "hazırla",
+    "hazirla",
+    "oluştur",
+    "olustur",
+    "oluşturun",
+    "create a",
+    "create an",
+    "create the",
+    "generate a",
+    "generate an",
+    "prepare a",
+    "prepare an",
+    "postu hazırla",
+    "post hazırla",
+    "post oluştur",
+    "post olustur",
+    "complete post",
+    "yeni post",
+    "new post",
+    "kare post",
+    "instagram post",
+    "feed post",
+    "tasarla",
+)
+
+COMPLETE_POST_MARKERS = (
+    "post",
+    "instagram",
+    "kare",
+    "feed",
+    "story",
+    "gönderi",
+    "gonderi",
+    "kreatif",
+    "creative",
+)
+
+# Surgical edits — win over incidental words like "premium" / "görsel".
+EDIT_VERBS = (
+    "taşı",
+    "tasi",
+    "yukarı al",
+    "yukari al",
+    "aşağı al",
+    "asagi al",
+    "sola al",
+    "sağa al",
+    "saga al",
+    "kaldır",
+    "kaldir",
+    "remove the",
+    "delete the",
+    "küçült",
+    "kucult",
+    "büyüt",
+    "buyut",
+    "rengini",
+    "rengini",
+    "başlığı biraz",
+    "basligi biraz",
+    "cta'yı kaldır",
+    "cta'yi kaldir",
+    "cta’yı kaldır",
+    "move the",
+    "shift the",
+    "nudge",
+)
+
+REPLACE_IMAGE_EDIT = (
+    "başka bir",
+    "baska bir",
+    "another photo",
+    "another image",
+    "farklı foto",
+    "farkli foto",
+    "different photo",
+    "replace the image",
+    "replace image",
+)
+
+
+@dataclass
+class CampaignFact:
+    """User-supplied campaign value — authoritative, never rewritten."""
+
+    label: str
+    display: str
+    kind: str  # money | percent | duration | other
+    source: Literal["user_supplied"] = "user_supplied"
+
+
+@dataclass
+class GenerationIntent:
+    project_hint: str | None = None
+    platform: str = "instagram"
+    format_preset: str = "square"
+    language: str = "en"
+    marketing_objective: MarketingObjective = "general"
+    audience: str = "general"
+    tone: str = "premium"
+    key_message: str = ""
+    requested_facts: list[str] = field(default_factory=list)
+    requested_financial_figures: list[str] = field(default_factory=list)
+    cta_hint: str | None = None
+    asset_preference: AssetPreference = "any"
+
+
+@dataclass
+class ContentPackage:
+    headline: str
+    supporting_text: str
+    key_fact: str
+    cta: str
+    language: str
+    tone: str
+
+
+@dataclass
+class DesignPlanElement:
+    type: str  # TEXT | BUTTON
+    role: str  # headline | body | cta
+    text: str
+    x: int
+    y: int
+    width: int
+    height: int
+    font_size: int | None = None
+    font_weight: str | None = None
+    align: str = "center"
+    color: str = "#ffffff"
+    background_color: str | None = None
+    text_color: str | None = None
+    z_index: int = 2
+
+
+@dataclass
+class DesignPlan:
+    format_preset: str
+    platform: str
+    background_asset_id: str | None
+    overlay: str
+    post_id: str
+    rebuild: bool
+    elements: list[DesignPlanElement] = field(default_factory=list)
+    name: str = "AI social post"
+
+
+def _norm(text: str) -> str:
+    folded = unicodedata.normalize("NFKD", text or "")
+    folded = "".join(ch for ch in folded if not unicodedata.combining(ch))
+    return folded.strip().lower()
+
+
+def is_complete_post_generation(instruction: str) -> bool:
+    t = _norm(instruction)
+    has_verb = any(v in t for v in GENERATION_VERBS)
+    has_post = any(m in t for m in COMPLETE_POST_MARKERS)
+    if has_verb and has_post:
+        return True
+    if any(
+        p in t
+        for p in (
+            "postu hazırla",
+            "post hazırla",
+            "instagram kare",
+            "instagram post",
+            "create a premium",
+            "prepare a premium",
+        )
+    ):
+        return True
+    return False
+
+
+def is_surgical_edit(instruction: str) -> bool:
+    t = _norm(instruction)
+    if any(v in t for v in EDIT_VERBS):
+        return True
+    if any(v in t for v in REPLACE_IMAGE_EDIT) and any(
+        k in t for k in ("foto", "photo", "görsel", "gorsel", "image", "render")
+    ):
+        return True
+    if re.search(r"\b(cta|buton|button|başlık|baslik|headline)\b.{0,24}\b(kaldır|kaldir|remove|delete)\b", t):
+        return True
+    if re.search(r"\b(kaldır|kaldir|remove|delete)\b.{0,24}\b(cta|buton|button|başlık|baslik)\b", t):
+        return True
+    return False
+
+
+def infer_design_mode(
+    instruction: str,
+    posts: list[dict[str, Any]],
+    requested: str | None = None,
+) -> DesignMode:
+    """Classify GENERATION (create/rebuild) vs EDIT (surgical). Generation wins for complete-post briefs."""
+    req = (requested or "create").strip().lower()
+    if req not in {"create", "edit"}:
+        req = "create"
+    if not posts:
+        return "create"
+
+    generation = is_complete_post_generation(instruction)
+    surgical = is_surgical_edit(instruction)
+
+    if generation and not surgical:
+        return "create"
+    if surgical and not generation:
+        return "edit"
+    if generation and surgical:
+        # "hazırla" + incidental "görselini seç" is still generation.
+        # "Başlığı biraz yukarı al" never includes complete-post verbs.
+        return "create"
+    if req == "edit":
+        return "edit"
+    return "create"
+
+
+def extract_campaign_facts(instruction: str) -> list[CampaignFact]:
+    """Pull user-supplied campaign numbers. Preserve exact display tokens."""
+    raw = instruction or ""
+    facts: list[CampaignFact] = []
+    seen: set[str] = set()
+
+    def _add(label: str, display: str, kind: str) -> None:
+        token = display.strip()
+        if not token or token in seen:
+            return
+        seen.add(token)
+        facts.append(CampaignFact(label=label, display=token, kind=kind))
+
+    for m in re.finditer(r"\$\s*[\d]{1,3}(?:,\d{3})+(?:\.\d+)?", raw):
+        _add("campaign_money", m.group(0).replace(" ", ""), "money")
+    for m in re.finditer(r"\$\s*\d+(?:\.\d+)?\s*(?:k|m|mn|million)?\b", raw, re.I):
+        token = re.sub(r"\s+", "", m.group(0))
+        if token not in seen:
+            _add("campaign_money", m.group(0).strip(), "money")
+
+    for m in re.finditer(r"%\s*\d+(?:[.,]\d+)?", raw):
+        _add("campaign_percent", m.group(0).replace(" ", ""), "percent")
+    for m in re.finditer(r"\d+(?:[.,]\d+)?\s*%", raw):
+        _add("campaign_percent", m.group(0).strip(), "percent")
+
+    for m in re.finditer(
+        r"\b(\d{1,3})\s*(ay|ayı|ayi|month|months|mo)\b",
+        raw,
+        re.I,
+    ):
+        _add("campaign_duration", m.group(0).strip(), "duration")
+
+    return facts
+
+
+def classify_generation_intent(
+    instruction: str,
+    *,
+    language: str | None = None,
+    project_name: str | None = None,
+) -> GenerationIntent:
+    t = _norm(instruction)
+    raw = instruction or ""
+
+    lang = (language or "").strip().lower()
+    if any(k in t for k in ("ingilizce", "in english", "english", "write in english")):
+        lang = "en"
+    elif any(k in t for k in ("türkçe", "turkce", "in turkish", "turkish")):
+        lang = "tr"
+    elif not lang:
+        lang = "en" if re.search(r"[a-z]{4,}", t) and not re.search(r"[çğıöşü]", t) else "tr"
+    if lang.startswith("tr"):
+        lang = "tr"
+    else:
+        lang = "en"
+
+    platform = "instagram"
+    if "linkedin" in t:
+        platform = "linkedin"
+    elif "facebook" in t:
+        platform = "facebook"
+    elif re.search(r"\bx\b|twitter", t):
+        platform = "x"
+
+    format_preset = "square"
+    if any(k in t for k in ("story", "hikaye", "hikayesi")):
+        format_preset = "story"
+    elif any(k in t for k in ("portrait", "dikey", "4:5", "4/5")):
+        format_preset = "portrait"
+    elif any(k in t for k in ("landscape", "yatay")):
+        format_preset = "landscape"
+    elif any(k in t for k in ("reel", "reels")):
+        format_preset = "reelsCover"
+    elif any(k in t for k in ("kare", "square", "1:1", "1/1")):
+        format_preset = "square"
+
+    objective: MarketingObjective = "general"
+    asset: AssetPreference = "any"
+    audience = "general"
+    if any(k in t for k in ("yatırım", "yatirim", "invest", "investor", "roi", "getiri")):
+        objective = "investment"
+        asset = "premium_hero"
+        audience = "investors"
+    elif any(k in t for k in ("kat plan", "floor plan", "floorplan", "planı", "plani")):
+        objective = "floor_plan"
+        asset = "floor_plan"
+    elif any(k in t for k in ("iç mekan", "ic mekan", "interior", "lobby", "daire iç")):
+        objective = "interior"
+        asset = "interior"
+    elif any(
+        k in t
+        for k in (
+            "lokasyon",
+            "location",
+            "konum",
+            "merkezi",
+            "neighborhood",
+            "mahalle",
+            "washington",
+            "adres",
+        )
+    ):
+        objective = "location"
+        asset = "exterior"
+    elif any(k in t for k in ("lansman", "launch", "opening")):
+        objective = "launch"
+        asset = "premium_hero"
+    elif any(k in t for k in ("yaşam", "yasam", "lifestyle", "amenit")):
+        objective = "lifestyle"
+        asset = "interior"
+
+    tone = "premium" if any(k in t for k in ("premium", "lüks", "luks", "luxury", "quiet luxury")) else "professional"
+
+    facts = extract_campaign_facts(raw)
+    requested_financial = [f.display for f in facts]
+
+    key_message = ""
+    if objective == "location":
+        key_message = "central location"
+    elif objective == "investment":
+        key_message = "investment opportunity"
+    elif project_name:
+        key_message = project_name
+
+    cta_hint = None
+    if objective == "investment":
+        cta_hint = "Explore the investment" if lang == "en" else "Yatırım fırsatını incele"
+    elif any(k in t for k in ("tur", "tour", "randevu")):
+        cta_hint = "Schedule a private tour" if lang == "en" else "Özel tur planla"
+
+    return GenerationIntent(
+        project_hint=project_name,
+        platform=platform,
+        format_preset=format_preset if format_preset in FORMAT_PRESETS else "square",
+        language=lang,
+        marketing_objective=objective,
+        audience=audience,
+        tone=tone,
+        key_message=key_message,
+        requested_facts=[],
+        requested_financial_figures=requested_financial,
+        cta_hint=cta_hint,
+        asset_preference=asset,
+    )
+
+
+def generation_intent_to_dict(intent: GenerationIntent) -> dict[str, Any]:
+    return asdict(intent)
+
+
+def campaign_facts_to_dicts(facts: list[CampaignFact]) -> list[dict[str, Any]]:
+    return [asdict(f) for f in facts]
+
+
+def asset_preference_tokens(preference: AssetPreference | str) -> set[str]:
+    pref = (preference or "any").strip().lower()
+    mapping: dict[str, set[str]] = {
+        "exterior": {
+            "exterior",
+            "facade",
+            "façade",
+            "street",
+            "neighborhood",
+            "aerial",
+            "drone",
+            "skyline",
+            "hero",
+            "outside",
+            "building",
+            "twilight",
+            "location",
+        },
+        "neighborhood": {
+            "neighborhood",
+            "street",
+            "aerial",
+            "drone",
+            "context",
+            "location",
+            "block",
+            "avenue",
+        },
+        "aerial": {"aerial", "drone", "birdseye", "bird", "overhead", "site"},
+        "interior": {
+            "interior",
+            "lobby",
+            "living",
+            "kitchen",
+            "bedroom",
+            "amenity",
+            "spa",
+            "pool",
+            "inside",
+        },
+        "premium_hero": {
+            "hero",
+            "exterior",
+            "facade",
+            "premium",
+            "twilight",
+            "render",
+            "aerial",
+            "building",
+        },
+        "floor_plan": {"plan", "floorplan", "floor-plan", "layout", "unit", "plate"},
+        "any": set(),
+    }
+    return mapping.get(pref, set())
+
+
+def _readable_facts(facts: list[str], *, limit: int = 8) -> list[str]:
+    out: list[str] = []
+    for f in facts:
+        text = (f or "").strip()
+        if not text or looks_like_rag_or_debug_copy(text):
+            continue
+        if "=" in text and re.match(
+            r"^(project_name|project_code|city|country|address|total_units|project_type|project_status)\s*=",
+            text,
+            re.I,
+        ):
+            key, _, val = text.partition("=")
+            val = val.strip()
+            if not val:
+                continue
+            key_l = key.strip().lower()
+            if key_l == "project_name":
+                text = val
+            elif key_l == "city":
+                text = val
+            elif key_l == "address":
+                text = val
+            elif key_l == "country":
+                text = val
+            elif key_l == "total_units":
+                text = f"{val} units"
+            else:
+                continue
+        out.append(text[:220])
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _marketing_lines(retrieved: list[Any], *, limit: int = 4) -> list[str]:
+    out: list[str] = []
+    for row in retrieved:
+        if not isinstance(row, dict):
+            continue
+        name = str(row.get("document_name") or "").lower()
+        if "metadata.json" in name or name.endswith(".json"):
+            continue
+        text = str(row.get("text") or row.get("excerpt") or "").strip()
+        if not text or looks_like_rag_or_debug_copy(text):
+            continue
+        sentence = text.split(".")[0].strip()
+        if len(sentence) < 12:
+            continue
+        out.append(sentence[:180])
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _clip_copy(text: str, max_len: int) -> str:
+    clean = sanitize_creative_copy(text, max_len=max_len)
+    if not clean:
+        return ""
+    if len(clean) <= max_len:
+        return clean
+    cut = clean[: max_len - 1].rsplit(" ", 1)[0].strip()
+    return cut or clean[:max_len]
+
+
+def _restore_exact_tokens(text: str, facts: list[CampaignFact]) -> str:
+    """Replace converted number forms with the user-supplied display tokens."""
+    out = text or ""
+    for fact in facts:
+        token = fact.display
+        if not token or token in out:
+            continue
+        if fact.kind == "percent":
+            m = re.search(r"%?\s*(\d+(?:[.,]\d+)?)\s*%?", token)
+            if m:
+                n = m.group(1)
+                out = re.sub(rf"\b{re.escape(n)}\s*%", token, out)
+                out = re.sub(rf"%\s*{re.escape(n)}", token, out)
+        elif fact.kind == "duration":
+            m = re.search(r"(\d+)", token)
+            if m:
+                n = m.group(1)
+                out = re.sub(rf"\b{re.escape(n)}\s*(months?|mo|ayı?|ay)\b", token, out, flags=re.I)
+        elif fact.kind == "money":
+            digits = re.sub(r"[^\d]", "", token)
+            if digits:
+                grouped = f"{int(digits):,}"
+                out = re.sub(rf"\$\s*{re.escape(grouped)}(?:\.\d+)?", token, out)
+                out = re.sub(rf"\$\s*{re.escape(digits)}(?:\.\d+)?", token, out)
+    return out
+
+
+def enforce_campaign_facts(package: ContentPackage, facts: list[CampaignFact]) -> ContentPackage:
+    """Guarantee user-supplied numbers appear verbatim and are not rewritten."""
+    if not facts:
+        return package
+    headline = _restore_exact_tokens(package.headline, facts)
+    supporting = _restore_exact_tokens(package.supporting_text, facts)
+    key_fact = _restore_exact_tokens(package.key_fact, facts)
+    cta = _restore_exact_tokens(package.cta, facts)
+    blob = " ".join([headline, supporting, key_fact, cta])
+    missing = [f for f in facts if f.display not in blob]
+    if missing:
+        extra = " · ".join(f.display for f in missing)
+        if key_fact:
+            key_fact = f"{key_fact} · {extra}"
+        else:
+            key_fact = extra
+    return ContentPackage(
+        headline=_clip_copy(headline, 70),
+        supporting_text=_clip_copy(supporting, 160),
+        key_fact=_clip_copy(key_fact, 80),
+        cta=_clip_copy(cta, 36) or package.cta,
+        language=package.language,
+        tone=package.tone,
+    )
+
+
+def build_heuristic_content_package(
+    *,
+    instruction: str,
+    intent: GenerationIntent,
+    context: CreativeStudioGenerationContext,
+    campaign_facts: list[CampaignFact],
+) -> ContentPackage:
+    project_name = context.project_identity.project_name or "Project"
+    city = context.project_identity.city or ""
+    facts = _readable_facts(list(context.verified_facts or []))
+    marketing = _marketing_lines(list(context.retrieved_content or []))
+    lang = intent.language
+    en = lang != "tr"
+
+    location_bits = [b for b in facts if b and b.lower() not in {project_name.lower()}]
+    city_bit = next((b for b in location_bits if city and city.lower() in b.lower()), city)
+
+    if intent.marketing_objective == "investment":
+        headline = (
+            f"Invest in {project_name}" if en else f"{project_name} yatırım fırsatı"
+        )
+        numbers = " · ".join(f.display for f in campaign_facts) or (
+            marketing[0] if marketing else ""
+        )
+        supporting = numbers
+        if en:
+            key_fact = campaign_facts[0].display if campaign_facts else ""
+            cta = intent.cta_hint or "Explore the investment"
+        else:
+            key_fact = campaign_facts[0].display if campaign_facts else ""
+            cta = intent.cta_hint or "Yatırım fırsatını incele"
+    elif intent.marketing_objective == "location":
+        place = city_bit or city or project_name
+        headline = (
+            f"{project_name} in {place}" if en and place != project_name else f"{project_name}"
+        )
+        if en:
+            loc_keys = ("location", "neighborhood", "address", city.lower()) if city else ("location",)
+            supporting = next(
+                (m for m in marketing if any(k in m.lower() for k in loc_keys)),
+                marketing[0] if marketing else (f"A refined address in {place}." if place else f"Discover {project_name}."),
+            )
+            cta = intent.cta_hint or "Schedule a private tour"
+        else:
+            supporting = marketing[0] if marketing else f"{place} konumunda {project_name}."
+            cta = intent.cta_hint or "Özel tur planla"
+        key_fact = place if place and place != project_name else ""
+    else:
+        headline = marketing[0] if marketing and 12 <= len(marketing[0]) <= 70 else (
+            f"Discover {project_name}" if en else f"{project_name} — özel lansman"
+        )
+        supporting = next((m for m in marketing[1:] if m != headline), marketing[0] if marketing else "")
+        if not supporting:
+            supporting = (
+                f"Verified {project_name} project details."
+                if en
+                else f"{project_name} için doğrulanmış proje bilgisi."
+            )
+        key_fact = city_bit if city_bit and city_bit != project_name else ""
+        cta = intent.cta_hint or ("Schedule a private tour" if en else "Özel tur planla")
+
+    headline = _clip_copy(headline, 70)
+    supporting = _clip_copy(supporting, 160)
+    key_fact = _clip_copy(key_fact, 80)
+    cta = _clip_copy(cta, 36)
+    if looks_like_rag_or_debug_copy(headline):
+        headline = f"Discover {project_name}" if en else f"{project_name}"
+    if looks_like_rag_or_debug_copy(supporting):
+        supporting = f"Discover {project_name}." if en else f"{project_name}."
+    if looks_like_rag_or_debug_copy(key_fact):
+        key_fact = ""
+    if looks_like_rag_or_debug_copy(cta):
+        cta = "Learn more" if en else "Keşfet"
+
+    package = ContentPackage(
+        headline=headline or project_name,
+        supporting_text=supporting,
+        key_fact=key_fact if key_fact != headline else "",
+        cta=cta or ("Learn more" if en else "Keşfet"),
+        language=lang,
+        tone=intent.tone,
+    )
+    return enforce_campaign_facts(package, campaign_facts)
+
+
+def build_content_package_prompt(
+    *,
+    instruction: str,
+    intent: GenerationIntent,
+    context: CreativeStudioGenerationContext,
+    campaign_facts: list[CampaignFact],
+    max_prompt_chars: int = 10_000,
+) -> tuple[str, str]:
+    system = (
+        "You write concise social-post copy for InvestHome OS. "
+        "Reply with JSON only: "
+        '{"headline":"","supporting_text":"","key_fact":"","cta":"","language":"","tone":""}. '
+        "Rules: use only verified_facts and user_supplied_campaign_facts. "
+        "Never invent project facts or financial figures. "
+        "User-supplied campaign numbers must appear EXACTLY as given (do not round, convert, or localize). "
+        "If the user wrote $500,000 keep $500,000; if %14 keep %14; if 24 ay keep 24 ay. "
+        "Do not persist campaign numbers as canonical project facts — they are this campaign only. "
+        "Never include RAG/debug/metadata (Sources, chunk ids, document filenames, asset ids, provider). "
+        "Hierarchy: short headline (≤60 chars), supporting_text (≤140), optional key_fact (≤70), CTA (≤32). "
+        "Not a paragraph dump. Match the requested language and tone."
+    )
+    user_obj = {
+        "instruction": instruction.strip(),
+        "generation_intent": generation_intent_to_dict(intent),
+        "project_identity": context.project_identity.model_dump(mode="json"),
+        "verified_facts": _readable_facts(list(context.verified_facts or [])),
+        "user_supplied_campaign_facts": campaign_facts_to_dicts(campaign_facts),
+        "marketing_excerpts": _marketing_lines(list(context.retrieved_content or [])),
+        "language": intent.language,
+    }
+    user = f"{CONTENT_PACKAGE_MARKER}\n{json.dumps(user_obj, ensure_ascii=False)}"
+    if len(system) + len(user) > max_prompt_chars:
+        user_obj["marketing_excerpts"] = user_obj["marketing_excerpts"][:2]
+        user = f"{CONTENT_PACKAGE_MARKER}\n{json.dumps(user_obj, ensure_ascii=False)}"
+    return system, user
+
+
+def parse_content_package_from_llm(text: str) -> ContentPackage | None:
+    raw = (text or "").strip()
+    if not raw:
+        return None
+    candidates = [raw]
+    fence = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw, re.I)
+    if fence:
+        candidates.insert(0, fence.group(1).strip())
+    match = re.search(r"\{[\s\S]*\"headline\"\s*:\s*\"[\s\S]*\}", raw)
+    if match:
+        candidates.insert(0, match.group(0))
+    for candidate in candidates:
+        try:
+            data = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(data, dict):
+            continue
+        headline = sanitize_creative_copy(data.get("headline"), max_len=80)
+        supporting = sanitize_creative_copy(data.get("supporting_text") or data.get("body"), max_len=180)
+        key_fact = sanitize_creative_copy(data.get("key_fact"), max_len=80)
+        cta = sanitize_creative_copy(data.get("cta") or data.get("cta_label"), max_len=40)
+        if not headline:
+            continue
+        if looks_like_rag_or_debug_copy(headline) or looks_like_rag_or_debug_copy(supporting):
+            continue
+        return ContentPackage(
+            headline=_clip_copy(headline, 70),
+            supporting_text=_clip_copy(supporting, 160),
+            key_fact=_clip_copy(key_fact, 80),
+            cta=_clip_copy(cta, 36) or "Learn more",
+            language=str(data.get("language") or "en")[:8],
+            tone=str(data.get("tone") or "premium")[:32],
+        )
+    return None
+
+
+def content_package_to_dict(package: ContentPackage) -> dict[str, Any]:
+    return asdict(package)
+
+
+def build_design_plan(
+    *,
+    package: ContentPackage,
+    intent: GenerationIntent,
+    picked_asset_id: UUID | None,
+    post_id: str,
+    rebuild: bool,
+    canvas_w: int | None = None,
+    canvas_h: int | None = None,
+) -> DesignPlan:
+    preset = intent.format_preset if intent.format_preset in FORMAT_PRESETS else "square"
+    w, h = FORMAT_PRESETS.get(preset, (1080, 1080))
+    if canvas_w and canvas_h:
+        w, h = canvas_w, canvas_h
+    slots = social_layout_slots(w, h)
+    hs = slots["headline"]
+    bs = slots["body"]
+    cs = slots["cta"]
+
+    body_text = package.supporting_text
+    if package.key_fact and package.key_fact not in body_text:
+        body_text = f"{body_text}\n{package.key_fact}".strip() if body_text else package.key_fact
+    body_text = _clip_copy(body_text, 180)
+
+    elements = [
+        DesignPlanElement(
+            type="TEXT",
+            role="headline",
+            text=package.headline,
+            x=hs["x"],
+            y=hs["y"],
+            width=hs["width"],
+            height=hs["max_height"],
+            font_weight="bold",
+            align="center",
+            color="#ffffff",
+            z_index=2,
+        ),
+        DesignPlanElement(
+            type="TEXT",
+            role="body",
+            text=body_text,
+            x=bs["x"],
+            y=bs["y"],
+            width=bs["width"],
+            height=bs["max_height"],
+            font_weight="normal",
+            align="center",
+            color="#ffffff",
+            z_index=3,
+        ),
+        DesignPlanElement(
+            type="BUTTON",
+            role="cta",
+            text=package.cta,
+            x=cs["x"],
+            y=cs["y"],
+            width=cs["width"],
+            height=cs["height"],
+            align="center",
+            background_color="#ffffff",
+            text_color="#111827",
+            z_index=4,
+        ),
+    ]
+    return DesignPlan(
+        format_preset=preset,
+        platform=intent.platform,
+        background_asset_id=str(picked_asset_id) if picked_asset_id else None,
+        overlay="gradient",
+        post_id=post_id,
+        rebuild=rebuild,
+        elements=elements,
+        name=f"AI {preset}",
+    )
+
+
+def design_plan_to_dict(plan: DesignPlan) -> dict[str, Any]:
+    return {
+        "format": plan.format_preset,
+        "platform": plan.platform,
+        "background_asset_id": plan.background_asset_id,
+        "overlay": plan.overlay,
+        "post_id": plan.post_id,
+        "rebuild": plan.rebuild,
+        "name": plan.name,
+        "elements": [asdict(el) for el in plan.elements],
+    }
+
+
+def compose_ops_from_plan(
+    plan: DesignPlan,
+    *,
+    linked_project_id: UUID,
+    instruction: str,
+) -> list[dict[str, Any]]:
+    """Convert a design plan into existing Design Ops (same posts[].elements[] schema)."""
+    pid = str(linked_project_id)
+    post_id = plan.post_id or str(uuid4())
+    ops: list[dict[str, Any]] = [
+        {
+            "op": "CREATE_POST",
+            "linked_project_id": pid,
+            "post_id": post_id,
+            "element_id": None,
+            "payload": {
+                "formatPreset": plan.format_preset,
+                "platform": plan.platform,
+                "name": plan.name,
+                "description": (instruction or "")[:240],
+                "rebuild": True,
+            },
+        },
+        {
+            "op": "SET_FORMAT",
+            "linked_project_id": pid,
+            "post_id": post_id,
+            "element_id": None,
+            "payload": {"formatPreset": plan.format_preset},
+        },
+    ]
+    if plan.background_asset_id:
+        ops.append(
+            {
+                "op": "SET_BACKGROUND",
+                "linked_project_id": pid,
+                "post_id": post_id,
+                "element_id": None,
+                "payload": {"asset_id": plan.background_asset_id},
+            }
+        )
+    for el in plan.elements:
+        if el.type == "TEXT":
+            ops.append(
+                {
+                    "op": "ADD_TEXT",
+                    "linked_project_id": pid,
+                    "post_id": post_id,
+                    "element_id": None,
+                    "payload": {
+                        "role": el.role,
+                        "content": el.text,
+                        "fontWeight": el.font_weight or ("bold" if el.role == "headline" else "normal"),
+                        "align": el.align,
+                        "color": el.color,
+                        "zIndex": el.z_index,
+                    },
+                }
+            )
+        elif el.type in {"BUTTON", "CTA"}:
+            ops.append(
+                {
+                    "op": "ADD_CTA",
+                    "linked_project_id": pid,
+                    "post_id": post_id,
+                    "element_id": None,
+                    "payload": {
+                        "label": el.text,
+                        "backgroundColor": el.background_color or "#ffffff",
+                        "textColor": el.text_color or "#111827",
+                        "zIndex": el.z_index,
+                    },
+                }
+            )
+    return ops
+
+
+def attach_generation_metadata(
+    post: dict[str, Any],
+    *,
+    meta: dict[str, Any],
+) -> dict[str, Any]:
+    """Store generation metadata on the post document — never as a canvas TEXT/CTA element."""
+    post["generationMeta"] = meta
+    return post
+
+
+def build_generation_metadata(
+    *,
+    project_id: UUID,
+    user_prompt: str,
+    intent: GenerationIntent,
+    campaign_facts: list[CampaignFact],
+    source_document_ids: list[str],
+    selected_asset_ids: list[str],
+    provider: str,
+    model: str,
+    content_package: ContentPackage | None = None,
+    design_plan: DesignPlan | None = None,
+) -> dict[str, Any]:
+    return {
+        "generated_by": "social_design_engine",
+        "project_id": str(project_id),
+        "user_prompt": (user_prompt or "")[:2000],
+        "generation_intent": generation_intent_to_dict(intent),
+        "campaign_facts": campaign_facts_to_dicts(campaign_facts),
+        "source_document_ids": source_document_ids,
+        "selected_asset_ids": selected_asset_ids,
+        "provider": provider,
+        "model": model,
+        "generated_at": datetime.now(UTC).isoformat(),
+        "content_package": content_package_to_dict(content_package) if content_package else None,
+        "design_plan": design_plan_to_dict(design_plan) if design_plan else None,
+    }
+
+
+def resolve_generation_post_id(
+    draft_posts: list[dict[str, Any]],
+    selected_post_id: str | None,
+) -> tuple[str, bool]:
+    """Reuse the current post for rebuild; mint an id only when the canvas is empty."""
+    if selected_post_id:
+        for post in draft_posts:
+            if isinstance(post, dict) and str(post.get("id") or "") == selected_post_id:
+                return selected_post_id, True
+    if draft_posts and isinstance(draft_posts[0], dict) and draft_posts[0].get("id"):
+        return str(draft_posts[0]["id"]), True
+    return str(uuid4()), False

@@ -31,6 +31,11 @@ export type AiStatusKey =
   | 'writingCaptions'
   | 'designingCreatives'
   | 'optimizing'
+  | 'preparingProject'
+  | 'writingContent'
+  | 'selectingVisual'
+  | 'preparingDesign'
+  | 'checkingLayout'
   | 'completed';
 
 export type ProjectId = 'temple' | '309h' | 'uniloft' | 'campus';
@@ -128,6 +133,8 @@ export type SocialPost = {
   coverAssetId: string | null;
   linkedProjectId: string | null;
   elements: SocialElement[];
+  /** Generation metadata — persisted, never rendered on canvas. */
+  generationMeta?: Record<string, unknown> | null;
 };
 
 export type SmbProject = {
@@ -299,6 +306,15 @@ export const AI_STATUS_SEQUENCE: AiStatusKey[] = [
   'designingCreatives',
   'optimizing',
   'completed',
+];
+
+/** Generation-only status stages (existing AI bar styling). Not the demo AI_STATUS_SEQUENCE. */
+export const GENERATION_STATUS_STAGES: AiStatusKey[] = [
+  'preparingProject',
+  'writingContent',
+  'selectingVisual',
+  'preparingDesign',
+  'checkingLayout',
 ];
 
 /** Visual placeholders only — never used as production artboard media. */

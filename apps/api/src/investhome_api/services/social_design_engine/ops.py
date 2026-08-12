@@ -638,6 +638,10 @@ def validate_ops(
                     "linked_project_id": str(linked_project_id),
                 }
             )
+        elif op.op == "CREATE_POST":
+            existing = find_post(working, op.post_id)
+            if existing is not None:
+                existing["elements"] = []
         elif op.op in OPS_CREATING_ELEMENT:
             post = find_post(working, op.post_id)
             if post is not None:

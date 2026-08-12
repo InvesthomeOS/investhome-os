@@ -85,28 +85,53 @@ describe('workspace wires design engine (same canvas)', () => {
 });
 
 describe('design request builder logic (inlined mirror)', () => {
-  const EDIT_HINTS = [
-    'değiştir',
-    'güncelle',
-    'edit',
-    'update',
-    'move',
-    'color',
-    'renk',
-    'cta',
+  const GENERATION_VERBS = [
+    'hazırla',
+    'hazirla',
+    'oluştur',
+    'olustur',
+    'create a',
+    'create an',
+    'generate a',
+    'prepare a',
+    'postu hazırla',
+    'instagram post',
+    'kare post',
+  ];
+  const COMPLETE_POST_MARKERS = ['post', 'instagram', 'kare', 'feed'];
+  const SURGICAL_EDIT_HINTS = [
     'taşı',
-    'yukarı',
-    'beyaz',
+    'tasi',
+    'yukarı al',
+    'kaldır',
+    'kaldir',
+    'rengini',
+    'başlığı biraz',
+    'başka bir',
+    'another photo',
   ];
 
-  function inferDesignMode(instruction, posts, preferred) {
-    if (preferred === 'create' || preferred === 'edit') {
-      if (preferred === 'edit' && posts.length === 0) return 'create';
-      return preferred;
-    }
+  function isCompletePostGeneration(instruction) {
     const instr = (instruction || '').toLowerCase();
-    if (posts.length > 0 && EDIT_HINTS.some((h) => instr.includes(h))) return 'edit';
-    if (posts.length === 0) return 'create';
+    return (
+      GENERATION_VERBS.some((v) => instr.includes(v)) &&
+      COMPLETE_POST_MARKERS.some((m) => instr.includes(m))
+    );
+  }
+  function isSurgicalEdit(instruction) {
+    const instr = (instruction || '').toLowerCase();
+    return SURGICAL_EDIT_HINTS.some((h) => instr.includes(h));
+  }
+
+  function inferDesignMode(instruction, posts, preferred) {
+    if (!posts.length) return 'create';
+    const generation = isCompletePostGeneration(instruction);
+    const surgical = isSurgicalEdit(instruction);
+    if (generation && !surgical) return 'create';
+    if (surgical && !generation) return 'edit';
+    if (generation && surgical) return 'create';
+    if (preferred === 'edit') return 'edit';
+    if (preferred === 'create') return 'create';
     return 'create';
   }
 
@@ -153,6 +178,29 @@ describe('design request builder logic (inlined mirror)', () => {
     const built = buildSocialDesignRequest({
       linkedProjectId: TEMPLE_UUID,
       instruction: 'Başlık rengini beyaz yap ve biraz yukarı taşı',
+      posts: [{ id: 'p1', elements: [{ id: 'h1', type: 'TEXT' }] }],
+      selectedPostId: 'p1',
+    });
+    assert.equal(built.ok, true);
+    assert.equal(built.request.mode, 'edit');
+  });
+
+  it('treats complete-post briefs as generation even when a post already exists', () => {
+    const built = buildSocialDesignRequest({
+      linkedProjectId: TEMPLE_UUID,
+      instruction:
+        'The Temple projesinin Washington DC\'deki merkezi lokasyonunu öne çıkaran premium bir Instagram kare postu hazırla. Proje verilerini kullan. En uygun gerçek proje görselini seç. İngilizce hazırla.',
+      posts: [{ id: 'p1', elements: [{ id: 'h1', type: 'TEXT' }] }],
+      selectedPostId: 'p1',
+    });
+    assert.equal(built.ok, true);
+    assert.equal(built.request.mode, 'create');
+  });
+
+  it('keeps surgical image replace as edit, not full regeneration', () => {
+    const built = buildSocialDesignRequest({
+      linkedProjectId: TEMPLE_UUID,
+      instruction: 'Başka bir Temple fotoğrafı kullan',
       posts: [{ id: 'p1', elements: [{ id: 'h1', type: 'TEXT' }] }],
       selectedPostId: 'p1',
     });
@@ -234,6 +282,19 @@ describe('canonical canvas fit / layout safety (renderer contract)', () => {
     assert.match(workspace, /selectedPostIdRef\.current/);
     assert.match(workspace, /const latestPosts = postsRef\.current/);
     assert.match(workspace, /buildSocialDesignRequest\(\{[\s\S]*posts:\s*latestPosts/);
+  });
+
+  it('cycles generation status stages in the existing AI bar', () => {
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    assert.match(workspace, /GENERATION_STATUS_STAGES/);
+    assert.match(workspace, /inferDesignMode/);
+    assert.doesNotMatch(workspace, /AI_STATUS_SEQUENCE/);
+    const model = readSmb('social-media-builder-model.ts');
+    assert.match(model, /preparingProject/);
+    assert.match(model, /writingContent/);
+    assert.match(model, /selectingVisual/);
+    assert.match(model, /preparingDesign/);
+    assert.match(model, /checkingLayout/);
   });
 
   it('includes selected_element in builder_context when provided', () => {

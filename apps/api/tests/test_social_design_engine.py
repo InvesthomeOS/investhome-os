@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from uuid import UUID, uuid4
 
 import pytest
@@ -860,9 +861,12 @@ def test_edit_intent_move_sky_does_not_rewrite_copy() -> None:
     assert plan.structural_only
     assert not plan.allow_copy_rewrite
     ops = build_ops_from_intent_plan(plan=plan, linked_project_id=str(pid), post=post)
-    assert ops and all(o["op"] == "MOVE_ELEMENT" for o in ops)
-    assert ops[0]["element_id"] == "h1"
-    assert ops[0]["payload"]["y"] < 420
+    assert ops
+    assert all(o["op"] in {"MOVE_ELEMENT", "APPLY_LAYOUT_INTENT"} for o in ops)
+    move_ops = [o for o in ops if o["op"] == "MOVE_ELEMENT"]
+    assert move_ops
+    assert move_ops[0]["element_id"] == "h1"
+    assert move_ops[0]["payload"]["y"] < 420
 
     # Unauthorized LLM copy rewrite must be rejected
     rogue = [
@@ -880,7 +884,7 @@ def test_edit_intent_move_sky_does_not_rewrite_copy() -> None:
             "element_id": "c1",
             "payload": {"label": "Hemen Bak"},
         },
-        ops[0],
+        move_ops[0],
     ]
     kept, rejected = filter_ops_for_copy_protection(rogue, plan, mode="edit")
     assert any("copy_rewrite_rejected" in r[1] for r in rejected)
@@ -1466,3 +1470,282 @@ def test_multi_intent_only_requested_ops() -> None:
     assert "UPDATE_TEXT" not in names
     assert "UPDATE_CTA" not in names
     assert "ADD_TEXT" not in names
+
+
+def test_infer_design_mode_generation_vs_edit() -> None:
+    from investhome_api.services.social_design_engine.generation import infer_design_mode
+
+    existing = [{"id": "p1", "elements": [{"id": "h1", "type": "TEXT"}]}]
+    location = (
+        "The Temple projesinin Washington DC'deki merkezi lokasyonunu öne çıkaran "
+        "premium bir Instagram kare postu hazırla. Proje verilerini kullan. "
+        "En uygun gerçek proje görselini seç. İngilizce hazırla."
+    )
+    investment = (
+        "The Temple için yatırımcı odaklı premium Instagram postu hazırla. "
+        "Bu kampanya için test girdileri: Minimum yatırım: $500,000 Hedef getiri: %14 "
+        "Yatırım süresi: 24 ay. Bu rakamları değiştirme. İngilizce hazırla."
+    )
+    assert infer_design_mode(location, existing, "create") == "create"
+    assert infer_design_mode(investment, existing, "edit") == "create"
+    assert infer_design_mode("Başlığı biraz yukarı al", existing, "create") == "edit"
+    assert infer_design_mode("CTA'yı kaldır", existing, "create") == "edit"
+    assert infer_design_mode("Başka bir Temple fotoğrafı kullan", existing, "create") == "edit"
+    assert infer_design_mode(location, [], "edit") == "create"
+
+
+def test_campaign_facts_preserved_exactly() -> None:
+    from investhome_api.schemas.creative_studio_generation import (
+        CreativeStudioBrandContext,
+        CreativeStudioGenerationContext,
+        CreativeStudioProjectIdentity,
+    )
+    from investhome_api.services.social_design_engine.generation import (
+        build_heuristic_content_package,
+        classify_generation_intent,
+        compose_ops_from_plan,
+        enforce_campaign_facts,
+        extract_campaign_facts,
+        build_design_plan,
+    )
+
+    prompt = (
+        "The Temple için yatırımcı odaklı premium Instagram postu hazırla. "
+        "Bu kampanya için test girdileri: Minimum yatırım: $500,000 Hedef getiri: %14 "
+        "Yatırım süresi: 24 ay. Bu rakamları değiştirme. İngilizce hazırla."
+    )
+    facts = extract_campaign_facts(prompt)
+    displays = {f.display for f in facts}
+    assert "$500,000" in displays
+    assert "%14" in displays
+    assert any("24 ay" in f.display for f in facts)
+
+    intent = classify_generation_intent(prompt, language="tr", project_name="Temple Residences")
+    assert intent.language == "en"
+    assert intent.marketing_objective == "investment"
+    assert intent.asset_preference == "premium_hero"
+
+    ctx = CreativeStudioGenerationContext(
+        project_identity=CreativeStudioProjectIdentity(
+            project_id=TEMPLE_PROJECT_ID,
+            project_code="PRJ-T",
+            project_name="Temple Residences",
+            city="Washington",
+            country="US",
+        ),
+        verified_facts=["project_name=Temple Residences", "city=Washington"],
+        retrieved_content=[],
+        selected_assets=[],
+        citations=[],
+        brand_context=CreativeStudioBrandContext(available=False, reason="none"),
+        builder_type="social",
+        language="en",
+    )
+    package = build_heuristic_content_package(
+        instruction=prompt, intent=intent, context=ctx, campaign_facts=facts
+    )
+    blob = f"{package.headline} {package.supporting_text} {package.key_fact} {package.cta}"
+    assert "$500,000" in blob
+    assert "%14" in blob
+    assert "24 ay" in blob
+    assert "500k" not in blob.lower()
+    assert "14%" not in blob or "%14" in blob
+
+    tampered = package.__class__(
+        headline="Invest now",
+        supporting_text="Great returns",
+        key_fact="",
+        cta="Learn more",
+        language="en",
+        tone="premium",
+    )
+    fixed = enforce_campaign_facts(tampered, facts)
+    fixed_blob = f"{fixed.headline} {fixed.supporting_text} {fixed.key_fact}"
+    assert "$500,000" in fixed_blob
+    assert "%14" in fixed_blob
+    assert "24 ay" in fixed_blob
+
+    plan = build_design_plan(
+        package=fixed,
+        intent=intent,
+        picked_asset_id=uuid4(),
+        post_id="p1",
+        rebuild=True,
+    )
+    ops = compose_ops_from_plan(plan, linked_project_id=TEMPLE_PROJECT_ID, instruction=prompt)
+    names = [o["op"] for o in ops]
+    assert names[0] == "CREATE_POST"
+    assert "ADD_TEXT" in names
+    assert "ADD_CTA" in names
+    copy_blob = json.dumps(ops)
+    assert "$500,000" in copy_blob
+    assert "metadata.json" not in copy_blob
+    assert "Sources:" not in copy_blob
+
+
+def test_composer_rebuilds_canvas_schema_and_layout(client, db_session: Session) -> None:
+    from investhome_api.services.social_design_engine.layout import element_within_bounds
+    from investhome_api.services.social_design_engine.ops import looks_like_rag_or_debug_copy
+
+    db = db_session
+    temple = _create_project(db, project_id=TEMPLE_PROJECT_ID)
+    image = _asset(db, temple, filename="temple-exterior-hero.jpg", folder_category="05_RENDERINGS")
+    brief = _asset(db, temple, filename="location.md", content_type="text/markdown")
+    doc = _ready_document(
+        db,
+        temple,
+        text=_long_text("Temple Residences at 1610 Columbia Rd NW Washington DC central location"),
+        title="location.md",
+        asset=brief,
+    )
+    reindex_document(db, doc.id)
+    db.commit()
+
+    existing_id = "legacy-p1"
+    resp = client.post(
+        "/ai/creative-studio/social/design",
+        json={
+            "linked_project_id": str(TEMPLE_PROJECT_ID),
+            "instruction": (
+                "The Temple projesinin Washington DC'deki merkezi lokasyonunu öne çıkaran "
+                "premium bir Instagram kare postu hazırla. Proje verilerini kullan. "
+                "En uygun gerçek proje görselini seç. İngilizce hazırla."
+            ),
+            "mode": "create",
+            "language": "tr",
+            "draft": {
+                "posts": [
+                    {
+                        "id": existing_id,
+                        "formatPreset": "square",
+                        "width": 1080,
+                        "height": 1080,
+                        "platform": "instagram",
+                        "name": "Old",
+                        "headline": "Old headline",
+                        "caption": "Old caption",
+                        "elements": [
+                            {
+                                "id": "h-old",
+                                "type": "TEXT",
+                                "role": "headline",
+                                "content": "Old headline",
+                                "x": 80,
+                                "y": 80,
+                                "width": 400,
+                                "height": 40,
+                            }
+                        ],
+                    }
+                ],
+                "selected_post_id": existing_id,
+            },
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["mode"] == "create"
+    assert body["meta"]["generated_by"] == "social_design_engine"
+    assert body["meta"]["generation_intent"]["marketing_objective"] == "location"
+    posts = body["posts"]
+    assert len(posts) == 1
+    post = posts[0]
+    assert post["id"] == existing_id
+    elements = post.get("elements") or []
+    roles = {e.get("role") for e in elements if e.get("type") == "TEXT"}
+    types = {e.get("type") for e in elements}
+    assert "headline" in roles
+    assert "body" in roles
+    assert "BUTTON" in types
+    assert post.get("coverAssetId")
+    UUID(post["coverAssetId"])
+    blob = json.dumps(post)
+    assert "unsplash" not in blob.lower()
+    assert "metadata.json" not in blob
+    assert "Sources:" not in blob
+    for el in elements:
+        if el.get("type") in {"TEXT", "BUTTON"}:
+            text = str(el.get("content") or el.get("label") or "")
+            assert not looks_like_rag_or_debug_copy(text)
+            assert element_within_bounds(el, 1080, 1080)
+    # Hierarchy: headline above body above CTA
+    headline = next(e for e in elements if e.get("role") == "headline")
+    body_el = next(e for e in elements if e.get("role") == "body")
+    cta = next(e for e in elements if e.get("type") == "BUTTON")
+    assert headline["y"] < body_el["y"] < cta["y"]
+    gen_meta = post.get("generationMeta") or {}
+    assert gen_meta.get("generated_by") == "social_design_engine"
+    assert "citations" not in (headline.get("content") or "")
+
+
+def test_investment_generation_preserves_campaign_numbers(client, db_session: Session) -> None:
+    db = db_session
+    temple = _create_project(db, project_id=TEMPLE_PROJECT_ID)
+    _asset(db, temple, filename="temple-premium-hero-exterior.jpg")
+    brief = _asset(db, temple, filename="overview.md", content_type="text/markdown")
+    doc = _ready_document(
+        db,
+        temple,
+        text=_long_text("Temple Residences Washington DC residential investment overview amenities"),
+        title="overview.md",
+        asset=brief,
+    )
+    reindex_document(db, doc.id)
+    db.commit()
+
+    prompt = (
+        "The Temple için yatırımcı odaklı premium Instagram postu hazırla. "
+        "Bu kampanya için test girdileri: Minimum yatırım: $500,000 Hedef getiri: %14 "
+        "Yatırım süresi: 24 ay. Bu rakamları değiştirme. İngilizce hazırla."
+    )
+    resp = client.post(
+        "/ai/creative-studio/social/design",
+        json={
+            "linked_project_id": str(TEMPLE_PROJECT_ID),
+            "instruction": prompt,
+            "mode": "create",
+            "draft": {"posts": [], "selected_post_id": None},
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    post = body["posts"][0]
+    copy_blob = json.dumps(post.get("elements") or [])
+    assert "$500,000" in copy_blob
+    assert "%14" in copy_blob
+    assert "24 ay" in copy_blob
+    assert any(e.get("type") == "BUTTON" for e in post["elements"])
+    cta = next(e for e in post["elements"] if e.get("type") == "BUTTON")
+    label = (cta.get("label") or "").lower()
+    assert any(k in label for k in ("invest", "investor", "opportunity", "details", "yatırım"))
+    facts = body["meta"].get("campaign_facts") or []
+    displays = {f.get("display") for f in facts}
+    assert "$500,000" in displays
+    # Campaign numbers are metadata, not canonical project facts
+    assert body["meta"]["generation_intent"]["marketing_objective"] == "investment"
+
+
+def test_semantic_asset_preference_prefers_exterior_for_location() -> None:
+    from investhome_api.services.social_design_engine.generation import asset_preference_tokens
+    from investhome_api.services.social_design_engine.media import score_asset
+
+    class _A:
+        content_type = "image/jpeg"
+        filename = "temple-exterior-facade.jpg"
+        folder_category = "05_RENDERINGS"
+        tags = ["exterior", "hero"]
+        width = 2000
+        height = 2000
+
+    class _B:
+        content_type = "image/jpeg"
+        filename = "unit-floorplan-a2.pdf.jpg"
+        folder_category = "06_PLANS"
+        tags = ["plan"]
+        width = 2000
+        height = 2000
+
+    pref = asset_preference_tokens("exterior")
+    s_ext = score_asset(_A(), query_tokens={"location", "washington"}, folder_path="Photos / Exterior", preference_tokens=pref)
+    s_plan = score_asset(_B(), query_tokens={"location", "washington"}, folder_path="Drawings / Plans", preference_tokens=pref)
+    assert s_ext > s_plan

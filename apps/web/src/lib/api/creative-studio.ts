@@ -575,6 +575,16 @@ export type SocialDesignGenerationMeta = {
   latency_ms: number;
   mode: SocialDesignMode;
   planner: string;
+  generated_by?: string | null;
+  project_id?: string | null;
+  user_prompt?: string | null;
+  generation_intent?: Record<string, unknown> | null;
+  source_document_ids?: string[];
+  selected_asset_ids?: string[];
+  generated_at?: string | null;
+  content_package?: Record<string, unknown> | null;
+  design_plan?: Record<string, unknown> | null;
+  campaign_facts?: Record<string, unknown>[];
 };
 
 export type SocialDesignResponse = {

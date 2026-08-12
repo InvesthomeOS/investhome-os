@@ -137,6 +137,7 @@ export function useBuilderDocument(options: {
           selectedPostId: draft.selectedPostId,
           brandLogo: draft.brandLogo,
           platforms: draft.platforms,
+          generationMeta: draft.generationMeta,
         });
         await saveCreativeStudioDraft(document.id, body);
         preferredRef.current.onDraftSaved?.(body);

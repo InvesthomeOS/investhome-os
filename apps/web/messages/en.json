@@ -18904,11 +18904,16 @@
           "writingCaptions": "Writing platform-adapted captions…",
           "designingCreatives": "AI Design Engine applying operations…",
           "optimizing": "Optimizing brand fit, CTA and engagement…",
+          "preparingProject": "Preparing project information",
+          "writingContent": "Creating content",
+          "selectingVisual": "Selecting visual",
+          "preparingDesign": "Preparing design",
+          "checkingLayout": "Checking layout",
           "completed": "AI design applied to canvas"
         },
         "aiDesign": {
           "title": "AI Design",
-          "placeholder": "What do you want to design or change?",
+          "placeholder": "e.g. Create a premium Instagram post highlighting the project's central Washington DC location. Use project data. Choose the best real project visual. Write in English.",
           "submit": "Design with AI",
           "generating": "Designing…",
           "collapse": "Hide",

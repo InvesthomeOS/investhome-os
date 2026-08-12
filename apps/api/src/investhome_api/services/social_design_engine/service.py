@@ -40,6 +40,21 @@ from investhome_api.services.project_assistant.llm_provider import (
     get_llm_provider,
 )
 from investhome_api.services.social_design_engine.apply import apply_ops
+from investhome_api.services.social_design_engine.generation import (
+    asset_preference_tokens,
+    attach_generation_metadata,
+    build_content_package_prompt,
+    build_design_plan,
+    build_generation_metadata,
+    build_heuristic_content_package,
+    classify_generation_intent,
+    compose_ops_from_plan,
+    enforce_campaign_facts,
+    extract_campaign_facts,
+    infer_design_mode,
+    parse_content_package_from_llm,
+    resolve_generation_post_id,
+)
 from investhome_api.services.social_design_engine.intent import (
     apply_selected_element_targets,
     classify_edit_intents,
@@ -89,62 +104,8 @@ def _audit(db: Session, user: User, *, entity_id: UUID, metadata: dict) -> None:
 
 
 def _infer_mode(requested: str, posts: list[dict[str, Any]], instruction: str) -> str:
-    mode = (requested or "create").strip().lower()
-    if mode not in {"create", "edit"}:
-        mode = "create"
-    # Auto-edit when draft has posts and instruction looks like an edit
-    instr = (instruction or "").lower()
-    edit_hints = (
-        "değiştir",
-        "güncelle",
-        "edit",
-        "update",
-        "move",
-        "resize",
-        "replace",
-        "renk",
-        "color",
-        "taşı",
-        "tasi",
-        "büyüt",
-        "küçült",
-        "kucult",
-        "ortala",
-        "align",
-        "arka plan",
-        "background",
-        "başlığı",
-        "basligi",
-        "başlık",
-        "cta",
-        "buton",
-        "buluta",
-        "sola",
-        "sağa",
-        "saga",
-        "aşağı",
-        "asagi",
-        "yukarı",
-        "yukari",
-        "görsel",
-        "gorsel",
-        "exterior",
-        "kullan",
-        "ferahlat",
-        "premium",
-        "sade",
-        "binayı",
-        "binayi",
-        "gökyüz",
-        "gokyuz",
-        "tek satır",
-        "tek satir",
-    )
-    if mode == "create" and posts and any(h in instr for h in edit_hints):
-        return "edit"
-    if mode == "edit" and not posts:
-        return "create"
-    return mode
+    """Generation vs edit — complete-post briefs rebuild; surgical NL stays edit."""
+    return infer_design_mode(instruction, posts, requested)
 
 
 def generate_social_design(
@@ -164,6 +125,13 @@ def generate_social_design(
     draft_posts = [dict(p) for p in (body.draft.posts or []) if isinstance(p, dict)]
     selected_post_id = body.draft.selected_post_id
     mode = _infer_mode(body.mode, draft_posts, instruction)
+    gen_intent = classify_generation_intent(
+        instruction,
+        language=body.language,
+        project_name=project.project_name,
+    )
+    campaign_facts = extract_campaign_facts(instruction)
+    effective_language = gen_intent.language or body.language
 
     selected_assets = validate_selected_assets(
         db,
@@ -220,7 +188,7 @@ def generate_social_design(
     context = build_generation_context(
         project=project,
         builder_type="social",
-        language=body.language,
+        language=effective_language,
         hits=hits if grounding.sufficient else [],
         selected_assets=selected_assets,
         brand_context=brand_context,
@@ -238,6 +206,7 @@ def generate_social_design(
         linked_project_id=linked_project_id,
         instruction=instruction,
         limit=24,
+        preference_tokens=asset_preference_tokens(gen_intent.asset_preference),
     )
     picked = pick_best_asset(media_candidates, require_image=True)
     if picked is None and "no_valid_project_media" not in context.warnings:
@@ -285,6 +254,59 @@ def generate_social_design(
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=exc.message) from exc
 
     max_prompt_chars = int(getattr(settings, "ai_assistant_max_prompt_chars", 14_000) or 14_000)
+
+    planner_name = "heuristic"
+    raw_ops: list[dict[str, Any]] = []
+    summary = ""
+    llm = None
+    intent_rejected: list[tuple[dict[str, Any], str]] = []
+    content_package = None
+    design_plan = None
+
+    # -------- GENERATION: complete post rebuild via content package + design plan --------
+    if mode == "create":
+        content_package = build_heuristic_content_package(
+            instruction=instruction,
+            intent=gen_intent,
+            context=context,
+            campaign_facts=campaign_facts,
+        )
+        try:
+            c_system, c_user = build_content_package_prompt(
+                instruction=instruction,
+                intent=gen_intent,
+                context=context,
+                campaign_facts=campaign_facts,
+                max_prompt_chars=max_prompt_chars,
+            )
+            llm = provider.generate(system=c_system, user=c_user, timeout_seconds=60.0)
+            parsed_pkg = parse_content_package_from_llm(llm.answer or "")
+            if parsed_pkg is not None:
+                content_package = enforce_campaign_facts(parsed_pkg, campaign_facts)
+                planner_name = "generation+llm"
+            else:
+                planner_name = "generation"
+        except LLMProviderError as exc:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=exc.message) from exc
+        except Exception:
+            context.warnings.append("content_package_fallback")
+            planner_name = "generation"
+
+        post_id, rebuild = resolve_generation_post_id(draft_posts, selected_post_id)
+        design_plan = build_design_plan(
+            package=content_package,
+            intent=gen_intent,
+            picked_asset_id=picked,
+            post_id=post_id,
+            rebuild=rebuild,
+        )
+        raw_ops = compose_ops_from_plan(
+            design_plan,
+            linked_project_id=linked_project_id,
+            instruction=instruction,
+        )
+        summary = "Generated complete social post from project knowledge."
+
     system, user_prompt, prompt_version = build_design_prompt(
         instruction=instruction,
         mode=mode,
@@ -296,12 +318,6 @@ def generate_social_design(
         builder_context=builder_context,
         max_prompt_chars=max_prompt_chars,
     )
-
-    planner_name = "heuristic"
-    raw_ops: list[dict[str, Any]] = []
-    summary = ""
-    llm = None
-    intent_rejected: list[tuple[dict[str, Any], str]] = []
 
     # Structural-only EDIT: deterministic intent ops — skip LLM copy invention.
     if mode == "edit" and intent_plan.structural_only and intent_plan.intents:
@@ -424,15 +440,24 @@ def generate_social_design(
             rejected.extend(rejected2)
             planner_name = "intent"
         else:
-            fallback = build_heuristic_ops(
-                instruction=instruction,
-                mode=mode,
-                linked_project_id=linked_project_id,
-                context=context,
-                draft_posts=draft_posts,
-                selected_post_id=selected_post_id,
-                picked_asset_id=picked,
-            )
+            if design_plan is not None:
+                fallback = compose_ops_from_plan(
+                    design_plan,
+                    linked_project_id=linked_project_id,
+                    instruction=instruction,
+                )
+                planner_name = "generation"
+            else:
+                fallback = build_heuristic_ops(
+                    instruction=instruction,
+                    mode=mode,
+                    linked_project_id=linked_project_id,
+                    context=context,
+                    draft_posts=draft_posts,
+                    selected_post_id=selected_post_id,
+                    picked_asset_id=picked,
+                )
+                planner_name = "heuristic"
             fallback, intent_rej2 = filter_ops_for_copy_protection(fallback, intent_plan, mode=mode)
             for op in fallback:
                 if isinstance(op, dict):
@@ -446,7 +471,6 @@ def generate_social_design(
             )
             rejected.extend(intent_rej2)
             rejected.extend(rejected2)
-            planner_name = "heuristic"
         if "design_ops_all_rejected" not in context.warnings:
             context.warnings.append("design_ops_all_rejected")
 
@@ -488,6 +512,32 @@ def generate_social_design(
     } else ""
     if not generated_content and accepted:
         generated_content = f"Applied {len(accepted)} design operation(s) ({mode})."
+
+    source_document_ids: list[UUID] = []
+    for cit in citations:
+        if cit.document_id not in source_document_ids:
+            source_document_ids.append(cit.document_id)
+    selected_ids_meta: list[UUID] = list(asset_ids_used)
+    gen_meta_payload = build_generation_metadata(
+        project_id=linked_project_id,
+        user_prompt=instruction,
+        intent=gen_intent,
+        campaign_facts=campaign_facts,
+        source_document_ids=[str(i) for i in source_document_ids],
+        selected_asset_ids=[str(i) for i in selected_ids_meta],
+        provider=getattr(llm, "provider", provider.name) if llm else provider.name,
+        model=getattr(llm, "model", provider.model) if llm else provider.model,
+        content_package=content_package,
+        design_plan=design_plan,
+    )
+    if mode == "create" and accepted:
+        for post in mutated_posts:
+            if new_selected and str(post.get("id") or "") == str(new_selected):
+                attach_generation_metadata(post, meta=gen_meta_payload)
+                break
+        else:
+            if mutated_posts:
+                attach_generation_metadata(mutated_posts[0], meta=gen_meta_payload)
 
     event_id = uuid4()
     _audit(
@@ -536,6 +586,16 @@ def generate_social_design(
         applied_intents=[str(op.op) for op in accepted],
         rejected_reasons=[reason for _, reason in rejected][:40],
         copy_protected=mode == "edit" and not intent_plan.allow_copy_rewrite,
+        generated_by="social_design_engine" if mode == "create" else None,
+        project_id=linked_project_id,
+        user_prompt=instruction[:2000] if mode == "create" else None,
+        generation_intent=gen_meta_payload.get("generation_intent") if mode == "create" else None,
+        source_document_ids=source_document_ids,
+        selected_asset_ids=selected_ids_meta,
+        generated_at=gen_meta_payload.get("generated_at") if mode == "create" else None,
+        content_package=gen_meta_payload.get("content_package") if mode == "create" else None,
+        design_plan=gen_meta_payload.get("design_plan") if mode == "create" else None,
+        campaign_facts=gen_meta_payload.get("campaign_facts") or [],
     )
 
     return SocialDesignResponse(

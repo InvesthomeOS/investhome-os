@@ -16,7 +16,7 @@ from investhome_api.services.social_design_engine.ops import (
     looks_like_rag_or_debug_copy,
 )
 
-PROMPT_VERSION = "social-design-ops-v3"
+PROMPT_VERSION = "social-design-ops-v4"
 
 SYSTEM_INSTRUCTIONS = """You are the InvestHome OS Social Media Builder AI Design Planner.
 You output ONLY a JSON object with a Design Ops array. Never mutate a database.
@@ -29,8 +29,11 @@ Rules:
   Do NOT invent unrestricted x/y/width/height pixels — the server applies a safe layout grammar.
 - ADD_CTA/UPDATE_CTA payload: label, optional backgroundColor/textColor. Do NOT invent free pixel geometry.
 - Allowed ops: {ops}
-- CREATE mode: build a complete social post (format, background Asset ID if available, headline TEXT, body TEXT, CTA).
+- CREATE mode: build a COMPLETE social post (rebuild current post if one exists).
+  Output a full composition: format, background Asset ID if available, headline TEXT, body TEXT, CTA.
   Layout grammar (server): full-bleed background → overlay → HEADLINE upper/middle → BODY below → CTA lower safe region.
+  User-supplied campaign numbers (e.g. $500,000, %14, 24 ay) are AUTHORITATIVE — copy them exactly; do not convert or invent other financial claims.
+  Distinguish project facts (RAG) from user-supplied campaign facts (this prompt only).
 - EDIT mode: emit ONLY the minimal ops requested. Do not full-regenerate.
 - EDIT COPY PROTECTION (critical):
   Existing headline, body, and CTA label are IMMUTABLE by default.
@@ -420,7 +423,11 @@ def build_heuristic_ops(
             return ops
 
     # -------- CREATE MODE --------
-    post_id = str(uuid4())
+    post_id = selected_post_id if selected_post_id else str(uuid4())
+    if selected_post_id and find_post(draft_posts, selected_post_id) is None:
+        post_id = str(uuid4())
+    elif not selected_post_id and draft_posts and isinstance(draft_posts[0], dict) and draft_posts[0].get("id"):
+        post_id = str(draft_posts[0]["id"])
     preset = _detect_format(instruction, None)
 
     ops = [
@@ -434,6 +441,7 @@ def build_heuristic_ops(
                 "platform": "instagram",
                 "name": f"AI {preset}",
                 "description": instruction[:240],
+                "rebuild": True,
             },
         },
         {

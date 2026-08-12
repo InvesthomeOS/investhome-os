@@ -101,6 +101,16 @@ class SocialDesignGenerationMeta(BaseModel):
     applied_intents: list[str] = Field(default_factory=list)
     rejected_reasons: list[str] = Field(default_factory=list)
     copy_protected: bool = False
+    generated_by: str | None = None
+    project_id: UUID | None = None
+    user_prompt: str | None = None
+    generation_intent: dict[str, Any] | None = None
+    source_document_ids: list[UUID] = Field(default_factory=list)
+    selected_asset_ids: list[UUID] = Field(default_factory=list)
+    generated_at: str | None = None
+    content_package: dict[str, Any] | None = None
+    design_plan: dict[str, Any] | None = None
+    campaign_facts: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class SocialDesignResponse(BaseModel):
