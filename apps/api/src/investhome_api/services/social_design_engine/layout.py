@@ -182,28 +182,38 @@ def _char_ratio(bold: bool) -> float:
 
 
 def estimate_wrap_lines(text: str, font_size: int, max_width: int, *, bold: bool = False) -> list[str]:
-    """Word-wrap estimate using average glyph width (deterministic)."""
-    content = " ".join(str(text or "").split())
-    if not content:
+    """Word-wrap estimate using average glyph width (deterministic).
+
+    Explicit ``\\n`` are hard line breaks; spaces still wrap within each paragraph.
+    """
+    raw = str(text or "")
+    if not raw:
         return []
+    paragraphs = raw.splitlines()
+    if raw.endswith("\n"):
+        paragraphs.append("")
     if font_size <= 0 or max_width <= 0:
-        return [content]
+        return paragraphs or [raw]
     char_w = max(1.0, font_size * _char_ratio(bold))
     max_chars = max(1, int(max_width / char_w))
-    words = content.split(" ")
     lines: list[str] = []
-    current = words[0]
-    for word in words[1:]:
-        candidate = f"{current} {word}"
-        if len(candidate) <= max_chars:
-            current = candidate
-        else:
-            lines.append(current)
-            current = word
-            while len(current) > max_chars:
-                lines.append(current[:max_chars])
-                current = current[max_chars:]
-    lines.append(current)
+    for para in paragraphs:
+        words = [w for w in para.split() if w]
+        if not words:
+            lines.append("")
+            continue
+        current = words[0]
+        for word in words[1:]:
+            candidate = f"{current} {word}"
+            if len(candidate) <= max_chars:
+                current = candidate
+            else:
+                lines.append(current)
+                current = word
+                while len(current) > max_chars:
+                    lines.append(current[:max_chars])
+                    current = current[max_chars:]
+        lines.append(current)
     return lines
 
 
@@ -349,9 +359,16 @@ def auto_layout_text(
     box = safe_content_box(canvas_w, canvas_h)
     bold = str(el.get("fontWeight") or "").lower() == "bold" or role == "headline"
     content = str(el.get("content") or "")
-
+    break_lines = max(1, len(content.splitlines()) or 1)
+    if content.endswith("\n"):
+        break_lines += 1
+    has_hard_breaks = "\n" in content
     if max_lines is None:
-        max_lines = 1 if role == "headline" and len(content) <= 28 else (3 if role == "headline" else 6)
+        if role == "headline":
+            max_lines = max(3, break_lines) if (has_hard_breaks or len(content) > 28) else 1
+        else:
+            max_lines = 6
+    max_lines = max(max_lines, break_lines)
 
     preferred = clamp_int(
         preferred_font if preferred_font is not None else el.get("fontSize"),

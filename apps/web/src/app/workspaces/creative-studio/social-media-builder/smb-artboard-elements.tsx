@@ -28,7 +28,7 @@ export type SmbArtboardElementsProps = {
   onPatchElement: (
     elementId: string,
     patch: Partial<SocialElement>,
-    opts?: { live?: boolean },
+    opts?: { live?: boolean; history?: boolean },
   ) => void;
   onBeginEdit: (elementId: string) => void;
   onEndEdit: () => void;
@@ -187,6 +187,9 @@ export function SmbArtboardElements({
     dragAliveRef.current = true;
     let historyArmed = false;
 
+    let lastW = drag.origW;
+    let lastH = drag.origH;
+
     function onMove(ev: PointerEvent) {
       if (!dragAliveRef.current) return;
       const clientX = finiteOr(ev.clientX, drag.startX);
@@ -232,11 +235,13 @@ export function SmbArtboardElements({
           drag.canvasW,
           drag.canvasH,
         );
+        lastW = Math.max(8, next.width);
+        lastH = Math.max(8, next.height);
         onPatchElement(
           drag.id,
           sanitizeGeometryPatch({
-            width: Math.max(8, next.width),
-            height: Math.max(8, next.height),
+            width: lastW,
+            height: lastH,
           }),
           { live: true },
         );
@@ -248,7 +253,15 @@ export function SmbArtboardElements({
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
-      if (dragging) onGestureEnd();
+      if (dragging) {
+        if (drag.mode === 'resize' && drag.type === 'TEXT') {
+          // Commit width, then remeasure wrapping + height (not live — runs Layout Intelligence).
+          onPatchElement(drag.id, sanitizeGeometryPatch({ width: lastW, height: lastH }), {
+            history: false,
+          });
+        }
+        onGestureEnd();
+      }
     }
 
     window.addEventListener('pointermove', onMove);
@@ -263,16 +276,25 @@ export function SmbArtboardElements({
     onBeginEdit(el.id);
   }
 
-  function onEditKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) {
+  function onEditKeyDown(
+    event: ReactKeyboardEvent<HTMLTextAreaElement | HTMLInputElement>,
+    id: string,
+    kind: 'TEXT' | 'BUTTON',
+  ) {
+    // Isolate from canvas/window shortcuts (delete, nudge, undo, Enter-to-deselect).
+    event.stopPropagation();
+    if (typeof event.nativeEvent.stopImmediatePropagation === 'function') {
+      event.nativeEvent.stopImmediatePropagation();
+    }
     if (event.key === 'Escape') {
       event.preventDefault();
-      event.stopPropagation();
       onEndEdit();
       return;
     }
-    if (event.key === 'Enter' && !event.shiftKey) {
+    // TEXT: Enter and Shift+Enter insert a newline (textarea default). Do not preventDefault.
+    // BUTTON: single-line — Enter commits.
+    if (kind === 'BUTTON' && event.key === 'Enter') {
       event.preventDefault();
-      event.stopPropagation();
       commitEdit(id);
     }
   }
@@ -322,6 +344,7 @@ export function SmbArtboardElements({
               data-testid={`smb-el-${el.id}`}
               data-el-type="TEXT"
               data-el-role={el.role}
+              data-text-edit={editing ? 'true' : 'false'}
               onClick={(e) => {
                 e.stopPropagation();
                 if (!editing) onSelect(el.id);
@@ -354,12 +377,16 @@ export function SmbArtboardElements({
                   className="smb-ws__el-editor"
                   data-testid={`smb-el-editor-${el.id}`}
                   value={draftText}
-                  onChange={(e) => setDraftText(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setDraftText(next);
+                    onPatchElement(el.id, { content: next }, { live: true, history: false });
+                  }}
                   onBlur={() => commitEdit(el.id)}
-                  onKeyDown={(e) => onEditKeyDown(e, el.id)}
+                  onKeyDown={(e) => onEditKeyDown(e, el.id, 'TEXT')}
+                  onKeyUp={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
                   onPointerDown={(e) => e.stopPropagation()}
-                  rows={Math.max(1, Math.round(h / Math.max(fontSize * 1.2, 12)))}
                 />
               ) : (
                 typeof el.content === 'string' ? el.content : ''
@@ -424,7 +451,8 @@ export function SmbArtboardElements({
                   value={draftText}
                   onChange={(e) => setDraftText(e.target.value)}
                   onBlur={() => commitEdit(el.id)}
-                  onKeyDown={(e) => onEditKeyDown(e, el.id)}
+                  onKeyDown={(e) => onEditKeyDown(e, el.id, 'BUTTON')}
+                  onKeyUp={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
                   onPointerDown={(e) => e.stopPropagation()}
                 />

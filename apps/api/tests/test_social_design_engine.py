@@ -1057,6 +1057,39 @@ def test_layout_intelligence_one_line_grow() -> None:
     assert h1["width"] >= 280
 
 
+def test_layout_preserves_explicit_newlines() -> None:
+    from investhome_api.services.social_design_engine.layout import (
+        auto_layout_text,
+        estimate_wrap_lines,
+        measure_text_block,
+    )
+
+    lines = estimate_wrap_lines("Invest in\nThe Temple", 48, 900, bold=True)
+    assert lines == ["Invest in", "The Temple"]
+    count, height, _ = measure_text_block("Invest in\nThe Temple", 48, 900, bold=True)
+    assert count == 2
+    assert height == round(2 * 48 * 1.2)
+    fitted = auto_layout_text(
+        {
+            "type": "TEXT",
+            "role": "headline",
+            "content": "Invest in\nThe Temple",
+            "fontWeight": "bold",
+            "x": 76,
+            "y": 200,
+            "width": 820,
+            "height": 40,
+            "fontSize": 48,
+        },
+        canvas_w=1080,
+        canvas_h=1080,
+        preferred_font=48,
+        allow_grow_width=False,
+    )
+    assert "\n" in fitted["content"]
+    assert fitted["height"] >= height
+
+
 def test_layout_intelligence_visual_whitespace_and_sky() -> None:
     from investhome_api.services.social_design_engine.intent import (
         classify_edit_intents,

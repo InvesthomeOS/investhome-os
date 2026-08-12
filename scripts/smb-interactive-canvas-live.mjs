@@ -296,7 +296,7 @@ async function main() {
       const editor = page.locator(`[data-testid="smb-el-editor-${h.id}"]`);
       await editor.waitFor({ state: 'attached', timeout: 5000 });
       await editor.fill('Invest in The Temple');
-      await editor.press('Enter');
+      await editor.evaluate((node) => node.blur());
       await page.waitForTimeout(400);
       const after = (await elementIds(page)).find((e) => e.id === h.id);
       if (after?.text.includes('Invest in The Temple')) pass('D', after.text);

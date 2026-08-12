@@ -27,6 +27,8 @@ describe('interactive canvas wiring', () => {
     assert.match(artboard, /onGestureEnd/);
     assert.match(artboard, /onDoubleClick/);
     assert.match(artboard, /smb-el-editor/);
+    assert.match(artboard, /onEditKeyDown\(e, el\.id, 'TEXT'\)/);
+    assert.doesNotMatch(artboard, /event\.key === 'Enter' && !event\.shiftKey/);
     assert.match(artboard, /beginDrag\(e, el, 'move'\)/);
     assert.match(artboard, /beginDrag\(e, el, 'resize'\)/);
     assert.match(artboard, /constrainElement/);
@@ -47,6 +49,7 @@ describe('interactive canvas wiring', () => {
     assert.match(workspace, /disabled=\{!historyPast\.length\}/);
     assert.match(workspace, /disabled=\{!historyFuture\.length\}/);
     assert.match(workspace, /editingElementId/);
+    assert.match(workspace, /canvasShortcutBlockedByTextEdit/);
     assert.match(workspace, /beginGestureHistory/);
     assert.match(workspace, /ArrowLeft/);
     assert.match(workspace, /Backspace/);

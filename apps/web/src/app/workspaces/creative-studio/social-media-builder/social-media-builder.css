@@ -4308,7 +4308,7 @@
   overflow-wrap: anywhere;
   line-height: 1.2;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-  overflow: hidden;
+  overflow: visible;
 }
 .smb-ws__el--text.is-selected {
   overflow: visible;
@@ -4342,7 +4342,16 @@
   text-align: inherit;
   line-height: inherit;
   text-shadow: inherit;
-  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  scrollbar-width: none;
+}
+.smb-ws__el-editor::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 .smb-ws__el-editor--button {
   text-align: center;

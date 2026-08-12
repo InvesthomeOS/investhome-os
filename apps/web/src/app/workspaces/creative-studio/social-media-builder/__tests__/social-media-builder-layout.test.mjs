@@ -67,16 +67,9 @@ function constrainElement(el, canvasW, canvasH) {
     height: h,
   };
 }
-function estimateWrapLines(text, fontSize, maxWidth, bold = false) {
-  const content = String(text || '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .join(' ');
-  if (!content) return [];
-  const ratio = bold ? 0.58 : 0.52;
-  const maxChars = Math.max(1, Math.floor(maxWidth / Math.max(1, fontSize * ratio)));
-  const words = content.split(' ');
+function wrapParagraph(paragraph, maxChars) {
+  const words = paragraph.split(/\s+/).filter(Boolean);
+  if (!words.length) return [''];
   const lines = [];
   let current = words[0];
   for (let i = 1; i < words.length; i++) {
@@ -85,14 +78,42 @@ function estimateWrapLines(text, fontSize, maxWidth, bold = false) {
     else {
       lines.push(current);
       current = words[i];
+      while (current.length > maxChars) {
+        lines.push(current.slice(0, maxChars));
+        current = current.slice(maxChars);
+      }
     }
   }
   lines.push(current);
   return lines;
 }
+function estimateWrapLines(text, fontSize, maxWidth, bold = false) {
+  const raw = String(text ?? '');
+  if (!raw) return [];
+  const paragraphs = raw.split(/\r?\n/);
+  const ratio = bold ? 0.58 : 0.52;
+  const maxChars = Math.max(1, Math.floor(maxWidth / Math.max(1, fontSize * ratio)));
+  const lines = [];
+  for (const para of paragraphs) lines.push(...wrapParagraph(para, maxChars));
+  return lines;
+}
 function measureText(text, fontSize, maxWidth, bold = false) {
   const lines = estimateWrapLines(text, fontSize, maxWidth, bold);
   return { lines: lines.length, height: Math.round(lines.length * fontSize * LINE_HEIGHT) };
+}
+function growTextBoxToContent(el, canvasW, canvasH) {
+  const box = safeContentBox(canvasW, canvasH);
+  const font = Math.max(8, el.fontSize || 24);
+  const width = clampInt(el.width, 8, box.width, el.width);
+  const y = clampInt(el.y, box.y, box.y + box.height, el.y);
+  const measured = measureText(el.content || '', font, width, el.fontWeight === 'bold' || el.role === 'headline');
+  const minLine = Math.round(font * LINE_HEIGHT);
+  const maxH = Math.max(minLine, box.y + box.height - y);
+  const height = Math.min(maxH, Math.max(minLine, measured.height || minLine));
+  return { ...el, width, height, fontSize: font };
+}
+function canvasShortcutBlockedByTextEdit(editing, key) {
+  return Boolean(editing) && key !== 'Escape';
 }
 function sanitizeGeometryPatch(patch) {
   const out = { ...patch };
@@ -113,6 +134,9 @@ describe('layout module wiring', () => {
     assert.match(layout, /export function resolveLayout/);
     assert.match(layout, /export function reflowElementsForFormat/);
     assert.match(layout, /export function applyElementPatch/);
+    assert.match(layout, /export function growTextBoxToContent/);
+    assert.match(layout, /export function canvasShortcutBlockedByTextEdit/);
+    assert.match(layout, /explicitLineCount/);
 
     const workspace = readSmb('social-media-builder-workspace.tsx');
     assert.match(workspace, /applyElementPatch/);
@@ -138,6 +162,62 @@ describe('text measure / fit / no clip', () => {
     const wide = measureText(text, font, 900, true);
     assert.equal(wide.lines, 1);
     assert.ok(wide.height <= Math.round(font * LINE_HEIGHT) + 2);
+  });
+
+  it('preserves explicit newlines when measuring (Enter → two lines)', () => {
+    const font = 48;
+    const two = measureText('Invest in\nThe Temple', font, 900, true);
+    assert.equal(two.lines, 2);
+    assert.equal(two.height, Math.round(2 * font * LINE_HEIGHT));
+    const three = measureText('Invest in\nThe Temple\nDC', font, 900, true);
+    assert.equal(three.lines, 3);
+    const grown = growTextBoxToContent(
+      {
+        type: 'TEXT',
+        role: 'headline',
+        content: 'Invest in\nThe Temple',
+        fontSize: font,
+        fontWeight: 'bold',
+        x: 76,
+        y: 200,
+        width: 900,
+        height: 40,
+      },
+      1080,
+      1080,
+    );
+    assert.equal(grown.width, 900);
+    assert.ok(grown.height >= two.height);
+    assert.ok(grown.height > 40);
+  });
+
+  it('narrow resize wraps and grows height instead of clipping', () => {
+    const el = {
+      type: 'TEXT',
+      role: 'headline',
+      content: 'Invest in The Temple Residences',
+      fontSize: 48,
+      fontWeight: 'bold',
+      x: 76,
+      y: 200,
+      width: 900,
+      height: 58,
+    };
+    const wide = growTextBoxToContent(el, 1080, 1080);
+    const narrow = growTextBoxToContent({ ...el, width: 280 }, 1080, 1080);
+    assert.equal(narrow.width, 280);
+    assert.ok(narrow.height >= wide.height);
+  });
+
+  it('blocks canvas shortcuts while text editing except Escape', () => {
+    assert.equal(canvasShortcutBlockedByTextEdit(true, 'Enter'), true);
+    assert.equal(canvasShortcutBlockedByTextEdit(true, 'Backspace'), true);
+    assert.equal(canvasShortcutBlockedByTextEdit(true, 'Delete'), true);
+    assert.equal(canvasShortcutBlockedByTextEdit(true, 'ArrowLeft'), true);
+    assert.equal(canvasShortcutBlockedByTextEdit(true, 'z'), true);
+    assert.equal(canvasShortcutBlockedByTextEdit(true, 'Escape'), false);
+    assert.equal(canvasShortcutBlockedByTextEdit(false, 'Enter'), false);
+    assert.equal(canvasShortcutBlockedByTextEdit(false, 'Backspace'), false);
   });
 
   it('sanitizeGeometryPatch rejects NaN/Inf from resize math', () => {

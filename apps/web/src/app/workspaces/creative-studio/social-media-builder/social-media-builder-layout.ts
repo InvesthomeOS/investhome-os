@@ -92,22 +92,12 @@ function charRatio(bold: boolean) {
   return bold ? AVG_CHAR_RATIO_BOLD : AVG_CHAR_RATIO_NORMAL;
 }
 
-export function estimateWrapLines(
-  text: string,
-  fontSize: number,
-  maxWidth: number,
-  bold = false,
+function wrapParagraph(
+  paragraph: string,
+  maxChars: number,
 ): string[] {
-  const content = String(text || '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .join(' ');
-  if (!content) return [];
-  if (fontSize <= 0 || maxWidth <= 0) return [content];
-  const charW = Math.max(1, fontSize * charRatio(bold));
-  const maxChars = Math.max(1, Math.floor(maxWidth / charW));
-  const words = content.split(' ');
+  const words = paragraph.split(/\s+/).filter(Boolean);
+  if (!words.length) return [''];
   const lines: string[] = [];
   let current = words[0]!;
   for (let i = 1; i < words.length; i++) {
@@ -128,6 +118,40 @@ export function estimateWrapLines(
   return lines;
 }
 
+/** Explicit user/AI `\n` are hard line breaks; spaces still wrap within each paragraph. */
+export function estimateWrapLines(
+  text: string,
+  fontSize: number,
+  maxWidth: number,
+  bold = false,
+): string[] {
+  const raw = String(text ?? '');
+  if (!raw) return [];
+  const paragraphs = raw.split(/\r?\n/);
+  if (fontSize <= 0 || maxWidth <= 0) return paragraphs;
+  const charW = Math.max(1, fontSize * charRatio(bold));
+  const maxChars = Math.max(1, Math.floor(maxWidth / charW));
+  const lines: string[] = [];
+  for (const para of paragraphs) {
+    lines.push(...wrapParagraph(para, maxChars));
+  }
+  return lines;
+}
+
+export function explicitLineCount(text: string): number {
+  const raw = String(text ?? '');
+  if (!raw) return 0;
+  return raw.split(/\r?\n/).length;
+}
+
+/**
+ * While TEXT edit mode is active, canvas shortcuts must not run.
+ * Escape is the only canvas-owned key (exit edit). Enter/arrows/delete/undo stay with the editor.
+ */
+export function canvasShortcutBlockedByTextEdit(editing: boolean, key: string): boolean {
+  return Boolean(editing) && key !== 'Escape';
+}
+
 export function measureTextBlock(
   text: string,
   fontSize: number,
@@ -140,6 +164,58 @@ export function measureTextBlock(
   const charW = Math.max(1, fontSize * charRatio(bold));
   const contentWidth = Math.round(Math.max(...wrapped.map((l) => l.length)) * charW);
   return { lines: wrapped.length, height, contentWidth };
+}
+
+/**
+ * Grow a TEXT box to fit content at the current width (manual type / resize / AI copy).
+ * Does not grow width. Shrinks font only when canvas safe bounds prevent further height growth.
+ */
+export function growTextBoxToContent(
+  el: SocialTextElement,
+  canvasW: number,
+  canvasH: number,
+  opts?: { minHeight?: number; allowShrinkFont?: boolean },
+): SocialTextElement {
+  const box = safeContentBox(canvasW, canvasH);
+  const bold = el.fontWeight === 'bold' || el.role === 'headline';
+  const prefs = roleFontPrefs(el.role === 'headline' || el.role === 'body' ? el.role : 'custom', canvasW);
+  let font = clampInt(el.fontSize, 8, 200, 24);
+  const width = clampInt(el.width, 8, box.width, Math.min(box.width, Math.max(8, el.width)));
+  const x = clampInt(el.x, box.x, box.x + box.width, el.x);
+  const y = clampInt(el.y, box.y, box.y + box.height, el.y);
+  const minLine = Math.max(8, Math.round(font * LINE_HEIGHT));
+  const maxH = Math.max(minLine, box.y + box.height - y);
+  const minH = Math.max(minLine, opts?.minHeight ?? 0);
+
+  const measure = (fs: number) => measureTextBlock(el.content || '', fs, width, bold);
+
+  let measured = measure(font);
+  let height = Math.max(minH, measured.height || minLine);
+
+  if (height > maxH) {
+    height = maxH;
+    if (opts?.allowShrinkFont !== false) {
+      while (font > prefs.min) {
+        const m = measure(font);
+        if (m.height <= maxH) {
+          measured = m;
+          height = Math.max(minLine, m.height);
+          break;
+        }
+        font -= 2;
+      }
+      font = Math.max(prefs.min, font);
+      measured = measure(font);
+      height = Math.min(maxH, Math.max(Math.round(font * LINE_HEIGHT), measured.height, minH));
+    }
+  }
+
+  const geo = constrainElement(
+    { type: 'TEXT', x, y, width, height: Math.max(8, height) },
+    canvasW,
+    canvasH,
+  );
+  return { ...el, ...geo, fontSize: font };
 }
 
 function roleFontPrefs(role: string, canvasW: number) {
@@ -174,9 +250,17 @@ export function autoLayoutText(
   const box = safeContentBox(canvasW, canvasH);
   const bold = el.fontWeight === 'bold' || role === 'headline';
   const content = el.content || '';
-  const maxLines =
+  const breakLines = Math.max(1, explicitLineCount(content) || 1);
+  const hasHardBreaks = /\r?\n/.test(content);
+  const maxLines = Math.max(
+    breakLines,
     opts?.maxLines ??
-    (role === 'headline' && content.length <= 28 ? 1 : role === 'headline' ? 3 : 6);
+      (role === 'headline'
+        ? hasHardBreaks || content.length > 28
+          ? Math.max(3, breakLines)
+          : 1
+        : 6),
+  );
   let font = clampInt(
     opts?.preferredFont ?? el.fontSize,
     prefs.min,
@@ -524,40 +608,21 @@ export function applyElementPatch(
   let next = { ...el, ...clean } as SocialElement;
   next = { ...next, ...constrainElement(next, canvasW, canvasH) };
 
-  if (next.type === 'TEXT' && (opts?.refitText || 'fontSize' in clean || 'content' in clean)) {
-    next = autoLayoutText(next, canvasW, canvasH, {
-      preferredFont: next.fontSize,
-      allowGrowWidth: !('width' in clean) || opts?.refitText === true,
-      allowGrowHeight: true,
-      maxWidth: 'width' in clean ? next.width : undefined,
-      maxHeight: 'width' in clean && 'height' in clean && !opts?.refitText ? next.height : undefined,
-    });
-    // Manual box resize: keep requested width/height when both provided, shrink font to fit
-    if ('width' in clean && 'height' in clean && !opts?.refitText) {
-      const measured = measureTextBlock(
-        next.content,
-        next.fontSize,
-        next.width,
-        next.fontWeight === 'bold' || next.role === 'headline',
-      );
-      if (measured.height > next.height) {
-        next = autoLayoutText(
-          { ...next, width: clean.width as number, height: clean.height as number },
-          canvasW,
-          canvasH,
-          {
-            preferredFont: next.fontSize,
-            allowGrowWidth: false,
-            allowGrowHeight: false,
-            maxWidth: clean.width as number,
-            maxHeight: clean.height as number,
-          },
-        );
-        next.width = Math.max(8, finiteNum(clean.width, next.width));
-        next.height = Math.max(8, finiteNum(clean.height, next.height));
-        next = { ...next, ...constrainElement(next, canvasW, canvasH) };
-      }
+  if (
+    next.type === 'TEXT' &&
+    (opts?.refitText ||
+      'fontSize' in clean ||
+      'content' in clean ||
+      ('width' in clean && Boolean(opts?.resolveAll)))
+  ) {
+    // Content / font / width changes share one path: keep width, grow height to measured lines.
+    // Full autoLayoutText (may grow width / shrink font) is reserved for format reflow + AI grammar.
+    if ('width' in clean) {
+      next.width = Math.max(8, finiteNum(clean.width, next.width));
     }
+    next = growTextBoxToContent(next, canvasW, canvasH, {
+      minHeight: 'height' in clean ? Math.max(8, finiteNum(clean.height, next.height)) : undefined,
+    });
   }
 
   if (opts?.resolveAll) {

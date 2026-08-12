@@ -1,6 +1,7 @@
 import {
   alignElementConstrained,
   constrainElement,
+  growTextBoxToContent,
   type AlignMode,
 } from './social-media-builder-layout';
 
@@ -312,7 +313,16 @@ export function applyCopyToElements(
     el.zIndex = maxZ + 3;
     extras.push(el);
   }
-  return extras.length ? [...next, ...extras] : next;
+  const merged = extras.length ? [...next, ...extras] : next;
+  return merged.map((el) => {
+    if (el.type !== 'TEXT') return el;
+    const contentChanged =
+      (el.role === 'headline' && copy.headline != null) ||
+      (el.role === 'body' && copy.caption != null) ||
+      extras.some((x) => x.id === el.id);
+    if (!contentChanged) return el;
+    return growTextBoxToContent(el, 1080, 1080);
+  });
 }
 
 export const P0_BOTTOM_ACTIONS = new Set(['addComponent', 'text', 'image', 'button']);

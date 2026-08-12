@@ -53,6 +53,7 @@ import {
 } from './social-media-builder-elements';
 import {
   applyElementPatch,
+  canvasShortcutBlockedByTextEdit,
   reflowElementsForFormat,
   sanitizeGeometryPatch,
 } from './social-media-builder-layout';
@@ -531,14 +532,19 @@ export function SocialMediaBuilderWorkspace() {
       const editing = Boolean(editingElementIdRef.current);
       const mod = event.metaKey || event.ctrlKey;
 
+      // Text-edit mode owns typing keys. Canvas must not delete/nudge/undo/capture Enter.
+      if (canvasShortcutBlockedByTextEdit(editing, event.key)) {
+        return;
+      }
+
       if (mod && event.key.toLowerCase() === 'z' && !event.shiftKey) {
-        if (typing && !editing) return;
+        if (typing) return;
         event.preventDefault();
         undoHistory();
         return;
       }
       if ((mod && event.key.toLowerCase() === 'z' && event.shiftKey) || (mod && event.key.toLowerCase() === 'y')) {
-        if (typing && !editing) return;
+        if (typing) return;
         event.preventDefault();
         redoHistory();
         return;
@@ -557,7 +563,7 @@ export function SocialMediaBuilderWorkspace() {
         return;
       }
 
-      if (editing || typing || canvasLocked || focus.mode === 'preview') return;
+      if (typing || canvasLocked || focus.mode === 'preview') return;
       const selectedId = selectedElementIdRef.current;
       if (!selectedId) return;
 
@@ -656,15 +662,16 @@ export function SocialMediaBuilderWorkspace() {
         if (!current) return p;
         const w = Math.max(1, p.width || contentSize.w);
         const h = Math.max(1, p.height || contentSize.h);
-        const refitText =
-          current.type === 'TEXT' &&
-          ('fontSize' in clean || 'content' in clean) &&
-          !('width' in clean && 'height' in clean);
+        const textContentChange =
+          current.type === 'TEXT' && ('fontSize' in clean || 'content' in clean);
+        const liveGeometry = live && !textContentChange;
+        const refitText = textContentChange && !('width' in clean && 'height' in clean);
         // Live drag/resize: constrain only the active element — collision resolve on commit would fight the pointer.
+        // Live TEXT content edits still refit height and resolve collisions so the box grows as the user types.
         const result = applyElementPatch(current, clean, w, h, {
-          refitText: live ? false : refitText,
+          refitText: liveGeometry ? false : refitText,
           resolveAll:
-            live
+            liveGeometry
               ? undefined
               : refitText || 'width' in clean || 'height' in clean || 'y' in clean || 'x' in clean
                 ? p.elements
@@ -1499,6 +1506,7 @@ export function SocialMediaBuilderWorkspace() {
                       data-image-state={artboardState}
                       data-width={contentSize.w}
                       data-height={contentSize.h}
+                      data-text-edit-mode={editingElementId ? 'true' : 'false'}
                       onClick={() => selectElement(null)}
                       role="presentation"
                     >
@@ -1587,7 +1595,12 @@ export function SocialMediaBuilderWorkspace() {
                         onPatchElement={(id, patch, opts) =>
                           patchElement(id, patch, {
                             live: opts?.live,
-                            history: editingElementId === id ? false : opts?.live ? false : undefined,
+                            history:
+                              opts?.history === false || editingElementId === id
+                                ? false
+                                : opts?.live
+                                  ? false
+                                  : undefined,
                           })
                         }
                         onBeginEdit={(id) => {

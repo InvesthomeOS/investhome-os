@@ -66,20 +66,26 @@ function wrapText(
   text: string,
   maxWidth: number,
 ): string[] {
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  if (!words.length) return [];
+  const paragraphs = String(text ?? '').split(/\r?\n/);
   const lines: string[] = [];
-  let current = words[0]!;
-  for (let i = 1; i < words.length; i += 1) {
-    const next = `${current} ${words[i]}`;
-    if (ctx.measureText(next).width <= maxWidth) {
-      current = next;
-    } else {
-      lines.push(current);
-      current = words[i]!;
+  for (const para of paragraphs) {
+    const words = para.split(/\s+/).filter(Boolean);
+    if (!words.length) {
+      lines.push('');
+      continue;
     }
+    let current = words[0]!;
+    for (let i = 1; i < words.length; i += 1) {
+      const next = `${current} ${words[i]}`;
+      if (ctx.measureText(next).width <= maxWidth) {
+        current = next;
+      } else {
+        lines.push(current);
+        current = words[i]!;
+      }
+    }
+    lines.push(current);
   }
-  lines.push(current);
   return lines;
 }
 
