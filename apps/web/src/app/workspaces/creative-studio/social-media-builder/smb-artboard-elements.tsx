@@ -13,7 +13,11 @@ import {
   sortElementsByZ,
   type SocialElement,
 } from './social-media-builder-elements';
-import { constrainElement, sanitizeGeometryPatch } from './social-media-builder-layout';
+import {
+  constrainElement,
+  fitMetricGroupPresentation,
+  sanitizeGeometryPatch,
+} from './social-media-builder-layout';
 
 export type SmbArtboardElementsProps = {
   elements: SocialElement[];
@@ -466,19 +470,44 @@ export function SmbArtboardElements({
 
         if (el.type === 'METRIC_GROUP') {
           const metrics = Array.isArray(el.metrics) ? el.metrics : [];
-          const layout = el.layout === 'stacked' || el.layout === 'cards' ? el.layout : 'horizontal';
+          const requestedLayout =
+            el.layout === 'stacked' || el.layout === 'cards' ? el.layout : 'horizontal';
+          const presentation = fitMetricGroupPresentation(metrics, {
+            groupWidth: Math.max(8, finiteOr(el.width, 400)),
+            groupHeight: Math.max(8, finiteOr(el.height, 120)),
+            requestedLayout,
+            // Render honors persisted layout; LI already wrote fallback when needed.
+            lockLayout: true,
+          });
+          const layout =
+            requestedLayout === 'horizontal' && presentation.density === 'compact'
+              ? 'horizontal'
+              : requestedLayout;
           const color = typeof el.color === 'string' && el.color.trim() ? el.color : '#ffffff';
-          const groupH = Math.max(8, finiteOr(el.height, 120));
-          const valueFont = Math.max(18, Math.round(groupH * (layout === 'stacked' ? 0.32 : 0.38)));
-          const labelFont = Math.max(10, Math.round(groupH * (layout === 'stacked' ? 0.18 : 0.16)));
+          const densityClass =
+            layout === 'horizontal' && presentation.density === 'compact'
+              ? ' smb-ws__el--metrics-compact'
+              : '';
+          const gridStyle: CSSProperties =
+            layout === 'horizontal' || layout === 'cards'
+              ? {
+                  ...style,
+                  color,
+                  gap: presentation.gutter,
+                  gridTemplateColumns: `repeat(${Math.max(1, presentation.columnCount)}, minmax(0, 1fr))`,
+                  ['--smb-metric-value-row' as string]: `${presentation.valueRowHeight}px`,
+                }
+              : { ...style, color, gap: presentation.gutter };
           return (
             <div
               key={el.id}
-              className={`smb-ws__el smb-ws__el--metrics smb-ws__el--metrics-${layout}${selected ? ' is-selected' : ''}`}
-              style={{ ...style, color }}
+              className={`smb-ws__el smb-ws__el--metrics smb-ws__el--metrics-${layout}${densityClass}${selected ? ' is-selected' : ''}`}
+              style={gridStyle}
               data-testid={`smb-el-${el.id}`}
               data-el-type="METRIC_GROUP"
               data-metric-layout={layout}
+              data-metric-density={presentation.density}
+              data-metric-values-single-line={presentation.valuesSingleLine ? 'true' : 'false'}
               onClick={(e) => {
                 e.stopPropagation();
                 onSelect(el.id);
@@ -497,12 +526,16 @@ export function SmbArtboardElements({
                   <span
                     className="smb-ws__metric-value"
                     style={{
-                      fontSize: metric.emphasis === 'primary' ? Math.round(valueFont * 1.08) : valueFont,
+                      fontSize: presentation.valueFontSize,
+                      minHeight: presentation.valueRowHeight,
                     }}
                   >
                     {metric.display_value}
                   </span>
-                  <span className="smb-ws__metric-label" style={{ fontSize: labelFont }}>
+                  <span
+                    className="smb-ws__metric-label"
+                    style={{ fontSize: presentation.labelFontSize }}
+                  >
                     {metric.label}
                   </span>
                 </div>

@@ -318,6 +318,14 @@ describe('canonical canvas fit / layout safety (renderer contract)', () => {
     const artboard = readSmb('smb-artboard-elements.tsx');
     assert.match(artboard, /METRIC_GROUP/);
     assert.match(artboard, /smb-ws__metric-value/);
+    assert.match(artboard, /fitMetricGroupPresentation/);
+    assert.match(artboard, /data-metric-values-single-line/);
+    const layout = readSmb('social-media-builder-layout.ts');
+    assert.match(layout, /fitMetricGroupPresentation/);
+    assert.match(layout, /valuesSingleLine/);
+    const css = readSmb('social-media-builder.css');
+    assert.match(css, /white-space:\s*nowrap/);
+    assert.match(css, /--smb-metric-value-row/);
     const engine = readSmb('social-media-builder-design-engine.ts');
     assert.match(engine, /structured_metrics/);
   });

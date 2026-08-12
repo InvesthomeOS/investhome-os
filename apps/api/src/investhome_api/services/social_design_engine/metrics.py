@@ -347,7 +347,12 @@ def choose_metric_group_layout(
     available_width: int,
     requested: MetricGroupLayout | None = None,
 ) -> MetricGroupLayout:
-    """CD may request a layout; Layout Intelligence may fall back if it does not fit."""
+    """CD may request a layout; Layout Intelligence may fall back if it does not fit.
+
+    Fallback order for horizontal requests:
+    horizontal (comfortable) → compact horizontal → cards → stacked.
+    Compact is still persisted as ``horizontal`` (density is a render concern).
+    """
     if requested in METRIC_LAYOUTS:
         preferred: MetricGroupLayout = requested
     elif len(metrics) <= 1:
@@ -358,29 +363,43 @@ def choose_metric_group_layout(
         preferred = "cards"
     else:
         preferred = "horizontal"
-    if preferred == "horizontal" and not horizontal_metrics_fit(metrics, available_width, canvas_w):
-        return "stacked" if len(metrics) <= 2 else "cards"
-    return preferred
+    if preferred != "horizontal":
+        return preferred
+    if horizontal_metrics_fit(metrics, available_width, canvas_w, density="comfortable"):
+        return "horizontal"
+    if horizontal_metrics_fit(metrics, available_width, canvas_w, density="compact"):
+        return "horizontal"
+    return "stacked" if len(metrics) <= 2 else "cards"
 
 
 def horizontal_metrics_fit(
     metrics: list[StructuredMetric],
     available_width: int,
     canvas_w: int,
+    *,
+    density: str = "comfortable",
 ) -> bool:
+    """True when all values can sit on one line in equal columns after safe font shrink."""
     if not metrics:
         return True
     n = max(1, len(metrics))
-    col_w = int(available_width / n) if available_width else 0
-    min_col = max(96, int(round(canvas_w * 0.14)))
+    compact = density == "compact"
+    gutter = max(6 if compact else 12, int(round(available_width * (0.012 if compact else 0.018))))
+    pad_x = 4 if compact else 8
+    col_w = int((available_width - gutter * max(0, n - 1)) / n) if available_width else 0
+    min_col = max(72 if compact else 96, int(round(canvas_w * (0.11 if compact else 0.14))))
     if col_w < min_col:
         return False
-    for metric in metrics:
-        value_w = int(round(len(metric.display_value or "") * 22 * 0.62))
-        label_w = int(round(len((metric.label or "").split(" ")[0]) * 13 * 0.55))
-        if max(value_w, label_w) + 16 > col_w:
-            return False
-    return True
+    inner = max(8, col_w - pad_x * 2)
+    # Preferred value size mirrors client (~0.38 of typical group height on square).
+    group_h = max(96, int(round(canvas_w * 0.14)))
+    preferred = max(16 if compact else 18, int(round(group_h * (0.32 if compact else 0.38))))
+    min_font = max(13, int(round(preferred * 0.65)))
+    char_ratio = 0.66
+    for font in range(preferred, min_font - 1, -1):
+        if all(int(round(len((m.display_value or "").strip()) * font * char_ratio)) <= inner for m in metrics):
+            return True
+    return False
 
 
 def update_metric_raw_value(metric: StructuredMetric, new_raw: int | float | str) -> StructuredMetric:

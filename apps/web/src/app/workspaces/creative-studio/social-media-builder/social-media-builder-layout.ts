@@ -3,12 +3,21 @@
  * One geometry path for manual move/resize/align/duplicate/format + AI draft merge.
  */
 
-import type { SocialElement, SocialTextElement } from './social-media-builder-elements';
+import type {
+  SocialElement,
+  SocialMetricGroupElement,
+  SocialMetricLayout,
+  SocialStructuredMetric,
+  SocialTextElement,
+} from './social-media-builder-elements';
 
 export const SAFE_MARGIN_RATIO = 0.07;
 export const LINE_HEIGHT = 1.2;
 const AVG_CHAR_RATIO_NORMAL = 0.52;
 const AVG_CHAR_RATIO_BOLD = 0.58;
+/** Metric values are display figures — prefer tabular bold tracking. */
+const METRIC_VALUE_CHAR_RATIO = 0.66;
+const METRIC_LABEL_CHAR_RATIO = 0.55;
 
 export type AlignMode =
   | 'left'
@@ -165,6 +174,277 @@ export function measureTextBlock(
   const charW = Math.max(1, fontSize * charRatio(bold));
   const contentWidth = Math.round(Math.max(...wrapped.map((l) => l.length)) * charW);
   return { lines: wrapped.length, height, contentWidth };
+}
+
+export type MetricGroupDensity = 'comfortable' | 'compact';
+
+export type MetricGroupPresentation = {
+  /** Persisted / requested layout after least-disruptive fallback. */
+  layout: SocialMetricLayout;
+  /** Visual density within horizontal family (not a separate user layout). */
+  density: MetricGroupDensity;
+  valueFontSize: number;
+  labelFontSize: number;
+  gutter: number;
+  columnWidth: number;
+  valueRowHeight: number;
+  labelRowMinHeight: number;
+  valuesSingleLine: boolean;
+  columnCount: number;
+};
+
+function estimateMetricValueWidth(text: string, fontSize: number): number {
+  const t = (text || '').trim();
+  if (!t) return 0;
+  return Math.ceil(t.length * Math.max(1, fontSize * METRIC_VALUE_CHAR_RATIO));
+}
+
+function estimateMetricLabelWidth(text: string, fontSize: number): number {
+  const t = (text || '').trim();
+  if (!t) return 0;
+  // Uppercase tracking in CSS ≈ +4% — bake a small pad into measurement.
+  return Math.ceil(t.length * Math.max(1, fontSize * METRIC_LABEL_CHAR_RATIO) * 1.04);
+}
+
+function metricValuesFitSingleLine(
+  metrics: SocialStructuredMetric[],
+  fontSize: number,
+  columnInnerWidth: number,
+): boolean {
+  if (columnInnerWidth <= 0) return false;
+  return metrics.every((m) => estimateMetricValueWidth(m.display_value || '', fontSize) <= columnInnerWidth);
+}
+
+function pickSharedValueFont(
+  metrics: SocialStructuredMetric[],
+  columnInnerWidth: number,
+  preferred: number,
+  minFont: number,
+): { fontSize: number; singleLine: boolean } {
+  let fs = preferred;
+  while (fs >= minFont) {
+    if (metricValuesFitSingleLine(metrics, fs, columnInnerWidth)) {
+      return { fontSize: fs, singleLine: true };
+    }
+    fs -= 1;
+  }
+  return { fontSize: minFont, singleLine: metricValuesFitSingleLine(metrics, minFont, columnInnerWidth) };
+}
+
+function horizontalMetricGeometry(
+  groupWidth: number,
+  groupHeight: number,
+  count: number,
+  density: MetricGroupDensity,
+): { gutter: number; columnWidth: number; padX: number; preferredValue: number; minValue: number; preferredLabel: number } {
+  const n = Math.max(1, count);
+  const gutter = density === 'compact' ? Math.max(6, Math.round(groupWidth * 0.012)) : Math.max(12, Math.round(groupWidth * 0.018));
+  const padX = density === 'compact' ? 4 : 8;
+  const columnWidth = Math.max(8, Math.floor((groupWidth - gutter * Math.max(0, n - 1)) / n));
+  const heightRatio = density === 'compact' ? 0.32 : 0.38;
+  const preferredValue = Math.max(density === 'compact' ? 16 : 18, Math.round(groupHeight * heightRatio));
+  const minValue = Math.max(13, Math.round(preferredValue * 0.65));
+  const preferredLabel = Math.max(10, Math.round(groupHeight * (density === 'compact' ? 0.14 : 0.16)));
+  return { gutter, columnWidth, padX, preferredValue, minValue, preferredLabel };
+}
+
+/**
+ * Sibling-aware metric group typography + layout fallback.
+ * Prefers single-line values with equal columns; falls back
+ * horizontal → compact horizontal → cards → stacked.
+ */
+export function fitMetricGroupPresentation(
+  metrics: SocialStructuredMetric[],
+  opts: {
+    groupWidth: number;
+    groupHeight: number;
+    requestedLayout?: SocialMetricLayout | null;
+    canvasW?: number;
+    /** When true, never leave the requested layout family (still may compact density). */
+    lockLayout?: boolean;
+  },
+): MetricGroupPresentation {
+  const list = Array.isArray(metrics) ? metrics.slice(0, 3) : [];
+  const n = Math.max(1, list.length);
+  const groupW = Math.max(40, Math.round(finiteNum(opts.groupWidth, 400)));
+  const groupH = Math.max(48, Math.round(finiteNum(opts.groupHeight, 120)));
+  const requested =
+    opts.requestedLayout === 'stacked' || opts.requestedLayout === 'cards' || opts.requestedLayout === 'horizontal'
+      ? opts.requestedLayout
+      : 'horizontal';
+  const lock = Boolean(opts.lockLayout);
+
+  const buildHorizontal = (density: MetricGroupDensity, requireSingleLine: boolean): MetricGroupPresentation | null => {
+    const geo = horizontalMetricGeometry(groupW, groupH, n, density);
+    const inner = Math.max(8, geo.columnWidth - geo.padX * 2);
+    const valueFit = pickSharedValueFont(list, inner, geo.preferredValue, geo.minValue);
+    if (requireSingleLine && !valueFit.singleLine) return null;
+    const labelFont = Math.min(
+      geo.preferredLabel,
+      Math.max(9, Math.round(valueFit.fontSize * 0.42)),
+    );
+    return {
+      layout: 'horizontal',
+      density,
+      valueFontSize: valueFit.fontSize,
+      labelFontSize: labelFont,
+      gutter: geo.gutter,
+      columnWidth: geo.columnWidth,
+      valueRowHeight: Math.round(valueFit.fontSize * 1.15),
+      labelRowMinHeight: Math.round(labelFont * 1.25 * 2),
+      valuesSingleLine: valueFit.singleLine,
+      columnCount: n,
+    };
+  };
+
+  if (requested === 'stacked') {
+    const valueFont = Math.max(18, Math.round(groupH * (0.28 / Math.max(1, n / 2))));
+    const labelFont = Math.max(10, Math.round(valueFont * 0.42));
+    return {
+      layout: 'stacked',
+      density: 'comfortable',
+      valueFontSize: valueFont,
+      labelFontSize: labelFont,
+      gutter: 8,
+      columnWidth: groupW,
+      valueRowHeight: Math.round(valueFont * 1.15),
+      labelRowMinHeight: Math.round(labelFont * 1.25),
+      valuesSingleLine: true,
+      columnCount: 1,
+    };
+  }
+
+  if (requested === 'cards') {
+    const geo = horizontalMetricGeometry(groupW, groupH, n, 'comfortable');
+    const inner = Math.max(8, geo.columnWidth - 24);
+    const valueFit = pickSharedValueFont(list, inner, geo.preferredValue, geo.minValue);
+    const labelFont = Math.max(9, Math.round(valueFit.fontSize * 0.4));
+    return {
+      layout: 'cards',
+      density: 'comfortable',
+      valueFontSize: valueFit.fontSize,
+      labelFontSize: labelFont,
+      gutter: geo.gutter,
+      columnWidth: geo.columnWidth,
+      valueRowHeight: Math.round(valueFit.fontSize * 1.15),
+      labelRowMinHeight: Math.round(labelFont * 1.25 * 2),
+      valuesSingleLine: valueFit.singleLine,
+      columnCount: n,
+    };
+  }
+
+  // requested === horizontal: comfortable → compact → (cards|stacked unless locked)
+  const comfortable = buildHorizontal('comfortable', true);
+  if (comfortable) return comfortable;
+  const compact = buildHorizontal('compact', true);
+  if (compact) return compact;
+  if (lock) {
+    return (
+      buildHorizontal('compact', false) ||
+      buildHorizontal('comfortable', false) || {
+        layout: 'horizontal',
+        density: 'compact',
+        valueFontSize: 14,
+        labelFontSize: 10,
+        gutter: 6,
+        columnWidth: Math.floor(groupW / n),
+        valueRowHeight: 16,
+        labelRowMinHeight: 24,
+        valuesSingleLine: false,
+        columnCount: n,
+      }
+    );
+  }
+
+  if (n >= 3) {
+    const geo = horizontalMetricGeometry(groupW, groupH, n, 'compact');
+    const inner = Math.max(8, geo.columnWidth - 20);
+    const valueFit = pickSharedValueFont(list, inner, geo.preferredValue, Math.max(12, geo.minValue - 2));
+    const labelFont = Math.max(9, Math.round(valueFit.fontSize * 0.4));
+    return {
+      layout: 'cards',
+      density: 'compact',
+      valueFontSize: valueFit.fontSize,
+      labelFontSize: labelFont,
+      gutter: geo.gutter,
+      columnWidth: geo.columnWidth,
+      valueRowHeight: Math.round(valueFit.fontSize * 1.15),
+      labelRowMinHeight: Math.round(labelFont * 1.25 * 2),
+      valuesSingleLine: valueFit.singleLine,
+      columnCount: n,
+    };
+  }
+
+  const valueFont = Math.max(16, Math.round(groupH * 0.28));
+  const labelFont = Math.max(10, Math.round(valueFont * 0.42));
+  return {
+    layout: 'stacked',
+    density: 'compact',
+    valueFontSize: valueFont,
+    labelFontSize: labelFont,
+    gutter: 8,
+    columnWidth: groupW,
+    valueRowHeight: Math.round(valueFont * 1.15),
+    labelRowMinHeight: Math.round(labelFont * 1.25),
+    valuesSingleLine: true,
+    columnCount: 1,
+  };
+}
+
+/** Recompute METRIC_GROUP height for the chosen presentation (keeps group as one component). */
+export function measureMetricGroupHeight(
+  presentation: MetricGroupPresentation,
+  metrics: SocialStructuredMetric[],
+): number {
+  const n = Math.max(1, metrics.length);
+  if (presentation.layout === 'stacked') {
+    return Math.max(
+      48 * n,
+      n * (presentation.valueRowHeight + presentation.labelRowMinHeight + presentation.gutter),
+    );
+  }
+  const labelLinesBudget = 2;
+  const padY = presentation.layout === 'cards' ? 20 : 8;
+  return Math.max(
+    72,
+    padY +
+      presentation.valueRowHeight +
+      4 +
+      Math.round(presentation.labelFontSize * 1.25 * labelLinesBudget) +
+      padY,
+  );
+}
+
+export function layoutMetricGroupElement(
+  el: SocialMetricGroupElement,
+  canvasW: number,
+  canvasH: number,
+  opts?: { allowLayoutFallback?: boolean },
+): SocialMetricGroupElement {
+  const geo = constrainElement(el, canvasW, canvasH);
+  const allowFallback = opts?.allowLayoutFallback !== false;
+  const requested: SocialMetricLayout =
+    el.layout === 'stacked' || el.layout === 'cards' || el.layout === 'horizontal'
+      ? el.layout
+      : 'horizontal';
+  const presentation = fitMetricGroupPresentation(el.metrics, {
+    groupWidth: geo.width,
+    groupHeight: Math.max(geo.height, 96),
+    requestedLayout: requested,
+    canvasW,
+    lockLayout: requested === 'horizontal' ? !allowFallback : true,
+  });
+  const nextLayout: SocialMetricLayout =
+    requested === 'horizontal' && allowFallback ? presentation.layout : requested;
+  const height = Math.min(
+    Math.max(geo.height, measureMetricGroupHeight(presentation, el.metrics)),
+    Math.round(canvasH * 0.28),
+  );
+  return {
+    ...el,
+    ...constrainElement({ ...el, ...geo, height }, canvasW, canvasH),
+    layout: nextLayout,
+  };
 }
 
 /**
@@ -383,6 +663,7 @@ export function resolveCollisions(
   const headline = next.find((e): e is SocialTextElement => e.type === 'TEXT' && e.role === 'headline');
   const body = next.find((e): e is SocialTextElement => e.type === 'TEXT' && e.role === 'body');
   const cta = next.find((e) => e.type === 'BUTTON');
+  const metricGroup = next.find((e): e is SocialMetricGroupElement => e.type === 'METRIC_GROUP');
 
   if (headline && body) {
     const minBodyY = headline.y + headline.height + gap;
@@ -420,6 +701,27 @@ export function resolveCollisions(
       targetY = Math.min(Math.max(minCtaY, cta.y), maxCtaY);
     }
     cta.y = targetY;
+    Object.assign(cta, constrainElement(cta, canvasW, canvasH));
+  }
+
+  if (headline && cta && !body && !metricGroup) {
+    const minCtaY = headline.y + headline.height + gap;
+    cta.y = Math.min(Math.max(cta.y, minCtaY), box.y + box.height - cta.height);
+    Object.assign(cta, constrainElement(cta, canvasW, canvasH));
+  }
+
+  if (headline && metricGroup) {
+    const minMgY = headline.y + headline.height + gap;
+    if (metricGroup.y < minMgY) {
+      metricGroup.y = minMgY;
+      Object.assign(metricGroup, constrainElement(metricGroup, canvasW, canvasH));
+    }
+  }
+
+  if (metricGroup && cta) {
+    const minCtaY = metricGroup.y + metricGroup.height + gap;
+    const maxCtaY = box.y + box.height - cta.height;
+    cta.y = Math.min(Math.max(cta.y, minCtaY), maxCtaY);
     Object.assign(cta, constrainElement(cta, canvasW, canvasH));
   }
 
@@ -501,6 +803,9 @@ export function resolveLayout(
     if (el.type === 'TEXT' && refit) {
       return autoLayoutText(el, canvasW, canvasH, { preferredFont: el.fontSize });
     }
+    if (el.type === 'METRIC_GROUP') {
+      return layoutMetricGroupElement(el, canvasW, canvasH);
+    }
     return { ...el, ...constrainElement(el, canvasW, canvasH) };
   });
   return resolveCollisions(mapped, canvasW, canvasH);
@@ -563,14 +868,30 @@ export function reflowElementsForFormat(
         ),
       };
     }
+    if (el.type === 'METRIC_GROUP') {
+      return layoutMetricGroupElement(
+        {
+          ...el,
+          x: box.x,
+          y: Math.round(canvasH * 0.46),
+          width: box.width,
+        },
+        canvasW,
+        canvasH,
+      );
+    }
     return { ...el, ...constrainElement(el, canvasW, canvasH) };
   });
 
   // Ensure vertical stack after format change
   const h = next.find((e): e is SocialTextElement => e.type === 'TEXT' && e.role === 'headline');
   const b = next.find((e): e is SocialTextElement => e.type === 'TEXT' && e.role === 'body');
+  const mg = next.find((e): e is SocialMetricGroupElement => e.type === 'METRIC_GROUP');
   if (h && b && b.y < h.y + h.height + gap) {
     b.y = h.y + h.height + gap;
+  }
+  if (h && mg && mg.y < h.y + h.height + gap) {
+    mg.y = h.y + h.height + gap;
   }
   return resolveCollisions(next, canvasW, canvasH);
 }
@@ -625,6 +946,12 @@ export function applyElementPatch(
     }
     next = growTextBoxToContent(next, canvasW, canvasH, {
       minHeight: 'height' in clean ? Math.max(8, finiteNum(clean.height, next.height)) : undefined,
+    });
+  }
+
+  if (next.type === 'METRIC_GROUP' && ('width' in clean || 'height' in clean || 'layout' in clean || 'metrics' in clean)) {
+    next = layoutMetricGroupElement(next, canvasW, canvasH, {
+      allowLayoutFallback: next.layout === 'horizontal',
     });
   }
 

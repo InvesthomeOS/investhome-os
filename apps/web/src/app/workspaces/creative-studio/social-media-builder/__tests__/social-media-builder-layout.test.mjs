@@ -280,3 +280,130 @@ describe('alignment + format reflow contracts', () => {
     assert.match(elements, /constrainElement/);
   });
 });
+
+// Mirror of metric group auto-fit (kept in sync with social-media-builder-layout.ts)
+const METRIC_VALUE_CHAR_RATIO = 0.66;
+
+function estimateMetricValueWidth(text, fontSize) {
+  const t = (text || '').trim();
+  if (!t) return 0;
+  return Math.ceil(t.length * Math.max(1, fontSize * METRIC_VALUE_CHAR_RATIO));
+}
+
+function pickSharedValueFont(metrics, columnInnerWidth, preferred, minFont) {
+  let fs = preferred;
+  while (fs >= minFont) {
+    if (metrics.every((m) => estimateMetricValueWidth(m.display_value || '', fs) <= columnInnerWidth)) {
+      return { fontSize: fs, singleLine: true };
+    }
+    fs -= 1;
+  }
+  return {
+    fontSize: minFont,
+    singleLine: metrics.every((m) => estimateMetricValueWidth(m.display_value || '', minFont) <= columnInnerWidth),
+  };
+}
+
+function fitMetricGroupPresentationMirror(metrics, opts) {
+  const list = metrics.slice(0, 3);
+  const n = Math.max(1, list.length);
+  const groupW = Math.max(40, Math.round(opts.groupWidth));
+  const groupH = Math.max(48, Math.round(opts.groupHeight));
+  const requested = opts.requestedLayout || 'horizontal';
+  const lock = Boolean(opts.lockLayout);
+
+  function buildHorizontal(density, requireSingleLine) {
+    const gutter = density === 'compact' ? Math.max(6, Math.round(groupW * 0.012)) : Math.max(12, Math.round(groupW * 0.018));
+    const padX = density === 'compact' ? 4 : 8;
+    const columnWidth = Math.max(8, Math.floor((groupW - gutter * Math.max(0, n - 1)) / n));
+    const preferredValue = Math.max(density === 'compact' ? 16 : 18, Math.round(groupH * (density === 'compact' ? 0.32 : 0.38)));
+    const minValue = Math.max(13, Math.round(preferredValue * 0.65));
+    const inner = Math.max(8, columnWidth - padX * 2);
+    const valueFit = pickSharedValueFont(list, inner, preferredValue, minValue);
+    if (requireSingleLine && !valueFit.singleLine) return null;
+    return {
+      layout: 'horizontal',
+      density,
+      valueFontSize: valueFit.fontSize,
+      columnWidth,
+      columnCount: n,
+      valuesSingleLine: valueFit.singleLine,
+      equalColumns: true,
+    };
+  }
+
+  if (requested === 'stacked' || requested === 'cards') {
+    return { layout: requested, density: 'comfortable', valuesSingleLine: true, columnCount: requested === 'stacked' ? 1 : n };
+  }
+  const comfortable = buildHorizontal('comfortable', true);
+  if (comfortable) return comfortable;
+  const compact = buildHorizontal('compact', true);
+  if (compact) return compact;
+  if (lock) return buildHorizontal('compact', false);
+  return { layout: n >= 3 ? 'cards' : 'stacked', density: 'compact', valuesSingleLine: false, columnCount: n >= 3 ? n : 1 };
+}
+
+describe('metric group auto-fit + alignment', () => {
+  const templeMetrics = [
+    { id: 'm1', display_value: '$500K', label: 'Minimum Investment' },
+    { id: 'm2', display_value: '14%', label: 'Target Yield' },
+    { id: 'm3', display_value: '24 Months', label: 'Investment Period' },
+  ];
+
+  it('keeps 24 Months on one line with equal columns on 1:1 canvas width', () => {
+    const box = safeContentBox(1080, 1080);
+    const presentation = fitMetricGroupPresentationMirror(templeMetrics, {
+      groupWidth: box.width,
+      groupHeight: 151,
+      requestedLayout: 'horizontal',
+    });
+    assert.equal(presentation.layout, 'horizontal');
+    assert.equal(presentation.valuesSingleLine, true);
+    assert.equal(presentation.columnCount, 3);
+    assert.ok(presentation.columnWidth > 0);
+    const inner = presentation.columnWidth - 16;
+    assert.ok(
+      estimateMetricValueWidth('24 Months', presentation.valueFontSize) <= inner,
+      `24 Months at ${presentation.valueFontSize}px must fit column ${inner}px`,
+    );
+    assert.ok(
+      estimateMetricValueWidth('$500K', presentation.valueFontSize) <= inner,
+    );
+    assert.ok(estimateMetricValueWidth('14%', presentation.valueFontSize) <= inner);
+  });
+
+  it('keeps 24 Months single-line on INVESTMENT column width via compact density', () => {
+    const presentation = fitMetricGroupPresentationMirror(templeMetrics, {
+      groupWidth: 724,
+      groupHeight: 151,
+      requestedLayout: 'horizontal',
+    });
+    assert.equal(presentation.layout, 'horizontal');
+    assert.equal(presentation.valuesSingleLine, true);
+    assert.equal(presentation.density, 'compact');
+    const pad = presentation.density === 'compact' ? 8 : 16;
+    assert.ok(
+      estimateMetricValueWidth('24 Months', presentation.valueFontSize) <= presentation.columnWidth - pad,
+    );
+  });
+
+  it('falls back when group is too narrow for single-line horizontal', () => {
+    const presentation = fitMetricGroupPresentationMirror(templeMetrics, {
+      groupWidth: 180,
+      groupHeight: 120,
+      requestedLayout: 'horizontal',
+    });
+    assert.ok(presentation.layout === 'cards' || presentation.layout === 'stacked');
+  });
+
+  it('layout module exports fitMetricGroupPresentation and collision treats METRIC_GROUP', () => {
+    const layout = readSmb('social-media-builder-layout.ts');
+    assert.match(layout, /export function fitMetricGroupPresentation/);
+    assert.match(layout, /layoutMetricGroupElement/);
+    assert.match(layout, /metricGroup/);
+    assert.match(layout, /METRIC_GROUP/);
+    const css = readSmb('social-media-builder.css');
+    assert.match(css, /smb-ws__el--metrics-compact/);
+    assert.match(css, /white-space:\s*nowrap/);
+  });
+});

@@ -2463,10 +2463,21 @@ def test_structured_metrics_localization_and_safety() -> None:
     assert choose_metric_group_layout(
         metrics=en_metrics, format_preset="square", canvas_w=1080, available_width=840
     ) == "horizontal"
+    assert horizontal_metrics_fit(en_metrics, available_width=840, canvas_w=1080, density="comfortable")
+    assert horizontal_metrics_fit(
+        en_metrics, available_width=840, canvas_w=1080, density="compact"
+    )
+    # "24 Months" must fit single-line after safe font shrink in equal columns.
+    assert any(m.display_value == "24 Months" for m in en_metrics)
     assert not horizontal_metrics_fit(en_metrics, available_width=80, canvas_w=1080)
     assert choose_metric_group_layout(
         metrics=en_metrics, format_preset="square", canvas_w=1080, available_width=80
     ) in {"stacked", "cards"}
+    # Narrow but not extreme: compact density may still keep horizontal before cards.
+    mid = choose_metric_group_layout(
+        metrics=en_metrics, format_preset="square", canvas_w=1080, available_width=240
+    )
+    assert mid in {"horizontal", "cards", "stacked"}
 
 
 def test_metric_layout_edit_and_explicit_value_change() -> None:

@@ -709,6 +709,7 @@ def layout_metric_group(
         available_width=available_w,
         requested=requested if requested in {"horizontal", "stacked", "cards"} else None,
     )
+    # Prefer compact currency when 3+ metrics share a horizontal row (comfortable or compact density).
     compact = layout == "horizontal" and len(metrics) >= 3
     metrics = apply_compact_currency(metrics, compact=compact)
     n = max(1, len(metrics))
@@ -716,15 +717,20 @@ def layout_metric_group(
         region.get("width") or max(200, canvas_w - 48)
     )
     if layout == "horizontal":
-        height = int(el.get("height") or max(96, int(round(canvas_h * 0.14)))) if keep_geo else max(
-            96, int(round(canvas_h * 0.14))
-        )
+        # Coordinated value + label rows — height from typography budget, not per-metric wrap.
+        value_fs = max(16, int(round(max(96, int(round(canvas_h * 0.14))) * 0.36)))
+        label_fs = max(10, int(round(value_fs * 0.42)))
+        auto_h = max(96, 8 + int(round(value_fs * 1.15)) + 4 + int(round(label_fs * 1.25 * 2)) + 8)
+        if keep_geo and el.get("height"):
+            height = max(int(el.get("height") or 0), auto_h)
+        else:
+            height = max(auto_h, int(round(canvas_h * 0.14)))
     elif layout == "stacked":
         height = max(48 * n, int(round(canvas_h * 0.06) * n))
     else:
         height = max(100, int(round(canvas_h * 0.18)))
     cap = int(region.get("max_height") or int(round(canvas_h * 0.28)))
-    height = min(int(el.get("height") or height) if keep_geo else height, cap)
+    height = min(height, cap)
     geo = constrain_element(
         {
             **el,

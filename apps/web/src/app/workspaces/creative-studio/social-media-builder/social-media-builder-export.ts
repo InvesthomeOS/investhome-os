@@ -7,6 +7,7 @@ import {
   sortElementsByZ,
   type SocialElement,
 } from './social-media-builder-elements';
+import { fitMetricGroupPresentation } from './social-media-builder-layout';
 
 export type SocialPostExportInput = {
   width: number;
@@ -131,39 +132,47 @@ async function drawElement(
   if (el.type === 'METRIC_GROUP') {
     const metrics = Array.isArray(el.metrics) ? el.metrics : [];
     const n = Math.max(1, metrics.length);
-    const layout = el.layout === 'stacked' || el.layout === 'cards' ? el.layout : 'horizontal';
+    const requested = el.layout === 'stacked' || el.layout === 'cards' ? el.layout : 'horizontal';
+    const presentation = fitMetricGroupPresentation(metrics, {
+      groupWidth: el.width,
+      groupHeight: el.height,
+      requestedLayout: requested,
+      lockLayout: true,
+    });
+    const layout = requested;
     ctx.fillStyle = el.color || '#ffffff';
-    ctx.textBaseline = 'top';
+    ctx.textBaseline = 'alphabetic';
     if (layout === 'stacked') {
       const rowH = el.height / n;
       metrics.forEach((metric, i) => {
         const y = el.y + i * rowH;
         ctx.textAlign = 'left';
-        ctx.font = `700 ${Math.max(18, Math.round(rowH * 0.42))}px system-ui, sans-serif`;
-        ctx.fillText(metric.display_value || '', el.x, y);
-        ctx.font = `500 ${Math.max(10, Math.round(rowH * 0.22))}px system-ui, sans-serif`;
-        ctx.fillText(metric.label || '', el.x, y + rowH * 0.48);
+        ctx.font = `700 ${presentation.valueFontSize}px system-ui, sans-serif`;
+        ctx.fillText(metric.display_value || '', el.x, y + presentation.valueRowHeight * 0.85);
+        ctx.font = `500 ${presentation.labelFontSize}px system-ui, sans-serif`;
+        ctx.fillText(metric.label || '', el.x, y + presentation.valueRowHeight + presentation.labelFontSize * 1.2);
       });
       return;
     }
-    const colW = el.width / n;
+    const colW = presentation.columnWidth || el.width / n;
     metrics.forEach((metric, i) => {
-      const x = el.x + i * colW;
+      const x = el.x + i * (colW + presentation.gutter);
       if (layout === 'cards') {
         ctx.save();
         ctx.fillStyle = 'rgba(15, 23, 42, 0.28)';
-        roundRect(ctx, x + 4, el.y, colW - 8, el.height, 10);
+        roundRect(ctx, x, el.y, colW, el.height, 10);
         ctx.fill();
         ctx.restore();
         ctx.fillStyle = el.color || '#ffffff';
       }
+      const padX = layout === 'cards' ? 12 : 0;
       ctx.textAlign = 'left';
-      ctx.font = `700 ${Math.max(18, Math.round(el.height * 0.38))}px system-ui, sans-serif`;
-      ctx.fillText(metric.display_value || '', x + 10, el.y + 8);
-      ctx.font = `500 ${Math.max(10, Math.round(el.height * 0.16))}px system-ui, sans-serif`;
-      const labelY = el.y + Math.round(el.height * 0.52);
-      for (const line of wrapText(ctx, metric.label || '', colW - 20).slice(0, 2)) {
-        ctx.fillText(line, x + 10, labelY);
+      ctx.font = `700 ${presentation.valueFontSize}px system-ui, sans-serif`;
+      ctx.fillText(metric.display_value || '', x + padX, el.y + presentation.valueRowHeight * 0.85);
+      ctx.font = `500 ${presentation.labelFontSize}px system-ui, sans-serif`;
+      const labelY = el.y + presentation.valueRowHeight + 4 + presentation.labelFontSize;
+      for (const line of wrapText(ctx, metric.label || '', colW - padX * 2).slice(0, 2)) {
+        ctx.fillText(line, x + padX, labelY);
       }
     });
     return;
