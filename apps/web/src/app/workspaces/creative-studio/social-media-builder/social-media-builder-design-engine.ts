@@ -81,6 +81,11 @@ const SURGICAL_EDIT_HINTS = [
   'daha kurumsal',
   'make headline stronger',
   'remove the address',
+  'rakamları alt alta',
+  'rakamlari alt alta',
+  'rakamları kart',
+  'rakamlari kart',
+  'getiriyi öne',
 ];
 
 function isCompletePostGeneration(instruction: string): boolean {
@@ -126,6 +131,8 @@ export type DesignGenerationMeta = SocialGenerationMeta & {
   content_package?: Record<string, unknown> | null;
   design_plan?: Record<string, unknown> | null;
   campaign_facts?: Record<string, unknown>[];
+  structured_metrics?: Record<string, unknown>[];
+  metric_group?: Record<string, unknown> | null;
   creative_concept?: Record<string, unknown> | null;
   validation?: Record<string, unknown> | null;
   marketing_strategy?: Record<string, unknown> | null;
@@ -155,6 +162,14 @@ export type SelectedElementDesignContext = {
   backgroundColor?: string | null;
   textColor?: string | null;
   assetId?: string | null;
+  layout?: string | null;
+  metrics?: Array<{
+    id: string;
+    type: string;
+    display_value: string;
+    label: string;
+    raw_value?: number | string;
+  }> | null;
 };
 
 /** Snapshot a canvas element for AI Design builder_context (no media URLs). */
@@ -177,6 +192,14 @@ export function selectedElementToDesignContext(
     backgroundColor?: string;
     textColor?: string;
     assetId?: string | null;
+    layout?: string;
+    metrics?: Array<{
+      id: string;
+      type: string;
+      display_value: string;
+      label: string;
+      raw_value?: number | string;
+    }>;
   } | null | undefined,
 ): SelectedElementDesignContext | null {
   if (!el || typeof el.id !== 'string' || !el.id) return null;
@@ -214,6 +237,22 @@ export function selectedElementToDesignContext(
       ...base,
       role: 'image',
       assetId: el.assetId ?? null,
+    };
+  }
+  if (el.type === 'METRIC_GROUP') {
+    return {
+      ...base,
+      role: 'metric_group',
+      layout: el.layout ?? 'horizontal',
+      metrics: Array.isArray(el.metrics)
+        ? el.metrics.map((m) => ({
+            id: m.id,
+            type: m.type,
+            display_value: m.display_value,
+            label: m.label,
+            raw_value: m.raw_value,
+          }))
+        : [],
     };
   }
   return base;
@@ -336,6 +375,8 @@ export function toDesignGenerationMeta(response: SocialDesignResponse): DesignGe
     content_package: meta?.content_package ?? null,
     design_plan: meta?.design_plan ?? null,
     campaign_facts: meta?.campaign_facts ?? [],
+    structured_metrics: meta?.structured_metrics ?? [],
+    metric_group: meta?.metric_group ?? null,
     creative_concept: meta?.creative_concept ?? null,
     validation: meta?.validation ?? null,
     marketing_strategy: meta?.marketing_strategy ?? null,
@@ -370,6 +411,8 @@ export function serializeGenerationMetaForDraft(
     content_package: meta.content_package ?? null,
     design_plan: meta.design_plan ?? null,
     campaign_facts: meta.campaign_facts ?? [],
+    structured_metrics: meta.structured_metrics ?? [],
+    metric_group: meta.metric_group ?? null,
     creative_concept: meta.creative_concept ?? null,
     validation: meta.validation ?? null,
     marketing_strategy: meta.marketing_strategy ?? null,
@@ -423,6 +466,13 @@ export function parseGenerationMetaFromDraft(
     campaign_facts: Array.isArray(raw.campaign_facts)
       ? raw.campaign_facts.filter((f): f is Record<string, unknown> => !!f && typeof f === 'object')
       : [],
+    structured_metrics: Array.isArray(raw.structured_metrics)
+      ? raw.structured_metrics.filter((f): f is Record<string, unknown> => !!f && typeof f === 'object')
+      : [],
+    metric_group:
+      raw.metric_group && typeof raw.metric_group === 'object' && !Array.isArray(raw.metric_group)
+        ? (raw.metric_group as Record<string, unknown>)
+        : null,
     creative_concept:
       raw.creative_concept && typeof raw.creative_concept === 'object' && !Array.isArray(raw.creative_concept)
         ? (raw.creative_concept as Record<string, unknown>)

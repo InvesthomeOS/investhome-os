@@ -138,6 +138,24 @@ def inspect_quality(
     if looks_like_rag_or_debug_copy(blob):
         issues.append(QualityIssue("rag_on_canvas", "debug copy leaked", "strip_rag"))
 
+    from investhome_api.services.social_design_engine.localization import (
+        validate_creative_language,
+        visible_fields_from_package,
+    )
+
+    lang_report = validate_creative_language(
+        language=intent.language,
+        fields=visible_fields_from_package(package, getattr(concept, "structured_metrics", None)),
+    )
+    if not lang_report.passed:
+        issues.append(
+            QualityIssue(
+                "language_leak",
+                ",".join(f"{i.field}:{i.fragment}" for i in lang_report.issues[:6]),
+                "repair_language",
+            )
+        )
+
     if concept.objective == "location":
         place_ok = any(
             k in _norm(blob)
@@ -156,9 +174,15 @@ def inspect_quality(
         if not place_ok:
             issues.append(QualityIssue("objective_missing", "location not represented", "restore_objective"))
     if concept.objective == "investment":
-        missing = [f.display for f in campaign_facts if f.display not in blob]
-        if missing:
-            issues.append(QualityIssue("campaign_missing", ",".join(missing), "restore_campaign"))
+        from investhome_api.services.social_design_engine.localization import looks_like_concatenated_metrics
+
+        if looks_like_concatenated_metrics(package.supporting_text) or looks_like_concatenated_metrics(
+            package.key_fact or ""
+        ):
+            issues.append(QualityIssue("concatenated_metrics", package.supporting_text, "split_metrics"))
+        has_group = any(el.type == "METRIC_GROUP" for el in plan.elements)
+        if campaign_facts and not has_group:
+            issues.append(QualityIssue("campaign_missing", "structured metrics missing", "restore_campaign"))
 
     denied = _unnecessary_fact_hits(blob, concept)
     if denied:
@@ -188,12 +212,17 @@ def inspect_quality(
     regions = subject_safe_regions(w, h)
     subject = regions["subject"]
     for el in plan.elements:
-        if el.type == "TEXT" or el.type in {"BUTTON", "CTA"}:
+        if el.type == "TEXT" or el.type in {"BUTTON", "CTA", "METRIC_GROUP"}:
             if not element_within_bounds(_element_box(el), w, h):
                 issues.append(QualityIssue("unsafe_margin", el.role, "clamp_safe"))
     for i, a in enumerate(plan.elements):
         for b in plan.elements[i + 1 :]:
-            if a.type == "TEXT" and b.type in {"TEXT", "BUTTON", "CTA"}:
+            if a.type in {"TEXT", "BUTTON", "CTA", "METRIC_GROUP"} and b.type in {
+                "TEXT",
+                "BUTTON",
+                "CTA",
+                "METRIC_GROUP",
+            }:
                 if _boxes_overlap(_element_box(a), _element_box(b), gap=8):
                     issues.append(QualityIssue("overlap", f"{a.role}/{b.role}", "resolve_overlap"))
 
@@ -206,7 +235,7 @@ def inspect_quality(
             issues.append(QualityIssue("focal_obstruction", "headline covers subject", "move_to_safe_zone"))
 
     # Density: stacked text occupying too much of the frame
-    text_h = sum(el.height for el in plan.elements if el.type in {"TEXT", "BUTTON", "CTA"})
+    text_h = sum(el.height for el in plan.elements if el.type in {"TEXT", "BUTTON", "CTA", "METRIC_GROUP"})
     if text_h > int(h * 0.48) and body_el:
         issues.append(QualityIssue("crowded", "text occupies too much frame", "reduce_density"))
 
@@ -242,6 +271,15 @@ def _apply_copy_repairs(
         key_fact = _strip_denied_phrases(key_fact, hits)
         eyebrow = _strip_denied_phrases(eyebrow, hits)
 
+    if "repair_language" in codes:
+        from investhome_api.services.social_design_engine.localization import repair_language_leaks
+
+        headline = repair_language_leaks(headline, language=intent.language)
+        support = repair_language_leaks(support, language=intent.language)
+        key_fact = repair_language_leaks(key_fact, language=intent.language)
+        cta = repair_language_leaks(cta, language=intent.language)
+        eyebrow = repair_language_leaks(eyebrow, language=intent.language)
+
     if "shorten_headline" in codes or "generic_headline" in codes or "replace_headline" in codes or "headline_is_address" in codes:
         headline = clip_headline(concept.primary_message or headline)
         if is_generic_headline(headline) or looks_like_street_address(headline) or _word_count(headline) > HEADLINE_MAX_WORDS:
@@ -272,12 +310,17 @@ def _apply_copy_repairs(
         if is_generic_cta(cta):
             cta = "Schedule a private tour" if intent.language != "tr" else "Özel tur planla"
             if concept.objective == "investment":
-                cta = "Explore the investment" if intent.language != "tr" else "Yatırım fırsatını incele"
+                from investhome_api.services.social_design_engine.localization import choose_investment_cta
 
-    if "restore_campaign" in codes and campaign_facts:
-        extra = " · ".join(f.display for f in campaign_facts)
-        if extra not in f"{headline} {support} {key_fact}":
-            support = extra if not support else f"{support} · {extra}" if extra not in support else support
+                cta = choose_investment_cta(intent.language)
+
+    if "restore_campaign" in codes or "split_metrics" in codes:
+        from investhome_api.services.social_design_engine.localization import looks_like_concatenated_metrics
+
+        if looks_like_concatenated_metrics(support):
+            support = ""
+        if looks_like_concatenated_metrics(key_fact):
+            key_fact = ""
 
     if "restore_objective" in codes and concept.objective == "location":
         if looks_like_street_address(headline):
@@ -350,6 +393,8 @@ def _apply_plan_repairs(
             post_id=plan.post_id,
             rebuild=plan.rebuild,
             concept=concept,
+            structured_metrics=getattr(concept, "structured_metrics", None),
+            metric_layout=getattr(concept, "metric_group_layout", None),
         )
         rebuilt.background_asset_id = plan.background_asset_id
         rebuilt.name = plan.name
@@ -382,6 +427,7 @@ def validate_and_repair(
 
     if campaign_facts and concept.objective == "investment":
         repaired_pkg = enforce_campaign_facts(repaired_pkg, campaign_facts)
+        concept.include_support = bool(repaired_pkg.supporting_text)
 
     concept.primary_message = repaired_pkg.headline
     concept.supporting_message = repaired_pkg.supporting_text

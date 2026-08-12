@@ -39,9 +39,12 @@ EditIntent = Literal[
     "MOVE_TEXT_AWAY_FROM_SUBJECT",
     "INCREASE_IMAGE_PROMINENCE",
     "SIMPLIFY_LAYOUT",
+    "CHANGE_METRIC_LAYOUT",
+    "CHANGE_METRIC_EMPHASIS",
+    "CHANGE_METRIC_VALUE",
 ]
 
-ElementTarget = Literal["headline", "body", "cta", "image", "background", "unknown"]
+ElementTarget = Literal["headline", "body", "cta", "image", "background", "metric_group", "unknown"]
 
 COPY_INTENTS: frozenset[str] = frozenset({"CHANGE_TEXT", "CHANGE_CTA_TEXT"})
 VISUAL_INTENTS: frozenset[str] = frozenset(VISUAL_LAYOUT_VOCAB)
@@ -55,6 +58,9 @@ STRUCTURAL_INTENTS: frozenset[str] = frozenset(
         "CHANGE_COLOR",
         "DELETE",
         "DUPLICATE",
+        "CHANGE_METRIC_LAYOUT",
+        "CHANGE_METRIC_EMPHASIS",
+        "CHANGE_METRIC_VALUE",
         *VISUAL_LAYOUT_VOCAB,
     }
 )
@@ -116,6 +122,20 @@ def resolve_target(instruction_fragment: str, *, default: ElementTarget = "unkno
         return "background"
     if any(k in t for k in ("görsel", "gorsel", "image", "foto", "photo", "render", "exterior")):
         return "image"
+    if any(
+        k in t
+        for k in (
+            "rakam",
+            "metric",
+            "metrik",
+            "getiri",
+            "yatırım süresi",
+            "yatirim suresi",
+            "minimum yatırım",
+            "minimum yatirim",
+        )
+    ):
+        return "metric_group"
     return default
 
 
@@ -132,6 +152,8 @@ def target_from_element(el: dict[str, Any] | None) -> ElementTarget:
         return "body" if role == "custom" else "headline"
     if typ in {"BUTTON", "CTA"}:
         return "cta"
+    if typ == "METRIC_GROUP":
+        return "metric_group"
     if typ == "IMAGE":
         return "image"
     return "unknown"
@@ -356,6 +378,92 @@ def classify_edit_intents(
     # Higher-level visual language (validated vocab only)
     found.extend(_classify_visual_language(t, raw))
 
+    # Structured metric layout / emphasis / explicit factual change
+    if any(
+        k in t
+        for k in (
+            "rakamları alt alta",
+            "rakamlari alt alta",
+            "alt alta al",
+            "stacked",
+            "stack the",
+        )
+    ):
+        found.append(ClassifiedIntent("CHANGE_METRIC_LAYOUT", "metric_group", raw.strip(), {"layout": "stacked"}))
+    if any(
+        k in t
+        for k in (
+            "rakamları kart",
+            "rakamlari kart",
+            "kart şeklinde",
+            "kart seklinde",
+            "as cards",
+            "card layout",
+        )
+    ):
+        found.append(ClassifiedIntent("CHANGE_METRIC_LAYOUT", "metric_group", raw.strip(), {"layout": "cards"}))
+    if any(k in t for k in ("yatay göster", "yatay goster", "horizontal", "yan yana")):
+        found.append(ClassifiedIntent("CHANGE_METRIC_LAYOUT", "metric_group", raw.strip(), {"layout": "horizontal"}))
+    if any(
+        k in t
+        for k in (
+            "getiriyi öne",
+            "getiriyi one",
+            "öne çıkar",
+            "one cikar",
+            "emphasize return",
+            "emphasize yield",
+        )
+    ):
+        found.append(
+            ClassifiedIntent(
+                "CHANGE_METRIC_EMPHASIS",
+                "metric_group",
+                raw.strip(),
+                {"emphasis": "primary", "match": "return"},
+            )
+        )
+    if any(
+        k in t
+        for k in (
+            "daha küçük göster",
+            "daha kucuk goster",
+            "smaller",
+            "küçült",
+            "kucult",
+        )
+    ) and any(k in t for k in ("minimum", "yatırım rakam", "yatirim rakam", "investment")):
+        found.append(
+            ClassifiedIntent(
+                "CHANGE_METRIC_EMPHASIS",
+                "metric_group",
+                raw.strip(),
+                {"emphasis": "tertiary", "match": "currency", "visual_only": True},
+            )
+        )
+    explicit_duration = re.search(
+        r"\b(\d+)\s*(ayı?|months?)\b.{0,24}\b(\d+)\s*(ayı?|months?)\s*(yap|make|değiştir|degistir|change)",
+        t,
+    )
+    if not explicit_duration:
+        explicit_duration = re.search(
+            r"(\d+)\s*(ayı?|months?)\s*(yap|olsun|to)\s*(\d+)",
+            t,
+        )
+    if explicit_duration:
+        groups = explicit_duration.groups()
+        new_raw = groups[2] if len(groups) >= 3 and groups[2].isdigit() else groups[-2] if groups[-2].isdigit() else groups[0]
+        if len(groups) >= 4 and groups[3].isdigit():
+            new_raw = groups[3]
+        found.append(
+            ClassifiedIntent(
+                "CHANGE_METRIC_VALUE",
+                "metric_group",
+                raw.strip(),
+                {"metric_type": "duration", "raw_value": int(new_raw) if str(new_raw).isdigit() else new_raw},
+            )
+        )
+
     # Spatial / move — skip pure visual-subject phrases already classified
     move_markers = (
         "taşı",
@@ -564,7 +672,7 @@ def classify_edit_intents(
         target = resolve_target(raw, default="unknown")
         found.append(ClassifiedIntent("DUPLICATE", target, raw.strip(), {}))
 
-    allow_copy = _explicit_copy_change(raw)
+    allow_copy = _explicit_copy_change(raw) or any(i.intent == "CHANGE_METRIC_VALUE" for i in found)
     allow_cta = _explicit_cta_label_change(raw)
     if allow_copy:
         target = resolve_target(raw, default=fallback)
@@ -671,6 +779,11 @@ def find_target_element(
     if target in {"image", "background"}:
         for el in elements:
             if isinstance(el, dict) and el.get("type") == "IMAGE":
+                return el
+        return None
+    if target == "metric_group":
+        for el in elements:
+            if isinstance(el, dict) and str(el.get("type") or "").upper() == "METRIC_GROUP":
                 return el
         return None
     return None
@@ -949,6 +1062,56 @@ def build_ops_from_intent_plan(
                         "_target": item.target,
                     }
                 )
+            continue
+
+        if item.intent in {"CHANGE_METRIC_LAYOUT", "CHANGE_METRIC_EMPHASIS", "CHANGE_METRIC_VALUE"}:
+            if el is None:
+                el = find_target_element(post, "metric_group")
+            if el is None or str(el.get("type") or "").upper() != "METRIC_GROUP":
+                continue
+            payload: dict[str, Any] = {}
+            if item.intent == "CHANGE_METRIC_LAYOUT":
+                payload["layout"] = (item.meta or {}).get("layout") or "stacked"
+            elif item.intent == "CHANGE_METRIC_EMPHASIS":
+                payload["emphasis"] = (item.meta or {}).get("emphasis") or "primary"
+                match = str((item.meta or {}).get("match") or "")
+                metrics = el.get("metrics") if isinstance(el.get("metrics"), list) else []
+                emphasis_id = ""
+                for row in metrics:
+                    if not isinstance(row, dict):
+                        continue
+                    mtype = str(row.get("type") or "")
+                    if match == "return" and mtype in {"return", "percentage", "yield"}:
+                        emphasis_id = str(row.get("id") or "")
+                        break
+                    if match == "currency" and mtype in {"currency", "price"}:
+                        emphasis_id = str(row.get("id") or "")
+                        break
+                if not emphasis_id and metrics and isinstance(metrics[0], dict):
+                    emphasis_id = str(metrics[0].get("id") or "")
+                payload["emphasis_id"] = emphasis_id
+            elif item.intent == "CHANGE_METRIC_VALUE":
+                payload["allow_raw_update"] = True
+                payload["raw_value"] = (item.meta or {}).get("raw_value")
+                mtype = str((item.meta or {}).get("metric_type") or "duration")
+                metrics = el.get("metrics") if isinstance(el.get("metrics"), list) else []
+                metric_id = ""
+                for row in metrics:
+                    if isinstance(row, dict) and str(row.get("type") or "") == mtype:
+                        metric_id = str(row.get("id") or "")
+                        break
+                payload["metric_id"] = metric_id
+            ops.append(
+                {
+                    "op": "UPDATE_METRIC_GROUP",
+                    "linked_project_id": pid,
+                    "post_id": post_id,
+                    "element_id": el.get("id"),
+                    "payload": payload,
+                    "_intent": item.intent,
+                    "_target": "metric_group",
+                }
+            )
             continue
 
         if item.intent == "CHANGE_COLOR":

@@ -74,6 +74,13 @@ from investhome_api.services.social_design_engine.copy_director import (
     copy_package_to_content_package,
     score_copy_quality,
 )
+from investhome_api.services.social_design_engine.localization import choose_investment_cta
+from investhome_api.services.social_design_engine.metrics import (
+    MetricGroup,
+    campaign_facts_to_structured_metrics,
+    metric_group_to_dict,
+    structured_metrics_to_dicts,
+)
 from investhome_api.services.social_design_engine.intent import (
     apply_selected_element_targets,
     classify_edit_intents,
@@ -151,6 +158,11 @@ def generate_social_design(
         project_name=project.project_name,
     )
     campaign_facts = extract_campaign_facts(instruction)
+    structured_metrics = campaign_facts_to_structured_metrics(
+        campaign_facts,
+        language=gen_intent.language,
+        instruction=instruction,
+    )
     effective_language = gen_intent.language or body.language
 
     selected_assets = validate_selected_assets(
@@ -293,9 +305,7 @@ def generate_social_design(
         if copy_edit_meta["objective"] == "investment":
             gen_intent.audience = "investors"
             gen_intent.asset_preference = "premium_hero"
-            gen_intent.cta_hint = (
-                "Explore the investment" if gen_intent.language != "tr" else "Yatırım fırsatını incele"
-            )
+            gen_intent.cta_hint = choose_investment_cta(gen_intent.language)
         mode = "create"
 
     # -------- EDIT: copy-intelligence (same strategy) — not a full regenerate --------
@@ -408,6 +418,7 @@ def generate_social_design(
             asset=picked_candidate,
             strategy=marketing_strategy,
             copy_package=copy_direction.package,
+            structured_metrics=structured_metrics,
         )
         content_package = copy_package_to_content_package(copy_direction.package)
         content_package = enforce_campaign_facts(content_package, campaign_facts)
@@ -469,6 +480,8 @@ def generate_social_design(
             post_id=post_id,
             rebuild=rebuild,
             concept=creative_concept,
+            structured_metrics=structured_metrics or getattr(creative_concept, "structured_metrics", None),
+            metric_layout=getattr(creative_concept, "metric_group_layout", None),
         )
         from investhome_api.services.social_design_engine.validator import validate_and_repair
 
@@ -721,6 +734,17 @@ def generate_social_design(
         marketing_strategy=strategy_to_dict(marketing_strategy) if marketing_strategy is not None else None,
         copy_quality=copy_meta.get("copy_quality"),
         headline_candidates=copy_meta.get("headline_candidates") or [],
+        structured_metrics=structured_metrics_to_dicts(structured_metrics),
+        metric_group=metric_group_to_dict(
+            MetricGroup(
+                layout=getattr(creative_concept, "metric_group_layout", "horizontal")
+                if creative_concept
+                else "horizontal",
+                metrics=structured_metrics,
+            )
+        )
+        if structured_metrics
+        else None,
     )
     if (mode == "create" or planner_name == "copy_intelligence") and accepted:
         for post in mutated_posts:
@@ -788,6 +812,8 @@ def generate_social_design(
         content_package=gen_meta_payload.get("content_package") if mode == "create" or planner_name == "copy_intelligence" else None,
         design_plan=gen_meta_payload.get("design_plan") if mode == "create" else None,
         campaign_facts=gen_meta_payload.get("campaign_facts") or [],
+        structured_metrics=gen_meta_payload.get("structured_metrics") or [],
+        metric_group=gen_meta_payload.get("metric_group"),
         creative_concept=gen_meta_payload.get("creative_concept") if mode == "create" else None,
         validation=gen_meta_payload.get("validation") if mode == "create" else None,
         marketing_strategy=gen_meta_payload.get("marketing_strategy") if mode == "create" or planner_name == "copy_intelligence" else None,

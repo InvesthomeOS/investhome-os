@@ -49,6 +49,7 @@ export function constrainElement(
 ): { x: number; y: number; width: number; height: number } {
   const fullBleed = el.type === 'IMAGE';
   const isButton = el.type === 'BUTTON';
+  const isMetricGroup = el.type === 'METRIC_GROUP';
 
   if (fullBleed) {
     const w = clampInt(el.width, 8, canvasW, Math.min(200, canvasW));
@@ -61,7 +62,7 @@ export function constrainElement(
     };
   }
 
-  if (isButton) {
+  if (isButton || isMetricGroup) {
     const pad = 24;
     const maxW = Math.max(8, canvasW - pad * 2);
     const maxH = Math.max(8, canvasH - pad * 2);
@@ -363,6 +364,7 @@ function boxesOverlap(a: SocialElement, b: SocialElement, gap: number): boolean 
 
 function priority(el: SocialElement): number {
   if (el.type === 'BUTTON') return 60;
+  if (el.type === 'METRIC_GROUP') return 85;
   if (el.type === 'IMAGE') return 40;
   if (el.type === 'TEXT' && el.role === 'headline') return 100;
   if (el.type === 'TEXT' && el.role === 'body') return 80;

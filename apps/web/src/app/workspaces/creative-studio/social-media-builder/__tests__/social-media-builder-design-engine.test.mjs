@@ -307,4 +307,18 @@ describe('canonical canvas fit / layout safety (renderer contract)', () => {
     assert.match(engine, /selectedElementId:/);
     assert.match(engine, /selectedElementToDesignContext/);
   });
+
+  it('persists structured metrics as METRIC_GROUP on the same canvas tree', () => {
+    const elements = readSmb('social-media-builder-elements.ts');
+    assert.match(elements, /METRIC_GROUP/);
+    assert.match(elements, /SocialStructuredMetric/);
+    const persistence = readSmb('social-media-builder-persistence.ts');
+    assert.match(persistence, /METRIC_GROUP/);
+    assert.match(persistence, /display_value/);
+    const artboard = readSmb('smb-artboard-elements.tsx');
+    assert.match(artboard, /METRIC_GROUP/);
+    assert.match(artboard, /smb-ws__metric-value/);
+    const engine = readSmb('social-media-builder-design-engine.ts');
+    assert.match(engine, /structured_metrics/);
+  });
 });

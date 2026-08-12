@@ -585,6 +585,8 @@ export type SocialDesignGenerationMeta = {
   content_package?: Record<string, unknown> | null;
   design_plan?: Record<string, unknown> | null;
   campaign_facts?: Record<string, unknown>[];
+  structured_metrics?: Record<string, unknown>[];
+  metric_group?: Record<string, unknown> | null;
   creative_concept?: Record<string, unknown> | null;
   validation?: Record<string, unknown> | null;
   marketing_strategy?: Record<string, unknown> | null;

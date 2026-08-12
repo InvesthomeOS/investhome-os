@@ -17,6 +17,7 @@ from investhome_api.services.social_design_engine.layout import (
     clamp_safe_geometry,
     constrain_element,
     layout_cta_element,
+    layout_metric_group,
     layout_text_element,
     reflow_for_format,
     resolve_layout,
@@ -308,6 +309,45 @@ def apply_ops(
             grammar_post_ids.add(op.post_id)
             continue
 
+        if op.op == "ADD_METRIC_GROUP":
+            cw, ch = canvas_size(post)
+            eid = op.element_id or _new_element_id("metrics")
+            from investhome_api.services.social_design_engine.metrics import (
+                METRIC_LAYOUTS,
+                structured_metrics_from_dicts,
+                structured_metrics_to_dicts,
+            )
+
+            layout = str(payload.get("layout") or "horizontal").lower()
+            if layout not in METRIC_LAYOUTS:
+                layout = "horizontal"
+            metrics = structured_metrics_to_dicts(
+                structured_metrics_from_dicts(payload.get("metrics") if isinstance(payload.get("metrics"), list) else [])
+            )
+            if not metrics:
+                continue
+            draft = {
+                "id": eid,
+                "type": "METRIC_GROUP",
+                "role": "metric_group",
+                "layout": layout,
+                "metrics": metrics,
+                "color": sanitize_color(payload.get("color"), "#ffffff"),
+                "zIndex": clamp_int(payload.get("zIndex"), 0, 10_000, 4),
+                "x": payload.get("x"),
+                "y": payload.get("y"),
+                "width": payload.get("width"),
+                "height": payload.get("height"),
+            }
+            slots = social_layout_slots(cw, ch)
+            slot = slots.get("metric_group") or slots.get("body")
+            if payload.get("x") is not None and payload.get("y") is not None:
+                slot = None
+            laid = layout_metric_group(draft, canvas_w=cw, canvas_h=ch, slot=slot)
+            _ensure_elements(post).append(laid)
+            grammar_post_ids.add(op.post_id)
+            continue
+
         if op.op == "DELETE_ELEMENT" and op.element_id:
             elements = _ensure_elements(post)
             post["elements"] = [
@@ -373,6 +413,78 @@ def apply_ops(
                 el["backgroundColor"] = sanitize_color(payload.get("backgroundColor"))
             if "textColor" in payload:
                 el["textColor"] = sanitize_color(payload.get("textColor"), "#111827")
+            layout_post_ids.add(op.post_id)
+            continue
+
+        if op.op == "UPDATE_METRIC_GROUP" and el is not None:
+            if str(el.get("type") or "").upper() != "METRIC_GROUP":
+                continue
+            from investhome_api.services.social_design_engine.metrics import (
+                METRIC_LAYOUTS,
+                apply_compact_currency,
+                set_metric_emphasis,
+                structured_metrics_from_dicts,
+                structured_metrics_to_dicts,
+                update_metric_raw_value,
+            )
+
+            metrics = structured_metrics_from_dicts(el.get("metrics") if isinstance(el.get("metrics"), list) else [])
+            if "layout" in payload:
+                layout = str(payload.get("layout") or "").lower()
+                if layout in METRIC_LAYOUTS:
+                    el["layout"] = layout
+            if "metrics" in payload and isinstance(payload.get("metrics"), list):
+                incoming = structured_metrics_from_dicts(payload.get("metrics"))
+                if incoming:
+                    # Preserve raw values unless an explicit raw_value patch is present.
+                    if payload.get("allow_raw_update"):
+                        metrics = incoming
+                    else:
+                        by_id = {m.id: m for m in metrics}
+                        merged = []
+                        for item in incoming:
+                            prev = by_id.get(item.id)
+                            if prev is None:
+                                merged.append(item)
+                            else:
+                                merged.append(
+                                    item.__class__(
+                                        id=item.id,
+                                        type=item.type,
+                                        raw_value=prev.raw_value,
+                                        display_value=item.display_value or prev.display_value,
+                                        label=item.label or prev.label,
+                                        unit=item.unit or prev.unit,
+                                        locale=item.locale or prev.locale,
+                                        emphasis=item.emphasis,
+                                        source_token=prev.source_token,
+                                    )
+                                )
+                        metrics = merged
+            if payload.get("emphasis_id"):
+                eid_m = str(payload.get("emphasis_id"))
+                next_em = str(payload.get("emphasis") or "primary")
+                if next_em not in {"primary", "secondary", "tertiary"}:
+                    next_em = "primary"
+                metrics = [
+                    set_metric_emphasis(m, next_em) if m.id == eid_m else m  # type: ignore[arg-type]
+                    for m in metrics
+                ]
+            if payload.get("allow_raw_update") and "raw_value" in payload and payload.get("metric_id"):
+                mid = str(payload.get("metric_id"))
+                new_raw = payload.get("raw_value")
+                metrics = [
+                    update_metric_raw_value(m, new_raw) if m.id == mid else m
+                    for m in metrics
+                ]
+            compact = str(el.get("layout") or "") == "horizontal" and len(metrics) >= 3
+            metrics = apply_compact_currency(metrics, compact=compact)
+            el["metrics"] = structured_metrics_to_dicts(metrics)
+            if "color" in payload:
+                el["color"] = sanitize_color(payload.get("color"), el.get("color") or "#ffffff")
+            cw, ch = canvas_size(post)
+            laid = layout_metric_group(el, canvas_w=cw, canvas_h=ch)
+            el.update(laid)
             layout_post_ids.add(op.post_id)
             continue
 

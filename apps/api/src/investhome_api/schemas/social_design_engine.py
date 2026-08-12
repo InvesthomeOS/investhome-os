@@ -25,6 +25,8 @@ DESIGN_OP_TYPES: frozenset[str] = frozenset(
         "REPLACE_IMAGE",
         "ADD_CTA",
         "UPDATE_CTA",
+        "ADD_METRIC_GROUP",
+        "UPDATE_METRIC_GROUP",
         "MOVE_ELEMENT",
         "RESIZE_ELEMENT",
         "ALIGN_ELEMENT",
@@ -111,6 +113,8 @@ class SocialDesignGenerationMeta(BaseModel):
     content_package: dict[str, Any] | None = None
     design_plan: dict[str, Any] | None = None
     campaign_facts: list[dict[str, Any]] = Field(default_factory=list)
+    structured_metrics: list[dict[str, Any]] = Field(default_factory=list)
+    metric_group: dict[str, Any] | None = None
     creative_concept: dict[str, Any] | None = None
     validation: dict[str, Any] | None = None
     marketing_strategy: dict[str, Any] | None = None

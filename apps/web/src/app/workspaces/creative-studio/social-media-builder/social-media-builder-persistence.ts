@@ -10,6 +10,7 @@ import {
   ensureUniqueElementIds,
   headlineFromElements,
   type SocialElement,
+  type SocialStructuredMetric,
   type SocialTextAlign,
   type SocialTextRole,
 } from './social-media-builder-elements';
@@ -222,6 +223,47 @@ function parseElement(raw: unknown): SocialElement | null {
     };
   }
 
+  if (type === 'METRIC_GROUP') {
+    const layoutRaw = body.layout;
+    const layout =
+      layoutRaw === 'stacked' || layoutRaw === 'cards' || layoutRaw === 'horizontal'
+        ? layoutRaw
+        : 'horizontal';
+    const metricsRaw = Array.isArray(body.metrics) ? body.metrics : [];
+    const metrics = metricsRaw
+      .filter((row): row is Record<string, unknown> => !!row && typeof row === 'object')
+      .slice(0, 3)
+      .map((row, index) => {
+        const emphasisRaw = row.emphasis;
+        const emphasis =
+          emphasisRaw === 'primary' || emphasisRaw === 'secondary' || emphasisRaw === 'tertiary'
+            ? emphasisRaw
+            : 'secondary';
+        const typeRaw = typeof row.type === 'string' ? row.type : 'generic_numeric';
+        const rawValue = row.raw_value;
+        return {
+          id: typeof row.id === 'string' && row.id.trim() ? row.id : `metric-${index + 1}`,
+          type: typeRaw as SocialStructuredMetric['type'],
+          raw_value:
+            typeof rawValue === 'number' || typeof rawValue === 'string' ? rawValue : '',
+          display_value: typeof row.display_value === 'string' ? row.display_value : '',
+          label: typeof row.label === 'string' ? row.label : '',
+          unit: typeof row.unit === 'string' ? row.unit : '',
+          locale: typeof row.locale === 'string' ? row.locale : 'en',
+          emphasis,
+          source_token: typeof row.source_token === 'string' ? row.source_token : '',
+        };
+      });
+    if (!metrics.length) return null;
+    return {
+      ...base,
+      type: 'METRIC_GROUP',
+      layout,
+      metrics,
+      color: typeof body.color === 'string' && body.color.trim() ? body.color : '#ffffff',
+    };
+  }
+
   return null;
 }
 
@@ -250,6 +292,14 @@ function serializeElement(el: SocialElement): Record<string, unknown> {
     return {
       ...base,
       assetId: el.assetId && isMediaAssetUuid(el.assetId) ? el.assetId : null,
+    };
+  }
+  if (el.type === 'METRIC_GROUP') {
+    return {
+      ...base,
+      layout: el.layout,
+      metrics: el.metrics,
+      color: el.color,
     };
   }
   return {

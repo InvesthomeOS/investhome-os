@@ -30,6 +30,7 @@ ROLE_FONT_DEFAULTS = {
 ROLE_PRIORITY = {
     "headline": 100,
     "eyebrow": 90,
+    "metric_group": 85,
     "body": 80,
     "custom": 70,
     "cta": 60,
@@ -332,11 +333,12 @@ def social_layout_slots(
             headline_max_h = int(round(canvas_h * 0.16))
             body_max_h = int(round(canvas_h * 0.10))
         elif fam == "INVESTMENT":
-            headline_y = int(round(canvas_h * 0.50))
-            body_y = headline_y + int(round(canvas_h * 0.14))
+            headline_y = int(round(canvas_h * 0.48))
+            body_y = headline_y + int(round(canvas_h * 0.12))
+            metric_y = body_y
             cta_y = min(box["y"] + box["height"] - cta_h, int(round(canvas_h * 0.86)))
-            headline_max_h = int(round(canvas_h * 0.14))
-            body_max_h = int(round(canvas_h * 0.12))
+            headline_max_h = int(round(canvas_h * 0.12))
+            body_max_h = int(round(canvas_h * 0.18))
         else:  # EDITORIAL
             eyebrow_y = box["y"] + int(round(canvas_h * 0.06))
             headline_y = eyebrow_y + int(round(canvas_h * 0.05))
@@ -393,6 +395,12 @@ def social_layout_slots(
                 "width": col_w,
                 "max_height": body_max_h,
             },
+            "metric_group": {
+                "x": x,
+                "y": max(box["y"], body_y),
+                "width": col_w,
+                "max_height": body_max_h,
+            },
             "cta": {
                 "x": cta_x,
                 "y": cta_y,
@@ -418,6 +426,12 @@ def social_layout_slots(
             "max_height": headline_max_h,
         },
         "body": {
+            "x": pad_x,
+            "y": max(box["y"], body_y),
+            "width": content_w,
+            "max_height": body_max_h,
+        },
+        "metric_group": {
             "x": pad_x,
             "y": max(box["y"], body_y),
             "width": content_w,
@@ -667,6 +681,71 @@ def layout_cta_element(
     return out
 
 
+def layout_metric_group(
+    el: dict[str, Any],
+    *,
+    canvas_w: int,
+    canvas_h: int,
+    slot: dict[str, int] | None = None,
+) -> dict[str, Any]:
+    """Place a metric group; fall back from horizontal when columns do not fit."""
+    from investhome_api.services.social_design_engine.metrics import (
+        apply_compact_currency,
+        choose_metric_group_layout,
+        structured_metrics_from_dicts,
+        structured_metrics_to_dicts,
+    )
+
+    slots = social_layout_slots(canvas_w, canvas_h)
+    region = slot or slots.get("metric_group") or slots.get("body") or slots["headline"]
+    metrics = structured_metrics_from_dicts(el.get("metrics") if isinstance(el.get("metrics"), list) else [])
+    requested = str(el.get("layout") or "horizontal").lower()
+    keep_geo = slot is None and el.get("x") is not None and el.get("y") is not None
+    available_w = int(el.get("width") or region.get("width") or canvas_w)
+    layout = choose_metric_group_layout(
+        metrics=metrics,
+        format_preset=str(el.get("formatPreset") or "square"),
+        canvas_w=canvas_w,
+        available_width=available_w,
+        requested=requested if requested in {"horizontal", "stacked", "cards"} else None,
+    )
+    compact = layout == "horizontal" and len(metrics) >= 3
+    metrics = apply_compact_currency(metrics, compact=compact)
+    n = max(1, len(metrics))
+    width = int(el.get("width") or region.get("width") or max(200, canvas_w - 48)) if keep_geo else int(
+        region.get("width") or max(200, canvas_w - 48)
+    )
+    if layout == "horizontal":
+        height = int(el.get("height") or max(96, int(round(canvas_h * 0.14)))) if keep_geo else max(
+            96, int(round(canvas_h * 0.14))
+        )
+    elif layout == "stacked":
+        height = max(48 * n, int(round(canvas_h * 0.06) * n))
+    else:
+        height = max(100, int(round(canvas_h * 0.18)))
+    cap = int(region.get("max_height") or int(round(canvas_h * 0.28)))
+    height = min(int(el.get("height") or height) if keep_geo else height, cap)
+    geo = constrain_element(
+        {
+            **el,
+            "type": "METRIC_GROUP",
+            "x": el.get("x") if keep_geo else region.get("x", el.get("x")),
+            "y": el.get("y") if keep_geo else region.get("y", el.get("y")),
+            "width": width,
+            "height": height,
+        },
+        canvas_w=canvas_w,
+        canvas_h=canvas_h,
+    )
+    out = dict(el)
+    out.update(geo)
+    out["type"] = "METRIC_GROUP"
+    out["role"] = "metric_group"
+    out["layout"] = layout
+    out["metrics"] = structured_metrics_to_dicts(metrics)
+    return out
+
+
 def _boxes_overlap(a: dict[str, Any], b: dict[str, Any], gap: int = 0) -> bool:
     ax1 = int(_finite_num(a.get("x"), 0))
     ay1 = int(_finite_num(a.get("y"), 0))
@@ -683,6 +762,8 @@ def _priority_for(el: dict[str, Any]) -> int:
     el_type = str(el.get("type") or "").upper()
     if el_type in {"BUTTON", "CTA"}:
         return ROLE_PRIORITY["cta"]
+    if el_type == "METRIC_GROUP":
+        return ROLE_PRIORITY["metric_group"]
     if el_type == "IMAGE":
         return ROLE_PRIORITY["image"]
     role = str(el.get("role") or "custom").lower()
@@ -707,6 +788,7 @@ def resolve_collisions(
     headline = next((e for e in working if e.get("type") == "TEXT" and e.get("role") == "headline"), None)
     eyebrow = next((e for e in working if e.get("type") == "TEXT" and e.get("role") == "eyebrow"), None)
     body = next((e for e in working if e.get("type") == "TEXT" and e.get("role") == "body"), None)
+    metric_group = next((e for e in working if e.get("type") == "METRIC_GROUP"), None)
     cta = next((e for e in working if e.get("type") in {"BUTTON", "CTA"}), None)
 
     if eyebrow and headline:
@@ -765,9 +847,21 @@ def resolve_collisions(
         cta["y"] = target_y
         cta.update(constrain_element(cta, canvas_w=canvas_w, canvas_h=canvas_h))
 
-    if headline and cta and not body:
+    if headline and cta and not body and not metric_group:
         min_cta_y = int(headline["y"]) + int(headline["height"]) + gap
         cta["y"] = min(max(int(cta["y"]), min_cta_y), box["y"] + box["height"] - int(cta.get("height") or 40))
+        cta.update(constrain_element(cta, canvas_w=canvas_w, canvas_h=canvas_h))
+
+    if headline and metric_group:
+        min_mg_y = int(headline["y"]) + int(headline["height"]) + gap
+        if int(metric_group["y"]) < min_mg_y:
+            metric_group["y"] = min_mg_y
+            metric_group.update(constrain_element(metric_group, canvas_w=canvas_w, canvas_h=canvas_h))
+
+    if metric_group and cta:
+        min_cta_y = int(metric_group["y"]) + int(metric_group["height"]) + gap
+        max_cta_y = box["y"] + box["height"] - int(cta.get("height") or 40)
+        cta["y"] = min(max(int(cta["y"]), min_cta_y), max_cta_y)
         cta.update(constrain_element(cta, canvas_w=canvas_w, canvas_h=canvas_h))
 
     # Generic pairwise: push lower-priority down.
@@ -993,6 +1087,8 @@ def resolve_layout(
             btn = dict(el)
             btn.update(geo)
             next_elements.append(btn)
+        elif el_type == "METRIC_GROUP":
+            next_elements.append(layout_metric_group(el, canvas_w=cw, canvas_h=ch, slot=None))
         elif el_type == "IMAGE":
             geo = constrain_element(el, canvas_w=cw, canvas_h=ch, full_bleed=True)
             img = dict(el)
@@ -1042,6 +1138,10 @@ def apply_layout_grammar(post: dict[str, Any]) -> dict[str, Any]:
         elif el_type in {"BUTTON", "CTA"}:
             next_elements.append(
                 layout_cta_element(el, canvas_w=cw, canvas_h=ch, slot=slots.get("cta"), align=align)
+            )
+        elif el_type == "METRIC_GROUP":
+            next_elements.append(
+                layout_metric_group(el, canvas_w=cw, canvas_h=ch, slot=slots.get("metric_group") or slots.get("body"))
             )
         elif el_type == "IMAGE":
             geo = constrain_element(el, canvas_w=cw, canvas_h=ch, full_bleed=True)

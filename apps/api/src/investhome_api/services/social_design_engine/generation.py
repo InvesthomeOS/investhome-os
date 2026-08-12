@@ -120,6 +120,14 @@ EDIT_VERBS = (
     "basligi daha guclu",
     "adres bilgisini",
     "daha kurumsal",
+    "rakamları alt alta",
+    "rakamlari alt alta",
+    "rakamları kart",
+    "rakamlari kart",
+    "getiriyi öne",
+    "getiriyi one",
+    "daha küçük göster",
+    "daha kucuk goster",
 )
 
 REPLACE_IMAGE_EDIT = (
@@ -176,8 +184,8 @@ class ContentPackage:
 
 @dataclass
 class DesignPlanElement:
-    type: str  # TEXT | BUTTON
-    role: str  # headline | body | cta
+    type: str  # TEXT | BUTTON | METRIC_GROUP
+    role: str  # headline | body | cta | eyebrow | metric_group
     text: str
     x: int
     y: int
@@ -190,6 +198,8 @@ class DesignPlanElement:
     background_color: str | None = None
     text_color: str | None = None
     z_index: int = 2
+    metrics: list[dict[str, Any]] | None = None
+    metric_layout: str | None = None
 
 
 @dataclass
@@ -247,6 +257,24 @@ def is_surgical_edit(instruction: str) -> bool:
     if re.search(r"\b(cta|buton|button|başlık|baslik|headline)\b.{0,24}\b(kaldır|kaldir|remove|delete)\b", t):
         return True
     if re.search(r"\b(kaldır|kaldir|remove|delete)\b.{0,24}\b(cta|buton|button|başlık|baslik)\b", t):
+        return True
+    if any(
+        k in t
+        for k in (
+            "rakamları alt alta",
+            "rakamlari alt alta",
+            "rakamları kart",
+            "rakamlari kart",
+            "metric",
+            "stacked",
+            "getiriyi öne",
+            "getiriyi one",
+        )
+    ):
+        return True
+    if re.search(r"\b(\d+)\s*(ayı?|months?)\b.{0,12}\b(\d+)\s*(ayı?|months?)\b", t) and any(
+        k in t for k in ("yap", "make", "change", "değiştir", "degistir")
+    ):
         return True
     return False
 
@@ -437,7 +465,9 @@ def classify_generation_intent(
 
     cta_hint = None
     if objective == "investment":
-        cta_hint = "Explore the investment" if lang == "en" else "Yatırım fırsatını incele"
+        from investhome_api.services.social_design_engine.localization import choose_investment_cta
+
+        cta_hint = choose_investment_cta(lang)
     elif objective == "location":
         cta_hint = "Explore the Neighborhood" if lang == "en" else "Mahalleyi keşfet"
     elif any(k in t for k in ("tur", "tour", "randevu")):
@@ -615,30 +645,56 @@ def _restore_exact_tokens(text: str, facts: list[CampaignFact]) -> str:
 
 
 def enforce_campaign_facts(package: ContentPackage, facts: list[CampaignFact]) -> ContentPackage:
-    """Guarantee user-supplied numbers appear verbatim and are not rewritten."""
-    if not facts:
-        return package
-    headline = _restore_exact_tokens(package.headline, facts)
-    supporting = _restore_exact_tokens(package.supporting_text, facts)
-    key_fact = _restore_exact_tokens(package.key_fact, facts)
-    cta = _restore_exact_tokens(package.cta, facts)
-    blob = " ".join([headline, supporting, key_fact, cta])
-    missing = [f for f in facts if f.display not in blob]
-    if missing:
-        extra = " · ".join(f.display for f in missing)
-        if key_fact:
-            key_fact = f"{key_fact} · {extra}"
-        else:
-            key_fact = extra
-    return ContentPackage(
+    """Keep user-supplied numbers immutable. Do not flatten metrics into a sentence."""
+    from investhome_api.services.social_design_engine.localization import (
+        looks_like_concatenated_metrics,
+        repair_language_leaks,
+        validate_creative_language,
+        visible_fields_from_package,
+    )
+
+    headline = package.headline
+    supporting = package.supporting_text
+    key_fact = package.key_fact
+    cta = package.cta
+    eyebrow = getattr(package, "eyebrow", "") or ""
+    lang = package.language or "en"
+
+    if looks_like_concatenated_metrics(supporting):
+        supporting = ""
+    if looks_like_concatenated_metrics(key_fact):
+        key_fact = ""
+    if looks_like_concatenated_metrics(headline):
+        headline = repair_language_leaks(headline, language=lang)
+
+    headline = repair_language_leaks(headline, language=lang)
+    supporting = repair_language_leaks(supporting, language=lang)
+    key_fact = repair_language_leaks(key_fact, language=lang)
+    cta = repair_language_leaks(cta, language=lang)
+    eyebrow = repair_language_leaks(eyebrow, language=lang)
+
+    repaired = ContentPackage(
         headline=_clip_copy(headline, 70),
         supporting_text=_clip_copy(supporting, 160),
         key_fact=_clip_copy(key_fact, 80),
         cta=_clip_copy(cta, 36) or package.cta,
         language=package.language,
         tone=package.tone,
-        eyebrow=_clip_copy(getattr(package, "eyebrow", "") or "", 32),
+        eyebrow=_clip_copy(eyebrow, 48),
     )
+    report = validate_creative_language(language=lang, fields=visible_fields_from_package(repaired))
+    if not report.passed:
+        for issue in report.issues:
+            if issue.field == "headline":
+                repaired.headline = repair_language_leaks(repaired.headline, language=lang)
+            elif issue.field == "support":
+                repaired.supporting_text = repair_language_leaks(repaired.supporting_text, language=lang)
+            elif issue.field == "cta":
+                repaired.cta = repair_language_leaks(repaired.cta, language=lang)
+            elif issue.field == "eyebrow":
+                repaired.eyebrow = repair_language_leaks(repaired.eyebrow, language=lang)
+    _ = facts
+    return repaired
 
 
 def build_heuristic_content_package(
@@ -666,10 +722,10 @@ def build_heuristic_content_package(
         cta = concept.cta if concept.include_cta else ""
         key_fact = ""
         if intent.marketing_objective == "investment" and campaign_facts:
-            numbers = " · ".join(f.display for f in campaign_facts)
-            blob = f"{headline} {supporting}"
-            if any(f.display not in blob for f in campaign_facts):
-                supporting = numbers
+            # Metrics are a structured group, not supporting copy.
+            supporting = supporting if not any(f.display in (supporting or "") for f in campaign_facts) else ""
+            if " · " in (supporting or ""):
+                supporting = ""
         if is_generic_headline(headline):
             headline = clip_headline(concept.primary_message or project_name)
         if is_generic_cta(cta):
@@ -690,15 +746,26 @@ def build_heuristic_content_package(
     location_bits = [b for b in facts if b and b.lower() not in {project_name.lower()}]
     city = context.project_identity.city or ""
     city_bit = next((b for b in location_bits if city and city.lower() in b.lower()), city)
+    eyebrow = ""
 
     if intent.marketing_objective == "investment":
-        headline = f"Invest in {project_name}" if en else f"{project_name} yatırım fırsatı"
-        numbers = " · ".join(f.display for f in campaign_facts) or (
-            marketing[0] if marketing else ""
+        from investhome_api.services.social_design_engine.localization import (
+            choose_investment_cta,
+            project_identity_lines,
         )
-        supporting = numbers
+
+        ident, place = project_identity_lines(
+            project_name=project_name,
+            city=city,
+            locale=lang,
+        )
+        headline = f"Invest in {project_name}" if en else f"{project_name} yatırım fırsatı"
+        supporting = ""
         key_fact = ""
-        cta = intent.cta_hint or ("Explore the investment" if en else "Yatırım fırsatını incele")
+        cta = intent.cta_hint or choose_investment_cta(lang)
+        eyebrow = ident if ident else ""
+        if place and eyebrow and len(eyebrow) + len(place) + 3 <= 48:
+            eyebrow = f"{eyebrow}\n{place}"
     elif intent.marketing_objective == "location":
         place = city or project_name
         headline = (
@@ -738,6 +805,7 @@ def build_heuristic_content_package(
         cta=cta or ("Schedule a private tour" if en else "Özel tur planla"),
         language=lang,
         tone=intent.tone,
+        eyebrow=_clip_copy(eyebrow, 48),
     )
     return enforce_campaign_facts(package, campaign_facts)
 
@@ -767,8 +835,11 @@ def build_content_package_prompt(
         "Never put construction status, GSF, zoning, unit counts, financing, or filenames on the canvas. "
         "Do not claim steps from / minutes from / heart of DC / walkable / connected to everything "
         "unless those phrases appear in supporting_evidence. "
-        "User-supplied campaign numbers must appear EXACTLY as given (do not round, convert, or localize). "
-        "If the user wrote $500,000 keep $500,000; if %14 keep %14; if 24 ay keep 24 ay. "
+        "User-supplied campaign figures are structured metrics (value + label), not a concatenated sentence. "
+        "Do NOT write strings like '$500,000 · %14 · 24 ay'. Do not put campaign numbers in headline or support. "
+        "Do not silently change 500000 / 14 / 24. Semantic localization is owned by the metric layer. "
+        "If output language is English: 14% not %14; 24 Months not 24 ay; no Turkish fragments in the ad. "
+        "If a metric is the headline it must keep meaning (14% TARGET RETURN), never 'Target %14'. "
         "Do not persist campaign numbers as canonical project facts — they are this campaign only. "
         "Never include RAG/debug/metadata (Sources, chunk ids, document filenames, asset ids, provider). "
         "Headline: 2–8 words, campaign idea, not a database summary or street line. "
@@ -833,6 +904,7 @@ def build_content_package_prompt(
         "selected_facts": selected,
         "information_to_exclude": exclude,
         "user_supplied_campaign_facts": campaign_facts_to_dicts(campaign_facts),
+        "structured_metrics": list(getattr(concept, "structured_metrics", []) or []) if concept is not None else [],
         "language": intent.language,
     }
     user = f"{CONTENT_PACKAGE_MARKER}\n{json.dumps(user_obj, ensure_ascii=False, default=str)}"
@@ -921,6 +993,8 @@ def build_design_plan(
     canvas_w: int | None = None,
     canvas_h: int | None = None,
     concept: Any | None = None,
+    structured_metrics: list[Any] | None = None,
+    metric_layout: str | None = None,
 ) -> DesignPlan:
     from investhome_api.services.social_design_engine.layout import measure_text_block, role_font_prefs
 
@@ -953,10 +1027,38 @@ def build_design_plan(
     include_support = bool(package.supporting_text) and (concept is None or concept.include_support)
     include_cta = bool(package.cta) and (concept is None or concept.include_cta)
 
+    from investhome_api.services.social_design_engine.localization import looks_like_concatenated_metrics
+    from investhome_api.services.social_design_engine.metrics import (
+        choose_metric_group_layout,
+        structured_metrics_from_dicts,
+        structured_metrics_to_dicts,
+    )
+
+    metrics_in = structured_metrics
+    if metrics_in is None and concept is not None:
+        metrics_in = getattr(concept, "structured_metrics", None)
+    parsed_metrics = []
+    if metrics_in:
+        if metrics_in and hasattr(metrics_in[0], "display_value"):
+            parsed_metrics = list(metrics_in)
+        else:
+            parsed_metrics = structured_metrics_from_dicts(list(metrics_in))
+    requested_layout = metric_layout
+    if requested_layout is None and concept is not None:
+        requested_layout = getattr(concept, "metric_group_layout", None)
+    include_metrics = bool(parsed_metrics)
+    if include_metrics:
+        include_support = False
+
     body_text = package.supporting_text
     if package.key_fact and package.key_fact not in (body_text or "") and include_support:
-        # Never a fifth block — fold key_fact into support.
-        body_text = f"{body_text} · {package.key_fact}".strip(" ·") if body_text else package.key_fact
+        if looks_like_concatenated_metrics(package.key_fact):
+            pass
+        else:
+            body_text = f"{body_text} · {package.key_fact}".strip(" ·") if body_text else package.key_fact
+    if looks_like_concatenated_metrics(body_text or ""):
+        body_text = ""
+        include_support = False
     body_text = _clip_copy(body_text, 160) if include_support else ""
 
     h_prefs = role_font_prefs("headline", w)
@@ -1008,6 +1110,38 @@ def build_design_plan(
         )
     )
     y_cursor = headline_y + hh + stack_gap
+    if include_metrics:
+        ms = slots.get("metric_group") or bs
+        layout = choose_metric_group_layout(
+            metrics=parsed_metrics,
+            format_preset=preset,
+            canvas_w=w,
+            available_width=int(ms.get("width") or hs["width"]),
+            requested=requested_layout,  # type: ignore[arg-type]
+        )
+        mg_h = int(ms.get("max_height") or max(120, int(round(h * 0.16))))
+        if layout == "stacked":
+            mg_h = min(int(round(h * 0.28)), max(mg_h, 48 * len(parsed_metrics)))
+        elif layout == "cards":
+            mg_h = min(int(round(h * 0.26)), max(mg_h, 88))
+        mg_y = max(int(ms.get("y") or y_cursor), y_cursor)
+        elements.append(
+            DesignPlanElement(
+                type="METRIC_GROUP",
+                role="metric_group",
+                text="",
+                x=int(ms.get("x") or hs["x"]),
+                y=mg_y,
+                width=int(ms.get("width") or hs["width"]),
+                height=mg_h,
+                align=align,
+                color="#ffffff",
+                z_index=4,
+                metrics=structured_metrics_to_dicts(parsed_metrics),
+                metric_layout=layout,
+            )
+        )
+        y_cursor = mg_y + mg_h + stack_gap
     if include_support and body_text:
         bh = _block_h(body_text, b_prefs["preferred"], bs["width"], bold=False, cap=bs["max_height"])
         body_y = max(bs["y"], y_cursor)
@@ -1161,6 +1295,25 @@ def compose_ops_from_plan(
                     },
                 }
             )
+        elif el.type == "METRIC_GROUP":
+            ops.append(
+                {
+                    "op": "ADD_METRIC_GROUP",
+                    "linked_project_id": pid,
+                    "post_id": post_id,
+                    "element_id": None,
+                    "payload": {
+                        "layout": el.metric_layout or "horizontal",
+                        "metrics": el.metrics or [],
+                        "color": el.color,
+                        "zIndex": el.z_index,
+                        "x": el.x,
+                        "y": el.y,
+                        "width": el.width,
+                        "height": el.height,
+                    },
+                }
+            )
     return ops
 
 
@@ -1191,6 +1344,8 @@ def build_generation_metadata(
     marketing_strategy: dict[str, Any] | None = None,
     copy_quality: dict[str, Any] | None = None,
     headline_candidates: list[dict[str, Any]] | None = None,
+    structured_metrics: list[dict[str, Any]] | None = None,
+    metric_group: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "generated_by": "social_design_engine",
@@ -1198,6 +1353,8 @@ def build_generation_metadata(
         "user_prompt": (user_prompt or "")[:2000],
         "generation_intent": generation_intent_to_dict(intent),
         "campaign_facts": campaign_facts_to_dicts(campaign_facts),
+        "structured_metrics": structured_metrics or [],
+        "metric_group": metric_group,
         "source_document_ids": source_document_ids,
         "selected_asset_ids": selected_asset_ids,
         "provider": provider,

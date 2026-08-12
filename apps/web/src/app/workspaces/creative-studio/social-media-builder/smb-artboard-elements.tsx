@@ -60,7 +60,7 @@ function finiteOr(n: unknown, fallback: number): number {
 function isRenderableElement(el: SocialElement | null | undefined): el is SocialElement {
   if (!el || typeof el !== 'object') return false;
   if (typeof el.id !== 'string' || !el.id) return false;
-  if (el.type !== 'TEXT' && el.type !== 'BUTTON' && el.type !== 'IMAGE') return false;
+  if (el.type !== 'TEXT' && el.type !== 'BUTTON' && el.type !== 'IMAGE' && el.type !== 'METRIC_GROUP') return false;
   return Number.isFinite(finiteOr(el.x, NaN)) && Number.isFinite(finiteOr(el.y, NaN));
 }
 
@@ -459,6 +459,54 @@ export function SmbArtboardElements({
               ) : (
                 <span>{typeof el.label === 'string' ? el.label : ''}</span>
               )}
+              {resizeHandle}
+            </div>
+          );
+        }
+
+        if (el.type === 'METRIC_GROUP') {
+          const metrics = Array.isArray(el.metrics) ? el.metrics : [];
+          const layout = el.layout === 'stacked' || el.layout === 'cards' ? el.layout : 'horizontal';
+          const color = typeof el.color === 'string' && el.color.trim() ? el.color : '#ffffff';
+          const groupH = Math.max(8, finiteOr(el.height, 120));
+          const valueFont = Math.max(18, Math.round(groupH * (layout === 'stacked' ? 0.32 : 0.38)));
+          const labelFont = Math.max(10, Math.round(groupH * (layout === 'stacked' ? 0.18 : 0.16)));
+          return (
+            <div
+              key={el.id}
+              className={`smb-ws__el smb-ws__el--metrics smb-ws__el--metrics-${layout}${selected ? ' is-selected' : ''}`}
+              style={{ ...style, color }}
+              data-testid={`smb-el-${el.id}`}
+              data-el-type="METRIC_GROUP"
+              data-metric-layout={layout}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(el.id);
+              }}
+              onPointerDown={(e) => beginDrag(e, el, 'move')}
+              role="button"
+              tabIndex={0}
+            >
+              {metrics.map((metric) => (
+                <div
+                  key={metric.id}
+                  className={`smb-ws__metric${metric.emphasis === 'primary' ? ' is-primary' : ''}`}
+                  data-metric-id={metric.id}
+                  data-metric-type={metric.type}
+                >
+                  <span
+                    className="smb-ws__metric-value"
+                    style={{
+                      fontSize: metric.emphasis === 'primary' ? Math.round(valueFont * 1.08) : valueFont,
+                    }}
+                  >
+                    {metric.display_value}
+                  </span>
+                  <span className="smb-ws__metric-label" style={{ fontSize: labelFont }}>
+                    {metric.label}
+                  </span>
+                </div>
+              ))}
               {resizeHandle}
             </div>
           );

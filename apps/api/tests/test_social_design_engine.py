@@ -1558,11 +1558,21 @@ def test_campaign_facts_preserved_exactly() -> None:
         instruction=prompt, intent=intent, context=ctx, campaign_facts=facts
     )
     blob = f"{package.headline} {package.supporting_text} {package.key_fact} {package.cta}"
-    assert "$500,000" in blob
-    assert "%14" in blob
-    assert "24 ay" in blob
-    assert "500k" not in blob.lower()
-    assert "14%" not in blob or "%14" in blob
+    assert " · " not in (package.supporting_text or "")
+    assert "%14" not in blob
+    assert "24 ay" not in blob.lower()
+    from investhome_api.services.social_design_engine.metrics import campaign_facts_to_structured_metrics
+
+    metrics = campaign_facts_to_structured_metrics(facts, language="en", instruction=prompt)
+    raws = {m.raw_value for m in metrics}
+    assert 500000 in raws
+    assert 14 in raws
+    assert 24 in raws
+    displays = {m.display_value for m in metrics}
+    assert any(d in {"$500,000", "$500K"} for d in displays)
+    assert "14%" in displays
+    assert "24 Months" in displays
+    assert not any("%14" == d for d in displays)
 
     tampered = package.__class__(
         headline="Invest now",
@@ -1574,9 +1584,8 @@ def test_campaign_facts_preserved_exactly() -> None:
     )
     fixed = enforce_campaign_facts(tampered, facts)
     fixed_blob = f"{fixed.headline} {fixed.supporting_text} {fixed.key_fact}"
-    assert "$500,000" in fixed_blob
-    assert "%14" in fixed_blob
-    assert "24 ay" in fixed_blob
+    assert " · " not in (fixed.supporting_text or "")
+    assert "24 ay" not in fixed_blob.lower()
 
     plan = build_design_plan(
         package=fixed,
@@ -1584,16 +1593,19 @@ def test_campaign_facts_preserved_exactly() -> None:
         picked_asset_id=uuid4(),
         post_id="p1",
         rebuild=True,
+        structured_metrics=metrics,
     )
     ops = compose_ops_from_plan(plan, linked_project_id=TEMPLE_PROJECT_ID, instruction=prompt)
     names = [o["op"] for o in ops]
     assert names[0] == "CREATE_POST"
     assert "ADD_TEXT" in names
     assert "ADD_CTA" in names
+    assert "ADD_METRIC_GROUP" in names
     copy_blob = json.dumps(ops)
-    assert "$500,000" in copy_blob
+    assert "500000" in copy_blob or "$500" in copy_blob
     assert "metadata.json" not in copy_blob
     assert "Sources:" not in copy_blob
+    assert " · " not in copy_blob or "ADD_METRIC_GROUP" in names
 
 
 def test_composer_rebuilds_canvas_schema_and_layout(client, db_session: Session) -> None:
@@ -1723,19 +1735,49 @@ def test_investment_generation_preserves_campaign_numbers(client, db_session: Se
     assert resp.status_code == 200, resp.text
     body = resp.json()
     post = body["posts"][0]
-    copy_blob = json.dumps(post.get("elements") or [])
-    assert "$500,000" in copy_blob
-    assert "%14" in copy_blob
-    assert "24 ay" in copy_blob
-    assert any(e.get("type") == "BUTTON" for e in post["elements"])
-    cta = next(e for e in post["elements"] if e.get("type") == "BUTTON")
+    elements = post.get("elements") or []
+    visible_parts: list[str] = []
+    for el in elements:
+        visible_parts.append(str(el.get("content") or ""))
+        visible_parts.append(str(el.get("label") or ""))
+        for metric in el.get("metrics") or []:
+            if not isinstance(metric, dict):
+                continue
+            visible_parts.append(str(metric.get("display_value") or ""))
+            visible_parts.append(str(metric.get("label") or ""))
+            visible_parts.append(str(metric.get("unit") or ""))
+    visible_blob = " ".join(visible_parts)
+    assert "%14" not in visible_blob
+    assert "24 ay" not in visible_blob.lower()
+    assert " · " not in visible_blob
+    metric_el = next((e for e in elements if e.get("type") == "METRIC_GROUP"), None)
+    assert metric_el is not None
+    metrics = metric_el.get("metrics") or []
+    assert 1 <= len(metrics) <= 3
+    raws = {m.get("raw_value") for m in metrics}
+    assert 500000 in raws
+    assert 14 in raws
+    assert 24 in raws
+    displays = " ".join(str(m.get("display_value") or "") for m in metrics)
+    labels = " ".join(str(m.get("label") or "") for m in metrics)
+    assert "14%" in displays
+    assert "24 Months" in displays
+    assert "Minimum" in labels or "Investment" in labels
+    assert "Return" in labels or "Target" in labels
+    assert any(e.get("type") == "BUTTON" for e in elements)
+    cta = next(e for e in elements if e.get("type") == "BUTTON")
     label = (cta.get("label") or "").lower()
-    assert any(k in label for k in ("invest", "investor", "opportunity", "details", "yatırım"))
+    assert any(k in label for k in ("invest", "investor", "opportunity", "details", "team"))
+    assert "incele" not in label
     facts = body["meta"].get("campaign_facts") or []
-    displays = {f.get("display") for f in facts}
-    assert "$500,000" in displays
-    # Campaign numbers are metadata, not canonical project facts
+    displays_meta = {f.get("display") for f in facts}
+    assert "$500,000" in displays_meta
+    structured = body["meta"].get("structured_metrics") or []
+    assert structured
     assert body["meta"]["generation_intent"]["marketing_objective"] == "investment"
+    headline = next(e for e in elements if e.get("role") == "headline")
+    assert "target %14" not in str(headline.get("content") or "").lower()
+    assert "ay" not in str(headline.get("content") or "").lower()
 
 
 def test_semantic_asset_preference_prefers_exterior_for_location() -> None:
@@ -2217,13 +2259,13 @@ def test_copy_director_investment_keeps_exact_campaign_numbers() -> None:
     assert strategy.objective == "investment"
     direction = build_copy_package(strategy=strategy, intent=intent, campaign_facts=facts)
     blob = f"{direction.package.headline} {direction.package.supporting_copy} {direction.package.cta}"
-    assert "$500,000" in blob
-    assert "%14" in blob
-    assert "24 ay" in blob
+    assert " · " not in (direction.package.supporting_copy or "")
+    assert "%14" not in blob
+    assert "24 ay" not in blob.lower()
+    assert "target %14" not in direction.package.headline.lower()
     assert "1610" not in blob
     assert "under construction" not in blob.lower()
-    metrics = [p for p in direction.package.supporting_copy.split("·")]
-    assert len(metrics) <= 3
+    assert "invest" in blob.lower() or "return" in blob.lower()
 
 
 def test_architecture_objective_does_not_dump_location_or_investment() -> None:
@@ -2361,5 +2403,112 @@ def test_architecture_generation_endpoint(client, db_session: Session) -> None:
     from investhome_api.services.social_design_engine.marketing_strategist import looks_like_street_address
 
     assert not looks_like_street_address(str(headline.get("content") or ""))
+
+
+def test_structured_metrics_localization_and_safety() -> None:
+    from investhome_api.services.social_design_engine.generation import extract_campaign_facts
+    from investhome_api.services.social_design_engine.localization import (
+        format_duration,
+        format_percentage,
+        looks_like_concatenated_metrics,
+        validate_creative_language,
+        visible_fields_from_package,
+    )
+    from investhome_api.services.social_design_engine.metrics import (
+        campaign_facts_to_structured_metrics,
+        choose_metric_group_layout,
+        horizontal_metrics_fit,
+        raw_values_unchanged,
+        update_metric_raw_value,
+    )
+
+    prompt = (
+        "The Temple için yatırımcı odaklı premium Instagram postu hazırla. "
+        "Bu kampanya için test girdileri: Minimum yatırım: $500,000 Hedef getiri: %14 "
+        "Yatırım süresi: 24 ay. Bu rakamları değiştirme. İngilizce hazırla."
+    )
+    facts = extract_campaign_facts(prompt)
+    en_metrics = campaign_facts_to_structured_metrics(facts, language="en", instruction=prompt)
+    tr_metrics = campaign_facts_to_structured_metrics(facts, language="tr", instruction=prompt)
+    assert format_percentage(14, "en") == "14%"
+    assert format_percentage(14, "tr") == "%14"
+    assert format_duration(24, "en") == "24 Months"
+    assert format_duration(24, "tr") == "24 Ay"
+    en_disp = {m.display_value for m in en_metrics}
+    tr_disp = {m.display_value for m in tr_metrics}
+    assert "14%" in en_disp
+    assert "%14" in tr_disp
+    assert "24 Months" in en_disp
+    assert "24 Ay" in tr_disp
+    assert all(m.raw_value in {500000, 14, 24} for m in en_metrics)
+    assert raw_values_unchanged(en_metrics, tr_metrics)
+    mutated = [update_metric_raw_value(en_metrics[0], 550000), *en_metrics[1:]]
+    assert not raw_values_unchanged(en_metrics, mutated)
+    assert looks_like_concatenated_metrics("$500,000 · %14 · 24 ay")
+    assert not looks_like_concatenated_metrics("A refined address in Washington.")
+    leak = validate_creative_language(
+        language="en",
+        fields={"support": "$500,000 · %14 · 24 ay", "cta": "Yatırımı incele"},
+    )
+    assert not leak.passed
+
+    class _Pkg:
+        eyebrow = "TEMPLE RESIDENCES"
+        headline = "Invest in Temple Residences"
+        supporting_text = ""
+        cta = "Explore the Investment"
+
+    ok = validate_creative_language(language="en", fields=visible_fields_from_package(_Pkg(), en_metrics))
+    assert ok.passed
+    assert choose_metric_group_layout(
+        metrics=en_metrics, format_preset="square", canvas_w=1080, available_width=840
+    ) == "horizontal"
+    assert not horizontal_metrics_fit(en_metrics, available_width=80, canvas_w=1080)
+    assert choose_metric_group_layout(
+        metrics=en_metrics, format_preset="square", canvas_w=1080, available_width=80
+    ) in {"stacked", "cards"}
+
+
+def test_metric_layout_edit_and_explicit_value_change() -> None:
+    from investhome_api.services.social_design_engine.intent import classify_edit_intents
+
+    stacked = classify_edit_intents("Rakamları alt alta al")
+    assert "CHANGE_METRIC_LAYOUT" in stacked.intent_names
+    assert any(i.meta.get("layout") == "stacked" for i in stacked.intents)
+    cards = classify_edit_intents("Rakamları kart şeklinde göster")
+    assert any(i.meta.get("layout") == "cards" for i in cards.intents)
+    emphasis = classify_edit_intents("Getiriyi öne çıkar")
+    assert "CHANGE_METRIC_EMPHASIS" in emphasis.intent_names
+    factual = classify_edit_intents("24 ayı 36 ay yap")
+    assert "CHANGE_METRIC_VALUE" in factual.intent_names
+    assert any(i.meta.get("raw_value") == 36 for i in factual.intents)
+
+
+def test_campaign_figures_not_written_as_canonical_facts() -> None:
+    from investhome_api.services.social_design_engine.generation import (
+        build_generation_metadata,
+        classify_generation_intent,
+        extract_campaign_facts,
+    )
+
+    prompt = (
+        "Minimum yatırım: $500,000 Hedef getiri: %14 Yatırım süresi: 24 ay. İngilizce hazırla."
+    )
+    intent = classify_generation_intent(prompt, project_name="Temple Residences")
+    facts = extract_campaign_facts(prompt)
+    meta = build_generation_metadata(
+        project_id=TEMPLE_PROJECT_ID,
+        user_prompt=prompt,
+        intent=intent,
+        campaign_facts=facts,
+        source_document_ids=[],
+        selected_asset_ids=[],
+        provider="test",
+        model="test",
+    )
+    assert meta["campaign_facts"]
+    assert "verified_facts" not in meta
+    assert meta.get("generated_by") == "social_design_engine"
+
 
 

@@ -11,8 +11,31 @@ import {
  */
 
 export type SocialTextAlign = 'left' | 'center' | 'right';
-export type SocialElementType = 'TEXT' | 'IMAGE' | 'BUTTON';
+export type SocialElementType = 'TEXT' | 'IMAGE' | 'BUTTON' | 'METRIC_GROUP';
 export type SocialTextRole = 'headline' | 'body' | 'custom' | 'eyebrow';
+export type SocialMetricType =
+  | 'currency'
+  | 'percentage'
+  | 'duration'
+  | 'count'
+  | 'yield'
+  | 'return'
+  | 'price'
+  | 'generic_numeric';
+export type SocialMetricLayout = 'horizontal' | 'stacked' | 'cards';
+export type SocialMetricEmphasis = 'primary' | 'secondary' | 'tertiary';
+
+export type SocialStructuredMetric = {
+  id: string;
+  type: SocialMetricType;
+  raw_value: number | string;
+  display_value: string;
+  label: string;
+  unit: string;
+  locale: string;
+  emphasis: SocialMetricEmphasis;
+  source_token?: string;
+};
 
 export type SocialElementBase = {
   id: string;
@@ -46,7 +69,18 @@ export type SocialButtonElement = SocialElementBase & {
   textColor: string;
 };
 
-export type SocialElement = SocialTextElement | SocialImageElement | SocialButtonElement;
+export type SocialMetricGroupElement = SocialElementBase & {
+  type: 'METRIC_GROUP';
+  layout: SocialMetricLayout;
+  metrics: SocialStructuredMetric[];
+  color: string;
+};
+
+export type SocialElement =
+  | SocialTextElement
+  | SocialImageElement
+  | SocialButtonElement
+  | SocialMetricGroupElement;
 
 const UUID_FRAGMENT = () =>
   `e-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -72,7 +106,7 @@ export function ensureUniqueElementIds(elements: SocialElement[]): SocialElement
             ? 'body'
             : el.role === 'eyebrow'
               ? 'eyebrow'
-              : 'text' : el.type === 'BUTTON' ? 'cta' : 'img';
+              : 'text' : el.type === 'BUTTON' ? 'cta' : el.type === 'METRIC_GROUP' ? 'metrics' : 'img';
     let next = nextElementId(prefix);
     while (seen.has(next)) next = nextElementId(prefix);
     seen.add(next);

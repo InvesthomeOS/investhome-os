@@ -24,6 +24,7 @@ OPS_REQUIRING_ELEMENT = frozenset(
         "DELETE_ELEMENT",
         "REPLACE_IMAGE",
         "UPDATE_CTA",
+        "UPDATE_METRIC_GROUP",
         "MOVE_ELEMENT",
         "RESIZE_ELEMENT",
         "ALIGN_ELEMENT",
@@ -32,7 +33,7 @@ OPS_REQUIRING_ELEMENT = frozenset(
     }
 )
 
-OPS_CREATING_ELEMENT = frozenset({"ADD_TEXT", "ADD_IMAGE", "ADD_CTA"})
+OPS_CREATING_ELEMENT = frozenset({"ADD_TEXT", "ADD_IMAGE", "ADD_CTA", "ADD_METRIC_GROUP"})
 
 UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
@@ -351,7 +352,7 @@ def validate_op(
 
     # ADD_TEXT / ADD_CTA: do NOT invent free pixel coords here — layout grammar owns placement.
     # If LLM sent geometry, clamp into safe margins; otherwise leave unset for apply().
-    if op_name in {"ADD_TEXT", "ADD_CTA"}:
+    if op_name in {"ADD_TEXT", "ADD_CTA", "ADD_METRIC_GROUP"}:
         assert post is not None or True
         target = post or {"width": 1080, "height": 1080, "formatPreset": "square"}
         cw, ch = canvas_size(target)
@@ -439,6 +440,32 @@ def validate_op(
             )
         if "textColor" in payload or op_name == "ADD_CTA":
             payload["textColor"] = sanitize_color(payload.get("textColor"), "#111827")
+
+    if op_name in {"ADD_METRIC_GROUP", "UPDATE_METRIC_GROUP"}:
+        from investhome_api.services.social_design_engine.metrics import (
+            METRIC_LAYOUTS,
+            MAX_CAMPAIGN_METRICS,
+            structured_metrics_from_dicts,
+            structured_metrics_to_dicts,
+        )
+
+        layout = str(payload.get("layout") or "horizontal").strip().lower()
+        if layout not in METRIC_LAYOUTS:
+            layout = "horizontal"
+        payload["layout"] = layout
+        raw_metrics = payload.get("metrics")
+        parsed = structured_metrics_from_dicts(raw_metrics if isinstance(raw_metrics, list) else [])
+        if op_name == "ADD_METRIC_GROUP" and not parsed:
+            raise OpValidationError("metric_group_requires_metrics")
+        if parsed:
+            payload["metrics"] = structured_metrics_to_dicts(parsed[:MAX_CAMPAIGN_METRICS])
+        payload["color"] = sanitize_color(payload.get("color"), "#ffffff")
+        if "emphasis_id" in payload:
+            payload["emphasis_id"] = str(payload.get("emphasis_id") or "")[:80]
+        if "raw_value" in payload:
+            raw_v = payload.get("raw_value")
+            if isinstance(raw_v, bool) or not isinstance(raw_v, (int, float, str)):
+                payload.pop("raw_value", None)
 
     if op_name == "CREATE_POST":
         preset = str(payload.get("formatPreset") or payload.get("format_preset") or "square")

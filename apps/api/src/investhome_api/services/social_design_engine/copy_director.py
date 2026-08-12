@@ -25,6 +25,7 @@ from investhome_api.services.social_design_engine.marketing_strategist import (
     looks_like_raw_database_value,
     looks_like_street_address,
 )
+from investhome_api.services.social_design_engine.localization import looks_like_concatenated_metrics
 from investhome_api.services.social_design_engine.ops import (
     looks_like_rag_or_debug_copy,
     sanitize_creative_copy,
@@ -220,12 +221,13 @@ def score_headline_candidate(
         )
         if k
     )
-    inv_ok = bool(campaign_facts) and any(f.display in t for f in campaign_facts)
+    inv_ok = any(k in tn for k in ("invest", "return", "yield", "yatirim", "getiri"))
+    awkward_metric_headline = bool(re.search(r"\btarget\s+%?\d", tn)) or looks_like_concatenated_metrics(t)
     arch_ok = any(k in tn for k in ("architecture", "character", "craft", "form", "facade", "façade", "material"))
     if obj == "location":
         scores["objective_relevance"] = _score_band(loc_ok, strong="central" in tn or bool(strategy.neighborhood and _norm(strategy.neighborhood) in tn))
     elif obj == "investment":
-        scores["objective_relevance"] = _score_band(inv_ok or "invest" in tn, strong=inv_ok)
+        scores["objective_relevance"] = _score_band(inv_ok and not awkward_metric_headline, strong=inv_ok and not awkward_metric_headline)
     elif obj == "architecture":
         scores["objective_relevance"] = _score_band(arch_ok or "character" in tn, strong=arch_ok)
     else:
@@ -294,15 +296,10 @@ def generate_headline_candidates(
         if not raw:
             raw.append("A City Address" if en else "Şehir adresinde")
     elif obj == "investment":
-        money = next((f.display for f in campaign_facts if f.kind == "money"), None)
-        pct = next((f.display for f in campaign_facts if f.kind == "percent"), None)
-        if money:
-            raw.append(f"From {money}" if en else f"{money} ile başlayın")
-        if pct:
-            raw.append(f"Target {pct}" if en else f"Hedef {pct}")
         raw.append(f"Invest in {name}" if en else f"{name} yatırımı")
-        if money and pct:
-            raw.append(f"{money} · {pct}" if en else f"{money} · {pct}")
+        raw.append("An Investment Position" if en else "Yatırım konumu")
+        raw.append("A Considered Return" if en else "Ölçülü bir getiri")
+        # Never "Target %14" or concatenated "$500,000 · %14".
     elif obj == "architecture":
         raw.extend(
             [
@@ -368,8 +365,8 @@ def _supporting_copy(
     obj = strategy.objective
     evidence_blob = " ".join(strategy.supporting_evidence)
     if obj == "investment":
-        metrics = [f.display for f in campaign_facts][:3]
-        return " · ".join(metrics)
+        # Structured metrics carry VALUE + MEANING. Support is campaign line, not a dump.
+        return ""
     if obj == "location":
         neighborhood = strategy.neighborhood
         city = strategy.city
@@ -436,7 +433,9 @@ def _cta_for(strategy: MarketingStrategy, intent: GenerationIntent) -> str:
     if obj == "location":
         return "Explore the Neighborhood" if en else "Mahalleyi keşfet"
     if obj == "investment":
-        return "Explore the investment" if en else "Yatırımı incele"
+        from investhome_api.services.social_design_engine.localization import choose_investment_cta
+
+        return choose_investment_cta(intent.language, angle=strategy.campaign_angle)
     if obj == "architecture":
         return "View the architecture" if en else "Mimariyi incele"
     if obj in {"lifestyle", "interior"}:
@@ -454,6 +453,12 @@ def _eyebrow_for(strategy: MarketingStrategy, intent: GenerationIntent) -> str:
     obj = strategy.objective
     if obj == "location":
         return _clip(_title_case_identity(name), 32)
+    if obj == "investment":
+        ident = _title_case_identity(name)
+        city = (strategy.city or "").strip()
+        if city and len(ident) + len(city) + 3 <= 48:
+            return _clip(f"{ident}\n{city.upper() if len(city) <= 18 else city}", 48)
+        return _clip(ident, 32)
     if obj in {"launch", "project_introduction", "architecture"}:
         return _clip(_title_case_identity(name), 32)
     return ""
@@ -519,8 +524,11 @@ def score_copy_quality(
         )
         scores["objective_match"] = 0.9 if loc_hit and "headline_is_address" not in reject else 0.2
     elif obj == "investment":
-        present = all(f.display in blob for f in campaign_facts) if campaign_facts else "invest" in bn
+        present = "invest" in bn or "return" in bn or "yield" in bn or "yatirim" in bn
         scores["objective_match"] = 0.95 if present else 0.2
+        if looks_like_concatenated_metrics(support) or looks_like_concatenated_metrics(headline):
+            reject.append("support_is_raw_data")
+            scores["factual_grounding"] = 0.1
         loc_dump = looks_like_street_address(blob) or contains_raw_suppress_term(blob)
         if loc_dump:
             reject.append("irrelevant_facts")
@@ -608,7 +616,7 @@ def build_copy_package(
     cta = _cta_for(strategy, intent)
     eyebrow = _eyebrow_for(strategy, intent)
     package = CopyPackage(
-        eyebrow=_clip(eyebrow, 32),
+        eyebrow=_clip(eyebrow, 48),
         headline=_clip(headline, 70),
         supporting_copy=_clip(support, 110),
         cta=_clip(cta, 36),
@@ -670,7 +678,7 @@ def _repair_copy(
         elif strategy.objective == "location" and strategy.city:
             support = f"A refined address in {strategy.city}."
         elif strategy.objective == "investment":
-            support = " · ".join(f.display for f in campaign_facts[:3])
+            support = ""
         for fact in strategy.excluded_facts:
             token = (fact or "").strip()
             if token and token in support:
@@ -683,7 +691,7 @@ def _repair_copy(
     if "generic_filler" in codes and is_generic_cta(cta):
         cta = _cta_for(strategy, intent)
     repaired = CopyPackage(
-        eyebrow=_clip(eyebrow, 32),
+        eyebrow=_clip(eyebrow, 48),
         headline=_clip(headline, 70),
         supporting_copy=_clip(support, 110),
         cta=_clip(cta, 36),

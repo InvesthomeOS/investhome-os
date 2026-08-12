@@ -259,6 +259,9 @@ class CreativeConcept:
     selected_facts: list[SelectedFact] = field(default_factory=list)
     suppressed_facts: list[SuppressedFact] = field(default_factory=list)
     asset_profile: dict[str, Any] = field(default_factory=dict)
+    metric_group_layout: str = "horizontal"
+    structured_metrics: list[dict[str, Any]] = field(default_factory=list)
+    project_identity_line: str = ""
 
 
 def _norm(text: str) -> str:
@@ -590,7 +593,9 @@ def _objective_cta(intent: GenerationIntent, *, en: bool) -> str:
     if intent.cta_hint and not is_generic_cta(intent.cta_hint):
         return intent.cta_hint
     if obj == "investment":
-        return "Explore the investment" if en else "Yatırım fırsatını incele"
+        from investhome_api.services.social_design_engine.localization import choose_investment_cta
+
+        return choose_investment_cta("en" if en else "tr")
     if obj == "location":
         return "Explore the Neighborhood" if en else "Mahalleyi keşfet"
     if obj == "architecture":
@@ -625,9 +630,7 @@ def _objective_headline(
         return f"The Character of {name}" if en else f"{name} karakteri"
     if obj == "investment":
         if campaign_facts:
-            money = next((f.display for f in campaign_facts if f.kind == "money"), None)
-            if money:
-                return f"From {money}" if en else f"{money} ile başlayın"
+            return f"Invest in {name}" if en else f"{name} yatırımı"
         return f"Invest in {name}" if en else f"{name} yatırımı"
     if obj in {"lifestyle", "interior"}:
         return f"Life at {name}" if en else f"{name} yaşamı"
@@ -650,10 +653,7 @@ def _objective_support(
         "",
     )
     if obj == "investment":
-        numbers = " · ".join(f.display for f in campaign_facts)
-        if numbers:
-            return numbers
-        return prose[:90] if prose else ""
+        return ""
     if obj == "location":
         if prose and not _contains_any(prose, LOCATION_DENY_TERMS) and not looks_like_street_address(prose):
             return prose[:110]
@@ -748,6 +748,7 @@ def direct_creative(
     asset: SocialDesignMediaCandidate | None = None,
     strategy: MarketingStrategy | None = None,
     copy_package: Any | None = None,
+    structured_metrics: list[Any] | None = None,
 ) -> CreativeConcept:
     """Produce structured creative decisions. No chain-of-thought.
 
@@ -792,7 +793,10 @@ def direct_creative(
     include_eyebrow = family == "EDITORIAL"
     include_support = family != "MINIMAL_HERO"
     if family == "MINIMAL_HERO" and objective == "investment":
-        include_support = True
+        include_support = False
+    if family == "INVESTMENT":
+        include_support = False
+        include_eyebrow = True
     if family == "LOCATION":
         include_support = True
         include_eyebrow = True if (copy_package and getattr(copy_package, "eyebrow", "")) else False
@@ -824,6 +828,55 @@ def direct_creative(
             support = ""
         cta = _objective_cta(intent, en=en)
         eyebrow = _objective_eyebrow(intent=intent, context=context, family=family) if include_eyebrow else ""
+
+    from investhome_api.services.social_design_engine.localization import (
+        looks_like_concatenated_metrics,
+        project_identity_lines,
+    )
+    from investhome_api.services.social_design_engine.metrics import (
+        campaign_facts_to_structured_metrics,
+        choose_metric_group_layout,
+        structured_metrics_from_dicts,
+        structured_metrics_to_dicts,
+    )
+
+    metrics_list = []
+    if structured_metrics:
+        if structured_metrics and hasattr(structured_metrics[0], "display_value"):
+            metrics_list = list(structured_metrics)
+        else:
+            metrics_list = structured_metrics_from_dicts(list(structured_metrics))
+    elif campaign_facts and objective == "investment":
+        metrics_list = campaign_facts_to_structured_metrics(
+            campaign_facts,
+            language=intent.language,
+            instruction=instruction,
+        )
+    if looks_like_concatenated_metrics(support):
+        support = ""
+        include_support = False
+    if metrics_list and objective == "investment":
+        include_support = False
+        support = ""
+        ident, ident_place = project_identity_lines(
+            project_name=name,
+            city=context.project_identity.city or (strategy.city if strategy else "") or "",
+            country=context.project_identity.country or "",
+            locale=intent.language,
+        )
+        if ident and not eyebrow:
+            eyebrow = ident if not ident_place else f"{ident}\n{ident_place}"
+            include_eyebrow = True
+        identity_line = ident
+    else:
+        identity_line = ""
+    metric_layout = choose_metric_group_layout(
+        metrics=metrics_list,
+        format_preset=intent.format_preset,
+        canvas_w=1080,
+        available_width=840,
+        requested="horizontal" if family == "INVESTMENT" and len(metrics_list) <= 3 else None,
+    )
 
     # Hard gate: never let a street line become the primary message.
     if looks_like_street_address(headline):
@@ -899,6 +952,9 @@ def direct_creative(
         selected_facts=selected,
         suppressed_facts=suppressed,
         asset_profile=asdict(profile),
+        metric_group_layout=metric_layout,
+        structured_metrics=structured_metrics_to_dicts(metrics_list),
+        project_identity_line=identity_line,
     )
 
 
@@ -925,6 +981,9 @@ def creative_concept_to_dict(concept: CreativeConcept) -> dict[str, Any]:
         "selected_facts": [asdict(f) for f in concept.selected_facts],
         "suppressed_facts": [asdict(f) for f in concept.suppressed_facts],
         "asset_profile": concept.asset_profile,
+        "metric_group_layout": concept.metric_group_layout,
+        "structured_metrics": list(concept.structured_metrics),
+        "project_identity_line": concept.project_identity_line,
     }
 
 
