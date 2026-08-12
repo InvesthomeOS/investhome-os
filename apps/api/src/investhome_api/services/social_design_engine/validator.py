@@ -16,6 +16,7 @@ from investhome_api.services.social_design_engine.creative_director import (
     is_generic_cta,
     is_generic_headline,
 )
+from investhome_api.services.social_design_engine.marketing_strategist import looks_like_street_address
 from investhome_api.services.social_design_engine.generation import (
     CampaignFact,
     ContentPackage,
@@ -130,6 +131,8 @@ def inspect_quality(
         issues.append(QualityIssue("headline_too_short", package.headline, "expand_headline"))
     if is_generic_headline(package.headline):
         issues.append(QualityIssue("generic_headline", package.headline, "replace_headline"))
+    if looks_like_street_address(package.headline):
+        issues.append(QualityIssue("headline_is_address", package.headline, "replace_headline"))
     if is_generic_cta(package.cta):
         issues.append(QualityIssue("generic_cta", package.cta, "replace_cta"))
     if looks_like_rag_or_debug_copy(blob):
@@ -239,10 +242,13 @@ def _apply_copy_repairs(
         key_fact = _strip_denied_phrases(key_fact, hits)
         eyebrow = _strip_denied_phrases(eyebrow, hits)
 
-    if "shorten_headline" in codes or "generic_headline" in codes or "replace_headline" in codes:
+    if "shorten_headline" in codes or "generic_headline" in codes or "replace_headline" in codes or "headline_is_address" in codes:
         headline = clip_headline(concept.primary_message or headline)
-        if is_generic_headline(headline) or _word_count(headline) > HEADLINE_MAX_WORDS:
+        if is_generic_headline(headline) or looks_like_street_address(headline) or _word_count(headline) > HEADLINE_MAX_WORDS:
             headline = clip_headline(concept.primary_message)
+        if looks_like_street_address(headline):
+            city = next((f.text for f in concept.selected_facts if f.reason == "identity_city"), "")
+            headline = clip_headline(f"A Central {city} Address" if city else concept.primary_message)
 
     if "expand_headline" in codes and _word_count(headline) < HEADLINE_MIN_WORDS:
         headline = clip_headline(concept.primary_message or headline)
@@ -274,10 +280,12 @@ def _apply_copy_repairs(
             support = extra if not support else f"{support} · {extra}" if extra not in support else support
 
     if "restore_objective" in codes and concept.objective == "location":
-        if "washington" not in _norm(headline) and "columbia" not in _norm(headline):
+        if looks_like_street_address(headline):
             headline = clip_headline(concept.primary_message or headline)
-        if not support:
+        if not support or looks_like_street_address(support):
             support = concept.supporting_message
+            if looks_like_street_address(support):
+                support = ""
 
     if "restore_primary" in codes:
         headline = concept.primary_message or headline

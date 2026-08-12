@@ -75,6 +75,12 @@ const SURGICAL_EDIT_HINTS = [
   'show more photo',
   'left-align',
   'remove cta',
+  'başlığı daha güçlü',
+  'basligi daha guclu',
+  'adres bilgisini',
+  'daha kurumsal',
+  'make headline stronger',
+  'remove the address',
 ];
 
 function isCompletePostGeneration(instruction: string): boolean {
@@ -122,6 +128,9 @@ export type DesignGenerationMeta = SocialGenerationMeta & {
   campaign_facts?: Record<string, unknown>[];
   creative_concept?: Record<string, unknown> | null;
   validation?: Record<string, unknown> | null;
+  marketing_strategy?: Record<string, unknown> | null;
+  copy_quality?: Record<string, unknown> | null;
+  headline_candidates?: Record<string, unknown>[];
 };
 
 export type BuildSocialDesignResult =
@@ -329,6 +338,9 @@ export function toDesignGenerationMeta(response: SocialDesignResponse): DesignGe
     campaign_facts: meta?.campaign_facts ?? [],
     creative_concept: meta?.creative_concept ?? null,
     validation: meta?.validation ?? null,
+    marketing_strategy: meta?.marketing_strategy ?? null,
+    copy_quality: meta?.copy_quality ?? null,
+    headline_candidates: meta?.headline_candidates ?? [],
   };
 }
 
@@ -360,6 +372,9 @@ export function serializeGenerationMetaForDraft(
     campaign_facts: meta.campaign_facts ?? [],
     creative_concept: meta.creative_concept ?? null,
     validation: meta.validation ?? null,
+    marketing_strategy: meta.marketing_strategy ?? null,
+    copy_quality: meta.copy_quality ?? null,
+    headline_candidates: meta.headline_candidates ?? [],
   };
 }
 
@@ -416,6 +431,17 @@ export function parseGenerationMetaFromDraft(
       raw.validation && typeof raw.validation === 'object' && !Array.isArray(raw.validation)
         ? (raw.validation as Record<string, unknown>)
         : null,
+    marketing_strategy:
+      raw.marketing_strategy && typeof raw.marketing_strategy === 'object' && !Array.isArray(raw.marketing_strategy)
+        ? (raw.marketing_strategy as Record<string, unknown>)
+        : null,
+    copy_quality:
+      raw.copy_quality && typeof raw.copy_quality === 'object' && !Array.isArray(raw.copy_quality)
+        ? (raw.copy_quality as Record<string, unknown>)
+        : null,
+    headline_candidates: Array.isArray(raw.headline_candidates)
+      ? raw.headline_candidates.filter((f): f is Record<string, unknown> => !!f && typeof f === 'object')
+      : [],
   };
 }
 

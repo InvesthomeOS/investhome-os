@@ -47,7 +47,6 @@ from investhome_api.services.social_design_engine.generation import (
     build_content_package_prompt,
     build_design_plan,
     build_generation_metadata,
-    build_heuristic_content_package,
     classify_generation_intent,
     compose_ops_from_plan,
     enforce_campaign_facts,
@@ -59,6 +58,21 @@ from investhome_api.services.social_design_engine.generation import (
 from investhome_api.services.social_design_engine.creative_director import (
     creative_concept_to_dict,
     direct_creative,
+)
+from investhome_api.services.social_design_engine.marketing_strategist import (
+    build_marketing_strategy,
+    strategy_from_dict,
+    strategy_to_dict,
+)
+from investhome_api.services.social_design_engine.copy_director import (
+    apply_copy_intelligence_edit,
+    build_copy_package,
+    classify_copy_intelligence_edit,
+    content_package_to_copy_package,
+    copy_direction_to_dict,
+    copy_edit_ops,
+    copy_package_to_content_package,
+    score_copy_quality,
 )
 from investhome_api.services.social_design_engine.intent import (
     apply_selected_element_targets,
@@ -270,24 +284,133 @@ def generate_social_design(
     design_plan = None
     creative_concept = None
     validation_payload = None
+    marketing_strategy = None
+    copy_direction = None
 
-    # -------- GENERATION: Creative Director → copy package → design plan → validate --------
+    copy_kind, copy_edit_meta = classify_copy_intelligence_edit(instruction)
+    if copy_kind == "change_objective" and copy_edit_meta.get("objective"):
+        gen_intent.marketing_objective = copy_edit_meta["objective"]  # type: ignore[assignment]
+        if copy_edit_meta["objective"] == "investment":
+            gen_intent.audience = "investors"
+            gen_intent.asset_preference = "premium_hero"
+            gen_intent.cta_hint = (
+                "Explore the investment" if gen_intent.language != "tr" else "Yatırım fırsatını incele"
+            )
+        mode = "create"
+
+    # -------- EDIT: copy-intelligence (same strategy) — not a full regenerate --------
+    if mode == "edit" and copy_kind not in {"none", "change_objective"}:
+        active = find_post(draft_posts, selected_post_id) if selected_post_id else None
+        if active is None and draft_posts:
+            active = draft_posts[0]
+        if active is not None:
+            prev_meta = active.get("generationMeta") if isinstance(active.get("generationMeta"), dict) else {}
+            marketing_strategy = strategy_from_dict(prev_meta.get("marketing_strategy"))
+            if marketing_strategy is None:
+                marketing_strategy = build_marketing_strategy(
+                    instruction=str(prev_meta.get("user_prompt") or instruction),
+                    intent=gen_intent,
+                    context=context,
+                    campaign_facts=campaign_facts,
+                )
+            current_pkg = None
+            prev_copy = prev_meta.get("content_package") if isinstance(prev_meta.get("content_package"), dict) else {}
+            if prev_copy:
+                from investhome_api.services.social_design_engine.generation import ContentPackage
+
+                current_pkg = content_package_to_copy_package(
+                    ContentPackage(
+                        headline=str(prev_copy.get("headline") or ""),
+                        supporting_text=str(prev_copy.get("supporting_text") or ""),
+                        key_fact=str(prev_copy.get("key_fact") or ""),
+                        cta=str(prev_copy.get("cta") or ""),
+                        language=str(prev_copy.get("language") or gen_intent.language),
+                        tone=str(prev_copy.get("tone") or gen_intent.tone),
+                        eyebrow=str(prev_copy.get("eyebrow") or ""),
+                    )
+                )
+            if current_pkg is None:
+                headline_el = next(
+                    (
+                        e
+                        for e in (active.get("elements") or [])
+                        if isinstance(e, dict) and e.get("role") == "headline"
+                    ),
+                    None,
+                )
+                body_el = next(
+                    (
+                        e
+                        for e in (active.get("elements") or [])
+                        if isinstance(e, dict) and e.get("role") == "body"
+                    ),
+                    None,
+                )
+                cta_el = next(
+                    (
+                        e
+                        for e in (active.get("elements") or [])
+                        if isinstance(e, dict) and e.get("type") in {"BUTTON", "CTA"}
+                    ),
+                    None,
+                )
+                from investhome_api.services.social_design_engine.copy_director import CopyPackage as _CP
+
+                current_pkg = _CP(
+                    eyebrow="",
+                    headline=str((headline_el or {}).get("content") or ""),
+                    supporting_copy=str((body_el or {}).get("content") or ""),
+                    cta=str((cta_el or {}).get("label") or ""),
+                    language=gen_intent.language,
+                    tone=gen_intent.tone,
+                )
+            copy_direction = apply_copy_intelligence_edit(
+                kind=copy_kind,
+                meta=copy_edit_meta,
+                strategy=marketing_strategy,
+                intent=gen_intent,
+                campaign_facts=campaign_facts,
+                current=current_pkg,
+            )
+            content_package = copy_package_to_content_package(copy_direction.package)
+            if campaign_facts and marketing_strategy.objective == "investment":
+                content_package = enforce_campaign_facts(content_package, campaign_facts)
+            raw_ops = copy_edit_ops(
+                package=copy_direction.package,
+                post=active,
+                linked_project_id=str(linked_project_id),
+            )
+            planner_name = "copy_intelligence"
+            summary = f"Applied copy intelligence edit ({copy_kind})."
+            intent_plan.allow_copy_rewrite = True
+            intent_plan.allow_cta_rewrite = True
+            intent_plan.structural_only = False
+
+    # -------- GENERATION: Strategist → Copy Director → Creative Director → plan --------
     if mode == "create":
         picked_candidate = next((c for c in media_candidates if picked and c.asset_id == picked), None)
+        marketing_strategy = build_marketing_strategy(
+            instruction=instruction,
+            intent=gen_intent,
+            context=context,
+            campaign_facts=campaign_facts,
+        )
+        copy_direction = build_copy_package(
+            strategy=marketing_strategy,
+            intent=gen_intent,
+            campaign_facts=campaign_facts,
+        )
         creative_concept = direct_creative(
             instruction=instruction,
             intent=gen_intent,
             context=context,
             campaign_facts=campaign_facts,
             asset=picked_candidate,
+            strategy=marketing_strategy,
+            copy_package=copy_direction.package,
         )
-        content_package = build_heuristic_content_package(
-            instruction=instruction,
-            intent=gen_intent,
-            context=context,
-            campaign_facts=campaign_facts,
-            concept=creative_concept,
-        )
+        content_package = copy_package_to_content_package(copy_direction.package)
+        content_package = enforce_campaign_facts(content_package, campaign_facts)
         try:
             c_system, c_user = build_content_package_prompt(
                 instruction=instruction,
@@ -295,22 +418,46 @@ def generate_social_design(
                 context=context,
                 campaign_facts=campaign_facts,
                 concept=creative_concept,
+                strategy=marketing_strategy,
+                copy_package=copy_direction.package,
                 max_prompt_chars=max_prompt_chars,
             )
             llm = provider.generate(system=c_system, user=c_user, timeout_seconds=60.0)
             parsed_pkg = parse_content_package_from_llm(llm.answer or "")
             if parsed_pkg is not None:
-                content_package = enforce_campaign_facts(parsed_pkg, campaign_facts)
-                planner_name = "generation+llm"
+                llm_copy = content_package_to_copy_package(parsed_pkg)
+                quality = score_copy_quality(
+                    llm_copy,
+                    strategy=marketing_strategy,
+                    campaign_facts=campaign_facts,
+                )
+                if quality.passed:
+                    content_package = enforce_campaign_facts(parsed_pkg, campaign_facts)
+                    copy_direction.package = content_package_to_copy_package(content_package)
+                    copy_direction.quality = quality
+                    creative_concept.primary_message = content_package.headline
+                    creative_concept.supporting_message = content_package.supporting_text
+                    creative_concept.cta = content_package.cta
+                    creative_concept.eyebrow = content_package.eyebrow
+                    creative_concept.include_eyebrow = bool(content_package.eyebrow)
+                    creative_concept.include_support = bool(content_package.supporting_text)
+                    planner_name = "generation+llm"
+                else:
+                    planner_name = "generation"
+                    context.warnings.append("copy_quality_rejected_llm")
+                    logger.warning(
+                        "social design LLM copy failed quality gate (%s); using Copy Director package",
+                        ",".join(quality.reject_codes),
+                    )
             else:
                 planner_name = "generation"
                 logger.warning(
-                    "social design content package LLM parse failed; using Creative Director copy"
+                    "social design content package LLM parse failed; using Copy Director package"
                 )
         except LLMProviderError as exc:
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=exc.message) from exc
         except Exception:
-            logger.exception("social design content package LLM failed; using Creative Director heuristic")
+            logger.exception("social design content package LLM failed; using Copy Director heuristic")
             context.warnings.append("content_package_fallback")
             planner_name = "generation"
 
@@ -359,7 +506,7 @@ def generate_social_design(
     )
 
     # Structural-only EDIT: deterministic intent ops — skip LLM copy invention.
-    if mode == "edit" and intent_plan.structural_only and intent_plan.intents:
+    if mode == "edit" and planner_name != "copy_intelligence" and intent_plan.structural_only and intent_plan.intents:
         active = find_post(draft_posts, selected_post_id) if selected_post_id else None
         if active is None and draft_posts:
             active = draft_posts[0]
@@ -557,6 +704,7 @@ def generate_social_design(
         if cit.document_id not in source_document_ids:
             source_document_ids.append(cit.document_id)
     selected_ids_meta: list[UUID] = list(asset_ids_used)
+    copy_meta = copy_direction_to_dict(copy_direction) if copy_direction is not None else {}
     gen_meta_payload = build_generation_metadata(
         project_id=linked_project_id,
         user_prompt=instruction,
@@ -570,8 +718,11 @@ def generate_social_design(
         design_plan=design_plan,
         creative_concept=creative_concept_to_dict(creative_concept) if creative_concept else None,
         validation=validation_payload,
+        marketing_strategy=strategy_to_dict(marketing_strategy) if marketing_strategy is not None else None,
+        copy_quality=copy_meta.get("copy_quality"),
+        headline_candidates=copy_meta.get("headline_candidates") or [],
     )
-    if mode == "create" and accepted:
+    if (mode == "create" or planner_name == "copy_intelligence") and accepted:
         for post in mutated_posts:
             if new_selected and str(post.get("id") or "") == str(new_selected):
                 attach_generation_metadata(post, meta=gen_meta_payload)
@@ -627,18 +778,21 @@ def generate_social_design(
         applied_intents=[str(op.op) for op in accepted],
         rejected_reasons=[reason for _, reason in rejected][:40],
         copy_protected=mode == "edit" and not intent_plan.allow_copy_rewrite,
-        generated_by="social_design_engine" if mode == "create" else None,
+        generated_by="social_design_engine" if mode == "create" or planner_name == "copy_intelligence" else None,
         project_id=linked_project_id,
-        user_prompt=instruction[:2000] if mode == "create" else None,
-        generation_intent=gen_meta_payload.get("generation_intent") if mode == "create" else None,
+        user_prompt=instruction[:2000] if mode == "create" or planner_name == "copy_intelligence" else None,
+        generation_intent=gen_meta_payload.get("generation_intent") if mode == "create" or planner_name == "copy_intelligence" else None,
         source_document_ids=source_document_ids,
         selected_asset_ids=selected_ids_meta,
-        generated_at=gen_meta_payload.get("generated_at") if mode == "create" else None,
-        content_package=gen_meta_payload.get("content_package") if mode == "create" else None,
+        generated_at=gen_meta_payload.get("generated_at") if mode == "create" or planner_name == "copy_intelligence" else None,
+        content_package=gen_meta_payload.get("content_package") if mode == "create" or planner_name == "copy_intelligence" else None,
         design_plan=gen_meta_payload.get("design_plan") if mode == "create" else None,
         campaign_facts=gen_meta_payload.get("campaign_facts") or [],
         creative_concept=gen_meta_payload.get("creative_concept") if mode == "create" else None,
         validation=gen_meta_payload.get("validation") if mode == "create" else None,
+        marketing_strategy=gen_meta_payload.get("marketing_strategy") if mode == "create" or planner_name == "copy_intelligence" else None,
+        copy_quality=gen_meta_payload.get("copy_quality") if mode == "create" or planner_name == "copy_intelligence" else None,
+        headline_candidates=gen_meta_payload.get("headline_candidates") or [],
     )
 
     return SocialDesignResponse(

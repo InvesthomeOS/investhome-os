@@ -244,6 +244,9 @@ describe('persistence includes generation metadata', () => {
     assert.match(eng, /export function toDesignGenerationMeta/);
     assert.match(eng, /brand_context_status/);
     assert.match(eng, /creative_concept/);
+    assert.match(eng, /marketing_strategy/);
+    assert.match(eng, /copy_quality/);
+    assert.match(eng, /headline_candidates/);
     assert.doesNotMatch(eng, /unsplash/i);
   });
 });

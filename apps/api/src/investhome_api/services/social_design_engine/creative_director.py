@@ -14,6 +14,10 @@ from typing import TYPE_CHECKING, Any, Literal
 from investhome_api.schemas.creative_studio_generation import CreativeStudioGenerationContext
 from investhome_api.schemas.social_design_engine import SocialDesignMediaCandidate
 from investhome_api.services.social_design_engine.ops import looks_like_rag_or_debug_copy
+from investhome_api.services.social_design_engine.marketing_strategist import (
+    MarketingStrategy,
+    looks_like_street_address,
+)
 
 if TYPE_CHECKING:
     from investhome_api.services.social_design_engine.generation import (
@@ -58,7 +62,7 @@ GENERIC_CTA_PHRASES = frozenset(
     }
 )
 
-LOCATION_ALLOW_KEYS = frozenset({"city", "country", "address", "project_name"})
+LOCATION_ALLOW_KEYS = frozenset({"city", "country", "project_name"})
 LOCATION_ALLOW_TERMS = (
     "location",
     "neighborhood",
@@ -72,11 +76,8 @@ LOCATION_ALLOW_TERMS = (
     "walk",
     "connectivity",
     "avenue",
-    "street",
     "park",
     "central",
-    "heart of",
-    "steps from",
     "district",
     "corridor",
     "lifestyle",
@@ -172,6 +173,29 @@ LAUNCH_DENY_TERMS = (
     "financing",
     "mixed-use",
     "floor plan",
+    "project_status",
+)
+
+ARCHITECTURE_ALLOW_TERMS = (
+    "architecture",
+    "architectural",
+    "facade",
+    "façade",
+    "material",
+    "craft",
+    "character",
+    "design language",
+    "form",
+    "presence",
+)
+ARCHITECTURE_DENY_TERMS = (
+    "under construction",
+    "total_units",
+    "financing",
+    "mixed-use",
+    "roi",
+    "mortgage",
+    "address",
     "project_status",
 )
 
@@ -391,7 +415,9 @@ def _objective_filters(
         return frozenset({"project_name", "city"}), INVESTMENT_ALLOW_TERMS, INVESTMENT_DENY_TERMS
     if objective == "lifestyle" or objective == "interior":
         return frozenset({"project_name"}), LIFESTYLE_ALLOW_TERMS, LIFESTYLE_DENY_TERMS
-    if objective in {"launch", "general"}:
+    if objective == "architecture":
+        return frozenset({"project_name"}), ARCHITECTURE_ALLOW_TERMS, ARCHITECTURE_DENY_TERMS
+    if objective in {"launch", "project_introduction", "general"}:
         return frozenset({"project_name", "city"}), LAUNCH_ALLOW_TERMS, LAUNCH_DENY_TERMS
     return frozenset({"project_name"}), tuple(), LOCATION_DENY_TERMS
 
@@ -465,6 +491,9 @@ def select_facts_for_objective(
             if objective == "location" or (denied and objective != "investment"):
                 _drop(fact, f"irrelevant_for_{objective}")
                 continue
+        if key == "address" or looks_like_street_address(fact.text):
+            _drop(fact, "address_is_evidence_not_the_ad")
+            continue
         if denied:
             _drop(fact, f"excluded_for_{objective}")
             continue
@@ -509,15 +538,20 @@ def choose_composition_strategy(
     objective: MarketingObjective,
     profile: AssetVisualProfile,
     campaign_facts: list[CampaignFact],
+    campaign_angle: str | None = None,
 ) -> CompositionFamily:
-    if objective == "investment" or campaign_facts:
-        if objective == "investment":
-            return "INVESTMENT"
+    angle = (campaign_angle or "").strip().lower()
+    if objective == "investment" or (campaign_facts and objective == "investment"):
+        return "INVESTMENT"
     if objective == "location":
+        if angle in {"city_lifestyle"} and profile.image_led:
+            return "LOCATION"
         return "LOCATION"
+    if objective == "architecture":
+        return "MINIMAL_HERO" if profile.image_led else "EDITORIAL"
     if objective in {"lifestyle", "interior"} and profile.image_led:
         return "MINIMAL_HERO"
-    if objective in {"launch", "general", "floor_plan"}:
+    if objective in {"launch", "project_introduction", "general", "floor_plan"}:
         return "EDITORIAL" if not profile.image_led else "MINIMAL_HERO"
     if profile.image_led and objective != "investment":
         return "MINIMAL_HERO"
@@ -543,10 +577,8 @@ def _address_fact(selected: list[SelectedFact]) -> str:
 
 
 def _place_name(context: CreativeStudioGenerationContext, selected: list[SelectedFact]) -> str:
+    """City or neighborhood — never a street line. Address is evidence, not the place name."""
     city = context.project_identity.city or ""
-    street = _street_from_address(_address_fact(selected))
-    if street:
-        return street
     for fact in selected:
         if fact.reason == "identity_city":
             return fact.text
@@ -560,7 +592,9 @@ def _objective_cta(intent: GenerationIntent, *, en: bool) -> str:
     if obj == "investment":
         return "Explore the investment" if en else "Yatırım fırsatını incele"
     if obj == "location":
-        return "Schedule a private tour" if en else "Özel tur planla"
+        return "Explore the Neighborhood" if en else "Mahalleyi keşfet"
+    if obj == "architecture":
+        return "View the architecture" if en else "Mimariyi incele"
     if obj in {"lifestyle", "interior"}:
         return "Tour the residences" if en else "Rezidansı gez"
     if obj == "launch":
@@ -582,13 +616,13 @@ def _objective_headline(
 
     if obj == "location":
         city = context.project_identity.city or ""
-        if place and city and place.lower() != city.lower():
-            return f"On {place}" if en else f"{place} üzerinde"
         if city:
             return f"A Central {city} Address" if en else f"{city} merkezinde"
-        if place and place.lower() not in name.lower():
+        if place and place.lower() not in name.lower() and not looks_like_street_address(place):
             return f"A Central {place} Address" if en else f"{place} merkezinde"
         return f"{name} in the City" if en else f"{name} şehir merkezinde"
+    if obj == "architecture":
+        return f"The Character of {name}" if en else f"{name} karakteri"
     if obj == "investment":
         if campaign_facts:
             money = next((f.display for f in campaign_facts if f.kind == "money"), None)
@@ -621,20 +655,19 @@ def _objective_support(
             return numbers
         return prose[:90] if prose else ""
     if obj == "location":
-        if prose and not _contains_any(prose, LOCATION_DENY_TERMS):
+        if prose and not _contains_any(prose, LOCATION_DENY_TERMS) and not looks_like_street_address(prose):
             return prose[:110]
-        addr = _address_fact(selected)
         city = context.project_identity.city or ""
-        if addr:
-            if city and city.lower() not in addr.lower():
-                return f"{addr}, {city}."
-            return addr if addr.endswith(".") else f"{addr}."
         if city:
             return (
-                f"Connected living in {city}."
+                f"A refined address in {city}."
                 if en
-                else f"{city} ile kurulu bir yaşam."
+                else f"{city} içinde sakin bir adres."
             )
+        return ""
+    if obj == "architecture":
+        if prose and not looks_like_street_address(prose):
+            return prose[:110]
         return ""
     if prose and not _contains_any(prose, LOCATION_DENY_TERMS):
         return prose[:110]
@@ -661,6 +694,8 @@ def _concept_line(objective: MarketingObjective, family: CompositionFamily, plac
         return f"Place-led hero: {name} belongs to {place or 'the city'}, not a spec sheet."
     if objective == "investment":
         return f"Investment case for {name}: campaign figures lead, photography supports."
+    if objective == "architecture":
+        return f"Architecture-led hero for {name}: character over inventory."
     if objective in {"lifestyle", "interior"}:
         return f"Image-led lifestyle for {name}: experience over inventory."
     return f"Editorial identity for {name}."
@@ -711,48 +746,101 @@ def direct_creative(
     context: CreativeStudioGenerationContext,
     campaign_facts: list[CampaignFact],
     asset: SocialDesignMediaCandidate | None = None,
+    strategy: MarketingStrategy | None = None,
+    copy_package: Any | None = None,
 ) -> CreativeConcept:
-    """Produce structured creative decisions. No chain-of-thought."""
+    """Produce structured creative decisions. No chain-of-thought.
+
+    When marketing_strategy + final copy are supplied, composition follows the
+    campaign angle and copy is not rewritten from raw facts.
+    """
     profile = infer_asset_visual_profile(asset)
+    objective = strategy.objective if strategy is not None else intent.marketing_objective
     selected, suppressed = select_facts_for_objective(
-        objective=intent.marketing_objective,
+        objective=objective,  # type: ignore[arg-type]
         context=context,
         campaign_facts=campaign_facts,
         instruction=instruction,
     )
+    if strategy is not None:
+        # Never reintroduce strategist-suppressed raw facts onto the canvas.
+        extra_drop = {_norm(t) for t in strategy.excluded_facts if t}
+        kept: list[SelectedFact] = []
+        for fact in selected:
+            if _norm(fact.text) in extra_drop or looks_like_street_address(fact.text):
+                suppressed.append(
+                    SuppressedFact(
+                        text=fact.text,
+                        source=fact.source,
+                        reason="strategy_excluded",
+                        provenance=fact.provenance,
+                    )
+                )
+            else:
+                kept.append(fact)
+        selected = kept
     family = choose_composition_strategy(
-        objective=intent.marketing_objective,
+        objective=objective,  # type: ignore[arg-type]
         profile=profile,
         campaign_facts=campaign_facts,
+        campaign_angle=strategy.campaign_angle if strategy is not None else None,
     )
     en = intent.language != "tr"
     name = context.project_identity.project_name or "Project"
-    place = _place_name(context, selected)
+    place = (strategy.neighborhood or strategy.city or _place_name(context, selected)) if strategy else _place_name(context, selected)
 
     include_eyebrow = family == "EDITORIAL"
     include_support = family != "MINIMAL_HERO"
-    if family == "MINIMAL_HERO" and intent.marketing_objective == "investment":
+    if family == "MINIMAL_HERO" and objective == "investment":
         include_support = True
     if family == "LOCATION":
         include_support = True
-        include_eyebrow = False
+        include_eyebrow = True if (copy_package and getattr(copy_package, "eyebrow", "")) else False
+    if objective == "architecture" and family == "MINIMAL_HERO":
+        include_support = bool(copy_package and getattr(copy_package, "supporting_copy", ""))
+        include_eyebrow = bool(copy_package and getattr(copy_package, "eyebrow", ""))
 
-    headline = clip_headline(_objective_headline(
-        intent=intent,
-        context=context,
-        selected=selected,
-        campaign_facts=campaign_facts,
-    ))
-    support = _objective_support(
-        intent=intent,
-        context=context,
-        selected=selected,
-        campaign_facts=campaign_facts,
-    )
-    if not include_support:
-        support = ""
-    cta = _objective_cta(intent, en=en)
-    eyebrow = _objective_eyebrow(intent=intent, context=context, family=family) if include_eyebrow else ""
+    if copy_package is not None:
+        headline = clip_headline(getattr(copy_package, "headline", "") or "")
+        support = str(getattr(copy_package, "supporting_copy", None) or getattr(copy_package, "supporting_text", "") or "")
+        cta = str(getattr(copy_package, "cta", "") or "")
+        eyebrow = str(getattr(copy_package, "eyebrow", "") or "")
+        include_eyebrow = bool(eyebrow)
+        include_support = bool(support)
+    else:
+        headline = clip_headline(_objective_headline(
+            intent=intent,
+            context=context,
+            selected=selected,
+            campaign_facts=campaign_facts,
+        ))
+        support = _objective_support(
+            intent=intent,
+            context=context,
+            selected=selected,
+            campaign_facts=campaign_facts,
+        )
+        if not include_support:
+            support = ""
+        cta = _objective_cta(intent, en=en)
+        eyebrow = _objective_eyebrow(intent=intent, context=context, family=family) if include_eyebrow else ""
+
+    # Hard gate: never let a street line become the primary message.
+    if looks_like_street_address(headline):
+        city = (strategy.city if strategy else None) or context.project_identity.city or ""
+        headline = clip_headline(f"A Central {city} Address" if city else name)
+    if looks_like_street_address(support):
+        support = (strategy.neighborhood if strategy else "") or (strategy.city if strategy else "") or ""
+        if not support:
+            support = context.project_identity.city or ""
+    for token in (strategy.excluded_facts if strategy else []):
+        piece = (token or "").strip()
+        if piece and len(piece) >= 5:
+            if piece in support:
+                support = support.replace(piece, "").strip(" ,.;")
+            if piece in headline and looks_like_street_address(piece):
+                city = (strategy.city if strategy else None) or context.project_identity.city or ""
+                headline = clip_headline(f"A Central {city} Address" if city else name)
 
     exclude = sorted(
         {
@@ -764,11 +852,12 @@ def direct_creative(
             "unit counts",
             "technical specifications",
             "financing terms",
+            "full street address",
         }
-        if intent.marketing_objective == "location"
+        if objective == "location"
         else {s.reason for s in suppressed}
     )
-    if intent.marketing_objective == "location":
+    if objective == "location":
         exclude = [
             "construction status",
             "unit counts",
@@ -777,25 +866,30 @@ def direct_creative(
             "mixed-use inventory",
             "project_status",
             "total_units",
+            "full street address",
         ]
+    if strategy is not None:
+        for item in strategy.excluded_facts:
+            if item and item not in exclude:
+                exclude.append(item)
 
     contrast, overlay_region = _contrast_for(family, profile)
     alignment = _alignment_for(family)
     density = _density_for(family, include_support, include_eyebrow)
 
     return CreativeConcept(
-        objective=intent.marketing_objective,
-        concept=_concept_line(intent.marketing_objective, family, place, name),
+        objective=objective,  # type: ignore[arg-type]
+        concept=_concept_line(objective, family, place, name),  # type: ignore[arg-type]
         visual_strategy=_visual_strategy(family, profile),
         primary_message=headline,
         supporting_message=support,
         cta=cta,
         information_to_exclude=exclude,
         composition_strategy=family,
-        tone=intent.tone or "premium",
+        tone=(strategy.tone if strategy is not None else None) or intent.tone or "premium",
         text_density=density,
         eyebrow=eyebrow,
-        include_eyebrow=bool(eyebrow),
+        include_eyebrow=bool(eyebrow) and include_eyebrow,
         include_support=bool(support) and include_support,
         include_cta=True,
         alignment=alignment,

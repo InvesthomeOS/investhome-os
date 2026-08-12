@@ -30,6 +30,8 @@ MarketingObjective = Literal[
     "investment",
     "lifestyle",
     "launch",
+    "project_introduction",
+    "architecture",
     "interior",
     "floor_plan",
     "general",
@@ -114,6 +116,10 @@ EDIT_VERBS = (
     "move the",
     "shift the",
     "nudge",
+    "başlığı daha güçlü",
+    "basligi daha guclu",
+    "adres bilgisini",
+    "daha kurumsal",
 )
 
 REPLACE_IMAGE_EDIT = (
@@ -251,14 +257,20 @@ def infer_design_mode(
     requested: str | None = None,
 ) -> DesignMode:
     """Classify GENERATION (create/rebuild) vs EDIT (surgical). Generation wins for complete-post briefs."""
+    from investhome_api.services.social_design_engine.copy_director import classify_copy_intelligence_edit
+
     req = (requested or "create").strip().lower()
     if req not in {"create", "edit"}:
         req = "create"
     if not posts:
         return "create"
 
+    copy_kind, _ = classify_copy_intelligence_edit(instruction)
+    if copy_kind == "change_objective":
+        return "create"
+
     generation = is_complete_post_generation(instruction)
-    surgical = is_surgical_edit(instruction)
+    surgical = is_surgical_edit(instruction) or copy_kind != "none"
 
     if generation and not surgical:
         return "create"
@@ -372,6 +384,23 @@ def classify_generation_intent(
     elif any(
         k in t
         for k in (
+            "mimari",
+            "architecture",
+            "architectural",
+            "karakter",
+            "character",
+            "façade",
+            "facade",
+            "design language",
+            "malzeme",
+            "materiality",
+        )
+    ):
+        objective = "architecture"
+        asset = "exterior"
+    elif any(
+        k in t
+        for k in (
             "lokasyon",
             "location",
             "konum",
@@ -384,8 +413,8 @@ def classify_generation_intent(
     ):
         objective = "location"
         asset = "exterior"
-    elif any(k in t for k in ("lansman", "launch", "opening")):
-        objective = "launch"
+    elif any(k in t for k in ("tanıtım", "tanitim", "introduction", "introduce", "lansman", "launch", "opening")):
+        objective = "project_introduction"
         asset = "premium_hero"
     elif any(k in t for k in ("yaşam", "yasam", "lifestyle", "amenit")):
         objective = "lifestyle"
@@ -401,12 +430,16 @@ def classify_generation_intent(
         key_message = "central location"
     elif objective == "investment":
         key_message = "investment opportunity"
+    elif objective == "architecture":
+        key_message = "architectural character"
     elif project_name:
         key_message = project_name
 
     cta_hint = None
     if objective == "investment":
         cta_hint = "Explore the investment" if lang == "en" else "Yatırım fırsatını incele"
+    elif objective == "location":
+        cta_hint = "Explore the Neighborhood" if lang == "en" else "Mahalleyi keşfet"
     elif any(k in t for k in ("tur", "tour", "randevu")):
         cta_hint = "Schedule a private tour" if lang == "en" else "Özel tur planla"
 
@@ -667,17 +700,19 @@ def build_heuristic_content_package(
         key_fact = ""
         cta = intent.cta_hint or ("Explore the investment" if en else "Yatırım fırsatını incele")
     elif intent.marketing_objective == "location":
-        place = city_bit or city or project_name
+        place = city or project_name
         headline = (
             f"A Central {place} Address" if en and place and place != project_name else project_name
         )
-        loc_keys = ("location", "neighborhood", "address", city.lower()) if city else ("location",)
+        loc_keys = ("location", "neighborhood", "city", city.lower()) if city else ("location",)
         supporting = next(
-            (m for m in marketing if any(k in m.lower() for k in loc_keys)),
+            (m for m in marketing if any(k in m.lower() for k in loc_keys) and "construction" not in m.lower()),
             f"A refined address in {place}." if en and place else (marketing[0] if marketing else ""),
         )
+        if re.search(r"\b\d{1,6}\s+\S+\s+(rd|ave|st|blvd)\b", supporting, re.I):
+            supporting = f"A refined address in {place}." if en and place else ""
         key_fact = ""
-        cta = intent.cta_hint or ("Schedule a private tour" if en else "Özel tur planla")
+        cta = intent.cta_hint or ("Explore the Neighborhood" if en else "Mahalleyi keşfet")
     else:
         headline = project_name
         supporting = next((m for m in marketing if m != headline), "")
@@ -714,26 +749,34 @@ def build_content_package_prompt(
     context: CreativeStudioGenerationContext,
     campaign_facts: list[CampaignFact],
     concept: Any | None = None,
+    strategy: Any | None = None,
+    copy_package: Any | None = None,
     max_prompt_chars: int = 10_000,
 ) -> tuple[str, str]:
     system = (
         "You are an advertising copywriter for InvestHome OS Social Media Builder. "
         "Reply with JSON only: "
         '{"eyebrow":"","headline":"","supporting_text":"","cta":"","language":"","tone":""}. '
-        "You are a premium real-estate creative director, not a data summarizer. "
-        "Follow the supplied creative_concept exactly. "
-        "Rules: use ONLY selected_facts and user_supplied_campaign_facts. "
+        "Follow marketing_strategy and final_copy_package. "
+        "Facts are evidence, not automatically the advertisement. "
+        "Answer the strategy's single_minded_message — ONE idea, not a RAG summary. "
+        "Rules: use ONLY selected_facts, supporting_evidence, and user_supplied_campaign_facts. "
         "Never invent project facts or financial figures. "
-        "Actively omit information_to_exclude. More facts is worse. "
+        "Actively omit information_to_exclude and excluded_facts. More facts is worse. "
+        "Never use a full street address as the headline. Address is internal evidence. "
+        "Never put construction status, GSF, zoning, unit counts, financing, or filenames on the canvas. "
+        "Do not claim steps from / minutes from / heart of DC / walkable / connected to everything "
+        "unless those phrases appear in supporting_evidence. "
         "User-supplied campaign numbers must appear EXACTLY as given (do not round, convert, or localize). "
         "If the user wrote $500,000 keep $500,000; if %14 keep %14; if 24 ay keep 24 ay. "
         "Do not persist campaign numbers as canonical project facts — they are this campaign only. "
         "Never include RAG/debug/metadata (Sources, chunk ids, document filenames, asset ids, provider). "
-        "Headline: 2–8 words, advertising not a database summary. "
-        "Do NOT use generic lines like Explore More Today, Discover More, Premium Living, Unique Opportunity "
-        "unless they are genuinely the right line. "
-        "Support: 1–2 short lines max. CTA must match the marketing objective. "
-        "Optional eyebrow only if creative_concept.include_eyebrow is true. "
+        "Headline: 2–8 words, campaign idea, not a database summary or street line. "
+        "Do NOT use generic lines like Explore More Today, Discover More, Premium Living, Unique Opportunity, "
+        "On Columbia Rd unless they are genuinely the right line. "
+        "Do not spam premium/luxury/exclusive/unique. Prefer specificity and restraint. "
+        "Support: 1 sentence or max 2 short lines. CTA must match the marketing objective. "
+        "Optional eyebrow only if final_copy_package.eyebrow is non-empty. "
         "Do not add a fifth text block. Image-led posts prefer even less copy. "
         "Match the requested language and tone. No chain-of-thought."
     )
@@ -755,18 +798,37 @@ def build_content_package_prompt(
         exclude = list(concept.information_to_exclude)
     else:
         selected = _readable_facts(list(context.verified_facts or []))
+    strategy_payload: dict[str, Any] = {}
+    if strategy is not None:
+        from investhome_api.services.social_design_engine.marketing_strategist import strategy_to_dict
+
+        raw_strategy = strategy_to_dict(strategy)
+        strategy_payload = {
+            k: v
+            for k, v in raw_strategy.items()
+            if k != "classified_facts"
+        }
+        exclude = list(dict.fromkeys(list(exclude) + list(strategy.excluded_facts)))
+        selected = [s for s in selected if s not in strategy.excluded_facts]
+    copy_payload: dict[str, Any] = {}
+    if copy_package is not None:
+        copy_payload = {
+            "eyebrow": getattr(copy_package, "eyebrow", "") or "",
+            "headline": getattr(copy_package, "headline", "") or "",
+            "supporting_text": getattr(copy_package, "supporting_copy", None)
+            or getattr(copy_package, "supporting_text", "")
+            or "",
+            "cta": getattr(copy_package, "cta", "") or "",
+        }
     user_obj = {
         "instruction": instruction.strip(),
         "generation_intent": generation_intent_to_dict(intent),
+        "marketing_strategy": strategy_payload,
+        "final_copy_package": copy_payload,
         "creative_concept": concept_payload,
         "project_identity": {
             "project_name": context.project_identity.project_name,
             "city": context.project_identity.city,
-            "address": next(
-                (f.text for f in getattr(concept, "selected_facts", []) if getattr(f, "reason", "") == "identity_address"),
-                None,
-            )
-            or getattr(context.project_identity, "address", None),
         },
         "selected_facts": selected,
         "information_to_exclude": exclude,
@@ -1126,6 +1188,9 @@ def build_generation_metadata(
     design_plan: DesignPlan | None = None,
     creative_concept: dict[str, Any] | None = None,
     validation: dict[str, Any] | None = None,
+    marketing_strategy: dict[str, Any] | None = None,
+    copy_quality: dict[str, Any] | None = None,
+    headline_candidates: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     return {
         "generated_by": "social_design_engine",
@@ -1142,6 +1207,9 @@ def build_generation_metadata(
         "design_plan": design_plan_to_dict(design_plan) if design_plan else None,
         "creative_concept": creative_concept,
         "validation": validation,
+        "marketing_strategy": marketing_strategy,
+        "copy_quality": copy_quality,
+        "headline_candidates": headline_candidates or [],
     }
 
 

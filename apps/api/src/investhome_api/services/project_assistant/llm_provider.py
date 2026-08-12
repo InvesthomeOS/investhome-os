@@ -359,7 +359,7 @@ def _local_design_ops_answer(user_prompt: str) -> str:
 
 
 def _local_content_package_answer(user_prompt: str) -> str:
-    """Echo Creative Director copy — never invent project facts."""
+    """Echo Copy Director / Creative Director copy — never invent project facts."""
     payload: dict[str, Any] = {}
     raw = user_prompt or ""
     start = raw.find("{")
@@ -370,12 +370,20 @@ def _local_content_package_answer(user_prompt: str) -> str:
             payload = {}
     if not isinstance(payload, dict):
         payload = {}
+    copy_pkg = payload.get("final_copy_package") if isinstance(payload.get("final_copy_package"), dict) else {}
     concept = payload.get("creative_concept") if isinstance(payload.get("creative_concept"), dict) else {}
     identity = payload.get("project_identity") if isinstance(payload.get("project_identity"), dict) else {}
-    headline = str(concept.get("primary_message") or identity.get("project_name") or "Project").strip()
-    supporting = str(concept.get("supporting_message") or "").strip()
-    cta = str(concept.get("cta") or "Schedule a private tour").strip()
-    eyebrow = str(concept.get("eyebrow") or "").strip() if concept.get("include_eyebrow") else ""
+    headline = str(
+        copy_pkg.get("headline")
+        or concept.get("primary_message")
+        or identity.get("project_name")
+        or "Project"
+    ).strip()
+    supporting = str(copy_pkg.get("supporting_text") or concept.get("supporting_message") or "").strip()
+    cta = str(copy_pkg.get("cta") or concept.get("cta") or "Schedule a private tour").strip()
+    eyebrow = str(copy_pkg.get("eyebrow") or "").strip()
+    if not eyebrow:
+        eyebrow = str(concept.get("eyebrow") or "").strip() if concept.get("include_eyebrow") else ""
     return json.dumps(
         {
             "eyebrow": eyebrow,
@@ -383,7 +391,7 @@ def _local_content_package_answer(user_prompt: str) -> str:
             "supporting_text": supporting,
             "cta": cta,
             "language": str(payload.get("language") or "en"),
-            "tone": str(concept.get("tone") or "premium"),
+            "tone": str(concept.get("tone") or copy_pkg.get("tone") or "premium"),
         },
         ensure_ascii=False,
     )

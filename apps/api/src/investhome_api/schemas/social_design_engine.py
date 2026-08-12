@@ -113,6 +113,9 @@ class SocialDesignGenerationMeta(BaseModel):
     campaign_facts: list[dict[str, Any]] = Field(default_factory=list)
     creative_concept: dict[str, Any] | None = None
     validation: dict[str, Any] | None = None
+    marketing_strategy: dict[str, Any] | None = None
+    copy_quality: dict[str, Any] | None = None
+    headline_candidates: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class SocialDesignResponse(BaseModel):

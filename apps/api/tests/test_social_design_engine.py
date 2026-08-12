@@ -1833,7 +1833,8 @@ def test_creative_director_suppresses_construction_on_location() -> None:
     assert "mixed-use" not in selected_blob
     assert "under construction" not in selected_blob
     assert any(f.reason == "identity_city" for f in selected)
-    assert any(f.reason == "identity_address" for f in selected)
+    assert not any(f.reason == "identity_address" for f in selected)
+    assert any("address_is_evidence_not_the_ad" in (s.reason or "") for s in suppressed)
 
     concept = direct_creative(instruction=prompt, intent=intent, context=ctx, campaign_facts=[])
     assert concept.composition_strategy == "LOCATION"
@@ -1851,8 +1852,12 @@ def test_creative_director_suppresses_construction_on_location() -> None:
     assert "discover more" not in canvas
     assert "explore more today" not in canvas
     assert "premium living" not in canvas
-    assert "columbia heights" not in canvas
-    assert "1610" in canvas or "columbia rd" in canvas
+    assert "1610" not in canvas
+    assert "on columbia rd" not in canvas
+    from investhome_api.services.social_design_engine.marketing_strategist import looks_like_street_address
+
+    assert not looks_like_street_address(package.headline)
+    assert "washington" in canvas or "columbia heights" in canvas
 
     plan = build_design_plan(
         package=package,
@@ -1928,7 +1933,9 @@ def test_content_package_prompt_does_not_require_identity_address() -> None:
         instruction=prompt, intent=intent, context=ctx, campaign_facts=[], concept=concept
     )
     assert "CONTENT_PACKAGE_JSON" in user
-    assert "1610 Columbia Rd NW" in user
+    # Address may be listed as excluded evidence; it must not be required canvas copy.
+    assert "project_name" in user
+    assert "city" in user
 
 
 def test_validator_repairs_unnecessary_facts_and_density() -> None:
@@ -2045,9 +2052,314 @@ def test_location_generation_has_no_rag_or_construction(client, db_session: Sess
     headline = next(e for e in post["elements"] if e.get("role") == "headline")
     words = [w for w in str(headline.get("content") or "").split() if w]
     assert 2 <= len(words) <= 8
+    from investhome_api.services.social_design_engine.marketing_strategist import looks_like_street_address
+
+    assert not looks_like_street_address(str(headline.get("content") or ""))
+    assert "1610" not in copy_blob
+    assert "on columbia rd" not in copy_blob
+    strategy = meta.get("marketing_strategy") or {}
+    assert strategy.get("objective") == "location"
+    assert strategy.get("campaign_angle")
+    assert meta.get("copy_quality")
+    assert meta.get("headline_candidates")
     text_blocks = [e for e in post["elements"] if e.get("type") in {"TEXT", "BUTTON"}]
     assert len(text_blocks) <= 4
     assert post.get("overlayStrategy", "").startswith("localized") or (
         (post.get("generationMeta") or {}).get("creative_concept") or {}
     ).get("contrast_strategy")
+
+
+def _strategy_ctx(**kwargs):
+    from investhome_api.schemas.creative_studio_generation import (
+        CreativeStudioBrandContext,
+        CreativeStudioGenerationContext,
+        CreativeStudioProjectIdentity,
+    )
+
+    return CreativeStudioGenerationContext(
+        project_identity=CreativeStudioProjectIdentity(
+            project_id=TEMPLE_PROJECT_ID,
+            project_code="PRJ-T",
+            project_name=kwargs.get("project_name", "Temple Residences"),
+            city=kwargs.get("city", "Washington"),
+            country="US",
+        ),
+        verified_facts=kwargs.get(
+            "verified_facts",
+            [
+                "project_name=Temple Residences",
+                "city=Washington",
+                "address=1610 Columbia Rd NW",
+                "total_units=120",
+                "project_status=construction",
+            ],
+        ),
+        retrieved_content=kwargs.get("retrieved_content", []),
+        selected_assets=[],
+        citations=[],
+        brand_context=CreativeStudioBrandContext(available=False, reason="none"),
+        builder_type="social",
+        language="en",
+    )
+
+
+def test_marketing_strategist_location_is_not_the_street() -> None:
+    from investhome_api.services.social_design_engine.generation import classify_generation_intent
+    from investhome_api.services.social_design_engine.marketing_strategist import (
+        build_marketing_strategy,
+        looks_like_street_address,
+    )
+
+    prompt = (
+        "The Temple projesinin Washington DC'deki merkezi lokasyonunu öne çıkaran "
+        "premium bir Instagram kare postu hazırla."
+    )
+    intent = classify_generation_intent(prompt, project_name="Temple Residences")
+    ctx = _strategy_ctx(
+        retrieved_content=[
+            {
+                "document_name": "location.md",
+                "text": "Temple Residences sits in Columbia Heights, near neighborhood parks and transit.",
+            }
+        ]
+    )
+    strategy = build_marketing_strategy(instruction=prompt, intent=intent, context=ctx, campaign_facts=[])
+    assert strategy.objective == "location"
+    assert strategy.campaign_angle == "central_positioning"
+    assert strategy.neighborhood == "Columbia Heights"
+    assert not looks_like_street_address(strategy.single_minded_message)
+    assert "1610" not in strategy.single_minded_message
+    assert any("1610" in f or "Columbia Rd" in f for f in strategy.excluded_facts)
+    kinds = {f.kind for f in strategy.classified_facts if f.key == "address" or "Columbia Rd" in f.text}
+    assert "FACT" in kinds or any(f.reason == "address_is_evidence_not_the_ad" for f in strategy.classified_facts)
+
+
+def test_copy_quality_rejects_address_as_headline() -> None:
+    from investhome_api.services.social_design_engine.copy_director import (
+        CopyPackage,
+        score_copy_quality,
+    )
+    from investhome_api.services.social_design_engine.generation import classify_generation_intent
+    from investhome_api.services.social_design_engine.marketing_strategist import build_marketing_strategy
+
+    prompt = "The Temple projesinin Washington DC'deki merkezi lokasyonunu öne çıkaran Instagram postu hazırla."
+    intent = classify_generation_intent(prompt, project_name="Temple Residences")
+    strategy = build_marketing_strategy(
+        instruction=prompt, intent=intent, context=_strategy_ctx(), campaign_facts=[]
+    )
+    bad = CopyPackage(
+        eyebrow="THE TEMPLE RESIDENCES",
+        headline="On Columbia Rd",
+        supporting_copy="1610 Columbia Rd NW",
+        cta="Discover More",
+        language="en",
+        tone="premium",
+    )
+    quality = score_copy_quality(bad, strategy=strategy, campaign_facts=[])
+    assert not quality.passed
+    assert "headline_is_address" in quality.reject_codes
+
+
+def test_copy_director_scores_candidates_and_avoids_street() -> None:
+    from investhome_api.services.social_design_engine.copy_director import build_copy_package
+    from investhome_api.services.social_design_engine.generation import classify_generation_intent
+    from investhome_api.services.social_design_engine.marketing_strategist import (
+        build_marketing_strategy,
+        looks_like_street_address,
+    )
+
+    prompt = (
+        "The Temple projesinin Washington DC'deki merkezi lokasyonunu öne çıkaran "
+        "premium bir Instagram kare postu hazırla. İngilizce hazırla."
+    )
+    intent = classify_generation_intent(prompt, project_name="Temple Residences")
+    ctx = _strategy_ctx(
+        retrieved_content=[
+            {
+                "document_name": "location.md",
+                "text": "Temple Residences sits in Columbia Heights with a central Washington location.",
+            }
+        ]
+    )
+    strategy = build_marketing_strategy(instruction=prompt, intent=intent, context=ctx, campaign_facts=[])
+    direction = build_copy_package(strategy=strategy, intent=intent, campaign_facts=[])
+    assert len(direction.candidates) >= 2
+    for cand in direction.candidates:
+        assert cand.scores
+        assert not looks_like_street_address(cand.text)
+    assert not looks_like_street_address(direction.package.headline)
+    assert "1610" not in direction.package.headline
+    assert "on columbia rd" not in direction.package.headline.lower()
+    assert direction.quality.passed
+    blob = f"{direction.package.eyebrow} {direction.package.headline} {direction.package.supporting_copy} {direction.package.cta}".lower()
+    assert "under construction" not in blob
+    assert "120" not in blob
+
+
+def test_copy_director_investment_keeps_exact_campaign_numbers() -> None:
+    from investhome_api.services.social_design_engine.copy_director import build_copy_package
+    from investhome_api.services.social_design_engine.generation import (
+        classify_generation_intent,
+        extract_campaign_facts,
+    )
+    from investhome_api.services.social_design_engine.marketing_strategist import build_marketing_strategy
+
+    prompt = (
+        "The Temple için yatırımcı odaklı premium Instagram postu hazırla. "
+        "Bu kampanya için test girdileri: Minimum yatırım: $500,000 Hedef getiri: %14 "
+        "Yatırım süresi: 24 ay. Bu rakamları değiştirme. İngilizce hazırla."
+    )
+    intent = classify_generation_intent(prompt, project_name="Temple Residences")
+    facts = extract_campaign_facts(prompt)
+    strategy = build_marketing_strategy(
+        instruction=prompt, intent=intent, context=_strategy_ctx(), campaign_facts=facts
+    )
+    assert strategy.objective == "investment"
+    direction = build_copy_package(strategy=strategy, intent=intent, campaign_facts=facts)
+    blob = f"{direction.package.headline} {direction.package.supporting_copy} {direction.package.cta}"
+    assert "$500,000" in blob
+    assert "%14" in blob
+    assert "24 ay" in blob
+    assert "1610" not in blob
+    assert "under construction" not in blob.lower()
+    metrics = [p for p in direction.package.supporting_copy.split("·")]
+    assert len(metrics) <= 3
+
+
+def test_architecture_objective_does_not_dump_location_or_investment() -> None:
+    from investhome_api.services.social_design_engine.copy_director import build_copy_package
+    from investhome_api.services.social_design_engine.creative_director import direct_creative
+    from investhome_api.services.social_design_engine.generation import (
+        classify_generation_intent,
+        extract_campaign_facts,
+    )
+    from investhome_api.services.social_design_engine.marketing_strategist import (
+        build_marketing_strategy,
+        looks_like_street_address,
+    )
+
+    prompt = (
+        "The Temple projesinin mimari karakterini öne çıkaran premium bir Instagram kare postu hazırla. "
+        "İngilizce hazırla."
+    )
+    intent = classify_generation_intent(prompt, project_name="Temple Residences")
+    assert intent.marketing_objective == "architecture"
+    facts = extract_campaign_facts(
+        "Minimum yatırım: $500,000 Hedef getiri: %14 Yatırım süresi: 24 ay"
+    )
+    ctx = _strategy_ctx(
+        retrieved_content=[
+            {
+                "document_name": "architecture.md",
+                "text": "The facade is a considered architectural presence in brick and limestone.",
+            }
+        ]
+    )
+    strategy = build_marketing_strategy(instruction=prompt, intent=intent, context=ctx, campaign_facts=facts)
+    assert strategy.objective == "architecture"
+    assert strategy.campaign_angle in {"architectural_character", "material_craft"}
+    direction = build_copy_package(strategy=strategy, intent=intent, campaign_facts=facts)
+    blob = f"{direction.package.headline} {direction.package.supporting_copy} {direction.package.cta}"
+    assert "$500,000" not in blob
+    assert "%14" not in blob
+    assert "1610" not in blob
+    assert not looks_like_street_address(direction.package.headline)
+    concept = direct_creative(
+        instruction=prompt,
+        intent=intent,
+        context=ctx,
+        campaign_facts=facts,
+        strategy=strategy,
+        copy_package=direction.package,
+    )
+    assert concept.objective == "architecture"
+    assert "1610" not in concept.primary_message
+    assert "$500,000" not in (concept.supporting_message or "")
+
+
+def test_copy_edit_stronger_headline_stays_in_strategy() -> None:
+    from investhome_api.services.social_design_engine.copy_director import (
+        apply_copy_intelligence_edit,
+        build_copy_package,
+        classify_copy_intelligence_edit,
+    )
+    from investhome_api.services.social_design_engine.generation import classify_generation_intent
+    from investhome_api.services.social_design_engine.marketing_strategist import build_marketing_strategy
+
+    prompt = "The Temple projesinin Washington DC'deki merkezi lokasyonunu öne çıkaran Instagram postu hazırla."
+    intent = classify_generation_intent(prompt, project_name="Temple Residences")
+    strategy = build_marketing_strategy(
+        instruction=prompt,
+        intent=intent,
+        context=_strategy_ctx(
+            retrieved_content=[
+                {
+                    "document_name": "location.md",
+                    "text": "Temple Residences sits in Columbia Heights with a central Washington location.",
+                }
+            ]
+        ),
+        campaign_facts=[],
+    )
+    original = build_copy_package(strategy=strategy, intent=intent, campaign_facts=[])
+    kind, meta = classify_copy_intelligence_edit("Başlığı daha güçlü yap")
+    assert kind == "regenerate_headline"
+    edited = apply_copy_intelligence_edit(
+        kind=kind,
+        meta=meta,
+        strategy=strategy,
+        intent=intent,
+        campaign_facts=[],
+        current=original.package,
+    )
+    assert strategy.objective == "location"
+    assert strategy.campaign_angle == original.candidates[0].notes or strategy.campaign_angle
+    assert edited.package.headline
+    assert edited.package.cta == original.package.cta
+    kind2, _ = classify_copy_intelligence_edit("Yatırımcıya yönelik yap")
+    assert kind2 == "change_objective"
+
+
+def test_architecture_generation_endpoint(client, db_session: Session) -> None:
+    db = db_session
+    temple = _create_project(db, project_id=TEMPLE_PROJECT_ID)
+    _asset(db, temple, filename="temple-facade-hero.jpg", folder_category="05_RENDERINGS")
+    brief = _asset(db, temple, filename="architecture.md", content_type="text/markdown")
+    doc = _ready_document(
+        db,
+        temple,
+        text=_long_text("Temple Residences architectural character brick limestone facade considered presence"),
+        title="architecture.md",
+        asset=brief,
+    )
+    reindex_document(db, doc.id)
+    db.commit()
+
+    resp = client.post(
+        "/ai/creative-studio/social/design",
+        json={
+            "linked_project_id": str(TEMPLE_PROJECT_ID),
+            "instruction": (
+                "The Temple projesinin mimari karakterini öne çıkaran premium bir Instagram kare postu hazırla. "
+                "İngilizce hazırla."
+            ),
+            "mode": "create",
+            "draft": {"posts": [], "selected_post_id": None},
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["meta"]["generation_intent"]["marketing_objective"] == "architecture"
+    strategy = body["meta"].get("marketing_strategy") or {}
+    assert strategy.get("objective") == "architecture"
+    post = body["posts"][0]
+    copy_blob = json.dumps(post.get("elements") or []).lower()
+    assert "1610" not in copy_blob
+    assert "$500,000" not in copy_blob
+    assert "under construction" not in copy_blob
+    headline = next(e for e in post["elements"] if e.get("role") == "headline")
+    from investhome_api.services.social_design_engine.marketing_strategist import looks_like_street_address
+
+    assert not looks_like_street_address(str(headline.get("content") or ""))
+
 
