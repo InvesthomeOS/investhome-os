@@ -188,6 +188,29 @@ def inspect_quality(
     if denied:
         issues.append(QualityIssue("unnecessary_facts", "; ".join(denied[:6]), "remove_facts"))
 
+    from investhome_api.services.social_design_engine.fact_governance import (
+        text_contains_ineligible_financial,
+    )
+
+    allowed_fin = [cf.display for cf in campaign_facts]
+    for metric in getattr(concept, "structured_metrics", None) or []:
+        display = metric.get("display_value") if isinstance(metric, dict) else getattr(metric, "display_value", "")
+        token = str(display or "")
+        if token and token not in allowed_fin:
+            allowed_fin.append(token)
+    blocked_fin = [
+        f.text
+        for f in concept.suppressed_facts
+        if f.reason == "ineligible_financial_claim" and f.text
+    ]
+    blocked_fin.extend(
+        t for t in (concept.information_to_exclude or []) if t and any(ch.isdigit() for ch in t)
+    )
+    if text_contains_ineligible_financial(
+        blob, allowed_tokens=allowed_fin, blocked_tokens=blocked_fin
+    ):
+        issues.append(QualityIssue("ineligible_financial_claim", blob[:120], "strip_financial_claims"))
+
     support = package.supporting_text or ""
     if support.count("\n") > 1 or len(support) > SUPPORT_MAX_CHARS:
         issues.append(QualityIssue("support_verbose", support, "shorten_support"))
@@ -321,6 +344,18 @@ def _apply_copy_repairs(
             support = ""
         if looks_like_concatenated_metrics(key_fact):
             key_fact = ""
+
+    if "strip_financial_claims" in codes:
+        from investhome_api.services.social_design_engine.fact_governance import (
+            strip_ineligible_financial_claims,
+        )
+
+        allowed_fin = [cf.display for cf in campaign_facts]
+        blocked = [i.detail for i in issues if i.code == "ineligible_financial_claim"]
+        headline = strip_ineligible_financial_claims(headline, allowed_tokens=allowed_fin, blocked_tokens=blocked)
+        support = strip_ineligible_financial_claims(support, allowed_tokens=allowed_fin, blocked_tokens=blocked)
+        key_fact = strip_ineligible_financial_claims(key_fact, allowed_tokens=allowed_fin, blocked_tokens=blocked)
+        eyebrow = strip_ineligible_financial_claims(eyebrow, allowed_tokens=allowed_fin, blocked_tokens=blocked)
 
     if "restore_objective" in codes and concept.objective == "location":
         if looks_like_street_address(headline):

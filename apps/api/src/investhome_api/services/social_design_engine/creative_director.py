@@ -431,6 +431,7 @@ def select_facts_for_objective(
     context: CreativeStudioGenerationContext,
     campaign_facts: list[CampaignFact],
     instruction: str = "",
+    allowed_financial_tokens: list[str] | None = None,
 ) -> tuple[list[SelectedFact], list[SuppressedFact]]:
     """Objective-first fact gate. More RAG does not mean more canvas text."""
     allow_keys, allow_terms, deny_terms = _objective_filters(objective)
@@ -485,6 +486,14 @@ def select_facts_for_objective(
                 )
             )
     retrieved = _parse_retrieved_facts(list(context.retrieved_content or []))
+    from investhome_api.services.social_design_engine.fact_governance import (
+        text_contains_ineligible_financial,
+        text_has_financial_claim,
+    )
+
+    allowed_fin = list(allowed_financial_tokens or [])
+    if not allowed_fin:
+        allowed_fin = [cf.display for cf in campaign_facts]
 
     for fact in identity:
         key = fact.key or ""
@@ -510,6 +519,11 @@ def select_facts_for_objective(
 
     for fact in retrieved:
         blob = fact.text
+        if text_has_financial_claim(blob) and text_contains_ineligible_financial(
+            blob, allowed_tokens=allowed_fin
+        ):
+            _drop(fact, "ineligible_financial_claim")
+            continue
         if _contains_any(blob, deny_terms) and not user_asked_construction:
             _drop(fact, f"excluded_for_{objective}")
             continue
@@ -749,6 +763,7 @@ def direct_creative(
     strategy: MarketingStrategy | None = None,
     copy_package: Any | None = None,
     structured_metrics: list[Any] | None = None,
+    campaign_intelligence: Any | None = None,
 ) -> CreativeConcept:
     """Produce structured creative decisions. No chain-of-thought.
 
@@ -757,11 +772,27 @@ def direct_creative(
     """
     profile = infer_asset_visual_profile(asset)
     objective = strategy.objective if strategy is not None else intent.marketing_objective
+    allowed_fin = [cf.display for cf in campaign_facts]
+    blocked_fin: list[str] = []
+    if campaign_intelligence is not None:
+        for vf in list(getattr(campaign_intelligence, "marketing_safe_facts", []) or []):
+            if getattr(vf, "is_financial", False) and getattr(vf, "display_value", None):
+                token = str(vf.display_value)
+                if token not in allowed_fin:
+                    allowed_fin.append(token)
+        qa = getattr(campaign_intelligence, "qa_trace", None) or {}
+        blocked_fin = [str(t) for t in (qa.get("blocked_financial_tokens") or []) if t]
+        for row in list(getattr(campaign_intelligence, "claim_eligibility_trace", []) or []):
+            if isinstance(row, dict) and row.get("is_financial") and not row.get("eligible"):
+                token = str(row.get("fact") or "")
+                if token and token not in blocked_fin:
+                    blocked_fin.append(token)
     selected, suppressed = select_facts_for_objective(
         objective=objective,  # type: ignore[arg-type]
         context=context,
         campaign_facts=campaign_facts,
         instruction=instruction,
+        allowed_financial_tokens=allowed_fin,
     )
     if strategy is not None:
         # Never reintroduce strategist-suppressed raw facts onto the canvas.
@@ -829,6 +860,10 @@ def direct_creative(
         cta = _objective_cta(intent, en=en)
         eyebrow = _objective_eyebrow(intent=intent, context=context, family=family) if include_eyebrow else ""
 
+    from investhome_api.services.social_design_engine.fact_governance import (
+        strip_ineligible_financial_claims,
+        text_contains_ineligible_financial,
+    )
     from investhome_api.services.social_design_engine.localization import (
         looks_like_concatenated_metrics,
         project_identity_lines,
@@ -840,6 +875,16 @@ def direct_creative(
         structured_metrics_to_dicts,
     )
 
+    headline = strip_ineligible_financial_claims(
+        headline, allowed_tokens=allowed_fin, blocked_tokens=blocked_fin
+    )
+    support = strip_ineligible_financial_claims(
+        support, allowed_tokens=allowed_fin, blocked_tokens=blocked_fin
+    )
+    eyebrow = strip_ineligible_financial_claims(
+        eyebrow, allowed_tokens=allowed_fin, blocked_tokens=blocked_fin
+    )
+
     metrics_list = []
     if structured_metrics:
         if structured_metrics and hasattr(structured_metrics[0], "display_value"):
@@ -847,6 +892,7 @@ def direct_creative(
         else:
             metrics_list = structured_metrics_from_dicts(list(structured_metrics))
     elif campaign_facts and objective == "investment":
+        # Current-campaign user inputs only — never recover blocked facts from RAG.
         metrics_list = campaign_facts_to_structured_metrics(
             campaign_facts,
             language=intent.language,
@@ -886,12 +932,15 @@ def direct_creative(
         support = (strategy.neighborhood if strategy else "") or (strategy.city if strategy else "") or ""
         if not support:
             support = context.project_identity.city or ""
-    for token in (strategy.excluded_facts if strategy else []):
+    for token in list(strategy.excluded_facts if strategy else []) + blocked_fin:
         piece = (token or "").strip()
-        if piece and len(piece) >= 5:
+        if piece and len(piece) >= 3:
             if piece in support:
                 support = support.replace(piece, "").strip(" ,.;")
-            if piece in headline and looks_like_street_address(piece):
+            if piece in headline and (
+                looks_like_street_address(piece)
+                or text_contains_ineligible_financial(piece, allowed_tokens=allowed_fin, blocked_tokens=blocked_fin)
+            ):
                 city = (strategy.city if strategy else None) or context.project_identity.city or ""
                 headline = clip_headline(f"A Central {city} Address" if city else name)
 
@@ -925,6 +974,9 @@ def direct_creative(
         for item in strategy.excluded_facts:
             if item and item not in exclude:
                 exclude.append(item)
+    for token in blocked_fin:
+        if token and token not in exclude:
+            exclude.append(token)
 
     contrast, overlay_region = _contrast_for(family, profile)
     alignment = _alignment_for(family)

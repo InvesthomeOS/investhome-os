@@ -830,6 +830,8 @@ def build_content_package_prompt(
         "Answer the strategy's single_minded_message — ONE idea, not a RAG summary. "
         "Rules: use ONLY selected_facts, supporting_evidence, and user_supplied_campaign_facts. "
         "Never invent project facts or financial figures. "
+        "Financial numbers may appear ONLY if listed in user_supplied_campaign_facts or structured_metrics. "
+        "A figure existing in project knowledge or retrieved documents is NOT a public claim. "
         "Actively omit information_to_exclude and excluded_facts. More facts is worse. "
         "Never use a full street address as the headline. Address is internal evidence. "
         "Never put construction status, GSF, zoning, unit counts, financing, or filenames on the canvas. "

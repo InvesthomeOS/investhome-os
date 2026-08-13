@@ -599,20 +599,17 @@ def score_copy_quality(
         loc_dump = looks_like_street_address(blob) or contains_raw_suppress_term(blob)
         if loc_dump:
             reject.append("irrelevant_facts")
-        # Invented financial claims (numbers not in campaign facts / evidence)
-        allowed = [cf.display for cf in campaign_facts] + list(strategy.supporting_evidence)
-        if re.search(r"(\d+\s*%|\$\s*[\d,]+)", blob) and campaign_facts:
-            for m in re.finditer(r"\$\s*[\d,]+(?:\.\d+)?|\d+(?:[.,]\d+)?\s*%", blob):
+        # Invented / unapproved financial claims — campaign inputs only, never RAG.
+        allowed = [cf.display for cf in campaign_facts]
+        blocked = list(strategy.excluded_facts or [])
+        if re.search(r"(\d+\s*%|\$\s*[\d,]+)", blob):
+            for m in re.finditer(r"\$\s*[\d,]+(?:\.\d+)?\s*[kmb]?|\d+(?:[.,]\d+)?\s*%|%\s*\d+(?:[.,]\d+)?", blob, re.I):
                 tok = m.group(0)
-                if not any(tok in a or tok.replace(" ", "") in a.replace(" ", "") for a in allowed):
+                if any(tok in b for b in blocked if b):
                     reject.append("irrelevant_facts")
-                    scores["factual_grounding"] = 0.1
+                    scores["factual_grounding"] = 0.05
                     break
-        elif re.search(r"(\d+\s*%|\$\s*[\d,]+)", blob) and not campaign_facts:
-            # No user metrics and a number appeared — treat as invented unless in evidence
-            for m in re.finditer(r"\$\s*[\d,]+(?:\.\d+)?|\d+(?:[.,]\d+)?\s*%", blob):
-                tok = m.group(0)
-                if not any(tok in a for a in allowed):
+                if not any(tok in a or tok.replace(" ", "") in a.replace(" ", "") for a in allowed):
                     reject.append("irrelevant_facts")
                     scores["factual_grounding"] = 0.05
                     break

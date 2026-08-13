@@ -18,10 +18,22 @@ from investhome_api.services.social_design_engine.campaign_intent import (
     CampaignIntentResult,
     ExplicitFactRequest,
 )
+from investhome_api.services.social_design_engine.fact_governance import (
+    CampaignContext,
+    ConflictStatus,
+    DerivationType,
+    MarketingStatus,
+    Visibility,
+    apply_conflicts_and_eligibility,
+    blocked_financial_tokens,
+    claim_family_for_key,
+    extract_financial_tokens,
+    is_financial_claim_key,
+    is_marketing_eligible,
+)
 from investhome_api.services.social_design_engine.generation import CampaignFact
 from investhome_api.services.social_design_engine.project_knowledge import (
     ProjectKnowledgePackage,
-    knowledge_has_verified_financial,
 )
 
 FactSource = Literal[
@@ -63,6 +75,14 @@ FINANCIAL_KEYS = frozenset(
         "projected_roi",
         "equity_required",
         "projected_profit",
+        "leverage",
+        "ltv",
+        "loan_to_cost",
+        "projected_value",
+        "expected_exit",
+        "distributions",
+        "cash_flow",
+        "investment_period",
     }
 )
 
@@ -86,7 +106,10 @@ INTENT_CATEGORY_PRIORITY: dict[CampaignIntentKind, list[FactCategory]] = {
 
 @dataclass
 class VerifiedFact:
-    """One grounded fact with provenance. Never invent financial values."""
+    """One grounded fact with provenance. Never invent financial values.
+
+    Legacy unknown financial facts default CONSERVATIVELY: not marketing-eligible.
+    """
 
     fact_id: str
     category: FactCategory
@@ -102,6 +125,12 @@ class VerifiedFact:
     is_financial: bool = False
     is_campaign_scoped: bool = False
     language_safe: bool = True
+    visibility: Visibility = "unknown"
+    marketing_status: MarketingStatus = "requires_review"
+    derivation_type: DerivationType = "extracted"
+    effective_date: str | None = None
+    campaign_scope: str | None = None
+    conflict_status: ConflictStatus = "none"
 
 
 @dataclass
@@ -116,7 +145,10 @@ class MissingFact:
 
 @dataclass
 class CampaignIntelligencePackage:
-    """Clean package passed to Marketing Strategy / Copy / Creative Director."""
+    """Clean package passed to Marketing Strategy / Copy / Creative Director.
+
+    TWO packages: project_knowledge (reasoning) and marketing_safe_facts (public claims).
+    """
 
     campaign_intent: CampaignIntentKind
     campaign_intent_confidence: float
@@ -131,6 +163,8 @@ class CampaignIntelligencePackage:
     qa_trace: dict[str, Any] = field(default_factory=dict)
     selected_asset_hint: str | None = None
     angle_hint: str | None = None
+    marketing_safe_facts: list[VerifiedFact] = field(default_factory=list)
+    claim_eligibility_trace: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _norm(text: str) -> str:
@@ -146,23 +180,13 @@ def _fid(prefix: str) -> str:
 
 def _is_financial_key(key: str) -> bool:
     k = _norm(key).replace(" ", "_")
+    if k in {"investment_narrative", "neighborhood_name"} or k.startswith(
+        ("neighborhood_highlight", "architecture_highlight", "amenity_")
+    ):
+        return False
     if k in FINANCIAL_KEYS:
         return True
-    return any(
-        term in k
-        for term in (
-            "irr",
-            "roi",
-            "yield",
-            "return",
-            "rental",
-            "profit",
-            "equity",
-            "financ",
-            "appreciation",
-            "investment",
-        )
-    )
+    return is_financial_claim_key(key)
 
 
 def build_verified_facts_from_knowledge(
@@ -180,10 +204,29 @@ def build_verified_facts_from_knowledge(
         confidence: float,
         usefulness: float,
         verified: bool = True,
+        visibility: Visibility | None = None,
+        marketing_status: MarketingStatus | None = None,
+        derivation_type: DerivationType | None = None,
     ) -> None:
         display = (value or "").strip()
         if not display:
             return
+        financial = _is_financial_key(key) or (
+            category in FINANCIAL_CATEGORIES and key != "investment_narrative"
+        )
+        # Conservative legacy defaults: financial knowledge is NOT marketing-approved.
+        if financial:
+            vis: Visibility = visibility or ("internal" if source == "project_db" else "unknown")
+            mstatus: MarketingStatus = marketing_status or "requires_review"
+            deriv: DerivationType = derivation_type or (
+                "canonical" if source == "project_db" else "extracted"
+            )
+        else:
+            vis = visibility or ("public" if source == "project_db" and key != "address" else "public")
+            if key == "address":
+                vis = visibility or "internal"
+            mstatus = marketing_status or "approved"
+            deriv = derivation_type or ("canonical" if source == "project_db" else "extracted")
         facts.append(
             VerifiedFact(
                 fact_id=_fid("vf"),
@@ -197,8 +240,14 @@ def build_verified_facts_from_knowledge(
                 verified=verified,
                 marketing_usefulness=usefulness,
                 recency_score=0.7 if source == "project_db" else 0.55,
-                is_financial=_is_financial_key(key) or category in FINANCIAL_CATEGORIES,
+                is_financial=financial,
                 is_campaign_scoped=False,
+                visibility=vis,
+                marketing_status=mstatus,
+                derivation_type=deriv,
+                effective_date=None,
+                campaign_scope=None,
+                conflict_status="none",
             )
         )
 
@@ -325,9 +374,112 @@ def build_verified_facts_from_knowledge(
                 reference=ev.reference,
                 confidence=0.55,
                 usefulness=0.7,
+                visibility="public",
+                marketing_status="approved",
+                derivation_type="extracted",
             )
 
+    # RAG / doc financial numbers: considered for the trace, NEVER auto-approved.
+    _ingest_extracted_financials(facts, pkg)
+
+    # Explicit marketing approval only when an authoritative project record says so.
+    _apply_explicit_project_approvals(facts, pkg)
     return facts
+
+
+def _infer_extracted_key(excerpt: str) -> str:
+    t = _norm(excerpt)
+    if any(k in t for k in ("irr",)):
+        return "irr"
+    if any(k in t for k in ("hedef getiri", "target return", "roi", "getiri")):
+        return "target_return"
+    if any(k in t for k in ("yield",)):
+        return "yield"
+    if any(k in t for k in ("min", "asgari", "equity", "minimum")):
+        return "min_investment"
+    if any(k in t for k in ("kira", "rental")):
+        return "rental_income"
+    if any(k in t for k in ("profit", "kar", "kâr")):
+        return "profit"
+    if any(k in t for k in ("ltv", "leverage", "financ")):
+        return "financing"
+    if any(k in t for k in ("ay", "month", "süre", "sure", "period")):
+        return "duration"
+    return "extracted_financial"
+
+
+def _ingest_extracted_financials(facts: list[VerifiedFact], pkg: ProjectKnowledgePackage) -> None:
+    seen = {_norm(f.display_value) for f in facts}
+    for ev in pkg.source_evidence or []:
+        text = (ev.excerpt or "").strip()
+        if not text:
+            continue
+        tokens = extract_financial_tokens(text)
+        if not tokens:
+            continue
+        for token in tokens:
+            if _norm(token) in seen:
+                continue
+            seen.add(_norm(token))
+            key = _infer_extracted_key(text)
+            facts.append(
+                VerifiedFact(
+                    fact_id=_fid("xf"),
+                    category="investment",
+                    key=key,
+                    value=token,
+                    display_value=token,
+                    source="retrieved",
+                    source_reference=ev.reference or "retrieved",
+                    confidence=0.45,
+                    verified=False,
+                    marketing_usefulness=0.2,
+                    recency_score=0.4,
+                    is_financial=True,
+                    is_campaign_scoped=False,
+                    visibility="unknown",
+                    marketing_status="requires_review",
+                    derivation_type="extracted",
+                    conflict_status="none",
+                )
+            )
+
+
+def _apply_explicit_project_approvals(facts: list[VerifiedFact], pkg: ProjectKnowledgePackage) -> None:
+    """Honor ONLY explicit marketing-approval flags on the knowledge record.
+
+    Never infer approval from the mere presence of a financial field.
+    """
+    inv = pkg.investment or {}
+    pricing = pkg.pricing or {}
+    approved_keys: set[str] = set()
+    for bucket in (inv, pricing):
+        for raw_key, raw_val in bucket.items():
+            key = str(raw_key)
+            if key.endswith("_marketing_status") and str(raw_val).strip().lower() == "approved":
+                approved_keys.add(key[: -len("_marketing_status")])
+            if key.endswith("_marketing_approved") and raw_val in {True, "true", "approved", 1, "1"}:
+                approved_keys.add(key[: -len("_marketing_approved")])
+    if not approved_keys:
+        return
+    aliases = {
+        "projected_irr": {"projected_irr", "irr"},
+        "projected_roi": {"projected_roi", "roi", "target_return"},
+        "equity_required": {"equity_required", "min_investment"},
+        "projected_profit": {"projected_profit", "profit"},
+    }
+    allowed = set(approved_keys)
+    for src, dests in aliases.items():
+        if src in approved_keys:
+            allowed.update(dests)
+    for fact in facts:
+        if not fact.is_financial:
+            continue
+        if fact.derivation_type != "canonical":
+            continue
+        if fact.key in allowed:
+            fact.marketing_status = "approved"
+            fact.visibility = "public"
 
 
 def campaign_inputs_to_verified_facts(campaign_facts: list[CampaignFact]) -> list[VerifiedFact]:
@@ -362,6 +514,12 @@ def campaign_inputs_to_verified_facts(campaign_facts: list[CampaignFact]) -> lis
                 recency_score=1.0,
                 is_financial=True,
                 is_campaign_scoped=True,
+                visibility="public",
+                marketing_status="campaign_only",
+                derivation_type="user_supplied",
+                effective_date=datetime.now(UTC).isoformat(),
+                campaign_scope="current",
+                conflict_status="none",
             )
         )
     return out
@@ -432,48 +590,61 @@ def select_facts_for_campaign(
     return selected
 
 
+def _eligible_covers_request(key: str, eligible: list[VerifiedFact], campaign_facts: list[CampaignFact]) -> bool:
+    """True when a MARKETING-ELIGIBLE fact (or current campaign input) covers the request.
+
+    Project-knowledge existence is not sufficient.
+    """
+    aliases = {
+        "irr": {"irr", "projected_irr"},
+        "roi": {"roi", "projected_roi", "campaign_return", "target_return"},
+        "target_return": {"target_return", "projected_roi", "campaign_return", "roi"},
+        "yield": {"yield", "campaign_return"},
+        "min_investment": {"min_investment", "campaign_min_investment", "equity_required"},
+        "duration": {"duration", "campaign_duration", "investment_period"},
+        "rental_income": {"rental_income", "rental"},
+        "profit": {"profit", "projected_profit"},
+        "appreciation": {"appreciation"},
+        "financing": {"financing", "leverage", "ltv"},
+    }
+    wanted = aliases.get(key, {key})
+    family = claim_family_for_key(key)
+    for fact in eligible:
+        if not fact.is_financial:
+            continue
+        if fact.key in wanted or key in _norm(fact.key):
+            return True
+        if family and claim_family_for_key(fact.key) == family and fact.is_campaign_scoped:
+            return True
+    if key in {"target_return", "roi", "yield"} and any(f.kind == "percent" for f in campaign_facts):
+        return True
+    if key == "irr" and any(f.kind == "percent" for f in campaign_facts):
+        return True
+    if key in {"min_investment"} and any(f.kind == "money" for f in campaign_facts):
+        return True
+    if key == "duration" and any(f.kind == "duration" for f in campaign_facts):
+        return True
+    return False
+
+
 def resolve_missing_facts(
     *,
     intent: CampaignIntentResult,
     knowledge: ProjectKnowledgePackage,
     selected: list[VerifiedFact],
     campaign_facts: list[CampaignFact],
+    eligible_facts: list[VerifiedFact] | None = None,
 ) -> tuple[list[MissingFact], bool, str | None]:
-    """Missing facts. Block only when user explicitly requires an unavailable financial fact."""
+    """Missing facts. Block only when user explicitly requires an unavailable eligible claim."""
+    _ = knowledge
     missing: list[MissingFact] = []
-    user_tokens = " ".join(f.display for f in campaign_facts).lower()
-    selected_keys = {_norm(f.key) for f in selected}
-    selected_blob = " ".join(f.display_value for f in selected).lower()
+    pool = list(eligible_facts if eligible_facts is not None else selected)
 
-    def has_user_or_verified(key: str) -> bool:
-        if knowledge_has_verified_financial(knowledge, key):
-            return True
-        aliases = {
-            "irr": ("irr", "projected_irr"),
-            "roi": ("roi", "projected_roi", "return"),
-            "target_return": ("return", "roi", "getiri", "%"),
-            "yield": ("yield", "getiri"),
-            "min_investment": ("campaign_min_investment", "equity_required", "$"),
-            "duration": ("campaign_duration", "month", "ay"),
-            "rental_income": ("rental", "kira"),
-            "profit": ("profit", "projected_profit"),
-            "appreciation": ("appreciation",),
-            "financing": ("financ", "mortgage"),
-        }
-        for alias in aliases.get(key, (key,)):
-            if alias in selected_keys or alias in user_tokens or alias in selected_blob:
-                return True
-        # Explicit user-supplied percent/money often covers target_return / min_investment
-        if key in {"target_return", "roi", "yield"} and any(f.kind == "percent" for f in campaign_facts):
-            return True
-        if key in {"min_investment"} and any(f.kind == "money" for f in campaign_facts):
-            return True
-        if key == "duration" and any(f.kind == "duration" for f in campaign_facts):
-            return True
-        return False
+    def has_eligible(key: str) -> bool:
+        return _eligible_covers_request(key, pool, campaign_facts)
 
     for req in intent.explicit_fact_requests:
-        if has_user_or_verified(req.key):
+        if has_eligible(req.key):
             continue
         missing.append(
             MissingFact(
@@ -481,15 +652,15 @@ def resolve_missing_facts(
                 label=req.label,
                 category="investment",
                 required=req.required,
-                reason=f"explicitly_requested_but_unavailable:{req.key}",
+                reason=f"explicitly_requested_but_not_marketing_approved:{req.key}",
                 user_can_provide=True,
             )
         )
 
-    # Soft missing for investment without metrics — do NOT block
+    # Soft missing for investment without eligible metrics — do NOT block
     if intent.campaign_intent in {"investment", "value_proposition", "rental_income"}:
-        has_metric = any(f.is_financial and f.is_campaign_scoped for f in selected) or any(
-            f.is_financial and f.category == "investment" and f.source == "project_db" for f in selected
+        has_metric = any(
+            f.is_financial and is_marketing_eligible(f).eligible for f in pool if f.is_financial
         )
         if not has_metric and not any(m.key in {"irr", "roi", "target_return"} for m in missing):
             missing.append(
@@ -498,7 +669,7 @@ def resolve_missing_facts(
                     label="Campaign financial metrics",
                     category="investment",
                     required=False,
-                    reason="investment_without_verified_metrics",
+                    reason="investment_without_marketing_approved_metrics",
                     user_can_provide=True,
                 )
             )
@@ -524,8 +695,18 @@ def build_campaign_intelligence(
     project_facts = build_verified_facts_from_knowledge(knowledge)
     user_facts = campaign_inputs_to_verified_facts(campaign_facts)
     all_facts = project_facts + user_facts
+    campaign_ctx = CampaignContext(
+        campaign_intent=intent.campaign_intent,
+        current_campaign_id="current",
+        user_supplied_keys=frozenset(f.key for f in user_facts),
+    )
+    marketing_safe, eligibility_trace, conflicts = apply_conflicts_and_eligibility(
+        all_facts,
+        campaign_ctx,
+    )
+    # Public campaign facts come ONLY from the marketing-safe package.
     selected = select_facts_for_campaign(
-        all_facts=all_facts,
+        all_facts=marketing_safe,
         campaign_intent=intent.campaign_intent,
         explicit_requests=list(intent.explicit_fact_requests or []),
     )
@@ -534,6 +715,7 @@ def build_campaign_intelligence(
         knowledge=knowledge,
         selected=selected,
         campaign_facts=campaign_facts,
+        eligible_facts=marketing_safe,
     )
     assets = list(knowledge.media_assets or [])[:12]
     qa = {
@@ -549,6 +731,9 @@ def build_campaign_intelligence(
                 "reference": f.source_reference,
                 "campaign_scoped": f.is_campaign_scoped,
                 "financial": f.is_financial,
+                "marketing_status": f.marketing_status,
+                "derivation_type": f.derivation_type,
+                "visibility": f.visibility,
             }
             for f in selected
         ],
@@ -559,6 +744,25 @@ def build_campaign_intelligence(
         "can_proceed": can_proceed,
         "populated_knowledge_sections": list(knowledge.populated_sections),
         "generated_at": datetime.now(UTC).isoformat(),
+        "claim_eligibility_trace": eligibility_trace,
+        "financial_conflicts": {
+            family: [
+                {
+                    "key": getattr(f, "key", None),
+                    "display": getattr(f, "display_value", None),
+                    "source": getattr(f, "source", None),
+                    "marketing_status": getattr(f, "marketing_status", None),
+                }
+                for f in group
+            ]
+            for family, group in conflicts.items()
+        },
+        "blocked_financial_tokens": blocked_financial_tokens(all_facts, campaign_ctx),
+        "marketing_safe_count": len(marketing_safe),
+        "packages": {
+            "project_knowledge": True,
+            "marketing_safe_facts": True,
+        },
     }
     return CampaignIntelligencePackage(
         campaign_intent=intent.campaign_intent,
@@ -577,6 +781,8 @@ def build_campaign_intelligence(
         qa_trace=qa,
         selected_asset_hint=str((selected_asset or {}).get("asset_id") or "") or None,
         angle_hint=intent.key_message,
+        marketing_safe_facts=marketing_safe,
+        claim_eligibility_trace=eligibility_trace,
     )
 
 
@@ -597,27 +803,28 @@ def campaign_intelligence_to_dict(pkg: CampaignIntelligencePackage) -> dict[str,
         "marketing_objective": pkg.marketing_objective,
         "project_knowledge": project_knowledge_to_dict(pkg.project_knowledge),
         "verified_campaign_facts": verified_facts_to_dicts(pkg.verified_campaign_facts),
+        "marketing_safe_facts": verified_facts_to_dicts(pkg.marketing_safe_facts),
         "user_campaign_inputs": list(pkg.user_campaign_inputs),
         "missing_relevant_facts": missing_facts_to_dicts(pkg.missing_relevant_facts),
         "available_assets": list(pkg.available_assets),
         "can_proceed": pkg.can_proceed,
         "block_reason": pkg.block_reason,
         "qa_trace": pkg.qa_trace,
+        "claim_eligibility_trace": list(pkg.claim_eligibility_trace),
         "selected_asset_hint": pkg.selected_asset_hint,
         "angle_hint": pkg.angle_hint,
     }
 
 
 def selected_facts_as_strategy_evidence(facts: list[VerifiedFact]) -> list[str]:
-    """Human-readable evidence lines for strategist — skip low-usefulness address."""
+    """Public-safe evidence for strategist. Financials only if marketing-eligible."""
     out: list[str] = []
     for f in facts:
         if f.key == "address" or f.marketing_usefulness < 0.35:
             continue
-        if f.is_financial and f.is_campaign_scoped:
-            out.append(f.display_value)
+        if f.is_financial and not is_marketing_eligible(f).eligible:
             continue
-        if f.is_financial and f.source == "project_db":
+        if f.is_financial and f.is_campaign_scoped:
             out.append(f.display_value)
             continue
         out.append(f.display_value)
@@ -630,16 +837,20 @@ def financial_metrics_from_verified(
     language: str,
     instruction: str,
 ) -> list[Any]:
-    """Pass verified financial metrics into Structured Metrics — never invent placeholders."""
+    """Structured Metrics may only consume marketing-eligible facts + campaign inputs.
+
+    MUST NOT independently query raw project/RAG financial data.
+    """
     from investhome_api.services.social_design_engine.generation import CampaignFact as CF
     from investhome_api.services.social_design_engine.metrics import campaign_facts_to_structured_metrics
 
-    # Prefer campaign-scoped user inputs
     campaign_like: list[CF] = []
     for f in facts:
         if not f.is_financial:
             continue
-        if not (f.is_campaign_scoped or f.source == "project_db"):
+        if f.key == "investment_narrative":
+            continue
+        if not is_marketing_eligible(f).eligible:
             continue
         kind = "other"
         if f.key in {"campaign_return", "projected_irr", "projected_roi"} or "%" in f.display_value:
@@ -649,12 +860,6 @@ def financial_metrics_from_verified(
         elif f.key in {"campaign_duration"} or re.search(r"\b(ay|month)", f.display_value, re.I):
             kind = "duration"
         else:
-            continue
-        # Only structured metrics for clearly numeric campaign/DB figures
-        if kind == "other":
-            continue
-        # Narrative investment lines are not metrics
-        if f.key == "investment_narrative":
             continue
         campaign_like.append(CF(label=f.key, display=f.display_value, kind=kind))
     if not campaign_like:

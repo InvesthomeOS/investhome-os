@@ -285,10 +285,11 @@ def generate_social_design(
         campaign_facts=campaign_facts,
         selected_asset=selected_asset_meta,
     )
-    # Structured metrics: user campaign inputs first; else verified project financials only.
+    # Structured Metrics: eligible marketing-safe facts + current campaign inputs ONLY.
+    # Never query raw project/RAG financials independently.
     if not structured_metrics:
         structured_metrics = financial_metrics_from_verified(
-            campaign_intel.verified_campaign_facts,
+            campaign_intel.marketing_safe_facts,
             language=gen_intent.language,
             instruction=instruction,
         )
@@ -568,6 +569,7 @@ def generate_social_design(
             strategy=marketing_strategy,
             copy_package=copy_direction.package,
             structured_metrics=structured_metrics,
+            campaign_intelligence=campaign_intel,
         )
         content_package = copy_package_to_content_package(copy_direction.package)
         content_package = enforce_campaign_facts(content_package, campaign_facts)

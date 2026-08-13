@@ -709,6 +709,23 @@ def build_marketing_strategy(
         campaign_facts=campaign_facts,
         instruction=instruction,
     )
+    allowed_financial = [cf.display for cf in campaign_facts]
+    if campaign_intelligence is not None:
+        for vf in list(getattr(campaign_intelligence, "marketing_safe_facts", []) or []):
+            if getattr(vf, "is_financial", False) and getattr(vf, "display_value", None):
+                token = str(vf.display_value)
+                if token not in allowed_financial:
+                    allowed_financial.append(token)
+    from investhome_api.services.social_design_engine.fact_governance import (
+        text_contains_ineligible_financial,
+        text_has_financial_claim,
+    )
+
+    for item in classified:
+        if item.source == "retrieved" and text_has_financial_claim(item.text):
+            if text_contains_ineligible_financial(item.text, allowed_tokens=allowed_financial):
+                item.suppress_from_copy = True
+                item.reason = "ineligible_financial_claim"
     city = (context.project_identity.city or "").strip()
     name = (context.project_identity.project_name or "").strip()
     neighborhood = extract_neighborhood(
@@ -746,7 +763,7 @@ def build_marketing_strategy(
     if objective == "location" and city and city not in supporting:
         supporting.insert(0, city)
     if objective == "investment":
-        # Prefer verified/selected campaign facts from intelligence; fall back to user inputs.
+        # Public claims from marketing_safe_facts / current campaign inputs only.
         intel_evidence: list[str] = []
         if campaign_intelligence is not None:
             from investhome_api.services.social_design_engine.verified_facts import (
@@ -754,7 +771,11 @@ def build_marketing_strategy(
             )
 
             intel_evidence = selected_facts_as_strategy_evidence(
-                list(getattr(campaign_intelligence, "verified_campaign_facts", []) or [])
+                list(
+                    getattr(campaign_intelligence, "marketing_safe_facts", None)
+                    or getattr(campaign_intelligence, "verified_campaign_facts", [])
+                    or []
+                )
             )
         if campaign_facts:
             supporting = [cf.display for cf in campaign_facts][:3]
@@ -777,13 +798,25 @@ def build_marketing_strategy(
         if f.key == "address" or looks_like_street_address(f.text):
             if f.text not in excluded:
                 excluded.append(f.text)
-    # Exclude off-intent financial figures when intelligence selected none for location etc.
-    if campaign_intelligence is not None and objective == "location":
-        for vf in list(getattr(campaign_intelligence, "verified_campaign_facts", []) or []):
-            if getattr(vf, "is_financial", False) and getattr(vf, "display_value", None):
-                token = str(vf.display_value)
-                if token not in excluded:
+    # Exclude ineligible / off-intent financial figures from public copy.
+    if campaign_intelligence is not None:
+        qa = getattr(campaign_intelligence, "qa_trace", None) or {}
+        for token in list(qa.get("blocked_financial_tokens") or []):
+            if token and token not in excluded:
+                excluded.append(str(token))
+        for row in list(getattr(campaign_intelligence, "claim_eligibility_trace", []) or []):
+            if not isinstance(row, dict):
+                continue
+            if row.get("is_financial") and not row.get("eligible"):
+                token = str(row.get("fact") or "")
+                if token and token not in excluded:
                     excluded.append(token)
+        if objective == "location":
+            for vf in list(getattr(campaign_intelligence, "verified_campaign_facts", []) or []):
+                if getattr(vf, "is_financial", False) and getattr(vf, "display_value", None):
+                    token = str(vf.display_value)
+                    if token not in excluded:
+                        excluded.append(token)
     return MarketingStrategy(
         objective=objective,
         audience=intent.audience or ("investors" if objective == "investment" else "general"),

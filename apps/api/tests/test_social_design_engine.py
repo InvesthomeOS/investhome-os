@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
@@ -2838,4 +2839,208 @@ def test_natural_investment_endpoint_without_metrics(client, db_session: Session
     assert metrics == [] or not any("14" in json.dumps(m).lower() for m in metrics)
     assert body["meta"].get("generationMeta") is None or True
     assert post.get("generationMeta") or body["meta"].get("campaign_intelligence")
+
+
+def _stamp_unapproved_financials(project: Project) -> None:
+    project.projected_irr = Decimal("19.5000")
+    project.projected_roi = Decimal("27.8000")
+    project.equity_required = Decimal("14500000.00")
+
+
+def test_unapproved_project_financials_never_become_public_claims(client, db_session: Session) -> None:
+    db = db_session
+    temple = _create_project(db, project_id=TEMPLE_PROJECT_ID)
+    _stamp_unapproved_financials(temple)
+    image = _asset(db, temple, filename="temple-premium-hero.jpg", folder_category="05_RENDERINGS")
+    brief = _asset(db, temple, filename="invest.md", content_type="text/markdown")
+    doc = _ready_document(
+        db,
+        temple,
+        text=_long_text(
+            "Temple Residences offers investors a considered equity position "
+            "in a signature Washington residence. Internal model shows 19.5% and 27.8%."
+        ),
+        title="invest.md",
+        asset=brief,
+    )
+    reindex_document(db, doc.id)
+    db.commit()
+
+    resp = client.post(
+        "/ai/creative-studio/social/design",
+        json={
+            "linked_project_id": str(TEMPLE_PROJECT_ID),
+            "instruction": "The Temple için yatırımcı odaklı premium bir Instagram kare postu hazırla.",
+            "mode": "create",
+            "draft": {"posts": [], "selected_post_id": None},
+            "selected_asset_ids": [str(image.id)],
+            "language": "en",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["meta"]["generation_intent"]["marketing_objective"] == "investment"
+    assert (body["meta"].get("campaign_intelligence") or {}).get("can_proceed") is True
+    post_blob = json.dumps(
+        [e for p in (body.get("posts") or []) for e in (p.get("elements") or [])]
+    ).lower()
+    assert "19.5" not in post_blob
+    assert "27.8" not in post_blob
+    assert "1450" not in post_blob
+    assert "$14,500,000" not in post_blob
+    metrics = [
+        e
+        for post in body.get("posts") or []
+        for e in (post.get("elements") or [])
+        if str(e.get("type") or "").upper() == "METRIC_GROUP"
+    ]
+    assert metrics == []
+    headline = next(
+        e for e in body["posts"][0]["elements"] if e.get("role") == "headline"
+    )
+    hl = str(headline.get("content") or "")
+    assert hl.strip().lower() not in {"the temple yatırımı", "temple residences yatırımı"}
+    assert any(e.get("type") in {"BUTTON", "CTA"} for e in body["posts"][0]["elements"])
+    assert body["posts"][0].get("generationMeta")
+    trace = (body["meta"].get("campaign_intelligence") or {}).get("claim_eligibility_trace") or []
+    assert trace
+    assert any(not row.get("eligible") and row.get("is_financial") for row in trace if isinstance(row, dict))
+
+
+def test_explicit_campaign_inputs_not_written_canonical_and_no_rag_leak(
+    client, db_session: Session
+) -> None:
+    db = db_session
+    temple = _create_project(db, project_id=TEMPLE_PROJECT_ID)
+    _stamp_unapproved_financials(temple)
+    image = _asset(db, temple, filename="temple-premium-hero.jpg", folder_category="05_RENDERINGS")
+    db.commit()
+
+    prompt = (
+        "The Temple için yatırımcı odaklı premium Instagram kare postu. "
+        "Minimum yatırım: $500,000 Hedef getiri: %14 Yatırım süresi: 24 ay. İngilizce hazırla."
+    )
+    resp = client.post(
+        "/ai/creative-studio/social/design",
+        json={
+            "linked_project_id": str(TEMPLE_PROJECT_ID),
+            "instruction": prompt,
+            "mode": "create",
+            "draft": {"posts": [], "selected_post_id": None},
+            "selected_asset_ids": [str(image.id)],
+            "language": "en",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    post_blob = json.dumps(
+        [e for p in (body.get("posts") or []) for e in (p.get("elements") or [])]
+    )
+    assert "500" in post_blob
+    assert "14" in post_blob
+    assert "24" in post_blob
+    assert "19.5" not in post_blob
+    assert "27.8" not in post_blob
+    db.refresh(temple)
+    assert temple.projected_roi == Decimal("27.8000")
+    assert temple.equity_required == Decimal("14500000.00")
+    intel = body["meta"].get("campaign_intelligence") or {}
+    user_inputs = intel.get("user_campaign_inputs") or []
+    assert user_inputs
+    knowledge = intel.get("project_knowledge") or {}
+    assert "$500,000" not in str(knowledge.get("investment") or {})
+
+
+def test_explicit_target_return_missing_review_state(client, db_session: Session) -> None:
+    db = db_session
+    temple = _create_project(db, project_id=TEMPLE_PROJECT_ID)
+    _stamp_unapproved_financials(temple)
+    image = _asset(db, temple, filename="temple-exterior-hero.jpg")
+    db.commit()
+
+    prior_post = {
+        "id": "post-prior-return",
+        "linked_project_id": str(TEMPLE_PROJECT_ID),
+        "formatPreset": "square",
+        "platform": "instagram",
+        "name": "Prior",
+        "coverAssetId": str(image.id),
+        "elements": [
+            {
+                "id": "h1",
+                "type": "TEXT",
+                "role": "headline",
+                "content": "Keep This Headline",
+                "x": 80,
+                "y": 80,
+                "width": 800,
+                "height": 100,
+            }
+        ],
+    }
+    resp = client.post(
+        "/ai/creative-studio/social/design",
+        json={
+            "linked_project_id": str(TEMPLE_PROJECT_ID),
+            "instruction": "The Temple'ın hedef getirisini öne çıkaran bir yatırım postu hazırla.",
+            "mode": "create",
+            "draft": {"posts": [prior_post], "selected_post_id": "post-prior-return"},
+            "selected_asset_ids": [str(image.id)],
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["ops"] == []
+    assert body["posts"][0]["elements"][0]["content"] == "Keep This Headline"
+    assert "missing_required_facts" in body["meta"]["warnings"]
+    missing = body["meta"].get("missing_facts") or []
+    assert any(m.get("key") == "target_return" for m in missing)
+    post_blob = json.dumps(body.get("posts") or []).lower()
+    assert "19.5" not in post_blob
+    assert "27.8" not in post_blob
+
+
+def test_location_brief_does_not_leak_project_financials(client, db_session: Session) -> None:
+    db = db_session
+    temple = _create_project(db, project_id=TEMPLE_PROJECT_ID)
+    _stamp_unapproved_financials(temple)
+    image = _asset(db, temple, filename="temple-aerial.jpg", folder_category="04_AERIAL")
+    brief = _asset(db, temple, filename="location.md", content_type="text/markdown")
+    doc = _ready_document(
+        db,
+        temple,
+        text=_long_text(
+            "Temple Residences sits in Columbia Heights with a central Washington location."
+        ),
+        title="location.md",
+        asset=brief,
+    )
+    reindex_document(db, doc.id)
+    db.commit()
+
+    resp = client.post(
+        "/ai/creative-studio/social/design",
+        json={
+            "linked_project_id": str(TEMPLE_PROJECT_ID),
+            "instruction": (
+                "The Temple'ın Washington DC'deki merkezi lokasyon avantajını anlatan "
+                "premium Instagram kare postu hazırla."
+            ),
+            "mode": "create",
+            "draft": {"posts": [], "selected_post_id": None},
+            "selected_asset_ids": [str(image.id)],
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["meta"]["generation_intent"]["marketing_objective"] == "location"
+    post_blob = json.dumps(
+        [e for p in (body.get("posts") or []) for e in (p.get("elements") or [])]
+    ).lower()
+    assert "19.5" not in post_blob
+    assert "27.8" not in post_blob
+    assert "1450" not in post_blob
+    assert "washington" in post_blob or "columbia" in post_blob or "central" in post_blob
+    assert any(e.get("type") in {"BUTTON", "CTA"} for e in body["posts"][0]["elements"])
+    assert body["posts"][0].get("generationMeta")
 
