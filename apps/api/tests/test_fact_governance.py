@@ -317,6 +317,34 @@ def test_cd_and_metrics_cannot_see_blocked_facts() -> None:
     assert concept.structured_metrics == []
 
 
+def test_cross_campaign_campaign_only_facts_are_ineligible() -> None:
+    from investhome_api.services.social_design_engine.generation import CampaignFact
+
+    facts = campaign_inputs_to_verified_facts(
+        [CampaignFact(label="campaign_percent", display="%14", kind="percent")],
+        campaign_context_id="campaign-a",
+    )
+    assert facts
+    fact = facts[0]
+    same = CampaignContext(current_campaign_id="campaign-a")
+    other = CampaignContext(current_campaign_id="campaign-b")
+    assert is_marketing_eligible(fact, same).eligible is True
+    blocked = is_marketing_eligible(fact, other)
+    assert blocked.eligible is False
+    assert blocked.reason == "cross_campaign_campaign_only_fact"
+    intel_b = build_campaign_intelligence(
+        intent=classify_campaign_intent(
+            "hedef getirisini öne çıkar",
+            project_name="Temple Residences",
+        ),
+        knowledge=_knowledge(),
+        campaign_facts=[],
+        campaign_context_id="campaign-b",
+    )
+    displays = {f.display_value for f in intel_b.marketing_safe_facts if f.is_financial}
+    assert not any("14" in d for d in displays)
+
+
 def test_canonical_approved_flag_is_honored_not_mass_applied() -> None:
     knowledge = _knowledge()
     knowledge.investment["projected_roi_marketing_status"] = "approved"

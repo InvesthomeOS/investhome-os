@@ -254,6 +254,18 @@
   min-width: 0;
 }
 
+.smb-ws__ai-design-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.smb-ws__ai-design-actions .ih-btn {
+  flex: 0 0 auto;
+}
+
 .smb-ws__ai-design-input {
   flex: 1 1 auto;
   min-width: 0;
@@ -3571,6 +3583,18 @@
   color: #152a36;
   font-size: 9px;
   font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.smb-ws__page-format {
+  display: block;
+  padding: 0 2px 1px;
+  color: #5b7380;
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

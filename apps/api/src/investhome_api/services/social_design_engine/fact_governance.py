@@ -196,6 +196,10 @@ class CampaignContext:
     explicitly_approved_keys: frozenset[str] = field(default_factory=frozenset)
     explicitly_approved_fact_ids: frozenset[str] = field(default_factory=frozenset)
 
+    @property
+    def id(self) -> str | None:
+        return self.current_campaign_id
+
 
 @dataclass
 class EligibilityDecision:
@@ -279,6 +283,19 @@ def is_marketing_eligible(fact: Any, campaign_context: CampaignContext | None = 
         and bool(getattr(fact, "is_campaign_scoped", False))
         and source == "user_campaign_input"
     ):
+        # Isolation: campaign_only facts are eligible only in the campaign that created them.
+        # When no CampaignContext is passed (legacy unit checks), keep current-campaign eligibility.
+        if campaign_context is not None:
+            fact_cid = str(getattr(fact, "campaign_context_id", None) or "").strip()
+            ctx_cid = str(ctx.current_campaign_id or "").strip()
+            if not fact_cid or not ctx_cid or fact_cid != ctx_cid:
+                return EligibilityDecision(
+                    eligible=False,
+                    reason="cross_campaign_campaign_only_fact",
+                    source=source,
+                    status="campaign_only",
+                    claim_family=family,
+                )
         return EligibilityDecision(
             eligible=True,
             reason="user_supplied_current_campaign",
@@ -427,6 +444,7 @@ def apply_conflicts_and_eligibility(
             "claim_family": decision.claim_family,
             "is_financial": bool(getattr(fact, "is_financial", False)),
             "campaign_scoped": bool(getattr(fact, "is_campaign_scoped", False)),
+            "campaign_context_id": getattr(fact, "campaign_context_id", None),
         }
         trace.append(row)
         if decision.eligible:

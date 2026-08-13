@@ -552,6 +552,7 @@ export type SocialDesignRequest = {
   linked_project_id: string;
   instruction: string;
   mode?: SocialDesignMode;
+  mode_explicit?: boolean;
   draft?: {
     posts?: Record<string, unknown>[];
     selected_post_id?: string | null;
@@ -595,6 +596,8 @@ export type SocialDesignGenerationMeta = {
   campaign_intelligence?: Record<string, unknown> | null;
   verified_facts?: Record<string, unknown>[];
   missing_facts?: Record<string, unknown>[];
+  campaign_context_id?: string | null;
+  generation_context_id?: string | null;
 };
 
 export type SocialDesignResponse = {
@@ -618,6 +621,7 @@ export async function generateSocialDesign(
       linked_project_id: input.linked_project_id,
       instruction: input.instruction,
       mode: input.mode ?? 'create',
+      mode_explicit: input.mode_explicit ?? false,
       draft: {
         posts: input.draft?.posts ?? [],
         selected_post_id: input.draft?.selected_post_id ?? null,

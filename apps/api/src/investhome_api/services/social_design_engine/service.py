@@ -47,13 +47,15 @@ from investhome_api.services.social_design_engine.generation import (
     build_content_package_prompt,
     build_design_plan,
     build_generation_metadata,
+    campaign_facts_for_mode,
     classify_generation_intent,
     compose_ops_from_plan,
     enforce_campaign_facts,
-    extract_campaign_facts,
     infer_design_mode,
     parse_content_package_from_llm,
+    resolve_campaign_context_id,
     resolve_generation_post_id,
+    sibling_inventory_for_create,
 )
 from investhome_api.services.social_design_engine.creative_director import (
     creative_concept_to_dict,
@@ -144,9 +146,15 @@ def _audit(db: Session, user: User, *, entity_id: UUID, metadata: dict) -> None:
     )
 
 
-def _infer_mode(requested: str, posts: list[dict[str, Any]], instruction: str) -> str:
-    """Generation vs edit — complete-post briefs rebuild; surgical NL stays edit."""
-    return infer_design_mode(instruction, posts, requested)
+def _infer_mode(
+    requested: str,
+    posts: list[dict[str, Any]],
+    instruction: str,
+    *,
+    explicit: bool = False,
+) -> str:
+    """CREATE vs EDIT. Explicit UI clicks are authoritative; NL is the fallback."""
+    return infer_design_mode(instruction, posts, requested, explicit=explicit)
 
 
 def generate_social_design(
@@ -165,7 +173,12 @@ def generate_social_design(
     project = _ensure_project(db, linked_project_id)
     draft_posts = [dict(p) for p in (body.draft.posts or []) if isinstance(p, dict)]
     selected_post_id = body.draft.selected_post_id
-    mode = _infer_mode(body.mode, draft_posts, instruction)
+    mode = _infer_mode(
+        body.mode,
+        draft_posts,
+        instruction,
+        explicit=bool(getattr(body, "mode_explicit", False)),
+    )
     gen_intent = classify_generation_intent(
         instruction,
         language=body.language,
@@ -177,7 +190,22 @@ def generate_social_design(
         project_name=project.project_name,
     )
     gen_intent = apply_campaign_intent_to_generation_intent(campaign_intent, gen_intent)
-    campaign_facts = extract_campaign_facts(instruction)
+    active_for_facts = find_post(draft_posts, selected_post_id) if selected_post_id else None
+    if active_for_facts is None and draft_posts:
+        active_for_facts = draft_posts[0]
+    campaign_context_id = resolve_campaign_context_id(
+        mode=mode,
+        draft_posts=draft_posts,
+        selected_post_id=selected_post_id,
+    )
+    generation_context_id = str(uuid4())
+    # CREATE: current prompt only. EDIT: selected post's campaign inputs + current prompt.
+    # Never harvest previous canvas text/metrics as campaign facts.
+    campaign_facts = campaign_facts_for_mode(
+        mode=mode,
+        instruction=instruction,
+        selected_post=active_for_facts if mode == "edit" else None,
+    )
     structured_metrics = campaign_facts_to_structured_metrics(
         campaign_facts,
         language=gen_intent.language,
@@ -284,6 +312,7 @@ def generate_social_design(
         knowledge=project_knowledge,
         campaign_facts=campaign_facts,
         selected_asset=selected_asset_meta,
+        campaign_context_id=campaign_context_id,
     )
     # Structured Metrics: eligible marketing-safe facts + current campaign inputs ONLY.
     # Never query raw project/RAG financials independently.
@@ -371,6 +400,8 @@ def generate_social_design(
             campaign_intelligence=campaign_intel_payload,
             verified_facts=verified_facts_to_dicts(campaign_intel.verified_campaign_facts),
             missing_facts=missing_facts_to_dicts(campaign_intel.missing_relevant_facts),
+            campaign_context_id=campaign_context_id,
+            generation_context_id=generation_context_id,
         )
         event_id = uuid4()
         _audit(
@@ -433,6 +464,8 @@ def generate_social_design(
             campaign_intelligence=campaign_intel_payload,
             verified_facts=gen_meta_payload.get("verified_facts") or [],
             missing_facts=gen_meta_payload.get("missing_facts") or [],
+            campaign_context_id=campaign_context_id,
+            generation_context_id=generation_context_id,
         )
         return SocialDesignResponse(
             linked_project_id=linked_project_id,
@@ -454,7 +487,8 @@ def generate_social_design(
             gen_intent.audience = "investors"
             gen_intent.asset_preference = "premium_hero"
             gen_intent.cta_hint = choose_investment_cta(gen_intent.language)
-        mode = "create"
+        if mode != "edit":
+            mode = "create"
 
     # -------- EDIT: copy-intelligence (same strategy) — not a full regenerate --------
     if mode == "edit" and copy_kind not in {"none", "change_objective"}:
@@ -546,7 +580,8 @@ def generate_social_design(
             intent_plan.structural_only = False
 
     # -------- GENERATION: Strategist → Copy Director → Creative Director → plan --------
-    if mode == "create":
+    regenerate_selected = mode == "edit" and copy_kind == "change_objective"
+    if mode == "create" or regenerate_selected:
         picked_candidate = next((c for c in media_candidates if picked and c.asset_id == picked), None)
         marketing_strategy = build_marketing_strategy(
             instruction=instruction,
@@ -623,7 +658,7 @@ def generate_social_design(
             context.warnings.append("content_package_fallback")
             planner_name = "generation"
 
-        post_id, rebuild = resolve_generation_post_id(draft_posts, selected_post_id)
+        post_id, rebuild = resolve_generation_post_id(draft_posts, selected_post_id, mode=mode)
         design_plan = build_design_plan(
             package=content_package,
             intent=gen_intent,
@@ -654,6 +689,8 @@ def generate_social_design(
             design_plan,
             linked_project_id=linked_project_id,
             instruction=instruction,
+            campaign_context_id=campaign_context_id,
+            generation_context_id=generation_context_id,
         )
         summary = "Generated complete social post from project knowledge."
         if any(
@@ -665,13 +702,14 @@ def generate_social_design(
                 campaign_intel.qa_trace["adapted_non_metric_investment"] = True
                 campaign_intel_payload = campaign_intelligence_to_dict(campaign_intel)
 
+    planner_posts = sibling_inventory_for_create(draft_posts) if mode == "create" else draft_posts
     system, user_prompt, prompt_version = build_design_prompt(
         instruction=instruction,
         mode=mode,
         linked_project_id=linked_project_id,
         context=context,
-        draft_posts=draft_posts,
-        selected_post_id=selected_post_id,
+        draft_posts=planner_posts,
+        selected_post_id=selected_post_id if mode == "edit" else None,
         media_candidates=media_candidates,
         builder_context=builder_context,
         max_prompt_chars=max_prompt_chars,
@@ -723,7 +761,9 @@ def generate_social_design(
         raw_ops,
         linked_project_id=linked_project_id,
         fallback_asset_id=picked,
-        default_post_id=selected_post_id,
+        default_post_id=selected_post_id
+        if mode == "edit"
+        else (design_plan.post_id if design_plan is not None else None),
     )
 
     # Copy-protection + structural filter (EDIT mode)
@@ -803,6 +843,8 @@ def generate_social_design(
                     design_plan,
                     linked_project_id=linked_project_id,
                     instruction=instruction,
+                    campaign_context_id=campaign_context_id,
+                    generation_context_id=generation_context_id,
                 )
                 planner_name = "generation"
             else:
@@ -907,15 +949,35 @@ def generate_social_design(
         campaign_intelligence=campaign_intel_payload,
         verified_facts=verified_facts_to_dicts(campaign_intel.verified_campaign_facts),
         missing_facts=missing_facts_to_dicts(campaign_intel.missing_relevant_facts),
+        campaign_context_id=campaign_context_id,
+        generation_context_id=generation_context_id,
     )
-    if (mode == "create" or planner_name == "copy_intelligence") and accepted:
+    if accepted:
+        target_id = str(new_selected or selected_post_id or "")
+        attached = False
         for post in mutated_posts:
-            if new_selected and str(post.get("id") or "") == str(new_selected):
+            if target_id and str(post.get("id") or "") != target_id:
+                continue
+            if mode == "create" or planner_name == "copy_intelligence" or regenerate_selected:
                 attach_generation_metadata(post, meta=gen_meta_payload)
-                break
-        else:
-            if mutated_posts:
-                attach_generation_metadata(mutated_posts[0], meta=gen_meta_payload)
+            else:
+                if campaign_context_id and not (
+                    post.get("campaignContextId") or post.get("campaign_context_id")
+                ):
+                    post["campaignContextId"] = campaign_context_id
+                    post["campaign_context_id"] = campaign_context_id
+                stamp = gen_meta_payload.get("generated_at")
+                if isinstance(stamp, str) and stamp:
+                    post["updatedAt"] = stamp
+            attached = True
+            break
+        if not attached and mutated_posts and (
+            mode == "create" or planner_name == "copy_intelligence"
+        ):
+            attach_generation_metadata(
+                mutated_posts[-1] if mode == "create" else mutated_posts[0],
+                meta=gen_meta_payload,
+            )
 
     event_id = uuid4()
     _audit(
@@ -984,6 +1046,8 @@ def generate_social_design(
         campaign_intelligence=gen_meta_payload.get("campaign_intelligence"),
         verified_facts=gen_meta_payload.get("verified_facts") or [],
         missing_facts=gen_meta_payload.get("missing_facts") or [],
+        campaign_context_id=campaign_context_id,
+        generation_context_id=generation_context_id,
     )
 
     return SocialDesignResponse(

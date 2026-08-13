@@ -130,6 +130,7 @@ class VerifiedFact:
     derivation_type: DerivationType = "extracted"
     effective_date: str | None = None
     campaign_scope: str | None = None
+    campaign_context_id: str | None = None
     conflict_status: ConflictStatus = "none"
 
 
@@ -482,7 +483,11 @@ def _apply_explicit_project_approvals(facts: list[VerifiedFact], pkg: ProjectKno
             fact.visibility = "public"
 
 
-def campaign_inputs_to_verified_facts(campaign_facts: list[CampaignFact]) -> list[VerifiedFact]:
+def campaign_inputs_to_verified_facts(
+    campaign_facts: list[CampaignFact],
+    *,
+    campaign_context_id: str | None = None,
+) -> list[VerifiedFact]:
     """User-supplied campaign figures — campaign-scoped, never canonical."""
     out: list[VerifiedFact] = []
     for cf in campaign_facts:
@@ -519,6 +524,7 @@ def campaign_inputs_to_verified_facts(campaign_facts: list[CampaignFact]) -> lis
                 derivation_type="user_supplied",
                 effective_date=datetime.now(UTC).isoformat(),
                 campaign_scope="current",
+                campaign_context_id=campaign_context_id,
                 conflict_status="none",
             )
         )
@@ -691,13 +697,15 @@ def build_campaign_intelligence(
     knowledge: ProjectKnowledgePackage,
     campaign_facts: list[CampaignFact],
     selected_asset: dict[str, Any] | None = None,
+    campaign_context_id: str | None = None,
 ) -> CampaignIntelligencePackage:
+    cid = (campaign_context_id or "").strip() or str(uuid4())
     project_facts = build_verified_facts_from_knowledge(knowledge)
-    user_facts = campaign_inputs_to_verified_facts(campaign_facts)
+    user_facts = campaign_inputs_to_verified_facts(campaign_facts, campaign_context_id=cid)
     all_facts = project_facts + user_facts
     campaign_ctx = CampaignContext(
         campaign_intent=intent.campaign_intent,
-        current_campaign_id="current",
+        current_campaign_id=cid,
         user_supplied_keys=frozenset(f.key for f in user_facts),
     )
     marketing_safe, eligibility_trace, conflicts = apply_conflicts_and_eligibility(
@@ -719,6 +727,7 @@ def build_campaign_intelligence(
     )
     assets = list(knowledge.media_assets or [])[:12]
     qa = {
+        "campaign_context_id": cid,
         "campaign_intent": intent.campaign_intent,
         "intent_confidence": intent.confidence,
         "intent_signals": list(intent.signals),
@@ -798,6 +807,7 @@ def campaign_intelligence_to_dict(pkg: CampaignIntelligencePackage) -> dict[str,
     from investhome_api.services.social_design_engine.project_knowledge import project_knowledge_to_dict
 
     return {
+        "campaign_context_id": (pkg.qa_trace or {}).get("campaign_context_id"),
         "campaign_intent": pkg.campaign_intent,
         "campaign_intent_confidence": pkg.campaign_intent_confidence,
         "marketing_objective": pkg.marketing_objective,

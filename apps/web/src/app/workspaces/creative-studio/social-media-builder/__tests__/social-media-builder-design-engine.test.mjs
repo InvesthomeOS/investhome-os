@@ -64,8 +64,11 @@ describe('workspace wires design engine (same canvas)', () => {
     assert.match(workspace, /data-testid="smb-ai-design-command"/);
     assert.match(workspace, /data-testid="smb-ai-design-input"/);
     assert.match(workspace, /data-testid="smb-ai-design-submit"/);
+    assert.match(workspace, /data-testid="smb-ai-design-edit"/);
+    assert.match(workspace, /data-ai-workflow="create"/);
     assert.match(workspace, /aiDesign\.title/);
-    assert.match(workspace, /aiDesign\.submit/);
+    assert.match(workspace, /aiDesign\.createPost/);
+    assert.match(workspace, /aiDesign\.editPost/);
     assert.match(workspace, /aiDesign\.placeholder/);
     // Single shared command lives inside center shell so Normal + Fullscreen share state
     assert.match(workspace, /data-testid="smb-center"[\s\S]*\{aiDesignCommand\}/);
@@ -123,8 +126,11 @@ describe('design request builder logic (inlined mirror)', () => {
     return SURGICAL_EDIT_HINTS.some((h) => instr.includes(h));
   }
 
-  function inferDesignMode(instruction, posts, preferred) {
+  function inferDesignMode(instruction, posts, preferred, options) {
     if (!posts.length) return 'create';
+    if (options?.explicit && (preferred === 'create' || preferred === 'edit')) {
+      return preferred;
+    }
     const generation = isCompletePostGeneration(instruction);
     const surgical = isSurgicalEdit(instruction);
     if (generation && !surgical) return 'create';
@@ -140,7 +146,9 @@ describe('design request builder logic (inlined mirror)', () => {
     if (!linked || !UUID_RE.test(linked)) return { ok: false, reason: 'missing_project' };
     const instruction = (input.instruction || '').trim();
     if (!instruction) return { ok: false, reason: 'missing_instruction' };
-    const mode = inferDesignMode(instruction, input.posts ?? [], input.mode);
+    const mode = inferDesignMode(instruction, input.posts ?? [], input.mode, {
+      explicit: Boolean(input.modeExplicit),
+    });
     return {
       ok: true,
       request: {
@@ -203,6 +211,33 @@ describe('design request builder logic (inlined mirror)', () => {
       instruction: 'Başka bir Temple fotoğrafı kullan',
       posts: [{ id: 'p1', elements: [{ id: 'h1', type: 'TEXT' }] }],
       selectedPostId: 'p1',
+    });
+    assert.equal(built.ok, true);
+    assert.equal(built.request.mode, 'edit');
+  });
+
+  it('treats explicit CREATE click as authoritative over surgical NL', () => {
+    const built = buildSocialDesignRequest({
+      linkedProjectId: TEMPLE_UUID,
+      instruction: 'Başlığı biraz yukarı al',
+      posts: [{ id: 'p1', elements: [{ id: 'h1', type: 'TEXT' }] }],
+      selectedPostId: 'p1',
+      mode: 'create',
+      modeExplicit: true,
+    });
+    assert.equal(built.ok, true);
+    assert.equal(built.request.mode, 'create');
+  });
+
+  it('treats explicit EDIT click as authoritative over complete-post NL', () => {
+    const built = buildSocialDesignRequest({
+      linkedProjectId: TEMPLE_UUID,
+      instruction:
+        'The Temple projesinin Washington DC\'deki merkezi lokasyonunu öne çıkaran premium bir Instagram kare postu hazırla.',
+      posts: [{ id: 'p1', elements: [{ id: 'h1', type: 'TEXT' }] }],
+      selectedPostId: 'p1',
+      mode: 'edit',
+      modeExplicit: true,
     });
     assert.equal(built.ok, true);
     assert.equal(built.request.mode, 'edit');
@@ -328,5 +363,22 @@ describe('canonical canvas fit / layout safety (renderer contract)', () => {
     assert.match(css, /--smb-metric-value-row/);
     const engine = readSmb('social-media-builder-design-engine.ts');
     assert.match(engine, /structured_metrics/);
+  });
+
+  it('CREATE vs EDIT UI, campaign context persistence, and Gönderiler restore', () => {
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    assert.match(workspace, /submitAiDesign\('create', true\)/);
+    assert.match(workspace, /submitAiDesign\('edit', true\)/);
+    assert.match(workspace, /modeExplicit: Boolean\(options\?\.explicit\)/);
+    assert.match(workspace, /setGenerationMeta\(parseGenerationMetaFromDraft\(post\.generationMeta\)\)/);
+    assert.match(workspace, /smb-ws__page-format/);
+    const persistence = readSmb('social-media-builder-persistence.ts');
+    assert.match(persistence, /campaignContextId/);
+    assert.match(persistence, /generationContextId/);
+    const model = readSmb('social-media-builder-model.ts');
+    assert.match(model, /campaignContextId\?:/);
+    const engine = readSmb('social-media-builder-design-engine.ts');
+    assert.match(engine, /mode_explicit/);
+    assert.match(engine, /campaign_context_id/);
   });
 });

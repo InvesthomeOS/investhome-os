@@ -1505,6 +1505,8 @@ def test_infer_design_mode_generation_vs_edit() -> None:
     assert infer_design_mode("CTA'yı kaldır", existing, "create") == "edit"
     assert infer_design_mode("Başka bir Temple fotoğrafı kullan", existing, "create") == "edit"
     assert infer_design_mode(location, [], "edit") == "create"
+    assert infer_design_mode("Başlığı biraz yukarı al", existing, "create", explicit=True) == "create"
+    assert infer_design_mode(location, existing, "edit", explicit=True) == "edit"
 
 
 def test_campaign_facts_preserved_exactly() -> None:
@@ -1674,9 +1676,11 @@ def test_composer_rebuilds_canvas_schema_and_layout(client, db_session: Session)
     assert body["meta"]["generated_by"] == "social_design_engine"
     assert body["meta"]["generation_intent"]["marketing_objective"] == "location"
     posts = body["posts"]
-    assert len(posts) == 1
-    post = posts[0]
-    assert post["id"] == existing_id
+    assert len(posts) == 2
+    prior = next(p for p in posts if p["id"] == existing_id)
+    assert (prior.get("elements") or [])[0]["content"] == "Old headline"
+    post = next(p for p in posts if p["id"] != existing_id)
+    assert post["id"] != existing_id
     elements = post.get("elements") or []
     roles = {e.get("role") for e in elements if e.get("type") == "TEXT"}
     types = {e.get("type") for e in elements}
@@ -3043,4 +3047,183 @@ def test_location_brief_does_not_leak_project_financials(client, db_session: Ses
     assert "washington" in post_blob or "columbia" in post_blob or "central" in post_blob
     assert any(e.get("type") in {"BUTTON", "CTA"} for e in body["posts"][0]["elements"])
     assert body["posts"][0].get("generationMeta")
+
+
+def test_create_appends_isolated_campaign_and_edit_mutates_only_selected(
+    client, db_session: Session
+) -> None:
+    from investhome_api.services.social_design_engine.generation import (
+        campaign_facts_for_mode,
+        resolve_campaign_context_id,
+        resolve_generation_post_id,
+    )
+
+    db = db_session
+    temple = _create_project(db, project_id=TEMPLE_PROJECT_ID)
+    image = _asset(db, temple, filename="temple-premium-hero.jpg", folder_category="05_RENDERINGS")
+    brief = _asset(db, temple, filename="location.md", content_type="text/markdown")
+    doc = _ready_document(
+        db,
+        temple,
+        text=_long_text("Temple Residences at 1610 Columbia Rd NW Washington DC central location"),
+        title="location.md",
+        asset=brief,
+    )
+    reindex_document(db, doc.id)
+    db.commit()
+
+    prior = {
+        "id": "post-a",
+        "formatPreset": "square",
+        "platform": "instagram",
+        "name": "Post A",
+        "headline": "Keep Post A",
+        "elements": [
+            {
+                "id": "h-a",
+                "type": "TEXT",
+                "role": "headline",
+                "content": "Keep Post A",
+                "x": 80,
+                "y": 80,
+                "width": 800,
+                "height": 80,
+            }
+        ],
+    }
+    new_id, rebuild = resolve_generation_post_id([prior], "post-a", mode="create")
+    assert rebuild is False
+    assert new_id != "post-a"
+    edit_id, edit_rebuild = resolve_generation_post_id([prior], "post-a", mode="edit")
+    assert edit_id == "post-a" and edit_rebuild is True
+    create_cid = resolve_campaign_context_id(mode="create", draft_posts=[prior], selected_post_id="post-a")
+    assert create_cid
+    prior["campaignContextId"] = "campaign-a"
+    prior["generationMeta"] = {
+        "campaign_context_id": "campaign-a",
+        "campaign_facts": [{"label": "campaign_percent", "display": "%14", "kind": "percent"}],
+    }
+    assert (
+        resolve_campaign_context_id(mode="edit", draft_posts=[prior], selected_post_id="post-a")
+        == "campaign-a"
+    )
+    create_facts = campaign_facts_for_mode(
+        mode="create", instruction="hedef getirisini öne çıkar", selected_post=prior
+    )
+    assert create_facts == []
+    edit_facts = campaign_facts_for_mode(
+        mode="edit", instruction="hedef getirisini öne çıkar", selected_post=prior
+    )
+    assert any(f.display == "%14" for f in edit_facts)
+
+    location = (
+        "The Temple projesinin Washington DC'deki merkezi lokasyonunu öne çıkaran "
+        "premium bir Instagram kare postu hazırla. Proje verilerini kullan. "
+        "En uygun gerçek proje görselini seç. İngilizce hazırla."
+    )
+    resp_a = client.post(
+        "/ai/creative-studio/social/design",
+        json={
+            "linked_project_id": str(TEMPLE_PROJECT_ID),
+            "instruction": location,
+            "mode": "create",
+            "mode_explicit": True,
+            "draft": {"posts": [prior], "selected_post_id": "post-a"},
+            "selected_asset_ids": [str(image.id)],
+        },
+    )
+    assert resp_a.status_code == 200, resp_a.text
+    body_a = resp_a.json()
+    assert body_a["mode"] == "create"
+    assert len(body_a["posts"]) == 2
+    kept_a = next(p for p in body_a["posts"] if p["id"] == "post-a")
+    created_b = next(p for p in body_a["posts"] if p["id"] != "post-a")
+    assert kept_a["elements"][0]["content"] == "Keep Post A"
+    cid_b = created_b.get("campaignContextId") or (created_b.get("generationMeta") or {}).get(
+        "campaign_context_id"
+    )
+    assert cid_b and cid_b != "campaign-a"
+
+    invest = (
+        "The Temple için yatırımcı odaklı premium Instagram kare postu. "
+        "Minimum yatırım: $500,000 Hedef getiri: %14 Yatırım süresi: 24 ay. İngilizce hazırla."
+    )
+    resp_b = client.post(
+        "/ai/creative-studio/social/design",
+        json={
+            "linked_project_id": str(TEMPLE_PROJECT_ID),
+            "instruction": invest,
+            "mode": "create",
+            "mode_explicit": True,
+            "draft": {"posts": body_a["posts"], "selected_post_id": created_b["id"]},
+            "selected_asset_ids": [str(image.id)],
+        },
+    )
+    assert resp_b.status_code == 200, resp_b.text
+    body_b = resp_b.json()
+    assert len(body_b["posts"]) == 3
+    still_a = next(p for p in body_b["posts"] if p["id"] == "post-a")
+    still_loc = next(p for p in body_b["posts"] if p["id"] == created_b["id"])
+    created_c = next(p for p in body_b["posts"] if p["id"] not in {"post-a", created_b["id"]})
+    assert still_a["elements"][0]["content"] == "Keep Post A"
+    loc_blob = json.dumps(still_loc.get("elements") or [])
+    assert "$500,000" not in loc_blob and "%14" not in loc_blob
+    invest_blob = json.dumps(created_c.get("elements") or [])
+    assert "500" in invest_blob and "14" in invest_blob
+    cid_c = created_c.get("campaignContextId") or (created_c.get("generationMeta") or {}).get(
+        "campaign_context_id"
+    )
+    assert cid_c and cid_c != cid_b
+
+    resp_c = client.post(
+        "/ai/creative-studio/social/design",
+        json={
+            "linked_project_id": str(TEMPLE_PROJECT_ID),
+            "instruction": "hedef getirisini öne çıkar",
+            "mode": "create",
+            "mode_explicit": True,
+            "draft": {"posts": body_b["posts"], "selected_post_id": created_c["id"]},
+            "selected_asset_ids": [str(image.id)],
+        },
+    )
+    assert resp_c.status_code == 200, resp_c.text
+    body_c = resp_c.json()
+    created_ids_before = {p["id"] for p in body_b["posts"]}
+    if body_c["ops"]:
+        newest = next(p for p in body_c["posts"] if p["id"] not in created_ids_before)
+        newest_blob = json.dumps(newest.get("elements") or []).lower()
+        assert "$500" not in newest_blob
+        assert "%14" not in newest_blob
+        assert "24 ay" not in newest_blob and "24 months" not in newest_blob
+    else:
+        assert "missing_required_facts" in body_c["meta"]["warnings"]
+        assert len(body_c["posts"]) == 3
+        untouched = next(p for p in body_c["posts"] if p["id"] == created_c["id"])
+        assert json.dumps(untouched.get("elements") or []) == json.dumps(created_c.get("elements") or [])
+
+    headline_before = next(
+        e["content"] for e in created_c["elements"] if e.get("role") == "headline"
+    )
+    headline_y_before = next(e["y"] for e in created_c["elements"] if e.get("role") == "headline")
+    resp_d = client.post(
+        "/ai/creative-studio/social/design",
+        json={
+            "linked_project_id": str(TEMPLE_PROJECT_ID),
+            "instruction": "Başlığı biraz yukarı al",
+            "mode": "edit",
+            "mode_explicit": True,
+            "draft": {"posts": body_b["posts"], "selected_post_id": created_c["id"]},
+            "selected_asset_ids": [str(image.id)],
+        },
+    )
+    assert resp_d.status_code == 200, resp_d.text
+    body_d = resp_d.json()
+    assert body_d["mode"] == "edit"
+    assert len(body_d["posts"]) == 3
+    edited = next(p for p in body_d["posts"] if p["id"] == created_c["id"])
+    sibling = next(p for p in body_d["posts"] if p["id"] == created_b["id"])
+    assert json.dumps(sibling.get("elements") or []) == json.dumps(still_loc.get("elements") or [])
+    edited_headline = next(e for e in edited["elements"] if e.get("role") == "headline")
+    assert edited_headline["content"] == headline_before
+    assert edited_headline["y"] != headline_y_before or bool(body_d["ops"])
 

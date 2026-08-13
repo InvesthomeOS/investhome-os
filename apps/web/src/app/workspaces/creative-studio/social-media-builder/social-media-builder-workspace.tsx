@@ -69,6 +69,7 @@ import {
   serializeGenerationMetaForDraft,
   toDesignGenerationMeta,
   type DesignGenerationMeta,
+  type SocialDesignMode,
 } from './social-media-builder-design-engine';
 import {
   hydrateSocialPostsFromDraft,
@@ -320,12 +321,15 @@ export function SocialMediaBuilderWorkspace() {
             }
           : null;
       coverAsset.hydrateMedia(coverRef, draft ? [] : []);
+      const fromPost = parseGenerationMetaFromDraft(active.generationMeta);
       if (draft && 'generationMeta' in draft) {
         setGenerationMeta(
           parseGenerationMetaFromDraft(
             (draft as { generationMeta?: Record<string, unknown> | null }).generationMeta,
-          ),
+          ) ?? fromPost,
         );
+      } else {
+        setGenerationMeta(fromPost);
       }
     },
     [coverAsset, docApi.constructionProjectId],
@@ -719,6 +723,7 @@ export function SocialMediaBuilderWorkspace() {
     setSelectedPostId(post.id);
     setFormatPreset(post.formatPreset);
     setSelectedElementId(null);
+    setGenerationMeta(parseGenerationMetaFromDraft(post.generationMeta));
     const coverRef = post.coverAssetId
       ? { asset_id: post.coverAssetId, url: null, alt: null, role: 'cover' as const }
       : null;
@@ -920,10 +925,13 @@ export function SocialMediaBuilderWorkspace() {
   }
 
   const runAiGenerate = useCallback(
-    async (instruction: string) => {
+    async (instruction: string, options?: { mode?: SocialDesignMode; explicit?: boolean }) => {
       // Always read latest canvas — sequential edits must not use a stale snapshot.
       const latestPosts = postsRef.current;
       const latestSelectedPostId = selectedPostIdRef.current;
+      const inferredMode = inferDesignMode(instruction, latestPosts, options?.mode, {
+        explicit: Boolean(options?.explicit),
+      });
       const built = buildSocialDesignRequest({
         linkedProjectId: docApi.constructionProjectId,
         instruction,
@@ -938,6 +946,8 @@ export function SocialMediaBuilderWorkspace() {
         galleryImages: coverAsset.galleryImages,
         language: locale,
         platforms,
+        mode: options?.mode ?? inferredMode,
+        modeExplicit: Boolean(options?.explicit),
       });
 
       if (!built.ok) {
@@ -959,7 +969,6 @@ export function SocialMediaBuilderWorkspace() {
       }
 
       const token = ++generateAbortRef.current;
-      const inferredMode = inferDesignMode(instruction, latestPosts);
       setGenerating(true);
       setCampaignStatus('draft');
       if (inferredMode === 'create') {
@@ -986,7 +995,9 @@ export function SocialMediaBuilderWorkspace() {
           response,
           docApi.constructionProjectId,
         );
-        if (applied.posts.length) {
+        const blocked =
+          Boolean(meta.warnings.includes('missing_required_facts')) && !(response.ops?.length);
+        if (applied.posts.length && !blocked) {
           pushHistory();
           setPosts(
             applied.posts.map((p) => ({
@@ -1178,13 +1189,13 @@ export function SocialMediaBuilderWorkspace() {
     );
   }
 
-  function submitAiDesign() {
+  function submitAiDesign(mode?: SocialDesignMode, explicit = false) {
     const instruction = aiPrompt.trim();
     if (!instruction) {
       showToast(t('toasts.instructionRequired'));
       return;
     }
-    void runAiGenerate(instruction);
+    void runAiGenerate(instruction, mode ? { mode, explicit } : undefined);
   }
 
   const aiDesignCommand = (
@@ -1216,34 +1227,49 @@ export function SocialMediaBuilderWorkspace() {
         ) : null}
       </div>
       {!aiDesignCollapsed || !focus.isFullscreen ? (
-        <div className="smb-ws__ai-design-row">
-          <input
-            id="smb-ai-design-input"
-            className="smb-ws__ai-design-input"
-            type="text"
-            value={aiPrompt}
-            onChange={(e) => setAiPrompt(e.target.value)}
-            placeholder={t('aiDesign.placeholder')}
-            data-testid="smb-ai-design-input"
-            disabled={generating}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                submitAiDesign();
-              }
-            }}
-          />
-          <Button
-            variant="primary"
-            size="sm"
-            data-testid="smb-ai-design-submit"
-            disabled={generating}
-            onClick={submitAiDesign}
-          >
-            <IhIcon name="sparkles" size={12} />
-            {generating ? t('aiDesign.generating') : t('aiDesign.submit')}
-          </Button>
-        </div>
+        <>
+          <div className="smb-ws__ai-design-row">
+            <input
+              id="smb-ai-design-input"
+              className="smb-ws__ai-design-input"
+              type="text"
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder={t('aiDesign.placeholder')}
+              data-testid="smb-ai-design-input"
+              disabled={generating}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  submitAiDesign();
+                }
+              }}
+            />
+          </div>
+          <div className="smb-ws__ai-design-actions">
+            <Button
+              variant="primary"
+              size="sm"
+              data-testid="smb-ai-design-submit"
+              data-ai-workflow="create"
+              disabled={generating}
+              onClick={() => submitAiDesign('create', true)}
+            >
+              <IhIcon name="plus" size={12} />
+              {generating ? t('aiDesign.generating') : t('aiDesign.createPost')}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              data-testid="smb-ai-design-edit"
+              disabled={generating || posts.length === 0}
+              onClick={() => submitAiDesign('edit', true)}
+            >
+              <IhIcon name="sparkles" size={12} />
+              {generating ? t('aiDesign.generating') : t('aiDesign.editPost')}
+            </Button>
+          </div>
+        </>
       ) : null}
     </div>
   );
@@ -1504,6 +1530,15 @@ export function SocialMediaBuilderWorkspace() {
                               )}
                             </div>
                             <strong>{post.name}</strong>
+                            <span className="smb-ws__page-format">
+                              {post.formatPreset === 'portrait'
+                                ? '4:5'
+                                : post.formatPreset === 'landscape'
+                                  ? '16:9'
+                                  : post.formatPreset === 'story' || post.formatPreset === 'reelsCover'
+                                    ? '9:16'
+                                    : '1:1'}
+                            </span>
                           </button>
                         ))}
                         <button

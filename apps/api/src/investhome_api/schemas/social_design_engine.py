@@ -70,6 +70,7 @@ class SocialDesignRequest(BaseModel):
     linked_project_id: UUID
     instruction: str = Field(..., min_length=1, max_length=8000)
     mode: DesignMode = "create"
+    mode_explicit: bool = False
     draft: SocialDesignDraftState = Field(default_factory=SocialDesignDraftState)
     selected_asset_ids: list[UUID] = Field(default_factory=list)
     language: str | None = Field(default=None, max_length=16)
@@ -123,6 +124,8 @@ class SocialDesignGenerationMeta(BaseModel):
     campaign_intelligence: dict[str, Any] | None = None
     verified_facts: list[dict[str, Any]] = Field(default_factory=list)
     missing_facts: list[dict[str, Any]] = Field(default_factory=list)
+    campaign_context_id: str | None = None
+    generation_context_id: str | None = None
 
 
 class SocialDesignResponse(BaseModel):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import time
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -97,6 +98,7 @@ def apply_ops(
     grammar_post_ids: set[str] = set()
     text_hints: dict[str, dict[str, dict[str, Any]]] = {}  # post_id -> el_id -> hints
     visual_intents: dict[str, list[str]] = {}  # post_id -> intents
+    post_id_remap: dict[str, str] = {}
 
     for op in ops:
         if op.linked_project_id != linked_project_id:
@@ -106,8 +108,12 @@ def apply_ops(
             existing = find_post(working, op.post_id)
             preset = str(op.payload.get("formatPreset") or "square")
             w, h = FORMAT_PRESETS.get(preset, (1080, 1080))
-            if existing is not None:
-                # Rebuild current post composition — keep id, replace elements after success.
+            rebuild = bool(op.payload.get("rebuild"))
+            stamp = datetime.now(UTC).isoformat()
+            campaign_cid = op.payload.get("campaign_context_id") or op.payload.get("campaignContextId")
+            generation_cid = op.payload.get("generation_context_id") or op.payload.get("generationContextId")
+            if existing is not None and rebuild:
+                # Explicit rebuild (EDIT regenerate) — keep id, replace elements after success.
                 existing["elements"] = []
                 existing["headline"] = ""
                 existing["caption"] = ""
@@ -131,12 +137,26 @@ def apply_ops(
                     existing["safeTextZone"] = op.payload.get("safeTextZone")
                 if op.payload.get("textDensity"):
                     existing["textDensity"] = op.payload.get("textDensity")
+                existing["updatedAt"] = stamp
+                if campaign_cid:
+                    existing["campaignContextId"] = str(campaign_cid)
+                    existing["campaign_context_id"] = str(campaign_cid)
+                if generation_cid:
+                    existing["generationContextId"] = str(generation_cid)
+                    existing["generation_context_id"] = str(generation_cid)
                 current_selected = op.post_id
                 grammar_post_ids.add(op.post_id)
                 continue
+            if existing is not None and not rebuild:
+                # CREATE must not mutate an existing sibling — mint a distinct post
+                # and remap follow-on ops onto the new id.
+                op_post_id = str(uuid4())
+                post_id_remap[op.post_id] = op_post_id
+            else:
+                op_post_id = op.post_id
             working.append(
                 {
-                    "id": op.post_id,
+                    "id": op_post_id,
                     "platform": op.payload.get("platform") or "instagram",
                     "format": PRESET_TO_FORMAT.get(preset, "feed"),
                     "formatPreset": preset,
@@ -155,13 +175,20 @@ def apply_ops(
                     "textAlign": op.payload.get("textAlign"),
                     "safeTextZone": op.payload.get("safeTextZone"),
                     "textDensity": op.payload.get("textDensity"),
+                    "campaignContextId": str(campaign_cid) if campaign_cid else None,
+                    "campaign_context_id": str(campaign_cid) if campaign_cid else None,
+                    "generationContextId": str(generation_cid) if generation_cid else None,
+                    "generation_context_id": str(generation_cid) if generation_cid else None,
+                    "createdAt": stamp,
+                    "updatedAt": stamp,
                 }
             )
-            current_selected = op.post_id
-            grammar_post_ids.add(op.post_id)
+            current_selected = op_post_id
+            grammar_post_ids.add(op_post_id)
             continue
 
-        post = find_post(working, op.post_id)
+        post_id = post_id_remap.get(op.post_id, op.post_id)
+        post = find_post(working, post_id)
         if post is None:
             continue
 
@@ -171,15 +198,15 @@ def apply_ops(
         if op.op == "APPLY_LAYOUT_INTENT":
             intent = str(payload.get("intent") or "").upper()
             if intent in VISUAL_LAYOUT_VOCAB:
-                visual_intents.setdefault(op.post_id, []).append(intent)
-                layout_post_ids.add(op.post_id)
+                visual_intents.setdefault(post_id, []).append(intent)
+                layout_post_ids.add(post_id)
             continue
 
         if op.op == "SET_FORMAT":
             preset = str(payload.get("formatPreset") or "square")
             reflow_for_format(post, preset)
             post["format"] = PRESET_TO_FORMAT.get(preset, "feed")
-            grammar_post_ids.add(op.post_id)
+            grammar_post_ids.add(post_id)
             _sync_copy_fields(post)
             continue
 
@@ -239,7 +266,7 @@ def apply_ops(
                     },
                 )
             _ensure_elements(post).append(laid)
-            grammar_post_ids.add(op.post_id)
+            grammar_post_ids.add(post_id)
             _sync_copy_fields(post)
             continue
 
@@ -266,7 +293,7 @@ def apply_ops(
                     **geo,
                 }
             )
-            layout_post_ids.add(op.post_id)
+            layout_post_ids.add(post_id)
             continue
 
         if op.op == "ADD_CTA":
@@ -306,7 +333,7 @@ def apply_ops(
                 draft.update(geo)
                 laid = draft
             _ensure_elements(post).append(laid)
-            grammar_post_ids.add(op.post_id)
+            grammar_post_ids.add(post_id)
             continue
 
         if op.op == "ADD_METRIC_GROUP":
@@ -345,7 +372,7 @@ def apply_ops(
                 slot = None
             laid = layout_metric_group(draft, canvas_w=cw, canvas_h=ch, slot=slot)
             _ensure_elements(post).append(laid)
-            grammar_post_ids.add(op.post_id)
+            grammar_post_ids.add(post_id)
             continue
 
         if op.op == "DELETE_ELEMENT" and op.element_id:
@@ -355,7 +382,7 @@ def apply_ops(
                 for el in elements
                 if not (isinstance(el, dict) and str(el.get("id") or "") == op.element_id)
             ]
-            layout_post_ids.add(op.post_id)
+            layout_post_ids.add(post_id)
             _sync_copy_fields(post)
             continue
 
@@ -394,7 +421,7 @@ def apply_ops(
                 max_lines=int(payload["maxLines"]) if payload.get("maxLines") else None,
             )
             el.update(fitted)
-            layout_post_ids.add(op.post_id)
+            layout_post_ids.add(post_id)
             _sync_copy_fields(post)
             continue
 
@@ -413,7 +440,7 @@ def apply_ops(
                 el["backgroundColor"] = sanitize_color(payload.get("backgroundColor"))
             if "textColor" in payload:
                 el["textColor"] = sanitize_color(payload.get("textColor"), "#111827")
-            layout_post_ids.add(op.post_id)
+            layout_post_ids.add(post_id)
             continue
 
         if op.op == "UPDATE_METRIC_GROUP" and el is not None:
@@ -485,7 +512,7 @@ def apply_ops(
             cw, ch = canvas_size(post)
             laid = layout_metric_group(el, canvas_w=cw, canvas_h=ch)
             el.update(laid)
-            layout_post_ids.add(op.post_id)
+            layout_post_ids.add(post_id)
             continue
 
         if op.op == "REPLACE_IMAGE" and el is not None:
@@ -506,7 +533,7 @@ def apply_ops(
             el["x"] = geo["x"]
             el["y"] = geo["y"]
             if payload.get("_layout_resolve"):
-                layout_post_ids.add(op.post_id)
+                layout_post_ids.add(post_id)
             continue
 
         if op.op == "RESIZE_ELEMENT" and el is not None:
@@ -534,7 +561,7 @@ def apply_ops(
                 el["height"] = max(geo["height"], fitted["height"]) if fitted["height"] > geo["height"] else geo["height"]
                 # If font had to shrink and height still overflows, use fitted height clamped
                 el.update(constrain_element(el, canvas_w=cw, canvas_h=ch))
-            layout_post_ids.add(op.post_id)
+            layout_post_ids.add(post_id)
             continue
 
         if op.op == "ALIGN_ELEMENT" and el is not None:
@@ -542,7 +569,7 @@ def apply_ops(
             mode = str(payload.get("align") or "center")
             aligned = align_element_geometry(el, mode, canvas_w=cw, canvas_h=ch)
             el.update(aligned)
-            layout_post_ids.add(op.post_id)
+            layout_post_ids.add(post_id)
             continue
 
         if op.op == "UPDATE_STYLE" and el is not None:
@@ -566,11 +593,11 @@ def apply_ops(
                     allow_grow_height=True,
                 )
                 el.update(fitted)
-                text_hints.setdefault(op.post_id, {})[str(el.get("id"))] = {
+                text_hints.setdefault(post_id, {})[str(el.get("id"))] = {
                     "preferred_font": preferred,
                     "max_lines": max_lines,
                 }
-                layout_post_ids.add(op.post_id)
+                layout_post_ids.add(post_id)
             continue
 
         if op.op == "SET_Z_INDEX" and el is not None:

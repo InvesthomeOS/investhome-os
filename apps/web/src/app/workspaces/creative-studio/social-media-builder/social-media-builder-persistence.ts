@@ -130,6 +130,10 @@ function asPostStatus(raw: unknown): PostStatus {
   return 'draft';
 }
 
+function asOptionalId(raw: unknown): string | null {
+  return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
+}
+
 function asContentFormat(raw: unknown, preset: FormatPresetKey): ContentFormat {
   if (
     raw === 'feed' ||
@@ -333,6 +337,10 @@ export function serializeSocialPost(post: SocialPost): Record<string, unknown> {
     ...(post.generationMeta && typeof post.generationMeta === 'object'
       ? { generationMeta: post.generationMeta }
       : {}),
+    ...(post.campaignContextId ? { campaignContextId: post.campaignContextId } : {}),
+    ...(post.generationContextId ? { generationContextId: post.generationContextId } : {}),
+    ...(post.createdAt ? { createdAt: post.createdAt } : {}),
+    ...(post.updatedAt ? { updatedAt: post.updatedAt } : {}),
     ...(post.compositionStrategy ? { compositionStrategy: post.compositionStrategy } : {}),
     ...(post.overlayStrategy ? { overlayStrategy: post.overlayStrategy } : {}),
     ...(post.textAlign ? { textAlign: post.textAlign } : {}),
@@ -396,6 +404,10 @@ export function parseSocialPost(
       body.generationMeta && typeof body.generationMeta === 'object' && !Array.isArray(body.generationMeta)
         ? (body.generationMeta as Record<string, unknown>)
         : null,
+    campaignContextId: asOptionalId(body.campaignContextId ?? body.campaign_context_id),
+    generationContextId: asOptionalId(body.generationContextId ?? body.generation_context_id),
+    createdAt: typeof body.createdAt === 'string' ? body.createdAt : typeof body.created_at === 'string' ? body.created_at : null,
+    updatedAt: typeof body.updatedAt === 'string' ? body.updatedAt : typeof body.updated_at === 'string' ? body.updated_at : null,
     compositionStrategy: typeof body.compositionStrategy === 'string' ? body.compositionStrategy : null,
     overlayStrategy: typeof body.overlayStrategy === 'string' ? body.overlayStrategy : null,
     textAlign:

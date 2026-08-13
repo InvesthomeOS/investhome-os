@@ -18915,6 +18915,8 @@
           "title": "AI Design",
           "placeholder": "e.g. Create a premium Instagram post highlighting the project's central Washington DC location. Use project data. Choose the best real project visual. Write in English.",
           "submit": "Design with AI",
+          "createPost": "+ Create New Post",
+          "editPost": "Edit Selected Post with AI",
           "generating": "Designing…",
           "collapse": "Hide",
           "expand": "Show"

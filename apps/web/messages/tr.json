@@ -13592,6 +13592,8 @@
           "title": "AI Design",
           "placeholder": "Örn. The Temple projesinin Washington DC'deki merkezi lokasyonunu öne çıkaran premium bir Instagram kare postu hazırla. Proje verilerini kullan. En uygun gerçek proje görselini seç. İngilizce hazırla.",
           "submit": "AI ile Tasarla",
+          "createPost": "+ Yeni Post Oluştur",
+          "editPost": "Seçili Postu AI ile Düzenle",
           "generating": "Tasarlanıyor…",
           "collapse": "Gizle",
           "expand": "Göster"

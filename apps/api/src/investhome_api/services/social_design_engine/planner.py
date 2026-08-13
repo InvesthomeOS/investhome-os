@@ -29,11 +29,12 @@ Rules:
   Do NOT invent unrestricted x/y/width/height pixels — the server applies a safe layout grammar.
 - ADD_CTA/UPDATE_CTA payload: label, optional backgroundColor/textColor. Do NOT invent free pixel geometry.
 - Allowed ops: {ops}
-- CREATE mode: build a COMPLETE social post (rebuild current post if one exists).
+- CREATE mode: mint a NEW post entity. Do NOT rebuild, mutate, or copy existing posts.
+  Existing posts in the draft are siblings — leave them unchanged. Do not copy their headline, body, CTA, metrics, or campaign numbers.
   Output a full composition: format, background Asset ID if available, headline TEXT, body TEXT, CTA.
   Layout grammar (server): full-bleed background → overlay → HEADLINE upper/middle → BODY below → CTA lower safe region.
-  User-supplied campaign numbers (e.g. $500,000, %14, 24 ay) are AUTHORITATIVE — copy them exactly; do not convert or invent other financial claims.
-  Distinguish project facts (RAG) from user-supplied campaign facts (this prompt only).
+  User-supplied campaign numbers in THIS prompt (e.g. $500,000, %14, 24 ay) are AUTHORITATIVE — copy them exactly; do not convert or invent other financial claims.
+  Distinguish project facts (RAG) from user-supplied campaign facts (this prompt only). Previous canvas is not campaign input.
 - EDIT mode: emit ONLY the minimal ops requested. Do not full-regenerate.
 - EDIT COPY PROTECTION (critical):
   Existing headline, body, and CTA label are IMMUTABLE by default.
@@ -423,11 +424,9 @@ def build_heuristic_ops(
             return ops
 
     # -------- CREATE MODE --------
-    post_id = selected_post_id if selected_post_id else str(uuid4())
-    if selected_post_id and find_post(draft_posts, selected_post_id) is None:
-        post_id = str(uuid4())
-    elif not selected_post_id and draft_posts and isinstance(draft_posts[0], dict) and draft_posts[0].get("id"):
-        post_id = str(draft_posts[0]["id"])
+    from investhome_api.services.social_design_engine.generation import resolve_generation_post_id
+
+    post_id, rebuild = resolve_generation_post_id(draft_posts, selected_post_id, mode="create")
     preset = _detect_format(instruction, None)
 
     ops = [
@@ -441,7 +440,7 @@ def build_heuristic_ops(
                 "platform": "instagram",
                 "name": f"AI {preset}",
                 "description": instruction[:240],
-                "rebuild": True,
+                "rebuild": rebuild,
             },
         },
         {

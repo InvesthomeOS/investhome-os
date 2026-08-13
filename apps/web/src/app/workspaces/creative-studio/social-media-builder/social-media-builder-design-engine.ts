@@ -104,8 +104,12 @@ export function inferDesignMode(
   instruction: string,
   posts: SocialPost[],
   preferred?: SocialDesignMode | null,
+  options?: { explicit?: boolean },
 ): SocialDesignMode {
   if (!posts.length) return 'create';
+  if (options?.explicit && (preferred === 'create' || preferred === 'edit')) {
+    return preferred;
+  }
   const generation = isCompletePostGeneration(instruction);
   const surgical = isSurgicalEdit(instruction);
   if (generation && !surgical) return 'create';
@@ -141,6 +145,8 @@ export type DesignGenerationMeta = SocialGenerationMeta & {
   campaign_intelligence?: Record<string, unknown> | null;
   verified_facts?: Record<string, unknown>[];
   missing_facts?: Record<string, unknown>[];
+  campaign_context_id?: string | null;
+  generation_context_id?: string | null;
 };
 
 export type BuildSocialDesignResult =
@@ -272,6 +278,7 @@ export function buildSocialDesignRequest(input: {
   language?: string | null;
   platforms?: Iterable<PlatformKey | string>;
   mode?: SocialDesignMode | null;
+  modeExplicit?: boolean;
 }): BuildSocialDesignResult {
   const linked = typeof input.linkedProjectId === 'string' ? input.linkedProjectId.trim() : '';
   if (!linked || !UUID_RE.test(linked)) {
@@ -300,7 +307,9 @@ export function buildSocialDesignRequest(input: {
   const platforms = input.platforms
     ? Array.from(input.platforms).map(String).filter(Boolean)
     : [];
-  const mode = inferDesignMode(instruction, input.posts, input.mode);
+  const mode = inferDesignMode(instruction, input.posts, input.mode, {
+    explicit: Boolean(input.modeExplicit),
+  });
   const selectedElement =
     input.selectedElement && typeof input.selectedElement.id === 'string'
       ? input.selectedElement
@@ -312,6 +321,7 @@ export function buildSocialDesignRequest(input: {
       linked_project_id: linked,
       instruction,
       mode,
+      mode_explicit: Boolean(input.modeExplicit),
       draft: {
         posts: input.posts.map(serializeSocialPost),
         selected_post_id: input.selectedPostId,
@@ -388,6 +398,8 @@ export function toDesignGenerationMeta(response: SocialDesignResponse): DesignGe
     campaign_intelligence: meta?.campaign_intelligence ?? null,
     verified_facts: meta?.verified_facts ?? [],
     missing_facts: meta?.missing_facts ?? [],
+    campaign_context_id: meta?.campaign_context_id ?? null,
+    generation_context_id: meta?.generation_context_id ?? null,
   };
 }
 
@@ -427,6 +439,8 @@ export function serializeGenerationMetaForDraft(
     campaign_intelligence: meta.campaign_intelligence ?? null,
     verified_facts: meta.verified_facts ?? [],
     missing_facts: meta.missing_facts ?? [],
+    campaign_context_id: meta.campaign_context_id ?? null,
+    generation_context_id: meta.generation_context_id ?? null,
   };
 }
 
@@ -513,6 +527,8 @@ export function parseGenerationMetaFromDraft(
     missing_facts: Array.isArray(raw.missing_facts)
       ? raw.missing_facts.filter((f): f is Record<string, unknown> => !!f && typeof f === 'object')
       : [],
+    campaign_context_id: typeof raw.campaign_context_id === 'string' ? raw.campaign_context_id : null,
+    generation_context_id: typeof raw.generation_context_id === 'string' ? raw.generation_context_id : null,
   };
 }
 

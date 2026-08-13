@@ -283,8 +283,14 @@ def infer_design_mode(
     instruction: str,
     posts: list[dict[str, Any]],
     requested: str | None = None,
+    *,
+    explicit: bool = False,
 ) -> DesignMode:
-    """Classify GENERATION (create/rebuild) vs EDIT (surgical). Generation wins for complete-post briefs."""
+    """Classify CREATE NEW POST vs EDIT SELECTED POST.
+
+    Explicit UI clicks are authoritative. NL routing is used when the click is
+    absent or the instruction is unambiguous create/edit language.
+    """
     from investhome_api.services.social_design_engine.copy_director import classify_copy_intelligence_edit
 
     req = (requested or "create").strip().lower()
@@ -292,25 +298,24 @@ def infer_design_mode(
         req = "create"
     if not posts:
         return "create"
+    if explicit:
+        return "edit" if req == "edit" else "create"
 
     copy_kind, _ = classify_copy_intelligence_edit(instruction)
-    if copy_kind == "change_objective":
-        return "create"
-
     generation = is_complete_post_generation(instruction)
-    surgical = is_surgical_edit(instruction) or copy_kind != "none"
+    surgical = is_surgical_edit(instruction) or (copy_kind not in {"none", "change_objective"})
+    if copy_kind == "change_objective" and not surgical:
+        generation = True
 
     if generation and not surgical:
         return "create"
     if surgical and not generation:
         return "edit"
     if generation and surgical:
-        # "hazırla" + incidental "görselini seç" is still generation.
-        # "Başlığı biraz yukarı al" never includes complete-post verbs.
+        # Complete-post briefs win over incidental edit verbs ("görselini seç").
         return "create"
-    if req == "edit":
-        return "edit"
-    return "create"
+    # Ambiguous NL — requested mode (UI default) is the tie-breaker.
+    return "edit" if req == "edit" else "create"
 
 
 def extract_campaign_facts(instruction: str) -> list[CampaignFact]:
@@ -1222,6 +1227,8 @@ def compose_ops_from_plan(
     *,
     linked_project_id: UUID,
     instruction: str,
+    campaign_context_id: str | None = None,
+    generation_context_id: str | None = None,
 ) -> list[dict[str, Any]]:
     """Convert a design plan into existing Design Ops (same posts[].elements[] schema)."""
     pid = str(linked_project_id)
@@ -1237,7 +1244,9 @@ def compose_ops_from_plan(
                 "platform": plan.platform,
                 "name": plan.name,
                 "description": (instruction or "")[:240],
-                "rebuild": True,
+                "rebuild": bool(plan.rebuild),
+                "campaign_context_id": campaign_context_id,
+                "generation_context_id": generation_context_id,
                 "compositionStrategy": plan.composition_strategy,
                 "overlayStrategy": plan.overlay,
                 "textAlign": plan.alignment,
@@ -1326,6 +1335,19 @@ def attach_generation_metadata(
 ) -> dict[str, Any]:
     """Store generation metadata on the post document — never as a canvas TEXT/CTA element."""
     post["generationMeta"] = meta
+    cid = meta.get("campaign_context_id")
+    if isinstance(cid, str) and cid.strip():
+        post["campaignContextId"] = cid.strip()
+        post["campaign_context_id"] = cid.strip()
+    gid = meta.get("generation_context_id")
+    if isinstance(gid, str) and gid.strip():
+        post["generationContextId"] = gid.strip()
+        post["generation_context_id"] = gid.strip()
+    stamp = meta.get("generated_at")
+    if isinstance(stamp, str) and stamp.strip():
+        post["updatedAt"] = stamp.strip()
+        if not post.get("createdAt"):
+            post["createdAt"] = stamp.strip()
     return post
 
 
@@ -1351,12 +1373,16 @@ def build_generation_metadata(
     campaign_intelligence: dict[str, Any] | None = None,
     verified_facts: list[dict[str, Any]] | None = None,
     missing_facts: list[dict[str, Any]] | None = None,
+    campaign_context_id: str | None = None,
+    generation_context_id: str | None = None,
 ) -> dict[str, Any]:
     return {
         "generated_by": "social_design_engine",
         "project_id": str(project_id),
         "user_prompt": (user_prompt or "")[:2000],
         "generation_intent": generation_intent_to_dict(intent),
+        "campaign_context_id": campaign_context_id,
+        "generation_context_id": generation_context_id,
         "campaign_facts": campaign_facts_to_dicts(campaign_facts),
         "structured_metrics": structured_metrics or [],
         "metric_group": metric_group,
@@ -1381,8 +1407,12 @@ def build_generation_metadata(
 def resolve_generation_post_id(
     draft_posts: list[dict[str, Any]],
     selected_post_id: str | None,
+    *,
+    mode: str = "create",
 ) -> tuple[str, bool]:
-    """Reuse the current post for rebuild; mint an id only when the canvas is empty."""
+    """CREATE always mints a new post_id. EDIT rebuilds the selected post in place."""
+    if (mode or "create").strip().lower() == "create":
+        return str(uuid4()), False
     if selected_post_id:
         for post in draft_posts:
             if isinstance(post, dict) and str(post.get("id") or "") == selected_post_id:
@@ -1390,3 +1420,83 @@ def resolve_generation_post_id(
     if draft_posts and isinstance(draft_posts[0], dict) and draft_posts[0].get("id"):
         return str(draft_posts[0]["id"]), True
     return str(uuid4()), False
+
+
+def resolve_campaign_context_id(
+    *,
+    mode: str,
+    draft_posts: list[dict[str, Any]],
+    selected_post_id: str | None,
+) -> str:
+    """CREATE starts a new campaign context. EDIT reuses the selected post's context."""
+    if (mode or "create").strip().lower() == "create":
+        return str(uuid4())
+    post = None
+    if selected_post_id:
+        for item in draft_posts:
+            if isinstance(item, dict) and str(item.get("id") or "") == selected_post_id:
+                post = item
+                break
+    if post is None and draft_posts and isinstance(draft_posts[0], dict):
+        post = draft_posts[0]
+    if isinstance(post, dict):
+        for key in ("campaignContextId", "campaign_context_id"):
+            raw = post.get(key)
+            if isinstance(raw, str) and raw.strip():
+                return raw.strip()
+        meta = post.get("generationMeta") if isinstance(post.get("generationMeta"), dict) else {}
+        raw = meta.get("campaign_context_id") if isinstance(meta, dict) else None
+        if isinstance(raw, str) and raw.strip():
+            return raw.strip()
+    return str(uuid4())
+
+
+def campaign_facts_for_mode(
+    *,
+    mode: str,
+    instruction: str,
+    selected_post: dict[str, Any] | None,
+) -> list[CampaignFact]:
+    """CREATE uses only the current prompt. EDIT may reuse the selected post's campaign inputs.
+
+    Previous canvas text/metrics are presentation, never harvested as campaign facts.
+    """
+    current = extract_campaign_facts(instruction)
+    if (mode or "create").strip().lower() != "edit" or not isinstance(selected_post, dict):
+        return current
+    meta = selected_post.get("generationMeta") if isinstance(selected_post.get("generationMeta"), dict) else {}
+    prev_raw = meta.get("campaign_facts") if isinstance(meta, dict) else None
+    prev: list[CampaignFact] = []
+    if isinstance(prev_raw, list):
+        for row in prev_raw:
+            if not isinstance(row, dict):
+                continue
+            display = str(row.get("display") or row.get("display_value") or "").strip()
+            kind = str(row.get("kind") or "").strip()
+            label = str(row.get("label") or "campaign_metric")
+            if display and kind in {"money", "percent", "duration", "other"}:
+                prev.append(CampaignFact(label=label, display=display, kind=kind))
+    if not prev:
+        return current
+    by_kind: dict[str, CampaignFact] = {f.kind: f for f in prev}
+    for fact in current:
+        by_kind[fact.kind] = fact
+    return list(by_kind.values())
+
+
+def sibling_inventory_for_create(draft_posts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """CREATE planner may see sibling identity only — never copy/metrics/campaign facts."""
+    out: list[dict[str, Any]] = []
+    for post in draft_posts:
+        if not isinstance(post, dict):
+            continue
+        out.append(
+            {
+                "id": post.get("id"),
+                "formatPreset": post.get("formatPreset") or post.get("format_preset"),
+                "platform": post.get("platform"),
+                "name": post.get("name"),
+                "sibling": True,
+            }
+        )
+    return out
