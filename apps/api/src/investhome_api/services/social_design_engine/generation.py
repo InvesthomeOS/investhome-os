@@ -220,6 +220,8 @@ class DesignPlan:
     composition_primitive: str = "TOP_LEFT_EDITORIAL"
     cta_strategy: str = "PILL_BUTTON"
     creative_plan: dict[str, Any] = field(default_factory=dict)
+    composition_blueprint: dict[str, Any] = field(default_factory=dict)
+    composition_family: str = ""
 
 
 def _norm(text: str) -> str:
@@ -1035,13 +1037,70 @@ def build_design_plan(
         cta_strategy = str(getattr(concept, "cta_strategy", "") or "PILL_BUTTON")
         plan_payload = dict(getattr(concept, "creative_plan", None) or {})
 
-    slots = social_layout_slots(
-        w, h, family=family, align=align, safe_zone=safe_zone, primitive=primitive or None
-    )
-    hs = slots["headline"]
-    bs = slots["body"]
-    cs = slots["cta"]
-    es = slots.get("eyebrow")
+    blueprint = None
+    blueprint_payload: dict[str, Any] = {}
+    composition_family = family
+    if concept is not None:
+        from investhome_api.services.social_design_engine.composition_blueprint import (
+            composition_blueprint_from_dict,
+            composition_blueprint_to_dict,
+        )
+        from investhome_api.services.social_design_engine.composition_engine import (
+            build_composition_blueprint,
+            sibling_blueprint_signals,
+        )
+        from investhome_api.services.social_design_engine.creative_plan import creative_plan_from_dict
+        from investhome_api.services.social_design_engine.layout_solver import blueprint_slots
+
+        plan_model = creative_plan_from_dict(plan_payload)
+        existing_bp = composition_blueprint_from_dict(
+            getattr(concept, "composition_blueprint", None)
+            if isinstance(getattr(concept, "composition_blueprint", None), dict)
+            else None
+        )
+        if existing_bp is not None:
+            blueprint = existing_bp
+        elif plan_model is not None:
+            metric_n = 0
+            if structured_metrics:
+                metric_n = len(list(structured_metrics))
+            elif getattr(concept, "structured_metrics", None):
+                metric_n = len(list(concept.structured_metrics or []))
+            blueprint = build_composition_blueprint(
+                plan=plan_model,
+                profile=getattr(concept, "asset_profile", None),
+                format_preset=preset,
+                used_signals=sibling_blueprint_signals(None),
+                instruction=str(getattr(concept, "concept", "") or ""),
+                metric_count=metric_n,
+                include_support=bool(getattr(concept, "include_support", True)),
+                include_metrics=bool(plan_payload.get("include_metrics")),
+                include_cta=bool(getattr(concept, "include_cta", True)),
+                include_brand=bool(plan_payload.get("include_brand", True)),
+            )
+        if blueprint is not None:
+            blueprint_payload = composition_blueprint_to_dict(blueprint)
+            composition_family = blueprint.composition_family
+            overlay = blueprint.overlay_token or overlay
+            align = blueprint.alignment or align
+            slots = blueprint_slots(blueprint, w, h)
+        else:
+            slots = social_layout_slots(
+                w, h, family=family, align=align, safe_zone=safe_zone, primitive=primitive or None
+            )
+    else:
+        slots = social_layout_slots(
+            w, h, family=family, align=align, safe_zone=safe_zone, primitive=primitive or None
+        )
+    hs = slots.get("headline") or {"x": 76, "y": 76, "width": 780, "max_height": 180}
+    bs = slots.get("body") or hs
+    cs = slots.get("cta") or {
+        "x": hs["x"],
+        "y": int(h * 0.86),
+        "width": min(320, int(w * 0.36)),
+        "height": max(40, int(h * 0.048)),
+    }
+    es = slots.get("eyebrow") or slots.get("brand")
 
     include_eyebrow = bool(package.eyebrow) and (concept is None or concept.include_eyebrow)
     include_support = bool(package.supporting_text) and (concept is None or concept.include_support)
@@ -1092,12 +1151,13 @@ def build_design_plan(
     )
 
     density_kind = str(getattr(concept, "copy_density_kind", None) or density or "LOW")
+    composition_for_type = composition_family or primitive
     h_prefs = hierarchy_font_prefs(
         "headline",
         w,
         density=density_kind,
         format_preset=preset,
-        composition=primitive,
+        composition=composition_for_type,
     )
     b_prefs = hierarchy_font_prefs("body", w, density=density_kind, format_preset=preset)
     e_prefs = role_font_prefs("eyebrow", w)
@@ -1135,7 +1195,7 @@ def build_design_plan(
         max_height=hs["max_height"],
         density=density_kind,
         format_preset=preset,
-        composition=primitive,
+        composition=composition_for_type,
     )
     hh = min(hs["max_height"], max(hh, _block_h(headline_text, headline_font, hs["width"], bold=True, cap=hs["max_height"])))
     headline_y = max(hs["y"], y_cursor)
@@ -1158,12 +1218,19 @@ def build_design_plan(
     y_cursor = headline_y + hh + stack_gap
     if include_metrics:
         ms = slots.get("metric_group") or bs
+        from investhome_api.services.social_design_engine.composition_blueprint import (
+            METRIC_LAYOUT_TO_ELEMENT,
+        )
+
+        if blueprint is not None and blueprint.metric_layout:
+            requested_layout = METRIC_LAYOUT_TO_ELEMENT.get(str(blueprint.metric_layout), requested_layout)
         layout = choose_metric_group_layout(
             metrics=parsed_metrics,
             format_preset=preset,
             canvas_w=w,
             available_width=int(ms.get("width") or hs["width"]),
             requested=requested_layout,  # type: ignore[arg-type]
+            family=composition_family,
         )
         mg_h = int(ms.get("max_height") or max(120, int(round(h * 0.16))))
         if layout == "stacked":
@@ -1231,6 +1298,29 @@ def build_design_plan(
                 z_index=5,
             )
         )
+    if blueprint is not None and elements:
+        from investhome_api.services.social_design_engine.composition_blueprint import (
+            composition_blueprint_to_dict,
+        )
+        from investhome_api.services.social_design_engine.layout_solver import (
+            apply_blueprint_to_elements,
+            reduce_density_if_needed,
+        )
+
+        elements = apply_blueprint_to_elements(
+            elements,
+            blueprint=blueprint,
+            canvas_w=w,
+            canvas_h=h,
+            density=density_kind,
+            format_preset=preset,
+            composition=composition_for_type,
+            align=align,
+        )
+        blueprint, elements = reduce_density_if_needed(blueprint, elements, canvas_h=h)
+        blueprint_payload = composition_blueprint_to_dict(blueprint)
+        composition_family = blueprint.composition_family
+        overlay = blueprint.overlay_token or overlay
     return DesignPlan(
         format_preset=preset,
         platform=intent.platform,
@@ -1248,6 +1338,8 @@ def build_design_plan(
         composition_primitive=primitive or family,
         cta_strategy=cta_strategy,
         creative_plan=plan_payload,
+        composition_blueprint=blueprint_payload,
+        composition_family=composition_family,
     )
 
 
@@ -1268,6 +1360,8 @@ def design_plan_to_dict(plan: DesignPlan) -> dict[str, Any]:
         "composition_primitive": plan.composition_primitive,
         "cta_strategy": plan.cta_strategy,
         "creative_plan": plan.creative_plan,
+        "composition_blueprint": plan.composition_blueprint,
+        "composition_family": plan.composition_family,
         "elements": [asdict(el) for el in plan.elements],
     }
 
@@ -1305,6 +1399,8 @@ def compose_ops_from_plan(
                 "textDensity": plan.text_density,
                 "ctaStrategy": plan.cta_strategy,
                 "creativePlan": plan.creative_plan,
+                "compositionBlueprint": plan.composition_blueprint,
+                "compositionFamily": plan.composition_family,
             },
         },
         {
@@ -1341,6 +1437,10 @@ def compose_ops_from_plan(
                         "align": el.align,
                         "color": el.color,
                         "zIndex": el.z_index,
+                        "x": el.x,
+                        "y": el.y,
+                        "width": el.width,
+                        "height": el.height,
                     },
                 }
             )
@@ -1400,6 +1500,17 @@ def attach_generation_metadata(
         if plan.get("creative_direction"):
             post["creativePlan"] = plan
             post["diversitySignal"] = f"{plan.get('creative_direction')}:{plan.get('composition')}"
+    bp = meta.get("composition_blueprint") if isinstance(meta, dict) else None
+    if isinstance(bp, dict) and bp.get("composition_family"):
+        post["compositionBlueprint"] = bp
+        post["compositionFamily"] = bp.get("composition_family")
+        tokens = bp.get("diversity_tokens") or [
+            bp.get("composition_family"),
+            f"headline:{bp.get('headline_region_kind')}",
+            f"metric:{bp.get('metric_region_kind')}",
+            f"cta:{bp.get('cta_placement')}",
+        ]
+        post["diversitySignal"] = ":".join(str(t) for t in tokens if t)
     cid = meta.get("campaign_context_id")
     if isinstance(cid, str) and cid.strip():
         post["campaignContextId"] = cid.strip()
@@ -1430,6 +1541,7 @@ def build_generation_metadata(
     design_plan: DesignPlan | None = None,
     creative_concept: dict[str, Any] | None = None,
     creative_plan: dict[str, Any] | None = None,
+    composition_blueprint: dict[str, Any] | None = None,
     design_quality: dict[str, Any] | None = None,
     validation: dict[str, Any] | None = None,
     marketing_strategy: dict[str, Any] | None = None,
@@ -1462,6 +1574,8 @@ def build_generation_metadata(
         "design_plan": design_plan_to_dict(design_plan) if design_plan else None,
         "creative_concept": creative_concept,
         "creative_plan": creative_plan,
+        "composition_blueprint": composition_blueprint
+        or (design_plan.composition_blueprint if design_plan is not None else None),
         "design_quality": design_quality,
         "validation": validation,
         "marketing_strategy": marketing_strategy,

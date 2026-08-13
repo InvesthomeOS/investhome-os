@@ -152,6 +152,17 @@ describe('explicit construction project selection (no projects[0] force)', () =>
     );
   });
 
+  it('round-trips compositionBlueprint without recomputing layout', () => {
+    const src = readSmb('social-media-builder-persistence.ts');
+    assert.match(src, /compositionBlueprint/);
+    assert.match(src, /compositionFamily/);
+    assert.match(src, /composition_blueprint/);
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    assert.match(workspace, /data-composition-family/);
+    const engine = readSmb('social-media-builder-design-engine.ts');
+    assert.match(engine, /composition_blueprint/);
+  });
+
   it('persistence module exports last-project + prefer helpers', () => {
     const src = readSmb('social-media-builder-persistence.ts');
     assert.match(src, /SMB_LAST_CONSTRUCTION_PROJECT_KEY/);

@@ -371,11 +371,18 @@ def social_layout_slots(
     align: str = "center",
     safe_zone: str = "top",
     primitive: str | None = None,
+    blueprint: Any = None,
 ) -> dict[str, dict[str, int]]:
     """
     Composition grammar (canonical format pixels).
     Primitives are strategies, not fixed templates. Families remain a fallback.
     """
+    if blueprint is not None:
+        from investhome_api.services.social_design_engine.layout_solver import blueprint_slots
+
+        slots = blueprint_slots(blueprint, canvas_w, canvas_h)
+        if slots.get("headline"):
+            return slots
     box = safe_content_box(canvas_w, canvas_h)
     content_w = box["width"]
     fam = (family or "").strip().upper()
@@ -926,6 +933,7 @@ def layout_metric_group(
     from investhome_api.services.social_design_engine.metrics import (
         apply_compact_currency,
         choose_metric_group_layout,
+        horizontal_metrics_fit,
         structured_metrics_from_dicts,
         structured_metrics_to_dicts,
     )
@@ -936,6 +944,21 @@ def layout_metric_group(
     requested = str(el.get("layout") or "horizontal").lower()
     keep_geo = slot is None and el.get("x") is not None and el.get("y") is not None
     available_w = int(el.get("width") or region.get("width") or canvas_w)
+    # Grow toward canvas margins before clipping values like "$500,000".
+    if (
+        requested in {"horizontal", ""}
+        and len(metrics) >= 2
+        and not horizontal_metrics_fit(metrics, available_w, canvas_w, density="compact")
+    ):
+        margin = max(48, int(round(canvas_w * 0.07)))
+        grown = max(available_w, canvas_w - 2 * margin)
+        if grown > available_w:
+            available_w = grown
+            if slot is not None:
+                x0 = int(region.get("x") or margin)
+                if x0 + grown > canvas_w - margin:
+                    x0 = max(margin, canvas_w - margin - grown)
+                region = {**region, "width": grown, "x": x0}
     layout = choose_metric_group_layout(
         metrics=metrics,
         format_preset=str(el.get("formatPreset") or "square"),
@@ -1346,11 +1369,14 @@ def resolve_layout(
     return post
 
 
-def apply_layout_grammar(post: dict[str, Any]) -> dict[str, Any]:
+def apply_layout_grammar(post: dict[str, Any], *, force: bool = False) -> dict[str, Any]:
     """
     Reposition role-based TEXT + CTA into the composition-family grammar.
     Cover/background stays full-bleed via coverAssetId (not an element).
+    Manual geometry is preserved unless force/format/explicit auto-layout.
     """
+    if post.get("geometryLocked") and not force:
+        return resolve_layout(post, refit_text=False)
     cw, ch = canvas_size_for_post(post)
     post["width"] = cw
     post["height"] = ch
@@ -1363,8 +1389,11 @@ def apply_layout_grammar(post: dict[str, Any]) -> dict[str, Any]:
     primitive = str(post.get("compositionPrimitive") or post.get("composition_primitive") or "") or None
     align = str(post.get("textAlign") or post.get("text_align") or "left")
     safe_zone = str(post.get("safeTextZone") or post.get("safe_text_zone") or "top")
+    from investhome_api.services.social_design_engine.composition_blueprint import blueprint_from_post
+
+    blueprint = blueprint_from_post(post)
     slots = social_layout_slots(
-        cw, ch, family=family, align=align, safe_zone=safe_zone, primitive=primitive
+        cw, ch, family=family, align=align, safe_zone=safe_zone, primitive=primitive, blueprint=blueprint
     )
     next_elements: list[Any] = []
     for el in elements:
@@ -1405,7 +1434,7 @@ def reflow_for_format(post: dict[str, Any], preset: str) -> dict[str, Any]:
         post["formatPreset"] = preset
         post["width"] = w
         post["height"] = h
-    return apply_layout_grammar(post)
+    return apply_layout_grammar(post, force=True)
 
 
 def element_within_bounds(

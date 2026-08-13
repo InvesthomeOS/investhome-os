@@ -285,6 +285,8 @@ class CreativeConcept:
     brand_treatment: str = "IDENTITY_LINE"
     visual_priority: str = "identity"
     creative_plan: dict[str, Any] = field(default_factory=dict)
+    composition_blueprint: dict[str, Any] = field(default_factory=dict)
+    composition_family: str = ""
 
 
 def _norm(text: str) -> str:
@@ -884,6 +886,7 @@ def direct_creative(
         getattr(context.project_identity, "project_id", None),
         plan_model.creative_direction,
         plan_model.composition,
+        plan_model.family,
     )
     family = plan_model.family
     en = intent.language != "tr"
@@ -1059,6 +1062,37 @@ def direct_creative(
     elif density == "medium":
         density = "moderate"
 
+    from investhome_api.services.social_design_engine.composition_blueprint import (
+        composition_blueprint_to_dict,
+    )
+    from investhome_api.services.social_design_engine.composition_engine import (
+        build_composition_blueprint,
+        sibling_blueprint_signals,
+    )
+
+    blueprint = build_composition_blueprint(
+        plan=plan_model,
+        profile=profile,
+        format_preset=intent.format_preset or "square",
+        used_signals=sibling_blueprint_signals(sibling_posts)
+        + combined_variety_signals(
+            sibling_posts,
+            getattr(context.project_identity, "project_id", None),
+        ),
+        instruction=instruction,
+        metric_count=len(metrics_list),
+        include_support=bool(support) and include_support,
+        include_metrics=bool(metrics_list) and plan_model.include_metrics,
+        include_cta=bool(cta) and include_cta,
+        include_brand=plan_model.include_brand,
+        project_id=getattr(context.project_identity, "project_id", None),
+    )
+    blueprint_payload = composition_blueprint_to_dict(blueprint)
+    if blueprint.overlay_token:
+        contrast = blueprint.overlay_token
+        overlay_region = blueprint.headline_region_kind.split("_")[0] if "_" in blueprint.headline_region_kind else overlay_region
+    alignment = blueprint.alignment  # type: ignore[assignment]
+
     return CreativeConcept(
         objective=objective,  # type: ignore[arg-type]
         concept=plan_model.concept or _concept_line(objective, family, place, name),  # type: ignore[arg-type]
@@ -1093,6 +1127,8 @@ def direct_creative(
         brand_treatment=plan_model.brand_treatment,
         visual_priority=plan_model.visual_priority,
         creative_plan=creative_plan_to_dict(plan_model),
+        composition_blueprint=blueprint_payload,
+        composition_family=str(blueprint_payload.get("composition_family") or ""),
     )
 
 
@@ -1131,6 +1167,8 @@ def creative_concept_to_dict(concept: CreativeConcept) -> dict[str, Any]:
         "brand_treatment": concept.brand_treatment,
         "visual_priority": concept.visual_priority,
         "creative_plan": concept.creative_plan,
+        "composition_blueprint": concept.composition_blueprint,
+        "composition_family": concept.composition_family,
     }
 
 

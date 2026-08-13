@@ -1284,6 +1284,28 @@ export function SocialMediaBuilderWorkspace() {
             ? generationMeta.creative_plan.composition
             : undefined
         }
+        data-composition-family={
+          typeof generationMeta?.composition_blueprint?.composition_family === 'string'
+            ? generationMeta.composition_blueprint.composition_family
+            : typeof selectedPost?.compositionFamily === 'string'
+              ? selectedPost.compositionFamily
+              : undefined
+        }
+        data-headline-region={
+          typeof generationMeta?.composition_blueprint?.headline_region_kind === 'string'
+            ? generationMeta.composition_blueprint.headline_region_kind
+            : undefined
+        }
+        data-metric-region={
+          typeof generationMeta?.composition_blueprint?.metric_region_kind === 'string'
+            ? generationMeta.composition_blueprint.metric_region_kind
+            : undefined
+        }
+        data-cta-placement={
+          typeof generationMeta?.composition_blueprint?.cta_placement === 'string'
+            ? generationMeta.composition_blueprint.cta_placement
+            : undefined
+        }
         data-creative-density={
           typeof generationMeta?.creative_plan?.copy_density === 'string'
             ? generationMeta.creative_plan.copy_density

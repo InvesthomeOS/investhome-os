@@ -147,6 +147,8 @@ export type SocialPost = {
   safeTextZone?: string | null;
   ctaStrategy?: string | null;
   creativePlan?: Record<string, unknown> | null;
+  compositionBlueprint?: Record<string, unknown> | null;
+  compositionFamily?: string | null;
 };
 
 export type SmbProject = {

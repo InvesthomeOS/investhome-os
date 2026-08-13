@@ -709,13 +709,20 @@ def generate_social_design(
             intent=gen_intent,
             campaign_facts=campaign_facts,
         )
+        from investhome_api.services.social_design_engine.composition_blueprint import (
+            composition_blueprint_from_dict,
+        )
         from investhome_api.services.social_design_engine.creative_plan import creative_plan_from_dict
 
         plan_model = creative_plan_from_dict(getattr(creative_concept, "creative_plan", None))
+        blueprint_model = composition_blueprint_from_dict(
+            getattr(design_plan, "composition_blueprint", None)
+        )
         design_plan, quality_score = evaluate_design_quality(
             plan=design_plan,
             concept=creative_concept,
             creative_plan=plan_model,
+            blueprint=blueprint_model,
         )
         validation_payload = {
             "passed": report.passed and quality_score.passed,
@@ -979,6 +986,9 @@ def generate_social_design(
             if creative_concept
             else None
         ),
+        composition_blueprint=(
+            getattr(design_plan, "composition_blueprint", None) if design_plan is not None else None
+        ),
         design_quality=design_quality_payload,
         validation=validation_payload,
         marketing_strategy=strategy_to_dict(marketing_strategy) if marketing_strategy is not None else None,
@@ -1089,6 +1099,9 @@ def generate_social_design(
         metric_group=gen_meta_payload.get("metric_group"),
         creative_concept=gen_meta_payload.get("creative_concept") if mode == "create" or regenerate_selected else None,
         creative_plan=gen_meta_payload.get("creative_plan") if mode == "create" or regenerate_selected else None,
+        composition_blueprint=gen_meta_payload.get("composition_blueprint")
+        if mode == "create" or regenerate_selected
+        else None,
         design_quality=gen_meta_payload.get("design_quality") if mode == "create" or regenerate_selected else None,
         validation=gen_meta_payload.get("validation") if mode == "create" or regenerate_selected else None,
         marketing_strategy=gen_meta_payload.get("marketing_strategy") if mode == "create" or planner_name == "copy_intelligence" else None,

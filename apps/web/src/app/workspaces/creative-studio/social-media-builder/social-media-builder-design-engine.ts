@@ -139,6 +139,7 @@ export type DesignGenerationMeta = SocialGenerationMeta & {
   metric_group?: Record<string, unknown> | null;
   creative_concept?: Record<string, unknown> | null;
   creative_plan?: Record<string, unknown> | null;
+  composition_blueprint?: Record<string, unknown> | null;
   design_quality?: Record<string, unknown> | null;
   validation?: Record<string, unknown> | null;
   marketing_strategy?: Record<string, unknown> | null;
@@ -394,6 +395,7 @@ export function toDesignGenerationMeta(response: SocialDesignResponse): DesignGe
     metric_group: meta?.metric_group ?? null,
     creative_concept: meta?.creative_concept ?? null,
     creative_plan: meta?.creative_plan ?? null,
+    composition_blueprint: meta?.composition_blueprint ?? null,
     design_quality: meta?.design_quality ?? null,
     validation: meta?.validation ?? null,
     marketing_strategy: meta?.marketing_strategy ?? null,
@@ -437,6 +439,7 @@ export function serializeGenerationMetaForDraft(
     metric_group: meta.metric_group ?? null,
     creative_concept: meta.creative_concept ?? null,
     creative_plan: meta.creative_plan ?? null,
+    composition_blueprint: meta.composition_blueprint ?? null,
     design_quality: meta.design_quality ?? null,
     validation: meta.validation ?? null,
     marketing_strategy: meta.marketing_strategy ?? null,
@@ -509,6 +512,12 @@ export function parseGenerationMetaFromDraft(
     creative_plan:
       raw.creative_plan && typeof raw.creative_plan === 'object' && !Array.isArray(raw.creative_plan)
         ? (raw.creative_plan as Record<string, unknown>)
+        : null,
+    composition_blueprint:
+      raw.composition_blueprint &&
+      typeof raw.composition_blueprint === 'object' &&
+      !Array.isArray(raw.composition_blueprint)
+        ? (raw.composition_blueprint as Record<string, unknown>)
         : null,
     design_quality:
       raw.design_quality && typeof raw.design_quality === 'object' && !Array.isArray(raw.design_quality)

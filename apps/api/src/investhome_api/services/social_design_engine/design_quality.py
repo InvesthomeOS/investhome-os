@@ -28,6 +28,16 @@ QUALITY_DIMENSIONS = (
     "spacing",
     "image_respect",
     "brand_consistency",
+    "grid",
+    "negative_space",
+    "focal_respect",
+    "grouping",
+    "alignment",
+    "typography",
+    "margins",
+    "collision",
+    "cta_placement",
+    "brand_lockup",
 )
 
 
@@ -72,6 +82,7 @@ def score_design_quality(
     plan: Any,
     concept: Any,
     creative_plan: Any | None = None,
+    blueprint: Any | None = None,
 ) -> DesignQualityScore:
     dims = {k: 0.82 for k in QUALITY_DIMENSIONS}
     issues: list[DesignQualityIssue] = []
@@ -184,6 +195,68 @@ def score_design_quality(
     if brand_ok:
         dims["brand_consistency"] = min(1.0, dims["brand_consistency"] + 0.05)
 
+    dims.setdefault("grid", 0.82)
+    dims.setdefault("negative_space", 0.82)
+    dims.setdefault("focal_respect", 0.82)
+    dims.setdefault("grouping", 0.82)
+    dims.setdefault("alignment", 0.82)
+    dims.setdefault("typography", 0.82)
+    dims.setdefault("margins", 0.82)
+    dims.setdefault("collision", 0.82)
+    dims.setdefault("cta_placement", 0.82)
+    dims.setdefault("brand_lockup", 0.82)
+    if blueprint is not None:
+        family = str(getattr(blueprint, "composition_family", "") or "")
+        dims["grid"] = 0.88 if getattr(blueprint, "grid", None) else 0.5
+        dims["negative_space"] = 0.86
+        content = getattr(blueprint, "content_zone", None)
+        if content is not None and getattr(content, "area", None) and content.area() > 62:
+            dims["negative_space"] -= 0.28
+            issues.append(DesignQualityIssue("crowded", "content zone too large", "reduce_density"))
+        elif content is not None and content.area() < 8 and family not in {"IMAGE_DOMINANT", "ARCHITECTURAL_MINIMAL"}:
+            dims["negative_space"] -= 0.1
+        dims["focal_respect"] = 0.9
+        headline_box = _el_box(headline) if headline else None
+        focal = getattr(blueprint, "focal_region", None)
+        if headline and headline_box and focal is not None:
+            from investhome_api.services.social_design_engine.layout_solver import norm_to_px
+
+            protected = norm_to_px(focal, w, h)
+            if _boxes_overlap(headline_box, protected, gap=4) and family not in {"STATEMENT_LAYOUT", "LUXURY_BRAND"}:
+                dims["focal_respect"] -= 0.35
+                dims["image_respect"] -= 0.2
+                issues.append(DesignQualityIssue("focal_obstruction", "headline covers focal", "move_to_safe_zone"))
+        dims["grouping"] = 0.86 if getattr(blueprint, "groups", None) else 0.6
+        dims["alignment"] = 0.88 if str(getattr(blueprint, "alignment", "left")) in {"left", "center", "right"} else 0.5
+        dims["typography"] = dims.get("hierarchy", 0.8)
+        dims["margins"] = dims.get("spacing", 0.8)
+        dims["collision"] = 0.9 if not any(i.code in {"overlap", "cta_collision"} for i in issues) else 0.4
+        dims["cta_placement"] = 0.86
+        if cta and str(getattr(blueprint, "cta_placement", "")) == "none":
+            dims["cta_placement"] -= 0.2
+        dims["brand_lockup"] = dims.get("brand_consistency", 0.8)
+        if family == "ARCHITECTURAL_MINIMAL" and headline and headline.y > int(h * 0.34):
+            dims["focal_respect"] -= 0.2
+            issues.append(DesignQualityIssue("focal_obstruction", "architecture type on building", "move_to_safe_zone"))
+        if family == "INVESTMENT_GRID" and metrics:
+            dims["grouping"] = min(1.0, dims["grouping"] + 0.08)
+        if family == "LUXURY_BRAND" and headline and str(getattr(headline, "align", "")) == "center":
+            dims["brand_lockup"] = min(1.0, dims["brand_lockup"] + 0.06)
+    else:
+        for extra in (
+            "grid",
+            "negative_space",
+            "focal_respect",
+            "grouping",
+            "alignment",
+            "typography",
+            "margins",
+            "collision",
+            "cta_placement",
+            "brand_lockup",
+        ):
+            dims.setdefault(extra, 0.78)
+
     for key in dims:
         dims[key] = max(0.0, min(1.0, round(dims[key], 3)))
     total = round(sum(dims.values()) / len(dims), 3)
@@ -203,6 +276,7 @@ def repair_design_geometry(
     plan: Any,
     *,
     creative_plan: Any | None = None,
+    blueprint: Any | None = None,
     score: DesignQualityScore,
 ) -> Any:
     """Fix clipping / collision / unsafe edges / CTA collision / metric overflow.
@@ -264,15 +338,38 @@ def repair_design_geometry(
 
     if "focal_obstruction" in codes or "move_to_safe_zone" in codes:
         zone = "top"
-        if creative_plan is not None:
+        if blueprint is not None:
+            kind = str(getattr(blueprint, "headline_region_kind", "") or "")
+            if "bottom" in kind or kind == "lower_third":
+                zone = "bottom"
+            elif kind in {"left", "asymmetric_offset"}:
+                zone = "left"
+        elif creative_plan is not None:
             zone = str(getattr(creative_plan, "safe_text_zone", "top") or "top")
         headline = next((e for e in elements if getattr(e, "role", "") == "headline"), None)
         if headline is not None:
             if zone == "bottom":
                 headline.y = max(headline.y, int(round(h * 0.62)))
+            elif zone == "left":
+                headline.x = box["x"]
+                headline.y = min(headline.y, box["y"] + int(round(h * 0.10)))
             else:
                 headline.y = min(headline.y, box["y"] + int(round(h * 0.06)))
             _clamp(headline)
+        if blueprint is not None:
+            from investhome_api.services.social_design_engine.layout_solver import apply_blueprint_to_elements
+
+            try:
+                elements = apply_blueprint_to_elements(
+                    elements,
+                    blueprint=blueprint,
+                    canvas_w=w,
+                    canvas_h=h,
+                    format_preset=str(getattr(plan, "format_preset", "square") or "square"),
+                    align=str(getattr(blueprint, "alignment", "left") or "left"),
+                )
+            except Exception:
+                pass
 
     if "heavy_overlay" in codes or "localize_overlay" in codes:
         region = "top"
@@ -291,11 +388,18 @@ def evaluate_and_repair(
     plan: Any,
     concept: Any,
     creative_plan: Any | None = None,
+    blueprint: Any | None = None,
 ) -> tuple[Any, DesignQualityScore]:
-    score = score_design_quality(plan=plan, concept=concept, creative_plan=creative_plan)
+    score = score_design_quality(
+        plan=plan, concept=concept, creative_plan=creative_plan, blueprint=blueprint
+    )
     if score.passed:
         return plan, score
-    repaired = repair_design_geometry(plan, creative_plan=creative_plan, score=score)
-    final = score_design_quality(plan=repaired, concept=concept, creative_plan=creative_plan)
+    repaired = repair_design_geometry(
+        plan, creative_plan=creative_plan, blueprint=blueprint, score=score
+    )
+    final = score_design_quality(
+        plan=repaired, concept=concept, creative_plan=creative_plan, blueprint=blueprint
+    )
     final.repairs = list(dict.fromkeys(score.repairs + final.repairs))
     return repaired, final

@@ -143,6 +143,11 @@ def apply_ops(
                     existing["ctaStrategy"] = op.payload.get("ctaStrategy")
                 if op.payload.get("creativePlan"):
                     existing["creativePlan"] = op.payload.get("creativePlan")
+                if op.payload.get("compositionBlueprint"):
+                    existing["compositionBlueprint"] = op.payload.get("compositionBlueprint")
+                if op.payload.get("compositionFamily"):
+                    existing["compositionFamily"] = op.payload.get("compositionFamily")
+                existing["geometryLocked"] = False
                 existing["updatedAt"] = stamp
                 if campaign_cid:
                     existing["campaignContextId"] = str(campaign_cid)
@@ -184,6 +189,9 @@ def apply_ops(
                     "textDensity": op.payload.get("textDensity"),
                     "ctaStrategy": op.payload.get("ctaStrategy"),
                     "creativePlan": op.payload.get("creativePlan"),
+                    "compositionBlueprint": op.payload.get("compositionBlueprint"),
+                    "compositionFamily": op.payload.get("compositionFamily"),
+                    "geometryLocked": False,
                     "campaignContextId": str(campaign_cid) if campaign_cid else None,
                     "campaign_context_id": str(campaign_cid) if campaign_cid else None,
                     "generationContextId": str(generation_cid) if generation_cid else None,
@@ -248,8 +256,18 @@ def apply_ops(
                 "width": payload.get("width"),
                 "height": payload.get("height"),
             }
-            slots = social_layout_slots(cw, ch)
-            slot = slots.get(role) if role in {"headline", "body"} else None
+            from investhome_api.services.social_design_engine.composition_blueprint import blueprint_from_post
+
+            slots = social_layout_slots(
+                cw,
+                ch,
+                family=str(post.get("compositionStrategy") or "") or None,
+                align=str(post.get("textAlign") or "left"),
+                safe_zone=str(post.get("safeTextZone") or "top"),
+                primitive=str(post.get("compositionPrimitive") or "") or None,
+                blueprint=blueprint_from_post(post),
+            )
+            slot = slots.get(role) if role in {"headline", "body", "eyebrow", "brand"} else None
             if payload.get("x") is None or payload.get("y") is None:
                 laid = layout_text_element(draft, canvas_w=cw, canvas_h=ch, slot=slot)
             else:
@@ -549,6 +567,7 @@ def apply_ops(
             geo = constrain_element(moved, canvas_w=cw, canvas_h=ch)
             el["x"] = geo["x"]
             el["y"] = geo["y"]
+            post["geometryLocked"] = True
             if payload.get("_layout_resolve"):
                 layout_post_ids.add(post_id)
             continue
@@ -562,6 +581,7 @@ def apply_ops(
             }
             geo = constrain_element(resized, canvas_w=cw, canvas_h=ch)
             el.update(geo)
+            post["geometryLocked"] = True
             if el.get("type") == "TEXT":
                 fitted = auto_layout_text(
                     el,
@@ -630,7 +650,7 @@ def apply_ops(
     for post in working:
         pid = str(post.get("id") or "")
         if pid in grammar_post_ids:
-            apply_layout_grammar(post)
+            apply_layout_grammar(post, force=True)
             _sync_copy_fields(post)
         elif pid in layout_post_ids and pid not in visual_intents:
             resolve_layout(post, refit_text=True, text_hints=text_hints.get(pid))

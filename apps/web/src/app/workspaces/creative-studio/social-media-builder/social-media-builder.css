@@ -4431,6 +4431,15 @@
     rgba(0, 0, 0, 0.48) 100%
   );
 }
+.smb-ws__artboard-overlay[data-overlay='panel-left'],
+.smb-ws__artboard-overlay[data-overlay='soft-left'] {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.46) 0%,
+    rgba(0, 0, 0, 0.22) 34%,
+    transparent 54%
+  );
+}
 .smb-ws__el--button[data-cta-style='TEXT_LINK_STYLE'] {
   border-radius: 0;
   background: transparent !important;
@@ -4573,10 +4582,23 @@
   align-content: start;
 }
 .smb-ws__el--metrics-cards .smb-ws__metric {
-  background: rgba(15, 23, 42, 0.28);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 10px;
-  padding: 10px 12px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 4px 10px 4px 0;
+  box-shadow: none;
+}
+.smb-ws__el--metrics-cards .smb-ws__metric + .smb-ws__metric {
+  border-left: 1px solid rgba(255, 255, 255, 0.22);
+  padding-left: 12px;
+}
+.smb-ws__el--metrics-stacked .smb-ws__metric + .smb-ws__metric {
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  padding-top: 8px;
+}
+.smb-ws__el--metrics-horizontal .smb-ws__metric + .smb-ws__metric {
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+  padding-left: 12px;
 }
 .smb-ws__el--metrics .smb-ws__metric-value {
   font-weight: 700;

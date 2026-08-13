@@ -346,15 +346,24 @@ def choose_metric_group_layout(
     canvas_w: int,
     available_width: int,
     requested: MetricGroupLayout | None = None,
+    family: str | None = None,
 ) -> MetricGroupLayout:
     """CD may request a layout; Layout Intelligence may fall back if it does not fit.
 
     Fallback order for horizontal requests:
     horizontal (comfortable) → compact horizontal → cards → stacked.
     Compact is still persisted as ``horizontal`` (density is a render concern).
+    Three metrics on a square are not always a horizontal row.
     """
+    fam = str(family or "").upper()
     if requested in METRIC_LAYOUTS:
         preferred: MetricGroupLayout = requested
+    elif fam in {"INVESTMENT_GRID", "LOWER_THIRD"} and len(metrics) >= 3 and format_preset == "square":
+        preferred = "cards"
+    elif fam in {"SPLIT_LAYOUT"} and len(metrics) >= 2:
+        preferred = "stacked"
+    elif fam == "FLOATING_DATA":
+        preferred = "horizontal" if len(metrics) <= 2 else "cards"
     elif len(metrics) <= 1:
         preferred = "stacked"
     elif format_preset == "square" and len(metrics) <= 3:

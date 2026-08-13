@@ -364,6 +364,8 @@ export function serializeSocialPost(post: SocialPost): Record<string, unknown> {
     ...(post.safeTextZone ? { safeTextZone: post.safeTextZone } : {}),
     ...(post.ctaStrategy ? { ctaStrategy: post.ctaStrategy } : {}),
     ...(post.creativePlan ? { creativePlan: post.creativePlan } : {}),
+    ...(post.compositionBlueprint ? { compositionBlueprint: post.compositionBlueprint } : {}),
+    ...(post.compositionFamily ? { compositionFamily: post.compositionFamily } : {}),
   };
 }
 
@@ -441,6 +443,21 @@ export function parseSocialPost(
       body.creativePlan && typeof body.creativePlan === 'object' && !Array.isArray(body.creativePlan)
         ? (body.creativePlan as Record<string, unknown>)
         : null,
+    compositionBlueprint:
+      (body.compositionBlueprint && typeof body.compositionBlueprint === 'object' && !Array.isArray(body.compositionBlueprint)
+        ? (body.compositionBlueprint as Record<string, unknown>)
+        : body.generationMeta &&
+            typeof body.generationMeta === 'object' &&
+            (body.generationMeta as { composition_blueprint?: unknown }).composition_blueprint &&
+            typeof (body.generationMeta as { composition_blueprint?: unknown }).composition_blueprint === 'object'
+          ? ((body.generationMeta as { composition_blueprint: Record<string, unknown> }).composition_blueprint)
+          : null),
+    compositionFamily:
+      typeof body.compositionFamily === 'string'
+        ? body.compositionFamily
+        : typeof body.composition_family === 'string'
+          ? body.composition_family
+          : null,
   };
 }
 

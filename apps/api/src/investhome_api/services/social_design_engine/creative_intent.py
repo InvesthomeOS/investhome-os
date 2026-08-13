@@ -275,8 +275,12 @@ def is_explicit_redesign(instruction: str) -> bool:
     t = _norm(instruction)
     phrases = (
         "bu postu tamamen yeniden tasarla",
+        "bu tasarimi tamamen yeniden duzenle",
+        "bu tasarımı tamamen yeniden düzenle",
         "postu tamamen yeniden tasarla",
         "tamamen yeniden tasarla",
+        "tamamen yeniden duzenle",
+        "tamamen yeniden düzenle",
         "from scratch",
         "redesign this post",
         "completely redesign",

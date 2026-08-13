@@ -293,6 +293,25 @@ def sibling_composition_signals(posts: list[dict[str, Any]] | None) -> list[str]
                 prim = plan_dict.get("composition_primitive") or plan_dict.get("compositionPrimitive")
                 if prim and str(prim) not in used:
                     used.append(str(prim))
+            bp = meta.get("composition_blueprint") if isinstance(meta.get("composition_blueprint"), dict) else None
+            if isinstance(bp, dict):
+                fam = bp.get("composition_family")
+                if fam and str(fam) not in used:
+                    used.append(str(fam))
+                for key, prefix in (
+                    ("headline_region_kind", "headline"),
+                    ("metric_region_kind", "metric"),
+                    ("cta_placement", "cta"),
+                ):
+                    value = bp.get(key)
+                    token = f"{prefix}:{value}" if value else ""
+                    if token and token not in used:
+                        used.append(token)
+        raw_bp = post.get("compositionBlueprint") or post.get("composition_blueprint")
+        if isinstance(raw_bp, dict):
+            fam = raw_bp.get("composition_family")
+            if fam and str(fam) not in used:
+                used.append(str(fam))
     return used
 
 
@@ -581,10 +600,10 @@ def choose_cta_strategy(
     )
     if density == "MINIMAL" and intent == "ARCHITECTURE" and not explicit:
         return "NONE"
-    if direction == "BRAND_STATEMENT" and not explicit:
-        return "NONE"
     if intent == "INVESTMENT" or direction == "INVESTMENT_DATA":
         return "PILL_BUTTON"
+    if direction == "BRAND_STATEMENT" and not explicit:
+        return "NONE"
     if intent == "ANNOUNCEMENT":
         return "PILL_BUTTON" if explicit else "MINIMAL_BUTTON"
     if intent == "LIFESTYLE" or direction == "LIFESTYLE_PREMIUM":
@@ -660,11 +679,11 @@ def build_creative_plan(
     )
     spec = DIRECTION_LIBRARY[direction]
     family: FamilyKind = PRIMITIVE_TO_FAMILY.get(composition, spec["family"])
-    if direction == "LOCATION_STORY":
+    if intent == "LOCATION" or direction == "LOCATION_STORY":
         family = "LOCATION"
     elif direction == "INVESTMENT_DATA":
         family = "INVESTMENT"
-    elif direction == "ARCHITECTURAL_FEATURE":
+    elif direction == "ARCHITECTURAL_FEATURE" or intent == "ARCHITECTURE":
         family = "MINIMAL_HERO"
 
     include_metrics = metrics_ok

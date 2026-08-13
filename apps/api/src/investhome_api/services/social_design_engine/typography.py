@@ -30,6 +30,27 @@ FORMAT_HEADLINE_SCALE = {
     "landscape": 0.92,
 }
 
+# Minimum readable sizes — reduce density before dropping below these.
+MIN_READABLE = {
+    "square": {"headline": 28, "body": 15, "eyebrow": 12, "brand": 11, "cta": 13, "custom": 14},
+    "portrait": {"headline": 26, "body": 15, "eyebrow": 12, "brand": 11, "cta": 13, "custom": 14},
+    "story": {"headline": 32, "body": 16, "eyebrow": 13, "brand": 12, "cta": 14, "custom": 15},
+    "reelsCover": {"headline": 32, "body": 16, "eyebrow": 13, "brand": 12, "cta": 14, "custom": 15},
+    "landscape": {"headline": 26, "body": 15, "eyebrow": 12, "brand": 11, "cta": 13, "custom": 14},
+}
+
+PROPER_NOUN_LOCKS = (
+    "the temple",
+    "columbia heights",
+    "washington",
+    "investhome",
+)
+
+
+def min_readable_size(role: str, format_preset: str) -> int:
+    table = MIN_READABLE.get(format_preset, MIN_READABLE["square"])
+    return int(table.get(role, table.get("custom", 14)))
+
 
 def hierarchy_font_prefs(
     role: str,
@@ -55,27 +76,46 @@ def hierarchy_font_prefs(
     if composition == "DATA_GRID":
         ratio = min(ratio, 0.05)
     preferred = max(base["min"], int(round(canvas_w * ratio * fmt)))
-    max_size = 92 if composition in {"CENTER_STATEMENT", "IMAGE_DOMINANT"} else base["max"]
+    max_size = 92 if composition in {"CENTER_STATEMENT", "IMAGE_DOMINANT", "STATEMENT_LAYOUT", "LUXURY_BRAND"} else base["max"]
+    min_size = min_readable_size("headline", format_preset)
     return {
-        "preferred": min(max_size, preferred),
-        "min": base["min"],
+        "preferred": min(max_size, max(min_size, preferred)),
+        "min": min_size,
         "max": max_size,
     }
 
 
+def _protect_proper_nouns(text: str) -> str:
+    """Keep locked phrases on one line so wraps never split 'The Temple' into 'The / formu'."""
+    raw = text or ""
+    locked = raw
+    for phrase in PROPER_NOUN_LOCKS:
+        pattern = re.compile(re.escape(phrase), re.I)
+        locked = pattern.sub(lambda m: m.group(0).replace(" ", "\u00a0"), locked)
+    return locked
+
+
+def _restore_nbsp(text: str) -> str:
+    return (text or "").replace("\u00a0", " ")
+
+
 def prevent_orphan_words(text: str, *, max_width: int = 0, font_size: int = 0) -> str:
     """Avoid a single short word stranded on the last line of a headline."""
-    raw = (text or "").strip()
+    raw = _restore_nbsp((text or "").strip())
     words = [w for w in re.split(r"\s+", raw.replace("\n", " ")) if w]
     if len(words) < 4:
         return raw
     if max_width > 0 and font_size > 0:
-        lines = estimate_wrap_lines(raw.replace("\n", " "), font_size, max_width, bold=True)
+        protected = _protect_proper_nouns(raw.replace("\n", " "))
+        lines = estimate_wrap_lines(protected, font_size, max_width, bold=True)
+        lines = [_restore_nbsp(line) for line in lines]
         if len(lines) >= 2 and len(lines[-1].split()) == 1:
+            return " ".join(words[:-2]) + "\n" + " ".join(words[-2:])
+        if len(lines) >= 2 and len(lines[-1]) <= 4:
             return " ".join(words[:-2]) + "\n" + " ".join(words[-2:])
     if "\n" in raw:
         last_line = raw.split("\n")[-1].split()
-        if len(last_line) == 1:
+        if len(last_line) == 1 or (last_line and len(last_line[-1]) <= 3):
             return " ".join(words[:-2]) + "\n" + " ".join(words[-2:])
         return raw
     last = words[-1]
@@ -101,7 +141,17 @@ def intentional_headline_breaks(
     if len(words) < 3:
         return raw
     lines = estimate_wrap_lines(raw, font_size, max_width, bold=True)
-    if composition in {"CENTER_STATEMENT", "IMAGE_DOMINANT", "TOP_LEFT_EDITORIAL", "ASYMMETRIC_EDITORIAL", "BOTTOM_LEFT_EDITORIAL"}:
+    if composition in {
+        "CENTER_STATEMENT",
+        "IMAGE_DOMINANT",
+        "TOP_LEFT_EDITORIAL",
+        "ASYMMETRIC_EDITORIAL",
+        "BOTTOM_LEFT_EDITORIAL",
+        "STATEMENT_LAYOUT",
+        "EDITORIAL_HERO",
+        "LUXURY_BRAND",
+        "LIFESTYLE_EDITORIAL",
+    }:
         if 4 <= len(words) <= 8 and len(lines) == 1 and len(raw) >= 22:
             mid = len(words) // 2
             # Prefer breaking after a short function word.

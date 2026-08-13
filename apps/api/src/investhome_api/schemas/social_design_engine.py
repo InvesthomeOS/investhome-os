@@ -118,6 +118,7 @@ class SocialDesignGenerationMeta(BaseModel):
     metric_group: dict[str, Any] | None = None
     creative_concept: dict[str, Any] | None = None
     creative_plan: dict[str, Any] | None = None
+    composition_blueprint: dict[str, Any] | None = None
     design_quality: dict[str, Any] | None = None
     validation: dict[str, Any] | None = None
     marketing_strategy: dict[str, Any] | None = None
