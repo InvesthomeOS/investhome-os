@@ -282,6 +282,8 @@ export function buildSocialDesignRequest(input: {
   platforms?: Iterable<PlatformKey | string>;
   mode?: SocialDesignMode | null;
   modeExplicit?: boolean;
+  /** Asset IDs that 404/403'd for the current project — never send them (avoids aborting CREATE). */
+  excludeAssetIds?: string[];
 }): BuildSocialDesignResult {
   const linked = typeof input.linkedProjectId === 'string' ? input.linkedProjectId.trim() : '';
   if (!linked || !UUID_RE.test(linked)) {
@@ -292,27 +294,48 @@ export function buildSocialDesignRequest(input: {
     return { ok: false, reason: 'missing_instruction' };
   }
 
-  const selected_asset_ids = collectSelectedAssetIds(input.coverImage, input.galleryImages).filter(
-    (id) => UUID_RE.test(id) && !/^https?:/i.test(id),
-  );
-  // Also include per-post cover + image element asset ids (project-scoped UUIDs only)
-  for (const post of input.posts) {
-    if (post.coverAssetId && isMediaAssetUuid(post.coverAssetId) && !selected_asset_ids.includes(post.coverAssetId)) {
-      selected_asset_ids.push(post.coverAssetId);
-    }
-    for (const el of post.elements) {
-      if (el.type === 'IMAGE' && el.assetId && isMediaAssetUuid(el.assetId) && !selected_asset_ids.includes(el.assetId)) {
-        selected_asset_ids.push(el.assetId);
-      }
-    }
-  }
-
   const platforms = input.platforms
     ? Array.from(input.platforms).map(String).filter(Boolean)
     : [];
   const mode = inferDesignMode(instruction, input.posts, input.mode, {
     explicit: Boolean(input.modeExplicit),
   });
+  const excludeAssetIds = new Set(
+    (input.excludeAssetIds ?? []).filter((id) => typeof id === 'string' && isMediaAssetUuid(id)),
+  );
+  // CREATE picks from the linked project's media library. Do not send leftover
+  // cover/gallery/sibling Asset IDs — a foreign id 403s the whole generation.
+  const selected_asset_ids =
+    mode === 'create'
+      ? []
+      : collectSelectedAssetIds(input.coverImage, input.galleryImages).filter(
+          (id) => UUID_RE.test(id) && !/^https?:/i.test(id) && !excludeAssetIds.has(id),
+        );
+  if (mode !== 'create') {
+    for (const post of input.posts) {
+      const postLinked = (post.linkedProjectId || '').trim();
+      if (postLinked && postLinked !== linked) continue;
+      if (
+        post.coverAssetId &&
+        isMediaAssetUuid(post.coverAssetId) &&
+        !excludeAssetIds.has(post.coverAssetId) &&
+        !selected_asset_ids.includes(post.coverAssetId)
+      ) {
+        selected_asset_ids.push(post.coverAssetId);
+      }
+      for (const el of post.elements) {
+        if (
+          el.type === 'IMAGE' &&
+          el.assetId &&
+          isMediaAssetUuid(el.assetId) &&
+          !excludeAssetIds.has(el.assetId) &&
+          !selected_asset_ids.includes(el.assetId)
+        ) {
+          selected_asset_ids.push(el.assetId);
+        }
+      }
+    }
+  }
   const selectedElement =
     input.selectedElement && typeof input.selectedElement.id === 'string'
       ? input.selectedElement
@@ -327,7 +350,10 @@ export function buildSocialDesignRequest(input: {
       mode_explicit: Boolean(input.modeExplicit),
       draft: {
         posts: input.posts.map(serializeSocialPost),
-        selected_post_id: input.selectedPostId,
+        selected_post_id:
+          typeof input.selectedPostId === 'string' && input.selectedPostId.trim()
+            ? input.selectedPostId.trim()
+            : null,
       },
       selected_asset_ids,
       language: input.language?.trim() || null,

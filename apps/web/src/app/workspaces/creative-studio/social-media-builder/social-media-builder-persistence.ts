@@ -17,11 +17,13 @@ import {
 import {
   createPostFromPreset,
   DEFAULT_POSTS,
+  PLACEHOLDER_HEADLINE,
   type ContentFormat,
   type FormatPresetKey,
   type PlatformKey,
   type PostStatus,
   type SocialPost,
+  type SocialPostGenerationLifecycle,
 } from './social-media-builder-model';
 
 export const SMB_LAST_CONSTRUCTION_PROJECT_KEY = 'ih-smb-last-construction-project-id';
@@ -366,6 +368,9 @@ export function serializeSocialPost(post: SocialPost): Record<string, unknown> {
     ...(post.creativePlan ? { creativePlan: post.creativePlan } : {}),
     ...(post.compositionBlueprint ? { compositionBlueprint: post.compositionBlueprint } : {}),
     ...(post.compositionFamily ? { compositionFamily: post.compositionFamily } : {}),
+    ...(post.generationLifecycle === 'ready' || post.generationLifecycle === 'error'
+      ? { generationLifecycle: post.generationLifecycle }
+      : {}),
   };
 }
 
@@ -385,11 +390,21 @@ export function parseSocialPost(
   const parsedElements = Array.isArray(body.elements)
     ? body.elements.map(parseElement).filter((e): e is SocialElement => e != null)
     : [];
+  const hasCopy = Boolean(headline.trim() || caption.trim());
   const elements = ensureUniqueElementIds(
     parsedElements.length > 0
       ? parsedElements
-      : createDefaultElements(width, height, { headline, caption }),
+      : hasCopy
+        ? createDefaultElements(width, height, { headline, caption })
+        : [],
   );
+  const lifecycleRaw = body.generationLifecycle ?? body.generation_lifecycle;
+  const generationLifecycle: SocialPostGenerationLifecycle | null =
+    lifecycleRaw === 'ready' || lifecycleRaw === 'error' || lifecycleRaw === 'generating' || lifecycleRaw === 'creating'
+      ? lifecycleRaw
+      : parsedElements.length || hasCopy
+        ? 'ready'
+        : null;
 
   const coverRaw =
     typeof body.coverAssetId === 'string'
@@ -458,6 +473,7 @@ export function parseSocialPost(
         : typeof body.composition_family === 'string'
           ? body.composition_family
           : null,
+    generationLifecycle,
   };
 }
 
@@ -505,6 +521,183 @@ export function deleteSocialPost<T extends { id: string }>(
     posts: posts.filter((p) => p.id !== postId),
     selectedPostId: nextSelectedPostIdAfterDelete(posts, postId, selectedPostId),
     deleted,
+  };
+}
+
+export function isInFlightGenerationPost(post: SocialPost | null | undefined): boolean {
+  if (!post) return false;
+  return post.generationLifecycle === 'creating' || post.generationLifecycle === 'generating';
+}
+
+export function isPlaceholderSocialPost(post: SocialPost | null | undefined): boolean {
+  if (!post) return false;
+  if (isInFlightGenerationPost(post)) return true;
+  const headline = (headlineFromElements(post.elements) || post.headline || '').trim();
+  const hasGeneratedMeta = Boolean(
+    post.generationMeta &&
+      typeof post.generationMeta === 'object' &&
+      (post.generationMeta.content_package || post.generationMeta.creative_plan),
+  );
+  return headline === PLACEHOLDER_HEADLINE && !post.coverAssetId && !hasGeneratedMeta;
+}
+
+export function isCompletedGeneratedPost(post: SocialPost | null | undefined): boolean {
+  if (!post || isInFlightGenerationPost(post) || post.generationLifecycle === 'error') return false;
+  const headline = (headlineFromElements(post.elements) || post.headline || '').trim();
+  if (!headline || headline === PLACEHOLDER_HEADLINE) return false;
+  const meta = post.generationMeta && typeof post.generationMeta === 'object' ? post.generationMeta : null;
+  const hasPackage = Boolean(meta?.content_package);
+  const hasPlan = Boolean(post.creativePlan || meta?.creative_plan);
+  const hasBlueprint = Boolean(post.compositionBlueprint || meta?.composition_blueprint);
+  const hasCover = Boolean(post.coverAssetId && isMediaAssetUuid(post.coverAssetId));
+  const hasText = post.elements.some(
+    (el) => el.type === 'TEXT' && typeof el.content === 'string' && el.content.trim().length > 0,
+  );
+  return hasPackage || hasPlan || hasBlueprint || (hasCover && hasText);
+}
+
+export function stripInFlightPostsForPersist(posts: SocialPost[]): SocialPost[] {
+  return posts.filter((p) => !isInFlightGenerationPost(p));
+}
+
+export function normalizeSelectedPostId(
+  value: string | null | undefined,
+  posts: Array<{ id: string }>,
+): string | null {
+  const id = typeof value === 'string' ? value.trim() : '';
+  if (!id) return posts[0]?.id ?? null;
+  if (posts.some((p) => p.id === id)) return id;
+  return posts[0]?.id ?? null;
+}
+
+/**
+ * Hydrate must not wipe an in-flight CREATE or a newer completed generation
+ * with a stale draft (empty posts[] / older placeholder).
+ */
+export function mergeHydratedPostsWithLocal(input: {
+  incoming: SocialPost[];
+  local: SocialPost[];
+  deletedIds: Set<string>;
+  generating: boolean;
+  incomingSelectedPostId?: string | null;
+  localSelectedPostId?: string | null;
+}): { posts: SocialPost[]; selectedPostId: string | null } {
+  const incoming = input.incoming.filter((p) => !input.deletedIds.has(p.id));
+  const local = input.local.filter((p) => !input.deletedIds.has(p.id));
+  const localInFlight = local.filter((p) => isInFlightGenerationPost(p));
+  const localCompleted = local.filter((p) => isCompletedGeneratedPost(p));
+
+  if (input.generating || localInFlight.length) {
+    const byId = new Map<string, SocialPost>();
+    for (const post of incoming) byId.set(post.id, post);
+    for (const post of localCompleted) byId.set(post.id, post);
+    for (const post of localInFlight) byId.set(post.id, post);
+    const ordered: SocialPost[] = [];
+    const seen = new Set<string>();
+    for (const post of local) {
+      const next = byId.get(post.id);
+      if (next && !seen.has(next.id)) {
+        ordered.push(next);
+        seen.add(next.id);
+      }
+    }
+    for (const post of incoming) {
+      if (!seen.has(post.id)) {
+        ordered.push(post);
+        seen.add(post.id);
+      }
+    }
+    const selected =
+      (input.localSelectedPostId && ordered.some((p) => p.id === input.localSelectedPostId)
+        ? input.localSelectedPostId
+        : null) ??
+      localInFlight[0]?.id ??
+      ordered[0]?.id ??
+      null;
+    return { posts: ordered, selectedPostId: selected };
+  }
+
+  if (!incoming.length && localCompleted.length) {
+    const selected =
+      (input.localSelectedPostId && localCompleted.some((p) => p.id === input.localSelectedPostId)
+        ? input.localSelectedPostId
+        : localCompleted[0]?.id) ?? null;
+    return { posts: localCompleted, selectedPostId: selected };
+  }
+
+  const incomingIds = new Set(incoming.map((p) => p.id));
+  const extraLocal = localCompleted.filter((p) => !incomingIds.has(p.id));
+  const merged = incoming.map((post) => {
+    const existing = local.find((l) => l.id === post.id);
+    if (existing && isCompletedGeneratedPost(existing) && !isCompletedGeneratedPost(post)) {
+      return existing;
+    }
+    if (existing && isPlaceholderSocialPost(post) && !isPlaceholderSocialPost(existing)) {
+      return existing;
+    }
+    return post;
+  });
+  const posts = [...merged, ...extraLocal];
+  const selected =
+    (input.incomingSelectedPostId && posts.some((p) => p.id === input.incomingSelectedPostId)
+      ? input.incomingSelectedPostId
+      : null) ??
+    (input.localSelectedPostId && posts.some((p) => p.id === input.localSelectedPostId)
+      ? input.localSelectedPostId
+      : null) ??
+    posts[0]?.id ??
+    null;
+  return { posts, selectedPostId: selected };
+}
+
+/**
+ * CREATE result must update the in-flight post slot — never leave "New social post" as canonical.
+ */
+export function mergeCreateGenerationResult(input: {
+  localPosts: SocialPost[];
+  appliedPosts: SocialPost[];
+  inflightId: string | null;
+  appliedSelectedPostId: string | null;
+  deletedIds: Set<string>;
+}): { posts: SocialPost[]; selectedPostId: string | null; generated: SocialPost | null } {
+  const inflightId = input.inflightId;
+  const applied = input.appliedPosts.filter(
+    (p) => !input.deletedIds.has(p.id) && p.id !== inflightId,
+  );
+  const localIds = new Set(
+    input.localPosts.filter((p) => p.id !== inflightId).map((p) => p.id),
+  );
+  const generated =
+    (input.appliedSelectedPostId
+      ? applied.find((p) => p.id === input.appliedSelectedPostId)
+      : null) ??
+    applied.find((p) => !localIds.has(p.id)) ??
+    null;
+
+  const readyGenerated = generated
+    ? {
+        ...generated,
+        generationLifecycle: (isCompletedGeneratedPost(generated) ? 'ready' : generated.generationLifecycle ?? 'ready') as SocialPostGenerationLifecycle,
+        linkedProjectId: generated.linkedProjectId,
+      }
+    : null;
+
+  let posts = applied.map((p) =>
+    readyGenerated && p.id === readyGenerated.id ? readyGenerated : p,
+  );
+  if (readyGenerated && !posts.some((p) => p.id === readyGenerated.id)) {
+    posts = [...posts, readyGenerated];
+  }
+  if (!posts.length) {
+    posts = input.localPosts.filter((p) => p.id !== inflightId && !input.deletedIds.has(p.id));
+  } else if (inflightId) {
+    posts = posts.filter((p) => p.id !== inflightId);
+  }
+
+  return {
+    posts,
+    selectedPostId: readyGenerated?.id ?? input.appliedSelectedPostId ?? posts[0]?.id ?? null,
+    generated: readyGenerated,
   };
 }
 

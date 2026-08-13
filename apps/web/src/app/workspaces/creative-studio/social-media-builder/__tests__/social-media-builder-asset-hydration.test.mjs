@@ -209,7 +209,7 @@ describe('workspace wiring', () => {
   it('CREATE/EDIT share the same hydration path as reload', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
     assert.match(workspace, /applyDesignResponseToPosts/);
-    assert.match(workspace, /setSelectedPostId\(applied\.selectedPostId\)/);
+    assert.match(workspace, /setSelectedPostId\(merged\.selectedPostId\)/);
     assert.match(workspace, /setCoverImage/);
     assert.match(workspace, /invalidateAsset/);
     assert.match(workspace, /assetUsedByOtherPosts/);
@@ -228,6 +228,7 @@ describe('workspace wiring', () => {
     const hydration = readSmb('social-media-builder-asset-hydration.ts');
     assert.match(hydration, /SMB_ASSET_RESOLVE_TIMEOUT_MS/);
     assert.match(hydration, /status: 'error'/);
+    assert.match(hydration, /failedAssetIds/);
     const workspace = readSmb('social-media-builder-workspace.tsx');
     assert.match(workspace, /scopeToLinkedProject:\s*true/);
     assert.match(workspace, /linkedProjectId: docApi\.constructionProjectId/);

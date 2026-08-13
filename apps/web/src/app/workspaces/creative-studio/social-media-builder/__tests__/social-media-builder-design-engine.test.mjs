@@ -42,7 +42,7 @@ describe('workspace wires design engine (same canvas)', () => {
     assert.match(workspace, /applyDesignResponseToPosts/);
     assert.match(workspace, /toDesignGenerationMeta/);
     assert.match(workspace, /serializeGenerationMetaForDraft/);
-    assert.match(workspace, /setPosts\(\s*applied\.posts\.map/);
+    assert.match(workspace, /setPosts\(nextPosts\)/);
     assert.match(workspace, /ensureUniqueElementIds\(p\.elements\)/);
     assert.doesNotMatch(workspace, /runAiDemo/);
     assert.doesNotMatch(workspace, /images\.unsplash/);
@@ -159,7 +159,7 @@ describe('design request builder logic (inlined mirror)', () => {
           posts: (input.posts ?? []).map((p) => ({ id: p.id, elements: p.elements ?? [] })),
           selected_post_id: input.selectedPostId ?? null,
         },
-        selected_asset_ids: [COVER_UUID].filter((id) => UUID_RE.test(id)),
+        selected_asset_ids: mode === 'create' ? [] : [COVER_UUID].filter((id) => UUID_RE.test(id)),
         builder_context: { builder: 'social', design_engine: 'phase1' },
       },
     };
@@ -176,10 +176,16 @@ describe('design request builder logic (inlined mirror)', () => {
     assert.equal(built.request.mode, 'create');
     assert.equal(built.request.linked_project_id, TEMPLE_UUID);
     assert.equal(built.request.builder_context.design_engine, 'phase1');
-    for (const id of built.request.selected_asset_ids) {
-      assert.match(id, UUID_RE);
-      assert.doesNotMatch(id, /^https?:/i);
-    }
+    assert.deepEqual(built.request.selected_asset_ids, []);
+  });
+
+  it('CREATE never forwards leftover cover/gallery Asset IDs', () => {
+    const engine = readSmb('social-media-builder-design-engine.ts');
+    assert.match(engine, /mode === 'create'/);
+    assert.match(engine, /CREATE picks from the linked project's media library/);
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    assert.match(workspace, /inferredMode === 'create' \? null : coverAsset\.coverImage/);
+    assert.match(workspace, /excludeAssetIds: postAssets\.failedAssetIds/);
   });
 
   it('infers edit mode from Turkish edit instruction on existing posts', () => {
@@ -320,7 +326,7 @@ describe('canonical canvas fit / layout safety (renderer contract)', () => {
     assert.match(workspace, /postsRef\.current/);
     assert.match(workspace, /selectedPostIdRef\.current/);
     assert.match(workspace, /const latestPosts = postsRef\.current/);
-    assert.match(workspace, /buildSocialDesignRequest\(\{[\s\S]*posts:\s*latestPosts/);
+    assert.match(workspace, /buildSocialDesignRequest\(\{[\s\S]*posts:\s*siblingPosts/);
   });
 
   it('cycles generation status stages in the existing AI bar', () => {

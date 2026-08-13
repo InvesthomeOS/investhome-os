@@ -23,6 +23,11 @@ export type ContentFormat =
 
 export type PostStatus = 'ready' | 'draft' | 'scheduled' | 'review';
 
+/** Client generation lifecycle — in-flight placeholders are not completed posts. */
+export type SocialPostGenerationLifecycle = 'creating' | 'generating' | 'ready' | 'error';
+
+export const PLACEHOLDER_HEADLINE = 'New social post';
+
 export type AiStatusKey =
   | 'idle'
   | 'thinking'
@@ -149,6 +154,8 @@ export type SocialPost = {
   creativePlan?: Record<string, unknown> | null;
   compositionBlueprint?: Record<string, unknown> | null;
   compositionFamily?: string | null;
+  /** In-flight create must not be treated as a completed Gönderi. Not persisted while generating. */
+  generationLifecycle?: SocialPostGenerationLifecycle | null;
 };
 
 export type SmbProject = {
@@ -465,7 +472,7 @@ export function createPostFromPreset(
   },
 ): SocialPost {
   const size = resolveFormatSize(preset);
-  const headline = 'New social post';
+  const headline = PLACEHOLDER_HEADLINE;
   const caption = '';
   const elements = createDefaultElements(size.w, size.h, {
     headline,
@@ -495,5 +502,40 @@ export function createPostFromPreset(
     coverAssetId: options?.coverAssetId ?? null,
     linkedProjectId: options?.linkedProjectId ?? null,
     elements,
+    generationLifecycle: 'ready',
+  };
+}
+
+/** Isolated in-flight CREATE post — empty canvas, project-scoped, not a completed placeholder. */
+export function createGeneratingPost(
+  preset: FormatPresetKey,
+  index: number,
+  options?: { linkedProjectId?: string | null },
+): SocialPost {
+  const size = resolveFormatSize(preset);
+  return {
+    id: `p-gen-${Date.now()}-${index}`,
+    platform: 'instagram',
+    format:
+      preset === 'story'
+        ? 'story'
+        : preset === 'reelsCover'
+          ? 'reel'
+          : preset === 'carousel'
+            ? 'carousel'
+            : 'feed',
+    formatPreset: preset,
+    width: size.w,
+    height: size.h,
+    status: 'draft',
+    thumbUrl: '',
+    name: 'Generating',
+    headline: '',
+    description: '',
+    caption: '',
+    coverAssetId: null,
+    linkedProjectId: options?.linkedProjectId ?? null,
+    elements: [],
+    generationLifecycle: 'generating',
   };
 }

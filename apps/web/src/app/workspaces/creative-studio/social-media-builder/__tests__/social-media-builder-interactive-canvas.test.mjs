@@ -58,7 +58,7 @@ describe('interactive canvas wiring', () => {
     assert.match(workspace, /\(\['left', 'center', 'right', 'top', 'middle', 'bottom'\]/);
     assert.match(workspace, /smb-align-\$\{mode\}/);
     assert.match(workspace, /pushHistory\(\);/);
-    assert.match(workspace, /setPosts\(\s*applied\.posts\.map/);
+    assert.match(workspace, /setPosts\(nextPosts\)/);
     assert.match(workspace, /ensureUniqueElementIds/);
     // One canonical posts state — no separate FS/AI canvas
     assert.doesNotMatch(workspace, /fsPosts|fullscreenPosts|aiPreviewPosts/);

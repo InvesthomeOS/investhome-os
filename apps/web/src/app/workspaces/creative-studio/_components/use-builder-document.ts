@@ -65,7 +65,11 @@ export type UseBuilderDocumentResult = {
   csDocumentId: string | null;
   bootstrap: () => Promise<BuilderBootstrapResult>;
   selectConstructionProject: (projectId: string) => Promise<BuilderMediaDraft | null>;
-  saveDraft: (input: Omit<BuilderMediaPersistInput, 'documentType'>) => Promise<boolean>;
+  saveDraft: (
+    input:
+      | Omit<BuilderMediaPersistInput, 'documentType'>
+      | (() => Omit<BuilderMediaPersistInput, 'documentType'> | null),
+  ) => Promise<boolean>;
 };
 
 function defaultResolvePreferredId(options: {
@@ -275,11 +279,17 @@ export function useBuilderDocument(options: {
   );
 
   const saveDraft = useCallback(
-    async (input: Omit<BuilderMediaPersistInput, 'documentType'>) => {
+    async (
+      input:
+        | Omit<BuilderMediaPersistInput, 'documentType'>
+        | (() => Omit<BuilderMediaPersistInput, 'documentType'> | null),
+    ) => {
       const documentId = documentIdRef.current;
       if (!documentId || !readyRef.current) return false;
 
       // Wait out in-flight saves instead of dropping (Sil/clear must not lose to autosave).
+      // Resolve getters AFTER the wait so a stale autosave cannot overwrite a newer
+      // AI-generated or deleted snapshot with posts captured before that mutation.
       const waitStarted = Date.now();
       while (savingRef.current) {
         if (Date.now() - waitStarted > 15_000) return false;
@@ -288,12 +298,15 @@ export function useBuilderDocument(options: {
         });
       }
 
+      const resolved = typeof input === 'function' ? input() : input;
+      if (!resolved) return false;
+
       savingRef.current = true;
       const gen = ++saveGenRef.current;
       setSaveStatus('saving');
       try {
         const body = serializeBuilderMediaDraft({
-          ...input,
+          ...resolved,
           documentType: documentTypeRef.current,
         });
         await saveCreativeStudioDraft(documentId, body);

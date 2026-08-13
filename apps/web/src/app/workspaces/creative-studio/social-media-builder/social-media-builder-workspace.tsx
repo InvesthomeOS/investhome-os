@@ -25,6 +25,7 @@ import {
   SMB_RIGHT_RAIL_ICONS,
   SMB_RIGHT_RAIL_IDS,
   aspectThumbClass,
+  createGeneratingPost,
   createPostFromPreset,
   resolveFormatSize,
   type AiStatusKey,
@@ -74,6 +75,11 @@ import {
 import {
   deleteSocialPost,
   hydrateSocialPostsFromDraft,
+  isCompletedGeneratedPost,
+  isInFlightGenerationPost,
+  mergeCreateGenerationResult,
+  mergeHydratedPostsWithLocal,
+  stripInFlightPostsForPersist,
   loadLastConstructionProjectId,
   loadPersistedLinkedProjectIdHint,
   resolvePreferredConstructionProjectId,
@@ -181,6 +187,9 @@ export function SocialMediaBuilderWorkspace() {
   const genStageTimerRef = useRef<number | null>(null);
   const generateAbortRef = useRef(0);
   const deletedPostIdsRef = useRef<Set<string>>(new Set());
+  const generatingRef = useRef(false);
+  const persistEpochRef = useRef(0);
+  const createInflightIdRef = useRef<string | null>(null);
   const postsRef = useRef(posts);
   postsRef.current = posts;
   const selectedPostIdRef = useRef(selectedPostId);
@@ -290,23 +299,33 @@ export function SocialMediaBuilderWorkspace() {
         selectedPostId: draft?.selectedPostId,
       });
       const incoming = hydrated.posts.filter((p) => !deletedPostIdsRef.current.has(p.id));
-      setPosts(
-        incoming.map((p) => ({
-          ...p,
-          elements: ensureUniqueElementIds(p.elements),
-        })),
-      );
+      const merged = mergeHydratedPostsWithLocal({
+        incoming,
+        local: postsRef.current,
+        deletedIds: deletedPostIdsRef.current,
+        generating: generatingRef.current,
+        incomingSelectedPostId: hydrated.selectedPostId,
+        localSelectedPostId: selectedPostIdRef.current,
+      });
+      const nextPosts = merged.posts.map((p) => ({
+        ...p,
+        elements: ensureUniqueElementIds(p.elements),
+      }));
+      postsRef.current = nextPosts;
+      setPosts(nextPosts);
       const active =
-        incoming.find((p) => p.id === hydrated.selectedPostId) ?? incoming[0] ?? null;
-      setSelectedPostId(
-        active && incoming.some((p) => p.id === (hydrated.selectedPostId ?? ''))
-          ? hydrated.selectedPostId ?? active.id
-          : active?.id ?? '',
-      );
-      setHistoryPast([]);
-      setHistoryFuture([]);
-      setEditingElementId(null);
-      setSelectedElementId(null);
+        nextPosts.find((p) => p.id === merged.selectedPostId) ?? nextPosts[0] ?? null;
+      const nextSelected = active?.id ?? '';
+      selectedPostIdRef.current = nextSelected;
+      setSelectedPostId(nextSelected);
+      const skipClobber =
+        generatingRef.current || nextPosts.some((p) => isInFlightGenerationPost(p));
+      if (!skipClobber) {
+        setHistoryPast([]);
+        setHistoryFuture([]);
+        setEditingElementId(null);
+        setSelectedElementId(null);
+      }
       if (active) setFormatPreset(active.formatPreset);
       if (typeof draft?.brandLogo === 'boolean') setBrandLogo(draft.brandLogo);
       if (Array.isArray(draft?.platforms) && draft.platforms.length) {
@@ -328,7 +347,9 @@ export function SocialMediaBuilderWorkspace() {
               role: 'cover' as const,
             }
           : null;
-      coverAsset.hydrateMedia(coverRef, draft ? [] : []);
+      if (!skipClobber) {
+        coverAsset.hydrateMedia(coverRef, draft ? [] : []);
+      }
       const fromPost = parseGenerationMetaFromDraft(active?.generationMeta);
       if (draft && 'generationMeta' in draft) {
         setGenerationMeta(
@@ -362,7 +383,11 @@ export function SocialMediaBuilderWorkspace() {
   });
   /** Authenticated Media Library blob only — never Unsplash / template fallback. */
   const artboardSrc = postAssets.artboardSrc;
-  const artboardState = postAssets.artboardState;
+  const artboardState =
+    selectedPost?.generationLifecycle === 'generating' ||
+    selectedPost?.generationLifecycle === 'creating'
+      ? 'loading'
+      : postAssets.artboardState;
   const elementDisplayUrls = postAssets.displayUrls;
 
   useEffect(() => {
@@ -429,8 +454,13 @@ export function SocialMediaBuilderWorkspace() {
 
   const buildPersistPayload = useCallback(() => {
     const current = postsRef.current;
+    const persistable = stripInFlightPostsForPersist(current);
     const latestSelected = selectedPostIdRef.current;
-    const active = current.find((p) => p.id === latestSelected) ?? current[0] ?? null;
+    const persistSelected =
+      latestSelected && persistable.some((p) => p.id === latestSelected)
+        ? latestSelected
+        : persistable[0]?.id ?? null;
+    const active = current.find((p) => p.id === latestSelected) ?? persistable[0] ?? current[0] ?? null;
     const coverId = active?.coverAssetId ?? null;
     // Canonical persist: Asset ID only — never blob:/object: display URLs.
     const coverFromPost = coverId
@@ -445,13 +475,13 @@ export function SocialMediaBuilderWorkspace() {
       linkedProjectId: docApi.constructionProjectId,
       coverImage: coverFromPost,
       posts: serializeSocialPosts(
-        current.map((p) => ({
+        persistable.map((p) => ({
           ...p,
           thumbUrl: '',
           linkedProjectId: docApi.constructionProjectId,
         })),
       ),
-      selectedPostId: latestSelected || null,
+      selectedPostId: persistSelected,
       brandLogo,
       platforms: Array.from(platforms),
       generationMeta: serializeGenerationMetaForDraft(generationMeta),
@@ -479,15 +509,23 @@ export function SocialMediaBuilderWorkspace() {
 
   useEffect(() => {
     if (!hydrated || docApi.loadStatus !== 'ready') return;
+    if (generatingRef.current) return;
+    const epoch = persistEpochRef.current;
     const id = window.setTimeout(() => {
       void (async () => {
-        const ok = await docApi.saveDraft(buildPersistPayload());
+        if (generatingRef.current) return;
+        if (epoch !== persistEpochRef.current) return;
+        const ok = await docApi.saveDraft(() => {
+          if (generatingRef.current) return null;
+          if (epoch !== persistEpochRef.current) return null;
+          return buildPersistPayload();
+        });
         if (ok) setSaved(true);
       })();
     }, 2000);
     return () => window.clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, docApi.loadStatus, coverAsset.coverImage, posts, selectedPostId, brandLogo, platforms]);
+  }, [hydrated, docApi.loadStatus, coverAsset.coverImage, posts, selectedPostId, brandLogo, platforms, generating]);
 
   useEffect(() => {
     if (!floatingMoreOpen && !alignMenuOpen && !layerMenuOpen) return;
@@ -596,6 +634,11 @@ export function SocialMediaBuilderWorkspace() {
 
   async function handleProjectChange(id: string) {
     deletedPostIdsRef.current = new Set();
+    generateAbortRef.current += 1;
+    generatingRef.current = false;
+    createInflightIdRef.current = null;
+    persistEpochRef.current += 1;
+    coverAsset.clearCover();
     const draft = await docApi.selectConstructionProject(id);
     applyDraftPosts(draft);
     setGenerationMeta(null);
@@ -754,6 +797,9 @@ export function SocialMediaBuilderWorkspace() {
 
     // Invalidate in-flight AI / stale hydration so they cannot resurrect the deleted post.
     generateAbortRef.current += 1;
+    generatingRef.current = false;
+    if (createInflightIdRef.current === postId) createInflightIdRef.current = null;
+    persistEpochRef.current += 1;
     deletedPostIdsRef.current = new Set(deletedPostIdsRef.current).add(postId);
     pushHistory();
     postsRef.current = result.posts;
@@ -1006,18 +1052,20 @@ export function SocialMediaBuilderWorkspace() {
       const inferredMode = inferDesignMode(instruction, latestPosts, options?.mode, {
         explicit: Boolean(options?.explicit),
       });
+      const siblingPosts = latestPosts.filter((p) => !isInFlightGenerationPost(p));
       const built = buildSocialDesignRequest({
         linkedProjectId: docApi.constructionProjectId,
         instruction,
-        posts: latestPosts,
-        selectedPostId: latestSelectedPostId,
+        posts: siblingPosts,
+        selectedPostId: inferredMode === 'create' ? null : latestSelectedPostId || null,
         selectedElement: selectedElementToDesignContext(
           latestPosts
             .find((p) => p.id === latestSelectedPostId)
             ?.elements.find((el) => el.id === selectedElementIdRef.current) ?? null,
         ),
-        coverImage: coverAsset.coverImage,
-        galleryImages: coverAsset.galleryImages,
+        coverImage: inferredMode === 'create' ? null : coverAsset.coverImage,
+        galleryImages: inferredMode === 'create' ? [] : coverAsset.galleryImages,
+        excludeAssetIds: postAssets.failedAssetIds,
         language: locale,
         platforms,
         mode: options?.mode ?? inferredMode,
@@ -1043,9 +1091,30 @@ export function SocialMediaBuilderWorkspace() {
       }
 
       const token = ++generateAbortRef.current;
+      generatingRef.current = true;
+      persistEpochRef.current += 1;
       setGenerating(true);
       setCampaignStatus('draft');
       if (inferredMode === 'create') {
+        const inflight = createGeneratingPost(formatPreset, siblingPosts.length + 1, {
+          linkedProjectId: docApi.constructionProjectId,
+        });
+        createInflightIdRef.current = inflight.id;
+        const withInflight = [
+          ...siblingPosts.map((p) =>
+            isInFlightGenerationPost(p)
+              ? { ...p, generationLifecycle: 'error' as const }
+              : p,
+          ),
+          inflight,
+        ];
+        postsRef.current = withInflight;
+        selectedPostIdRef.current = inflight.id;
+        setPosts(withInflight);
+        setSelectedPostId(inflight.id);
+        setSelectedElementId(null);
+        setEditingElementId(null);
+        coverAsset.clearCover();
         let stageIdx = 0;
         setAiStatus(GENERATION_STATUS_STAGES[0]!);
         genStageTimerRef.current = window.setInterval(() => {
@@ -1055,6 +1124,7 @@ export function SocialMediaBuilderWorkspace() {
           }
         }, 900);
       } else {
+        createInflightIdRef.current = null;
         setAiStatus('designingCreatives');
       }
 
@@ -1071,20 +1141,47 @@ export function SocialMediaBuilderWorkspace() {
         );
         const blocked =
           Boolean(meta.warnings.includes('missing_required_facts')) && !(response.ops?.length);
-        if (applied.posts.length && !blocked) {
+        const inflightId = createInflightIdRef.current;
+        const merged =
+          inferredMode === 'create'
+            ? mergeCreateGenerationResult({
+                localPosts: postsRef.current,
+                appliedPosts: applied.posts,
+                inflightId,
+                appliedSelectedPostId: applied.selectedPostId,
+                deletedIds: deletedPostIdsRef.current,
+              })
+            : {
+                posts: applied.posts,
+                selectedPostId: applied.selectedPostId,
+                generated:
+                  applied.posts.find((p) => p.id === applied.selectedPostId) ??
+                  applied.posts[0] ??
+                  null,
+              };
+
+        const nextPosts = merged.posts.map((p) => ({
+          ...p,
+          elements: ensureUniqueElementIds(p.elements),
+          linkedProjectId: p.linkedProjectId || docApi.constructionProjectId,
+        }));
+        const generated = merged.generated
+          ? nextPosts.find((p) => p.id === merged.generated?.id) ?? merged.generated
+          : null;
+        const createComplete =
+          inferredMode !== 'create' || Boolean(generated && isCompletedGeneratedPost(generated));
+
+        if (nextPosts.length && !blocked && (inferredMode !== 'create' || createComplete)) {
           pushHistory();
-          setPosts(
-            applied.posts.map((p) => ({
-              ...p,
-              elements: ensureUniqueElementIds(p.elements),
-            })),
-          );
-          if (applied.selectedPostId) setSelectedPostId(applied.selectedPostId);
+          persistEpochRef.current += 1;
+          postsRef.current = nextPosts;
+          selectedPostIdRef.current = merged.selectedPostId ?? generated?.id ?? '';
+          setPosts(nextPosts);
+          if (merged.selectedPostId) setSelectedPostId(merged.selectedPostId);
+          createInflightIdRef.current = null;
           setEditingElementId(null);
-          // Sync cover from selected post for shared media rail
           const active =
-            applied.posts.find((p) => p.id === applied.selectedPostId) ??
-            applied.posts[0];
+            nextPosts.find((p) => p.id === merged.selectedPostId) ?? nextPosts[0];
           if (active?.coverAssetId) {
             coverAsset.setCoverImage({
               asset_id: active.coverAssetId,
@@ -1097,6 +1194,14 @@ export function SocialMediaBuilderWorkspace() {
           }
           markDirty();
           setRightRailId('content');
+        } else if (inferredMode === 'create' && inflightId) {
+          persistEpochRef.current += 1;
+          const errored = postsRef.current.map((p) =>
+            p.id === inflightId ? { ...p, generationLifecycle: 'error' as const, name: 'Generation failed' } : p,
+          );
+          postsRef.current = errored;
+          setPosts(errored);
+          createInflightIdRef.current = inflightId;
         }
 
         if (hasDesignInsufficientContext(response)) {
@@ -1113,33 +1218,40 @@ export function SocialMediaBuilderWorkspace() {
           );
         } else if (meta.warnings.includes('no_valid_project_media')) {
           showToast(t('toasts.noProjectMedia'));
+        } else if (inferredMode === 'create' && !createComplete && !blocked) {
+          showToast(t('toasts.generateFailed'));
+          setCampaignStatus('failed');
         } else if (meta.warnings.length) {
           showToast(t('toasts.generationWarning', { warning: meta.warnings[0]! }));
         } else {
           showToast(t('toasts.designed'));
         }
 
-        setAiStatus('completed');
-        setCampaignStatus('ready');
-        setAiPrompt('');
-        const nextPosts = (
-          applied.posts.length
-            ? applied.posts.map((p) => ({
-                ...p,
-                elements: ensureUniqueElementIds(p.elements),
-              }))
-            : postsRef.current
-        ).map((p) => ({
-          ...p,
-          linkedProjectId: docApi.constructionProjectId,
-        }));
+        if (!(inferredMode === 'create' && !createComplete && !blocked)) {
+          setAiStatus('completed');
+          setCampaignStatus(blocked ? 'failed' : 'ready');
+          setAiPrompt('');
+        } else {
+          setAiStatus('idle');
+        }
+        const persistPosts = stripInFlightPostsForPersist(
+          (createComplete || inferredMode !== 'create' ? nextPosts : postsRef.current).map((p) => ({
+            ...p,
+            linkedProjectId: docApi.constructionProjectId,
+          })),
+        );
         const persistPayload = {
           ...buildPersistPayload(),
           generationMeta: serializeGenerationMetaForDraft(meta),
-          posts: serializeSocialPosts(nextPosts),
-          selectedPostId: applied.selectedPostId ?? selectedPostIdRef.current,
+          posts: serializeSocialPosts(persistPosts),
+          selectedPostId:
+            persistPosts.find((p) => p.id === (merged.selectedPostId ?? ''))?.id ??
+            persistPosts[0]?.id ??
+            null,
         };
-        void docApi.saveDraft(persistPayload);
+        if (createComplete || inferredMode !== 'create') {
+          void docApi.saveDraft(persistPayload);
+        }
         genIdleTimerRef.current = window.setTimeout(() => {
           if (token === generateAbortRef.current) setAiStatus('idle');
         }, 1600);
@@ -1147,6 +1259,14 @@ export function SocialMediaBuilderWorkspace() {
         if (token !== generateAbortRef.current) return;
         setAiStatus('idle');
         setCampaignStatus('failed');
+        const inflightId = createInflightIdRef.current;
+        if (inflightId) {
+          const errored = postsRef.current.map((p) =>
+            p.id === inflightId ? { ...p, generationLifecycle: 'error' as const, name: 'Generation failed' } : p,
+          );
+          postsRef.current = errored;
+          setPosts(errored);
+        }
         const message =
           err instanceof ApiError && err.message
             ? err.message
@@ -1157,15 +1277,20 @@ export function SocialMediaBuilderWorkspace() {
           window.clearInterval(genStageTimerRef.current);
           genStageTimerRef.current = null;
         }
-        if (token === generateAbortRef.current) setGenerating(false);
+        if (token === generateAbortRef.current) {
+          generatingRef.current = false;
+          setGenerating(false);
+        }
       }
     },
     [
       buildPersistPayload,
       coverAsset,
       docApi,
+      formatPreset,
       locale,
       platforms,
+      postAssets.failedAssetIds,
       t,
     ],
   );
@@ -1751,6 +1876,7 @@ export function SocialMediaBuilderWorkspace() {
                       className={`smb-ws__artboard${selectedElementId || artboardState === 'ready' ? ' is-selected' : ''}${artboardState !== 'ready' ? ' is-empty' : ''}`}
                       data-testid="smb-artboard"
                       data-image-state={artboardState}
+                      data-generation-lifecycle={selectedPost?.generationLifecycle ?? 'ready'}
                       data-cover-asset-id={selectedPost?.coverAssetId ?? ''}
                       data-selected-post-id={selectedPost?.id ?? ''}
                       data-width={contentSize.w}

@@ -139,6 +139,7 @@ export function useSmbPostAssetHydration(options: {
   artboardSrc: string | null;
   artboardState: CoverResolveStatus;
   selectedCoverAssetId: string | null;
+  failedAssetIds: string[];
   invalidateAsset: (assetId: string) => void;
   retryAsset: (assetId: string) => void;
 } {
@@ -254,6 +255,14 @@ export function useSmbPostAssetHydration(options: {
     return out;
   }, [displayById]);
 
+  const failedAssetIds = useMemo(
+    () =>
+      Object.entries(displayById)
+        .filter(([, entry]) => entry.status === 'error')
+        .map(([id]) => id),
+    [displayById],
+  );
+
   const artboard = useMemo(() => {
     const derived = deriveArtboardState(selectedCoverAssetId, displayById);
     if (derived.state === 'ready') return derived;
@@ -304,6 +313,7 @@ export function useSmbPostAssetHydration(options: {
     artboardSrc: artboard.src,
     artboardState: artboard.state,
     selectedCoverAssetId,
+    failedAssetIds,
     invalidateAsset,
     retryAsset,
   };
