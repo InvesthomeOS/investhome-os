@@ -142,6 +142,7 @@ export function useBuilderDocument(options: {
           brandLogo: draft.brandLogo,
           platforms: draft.platforms,
           generationMeta: draft.generationMeta,
+          ideogramPoc: draft.ideogramPoc,
         });
         await saveCreativeStudioDraft(document.id, body);
         preferredRef.current.onDraftSaved?.(body);

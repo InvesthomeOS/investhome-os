@@ -13586,6 +13586,10 @@
           "selectingVisual": "Görsel seçiliyor",
           "preparingDesign": "Tasarım hazırlanıyor",
           "checkingLayout": "Yerleşim kontrol ediliyor",
+          "ideogramBrief": "Ideogram brief hazırlanıyor",
+          "ideogramSource": "proje görseli hazırlanıyor",
+          "ideogramGenerating": "3 tasarım üretiliyor",
+          "ideogramSaving": "sonuçlar kaydediliyor",
           "completed": "AI tasarım tuvale uygulandı"
         },
         "aiDesign": {
@@ -13596,7 +13600,16 @@
           "editPost": "Seçili Postu AI ile Düzenle",
           "generating": "Tasarlanıyor…",
           "collapse": "Gizle",
-          "expand": "Göster"
+          "expand": "Göster",
+          "engine": "Tasarım Motoru",
+          "engineNative": "Native",
+          "engineIdeogram": "Ideogram POC",
+          "ideogramUnavailable": "Ideogram POC kullanılamıyor — API anahtarı yapılandırılmamış.",
+          "select": "Seç",
+          "regenerate": "Yeniden Üret",
+          "optionA": "A",
+          "optionB": "B",
+          "optionC": "C"
         },
         "left": {
           "aria": "Şablonlar ve bileşenler",
@@ -13883,6 +13896,8 @@
           "generationWarning": "Uyarılarla üretildi: {warning}",
           "missingRequiredFacts": "Eksik zorunlu proje bilgisi: {facts}. Devam etmek için komuta ekleyin — hiçbir değer uydurulmadı.",
           "generateFailed": "AI üretimi başarısız oldu",
+          "ideogramSelected": "Ideogram kreatif yeni gönderi olarak kaydedildi",
+          "ideogramUnavailable": "Ideogram POC kullanılamıyor",
           "logoChanged": "Logo güncellendi",
           "logoRemoved": "Logo kaldırıldı",
           "imageChanged": "Arka plan görseli güncellendi",

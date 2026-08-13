@@ -300,6 +300,94 @@
   padding-block: 4px;
 }
 
+.smb-ws__ai-engine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.smb-ws__ai-engine-label {
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+  color: var(--shot-navy);
+}
+
+.smb-ws__ai-engine-toggles {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.smb-ws__ai-engine-btn {
+  padding: 3px 8px;
+  border: 1px solid var(--cs-border);
+  border-radius: 999px;
+  background: #f8fafb;
+  color: var(--shot-navy);
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.smb-ws__ai-engine-btn.is-active {
+  background: var(--shot-navy);
+  color: #fff;
+  border-color: var(--shot-navy);
+}
+
+.smb-ws__ai-engine-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.smb-ws__ai-engine-note {
+  margin: 0;
+  font-size: var(--shot-font-caption);
+  color: #9a3412;
+}
+
+.smb-ws__ideogram-poc {
+  margin-top: 6px;
+}
+
+.smb-ws__ideogram-poc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.smb-ws__ideogram-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid var(--cs-border);
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.smb-ws__ideogram-card-label {
+  font-size: var(--shot-font-caption);
+  font-weight: 700;
+  color: var(--shot-navy);
+}
+
+.smb-ws__ideogram-card-img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #e8eef0;
+}
+
+.smb-ws__ideogram-card-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
 @keyframes lpb-pulse {
   0%,
   100% {

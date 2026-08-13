@@ -67,6 +67,8 @@ export type BuilderMediaDraft = {
    * Never treated as design canvas text.
    */
   generationMeta?: Record<string, unknown> | null;
+  /** Ideogram POC A/B/C session — persisted so reload does not re-call the provider. */
+  ideogramPoc?: Record<string, unknown> | null;
   savedAt?: number;
 };
 
@@ -80,6 +82,7 @@ export type BuilderMediaPersistInput = {
   brandLogo?: boolean;
   platforms?: string[];
   generationMeta?: Record<string, unknown> | null;
+  ideogramPoc?: Record<string, unknown> | null;
 };
 
 export function isBuilderMediaDocumentType(
@@ -117,6 +120,9 @@ export function serializeBuilderMediaDraft(
   if (Array.isArray(input.platforms)) draft.platforms = input.platforms;
   if (input.generationMeta && typeof input.generationMeta === 'object') {
     draft.generationMeta = input.generationMeta;
+  }
+  if (input.ideogramPoc && typeof input.ideogramPoc === 'object') {
+    draft.ideogramPoc = input.ideogramPoc;
   }
 
   return draft;
@@ -232,6 +238,12 @@ export function deserializeBuilderMediaDraft(
       typeof body.generationMeta === 'object' &&
       !Array.isArray(body.generationMeta)
         ? (body.generationMeta as Record<string, unknown>)
+        : undefined,
+    ideogramPoc:
+      body.ideogramPoc &&
+      typeof body.ideogramPoc === 'object' &&
+      !Array.isArray(body.ideogramPoc)
+        ? (body.ideogramPoc as Record<string, unknown>)
         : undefined,
     savedAt: typeof body.savedAt === 'number' ? body.savedAt : undefined,
   };

@@ -553,7 +553,8 @@ export function isCompletedGeneratedPost(post: SocialPost | null | undefined): b
   const hasText = post.elements.some(
     (el) => el.type === 'TEXT' && typeof el.content === 'string' && el.content.trim().length > 0,
   );
-  return hasPackage || hasPlan || hasBlueprint || (hasCover && hasText);
+  const isIdeogramFlat = meta?.provider === 'ideogram' && hasCover;
+  return hasPackage || hasPlan || hasBlueprint || (hasCover && hasText) || isIdeogramFlat;
 }
 
 /** CREATE response is usable even if headline/meta gates are incomplete. */

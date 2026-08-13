@@ -128,6 +128,12 @@ class Settings(BaseSettings):
         alias="DOCUMENT_QA_HISTORY_RETENTION_DAYS",
     )
 
+    # Ideogram External Design AI POC — never hardcode secrets.
+    ideogram_api_key: str | None = Field(default=None, alias="IDEOGRAM_API_KEY")
+    ideogram_enabled: bool = Field(default=True, alias="IDEOGRAM_ENABLED")
+    ideogram_model: str = Field(default="V_4_0", alias="IDEOGRAM_MODEL")
+    ideogram_default_quality: str = Field(default="QUALITY", alias="IDEOGRAM_DEFAULT_QUALITY")
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, value: Any) -> list[str]:

@@ -57,6 +57,10 @@ services:
       AI_MODEL: ${AI_MODEL:-local-heuristic-v1}
       AI_API_KEY: ${AI_API_KEY:-}
       OCR_PROVIDER: ${OCR_PROVIDER:-local}
+      IDEOGRAM_API_KEY: ${IDEOGRAM_API_KEY:-}
+      IDEOGRAM_ENABLED: ${IDEOGRAM_ENABLED:-true}
+      IDEOGRAM_MODEL: ${IDEOGRAM_MODEL:-V_4_0}
+      IDEOGRAM_DEFAULT_QUALITY: ${IDEOGRAM_DEFAULT_QUALITY:-QUALITY}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -92,6 +96,10 @@ services:
       AI_MODEL: ${AI_MODEL:-local-heuristic-v1}
       AI_API_KEY: ${AI_API_KEY:-}
       OCR_PROVIDER: ${OCR_PROVIDER:-local}
+      IDEOGRAM_API_KEY: ${IDEOGRAM_API_KEY:-}
+      IDEOGRAM_ENABLED: ${IDEOGRAM_ENABLED:-true}
+      IDEOGRAM_MODEL: ${IDEOGRAM_MODEL:-V_4_0}
+      IDEOGRAM_DEFAULT_QUALITY: ${IDEOGRAM_DEFAULT_QUALITY:-QUALITY}
     command: ["arq", "investhome_api.worker.settings.WorkerSettings"]
     depends_on:
       postgres:

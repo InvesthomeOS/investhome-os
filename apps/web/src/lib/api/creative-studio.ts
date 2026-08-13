@@ -635,3 +635,93 @@ export async function generateSocialDesign(
     }),
   });
 }
+
+/** Ideogram External Design AI POC — isolated from Native SMB. */
+export type IdeogramProviderStatus = {
+  available: boolean;
+  configured: boolean;
+  enabled: boolean;
+  provider: string;
+  model: string;
+  remix_endpoint: string;
+  generate_endpoint: string;
+  reason: string | null;
+};
+
+export type IdeogramDesignOutput = {
+  variant: 'A' | 'B' | 'C';
+  art_direction: string;
+  remote_url: string | null;
+  local_asset_id: string;
+  local_asset_url: string;
+  provider: string;
+  provider_generation_id: string | null;
+  original_remote_url: string | null;
+  seed: number | null;
+  resolution: string | null;
+  metadata: Record<string, unknown>;
+};
+
+export type IdeogramDesignRequest = {
+  linked_project_id: string;
+  instruction: string;
+  language?: string | null;
+  selected_asset_ids?: string[];
+  draft?: {
+    posts?: Record<string, unknown>[];
+    selected_post_id?: string | null;
+  };
+  builder_context?: Record<string, unknown> | null;
+  regenerate_variant?: 'A' | 'B' | 'C' | null;
+  session_id?: string | null;
+};
+
+export type IdeogramDesignResponse = {
+  provider: string;
+  model: string;
+  endpoint: string;
+  session_id: string;
+  linked_project_id: string;
+  campaign_context_id: string | null;
+  generation_context_id: string;
+  aspect_ratio: '1:1';
+  source_image: {
+    asset_id: string;
+    filename: string;
+    content_type: string | null;
+    folder_category: string | null;
+    tags: string[];
+  };
+  brief: Record<string, unknown>;
+  outputs: IdeogramDesignOutput[];
+  warnings: string[];
+  provider_call_count: number;
+  latency_ms: number;
+};
+
+export async function getIdeogramProviderStatus(): Promise<IdeogramProviderStatus> {
+  return apiFetch('/ai/creative-studio/social/ideogram/status');
+}
+
+export async function generateIdeogramDesign(
+  input: IdeogramDesignRequest,
+): Promise<IdeogramDesignResponse> {
+  return apiFetch('/ai/creative-studio/social/ideogram/generate', {
+    method: 'POST',
+    body: JSON.stringify({
+      linked_project_id: input.linked_project_id,
+      instruction: input.instruction,
+      aspect_ratio: '1:1',
+      count: 3,
+      language: input.language ?? undefined,
+      selected_asset_ids: input.selected_asset_ids ?? [],
+      draft: {
+        posts: input.draft?.posts ?? [],
+        selected_post_id: input.draft?.selected_post_id ?? null,
+      },
+      builder_context: input.builder_context ?? undefined,
+      regenerate_variant: input.regenerate_variant ?? undefined,
+      session_id: input.session_id ?? undefined,
+    }),
+  });
+}

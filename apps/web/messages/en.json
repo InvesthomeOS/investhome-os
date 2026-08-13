@@ -18909,6 +18909,10 @@
           "selectingVisual": "Selecting visual",
           "preparingDesign": "Preparing design",
           "checkingLayout": "Checking layout",
+          "ideogramBrief": "Preparing Ideogram brief",
+          "ideogramSource": "Preparing project image",
+          "ideogramGenerating": "Generating 3 designs",
+          "ideogramSaving": "Saving results",
           "completed": "AI design applied to canvas"
         },
         "aiDesign": {
@@ -18919,7 +18923,16 @@
           "editPost": "Edit Selected Post with AI",
           "generating": "Designing…",
           "collapse": "Hide",
-          "expand": "Show"
+          "expand": "Show",
+          "engine": "Design engine",
+          "engineNative": "Native",
+          "engineIdeogram": "Ideogram POC",
+          "ideogramUnavailable": "Ideogram POC is unavailable — API key is not configured.",
+          "select": "Select",
+          "regenerate": "Regenerate",
+          "optionA": "A",
+          "optionB": "B",
+          "optionC": "C"
         },
         "left": {
           "aria": "Templates and components",
@@ -19206,6 +19219,8 @@
           "generationWarning": "Generated with warnings: {warning}",
           "missingRequiredFacts": "Missing required project facts: {facts}. Add them in your prompt to continue — nothing was invented.",
           "generateFailed": "AI generation failed",
+          "ideogramSelected": "Ideogram creative saved as a new post",
+          "ideogramUnavailable": "Ideogram POC is unavailable",
           "logoChanged": "Logo updated",
           "logoRemoved": "Logo removed",
           "imageChanged": "Background image updated",

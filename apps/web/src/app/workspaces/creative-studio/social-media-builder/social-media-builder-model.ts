@@ -41,6 +41,10 @@ export type AiStatusKey =
   | 'selectingVisual'
   | 'preparingDesign'
   | 'checkingLayout'
+  | 'ideogramBrief'
+  | 'ideogramSource'
+  | 'ideogramGenerating'
+  | 'ideogramSaving'
   | 'completed';
 
 export type ProjectId = 'temple' | '309h' | 'uniloft' | 'campus';
