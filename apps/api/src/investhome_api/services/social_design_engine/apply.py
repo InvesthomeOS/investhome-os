@@ -129,6 +129,8 @@ def apply_ops(
                 existing["linked_project_id"] = str(linked_project_id)
                 if op.payload.get("compositionStrategy"):
                     existing["compositionStrategy"] = op.payload.get("compositionStrategy")
+                if op.payload.get("compositionPrimitive"):
+                    existing["compositionPrimitive"] = op.payload.get("compositionPrimitive")
                 if op.payload.get("overlayStrategy"):
                     existing["overlayStrategy"] = op.payload.get("overlayStrategy")
                 if op.payload.get("textAlign"):
@@ -137,6 +139,10 @@ def apply_ops(
                     existing["safeTextZone"] = op.payload.get("safeTextZone")
                 if op.payload.get("textDensity"):
                     existing["textDensity"] = op.payload.get("textDensity")
+                if op.payload.get("ctaStrategy"):
+                    existing["ctaStrategy"] = op.payload.get("ctaStrategy")
+                if op.payload.get("creativePlan"):
+                    existing["creativePlan"] = op.payload.get("creativePlan")
                 existing["updatedAt"] = stamp
                 if campaign_cid:
                     existing["campaignContextId"] = str(campaign_cid)
@@ -171,10 +177,13 @@ def apply_ops(
                     "linked_project_id": str(linked_project_id),
                     "elements": [],
                     "compositionStrategy": op.payload.get("compositionStrategy"),
+                    "compositionPrimitive": op.payload.get("compositionPrimitive"),
                     "overlayStrategy": op.payload.get("overlayStrategy"),
                     "textAlign": op.payload.get("textAlign"),
                     "safeTextZone": op.payload.get("safeTextZone"),
                     "textDensity": op.payload.get("textDensity"),
+                    "ctaStrategy": op.payload.get("ctaStrategy"),
+                    "creativePlan": op.payload.get("creativePlan"),
                     "campaignContextId": str(campaign_cid) if campaign_cid else None,
                     "campaign_context_id": str(campaign_cid) if campaign_cid else None,
                     "generationContextId": str(generation_cid) if generation_cid else None,
@@ -218,7 +227,7 @@ def apply_ops(
         if op.op == "ADD_TEXT":
             cw, ch = canvas_size(post)
             role = str(payload.get("role") or "custom").lower()
-            if role not in {"headline", "body", "custom", "eyebrow"}:
+            if role not in {"headline", "body", "custom", "eyebrow", "brand"}:
                 role = "custom"
             eid = op.element_id or _new_element_id("text")
             content = sanitize_creative_copy(payload.get("content"), max_len=2000)
@@ -304,12 +313,20 @@ def apply_ops(
                 fallback="Learn more",
                 max_len=80,
             )
+            cta_style = str(payload.get("ctaStyle") or payload.get("cta_strategy") or post.get("ctaStrategy") or "")
+            bg_default = "#ffffff"
+            fg_default = "#111827"
+            if cta_style == "TEXT_LINK_STYLE":
+                bg_default, fg_default = "transparent", "#ffffff"
+            elif cta_style == "MINIMAL_BUTTON":
+                bg_default, fg_default = "transparent", "#ffffff"
             draft = {
                 "id": eid,
                 "type": "BUTTON",
                 "label": label or "Learn more",
-                "backgroundColor": sanitize_color(payload.get("backgroundColor"), "#ffffff"),
-                "textColor": sanitize_color(payload.get("textColor"), "#111827"),
+                "backgroundColor": payload.get("backgroundColor") or bg_default,
+                "textColor": payload.get("textColor") or fg_default,
+                "ctaStyle": cta_style or "PILL_BUTTON",
                 "zIndex": clamp_int(payload.get("zIndex"), 0, 10_000, 4),
                 "x": payload.get("x"),
                 "y": payload.get("y"),

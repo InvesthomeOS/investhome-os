@@ -117,6 +117,8 @@ class SocialDesignGenerationMeta(BaseModel):
     structured_metrics: list[dict[str, Any]] = Field(default_factory=list)
     metric_group: dict[str, Any] | None = None
     creative_concept: dict[str, Any] | None = None
+    creative_plan: dict[str, Any] | None = None
+    design_quality: dict[str, Any] | None = None
     validation: dict[str, Any] | None = None
     marketing_strategy: dict[str, Any] | None = None
     copy_quality: dict[str, Any] | None = None

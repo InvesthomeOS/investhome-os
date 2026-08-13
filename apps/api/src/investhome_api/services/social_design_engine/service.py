@@ -80,6 +80,8 @@ from investhome_api.services.social_design_engine.campaign_intent import (
     apply_campaign_intent_to_generation_intent,
     classify_campaign_intent,
 )
+from investhome_api.services.social_design_engine.creative_intent import is_explicit_redesign
+from investhome_api.services.social_design_engine.design_quality import evaluate_and_repair as evaluate_design_quality
 from investhome_api.services.social_design_engine.project_knowledge import (
     build_project_knowledge_package,
 )
@@ -375,6 +377,7 @@ def generate_social_design(
     design_plan = None
     creative_concept = None
     validation_payload = None
+    design_quality_payload = None
     marketing_strategy = None
     copy_direction = None
     campaign_intel_payload = campaign_intelligence_to_dict(campaign_intel)
@@ -580,7 +583,10 @@ def generate_social_design(
             intent_plan.structural_only = False
 
     # -------- GENERATION: Strategist → Copy Director → Creative Director → plan --------
-    regenerate_selected = mode == "edit" and copy_kind == "change_objective"
+    explicit_redesign = is_explicit_redesign(instruction)
+    regenerate_selected = mode == "edit" and (
+        copy_kind == "change_objective" or explicit_redesign
+    )
     if mode == "create" or regenerate_selected:
         picked_candidate = next((c for c in media_candidates if picked and c.asset_id == picked), None)
         marketing_strategy = build_marketing_strategy(
@@ -605,6 +611,8 @@ def generate_social_design(
             copy_package=copy_direction.package,
             structured_metrics=structured_metrics,
             campaign_intelligence=campaign_intel,
+            campaign_intent_result=campaign_intent,
+            sibling_posts=draft_posts if mode == "create" else None,
         )
         content_package = copy_package_to_content_package(copy_direction.package)
         content_package = enforce_campaign_facts(content_package, campaign_facts)
@@ -632,12 +640,27 @@ def generate_social_design(
                     content_package = enforce_campaign_facts(parsed_pkg, campaign_facts)
                     copy_direction.package = content_package_to_copy_package(content_package)
                     copy_direction.quality = quality
+                    plan_flags = getattr(creative_concept, "creative_plan", None) or {}
+                    if not plan_flags.get("include_support", True):
+                        content_package.supporting_text = ""
+                        content_package.key_fact = ""
+                    if not plan_flags.get("include_cta", True):
+                        content_package.cta = ""
+                    if not plan_flags.get("include_eyebrow", True):
+                        content_package.eyebrow = ""
                     creative_concept.primary_message = content_package.headline
                     creative_concept.supporting_message = content_package.supporting_text
                     creative_concept.cta = content_package.cta
                     creative_concept.eyebrow = content_package.eyebrow
-                    creative_concept.include_eyebrow = bool(content_package.eyebrow)
-                    creative_concept.include_support = bool(content_package.supporting_text)
+                    creative_concept.include_eyebrow = bool(content_package.eyebrow) and bool(
+                        plan_flags.get("include_eyebrow", True)
+                    )
+                    creative_concept.include_support = bool(content_package.supporting_text) and bool(
+                        plan_flags.get("include_support", True)
+                    )
+                    creative_concept.include_cta = bool(content_package.cta) and bool(
+                        plan_flags.get("include_cta", True)
+                    )
                     planner_name = "generation+llm"
                 else:
                     planner_name = "generation"
@@ -658,6 +681,14 @@ def generate_social_design(
             context.warnings.append("content_package_fallback")
             planner_name = "generation"
 
+        if creative_concept is not None and content_package is not None:
+            if not creative_concept.include_support:
+                content_package.supporting_text = ""
+                content_package.key_fact = ""
+            if not creative_concept.include_cta:
+                content_package.cta = ""
+            if not creative_concept.include_eyebrow:
+                content_package.eyebrow = ""
         post_id, rebuild = resolve_generation_post_id(draft_posts, selected_post_id, mode=mode)
         design_plan = build_design_plan(
             package=content_package,
@@ -678,13 +709,25 @@ def generate_social_design(
             intent=gen_intent,
             campaign_facts=campaign_facts,
         )
+        from investhome_api.services.social_design_engine.creative_plan import creative_plan_from_dict
+
+        plan_model = creative_plan_from_dict(getattr(creative_concept, "creative_plan", None))
+        design_plan, quality_score = evaluate_design_quality(
+            plan=design_plan,
+            concept=creative_concept,
+            creative_plan=plan_model,
+        )
         validation_payload = {
-            "passed": report.passed,
-            "issues": [i.code for i in report.issues],
-            "repairs": report.repairs,
+            "passed": report.passed and quality_score.passed,
+            "issues": [i.code for i in report.issues] + [i.code for i in quality_score.issues],
+            "repairs": list(dict.fromkeys(report.repairs + quality_score.repairs)),
+            "design_quality": quality_score.to_dict(),
         }
-        if report.repairs:
+        if report.repairs or quality_score.repairs:
             context.warnings.append("creative_director_repaired")
+        if quality_score.repairs:
+            context.warnings.append("design_quality_repaired")
+        design_quality_payload = quality_score.to_dict()
         raw_ops = compose_ops_from_plan(
             design_plan,
             linked_project_id=linked_project_id,
@@ -931,6 +974,12 @@ def generate_social_design(
         content_package=content_package,
         design_plan=design_plan,
         creative_concept=creative_concept_to_dict(creative_concept) if creative_concept else None,
+        creative_plan=(
+            getattr(creative_concept, "creative_plan", None)
+            if creative_concept
+            else None
+        ),
+        design_quality=design_quality_payload,
         validation=validation_payload,
         marketing_strategy=strategy_to_dict(marketing_strategy) if marketing_strategy is not None else None,
         copy_quality=copy_meta.get("copy_quality"),
@@ -1038,8 +1087,10 @@ def generate_social_design(
         campaign_facts=gen_meta_payload.get("campaign_facts") or [],
         structured_metrics=gen_meta_payload.get("structured_metrics") or [],
         metric_group=gen_meta_payload.get("metric_group"),
-        creative_concept=gen_meta_payload.get("creative_concept") if mode == "create" else None,
-        validation=gen_meta_payload.get("validation") if mode == "create" else None,
+        creative_concept=gen_meta_payload.get("creative_concept") if mode == "create" or regenerate_selected else None,
+        creative_plan=gen_meta_payload.get("creative_plan") if mode == "create" or regenerate_selected else None,
+        design_quality=gen_meta_payload.get("design_quality") if mode == "create" or regenerate_selected else None,
+        validation=gen_meta_payload.get("validation") if mode == "create" or regenerate_selected else None,
         marketing_strategy=gen_meta_payload.get("marketing_strategy") if mode == "create" or planner_name == "copy_intelligence" else None,
         copy_quality=gen_meta_payload.get("copy_quality") if mode == "create" or planner_name == "copy_intelligence" else None,
         headline_candidates=gen_meta_payload.get("headline_candidates") or [],

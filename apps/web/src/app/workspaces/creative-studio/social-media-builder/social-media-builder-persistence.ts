@@ -181,7 +181,11 @@ function parseElement(raw: unknown): SocialElement | null {
         : 'center';
     const roleRaw = body.role;
     const role: SocialTextRole =
-      roleRaw === 'headline' || roleRaw === 'body' || roleRaw === 'custom' || roleRaw === 'eyebrow'
+      roleRaw === 'headline' ||
+      roleRaw === 'body' ||
+      roleRaw === 'custom' ||
+      roleRaw === 'eyebrow' ||
+      roleRaw === 'brand'
         ? roleRaw
         : 'custom';
     const fontWeight = body.fontWeight === 'bold' ? 'bold' : 'normal';
@@ -224,6 +228,7 @@ function parseElement(raw: unknown): SocialElement | null {
         typeof body.textColor === 'string' && body.textColor.trim()
           ? body.textColor
           : '#111827',
+      ctaStyle: typeof body.ctaStyle === 'string' ? body.ctaStyle : null,
     };
   }
 
@@ -311,6 +316,7 @@ function serializeElement(el: SocialElement): Record<string, unknown> {
     label: el.label,
     backgroundColor: el.backgroundColor,
     textColor: el.textColor,
+    ...(el.ctaStyle ? { ctaStyle: el.ctaStyle } : {}),
   };
 }
 
@@ -342,9 +348,22 @@ export function serializeSocialPost(post: SocialPost): Record<string, unknown> {
     ...(post.createdAt ? { createdAt: post.createdAt } : {}),
     ...(post.updatedAt ? { updatedAt: post.updatedAt } : {}),
     ...(post.compositionStrategy ? { compositionStrategy: post.compositionStrategy } : {}),
+    ...(post.compositionPrimitive
+      ? { compositionPrimitive: post.compositionPrimitive }
+      : post.generationMeta &&
+          typeof post.generationMeta === 'object' &&
+          post.generationMeta.creative_plan &&
+          typeof (post.generationMeta.creative_plan as { composition?: unknown }).composition === 'string'
+        ? {
+            compositionPrimitive: (post.generationMeta.creative_plan as { composition: string })
+              .composition,
+          }
+        : {}),
     ...(post.overlayStrategy ? { overlayStrategy: post.overlayStrategy } : {}),
     ...(post.textAlign ? { textAlign: post.textAlign } : {}),
     ...(post.safeTextZone ? { safeTextZone: post.safeTextZone } : {}),
+    ...(post.ctaStrategy ? { ctaStrategy: post.ctaStrategy } : {}),
+    ...(post.creativePlan ? { creativePlan: post.creativePlan } : {}),
   };
 }
 
@@ -409,12 +428,19 @@ export function parseSocialPost(
     createdAt: typeof body.createdAt === 'string' ? body.createdAt : typeof body.created_at === 'string' ? body.created_at : null,
     updatedAt: typeof body.updatedAt === 'string' ? body.updatedAt : typeof body.updated_at === 'string' ? body.updated_at : null,
     compositionStrategy: typeof body.compositionStrategy === 'string' ? body.compositionStrategy : null,
+    compositionPrimitive:
+      typeof body.compositionPrimitive === 'string' ? body.compositionPrimitive : null,
     overlayStrategy: typeof body.overlayStrategy === 'string' ? body.overlayStrategy : null,
     textAlign:
       body.textAlign === 'left' || body.textAlign === 'center' || body.textAlign === 'right'
         ? body.textAlign
         : null,
     safeTextZone: typeof body.safeTextZone === 'string' ? body.safeTextZone : null,
+    ctaStrategy: typeof body.ctaStrategy === 'string' ? body.ctaStrategy : null,
+    creativePlan:
+      body.creativePlan && typeof body.creativePlan === 'object' && !Array.isArray(body.creativePlan)
+        ? (body.creativePlan as Record<string, unknown>)
+        : null,
   };
 }
 

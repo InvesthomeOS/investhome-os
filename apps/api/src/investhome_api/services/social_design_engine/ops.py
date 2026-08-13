@@ -41,6 +41,10 @@ UUID_RE = re.compile(
 )
 
 HEX_COLOR_RE = re.compile(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
+RGBA_COLOR_RE = re.compile(
+    r"^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)$",
+    re.I,
+)
 
 # RAG / index / diagnostic blobs must never become canvas TEXT/CTA copy.
 _METADATA_COPY_MARKERS = (
@@ -122,8 +126,13 @@ def clamp_float(value: Any, lo: float, hi: float, default: float) -> float:
 
 
 def sanitize_color(value: Any, default: str = "#ffffff") -> str:
-    if isinstance(value, str) and HEX_COLOR_RE.match(value.strip()):
-        return value.strip()
+    if not isinstance(value, str):
+        return default
+    raw = value.strip()
+    if raw.lower() == "transparent":
+        return "transparent"
+    if HEX_COLOR_RE.match(raw) or RGBA_COLOR_RE.match(raw):
+        return raw
     return default
 
 

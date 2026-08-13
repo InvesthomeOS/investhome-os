@@ -107,3 +107,4 @@ apps/web/src/app/ui-preview/customer-profile/
 # One-off local verify screenshots under artifacts/
 artifacts/superadmin-login-verify.png
 artifacts/*-verify.png
+artifacts/smb-creative-direction/

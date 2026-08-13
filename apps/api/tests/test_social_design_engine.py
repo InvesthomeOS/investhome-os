@@ -1884,8 +1884,10 @@ def test_creative_director_suppresses_construction_on_location() -> None:
     assert any("address_is_evidence_not_the_ad" in (s.reason or "") for s in suppressed)
 
     concept = direct_creative(instruction=prompt, intent=intent, context=ctx, campaign_facts=[])
-    assert concept.composition_strategy == "LOCATION"
     assert concept.objective == "location"
+    assert concept.creative_intent == "LOCATION"
+    assert concept.composition_strategy in {"LOCATION", "EDITORIAL", "MINIMAL_HERO"}
+    assert concept.creative_direction in {"LOCATION_STORY", "EDITORIAL_LUXURY"}
     package = build_heuristic_content_package(
         instruction=prompt, intent=intent, context=ctx, campaign_facts=[], concept=concept
     )
@@ -1918,8 +1920,8 @@ def test_creative_director_suppresses_construction_on_location() -> None:
     assert text_roles.count("headline") == 1
     assert "cta" in text_roles
     assert len(text_roles) <= 4
-    assert plan.composition_strategy == "LOCATION"
-    assert plan.overlay.startswith("localized")
+    assert plan.composition_strategy in {"LOCATION", "EDITORIAL", "MINIMAL_HERO"}
+    assert plan.overlay.startswith(("localized", "subtle", "light", "soft", "backdrop", "none"))
     headline_el = next(el for el in plan.elements if el.role == "headline")
     body_el = next((el for el in plan.elements if el.role == "body"), None)
     if body_el and headline_el.font_size and body_el.font_size:

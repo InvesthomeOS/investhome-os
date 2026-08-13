@@ -18,6 +18,17 @@ from investhome_api.services.social_design_engine.marketing_strategist import (
     MarketingStrategy,
     looks_like_street_address,
 )
+from investhome_api.services.social_design_engine.creative_intent import (
+    CreativeIntentKind,
+    classify_creative_intent,
+)
+from investhome_api.services.social_design_engine.creative_plan import (
+    CreativePlan,
+    build_creative_plan,
+    combined_variety_signals,
+    creative_plan_to_dict,
+    remember_project_variety,
+)
 
 if TYPE_CHECKING:
     from investhome_api.services.social_design_engine.generation import (
@@ -234,6 +245,9 @@ class AssetVisualProfile:
     image_led: bool = True
     tags: list[str] = field(default_factory=list)
     filename: str = ""
+    busy: bool = False
+    empty_negative_space: bool = False
+    focal: str = "unknown"
 
 
 @dataclass
@@ -253,15 +267,24 @@ class CreativeConcept:
     include_support: bool = True
     include_cta: bool = True
     alignment: AlignAxis = "left"
-    contrast_strategy: ContrastMode = "localized_gradient"
-    overlay_region: SafeZone = "top"
-    safe_text_zone: SafeZone = "top"
+    contrast_strategy: str = "localized_gradient"
+    overlay_region: str = "top"
+    safe_text_zone: str = "top"
     selected_facts: list[SelectedFact] = field(default_factory=list)
     suppressed_facts: list[SuppressedFact] = field(default_factory=list)
     asset_profile: dict[str, Any] = field(default_factory=dict)
     metric_group_layout: str = "horizontal"
     structured_metrics: list[dict[str, Any]] = field(default_factory=list)
     project_identity_line: str = ""
+    creative_intent: CreativeIntentKind = "BRAND"
+    creative_direction: str = "BRAND_STATEMENT"
+    composition_primitive: str = "TOP_LEFT_EDITORIAL"
+    copy_density_kind: str = "LOW"
+    cta_strategy: str = "PILL_BUTTON"
+    contrast_kind: str = "SUBTLE_GRADIENT"
+    brand_treatment: str = "IDENTITY_LINE"
+    visual_priority: str = "identity"
+    creative_plan: dict[str, Any] = field(default_factory=dict)
 
 
 def _norm(text: str) -> str:
@@ -334,6 +357,16 @@ def infer_asset_visual_profile(
         negative = "top"
         safe = "top"
 
+    busy = any(k in hay for k in ("busy", "crowd", "clutter", "detail", "interior", "kitchen", "lobby", "street"))
+    empty = any(k in hay for k in ("sky", "aerial", "drone", "skyline", "open", "void", "cloud"))
+    focal = "building" if subject in {"building", "architecture"} else subject
+    if empty and subject in {"skyline", "unknown"}:
+        safe = "top"
+        negative = "top"
+    elif busy and subject in {"building", "architecture"}:
+        safe = "top"
+        negative = "top"
+
     return AssetVisualProfile(
         subject=subject,
         negative_space=negative,
@@ -343,6 +376,9 @@ def infer_asset_visual_profile(
         image_led=True,
         tags=tags,
         filename=candidate.filename or "",
+        busy=busy,
+        empty_negative_space=empty,
+        focal=focal,
     )
 
 
@@ -764,6 +800,8 @@ def direct_creative(
     copy_package: Any | None = None,
     structured_metrics: list[Any] | None = None,
     campaign_intelligence: Any | None = None,
+    campaign_intent_result: Any | None = None,
+    sibling_posts: list[dict[str, Any]] | None = None,
 ) -> CreativeConcept:
     """Produce structured creative decisions. No chain-of-thought.
 
@@ -811,37 +849,65 @@ def direct_creative(
             else:
                 kept.append(fact)
         selected = kept
-    family = choose_composition_strategy(
-        objective=objective,  # type: ignore[arg-type]
-        profile=profile,
-        campaign_facts=campaign_facts,
-        campaign_angle=strategy.campaign_angle if strategy is not None else None,
+    creative_intent = classify_creative_intent(
+        instruction,
+        campaign=campaign_intent_result,
+        project_name=context.project_identity.project_name,
     )
+    eligible_metrics = bool(structured_metrics) or (
+        bool(campaign_facts) and objective == "investment"
+    )
+    copy_len = 0
+    if copy_package is not None:
+        copy_len = len(
+            str(getattr(copy_package, "headline", "") or "")
+            + str(getattr(copy_package, "supporting_copy", "") or "")
+        )
+    plan_model: CreativePlan = build_creative_plan(
+        intent=creative_intent.creative_intent,
+        audience=creative_intent.audience or intent.audience or "general",
+        objective=str(objective),
+        profile=profile,
+        has_eligible_metrics=eligible_metrics,
+        copy_length=copy_len,
+        format_preset=intent.format_preset or "square",
+        campaign_goal=getattr(strategy, "campaign_angle", None) if strategy else None,
+        tone=(strategy.tone if strategy is not None else None) or intent.tone or "premium",
+        used_signals=combined_variety_signals(
+            sibling_posts,
+            getattr(context.project_identity, "project_id", None),
+        ),
+        instruction=instruction,
+        project_name=context.project_identity.project_name or "",
+    )
+    remember_project_variety(
+        getattr(context.project_identity, "project_id", None),
+        plan_model.creative_direction,
+        plan_model.composition,
+    )
+    family = plan_model.family
     en = intent.language != "tr"
     name = context.project_identity.project_name or "Project"
     place = (strategy.neighborhood or strategy.city or _place_name(context, selected)) if strategy else _place_name(context, selected)
 
-    include_eyebrow = family == "EDITORIAL"
-    include_support = family != "MINIMAL_HERO"
-    if family == "MINIMAL_HERO" and objective == "investment":
-        include_support = False
-    if family == "INVESTMENT":
-        include_support = False
-        include_eyebrow = True
-    if family == "LOCATION":
-        include_support = True
-        include_eyebrow = True if (copy_package and getattr(copy_package, "eyebrow", "")) else False
-    if objective == "architecture" and family == "MINIMAL_HERO":
-        include_support = bool(copy_package and getattr(copy_package, "supporting_copy", ""))
-        include_eyebrow = bool(copy_package and getattr(copy_package, "eyebrow", ""))
+    include_eyebrow = plan_model.include_eyebrow
+    include_support = plan_model.include_support
+    include_cta = plan_model.include_cta
 
     if copy_package is not None:
         headline = clip_headline(getattr(copy_package, "headline", "") or "")
         support = str(getattr(copy_package, "supporting_copy", None) or getattr(copy_package, "supporting_text", "") or "")
         cta = str(getattr(copy_package, "cta", "") or "")
         eyebrow = str(getattr(copy_package, "eyebrow", "") or "")
-        include_eyebrow = bool(eyebrow)
-        include_support = bool(support)
+        if not plan_model.include_support:
+            support = ""
+        if not plan_model.include_cta:
+            cta = ""
+        if not plan_model.include_eyebrow:
+            eyebrow = ""
+        include_eyebrow = bool(eyebrow) and plan_model.include_eyebrow
+        include_support = bool(support) and plan_model.include_support
+        include_cta = bool(cta) and plan_model.include_cta
     else:
         headline = clip_headline(_objective_headline(
             intent=intent,
@@ -857,8 +923,10 @@ def direct_creative(
         )
         if not include_support:
             support = ""
-        cta = _objective_cta(intent, en=en)
+        cta = _objective_cta(intent, en=en) if include_cta else ""
         eyebrow = _objective_eyebrow(intent=intent, context=context, family=family) if include_eyebrow else ""
+        if not include_support:
+            support = ""
 
     from investhome_api.services.social_design_engine.fact_governance import (
         strip_ineligible_financial_claims,
@@ -886,18 +954,20 @@ def direct_creative(
     )
 
     metrics_list = []
-    if structured_metrics:
-        if structured_metrics and hasattr(structured_metrics[0], "display_value"):
-            metrics_list = list(structured_metrics)
-        else:
-            metrics_list = structured_metrics_from_dicts(list(structured_metrics))
-    elif campaign_facts and objective == "investment":
-        # Current-campaign user inputs only — never recover blocked facts from RAG.
-        metrics_list = campaign_facts_to_structured_metrics(
-            campaign_facts,
-            language=intent.language,
-            instruction=instruction,
-        )
+    if plan_model.include_metrics:
+        if structured_metrics:
+            if structured_metrics and hasattr(structured_metrics[0], "display_value"):
+                metrics_list = list(structured_metrics)
+            else:
+                metrics_list = structured_metrics_from_dicts(list(structured_metrics))
+        elif campaign_facts and objective == "investment":
+            # Current-campaign user inputs only — never recover blocked facts from RAG.
+            metrics_list = campaign_facts_to_structured_metrics(
+                campaign_facts,
+                language=intent.language,
+                instruction=instruction,
+            )
+    # Never invent placeholders because a composition has a metric region.
     if looks_like_concatenated_metrics(support):
         support = ""
         include_support = False
@@ -978,35 +1048,51 @@ def direct_creative(
         if token and token not in exclude:
             exclude.append(token)
 
-    contrast, overlay_region = _contrast_for(family, profile)
-    alignment = _alignment_for(family)
-    density = _density_for(family, include_support, include_eyebrow)
+    contrast = plan_model.overlay_strategy
+    overlay_region = plan_model.overlay_region  # type: ignore[assignment]
+    alignment = plan_model.alignment  # type: ignore[assignment]
+    density = plan_model.copy_density.lower() if plan_model.copy_density != "DATA_RICH" else "dense"
+    if density == "minimal":
+        density = "sparse"
+    elif density == "low":
+        density = "sparse"
+    elif density == "medium":
+        density = "moderate"
 
     return CreativeConcept(
         objective=objective,  # type: ignore[arg-type]
-        concept=_concept_line(objective, family, place, name),  # type: ignore[arg-type]
-        visual_strategy=_visual_strategy(family, profile),
+        concept=plan_model.concept or _concept_line(objective, family, place, name),  # type: ignore[arg-type]
+        visual_strategy=plan_model.image_strategy or _visual_strategy(family, profile),
         primary_message=headline,
         supporting_message=support,
         cta=cta,
         information_to_exclude=exclude,
         composition_strategy=family,
         tone=(strategy.tone if strategy is not None else None) or intent.tone or "premium",
-        text_density=density,
+        text_density=density,  # type: ignore[arg-type]
         eyebrow=eyebrow,
         include_eyebrow=bool(eyebrow) and include_eyebrow,
         include_support=bool(support) and include_support,
-        include_cta=True,
+        include_cta=bool(cta) and include_cta,
         alignment=alignment,
-        contrast_strategy=contrast,
+        contrast_strategy=contrast,  # type: ignore[arg-type]
         overlay_region=overlay_region,
-        safe_text_zone=profile.safe_text_zone,
+        safe_text_zone=plan_model.safe_text_zone,  # type: ignore[arg-type]
         selected_facts=selected,
         suppressed_facts=suppressed,
         asset_profile=asdict(profile),
         metric_group_layout=metric_layout,
         structured_metrics=structured_metrics_to_dicts(metrics_list),
         project_identity_line=identity_line,
+        creative_intent=plan_model.intent,
+        creative_direction=plan_model.creative_direction,
+        composition_primitive=plan_model.composition,
+        copy_density_kind=plan_model.copy_density,
+        cta_strategy=plan_model.cta_strategy,
+        contrast_kind=plan_model.contrast_strategy,
+        brand_treatment=plan_model.brand_treatment,
+        visual_priority=plan_model.visual_priority,
+        creative_plan=creative_plan_to_dict(plan_model),
     )
 
 
@@ -1036,6 +1122,15 @@ def creative_concept_to_dict(concept: CreativeConcept) -> dict[str, Any]:
         "metric_group_layout": concept.metric_group_layout,
         "structured_metrics": list(concept.structured_metrics),
         "project_identity_line": concept.project_identity_line,
+        "creative_intent": concept.creative_intent,
+        "creative_direction": concept.creative_direction,
+        "composition_primitive": concept.composition_primitive,
+        "copy_density_kind": concept.copy_density_kind,
+        "cta_strategy": concept.cta_strategy,
+        "contrast_kind": concept.contrast_kind,
+        "brand_treatment": concept.brand_treatment,
+        "visual_priority": concept.visual_priority,
+        "creative_plan": concept.creative_plan,
     }
 
 

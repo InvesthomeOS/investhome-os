@@ -138,6 +138,8 @@ export type DesignGenerationMeta = SocialGenerationMeta & {
   structured_metrics?: Record<string, unknown>[];
   metric_group?: Record<string, unknown> | null;
   creative_concept?: Record<string, unknown> | null;
+  creative_plan?: Record<string, unknown> | null;
+  design_quality?: Record<string, unknown> | null;
   validation?: Record<string, unknown> | null;
   marketing_strategy?: Record<string, unknown> | null;
   copy_quality?: Record<string, unknown> | null;
@@ -391,6 +393,8 @@ export function toDesignGenerationMeta(response: SocialDesignResponse): DesignGe
     structured_metrics: meta?.structured_metrics ?? [],
     metric_group: meta?.metric_group ?? null,
     creative_concept: meta?.creative_concept ?? null,
+    creative_plan: meta?.creative_plan ?? null,
+    design_quality: meta?.design_quality ?? null,
     validation: meta?.validation ?? null,
     marketing_strategy: meta?.marketing_strategy ?? null,
     copy_quality: meta?.copy_quality ?? null,
@@ -432,6 +436,8 @@ export function serializeGenerationMetaForDraft(
     structured_metrics: meta.structured_metrics ?? [],
     metric_group: meta.metric_group ?? null,
     creative_concept: meta.creative_concept ?? null,
+    creative_plan: meta.creative_plan ?? null,
+    design_quality: meta.design_quality ?? null,
     validation: meta.validation ?? null,
     marketing_strategy: meta.marketing_strategy ?? null,
     copy_quality: meta.copy_quality ?? null,
@@ -499,6 +505,14 @@ export function parseGenerationMetaFromDraft(
     creative_concept:
       raw.creative_concept && typeof raw.creative_concept === 'object' && !Array.isArray(raw.creative_concept)
         ? (raw.creative_concept as Record<string, unknown>)
+        : null,
+    creative_plan:
+      raw.creative_plan && typeof raw.creative_plan === 'object' && !Array.isArray(raw.creative_plan)
+        ? (raw.creative_plan as Record<string, unknown>)
+        : null,
+    design_quality:
+      raw.design_quality && typeof raw.design_quality === 'object' && !Array.isArray(raw.design_quality)
+        ? (raw.design_quality as Record<string, unknown>)
         : null,
     validation:
       raw.validation && typeof raw.validation === 'object' && !Array.isArray(raw.validation)

@@ -407,6 +407,7 @@ export function SmbArtboardElements({
             <div
               key={el.id}
               className={`smb-ws__el smb-ws__el--button${selected ? ' is-selected' : ''}${editing ? ' is-editing' : ''}`}
+              data-cta-style={el.ctaStyle || 'PILL_BUTTON'}
               style={{
                 ...style,
                 background:

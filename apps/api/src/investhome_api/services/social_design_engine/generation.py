@@ -217,6 +217,9 @@ class DesignPlan:
     overlay_region: str = "top"
     text_density: str = "sparse"
     safe_text_zone: str = "top"
+    composition_primitive: str = "TOP_LEFT_EDITORIAL"
+    cta_strategy: str = "PILL_BUTTON"
+    creative_plan: dict[str, Any] = field(default_factory=dict)
 
 
 def _norm(text: str) -> str:
@@ -1015,16 +1018,26 @@ def build_design_plan(
     overlay_region = "top"
     density = "sparse"
     safe_zone = "top"
-    overlay = "localized_gradient"
+    overlay = "localized-top"
+    primitive = ""
+    cta_strategy = "PILL_BUTTON"
+    plan_payload: dict[str, Any] = {}
     if concept is not None:
         family = concept.composition_strategy
         align = concept.alignment
         overlay_region = concept.overlay_region
         density = concept.text_density
         safe_zone = concept.safe_text_zone
-        overlay = f"localized-{overlay_region}"
+        overlay = str(getattr(concept, "contrast_strategy", "") or "")
+        if overlay in {"localized_gradient", "controlled_overlay", "alternate_region", "text_color", ""}:
+            overlay = f"localized-{overlay_region}"
+        primitive = str(getattr(concept, "composition_primitive", "") or "")
+        cta_strategy = str(getattr(concept, "cta_strategy", "") or "PILL_BUTTON")
+        plan_payload = dict(getattr(concept, "creative_plan", None) or {})
 
-    slots = social_layout_slots(w, h, family=family, align=align, safe_zone=safe_zone)
+    slots = social_layout_slots(
+        w, h, family=family, align=align, safe_zone=safe_zone, primitive=primitive or None
+    )
     hs = slots["headline"]
     bs = slots["body"]
     cs = slots["cta"]
@@ -1050,6 +1063,11 @@ def build_design_plan(
             parsed_metrics = list(metrics_in)
         else:
             parsed_metrics = structured_metrics_from_dicts(list(metrics_in))
+    if concept is not None:
+        plan_meta = getattr(concept, "creative_plan", None) or {}
+        allow_metrics = bool(isinstance(plan_meta, dict) and plan_meta.get("include_metrics"))
+        if not allow_metrics:
+            parsed_metrics = []
     requested_layout = metric_layout
     if requested_layout is None and concept is not None:
         requested_layout = getattr(concept, "metric_group_layout", None)
@@ -1068,8 +1086,20 @@ def build_design_plan(
         include_support = False
     body_text = _clip_copy(body_text, 160) if include_support else ""
 
-    h_prefs = role_font_prefs("headline", w)
-    b_prefs = role_font_prefs("body", w)
+    from investhome_api.services.social_design_engine.typography import (
+        apply_headline_typography,
+        hierarchy_font_prefs,
+    )
+
+    density_kind = str(getattr(concept, "copy_density_kind", None) or density or "LOW")
+    h_prefs = hierarchy_font_prefs(
+        "headline",
+        w,
+        density=density_kind,
+        format_preset=preset,
+        composition=primitive,
+    )
+    b_prefs = hierarchy_font_prefs("body", w, density=density_kind, format_preset=preset)
     e_prefs = role_font_prefs("eyebrow", w)
     stack_gap = max(16, int(round(h * 0.018)))
 
@@ -1098,18 +1128,27 @@ def build_design_plan(
             )
         )
         y_cursor = max(y_cursor, es["y"] + eh + stack_gap)
-    hh = _block_h(package.headline, h_prefs["preferred"], hs["width"], bold=True, cap=hs["max_height"])
+    headline_text, headline_font, hh = apply_headline_typography(
+        package.headline,
+        canvas_w=w,
+        width=hs["width"],
+        max_height=hs["max_height"],
+        density=density_kind,
+        format_preset=preset,
+        composition=primitive,
+    )
+    hh = min(hs["max_height"], max(hh, _block_h(headline_text, headline_font, hs["width"], bold=True, cap=hs["max_height"])))
     headline_y = max(hs["y"], y_cursor)
     elements.append(
         DesignPlanElement(
             type="TEXT",
             role="headline",
-            text=package.headline,
+            text=headline_text,
             x=hs["x"],
             y=headline_y,
             width=hs["width"],
             height=hh,
-            font_size=h_prefs["preferred"],
+            font_size=headline_font,
             font_weight="bold",
             align=align,
             color="#ffffff",
@@ -1172,6 +1211,11 @@ def build_design_plan(
             )
         )
     if include_cta:
+        bg, fg = "#ffffff", "#111827"
+        if cta_strategy == "TEXT_LINK_STYLE":
+            bg, fg = "transparent", "#ffffff"
+        elif cta_strategy == "MINIMAL_BUTTON":
+            bg, fg = "transparent", "#ffffff"
         elements.append(
             DesignPlanElement(
                 type="BUTTON",
@@ -1179,11 +1223,11 @@ def build_design_plan(
                 text=package.cta,
                 x=cs["x"],
                 y=cs["y"],
-                width=cs["width"],
-                height=cs["height"],
+                width=cs["width"] if cta_strategy != "TEXT_LINK_STYLE" else min(cs["width"], max(160, int(round(w * 0.42)))),
+                height=cs["height"] if cta_strategy != "MINIMAL_BUTTON" else max(36, int(round(cs["height"] * 0.88))),
                 align=align,
-                background_color="#ffffff",
-                text_color="#111827",
+                background_color=bg,
+                text_color=fg,
                 z_index=5,
             )
         )
@@ -1201,6 +1245,9 @@ def build_design_plan(
         overlay_region=overlay_region,
         text_density=density,
         safe_text_zone=safe_zone,
+        composition_primitive=primitive or family,
+        cta_strategy=cta_strategy,
+        creative_plan=plan_payload,
     )
 
 
@@ -1218,6 +1265,9 @@ def design_plan_to_dict(plan: DesignPlan) -> dict[str, Any]:
         "overlay_region": plan.overlay_region,
         "text_density": plan.text_density,
         "safe_text_zone": plan.safe_text_zone,
+        "composition_primitive": plan.composition_primitive,
+        "cta_strategy": plan.cta_strategy,
+        "creative_plan": plan.creative_plan,
         "elements": [asdict(el) for el in plan.elements],
     }
 
@@ -1248,10 +1298,13 @@ def compose_ops_from_plan(
                 "campaign_context_id": campaign_context_id,
                 "generation_context_id": generation_context_id,
                 "compositionStrategy": plan.composition_strategy,
+                "compositionPrimitive": plan.composition_primitive,
                 "overlayStrategy": plan.overlay,
                 "textAlign": plan.alignment,
                 "safeTextZone": plan.safe_text_zone,
                 "textDensity": plan.text_density,
+                "ctaStrategy": plan.cta_strategy,
+                "creativePlan": plan.creative_plan,
             },
         },
         {
@@ -1303,6 +1356,11 @@ def compose_ops_from_plan(
                         "backgroundColor": el.background_color or "#ffffff",
                         "textColor": el.text_color or "#111827",
                         "zIndex": el.z_index,
+                        "ctaStyle": plan.cta_strategy,
+                        "x": el.x,
+                        "y": el.y,
+                        "width": el.width,
+                        "height": el.height,
                     },
                 }
             )
@@ -1335,6 +1393,13 @@ def attach_generation_metadata(
 ) -> dict[str, Any]:
     """Store generation metadata on the post document — never as a canvas TEXT/CTA element."""
     post["generationMeta"] = meta
+    plan = meta.get("creative_plan") if isinstance(meta, dict) else None
+    if isinstance(plan, dict):
+        if plan.get("composition") and not post.get("compositionPrimitive"):
+            post["compositionPrimitive"] = plan.get("composition")
+        if plan.get("creative_direction"):
+            post["creativePlan"] = plan
+            post["diversitySignal"] = f"{plan.get('creative_direction')}:{plan.get('composition')}"
     cid = meta.get("campaign_context_id")
     if isinstance(cid, str) and cid.strip():
         post["campaignContextId"] = cid.strip()
@@ -1364,6 +1429,8 @@ def build_generation_metadata(
     content_package: ContentPackage | None = None,
     design_plan: DesignPlan | None = None,
     creative_concept: dict[str, Any] | None = None,
+    creative_plan: dict[str, Any] | None = None,
+    design_quality: dict[str, Any] | None = None,
     validation: dict[str, Any] | None = None,
     marketing_strategy: dict[str, Any] | None = None,
     copy_quality: dict[str, Any] | None = None,
@@ -1394,6 +1461,8 @@ def build_generation_metadata(
         "content_package": content_package_to_dict(content_package) if content_package else None,
         "design_plan": design_plan_to_dict(design_plan) if design_plan else None,
         "creative_concept": creative_concept,
+        "creative_plan": creative_plan,
+        "design_quality": design_quality,
         "validation": validation,
         "marketing_strategy": marketing_strategy,
         "copy_quality": copy_quality,

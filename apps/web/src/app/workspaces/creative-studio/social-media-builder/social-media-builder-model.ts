@@ -141,9 +141,12 @@ export type SocialPost = {
   createdAt?: string | null;
   updatedAt?: string | null;
   compositionStrategy?: string | null;
+  compositionPrimitive?: string | null;
   overlayStrategy?: string | null;
   textAlign?: 'left' | 'center' | 'right' | null;
   safeTextZone?: string | null;
+  ctaStrategy?: string | null;
+  creativePlan?: Record<string, unknown> | null;
 };
 
 export type SmbProject = {

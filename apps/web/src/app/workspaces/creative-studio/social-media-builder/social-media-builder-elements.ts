@@ -12,7 +12,7 @@ import {
 
 export type SocialTextAlign = 'left' | 'center' | 'right';
 export type SocialElementType = 'TEXT' | 'IMAGE' | 'BUTTON' | 'METRIC_GROUP';
-export type SocialTextRole = 'headline' | 'body' | 'custom' | 'eyebrow';
+export type SocialTextRole = 'headline' | 'body' | 'custom' | 'eyebrow' | 'brand';
 export type SocialMetricType =
   | 'currency'
   | 'percentage'
@@ -67,6 +67,7 @@ export type SocialButtonElement = SocialElementBase & {
   label: string;
   backgroundColor: string;
   textColor: string;
+  ctaStyle?: string | null;
 };
 
 export type SocialMetricGroupElement = SocialElementBase & {

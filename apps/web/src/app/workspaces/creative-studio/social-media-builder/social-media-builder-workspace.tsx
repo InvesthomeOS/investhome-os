@@ -1269,6 +1269,41 @@ export function SocialMediaBuilderWorkspace() {
         data-generation-warnings={
           generationMeta == null ? undefined : generationMeta.warnings.join(',')
         }
+        data-creative-intent={
+          typeof generationMeta?.creative_plan?.intent === 'string'
+            ? generationMeta.creative_plan.intent
+            : undefined
+        }
+        data-creative-direction={
+          typeof generationMeta?.creative_plan?.creative_direction === 'string'
+            ? generationMeta.creative_plan.creative_direction
+            : undefined
+        }
+        data-creative-composition={
+          typeof generationMeta?.creative_plan?.composition === 'string'
+            ? generationMeta.creative_plan.composition
+            : undefined
+        }
+        data-creative-density={
+          typeof generationMeta?.creative_plan?.copy_density === 'string'
+            ? generationMeta.creative_plan.copy_density
+            : undefined
+        }
+        data-creative-contrast={
+          typeof generationMeta?.creative_plan?.contrast_strategy === 'string'
+            ? generationMeta.creative_plan.contrast_strategy
+            : undefined
+        }
+        data-creative-cta={
+          typeof generationMeta?.creative_plan?.cta_strategy === 'string'
+            ? generationMeta.creative_plan.cta_strategy
+            : undefined
+        }
+        data-creative-quality={
+          typeof generationMeta?.design_quality?.total === 'number'
+            ? String(generationMeta.design_quality.total)
+            : undefined
+        }
       >
         <header className="smb-ws__header cs-page-header">
           <div className="smb-ws__header-copy cs-page-header__copy">
@@ -1656,9 +1691,11 @@ export function SocialMediaBuilderWorkspace() {
                           className="smb-ws__artboard-overlay"
                           data-overlay={
                             selectedPost.overlayStrategy ||
-                            (typeof generationMeta?.creative_concept?.overlay_region === 'string'
-                              ? `localized-${generationMeta.creative_concept.overlay_region}`
-                              : 'localized-top')
+                            (typeof generationMeta?.creative_plan?.overlay_strategy === 'string'
+                              ? generationMeta.creative_plan.overlay_strategy
+                              : typeof generationMeta?.creative_concept?.overlay_region === 'string'
+                                ? `localized-${generationMeta.creative_concept.overlay_region}`
+                                : 'localized-top')
                           }
                           aria-hidden="true"
                         />

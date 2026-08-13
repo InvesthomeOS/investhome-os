@@ -30,6 +30,7 @@ ROLE_FONT_DEFAULTS = {
 ROLE_PRIORITY = {
     "headline": 100,
     "eyebrow": 90,
+    "brand": 88,
     "metric_group": 85,
     "body": 80,
     "custom": 70,
@@ -38,8 +39,23 @@ ROLE_PRIORITY = {
     "image": 40,
 }
 
-TEXT_ROLES = frozenset({"headline", "body", "custom", "eyebrow"})
+TEXT_ROLES = frozenset({"headline", "body", "custom", "eyebrow", "brand"})
 COMPOSITION_FAMILIES = frozenset({"MINIMAL_HERO", "EDITORIAL", "INVESTMENT", "LOCATION"})
+COMPOSITION_PRIMITIVES = frozenset(
+    {
+        "TOP_LEFT_EDITORIAL",
+        "BOTTOM_LEFT_EDITORIAL",
+        "SIDE_COLUMN",
+        "CENTER_STATEMENT",
+        "LOWER_THIRD",
+        "ASYMMETRIC_EDITORIAL",
+        "DATA_GRID",
+        "IMAGE_DOMINANT",
+        "SPLIT_INFORMATION",
+        "FLOATING_INFORMATION_GROUP",
+    }
+)
+ROLE_FONT_DEFAULTS["brand"] = {"preferred_ratio": 0.014, "min": 11, "max": 16}
 
 VisualLayoutIntent = Literal[
     "INCREASE_WHITESPACE",
@@ -287,6 +303,66 @@ def _axis_x(box: dict[str, int], width: int, align: str) -> int:
     return box["x"]
 
 
+def _slot_pack(
+    *,
+    x: int,
+    col_w: int,
+    canvas_h: int,
+    box: dict[str, int],
+    headline_y: int,
+    body_y: int,
+    cta_y: int,
+    cta_x: int,
+    cta_w: int,
+    cta_h: int,
+    headline_max_h: int,
+    body_max_h: int,
+    metric_y: int | None = None,
+    eyebrow_y: int | None = None,
+) -> dict[str, dict[str, int]]:
+    gap = max(16, int(round(canvas_h * 0.018)))
+    ey = eyebrow_y if eyebrow_y is not None else max(box["y"], headline_y - gap - int(round(canvas_h * 0.03)))
+    my = metric_y if metric_y is not None else body_y
+    return {
+        "eyebrow": {
+            "x": x,
+            "y": max(box["y"], ey),
+            "width": col_w,
+            "max_height": max(22, int(round(canvas_h * 0.04))),
+        },
+        "brand": {
+            "x": x,
+            "y": max(box["y"], ey),
+            "width": min(col_w, max(160, int(round(col_w * 0.45)))),
+            "max_height": max(20, int(round(canvas_h * 0.035))),
+        },
+        "headline": {
+            "x": x,
+            "y": max(box["y"], headline_y),
+            "width": col_w,
+            "max_height": headline_max_h,
+        },
+        "body": {
+            "x": x,
+            "y": max(box["y"], body_y),
+            "width": col_w,
+            "max_height": body_max_h,
+        },
+        "metric_group": {
+            "x": x,
+            "y": max(box["y"], my),
+            "width": col_w,
+            "max_height": max(body_max_h, int(round(canvas_h * 0.16))),
+        },
+        "cta": {
+            "x": cta_x,
+            "y": max(box["y"], min(cta_y, box["y"] + box["height"] - cta_h)),
+            "width": cta_w,
+            "height": cta_h,
+        },
+    }
+
+
 def social_layout_slots(
     canvas_w: int,
     canvas_h: int,
@@ -294,15 +370,16 @@ def social_layout_slots(
     family: str | None = None,
     align: str = "center",
     safe_zone: str = "top",
+    primitive: str | None = None,
 ) -> dict[str, dict[str, int]]:
     """
-    Composition-family grammar (canonical format pixels).
-    Default (no family): BG → overlay → HEADLINE upper/middle → BODY below → CTA lower safe.
-    Families share one alignment axis for the content group.
+    Composition grammar (canonical format pixels).
+    Primitives are strategies, not fixed templates. Families remain a fallback.
     """
     box = safe_content_box(canvas_w, canvas_h)
     content_w = box["width"]
     fam = (family or "").strip().upper()
+    prim = (primitive or "").strip().upper()
     axis = (align or "left").strip().lower()
     if axis not in {"left", "center", "right"}:
         axis = "left"
@@ -310,6 +387,161 @@ def social_layout_slots(
 
     cta_h = max(40, int(round(canvas_h * 0.048)))
     cta_w = min(content_w, max(200, int(round(canvas_w * 0.36))))
+
+    if prim in COMPOSITION_PRIMITIVES:
+        if prim == "SIDE_COLUMN":
+            col_w = min(content_w, max(280, int(round(box["width"] * 0.42))))
+            x = box["x"]
+            axis = "left"
+        elif prim == "SPLIT_INFORMATION":
+            col_w = min(content_w, max(280, int(round(box["width"] * 0.46))))
+            x = box["x"]
+            axis = "left"
+        elif prim == "CENTER_STATEMENT":
+            col_w = min(content_w, max(320, int(round(box["width"] * 0.78))))
+            x = _axis_x(box, col_w, "center")
+            axis = "center"
+        elif prim == "ASYMMETRIC_EDITORIAL":
+            col_w = min(content_w, max(280, int(round(box["width"] * 0.58))))
+            x = box["x"] + int(round(box["width"] * 0.08))
+            axis = "left"
+        elif prim == "DATA_GRID":
+            col_w = min(content_w, max(320, int(round(box["width"] * 0.86))))
+            x = _axis_x(box, col_w, axis if axis != "center" else "left")
+        elif prim == "FLOATING_INFORMATION_GROUP":
+            col_w = min(content_w, max(260, int(round(box["width"] * 0.52))))
+            x = box["x"] if zone != "right" else box["x"] + box["width"] - col_w
+        else:
+            col_w = min(content_w, max(280, int(round(box["width"] * 0.72))))
+            x = _axis_x(box, col_w, axis)
+
+        cta_x = x if axis != "center" else int(round((canvas_w - cta_w) / 2))
+        if prim == "TOP_LEFT_EDITORIAL":
+            headline_y = box["y"] + int(round(canvas_h * 0.04))
+            body_y = headline_y + int(round(canvas_h * 0.16))
+            cta_y = min(box["y"] + box["height"] - cta_h, int(round(canvas_h * 0.86)))
+            return _slot_pack(
+                x=x, col_w=col_w, canvas_h=canvas_h, box=box,
+                headline_y=headline_y, body_y=body_y, cta_y=cta_y, cta_x=cta_x,
+                cta_w=cta_w, cta_h=cta_h,
+                headline_max_h=int(round(canvas_h * 0.18)),
+                body_max_h=int(round(canvas_h * 0.10)),
+                eyebrow_y=box["y"],
+            )
+        if prim == "BOTTOM_LEFT_EDITORIAL":
+            headline_y = int(round(canvas_h * 0.58))
+            body_y = headline_y + int(round(canvas_h * 0.12))
+            cta_y = min(box["y"] + box["height"] - cta_h, int(round(canvas_h * 0.88)))
+            return _slot_pack(
+                x=x, col_w=col_w, canvas_h=canvas_h, box=box,
+                headline_y=headline_y, body_y=body_y, cta_y=cta_y, cta_x=cta_x,
+                cta_w=cta_w, cta_h=cta_h,
+                headline_max_h=int(round(canvas_h * 0.14)),
+                body_max_h=int(round(canvas_h * 0.09)),
+                metric_y=body_y,
+            )
+        if prim == "SIDE_COLUMN":
+            headline_y = box["y"] + int(round(canvas_h * 0.10))
+            body_y = headline_y + int(round(canvas_h * 0.18))
+            cta_y = min(box["y"] + box["height"] - cta_h, int(round(canvas_h * 0.82)))
+            return _slot_pack(
+                x=x, col_w=col_w, canvas_h=canvas_h, box=box,
+                headline_y=headline_y, body_y=body_y, cta_y=cta_y, cta_x=x,
+                cta_w=min(cta_w, col_w), cta_h=cta_h,
+                headline_max_h=int(round(canvas_h * 0.22)),
+                body_max_h=int(round(canvas_h * 0.16)),
+            )
+        if prim == "CENTER_STATEMENT":
+            headline_y = int(round(canvas_h * 0.34))
+            body_y = headline_y + int(round(canvas_h * 0.16))
+            cta_y = min(box["y"] + box["height"] - cta_h, int(round(canvas_h * 0.78)))
+            cta_x = int(round((canvas_w - cta_w) / 2))
+            return _slot_pack(
+                x=x, col_w=col_w, canvas_h=canvas_h, box=box,
+                headline_y=headline_y, body_y=body_y, cta_y=cta_y, cta_x=cta_x,
+                cta_w=cta_w, cta_h=cta_h,
+                headline_max_h=int(round(canvas_h * 0.22)),
+                body_max_h=int(round(canvas_h * 0.10)),
+            )
+        if prim == "LOWER_THIRD":
+            headline_y = int(round(canvas_h * 0.58))
+            body_y = headline_y + int(round(canvas_h * 0.11))
+            metric_y = body_y
+            cta_y = min(box["y"] + box["height"] - cta_h, int(round(canvas_h * 0.88)))
+            return _slot_pack(
+                x=x, col_w=col_w, canvas_h=canvas_h, box=box,
+                headline_y=headline_y, body_y=body_y, cta_y=cta_y, cta_x=cta_x,
+                cta_w=cta_w, cta_h=cta_h,
+                headline_max_h=int(round(canvas_h * 0.12)),
+                body_max_h=int(round(canvas_h * 0.16)),
+                metric_y=metric_y,
+            )
+        if prim == "ASYMMETRIC_EDITORIAL":
+            headline_y = box["y"] + int(round(canvas_h * 0.08))
+            body_y = headline_y + int(round(canvas_h * 0.18))
+            cta_y = min(box["y"] + box["height"] - cta_h, int(round(canvas_h * 0.84)))
+            return _slot_pack(
+                x=x, col_w=col_w, canvas_h=canvas_h, box=box,
+                headline_y=headline_y, body_y=body_y, cta_y=cta_y, cta_x=x,
+                cta_w=min(cta_w, col_w), cta_h=cta_h,
+                headline_max_h=int(round(canvas_h * 0.20)),
+                body_max_h=int(round(canvas_h * 0.12)),
+            )
+        if prim == "DATA_GRID":
+            headline_y = int(round(canvas_h * 0.46))
+            body_y = headline_y + int(round(canvas_h * 0.11))
+            metric_y = body_y
+            cta_y = min(box["y"] + box["height"] - cta_h, int(round(canvas_h * 0.88)))
+            return _slot_pack(
+                x=x, col_w=col_w, canvas_h=canvas_h, box=box,
+                headline_y=headline_y, body_y=body_y, cta_y=cta_y, cta_x=cta_x,
+                cta_w=cta_w, cta_h=cta_h,
+                headline_max_h=int(round(canvas_h * 0.12)),
+                body_max_h=int(round(canvas_h * 0.20)),
+                metric_y=metric_y,
+                eyebrow_y=int(round(canvas_h * 0.40)),
+            )
+        if prim == "IMAGE_DOMINANT":
+            if zone == "bottom":
+                headline_y = int(round(canvas_h * 0.68))
+            else:
+                headline_y = box["y"] + int(round(canvas_h * 0.05))
+            body_y = headline_y + int(round(canvas_h * 0.12))
+            cta_y = min(box["y"] + box["height"] - cta_h, int(round(canvas_h * 0.88)))
+            return _slot_pack(
+                x=x, col_w=col_w, canvas_h=canvas_h, box=box,
+                headline_y=headline_y, body_y=body_y, cta_y=cta_y, cta_x=cta_x,
+                cta_w=cta_w, cta_h=cta_h,
+                headline_max_h=int(round(canvas_h * 0.16)),
+                body_max_h=int(round(canvas_h * 0.08)),
+            )
+        if prim == "SPLIT_INFORMATION":
+            headline_y = box["y"] + int(round(canvas_h * 0.08))
+            body_y = headline_y + int(round(canvas_h * 0.16))
+            metric_y = int(round(canvas_h * 0.52))
+            cta_y = min(box["y"] + box["height"] - cta_h, int(round(canvas_h * 0.86)))
+            return _slot_pack(
+                x=x, col_w=col_w, canvas_h=canvas_h, box=box,
+                headline_y=headline_y, body_y=body_y, cta_y=cta_y, cta_x=x,
+                cta_w=min(cta_w, col_w), cta_h=cta_h,
+                headline_max_h=int(round(canvas_h * 0.16)),
+                body_max_h=int(round(canvas_h * 0.12)),
+                metric_y=metric_y,
+            )
+        # FLOATING_INFORMATION_GROUP — keep the cluster tight, CTA at the safe bottom.
+        if zone == "bottom":
+            headline_y = int(round(canvas_h * 0.62))
+        else:
+            headline_y = box["y"] + int(round(canvas_h * 0.06))
+        body_y = headline_y + int(round(canvas_h * 0.13))
+        cta_y = min(box["y"] + box["height"] - cta_h, int(round(canvas_h * 0.86)))
+        return _slot_pack(
+            x=x, col_w=col_w, canvas_h=canvas_h, box=box,
+            headline_y=headline_y, body_y=body_y, cta_y=cta_y, cta_x=x,
+            cta_w=min(cta_w, col_w), cta_h=cta_h,
+            headline_max_h=int(round(canvas_h * 0.14)),
+            body_max_h=int(round(canvas_h * 0.09)),
+        )
 
     if fam in COMPOSITION_FAMILIES:
         col_ratio = 0.72 if fam == "EDITORIAL" else 0.78 if axis == "left" else 0.86
@@ -630,8 +862,10 @@ def layout_text_element(
     draft["y"] = region["y"]
     draft["width"] = region["width"]
     draft["fontSize"] = preferred
-    max_lines = 1 if role in {"headline", "eyebrow"} else 2
-    if role == "headline" and len(str(el.get("content") or "")) > 28:
+    max_lines = 1 if role in {"headline", "eyebrow", "brand"} else 2
+    if role == "headline" and (
+        "\n" in str(el.get("content") or "") or len(str(el.get("content") or "")) > 26
+    ):
         max_lines = 2
     return auto_layout_text(
         draft,
@@ -1126,9 +1360,12 @@ def apply_layout_grammar(post: dict[str, Any]) -> dict[str, Any]:
         return post
 
     family = str(post.get("compositionStrategy") or post.get("composition_strategy") or "") or None
+    primitive = str(post.get("compositionPrimitive") or post.get("composition_primitive") or "") or None
     align = str(post.get("textAlign") or post.get("text_align") or "left")
     safe_zone = str(post.get("safeTextZone") or post.get("safe_text_zone") or "top")
-    slots = social_layout_slots(cw, ch, family=family, align=align, safe_zone=safe_zone)
+    slots = social_layout_slots(
+        cw, ch, family=family, align=align, safe_zone=safe_zone, primitive=primitive
+    )
     next_elements: list[Any] = []
     for el in elements:
         if not isinstance(el, dict):
@@ -1136,7 +1373,7 @@ def apply_layout_grammar(post: dict[str, Any]) -> dict[str, Any]:
         el_type = str(el.get("type") or "").upper()
         if el_type == "TEXT":
             role = str(el.get("role") or "custom").lower()
-            slot = slots.get(role) if role in {"headline", "body", "eyebrow"} else None
+            slot = slots.get(role) if role in {"headline", "body", "eyebrow", "brand"} else None
             laid = layout_text_element(el, canvas_w=cw, canvas_h=ch, slot=slot)
             if align in {"left", "center", "right"}:
                 laid["align"] = align
