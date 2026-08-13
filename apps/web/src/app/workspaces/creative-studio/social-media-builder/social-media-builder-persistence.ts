@@ -476,8 +476,42 @@ export function parseSocialPosts(
 }
 
 /**
+ * After deleting a Gönderiler post: keep current selection if it still exists;
+ * otherwise next, else previous, else empty.
+ * A B C D / delete B → C; delete D → C; delete A → B.
+ */
+export function nextSelectedPostIdAfterDelete(
+  posts: Array<{ id: string }>,
+  deletedId: string,
+  currentSelectedId: string | null | undefined,
+): string | null {
+  const index = posts.findIndex((p) => p.id === deletedId);
+  if (index < 0) return currentSelectedId || null;
+  if (currentSelectedId && currentSelectedId !== deletedId) return currentSelectedId;
+  const remaining = posts.filter((p) => p.id !== deletedId);
+  if (!remaining.length) return null;
+  return remaining[index]?.id ?? remaining[index - 1]?.id ?? remaining[0]?.id ?? null;
+}
+
+/** Remove one post record (canvas, blueprint, campaign metadata). Never touches Assets/Drive. */
+export function deleteSocialPost<T extends { id: string }>(
+  posts: T[],
+  postId: string,
+  selectedPostId: string | null | undefined,
+): { posts: T[]; selectedPostId: string | null; deleted: T | null } {
+  const deleted = posts.find((p) => p.id === postId) ?? null;
+  if (!deleted) return { posts, selectedPostId: selectedPostId ?? null, deleted: null };
+  return {
+    posts: posts.filter((p) => p.id !== postId),
+    selectedPostId: nextSelectedPostIdAfterDelete(posts, postId, selectedPostId),
+    deleted,
+  };
+}
+
+/**
  * Cover-image-only drafts → one post with default TEXT/BUTTON elements + cover Asset ID.
  * Existing posts[] drafts are returned as-is (with element parse/migration).
+ * Explicit posts: [] is last-post-deleted empty state — not reseeded from DEFAULT_POSTS.
  */
 export function hydrateSocialPostsFromDraft(input: {
   posts?: unknown;
@@ -485,7 +519,7 @@ export function hydrateSocialPostsFromDraft(input: {
   linkedProjectId?: string | null;
   selectedPostId?: string | null;
   seedDefaults?: boolean;
-}): { posts: SocialPost[]; selectedPostId: string } {
+}): { posts: SocialPost[]; selectedPostId: string | null } {
   const linked = input.linkedProjectId ?? null;
   const parsed = parseSocialPosts(input.posts, linked);
   if (parsed.length) {
@@ -506,6 +540,11 @@ export function hydrateSocialPostsFromDraft(input: {
         ? input.selectedPostId
         : withCover[0]!.id);
     return { posts: withCover, selectedPostId: selected };
+  }
+
+  // Explicit posts: [] means the last Gönderi was deleted — do not reseed defaults.
+  if (Array.isArray(input.posts)) {
+    return { posts: [], selectedPostId: null };
   }
 
   if (input.seedDefaults === false && !input.coverAssetId) {

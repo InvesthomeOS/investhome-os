@@ -96,9 +96,10 @@ export function serializeBuilderMediaDraft(
     .map((ref) => serializeImageRef(ref))
     .filter((ref): ref is Record<string, unknown> => ref != null);
 
-  const hasPosts = Array.isArray(input.posts) && input.posts.length > 0;
+  // Persist posts: [] so last-post delete survives reload (do not drop the field).
+  const postsProvided = Array.isArray(input.posts);
   const draft: Record<string, unknown> = {
-    schemaVersion: hasPosts
+    schemaVersion: postsProvided
       ? BUILDER_MEDIA_SOCIAL_POSTS_SCHEMA_VERSION
       : BUILDER_MEDIA_DRAFT_SCHEMA_VERSION,
     documentType: input.documentType,
@@ -108,9 +109,9 @@ export function serializeBuilderMediaDraft(
     savedAt: Date.now(),
   };
 
-  if (hasPosts) {
+  if (postsProvided) {
     draft.posts = input.posts;
-    if (input.selectedPostId) draft.selectedPostId = input.selectedPostId;
+    draft.selectedPostId = input.selectedPostId ?? null;
   }
   if (typeof input.brandLogo === 'boolean') draft.brandLogo = input.brandLogo;
   if (Array.isArray(input.platforms)) draft.platforms = input.platforms;
@@ -208,7 +209,7 @@ export function deserializeBuilderMediaDraft(
   const schemaRaw = body.schemaVersion;
   const schemaVersion =
     schemaRaw === BUILDER_MEDIA_SOCIAL_POSTS_SCHEMA_VERSION ||
-    (posts && posts.length > 0)
+    Array.isArray(posts)
       ? BUILDER_MEDIA_SOCIAL_POSTS_SCHEMA_VERSION
       : BUILDER_MEDIA_DRAFT_SCHEMA_VERSION;
 
@@ -244,8 +245,8 @@ export function isBuilderMediaDraftEmpty(raw: unknown): boolean {
   if (keys.length === 0) return true;
   const body = raw as Record<string, unknown>;
   const { coverImage, galleryImages } = normalizeBuilderCoverFields(body);
-  const hasPosts = Array.isArray(body.posts) && body.posts.length > 0;
-  return !coverImage && galleryImages.length === 0 && !hasPosts;
+  const hasPostsField = Array.isArray(body.posts);
+  return !coverImage && galleryImages.length === 0 && !hasPostsField;
 }
 
 /** Assert serialized draft never contains Drive paths or ephemeral URLs. */

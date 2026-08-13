@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
-import { Button, Select, StatusChip } from '@investhome/ui';
+import { Button, Dialog, Select, StatusChip } from '@investhome/ui';
 
 import { IhIcon } from '@/components/icons/ih-icons';
 import { ApiError } from '@/lib/api/client';
@@ -72,6 +72,7 @@ import {
   type SocialDesignMode,
 } from './social-media-builder-design-engine';
 import {
+  deleteSocialPost,
   hydrateSocialPostsFromDraft,
   loadLastConstructionProjectId,
   loadPersistedLinkedProjectIdHint,
@@ -80,6 +81,7 @@ import {
   saveLastConstructionProjectId,
   serializeSocialPosts,
 } from './social-media-builder-persistence';
+import { SmbPostCardMore } from './smb-post-overflow-menu';
 import { exportSocialPostPng } from './social-media-builder-export';
 import { SmbArtboardElements } from './smb-artboard-elements';
 import {
@@ -171,11 +173,14 @@ export function SocialMediaBuilderWorkspace() {
   const [toast, setToast] = useState<string | null>(null);
   const [elementImagePickerOpen, setElementImagePickerOpen] = useState(false);
   const [aiDesignCollapsed, setAiDesignCollapsed] = useState(false);
+  const [postMenuId, setPostMenuId] = useState<string | null>(null);
+  const [deletePostId, setDeletePostId] = useState<string | null>(null);
 
   const filmstripRef = useRef<HTMLDivElement | null>(null);
   const genIdleTimerRef = useRef<number | null>(null);
   const genStageTimerRef = useRef<number | null>(null);
   const generateAbortRef = useRef(0);
+  const deletedPostIdsRef = useRef<Set<string>>(new Set());
   const postsRef = useRef(posts);
   postsRef.current = posts;
   const selectedPostIdRef = useRef(selectedPostId);
@@ -207,9 +212,9 @@ export function SocialMediaBuilderWorkspace() {
     scopeToLinkedProject: true,
   });
 
-  const selectedPost = posts.find((p) => p.id === selectedPostId) ?? posts[0]!;
+  const selectedPost = posts.find((p) => p.id === selectedPostId) ?? posts[0] ?? null;
   const selectedElement =
-    selectedPost.elements.find((el) => el.id === selectedElementId) ?? null;
+    selectedPost?.elements.find((el) => el.id === selectedElementId) ?? null;
   const contentSize = resolveFormatSize(formatPreset);
 
   const smbFitPadX = focus.isFullscreen ? 16 : 24;
@@ -219,7 +224,7 @@ export function SocialMediaBuilderWorkspace() {
     contentWidth: Math.max(1, contentSize.w),
     contentHeight: Math.max(1, contentSize.h),
     enabled: true,
-    contentKey: `${formatPreset}-${selectedPost.id}-${focus.mode}-${focus.isFullscreen ? 'fs' : 'win'}-${smbFitPadX}x${smbFitPadY}`,
+    contentKey: `${formatPreset}-${selectedPost?.id ?? 'empty'}-${focus.mode}-${focus.isFullscreen ? 'fs' : 'win'}-${smbFitPadX}x${smbFitPadY}`,
     canvasType: 'artwork',
     padX: smbFitPadX,
     padY: smbFitPadY,
@@ -284,19 +289,25 @@ export function SocialMediaBuilderWorkspace() {
         linkedProjectId: draft?.linkedProjectId ?? docApi.constructionProjectId,
         selectedPostId: draft?.selectedPostId,
       });
+      const incoming = hydrated.posts.filter((p) => !deletedPostIdsRef.current.has(p.id));
       setPosts(
-        hydrated.posts.map((p) => ({
+        incoming.map((p) => ({
           ...p,
           elements: ensureUniqueElementIds(p.elements),
         })),
       );
-      setSelectedPostId(hydrated.selectedPostId);
+      const active =
+        incoming.find((p) => p.id === hydrated.selectedPostId) ?? incoming[0] ?? null;
+      setSelectedPostId(
+        active && incoming.some((p) => p.id === (hydrated.selectedPostId ?? ''))
+          ? hydrated.selectedPostId ?? active.id
+          : active?.id ?? '',
+      );
       setHistoryPast([]);
       setHistoryFuture([]);
       setEditingElementId(null);
-      const active = hydrated.posts.find((p) => p.id === hydrated.selectedPostId) ?? hydrated.posts[0]!;
-      setFormatPreset(active.formatPreset);
       setSelectedElementId(null);
+      if (active) setFormatPreset(active.formatPreset);
       if (typeof draft?.brandLogo === 'boolean') setBrandLogo(draft.brandLogo);
       if (Array.isArray(draft?.platforms) && draft.platforms.length) {
         setPlatforms(
@@ -309,16 +320,16 @@ export function SocialMediaBuilderWorkspace() {
         );
       }
       const coverRef =
-        active.coverAssetId || coverId
+        active?.coverAssetId || coverId
           ? {
-              asset_id: active.coverAssetId || coverId,
+              asset_id: active?.coverAssetId || coverId,
               url: null,
               alt: null,
               role: 'cover' as const,
             }
           : null;
       coverAsset.hydrateMedia(coverRef, draft ? [] : []);
-      const fromPost = parseGenerationMetaFromDraft(active.generationMeta);
+      const fromPost = parseGenerationMetaFromDraft(active?.generationMeta);
       if (draft && 'generationMeta' in draft) {
         setGenerationMeta(
           parseGenerationMetaFromDraft(
@@ -418,7 +429,8 @@ export function SocialMediaBuilderWorkspace() {
 
   const buildPersistPayload = useCallback(() => {
     const current = postsRef.current;
-    const active = current.find((p) => p.id === selectedPostId) ?? current[0]!;
+    const latestSelected = selectedPostIdRef.current;
+    const active = current.find((p) => p.id === latestSelected) ?? current[0] ?? null;
     const coverId = active?.coverAssetId ?? null;
     // Canonical persist: Asset ID only — never blob:/object: display URLs.
     const coverFromPost = coverId
@@ -439,7 +451,7 @@ export function SocialMediaBuilderWorkspace() {
           linkedProjectId: docApi.constructionProjectId,
         })),
       ),
-      selectedPostId,
+      selectedPostId: latestSelected || null,
       brandLogo,
       platforms: Array.from(platforms),
       generationMeta: serializeGenerationMetaForDraft(generationMeta),
@@ -449,7 +461,6 @@ export function SocialMediaBuilderWorkspace() {
     docApi.constructionProjectId,
     generationMeta,
     platforms,
-    selectedPostId,
   ]);
 
   const persistNow = useCallback(
@@ -584,6 +595,7 @@ export function SocialMediaBuilderWorkspace() {
   }, [canvasLocked, focus.mode, t]);
 
   async function handleProjectChange(id: string) {
+    deletedPostIdsRef.current = new Set();
     const draft = await docApi.selectConstructionProject(id);
     applyDraftPosts(draft);
     setGenerationMeta(null);
@@ -617,7 +629,7 @@ export function SocialMediaBuilderWorkspace() {
       setFloatingMoreOpen(false);
       return;
     }
-    const exists = selectedPost.elements.some((el) => el.id === elementId);
+    const exists = selectedPost?.elements.some((el) => el.id === elementId);
     if (!exists) {
       setSelectedElementId(null);
       setEditingElementId(null);
@@ -719,7 +731,7 @@ export function SocialMediaBuilderWorkspace() {
 
   function addPost() {
     const next = createPostFromPreset(formatPreset, posts.length + 1, {
-      coverAssetId: selectedPost.coverAssetId ?? null,
+      coverAssetId: selectedPost?.coverAssetId ?? null,
       linkedProjectId: docApi.constructionProjectId,
       cta: t('canvas.cta'),
     });
@@ -730,6 +742,90 @@ export function SocialMediaBuilderWorkspace() {
     showToast(t('toasts.postAdded'));
   }
 
+  function confirmDeletePost() {
+    const postId = deletePostId;
+    if (!postId) return;
+    setDeletePostId(null);
+    setPostMenuId(null);
+
+    const current = postsRef.current;
+    const result = deleteSocialPost(current, postId, selectedPostIdRef.current);
+    if (!result.deleted) return;
+
+    // Invalidate in-flight AI / stale hydration so they cannot resurrect the deleted post.
+    generateAbortRef.current += 1;
+    deletedPostIdsRef.current = new Set(deletedPostIdsRef.current).add(postId);
+    pushHistory();
+    postsRef.current = result.posts;
+    selectedPostIdRef.current = result.selectedPostId ?? '';
+    setPosts(() => result.posts);
+    setSelectedPostId(result.selectedPostId ?? '');
+    setSelectedElementId(null);
+    setEditingElementId(null);
+    setFloatingMoreOpen(false);
+    setAlignMenuOpen(false);
+    setLayerMenuOpen(false);
+
+    const nextActive =
+      result.posts.find((p) => p.id === result.selectedPostId) ?? result.posts[0] ?? null;
+    if (nextActive) {
+      setFormatPreset(nextActive.formatPreset);
+      setGenerationMeta(parseGenerationMetaFromDraft(nextActive.generationMeta));
+      if (nextActive.coverAssetId) {
+        coverAsset.setCoverImage({
+          asset_id: nextActive.coverAssetId,
+          url: null,
+          alt: null,
+          role: 'cover',
+        });
+      } else {
+        coverAsset.clearCover();
+      }
+    } else {
+      setGenerationMeta(null);
+      coverAsset.clearCover();
+    }
+
+    // Shared asset cache is keyed by assetId — do not revoke URLs still used by remaining posts.
+    markDirty();
+
+    void (async () => {
+      let ok = false;
+      const persistPosts = result.posts.map((p) => ({
+        ...p,
+        thumbUrl: '',
+        linkedProjectId: docApi.constructionProjectId,
+      }));
+      const coverFromPost = nextActive?.coverAssetId
+        ? {
+            asset_id: nextActive.coverAssetId,
+            url: null as string | null,
+            alt: null as string | null,
+            role: 'cover' as const,
+          }
+        : null;
+      for (let attempt = 0; attempt < 8 && !ok; attempt += 1) {
+        ok = await docApi.saveDraft({
+          ...buildPersistPayload(),
+          coverImage: coverFromPost,
+          posts: serializeSocialPosts(persistPosts),
+          selectedPostId: result.selectedPostId,
+        });
+        if (!ok) {
+          await new Promise((resolve) => {
+            window.setTimeout(resolve, 80);
+          });
+        }
+      }
+      if (ok) {
+        setSaved(true);
+        showToast(t('toasts.postDeleted'));
+      } else {
+        showToast(t('toasts.saveFailed'));
+      }
+    })();
+  }
+
   function addElement(el: SocialElement) {
     updateSelectedPost((p) => ({ ...p, elements: [...p.elements, el] }));
     setSelectedElementId(el.id);
@@ -737,6 +833,10 @@ export function SocialMediaBuilderWorkspace() {
   }
 
   const runDownload = useCallback(async () => {
+    if (!selectedPost) {
+      showToast(t('toasts.downloadFailed'));
+      return;
+    }
     const hasCover = Boolean(artboardSrc && artboardState === 'ready');
     const hasElements = selectedPost.elements.length > 0;
     if (!hasCover && !hasElements) {
@@ -764,8 +864,7 @@ export function SocialMediaBuilderWorkspace() {
     contentSize.h,
     contentSize.w,
     elementDisplayUrls,
-    selectedPost.elements,
-    selectedPost.name,
+    selectedPost,
     t,
   ]);
 
@@ -778,7 +877,7 @@ export function SocialMediaBuilderWorkspace() {
     }
     if (action === 'edit') {
       if (!selectedElementId) {
-        const first = selectedPost.elements[0];
+        const first = selectedPost?.elements[0];
         if (first) setSelectedElementId(first.id);
       }
       setRightRailId('content');
@@ -795,7 +894,7 @@ export function SocialMediaBuilderWorkspace() {
       return;
     }
     if (action === 'delete') {
-      if (selectedElement) {
+      if (selectedElement && selectedPost) {
         replaceElements(selectedPost.elements.filter((el) => el.id !== selectedElement.id));
         setSelectedElementId(null);
         markDirty();
@@ -1547,35 +1646,54 @@ export function SocialMediaBuilderWorkspace() {
                       </button>
                       <div className="smb-ws__page-row" ref={filmstripRef} data-testid="smb-post-row">
                         {posts.map((post) => (
-                          <button
+                          <div
                             key={post.id}
-                            type="button"
-                            className={`smb-ws__page-card${selectedPostId === post.id ? ' is-selected' : ''}`}
-                            onClick={() => selectPost(post)}
+                            className={`smb-ws__page-card${selectedPostId === post.id ? ' is-selected' : ''}${postMenuId === post.id ? ' is-menu-open' : ''}`}
                             data-testid={`smb-post-card-${post.id}`}
                           >
-                            <div
-                              className={`smb-ws__page-thumb ${aspectThumbClass(post.formatPreset)}`}
+                            <button
+                              type="button"
+                              className="smb-ws__page-card-hit"
+                              onClick={() => selectPost(post)}
                             >
-                              {post.coverAssetId && elementDisplayUrls[post.coverAssetId] ? (
-                                <img src={elementDisplayUrls[post.coverAssetId]} alt="" />
-                              ) : selectedPostId === post.id && artboardSrc ? (
-                                <img src={artboardSrc} alt="" />
-                              ) : (
-                                <span className="smb-ws__page-thumb-empty" aria-hidden="true" />
-                              )}
-                            </div>
-                            <strong>{post.name}</strong>
-                            <span className="smb-ws__page-format">
-                              {post.formatPreset === 'portrait'
-                                ? '4:5'
-                                : post.formatPreset === 'landscape'
-                                  ? '16:9'
-                                  : post.formatPreset === 'story' || post.formatPreset === 'reelsCover'
-                                    ? '9:16'
-                                    : '1:1'}
-                            </span>
-                          </button>
+                              <div
+                                className={`smb-ws__page-thumb ${aspectThumbClass(post.formatPreset)}`}
+                              >
+                                {post.coverAssetId && elementDisplayUrls[post.coverAssetId] ? (
+                                  <img src={elementDisplayUrls[post.coverAssetId]} alt="" />
+                                ) : selectedPostId === post.id && artboardSrc ? (
+                                  <img src={artboardSrc} alt="" />
+                                ) : (
+                                  <span className="smb-ws__page-thumb-empty" aria-hidden="true" />
+                                )}
+                              </div>
+                              <strong>{post.name}</strong>
+                              <span className="smb-ws__page-format">
+                                {post.formatPreset === 'portrait'
+                                  ? '4:5'
+                                  : post.formatPreset === 'landscape'
+                                    ? '16:9'
+                                    : post.formatPreset === 'story' || post.formatPreset === 'reelsCover'
+                                      ? '9:16'
+                                      : '1:1'}
+                              </span>
+                            </button>
+                            <SmbPostCardMore
+                              postId={post.id}
+                              open={postMenuId === post.id}
+                              onOpenChange={(open) => setPostMenuId(open ? post.id : null)}
+                              ariaLabel={t('canvas.postMore')}
+                              items={[
+                                {
+                                  key: 'delete',
+                                  label: t('floating.delete'),
+                                  destructive: true,
+                                  testId: `smb-post-delete-${post.id}`,
+                                  onSelect: () => setDeletePostId(post.id),
+                                },
+                              ]}
+                            />
+                          </div>
                         ))}
                         <button
                           type="button"
@@ -1633,8 +1751,8 @@ export function SocialMediaBuilderWorkspace() {
                       className={`smb-ws__artboard${selectedElementId || artboardState === 'ready' ? ' is-selected' : ''}${artboardState !== 'ready' ? ' is-empty' : ''}`}
                       data-testid="smb-artboard"
                       data-image-state={artboardState}
-                      data-cover-asset-id={selectedPost.coverAssetId ?? ''}
-                      data-selected-post-id={selectedPost.id}
+                      data-cover-asset-id={selectedPost?.coverAssetId ?? ''}
+                      data-selected-post-id={selectedPost?.id ?? ''}
                       data-width={contentSize.w}
                       data-height={contentSize.h}
                       data-text-edit-mode={editingElementId ? 'true' : 'false'}
@@ -1661,10 +1779,10 @@ export function SocialMediaBuilderWorkspace() {
                           src={artboardSrc}
                           alt=""
                           data-testid="smb-artboard-img"
-                          data-cover-asset-id={selectedPost.coverAssetId ?? ''}
+                          data-cover-asset-id={selectedPost?.coverAssetId ?? ''}
                           draggable={false}
                           onError={() => {
-                            if (selectedPost.coverAssetId) {
+                            if (selectedPost?.coverAssetId) {
                               postAssets.retryAsset(selectedPost.coverAssetId);
                             }
                           }}
@@ -1712,7 +1830,7 @@ export function SocialMediaBuilderWorkspace() {
                         <div
                           className="smb-ws__artboard-overlay"
                           data-overlay={
-                            selectedPost.overlayStrategy ||
+                            selectedPost?.overlayStrategy ||
                             (typeof generationMeta?.creative_plan?.overlay_strategy === 'string'
                               ? generationMeta.creative_plan.overlay_strategy
                               : typeof generationMeta?.creative_concept?.overlay_region === 'string'
@@ -1731,7 +1849,7 @@ export function SocialMediaBuilderWorkspace() {
                         </span>
                       ) : null}
                       <SmbArtboardElements
-                        elements={selectedPost.elements}
+                        elements={selectedPost?.elements ?? []}
                         selectedElementId={previewMode ? null : selectedElementId}
                         editingElementId={previewMode ? null : editingElementId}
                         imageUrlsByAssetId={elementDisplayUrls}
@@ -1796,7 +1914,7 @@ export function SocialMediaBuilderWorkspace() {
                                     onClick={() => {
                                       if (!selectedElementId) return;
                                       replaceElements(
-                                        bringElementForward(selectedPost.elements, selectedElementId),
+                                        bringElementForward(selectedPost?.elements ?? [], selectedElementId),
                                       );
                                       setLayerMenuOpen(false);
                                     }}
@@ -1810,7 +1928,7 @@ export function SocialMediaBuilderWorkspace() {
                                     onClick={() => {
                                       if (!selectedElementId) return;
                                       replaceElements(
-                                        sendElementBackward(selectedPost.elements, selectedElementId),
+                                        sendElementBackward(selectedPost?.elements ?? [], selectedElementId),
                                       );
                                       setLayerMenuOpen(false);
                                     }}
@@ -1871,6 +1989,7 @@ export function SocialMediaBuilderWorkspace() {
                                   disabled={generating}
                                   onClick={() => {
                                     setLeftRailId('ai');
+                                    if (!selectedPost) return;
                                     void runAiGenerate(defaultSocialInstruction(selectedPost));
                                     setFloatingMoreOpen(false);
                                   }}
@@ -1954,8 +2073,9 @@ export function SocialMediaBuilderWorkspace() {
           media={coverAsset.media}
           linkedProjectId={docApi.constructionProjectId}
           lockLinkedProject
-          selectedAssetId={selectedPost.coverAssetId ?? null}
+          selectedAssetId={selectedPost?.coverAssetId ?? null}
           onSelect={(ref) => {
+            if (!selectedPost) return;
             const prevId = selectedPost.coverAssetId;
             const nextId = ref.asset_id ?? null;
             coverAsset.setCoverImage({
@@ -1998,6 +2118,34 @@ export function SocialMediaBuilderWorkspace() {
           testId="smb-element-media-picker-dialog"
         />
       ) : null}
+
+      <Dialog
+        open={Boolean(deletePostId)}
+        onClose={() => setDeletePostId(null)}
+        title={t('deleteConfirm.title')}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              data-testid="smb-post-delete-cancel"
+              onClick={() => setDeletePostId(null)}
+            >
+              {t('deleteConfirm.cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              data-testid="smb-post-delete-confirm"
+              onClick={confirmDeletePost}
+            >
+              {t('deleteConfirm.confirm')}
+            </Button>
+          </>
+        }
+      >
+        <p data-testid="smb-post-delete-message">{t('deleteConfirm.message')}</p>
+      </Dialog>
 
       {toast ? (
         <div className="smb-ws__toast" role="status">

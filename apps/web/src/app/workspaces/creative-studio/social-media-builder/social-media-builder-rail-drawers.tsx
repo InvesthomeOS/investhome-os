@@ -397,7 +397,7 @@ function AiDrawer({ onToast, onGenerate, generating }: SmbLeftRailDrawerProps) {
 export type SmbRightRailDrawerProps = {
   id: SmbRightRailId;
   onSelectTab: (id: SmbRightRailId) => void;
-  post: SocialPost;
+  post: SocialPost | null;
   patchPost: (patch: Partial<SocialPost>) => void;
   selectedElement: SocialElement | null;
   patchElement: (patch: Partial<SocialElement>) => void;
@@ -511,7 +511,8 @@ function ContentDrawer({
 
       <Field label={t('rails.content.postName')}>
         <input
-          value={post.name}
+          value={post?.name ?? ''}
+          disabled={!post}
           onChange={(e) => {
             patchPost({ name: e.target.value });
             markDirty();
@@ -523,7 +524,8 @@ function ContentDrawer({
       <Field label={t('rails.content.description')}>
         <textarea
           rows={3}
-          value={post.description}
+          value={post?.description ?? ''}
+          disabled={!post}
           onChange={(e) => {
             patchPost({ description: e.target.value });
             markDirty();

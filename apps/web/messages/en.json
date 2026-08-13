@@ -18948,6 +18948,7 @@
           "toolbarAria": "Component insertion toolbar",
           "stripTitle": "Posts",
           "newPost": "Add new",
+          "postMore": "Post actions",
           "filmstripPrev": "Scroll posts left",
           "filmstripNext": "Scroll posts right",
           "zoom": "Zoom",
@@ -18965,6 +18966,12 @@
             "fit": "Fit",
             "actual": "Actual Size"
           }
+        },
+        "deleteConfirm": {
+          "title": "Delete post",
+          "message": "Are you sure you want to delete this post?",
+          "cancel": "Cancel",
+          "confirm": "Delete"
         },
         "floating": {
           "edit": "Edit",
@@ -19188,6 +19195,7 @@
           "undo": "Undo",
           "redo": "Redo",
           "postAdded": "New post added",
+          "postDeleted": "Post deleted",
           "templateApplied": "Template applied",
           "generated": "AI content ready",
           "designed": "AI design applied to canvas",

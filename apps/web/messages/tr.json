@@ -13625,6 +13625,7 @@
           "toolbarAria": "Bileşen ekleme araç çubuğu",
           "stripTitle": "Gönderiler",
           "newPost": "Yeni Ekle",
+          "postMore": "Gönderi işlemleri",
           "filmstripPrev": "Gönderileri sola kaydır",
           "filmstripNext": "Gönderileri sağa kaydır",
           "zoom": "Yakınlaştırma",
@@ -13642,6 +13643,12 @@
             "fit": "Sığdır",
             "actual": "Gerçek Boyut"
           }
+        },
+        "deleteConfirm": {
+          "title": "Gönderiyi sil",
+          "message": "Bu gönderiyi silmek istediğinize emin misiniz?",
+          "cancel": "Vazgeç",
+          "confirm": "Sil"
         },
         "floating": {
           "edit": "Düzenle",
@@ -13865,6 +13872,7 @@
           "undo": "Geri alındı",
           "redo": "Yinelendi",
           "postAdded": "Yeni gönderi eklendi",
+          "postDeleted": "Gönderi silindi",
           "templateApplied": "Şablon uygulandı",
           "generated": "AI içerik hazır",
           "designed": "AI tasarım tuvale uygulandı",
