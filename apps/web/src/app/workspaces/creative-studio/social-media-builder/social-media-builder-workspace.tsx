@@ -82,6 +82,10 @@ import {
 } from './social-media-builder-persistence';
 import { exportSocialPostPng } from './social-media-builder-export';
 import { SmbArtboardElements } from './smb-artboard-elements';
+import {
+  assetUsedByOtherPosts,
+  useSmbPostAssetHydration,
+} from './social-media-builder-asset-hydration';
 
 import {
   SmbLeftRailDrawer,
@@ -166,7 +170,6 @@ export function SocialMediaBuilderWorkspace() {
   const [publishOpen, setPublishOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [elementImagePickerOpen, setElementImagePickerOpen] = useState(false);
-  const [elementDisplayUrls, setElementDisplayUrls] = useState<Record<string, string>>({});
   const [aiDesignCollapsed, setAiDesignCollapsed] = useState(false);
 
   const filmstripRef = useRef<HTMLDivElement | null>(null);
@@ -208,12 +211,6 @@ export function SocialMediaBuilderWorkspace() {
   const selectedElement =
     selectedPost.elements.find((el) => el.id === selectedElementId) ?? null;
   const contentSize = resolveFormatSize(formatPreset);
-  /** Authenticated Media Library blob only — never Unsplash / template fallback. */
-  const artboardSrc =
-    coverAsset.coverStatus === 'ready' && coverAsset.coverDisplayUrl
-      ? coverAsset.coverDisplayUrl
-      : null;
-  const artboardState = coverAsset.coverStatus;
 
   const smbFitPadX = focus.isFullscreen ? 16 : 24;
   const smbFitPadY = focus.isFullscreen ? 16 : 32;
@@ -344,57 +341,25 @@ export function SocialMediaBuilderWorkspace() {
   });
   const hydrated = hydration.hydrated;
 
+  const postAssets = useSmbPostAssetHydration({
+    enabled: hydrated && Boolean(docApi.constructionProjectId),
+    posts,
+    selectedPostId,
+    linkedProjectId: docApi.constructionProjectId,
+    ensureDisplayUrl: coverAsset.media.ensureDisplayUrl,
+    getCachedDisplayUrl: coverAsset.media.getCachedDisplayUrl,
+  });
+  /** Authenticated Media Library blob only — never Unsplash / template fallback. */
+  const artboardSrc = postAssets.artboardSrc;
+  const artboardState = postAssets.artboardState;
+  const elementDisplayUrls = postAssets.displayUrls;
+
   useEffect(() => {
     return () => {
       if (genIdleTimerRef.current != null) window.clearTimeout(genIdleTimerRef.current);
       generateAbortRef.current += 1;
     };
   }, []);
-
-  // Stable key of IMAGE asset IDs — do not depend on posts[] or coverAsset.media object identity.
-  const imageAssetIdsKey = useMemo(() => {
-    const ids = new Set<string>();
-    for (const post of posts) {
-      for (const el of post.elements) {
-        if (el.type === 'IMAGE' && el.assetId) ids.add(el.assetId);
-      }
-    }
-    return Array.from(ids).sort().join('|');
-  }, [posts]);
-
-  const ensureElementDisplayUrl = coverAsset.media.ensureDisplayUrl;
-
-  // Resolve IMAGE element display URLs via scoped Media Library.
-  useEffect(() => {
-    let cancelled = false;
-    const assetIds = imageAssetIdsKey ? imageAssetIdsKey.split('|') : [];
-    void (async () => {
-      const next: Record<string, string> = {};
-      for (const id of assetIds) {
-        try {
-          const url = await ensureElementDisplayUrl(id);
-          if (url) next[id] = url;
-        } catch {
-          /* skip */
-        }
-      }
-      if (cancelled) return;
-      setElementDisplayUrls((prev) => {
-        const prevKeys = Object.keys(prev);
-        const nextKeys = Object.keys(next);
-        if (
-          prevKeys.length === nextKeys.length &&
-          nextKeys.every((key) => prev[key] === next[key])
-        ) {
-          return prev;
-        }
-        return next;
-      });
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [imageAssetIdsKey, ensureElementDisplayUrl]);
 
   function markDirty() {
     setSaved(false);
@@ -454,20 +419,23 @@ export function SocialMediaBuilderWorkspace() {
   const buildPersistPayload = useCallback(() => {
     const current = postsRef.current;
     const active = current.find((p) => p.id === selectedPostId) ?? current[0]!;
-    const coverFromPost = active?.coverAssetId
+    const coverId = active?.coverAssetId ?? null;
+    // Canonical persist: Asset ID only — never blob:/object: display URLs.
+    const coverFromPost = coverId
       ? {
-          asset_id: active.coverAssetId,
+          asset_id: coverId,
           url: null as string | null,
           alt: null as string | null,
           role: 'cover' as const,
         }
-      : coverAsset.coverImage;
+      : null;
     return {
       linkedProjectId: docApi.constructionProjectId,
       coverImage: coverFromPost,
       posts: serializeSocialPosts(
         current.map((p) => ({
           ...p,
+          thumbUrl: '',
           linkedProjectId: docApi.constructionProjectId,
         })),
       ),
@@ -478,7 +446,6 @@ export function SocialMediaBuilderWorkspace() {
     };
   }, [
     brandLogo,
-    coverAsset.coverImage,
     docApi.constructionProjectId,
     generationMeta,
     platforms,
@@ -724,10 +691,18 @@ export function SocialMediaBuilderWorkspace() {
     setFormatPreset(post.formatPreset);
     setSelectedElementId(null);
     setGenerationMeta(parseGenerationMetaFromDraft(post.generationMeta));
-    const coverRef = post.coverAssetId
-      ? { asset_id: post.coverAssetId, url: null, alt: null, role: 'cover' as const }
-      : null;
-    coverAsset.hydrateMedia(coverRef, []);
+    // Picker selection follows the post; render uses post-scoped Asset ID hydration.
+    // Do not hydrateMedia here — that wipes the shared resolved blob and races A→B→A.
+    if (post.coverAssetId) {
+      coverAsset.setCoverImage({
+        asset_id: post.coverAssetId,
+        url: null,
+        alt: null,
+        role: 'cover',
+      });
+    } else {
+      coverAsset.clearCover();
+    }
   }
 
   function handleFormatChange(key: FormatPresetKey) {
@@ -744,7 +719,7 @@ export function SocialMediaBuilderWorkspace() {
 
   function addPost() {
     const next = createPostFromPreset(formatPreset, posts.length + 1, {
-      coverAssetId: coverAsset.coverImage?.asset_id ?? null,
+      coverAssetId: selectedPost.coverAssetId ?? null,
       linkedProjectId: docApi.constructionProjectId,
       cta: t('canvas.cta'),
     });
@@ -1018,6 +993,8 @@ export function SocialMediaBuilderWorkspace() {
               alt: null,
               role: 'cover',
             });
+          } else {
+            coverAsset.clearCover();
           }
           markDirty();
           setRightRailId('content');
@@ -1523,7 +1500,9 @@ export function SocialMediaBuilderWorkspace() {
                             <div
                               className={`smb-ws__page-thumb ${aspectThumbClass(post.formatPreset)}`}
                             >
-                              {selectedPostId === post.id && artboardSrc ? (
+                              {post.coverAssetId && elementDisplayUrls[post.coverAssetId] ? (
+                                <img src={elementDisplayUrls[post.coverAssetId]} alt="" />
+                              ) : selectedPostId === post.id && artboardSrc ? (
                                 <img src={artboardSrc} alt="" />
                               ) : (
                                 <span className="smb-ws__page-thumb-empty" aria-hidden="true" />
@@ -1597,6 +1576,8 @@ export function SocialMediaBuilderWorkspace() {
                       className={`smb-ws__artboard${selectedElementId || artboardState === 'ready' ? ' is-selected' : ''}${artboardState !== 'ready' ? ' is-empty' : ''}`}
                       data-testid="smb-artboard"
                       data-image-state={artboardState}
+                      data-cover-asset-id={selectedPost.coverAssetId ?? ''}
+                      data-selected-post-id={selectedPost.id}
                       data-width={contentSize.w}
                       data-height={contentSize.h}
                       data-text-edit-mode={editingElementId ? 'true' : 'false'}
@@ -1623,7 +1604,13 @@ export function SocialMediaBuilderWorkspace() {
                           src={artboardSrc}
                           alt=""
                           data-testid="smb-artboard-img"
+                          data-cover-asset-id={selectedPost.coverAssetId ?? ''}
                           draggable={false}
+                          onError={() => {
+                            if (selectedPost.coverAssetId) {
+                              postAssets.retryAsset(selectedPost.coverAssetId);
+                            }
+                          }}
                           onPointerDown={(e) => e.stopPropagation()}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1908,19 +1895,24 @@ export function SocialMediaBuilderWorkspace() {
           media={coverAsset.media}
           linkedProjectId={docApi.constructionProjectId}
           lockLinkedProject
-          selectedAssetId={coverAsset.coverImage?.asset_id ?? null}
+          selectedAssetId={selectedPost.coverAssetId ?? null}
           onSelect={(ref) => {
+            const prevId = selectedPost.coverAssetId;
+            const nextId = ref.asset_id ?? null;
             coverAsset.setCoverImage({
-              asset_id: ref.asset_id,
-              url: ref.asset_id ? null : ref.url ?? null,
+              asset_id: nextId,
+              url: nextId ? null : ref.url ?? null,
               alt: ref.alt ?? null,
               role: 'cover',
             });
             updateSelectedPost((p) => ({
               ...p,
-              coverAssetId: ref.asset_id,
+              coverAssetId: nextId,
               thumbUrl: '',
             }));
+            if (prevId && prevId !== nextId && !assetUsedByOtherPosts(prevId, postsRef.current, selectedPost.id)) {
+              postAssets.invalidateAsset(prevId);
+            }
             coverAsset.closePicker();
             markDirty();
             showToast(t('toasts.imageChanged'));

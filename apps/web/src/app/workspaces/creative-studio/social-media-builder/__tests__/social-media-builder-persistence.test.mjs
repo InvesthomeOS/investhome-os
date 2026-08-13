@@ -333,7 +333,8 @@ describe('media scoped by linked_project_id + no Unsplash production seed', () =
 
   it('artboard uses authenticated cover blob only — no Unsplash fallback', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
-    assert.match(workspace, /coverAsset\.coverStatus/);
+    assert.match(workspace, /useSmbPostAssetHydration/);
+    assert.match(workspace, /postAssets\.artboardSrc/);
     assert.match(workspace, /smb-artboard-empty|smb-artboard-error/);
     assert.match(workspace, /data-image-state=\{artboardState\}/);
     assert.doesNotMatch(

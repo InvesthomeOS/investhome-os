@@ -54,7 +54,7 @@ export type UseCsMediaLibraryResult = {
   search: (query: string) => Promise<void>;
   /** Upload via Media Library API — returns registry asset (never builder-owned). */
   uploadAsset: (file: File) => Promise<CreativeStudioMediaAsset | null>;
-  ensureDisplayUrl: (assetId: string) => Promise<string | null>;
+  ensureDisplayUrl: (assetId: string, options?: { force?: boolean }) => Promise<string | null>;
   getCachedDisplayUrl: (assetId: string) => string | null;
   getRawAsset: (assetId: string) => CreativeStudioMediaAsset | null;
 };
@@ -137,6 +137,7 @@ export function useCsMediaLibrary(options?: {
 
   const blobCacheRef = useRef<Map<string, string>>(new Map());
   const inflightBlobRef = useRef<Map<string, Promise<string | null>>>(new Map());
+  const scopedProjectRef = useRef<string | null>(null);
   const listGenRef = useRef(0);
   const listInflightKeyRef = useRef<string | null>(null);
   const listInflightPromiseRef = useRef<Promise<void> | null>(null);
@@ -164,13 +165,17 @@ export function useCsMediaLibrary(options?: {
     };
   }, [revokeAll]);
 
-  const ensureDisplayUrl = useCallback(async (assetId: string): Promise<string | null> => {
+  const ensureDisplayUrl = useCallback(async (
+    assetId: string,
+    options?: { force?: boolean },
+  ): Promise<string | null> => {
     if (!isMediaAssetUuid(assetId)) return null;
-    const cached = blobCacheRef.current.get(assetId);
-    if (cached) return cached;
-
-    const inflight = inflightBlobRef.current.get(assetId);
-    if (inflight) return inflight;
+    if (!options?.force) {
+      const cached = blobCacheRef.current.get(assetId);
+      if (cached) return cached;
+      const inflight = inflightBlobRef.current.get(assetId);
+      if (inflight) return inflight;
+    }
 
     const promise = withCsMediaContentLimit(async () => {
       try {
@@ -184,11 +189,15 @@ export function useCsMediaLibrary(options?: {
         const prev = blobCacheRef.current.get(assetId);
         const url = URL.createObjectURL(blob);
         blobCacheRef.current.set(assetId, url);
-        if (prev && prev !== url) URL.revokeObjectURL(prev);
         setDisplayUrls((prevMap) => ({ ...prevMap, [assetId]: url }));
-        setItems((prev) =>
-          prev.map((card) => (card.id === assetId ? { ...card, thumbUrl: url } : card)),
+        setItems((prevItems) =>
+          prevItems.map((card) => (card.id === assetId ? { ...card, thumbUrl: url } : card)),
         );
+        // Defer revoke so any img still bound to `prev` can swap this frame.
+        // Never drop a URL another post may still be painting.
+        if (prev && prev !== url) {
+          window.setTimeout(() => URL.revokeObjectURL(prev), 2500);
+        }
         return url;
       } catch {
         return null;
@@ -359,7 +368,9 @@ export function useCsMediaLibrary(options?: {
     void fetchList('');
   }, [enabled, fetchList, scopeToLinkedProject]);
 
-  // Landing Page Builder: require linkedProjectId and re-scope on project switch.
+  // Landing Page Builder / SMB: require linkedProjectId and re-scope on project switch.
+  // Do NOT revoke object URLs when only fetchList identity changes — that would
+  // kill blobs still painted by the selected (or other) post, including fullscreen.
   useEffect(() => {
     if (!scopeToLinkedProject) return;
     if (!enabled || !linkedProjectId) {
@@ -368,13 +379,18 @@ export function useCsMediaLibrary(options?: {
       listInflightKeyRef.current = null;
       listInflightPromiseRef.current = null;
       rawByIdRef.current = new Map();
+      scopedProjectRef.current = null;
       setRawAssets([]);
       setItems([]);
       setStatus('idle');
       setError(null);
       return;
     }
-    revokeAll();
+    const switched = scopedProjectRef.current !== linkedProjectId;
+    scopedProjectRef.current = linkedProjectId;
+    if (switched) {
+      revokeAll();
+    }
     lastQueryRef.current = '';
     void fetchList('');
   }, [enabled, linkedProjectId, scopeToLinkedProject, fetchList, revokeAll]);

@@ -491,18 +491,17 @@ describe('workspace wiring — real editor controls', () => {
     assert.doesNotMatch(workspace, /unsplash\.com/);
   });
 
-  it('IMAGE URL effect uses stable deps + identical-map bail-out (no media object loop)', () => {
+  it('IMAGE URL hydration is post-scoped and does not loop on media object identity', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
     // Must not depend on coverAsset.media object identity (new every render from useCsMediaLibrary).
     assert.doesNotMatch(workspace, /\[posts,\s*coverAsset\.media\]/);
-    assert.match(workspace, /imageAssetIdsKey/);
-    assert.match(workspace, /ensureElementDisplayUrl/);
-    assert.match(workspace, /\[imageAssetIdsKey,\s*ensureElementDisplayUrl\]/);
-    // Redundant-state guard: return prev when map unchanged.
-    assert.match(
-      workspace,
-      /setElementDisplayUrls\(\(prev\)\s*=>\s*\{[\s\S]*?return prev;[\s\S]*?return next;/,
-    );
+    assert.match(workspace, /useSmbPostAssetHydration/);
+    assert.match(workspace, /ensureDisplayUrl:\s*coverAsset\.media\.ensureDisplayUrl/);
+    assert.match(workspace, /getCachedDisplayUrl:\s*coverAsset\.media\.getCachedDisplayUrl/);
+    const hydration = readSmb('social-media-builder-asset-hydration.ts');
+    assert.match(hydration, /postsAssetIdsKey/);
+    assert.match(hydration, /collectPostAssetIds/);
+    assert.match(hydration, /canPaintResolvedAsset/);
   });
 });
 
