@@ -548,11 +548,14 @@ export type SocialDesignMediaCandidate = {
   linked_project_id: string;
 };
 
+export type SocialDesignProvider = 'native' | 'ideogram';
+
 export type SocialDesignRequest = {
   linked_project_id: string;
   instruction: string;
   mode?: SocialDesignMode;
   mode_explicit?: boolean;
+  design_provider?: SocialDesignProvider;
   draft?: {
     posts?: Record<string, unknown>[];
     selected_post_id?: string | null;
@@ -625,6 +628,7 @@ export async function generateSocialDesign(
       instruction: input.instruction,
       mode: input.mode ?? 'create',
       mode_explicit: input.mode_explicit ?? false,
+      design_provider: input.design_provider ?? 'native',
       draft: {
         posts: input.draft?.posts ?? [],
         selected_post_id: input.draft?.selected_post_id ?? null,
@@ -665,6 +669,7 @@ export type IdeogramDesignOutput = {
 export type IdeogramDesignRequest = {
   linked_project_id: string;
   instruction: string;
+  design_provider?: 'ideogram';
   language?: string | null;
   selected_asset_ids?: string[];
   draft?: {
@@ -711,6 +716,7 @@ export async function generateIdeogramDesign(
     body: JSON.stringify({
       linked_project_id: input.linked_project_id,
       instruction: input.instruction,
+      design_provider: 'ideogram',
       aspect_ratio: '1:1',
       count: 3,
       language: input.language ?? undefined,

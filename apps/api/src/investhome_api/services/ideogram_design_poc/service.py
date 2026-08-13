@@ -90,8 +90,18 @@ logger = logging.getLogger(__name__)
 DEFAULT_RETRIEVAL_LIMIT = 8
 
 
+def _log_env_check(availability: Any) -> None:
+    logger.info(
+        "ideogram_poc_env_check IDEOGRAM_ENABLED=%s IDEOGRAM_API_KEY_PRESENT=%s IDEOGRAM_MODEL=%s",
+        bool(availability.enabled),
+        bool(availability.configured),
+        availability.model,
+    )
+
+
 def get_ideogram_provider_status() -> IdeogramProviderStatusResponse:
     availability = provider_availability()
+    _log_env_check(availability)
     return IdeogramProviderStatusResponse(
         available=availability.available,
         configured=availability.configured,
@@ -132,6 +142,21 @@ def generate_ideogram_creatives(
     started = time.perf_counter()
     settings = get_settings()
     availability = provider_availability(settings)
+    _log_env_check(availability)
+    design_provider = getattr(body, "design_provider", None) or "ideogram"
+    if design_provider != "ideogram":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ideogram generate requires design_provider=ideogram. Native generation was not invoked.",
+        )
+    logger.info(
+        "ideogram_poc_route design_provider=%s provider=%s endpoint=%s model=%s project_id=%s",
+        design_provider,
+        IDEOGRAM_PROVIDER,
+        IDEOGRAM_REMIX_ENDPOINT,
+        availability.model,
+        body.linked_project_id,
+    )
     if not availability.available:
         raise _unavailable_error(availability.reason)
 
@@ -246,6 +271,17 @@ def generate_ideogram_creatives(
         linked_project_id=linked_project_id,
         candidate=source_candidate,
     )
+    logger.info(
+        "ideogram_poc_remix_source mode=remix project_id=%s asset_id=%s source_filename=%s "
+        "content_type=%s dimensions=%sx%s byte_size=%s",
+        linked_project_id,
+        source.asset_id,
+        source.filename,
+        source.content_type,
+        source.width,
+        source.height,
+        len(source.image_bytes),
+    )
 
     project_knowledge = build_project_knowledge_package(
         project=project,
@@ -314,6 +350,14 @@ def generate_ideogram_creatives(
         source_filename=source.filename,
         language=effective_language,
     )
+    logger.info(
+        "ideogram_poc_brief project_id=%s user_campaign_facts=%s allowed_financial_tokens=%s "
+        "blocked_financial_tokens=%s",
+        linked_project_id,
+        shared_brief.get("user_campaign_facts"),
+        shared_brief.get("allowed_financial_tokens"),
+        shared_brief.get("blocked_financial_tokens"),
+    )
     session_id = (body.session_id or "").strip() or str(uuid4())
     specs = list(variant_specs())
     if body.regenerate_variant:
@@ -326,6 +370,13 @@ def generate_ideogram_creatives(
     else:
         specs = specs[: max(1, min(body.count, POC_VARIANT_COUNT))]
 
+    logger.info(
+        "ideogram_poc_provider_plan provider=%s endpoint=%s model=%s variant_count=%s mode=remix",
+        IDEOGRAM_PROVIDER,
+        IDEOGRAM_REMIX_ENDPOINT,
+        availability.model,
+        len(specs),
+    )
     api_key = (settings.ideogram_api_key or "").strip()
     calls_before = provider_call_count()
     outputs: list[IdeogramOutput] = []
@@ -402,12 +453,17 @@ def generate_ideogram_creatives(
     logger.info(
         "ideogram_poc_session_complete",
         extra={
+            "provider": IDEOGRAM_PROVIDER,
+            "endpoint": IDEOGRAM_REMIX_ENDPOINT,
+            "model": availability.model,
             "session_id": session_id,
             "project_id": str(linked_project_id),
             "variant_count": len(outputs),
             "provider_call_count": call_count,
             "latency_ms": latency_ms,
             "source_asset_id": str(source.asset_id),
+            "provider_generation_ids": [row.provider_generation_id for row in outputs],
+            "http_status": 200,
         },
     )
     brief_payload: dict[str, Any] = {

@@ -166,6 +166,26 @@ def generate_social_design(
 ) -> SocialDesignResponse:
     started = time.perf_counter()
     settings = get_settings()
+    design_provider = (getattr(body, "design_provider", None) or "native").strip().lower()
+    if design_provider == "ideogram":
+        logger.info(
+            "social_design_provider_rejected",
+            extra={
+                "design_provider": design_provider,
+                "reason": "ideogram_must_use_ideogram_endpoint",
+            },
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "design_provider=ideogram cannot run on the Native Social Design "
+                "endpoint. Native generation was not invoked."
+            ),
+        )
+    logger.info(
+        "social_design_provider_route",
+        extra={"design_provider": design_provider or "native", "provider": "native"},
+    )
 
     linked_project_id = body.linked_project_id
     instruction = (body.instruction or "").strip()

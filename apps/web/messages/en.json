@@ -18930,6 +18930,7 @@
           "ideogramUnavailable": "Ideogram POC is unavailable — API key is not configured.",
           "select": "Select",
           "regenerate": "Regenerate",
+          "errorTitle": "Ideogram error",
           "optionA": "A",
           "optionB": "B",
           "optionC": "C"
@@ -19221,6 +19222,8 @@
           "generateFailed": "AI generation failed",
           "ideogramSelected": "Ideogram creative saved as a new post",
           "ideogramUnavailable": "Ideogram POC is unavailable",
+          "ideogramFailed": "Ideogram generation failed. Native generation was not used.",
+          "ideogramNativeBlocked": "Ideogram is selected — Native generation was not invoked.",
           "logoChanged": "Logo updated",
           "logoRemoved": "Logo removed",
           "imageChanged": "Background image updated",

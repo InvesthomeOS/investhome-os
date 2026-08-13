@@ -78,12 +78,39 @@ class IdeogramRemoteImage:
     raw: dict[str, Any] = field(default_factory=dict)
 
 
+def _provider_error_excerpt(response: httpx.Response) -> str:
+    try:
+        payload = response.json()
+    except ValueError:
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    for key in ("error", "message", "detail"):
+        value = payload.get(key)
+        if isinstance(value, dict):
+            value = value.get("message") or value.get("code")
+        if isinstance(value, str) and value.strip():
+            text = value.strip()
+            if "api-key" in text.lower() or "api_key" in text.lower():
+                continue
+            return text[:180]
+    return ""
+
+
 def _map_http_error(response: httpx.Response) -> IdeogramProviderError:
     code = response.status_code
+    excerpt = _provider_error_excerpt(response)
     if code == 401:
         return IdeogramProviderError(
             status.HTTP_401_UNAUTHORIZED,
             "Ideogram authentication failed (401). Check IDEOGRAM_API_KEY.",
+        )
+    if code == 402:
+        suffix = f" {excerpt}" if excerpt else ""
+        return IdeogramProviderError(
+            status.HTTP_402_PAYMENT_REQUIRED,
+            "Ideogram payment required (402). The Ideogram account has insufficient "
+            f"credits or an unpaid invoice.{suffix} Native generation was not used.",
         )
     if code == 403:
         return IdeogramProviderError(
@@ -108,11 +135,11 @@ def _map_http_error(response: httpx.Response) -> IdeogramProviderError:
     if code >= 500:
         return IdeogramProviderError(
             status.HTTP_502_BAD_GATEWAY,
-            f"Ideogram provider error ({code}).",
+            f"Ideogram provider error ({code}). Native generation was not used.",
         )
     return IdeogramProviderError(
         status.HTTP_502_BAD_GATEWAY,
-        f"Ideogram request failed ({code}).",
+        f"Ideogram request failed ({code}). Native generation was not used.",
     )
 
 
@@ -178,13 +205,19 @@ def remix_image(
     except httpx.TimeoutException as exc:
         raise IdeogramProviderError(
             status.HTTP_504_GATEWAY_TIMEOUT,
-            "Ideogram remix timed out.",
+            "Ideogram remix timed out. Native generation was not used.",
         ) from exc
     except httpx.HTTPError as exc:
         raise IdeogramProviderError(
             status.HTTP_502_BAD_GATEWAY,
-            "Ideogram remix network error.",
+            "Ideogram remix network error. Native generation was not used.",
         ) from exc
+    logger.info(
+        "ideogram_poc_http_result provider=ideogram endpoint=%s mode=remix variant=%s http_status=%s",
+        IDEOGRAM_REMIX_ENDPOINT,
+        variant,
+        response.status_code,
+    )
     if response.status_code != 200:
         raise _map_http_error(response)
     try:
@@ -209,8 +242,13 @@ def remix_image(
     logger.info(
         "ideogram_poc_remix_ok",
         extra={
+            "provider": "ideogram",
+            "endpoint": IDEOGRAM_REMIX_ENDPOINT,
+            "mode": "remix",
             "variant": variant,
+            "http_status": 200,
             "resolution": chosen.resolution,
+            "provider_generation_id": str(chosen.seed) if chosen.seed is not None else None,
             "remote_host": _safe_host(chosen.url),
         },
     )
@@ -306,22 +344,21 @@ def generate_creative(
     image_weight: int = 65,
     variant: str | None = None,
 ) -> IdeogramRemoteImage:
-    """Conceptual: generateCreative({ prompt, sourceImage, aspectRatio, count })."""
-    if source_image is not None:
-        image_bytes, filename, content_type = source_image
-        return remix_image(
-            api_key=api_key,
-            image_bytes=image_bytes,
-            filename=filename,
-            content_type=content_type,
-            text_prompt=prompt,
-            rendering_speed=rendering_speed,
-            image_weight=image_weight,
-            variant=variant,
+    """Remix only. Text-to-image is never a silent fallback."""
+    if source_image is None:
+        raise IdeogramProviderError(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "Ideogram remix requires a real project source image. "
+            "Text-to-image was not used.",
         )
-    return generate_image(
+    image_bytes, filename, content_type = source_image
+    return remix_image(
         api_key=api_key,
+        image_bytes=image_bytes,
+        filename=filename,
+        content_type=content_type,
         text_prompt=prompt,
         rendering_speed=rendering_speed,
+        image_weight=image_weight,
         variant=variant,
     )

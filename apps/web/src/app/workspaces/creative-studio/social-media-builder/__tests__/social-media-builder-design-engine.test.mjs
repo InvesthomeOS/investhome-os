@@ -375,6 +375,8 @@ describe('canonical canvas fit / layout safety (renderer contract)', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
     assert.match(workspace, /submitAiDesign\('create', true\)/);
     assert.match(workspace, /submitAiDesign\('edit', true\)/);
+    assert.match(workspace, /designProvider: 'native'/);
+    assert.match(workspace, /designEngineRef\.current/);
     assert.match(workspace, /modeExplicit: Boolean\(options\?\.explicit\)/);
     assert.match(workspace, /setGenerationMeta\(parseGenerationMetaFromDraft\(post\.generationMeta\)\)/);
     assert.match(workspace, /smb-ws__page-format/);

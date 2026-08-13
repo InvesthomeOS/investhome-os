@@ -13607,6 +13607,7 @@
           "ideogramUnavailable": "Ideogram POC kullanılamıyor — API anahtarı yapılandırılmamış.",
           "select": "Seç",
           "regenerate": "Yeniden Üret",
+          "errorTitle": "Ideogram hatası",
           "optionA": "A",
           "optionB": "B",
           "optionC": "C"
@@ -13898,6 +13899,8 @@
           "generateFailed": "AI üretimi başarısız oldu",
           "ideogramSelected": "Ideogram kreatif yeni gönderi olarak kaydedildi",
           "ideogramUnavailable": "Ideogram POC kullanılamıyor",
+          "ideogramFailed": "Ideogram üretimi başarısız. Native üretim kullanılmadı.",
+          "ideogramNativeBlocked": "Ideogram seçili — Native üretim çağrılmadı.",
           "logoChanged": "Logo güncellendi",
           "logoRemoved": "Logo kaldırıldı",
           "imageChanged": "Arka plan görseli güncellendi",

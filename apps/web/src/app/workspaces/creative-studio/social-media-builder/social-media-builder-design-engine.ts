@@ -282,6 +282,7 @@ export function buildSocialDesignRequest(input: {
   platforms?: Iterable<PlatformKey | string>;
   mode?: SocialDesignMode | null;
   modeExplicit?: boolean;
+  designProvider?: 'native' | 'ideogram';
   /** Asset IDs that 404/403'd for the current project — never send them (avoids aborting CREATE). */
   excludeAssetIds?: string[];
 }): BuildSocialDesignResult {
@@ -348,6 +349,7 @@ export function buildSocialDesignRequest(input: {
       instruction,
       mode,
       mode_explicit: Boolean(input.modeExplicit),
+      design_provider: input.designProvider ?? 'native',
       draft: {
         posts: input.posts.map(serializeSocialPost),
         selected_post_id:

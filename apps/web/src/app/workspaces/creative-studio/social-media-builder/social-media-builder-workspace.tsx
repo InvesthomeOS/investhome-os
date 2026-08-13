@@ -145,9 +145,12 @@ function generateErrorMessage(err: unknown, fallback: string): string {
       return `${status}: ${detail}`;
     }
     if (status === 401) return '401: Unauthorized';
+    if (status === 402) return detail || '402: Ideogram payment required';
+    if (status === 403) return detail || '403: Forbidden';
     if (status === 422) return '422: Invalid generation request';
     if (status === 429) return '429: Rate limited';
     if (status === 500) return '500: Generation server error';
+    if (status === 502) return detail || '502: Ideogram provider error';
     return `${status}: ${fallback}`;
   }
   if (err instanceof Error) {
@@ -223,8 +226,10 @@ export function SocialMediaBuilderWorkspace() {
   const [elementImagePickerOpen, setElementImagePickerOpen] = useState(false);
   const [aiDesignCollapsed, setAiDesignCollapsed] = useState(false);
   const [designEngine, setDesignEngine] = useState<DesignEngineKind>('native');
+  const designEngineRef = useRef<DesignEngineKind>('native');
   const [ideogramStatus, setIdeogramStatus] = useState<IdeogramProviderStatus | null>(null);
   const [ideogramSession, setIdeogramSession] = useState<IdeogramPocSession | null>(null);
+  const [ideogramError, setIdeogramError] = useState<string | null>(null);
   const ideogramSessionRef = useRef<IdeogramPocSession | null>(null);
   const [postMenuId, setPostMenuId] = useState<string | null>(null);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
@@ -341,6 +346,7 @@ export function SocialMediaBuilderWorkspace() {
       platforms?: string[];
       linkedProjectId?: string | null;
       ideogramPoc?: Record<string, unknown> | null;
+      designProvider?: 'native' | 'ideogram';
     } | null) => {
       const coverId = draft?.coverImage?.asset_id ?? null;
       const hydrated = hydrateSocialPostsFromDraft({
@@ -415,6 +421,10 @@ export function SocialMediaBuilderWorkspace() {
         const restored = parseIdeogramPocSession(draft.ideogramPoc);
         ideogramSessionRef.current = restored;
         setIdeogramSession(restored);
+      }
+      if (draft?.designProvider === 'native' || draft?.designProvider === 'ideogram') {
+        designEngineRef.current = draft.designProvider;
+        setDesignEngine(draft.designProvider);
       }
     },
     [coverAsset, docApi.constructionProjectId],
@@ -567,6 +577,7 @@ export function SocialMediaBuilderWorkspace() {
       platforms: Array.from(platforms),
       generationMeta: serializeGenerationMetaForDraft(generationMeta),
       ideogramPoc: serializeIdeogramPocSession(ideogramSessionRef.current),
+      designProvider: designEngineRef.current,
     };
   }, [
     brandLogo,
@@ -1146,13 +1157,16 @@ export function SocialMediaBuilderWorkspace() {
         return;
       }
       if (ideogramStatus && !ideogramStatus.available) {
-        showToast(t('toasts.ideogramUnavailable'));
+        const message = t('toasts.ideogramUnavailable');
+        setIdeogramError(message);
+        showToast(message);
         return;
       }
       if (generatingRef.current) return;
       const token = ++generateAbortRef.current;
       generatingRef.current = true;
       persistEpochRef.current += 1;
+      setIdeogramError(null);
       setGenerating(true);
       setCampaignStatus('draft');
       let stageIdx = 0;
@@ -1171,6 +1185,7 @@ export function SocialMediaBuilderWorkspace() {
         const response = await generateIdeogramDesign({
           linked_project_id: docApi.constructionProjectId,
           instruction,
+          design_provider: 'ideogram',
           language: locale,
           draft: {
             posts: serializeSocialPosts(postsRef.current.filter((p) => !isInFlightGenerationPost(p))),
@@ -1192,7 +1207,9 @@ export function SocialMediaBuilderWorkspace() {
         if (token !== generateAbortRef.current) return;
         setAiStatus('idle');
         setCampaignStatus('failed');
-        showToast(generateErrorMessage(err, t('toasts.generateFailed')));
+        const message = generateErrorMessage(err, t('toasts.ideogramFailed'));
+        setIdeogramError(message);
+        showToast(message);
       } finally {
         if (genStageTimerRef.current != null) {
           window.clearInterval(genStageTimerRef.current);
@@ -1246,6 +1263,12 @@ export function SocialMediaBuilderWorkspace() {
 
   const runAiGenerate = useCallback(
     async (instruction: string, options?: { mode?: SocialDesignMode; explicit?: boolean }) => {
+      if (designEngineRef.current === 'ideogram') {
+        const message = t('toasts.ideogramNativeBlocked');
+        setIdeogramError(message);
+        showToast(message);
+        return;
+      }
       // Always read latest canvas — sequential edits must not use a stale snapshot.
       const latestPosts = postsRef.current;
       const latestSelectedPostId = selectedPostIdRef.current;
@@ -1275,6 +1298,7 @@ export function SocialMediaBuilderWorkspace() {
         platforms,
         mode: options?.mode ?? inferredMode,
         modeExplicit: Boolean(options?.explicit),
+        designProvider: 'native',
       });
 
       if (!built.ok) {
@@ -1537,6 +1561,10 @@ export function SocialMediaBuilderWorkspace() {
       onOpenMediaPicker={() => coverAsset.openPicker('cover')}
       enabledComponentKeys={P0_COMPONENT_KEYS}
       onGenerate={(instruction) => {
+        if (designEngineRef.current === 'ideogram') {
+          void runIdeogramGenerate(instruction);
+          return;
+        }
         void runAiGenerate(instruction);
       }}
       generating={generating}
@@ -1623,13 +1651,25 @@ export function SocialMediaBuilderWorkspace() {
     );
   }
 
+  function selectDesignEngine(next: DesignEngineKind) {
+    designEngineRef.current = next;
+    setDesignEngine(next);
+    if (next !== 'ideogram') setIdeogramError(null);
+    persistEpochRef.current += 1;
+    void docApi.saveDraft({
+      ...buildPersistPayload(),
+      designProvider: next,
+    });
+  }
+
   function submitAiDesign(mode?: SocialDesignMode, explicit = false) {
     const instruction = aiPrompt.trim();
     if (!instruction) {
       showToast(t('toasts.instructionRequired'));
       return;
     }
-    if (designEngine === 'ideogram') {
+    const provider = designEngineRef.current;
+    if (provider === 'ideogram') {
       if (mode === 'edit') return;
       void runIdeogramGenerate(instruction);
       return;
@@ -1675,7 +1715,7 @@ export function SocialMediaBuilderWorkspace() {
                 className={`smb-ws__ai-engine-btn${designEngine === 'native' ? ' is-active' : ''}`}
                 data-testid="smb-ai-engine-native"
                 disabled={generating}
-                onClick={() => setDesignEngine('native')}
+                onClick={() => selectDesignEngine('native')}
               >
                 {t('aiDesign.engineNative')}
               </button>
@@ -1684,7 +1724,7 @@ export function SocialMediaBuilderWorkspace() {
                 className={`smb-ws__ai-engine-btn${designEngine === 'ideogram' ? ' is-active' : ''}`}
                 data-testid="smb-ai-engine-ideogram"
                 disabled={generating}
-                onClick={() => setDesignEngine('ideogram')}
+                onClick={() => selectDesignEngine('ideogram')}
               >
                 {t('aiDesign.engineIdeogram')}
               </button>
@@ -1693,6 +1733,11 @@ export function SocialMediaBuilderWorkspace() {
           {designEngine === 'ideogram' && ideogramStatus && !ideogramStatus.available ? (
             <p className="smb-ws__ai-engine-note" data-testid="smb-ideogram-unavailable">
               {t('aiDesign.ideogramUnavailable')}
+            </p>
+          ) : null}
+          {designEngine === 'ideogram' && ideogramError ? (
+            <p className="smb-ws__ideogram-error" data-testid="smb-ideogram-error" role="alert">
+              {ideogramError}
             </p>
           ) : null}
           <div className="smb-ws__ai-design-row">
@@ -1798,6 +1843,7 @@ export function SocialMediaBuilderWorkspace() {
         className="smb-ws"
         data-testid="smb-workspace"
         data-design-engine={designEngine}
+        data-design-provider={designEngine}
         data-cs-workspace-mode={focus.mode}
         data-cs-fullscreen={focus.isFullscreen ? 'true' : 'false'}
         data-generation-grounded={
@@ -2428,10 +2474,11 @@ export function SocialMediaBuilderWorkspace() {
                                   type="button"
                                   role="menuitem"
                                   data-testid="smb-floating-ai-edit"
-                                  disabled={generating}
+                                  disabled={generating || designEngine === 'ideogram'}
                                   onClick={() => {
                                     setLeftRailId('ai');
                                     if (!selectedPost) return;
+                                    if (designEngineRef.current === 'ideogram') return;
                                     void runAiGenerate(defaultSocialInstruction(selectedPost));
                                     setFloatingMoreOpen(false);
                                   }}

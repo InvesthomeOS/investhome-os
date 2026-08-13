@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from investhome_api.api.deps.auth import require_permission
@@ -44,6 +44,11 @@ def ideogram_generate(
     user: User = _cs_view,
 ) -> IdeogramDesignResponse:
     """Generate three distinct Ideogram remix options. Does not overwrite Native posts."""
+    if (getattr(body, "design_provider", None) or "ideogram") != "ideogram":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ideogram generate requires design_provider=ideogram.",
+        )
     result = generate_ideogram_creatives(db, user, body)
     db.commit()
     return result

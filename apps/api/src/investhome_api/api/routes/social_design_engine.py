@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from investhome_api.api.deps.auth import require_permission
@@ -32,6 +32,14 @@ def creative_studio_social_design(
     Reuses Creative Studio RAG + LLMProvider. Does not write documents
     (client persists via Creative Studio Document API).
     """
+    if (getattr(body, "design_provider", None) or "native") == "ideogram":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "design_provider=ideogram cannot run on the Native Social Design "
+                "endpoint. Native generation was not invoked."
+            ),
+        )
     result = generate_social_design(db, user, body)
     db.commit()
     return result

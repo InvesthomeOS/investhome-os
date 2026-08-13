@@ -28,6 +28,10 @@ describe('Ideogram POC wiring', () => {
     assert.match(workspace, /smb-ai-design-submit/);
     assert.match(workspace, /smb-ai-design-edit/);
     assert.match(workspace, /designEngine === 'ideogram'/);
+    assert.match(workspace, /designEngineRef\.current === 'ideogram'/);
+    assert.match(workspace, /design_provider: 'ideogram'/);
+    assert.match(workspace, /designProvider: 'native'/);
+    assert.match(workspace, /smb-ideogram-error/);
     assert.match(workspace, /createFlattenedIdeogramPost/);
     assert.doesNotMatch(workspace, /fallbackToNative/);
   });
@@ -38,6 +42,8 @@ describe('Ideogram POC wiring', () => {
     assert.doesNotMatch(workspace, /api\.ideogram\.ai/);
     assert.match(api, /\/ai\/creative-studio\/social\/ideogram\/generate/);
     assert.match(api, /\/ai\/creative-studio\/social\/ideogram\/status/);
+    assert.match(api, /design_provider: 'ideogram'/);
+    assert.match(api, /design_provider: input\.design_provider \?\? 'native'/);
   });
 
   it('creates flattened posts from selected Ideogram output', () => {

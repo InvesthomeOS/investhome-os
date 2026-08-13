@@ -27,6 +27,7 @@ class IdeogramProviderStatusResponse(BaseModel):
 class IdeogramDesignRequest(BaseModel):
     linked_project_id: UUID
     instruction: str = Field(..., min_length=1, max_length=8000)
+    design_provider: Literal["ideogram"] = "ideogram"
     aspect_ratio: IdeogramAspectRatio = "1:1"
     count: int = Field(default=3, ge=1, le=3)
     language: str | None = Field(default=None, max_length=16)

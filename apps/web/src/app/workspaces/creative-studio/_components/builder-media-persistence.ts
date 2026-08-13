@@ -69,6 +69,8 @@ export type BuilderMediaDraft = {
   generationMeta?: Record<string, unknown> | null;
   /** Ideogram POC A/B/C session — persisted so reload does not re-call the provider. */
   ideogramPoc?: Record<string, unknown> | null;
+  /** Explicit SMB design provider. Do not infer from transient UI state. */
+  designProvider?: 'native' | 'ideogram';
   savedAt?: number;
 };
 
@@ -83,6 +85,7 @@ export type BuilderMediaPersistInput = {
   platforms?: string[];
   generationMeta?: Record<string, unknown> | null;
   ideogramPoc?: Record<string, unknown> | null;
+  designProvider?: 'native' | 'ideogram';
 };
 
 export function isBuilderMediaDocumentType(
@@ -123,6 +126,9 @@ export function serializeBuilderMediaDraft(
   }
   if (input.ideogramPoc && typeof input.ideogramPoc === 'object') {
     draft.ideogramPoc = input.ideogramPoc;
+  }
+  if (input.designProvider === 'native' || input.designProvider === 'ideogram') {
+    draft.designProvider = input.designProvider;
   }
 
   return draft;
@@ -244,6 +250,10 @@ export function deserializeBuilderMediaDraft(
       typeof body.ideogramPoc === 'object' &&
       !Array.isArray(body.ideogramPoc)
         ? (body.ideogramPoc as Record<string, unknown>)
+        : undefined,
+    designProvider:
+      body.designProvider === 'native' || body.designProvider === 'ideogram'
+        ? body.designProvider
         : undefined,
     savedAt: typeof body.savedAt === 'number' ? body.savedAt : undefined,
   };

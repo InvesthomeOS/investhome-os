@@ -166,11 +166,89 @@ def test_generate_unavailable_does_not_mock_success(
             "instruction": (
                 "Create an Instagram square investment post with $500,000 / 14% / 24 months."
             ),
+            "design_provider": "ideogram",
         },
     )
     assert resp.status_code == 503, resp.text
     assert "ideogram" in resp.json()["detail"].lower()
     assert resp.json().get("outputs") is None or "outputs" not in resp.json()
+
+
+def test_native_endpoint_rejects_ideogram_provider(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    temple = _create_project(db_session, project_id=TEMPLE_PROJECT_ID)
+    db_session.commit()
+    resp = client.post(
+        "/ai/creative-studio/social/design",
+        json={
+            "linked_project_id": str(temple.id),
+            "instruction": "Create an Instagram square investment post.",
+            "mode": "create",
+            "design_provider": "ideogram",
+            "draft": {"posts": [], "selected_post_id": None},
+        },
+    )
+    assert resp.status_code == 409, resp.text
+    detail = str(resp.json().get("detail") or "").lower()
+    assert "ideogram" in detail
+    assert "native generation was not invoked" in detail
+
+
+def test_ideogram_402_is_truthful_without_native_fallback(
+    client: TestClient,
+    db_session: Session,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("IDEOGRAM_API_KEY", "test-ideogram-key")
+    monkeypatch.setenv("IDEOGRAM_ENABLED", "true")
+    get_settings.cache_clear()
+    temple = _create_project(db_session, project_id=TEMPLE_PROJECT_ID)
+    db_session.commit()
+    asset = _upload_hero(client, tmp_path, monkeypatch, temple.id)
+
+    def fake_post(url: str, **kwargs: Any) -> _FakeResponse:
+        assert url == IDEOGRAM_REMIX_ENDPOINT
+        return _FakeResponse(402, {"error": "Payment Required"})
+
+    post_path = "investhome_api.services.ideogram_design_poc.client.httpx.post"
+    with patch(post_path, side_effect=fake_post):
+        resp = client.post(
+            "/ai/creative-studio/social/ideogram/generate",
+            json={
+                "linked_project_id": str(temple.id),
+                "instruction": (
+                    "Create a premium Instagram square investment post in English. "
+                    "Minimum investment $500,000, target return 14%, duration 24 months."
+                ),
+                "design_provider": "ideogram",
+                "selected_asset_ids": [asset["id"]],
+            },
+        )
+    assert resp.status_code == 402, resp.text
+    detail = str(resp.json().get("detail") or "").lower()
+    assert "402" in detail
+    assert "payment required" in detail
+    assert "native generation was not used" in detail
+
+
+def test_remix_does_not_silently_switch_to_text_to_image() -> None:
+    from investhome_api.services.ideogram_design_poc.client import (
+        IdeogramProviderError,
+        generate_creative,
+    )
+
+    with pytest.raises(IdeogramProviderError) as exc:
+        generate_creative(
+            api_key="test-ideogram-key",
+            prompt="test",
+            source_image=None,
+            rendering_speed="QUALITY",
+        )
+    assert exc.value.status_code == 422
+    assert "text-to-image was not used" in str(exc.value.detail).lower()
 
 
 def test_generate_three_variants_mocked(
@@ -229,6 +307,7 @@ def test_generate_three_variants_mocked(
                     "Create a premium Instagram square investment post in English. "
                     "Minimum investment $500,000, target return 14%, duration 24 months."
                 ),
+                "design_provider": "ideogram",
                 "selected_asset_ids": [asset["id"]],
             },
         )
