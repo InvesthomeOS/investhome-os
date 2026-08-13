@@ -1593,8 +1593,16 @@ def resolve_generation_post_id(
     *,
     mode: str = "create",
 ) -> tuple[str, bool]:
-    """CREATE always mints a new post_id. EDIT rebuilds the selected post in place."""
+    """CREATE mints a new post_id, unless the client bound an inflight id not in siblings."""
     if (mode or "create").strip().lower() == "create":
+        bound = (selected_post_id or "").strip()
+        if bound:
+            in_draft = any(
+                isinstance(post, dict) and str(post.get("id") or "") == bound
+                for post in draft_posts
+            )
+            if not in_draft:
+                return bound, False
         return str(uuid4()), False
     if selected_post_id:
         for post in draft_posts:

@@ -506,15 +506,22 @@ export function createPostFromPreset(
   };
 }
 
+export function mintCreatePostId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `p-gen-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 /** Isolated in-flight CREATE post — empty canvas, project-scoped, not a completed placeholder. */
 export function createGeneratingPost(
   preset: FormatPresetKey,
   index: number,
-  options?: { linkedProjectId?: string | null },
+  options?: { linkedProjectId?: string | null; id?: string },
 ): SocialPost {
   const size = resolveFormatSize(preset);
   return {
-    id: `p-gen-${Date.now()}-${index}`,
+    id: options?.id?.trim() || mintCreatePostId() || `p-gen-${Date.now()}-${index}`,
     platform: 'instagram',
     format:
       preset === 'story'

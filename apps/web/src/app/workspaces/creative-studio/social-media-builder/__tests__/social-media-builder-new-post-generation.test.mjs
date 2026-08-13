@@ -124,23 +124,57 @@ function mergeHydratedPostsWithLocal(input) {
 
 function mergeCreateGenerationResult(input) {
   const inflightId = input.inflightId;
-  const applied = input.appliedPosts.filter((p) => !input.deletedIds.has(p.id) && p.id !== inflightId);
-  const localIds = new Set(input.localPosts.filter((p) => p.id !== inflightId).map((p) => p.id));
-  const generated =
-    (input.appliedSelectedPostId ? applied.find((p) => p.id === input.appliedSelectedPostId) : null) ??
+  const appliedSelectedPostId = input.appliedSelectedPostId;
+  const applied = input.appliedPosts.filter((p) => !input.deletedIds.has(p.id));
+  const localSiblings = input.localPosts.filter(
+    (p) => p.id !== inflightId && !input.deletedIds.has(p.id),
+  );
+  const localIds = new Set(localSiblings.map((p) => p.id));
+  let generated =
+    (inflightId ? applied.find((p) => p.id === inflightId) : null) ??
+    (appliedSelectedPostId
+      ? applied.find((p) => p.id === appliedSelectedPostId && !localIds.has(p.id))
+      : null) ??
     applied.find((p) => !localIds.has(p.id)) ??
     null;
-  let posts = applied;
-  if (generated && !posts.some((p) => p.id === generated.id)) posts = [...posts, generated];
-  if (!posts.length) {
-    posts = input.localPosts.filter((p) => p.id !== inflightId && !input.deletedIds.has(p.id));
-  } else if (inflightId) {
-    posts = posts.filter((p) => p.id !== inflightId);
+  if (generated && inflightId && generated.id !== inflightId) {
+    generated = { ...generated, id: inflightId };
   }
+  const readyGenerated = generated ? { ...generated, generationLifecycle: 'ready' } : null;
+  const skipIds = new Set();
+  if (inflightId) skipIds.add(inflightId);
+  if (appliedSelectedPostId && readyGenerated && appliedSelectedPostId !== readyGenerated.id) {
+    skipIds.add(appliedSelectedPostId);
+  }
+  const siblingFromApplied = applied.filter((p) => !skipIds.has(p.id) && !input.deletedIds.has(p.id));
+  const posts = [];
+  const seen = new Set();
+  for (const local of input.localPosts) {
+    if (input.deletedIds.has(local.id)) continue;
+    if (local.id === inflightId) {
+      if (readyGenerated && !seen.has(readyGenerated.id)) {
+        posts.push(readyGenerated);
+        seen.add(readyGenerated.id);
+      }
+      continue;
+    }
+    const next = siblingFromApplied.find((p) => p.id === local.id) ?? local;
+    if (!seen.has(next.id)) {
+      posts.push(next);
+      seen.add(next.id);
+    }
+  }
+  for (const post of siblingFromApplied) {
+    if (!seen.has(post.id)) {
+      posts.push(post);
+      seen.add(post.id);
+    }
+  }
+  if (readyGenerated && !seen.has(readyGenerated.id)) posts.push(readyGenerated);
   return {
     posts,
-    selectedPostId: generated?.id ?? input.appliedSelectedPostId ?? posts[0]?.id ?? null,
-    generated,
+    selectedPostId: readyGenerated?.id ?? inflightId ?? appliedSelectedPostId ?? posts[0]?.id ?? null,
+    generated: readyGenerated,
   };
 }
 
@@ -229,7 +263,7 @@ describe('placeholder must not win over completed generation', () => {
 });
 
 describe('create pipeline binds result to the inflight post', () => {
-  it('replaces inflight slot with generated post and selects it', () => {
+  it('patches inflight slot in place so created === target === patched', () => {
     const local = [
       { id: 'A', headline: 'Existing', coverAssetId: COVER_UUID, elements: [{ type: 'TEXT', content: 'Existing' }], generationMeta: { content_package: {} } },
       { id: 'p-gen-9', headline: '', generationLifecycle: 'generating', elements: [] },
@@ -250,10 +284,13 @@ describe('create pipeline binds result to the inflight post', () => {
       appliedSelectedPostId: 'uuid-new',
       deletedIds: new Set(),
     });
-    assert.equal(result.posts.some((p) => p.id === 'p-gen-9'), false);
+    assert.equal(result.posts.some((p) => p.id === 'p-gen-9'), true);
+    assert.equal(result.posts.some((p) => p.id === 'uuid-new'), false);
     assert.equal(result.posts.some((p) => p.id === 'A'), true);
-    assert.equal(result.selectedPostId, 'uuid-new');
-    assert.equal(result.generated.id, 'uuid-new');
+    assert.equal(result.selectedPostId, 'p-gen-9');
+    assert.equal(result.generated.id, 'p-gen-9');
+    assert.equal(result.generated.headline, 'Temple location');
+    assert.equal(result.generated.coverAssetId, COVER_UUID);
     assert.equal(isCompletedGeneratedPost(result.generated), true);
   });
 
@@ -272,8 +309,10 @@ describe('create pipeline binds result to the inflight post', () => {
       appliedSelectedPostId: 'uuid-c',
       deletedIds: new Set(['gone-a']),
     });
-    assert.equal(result.posts.some((p) => p.id === 'uuid-c'), true);
-    assert.equal(result.selectedPostId, 'uuid-c');
+    assert.equal(result.posts.some((p) => p.id === 'p-gen-c'), true);
+    assert.equal(result.posts.some((p) => p.id === 'uuid-c'), false);
+    assert.equal(result.selectedPostId, 'p-gen-c');
+    assert.equal(result.generated.headline, 'Lifestyle at Temple');
   });
 
   it('persist strips in-flight placeholders so empty posts[] is only true last-delete', () => {
@@ -293,7 +332,9 @@ describe('workspace create vs delete isolation', () => {
   it('create mints an in-flight post and does not send it in the design request', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
     assert.match(workspace, /createGeneratingPost/);
-    assert.match(workspace, /inferredMode === 'create' \? null : latestSelectedPostId/);
+    assert.match(workspace, /generationTargetPostId/);
+    assert.match(workspace, /mintCreatePostId/);
+    assert.match(workspace, /createdPostId/);
     assert.match(workspace, /siblingPosts/);
     assert.match(workspace, /createInflightIdRef/);
     assert.match(workspace, /generatingRef/);
@@ -331,12 +372,23 @@ describe('workspace create vs delete isolation', () => {
     assert.match(model, /PLACEHOLDER_HEADLINE/);
   });
 
-  it('create request keeps Temple linked_project_id and null selected_post_id', () => {
+  it('create request keeps Temple linked_project_id and binds selected_post_id to created post', () => {
     const engine = readSmb('social-media-builder-design-engine.ts');
     assert.match(engine, /selected_post_id:\s*\n\s*typeof input\.selectedPostId === 'string'/);
+    assert.match(engine, /export function stampDesignResponseOnPost/);
     const workspace = readSmb('social-media-builder-workspace.tsx');
     assert.match(workspace, /linkedProjectId: docApi\.constructionProjectId/);
     assert.match(workspace, /createGeneratingPost\(formatPreset/);
+    assert.match(workspace, /id: createdPostId/);
+    assert.match(workspace, /selectedPostId: generationTargetPostId/);
+    assert.match(workspace, /SMB CREATE postId mismatch/);
+    assert.match(workspace, /hasAppliedCreateResult/);
+    assert.match(workspace, /stampDesignResponseOnPost/);
+    const persistence = readSmb('social-media-builder-persistence.ts');
+    assert.match(persistence, /createdPostId === generationTargetPostId === patchedPostId/);
+    assert.match(persistence, /export function hasAppliedCreateResult/);
+    const model = readSmb('social-media-builder-model.ts');
+    assert.match(model, /export function mintCreatePostId/);
   });
 
   it('CREATE selected_asset_ids is empty so leftover foreign cover cannot 403 generation', () => {

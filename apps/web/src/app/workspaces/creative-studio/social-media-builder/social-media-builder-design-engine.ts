@@ -373,6 +373,39 @@ export function buildSocialDesignRequest(input: {
   };
 }
 
+export function stampDesignResponseOnPost(
+  post: SocialPost,
+  meta: DesignGenerationMeta,
+): SocialPost {
+  const assetFromMeta = (meta.asset_ids_used ?? []).find((id) => isMediaAssetUuid(id)) ?? null;
+  const serialized = serializeGenerationMetaForDraft(meta);
+  const blueprint =
+    post.compositionBlueprint ??
+    (meta.composition_blueprint && typeof meta.composition_blueprint === 'object'
+      ? meta.composition_blueprint
+      : null);
+  const familyFromBlueprint =
+    blueprint && typeof blueprint.composition_family === 'string'
+      ? blueprint.composition_family
+      : null;
+  return {
+    ...post,
+    generationLifecycle: 'ready',
+    generationMeta:
+      post.generationMeta && typeof post.generationMeta === 'object'
+        ? post.generationMeta
+        : serialized,
+    creativePlan:
+      post.creativePlan ??
+      (meta.creative_plan && typeof meta.creative_plan === 'object' ? meta.creative_plan : null),
+    compositionBlueprint: blueprint,
+    compositionFamily: post.compositionFamily ?? familyFromBlueprint,
+    campaignContextId: post.campaignContextId ?? meta.campaign_context_id ?? null,
+    generationContextId: post.generationContextId ?? meta.generation_context_id ?? null,
+    coverAssetId: post.coverAssetId ?? assetFromMeta,
+  };
+}
+
 export function applyDesignResponseToPosts(
   response: SocialDesignResponse,
   fallbackLinkedProjectId: string | null,
@@ -390,7 +423,10 @@ export function applyDesignResponseToPosts(
   }
   if (!selectedPostId && posts.length) selectedPostId = posts[0]!.id;
 
-  return { posts, selectedPostId };
+  const meta = toDesignGenerationMeta(response);
+  const stamped = posts.map((p) => (p.id === selectedPostId ? stampDesignResponseOnPost(p, meta) : p));
+
+  return { posts: stamped, selectedPostId };
 }
 
 export function toDesignGenerationMeta(response: SocialDesignResponse): DesignGenerationMeta {

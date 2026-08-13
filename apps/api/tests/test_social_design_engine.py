@@ -3096,6 +3096,11 @@ def test_create_appends_isolated_campaign_and_edit_mutates_only_selected(
     new_id, rebuild = resolve_generation_post_id([prior], "post-a", mode="create")
     assert rebuild is False
     assert new_id != "post-a"
+    bound_id, bound_rebuild = resolve_generation_post_id(
+        [prior], "11111111-1111-4111-8111-111111111111", mode="create"
+    )
+    assert bound_rebuild is False
+    assert bound_id == "11111111-1111-4111-8111-111111111111"
     edit_id, edit_rebuild = resolve_generation_post_id([prior], "post-a", mode="edit")
     assert edit_id == "post-a" and edit_rebuild is True
     create_cid = resolve_campaign_context_id(mode="create", draft_posts=[prior], selected_post_id="post-a")

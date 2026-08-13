@@ -556,6 +556,21 @@ export function isCompletedGeneratedPost(post: SocialPost | null | undefined): b
   return hasPackage || hasPlan || hasBlueprint || (hasCover && hasText);
 }
 
+/** CREATE response is usable even if headline/meta gates are incomplete. */
+export function hasAppliedCreateResult(post: SocialPost | null | undefined): boolean {
+  if (!post || isInFlightGenerationPost(post) || post.generationLifecycle === 'error') return false;
+  if (isCompletedGeneratedPost(post)) return true;
+  if (post.coverAssetId && isMediaAssetUuid(post.coverAssetId)) return true;
+  const hasCopy = post.elements.some((el) => {
+    if (el.type === 'TEXT' && typeof el.content === 'string' && el.content.trim()) return true;
+    if (el.type === 'BUTTON' && typeof el.label === 'string' && el.label.trim()) return true;
+    return false;
+  });
+  if (hasCopy) return true;
+  const meta = post.generationMeta && typeof post.generationMeta === 'object' ? post.generationMeta : null;
+  return Boolean(meta?.content_package || meta?.creative_plan || meta?.composition_blueprint);
+}
+
 export function stripInFlightPostsForPersist(posts: SocialPost[]): SocialPost[] {
   return posts.filter((p) => !isInFlightGenerationPost(p));
 }
@@ -651,7 +666,8 @@ export function mergeHydratedPostsWithLocal(input: {
 }
 
 /**
- * CREATE result must update the in-flight post slot — never leave "New social post" as canonical.
+ * CREATE result must patch the in-flight post slot in place.
+ * createdPostId === generationTargetPostId === patchedPostId — remap server ids onto the inflight slot.
  */
 export function mergeCreateGenerationResult(input: {
   localPosts: SocialPost[];
@@ -661,42 +677,80 @@ export function mergeCreateGenerationResult(input: {
   deletedIds: Set<string>;
 }): { posts: SocialPost[]; selectedPostId: string | null; generated: SocialPost | null } {
   const inflightId = input.inflightId;
-  const applied = input.appliedPosts.filter(
-    (p) => !input.deletedIds.has(p.id) && p.id !== inflightId,
+  const appliedSelectedPostId = input.appliedSelectedPostId;
+  const applied = input.appliedPosts.filter((p) => !input.deletedIds.has(p.id));
+  const localSiblings = input.localPosts.filter(
+    (p) => p.id !== inflightId && !input.deletedIds.has(p.id),
   );
-  const localIds = new Set(
-    input.localPosts.filter((p) => p.id !== inflightId).map((p) => p.id),
-  );
-  const generated =
-    (input.appliedSelectedPostId
-      ? applied.find((p) => p.id === input.appliedSelectedPostId)
+  const localIds = new Set(localSiblings.map((p) => p.id));
+
+  let generated =
+    (inflightId ? applied.find((p) => p.id === inflightId) : null) ??
+    (appliedSelectedPostId
+      ? applied.find((p) => p.id === appliedSelectedPostId && !localIds.has(p.id))
       : null) ??
     applied.find((p) => !localIds.has(p.id)) ??
     null;
 
+  if (generated && inflightId && generated.id !== inflightId) {
+    generated = { ...generated, id: inflightId };
+  }
+
   const readyGenerated = generated
     ? {
         ...generated,
-        generationLifecycle: (isCompletedGeneratedPost(generated) ? 'ready' : generated.generationLifecycle ?? 'ready') as SocialPostGenerationLifecycle,
+        generationLifecycle: 'ready' as SocialPostGenerationLifecycle,
         linkedProjectId: generated.linkedProjectId,
       }
     : null;
 
-  let posts = applied.map((p) =>
-    readyGenerated && p.id === readyGenerated.id ? readyGenerated : p,
+  const skipIds = new Set<string>();
+  if (inflightId) skipIds.add(inflightId);
+  if (appliedSelectedPostId && readyGenerated && appliedSelectedPostId !== readyGenerated.id) {
+    skipIds.add(appliedSelectedPostId);
+  }
+
+  const siblingFromApplied = applied.filter(
+    (p) => !skipIds.has(p.id) && !input.deletedIds.has(p.id),
   );
-  if (readyGenerated && !posts.some((p) => p.id === readyGenerated.id)) {
-    posts = [...posts, readyGenerated];
+
+  const posts: SocialPost[] = [];
+  const seen = new Set<string>();
+  for (const local of input.localPosts) {
+    if (input.deletedIds.has(local.id)) continue;
+    if (local.id === inflightId) {
+      if (readyGenerated && !seen.has(readyGenerated.id)) {
+        posts.push(readyGenerated);
+        seen.add(readyGenerated.id);
+      }
+      continue;
+    }
+    const next = siblingFromApplied.find((p) => p.id === local.id) ?? local;
+    if (!seen.has(next.id)) {
+      posts.push(next);
+      seen.add(next.id);
+    }
+  }
+  for (const post of siblingFromApplied) {
+    if (!seen.has(post.id)) {
+      posts.push(post);
+      seen.add(post.id);
+    }
+  }
+  if (readyGenerated && !seen.has(readyGenerated.id)) {
+    posts.push(readyGenerated);
   }
   if (!posts.length) {
-    posts = input.localPosts.filter((p) => p.id !== inflightId && !input.deletedIds.has(p.id));
-  } else if (inflightId) {
-    posts = posts.filter((p) => p.id !== inflightId);
+    return {
+      posts: localSiblings,
+      selectedPostId: localSiblings[0]?.id ?? null,
+      generated: readyGenerated,
+    };
   }
 
   return {
     posts,
-    selectedPostId: readyGenerated?.id ?? input.appliedSelectedPostId ?? posts[0]?.id ?? null,
+    selectedPostId: readyGenerated?.id ?? inflightId ?? appliedSelectedPostId ?? posts[0]?.id ?? null,
     generated: readyGenerated,
   };
 }

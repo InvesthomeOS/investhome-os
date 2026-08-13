@@ -27,6 +27,7 @@ import {
   aspectThumbClass,
   createGeneratingPost,
   createPostFromPreset,
+  mintCreatePostId,
   resolveFormatSize,
   type AiStatusKey,
   type BgMode,
@@ -62,6 +63,7 @@ import {
 import { defaultSocialInstruction, syncPostCopyFields } from './social-media-builder-generation';
 import {
   applyDesignResponseToPosts,
+  stampDesignResponseOnPost,
   buildSocialDesignRequest,
   hasDesignInsufficientContext,
   inferDesignMode,
@@ -75,7 +77,7 @@ import {
 import {
   deleteSocialPost,
   hydrateSocialPostsFromDraft,
-  isCompletedGeneratedPost,
+  hasAppliedCreateResult,
   isInFlightGenerationPost,
   mergeCreateGenerationResult,
   mergeHydratedPostsWithLocal,
@@ -118,6 +120,31 @@ import {
 } from '../_components/focus-workspace';
 
 import './social-media-builder.css';
+
+function generateErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof ApiError) {
+    const status = err.status;
+    const detail = (err.message || '').trim();
+    if (detail && !/^Request failed with status \d+$/i.test(detail)) {
+      return `${status}: ${detail}`;
+    }
+    if (status === 401) return '401: Unauthorized';
+    if (status === 422) return '422: Invalid generation request';
+    if (status === 429) return '429: Rate limited';
+    if (status === 500) return '500: Generation server error';
+    return `${status}: ${fallback}`;
+  }
+  if (err instanceof Error) {
+    if (err.name === 'AbortError' || /abort/i.test(err.message)) {
+      return `Aborted: ${fallback}`;
+    }
+    if (/json|schema|malformed/i.test(err.message)) {
+      return err.message;
+    }
+    if (err.message.trim()) return err.message;
+  }
+  return fallback;
+}
 
 function visualTemplateForProject(
   projectId: string,
@@ -221,7 +248,10 @@ export function SocialMediaBuilderWorkspace() {
     scopeToLinkedProject: true,
   });
 
-  const selectedPost = posts.find((p) => p.id === selectedPostId) ?? posts[0] ?? null;
+  const selectedPost = useMemo(
+    () => posts.find((p) => p.id === selectedPostId) ?? posts[0] ?? null,
+    [posts, selectedPostId],
+  );
   const selectedElement =
     selectedPost?.elements.find((el) => el.id === selectedElementId) ?? null;
   const contentSize = resolveFormatSize(formatPreset);
@@ -1053,15 +1083,20 @@ export function SocialMediaBuilderWorkspace() {
         explicit: Boolean(options?.explicit),
       });
       const siblingPosts = latestPosts.filter((p) => !isInFlightGenerationPost(p));
+      const createdPostId = inferredMode === 'create' ? mintCreatePostId() : null;
+      const generationTargetPostId =
+        inferredMode === 'create' ? createdPostId : latestSelectedPostId || null;
       const built = buildSocialDesignRequest({
         linkedProjectId: docApi.constructionProjectId,
         instruction,
         posts: siblingPosts,
-        selectedPostId: inferredMode === 'create' ? null : latestSelectedPostId || null,
+        selectedPostId: generationTargetPostId,
         selectedElement: selectedElementToDesignContext(
-          latestPosts
-            .find((p) => p.id === latestSelectedPostId)
-            ?.elements.find((el) => el.id === selectedElementIdRef.current) ?? null,
+          inferredMode === 'create'
+            ? null
+            : latestPosts
+                .find((p) => p.id === latestSelectedPostId)
+                ?.elements.find((el) => el.id === selectedElementIdRef.current) ?? null,
         ),
         coverImage: inferredMode === 'create' ? null : coverAsset.coverImage,
         galleryImages: inferredMode === 'create' ? [] : coverAsset.galleryImages,
@@ -1095,9 +1130,10 @@ export function SocialMediaBuilderWorkspace() {
       persistEpochRef.current += 1;
       setGenerating(true);
       setCampaignStatus('draft');
-      if (inferredMode === 'create') {
+      if (inferredMode === 'create' && createdPostId) {
         const inflight = createGeneratingPost(formatPreset, siblingPosts.length + 1, {
           linkedProjectId: docApi.constructionProjectId,
+          id: createdPostId,
         });
         createInflightIdRef.current = inflight.id;
         const withInflight = [
@@ -1141,7 +1177,7 @@ export function SocialMediaBuilderWorkspace() {
         );
         const blocked =
           Boolean(meta.warnings.includes('missing_required_facts')) && !(response.ops?.length);
-        const inflightId = createInflightIdRef.current;
+        const inflightId = createInflightIdRef.current ?? createdPostId;
         const merged =
           inferredMode === 'create'
             ? mergeCreateGenerationResult({
@@ -1160,28 +1196,51 @@ export function SocialMediaBuilderWorkspace() {
                   null,
               };
 
-        const nextPosts = merged.posts.map((p) => ({
-          ...p,
-          elements: ensureUniqueElementIds(p.elements),
-          linkedProjectId: p.linkedProjectId || docApi.constructionProjectId,
-        }));
+        if (
+          process.env.NODE_ENV !== 'production' &&
+          inferredMode === 'create' &&
+          createdPostId &&
+          merged.generated &&
+          (merged.generated.id !== createdPostId || merged.selectedPostId !== createdPostId)
+        ) {
+          console.error('SMB CREATE postId mismatch', {
+            createdPostId,
+            generationTargetPostId,
+            patchedPostId: merged.generated.id,
+            selectedPostId: merged.selectedPostId,
+          });
+        }
+
+        const nextPosts = merged.posts.map((p) => {
+          const unique = {
+            ...p,
+            elements: ensureUniqueElementIds(p.elements),
+            linkedProjectId: p.linkedProjectId || docApi.constructionProjectId,
+          };
+          if (inferredMode === 'create' && merged.generated && unique.id === merged.generated.id) {
+            return stampDesignResponseOnPost(unique, meta);
+          }
+          return unique;
+        });
         const generated = merged.generated
           ? nextPosts.find((p) => p.id === merged.generated?.id) ?? merged.generated
           : null;
+        const patchedPostId = generated?.id ?? merged.selectedPostId ?? createdPostId ?? null;
         const createComplete =
-          inferredMode !== 'create' || Boolean(generated && isCompletedGeneratedPost(generated));
+          inferredMode !== 'create' || Boolean(generated && hasAppliedCreateResult(generated));
 
         if (nextPosts.length && !blocked && (inferredMode !== 'create' || createComplete)) {
           pushHistory();
           persistEpochRef.current += 1;
+          const selectId = (inferredMode === 'create' ? createdPostId : null) ?? patchedPostId ?? '';
           postsRef.current = nextPosts;
-          selectedPostIdRef.current = merged.selectedPostId ?? generated?.id ?? '';
+          selectedPostIdRef.current = selectId;
           setPosts(nextPosts);
-          if (merged.selectedPostId) setSelectedPostId(merged.selectedPostId);
+          if (selectId) setSelectedPostId(selectId);
           createInflightIdRef.current = null;
           setEditingElementId(null);
-          const active =
-            nextPosts.find((p) => p.id === merged.selectedPostId) ?? nextPosts[0];
+          const active = nextPosts.find((p) => p.id === selectId) ?? nextPosts[0];
+          if (active) setFormatPreset(active.formatPreset);
           if (active?.coverAssetId) {
             coverAsset.setCoverImage({
               asset_id: active.coverAssetId,
@@ -1201,6 +1260,8 @@ export function SocialMediaBuilderWorkspace() {
           );
           postsRef.current = errored;
           setPosts(errored);
+          selectedPostIdRef.current = inflightId;
+          setSelectedPostId(inflightId);
           createInflightIdRef.current = inflightId;
         }
 
@@ -1234,22 +1295,26 @@ export function SocialMediaBuilderWorkspace() {
         } else {
           setAiStatus('idle');
         }
+        const persistSource =
+          createComplete || inferredMode !== 'create' ? nextPosts : postsRef.current;
         const persistPosts = stripInFlightPostsForPersist(
-          (createComplete || inferredMode !== 'create' ? nextPosts : postsRef.current).map((p) => ({
+          persistSource.map((p) => ({
             ...p,
             linkedProjectId: docApi.constructionProjectId,
           })),
         );
+        const persistSelected =
+          persistPosts.find((p) => p.id === (patchedPostId ?? merged.selectedPostId ?? ''))?.id ??
+          persistPosts[0]?.id ??
+          null;
         const persistPayload = {
           ...buildPersistPayload(),
           generationMeta: serializeGenerationMetaForDraft(meta),
           posts: serializeSocialPosts(persistPosts),
-          selectedPostId:
-            persistPosts.find((p) => p.id === (merged.selectedPostId ?? ''))?.id ??
-            persistPosts[0]?.id ??
-            null,
+          selectedPostId: persistSelected,
         };
         if (createComplete || inferredMode !== 'create') {
+          persistEpochRef.current += 1;
           void docApi.saveDraft(persistPayload);
         }
         genIdleTimerRef.current = window.setTimeout(() => {
@@ -1259,19 +1324,17 @@ export function SocialMediaBuilderWorkspace() {
         if (token !== generateAbortRef.current) return;
         setAiStatus('idle');
         setCampaignStatus('failed');
-        const inflightId = createInflightIdRef.current;
+        const inflightId = createInflightIdRef.current ?? createdPostId;
         if (inflightId) {
           const errored = postsRef.current.map((p) =>
             p.id === inflightId ? { ...p, generationLifecycle: 'error' as const, name: 'Generation failed' } : p,
           );
           postsRef.current = errored;
           setPosts(errored);
+          selectedPostIdRef.current = inflightId;
+          setSelectedPostId(inflightId);
         }
-        const message =
-          err instanceof ApiError && err.message
-            ? err.message
-            : t('toasts.generateFailed');
-        showToast(message);
+        showToast(generateErrorMessage(err, t('toasts.generateFailed')));
       } finally {
         if (genStageTimerRef.current != null) {
           window.clearInterval(genStageTimerRef.current);
