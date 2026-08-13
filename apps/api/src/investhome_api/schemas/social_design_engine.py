@@ -57,6 +57,32 @@ class SocialDesignMediaCandidate(BaseModel):
     tags: list[str] = Field(default_factory=list)
     score: float = 0.0
     linked_project_id: UUID
+    visual_subject: str | None = None
+    source_type: str | None = None
+    provenance_source: str | None = None
+
+
+class ArtDirectorProvenance(BaseModel):
+    project_id: UUID
+    selected_asset_id: UUID | None = None
+    source: str | None = None
+    filename: str | None = None
+    category: str | None = None
+    visual_subject: str | None = None
+    financial_facts_source: str | None = None
+    logo_asset_id: UUID | None = None
+    logo_status: str | None = None
+
+
+class ArtDirectorVariant(BaseModel):
+    key: Literal["A", "B", "C"]
+    label: str
+    creative_direction: str
+    composition: str
+    campaign_type: str
+    design_plan: dict[str, Any] = Field(default_factory=dict)
+    post: dict[str, Any] = Field(default_factory=dict)
+    provenance: ArtDirectorProvenance | None = None
 
 
 class SocialDesignDraftState(BaseModel):
@@ -130,6 +156,9 @@ class SocialDesignGenerationMeta(BaseModel):
     missing_facts: list[dict[str, Any]] = Field(default_factory=list)
     campaign_context_id: str | None = None
     generation_context_id: str | None = None
+    provenance: dict[str, Any] | None = None
+    selected_asset: dict[str, Any] | None = None
+    art_director: dict[str, Any] | None = None
 
 
 class SocialDesignResponse(BaseModel):
@@ -142,3 +171,7 @@ class SocialDesignResponse(BaseModel):
     media_candidates: list[SocialDesignMediaCandidate] = Field(default_factory=list)
     meta: SocialDesignGenerationMeta
     generated_content: str = ""
+    design_variants: list[ArtDirectorVariant] = Field(default_factory=list)
+    selected_variant: Literal["A", "B", "C"] | None = None
+    provenance: ArtDirectorProvenance | None = None
+    selected_asset: dict[str, Any] | None = None

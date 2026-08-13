@@ -231,7 +231,10 @@ def choose_composition_family(
     used_signals: list[str] | None = None,
     instruction: str = "",
     metric_count: int = 0,
+    force_family: CompositionFamilyKind | None = None,
 ) -> tuple[CompositionFamilyKind, list[str]]:
+    if force_family and force_family in COMPOSITION_FAMILIES:
+        return force_family, [f"forced_family:{force_family}"]
     notes: list[str] = []
     direction = str(plan.creative_direction or "")
     candidates = list(DIRECTION_FAMILIES.get(direction, ["EDITORIAL_HERO"]))
@@ -461,8 +464,12 @@ def _family_regions(
         cta_place = "under_headline"
         brand_kind = "horizontal" if include_brand else "none"
         headline_kind = "top_left"
+        if include_metrics:
+            metric = _cell(grid, 0, 6 if building_mass else 7, min(span, 6), 3)
+            metric_kind = "stacked_column"
+            metric_layout = "VERTICAL_STACK"
         content = headline
-        weight = VisualWeight(dominant="image", supporting="headline", tertiary="cta" if include_cta else None)
+        weight = VisualWeight(dominant="image", supporting="headline", tertiary="metrics" if include_metrics else ("cta" if include_cta else None))
     elif family == "ARCHITECTURAL_MINIMAL":
         # Type lives in sky / negative space — never a large stack on the facade.
         sky_h = max(12.0, min(18.0, analysis.horizon_y - my - 2.0))
@@ -712,10 +719,14 @@ def _family_regions(
         metric = None
         cta = _cell(grid, 0, 11, 3, 1) if include_cta else None
         brand = _cell(grid, 9, 0, 3, 1) if include_brand else None
+        if include_metrics:
+            metric = _cell(grid, 0, 10, 12, 2)
+            metric_kind = "lower_band"
+            metric_layout = "HORIZONTAL"
         cta_place = "opposite_brand" if include_cta and include_brand else ("bottom" if include_cta else "none")
         brand_kind = "compact"
         content = headline
-        weight = VisualWeight(dominant="image", supporting="headline", tertiary="brand" if include_brand else None)
+        weight = VisualWeight(dominant="image", supporting="headline", tertiary="metrics" if include_metrics else ("brand" if include_brand else None))
 
     # Portrait/story reflow of groups — not mere scale.
     if portrait and family in {"EDITORIAL_HERO", "ASYMMETRIC_EDITORIAL"}:
@@ -762,6 +773,7 @@ def build_composition_blueprint(
     include_cta: bool | None = None,
     include_brand: bool | None = None,
     project_id: Any = None,
+    force_family: CompositionFamilyKind | None = None,
 ) -> CompositionBlueprint:
     analysis = analyze_image(profile, format_preset=format_preset)
     family, family_notes = choose_composition_family(
@@ -771,6 +783,7 @@ def build_composition_blueprint(
         used_signals=used_signals,
         instruction=instruction,
         metric_count=metric_count,
+        force_family=force_family,
     )
     grid = _grid_for(format_preset)
     support = plan.include_support if include_support is None else include_support

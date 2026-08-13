@@ -25,6 +25,12 @@ from investhome_api.schemas.social_design_engine import (
     SocialDesignRequest,
     SocialDesignResponse,
 )
+from investhome_api.services.social_design_engine.art_director import (
+    build_art_director_session,
+    campaign_type_from_intent,
+    select_real_asset,
+    selected_asset_indicator,
+)
 from investhome_api.services.activity_service import ActivityRequestContext, log_activity
 from investhome_api.services.ai_search.hybrid_search import ProjectScopeError, hybrid_search
 from investhome_api.services.creative_studio_generation.assets import validate_selected_assets
@@ -303,14 +309,16 @@ def generate_social_design(
 
     assert_context_has_no_forbidden_media(context)
 
+    ad_campaign = campaign_type_from_intent(campaign_intent.campaign_intent)
     media_candidates = list_media_candidates(
         db,
         linked_project_id=linked_project_id,
         instruction=instruction,
         limit=24,
         preference_tokens=asset_preference_tokens(gen_intent.asset_preference),
+        campaign_type=ad_campaign,
     )
-    picked = pick_best_asset(media_candidates, require_image=True)
+    picked = pick_best_asset(media_candidates, require_image=True, campaign_type=ad_campaign)
     if picked is None and "no_valid_project_media" not in context.warnings:
         context.warnings.append("no_valid_project_media")
 
@@ -365,21 +373,36 @@ def generate_social_design(
         post=active_for_intent,
         instruction=instruction,
     )
+    replace_asset_candidate = None
     if mode == "edit" and any(i.intent == "REPLACE_IMAGE" for i in intent_plan.intents):
         current_cover = None
         active = active_for_intent
         if active is not None:
             current_cover = active.get("coverAssetId") or active.get("cover_asset_id")
             for el in active.get("elements") or []:
-                if isinstance(el, dict) and el.get("type") == "IMAGE" and (el.get("assetId") or el.get("asset_id")):
-                    current_cover = el.get("assetId") or el.get("asset_id")
+                if not isinstance(el, dict) or str(el.get("type") or "").upper() != "IMAGE":
+                    continue
+                role = str(el.get("role") or "").lower()
+                if role == "logo":
+                    continue
+                if role in {"background", "cover"} or el.get("fullBleed") or el.get("full_bleed"):
+                    current_cover = el.get("assetId") or el.get("asset_id") or current_cover
                     break
+        exclude_ids: set[UUID] = set()
         if current_cover is not None:
-            for cand in media_candidates:
-                if str(cand.asset_id) != str(current_cover) and (cand.content_type or "").startswith("image/"):
-                    picked = cand.asset_id
-                    allowed_asset_ids.add(picked)
-                    break
+            try:
+                exclude_ids.add(UUID(str(current_cover)))
+            except (TypeError, ValueError):
+                pass
+        alt = select_real_asset(
+            media_candidates,
+            campaign_type=ad_campaign,
+            exclude_asset_ids=exclude_ids,
+        )
+        if alt is not None:
+            picked = alt.asset_id
+            allowed_asset_ids.add(picked)
+            replace_asset_candidate = alt
 
     try:
         provider = get_llm_provider(settings)
@@ -396,6 +419,7 @@ def generate_social_design(
     content_package = None
     design_plan = None
     creative_concept = None
+    art_director_session = None
     validation_payload = None
     design_quality_payload = None
     marketing_strategy = None
@@ -762,6 +786,50 @@ def generate_social_design(
             campaign_context_id=campaign_context_id,
             generation_context_id=generation_context_id,
         )
+        if mode == "create" and creative_concept is not None and content_package is not None:
+            exclude_ids: set[UUID] = set()
+            if mode == "edit" and any(i.intent == "REPLACE_IMAGE" for i in intent_plan.intents):
+                if picked:
+                    current = None
+                    active = active_for_intent
+                    if active is not None:
+                        current = active.get("coverAssetId") or active.get("cover_asset_id")
+                    if current:
+                        try:
+                            exclude_ids.add(UUID(str(current)))
+                        except (TypeError, ValueError):
+                            pass
+            art_director_session = build_art_director_session(
+                project_id=linked_project_id,
+                instruction=instruction,
+                campaign_type=ad_campaign,
+                intent=gen_intent,
+                concept=creative_concept,
+                package=content_package,
+                candidates=media_candidates,
+                campaign_intelligence=campaign_intel,
+                structured_metrics=structured_metrics or getattr(creative_concept, "structured_metrics", None),
+                post_id=post_id,
+                rebuild=rebuild,
+                linked_project_id=linked_project_id,
+                exclude_asset_ids=exclude_ids,
+            )
+            for warning in art_director_session.warnings:
+                if warning not in context.warnings:
+                    context.warnings.append(warning)
+            if art_director_session.design_plan is not None and art_director_session.ops:
+                design_plan = art_director_session.design_plan
+                raw_ops = art_director_session.ops
+                if art_director_session.selected_asset is not None:
+                    picked = art_director_session.selected_asset.asset_id
+                    allowed_asset_ids.add(picked)
+                if art_director_session.logo is not None:
+                    allowed_asset_ids.add(art_director_session.logo.asset_id)
+                planner_name = "art_director"
+            elif "art_director_failed_no_real_asset" in art_director_session.warnings:
+                raw_ops = []
+                design_plan = None
+                planner_name = "art_director_blocked"
         summary = "Generated complete social post from project knowledge."
         if any(
             m.key == "financial_metrics" and not m.required
@@ -800,7 +868,10 @@ def generate_social_design(
             planner_name = "intent"
             summary = f"Applied {len(intent_plan.intent_names)} structural intent(s)."
 
-    if not raw_ops:
+    if planner_name == "art_director_blocked":
+        raw_ops = []
+        summary = "Art Director blocked: no real project photograph with proven provenance."
+    elif not raw_ops:
         try:
             llm = provider.generate(system=system, user=user_prompt, timeout_seconds=60.0)
             parsed_ops, summary = parse_ops_from_llm(llm.answer or "")
@@ -813,7 +884,7 @@ def generate_social_design(
             context.warnings.append("design_planner_fallback")
             raw_ops = []
 
-    if not raw_ops:
+    if planner_name != "art_director_blocked" and not raw_ops:
         raw_ops = build_heuristic_ops(
             instruction=instruction,
             mode=mode,
@@ -878,7 +949,7 @@ def generate_social_design(
     rejected = list(intent_rejected) + list(rejected)
 
     # If LLM ops all rejected, fall back to heuristic / intent once
-    if not accepted:
+    if not accepted and planner_name != "art_director_blocked":
         if mode == "edit" and intent_plan.intents:
             active = find_post(draft_posts, selected_post_id) if selected_post_id else None
             if active is None and draft_posts:
@@ -1031,6 +1102,15 @@ def generate_social_design(
         campaign_context_id=campaign_context_id,
         generation_context_id=generation_context_id,
     )
+    if art_director_session is not None and art_director_session.variants:
+        gen_meta_payload["design_plan"] = art_director_session.variants[0].design_plan
+        gen_meta_payload["art_director"] = {
+            "campaign_type": art_director_session.campaign_type,
+            "selected_variant": art_director_session.selected_variant,
+            "engine": "investhome_art_director",
+        }
+        gen_meta_payload["provenance"] = art_director_session.provenance.model_dump(mode="json")
+        gen_meta_payload["selected_asset"] = selected_asset_indicator(art_director_session.selected_asset)
     if accepted:
         target_id = str(new_selected or selected_post_id or "")
         attached = False
@@ -1132,6 +1212,26 @@ def generate_social_design(
         missing_facts=gen_meta_payload.get("missing_facts") or [],
         campaign_context_id=campaign_context_id,
         generation_context_id=generation_context_id,
+        provenance=(
+            art_director_session.provenance.model_dump(mode="json")
+            if art_director_session is not None
+            else None
+        ),
+        selected_asset=selected_asset_indicator(
+            art_director_session.selected_asset
+            if art_director_session is not None
+            else replace_asset_candidate
+        ),
+        art_director=(
+            {
+                "campaign_type": art_director_session.campaign_type,
+                "selected_variant": art_director_session.selected_variant,
+                "variant_count": len(art_director_session.variants),
+                "engine": "investhome_art_director",
+            }
+            if art_director_session is not None
+            else None
+        ),
     )
 
     return SocialDesignResponse(
@@ -1146,4 +1246,14 @@ def generate_social_design(
         media_candidates=media_candidates,
         meta=meta,
         generated_content=generated_content,
+        design_variants=art_director_session.variants if art_director_session is not None else [],
+        selected_variant=(
+            art_director_session.selected_variant if art_director_session is not None else None
+        ),
+        provenance=art_director_session.provenance if art_director_session is not None else None,
+        selected_asset=selected_asset_indicator(
+            art_director_session.selected_asset
+            if art_director_session is not None
+            else replace_asset_candidate
+        ),
     )

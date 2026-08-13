@@ -359,6 +359,7 @@ describe('source contracts', () => {
     const src = read('builder-media-persistence.ts');
     assert.match(src, /serializeBuilderMediaDraft/);
     assert.match(src, /deserializeBuilderMediaDraft/);
+    assert.match(src, /artDirector/);
     assert.match(src, /assertSafeBuilderMediaDraft/);
   });
 });

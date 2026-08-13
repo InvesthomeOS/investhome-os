@@ -604,6 +604,20 @@ export type SocialDesignGenerationMeta = {
   missing_facts?: Record<string, unknown>[];
   campaign_context_id?: string | null;
   generation_context_id?: string | null;
+  provenance?: Record<string, unknown> | null;
+  selected_asset?: Record<string, unknown> | null;
+  art_director?: Record<string, unknown> | null;
+};
+
+export type SocialDesignArtDirectorVariant = {
+  key: 'A' | 'B' | 'C';
+  label: string;
+  creative_direction: string;
+  composition: string;
+  campaign_type: string;
+  design_plan: Record<string, unknown>;
+  post: Record<string, unknown>;
+  provenance?: Record<string, unknown> | null;
 };
 
 export type SocialDesignResponse = {
@@ -616,6 +630,10 @@ export type SocialDesignResponse = {
   media_candidates: SocialDesignMediaCandidate[];
   meta: SocialDesignGenerationMeta;
   generated_content: string;
+  design_variants?: SocialDesignArtDirectorVariant[];
+  selected_variant?: 'A' | 'B' | 'C' | null;
+  provenance?: Record<string, unknown> | null;
+  selected_asset?: Record<string, unknown> | null;
 };
 
 export async function generateSocialDesign(

@@ -299,24 +299,29 @@ def apply_ops(
 
         if op.op == "ADD_IMAGE":
             cw, ch = canvas_size(post)
+            role = str(payload.get("role") or "image").lower()
+            full_bleed = bool(payload.get("full_bleed")) or role in {"background", "cover"}
             box = min(cw, ch) // 3
             geo = clamp_safe_geometry(
-                x=payload.get("x", (cw - box) // 2),
-                y=payload.get("y", (ch - box) // 2),
-                width=payload.get("width", box),
-                height=payload.get("height", box),
+                x=payload.get("x", 0 if full_bleed else (cw - box) // 2),
+                y=payload.get("y", 0 if full_bleed else (ch - box) // 2),
+                width=payload.get("width", cw if full_bleed else box),
+                height=payload.get("height", ch if full_bleed else box),
                 canvas_w=cw,
                 canvas_h=ch,
-                full_bleed=True,
+                full_bleed=full_bleed,
             )
-            eid = op.element_id or _new_element_id("img")
+            eid = op.element_id or _new_element_id("img" if role != "logo" else "logo")
             asset_id = payload.get("asset_id")
+            if role in {"background", "cover"} and asset_id:
+                post["coverAssetId"] = str(asset_id)
             _ensure_elements(post).append(
                 {
                     "id": eid,
                     "type": "IMAGE",
+                    "role": role,
                     "assetId": str(asset_id) if asset_id else None,
-                    "zIndex": clamp_int(payload.get("zIndex"), 0, 10_000, 1),
+                    "zIndex": clamp_int(payload.get("zIndex"), 0, 10_000, 0 if full_bleed else 1),
                     **geo,
                 }
             )

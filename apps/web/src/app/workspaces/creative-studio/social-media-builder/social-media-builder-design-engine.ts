@@ -150,6 +150,9 @@ export type DesignGenerationMeta = SocialGenerationMeta & {
   missing_facts?: Record<string, unknown>[];
   campaign_context_id?: string | null;
   generation_context_id?: string | null;
+  provenance?: Record<string, unknown> | null;
+  selected_asset?: Record<string, unknown> | null;
+  art_director?: Record<string, unknown> | null;
 };
 
 export type BuildSocialDesignResult =
@@ -470,6 +473,9 @@ export function toDesignGenerationMeta(response: SocialDesignResponse): DesignGe
     missing_facts: meta?.missing_facts ?? [],
     campaign_context_id: meta?.campaign_context_id ?? null,
     generation_context_id: meta?.generation_context_id ?? null,
+    provenance: meta?.provenance ?? response.provenance ?? null,
+    selected_asset: meta?.selected_asset ?? response.selected_asset ?? null,
+    art_director: meta?.art_director ?? null,
   };
 }
 
@@ -514,6 +520,9 @@ export function serializeGenerationMetaForDraft(
     missing_facts: meta.missing_facts ?? [],
     campaign_context_id: meta.campaign_context_id ?? null,
     generation_context_id: meta.generation_context_id ?? null,
+    provenance: meta.provenance ?? null,
+    selected_asset: meta.selected_asset ?? null,
+    art_director: meta.art_director ?? null,
   };
 }
 
@@ -616,6 +625,18 @@ export function parseGenerationMetaFromDraft(
       : [],
     campaign_context_id: typeof raw.campaign_context_id === 'string' ? raw.campaign_context_id : null,
     generation_context_id: typeof raw.generation_context_id === 'string' ? raw.generation_context_id : null,
+    provenance:
+      raw.provenance && typeof raw.provenance === 'object' && !Array.isArray(raw.provenance)
+        ? (raw.provenance as Record<string, unknown>)
+        : null,
+    selected_asset:
+      raw.selected_asset && typeof raw.selected_asset === 'object' && !Array.isArray(raw.selected_asset)
+        ? (raw.selected_asset as Record<string, unknown>)
+        : null,
+    art_director:
+      raw.art_director && typeof raw.art_director === 'object' && !Array.isArray(raw.art_director)
+        ? (raw.art_director as Record<string, unknown>)
+        : null,
   };
 }
 

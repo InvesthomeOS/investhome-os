@@ -210,10 +210,16 @@ function parseElement(raw: unknown): SocialElement | null {
         : typeof body.asset_id === 'string'
           ? body.asset_id
           : null;
+    const roleRaw = body.role;
+    const role =
+      roleRaw === 'background' || roleRaw === 'cover' || roleRaw === 'logo' || roleRaw === 'image'
+        ? roleRaw
+        : undefined;
     return {
       ...base,
       type: 'IMAGE',
       assetId: assetRaw && isMediaAssetUuid(assetRaw) ? assetRaw.trim() : null,
+      ...(role ? { role } : {}),
     };
   }
 
@@ -303,6 +309,7 @@ function serializeElement(el: SocialElement): Record<string, unknown> {
     return {
       ...base,
       assetId: el.assetId && isMediaAssetUuid(el.assetId) ? el.assetId : null,
+      ...(el.role ? { role: el.role } : {}),
     };
   }
   if (el.type === 'METRIC_GROUP') {

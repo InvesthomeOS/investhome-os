@@ -69,6 +69,8 @@ export type BuilderMediaDraft = {
   generationMeta?: Record<string, unknown> | null;
   /** Ideogram POC A/B/C session — persisted so reload does not re-call the provider. */
   ideogramPoc?: Record<string, unknown> | null;
+  /** Investhome Art Director A/B/C session — persisted so reload keeps real-asset variants. */
+  artDirector?: Record<string, unknown> | null;
   /** Explicit SMB design provider. Do not infer from transient UI state. */
   designProvider?: 'native' | 'ideogram';
   savedAt?: number;
@@ -85,6 +87,7 @@ export type BuilderMediaPersistInput = {
   platforms?: string[];
   generationMeta?: Record<string, unknown> | null;
   ideogramPoc?: Record<string, unknown> | null;
+  artDirector?: Record<string, unknown> | null;
   designProvider?: 'native' | 'ideogram';
 };
 
@@ -126,6 +129,9 @@ export function serializeBuilderMediaDraft(
   }
   if (input.ideogramPoc && typeof input.ideogramPoc === 'object') {
     draft.ideogramPoc = input.ideogramPoc;
+  }
+  if (input.artDirector && typeof input.artDirector === 'object') {
+    draft.artDirector = input.artDirector;
   }
   if (input.designProvider === 'native' || input.designProvider === 'ideogram') {
     draft.designProvider = input.designProvider;
@@ -250,6 +256,12 @@ export function deserializeBuilderMediaDraft(
       typeof body.ideogramPoc === 'object' &&
       !Array.isArray(body.ideogramPoc)
         ? (body.ideogramPoc as Record<string, unknown>)
+        : undefined,
+    artDirector:
+      body.artDirector &&
+      typeof body.artDirector === 'object' &&
+      !Array.isArray(body.artDirector)
+        ? (body.artDirector as Record<string, unknown>)
         : undefined,
     designProvider:
       body.designProvider === 'native' || body.designProvider === 'ideogram'

@@ -60,6 +60,7 @@ export type SocialTextElement = SocialElementBase & {
 export type SocialImageElement = SocialElementBase & {
   type: 'IMAGE';
   assetId: string | null;
+  role?: 'image' | 'background' | 'cover' | 'logo';
 };
 
 export type SocialButtonElement = SocialElementBase & {

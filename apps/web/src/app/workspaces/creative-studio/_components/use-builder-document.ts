@@ -143,6 +143,7 @@ export function useBuilderDocument(options: {
           platforms: draft.platforms,
           generationMeta: draft.generationMeta,
           ideogramPoc: draft.ideogramPoc,
+          artDirector: draft.artDirector,
           designProvider: draft.designProvider,
         });
         await saveCreativeStudioDraft(document.id, body);

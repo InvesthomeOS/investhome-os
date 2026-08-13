@@ -351,8 +351,10 @@ def classify_campaign_intent(
         bump("construction_progress", 4.0, "construction_language")
     if any(k in t for k in ("project awareness", "proje farkindalik", "proje farkındalık", "brand awareness")):
         bump("project_awareness", 3.5, "awareness_language")
-    if any(k in t for k in ("tanit", "promote", "promotion", "genel", "overview", "introduce")):
+    if any(k in t for k in ("tanit", "promote", "promotion", "genel", "overview", "introduce", "project overview", "proje ozeti", "proje özeti")):
         bump("generic_project_promotion", 1.5, "generic_promotion")
+    if any(k in t for k in ("project overview", "proje ozeti", "proje özeti", "overview of the project")):
+        bump("project_awareness", 3.5, "project_overview")
 
     # Soft defaults when only project + premium post is asked
     if max(scores.values()) < 1.0:

@@ -112,6 +112,14 @@ import {
   type IdeogramPocSession,
   type IdeogramPocVariant,
 } from './social-media-builder-ideogram-poc';
+import {
+  applyArtDirectorVariantToPosts,
+  mergeArtDirectorSessionFromResponse,
+  parseArtDirectorSession,
+  serializeArtDirectorSession,
+  type ArtDirectorSession,
+  type ArtDirectorVariantKey,
+} from './social-media-builder-art-director';
 
 import {
   SmbLeftRailDrawer,
@@ -231,6 +239,8 @@ export function SocialMediaBuilderWorkspace() {
   const [ideogramSession, setIdeogramSession] = useState<IdeogramPocSession | null>(null);
   const [ideogramError, setIdeogramError] = useState<string | null>(null);
   const ideogramSessionRef = useRef<IdeogramPocSession | null>(null);
+  const [artDirectorSession, setArtDirectorSession] = useState<ArtDirectorSession | null>(null);
+  const artDirectorSessionRef = useRef<ArtDirectorSession | null>(null);
   const [postMenuId, setPostMenuId] = useState<string | null>(null);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
 
@@ -346,6 +356,7 @@ export function SocialMediaBuilderWorkspace() {
       platforms?: string[];
       linkedProjectId?: string | null;
       ideogramPoc?: Record<string, unknown> | null;
+      artDirector?: Record<string, unknown> | null;
       designProvider?: 'native' | 'ideogram';
     } | null) => {
       const coverId = draft?.coverImage?.asset_id ?? null;
@@ -421,6 +432,14 @@ export function SocialMediaBuilderWorkspace() {
         const restored = parseIdeogramPocSession(draft.ideogramPoc);
         ideogramSessionRef.current = restored;
         setIdeogramSession(restored);
+      }
+      if (draft && 'artDirector' in draft) {
+        const restored = parseArtDirectorSession(
+          draft.artDirector,
+          draft.linkedProjectId ?? docApi.constructionProjectId,
+        );
+        artDirectorSessionRef.current = restored;
+        setArtDirectorSession(restored);
       }
       if (draft?.designProvider === 'native' || draft?.designProvider === 'ideogram') {
         designEngineRef.current = draft.designProvider;
@@ -577,6 +596,7 @@ export function SocialMediaBuilderWorkspace() {
       platforms: Array.from(platforms),
       generationMeta: serializeGenerationMetaForDraft(generationMeta),
       ideogramPoc: serializeIdeogramPocSession(ideogramSessionRef.current),
+      artDirector: serializeArtDirectorSession(artDirectorSessionRef.current),
       designProvider: designEngineRef.current,
     };
   }, [
@@ -1364,6 +1384,13 @@ export function SocialMediaBuilderWorkspace() {
 
         const meta = toDesignGenerationMeta(response);
         setGenerationMeta(meta);
+        const artSession = mergeArtDirectorSessionFromResponse(
+          artDirectorSessionRef.current,
+          response,
+          instruction,
+        );
+        artDirectorSessionRef.current = artSession;
+        setArtDirectorSession(artSession);
 
         const applied = applyDesignResponseToPosts(
           response,
@@ -1651,6 +1678,51 @@ export function SocialMediaBuilderWorkspace() {
     );
   }
 
+  function selectArtDirectorVariant(variant: ArtDirectorVariantKey) {
+    const session = artDirectorSessionRef.current;
+    const option = session?.variants.find((row) => row.key === variant);
+    if (!session || !option?.post) return;
+    const targetId = selectedPostIdRef.current;
+    const nextPosts = applyArtDirectorVariantToPosts(postsRef.current, targetId, option).map((p) => ({
+      ...p,
+      elements: ensureUniqueElementIds(p.elements),
+    }));
+    const nextSession = { ...session, selectedVariant: variant };
+    artDirectorSessionRef.current = nextSession;
+    setArtDirectorSession(nextSession);
+    setGenerationMeta((prev) => {
+      if (!prev) return prev;
+      const plan = {
+        ...(prev.creative_plan && typeof prev.creative_plan === 'object' ? prev.creative_plan : {}),
+        composition: option.composition,
+        creative_direction: option.creativeDirection,
+        intent: option.campaignType,
+      };
+      return {
+        ...prev,
+        creative_plan: plan,
+        composition_blueprint:
+          option.post?.compositionBlueprint
+          ?? prev.composition_blueprint,
+      };
+    });
+    pushHistory();
+    persistEpochRef.current += 1;
+    postsRef.current = nextPosts;
+    setPosts(nextPosts);
+    const active = nextPosts.find((p) => p.id === targetId) ?? nextPosts[0];
+    if (active?.coverAssetId) {
+      coverAsset.setCoverImage({
+        asset_id: active.coverAssetId,
+        url: null,
+        alt: null,
+        role: 'cover',
+      });
+    }
+    markDirty();
+    showToast(t('toasts.artDirectorSelected', { variant }));
+  }
+
   function selectDesignEngine(next: DesignEngineKind) {
     designEngineRef.current = next;
     setDesignEngine(next);
@@ -1717,7 +1789,7 @@ export function SocialMediaBuilderWorkspace() {
                 disabled={generating}
                 onClick={() => selectDesignEngine('native')}
               >
-                {t('aiDesign.engineNative')}
+                {t('aiDesign.engineArtDirector')}
               </button>
               <button
                 type="button"
@@ -1784,7 +1856,52 @@ export function SocialMediaBuilderWorkspace() {
               {generating ? t('aiDesign.generating') : t('aiDesign.editPost')}
             </Button>
           </div>
-          {ideogramSession && ideogramSession.outputs.length > 0 ? (
+          {designEngine === 'native' && artDirectorSession?.selectedAsset ? (
+            <p
+              className="smb-ws__art-director-asset"
+              data-testid="smb-art-director-selected-asset"
+              data-asset-id={artDirectorSession.selectedAsset.assetId}
+              data-asset-filename={artDirectorSession.selectedAsset.filename}
+              data-asset-category={artDirectorSession.selectedAsset.category ?? ''}
+              data-asset-subject={artDirectorSession.selectedAsset.visualSubject ?? ''}
+              data-asset-source={artDirectorSession.selectedAsset.source ?? ''}
+            >
+              {t('aiDesign.selectedAsset')}: {artDirectorSession.selectedAsset.filename}
+              {artDirectorSession.selectedAsset.category
+                ? ` · ${artDirectorSession.selectedAsset.category}`
+                : ''}
+            </p>
+          ) : null}
+          {designEngine === 'native' && artDirectorSession && artDirectorSession.variants.length > 0 ? (
+            <div className="smb-ws__art-director" data-testid="smb-art-director-results">
+              <div className="smb-ws__art-director-grid">
+                {artDirectorSession.variants.map((output) => (
+                  <div
+                    key={output.key}
+                    className={`smb-ws__art-director-card${artDirectorSession.selectedVariant === output.key ? ' is-active' : ''}`}
+                    data-testid={`smb-art-director-option-${output.key}`}
+                    data-composition={output.composition}
+                    data-direction={output.creativeDirection}
+                  >
+                    <div className="smb-ws__art-director-card-label">
+                      {output.key} · {output.label}
+                    </div>
+                    <p className="smb-ws__art-director-card-meta">{output.composition}</p>
+                    <Button
+                      variant={artDirectorSession.selectedVariant === output.key ? 'primary' : 'secondary'}
+                      size="sm"
+                      data-testid={`smb-art-director-select-${output.key}`}
+                      disabled={generating}
+                      onClick={() => selectArtDirectorVariant(output.key)}
+                    >
+                      {t('aiDesign.select')}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {designEngine === 'ideogram' && ideogramSession && ideogramSession.outputs.length > 0 ? (
             <div className="smb-ws__ideogram-poc" data-testid="smb-ideogram-poc-results">
               <div className="smb-ws__ideogram-poc-grid">
                 {ideogramSession.outputs.map((output) => (
@@ -1844,6 +1961,12 @@ export function SocialMediaBuilderWorkspace() {
         data-testid="smb-workspace"
         data-design-engine={designEngine}
         data-design-provider={designEngine}
+        data-art-director={designEngine === 'native' ? 'true' : undefined}
+        data-selected-variant={artDirectorSession?.selectedVariant}
+        data-campaign-type={artDirectorSession?.campaignType || undefined}
+        data-selected-asset-id={artDirectorSession?.selectedAsset?.assetId || undefined}
+        data-selected-asset-filename={artDirectorSession?.selectedAsset?.filename || undefined}
+        data-provenance-source={artDirectorSession?.provenance?.source || undefined}
         data-cs-workspace-mode={focus.mode}
         data-cs-fullscreen={focus.isFullscreen ? 'true' : 'false'}
         data-generation-grounded={

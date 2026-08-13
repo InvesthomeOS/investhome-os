@@ -546,14 +546,18 @@ export function SmbArtboardElements({
           );
         }
 
+        if (el.type === 'IMAGE' && (el.role === 'background' || el.role === 'cover')) {
+          return null;
+        }
         const url = el.assetId ? imageUrlsByAssetId[el.assetId] : null;
         return (
           <div
             key={el.id}
-            className={`smb-ws__el smb-ws__el--image${selected ? ' is-selected' : ''}`}
+            className={`smb-ws__el smb-ws__el--image${selected ? ' is-selected' : ''}${el.type === 'IMAGE' && el.role === 'logo' ? ' smb-ws__el--logo' : ''}`}
             style={style}
             data-testid={`smb-el-${el.id}`}
             data-el-type="IMAGE"
+            data-el-role={el.type === 'IMAGE' ? el.role : undefined}
             data-asset-id={el.assetId ?? undefined}
             onClick={(e) => {
               e.stopPropagation();

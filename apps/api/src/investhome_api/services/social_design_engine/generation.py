@@ -1007,6 +1007,7 @@ def build_design_plan(
     concept: Any | None = None,
     structured_metrics: list[Any] | None = None,
     metric_layout: str | None = None,
+    force_composition_family: str | None = None,
 ) -> DesignPlan:
     from investhome_api.services.social_design_engine.layout import measure_text_block, role_font_prefs
 
@@ -1058,7 +1059,7 @@ def build_design_plan(
             if isinstance(getattr(concept, "composition_blueprint", None), dict)
             else None
         )
-        if existing_bp is not None:
+        if existing_bp is not None and not force_composition_family:
             blueprint = existing_bp
         elif plan_model is not None:
             metric_n = 0
@@ -1077,6 +1078,7 @@ def build_design_plan(
                 include_metrics=bool(plan_payload.get("include_metrics")),
                 include_cta=bool(getattr(concept, "include_cta", True)),
                 include_brand=bool(plan_payload.get("include_brand", True)),
+                force_family=force_composition_family,  # type: ignore[arg-type]
             )
         if blueprint is not None:
             blueprint_payload = composition_blueprint_to_dict(blueprint)
@@ -1373,6 +1375,9 @@ def compose_ops_from_plan(
     instruction: str,
     campaign_context_id: str | None = None,
     generation_context_id: str | None = None,
+    logo_asset_id: UUID | str | None = None,
+    logo_placement: str = "none",
+    project_name: str = "",
 ) -> list[dict[str, Any]]:
     """Convert a design plan into existing Design Ops (same posts[].elements[] schema)."""
     pid = str(linked_project_id)
@@ -1411,6 +1416,8 @@ def compose_ops_from_plan(
             "payload": {"formatPreset": plan.format_preset},
         },
     ]
+    preset = plan.format_preset if plan.format_preset in FORMAT_PRESETS else "square"
+    canvas_w, canvas_h = FORMAT_PRESETS.get(preset, (1080, 1080))
     if plan.background_asset_id:
         ops.append(
             {
@@ -1419,6 +1426,72 @@ def compose_ops_from_plan(
                 "post_id": post_id,
                 "element_id": None,
                 "payload": {"asset_id": plan.background_asset_id},
+            }
+        )
+        ops.append(
+            {
+                "op": "ADD_IMAGE",
+                "linked_project_id": pid,
+                "post_id": post_id,
+                "element_id": None,
+                "payload": {
+                    "asset_id": plan.background_asset_id,
+                    "role": "background",
+                    "full_bleed": True,
+                    "x": 0,
+                    "y": 0,
+                    "width": canvas_w,
+                    "height": canvas_h,
+                    "zIndex": 0,
+                },
+            }
+        )
+    logo_id = str(logo_asset_id).strip() if logo_asset_id else ""
+    place = (logo_placement or "none").strip().lower()
+    if logo_id and place not in {"", "none"}:
+        logo_w = max(96, int(round(canvas_w * 0.16)))
+        logo_h = max(36, int(round(canvas_h * 0.045)))
+        margin_x = max(48, int(round(canvas_w * 0.055)))
+        margin_y = max(40, int(round(canvas_h * 0.045)))
+        logo_x = margin_x if "left" in place else canvas_w - margin_x - logo_w
+        ops.append(
+            {
+                "op": "ADD_IMAGE",
+                "linked_project_id": pid,
+                "post_id": post_id,
+                "element_id": None,
+                "payload": {
+                    "asset_id": logo_id,
+                    "role": "logo",
+                    "full_bleed": False,
+                    "x": logo_x,
+                    "y": margin_y,
+                    "width": logo_w,
+                    "height": logo_h,
+                    "zIndex": 6,
+                },
+            }
+        )
+    elif project_name and place not in {"", "none"}:
+        ops.append(
+            {
+                "op": "ADD_TEXT",
+                "linked_project_id": pid,
+                "post_id": post_id,
+                "element_id": None,
+                "payload": {
+                    "role": "brand",
+                    "content": project_name,
+                    "fontWeight": "normal",
+                    "fontSize": 18,
+                    "align": "left" if "left" in place else "right",
+                    "color": "#ffffff",
+                    "zIndex": 6,
+                    "x": max(48, int(round(canvas_w * 0.055))),
+                    "y": max(40, int(round(canvas_h * 0.04))),
+                    "width": int(round(canvas_w * 0.4)),
+                    "height": 28,
+                },
             }
         )
     for el in plan.elements:

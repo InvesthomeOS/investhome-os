@@ -639,19 +639,25 @@ def build_creative_plan(
     used_signals: list[str] | None = None,
     instruction: str = "",
     project_name: str = "",
+    force_direction: CreativeDirectionKind | None = None,
+    force_composition: CompositionPrimitive | None = None,
 ) -> CreativePlan:
     used = list(used_signals or [])
-    direction, dir_notes = choose_creative_direction(
-        intent=intent,
-        profile=profile,
-        has_eligible_metrics=has_eligible_metrics,
-        copy_length=copy_length,
-        format_preset=format_preset,
-        campaign_goal=campaign_goal,
-        tone=tone,
-        used_signals=used,
-        instruction=instruction,
-    )
+    if force_direction:
+        direction = force_direction
+        dir_notes = [f"forced_direction:{direction}"]
+    else:
+        direction, dir_notes = choose_creative_direction(
+            intent=intent,
+            profile=profile,
+            has_eligible_metrics=has_eligible_metrics,
+            copy_length=copy_length,
+            format_preset=format_preset,
+            campaign_goal=campaign_goal,
+            tone=tone,
+            used_signals=used,
+            instruction=instruction,
+        )
     metrics_ok = bool(has_eligible_metrics and direction == "INVESTMENT_DATA")
     density = choose_copy_density(
         intent=intent,
@@ -659,16 +665,20 @@ def build_creative_plan(
         has_metrics=metrics_ok,
         format_preset=format_preset,
     )
-    composition, comp_notes = choose_composition_primitive(
-        direction=direction,
-        intent=intent,
-        profile=profile,
-        format_preset=format_preset,
-        copy_density=density,
-        has_metrics=metrics_ok,
-        used_signals=used,
-        instruction=instruction,
-    )
+    if force_composition:
+        composition = force_composition
+        comp_notes = [f"forced_composition:{composition}"]
+    else:
+        composition, comp_notes = choose_composition_primitive(
+            direction=direction,
+            intent=intent,
+            profile=profile,
+            format_preset=format_preset,
+            copy_density=density,
+            has_metrics=metrics_ok,
+            used_signals=used,
+            instruction=instruction,
+        )
     contrast, region = choose_contrast(profile=profile, composition=composition, density=density)
     # Keep type off the architectural focal point: prefer top/left/bottom safe zones.
     subject = _asset_subject(profile)

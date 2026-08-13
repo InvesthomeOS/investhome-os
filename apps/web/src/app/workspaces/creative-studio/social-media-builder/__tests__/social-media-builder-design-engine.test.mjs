@@ -390,3 +390,25 @@ describe('canonical canvas fit / layout safety (renderer contract)', () => {
     assert.match(engine, /campaign_context_id/);
   });
 });
+
+describe('Investhome Art Director real-asset chooser', () => {
+  it('wires editable A/B/C chooser without Ideogram flattened images', () => {
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    assert.match(workspace, /smb-art-director-results/);
+    assert.match(workspace, /smb-art-director-option-/);
+    assert.match(workspace, /selectArtDirectorVariant/);
+    assert.match(workspace, /engineArtDirector/);
+    assert.match(workspace, /smb-art-director-selected-asset/);
+    assert.match(workspace, /mergeArtDirectorSessionFromResponse/);
+    assert.doesNotMatch(workspace, /images\.unsplash/);
+    const artDirector = readSmb('social-media-builder-art-director.ts');
+    assert.match(artDirector, /applyArtDirectorVariantToPosts/);
+    assert.match(artDirector, /mergeArtDirectorSessionFromResponse/);
+    assert.match(artDirector, /applyRealAssetToSession/);
+    assert.match(artDirector, /ArtDirectorSession/);
+    assert.doesNotMatch(artDirector, /unsplash/i);
+    const client = readFileSync(apiClientPath, 'utf8');
+    assert.match(client, /design_variants/);
+    assert.match(client, /selected_asset/);
+  });
+});

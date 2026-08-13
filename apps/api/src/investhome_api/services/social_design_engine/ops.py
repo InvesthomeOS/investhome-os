@@ -348,6 +348,10 @@ def validate_op(
             y = clamp_int(payload.get("y", el.get("y") if el else 0), pad, max(pad, ch - h - pad), pad)
             payload.update({"x": x, "y": y, "width": w, "height": h})
         else:
+            image_role = str(payload.get("role") or (el or {}).get("role") or "").lower()
+            full_bleed = op_name == "ADD_IMAGE" or (el or {}).get("type") == "IMAGE"
+            if image_role == "logo" or payload.get("full_bleed") is False:
+                full_bleed = False
             geo = clamp_safe_geometry(
                 x=payload.get("x", 0),
                 y=payload.get("y", 0),
@@ -355,7 +359,7 @@ def validate_op(
                 height=payload.get("height", min(80, ch)),
                 canvas_w=cw,
                 canvas_h=ch,
-                full_bleed=op_name == "ADD_IMAGE" or (el or {}).get("type") == "IMAGE",
+                full_bleed=full_bleed,
             )
             payload.update(geo)
 
