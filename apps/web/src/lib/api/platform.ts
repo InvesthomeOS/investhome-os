@@ -180,6 +180,14 @@ export const platformApi = {
   retryDelivery: (id: string) =>
     platformFetch<Record<string, unknown>>(`/webhooks/deliveries/${id}/retry`, { method: 'POST' }),
   integrations: () => platformFetch<{ items: Array<Record<string, unknown>> }>('/integrations'),
+  canvaAuthorize: () =>
+    platformFetch<{ authorize_url: string; redirect_uri: string }>('/integrations/canva/authorize', {
+      method: 'POST',
+    }),
+  canvaDisconnect: () =>
+    platformFetch<{ ok: boolean; status: string }>('/integrations/canva/disconnect', {
+      method: 'POST',
+    }),
   externalAudit: () => platformFetch<{ items: Array<Record<string, unknown>> }>('/audit/external-access'),
   recordExternalAudit: (body: Record<string, unknown>) =>
     platformFetch<Record<string, unknown>>('/audit/external-access', {

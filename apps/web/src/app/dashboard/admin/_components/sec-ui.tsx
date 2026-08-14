@@ -2,9 +2,10 @@
 
 import type { ReactNode } from 'react';
 
-export function StatusBadge({ status }: { status: string }) {
+export function StatusBadge({ status, children }: { status: string; children?: ReactNode }) {
   const tone =
     status === 'configured' ||
+    status === 'connected' ||
     status === 'healthy' ||
     status === 'active' ||
     status === 'ready' ||
@@ -41,7 +42,7 @@ export function StatusBadge({ status }: { status: string }) {
           : status === 'disabled' || status === 'inactive'
             ? 'muted'
             : 'neutral';
-  return <span className={`sec-badge sec-badge--${tone}`}>{status.replace(/_/g, ' ')}</span>;
+  return <span className={`sec-badge sec-badge--${tone}`}>{children ?? status.replace(/_/g, ' ')}</span>;
 }
 
 export function SecSection({

@@ -134,6 +134,10 @@ class Settings(BaseSettings):
     ideogram_model: str = Field(default="V_4_0", alias="IDEOGRAM_MODEL")
     ideogram_default_quality: str = Field(default="QUALITY", alias="IDEOGRAM_DEFAULT_QUALITY")
 
+    # Canva Connect OAuth 2.0 + PKCE — never hardcode secrets.
+    canva_client_id: str | None = Field(default=None, alias="CANVA_CLIENT_ID")
+    canva_client_secret: str | None = Field(default=None, alias="CANVA_CLIENT_SECRET")
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, value: Any) -> list[str]:

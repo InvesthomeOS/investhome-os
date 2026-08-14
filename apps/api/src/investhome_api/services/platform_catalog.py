@@ -486,9 +486,9 @@ INTEGRATION_SEED: list[dict] = [
         "name_tr": "Canva",
         "category": "creative",
         "status": IntegrationStatus.NOT_CONNECTED.value,
-        "description_en": "OAuth callback foundation only — token exchange not implemented",
-        "description_tr": "Yalnızca OAuth callback temeli — token değişimi henüz yok",
-        "env_keys_json": [],
+        "description_en": "Connect Canva via OAuth 2.0 + PKCE",
+        "description_tr": "Canva'yı OAuth 2.0 + PKCE ile bağlayın",
+        "env_keys_json": ["CANVA_CLIENT_ID", "CANVA_CLIENT_SECRET"],
         "sort_order": 6,
     },
 ]

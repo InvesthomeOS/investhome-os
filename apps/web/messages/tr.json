@@ -21599,7 +21599,18 @@
     "rotated": "Döndürüldü. Yeni gizli: {secret}",
     "revoked": "İptal edildi",
     "recordAuditProbe": "Denetim probu kaydet",
-    "noKillSwitches": "Aktif acil kapatma yok (MGA tohumu hariç)"
+    "noKillSwitches": "Aktif acil kapatma yok (MGA tohumu hariç)",
+    "canva": {
+      "connect": "Bağlan",
+      "disconnect": "Bağlantıyı kes",
+      "statusConnected": "Bağlı",
+      "statusNotConnected": "Bağlı değil",
+      "connectedToast": "Canva bağlandı.",
+      "disconnectedToast": "Canva bağlantısı kesildi.",
+      "connectFailed": "Canva bağlantısı başlatılamadı.",
+      "disconnectFailed": "Canva bağlantısı kesilemedi.",
+      "errorToast": "Canva bağlantısı başarısız ({code})."
+    }
   },
   "contractorPilot": {
     "eyebrow": "Yüklenici Portalı Pilotu",

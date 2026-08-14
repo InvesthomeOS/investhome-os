@@ -40,6 +40,7 @@ class WebhookDeliveryStatus(str, enum.Enum):
 class IntegrationStatus(str, enum.Enum):
     AVAILABLE = "available"
     CONFIGURED = "configured"
+    CONNECTED = "connected"
     PLANNED = "planned"
     PARTIAL = "partial"
     BLOCKED = "blocked"

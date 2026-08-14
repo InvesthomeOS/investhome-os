@@ -22201,7 +22201,18 @@
     "rotated": "Rotated. New secret: {secret}",
     "revoked": "Revoked",
     "recordAuditProbe": "Record audit probe",
-    "noKillSwitches": "No active kill switches (except seeded MGA)"
+    "noKillSwitches": "No active kill switches (except seeded MGA)",
+    "canva": {
+      "connect": "Connect",
+      "disconnect": "Disconnect",
+      "statusConnected": "Connected",
+      "statusNotConnected": "Not connected",
+      "connectedToast": "Canva connected.",
+      "disconnectedToast": "Canva disconnected.",
+      "connectFailed": "Unable to start Canva connection.",
+      "disconnectFailed": "Unable to disconnect Canva.",
+      "errorToast": "Canva connection failed ({code})."
+    }
   },
   "contractorPilot": {
     "eyebrow": "Contractor Portal Pilot",

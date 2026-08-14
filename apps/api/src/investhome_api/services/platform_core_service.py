@@ -955,6 +955,7 @@ def list_integrations(db: Session) -> list[dict]:
     for r in rows:
         status = r.status
         configured = r.configured
+        connectable = False
         if r.code == "openai":
             configured = bool(getattr(settings, "ai_api_key", None))
             if configured and status == IntegrationStatus.NOT_CONNECTED.value:
@@ -964,6 +965,18 @@ def list_integrations(db: Session) -> list[dict]:
             if flags.n8n_automation:
                 status = IntegrationStatus.PARTIAL.value
                 configured = True
+        if r.code == "canva":
+            from investhome_api.services import canva_oauth_service as canva_oauth
+
+            connectable = True
+            configured = canva_oauth.is_canva_connected(db)
+            if configured:
+                status = IntegrationStatus.CONNECTED.value
+            else:
+                status = IntegrationStatus.NOT_CONNECTED.value
+            env_keys = ["CANVA_CLIENT_ID", "CANVA_CLIENT_SECRET"]
+        else:
+            env_keys = list(r.env_keys_json or [])
         result.append(
             {
                 "id": str(r.id),
@@ -974,8 +987,9 @@ def list_integrations(db: Session) -> list[dict]:
                 "status": status,
                 "description_en": r.description_en,
                 "description_tr": r.description_tr,
-                "env_keys": list(r.env_keys_json or []),
+                "env_keys": env_keys,
                 "configured": configured,
+                "connectable": connectable,
                 "block_reason": r.block_reason,
                 "docs_url": r.docs_url,
             }
@@ -1250,6 +1264,7 @@ def platform_overview(db: Session) -> dict:
             "planned": sum(1 for i in integrations if i["status"] == "planned"),
             "blocked": sum(1 for i in integrations if i["status"] == "blocked"),
             "not_connected": sum(1 for i in integrations if i["status"] == "not_connected"),
+            "connected": sum(1 for i in integrations if i["status"] == "connected"),
             "partial": sum(1 for i in integrations if i["status"] == "partial"),
         },
         "roadmap": {

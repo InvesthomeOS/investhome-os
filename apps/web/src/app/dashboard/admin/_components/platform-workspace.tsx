@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 import { PageHeader } from '@investhome/ui';
 
@@ -48,6 +49,7 @@ function nameOf(item: { name_en?: string; name_tr?: string }, locale: string) {
 export function PlatformWorkspace({ section }: { section: PlatformSection }) {
   const t = useTranslations('platformAdmin');
   const locale = useLocale();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const { notifySuccess, notifyError } = useAdminToast();
   const canView = hasPermission(user, 'platform', 'view') || hasPermission(user, 'security', 'view');
@@ -72,6 +74,7 @@ export function PlatformWorkspace({ section }: { section: PlatformSection }) {
   const [deliveries, setDeliveries] = useState<Array<Record<string, unknown>>>([]);
   const [sigResult, setSigResult] = useState<string | null>(null);
   const [integrations, setIntegrations] = useState<Array<Record<string, unknown>>>([]);
+  const [canvaBusy, setCanvaBusy] = useState(false);
   const [health, setHealth] = useState<PlatformOverview['health'] | null>(null);
   const [moduleHealth, setModuleHealth] = useState<Array<Record<string, unknown>>>([]);
   const [killSwitches, setKillSwitches] = useState<{ modules: PlatformModule[]; flags: PlatformFeatureFlag[] } | null>(null);
@@ -148,6 +151,60 @@ export function PlatformWorkspace({ section }: { section: PlatformSection }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (section !== 'integrations') return;
+    const connected = searchParams.get('canva');
+    const canvaError = searchParams.get('canva_error');
+    if (connected === 'connected') {
+      notifySuccess(t('canva.connectedToast'));
+    } else if (canvaError) {
+      notifyError(null, t('canva.errorToast', { code: canvaError }));
+    }
+    if (connected || canvaError) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('canva');
+      url.searchParams.delete('canva_error');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    }
+  }, [section, searchParams, notifySuccess, notifyError, t]);
+
+  const integrationStatusLabel = (status: string) => {
+    if (status === 'connected') return t('canva.statusConnected');
+    if (status === 'not_connected') return t('canva.statusNotConnected');
+    return status.replace(/_/g, ' ');
+  };
+
+  const connectCanva = async () => {
+    if (!canManage || canvaBusy) return;
+    setCanvaBusy(true);
+    try {
+      const { authorize_url } = await platformApi.canvaAuthorize();
+      window.location.href = authorize_url;
+    } catch (err) {
+      setCanvaBusy(false);
+      notifyError(err, t('canva.connectFailed'));
+    }
+  };
+
+  const disconnectCanva = async () => {
+    if (!canManage || canvaBusy) return;
+    setCanvaBusy(true);
+    try {
+      await platformApi.canvaDisconnect();
+      notifySuccess(t('canva.disconnectedToast'));
+      await load();
+      setSelectedIntegration((prev) =>
+        prev && String(prev.code) === 'canva'
+          ? { ...prev, status: 'not_connected', configured: false }
+          : prev,
+      );
+    } catch (err) {
+      notifyError(err, t('canva.disconnectFailed'));
+    } finally {
+      setCanvaBusy(false);
+    }
+  };
 
   const titles: Record<PlatformSection, string> = {
     overview: t('titles.overview'),
@@ -707,7 +764,11 @@ export function PlatformWorkspace({ section }: { section: PlatformSection }) {
                   >
                     <td><strong>{nameOf({ name_en: String(i.name_en), name_tr: String(i.name_tr) }, locale)}</strong></td>
                     <td>{String(i.category)}</td>
-                    <td><StatusBadge status={String(i.status)} /></td>
+                    <td>
+                      <StatusBadge status={String(i.status)}>
+                        {integrationStatusLabel(String(i.status))}
+                      </StatusBadge>
+                    </td>
                     <td>{String(i.block_reason || ((i.env_keys as string[]) || []).join(', ') || '—')}</td>
                   </tr>
                 ))}
@@ -715,14 +776,41 @@ export function PlatformWorkspace({ section }: { section: PlatformSection }) {
             </table>
           </div>
           {selectedIntegration ? (
-            <aside className="platform-detail" data-integration-detail>
+            <aside className="platform-detail" data-integration-detail data-integration-code={String(selectedIntegration.code)}>
               <h3>{nameOf({ name_en: String(selectedIntegration.name_en), name_tr: String(selectedIntegration.name_tr) }, locale)}</h3>
-              <StatusBadge status={String(selectedIntegration.status)} />
+              <StatusBadge status={String(selectedIntegration.status)}>
+                {integrationStatusLabel(String(selectedIntegration.status))}
+              </StatusBadge>
               <p>{String(locale === 'tr' ? selectedIntegration.description_tr : selectedIntegration.description_en)}</p>
               {selectedIntegration.block_reason ? (
                 <p className="platform-block-reason">{String(selectedIntegration.block_reason)}</p>
               ) : null}
               <p className="platform-muted">env: {((selectedIntegration.env_keys as string[]) || []).join(', ') || '—'}</p>
+              {String(selectedIntegration.code) === 'canva' && canManage ? (
+                <div className="platform-actions" data-canva-actions>
+                  {String(selectedIntegration.status) === 'connected' ? (
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--danger"
+                      data-canva-disconnect
+                      disabled={canvaBusy}
+                      onClick={() => void disconnectCanva()}
+                    >
+                      {t('canva.disconnect')}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="admin-btn"
+                      data-canva-connect
+                      disabled={canvaBusy}
+                      onClick={() => void connectCanva()}
+                    >
+                      {t('canva.connect')}
+                    </button>
+                  )}
+                </div>
+              ) : null}
             </aside>
           ) : null}
         </SecSection>

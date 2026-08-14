@@ -1,20 +1,27 @@
-"""Canva OAuth callback foundation - redirect only, no token exchange."""
+"""Canva Connect OAuth 2.0 + PKCE — authorize, callback exchange, disconnect."""
 
 from __future__ import annotations
 
+import logging
 import re
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
+from sqlalchemy.orm import Session
 
+from investhome_api.api.deps.auth import require_any_permission
 from investhome_api.config.settings import get_settings
+from investhome_api.db.session import get_db
+from investhome_api.models.user_auth import User
+from investhome_api.services import canva_oauth_service as canva
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/platform/integrations/canva", tags=["platform-integrations-canva"])
 
-# Existing Creative Studio / AI connections screen does not exist yet.
-# Platform integrations catalog is the live integrations surface (includes AI).
 _FRONTEND_PATH = "/dashboard/admin/platform/integrations"
+_platform_manage = require_any_permission(("platform", "manage"), ("security", "manage"))
 
 _SAFE_OAUTH_ERRORS = frozenset(
     {
@@ -28,6 +35,10 @@ _SAFE_OAUTH_ERRORS = frozenset(
         "invalid_callback",
         "missing_state",
         "missing_code",
+        "invalid_state",
+        "token_exchange_failed",
+        "canva_not_configured",
+        "oauth_error",
     }
 )
 
@@ -58,19 +69,43 @@ def _redirect(query: dict[str, str]) -> RedirectResponse:
     return RedirectResponse(url=url, status_code=302)
 
 
+@router.post("/authorize")
+def canva_oauth_authorize_start(
+    db: Session = Depends(get_db),
+    user: User = Depends(_platform_manage),
+) -> dict:
+    """
+    Start Canva OAuth + PKCE. Returns authorize_url for the browser to navigate to.
+    Does not expose client_secret or code_verifier.
+    """
+    _ = db  # ensure DB session available for future audit hooks
+    try:
+        authorize_url = canva.start_authorization(user_id=str(user.id) if user else None)
+    except ValueError as exc:
+        code = str(exc) or "canva_not_configured"
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=code if code in _SAFE_OAUTH_ERRORS else "canva_not_configured",
+        ) from exc
+    return {
+        "authorize_url": authorize_url,
+        "redirect_uri": canva.CANVA_REDIRECT_URI,
+    }
+
+
 @router.get("/callback")
 def canva_oauth_callback(
+    db: Session = Depends(get_db),
     code: str | None = Query(default=None),
     state: str | None = Query(default=None),
     error: str | None = Query(default=None),
     error_description: str | None = Query(default=None),  # accepted, never forwarded
 ) -> RedirectResponse:
     """
-    Canva OAuth redirect URI foundation.
+    Canva OAuth redirect URI.
 
-    Success: redirects to frontend with `?canva=connected`.
-    Error / invalid: redirects with `?canva_error=<opaque>`.
-    Does not exchange codes or store tokens.
+    Success: exchange authorization code (PKCE) → store tokens → redirect `?canva=connected`.
+    Error / invalid: redirect `?canva_error=<opaque>`.
     """
     _ = error_description  # intentionally unused - avoid secret leakage
 
@@ -80,8 +115,37 @@ def canva_oauth_callback(
     if not code or not str(code).strip():
         return _redirect({"canva_error": "missing_code"})
 
-    # Full OAuth state store not built this sprint - require non-empty state only.
     if not state or not str(state).strip():
         return _redirect({"canva_error": "missing_state"})
 
+    pending = canva.pop_oauth_state(str(state).strip())
+    if not pending or not pending.get("code_verifier"):
+        return _redirect({"canva_error": "invalid_state"})
+
+    try:
+        token_payload = canva.exchange_authorization_code(
+            code=str(code).strip(),
+            code_verifier=str(pending["code_verifier"]),
+        )
+        canva.store_tokens(db, token_payload)
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        return _redirect({"canva_error": _sanitize_error(str(exc))})
+    except Exception:
+        db.rollback()
+        logger.exception("Canva OAuth callback failed")
+        return _redirect({"canva_error": "token_exchange_failed"})
+
     return _redirect({"canva": "connected"})
+
+
+@router.post("/disconnect")
+def canva_oauth_disconnect(
+    db: Session = Depends(get_db),
+    _user: User = Depends(_platform_manage),
+) -> dict:
+    """Clear stored Canva tokens and mark integration not_connected."""
+    canva.disconnect_canva(db)
+    db.commit()
+    return {"ok": True, "status": "not_connected"}
