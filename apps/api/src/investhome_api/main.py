@@ -11,6 +11,7 @@ from investhome_api.api.routes import (
     auth,
     automation_center,
     branches,
+    canva_oauth,
     companies,
     company_documents,
     company_foundation,
@@ -123,6 +124,7 @@ def create_app() -> FastAPI:
     app.include_router(security_center.users_security_router)
     app.include_router(security_center.router)
     app.include_router(platform.router)
+    app.include_router(canva_oauth.router)
     app.include_router(roles.router)
     app.include_router(roles.permissions_router)
     app.include_router(leads.router)

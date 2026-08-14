@@ -480,6 +480,17 @@ INTEGRATION_SEED: list[dict] = [
         "env_keys_json": ["FEATURE_EXTERNAL_AI", "AI_API_KEY"],
         "sort_order": 5,
     },
+    {
+        "code": "canva",
+        "name_en": "Canva",
+        "name_tr": "Canva",
+        "category": "creative",
+        "status": IntegrationStatus.NOT_CONNECTED.value,
+        "description_en": "OAuth callback foundation only — token exchange not implemented",
+        "description_tr": "Yalnızca OAuth callback temeli — token değişimi henüz yok",
+        "env_keys_json": [],
+        "sort_order": 6,
+    },
 ]
 
 
