@@ -110,6 +110,7 @@ def test_canva_callback_exchanges_code_and_stores_tokens(client: TestClient, mon
     canva_row = next(i for i in integrations if i["code"] == "canva")
     assert canva_row["status"] == "connected"
     assert canva_row["configured"] is True
+    assert canva_row["connectable"] is True
     assert "access_token" not in str(canva_row).lower()
     assert "refresh_token" not in str(canva_row).lower()
 
@@ -226,6 +227,18 @@ def test_canva_disconnect(client: TestClient, monkeypatch):
     canva_row = next(i for i in integrations if i["code"] == "canva")
     assert canva_row["status"] == "not_connected"
     assert canva_row["configured"] is False
+    assert canva_row["connectable"] is True
+
+
+def test_list_integrations_includes_connectable_canva(client: TestClient):
+    response = client.get("/platform/integrations")
+    assert response.status_code == 200
+    items = response.json()["items"]
+    canva_row = next(i for i in items if i["code"] == "canva")
+    assert canva_row["connectable"] is True
+    assert canva_row["status"] == "not_connected"
+    assert canva_row["configured"] is False
+    assert {i["code"] for i in items if i["connectable"]} == {"canva"}
 
 
 def test_pkce_challenge_is_s256():

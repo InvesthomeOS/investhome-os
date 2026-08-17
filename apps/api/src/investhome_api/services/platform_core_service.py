@@ -180,9 +180,11 @@ def ensure_platform_seed(db: Session) -> None:
         )
 
     existing_int = {i.code for i in db.scalars(select(PlatformIntegration)).all()}
+    new_integrations = 0
     for item in INTEGRATION_SEED:
         if item["code"] in existing_int:
             continue
+        new_integrations += 1
         db.add(
             PlatformIntegration(
                 id=uuid4(),
@@ -257,6 +259,8 @@ def ensure_platform_seed(db: Session) -> None:
             )
         )
     db.flush()
+    if new_integrations:
+        db.commit()
 
 
 def _module_effective(mod: PlatformModule) -> dict:

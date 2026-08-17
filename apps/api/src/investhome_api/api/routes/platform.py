@@ -384,7 +384,9 @@ def list_integrations(
     db: Session = Depends(get_db),
     _user: User = Depends(_platform_view),
 ) -> dict:
-    return {"items": service.list_integrations(db)}
+    items = service.list_integrations(db)
+    db.commit()
+    return {"items": items}
 
 
 @router.get("/notification-gateway")

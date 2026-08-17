@@ -46,6 +46,10 @@ function nameOf(item: { name_en?: string; name_tr?: string }, locale: string) {
   return locale === 'tr' ? item.name_tr || item.name_en : item.name_en || item.name_tr;
 }
 
+function isConnectableIntegration(item: Record<string, unknown>) {
+  return item.connectable === true || String(item.code) === 'canva';
+}
+
 export function PlatformWorkspace({ section }: { section: PlatformSection }) {
   const t = useTranslations('platformAdmin');
   const locale = useLocale();
@@ -204,6 +208,42 @@ export function PlatformWorkspace({ section }: { section: PlatformSection }) {
     } finally {
       setCanvaBusy(false);
     }
+  };
+
+  const renderConnectActions = (item: Record<string, unknown>, stopRowClick = false) => {
+    if (!isConnectableIntegration(item) || !canManage) return null;
+    const connected = String(item.status) === 'connected';
+    return (
+      <div className="platform-actions" data-canva-actions>
+        {connected ? (
+          <button
+            type="button"
+            className="admin-btn admin-btn--danger"
+            data-canva-disconnect
+            disabled={canvaBusy}
+            onClick={(ev) => {
+              if (stopRowClick) ev.stopPropagation();
+              void disconnectCanva();
+            }}
+          >
+            {t('canva.disconnect')}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="admin-btn"
+            data-canva-connect
+            disabled={canvaBusy}
+            onClick={(ev) => {
+              if (stopRowClick) ev.stopPropagation();
+              void connectCanva();
+            }}
+          >
+            {t('canva.connect')}
+          </button>
+        )}
+      </div>
+    );
   };
 
   const titles: Record<PlatformSection, string> = {
@@ -751,7 +791,13 @@ export function PlatformWorkspace({ section }: { section: PlatformSection }) {
           <div className="sec-table-wrap">
             <table className="sec-table" data-platform-integrations>
               <thead>
-                <tr><th>{t('cols.integration')}</th><th>{t('cols.category')}</th><th>{t('cols.status')}</th><th>{t('cols.notes')}</th></tr>
+                <tr>
+                  <th>{t('cols.integration')}</th>
+                  <th>{t('cols.category')}</th>
+                  <th>{t('cols.status')}</th>
+                  <th>{t('cols.notes')}</th>
+                  <th>{t('cols.actions')}</th>
+                </tr>
               </thead>
               <tbody>
                 {integrations.map((i) => (
@@ -759,6 +805,7 @@ export function PlatformWorkspace({ section }: { section: PlatformSection }) {
                     key={String(i.code)}
                     data-integration={String(i.code)}
                     data-status={String(i.status)}
+                    data-connectable={isConnectableIntegration(i) ? 'true' : undefined}
                     onClick={() => setSelectedIntegration(i)}
                     style={{ cursor: 'pointer' }}
                   >
@@ -770,6 +817,7 @@ export function PlatformWorkspace({ section }: { section: PlatformSection }) {
                       </StatusBadge>
                     </td>
                     <td>{String(i.block_reason || ((i.env_keys as string[]) || []).join(', ') || '—')}</td>
+                    <td>{renderConnectActions(i, true)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -786,31 +834,7 @@ export function PlatformWorkspace({ section }: { section: PlatformSection }) {
                 <p className="platform-block-reason">{String(selectedIntegration.block_reason)}</p>
               ) : null}
               <p className="platform-muted">env: {((selectedIntegration.env_keys as string[]) || []).join(', ') || '—'}</p>
-              {String(selectedIntegration.code) === 'canva' && canManage ? (
-                <div className="platform-actions" data-canva-actions>
-                  {String(selectedIntegration.status) === 'connected' ? (
-                    <button
-                      type="button"
-                      className="admin-btn admin-btn--danger"
-                      data-canva-disconnect
-                      disabled={canvaBusy}
-                      onClick={() => void disconnectCanva()}
-                    >
-                      {t('canva.disconnect')}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="admin-btn"
-                      data-canva-connect
-                      disabled={canvaBusy}
-                      onClick={() => void connectCanva()}
-                    >
-                      {t('canva.connect')}
-                    </button>
-                  )}
-                </div>
-              ) : null}
+              {renderConnectActions(selectedIntegration)}
             </aside>
           ) : null}
         </SecSection>
