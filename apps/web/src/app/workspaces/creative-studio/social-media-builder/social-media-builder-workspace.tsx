@@ -15,6 +15,7 @@ import {
   getIdeogramProviderStatus,
   type IdeogramProviderStatus,
 } from '@/lib/api/creative-studio';
+import { exportDesignToCanva } from '@/lib/api/platform';
 
 import {
   BOTTOM_ACTIONS,
@@ -95,7 +96,7 @@ import {
   serializeSocialPosts,
 } from './social-media-builder-persistence';
 import { SmbPostCardMore } from './smb-post-overflow-menu';
-import { exportSocialPostPng } from './social-media-builder-export';
+import { exportSocialPostPng, renderSocialPostPng } from './social-media-builder-export';
 import { SmbArtboardElements } from './smb-artboard-elements';
 import {
   assetUsedByOtherPosts,
@@ -243,6 +244,7 @@ export function SocialMediaBuilderWorkspace() {
   const artDirectorSessionRef = useRef<ArtDirectorSession | null>(null);
   const [postMenuId, setPostMenuId] = useState<string | null>(null);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
+  const [canvaBusy, setCanvaBusy] = useState(false);
 
   const filmstripRef = useRef<HTMLDivElement | null>(null);
   const genIdleTimerRef = useRef<number | null>(null);
@@ -1027,6 +1029,71 @@ export function SocialMediaBuilderWorkspace() {
     t,
   ]);
 
+  const runOpenInCanva = useCallback(async () => {
+    if (canvaBusy) return;
+    if (!selectedPost) {
+      showToast(t('toasts.canvaNoDesign'));
+      return;
+    }
+    const hasCover = Boolean(artboardSrc && artboardState === 'ready');
+    const hasElements = selectedPost.elements.length > 0;
+    if (!hasCover && !hasElements) {
+      showToast(t('toasts.canvaNoDesign'));
+      return;
+    }
+    const tab = window.open('', '_blank');
+    if (tab) {
+      tab.opener = null;
+    }
+    setCanvaBusy(true);
+    try {
+      const blob = await renderSocialPostPng({
+        width: contentSize.w,
+        height: contentSize.h,
+        coverImageUrl: hasCover ? artboardSrc : null,
+        elements: selectedPost.elements,
+        imageUrlsByAssetId: elementDisplayUrls,
+        brandLogo,
+        filename: `${selectedPost.name || 'social-post'}.png`,
+      });
+      const result = await exportDesignToCanva({
+        file: blob,
+        filename: `${selectedPost.name || 'social-post'}.png`,
+        title: selectedPost.name || 'Social post',
+        width: contentSize.w,
+        height: contentSize.h,
+        linked_project_id: docApi.constructionProjectId,
+      });
+      if (tab) {
+        tab.location.replace(result.edit_url);
+      } else {
+        window.open(result.edit_url, '_blank', 'noopener,noreferrer');
+      }
+      showToast(t('toasts.canvaOpened'));
+    } catch (err) {
+      tab?.close();
+      const code = err instanceof ApiError ? err.message : '';
+      if (code === 'canva_not_connected' || code === 'canva_token_refresh_failed') {
+        showToast(t('toasts.canvaNotConnected'));
+      } else {
+        showToast(t('toasts.canvaFailed'));
+      }
+    } finally {
+      setCanvaBusy(false);
+    }
+  }, [
+    artboardSrc,
+    artboardState,
+    brandLogo,
+    canvaBusy,
+    contentSize.h,
+    contentSize.w,
+    docApi.constructionProjectId,
+    elementDisplayUrls,
+    selectedPost,
+    t,
+  ]);
+
   function handleFloating(action: FloatingActionKey | 'more') {
     if (action === 'more') {
       setFloatingMoreOpen(!floatingMoreOpen);
@@ -1627,6 +1694,10 @@ export function SocialMediaBuilderWorkspace() {
       onDownload={() => {
         void runDownload();
       }}
+      onOpenInCanva={() => {
+        void runOpenInCanva();
+      }}
+      canvaBusy={canvaBusy}
     />
   );
 
@@ -2110,6 +2181,17 @@ export function SocialMediaBuilderWorkspace() {
             >
               <IhIcon name="inbox" size={12} />
               {t('download')}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              data-testid="smb-open-in-canva"
+              disabled={canvaBusy}
+              onClick={() => {
+                void runOpenInCanva();
+              }}
+            >
+              {canvaBusy ? t('openingInCanva') : t('openInCanva')}
             </Button>
             <Button
               variant="primary"

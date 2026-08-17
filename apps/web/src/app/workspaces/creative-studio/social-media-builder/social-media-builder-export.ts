@@ -201,9 +201,10 @@ async function drawElement(
 }
 
 /**
- * Renders the current persistent post (cover + elements) to a PNG and downloads it.
+ * Renders the current persistent post (cover + elements) to a PNG blob.
+ * Shared by local download and Canva transfer — does not change drawing.
  */
-export async function exportSocialPostPng(input: SocialPostExportInput): Promise<void> {
+export async function renderSocialPostPng(input: SocialPostExportInput): Promise<Blob> {
   const width = Math.max(1, Math.round(input.width));
   const height = Math.max(1, Math.round(input.height));
   const canvas = document.createElement('canvas');
@@ -257,6 +258,14 @@ export async function exportSocialPostPng(input: SocialPostExportInput): Promise
   if (!blob) {
     throw new Error('Export failed');
   }
+  return blob;
+}
+
+/**
+ * Renders the current persistent post (cover + elements) to a PNG and downloads it.
+ */
+export async function exportSocialPostPng(input: SocialPostExportInput): Promise<void> {
+  const blob = await renderSocialPostPng(input);
 
   const url = URL.createObjectURL(blob);
   try {

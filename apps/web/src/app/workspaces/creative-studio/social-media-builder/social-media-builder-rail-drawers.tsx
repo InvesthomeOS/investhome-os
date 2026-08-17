@@ -417,6 +417,9 @@ export type SmbRightRailDrawerProps = {
   coverDisplayUrl?: string;
   /** Real PNG export of the current post. */
   onDownload?: () => void;
+  /** Transfer current PNG to Canva Connect and open edit_url. */
+  onOpenInCanva?: () => void;
+  canvaBusy?: boolean;
 };
 
 export function SmbRightRailDrawer(props: SmbRightRailDrawerProps) {
@@ -763,7 +766,7 @@ function StyleDrawer({ selectedElement, patchElement, markDirty }: SmbRightRailD
   );
 }
 
-function SettingsDrawer({ onToast, onDownload }: SmbRightRailDrawerProps) {
+function SettingsDrawer({ onToast, onDownload, onOpenInCanva, canvaBusy }: SmbRightRailDrawerProps) {
   const t = useTranslations('creativeStudio.ds.socialMediaBuilder');
 
   return (
@@ -803,6 +806,21 @@ function SettingsDrawer({ onToast, onDownload }: SmbRightRailDrawerProps) {
           }}
         >
           {t('download')}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          data-testid="smb-settings-open-in-canva"
+          disabled={canvaBusy}
+          onClick={() => {
+            if (onOpenInCanva) {
+              onOpenInCanva();
+              return;
+            }
+            onToast(t('toasts.canvaFailed'));
+          }}
+        >
+          {canvaBusy ? t('openingInCanva') : t('openInCanva')}
         </Button>
       </details>
       <details className="smb-ws__accordion">

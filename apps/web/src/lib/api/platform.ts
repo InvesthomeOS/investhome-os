@@ -1,4 +1,57 @@
-import { apiFetch } from './client';
+import { apiFetch, getApiBaseUrl, parseApiErrorBody, ApiError, type ApiErrorBody } from './client';
+
+export type CanvaExportInput = {
+  file?: Blob;
+  filename?: string;
+  media_asset_id?: string;
+  linked_project_id?: string | null;
+  title?: string;
+  width?: number;
+  height?: number;
+};
+
+export type CanvaExportResult = {
+  edit_url: string;
+  design_id?: string | null;
+};
+
+export async function exportDesignToCanva(input: CanvaExportInput): Promise<CanvaExportResult> {
+  const form = new FormData();
+  if (input.file) {
+    const name = input.filename?.endsWith('.png') ? input.filename : `${input.filename || 'social-post'}.png`;
+    form.append('file', input.file, name);
+  }
+  if (input.media_asset_id) form.append('media_asset_id', input.media_asset_id);
+  if (input.linked_project_id) form.append('linked_project_id', input.linked_project_id);
+  if (input.title) form.append('title', input.title);
+  if (input.width != null) form.append('width', String(Math.round(input.width)));
+  if (input.height != null) form.append('height', String(Math.round(input.height)));
+
+  const response = await fetch(`${getApiBaseUrl()}/platform/integrations/canva/export`, {
+    method: 'POST',
+    credentials: 'include',
+    body: form,
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    let message = `Request failed with status ${response.status}`;
+    let code: string | undefined;
+    try {
+      const body = (await response.json()) as ApiErrorBody;
+      const parsed = parseApiErrorBody(body, response.status);
+      message = parsed.message;
+      code = parsed.code;
+    } catch {
+      // Keep default message when response is not JSON.
+    }
+    throw new ApiError(message, response.status, code);
+  }
+  const payload = (await response.json()) as CanvaExportResult;
+  if (!payload?.edit_url) {
+    throw new ApiError('canva_export_failed', response.status || 502);
+  }
+  return payload;
+}
 
 export type PlatformModule = {
   id: string;
@@ -188,6 +241,7 @@ export const platformApi = {
     platformFetch<{ ok: boolean; status: string }>('/integrations/canva/disconnect', {
       method: 'POST',
     }),
+  canvaExport: (input: CanvaExportInput) => exportDesignToCanva(input),
   externalAudit: () => platformFetch<{ items: Array<Record<string, unknown>> }>('/audit/external-access'),
   recordExternalAudit: (body: Record<string, unknown>) =>
     platformFetch<Record<string, unknown>>('/audit/external-access', {

@@ -204,7 +204,7 @@ def exchange_authorization_code(*, code: str, code_verifier: str) -> dict[str, A
         "code": code,
         "redirect_uri": CANVA_REDIRECT_URI,
     }
-    with httpx.Client(timeout=30.0) as client:
+    with http_client() as client:
         response = client.post(CANVA_TOKEN_URL, headers=headers, data=data)
     if response.status_code >= 400:
         logger.warning("Canva token exchange failed status=%s", response.status_code)
@@ -213,6 +213,77 @@ def exchange_authorization_code(*, code: str, code_verifier: str) -> dict[str, A
     if not isinstance(payload, dict) or not payload.get("access_token"):
         raise ValueError("token_exchange_failed")
     return payload
+
+
+def http_client() -> httpx.Client:
+    """Shared Canva HTTP client (timeout only — no credentials in constructor)."""
+    return httpx.Client(timeout=30.0)
+
+
+def refresh_access_token(*, refresh_token: str) -> dict[str, Any]:
+    """Exchange a Canva refresh token for a new access + refresh token pair (single-use)."""
+    client_id, client_secret = require_canva_credentials()
+    headers = {
+        "Authorization": _basic_auth_header(client_id, client_secret),
+        "Content-Type": "application/x-www-form-urlencoded",
+    }
+    data = {
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token,
+    }
+    with http_client() as client:
+        response = client.post(CANVA_TOKEN_URL, headers=headers, data=data)
+    if response.status_code >= 400:
+        logger.warning("Canva token refresh failed status=%s", response.status_code)
+        raise ValueError("canva_token_refresh_failed")
+    payload = response.json()
+    if not isinstance(payload, dict) or not payload.get("access_token"):
+        raise ValueError("canva_token_refresh_failed")
+    return payload
+
+
+def _parse_expires_at(raw: Any) -> datetime | None:
+    if not raw:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed
+
+
+def access_token_needs_refresh(tokens: dict[str, Any], *, skew_seconds: int = 60) -> bool:
+    expires_at = _parse_expires_at(tokens.get("expires_at"))
+    if expires_at is None:
+        return False
+    return datetime.now(UTC) + timedelta(seconds=skew_seconds) >= expires_at
+
+
+def refresh_and_store_tokens(db: Session, tokens: dict[str, Any]) -> dict[str, Any]:
+    refresh = str(tokens.get("refresh_token") or "").strip()
+    if not refresh:
+        raise ValueError("canva_not_connected")
+    payload = refresh_access_token(refresh_token=refresh)
+    if not payload.get("refresh_token"):
+        payload["refresh_token"] = refresh
+    store_tokens(db, payload)
+    db.flush()
+    stored = get_stored_tokens(db)
+    if not stored or not stored.get("access_token"):
+        raise ValueError("canva_token_refresh_failed")
+    return stored
+
+
+def get_valid_access_token(db: Session) -> str:
+    """Return a live Canva access token, refreshing via stored OAuth credentials if needed."""
+    tokens = get_stored_tokens(db)
+    if not tokens or not str(tokens.get("access_token") or "").strip():
+        raise ValueError("canva_not_connected")
+    if access_token_needs_refresh(tokens):
+        tokens = refresh_and_store_tokens(db, tokens)
+    return str(tokens["access_token"])
 
 
 def store_tokens(db: Session, token_payload: dict[str, Any]) -> None:
