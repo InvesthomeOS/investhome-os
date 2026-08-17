@@ -4,10 +4,20 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import Annotated
 from urllib.parse import urlencode
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -16,6 +26,7 @@ from investhome_api.config.settings import get_settings
 from investhome_api.db.session import get_db
 from investhome_api.models.user_auth import User
 from investhome_api.services import canva_export_service as canva_export
+from investhome_api.services import canva_layered_pptx as layered
 from investhome_api.services import canva_oauth_service as canva
 
 logger = logging.getLogger(__name__)
@@ -170,12 +181,28 @@ def _raise_canva_export_error(exc: ValueError) -> None:
         "linked_project_id_required": status.HTTP_400_BAD_REQUEST,
         "invalid_asset_id": status.HTTP_400_BAD_REQUEST,
         "canva_upload_failed": status.HTTP_502_BAD_GATEWAY,
+        "canva_import_failed": status.HTTP_502_BAD_GATEWAY,
         "canva_export_failed": status.HTTP_502_BAD_GATEWAY,
     }
     raise HTTPException(
         status_code=mapping.get(code, status.HTTP_502_BAD_GATEWAY),
         detail=code if code in mapping else "canva_export_failed",
     ) from exc
+
+
+async def _read_layer_images(files: list[UploadFile] | None) -> dict[str, bytes]:
+    collected: dict[str, bytes] = {}
+    for upload in files or []:
+        name = (upload.filename or "").strip()
+        if not name:
+            continue
+        payload = await upload.read()
+        if not payload:
+            continue
+        collected[name] = payload
+        stem = name.rsplit(".", 1)[0]
+        collected.setdefault(stem, payload)
+    return collected
 
 
 @router.post("/export")
@@ -188,10 +215,15 @@ async def canva_export_design(
     title: str | None = Form(default=None),
     width: int | None = Form(default=None),
     height: int | None = Form(default=None),
+    layers: str | None = Form(default=None),
+    layer_images: Annotated[list[UploadFile] | None, File()] = None,
 ) -> dict:
     """
     Upload a PNG (current SMB design) or a project-scoped Media Library asset
     to Canva Connect, create a design, and return ``edit_url``.
+
+    When ``layers`` is present, try Design Import of a layered PPTX first
+    (editable text/images). PNG create-from-asset remains the fallback.
     """
     if not canva.is_canva_connected(db):
         raise HTTPException(
@@ -235,14 +267,19 @@ async def canva_export_design(
             detail="missing_png_or_asset",
         )
 
+    parsed_layers = layered.parse_layers_json(layers)
+    image_map = await _read_layer_images(layer_images)
+
     design_title = (title or (file.filename if file else None) or "Social post").strip()
     try:
-        result = canva_export.export_png_to_canva(
+        result = canva_export.export_to_canva(
             db,
             png_bytes=png_bytes,
             title=design_title,
             width=width,
             height=height,
+            layers=parsed_layers,
+            layer_images=image_map,
         )
         db.commit()
     except ValueError as exc:
@@ -262,4 +299,5 @@ async def canva_export_design(
     return {
         "edit_url": result["edit_url"],
         "design_id": result.get("design_id"),
+        "transfer_mode": result.get("transfer_mode") or "png",
     }

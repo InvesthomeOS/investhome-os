@@ -8,11 +8,14 @@ export type CanvaExportInput = {
   title?: string;
   width?: number;
   height?: number;
+  layers?: unknown;
+  layerImages?: Array<{ filename: string; blob: Blob }>;
 };
 
 export type CanvaExportResult = {
   edit_url: string;
   design_id?: string | null;
+  transfer_mode?: 'editable' | 'png';
 };
 
 export async function exportDesignToCanva(input: CanvaExportInput): Promise<CanvaExportResult> {
@@ -26,6 +29,10 @@ export async function exportDesignToCanva(input: CanvaExportInput): Promise<Canv
   if (input.title) form.append('title', input.title);
   if (input.width != null) form.append('width', String(Math.round(input.width)));
   if (input.height != null) form.append('height', String(Math.round(input.height)));
+  if (input.layers) form.append('layers', JSON.stringify(input.layers));
+  for (const image of input.layerImages ?? []) {
+    form.append('layer_images', image.blob, image.filename);
+  }
 
   const response = await fetch(`${getApiBaseUrl()}/platform/integrations/canva/export`, {
     method: 'POST',

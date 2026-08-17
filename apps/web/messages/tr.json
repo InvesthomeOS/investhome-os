@@ -13887,6 +13887,7 @@
           "downloaded": "İndirme hazır",
           "downloadFailed": "İndirme başarısız — önce geçerli bir proje görseli seçin",
           "canvaOpened": "Canva'da açıldı",
+          "canvaOpenedEditable": "Canva'da açıldı — başlık, metin ve görseller ayrı öğeler",
           "canvaFailed": "Canva'da açılamadı",
           "canvaNotConnected": "Önce Platform → Entegrasyonlar'dan Canva'yı bağlayın",
           "canvaNoDesign": "Canva'ya gönderilecek tasarım yok — önce bir tasarım üretin",

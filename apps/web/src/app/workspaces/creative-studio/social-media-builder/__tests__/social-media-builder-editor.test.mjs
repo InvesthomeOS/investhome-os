@@ -477,17 +477,22 @@ describe('workspace wiring — real editor controls', () => {
     assert.match(exportSrc, /await renderSocialPostPng\(input\)/);
   });
 
-  it('Canva transfer sits next to PNG download and reuses the same render', () => {
+    it('Canva transfer sits next to PNG download and reuses the same render', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
     assert.match(workspace, /data-testid="smb-download-header"/);
     assert.match(workspace, /data-testid="smb-open-in-canva"/);
     assert.match(workspace, /renderSocialPostPng/);
+    assert.match(workspace, /buildCanvaLayersPayload/);
     assert.match(workspace, /exportDesignToCanva/);
     assert.match(workspace, /t\('openInCanva'\)/);
     const platformSrc = readFileSync(join(smbDir, '../../../../../src/lib/api/platform.ts'), 'utf8');
     assert.match(platformSrc, /\/platform\/integrations\/canva\/export/);
     assert.match(platformSrc, /new FormData\(\)/);
+    assert.match(platformSrc, /form.append\('layers'/);
     assert.doesNotMatch(platformSrc, /Content-Type.: .application\/json.[\s\S]{0,80}canva\/export/);
+    const exportSrc = readSmb('social-media-builder-export.ts');
+    assert.match(exportSrc, /export function buildCanvaLayersPayload/);
+    assert.match(exportSrc, /await renderSocialPostPng\(input\)/);
     const drawers = readSmb('social-media-builder-rail-drawers.tsx');
     assert.match(drawers, /data-testid="smb-settings-download"/);
     assert.match(drawers, /data-testid="smb-settings-open-in-canva"/);
@@ -495,6 +500,8 @@ describe('workspace wiring — real editor controls', () => {
     const tr = readFileSync(join(smbDir, '../../../../../messages/tr.json'), 'utf8');
     assert.match(en, /"openInCanva": "Open in Canva"/);
     assert.match(tr, /"openInCanva": "Canva'da Aç"/);
+    assert.match(en, /canvaOpenedEditable/);
+    assert.match(tr, /canvaOpenedEditable/);
   });
 
   it('saveDraft persists posts + selectedPostId + cover Asset ID', () => {

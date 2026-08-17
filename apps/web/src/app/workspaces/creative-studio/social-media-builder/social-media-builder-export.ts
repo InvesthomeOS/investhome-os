@@ -261,6 +261,156 @@ export async function renderSocialPostPng(input: SocialPostExportInput): Promise
   return blob;
 }
 
+export type CanvaLayerElement = {
+  id: string;
+  type: 'TEXT' | 'IMAGE' | 'BUTTON' | 'METRIC_GROUP';
+  role?: string;
+  content?: string;
+  label?: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  zIndex: number;
+  fontSize?: number;
+  fontWeight?: 'normal' | 'bold';
+  align?: 'left' | 'center' | 'right';
+  color?: string;
+  backgroundColor?: string;
+  textColor?: string;
+  asset_key?: string;
+  layout?: string;
+  metrics?: Array<{ display_value: string; label: string }>;
+};
+
+export type CanvaLayersPayload = {
+  width: number;
+  height: number;
+  brand_logo: boolean;
+  cover_asset_key: string | null;
+  elements: CanvaLayerElement[];
+};
+
+export type CanvaLayerImagePlan = { filename: string; url: string };
+
+function canvaAssetFilename(id: string, prefix: string): string {
+  const safe = String(id || 'el')
+    .replace(/[^A-Za-z0-9._-]+/g, '_')
+    .slice(0, 48);
+  return `${prefix}_${safe || 'el'}.png`;
+}
+
+/**
+ * Maps SMB canvas layers to Canva Design Import payload (PPTX on the API).
+ * Does not alter PNG rendering.
+ */
+export function buildCanvaLayersPayload(input: SocialPostExportInput): {
+  layers: CanvaLayersPayload;
+  imagePlan: CanvaLayerImagePlan[];
+} {
+  const imagePlan: CanvaLayerImagePlan[] = [];
+  let coverKey: string | null = null;
+  if (input.coverImageUrl) {
+    coverKey = 'cover.png';
+    imagePlan.push({ filename: coverKey, url: input.coverImageUrl });
+  }
+
+  const urls = input.imageUrlsByAssetId ?? {};
+  const elements: CanvaLayerElement[] = sortElementsByZ(input.elements).map((el) => {
+    if (el.type === 'TEXT') {
+      return {
+        id: el.id,
+        type: 'TEXT',
+        role: el.role,
+        content: el.content,
+        x: el.x,
+        y: el.y,
+        width: el.width,
+        height: el.height,
+        zIndex: el.zIndex,
+        fontSize: el.fontSize,
+        fontWeight: el.fontWeight,
+        align: el.align,
+        color: el.color,
+      };
+    }
+    if (el.type === 'BUTTON') {
+      return {
+        id: el.id,
+        type: 'BUTTON',
+        label: el.label,
+        x: el.x,
+        y: el.y,
+        width: el.width,
+        height: el.height,
+        zIndex: el.zIndex,
+        backgroundColor: el.backgroundColor,
+        textColor: el.textColor,
+      };
+    }
+    if (el.type === 'METRIC_GROUP') {
+      return {
+        id: el.id,
+        type: 'METRIC_GROUP',
+        x: el.x,
+        y: el.y,
+        width: el.width,
+        height: el.height,
+        zIndex: el.zIndex,
+        color: el.color,
+        layout: el.layout,
+        metrics: (el.metrics || []).map((metric) => ({
+          display_value: metric.display_value,
+          label: metric.label,
+        })),
+      };
+    }
+    const filename = el.assetId ? canvaAssetFilename(el.id, 'img') : undefined;
+    if (filename && el.assetId && urls[el.assetId]) {
+      imagePlan.push({ filename, url: urls[el.assetId]! });
+    }
+    return {
+      id: el.id,
+      type: 'IMAGE',
+      role: el.role,
+      x: el.x,
+      y: el.y,
+      width: el.width,
+      height: el.height,
+      zIndex: el.zIndex,
+      asset_key: filename,
+    };
+  });
+
+  return {
+    layers: {
+      width: Math.max(1, Math.round(input.width)),
+      height: Math.max(1, Math.round(input.height)),
+      brand_logo: Boolean(input.brandLogo),
+      cover_asset_key: coverKey,
+      elements,
+    },
+    imagePlan,
+  };
+}
+
+export async function fetchCanvaLayerImages(
+  plan: CanvaLayerImagePlan[],
+): Promise<Array<{ filename: string; blob: Blob }>> {
+  const out: Array<{ filename: string; blob: Blob }> = [];
+  for (const item of plan) {
+    try {
+      const response = await fetch(item.url);
+      if (!response.ok) continue;
+      const blob = await response.blob();
+      if (blob.size > 0) out.push({ filename: item.filename, blob });
+    } catch {
+      /* skip missing layer image — PNG fallback still applies */
+    }
+  }
+  return out;
+}
+
 /**
  * Renders the current persistent post (cover + elements) to a PNG and downloads it.
  */

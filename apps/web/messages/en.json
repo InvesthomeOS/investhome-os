@@ -19210,6 +19210,7 @@
           "downloaded": "Download ready",
           "downloadFailed": "Download failed — select a valid project image first",
           "canvaOpened": "Opened in Canva",
+          "canvaOpenedEditable": "Opened in Canva — headline, text, and images are separate",
           "canvaFailed": "Could not open in Canva",
           "canvaNotConnected": "Connect Canva in Platform → Integrations first",
           "canvaNoDesign": "Nothing to send to Canva — produce a design first",

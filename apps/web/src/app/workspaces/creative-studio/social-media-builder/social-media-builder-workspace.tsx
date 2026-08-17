@@ -96,7 +96,7 @@ import {
   serializeSocialPosts,
 } from './social-media-builder-persistence';
 import { SmbPostCardMore } from './smb-post-overflow-menu';
-import { exportSocialPostPng, renderSocialPostPng } from './social-media-builder-export';
+import { exportSocialPostPng, fetchCanvaLayerImages, renderSocialPostPng, buildCanvaLayersPayload } from './social-media-builder-export';
 import { SmbArtboardElements } from './smb-artboard-elements';
 import {
   assetUsedByOtherPosts,
@@ -1047,7 +1047,7 @@ export function SocialMediaBuilderWorkspace() {
     }
     setCanvaBusy(true);
     try {
-      const blob = await renderSocialPostPng({
+      const exportInput = {
         width: contentSize.w,
         height: contentSize.h,
         coverImageUrl: hasCover ? artboardSrc : null,
@@ -1055,7 +1055,10 @@ export function SocialMediaBuilderWorkspace() {
         imageUrlsByAssetId: elementDisplayUrls,
         brandLogo,
         filename: `${selectedPost.name || 'social-post'}.png`,
-      });
+      };
+      const blob = await renderSocialPostPng(exportInput);
+      const { layers, imagePlan } = buildCanvaLayersPayload(exportInput);
+      const layerImages = await fetchCanvaLayerImages(imagePlan);
       const result = await exportDesignToCanva({
         file: blob,
         filename: `${selectedPost.name || 'social-post'}.png`,
@@ -1063,13 +1066,19 @@ export function SocialMediaBuilderWorkspace() {
         width: contentSize.w,
         height: contentSize.h,
         linked_project_id: docApi.constructionProjectId,
+        layers,
+        layerImages,
       });
       if (tab) {
         tab.location.replace(result.edit_url);
       } else {
         window.open(result.edit_url, '_blank', 'noopener,noreferrer');
       }
-      showToast(t('toasts.canvaOpened'));
+      showToast(
+        result.transfer_mode === 'editable'
+          ? t('toasts.canvaOpenedEditable')
+          : t('toasts.canvaOpened'),
+      );
     } catch (err) {
       tab?.close();
       const code = err instanceof ApiError ? err.message : '';

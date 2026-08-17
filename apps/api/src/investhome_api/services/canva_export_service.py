@@ -1,4 +1,8 @@
-"""Export a PNG (or Media Library image) into a Canva design via Connect API."""
+"""Export a PNG (or Media Library image) into a Canva design via Connect API.
+
+Editable path: Canva Design Import (PPTX) — POST /rest/v1/imports with
+`design:content:write`. Fallback: existing PNG asset upload + create design.
+"""
 
 from __future__ import annotations
 
@@ -12,6 +16,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from investhome_api.services import canva_layered_pptx as layered
 from investhome_api.services import canva_oauth_service as canva
 from investhome_api.services import creative_studio_media_service as media_svc
 
@@ -19,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 CANVA_ASSET_UPLOADS_URL = "https://api.canva.com/rest/v1/asset-uploads"
 CANVA_DESIGNS_URL = "https://api.canva.com/rest/v1/designs"
+CANVA_IMPORTS_URL = "https://api.canva.com/rest/v1/imports"
 
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 MAX_PNG_BYTES = 20 * 1024 * 1024
@@ -241,3 +247,109 @@ def export_png_to_canva(
         width=width if width else (dims[0] if dims else None),
         height=height if height else (dims[1] if dims else None),
     )
+
+
+def _import_metadata(name: str) -> str:
+    trimmed = (name or "Social post").strip()[:50] or "Social post"
+    encoded = base64.b64encode(trimmed.encode("utf-8")).decode("ascii")
+    return json.dumps(
+        {"title_base64": encoded, "mime_type": layered.PPTX_MIME},
+        separators=(",", ":"),
+    )
+
+
+def _wait_for_imported_design(db: Session, job_id: str, initial: dict[str, Any]) -> dict[str, Any]:
+    job = initial
+    for attempt in range(_POLL_ATTEMPTS):
+        status = str(job.get("status") or "")
+        if status == "success":
+            result = job.get("result") if isinstance(job.get("result"), dict) else {}
+            designs = result.get("designs") if isinstance(result.get("designs"), list) else []
+            design = designs[0] if designs and isinstance(designs[0], dict) else {}
+            urls = design.get("urls") if isinstance(design.get("urls"), dict) else {}
+            design_id = str(design.get("id") or "").strip() or None
+            return {
+                "design_id": design_id,
+                "edit_url": _safe_edit_url(urls.get("edit_url")),
+                "transfer_mode": "editable",
+            }
+        if status == "failed":
+            logger.warning("Canva design import job failed")
+            raise ValueError("canva_import_failed")
+        if attempt:
+            _sleep(_POLL_SLEEP_SECONDS)
+        poll = _canva_request(db, "get", f"{CANVA_IMPORTS_URL}/{job_id}")
+        if poll.status_code >= 400:
+            raise ValueError("canva_import_failed")
+        next_job = _json_body(poll).get("job")
+        if not isinstance(next_job, dict):
+            raise ValueError("canva_import_failed")
+        job = next_job
+    raise ValueError("canva_import_failed")
+
+
+def import_pptx_to_canva(db: Session, *, pptx_bytes: bytes, title: str) -> dict[str, Any]:
+    if not pptx_bytes or pptx_bytes[:2] != b"PK":
+        raise ValueError("canva_import_failed")
+    response = _canva_request(
+        db,
+        "post",
+        CANVA_IMPORTS_URL,
+        headers={
+            "Content-Type": "application/octet-stream",
+            "Import-Metadata": _import_metadata(title),
+        },
+        content=pptx_bytes,
+    )
+    if response.status_code >= 400:
+        logger.warning("Canva design import failed status=%s", response.status_code)
+        raise ValueError("canva_import_failed")
+    job = _json_body(response).get("job")
+    if not isinstance(job, dict) or not job.get("id"):
+        raise ValueError("canva_import_failed")
+    return _wait_for_imported_design(db, str(job["id"]), job)
+
+
+def export_layers_to_canva(
+    db: Session,
+    *,
+    layers: dict[str, Any],
+    images: dict[str, bytes],
+    title: str,
+) -> dict[str, Any]:
+    pptx = layered.build_pptx_from_layers(layers, images)
+    if not pptx:
+        raise ValueError("canva_import_failed")
+    return import_pptx_to_canva(db, pptx_bytes=pptx, title=title)
+
+
+def export_to_canva(
+    db: Session,
+    *,
+    png_bytes: bytes,
+    title: str,
+    width: int | None = None,
+    height: int | None = None,
+    layers: dict[str, Any] | None = None,
+    layer_images: dict[str, bytes] | None = None,
+) -> dict[str, Any]:
+    """Prefer Design Import of layered PPTX; keep PNG create-from-asset as fallback."""
+    if layers:
+        try:
+            return export_layers_to_canva(
+                db,
+                layers=layers,
+                images=layer_images or {},
+                title=title,
+            )
+        except Exception:
+            logger.warning("Canva editable import failed; falling back to PNG", exc_info=True)
+    result = export_png_to_canva(
+        db,
+        png_bytes=png_bytes,
+        title=title,
+        width=width,
+        height=height,
+    )
+    result["transfer_mode"] = "png"
+    return result

@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 import io
+import json
 from typing import Any
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
+from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 from sqlalchemy.orm import Session
 
 from investhome_api.config.settings import get_settings
+from investhome_api.services import canva_layered_pptx as layered
 from investhome_api.services import canva_oauth_service as canva
 from investhome_api.services.storage.factory import get_storage_provider
 
@@ -34,9 +38,13 @@ class _FakeCanvaHttp:
         self.upload_count = 0
         self.poll_count = 0
         self.design_count = 0
+        self.import_count = 0
+        self.import_poll_count = 0
+        self.last_import_body: bytes | None = None
         self.seen_authorization: list[str] = []
         self.poll_in_progress_once = False
         self.fail_first_upload_auth = False
+        self.fail_import = False
         self._upload_auth_failures = 0
 
     def __enter__(self) -> _FakeCanvaHttp:
@@ -77,6 +85,31 @@ class _FakeCanvaHttp:
             if status == "success":
                 job["asset"] = {"id": "MsdCanvaAsset", "type": "image", "name": "Social post"}
             return _FakeResponse(200, {"job": job})
+        if url.rstrip("/").endswith("/imports"):
+            self.import_count += 1
+            self.last_import_body = content if isinstance(content, (bytes, bytearray)) else None
+            if self.fail_import:
+                return _FakeResponse(400, {"code": "invalid_file"})
+            return _FakeResponse(
+                200,
+                {
+                    "job": {
+                        "id": "job-import-1",
+                        "status": "success",
+                        "result": {
+                            "designs": [
+                                {
+                                    "id": "DAGeditable1",
+                                    "urls": {
+                                        "edit_url": EDIT_URL,
+                                        "view_url": "https://www.canva.com/api/design/test-edit-token/view",
+                                    },
+                                }
+                            ]
+                        },
+                    }
+                },
+            )
         if url.endswith("/designs"):
             self.design_count += 1
             assert json and json.get("asset_id") == "MsdCanvaAsset"
@@ -97,6 +130,28 @@ class _FakeCanvaHttp:
 
     def get(self, url: str, headers: dict | None = None):
         self._record("GET", url, headers)
+        if "/imports/" in url:
+            self.import_poll_count += 1
+            return _FakeResponse(
+                200,
+                {
+                    "job": {
+                        "id": "job-import-1",
+                        "status": "success",
+                        "result": {
+                            "designs": [
+                                {
+                                    "id": "DAGeditable1",
+                                    "urls": {
+                                        "edit_url": EDIT_URL,
+                                        "view_url": "https://www.canva.com/api/design/test-edit-token/view",
+                                    },
+                                }
+                            ]
+                        },
+                    }
+                },
+            )
         self.poll_count += 1
         return _FakeResponse(
             200,
@@ -344,3 +399,170 @@ def test_get_valid_access_token_refreshes(db: Session, monkeypatch: pytest.Monke
     stored = canva.get_stored_tokens(db)
     assert stored is not None
     assert stored["refresh_token"] == "refresh-rotated"
+
+
+def _layered_payload() -> str:
+    return json.dumps(
+        {
+            "width": 1080,
+            "height": 1080,
+            "brand_logo": True,
+            "cover_asset_key": "cover.png",
+            "elements": [
+                {
+                    "id": "h1",
+                    "type": "TEXT",
+                    "role": "headline",
+                    "content": "Temple headline",
+                    "x": 80,
+                    "y": 200,
+                    "width": 920,
+                    "height": 80,
+                    "zIndex": 2,
+                    "fontSize": 48,
+                    "fontWeight": "bold",
+                    "align": "center",
+                    "color": "#ffffff",
+                },
+                {
+                    "id": "b1",
+                    "type": "TEXT",
+                    "role": "body",
+                    "content": "From 4.2M AED",
+                    "x": 80,
+                    "y": 300,
+                    "width": 920,
+                    "height": 50,
+                    "zIndex": 3,
+                    "fontSize": 24,
+                    "fontWeight": "normal",
+                    "align": "center",
+                    "color": "#ffffff",
+                },
+                {
+                    "id": "c1",
+                    "type": "BUTTON",
+                    "label": "Book a tour",
+                    "x": 340,
+                    "y": 900,
+                    "width": 400,
+                    "height": 48,
+                    "zIndex": 4,
+                    "backgroundColor": "#ffffff",
+                    "textColor": "#111827",
+                },
+                {
+                    "id": "m1",
+                    "type": "METRIC_GROUP",
+                    "x": 80,
+                    "y": 700,
+                    "width": 920,
+                    "height": 80,
+                    "zIndex": 5,
+                    "color": "#ffffff",
+                    "layout": "horizontal",
+                    "metrics": [{"display_value": "12%", "label": "Target yield"}],
+                },
+                {
+                    "id": "logo1",
+                    "type": "IMAGE",
+                    "role": "logo",
+                    "asset_key": "logo.png",
+                    "x": 40,
+                    "y": 40,
+                    "width": 120,
+                    "height": 48,
+                    "zIndex": 6,
+                },
+            ],
+        }
+    )
+
+
+def test_pptx_layers_are_separate_text_and_pictures() -> None:
+    png = _png_bytes(64, 64)
+    parsed = layered.parse_layers_json(_layered_payload())
+    assert parsed is not None
+    pptx = layered.build_pptx_from_layers(parsed, {"cover.png": png, "logo.png": png})
+    assert pptx is not None
+    assert pptx[:2] == b"PK"
+    prs = Presentation(io.BytesIO(pptx))
+    slide = prs.slides[0]
+    texts = [
+        shape.text_frame.text
+        for shape in slide.shapes
+        if shape.has_text_frame and shape.text_frame.text.strip()
+    ]
+    pictures = [shape for shape in slide.shapes if shape.shape_type == MSO_SHAPE_TYPE.PICTURE]
+    joined = "\n".join(texts)
+    assert "Temple headline" in joined
+    assert "From 4.2M AED" in joined
+    assert "Book a tour" in joined
+    assert "12%" in joined
+    assert "Target yield" in joined
+    assert any(text.strip() == "IH" for text in texts)
+    assert len(pictures) >= 2
+
+
+def test_export_layers_uses_design_import(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = _FakeCanvaHttp()
+    monkeypatch.setattr(canva, "http_client", lambda: fake)
+    monkeypatch.setattr("investhome_api.services.canva_export_service._sleep", lambda _s: None)
+    _store_tokens(db)
+
+    png = _png_bytes(1080, 1080)
+    response = client.post(
+        "/platform/integrations/canva/export",
+        files=[
+            ("file", ("temple.png", io.BytesIO(png), "image/png")),
+            ("layer_images", ("cover.png", io.BytesIO(png), "image/png")),
+            ("layer_images", ("logo.png", io.BytesIO(_png_bytes(32, 32)), "image/png")),
+        ],
+        data={
+            "title": "Temple Instagram",
+            "width": "1080",
+            "height": "1080",
+            "layers": _layered_payload(),
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["edit_url"] == EDIT_URL
+    assert body["design_id"] == "DAGeditable1"
+    assert body["transfer_mode"] == "editable"
+    assert fake.import_count == 1
+    assert fake.upload_count == 0
+    assert fake.design_count == 0
+    assert fake.last_import_body is not None
+    assert fake.last_import_body[:2] == b"PK"
+    _secret_leak(response.text)
+
+
+def test_export_layers_fall_back_to_png_when_import_fails(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = _FakeCanvaHttp()
+    fake.fail_import = True
+    monkeypatch.setattr(canva, "http_client", lambda: fake)
+    monkeypatch.setattr("investhome_api.services.canva_export_service._sleep", lambda _s: None)
+    _store_tokens(db)
+
+    png = _png_bytes(64, 64)
+    response = client.post(
+        "/platform/integrations/canva/export",
+        files=[
+            ("file", ("post.png", io.BytesIO(png), "image/png")),
+            ("layer_images", ("cover.png", io.BytesIO(png), "image/png")),
+        ],
+        data={"title": "Fallback", "layers": _layered_payload()},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["edit_url"] == EDIT_URL
+    assert body["transfer_mode"] == "png"
+    assert fake.import_count == 1
+    assert fake.upload_count == 1
+    assert fake.design_count == 1
+    _secret_leak(response.text)
