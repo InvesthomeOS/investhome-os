@@ -477,16 +477,18 @@ describe('workspace wiring — real editor controls', () => {
     assert.match(exportSrc, /await renderSocialPostPng\(input\)/);
   });
 
-    it('Canva engine hydrates SMB preview; Open in Canva stays optional', () => {
+  it('Canva transfer stays available as advanced Open in Canva; PNG export unchanged', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
     assert.match(workspace, /data-testid="smb-download-header"/);
-    assert.match(workspace, /data-testid="smb-open-in-canva"/);
+    assert.match(workspace, /testId: 'smb-open-in-canva'/);
+    assert.match(workspace, /runOpenInCanva/);
     assert.match(workspace, /runCanvaEngine/);
     assert.match(workspace, /renderSocialPostPng/);
     assert.match(workspace, /buildCanvaLayersPayload/);
     assert.match(workspace, /exportDesignToCanva/);
     assert.match(workspace, /preview_png_base64/);
-    assert.match(workspace, /t\('useCanvaEngine'\)/);
+    assert.match(workspace, /t\('openInCanva'\)/);
+    assert.doesNotMatch(workspace, /t\('useCanvaEngine'\)/);
     assert.match(workspace, /t\('toasts.canvaReturned/);
     const platformSrc = readFileSync(join(smbDir, '../../../../../src/lib/api/platform.ts'), 'utf8');
     assert.match(platformSrc, /\/platform\/integrations\/canva\/export/);

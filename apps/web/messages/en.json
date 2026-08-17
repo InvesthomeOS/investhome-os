@@ -18883,6 +18883,7 @@
         "useCanvaEngine": "Use Canva engine",
         "renderingInCanva": "Rendering in Canva…",
         "publish": "Publish",
+        "publishUnavailable": "Publishing is not connected in this release.",
         "undo": "Undo",
         "redo": "Redo",
         "saved": "Saved",
@@ -18921,8 +18922,9 @@
         },
         "aiDesign": {
           "title": "AI Design",
-          "placeholder": "e.g. Create a premium Instagram post highlighting the project's central Washington DC location. Use project data. Choose the best real project visual. Write in English.",
-          "submit": "Design with AI",
+          "placeholder": "Prepare a premium Instagram investment post for The Temple. Use the building’s exterior visual. Highlight the location and the investment opportunity.",
+          "followUpPlaceholder": "e.g. Shrink the headline. Remove the price. Make it more premium. Use the night render. Move the logo down a bit. Simplify the copy.",
+          "submit": "Create",
           "createPost": "+ Create New Post",
           "editPost": "Edit Selected Post with AI",
           "generating": "Designing…",
@@ -18939,7 +18941,27 @@
           "errorTitle": "Ideogram error",
           "optionA": "A",
           "optionB": "B",
-          "optionC": "C"
+          "optionC": "C",
+          "designLabel": "Design {letter}",
+          "resultsTitle": "Design alternatives"
+        },
+        "editor": {
+          "more": "More",
+          "text": "Text",
+          "changeImage": "Change image",
+          "logo": "Logo",
+          "move": "Move",
+          "resize": "Resize",
+          "undo": "Undo",
+          "moveHint": "Select an element, then drag to move it.",
+          "resizeHint": "Select an element, then drag a corner to resize it."
+        },
+        "output": {
+          "story": "Make Story",
+          "reel": "Make Reel",
+          "variation": "Create variation",
+          "variationNeedDesign": "Create a design first to make a variation.",
+          "publishUnavailable": "Publishing is not connected in this release."
         },
         "left": {
           "aria": "Templates and components",
@@ -19234,7 +19256,13 @@
           "generationWarning": "Generated with warnings: {warning}",
           "missingRequiredFacts": "Missing required project facts: {facts}. Add them in your prompt to continue — nothing was invented.",
           "generateFailed": "AI generation failed",
-          "artDirectorSelected": "Art Director variant {variant} applied to canvas",
+          "aiEditApplied": "Design updated",
+          "aiEditNoHeadline": "No headline layer to resize",
+          "aiEditNoPrice": "No price layer to remove",
+          "aiEditNoNight": "No night render found in project media",
+          "aiEditNoLogo": "No logo layer to move",
+          "aiEditNoText": "No body copy to simplify",
+          "artDirectorSelected": "Design {variant} applied to canvas",
           "ideogramSelected": "Ideogram creative saved as a new post",
           "ideogramUnavailable": "Ideogram POC is unavailable",
           "ideogramFailed": "Ideogram generation failed. Native generation was not used.",

@@ -13560,6 +13560,7 @@
         "useCanvaEngine": "Canva motorunu kullan",
         "renderingInCanva": "Canva hazırlıyor…",
         "publish": "Yayınla",
+        "publishUnavailable": "Yayınlama bu sürümde bağlı değil.",
         "undo": "Geri al",
         "redo": "Yinele",
         "saved": "Kaydedildi",
@@ -13598,8 +13599,9 @@
         },
         "aiDesign": {
           "title": "AI Design",
-          "placeholder": "Örn. The Temple projesinin Washington DC'deki merkezi lokasyonunu öne çıkaran premium bir Instagram kare postu hazırla. Proje verilerini kullan. En uygun gerçek proje görselini seç. İngilizce hazırla.",
-          "submit": "AI ile Tasarla",
+          "placeholder": "The Temple için premium bir Instagram yatırım postu hazırla. Binanın dış görselini kullan. Lokasyonu ve yatırım fırsatını öne çıkar.",
+          "followUpPlaceholder": "Örn. Başlığı küçült. Fiyatı kaldır. Daha premium yap. Gece renderını kullan. Logoyu biraz aşağı al. Yazıları daha sade yap.",
+          "submit": "Oluştur",
           "createPost": "+ Yeni Post Oluştur",
           "editPost": "Seçili Postu AI ile Düzenle",
           "generating": "Tasarlanıyor…",
@@ -13616,7 +13618,27 @@
           "errorTitle": "Ideogram hatası",
           "optionA": "A",
           "optionB": "B",
-          "optionC": "C"
+          "optionC": "C",
+          "designLabel": "Tasarım {letter}",
+          "resultsTitle": "Tasarım alternatifleri"
+        },
+        "editor": {
+          "more": "Daha Fazla",
+          "text": "Metin",
+          "changeImage": "Görsel değiştir",
+          "logo": "Logo",
+          "move": "Taşı",
+          "resize": "Boyutlandır",
+          "undo": "Geri al",
+          "moveHint": "Bir öğe seçin, sonra sürükleyerek taşıyın.",
+          "resizeHint": "Bir öğe seçin, sonra köşeden sürükleyerek boyutlandırın."
+        },
+        "output": {
+          "story": "Story Yap",
+          "reel": "Reel Yap",
+          "variation": "Varyasyon Oluştur",
+          "variationNeedDesign": "Varyasyon için önce bir tasarım oluşturun.",
+          "publishUnavailable": "Yayınlama bu sürümde bağlı değil."
         },
         "left": {
           "aria": "Şablonlar ve bileşenler",
@@ -13911,7 +13933,13 @@
           "generationWarning": "Uyarılarla üretildi: {warning}",
           "missingRequiredFacts": "Eksik zorunlu proje bilgisi: {facts}. Devam etmek için komuta ekleyin — hiçbir değer uydurulmadı.",
           "generateFailed": "AI üretimi başarısız oldu",
-          "artDirectorSelected": "Art Director {variant} varyantı tuvale uygulandı",
+          "aiEditApplied": "Tasarım güncellendi",
+          "aiEditNoHeadline": "Küçültülecek başlık katmanı yok",
+          "aiEditNoPrice": "Kaldırılacak fiyat katmanı yok",
+          "aiEditNoNight": "Proje medyasında gece renderı bulunamadı",
+          "aiEditNoLogo": "Kaydırılacak logo katmanı yok",
+          "aiEditNoText": "Sadeleştirilecek gövde metni yok",
+          "artDirectorSelected": "{variant} tasarımı tuvale uygulandı",
           "ideogramSelected": "Ideogram kreatif yeni gönderi olarak kaydedildi",
           "ideogramUnavailable": "Ideogram POC kullanılamıyor",
           "ideogramFailed": "Ideogram üretimi başarısız. Native üretim kullanılmadı.",

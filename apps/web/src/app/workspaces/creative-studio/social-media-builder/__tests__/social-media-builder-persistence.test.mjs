@@ -347,7 +347,7 @@ describe('media scoped by linked_project_id + no Unsplash production seed', () =
     assert.match(workspace, /useSmbPostAssetHydration/);
     assert.match(workspace, /postAssets\.artboardSrc/);
     assert.match(workspace, /smb-artboard-empty|smb-artboard-error/);
-    assert.match(workspace, /data-image-state=\{artboardState\}/);
+    assert.match(workspace, /data-image-state=\{displayArtboardState\}/);
     assert.doesNotMatch(
       workspace,
       /artboardSrc\s*=\s*coverAsset\.coverDisplayUrl\s*\|\|\s*selectedPost\.thumbUrl\s*\|\|\s*project\.coverUrl/,

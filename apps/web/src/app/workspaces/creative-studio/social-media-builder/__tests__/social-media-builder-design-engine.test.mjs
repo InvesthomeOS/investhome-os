@@ -64,11 +64,9 @@ describe('workspace wires design engine (same canvas)', () => {
     assert.match(workspace, /data-testid="smb-ai-design-command"/);
     assert.match(workspace, /data-testid="smb-ai-design-input"/);
     assert.match(workspace, /data-testid="smb-ai-design-submit"/);
-    assert.match(workspace, /data-testid="smb-ai-design-edit"/);
-    assert.match(workspace, /data-ai-workflow="create"/);
+    assert.match(workspace, /data-ai-workflow=\{pilotDesignChosen \? 'edit' : 'create'\}/);
     assert.match(workspace, /aiDesign\.title/);
-    assert.match(workspace, /aiDesign\.createPost/);
-    assert.match(workspace, /aiDesign\.editPost/);
+    assert.match(workspace, /aiDesign\.submit/);
     assert.match(workspace, /aiDesign\.placeholder/);
     // Single shared command lives inside center shell so Normal + Fullscreen share state
     assert.match(workspace, /data-testid="smb-center"[\s\S]*\{aiDesignCommand\}/);
@@ -373,8 +371,8 @@ describe('canonical canvas fit / layout safety (renderer contract)', () => {
 
   it('CREATE vs EDIT UI, campaign context persistence, and Gönderiler restore', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
-    assert.match(workspace, /submitAiDesign\('create', true\)/);
-    assert.match(workspace, /submitAiDesign\('edit', true\)/);
+    assert.match(workspace, /mode: 'create', explicit: true/);
+    assert.match(workspace, /mode: 'edit', explicit: true/);
     assert.match(workspace, /designProvider: 'native'/);
     assert.match(workspace, /designEngineRef\.current/);
     assert.match(workspace, /modeExplicit: Boolean\(options\?\.explicit\)/);
@@ -397,7 +395,6 @@ describe('Investhome Art Director real-asset chooser', () => {
     assert.match(workspace, /smb-art-director-results/);
     assert.match(workspace, /smb-art-director-option-/);
     assert.match(workspace, /selectArtDirectorVariant/);
-    assert.match(workspace, /engineArtDirector/);
     assert.match(workspace, /smb-art-director-selected-asset/);
     assert.match(workspace, /mergeArtDirectorSessionFromResponse/);
     assert.doesNotMatch(workspace, /images\.unsplash/);

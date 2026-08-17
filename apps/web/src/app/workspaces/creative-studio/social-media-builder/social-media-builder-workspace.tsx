@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
-import { Button, Dialog, Select, StatusChip } from '@investhome/ui';
+import { Button, Dialog, Select, StatusChip, TextArea } from '@investhome/ui';
 
 import { IhIcon } from '@/components/icons/ih-icons';
 import { ApiError } from '@/lib/api/client';
@@ -105,7 +105,6 @@ import {
 import {
   IDEOGRAM_POC_STAGES,
   createFlattenedIdeogramPost,
-  ideogramOutputPreviewUrl,
   parseIdeogramPocSession,
   serializeIdeogramPocSession,
   sessionFromIdeogramResponse,
@@ -121,6 +120,7 @@ import {
   type ArtDirectorSession,
   type ArtDirectorVariantKey,
 } from './social-media-builder-art-director';
+import { applyAiFollowUpEdit } from './social-media-builder-ai-edit';
 
 import {
   SmbLeftRailDrawer,
@@ -242,6 +242,7 @@ export function SocialMediaBuilderWorkspace() {
   const ideogramSessionRef = useRef<IdeogramPocSession | null>(null);
   const [artDirectorSession, setArtDirectorSession] = useState<ArtDirectorSession | null>(null);
   const artDirectorSessionRef = useRef<ArtDirectorSession | null>(null);
+  const [pilotDesignChosen, setPilotDesignChosen] = useState(false);
   const [postMenuId, setPostMenuId] = useState<string | null>(null);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
   const [canvaBusy, setCanvaBusy] = useState(false);
@@ -463,6 +464,7 @@ export function SocialMediaBuilderWorkspace() {
         );
         artDirectorSessionRef.current = restored;
         setArtDirectorSession(restored);
+        setPilotDesignChosen(Boolean(restored?.variants.length));
       }
       if (draft?.designProvider === 'native' || draft?.designProvider === 'ideogram') {
         designEngineRef.current = draft.designProvider;
@@ -1476,12 +1478,8 @@ export function SocialMediaBuilderWorkspace() {
 
   const runAiGenerate = useCallback(
     async (instruction: string, options?: { mode?: SocialDesignMode; explicit?: boolean }) => {
-      if (designEngineRef.current === 'ideogram') {
-        const message = t('toasts.ideogramNativeBlocked');
-        setIdeogramError(message);
-        showToast(message);
-        return;
-      }
+      designEngineRef.current = 'native';
+      setDesignEngine('native');
       // Always read latest canvas — sequential edits must not use a stale snapshot.
       const latestPosts = postsRef.current;
       const latestSelectedPostId = selectedPostIdRef.current;
@@ -1584,6 +1582,9 @@ export function SocialMediaBuilderWorkspace() {
         );
         artDirectorSessionRef.current = artSession;
         setArtDirectorSession(artSession);
+        if (inferredMode === 'create') {
+          setPilotDesignChosen(!(artSession && artSession.variants.length > 1));
+        }
 
         const applied = applyDesignResponseToPosts(
           response,
@@ -1769,6 +1770,7 @@ export function SocialMediaBuilderWorkspace() {
       platforms,
       postAssets.failedAssetIds,
       t,
+      setDesignEngine,
     ],
   );
 
@@ -1781,10 +1783,6 @@ export function SocialMediaBuilderWorkspace() {
       onOpenMediaPicker={() => coverAsset.openPicker('cover')}
       enabledComponentKeys={P0_COMPONENT_KEYS}
       onGenerate={(instruction) => {
-        if (designEngineRef.current === 'ideogram') {
-          void runIdeogramGenerate(instruction);
-          return;
-        }
         void runAiGenerate(instruction);
       }}
       generating={generating}
@@ -1917,6 +1915,7 @@ export function SocialMediaBuilderWorkspace() {
       });
     }
     markDirty();
+    setPilotDesignChosen(true);
     showToast(t('toasts.artDirectorSelected', { variant }));
   }
 
@@ -1931,25 +1930,99 @@ export function SocialMediaBuilderWorkspace() {
     });
   }
 
-  function submitAiDesign(mode?: SocialDesignMode, explicit = false) {
+  function applyLocalFollowUp(instruction: string): boolean {
+    const current = selectedPost;
+    if (!current) return false;
+    const result = applyAiFollowUpEdit(
+      current,
+      instruction,
+      coverAsset.media.items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        tags: item.tags,
+        folderCategory: item.folderCategory,
+      })),
+    );
+    if (!result.ok) {
+      if (result.reason === 'unrecognized') return false;
+      const toastKey =
+        result.reason === 'no_headline'
+          ? 'toasts.aiEditNoHeadline'
+          : result.reason === 'no_price'
+            ? 'toasts.aiEditNoPrice'
+            : result.reason === 'no_night_asset'
+              ? 'toasts.aiEditNoNight'
+              : result.reason === 'no_logo'
+                ? 'toasts.aiEditNoLogo'
+                : 'toasts.aiEditNoText';
+      showToast(t(toastKey));
+      return true;
+    }
+    pushHistory();
+    if (selectedPostId) clearCanvaRaster(selectedPostId);
+    const nextPosts = postsRef.current.map((p) => (p.id === result.post.id ? result.post : p));
+    postsRef.current = nextPosts;
+    setPosts(nextPosts);
+    if (result.post.coverAssetId) {
+      coverAsset.setCoverImage({
+        asset_id: result.post.coverAssetId,
+        url: null,
+        alt: null,
+        role: 'cover',
+      });
+    }
+    markDirty();
+    setAiPrompt('');
+    showToast(t('toasts.aiEditApplied'));
+    return true;
+  }
+
+  function submitAiDesign() {
     const instruction = aiPrompt.trim();
     if (!instruction) {
       showToast(t('toasts.instructionRequired'));
       return;
     }
-    const provider = designEngineRef.current;
-    if (provider === 'ideogram') {
-      if (mode === 'edit') return;
-      void runIdeogramGenerate(instruction);
+    designEngineRef.current = 'native';
+    const canFollowUp = Boolean(selectedPost && (pilotDesignChosen || artDirectorSession));
+    if (canFollowUp) {
+      if (applyLocalFollowUp(instruction)) return;
+      void runAiGenerate(instruction, { mode: 'edit', explicit: true });
       return;
     }
-    void runAiGenerate(instruction, mode ? { mode, explicit } : undefined);
+    void runAiGenerate(instruction, { mode: 'create', explicit: true });
   }
+
+  function regenerateCurrentDesign() {
+    const instruction = (artDirectorSessionRef.current?.instruction || aiPrompt).trim();
+    if (!instruction) {
+      showToast(t('output.variationNeedDesign'));
+      return;
+    }
+    designEngineRef.current = 'native';
+    void runAiGenerate(instruction, { mode: 'create', explicit: true });
+  }
+
+  function ensureCanvasElementSelected() {
+    if (selectedElementId) return true;
+    const first = selectedPost?.elements.find((el) => el.type !== 'IMAGE' || el.role === 'logo')
+      ?? selectedPost?.elements[0];
+    if (!first) {
+      showToast(t('toasts.selectElement'));
+      return false;
+    }
+    setSelectedElementId(first.id);
+    return true;
+  }
+
+  const showVariantChooser =
+    Boolean(artDirectorSession && artDirectorSession.variants.length > 0 && !pilotDesignChosen);
 
   const aiDesignCommand = (
     <div
       className={[
         'smb-ws__ai-design',
+        'smb-ws__ai-design--pilot',
         focus.isFullscreen ? 'smb-ws__ai-design--fs' : '',
         aiDesignCollapsed && focus.isFullscreen ? 'is-collapsed' : '',
       ]
@@ -1959,9 +2032,9 @@ export function SocialMediaBuilderWorkspace() {
       data-fs-ai={focus.isFullscreen ? 'true' : 'false'}
     >
       <div className="smb-ws__ai-design-head">
-        <label className="smb-ws__ai-design-label" htmlFor="smb-ai-design-input">
+        <span className="smb-ws__ai-design-label" id="smb-ai-design-heading">
           {t('aiDesign.title')}
-        </label>
+        </span>
         {focus.isFullscreen ? (
           <button
             type="button"
@@ -1976,53 +2049,24 @@ export function SocialMediaBuilderWorkspace() {
       </div>
       {!aiDesignCollapsed || !focus.isFullscreen ? (
         <>
-          <div className="smb-ws__ai-engine" data-testid="smb-ai-engine-selector">
-            <span className="smb-ws__ai-engine-label">{t('aiDesign.engine')}</span>
-            <div className="smb-ws__ai-engine-toggles" role="group" aria-label={t('aiDesign.engine')}>
-              <button
-                type="button"
-                className={`smb-ws__ai-engine-btn${designEngine === 'native' ? ' is-active' : ''}`}
-                data-testid="smb-ai-engine-native"
-                disabled={generating}
-                onClick={() => selectDesignEngine('native')}
-              >
-                {t('aiDesign.engineArtDirector')}
-              </button>
-              <button
-                type="button"
-                className={`smb-ws__ai-engine-btn${designEngine === 'ideogram' ? ' is-active' : ''}`}
-                data-testid="smb-ai-engine-ideogram"
-                disabled={generating}
-                onClick={() => selectDesignEngine('ideogram')}
-              >
-                {t('aiDesign.engineIdeogram')}
-              </button>
-            </div>
-          </div>
-          {designEngine === 'ideogram' && ideogramStatus && !ideogramStatus.available ? (
-            <p className="smb-ws__ai-engine-note" data-testid="smb-ideogram-unavailable">
-              {t('aiDesign.ideogramUnavailable')}
-            </p>
-          ) : null}
-          {designEngine === 'ideogram' && ideogramError ? (
-            <p className="smb-ws__ideogram-error" data-testid="smb-ideogram-error" role="alert">
-              {ideogramError}
-            </p>
-          ) : null}
           <div className="smb-ws__ai-design-row">
-            <input
+            <TextArea
               id="smb-ai-design-input"
-              className="smb-ws__ai-design-input"
-              type="text"
+              className="smb-ws__ai-design-input smb-ws__ai-design-textarea"
+              rows={3}
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
-              placeholder={t('aiDesign.placeholder')}
+              placeholder={
+                pilotDesignChosen || artDirectorSession
+                  ? t('aiDesign.followUpPlaceholder')
+                  : t('aiDesign.placeholder')
+              }
               data-testid="smb-ai-design-input"
               disabled={generating}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault();
-                  submitAiDesign(designEngine === 'ideogram' ? 'create' : undefined, true);
+                  submitAiDesign();
                 }
               }}
             />
@@ -2032,115 +2076,71 @@ export function SocialMediaBuilderWorkspace() {
               variant="primary"
               size="sm"
               data-testid="smb-ai-design-submit"
-              data-ai-workflow="create"
-              disabled={
-                generating ||
-                (designEngine === 'ideogram' && ideogramStatus != null && !ideogramStatus.available)
-              }
-              onClick={() => submitAiDesign('create', true)}
-            >
-              <IhIcon name="plus" size={12} />
-              {generating ? t('aiDesign.generating') : t('aiDesign.createPost')}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              data-testid="smb-ai-design-edit"
-              disabled={generating || posts.length === 0 || designEngine === 'ideogram'}
-              onClick={() => submitAiDesign('edit', true)}
+              data-ai-workflow={pilotDesignChosen ? 'edit' : 'create'}
+              disabled={generating}
+              onClick={() => submitAiDesign()}
             >
               <IhIcon name="sparkles" size={12} />
-              {generating ? t('aiDesign.generating') : t('aiDesign.editPost')}
+              {generating ? t('aiDesign.generating') : t('aiDesign.submit')}
             </Button>
           </div>
-          {designEngine === 'native' && artDirectorSession?.selectedAsset ? (
-            <p
-              className="smb-ws__art-director-asset"
+          {artDirectorSession?.selectedAsset ? (
+            <span
+              className="smb-ws__sr-only"
               data-testid="smb-art-director-selected-asset"
               data-asset-id={artDirectorSession.selectedAsset.assetId}
               data-asset-filename={artDirectorSession.selectedAsset.filename}
               data-asset-category={artDirectorSession.selectedAsset.category ?? ''}
               data-asset-subject={artDirectorSession.selectedAsset.visualSubject ?? ''}
               data-asset-source={artDirectorSession.selectedAsset.source ?? ''}
-            >
-              {t('aiDesign.selectedAsset')}: {artDirectorSession.selectedAsset.filename}
-              {artDirectorSession.selectedAsset.category
-                ? ` · ${artDirectorSession.selectedAsset.category}`
-                : ''}
-            </p>
+            />
           ) : null}
-          {designEngine === 'native' && artDirectorSession && artDirectorSession.variants.length > 0 ? (
+          {showVariantChooser ? (
             <div className="smb-ws__art-director" data-testid="smb-art-director-results">
+              <p className="smb-ws__art-director-title">{t('aiDesign.resultsTitle')}</p>
               <div className="smb-ws__art-director-grid">
-                {artDirectorSession.variants.map((output) => (
-                  <div
-                    key={output.key}
-                    className={`smb-ws__art-director-card${artDirectorSession.selectedVariant === output.key ? ' is-active' : ''}`}
-                    data-testid={`smb-art-director-option-${output.key}`}
-                    data-composition={output.composition}
-                    data-direction={output.creativeDirection}
-                  >
-                    <div className="smb-ws__art-director-card-label">
-                      {output.key} · {output.label}
-                    </div>
-                    <p className="smb-ws__art-director-card-meta">{output.composition}</p>
-                    <Button
-                      variant={artDirectorSession.selectedVariant === output.key ? 'primary' : 'secondary'}
-                      size="sm"
-                      data-testid={`smb-art-director-select-${output.key}`}
-                      disabled={generating}
-                      onClick={() => selectArtDirectorVariant(output.key)}
+                {artDirectorSession!.variants.map((output) => {
+                  const thumbId = output.post?.coverAssetId;
+                  const thumbSrc = thumbId
+                    ? elementDisplayUrls[thumbId] || coverAsset.media.getCachedDisplayUrl(thumbId)
+                    : null;
+                  return (
+                    <div
+                      key={output.key}
+                      className={`smb-ws__art-director-card${artDirectorSession!.selectedVariant === output.key ? ' is-active' : ''}`}
+                      data-testid={`smb-art-director-option-${output.key}`}
                     >
-                      {t('aiDesign.select')}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-          {designEngine === 'ideogram' && ideogramSession && ideogramSession.outputs.length > 0 ? (
-            <div className="smb-ws__ideogram-poc" data-testid="smb-ideogram-poc-results">
-              <div className="smb-ws__ideogram-poc-grid">
-                {ideogramSession.outputs.map((output) => (
-                  <div
-                    key={output.variant}
-                    className="smb-ws__ideogram-card"
-                    data-testid={`smb-ideogram-option-${output.variant}`}
-                  >
-                    <div className="smb-ws__ideogram-card-label">
-                      {output.variant} · {output.artDirection}
+                      {thumbSrc ? (
+                        <img className="smb-ws__art-director-card-img" src={thumbSrc} alt="" />
+                      ) : (
+                        <span className="smb-ws__art-director-card-ph" aria-hidden="true" />
+                      )}
+                      <div className="smb-ws__art-director-card-label">
+                        {t('aiDesign.designLabel', { letter: output.key })}
+                      </div>
+                      <div className="smb-ws__art-director-card-actions">
+                        <Button
+                          variant={artDirectorSession!.selectedVariant === output.key ? 'primary' : 'secondary'}
+                          size="sm"
+                          data-testid={`smb-art-director-select-${output.key}`}
+                          disabled={generating}
+                          onClick={() => selectArtDirectorVariant(output.key)}
+                        >
+                          {t('aiDesign.select')}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          data-testid={`smb-art-director-regen-${output.key}`}
+                          disabled={generating}
+                          onClick={() => regenerateCurrentDesign()}
+                        >
+                          {t('aiDesign.regenerate')}
+                        </Button>
+                      </div>
                     </div>
-                    <img
-                      className="smb-ws__ideogram-card-img"
-                      src={ideogramOutputPreviewUrl(output, docApi.constructionProjectId)}
-                      alt={`Ideogram ${output.variant}`}
-                    />
-                    <div className="smb-ws__ideogram-card-actions">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        data-testid={`smb-ideogram-select-${output.variant}`}
-                        disabled={generating}
-                        onClick={() => selectIdeogramOutput(output.variant)}
-                      >
-                        {t('aiDesign.select')}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        data-testid={`smb-ideogram-regen-${output.variant}`}
-                        disabled={generating}
-                        onClick={() =>
-                          void runIdeogramGenerate(ideogramSession.instruction || aiPrompt, {
-                            regenerateVariant: output.variant,
-                          })
-                        }
-                      >
-                        {t('aiDesign.regenerate')}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ) : null}
@@ -2309,22 +2309,11 @@ export function SocialMediaBuilderWorkspace() {
               {t('download')}
             </Button>
             <Button
-              variant="secondary"
-              size="sm"
-              data-testid="smb-open-in-canva"
-              disabled={canvaBusy}
-              onClick={() => {
-                void runCanvaEngine();
-              }}
-            >
-              {canvaBusy ? t('renderingInCanva') : t('useCanvaEngine')}
-            </Button>
-            <Button
               variant="primary"
               size="sm"
               data-testid="smb-publish"
               disabled
-              title={t('toasts.notAvailable')}
+              title={t('publishUnavailable')}
             >
               {t('publish')}
               <IhIcon name="chevronDown" size={10} />
@@ -2426,24 +2415,78 @@ export function SocialMediaBuilderWorkspace() {
                 stageTestId="smb-canvas-stage"
                 toolbar={
                   <div className="smb-ws__center-head">
-                    <div
-                      className="smb-ws__format-tabs"
-                      role="group"
-                      aria-label={t('canvas.formatsAria')}
-                    >
-                      {FORMAT_PRESETS.map((f) => (
-                        <button
-                          key={f.key}
-                          type="button"
-                          className={`smb-ws__format-tab${formatPreset === f.key ? ' is-active' : ''}`}
-                          aria-pressed={formatPreset === f.key}
-                          data-testid={`smb-format-${f.key}`}
-                          onClick={() => handleFormatChange(f.key)}
+                    {pilotDesignChosen ? (
+                      <div
+                        className="smb-ws__output-actions"
+                        role="group"
+                        aria-label={t('canvas.formatsAria')}
+                        data-testid="smb-pilot-output"
+                      >
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          data-testid="smb-output-story"
+                          onClick={() => handleFormatChange('story')}
                         >
-                          {t(`formats.${f.key}`)}
-                        </button>
-                      ))}
-                    </div>
+                          {t('output.story')}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          data-testid="smb-output-reel"
+                          onClick={() => handleFormatChange('reelsCover')}
+                        >
+                          {t('output.reel')}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          data-testid="smb-output-variation"
+                          disabled={generating}
+                          onClick={() => regenerateCurrentDesign()}
+                        >
+                          {t('output.variation')}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          data-testid="smb-output-download"
+                          onClick={() => {
+                            void runDownload();
+                          }}
+                        >
+                          {t('download')}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          data-testid="smb-output-publish"
+                          disabled
+                          title={t('output.publishUnavailable')}
+                        >
+                          {t('publish')}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div
+                        className="smb-ws__format-tabs"
+                        role="group"
+                        aria-label={t('canvas.formatsAria')}
+                      >
+                        {FORMAT_PRESETS.map((f) => (
+                          <button
+                            key={f.key}
+                            type="button"
+                            className={`smb-ws__format-tab${formatPreset === f.key ? ' is-active' : ''}`}
+                            aria-pressed={formatPreset === f.key}
+                            data-testid={`smb-format-${f.key}`}
+                            onClick={() => handleFormatChange(f.key)}
+                          >
+                            {t(`formats.${f.key}`)}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 }
                 tray={{
@@ -2546,21 +2589,95 @@ export function SocialMediaBuilderWorkspace() {
                     <CsBottomActionToolbar
                       testId="smb-bat"
                       ariaLabel={t('canvas.toolbarAria')}
+                      moreLabel={t('editor.more')}
+                      maxVisible={5}
                       primary={{
-                        label: t('bottomBar.actions.addComponent'),
-                        icon: 'plus',
-                        onClick: () => handleBottomAction('addComponent'),
-                        testId: 'smb-action-addComponent',
+                        label: t('editor.text'),
+                        icon: 'documents',
+                        onClick: () => handleBottomAction('text'),
+                        testId: 'smb-action-text',
                       }}
-                      actions={BOTTOM_ACTIONS.filter((a) => a.key !== 'addComponent').map((action) => ({
-                        key: action.key,
-                        icon: action.icon,
-                        label: t(`bottomBar.actions.${action.key}`),
-                        onClick: () => handleBottomAction(action.key),
-                        testId: `smb-action-${action.key}`,
-                        disabled: !P0_BOTTOM_ACTIONS.has(action.key),
-                        priority: P0_BOTTOM_ACTIONS.has(action.key) ? 'high' : 'low',
-                      }))}
+                      actions={[
+                        {
+                          key: 'changeImage',
+                          icon: 'inventory',
+                          label: t('editor.changeImage'),
+                          onClick: () => coverAsset.openPicker('cover'),
+                          testId: 'smb-action-change-image',
+                          priority: 'high',
+                        },
+                        {
+                          key: 'logo',
+                          icon: 'theme',
+                          label: t('editor.logo'),
+                          onClick: () => {
+                            setBrandLogo((v) => !v);
+                            markDirty();
+                            showToast(brandLogo ? t('toasts.logoRemoved') : t('toasts.logoChanged'));
+                          },
+                          testId: 'smb-action-logo',
+                          priority: 'high',
+                        },
+                        {
+                          key: 'move',
+                          icon: 'target',
+                          label: t('editor.move'),
+                          onClick: () => {
+                            if (ensureCanvasElementSelected()) showToast(t('editor.moveHint'));
+                          },
+                          testId: 'smb-action-move',
+                          priority: 'high',
+                        },
+                        {
+                          key: 'resize',
+                          icon: 'design',
+                          label: t('editor.resize'),
+                          onClick: () => {
+                            if (ensureCanvasElementSelected()) showToast(t('editor.resizeHint'));
+                          },
+                          testId: 'smb-action-resize',
+                          priority: 'high',
+                        },
+                        {
+                          key: 'undo',
+                          icon: 'refresh',
+                          label: t('editor.undo'),
+                          onClick: () => undoHistory(),
+                          testId: 'smb-action-undo',
+                          disabled: !historyPast.length,
+                          priority: 'high',
+                        },
+                        {
+                          key: 'addComponent',
+                          icon: 'plus',
+                          label: t('bottomBar.actions.addComponent'),
+                          onClick: () => handleBottomAction('addComponent'),
+                          testId: 'smb-action-addComponent',
+                          priority: 'low',
+                        },
+                        ...BOTTOM_ACTIONS.filter(
+                          (a) => a.key !== 'addComponent' && a.key !== 'text',
+                        ).map((action) => ({
+                          key: action.key,
+                          icon: action.icon,
+                          label: t(`bottomBar.actions.${action.key}`),
+                          onClick: () => handleBottomAction(action.key),
+                          testId: `smb-action-${action.key}`,
+                          disabled: !P0_BOTTOM_ACTIONS.has(action.key),
+                          priority: 'low' as const,
+                        })),
+                        {
+                          key: 'openInCanva',
+                          icon: 'inbox' as const,
+                          label: t('openInCanva'),
+                          onClick: () => {
+                            void runOpenInCanva();
+                          },
+                          testId: 'smb-open-in-canva',
+                          disabled: canvaBusy,
+                          priority: 'low' as const,
+                        },
+                      ]}
                     />
                   ),
                 }}

@@ -18,20 +18,17 @@ function read(name) {
 }
 
 describe('Ideogram POC wiring', () => {
-  it('adds engine selector and A/B/C actions without replacing Native create/edit', () => {
+  it('keeps Ideogram generate path without exposing engine names in the AI prompt UI', () => {
     const workspace = read('social-media-builder-workspace.tsx');
-    assert.match(workspace, /smb-ai-engine-selector/);
-    assert.match(workspace, /smb-ai-engine-native/);
-    assert.match(workspace, /smb-ai-engine-ideogram/);
+    assert.doesNotMatch(workspace, /smb-ai-engine-selector/);
+    assert.doesNotMatch(workspace, /smb-ai-engine-native/);
+    assert.doesNotMatch(workspace, /smb-ai-engine-ideogram/);
     assert.match(workspace, /generateIdeogramDesign/);
     assert.match(workspace, /generateSocialDesign/);
     assert.match(workspace, /smb-ai-design-submit/);
-    assert.match(workspace, /smb-ai-design-edit/);
-    assert.match(workspace, /designEngine === 'ideogram'/);
     assert.match(workspace, /designEngineRef\.current === 'ideogram'/);
     assert.match(workspace, /design_provider: 'ideogram'/);
     assert.match(workspace, /designProvider: 'native'/);
-    assert.match(workspace, /smb-ideogram-error/);
     assert.match(workspace, /createFlattenedIdeogramPost/);
     assert.doesNotMatch(workspace, /fallbackToNative/);
   });

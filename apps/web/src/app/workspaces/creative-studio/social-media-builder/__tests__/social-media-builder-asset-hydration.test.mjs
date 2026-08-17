@@ -218,7 +218,7 @@ describe('workspace wiring', () => {
   it('fullscreen uses the same artboardSrc — no second image state', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
     assert.match(workspace, /data-testid="smb-artboard-img"/);
-    assert.match(workspace, /src=\{artboardSrc\}/);
+    assert.match(workspace, /src=\{displayArtboardSrc\}/);
     assert.match(workspace, /postAssets\.retryAsset/);
     assert.doesNotMatch(workspace, /fsCoverUrl|fullscreenSrc|fsDisplayUrl/);
     assert.match(workspace, /data-cs-fullscreen=\{focus\.isFullscreen \? 'true' : 'false'\}/);
