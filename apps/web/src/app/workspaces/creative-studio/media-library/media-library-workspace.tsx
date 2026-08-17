@@ -3,6 +3,7 @@
 import type { Route } from 'next';
 import Link from 'next/link';
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -55,6 +56,7 @@ import {
   type SourceFilterId,
   type ViewMode,
 } from './media-library-model';
+import { MediaLibraryLightbox } from './media-library-lightbox';
 import { MediaLibraryQuickTagPopover } from './media-library-quick-tag-popover';
 import { MediaLibraryTagEditor } from './media-library-tag-editor';
 import {
@@ -124,6 +126,7 @@ export function MediaLibraryWorkspace() {
   const [archiveTarget, setArchiveTarget] = useState<ArchiveTarget>(null);
   const [archiveBusy, setArchiveBusy] = useState(false);
   const [cardMenuId, setCardMenuId] = useState<string | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
   const [detailTagDraft, setDetailTagDraft] = useState<string[]>([]);
   const [detailTagOpen, setDetailTagOpen] = useState(false);
   const [detailTagError, setDetailTagError] = useState<string | null>(null);
@@ -250,11 +253,70 @@ export function MediaLibraryWorkspace() {
     return null;
   }, [selected, media.displayUrls]);
 
+  const previewAsset = useMemo(
+    () =>
+      previewId
+        ? (filtered.find((a) => a.id === previewId) ??
+          media.assets.find((a) => a.id === previewId) ??
+          null)
+        : null,
+    [previewId, filtered, media.assets],
+  );
+
+  const previewUrl = useMemo(() => {
+    if (!previewAsset) return null;
+    if (previewAsset.thumbUrl) return previewAsset.thumbUrl;
+    if (isMediaAssetUuid(previewAsset.id)) return media.displayUrls[previewAsset.id] ?? null;
+    return null;
+  }, [previewAsset, media.displayUrls]);
+
+  const lightboxLabels = useMemo(
+    () => ({
+      title: t('lightbox.title'),
+      prev: t('lightbox.prev'),
+      next: t('lightbox.next'),
+      zoomIn: t('lightbox.zoomIn'),
+      zoomOut: t('lightbox.zoomOut'),
+      zoomLevel: (percent: number) => t('lightbox.zoomLevel', { percent }),
+      assetId: t('lightbox.assetId'),
+      filename: t('lightbox.filename'),
+      resolution: t('lightbox.resolution'),
+      source: t('lightbox.source'),
+      resolutionUnavailable: t('lightbox.resolutionUnavailable'),
+      googleDrive: t('drive.sourceGoogleDrive'),
+      uploaded: t('sourceFilter.uploaded'),
+    }),
+    [t],
+  );
+
+  const closePreview = useCallback(() => setPreviewId(null), []);
+
+  const navigatePreview = useCallback((id: string) => {
+    setSelectedId(id);
+    setActiveQuick('info');
+    setDetailTab('details');
+    setCardMenuId(null);
+    setPreviewId(id);
+  }, []);
+
   useEffect(() => {
     if (!selected || !isMediaAssetUuid(selected.id)) return;
     if (selected.kind !== 'image') return;
     void media.ensureDisplayUrl(selected.id);
   }, [selected, media]);
+
+  useEffect(() => {
+    if (!previewAsset || !isMediaAssetUuid(previewAsset.id)) return;
+    if (previewAsset.kind !== 'image') return;
+    void media.ensureDisplayUrl(previewAsset.id);
+  }, [previewAsset, media]);
+
+  useEffect(() => {
+    if (!previewId) return;
+    const stillVisible =
+      filtered.some((a) => a.id === previewId) || media.assets.some((a) => a.id === previewId);
+    if (!stillVisible) setPreviewId(null);
+  }, [previewId, filtered, media.assets]);
 
   useEffect(() => {
     if (!selected || detailTagOpen) return;
@@ -336,6 +398,13 @@ export function MediaLibraryWorkspace() {
     setActiveQuick('info');
     setDetailTab('details');
     setCardMenuId(null);
+  }
+
+  function handleCardActivate(asset: MediaAsset) {
+    selectAsset(asset.id);
+    if (asset.kind === 'image') {
+      setPreviewId(asset.id);
+    }
   }
 
   function toggleFavorite(_id: string, event: MouseEvent) {
@@ -823,11 +892,11 @@ export function MediaLibraryWorkspace() {
                 <article
                   key={asset.id}
                   className={`ml-ws__card${selected?.id === asset.id ? ' is-selected' : ''}${checked ? ' is-checked' : ''}`}
-                  onClick={() => selectAsset(asset.id)}
+                  onClick={() => handleCardActivate(asset)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      selectAsset(asset.id);
+                      handleCardActivate(asset);
                     }
                   }}
                   role="button"
@@ -1681,6 +1750,16 @@ export function MediaLibraryWorkspace() {
             testIdPrefix="ml-bulk-tag"
           />
         </Dialog>
+
+        <MediaLibraryLightbox
+          open={previewAsset !== null}
+          asset={previewAsset}
+          previewUrl={previewUrl}
+          assetIds={orderedIds}
+          labels={lightboxLabels}
+          onClose={closePreview}
+          onNavigate={navigatePreview}
+        />
 
         <Dialog
           open={archiveTarget !== null}

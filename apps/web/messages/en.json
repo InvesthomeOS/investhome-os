@@ -19918,6 +19918,19 @@
           "quickTag": "Quick tag",
           "more": "More"
         },
+        "lightbox": {
+          "title": "Asset preview",
+          "prev": "Previous",
+          "next": "Next",
+          "zoomIn": "Zoom in",
+          "zoomOut": "Zoom out",
+          "zoomLevel": "{percent}%",
+          "assetId": "Asset ID",
+          "filename": "Filename",
+          "resolution": "Resolution",
+          "source": "Source",
+          "resolutionUnavailable": "Not available"
+        },
         "bulk": {
           "aria": "Bulk actions",
           "selected": "{count} selected",

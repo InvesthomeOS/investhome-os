@@ -14595,6 +14595,19 @@
           "quickTag": "Hızlı etiket",
           "more": "Daha fazla"
         },
+        "lightbox": {
+          "title": "Varlık önizleme",
+          "prev": "Önceki",
+          "next": "Sonraki",
+          "zoomIn": "Yakınlaştır",
+          "zoomOut": "Uzaklaştır",
+          "zoomLevel": "{percent}%",
+          "assetId": "Varlık ID",
+          "filename": "Dosya adı",
+          "resolution": "Çözünürlük",
+          "source": "Kaynak",
+          "resolutionUnavailable": "Yok"
+        },
         "bulk": {
           "aria": "Toplu işlemler",
           "selected": "{count} seçildi",
