@@ -25,11 +25,15 @@ logger = logging.getLogger(__name__)
 CANVA_ASSET_UPLOADS_URL = "https://api.canva.com/rest/v1/asset-uploads"
 CANVA_DESIGNS_URL = "https://api.canva.com/rest/v1/designs"
 CANVA_IMPORTS_URL = "https://api.canva.com/rest/v1/imports"
+CANVA_EXPORTS_URL = "https://api.canva.com/rest/v1/exports"
 
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 MAX_PNG_BYTES = 20 * 1024 * 1024
 _POLL_ATTEMPTS = 16
 _POLL_SLEEP_SECONDS = 0.4
+_EXPORT_POLL_ATTEMPTS = 40
+_EXPORT_POLL_SLEEP_SECONDS = 0.5
+_MAX_EXPORT_DIM = 25_000
 _CANVA_EDIT_HOSTS = frozenset({"www.canva.com", "canva.com"})
 
 
@@ -71,6 +75,18 @@ def _safe_edit_url(url: Any) -> str:
     parsed = urlparse(url.strip())
     if parsed.scheme != "https" or parsed.netloc not in _CANVA_EDIT_HOSTS:
         raise ValueError("canva_export_failed")
+    return url.strip()
+
+
+def _safe_canva_file_url(url: Any) -> str:
+    if not isinstance(url, str) or not url.strip():
+        raise ValueError("canva_render_failed")
+    parsed = urlparse(url.strip())
+    host = (parsed.netloc or "").split(":")[0].lower()
+    if parsed.scheme != "https":
+        raise ValueError("canva_render_failed")
+    if host != "canva.com" and not host.endswith(".canva.com"):
+        raise ValueError("canva_render_failed")
     return url.strip()
 
 
@@ -288,6 +304,105 @@ def _wait_for_imported_design(db: Session, job_id: str, initial: dict[str, Any])
     raise ValueError("canva_import_failed")
 
 
+def _export_png_format(*, width: int | None, height: int | None) -> dict[str, Any]:
+    fmt: dict[str, Any] = {"type": "png", "export_quality": "regular"}
+    if width:
+        fmt["width"] = max(40, min(_MAX_EXPORT_DIM, int(width)))
+    if height:
+        fmt["height"] = max(40, min(_MAX_EXPORT_DIM, int(height)))
+    return fmt
+
+
+def _wait_for_export_urls(db: Session, job_id: str, initial: dict[str, Any]) -> list[str]:
+    job = initial
+    for attempt in range(_EXPORT_POLL_ATTEMPTS):
+        status = str(job.get("status") or "")
+        if status == "success":
+            raw_urls = job.get("urls") if isinstance(job.get("urls"), list) else []
+            urls = [str(item).strip() for item in raw_urls if isinstance(item, str) and str(item).strip()]
+            if not urls:
+                raise ValueError("canva_render_failed")
+            return urls
+        if status == "failed":
+            logger.warning("Canva design export job failed")
+            raise ValueError("canva_render_failed")
+        if attempt:
+            _sleep(_EXPORT_POLL_SLEEP_SECONDS)
+        poll = _canva_request(db, "get", f"{CANVA_EXPORTS_URL}/{job_id}")
+        if poll.status_code >= 400:
+            raise ValueError("canva_render_failed")
+        next_job = _json_body(poll).get("job")
+        if not isinstance(next_job, dict):
+            raise ValueError("canva_render_failed")
+        job = next_job
+    raise ValueError("canva_render_failed")
+
+
+def _download_export_png(url: str) -> bytes:
+    safe = _safe_canva_file_url(url)
+    with canva.http_client() as client:
+        response = client.get(safe, follow_redirects=True)
+    if response.status_code >= 400:
+        logger.warning("Canva export download failed status=%s", response.status_code)
+        raise ValueError("canva_render_failed")
+    payload = response.content
+    if not isinstance(payload, (bytes, bytearray)):
+        raise ValueError("canva_render_failed")
+    return ensure_png_bytes(bytes(payload))
+
+
+def export_design_png(
+    db: Session,
+    *,
+    design_id: str,
+    width: int | None = None,
+    height: int | None = None,
+) -> bytes:
+    """Create a Canva export job for ``design_id``, poll it, and return PNG bytes."""
+    trimmed = (design_id or "").strip()
+    if not trimmed:
+        raise ValueError("canva_render_failed")
+    response = _canva_request(
+        db,
+        "post",
+        CANVA_EXPORTS_URL,
+        headers={"Content-Type": "application/json"},
+        json_body={
+            "design_id": trimmed,
+            "format": _export_png_format(width=width, height=height),
+        },
+    )
+    if response.status_code >= 400:
+        logger.warning("Canva create export job failed status=%s", response.status_code)
+        raise ValueError("canva_render_failed")
+    job = _json_body(response).get("job")
+    if not isinstance(job, dict) or not job.get("id"):
+        raise ValueError("canva_render_failed")
+    urls = _wait_for_export_urls(db, str(job["id"]), job)
+    return _download_export_png(urls[0])
+
+
+def attach_rendered_preview(
+    db: Session,
+    result: dict[str, Any],
+    *,
+    width: int | None = None,
+    height: int | None = None,
+) -> dict[str, Any]:
+    """Best-effort: export the Canva design to PNG for in-OS preview. Never drops edit_url."""
+    design_id = str(result.get("design_id") or "").strip()
+    if not design_id:
+        result["preview_png_base64"] = None
+        return result
+    try:
+        png = export_design_png(db, design_id=design_id, width=width, height=height)
+        result["preview_png_base64"] = base64.b64encode(png).decode("ascii")
+    except Exception:
+        logger.warning("Canva PNG render failed; returning edit_url without preview", exc_info=True)
+        result["preview_png_base64"] = None
+    return result
+
+
 def import_pptx_to_canva(db: Session, *, pptx_bytes: bytes, title: str) -> dict[str, Any]:
     if not pptx_bytes or pptx_bytes[:2] != b"PK":
         raise ValueError("canva_import_failed")
@@ -333,15 +448,20 @@ def export_to_canva(
     layers: dict[str, Any] | None = None,
     layer_images: dict[str, bytes] | None = None,
 ) -> dict[str, Any]:
-    """Prefer Design Import of layered PPTX; keep PNG create-from-asset as fallback."""
+    """Prefer Design Import of layered PPTX; keep PNG create-from-asset as fallback.
+
+    After create/import, also export a PNG so Social Media Builder can show the
+    result in-OS without opening Canva.
+    """
     if layers:
         try:
-            return export_layers_to_canva(
+            imported = export_layers_to_canva(
                 db,
                 layers=layers,
                 images=layer_images or {},
                 title=title,
             )
+            return attach_rendered_preview(db, imported, width=width, height=height)
         except Exception:
             logger.warning("Canva editable import failed; falling back to PNG", exc_info=True)
     result = export_png_to_canva(
@@ -352,4 +472,4 @@ def export_to_canva(
         height=height,
     )
     result["transfer_mode"] = "png"
-    return result
+    return attach_rendered_preview(db, result, width=width, height=height)

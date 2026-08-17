@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import io
 import json
 from typing import Any
@@ -20,12 +21,19 @@ from investhome_api.services import canva_oauth_service as canva
 from investhome_api.services.storage.factory import get_storage_provider
 
 EDIT_URL = "https://www.canva.com/api/design/test-edit-token/edit"
+DOWNLOAD_URL = "https://export-download.canva.com/preview.png"
 
 
 class _FakeResponse:
-    def __init__(self, status_code: int, payload: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        status_code: int,
+        payload: dict[str, Any] | None = None,
+        content: bytes | None = None,
+    ):
         self.status_code = status_code
         self._payload = payload or {}
+        self.content = content if content is not None else b""
 
     def json(self) -> dict[str, Any]:
         return self._payload
@@ -40,11 +48,18 @@ class _FakeCanvaHttp:
         self.design_count = 0
         self.import_count = 0
         self.import_poll_count = 0
+        self.export_count = 0
+        self.export_poll_count = 0
+        self.download_count = 0
         self.last_import_body: bytes | None = None
+        self.last_export_body: dict[str, Any] | None = None
         self.seen_authorization: list[str] = []
         self.poll_in_progress_once = False
+        self.export_poll_in_progress_once = False
         self.fail_first_upload_auth = False
         self.fail_import = False
+        self.fail_export = False
+        self.preview_png = _png_bytes(32, 32)
         self._upload_auth_failures = 0
 
     def __enter__(self) -> _FakeCanvaHttp:
@@ -58,6 +73,12 @@ class _FakeCanvaHttp:
         auth = (headers or {}).get("Authorization")
         if auth:
             self.seen_authorization.append(str(auth))
+
+    def _export_job(self, *, success: bool) -> dict[str, Any]:
+        job: dict[str, Any] = {"id": "job-export-1", "status": "success" if success else "in_progress"}
+        if success:
+            job["urls"] = [DOWNLOAD_URL]
+        return job
 
     def post(self, url: str, headers: dict | None = None, data: Any = None, content: Any = None, json: Any = None):
         self._record("POST", url, headers)
@@ -110,6 +131,15 @@ class _FakeCanvaHttp:
                     }
                 },
             )
+        if url.rstrip("/").endswith("/exports"):
+            self.export_count += 1
+            self.last_export_body = json if isinstance(json, dict) else None
+            if self.fail_export:
+                return _FakeResponse(403, {"code": "permission_denied"})
+            assert json and json.get("design_id")
+            assert json.get("format", {}).get("type") == "png"
+            success = not self.export_poll_in_progress_once
+            return _FakeResponse(200, {"job": self._export_job(success=success)})
         if url.endswith("/designs"):
             self.design_count += 1
             assert json and json.get("asset_id") == "MsdCanvaAsset"
@@ -128,8 +158,15 @@ class _FakeCanvaHttp:
             )
         return _FakeResponse(404, {"code": "not_found"})
 
-    def get(self, url: str, headers: dict | None = None):
+    def get(self, url: str, headers: dict | None = None, follow_redirects: bool = False, **_kwargs: Any):
         self._record("GET", url, headers)
+        _ = follow_redirects
+        if url.startswith(DOWNLOAD_URL) or "export-download.canva.com" in url:
+            self.download_count += 1
+            return _FakeResponse(200, content=self.preview_png)
+        if "/exports/" in url:
+            self.export_poll_count += 1
+            return _FakeResponse(200, {"job": self._export_job(success=True)})
         if "/imports/" in url:
             self.import_poll_count += 1
             return _FakeResponse(
@@ -232,8 +269,12 @@ def test_export_png_uploads_and_returns_edit_url(client: TestClient, db: Session
     body = response.json()
     assert body["edit_url"] == EDIT_URL
     assert body["design_id"] == "DAFdesign1"
+    decoded = base64.b64decode(body["preview_png_base64"])
+    assert decoded[:8] == b"\x89PNG\r\n\x1a\n"
     assert fake.upload_count == 1
     assert fake.design_count == 1
+    assert fake.export_count == 1
+    assert fake.download_count == 1
     assert fake.refresh_count == 0
     _secret_leak(response.text)
     assert "access_token" not in response.text.lower()
@@ -532,7 +573,11 @@ def test_export_layers_uses_design_import(
     assert body["edit_url"] == EDIT_URL
     assert body["design_id"] == "DAGeditable1"
     assert body["transfer_mode"] == "editable"
+    decoded = base64.b64decode(body["preview_png_base64"])
+    assert decoded[:8] == b"\x89PNG\r\n\x1a\n"
     assert fake.import_count == 1
+    assert fake.export_count == 1
+    assert fake.download_count == 1
     assert fake.upload_count == 0
     assert fake.design_count == 0
     assert fake.last_import_body is not None
@@ -562,7 +607,59 @@ def test_export_layers_fall_back_to_png_when_import_fails(
     body = response.json()
     assert body["edit_url"] == EDIT_URL
     assert body["transfer_mode"] == "png"
+    assert body["preview_png_base64"]
     assert fake.import_count == 1
     assert fake.upload_count == 1
     assert fake.design_count == 1
+    assert fake.export_count == 1
+    _secret_leak(response.text)
+
+
+def test_export_returns_preview_png_after_polling_export_job(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = _FakeCanvaHttp()
+    fake.export_poll_in_progress_once = True
+    monkeypatch.setattr(canva, "http_client", lambda: fake)
+    monkeypatch.setattr("investhome_api.services.canva_export_service._sleep", lambda _s: None)
+    _store_tokens(db)
+
+    response = client.post(
+        "/platform/integrations/canva/export",
+        files={"file": ("post.png", io.BytesIO(_png_bytes()), "image/png")},
+        data={"title": "Poll export"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["edit_url"] == EDIT_URL
+    decoded = base64.b64decode(body["preview_png_base64"])
+    assert decoded[:8] == b"\x89PNG\r\n\x1a\n"
+    assert fake.export_count == 1
+    assert fake.export_poll_count >= 1
+    assert fake.download_count == 1
+    assert "access_token" not in response.text.lower()
+    _secret_leak(response.text)
+
+
+def test_export_keeps_edit_url_when_canva_png_render_fails(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = _FakeCanvaHttp()
+    fake.fail_export = True
+    monkeypatch.setattr(canva, "http_client", lambda: fake)
+    monkeypatch.setattr("investhome_api.services.canva_export_service._sleep", lambda _s: None)
+    _store_tokens(db)
+
+    response = client.post(
+        "/platform/integrations/canva/export",
+        files={"file": ("post.png", io.BytesIO(_png_bytes()), "image/png")},
+        data={"title": "Render fail"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["edit_url"] == EDIT_URL
+    assert body["design_id"] == "DAFdesign1"
+    assert body.get("preview_png_base64") in (None, "")
+    assert fake.export_count == 1
+    assert fake.download_count == 0
     _secret_leak(response.text)

@@ -15,7 +15,7 @@ import {
   getIdeogramProviderStatus,
   type IdeogramProviderStatus,
 } from '@/lib/api/creative-studio';
-import { exportDesignToCanva } from '@/lib/api/platform';
+import { exportDesignToCanva, canvaPreviewPngToObjectUrl, type CanvaExportResult } from '@/lib/api/platform';
 
 import {
   BOTTOM_ACTIONS,
@@ -245,6 +245,19 @@ export function SocialMediaBuilderWorkspace() {
   const [postMenuId, setPostMenuId] = useState<string | null>(null);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
   const [canvaBusy, setCanvaBusy] = useState(false);
+  const [canvaPreviewByPostId, setCanvaPreviewByPostId] = useState<
+    Record<
+      string,
+      {
+        src: string;
+        transferMode: 'editable' | 'png';
+        editUrl: string;
+        designId: string | null;
+      }
+    >
+  >({});
+  const canvaPreviewByPostIdRef = useRef(canvaPreviewByPostId);
+  canvaPreviewByPostIdRef.current = canvaPreviewByPostId;
 
   const filmstripRef = useRef<HTMLDivElement | null>(null);
   const genIdleTimerRef = useRef<number | null>(null);
@@ -348,6 +361,14 @@ export function SocialMediaBuilderWorkspace() {
   useEffect(() => {
     if (!focus.isFullscreen) setAiDesignCollapsed(false);
   }, [focus.isFullscreen]);
+
+  useEffect(() => {
+    return () => {
+      for (const preview of Object.values(canvaPreviewByPostIdRef.current)) {
+        if (preview.src.startsWith('blob:')) URL.revokeObjectURL(preview.src);
+      }
+    };
+  }, []);
 
   const applyDraftPosts = useCallback(
     (draft: {
@@ -476,6 +497,23 @@ export function SocialMediaBuilderWorkspace() {
       ? 'loading'
       : postAssets.artboardState;
   const elementDisplayUrls = postAssets.displayUrls;
+  const canvaPreview =
+    selectedPost?.generationLifecycle === 'generating' ||
+    selectedPost?.generationLifecycle === 'creating'
+      ? undefined
+      : canvaPreviewByPostId[selectedPostId];
+  const displayArtboardSrc = canvaPreview?.src || artboardSrc;
+  const displayArtboardState = canvaPreview?.src ? 'ready' : artboardState;
+  const hideOsLayers = Boolean(canvaPreview?.src) && canvaPreview?.transferMode === 'editable';
+
+  function clearCanvaRaster(postId: string) {
+    setCanvaPreviewByPostId((prev) => {
+      const current = prev[postId];
+      if (!current?.src) return prev;
+      if (current.src.startsWith('blob:')) URL.revokeObjectURL(current.src);
+      return { ...prev, [postId]: { ...current, src: '' } };
+    });
+  }
 
   useEffect(() => {
     return () => {
@@ -1029,16 +1067,122 @@ export function SocialMediaBuilderWorkspace() {
     t,
   ]);
 
+  const transferCurrentPostToCanva = useCallback(async (): Promise<CanvaExportResult> => {
+    if (!selectedPost) {
+      throw new ApiError('canva_no_design', 400);
+    }
+    const hasCover = Boolean(artboardSrc && artboardState === 'ready');
+    const hasElements = selectedPost.elements.length > 0;
+    if (!hasCover && !hasElements) {
+      throw new ApiError('canva_no_design', 400);
+    }
+    const exportInput = {
+      width: contentSize.w,
+      height: contentSize.h,
+      coverImageUrl: hasCover ? artboardSrc : null,
+      elements: selectedPost.elements,
+      imageUrlsByAssetId: elementDisplayUrls,
+      brandLogo,
+      filename: `${selectedPost.name || 'social-post'}.png`,
+    };
+    const blob = await renderSocialPostPng(exportInput);
+    const { layers, imagePlan } = buildCanvaLayersPayload(exportInput);
+    const layerImages = await fetchCanvaLayerImages(imagePlan);
+    return exportDesignToCanva({
+      file: blob,
+      filename: `${selectedPost.name || 'social-post'}.png`,
+      title: selectedPost.name || 'Social post',
+      width: contentSize.w,
+      height: contentSize.h,
+      linked_project_id: docApi.constructionProjectId,
+      layers,
+      layerImages,
+    });
+  }, [
+    artboardSrc,
+    artboardState,
+    brandLogo,
+    contentSize.h,
+    contentSize.w,
+    docApi.constructionProjectId,
+    elementDisplayUrls,
+    selectedPost,
+  ]);
+
+  const storeCanvaResult = useCallback((postId: string, result: CanvaExportResult) => {
+    const src = canvaPreviewPngToObjectUrl(result.preview_png_base64);
+    setCanvaPreviewByPostId((prev) => {
+      const previous = prev[postId];
+      if (previous?.src && previous.src !== src && previous.src.startsWith('blob:')) {
+        URL.revokeObjectURL(previous.src);
+      }
+      return {
+        ...prev,
+        [postId]: {
+          src: src || '',
+          transferMode: result.transfer_mode === 'editable' ? 'editable' : 'png',
+          editUrl: result.edit_url,
+          designId: result.design_id ?? null,
+        },
+      };
+    });
+    return Boolean(src);
+  }, []);
+
+  const showCanvaError = useCallback(
+    (err: unknown) => {
+      const code = err instanceof ApiError ? err.message : '';
+      if (code === 'canva_no_design') {
+        showToast(t('toasts.canvaNoDesign'));
+      } else if (code === 'canva_not_connected' || code === 'canva_token_refresh_failed') {
+        showToast(t('toasts.canvaNotConnected'));
+      } else {
+        showToast(t('toasts.canvaFailed'));
+      }
+    },
+    [t],
+  );
+
+  const runCanvaEngine = useCallback(async () => {
+    if (canvaBusy) return;
+    if (!selectedPost) {
+      showToast(t('toasts.canvaNoDesign'));
+      return;
+    }
+    setCanvaBusy(true);
+    try {
+      const result = await transferCurrentPostToCanva();
+      const hydrated = storeCanvaResult(selectedPost.id, result);
+      if (hydrated) {
+        showToast(
+          result.transfer_mode === 'editable'
+            ? t('toasts.canvaReturnedEditable')
+            : t('toasts.canvaReturned'),
+        );
+      } else {
+        showToast(t('toasts.canvaPreviewUnavailable'));
+      }
+    } catch (err) {
+      showCanvaError(err);
+    } finally {
+      setCanvaBusy(false);
+    }
+  }, [canvaBusy, selectedPost, showCanvaError, storeCanvaResult, t, transferCurrentPostToCanva]);
+
   const runOpenInCanva = useCallback(async () => {
     if (canvaBusy) return;
     if (!selectedPost) {
       showToast(t('toasts.canvaNoDesign'));
       return;
     }
-    const hasCover = Boolean(artboardSrc && artboardState === 'ready');
-    const hasElements = selectedPost.elements.length > 0;
-    if (!hasCover && !hasElements) {
-      showToast(t('toasts.canvaNoDesign'));
+    const existing = canvaPreviewByPostId[selectedPost.id];
+    if (existing?.editUrl) {
+      window.open(existing.editUrl, '_blank', 'noopener,noreferrer');
+      showToast(
+        existing.transferMode === 'editable'
+          ? t('toasts.canvaOpenedEditable')
+          : t('toasts.canvaOpened'),
+      );
       return;
     }
     const tab = window.open('', '_blank');
@@ -1047,28 +1191,8 @@ export function SocialMediaBuilderWorkspace() {
     }
     setCanvaBusy(true);
     try {
-      const exportInput = {
-        width: contentSize.w,
-        height: contentSize.h,
-        coverImageUrl: hasCover ? artboardSrc : null,
-        elements: selectedPost.elements,
-        imageUrlsByAssetId: elementDisplayUrls,
-        brandLogo,
-        filename: `${selectedPost.name || 'social-post'}.png`,
-      };
-      const blob = await renderSocialPostPng(exportInput);
-      const { layers, imagePlan } = buildCanvaLayersPayload(exportInput);
-      const layerImages = await fetchCanvaLayerImages(imagePlan);
-      const result = await exportDesignToCanva({
-        file: blob,
-        filename: `${selectedPost.name || 'social-post'}.png`,
-        title: selectedPost.name || 'Social post',
-        width: contentSize.w,
-        height: contentSize.h,
-        linked_project_id: docApi.constructionProjectId,
-        layers,
-        layerImages,
-      });
+      const result = await transferCurrentPostToCanva();
+      storeCanvaResult(selectedPost.id, result);
       if (tab) {
         tab.location.replace(result.edit_url);
       } else {
@@ -1081,26 +1205,18 @@ export function SocialMediaBuilderWorkspace() {
       );
     } catch (err) {
       tab?.close();
-      const code = err instanceof ApiError ? err.message : '';
-      if (code === 'canva_not_connected' || code === 'canva_token_refresh_failed') {
-        showToast(t('toasts.canvaNotConnected'));
-      } else {
-        showToast(t('toasts.canvaFailed'));
-      }
+      showCanvaError(err);
     } finally {
       setCanvaBusy(false);
     }
   }, [
-    artboardSrc,
-    artboardState,
-    brandLogo,
     canvaBusy,
-    contentSize.h,
-    contentSize.w,
-    docApi.constructionProjectId,
-    elementDisplayUrls,
+    canvaPreviewByPostId,
     selectedPost,
+    showCanvaError,
+    storeCanvaResult,
     t,
+    transferCurrentPostToCanva,
   ]);
 
   function handleFloating(action: FloatingActionKey | 'more') {
@@ -1111,6 +1227,7 @@ export function SocialMediaBuilderWorkspace() {
       return;
     }
     if (action === 'edit') {
+      if (selectedPostId) clearCanvaRaster(selectedPostId);
       if (!selectedElementId) {
         const first = selectedPost?.elements[0];
         if (first) setSelectedElementId(first.id);
@@ -1699,7 +1816,7 @@ export function SocialMediaBuilderWorkspace() {
       markDirty={markDirty}
       onToast={showToast}
       onChangeImage={() => coverAsset.openPicker('cover')}
-      coverDisplayUrl={artboardSrc ?? ''}
+      coverDisplayUrl={displayArtboardSrc ?? ''}
       onDownload={() => {
         void runDownload();
       }}
@@ -2197,10 +2314,10 @@ export function SocialMediaBuilderWorkspace() {
               data-testid="smb-open-in-canva"
               disabled={canvaBusy}
               onClick={() => {
-                void runOpenInCanva();
+                void runCanvaEngine();
               }}
             >
-              {canvaBusy ? t('openingInCanva') : t('openInCanva')}
+              {canvaBusy ? t('renderingInCanva') : t('useCanvaEngine')}
             </Button>
             <Button
               variant="primary"
@@ -2360,10 +2477,12 @@ export function SocialMediaBuilderWorkspace() {
                               <div
                                 className={`smb-ws__page-thumb ${aspectThumbClass(post.formatPreset)}`}
                               >
-                                {post.coverAssetId && elementDisplayUrls[post.coverAssetId] ? (
+                                {canvaPreviewByPostId[post.id]?.src ? (
+                                  <img src={canvaPreviewByPostId[post.id]?.src} alt="" />
+                                ) : post.coverAssetId && elementDisplayUrls[post.coverAssetId] ? (
                                   <img src={elementDisplayUrls[post.coverAssetId]} alt="" />
-                                ) : selectedPostId === post.id && artboardSrc ? (
-                                  <img src={artboardSrc} alt="" />
+                                ) : selectedPostId === post.id && displayArtboardSrc ? (
+                                  <img src={displayArtboardSrc} alt="" />
                                 ) : (
                                   <span className="smb-ws__page-thumb-empty" aria-hidden="true" />
                                 )}
@@ -2449,9 +2568,10 @@ export function SocialMediaBuilderWorkspace() {
                 <div className="smb-ws__canvas-stage" data-testid="smb-preview-shell">
                   <FocusFitStage engine={ftv} artboardTestId="smb-ftv-artboard">
                     <div
-                      className={`smb-ws__artboard${selectedElementId || artboardState === 'ready' ? ' is-selected' : ''}${artboardState !== 'ready' ? ' is-empty' : ''}`}
+                      className={`smb-ws__artboard${selectedElementId || displayArtboardState === 'ready' ? ' is-selected' : ''}${displayArtboardState !== 'ready' ? ' is-empty' : ''}`}
                       data-testid="smb-artboard"
-                      data-image-state={artboardState}
+                      data-image-state={displayArtboardState}
+                      data-canva-preview={canvaPreview?.src ? 'true' : 'false'}
                       data-generation-lifecycle={selectedPost?.generationLifecycle ?? 'ready'}
                       data-cover-asset-id={selectedPost?.coverAssetId ?? ''}
                       data-selected-post-id={selectedPost?.id ?? ''}
@@ -2475,15 +2595,17 @@ export function SocialMediaBuilderWorkspace() {
                           transformOrigin: 'top left',
                         }}
                       >
-                      {artboardState === 'ready' && artboardSrc ? (
+                      {displayArtboardState === 'ready' && displayArtboardSrc ? (
                         <img
                           className="smb-ws__artboard-img"
-                          src={artboardSrc}
+                          src={displayArtboardSrc}
                           alt=""
                           data-testid="smb-artboard-img"
+                          data-canva-preview={canvaPreview?.src ? 'true' : 'false'}
                           data-cover-asset-id={selectedPost?.coverAssetId ?? ''}
                           draggable={false}
                           onError={() => {
+                            if (canvaPreview?.src) return;
                             if (selectedPost?.coverAssetId) {
                               postAssets.retryAsset(selectedPost.coverAssetId);
                             }
@@ -2498,22 +2620,22 @@ export function SocialMediaBuilderWorkspace() {
                         <div
                           className="smb-ws__artboard-fallback"
                           data-testid={
-                            artboardState === 'error'
+                            displayArtboardState === 'error'
                               ? 'smb-artboard-error'
-                              : artboardState === 'loading'
+                              : displayArtboardState === 'loading'
                                 ? 'smb-artboard-loading'
                                 : 'smb-artboard-empty'
                           }
                           role="status"
                         >
                           <strong>
-                            {artboardState === 'error'
+                            {displayArtboardState === 'error'
                               ? t('canvas.imageError')
-                              : artboardState === 'loading'
+                              : displayArtboardState === 'loading'
                                 ? t('canvas.imageLoading')
                                 : t('canvas.imageEmpty')}
                           </strong>
-                          {artboardState === 'empty' || artboardState === 'error' ? (
+                          {displayArtboardState === 'empty' || displayArtboardState === 'error' ? (
                             <Button
                               variant="secondary"
                               size="sm"
@@ -2528,7 +2650,7 @@ export function SocialMediaBuilderWorkspace() {
                           ) : null}
                         </div>
                       )}
-                      {artboardState === 'ready' ? (
+                      {displayArtboardState === 'ready' && !hideOsLayers ? (
                         <div
                           className="smb-ws__artboard-overlay"
                           data-overlay={
@@ -2542,7 +2664,7 @@ export function SocialMediaBuilderWorkspace() {
                           aria-hidden="true"
                         />
                       ) : null}
-                      {brandLogo ? (
+                      {brandLogo && !hideOsLayers ? (
                         <span
                           className="smb-ws__logo-preview"
                           style={{ position: 'absolute', top: '6%', left: '6%', zIndex: 2 }}
@@ -2550,6 +2672,7 @@ export function SocialMediaBuilderWorkspace() {
                           IH
                         </span>
                       ) : null}
+                      {hideOsLayers ? null : (
                       <SmbArtboardElements
                         elements={selectedPost?.elements ?? []}
                         selectedElementId={previewMode ? null : selectedElementId}
@@ -2580,6 +2703,7 @@ export function SocialMediaBuilderWorkspace() {
                         onGestureStart={beginGestureHistory}
                         onGestureEnd={endGestureHistory}
                       />
+                      )}
                       </div>
                       {!previewMode && selectedElementId ? (
                         <div
@@ -2792,6 +2916,7 @@ export function SocialMediaBuilderWorkspace() {
               coverAssetId: nextId,
               thumbUrl: '',
             }));
+            clearCanvaRaster(selectedPost.id);
             if (prevId && prevId !== nextId && !assetUsedByOtherPosts(prevId, postsRef.current, selectedPost.id)) {
               postAssets.invalidateAsset(prevId);
             }

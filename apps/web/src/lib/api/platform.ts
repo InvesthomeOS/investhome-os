@@ -16,7 +16,21 @@ export type CanvaExportResult = {
   edit_url: string;
   design_id?: string | null;
   transfer_mode?: 'editable' | 'png';
+  preview_png_base64?: string | null;
 };
+
+export function canvaPreviewPngToObjectUrl(b64: string | null | undefined): string | null {
+  if (!b64) return null;
+  try {
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    if (bytes.length < 8 || bytes[0] !== 0x89 || bytes[1] !== 0x50) return null;
+    return URL.createObjectURL(new Blob([bytes], { type: 'image/png' }));
+  } catch {
+    return null;
+  }
+}
 
 export async function exportDesignToCanva(input: CanvaExportInput): Promise<CanvaExportResult> {
   const form = new FormData();

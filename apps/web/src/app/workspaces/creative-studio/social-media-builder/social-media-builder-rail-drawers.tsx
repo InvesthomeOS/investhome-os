@@ -417,7 +417,7 @@ export type SmbRightRailDrawerProps = {
   coverDisplayUrl?: string;
   /** Real PNG export of the current post. */
   onDownload?: () => void;
-  /** Transfer current PNG to Canva Connect and open edit_url. */
+  /** Optional: open the last Canva edit_url (advanced). Header uses the in-OS engine instead. */
   onOpenInCanva?: () => void;
   canvaBusy?: boolean;
 };

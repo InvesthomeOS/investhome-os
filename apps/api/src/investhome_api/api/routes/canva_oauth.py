@@ -224,6 +224,10 @@ async def canva_export_design(
 
     When ``layers`` is present, try Design Import of a layered PPTX first
     (editable text/images). PNG create-from-asset remains the fallback.
+
+    Also starts a Canva export job (PNG) and returns ``preview_png_base64`` so
+    Social Media Builder can show the result in-OS. Preview is best-effort:
+    ``edit_url`` is still returned if render fails.
     """
     if not canva.is_canva_connected(db):
         raise HTTPException(
@@ -300,4 +304,5 @@ async def canva_export_design(
         "edit_url": result["edit_url"],
         "design_id": result.get("design_id"),
         "transfer_mode": result.get("transfer_mode") or "png",
+        "preview_png_base64": result.get("preview_png_base64"),
     }

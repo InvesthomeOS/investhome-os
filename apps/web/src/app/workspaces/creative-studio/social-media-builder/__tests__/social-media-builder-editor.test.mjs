@@ -477,18 +477,23 @@ describe('workspace wiring — real editor controls', () => {
     assert.match(exportSrc, /await renderSocialPostPng\(input\)/);
   });
 
-    it('Canva transfer sits next to PNG download and reuses the same render', () => {
+    it('Canva engine hydrates SMB preview; Open in Canva stays optional', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
     assert.match(workspace, /data-testid="smb-download-header"/);
     assert.match(workspace, /data-testid="smb-open-in-canva"/);
+    assert.match(workspace, /runCanvaEngine/);
     assert.match(workspace, /renderSocialPostPng/);
     assert.match(workspace, /buildCanvaLayersPayload/);
     assert.match(workspace, /exportDesignToCanva/);
-    assert.match(workspace, /t\('openInCanva'\)/);
+    assert.match(workspace, /preview_png_base64/);
+    assert.match(workspace, /t\('useCanvaEngine'\)/);
+    assert.match(workspace, /t\('toasts.canvaReturned/);
     const platformSrc = readFileSync(join(smbDir, '../../../../../src/lib/api/platform.ts'), 'utf8');
     assert.match(platformSrc, /\/platform\/integrations\/canva\/export/);
     assert.match(platformSrc, /new FormData\(\)/);
     assert.match(platformSrc, /form.append\('layers'/);
+    assert.match(platformSrc, /preview_png_base64/);
+    assert.match(platformSrc, /canvaPreviewPngToObjectUrl/);
     assert.doesNotMatch(platformSrc, /Content-Type.: .application\/json.[\s\S]{0,80}canva\/export/);
     const exportSrc = readSmb('social-media-builder-export.ts');
     assert.match(exportSrc, /export function buildCanvaLayersPayload/);
@@ -496,10 +501,15 @@ describe('workspace wiring — real editor controls', () => {
     const drawers = readSmb('social-media-builder-rail-drawers.tsx');
     assert.match(drawers, /data-testid="smb-settings-download"/);
     assert.match(drawers, /data-testid="smb-settings-open-in-canva"/);
+    assert.match(drawers, /t\('openInCanva'\)/);
     const en = readFileSync(join(smbDir, '../../../../../messages/en.json'), 'utf8');
     const tr = readFileSync(join(smbDir, '../../../../../messages/tr.json'), 'utf8');
     assert.match(en, /"openInCanva": "Open in Canva"/);
     assert.match(tr, /"openInCanva": "Canva'da Aç"/);
+    assert.match(en, /"useCanvaEngine"/);
+    assert.match(tr, /"useCanvaEngine"/);
+    assert.match(en, /canvaReturnedEditable/);
+    assert.match(tr, /canvaReturnedEditable/);
     assert.match(en, /canvaOpenedEditable/);
     assert.match(tr, /canvaOpenedEditable/);
   });
