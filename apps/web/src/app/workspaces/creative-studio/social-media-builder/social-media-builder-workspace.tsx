@@ -10,9 +10,12 @@ import { Button, Dialog, Select, StatusChip, TextArea } from '@investhome/ui';
 import { IhIcon } from '@/components/icons/ih-icons';
 import { ApiError } from '@/lib/api/client';
 import {
+  generateGptImageDesign,
   generateIdeogramDesign,
   generateSocialDesign,
+  getGptImageProviderStatus,
   getIdeogramProviderStatus,
+  type GptImageProviderStatus,
   type IdeogramProviderStatus,
 } from '@/lib/api/creative-studio';
 import { exportDesignToCanva, canvaPreviewPngToObjectUrl, type CanvaExportResult } from '@/lib/api/platform';
@@ -121,6 +124,11 @@ import {
   type ArtDirectorVariantKey,
 } from './social-media-builder-art-director';
 import { applyAiFollowUpEdit } from './social-media-builder-ai-edit';
+import {
+  GPT_IMAGE_STAGES,
+  asFormatPreset,
+  createFlattenedGptImagePost,
+} from './social-media-builder-gpt-image';
 
 import {
   SmbLeftRailDrawer,
@@ -154,12 +162,12 @@ function generateErrorMessage(err: unknown, fallback: string): string {
       return `${status}: ${detail}`;
     }
     if (status === 401) return '401: Unauthorized';
-    if (status === 402) return detail || '402: Ideogram payment required';
+    if (status === 402) return detail || '402: Payment required';
     if (status === 403) return detail || '403: Forbidden';
     if (status === 422) return '422: Invalid generation request';
     if (status === 429) return '429: Rate limited';
     if (status === 500) return '500: Generation server error';
-    if (status === 502) return detail || '502: Ideogram provider error';
+    if (status === 502) return detail || '502: Image provider error';
     return `${status}: ${fallback}`;
   }
   if (err instanceof Error) {
@@ -237,6 +245,7 @@ export function SocialMediaBuilderWorkspace() {
   const [designEngine, setDesignEngine] = useState<DesignEngineKind>('native');
   const designEngineRef = useRef<DesignEngineKind>('native');
   const [ideogramStatus, setIdeogramStatus] = useState<IdeogramProviderStatus | null>(null);
+  const [gptImageStatus, setGptImageStatus] = useState<GptImageProviderStatus | null>(null);
   const [ideogramSession, setIdeogramSession] = useState<IdeogramPocSession | null>(null);
   const [ideogramError, setIdeogramError] = useState<string | null>(null);
   const ideogramSessionRef = useRef<IdeogramPocSession | null>(null);
@@ -394,7 +403,7 @@ export function SocialMediaBuilderWorkspace() {
       linkedProjectId?: string | null;
       ideogramPoc?: Record<string, unknown> | null;
       artDirector?: Record<string, unknown> | null;
-      designProvider?: 'native' | 'ideogram';
+      designProvider?: 'native' | 'ideogram' | 'gpt-image';
     } | null) => {
       const coverId = draft?.coverImage?.asset_id ?? null;
       const hydrated = hydrateSocialPostsFromDraft({
@@ -479,7 +488,11 @@ export function SocialMediaBuilderWorkspace() {
         setArtDirectorSession(restored);
         setPilotDesignChosen(Boolean(restored?.variants.length));
       }
-      if (draft?.designProvider === 'native' || draft?.designProvider === 'ideogram') {
+      if (
+        draft?.designProvider === 'native' ||
+        draft?.designProvider === 'ideogram' ||
+        draft?.designProvider === 'gpt-image'
+      ) {
         designEngineRef.current = draft.designProvider;
         setDesignEngine(draft.designProvider);
       }
@@ -554,6 +567,24 @@ export function SocialMediaBuilderWorkspace() {
             remix_endpoint: '',
             generate_endpoint: '',
             reason: 'ideogram_status_unavailable',
+          });
+        }
+      });
+    void getGptImageProviderStatus()
+      .then((status) => {
+        if (!cancelled) setGptImageStatus(status);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setGptImageStatus({
+            available: false,
+            configured: false,
+            enabled: false,
+            provider: 'gpt-image',
+            model: 'gpt-image-2',
+            edits_endpoint: '',
+            generate_endpoint: '',
+            reason: 'gpt_image_status_unavailable',
           });
         }
       });
@@ -1452,6 +1483,166 @@ export function SocialMediaBuilderWorkspace() {
     [docApi.constructionProjectId, ideogramStatus, locale, persistIdeogramSession, t],
   );
 
+  const runGptImageGenerate = useCallback(
+    async (instruction: string) => {
+      if (!docApi.constructionProjectId) {
+        showToast(t('toasts.projectRequired'));
+        return;
+      }
+      if (gptImageStatus && !gptImageStatus.available) {
+        const message = t('toasts.gptImageUnavailable');
+        showToast(message);
+        return;
+      }
+      if (generatingRef.current) return;
+      designEngineRef.current = 'gpt-image';
+      setDesignEngine('gpt-image');
+      const siblingPosts = postsRef.current.filter((p) => !isInFlightGenerationPost(p));
+      const createdPostId = mintCreatePostId();
+      const token = ++generateAbortRef.current;
+      generatingRef.current = true;
+      persistEpochRef.current += 1;
+      setGenerating(true);
+      setCampaignStatus('draft');
+      const inflight = createGeneratingPost(formatPreset, siblingPosts.length + 1, {
+        linkedProjectId: docApi.constructionProjectId,
+        id: createdPostId,
+      });
+      createInflightIdRef.current = inflight.id;
+      const withInflight = [
+        ...siblingPosts.map((p) =>
+          isInFlightGenerationPost(p) ? { ...p, generationLifecycle: 'error' as const } : p,
+        ),
+        inflight,
+      ];
+      postsRef.current = withInflight;
+      selectedPostIdRef.current = inflight.id;
+      setPosts(withInflight);
+      setSelectedPostId(inflight.id);
+      setSelectedElementId(null);
+      setEditingElementId(null);
+      coverAsset.clearCover();
+      let stageIdx = 0;
+      setAiStatus(GPT_IMAGE_STAGES[0]!);
+      if (genStageTimerRef.current != null) {
+        window.clearInterval(genStageTimerRef.current);
+      }
+      genStageTimerRef.current = window.setInterval(() => {
+        stageIdx = Math.min(stageIdx + 1, GPT_IMAGE_STAGES.length - 1);
+        if (token === generateAbortRef.current) {
+          setAiStatus(GPT_IMAGE_STAGES[stageIdx]!);
+        }
+      }, 900);
+      try {
+        const response = await generateGptImageDesign({
+          linked_project_id: docApi.constructionProjectId,
+          instruction,
+          design_provider: 'gpt-image',
+          campaign_mode: 'project',
+          format_preset: formatPreset,
+          aspect_ratio: formatPreset === 'portrait' ? '4:5' : formatPreset === 'square' ? '1:1' : undefined,
+          language: locale,
+          draft: {
+            posts: serializeSocialPosts(siblingPosts),
+            selected_post_id: selectedPostIdRef.current,
+          },
+          builder_context: {
+            builder: 'social',
+            format_preset: formatPreset,
+          },
+        });
+        if (token !== generateAbortRef.current) return;
+        const output = response.outputs[0];
+        if (!output?.local_asset_id) {
+          throw new Error(t('toasts.gptImageFailed'));
+        }
+        const headline =
+          typeof response.brief?.visible_copy === 'object' && response.brief.visible_copy
+            ? String((response.brief.visible_copy as Record<string, unknown>).headline || '')
+            : '';
+        const nextPost = createFlattenedGptImagePost({
+          localAssetId: output.local_asset_id,
+          linkedProjectId: docApi.constructionProjectId,
+          formatPreset: asFormatPreset(response.format_preset || formatPreset),
+          instruction,
+          model: response.model,
+          sessionId: response.session_id,
+          campaignContextId: response.campaign_context_id,
+          sourceAssetId: response.source_image?.asset_id ?? null,
+          headline,
+          index: siblingPosts.length + 1,
+          canvasWidth: output.canvas_width,
+          canvasHeight: output.canvas_height,
+        });
+        nextPost.id = createdPostId;
+        const nextPosts = [...siblingPosts, nextPost];
+        pushHistory();
+        postsRef.current = nextPosts;
+        selectedPostIdRef.current = nextPost.id;
+        setPosts(nextPosts);
+        setSelectedPostId(nextPost.id);
+        setFormatPreset(nextPost.formatPreset);
+        createInflightIdRef.current = null;
+        coverAsset.setCoverImage({
+          asset_id: output.local_asset_id,
+          url: null,
+          alt: null,
+          role: 'cover',
+        });
+        markDirty();
+        persistEpochRef.current += 1;
+        void docApi.saveDraft({
+          ...buildPersistPayload(),
+          posts: serializeSocialPosts(nextPosts),
+          selectedPostId: nextPost.id,
+          designProvider: 'gpt-image',
+        });
+        setAiStatus('completed');
+        setCampaignStatus('ready');
+        setAiPrompt('');
+        setPilotDesignChosen(true);
+        showToast(t('toasts.designed'));
+        genIdleTimerRef.current = window.setTimeout(() => {
+          if (token === generateAbortRef.current) setAiStatus('idle');
+        }, 1600);
+      } catch (err) {
+        if (token !== generateAbortRef.current) return;
+        setAiStatus('idle');
+        setCampaignStatus('failed');
+        const inflightId = createInflightIdRef.current ?? createdPostId;
+        if (inflightId) {
+          const errored = postsRef.current.map((p) =>
+            p.id === inflightId
+              ? { ...p, generationLifecycle: 'error' as const, name: 'Generation failed' }
+              : p,
+          );
+          postsRef.current = errored;
+          setPosts(errored);
+          selectedPostIdRef.current = inflightId;
+          setSelectedPostId(inflightId);
+        }
+        showToast(generateErrorMessage(err, t('toasts.gptImageFailed')));
+      } finally {
+        if (genStageTimerRef.current != null) {
+          window.clearInterval(genStageTimerRef.current);
+          genStageTimerRef.current = null;
+        }
+        if (token === generateAbortRef.current) {
+          generatingRef.current = false;
+          setGenerating(false);
+        }
+      }
+    },
+    [
+      coverAsset,
+      docApi,
+      formatPreset,
+      gptImageStatus,
+      locale,
+      t,
+    ],
+  );
+
   const selectIdeogramOutput = useCallback(
     (variant: IdeogramPocVariant) => {
       const session = ideogramSessionRef.current;
@@ -1797,7 +1988,12 @@ export function SocialMediaBuilderWorkspace() {
       onOpenMediaPicker={() => coverAsset.openPicker('cover')}
       enabledComponentKeys={P0_COMPONENT_KEYS}
       onGenerate={(instruction) => {
-        void runAiGenerate(instruction);
+        const mode = inferDesignMode(instruction, postsRef.current);
+        if (mode === 'edit') {
+          void runAiGenerate(instruction, { mode: 'edit', explicit: true });
+          return;
+        }
+        void runGptImageGenerate(instruction);
       }}
       generating={generating}
     />
@@ -1997,14 +2193,13 @@ export function SocialMediaBuilderWorkspace() {
       showToast(t('toasts.instructionRequired'));
       return;
     }
-    designEngineRef.current = 'native';
     const canFollowUp = Boolean(selectedPost && (pilotDesignChosen || artDirectorSession));
     if (canFollowUp) {
       if (applyLocalFollowUp(instruction)) return;
       void runAiGenerate(instruction, { mode: 'edit', explicit: true });
       return;
     }
-    void runAiGenerate(instruction, { mode: 'create', explicit: true });
+    void runGptImageGenerate(instruction);
   }
 
   function regenerateCurrentDesign() {
@@ -2949,7 +3144,7 @@ export function SocialMediaBuilderWorkspace() {
                                     setLeftRailId('ai');
                                     if (!selectedPost) return;
                                     if (designEngineRef.current === 'ideogram') return;
-                                    void runAiGenerate(defaultSocialInstruction(selectedPost));
+                                    void runGptImageGenerate(defaultSocialInstruction(selectedPost));
                                     setFloatingMoreOpen(false);
                                   }}
                                 >

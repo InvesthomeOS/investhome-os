@@ -285,7 +285,7 @@ export function buildSocialDesignRequest(input: {
   platforms?: Iterable<PlatformKey | string>;
   mode?: SocialDesignMode | null;
   modeExplicit?: boolean;
-  designProvider?: 'native' | 'ideogram';
+  designProvider?: 'native' | 'ideogram' | 'gpt-image' | 'openai-image';
   /** Asset IDs that 404/403'd for the current project — never send them (avoids aborting CREATE). */
   excludeAssetIds?: string[];
   formatPreset?: string | null;

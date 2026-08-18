@@ -18918,6 +18918,10 @@
           "ideogramSource": "Preparing project image",
           "ideogramGenerating": "Generating 3 designs",
           "ideogramSaving": "Saving results",
+          "gptImageBrief": "Preparing GPT Image brief",
+          "gptImageSource": "Preparing project image",
+          "gptImageGenerating": "Generating image",
+          "gptImageSaving": "Saving result",
           "completed": "AI design applied to canvas"
         },
         "aiDesign": {
@@ -19267,6 +19271,8 @@
           "ideogramUnavailable": "Ideogram POC is unavailable",
           "ideogramFailed": "Ideogram generation failed. Native generation was not used.",
           "ideogramNativeBlocked": "Ideogram is selected — Native generation was not invoked.",
+          "gptImageUnavailable": "GPT Image is unavailable — AI_API_KEY is not configured.",
+          "gptImageFailed": "GPT Image generation failed. Native/Ideogram generation was not used.",
           "logoChanged": "Logo updated",
           "logoRemoved": "Logo removed",
           "imageChanged": "Background image updated",

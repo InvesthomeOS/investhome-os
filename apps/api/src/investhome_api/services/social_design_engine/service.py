@@ -194,6 +194,21 @@ def generate_social_design(
                 "endpoint. Native generation was not invoked."
             ),
         )
+    if design_provider in {"gpt-image", "openai-image"}:
+        logger.info(
+            "social_design_provider_rejected",
+            extra={
+                "design_provider": design_provider,
+                "reason": "gpt_image_must_use_gpt_image_endpoint",
+            },
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "design_provider=gpt-image cannot run on the Native Social Design "
+                "endpoint. Native generation was not invoked."
+            ),
+        )
     logger.info(
         "social_design_provider_route",
         extra={"design_provider": design_provider or "native", "provider": "native"},

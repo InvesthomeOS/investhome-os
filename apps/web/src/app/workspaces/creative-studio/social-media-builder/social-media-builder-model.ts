@@ -45,6 +45,10 @@ export type AiStatusKey =
   | 'ideogramSource'
   | 'ideogramGenerating'
   | 'ideogramSaving'
+  | 'gptImageBrief'
+  | 'gptImageSource'
+  | 'gptImageGenerating'
+  | 'gptImageSaving'
   | 'completed';
 
 export type ProjectId = 'temple' | '309h' | 'uniloft' | 'campus';

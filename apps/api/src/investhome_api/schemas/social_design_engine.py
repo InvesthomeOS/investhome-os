@@ -97,7 +97,7 @@ class SocialDesignRequest(BaseModel):
     instruction: str = Field(..., min_length=1, max_length=8000)
     mode: DesignMode = "create"
     mode_explicit: bool = False
-    design_provider: Literal["native", "ideogram"] = "native"
+    design_provider: Literal["native", "ideogram", "gpt-image", "openai-image"] = "native"
     draft: SocialDesignDraftState = Field(default_factory=SocialDesignDraftState)
     selected_asset_ids: list[UUID] = Field(default_factory=list)
     language: str | None = Field(default=None, max_length=16)

@@ -32,11 +32,20 @@ def creative_studio_social_design(
     Reuses Creative Studio RAG + LLMProvider. Does not write documents
     (client persists via Creative Studio Document API).
     """
-    if (getattr(body, "design_provider", None) or "native") == "ideogram":
+    provider = (getattr(body, "design_provider", None) or "native")
+    if provider == "ideogram":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
                 "design_provider=ideogram cannot run on the Native Social Design "
+                "endpoint. Native generation was not invoked."
+            ),
+        )
+    if provider in {"gpt-image", "openai-image"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "design_provider=gpt-image cannot run on the Native Social Design "
                 "endpoint. Native generation was not invoked."
             ),
         )

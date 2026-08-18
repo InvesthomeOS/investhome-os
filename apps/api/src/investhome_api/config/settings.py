@@ -134,6 +134,12 @@ class Settings(BaseSettings):
     ideogram_model: str = Field(default="V_4_0", alias="IDEOGRAM_MODEL")
     ideogram_default_quality: str = Field(default="QUALITY", alias="IDEOGRAM_DEFAULT_QUALITY")
 
+    # GPT Image (OpenAI Images API) — SMB visual engine. Reuses AI_API_KEY.
+    # Default model verified from official OpenAI docs (gpt-image-2, 2026-04-21).
+    gpt_image_enabled: bool = Field(default=True, alias="GPT_IMAGE_ENABLED")
+    gpt_image_model: str = Field(default="gpt-image-2", alias="GPT_IMAGE_MODEL")
+    gpt_image_quality: str = Field(default="medium", alias="GPT_IMAGE_QUALITY")
+
     # Canva Connect OAuth 2.0 + PKCE — never hardcode secrets.
     canva_client_id: str | None = Field(default=None, alias="CANVA_CLIENT_ID")
     canva_client_secret: str | None = Field(default=None, alias="CANVA_CLIENT_SECRET")

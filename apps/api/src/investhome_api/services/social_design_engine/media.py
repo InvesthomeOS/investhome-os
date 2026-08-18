@@ -46,6 +46,8 @@ GENERATIVE_MARKERS = (
     "ideogram",
     "ideogram-poc",
     "provider:ideogram",
+    "gpt-image",
+    "provider:gpt-image",
     "generated-image",
     "unsplash",
     "stock-photo",
@@ -86,7 +88,7 @@ def is_generative_or_synthetic_asset(asset: CreativeStudioMediaAsset) -> bool:
     if any(marker in hay for marker in GENERATIVE_MARKERS):
         return True
     name = (asset.filename or "").lower()
-    if name.startswith("ideogram-") or name.startswith("unsplash-"):
+    if name.startswith("ideogram-") or name.startswith("gpt-image-") or name.startswith("unsplash-"):
         return True
     return False
 

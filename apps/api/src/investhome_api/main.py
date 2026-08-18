@@ -32,6 +32,7 @@ from investhome_api.api.routes import (
     drawing_intelligence,
     executive,
     finance,
+    gpt_image_design,
     health,
     ideogram_design_poc,
     inventory,
@@ -165,6 +166,7 @@ def create_app() -> FastAPI:
     app.include_router(creative_studio_generation.router)
     app.include_router(social_design_engine.router)
     app.include_router(ideogram_design_poc.router)
+    app.include_router(gpt_image_design.router)
     app.include_router(inventory.router)
     app.include_router(inventory_pricing.prices_router)
     app.include_router(inventory_pricing.requests_router)

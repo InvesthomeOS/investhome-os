@@ -67,4 +67,5 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
     "ideogram_live: live Ideogram API calls (requires IDEOGRAM_API_KEY)",
+    "gpt_image_live: live GPT Image API calls (requires AI_API_KEY; spends credits)",
 ]

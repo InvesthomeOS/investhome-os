@@ -72,7 +72,7 @@ export type BuilderMediaDraft = {
   /** Investhome Art Director A/B/C session — persisted so reload keeps real-asset variants. */
   artDirector?: Record<string, unknown> | null;
   /** Explicit SMB design provider. Do not infer from transient UI state. */
-  designProvider?: 'native' | 'ideogram';
+  designProvider?: 'native' | 'ideogram' | 'gpt-image';
   savedAt?: number;
 };
 
@@ -88,7 +88,7 @@ export type BuilderMediaPersistInput = {
   generationMeta?: Record<string, unknown> | null;
   ideogramPoc?: Record<string, unknown> | null;
   artDirector?: Record<string, unknown> | null;
-  designProvider?: 'native' | 'ideogram';
+  designProvider?: 'native' | 'ideogram' | 'gpt-image';
 };
 
 export function isBuilderMediaDocumentType(
@@ -133,7 +133,11 @@ export function serializeBuilderMediaDraft(
   if (input.artDirector && typeof input.artDirector === 'object') {
     draft.artDirector = input.artDirector;
   }
-  if (input.designProvider === 'native' || input.designProvider === 'ideogram') {
+  if (
+    input.designProvider === 'native' ||
+    input.designProvider === 'ideogram' ||
+    input.designProvider === 'gpt-image'
+  ) {
     draft.designProvider = input.designProvider;
   }
 
@@ -264,7 +268,9 @@ export function deserializeBuilderMediaDraft(
         ? (body.artDirector as Record<string, unknown>)
         : undefined,
     designProvider:
-      body.designProvider === 'native' || body.designProvider === 'ideogram'
+      body.designProvider === 'native' ||
+      body.designProvider === 'ideogram' ||
+      body.designProvider === 'gpt-image'
         ? body.designProvider
         : undefined,
     savedAt: typeof body.savedAt === 'number' ? body.savedAt : undefined,

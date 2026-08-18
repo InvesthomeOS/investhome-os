@@ -13595,6 +13595,10 @@
           "ideogramSource": "proje görseli hazırlanıyor",
           "ideogramGenerating": "3 tasarım üretiliyor",
           "ideogramSaving": "sonuçlar kaydediliyor",
+          "gptImageBrief": "GPT Image brief hazırlanıyor",
+          "gptImageSource": "proje görseli hazırlanıyor",
+          "gptImageGenerating": "görsel üretiliyor",
+          "gptImageSaving": "sonuç kaydediliyor",
           "completed": "AI tasarım tuvale uygulandı"
         },
         "aiDesign": {
@@ -13944,6 +13948,8 @@
           "ideogramUnavailable": "Ideogram POC kullanılamıyor",
           "ideogramFailed": "Ideogram üretimi başarısız. Native üretim kullanılmadı.",
           "ideogramNativeBlocked": "Ideogram seçili — Native üretim çağrılmadı.",
+          "gptImageUnavailable": "GPT Image kullanılamıyor — AI_API_KEY yapılandırılmamış.",
+          "gptImageFailed": "GPT Image üretimi başarısız. Native/Ideogram üretim kullanılmadı.",
           "logoChanged": "Logo güncellendi",
           "logoRemoved": "Logo kaldırıldı",
           "imageChanged": "Arka plan görseli güncellendi",

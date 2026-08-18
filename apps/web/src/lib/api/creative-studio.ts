@@ -548,7 +548,7 @@ export type SocialDesignMediaCandidate = {
   linked_project_id: string;
 };
 
-export type SocialDesignProvider = 'native' | 'ideogram';
+export type SocialDesignProvider = 'native' | 'ideogram' | 'gpt-image' | 'openai-image';
 
 export type SocialDesignRequest = {
   linked_project_id: string;
@@ -745,6 +745,103 @@ export async function generateIdeogramDesign(
       },
       builder_context: input.builder_context ?? undefined,
       regenerate_variant: input.regenerate_variant ?? undefined,
+      session_id: input.session_id ?? undefined,
+    }),
+  });
+}
+
+/** GPT Image visual engine — isolated from Native SMB and Ideogram. */
+export type GptImageProviderStatus = {
+  available: boolean;
+  configured: boolean;
+  enabled: boolean;
+  provider: string;
+  model: string;
+  edits_endpoint: string;
+  generate_endpoint: string;
+  reason: string | null;
+};
+
+export type GptImageSourceImage = {
+  asset_id: string;
+  filename: string;
+  content_type: string | null;
+  folder_category: string | null;
+  tags: string[];
+  role?: string;
+};
+
+export type GptImageDesignOutput = {
+  local_asset_id: string;
+  local_asset_url: string;
+  provider: string;
+  provider_generation_id: string | null;
+  resolution: string | null;
+  canvas_width: number | null;
+  canvas_height: number | null;
+  metadata: Record<string, unknown>;
+};
+
+export type GptImageDesignRequest = {
+  linked_project_id?: string | null;
+  instruction: string;
+  design_provider?: 'gpt-image' | 'openai-image';
+  campaign_mode?: 'project' | 'general';
+  aspect_ratio?: '1:1' | '4:5' | '16:9' | '9:16' | null;
+  format_preset?: string | null;
+  language?: string | null;
+  selected_asset_ids?: string[];
+  draft?: {
+    posts?: Record<string, unknown>[];
+    selected_post_id?: string | null;
+  };
+  builder_context?: Record<string, unknown> | null;
+  session_id?: string | null;
+};
+
+export type GptImageDesignResponse = {
+  provider: string;
+  model: string;
+  endpoint: string;
+  campaign_mode: 'project' | 'general';
+  session_id: string;
+  linked_project_id: string | null;
+  campaign_context_id: string | null;
+  generation_context_id: string;
+  aspect_ratio: string;
+  format_preset: string;
+  source_image: GptImageSourceImage | null;
+  extra_images: GptImageSourceImage[];
+  brief: Record<string, unknown>;
+  outputs: GptImageDesignOutput[];
+  warnings: string[];
+  provider_call_count: number;
+  latency_ms: number;
+};
+
+export async function getGptImageProviderStatus(): Promise<GptImageProviderStatus> {
+  return apiFetch('/ai/creative-studio/social/gpt-image/status');
+}
+
+export async function generateGptImageDesign(
+  input: GptImageDesignRequest,
+): Promise<GptImageDesignResponse> {
+  return apiFetch('/ai/creative-studio/social/gpt-image/generate', {
+    method: 'POST',
+    body: JSON.stringify({
+      linked_project_id: input.linked_project_id ?? undefined,
+      instruction: input.instruction,
+      design_provider: input.design_provider ?? 'gpt-image',
+      campaign_mode: input.campaign_mode ?? 'project',
+      aspect_ratio: input.aspect_ratio ?? undefined,
+      format_preset: input.format_preset ?? undefined,
+      language: input.language ?? undefined,
+      selected_asset_ids: input.selected_asset_ids ?? [],
+      draft: {
+        posts: input.draft?.posts ?? [],
+        selected_post_id: input.draft?.selected_post_id ?? null,
+      },
+      builder_context: input.builder_context ?? undefined,
       session_id: input.session_id ?? undefined,
     }),
   });
