@@ -98,6 +98,17 @@ function applyMoveHeadlineDown(elements, canvasH) {
   });
 }
 
+function applyMoveHeadlineUp(elements) {
+  const target = elements.find((el) => el.type === 'TEXT' && el.role === 'headline');
+  if (!target) return null;
+  const delta = Math.max(18, Math.round((target.y + target.height) * 0.08) || 24);
+  return elements.map((el) => {
+    if (el.id !== target.id || el.type !== 'TEXT') return el;
+    const y = Math.max(8, el.y - delta);
+    return { ...el, y };
+  });
+}
+
 describe('font size stepper / type-in', () => {
   it('decrements and increments by 2 and accepts typed values', () => {
     assert.equal(nudgeFontSize(42, -2), 40);
@@ -247,10 +258,40 @@ describe('AI move headline preserves manual fontSize', () => {
     assert.ok(next[0].y > 500);
   });
 
+  it('move headline up is y-only and does not reset fontSize', () => {
+    const elements = [
+      {
+        id: 'text-headline',
+        type: 'TEXT',
+        role: 'headline',
+        content: 'The Temple',
+        fontSize: 56,
+        fontWeight: 'bold',
+        align: 'left',
+        color: '#1B2A4A',
+        fontFamily: 'serif',
+        x: 90,
+        y: 180,
+        width: 780,
+        height: 160,
+        zIndex: 5,
+      },
+    ];
+    const next = applyMoveHeadlineUp(elements);
+    assert.ok(next);
+    assert.equal(next[0].fontSize, 56);
+    assert.equal(next[0].fontWeight, 'bold');
+    assert.equal(next[0].color, '#1B2A4A');
+    assert.equal(next[0].fontFamily, 'serif');
+    assert.equal(next[0].x, 90);
+    assert.ok(next[0].y < 180);
+  });
+
   it('documents move_headline_down as a y-only mapper command', () => {
     const src = readSmb('social-media-builder-ai-edit.ts');
     assert.match(src, /move_headline_down/);
     assert.match(src, /applyMoveHeadlineDown/);
+    assert.match(src, /applyMoveHeadlineUp/);
     assert.match(src, /Position-only patch|preserves fontSize|y-only/i);
   });
 });

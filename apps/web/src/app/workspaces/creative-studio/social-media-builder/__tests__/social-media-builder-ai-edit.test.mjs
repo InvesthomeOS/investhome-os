@@ -30,7 +30,9 @@ const COMMAND_PATTERNS = [
   { command: 'remove_price', pattern: /fiyat[iı] kald[iı]r|remove (the )?price|hide (the )?price|fiyat[iı] gizle/i },
   { command: 'use_night_render', pattern: /gece render|night render|use (the )?night|gece g[oö]r[uü]n/i },
   { command: 'move_logo_down', pattern: /logoyu.{0,24}a[sş]a[gğ][iı]|move (the )?logo down|logo.{0,12}down/i },
+  { command: 'move_headline_up', pattern: /ba[sş]l[iı][gğ][iı].{0,24}yukar[iı]|move (the )?headline up|headline.{0,12}up/i },
   { command: 'move_headline_down', pattern: /ba[sş]l[iı][gğ][iı].{0,24}a[sş]a[gğ][iı]|move (the )?headline down|headline.{0,12}down/i },
+  { command: 'gold_cta', pattern: /gold cta|cta.{0,12}gold|alt[iı]n (cta|buton)|cta.{0,12}alt[iı]n|cta.?gold|gold.?cta/i },
   { command: 'make_premium', pattern: /daha premium|more premium|make (it )?premium/i },
   { command: 'simplify_text', pattern: /daha (minimal|sade)|yaz[iı]lar[iı].{0,16}sade|simplify (the )?text|more minimal|sadele[sş]tir/i },
 ];
@@ -65,6 +67,8 @@ describe('follow-up command parser', () => {
     assert.deepEqual(parseAiFollowUpCommands('Gece renderını kullan.'), ['use_night_render']);
     assert.deepEqual(parseAiFollowUpCommands('Logoyu biraz aşağı al.'), ['move_logo_down']);
     assert.deepEqual(parseAiFollowUpCommands('Başlığı biraz aşağı al.'), ['move_headline_down']);
+    assert.deepEqual(parseAiFollowUpCommands('Başlığı yukarı al.'), ['move_headline_up']);
+    assert.deepEqual(parseAiFollowUpCommands('CTA gold yap.'), ['gold_cta']);
     assert.deepEqual(parseAiFollowUpCommands('Yazıları daha sade yap.'), ['simplify_text']);
     assert.deepEqual(parseAiFollowUpCommands('Use the night render and shrink the headline'), [
       'shrink_headline',
@@ -139,7 +143,10 @@ describe('AI-first SMB chrome (source wiring)', () => {
     assert.match(src, /use_night_render/);
     assert.match(src, /move_logo_down/);
     assert.match(src, /move_headline_down/);
+    assert.match(src, /move_headline_up/);
+    assert.match(src, /gold_cta/);
     assert.match(src, /simplify_text/);
     assert.match(src, /export function applyAiFollowUpEdit/);
+    assert.match(src, /return \{ \.\.\.el, y \}/);
   });
 });

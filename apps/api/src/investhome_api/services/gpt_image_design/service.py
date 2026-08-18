@@ -55,6 +55,10 @@ from investhome_api.services.gpt_image_design.config import (
     provider_availability,
     resolve_size,
 )
+from investhome_api.services.gpt_image_design.design_plan import (
+    build_gpt_image_design_plan,
+    design_plan_to_dict,
+)
 from investhome_api.services.gpt_image_design.persistence import (
     asset_url,
     persist_gpt_image,
@@ -398,6 +402,19 @@ def _generate_project(
     )
 
     extra_roles = [row.role for row in extras]
+    has_project_logo = any(row.role == "project_logo" for row in extras)
+    has_ih_logo = any(row.role == "investhome_logo" for row in extras)
+    design_plan = build_gpt_image_design_plan(
+        canvas_width=canvas_w,
+        canvas_height=canvas_h,
+        instruction=instruction,
+        composition_family=str(creative.composition_family or creative.composition_strategy or ""),
+        objective=str(marketing_strategy.objective or gen_intent.marketing_objective or ""),
+        campaign_angle=str(marketing_strategy.campaign_angle or ""),
+        has_project_logo=has_project_logo,
+        has_investhome_logo=has_ih_logo,
+        include_slogan=True,
+    )
     shared_brief = build_shared_brief(
         project_name=project.project_name,
         instruction=instruction,
@@ -415,6 +432,7 @@ def _generate_project(
         logo_notes=logo_notes,
         design_reference_names=[row.filename for row in design_refs],
     )
+    shared_brief["design_plan"] = design_plan_to_dict(design_plan)
     logger.info(
         "gpt_image_brief project_id=%s user_campaign_facts=%s allowed_financial_tokens=%s "
         "blocked_financial_tokens=%s extra_image_roles=%s",
@@ -546,6 +564,7 @@ def _generate_project(
         canvas_width=canvas_w,
         canvas_height=canvas_h,
         base_asset_id=base_asset.id,
+        plan=design_plan,
     )
     for warn in composition.warnings:
         if warn not in composition_warnings:
@@ -593,12 +612,14 @@ def _generate_project(
                 "extra_image_roles": extra_roles,
                 "extra_image_asset_ids": [str(row.asset_id) for row in extras],
                 "composition_used_slots": list(composition.used_slots),
+                "design_plan_variation": design_plan.variation,
                 "investhome_global_logo_found": not any(
                     INVESHOME_GLOBAL_LOGO_MISSING in w for w in composition_warnings
                 ),
                 "brief": {
                     "objective": shared_brief.get("objective"),
                     "headline": visible.get("headline"),
+                    "design_plan_variation": design_plan.variation,
                 },
             },
         )
@@ -686,7 +707,21 @@ def _generate_general(
         aspect_ratio=aspect_ratio,
     )
     canvas_w, canvas_h = canvas_for_preset(format_preset)
-    prompt = render_general_prompt(instruction=instruction, language=body.language)
+    lang = (body.language or "en").strip().lower()
+    design_plan = build_gpt_image_design_plan(
+        canvas_width=canvas_w,
+        canvas_height=canvas_h,
+        instruction=instruction,
+        has_project_logo=False,
+        has_investhome_logo=False,
+        include_slogan=True,
+    )
+    plan_payload = design_plan_to_dict(design_plan)
+    prompt = render_general_prompt(
+        instruction=instruction,
+        language=body.language,
+        design_plan=plan_payload,
+    )
     prompt = refine_prompt_with_llm(prompt, allowed=[], blocked=[])
     session_id = (body.session_id or "").strip() or str(uuid4())
     endpoint = generations_url(availability.base_url)
@@ -702,15 +737,44 @@ def _generate_general(
         base_url=availability.base_url,
         variant="general",
     )
-    image_bytes = decode_remote_image(remote)
-    content_type = sniff_image_content_type(image_bytes)
+    base_image_bytes = decode_remote_image(remote)
+    base_content_type = sniff_image_content_type(base_image_bytes)
     generation_id = str(uuid4())
     generation_context_id = str(uuid4())
+    base_asset = persist_gpt_image(
+        db,
+        actor=user,
+        linked_project_id=body.linked_project_id,
+        content=base_image_bytes,
+        content_type=base_content_type,
+        campaign_mode="general-base",
+        session_id=session_id,
+        provider_generation_id=generation_id,
+        campaign_context_id=None,
+        brief_excerpt="gpt-image-general-base",
+    )
+    headline = instruction.strip().split(".")[0][:90].strip()
+    cta = "Keşfet" if lang.startswith("tr") else "Learn more"
+    slots = build_slot_plan(
+        visible_copy={"headline": headline, "cta": cta},
+        include_slogan=True,
+    )
+    composition = compose_final_layers(
+        base_image_bytes,
+        logos=[],
+        slots=slots,
+        canvas_width=canvas_w,
+        canvas_height=canvas_h,
+        base_asset_id=base_asset.id,
+        plan=design_plan,
+    )
+    composed_bytes = composition.png_bytes
+    content_type = sniff_image_content_type(composed_bytes)
     asset = persist_gpt_image(
         db,
         actor=user,
         linked_project_id=body.linked_project_id,
-        content=image_bytes,
+        content=composed_bytes,
         content_type=content_type,
         campaign_mode="general",
         session_id=session_id,
@@ -733,7 +797,11 @@ def _generate_general(
         format_preset=format_preset,
         source_image=None,
         extra_images=[],
-        brief={"prompt": prompt, "campaign_mode": "general"},
+        brief={
+            "prompt": prompt,
+            "campaign_mode": "general",
+            "design_plan": plan_payload,
+        },
         outputs=[
             GptImageOutput(
                 local_asset_id=asset.id,
@@ -743,14 +811,19 @@ def _generate_general(
                 resolution=size,
                 canvas_width=canvas_w,
                 canvas_height=canvas_h,
+                layers=list(composition.layers),
+                composition_base_asset_id=base_asset.id,
+                composition_warnings=list(composition.warnings),
                 metadata={
                     "provider": GPT_IMAGE_PROVIDER,
                     "campaign_mode": "general",
                     "local_asset_id": str(asset.id),
+                    "composition_base_asset_id": str(base_asset.id),
+                    "design_plan_variation": design_plan.variation,
                 },
             )
         ],
-        warnings=[],
+        warnings=list(composition.warnings),
         provider_call_count=call_count,
         latency_ms=latency_ms,
     )

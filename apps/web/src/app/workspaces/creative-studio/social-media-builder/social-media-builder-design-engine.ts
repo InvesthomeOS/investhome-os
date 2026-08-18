@@ -270,6 +270,13 @@ export function selectedElementToDesignContext(
         : [],
     };
   }
+  if (el.type === 'SHAPE') {
+    return {
+      ...base,
+      role: 'decoration',
+      backgroundColor: el.fill ?? null,
+    };
+  }
   return base;
 }
 

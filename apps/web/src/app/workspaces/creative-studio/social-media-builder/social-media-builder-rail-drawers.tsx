@@ -1132,6 +1132,7 @@ function layerFontSize(el: SocialElement): number {
 }
 
 function layerAlign(el: SocialElement): 'left' | 'center' | 'right' {
+  if (el.type !== 'TEXT' && el.type !== 'BUTTON') return 'center';
   return el.align === 'left' || el.align === 'right' ? el.align : 'center';
 }
 

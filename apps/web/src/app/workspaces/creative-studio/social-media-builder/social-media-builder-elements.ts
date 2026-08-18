@@ -6,7 +6,7 @@ import {
 } from './social-media-builder-layout';
 
 /**
- * Persistent Social Media Builder canvas elements (TEXT | IMAGE | BUTTON).
+ * Persistent Social Media Builder canvas elements (TEXT | IMAGE | BUTTON | SHAPE).
  * Coordinates are absolute pixels in the post's format size.
  */
 
@@ -14,7 +14,7 @@ export type SocialTextAlign = 'left' | 'center' | 'right';
 export type SocialFontWeight = 'normal' | 'medium' | 'semibold' | 'bold';
 export type SocialFontFamily = 'sans' | 'serif' | 'system';
 export type SocialObjectFit = 'cover' | 'contain' | 'fill';
-export type SocialElementType = 'TEXT' | 'IMAGE' | 'BUTTON' | 'METRIC_GROUP';
+export type SocialElementType = 'TEXT' | 'IMAGE' | 'BUTTON' | 'METRIC_GROUP' | 'SHAPE';
 export type SocialTextRole = 'headline' | 'body' | 'custom' | 'eyebrow' | 'brand';
 export type SocialMetricType =
   | 'currency'
@@ -93,6 +93,16 @@ export type SocialButtonElement = SocialElementBase & {
   opacity?: number;
 };
 
+export type SocialShapeKind = 'rect' | 'line' | 'accent';
+
+export type SocialShapeElement = SocialElementBase & {
+  type: 'SHAPE';
+  fill: string;
+  shapeKind?: SocialShapeKind;
+  borderRadius?: number;
+  opacity?: number;
+};
+
 export type SocialMetricGroupElement = SocialElementBase & {
   type: 'METRIC_GROUP';
   layout: SocialMetricLayout;
@@ -104,7 +114,8 @@ export type SocialElement =
   | SocialTextElement
   | SocialImageElement
   | SocialButtonElement
-  | SocialMetricGroupElement;
+  | SocialMetricGroupElement
+  | SocialShapeElement;
 
 const UUID_FRAGMENT = () =>
   `e-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -130,7 +141,7 @@ export function ensureUniqueElementIds(elements: SocialElement[]): SocialElement
             ? 'body'
             : el.role === 'eyebrow'
               ? 'eyebrow'
-              : 'text' : el.type === 'BUTTON' ? 'cta' : el.type === 'METRIC_GROUP' ? 'metrics' : 'img';
+              : 'text' : el.type === 'BUTTON' ? 'cta' : el.type === 'METRIC_GROUP' ? 'metrics' : el.type === 'SHAPE' ? 'shape' : 'img';
     let next = nextElementId(prefix);
     while (seen.has(next)) next = nextElementId(prefix);
     seen.add(next);

@@ -4,6 +4,7 @@
  */
 
 import {
+  socialFontFamilyCss,
   socialFontWeightCss,
   sortElementsByZ,
   type SocialElement,
@@ -101,7 +102,8 @@ async function drawElement(
     ctx.textAlign = el.align;
     ctx.textBaseline = 'top';
     const weight = socialFontWeightCss(el.fontWeight);
-    ctx.font = `${weight} ${el.fontSize}px system-ui, sans-serif`;
+    const family = socialFontFamilyCss(el.fontFamily) || 'system-ui, sans-serif';
+    ctx.font = `${weight} ${el.fontSize}px ${family}`;
     const anchorX =
       el.align === 'left'
         ? el.x
@@ -119,14 +121,27 @@ async function drawElement(
 
   if (el.type === 'BUTTON') {
     ctx.fillStyle = el.backgroundColor;
-    roundRect(ctx, el.x, el.y, el.width, el.height, el.height / 2);
+    roundRect(ctx, el.x, el.y, el.width, el.height, el.borderRadius ?? el.height / 2);
     ctx.fill();
     ctx.fillStyle = el.textColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const fontSize = Math.max(12, Math.round(el.height * 0.42));
-    ctx.font = `600 ${fontSize}px system-ui, sans-serif`;
+    const fontSize = Math.max(12, Math.round(el.fontSize ?? el.height * 0.42));
+    const family = socialFontFamilyCss(el.fontFamily) || 'system-ui, sans-serif';
+    ctx.font = `600 ${fontSize}px ${family}`;
     ctx.fillText(el.label || '', el.x + el.width / 2, el.y + el.height / 2);
+    return;
+  }
+
+  if (el.type === 'SHAPE') {
+    ctx.fillStyle = el.fill || '#C4A35A';
+    const radius = el.borderRadius ?? 0;
+    if (radius > 0) {
+      roundRect(ctx, el.x, el.y, el.width, el.height, radius);
+      ctx.fill();
+    } else {
+      ctx.fillRect(el.x, el.y, el.width, el.height);
+    }
     return;
   }
 
@@ -347,6 +362,20 @@ export function buildCanvaLayersPayload(input: SocialPostExportInput): {
         zIndex: el.zIndex,
         backgroundColor: el.backgroundColor,
         textColor: el.textColor,
+      };
+    }
+    if (el.type === 'SHAPE') {
+      return {
+        id: el.id,
+        type: 'BUTTON',
+        label: '',
+        x: el.x,
+        y: el.y,
+        width: el.width,
+        height: el.height,
+        zIndex: el.zIndex,
+        backgroundColor: el.fill,
+        textColor: el.fill,
       };
     }
     if (el.type === 'METRIC_GROUP') {

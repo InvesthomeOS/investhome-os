@@ -9,6 +9,8 @@
  * - use_night_render — "gece renderını kullan", "use night render" (needs a night-tagged media asset)
  * - move_logo_down — "logoyu biraz aşağı al", "move logo down" (needs an IMAGE logo layer)
  * - move_headline_down — "başlığı biraz aşağı al", "move headline down" (y-only; preserves fontSize)
+ * - move_headline_up — "başlığı yukarı al", "move headline up" (y-only; preserves fontSize)
+ * - gold_cta — "cta gold", "altın cta" (CTA colors only)
  *
  * Unrecognized instructions are not applied here — the workspace may send them
  * to the existing generate/edit API. Matched-but-impossible commands must toast,
@@ -26,7 +28,9 @@ export type AiFollowUpCommand =
   | 'make_premium'
   | 'use_night_render'
   | 'move_logo_down'
-  | 'move_headline_down';
+  | 'move_headline_down'
+  | 'move_headline_up'
+  | 'gold_cta';
 
 export type AiFollowUpMediaHint = {
   id: string;
@@ -41,7 +45,8 @@ export type AiFollowUpFailureReason =
   | 'no_price'
   | 'no_night_asset'
   | 'no_logo'
-  | 'no_text';
+  | 'no_text'
+  | 'no_cta';
 
 export type AiFollowUpResult =
   | { ok: true; commands: AiFollowUpCommand[]; post: SocialPost }
@@ -57,7 +62,9 @@ const COMMAND_PATTERNS: { command: AiFollowUpCommand; pattern: RegExp }[] = [
   { command: 'remove_price', pattern: /fiyat[iı] kald[iı]r|remove (the )?price|hide (the )?price|fiyat[iı] gizle/i },
   { command: 'use_night_render', pattern: /gece render|night render|use (the )?night|gece g[oö]r[uü]n/i },
   { command: 'move_logo_down', pattern: /logoyu.{0,24}a[sş]a[gğ][iı]|move (the )?logo down|logo.{0,12}down/i },
+  { command: 'move_headline_up', pattern: /ba[sş]l[iı][gğ][iı].{0,24}yukar[iı]|move (the )?headline up|headline.{0,12}up/i },
   { command: 'move_headline_down', pattern: /ba[sş]l[iı][gğ][iı].{0,24}a[sş]a[gğ][iı]|move (the )?headline down|headline.{0,12}down/i },
+  { command: 'gold_cta', pattern: /gold cta|cta.{0,12}gold|alt[iı]n (cta|buton)|cta.{0,12}alt[iı]n|cta.?gold|gold.?cta/i },
   { command: 'make_premium', pattern: /daha premium|more premium|make (it )?premium/i },
   { command: 'simplify_text', pattern: /daha (minimal|sade)|yaz[iı]lar[iı].{0,16}sade|simplify (the )?text|more minimal|sadele[sş]tir/i },
 ];
@@ -195,6 +202,28 @@ function applyMoveHeadlineDown(elements: SocialElement[], canvasH: number): Soci
   });
 }
 
+/** Move headline up without rewriting typography (manual fontSize must survive). */
+function applyMoveHeadlineUp(elements: SocialElement[]): SocialElement[] | null {
+  const target = headlineEl(elements);
+  if (!target) return null;
+  const delta = Math.max(18, Math.round((target.y + target.height) * 0.08) || 24);
+  return elements.map((el) => {
+    if (el.id !== target.id || el.type !== 'TEXT') return el;
+    const y = Math.max(8, el.y - delta);
+    return { ...el, y };
+  });
+}
+
+/** Gold CTA — style only. Do not move or resize. */
+function applyGoldCta(elements: SocialElement[]): SocialElement[] | null {
+  const cta = elements.find((el) => el.type === 'BUTTON');
+  if (!cta) return null;
+  return elements.map((el) => {
+    if (el.id !== cta.id || el.type !== 'BUTTON') return el;
+    return { ...el, backgroundColor: '#C4A35A', textColor: '#1B2A4A', ctaStyle: 'gold' };
+  });
+}
+
 function patchCoverAsset(post: SocialPost, assetId: string): SocialPost {
   return {
     ...post,
@@ -260,6 +289,20 @@ export function applyAiFollowUpEdit(
     if (command === 'move_headline_down') {
       const next = applyMoveHeadlineDown(elements, canvasH);
       if (!next) return { ok: false, commands, reason: 'no_headline' };
+      elements = next;
+      applied.push(command);
+      continue;
+    }
+    if (command === 'move_headline_up') {
+      const next = applyMoveHeadlineUp(elements);
+      if (!next) return { ok: false, commands, reason: 'no_headline' };
+      elements = next;
+      applied.push(command);
+      continue;
+    }
+    if (command === 'gold_cta') {
+      const next = applyGoldCta(elements);
+      if (!next) return { ok: false, commands, reason: 'no_cta' };
       elements = next;
       applied.push(command);
       continue;

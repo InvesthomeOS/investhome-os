@@ -60,10 +60,22 @@ export function constrainElement(
   const fullBleed = el.type === 'IMAGE';
   const isButton = el.type === 'BUTTON';
   const isMetricGroup = el.type === 'METRIC_GROUP';
+  const isShape = el.type === 'SHAPE';
 
   if (fullBleed) {
     const w = clampInt(el.width, 8, canvasW, Math.min(200, canvasW));
     const h = clampInt(el.height, 8, canvasH, Math.min(80, canvasH));
+    return {
+      x: clampInt(el.x, 0, Math.max(0, canvasW - w), 0),
+      y: clampInt(el.y, 0, Math.max(0, canvasH - h), 0),
+      width: w,
+      height: h,
+    };
+  }
+
+  if (isShape) {
+    const w = clampInt(el.width, 2, canvasW, Math.min(80, canvasW));
+    const h = clampInt(el.height, 2, canvasH, Math.min(8, canvasH));
     return {
       x: clampInt(el.x, 0, Math.max(0, canvasW - w), 0),
       y: clampInt(el.y, 0, Math.max(0, canvasH - h), 0),

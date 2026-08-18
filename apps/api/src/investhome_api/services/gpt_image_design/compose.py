@@ -13,6 +13,11 @@ from uuid import UUID
 from PIL import Image, ImageDraw, ImageFont
 
 from investhome_api.services.gpt_image_design.brief import INVESHOME_SLOGAN
+from investhome_api.services.gpt_image_design.design_plan import (
+    DesignPlanLayer,
+    GptImageDesignPlan,
+    build_gpt_image_design_plan,
+)
 from investhome_api.services.gpt_image_design.source import ResolvedSourceImage
 from investhome_api.services.gpt_image_design.svg_raster import svg_bytes_to_png
 
@@ -31,18 +36,34 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 # Prefer OS/container fonts that cover Turkish (çÇğĞıİöÖşŞüÜ). Not a new brand typeface.
-_FONT_CANDIDATES = (
+# Serif maps to Georgia / Liberation Serif / DejaVu Serif — already on host, nearest SMB `serif`.
+_SANS_REGULAR = (
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
     "C:/Windows/Fonts/arial.ttf",
-    "C:/Windows/Fonts/arialbd.ttf",
     "C:/Windows/Fonts/segoeui.ttf",
-    "C:/Windows/Fonts/segoeuib.ttf",
     "C:/Windows/Fonts/calibri.ttf",
+)
+_SANS_BOLD = (
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    "C:/Windows/Fonts/arialbd.ttf",
+    "C:/Windows/Fonts/segoeuib.ttf",
     "C:/Windows/Fonts/calibrib.ttf",
 )
+_SERIF_REGULAR = (
+    "C:/Windows/Fonts/georgia.ttf",
+    "C:/Windows/Fonts/times.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+)
+_SERIF_BOLD = (
+    "C:/Windows/Fonts/georgiab.ttf",
+    "C:/Windows/Fonts/timesbd.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
+)
+_FONT_CANDIDATES = _SANS_REGULAR + _SANS_BOLD
 
 
 @dataclass
@@ -81,23 +102,27 @@ def logo_to_rgba(payload: bytes, filename: str, content_type: str) -> Image.Imag
         return None
 
 
-def resolve_turkish_font(*, bold: bool = False, size: int = 32) -> ImageFont.ImageFont:
+def resolve_turkish_font(
+    *,
+    bold: bool = False,
+    size: int = 32,
+    family: str = "sans",
+) -> ImageFont.ImageFont:
     """Load a Turkish-capable system font already available on host/container."""
     env_font = (os.environ.get("GPT_IMAGE_COMPOSE_FONT") or "").strip()
     ordered: list[str] = []
     if env_font:
         ordered.append(env_font)
-    # Prefer bold candidates when requested.
-    if bold:
-        ordered.extend(
-            [
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-                "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-                "C:/Windows/Fonts/arialbd.ttf",
-                "C:/Windows/Fonts/segoeuib.ttf",
-                "C:/Windows/Fonts/calibrib.ttf",
-            ]
-        )
+    serif = (family or "sans").strip().lower() == "serif"
+    if serif and bold:
+        ordered.extend(_SERIF_BOLD)
+        ordered.extend(_SERIF_REGULAR)
+        ordered.extend(_SANS_BOLD)
+    elif serif:
+        ordered.extend(_SERIF_REGULAR)
+        ordered.extend(_SANS_REGULAR)
+    elif bold:
+        ordered.extend(_SANS_BOLD)
     ordered.extend(_FONT_CANDIDATES)
     seen: set[str] = set()
     for path in ordered:
@@ -197,6 +222,36 @@ def build_slot_plan(
     )
 
 
+def _hex_rgba(color: str | None, alpha: int = 255) -> tuple[int, int, int, int]:
+    raw = (color or "").strip().lstrip("#")
+    if len(raw) == 3:
+        raw = "".join(ch * 2 for ch in raw)
+    if len(raw) != 6:
+        return (255, 255, 255, alpha)
+    try:
+        return (int(raw[0:2], 16), int(raw[2:4], 16), int(raw[4:6], 16), alpha)
+    except ValueError:
+        return (255, 255, 255, alpha)
+
+
+def _slot_text(slots: CompositionSlotPlan, content_slot: str) -> str:
+    if content_slot == "headline":
+        return slots.headline
+    if content_slot == "subhead":
+        return slots.subhead
+    if content_slot in {"location", "verified", "verified_data"}:
+        return slots.verified_data
+    if content_slot == "cta":
+        return slots.cta
+    if content_slot == "slogan":
+        return INVESHOME_SLOGAN if slots.include_slogan else ""
+    return ""
+
+
+def _is_bold(weight: str | None) -> bool:
+    return (weight or "").lower() in {"bold", "semibold", "700", "600"}
+
+
 def compose_final_layers(
     base_bytes: bytes,
     *,
@@ -206,8 +261,9 @@ def compose_final_layers(
     canvas_height: int | None = None,
     base_asset_id: UUID | None = None,
     composed_asset_id: UUID | None = None,
+    plan: GptImageDesignPlan | None = None,
 ) -> CompositionResult:
-    """Composite real logos + OS text onto the GPT Image visual. Returns PNG + SMB layers."""
+    """Composite real logos + OS text at Design Plan coordinates. Never a default 600/500 template."""
     warnings: list[str] = []
     used: list[str] = []
     try:
@@ -225,245 +281,195 @@ def compose_final_layers(
     if canvas.size != (width, height):
         canvas = canvas.resize((width, height), Image.Resampling.LANCZOS)
 
-    margin_x = max(24, int(round(width * 0.055)))
-    margin_y = max(24, int(round(height * 0.045)))
-    project_box = (max(140, int(round(width * 0.24))), max(40, int(round(height * 0.06))))
-    ih_box = (max(96, int(round(width * 0.14))), max(32, int(round(height * 0.036))))
-    text_width = max(120, width - margin_x * 2)
-
     project = next((row for row in logos if row.role == "project_logo"), None)
     supporting = next((row for row in logos if row.role == "investhome_logo"), None)
+    if plan is None:
+        plan = build_gpt_image_design_plan(
+            canvas_width=width,
+            canvas_height=height,
+            has_project_logo=project is not None,
+            has_investhome_logo=supporting is not None,
+            include_slogan=slots.include_slogan,
+        )
 
     layers: list[dict[str, Any]] = []
-    # Cover/background is the GPT visual (set via composition_base_asset_id on the response).
-    # Layers are editable logos + text only — same contract as Native Art Director.
-
     draw = ImageDraw.Draw(canvas)
 
-    if project is not None:
-        logo_im = logo_to_rgba(project.image_bytes, project.filename, project.content_type)
-        if logo_im is None:
-            warnings.append(f"project_logo_unreadable:{project.filename}")
-        else:
-            fitted = _fit_logo(logo_im, *project_box)
-            pos = (margin_x, margin_y)
-            canvas.alpha_composite(fitted, pos)
-            layers.append(
-                {
-                    "id": "logo-project",
-                    "type": "IMAGE",
-                    "role": "logo",
-                    "assetId": str(project.asset_id),
-                    "x": pos[0],
-                    "y": pos[1],
-                    "width": fitted.width,
-                    "height": fitted.height,
-                    "zIndex": 8,
-                }
-            )
-            used.append("project_logo")
-
-    # Text stack: HEADLINE → SUBHEAD → OPTIONAL VERIFIED → CTA → slogan / IH logo
-    cursor_y = int(round(height * 0.58))
-    if slots.headline:
-        font = resolve_turkish_font(bold=True, size=max(28, int(round(width * 0.048))))
-        _, block_h = _draw_text_block(
+    for spec in plan.layers:
+        _compose_plan_layer(
+            canvas,
             draw,
-            text=slots.headline,
-            font=font,
-            x=margin_x,
-            y=cursor_y,
-            max_width=text_width,
-            align="left",
+            spec=spec,
+            slots=slots,
+            project=project,
+            supporting=supporting,
+            layers=layers,
+            used=used,
+            warnings=warnings,
         )
-        layers.append(
-            {
-                "id": "text-headline",
-                "type": "TEXT",
-                "role": "headline",
-                "content": slots.headline,
-                "fontSize": int(getattr(font, "size", 36) or 36),
-                "fontWeight": "bold",
-                "align": "left",
-                "color": "#ffffff",
-                "x": margin_x,
-                "y": cursor_y,
-                "width": text_width,
-                "height": max(block_h, 40),
-                "zIndex": 5,
-            }
-        )
-        cursor_y += block_h + max(10, int(round(height * 0.012)))
-        used.append("headline")
-
-    if slots.subhead:
-        font = resolve_turkish_font(bold=False, size=max(16, int(round(width * 0.024))))
-        _, block_h = _draw_text_block(
-            draw,
-            text=slots.subhead,
-            font=font,
-            x=margin_x,
-            y=cursor_y,
-            max_width=text_width,
-            fill=(235, 235, 235, 255),
-            align="left",
-        )
-        layers.append(
-            {
-                "id": "text-subhead",
-                "type": "TEXT",
-                "role": "body",
-                "content": slots.subhead,
-                "fontSize": int(getattr(font, "size", 20) or 20),
-                "fontWeight": "normal",
-                "align": "left",
-                "color": "#ebebeb",
-                "x": margin_x,
-                "y": cursor_y,
-                "width": text_width,
-                "height": max(block_h, 28),
-                "zIndex": 5,
-            }
-        )
-        cursor_y += block_h + max(8, int(round(height * 0.01)))
-        used.append("subhead")
-
-    if slots.verified_data:
-        font = resolve_turkish_font(bold=False, size=max(14, int(round(width * 0.02))))
-        _, block_h = _draw_text_block(
-            draw,
-            text=slots.verified_data,
-            font=font,
-            x=margin_x,
-            y=cursor_y,
-            max_width=text_width,
-            fill=(220, 220, 220, 255),
-            align="left",
-        )
-        layers.append(
-            {
-                "id": "text-verified",
-                "type": "TEXT",
-                "role": "eyebrow",
-                "content": slots.verified_data,
-                "fontSize": int(getattr(font, "size", 16) or 16),
-                "fontWeight": "normal",
-                "align": "left",
-                "color": "#dcdcdc",
-                "x": margin_x,
-                "y": cursor_y,
-                "width": text_width,
-                "height": max(block_h, 24),
-                "zIndex": 5,
-            }
-        )
-        cursor_y += block_h + max(10, int(round(height * 0.012)))
-        used.append("verified_data")
-
-    if slots.cta:
-        font = resolve_turkish_font(bold=True, size=max(14, int(round(width * 0.018))))
-        pad_x = max(18, int(round(width * 0.02)))
-        pad_y = max(10, int(round(height * 0.01)))
-        bbox = font.getbbox(slots.cta)
-        tw = bbox[2] - bbox[0]
-        th = bbox[3] - bbox[1]
-        btn_w = tw + pad_x * 2
-        btn_h = th + pad_y * 2
-        btn_x = margin_x
-        btn_y = min(cursor_y, height - margin_y - btn_h)
-        draw.rounded_rectangle(
-            (btn_x, btn_y, btn_x + btn_w, btn_y + btn_h),
-            radius=max(6, btn_h // 3),
-            fill=(255, 255, 255, 235),
-        )
-        draw.text(
-            (btn_x + pad_x, btn_y + pad_y - 1),
-            slots.cta,
-            font=font,
-            fill=(17, 24, 39, 255),
-        )
-        layers.append(
-            {
-                "id": "cta-primary",
-                "type": "BUTTON",
-                "label": slots.cta,
-                "backgroundColor": "#ffffff",
-                "textColor": "#111827",
-                "x": btn_x,
-                "y": btn_y,
-                "width": btn_w,
-                "height": btn_h,
-                "zIndex": 7,
-            }
-        )
-        used.append("cta")
-
-    # Endorsement: real slogan typeset by OS (exact spelling) + IH logo if present.
-    endorse_y = max(margin_y, height - margin_y - max(36, int(round(height * 0.04))))
-    if slots.include_slogan:
-        slogan_font = resolve_turkish_font(bold=False, size=max(12, int(round(width * 0.016))))
-        slogan = INVESHOME_SLOGAN
-        sb = slogan_font.getbbox(slogan)
-        sw = sb[2] - sb[0]
-        sx = margin_x
-        if supporting is not None:
-            # Leave room for IH logo on the right.
-            sx = margin_x
-        draw.text((sx, endorse_y), slogan, font=slogan_font, fill=(230, 230, 230, 255))
-        layers.append(
-            {
-                "id": "text-slogan",
-                "type": "TEXT",
-                "role": "brand",
-                "content": slogan,
-                "fontSize": int(getattr(slogan_font, "size", 14) or 14),
-                "fontWeight": "normal",
-                "align": "left",
-                "color": "#e6e6e6",
-                "x": sx,
-                "y": endorse_y,
-                "width": max(sw, int(round(width * 0.55))),
-                "height": max(20, sb[3] - sb[1] + 4),
-                "zIndex": 6,
-            }
-        )
-        used.append("slogan")
-
-    if supporting is not None:
-        logo_im = logo_to_rgba(supporting.image_bytes, supporting.filename, supporting.content_type)
-        if logo_im is None:
-            warnings.append(f"investhome_logo_unreadable:{supporting.filename}")
-        else:
-            fitted = _fit_logo(logo_im, *ih_box)
-            x = width - margin_x - fitted.width
-            y = endorse_y - max(0, (fitted.height - 20) // 2)
-            y = max(margin_y, min(y, height - margin_y - fitted.height))
-            canvas.alpha_composite(fitted, (max(0, x), y))
-            layers.append(
-                {
-                    "id": "logo-investhome",
-                    "type": "IMAGE",
-                    "role": "logo",
-                    "assetId": str(supporting.asset_id),
-                    "x": max(0, x),
-                    "y": y,
-                    "width": fitted.width,
-                    "height": fitted.height,
-                    "zIndex": 8,
-                }
-            )
-            used.append("investhome_logo")
 
     buf = io.BytesIO()
     canvas.save(buf, format="PNG")
     png = buf.getvalue()
     logger.info(
-        "gpt_image_final_composition_ok used=%s warnings=%s composed_asset=%s",
+        "gpt_image_final_composition_ok used=%s variation=%s warnings=%s composed_asset=%s",
         used,
+        plan.variation,
         warnings,
         str(composed_asset_id) if composed_asset_id else None,
     )
     return CompositionResult(png_bytes=png, layers=layers, warnings=warnings, used_slots=used)
+
+
+def _compose_plan_layer(
+    canvas: Image.Image,
+    draw: ImageDraw.ImageDraw,
+    *,
+    spec: DesignPlanLayer,
+    slots: CompositionSlotPlan,
+    project: ResolvedSourceImage | None,
+    supporting: ResolvedSourceImage | None,
+    layers: list[dict[str, Any]],
+    used: list[str],
+    warnings: list[str],
+) -> None:
+    slot = spec.content_slot
+    if spec.type == "IMAGE" and slot in {"project_logo", "investhome_logo"}:
+        source = project if slot == "project_logo" else supporting
+        if source is None:
+            return
+        logo_im = logo_to_rgba(source.image_bytes, source.filename, source.content_type)
+        if logo_im is None:
+            warnings.append(f"{slot}_unreadable:{source.filename}")
+            return
+        fitted = _fit_logo(logo_im, spec.width, spec.height)
+        pos = (spec.x, spec.y)
+        canvas.alpha_composite(fitted, pos)
+        layers.append(
+            {
+                "id": spec.id,
+                "type": "IMAGE",
+                "role": "logo",
+                "assetId": str(source.asset_id),
+                "x": pos[0],
+                "y": pos[1],
+                "width": fitted.width,
+                "height": fitted.height,
+                "zIndex": spec.z_index,
+            }
+        )
+        used.append(slot)
+        return
+
+    if spec.type == "SHAPE":
+        fill = _hex_rgba(spec.fill or "#C4A35A")
+        draw.rectangle((spec.x, spec.y, spec.x + spec.width, spec.y + spec.height), fill=fill)
+        layers.append(
+            {
+                "id": spec.id,
+                "type": "SHAPE",
+                "role": spec.role or "decoration",
+                "fill": spec.fill or "#C4A35A",
+                "shapeKind": spec.shape_kind or "rect",
+                "x": spec.x,
+                "y": spec.y,
+                "width": spec.width,
+                "height": spec.height,
+                "zIndex": spec.z_index,
+            }
+        )
+        used.append(spec.id)
+        return
+
+    if spec.type == "BUTTON":
+        label = _slot_text(slots, slot) or slots.cta
+        if not label:
+            return
+        font = resolve_turkish_font(
+            bold=_is_bold(spec.font_weight) if spec.font_weight else True,
+            size=int(spec.font_size or 14),
+            family=spec.font_family or "sans",
+        )
+        bg = _hex_rgba(spec.background_color or "#C4A35A")
+        fg = _hex_rgba(spec.text_color or "#1B2A4A")
+        radius = max(0, int(spec.border_radius or 4))
+        draw.rounded_rectangle(
+            (spec.x, spec.y, spec.x + spec.width, spec.y + spec.height),
+            radius=radius,
+            fill=bg,
+        )
+        bbox = font.getbbox(label)
+        tw = bbox[2] - bbox[0]
+        th = bbox[3] - bbox[1]
+        tx = spec.x + max(0, (spec.width - tw) // 2)
+        ty = spec.y + max(0, (spec.height - th) // 2) - 1
+        draw.text((tx, ty), label, font=font, fill=fg)
+        layers.append(
+            {
+                "id": spec.id,
+                "type": "BUTTON",
+                "label": label,
+                "backgroundColor": spec.background_color or "#C4A35A",
+                "textColor": spec.text_color or "#1B2A4A",
+                "ctaStyle": "gold" if (spec.background_color or "").upper() == "#C4A35A" else None,
+                "fontSize": int(spec.font_size or 14),
+                "fontWeight": spec.font_weight or "semibold",
+                "fontFamily": spec.font_family or "sans",
+                "borderRadius": radius,
+                "x": spec.x,
+                "y": spec.y,
+                "width": spec.width,
+                "height": spec.height,
+                "zIndex": spec.z_index,
+            }
+        )
+        used.append("cta")
+        return
+
+    if spec.type == "TEXT":
+        text = _slot_text(slots, slot)
+        if not text:
+            return
+        font = resolve_turkish_font(
+            bold=_is_bold(spec.font_weight),
+            size=int(spec.font_size or 24),
+            family=spec.font_family or "sans",
+        )
+        fill = _hex_rgba(spec.color or "#FFFFFF")
+        _, block_h = _draw_text_block(
+            draw,
+            text=text,
+            font=font,
+            x=spec.x,
+            y=spec.y,
+            max_width=spec.width,
+            fill=fill,
+            align=spec.align or "left",
+            line_gap=float(spec.line_height or 1.2),
+        )
+        layer: dict[str, Any] = {
+            "id": spec.id,
+            "type": "TEXT",
+            "role": spec.role or "custom",
+            "content": text,
+            "fontSize": int(spec.font_size or getattr(font, "size", 24) or 24),
+            "fontWeight": spec.font_weight or "normal",
+            "fontFamily": spec.font_family or "sans",
+            "align": spec.align or "left",
+            "color": spec.color or "#ffffff",
+            "x": spec.x,
+            "y": spec.y,
+            "width": spec.width,
+            "height": max(block_h, spec.height, 20),
+            "zIndex": spec.z_index,
+        }
+        if spec.line_height is not None:
+            layer["lineHeight"] = spec.line_height
+        if spec.letter_spacing is not None:
+            layer["letterSpacing"] = spec.letter_spacing
+        layers.append(layer)
+        used.append("headline" if spec.role == "headline" else slot or spec.id)
+        return
 
 
 # Back-compat alias used by older unit tests / callers.

@@ -31,7 +31,7 @@ ARCHITECTURE_LOCK = [
     "You MAY: ad composition, atmosphere, empty space, graphic approach, color, hierarchy, canvas extension, crop, and decorative graphics only.",
     "You must NOT rasterize logos, wordmarks, slogans, addresses, prices, rent, ROI, dates, distances, CTAs, verified project facts, or critical headlines/subheads into the image.",
     "Do NOT draw, generate, redraw, or fake any logo or wordmark — including substituting lettering such as 'The Temple' for a real mark.",
-    "Leave reserved safe empty regions: top-left (project logo), lower text band (headline/subhead/CTA), and bottom endorsement (Investhome logo/slogan). Do not fill the whole canvas with fake wordmarks or dense typography.",
+    "Leave the reserved empty regions given in the SHARED DESIGN PLAN. Do not fill those rectangles with fake wordmarks, numbers, CTAs, or dense typography.",
     "LOCATION atmosphere only — do not invent distance, walk time, drive time, yield, rent, price, ROI, or delivery dates as readable text or numbers.",
     "Do NOT place Washington Monument, Downtown DC, the Capitol, or other landmarks as real geography unless they appear in the verified facts below.",
     "Investhome is the supporting brand, not the project identity. Real logos and exact copy are composited by InvestHome OS after this edit.",
@@ -232,7 +232,7 @@ def render_project_edit_prompt(shared: dict[str, Any]) -> str:
         f"FORMAT: {composition.get('format') or 'Instagram 4:5'} at {composition.get('resolution') or '1088x1360'}.",
         f"SOURCE IMAGE (input 1 — the product for sale): {shared.get('source_image')}.",
         "Preserve this building exactly. Graphic design around it; do not redesign architecture.",
-        "LOGOS / SLOGAN / CTA / CRITICAL TEXT: omit entirely from the raster. OS composites real files and exact strings.",
+        "LOGOS / SLOGAN / CTA / CRITICAL TEXT: omit entirely from the raster. OS composites real files and exact strings at the Design Plan coordinates.",
         f"EXTRA LOGO FILES (composited in OS, not GPT): {', '.join(extra_roles) if extra_roles else 'none — omit logos rather than invent them'}.",
         "ARCHITECTURE LOCK:",
         *[f"- {item}" for item in (shared.get('architecture_lock') or ARCHITECTURE_LOCK)],
@@ -255,6 +255,11 @@ def render_project_edit_prompt(shared: dict[str, Any]) -> str:
         lines.insert(11, "SUPPORTING EVIDENCE (non-financial unless listed as permitted):")
         for item in evidence[:6]:
             lines.insert(12, f"- {item}")
+    from investhome_api.services.gpt_image_design.design_plan import format_design_plan_for_prompt
+
+    plan_lines = format_design_plan_for_prompt(shared.get("design_plan"))
+    if plan_lines:
+        lines.extend(plan_lines)
     lines.extend(
         [
             "LOCATION ADVANTAGE RULES:",
@@ -271,19 +276,27 @@ def render_project_edit_prompt(shared: dict[str, Any]) -> str:
     )
 
 
-def render_general_prompt(*, instruction: str, language: str | None) -> str:
+def render_general_prompt(
+    *,
+    instruction: str,
+    language: str | None,
+    design_plan: dict[str, Any] | None = None,
+) -> str:
     lang = (language or "en").strip() or "en"
-    return "\n".join(
-        [
-            "Create a finished flattened premium Investhome branded social advertisement (text-to-image).",
-            "BRAND: Investhome (Washington DC real-estate investment). Apply Investhome brand tastefully.",
-            "Do not invent a specific for-sale building, project name, price, rent, ROI, IRR, or distance.",
-            "Do not generate fake logos. If no real logo file is supplied, keep brand treatment typographic.",
-            f"LANGUAGE: {lang}",
-            "USER BRIEF:",
-            instruction.strip(),
-        ]
-    )
+    from investhome_api.services.gpt_image_design.design_plan import format_design_plan_for_prompt
+
+    lines = [
+        "Create a premium Instagram BACKGROUND (text-to-image). InvestHome OS will typeset real copy, logos, CTA, and shapes after.",
+        "Do not invent a specific for-sale building, project name, price, rent, ROI, IRR, or distance.",
+        "Do not generate fake logos or rasterize headlines, CTAs, slogans, or addresses.",
+        f"LANGUAGE: {lang}",
+        "USER BRIEF:",
+        instruction.strip(),
+    ]
+    plan_lines = format_design_plan_for_prompt(design_plan)
+    if plan_lines:
+        lines.extend(plan_lines)
+    return "\n".join(lines)
 
 
 def refine_prompt_with_llm(prompt: str, *, allowed: list[str], blocked: list[str]) -> str:

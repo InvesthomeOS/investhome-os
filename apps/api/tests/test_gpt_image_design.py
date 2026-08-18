@@ -656,6 +656,186 @@ def test_compose_claim_guard_blocks_invented_finance_in_slots() -> None:
     assert "$1450K" not in (slots.subhead or "")
 
 
+def test_compose_uses_design_plan_coordinates_not_default_template() -> None:
+    from investhome_api.services.gpt_image_design.compose import (
+        CompositionSlotPlan,
+        compose_final_layers,
+    )
+    from investhome_api.services.gpt_image_design.design_plan import (
+        build_gpt_image_design_plan,
+        choose_art_direction,
+    )
+    from investhome_api.services.gpt_image_design.source import ResolvedSourceImage
+
+    instruction = (
+        "The Temple projesinin Washington DC lokasyon avantajını anlatan premium bir Instagram postu hazırla."
+    )
+    assert choose_art_direction(instruction=instruction, objective="location") == "editorial_luxury"
+    plan = build_gpt_image_design_plan(
+        canvas_width=1080,
+        canvas_height=1350,
+        art_direction="editorial_luxury",
+        has_project_logo=True,
+        has_investhome_logo=False,
+        include_slogan=True,
+    )
+    headline_spec = next(row for row in plan.layers if row.id == "text-headline")
+    assert (headline_spec.x, headline_spec.y) != (600, 500)
+    assert headline_spec.x == 90
+    assert headline_spec.y == 180
+    assert headline_spec.font_size == 70
+    assert headline_spec.font_family == "serif"
+    assert headline_spec.color and headline_spec.color.lower() != "#ffffff"
+
+    other = build_gpt_image_design_plan(
+        canvas_width=1080,
+        canvas_height=1350,
+        art_direction="centered_editorial",
+        has_project_logo=True,
+        include_slogan=True,
+    )
+    other_h = next(row for row in other.layers if row.id == "text-headline")
+    assert (other_h.x, other_h.y) != (headline_spec.x, headline_spec.y)
+
+    base = _png_bytes(1080, 1350, (20, 40, 70))
+    logo = ResolvedSourceImage(
+        asset_id=uuid4(),
+        filename="temple-logo.png",
+        content_type="image/png",
+        folder_category="01_BRAND",
+        tags=["logo"],
+        image_bytes=_png_bytes(80, 32, (220, 40, 40)),
+        width=80,
+        height=32,
+        role="project_logo",
+    )
+    result = compose_final_layers(
+        base,
+        logos=[logo],
+        slots=CompositionSlotPlan(
+            headline="Washington merkezinde",
+            subhead="Columbia Rd NW",
+            verified_data="Washington DC",
+            cta="Özel tur planla",
+            include_slogan=True,
+        ),
+        canvas_width=1080,
+        canvas_height=1350,
+        plan=plan,
+    )
+    headline = next(el for el in result.layers if el.get("id") == "text-headline")
+    assert headline["x"] == headline_spec.x
+    assert headline["y"] == headline_spec.y
+    assert headline["fontSize"] == headline_spec.font_size
+    assert headline["fontFamily"] == "serif"
+    assert headline["color"].lower() != "#ffffff"
+    cta = next(el for el in result.layers if el.get("id") == "cta-primary")
+    assert cta["x"] == next(row for row in plan.layers if row.id == "cta-primary").x
+    assert any(el.get("type") == "SHAPE" for el in result.layers)
+    assert any(el.get("id") == "logo-project" for el in result.layers)
+    assert any(el.get("id") == "text-location" for el in result.layers)
+
+
+def test_architecture_lock_still_in_project_brief() -> None:
+    from investhome_api.services.gpt_image_design.brief import ARCHITECTURE_LOCK
+    from investhome_api.services.gpt_image_design.design_plan import (
+        build_gpt_image_design_plan,
+        design_plan_to_dict,
+    )
+
+    intent = GenerationIntent(
+        marketing_objective="location",
+        audience="buyers",
+        language="tr",
+        asset_preference="exterior",
+        cta_hint="Plan a private tour",
+    )
+    strategy = MarketingStrategy(
+        objective="location",
+        audience="buyers",
+        campaign_angle="central_positioning",
+        single_minded_message="A central Washington DC address.",
+        supporting_evidence=["Washington DC"],
+        excluded_facts=["19.5%"],
+        tone="refined",
+        neighborhood="",
+        city="Washington",
+        project_name="Temple Residences",
+    )
+    copy = CopyDirection(
+        package=CopyPackage(
+            eyebrow="Washington DC",
+            headline="Washington merkezinde",
+            supporting_copy="A refined address in Washington.",
+            cta="Özel tur planla",
+            language="tr",
+            tone="refined",
+        )
+    )
+    creative = CreativeConcept(
+        objective="location",
+        concept="Place-led",
+        visual_strategy="photography_is_hero",
+        primary_message="Washington merkezinde",
+        supporting_message="Washington DC",
+        cta="Özel tur planla",
+        information_to_exclude=["19.5%"],
+        composition_strategy="LOCATION",
+        tone="refined",
+        text_density="sparse",
+    )
+    knowledge = ProjectKnowledgePackage(
+        project_identity={"project_name": "Temple Residences"},
+        location={"city": "Washington", "country": "US"},
+    )
+    intel = CampaignIntelligencePackage(
+        campaign_intent="location",
+        campaign_intent_confidence=0.9,
+        marketing_objective="location",
+        project_knowledge=knowledge,
+        verified_campaign_facts=[],
+        user_campaign_inputs=[],
+        missing_relevant_facts=[],
+        available_assets=[],
+        marketing_safe_facts=[],
+        can_proceed=True,
+        qa_trace={"blocked_financial_tokens": ["19.5%"]},
+    )
+    plan = build_gpt_image_design_plan(
+        canvas_width=1080,
+        canvas_height=1350,
+        instruction="The Temple projesinin Washington DC lokasyon avantajını anlatan premium bir Instagram postu hazırla.",
+        has_project_logo=True,
+    )
+    shared = build_shared_brief(
+        project_name="Temple Residences",
+        instruction="The Temple projesinin Washington DC lokasyon avantajını anlatan premium bir Instagram postu hazırla.",
+        intent=intent,
+        strategy=strategy,
+        copy_direction=copy,
+        creative=creative,
+        campaign_facts=[],
+        intel=intel,
+        source_filename="temple-aerial.png",
+        language="tr",
+        format_label="Instagram 4:5",
+        resolution="1088x1360",
+        extra_image_roles=["project_logo"],
+        logo_notes=[],
+        design_reference_names=[],
+    )
+    shared["design_plan"] = design_plan_to_dict(plan)
+    prompt = render_project_edit_prompt(shared)
+    assert "do not redesign" in prompt.lower()
+    assert "preserve this building" in prompt.lower()
+    assert "architecture lock" in prompt.lower()
+    assert "shared design plan" in prompt.lower()
+    assert f"x={plan.layers[0].x}" in prompt or "x=90" in prompt
+    for item in ARCHITECTURE_LOCK[:4]:
+        assert item.split()[0].lower() in prompt.lower() or "building" in prompt.lower()
+    assert "19.5%" not in prompt
+
+
 def test_find_global_investhome_logo_no_silent_fallback(
     client: TestClient,
     db_session: Session,

@@ -296,6 +296,31 @@ function parseElement(raw: unknown): SocialElement | null {
     };
   }
 
+  if (type === 'SHAPE') {
+    const kindRaw = body.shapeKind ?? body.shape_kind;
+    const shapeKind =
+      kindRaw === 'line' || kindRaw === 'accent' || kindRaw === 'rect' ? kindRaw : 'rect';
+    const opacity =
+      body.opacity === undefined || body.opacity === null
+        ? undefined
+        : clampOpacity(body.opacity, 1);
+    return {
+      ...base,
+      type: 'SHAPE',
+      fill:
+        typeof body.fill === 'string' && body.fill.trim()
+          ? body.fill
+          : typeof body.backgroundColor === 'string' && body.backgroundColor.trim()
+            ? body.backgroundColor
+            : '#C4A35A',
+      shapeKind,
+      ...(typeof body.borderRadius === 'number' && Number.isFinite(body.borderRadius)
+        ? { borderRadius: Math.max(0, Math.round(body.borderRadius)) }
+        : {}),
+      ...(opacity !== undefined ? { opacity } : {}),
+    };
+  }
+
   if (type === 'METRIC_GROUP') {
     const layoutRaw = body.layout;
     const layout =
@@ -383,6 +408,15 @@ function serializeElement(el: SocialElement): Record<string, unknown> {
       layout: el.layout,
       metrics: el.metrics,
       color: el.color,
+    };
+  }
+  if (el.type === 'SHAPE') {
+    return {
+      ...base,
+      fill: el.fill,
+      ...(el.shapeKind ? { shapeKind: el.shapeKind } : {}),
+      ...(el.borderRadius !== undefined ? { borderRadius: el.borderRadius } : {}),
+      ...(el.opacity !== undefined ? { opacity: el.opacity } : {}),
     };
   }
   return {

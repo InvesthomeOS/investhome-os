@@ -67,7 +67,7 @@ function finiteOr(n: unknown, fallback: number): number {
 function isRenderableElement(el: SocialElement | null | undefined): el is SocialElement {
   if (!el || typeof el !== 'object') return false;
   if (typeof el.id !== 'string' || !el.id) return false;
-  if (el.type !== 'TEXT' && el.type !== 'BUTTON' && el.type !== 'IMAGE' && el.type !== 'METRIC_GROUP') return false;
+  if (el.type !== 'TEXT' && el.type !== 'BUTTON' && el.type !== 'IMAGE' && el.type !== 'METRIC_GROUP' && el.type !== 'SHAPE') return false;
   return Number.isFinite(finiteOr(el.x, NaN)) && Number.isFinite(finiteOr(el.y, NaN));
 }
 
@@ -563,6 +563,34 @@ export function SmbArtboardElements({
                   </span>
                 </div>
               ))}
+              {resizeHandle}
+            </div>
+          );
+        }
+
+        if (el.type === 'SHAPE') {
+          return (
+            <div
+              key={el.id}
+              className={`smb-ws__el smb-ws__el--shape${selected ? ' is-selected' : ''}`}
+              style={{
+                ...style,
+                background:
+                  typeof el.fill === 'string' && el.fill.trim() ? el.fill : '#C4A35A',
+                borderRadius: el.borderRadius ?? 0,
+                opacity: clampOpacity(el.opacity, 1),
+              }}
+              data-testid={`smb-el-${el.id}`}
+              data-el-type="SHAPE"
+              data-el-role={el.shapeKind || 'decoration'}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(el.id);
+              }}
+              onPointerDown={(e) => beginDrag(e, el, 'move')}
+              role="button"
+              tabIndex={0}
+            >
               {resizeHandle}
             </div>
           );
