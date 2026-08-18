@@ -48,6 +48,10 @@ class GptImageOutput(BaseModel):
     canvas_width: int | None = None
     canvas_height: int | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+    # SMB editable layers (Native Art Director element shape). Optional for general mode.
+    layers: list[dict[str, Any]] = Field(default_factory=list)
+    composition_base_asset_id: UUID | None = None
+    composition_warnings: list[str] = Field(default_factory=list)
 
 
 class GptImageSourceImage(BaseModel):

@@ -1,9 +1,13 @@
 /**
- * GPT Image SMB helpers — flattened raster posts. Native/Ideogram stay intact.
+ * GPT Image SMB helpers — composed raster + editable OS layers when present.
  */
 
 import { getCreativeStudioMediaContentUrl } from '@/lib/api/creative-studio';
 
+import {
+  ensureUniqueElementIds,
+  type SocialElement,
+} from './social-media-builder-elements';
 import { mintCreatePostId, resolveFormatSize, type FormatPresetKey, type SocialPost } from './social-media-builder-model';
 import { isMediaAssetUuid } from '../_components/cs-image-ref';
 
@@ -46,7 +50,20 @@ export function gptImagePreviewUrl(
   });
 }
 
-/** Flattened GPT Image creative as a NEW SMB post. Architecture lives in the raster. */
+function asSocialElements(raw: unknown[] | null | undefined): SocialElement[] {
+  if (!Array.isArray(raw) || !raw.length) return [];
+  const out: SocialElement[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) continue;
+    const el = row as Record<string, unknown>;
+    const type = el.type;
+    if (type !== 'TEXT' && type !== 'IMAGE' && type !== 'BUTTON' && type !== 'METRIC_GROUP') continue;
+    out.push(el as SocialElement);
+  }
+  return ensureUniqueElementIds(out);
+}
+
+/** GPT Image creative as a NEW SMB post. Uses editable layers when OS composition returns them. */
 export function createFlattenedGptImagePost(input: {
   localAssetId: string;
   linkedProjectId: string;
@@ -60,11 +77,34 @@ export function createFlattenedGptImagePost(input: {
   index: number;
   canvasWidth?: number | null;
   canvasHeight?: number | null;
+  layers?: unknown[] | null;
+  compositionBaseAssetId?: string | null;
+  compositionWarnings?: string[] | null;
 }): SocialPost {
   const preset = input.formatPreset;
   const size = resolveFormatSize(preset);
   const width = input.canvasWidth && input.canvasWidth > 0 ? input.canvasWidth : size.w;
   const height = input.canvasHeight && input.canvasHeight > 0 ? input.canvasHeight : size.h;
+  const layered = asSocialElements(input.layers);
+  const coverId =
+    (input.compositionBaseAssetId && isMediaAssetUuid(input.compositionBaseAssetId)
+      ? input.compositionBaseAssetId
+      : null) || input.localAssetId;
+  const elements: SocialElement[] =
+    layered.length > 0
+      ? layered
+      : [
+          {
+            id: 'img-gpt-image',
+            type: 'IMAGE',
+            assetId: input.localAssetId,
+            x: 0,
+            y: 0,
+            width,
+            height,
+            zIndex: 0,
+          },
+        ];
   return {
     id: mintCreatePostId() || `p-gpt-image-${Date.now()}-${input.index}`,
     platform: 'instagram',
@@ -78,20 +118,9 @@ export function createFlattenedGptImagePost(input: {
     headline: input.headline || '',
     description: '',
     caption: '',
-    coverAssetId: input.localAssetId,
+    coverAssetId: coverId,
     linkedProjectId: input.linkedProjectId,
-    elements: [
-      {
-        id: 'img-gpt-image',
-        type: 'IMAGE',
-        assetId: input.localAssetId,
-        x: 0,
-        y: 0,
-        width,
-        height,
-        zIndex: 0,
-      },
-    ],
+    elements,
     generationMeta: {
       provider: 'gpt-image',
       model: input.model,
@@ -103,8 +132,11 @@ export function createFlattenedGptImagePost(input: {
       selected_asset_ids: [input.localAssetId],
       gpt_image: {
         local_asset_id: input.localAssetId,
+        composition_base_asset_id: input.compositionBaseAssetId ?? null,
         source_asset_id: input.sourceAssetId,
         session_id: input.sessionId,
+        composition_warnings: input.compositionWarnings ?? [],
+        editable_layers: layered.length > 0,
       },
     },
     campaignContextId: input.campaignContextId,

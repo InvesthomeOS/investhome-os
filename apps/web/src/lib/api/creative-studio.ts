@@ -780,6 +780,9 @@ export type GptImageDesignOutput = {
   canvas_width: number | null;
   canvas_height: number | null;
   metadata: Record<string, unknown>;
+  layers?: Record<string, unknown>[];
+  composition_base_asset_id?: string | null;
+  composition_warnings?: string[];
 };
 
 export type GptImageDesignRequest = {

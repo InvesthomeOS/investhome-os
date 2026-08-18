@@ -28,12 +28,13 @@ ARCHITECTURE_LOCK = [
     "The FIRST and ONLY input image is the actual product for sale — a real project render/photograph.",
     "Preserve this building exactly: architecture, facade, floors, windows, doors, massing, proportions, materials, and silhouette.",
     "Do NOT redesign, restyle, restack, or replace the building. Do NOT add, remove, or relocate floors, windows, doors, or balconies.",
-    "You MAY: ad composition, crop, canvas extension, typography, headline, subhead, graphics, lines, location markers, info boxes, CTA, color, whitespace.",
+    "You MAY: ad composition, atmosphere, empty space, graphic approach, color, hierarchy, canvas extension, crop, and decorative graphics only.",
+    "You must NOT rasterize logos, wordmarks, slogans, addresses, prices, rent, ROI, dates, distances, CTAs, verified project facts, or critical headlines/subheads into the image.",
     "Do NOT draw, generate, redraw, or fake any logo or wordmark — including substituting lettering such as 'The Temple' for a real mark.",
-    "Leave clear space in the top-left and top-right for real brand lockups composited after generation.",
-    "LOCATION copy and graphics must use verified RAG/project facts only. Do NOT invent distance, walk time, drive time, yield, rent, price, or ROI.",
+    "Leave reserved safe empty regions: top-left (project logo), lower text band (headline/subhead/CTA), and bottom endorsement (Investhome logo/slogan). Do not fill the whole canvas with fake wordmarks or dense typography.",
+    "LOCATION atmosphere only — do not invent distance, walk time, drive time, yield, rent, price, ROI, or delivery dates as readable text or numbers.",
     "Do NOT place Washington Monument, Downtown DC, the Capitol, or other landmarks as real geography unless they appear in the verified facts below.",
-    "Investhome is the supporting brand, not the project identity.",
+    "Investhome is the supporting brand, not the project identity. Real logos and exact copy are composited by InvestHome OS after this edit.",
 ]
 
 
@@ -180,9 +181,9 @@ def build_shared_brief(
         "brand_restraint": [
             "Do not invent financial figures, distances, walk/drive times, landmarks, or amenities.",
             "Do not replace the supplied building photograph with a different building.",
-            "Do not draw logos. Real project and Investhome marks are overlaid after generation from Media Library files.",
-            "Only render eligible marketing-safe facts and current-campaign user facts.",
-            f"Investhome supporting slogan (optional small typeset line, never a fake logo): {INVESHOME_SLOGAN}",
+            "Do not draw logos or typeset critical copy. InvestHome OS Final Composition Layer places real logos and exact text after generation.",
+            "Do not rasterize slogan, address, price, rent, ROI, CTA, or verified facts into pixels.",
+            f"Investhome slogan is OS-typeset exactly as: {INVESHOME_SLOGAN}",
         ],
         "source_image": source_filename,
         "extra_image_roles": extra_image_roles,
@@ -210,19 +211,20 @@ def render_project_edit_prompt(shared: dict[str, Any]) -> str:
     logo_notes = shared.get("logo_notes") or []
     references = shared.get("design_references") or []
     lines = [
-        "Create a finished flattened premium Instagram social advertisement by EDITING the supplied project photograph.",
+        "Create a premium Instagram social advertisement BACKGROUND by EDITING the supplied project photograph.",
+        "InvestHome OS will composite real logos and exact Turkish/English copy AFTER this edit — leave reserved empty safe areas.",
         f"PROJECT: {shared.get('project') or 'Project'}",
         f"OBJECTIVE: {shared.get('objective')}",
         f"AUDIENCE: {shared.get('audience')}",
         f"LANGUAGE: {shared.get('language')}",
         f"TONE: {shared.get('tone')}",
         f"CAMPAIGN ANGLE: {shared.get('campaign_angle')}",
-        f"SINGLE-MINDED MESSAGE: {shared.get('single_minded_message')}",
-        "MARKETING-SAFE FACTS (authoritative — Financial Claim Guard; do not invent):",
+        f"SINGLE-MINDED MESSAGE (mood/atmosphere only — do not typeset as final headline): {shared.get('single_minded_message')}",
+        "MARKETING-SAFE FACTS (authoritative Claim Guard — inform atmosphere only; do NOT typeset numbers/addresses into the image):",
         *facts_lines,
-        f"PERMITTED FINANCIAL TOKENS ONLY: {', '.join(allowed) if allowed else 'none'}",
+        f"PERMITTED FINANCIAL TOKENS ONLY (OS layer — do not paint into pixels): {', '.join(allowed) if allowed else 'none'}",
         f"FORBIDDEN FINANCIAL TOKENS: {', '.join(blocked) if blocked else 'none'}",
-        "VISIBLE COPY (render exactly, do not rewrite numbers):",
+        "COPY DIRECTION (OS Final Composition Layer will typeset these — leave empty space; do NOT rasterize):",
         f"- Eyebrow: {copy.get('eyebrow') or ''}",
         f"- Headline: {copy.get('headline') or ''}",
         f"- Supporting: {copy.get('supporting') or ''}",
@@ -230,7 +232,7 @@ def render_project_edit_prompt(shared: dict[str, Any]) -> str:
         f"FORMAT: {composition.get('format') or 'Instagram 4:5'} at {composition.get('resolution') or '1088x1360'}.",
         f"SOURCE IMAGE (input 1 — the product for sale): {shared.get('source_image')}.",
         "Preserve this building exactly. Graphic design around it; do not redesign architecture.",
-        "LOGOS: do not draw or redraw any mark. Real Media Library logo files are composited after this edit.",
+        "LOGOS / SLOGAN / CTA / CRITICAL TEXT: omit entirely from the raster. OS composites real files and exact strings.",
         f"EXTRA LOGO FILES (composited in OS, not GPT): {', '.join(extra_roles) if extra_roles else 'none — omit logos rather than invent them'}.",
         "ARCHITECTURE LOCK:",
         *[f"- {item}" for item in (shared.get('architecture_lock') or ARCHITECTURE_LOCK)],
@@ -296,12 +298,14 @@ def refine_prompt_with_llm(prompt: str, *, allowed: list[str], blocked: list[str
         "You write prompts for OpenAI GPT Image edits. Keep the architecture lock intact. "
         "Never invent financial figures, distances, landmarks, or logos. "
         "The source image is the product for sale and must not be redesigned. "
-        "Logos are composited after generation — do not ask the model to draw them. "
+        "GPT Image produces composition/atmosphere only; InvestHome OS composites logos and exact text after. "
+        "Do not ask the model to typeset headlines, CTAs, slogans, addresses, or logos. "
         "Return only the image prompt."
     )
     user = (
-        "Rewrite the following as a tight GPT Image edit prompt. Preserve every Claim Guard "
-        "fact token and the architecture-preservation rules. Do not add numbers.\n\n"
+        "Rewrite the following as a tight GPT Image edit prompt for a BACKGROUND visual. Preserve every Claim Guard "
+        "fact token and the architecture-preservation rules. Do not add numbers. Emphasize reserved empty "
+        "safe areas for OS composition.\n\n"
         + prompt
     )
     try:

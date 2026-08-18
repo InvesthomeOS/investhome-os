@@ -37,4 +37,14 @@ describe('GPT Image SMB wiring', () => {
     assert.match(api, /\/ai\/creative-studio\/social\/gpt-image\/generate/);
     assert.match(api, /\/ai\/creative-studio\/social\/gpt-image\/status/);
   });
+
+  it('maps OS composition layers onto the SMB canvas when present', () => {
+    const helper = read('social-media-builder-gpt-image.ts');
+    assert.match(helper, /compositionBaseAssetId/);
+    assert.match(helper, /editable_layers/);
+    assert.match(helper, /asSocialElements/);
+    const workspace = read('social-media-builder-workspace.tsx');
+    assert.match(workspace, /output\.layers/);
+    assert.match(workspace, /composition_base_asset_id/);
+  });
 });

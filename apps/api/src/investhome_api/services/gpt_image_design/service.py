@@ -42,7 +42,10 @@ from investhome_api.services.gpt_image_design.client import (
     generations_url,
     provider_call_count,
 )
-from investhome_api.services.gpt_image_design.compose import overlay_brand_lockups
+from investhome_api.services.gpt_image_design.compose import (
+    build_slot_plan,
+    compose_final_layers,
+)
 from investhome_api.services.gpt_image_design.config import (
     GPT_IMAGE_PROVIDER,
     GPT_IMAGE_PROVIDERS,
@@ -57,7 +60,14 @@ from investhome_api.services.gpt_image_design.persistence import (
     persist_gpt_image,
     sniff_image_content_type,
 )
-from investhome_api.services.gpt_image_design.source import resolve_project_inputs
+from investhome_api.services.gpt_image_design.source import (
+    INVESHOME_GLOBAL_LOGO_MISSING,
+    resolve_project_inputs,
+)
+from investhome_api.services.social_design_engine.fact_governance import (
+    strip_ineligible_financial_claims,
+    text_contains_ineligible_financial,
+)
 from investhome_api.services.project_assistant.grounding import evaluate_grounding
 from investhome_api.services.social_design_engine.campaign_intent import (
     apply_campaign_intent_to_generation_intent,
@@ -310,7 +320,7 @@ def _generate_project(
     )
     assert_context_has_no_forbidden_media(context)
 
-    source, extras, design_refs, logo_notes = resolve_project_inputs(
+    source, extras, design_refs, logo_notes, composition_warnings = resolve_project_inputs(
         db,
         linked_project_id=linked_project_id,
         instruction=instruction,
@@ -320,7 +330,7 @@ def _generate_project(
     )
     logger.info(
         "gpt_image_project_source mode=edits project_id=%s asset_id=%s extra_images=%s "
-        "filename=%s content_type=%s dimensions=%sx%s byte_size=%s",
+        "filename=%s content_type=%s dimensions=%sx%s byte_size=%s composition_warnings=%s",
         linked_project_id,
         source.asset_id,
         [row.role for row in extras],
@@ -329,6 +339,7 @@ def _generate_project(
         source.width,
         source.height,
         len(source.image_bytes),
+        composition_warnings,
     )
 
     project_knowledge = build_project_knowledge_package(
@@ -431,7 +442,7 @@ def _generate_project(
     )
     api_key = openai_api_key(settings)
     calls_before = provider_call_count()
-    # GPT Image edits: architecture photo only. Logos are overlaid after persist-ready bytes.
+    # GPT Image edits: architecture/composition photo only. Logos + text via OS Final Composition.
     edit_inputs = [
         (source.image_bytes, source.filename, source.content_type),
     ]
@@ -445,10 +456,102 @@ def _generate_project(
         base_url=availability.base_url,
         variant="project",
     )
-    image_bytes = decode_remote_image(remote)
-    image_bytes = overlay_brand_lockups(image_bytes, extras)
-    content_type = sniff_image_content_type(image_bytes)
+    base_image_bytes = decode_remote_image(remote)
+    base_content_type = sniff_image_content_type(base_image_bytes)
     generation_id = str(uuid4())
+
+    # Persist GPT visual base (editable cover) before OS composition.
+    base_asset = persist_gpt_image(
+        db,
+        actor=user,
+        linked_project_id=linked_project_id,
+        content=base_image_bytes,
+        content_type=base_content_type,
+        campaign_mode="project-base",
+        session_id=session_id,
+        provider_generation_id=generation_id,
+        campaign_context_id=campaign_context_id,
+        brief_excerpt="gpt-image-base",
+    )
+
+    allowed_tokens = list(shared_brief.get("allowed_financial_tokens") or [])
+    blocked_tokens = list(shared_brief.get("blocked_financial_tokens") or [])
+    visible = dict(shared_brief.get("visible_copy") or {})
+    for key in ("eyebrow", "headline", "supporting", "cta"):
+        raw = str(visible.get(key) or "")
+        cleaned = strip_ineligible_financial_claims(
+            raw,
+            allowed_tokens=allowed_tokens,
+            blocked_tokens=blocked_tokens,
+        )
+        if text_contains_ineligible_financial(
+            cleaned,
+            allowed_tokens=allowed_tokens,
+            blocked_tokens=blocked_tokens,
+        ):
+            cleaned = ""
+        visible[key] = cleaned
+
+    verified_lines: list[str] = []
+    for row in shared_brief.get("user_campaign_facts") or []:
+        label = str(row.get("label") or "").strip()
+        value = str(row.get("value") or "").strip()
+        if not value:
+            continue
+        line = f"{label}: {value}" if label else value
+        line = strip_ineligible_financial_claims(
+            line,
+            allowed_tokens=allowed_tokens,
+            blocked_tokens=blocked_tokens,
+        )
+        if line and not text_contains_ineligible_financial(
+            line,
+            allowed_tokens=allowed_tokens,
+            blocked_tokens=blocked_tokens,
+        ):
+            verified_lines.append(line)
+    for row in shared_brief.get("marketing_safe_facts") or []:
+        if str(row.get("financial") or "").lower() == "yes":
+            # Only surface financial verified data when Claim Guard already allowed the token.
+            value = str(row.get("value") or "").strip()
+            if not value or value not in allowed_tokens:
+                continue
+        label = str(row.get("label") or "").strip()
+        value = str(row.get("value") or "").strip()
+        if not value:
+            continue
+        line = f"{label}: {value}" if label else value
+        line = strip_ineligible_financial_claims(
+            line,
+            allowed_tokens=allowed_tokens,
+            blocked_tokens=blocked_tokens,
+        )
+        if line and not text_contains_ineligible_financial(
+            line,
+            allowed_tokens=allowed_tokens,
+            blocked_tokens=blocked_tokens,
+        ):
+            verified_lines.append(line)
+            break  # optional single verified line — don't force every slot
+
+    slots = build_slot_plan(
+        visible_copy=visible,
+        verified_lines=verified_lines[:1],
+        include_slogan=True,
+    )
+    composition = compose_final_layers(
+        base_image_bytes,
+        logos=extras,
+        slots=slots,
+        canvas_width=canvas_w,
+        canvas_height=canvas_h,
+        base_asset_id=base_asset.id,
+    )
+    for warn in composition.warnings:
+        if warn not in composition_warnings:
+            composition_warnings.append(warn)
+    image_bytes = composition.png_bytes
+    content_type = sniff_image_content_type(image_bytes)
     asset = persist_gpt_image(
         db,
         actor=user,
@@ -461,6 +564,8 @@ def _generate_project(
         campaign_context_id=campaign_context_id,
         brief_excerpt=str(shared_brief.get("objective") or ""),
     )
+    # Prefer original SVG/raster asset IDs on logo layers (not the rasterized compose buffer).
+    composed_layers = list(composition.layers)
     outputs = [
         GptImageOutput(
             local_asset_id=asset.id,
@@ -470,11 +575,15 @@ def _generate_project(
             resolution=size,
             canvas_width=canvas_w,
             canvas_height=canvas_h,
+            layers=composed_layers,
+            composition_base_asset_id=base_asset.id,
+            composition_warnings=list(composition_warnings),
             metadata={
                 "provider": GPT_IMAGE_PROVIDER,
                 "provider_generation_id": generation_id,
                 "local_asset_id": str(asset.id),
                 "local_asset_path": asset.storage_key,
+                "composition_base_asset_id": str(base_asset.id),
                 "project_id": str(linked_project_id),
                 "campaign_context_id": campaign_context_id,
                 "campaign_mode": "project",
@@ -483,9 +592,13 @@ def _generate_project(
                 "source_filename": source.filename,
                 "extra_image_roles": extra_roles,
                 "extra_image_asset_ids": [str(row.asset_id) for row in extras],
+                "composition_used_slots": list(composition.used_slots),
+                "investhome_global_logo_found": not any(
+                    INVESHOME_GLOBAL_LOGO_MISSING in w for w in composition_warnings
+                ),
                 "brief": {
                     "objective": shared_brief.get("objective"),
-                    "headline": (shared_brief.get("visible_copy") or {}).get("headline"),
+                    "headline": visible.get("headline"),
                 },
             },
         )
@@ -550,7 +663,7 @@ def _generate_project(
         extra_images=extra_payload,
         brief=brief_payload,
         outputs=outputs,
-        warnings=list(context.warnings),
+        warnings=[*list(context.warnings), *composition_warnings],
         provider_call_count=call_count,
         latency_ms=latency_ms,
     )

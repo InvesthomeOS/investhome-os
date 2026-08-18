@@ -128,6 +128,7 @@ import {
   GPT_IMAGE_STAGES,
   asFormatPreset,
   createFlattenedGptImagePost,
+  isMediaAssetId,
 } from './social-media-builder-gpt-image';
 
 import {
@@ -1573,6 +1574,12 @@ export function SocialMediaBuilderWorkspace() {
           index: siblingPosts.length + 1,
           canvasWidth: output.canvas_width,
           canvasHeight: output.canvas_height,
+          layers: Array.isArray(output.layers) ? output.layers : null,
+          compositionBaseAssetId: output.composition_base_asset_id ?? null,
+          compositionWarnings: [
+            ...(Array.isArray(output.composition_warnings) ? output.composition_warnings : []),
+            ...(Array.isArray(response.warnings) ? response.warnings : []),
+          ].filter((w): w is string => typeof w === 'string' && w.length > 0),
         });
         nextPost.id = createdPostId;
         const nextPosts = [...siblingPosts, nextPost];
@@ -1583,8 +1590,12 @@ export function SocialMediaBuilderWorkspace() {
         setSelectedPostId(nextPost.id);
         setFormatPreset(nextPost.formatPreset);
         createInflightIdRef.current = null;
+        const coverForPreview =
+          output.composition_base_asset_id && isMediaAssetId(output.composition_base_asset_id)
+            ? output.composition_base_asset_id
+            : output.local_asset_id;
         coverAsset.setCoverImage({
-          asset_id: output.local_asset_id,
+          asset_id: coverForPreview,
           url: null,
           alt: null,
           role: 'cover',
@@ -1601,7 +1612,10 @@ export function SocialMediaBuilderWorkspace() {
         setCampaignStatus('ready');
         setAiPrompt('');
         setPilotDesignChosen(true);
-        showToast(t('toasts.designed'));
+        const ihMissing = (response.warnings || []).some((w) =>
+          String(w).includes('Investhome global logo asset bulunamadı'),
+        );
+        showToast(ihMissing ? t('toasts.designed') + ' — Investhome global logo asset bulunamadı' : t('toasts.designed'));
         genIdleTimerRef.current = window.setTimeout(() => {
           if (token === generateAbortRef.current) setAiStatus('idle');
         }, 1600);
