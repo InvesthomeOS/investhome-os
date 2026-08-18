@@ -31,7 +31,7 @@ export type SmbArtboardElementsProps = {
   previewMode: boolean;
   canvasWidth?: number;
   canvasHeight?: number;
-  onSelect: (elementId: string | null) => void;
+  onSelect: (elementId: string | null, source?: 'pointer' | 'click') => void;
   onPatchElement: (
     elementId: string,
     patch: Partial<SocialElement>,
@@ -160,7 +160,7 @@ export function SmbArtboardElements({
     event.stopPropagation();
     // Do not preventDefault — keeps click/selection stable inside CSS-transform + FS shells.
     // Do not use setPointerCapture — release throws InvalidStateError after FS remounts.
-    onSelect(el.id);
+    onSelect(el.id, 'pointer');
 
     const currentTarget = event.currentTarget;
     if (!currentTarget || typeof currentTarget.closest !== 'function') return;

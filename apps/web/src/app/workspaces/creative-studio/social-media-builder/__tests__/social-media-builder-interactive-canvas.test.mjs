@@ -64,6 +64,20 @@ describe('interactive canvas wiring', () => {
     assert.doesNotMatch(workspace, /fsPosts|fullscreenPosts|aiPreviewPosts/);
   });
 
+  it('ignores the artboard click that completes a layer pointerdown so selection survives mouseup', () => {
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    assert.match(workspace, /suppressArtboardDeselectRef/);
+    assert.match(workspace, /selectElementFromLayer/);
+    assert.match(workspace, /handleArtboardBackgroundClick/);
+    assert.match(workspace, /onSelect=\{selectElementFromLayer\}/);
+    assert.match(workspace, /onClick=\{handleArtboardBackgroundClick\}/);
+    assert.match(workspace, /if \(elementId && source === 'pointer'\)/);
+    assert.match(workspace, /suppressArtboardDeselectRef\.current = false/);
+    const artboard = readSmb('smb-artboard-elements.tsx');
+    assert.match(artboard, /onSelect\(el\.id, 'pointer'\)/);
+    assert.match(artboard, /beginDrag\(e, el, 'move'\)/);
+  });
+
   it('design engine serializes selected element into builder_context', () => {
     const engine = readSmb('social-media-builder-design-engine.ts');
     assert.match(engine, /export function selectedElementToDesignContext/);
@@ -213,7 +227,9 @@ describe('history / continuity logic (mirror)', () => {
 describe('selection / deselection contract', () => {
   it('click empty canvas clears selection; element click sets id', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
-    assert.match(workspace, /onClick=\{\(\) => selectElement\(null\)\}/);
+    assert.match(workspace, /onClick=\{handleArtboardBackgroundClick\}/);
+    assert.match(workspace, /function handleArtboardBackgroundClick/);
+    assert.match(workspace, /if \(suppressArtboardDeselectRef\.current\) \{/);
     assert.match(workspace, /function selectElement\(elementId: string \| null\)/);
     const artboard = readSmb('smb-artboard-elements.tsx');
     assert.match(artboard, /onSelect\(el\.id\)/);

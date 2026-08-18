@@ -145,6 +145,16 @@ describe('style drawer wiring', () => {
     assert.match(workspace, /<SmbLayerStyleBar/);
   });
 
+  it('keeps the live style bar on selectedElementId after mouseup, not pointer-down-only', () => {
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    assert.match(workspace, /!previewMode && selectedElementId && selectedElement/);
+    assert.match(workspace, /selectElementFromLayer/);
+    assert.match(workspace, /handleArtboardBackgroundClick/);
+    assert.match(workspace, /suppressArtboardDeselectRef/);
+    assert.doesNotMatch(workspace, /isPointerDown/);
+    assert.doesNotMatch(workspace, /selectedElementId && isDragging/);
+  });
+
   it('ships i18n keys for layer style controls', () => {
     const en = readMessages('en.json');
     const tr = readMessages('tr.json');

@@ -288,6 +288,10 @@ export function SocialMediaBuilderWorkspace() {
   const editingElementIdRef = useRef(editingElementId);
   editingElementIdRef.current = editingElementId;
   const gestureHistoryPushedRef = useRef(false);
+  // Layer pointerdown selects immediately (so chrome/toolbar appear). React then
+  // mounts chrome under the cursor; mouseup/click retargets to the artboard and
+  // would otherwise clear selectedElementId. Ignore that one background click.
+  const suppressArtboardDeselectRef = useRef(false);
 
   const selectedConstruction = useMemo(
     () =>
@@ -753,6 +757,22 @@ export function SocialMediaBuilderWorkspace() {
   }, [floatingMoreOpen, alignMenuOpen, layerMenuOpen]);
 
   useEffect(() => {
+    function releaseSuppress() {
+      window.setTimeout(() => {
+        suppressArtboardDeselectRef.current = false;
+      }, 0);
+    }
+    window.addEventListener('pointerup', releaseSuppress);
+    window.addEventListener('pointercancel', releaseSuppress);
+    window.addEventListener('mouseup', releaseSuppress);
+    return () => {
+      window.removeEventListener('pointerup', releaseSuppress);
+      window.removeEventListener('pointercancel', releaseSuppress);
+      window.removeEventListener('mouseup', releaseSuppress);
+    };
+  }, []);
+
+  useEffect(() => {
     function onKey(event: globalThis.KeyboardEvent) {
       const target = event.target as HTMLElement | null;
       const tag = target?.tagName?.toLowerCase() ?? '';
@@ -884,6 +904,19 @@ export function SocialMediaBuilderWorkspace() {
     }
     setSelectedElementId(elementId);
     setRightRailId('style');
+  }
+
+  function selectElementFromLayer(elementId: string | null, source?: 'pointer' | 'click') {
+    if (elementId && source === 'pointer') suppressArtboardDeselectRef.current = true;
+    selectElement(elementId);
+  }
+
+  function handleArtboardBackgroundClick() {
+    if (suppressArtboardDeselectRef.current) {
+      suppressArtboardDeselectRef.current = false;
+      return;
+    }
+    selectElement(null);
   }
 
   function patchElement(
@@ -2933,7 +2966,7 @@ export function SocialMediaBuilderWorkspace() {
                       data-width={contentSize.w}
                       data-height={contentSize.h}
                       data-text-edit-mode={editingElementId ? 'true' : 'false'}
-                      onClick={() => selectElement(null)}
+                      onClick={handleArtboardBackgroundClick}
                       role="presentation"
                     >
                       {/*
@@ -2969,7 +3002,7 @@ export function SocialMediaBuilderWorkspace() {
                           onPointerDown={(e) => e.stopPropagation()}
                           onClick={(e) => {
                             e.stopPropagation();
-                            selectElement(null);
+                            handleArtboardBackgroundClick();
                           }}
                         />
                       ) : (
@@ -3038,7 +3071,7 @@ export function SocialMediaBuilderWorkspace() {
                         previewMode={previewMode}
                         canvasWidth={contentSize.w}
                         canvasHeight={contentSize.h}
-                        onSelect={selectElement}
+                        onSelect={selectElementFromLayer}
                         onPatchElement={(id, patch, opts) =>
                           patchElement(id, patch, {
                             live: opts?.live,
