@@ -31,7 +31,7 @@ ARCHITECTURE_LOCK = [
     "You MAY: ad composition, atmosphere, empty space, graphic approach, color, hierarchy, canvas extension, crop, and decorative graphics only.",
     "You must NOT rasterize logos, wordmarks, slogans, addresses, prices, rent, ROI, dates, distances, CTAs, verified project facts, or critical headlines/subheads into the image.",
     "Do NOT draw, generate, redraw, or fake any logo or wordmark — including substituting lettering such as 'The Temple' for a real mark.",
-    "Leave the reserved empty regions given in the SHARED DESIGN PLAN. Do not fill those rectangles with fake wordmarks, numbers, CTAs, or dense typography.",
+    "Honor the Art Direction Plan zones: keep headline, brand, and CTA zones free of fake wordmarks, numbers, CTAs, and dense typography. Compose atmosphere and campaign air there — not a blank template panel.",
     "LOCATION atmosphere only — do not invent distance, walk time, drive time, yield, rent, price, ROI, or delivery dates as readable text or numbers.",
     "Do NOT place Washington Monument, Downtown DC, the Capitol, or other landmarks as real geography unless they appear in the verified facts below.",
     "Investhome is the supporting brand, not the project identity. Real logos and exact copy are composited by InvestHome OS after this edit.",
@@ -212,7 +212,7 @@ def render_project_edit_prompt(shared: dict[str, Any]) -> str:
     references = shared.get("design_references") or []
     lines = [
         "Create a premium Instagram social advertisement BACKGROUND by EDITING the supplied project photograph.",
-        "InvestHome OS will composite real logos and exact Turkish/English copy AFTER this edit — leave reserved empty safe areas.",
+        "InvestHome OS and GPT Image share one Art Direction Plan. You compose campaign atmosphere, crop, and light. OS typesets real logos and exact copy after.",
         f"PROJECT: {shared.get('project') or 'Project'}",
         f"OBJECTIVE: {shared.get('objective')}",
         f"AUDIENCE: {shared.get('audience')}",
@@ -224,7 +224,7 @@ def render_project_edit_prompt(shared: dict[str, Any]) -> str:
         *facts_lines,
         f"PERMITTED FINANCIAL TOKENS ONLY (OS layer — do not paint into pixels): {', '.join(allowed) if allowed else 'none'}",
         f"FORBIDDEN FINANCIAL TOKENS: {', '.join(blocked) if blocked else 'none'}",
-        "COPY DIRECTION (OS Final Composition Layer will typeset these — leave empty space; do NOT rasterize):",
+        "COPY DIRECTION (OS Final Composition Layer will typeset these — do NOT rasterize; compose air and contrast so they can sit in the planned zones):",
         f"- Eyebrow: {copy.get('eyebrow') or ''}",
         f"- Headline: {copy.get('headline') or ''}",
         f"- Supporting: {copy.get('supporting') or ''}",
@@ -232,7 +232,7 @@ def render_project_edit_prompt(shared: dict[str, Any]) -> str:
         f"FORMAT: {composition.get('format') or 'Instagram 4:5'} at {composition.get('resolution') or '1088x1360'}.",
         f"SOURCE IMAGE (input 1 — the product for sale): {shared.get('source_image')}.",
         "Preserve this building exactly. Graphic design around it; do not redesign architecture.",
-        "LOGOS / SLOGAN / CTA / CRITICAL TEXT: omit entirely from the raster. OS composites real files and exact strings at the Design Plan coordinates.",
+        "LOGOS / SLOGAN / CTA / CRITICAL TEXT: omit from the raster. OS composites real files and exact strings on the same Art Direction Plan.",
         f"EXTRA LOGO FILES (composited in OS, not GPT): {', '.join(extra_roles) if extra_roles else 'none — omit logos rather than invent them'}.",
         "ARCHITECTURE LOCK:",
         *[f"- {item}" for item in (shared.get('architecture_lock') or ARCHITECTURE_LOCK)],
@@ -265,7 +265,7 @@ def render_project_edit_prompt(shared: dict[str, Any]) -> str:
             "LOCATION ADVANTAGE RULES:",
             "- Ground neighborhood, city, nearby points, lifestyle, and transport in the verified facts above.",
             "- If a landmark or distance is not in those facts, do not show it as real geography.",
-            "- Prefer whitespace and premium composition over invented map pins.",
+            "- Prefer campaign atmosphere, negative space, and graphic language over invented map pins.",
         ]
     )
     prompt = "\n".join(lines)
@@ -311,14 +311,15 @@ def refine_prompt_with_llm(prompt: str, *, allowed: list[str], blocked: list[str
         "You write prompts for OpenAI GPT Image edits. Keep the architecture lock intact. "
         "Never invent financial figures, distances, landmarks, or logos. "
         "The source image is the product for sale and must not be redesigned. "
-        "GPT Image produces composition/atmosphere only; InvestHome OS composites logos and exact text after. "
+        "GPT Image produces campaign background/atmosphere from the Art Direction Plan; InvestHome OS composites logos and exact text after. "
         "Do not ask the model to typeset headlines, CTAs, slogans, addresses, or logos. "
+        "Do not ask for a blank white template panel — ask for composed negative space and luxury RE atmosphere. "
         "Return only the image prompt."
     )
     user = (
         "Rewrite the following as a tight GPT Image edit prompt for a BACKGROUND visual. Preserve every Claim Guard "
-        "fact token and the architecture-preservation rules. Do not add numbers. Emphasize reserved empty "
-        "safe areas for OS composition.\n\n"
+        "fact token, the architecture-preservation rules, and the Art Direction Plan (focal point, zones, graphic language). "
+        "Do not add numbers. Do not collapse the plan into 'leave a blank box'.\n\n"
         + prompt
     )
     try:

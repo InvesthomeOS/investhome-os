@@ -17,6 +17,7 @@ from investhome_api.services.gpt_image_design.design_plan import (
     DesignPlanLayer,
     GptImageDesignPlan,
     build_gpt_image_design_plan,
+    format_headline_for_plan,
 )
 from investhome_api.services.gpt_image_design.source import ResolvedSourceImage
 from investhome_api.services.gpt_image_design.svg_raster import svg_bytes_to_png
@@ -145,20 +146,26 @@ def _fit_logo(logo: Image.Image, box_w: int, box_h: int) -> Image.Image:
 
 
 def _wrap_text(text: str, font: ImageFont.ImageFont, max_width: int) -> list[str]:
-    words = (text or "").split()
-    if not words:
+    """Honor intentional newlines first; wrap remaining long lines to the box."""
+    raw = text or ""
+    if not raw.strip():
         return []
+    paragraphs = raw.split("\n") if "\n" in raw else [raw]
     lines: list[str] = []
-    current = words[0]
-    for word in words[1:]:
-        trial = f"{current} {word}"
-        bbox = font.getbbox(trial)
-        if (bbox[2] - bbox[0]) <= max_width:
-            current = trial
-        else:
-            lines.append(current)
-            current = word
-    lines.append(current)
+    for paragraph in paragraphs:
+        words = paragraph.split()
+        if not words:
+            continue
+        current = words[0]
+        for word in words[1:]:
+            trial = f"{current} {word}"
+            bbox = font.getbbox(trial)
+            if (bbox[2] - bbox[0]) <= max_width:
+                current = trial
+            else:
+                lines.append(current)
+                current = word
+        lines.append(current)
     return lines
 
 
@@ -306,6 +313,7 @@ def compose_final_layers(
             layers=layers,
             used=used,
             warnings=warnings,
+            plan=plan,
         )
 
     buf = io.BytesIO()
@@ -332,6 +340,7 @@ def _compose_plan_layer(
     layers: list[dict[str, Any]],
     used: list[str],
     warnings: list[str],
+    plan: GptImageDesignPlan | None = None,
 ) -> None:
     slot = spec.content_slot
     if spec.type == "IMAGE" and slot in {"project_logo", "investhome_logo"}:
@@ -363,21 +372,27 @@ def _compose_plan_layer(
 
     if spec.type == "SHAPE":
         fill = _hex_rgba(spec.fill or "#C4A35A")
-        draw.rectangle((spec.x, spec.y, spec.x + spec.width, spec.y + spec.height), fill=fill)
-        layers.append(
-            {
-                "id": spec.id,
-                "type": "SHAPE",
-                "role": spec.role or "decoration",
-                "fill": spec.fill or "#C4A35A",
-                "shapeKind": spec.shape_kind or "rect",
-                "x": spec.x,
-                "y": spec.y,
-                "width": spec.width,
-                "height": spec.height,
-                "zIndex": spec.z_index,
-            }
-        )
+        radius = max(0, int(spec.border_radius or 0))
+        box = (spec.x, spec.y, spec.x + spec.width, spec.y + spec.height)
+        if radius > 0:
+            draw.rounded_rectangle(box, radius=radius, fill=fill)
+        else:
+            draw.rectangle(box, fill=fill)
+        shape_layer: dict[str, Any] = {
+            "id": spec.id,
+            "type": "SHAPE",
+            "role": spec.role or "decoration",
+            "fill": spec.fill or "#C4A35A",
+            "shapeKind": spec.shape_kind or "rect",
+            "x": spec.x,
+            "y": spec.y,
+            "width": spec.width,
+            "height": spec.height,
+            "zIndex": spec.z_index,
+        }
+        if radius:
+            shape_layer["borderRadius"] = radius
+        layers.append(shape_layer)
         used.append(spec.id)
         return
 
@@ -430,6 +445,8 @@ def _compose_plan_layer(
         text = _slot_text(slots, slot)
         if not text:
             return
+        if spec.role == "headline":
+            text = format_headline_for_plan(text, plan)
         font = resolve_turkish_font(
             bold=_is_bold(spec.font_weight),
             size=int(spec.font_size or 24),

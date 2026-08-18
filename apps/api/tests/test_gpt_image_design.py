@@ -656,6 +656,59 @@ def test_compose_claim_guard_blocks_invented_finance_in_slots() -> None:
     assert "$1450K" not in (slots.subhead or "")
 
 
+def test_art_director_plan_v2_zones_groups_linebreaks() -> None:
+    from investhome_api.services.gpt_image_design.design_plan import (
+        build_gpt_image_design_plan,
+        choose_composition_type,
+        decide_headline_line_breaks,
+    )
+
+    temple = (
+        "The Temple projesinin Washington DC lokasyon avantajını anlatan premium bir Instagram postu hazırla."
+    )
+    assert choose_composition_type(instruction=temple, objective="location") == "editorial_hero"
+    # Location without premium is LOCATION STORY — not a hashed/random left panel.
+    assert choose_composition_type(instruction="lokasyon avantajını anlat", objective="location") == "location_story"
+    assert choose_composition_type(instruction="mimari cephe minimal", objective="architecture") == "architectural_hero"
+    assert choose_composition_type(instruction="marka kampanyası", objective="launch") == "brand_campaign"
+    a = choose_composition_type(instruction="lokasyon avantajı")
+    b = choose_composition_type(instruction="lokasyon avantajı")
+    assert a == b == "location_story"
+
+    plan = build_gpt_image_design_plan(
+        canvas_width=1080,
+        canvas_height=1350,
+        instruction=temple,
+        headline="Washington merkezinde",
+        has_project_logo=True,
+        include_slogan=True,
+    )
+    assert plan.composition_type == "EDITORIAL HERO"
+    assert plan.variation == "editorial_hero"
+    assert plan.visual_focal_point
+    assert plan.negative_space
+    assert plan.content_zone and plan.image_zone and plan.headline_zone
+    assert plan.brand_zone and plan.cta_zone
+    assert plan.groups
+    group_names = {g.name for g in plan.groups}
+    assert {"brand", "message", "action", "proof", "footer"} <= group_names
+    assert plan.headline_line_breaks == ["Washington", "merkezinde"]
+    assert decide_headline_line_breaks("Washington merkezinde", typography_scale="editorial") == [
+        "Washington",
+        "merkezinde",
+    ]
+    headline_spec = next(row for row in plan.layers if row.id == "text-headline")
+    assert headline_spec.group == "message"
+    assert headline_spec.font_family == "serif"
+    assert 64 <= int(headline_spec.font_size or 0) <= 84
+    cta_spec = next(row for row in plan.layers if row.id == "cta-primary")
+    loc_spec = next(row for row in plan.layers if row.id == "text-location")
+    # Proof/location is not stacked inside the message column.
+    assert loc_spec.y > cta_spec.y
+    assert loc_spec.group == "proof"
+    assert any(row.shape_kind in {"line", "accent"} for row in plan.layers if row.type == "SHAPE")
+
+
 def test_compose_uses_design_plan_coordinates_not_default_template() -> None:
     from investhome_api.services.gpt_image_design.compose import (
         CompositionSlotPlan,
@@ -670,32 +723,41 @@ def test_compose_uses_design_plan_coordinates_not_default_template() -> None:
     instruction = (
         "The Temple projesinin Washington DC lokasyon avantajını anlatan premium bir Instagram postu hazırla."
     )
-    assert choose_art_direction(instruction=instruction, objective="location") == "editorial_luxury"
+    assert choose_art_direction(instruction=instruction, objective="location") == "editorial_hero"
     plan = build_gpt_image_design_plan(
         canvas_width=1080,
         canvas_height=1350,
-        art_direction="editorial_luxury",
+        art_direction="editorial_hero",
+        headline="Washington merkezinde",
         has_project_logo=True,
         has_investhome_logo=False,
         include_slogan=True,
     )
     headline_spec = next(row for row in plan.layers if row.id == "text-headline")
     assert (headline_spec.x, headline_spec.y) != (600, 500)
-    assert headline_spec.x == 90
-    assert headline_spec.y == 180
-    assert headline_spec.font_size == 70
     assert headline_spec.font_family == "serif"
     assert headline_spec.color and headline_spec.color.lower() != "#ffffff"
+    assert 64 <= int(headline_spec.font_size or 0) <= 84
 
     other = build_gpt_image_design_plan(
         canvas_width=1080,
         canvas_height=1350,
-        art_direction="centered_editorial",
+        art_direction="brand_campaign",
         has_project_logo=True,
         include_slogan=True,
     )
     other_h = next(row for row in other.layers if row.id == "text-headline")
     assert (other_h.x, other_h.y) != (headline_spec.x, headline_spec.y)
+    lifestyle = build_gpt_image_design_plan(
+        canvas_width=1080,
+        canvas_height=1350,
+        art_direction="lifestyle",
+        has_project_logo=True,
+        include_slogan=True,
+    )
+    life_h = next(row for row in lifestyle.layers if row.id == "text-headline")
+    assert life_h.x > headline_spec.x
+    assert life_h.align == "right"
 
     base = _png_bytes(1080, 1350, (20, 40, 70))
     logo = ResolvedSourceImage(
@@ -729,6 +791,8 @@ def test_compose_uses_design_plan_coordinates_not_default_template() -> None:
     assert headline["fontSize"] == headline_spec.font_size
     assert headline["fontFamily"] == "serif"
     assert headline["color"].lower() != "#ffffff"
+    assert "\n" in headline["content"]
+    assert headline["content"].split("\n") == ["Washington", "merkezinde"]
     cta = next(el for el in result.layers if el.get("id") == "cta-primary")
     assert cta["x"] == next(row for row in plan.layers if row.id == "cta-primary").x
     assert any(el.get("type") == "SHAPE" for el in result.layers)
@@ -805,6 +869,7 @@ def test_architecture_lock_still_in_project_brief() -> None:
         canvas_width=1080,
         canvas_height=1350,
         instruction="The Temple projesinin Washington DC lokasyon avantajını anlatan premium bir Instagram postu hazırla.",
+        headline="Washington merkezinde",
         has_project_logo=True,
     )
     shared = build_shared_brief(
@@ -829,11 +894,15 @@ def test_architecture_lock_still_in_project_brief() -> None:
     assert "do not redesign" in prompt.lower()
     assert "preserve this building" in prompt.lower()
     assert "architecture lock" in prompt.lower()
-    assert "shared design plan" in prompt.lower()
-    assert f"x={plan.layers[0].x}" in prompt or "x=90" in prompt
-    for item in ARCHITECTURE_LOCK[:4]:
-        assert item.split()[0].lower() in prompt.lower() or "building" in prompt.lower()
+    assert "art direction plan" in prompt.lower()
+    assert plan.composition_type == "EDITORIAL HERO"
+    assert "visual focal point" in prompt.lower()
+    assert "editorial hero" in prompt.lower()
+    assert plan.headline_zone is not None
+    assert f"x={plan.headline_zone.x}" in prompt
     assert "19.5%" not in prompt
+    assert "do not rasterize" in prompt.lower() or "do not paint" in prompt.lower()
+    assert "blank template" in prompt.lower() or "template panel" in prompt.lower() or "campaign air" in prompt.lower()
 
 
 def test_find_global_investhome_logo_no_silent_fallback(
@@ -918,7 +987,7 @@ def test_live_temple_final_composition_once(
         json={
             "linked_project_id": str(TEMPLE_PROJECT_ID),
             "instruction": (
-                "The Temple projesinin lokasyon avantajını anlatan premium bir "
+                "The Temple projesinin Washington DC lokasyon avantajını anlatan premium bir "
                 "Instagram postu hazırla."
             ),
             "design_provider": "gpt-image",

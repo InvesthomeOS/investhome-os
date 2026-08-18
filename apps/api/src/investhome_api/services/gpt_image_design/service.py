@@ -57,6 +57,7 @@ from investhome_api.services.gpt_image_design.config import (
 )
 from investhome_api.services.gpt_image_design.design_plan import (
     build_gpt_image_design_plan,
+    decide_headline_line_breaks,
     design_plan_to_dict,
 )
 from investhome_api.services.gpt_image_design.persistence import (
@@ -414,6 +415,7 @@ def _generate_project(
         has_project_logo=has_project_logo,
         has_investhome_logo=has_ih_logo,
         include_slogan=True,
+        headline=str(copy_direction.package.headline or ""),
     )
     shared_brief = build_shared_brief(
         project_name=project.project_name,
@@ -557,6 +559,13 @@ def _generate_project(
         verified_lines=verified_lines[:1],
         include_slogan=True,
     )
+    if visible.get("headline"):
+        design_plan.headline_line_breaks = decide_headline_line_breaks(
+            str(visible.get("headline") or ""),
+            typography_scale=design_plan.typography_scale,
+            composition_type=design_plan.variation,
+        )
+        shared_brief["design_plan"] = design_plan_to_dict(design_plan)
     composition = compose_final_layers(
         base_image_bytes,
         logos=extras,
@@ -613,6 +622,7 @@ def _generate_project(
                 "extra_image_asset_ids": [str(row.asset_id) for row in extras],
                 "composition_used_slots": list(composition.used_slots),
                 "design_plan_variation": design_plan.variation,
+                "composition_type": design_plan.composition_type,
                 "investhome_global_logo_found": not any(
                     INVESHOME_GLOBAL_LOGO_MISSING in w for w in composition_warnings
                 ),
@@ -620,6 +630,7 @@ def _generate_project(
                     "objective": shared_brief.get("objective"),
                     "headline": visible.get("headline"),
                     "design_plan_variation": design_plan.variation,
+                    "composition_type": design_plan.composition_type,
                 },
             },
         )
