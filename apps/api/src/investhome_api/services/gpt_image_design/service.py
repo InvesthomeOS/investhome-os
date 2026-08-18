@@ -42,6 +42,7 @@ from investhome_api.services.gpt_image_design.client import (
     generations_url,
     provider_call_count,
 )
+from investhome_api.services.gpt_image_design.compose import overlay_brand_lockups
 from investhome_api.services.gpt_image_design.config import (
     GPT_IMAGE_PROVIDER,
     GPT_IMAGE_PROVIDERS,
@@ -61,6 +62,7 @@ from investhome_api.services.project_assistant.grounding import evaluate_groundi
 from investhome_api.services.social_design_engine.campaign_intent import (
     apply_campaign_intent_to_generation_intent,
     classify_campaign_intent,
+    retrieval_query_for_campaign,
 )
 from investhome_api.services.social_design_engine.copy_director import (
     build_copy_package,
@@ -259,10 +261,17 @@ def _generate_project(
         20,
     )
     min_score = float(getattr(settings, "ai_assistant_min_score", 0.12) or 0.12)
+    retrieval_query = retrieval_query_for_campaign(
+        instruction,
+        campaign_intent=campaign_intent.campaign_intent,
+        city=project.city,
+        country=getattr(project, "country", None),
+        project_name=project.project_name,
+    )
     try:
         hits = hybrid_search(
             db,
-            query=instruction,
+            query=retrieval_query,
             project_scope="single",
             project_id=linked_project_id,
             project_ids=None,
@@ -272,7 +281,7 @@ def _generate_project(
         if not hits:
             hits = hybrid_search(
                 db,
-                query=instruction,
+                query=retrieval_query,
                 project_scope="single",
                 project_id=linked_project_id,
                 project_ids=None,
@@ -422,9 +431,9 @@ def _generate_project(
     )
     api_key = openai_api_key(settings)
     calls_before = provider_call_count()
+    # GPT Image edits: architecture photo only. Logos are overlaid after persist-ready bytes.
     edit_inputs = [
         (source.image_bytes, source.filename, source.content_type),
-        *[(row.image_bytes, row.filename, row.content_type) for row in extras],
     ]
     remote = edit_image(
         api_key=api_key,
@@ -437,6 +446,7 @@ def _generate_project(
         variant="project",
     )
     image_bytes = decode_remote_image(remote)
+    image_bytes = overlay_brand_lockups(image_bytes, extras)
     content_type = sniff_image_content_type(image_bytes)
     generation_id = str(uuid4())
     asset = persist_gpt_image(
@@ -472,6 +482,7 @@ def _generate_project(
                 "source_asset_id": str(source.asset_id),
                 "source_filename": source.filename,
                 "extra_image_roles": extra_roles,
+                "extra_image_asset_ids": [str(row.asset_id) for row in extras],
                 "brief": {
                     "objective": shared_brief.get("objective"),
                     "headline": (shared_brief.get("visible_copy") or {}).get("headline"),

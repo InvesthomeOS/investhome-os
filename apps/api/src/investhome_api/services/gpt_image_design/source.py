@@ -284,10 +284,14 @@ def resolve_project_inputs(
         if resolved is None:
             notes.append(
                 f"{role}: file {cand.filename} is not a raster image (likely SVG). "
-                "Do not generate a fake logo; omit the mark rather than invent one."
+                "Do not generate a fake logo; the OS will omit this mark rather than invent one."
             )
             continue
         extras.append(resolved)
+        notes.append(
+            f"{role}: real file {resolved.filename} (asset {resolved.asset_id}) "
+            "will be composited after generation — do not redraw it."
+        )
 
     skip = {source.asset_id, *(row.asset_id for row in extras)}
     references = pick_design_references(candidates, skip_ids=skip, limit=2)

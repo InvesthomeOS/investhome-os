@@ -23,8 +23,8 @@ const css = readRel(root, 'media-library.css');
 const en = JSON.parse(readRel(webSrc, '../messages/en.json'));
 const tr = JSON.parse(readRel(webSrc, '../messages/tr.json'));
 
-const ML_LIGHTBOX_ZOOM_MIN = 1;
-const ML_LIGHTBOX_ZOOM_MAX = 4;
+const ML_LIGHTBOX_ZOOM_MIN = 0.25;
+const ML_LIGHTBOX_ZOOM_MAX = 2;
 const ML_LIGHTBOX_ZOOM_STEP = 0.25;
 
 function clampLightboxZoom(zoom) {
@@ -135,16 +135,37 @@ describe('card action buttons do not open lightbox', () => {
 });
 
 describe('zoom helpers', () => {
-  it('clamps zoom and steps in 25% increments', () => {
-    assert.match(lightbox, /ML_LIGHTBOX_ZOOM_MIN = 1/);
-    assert.match(lightbox, /ML_LIGHTBOX_ZOOM_MAX = 4/);
+  it('clamps zoom and steps in 25% increments including below 100%', () => {
+    assert.match(lightbox, /ML_LIGHTBOX_ZOOM_MIN = 0\.25/);
+    assert.match(lightbox, /ML_LIGHTBOX_ZOOM_MAX = 2/);
+    assert.match(lightbox, /ML_LIGHTBOX_ZOOM_FIT = 1/);
     assert.match(lightbox, /data-testid="ml-lightbox-zoom-in"/);
     assert.match(lightbox, /data-testid="ml-lightbox-zoom-out"/);
-    assert.equal(stepLightboxZoom(1, -1), 1);
+    assert.equal(stepLightboxZoom(1, -1), 0.75);
+    assert.equal(stepLightboxZoom(0.75, -1), 0.5);
+    assert.equal(stepLightboxZoom(0.5, -1), 0.25);
+    assert.equal(stepLightboxZoom(0.25, -1), 0.25);
     assert.equal(stepLightboxZoom(1, 1), 1.25);
-    assert.equal(stepLightboxZoom(4, 1), 4);
-    assert.equal(clampLightboxZoom(0.2), 1);
-    assert.equal(clampLightboxZoom(9), 4);
+    assert.equal(stepLightboxZoom(1.75, 1), 2);
+    assert.equal(stepLightboxZoom(2, 1), 2);
+    assert.equal(clampLightboxZoom(0.1), 0.25);
+    assert.equal(clampLightboxZoom(9), 2);
+    const frameBlock = css.slice(css.indexOf('.ml-lightbox__frame'), css.indexOf('.ml-lightbox__image'));
+    assert.doesNotMatch(frameBlock, /min-width:\s*100%/);
+    assert.doesNotMatch(frameBlock, /min-height:\s*100%/);
+  });
+});
+
+describe('download original asset', () => {
+  it('wires İndir to the existing Media Library content download', () => {
+    assert.match(lightbox, /data-testid="ml-lightbox-download"/);
+    assert.match(lightbox, /onDownload/);
+    assert.match(workspace, /onDownload=\{downloadNamedAsset\}/);
+    assert.match(workspace, /async function downloadNamedAsset\(asset: MediaAsset\)/);
+    assert.match(workspace, /media\.downloadAsset\(asset\.id, asset\.name\)/);
+    assert.match(lightbox, /labels\.download/);
+    assert.equal(en.creativeStudio.ds.mediaLibrary.lightbox.download, 'Download');
+    assert.equal(tr.creativeStudio.ds.mediaLibrary.lightbox.download, 'İndir');
   });
 });
 
@@ -156,5 +177,7 @@ describe('i18n', () => {
     assert.equal(tr.creativeStudio.ds.mediaLibrary.lightbox.assetId, 'Varlık ID');
     assert.equal(en.creativeStudio.ds.mediaLibrary.lightbox.filename, 'Filename');
     assert.equal(tr.creativeStudio.ds.mediaLibrary.lightbox.filename, 'Dosya adı');
+    assert.equal(en.creativeStudio.ds.mediaLibrary.lightbox.download, 'Download');
+    assert.equal(tr.creativeStudio.ds.mediaLibrary.lightbox.download, 'İndir');
   });
 });

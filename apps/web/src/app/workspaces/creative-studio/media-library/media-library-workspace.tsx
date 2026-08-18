@@ -278,6 +278,7 @@ export function MediaLibraryWorkspace() {
       zoomIn: t('lightbox.zoomIn'),
       zoomOut: t('lightbox.zoomOut'),
       zoomLevel: (percent: number) => t('lightbox.zoomLevel', { percent }),
+      download: t('lightbox.download'),
       assetId: t('lightbox.assetId'),
       filename: t('lightbox.filename'),
       resolution: t('lightbox.resolution'),
@@ -377,6 +378,16 @@ export function MediaLibraryWorkspace() {
   function showToast(message: string) {
     setToast(message);
     window.setTimeout(() => setToast(null), 2200);
+  }
+
+  async function downloadNamedAsset(asset: MediaAsset): Promise<boolean> {
+    if (!isMediaAssetUuid(asset.id)) {
+      showToast(t('toasts.samplesOnly'));
+      return false;
+    }
+    const ok = await media.downloadAsset(asset.id, asset.name);
+    showToast(ok ? t('toasts.downloaded') : t('toasts.downloadFailed'));
+    return ok;
   }
 
   function markDirty() {
@@ -602,12 +613,7 @@ export function MediaLibraryWorkspace() {
     }
     if (action === 'download') {
       if (!selected) return;
-      if (!isMediaAssetUuid(selected.id)) {
-        showToast(t('toasts.samplesOnly'));
-        return;
-      }
-      const ok = await media.downloadAsset(selected.id, selected.name);
-      showToast(ok ? t('toasts.downloaded') : t('toasts.downloadFailed'));
+      await downloadNamedAsset(selected);
       return;
     }
     if (action === 'delete' && selected) {
@@ -1771,6 +1777,7 @@ export function MediaLibraryWorkspace() {
           labels={lightboxLabels}
           onClose={closePreview}
           onNavigate={navigatePreview}
+          onDownload={downloadNamedAsset}
         />
 
         <Dialog

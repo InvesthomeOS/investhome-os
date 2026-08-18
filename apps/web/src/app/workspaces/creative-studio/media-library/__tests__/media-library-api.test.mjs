@@ -237,6 +237,7 @@ describe('tags / archive / download', () => {
     assert.match(hook, /downloadAsset/);
     assert.match(hook, /anchor\.download/);
     assert.match(workspace, /media\.downloadAsset/);
+    assert.match(workspace, /downloadNamedAsset/);
   });
 });
 

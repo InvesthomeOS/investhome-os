@@ -14608,6 +14608,7 @@
           "zoomIn": "Yakınlaştır",
           "zoomOut": "Uzaklaştır",
           "zoomLevel": "{percent}%",
+          "download": "İndir",
           "assetId": "Varlık ID",
           "filename": "Dosya adı",
           "resolution": "Çözünürlük",

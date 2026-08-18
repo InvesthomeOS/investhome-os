@@ -303,15 +303,22 @@ def test_project_mode_sends_source_image_persists_and_does_not_fallback(
     assert data.get("size") == "1088x1360"
     files = captured["files"]
     assert files, "project mode must send source image"
+    assert len(files) == 1, "GPT Image edits receive the architecture photo only; logos overlay after"
     first_name = files[0][0] if files else ""
     assert first_name == "image[]"
     prompt = str(data.get("prompt") or "")
     assert "architecture" in prompt.lower() or "building" in prompt.lower()
+    assert "composited" in prompt.lower() or "do not draw" in prompt.lower()
+    assert "do not place washington monument" in prompt.lower()
     assert "19.5%" not in prompt
     assert "27.8%" not in prompt
     assert "$1450K" not in prompt and "$1,450K" not in prompt
     brief = body.get("brief") or {}
     assert "blocked_financial_tokens" in brief
+    extras = body.get("extra_images") or []
+    assert extras, "real logo files must be resolved from Media Library"
+    extra_roles = {row.get("role") for row in extras}
+    assert extra_roles & {"project_logo", "investhome_logo"}
     assert captured.get("json") is None
     assert body["provider_call_count"] == 1
 
@@ -501,5 +508,47 @@ def test_location_prompt_blocks_financial_leak_in_brief() -> None:
     assert "$1450K" not in prompt
     assert "do not invent" in prompt.lower() or "do not invent" in str(shared).lower()
     assert "architecture" in prompt.lower()
+    assert "composited" in prompt.lower() or "do not draw" in prompt.lower()
+    assert "do not place washington monument" in prompt.lower()
+    assert "walk time" in prompt.lower() or "distance" in prompt.lower()
     assert shared["user_campaign_facts"] == []
     assert "19.5%" in (shared.get("blocked_financial_tokens") or [])
+
+
+def test_overlay_brand_lockups_pastes_real_logo_files() -> None:
+    from uuid import uuid4
+
+    from investhome_api.services.gpt_image_design.compose import overlay_brand_lockups
+    from investhome_api.services.gpt_image_design.source import ResolvedSourceImage
+
+    base = _png_bytes(200, 250, (30, 60, 90))
+    project_logo = ResolvedSourceImage(
+        asset_id=uuid4(),
+        filename="temple-logo.png",
+        content_type="image/png",
+        folder_category="01_BRAND",
+        tags=["logo"],
+        image_bytes=_png_bytes(40, 16, (220, 40, 40)),
+        width=40,
+        height=16,
+        role="project_logo",
+    )
+    ih_logo = ResolvedSourceImage(
+        asset_id=uuid4(),
+        filename="investhome-logo.png",
+        content_type="image/png",
+        folder_category="01_BRAND",
+        tags=["logo", "investhome"],
+        image_bytes=_png_bytes(32, 12, (20, 180, 80)),
+        width=32,
+        height=12,
+        role="investhome_logo",
+    )
+    composed = overlay_brand_lockups(base, [project_logo, ih_logo])
+    assert composed != base
+    with Image.open(io.BytesIO(composed)) as img:
+        assert img.size == (200, 250)
+        sample = img.convert("RGB")
+        assert sample.getpixel((20, 20))[0] > 180
+        assert sample.getpixel((180, 20))[1] > 140
+

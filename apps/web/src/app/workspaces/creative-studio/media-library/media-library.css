@@ -1446,7 +1446,9 @@
 }
 
 .ml-lightbox__stage {
+  display: grid;
   flex: 1;
+  place-items: center;
   min-height: 0;
   overflow: auto;
   border: 1px solid var(--cs-border, #e1e7e9);
@@ -1456,11 +1458,10 @@
 
 .ml-lightbox__frame {
   display: grid;
+  flex-shrink: 0;
   place-items: center;
   width: calc(100% * var(--ml-zoom, 1));
   height: calc(100% * var(--ml-zoom, 1));
-  min-width: 100%;
-  min-height: 100%;
 }
 
 .ml-lightbox__image {

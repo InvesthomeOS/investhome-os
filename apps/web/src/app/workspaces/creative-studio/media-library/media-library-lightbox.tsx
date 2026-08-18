@@ -9,9 +9,11 @@ import { IhIcon } from '@/components/icons/ih-icons';
 
 import { docIcon, type MediaAsset } from './media-library-model';
 
-export const ML_LIGHTBOX_ZOOM_MIN = 1;
-export const ML_LIGHTBOX_ZOOM_MAX = 4;
+export const ML_LIGHTBOX_ZOOM_MIN = 0.25;
+export const ML_LIGHTBOX_ZOOM_MAX = 2;
 export const ML_LIGHTBOX_ZOOM_STEP = 0.25;
+/** 100% = first-open contain/fit. Minus steps to 75/50/25 of that fit. */
+export const ML_LIGHTBOX_ZOOM_FIT = 1;
 
 export type MediaLibraryLightboxLabels = {
   title: string;
@@ -20,6 +22,7 @@ export type MediaLibraryLightboxLabels = {
   zoomIn: string;
   zoomOut: string;
   zoomLevel: (percent: number) => string;
+  download: string;
   assetId: string;
   filename: string;
   resolution: string;
@@ -64,6 +67,7 @@ type MediaLibraryLightboxProps = {
   labels: MediaLibraryLightboxLabels;
   onClose: () => void;
   onNavigate: (id: string) => void;
+  onDownload?: (asset: MediaAsset) => Promise<boolean> | boolean;
 };
 
 export function MediaLibraryLightbox({
@@ -74,8 +78,10 @@ export function MediaLibraryLightbox({
   labels,
   onClose,
   onNavigate,
+  onDownload,
 }: MediaLibraryLightboxProps) {
-  const [zoom, setZoom] = useState(ML_LIGHTBOX_ZOOM_MIN);
+  const [zoom, setZoom] = useState(ML_LIGHTBOX_ZOOM_FIT);
+  const [downloadBusy, setDownloadBusy] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const openedAtRef = useRef(0);
 
@@ -91,7 +97,8 @@ export function MediaLibraryLightbox({
   }
 
   useEffect(() => {
-    setZoom(ML_LIGHTBOX_ZOOM_MIN);
+    setZoom(ML_LIGHTBOX_ZOOM_FIT);
+    setDownloadBusy(false);
   }, [asset?.id]);
 
   useEffect(() => {
@@ -148,6 +155,16 @@ export function MediaLibraryLightbox({
     onClose();
   }, [onClose]);
 
+  const handleDownload = useCallback(async () => {
+    if (!asset || !onDownload || downloadBusy) return;
+    setDownloadBusy(true);
+    try {
+      await onDownload(asset);
+    } finally {
+      setDownloadBusy(false);
+    }
+  }, [asset, onDownload, downloadBusy]);
+
   if (typeof document === 'undefined') return null;
 
   return createPortal(
@@ -194,6 +211,17 @@ export function MediaLibraryLightbox({
               data-testid="ml-lightbox-zoom-in"
             >
               <IhIcon name="plus" size={14} />
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => void handleDownload()}
+              disabled={!onDownload || downloadBusy}
+              aria-label={labels.download}
+              data-testid="ml-lightbox-download"
+            >
+              {labels.download}
             </Button>
             <Button
               type="button"

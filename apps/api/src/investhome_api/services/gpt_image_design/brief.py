@@ -22,15 +22,18 @@ from investhome_api.services.social_design_engine.verified_facts import Campaign
 
 _KNOWN_CANONICAL_LEAKS = ("19.5%", "27.8%", "$1450K", "$1,450K", "$1.45M", "1450K")
 
+INVESHOME_SLOGAN = "Amerika'da güven inşa ediyoruz."
+
 ARCHITECTURE_LOCK = [
-    "The FIRST input image is the actual product for sale — a real project render/photograph.",
-    "Do NOT change building architecture, facade, massing, materials, or silhouette.",
-    "Do NOT add, remove, or relocate windows, doors, balconies, or floors.",
-    "Do NOT redesign, restyle, or replace the building with a different property.",
-    "Do NOT invent a skyline, landmark, or neighborhood that contradicts verified location facts.",
-    "You MAY: composition, crop, typography, graphic design, info panels, map/location graphics, lines/markers, background expansion, city/location context that matches verified facts, brand lockups from supplied logo files.",
-    "Use only real logo files supplied as extra input images. NEVER generate, redraw, or fake a logo.",
-    "Do not invent price, rent, ROI, IRR, yield, or distance figures.",
+    "The FIRST and ONLY input image is the actual product for sale — a real project render/photograph.",
+    "Preserve this building exactly: architecture, facade, floors, windows, doors, massing, proportions, materials, and silhouette.",
+    "Do NOT redesign, restyle, restack, or replace the building. Do NOT add, remove, or relocate floors, windows, doors, or balconies.",
+    "You MAY: ad composition, crop, canvas extension, typography, headline, subhead, graphics, lines, location markers, info boxes, CTA, color, whitespace.",
+    "Do NOT draw, generate, redraw, or fake any logo or wordmark — including substituting lettering such as 'The Temple' for a real mark.",
+    "Leave clear space in the top-left and top-right for real brand lockups composited after generation.",
+    "LOCATION copy and graphics must use verified RAG/project facts only. Do NOT invent distance, walk time, drive time, yield, rent, price, or ROI.",
+    "Do NOT place Washington Monument, Downtown DC, the Capitol, or other landmarks as real geography unless they appear in the verified facts below.",
+    "Investhome is the supporting brand, not the project identity.",
 ]
 
 
@@ -175,10 +178,11 @@ def build_shared_brief(
         },
         "architecture_lock": list(ARCHITECTURE_LOCK),
         "brand_restraint": [
-            "Do not invent financial figures, distances, landmarks, or amenities.",
+            "Do not invent financial figures, distances, walk/drive times, landmarks, or amenities.",
             "Do not replace the supplied building photograph with a different building.",
-            "Use only supplied real logo files — no fake logos, watermarks, or stock people.",
+            "Do not draw logos. Real project and Investhome marks are overlaid after generation from Media Library files.",
             "Only render eligible marketing-safe facts and current-campaign user facts.",
+            f"Investhome supporting slogan (optional small typeset line, never a fake logo): {INVESHOME_SLOGAN}",
         ],
         "source_image": source_filename,
         "extra_image_roles": extra_image_roles,
@@ -226,7 +230,8 @@ def render_project_edit_prompt(shared: dict[str, Any]) -> str:
         f"FORMAT: {composition.get('format') or 'Instagram 4:5'} at {composition.get('resolution') or '1088x1360'}.",
         f"SOURCE IMAGE (input 1 — the product for sale): {shared.get('source_image')}.",
         "Preserve this building exactly. Graphic design around it; do not redesign architecture.",
-        f"EXTRA INPUT IMAGES (real logo files only): {', '.join(extra_roles) if extra_roles else 'none — do not invent logos'}.",
+        "LOGOS: do not draw or redraw any mark. Real Media Library logo files are composited after this edit.",
+        f"EXTRA LOGO FILES (composited in OS, not GPT): {', '.join(extra_roles) if extra_roles else 'none — omit logos rather than invent them'}.",
         "ARCHITECTURE LOCK:",
         *[f"- {item}" for item in (shared.get('architecture_lock') or ARCHITECTURE_LOCK)],
         "BRAND RESTRAINT:",
@@ -248,6 +253,14 @@ def render_project_edit_prompt(shared: dict[str, Any]) -> str:
         lines.insert(11, "SUPPORTING EVIDENCE (non-financial unless listed as permitted):")
         for item in evidence[:6]:
             lines.insert(12, f"- {item}")
+    lines.extend(
+        [
+            "LOCATION ADVANTAGE RULES:",
+            "- Ground neighborhood, city, nearby points, lifestyle, and transport in the verified facts above.",
+            "- If a landmark or distance is not in those facts, do not show it as real geography.",
+            "- Prefer whitespace and premium composition over invented map pins.",
+        ]
+    )
     prompt = "\n".join(lines)
     return strip_ineligible_financial_claims(
         prompt,
@@ -281,7 +294,10 @@ def refine_prompt_with_llm(prompt: str, *, allowed: list[str], blocked: list[str
         return prompt
     system = (
         "You write prompts for OpenAI GPT Image edits. Keep the architecture lock intact. "
-        "Never invent financial figures, distances, or logos. Return only the image prompt."
+        "Never invent financial figures, distances, landmarks, or logos. "
+        "The source image is the product for sale and must not be redesigned. "
+        "Logos are composited after generation — do not ask the model to draw them. "
+        "Return only the image prompt."
     )
     user = (
         "Rewrite the following as a tight GPT Image edit prompt. Preserve every Claim Guard "

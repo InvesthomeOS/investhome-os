@@ -19931,6 +19931,7 @@
           "zoomIn": "Zoom in",
           "zoomOut": "Zoom out",
           "zoomLevel": "{percent}%",
+          "download": "Download",
           "assetId": "Asset ID",
           "filename": "Filename",
           "resolution": "Resolution",
