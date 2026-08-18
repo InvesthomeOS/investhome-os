@@ -303,6 +303,19 @@ export function SocialMediaBuilderWorkspace() {
     () => posts.find((p) => p.id === selectedPostId) ?? posts[0] ?? null,
     [posts, selectedPostId],
   );
+  const hasRealLogoLayer = Boolean(
+    selectedPost?.elements.some((el) => el.type === 'IMAGE' && el.role === 'logo' && el.assetId),
+  );
+  const coverObjectPosition = useMemo(() => {
+    const crop = selectedPost?.imageCrop;
+    if (crop && typeof crop.object_position === 'string') return crop.object_position;
+    if (crop && typeof crop.objectPosition === 'string') return crop.objectPosition;
+    const bg = selectedPost?.elements.find(
+      (el) => el.type === 'IMAGE' && (el.role === 'background' || el.role === 'cover'),
+    );
+    if (bg && bg.type === 'IMAGE' && bg.objectPosition) return bg.objectPosition;
+    return undefined;
+  }, [selectedPost]);
   const selectedElement =
     selectedPost?.elements.find((el) => el.id === selectedElementId) ?? null;
   const contentSize = resolveFormatSize(formatPreset);
@@ -1510,6 +1523,7 @@ export function SocialMediaBuilderWorkspace() {
         mode: options?.mode ?? inferredMode,
         modeExplicit: Boolean(options?.explicit),
         designProvider: 'native',
+        formatPreset,
       });
 
       if (!built.ok) {
@@ -2720,6 +2734,7 @@ export function SocialMediaBuilderWorkspace() {
                           data-testid="smb-artboard-img"
                           data-canva-preview={canvaPreview?.src ? 'true' : 'false'}
                           data-cover-asset-id={selectedPost?.coverAssetId ?? ''}
+                          style={coverObjectPosition ? { objectPosition: coverObjectPosition } : undefined}
                           draggable={false}
                           onError={() => {
                             if (canvaPreview?.src) return;
@@ -2781,7 +2796,7 @@ export function SocialMediaBuilderWorkspace() {
                           aria-hidden="true"
                         />
                       ) : null}
-                      {brandLogo && !hideOsLayers ? (
+                      {brandLogo && !hideOsLayers && !hasRealLogoLayer ? (
                         <span
                           className="smb-ws__logo-preview"
                           style={{ position: 'absolute', top: '6%', left: '6%', zIndex: 2 }}

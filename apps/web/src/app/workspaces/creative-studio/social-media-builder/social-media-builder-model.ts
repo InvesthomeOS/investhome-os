@@ -158,6 +158,9 @@ export type SocialPost = {
   creativePlan?: Record<string, unknown> | null;
   compositionBlueprint?: Record<string, unknown> | null;
   compositionFamily?: string | null;
+  imageCrop?: Record<string, unknown> | null;
+  compositionType?: string | null;
+  planGeometryLocked?: boolean | null;
   /** In-flight create must not be treated as a completed Gönderi. Not persisted while generating. */
   generationLifecycle?: SocialPostGenerationLifecycle | null;
 };

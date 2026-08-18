@@ -514,6 +514,12 @@ def normalize_raw_ops(
     """Best-effort sanitize LLM ops before strict validation (no inventing media)."""
     out: list[dict[str, Any]] = []
     minted_post_id = default_post_id or f"ai-post-{int(time.time() * 1000)}"
+    preserve_geometry = any(
+        isinstance(raw, dict)
+        and str(raw.get("op") or "").strip().upper() == "CREATE_POST"
+        and bool((raw.get("payload") or {}).get("preserveGeometry"))
+        for raw in raw_ops
+    )
     for raw in raw_ops:
         if not isinstance(raw, dict):
             continue
@@ -618,7 +624,8 @@ def normalize_raw_ops(
                 payload["label"] = "Learn more"
 
         # Strip free pixel geometry from LLM text/CTA creates — deterministic layout owns coords.
-        if op["op"] in {"ADD_TEXT", "ADD_CTA"}:
+        # Art Director Design Plans already authored pixels; preserve them.
+        if op["op"] in {"ADD_TEXT", "ADD_CTA"} and not preserve_geometry:
             from investhome_api.services.social_design_engine.layout import strip_llm_geometry
 
             payload = strip_llm_geometry(payload)
@@ -626,7 +633,7 @@ def normalize_raw_ops(
 
         # Scale percent-like coords (0-100) to canvas pixels when LLM uses layout percentages
         # on MOVE/RESIZE/IMAGE only (text/CTA geometry already stripped).
-        if op["op"] in {"ADD_IMAGE", "MOVE_ELEMENT", "RESIZE_ELEMENT"}:
+        if op["op"] in {"ADD_IMAGE", "MOVE_ELEMENT", "RESIZE_ELEMENT"} and not preserve_geometry:
             for axis, canvas in (("x", 1080), ("y", 1080), ("width", 1080), ("height", 1080)):
                 val = payload.get(axis)
                 try:

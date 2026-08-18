@@ -222,6 +222,12 @@ class DesignPlan:
     creative_plan: dict[str, Any] = field(default_factory=dict)
     composition_blueprint: dict[str, Any] = field(default_factory=dict)
     composition_family: str = ""
+    composition_type: str = ""
+    image_crop: dict[str, Any] = field(default_factory=dict)
+    project_logo: dict[str, Any] = field(default_factory=dict)
+    investhome_logo: dict[str, Any] = field(default_factory=dict)
+    map_asset: dict[str, Any] = field(default_factory=dict)
+    preserve_geometry: bool = True
 
 
 def _norm(text: str) -> str:
@@ -1364,6 +1370,12 @@ def design_plan_to_dict(plan: DesignPlan) -> dict[str, Any]:
         "creative_plan": plan.creative_plan,
         "composition_blueprint": plan.composition_blueprint,
         "composition_family": plan.composition_family,
+        "composition_type": plan.composition_type,
+        "image_crop": plan.image_crop,
+        "project_logo": plan.project_logo,
+        "investhome_logo": plan.investhome_logo,
+        "map_asset": plan.map_asset,
+        "preserve_geometry": bool(plan.preserve_geometry),
         "elements": [asdict(el) for el in plan.elements],
     }
 
@@ -1406,6 +1418,9 @@ def compose_ops_from_plan(
                 "creativePlan": plan.creative_plan,
                 "compositionBlueprint": plan.composition_blueprint,
                 "compositionFamily": plan.composition_family,
+                "preserveGeometry": bool(plan.preserve_geometry),
+                "imageCrop": plan.image_crop,
+                "compositionType": plan.composition_type,
             },
         },
         {
@@ -1419,6 +1434,7 @@ def compose_ops_from_plan(
     preset = plan.format_preset if plan.format_preset in FORMAT_PRESETS else "square"
     canvas_w, canvas_h = FORMAT_PRESETS.get(preset, (1080, 1080))
     if plan.background_asset_id:
+        crop = plan.image_crop if isinstance(plan.image_crop, dict) else {}
         ops.append(
             {
                 "op": "SET_BACKGROUND",
@@ -1443,12 +1459,39 @@ def compose_ops_from_plan(
                     "width": canvas_w,
                     "height": canvas_h,
                     "zIndex": 0,
+                    "crop": crop,
+                    "objectPosition": crop.get("object_position") or crop.get("objectPosition"),
                 },
             }
         )
+
+    def _logo_op(spec: dict[str, Any], *, role: str, z_index: int) -> dict[str, Any] | None:
+        asset = str(spec.get("asset_id") or "").strip()
+        if not asset:
+            return None
+        return {
+            "op": "ADD_IMAGE",
+            "linked_project_id": pid,
+            "post_id": post_id,
+            "element_id": None,
+            "payload": {
+                "asset_id": asset,
+                "role": role,
+                "full_bleed": False,
+                "x": int(spec.get("x") or max(48, int(round(canvas_w * 0.055)))),
+                "y": int(spec.get("y") or max(40, int(round(canvas_h * 0.045)))),
+                "width": int(spec.get("width") or max(96, int(round(canvas_w * 0.16)))),
+                "height": int(spec.get("height") or max(36, int(round(canvas_h * 0.045)))),
+                "zIndex": z_index,
+            },
+        }
+
+    project_logo_op = _logo_op(plan.project_logo if isinstance(plan.project_logo, dict) else {}, role="logo", z_index=7)
+    if project_logo_op:
+        ops.append(project_logo_op)
     logo_id = str(logo_asset_id).strip() if logo_asset_id else ""
     place = (logo_placement or "none").strip().lower()
-    if logo_id and place not in {"", "none"}:
+    if project_logo_op is None and logo_id and place not in {"", "none"}:
         logo_w = max(96, int(round(canvas_w * 0.16)))
         logo_h = max(36, int(round(canvas_h * 0.045)))
         margin_x = max(48, int(round(canvas_w * 0.055)))
@@ -1494,6 +1537,16 @@ def compose_ops_from_plan(
                 },
             }
         )
+    supporting_logo_op = _logo_op(
+        plan.investhome_logo if isinstance(plan.investhome_logo, dict) else {},
+        role="logo",
+        z_index=6,
+    )
+    if supporting_logo_op:
+        ops.append(supporting_logo_op)
+    map_op = _logo_op(plan.map_asset if isinstance(plan.map_asset, dict) else {}, role="image", z_index=3)
+    if map_op:
+        ops.append(map_op)
     for el in plan.elements:
         if el.type == "TEXT":
             ops.append(

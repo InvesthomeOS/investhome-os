@@ -6,6 +6,7 @@ pool. Never reconstructs architecture via text-to-image.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 from uuid import UUID
@@ -27,13 +28,21 @@ from investhome_api.services.social_design_engine.creative_plan import (
 from investhome_api.services.social_design_engine.generation import (
     ContentPackage,
     DesignPlan,
+    DesignPlanElement,
     GenerationIntent,
     build_design_plan,
     compose_ops_from_plan,
     design_plan_to_dict,
 )
+from investhome_api.services.social_design_engine.ops import FORMAT_PRESETS
 from investhome_api.services.social_design_engine.composition_engine import PRIMITIVE_FAMILY_HINT
-from investhome_api.services.social_design_engine.media import pick_best_asset, pick_logo_asset
+from investhome_api.services.social_design_engine.media import (
+    extract_design_reference_language,
+    pick_best_asset,
+    pick_logo_asset,
+    pick_map_asset,
+    pick_supporting_logo_asset,
+)
 
 ArtDirectorCampaign = Literal[
     "LOCATION",
@@ -190,6 +199,390 @@ LIFESTYLE_RECIPES: tuple[VariantRecipe, ...] = (
         alignment="left",
     ),
 )
+
+
+# Starting grammars — mutated per production. Never the only layouts.
+COMPOSITION_TYPES = (
+    "editorial_architecture",
+    "location_story",
+    "architectural_hero",
+    "split_information",
+)
+
+CROP_BY_TYPE: dict[str, dict[str, Any]] = {
+    "editorial_architecture": {
+        "x": 16.0,
+        "y": 0.0,
+        "w": 84.0,
+        "h": 100.0,
+        "focal_bias": "right",
+        "object_position": "74% 46%",
+        "strategy": "editorial_left_safe",
+    },
+    "location_story": {
+        "x": 8.0,
+        "y": 4.0,
+        "w": 92.0,
+        "h": 96.0,
+        "focal_bias": "horizon",
+        "object_position": "58% 38%",
+        "strategy": "location_field",
+    },
+    "architectural_hero": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 100.0,
+        "h": 100.0,
+        "focal_bias": "facade",
+        "object_position": "52% 44%",
+        "strategy": "architecture_full",
+    },
+    "split_information": {
+        "x": 28.0,
+        "y": 0.0,
+        "w": 72.0,
+        "h": 100.0,
+        "focal_bias": "right",
+        "object_position": "80% 48%",
+        "strategy": "asymmetric_left_panel",
+    },
+}
+
+
+def _canvas_for_intent(intent: GenerationIntent) -> tuple[int, int]:
+    preset = intent.format_preset if intent.format_preset in FORMAT_PRESETS else "square"
+    return FORMAT_PRESETS.get(preset, (1080, 1080))
+
+
+def _digest_int(*parts: str) -> int:
+    blob = "|".join(parts)
+    return int(hashlib.sha1(blob.encode("utf-8")).hexdigest()[:8], 16)
+
+
+def choose_composition_type(
+    *,
+    campaign_type: ArtDirectorCampaign,
+    recipe: VariantRecipe,
+    asset: SocialDesignMediaCandidate | None,
+    has_map: bool,
+    instruction: str,
+    refs: dict[str, Any],
+) -> str:
+    """Design decision — recipes hint, they do not imprison the layout."""
+    subject = (asset.visual_subject or "") if asset else ""
+    if campaign_type == "LOCATION":
+        if recipe.key == "A":
+            picked = "location_story" if subject in {"AERIAL", "NEIGHBORHOOD", "LOCATION"} else "editorial_architecture"
+        elif recipe.key == "B":
+            picked = "split_information" if has_map else "location_story"
+        else:
+            picked = "architectural_hero"
+        if refs.get("image_text_balance") == "image_dominant" and recipe.key != "B":
+            if subject in {"ARCHITECTURAL_RENDER", "EXTERIOR"}:
+                picked = "architectural_hero" if recipe.key == "C" else picked
+        return picked
+    if campaign_type == "ARCHITECTURE":
+        return {"A": "editorial_architecture", "B": "split_information", "C": "architectural_hero"}.get(
+            recipe.key, "architectural_hero"
+        )
+    if campaign_type == "LIFESTYLE":
+        return {"A": "editorial_architecture", "B": "location_story", "C": "architectural_hero"}.get(
+            recipe.key, "editorial_architecture"
+        )
+    # Investment / launch: still mutate away from a single slot fill.
+    return {"A": "editorial_architecture", "B": "split_information", "C": "architectural_hero"}.get(
+        recipe.key, "editorial_architecture"
+    )
+
+
+def choose_primary_variant(
+    recipes: tuple[VariantRecipe, ...],
+    *,
+    campaign_type: ArtDirectorCampaign,
+    asset: SocialDesignMediaCandidate | None,
+    instruction: str,
+    has_map: bool,
+) -> VariantKey:
+    if campaign_type != "LOCATION" or not recipes:
+        return "A"
+    subject = (asset.visual_subject or "") if asset else ""
+    if has_map:
+        return next((r.key for r in recipes if r.key == "B"), recipes[0].key)
+    if subject in {"AERIAL", "NEIGHBORHOOD", "LOCATION"}:
+        return next((r.key for r in recipes if r.key == "B"), recipes[0].key)
+    digest = _digest_int(instruction, subject, campaign_type)
+    pool = [r.key for r in recipes if r.key != "A"] or [recipes[0].key]
+    return pool[digest % len(pool)]
+
+
+def _directed_regions(
+    *,
+    composition_type: str,
+    canvas_w: int,
+    canvas_h: int,
+    refs: dict[str, Any],
+    salt: int,
+    include_support: bool,
+) -> dict[str, dict[str, int]]:
+    """Pixel regions from a design decision. Starting grammar, then mutate."""
+    generous = refs.get("whitespace") == "generous"
+    mx = max(48, int(round(canvas_w * (0.078 if generous else 0.062))))
+    my = max(44, int(round(canvas_h * (0.072 if generous else 0.055))))
+    jitter_x = (salt % 17) - 8
+    jitter_y = ((salt // 17) % 21) - 10
+
+    if composition_type == "split_information":
+        col_w = max(320, int(round(canvas_w * 0.38)))
+        headline = {
+            "x": mx,
+            "y": my + int(round(canvas_h * 0.16)) + jitter_y,
+            "width": col_w,
+            "height": int(round(canvas_h * 0.18)),
+        }
+        body = {
+            "x": mx,
+            "y": headline["y"] + headline["height"] + max(18, int(round(canvas_h * 0.02))),
+            "width": col_w - 12,
+            "height": int(round(canvas_h * 0.14 if include_support else 0.08)),
+        }
+        cta = {
+            "x": mx,
+            "y": min(canvas_h - my - int(round(canvas_h * 0.05)), int(round(canvas_h * 0.82)) + jitter_y // 2),
+            "width": min(col_w - 8, max(200, int(round(canvas_w * 0.28)))),
+            "height": max(40, int(round(canvas_h * 0.044))),
+        }
+        overlay = "soft-left"
+        logo_project = {"x": mx, "y": my, "width": max(140, int(round(canvas_w * 0.20))), "height": max(44, int(round(canvas_h * 0.048)))}
+        logo_ih = {
+            "x": mx,
+            "y": canvas_h - my - max(32, int(round(canvas_h * 0.032))),
+            "width": max(96, int(round(canvas_w * 0.12))),
+            "height": max(28, int(round(canvas_h * 0.028))),
+        }
+    elif composition_type == "location_story":
+        col_w = max(360, int(round(canvas_w * 0.62)))
+        headline = {
+            "x": mx + max(0, jitter_x),
+            "y": int(round(canvas_h * 0.58)) + jitter_y,
+            "width": col_w,
+            "height": int(round(canvas_h * 0.14)),
+        }
+        body = {
+            "x": headline["x"],
+            "y": headline["y"] + headline["height"] + max(14, int(round(canvas_h * 0.016))),
+            "width": int(round(col_w * 0.86)),
+            "height": int(round(canvas_h * 0.09 if include_support else 0.05)),
+        }
+        cta = {
+            "x": headline["x"],
+            "y": min(canvas_h - my - 48, body["y"] + body["height"] + 16),
+            "width": max(200, int(round(canvas_w * 0.30))),
+            "height": max(40, int(round(canvas_h * 0.042))),
+        }
+        overlay = "localized-bottom"
+        logo_project = {
+            "x": mx,
+            "y": my,
+            "width": max(150, int(round(canvas_w * 0.22))),
+            "height": max(46, int(round(canvas_h * 0.05))),
+        }
+        logo_ih = {
+            "x": canvas_w - mx - max(96, int(round(canvas_w * 0.11))),
+            "y": my + 4,
+            "width": max(96, int(round(canvas_w * 0.11))),
+            "height": max(28, int(round(canvas_h * 0.028))),
+        }
+    elif composition_type == "architectural_hero":
+        col_w = max(340, int(round(canvas_w * 0.48)))
+        headline = {
+            "x": mx + jitter_x,
+            "y": my + int(round(canvas_h * 0.08)) + jitter_y,
+            "width": col_w,
+            "height": int(round(canvas_h * 0.16)),
+        }
+        body = {
+            "x": headline["x"],
+            "y": headline["y"] + headline["height"] + max(16, int(round(canvas_h * 0.018))),
+            "width": int(round(col_w * 0.92)),
+            "height": int(round(canvas_h * 0.08 if include_support else 0.04)),
+        }
+        cta = {
+            "x": headline["x"],
+            "y": min(canvas_h - my - 44, int(round(canvas_h * 0.86))),
+            "width": max(180, int(round(canvas_w * 0.26))),
+            "height": max(36, int(round(canvas_h * 0.04))),
+        }
+        overlay = "subtle-top"
+        logo_project = {
+            "x": mx,
+            "y": my,
+            "width": max(160, int(round(canvas_w * 0.24))),
+            "height": max(48, int(round(canvas_h * 0.052))),
+        }
+        logo_ih = {
+            "x": canvas_w - mx - max(92, int(round(canvas_w * 0.10))),
+            "y": canvas_h - my - max(30, int(round(canvas_h * 0.03))),
+            "width": max(92, int(round(canvas_w * 0.10))),
+            "height": max(28, int(round(canvas_h * 0.026))),
+        }
+    else:
+        # editorial_architecture — sky/negative-space type, not the old 7%/4% slot.
+        col_w = max(380, int(round(canvas_w * 0.56)))
+        headline = {
+            "x": mx + jitter_x,
+            "y": my + int(round(canvas_h * 0.11)) + jitter_y,
+            "width": col_w,
+            "height": int(round(canvas_h * 0.20)),
+        }
+        body = {
+            "x": headline["x"],
+            "y": headline["y"] + headline["height"] + max(18, int(round(canvas_h * 0.02))),
+            "width": int(round(col_w * 0.88)),
+            "height": int(round(canvas_h * 0.10 if include_support else 0.05)),
+        }
+        cta = {
+            "x": headline["x"],
+            "y": min(canvas_h - my - 48, int(round(canvas_h * 0.78)) + jitter_y // 2),
+            "width": max(210, int(round(canvas_w * 0.32))),
+            "height": max(40, int(round(canvas_h * 0.044))),
+        }
+        overlay = "localized-top"
+        logo_project = {
+            "x": mx,
+            "y": my,
+            "width": max(152, int(round(canvas_w * 0.21))),
+            "height": max(46, int(round(canvas_h * 0.05))),
+        }
+        logo_ih = {
+            "x": canvas_w - mx - max(100, int(round(canvas_w * 0.12))),
+            "y": my,
+            "width": max(100, int(round(canvas_w * 0.12))),
+            "height": max(30, int(round(canvas_h * 0.03))),
+        }
+
+    eyebrow = {
+        "x": headline["x"],
+        "y": max(my, headline["y"] - max(28, int(round(canvas_h * 0.032)))),
+        "width": min(headline["width"], int(round(canvas_w * 0.42))),
+        "height": max(22, int(round(canvas_h * 0.024))),
+    }
+    return {
+        "headline": headline,
+        "body": body,
+        "cta": cta,
+        "eyebrow": eyebrow,
+        "project_logo": logo_project,
+        "investhome_logo": logo_ih,
+        "overlay_meta": {"token": overlay},
+    }
+
+
+def _apply_region(el: DesignPlanElement, region: dict[str, int], *, font_size: int | None = None) -> DesignPlanElement:
+    return replace(
+        el,
+        x=int(region["x"]),
+        y=int(region["y"]),
+        width=int(region["width"]),
+        height=int(region["height"]),
+        font_size=font_size if font_size is not None else el.font_size,
+        align="left",
+    )
+
+
+def direct_plan_geometry(
+    plan: DesignPlan,
+    *,
+    recipe: VariantRecipe,
+    campaign_type: ArtDirectorCampaign,
+    intent: GenerationIntent,
+    package: ContentPackage,
+    asset: SocialDesignMediaCandidate | None,
+    logo: SocialDesignMediaCandidate | None,
+    supporting_logo: SocialDesignMediaCandidate | None,
+    map_asset: SocialDesignMediaCandidate | None,
+    refs: dict[str, Any],
+    instruction: str,
+) -> DesignPlan:
+    """Overwrite recipe-slot geometry with a real Design Plan that moves pixels."""
+    canvas_w, canvas_h = _canvas_for_intent(intent)
+    composition_type = choose_composition_type(
+        campaign_type=campaign_type,
+        recipe=recipe,
+        asset=asset,
+        has_map=map_asset is not None,
+        instruction=instruction,
+        refs=refs,
+    )
+    salt = _digest_int(
+        instruction,
+        recipe.key,
+        composition_type,
+        asset.filename if asset else "",
+        package.headline,
+        intent.format_preset or "square",
+    )
+    include_support = any(el.role == "body" for el in plan.elements)
+    regions = _directed_regions(
+        composition_type=composition_type,
+        canvas_w=canvas_w,
+        canvas_h=canvas_h,
+        refs=refs,
+        salt=salt,
+        include_support=include_support,
+    )
+    headline_font = 52 if composition_type == "architectural_hero" else (46 if composition_type == "location_story" else 50)
+    headline_font = max(36, min(72, int(round(canvas_w * (0.048 if composition_type == "location_story" else 0.054)))))
+    body_font = max(16, min(26, int(round(canvas_w * 0.022))))
+    eyebrow_font = max(12, min(18, int(round(canvas_w * 0.016))))
+
+    directed: list[DesignPlanElement] = []
+    for el in plan.elements:
+        if el.role == "headline":
+            directed.append(_apply_region(el, regions["headline"], font_size=headline_font))
+        elif el.role == "body":
+            directed.append(_apply_region(el, regions["body"], font_size=body_font))
+        elif el.role == "eyebrow":
+            directed.append(_apply_region(el, regions["eyebrow"], font_size=eyebrow_font))
+        elif el.role == "cta" or el.type in {"BUTTON", "CTA"}:
+            directed.append(_apply_region(el, regions["cta"]))
+        else:
+            directed.append(el)
+
+    crop = dict(CROP_BY_TYPE.get(composition_type) or CROP_BY_TYPE["editorial_architecture"])
+    if composition_type == "architectural_hero":
+        crop["object_position"] = "50% 42%"
+    overlay_token = str(regions["overlay_meta"]["token"])
+    project_logo = dict(regions["project_logo"])
+    if logo is not None:
+        project_logo["asset_id"] = str(logo.asset_id)
+    investhome_logo: dict[str, Any] = dict(regions["investhome_logo"])
+    if supporting_logo is not None:
+        investhome_logo["asset_id"] = str(supporting_logo.asset_id)
+    else:
+        investhome_logo = {}
+    map_spec: dict[str, Any] = {}
+    if map_asset is not None and composition_type in {"split_information", "location_story"}:
+        map_w = max(180, int(round(canvas_w * 0.28)))
+        map_h = max(140, int(round(canvas_h * 0.18)))
+        map_spec = {
+            "asset_id": str(map_asset.asset_id),
+            "x": canvas_w - max(48, int(round(canvas_w * 0.06))) - map_w,
+            "y": canvas_h - max(48, int(round(canvas_h * 0.08))) - map_h,
+            "width": map_w,
+            "height": map_h,
+        }
+
+    plan.elements = directed
+    plan.overlay = overlay_token
+    plan.alignment = "left"
+    plan.preserve_geometry = True
+    plan.image_crop = crop
+    plan.project_logo = project_logo if logo is not None else {}
+    plan.investhome_logo = investhome_logo
+    plan.map_asset = map_spec
+    plan.composition_type = composition_type
+    plan.safe_text_zone = "bottom" if composition_type == "location_story" else "top"
+    return plan
 
 
 def campaign_type_from_intent(kind: CampaignIntentKind | str) -> ArtDirectorCampaign:
@@ -361,21 +754,21 @@ def art_director_plan_payload(
     logo: SocialDesignMediaCandidate | None,
     provenance: ArtDirectorProvenance,
     structured_metrics: list[dict[str, Any]] | None,
+    refs: dict[str, Any] | None = None,
+    canvas_w: int = 1080,
+    canvas_h: int = 1080,
 ) -> dict[str, Any]:
-    headline = package.headline
-    support = package.supporting_text
-    cta = package.cta
-    for el in plan.elements:
-        if el.role == "headline":
-            headline = el.text
-        elif el.role == "body":
-            support = el.text
-        elif el.role == "cta":
-            cta = el.text
+    headline_el = next((el for el in plan.elements if el.role == "headline"), None)
+    support_el = next((el for el in plan.elements if el.role == "body"), None)
+    cta_el = next((el for el in plan.elements if el.role == "cta" or el.type in {"BUTTON", "CTA"}), None)
+    headline = headline_el.text if headline_el is not None else package.headline
+    support = support_el.text if support_el is not None else package.supporting_text
+    cta = cta_el.text if cta_el is not None else package.cta
     hierarchy = {
         "level_1": "headline",
         "level_2": "metrics" if campaign_type == "INVESTMENT" else "supporting_copy",
         "level_3": "cta",
+        "brand": "project_logo",
     }
     payload = design_plan_to_dict(plan)
     payload.update(
@@ -383,19 +776,60 @@ def art_director_plan_payload(
             "campaign_type": campaign_type,
             "creative_direction": recipe.direction,
             "asset_id": str(asset.asset_id) if asset else None,
-            "crop_strategy": recipe.crop_strategy,
+            "crop_strategy": (plan.image_crop or {}).get("strategy") or recipe.crop_strategy,
             "focal_area": recipe.focal_area,
             "overlay": plan.overlay,
-            "headline": headline,
+            "headline": {
+                "text": headline,
+                "x": headline_el.x if headline_el else 0,
+                "y": headline_el.y if headline_el else 0,
+                "width": headline_el.width if headline_el else 0,
+                "font_family": "sans-serif",
+                "font_size": headline_el.font_size if headline_el else None,
+                "weight": headline_el.font_weight if headline_el else "bold",
+                "color": headline_el.color if headline_el else "#ffffff",
+                "alignment": headline_el.align if headline_el else "left",
+            },
             "supporting_copy": support,
+            "supporting_text": {
+                "text": support,
+                "x": support_el.x if support_el else None,
+                "y": support_el.y if support_el else None,
+                "width": support_el.width if support_el else None,
+                "font_size": support_el.font_size if support_el else None,
+                "weight": support_el.font_weight if support_el else "normal",
+                "color": support_el.color if support_el else "#ffffff",
+                "alignment": support_el.align if support_el else "left",
+            }
+            if support_el
+            else None,
             "metrics": structured_metrics or [],
             "cta": cta,
             "logo_placement": recipe.logo_placement if logo else "none",
             "logo_asset_id": str(logo.asset_id) if logo else None,
+            "project_logo": plan.project_logo,
+            "investhome_logo": plan.investhome_logo,
             "typography_hierarchy": hierarchy,
-            "alignment": recipe.alignment,
-            "composition": recipe.composition,
+            "alignment": plan.alignment or "left",
+            "composition": plan.composition_type or recipe.composition,
+            "composition_type": plan.composition_type,
             "contrast_strategy": plan.overlay,
+            "canvas": {"width": canvas_w, "height": canvas_h, "format": plan.format_preset},
+            "background": {
+                "asset_id": plan.background_asset_id,
+                "strategy": "hero_photograph",
+            },
+            "image_strategy": (plan.image_crop or {}).get("focal_bias") or recipe.focal_area,
+            "image_crop": plan.image_crop,
+            "location_elements": [plan.map_asset] if plan.map_asset else [],
+            "graphic_elements": [{"kind": "overlay", "token": plan.overlay}],
+            "information_blocks": [
+                {"role": el.role, "x": el.x, "y": el.y, "width": el.width, "height": el.height}
+                for el in plan.elements
+                if el.role in {"body", "eyebrow"}
+            ],
+            "visual_hierarchy": hierarchy,
+            "design_references": (refs or {}).get("references") or [],
             "variant": recipe.key,
             "variant_label": recipe.label,
             "provenance": provenance.model_dump(mode="json"),
@@ -415,6 +849,8 @@ class ArtDirectorSession:
     ops: list[dict[str, Any]] = field(default_factory=list)
     design_plan: DesignPlan | None = None
     warnings: list[str] = field(default_factory=list)
+    supporting_logo: SocialDesignMediaCandidate | None = None
+    map_asset: SocialDesignMediaCandidate | None = None
 
 
 def build_art_director_session(
@@ -442,6 +878,16 @@ def build_art_director_session(
         candidates,
         project_name=str(ident.get("project_name") or concept.project_identity_line or intent.project_hint or ""),
         project_code=str(ident.get("project_code") or "") or None,
+    )
+    supporting_logo = pick_supporting_logo_asset(
+        candidates,
+        project_logo=logo,
+        project_name=str(ident.get("project_name") or concept.project_identity_line or ""),
+    )
+    map_asset = pick_map_asset(candidates) if campaign_type == "LOCATION" else None
+    refs = extract_design_reference_language(
+        candidates,
+        project_name=str(ident.get("project_name") or concept.project_identity_line or ""),
     )
     if logo is None:
         warnings.append("no_approved_logo")
@@ -489,6 +935,18 @@ def build_art_director_session(
     allowed_ids = {asset.asset_id}
     if logo is not None:
         allowed_ids.add(logo.asset_id)
+    if supporting_logo is not None:
+        allowed_ids.add(supporting_logo.asset_id)
+    if map_asset is not None:
+        allowed_ids.add(map_asset.asset_id)
+    selected_key = choose_primary_variant(
+        recipes,
+        campaign_type=campaign_type,
+        asset=asset,
+        instruction=instruction,
+        has_map=map_asset is not None,
+    )
+    canvas_w, canvas_h = _canvas_for_intent(intent)
 
     for recipe in recipes:
         plan_model = _force_plan(
@@ -513,12 +971,25 @@ def build_art_director_session(
             force_composition_family=PRIMITIVE_FAMILY_HINT.get(recipe.composition),
         )
         design.name = f"{recipe.key} · {recipe.label}"
+        design = direct_plan_geometry(
+            design,
+            recipe=recipe,
+            campaign_type=campaign_type,
+            intent=intent,
+            package=package,
+            asset=asset,
+            logo=logo,
+            supporting_logo=supporting_logo,
+            map_asset=map_asset,
+            refs=refs,
+            instruction=instruction,
+        )
         ops = compose_ops_from_plan(
             design,
             linked_project_id=linked_project_id,
             instruction=instruction,
             logo_asset_id=logo.asset_id if logo else None,
-            logo_placement=recipe.logo_placement if logo else "none",
+            logo_placement="none" if design.project_logo else (recipe.logo_placement if logo else "none"),
             project_name=concept.project_identity_line or "",
         )
         accepted, _rejected = validate_ops(
@@ -543,20 +1014,23 @@ def build_art_director_session(
             logo=logo,
             provenance=provenance,
             structured_metrics=metric_dicts if has_metrics and plan_model.include_metrics else [],
+            refs=refs,
+            canvas_w=canvas_w,
+            canvas_h=canvas_h,
         )
         variants.append(
             ArtDirectorVariant(
                 key=recipe.key,
                 label=recipe.label,
                 creative_direction=recipe.direction,
-                composition=recipe.composition,
+                composition=design.composition_type or recipe.composition,
                 campaign_type=campaign_type,
                 design_plan=payload,
                 post=post,
                 provenance=provenance,
             )
         )
-        if recipe.key == "A":
+        if recipe.key == selected_key:
             primary_ops = ops
             primary_plan = design
 
@@ -566,10 +1040,12 @@ def build_art_director_session(
         logo=logo,
         provenance=provenance,
         variants=variants,
-        selected_variant="A",
+        selected_variant=selected_key,
         ops=primary_ops,
         design_plan=primary_plan,
         warnings=warnings,
+        supporting_logo=supporting_logo,
+        map_asset=map_asset,
     )
 
 

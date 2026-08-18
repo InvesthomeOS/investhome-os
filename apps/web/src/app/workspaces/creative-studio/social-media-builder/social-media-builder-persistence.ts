@@ -10,6 +10,7 @@ import {
   ensureUniqueElementIds,
   headlineFromElements,
   type SocialElement,
+  type SocialImageElement,
   type SocialStructuredMetric,
   type SocialTextAlign,
   type SocialTextRole,
@@ -220,6 +221,10 @@ function parseElement(raw: unknown): SocialElement | null {
       type: 'IMAGE',
       assetId: assetRaw && isMediaAssetUuid(assetRaw) ? assetRaw.trim() : null,
       ...(role ? { role } : {}),
+      ...(body.crop && typeof body.crop === 'object' && !Array.isArray(body.crop)
+        ? { crop: body.crop as SocialImageElement['crop'] }
+        : {}),
+      ...(typeof body.objectPosition === 'string' ? { objectPosition: body.objectPosition } : {}),
     };
   }
 
@@ -310,6 +315,8 @@ function serializeElement(el: SocialElement): Record<string, unknown> {
       ...base,
       assetId: el.assetId && isMediaAssetUuid(el.assetId) ? el.assetId : null,
       ...(el.role ? { role: el.role } : {}),
+      ...(el.crop ? { crop: el.crop } : {}),
+      ...(el.objectPosition ? { objectPosition: el.objectPosition } : {}),
     };
   }
   if (el.type === 'METRIC_GROUP') {
@@ -375,6 +382,9 @@ export function serializeSocialPost(post: SocialPost): Record<string, unknown> {
     ...(post.creativePlan ? { creativePlan: post.creativePlan } : {}),
     ...(post.compositionBlueprint ? { compositionBlueprint: post.compositionBlueprint } : {}),
     ...(post.compositionFamily ? { compositionFamily: post.compositionFamily } : {}),
+    ...(post.imageCrop ? { imageCrop: post.imageCrop } : {}),
+    ...(post.compositionType ? { compositionType: post.compositionType } : {}),
+    ...(post.planGeometryLocked ? { planGeometryLocked: true } : {}),
     ...(post.generationLifecycle === 'ready' || post.generationLifecycle === 'error'
       ? { generationLifecycle: post.generationLifecycle }
       : {}),
@@ -480,6 +490,19 @@ export function parseSocialPost(
         : typeof body.composition_family === 'string'
           ? body.composition_family
           : null,
+    imageCrop:
+      body.imageCrop && typeof body.imageCrop === 'object' && !Array.isArray(body.imageCrop)
+        ? (body.imageCrop as Record<string, unknown>)
+        : body.image_crop && typeof body.image_crop === 'object' && !Array.isArray(body.image_crop)
+          ? (body.image_crop as Record<string, unknown>)
+          : null,
+    compositionType:
+      typeof body.compositionType === 'string'
+        ? body.compositionType
+        : typeof body.composition_type === 'string'
+          ? body.composition_type
+          : null,
+    planGeometryLocked: body.planGeometryLocked === true || body.plan_geometry_locked === true,
     generationLifecycle,
   };
 }

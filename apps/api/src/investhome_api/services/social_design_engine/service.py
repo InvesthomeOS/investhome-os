@@ -115,7 +115,12 @@ from investhome_api.services.social_design_engine.intent import (
     build_ops_from_intent_plan,
 )
 from investhome_api.services.social_design_engine.media import list_media_candidates, pick_best_asset
-from investhome_api.services.social_design_engine.ops import find_post, normalize_raw_ops, validate_ops
+from investhome_api.services.social_design_engine.ops import (
+    FORMAT_PRESETS,
+    find_post,
+    normalize_raw_ops,
+    validate_ops,
+)
 from investhome_api.services.social_design_engine.planner import (
     build_design_prompt,
     build_heuristic_ops,
@@ -219,6 +224,18 @@ def generate_social_design(
         project_name=project.project_name,
     )
     gen_intent = apply_campaign_intent_to_generation_intent(campaign_intent, gen_intent)
+    raw_builder = body.builder_context if isinstance(body.builder_context, dict) else {}
+    builder_preset = raw_builder.get("format_preset") or raw_builder.get("formatPreset")
+    if builder_preset in FORMAT_PRESETS:
+        gen_intent.format_preset = str(builder_preset)
+    else:
+        selected_draft = find_post(draft_posts, selected_post_id) if selected_post_id else None
+        if selected_draft is None and draft_posts:
+            selected_draft = draft_posts[0]
+        if isinstance(selected_draft, dict):
+            post_preset = selected_draft.get("formatPreset") or selected_draft.get("format_preset")
+            if post_preset in FORMAT_PRESETS:
+                gen_intent.format_preset = str(post_preset)
     active_for_facts = find_post(draft_posts, selected_post_id) if selected_post_id else None
     if active_for_facts is None and draft_posts:
         active_for_facts = draft_posts[0]
@@ -848,6 +865,10 @@ def generate_social_design(
                     allowed_asset_ids.add(picked)
                 if art_director_session.logo is not None:
                     allowed_asset_ids.add(art_director_session.logo.asset_id)
+                if art_director_session.supporting_logo is not None:
+                    allowed_asset_ids.add(art_director_session.supporting_logo.asset_id)
+                if art_director_session.map_asset is not None:
+                    allowed_asset_ids.add(art_director_session.map_asset.asset_id)
                 planner_name = "art_director"
             elif "art_director_failed_no_real_asset" in art_director_session.warnings:
                 raw_ops = []
@@ -1126,7 +1147,15 @@ def generate_social_design(
         generation_context_id=generation_context_id,
     )
     if art_director_session is not None and art_director_session.variants:
-        gen_meta_payload["design_plan"] = art_director_session.variants[0].design_plan
+        selected_plan = next(
+            (
+                v.design_plan
+                for v in art_director_session.variants
+                if v.key == art_director_session.selected_variant
+            ),
+            art_director_session.variants[0].design_plan,
+        )
+        gen_meta_payload["design_plan"] = selected_plan
         gen_meta_payload["art_director"] = {
             "campaign_type": art_director_session.campaign_type,
             "selected_variant": art_director_session.selected_variant,

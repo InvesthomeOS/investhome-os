@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from sqlalchemy import String, cast, select
@@ -421,6 +421,143 @@ def pick_logo_asset(
         return None
     scored.sort(key=lambda row: (-row[0], row[1].filename.lower()))
     return scored[0][1]
+
+
+def pick_supporting_logo_asset(
+    candidates: list[SocialDesignMediaCandidate],
+    *,
+    project_logo: SocialDesignMediaCandidate | None,
+    project_name: str | None = None,
+) -> SocialDesignMediaCandidate | None:
+    """Corporate Investhome lockup only — never a generated mark, never the project logo."""
+    skip = project_logo.asset_id if project_logo is not None else None
+    name_tokens = {t.lower() for t in TOKEN_RE.findall(project_name or "") if len(t) >= 4}
+    scored: list[tuple[float, SocialDesignMediaCandidate]] = []
+    for cand in candidates:
+        if skip is not None and cand.asset_id == skip:
+            continue
+        hay = " ".join(
+            [
+                cand.filename or "",
+                cand.folder_category or "",
+                " ".join(cand.tags or []),
+            ]
+        ).lower()
+        if (cand.visual_subject or "") != "BRANDING" and "logo" not in hay and (cand.folder_category or "") != "01_BRAND":
+            continue
+        ctype = (cand.content_type or "").lower()
+        if not ctype.startswith("image/"):
+            continue
+        if any(tok in hay for tok in name_tokens) and "investhome" not in hay:
+            continue
+        if "investhome" not in hay and "invest home" not in hay:
+            continue
+        score = 3.0 if "investhome" in hay else 1.0
+        if "logo" in hay:
+            score += 2.0
+        if "white" in hay:
+            score += 0.8
+        if "addition" in hay or "historic" in hay or "temple" in hay:
+            score -= 4.0
+        scored.append((score, cand))
+    if not scored:
+        return None
+    scored.sort(key=lambda row: (-row[0], row[1].filename.lower()))
+    return scored[0][1]
+
+
+def pick_map_asset(candidates: list[SocialDesignMediaCandidate]) -> SocialDesignMediaCandidate | None:
+    """Real location/map asset only. Floor plans are not maps."""
+    scored: list[tuple[float, SocialDesignMediaCandidate]] = []
+    for cand in candidates:
+        hay = " ".join(
+            [
+                cand.filename or "",
+                cand.folder_category or "",
+                " ".join(cand.tags or []),
+                cand.visual_subject or "",
+            ]
+        ).lower()
+        subject = (cand.visual_subject or "").upper()
+        if subject == "FLOOR_PLAN":
+            continue
+        ctype = (cand.content_type or "").lower()
+        if not ctype.startswith("image/") or ctype == "image/svg+xml":
+            continue
+        score = 0.0
+        if not any(k in hay for k in ("map", "site-plan", "siteplan", "context-plan", "vicinity", "location-map")):
+            continue
+        score += 6.0
+        if subject in {"LOCATION", "AERIAL", "NEIGHBORHOOD"}:
+            score += 1.5
+        if "floor" in hay or "unit plan" in hay:
+            continue
+        scored.append((score, cand))
+    if not scored:
+        return None
+    scored.sort(key=lambda row: (-row[0], row[1].filename.lower()))
+    return scored[0][1]
+
+
+def extract_design_reference_language(
+    candidates: list[SocialDesignMediaCandidate],
+    *,
+    project_name: str | None = None,
+) -> dict[str, Any]:
+    """Read composition language from real marketing/brand references. Never photocopy."""
+    name_l = (project_name or "").lower()
+    refs: list[dict[str, str]] = []
+    for cand in candidates:
+        hay = " ".join(
+            [
+                cand.filename or "",
+                cand.folder_category or "",
+                " ".join(cand.tags or []),
+            ]
+        ).lower()
+        category = (cand.folder_category or "").upper()
+        is_ref = category in {"03_MARKETING", "01_BRAND", "05_LOCATION"} or any(
+            k in hay
+            for k in (
+                "campaign",
+                "keyvisual",
+                "key-visual",
+                "social",
+                "instagram",
+                "mood",
+                "board",
+                "lookbook",
+                "stationery",
+                "brand",
+            )
+        )
+        if not is_ref:
+            continue
+        if (cand.visual_subject or "") == "FLOOR_PLAN":
+            continue
+        refs.append(
+            {
+                "filename": cand.filename or "",
+                "category": cand.folder_category or "",
+                "subject": cand.visual_subject or "",
+            }
+        )
+        if len(refs) >= 8:
+            break
+    hay_all = " ".join(r["filename"] + " " + r["category"] for r in refs).lower()
+    image_led = any(k in hay_all for k in ("render", "exterior", "architecture", "aerial"))
+    return {
+        "whitespace": "generous" if "brand" in hay_all or "logo" in hay_all else "balanced",
+        "image_text_balance": "image_dominant" if image_led else "editorial",
+        "logo_hierarchy": "project_primary",
+        "overlay": "localized_readable",
+        "composition_language": "architectural_editorial",
+        "color": "light_type_on_dark_field",
+        "architectural_presentation": "hero_photograph",
+        "info_hierarchy": "headline_then_place",
+        "project_name": name_l,
+        "references": refs[:6],
+    }
 
 
 def search_project_assets_by_filename(

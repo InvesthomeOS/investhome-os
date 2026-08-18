@@ -147,7 +147,14 @@ def apply_ops(
                     existing["compositionBlueprint"] = op.payload.get("compositionBlueprint")
                 if op.payload.get("compositionFamily"):
                     existing["compositionFamily"] = op.payload.get("compositionFamily")
-                existing["geometryLocked"] = False
+                if op.payload.get("preserveGeometry"):
+                    existing["planGeometryLocked"] = True
+                    existing["geometryLocked"] = True
+                if op.payload.get("imageCrop"):
+                    existing["imageCrop"] = op.payload.get("imageCrop")
+                if op.payload.get("compositionType"):
+                    existing["compositionType"] = op.payload.get("compositionType")
+                existing["geometryLocked"] = bool(op.payload.get("preserveGeometry"))
                 existing["updatedAt"] = stamp
                 if campaign_cid:
                     existing["campaignContextId"] = str(campaign_cid)
@@ -156,7 +163,8 @@ def apply_ops(
                     existing["generationContextId"] = str(generation_cid)
                     existing["generation_context_id"] = str(generation_cid)
                 current_selected = op.post_id
-                grammar_post_ids.add(op.post_id)
+                if not op.payload.get("preserveGeometry"):
+                    grammar_post_ids.add(op.post_id)
                 continue
             if existing is not None and not rebuild:
                 # CREATE must not mutate an existing sibling — mint a distinct post
@@ -191,7 +199,10 @@ def apply_ops(
                     "creativePlan": op.payload.get("creativePlan"),
                     "compositionBlueprint": op.payload.get("compositionBlueprint"),
                     "compositionFamily": op.payload.get("compositionFamily"),
-                    "geometryLocked": False,
+                    "planGeometryLocked": bool(op.payload.get("preserveGeometry")),
+                    "geometryLocked": bool(op.payload.get("preserveGeometry")),
+                    "imageCrop": op.payload.get("imageCrop"),
+                    "compositionType": op.payload.get("compositionType"),
                     "campaignContextId": str(campaign_cid) if campaign_cid else None,
                     "campaign_context_id": str(campaign_cid) if campaign_cid else None,
                     "generationContextId": str(generation_cid) if generation_cid else None,
@@ -201,7 +212,8 @@ def apply_ops(
                 }
             )
             current_selected = op_post_id
-            grammar_post_ids.add(op_post_id)
+            if not op.payload.get("preserveGeometry"):
+                grammar_post_ids.add(op_post_id)
             continue
 
         post_id = post_id_remap.get(op.post_id, op.post_id)
@@ -221,10 +233,18 @@ def apply_ops(
 
         if op.op == "SET_FORMAT":
             preset = str(payload.get("formatPreset") or "square")
-            reflow_for_format(post, preset)
-            post["format"] = PRESET_TO_FORMAT.get(preset, "feed")
-            grammar_post_ids.add(post_id)
-            _sync_copy_fields(post)
+            if post.get("planGeometryLocked"):
+                if preset in FORMAT_PRESETS:
+                    w, h = FORMAT_PRESETS[preset]
+                    post["formatPreset"] = preset
+                    post["width"] = w
+                    post["height"] = h
+                post["format"] = PRESET_TO_FORMAT.get(preset, "feed")
+            else:
+                reflow_for_format(post, preset)
+                post["format"] = PRESET_TO_FORMAT.get(preset, "feed")
+                grammar_post_ids.add(post_id)
+                _sync_copy_fields(post)
             continue
 
         if op.op == "SET_BACKGROUND":
@@ -281,19 +301,23 @@ def apply_ops(
                     full_bleed=False,
                 )
                 draft.update(geo)
-                laid = layout_text_element(
-                    draft,
-                    canvas_w=cw,
-                    canvas_h=ch,
-                    slot={
-                        "x": geo["x"],
-                        "y": geo["y"],
-                        "width": geo["width"],
-                        "max_height": geo["height"],
-                    },
-                )
+                if post.get("planGeometryLocked"):
+                    laid = draft
+                else:
+                    laid = layout_text_element(
+                        draft,
+                        canvas_w=cw,
+                        canvas_h=ch,
+                        slot={
+                            "x": geo["x"],
+                            "y": geo["y"],
+                            "width": geo["width"],
+                            "max_height": geo["height"],
+                        },
+                    )
             _ensure_elements(post).append(laid)
-            grammar_post_ids.add(post_id)
+            if not post.get("planGeometryLocked"):
+                grammar_post_ids.add(post_id)
             _sync_copy_fields(post)
             continue
 
@@ -315,17 +339,23 @@ def apply_ops(
             asset_id = payload.get("asset_id")
             if role in {"background", "cover"} and asset_id:
                 post["coverAssetId"] = str(asset_id)
-            _ensure_elements(post).append(
-                {
-                    "id": eid,
-                    "type": "IMAGE",
-                    "role": role,
-                    "assetId": str(asset_id) if asset_id else None,
-                    "zIndex": clamp_int(payload.get("zIndex"), 0, 10_000, 0 if full_bleed else 1),
-                    **geo,
-                }
-            )
-            layout_post_ids.add(post_id)
+                if payload.get("crop"):
+                    post["imageCrop"] = payload.get("crop")
+            image_el: dict[str, Any] = {
+                "id": eid,
+                "type": "IMAGE",
+                "role": role,
+                "assetId": str(asset_id) if asset_id else None,
+                "zIndex": clamp_int(payload.get("zIndex"), 0, 10_000, 0 if full_bleed else 1),
+                **geo,
+            }
+            if payload.get("crop"):
+                image_el["crop"] = payload.get("crop")
+            if payload.get("objectPosition"):
+                image_el["objectPosition"] = payload.get("objectPosition")
+            _ensure_elements(post).append(image_el)
+            if not post.get("planGeometryLocked"):
+                layout_post_ids.add(post_id)
             continue
 
         if op.op == "ADD_CTA":
@@ -373,7 +403,8 @@ def apply_ops(
                 draft.update(geo)
                 laid = draft
             _ensure_elements(post).append(laid)
-            grammar_post_ids.add(post_id)
+            if not post.get("planGeometryLocked"):
+                grammar_post_ids.add(post_id)
             continue
 
         if op.op == "ADD_METRIC_GROUP":
@@ -412,7 +443,8 @@ def apply_ops(
                 slot = None
             laid = layout_metric_group(draft, canvas_w=cw, canvas_h=ch, slot=slot)
             _ensure_elements(post).append(laid)
-            grammar_post_ids.add(post_id)
+            if not post.get("planGeometryLocked"):
+                grammar_post_ids.add(post_id)
             continue
 
         if op.op == "DELETE_ELEMENT" and op.element_id:
@@ -654,7 +686,10 @@ def apply_ops(
     # Compound resolve for edits first, then visual vocab so subject/sky placement wins.
     for post in working:
         pid = str(post.get("id") or "")
-        if pid in grammar_post_ids:
+        if post.get("planGeometryLocked"):
+            # Directed Design Plan pixels must survive — no collision re-slot.
+            _sync_copy_fields(post)
+        elif pid in grammar_post_ids:
             apply_layout_grammar(post, force=True)
             _sync_copy_fields(post)
         elif pid in layout_post_ids and pid not in visual_intents:

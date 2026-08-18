@@ -288,6 +288,7 @@ export function buildSocialDesignRequest(input: {
   designProvider?: 'native' | 'ideogram';
   /** Asset IDs that 404/403'd for the current project — never send them (avoids aborting CREATE). */
   excludeAssetIds?: string[];
+  formatPreset?: string | null;
 }): BuildSocialDesignResult {
   const linked = typeof input.linkedProjectId === 'string' ? input.linkedProjectId.trim() : '';
   if (!linked || !UUID_RE.test(linked)) {
@@ -366,6 +367,10 @@ export function buildSocialDesignRequest(input: {
         builder: 'social',
         design_engine: 'phase1',
         platforms,
+        ...(input.formatPreset ? { format_preset: input.formatPreset } : {}),
+        ...(typeof input.posts[0]?.formatPreset === 'string' && !input.formatPreset
+          ? { format_preset: input.posts.find((p) => p.id === input.selectedPostId)?.formatPreset || input.posts[0]?.formatPreset }
+          : {}),
         ...(selectedElement
           ? {
               selectedElementId: selectedElement.id,

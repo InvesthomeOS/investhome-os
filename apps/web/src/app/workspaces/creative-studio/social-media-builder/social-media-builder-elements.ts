@@ -61,6 +61,8 @@ export type SocialImageElement = SocialElementBase & {
   type: 'IMAGE';
   assetId: string | null;
   role?: 'image' | 'background' | 'cover' | 'logo';
+  crop?: { x?: number; y?: number; w?: number; h?: number; object_position?: string };
+  objectPosition?: string;
 };
 
 export type SocialButtonElement = SocialElementBase & {

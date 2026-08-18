@@ -422,3 +422,165 @@ def test_alternate_real_exterior_keeps_composition(client, db_session: Session) 
         "",
     )
     assert new_headline == headline
+
+
+def _headline_geo(post: dict) -> tuple[int, int, int]:
+    for el in post.get("elements") or []:
+        if el.get("role") == "headline":
+            return int(el.get("x") or 0), int(el.get("y") or 0), int(el.get("fontSize") or 0)
+    return (0, 0, 0)
+
+
+def test_design_plan_geometry_not_imprisoned_in_top_left_recipe() -> None:
+    from investhome_api.services.social_design_engine.art_director import _directed_regions
+    from investhome_api.services.social_design_engine.layout import social_layout_slots
+
+    recipe_slots = social_layout_slots(1080, 1350, primitive="TOP_LEFT_EDITORIAL")
+    recipe_h = recipe_slots["headline"]
+    directed = _directed_regions(
+        composition_type="location_story",
+        canvas_w=1080,
+        canvas_h=1350,
+        refs={"whitespace": "generous", "image_text_balance": "image_dominant"},
+        salt=42,
+        include_support=True,
+    )
+    hx, hy = directed["headline"]["x"], directed["headline"]["y"]
+    assert abs(hx - recipe_h["x"]) >= 8 or abs(hy - recipe_h["y"]) >= 40
+    hero = _directed_regions(
+        composition_type="architectural_hero",
+        canvas_w=1080,
+        canvas_h=1350,
+        refs={"whitespace": "generous"},
+        salt=7,
+        include_support=True,
+    )
+    story = _directed_regions(
+        composition_type="split_information",
+        canvas_w=1080,
+        canvas_h=1350,
+        refs={"whitespace": "generous"},
+        salt=9,
+        include_support=True,
+    )
+    assert abs(hero["headline"]["y"] - story["headline"]["y"]) >= 40
+    assert abs(hero["headline"]["width"] - story["headline"]["width"]) >= 40
+
+
+def test_location_portrait_applies_design_plan_pixels(client, db_session: Session) -> None:
+    from investhome_api.services.social_design_engine.layout import social_layout_slots
+
+    project = _create_project(db_session)
+    aerial = _asset(db_session, project, filename="site-aerial-drone.jpg", folder_category="06_MEDIA")
+    logo = _asset(
+        db_session,
+        project,
+        filename="IH_DC_TMP_001_Logo_White.svg",
+        folder_category="01_BRAND",
+        content_type="image/svg+xml",
+    )
+    _asset(
+        db_session,
+        project,
+        filename="Investhome_Logo_White.svg",
+        folder_category="01_BRAND",
+        content_type="image/svg+xml",
+    )
+    _asset(db_session, project, filename="IH_DC_TMP_001_Render_Exterior_Day_003.jpg")
+    body = {
+        "linked_project_id": str(project.id),
+        "instruction": "The Temple projesinin lokasyon avantajını anlatan premium bir Instagram postu hazırla. 4:5",
+        "mode": "create",
+        "mode_explicit": True,
+        "design_provider": "native",
+        "draft": {"posts": [], "selected_post_id": None},
+        "language": "tr",
+        "builder_context": {"format_preset": "portrait"},
+    }
+    res = client.post("/ai/creative-studio/social/design", json=body)
+    assert res.status_code == 200, res.text
+    payload = res.json()
+    assert payload["meta"]["planner"] == "art_director"
+    assert payload["meta"]["art_director"]["campaign_type"] == "LOCATION"
+    post = payload["posts"][-1]
+    assert post.get("width") == 1080
+    assert post.get("height") == 1350
+    assert post.get("planGeometryLocked") is True or post.get("formatPreset") == "portrait"
+    hx, hy, hf = _headline_geo(post)
+    recipe = social_layout_slots(1080, 1350, primitive="TOP_LEFT_EDITORIAL")["headline"]
+    assert abs(hx - recipe["x"]) >= 8 or abs(hy - recipe["y"]) >= 40
+    assert hf >= 36
+    plan = payload["meta"]["design_plan"]
+    headline_plan = plan.get("headline")
+    assert isinstance(headline_plan, dict)
+    assert int(headline_plan.get("x") or 0) == hx
+    assert int(headline_plan.get("y") or 0) == hy
+    assert plan.get("image_crop")
+    cover = post.get("coverAssetId") or post.get("cover_asset_id")
+    assert cover == str(aerial.id) or cover
+    logo_els = [
+        el
+        for el in post.get("elements") or []
+        if el.get("type") == "IMAGE" and el.get("role") == "logo"
+    ]
+    assert logo_els
+    assert any(el.get("assetId") == str(logo.id) or el.get("asset_id") == str(logo.id) for el in logo_els)
+    blob = " ".join(
+        str(el.get("content") or el.get("label") or "")
+        for el in post.get("elements") or []
+    ).lower()
+    assert "irr" not in blob
+    assert "roi" not in blob
+    assert "%" not in blob or "14%" not in blob
+    variants = payload.get("design_variants") or []
+    ys = []
+    for variant in variants:
+        x, y, _f = _headline_geo(variant.get("post") or {})
+        ys.append((x, y))
+    assert len({row[1] for row in ys}) >= 2
+    invented = ("500,000", "500000", "14%", "irr", "roi")
+    assert not any(token in blob for token in invented)
+
+
+def test_claim_guard_still_blocks_invented_location_numbers(client, db_session: Session) -> None:
+    project = _create_project(db_session)
+    _asset(db_session, project, filename="site-aerial-drone.jpg", folder_category="06_MEDIA")
+    _asset(
+        db_session,
+        project,
+        filename="IH_DC_TMP_001_Logo_White.svg",
+        folder_category="01_BRAND",
+        content_type="image/svg+xml",
+    )
+    res = client.post(
+        "/ai/creative-studio/social/design",
+        json={
+            "linked_project_id": str(project.id),
+            "instruction": (
+                "The Temple projesinin lokasyon avantajını anlatan premium bir Instagram postu hazırla. "
+                "14% IRR and $500,000 minimum."
+            ),
+            "mode": "create",
+            "mode_explicit": True,
+            "design_provider": "native",
+            "draft": {"posts": [], "selected_post_id": None},
+            "language": "tr",
+            "builder_context": {"format_preset": "portrait"},
+        },
+    )
+    assert res.status_code == 200, res.text
+    payload = res.json()
+    assert payload["meta"]["art_director"]["campaign_type"] == "LOCATION"
+    post = payload["posts"][-1]
+    blob = " ".join(
+        str(el.get("content") or el.get("label") or "")
+        for el in post.get("elements") or []
+    ).lower()
+    assert "metric" not in {str(el.get("type") or "").lower() for el in post.get("elements") or []} or "METRIC_GROUP" not in {
+        el.get("type") for el in post.get("elements") or []
+    }
+    types = {el.get("type") for el in post.get("elements") or []}
+    assert "METRIC_GROUP" not in types
+    assert "14%" not in blob
+    assert "500,000" not in blob
+    assert "irr" not in blob

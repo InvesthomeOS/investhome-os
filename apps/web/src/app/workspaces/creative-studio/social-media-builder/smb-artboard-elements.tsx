@@ -568,7 +568,16 @@ export function SmbArtboardElements({
             tabIndex={0}
           >
             {url ? (
-              <img src={url} alt="" draggable={false} />
+              <img
+                src={url}
+                alt=""
+                draggable={false}
+                style={
+                  el.type === 'IMAGE' && el.objectPosition
+                    ? { objectPosition: el.objectPosition }
+                    : undefined
+                }
+              />
             ) : (
               <span className="smb-ws__el-image-empty" />
             )}
