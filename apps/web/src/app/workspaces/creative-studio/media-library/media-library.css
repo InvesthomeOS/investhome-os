@@ -600,6 +600,10 @@
   background: #eef6f8;
 }
 
+.ml-ws__thumb.is-previewable {
+  cursor: zoom-in;
+}
+
 .ml-ws__grid.is-list .ml-ws__thumb {
   aspect-ratio: 1;
   width: 96px;
@@ -1380,6 +1384,7 @@
 
 /* Lightbox uses existing Dialog; enlarge panel only for this preview. */
 .ih-dialog:has([data-testid='ml-lightbox']) {
+  z-index: 1400;
   padding: 0.75rem;
 }
 

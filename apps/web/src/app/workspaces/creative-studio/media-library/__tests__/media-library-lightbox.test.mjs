@@ -47,20 +47,32 @@ function lightboxSourceLabel(asset, labels) {
   return labels.uploaded;
 }
 
-describe('lightbox opens from image card click', () => {
-  it('opens preview on image card activate, not on generic card chrome', () => {
-    assert.match(workspace, /function handleCardActivate\(asset: MediaAsset\)/);
-    assert.match(workspace, /if \(asset\.kind === 'image'\)/);
-    assert.match(workspace, /setPreviewId\(asset\.id\)/);
+describe('lightbox opens from image thumbnail click', () => {
+  it('opens preview on thumbnail click and keeps card body as select only', () => {
+    assert.match(workspace, /function openImageLightbox\(asset: MediaAsset, event: MouseEvent\)/);
+    assert.match(workspace, /event\.stopPropagation\(\);/);
+    assert.match(workspace, /if \(asset\.kind === 'image'\) \{\s*setPreviewId\(asset\.id\);/s);
+    assert.match(workspace, /data-testid=\{`ml-thumb-\$\{asset\.id\}`\}/);
+    assert.match(workspace, /className=\{`ml-ws__thumb\$\{asset\.kind === 'image' \? ' is-previewable' : ''\}`\}/);
+    assert.match(workspace, /onClick=\{\(e\) => openImageLightbox\(asset, e\)\}/);
     assert.match(workspace, /onClick=\{\(\) => handleCardActivate\(asset\)\}/);
+    assert.match(
+      workspace,
+      /function handleCardActivate\(asset: MediaAsset\) \{\s*selectAsset\(asset\.id\);\s*\}/s,
+    );
+    assert.doesNotMatch(
+      workspace,
+      /function handleCardActivate\(asset: MediaAsset\) \{\s*selectAsset\(asset\.id\);\s*if \(asset\.kind === 'image'\)/s,
+    );
     assert.match(workspace, /<MediaLibraryLightbox/);
-    assert.match(lightbox, /<Dialog open=\{open && Boolean\(asset\)\}/);
+    assert.match(lightbox, /createPortal/);
     assert.match(lightbox, /data-testid="ml-lightbox"/);
   });
 });
 
 describe('image is contained, not cropped', () => {
   it('uses object-contain on the lightbox image and never object-cover', () => {
+    assert.match(css, /\.ih-dialog:has\(\[data-testid='ml-lightbox'\]\)[\s\S]{0,80}z-index:\s*1400/);
     assert.match(css, /\.ml-lightbox__image[\s\S]*object-fit:\s*contain/);
     assert.match(lightbox, /className="ml-lightbox__image"/);
     assert.match(lightbox, /data-testid="ml-lightbox-image"/);

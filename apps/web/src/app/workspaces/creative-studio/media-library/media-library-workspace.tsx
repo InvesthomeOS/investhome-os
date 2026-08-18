@@ -400,11 +400,16 @@ export function MediaLibraryWorkspace() {
     setCardMenuId(null);
   }
 
-  function handleCardActivate(asset: MediaAsset) {
+  function openImageLightbox(asset: MediaAsset, event: MouseEvent) {
+    event.stopPropagation();
     selectAsset(asset.id);
     if (asset.kind === 'image') {
       setPreviewId(asset.id);
     }
+  }
+
+  function handleCardActivate(asset: MediaAsset) {
+    selectAsset(asset.id);
   }
 
   function toggleFavorite(_id: string, event: MouseEvent) {
@@ -896,17 +901,24 @@ export function MediaLibraryWorkspace() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      handleCardActivate(asset);
+                      if (asset.kind === 'image') {
+                        setPreviewId(asset.id);
+                      }
+                      selectAsset(asset.id);
                     }
                   }}
                   role="button"
                   tabIndex={0}
                   data-testid={`ml-card-${asset.id}`}
                 >
-                  <div className="ml-ws__thumb">
+                  <div
+                    className={`ml-ws__thumb${asset.kind === 'image' ? ' is-previewable' : ''}`}
+                    data-testid={`ml-thumb-${asset.id}`}
+                    onClick={(e) => openImageLightbox(asset, e)}
+                  >
                     {thumb && asset.kind === 'image' ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={thumb} alt="" />
+                      <img src={thumb} alt="" className="ml-ws__thumb-image" />
                     ) : (
                       <div className="ml-ws__thumb-doc">
                         <IhIcon name={docIcon(asset.ext)} size={28} />

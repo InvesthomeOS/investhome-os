@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { Button, Dialog } from '@investhome/ui';
 
@@ -76,13 +77,26 @@ export function MediaLibraryLightbox({
 }: MediaLibraryLightboxProps) {
   const [zoom, setZoom] = useState(ML_LIGHTBOX_ZOOM_MIN);
   const stageRef = useRef<HTMLDivElement>(null);
+  const openedAtRef = useRef(0);
 
   const prevId = asset ? lightboxNeighborId(assetIds, asset.id, -1) : null;
   const nextId = asset ? lightboxNeighborId(assetIds, asset.id, 1) : null;
+  const isOpen = open && Boolean(asset);
+
+  if (isOpen && openedAtRef.current === 0) {
+    openedAtRef.current = Date.now();
+  }
+  if (!isOpen) {
+    openedAtRef.current = 0;
+  }
 
   useEffect(() => {
     setZoom(ML_LIGHTBOX_ZOOM_MIN);
   }, [asset?.id]);
+
+  useEffect(() => {
+    if (open && asset) openedAtRef.current = Date.now();
+  }, [open, asset?.id]);
 
   useEffect(() => {
     if (!open) return;
@@ -128,8 +142,20 @@ export function MediaLibraryLightbox({
     return () => stage.removeEventListener('wheel', onWheel);
   }, [open, asset?.id]);
 
-  return (
-    <Dialog open={open && Boolean(asset)} onClose={onClose} title={asset?.name ?? labels.title}>
+  const guardedClose = useCallback(() => {
+    // Ignore the same click that opened the overlay (React 19 can deliver it to the new Dialog).
+    if (Date.now() - openedAtRef.current < 250) return;
+    onClose();
+  }, [onClose]);
+
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
+    <Dialog
+      open={open && Boolean(asset)}
+      onClose={guardedClose}
+      title={asset?.name ?? labels.title}
+    >
       {asset ? (
         <div className="ml-lightbox" data-testid="ml-lightbox">
           <div className="ml-lightbox__toolbar" role="toolbar" aria-label={labels.title}>
@@ -224,6 +250,7 @@ export function MediaLibraryLightbox({
           </dl>
         </div>
       ) : null}
-    </Dialog>
+    </Dialog>,
+    document.body,
   );
 }
