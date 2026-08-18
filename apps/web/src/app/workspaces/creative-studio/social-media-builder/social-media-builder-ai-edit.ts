@@ -8,6 +8,7 @@
  * - make_premium — "daha premium yap", "make it more premium"
  * - use_night_render — "gece renderını kullan", "use night render" (needs a night-tagged media asset)
  * - move_logo_down — "logoyu biraz aşağı al", "move logo down" (needs an IMAGE logo layer)
+ * - move_headline_down — "başlığı biraz aşağı al", "move headline down" (y-only; preserves fontSize)
  *
  * Unrecognized instructions are not applied here — the workspace may send them
  * to the existing generate/edit API. Matched-but-impossible commands must toast,
@@ -24,7 +25,8 @@ export type AiFollowUpCommand =
   | 'remove_price'
   | 'make_premium'
   | 'use_night_render'
-  | 'move_logo_down';
+  | 'move_logo_down'
+  | 'move_headline_down';
 
 export type AiFollowUpMediaHint = {
   id: string;
@@ -55,6 +57,7 @@ const COMMAND_PATTERNS: { command: AiFollowUpCommand; pattern: RegExp }[] = [
   { command: 'remove_price', pattern: /fiyat[iı] kald[iı]r|remove (the )?price|hide (the )?price|fiyat[iı] gizle/i },
   { command: 'use_night_render', pattern: /gece render|night render|use (the )?night|gece g[oö]r[uü]n/i },
   { command: 'move_logo_down', pattern: /logoyu.{0,24}a[sş]a[gğ][iı]|move (the )?logo down|logo.{0,12}down/i },
+  { command: 'move_headline_down', pattern: /ba[sş]l[iı][gğ][iı].{0,24}a[sş]a[gğ][iı]|move (the )?headline down|headline.{0,12}down/i },
   { command: 'make_premium', pattern: /daha premium|more premium|make (it )?premium/i },
   { command: 'simplify_text', pattern: /daha (minimal|sade)|yaz[iı]lar[iı].{0,16}sade|simplify (the )?text|more minimal|sadele[sş]tir/i },
 ];
@@ -175,6 +178,19 @@ function applyMoveLogoDown(elements: SocialElement[], canvasH: number): SocialEl
   return elements.map((el) => {
     if (el.id !== logo.id) return el;
     const y = Math.min(canvasH - el.height - 8, el.y + delta);
+    // Position-only patch — preserve size/opacity and any sibling style fields.
+    return { ...el, y };
+  });
+}
+
+/** Move headline down without rewriting typography (manual fontSize must survive). */
+function applyMoveHeadlineDown(elements: SocialElement[], canvasH: number): SocialElement[] | null {
+  const target = headlineEl(elements);
+  if (!target) return null;
+  const delta = Math.max(18, Math.round(canvasH * 0.04));
+  return elements.map((el) => {
+    if (el.id !== target.id || el.type !== 'TEXT') return el;
+    const y = Math.min(canvasH - el.height - 8, el.y + delta);
     return { ...el, y };
   });
 }
@@ -237,6 +253,13 @@ export function applyAiFollowUpEdit(
     if (command === 'move_logo_down') {
       const next = applyMoveLogoDown(elements, canvasH);
       if (!next) return { ok: false, commands, reason: 'no_logo' };
+      elements = next;
+      applied.push(command);
+      continue;
+    }
+    if (command === 'move_headline_down') {
+      const next = applyMoveHeadlineDown(elements, canvasH);
+      if (!next) return { ok: false, commands, reason: 'no_headline' };
       elements = next;
       applied.push(command);
       continue;

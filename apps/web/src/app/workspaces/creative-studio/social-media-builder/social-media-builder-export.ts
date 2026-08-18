@@ -4,6 +4,7 @@
  */
 
 import {
+  socialFontWeightCss,
   sortElementsByZ,
   type SocialElement,
 } from './social-media-builder-elements';
@@ -99,7 +100,7 @@ async function drawElement(
     ctx.fillStyle = el.color;
     ctx.textAlign = el.align;
     ctx.textBaseline = 'top';
-    const weight = el.fontWeight === 'bold' ? 700 : 400;
+    const weight = socialFontWeightCss(el.fontWeight);
     ctx.font = `${weight} ${el.fontSize}px system-ui, sans-serif`;
     const anchorX =
       el.align === 'left'

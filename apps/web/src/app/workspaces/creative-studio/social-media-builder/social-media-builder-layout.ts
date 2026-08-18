@@ -3,12 +3,13 @@
  * One geometry path for manual move/resize/align/duplicate/format + AI draft merge.
  */
 
-import type {
-  SocialElement,
-  SocialMetricGroupElement,
-  SocialMetricLayout,
-  SocialStructuredMetric,
-  SocialTextElement,
+import {
+  isBoldishWeight,
+  type SocialElement,
+  type SocialMetricGroupElement,
+  type SocialMetricLayout,
+  type SocialStructuredMetric,
+  type SocialTextElement,
 } from './social-media-builder-elements';
 
 export const SAFE_MARGIN_RATIO = 0.07;
@@ -458,7 +459,7 @@ export function growTextBoxToContent(
   opts?: { minHeight?: number; allowShrinkFont?: boolean },
 ): SocialTextElement {
   const box = safeContentBox(canvasW, canvasH);
-  const bold = el.fontWeight === 'bold' || el.role === 'headline';
+  const bold = isBoldishWeight(el.fontWeight) || el.role === 'headline';
   const prefs = roleFontPrefs(el.role === 'headline' || el.role === 'body' ? el.role : 'custom', canvasW);
   let font = clampInt(el.fontSize, 8, 200, 24);
   const width = clampInt(el.width, 8, box.width, Math.min(box.width, Math.max(8, el.width)));
@@ -530,7 +531,7 @@ export function autoLayoutText(
   const role = el.role === 'headline' || el.role === 'body' ? el.role : 'custom';
   const prefs = roleFontPrefs(role, canvasW);
   const box = safeContentBox(canvasW, canvasH);
-  const bold = el.fontWeight === 'bold' || role === 'headline';
+  const bold = isBoldishWeight(el.fontWeight) || role === 'headline';
   const content = el.content || '';
   const breakLines = Math.max(1, explicitLineCount(content) || 1);
   const hasHardBreaks = /\r?\n/.test(content);

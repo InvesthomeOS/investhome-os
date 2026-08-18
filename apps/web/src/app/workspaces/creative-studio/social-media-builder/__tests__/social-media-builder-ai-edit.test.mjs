@@ -30,6 +30,7 @@ const COMMAND_PATTERNS = [
   { command: 'remove_price', pattern: /fiyat[iı] kald[iı]r|remove (the )?price|hide (the )?price|fiyat[iı] gizle/i },
   { command: 'use_night_render', pattern: /gece render|night render|use (the )?night|gece g[oö]r[uü]n/i },
   { command: 'move_logo_down', pattern: /logoyu.{0,24}a[sş]a[gğ][iı]|move (the )?logo down|logo.{0,12}down/i },
+  { command: 'move_headline_down', pattern: /ba[sş]l[iı][gğ][iı].{0,24}a[sş]a[gğ][iı]|move (the )?headline down|headline.{0,12}down/i },
   { command: 'make_premium', pattern: /daha premium|more premium|make (it )?premium/i },
   { command: 'simplify_text', pattern: /daha (minimal|sade)|yaz[iı]lar[iı].{0,16}sade|simplify (the )?text|more minimal|sadele[sş]tir/i },
 ];
@@ -63,6 +64,7 @@ describe('follow-up command parser', () => {
     assert.deepEqual(parseAiFollowUpCommands('Daha premium yap.'), ['make_premium']);
     assert.deepEqual(parseAiFollowUpCommands('Gece renderını kullan.'), ['use_night_render']);
     assert.deepEqual(parseAiFollowUpCommands('Logoyu biraz aşağı al.'), ['move_logo_down']);
+    assert.deepEqual(parseAiFollowUpCommands('Başlığı biraz aşağı al.'), ['move_headline_down']);
     assert.deepEqual(parseAiFollowUpCommands('Yazıları daha sade yap.'), ['simplify_text']);
     assert.deepEqual(parseAiFollowUpCommands('Use the night render and shrink the headline'), [
       'shrink_headline',
@@ -95,7 +97,8 @@ describe('AI-first SMB chrome (source wiring)', () => {
     assert.doesNotMatch(workspace, /t\('aiDesign\.engineIdeogram'\)/);
     assert.doesNotMatch(workspace, /t\('aiDesign\.createPost'\)/);
     assert.doesNotMatch(workspace, /t\('aiDesign\.editPost'\)/);
-    assert.doesNotMatch(workspace, /output\.composition/);
+    // GPT Image may reference output.composition_* fields; keep UI free of raw composition dumps.
+    assert.doesNotMatch(workspace, /output\.composition[^_a-zA-Z]/);
     assert.doesNotMatch(workspace, /t\('useCanvaEngine'\)/);
     assert.match(workspace, /testId: 'smb-open-in-canva'/);
     assert.match(workspace, /moreLabel=\{t\('editor.more'\)\}/);
@@ -135,6 +138,7 @@ describe('AI-first SMB chrome (source wiring)', () => {
     assert.match(src, /make_premium/);
     assert.match(src, /use_night_render/);
     assert.match(src, /move_logo_down/);
+    assert.match(src, /move_headline_down/);
     assert.match(src, /simplify_text/);
     assert.match(src, /export function applyAiFollowUpEdit/);
   });

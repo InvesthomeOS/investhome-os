@@ -882,6 +882,7 @@ export function SocialMediaBuilderWorkspace() {
       return;
     }
     setSelectedElementId(elementId);
+    setRightRailId('style');
   }
 
   function patchElement(

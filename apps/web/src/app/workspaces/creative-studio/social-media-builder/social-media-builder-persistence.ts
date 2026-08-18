@@ -5,10 +5,14 @@
 
 import { isMediaAssetUuid } from '../_components/cs-image-ref';
 import {
+  clampOpacity,
   createDefaultElements,
   captionFromElements,
   ensureUniqueElementIds,
   headlineFromElements,
+  parseSocialFontFamily,
+  parseSocialFontWeight,
+  parseSocialObjectFit,
   type SocialElement,
   type SocialImageElement,
   type SocialStructuredMetric,
@@ -191,16 +195,32 @@ function parseElement(raw: unknown): SocialElement | null {
       roleRaw === 'brand'
         ? roleRaw
         : 'custom';
-    const fontWeight = body.fontWeight === 'bold' ? 'bold' : 'normal';
+    const fontFamily = parseSocialFontFamily(body.fontFamily);
+    const lineHeight =
+      typeof body.lineHeight === 'number' && Number.isFinite(body.lineHeight)
+        ? Math.max(0.8, Math.min(3, body.lineHeight))
+        : undefined;
+    const letterSpacing =
+      typeof body.letterSpacing === 'number' && Number.isFinite(body.letterSpacing)
+        ? Math.max(-5, Math.min(40, body.letterSpacing))
+        : undefined;
+    const opacity =
+      body.opacity === undefined || body.opacity === null
+        ? undefined
+        : clampOpacity(body.opacity, 1);
     return {
       ...base,
       type: 'TEXT',
       content: typeof body.content === 'string' ? body.content : '',
       fontSize: Math.max(8, clampNum(body.fontSize, 24)),
-      fontWeight,
+      fontWeight: parseSocialFontWeight(body.fontWeight),
       align,
       color: typeof body.color === 'string' && body.color.trim() ? body.color : '#ffffff',
       role,
+      ...(fontFamily ? { fontFamily } : {}),
+      ...(lineHeight !== undefined ? { lineHeight } : {}),
+      ...(letterSpacing !== undefined ? { letterSpacing } : {}),
+      ...(opacity !== undefined ? { opacity } : {}),
     };
   }
 
@@ -216,6 +236,11 @@ function parseElement(raw: unknown): SocialElement | null {
       roleRaw === 'background' || roleRaw === 'cover' || roleRaw === 'logo' || roleRaw === 'image'
         ? roleRaw
         : undefined;
+    const objectFit = parseSocialObjectFit(body.objectFit);
+    const opacity =
+      body.opacity === undefined || body.opacity === null
+        ? undefined
+        : clampOpacity(body.opacity, 1);
     return {
       ...base,
       type: 'IMAGE',
@@ -225,10 +250,21 @@ function parseElement(raw: unknown): SocialElement | null {
         ? { crop: body.crop as SocialImageElement['crop'] }
         : {}),
       ...(typeof body.objectPosition === 'string' ? { objectPosition: body.objectPosition } : {}),
+      ...(objectFit ? { objectFit } : {}),
+      ...(typeof body.lockAspectRatio === 'boolean' ? { lockAspectRatio: body.lockAspectRatio } : {}),
+      ...(opacity !== undefined ? { opacity } : {}),
     };
   }
 
   if (type === 'BUTTON' || type === 'CTA') {
+    const fontFamily = parseSocialFontFamily(body.fontFamily);
+    const alignRaw = body.align;
+    const align: SocialTextAlign | undefined =
+      alignRaw === 'left' || alignRaw === 'right' || alignRaw === 'center' ? alignRaw : undefined;
+    const opacity =
+      body.opacity === undefined || body.opacity === null
+        ? undefined
+        : clampOpacity(body.opacity, 1);
     return {
       ...base,
       type: 'BUTTON',
@@ -242,6 +278,21 @@ function parseElement(raw: unknown): SocialElement | null {
           ? body.textColor
           : '#111827',
       ctaStyle: typeof body.ctaStyle === 'string' ? body.ctaStyle : null,
+      ...(typeof body.fontSize === 'number' && Number.isFinite(body.fontSize)
+        ? { fontSize: Math.max(8, Math.round(body.fontSize)) }
+        : {}),
+      ...(body.fontWeight !== undefined
+        ? { fontWeight: parseSocialFontWeight(body.fontWeight) }
+        : {}),
+      ...(fontFamily ? { fontFamily } : {}),
+      ...(align ? { align } : {}),
+      ...(typeof body.borderRadius === 'number' && Number.isFinite(body.borderRadius)
+        ? { borderRadius: Math.max(0, Math.round(body.borderRadius)) }
+        : {}),
+      ...(typeof body.padding === 'number' && Number.isFinite(body.padding)
+        ? { padding: Math.max(0, Math.round(body.padding)) }
+        : {}),
+      ...(opacity !== undefined ? { opacity } : {}),
     };
   }
 
@@ -308,6 +359,10 @@ function serializeElement(el: SocialElement): Record<string, unknown> {
       align: el.align,
       color: el.color,
       role: el.role,
+      ...(el.fontFamily ? { fontFamily: el.fontFamily } : {}),
+      ...(el.lineHeight !== undefined ? { lineHeight: el.lineHeight } : {}),
+      ...(el.letterSpacing !== undefined ? { letterSpacing: el.letterSpacing } : {}),
+      ...(el.opacity !== undefined ? { opacity: el.opacity } : {}),
     };
   }
   if (el.type === 'IMAGE') {
@@ -317,6 +372,9 @@ function serializeElement(el: SocialElement): Record<string, unknown> {
       ...(el.role ? { role: el.role } : {}),
       ...(el.crop ? { crop: el.crop } : {}),
       ...(el.objectPosition ? { objectPosition: el.objectPosition } : {}),
+      ...(el.objectFit ? { objectFit: el.objectFit } : {}),
+      ...(el.lockAspectRatio !== undefined ? { lockAspectRatio: el.lockAspectRatio } : {}),
+      ...(el.opacity !== undefined ? { opacity: el.opacity } : {}),
     };
   }
   if (el.type === 'METRIC_GROUP') {
@@ -333,6 +391,13 @@ function serializeElement(el: SocialElement): Record<string, unknown> {
     backgroundColor: el.backgroundColor,
     textColor: el.textColor,
     ...(el.ctaStyle ? { ctaStyle: el.ctaStyle } : {}),
+    ...(el.fontSize !== undefined ? { fontSize: el.fontSize } : {}),
+    ...(el.fontWeight !== undefined ? { fontWeight: el.fontWeight } : {}),
+    ...(el.fontFamily ? { fontFamily: el.fontFamily } : {}),
+    ...(el.align ? { align: el.align } : {}),
+    ...(el.borderRadius !== undefined ? { borderRadius: el.borderRadius } : {}),
+    ...(el.padding !== undefined ? { padding: el.padding } : {}),
+    ...(el.opacity !== undefined ? { opacity: el.opacity } : {}),
   };
 }
 

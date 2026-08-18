@@ -13869,18 +13869,44 @@
             "typography": "Tipografi",
             "headingFont": "Başlık yazı tipi",
             "bodyFont": "Gövde yazı tipi",
+            "fontFamily": "Yazı tipi",
             "fontSize": "Yazı boyutu",
+            "fontSizeDecrease": "Yazı boyutunu küçült",
+            "fontSizeIncrease": "Yazı boyutunu büyüt",
             "fontWeight": "Kalınlık",
             "align": "Hizalama",
             "textColor": "Metin rengi",
+            "lineHeight": "Satır yüksekliği",
+            "letterSpacing": "Harf aralığı",
+            "opacity": "Opaklık",
+            "position": "Konum",
+            "size": "Boyut",
+            "scale": "Ölçek",
+            "width": "Genişlik",
+            "height": "Yükseklik",
+            "lockAspect": "En-boy oranını kilitle",
+            "cropFit": "Kırp / Sığdır",
+            "borderRadius": "Köşe yuvarlaklığı",
+            "padding": "İç boşluk",
+            "logo": "Logo",
+            "image": "Görsel",
             "selectTextHint": "Tipografi için bir metin öğesi seçin.",
+            "selectLayerHint": "Stil düzenlemek için tuvalde bir katman seçin.",
             "weights": {
-              "normal": "Normal",
-              "bold": "Kalın"
+              "normal": "Regular",
+              "medium": "Medium",
+              "semibold": "Semibold",
+              "bold": "Bold"
             },
             "fonts": {
               "sans": "Sans",
-              "serif": "Serif"
+              "serif": "Serif",
+              "system": "Sistem"
+            },
+            "fitModes": {
+              "cover": "Kapla",
+              "contain": "Sığdır",
+              "fill": "Doldur"
             },
             "overlay": "Overlay",
             "overlayStrength": "Overlay gücü",

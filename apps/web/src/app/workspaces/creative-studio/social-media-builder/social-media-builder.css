@@ -3363,6 +3363,25 @@
   resize: vertical;
 }
 
+.smb-ws__stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.smb-ws__stepper input[type='number'] {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.smb-ws__stepper-unit {
+  flex: 0 0 auto;
+  color: var(--cs-muted);
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+}
+
 .smb-ws__design-swatches {
   display: flex;
   gap: 6px;

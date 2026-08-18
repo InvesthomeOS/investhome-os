@@ -10,6 +10,9 @@ import {
 } from 'react';
 
 import {
+  clampOpacity,
+  socialFontFamilyCss,
+  socialFontWeightCss,
   sortElementsByZ,
   type SocialElement,
 } from './social-media-builder-elements';
@@ -333,6 +336,7 @@ export function SmbArtboardElements({
 
         if (el.type === 'TEXT') {
           const fontSize = Math.max(8, finiteOr(el.fontSize, 24));
+          const family = socialFontFamilyCss(el.fontFamily);
           return (
             <div
               key={el.id}
@@ -341,9 +345,13 @@ export function SmbArtboardElements({
                 ...style,
                 color: typeof el.color === 'string' && el.color.trim() ? el.color : '#ffffff',
                 fontSize,
-                fontWeight: el.fontWeight === 'bold' ? 700 : 400,
+                fontWeight: socialFontWeightCss(el.fontWeight),
                 textAlign: el.align === 'left' || el.align === 'right' ? el.align : 'center',
-                lineHeight: 1.2,
+                lineHeight: el.lineHeight ?? 1.2,
+                letterSpacing:
+                  el.letterSpacing !== undefined ? `${el.letterSpacing}px` : undefined,
+                opacity: clampOpacity(el.opacity, 1),
+                ...(family ? { fontFamily: family } : {}),
               }}
               data-testid={`smb-el-${el.id}`}
               data-el-type="TEXT"
@@ -402,7 +410,12 @@ export function SmbArtboardElements({
 
         if (el.type === 'BUTTON') {
           const btnH = Math.max(8, finiteOr(el.height, 40));
-          const btnFont = Math.max(12, Math.round(btnH * 0.42));
+          const btnFont = Math.max(
+            12,
+            Math.round(el.fontSize ?? btnH * 0.42),
+          );
+          const family = socialFontFamilyCss(el.fontFamily);
+          const pad = el.padding ?? undefined;
           return (
             <div
               key={el.id}
@@ -419,6 +432,15 @@ export function SmbArtboardElements({
                     ? el.textColor
                     : '#111827',
                 fontSize: btnFont,
+                fontWeight: socialFontWeightCss(el.fontWeight),
+                textAlign: el.align === 'left' || el.align === 'right' ? el.align : 'center',
+                borderRadius:
+                  el.borderRadius !== undefined
+                    ? el.borderRadius
+                    : Math.round(btnH / 2),
+                opacity: clampOpacity(el.opacity, 1),
+                ...(pad !== undefined ? { padding: `${pad}px` } : {}),
+                ...(family ? { fontFamily: family } : {}),
               }}
               data-testid={`smb-el-${el.id}`}
               data-el-type="BUTTON"
@@ -554,7 +576,10 @@ export function SmbArtboardElements({
           <div
             key={el.id}
             className={`smb-ws__el smb-ws__el--image${selected ? ' is-selected' : ''}${el.type === 'IMAGE' && el.role === 'logo' ? ' smb-ws__el--logo' : ''}`}
-            style={style}
+            style={{
+              ...style,
+              opacity: el.type === 'IMAGE' ? clampOpacity(el.opacity, 1) : 1,
+            }}
             data-testid={`smb-el-${el.id}`}
             data-el-type="IMAGE"
             data-el-role={el.type === 'IMAGE' ? el.role : undefined}
@@ -572,11 +597,14 @@ export function SmbArtboardElements({
                 src={url}
                 alt=""
                 draggable={false}
-                style={
-                  el.type === 'IMAGE' && el.objectPosition
+                style={{
+                  ...(el.type === 'IMAGE' && el.objectPosition
                     ? { objectPosition: el.objectPosition }
-                    : undefined
-                }
+                    : {}),
+                  ...(el.type === 'IMAGE' && el.objectFit
+                    ? { objectFit: el.objectFit }
+                    : {}),
+                }}
               />
             ) : (
               <span className="smb-ws__el-image-empty" />

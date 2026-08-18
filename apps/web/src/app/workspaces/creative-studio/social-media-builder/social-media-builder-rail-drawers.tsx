@@ -23,7 +23,7 @@ import {
   type SocialPost,
   type TemplateCategoryKey,
 } from './social-media-builder-model';
-import { toColorInputValue, type SocialElement } from './social-media-builder-elements';
+import { toColorInputValue, type SocialElement, clampFontSize, clampOpacity, nudgeFontSize, opacityToPercent, parseSocialFontWeight, parseSocialObjectFit } from './social-media-builder-elements';
 import { SmbZoomControls } from './smb-zoom-controls';
 
 type LocalRailProps = {
@@ -689,79 +689,362 @@ function ContentDrawer({
 function StyleDrawer({ selectedElement, patchElement, markDirty }: SmbRightRailDrawerProps) {
   const t = useTranslations('creativeStudio.ds.socialMediaBuilder');
 
-  if (!selectedElement || selectedElement.type !== 'TEXT') {
+  if (!selectedElement) {
     return (
       <div className="smb-ws__rail-panel-body smb-ws__left-stack" data-testid="smb-style-drawer">
-        <p className="smb-ws__muted">{t('rails.style.selectTextHint')}</p>
+        <p className="smb-ws__muted">{t('rails.style.selectLayerHint')}</p>
       </div>
     );
   }
 
+  const patch = (next: Partial<SocialElement>) => {
+    patchElement(next);
+    markDirty();
+  };
+
+  const isLogo = selectedElement.type === 'IMAGE' && selectedElement.role === 'logo';
+  const isImage = selectedElement.type === 'IMAGE' && !isLogo;
+  const isText = selectedElement.type === 'TEXT';
+  const isCta = selectedElement.type === 'BUTTON';
+
   return (
     <div className="smb-ws__rail-panel-body smb-ws__left-stack" data-testid="smb-style-drawer">
-      <details className="smb-ws__accordion" open>
-        <summary>{t('rails.style.typography')}</summary>
-        <Field label={t('rails.style.fontSize')}>
-          <input
-            type="number"
-            min={8}
-            max={200}
-            value={Number.isFinite(selectedElement.fontSize) ? selectedElement.fontSize : 24}
-            data-testid="smb-style-font-size"
-            onChange={(e) => {
-              patchElement({ fontSize: Number(e.target.value) || 16 });
-              markDirty();
-            }}
-          />
-        </Field>
-        <Field label={t('rails.style.fontWeight')}>
-          <select
-            value={selectedElement.fontWeight === 'bold' ? 'bold' : 'normal'}
-            data-testid="smb-style-font-weight"
-            onChange={(e) => {
-              patchElement({
-                fontWeight: e.target.value === 'bold' ? 'bold' : 'normal',
-              });
-              markDirty();
-            }}
-          >
-            <option value="normal">{t('rails.style.weights.normal')}</option>
-            <option value="bold">{t('rails.style.weights.bold')}</option>
-          </select>
-        </Field>
-        <Field label={t('rails.style.align')}>
-          <select
-            value={
-              selectedElement.align === 'left' || selectedElement.align === 'right'
-                ? selectedElement.align
-                : 'center'
-            }
-            data-testid="smb-style-align"
-            onChange={(e) => {
-              const align = e.target.value;
-              if (align === 'left' || align === 'center' || align === 'right') {
-                patchElement({ align });
-                markDirty();
+      {isText || isCta ? (
+        <details className="smb-ws__accordion" open>
+          <summary>{t('rails.style.typography')}</summary>
+          {isText ? (
+            <Field label={t('rails.style.fontFamily')}>
+              <select
+                value={selectedElement.fontFamily ?? 'sans'}
+                data-testid="smb-style-font-family"
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === 'sans' || v === 'serif' || v === 'system') {
+                    patch({ fontFamily: v });
+                  }
+                }}
+              >
+                <option value="sans">{t('rails.style.fonts.sans')}</option>
+                <option value="serif">{t('rails.style.fonts.serif')}</option>
+                <option value="system">{t('rails.style.fonts.system')}</option>
+              </select>
+            </Field>
+          ) : null}
+          <Field label={t('rails.style.fontSize')}>
+            <div className="smb-ws__stepper" data-testid="smb-style-font-size-stepper">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                data-testid="smb-style-font-size-dec"
+                aria-label={t('rails.style.fontSizeDecrease')}
+                onClick={() => {
+                  const current =
+                    isText
+                      ? selectedElement.fontSize
+                      : selectedElement.fontSize ?? Math.max(12, Math.round(selectedElement.height * 0.42));
+                  patch({ fontSize: nudgeFontSize(current, -2) });
+                }}
+              >
+                −
+              </Button>
+              <input
+                type="number"
+                min={8}
+                max={200}
+                value={
+                  isText
+                    ? Number.isFinite(selectedElement.fontSize)
+                      ? selectedElement.fontSize
+                      : 24
+                    : selectedElement.fontSize ?? Math.max(12, Math.round(selectedElement.height * 0.42))
+                }
+                data-testid="smb-style-font-size"
+                onChange={(e) => {
+                  patch({ fontSize: clampFontSize(e.target.value, 16) });
+                }}
+              />
+              <span className="smb-ws__stepper-unit" aria-hidden="true">
+                px
+              </span>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                data-testid="smb-style-font-size-inc"
+                aria-label={t('rails.style.fontSizeIncrease')}
+                onClick={() => {
+                  const current =
+                    isText
+                      ? selectedElement.fontSize
+                      : selectedElement.fontSize ?? Math.max(12, Math.round(selectedElement.height * 0.42));
+                  patch({ fontSize: nudgeFontSize(current, 2) });
+                }}
+              >
+                +
+              </Button>
+            </div>
+          </Field>
+          <Field label={t('rails.style.fontWeight')}>
+            <select
+              value={
+                isText
+                  ? selectedElement.fontWeight
+                  : selectedElement.fontWeight ?? 'normal'
               }
-            }}
-          >
-            <option value="left">{t('floating.alignModes.left')}</option>
-            <option value="center">{t('floating.alignModes.center')}</option>
-            <option value="right">{t('floating.alignModes.right')}</option>
-          </select>
-        </Field>
-        <Field label={t('rails.style.textColor')}>
-          <input
-            type="color"
-            value={toColorInputValue(selectedElement.color, '#ffffff')}
-            data-testid="smb-style-text-color"
-            onChange={(e) => {
-              patchElement({ color: e.target.value });
-              markDirty();
-            }}
-          />
-        </Field>
-      </details>
+              data-testid="smb-style-font-weight"
+              onChange={(e) => {
+                const weight = parseSocialFontWeight(e.target.value);
+                patch({ fontWeight: weight });
+              }}
+            >
+              <option value="normal">{t('rails.style.weights.normal')}</option>
+              <option value="medium">{t('rails.style.weights.medium')}</option>
+              <option value="semibold">{t('rails.style.weights.semibold')}</option>
+              <option value="bold">{t('rails.style.weights.bold')}</option>
+            </select>
+          </Field>
+          <Field label={t('rails.style.align')}>
+            <select
+              value={
+                isText
+                  ? selectedElement.align === 'left' || selectedElement.align === 'right'
+                    ? selectedElement.align
+                    : 'center'
+                  : selectedElement.align === 'left' || selectedElement.align === 'right'
+                    ? selectedElement.align
+                    : 'center'
+              }
+              data-testid="smb-style-align"
+              onChange={(e) => {
+                const align = e.target.value;
+                if (align === 'left' || align === 'center' || align === 'right') {
+                  patch({ align });
+                }
+              }}
+            >
+              <option value="left">{t('floating.alignModes.left')}</option>
+              <option value="center">{t('floating.alignModes.center')}</option>
+              <option value="right">{t('floating.alignModes.right')}</option>
+            </select>
+          </Field>
+          <Field label={isCta ? t('rails.content.buttonTextColor') : t('rails.style.textColor')}>
+            <input
+              type="color"
+              value={toColorInputValue(
+                isText ? selectedElement.color : selectedElement.textColor,
+                isText ? '#ffffff' : '#111827',
+              )}
+              data-testid="smb-style-text-color"
+              onChange={(e) => {
+                if (isText) patch({ color: e.target.value });
+                else patch({ textColor: e.target.value });
+              }}
+            />
+          </Field>
+          {isText ? (
+            <>
+              <Field label={t('rails.style.lineHeight')}>
+                <input
+                  type="number"
+                  min={0.8}
+                  max={3}
+                  step={0.05}
+                  value={selectedElement.lineHeight ?? 1.2}
+                  data-testid="smb-style-line-height"
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    if (!Number.isFinite(n)) return;
+                    patch({ lineHeight: Math.max(0.8, Math.min(3, n)) });
+                  }}
+                />
+              </Field>
+              <Field label={t('rails.style.letterSpacing')}>
+                <input
+                  type="number"
+                  min={-5}
+                  max={40}
+                  step={0.5}
+                  value={selectedElement.letterSpacing ?? 0}
+                  data-testid="smb-style-letter-spacing"
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    if (!Number.isFinite(n)) return;
+                    patch({ letterSpacing: Math.max(-5, Math.min(40, n)) });
+                  }}
+                />
+              </Field>
+            </>
+          ) : null}
+          <Field label={t('rails.style.opacity')}>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={opacityToPercent(selectedElement.opacity)}
+              data-testid="smb-style-opacity"
+              onChange={(e) => {
+                patch({ opacity: clampOpacity(Number(e.target.value) / 100, 1) });
+              }}
+            />
+          </Field>
+        </details>
+      ) : null}
+
+      {isCta ? (
+        <details className="smb-ws__accordion" open>
+          <summary>{t('rails.style.cta')}</summary>
+          <Field label={t('rails.content.buttonBg')}>
+            <input
+              type="color"
+              value={toColorInputValue(selectedElement.backgroundColor, '#ffffff')}
+              data-testid="smb-style-cta-bg"
+              onChange={(e) => patch({ backgroundColor: e.target.value })}
+            />
+          </Field>
+          <Field label={t('rails.style.borderRadius')}>
+            <input
+              type="number"
+              min={0}
+              max={200}
+              value={selectedElement.borderRadius ?? Math.round(selectedElement.height / 2)}
+              data-testid="smb-style-border-radius"
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                if (!Number.isFinite(n)) return;
+                patch({ borderRadius: Math.max(0, Math.round(n)) });
+              }}
+            />
+          </Field>
+          <Field label={t('rails.style.padding')}>
+            <input
+              type="number"
+              min={0}
+              max={120}
+              value={selectedElement.padding ?? 12}
+              data-testid="smb-style-padding"
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                if (!Number.isFinite(n)) return;
+                patch({ padding: Math.max(0, Math.round(n)) });
+              }}
+            />
+          </Field>
+        </details>
+      ) : null}
+
+      {isLogo || isImage ? (
+        <details className="smb-ws__accordion" open>
+          <summary>{isLogo ? t('rails.style.logo') : t('rails.style.image')}</summary>
+          <Field label={isLogo ? t('rails.style.size') : t('rails.style.scale')}>
+            <div className="smb-ws__stepper" data-testid="smb-style-size-stepper">
+              <input
+                type="number"
+                min={8}
+                max={4000}
+                value={Math.round(selectedElement.width)}
+                data-testid="smb-style-width"
+                aria-label={t('rails.style.width')}
+                onChange={(e) => {
+                  const nextW = Math.max(8, Math.round(Number(e.target.value) || selectedElement.width));
+                  if (selectedElement.lockAspectRatio !== false) {
+                    const ratio = selectedElement.width / Math.max(1, selectedElement.height);
+                    patch({ width: nextW, height: Math.max(8, Math.round(nextW / ratio)) });
+                  } else {
+                    patch({ width: nextW });
+                  }
+                }}
+              />
+              <span className="smb-ws__stepper-unit">×</span>
+              <input
+                type="number"
+                min={8}
+                max={4000}
+                value={Math.round(selectedElement.height)}
+                data-testid="smb-style-height"
+                aria-label={t('rails.style.height')}
+                onChange={(e) => {
+                  const nextH = Math.max(8, Math.round(Number(e.target.value) || selectedElement.height));
+                  if (selectedElement.lockAspectRatio !== false) {
+                    const ratio = selectedElement.width / Math.max(1, selectedElement.height);
+                    patch({ height: nextH, width: Math.max(8, Math.round(nextH * ratio)) });
+                  } else {
+                    patch({ height: nextH });
+                  }
+                }}
+              />
+            </div>
+          </Field>
+          <Field label={t('rails.style.position')}>
+            <div className="smb-ws__stepper" data-testid="smb-style-position">
+              <input
+                type="number"
+                value={Math.round(selectedElement.x)}
+                data-testid="smb-style-x"
+                aria-label="X"
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (!Number.isFinite(n)) return;
+                  patch({ x: Math.round(n) });
+                }}
+              />
+              <input
+                type="number"
+                value={Math.round(selectedElement.y)}
+                data-testid="smb-style-y"
+                aria-label="Y"
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (!Number.isFinite(n)) return;
+                  patch({ y: Math.round(n) });
+                }}
+              />
+            </div>
+          </Field>
+          {isLogo ? (
+            <label className="smb-ws__toggle-row">
+              <span>{t('rails.style.lockAspect')}</span>
+              <input
+                type="checkbox"
+                checked={selectedElement.lockAspectRatio !== false}
+                data-testid="smb-style-lock-aspect"
+                onChange={(e) => patch({ lockAspectRatio: e.target.checked })}
+              />
+            </label>
+          ) : (
+            <Field label={t('rails.style.cropFit')}>
+              <select
+                value={selectedElement.objectFit ?? 'cover'}
+                data-testid="smb-style-object-fit"
+                onChange={(e) => {
+                  const fit = parseSocialObjectFit(e.target.value);
+                  if (fit) patch({ objectFit: fit });
+                }}
+              >
+                <option value="cover">{t('rails.style.fitModes.cover')}</option>
+                <option value="contain">{t('rails.style.fitModes.contain')}</option>
+                <option value="fill">{t('rails.style.fitModes.fill')}</option>
+              </select>
+            </Field>
+          )}
+          <Field label={t('rails.style.opacity')}>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={opacityToPercent(selectedElement.opacity)}
+              data-testid="smb-style-opacity"
+              onChange={(e) => {
+                patch({ opacity: clampOpacity(Number(e.target.value) / 100, 1) });
+              }}
+            />
+          </Field>
+        </details>
+      ) : null}
+
+      {!isText && !isCta && !isLogo && !isImage ? (
+        <p className="smb-ws__muted">{t('rails.style.selectLayerHint')}</p>
+      ) : null}
     </div>
   );
 }

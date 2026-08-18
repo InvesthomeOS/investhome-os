@@ -11,6 +11,9 @@ import {
  */
 
 export type SocialTextAlign = 'left' | 'center' | 'right';
+export type SocialFontWeight = 'normal' | 'medium' | 'semibold' | 'bold';
+export type SocialFontFamily = 'sans' | 'serif' | 'system';
+export type SocialObjectFit = 'cover' | 'contain' | 'fill';
 export type SocialElementType = 'TEXT' | 'IMAGE' | 'BUTTON' | 'METRIC_GROUP';
 export type SocialTextRole = 'headline' | 'body' | 'custom' | 'eyebrow' | 'brand';
 export type SocialMetricType =
@@ -51,10 +54,15 @@ export type SocialTextElement = SocialElementBase & {
   type: 'TEXT';
   content: string;
   fontSize: number;
-  fontWeight: 'normal' | 'bold';
+  fontWeight: SocialFontWeight;
   align: SocialTextAlign;
   color: string;
   role: SocialTextRole;
+  fontFamily?: SocialFontFamily;
+  lineHeight?: number;
+  letterSpacing?: number;
+  /** 0–1 canvas opacity */
+  opacity?: number;
 };
 
 export type SocialImageElement = SocialElementBase & {
@@ -63,6 +71,10 @@ export type SocialImageElement = SocialElementBase & {
   role?: 'image' | 'background' | 'cover' | 'logo';
   crop?: { x?: number; y?: number; w?: number; h?: number; object_position?: string };
   objectPosition?: string;
+  objectFit?: SocialObjectFit;
+  lockAspectRatio?: boolean;
+  /** 0–1 canvas opacity */
+  opacity?: number;
 };
 
 export type SocialButtonElement = SocialElementBase & {
@@ -71,6 +83,14 @@ export type SocialButtonElement = SocialElementBase & {
   backgroundColor: string;
   textColor: string;
   ctaStyle?: string | null;
+  fontSize?: number;
+  fontWeight?: SocialFontWeight;
+  fontFamily?: SocialFontFamily;
+  align?: SocialTextAlign;
+  borderRadius?: number;
+  padding?: number;
+  /** 0–1 canvas opacity */
+  opacity?: number;
 };
 
 export type SocialMetricGroupElement = SocialElementBase & {
@@ -395,4 +415,63 @@ export function toColorInputValue(value: string | null | undefined, fallback = '
   }
   // Named / rgb() / invalid values crash <input type="color"> — always fall back.
   return /^#[0-9a-fA-F]{6}$/.test(fallback) ? fallback.toLowerCase() : '#ffffff';
+}
+
+export function parseSocialFontWeight(raw: unknown): SocialFontWeight {
+  if (raw === 'medium' || raw === 'semibold' || raw === 'bold' || raw === 'normal') return raw;
+  if (raw === 500 || raw === '500') return 'medium';
+  if (raw === 600 || raw === '600') return 'semibold';
+  if (raw === 700 || raw === '700' || raw === 'bold') return 'bold';
+  return 'normal';
+}
+
+export function socialFontWeightCss(weight: SocialFontWeight | undefined): number {
+  if (weight === 'bold') return 700;
+  if (weight === 'semibold') return 600;
+  if (weight === 'medium') return 500;
+  return 400;
+}
+
+export function isBoldishWeight(weight: SocialFontWeight | undefined): boolean {
+  return weight === 'bold' || weight === 'semibold';
+}
+
+export function parseSocialFontFamily(raw: unknown): SocialFontFamily | undefined {
+  if (raw === 'sans' || raw === 'serif' || raw === 'system') return raw;
+  return undefined;
+}
+
+export function socialFontFamilyCss(family: SocialFontFamily | undefined): string | undefined {
+  if (family === 'serif') return 'Georgia, "Times New Roman", serif';
+  if (family === 'system') return 'system-ui, -apple-system, sans-serif';
+  if (family === 'sans') return 'Inter, system-ui, -apple-system, sans-serif';
+  return undefined;
+}
+
+/** Clamp font size for immediate canvas updates (stepper / type-in). */
+export function clampFontSize(value: unknown, fallback = 24): number {
+  const n = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(8, Math.min(200, Math.round(n)));
+}
+
+export function nudgeFontSize(current: number, delta: number): number {
+  return clampFontSize(current + delta, current);
+}
+
+/** Opacity stored 0–1; UI often edits 0–100. */
+export function clampOpacity(value: unknown, fallback = 1): number {
+  const n = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  if (n > 1) return Math.max(0, Math.min(1, n / 100));
+  return Math.max(0, Math.min(1, n));
+}
+
+export function opacityToPercent(opacity: number | undefined): number {
+  return Math.round(clampOpacity(opacity, 1) * 100);
+}
+
+export function parseSocialObjectFit(raw: unknown): SocialObjectFit | undefined {
+  if (raw === 'cover' || raw === 'contain' || raw === 'fill') return raw;
+  return undefined;
 }
