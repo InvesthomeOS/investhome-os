@@ -64,18 +64,20 @@ describe('interactive canvas wiring', () => {
     assert.doesNotMatch(workspace, /fsPosts|fullscreenPosts|aiPreviewPosts/);
   });
 
-  it('ignores the artboard click that completes a layer pointerdown so selection survives mouseup', () => {
+  it('clears selection on background pointerdown, not retargeted click after chrome mounts', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
-    assert.match(workspace, /suppressArtboardDeselectRef/);
-    assert.match(workspace, /selectElementFromLayer/);
-    assert.match(workspace, /handleArtboardBackgroundClick/);
-    assert.match(workspace, /onSelect=\{selectElementFromLayer\}/);
-    assert.match(workspace, /onClick=\{handleArtboardBackgroundClick\}/);
-    assert.match(workspace, /if \(elementId && source === 'pointer'\)/);
-    assert.match(workspace, /suppressArtboardDeselectRef\.current = false/);
+    assert.match(workspace, /handleArtboardBackgroundPointerDown/);
+    assert.match(workspace, /onPointerDown=\{handleArtboardBackgroundPointerDown\}/);
+    assert.match(workspace, /onSelect=\{selectElement\}/);
+    assert.match(workspace, /function selectElement\(elementId: string \| null\)/);
+    // Ghost click after chrome mounts under the cursor must not deselect.
+    assert.doesNotMatch(workspace, /suppressArtboardDeselectRef/);
+    assert.doesNotMatch(workspace, /handleArtboardBackgroundClick/);
+    assert.doesNotMatch(workspace, /onClick=\{handleArtboardBackgroundClick\}/);
     const artboard = readSmb('smb-artboard-elements.tsx');
     assert.match(artboard, /onSelect\(el\.id, 'pointer'\)/);
     assert.match(artboard, /beginDrag\(e, el, 'move'\)/);
+    assert.match(artboard, /e\.stopPropagation\(\)/);
   });
 
   it('design engine serializes selected element into builder_context', () => {
@@ -227,10 +229,11 @@ describe('history / continuity logic (mirror)', () => {
 describe('selection / deselection contract', () => {
   it('click empty canvas clears selection; element click sets id', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
-    assert.match(workspace, /onClick=\{handleArtboardBackgroundClick\}/);
-    assert.match(workspace, /function handleArtboardBackgroundClick/);
-    assert.match(workspace, /if \(suppressArtboardDeselectRef\.current\) \{/);
+    assert.match(workspace, /onPointerDown=\{handleArtboardBackgroundPointerDown\}/);
+    assert.match(workspace, /function handleArtboardBackgroundPointerDown/);
+    assert.match(workspace, /selectElement\(null\)/);
     assert.match(workspace, /function selectElement\(elementId: string \| null\)/);
+    assert.doesNotMatch(workspace, /suppressArtboardDeselectRef/);
     const artboard = readSmb('smb-artboard-elements.tsx');
     assert.match(artboard, /onSelect\(el\.id\)/);
     assert.match(artboard, /is-selected/);

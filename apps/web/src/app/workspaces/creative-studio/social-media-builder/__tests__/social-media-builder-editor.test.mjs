@@ -597,7 +597,7 @@ describe('fullscreen selection / color input safety', () => {
     assert.match(workspace, /selectedPostIdRef\.current/);
     assert.match(workspace, /latestPosts/);
     // Cover image clicks must not bubble into FTV capture paths
-    assert.match(workspace, /smb-artboard-img[\s\S]*onPointerDown=\{\(e\) => e\.stopPropagation\(\)\}/);
+    assert.match(workspace, /smb-artboard-img[\s\S]*onPointerDown=\{\(e\) => \{\s*e\.stopPropagation\(\);\s*handleArtboardBackgroundPointerDown\(e\);\s*\}\}/);
   });
 
   it('guards artboard element render + drag against invalid geometry (FS)', () => {

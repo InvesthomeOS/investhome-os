@@ -288,10 +288,6 @@ export function SocialMediaBuilderWorkspace() {
   const editingElementIdRef = useRef(editingElementId);
   editingElementIdRef.current = editingElementId;
   const gestureHistoryPushedRef = useRef(false);
-  // Layer pointerdown selects immediately (so chrome/toolbar appear). React then
-  // mounts chrome under the cursor; mouseup/click retargets to the artboard and
-  // would otherwise clear selectedElementId. Ignore that one background click.
-  const suppressArtboardDeselectRef = useRef(false);
 
   const selectedConstruction = useMemo(
     () =>
@@ -757,22 +753,6 @@ export function SocialMediaBuilderWorkspace() {
   }, [floatingMoreOpen, alignMenuOpen, layerMenuOpen]);
 
   useEffect(() => {
-    function releaseSuppress() {
-      window.setTimeout(() => {
-        suppressArtboardDeselectRef.current = false;
-      }, 0);
-    }
-    window.addEventListener('pointerup', releaseSuppress);
-    window.addEventListener('pointercancel', releaseSuppress);
-    window.addEventListener('mouseup', releaseSuppress);
-    return () => {
-      window.removeEventListener('pointerup', releaseSuppress);
-      window.removeEventListener('pointercancel', releaseSuppress);
-      window.removeEventListener('mouseup', releaseSuppress);
-    };
-  }, []);
-
-  useEffect(() => {
     function onKey(event: globalThis.KeyboardEvent) {
       const target = event.target as HTMLElement | null;
       const tag = target?.tagName?.toLowerCase() ?? '';
@@ -906,16 +886,24 @@ export function SocialMediaBuilderWorkspace() {
     setRightRailId('style');
   }
 
-  function selectElementFromLayer(elementId: string | null, source?: 'pointer' | 'click') {
-    if (elementId && source === 'pointer') suppressArtboardDeselectRef.current = true;
-    selectElement(elementId);
-  }
-
-  function handleArtboardBackgroundClick() {
-    if (suppressArtboardDeselectRef.current) {
-      suppressArtboardDeselectRef.current = false;
-      return;
-    }
+  /**
+   * Clear selection on background pointerdown — never on click.
+   *
+   * Layer pointerdown selects and mounts selection chrome under the cursor.
+   * The completing click then retargets to the nearest common ancestor (artboard /
+   * cover img). Deselecting on that ghost click is what wiped the toolbar.
+   * Layers + chrome already stopPropagation on pointerdown, so a true empty-canvas
+   * press still reaches this handler; the retargeted click no longer matters.
+   */
+  function handleArtboardBackgroundPointerDown(event: {
+    target: EventTarget | null;
+    button?: number;
+  }) {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest?.('[data-testid^="smb-el-"]')) return;
+    if (target?.closest?.('[data-testid="smb-selection-chrome"]')) return;
+    if (target?.closest?.('[data-testid="smb-floating-actions"]')) return;
+    if (typeof event.button === 'number' && event.button !== 0) return;
     selectElement(null);
   }
 
@@ -2966,7 +2954,7 @@ export function SocialMediaBuilderWorkspace() {
                       data-width={contentSize.w}
                       data-height={contentSize.h}
                       data-text-edit-mode={editingElementId ? 'true' : 'false'}
-                      onClick={handleArtboardBackgroundClick}
+                      onPointerDown={handleArtboardBackgroundPointerDown}
                       role="presentation"
                     >
                       {/*
@@ -2999,10 +2987,9 @@ export function SocialMediaBuilderWorkspace() {
                               postAssets.retryAsset(selectedPost.coverAssetId);
                             }
                           }}
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onClick={(e) => {
+                          onPointerDown={(e) => {
                             e.stopPropagation();
-                            handleArtboardBackgroundClick();
+                            handleArtboardBackgroundPointerDown(e);
                           }}
                         />
                       ) : (
@@ -3071,7 +3058,7 @@ export function SocialMediaBuilderWorkspace() {
                         previewMode={previewMode}
                         canvasWidth={contentSize.w}
                         canvasHeight={contentSize.h}
-                        onSelect={selectElementFromLayer}
+                        onSelect={selectElement}
                         onPatchElement={(id, patch, opts) =>
                           patchElement(id, patch, {
                             live: opts?.live,

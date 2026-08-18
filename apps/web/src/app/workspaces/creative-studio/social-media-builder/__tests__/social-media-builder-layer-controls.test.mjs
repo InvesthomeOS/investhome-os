@@ -148,9 +148,10 @@ describe('style drawer wiring', () => {
   it('keeps the live style bar on selectedElementId after mouseup, not pointer-down-only', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
     assert.match(workspace, /!previewMode && selectedElementId && selectedElement/);
-    assert.match(workspace, /selectElementFromLayer/);
-    assert.match(workspace, /handleArtboardBackgroundClick/);
-    assert.match(workspace, /suppressArtboardDeselectRef/);
+    assert.match(workspace, /handleArtboardBackgroundPointerDown/);
+    assert.match(workspace, /onPointerDown=\{handleArtboardBackgroundPointerDown\}/);
+    assert.doesNotMatch(workspace, /suppressArtboardDeselectRef/);
+    assert.doesNotMatch(workspace, /handleArtboardBackgroundClick/);
     assert.doesNotMatch(workspace, /isPointerDown/);
     assert.doesNotMatch(workspace, /selectedElementId && isDragging/);
   });
