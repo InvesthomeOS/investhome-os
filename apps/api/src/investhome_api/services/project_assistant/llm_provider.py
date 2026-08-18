@@ -121,6 +121,18 @@ class LocalGroundedLLMProvider(LLMProvider):
                 output_tokens=max(1, len(answer) // 4),
                 raw={"grounded": True, "mode": "mock", "kind": "design_ops"},
             )
+        if "CREATIVE_BRIEF_JSON" in (user or "") or "CREATIVE_BRIEF_JSON" in (system or ""):
+            from investhome_api.services.creative_director.brief import _local_creative_brief
+
+            answer = _local_creative_brief(user)
+            return LLMResult(
+                answer=answer,
+                provider=self.name,
+                model=self._model,
+                input_tokens=max(1, (len(system) + len(user)) // 4),
+                output_tokens=max(1, len(answer) // 4),
+                raw={"grounded": True, "mode": "mock", "kind": "creative_brief"},
+            )
 
         chunks = _extract_evidence_chunks(user)
         if not chunks:
@@ -175,7 +187,12 @@ class OpenAILLMProvider(LLMProvider):
             ],
             "temperature": 0.1,
         }
-        if "CONTENT_PACKAGE_JSON" in (user or "") or "CONTENT_PACKAGE_JSON" in (system or ""):
+        if (
+            "CONTENT_PACKAGE_JSON" in (user or "")
+            or "CONTENT_PACKAGE_JSON" in (system or "")
+            or "CREATIVE_BRIEF_JSON" in (user or "")
+            or "CREATIVE_BRIEF_JSON" in (system or "")
+        ):
             payload["response_format"] = {"type": "json_object"}
         try:
             with httpx.Client(timeout=timeout_seconds) as client:
@@ -273,7 +290,12 @@ class AzureOpenAILLMProvider(LLMProvider):
             ],
             "temperature": 0.1,
         }
-        if "CONTENT_PACKAGE_JSON" in (user or "") or "CONTENT_PACKAGE_JSON" in (system or ""):
+        if (
+            "CONTENT_PACKAGE_JSON" in (user or "")
+            or "CONTENT_PACKAGE_JSON" in (system or "")
+            or "CREATIVE_BRIEF_JSON" in (user or "")
+            or "CREATIVE_BRIEF_JSON" in (system or "")
+        ):
             payload["response_format"] = {"type": "json_object"}
         try:
             with httpx.Client(timeout=timeout_seconds) as client:

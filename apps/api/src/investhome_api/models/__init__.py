@@ -201,6 +201,9 @@ from investhome_api.models.creative_studio import (  # noqa: F401
     CreativeStudioDocumentVersion,
     CreativeStudioProject,
 )
+from investhome_api.models.creative_director_campaign import (  # noqa: F401
+    CreativeDirectorCampaign,
+)
 from investhome_api.models.creative_studio_media import (  # noqa: F401
     CreativeStudioMediaAsset,
     CreativeStudioMediaFolder,

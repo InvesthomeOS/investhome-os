@@ -15,6 +15,7 @@ from investhome_api.api.routes import (
     companies,
     company_documents,
     company_foundation,
+    creative_director,
     creative_studio,
     creative_studio_generation,
     creative_studio_media,
@@ -167,6 +168,7 @@ def create_app() -> FastAPI:
     app.include_router(social_design_engine.router)
     app.include_router(ideogram_design_poc.router)
     app.include_router(gpt_image_design.router)
+    app.include_router(creative_director.router)
     app.include_router(inventory.router)
     app.include_router(inventory_pricing.prices_router)
     app.include_router(inventory_pricing.requests_router)
