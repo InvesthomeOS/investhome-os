@@ -134,6 +134,17 @@ describe('style drawer wiring', () => {
     assert.match(workspace, /setSelectedElementId\(elementId\);\s*setRightRailId\('style'\)/s);
   });
 
+  it('pins compact typography controls on selection chrome and the bottom dock', () => {
+    const workspace = readSmb('social-media-builder-workspace.tsx');
+    const drawer = readSmb('social-media-builder-rail-drawers.tsx');
+    assert.match(drawer, /export function SmbLayerStyleBar/);
+    assert.match(drawer, /data-testid=\{tid\('font-size-stepper'\)\}/);
+    assert.match(workspace, /smb-ws__selection-chrome/);
+    assert.match(workspace, /testIdPrefix="smb-live-style"/);
+    assert.match(workspace, /testIdPrefix="smb-dock-style"/);
+    assert.match(workspace, /<SmbLayerStyleBar/);
+  });
+
   it('ships i18n keys for layer style controls', () => {
     const en = readMessages('en.json');
     const tr = readMessages('tr.json');

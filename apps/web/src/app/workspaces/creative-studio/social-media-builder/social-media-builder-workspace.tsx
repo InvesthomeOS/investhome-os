@@ -132,6 +132,7 @@ import {
 } from './social-media-builder-gpt-image';
 
 import {
+  SmbLayerStyleBar,
   SmbLeftRailDrawer,
   SmbLocalRail,
   SmbRightRailDrawer,
@@ -2810,6 +2811,18 @@ export function SocialMediaBuilderWorkspace() {
                   testId: 'smb-scene-actions',
                   className: 'smb-ws__scene-actions',
                   primary: (
+                    <div className="smb-ws__dock-stack">
+                    {!previewMode && selectedElement ? (
+                      <SmbLayerStyleBar
+                        selectedElement={selectedElement}
+                        patchElement={(patch) => {
+                          if (!selectedElementId) return;
+                          patchElement(selectedElementId, patch);
+                        }}
+                        placement="dock"
+                        testIdPrefix="smb-dock-style"
+                      />
+                    ) : null}
                     <CsBottomActionToolbar
                       testId="smb-bat"
                       ariaLabel={t('canvas.toolbarAria')}
@@ -2903,6 +2916,7 @@ export function SocialMediaBuilderWorkspace() {
                         },
                       ]}
                     />
+                    </div>
                   ),
                 }}
               >
@@ -3047,7 +3061,14 @@ export function SocialMediaBuilderWorkspace() {
                       />
                       )}
                       </div>
-                      {!previewMode && selectedElementId ? (
+                      {!previewMode && selectedElementId && selectedElement ? (
+                        <div
+                          className="smb-ws__selection-chrome"
+                          data-testid="smb-selection-chrome"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                         <div
                           className="smb-ws__floating-actions"
                           data-testid="smb-floating-actions"
@@ -3189,6 +3210,13 @@ export function SocialMediaBuilderWorkspace() {
                               </div>
                             ) : null}
                           </div>
+                        </div>
+                        <SmbLayerStyleBar
+                          selectedElement={selectedElement}
+                          patchElement={(patch) => patchElement(selectedElement.id, patch)}
+                          placement="selection"
+                          testIdPrefix="smb-live-style"
+                        />
                         </div>
                       ) : null}
                     </div>
