@@ -210,6 +210,49 @@ def test_logo_from_brand_folder_never_generated(db_session: Session) -> None:
     assert hero != logo.id
 
 
+def test_logo_prefers_project_identity_over_corporate(db_session: Session) -> None:
+    project = _create_project(db_session, name="The Temple")
+    project.project_code = "IH-DC-TMP-001"
+    db_session.flush()
+    _asset(db_session, project, filename="IH_DC_TMP_001_Render_Exterior_Day_002.jpg")
+    corporate = _asset(
+        db_session,
+        project,
+        filename="Investhome_Logo_Primary.svg",
+        folder_category="01_BRAND",
+        content_type="image/svg+xml",
+    )
+    temple = _asset(
+        db_session,
+        project,
+        filename="IH_DC_TMP_001_Logo_Primary.svg",
+        folder_category="01_BRAND",
+        content_type="image/svg+xml",
+    )
+    addition = _asset(
+        db_session,
+        project,
+        filename="IH_DC_TMP_001_Addition_Logo_Primary.svg",
+        folder_category="01_BRAND",
+        content_type="image/svg+xml",
+    )
+    candidates = list_media_candidates(
+        db_session,
+        linked_project_id=project.id,
+        instruction="lokasyon",
+        campaign_type="LOCATION",
+    )
+    picked_logo = pick_logo_asset(
+        candidates,
+        project_name=project.project_name,
+        project_code=project.project_code,
+    )
+    assert picked_logo is not None
+    assert picked_logo.asset_id == temple.id
+    assert picked_logo.asset_id != corporate.id
+    assert picked_logo.asset_id != addition.id
+
+
 def test_design_plan_schema_and_variants_live_endpoint(client, db_session: Session) -> None:
     project = _create_project(db_session)
     hero = _asset(db_session, project, filename="IH_DC_TMP_001_Render_Exterior_Day_005.jpg")

@@ -85,6 +85,7 @@ from investhome_api.services.social_design_engine.copy_director import (
 from investhome_api.services.social_design_engine.campaign_intent import (
     apply_campaign_intent_to_generation_intent,
     classify_campaign_intent,
+    retrieval_query_for_campaign,
 )
 from investhome_api.services.social_design_engine.creative_intent import is_explicit_redesign
 from investhome_api.services.social_design_engine.design_quality import evaluate_and_repair as evaluate_design_quality
@@ -260,25 +261,47 @@ def generate_social_design(
     )
     min_score = float(getattr(settings, "ai_assistant_min_score", 0.12) or 0.12)
 
+    search_query = retrieval_query_for_campaign(
+        instruction,
+        campaign_intent=campaign_intent.campaign_intent,
+        city=project.city,
+        state=project.state,
+        country=project.country,
+        project_name=project.project_name,
+    )
+    location_campaign = campaign_intent.campaign_intent in {"location", "neighborhood"}
+    search_builder = None if location_campaign else "social"
+
+    def _content_hits(rows: list) -> list:
+        return [
+            h
+            for h in rows
+            if "metadata.json" not in (getattr(h, "file", None) or "").lower()
+        ]
+
     search_started = time.perf_counter()
     try:
-        hits = hybrid_search(
-            db,
-            query=instruction,
-            project_scope="single",
-            project_id=linked_project_id,
-            project_ids=None,
-            limit=retrieval_limit,
-            builder="social",
-        )
-        if not hits:
-            hits = hybrid_search(
+        hits = _content_hits(
+            hybrid_search(
                 db,
-                query=instruction,
+                query=search_query,
                 project_scope="single",
                 project_id=linked_project_id,
                 project_ids=None,
                 limit=retrieval_limit,
+                builder=search_builder,
+            )
+        )
+        if not hits:
+            hits = _content_hits(
+                hybrid_search(
+                    db,
+                    query=search_query,
+                    project_scope="single",
+                    project_id=linked_project_id,
+                    project_ids=None,
+                    limit=retrieval_limit,
+                )
             )
     except ProjectScopeError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

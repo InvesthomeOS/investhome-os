@@ -434,8 +434,15 @@ def build_art_director_session(
     exclude_asset_ids: set[UUID] | None = None,
 ) -> ArtDirectorSession:
     warnings: list[str] = []
+    ident = getattr(getattr(campaign_intelligence, "project_knowledge", None), "project_identity", None) or {}
+    if not isinstance(ident, dict):
+        ident = {}
     asset = select_real_asset(candidates, campaign_type=campaign_type, exclude_asset_ids=exclude_asset_ids)
-    logo = pick_logo_asset(candidates)
+    logo = pick_logo_asset(
+        candidates,
+        project_name=str(ident.get("project_name") or concept.project_identity_line or intent.project_hint or ""),
+        project_code=str(ident.get("project_code") or "") or None,
+    )
     if logo is None:
         warnings.append("no_approved_logo")
     if asset is None:

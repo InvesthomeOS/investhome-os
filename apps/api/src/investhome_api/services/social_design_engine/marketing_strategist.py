@@ -216,6 +216,7 @@ def extract_neighborhood(retrieved: list[Any], *, city: str = "", project_name: 
         re.compile(r"\bneighborhood of\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)?)\b"),
         re.compile(r"\bsits in\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)?)\b"),
         re.compile(r"\blocated in\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)?)\b"),
+        re.compile(r"\bin the heart of\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)?)\b"),
     )
     skip = {
         "washington",
@@ -565,7 +566,17 @@ def choose_campaign_angle(
     ev = _norm(evidence)
 
     if objective == "location":
-        if any(k in t for k in ("merkezi", "central", "merkez")):
+        if any(
+            k in t
+            for k in (
+                "merkezi",
+                "central",
+                "merkez",
+                "lokasyon avantaj",
+                "location advantage",
+                "adres avantaj",
+            )
+        ):
             return "central_positioning"
         if neighborhood and any(k in t for k in ("neighborhood", "mahalle", "district")):
             return "neighborhood_access"

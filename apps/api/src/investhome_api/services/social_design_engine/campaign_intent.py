@@ -441,6 +441,41 @@ def classify_campaign_intent(
     )
 
 
+LOCATION_RETRIEVAL_TERMS = (
+    "location",
+    "neighborhood",
+    "district",
+    "city",
+    "central",
+    "metro",
+    "corridor",
+)
+
+
+def retrieval_query_for_campaign(
+    instruction: str,
+    *,
+    campaign_intent: CampaignIntentKind,
+    city: str | None = None,
+    state: str | None = None,
+    country: str | None = None,
+    project_name: str | None = None,
+) -> str:
+    """Expand the RAG query with verified place terms so location briefs still retrieve.
+
+    The user prompt may say only 'lokasyon avantajı' without naming the city.
+    Never add prices, yields, or other financial figures.
+    """
+    parts = [(instruction or "").strip()]
+    if campaign_intent in {"location", "neighborhood"}:
+        parts.extend(LOCATION_RETRIEVAL_TERMS)
+        for val in (project_name, city, state, country):
+            token = (val or "").strip()
+            if token and token not in parts:
+                parts.append(token)
+    return " ".join(p for p in parts if p)
+
+
 def campaign_intent_to_dict(result: CampaignIntentResult) -> dict[str, Any]:
     payload = asdict(result)
     return payload

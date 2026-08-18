@@ -2551,6 +2551,29 @@ def test_campaign_intent_classification_natural_prompts() -> None:
     assert loc.campaign_intent == "location"
     assert loc.marketing_objective == "location"
 
+    natural = classify_campaign_intent(
+        "The Temple projesinin lokasyon avantajını anlatan bir Instagram postu hazırla.",
+        project_name="The Temple",
+    )
+    assert natural.campaign_intent == "location"
+    assert natural.marketing_objective == "location"
+    assert natural.language == "tr"
+    assert natural.explicit_fact_requests == []
+    from investhome_api.services.social_design_engine.campaign_intent import (
+        retrieval_query_for_campaign,
+    )
+
+    q = retrieval_query_for_campaign(
+        "The Temple projesinin lokasyon avantajını anlatan bir Instagram postu hazırla.",
+        campaign_intent=natural.campaign_intent,
+        city="Washington",
+        country="US",
+        project_name="The Temple",
+    )
+    assert "Washington" in q
+    assert "location" in q.lower()
+    assert "%" not in q and "yield" not in q.lower()
+
     irr = classify_campaign_intent(
         "The Temple yatırımının IRR oranını öne çıkar.",
         project_name="The Temple",
@@ -3049,6 +3072,68 @@ def test_location_brief_does_not_leak_project_financials(client, db_session: Ses
     assert "washington" in post_blob or "columbia" in post_blob or "central" in post_blob
     assert any(e.get("type") in {"BUTTON", "CTA"} for e in body["posts"][0]["elements"])
     assert body["posts"][0].get("generationMeta")
+
+
+def test_natural_temple_location_prompt_uses_project_city_not_invented_numbers(
+    client, db_session: Session
+) -> None:
+    """Exact SMB brief: location intent without naming the city in the prompt."""
+    db = db_session
+    temple = _create_project(db, project_id=TEMPLE_PROJECT_ID)
+    _stamp_unapproved_financials(temple)
+    _asset(db, temple, filename="temple-aerial-drone.jpg", folder_category="04_AERIAL")
+    logo = _asset(
+        db,
+        temple,
+        filename="IH_DC_TMP_001_Logo_Primary.svg",
+        folder_category="01_BRAND",
+        content_type="image/svg+xml",
+    )
+    brief = _asset(db, temple, filename="location.md", content_type="text/markdown")
+    doc = _ready_document(
+        db,
+        temple,
+        text=_long_text(
+            "Temple Residences sits in Columbia Heights with a central Washington location."
+        ),
+        title="location.md",
+        asset=brief,
+    )
+    reindex_document(db, doc.id)
+    db.commit()
+
+    resp = client.post(
+        "/ai/creative-studio/social/design",
+        json={
+            "linked_project_id": str(TEMPLE_PROJECT_ID),
+            "instruction": "The Temple projesinin lokasyon avantajını anlatan bir Instagram postu hazırla.",
+            "mode": "create",
+            "mode_explicit": True,
+            "language": "tr",
+            "design_provider": "native",
+            "draft": {"posts": [], "selected_post_id": None},
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["meta"]["generation_intent"]["marketing_objective"] == "location"
+    assert (body.get("meta") or {}).get("art_director", {}).get("campaign_type") == "LOCATION"
+    posts = body.get("posts") or []
+    assert posts
+    elements = posts[0].get("elements") or []
+    roles = {e.get("role") for e in elements}
+    types = {e.get("type") for e in elements}
+    assert "headline" in roles
+    assert "IMAGE" in types
+    post_blob = json.dumps(elements).lower()
+    assert "19.5" not in post_blob
+    assert "27.8" not in post_blob
+    assert "1450" not in post_blob
+    assert "washington" in post_blob or "columbia" in post_blob
+    cover = posts[0].get("coverAssetId")
+    assert cover
+    assert cover != str(logo.id)
+    assert "METRIC_GROUP" not in types
 
 
 def test_create_appends_isolated_campaign_and_edit_mutates_only_selected(

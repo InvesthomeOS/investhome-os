@@ -361,8 +361,18 @@ def pick_best_asset(
     return None
 
 
-def pick_logo_asset(candidates: list[SocialDesignMediaCandidate]) -> SocialDesignMediaCandidate | None:
-    """Real brand asset only. Never generate a logo."""
+def pick_logo_asset(
+    candidates: list[SocialDesignMediaCandidate],
+    *,
+    project_name: str | None = None,
+    project_code: str | None = None,
+) -> SocialDesignMediaCandidate | None:
+    """Real brand asset only. Never generate a logo.
+
+    Project identity (name/code in filename) outranks a generic corporate lockup.
+    """
+    name_tokens = {t.lower() for t in TOKEN_RE.findall(project_name or "") if len(t) >= 4}
+    code_hay = (project_code or "").strip().lower()
     scored: list[tuple[float, SocialDesignMediaCandidate]] = []
     for cand in candidates:
         hay = " ".join(
@@ -387,7 +397,25 @@ def pick_logo_asset(candidates: list[SocialDesignMediaCandidate]) -> SocialDesig
         if ctype == "image/svg+xml":
             score += 0.5
         if "historic" in hay:
-            score -= 0.4
+            score -= 1.8
+        if "addition" in hay:
+            score -= 1.8
+        if re.search(r"(^|_|-)logo(_|-)primary", hay) and "addition" not in hay and "historic" not in hay:
+            score += 2.0
+        if any(tok in hay for tok in name_tokens):
+            score += 2.5
+        if code_hay and code_hay in hay:
+            score += 2.5
+        elif code_hay:
+            for part in re.split(r"[-_\s]+", code_hay):
+                if len(part) >= 3 and part in hay:
+                    score += 1.2
+                    break
+        # Corporate lockup is supporting, not the primary project mark.
+        if "investhome" in hay and not any(tok in hay for tok in name_tokens) and (
+            not code_hay or code_hay not in hay
+        ):
+            score -= 1.2
         scored.append((score, cand))
     if not scored:
         return None
