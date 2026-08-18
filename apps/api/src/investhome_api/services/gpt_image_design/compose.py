@@ -18,6 +18,7 @@ from investhome_api.services.gpt_image_design.design_plan import (
     GptImageDesignPlan,
     build_gpt_image_design_plan,
     format_headline_for_plan,
+    sanitize_creative_text,
 )
 from investhome_api.services.gpt_image_design.source import ResolvedSourceImage
 from investhome_api.services.gpt_image_design.svg_raster import svg_bytes_to_png
@@ -140,9 +141,17 @@ def resolve_turkish_font(
 
 
 def _fit_logo(logo: Image.Image, box_w: int, box_h: int) -> Image.Image:
+    """Scale the real logo to fill the plan box (contain). thumbnail() only shrank — logos vanished."""
     src = logo.convert("RGBA")
-    src.thumbnail((max(1, box_w), max(1, box_h)), Image.Resampling.LANCZOS)
-    return src
+    bbox = src.getbbox()
+    if bbox:
+        src = src.crop(bbox)
+    src_w, src_h = max(1, src.width), max(1, src.height)
+    target_w, target_h = max(1, box_w), max(1, box_h)
+    scale = min(target_w / src_w, target_h / src_h)
+    nw = max(1, int(round(src_w * scale)))
+    nh = max(1, int(round(src_h * scale)))
+    return src.resize((nw, nh), Image.Resampling.LANCZOS)
 
 
 def _wrap_text(text: str, font: ImageFont.ImageFont, max_width: int) -> list[str]:
@@ -243,13 +252,13 @@ def _hex_rgba(color: str | None, alpha: int = 255) -> tuple[int, int, int, int]:
 
 def _slot_text(slots: CompositionSlotPlan, content_slot: str) -> str:
     if content_slot == "headline":
-        return slots.headline
+        return sanitize_creative_text(slots.headline)
     if content_slot == "subhead":
-        return slots.subhead
+        return sanitize_creative_text(slots.subhead)
     if content_slot in {"location", "verified", "verified_data"}:
-        return slots.verified_data
+        return sanitize_creative_text(slots.verified_data)
     if content_slot == "cta":
-        return slots.cta
+        return sanitize_creative_text(slots.cta)
     if content_slot == "slogan":
         return INVESHOME_SLOGAN if slots.include_slogan else ""
     return ""
@@ -257,6 +266,28 @@ def _slot_text(slots: CompositionSlotPlan, content_slot: str) -> str:
 
 def _is_bold(weight: str | None) -> bool:
     return (weight or "").lower() in {"bold", "semibold", "700", "600"}
+
+
+def _apply_plan_scrim(canvas: Image.Image, plan: GptImageDesignPlan) -> None:
+    """Subtle gradient/scrim so type stays readable. Last contrast resort after zone + color."""
+    if not plan.needs_scrim:
+        return
+    zone = plan.content_zone
+    if zone is None:
+        return
+    overlay = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+    painter = ImageDraw.Draw(overlay)
+    x0, y0 = max(0, zone.x), max(0, zone.y)
+    x1 = min(canvas.size[0], zone.x + zone.width)
+    y1 = min(canvas.size[1], zone.y + zone.height)
+    height = max(1, y1 - y0)
+    for row in range(y0, y1):
+        t = (row - y0) / height
+        alpha = int(round(150 * (t ** 1.35)))
+        if alpha <= 0:
+            continue
+        painter.line([(x0, row), (x1, row)], fill=(27, 42, 74, alpha))
+    canvas.alpha_composite(overlay)
 
 
 def compose_final_layers(
@@ -301,6 +332,7 @@ def compose_final_layers(
 
     layers: list[dict[str, Any]] = []
     draw = ImageDraw.Draw(canvas)
+    _apply_plan_scrim(canvas, plan)
 
     for spec in plan.layers:
         _compose_plan_layer(
@@ -371,10 +403,23 @@ def _compose_plan_layer(
         return
 
     if spec.type == "SHAPE":
+        if spec.id == "shape-location-mark" and not _slot_text(slots, "location"):
+            return
         fill = _hex_rgba(spec.fill or "#C4A35A")
+        if spec.opacity is not None:
+            fill = (fill[0], fill[1], fill[2], max(0, min(255, int(round(float(spec.opacity) * 255)))))
         radius = max(0, int(spec.border_radius or 0))
         box = (spec.x, spec.y, spec.x + spec.width, spec.y + spec.height)
-        if radius > 0:
+        if fill[3] < 255:
+            overlay = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+            overlay_draw = ImageDraw.Draw(overlay)
+            if radius > 0:
+                overlay_draw.rounded_rectangle(box, radius=radius, fill=fill)
+            else:
+                overlay_draw.rectangle(box, fill=fill)
+            canvas.alpha_composite(overlay)
+            draw = ImageDraw.Draw(canvas)
+        elif radius > 0:
             draw.rounded_rectangle(box, radius=radius, fill=fill)
         else:
             draw.rectangle(box, fill=fill)
@@ -400,33 +445,51 @@ def _compose_plan_layer(
         label = _slot_text(slots, slot) or slots.cta
         if not label:
             return
+        style = (spec.cta_style or "").strip().lower()
+        if style == "text_arrow" and "→" not in label:
+            label = f"{label}  →"
         font = resolve_turkish_font(
             bold=_is_bold(spec.font_weight) if spec.font_weight else True,
             size=int(spec.font_size or 14),
             family=spec.font_family or "sans",
         )
-        bg = _hex_rgba(spec.background_color or "#C4A35A")
         fg = _hex_rgba(spec.text_color or "#1B2A4A")
-        radius = max(0, int(spec.border_radius or 4))
-        draw.rounded_rectangle(
-            (spec.x, spec.y, spec.x + spec.width, spec.y + spec.height),
-            radius=radius,
-            fill=bg,
-        )
+        radius = max(0, int(spec.border_radius or 0))
+        box = (spec.x, spec.y, spec.x + spec.width, spec.y + spec.height)
+        if style in {"editorial_link", "text_arrow", "minimal"}:
+            pass
+        elif style == "outline":
+            draw.rounded_rectangle(box, radius=max(radius, spec.height // 2), outline=fg, width=2)
+        else:
+            bg = _hex_rgba(spec.background_color or "#C4A35A")
+            draw.rounded_rectangle(box, radius=radius or 4, fill=bg)
         bbox = font.getbbox(label)
         tw = bbox[2] - bbox[0]
         th = bbox[3] - bbox[1]
         tx = spec.x + max(0, (spec.width - tw) // 2)
         ty = spec.y + max(0, (spec.height - th) // 2) - 1
+        if style in {"editorial_link", "text_arrow", "minimal"} and (spec.align or "left") == "left":
+            tx = spec.x
         draw.text((tx, ty), label, font=font, fill=fg)
+        if style == "editorial_link":
+            underline_y = ty + th + 3
+            draw.line((tx, underline_y, tx + tw, underline_y), fill=fg, width=1)
+        frontend_style = {
+            "pill": "PILL_BUTTON",
+            "outline": "MINIMAL_BUTTON",
+            "editorial_link": "TEXT_LINK_STYLE",
+            "text_arrow": "TEXT_LINK_STYLE",
+            "minimal": "MINIMAL_BUTTON",
+        }.get(style) or spec.cta_style
+        link_like = style in {"editorial_link", "text_arrow", "minimal", "outline"}
         layers.append(
             {
                 "id": spec.id,
                 "type": "BUTTON",
                 "label": label,
-                "backgroundColor": spec.background_color or "#C4A35A",
+                "backgroundColor": spec.background_color or ("transparent" if link_like else "#C4A35A"),
                 "textColor": spec.text_color or "#1B2A4A",
-                "ctaStyle": "gold" if (spec.background_color or "").upper() == "#C4A35A" else None,
+                "ctaStyle": frontend_style,
                 "fontSize": int(spec.font_size or 14),
                 "fontWeight": spec.font_weight or "semibold",
                 "fontFamily": spec.font_family or "sans",

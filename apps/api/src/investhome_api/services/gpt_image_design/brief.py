@@ -183,6 +183,7 @@ def build_shared_brief(
             "Do not replace the supplied building photograph with a different building.",
             "Do not draw logos or typeset critical copy. InvestHome OS Final Composition Layer places real logos and exact text after generation.",
             "Do not rasterize slogan, address, price, rent, ROI, CTA, or verified facts into pixels.",
+            "Do not typeset internal field names such as 'project name:' into the creative.",
             f"Investhome slogan is OS-typeset exactly as: {INVESHOME_SLOGAN}",
         ],
         "source_image": source_filename,

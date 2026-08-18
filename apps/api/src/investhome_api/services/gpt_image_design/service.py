@@ -59,6 +59,7 @@ from investhome_api.services.gpt_image_design.design_plan import (
     build_gpt_image_design_plan,
     decide_headline_line_breaks,
     design_plan_to_dict,
+    sanitize_creative_text,
 )
 from investhome_api.services.gpt_image_design.persistence import (
     asset_url,
@@ -518,7 +519,7 @@ def _generate_project(
         value = str(row.get("value") or "").strip()
         if not value:
             continue
-        line = f"{label}: {value}" if label else value
+        line = _verified_creative_line(label, value)
         line = strip_ineligible_financial_claims(
             line,
             allowed_tokens=allowed_tokens,
@@ -540,7 +541,7 @@ def _generate_project(
         value = str(row.get("value") or "").strip()
         if not value:
             continue
-        line = f"{label}: {value}" if label else value
+        line = _verified_creative_line(label, value)
         line = strip_ineligible_financial_claims(
             line,
             allowed_tokens=allowed_tokens,
@@ -623,6 +624,9 @@ def _generate_project(
                 "composition_used_slots": list(composition.used_slots),
                 "design_plan_variation": design_plan.variation,
                 "composition_type": design_plan.composition_type,
+                "visual_review_status": design_plan.visual_review_status,
+                "quality_corrections": list(design_plan.quality_corrections),
+                "needs_scrim": bool(design_plan.needs_scrim),
                 "investhome_global_logo_found": not any(
                     INVESHOME_GLOBAL_LOGO_MISSING in w for w in composition_warnings
                 ),
@@ -699,6 +703,17 @@ def _generate_project(
         provider_call_count=call_count,
         latency_ms=latency_ms,
     )
+
+
+def _verified_creative_line(label: str, value: str) -> str:
+    """Location/proof copy for OS layers — values only, never 'project name: The Temple'."""
+    cleaned_value = sanitize_creative_text(value)
+    if not cleaned_value:
+        return ""
+    labeled = f"{label}: {value}" if label else value
+    if sanitize_creative_text(labeled) == "":
+        return ""
+    return sanitize_creative_text(labeled) or cleaned_value
 
 
 def _generate_general(

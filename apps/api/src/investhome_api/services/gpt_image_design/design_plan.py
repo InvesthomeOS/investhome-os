@@ -24,30 +24,94 @@ MUTED_INK = "#6B7280"
 
 COMPOSITION_TYPES = (
     "editorial_hero",
-    "architectural_hero",
     "location_story",
+    "architecture_focus",
     "minimal_luxury",
-    "brand_campaign",
-    "data_location",
+    "investment_story",
     "lifestyle",
+    "neighborhood",
+    "project_intro",
+    "full_bleed",
+    "split_editorial",
 )
 
 COMPOSITION_LABELS = {
     "editorial_hero": "EDITORIAL HERO",
-    "architectural_hero": "ARCHITECTURAL HERO",
     "location_story": "LOCATION STORY",
+    "architecture_focus": "ARCHITECTURE FOCUS",
     "minimal_luxury": "MINIMAL LUXURY",
-    "brand_campaign": "BRAND CAMPAIGN",
-    "data_location": "DATA/LOCATION",
+    "investment_story": "INVESTMENT STORY",
     "lifestyle": "LIFESTYLE",
+    "neighborhood": "NEIGHBORHOOD",
+    "project_intro": "PROJECT INTRO",
+    "full_bleed": "FULL BLEED",
+    "split_editorial": "SPLIT EDITORIAL",
 }
 
 _LEGACY_ALIASES = {
     "editorial_luxury": "editorial_hero",
-    "centered_editorial": "brand_campaign",
-    "architectural_minimal": "architectural_hero",
-    "split_light_panel": "lifestyle",
+    "centered_editorial": "project_intro",
+    "architectural_minimal": "architecture_focus",
+    "architectural_hero": "architecture_focus",
+    "split_light_panel": "split_editorial",
     "dusk_overlay": "location_story",
+    "brand_campaign": "project_intro",
+    "data_location": "investment_story",
+}
+
+# Logo must stay visible on a 1080 canvas — 168x44 vanished in the corner.
+MIN_PROJECT_LOGO_W_REF = 248
+MIN_PROJECT_LOGO_H_REF = 72
+MIN_SAFE_REF = {"top": 64, "left": 72, "right": 72, "bottom": 72}
+MAX_VERTICAL_RULE_H_REF = 40
+DECORATION_PURPOSES = frozenset({"hierarchy", "direction", "framing", "brand_signature"})
+_METADATA_PREFIXES = (
+    "project name:",
+    "project_name:",
+    "project:",
+    "asset id:",
+    "asset_id:",
+    "linked_project_id:",
+    "folder_category:",
+    "filename:",
+    "tags:",
+    "source:",
+    "role:",
+)
+_DROP_METADATA_PREFIXES = (
+    "project name:",
+    "project_name:",
+    "project:",
+    "asset id:",
+    "asset_id:",
+    "linked_project_id:",
+    "folder_category:",
+    "filename:",
+    "tags:",
+    "source:",
+    "role:",
+)
+_STRIP_LABEL_PREFIXES = (
+    "city:",
+    "country:",
+    "address:",
+    "label:",
+    "location:",
+    "adres:",
+    "şehir:",
+    "sehir:",
+)
+_CTA_STYLE_BY_COMPOSITION = {
+    "editorial_hero": "editorial_link",
+    "location_story": "pill",
+    "architecture_focus": "outline",
+    "minimal_luxury": "editorial_link",
+    "investment_story": "text_arrow",
+    "lifestyle": "text_arrow",
+    "neighborhood": "outline",
+    "project_intro": "pill",
+    "full_bleed": "editorial_link",
+    "split_editorial": "text_arrow",
 }
 
 
@@ -104,6 +168,9 @@ class DesignPlanLayer:
     fill: str | None = None
     shape_kind: str | None = None
     padding: int | None = None
+    cta_style: str | None = None
+    decoration_purpose: str | None = None
+    opacity: float | None = None
 
 
 @dataclass
@@ -136,6 +203,9 @@ class GptImageDesignPlan:
     reserved: list[ReservedRegion] = field(default_factory=list)
     layers: list[DesignPlanLayer] = field(default_factory=list)
     art_notes: list[str] = field(default_factory=list)
+    needs_scrim: bool = False
+    visual_review_status: str = "READY FOR USER VISUAL REVIEW"
+    quality_corrections: list[str] = field(default_factory=list)
 
 
 def _sx(n: float, w: int) -> int:
@@ -191,10 +261,10 @@ def decide_headline_line_breaks(
         return [text]
     if scale == "modern" and n <= 3 and len(text) <= 26:
         return [text]
-    if composition in {"architectural_hero", "minimal_luxury"} and n <= 3 and len(text) <= 22:
+    if composition in {"architecture_focus", "architectural_hero", "minimal_luxury", "full_bleed"} and n <= 3 and len(text) <= 22:
         return [text]
 
-    if scale == "editorial" or composition in {"editorial_hero", "brand_campaign"}:
+    if scale == "editorial" or composition in {"editorial_hero", "brand_campaign", "project_intro", "split_editorial"}:
         if n == 2:
             return list(words)
         if n == 3:
@@ -234,42 +304,71 @@ def choose_composition_type(
 ) -> str:
     """Choose a composition family from prompt + campaign signals. Never a random template pick."""
     hay = f"{instruction} {composition_family} {objective} {campaign_angle}".lower()
-    family = (composition_family or "").strip().upper()
-    loc = any(k in hay for k in ("washington", "lokasyon", "location", "adres", "konum"))
+    family = (composition_family or "").strip().upper().replace(" ", "_").replace("-", "_")
+    loc = any(
+        k in hay
+        for k in (
+            "washington",
+            "lokasyon",
+            "location",
+            "adres",
+            "konum",
+            "merkezi lokasyon",
+        )
+    )
     premium = any(k in hay for k in ("premium", "luxury", "lüks", "luks", "editorial"))
-
-    if loc and premium:
-        return "editorial_hero"
 
     family_map = {
         "LUXURY_BRAND": "editorial_hero",
         "EDITORIAL_HERO": "editorial_hero",
-        "STATEMENT_LAYOUT": "brand_campaign",
-        "IMAGE_DOMINANT": "architectural_hero",
+        "EDITORIAL": "editorial_hero",
+        "STATEMENT_LAYOUT": "project_intro",
+        "IMAGE_DOMINANT": "architecture_focus",
         "LOWER_THIRD": "location_story",
+        "LOCATION": "location_story",
         "LIFESTYLE_EDITORIAL": "lifestyle",
-        "ARCHITECTURAL_MINIMAL": "architectural_hero",
-        "ASYMMETRIC_EDITORIAL": "lifestyle",
-        "SPLIT_LAYOUT": "lifestyle",
+        "ARCHITECTURAL_MINIMAL": "architecture_focus",
+        "ARCHITECTURE_FOCUS": "architecture_focus",
+        "ASYMMETRIC_EDITORIAL": "split_editorial",
+        "SPLIT_LAYOUT": "split_editorial",
+        "SPLIT_EDITORIAL": "split_editorial",
         "OVERLAY_PANEL": "location_story",
-        "INVESTMENT_GRID": "data_location",
-        "FLOATING_DATA": "data_location",
+        "INVESTMENT_GRID": "investment_story",
+        "INVESTMENT": "investment_story",
+        "INVESTMENT_STORY": "investment_story",
+        "FLOATING_DATA": "investment_story",
+        "MINIMAL_HERO": "minimal_luxury",
+        "MINIMAL_LUXURY": "minimal_luxury",
+        "NEIGHBORHOOD": "neighborhood",
+        "PROJECT_INTRO": "project_intro",
+        "BRAND_CAMPAIGN": "project_intro",
+        "FULL_BLEED": "full_bleed",
     }
     if family in family_map:
-        return family_map[family]
+        mapped = family_map[family]
+        # Location briefs must not collapse into EDITORIAL HERO just because they are premium.
+        if mapped == "editorial_hero" and loc:
+            return "location_story"
+        return mapped
 
+    if any(k in hay for k in ("mahalle", "neighborhood", "komşu", "komsu")):
+        return "neighborhood"
+    if loc or any(k in hay for k in ("adres", "city center", "merkez")):
+        return "location_story"
     if any(k in hay for k in ("lifestyle", "yaşam", "yasam", "interior", "ritüel", "rituel")):
         return "lifestyle"
-    if any(k in hay for k in ("brand", "marka", "lockup", "campaign")) and not loc:
-        return "brand_campaign"
+    if any(k in hay for k in ("yatırım", "yatirim", "investment", "investor")):
+        return "investment_story"
+    if any(k in hay for k in ("split", "iki kolon", "iki panel")):
+        return "split_editorial"
+    if any(k in hay for k in ("full bleed", "full-bleed", "kenarlara", "cephe doldur")):
+        return "full_bleed"
     if any(k in hay for k in ("architecture", "architectural", "facade", "cephe", "mimari")):
-        return "architectural_hero"
-    if any(k in hay for k in ("minimal",)) and not loc:
+        return "architecture_focus"
+    if any(k in hay for k in ("tanıtım", "tanitim", "intro", "lockup", "brand", "marka", "kampanya")):
+        return "project_intro"
+    if any(k in hay for k in ("minimal", "sade")) and not loc:
         return "minimal_luxury"
-    if loc or any(k in hay for k in ("adres", "neighborhood", "mahalle")):
-        return "location_story"
-    if any(k in hay for k in ("data", "metric", "verified location", "facts")):
-        return "data_location"
     if premium:
         return "editorial_hero"
     return "editorial_hero"
@@ -318,13 +417,13 @@ def _build_editorial_hero(cw: int, ch: int) -> dict[str, Any]:
         "typography_contrast": "high",
         "contrast_strategy": "navy serif on ivory air; gold CTA and location mark",
         "element_relationships": [
-            "BRAND GROUP: small logo upper-left, independent of type",
+            "BRAND GROUP: visible project logo upper-left — part of the design, not a corner stamp",
             "MESSAGE GROUP: headline + subhead, tight 12–16px grouping, large serif hierarchy",
-            "ACTION GROUP: CTA sits under the message group with breathing room — part of the composition",
+            "ACTION GROUP: CTA continues the headline group as an editorial link — never the main focus",
             "PROOF/LOCATION GROUP: diamond mark + location at the base, near the architecture, not in the type stack",
             "FOOTER GROUP: slogan bottom-left, supporting mark bottom-right",
         ],
-        "decorative_elements": ["vertical gold direction line", "editorial gold divider", "small gold location mark"],
+        "decorative_elements": ["short gold hierarchy hairline", "small gold location mark"],
         "overlap_rules": [
             "Do not sit type on busy windows or floors",
             "Building may crop into the right half; type stays in left-upper air",
@@ -337,14 +436,14 @@ def _build_editorial_hero(cw: int, ch: int) -> dict[str, Any]:
         ],
         "brand_color_relationships": [
             "navy #1B2A4A headline on ivory/cream air",
-            "gold #C4A35A for CTA, rules, and location mark",
+            "gold #C4A35A for editorial link, short hairline, and location mark",
             "muted navy for subhead; architecture remains photographic",
         ],
-        "safe_margins": {"top": _sy(64, ch), "left": _sx(72, cw), "right": _sx(72, cw), "bottom": _sy(48, ch)},
+        "safe_margins": {"top": _sy(64, ch), "left": _sx(72, cw), "right": _sx(72, cw), "bottom": _sy(72, ch)},
         "content_zone": _zone("content", _sx(48, cw), _sy(48, ch), _sx(520, cw), _sy(540, ch), "ivory_air"),
         "image_zone": _zone("image", _sx(400, cw), _sy(280, ch), _sx(680, cw), _sy(980, ch), "architecture"),
         "headline_zone": _zone("headline", mx, _sy(168, ch), _sx(560, cw), _sy(200, ch), "quiet"),
-        "brand_zone": _zone("brand", mx, my, _sx(180, cw), _sy(52, ch), "quiet"),
+        "brand_zone": _zone("brand", mx, my, _sx(260, cw), _sy(80, ch), "quiet"),
         "cta_zone": _zone("cta", mx, _sy(468, ch), _sx(240, cw), _sy(50, ch), "quiet"),
         "reserved": [
             ReservedRegion("brand_air", mx, my, _sx(200, cw), _sy(56, ch), "ivory_air"),
@@ -353,7 +452,7 @@ def _build_editorial_hero(cw: int, ch: int) -> dict[str, Any]:
         ],
         "groups": [
             _group("brand", ["logo-project"], "left", _sy(8, ch)),
-            _group("message", ["text-headline", "text-subhead", "shape-direction", "shape-divider"], "left", _sy(14, ch)),
+            _group("message", ["text-headline", "text-subhead", "shape-divider"], "left", _sy(14, ch)),
             _group("action", ["cta-primary"], "left", _sy(36, ch)),
             _group("proof", ["shape-location-mark", "text-location"], "left", _sx(10, cw)),
             _group("footer", ["text-slogan", "logo-investhome"], "split", _sx(24, cw)),
@@ -361,12 +460,7 @@ def _build_editorial_hero(cw: int, ch: int) -> dict[str, Any]:
         "layers": [
             _layer(
                 id="logo-project", type="IMAGE", role="logo", content_slot="project_logo", group="brand",
-                x=mx, y=my, width=_sx(168, cw), height=_sy(44, ch), z_index=8,
-            ),
-            _layer(
-                id="shape-direction", type="SHAPE", role="decoration", content_slot="shape", group="message",
-                x=_sx(64, cw), y=_sy(176, ch), width=max(2, _sx(2, cw)), height=_sy(132, ch),
-                fill=GOLD, shape_kind="line", z_index=4,
+                x=mx, y=my, width=_sx(248, cw), height=_sy(72, ch), z_index=8,
             ),
             _layer(
                 id="text-headline", type="TEXT", role="headline", content_slot="headline", group="message",
@@ -383,19 +477,20 @@ def _build_editorial_hero(cw: int, ch: int) -> dict[str, Any]:
             _layer(
                 id="shape-divider", type="SHAPE", role="decoration", content_slot="shape", group="message",
                 x=mx, y=_sy(424, ch), width=_sx(48, cw), height=max(2, _sy(2, ch)),
-                fill=GOLD, shape_kind="line", z_index=4,
+                fill=GOLD, shape_kind="line", decoration_purpose="hierarchy", z_index=4,
             ),
             _layer(
                 id="cta-primary", type="BUTTON", role="cta", content_slot="cta", group="action",
-                x=mx, y=_sy(468, ch), width=_sx(228, cw), height=_sy(46, ch),
+                x=mx, y=_sy(468, ch), width=_sx(228, cw), height=_sy(40, ch),
                 font_size=_sf(14, cw), font_family="sans", font_weight="semibold",
-                background_color=GOLD, text_color=NAVY, border_radius=_sf(2, cw),
-                padding=_sx(14, cw), z_index=7,
+                background_color=None, text_color=GOLD, border_radius=_sf(2, cw),
+                padding=_sx(4, cw), cta_style="editorial_link", z_index=7,
             ),
             _layer(
                 id="shape-location-mark", type="SHAPE", role="decoration", content_slot="shape", group="proof",
                 x=mx, y=_sy(1198, ch), width=_sx(8, cw), height=_sy(8, ch),
-                fill=GOLD, shape_kind="accent", border_radius=_sf(1, cw), z_index=4,
+                fill=GOLD, shape_kind="accent", decoration_purpose="brand_signature",
+                border_radius=_sf(1, cw), z_index=4,
             ),
             _layer(
                 id="text-location", type="TEXT", role="eyebrow", content_slot="location", group="proof",
@@ -418,7 +513,7 @@ def _build_editorial_hero(cw: int, ch: int) -> dict[str, Any]:
             "Editorial luxury RE campaign: oversized serif, intentional line break, ivory negative space.",
             "Place the real building as the hero in the RIGHT-LOWER image zone. Do not redesign facade, floors, or windows.",
             "Left-upper is campaign AIR (sky, stone, cream atmosphere, architectural shadow) — not a hard white template panel and not fake typeset copy.",
-            "OS will place the real logo, headline, CTA, gold rules, and location mark. Compose light and crop around those zones.",
+            "OS will place the real logo, headline, editorial CTA, a short gold hairline, and location mark. Compose light and crop around those zones. Do not paint a vertical gold bar.",
         ],
     }
 
@@ -434,7 +529,7 @@ def _build_architectural_hero(cw: int, ch: int) -> dict[str, Any]:
         "typography_contrast": "high",
         "contrast_strategy": "small navy type on photographic air at the base",
         "element_relationships": [
-            "BRAND GROUP: tiny logo upper-left",
+            "BRAND GROUP: visible logo upper-left",
             "MESSAGE GROUP: smaller serif headline at lower-left with thin gold rule above",
             "ACTION GROUP: compact CTA beside the message, not stacked as a poster",
             "FOOTER GROUP: slogan under the message",
@@ -467,7 +562,7 @@ def _build_architectural_hero(cw: int, ch: int) -> dict[str, Any]:
             _layer(
                 id="shape-divider", type="SHAPE", role="decoration", content_slot="shape", group="message",
                 x=_sx(72, cw), y=_sy(1028, ch), width=_sx(40, cw), height=max(2, _sy(2, ch)),
-                fill=GOLD, shape_kind="line", z_index=4,
+                fill=GOLD, shape_kind="line", decoration_purpose="hierarchy", z_index=4,
             ),
             _layer(
                 id="text-headline", type="TEXT", role="headline", content_slot="headline", group="message",
@@ -549,7 +644,8 @@ def _build_location_story(cw: int, ch: int) -> dict[str, Any]:
             _layer(
                 id="shape-location-mark", type="SHAPE", role="decoration", content_slot="shape", group="proof",
                 x=_sx(80, cw), y=_sy(892, ch), width=_sx(8, cw), height=_sy(8, ch),
-                fill=GOLD, shape_kind="accent", border_radius=_sf(1, cw), z_index=4,
+                fill=GOLD, shape_kind="accent", decoration_purpose="brand_signature",
+                border_radius=_sf(1, cw), z_index=4,
             ),
             _layer(
                 id="text-location", type="TEXT", role="eyebrow", content_slot="location", group="proof",
@@ -571,7 +667,7 @@ def _build_location_story(cw: int, ch: int) -> dict[str, Any]:
             _layer(
                 id="shape-divider", type="SHAPE", role="decoration", content_slot="shape", group="message",
                 x=_sx(80, cw), y=_sy(1092, ch), width=_sx(56, cw), height=max(2, _sy(2, ch)),
-                fill=GOLD, shape_kind="line", z_index=4,
+                fill=GOLD, shape_kind="line", decoration_purpose="hierarchy", z_index=4,
             ),
             _layer(
                 id="cta-primary", type="BUTTON", role="cta", content_slot="cta", group="action",
@@ -607,7 +703,7 @@ def _build_minimal_luxury(cw: int, ch: int) -> dict[str, Any]:
         "typography_contrast": "high",
         "contrast_strategy": "small serif navy on open ivory",
         "element_relationships": [
-            "BRAND GROUP: very small logo",
+            "BRAND GROUP: restrained but readable logo",
             "MESSAGE GROUP: one restrained headline, optional subhead",
             "ACTION GROUP: quiet navy CTA",
             "FOOTER GROUP: slogan only",
@@ -646,7 +742,7 @@ def _build_minimal_luxury(cw: int, ch: int) -> dict[str, Any]:
             _layer(
                 id="shape-divider", type="SHAPE", role="decoration", content_slot="shape", group="message",
                 x=_sx(88, cw), y=_sy(248, ch), width=_sx(36, cw), height=max(2, _sy(2, ch)),
-                fill=GOLD, shape_kind="line", z_index=4,
+                fill=GOLD, shape_kind="line", decoration_purpose="hierarchy", z_index=4,
             ),
             _layer(
                 id="text-subhead", type="TEXT", role="body", content_slot="subhead", group="message",
@@ -731,7 +827,7 @@ def _build_brand_campaign(cw: int, ch: int) -> dict[str, Any]:
             _layer(
                 id="shape-divider", type="SHAPE", role="decoration", content_slot="shape", group="message",
                 x=_sx(504, cw), y=_sy(436, ch), width=_sx(72, cw), height=max(2, _sy(2, ch)),
-                fill=GOLD, shape_kind="line", z_index=4,
+                fill=GOLD, shape_kind="line", decoration_purpose="hierarchy", z_index=4,
             ),
             _layer(
                 id="cta-primary", type="BUTTON", role="cta", content_slot="cta", group="action",
@@ -802,7 +898,8 @@ def _build_data_location(cw: int, ch: int) -> dict[str, Any]:
             _layer(
                 id="shape-location-mark", type="SHAPE", role="decoration", content_slot="shape", group="proof",
                 x=_sx(80, cw), y=_sy(148, ch), width=_sx(10, cw), height=_sy(10, ch),
-                fill=GOLD, shape_kind="accent", border_radius=_sf(1, cw), z_index=4,
+                fill=GOLD, shape_kind="accent", decoration_purpose="brand_signature",
+                border_radius=_sf(1, cw), z_index=4,
             ),
             _layer(
                 id="text-location", type="TEXT", role="eyebrow", content_slot="location", group="proof",
@@ -813,7 +910,7 @@ def _build_data_location(cw: int, ch: int) -> dict[str, Any]:
             _layer(
                 id="shape-divider", type="SHAPE", role="decoration", content_slot="shape", group="proof",
                 x=_sx(80, cw), y=_sy(176, ch), width=_sx(40, cw), height=max(2, _sy(2, ch)),
-                fill=GOLD, shape_kind="line", z_index=4,
+                fill=GOLD, shape_kind="line", decoration_purpose="hierarchy", z_index=4,
             ),
             _layer(
                 id="text-headline", type="TEXT", role="headline", content_slot="headline", group="message",
@@ -905,7 +1002,7 @@ def _build_lifestyle(cw: int, ch: int) -> dict[str, Any]:
             _layer(
                 id="shape-divider", type="SHAPE", role="decoration", content_slot="shape", group="message",
                 x=_sx(944, cw), y=_sy(432, ch), width=_sx(56, cw), height=max(2, _sy(2, ch)),
-                fill=GOLD, shape_kind="line", z_index=4,
+                fill=GOLD, shape_kind="line", decoration_purpose="hierarchy", z_index=4,
             ),
             _layer(
                 id="cta-primary", type="BUTTON", role="cta", content_slot="cta", group="action",
@@ -930,14 +1027,342 @@ def _build_lifestyle(cw: int, ch: int) -> dict[str, Any]:
     }
 
 
+def _build_neighborhood(cw: int, ch: int) -> dict[str, Any]:
+    """Place-led: location chip + headline in the upper field. Building fills the rest — not a left panel."""
+    return {
+        "text_ground": "light",
+        "visual_focal_point": "building-lower",
+        "negative_space": "upper campaign air",
+        "visual_balance": "place name leads; architecture occupies the lower two-thirds",
+        "typography_scale": "modern",
+        "typography_contrast": "high",
+        "contrast_strategy": "navy headline on upper air; gold location chip",
+        "element_relationships": [
+            "PROOF/LOCATION GROUP leads at the top",
+            "MESSAGE GROUP follows immediately — headline as place story",
+            "BRAND GROUP: logo upper-right, independent of the place lockup",
+            "ACTION GROUP: outline CTA under the message",
+            "FOOTER GROUP: slogan on the baseline",
+        ],
+        "decorative_elements": ["gold location mark"],
+        "overlap_rules": ["Keep the upper air calm; do not invent neighborhood distances"],
+        "graphic_language": ["neighborhood editorial", "place before type stack", "architecture as the street"],
+        "brand_color_relationships": ["gold location, navy headline, photographic building"],
+        "safe_margins": {"top": _sy(64, ch), "left": _sx(72, cw), "right": _sx(72, cw), "bottom": _sy(72, ch)},
+        "content_zone": _zone("content", _sx(56, cw), _sy(56, ch), _sx(720, cw), _sy(360, ch), "ivory_air"),
+        "image_zone": _zone("image", 0, _sy(280, ch), cw, _sy(1070, ch), "architecture"),
+        "headline_zone": _zone("headline", _sx(72, cw), _sy(148, ch), _sx(700, cw), _sy(120, ch), "quiet"),
+        "brand_zone": _zone("brand", _sx(760, cw), _sy(64, ch), _sx(248, cw), _sy(72, ch), "quiet"),
+        "cta_zone": _zone("cta", _sx(72, cw), _sy(300, ch), _sx(220, cw), _sy(42, ch), "quiet"),
+        "reserved": [
+            ReservedRegion("upper_place", _sx(48, cw), _sy(48, ch), _sx(740, cw), _sy(340, ch), "ivory_air"),
+            ReservedRegion("footer_air", _sx(64, cw), _sy(1248, ch), _sx(500, cw), _sy(50, ch), "quiet"),
+        ],
+        "groups": [
+            _group("brand", ["logo-project"], "right", 8),
+            _group("proof", ["shape-location-mark", "text-location"], "left", 10),
+            _group("message", ["text-headline", "text-subhead"], "left", 12),
+            _group("action", ["cta-primary"], "left", 20),
+            _group("footer", ["text-slogan", "logo-investhome"], "split", 24),
+        ],
+        "layers": [
+            _layer(
+                id="logo-project", type="IMAGE", role="logo", content_slot="project_logo", group="brand",
+                x=_sx(780, cw), y=_sy(64, ch), width=_sx(248, cw), height=_sy(72, ch), z_index=8,
+            ),
+            _layer(
+                id="shape-location-mark", type="SHAPE", role="decoration", content_slot="shape", group="proof",
+                x=_sx(72, cw), y=_sy(88, ch), width=_sx(8, cw), height=_sy(8, ch),
+                fill=GOLD, shape_kind="accent", decoration_purpose="brand_signature",
+                border_radius=_sf(1, cw), z_index=4,
+            ),
+            _layer(
+                id="text-location", type="TEXT", role="eyebrow", content_slot="location", group="proof",
+                x=_sx(90, cw), y=_sy(82, ch), width=_sx(520, cw), height=_sy(22, ch),
+                font_size=_sf(13, cw), font_family="sans", font_weight="medium",
+                letter_spacing=2.4, color=GOLD, align="left", z_index=5,
+            ),
+            _layer(
+                id="text-headline", type="TEXT", role="headline", content_slot="headline", group="message",
+                x=_sx(72, cw), y=_sy(128, ch), width=_sx(700, cw), height=_sy(110, ch),
+                font_size=_sf(48, cw), font_family="serif", font_weight="medium",
+                line_height=1.1, color=NAVY, align="left", z_index=5,
+            ),
+            _layer(
+                id="text-subhead", type="TEXT", role="body", content_slot="subhead", group="message",
+                x=_sx(72, cw), y=_sy(248, ch), width=_sx(560, cw), height=_sy(36, ch),
+                font_size=_sf(16, cw), font_family="sans", color=SUBHEAD_INK, align="left", z_index=5,
+            ),
+            _layer(
+                id="cta-primary", type="BUTTON", role="cta", content_slot="cta", group="action",
+                x=_sx(72, cw), y=_sy(300, ch), width=_sx(210, cw), height=_sy(40, ch),
+                font_size=_sf(13, cw), font_family="sans", font_weight="medium",
+                background_color=None, text_color=NAVY, border_radius=_sy(20, ch),
+                cta_style="outline", z_index=7,
+            ),
+            _layer(
+                id="text-slogan", type="TEXT", role="brand", content_slot="slogan", group="footer",
+                x=_sx(72, cw), y=_sy(1260, ch), width=_sx(500, cw), height=_sy(24, ch),
+                font_size=_sf(12, cw), font_family="sans", color=MUTED_INK, align="left", z_index=6,
+            ),
+            _layer(
+                id="logo-investhome", type="IMAGE", role="logo", content_slot="investhome_logo", group="footer",
+                x=_sx(880, cw), y=_sy(1256, ch), width=_sx(120, cw), height=_sy(32, ch), z_index=8,
+            ),
+        ],
+        "art_notes": [
+            "Neighborhood: the place name leads. Architecture fills below. Not a left information panel.",
+            "Do not invent landmarks or walk times. Location copy is OS-typeset from verified facts only.",
+        ],
+    }
+
+
+def _build_full_bleed(cw: int, ch: int) -> dict[str, Any]:
+    """Architecture edge-to-edge. Sparse type lower-right — opposite of a left caption."""
+    rx = _sx(520, cw)
+    return {
+        "text_ground": "dark",
+        "visual_focal_point": "building-full-frame",
+        "negative_space": "lower-right quiet pocket",
+        "visual_balance": "photograph owns the frame; type is a quiet lower-right signature",
+        "typography_scale": "minimal",
+        "typography_contrast": "high",
+        "contrast_strategy": "ivory type on a quiet darkened lower-right pocket; gold editorial link",
+        "element_relationships": [
+            "BRAND GROUP: logo upper-right over the photograph",
+            "MESSAGE GROUP: smaller headline lower-right",
+            "ACTION GROUP: editorial link under the headline",
+            "FOOTER GROUP: slogan lower-right baseline",
+        ],
+        "decorative_elements": [],
+        "overlap_rules": ["Do not invent a panel. Type stays off the primary facade mass."],
+        "graphic_language": ["full-bleed photography", "sparse signature type", "no extra decoration"],
+        "brand_color_relationships": ["ivory type, gold link, photographic building"],
+        "safe_margins": {"top": _sy(64, ch), "left": _sx(72, cw), "right": _sx(72, cw), "bottom": _sy(72, ch)},
+        "content_zone": _zone("content", rx, _sy(980, ch), _sx(500, cw), _sy(280, ch), "dusk_band"),
+        "image_zone": _zone("image", 0, 0, cw, ch, "architecture"),
+        "headline_zone": _zone("headline", rx, _sy(1020, ch), _sx(480, cw), _sy(90, ch), "dusk_band"),
+        "brand_zone": _zone("brand", _sx(760, cw), _sy(64, ch), _sx(248, cw), _sy(72, ch), "quiet"),
+        "cta_zone": _zone("cta", rx, _sy(1130, ch), _sx(220, cw), _sy(40, ch), "dusk_band"),
+        "reserved": [
+            ReservedRegion("brand_air", _sx(750, cw), _sy(56, ch), _sx(260, cw), _sy(80, ch), "quiet"),
+            ReservedRegion("lower_right", rx, _sy(980, ch), _sx(500, cw), _sy(280, ch), "dusk_band"),
+        ],
+        "groups": [
+            _group("brand", ["logo-project"], "right", 8),
+            _group("message", ["text-headline", "text-subhead"], "right", 10),
+            _group("action", ["cta-primary"], "right", 16),
+            _group("footer", ["text-slogan", "logo-investhome"], "right", 12),
+        ],
+        "layers": [
+            _layer(
+                id="logo-project", type="IMAGE", role="logo", content_slot="project_logo", group="brand",
+                x=_sx(780, cw), y=_sy(64, ch), width=_sx(248, cw), height=_sy(72, ch), z_index=8,
+            ),
+            _layer(
+                id="text-headline", type="TEXT", role="headline", content_slot="headline", group="message",
+                x=rx, y=_sy(1020, ch), width=_sx(480, cw), height=_sy(88, ch),
+                font_size=_sf(32, cw), font_family="serif", font_weight="medium",
+                line_height=1.12, color=WHITE, align="right", z_index=5,
+            ),
+            _layer(
+                id="text-subhead", type="TEXT", role="body", content_slot="subhead", group="message",
+                x=rx, y=_sy(1112, ch), width=_sx(480, cw), height=_sy(28, ch),
+                font_size=_sf(15, cw), font_family="sans", color="#E8E4DC", align="right", z_index=5,
+            ),
+            _layer(
+                id="cta-primary", type="BUTTON", role="cta", content_slot="cta", group="action",
+                x=_sx(780, cw), y=_sy(1152, ch), width=_sx(220, cw), height=_sy(36, ch),
+                font_size=_sf(13, cw), font_family="sans", font_weight="medium",
+                background_color=None, text_color=GOLD, cta_style="editorial_link", z_index=7,
+            ),
+            _layer(
+                id="text-slogan", type="TEXT", role="brand", content_slot="slogan", group="footer",
+                x=rx, y=_sy(1256, ch), width=_sx(480, cw), height=_sy(24, ch),
+                font_size=_sf(12, cw), font_family="sans", color=IVORY, align="right", z_index=6,
+            ),
+            _layer(
+                id="logo-investhome", type="IMAGE", role="logo", content_slot="investhome_logo", group="footer",
+                x=_sx(72, cw), y=_sy(1256, ch), width=_sx(120, cw), height=_sy(32, ch), z_index=8,
+            ),
+        ],
+        "art_notes": [
+            "Full bleed: the building is the ad. Keep type as a lower-right signature, not a stacked poster.",
+            "Preserve architecture exactly. Darken only a quiet pocket for OS type if needed.",
+        ],
+    }
+
+
+def looks_like_metadata_leak(text: str) -> bool:
+    """Internal field names must never appear in the creative."""
+    raw = (text or "").strip().lower()
+    if not raw:
+        return False
+    return any(raw.startswith(prefix) or f" {prefix}" in raw for prefix in _METADATA_PREFIXES)
+
+
+def sanitize_creative_text(text: str) -> str:
+    """Strip internal field names. Never show 'project name: The Temple'."""
+    raw = (text or "").strip()
+    if not raw:
+        return ""
+    lower = raw.lower()
+    for prefix in _DROP_METADATA_PREFIXES:
+        if lower.startswith(prefix):
+            return ""
+    for prefix in _STRIP_LABEL_PREFIXES:
+        if lower.startswith(prefix):
+            return raw.split(":", 1)[1].strip()
+    if looks_like_metadata_leak(raw):
+        return ""
+    return raw
+
+
+def _hex_luma(color: str | None) -> float:
+    raw = (color or "").strip().lstrip("#")
+    if len(raw) == 3:
+        raw = "".join(ch * 2 for ch in raw)
+    if len(raw) != 6:
+        return 1.0
+    try:
+        r, g, b = int(raw[0:2], 16), int(raw[2:4], 16), int(raw[4:6], 16)
+    except ValueError:
+        return 1.0
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0
+
+
+def _apply_cta_style(layer: DesignPlanLayer, style: str) -> None:
+    layer.cta_style = style
+    if style == "pill":
+        layer.border_radius = max(layer.height // 2, 16)
+        layer.background_color = layer.background_color or GOLD
+        layer.text_color = layer.text_color or NAVY
+    elif style == "outline":
+        layer.border_radius = max(layer.height // 2, 16)
+        layer.background_color = None
+        layer.text_color = layer.text_color or NAVY
+    elif style in {"editorial_link", "text_arrow", "minimal"}:
+        layer.background_color = None
+        layer.border_radius = 0
+        if not layer.text_color:
+            layer.text_color = GOLD if style == "editorial_link" else NAVY
+
+
+def apply_visual_quality_guard(plan: GptImageDesignPlan) -> GptImageDesignPlan:
+    """Auto-correct Design Plan quality. Final visual approval is the user's — never a PASS stamp."""
+    corrections: list[str] = []
+    cw, ch = plan.canvas_width, plan.canvas_height
+    min_logo_w = _sx(MIN_PROJECT_LOGO_W_REF, cw)
+    min_logo_h = _sy(MIN_PROJECT_LOGO_H_REF, ch)
+    max_vert = _sy(MAX_VERTICAL_RULE_H_REF, ch)
+    margins = dict(plan.safe_margins or {})
+    left = max(int(margins.get("left") or 0), _sx(MIN_SAFE_REF["left"], cw))
+    right = max(int(margins.get("right") or 0), _sx(MIN_SAFE_REF["right"], cw))
+    top = max(int(margins.get("top") or 0), _sy(MIN_SAFE_REF["top"], ch))
+    bottom = max(int(margins.get("bottom") or 0), _sy(MIN_SAFE_REF["bottom"], ch))
+    plan.safe_margins = {"top": top, "left": left, "right": right, "bottom": bottom}
+
+    kept: list[DesignPlanLayer] = []
+    for layer in plan.layers:
+        if layer.content_slot == "project_logo":
+            if layer.width < min_logo_w or layer.height < min_logo_h:
+                layer.width = max(layer.width, min_logo_w)
+                layer.height = max(layer.height, min_logo_h)
+                corrections.append("logo_min_presence")
+        if layer.type == "SHAPE":
+            purpose = (layer.decoration_purpose or "").strip().lower()
+            tall_rule = layer.height > layer.width * 4 and layer.height > max_vert
+            if tall_rule and purpose != "framing":
+                corrections.append("removed_meaningless_vertical_rule")
+                continue
+            if layer.role == "decoration" and purpose not in DECORATION_PURPOSES:
+                if layer.shape_kind == "accent":
+                    layer.decoration_purpose = "brand_signature"
+                elif layer.width >= layer.height:
+                    layer.decoration_purpose = "hierarchy"
+                else:
+                    corrections.append("removed_purposeless_decoration")
+                    continue
+        dark = (plan.text_ground or "").lower() == "dark"
+        if layer.type == "BUTTON" or layer.role == "cta":
+            style = layer.cta_style or _CTA_STYLE_BY_COMPOSITION.get(plan.variation, "editorial_link")
+            if not layer.cta_style:
+                corrections.append(f"cta_style:{style}")
+            _apply_cta_style(layer, style)
+            if dark and style in {"outline", "editorial_link", "text_arrow", "minimal"}:
+                if _hex_luma(layer.text_color) < 0.45:
+                    layer.text_color = GOLD if style == "editorial_link" else IVORY
+                    corrections.append("cta_contrast")
+        if layer.type == "TEXT":
+            luma = _hex_luma(layer.color)
+            if dark and luma < 0.45:
+                layer.color = WHITE if layer.role == "headline" else IVORY
+                corrections.append("contrast_text_color")
+            if not dark and luma > 0.82:
+                layer.color = NAVY
+                corrections.append("contrast_text_color")
+            if layer.content_slot == "slogan" and dark and luma < 0.55:
+                layer.color = IVORY
+                corrections.append("slogan_contrast")
+        x, y, w, h = layer.x, layer.y, layer.width, layer.height
+        if layer.type in {"TEXT", "IMAGE", "BUTTON"}:
+            if x < left:
+                x = left
+                corrections.append("safe_area_left")
+            if y < top:
+                y = top
+                corrections.append("safe_area_top")
+            if x + w > cw - right:
+                x = max(left, cw - right - w)
+                corrections.append("safe_area_right")
+            if y + h > ch - bottom:
+                y = max(top, ch - bottom - h)
+                corrections.append("safe_area_bottom")
+            layer.x, layer.y = x, y
+        kept.append(layer)
+
+    member_ids = {layer.id for layer in kept}
+    plan.layers = kept
+    plan.groups = [
+        ElementGroup(
+            name=g.name,
+            members=[m for m in g.members if m in member_ids],
+            alignment=g.alignment,
+            gap=g.gap,
+        )
+        for g in plan.groups
+    ]
+    plan.decorative_elements = [
+        item
+        for item in plan.decorative_elements
+        if "vertical gold" not in item.lower()
+    ]
+    dark_ground = (plan.text_ground or "").lower() == "dark"
+    slogan = next((row for row in plan.layers if row.content_slot == "slogan"), None)
+    if dark_ground and slogan and _hex_luma(slogan.color) < 0.6:
+        plan.needs_scrim = True
+        corrections.append("scrim_for_contrast")
+    elif dark_ground:
+        plan.needs_scrim = True
+    plan.quality_corrections = list(dict.fromkeys(corrections))
+    plan.visual_review_status = "READY FOR USER VISUAL REVIEW"
+    return plan
+
+
 _BUILDERS = {
     "editorial_hero": _build_editorial_hero,
-    "architectural_hero": _build_architectural_hero,
     "location_story": _build_location_story,
+    "architecture_focus": _build_architectural_hero,
+    "architectural_hero": _build_architectural_hero,
     "minimal_luxury": _build_minimal_luxury,
-    "brand_campaign": _build_brand_campaign,
+    "investment_story": _build_data_location,
     "data_location": _build_data_location,
     "lifestyle": _build_lifestyle,
+    "neighborhood": _build_neighborhood,
+    "project_intro": _build_brand_campaign,
+    "brand_campaign": _build_brand_campaign,
+    "full_bleed": _build_full_bleed,
+    "split_editorial": _build_lifestyle,
 }
 
 
@@ -1016,7 +1441,7 @@ def build_gpt_image_design_plan(
             for g in groups
         ]
 
-    return GptImageDesignPlan(
+    plan = GptImageDesignPlan(
         variation=variation,
         label=COMPOSITION_LABELS.get(variation, variation),
         composition_type=COMPOSITION_LABELS.get(variation, variation),
@@ -1046,6 +1471,7 @@ def build_gpt_image_design_plan(
         layers=kept,
         art_notes=list(recipe.get("art_notes") or []),
     )
+    return apply_visual_quality_guard(plan)
 
 
 def _zone_to_dict(zone: DesignZone | None) -> dict[str, Any] | None:
@@ -1084,6 +1510,9 @@ def design_plan_to_dict(plan: GptImageDesignPlan) -> dict[str, Any]:
         "reserved": [asdict(row) for row in plan.reserved],
         "layers": [asdict(row) for row in plan.layers],
         "art_notes": list(plan.art_notes),
+        "needs_scrim": bool(plan.needs_scrim),
+        "visual_review_status": plan.visual_review_status,
+        "quality_corrections": list(plan.quality_corrections),
     }
 
 
