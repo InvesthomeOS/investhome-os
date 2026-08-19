@@ -878,3 +878,45 @@ export async function createCreativeDirectorCampaign(
     }),
   });
 }
+
+/** Generate MASTER ad from approved Campaign Context → GPT Image → Media Library. */
+export type CreativeDirectorGenerateAdRequest = {
+  language?: string | null;
+  aspect_ratio?: '1:1' | '4:5' | '16:9' | '9:16' | null;
+  format_preset?: string | null;
+};
+
+export type CreativeDirectorGenerateAdResponse = {
+  campaign_id: string;
+  project_id: string;
+  language: string;
+  aspect_ratio: string;
+  format_preset: string;
+  interior_asset_id: string;
+  logo_asset_id: string;
+  final_asset_id: string;
+  final_asset_url: string;
+  composition_base_asset_id?: string | null;
+  creative_brief_summary: Record<string, unknown>;
+  final_turkish_texts: Record<string, string>;
+  claim_guard: Record<string, unknown>;
+  project_asset_lock: Record<string, unknown>;
+  provider_call_count: number;
+  latency_ms: number;
+  warnings: string[];
+  gpt_image: GptImageDesignResponse;
+};
+
+export async function generateCreativeDirectorAd(
+  campaignId: string,
+  input: CreativeDirectorGenerateAdRequest = {},
+): Promise<CreativeDirectorGenerateAdResponse> {
+  return apiFetch(`/ai/creative-studio/campaigns/${campaignId}/generate-ad`, {
+    method: 'POST',
+    body: JSON.stringify({
+      language: input.language ?? undefined,
+      aspect_ratio: input.aspect_ratio ?? '4:5',
+      format_preset: input.format_preset ?? 'portrait',
+    }),
+  });
+}

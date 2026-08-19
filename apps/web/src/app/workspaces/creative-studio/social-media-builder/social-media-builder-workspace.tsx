@@ -11,6 +11,7 @@ import { IhIcon } from '@/components/icons/ih-icons';
 import { ApiError } from '@/lib/api/client';
 import {
   createCreativeDirectorCampaign,
+  generateCreativeDirectorAd,
   generateGptImageDesign,
   generateIdeogramDesign,
   generateSocialDesign,
@@ -1510,6 +1511,126 @@ export function SocialMediaBuilderWorkspace() {
     [docApi.constructionProjectId, ideogramStatus, locale, persistIdeogramSession, t],
   );
 
+  const runGenerateAdFromCampaign = useCallback(
+    async (campaignId: string, parentToken?: number) => {
+      const projectId = docApi.constructionProjectId;
+      if (!projectId) {
+        showToast(t('toasts.projectRequired'));
+        return;
+      }
+      const token = parentToken ?? ++generateAbortRef.current;
+      if (parentToken == null) {
+        generatingRef.current = true;
+        setGenerating(true);
+        setCampaignStatus('draft');
+        setAiStatus(GPT_IMAGE_STAGES[0]!);
+      }
+      const siblingPosts = postsRef.current.filter((p) => !isInFlightGenerationPost(p));
+      const createdPostId = mintCreatePostId();
+      const inflight = createGeneratingPost(formatPreset, siblingPosts.length + 1, {
+        linkedProjectId: projectId,
+        id: createdPostId,
+      });
+      createInflightIdRef.current = inflight.id;
+      const withInflight = [
+        ...siblingPosts.map((p) =>
+          isInFlightGenerationPost(p) ? { ...p, generationLifecycle: 'error' as const } : p,
+        ),
+        inflight,
+      ];
+      postsRef.current = withInflight;
+      selectedPostIdRef.current = inflight.id;
+      setPosts(withInflight);
+      setSelectedPostId(inflight.id);
+      setSelectedElementId(null);
+      setEditingElementId(null);
+      coverAsset.clearCover();
+      try {
+        const response = await generateCreativeDirectorAd(campaignId, {
+          language: locale,
+          aspect_ratio: formatPreset === 'portrait' ? '4:5' : formatPreset === 'square' ? '1:1' : '4:5',
+          format_preset: formatPreset,
+        });
+        if (token !== generateAbortRef.current) return;
+        const gptImage = response.gpt_image;
+        const output = gptImage?.outputs?.[0];
+        if (!output?.local_asset_id) {
+          throw new Error(t('toasts.gptImageFailed'));
+        }
+        const headline = response.final_turkish_texts?.headline || '';
+        const nextPost = createFlattenedGptImagePost({
+          localAssetId: output.local_asset_id,
+          linkedProjectId: projectId,
+          formatPreset: asFormatPreset(response.format_preset || formatPreset),
+          instruction: headline || 'Creative Director master ad',
+          model: gptImage.model,
+          sessionId: gptImage.session_id,
+          campaignContextId: response.campaign_id,
+          sourceAssetId: response.interior_asset_id ?? gptImage.source_image?.asset_id ?? null,
+          headline,
+          index: siblingPosts.length + 1,
+          canvasWidth: output.canvas_width,
+          canvasHeight: output.canvas_height,
+          layers: Array.isArray(output.layers) ? output.layers : null,
+          compositionBaseAssetId: output.composition_base_asset_id ?? null,
+          compositionWarnings: [
+            ...(Array.isArray(output.composition_warnings) ? output.composition_warnings : []),
+            ...(Array.isArray(response.warnings) ? response.warnings : []),
+            ...(Array.isArray(gptImage.warnings) ? gptImage.warnings : []),
+          ].filter((w): w is string => typeof w === 'string' && w.length > 0),
+        });
+        nextPost.id = createdPostId;
+        nextPost.campaignContextId = response.campaign_id;
+        nextPost.generationMeta = {
+          ...nextPost.generationMeta,
+          provider: 'gpt-image',
+          generated_by: 'creative_director_generate_ad',
+          campaign_context_id: response.campaign_id,
+        };
+        const nextPosts = [...siblingPosts, nextPost];
+        pushHistory();
+        postsRef.current = nextPosts;
+        selectedPostIdRef.current = nextPost.id;
+        setPosts(nextPosts);
+        setSelectedPostId(nextPost.id);
+        setFormatPreset(nextPost.formatPreset);
+        createInflightIdRef.current = null;
+        designEngineRef.current = 'gpt-image';
+        setDesignEngine('gpt-image');
+        const coverForPreview =
+          output.composition_base_asset_id && isMediaAssetId(output.composition_base_asset_id)
+            ? output.composition_base_asset_id
+            : output.local_asset_id;
+        coverAsset.setCoverImage({
+          asset_id: coverForPreview,
+          url: null,
+          alt: null,
+          role: 'cover',
+        });
+        markDirty();
+        persistEpochRef.current += 1;
+        void docApi.saveDraft({
+          ...buildPersistPayload(),
+          posts: serializeSocialPosts(nextPosts),
+          selectedPostId: nextPost.id,
+          designProvider: 'gpt-image',
+        });
+        setPilotDesignChosen(true);
+      } catch (err) {
+        if (token !== generateAbortRef.current) return;
+        setCampaignStatus('failed');
+        showToast(generateErrorMessage(err, t('toasts.gptImageFailed')));
+        throw err;
+      } finally {
+        if (parentToken == null && token === generateAbortRef.current) {
+          generatingRef.current = false;
+          setGenerating(false);
+        }
+      }
+    },
+    [coverAsset, docApi, formatPreset, locale, markDirty, pushHistory, t],
+  );
+
   const runCreativeDirectorCampaign = useCallback(
     async (instruction: string) => {
       const projectId = docApi.constructionProjectId;
@@ -1562,6 +1683,8 @@ export function SocialMediaBuilderWorkspace() {
         const campaignId = response.campaign_id;
         setCreativeDirectorCampaignId(campaignId);
         creativeDirectorCampaignRef.current = campaignId;
+        await runGenerateAdFromCampaign(campaignId, token);
+        if (token !== generateAbortRef.current) return;
         setAiStatus('completed');
         setCampaignStatus('ready');
         showToast(t('toasts.campaignCreated', { campaignId }));
@@ -1584,7 +1707,7 @@ export function SocialMediaBuilderWorkspace() {
         }
       }
     },
-    [docApi.constructionProjectId, locale, t],
+    [docApi.constructionProjectId, locale, runGenerateAdFromCampaign, t],
   );
 
   const runGptImageGenerate = useCallback(

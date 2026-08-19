@@ -84,6 +84,19 @@ _PRIORITY_SIGNALS: dict[str, tuple[str, ...]] = {
     "value": ("value", "advantage", "avantaj", "proof", "investment", "yatırım"),
     "cta": ("cta", "explore", "detay", "incele", "schedule", "viewing", "action"),
     "brand": ("temple", "investhome", "logo", "brand", "marka"),
+    "lifestyle": (
+        "sığınak",
+        "sanctuary",
+        "huzur",
+        "calm",
+        "sakin",
+        "zarif",
+        "interior",
+        "iç mekan",
+        "living",
+        "lifestyle",
+        "yaşam",
+    ),
 }
 
 
@@ -136,6 +149,7 @@ def derive_commercial_priority(
     labels = {
         "price_hook": "price hook / launch offer",
         "creative_idea": "creative idea / brand story",
+        "lifestyle": "lifestyle / interior experience",
         "product": "product / unit opportunity",
         "value": "value proof / advantage",
         "cta": "call to action",
@@ -157,8 +171,41 @@ def build_information_groups(
     strategy: dict[str, Any],
     campaign_copy: dict[str, Any],
     pricing: dict[str, Any],
+    lifestyle: bool = False,
 ) -> list[dict[str, Any]]:
     """Group related sales messages — one story, not scattered corners."""
+    if lifestyle:
+        support = _as_list(
+            campaign_copy.get("supporting_messages") or strategy.get("supporting_messages")
+        )
+        callouts = [str(x).strip() for x in support[:3] if str(x).strip()]
+        concept_group = {
+            "name": "hero_concept",
+            "label": "Hero concept cluster",
+            "elements": [
+                texts.get("headline") or campaign_copy.get("big_idea") or strategy.get("big_idea"),
+                texts.get("hero") or campaign_copy.get("hero_message"),
+            ],
+            "relationship": (
+                "Big idea and hero express calm city-center sanctuary — keep proximate, not separated."
+            ),
+        }
+        feature_group = {
+            "name": "feature_callouts",
+            "label": "Supporting feature callouts",
+            "elements": callouts,
+            "relationship": (
+                "Up to 3 short verified lifestyle features — grouped as callouts, not random corners."
+            ),
+        }
+        action_group = {
+            "name": "action",
+            "label": "CTA cluster",
+            "elements": [texts.get("cta") or "Detayları Keşfet"],
+            "relationship": "Real ad CTA — button, pill, outline, or text+arrow — visible and actionable.",
+        }
+        return [concept_group, feature_group, action_group]
+
     presentation = _as_dict(pricing.get("price_presentation"))
     unit = texts.get("unit") or "Unit 204"
     list_price = texts.get("list_price") or str(presentation.get("list") or "")
@@ -232,6 +279,7 @@ def translate_campaign_art_direction(
     interior_meta: dict[str, Any],
     logo_meta: dict[str, Any],
     language: str,
+    lifestyle: bool = False,
 ) -> ArtDirectionPlan:
     """Load CD brief fields from Campaign Context and produce ArtDirectionPlan."""
     strategy = _as_dict(ctx.get("cd_strategy"))
@@ -246,14 +294,29 @@ def translate_campaign_art_direction(
         pricing=pricing,
         texts=texts,
     )
+    if lifestyle:
+        commercial_priority = [
+            item
+            for item in commercial_priority
+            if "price hook" not in item.lower() and "unit opportunity" not in item.lower()
+        ]
+        if not commercial_priority:
+            commercial_priority = [
+                "lifestyle / interior experience",
+                "creative idea / brand story",
+                "call to action",
+                "brand presence",
+            ]
+
     info_groups = build_information_groups(
         texts=texts,
         strategy=strategy,
         campaign_copy=campaign_copy,
         pricing=pricing,
+        lifestyle=lifestyle,
     )
     emphasis_strategy = _build_emphasis_strategy(emphasis)
-    price_primary = _price_is_primary_hook(commercial_priority)
+    price_primary = _price_is_primary_hook(commercial_priority) and not lifestyle
 
     list_price = texts.get("list_price") or str(presentation.get("list") or "$400,000")
     offer_price = texts.get("offer_price") or str(presentation.get("offer") or "$300,000")
@@ -261,42 +324,106 @@ def translate_campaign_art_direction(
         _as_dict(presentation.get("discount")).get("display") or "~25%"
     )
 
-    first_notice = (
-        f"{offer_price} launch price with {list_price} struck through"
-        if price_primary
-        else texts.get("headline") or str(campaign_copy.get("big_idea") or "")
-    )
-    second_notice = (
-        texts.get("headline") or f"{texts.get('unit')} launch opportunity"
-        if price_primary
-        else f"{offer_price} → {discount_display} price advantage"
-    )
-
-    visual_hierarchy = [
-        f"1 — FIRST GLANCE: {first_notice}",
-        f"2 — SECOND READ: {second_notice}",
-        f"3 — PRODUCT: {texts.get('unit')} at The Temple",
-        f"4 — VALUE: {discount_display}",
-        f"5 — ACTION: {texts.get('cta')}",
-        f"6 — BRAND: Temple logo (OS-composited, never AI-drawn)",
+    support_callouts = [
+        x.strip()
+        for x in str(texts.get("supporting_callouts") or "").split("|")
+        if x.strip()
     ]
+
+    if lifestyle:
+        first_notice = texts.get("headline") or str(campaign_copy.get("big_idea") or "")
+        second_notice = (
+            texts.get("sales_hook")
+            or str(strategy.get("first_2_seconds") or "")
+            or texts.get("hero")
+            or ""
+        )
+        visual_hierarchy = [
+            f"1 — FIRST GLANCE: {first_notice}",
+            f"2 — SECOND READ: {second_notice}",
+            f"3 — FEATURES: {'; '.join(support_callouts) if support_callouts else texts.get('supporting', '')}",
+            f"4 — ACTION: {texts.get('cta')}",
+            f"5 — BRAND: Temple logo (OS-composited, never AI-drawn)",
+        ]
+        price_hierarchy = {
+            "secondary": "",
+            "primary": "",
+            "advantage": "",
+            "dramatization": "No price dramatization — lifestyle interior quality and calm living experience.",
+        }
+        typography_hierarchy = [
+            "Headline: largest editorial — sanctuary / calm city-center living",
+            "Hero/sales hook: medium weight supporting the headline",
+            "Feature callouts: 3 short lines — varied weight, not uniform",
+            "CTA: high-contrast actionable weight",
+            "Brand: quiet but visible logo zone",
+        ]
+        contrast_strategy = (
+            "Warm interior palette with navy/ivory type — high contrast for headline and CTA, "
+            "not price panels"
+        )
+        image_text_balance = (
+            "Locked living-room interior carries atmosphere; type zones get composed air — "
+            "roughly 60% visual / 40% message space, flexible not fixed panels."
+        )
+        visual_storytelling = (
+            str(strategy.get("visual_direction") or campaign_copy.get("visual_direction") or "")
+            or "Calm, elegant sanctuary living inside the locked interior render."
+        )
+    else:
+        first_notice = (
+            f"{offer_price} launch price with {list_price} struck through"
+            if price_primary
+            else texts.get("headline") or str(campaign_copy.get("big_idea") or "")
+        )
+        second_notice = (
+            texts.get("headline") or f"{texts.get('unit')} launch opportunity"
+            if price_primary
+            else f"{offer_price} → {discount_display} price advantage"
+        )
+        visual_hierarchy = [
+            f"1 — FIRST GLANCE: {first_notice}",
+            f"2 — SECOND READ: {second_notice}",
+            f"3 — PRODUCT: {texts.get('unit')} at The Temple",
+            f"4 — VALUE: {discount_display}",
+            f"5 — ACTION: {texts.get('cta')}",
+            f"6 — BRAND: Temple logo (OS-composited, never AI-drawn)",
+        ]
+        price_hierarchy = {
+            "secondary": list_price,
+            "primary": offer_price,
+            "advantage": discount_display,
+            "dramatization": (
+                "Strikethrough old price, dominant new price, size contrast, optional badge/callout — "
+                "understood at a glance like a real ad, not a catalog line."
+                if price_primary
+                else "Price visible but subordinate to creative story — still clear hierarchy."
+            ),
+        }
+        typography_hierarchy = [
+            "Headline: largest serif/editorial — Modern. Şık. Tarihi. rhythm",
+            "Price primary: bold numeral treatment — dominant over list price",
+            "Price secondary: smaller, strikethrough or muted",
+            "Eyebrow/supporting: medium sans — unit + launch context",
+            "CTA: high-contrast actionable weight",
+            "Brand: quiet but visible logo zone",
+        ]
+        contrast_strategy = (
+            "Navy / gold / ivory luxury RE palette — high contrast for price and CTA against interior warmth"
+        )
+        image_text_balance = (
+            "Locked living-room interior carries atmosphere; type and price zones get composed air — "
+            "roughly 55–65% visual / 35–45% message space, flexible not fixed panels."
+        )
+        visual_storytelling = (
+            str(strategy.get("visual_direction") or campaign_copy.get("visual_direction") or "")
+            or "Historic character meets modern living inside the locked interior render."
+        )
 
     sales_hierarchy = [
         item.replace("price hook / launch offer", "price dramatization")
         for item in commercial_priority
     ]
-
-    price_hierarchy = {
-        "secondary": list_price,
-        "primary": offer_price,
-        "advantage": discount_display,
-        "dramatization": (
-            "Strikethrough old price, dominant new price, size contrast, optional badge/callout — "
-            "understood at a glance like a real ad, not a catalog line."
-            if price_primary
-            else "Price visible but subordinate to creative story — still clear hierarchy."
-        ),
-    }
 
     cta_prominence = (
         f"Real ad CTA: '{texts.get('cta')}' as button, pill, outline, or text+arrow — "
@@ -311,33 +438,25 @@ def translate_campaign_art_direction(
         sales_hierarchy=sales_hierarchy,
         price_hierarchy=price_hierarchy,
         emphasis_strategy=emphasis_strategy,
-        typography_hierarchy=[
-            "Headline: largest serif/editorial — Modern. Şık. Tarihi. rhythm",
-            "Price primary: bold numeral treatment — dominant over list price",
-            "Price secondary: smaller, strikethrough or muted",
-            "Eyebrow/supporting: medium sans — unit + launch context",
-            "CTA: high-contrast actionable weight",
-            "Brand: quiet but visible logo zone",
-        ],
+        typography_hierarchy=typography_hierarchy,
         information_groups=info_groups,
         cta_prominence=cta_prominence,
         badge_callout_opportunity=(
-            f"Optional launch badge for {discount_display} near price cluster — only if it strengthens the offer."
+            "Optional feature badges near callout cluster — only if they strengthen lifestyle story."
+            if lifestyle
+            else f"Optional launch badge for {discount_display} near price cluster — only if it strengthens the offer."
         ),
-        contrast_strategy="Navy / gold / ivory luxury RE palette — high contrast for price and CTA against interior warmth",
+        contrast_strategy=contrast_strategy,
         negative_space_usage=(
-            "Conscious breath around headline, price cluster, and CTA — premium composition, "
+            "Conscious breath around headline, feature callouts, and CTA — premium composition, "
+            "not meaningless empty canvas or random decorative gaps."
+            if lifestyle
+            else "Conscious breath around headline, price cluster, and CTA — premium composition, "
             "not meaningless empty canvas or random decorative gaps."
         ),
-        image_text_balance=(
-            "Locked living-room interior carries atmosphere; type and price zones get composed air — "
-            "roughly 55–65% visual / 35–45% message space, flexible not fixed panels."
-        ),
+        image_text_balance=image_text_balance,
         brand_presence="The Temple project logo composited by OS — upper area, visible, never AI-generated",
-        visual_storytelling=(
-            str(strategy.get("visual_direction") or campaign_copy.get("visual_direction") or "")
-            or "Historic character meets modern living inside the locked interior render."
-        ),
+        visual_storytelling=visual_storytelling,
         decoration_rule=(
             "Decoration only if it serves campaign: no random building sketch, map pin, long gold line, "
             "or watermark unless it strengthens sales or brand story."
@@ -375,6 +494,10 @@ def render_gpt_image_art_direction_prompt(
         group_lines.append(f"- {grp['label']}: {', '.join(str(e) for e in grp['elements'] if e)}")
         group_lines.append(f"  Relationship: {grp['relationship']}")
 
+    lifestyle = texts.get("campaign_mode") == "lifestyle" or not str(
+        plan.price_hierarchy.get("primary") or ""
+    ).strip()
+
     lines = [
         f"MASTER Instagram {aspect_ratio} feed ad BACKGROUND for The Temple — PROJECT MODE edit.",
         f"LANGUAGE atmosphere: {plan.language} campaign (OS typesets exact Turkish copy after).",
@@ -396,12 +519,28 @@ def render_gpt_image_art_direction_prompt(
         "SALES HIERARCHY:",
         *[f"  {idx + 1}. {item}" for idx, item in enumerate(plan.sales_hierarchy)],
         "",
-        "PRICE HIERARCHY:",
-        f"  Secondary (struck/muted): {plan.price_hierarchy.get('secondary')}",
-        f"  Primary (dominant): {plan.price_hierarchy.get('primary')}",
-        f"  Advantage badge: {plan.price_hierarchy.get('advantage')}",
-        f"  Dramatization: {plan.price_hierarchy.get('dramatization')}",
-        "",
+    ]
+    if lifestyle:
+        lines.extend(
+            [
+                "PRICE HIERARCHY:",
+                f"  {plan.price_hierarchy.get('dramatization')}",
+                "",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "PRICE HIERARCHY:",
+                f"  Secondary (struck/muted): {plan.price_hierarchy.get('secondary')}",
+                f"  Primary (dominant): {plan.price_hierarchy.get('primary')}",
+                f"  Advantage badge: {plan.price_hierarchy.get('advantage')}",
+                f"  Dramatization: {plan.price_hierarchy.get('dramatization')}",
+                "",
+            ]
+        )
+    lines.extend(
+        [
         "EMPHASIS WORDS (varied treatment — do NOT render all the same style):",
         *emphasis_lines,
         "",
@@ -421,15 +560,38 @@ def render_gpt_image_art_direction_prompt(
         f"VISUAL STORYTELLING: {plan.visual_storytelling}",
         f"DECORATION RULE: {plan.decoration_rule}",
         "",
-        "WHAT IS BEING SOLD:",
-        f"  {texts.get('unit')} launch at The Temple — {texts.get('headline')}",
-        "",
-        "WHY NOW:",
-        f"  {texts.get('value_badge')} — {texts.get('eyebrow')}",
-        "",
-        "WHAT NUMBER MATTERS:",
-        f"  {texts.get('offer_price')} (primary) from {texts.get('list_price')} — {texts.get('value_badge')}",
-        "",
+        ]
+    )
+    if lifestyle:
+        lines.extend(
+            [
+                "WHAT IS BEING SOLD:",
+                f"  The Temple interior lifestyle — {texts.get('headline')}",
+                "",
+                "WHY NOW:",
+                f"  {texts.get('sales_hook')} — {texts.get('eyebrow')}",
+                "",
+                "FEATURE CALLOUTS:",
+                f"  {texts.get('supporting')}",
+                "",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "WHAT IS BEING SOLD:",
+                f"  {texts.get('unit')} launch at The Temple — {texts.get('headline')}",
+                "",
+                "WHY NOW:",
+                f"  {texts.get('value_badge')} — {texts.get('eyebrow')}",
+                "",
+                "WHAT NUMBER MATTERS:",
+                f"  {texts.get('offer_price')} (primary) from {texts.get('list_price')} — {texts.get('value_badge')}",
+                "",
+            ]
+        )
+    lines.extend(
+        [
         "ACTION:",
         f"  {texts.get('cta')}",
         "",
@@ -446,12 +608,18 @@ def render_gpt_image_art_direction_prompt(
         f"  Eyebrow: {texts.get('eyebrow')}",
         f"  Headline: {texts.get('headline')}",
         f"  Supporting: {texts.get('supporting')}",
-        f"  Price line: {texts.get('price_hierarchy')} · {texts.get('value_badge')}",
+        ]
+    )
+    if not lifestyle:
+        lines.append(f"  Price line: {texts.get('price_hierarchy')} · {texts.get('value_badge')}")
+    lines.extend(
+        [
         f"  CTA: {texts.get('cta')}",
         "",
         "ORIGINAL CAMPAIGN BRIEF (context):",
         original_brief.strip(),
-    ]
+        ]
+    )
     return "\n".join(lines)
 
 

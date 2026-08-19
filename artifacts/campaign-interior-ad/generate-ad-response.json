@@ -1,0 +1,2392 @@
+{
+  "campaign_id": "ec3021d7-3d2f-4eca-bd75-e747571e1bb9",
+  "project_id": "d50708cb-60b3-465a-8b16-6d30f802af8d",
+  "language": "tr",
+  "aspect_ratio": "4:5",
+  "format_preset": "portrait",
+  "interior_asset_id": "caf8eb97-c767-4aa1-841b-759cf3500062",
+  "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+  "final_asset_id": "fd499eb4-37e1-4cd8-87fb-f2fa63f427dd",
+  "final_asset_url": "/creative-studio/media/assets/fd499eb4-37e1-4cd8-87fb-f2fa63f427dd/content",
+  "composition_base_asset_id": "1ea3347e-fddc-4bee-be04-f0cd1a1137e2",
+  "creative_brief_summary": {
+    "big_idea": "Eviniz, Sığınak",
+    "hero": "Şehrin Kalbinde Sakin Bir Sığınak",
+    "sales_hook": "Şehrin kalbinde huzur dolu bir yaşam",
+    "offer": null,
+    "price_hierarchy": "",
+    "value": "",
+    "emphasis": [
+      "Sakin",
+      "Zarif",
+      "Özel"
+    ],
+    "supporting": [
+      "Zarif tasarım detaylarıyla dolu yaşam alanları",
+      "Özel ortak alanlar ve sosyal olanaklar",
+      "Modern ve fonksiyonel iç mekanlar"
+    ],
+    "cta": "Detayları Keşfet",
+    "tone": "Sakin, zarif ve davetkar",
+    "visual_direction": "Sakin ve zarif bir yaşam alanı atmosferi",
+    "composition_direction": "Geniş ve ferah iç mekan görselleri, zarif detaylar",
+    "art_direction": {
+      "primary_visual_message": "Eviniz, Sığınak",
+      "secondary_message": "Şehrin kalbinde huzur dolu bir yaşam",
+      "commercial_priority": [
+        "lifestyle / interior experience",
+        "brand presence",
+        "call to action"
+      ],
+      "visual_hierarchy": [
+        "1 — FIRST GLANCE: Eviniz, Sığınak",
+        "2 — SECOND READ: Şehrin kalbinde huzur dolu bir yaşam",
+        "3 — FEATURES: Zarif tasarım detaylarıyla dolu yaşam alanları; Özel ortak alanlar ve sosyal olanaklar; Modern ve fonksiyonel iç mekanlar",
+        "4 — ACTION: Detayları Keşfet",
+        "5 — BRAND: Temple logo (OS-composited, never AI-drawn)"
+      ],
+      "sales_hierarchy": [
+        "lifestyle / interior experience",
+        "brand presence",
+        "call to action"
+      ],
+      "price_hierarchy": {
+        "secondary": "",
+        "primary": "",
+        "advantage": "",
+        "dramatization": "No price dramatization — lifestyle interior quality and calm living experience."
+      },
+      "emphasis_strategy": [
+        {
+          "word": "Sakin",
+          "treatment": "bold large in gold",
+          "note": "Distinct from adjacent emphasis words — avoid rendering all the same."
+        },
+        {
+          "word": "Zarif",
+          "treatment": "semibold medium in navy",
+          "note": "Distinct from adjacent emphasis words — avoid rendering all the same."
+        },
+        {
+          "word": "Özel",
+          "treatment": "medium medium in ivory-on-navy",
+          "note": "Distinct from adjacent emphasis words — avoid rendering all the same."
+        }
+      ],
+      "typography_hierarchy": [
+        "Headline: largest editorial — sanctuary / calm city-center living",
+        "Hero/sales hook: medium weight supporting the headline",
+        "Feature callouts: 3 short lines — varied weight, not uniform",
+        "CTA: high-contrast actionable weight",
+        "Brand: quiet but visible logo zone"
+      ],
+      "information_groups": [
+        {
+          "name": "hero_concept",
+          "label": "Hero concept cluster",
+          "elements": [
+            "Eviniz, Sığınak",
+            "Şehrin Kalbinde Sakin Bir Sığınak"
+          ],
+          "relationship": "Big idea and hero express calm city-center sanctuary — keep proximate, not separated."
+        },
+        {
+          "name": "feature_callouts",
+          "label": "Supporting feature callouts",
+          "elements": [
+            "Zarif tasarım detaylarıyla dolu yaşam alanları",
+            "Özel ortak alanlar ve sosyal olanaklar",
+            "Modern ve fonksiyonel iç mekanlar"
+          ],
+          "relationship": "Up to 3 short verified lifestyle features — grouped as callouts, not random corners."
+        },
+        {
+          "name": "action",
+          "label": "CTA cluster",
+          "elements": [
+            "Detayları Keşfet"
+          ],
+          "relationship": "Real ad CTA — button, pill, outline, or text+arrow — visible and actionable."
+        }
+      ],
+      "cta_prominence": "Real ad CTA: 'Detayları Keşfet' as button, pill, outline, or text+arrow — large enough to invite tap; not tiny decorative footer text.",
+      "badge_callout_opportunity": "Optional feature badges near callout cluster — only if they strengthen lifestyle story.",
+      "contrast_strategy": "Warm interior palette with navy/ivory type — high contrast for headline and CTA, not price panels",
+      "negative_space_usage": "Conscious breath around headline, feature callouts, and CTA — premium composition, not meaningless empty canvas or random decorative gaps.",
+      "image_text_balance": "Locked living-room interior carries atmosphere; type zones get composed air — roughly 60% visual / 40% message space, flexible not fixed panels.",
+      "brand_presence": "The Temple project logo composited by OS — upper area, visible, never AI-generated",
+      "visual_storytelling": "Sakin ve zarif bir yaşam alanı atmosferi",
+      "decoration_rule": "Decoration only if it serves campaign: no random building sketch, map pin, long gold line, or watermark unless it strengthens sales or brand story.",
+      "asset_lock": {
+        "interior_asset_id": "caf8eb97-c767-4aa1-841b-759cf3500062",
+        "interior_filename": "IH_DC_TMP_001_Render_Living_Room_003.jpeg",
+        "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "logo_filename": "IH_DC_TMP_001_Logo_Primary.svg",
+        "must_not_invent_interior": true,
+        "must_not_draw_logo": true
+      },
+      "emphasis_words": [
+        "Sakin",
+        "Zarif",
+        "Özel"
+      ],
+      "first_notice": "Eviniz, Sığınak",
+      "second_notice": "Şehrin kalbinde huzur dolu bir yaşam",
+      "language": "tr"
+    },
+    "source_constraints": {
+      "interior_asset_id": "caf8eb97-c767-4aa1-841b-759cf3500062",
+      "interior_filename": "IH_DC_TMP_001_Render_Living_Room_003.jpeg",
+      "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+      "logo_filename": "IH_DC_TMP_001_Logo_Primary.svg"
+    },
+    "brand": "The Temple + Investhome",
+    "language": "tr",
+    "format": "Instagram 4:5",
+    "prompt_excerpt": "MASTER Instagram 4:5 feed ad BACKGROUND for The Temple — PROJECT MODE edit.\nLANGUAGE atmosphere: tr campaign (OS typesets exact Turkish copy after).\n\n=== ADVERTISING ART DIRECTION (senior art director plan — creative freedom, no fixed template) ===\n\nWHAT MUST BE NOTICED FIRST:\n  Eviniz, Sığınak\n\nWHAT MUST BE NOTICED SECOND:\n  Şehrin kalbinde huzur dolu bir yaşam\n\nCOMMERCIAL PRIORITY (derived from Creative Director — drives visual hierarchy):\n  1. lifestyle / interior experience\n  2. brand presence\n  3. call to action\n\nVISUAL HIERARCHY:\n  1 — FIRST GLANCE: Eviniz, Sığınak\n  2 — SECOND READ: Şehrin kalbinde huzur dolu bir yaşam\n  3 — FEATURES: Zarif tasarım detaylarıyla dolu yaşam alanları; Özel ortak alanlar ve sosyal olanaklar; Modern ve fonksiyonel iç mekanlar\n  4 — ACTION: Detayları Keşfet\n  5 — BRAND: Temple logo (OS-composited, never AI-drawn)\n\nSALES HIERARCHY:\n  1. lifestyle / interior experience\n  2. brand presence\n  3. call to action\n\nPRICE HIERARCHY:\n  No price dramatization — lifestyle interior quality and calm living experience.\n\nEMPHASIS WORDS (varied treatment — do NOT render all the same style):\n  - 'Sakin': bold large in gold\n  - 'Zarif': semibold medium in navy\n  - 'Özel': medium medium in ivory-on-navy\n\nINFORMATION GROUPING (keep clusters together — one sales story):\n- Hero concept cluster: Eviniz, Sığınak, Şehrin Kalbinde Sakin Bir Sığınak\n  Relationship: Big idea and hero express calm city-center sanctuary — keep proximate, not separated.\n- Supporting feature callouts: Zarif tasarım detaylarıyla dolu yaşam alanları, Özel ortak alanlar ve sosyal olanaklar, Modern ve fonksiyonel iç mekanlar\n  Relationship: Up to 3 short verified lifestyle features — grouped as callouts, not random corners.\n- CTA cluster: Detayları Keşfet\n  Relationship: Real ad CTA — button, pill, outline, or text+arrow — visible and actionable.\n\nCTA PROMINENCE: Real ad CTA: 'Detayları Keşfet' as button, pill, outline, or text+arrow — large enough to invite tap; not tiny decorative footer text.\nBADGE/CALLOUT: Optional feature badges near callout cluster — only if they strengthen lifestyle story.\n\nTYPOGRAPHY HIERARCHY (OS typesets — compose contrast/air only):\n  - Headline: largest editorial — sanctuary / calm city-center living\n  - Hero/sales hook: medium weight supporting the headline\n  - Feature callouts: 3 short lines — varied weight, not uniform\n  - CTA: high-contrast actionable weight\n  - Brand: quiet but visible logo zone\n\nCONTRAST STRATEGY: Warm interior palette with navy/ivory type — high contrast for headline and CTA, not price panels\nNEGATIVE SPACE: Conscious breath around headline, feature callouts, and CTA — premium composition, not meaningless empty canvas or random decorative gaps.\nIMAGE/TEXT BALANCE: Locked living-room interior carries atmosphere; type zones get composed air — roughly 60% visual / 40% message space, flexible not fixed panels.\nBRAND PRESENCE: The Temple project logo composited by OS — upper area, visible, never AI-generated\nVISUAL STORYTELLING: Sakin ve zarif bir yaşam alanı atmosferi\nDECORATION RULE: Decoration only if it serves campaign: no random building sketch, map pin, long gold line, or watermark unless it strengthens sales or brand story.\n\nWHAT IS BEING SOLD:\n  The Temple interior lifestyle — Eviniz, Sığınak\n\nWHY NOW:\n  Şehrin kalbinde huzur dolu bir yaşam — Şehrin kalbinde huzur dolu bir yaşam\n\nFEATURE CALLOUTS:\n  Zarif tasarım detaylarıyla dolu yaşam alanları · Özel ortak alanlar ve sosyal olanaklar · Modern ve fonksiyonel iç mekanlar\n\nACTION:\n  Detayları Keşfet\n\nPROJECT ASSET LOCK — WHAT STAYS REAL:\n  Interior: IH_DC_TMP_001_Render_Living_Room_003.jpeg (asset caf8eb97-c767-4aa1-841b-759cf3500062)\n  Preserve room geometry, windows, furniture, materials — do NOT invent another living room.\n  Logo: IH_DC_TMP_001_Logo_Primary.svg (asset 7b58877e-efca-4e9a-9027-6fd18fb1b345) — OS composites; never redraw.\n\nWHAT NOT TO INVENT:\n  No AI interior, no AI logo, no extra prices, no ROI/yield/rent, no landmarks, no map pins, no random sketches, no fixed side-panel or bottom-band template.\n\nOS FINAL COPY PREVIEW (do NOT rasterize — leave composed air/contrast):\n  Eyebrow: Şehrin kalbinde huzur dolu bir yaşam\n  Headline: Eviniz, Sığınak\n  Supporting: Zarif tasarım detaylarıyla dolu yaşam alanları · Özel ortak alanlar ve sosyal olanaklar · Modern ve fonksiyonel iç mekanlar\n  CTA: Detayları Keşfet\n\nORIGINAL CAMPAIGN BRIEF (context):\nThe Temple için projenin iç özelliklerini ve yaşam deneyimini anlatan premium bir sosyal medya reklamı hazırla. Drive'daki The Temple katalogunu ve proje belgelerini incele. Projenin gerçek iç mekan özelliklerini, ortak alanlarını, tasarım detaylarını ve öne çıkan yaşam özelliklerini bul. Reklamda en güçlü 3–4 özelliği ön plana çıkar. Drive'daki gerçek The Temple görsellerini ve gerçek proje logosunu kullan. Katalogda veya proje belgelerinde olmayan hiçbir özellik uydurma. Bu kampanyada fiyat veya Unit 204 kullanma. Ana fikir, satış kancası, destek mesajları, CTA ve kullanılacak görseli sen belirle. Türkçe çalış.\nARCHITECTURE / ASSET LOCK:\n- Preserve interior architecture, furniture layout, windows, and materials exactly.\n- Edit the supplied interior photograph only — graphic atmosphere around it.\n- Do NOT rasterize logos, prices, CTAs, or headlines into pixels.\n- InvestHome OS Final Composition Layer typesets real copy and logos after generation."
+  },
+  "final_turkish_texts": {
+    "language": "tr",
+    "big_idea": "Eviniz, Sığınak",
+    "hero": "Şehrin Kalbinde Sakin Bir Sığınak",
+    "sales_hook": "Şehrin kalbinde huzur dolu bir yaşam",
+    "eyebrow": "Şehrin kalbinde huzur dolu bir yaşam",
+    "headline": "Eviniz, Sığınak",
+    "supporting": "Zarif tasarım detaylarıyla dolu yaşam alanları · Özel ortak alanlar ve sosyal olanaklar · Modern ve fonksiyonel iç mekanlar",
+    "supporting_callouts": "Zarif tasarım detaylarıyla dolu yaşam alanları|Özel ortak alanlar ve sosyal olanaklar|Modern ve fonksiyonel iç mekanlar",
+    "offer": "",
+    "list_price": "",
+    "offer_price": "",
+    "value": "The Temple, şehir hayatının merkezinde huzur ve konfor sunar.",
+    "value_badge": "",
+    "cta": "Detayları Keşfet",
+    "unit": "",
+    "price_hierarchy": "",
+    "campaign_mode": "lifestyle"
+  },
+  "claim_guard": {
+    "status": "pass",
+    "campaign_mode": "lifestyle",
+    "approved_claims": [],
+    "allowed_financial_tokens": [],
+    "banned_public_tokens_blocked": true,
+    "violations": [],
+    "invented_financial_claims_blocked": true
+  },
+  "project_asset_lock": {
+    "status": "pass",
+    "interior_asset_id": "caf8eb97-c767-4aa1-841b-759cf3500062",
+    "interior_filename": "IH_DC_TMP_001_Render_Living_Room_003.jpeg",
+    "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+    "logo_filename": "IH_DC_TMP_001_Logo_Primary.svg",
+    "source_used_asset_id": "caf8eb97-c767-4aa1-841b-759cf3500062",
+    "interior_architecture_locked": true,
+    "logo_os_composited": true,
+    "gpt_must_not_invent_interior": true,
+    "gpt_must_not_draw_logo": true
+  },
+  "provider_call_count": 1,
+  "latency_ms": 59301,
+  "warnings": [
+    "Investhome global logo asset bulunamadı"
+  ],
+  "gpt_image": {
+    "provider": "gpt-image",
+    "model": "gpt-image-2",
+    "endpoint": "https://api.openai.com/v1/images/edits",
+    "campaign_mode": "project",
+    "session_id": "3e4914b5-0c8a-4bc1-83df-bd7ae65ffc7a",
+    "linked_project_id": "d50708cb-60b3-465a-8b16-6d30f802af8d",
+    "campaign_context_id": "ec3021d7-3d2f-4eca-bd75-e747571e1bb9",
+    "generation_context_id": "3b091ea2-f493-4ef9-98c8-7e38b852f352",
+    "aspect_ratio": "4:5",
+    "format_preset": "portrait",
+    "source_image": {
+      "asset_id": "caf8eb97-c767-4aa1-841b-759cf3500062",
+      "filename": "IH_DC_TMP_001_Render_Living_Room_003.jpeg",
+      "content_type": "image/jpeg",
+      "folder_category": "02_RENDER",
+      "tags": [],
+      "role": "source"
+    },
+    "extra_images": [
+      {
+        "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "filename": "IH_DC_TMP_001_Logo_Primary.png",
+        "content_type": "image/png",
+        "folder_category": "01_BRAND",
+        "tags": [],
+        "role": "project_logo"
+      }
+    ],
+    "brief": {
+      "project": "The Temple",
+      "objective": "lifestyle",
+      "audience": "general",
+      "language": "tr",
+      "campaign_angle": "amenities_experience",
+      "tone": "premium",
+      "single_minded_message": "The Temple günlük yaşamı",
+      "supporting_evidence": [],
+      "marketing_safe_facts": [
+        {
+          "key": "project_name",
+          "label": "project name",
+          "value": "The Temple",
+          "financial": "no"
+        },
+        {
+          "key": "city",
+          "label": "city",
+          "value": "Washington",
+          "financial": "no"
+        },
+        {
+          "key": "country",
+          "label": "country",
+          "value": "United States",
+          "financial": "no"
+        },
+        {
+          "key": "state",
+          "label": "state",
+          "value": "DC",
+          "financial": "no"
+        },
+        {
+          "key": "address",
+          "label": "address",
+          "value": "1610 Columbia Rd NW",
+          "financial": "no"
+        }
+      ],
+      "user_campaign_facts": [
+        {
+          "label": "campaign_percent",
+          "value": "60%",
+          "kind": "percent"
+        },
+        {
+          "label": "campaign_percent",
+          "value": "40%",
+          "kind": "percent"
+        }
+      ],
+      "allowed_financial_tokens": [
+        "60%",
+        "40%"
+      ],
+      "blocked_financial_tokens": [
+        "19.5%",
+        "27.8%",
+        "$14,500,000",
+        "$13,500,000",
+        "$8,200,000",
+        "$52,000,000",
+        "$62,000,000",
+        "$48,500,000",
+        "$1450K",
+        "$1,450K",
+        "$1.45M",
+        "1450K"
+      ],
+      "visible_copy": {
+        "eyebrow": "Şehrin kalbinde huzur dolu bir yaşam",
+        "headline": "Eviniz, Sığınak",
+        "supporting": "Zarif tasarım detaylarıyla dolu yaşam alanları · Özel ortak alanlar ve sosyal olanaklar · Modern ve fonksiyonel iç mekanlar",
+        "cta": "Detayları Keşfet"
+      },
+      "composition": {
+        "format": "Instagram 4:5",
+        "resolution": "1088x1360",
+        "family": "LIFESTYLE_EDITORIAL",
+        "safe_text_zone": "bottom"
+      },
+      "architecture_lock": [
+        "The FIRST and ONLY input image is the actual interior product for sale — a real project living-space render/photograph.",
+        "PROJECT ASSET LOCK: preserve this interior exactly — room geometry, windows, furniture layout, architecture, materials, lighting fixtures, and proportions.",
+        "Do NOT invent a similar living room. Do NOT replace furniture layout, move windows, change room shape, or swap to another interior.",
+        "You MAY: ad composition, atmosphere, empty space, graphic approach, color grade, hierarchy, canvas extension, crop, and decorative graphics only around the locked interior.",
+        "You must NOT rasterize logos, wordmarks, slogans, addresses, prices, rent, ROI, dates, distances, CTAs, verified project facts, or critical headlines/subheads into the image.",
+        "Do NOT draw, generate, redraw, or fake any logo or wordmark — including substituting lettering such as 'The Temple' for a real mark.",
+        "Honor the Art Direction Plan zones: keep headline, brand, and CTA zones free of fake wordmarks, numbers, CTAs, and dense typography. Compose atmosphere and campaign air there — not a blank template panel.",
+        "Do not invent financial figures, amenities, or project features not listed in verified facts.",
+        "Investhome is the supporting brand, not the project identity. Real logos and exact copy are composited by InvestHome OS after this edit."
+      ],
+      "brand_restraint": [
+        "Do not invent financial figures, distances, walk/drive times, landmarks, or amenities.",
+        "Do not replace the supplied interior photograph with a different room.",
+        "Do not draw logos or typeset critical copy. InvestHome OS Final Composition Layer places real logos and exact text after generation.",
+        "Do not rasterize slogan, address, price, rent, ROI, CTA, or verified facts into pixels.",
+        "Do not typeset internal field names such as 'project name:' into the creative.",
+        "Investhome slogan is OS-typeset exactly as: Amerika'da güven inşa ediyoruz."
+      ],
+      "source_image": "IH_DC_TMP_001_Render_Living_Room_003.jpeg",
+      "extra_image_roles": [
+        "project_logo"
+      ],
+      "logo_notes": [
+        "investhome_logo: Investhome global logo asset bulunamadı",
+        "project_logo: real SVG file IH_DC_TMP_001_Logo_Primary.svg (asset 7b58877e-efca-4e9a-9027-6fd18fb1b345) will be composited by OS Final Composition Layer — do not redraw it."
+      ],
+      "design_references": [
+        "IH_DC_TMP_001_Render_Living_Room_002.jpeg",
+        "IH_DC_TMP_001_Render_Living_Room_004.jpeg"
+      ],
+      "user_instruction": "MASTER Instagram 4:5 feed ad BACKGROUND for The Temple — PROJECT MODE edit.\nLANGUAGE atmosphere: tr campaign (OS typesets exact Turkish copy after).\n\n=== ADVERTISING ART DIRECTION (senior art director plan — creative freedom, no fixed template) ===\n\nWHAT MUST BE NOTICED FIRST:\n  Eviniz, Sığınak\n\nWHAT MUST BE NOTICED SECOND:\n  Şehrin kalbinde huzur dolu bir yaşam\n\nCOMMERCIAL PRIORITY (derived from Creative Director — drives visual hierarchy):\n  1. lifestyle / interior experience\n  2. brand presence\n  3. call to action\n\nVISUAL HIERARCHY:\n  1 — FIRST GLANCE: Eviniz, Sığınak\n  2 — SECOND READ: Şehrin kalbinde huzur dolu bir yaşam\n  3 — FEATURES: Zarif tasarım detaylarıyla dolu yaşam alanları; Özel ortak alanlar ve sosyal olanaklar; Modern ve fonksiyonel iç mekanlar\n  4 — ACTION: Detayları Keşfet\n  5 — BRAND: Temple logo (OS-composited, never AI-drawn)\n\nSALES HIERARCHY:\n  1. lifestyle / interior experience\n  2. brand presence\n  3. call to action\n\nPRICE HIERARCHY:\n  No price dramatization — lifestyle interior quality and calm living experience.\n\nEMPHASIS WORDS (varied treatment — do NOT render all the same style):\n  - 'Sakin': bold large in gold\n  - 'Zarif': semibold medium in navy\n  - 'Özel': medium medium in ivory-on-navy\n\nINFORMATION GROUPING (keep clusters together — one sales story):\n- Hero concept cluster: Eviniz, Sığınak, Şehrin Kalbinde Sakin Bir Sığınak\n  Relationship: Big idea and hero express calm city-center sanctuary — keep proximate, not separated.\n- Supporting feature callouts: Zarif tasarım detaylarıyla dolu yaşam alanları, Özel ortak alanlar ve sosyal olanaklar, Modern ve fonksiyonel iç mekanlar\n  Relationship: Up to 3 short verified lifestyle features — grouped as callouts, not random corners.\n- CTA cluster: Detayları Keşfet\n  Relationship: Real ad CTA — button, pill, outline, or text+arrow — visible and actionable.\n\nCTA PROMINENCE: Real ad CTA: 'Detayları Keşfet' as button, pill, outline, or text+arrow — large enough to invite tap; not tiny decorative footer text.\nBADGE/CALLOUT: Optional feature badges near callout cluster — only if they strengthen lifestyle story.\n\nTYPOGRAPHY HIERARCHY (OS typesets — compose contrast/air only):\n  - Headline: largest editorial — sanctuary / calm city-center living\n  - Hero/sales hook: medium weight supporting the headline\n  - Feature callouts: 3 short lines — varied weight, not uniform\n  - CTA: high-contrast actionable weight\n  - Brand: quiet but visible logo zone\n\nCONTRAST STRATEGY: Warm interior palette with navy/ivory type — high contrast for headline and CTA, not price panels\nNEGATIVE SPACE: Conscious breath around headline, feature callouts, and CTA — premium composition, not meaningless empty canvas or random decorative gaps.\nIMAGE/TEXT BALANCE: Locked living-room interior carries atmosphere; type zones get composed air — roughly 60% visual / 40% message space, flexible not fixed panels.\nBRAND PRESENCE: The Temple project logo composited by OS — upper area, visible, never AI-generated\nVISUAL STORYTELLING: Sakin ve zarif bir yaşam alanı atmosferi\nDECORATION RULE: Decoration only if it serves campaign: no random building sketch, map pin, long gold line, or watermark unless it strengthens sales or brand story.\n\nWHAT IS BEING SOLD:\n  The Temple interior lifestyle — Eviniz, Sığınak\n\nWHY NOW:\n  Şehrin kalbinde huzur dolu bir yaşam — Şehrin kalbinde huzur dolu bir yaşam\n\nFEATURE CALLOUTS:\n  Zarif tasarım detaylarıyla dolu yaşam alanları · Özel ortak alanlar ve sosyal olanaklar · Modern ve fonksiyonel iç mekanlar\n\nACTION:\n  Detayları Keşfet\n\nPROJECT ASSET LOCK — WHAT STAYS REAL:\n  Interior: IH_DC_TMP_001_Render_Living_Room_003.jpeg (asset caf8eb97-c767-4aa1-841b-759cf3500062)\n  Preserve room geometry, windows, furniture, materials — do NOT invent another living room.\n  Logo: IH_DC_TMP_001_Logo_Primary.svg (asset 7b58877e-efca-4e9a-9027-6fd18fb1b345) — OS composites; never redraw.\n\nWHAT NOT TO INVENT:\n  No AI interior, no AI logo, no extra prices, no ROI/yield/rent, no landmarks, no map pins, no random sketches, no fixed side-panel or bottom-band template.\n\nOS FINAL COPY PREVIEW (do NOT rasterize — leave composed air/contrast):\n  Eyebrow: Şehrin kalbinde huzur dolu bir yaşam\n  Headline: Eviniz, Sığınak\n  Supporting: Zarif tasarım detaylarıyla dolu yaşam alanları · Özel ortak alanlar ve sosyal olanaklar · Modern ve fonksiyonel iç mekanlar\n  CTA: Detayları Keşfet\n\nORIGINAL CAMPAIGN BRIEF (context):\nThe Temple için projenin iç özelliklerini ve yaşam deneyimini anlatan premium bir sosyal medya reklamı hazırla. Drive'daki The Temple katalogunu ve proje belgelerini incele. Projenin gerçek iç mekan özelliklerini, ortak alanlarını, tasarım detaylarını ve öne çıkan yaşam özelliklerini bul. Reklamda en güçlü 3–4 özelliği ön plana çıkar. Drive'daki gerçek The Temple görsellerini ve gerçek proje logosunu kullan. Katalogda veya proje belgelerinde olmayan hiçbir özellik uydurma. Bu kampanyada fiyat veya Unit 204 kullanma. Ana fikir, satış kancası, destek mesajları, CTA ve kullanılacak görseli sen belirle. Türkçe çalış.",
+      "excluded_facts": [
+        "PRJ-TEMP-001",
+        "1610 Columbia Rd NW",
+        "72",
+        "mixed_use",
+        "construction",
+        "60%",
+        "40%",
+        "19.5%",
+        "27.8%",
+        "$14,500,000",
+        "$13,500,000",
+        "$8,200,000",
+        "$52,000,000",
+        "$62,000,000",
+        "$48,500,000"
+      ],
+      "interior_lock": true,
+      "design_plan": {
+        "variation": "lifestyle",
+        "label": "LIFESTYLE",
+        "composition_type": "LIFESTYLE",
+        "canvas_width": 1080,
+        "canvas_height": 1350,
+        "text_ground": "light",
+        "visual_focal_point": "building-left",
+        "negative_space": "right-upper type field",
+        "visual_balance": "architecture left; editorial type right-aligned",
+        "typography_scale": "editorial",
+        "typography_contrast": "high",
+        "contrast_strategy": "navy serif on right-side air against the photograph",
+        "headline_line_breaks": [
+          "Eviniz,",
+          "Sığınak"
+        ],
+        "element_relationships": [
+          "BRAND GROUP: small logo upper-right",
+          "MESSAGE GROUP: right-aligned headline + subhead",
+          "ACTION GROUP: CTA under the right type",
+          "FOOTER GROUP: slogan right, supporting mark left-bottom"
+        ],
+        "decorative_elements": [
+          "short gold rule aligned to the type"
+        ],
+        "overlap_rules": [
+          "Type stays on the right air; building occupies the left two-thirds"
+        ],
+        "graphic_language": [
+          "lifestyle editorial",
+          "right rag",
+          "photographic living"
+        ],
+        "brand_color_relationships": [
+          "navy type, gold rule, ivory right field"
+        ],
+        "safe_margins": {
+          "top": 72,
+          "left": 72,
+          "right": 72,
+          "bottom": 72
+        },
+        "content_zone": {
+          "name": "content",
+          "x": 500,
+          "y": 64,
+          "width": 520,
+          "height": 520,
+          "treatment": "ivory_air"
+        },
+        "image_zone": {
+          "name": "image",
+          "x": 0,
+          "y": 0,
+          "width": 640,
+          "height": 1350,
+          "treatment": "architecture"
+        },
+        "headline_zone": {
+          "name": "headline",
+          "x": 520,
+          "y": 180,
+          "width": 480,
+          "height": 200,
+          "treatment": "quiet"
+        },
+        "brand_zone": {
+          "name": "brand",
+          "x": 760,
+          "y": 72,
+          "width": 240,
+          "height": 48,
+          "treatment": "quiet"
+        },
+        "cta_zone": {
+          "name": "cta",
+          "x": 720,
+          "y": 480,
+          "width": 220,
+          "height": 46,
+          "treatment": "quiet"
+        },
+        "groups": [
+          {
+            "name": "brand",
+            "members": [
+              "logo-project"
+            ],
+            "alignment": "right",
+            "gap": 8
+          },
+          {
+            "name": "message",
+            "members": [
+              "text-headline",
+              "text-subhead",
+              "shape-divider"
+            ],
+            "alignment": "right",
+            "gap": 12
+          },
+          {
+            "name": "action",
+            "members": [
+              "cta-primary"
+            ],
+            "alignment": "right",
+            "gap": 28
+          },
+          {
+            "name": "footer",
+            "members": [
+              "text-slogan"
+            ],
+            "alignment": "split",
+            "gap": 24
+          }
+        ],
+        "reserved": [
+          {
+            "name": "right_type",
+            "x": 500,
+            "y": 56,
+            "width": 520,
+            "height": 520,
+            "treatment": "ivory_air"
+          },
+          {
+            "name": "footer_air",
+            "x": 500,
+            "y": 1268,
+            "width": 500,
+            "height": 40,
+            "treatment": "quiet"
+          }
+        ],
+        "layers": [
+          {
+            "id": "logo-project",
+            "type": "IMAGE",
+            "role": "logo",
+            "x": 760,
+            "y": 72,
+            "width": 248,
+            "height": 72,
+            "z_index": 8,
+            "content_slot": "project_logo",
+            "group": "brand",
+            "font_size": null,
+            "font_family": null,
+            "font_weight": null,
+            "line_height": null,
+            "letter_spacing": null,
+            "color": null,
+            "align": null,
+            "background_color": null,
+            "text_color": null,
+            "border_radius": null,
+            "fill": null,
+            "shape_kind": null,
+            "padding": null,
+            "cta_style": null,
+            "decoration_purpose": null,
+            "opacity": null
+          },
+          {
+            "id": "text-headline",
+            "type": "TEXT",
+            "role": "headline",
+            "x": 520,
+            "y": 176,
+            "width": 480,
+            "height": 188,
+            "z_index": 5,
+            "content_slot": "headline",
+            "group": "message",
+            "font_size": 64,
+            "font_family": "serif",
+            "font_weight": "medium",
+            "line_height": 1.08,
+            "letter_spacing": -1.2,
+            "color": "#1B2A4A",
+            "align": "right",
+            "background_color": null,
+            "text_color": null,
+            "border_radius": null,
+            "fill": null,
+            "shape_kind": null,
+            "padding": null,
+            "cta_style": null,
+            "decoration_purpose": null,
+            "opacity": null
+          },
+          {
+            "id": "text-subhead",
+            "type": "TEXT",
+            "role": "body",
+            "x": 520,
+            "y": 376,
+            "width": 480,
+            "height": 44,
+            "z_index": 5,
+            "content_slot": "subhead",
+            "group": "message",
+            "font_size": 17,
+            "font_family": "sans",
+            "font_weight": null,
+            "line_height": null,
+            "letter_spacing": null,
+            "color": "#3D4A63",
+            "align": "right",
+            "background_color": null,
+            "text_color": null,
+            "border_radius": null,
+            "fill": null,
+            "shape_kind": null,
+            "padding": null,
+            "cta_style": null,
+            "decoration_purpose": null,
+            "opacity": null
+          },
+          {
+            "id": "shape-divider",
+            "type": "SHAPE",
+            "role": "decoration",
+            "x": 944,
+            "y": 432,
+            "width": 56,
+            "height": 2,
+            "z_index": 4,
+            "content_slot": "shape",
+            "group": "message",
+            "font_size": null,
+            "font_family": null,
+            "font_weight": null,
+            "line_height": null,
+            "letter_spacing": null,
+            "color": null,
+            "align": null,
+            "background_color": null,
+            "text_color": null,
+            "border_radius": null,
+            "fill": "#C4A35A",
+            "shape_kind": "line",
+            "padding": null,
+            "cta_style": null,
+            "decoration_purpose": "hierarchy",
+            "opacity": null
+          },
+          {
+            "id": "cta-primary",
+            "type": "BUTTON",
+            "role": "cta",
+            "x": 780,
+            "y": 468,
+            "width": 220,
+            "height": 44,
+            "z_index": 7,
+            "content_slot": "cta",
+            "group": "action",
+            "font_size": 14,
+            "font_family": "sans",
+            "font_weight": "semibold",
+            "line_height": null,
+            "letter_spacing": null,
+            "color": null,
+            "align": null,
+            "background_color": null,
+            "text_color": "#1B2A4A",
+            "border_radius": 0,
+            "fill": null,
+            "shape_kind": null,
+            "padding": null,
+            "cta_style": "text_arrow",
+            "decoration_purpose": null,
+            "opacity": null
+          },
+          {
+            "id": "text-slogan",
+            "type": "TEXT",
+            "role": "brand",
+            "x": 520,
+            "y": 1254,
+            "width": 480,
+            "height": 24,
+            "z_index": 6,
+            "content_slot": "slogan",
+            "group": "footer",
+            "font_size": 12,
+            "font_family": "sans",
+            "font_weight": null,
+            "line_height": null,
+            "letter_spacing": null,
+            "color": "#6B7280",
+            "align": "right",
+            "background_color": null,
+            "text_color": null,
+            "border_radius": null,
+            "fill": null,
+            "shape_kind": null,
+            "padding": null,
+            "cta_style": null,
+            "decoration_purpose": null,
+            "opacity": null
+          }
+        ],
+        "art_notes": [
+          "Lifestyle: building occupies the left; type is a right-hand editorial column.",
+          "Do not default to a left information panel. Preserve the architecture."
+        ],
+        "needs_scrim": false,
+        "visual_review_status": "READY FOR USER VISUAL REVIEW",
+        "quality_corrections": [
+          "logo_min_presence",
+          "safe_area_right",
+          "cta_style:text_arrow",
+          "safe_area_bottom"
+        ]
+      },
+      "marketing_strategy": {
+        "objective": "lifestyle",
+        "audience": "general",
+        "campaign_angle": "amenities_experience",
+        "single_minded_message": "The Temple günlük yaşamı.",
+        "supporting_evidence": [],
+        "excluded_facts": [
+          "PRJ-TEMP-001",
+          "1610 Columbia Rd NW",
+          "72",
+          "mixed_use",
+          "construction",
+          "60%",
+          "40%",
+          "19.5%",
+          "27.8%",
+          "$14,500,000",
+          "$13,500,000",
+          "$8,200,000",
+          "$52,000,000",
+          "$62,000,000",
+          "$48,500,000"
+        ],
+        "desired_action": "Özel tur planla",
+        "tone": "premium",
+        "classified_facts": [
+          {
+            "text": "The Temple",
+            "kind": "FACT",
+            "source": "identity",
+            "reason": "identity_name",
+            "suppress_from_copy": false,
+            "provenance": "project_name=The Temple",
+            "key": "project_name"
+          },
+          {
+            "text": "PRJ-TEMP-001",
+            "kind": "FACT",
+            "source": "verified_fact",
+            "reason": "raw_internal_metadata",
+            "suppress_from_copy": true,
+            "provenance": "project_code=PRJ-TEMP-001",
+            "key": "project_code"
+          },
+          {
+            "text": "Washington",
+            "kind": "FACT",
+            "source": "identity",
+            "reason": "identity_city",
+            "suppress_from_copy": false,
+            "provenance": "city=Washington",
+            "key": "city"
+          },
+          {
+            "text": "United States",
+            "kind": "FACT",
+            "source": "verified_fact",
+            "reason": "identity_other",
+            "suppress_from_copy": false,
+            "provenance": "country=United States",
+            "key": "country"
+          },
+          {
+            "text": "1610 Columbia Rd NW",
+            "kind": "FACT",
+            "source": "verified_fact",
+            "reason": "address_is_evidence_not_the_ad",
+            "suppress_from_copy": true,
+            "provenance": "address=1610 Columbia Rd NW",
+            "key": "address"
+          },
+          {
+            "text": "72",
+            "kind": "FACT",
+            "source": "verified_fact",
+            "reason": "raw_internal_metadata",
+            "suppress_from_copy": true,
+            "provenance": "total_units=72",
+            "key": "total_units"
+          },
+          {
+            "text": "mixed_use",
+            "kind": "FACT",
+            "source": "verified_fact",
+            "reason": "raw_internal_metadata",
+            "suppress_from_copy": true,
+            "provenance": "project_type=mixed_use",
+            "key": "project_type"
+          },
+          {
+            "text": "construction",
+            "kind": "FACT",
+            "source": "verified_fact",
+            "reason": "raw_internal_metadata",
+            "suppress_from_copy": true,
+            "provenance": "project_status=construction",
+            "key": "project_status"
+          },
+          {
+            "text": "60%",
+            "kind": "FACT",
+            "source": "campaign",
+            "reason": "user_supplied_campaign",
+            "suppress_from_copy": true,
+            "provenance": "user_supplied",
+            "key": "campaign_percent"
+          },
+          {
+            "text": "40%",
+            "kind": "FACT",
+            "source": "campaign",
+            "reason": "user_supplied_campaign",
+            "suppress_from_copy": true,
+            "provenance": "user_supplied",
+            "key": "campaign_percent"
+          }
+        ],
+        "neighborhood": "",
+        "city": "Washington",
+        "project_name": "The Temple"
+      },
+      "copy": {
+        "package": {
+          "eyebrow": "",
+          "headline": "The Temple yaşamı",
+          "supporting_copy": "",
+          "cta": "Özel tur planla",
+          "language": "tr",
+          "tone": "premium"
+        },
+        "headline_candidates": [
+          {
+            "text": "The Temple yaşamı",
+            "scores": {
+              "objective_relevance": 0.7,
+              "factual_grounding": 0.95,
+              "specificity": 0.9,
+              "clarity": 0.9,
+              "brevity": 1.0,
+              "differentiation": 0.85,
+              "visual_usability": 0.9
+            },
+            "total": 0.8857,
+            "notes": "amenities_experience"
+          },
+          {
+            "text": "The Temple'te yaşam",
+            "scores": {
+              "objective_relevance": 0.7,
+              "factual_grounding": 0.95,
+              "specificity": 0.9,
+              "clarity": 0.9,
+              "brevity": 1.0,
+              "differentiation": 0.85,
+              "visual_usability": 0.9
+            },
+            "total": 0.8857,
+            "notes": "amenities_experience"
+          },
+          {
+            "text": "Günlük ritüel",
+            "scores": {
+              "objective_relevance": 0.7,
+              "factual_grounding": 0.95,
+              "specificity": 0.9,
+              "clarity": 0.9,
+              "brevity": 1.0,
+              "differentiation": 0.85,
+              "visual_usability": 0.9
+            },
+            "total": 0.8857,
+            "notes": "amenities_experience"
+          }
+        ],
+        "copy_quality": {
+          "scores": {
+            "objective_match": 0.75,
+            "factual_grounding": 0.8,
+            "specificity": 0.8,
+            "brevity": 0.9,
+            "marketing_quality": 0.8,
+            "visual_usability": 0.85,
+            "cta_relevance": 0.75
+          },
+          "total": 0.8071,
+          "passed": true,
+          "reject_codes": []
+        },
+        "selected_index": 0
+      },
+      "creative_concept": {
+        "objective": "lifestyle",
+        "concept": "Aspirational atmosphere without inventing amenities.",
+        "visual_strategy": "Image-led living. Sparse type. Do not invent amenities.",
+        "primary_message": "The Temple yaşamı",
+        "supporting_message": "",
+        "cta": "Özel tur planla",
+        "information_to_exclude": [
+          "address_is_evidence_not_the_ad",
+          "irrelevant_for_lifestyle",
+          "not_needed_for_lifestyle",
+          "strategy_excluded",
+          "PRJ-TEMP-001",
+          "1610 Columbia Rd NW",
+          "72",
+          "mixed_use",
+          "construction",
+          "60%",
+          "40%",
+          "19.5%",
+          "27.8%",
+          "$14,500,000",
+          "$13,500,000",
+          "$8,200,000",
+          "$52,000,000",
+          "$62,000,000",
+          "$48,500,000"
+        ],
+        "composition_strategy": "INVESTMENT",
+        "tone": "premium",
+        "text_density": "sparse",
+        "eyebrow": "",
+        "include_eyebrow": false,
+        "include_support": false,
+        "include_cta": true,
+        "alignment": "left",
+        "contrast_strategy": "localized-top",
+        "overlay_region": "top",
+        "safe_text_zone": "bottom",
+        "selected_facts": [
+          {
+            "text": "The Temple",
+            "source": "verified_fact",
+            "reason": "identity_project_name",
+            "provenance": "project_name=The Temple"
+          }
+        ],
+        "suppressed_facts": [
+          {
+            "text": "PRJ-TEMP-001",
+            "source": "verified_fact",
+            "reason": "not_needed_for_lifestyle",
+            "provenance": "project_code=PRJ-TEMP-001"
+          },
+          {
+            "text": "Washington",
+            "source": "verified_fact",
+            "reason": "not_needed_for_lifestyle",
+            "provenance": "city=Washington"
+          },
+          {
+            "text": "United States",
+            "source": "verified_fact",
+            "reason": "not_needed_for_lifestyle",
+            "provenance": "country=United States"
+          },
+          {
+            "text": "1610 Columbia Rd NW",
+            "source": "verified_fact",
+            "reason": "address_is_evidence_not_the_ad",
+            "provenance": "address=1610 Columbia Rd NW"
+          },
+          {
+            "text": "72",
+            "source": "verified_fact",
+            "reason": "irrelevant_for_lifestyle",
+            "provenance": "total_units=72"
+          },
+          {
+            "text": "mixed_use",
+            "source": "verified_fact",
+            "reason": "not_needed_for_lifestyle",
+            "provenance": "project_type=mixed_use"
+          },
+          {
+            "text": "construction",
+            "source": "verified_fact",
+            "reason": "irrelevant_for_lifestyle",
+            "provenance": "project_status=construction"
+          },
+          {
+            "text": "60%",
+            "source": "campaign",
+            "reason": "strategy_excluded",
+            "provenance": "user_supplied"
+          },
+          {
+            "text": "40%",
+            "source": "campaign",
+            "reason": "strategy_excluded",
+            "provenance": "user_supplied"
+          }
+        ],
+        "asset_profile": {
+          "subject": "unknown",
+          "negative_space": "top",
+          "brightness": "mixed",
+          "contrast": "medium",
+          "safe_text_zone": "top",
+          "image_led": false,
+          "tags": [],
+          "filename": "",
+          "busy": false,
+          "empty_negative_space": false,
+          "focal": "unknown"
+        },
+        "metric_group_layout": "horizontal",
+        "structured_metrics": [],
+        "project_identity_line": "",
+        "creative_intent": "LIFESTYLE",
+        "creative_direction": "LIFESTYLE_PREMIUM",
+        "composition_primitive": "LOWER_THIRD",
+        "copy_density_kind": "LOW",
+        "cta_strategy": "MINIMAL_BUTTON",
+        "contrast_kind": "SOFT_OVERLAY",
+        "brand_treatment": "CORNER_MARK",
+        "visual_priority": "atmosphere",
+        "creative_plan": {
+          "intent": "LIFESTYLE",
+          "audience": "aspirational_residents",
+          "objective": "lifestyle",
+          "creative_direction": "LIFESTYLE_PREMIUM",
+          "visual_priority": "atmosphere",
+          "hierarchy": {
+            "primary": "headline",
+            "secondary": "body",
+            "tertiary": "eyebrow",
+            "cta": "cta",
+            "brand": "eyebrow"
+          },
+          "copy_density": "LOW",
+          "composition": "LOWER_THIRD",
+          "text_regions": {
+            "zone": "bottom",
+            "align": "left",
+            "width_ratio": 0.72,
+            "avoid_focal": true
+          },
+          "image_strategy": "Image-led living. Sparse type. Do not invent amenities.",
+          "contrast_strategy": "SOFT_OVERLAY",
+          "overlay_strategy": "soft-bottom",
+          "overlay_region": "bottom",
+          "metric_strategy": "NONE",
+          "cta_strategy": "MINIMAL_BUTTON",
+          "brand_treatment": "CORNER_MARK",
+          "family": "INVESTMENT",
+          "include_eyebrow": false,
+          "include_support": false,
+          "include_cta": true,
+          "include_metrics": false,
+          "include_brand": true,
+          "alignment": "left",
+          "safe_text_zone": "bottom",
+          "concept": "Aspirational atmosphere without inventing amenities.",
+          "decisions": [
+            "LIFESTYLE_PREMIUM:atmosphere:4.8",
+            "EDITORIAL_LUXURY:quiet_lifestyle:2.2",
+            "variety_followup_request",
+            "composition:LOWER_THIRD:request_variety",
+            "density:LOW",
+            "contrast:SOFT_OVERLAY",
+            "cta:MINIMAL_BUTTON",
+            "metrics:none",
+            "brand:CORNER_MARK"
+          ],
+          "variety_avoided": []
+        },
+        "composition_blueprint": {
+          "composition_family": "LIFESTYLE_EDITORIAL",
+          "focal_region": {
+            "x": 20.0,
+            "y": 30.0,
+            "w": 60.0,
+            "h": 50.0
+          },
+          "content_zone": {
+            "x": 6.0,
+            "y": 15.917,
+            "w": 58.333,
+            "h": 12.833
+          },
+          "negative_space": {
+            "x": 7.0,
+            "y": 7.0,
+            "w": 72.0,
+            "h": 22.0
+          },
+          "image_crop": {
+            "x": 0.0,
+            "y": 0.0,
+            "w": 100.0,
+            "h": 100.0,
+            "focal_bias": "center"
+          },
+          "headline_region": {
+            "x": 6.0,
+            "y": 15.917,
+            "w": 58.333,
+            "h": 12.833
+          },
+          "support_region": null,
+          "metric_region": null,
+          "brand_region": {
+            "x": 6.0,
+            "y": 9.0,
+            "w": 28.667,
+            "h": 5.917
+          },
+          "cta_region": {
+            "x": 6.0,
+            "y": 50.5,
+            "w": 28.667,
+            "h": 5.917
+          },
+          "alignment": "left",
+          "grid": {
+            "columns": 12,
+            "rows": 12,
+            "gutter": 1.0,
+            "margin_x": 6.0,
+            "margin_y": 9.0
+          },
+          "overlay_regions": [
+            {
+              "kind": "localized-top",
+              "region": {
+                "x": 0.0,
+                "y": 0.0,
+                "w": 100.0,
+                "h": 32.0
+              },
+              "strength": "localized"
+            }
+          ],
+          "visual_weight": {
+            "dominant": "image",
+            "supporting": "headline",
+            "tertiary": null
+          },
+          "safe_zones": [
+            {
+              "x": 7.0,
+              "y": 7.0,
+              "w": 72.0,
+              "h": 22.0
+            },
+            {
+              "x": 7.0,
+              "y": 78.0,
+              "w": 55.0,
+              "h": 15.0
+            }
+          ],
+          "groups": [
+            {
+              "kind": "BRAND_LOCKUP",
+              "region": {
+                "x": 6.0,
+                "y": 9.0,
+                "w": 28.667,
+                "h": 5.917
+              },
+              "alignment": "left",
+              "spacing_inside": 0.8,
+              "members": [
+                "eyebrow",
+                "brand"
+              ],
+              "weight": "tertiary"
+            },
+            {
+              "kind": "HEADLINE",
+              "region": {
+                "x": 6.0,
+                "y": 15.917,
+                "w": 58.333,
+                "h": 12.833
+              },
+              "alignment": "left",
+              "spacing_inside": 1.2,
+              "members": [
+                "headline"
+              ],
+              "weight": "supporting"
+            },
+            {
+              "kind": "CTA",
+              "region": {
+                "x": 6.0,
+                "y": 50.5,
+                "w": 28.667,
+                "h": 5.917
+              },
+              "alignment": "left",
+              "spacing_inside": 0.6,
+              "members": [
+                "cta"
+              ],
+              "weight": "tertiary"
+            }
+          ],
+          "headline_region_kind": "top_left",
+          "metric_region_kind": "none",
+          "cta_placement": "under_headline",
+          "brand_lockup": "compact",
+          "metric_layout": null,
+          "split_ratio": null,
+          "overlay_token": "localized-top",
+          "format_preset": "story",
+          "decisions": [
+            "primitive_hint:LOWER_THIRD",
+            "vertical_reflow_family",
+            "variety_followup",
+            "family:LIFESTYLE_EDITORIAL",
+            "headline:top_left",
+            "metric:none",
+            "cta:under_headline",
+            "overlay:localized-top"
+          ],
+          "diversity_key": "LIFESTYLE_EDITORIAL:headline:top_left:metric:none:cta:under_headline",
+          "diversity_tokens": [
+            "LIFESTYLE_EDITORIAL",
+            "headline:top_left",
+            "metric:none",
+            "cta:under_headline"
+          ]
+        },
+        "composition_family": "LIFESTYLE_EDITORIAL"
+      },
+      "campaign_intelligence": {
+        "campaign_context_id": "ec3021d7-3d2f-4eca-bd75-e747571e1bb9",
+        "campaign_intent": "amenities",
+        "campaign_intent_confidence": 0.95,
+        "marketing_objective": "lifestyle",
+        "project_knowledge": {
+          "project_identity": {
+            "project_id": "d50708cb-60b3-465a-8b16-6d30f802af8d",
+            "project_name": "The Temple",
+            "project_code": "PRJ-TEMP-001",
+            "project_type": "mixed_use",
+            "project_status": "construction"
+          },
+          "location": {
+            "city": "Washington",
+            "state": "DC",
+            "country": "United States",
+            "address": "1610 Columbia Rd NW",
+            "postal_code": "20009"
+          },
+          "investment": {
+            "projected_irr": "19.5%",
+            "projected_irr_raw": "19.5",
+            "projected_roi": "27.8%",
+            "projected_roi_raw": "27.8",
+            "equity_required": "$14,500,000",
+            "projected_profit": "$13,500,000"
+          },
+          "pricing": {
+            "acquisition_price": "$8,200,000",
+            "current_project_value": "$52,000,000",
+            "projected_sale_value": "$62,000,000",
+            "total_development_cost": "$48,500,000"
+          },
+          "rental": {},
+          "development": {
+            "total_units": 72,
+            "target_completion_date": "2027-06-30"
+          },
+          "amenities": [],
+          "neighborhood": {},
+          "architecture": {},
+          "availability": {
+            "total_units": 72,
+            "residential_units": 64
+          },
+          "media_assets": [],
+          "source_evidence": [
+            {
+              "source": "project_db",
+              "reference": "projects.project_name",
+              "excerpt": "The Temple"
+            },
+            {
+              "source": "project_db",
+              "reference": "projects.city",
+              "excerpt": "Washington"
+            },
+            {
+              "source": "project_db",
+              "reference": "projects.state",
+              "excerpt": "DC"
+            },
+            {
+              "source": "project_db",
+              "reference": "projects.country",
+              "excerpt": "United States"
+            },
+            {
+              "source": "project_db",
+              "reference": "projects.address",
+              "excerpt": "1610 Columbia Rd NW"
+            },
+            {
+              "source": "project_db",
+              "reference": "projects.postal_code",
+              "excerpt": "20009"
+            },
+            {
+              "source": "project_db",
+              "reference": "projects.projected_irr",
+              "excerpt": "19.5%"
+            },
+            {
+              "source": "project_db",
+              "reference": "projects.projected_roi",
+              "excerpt": "27.8%"
+            },
+            {
+              "source": "project_db",
+              "reference": "projects.equity_required",
+              "excerpt": "$14,500,000"
+            },
+            {
+              "source": "project_db",
+              "reference": "projects.projected_profit",
+              "excerpt": "$13,500,000"
+            },
+            {
+              "source": "project_db",
+              "reference": "projects.acquisition_price",
+              "excerpt": "$8,200,000"
+            },
+            {
+              "source": "project_db",
+              "reference": "projects.current_project_value",
+              "excerpt": "$52,000,000"
+            },
+            {
+              "source": "project_db",
+              "reference": "projects.projected_sale_value",
+              "excerpt": "$62,000,000"
+            },
+            {
+              "source": "project_db",
+              "reference": "projects.total_development_cost",
+              "excerpt": "$48,500,000"
+            },
+            {
+              "source": "project_db",
+              "reference": "projects.development",
+              "excerpt": "{'total_units': 72, 'target_completion_date': '2027-06-30'}"
+            }
+          ],
+          "populated_sections": [
+            "project_identity",
+            "location",
+            "investment",
+            "pricing",
+            "development",
+            "availability",
+            "source_evidence"
+          ]
+        },
+        "verified_campaign_facts": [
+          {
+            "fact_id": "vf_d2a81cb7e2",
+            "category": "identity",
+            "key": "project_name",
+            "value": "The Temple",
+            "display_value": "The Temple",
+            "source": "project_db",
+            "source_reference": "projects.project_name",
+            "confidence": 1.0,
+            "verified": true,
+            "marketing_usefulness": 0.95,
+            "recency_score": 0.7,
+            "is_financial": false,
+            "is_campaign_scoped": false,
+            "language_safe": true,
+            "visibility": "public",
+            "marketing_status": "approved",
+            "derivation_type": "canonical",
+            "effective_date": null,
+            "campaign_scope": null,
+            "campaign_context_id": null,
+            "conflict_status": "none"
+          },
+          {
+            "fact_id": "vf_e5d939d8a1",
+            "category": "location",
+            "key": "address",
+            "value": "1610 Columbia Rd NW",
+            "display_value": "1610 Columbia Rd NW",
+            "source": "project_db",
+            "source_reference": "projects.address",
+            "confidence": 1.0,
+            "verified": true,
+            "marketing_usefulness": 0.15,
+            "recency_score": 0.7,
+            "is_financial": false,
+            "is_campaign_scoped": false,
+            "language_safe": true,
+            "visibility": "internal",
+            "marketing_status": "approved",
+            "derivation_type": "canonical",
+            "effective_date": null,
+            "campaign_scope": null,
+            "campaign_context_id": null,
+            "conflict_status": "none"
+          }
+        ],
+        "marketing_safe_facts": [
+          {
+            "fact_id": "vf_d2a81cb7e2",
+            "category": "identity",
+            "key": "project_name",
+            "value": "The Temple",
+            "display_value": "The Temple",
+            "source": "project_db",
+            "source_reference": "projects.project_name",
+            "confidence": 1.0,
+            "verified": true,
+            "marketing_usefulness": 0.95,
+            "recency_score": 0.7,
+            "is_financial": false,
+            "is_campaign_scoped": false,
+            "language_safe": true,
+            "visibility": "public",
+            "marketing_status": "approved",
+            "derivation_type": "canonical",
+            "effective_date": null,
+            "campaign_scope": null,
+            "campaign_context_id": null,
+            "conflict_status": "none"
+          },
+          {
+            "fact_id": "vf_454e2a45e6",
+            "category": "location",
+            "key": "city",
+            "value": "Washington",
+            "display_value": "Washington",
+            "source": "project_db",
+            "source_reference": "projects.city",
+            "confidence": 1.0,
+            "verified": true,
+            "marketing_usefulness": 0.9,
+            "recency_score": 0.7,
+            "is_financial": false,
+            "is_campaign_scoped": false,
+            "language_safe": true,
+            "visibility": "public",
+            "marketing_status": "approved",
+            "derivation_type": "canonical",
+            "effective_date": null,
+            "campaign_scope": null,
+            "campaign_context_id": null,
+            "conflict_status": "none"
+          },
+          {
+            "fact_id": "vf_5d26ebd70b",
+            "category": "location",
+            "key": "country",
+            "value": "United States",
+            "display_value": "United States",
+            "source": "project_db",
+            "source_reference": "projects.country",
+            "confidence": 1.0,
+            "verified": true,
+            "marketing_usefulness": 0.55,
+            "recency_score": 0.7,
+            "is_financial": false,
+            "is_campaign_scoped": false,
+            "language_safe": true,
+            "visibility": "public",
+            "marketing_status": "approved",
+            "derivation_type": "canonical",
+            "effective_date": null,
+            "campaign_scope": null,
+            "campaign_context_id": null,
+            "conflict_status": "none"
+          },
+          {
+            "fact_id": "vf_16ae24ef9c",
+            "category": "location",
+            "key": "state",
+            "value": "DC",
+            "display_value": "DC",
+            "source": "project_db",
+            "source_reference": "projects.state",
+            "confidence": 1.0,
+            "verified": true,
+            "marketing_usefulness": 0.55,
+            "recency_score": 0.7,
+            "is_financial": false,
+            "is_campaign_scoped": false,
+            "language_safe": true,
+            "visibility": "public",
+            "marketing_status": "approved",
+            "derivation_type": "canonical",
+            "effective_date": null,
+            "campaign_scope": null,
+            "campaign_context_id": null,
+            "conflict_status": "none"
+          },
+          {
+            "fact_id": "vf_e5d939d8a1",
+            "category": "location",
+            "key": "address",
+            "value": "1610 Columbia Rd NW",
+            "display_value": "1610 Columbia Rd NW",
+            "source": "project_db",
+            "source_reference": "projects.address",
+            "confidence": 1.0,
+            "verified": true,
+            "marketing_usefulness": 0.15,
+            "recency_score": 0.7,
+            "is_financial": false,
+            "is_campaign_scoped": false,
+            "language_safe": true,
+            "visibility": "internal",
+            "marketing_status": "approved",
+            "derivation_type": "canonical",
+            "effective_date": null,
+            "campaign_scope": null,
+            "campaign_context_id": null,
+            "conflict_status": "none"
+          }
+        ],
+        "user_campaign_inputs": [
+          {
+            "label": "campaign_percent",
+            "display": "60%",
+            "kind": "percent",
+            "source": "user_supplied"
+          },
+          {
+            "label": "campaign_percent",
+            "display": "40%",
+            "kind": "percent",
+            "source": "user_supplied"
+          }
+        ],
+        "missing_relevant_facts": [],
+        "available_assets": [],
+        "can_proceed": true,
+        "block_reason": null,
+        "qa_trace": {
+          "campaign_context_id": "ec3021d7-3d2f-4eca-bd75-e747571e1bb9",
+          "campaign_intent": "amenities",
+          "intent_confidence": 0.95,
+          "intent_signals": [
+            "return_language",
+            "city_named",
+            "amenities_language",
+            "lifestyle_language"
+          ],
+          "facts_selected": [
+            {
+              "fact_id": "vf_d2a81cb7e2",
+              "key": "project_name",
+              "display": "The Temple",
+              "source": "project_db",
+              "reference": "projects.project_name",
+              "campaign_scoped": false,
+              "financial": false,
+              "marketing_status": "approved",
+              "derivation_type": "canonical",
+              "visibility": "public"
+            },
+            {
+              "fact_id": "vf_e5d939d8a1",
+              "key": "address",
+              "display": "1610 Columbia Rd NW",
+              "source": "project_db",
+              "reference": "projects.address",
+              "campaign_scoped": false,
+              "financial": false,
+              "marketing_status": "approved",
+              "derivation_type": "canonical",
+              "visibility": "internal"
+            }
+          ],
+          "user_supplied": [
+            {
+              "fact_id": "cf_2a28e3c9ba",
+              "category": "investment",
+              "key": "campaign_return",
+              "value": "60%",
+              "display_value": "60%",
+              "source": "user_campaign_input",
+              "source_reference": "user_prompt",
+              "confidence": 1.0,
+              "verified": true,
+              "marketing_usefulness": 0.95,
+              "recency_score": 1.0,
+              "is_financial": true,
+              "is_campaign_scoped": true,
+              "language_safe": true,
+              "visibility": "public",
+              "marketing_status": "campaign_only",
+              "derivation_type": "user_supplied",
+              "effective_date": "2026-08-19T09:10:27.896583+00:00",
+              "campaign_scope": "current",
+              "campaign_context_id": "ec3021d7-3d2f-4eca-bd75-e747571e1bb9",
+              "conflict_status": "conflicting"
+            },
+            {
+              "fact_id": "cf_3967bbca7d",
+              "category": "investment",
+              "key": "campaign_return",
+              "value": "40%",
+              "display_value": "40%",
+              "source": "user_campaign_input",
+              "source_reference": "user_prompt",
+              "confidence": 1.0,
+              "verified": true,
+              "marketing_usefulness": 0.95,
+              "recency_score": 1.0,
+              "is_financial": true,
+              "is_campaign_scoped": true,
+              "language_safe": true,
+              "visibility": "public",
+              "marketing_status": "campaign_only",
+              "derivation_type": "user_supplied",
+              "effective_date": "2026-08-19T09:10:27.896604+00:00",
+              "campaign_scope": "current",
+              "campaign_context_id": "ec3021d7-3d2f-4eca-bd75-e747571e1bb9",
+              "conflict_status": "conflicting"
+            }
+          ],
+          "missing_facts": [],
+          "selected_asset": {
+            "asset_id": "caf8eb97-c767-4aa1-841b-759cf3500062",
+            "filename": "IH_DC_TMP_001_Render_Living_Room_003.jpeg",
+            "folder_category": "02_RENDER",
+            "tags": []
+          },
+          "angle_hint": "The Temple",
+          "can_proceed": true,
+          "populated_knowledge_sections": [
+            "project_identity",
+            "location",
+            "investment",
+            "pricing",
+            "development",
+            "availability",
+            "source_evidence"
+          ],
+          "generated_at": "2026-08-19T09:10:27.897027+00:00",
+          "claim_eligibility_trace": [
+            {
+              "fact_id": "vf_d2a81cb7e2",
+              "fact": "The Temple",
+              "key": "project_name",
+              "source": "project_db",
+              "source_reference": "projects.project_name",
+              "marketing_status": "approved",
+              "derivation_type": "canonical",
+              "visibility": "public",
+              "eligible": true,
+              "eligibility": "non_financial_visibility_ok",
+              "rejection_reason": null,
+              "conflict_status": "none",
+              "claim_family": null,
+              "is_financial": false,
+              "campaign_scoped": false,
+              "campaign_context_id": null
+            },
+            {
+              "fact_id": "vf_454e2a45e6",
+              "fact": "Washington",
+              "key": "city",
+              "source": "project_db",
+              "source_reference": "projects.city",
+              "marketing_status": "approved",
+              "derivation_type": "canonical",
+              "visibility": "public",
+              "eligible": true,
+              "eligibility": "non_financial_visibility_ok",
+              "rejection_reason": null,
+              "conflict_status": "none",
+              "claim_family": null,
+              "is_financial": false,
+              "campaign_scoped": false,
+              "campaign_context_id": null
+            },
+            {
+              "fact_id": "vf_5d26ebd70b",
+              "fact": "United States",
+              "key": "country",
+              "source": "project_db",
+              "source_reference": "projects.country",
+              "marketing_status": "approved",
+              "derivation_type": "canonical",
+              "visibility": "public",
+              "eligible": true,
+              "eligibility": "non_financial_visibility_ok",
+              "rejection_reason": null,
+              "conflict_status": "none",
+              "claim_family": null,
+              "is_financial": false,
+              "campaign_scoped": false,
+              "campaign_context_id": null
+            },
+            {
+              "fact_id": "vf_16ae24ef9c",
+              "fact": "DC",
+              "key": "state",
+              "source": "project_db",
+              "source_reference": "projects.state",
+              "marketing_status": "approved",
+              "derivation_type": "canonical",
+              "visibility": "public",
+              "eligible": true,
+              "eligibility": "non_financial_visibility_ok",
+              "rejection_reason": null,
+              "conflict_status": "none",
+              "claim_family": null,
+              "is_financial": false,
+              "campaign_scoped": false,
+              "campaign_context_id": null
+            },
+            {
+              "fact_id": "vf_e5d939d8a1",
+              "fact": "1610 Columbia Rd NW",
+              "key": "address",
+              "source": "project_db",
+              "source_reference": "projects.address",
+              "marketing_status": "approved",
+              "derivation_type": "canonical",
+              "visibility": "internal",
+              "eligible": true,
+              "eligibility": "non_financial_visibility_ok",
+              "rejection_reason": null,
+              "conflict_status": "none",
+              "claim_family": null,
+              "is_financial": false,
+              "campaign_scoped": false,
+              "campaign_context_id": null
+            },
+            {
+              "fact_id": "vf_f31938589d",
+              "fact": "19.5%",
+              "key": "projected_irr",
+              "source": "project_db",
+              "source_reference": "projects.projected_irr",
+              "marketing_status": "requires_review",
+              "derivation_type": "canonical",
+              "visibility": "internal",
+              "eligible": false,
+              "eligibility": "conflicting_values",
+              "rejection_reason": "conflicting_values",
+              "conflict_status": "blocked_family",
+              "claim_family": "return",
+              "is_financial": true,
+              "campaign_scoped": false,
+              "campaign_context_id": null
+            },
+            {
+              "fact_id": "vf_32f9ac48e9",
+              "fact": "27.8%",
+              "key": "projected_roi",
+              "source": "project_db",
+              "source_reference": "projects.projected_roi",
+              "marketing_status": "requires_review",
+              "derivation_type": "canonical",
+              "visibility": "internal",
+              "eligible": false,
+              "eligibility": "conflicting_values",
+              "rejection_reason": "conflicting_values",
+              "conflict_status": "blocked_family",
+              "claim_family": "return",
+              "is_financial": true,
+              "campaign_scoped": false,
+              "campaign_context_id": null
+            },
+            {
+              "fact_id": "vf_0fd7981d9a",
+              "fact": "$14,500,000",
+              "key": "equity_required",
+              "source": "project_db",
+              "source_reference": "projects.equity_required",
+              "marketing_status": "requires_review",
+              "derivation_type": "canonical",
+              "visibility": "internal",
+              "eligible": false,
+              "eligibility": "requires_marketing_review",
+              "rejection_reason": "requires_marketing_review",
+              "conflict_status": "none",
+              "claim_family": "min_investment",
+              "is_financial": true,
+              "campaign_scoped": false,
+              "campaign_context_id": null
+            },
+            {
+              "fact_id": "vf_638579a753",
+              "fact": "$13,500,000",
+              "key": "projected_profit",
+              "source": "project_db",
+              "source_reference": "projects.projected_profit",
+              "marketing_status": "requires_review",
+              "derivation_type": "canonical",
+              "visibility": "internal",
+              "eligible": false,
+              "eligibility": "requires_marketing_review",
+              "rejection_reason": "requires_marketing_review",
+              "conflict_status": "none",
+              "claim_family": "profit",
+              "is_financial": true,
+              "campaign_scoped": false,
+              "campaign_context_id": null
+            },
+            {
+              "fact_id": "vf_ac3a0c0515",
+              "fact": "$8,200,000",
+              "key": "acquisition_price",
+              "source": "project_db",
+              "source_reference": "projects.acquisition_price",
+              "marketing_status": "requires_review",
+              "derivation_type": "canonical",
+              "visibility": "internal",
+              "eligible": false,
+              "eligibility": "conflicting_values",
+              "rejection_reason": "conflicting_values",
+              "conflict_status": "blocked_family",
+              "claim_family": "projected_value",
+              "is_financial": true,
+              "campaign_scoped": false,
+              "campaign_context_id": null
+            },
+            {
+              "fact_id": "vf_fa63d546b1",
+              "fact": "$52,000,000",
+              "key": "current_project_value",
+              "source": "project_db",
+              "source_reference": "projects.current_project_value",
+              "marketing_status": "requires_review",
+              "derivation_type": "canonical",
+              "visibility": "internal",
+              "eligible": false,
+              "eligibility": "conflicting_values",
+              "rejection_reason": "conflicting_values",
+              "conflict_status": "blocked_family",
+              "claim_family": "projected_value",
+              "is_financial": true,
+              "campaign_scoped": false,
+              "campaign_context_id": null
+            },
+            {
+              "fact_id": "vf_9d8e4e601c",
+              "fact": "$62,000,000",
+              "key": "projected_sale_value",
+              "source": "project_db",
+              "source_reference": "projects.projected_sale_value",
+              "marketing_status": "requires_review",
+              "derivation_type": "canonical",
+              "visibility": "internal",
+              "eligible": false,
+              "eligibility": "conflicting_values",
+              "rejection_reason": "conflicting_values",
+              "conflict_status": "blocked_family",
+              "claim_family": "projected_value",
+              "is_financial": true,
+              "campaign_scoped": false,
+              "campaign_context_id": null
+            },
+            {
+              "fact_id": "vf_1498a7876b",
+              "fact": "$48,500,000",
+              "key": "total_development_cost",
+              "source": "project_db",
+              "source_reference": "projects.total_development_cost",
+              "marketing_status": "requires_review",
+              "derivation_type": "canonical",
+              "visibility": "internal",
+              "eligible": false,
+              "eligibility": "conflicting_values",
+              "rejection_reason": "conflicting_values",
+              "conflict_status": "blocked_family",
+              "claim_family": "projected_value",
+              "is_financial": true,
+              "campaign_scoped": false,
+              "campaign_context_id": null
+            },
+            {
+              "fact_id": "cf_2a28e3c9ba",
+              "fact": "60%",
+              "key": "campaign_return",
+              "source": "user_campaign_input",
+              "source_reference": "user_prompt",
+              "marketing_status": "campaign_only",
+              "derivation_type": "user_supplied",
+              "visibility": "public",
+              "eligible": false,
+              "eligibility": "conflicting_values",
+              "rejection_reason": "conflicting_values",
+              "conflict_status": "conflicting",
+              "claim_family": "return",
+              "is_financial": true,
+              "campaign_scoped": true,
+              "campaign_context_id": "ec3021d7-3d2f-4eca-bd75-e747571e1bb9"
+            },
+            {
+              "fact_id": "cf_3967bbca7d",
+              "fact": "40%",
+              "key": "campaign_return",
+              "source": "user_campaign_input",
+              "source_reference": "user_prompt",
+              "marketing_status": "campaign_only",
+              "derivation_type": "user_supplied",
+              "visibility": "public",
+              "eligible": false,
+              "eligibility": "conflicting_values",
+              "rejection_reason": "conflicting_values",
+              "conflict_status": "conflicting",
+              "claim_family": "return",
+              "is_financial": true,
+              "campaign_scoped": true,
+              "campaign_context_id": "ec3021d7-3d2f-4eca-bd75-e747571e1bb9"
+            }
+          ],
+          "financial_conflicts": {
+            "return": [
+              {
+                "key": "campaign_return",
+                "display": "60%",
+                "source": "user_campaign_input",
+                "marketing_status": "campaign_only"
+              },
+              {
+                "key": "campaign_return",
+                "display": "40%",
+                "source": "user_campaign_input",
+                "marketing_status": "campaign_only"
+              }
+            ],
+            "projected_value": [
+              {
+                "key": "acquisition_price",
+                "display": "$8,200,000",
+                "source": "project_db",
+                "marketing_status": "requires_review"
+              },
+              {
+                "key": "current_project_value",
+                "display": "$52,000,000",
+                "source": "project_db",
+                "marketing_status": "requires_review"
+              },
+              {
+                "key": "projected_sale_value",
+                "display": "$62,000,000",
+                "source": "project_db",
+                "marketing_status": "requires_review"
+              },
+              {
+                "key": "total_development_cost",
+                "display": "$48,500,000",
+                "source": "project_db",
+                "marketing_status": "requires_review"
+              }
+            ]
+          },
+          "blocked_financial_tokens": [
+            "19.5%",
+            "27.8%",
+            "$14,500,000",
+            "$13,500,000",
+            "$8,200,000",
+            "$52,000,000",
+            "$62,000,000",
+            "$48,500,000",
+            "60%",
+            "40%"
+          ],
+          "marketing_safe_count": 5,
+          "packages": {
+            "project_knowledge": true,
+            "marketing_safe_facts": true
+          }
+        },
+        "claim_eligibility_trace": [
+          {
+            "fact_id": "vf_d2a81cb7e2",
+            "fact": "The Temple",
+            "key": "project_name",
+            "source": "project_db",
+            "source_reference": "projects.project_name",
+            "marketing_status": "approved",
+            "derivation_type": "canonical",
+            "visibility": "public",
+            "eligible": true,
+            "eligibility": "non_financial_visibility_ok",
+            "rejection_reason": null,
+            "conflict_status": "none",
+            "claim_family": null,
+            "is_financial": false,
+            "campaign_scoped": false,
+            "campaign_context_id": null
+          },
+          {
+            "fact_id": "vf_454e2a45e6",
+            "fact": "Washington",
+            "key": "city",
+            "source": "project_db",
+            "source_reference": "projects.city",
+            "marketing_status": "approved",
+            "derivation_type": "canonical",
+            "visibility": "public",
+            "eligible": true,
+            "eligibility": "non_financial_visibility_ok",
+            "rejection_reason": null,
+            "conflict_status": "none",
+            "claim_family": null,
+            "is_financial": false,
+            "campaign_scoped": false,
+            "campaign_context_id": null
+          },
+          {
+            "fact_id": "vf_5d26ebd70b",
+            "fact": "United States",
+            "key": "country",
+            "source": "project_db",
+            "source_reference": "projects.country",
+            "marketing_status": "approved",
+            "derivation_type": "canonical",
+            "visibility": "public",
+            "eligible": true,
+            "eligibility": "non_financial_visibility_ok",
+            "rejection_reason": null,
+            "conflict_status": "none",
+            "claim_family": null,
+            "is_financial": false,
+            "campaign_scoped": false,
+            "campaign_context_id": null
+          },
+          {
+            "fact_id": "vf_16ae24ef9c",
+            "fact": "DC",
+            "key": "state",
+            "source": "project_db",
+            "source_reference": "projects.state",
+            "marketing_status": "approved",
+            "derivation_type": "canonical",
+            "visibility": "public",
+            "eligible": true,
+            "eligibility": "non_financial_visibility_ok",
+            "rejection_reason": null,
+            "conflict_status": "none",
+            "claim_family": null,
+            "is_financial": false,
+            "campaign_scoped": false,
+            "campaign_context_id": null
+          },
+          {
+            "fact_id": "vf_e5d939d8a1",
+            "fact": "1610 Columbia Rd NW",
+            "key": "address",
+            "source": "project_db",
+            "source_reference": "projects.address",
+            "marketing_status": "approved",
+            "derivation_type": "canonical",
+            "visibility": "internal",
+            "eligible": true,
+            "eligibility": "non_financial_visibility_ok",
+            "rejection_reason": null,
+            "conflict_status": "none",
+            "claim_family": null,
+            "is_financial": false,
+            "campaign_scoped": false,
+            "campaign_context_id": null
+          },
+          {
+            "fact_id": "vf_f31938589d",
+            "fact": "19.5%",
+            "key": "projected_irr",
+            "source": "project_db",
+            "source_reference": "projects.projected_irr",
+            "marketing_status": "requires_review",
+            "derivation_type": "canonical",
+            "visibility": "internal",
+            "eligible": false,
+            "eligibility": "conflicting_values",
+            "rejection_reason": "conflicting_values",
+            "conflict_status": "blocked_family",
+            "claim_family": "return",
+            "is_financial": true,
+            "campaign_scoped": false,
+            "campaign_context_id": null
+          },
+          {
+            "fact_id": "vf_32f9ac48e9",
+            "fact": "27.8%",
+            "key": "projected_roi",
+            "source": "project_db",
+            "source_reference": "projects.projected_roi",
+            "marketing_status": "requires_review",
+            "derivation_type": "canonical",
+            "visibility": "internal",
+            "eligible": false,
+            "eligibility": "conflicting_values",
+            "rejection_reason": "conflicting_values",
+            "conflict_status": "blocked_family",
+            "claim_family": "return",
+            "is_financial": true,
+            "campaign_scoped": false,
+            "campaign_context_id": null
+          },
+          {
+            "fact_id": "vf_0fd7981d9a",
+            "fact": "$14,500,000",
+            "key": "equity_required",
+            "source": "project_db",
+            "source_reference": "projects.equity_required",
+            "marketing_status": "requires_review",
+            "derivation_type": "canonical",
+            "visibility": "internal",
+            "eligible": false,
+            "eligibility": "requires_marketing_review",
+            "rejection_reason": "requires_marketing_review",
+            "conflict_status": "none",
+            "claim_family": "min_investment",
+            "is_financial": true,
+            "campaign_scoped": false,
+            "campaign_context_id": null
+          },
+          {
+            "fact_id": "vf_638579a753",
+            "fact": "$13,500,000",
+            "key": "projected_profit",
+            "source": "project_db",
+            "source_reference": "projects.projected_profit",
+            "marketing_status": "requires_review",
+            "derivation_type": "canonical",
+            "visibility": "internal",
+            "eligible": false,
+            "eligibility": "requires_marketing_review",
+            "rejection_reason": "requires_marketing_review",
+            "conflict_status": "none",
+            "claim_family": "profit",
+            "is_financial": true,
+            "campaign_scoped": false,
+            "campaign_context_id": null
+          },
+          {
+            "fact_id": "vf_ac3a0c0515",
+            "fact": "$8,200,000",
+            "key": "acquisition_price",
+            "source": "project_db",
+            "source_reference": "projects.acquisition_price",
+            "marketing_status": "requires_review",
+            "derivation_type": "canonical",
+            "visibility": "internal",
+            "eligible": false,
+            "eligibility": "conflicting_values",
+            "rejection_reason": "conflicting_values",
+            "conflict_status": "blocked_family",
+            "claim_family": "projected_value",
+            "is_financial": true,
+            "campaign_scoped": false,
+            "campaign_context_id": null
+          },
+          {
+            "fact_id": "vf_fa63d546b1",
+            "fact": "$52,000,000",
+            "key": "current_project_value",
+            "source": "project_db",
+            "source_reference": "projects.current_project_value",
+            "marketing_status": "requires_review",
+            "derivation_type": "canonical",
+            "visibility": "internal",
+            "eligible": false,
+            "eligibility": "conflicting_values",
+            "rejection_reason": "conflicting_values",
+            "conflict_status": "blocked_family",
+            "claim_family": "projected_value",
+            "is_financial": true,
+            "campaign_scoped": false,
+            "campaign_context_id": null
+          },
+          {
+            "fact_id": "vf_9d8e4e601c",
+            "fact": "$62,000,000",
+            "key": "projected_sale_value",
+            "source": "project_db",
+            "source_reference": "projects.projected_sale_value",
+            "marketing_status": "requires_review",
+            "derivation_type": "canonical",
+            "visibility": "internal",
+            "eligible": false,
+            "eligibility": "conflicting_values",
+            "rejection_reason": "conflicting_values",
+            "conflict_status": "blocked_family",
+            "claim_family": "projected_value",
+            "is_financial": true,
+            "campaign_scoped": false,
+            "campaign_context_id": null
+          },
+          {
+            "fact_id": "vf_1498a7876b",
+            "fact": "$48,500,000",
+            "key": "total_development_cost",
+            "source": "project_db",
+            "source_reference": "projects.total_development_cost",
+            "marketing_status": "requires_review",
+            "derivation_type": "canonical",
+            "visibility": "internal",
+            "eligible": false,
+            "eligibility": "conflicting_values",
+            "rejection_reason": "conflicting_values",
+            "conflict_status": "blocked_family",
+            "claim_family": "projected_value",
+            "is_financial": true,
+            "campaign_scoped": false,
+            "campaign_context_id": null
+          },
+          {
+            "fact_id": "cf_2a28e3c9ba",
+            "fact": "60%",
+            "key": "campaign_return",
+            "source": "user_campaign_input",
+            "source_reference": "user_prompt",
+            "marketing_status": "campaign_only",
+            "derivation_type": "user_supplied",
+            "visibility": "public",
+            "eligible": false,
+            "eligibility": "conflicting_values",
+            "rejection_reason": "conflicting_values",
+            "conflict_status": "conflicting",
+            "claim_family": "return",
+            "is_financial": true,
+            "campaign_scoped": true,
+            "campaign_context_id": "ec3021d7-3d2f-4eca-bd75-e747571e1bb9"
+          },
+          {
+            "fact_id": "cf_3967bbca7d",
+            "fact": "40%",
+            "key": "campaign_return",
+            "source": "user_campaign_input",
+            "source_reference": "user_prompt",
+            "marketing_status": "campaign_only",
+            "derivation_type": "user_supplied",
+            "visibility": "public",
+            "eligible": false,
+            "eligibility": "conflicting_values",
+            "rejection_reason": "conflicting_values",
+            "conflict_status": "conflicting",
+            "claim_family": "return",
+            "is_financial": true,
+            "campaign_scoped": true,
+            "campaign_context_id": "ec3021d7-3d2f-4eca-bd75-e747571e1bb9"
+          }
+        ],
+        "selected_asset_hint": "caf8eb97-c767-4aa1-841b-759cf3500062",
+        "angle_hint": "The Temple"
+      },
+      "missing_facts": [],
+      "builder_context_present": true,
+      "prompt": "MASTER Instagram 4:5 feed ad BACKGROUND for The Temple — PROJECT MODE edit.\nLANGUAGE atmosphere: tr campaign (OS typesets exact Turkish copy after).\n\n=== ADVERTISING ART DIRECTION (senior art director plan — creative freedom, no fixed template) ===\n\nWHAT MUST BE NOTICED FIRST:\n  Eviniz, Sığınak\n\nWHAT MUST BE NOTICED SECOND:\n  Şehrin kalbinde huzur dolu bir yaşam\n\nCOMMERCIAL PRIORITY (derived from Creative Director — drives visual hierarchy):\n  1. lifestyle / interior experience\n  2. brand presence\n  3. call to action\n\nVISUAL HIERARCHY:\n  1 — FIRST GLANCE: Eviniz, Sığınak\n  2 — SECOND READ: Şehrin kalbinde huzur dolu bir yaşam\n  3 — FEATURES: Zarif tasarım detaylarıyla dolu yaşam alanları; Özel ortak alanlar ve sosyal olanaklar; Modern ve fonksiyonel iç mekanlar\n  4 — ACTION: Detayları Keşfet\n  5 — BRAND: Temple logo (OS-composited, never AI-drawn)\n\nSALES HIERARCHY:\n  1. lifestyle / interior experience\n  2. brand presence\n  3. call to action\n\nPRICE HIERARCHY:\n  No price dramatization — lifestyle interior quality and calm living experience.\n\nEMPHASIS WORDS (varied treatment — do NOT render all the same style):\n  - 'Sakin': bold large in gold\n  - 'Zarif': semibold medium in navy\n  - 'Özel': medium medium in ivory-on-navy\n\nINFORMATION GROUPING (keep clusters together — one sales story):\n- Hero concept cluster: Eviniz, Sığınak, Şehrin Kalbinde Sakin Bir Sığınak\n  Relationship: Big idea and hero express calm city-center sanctuary — keep proximate, not separated.\n- Supporting feature callouts: Zarif tasarım detaylarıyla dolu yaşam alanları, Özel ortak alanlar ve sosyal olanaklar, Modern ve fonksiyonel iç mekanlar\n  Relationship: Up to 3 short verified lifestyle features — grouped as callouts, not random corners.\n- CTA cluster: Detayları Keşfet\n  Relationship: Real ad CTA — button, pill, outline, or text+arrow — visible and actionable.\n\nCTA PROMINENCE: Real ad CTA: 'Detayları Keşfet' as button, pill, outline, or text+arrow — large enough to invite tap; not tiny decorative footer text.\nBADGE/CALLOUT: Optional feature badges near callout cluster — only if they strengthen lifestyle story.\n\nTYPOGRAPHY HIERARCHY (OS typesets — compose contrast/air only):\n  - Headline: largest editorial — sanctuary / calm city-center living\n  - Hero/sales hook: medium weight supporting the headline\n  - Feature callouts: 3 short lines — varied weight, not uniform\n  - CTA: high-contrast actionable weight\n  - Brand: quiet but visible logo zone\n\nCONTRAST STRATEGY: Warm interior palette with navy/ivory type — high contrast for headline and CTA, not price panels\nNEGATIVE SPACE: Conscious breath around headline, feature callouts, and CTA — premium composition, not meaningless empty canvas or random decorative gaps.\nIMAGE/TEXT BALANCE: Locked living-room interior carries atmosphere; type zones get composed air — roughly 60% visual / 40% message space, flexible not fixed panels.\nBRAND PRESENCE: The Temple project logo composited by OS — upper area, visible, never AI-generated\nVISUAL STORYTELLING: Sakin ve zarif bir yaşam alanı atmosferi\nDECORATION RULE: Decoration only if it serves campaign: no random building sketch, map pin, long gold line, or watermark unless it strengthens sales or brand story.\n\nWHAT IS BEING SOLD:\n  The Temple interior lifestyle — Eviniz, Sığınak\n\nWHY NOW:\n  Şehrin kalbinde huzur dolu bir yaşam — Şehrin kalbinde huzur dolu bir yaşam\n\nFEATURE CALLOUTS:\n  Zarif tasarım detaylarıyla dolu yaşam alanları · Özel ortak alanlar ve sosyal olanaklar · Modern ve fonksiyonel iç mekanlar\n\nACTION:\n  Detayları Keşfet\n\nPROJECT ASSET LOCK — WHAT STAYS REAL:\n  Interior: IH_DC_TMP_001_Render_Living_Room_003.jpeg (asset caf8eb97-c767-4aa1-841b-759cf3500062)\n  Preserve room geometry, windows, furniture, materials — do NOT invent another living room.\n  Logo: IH_DC_TMP_001_Logo_Primary.svg (asset 7b58877e-efca-4e9a-9027-6fd18fb1b345) — OS composites; never redraw.\n\nWHAT NOT TO INVENT:\n  No AI interior, no AI logo, no extra prices, no ROI/yield/rent, no landmarks, no map pins, no random sketches, no fixed side-panel or bottom-band template.\n\nOS FINAL COPY PREVIEW (do NOT rasterize — leave composed air/contrast):\n  Eyebrow: Şehrin kalbinde huzur dolu bir yaşam\n  Headline: Eviniz, Sığınak\n  Supporting: Zarif tasarım detaylarıyla dolu yaşam alanları · Özel ortak alanlar ve sosyal olanaklar · Modern ve fonksiyonel iç mekanlar\n  CTA: Detayları Keşfet\n\nORIGINAL CAMPAIGN BRIEF (context):\nThe Temple için projenin iç özelliklerini ve yaşam deneyimini anlatan premium bir sosyal medya reklamı hazırla. Drive'daki The Temple katalogunu ve proje belgelerini incele. Projenin gerçek iç mekan özelliklerini, ortak alanlarını, tasarım detaylarını ve öne çıkan yaşam özelliklerini bul. Reklamda en güçlü 3–4 özelliği ön plana çıkar. Drive'daki gerçek The Temple görsellerini ve gerçek proje logosunu kullan. Katalogda veya proje belgelerinde olmayan hiçbir özellik uydurma. Bu kampanyada fiyat veya Unit 204 kullanma. Ana fikir, satış kancası, destek mesajları, CTA ve kullanılacak görseli sen belirle. Türkçe çalış.\nARCHITECTURE / ASSET LOCK:\n- Preserve interior architecture, furniture layout, windows, and materials exactly.\n- Edit the supplied interior photograph only — graphic atmosphere around it.\n- Do NOT rasterize logos, prices, CTAs, or headlines into pixels.\n- InvestHome OS Final Composition Layer typesets real copy and logos after generation."
+    },
+    "outputs": [
+      {
+        "local_asset_id": "fd499eb4-37e1-4cd8-87fb-f2fa63f427dd",
+        "local_asset_url": "/creative-studio/media/assets/fd499eb4-37e1-4cd8-87fb-f2fa63f427dd/content",
+        "provider": "gpt-image",
+        "provider_generation_id": "5ff420ff-04b8-49f2-af5d-93ef7b2493e7",
+        "resolution": "1088x1360",
+        "canvas_width": 1080,
+        "canvas_height": 1350,
+        "metadata": {
+          "provider": "gpt-image",
+          "provider_generation_id": "5ff420ff-04b8-49f2-af5d-93ef7b2493e7",
+          "local_asset_id": "fd499eb4-37e1-4cd8-87fb-f2fa63f427dd",
+          "local_asset_path": "creative-studio-media/2026/08/da7b218d694544f997e39598f27e700f.png",
+          "composition_base_asset_id": "1ea3347e-fddc-4bee-be04-f0cd1a1137e2",
+          "project_id": "d50708cb-60b3-465a-8b16-6d30f802af8d",
+          "campaign_context_id": "ec3021d7-3d2f-4eca-bd75-e747571e1bb9",
+          "campaign_mode": "project",
+          "created_at": "2026-08-19T09:10:23.405118+00:00",
+          "source_asset_id": "caf8eb97-c767-4aa1-841b-759cf3500062",
+          "source_filename": "IH_DC_TMP_001_Render_Living_Room_003.jpeg",
+          "extra_image_roles": [
+            "project_logo"
+          ],
+          "extra_image_asset_ids": [
+            "7b58877e-efca-4e9a-9027-6fd18fb1b345"
+          ],
+          "composition_used_slots": [
+            "project_logo",
+            "headline",
+            "subhead",
+            "shape-divider",
+            "cta",
+            "slogan"
+          ],
+          "design_plan_variation": "lifestyle",
+          "composition_type": "LIFESTYLE",
+          "visual_review_status": "READY FOR USER VISUAL REVIEW",
+          "quality_corrections": [
+            "logo_min_presence",
+            "safe_area_right",
+            "cta_style:text_arrow",
+            "safe_area_bottom"
+          ],
+          "needs_scrim": false,
+          "investhome_global_logo_found": false,
+          "brief": {
+            "objective": "lifestyle",
+            "headline": "Eviniz, Sığınak",
+            "design_plan_variation": "lifestyle",
+            "composition_type": "LIFESTYLE"
+          }
+        },
+        "layers": [
+          {
+            "id": "logo-project",
+            "type": "IMAGE",
+            "role": "logo",
+            "assetId": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+            "x": 760,
+            "y": 72,
+            "width": 135,
+            "height": 72,
+            "zIndex": 8
+          },
+          {
+            "id": "text-headline",
+            "type": "TEXT",
+            "role": "headline",
+            "content": "Eviniz,\nSığınak",
+            "fontSize": 64,
+            "fontWeight": "medium",
+            "fontFamily": "serif",
+            "align": "right",
+            "color": "#1B2A4A",
+            "x": 520,
+            "y": 176,
+            "width": 480,
+            "height": 188,
+            "zIndex": 5,
+            "lineHeight": 1.08,
+            "letterSpacing": -1.2
+          },
+          {
+            "id": "text-subhead",
+            "type": "TEXT",
+            "role": "body",
+            "content": "Zarif tasarım detaylarıyla dolu yaşam alanları · Özel ortak alanlar ve sosyal olanaklar · Modern ve fonksiyonel iç mekanlar",
+            "fontSize": 17,
+            "fontWeight": "normal",
+            "fontFamily": "sans",
+            "align": "right",
+            "color": "#3D4A63",
+            "x": 520,
+            "y": 376,
+            "width": 480,
+            "height": 57,
+            "zIndex": 5
+          },
+          {
+            "id": "shape-divider",
+            "type": "SHAPE",
+            "role": "decoration",
+            "fill": "#C4A35A",
+            "shapeKind": "line",
+            "x": 944,
+            "y": 432,
+            "width": 56,
+            "height": 2,
+            "zIndex": 4
+          },
+          {
+            "id": "cta-primary",
+            "type": "BUTTON",
+            "label": "Detayları Keşfet  →",
+            "backgroundColor": "transparent",
+            "textColor": "#1B2A4A",
+            "ctaStyle": "TEXT_LINK_STYLE",
+            "fontSize": 14,
+            "fontWeight": "semibold",
+            "fontFamily": "sans",
+            "borderRadius": 0,
+            "x": 780,
+            "y": 468,
+            "width": 220,
+            "height": 44,
+            "zIndex": 7
+          },
+          {
+            "id": "text-slogan",
+            "type": "TEXT",
+            "role": "brand",
+            "content": "Amerika'da güven inşa ediyoruz.",
+            "fontSize": 12,
+            "fontWeight": "normal",
+            "fontFamily": "sans",
+            "align": "right",
+            "color": "#6B7280",
+            "x": 520,
+            "y": 1254,
+            "width": 480,
+            "height": 24,
+            "zIndex": 6
+          }
+        ],
+        "composition_base_asset_id": "1ea3347e-fddc-4bee-be04-f0cd1a1137e2",
+        "composition_warnings": [
+          "Investhome global logo asset bulunamadı"
+        ]
+      }
+    ],
+    "warnings": [
+      "Investhome global logo asset bulunamadı"
+    ],
+    "provider_call_count": 1,
+    "latency_ms": 59301
+  }
+}

@@ -76,6 +76,17 @@ describe('Creative Director SMB wiring (Phase 1)', () => {
     assert.match(leftRailBlock[0], /runCreativeDirectorCampaign/);
     assert.doesNotMatch(leftRailBlock[0], /runGptImageGenerate/);
   });
+
+  it('generate-ad hydrates SMB canvas from campaign master ad', () => {
+    const api = readFileSync(apiFile, 'utf8');
+    const workspace = read('social-media-builder-workspace.tsx');
+    assert.match(api, /generateCreativeDirectorAd/);
+    assert.match(api, /\/generate-ad/);
+    assert.match(workspace, /runGenerateAdFromCampaign/);
+    assert.match(workspace, /generateCreativeDirectorAd/);
+    assert.match(workspace, /createFlattenedGptImagePost/);
+    assert.doesNotMatch(workspace, /generateSocialDesign\([\s\S]*runGenerateAdFromCampaign/);
+  });
 });
 
 describe('Creative Director request shape (inlined mirror)', () => {

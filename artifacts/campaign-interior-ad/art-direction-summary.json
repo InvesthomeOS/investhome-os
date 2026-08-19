@@ -1,0 +1,84 @@
+{
+  "campaign_id": "ec3021d7-3d2f-4eca-bd75-e747571e1bb9",
+  "commercial_priority": [
+    "lifestyle / interior experience",
+    "brand presence",
+    "call to action"
+  ],
+  "visual_hierarchy": [
+    "1 — FIRST GLANCE: Eviniz, Sığınak",
+    "2 — SECOND READ: Şehrin kalbinde huzur dolu bir yaşam",
+    "3 — FEATURES: Zarif tasarım detaylarıyla dolu yaşam alanları; Özel ortak alanlar ve sosyal olanaklar; Modern ve fonksiyonel iç mekanlar",
+    "4 — ACTION: Detayları Keşfet",
+    "5 — BRAND: Temple logo (OS-composited, never AI-drawn)"
+  ],
+  "emphasis_strategy": [
+    {
+      "word": "Sakin",
+      "treatment": "bold large in gold",
+      "note": "Distinct from adjacent emphasis words — avoid rendering all the same."
+    },
+    {
+      "word": "Zarif",
+      "treatment": "semibold medium in navy",
+      "note": "Distinct from adjacent emphasis words — avoid rendering all the same."
+    },
+    {
+      "word": "Özel",
+      "treatment": "medium medium in ivory-on-navy",
+      "note": "Distinct from adjacent emphasis words — avoid rendering all the same."
+    }
+  ],
+  "supporting_messages": [
+    "Zarif tasarım detaylarıyla dolu yaşam alanları",
+    "Özel ortak alanlar ve sosyal olanaklar",
+    "Modern ve fonksiyonel iç mekanlar"
+  ],
+  "cta": "Detayları Keşfet",
+  "first_notice": "Eviniz, Sığınak",
+  "second_notice": "Şehrin kalbinde huzur dolu bir yaşam",
+  "final_asset_id": "fd499eb4-37e1-4cd8-87fb-f2fa63f427dd",
+  "interior_asset_id": "caf8eb97-c767-4aa1-841b-759cf3500062",
+  "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+  "claim_guard": {
+    "status": "pass",
+    "campaign_mode": "lifestyle",
+    "approved_claims": [],
+    "allowed_financial_tokens": [],
+    "banned_public_tokens_blocked": true,
+    "violations": [],
+    "invented_financial_claims_blocked": true
+  },
+  "project_asset_lock": {
+    "status": "pass",
+    "interior_asset_id": "caf8eb97-c767-4aa1-841b-759cf3500062",
+    "interior_filename": "IH_DC_TMP_001_Render_Living_Room_003.jpeg",
+    "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+    "logo_filename": "IH_DC_TMP_001_Logo_Primary.svg",
+    "source_used_asset_id": "caf8eb97-c767-4aa1-841b-759cf3500062",
+    "interior_architecture_locked": true,
+    "logo_os_composited": true,
+    "gpt_must_not_invent_interior": true,
+    "gpt_must_not_draw_logo": true
+  },
+  "provider_call_count": 1,
+  "final_turkish_texts": {
+    "language": "tr",
+    "big_idea": "Eviniz, Sığınak",
+    "hero": "Şehrin Kalbinde Sakin Bir Sığınak",
+    "sales_hook": "Şehrin kalbinde huzur dolu bir yaşam",
+    "eyebrow": "Şehrin kalbinde huzur dolu bir yaşam",
+    "headline": "Eviniz, Sığınak",
+    "supporting": "Zarif tasarım detaylarıyla dolu yaşam alanları · Özel ortak alanlar ve sosyal olanaklar · Modern ve fonksiyonel iç mekanlar",
+    "supporting_callouts": "Zarif tasarım detaylarıyla dolu yaşam alanları|Özel ortak alanlar ve sosyal olanaklar|Modern ve fonksiyonel iç mekanlar",
+    "offer": "",
+    "list_price": "",
+    "offer_price": "",
+    "value": "The Temple, şehir hayatının merkezinde huzur ve konfor sunar.",
+    "value_badge": "",
+    "cta": "Detayları Keşfet",
+    "unit": "",
+    "price_hierarchy": "",
+    "campaign_mode": "lifestyle"
+  }
+}

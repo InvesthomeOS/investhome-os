@@ -72,7 +72,66 @@ def resolve_locked_assets(ctx: dict[str, Any]) -> tuple[UUID, UUID, dict[str, An
     return interior_id, logo_id, _as_dict(interior_meta), _as_dict(logo_meta)
 
 
-def _pricing_tokens(pricing: dict[str, Any], approved_claims: list[Any]) -> list[str]:
+def _brief_bans_unit_and_price(original_brief: str) -> bool:
+    brief = (original_brief or "").strip().lower()
+    if not brief:
+        return False
+    ban_markers = ("kullanma", "don't use", "do not use", "must not", "yok")
+    bans_unit = "unit 204" in brief and any(m in brief for m in ban_markers)
+    bans_price = "fiyat" in brief and any(m in brief for m in ban_markers)
+    return bans_unit or bans_price
+
+
+def _has_price_presentation(pricing: dict[str, Any]) -> bool:
+    presentation = _as_dict(pricing.get("price_presentation"))
+    return bool(str(presentation.get("list") or "").strip() and str(presentation.get("offer") or "").strip())
+
+
+def is_lifestyle_campaign(
+    *,
+    ctx: dict[str, Any],
+    pricing: dict[str, Any],
+    original_brief: str,
+) -> bool:
+    """Interior / lifestyle campaigns without launch price dramatization."""
+    if _has_price_presentation(pricing):
+        return False
+    intent = str(ctx.get("campaign_intent") or "").strip().lower()
+    if intent == "lifestyle":
+        return True
+    if _brief_bans_unit_and_price(original_brief):
+        return True
+    return not pricing.get("list_price") and not pricing.get("launch_price")
+
+
+def filter_active_claims(
+    approved_claims: list[Any],
+    *,
+    lifestyle: bool,
+) -> list[Any]:
+    """Drop brief-banned unit/financial claims from active ad copy."""
+    if not lifestyle:
+        return list(approved_claims)
+    active: list[Any] = []
+    for claim in approved_claims:
+        if not isinstance(claim, dict):
+            continue
+        if claim.get("key") == "unit_code":
+            continue
+        if claim.get("is_financial"):
+            continue
+        active.append(claim)
+    return active
+
+
+def _pricing_tokens(
+    pricing: dict[str, Any],
+    approved_claims: list[Any],
+    *,
+    lifestyle: bool = False,
+) -> list[str]:
+    if lifestyle:
+        return []
     tokens: list[str] = []
     presentation = _as_dict(pricing.get("price_presentation"))
     for key in ("list", "offer", "copy"):
@@ -122,20 +181,10 @@ def adapt_final_turkish_texts(
     pricing: dict[str, Any],
     approved_claims: list[Any],
     original_brief: str,
+    lifestyle: bool = False,
 ) -> dict[str, str]:
     """Map CD concept → natural Turkish ad copy. Facts stay locked to approved claims."""
     lang = (language or "tr").strip().lower() or "tr"
-    presentation = _as_dict(pricing.get("price_presentation"))
-    list_price = str(presentation.get("list") or "$400,000").strip()
-    offer_price = str(presentation.get("offer") or "$300,000").strip()
-    discount = _as_dict(presentation.get("discount") or pricing.get("discount"))
-    discount_display = str(discount.get("display") or "~25%").strip() or "~25%"
-    unit_display = "Unit 204"
-    for claim in approved_claims:
-        if isinstance(claim, dict) and claim.get("key") == "unit_code":
-            unit_display = str(claim.get("display") or unit_display).strip() or unit_display
-            break
-
     big_idea = str(
         campaign_copy.get("big_idea") or strategy.get("big_idea") or strategy.get("concept") or ""
     ).strip()
@@ -146,6 +195,48 @@ def adapt_final_turkish_texts(
     value_src = str(
         campaign_copy.get("value_proposition") or strategy.get("value_proposition") or ""
     ).strip()
+    support_msgs = _as_list(
+        campaign_copy.get("supporting_messages") or strategy.get("supporting_messages")
+    )
+
+    if lifestyle:
+        headline = big_idea or hero or "Eviniz, Sığınak"
+        hero_tr = hero or headline
+        sales_line = sales_hook or hero_tr
+        callouts = [str(x).strip() for x in support_msgs[:3] if str(x).strip()]
+        supporting = " · ".join(callouts) if callouts else sales_line
+        cta = cta_src if _has_turkish_chars(cta_src) else "Detayları Keşfet"
+        eyebrow = sales_hook or hero_tr
+        return {
+            "language": lang,
+            "big_idea": headline,
+            "hero": hero_tr,
+            "sales_hook": sales_line,
+            "eyebrow": eyebrow,
+            "headline": headline,
+            "supporting": supporting,
+            "supporting_callouts": "|".join(callouts),
+            "offer": "",
+            "list_price": "",
+            "offer_price": "",
+            "value": value_src if _has_turkish_chars(value_src) else "",
+            "value_badge": "",
+            "cta": cta,
+            "unit": "",
+            "price_hierarchy": "",
+            "campaign_mode": "lifestyle",
+        }
+
+    presentation = _as_dict(pricing.get("price_presentation"))
+    list_price = str(presentation.get("list") or "$400,000").strip()
+    offer_price = str(presentation.get("offer") or "$300,000").strip()
+    discount = _as_dict(presentation.get("discount") or pricing.get("discount"))
+    discount_display = str(discount.get("display") or "~25%").strip() or "~25%"
+    unit_display = "Unit 204"
+    for claim in approved_claims:
+        if isinstance(claim, dict) and claim.get("key") == "unit_code":
+            unit_display = str(claim.get("display") or unit_display).strip() or unit_display
+            break
 
     price_hierarchy = f"{list_price} → {offer_price}"
     value_badge = f"{discount_display} lansman fiyat avantajı"
@@ -211,6 +302,7 @@ def adapt_final_turkish_texts(
         "cta": cta,
         "unit": unit_display,
         "price_hierarchy": price_hierarchy,
+        "campaign_mode": "launch_price",
     }
 
 
@@ -280,15 +372,54 @@ def claim_guard_summary(
     approved_claims: list[Any],
     allowed_tokens: list[str],
     texts: dict[str, str],
+    lifestyle: bool = False,
 ) -> dict[str, Any]:
-    """Financial Claim Guard for generate-ad — only approved pricing pair + derived %."""
+    """Claim Guard — launch price pair OR lifestyle interior (no unit/price in copy)."""
+    if lifestyle:
+        blob = " ".join(str(v) for v in texts.values()).lower()
+        banned_hits = [
+            tok
+            for tok in (
+                "unit 204",
+                "$400",
+                "$300",
+                "400,000",
+                "300,000",
+                "lansman fiyat",
+                "~25%",
+                "25%",
+            )
+            if tok in blob
+        ]
+        if texts.get("unit"):
+            banned_hits.append("unit_in_forced_copy")
+        invented_blocked = True
+        for claim in approved_claims:
+            if not isinstance(claim, dict):
+                continue
+            if claim.get("is_financial") and not claim.get("verified", False):
+                invented_blocked = False
+        return {
+            "status": "pass" if not banned_hits and invented_blocked else "fail",
+            "campaign_mode": "lifestyle",
+            "approved_claims": approved_claims,
+            "allowed_financial_tokens": allowed_tokens,
+            "banned_public_tokens_blocked": not banned_hits,
+            "violations": banned_hits,
+            "invented_financial_claims_blocked": invented_blocked,
+        }
+
     required = {
         texts["unit"],
         texts["list_price"],
         texts["offer_price"],
         texts.get("value_badge", ""),
     }
-    missing = [tok for tok in (texts["list_price"], texts["offer_price"], "~25%", "Unit 204") if tok not in " ".join(allowed_tokens)]
+    missing = [
+        tok
+        for tok in (texts["list_price"], texts["offer_price"], "~25%", "Unit 204")
+        if tok not in " ".join(allowed_tokens)
+    ]
     # ~25% may appear as display token
     if any("~25%" in t or t == "25%" for t in allowed_tokens):
         missing = [m for m in missing if m not in {"~25%", "25%"}]
@@ -302,6 +433,7 @@ def claim_guard_summary(
                 invented_blocked = False
     return {
         "status": "pass" if not missing and invented_blocked else "fail",
+        "campaign_mode": "launch_price",
         "approved_claims": approved_claims,
         "allowed_financial_tokens": allowed_tokens,
         "required_public_tokens": sorted(t for t in required if t),
@@ -351,8 +483,12 @@ def generate_ad_from_campaign(
     strategy = _as_dict(ctx.get("cd_strategy"))
     campaign_copy = _as_dict(ctx.get("campaign_copy"))
     pricing = _as_dict(ctx.get("pricing"))
-    approved_claims = list(ctx.get("approved_claims") or pricing.get("claims") or [])
     original_brief = str(ctx.get("original_user_brief") or row.original_brief or "")
+    lifestyle = is_lifestyle_campaign(ctx=ctx, pricing=pricing, original_brief=original_brief)
+    approved_claims = filter_active_claims(
+        list(ctx.get("approved_claims") or pricing.get("claims") or []),
+        lifestyle=lifestyle,
+    )
 
     language = (body.language or ctx.get("language") or "tr").strip().lower() or "tr"
     # Persist language on campaign for later EN reuse of the same context.
@@ -369,14 +505,16 @@ def generate_ad_from_campaign(
         pricing=pricing,
         approved_claims=approved_claims,
         original_brief=original_brief,
+        lifestyle=lifestyle,
     )
-    allowed_tokens = _pricing_tokens(pricing, approved_claims)
+    allowed_tokens = _pricing_tokens(pricing, approved_claims, lifestyle=lifestyle)
     art_direction = translate_campaign_art_direction(
         ctx=ctx,
         texts=texts,
         interior_meta=interior_meta,
         logo_meta=logo_meta,
         language=language,
+        lifestyle=lifestyle,
     )
     format_preset = (body.format_preset or "portrait").strip() or "portrait"
     aspect_ratio = (body.aspect_ratio or "4:5").strip() or "4:5"
@@ -388,6 +526,10 @@ def generate_ad_from_campaign(
         original_brief=original_brief,
         aspect_ratio=aspect_ratio,
     )
+
+    forced_verified: list[str] = []
+    if not lifestyle:
+        forced_verified = [texts["price_hierarchy"] + " · " + texts["value_badge"]]
 
     gpt_body = GptImageDesignRequest(
         linked_project_id=row.linked_project_id,
@@ -406,13 +548,12 @@ def generate_ad_from_campaign(
                 "supporting": texts["supporting"],
                 "cta": texts["cta"],
             },
-            "forced_verified_lines": [
-                texts["price_hierarchy"] + " · " + texts["value_badge"],
-            ],
+            "forced_verified_lines": forced_verified,
             "approved_financial_tokens": allowed_tokens,
             "preferred_logo_asset_id": str(logo_id),
             "interior_project_asset_lock": True,
             "master_ad": True,
+            "campaign_mode": "lifestyle" if lifestyle else "launch_price",
             "art_direction_plan": art_direction.to_dict(),
             "use_art_direction_prompt": True,
         },
@@ -431,6 +572,7 @@ def generate_ad_from_campaign(
         approved_claims=approved_claims,
         allowed_tokens=allowed_tokens,
         texts=texts,
+        lifestyle=lifestyle,
     )
     asset_lock = project_asset_lock_summary(
         interior_id=interior_id,

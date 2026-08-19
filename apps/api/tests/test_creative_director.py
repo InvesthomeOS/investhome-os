@@ -789,3 +789,232 @@ def test_art_direction_translator_derives_priority_and_groups() -> None:
     assert "Launch Price" in prompt
     assert "Living_Room_003" in prompt
     assert "Detayları İncele" in prompt
+
+
+INTERIOR_BRIEF = (
+    "The Temple için projenin iç özelliklerini ve yaşam deneyimini anlatan premium bir sosyal medya reklamı hazırla. "
+    "Bu kampanyada fiyat veya Unit 204 kullanma. Türkçe çalış."
+)
+INTERIOR_CAMPAIGN_ID = UUID("ec3021d7-3d2f-4eca-bd75-e747571e1bb9")
+
+
+def _seed_interior_campaign_context(
+    db: Session,
+    *,
+    project: Project,
+    interior: CreativeStudioMediaAsset,
+    logo: CreativeStudioMediaAsset,
+    campaign_id: UUID | None = None,
+) -> UUID:
+    from investhome_api.models.creative_director_campaign import CreativeDirectorCampaign
+
+    interior_meta = {
+        "asset_id": str(interior.id),
+        "filename": interior.filename,
+        "content_type": interior.content_type,
+        "folder_category": interior.folder_category,
+        "visual_subject": "INTERIOR",
+        "tags": list(interior.tags or []),
+        "role": "hero_interior",
+        "provenance_source": "google_drive",
+    }
+    logo_meta = {
+        "asset_id": str(logo.id),
+        "filename": logo.filename,
+        "content_type": logo.content_type,
+        "folder_category": logo.folder_category,
+        "visual_subject": "BRANDING",
+        "tags": list(logo.tags or []),
+        "role": "project_logo",
+        "provenance_source": "google_drive",
+    }
+    stale_unit_claim = {
+        "key": "unit_code",
+        "display": "Unit 204",
+        "value": "204",
+        "source": "retrieved",
+        "verified": True,
+        "is_financial": False,
+    }
+    ctx = {
+        "original_user_brief": INTERIOR_BRIEF,
+        "language": "tr",
+        "campaign_intent": "lifestyle",
+        "cd_strategy": {
+            "big_idea": "Eviniz, Sığınak",
+            "hero_message": "Şehrin Kalbinde Sakin Bir Sığınak",
+            "sales_hook": "Şehrin kalbinde huzur dolu bir yaşam",
+            "supporting_messages": [
+                "Zarif tasarım detaylarıyla dolu yaşam alanları",
+                "Özel ortak alanlar ve sosyal olanaklar",
+                "Modern ve fonksiyonel iç mekanlar",
+            ],
+            "emphasis": ["Sakin", "Zarif", "Özel"],
+            "cta": "Detayları Keşfet",
+            "first_2_seconds": "Zarif ve huzur dolu bir yaşam alanı",
+            "visual_direction": "Sakin ve zarif bir yaşam alanı atmosferi",
+        },
+        "campaign_copy": {
+            "big_idea": "Eviniz, Sığınak",
+            "hero_message": "Şehrin Kalbinde Sakin Bir Sığınak",
+            "sales_hook": "Şehrin kalbinde huzur dolu bir yaşam",
+            "supporting_messages": [
+                "Zarif tasarım detaylarıyla dolu yaşam alanları",
+                "Özel ortak alanlar ve sosyal olanaklar",
+                "Modern ve fonksiyonel iç mekanlar",
+            ],
+            "emphasis": ["Sakin", "Zarif", "Özel"],
+            "cta": "Detayları Keşfet",
+        },
+        "approved_claims": [stale_unit_claim],
+        "pricing": {
+            "price_presentation": None,
+            "list_price": None,
+            "launch_price": None,
+            "claims": [stale_unit_claim],
+        },
+        "selected_assets": [interior_meta],
+        "selected_logo": logo_meta,
+        "drive_research": {
+            "selected_interior": interior_meta,
+            "selected_logo": logo_meta,
+        },
+        "generated_assets": [],
+        "output_history": [],
+        "image_generation_performed": False,
+    }
+    row = CreativeDirectorCampaign(
+        id=campaign_id or uuid4(),
+        linked_project_id=project.id,
+        mode="project",
+        original_brief=INTERIOR_BRIEF,
+        context_json=ctx,
+        status="draft",
+    )
+    db.add(row)
+    db.flush()
+    return row.id
+
+
+def test_generate_ad_interior_lifestyle_no_unit204_no_price(
+    client,
+    db_session: Session,
+) -> None:
+    from unittest.mock import patch
+
+    from investhome_api.schemas.gpt_image_design import (
+        GptImageDesignResponse,
+        GptImageOutput,
+        GptImageSourceImage,
+    )
+
+    project = _create_project(db_session, project_id=TEMPLE_PROJECT_ID)
+    interior = _asset(
+        db_session,
+        project,
+        asset_id=UUID("caf8eb97-c767-4aa1-841b-759cf3500062"),
+        filename="IH_DC_TMP_001_Render_Living_Room_003.jpeg",
+        folder_category="02_RENDER",
+        tags=["interior", "living"],
+    )
+    logo = _asset(
+        db_session,
+        project,
+        asset_id=TEMPLE_PRIMARY_LOGO_ID,
+        filename="IH_DC_TMP_001_Logo_Primary.svg",
+        content_type="image/svg+xml",
+        folder_category="01_BRAND",
+        tags=["logo", "primary"],
+    )
+    campaign_id = _seed_interior_campaign_context(
+        db_session,
+        project=project,
+        interior=interior,
+        logo=logo,
+        campaign_id=INTERIOR_CAMPAIGN_ID,
+    )
+    db_session.commit()
+
+    final_id = uuid4()
+    captured: dict = {}
+
+    def fake_generate(db, user, body):
+        captured["body"] = body
+        assert body.builder_context.get("campaign_mode") == "lifestyle"
+        assert body.builder_context["forced_verified_lines"] == []
+        assert body.builder_context["approved_financial_tokens"] == []
+        forced = body.builder_context["forced_visible_copy"]
+        blob = " ".join(str(v) for v in forced.values()).lower()
+        assert "unit 204" not in blob
+        assert "$400" not in blob
+        assert "$300" not in blob
+        assert "detayları keşfet" in blob
+        assert "/ai/creative-studio/social/design" not in body.instruction
+        assert "ADVERTISING ART DIRECTION" in body.instruction
+        assert "No price dramatization" in body.instruction
+        return GptImageDesignResponse(
+            provider="gpt-image",
+            model="gpt-image-2",
+            endpoint="https://api.openai.com/v1/images/edits",
+            campaign_mode="project",
+            session_id="test-session",
+            linked_project_id=project.id,
+            campaign_context_id=str(campaign_id),
+            generation_context_id=str(uuid4()),
+            aspect_ratio="4:5",
+            format_preset="portrait",
+            source_image=GptImageSourceImage(
+                asset_id=interior.id,
+                filename=interior.filename,
+                content_type=interior.content_type,
+                folder_category=interior.folder_category,
+                tags=list(interior.tags or []),
+                role="source",
+            ),
+            extra_images=[
+                GptImageSourceImage(
+                    asset_id=logo.id,
+                    filename=logo.filename,
+                    content_type=logo.content_type,
+                    folder_category=logo.folder_category,
+                    role="project_logo",
+                )
+            ],
+            brief={"prompt": body.instruction[:500]},
+            outputs=[
+                GptImageOutput(
+                    local_asset_id=final_id,
+                    local_asset_url=f"/creative-studio/media/assets/{final_id}/content",
+                    metadata={},
+                )
+            ],
+            warnings=[],
+            provider_call_count=1,
+            latency_ms=12,
+        )
+
+    with patch(
+        "investhome_api.services.creative_director.generate_ad.generate_gpt_image_creatives",
+        side_effect=fake_generate,
+    ):
+        resp = client.post(
+            f"/ai/creative-studio/campaigns/{INTERIOR_CAMPAIGN_ID}/generate-ad",
+            json={"language": "tr", "aspect_ratio": "4:5", "format_preset": "portrait"},
+        )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["campaign_id"] == str(INTERIOR_CAMPAIGN_ID)
+    assert body["interior_asset_id"] == str(interior.id)
+    assert body["logo_asset_id"] == str(logo.id)
+    assert body["claim_guard"]["status"] == "pass"
+    assert body["claim_guard"]["campaign_mode"] == "lifestyle"
+    assert body["project_asset_lock"]["status"] == "pass"
+    texts_blob = " ".join(str(v) for v in body["final_turkish_texts"].values()).lower()
+    assert "unit 204" not in texts_blob
+    assert "$400" not in texts_blob
+    assert "$300" not in texts_blob
+    assert body["final_turkish_texts"]["headline"] == "Eviniz, Sığınak"
+    assert body["final_turkish_texts"]["cta"] == "Detayları Keşfet"
+    assert body["provider_call_count"] == 1
+    art = body["creative_brief_summary"]["art_direction"]
+    assert "price hook" not in art["commercial_priority"][0].lower()
