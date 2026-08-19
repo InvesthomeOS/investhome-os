@@ -24,7 +24,9 @@ from investhome_api.services.creative_director.orchestrator import (
     assign_capabilities,
     infer_required_capabilities,
 )
+from investhome_api.services.creative_director.generate_ad import adapt_final_turkish_texts
 from investhome_api.services.creative_director.pricing import build_pricing_claims, extract_unit_codes
+from investhome_api.services.creative_director.production_brief import build_production_brief
 from investhome_api.services.creative_director.research import research_project_drive
 from investhome_api.services.social_design_engine.campaign_intent import classify_campaign_intent
 from investhome_api.services.social_design_engine.generation import extract_campaign_facts
@@ -134,6 +136,7 @@ def _build_brief_response(
         "image_generation_performed": bool(
             (campaign.context_json or {}).get("image_generation_performed")
         ),
+        "production_brief": (campaign.context_json or {}).get("production_brief") or {},
     }
 
 
@@ -231,11 +234,56 @@ def create_campaign(
         if isinstance(t, dict) and (t.get("eligible") is False or t.get("rejection_reason"))
     ]
 
+    language = (body.language or intent.language or "tr")
+    lifestyle = intent.campaign_intent == "lifestyle" or not pricing.get("list_price")
+    texts = adapt_final_turkish_texts(
+        language=language,
+        strategy=strategy,
+        campaign_copy={
+            "big_idea": strategy.get("big_idea") or strategy.get("concept"),
+            "hero_message": strategy.get("hero_message"),
+            "supporting_messages": strategy.get("supporting_messages"),
+            "sales_hook": strategy.get("sales_hook"),
+            "cta": strategy.get("cta"),
+            "offer": strategy.get("offer"),
+            "value_proposition": strategy.get("value_proposition"),
+            "emphasis": strategy.get("emphasis"),
+        },
+        pricing=pricing,
+        approved_claims=pricing.get("claims") or [],
+        original_brief=brief,
+        lifestyle=lifestyle,
+    )
+    production_brief = build_production_brief(
+        ctx={
+            "selected_assets": brief_payload["selected_assets"],
+        },
+        strategy=strategy,
+        campaign_copy={
+            "big_idea": strategy.get("big_idea") or strategy.get("concept"),
+            "hero_message": strategy.get("hero_message"),
+            "supporting_messages": strategy.get("supporting_messages"),
+            "sales_hook": strategy.get("sales_hook"),
+            "cta": strategy.get("cta"),
+            "offer": strategy.get("offer"),
+        },
+        pricing=pricing,
+        texts=texts,
+        approved_claims=pricing.get("claims") or [],
+        blocked_claims=brief_payload.get("blocked_claims") or [],
+        interior_meta=research.get("selected_interior") or {},
+        logo_meta=research.get("selected_logo") or {},
+        language=language,
+        aspect_ratio="4:5",
+        format_preset="portrait",
+    )
+
     context = {
         "original_user_brief": brief,
-        "language": (body.language or intent.language or "en"),
+        "language": language,
         "campaign_intent": intent.campaign_intent,
         "cd_strategy": strategy,
+        "production_brief": production_brief,
         "approved_claims": brief_payload.get("approved_claims") or pricing.get("claims") or [],
         "blocked_claims": brief_payload.get("blocked_claims") or [],
         "claim_eligibility_trace": guard_trace,

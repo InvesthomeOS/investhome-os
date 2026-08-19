@@ -28,12 +28,16 @@ class CreativeDirectorCampaignResponse(BaseModel):
     campaign_context: dict[str, Any] = Field(default_factory=dict)
 
 
+CreativeDirectorProductionMode = Literal["finished_ad", "os_compose"]
+
+
 class CreativeDirectorGenerateAdRequest(BaseModel):
     """Optional overrides for MASTER ad generation from Campaign Context."""
 
     language: str | None = Field(default=None, max_length=16)
     aspect_ratio: Literal["1:1", "4:5", "16:9", "9:16"] | None = "4:5"
     format_preset: str | None = Field(default="portrait", max_length=32)
+    production_mode: CreativeDirectorProductionMode = "finished_ad"
     skip_gpt_image: bool = False
     background_asset_id: UUID | None = None
 
@@ -53,6 +57,9 @@ class CreativeDirectorGenerateAdResponse(BaseModel):
     language: str
     aspect_ratio: str
     format_preset: str
+    production_mode: CreativeDirectorProductionMode = "finished_ad"
+    production_brief: dict[str, Any] = Field(default_factory=dict)
+    provider_route: dict[str, Any] = Field(default_factory=dict)
     interior_asset_id: UUID
     logo_asset_id: UUID
     final_asset_id: UUID

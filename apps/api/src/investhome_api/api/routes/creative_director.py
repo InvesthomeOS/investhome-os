@@ -105,7 +105,7 @@ def generate_creative_director_ad(
     db: Session = Depends(get_db),  # noqa: B008
     user: User = _cs_view,
 ) -> CreativeDirectorGenerateAdResponse:
-    """Approved Campaign Context → one MASTER GPT Image ad (PROJECT MODE + OS compose)."""
+    """Approved Campaign Context → finished-ad image production (default) or OS compose."""
     result = generate_ad_from_campaign(
         db,
         user,

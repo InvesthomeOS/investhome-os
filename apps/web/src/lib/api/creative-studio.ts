@@ -879,11 +879,12 @@ export async function createCreativeDirectorCampaign(
   });
 }
 
-/** Generate MASTER ad from approved Campaign Context → GPT Image → Media Library. */
+/** Generate MASTER ad from approved Campaign Context → AI provider (finished-ad default). */
 export type CreativeDirectorGenerateAdRequest = {
   language?: string | null;
   aspect_ratio?: '1:1' | '4:5' | '16:9' | '9:16' | null;
   format_preset?: string | null;
+  production_mode?: 'finished_ad' | 'os_compose';
 };
 
 export type CreativeDirectorGenerateAdResponse = {
@@ -892,6 +893,9 @@ export type CreativeDirectorGenerateAdResponse = {
   language: string;
   aspect_ratio: string;
   format_preset: string;
+  production_mode?: 'finished_ad' | 'os_compose';
+  production_brief?: Record<string, unknown>;
+  provider_route?: Record<string, unknown>;
   interior_asset_id: string;
   logo_asset_id: string;
   final_asset_id: string;
@@ -917,6 +921,7 @@ export async function generateCreativeDirectorAd(
       language: input.language ?? undefined,
       aspect_ratio: input.aspect_ratio ?? '4:5',
       format_preset: input.format_preset ?? 'portrait',
+      production_mode: input.production_mode ?? 'finished_ad',
     }),
   });
 }

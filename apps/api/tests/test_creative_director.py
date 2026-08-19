@@ -506,6 +506,245 @@ def _seed_campaign_context(
     return row.id
 
 
+def test_generate_ad_finished_ad_default_skips_os_compose_path(
+    client,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from unittest.mock import patch
+
+    from investhome_api.schemas.gpt_image_design import (
+        GptImageDesignResponse,
+        GptImageOutput,
+        GptImageSourceImage,
+    )
+
+    monkeypatch.setenv("GPT_IMAGE_ENABLED", "true")
+    monkeypatch.setenv("AI_API_KEY", "test-key")
+    get_settings.cache_clear()
+
+    project = _create_project(db_session, project_id=uuid4())
+    interior = _asset(
+        db_session,
+        project,
+        filename="IH_DC_TMP_001_Render_Living_Room_003.jpeg",
+        folder_category="02_RENDER",
+        tags=["interior", "living"],
+    )
+    logo = _asset(
+        db_session,
+        project,
+        asset_id=TEMPLE_PRIMARY_LOGO_ID,
+        filename="IH_DC_TMP_001_Logo_Primary.svg",
+        content_type="image/svg+xml",
+        folder_category="01_BRAND",
+        tags=["logo", "primary"],
+    )
+    campaign_id = _seed_campaign_context(
+        db_session,
+        project=project,
+        interior=interior,
+        logo=logo,
+        language=None,
+    )
+    db_session.commit()
+
+    final_id = uuid4()
+    captured: dict = {}
+
+    def fake_generate(db, user, body):
+        captured["body"] = body
+        assert body.language == "tr"
+        assert body.selected_asset_ids == [interior.id]
+        assert body.builder_context["finished_ad"] is True
+        assert body.builder_context["production_mode"] == "finished_ad"
+        assert body.builder_context.get("production_brief")
+        assert body.builder_context.get("image_provider_route")
+        assert "FINISHED PROFESSIONAL" in body.instruction
+        assert "Living_Room_003" in body.instruction
+        assert body.builder_context.get("master_ad") is not True
+        tokens = body.builder_context["approved_financial_tokens"]
+        assert "$400,000" in tokens
+        assert "$300,000" in tokens
+        return GptImageDesignResponse(
+            provider="gpt-image",
+            model="gpt-image-2",
+            endpoint="https://api.openai.com/v1/images/edits",
+            campaign_mode="project",
+            session_id="test-session",
+            linked_project_id=project.id,
+            campaign_context_id=str(campaign_id),
+            generation_context_id=str(uuid4()),
+            aspect_ratio="4:5",
+            format_preset="portrait",
+            source_image=GptImageSourceImage(
+                asset_id=interior.id,
+                filename=interior.filename,
+                content_type=interior.content_type,
+                folder_category=interior.folder_category,
+                tags=list(interior.tags or []),
+                role="source",
+            ),
+            brief={"prompt": body.instruction[:500]},
+            outputs=[
+                GptImageOutput(
+                    local_asset_id=final_id,
+                    local_asset_url=f"/creative-studio/media/assets/{final_id}/content",
+                    metadata={"production_mode": "finished_ad"},
+                )
+            ],
+            warnings=[],
+            provider_call_count=1,
+            latency_ms=12,
+        )
+
+    with patch(
+        "investhome_api.services.creative_director.generate_ad.generate_gpt_image_creatives",
+        side_effect=fake_generate,
+    ):
+        resp = client.post(
+            f"/ai/creative-studio/campaigns/{campaign_id}/generate-ad",
+            json={"language": "tr", "aspect_ratio": "4:5", "format_preset": "portrait"},
+        )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["production_mode"] == "finished_ad"
+    assert body.get("provider_route")
+    assert body["final_asset_id"] == str(final_id)
+    assert body["claim_guard"]["status"] == "pass"
+
+
+def test_generate_ad_os_compose_mode_still_available(
+    client,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from unittest.mock import patch
+
+    from investhome_api.schemas.gpt_image_design import (
+        GptImageDesignResponse,
+        GptImageOutput,
+        GptImageSourceImage,
+    )
+
+    monkeypatch.setenv("GPT_IMAGE_ENABLED", "true")
+    monkeypatch.setenv("AI_API_KEY", "test-key")
+    get_settings.cache_clear()
+
+    project = _create_project(db_session, project_id=uuid4())
+    interior = _asset(
+        db_session,
+        project,
+        filename="IH_DC_TMP_001_Render_Living_Room_003.jpeg",
+        folder_category="02_RENDER",
+        tags=["interior", "living"],
+    )
+    logo = _asset(
+        db_session,
+        project,
+        asset_id=TEMPLE_PRIMARY_LOGO_ID,
+        filename="IH_DC_TMP_001_Logo_Primary.svg",
+        content_type="image/svg+xml",
+        folder_category="01_BRAND",
+        tags=["logo", "primary"],
+    )
+    campaign_id = _seed_campaign_context(
+        db_session,
+        project=project,
+        interior=interior,
+        logo=logo,
+        language=None,
+    )
+    db_session.commit()
+
+    def fake_generate(db, user, body):
+        assert body.builder_context.get("master_ad") is True
+        assert body.builder_context.get("finished_ad") is not True
+        assert "ADVERTISING ART DIRECTION" in body.instruction
+        return GptImageDesignResponse(
+            provider="gpt-image",
+            model="gpt-image-2",
+            endpoint="https://api.openai.com/v1/images/edits",
+            campaign_mode="project",
+            session_id="test-session",
+            linked_project_id=project.id,
+            campaign_context_id=str(campaign_id),
+            generation_context_id=str(uuid4()),
+            aspect_ratio="4:5",
+            format_preset="portrait",
+            source_image=GptImageSourceImage(
+                asset_id=interior.id,
+                filename=interior.filename,
+                content_type=interior.content_type,
+                folder_category=interior.folder_category,
+                tags=list(interior.tags or []),
+                role="source",
+            ),
+            brief={"prompt": body.instruction[:500]},
+            outputs=[
+                GptImageOutput(
+                    local_asset_id=uuid4(),
+                    local_asset_url="/creative-studio/media/assets/x/content",
+                    metadata={},
+                )
+            ],
+            warnings=[],
+            provider_call_count=1,
+            latency_ms=12,
+        )
+
+    with patch(
+        "investhome_api.services.creative_director.generate_ad.generate_gpt_image_creatives",
+        side_effect=fake_generate,
+    ):
+        resp = client.post(
+            f"/ai/creative-studio/campaigns/{campaign_id}/generate-ad",
+            json={
+                "language": "tr",
+                "production_mode": "os_compose",
+            },
+        )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["production_mode"] == "os_compose"
+
+
+def test_create_campaign_includes_production_brief(client, db_session: Session) -> None:
+    project = _create_project(db_session, project_id=TEMPLE_PROJECT_ID)
+    interior = _asset(
+        db_session,
+        project,
+        filename="IH_DC_TMP_001_Render_Living_Room_003.jpeg",
+        folder_category="02_RENDER",
+        tags=["interior"],
+    )
+    logo = _asset(
+        db_session,
+        project,
+        asset_id=TEMPLE_PRIMARY_LOGO_ID,
+        filename="IH_DC_TMP_001_Logo_Primary.svg",
+        content_type="image/svg+xml",
+        folder_category="01_BRAND",
+        tags=["logo"],
+    )
+    db_session.commit()
+    resp = client.post(
+        "/ai/creative-studio/campaigns",
+        json={
+            "project_id": str(TEMPLE_PROJECT_ID),
+            "brief": BRIEF,
+            "mode": "project",
+            "language": "tr",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    payload = resp.json()
+    ctx = payload.get("campaign_context") or {}
+    brief = ctx.get("production_brief") or {}
+    assert brief.get("big_idea")
+    assert brief.get("language") == "tr"
+    assert brief.get("asset_lock", {}).get("interior_filename")
+
+
 def test_generate_ad_locks_interior_logo_language_and_claim_guard(
     client,
     db_session: Session,
@@ -518,6 +757,10 @@ def test_generate_ad_locks_interior_logo_language_and_claim_guard(
         GptImageOutput,
         GptImageSourceImage,
     )
+
+    monkeypatch.setenv("GPT_IMAGE_ENABLED", "true")
+    monkeypatch.setenv("AI_API_KEY", "test-key")
+    get_settings.cache_clear()
 
     project = _create_project(db_session, project_id=uuid4())
     interior = _asset(
@@ -554,27 +797,15 @@ def test_generate_ad_locks_interior_logo_language_and_claim_guard(
         assert body.selected_asset_ids == [interior.id]
         assert body.aspect_ratio == "4:5"
         assert body.builder_context["creative_director_campaign_id"] == str(campaign_id)
-        assert body.builder_context["preferred_logo_asset_id"] == str(logo.id)
         assert body.builder_context["interior_project_asset_lock"] is True
+        assert body.builder_context["finished_ad"] is True
         tokens = body.builder_context["approved_financial_tokens"]
         assert "$400,000" in tokens
         assert "$300,000" in tokens
-        assert any("~25%" in t or t == "25%" for t in tokens)
-        forced = body.builder_context["forced_visible_copy"]
-        assert "Unit 204" in forced["eyebrow"] or "Unit 204" in forced["supporting"]
-        assert "Unit 204" in forced["supporting"]
-        assert any("$400,000" in str(x) for x in body.builder_context["forced_verified_lines"])
-        assert any("$300,000" in str(x) for x in body.builder_context["forced_verified_lines"])
-        assert any("25%" in str(x) for x in body.builder_context["forced_verified_lines"])
-        assert forced["cta"]
-        # Instruction carries Advertising Art Direction Translator output
-        assert "ADVERTISING ART DIRECTION" in body.instruction
-        assert "WHAT MUST BE NOTICED FIRST" in body.instruction
-        assert "Position the building on the left" not in body.instruction
+        assert "FINISHED PROFESSIONAL" in body.instruction
         assert "Living_Room_003" in body.instruction
         assert str(interior.id) in body.instruction
-        assert body.builder_context.get("art_direction_plan")
-        assert body.builder_context.get("use_art_direction_prompt") is True
+        assert body.builder_context.get("production_brief")
         return GptImageDesignResponse(
             provider="gpt-image",
             model="gpt-image-2",
@@ -899,6 +1130,7 @@ def _seed_interior_campaign_context(
 def test_generate_ad_interior_lifestyle_no_unit204_no_price(
     client,
     db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from unittest.mock import patch
 
@@ -907,6 +1139,10 @@ def test_generate_ad_interior_lifestyle_no_unit204_no_price(
         GptImageOutput,
         GptImageSourceImage,
     )
+
+    monkeypatch.setenv("GPT_IMAGE_ENABLED", "true")
+    monkeypatch.setenv("AI_API_KEY", "test-key")
+    get_settings.cache_clear()
 
     project = _create_project(db_session, project_id=TEMPLE_PROJECT_ID)
     interior = _asset(
@@ -999,7 +1235,12 @@ def test_generate_ad_interior_lifestyle_no_unit204_no_price(
     ):
         resp = client.post(
             f"/ai/creative-studio/campaigns/{INTERIOR_CAMPAIGN_ID}/generate-ad",
-            json={"language": "tr", "aspect_ratio": "4:5", "format_preset": "portrait"},
+            json={
+                "language": "tr",
+                "aspect_ratio": "4:5",
+                "format_preset": "portrait",
+                "production_mode": "os_compose",
+            },
         )
     assert resp.status_code == 200, resp.text
     body = resp.json()

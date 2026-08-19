@@ -23,6 +23,14 @@ from investhome_api.services.creative_director.art_direction_translator import (
     render_gpt_image_art_direction_prompt,
     translate_campaign_art_direction,
 )
+from investhome_api.services.creative_director.production_brief import (
+    build_production_brief,
+    render_finished_ad_production_prompt,
+)
+from investhome_api.services.creative_director.provider_router import (
+    assert_image_provider_available,
+    route_ad_social_image,
+)
 from investhome_api.services.gpt_image_design.compose import (
     build_slot_plan,
     compose_final_layers,
@@ -57,6 +65,17 @@ def _asset_id(row: Any) -> UUID | None:
         return UUID(str(raw))
     except (TypeError, ValueError):
         return None
+
+
+def _resolve_production_mode(
+    body: CreativeDirectorGenerateAdRequest | CreativeDirectorRecomposeAdRequest | None,
+) -> str:
+    if body is None or isinstance(body, CreativeDirectorRecomposeAdRequest):
+        return "os_compose"
+    if body.skip_gpt_image:
+        return "os_compose"
+    mode = (body.production_mode or "finished_ad").strip().lower()
+    return mode if mode in {"finished_ad", "os_compose"} else "finished_ad"
 
 
 def resolve_locked_assets(ctx: dict[str, Any]) -> tuple[UUID, UUID, dict[str, Any], dict[str, Any]]:
@@ -555,6 +574,8 @@ def _prepare_campaign_ad_context(
         lifestyle=lifestyle,
     )
     allowed_tokens = _pricing_tokens(pricing, approved_claims, lifestyle=lifestyle)
+    format_preset = (body.format_preset or "portrait").strip() or "portrait"
+    aspect_ratio = (body.aspect_ratio or "4:5").strip() or "4:5"
     art_direction = translate_campaign_art_direction(
         ctx=ctx,
         texts=texts,
@@ -563,8 +584,24 @@ def _prepare_campaign_ad_context(
         language=language,
         lifestyle=lifestyle,
     )
-    format_preset = (body.format_preset or "portrait").strip() or "portrait"
-    aspect_ratio = (body.aspect_ratio or "4:5").strip() or "4:5"
+    production_brief = build_production_brief(
+        ctx=ctx,
+        strategy=strategy,
+        campaign_copy=campaign_copy,
+        pricing=pricing,
+        texts=texts,
+        approved_claims=approved_claims,
+        blocked_claims=list(ctx.get("blocked_claims") or []),
+        interior_meta=interior_meta,
+        logo_meta=logo_meta,
+        language=language,
+        aspect_ratio=aspect_ratio,
+        format_preset=format_preset,
+        art_direction=art_direction.to_dict(),
+    )
+    ctx["production_brief"] = production_brief
+    row.context_json = ctx
+    db.flush()
     return (
         row,
         ctx,
@@ -584,6 +621,7 @@ def _prepare_campaign_ad_context(
         texts,
         allowed_tokens,
         art_direction,
+        production_brief,
     )
 
 
@@ -614,6 +652,7 @@ def recompose_ad_from_campaign(
         texts,
         allowed_tokens,
         art_direction,
+        production_brief,
     ) = prep
     if body is None:
         raise HTTPException(
@@ -802,6 +841,9 @@ def recompose_ad_from_campaign(
         language=language,
         aspect_ratio=aspect_ratio,
         format_preset=format_preset,
+        production_mode="os_compose",
+        production_brief=production_brief,
+        provider_route={"provider_id": "os-recompose", "available": True, "missing": False},
         interior_asset_id=interior_id,
         logo_asset_id=logo_id,
         final_asset_id=asset.id,
@@ -866,21 +908,70 @@ def generate_ad_from_campaign(
         texts,
         allowed_tokens,
         art_direction,
+        production_brief,
     ) = prep
-    instruction = render_gpt_image_art_direction_prompt(
-        art_direction,
-        texts=texts,
-        interior_meta=interior_meta,
-        logo_meta=logo_meta,
-        original_brief=original_brief,
-        aspect_ratio=aspect_ratio,
-    )
+    production_mode = _resolve_production_mode(body)
+    provider_route = route_ad_social_image(prefer_edit=True)
+    try:
+        assert_image_provider_available(provider_route)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
+    if production_mode == "finished_ad":
+        instruction = render_finished_ad_production_prompt(
+            production_brief=production_brief,
+            art_direction=art_direction.to_dict(),
+            original_brief=original_brief,
+            lifestyle=lifestyle,
+        )
+    else:
+        instruction = render_gpt_image_art_direction_prompt(
+            art_direction,
+            texts=texts,
+            interior_meta=interior_meta,
+            logo_meta=logo_meta,
+            original_brief=original_brief,
+            aspect_ratio=aspect_ratio,
+        )
 
     forced_verified: list[str] = []
-    if not lifestyle:
+    if not lifestyle and production_mode != "finished_ad":
         forced_verified = [texts["price_hierarchy"] + " · " + texts["value_badge"]]
 
     callouts = [x.strip() for x in str(texts.get("supporting_callouts") or "").split("|") if x.strip()]
+    builder_context: dict[str, Any] = {
+        "creative_director_campaign_id": str(row.id),
+        "approved_financial_tokens": allowed_tokens,
+        "preferred_logo_asset_id": str(logo_id),
+        "interior_project_asset_lock": True,
+        "campaign_mode": "lifestyle" if lifestyle else "launch_price",
+        "art_direction_plan": art_direction.to_dict(),
+        "production_brief": production_brief,
+        "production_mode": production_mode,
+        "image_provider_route": provider_route.to_dict(),
+        "feature_callouts": callouts,
+    }
+    if production_mode == "finished_ad":
+        builder_context["finished_ad"] = True
+    else:
+        builder_context.update(
+            {
+                "forced_visible_copy": {
+                    "eyebrow": texts["eyebrow"],
+                    "headline": texts["headline"],
+                    "supporting": texts["supporting"],
+                    "supporting_callouts": texts.get("supporting_callouts", ""),
+                    "cta": texts["cta"],
+                },
+                "forced_verified_lines": forced_verified,
+                "master_ad": True,
+                "use_art_direction_prompt": True,
+            }
+        )
+
     gpt_body = GptImageDesignRequest(
         linked_project_id=row.linked_project_id,
         instruction=instruction,
@@ -890,25 +981,7 @@ def generate_ad_from_campaign(
         aspect_ratio=aspect_ratio,  # type: ignore[arg-type]
         language=language,
         selected_asset_ids=[interior_id],
-        builder_context={
-            "creative_director_campaign_id": str(row.id),
-            "forced_visible_copy": {
-                "eyebrow": texts["eyebrow"],
-                "headline": texts["headline"],
-                "supporting": texts["supporting"],
-                "supporting_callouts": texts.get("supporting_callouts", ""),
-                "cta": texts["cta"],
-            },
-            "forced_verified_lines": forced_verified,
-            "approved_financial_tokens": allowed_tokens,
-            "preferred_logo_asset_id": str(logo_id),
-            "interior_project_asset_lock": True,
-            "master_ad": True,
-            "campaign_mode": "lifestyle" if lifestyle else "launch_price",
-            "art_direction_plan": art_direction.to_dict(),
-            "use_art_direction_prompt": True,
-            "feature_callouts": callouts,
-        },
+        builder_context=builder_context,
     )
 
     from investhome_api.services.gpt_image_design.service import generate_gpt_image_creatives
@@ -1014,6 +1087,9 @@ def generate_ad_from_campaign(
         language=language,
         aspect_ratio=aspect_ratio,
         format_preset=format_preset,
+        production_mode=production_mode,
+        production_brief=production_brief,
+        provider_route=provider_route.to_dict(),
         interior_asset_id=interior_id,
         logo_asset_id=logo_id,
         final_asset_id=output.local_asset_id,

@@ -513,7 +513,13 @@ def _generate_project(
         and builder_context.get("master_ad")
         and builder_context.get("use_art_direction_prompt")
     )
-    if use_art_direction:
+    finished_ad = isinstance(builder_context, dict) and (
+        builder_context.get("finished_ad")
+        or builder_context.get("production_mode") == "finished_ad"
+    )
+    if finished_ad:
+        prompt = instruction
+    elif use_art_direction:
         prompt = append_architecture_lock_to_prompt(instruction, interior_lock=interior_lock)
     else:
         prompt = render_project_edit_prompt(shared_brief)
@@ -534,10 +540,15 @@ def _generate_project(
     )
     api_key = openai_api_key(settings)
     calls_before = provider_call_count()
-    # GPT Image edits: architecture/composition photo only. Logos + text via OS Final Composition.
+    # GPT Image edits: architecture/composition photo only unless finished_ad (full ad in-image).
     edit_inputs = [
         (source.image_bytes, source.filename, source.content_type),
     ]
+    if finished_ad:
+        for row in extras:
+            if row.role == "project_logo" and row.image_bytes:
+                edit_inputs.append((row.image_bytes, row.filename, row.content_type))
+                break
     remote = edit_image(
         api_key=api_key,
         model=availability.model,
@@ -551,6 +562,88 @@ def _generate_project(
     base_image_bytes = decode_remote_image(remote)
     base_content_type = sniff_image_content_type(base_image_bytes)
     generation_id = str(uuid4())
+
+    if finished_ad:
+        asset = persist_gpt_image(
+            db,
+            actor=user,
+            linked_project_id=linked_project_id,
+            content=base_image_bytes,
+            content_type=base_content_type,
+            campaign_mode="project-finished-ad",
+            session_id=session_id,
+            provider_generation_id=generation_id,
+            campaign_context_id=campaign_context_id,
+            brief_excerpt=str(instruction[:240]),
+        )
+        outputs = [
+            GptImageOutput(
+                local_asset_id=asset.id,
+                local_asset_url=asset_url(asset.id),
+                provider=GPT_IMAGE_PROVIDER,
+                provider_generation_id=generation_id,
+                resolution=size,
+                canvas_width=canvas_w,
+                canvas_height=canvas_h,
+                layers=[],
+                composition_base_asset_id=None,
+                composition_warnings=list(composition_warnings),
+                metadata={
+                    "provider": GPT_IMAGE_PROVIDER,
+                    "production_mode": "finished_ad",
+                    "provider_generation_id": generation_id,
+                    "local_asset_id": str(asset.id),
+                    "project_id": str(linked_project_id),
+                    "campaign_context_id": campaign_context_id,
+                    "campaign_mode": "project-finished-ad",
+                    "source_asset_id": str(source.asset_id),
+                    "source_filename": source.filename,
+                    "extra_image_roles": extra_roles,
+                    "image_provider_route": (
+                        builder_context.get("image_provider_route")
+                        if isinstance(builder_context, dict)
+                        else None
+                    ),
+                },
+            )
+        ]
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        call_count = provider_call_count() - calls_before
+        return GptImageDesignResponse(
+            provider=GPT_IMAGE_PROVIDER,
+            model=availability.model,
+            endpoint=endpoint,
+            campaign_mode="project",
+            session_id=session_id,
+            linked_project_id=linked_project_id,
+            campaign_context_id=campaign_context_id,
+            generation_context_id=generation_context_id,
+            aspect_ratio=aspect_ratio,
+            format_preset=format_preset,
+            source_image=GptImageSourceImage(
+                asset_id=source.asset_id,
+                filename=source.filename,
+                content_type=source.content_type,
+                folder_category=source.folder_category,
+                tags=list(source.tags or []),
+                role="source",
+            ),
+            extra_images=[
+                GptImageSourceImage(
+                    asset_id=row.asset_id,
+                    filename=row.filename,
+                    content_type=row.content_type,
+                    folder_category=row.folder_category,
+                    role=row.role,
+                )
+                for row in extras
+            ],
+            brief={"prompt": prompt[:2000], "production_mode": "finished_ad"},
+            outputs=outputs,
+            warnings=list(composition_warnings),
+            provider_call_count=call_count,
+            latency_ms=latency_ms,
+        )
 
     # Persist GPT visual base (editable cover) before OS composition.
     base_asset = persist_gpt_image(

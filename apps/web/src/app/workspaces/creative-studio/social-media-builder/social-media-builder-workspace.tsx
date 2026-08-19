@@ -1550,6 +1550,7 @@ export function SocialMediaBuilderWorkspace() {
           language: locale,
           aspect_ratio: formatPreset === 'portrait' ? '4:5' : formatPreset === 'square' ? '1:1' : '4:5',
           format_preset: formatPreset,
+          production_mode: 'finished_ad',
         });
         if (token !== generateAbortRef.current) return;
         const gptImage = response.gpt_image;
