@@ -8,6 +8,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from investhome_api.models.project import Project
 from investhome_api.schemas.social_design_engine import SocialDesignMediaCandidate
@@ -46,6 +47,8 @@ class SelectedAsset:
     tags: list[str] = field(default_factory=list)
     role: str = "hero"
     provenance_source: str | None = None
+    selection_score: float | None = None
+    selection_reason: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -85,7 +88,13 @@ def _candidate_map(
     return {c.asset_id: c for c in candidates}
 
 
-def _to_selected(cand: SocialDesignMediaCandidate, *, role: str) -> SelectedAsset:
+def _to_selected(
+    cand: SocialDesignMediaCandidate,
+    *,
+    role: str,
+    selection_score: float | None = None,
+    selection_reason: str | None = None,
+) -> SelectedAsset:
     return SelectedAsset(
         asset_id=str(cand.asset_id),
         filename=cand.filename,
@@ -95,6 +104,8 @@ def _to_selected(cand: SocialDesignMediaCandidate, *, role: str) -> SelectedAsse
         tags=list(cand.tags or []),
         role=role,
         provenance_source=cand.provenance_source,
+        selection_score=selection_score,
+        selection_reason=selection_reason,
     )
 
 
@@ -113,19 +124,183 @@ def _is_exterior_primary(cand: SocialDesignMediaCandidate) -> bool:
     return subject in {"EXTERIOR", "AERIAL", "NEIGHBORHOOD", "LOCATION"}
 
 
+# Room / subject weights for campaign hero interiors (filename alone is not enough).
+_ROOM_WEIGHTS: tuple[tuple[tuple[str, ...], float], ...] = (
+    (("living", "lounge", "great.?room", "oturma", "salon"), 8.0),
+    (("lobby", "lobby.?lounge", "reception", "atrium"), 7.0),
+    (("kitchen", "mutfak", "dining"), 6.0),
+    (("suite", "master", "bedroom", "yatak"), 3.5),
+    (("bathroom", "bath", "banyo"), 1.0),
+    (("corridor", "hallway", "closet", "detail"), 0.5),
+)
+
+
+def _haystack(cand: SocialDesignMediaCandidate) -> str:
+    return " ".join(
+        [
+            cand.filename or "",
+            cand.folder_category or "",
+            cand.visual_subject or "",
+            " ".join(cand.tags or []),
+        ]
+    ).lower()
+
+
+def score_interior_candidate(
+    cand: SocialDesignMediaCandidate,
+    *,
+    brief: str = "",
+    width: int | None = None,
+    height: int | None = None,
+) -> tuple[float, str]:
+    """Score real interiors for ad hero use — not first-match / not filename-only.
+
+    Signals: quality proxies, resolution, composition/negative-space potential,
+    text-placement potential, character fit, brief fit. Base media score is a
+    component, never the sole criterion.
+    """
+    reasons: list[str] = []
+    score = 0.0
+    hay = _haystack(cand)
+    brief_l = (brief or "").lower()
+
+    # Base retrieval score (includes some preference overlap) — capped influence.
+    base = float(cand.score or 0.0)
+    score += min(base, 12.0) * 0.35
+    reasons.append(f"base_media={base:.2f}")
+
+    # Quality / mime
+    ctype = (cand.content_type or "").lower()
+    if ctype in {"image/jpeg", "image/jpg", "image/png", "image/webp"}:
+        score += 3.0
+        reasons.append("photo_render")
+    elif ctype == "image/svg+xml":
+        score -= 20.0
+        reasons.append("svg_penalty")
+
+    # Resolution
+    w = width
+    h = height
+    if w and h and w > 0 and h > 0:
+        area = int(w) * int(h)
+        if area >= 2_000_000:
+            score += 5.0
+            reasons.append("hi_res")
+        elif area >= 1_000_000:
+            score += 3.5
+            reasons.append("good_res")
+        elif area >= 400_000:
+            score += 2.0
+            reasons.append("ok_res")
+        else:
+            score -= 1.5
+            reasons.append("low_res")
+        # Composition / text-placement: prefer landscape or near-square with width room.
+        aspect = w / h
+        if 1.15 <= aspect <= 1.9:
+            score += 3.0
+            reasons.append("landscape_text_space")
+        elif 0.85 <= aspect <= 1.15:
+            score += 2.0
+            reasons.append("square_editorial")
+        elif aspect < 0.7:
+            score -= 1.0
+            reasons.append("tall_tight")
+        # Negative-space proxy: wider frames leave more copy room.
+        if w >= 1600:
+            score += 1.0
+
+    # Room / subject character (not filename-only — tags + subject + category too)
+    room_bonus = 0.0
+    room_label = "interior"
+    for keys, weight in _ROOM_WEIGHTS:
+        if any(re.search(k, hay) for k in keys):
+            room_bonus = weight
+            room_label = keys[0]
+            break
+    else:
+        if (cand.visual_subject or "").upper() == "INTERIOR":
+            room_bonus = 4.0
+            room_label = "interior_generic"
+    score += room_bonus
+    reasons.append(f"room={room_label}:{room_bonus}")
+
+    # Brief fit — living/character campaigns prefer living/lobby over bedroom detail.
+    wants_character = any(
+        k in brief_l for k in ("tarihi", "historic", "modern", "şık", "sik", "karakter", "character", "elegant")
+    )
+    wants_interior = any(k in brief_l for k in ("interior", "iç", "ic mekan", "görsel", "gorsel"))
+    if wants_character or wants_interior:
+        if room_label in {"living", "lobby", "kitchen"}:
+            score += 4.0
+            reasons.append("brief_character_fit")
+        elif room_label in {"suite", "bedroom"}:
+            score -= 1.5
+            reasons.append("bedroom_secondary_for_character")
+
+    # Prefer living-space tokens in brief explicitly.
+    for token in ("living", "lobby", "salon", "oturma", "kitchen", "mutfak"):
+        if token in brief_l and token in hay:
+            score += 2.0
+            reasons.append(f"brief_token:{token}")
+            break
+
+    # Provenance: real Drive/media preferred.
+    prov = (cand.provenance_source or cand.source_type or "").lower()
+    if "drive" in prov or "google" in prov:
+        score += 1.5
+        reasons.append("drive_provenance")
+
+    # Mild filename sequence preference only as tie-breaker component (not sole criterion).
+    seq = re.search(r"_(\d{2,3})\.", cand.filename or "")
+    if seq:
+        # Mid-sequence often better lit hero frames than 001 thumbnails.
+        n = int(seq.group(1))
+        if 3 <= n <= 20:
+            score += 0.4
+            reasons.append("mid_sequence")
+
+    reason = "; ".join(reasons)
+    return score, reason
+
+
 def pick_real_interior(
     candidates: list[SocialDesignMediaCandidate],
-) -> SocialDesignMediaCandidate | None:
-    """PROJECT MODE: real Temple interior only — never AI-invented substitute."""
+    *,
+    brief: str = "",
+    dimensions: dict[UUID, tuple[int | None, int | None]] | None = None,
+) -> tuple[SocialDesignMediaCandidate | None, float | None, str | None]:
+    """PROJECT MODE: real project interior only — never AI-invented substitute.
+
+    Scores among interiors; does not return the first match or filename sort alone.
+    """
     interiors = [c for c in candidates if _is_interior(c) and not _is_exterior_primary(c)]
-    if interiors:
+    if not interiors:
+        return None, None, None
+
+    dims = dimensions or {}
+    ranked: list[tuple[float, str, SocialDesignMediaCandidate]] = []
+    for cand in interiors:
+        ctype = (cand.content_type or "").lower()
+        if ctype == "image/svg+xml":
+            continue
+        if not ctype.startswith("image/"):
+            continue
+        w, h = dims.get(cand.asset_id, (None, None))
+        s, reason = score_interior_candidate(cand, brief=brief, width=w, height=h)
+        ranked.append((s, reason, cand))
+
+    if not ranked:
+        # Last resort: still never exterior; use prior pick_best among interiors.
         picked_id = pick_best_asset(interiors, require_image=True, campaign_type="LIFESTYLE")
         by_id = _candidate_map(interiors)
         if picked_id and picked_id in by_id:
-            return by_id[picked_id]
-        return interiors[0]
-    # Explicit: do not fall back to exterior when brief asked for interiors.
-    return None
+            return by_id[picked_id], None, "fallback_pick_best_asset"
+        return None, None, None
+
+    ranked.sort(key=lambda row: (-row[0], (row[2].filename or "").lower()))
+    best_score, best_reason, best = ranked[0]
+    return best, best_score, best_reason
 
 
 def pick_real_logo(
@@ -260,14 +435,37 @@ def research_project_drive(
     selected_interior = None
     selected_logo = None
     if mode == "project":
-        interior_cand = pick_real_interior(candidates)
+        dims: dict[UUID, tuple[int | None, int | None]] = {}
+        interior_ids = [
+            c.asset_id
+            for c in candidates
+            if _is_interior(c) and not _is_exterior_primary(c)
+        ]
+        if interior_ids:
+            from investhome_api.models.creative_studio_media import CreativeStudioMediaAsset
+
+            for row in db.scalars(
+                select(CreativeStudioMediaAsset).where(CreativeStudioMediaAsset.id.in_(interior_ids))
+            ).all():
+                dims[row.id] = (row.width, row.height)
+
+        interior_cand, interior_score, interior_reason = pick_real_interior(
+            candidates,
+            brief=brief,
+            dimensions=dims,
+        )
         if interior_cand is None:
             warnings.append(
                 "No real project interior asset found in Drive/Media Library. "
                 "PROJECT MODE will not invent or substitute an exterior/AI image."
             )
         else:
-            selected_interior = _to_selected(interior_cand, role="hero_interior")
+            selected_interior = _to_selected(
+                interior_cand,
+                role="hero_interior",
+                selection_score=interior_score,
+                selection_reason=interior_reason,
+            )
         logo_cand = pick_real_logo(
             candidates,
             project_name=project.project_name,

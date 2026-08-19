@@ -15,24 +15,84 @@ from investhome_api.services.project_assistant.llm_provider import (
 
 CREATIVE_BRIEF_MARKER = "CREATIVE_BRIEF_JSON"
 
-_SYSTEM = """You are the Creative Director for a real-estate marketing system.
-Interpret the user brief like a senior CD. Decide campaign strategy from the brief,
-verified project facts, and available real assets — not from fixed layout templates.
+# Patterns that make RE ads sound like a generic listing brochure.
+CLICHE_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
+    re.compile(p, re.I)
+    for p in (
+        r"\bdiscover the elegance\b",
+        r"\bprestigious address\b",
+        r"\bschedule a viewing\b",
+        r"\bschedule a (private )?tour\b",
+        r"\breserve a private tour\b",
+        r"\bunparalleled luxury\b",
+        r"\blucrative investment\b",
+        r"\bmost sought[- ]after address\b",
+        r"\bgateway to a sophisticated\b",
+        r"\bexperience the perfect blend\b",
+    )
+)
 
-Return ONLY a JSON object with these keys:
-objective, audience, concept, hero_message, supporting_messages (array),
-emphasis (array of words to stress), sales_hook, offer, value_proposition,
-proof_points (array), cta, visual_direction, composition_direction,
-typography_direction, color_direction, tone, formats (array),
-required_assets (array of descriptions), required_project_data (array),
-recommended_outputs (array).
+_SYSTEM = """You are a senior advertising Creative Director for real-estate campaigns.
+You invent campaign messaging. The user brief is raw material — not copy to polish.
+Do NOT write a generic listing ad. Think like a real CD before writing a single line.
 
-Rules:
-- Do NOT invent financial numbers. Use only numbers present in verified_claims / user brief.
-- Do NOT invent asset IDs. Assets are selected separately.
-- Do NOT propose AI-generated interiors when mode is project and a real interior is locked.
-- High creativity for concept/messaging; high fact accuracy for claims; protect project assets.
-- Language may follow the brief (Turkish/English mix OK); keep hero/CTA campaign-ready.
+────────────────
+CREATIVE THINKING (reason first, then write)
+────────────────
+Silently reason about:
+1) commercial goal  2) what is being sold  3) why now
+4) strongest sales hook  5) what to see in the first 2 seconds
+6) which number truly matters  7) which words to emphasize
+8) which project feature creates emotional value
+9) supporting message  10) desired user action
+Then invent a campaign concept (big idea) and message hierarchy.
+
+────────────────
+MESSAGE HIERARCHY (you decide; invent headline/CTA — user need not supply them)
+────────────────
+Return JSON with:
+big_idea, objective, audience, concept, hero_message,
+supporting_messages (array; prefer 1–3 short lines),
+emphasis (array of words to stress on the visual),
+sales_hook, offer, price_presentation (how price should appear — you decide format),
+value_proposition, proof_points (array), cta,
+visual_direction, composition_direction, typography_direction,
+color_direction, tone, formats (array),
+required_assets (array of descriptions — no invented asset IDs),
+required_project_data (array), recommended_outputs (array),
+first_2_seconds (what the eye must catch),
+thinking_notes (short: goal / hook / number that matters / emotional feature).
+
+Not every field must appear on the final visual — prefer fewer words, stronger ad.
+big_idea = campaign platform (memorable, short). hero_message = primary line on creative.
+
+────────────────
+PRICE / OFFER
+────────────────
+If list→launch prices exist in pricing / brief, treat the drop as a SALES HOOK.
+Present price creatively (e.g. "$400,000 → $300,000" or "LAUNCH PRICE $300K") — do not hardcode one style.
+When using the derived percent, frame ONLY as "approximately N% launch price advantage"
+(or "~N% launch price advantage"). NEVER as investment return, ROI, guaranteed profit, or yield.
+Do not invent other financial numbers.
+
+────────────────
+ANTI-CLICHÉ (hard ban)
+────────────────
+Never use: "Discover the Elegance…", "Prestigious Address…", "Schedule a Viewing Today…",
+"unparalleled luxury", "lucrative investment", "most sought-after address",
+"perfect blend of…", "gateway to a sophisticated lifestyle", "Reserve a private tour".
+CTA must be campaign-appropriate (e.g. explore details / claim launch price / see Unit X) —
+not a viewing-appointment cliché.
+
+────────────────
+CREATIVE FREEDOM vs FACTS
+────────────────
+HIGH FREEDOM: headline, big idea, emphasis, CTA, visual storytelling, tone, composition.
+HIGH ACCURACY: price, unit, location, ROI, rent, yield, distance, specs —
+only from verified_claims / pricing / user brief. Never invent yields.
+PROJECT MODE: real Drive interiors + real project logo only; never invent assets or global brand marks.
+
+Language may follow the brief (Turkish/English mix OK). Return ONLY the JSON object.
 """
 
 
@@ -56,8 +116,14 @@ def _extract_json(text: str) -> dict[str, Any]:
     return {}
 
 
+def contains_cliche(text: str | None) -> bool:
+    if not text:
+        return False
+    return any(p.search(text) for p in CLICHE_PATTERNS)
+
+
 def _local_creative_brief(user_prompt: str) -> str:
-    """Deterministic CD brief for mock/local provider — no fabricated finance."""
+    """Deterministic CD brief for mock/local provider — advertising thinking, no clichés."""
     payload: dict[str, Any] = {}
     raw = user_prompt or ""
     start = raw.find("{")
@@ -74,72 +140,98 @@ def _local_creative_brief(user_prompt: str) -> str:
     brief = str(payload.get("user_brief") or "")
     name = str(project.get("name") or "Project")
     city = str(project.get("city") or "").strip()
+    state = str(project.get("state") or "").strip()
+    place = " ".join(p for p in (city, state) if p) or city or "Washington DC"
+
     unit = None
     units = pricing.get("unit_codes") if isinstance(pricing.get("unit_codes"), list) else []
     if units:
         unit = str(units[0])
 
-    price_copy = None
     pp = pricing.get("price_presentation") if isinstance(pricing.get("price_presentation"), dict) else {}
-    if pp.get("copy"):
-        price_copy = str(pp["copy"])
+    price_copy = str(pp["copy"]) if pp.get("copy") else None
     discount = pricing.get("discount") if isinstance(pricing.get("discount"), dict) else None
+    discount_display = str(discount.get("display") or "") if discount else ""
 
-    hero = f"{name}: where modern living meets historic character"
-    if unit:
-        hero = f"Unit {unit} at {name} — modern elegance, historic soul"
-    sales_hook = "A rare launch opportunity in a landmark address"
-    if price_copy:
-        sales_hook = f"Launch pricing: {price_copy}"
-    value = (
-        f"Live and invest in {city or 'a premier district'} with architectural character "
-        f"and a time-bound launch offer."
+    # Character-led big idea when brief stresses modern / historic / şık.
+    brief_l = brief.lower()
+    character_led = any(
+        k in brief_l for k in ("tarihi", "historic", "modern", "şık", "sik", "karakter")
     )
-    if discount and discount.get("display"):
-        value = (
-            f"Secure Unit {unit or 'your residence'} at {discount['display']} off list — "
-            f"distinguished living and a measured investment entry in {city or 'Washington DC'}."
-        )
+    if character_led:
+        big_idea = "Modern. Şık. Tarihi."
+        hero = big_idea
+        emphasis = ["Modern", "Şık", "Tarihi", unit or name, "lansman"]
+    else:
+        big_idea = f"{name} — character that compounds"
+        hero = f"{name}: modern life, historic soul"
+        emphasis = [name, "modern", "historic", unit or "launch", place]
+
+    sales_hook = f"Unit {unit} launch opportunity" if unit else f"{name} launch opportunity"
+    if price_copy:
+        sales_hook = f"Unit {unit} launch: {price_copy}" if unit else f"Launch: {price_copy}"
+
+    if discount_display:
+        value = f"Approximately {discount_display.lstrip('~')} launch price advantage"
+        if discount_display.startswith("~"):
+            value = f"{discount_display} launch price advantage"
+    else:
+        value = f"Distinctive {place} living with a time-bound launch entry"
+
     offer = price_copy or "Exclusive launch pricing"
-    cta = "Reserve a private tour"
+    cta = "Detayları İncele" if any(ord(c) > 127 for c in brief) or "proje" in brief_l else "See the details"
+
     supporting = [
-        f"Real interiors from {name} — not AI fiction",
-        "Historic character meets contemporary refinement",
-        f"{city} living with investment clarity" if city else "Distinguished urban living",
+        f"Historic character + modern living at {name}",
+        f"{place} — verified neighborhood context" if place else "Verified location context",
     ]
+    if unit:
+        supporting.insert(0, f"Unit {unit} launch window")
+
     return json.dumps(
         {
-            "objective": "Unit launch campaign — lifestyle + investment",
-            "audience": "Discerning Washington DC residents and investors seeking character-rich homes",
-            "concept": f"The Landmark Residence — {name} as modern life inside historic character",
+            "big_idea": big_idea,
+            "objective": "Unit launch — lifestyle character + honest launch-price advantage",
+            "audience": f"Selective buyers and investors seeking character-rich homes in {place}",
+            "concept": f"{big_idea} — {name} as modern living inside historic fabric",
             "hero_message": hero,
-            "supporting_messages": supporting,
-            "emphasis": ["Unit", unit or name, "launch", "historic", "modern", city or "DC"],
+            "supporting_messages": supporting[:3],
+            "emphasis": [w for w in emphasis if w],
             "sales_hook": sales_hook,
             "offer": offer,
+            "price_presentation": price_copy or offer,
             "value_proposition": value,
             "proof_points": [
                 p
                 for p in [
-                    f"Real project interiors from Drive/Media Library",
+                    "Real project interiors from Drive/Media Library",
                     f"Official {name} brand mark",
                     price_copy,
-                    "Washington DC address" if city else None,
+                    place if place else None,
                 ]
                 if p
             ],
             "cta": cta,
+            "first_2_seconds": (
+                f"Real {name} interior + {big_idea}"
+                + (f" + {price_copy}" if price_copy else "")
+            ),
+            "thinking_notes": (
+                f"goal=unit launch; sold=Unit {unit or 'residence'} at {name}; "
+                f"why_now=launch price; hook=list→launch; number={discount_display or price_copy or 'n/a'}; "
+                f"emotion=historic character + modern living; action={cta}"
+            ),
             "visual_direction": (
-                "Hero: authentic project interior photography. Soft premium lighting, "
-                "quiet luxury, architectural detail in frame. Real logo lockup — never drawn."
+                "Luxury editorial / premium RE campaign. Hero: authentic project interior only. "
+                "Quiet light, architectural detail, room for short hierarchy copy. Real logo lockup."
             ),
             "composition_direction": (
-                "Editorial balance — room for hero copy and price strip without covering faces "
-                "or key architecture. Logo anchored, CTA clear."
+                "Editorial balance — negative space for big idea and price strip; "
+                "do not cover key architecture. Logo anchored; CTA restrained."
             ),
-            "typography_direction": "Refined sans for headlines; restrained supporting type; high contrast",
-            "color_direction": "Warm neutrals, stone, deep charcoal, restrained metallic accent from brand",
-            "tone": "Modern, sophisticated, historically aware, investment-confident",
+            "typography_direction": "Expressive display for big idea; restrained supporting; high contrast",
+            "color_direction": "Warm stone, deep charcoal, restrained brand accent — no generic purple gradients",
+            "tone": "Modern, sharp, historically aware — premium campaign, not listing brochure",
             "formats": ["instagram_feed", "instagram_story", "landing_hero"],
             "required_assets": ["real_interior_photo", "project_logo"],
             "required_project_data": ["unit_identity", "list_and_launch_price", "location"],
@@ -148,6 +240,66 @@ def _local_creative_brief(user_prompt: str) -> str:
         },
         ensure_ascii=False,
     )
+
+
+def _sanitize_strategy(strategy: dict[str, Any], *, pricing: dict[str, Any], project: dict[str, Any]) -> dict[str, Any]:
+    """Light guard against banned listing clichés when the model slips."""
+    name = str(project.get("name") or "Project")
+    units = pricing.get("unit_codes") if isinstance(pricing.get("unit_codes"), list) else []
+    unit = str(units[0]) if units else None
+    pp = pricing.get("price_presentation") if isinstance(pricing.get("price_presentation"), dict) else {}
+    discount = pricing.get("discount") if isinstance(pricing.get("discount"), dict) else None
+    discount_display = str(discount.get("display") or "") if discount else ""
+
+    if contains_cliche(str(strategy.get("hero_message") or "")):
+        strategy["hero_message"] = strategy.get("big_idea") or strategy.get("concept") or f"{name}"
+    if contains_cliche(str(strategy.get("cta") or "")):
+        strategy["cta"] = "Detayları İncele"
+    if contains_cliche(str(strategy.get("sales_hook") or "")):
+        price_copy = pp.get("copy")
+        strategy["sales_hook"] = (
+            f"Unit {unit} launch opportunity" if unit else f"{name} launch opportunity"
+        )
+        if price_copy:
+            strategy["sales_hook"] = f"{strategy['sales_hook']}: {price_copy}"
+    if contains_cliche(str(strategy.get("value_proposition") or "")) or re.search(
+        r"\b(roi|return|guaranteed profit|yield)\b",
+        str(strategy.get("value_proposition") or ""),
+        re.I,
+    ):
+        if discount_display:
+            strategy["value_proposition"] = f"{discount_display} launch price advantage"
+        else:
+            strategy["value_proposition"] = f"Launch entry at {name}"
+
+    # Prefer launch-price-advantage framing over bare "% off" / return language.
+    for key in ("value_proposition", "offer", "sales_hook", "hero_message"):
+        val = strategy.get(key)
+        if isinstance(val, str) and discount_display and re.search(r"\d+\s*%\s*off\b", val, re.I):
+            strategy[key] = re.sub(
+                r"~?\d+(?:\.\d+)?\s*%\s*off\b",
+                f"{discount_display} launch price advantage",
+                val,
+                flags=re.I,
+            )
+        if isinstance(val, str):
+            strategy[key] = re.sub(
+                r"\b(\d+(?:\.\d+)?%\s*)(investment\s+return|roi|guaranteed\s+profit)\b",
+                r"\1launch price advantage",
+                val,
+                flags=re.I,
+            )
+
+    msgs = strategy.get("supporting_messages") or []
+    if isinstance(msgs, list):
+        strategy["supporting_messages"] = [
+            m for m in msgs if isinstance(m, str) and not contains_cliche(m)
+        ][:3]
+
+    if not strategy.get("big_idea"):
+        strategy["big_idea"] = strategy.get("concept") or strategy.get("hero_message")
+
+    return strategy
 
 
 def generate_creative_strategy(
@@ -181,7 +333,9 @@ def generate_creative_strategy(
             "honesty": pricing.get("honesty"),
         },
         "instructions": (
-            "Decide campaign creative strategy. Do not invent prices or asset IDs. "
+            "Invent the campaign like a senior CD. Decide big_idea, hero, hook, CTA, hierarchy. "
+            "Use pricing.discount only as launch price advantage — never as ROI. "
+            "No listing clichés. Do not invent prices or asset IDs. "
             f"Respond with {CREATIVE_BRIEF_MARKER} object only."
         ),
     }
@@ -223,6 +377,7 @@ def generate_creative_strategy(
         elif not isinstance(val, list):
             strategy[key] = [str(val)]
 
+    strategy = _sanitize_strategy(strategy, pricing=pricing, project=project)
     strategy["_llm"] = meta
     return strategy
 

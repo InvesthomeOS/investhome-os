@@ -264,14 +264,16 @@ def build_pricing_claims(
 
     price_presentation = None
     if list_price is not None and launch_price is not None:
+        # Deterministic pair framing — % is launch price advantage, never ROI/return.
+        advantage = (
+            f" ({discount['display']} launch price advantage)" if discount else ""
+        )
         price_presentation = {
             "list": format_usd(list_price),
             "offer": format_usd(launch_price),
             "discount": discount,
-            "copy": (
-                f"{format_usd(list_price)} → {format_usd(launch_price)}"
-                + (f" ({discount['display']} off)" if discount else "")
-            ),
+            "copy": f"{format_usd(list_price)} → {format_usd(launch_price)}{advantage}",
+            "framing": "launch_price_advantage",
         }
     elif launch_price is not None:
         price_presentation = {"offer": format_usd(launch_price), "copy": format_usd(launch_price)}

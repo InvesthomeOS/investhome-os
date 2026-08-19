@@ -85,6 +85,7 @@ def _build_brief_response(
         "mode": mode,
         "objective": strategy.get("objective"),
         "audience": strategy.get("audience"),
+        "big_idea": strategy.get("big_idea") or strategy.get("concept"),
         "concept": strategy.get("concept"),
         "hero_message": strategy.get("hero_message"),
         "supporting_messages": strategy.get("supporting_messages") or [],
@@ -98,6 +99,8 @@ def _build_brief_response(
         "value_proposition": strategy.get("value_proposition"),
         "proof_points": strategy.get("proof_points") or [],
         "cta": strategy.get("cta"),
+        "first_2_seconds": strategy.get("first_2_seconds"),
+        "thinking_notes": strategy.get("thinking_notes"),
         "visual_direction": strategy.get("visual_direction"),
         "composition_direction": strategy.get("composition_direction"),
         "typography_direction": strategy.get("typography_direction"),
@@ -107,6 +110,12 @@ def _build_brief_response(
         "tone": strategy.get("tone"),
         "formats": strategy.get("formats") or [],
         "claims": claims,
+        "approved_claims": [c for c in claims if c.get("verified")],
+        "blocked_claims": [
+            t
+            for t in guard
+            if isinstance(t, dict) and (t.get("eligible") is False or t.get("rejection_reason"))
+        ],
         "claim_eligibility_trace": guard,
         "required_capabilities": orchestration.get("required_capabilities") or [],
         "capability_assignments": orchestration.get("assignments") or [],
@@ -213,22 +222,30 @@ def create_campaign(
     )
     # Attach guard after build helper (needs campaign id).
     brief_payload["claim_eligibility_trace"] = guard_trace
+    brief_payload["blocked_claims"] = [
+        t
+        for t in guard_trace
+        if isinstance(t, dict) and (t.get("eligible") is False or t.get("rejection_reason"))
+    ]
 
     context = {
         "original_user_brief": brief,
         "campaign_intent": intent.campaign_intent,
         "cd_strategy": strategy,
-        "approved_claims": pricing.get("claims") or [],
+        "approved_claims": brief_payload.get("approved_claims") or pricing.get("claims") or [],
+        "blocked_claims": brief_payload.get("blocked_claims") or [],
         "claim_eligibility_trace": guard_trace,
         "selected_assets": brief_payload["selected_assets"],
         "selected_logo": research.get("selected_logo"),
         "campaign_copy": {
+            "big_idea": brief_payload.get("big_idea"),
             "hero_message": brief_payload.get("hero_message"),
             "supporting_messages": brief_payload.get("supporting_messages"),
             "sales_hook": brief_payload.get("sales_hook"),
             "cta": brief_payload.get("cta"),
             "offer": brief_payload.get("offer"),
             "value_proposition": brief_payload.get("value_proposition"),
+            "emphasis": brief_payload.get("emphasis"),
         },
         "visual_direction": brief_payload.get("visual_direction"),
         "audience": brief_payload.get("audience"),
