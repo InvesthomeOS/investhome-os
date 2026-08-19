@@ -51,6 +51,7 @@ class CreativeDirectorGenerateAdResponse(BaseModel):
     final_turkish_texts: dict[str, str] = Field(default_factory=dict)
     claim_guard: dict[str, Any] = Field(default_factory=dict)
     project_asset_lock: dict[str, Any] = Field(default_factory=dict)
+    duplication_guard: dict[str, Any] = Field(default_factory=dict)
     provider_call_count: int = 0
     latency_ms: int = 0
     warnings: list[str] = Field(default_factory=list)

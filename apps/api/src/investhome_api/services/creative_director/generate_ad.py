@@ -582,6 +582,9 @@ def generate_ad_from_campaign(
         source_asset_id=source_id,
     )
 
+    output_meta = output.metadata if isinstance(getattr(output, "metadata", None), dict) else {}
+    duplication_guard = dict(output_meta.get("duplication_guard") or {})
+
     creative_brief_summary = {
         "big_idea": campaign_copy.get("big_idea") or strategy.get("big_idea"),
         "hero": campaign_copy.get("hero_message") or strategy.get("hero_message"),
@@ -660,6 +663,7 @@ def generate_ad_from_campaign(
         final_turkish_texts=texts,
         claim_guard=claim_guard,
         project_asset_lock=asset_lock,
+        duplication_guard=duplication_guard,
         provider_call_count=result.provider_call_count,
         latency_ms=result.latency_ms,
         warnings=list(result.warnings or []),

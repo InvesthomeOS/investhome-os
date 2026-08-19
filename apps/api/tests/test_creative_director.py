@@ -1018,3 +1018,153 @@ def test_generate_ad_interior_lifestyle_no_unit204_no_price(
     assert body["provider_call_count"] == 1
     art = body["creative_brief_summary"]["art_direction"]
     assert "price hook" not in art["commercial_priority"][0].lower()
+
+
+def test_art_direction_prompt_has_clean_canvas_no_text_no_logo_locks() -> None:
+    from investhome_api.services.creative_director.art_direction_translator import (
+        render_gpt_image_art_direction_prompt,
+        translate_campaign_art_direction,
+    )
+    from investhome_api.services.creative_director.generate_ad import adapt_final_turkish_texts
+
+    texts = adapt_final_turkish_texts(
+        language="tr",
+        strategy={
+            "big_idea": "Eviniz, Sığınak",
+            "hero_message": "Şehrin Kalbinde Sakin Bir Sığınak",
+            "sales_hook": "Şehrin kalbinde huzur dolu bir yaşam",
+            "cta": "Detayları Keşfet",
+            "supporting_messages": [
+                "Zarif tasarım detaylarıyla dolu yaşam alanları",
+                "Özel ortak alanlar ve sosyal olanaklar",
+                "Modern ve fonksiyonel iç mekanlar",
+            ],
+        },
+        campaign_copy={
+            "big_idea": "Eviniz, Sığınak",
+            "supporting_messages": [
+                "Zarif tasarım detaylarıyla dolu yaşam alanları",
+                "Özel ortak alanlar ve sosyal olanaklar",
+                "Modern ve fonksiyonel iç mekanlar",
+            ],
+            "cta": "Detayları Keşfet",
+        },
+        pricing={"price_presentation": None},
+        approved_claims=[],
+        original_brief=INTERIOR_BRIEF,
+        lifestyle=True,
+    )
+    ctx = {
+        "cd_strategy": {"big_idea": "Eviniz, Sığınak", "visual_direction": "Sakin yaşam"},
+        "campaign_copy": {"big_idea": "Eviniz, Sığınak"},
+        "pricing": {},
+        "original_user_brief": INTERIOR_BRIEF,
+        "campaign_intent": "lifestyle",
+    }
+    interior_meta = {
+        "asset_id": "caf8eb97-c767-4aa1-841b-759cf3500062",
+        "filename": "IH_DC_TMP_001_Render_Living_Room_003.jpeg",
+    }
+    logo_meta = {
+        "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "filename": "IH_DC_TMP_001_Logo_Primary.svg",
+    }
+    plan = translate_campaign_art_direction(
+        ctx=ctx,
+        texts=texts,
+        interior_meta=interior_meta,
+        logo_meta=logo_meta,
+        language="tr",
+        lifestyle=True,
+    )
+    prompt = render_gpt_image_art_direction_prompt(
+        plan,
+        texts=texts,
+        interior_meta=interior_meta,
+        logo_meta=logo_meta,
+        original_brief=INTERIOR_BRIEF,
+    )
+    upper = prompt.upper()
+    assert "NO TEXT" in upper
+    assert "NO LOGOS" in upper
+    assert "NO TYPOGRAPHY" in upper
+    assert "COMPOSITION ZONES" in prompt
+    assert "OS FINAL COPY PREVIEW" not in prompt
+    assert "Detayları Keşfet" in prompt
+    assert "Eviniz, Sığınak" in prompt
+
+
+def test_compose_duplication_guard_and_background_layer() -> None:
+    import io
+    from uuid import uuid4
+
+    from PIL import Image
+
+    from investhome_api.services.gpt_image_design.compose import (
+        CompositionSlotPlan,
+        compose_final_layers,
+        run_duplication_guard,
+    )
+    from investhome_api.services.gpt_image_design.design_plan import build_gpt_image_design_plan
+    from investhome_api.services.gpt_image_design.source import ResolvedSourceImage
+
+    def png_bytes(w: int, h: int, color: tuple[int, int, int] = (20, 40, 70)) -> bytes:
+        buf = io.BytesIO()
+        Image.new("RGB", (w, h), color).save(buf, format="PNG")
+        return buf.getvalue()
+
+    base = png_bytes(400, 500)
+    logo = ResolvedSourceImage(
+        asset_id=uuid4(),
+        filename="IH_DC_TMP_001_Logo_Primary.svg",
+        content_type="image/svg+xml",
+        folder_category="01_BRAND",
+        tags=["logo"],
+        image_bytes=png_bytes(80, 32, (220, 40, 40)),
+        width=80,
+        height=32,
+        role="project_logo",
+    )
+    plan = build_gpt_image_design_plan(
+        canvas_width=400,
+        canvas_height=500,
+        art_direction="lifestyle",
+        has_project_logo=True,
+        include_slogan=False,
+    )
+    dup_slots = CompositionSlotPlan(
+        headline="Eviniz, Sığınak",
+        subhead="Eviniz, Sığınak",
+        cta="Detayları Keşfet",
+        include_slogan=False,
+    )
+    guard = run_duplication_guard(dup_slots, logos=[logo], plan=plan)
+    assert guard.status == "fail"
+    assert "headline_equals_subhead" in guard.violations
+    assert guard.counts["project_logo_assets"] == 1
+    assert guard.counts["primary_cta"] == 1
+    assert guard.counts["primary_headline"] == 1
+
+    base_id = uuid4()
+    result = compose_final_layers(
+        base,
+        logos=[logo],
+        slots=dup_slots,
+        canvas_width=400,
+        canvas_height=500,
+        base_asset_id=base_id,
+        plan=plan,
+    )
+    assert result.duplication_guard["status"] == "fail"
+    assert result.duplication_guard["gpt_generated_text_count"] == 0
+    assert result.duplication_guard["gpt_generated_logo_count"] == 0
+    bg = next(el for el in result.layers if el.get("id") == "background-gpt-image")
+    assert bg["type"] == "IMAGE"
+    assert bg["role"] == "background"
+    assert bg["assetId"] == str(base_id)
+    logos = [el for el in result.layers if el.get("role") == "logo"]
+    assert len(logos) == 1
+    headlines = [el for el in result.layers if el.get("role") == "headline"]
+    assert len(headlines) == 1
+    ctas = [el for el in result.layers if el.get("type") == "BUTTON"]
+    assert len(ctas) == 1

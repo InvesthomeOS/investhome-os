@@ -24,6 +24,17 @@ _KNOWN_CANONICAL_LEAKS = ("19.5%", "27.8%", "$1450K", "$1,450K", "$1.45M", "1450
 
 INVESHOME_SLOGAN = "Amerika'da güven inşa ediyoruz."
 
+# GPT Image must output atmosphere only — all communication layers are OS-composited after.
+CLEAN_CANVAS_LOCK = [
+    "NO TEXT, NO LETTERS, NO NUMBERS, NO TYPOGRAPHY, NO CAPTIONS, NO LABELS, NO WATERMARKS.",
+    "NO LOGOS, NO BRAND MARKS, NO BRAND NAMES, NO MONOGRAMS, NO LOGO-LIKE SYMBOLS.",
+    "Do NOT rasterize headlines, subheads, CTAs, badges, prices, slogans, or feature callouts into pixels.",
+    "Do NOT draw, generate, redraw, or fake any logo or wordmark — including substituting lettering such as 'The Temple' for a real mark.",
+    "Compose visual atmosphere, color grade, crop, and negative space only — reserve air where OS will typeset copy.",
+    "Zone hints describe hierarchy and grouping for composition — they are NOT instructions to paint words or marks.",
+    "InvestHome OS Final Composition Layer typesets real copy and the real Temple logo after this edit.",
+]
+
 ARCHITECTURE_LOCK = [
     "The FIRST and ONLY input image is the actual product for sale — a real project render/photograph.",
     "Preserve this building exactly: architecture, facade, floors, windows, doors, massing, proportions, materials, and silhouette.",
@@ -232,7 +243,9 @@ def render_project_edit_prompt(shared: dict[str, Any]) -> str:
     logo_notes = shared.get("logo_notes") or []
     references = shared.get("design_references") or []
     lines = [
-        "Create a premium Instagram social advertisement BACKGROUND by EDITING the supplied project photograph.",
+        "Create a premium Instagram social advertisement CLEAN BACKGROUND by EDITING the supplied project photograph.",
+        "GPT IMAGE CLEAN CANVAS LOCK — mandatory:",
+        *[f"- {item}" for item in CLEAN_CANVAS_LOCK],
         "InvestHome OS and GPT Image share one Art Direction Plan. You compose campaign atmosphere, crop, and light. OS typesets real logos and exact copy after.",
         f"PROJECT: {shared.get('project') or 'Project'}",
         f"OBJECTIVE: {shared.get('objective')}",

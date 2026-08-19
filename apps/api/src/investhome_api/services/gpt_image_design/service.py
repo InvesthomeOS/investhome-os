@@ -666,6 +666,11 @@ def _generate_project(
     for warn in composition.warnings:
         if warn not in composition_warnings:
             composition_warnings.append(warn)
+    dup_guard = dict(composition.duplication_guard or {})
+    if dup_guard.get("status") == "fail":
+        composition_warnings.append(
+            "duplication_guard_fail:" + ",".join(dup_guard.get("violations") or [])
+        )
     image_bytes = composition.png_bytes
     content_type = sniff_image_content_type(image_bytes)
     asset = persist_gpt_image(
@@ -709,6 +714,11 @@ def _generate_project(
                 "extra_image_roles": extra_roles,
                 "extra_image_asset_ids": [str(row.asset_id) for row in extras],
                 "composition_used_slots": list(composition.used_slots),
+                "duplication_guard": dup_guard,
+                "gpt_generated_text_count": dup_guard.get("gpt_generated_text_count", 0),
+                "gpt_generated_logo_count": dup_guard.get("gpt_generated_logo_count", 0),
+                "background_layer_id": "background-gpt-image",
+                "background_asset_id": str(base_asset.id),
                 "design_plan_variation": design_plan.variation,
                 "composition_type": design_plan.composition_type,
                 "visual_review_status": design_plan.visual_review_status,

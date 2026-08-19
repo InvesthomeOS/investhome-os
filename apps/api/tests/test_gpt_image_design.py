@@ -1104,6 +1104,38 @@ def test_architecture_lock_still_in_project_brief() -> None:
     assert "blank template" in prompt.lower() or "template panel" in prompt.lower() or "campaign air" in prompt.lower()
 
 
+def test_brief_clean_canvas_lock_in_project_prompt() -> None:
+    from investhome_api.services.gpt_image_design.brief import CLEAN_CANVAS_LOCK, render_project_edit_prompt
+
+    shared = {
+        "project": "The Temple",
+        "objective": "lifestyle",
+        "audience": "buyers",
+        "language": "tr",
+        "tone": "premium",
+        "campaign_angle": "interior",
+        "single_minded_message": "Calm sanctuary",
+        "user_campaign_facts": [],
+        "marketing_safe_facts": [],
+        "allowed_financial_tokens": [],
+        "blocked_financial_tokens": [],
+        "visible_copy": {"headline": "Eviniz, Sığınak", "cta": "Detayları Keşfet"},
+        "composition": {"format": "Instagram 4:5", "resolution": "1088x1360"},
+        "source_image": "living.jpg",
+        "extra_image_roles": ["project_logo"],
+        "architecture_lock": [],
+        "brand_restraint": [],
+        "user_instruction": "Interior lifestyle ad",
+        "interior_lock": True,
+    }
+    prompt = render_project_edit_prompt(shared)
+    upper = prompt.upper()
+    for rule in CLEAN_CANVAS_LOCK[:2]:
+        assert rule.split(",")[0].strip().upper() in upper or "NO TEXT" in upper
+    assert "NO LOGOS" in upper
+    assert "do not rasterize" in prompt.lower()
+
+
 def test_find_global_investhome_logo_no_silent_fallback(
     client: TestClient,
     db_session: Session,

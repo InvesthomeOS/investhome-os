@@ -426,8 +426,8 @@ def translate_campaign_art_direction(
     ]
 
     cta_prominence = (
-        f"Real ad CTA: '{texts.get('cta')}' as button, pill, outline, or text+arrow — "
-        "large enough to invite tap; not tiny decorative footer text."
+        "CTA zone (OS typesets — do NOT draw text): reserve high-contrast actionable area for "
+        f"'{texts.get('cta')}' — button/pill air only, no rasterized CTA."
     )
 
     return ArtDirectionPlan(
@@ -455,7 +455,7 @@ def translate_campaign_art_direction(
             "not meaningless empty canvas or random decorative gaps."
         ),
         image_text_balance=image_text_balance,
-        brand_presence="The Temple project logo composited by OS — upper area, visible, never AI-generated",
+        brand_presence="The Temple project logo zone — upper area, visible air only; OS composites real SVG, never AI-generated",
         visual_storytelling=visual_storytelling,
         decoration_rule=(
             "Decoration only if it serves campaign: no random building sketch, map pin, long gold line, "
@@ -499,8 +499,14 @@ def render_gpt_image_art_direction_prompt(
     ).strip()
 
     lines = [
-        f"MASTER Instagram {aspect_ratio} feed ad BACKGROUND for The Temple — PROJECT MODE edit.",
-        f"LANGUAGE atmosphere: {plan.language} campaign (OS typesets exact Turkish copy after).",
+        f"MASTER Instagram {aspect_ratio} feed ad CLEAN BACKGROUND for The Temple — PROJECT MODE edit.",
+        f"LANGUAGE atmosphere: {plan.language} campaign (InvestHome OS typesets exact Turkish copy after — GPT draws ZERO text).",
+        "",
+        "=== GPT IMAGE CLEAN CANVAS LOCK (mandatory — zero tolerance) ===",
+        "NO TEXT, NO LETTERS, NO NUMBERS, NO TYPOGRAPHY, NO CAPTIONS, NO LABELS, NO WATERMARKS.",
+        "NO LOGOS, NO BRAND MARKS, NO BRAND NAMES, NO MONOGRAMS, NO LOGO-LIKE SYMBOLS.",
+        "Output visual composition / atmosphere / background treatment ONLY.",
+        "Zone hints below describe hierarchy and contrast air — NOT instructions to paint words or marks.",
         "",
         "=== ADVERTISING ART DIRECTION (senior art director plan — creative freedom, no fixed template) ===",
         "",
@@ -541,22 +547,22 @@ def render_gpt_image_art_direction_prompt(
         )
     lines.extend(
         [
-        "EMPHASIS WORDS (varied treatment — do NOT render all the same style):",
+        "EMPHASIS WORDS (OS varied treatment — compose contrast air only, do NOT typeset):",
         *emphasis_lines,
         "",
-        "INFORMATION GROUPING (keep clusters together — one sales story):",
+        "INFORMATION GROUPING (keep visual clusters together — OS typesets copy, GPT composes air):",
         *group_lines,
         "",
         f"CTA PROMINENCE: {plan.cta_prominence}",
         f"BADGE/CALLOUT: {plan.badge_callout_opportunity}",
         "",
-        "TYPOGRAPHY HIERARCHY (OS typesets — compose contrast/air only):",
+        "TYPOGRAPHY ZONES (OS typesets — compose contrast/air only, do NOT rasterize):",
         *[f"  - {item}" for item in plan.typography_hierarchy],
         "",
         f"CONTRAST STRATEGY: {plan.contrast_strategy}",
         f"NEGATIVE SPACE: {plan.negative_space_usage}",
         f"IMAGE/TEXT BALANCE: {plan.image_text_balance}",
-        f"BRAND PRESENCE: {plan.brand_presence}",
+        f"BRAND ZONE (logo air only — OS composites real mark): {plan.brand_presence}",
         f"VISUAL STORYTELLING: {plan.visual_storytelling}",
         f"DECORATION RULE: {plan.decoration_rule}",
         "",
@@ -565,13 +571,13 @@ def render_gpt_image_art_direction_prompt(
     if lifestyle:
         lines.extend(
             [
-                "WHAT IS BEING SOLD:",
-                f"  The Temple interior lifestyle — {texts.get('headline')}",
+                "WHAT IS BEING SOLD (composition mood — do NOT typeset):",
+                f"  The Temple interior lifestyle — calm sanctuary atmosphere around locked interior.",
                 "",
-                "WHY NOW:",
+                "WHY NOW (mood only — OS typesets):",
                 f"  {texts.get('sales_hook')} — {texts.get('eyebrow')}",
                 "",
-                "FEATURE CALLOUTS:",
+                "FEATURE CALLOUT ZONE (OS typesets — reserve grouped air):",
                 f"  {texts.get('supporting')}",
                 "",
             ]
@@ -579,42 +585,41 @@ def render_gpt_image_art_direction_prompt(
     else:
         lines.extend(
             [
-                "WHAT IS BEING SOLD:",
-                f"  {texts.get('unit')} launch at The Temple — {texts.get('headline')}",
+                "WHAT IS BEING SOLD (composition mood — do NOT typeset):",
+                f"  {texts.get('unit')} launch at The Temple — premium editorial atmosphere.",
                 "",
-                "WHY NOW:",
+                "WHY NOW (mood only — OS typesets):",
                 f"  {texts.get('value_badge')} — {texts.get('eyebrow')}",
                 "",
-                "WHAT NUMBER MATTERS:",
+                "PRICE ZONE (OS typesets — reserve dramatization air, do NOT paint numbers):",
                 f"  {texts.get('offer_price')} (primary) from {texts.get('list_price')} — {texts.get('value_badge')}",
                 "",
             ]
         )
     lines.extend(
         [
-        "ACTION:",
+        "CTA ZONE (OS typesets — reserve actionable contrast air):",
         f"  {texts.get('cta')}",
         "",
         "PROJECT ASSET LOCK — WHAT STAYS REAL:",
         f"  Interior: {interior_meta.get('filename')} (asset {interior_meta.get('asset_id')})",
         "  Preserve room geometry, windows, furniture, materials — do NOT invent another living room.",
-        f"  Logo: {logo_meta.get('filename')} (asset {logo_meta.get('asset_id')}) — OS composites; never redraw.",
+        f"  Logo: {logo_meta.get('filename')} (asset {logo_meta.get('asset_id')}) — OS composites real SVG; never redraw or fake.",
         "",
-        "WHAT NOT TO INVENT:",
-        "  No AI interior, no AI logo, no extra prices, no ROI/yield/rent, no landmarks, no map pins, "
-        "no random sketches, no fixed side-panel or bottom-band template.",
+        "WHAT NOT TO INVENT OR RASTERIZE:",
+        "  No AI interior, no AI logo, no fake brand marks, no painted text, no extra prices, "
+        "no ROI/yield/rent, no landmarks, no map pins, no random sketches, no fixed side-panel or bottom-band template.",
         "",
-        "OS FINAL COPY PREVIEW (do NOT rasterize — leave composed air/contrast):",
-        f"  Eyebrow: {texts.get('eyebrow')}",
-        f"  Headline: {texts.get('headline')}",
-        f"  Supporting: {texts.get('supporting')}",
+        "COMPOSITION ZONES (OS typesets — reserve contrast/air, do NOT rasterize copy):",
+        f"  Headline zone air for: {texts.get('headline')}",
+        f"  Supporting zone air for: {texts.get('supporting')}",
+        f"  CTA zone air for: {texts.get('cta')}",
         ]
     )
     if not lifestyle:
-        lines.append(f"  Price line: {texts.get('price_hierarchy')} · {texts.get('value_badge')}")
+        lines.append(f"  Price zone air for: {texts.get('price_hierarchy')} · {texts.get('value_badge')}")
     lines.extend(
         [
-        f"  CTA: {texts.get('cta')}",
         "",
         "ORIGINAL CAMPAIGN BRIEF (context):",
         original_brief.strip(),
@@ -624,13 +629,18 @@ def render_gpt_image_art_direction_prompt(
 
 
 def append_architecture_lock_to_prompt(prompt: str, *, interior_lock: bool = True) -> str:
-    """Append standard architecture lock lines for GPT Image edits."""
+    """Append standard architecture + clean canvas lock lines for GPT Image edits."""
     lock_lines = [
+        "",
+        "GPT IMAGE CLEAN CANVAS LOCK (mandatory):",
+        "- NO TEXT, NO LETTERS, NO NUMBERS, NO TYPOGRAPHY, NO CAPTIONS, NO LABELS, NO WATERMARKS.",
+        "- NO LOGOS, NO BRAND MARKS, NO BRAND NAMES, NO MONOGRAMS, NO LOGO-LIKE SYMBOLS.",
+        "- Output visual composition / atmosphere / background treatment ONLY.",
         "",
         "ARCHITECTURE / ASSET LOCK:",
         "- Edit the supplied interior photograph only — graphic atmosphere around it.",
-        "- Do NOT rasterize logos, prices, CTAs, or headlines into pixels.",
-        "- InvestHome OS Final Composition Layer typesets real copy and logos after generation.",
+        "- Do NOT rasterize logos, prices, CTAs, headlines, badges, or feature callouts into pixels.",
+        "- InvestHome OS Final Composition Layer typesets real copy and the real Temple logo after generation.",
     ]
     if interior_lock:
         lock_lines.insert(

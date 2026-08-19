@@ -27,11 +27,13 @@ from investhome_api.services.gpt_image_design.svg_raster import svg_bytes_to_png
 __all__ = [
     "CompositionResult",
     "CompositionSlotPlan",
+    "DuplicationGuardResult",
     "build_slot_plan",
     "compose_final_layers",
     "logo_to_rgba",
     "overlay_brand_lockups",
     "resolve_turkish_font",
+    "run_duplication_guard",
     "svg_bytes_to_png",
 ]
 
@@ -85,6 +87,92 @@ class CompositionResult:
     layers: list[dict[str, Any]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     used_slots: list[str] = field(default_factory=list)
+    duplication_guard: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class DuplicationGuardResult:
+    status: str
+    violations: list[str] = field(default_factory=list)
+    counts: dict[str, int] = field(default_factory=dict)
+    deduped_slots: CompositionSlotPlan | None = None
+
+
+def _norm_semantic(text: str) -> str:
+    return " ".join((text or "").strip().lower().split())
+
+
+def run_duplication_guard(
+    slots: CompositionSlotPlan,
+    *,
+    logos: list[ResolvedSourceImage],
+    plan: GptImageDesignPlan | None = None,
+) -> DuplicationGuardResult:
+    """Ensure OS composition adds each semantic element once — no duplicate headline/CTA/logo."""
+    violations: list[str] = []
+    headline = _norm_semantic(slots.headline)
+    subhead = _norm_semantic(slots.subhead)
+    cta = _norm_semantic(slots.cta)
+    verified = _norm_semantic(slots.verified_data)
+
+    deduped = CompositionSlotPlan(
+        headline=slots.headline,
+        subhead=slots.subhead,
+        verified_data=slots.verified_data,
+        cta=slots.cta,
+        include_slogan=slots.include_slogan,
+    )
+
+    if headline and subhead and headline == subhead:
+        deduped.subhead = ""
+        violations.append("headline_equals_subhead")
+    elif headline and subhead and headline in subhead:
+        deduped.subhead = slots.subhead.replace(slots.headline, "").strip(" ·-|,")
+        violations.append("headline_in_subhead")
+
+    if headline and cta and headline == cta:
+        violations.append("headline_equals_cta")
+    if subhead and cta and subhead == cta:
+        deduped.subhead = ""
+        violations.append("subhead_equals_cta")
+    if verified and verified in {headline, subhead, cta}:
+        deduped.verified_data = ""
+        violations.append("verified_duplicates_visible_copy")
+
+    project_logos = [row for row in logos if row.role == "project_logo"]
+    logo_count = len(project_logos)
+    if logo_count != 1:
+        violations.append(f"project_logo_count_{logo_count}")
+
+    headline_layers = 0
+    cta_layers = 0
+    logo_layers = 0
+    if plan is not None:
+        for spec in plan.layers:
+            if spec.type == "TEXT" and (spec.role == "headline" or spec.content_slot == "headline"):
+                headline_layers += 1
+            if spec.type == "BUTTON" or spec.content_slot == "cta":
+                cta_layers += 1
+            if spec.type == "IMAGE" and spec.content_slot in {"project_logo", "investhome_logo"}:
+                logo_layers += 1
+        if headline_layers > 1:
+            violations.append(f"headline_layer_count_{headline_layers}")
+        if cta_layers > 1:
+            violations.append(f"cta_layer_count_{cta_layers}")
+
+    counts = {
+        "project_logo_assets": logo_count,
+        "headline_layers": max(headline_layers, 1 if headline else 0),
+        "cta_layers": max(cta_layers, 1 if cta else 0),
+        "primary_headline": 1 if headline else 0,
+        "primary_cta": 1 if cta else 0,
+    }
+    return DuplicationGuardResult(
+        status="pass" if not violations else "fail",
+        violations=violations,
+        counts=counts,
+        deduped_slots=deduped,
+    )
 
 
 def logo_to_rgba(payload: bytes, filename: str, content_type: str) -> Image.Image | None:
@@ -330,6 +418,10 @@ def compose_final_layers(
             include_slogan=slots.include_slogan,
         )
 
+    dup_guard = run_duplication_guard(slots, logos=logos, plan=plan)
+    if dup_guard.deduped_slots is not None:
+        slots = dup_guard.deduped_slots
+
     layers: list[dict[str, Any]] = []
     draw = ImageDraw.Draw(canvas)
     _apply_plan_scrim(canvas, plan)
@@ -351,14 +443,44 @@ def compose_final_layers(
     buf = io.BytesIO()
     canvas.save(buf, format="PNG")
     png = buf.getvalue()
+
+    if base_asset_id is not None:
+        layers.insert(
+            0,
+            {
+                "id": "background-gpt-image",
+                "type": "IMAGE",
+                "role": "background",
+                "assetId": str(base_asset_id),
+                "x": 0,
+                "y": 0,
+                "width": width,
+                "height": height,
+                "zIndex": 0,
+            },
+        )
+
     logger.info(
-        "gpt_image_final_composition_ok used=%s variation=%s warnings=%s composed_asset=%s",
+        "gpt_image_final_composition_ok used=%s variation=%s warnings=%s composed_asset=%s dup_guard=%s",
         used,
         plan.variation,
         warnings,
         str(composed_asset_id) if composed_asset_id else None,
+        dup_guard.status,
     )
-    return CompositionResult(png_bytes=png, layers=layers, warnings=warnings, used_slots=used)
+    return CompositionResult(
+        png_bytes=png,
+        layers=layers,
+        warnings=warnings,
+        used_slots=used,
+        duplication_guard={
+            "status": dup_guard.status,
+            "violations": list(dup_guard.violations),
+            "counts": dict(dup_guard.counts),
+            "gpt_generated_text_count": 0,
+            "gpt_generated_logo_count": 0,
+        },
+    )
 
 
 def _compose_plan_layer(

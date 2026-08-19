@@ -63,6 +63,32 @@ function asSocialElements(raw: unknown[] | null | undefined): SocialElement[] {
   return ensureUniqueElementIds(out);
 }
 
+function ensureBackgroundLayer(
+  elements: SocialElement[],
+  compositionBaseAssetId: string | null | undefined,
+  width: number,
+  height: number,
+): SocialElement[] {
+  const hasBackground = elements.some(
+    (el) => el.type === 'IMAGE' && (el.role === 'background' || el.id === 'background-gpt-image'),
+  );
+  if (hasBackground || !compositionBaseAssetId || !isMediaAssetUuid(compositionBaseAssetId)) {
+    return elements;
+  }
+  const background: SocialElement = {
+    id: 'background-gpt-image',
+    type: 'IMAGE',
+    role: 'background',
+    assetId: compositionBaseAssetId,
+    x: 0,
+    y: 0,
+    width,
+    height,
+    zIndex: 0,
+  };
+  return [background, ...elements.map((el) => ({ ...el, zIndex: Math.max(1, (el.zIndex ?? 1)) }))];
+}
+
 /** GPT Image creative as a NEW SMB post. Uses editable layers when OS composition returns them. */
 export function createFlattenedGptImagePost(input: {
   localAssetId: string;
@@ -85,7 +111,11 @@ export function createFlattenedGptImagePost(input: {
   const size = resolveFormatSize(preset);
   const width = input.canvasWidth && input.canvasWidth > 0 ? input.canvasWidth : size.w;
   const height = input.canvasHeight && input.canvasHeight > 0 ? input.canvasHeight : size.h;
-  const layered = asSocialElements(input.layers);
+  const layeredRaw = asSocialElements(input.layers);
+  const layered =
+    layeredRaw.length > 0
+      ? ensureBackgroundLayer(layeredRaw, input.compositionBaseAssetId, width, height)
+      : layeredRaw;
   const coverId =
     (input.compositionBaseAssetId && isMediaAssetUuid(input.compositionBaseAssetId)
       ? input.compositionBaseAssetId
