@@ -10,6 +10,7 @@ import { Button, Dialog, Select, StatusChip, TextArea } from '@investhome/ui';
 import { IhIcon } from '@/components/icons/ih-icons';
 import { ApiError } from '@/lib/api/client';
 import {
+  createCreativeDirectorCampaign,
   generateGptImageDesign,
   generateIdeogramDesign,
   generateSocialDesign,
@@ -254,6 +255,8 @@ export function SocialMediaBuilderWorkspace() {
   const [artDirectorSession, setArtDirectorSession] = useState<ArtDirectorSession | null>(null);
   const artDirectorSessionRef = useRef<ArtDirectorSession | null>(null);
   const [pilotDesignChosen, setPilotDesignChosen] = useState(false);
+  const [creativeDirectorCampaignId, setCreativeDirectorCampaignId] = useState<string | null>(null);
+  const creativeDirectorCampaignRef = useRef<string | null>(null);
   const [postMenuId, setPostMenuId] = useState<string | null>(null);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
   const [canvaBusy, setCanvaBusy] = useState(false);
@@ -1507,6 +1510,83 @@ export function SocialMediaBuilderWorkspace() {
     [docApi.constructionProjectId, ideogramStatus, locale, persistIdeogramSession, t],
   );
 
+  const runCreativeDirectorCampaign = useCallback(
+    async (instruction: string) => {
+      const projectId = docApi.constructionProjectId;
+      if (!projectId) {
+        showToast(t('toasts.projectRequired'));
+        return;
+      }
+      const brief = instruction.trim();
+      if (!brief) {
+        showToast(t('toasts.instructionRequired'));
+        return;
+      }
+      if (generatingRef.current) return;
+
+      designEngineRef.current = 'creative-director';
+      setDesignEngine('creative-director');
+
+      if (genIdleTimerRef.current != null) {
+        window.clearTimeout(genIdleTimerRef.current);
+        genIdleTimerRef.current = null;
+      }
+      if (genStageTimerRef.current != null) {
+        window.clearInterval(genStageTimerRef.current);
+        genStageTimerRef.current = null;
+      }
+
+      const token = ++generateAbortRef.current;
+      generatingRef.current = true;
+      setGenerating(true);
+      setCampaignStatus('draft');
+
+      let stageIdx = 0;
+      setAiStatus(GENERATION_STATUS_STAGES[0]!);
+      genStageTimerRef.current = window.setInterval(() => {
+        stageIdx = Math.min(stageIdx + 1, GENERATION_STATUS_STAGES.length - 1);
+        if (token === generateAbortRef.current) {
+          setAiStatus(GENERATION_STATUS_STAGES[stageIdx]!);
+        }
+      }, 900);
+
+      try {
+        const response = await createCreativeDirectorCampaign({
+          project_id: projectId,
+          brief,
+          mode: 'project',
+          language: locale,
+        });
+        if (token !== generateAbortRef.current) return;
+
+        const campaignId = response.campaign_id;
+        setCreativeDirectorCampaignId(campaignId);
+        creativeDirectorCampaignRef.current = campaignId;
+        setAiStatus('completed');
+        setCampaignStatus('ready');
+        showToast(t('toasts.campaignCreated', { campaignId }));
+        genIdleTimerRef.current = window.setTimeout(() => {
+          if (token === generateAbortRef.current) setAiStatus('idle');
+        }, 1600);
+      } catch (err) {
+        if (token !== generateAbortRef.current) return;
+        setAiStatus('idle');
+        setCampaignStatus('failed');
+        showToast(generateErrorMessage(err, t('toasts.campaignFailed')));
+      } finally {
+        if (genStageTimerRef.current != null) {
+          window.clearInterval(genStageTimerRef.current);
+          genStageTimerRef.current = null;
+        }
+        if (token === generateAbortRef.current) {
+          generatingRef.current = false;
+          setGenerating(false);
+        }
+      }
+    },
+    [docApi.constructionProjectId, locale, t],
+  );
+
   const runGptImageGenerate = useCallback(
     async (instruction: string) => {
       if (!docApi.constructionProjectId) {
@@ -2030,7 +2110,7 @@ export function SocialMediaBuilderWorkspace() {
           void runAiGenerate(instruction, { mode: 'edit', explicit: true });
           return;
         }
-        void runGptImageGenerate(instruction);
+        void runCreativeDirectorCampaign(instruction);
       }}
       generating={generating}
     />
@@ -2236,7 +2316,7 @@ export function SocialMediaBuilderWorkspace() {
       void runAiGenerate(instruction, { mode: 'edit', explicit: true });
       return;
     }
-    void runGptImageGenerate(instruction);
+    void runCreativeDirectorCampaign(instruction);
   }
 
   function regenerateCurrentDesign() {
@@ -2245,8 +2325,7 @@ export function SocialMediaBuilderWorkspace() {
       showToast(t('output.variationNeedDesign'));
       return;
     }
-    designEngineRef.current = 'native';
-    void runAiGenerate(instruction, { mode: 'create', explicit: true });
+    void runCreativeDirectorCampaign(instruction);
   }
 
   function ensureCanvasElementSelected() {
@@ -2330,6 +2409,13 @@ export function SocialMediaBuilderWorkspace() {
               {generating ? t('aiDesign.generating') : t('aiDesign.submit')}
             </Button>
           </div>
+          {creativeDirectorCampaignId ? (
+            <span
+              className="smb-ws__sr-only"
+              data-testid="smb-creative-director-campaign-id"
+              data-campaign-id={creativeDirectorCampaignId}
+            />
+          ) : null}
           {artDirectorSession?.selectedAsset ? (
             <span
               className="smb-ws__sr-only"

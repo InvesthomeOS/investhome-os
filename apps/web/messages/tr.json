@@ -13976,6 +13976,8 @@
           "ideogramNativeBlocked": "Ideogram seçili — Native üretim çağrılmadı.",
           "gptImageUnavailable": "GPT Image kullanılamıyor — AI_API_KEY yapılandırılmamış.",
           "gptImageFailed": "GPT Image üretimi başarısız. Native/Ideogram üretim kullanılmadı.",
+          "campaignCreated": "Kampanya bağlamı hazır — ID: {campaignId}",
+          "campaignFailed": "Creative Director kampanyası oluşturulamadı. Native/GPT Image üretim kullanılmadı.",
           "logoChanged": "Logo güncellendi",
           "logoRemoved": "Logo kaldırıldı",
           "imageChanged": "Arka plan görseli güncellendi",

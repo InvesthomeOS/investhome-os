@@ -8,7 +8,7 @@ import { getCreativeStudioMediaContentUrl } from '@/lib/api/creative-studio';
 import { mintCreatePostId, type SocialPost } from './social-media-builder-model';
 import { isMediaAssetUuid } from '../_components/cs-image-ref';
 
-export type DesignEngineKind = 'native' | 'ideogram' | 'gpt-image';
+export type DesignEngineKind = 'native' | 'ideogram' | 'gpt-image' | 'creative-director';
 
 export type IdeogramPocVariant = 'A' | 'B' | 'C';
 

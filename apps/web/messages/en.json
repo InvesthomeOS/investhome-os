@@ -19299,6 +19299,8 @@
           "ideogramNativeBlocked": "Ideogram is selected — Native generation was not invoked.",
           "gptImageUnavailable": "GPT Image is unavailable — AI_API_KEY is not configured.",
           "gptImageFailed": "GPT Image generation failed. Native/Ideogram generation was not used.",
+          "campaignCreated": "Campaign context ready — ID: {campaignId}",
+          "campaignFailed": "Creative Director campaign could not be created. Native/GPT Image generation was not used.",
           "logoChanged": "Logo updated",
           "logoRemoved": "Logo removed",
           "imageChanged": "Background image updated",

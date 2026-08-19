@@ -18,14 +18,13 @@ function read(name) {
 }
 
 describe('GPT Image SMB wiring', () => {
-  it('adds a dedicated GPT Image generate path without deleting Native', () => {
+  it('keeps GPT Image path available without using it for AI Design Oluştur create', () => {
     const workspace = read('social-media-builder-workspace.tsx');
     assert.match(workspace, /generateGptImageDesign/);
-    assert.match(workspace, /generateSocialDesign/);
     assert.match(workspace, /runGptImageGenerate/);
-    assert.match(workspace, /runAiGenerate/);
-    assert.match(workspace, /campaign_mode: 'project'/);
-    assert.match(workspace, /design_provider: 'gpt-image'/);
+    assert.match(workspace, /runCreativeDirectorCampaign/);
+    assert.match(workspace, /createCreativeDirectorCampaign/);
+    assert.doesNotMatch(workspace, /void runGptImageGenerate\(instruction\)/);
     assert.doesNotMatch(workspace, /fallbackToNative/);
     assert.doesNotMatch(workspace, /fallbackToIdeogram/);
   });

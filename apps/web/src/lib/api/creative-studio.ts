@@ -849,3 +849,32 @@ export async function generateGptImageDesign(
     }),
   });
 }
+
+/** Creative Director — campaign brief + context (no image generation). */
+export type CreativeDirectorCampaignRequest = {
+  project_id: string;
+  brief: string;
+  mode?: 'project' | 'general';
+  language?: string | null;
+};
+
+export type CreativeDirectorCampaignResponse = {
+  campaign_id: string;
+  project_id: string;
+  brief: Record<string, unknown>;
+  campaign_context: Record<string, unknown>;
+};
+
+export async function createCreativeDirectorCampaign(
+  input: CreativeDirectorCampaignRequest,
+): Promise<CreativeDirectorCampaignResponse> {
+  return apiFetch('/ai/creative-studio/campaigns', {
+    method: 'POST',
+    body: JSON.stringify({
+      project_id: input.project_id,
+      brief: input.brief,
+      mode: input.mode ?? 'project',
+      language: input.language ?? undefined,
+    }),
+  });
+}
