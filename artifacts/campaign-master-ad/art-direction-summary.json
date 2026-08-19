@@ -1,0 +1,19 @@
+{
+  "campaign_id": "e216a167-6251-474b-b4a9-b0b17be16c83",
+  "commercial_priority": [
+    "price hook / launch offer",
+    "product / unit opportunity",
+    "creative idea / brand story",
+    "value proof / advantage",
+    "brand presence",
+    "call to action"
+  ],
+  "first_notice": "$300,000 launch price with $400,000 struck through",
+  "second_notice": "Modern. Şık. Tarihi.",
+  "final_asset_id": "bd32b022-9a46-471c-a451-b3530ec6106b",
+  "interior_asset_id": "caf8eb97-c767-4aa1-841b-759cf3500062",
+  "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+  "claim_guard": "pass",
+  "project_asset_lock": "pass",
+  "provider_call_count": 1
+}

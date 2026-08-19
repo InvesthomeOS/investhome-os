@@ -18,6 +18,10 @@ from investhome_api.schemas.creative_director import (
     CreativeDirectorGenerateAdResponse,
 )
 from investhome_api.schemas.gpt_image_design import GptImageDesignRequest
+from investhome_api.services.creative_director.art_direction_translator import (
+    render_gpt_image_art_direction_prompt,
+    translate_campaign_art_direction,
+)
 from investhome_api.services.gpt_image_design.service import generate_gpt_image_creatives
 
 
@@ -367,19 +371,23 @@ def generate_ad_from_campaign(
         original_brief=original_brief,
     )
     allowed_tokens = _pricing_tokens(pricing, approved_claims)
-    instruction = build_gpt_instruction(
-        strategy=strategy,
-        campaign_copy=campaign_copy,
-        pricing=pricing,
+    art_direction = translate_campaign_art_direction(
+        ctx=ctx,
+        texts=texts,
+        interior_meta=interior_meta,
+        logo_meta=logo_meta,
+        language=language,
+    )
+    format_preset = (body.format_preset or "portrait").strip() or "portrait"
+    aspect_ratio = (body.aspect_ratio or "4:5").strip() or "4:5"
+    instruction = render_gpt_image_art_direction_prompt(
+        art_direction,
         texts=texts,
         interior_meta=interior_meta,
         logo_meta=logo_meta,
         original_brief=original_brief,
-        language=language,
+        aspect_ratio=aspect_ratio,
     )
-
-    format_preset = (body.format_preset or "portrait").strip() or "portrait"
-    aspect_ratio = (body.aspect_ratio or "4:5").strip() or "4:5"
 
     gpt_body = GptImageDesignRequest(
         linked_project_id=row.linked_project_id,
@@ -405,6 +413,8 @@ def generate_ad_from_campaign(
             "preferred_logo_asset_id": str(logo_id),
             "interior_project_asset_lock": True,
             "master_ad": True,
+            "art_direction_plan": art_direction.to_dict(),
+            "use_art_direction_prompt": True,
         },
     )
 
@@ -443,6 +453,7 @@ def generate_ad_from_campaign(
         "tone": strategy.get("tone"),
         "visual_direction": strategy.get("visual_direction"),
         "composition_direction": strategy.get("composition_direction"),
+        "art_direction": art_direction.to_dict(),
         "source_constraints": {
             "interior_asset_id": str(interior_id),
             "interior_filename": interior_meta.get("filename"),

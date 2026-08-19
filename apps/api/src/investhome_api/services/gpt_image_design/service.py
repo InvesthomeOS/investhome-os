@@ -34,6 +34,9 @@ from investhome_api.services.gpt_image_design.brief import (
     render_general_prompt,
     render_project_edit_prompt,
 )
+from investhome_api.services.creative_director.art_direction_translator import (
+    append_architecture_lock_to_prompt,
+)
 from investhome_api.services.gpt_image_design.client import (
     decode_remote_image,
     edit_image,
@@ -504,12 +507,20 @@ def _generate_project(
         shared_brief.get("blocked_financial_tokens"),
         extra_roles,
     )
-    prompt = render_project_edit_prompt(shared_brief)
-    prompt = refine_prompt_with_llm(
-        prompt,
-        allowed=list(shared_brief.get("allowed_financial_tokens") or []),
-        blocked=list(shared_brief.get("blocked_financial_tokens") or []),
+    use_art_direction = (
+        isinstance(builder_context, dict)
+        and builder_context.get("master_ad")
+        and builder_context.get("use_art_direction_prompt")
     )
+    if use_art_direction:
+        prompt = append_architecture_lock_to_prompt(instruction, interior_lock=interior_lock)
+    else:
+        prompt = render_project_edit_prompt(shared_brief)
+        prompt = refine_prompt_with_llm(
+            prompt,
+            allowed=list(shared_brief.get("allowed_financial_tokens") or []),
+            blocked=list(shared_brief.get("blocked_financial_tokens") or []),
+        )
     session_id = (body.session_id or "").strip() or str(uuid4())
     endpoint = edits_url(availability.base_url)
     logger.info(

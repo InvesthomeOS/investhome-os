@@ -567,10 +567,14 @@ def test_generate_ad_locks_interior_logo_language_and_claim_guard(
         assert any("$300,000" in str(x) for x in body.builder_context["forced_verified_lines"])
         assert any("25%" in str(x) for x in body.builder_context["forced_verified_lines"])
         assert forced["cta"]
-        # Instruction carries full CD brief + lock
-        assert "History Meets Modernity" in body.instruction
+        # Instruction carries Advertising Art Direction Translator output
+        assert "ADVERTISING ART DIRECTION" in body.instruction
+        assert "WHAT MUST BE NOTICED FIRST" in body.instruction
+        assert "Position the building on the left" not in body.instruction
         assert "Living_Room_003" in body.instruction
         assert str(interior.id) in body.instruction
+        assert body.builder_context.get("art_direction_plan")
+        assert body.builder_context.get("use_art_direction_prompt") is True
         return GptImageDesignResponse(
             provider="gpt-image",
             model="gpt-image-2",
@@ -686,3 +690,102 @@ def test_adapt_turkish_texts_claim_guard_helpers() -> None:
     )
     assert guard["status"] == "pass"
     assert guard["invented_financial_claims_blocked"] is True
+
+
+def test_art_direction_translator_derives_priority_and_groups() -> None:
+    from investhome_api.services.creative_director.art_direction_translator import (
+        build_information_groups,
+        derive_commercial_priority,
+        render_gpt_image_art_direction_prompt,
+        translate_campaign_art_direction,
+    )
+    from investhome_api.services.creative_director.generate_ad import adapt_final_turkish_texts
+
+    pricing = build_pricing_claims(brief=BRIEF)
+    strategy = {
+        "big_idea": "History Meets Modernity",
+        "hero_message": "Own a Piece of History with a Modern Twist",
+        "sales_hook": "Unit 204 Launch Opportunity",
+        "value_proposition": "~25% launch price advantage",
+        "first_2_seconds": "Launch price $300,000 from $400,000",
+        "emphasis": ["History", "Modern", "Launch Price", "25% Advantage"],
+        "visual_direction": "Real interior blend of historic and modern",
+    }
+    campaign_copy = {
+        "big_idea": "History Meets Modernity",
+        "sales_hook": "Unit 204 Launch Opportunity",
+        "emphasis": ["History", "Modern", "Launch Price", "25% Advantage"],
+    }
+    texts = adapt_final_turkish_texts(
+        language="tr",
+        strategy=strategy,
+        campaign_copy=campaign_copy,
+        pricing=pricing,
+        approved_claims=pricing["claims"],
+        original_brief=BRIEF,
+    )
+    priority = derive_commercial_priority(
+        strategy=strategy,
+        campaign_copy=campaign_copy,
+        pricing=pricing,
+        texts=texts,
+    )
+    assert priority[0] == "price hook / launch offer"
+    assert "call to action" in priority
+
+    groups = build_information_groups(
+        texts=texts,
+        strategy=strategy,
+        campaign_copy=campaign_copy,
+        pricing=pricing,
+    )
+    names = {g["name"] for g in groups}
+    assert "launch_opportunity" in names
+    assert "price_story" in names
+    price_grp = next(g for g in groups if g["name"] == "price_story")
+    assert "$400,000" in price_grp["elements"]
+    assert "$300,000" in price_grp["elements"]
+
+    ctx = {
+        "cd_strategy": strategy,
+        "campaign_copy": campaign_copy,
+        "pricing": pricing,
+        "original_user_brief": BRIEF,
+    }
+    interior_meta = {
+        "asset_id": "caf8eb97-c767-4aa1-841b-759cf3500062",
+        "filename": "IH_DC_TMP_001_Render_Living_Room_003.jpeg",
+    }
+    logo_meta = {
+        "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "filename": "IH_DC_TMP_001_Logo_Primary.svg",
+    }
+    plan = translate_campaign_art_direction(
+        ctx=ctx,
+        texts=texts,
+        interior_meta=interior_meta,
+        logo_meta=logo_meta,
+        language="tr",
+    )
+    assert plan.first_notice
+    assert plan.second_notice
+    assert plan.emphasis_words == ["History", "Modern", "Launch Price", "25% Advantage"]
+    assert plan.asset_lock["interior_asset_id"] == str(interior_meta["asset_id"])
+    assert plan.asset_lock["must_not_invent_interior"] is True
+
+    prompt = render_gpt_image_art_direction_prompt(
+        plan,
+        texts=texts,
+        interior_meta=interior_meta,
+        logo_meta=logo_meta,
+        original_brief=BRIEF,
+    )
+    assert "WHAT MUST BE NOTICED FIRST" in prompt
+    assert "WHAT MUST BE NOTICED SECOND" in prompt
+    assert "Position the building on the left" not in prompt
+    assert "left two-thirds" not in prompt
+    assert "History" in prompt
+    assert "Modern" in prompt
+    assert "Launch Price" in prompt
+    assert "Living_Room_003" in prompt
+    assert "Detayları İncele" in prompt
