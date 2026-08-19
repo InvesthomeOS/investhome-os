@@ -1,0 +1,46 @@
+{
+  "final_asset_id": "1bb3ebf0-866a-4079-8cd5-7c237beb52cb",
+  "final_asset_url": "/creative-studio/media/assets/1bb3ebf0-866a-4079-8cd5-7c237beb52cb/content",
+  "composition_base_asset_id": "85aca1c8-9765-4d9e-9b53-26e7f34da1bb",
+  "provider_call_count": 1,
+  "gpt_paid_calls": 1,
+  "final_turkish_texts": {
+    "language": "tr",
+    "big_idea": "Modern. Şık. Tarihi.",
+    "hero": "Tarihi karakterle modern yaşam bir arada.",
+    "sales_hook": "Unit 204 Lansman Fırsatı",
+    "eyebrow": "Unit 204 Lansman Fırsatı",
+    "headline": "Modern. Şık. Tarihi.",
+    "supporting": "Unit 204 Lansman Fırsatı",
+    "offer": "$400,000 → $300,000 · ~25% lansman fiyat avantajı",
+    "list_price": "$400,000",
+    "offer_price": "$300,000",
+    "value": "~25% lansman fiyat avantajı",
+    "value_badge": "~25% lansman fiyat avantajı",
+    "cta": "Detayları İncele",
+    "unit": "Unit 204",
+    "price_hierarchy": "$400,000 → $300,000"
+  },
+  "used_slots": [
+    "project_logo",
+    "headline",
+    "subhead",
+    "shape-divider",
+    "cta",
+    "shape-location-mark",
+    "location",
+    "slogan"
+  ],
+  "claim_guard": {
+    "status": "pass",
+    "public_price_hierarchy": "$400,000 → $300,000",
+    "public_value_badge": "~25% lansman fiyat avantajı",
+    "invented_financial_claims_blocked": true
+  },
+  "project_asset_lock": {
+    "status": "pass",
+    "interior_asset_id": "caf8eb97-c767-4aa1-841b-759cf3500062",
+    "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+    "source_used_asset_id": "caf8eb97-c767-4aa1-841b-759cf3500062"
+  }
+}

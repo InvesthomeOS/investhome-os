@@ -246,11 +246,18 @@ def _generate_project(
         project_name=project.project_name,
     )
     gen_intent = apply_campaign_intent_to_generation_intent(campaign_intent, gen_intent)
-    campaign_context_id = resolve_campaign_context_id(
-        mode="create",
-        draft_posts=draft_posts,
-        selected_post_id=selected_post_id,
-    )
+    builder_context_early, _sanitize_early = sanitize_builder_context(body.builder_context)
+    cd_campaign_id = None
+    if isinstance(builder_context_early, dict):
+        cd_campaign_id = builder_context_early.get("creative_director_campaign_id")
+    if cd_campaign_id:
+        campaign_context_id = str(cd_campaign_id)
+    else:
+        campaign_context_id = resolve_campaign_context_id(
+            mode="create",
+            draft_posts=draft_posts,
+            selected_post_id=selected_post_id,
+        )
     generation_context_id = str(uuid4())
     campaign_facts = campaign_facts_for_mode(
         mode="create",
@@ -265,6 +272,10 @@ def _generate_project(
         selected_asset_ids=list(body.selected_asset_ids or []),
     )
     builder_context, sanitize_warnings = sanitize_builder_context(body.builder_context)
+    if _sanitize_early:
+        for warn in _sanitize_early:
+            if warn not in sanitize_warnings:
+                sanitize_warnings.append(warn)
 
     retrieval_limit = min(
         max(
@@ -406,6 +417,12 @@ def _generate_project(
     extra_roles = [row.role for row in extras]
     has_project_logo = any(row.role == "project_logo" for row in extras)
     has_ih_logo = any(row.role == "investhome_logo" for row in extras)
+    interior_lock = False
+    if isinstance(builder_context, dict) and builder_context.get("interior_project_asset_lock"):
+        interior_lock = True
+    src_name = (source.filename or "").lower()
+    if any(tok in src_name for tok in ("living", "interior", "bedroom", "kitchen", "bath")):
+        interior_lock = True
     design_plan = build_gpt_image_design_plan(
         canvas_width=canvas_w,
         canvas_height=canvas_h,
@@ -434,7 +451,49 @@ def _generate_project(
         extra_image_roles=extra_roles,
         logo_notes=logo_notes,
         design_reference_names=[row.filename for row in design_refs],
+        interior_lock=interior_lock,
     )
+    # Creative Director MASTER ad: force accurate OS copy + approved financial tokens.
+    if isinstance(builder_context, dict):
+        allowed = list(shared_brief.get("allowed_financial_tokens") or [])
+        for tok in builder_context.get("approved_financial_tokens") or []:
+            text = str(tok or "").strip()
+            if text and text not in allowed:
+                allowed.append(text)
+        shared_brief["allowed_financial_tokens"] = allowed
+        blocked = [
+            b
+            for b in (shared_brief.get("blocked_financial_tokens") or [])
+            if str(b) not in allowed and not any(str(b) in a for a in allowed)
+        ]
+        shared_brief["blocked_financial_tokens"] = blocked
+        forced_copy = builder_context.get("forced_visible_copy")
+        if isinstance(forced_copy, dict):
+            visible = dict(shared_brief.get("visible_copy") or {})
+            for key in ("eyebrow", "headline", "supporting", "cta"):
+                raw = str(forced_copy.get(key) or "").strip()
+                if not raw:
+                    continue
+                cleaned = strip_ineligible_financial_claims(
+                    raw,
+                    allowed_tokens=allowed,
+                    blocked_tokens=blocked,
+                )
+                if text_contains_ineligible_financial(
+                    cleaned,
+                    allowed_tokens=allowed,
+                    blocked_tokens=blocked,
+                ):
+                    continue
+                visible[key] = cleaned
+            shared_brief["visible_copy"] = visible
+        forced_verified = [
+            str(line).strip()
+            for line in (builder_context.get("forced_verified_lines") or [])
+            if str(line or "").strip()
+        ]
+        if forced_verified:
+            shared_brief["forced_verified_lines"] = forced_verified
     shared_brief["design_plan"] = design_plan_to_dict(design_plan)
     logger.info(
         "gpt_image_brief project_id=%s user_campaign_facts=%s allowed_financial_tokens=%s "
@@ -514,7 +573,22 @@ def _generate_project(
         visible[key] = cleaned
 
     verified_lines: list[str] = []
+    for row in shared_brief.get("forced_verified_lines") or []:
+        line = str(row or "").strip()
+        line = strip_ineligible_financial_claims(
+            line,
+            allowed_tokens=allowed_tokens,
+            blocked_tokens=blocked_tokens,
+        )
+        if line and not text_contains_ineligible_financial(
+            line,
+            allowed_tokens=allowed_tokens,
+            blocked_tokens=blocked_tokens,
+        ):
+            verified_lines.append(line)
     for row in shared_brief.get("user_campaign_facts") or []:
+        if verified_lines:
+            break
         label = str(row.get("label") or "").strip()
         value = str(row.get("value") or "").strip()
         if not value:
@@ -532,6 +606,8 @@ def _generate_project(
         ):
             verified_lines.append(line)
     for row in shared_brief.get("marketing_safe_facts") or []:
+        if verified_lines:
+            break
         if str(row.get("financial") or "").lower() == "yes":
             # Only surface financial verified data when Claim Guard already allowed the token.
             value = str(row.get("value") or "").strip()
@@ -557,7 +633,7 @@ def _generate_project(
 
     slots = build_slot_plan(
         visible_copy=visible,
-        verified_lines=verified_lines[:1],
+        verified_lines=verified_lines[:2],
         include_slogan=True,
     )
     if visible.get("headline"):

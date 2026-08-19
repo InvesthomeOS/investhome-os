@@ -419,3 +419,270 @@ def test_no_silent_image_provider_fallback_in_registry() -> None:
         if not assignment.available:
             assert assignment.missing is True
             assert assignment.reason
+
+
+def _seed_campaign_context(
+    db: Session,
+    *,
+    project: Project,
+    interior: CreativeStudioMediaAsset,
+    logo: CreativeStudioMediaAsset,
+    language: str | None = None,
+) -> UUID:
+    from investhome_api.models.creative_director_campaign import CreativeDirectorCampaign
+
+    pricing = build_pricing_claims(brief=BRIEF, drive_prices={"units": {"204": {"found": True}}})
+    interior_meta = {
+        "asset_id": str(interior.id),
+        "filename": interior.filename,
+        "content_type": interior.content_type,
+        "folder_category": interior.folder_category,
+        "visual_subject": "INTERIOR",
+        "tags": list(interior.tags or []),
+        "role": "hero_interior",
+        "provenance_source": "google_drive",
+    }
+    logo_meta = {
+        "asset_id": str(logo.id),
+        "filename": logo.filename,
+        "content_type": logo.content_type,
+        "folder_category": logo.folder_category,
+        "visual_subject": "BRANDING",
+        "tags": list(logo.tags or []),
+        "role": "project_logo",
+        "provenance_source": "google_drive",
+    }
+    ctx = {
+        "original_user_brief": BRIEF,
+        "language": language,
+        "cd_strategy": {
+            "big_idea": "History Meets Modernity",
+            "hero_message": "Own a Piece of History with a Modern Twist",
+            "sales_hook": "Unit 204 Launch Opportunity",
+            "offer": "$400,000 → $300,000 (~25% launch price advantage)",
+            "value_proposition": "~25% launch price advantage",
+            "cta": "Explore Unit 204 Details",
+            "tone": "premium luxury editorial",
+            "visual_direction": "Real interior, historic + modern living",
+            "composition_direction": "Flexible premium editorial",
+            "emphasis": ["History", "Modern", "Launch Price", "25% Advantage"],
+            "supporting_messages": [
+                "The Temple, Washington DC, historic, modern living",
+            ],
+        },
+        "campaign_copy": {
+            "big_idea": "History Meets Modernity",
+            "hero_message": "Own a Piece of History with a Modern Twist",
+            "sales_hook": "Unit 204 Launch Opportunity",
+            "offer": "Launch Price: $300,000",
+            "cta": "Explore Unit 204 Details",
+            "value_proposition": "~25% launch price advantage",
+            "emphasis": ["History", "Modern", "Launch Price", "25% Advantage"],
+            "supporting_messages": [
+                "The Temple, Washington DC, historic, modern living",
+            ],
+        },
+        "approved_claims": pricing["claims"],
+        "pricing": pricing,
+        "selected_assets": [interior_meta],
+        "selected_logo": logo_meta,
+        "drive_research": {
+            "selected_interior": interior_meta,
+            "selected_logo": logo_meta,
+        },
+        "generated_assets": [],
+        "output_history": [],
+        "image_generation_performed": False,
+    }
+    row = CreativeDirectorCampaign(
+        linked_project_id=project.id,
+        mode="project",
+        original_brief=BRIEF,
+        context_json=ctx,
+        status="draft",
+    )
+    db.add(row)
+    db.flush()
+    return row.id
+
+
+def test_generate_ad_locks_interior_logo_language_and_claim_guard(
+    client,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from unittest.mock import patch
+
+    from investhome_api.schemas.gpt_image_design import (
+        GptImageDesignResponse,
+        GptImageOutput,
+        GptImageSourceImage,
+    )
+
+    project = _create_project(db_session, project_id=uuid4())
+    interior = _asset(
+        db_session,
+        project,
+        filename="IH_DC_TMP_001_Render_Living_Room_003.jpeg",
+        folder_category="02_RENDER",
+        tags=["interior", "living"],
+    )
+    logo = _asset(
+        db_session,
+        project,
+        asset_id=TEMPLE_PRIMARY_LOGO_ID,
+        filename="IH_DC_TMP_001_Logo_Primary.svg",
+        content_type="image/svg+xml",
+        folder_category="01_BRAND",
+        tags=["logo", "primary"],
+    )
+    campaign_id = _seed_campaign_context(
+        db_session,
+        project=project,
+        interior=interior,
+        logo=logo,
+        language=None,
+    )
+    db_session.commit()
+
+    final_id = uuid4()
+    captured: dict = {}
+
+    def fake_generate(db, user, body):
+        captured["body"] = body
+        assert body.language == "tr"
+        assert body.selected_asset_ids == [interior.id]
+        assert body.aspect_ratio == "4:5"
+        assert body.builder_context["creative_director_campaign_id"] == str(campaign_id)
+        assert body.builder_context["preferred_logo_asset_id"] == str(logo.id)
+        assert body.builder_context["interior_project_asset_lock"] is True
+        tokens = body.builder_context["approved_financial_tokens"]
+        assert "$400,000" in tokens
+        assert "$300,000" in tokens
+        assert any("~25%" in t or t == "25%" for t in tokens)
+        forced = body.builder_context["forced_visible_copy"]
+        assert "Unit 204" in forced["eyebrow"] or "Unit 204" in forced["supporting"]
+        assert "Unit 204" in forced["supporting"]
+        assert any("$400,000" in str(x) for x in body.builder_context["forced_verified_lines"])
+        assert any("$300,000" in str(x) for x in body.builder_context["forced_verified_lines"])
+        assert any("25%" in str(x) for x in body.builder_context["forced_verified_lines"])
+        assert forced["cta"]
+        # Instruction carries full CD brief + lock
+        assert "History Meets Modernity" in body.instruction
+        assert "Living_Room_003" in body.instruction
+        assert str(interior.id) in body.instruction
+        return GptImageDesignResponse(
+            provider="gpt-image",
+            model="gpt-image-2",
+            endpoint="https://api.openai.com/v1/images/edits",
+            campaign_mode="project",
+            session_id="test-session",
+            linked_project_id=project.id,
+            campaign_context_id=str(campaign_id),
+            generation_context_id=str(uuid4()),
+            aspect_ratio="4:5",
+            format_preset="portrait",
+            source_image=GptImageSourceImage(
+                asset_id=interior.id,
+                filename=interior.filename,
+                content_type=interior.content_type,
+                folder_category=interior.folder_category,
+                tags=list(interior.tags or []),
+                role="source",
+            ),
+            extra_images=[
+                GptImageSourceImage(
+                    asset_id=logo.id,
+                    filename=logo.filename,
+                    content_type=logo.content_type,
+                    folder_category=logo.folder_category,
+                    role="project_logo",
+                )
+            ],
+            brief={"prompt": body.instruction[:500]},
+            outputs=[
+                GptImageOutput(
+                    local_asset_id=final_id,
+                    local_asset_url=f"/creative-studio/media/assets/{final_id}/content",
+                    metadata={},
+                )
+            ],
+            warnings=[],
+            provider_call_count=1,
+            latency_ms=12,
+        )
+
+    with patch(
+        "investhome_api.services.creative_director.generate_ad.generate_gpt_image_creatives",
+        side_effect=fake_generate,
+    ):
+        resp = client.post(
+            f"/ai/creative-studio/campaigns/{campaign_id}/generate-ad",
+            json={"language": "tr", "aspect_ratio": "4:5", "format_preset": "portrait"},
+        )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["language"] == "tr"
+    assert body["interior_asset_id"] == str(interior.id)
+    assert body["logo_asset_id"] == str(logo.id)
+    assert body["final_asset_id"] == str(final_id)
+    assert body["claim_guard"]["status"] == "pass"
+    assert body["project_asset_lock"]["status"] == "pass"
+    assert body["project_asset_lock"]["interior_asset_id"] == str(interior.id)
+    assert body["final_turkish_texts"]["list_price"] == "$400,000"
+    assert body["final_turkish_texts"]["offer_price"] == "$300,000"
+    assert "lansman" in body["final_turkish_texts"]["value_badge"].lower()
+    assert "Unit 204" in body["final_turkish_texts"]["unit"]
+    # No invented ROI / yield language in forced public texts
+    blob = " ".join(str(v) for v in body["final_turkish_texts"].values()).lower()
+    assert "roi" not in blob
+    assert "irr" not in blob
+    assert "yield" not in blob
+
+
+def test_generate_ad_404_when_campaign_missing(client) -> None:
+    missing = uuid4()
+    resp = client.post(
+        f"/ai/creative-studio/campaigns/{missing}/generate-ad",
+        json={"language": "tr"},
+    )
+    assert resp.status_code == 404
+    assert "campaign" in str(resp.json().get("detail") or "").lower()
+    # Must not attempt image generation for missing campaign
+    assert resp.json().get("final_asset_id") is None
+
+
+def test_adapt_turkish_texts_claim_guard_helpers() -> None:
+    from investhome_api.services.creative_director.generate_ad import (
+        adapt_final_turkish_texts,
+        claim_guard_summary,
+    )
+
+    pricing = build_pricing_claims(brief=BRIEF)
+    texts = adapt_final_turkish_texts(
+        language="tr",
+        strategy={"big_idea": "History Meets Modernity", "cta": "Explore Details"},
+        campaign_copy={
+            "big_idea": "History Meets Modernity",
+            "emphasis": ["History", "Modern"],
+            "sales_hook": "Unit 204 Launch Opportunity",
+            "cta": "Explore Unit 204 Details",
+        },
+        pricing=pricing,
+        approved_claims=pricing["claims"],
+        original_brief=BRIEF,
+    )
+    assert texts["headline"] == "Modern. Şık. Tarihi."
+    assert texts["list_price"] == "$400,000"
+    assert texts["offer_price"] == "$300,000"
+    assert "~25%" in texts["value_badge"]
+    assert "Unit 204" in texts["supporting"]
+    assert "Unit 204" in texts["eyebrow"]
+    assert texts["cta"] == "Detayları İncele"
+    guard = claim_guard_summary(
+        approved_claims=pricing["claims"],
+        allowed_tokens=["$400,000", "$300,000", "~25%", "25%", "Unit 204"],
+        texts=texts,
+    )
+    assert guard["status"] == "pass"
+    assert guard["invented_financial_claims_blocked"] is True

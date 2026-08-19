@@ -83,6 +83,7 @@ def _build_brief_response(
         "campaign_id": str(campaign.id),
         "project_id": str(campaign.linked_project_id),
         "mode": mode,
+        "language": (campaign.context_json or {}).get("language"),
         "objective": strategy.get("objective"),
         "audience": strategy.get("audience"),
         "big_idea": strategy.get("big_idea") or strategy.get("concept"),
@@ -128,9 +129,11 @@ def _build_brief_response(
         "required_assets": strategy.get("required_assets") or [],
         "required_project_data": strategy.get("required_project_data") or [],
         "warnings": research.get("warnings") or [],
-        "generated_assets": [],
-        "output_history": [],
-        "image_generation_performed": False,
+        "generated_assets": (campaign.context_json or {}).get("generated_assets") or [],
+        "output_history": (campaign.context_json or {}).get("output_history") or [],
+        "image_generation_performed": bool(
+            (campaign.context_json or {}).get("image_generation_performed")
+        ),
     }
 
 
@@ -230,6 +233,7 @@ def create_campaign(
 
     context = {
         "original_user_brief": brief,
+        "language": (body.language or intent.language or "en"),
         "campaign_intent": intent.campaign_intent,
         "cd_strategy": strategy,
         "approved_claims": brief_payload.get("approved_claims") or pricing.get("claims") or [],

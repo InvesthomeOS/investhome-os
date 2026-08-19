@@ -37,6 +37,18 @@ ARCHITECTURE_LOCK = [
     "Investhome is the supporting brand, not the project identity. Real logos and exact copy are composited by InvestHome OS after this edit.",
 ]
 
+INTERIOR_ARCHITECTURE_LOCK = [
+    "The FIRST and ONLY input image is the actual interior product for sale — a real project living-space render/photograph.",
+    "PROJECT ASSET LOCK: preserve this interior exactly — room geometry, windows, furniture layout, architecture, materials, lighting fixtures, and proportions.",
+    "Do NOT invent a similar living room. Do NOT replace furniture layout, move windows, change room shape, or swap to another interior.",
+    "You MAY: ad composition, atmosphere, empty space, graphic approach, color grade, hierarchy, canvas extension, crop, and decorative graphics only around the locked interior.",
+    "You must NOT rasterize logos, wordmarks, slogans, addresses, prices, rent, ROI, dates, distances, CTAs, verified project facts, or critical headlines/subheads into the image.",
+    "Do NOT draw, generate, redraw, or fake any logo or wordmark — including substituting lettering such as 'The Temple' for a real mark.",
+    "Honor the Art Direction Plan zones: keep headline, brand, and CTA zones free of fake wordmarks, numbers, CTAs, and dense typography. Compose atmosphere and campaign air there — not a blank template panel.",
+    "Do not invent financial figures, amenities, or project features not listed in verified facts.",
+    "Investhome is the supporting brand, not the project identity. Real logos and exact copy are composited by InvestHome OS after this edit.",
+]
+
 
 def _safe_facts(intel: CampaignIntelligencePackage) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
@@ -140,6 +152,7 @@ def build_shared_brief(
     extra_image_roles: list[str],
     logo_notes: list[str],
     design_reference_names: list[str],
+    interior_lock: bool = False,
 ) -> dict[str, Any]:
     allowed = _allowed_financial_tokens(campaign_facts, intel)
     blocked = _blocked_tokens(intel, allowed)
@@ -157,6 +170,19 @@ def build_shared_brief(
         if item
     ]
     evidence = [item for item in evidence if item]
+    arch_lock = list(INTERIOR_ARCHITECTURE_LOCK if interior_lock else ARCHITECTURE_LOCK)
+    brand_restraint = [
+        "Do not invent financial figures, distances, walk/drive times, landmarks, or amenities.",
+        (
+            "Do not replace the supplied interior photograph with a different room."
+            if interior_lock
+            else "Do not replace the supplied building photograph with a different building."
+        ),
+        "Do not draw logos or typeset critical copy. InvestHome OS Final Composition Layer places real logos and exact text after generation.",
+        "Do not rasterize slogan, address, price, rent, ROI, CTA, or verified facts into pixels.",
+        "Do not typeset internal field names such as 'project name:' into the creative.",
+        f"Investhome slogan is OS-typeset exactly as: {INVESHOME_SLOGAN}",
+    ]
     return {
         "project": project_name,
         "objective": strategy.objective or intent.marketing_objective,
@@ -177,21 +203,15 @@ def build_shared_brief(
             "family": creative.composition_family or creative.composition_strategy,
             "safe_text_zone": creative.safe_text_zone,
         },
-        "architecture_lock": list(ARCHITECTURE_LOCK),
-        "brand_restraint": [
-            "Do not invent financial figures, distances, walk/drive times, landmarks, or amenities.",
-            "Do not replace the supplied building photograph with a different building.",
-            "Do not draw logos or typeset critical copy. InvestHome OS Final Composition Layer places real logos and exact text after generation.",
-            "Do not rasterize slogan, address, price, rent, ROI, CTA, or verified facts into pixels.",
-            "Do not typeset internal field names such as 'project name:' into the creative.",
-            f"Investhome slogan is OS-typeset exactly as: {INVESHOME_SLOGAN}",
-        ],
+        "architecture_lock": arch_lock,
+        "brand_restraint": brand_restraint,
         "source_image": source_filename,
         "extra_image_roles": extra_image_roles,
         "logo_notes": logo_notes,
         "design_references": design_reference_names,
         "user_instruction": instruction.strip(),
         "excluded_facts": list(strategy.excluded_facts or []),
+        "interior_lock": interior_lock,
     }
 
 
@@ -232,10 +252,14 @@ def render_project_edit_prompt(shared: dict[str, Any]) -> str:
         f"- CTA: {copy.get('cta') or ''}",
         f"FORMAT: {composition.get('format') or 'Instagram 4:5'} at {composition.get('resolution') or '1088x1360'}.",
         f"SOURCE IMAGE (input 1 — the product for sale): {shared.get('source_image')}.",
-        "Preserve this building exactly. Graphic design around it; do not redesign architecture.",
+        (
+            "Preserve this interior exactly. Graphic design around it; do not redesign room geometry or furniture layout."
+            if shared.get("interior_lock")
+            else "Preserve this building exactly. Graphic design around it; do not redesign architecture."
+        ),
         "LOGOS / SLOGAN / CTA / CRITICAL TEXT: omit from the raster. OS composites real files and exact strings on the same Art Direction Plan.",
         f"EXTRA LOGO FILES (composited in OS, not GPT): {', '.join(extra_roles) if extra_roles else 'none — omit logos rather than invent them'}.",
-        "ARCHITECTURE LOCK:",
+        "ARCHITECTURE LOCK:" if not shared.get("interior_lock") else "PROJECT ASSET LOCK (INTERIOR):",
         *[f"- {item}" for item in (shared.get('architecture_lock') or ARCHITECTURE_LOCK)],
         "BRAND RESTRAINT:",
         *[f"- {item}" for item in (shared.get('brand_restraint') or [])],

@@ -282,6 +282,21 @@ def pick_source_asset(
                 picked = aid
                 break
         if picked is None:
+            # PROJECT ASSET LOCK: honor explicit selection even when exterior ranking
+            # pushed the locked interior out of the top candidate window.
+            for aid in selected:
+                asset = db.get(CreativeStudioMediaAsset, aid)
+                if (
+                    asset is None
+                    or asset.archived_at is not None
+                    or asset.linked_project_id != linked_project_id
+                ):
+                    continue
+                forced = _candidate_from_asset(db, asset)
+                candidates = [forced, *[c for c in candidates if c.asset_id != forced.asset_id]]
+                picked = aid
+                break
+        if picked is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Selected source image is not a valid project media asset.",
