@@ -1473,3 +1473,246 @@ def test_live_temple_final_composition_once(
     print("LIVE_LAYER_COUNT", len(layers))
     print("LIVE_LAYER_ROLES", sorted(r for r in roles if r))
 
+
+def test_resolve_group_layout_positions_feature_y_increment() -> None:
+    """Feature rows stack from anchor.y with height+gap — no collapsed Y."""
+    from investhome_api.services.gpt_image_design.compose import _resolve_group_layout_positions
+    from investhome_api.services.gpt_image_design.design_plan import (
+        DesignPlanLayer,
+        ElementGroup,
+        GptImageDesignPlan,
+    )
+
+    plan = GptImageDesignPlan(
+        variation="feature_story",
+        label="FEATURE STORY",
+        composition_type="FEATURE STORY",
+        canvas_width=1080,
+        canvas_height=1350,
+        text_ground="light",
+        groups=[
+            ElementGroup(
+                name="features",
+                members=[
+                    "feature-1",
+                    "shape-feature-1",
+                    "feature-2",
+                    "shape-feature-2",
+                    "feature-3",
+                    "shape-feature-3",
+                ],
+                alignment="left",
+                gap=12,
+            ),
+            ElementGroup(name="action", members=["cta-primary"], alignment="left", gap=28),
+        ],
+        layers=[
+            DesignPlanLayer(
+                id="feature-1",
+                type="TEXT",
+                role="body",
+                x=72,
+                y=336,
+                width=480,
+                height=54,
+                content_slot="feature_1",
+            ),
+            DesignPlanLayer(
+                id="shape-feature-1",
+                type="SHAPE",
+                role="decoration",
+                x=72,
+                y=382,
+                width=8,
+                height=8,
+                content_slot="shape",
+            ),
+            DesignPlanLayer(
+                id="feature-2",
+                type="TEXT",
+                role="body",
+                x=94,
+                y=270,
+                width=480,
+                height=54,
+                content_slot="feature_2",
+            ),
+            DesignPlanLayer(
+                id="shape-feature-2",
+                type="SHAPE",
+                role="decoration",
+                x=72,
+                y=440,
+                width=8,
+                height=8,
+                content_slot="shape",
+            ),
+            DesignPlanLayer(
+                id="feature-3",
+                type="TEXT",
+                role="body",
+                x=94,
+                y=270,
+                width=480,
+                height=54,
+                content_slot="feature_3",
+            ),
+            DesignPlanLayer(
+                id="shape-feature-3",
+                type="SHAPE",
+                role="decoration",
+                x=72,
+                y=498,
+                width=8,
+                height=8,
+                content_slot="shape",
+            ),
+            DesignPlanLayer(
+                id="cta-primary",
+                type="BUTTON",
+                role="cta",
+                x=72,
+                y=530,
+                width=260,
+                height=48,
+                content_slot="cta",
+            ),
+        ],
+    )
+    resolved = _resolve_group_layout_positions(plan)
+    y1 = resolved["feature-1"][1]
+    y2 = resolved["feature-2"][1]
+    y3 = resolved["feature-3"][1]
+    step = 54 + 12
+    assert y2 - y1 == step
+    assert y3 - y2 == step
+    assert y2 != 270
+    assert resolved["cta-primary"][1] > y3
+
+
+def test_draw_text_runs_headline_line_break_spacing() -> None:
+    """Rich headline runs advance Y by full line height on explicit breaks."""
+    from investhome_api.services.gpt_image_design.compose import _draw_text_runs, resolve_turkish_font
+
+    runs = [
+        {"text": "Eviniz,", "fontFamily": "serif", "fontSize": 76, "fontWeight": "medium", "color": "#1B2A4A"},
+        {"text": "\n", "break": True},
+        {"text": "Sığınak", "fontFamily": "serif", "fontSize": 76, "fontWeight": "semibold", "color": "#C4A35A"},
+    ]
+    positions: list[tuple[str, int, int]] = []
+
+    class _RecordingDraw:
+        def text(self, xy, text, *, font, fill, anchor="lt"):  # noqa: ANN001
+            positions.append((text, int(xy[0]), int(xy[1])))
+
+    _draw_text_runs(_RecordingDraw(), runs=runs, x=72, y=152, max_width=316, line_gap=1.06)
+    line1 = next(row for row in positions if row[0] == "Eviniz,")
+    line2 = next(row for row in positions if row[0] == "Sığınak")
+    font = resolve_turkish_font(bold=False, size=76, family="serif")
+    ascent, descent = font.getmetrics()
+    expected_step = int(round((ascent + descent) * 1.06))
+    assert line2[2] - line1[2] >= expected_step - 2
+
+
+def test_render_layout_plan_single_group_transform() -> None:
+    """Renderer applies group spacing once — output Y matches resolved positions."""
+    from investhome_api.services.gpt_image_design.compose import (
+        CompositionSlotPlan,
+        _resolve_group_layout_positions,
+        render_layout_plan,
+    )
+    from investhome_api.services.gpt_image_design.design_plan import (
+        DesignPlanLayer,
+        ElementGroup,
+        GptImageDesignPlan,
+    )
+    from investhome_api.services.gpt_image_design.source import ResolvedSourceImage
+
+    plan = GptImageDesignPlan(
+        variation="feature_story",
+        label="FEATURE STORY",
+        composition_type="FEATURE STORY",
+        canvas_width=1080,
+        canvas_height=1350,
+        text_ground="light",
+        groups=[
+            ElementGroup(
+                name="features",
+                members=["feature-1", "feature-2", "feature-3"],
+                alignment="left",
+                gap=12,
+            )
+        ],
+        layers=[
+            DesignPlanLayer(
+                id="feature-1",
+                type="TEXT",
+                role="body",
+                x=72,
+                y=100,
+                width=480,
+                height=54,
+                content_slot="feature_1",
+                font_size=16,
+                color="#3D4A63",
+                static_content="One",
+            ),
+            DesignPlanLayer(
+                id="feature-2",
+                type="TEXT",
+                role="body",
+                x=94,
+                y=100,
+                width=480,
+                height=54,
+                content_slot="feature_2",
+                font_size=16,
+                color="#3D4A63",
+                static_content="Two",
+            ),
+            DesignPlanLayer(
+                id="feature-3",
+                type="TEXT",
+                role="body",
+                x=94,
+                y=100,
+                width=480,
+                height=54,
+                content_slot="feature_3",
+                font_size=16,
+                color="#3D4A63",
+                static_content="Three",
+            ),
+        ],
+    )
+    expected = _resolve_group_layout_positions(plan)
+    base = _png_bytes(1080, 1350, (180, 170, 160))
+    logo = ResolvedSourceImage(
+        asset_id=uuid4(),
+        filename="logo.png",
+        content_type="image/png",
+        folder_category="01_BRAND",
+        tags=["logo"],
+        image_bytes=_png_bytes(120, 40, (220, 40, 40)),
+        width=120,
+        height=40,
+        role="project_logo",
+    )
+    result = render_layout_plan(
+        base,
+        logos=[logo],
+        slots=CompositionSlotPlan(
+            feature_1="One",
+            feature_2="Two",
+            feature_3="Three",
+            include_slogan=False,
+        ),
+        canvas_width=1080,
+        canvas_height=1350,
+        plan=plan,
+    )
+    for layer in result.layers:
+        lid = str(layer.get("id"))
+        if lid in expected:
+            assert layer.get("y") == expected[lid][1]
+

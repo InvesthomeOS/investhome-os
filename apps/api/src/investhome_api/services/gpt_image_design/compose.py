@@ -14,6 +14,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from investhome_api.services.gpt_image_design.brief import INVESHOME_SLOGAN
 from investhome_api.services.gpt_image_design.design_plan import (
+    REF_H,
     DesignPlanLayer,
     GptImageDesignPlan,
     build_gpt_image_design_plan,
@@ -290,11 +291,10 @@ def _draw_text_block(
     lines = _wrap_text(text, font, max_width)
     if not lines:
         return 0, 0
-    sample = font.getbbox("Ay")
-    line_h = max(1, int(round((sample[3] - sample[1]) * line_gap)))
+    line_h = _line_height_px(font, line_gap)
     max_w = 0
     for i, line in enumerate(lines):
-        bbox = font.getbbox(line)
+        bbox = font.getbbox(line, anchor="lt")
         lw = bbox[2] - bbox[0]
         max_w = max(max_w, lw)
         if align == "center":
@@ -303,7 +303,7 @@ def _draw_text_block(
             lx = x + max(0, max_width - lw)
         else:
             lx = x
-        draw.text((lx, y + i * line_h), line, font=font, fill=fill)
+        draw.text((lx, y + i * line_h), line, font=font, fill=fill, anchor="lt")
     return max_w, line_h * len(lines)
 
 
@@ -378,6 +378,62 @@ def _is_bold(weight: str | None) -> bool:
     return (weight or "").lower() in {"bold", "semibold", "700", "600"}
 
 
+def _line_height_px(font: ImageFont.ImageFont, line_gap: float) -> int:
+    """Font-metric line height in pixels — same basis for draw + advance."""
+    ascent, descent = font.getmetrics()
+    return max(1, int(round((ascent + descent) * line_gap)))
+
+
+def _resolve_group_layout_positions(plan: GptImageDesignPlan) -> dict[str, tuple[int, int]]:
+    """Apply group vertical spacing once at render time (plan pixels, no re-scale)."""
+    resolved: dict[str, tuple[int, int]] = {}
+    by_id = {layer.id: layer for layer in plan.layers}
+    features = sorted(
+        [layer for layer in plan.layers if layer.content_slot.startswith("feature_")],
+        key=lambda layer: layer.content_slot,
+    )
+    if not features:
+        return resolved
+
+    group = next((g for g in plan.groups if g.name == "features"), None)
+    gap = max(0, int(group.gap if group else 12))
+    anchor = features[0]
+    row_step = max(int(anchor.height), 1) + gap
+    bullet_offset = max(4, int(round(plan.canvas_height * 10 / REF_H)))
+
+    for idx, feat in enumerate(features):
+        y = anchor.y + idx * row_step
+        resolved[feat.id] = (feat.x, y)
+        shape = by_id.get(f"shape-{feat.id}")
+        if shape is not None:
+            resolved[shape.id] = (shape.x, y + bullet_offset)
+
+    cta = next((layer for layer in plan.layers if layer.role == "cta"), None)
+    if cta is not None:
+        action = next((g for g in plan.groups if g.name == "action"), None)
+        cta_gap = max(0, int(action.gap if action else 28))
+        last_feat = features[-1]
+        last_shape = by_id.get(f"shape-{last_feat.id}")
+        if last_shape is not None and last_shape.id in resolved:
+            _, shape_y = resolved[last_shape.id]
+            bottom = shape_y + last_shape.height
+        else:
+            _, feat_y = resolved[last_feat.id]
+            bottom = feat_y + last_feat.height
+        resolved[cta.id] = (cta.x, bottom + cta_gap)
+
+    return resolved
+
+
+def _layer_origin(
+    spec: DesignPlanLayer,
+    render_positions: dict[str, tuple[int, int]] | None,
+) -> tuple[int, int]:
+    if render_positions and spec.id in render_positions:
+        return render_positions[spec.id]
+    return spec.x, spec.y
+
+
 def _is_giant_panel(spec: DesignPlanLayer, canvas_w: int, canvas_h: int) -> bool:
     """Reject large semi-transparent rectangles covering the bottom half."""
     if spec.type != "SHAPE" or (spec.shape_kind or "rect") not in {"rect", ""}:
@@ -411,9 +467,11 @@ def _apply_plan_scrim(canvas: Image.Image, plan: GptImageDesignPlan) -> None:
     x1 = min(canvas.size[0], zone.x + zone.width)
     y1 = min(canvas.size[1], zone.y + zone.height)
     if localized:
-        y1 = min(y1, y0 + max(int(zone.height * 0.92), int(canvas.size[1] * 0.48)))
-        max_alpha = 95
+        # Localized scrim hugs content_zone only — never a half-canvas panel.
+        y1 = min(canvas.size[1], y0 + max(1, int(zone.height)))
+        max_alpha = 72
     else:
+        y1 = min(y1, y0 + max(int(zone.height * 0.92), int(canvas.size[1] * 0.48)))
         max_alpha = 150
     height = max(1, y1 - y0)
     for row in range(y0, y1):
@@ -448,8 +506,12 @@ def _draw_text_runs(
     for run in runs:
         text = str(run.get("text") or "")
         if run.get("break"):
+            if line_h > 0:
+                cursor_y += line_h
+            else:
+                cursor_y += 8
             cursor_x = line_start_x
-            cursor_y += max(line_h, 8)
+            line_h = 0
             if text == "\n":
                 flat_parts.append("\n")
             continue
@@ -466,21 +528,21 @@ def _draw_text_runs(
             family=family,
         )
         fill = _hex_rgba(str(run.get("color") or "#1B2A4A"))
-        sample = font.getbbox("Ay")
-        line_h = max(line_h, int(round((sample[3] - sample[1]) * line_gap)))
-        bbox = font.getbbox(text)
+        run_line_h = _line_height_px(font, line_gap)
+        line_h = max(line_h, run_line_h)
+        bbox = font.getbbox(text, anchor="lt")
         tw = bbox[2] - bbox[0]
         if cursor_x + tw > x + max_width and cursor_x > line_start_x:
+            cursor_y += max(line_h, run_line_h)
             cursor_x = line_start_x
-            cursor_y += line_h
-            line_h = int(round((sample[3] - sample[1]) * line_gap))
+            line_h = run_line_h
         if shadow:
-            draw.text((cursor_x + 1, cursor_y + 1), text, font=font, fill=(0, 0, 0, 90))
-        draw.text((cursor_x, cursor_y), text, font=font, fill=fill)
+            draw.text((cursor_x + 1, cursor_y + 1), text, font=font, fill=(0, 0, 0, 90), anchor="lt")
+        draw.text((cursor_x, cursor_y), text, font=font, fill=fill, anchor="lt")
         cursor_x += tw
         max_w = max(max_w, cursor_x - x)
         flat_parts.append(text)
-    block_h = max(line_h, cursor_y + line_h - y)
+    block_h = max(line_h, (cursor_y + line_h) - y)
     return max_w, block_h, "".join(flat_parts)
 
 
@@ -554,6 +616,7 @@ def compose_final_layers(
 
     layers: list[dict[str, Any]] = []
     draw = ImageDraw.Draw(canvas)
+    render_positions = _resolve_group_layout_positions(plan)
     _apply_plan_scrim(canvas, plan)
 
     for spec in plan.layers:
@@ -568,6 +631,7 @@ def compose_final_layers(
             used=used,
             warnings=warnings,
             plan=plan,
+            render_positions=render_positions,
         )
 
     buf = io.BytesIO()
@@ -625,8 +689,10 @@ def _compose_plan_layer(
     used: list[str],
     warnings: list[str],
     plan: GptImageDesignPlan | None = None,
+    render_positions: dict[str, tuple[int, int]] | None = None,
 ) -> None:
     slot = spec.content_slot
+    ox, oy = _layer_origin(spec, render_positions)
     if spec.type == "IMAGE" and slot in {"project_logo", "investhome_logo"}:
         source = project if slot == "project_logo" else supporting
         if source is None:
@@ -636,7 +702,7 @@ def _compose_plan_layer(
             warnings.append(f"{slot}_unreadable:{source.filename}")
             return
         fitted = _fit_logo(logo_im, spec.width, spec.height)
-        pos = (spec.x, spec.y)
+        pos = (ox, oy)
         canvas.alpha_composite(fitted, pos)
         layers.append(
             {
@@ -664,7 +730,7 @@ def _compose_plan_layer(
         if spec.opacity is not None:
             fill = (fill[0], fill[1], fill[2], max(0, min(255, int(round(float(spec.opacity) * 255)))))
         radius = max(0, int(spec.border_radius or 0))
-        box = (spec.x, spec.y, spec.x + spec.width, spec.y + spec.height)
+        box = (ox, oy, ox + spec.width, oy + spec.height)
         if fill[3] < 255:
             overlay = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
             overlay_draw = ImageDraw.Draw(overlay)
@@ -684,8 +750,8 @@ def _compose_plan_layer(
             "role": spec.role or "decoration",
             "fill": spec.fill or "#C4A35A",
             "shapeKind": spec.shape_kind or "rect",
-            "x": spec.x,
-            "y": spec.y,
+            "x": ox,
+            "y": oy,
             "width": spec.width,
             "height": spec.height,
             "zIndex": spec.z_index,
@@ -710,7 +776,7 @@ def _compose_plan_layer(
         )
         fg = _hex_rgba(spec.text_color or "#1B2A4A")
         radius = max(0, int(spec.border_radius or 0))
-        box = (spec.x, spec.y, spec.x + spec.width, spec.y + spec.height)
+        box = (ox, oy, ox + spec.width, oy + spec.height)
         if style in {"editorial_link", "text_arrow", "minimal"}:
             pass
         elif style == "outline":
@@ -721,10 +787,10 @@ def _compose_plan_layer(
         bbox = font.getbbox(label)
         tw = bbox[2] - bbox[0]
         th = bbox[3] - bbox[1]
-        tx = spec.x + max(0, (spec.width - tw) // 2)
-        ty = spec.y + max(0, (spec.height - th) // 2) - 1
+        tx = ox + max(0, (spec.width - tw) // 2)
+        ty = oy + max(0, (spec.height - th) // 2) - 1
         if style in {"editorial_link", "text_arrow", "minimal"} and (spec.align or "left") == "left":
-            tx = spec.x
+            tx = ox
         draw.text((tx, ty), label, font=font, fill=fg)
         if style == "editorial_link":
             underline_y = ty + th + 3
@@ -749,8 +815,8 @@ def _compose_plan_layer(
                 "fontWeight": spec.font_weight or "semibold",
                 "fontFamily": spec.font_family or "sans",
                 "borderRadius": radius,
-                "x": spec.x,
-                "y": spec.y,
+                "x": ox,
+                "y": oy,
                 "width": spec.width,
                 "height": spec.height,
                 "zIndex": spec.z_index,
@@ -774,8 +840,8 @@ def _compose_plan_layer(
             _, block_h, flat = _draw_text_runs(
                 draw,
                 runs=runs,
-                x=spec.x,
-                y=spec.y,
+                x=ox,
+                y=oy,
                 max_width=spec.width,
                 align=spec.align or "left",
                 line_gap=float(spec.line_height or 1.06),
@@ -792,8 +858,8 @@ def _compose_plan_layer(
                 "fontFamily": spec.font_family or "serif",
                 "align": spec.align or "left",
                 "color": spec.color or "#1B2A4A",
-                "x": spec.x,
-                "y": spec.y,
+                "x": ox,
+                "y": oy,
                 "width": spec.width,
                 "height": max(block_h, spec.height, 20),
                 "zIndex": spec.z_index,
@@ -811,23 +877,12 @@ def _compose_plan_layer(
             family=spec.font_family or "sans",
         )
         fill = _hex_rgba(spec.color or "#FFFFFF")
-        use_shadow = spec.content_slot.startswith("feature_") and bool(
-            getattr(plan, "localized_scrim_only", False) if plan else False
-        )
-        if use_shadow:
-            shadow_font = font
-            for i, line in enumerate(_wrap_text(text, font, spec.width)):
-                sample = font.getbbox("Ay")
-                line_h = max(1, int(round((sample[3] - sample[1]) * float(spec.line_height or 1.2))))
-                lx = spec.x
-                ly = spec.y + i * line_h
-                draw.text((lx + 1, ly + 1), line, font=shadow_font, fill=(0, 0, 0, 80))
         _, block_h = _draw_text_block(
             draw,
             text=text,
             font=font,
-            x=spec.x,
-            y=spec.y,
+            x=ox,
+            y=oy,
             max_width=spec.width,
             fill=fill,
             align=spec.align or "left",
@@ -843,8 +898,8 @@ def _compose_plan_layer(
             "fontFamily": spec.font_family or "sans",
             "align": spec.align or "left",
             "color": spec.color or "#ffffff",
-            "x": spec.x,
-            "y": spec.y,
+            "x": ox,
+            "y": oy,
             "width": spec.width,
             "height": max(block_h, spec.height, 20),
             "zIndex": spec.z_index,
