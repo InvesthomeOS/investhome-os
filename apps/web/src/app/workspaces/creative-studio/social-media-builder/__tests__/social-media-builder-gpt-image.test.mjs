@@ -47,6 +47,13 @@ describe('GPT Image SMB wiring', () => {
     assert.match(workspace, /composition_base_asset_id/);
   });
 
+  it('renders rich headline runs when OS layers include runs', () => {
+    const elements = read('social-media-builder-elements.ts');
+    const artboard = read('smb-artboard-elements.tsx');
+    assert.match(elements, /runs\?: SocialTextRun\[\]/);
+    assert.match(artboard, /el\.runs/);
+  });
+
   it('ensures GPT background IMAGE layer is editable separately from OS text/logo', () => {
     const helper = read('social-media-builder-gpt-image.ts');
     assert.match(helper, /ensureBackgroundLayer/);

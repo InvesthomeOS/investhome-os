@@ -15,9 +15,13 @@ from investhome_api.schemas.creative_director import (
     CreativeDirectorCampaignResponse,
     CreativeDirectorGenerateAdRequest,
     CreativeDirectorGenerateAdResponse,
+    CreativeDirectorRecomposeAdRequest,
     CreativeDirectorReviseRequest,
 )
-from investhome_api.services.creative_director.generate_ad import generate_ad_from_campaign
+from investhome_api.services.creative_director.generate_ad import (
+    generate_ad_from_campaign,
+    recompose_ad_from_campaign,
+)
 from investhome_api.services.creative_director.service import (
     create_campaign,
     get_campaign,
@@ -71,6 +75,22 @@ def revise_creative_director_campaign(
 ) -> CreativeDirectorCampaignResponse:
     """Stub: records NL revision intent on Campaign Context for a later sprint."""
     result = revise_campaign_stub(db, user, campaign_id, body)
+    db.commit()
+    return result
+
+
+@router.post(
+    "/ai/creative-studio/campaigns/{campaign_id}/recompose",
+    response_model=CreativeDirectorGenerateAdResponse,
+)
+def recompose_creative_director_ad(
+    campaign_id: UUID,
+    body: CreativeDirectorRecomposeAdRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+    user: User = _cs_view,
+) -> CreativeDirectorGenerateAdResponse:
+    """Regenerate OS layers from an existing GPT Image background — zero provider calls."""
+    result = recompose_ad_from_campaign(db, user, campaign_id, body)
     db.commit()
     return result
 

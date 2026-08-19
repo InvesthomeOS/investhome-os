@@ -1196,6 +1196,89 @@ def test_find_global_investhome_logo_no_silent_fallback(
     assert any(INVESHOME_GLOBAL_LOGO_MISSING in n for n in notes)
 
 
+def test_os_composition_fidelity_feature_story_rich_runs_no_giant_panel() -> None:
+    """OS composition: 3 features, rich headline runs, localized scrim, zero internal leaks."""
+    from uuid import uuid4
+
+    from investhome_api.services.gpt_image_design.compose import (
+        CompositionSlotPlan,
+        compose_final_layers,
+    )
+    from investhome_api.services.gpt_image_design.os_composition_plan import (
+        build_headline_runs,
+        build_os_composition_plan,
+        count_internal_leaks,
+    )
+    from investhome_api.services.gpt_image_design.source import ResolvedSourceImage
+
+    texts = {
+        "headline": "Eviniz, Sığınak",
+        "supporting_callouts": (
+            "Zarif tasarım detaylarıyla dolu yaşam alanları|"
+            "Özel ortak alanlar ve sosyal olanaklar|"
+            "Modern ve fonksiyonel iç mekanlar"
+        ),
+        "cta": "Detayları Keşfet",
+    }
+    base = _png_bytes(1080, 1350, (180, 170, 160))
+    plan = build_os_composition_plan(
+        canvas_width=1080,
+        canvas_height=1350,
+        texts=texts,
+        art_direction={"emphasis_words": ["Sığınak"]},
+        background_bytes=base,
+        lifestyle=True,
+        has_project_logo=True,
+        include_slogan=True,
+    )
+    assert plan.composition_type == "FEATURE STORY"
+    assert plan.localized_scrim_only is True
+    runs = build_headline_runs("Eviniz, Sığınak", emphasis_words=["Sığınak"], plan=plan)
+    assert any(r.get("color", "").upper() == "#C4A35A" for r in runs if r.get("text", "").strip())
+
+    logo = ResolvedSourceImage(
+        asset_id=uuid4(),
+        filename="temple-logo.png",
+        content_type="image/png",
+        folder_category="01_BRAND",
+        tags=["logo"],
+        image_bytes=_png_bytes(120, 40, (220, 40, 40)),
+        width=120,
+        height=40,
+        role="project_logo",
+    )
+    callouts = texts["supporting_callouts"].split("|")
+    result = compose_final_layers(
+        base,
+        logos=[logo],
+        slots=CompositionSlotPlan(
+            headline=texts["headline"],
+            cta=texts["cta"],
+            feature_1=callouts[0],
+            feature_2=callouts[1],
+            feature_3=callouts[2],
+            include_slogan=True,
+        ),
+        canvas_width=1080,
+        canvas_height=1350,
+        plan=plan,
+    )
+    ids = {el.get("id") for el in result.layers}
+    assert {"feature-1", "feature-2", "feature-3", "text-headline", "cta-primary", "logo-project"} <= ids
+    headline = next(el for el in result.layers if el.get("id") == "text-headline")
+    assert headline.get("runs")
+    giant_panels = [
+        el
+        for el in result.layers
+        if el.get("type") == "SHAPE"
+        and (el.get("height") or 0) >= 1350 * 0.4
+        and (el.get("width") or 0) >= 1080 * 0.55
+    ]
+    assert not giant_panels
+    layer_texts = [str(el.get("content") or el.get("label") or "") for el in result.layers]
+    assert count_internal_leaks(*layer_texts) == 0
+
+
 @pytest.mark.gpt_image_live
 def test_live_temple_final_composition_once(
     client: TestClient,

@@ -20,6 +20,10 @@ from investhome_api.services.gpt_image_design.design_plan import (
     format_headline_for_plan,
     sanitize_creative_text,
 )
+from investhome_api.services.gpt_image_design.os_composition_plan import (
+    count_internal_leaks,
+    looks_like_internal_leak,
+)
 from investhome_api.services.gpt_image_design.source import ResolvedSourceImage
 from investhome_api.services.gpt_image_design.svg_raster import svg_bytes_to_png
 
@@ -78,6 +82,9 @@ class CompositionSlotPlan:
     subhead: str = ""
     verified_data: str = ""
     cta: str = ""
+    feature_1: str = ""
+    feature_2: str = ""
+    feature_3: str = ""
     include_slogan: bool = True
 
 
@@ -304,6 +311,7 @@ def build_slot_plan(
     visible_copy: dict[str, Any] | None,
     verified_lines: list[str] | None = None,
     include_slogan: bool = True,
+    feature_callouts: list[str] | None = None,
 ) -> CompositionSlotPlan:
     copy = visible_copy or {}
     headline = str(copy.get("headline") or "").strip()
@@ -317,11 +325,18 @@ def build_slot_plan(
         if text:
             verified = text
             break
+    callouts = [str(x).strip() for x in (feature_callouts or []) if str(x).strip()]
+    if not callouts:
+        raw = str(copy.get("supporting_callouts") or "")
+        callouts = [x.strip() for x in raw.split("|") if x.strip()]
     return CompositionSlotPlan(
         headline=headline,
         subhead=subhead,
         verified_data=verified,
         cta=cta,
+        feature_1=callouts[0] if len(callouts) > 0 else "",
+        feature_2=callouts[1] if len(callouts) > 1 else "",
+        feature_3=callouts[2] if len(callouts) > 2 else "",
         include_slogan=include_slogan,
     )
 
@@ -347,6 +362,12 @@ def _slot_text(slots: CompositionSlotPlan, content_slot: str) -> str:
         return sanitize_creative_text(slots.verified_data)
     if content_slot == "cta":
         return sanitize_creative_text(slots.cta)
+    if content_slot == "feature_1":
+        return sanitize_creative_text(slots.feature_1)
+    if content_slot == "feature_2":
+        return sanitize_creative_text(slots.feature_2)
+    if content_slot == "feature_3":
+        return sanitize_creative_text(slots.feature_3)
     if content_slot == "slogan":
         return INVESHOME_SLOGAN if slots.include_slogan else ""
     return ""
@@ -356,26 +377,110 @@ def _is_bold(weight: str | None) -> bool:
     return (weight or "").lower() in {"bold", "semibold", "700", "600"}
 
 
+def _is_giant_panel(spec: DesignPlanLayer, canvas_w: int, canvas_h: int) -> bool:
+    """Reject large semi-transparent rectangles covering the bottom half."""
+    if spec.type != "SHAPE" or (spec.shape_kind or "rect") not in {"rect", ""}:
+        return False
+    if spec.width < canvas_w * 0.55:
+        return False
+    if spec.height < canvas_h * 0.28:
+        return False
+    if spec.y < canvas_h * 0.35:
+        return False
+    alpha = 255
+    if spec.opacity is not None:
+        alpha = int(round(float(spec.opacity) * 255))
+    fill = spec.fill or ""
+    if fill.lower() in {"#1b2a4a", "#1b2a4a"} and alpha >= 80:
+        return True
+    return spec.height >= canvas_h * 0.4 and alpha >= 60
+
+
 def _apply_plan_scrim(canvas: Image.Image, plan: GptImageDesignPlan) -> None:
-    """Subtle gradient/scrim so type stays readable. Last contrast resort after zone + color."""
+    """Localized gradient/scrim behind type cluster — not a giant bottom panel."""
     if not plan.needs_scrim:
         return
     zone = plan.content_zone
     if zone is None:
         return
+    localized = bool(getattr(plan, "localized_scrim_only", False))
     overlay = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
     painter = ImageDraw.Draw(overlay)
     x0, y0 = max(0, zone.x), max(0, zone.y)
     x1 = min(canvas.size[0], zone.x + zone.width)
     y1 = min(canvas.size[1], zone.y + zone.height)
+    if localized:
+        y1 = min(y1, y0 + max(int(zone.height * 0.92), int(canvas.size[1] * 0.48)))
+        max_alpha = 95
+    else:
+        max_alpha = 150
     height = max(1, y1 - y0)
     for row in range(y0, y1):
         t = (row - y0) / height
-        alpha = int(round(150 * (t ** 1.35)))
+        alpha = int(round(max_alpha * (t ** 1.35)))
         if alpha <= 0:
             continue
         painter.line([(x0, row), (x1, row)], fill=(27, 42, 74, alpha))
     canvas.alpha_composite(overlay)
+
+
+def _draw_text_runs(
+    draw: ImageDraw.ImageDraw,
+    *,
+    runs: list[dict[str, Any]],
+    x: int,
+    y: int,
+    max_width: int,
+    align: str = "left",
+    line_gap: float = 1.06,
+    shadow: bool = False,
+) -> tuple[int, int, str]:
+    """Draw rich headline runs; returns (width, height, flattened_content)."""
+    if not runs:
+        return 0, 0, ""
+    cursor_x = x
+    cursor_y = y
+    line_start_x = x
+    max_w = 0
+    line_h = 0
+    flat_parts: list[str] = []
+    for run in runs:
+        text = str(run.get("text") or "")
+        if run.get("break"):
+            cursor_x = line_start_x
+            cursor_y += max(line_h, 8)
+            if text == "\n":
+                flat_parts.append("\n")
+            continue
+        if not text:
+            continue
+        if looks_like_internal_leak(text):
+            continue
+        size = int(run.get("fontSize") or 24)
+        family = str(run.get("fontFamily") or "serif")
+        weight = str(run.get("fontWeight") or "medium")
+        font = resolve_turkish_font(
+            bold=_is_bold(weight),
+            size=size,
+            family=family,
+        )
+        fill = _hex_rgba(str(run.get("color") or "#1B2A4A"))
+        sample = font.getbbox("Ay")
+        line_h = max(line_h, int(round((sample[3] - sample[1]) * line_gap)))
+        bbox = font.getbbox(text)
+        tw = bbox[2] - bbox[0]
+        if cursor_x + tw > x + max_width and cursor_x > line_start_x:
+            cursor_x = line_start_x
+            cursor_y += line_h
+            line_h = int(round((sample[3] - sample[1]) * line_gap))
+        if shadow:
+            draw.text((cursor_x + 1, cursor_y + 1), text, font=font, fill=(0, 0, 0, 90))
+        draw.text((cursor_x, cursor_y), text, font=font, fill=fill)
+        cursor_x += tw
+        max_w = max(max_w, cursor_x - x)
+        flat_parts.append(text)
+    block_h = max(line_h, cursor_y + line_h - y)
+    return max_w, block_h, "".join(flat_parts)
 
 
 def compose_final_layers(
@@ -527,6 +632,9 @@ def _compose_plan_layer(
     if spec.type == "SHAPE":
         if spec.id == "shape-location-mark" and not _slot_text(slots, "location"):
             return
+        if _is_giant_panel(spec, canvas.size[0], canvas.size[1]):
+            warnings.append(f"skipped_giant_panel:{spec.id}")
+            return
         fill = _hex_rgba(spec.fill or "#C4A35A")
         if spec.opacity is not None:
             fill = (fill[0], fill[1], fill[2], max(0, min(255, int(round(float(spec.opacity) * 255)))))
@@ -627,17 +735,68 @@ def _compose_plan_layer(
         return
 
     if spec.type == "TEXT":
-        text = _slot_text(slots, slot)
+        text = spec.static_content or _slot_text(slots, slot)
         if not text:
+            return
+        if looks_like_internal_leak(text):
+            warnings.append(f"blocked_internal_leak:{spec.id}")
             return
         if spec.role == "headline":
             text = format_headline_for_plan(text, plan)
+        runs = list(spec.text_runs or [])
+        if spec.role == "headline" and runs:
+            use_shadow = bool(getattr(plan, "localized_scrim_only", False)) if plan else False
+            _, block_h, flat = _draw_text_runs(
+                draw,
+                runs=runs,
+                x=spec.x,
+                y=spec.y,
+                max_width=spec.width,
+                align=spec.align or "left",
+                line_gap=float(spec.line_height or 1.06),
+                shadow=use_shadow,
+            )
+            layer = {
+                "id": spec.id,
+                "type": "TEXT",
+                "role": spec.role or "custom",
+                "content": flat or text,
+                "runs": runs,
+                "fontSize": int(spec.font_size or 72),
+                "fontWeight": spec.font_weight or "medium",
+                "fontFamily": spec.font_family or "serif",
+                "align": spec.align or "left",
+                "color": spec.color or "#1B2A4A",
+                "x": spec.x,
+                "y": spec.y,
+                "width": spec.width,
+                "height": max(block_h, spec.height, 20),
+                "zIndex": spec.z_index,
+            }
+            if spec.line_height is not None:
+                layer["lineHeight"] = spec.line_height
+            if spec.letter_spacing is not None:
+                layer["letterSpacing"] = spec.letter_spacing
+            layers.append(layer)
+            used.append("headline")
+            return
         font = resolve_turkish_font(
             bold=_is_bold(spec.font_weight),
             size=int(spec.font_size or 24),
             family=spec.font_family or "sans",
         )
         fill = _hex_rgba(spec.color or "#FFFFFF")
+        use_shadow = spec.content_slot.startswith("feature_") and bool(
+            getattr(plan, "localized_scrim_only", False) if plan else False
+        )
+        if use_shadow:
+            shadow_font = font
+            for i, line in enumerate(_wrap_text(text, font, spec.width)):
+                sample = font.getbbox("Ay")
+                line_h = max(1, int(round((sample[3] - sample[1]) * float(spec.line_height or 1.2))))
+                lx = spec.x
+                ly = spec.y + i * line_h
+                draw.text((lx + 1, ly + 1), line, font=shadow_font, fill=(0, 0, 0, 80))
         _, block_h = _draw_text_block(
             draw,
             text=text,
@@ -670,7 +829,10 @@ def _compose_plan_layer(
         if spec.letter_spacing is not None:
             layer["letterSpacing"] = spec.letter_spacing
         layers.append(layer)
-        used.append("headline" if spec.role == "headline" else slot or spec.id)
+        if spec.content_slot.startswith("feature_"):
+            used.append(spec.id)
+        else:
+            used.append("headline" if spec.role == "headline" else slot or spec.id)
         return
 
 

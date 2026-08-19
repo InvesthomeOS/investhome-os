@@ -16,13 +16,25 @@ from investhome_api.models.user_auth import User
 from investhome_api.schemas.creative_director import (
     CreativeDirectorGenerateAdRequest,
     CreativeDirectorGenerateAdResponse,
+    CreativeDirectorRecomposeAdRequest,
 )
 from investhome_api.schemas.gpt_image_design import GptImageDesignRequest
 from investhome_api.services.creative_director.art_direction_translator import (
     render_gpt_image_art_direction_prompt,
     translate_campaign_art_direction,
 )
-from investhome_api.services.gpt_image_design.service import generate_gpt_image_creatives
+from investhome_api.services.gpt_image_design.compose import build_slot_plan, compose_final_layers
+from investhome_api.services.gpt_image_design.config import canvas_for_preset
+from investhome_api.services.gpt_image_design.design_plan import design_plan_to_dict
+from investhome_api.services.gpt_image_design.os_composition_plan import (
+    build_os_composition_plan,
+    count_internal_leaks,
+    enrich_os_composition_plan,
+)
+from investhome_api.services.gpt_image_design.persistence import asset_url, persist_gpt_image, sniff_image_content_type
+from investhome_api.services.gpt_image_design.source import ResolvedSourceImage, resolve_image_bytes
+from investhome_api.services.creative_studio_media_service import get_asset_or_404, open_asset_content
+from investhome_api.schemas.social_design_engine import SocialDesignMediaCandidate
 
 
 def _as_dict(value: Any) -> dict[str, Any]:
@@ -467,13 +479,49 @@ def project_asset_lock_summary(
     }
 
 
-def generate_ad_from_campaign(
+def _load_background_bytes(db: Session, asset_id: UUID, *, linked_project_id: UUID) -> tuple[bytes, Any]:
+    asset = get_asset_or_404(asset_id, db)
+    if asset.linked_project_id != linked_project_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Background asset does not belong to this campaign project.",
+        )
+    stream, _ctype = open_asset_content(asset, linked_project_id=linked_project_id)
+    return stream.read(), asset
+
+
+def _resolve_logo_image(
     db: Session,
-    user: User,
+    *,
+    linked_project_id: UUID,
+    logo_id: UUID,
+    logo_meta: dict[str, Any],
+) -> ResolvedSourceImage | None:
+    asset = get_asset_or_404(logo_id, db)
+    candidate = SocialDesignMediaCandidate(
+        asset_id=logo_id,
+        filename=str(logo_meta.get("filename") or asset.filename or "logo.svg"),
+        content_type=str(asset.content_type or "image/svg+xml"),
+        folder_category=str(asset.folder_category or "01_BRAND"),
+        tags=list(asset.tags or []),
+        score=1.0,
+        linked_project_id=linked_project_id,
+    )
+    return resolve_image_bytes(
+        db,
+        linked_project_id=linked_project_id,
+        candidate=candidate,
+        role="project_logo",
+        allow_svg=True,
+    )
+
+
+def _prepare_campaign_ad_context(
+    db: Session,
     campaign_id: UUID,
-    body: CreativeDirectorGenerateAdRequest | None = None,
-) -> CreativeDirectorGenerateAdResponse:
-    """Load Campaign Context → GPT Image PROJECT MODE → persist final ML asset."""
+    body: CreativeDirectorGenerateAdRequest | CreativeDirectorRecomposeAdRequest | None,
+):
+    """Shared Campaign Context prep for generate + recompose."""
     body = body or CreativeDirectorGenerateAdRequest()
     row = db.get(CreativeDirectorCampaign, campaign_id)
     if row is None or row.archived_at is not None:
@@ -489,9 +537,7 @@ def generate_ad_from_campaign(
         list(ctx.get("approved_claims") or pricing.get("claims") or []),
         lifestyle=lifestyle,
     )
-
     language = (body.language or ctx.get("language") or "tr").strip().lower() or "tr"
-    # Persist language on campaign for later EN reuse of the same context.
     if ctx.get("language") != language:
         ctx["language"] = language
         row.context_json = ctx
@@ -518,6 +564,283 @@ def generate_ad_from_campaign(
     )
     format_preset = (body.format_preset or "portrait").strip() or "portrait"
     aspect_ratio = (body.aspect_ratio or "4:5").strip() or "4:5"
+    return (
+        row,
+        ctx,
+        strategy,
+        campaign_copy,
+        pricing,
+        original_brief,
+        lifestyle,
+        approved_claims,
+        language,
+        format_preset,
+        aspect_ratio,
+        interior_id,
+        logo_id,
+        interior_meta,
+        logo_meta,
+        texts,
+        allowed_tokens,
+        art_direction,
+    )
+
+
+def recompose_ad_from_campaign(
+    db: Session,
+    user: User,
+    campaign_id: UUID,
+    body: CreativeDirectorRecomposeAdRequest | None = None,
+) -> CreativeDirectorGenerateAdResponse:
+    """Regenerate OS Final Composition from an existing clean background — no GPT Image call."""
+    prep = _prepare_campaign_ad_context(db, campaign_id, body)
+    (
+        row,
+        ctx,
+        strategy,
+        campaign_copy,
+        pricing,
+        original_brief,
+        lifestyle,
+        approved_claims,
+        language,
+        format_preset,
+        aspect_ratio,
+        interior_id,
+        logo_id,
+        interior_meta,
+        logo_meta,
+        texts,
+        allowed_tokens,
+        art_direction,
+    ) = prep
+    if body is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="background_asset_id is required for recompose.",
+        )
+    background_id = body.background_asset_id
+    base_bytes, base_asset = _load_background_bytes(
+        db,
+        background_id,
+        linked_project_id=row.linked_project_id,
+    )
+    canvas_w, canvas_h = canvas_for_preset(format_preset)
+    logo_image = _resolve_logo_image(
+        db,
+        linked_project_id=row.linked_project_id,
+        logo_id=logo_id,
+        logo_meta=logo_meta,
+    )
+    if logo_image is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Project logo could not be loaded for OS recomposition.",
+        )
+    design_plan = build_os_composition_plan(
+        canvas_width=canvas_w,
+        canvas_height=canvas_h,
+        texts=texts,
+        art_direction=art_direction.to_dict(),
+        background_bytes=base_bytes,
+        lifestyle=lifestyle,
+        has_project_logo=True,
+        has_investhome_logo=False,
+        include_slogan=True,
+        instruction=original_brief,
+    )
+    callouts = [x.strip() for x in str(texts.get("supporting_callouts") or "").split("|") if x.strip()]
+    slots = build_slot_plan(
+        visible_copy={
+            "headline": texts["headline"],
+            "supporting": texts.get("supporting", ""),
+            "cta": texts["cta"],
+            "supporting_callouts": texts.get("supporting_callouts", ""),
+        },
+        verified_lines=[],
+        include_slogan=True,
+        feature_callouts=callouts,
+    )
+    composition = compose_final_layers(
+        base_bytes,
+        logos=[logo_image],
+        slots=slots,
+        canvas_width=canvas_w,
+        canvas_height=canvas_h,
+        base_asset_id=base_asset.id,
+        plan=design_plan,
+    )
+    asset = persist_gpt_image(
+        db,
+        actor=user,
+        linked_project_id=row.linked_project_id,
+        content=composition.png_bytes,
+        content_type=sniff_image_content_type(composition.png_bytes),
+        campaign_mode="project-recompose",
+        session_id=str(campaign_id),
+        provider_generation_id=None,
+        campaign_context_id=str(row.id),
+        brief_excerpt="os-recompose",
+    )
+    claim_guard = claim_guard_summary(
+        approved_claims=approved_claims,
+        allowed_tokens=allowed_tokens,
+        texts=texts,
+        lifestyle=lifestyle,
+    )
+    asset_lock = project_asset_lock_summary(
+        interior_id=interior_id,
+        logo_id=logo_id,
+        interior_meta=interior_meta,
+        logo_meta=logo_meta,
+        source_asset_id=interior_id,
+    )
+    layer_texts = [
+        str(el.get("content") or el.get("label") or "")
+        for el in composition.layers
+        if isinstance(el, dict)
+    ]
+    leak_count = count_internal_leaks(*layer_texts)
+    duplication_guard = dict(composition.duplication_guard or {})
+    duplication_guard["internal_leak_count"] = leak_count
+
+    creative_brief_summary = {
+        "big_idea": campaign_copy.get("big_idea") or strategy.get("big_idea"),
+        "composition_family": design_plan.composition_type,
+        "headline_runs": next(
+            (el.get("runs") for el in composition.layers if el.get("id") == "text-headline"),
+            None,
+        ),
+        "feature_layers": [el for el in composition.layers if str(el.get("id", "")).startswith("feature-")],
+        "art_direction": art_direction.to_dict(),
+        "editable_elements": [el.get("id") for el in composition.layers if el.get("id")],
+        "internal_leak_count": leak_count,
+        "background_aware_placement": design_plan.negative_space,
+    }
+
+    ctx = dict(row.context_json or {})
+    generated = list(ctx.get("generated_assets") or [])
+    generated.append(
+        {
+            "asset_id": str(asset.id),
+            "role": "master_instagram_4_5_recompose",
+            "language": language,
+            "provider": "os-recompose",
+            "composition_base_asset_id": str(base_asset.id),
+        }
+    )
+    history = list(ctx.get("output_history") or [])
+    history.append(
+        {
+            "type": "recompose_ad",
+            "asset_id": str(asset.id),
+            "language": language,
+            "format": aspect_ratio,
+            "background_asset_id": str(background_id),
+            "gpt_image_call_count": 0,
+        }
+    )
+    ctx["generated_assets"] = generated
+    ctx["output_history"] = history
+    ctx["latest_master_ad_asset_id"] = str(asset.id)
+    row.context_json = ctx
+    db.flush()
+
+    gpt_image_payload = {
+        "outputs": [
+            {
+                "local_asset_id": str(asset.id),
+                "local_asset_url": asset_url(asset.id),
+                "composition_base_asset_id": str(base_asset.id),
+                "canvas_width": canvas_w,
+                "canvas_height": canvas_h,
+                "layers": composition.layers,
+                "metadata": {
+                    "composition_type": design_plan.composition_type,
+                    "design_plan_variation": design_plan.variation,
+                    "duplication_guard": duplication_guard,
+                    "gpt_generated_text_count": 0,
+                    "gpt_generated_logo_count": 0,
+                    "internal_leak_count": leak_count,
+                    "background_asset_id": str(base_asset.id),
+                },
+            }
+        ],
+        "provider_call_count": 0,
+        "brief": {"design_plan": design_plan_to_dict(design_plan)},
+    }
+
+    return CreativeDirectorGenerateAdResponse(
+        campaign_id=row.id,
+        project_id=row.linked_project_id,
+        language=language,
+        aspect_ratio=aspect_ratio,
+        format_preset=format_preset,
+        interior_asset_id=interior_id,
+        logo_asset_id=logo_id,
+        final_asset_id=asset.id,
+        final_asset_url=asset_url(asset.id),
+        composition_base_asset_id=base_asset.id,
+        creative_brief_summary=creative_brief_summary,
+        final_turkish_texts=texts,
+        claim_guard=claim_guard,
+        project_asset_lock=asset_lock,
+        duplication_guard=duplication_guard,
+        provider_call_count=0,
+        gpt_image_call_count=0,
+        latency_ms=0,
+        warnings=list(composition.warnings),
+        gpt_image=gpt_image_payload,
+    )
+
+
+def generate_ad_from_campaign(
+    db: Session,
+    user: User,
+    campaign_id: UUID,
+    body: CreativeDirectorGenerateAdRequest | None = None,
+) -> CreativeDirectorGenerateAdResponse:
+    """Load Campaign Context → GPT Image PROJECT MODE → persist final ML asset."""
+    body = body or CreativeDirectorGenerateAdRequest()
+    if body.skip_gpt_image:
+        if body.background_asset_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="background_asset_id is required when skip_gpt_image=true",
+            )
+        return recompose_ad_from_campaign(
+            db,
+            user,
+            campaign_id,
+            CreativeDirectorRecomposeAdRequest(
+                language=body.language,
+                aspect_ratio=body.aspect_ratio,
+                format_preset=body.format_preset,
+                background_asset_id=body.background_asset_id,
+            ),
+        )
+
+    prep = _prepare_campaign_ad_context(db, campaign_id, body)
+    (
+        row,
+        ctx,
+        strategy,
+        campaign_copy,
+        pricing,
+        original_brief,
+        lifestyle,
+        approved_claims,
+        language,
+        format_preset,
+        aspect_ratio,
+        interior_id,
+        logo_id,
+        interior_meta,
+        logo_meta,
+        texts,
+        allowed_tokens,
+        art_direction,
+    ) = prep
     instruction = render_gpt_image_art_direction_prompt(
         art_direction,
         texts=texts,
@@ -531,6 +854,7 @@ def generate_ad_from_campaign(
     if not lifestyle:
         forced_verified = [texts["price_hierarchy"] + " · " + texts["value_badge"]]
 
+    callouts = [x.strip() for x in str(texts.get("supporting_callouts") or "").split("|") if x.strip()]
     gpt_body = GptImageDesignRequest(
         linked_project_id=row.linked_project_id,
         instruction=instruction,
@@ -546,6 +870,7 @@ def generate_ad_from_campaign(
                 "eyebrow": texts["eyebrow"],
                 "headline": texts["headline"],
                 "supporting": texts["supporting"],
+                "supporting_callouts": texts.get("supporting_callouts", ""),
                 "cta": texts["cta"],
             },
             "forced_verified_lines": forced_verified,
@@ -556,8 +881,11 @@ def generate_ad_from_campaign(
             "campaign_mode": "lifestyle" if lifestyle else "launch_price",
             "art_direction_plan": art_direction.to_dict(),
             "use_art_direction_prompt": True,
+            "feature_callouts": callouts,
         },
     )
+
+    from investhome_api.services.gpt_image_design.service import generate_gpt_image_creatives
 
     result = generate_gpt_image_creatives(db, user, gpt_body)
     output = result.outputs[0] if result.outputs else None
@@ -584,6 +912,12 @@ def generate_ad_from_campaign(
 
     output_meta = output.metadata if isinstance(getattr(output, "metadata", None), dict) else {}
     duplication_guard = dict(output_meta.get("duplication_guard") or {})
+    layer_texts = [
+        str(el.get("content") or el.get("label") or "")
+        for el in (output.layers or [])
+        if isinstance(el, dict)
+    ]
+    duplication_guard["internal_leak_count"] = count_internal_leaks(*layer_texts)
 
     creative_brief_summary = {
         "big_idea": campaign_copy.get("big_idea") or strategy.get("big_idea"),
@@ -598,6 +932,7 @@ def generate_ad_from_campaign(
         "tone": strategy.get("tone"),
         "visual_direction": strategy.get("visual_direction"),
         "composition_direction": strategy.get("composition_direction"),
+        "composition_family": output_meta.get("composition_type"),
         "art_direction": art_direction.to_dict(),
         "source_constraints": {
             "interior_asset_id": str(interior_id),
@@ -613,7 +948,6 @@ def generate_ad_from_campaign(
         or instruction[:1200],
     }
 
-    # Persist generation on Campaign Context (no CD brief rewrite).
     ctx = dict(row.context_json or {})
     generated = list(ctx.get("generated_assets") or [])
     generated.append(
@@ -665,6 +999,7 @@ def generate_ad_from_campaign(
         project_asset_lock=asset_lock,
         duplication_guard=duplication_guard,
         provider_call_count=result.provider_call_count,
+        gpt_image_call_count=result.provider_call_count,
         latency_ms=result.latency_ms,
         warnings=list(result.warnings or []),
         gpt_image=result.model_dump(mode="json"),

@@ -171,6 +171,8 @@ class DesignPlanLayer:
     cta_style: str | None = None
     decoration_purpose: str | None = None
     opacity: float | None = None
+    text_runs: list[dict[str, Any]] | None = None
+    static_content: str | None = None
 
 
 @dataclass
@@ -204,6 +206,7 @@ class GptImageDesignPlan:
     layers: list[DesignPlanLayer] = field(default_factory=list)
     art_notes: list[str] = field(default_factory=list)
     needs_scrim: bool = False
+    localized_scrim_only: bool = False
     visual_review_status: str = "READY FOR USER VISUAL REVIEW"
     quality_corrections: list[str] = field(default_factory=list)
 
@@ -1511,6 +1514,7 @@ def design_plan_to_dict(plan: GptImageDesignPlan) -> dict[str, Any]:
         "layers": [asdict(row) for row in plan.layers],
         "art_notes": list(plan.art_notes),
         "needs_scrim": bool(plan.needs_scrim),
+        "localized_scrim_only": bool(plan.localized_scrim_only),
         "visual_review_status": plan.visual_review_status,
         "quality_corrections": list(plan.quality_corrections),
     }

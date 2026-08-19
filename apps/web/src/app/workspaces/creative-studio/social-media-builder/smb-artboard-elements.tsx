@@ -400,6 +400,24 @@ export function SmbArtboardElements({
                   onClick={(e) => e.stopPropagation()}
                   onPointerDown={(e) => e.stopPropagation()}
                 />
+              ) : el.runs && el.runs.length > 0 ? (
+                el.runs.map((run, idx) => {
+                  if (run.break) return <br key={`${el.id}-br-${idx}`} />;
+                  const runFamily = socialFontFamilyCss(run.fontFamily ?? el.fontFamily);
+                  return (
+                    <span
+                      key={`${el.id}-run-${idx}`}
+                      style={{
+                        fontSize: run.fontSize ?? el.fontSize,
+                        fontWeight: socialFontWeightCss(run.fontWeight ?? el.fontWeight),
+                        color: run.color ?? el.color,
+                        ...(runFamily ? { fontFamily: runFamily } : {}),
+                      }}
+                    >
+                      {run.text}
+                    </span>
+                  );
+                })
               ) : (
                 typeof el.content === 'string' ? el.content : ''
               )}

@@ -34,6 +34,17 @@ class CreativeDirectorGenerateAdRequest(BaseModel):
     language: str | None = Field(default=None, max_length=16)
     aspect_ratio: Literal["1:1", "4:5", "16:9", "9:16"] | None = "4:5"
     format_preset: str | None = Field(default="portrait", max_length=32)
+    skip_gpt_image: bool = False
+    background_asset_id: UUID | None = None
+
+
+class CreativeDirectorRecomposeAdRequest(BaseModel):
+    """Regenerate OS layers from an existing GPT Image background — zero provider calls."""
+
+    language: str | None = Field(default=None, max_length=16)
+    aspect_ratio: Literal["1:1", "4:5", "16:9", "9:16"] | None = "4:5"
+    format_preset: str | None = Field(default="portrait", max_length=32)
+    background_asset_id: UUID = Field(..., description="Existing clean GPT Image background asset")
 
 
 class CreativeDirectorGenerateAdResponse(BaseModel):
@@ -53,6 +64,7 @@ class CreativeDirectorGenerateAdResponse(BaseModel):
     project_asset_lock: dict[str, Any] = Field(default_factory=dict)
     duplication_guard: dict[str, Any] = Field(default_factory=dict)
     provider_call_count: int = 0
+    gpt_image_call_count: int = 0
     latency_ms: int = 0
     warnings: list[str] = Field(default_factory=list)
     gpt_image: dict[str, Any] = Field(default_factory=dict)

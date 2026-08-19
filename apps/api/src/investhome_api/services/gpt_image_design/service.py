@@ -64,6 +64,7 @@ from investhome_api.services.gpt_image_design.design_plan import (
     design_plan_to_dict,
     sanitize_creative_text,
 )
+from investhome_api.services.gpt_image_design.os_composition_plan import enrich_os_composition_plan
 from investhome_api.services.gpt_image_design.persistence import (
     asset_url,
     persist_gpt_image,
@@ -642,16 +643,43 @@ def _generate_project(
             verified_lines.append(line)
             break  # optional single verified line — don't force every slot
 
+    callouts: list[str] = []
+    if isinstance(builder_context, dict):
+        callouts = [str(x).strip() for x in (builder_context.get("feature_callouts") or []) if str(x).strip()]
+    if not callouts:
+        raw_callouts = str(visible.get("supporting_callouts") or "")
+        callouts = [x.strip() for x in raw_callouts.split("|") if x.strip()]
     slots = build_slot_plan(
         visible_copy=visible,
         verified_lines=verified_lines[:2],
         include_slogan=True,
+        feature_callouts=callouts,
     )
     if visible.get("headline"):
         design_plan.headline_line_breaks = decide_headline_line_breaks(
             str(visible.get("headline") or ""),
             typography_scale=design_plan.typography_scale,
             composition_type=design_plan.variation,
+        )
+        shared_brief["design_plan"] = design_plan_to_dict(design_plan)
+    if isinstance(builder_context, dict) and builder_context.get("master_ad"):
+        lifestyle_mode = builder_context.get("campaign_mode") == "lifestyle"
+        art_plan = builder_context.get("art_direction_plan")
+        texts_os = {
+            "headline": str(visible.get("headline") or ""),
+            "supporting": str(visible.get("supporting") or ""),
+            "supporting_callouts": "|".join(callouts),
+            "cta": str(visible.get("cta") or ""),
+        }
+        design_plan = enrich_os_composition_plan(
+            design_plan,
+            texts=texts_os,
+            art_direction=art_plan if isinstance(art_plan, dict) else None,
+            background_bytes=base_image_bytes,
+            lifestyle=lifestyle_mode,
+            has_project_logo=has_project_logo,
+            has_investhome_logo=has_ih_logo,
+            include_slogan=True,
         )
         shared_brief["design_plan"] = design_plan_to_dict(design_plan)
     composition = compose_final_layers(

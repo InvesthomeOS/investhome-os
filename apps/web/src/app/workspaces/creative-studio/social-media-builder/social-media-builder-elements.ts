@@ -50,9 +50,19 @@ export type SocialElementBase = {
   zIndex: number;
 };
 
+export type SocialTextRun = {
+  text: string;
+  fontFamily?: SocialFontFamily;
+  fontSize?: number;
+  fontWeight?: SocialFontWeight;
+  color?: string;
+  break?: boolean;
+};
+
 export type SocialTextElement = SocialElementBase & {
   type: 'TEXT';
   content: string;
+  runs?: SocialTextRun[];
   fontSize: number;
   fontWeight: SocialFontWeight;
   align: SocialTextAlign;
