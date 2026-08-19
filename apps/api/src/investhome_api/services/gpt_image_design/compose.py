@@ -36,6 +36,7 @@ __all__ = [
     "compose_final_layers",
     "logo_to_rgba",
     "overlay_brand_lockups",
+    "render_layout_plan",
     "resolve_turkish_font",
     "run_duplication_guard",
     "svg_bytes_to_png",
@@ -483,6 +484,30 @@ def _draw_text_runs(
     return max_w, block_h, "".join(flat_parts)
 
 
+def render_layout_plan(
+    base_bytes: bytes,
+    *,
+    logos: list[ResolvedSourceImage],
+    slots: CompositionSlotPlan,
+    plan: GptImageDesignPlan,
+    canvas_width: int | None = None,
+    canvas_height: int | None = None,
+    base_asset_id: UUID | None = None,
+    composed_asset_id: UUID | None = None,
+) -> CompositionResult:
+    """OS Renderer — apply Visual Layout Director plan faithfully (minimal guard only)."""
+    return compose_final_layers(
+        base_bytes,
+        logos=logos,
+        slots=slots,
+        canvas_width=canvas_width,
+        canvas_height=canvas_height,
+        base_asset_id=base_asset_id,
+        composed_asset_id=composed_asset_id,
+        plan=plan,
+    )
+
+
 def compose_final_layers(
     base_bytes: bytes,
     *,
@@ -494,7 +519,7 @@ def compose_final_layers(
     composed_asset_id: UUID | None = None,
     plan: GptImageDesignPlan | None = None,
 ) -> CompositionResult:
-    """Composite real logos + OS text at Design Plan coordinates. Never a default 600/500 template."""
+    """Composite real logos + OS text at Layout Plan coordinates. Never invent design decisions."""
     warnings: list[str] = []
     used: list[str] = []
     try:

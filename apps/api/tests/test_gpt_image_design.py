@@ -1279,6 +1279,142 @@ def test_os_composition_fidelity_feature_story_rich_runs_no_giant_panel() -> Non
     assert count_internal_leaks(*layer_texts) == 0
 
 
+def test_visual_layout_director_mock_vision_protected_zones() -> None:
+    """VLD uses mocked vision JSON; headline stays off protected focal band."""
+    from investhome_api.services.gpt_image_design.visual_layout_director import (
+        VisualLayoutAnalysis,
+        ZoneRect,
+        plan_layout,
+        qa_check_layout,
+        run_visual_layout_director,
+    )
+
+    base = _png_bytes(1080, 1350, (180, 170, 160))
+    texts = {
+        "headline": "Eviniz, Sığınak",
+        "supporting_callouts": "Zarif tasarım|Ortak alanlar|Modern iç mekanlar",
+        "cta": "Detayları Keşfet",
+    }
+    mock_analysis = VisualLayoutAnalysis(
+        visual_focus="center pendant lights",
+        negative_spaces=[{"region": "left-upper", "x": 72, "y": 80, "width": 320, "height": 400}],
+        protected_zones=[
+            ZoneRect(x=350, y=60, width=380, height=320, label="pendant lights"),
+            ZoneRect(x=280, y=420, width=520, height=360, label="sofa focal"),
+        ],
+        text_ground="light",
+        mode="vision",
+    )
+    layout = plan_layout(
+        background_bytes=base,
+        canvas_width=1080,
+        canvas_height=1350,
+        texts=texts,
+        lifestyle=True,
+        has_project_logo=True,
+        include_slogan=True,
+        analysis=mock_analysis,
+    )
+    headline = next(el for el in layout.elements if el.id == "text-headline")
+    assert headline.x < 320 or headline.y < 60 or headline.y > 380
+    qa_pass, issues = qa_check_layout(layout)
+    assert "headline_over_focal" not in issues
+
+
+def test_visual_layout_director_renderer_no_giant_panel() -> None:
+    """OS Renderer applies VLD plan — zero large translucent panels."""
+    from investhome_api.services.gpt_image_design.compose import CompositionSlotPlan, render_layout_plan
+    from investhome_api.services.gpt_image_design.source import ResolvedSourceImage
+    from investhome_api.services.gpt_image_design.visual_layout_director import plan_layout, layout_plan_to_design_plan
+
+    base = _png_bytes(1080, 1350, (180, 170, 160))
+    texts = {
+        "headline": "Eviniz, Sığınak",
+        "supporting_callouts": "Zarif tasarım|Ortak alanlar|Modern iç mekanlar",
+        "cta": "Detayları Keşfet",
+    }
+    layout = plan_layout(
+        background_bytes=base,
+        canvas_width=1080,
+        canvas_height=1350,
+        texts=texts,
+        lifestyle=True,
+        has_project_logo=True,
+        include_slogan=True,
+    )
+    plan = layout_plan_to_design_plan(layout, texts=texts)
+    logo = ResolvedSourceImage(
+        asset_id=uuid4(),
+        filename="temple-logo.png",
+        content_type="image/png",
+        folder_category="01_BRAND",
+        tags=["logo"],
+        image_bytes=_png_bytes(120, 40, (220, 40, 40)),
+        width=120,
+        height=40,
+        role="project_logo",
+    )
+    callouts = texts["supporting_callouts"].split("|")
+    result = render_layout_plan(
+        base,
+        logos=[logo],
+        slots=CompositionSlotPlan(
+            headline=texts["headline"],
+            cta=texts["cta"],
+            feature_1=callouts[0],
+            feature_2=callouts[1],
+            feature_3=callouts[2],
+            include_slogan=True,
+        ),
+        canvas_width=1080,
+        canvas_height=1350,
+        plan=plan,
+    )
+    giants = [
+        el
+        for el in result.layers
+        if el.get("type") == "SHAPE"
+        and (el.get("height") or 0) >= 1350 * 0.4
+        and (el.get("width") or 0) >= 1080 * 0.55
+    ]
+    assert not giants
+    features = [el for el in result.layers if str(el.get("id", "")).startswith("feature-")]
+    assert len(features) == 3
+    assert all((el.get("fontSize") or 0) >= 16 for el in features)
+
+
+def test_visual_layout_director_max_two_passes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """QA revise loop capped at 2 layout passes total."""
+    from investhome_api.services.gpt_image_design.visual_layout_director import (
+        VisualLayoutPlan,
+        run_visual_layout_director,
+    )
+
+    base = _png_bytes(1080, 1350, (180, 170, 160))
+    texts = {"headline": "Eviniz, Sığınak", "supporting_callouts": "A|B|C", "cta": "Keşfet"}
+    pass_counter = {"n": 0}
+
+    def fake_render(_plan):
+        pass_counter["n"] += 1
+        return [{"id": "text-headline", "type": "TEXT", "height": 1350 * 0.5, "width": 1080 * 0.6, "type_dup": "SHAPE"}]
+
+    monkeypatch.setattr(
+        "investhome_api.services.gpt_image_design.visual_layout_director.qa_check_layout",
+        lambda *_a, **_k: (False, ["rendered_large_panel"]),
+    )
+    result = run_visual_layout_director(
+        background_bytes=base,
+        canvas_width=1080,
+        canvas_height=1350,
+        texts=texts,
+        lifestyle=True,
+        render_fn=fake_render,
+        max_passes=2,
+    )
+    assert result.layout_plan.pass_count <= 2
+    assert pass_counter["n"] <= 2
+
+
 @pytest.mark.gpt_image_live
 def test_live_temple_final_composition_once(
     client: TestClient,

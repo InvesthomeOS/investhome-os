@@ -23,14 +23,15 @@ from investhome_api.services.creative_director.art_direction_translator import (
     render_gpt_image_art_direction_prompt,
     translate_campaign_art_direction,
 )
-from investhome_api.services.gpt_image_design.compose import build_slot_plan, compose_final_layers
+from investhome_api.services.gpt_image_design.compose import (
+    build_slot_plan,
+    compose_final_layers,
+    render_layout_plan,
+)
 from investhome_api.services.gpt_image_design.config import canvas_for_preset
 from investhome_api.services.gpt_image_design.design_plan import design_plan_to_dict
-from investhome_api.services.gpt_image_design.os_composition_plan import (
-    build_os_composition_plan,
-    count_internal_leaks,
-    enrich_os_composition_plan,
-)
+from investhome_api.services.gpt_image_design.os_composition_plan import count_internal_leaks
+from investhome_api.services.gpt_image_design.visual_layout_director import run_visual_layout_director
 from investhome_api.services.gpt_image_design.persistence import asset_url, persist_gpt_image, sniff_image_content_type
 from investhome_api.services.gpt_image_design.source import ResolvedSourceImage, resolve_image_bytes
 from investhome_api.services.creative_studio_media_service import get_asset_or_404, open_asset_content
@@ -637,18 +638,6 @@ def recompose_ad_from_campaign(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Project logo could not be loaded for OS recomposition.",
         )
-    design_plan = build_os_composition_plan(
-        canvas_width=canvas_w,
-        canvas_height=canvas_h,
-        texts=texts,
-        art_direction=art_direction.to_dict(),
-        background_bytes=base_bytes,
-        lifestyle=lifestyle,
-        has_project_logo=True,
-        has_investhome_logo=False,
-        include_slogan=True,
-        instruction=original_brief,
-    )
     callouts = [x.strip() for x in str(texts.get("supporting_callouts") or "").split("|") if x.strip()]
     slots = build_slot_plan(
         visible_copy={
@@ -661,7 +650,35 @@ def recompose_ad_from_campaign(
         include_slogan=True,
         feature_callouts=callouts,
     )
-    composition = compose_final_layers(
+
+    def _render_plan(plan):
+        result = render_layout_plan(
+            base_bytes,
+            logos=[logo_image],
+            slots=slots,
+            canvas_width=canvas_w,
+            canvas_height=canvas_h,
+            plan=plan,
+        )
+        return result.layers
+
+    vld = run_visual_layout_director(
+        background_bytes=base_bytes,
+        canvas_width=canvas_w,
+        canvas_height=canvas_h,
+        texts=texts,
+        art_direction=art_direction.to_dict(),
+        lifestyle=lifestyle,
+        has_project_logo=True,
+        has_investhome_logo=False,
+        include_slogan=True,
+        render_fn=_render_plan,
+        max_passes=2,
+        campaign_id=str(campaign_id),
+        background_asset_id=str(background_id),
+    )
+    design_plan = vld.design_plan
+    composition = render_layout_plan(
         base_bytes,
         logos=[logo_image],
         slots=slots,
@@ -670,6 +687,8 @@ def recompose_ad_from_campaign(
         base_asset_id=base_asset.id,
         plan=design_plan,
     )
+    vld_report = dict(vld.report)
+    vld_report["final_asset_id"] = None  # filled after persist
     asset = persist_gpt_image(
         db,
         actor=user,
@@ -716,6 +735,8 @@ def recompose_ad_from_campaign(
         "editable_elements": [el.get("id") for el in composition.layers if el.get("id")],
         "internal_leak_count": leak_count,
         "background_aware_placement": design_plan.negative_space,
+        "visual_layout_director": vld_report,
+        "layout_plan": vld.layout_plan.to_dict(),
     }
 
     ctx = dict(row.context_json or {})
@@ -746,6 +767,9 @@ def recompose_ad_from_campaign(
     row.context_json = ctx
     db.flush()
 
+    vld_report["final_asset_id"] = str(asset.id)
+    creative_brief_summary["visual_layout_director"] = vld_report
+
     gpt_image_payload = {
         "outputs": [
             {
@@ -763,11 +787,13 @@ def recompose_ad_from_campaign(
                     "gpt_generated_logo_count": 0,
                     "internal_leak_count": leak_count,
                     "background_asset_id": str(base_asset.id),
+                    "visual_layout_director": vld_report,
+                    "layout_plan": vld.layout_plan.to_dict(),
                 },
             }
         ],
         "provider_call_count": 0,
-        "brief": {"design_plan": design_plan_to_dict(design_plan)},
+        "brief": {"design_plan": design_plan_to_dict(design_plan), "layout_plan": vld.layout_plan.to_dict()},
     }
 
     return CreativeDirectorGenerateAdResponse(

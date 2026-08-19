@@ -1,7 +1,7 @@
-"""Art Direction Plan → OS Final Composition fidelity.
+"""Art Direction utilities + backward-compatible OS composition entry points.
 
-Enriches the shared Design Plan with translator decisions: rich headline runs,
-three feature callouts, localized scrims, composition families, background-aware placement.
+Design decisions moved to Visual Layout Director (`visual_layout_director.py`).
+This module keeps headline runs, leak guards, and thin wrappers for legacy callers.
 Does not change Creative Director brief logic or GPT Image clean canvas rules.
 """
 
@@ -335,99 +335,27 @@ def enrich_os_composition_plan(
     has_investhome_logo: bool = False,
     include_slogan: bool = True,
 ) -> GptImageDesignPlan:
-    """Apply translator typography + feature fidelity onto the OS composition plan."""
-    cw, ch = plan.canvas_width, plan.canvas_height
-    callouts_raw = str(texts.get("supporting_callouts") or "")
-    callouts = [x.strip() for x in callouts_raw.split("|") if x.strip()]
-    if not callouts and lifestyle:
-        callouts = [x.strip() for x in str(texts.get("supporting") or "").split("·") if x.strip()]
-    feature_count = len(callouts)
+    """Delegate to Visual Layout Director — OS Renderer applies the returned plan only."""
+    from investhome_api.services.gpt_image_design.visual_layout_director import (
+        layout_plan_to_design_plan,
+        plan_layout,
+    )
 
-    family = choose_os_composition_family(
+    if not background_bytes:
+        return apply_visual_quality_guard(plan)
+
+    layout = plan_layout(
+        background_bytes=background_bytes,
+        canvas_width=plan.canvas_width,
+        canvas_height=plan.canvas_height,
+        texts=texts,
+        art_direction=art_direction,
         lifestyle=lifestyle,
-        feature_count=feature_count,
-        has_price=bool(str(texts.get("offer_price") or "").strip()),
-        instruction=str(texts.get("headline") or ""),
-        art_direction_variation=plan.variation,
+        has_project_logo=has_project_logo,
+        has_investhome_logo=has_investhome_logo,
+        include_slogan=include_slogan,
     )
-
-    text_ground, type_x, type_y = analyze_background_placement(
-        background_bytes,
-        canvas_width=cw,
-        canvas_height=ch,
-        preferred=plan.negative_space or "left-upper",
-    )
-
-    if lifestyle and feature_count >= 3 and family == "feature_story":
-        recipe = _feature_story_recipe(cw, ch, type_x=type_x, type_y=type_y, text_ground=text_ground)
-        layers = list(recipe["layers"])
-    else:
-        recipe = {}
-        layers = list(plan.layers)
-
-    kept: list[DesignPlanLayer] = []
-    for layer in layers:
-        x, y, w, h = _clamp_box(layer.x, layer.y, layer.width, layer.height, cw, ch)
-        layer.x, layer.y, layer.width, layer.height = x, y, w, h
-        if layer.content_slot == "project_logo" and not has_project_logo:
-            continue
-        if layer.content_slot == "investhome_logo" and not has_investhome_logo:
-            continue
-        if layer.content_slot == "slogan" and not include_slogan:
-            continue
-        if layer.content_slot == "subhead" and lifestyle and feature_count >= 3:
-            continue
-        kept.append(layer)
-
-    headline = str(texts.get("headline") or "").strip()
-    emphasis = []
-    if isinstance(art_direction, dict):
-        emphasis = list(art_direction.get("emphasis_words") or [])
-    if not emphasis and headline:
-        words = [w.strip(",.") for w in headline.split() if w.strip()]
-        if len(words) >= 2:
-            emphasis = [words[-1]]
-
-    breaks = decide_headline_line_breaks(
-        headline,
-        typography_scale=str(recipe.get("typography_scale") or plan.typography_scale),
-        composition_type=family,
-    )
-
-    enriched = replace(
-        plan,
-        variation=family,
-        label=_FAMILY_LABELS.get(family, family.upper()),
-        composition_type=_FAMILY_LABELS.get(family, family.upper()),
-        text_ground=str(recipe.get("text_ground") or plan.text_ground or text_ground),
-        visual_focal_point=str(recipe.get("visual_focal_point") or plan.visual_focal_point),
-        negative_space=str(recipe.get("negative_space") or plan.negative_space),
-        headline_line_breaks=breaks,
-        layers=kept,
-        groups=list(recipe.get("groups") or plan.groups),
-        content_zone=recipe.get("content_zone") or plan.content_zone,
-        needs_scrim=bool(recipe.get("needs_scrim", plan.needs_scrim)),
-        art_notes=list(recipe.get("art_notes") or plan.art_notes),
-    )
-
-    for layer in enriched.layers:
-        if layer.id == "text-headline":
-            layer.text_runs = build_headline_runs(
-                headline,
-                emphasis_words=emphasis,
-                plan=enriched,
-            )
-        if layer.content_slot == "feature_1" and len(callouts) > 0:
-            layer.static_content = callouts[0]
-        if layer.content_slot == "feature_2" and len(callouts) > 1:
-            layer.static_content = callouts[1]
-        if layer.content_slot == "feature_3" and len(callouts) > 2:
-            layer.static_content = callouts[2]
-
-    if recipe.get("localized_scrim_only"):
-        enriched = replace(enriched, needs_scrim=True, localized_scrim_only=True)
-
-    return apply_visual_quality_guard(enriched)
+    return layout_plan_to_design_plan(layout, texts=texts)
 
 
 def build_os_composition_plan(

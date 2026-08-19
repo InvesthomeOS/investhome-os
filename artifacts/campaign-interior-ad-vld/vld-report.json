@@ -1,0 +1,116 @@
+{
+  "campaign_id": "ec3021d7-3d2f-4eca-bd75-e747571e1bb9",
+  "background_asset_id": "524ba26a-c941-4c46-abd8-fe97f37242cc",
+  "final_asset_id": "afbbc21b-72aa-4850-bc6e-eb89a9dfa9fe",
+  "composition_family": "FEATURE STORY",
+  "background_visual_analysis": "PASS",
+  "protected_zones_respected": "PASS",
+  "headline_avoids_focal_objects": "PASS",
+  "logo_placement": "PASS",
+  "features_readable": "PASS",
+  "cta_visible": "PASS",
+  "large_panels_count": 0,
+  "internal_text_count": 0,
+  "fake_logo_count": 0,
+  "gpt_text_count": 0,
+  "gpt_image_call_count": 0,
+  "layout_passes": 1,
+  "editable_layers": [
+    "logo-project",
+    "text-headline",
+    "shape-divider",
+    "feature-1",
+    "shape-feature-1",
+    "feature-2",
+    "shape-feature-2",
+    "feature-3",
+    "shape-feature-3",
+    "cta-primary",
+    "text-slogan"
+  ],
+  "editable_layers_pass": "PASS",
+  "visual_layout_director_mode": "vision",
+  "visual_review_status": "READY FOR USER VISUAL REVIEW",
+  "provider_call_count": 0,
+  "qa_pass": true,
+  "qa_issues": [],
+  "analysis": {
+    "visual_focus": "center with coffee table and TV",
+    "negative_spaces": [
+      {
+        "region": "upper left corner",
+        "x": 0,
+        "y": 0,
+        "width": 540,
+        "height": 675
+      },
+      {
+        "region": "upper right corner",
+        "x": 540,
+        "y": 0,
+        "width": 540,
+        "height": 675
+      }
+    ],
+    "protected_zones": [
+      {
+        "x": 400,
+        "y": 0,
+        "width": 280,
+        "height": 200,
+        "label": "pendant lights"
+      },
+      {
+        "x": 340,
+        "y": 400,
+        "width": 400,
+        "height": 250,
+        "label": "TV"
+      },
+      {
+        "x": 300,
+        "y": 700,
+        "width": 480,
+        "height": 300,
+        "label": "coffee table"
+      },
+      {
+        "x": 50,
+        "y": 600,
+        "width": 250,
+        "height": 300,
+        "label": "chair"
+      },
+      {
+        "x": 800,
+        "y": 500,
+        "width": 200,
+        "height": 400,
+        "label": "plant"
+      }
+    ],
+    "contrast_zones": [
+      {
+        "x": 0,
+        "y": 0,
+        "width": 1080,
+        "height": 675,
+        "ground": "light"
+      },
+      {
+        "x": 0,
+        "y": 675,
+        "width": 1080,
+        "height": 675,
+        "ground": "dark"
+      }
+    ],
+    "text_ground": "light",
+    "light_direction": "left",
+    "weight_center": {
+      "x": 540,
+      "y": 675
+    },
+    "mode": "vision"
+  }
+}
