@@ -184,6 +184,9 @@ describe('Finished-ad sole IMAGE hydrate helper', () => {
     assert.match(persistence, /production_mode === 'finished_ad'/);
     assert.match(persistence, /creative_director_generate_ad/);
     assert.match(persistence, /img-finished-ad/);
+    assert.match(persistence, /isFinishedAdSocialPost/);
+    assert.match(persistence, /Finished ads bake copy into the raster/);
+    assert.match(persistence, /Prefer local finished-ad/);
     // createDefaultElements only for non-finishedAd hasCopy path
     const parseFn = persistence.slice(persistence.indexOf('export function parseSocialPost'));
     assert.match(parseFn, /finishedAd/);
@@ -191,6 +194,215 @@ describe('Finished-ad sole IMAGE hydrate helper', () => {
       parseFn.includes('createDefaultElements') === true,
       'legacy default elements still exist for non-finished posts',
     );
+  });
+});
+
+const FINAL_ASSET = 'dc339503-dd7f-4a2a-bece-17691aadf552';
+const INTERIOR_ASSET = 'caf8eb97-c767-4aa1-841b-759cf3500062';
+const PLACEHOLDER_HEADLINE = 'New social post';
+
+function isFinishedAdSocialPost(post) {
+  const meta = post?.generationMeta && typeof post.generationMeta === 'object' ? post.generationMeta : null;
+  return meta?.production_mode === 'finished_ad' || meta?.generated_by === 'creative_director_generate_ad';
+}
+
+function isInFlightGenerationPost(post) {
+  return post?.generationLifecycle === 'creating' || post?.generationLifecycle === 'generating';
+}
+
+function isCompletedGeneratedPost(post) {
+  if (!post || isInFlightGenerationPost(post) || post.generationLifecycle === 'error') return false;
+  const meta = post.generationMeta && typeof post.generationMeta === 'object' ? post.generationMeta : null;
+  const hasCover = Boolean(post.coverAssetId);
+  if (isFinishedAdSocialPost(post) && hasCover) return true;
+  const headline = String(post.headline || '').trim();
+  if (!headline || headline === PLACEHOLDER_HEADLINE) return false;
+  return Boolean(meta?.content_package || post.creativePlan || post.compositionBlueprint);
+}
+
+function isPlaceholderSocialPost(post) {
+  if (!post) return false;
+  if (isInFlightGenerationPost(post)) return true;
+  if (isFinishedAdSocialPost(post)) return false;
+  return String(post.headline || '').trim() === PLACEHOLDER_HEADLINE && !post.coverAssetId;
+}
+
+function mergeHydratedPostsWithLocal(input) {
+  const incoming = input.incoming.filter((p) => !input.deletedIds.has(p.id));
+  const local = input.local.filter((p) => !input.deletedIds.has(p.id));
+  const localInFlight = local.filter((p) => isInFlightGenerationPost(p));
+  const localCompleted = local.filter((p) => isCompletedGeneratedPost(p));
+
+  if (input.generating || localInFlight.length) {
+    return { posts: local, selectedPostId: input.localSelectedPostId ?? local[0]?.id ?? null };
+  }
+  if (!incoming.length && localCompleted.length) {
+    return {
+      posts: localCompleted,
+      selectedPostId:
+        (input.localSelectedPostId && localCompleted.some((p) => p.id === input.localSelectedPostId)
+          ? input.localSelectedPostId
+          : localCompleted[0]?.id) ?? null,
+    };
+  }
+  const incomingIds = new Set(incoming.map((p) => p.id));
+  const extraLocal = localCompleted.filter((p) => !incomingIds.has(p.id));
+  const merged = incoming.map((post) => {
+    const existing = local.find((l) => l.id === post.id);
+    if (existing && isFinishedAdSocialPost(existing) && !isFinishedAdSocialPost(post)) return existing;
+    if (existing && isCompletedGeneratedPost(existing) && !isCompletedGeneratedPost(post)) return existing;
+    if (existing && isPlaceholderSocialPost(post) && !isPlaceholderSocialPost(existing)) return existing;
+    return post;
+  });
+  const posts = [...merged, ...extraLocal];
+  const localSelectedProtected =
+    Boolean(
+      input.localSelectedPostId &&
+        local.some(
+          (p) =>
+            p.id === input.localSelectedPostId &&
+            (isFinishedAdSocialPost(p) || isCompletedGeneratedPost(p)),
+        ),
+    ) && posts.some((p) => p.id === input.localSelectedPostId);
+  const selected =
+    (localSelectedProtected ? input.localSelectedPostId : null) ??
+    (input.incomingSelectedPostId && posts.some((p) => p.id === input.incomingSelectedPostId)
+      ? input.incomingSelectedPostId
+      : null) ??
+    (input.localSelectedPostId && posts.some((p) => p.id === input.localSelectedPostId)
+      ? input.localSelectedPostId
+      : null) ??
+    posts[0]?.id ??
+    null;
+  return { posts, selectedPostId: selected };
+}
+
+function coerceFinishedAdElements(rawElements, coverAssetId, width, height) {
+  const assetId = coverAssetId || null;
+  if (!assetId) return [];
+  return [
+    {
+      id: 'img-finished-ad',
+      type: 'IMAGE',
+      role: 'background',
+      assetId,
+      x: 0,
+      y: 0,
+      width,
+      height,
+      zIndex: 0,
+    },
+  ];
+}
+
+describe('Finished-ad hydrate resists draft restore placeholders', () => {
+  const finishedAd = {
+    id: 'post-finished-1',
+    name: 'Finished Ad',
+    headline: '',
+    coverAssetId: FINAL_ASSET,
+    generationLifecycle: 'ready',
+    generationMeta: {
+      production_mode: 'finished_ad',
+      generated_by: 'creative_director_generate_ad',
+      gpt_image: { local_asset_id: FINAL_ASSET, editable_layers: false },
+    },
+    elements: [
+      {
+        id: 'img-finished-ad',
+        type: 'IMAGE',
+        role: 'background',
+        assetId: FINAL_ASSET,
+        x: 0,
+        y: 0,
+        width: 1080,
+        height: 1350,
+        zIndex: 0,
+      },
+    ],
+  };
+
+  const stalePlaceholder = {
+    id: 'p-stale',
+    headline: PLACEHOLDER_HEADLINE,
+    coverAssetId: INTERIOR_ASSET,
+    generationLifecycle: 'ready',
+    generationMeta: null,
+    elements: [
+      { id: 'headline-1', type: 'TEXT', role: 'headline', content: PLACEHOLDER_HEADLINE },
+      { id: 'cta-1', type: 'BUTTON', label: 'Özel tur planlayın' },
+    ],
+  };
+
+  it('finished-ad hydrate is exactly 1 IMAGE with final asset id', () => {
+    assert.equal(finishedAd.elements.length, 1);
+    assert.equal(finishedAd.elements[0].type, 'IMAGE');
+    assert.equal(finishedAd.elements[0].assetId, FINAL_ASSET);
+    assert.equal(finishedAd.elements.filter((e) => e.type === 'TEXT').length, 0);
+    assert.equal(finishedAd.elements.filter((e) => e.type === 'BUTTON').length, 0);
+    assert.equal(isCompletedGeneratedPost(finishedAd), true);
+    assert.equal(isPlaceholderSocialPost(finishedAd), false);
+  });
+
+  it('coerceFinishedAdElements strips rebound TEXT/CTA placeholders', () => {
+    const polluted = [
+      { id: 'headline-1', type: 'TEXT', content: PLACEHOLDER_HEADLINE },
+      { id: 'cta-1', type: 'BUTTON', label: 'Özel tur planlayın' },
+      { id: 'img-x', type: 'IMAGE', assetId: INTERIOR_ASSET },
+    ];
+    const cleaned = coerceFinishedAdElements(polluted, FINAL_ASSET, 1080, 1350);
+    assert.equal(cleaned.length, 1);
+    assert.equal(cleaned[0].type, 'IMAGE');
+    assert.equal(cleaned[0].assetId, FINAL_ASSET);
+    assert.equal(cleaned.filter((e) => e.type === 'TEXT').length, 0);
+    assert.equal(cleaned.filter((e) => e.type === 'BUTTON').length, 0);
+  });
+
+  it('stale draft restore does not overwrite finished-ad or steal selection', () => {
+    const merged = mergeHydratedPostsWithLocal({
+      incoming: [stalePlaceholder],
+      local: [finishedAd],
+      deletedIds: new Set(),
+      generating: false,
+      incomingSelectedPostId: 'p-stale',
+      localSelectedPostId: 'post-finished-1',
+    });
+    assert.equal(merged.selectedPostId, 'post-finished-1');
+    const active = merged.posts.find((p) => p.id === merged.selectedPostId);
+    assert.ok(active);
+    assert.equal(isFinishedAdSocialPost(active), true);
+    assert.equal(active.coverAssetId, FINAL_ASSET);
+    assert.equal(active.elements.length, 1);
+    assert.equal(active.elements[0].type, 'IMAGE');
+    assert.equal(active.elements[0].assetId, FINAL_ASSET);
+    assert.equal(active.elements.filter((e) => e.type === 'TEXT').length, 0);
+    assert.equal(active.elements.filter((e) => e.type === 'BUTTON').length, 0);
+    assert.equal(active.headline, '');
+  });
+
+  it('same-id stale placeholder cannot replace finished-ad canvas', () => {
+    const polluted = {
+      ...finishedAd,
+      headline: PLACEHOLDER_HEADLINE,
+      coverAssetId: INTERIOR_ASSET,
+      generationMeta: null,
+      elements: [
+        { id: 'headline-1', type: 'TEXT', content: PLACEHOLDER_HEADLINE },
+        { id: 'cta-1', type: 'BUTTON', label: 'Özel tur planlayın' },
+      ],
+    };
+    const merged = mergeHydratedPostsWithLocal({
+      incoming: [polluted],
+      local: [finishedAd],
+      deletedIds: new Set(),
+      generating: false,
+      incomingSelectedPostId: 'post-finished-1',
+      localSelectedPostId: 'post-finished-1',
+    });
+    assert.equal(merged.posts[0].coverAssetId, FINAL_ASSET);
+    assert.equal(isFinishedAdSocialPost(merged.posts[0]), true);
+    assert.equal(merged.posts[0].elements.length, 1);
+    assert.equal(merged.posts[0].elements[0].assetId, FINAL_ASSET);
   });
 });
 

@@ -452,6 +452,9 @@ export function SocialMediaBuilderWorkspace() {
       }
       if (active) setFormatPreset(active.formatPreset);
       if (typeof draft?.brandLogo === 'boolean') setBrandLogo(draft.brandLogo);
+      if (active && isFinishedAdCanvasPost(active)) {
+        setBrandLogo(false);
+      }
       if (Array.isArray(draft?.platforms) && draft.platforms.length) {
         setPlatforms(
           new Set(

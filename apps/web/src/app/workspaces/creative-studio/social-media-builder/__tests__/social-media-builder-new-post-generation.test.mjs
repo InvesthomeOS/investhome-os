@@ -38,13 +38,20 @@ function isPlaceholderSocialPost(post) {
 
 function isCompletedGeneratedPost(post) {
   if (!post || isInFlightGenerationPost(post) || post.generationLifecycle === 'error') return false;
+  const meta = post.generationMeta && typeof post.generationMeta === 'object' ? post.generationMeta : null;
+  const hasCover = Boolean(post.coverAssetId);
+  if (
+    hasCover &&
+    meta &&
+    (meta.production_mode === 'finished_ad' || meta.generated_by === 'creative_director_generate_ad')
+  ) {
+    return true;
+  }
   const headline = String(post.headline || '').trim();
   if (!headline || headline === PLACEHOLDER_HEADLINE) return false;
-  const meta = post.generationMeta && typeof post.generationMeta === 'object' ? post.generationMeta : null;
   const hasPackage = Boolean(meta?.content_package);
   const hasPlan = Boolean(post.creativePlan || meta?.creative_plan);
   const hasBlueprint = Boolean(post.compositionBlueprint || meta?.composition_blueprint);
-  const hasCover = Boolean(post.coverAssetId);
   const hasText = (post.elements || []).some(
     (el) => el.type === 'TEXT' && typeof el.content === 'string' && el.content.trim(),
   );

@@ -520,18 +520,33 @@ export function parseSocialPost(
         ? body.cover_asset_id
         : null;
   const coverId = coverRaw && isMediaAssetUuid(coverRaw) ? coverRaw.trim() : null;
+  const gptLocal =
+    generationMeta?.gpt_image &&
+    typeof generationMeta.gpt_image === 'object' &&
+    !Array.isArray(generationMeta.gpt_image)
+      ? (generationMeta.gpt_image as Record<string, unknown>).local_asset_id
+      : null;
+  const finishedAssetId =
+    (typeof gptLocal === 'string' && isMediaAssetUuid(gptLocal) ? gptLocal.trim() : null) ||
+    coverId ||
+    (() => {
+      const img = parsedElements.find(
+        (el): el is SocialImageElement =>
+          el.type === 'IMAGE' && Boolean(el.assetId && isMediaAssetUuid(el.assetId)),
+      );
+      return img?.assetId && isMediaAssetUuid(img.assetId) ? img.assetId : null;
+    })();
   const hasCopy = Boolean(headline.trim() || caption.trim());
-  // Finished-ad: never synthesize default TEXT/CTA/IH stub layers from headline.
+  // Finished-ad: always exactly one full-bleed IMAGE — strip any rebound TEXT/CTA placeholders.
   const elements = ensureUniqueElementIds(
-    parsedElements.length > 0
-      ? parsedElements
-      : finishedAd && coverId
+    finishedAd
+      ? finishedAssetId
         ? [
             {
               id: 'img-finished-ad',
               type: 'IMAGE' as const,
               role: 'background' as const,
-              assetId: coverId,
+              assetId: finishedAssetId,
               x: 0,
               y: 0,
               width,
@@ -539,11 +554,12 @@ export function parseSocialPost(
               zIndex: 0,
             },
           ]
-        : finishedAd
-          ? []
-          : hasCopy
-            ? createDefaultElements(width, height, { headline, caption })
-            : [],
+        : []
+      : parsedElements.length > 0
+        ? parsedElements
+        : hasCopy
+          ? createDefaultElements(width, height, { headline, caption })
+          : [],
   );
   const lifecycleRaw = body.generationLifecycle ?? body.generation_lifecycle;
   const generationLifecycle: SocialPostGenerationLifecycle | null =
@@ -573,7 +589,7 @@ export function parseSocialPost(
     headline: finishedAd ? '' : headlineFromElements(elements) || headline,
     description: typeof body.description === 'string' ? body.description : '',
     caption: finishedAd ? '' : captionFromElements(elements) || caption,
-    coverAssetId: coverId,
+    coverAssetId: finishedAd ? finishedAssetId || coverId : coverId,
     linkedProjectId:
       typeof linkedRaw === 'string' && linkedRaw.trim() ? linkedRaw.trim() : null,
     elements,
@@ -680,9 +696,21 @@ export function isInFlightGenerationPost(post: SocialPost | null | undefined): b
   return post.generationLifecycle === 'creating' || post.generationLifecycle === 'generating';
 }
 
+/** Finished-ad raster posts: empty headline by design — must still beat stale draft restore. */
+export function isFinishedAdSocialPost(post: SocialPost | null | undefined): boolean {
+  if (!post) return false;
+  const meta =
+    post.generationMeta && typeof post.generationMeta === 'object' ? post.generationMeta : null;
+  return (
+    meta?.production_mode === 'finished_ad' ||
+    meta?.generated_by === 'creative_director_generate_ad'
+  );
+}
+
 export function isPlaceholderSocialPost(post: SocialPost | null | undefined): boolean {
   if (!post) return false;
   if (isInFlightGenerationPost(post)) return true;
+  if (isFinishedAdSocialPost(post)) return false;
   const headline = (headlineFromElements(post.elements) || post.headline || '').trim();
   const hasGeneratedMeta = Boolean(
     post.generationMeta &&
@@ -694,13 +722,15 @@ export function isPlaceholderSocialPost(post: SocialPost | null | undefined): bo
 
 export function isCompletedGeneratedPost(post: SocialPost | null | undefined): boolean {
   if (!post || isInFlightGenerationPost(post) || post.generationLifecycle === 'error') return false;
+  const meta = post.generationMeta && typeof post.generationMeta === 'object' ? post.generationMeta : null;
+  const hasCover = Boolean(post.coverAssetId && isMediaAssetUuid(post.coverAssetId));
+  // Finished ads bake copy into the raster — empty headline must still count as completed.
+  if (isFinishedAdSocialPost(post) && hasCover) return true;
   const headline = (headlineFromElements(post.elements) || post.headline || '').trim();
   if (!headline || headline === PLACEHOLDER_HEADLINE) return false;
-  const meta = post.generationMeta && typeof post.generationMeta === 'object' ? post.generationMeta : null;
   const hasPackage = Boolean(meta?.content_package);
   const hasPlan = Boolean(post.creativePlan || meta?.creative_plan);
   const hasBlueprint = Boolean(post.compositionBlueprint || meta?.composition_blueprint);
-  const hasCover = Boolean(post.coverAssetId && isMediaAssetUuid(post.coverAssetId));
   const hasText = post.elements.some(
     (el) => el.type === 'TEXT' && typeof el.content === 'string' && el.content.trim().length > 0,
   );
@@ -796,6 +826,9 @@ export function mergeHydratedPostsWithLocal(input: {
   const extraLocal = localCompleted.filter((p) => !incomingIds.has(p.id));
   const merged = incoming.map((post) => {
     const existing = local.find((l) => l.id === post.id);
+    if (existing && isFinishedAdSocialPost(existing) && !isFinishedAdSocialPost(post)) {
+      return existing;
+    }
     if (existing && isCompletedGeneratedPost(existing) && !isCompletedGeneratedPost(post)) {
       return existing;
     }
@@ -805,7 +838,19 @@ export function mergeHydratedPostsWithLocal(input: {
     return post;
   });
   const posts = [...merged, ...extraLocal];
+  // Prefer local finished-ad / completed selection over stale draft selectedPostId
+  // (otherwise "New social post" siblings steal the canvas after Oluştur).
+  const localSelectedProtected =
+    Boolean(
+      input.localSelectedPostId &&
+        local.some(
+          (p) =>
+            p.id === input.localSelectedPostId &&
+            (isFinishedAdSocialPost(p) || isCompletedGeneratedPost(p)),
+        ),
+    ) && posts.some((p) => p.id === input.localSelectedPostId);
   const selected =
+    (localSelectedProtected ? input.localSelectedPostId! : null) ??
     (input.incomingSelectedPostId && posts.some((p) => p.id === input.incomingSelectedPostId)
       ? input.incomingSelectedPostId
       : null) ??
