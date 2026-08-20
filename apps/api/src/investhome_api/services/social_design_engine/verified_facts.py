@@ -17,6 +17,7 @@ from investhome_api.services.social_design_engine.campaign_intent import (
     CampaignIntentKind,
     CampaignIntentResult,
     ExplicitFactRequest,
+    _mentions_profit_claim,
 )
 from investhome_api.services.social_design_engine.fact_governance import (
     CampaignContext,
@@ -400,7 +401,8 @@ def _infer_extracted_key(excerpt: str) -> str:
         return "min_investment"
     if any(k in t for k in ("kira", "rental")):
         return "rental_income"
-    if any(k in t for k in ("profit", "kar", "kâr")):
+    # Standalone profit/kâr only — never substring of "öne çıkar" / "karakter".
+    if "projected profit" in t or "projected_profit" in t or _mentions_profit_claim(t):
         return "profit"
     if any(k in t for k in ("ltv", "leverage", "financ")):
         return "financing"

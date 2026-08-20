@@ -133,6 +133,32 @@ def _detect_language(instruction: str, language: str | None) -> str:
     return "tr" if re.search(r"[çğıöşü]", instruction or "") else "en"
 
 
+# Verb family "öne çıkar / çıkarmak / çıkaran" must NEVER count as Profit (kâr).
+_CIKAR_FAMILY_RE = re.compile(
+    r"\b(?:one|öne)?\s*(?:plana\s+)?cikar\w*",
+    re.I,
+)
+_PROFIT_FALSE_FRIENDS_RE = re.compile(
+    r"\bkarakter\w*|\bkare\b|\bkart\w*",
+    re.I,
+)
+# Standalone profit / kâr only — not substring of çıkar/karakter.
+_PROFIT_MEANING_RE = re.compile(
+    r"(?<![a-z])(?:profit|projected\s+profit)(?![a-z])"
+    r"|(?<![a-z])net\s+kar\w*"
+    r"|(?<![a-z])kar\s+(?:marj|pay|oran)\w*"
+    r"|(?<![a-z])kar(?![a-z])",
+    re.I,
+)
+
+
+def _mentions_profit_claim(normalized: str) -> bool:
+    """True only for meaning-based Profit/kâr — not 'öne çıkar' / 'karakter'."""
+    cleaned = _CIKAR_FAMILY_RE.sub(" ", normalized or "")
+    cleaned = _PROFIT_FALSE_FRIENDS_RE.sub(" ", cleaned)
+    return bool(_PROFIT_MEANING_RE.search(cleaned))
+
+
 def detect_explicit_financial_requests(instruction: str) -> list[ExplicitFactRequest]:
     """Detect when the user requires a specific financial figure in the creative."""
     raw = instruction or ""
@@ -152,12 +178,20 @@ def detect_explicit_financial_requests(instruction: str) -> list[ExplicitFactReq
                 r"öne\s+çıkar.{0,24}irr",
                 r"irr.{0,24}öne\s+çıkar",
                 r"irr.{0,24}one\s+cikar",
+                r"one\s+cikar.{0,24}irr",
             ),
         ),
         (
             "roi",
             "ROI",
-            (r"\broi\b", r"roi\s*oran", r"highlight\s+(?:the\s+)?roi", r"roi.{0,24}öne\s+çıkar"),
+            (
+                r"\broi\b",
+                r"roi\s*oran",
+                r"highlight\s+(?:the\s+)?roi",
+                r"roi.{0,24}öne\s+çıkar",
+                r"roi.{0,24}one\s+cikar",
+                r"one\s+cikar.{0,24}roi",
+            ),
         ),
         (
             "target_return",
@@ -188,11 +222,6 @@ def detect_explicit_financial_requests(instruction: str) -> list[ExplicitFactReq
             "appreciation",
             "Appreciation",
             (r"\bappreciation\b", r"değer\s+art[ıi][sş]", r"deger\s+artis"),
-        ),
-        (
-            "profit",
-            "Profit",
-            (r"\bprofit\b", r"\bk[aâ]r\b", r"projected\s+profit"),
         ),
         (
             "financing",
@@ -247,6 +276,14 @@ def detect_explicit_financial_requests(instruction: str) -> list[ExplicitFactReq
         if not required and key not in {"irr", "roi"}:
             continue
         found.append(ExplicitFactRequest(key=key, label=label, required=required, raw_span=span))
+
+    # Profit / kâr — meaning-based only (never from "öne çıkar" / "çıkarmak").
+    if _mentions_profit_claim(t):
+        required = emphasize or any(k in t for k in ("oran", "rate", "rakam", "metric", "metrik", "%", "net"))
+        if required:
+            found.append(
+                ExplicitFactRequest(key="profit", label="Profit", required=True, raw_span="profit")
+            )
 
     # Dedup by key
     seen: set[str] = set()

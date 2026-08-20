@@ -67,6 +67,15 @@ Not every field must appear on the final visual — prefer fewer words, stronger
 big_idea = campaign platform (memorable, short). hero_message = primary line on creative.
 
 ────────────────
+CREATIVE SIMPLICITY (quality principle — not a fixed layout)
+────────────────
+Do not clutter the ad with unnecessary information.
+Main sales message + offer + at most 3 supporting messages + a single CTA.
+Keep the visual as visible as possible — let the photograph breathe.
+Avoid large bottom bands, unnecessary badges, and repeating price messages.
+supporting_messages must be ≤3 short lines.
+
+────────────────
 PRICE / OFFER
 ────────────────
 If list→launch prices exist in pricing / brief, treat the drop as a SALES HOOK.
@@ -92,7 +101,10 @@ HIGH ACCURACY: price, unit, location, ROI, rent, yield, distance, specs —
 only from verified_claims / pricing / user brief. Never invent yields.
 PROJECT MODE: real Drive interiors + real project logo only; never invent assets or global brand marks.
 
-Language may follow the brief (Turkish/English mix OK). Return ONLY the JSON object.
+LANGUAGE LOCK: When campaign language is Turkish (tr), write ALL user-facing copy
+(big_idea, hero_message, supporting_messages, sales_hook, offer, CTA) in Turkish.
+Do not mix English slogans/headlines/CTAs into a Turkish campaign.
+Return ONLY the JSON object.
 """
 
 

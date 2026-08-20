@@ -25,7 +25,11 @@ from investhome_api.services.creative_director.art_direction_translator import (
 )
 from investhome_api.services.creative_director.production_brief import (
     build_production_brief,
+    lock_copy_to_language,
+    lock_supporting_messages,
+    looks_english_ad_copy,
     render_finished_ad_production_prompt,
+    verify_logo_lock,
 )
 from investhome_api.services.creative_director.provider_router import (
     assert_image_provider_available,
@@ -101,7 +105,17 @@ def resolve_locked_assets(ctx: dict[str, Any]) -> tuple[UUID, UUID, dict[str, An
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Campaign Context has no locked project logo. Cannot generate ad.",
         )
-    return interior_id, logo_id, _as_dict(interior_meta), _as_dict(logo_meta)
+    logo_dict = _as_dict(logo_meta)
+    logo_lock = verify_logo_lock(logo_dict)
+    if logo_lock.get("status") != "pass":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Project logo Asset ID missing or unverified. AI must not invent logos.",
+        )
+    logo_dict["logo_locked"] = True
+    logo_dict["ai_must_not_draw_logo"] = True
+    logo_dict["no_duplicate_logos"] = True
+    return interior_id, logo_id, _as_dict(interior_meta), logo_dict
 
 
 def _brief_bans_unit_and_price(original_brief: str) -> bool:
@@ -227,18 +241,22 @@ def adapt_final_turkish_texts(
     value_src = str(
         campaign_copy.get("value_proposition") or strategy.get("value_proposition") or ""
     ).strip()
-    support_msgs = _as_list(
-        campaign_copy.get("supporting_messages") or strategy.get("supporting_messages")
+    support_msgs = lock_supporting_messages(
+        _as_list(campaign_copy.get("supporting_messages") or strategy.get("supporting_messages")),
+        language=lang,
+        max_items=3,
     )
 
     if lifestyle:
-        headline = big_idea or hero or "Eviniz, Sığınak"
-        hero_tr = hero or headline
-        sales_line = sales_hook or hero_tr
-        callouts = [str(x).strip() for x in support_msgs[:3] if str(x).strip()]
+        headline = lock_copy_to_language(
+            big_idea or hero, language=lang, fallback="Eviniz, Sığınak"
+        ) or "Eviniz, Sığınak"
+        hero_tr = lock_copy_to_language(hero, language=lang, fallback=headline) or headline
+        sales_line = lock_copy_to_language(sales_hook, language=lang, fallback=hero_tr) or hero_tr
+        callouts = support_msgs[:3]
         supporting = " · ".join(callouts) if callouts else sales_line
-        cta = cta_src if _has_turkish_chars(cta_src) else "Detayları Keşfet"
-        eyebrow = sales_hook or hero_tr
+        cta = lock_copy_to_language(cta_src, language=lang, fallback="Detayları Keşfet") or "Detayları Keşfet"
+        eyebrow = sales_line
         return {
             "language": lang,
             "big_idea": headline,
@@ -251,7 +269,7 @@ def adapt_final_turkish_texts(
             "offer": "",
             "list_price": "",
             "offer_price": "",
-            "value": value_src if _has_turkish_chars(value_src) else "",
+            "value": lock_copy_to_language(value_src, language=lang, fallback=""),
             "value_badge": "",
             "cta": cta,
             "unit": "",
@@ -284,13 +302,17 @@ def adapt_final_turkish_texts(
                 parts.append("Şık")
             parts.append("Tarihi")
             headline = ". ".join(parts) + "."
-        elif big_idea:
-            headline = big_idea if _has_turkish_chars(big_idea) else hero or big_idea
+        elif big_idea and not looks_english_ad_copy(big_idea):
+            headline = big_idea if _has_turkish_chars(big_idea) else (hero if _has_turkish_chars(hero) else "Tarihi karakter. Modern yaşam.")
         else:
-            headline = hero or "Tarihi karakter. Modern yaşam."
+            headline = (
+                hero
+                if _has_turkish_chars(hero) and not looks_english_ad_copy(hero)
+                else "Tarihi karakter. Modern yaşam."
+            )
 
         eyebrow = f"{unit_display} Lansman Fırsatı"
-        if "204" in sales_hook or "launch" in sales_hook.lower() or "lansman" in sales_hook.lower():
+        if "204" in sales_hook or "launch" in sales_hook.lower() or "lansman" in sales_hook.lower() or looks_english_ad_copy(sales_hook):
             sales_line = f"{unit_display} Lansman Fırsatı"
         else:
             sales_line = sales_hook if _has_turkish_chars(sales_hook) else eyebrow
@@ -298,16 +320,16 @@ def adapt_final_turkish_texts(
         supporting = f"{unit_display} Lansman Fırsatı"
         # Price hierarchy + value sit in verified/OS location line for accuracy.
 
-        cta = cta_src if _has_turkish_chars(cta_src) else "Detayları İncele"
-        if any(tok in cta_src.lower() for tok in ("explore", "schedule", "viewing", "details")):
+        cta = lock_copy_to_language(cta_src, language=lang, fallback="Detayları İncele") or "Detayları İncele"
+        if any(tok in cta_src.lower() for tok in ("explore", "schedule", "viewing", "details", "learn more")):
             cta = "Detayları İncele"
 
         hero_tr = (
             hero
-            if _has_turkish_chars(hero)
+            if _has_turkish_chars(hero) and not looks_english_ad_copy(hero)
             else "Tarihi karakterle modern yaşam bir arada."
         )
-        value_tr = value_badge if "lansman" in value_src.lower() or not _has_turkish_chars(value_src) else value_src
+        value_tr = value_badge if looks_english_ad_copy(value_src) or "lansman" in value_src.lower() or not _has_turkish_chars(value_src) else value_src
     else:
         # Language field exists for later EN reuse — this sprint only ships TR.
         headline = big_idea or hero or "History Meets Modernity"
@@ -326,6 +348,7 @@ def adapt_final_turkish_texts(
         "eyebrow": eyebrow,
         "headline": headline,
         "supporting": supporting,
+        "supporting_callouts": "|".join(support_msgs) if lifestyle else "",
         "offer": price_hierarchy,
         "list_price": list_price,
         "offer_price": offer_price,
@@ -485,17 +508,22 @@ def project_asset_lock_summary(
     source_asset_id: UUID | None,
 ) -> dict[str, Any]:
     locked_ok = source_asset_id is not None and source_asset_id == interior_id
+    logo_lock = verify_logo_lock(logo_meta)
     return {
-        "status": "pass" if locked_ok else "fail",
+        "status": "pass" if locked_ok and logo_lock.get("status") == "pass" else "fail",
         "interior_asset_id": str(interior_id),
         "interior_filename": interior_meta.get("filename"),
         "logo_asset_id": str(logo_id),
         "logo_filename": logo_meta.get("filename"),
+        "logo_locked": bool(logo_lock.get("logo_locked")),
+        "verified_project_logo": bool(logo_lock.get("verified_project_logo")),
         "source_used_asset_id": str(source_asset_id) if source_asset_id else None,
         "interior_architecture_locked": True,
         "logo_os_composited": True,
         "gpt_must_not_invent_interior": True,
         "gpt_must_not_draw_logo": True,
+        "ai_must_not_draw_logo": True,
+        "no_duplicate_logos": True,
     }
 
 
