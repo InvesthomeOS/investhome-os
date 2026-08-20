@@ -88,10 +88,13 @@ def lock_supporting_messages(
 
 
 CREATIVE_SIMPLICITY_PRINCIPLES: tuple[str, ...] = (
+    "ONE AD = ONE PRIMARY MESSAGE.",
     "Do not clutter the ad with unnecessary information.",
     "Use one main sales message + offer + at most 3 supporting messages + a single CTA.",
+    "Default element budget: 1 headline, 0–3 supporting, 1 CTA, 1 logo.",
     "Keep the visual as visible as possible — let the photograph breathe.",
     "Avoid large bottom bands, unnecessary badges, and repeating price messages.",
+    "Premium ≠ more elements. No forced left/bottom panels.",
 )
 
 
@@ -127,8 +130,24 @@ def build_production_brief(
     aspect_ratio: str,
     format_preset: str,
     art_direction: dict[str, Any] | None = None,
+    message_strategy: dict[str, Any] | None = None,
+    design_direction: dict[str, Any] | None = None,
+    simplicity_director: dict[str, Any] | None = None,
+    campaign_intent: str | None = None,
 ) -> dict[str, Any]:
     """Structured production brief for AI image providers (finished-ad mode)."""
+    from investhome_api.services.creative_director.quality_lock.design_direction import (
+        build_design_direction,
+    )
+    from investhome_api.services.creative_director.quality_lock.message_strategy import (
+        build_message_strategy,
+    )
+    from investhome_api.services.creative_director.quality_lock.simplicity import (
+        SimplicityCaps,
+        apply_simplicity_caps,
+        simplicity_caps_for_intent,
+    )
+
     presentation = _as_dict(pricing.get("price_presentation"))
     selected_assets = _as_list(ctx.get("selected_assets"))
     if interior_meta and not any(
@@ -138,10 +157,25 @@ def build_production_brief(
     brand_assets = [logo_meta] if logo_meta else []
     logo_lock = verify_logo_lock(logo_meta)
 
+    intent_raw = (
+        campaign_intent
+        or ctx.get("campaign_intent")
+        or (message_strategy or {}).get("campaign_intent")
+        or ""
+    )
+    intent = str(intent_raw).strip().lower() or "general_awareness"
+    # Preserve legacy max-3 when caller did not supply a quality-lock intent.
+    caps = (
+        simplicity_caps_for_intent(intent)
+        if str(intent_raw or "").strip()
+        else SimplicityCaps()
+    )
+    max_supporting = int((simplicity_director or {}).get("max_supporting") or caps.max_supporting)
+
     supporting = lock_supporting_messages(
         _as_list(campaign_copy.get("supporting_messages") or strategy.get("supporting_messages")),
         language=language,
-        max_items=3,
+        max_items=max_supporting,
     )
     # Prefer language-locked final texts; never fall back to English CD leaks when lang=tr.
     hero = lock_copy_to_language(
@@ -173,17 +207,43 @@ def build_production_brief(
         fallback=str(texts.get("cta") or "Detayları İncele"),
     )
 
+    has_price = bool(presentation.get("list") and presentation.get("offer"))
+    simplicity = simplicity_director or apply_simplicity_caps(
+        supporting_messages=supporting,
+        caps=caps,
+        include_price_block=has_price and intent in {"price_campaign", "sales_offer", "launch"},
+    )
+    msg = message_strategy or build_message_strategy(
+        campaign_intent=intent,
+        strategy=strategy,
+        campaign_copy=campaign_copy,
+        pricing=pricing,
+        texts=texts,
+        art_direction=art_direction,
+    ).to_dict()
+    design = design_direction or build_design_direction(
+        campaign_intent=intent,
+        strategy=strategy,
+        density=str(simplicity.get("density") or caps.density_label),
+        language=language,
+    ).to_dict()
+
     return {
         "objective": strategy.get("objective") or campaign_copy.get("objective"),
+        "campaign_intent": intent,
         "big_idea": big_idea,
         "hero": hero,
         "sales_hook": sales_hook,
         "offer": offer,
         "supporting": supporting,
         "cta": cta,
-        "commercial_priority": _as_list((art_direction or {}).get("commercial_priority")),
-        "visual_hierarchy": _as_list((art_direction or {}).get("visual_hierarchy")),
+        "message_strategy": msg,
+        "commercial_priority": _as_list(msg.get("commercial_priority"))
+        or _as_list((art_direction or {}).get("commercial_priority")),
+        "visual_hierarchy": _as_list(msg.get("information_hierarchy"))
+        or _as_list((art_direction or {}).get("visual_hierarchy")),
         "visual_direction": strategy.get("visual_direction") or campaign_copy.get("visual_direction"),
+        "design_direction": design,
         "brand_direction": {
             "tone": strategy.get("tone"),
             "color_direction": strategy.get("color_direction"),
@@ -213,18 +273,25 @@ def build_production_brief(
         "asset_lock": {
             "interior_asset_id": interior_meta.get("asset_id"),
             "interior_filename": interior_meta.get("filename"),
+            "hero_role": interior_meta.get("role") or "hero",
+            "selection_score": interior_meta.get("selection_score"),
+            "selection_reason": interior_meta.get("selection_reason"),
             "logo_asset_id": logo_lock.get("logo_asset_id") or logo_meta.get("asset_id"),
             "logo_filename": logo_meta.get("filename"),
             "interior_architecture_locked": True,
+            "project_asset_locked": True,
             "logo_locked": bool(logo_lock.get("logo_locked")),
             "verified_project_logo": bool(logo_lock.get("verified_project_logo")),
             "ai_must_not_draw_logo": True,
             "no_duplicate_logos": True,
+            "no_invented_architecture": True,
         },
         "logo_lock": logo_lock,
         "creative_simplicity": list(CREATIVE_SIMPLICITY_PRINCIPLES),
-        "max_supporting_messages": 3,
+        "simplicity_director": simplicity,
+        "max_supporting_messages": max_supporting,
         "campaign_mode": texts.get("campaign_mode"),
+        "information_density": design.get("information_density") or simplicity.get("density"),
     }
 
 
@@ -256,6 +323,9 @@ def render_finished_ad_production_prompt(
     simplicity = _as_list(production_brief.get("creative_simplicity")) or list(
         CREATIVE_SIMPLICITY_PRINCIPLES
     )
+    design = _as_dict(production_brief.get("design_direction"))
+    msg = _as_dict(production_brief.get("message_strategy"))
+    simplicity_dir = _as_dict(production_brief.get("simplicity_director"))
 
     lines = [
         f"FINISHED PROFESSIONAL INSTAGRAM AD — {production_brief.get('format') or '4:5'} — "
@@ -267,17 +337,37 @@ def render_finished_ad_production_prompt(
         f"- Campaign language is {lang}. All user-visible slogans, headlines, CTAs, and supporting lines MUST be {lang}.",
         "- Do not invent or render English slogans/headlines/CTAs when language is tr.",
         "",
+        "CAMPAIGN INTENT:",
+        f"- {production_brief.get('campaign_intent') or 'general_awareness'}",
+        f"- Primary focus: {msg.get('primary_message') or production_brief.get('hero')}",
+        f"- Emotional angle: {msg.get('emotional_angle') or ''}",
+        "",
         "CREATIVE DIRECTOR PRODUCTION BRIEF:",
         f"- Objective: {production_brief.get('objective')}",
         f"- Big Idea: {production_brief.get('big_idea')}",
         f"- Hero: {production_brief.get('hero')}",
         f"- Sales Hook: {production_brief.get('sales_hook')}",
         f"- Offer: {production_brief.get('offer')}",
-        f"- Supporting (max 3): {'; '.join(str(x) for x in (production_brief.get('supporting') or [])[:3])}",
+        f"- Supporting (max {production_brief.get('max_supporting_messages') or 3}): "
+        f"{' · '.join(str(x) for x in (production_brief.get('supporting') or [])[:3])}",
         f"- CTA: {production_brief.get('cta')}",
+        "",
+        "DESIGN DIRECTION (creative freedom — no fixed panels):",
+        f"- Visual mood: {design.get('visual_mood')}",
+        f"- Hierarchy: {design.get('hierarchy')}",
+        f"- Typography character: {design.get('typography_character')}",
+        f"- Composition: {design.get('composition_direction')}",
+        f"- Image treatment: {design.get('image_treatment')}",
+        f"- Contrast: {design.get('contrast')}",
+        f"- Brand presence: {design.get('brand_presence')}",
+        f"- CTA importance: {design.get('cta_importance')}",
+        f"- Information density: {design.get('information_density') or production_brief.get('information_density')}",
+        f"- Premium level: {design.get('premium_level')}",
+        f"- Freedom: {design.get('creative_freedom')}",
         "",
         "CREATIVE SIMPLICITY (quality principle — not a fixed layout):",
         *[f"  - {item}" for item in simplicity],
+        f"- Element budget: {simplicity_dir.get('element_budget') or '1 headline / 0–3 supporting / 1 CTA / 1 logo'}",
         "",
         "COMMERCIAL PRIORITY (visual hierarchy):",
         *[f"  {i + 1}. {item}" for i, item in enumerate(production_brief.get("commercial_priority") or [])],

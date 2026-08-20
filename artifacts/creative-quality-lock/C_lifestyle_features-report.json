@@ -1,0 +1,161 @@
+{
+  "1_campaign_intent": "amenities",
+  "2_big_idea": "Yaşamın Kalbinde, The Temple'da",
+  "3_hero_message": "Yaşamın Kalbinde, The Temple'da",
+  "4_hook": "Şehrin merkezinde modern yaşam fırsatı.",
+  "5_supporting_messages": [
+    "Sade ve şık tasarımlar.",
+    "Şehrin merkezinde benzersiz bir konum.",
+    "Geniş ve ferah yaşam alanları."
+  ],
+  "6_cta": "Detayları Keşfedin",
+  "7_selected_asset": {
+    "asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+    "filename": "IH_DC_TMP_001_Render_Living_Room_001.jpg",
+    "role": "hero_interior"
+  },
+  "8_asset_selection_reason": "intent=amenities; base_media=22.75; photo_render; room=living:8.0; drive_provenance; intent_subject:interior:5.0; pref_tokens=2",
+  "9_logo": {
+    "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+    "filename": "IH_DC_TMP_001_Logo_Primary.svg"
+  },
+  "10_language": "tr",
+  "11_verified_claims": [],
+  "12_blocked_claims": [],
+  "13_design_direction": {
+    "visual_mood": "Sade ve şık bir iç mekan görseli kullanın.",
+    "hierarchy": "Living feeling leads; features as short support only; CTA soft but clear.",
+    "typography_character": "Modern ve sade yazı tipi.",
+    "composition_direction": "Görselin merkezinde geniş ve ferah bir yaşam alanı.",
+    "image_treatment": "Preserve real project architecture/photography — enhance atmosphere, do not redesign. Subtle grade toward premium RE editorial.",
+    "contrast": "High readability for primary message and CTA against the locked photograph",
+    "brand_presence": "One verified project logo lockup — never invent or duplicate",
+    "cta_importance": "Single clear CTA; visible and actionable, not tiny footer text",
+    "information_density": "medium",
+    "premium_level": "elevated",
+    "creative_freedom": "Language=tr. Full creative freedom for placement — no forced left panel, bottom band, badge grid, icon row, or card stack. Vary composition by campaign."
+  },
+  "14_information_density": "medium",
+  "15_production_brief": {
+    "campaign_intent": "amenities",
+    "big_idea": "Yaşamın Kalbinde, The Temple'da",
+    "hero": "The Temple: Şehrin Kalbinde Modern Yaşam",
+    "cta": "Detayları Keşfedin",
+    "supporting": [
+      "Sade ve şık tasarımlar.",
+      "Şehrin merkezinde benzersiz bir konum.",
+      "Geniş ve ferah yaşam alanları."
+    ],
+    "simplicity_director": {
+      "supporting_messages": [
+        "Sade ve şık tasarımlar.",
+        "Şehrin merkezinde benzersiz bir konum.",
+        "Geniş ve ferah yaşam alanları."
+      ],
+      "max_headlines": 1,
+      "max_supporting": 3,
+      "max_cta": 1,
+      "max_logos": 1,
+      "allow_badges": false,
+      "allow_icons": false,
+      "allow_price_block": false,
+      "density": "medium",
+      "principles": [
+        "ONE AD = ONE PRIMARY MESSAGE.",
+        "Default: 1 headline, 0–3 supporting, 1 CTA, 1 logo.",
+        "Extra badges/icons/price blocks only when campaign intent requires them.",
+        "Premium ≠ more elements — let the photograph breathe.",
+        "Do not invent decorative panels, left rails, or bottom bands."
+      ],
+      "element_budget": {
+        "headline": 1,
+        "supporting": 3,
+        "cta": 1,
+        "logo": 1,
+        "price_block": 0,
+        "badges": 0,
+        "icons": 0
+      }
+    },
+    "self_critique": {
+      "status": "pass",
+      "checks": {
+        "two_second_clarity": true,
+        "one_dominant_message": true,
+        "asset_present": true,
+        "not_blind_repeat": true,
+        "cta_present": true,
+        "logo_locked": true,
+        "language_ok": true,
+        "claims_present_or_lifestyle": true,
+        "no_invented_finance_language": true,
+        "premium_direction": true,
+        "similarity_noted": true
+      },
+      "issues": [],
+      "forbidden_claim_count": 0,
+      "campaign_intent": "amenities",
+      "fixed_once": false
+    },
+    "message_strategy": {
+      "big_idea": "Yaşamın Kalbinde, The Temple'da",
+      "primary_message": "The Temple logosu ve modern yaşam alanı görseli.",
+      "sales_attention_hook": "Şehrin merkezinde modern yaşam fırsatı.",
+      "hero_headline": "Yaşamın Kalbinde, The Temple'da",
+      "supporting_messages": [
+        "Sade ve şık tasarımlar.",
+        "Şehrin merkezinde benzersiz bir konum.",
+        "Geniş ve ferah yaşam alanları."
+      ],
+      "cta": "Detayları Keşfedin",
+      "emotional_angle": "Şehrin kalbinde, modern ve prestijli bir yaşam.",
+      "commercial_priority": [
+        "lifestyle / living experience",
+        "primary sales message",
+        "feature callouts",
+        "call to action",
+        "brand presence"
+      ],
+      "information_hierarchy": [
+        "1 — PRIMARY: The Temple logosu ve modern yaşam alanı görseli.",
+        "2 — HOOK: Şehrin merkezinde modern yaşam fırsatı.",
+        "3 — SUPPORT: Sade ve şık tasarımlar. | Şehrin merkezinde benzersiz bir konum. | Geniş ve ferah yaşam alanları.",
+        "4 — CTA: Detayları Keşfedin",
+        "5 — BRAND: one real project logo"
+      ],
+      "one_ad_one_message": true,
+      "density": "medium",
+      "campaign_intent": "amenities"
+    },
+    "design_direction": {
+      "visual_mood": "Sade ve şık bir iç mekan görseli kullanın.",
+      "hierarchy": "Living feeling leads; features as short support only; CTA soft but clear.",
+      "typography_character": "Modern ve sade yazı tipi.",
+      "composition_direction": "Görselin merkezinde geniş ve ferah bir yaşam alanı.",
+      "image_treatment": "Preserve real project architecture/photography — enhance atmosphere, do not redesign. Subtle grade toward premium RE editorial.",
+      "contrast": "High readability for primary message and CTA against the locked photograph",
+      "brand_presence": "One verified project logo lockup — never invent or duplicate",
+      "cta_importance": "Single clear CTA; visible and actionable, not tiny footer text",
+      "information_density": "medium",
+      "premium_level": "elevated",
+      "creative_freedom": "Language=tr. Full creative freedom for placement — no forced left panel, bottom band, badge grid, icon row, or card stack. Vary composition by campaign."
+    }
+  },
+  "16_provider": {
+    "output_type": "ad_social_image",
+    "capability": "image_edit",
+    "provider_id": "gpt_image",
+    "available": true,
+    "missing": false,
+    "reason": null,
+    "model": "gpt-image-2"
+  },
+  "17_final_asset_id": "bdb75562-b046-4ceb-80c5-f03ede3d9c10",
+  "18_screenshot": "/tmp/creative-quality-lock/C_lifestyle_features-final.png",
+  "19_native_pipeline_used": "NO",
+  "20_gpt_image_call_count": 1,
+  "21_test_result": "READY FOR CREATIVE QUALITY REVIEW",
+  "label": "LIFESTYLE/FEATURES",
+  "production_mode": "finished_ad",
+  "campaign_id": "8dd12437-e518-4b8d-b5e3-006d9b34384e"
+}

@@ -31,6 +31,10 @@ from investhome_api.services.creative_director.production_brief import (
     render_finished_ad_production_prompt,
     verify_logo_lock,
 )
+from investhome_api.services.creative_director.quality_lock.intent import is_visual_lifestyle_intent
+from investhome_api.services.creative_director.quality_lock.self_critique import (
+    critique_and_fix_production_brief,
+)
 from investhome_api.services.creative_director.provider_router import (
     assert_image_provider_available,
     route_ad_social_image,
@@ -45,6 +49,7 @@ from investhome_api.services.gpt_image_design.design_plan import design_plan_to_
 from investhome_api.services.gpt_image_design.os_composition_plan import count_internal_leaks
 from investhome_api.services.gpt_image_design.visual_layout_director import run_visual_layout_director
 from investhome_api.services.gpt_image_design.persistence import asset_url, persist_gpt_image, sniff_image_content_type
+from investhome_api.services.gpt_image_design.service import generate_gpt_image_creatives
 from investhome_api.services.gpt_image_design.source import ResolvedSourceImage, resolve_image_bytes
 from investhome_api.services.creative_studio_media_service import get_asset_or_404, open_asset_content
 from investhome_api.schemas.social_design_engine import SocialDesignMediaCandidate
@@ -143,6 +148,14 @@ def is_lifestyle_campaign(
     if _has_price_presentation(pricing):
         return False
     intent = str(ctx.get("campaign_intent") or "").strip().lower()
+    if is_visual_lifestyle_intent(intent) or intent in {
+        "location",
+        "architecture",
+        "general_awareness",
+        "project_brand",
+        "educational",
+    }:
+        return True
     if intent == "lifestyle":
         return True
     if _brief_bans_unit_and_price(original_brief):
@@ -626,8 +639,25 @@ def _prepare_campaign_ad_context(
         aspect_ratio=aspect_ratio,
         format_preset=format_preset,
         art_direction=art_direction.to_dict(),
+        message_strategy=ctx.get("message_strategy"),
+        design_direction=ctx.get("design_direction"),
+        simplicity_director=ctx.get("simplicity_director"),
+        campaign_intent=str(ctx.get("campaign_intent") or ""),
+    )
+    recent_ids: list[str] = []
+    for item in _as_list(ctx.get("output_history")):
+        if isinstance(item, dict) and item.get("interior_asset_id"):
+            recent_ids.append(str(item["interior_asset_id"]))
+    for asset in _as_list(ctx.get("generated_assets")):
+        if isinstance(asset, dict) and asset.get("source_asset_id"):
+            recent_ids.append(str(asset["source_asset_id"]))
+    production_brief, critique = critique_and_fix_production_brief(
+        production_brief,
+        campaign_intent=str(ctx.get("campaign_intent") or ""),
+        recent_asset_ids=recent_ids,
     )
     ctx["production_brief"] = production_brief
+    ctx["self_critique"] = critique
     row.context_json = ctx
     db.flush()
     return (
@@ -1011,8 +1041,6 @@ def generate_ad_from_campaign(
         selected_asset_ids=[interior_id],
         builder_context=builder_context,
     )
-
-    from investhome_api.services.gpt_image_design.service import generate_gpt_image_creatives
 
     result = generate_gpt_image_creatives(db, user, gpt_body)
     output = result.outputs[0] if result.outputs else None

@@ -52,10 +52,12 @@ MESSAGE HIERARCHY (you decide; invent headline/CTA — user need not supply them
 ────────────────
 Return JSON with:
 big_idea, objective, audience, concept, hero_message,
-supporting_messages (array; prefer 1–3 short lines),
+primary_message (ONE dominant message for this single ad),
+supporting_messages (array; prefer 1–3 short lines; density by campaign intent),
 emphasis (array of words to stress on the visual),
 sales_hook, offer, price_presentation (how price should appear — you decide format),
 value_proposition, proof_points (array), cta,
+emotional_angle, commercial_priority (array ordered),
 visual_direction, composition_direction, typography_direction,
 color_direction, tone, formats (array),
 required_assets (array of descriptions — no invented asset IDs),
@@ -63,6 +65,8 @@ required_project_data (array), recommended_outputs (array),
 first_2_seconds (what the eye must catch),
 thinking_notes (short: goal / hook / number that matters / emotional feature).
 
+ONE AD = ONE PRIMARY MESSAGE. Do not fill every ad with every fact.
+Price campaigns may lead with price; location with place; lifestyle with living feel.
 Not every field must appear on the final visual — prefer fewer words, stronger ad.
 big_idea = campaign platform (memorable, short). hero_message = primary line on creative.
 

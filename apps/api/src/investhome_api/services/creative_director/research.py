@@ -14,6 +14,11 @@ from investhome_api.models.project import Project
 from investhome_api.schemas.social_design_engine import SocialDesignMediaCandidate
 from investhome_api.services.ai_search.hybrid_search import ProjectScopeError, hybrid_search
 from investhome_api.services.gpt_image_design.source import TEMPLE_PRIMARY_LOGO_ID, prefer_project_logo
+from investhome_api.services.creative_director.quality_lock.asset_scoring import (
+    pick_hero_asset_for_intent,
+    selection_role_for_intent,
+)
+from investhome_api.services.creative_director.quality_lock.intent import intent_to_asset_preference
 from investhome_api.services.social_design_engine.generation import asset_preference_tokens
 from investhome_api.services.social_design_engine.media import (
     list_media_candidates,
@@ -374,16 +379,22 @@ def research_project_drive(
     mode: str = "project",
     unit_codes: list[str] | None = None,
     retrieval_limit: int = 12,
+    campaign_intent: str | None = None,
+    recent_asset_ids: list[str] | None = None,
 ) -> DriveResearchPackage:
-    """Research Drive/RAG + lock real interior + logo. No image generation."""
+    """Research Drive/RAG + lock real hero visual + logo. No image generation."""
     warnings: list[str] = []
     linked_project_id = project.id
+    intent = (campaign_intent or "").strip().lower() or None
     search_queries = [
         brief,
         f"{project.project_name} interior living lobby",
+        f"{project.project_name} exterior facade neighborhood",
         f"{project.project_name} logo brand",
         f"{project.project_name} unit price list inventory",
     ]
+    if intent == "location":
+        search_queries.insert(1, f"{project.project_name} Adams Morgan location neighborhood street")
     for code in unit_codes or []:
         search_queries.append(f"{project.project_name} Unit {code} price")
 
@@ -423,12 +434,13 @@ def research_project_drive(
                 )
             )
 
+    pref = intent_to_asset_preference(intent or "lifestyle")
     candidates = list_media_candidates(
         db,
         linked_project_id=linked_project_id,
         instruction=brief,
         limit=32,
-        preference_tokens=asset_preference_tokens("interior"),
+        preference_tokens=asset_preference_tokens(pref),
         campaign_type="LIFESTYLE",
     )
 
@@ -436,35 +448,44 @@ def research_project_drive(
     selected_logo = None
     if mode == "project":
         dims: dict[UUID, tuple[int | None, int | None]] = {}
-        interior_ids = [
-            c.asset_id
-            for c in candidates
-            if _is_interior(c) and not _is_exterior_primary(c)
-        ]
-        if interior_ids:
+        dim_ids = [c.asset_id for c in candidates]
+        if dim_ids:
             from investhome_api.models.creative_studio_media import CreativeStudioMediaAsset
 
             for row in db.scalars(
-                select(CreativeStudioMediaAsset).where(CreativeStudioMediaAsset.id.in_(interior_ids))
+                select(CreativeStudioMediaAsset).where(CreativeStudioMediaAsset.id.in_(dim_ids))
             ).all():
                 dims[row.id] = (row.width, row.height)
 
-        interior_cand, interior_score, interior_reason = pick_real_interior(
-            candidates,
-            brief=brief,
-            dimensions=dims,
-        )
-        if interior_cand is None:
+        recent_set = {str(x) for x in (recent_asset_ids or []) if str(x).strip()}
+        if intent:
+            hero_cand, hero_score, hero_reason = pick_hero_asset_for_intent(
+                candidates,
+                campaign_intent=intent,
+                brief=brief,
+                dimensions=dims,
+                recent_asset_ids=recent_set,
+            )
+            role = selection_role_for_intent(intent)
+        else:
+            hero_cand, hero_score, hero_reason = pick_real_interior(
+                candidates,
+                brief=brief,
+                dimensions=dims,
+            )
+            role = "hero_interior"
+
+        if hero_cand is None:
             warnings.append(
-                "No real project interior asset found in Drive/Media Library. "
-                "PROJECT MODE will not invent or substitute an exterior/AI image."
+                "No real project hero asset found in Drive/Media Library. "
+                "PROJECT MODE will not invent or substitute an AI image."
             )
         else:
             selected_interior = _to_selected(
-                interior_cand,
-                role="hero_interior",
-                selection_score=interior_score,
-                selection_reason=interior_reason,
+                hero_cand,
+                role=role,
+                selection_score=hero_score,
+                selection_reason=hero_reason,
             )
         logo_cand = pick_real_logo(
             candidates,
@@ -499,10 +520,12 @@ def research_project_drive(
                 "category": selected_interior.folder_category,
                 "source": selected_interior.provenance_source or "media_library",
                 "asset_id": selected_interior.asset_id,
-                "summary": "Selected real interior asset",
+                "summary": "Selected real project hero asset",
                 "excerpt": "",
                 "score": 1.0,
-                "role": "selected_interior",
+                "role": selected_interior.role or "selected_hero",
+                "selection_score": selected_interior.selection_score,
+                "selection_reason": selected_interior.selection_reason,
             },
         )
     if selected_logo:

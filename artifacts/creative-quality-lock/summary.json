@@ -1,0 +1,571 @@
+{
+  "status": "READY FOR CREATIVE QUALITY REVIEW",
+  "visual_quality_pass_declared": false,
+  "total_provider_calls": 3,
+  "max_provider_calls_allowed": 3,
+  "provider_budget_ok": true,
+  "campaigns": [
+    {
+      "1_campaign_intent": "price_campaign",
+      "2_big_idea": "Tarihi Doku, Modern Yaşam",
+      "3_hero_message": "Modern. Şık. Tarihi.",
+      "4_hook": "Unit 204 Lansman Fırsatı",
+      "5_supporting_messages": [
+        "Unit 204 Lansman Fırsatı"
+      ],
+      "6_cta": "Lansman Fiyatını Kaçırmayın",
+      "7_selected_asset": {
+        "asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+        "filename": "IH_DC_TMP_001_Render_Living_Room_001.jpg",
+        "role": "hero"
+      },
+      "8_asset_selection_reason": "intent=price_campaign; base_media=18.25; photo_render; room=living:8.0; brief_character_fit; drive_provenance; intent_subject:living:8.0; pref_tokens=1",
+      "9_logo": {
+        "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "filename": "IH_DC_TMP_001_Logo_Primary.svg"
+      },
+      "10_language": "tr",
+      "11_verified_claims": [
+        {
+          "key": "unit_code",
+          "display": "Unit 204",
+          "value": "204",
+          "source": "retrieved",
+          "source_reference": "rag_hybrid_search",
+          "verified": true,
+          "is_financial": false,
+          "notes": null
+        },
+        {
+          "key": "list_price",
+          "display": "$400,000",
+          "value": 400000.0,
+          "source": "user_campaign_input",
+          "source_reference": "user_brief",
+          "verified": true,
+          "is_financial": true,
+          "notes": "User-supplied campaign list price"
+        },
+        {
+          "key": "launch_price",
+          "display": "$300,000",
+          "value": 300000.0,
+          "source": "user_campaign_input",
+          "source_reference": "user_brief",
+          "verified": true,
+          "is_financial": true,
+          "notes": "User-supplied campaign launch/offer price"
+        },
+        {
+          "key": "launch_discount_percent",
+          "display": "~25%",
+          "value": 25.0,
+          "source": "derived_safe",
+          "source_reference": "deterministic_from_user_supplied_price_pair",
+          "verified": true,
+          "is_financial": true,
+          "notes": "Derived only because both list and launch prices were supplied as a pair"
+        }
+      ],
+      "12_blocked_claims": [
+        {
+          "fact_id": "cf_990942b9eb",
+          "fact": "$400,000",
+          "key": "campaign_min_investment",
+          "source": "user_campaign_input",
+          "source_reference": "user_prompt",
+          "marketing_status": "campaign_only",
+          "derivation_type": "user_supplied",
+          "visibility": "public",
+          "eligible": false,
+          "eligibility": "conflicting_values",
+          "rejection_reason": "conflicting_values",
+          "conflict_status": "conflicting",
+          "claim_family": "min_investment",
+          "is_financial": true,
+          "campaign_scoped": true,
+          "campaign_context_id": "7f4015bf-906b-4728-95b5-ef6a888b1236"
+        },
+        {
+          "fact_id": "cf_a1003b302d",
+          "fact": "$300,000",
+          "key": "campaign_min_investment",
+          "source": "user_campaign_input",
+          "source_reference": "user_prompt",
+          "marketing_status": "campaign_only",
+          "derivation_type": "user_supplied",
+          "visibility": "public",
+          "eligible": false,
+          "eligibility": "conflicting_values",
+          "rejection_reason": "conflicting_values",
+          "conflict_status": "conflicting",
+          "claim_family": "min_investment",
+          "is_financial": true,
+          "campaign_scoped": true,
+          "campaign_context_id": "7f4015bf-906b-4728-95b5-ef6a888b1236"
+        }
+      ],
+      "13_design_direction": {
+        "visual_mood": "Tarihi ve modern unsurların birleşimini gösteren iç mekan görselleri.",
+        "hierarchy": "Price/offer may lead if that is the campaign intent; otherwise headline leads. Never compete with three equal-weight messages.",
+        "typography_character": "Modern ve şık yazı tipleri, fiyat avantajını vurgulayan büyük puntolar.",
+        "composition_direction": "Görselin merkezinde geniş ve ferah bir yaşam alanı.",
+        "image_treatment": "Preserve real project architecture/photography — enhance atmosphere, do not redesign. Subtle grade toward premium RE editorial.",
+        "contrast": "High readability for primary message and CTA against the locked photograph",
+        "brand_presence": "One verified project logo lockup — never invent or duplicate",
+        "cta_importance": "Single clear CTA; visible and actionable, not tiny footer text",
+        "information_density": "medium",
+        "premium_level": "elevated",
+        "creative_freedom": "Language=tr. Full creative freedom for placement — no forced left panel, bottom band, badge grid, icon row, or card stack. Vary composition by campaign."
+      },
+      "14_information_density": "medium",
+      "15_production_brief": {
+        "campaign_intent": "price_campaign",
+        "big_idea": "Tarihi Doku, Modern Yaşam",
+        "hero": "The Temple'da Modern Yaşam, Tarihi Doku ile Buluşuyor!",
+        "cta": "Lansman Fiyatını Kaçırmayın",
+        "supporting": [
+          "Tarihi karakter, modern tasarım.",
+          "Sınırlı sayıda ünite, kaçırmayın."
+        ],
+        "simplicity_director": {
+          "supporting_messages": [
+            "Tarihi karakter, modern tasarım.",
+            "Sınırlı sayıda ünite, kaçırmayın."
+          ],
+          "max_headlines": 1,
+          "max_supporting": 2,
+          "max_cta": 1,
+          "max_logos": 1,
+          "allow_badges": true,
+          "allow_icons": false,
+          "allow_price_block": true,
+          "density": "medium",
+          "principles": [
+            "ONE AD = ONE PRIMARY MESSAGE.",
+            "Default: 1 headline, 0–3 supporting, 1 CTA, 1 logo.",
+            "Extra badges/icons/price blocks only when campaign intent requires them.",
+            "Premium ≠ more elements — let the photograph breathe.",
+            "Do not invent decorative panels, left rails, or bottom bands."
+          ],
+          "element_budget": {
+            "headline": 1,
+            "supporting": 2,
+            "cta": 1,
+            "logo": 1,
+            "price_block": 1,
+            "badges": 1,
+            "icons": 0
+          }
+        },
+        "self_critique": {
+          "status": "pass",
+          "checks": {
+            "two_second_clarity": true,
+            "one_dominant_message": true,
+            "asset_present": true,
+            "not_blind_repeat": true,
+            "cta_present": true,
+            "logo_locked": true,
+            "language_ok": true,
+            "claims_present_or_lifestyle": true,
+            "no_invented_finance_language": true,
+            "premium_direction": true,
+            "similarity_noted": true
+          },
+          "issues": [],
+          "forbidden_claim_count": 2,
+          "campaign_intent": "price_campaign",
+          "fixed_once": false
+        },
+        "message_strategy": {
+          "big_idea": "Tarihi Doku, Modern Yaşam",
+          "primary_message": "Modern ve tarihi dokunun birleştiği geniş yaşam alanı.",
+          "sales_attention_hook": "Unit 204 Lansman Fırsatı",
+          "hero_headline": "Modern. Şık. Tarihi.",
+          "supporting_messages": [
+            "Unit 204 Lansman Fırsatı"
+          ],
+          "cta": "Lansman Fiyatını Kaçırmayın",
+          "emotional_angle": "Tarihi bir yapıda modern bir yaşam sürme ayrıcalığı.",
+          "commercial_priority": [
+            "price hook / launch offer",
+            "primary sales message",
+            "product / unit opportunity",
+            "call to action",
+            "brand presence"
+          ],
+          "information_hierarchy": [
+            "1 — PRIMARY: Modern ve tarihi dokunun birleştiği geniş yaşam alanı.",
+            "2 — HOOK: Unit 204 Lansman Fırsatı",
+            "3 — SUPPORT: Unit 204 Lansman Fırsatı",
+            "4 — CTA: Lansman Fiyatını Kaçırmayın",
+            "5 — BRAND: one real project logo"
+          ],
+          "one_ad_one_message": true,
+          "density": "medium",
+          "campaign_intent": "price_campaign"
+        },
+        "design_direction": {
+          "visual_mood": "Tarihi ve modern unsurların birleşimini gösteren iç mekan görselleri.",
+          "hierarchy": "Price/offer may lead if that is the campaign intent; otherwise headline leads. Never compete with three equal-weight messages.",
+          "typography_character": "Modern ve şık yazı tipleri, fiyat avantajını vurgulayan büyük puntolar.",
+          "composition_direction": "Görselin merkezinde geniş ve ferah bir yaşam alanı.",
+          "image_treatment": "Preserve real project architecture/photography — enhance atmosphere, do not redesign. Subtle grade toward premium RE editorial.",
+          "contrast": "High readability for primary message and CTA against the locked photograph",
+          "brand_presence": "One verified project logo lockup — never invent or duplicate",
+          "cta_importance": "Single clear CTA; visible and actionable, not tiny footer text",
+          "information_density": "medium",
+          "premium_level": "elevated",
+          "creative_freedom": "Language=tr. Full creative freedom for placement — no forced left panel, bottom band, badge grid, icon row, or card stack. Vary composition by campaign."
+        }
+      },
+      "16_provider": {
+        "output_type": "ad_social_image",
+        "capability": "image_edit",
+        "provider_id": "gpt_image",
+        "available": true,
+        "missing": false,
+        "reason": null,
+        "model": "gpt-image-2"
+      },
+      "17_final_asset_id": "f00ef35d-fc9a-422d-9531-b6b62e756816",
+      "18_screenshot": "artifacts/creative-quality-lock/A_price_sales-final.png",
+      "19_native_pipeline_used": "NO",
+      "20_gpt_image_call_count": 1,
+      "21_test_result": "READY FOR CREATIVE QUALITY REVIEW",
+      "label": "PRICE/SALES",
+      "production_mode": "finished_ad",
+      "campaign_id": "7f4015bf-906b-4728-95b5-ef6a888b1236"
+    },
+    {
+      "1_campaign_intent": "location",
+      "2_big_idea": "Adams Morgan'ın Kalbinde Yaşam",
+      "3_hero_message": "Adams Morgan'ın Kalbinde Yaşam",
+      "4_hook": "Adams Morgan'ın kalbinde yaşama fırsatı",
+      "5_supporting_messages": [
+        "Kültürel çeşitlilik ve canlı sosyal yaşam",
+        "Restoranlar, kafeler ve sanat galerileriyle çevrili"
+      ],
+      "6_cta": "Detayları Keşfedin",
+      "7_selected_asset": {
+        "asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+        "filename": "IH_DC_TMP_001_Render_Exterior_Day_004.jpg",
+        "role": "hero_exterior"
+      },
+      "8_asset_selection_reason": "intent=location; base_media=12.25; photo_render; room=generic:0.0; drive_provenance; intent_subject:neighborhood:10.0; pref_tokens=1",
+      "9_logo": {
+        "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "filename": "IH_DC_TMP_001_Logo_Primary.svg"
+      },
+      "10_language": "tr",
+      "11_verified_claims": [
+        {
+          "key": "unit_code",
+          "display": "Unit 204",
+          "value": "204",
+          "source": "retrieved",
+          "source_reference": "rag_hybrid_search",
+          "verified": true,
+          "is_financial": false,
+          "notes": null
+        }
+      ],
+      "12_blocked_claims": [],
+      "13_design_direction": {
+        "visual_mood": "Adams Morgan'ın canlı sokaklarını ve The Temple'ın dış cephesini gösteren bir görsel",
+        "hierarchy": "Location name / advantage leads; supporting place cues secondary; CTA clear.",
+        "typography_character": "Modern ve sofistike yazı tipi, dikkat çekici başlıklar",
+        "composition_direction": "Görselin merkezinde The Temple'ın dış cephesi, çevresinde Adams Morgan'ın canlı sokakları",
+        "image_treatment": "Preserve real project architecture/photography — enhance atmosphere, do not redesign. Subtle grade toward premium RE editorial.",
+        "contrast": "High readability for primary message and CTA against the locked photograph",
+        "brand_presence": "One verified project logo lockup — never invent or duplicate",
+        "cta_importance": "Single clear CTA; visible and actionable, not tiny footer text",
+        "information_density": "sparse",
+        "premium_level": "elevated",
+        "creative_freedom": "Language=tr. Full creative freedom for placement — no forced left panel, bottom band, badge grid, icon row, or card stack. Vary composition by campaign."
+      },
+      "14_information_density": "sparse",
+      "15_production_brief": {
+        "campaign_intent": "location",
+        "big_idea": "Adams Morgan'ın Kalbinde Yaşam",
+        "hero": "Adams Morgan'da Yaşamın Nabzını Tutun",
+        "cta": "Detayları Keşfedin",
+        "supporting": [
+          "Kültürel çeşitlilik ve canlı sosyal yaşam",
+          "Restoranlar, kafeler ve sanat galerileriyle çevrili"
+        ],
+        "simplicity_director": {
+          "supporting_messages": [
+            "Kültürel çeşitlilik ve canlı sosyal yaşam",
+            "Restoranlar, kafeler ve sanat galerileriyle çevrili"
+          ],
+          "max_headlines": 1,
+          "max_supporting": 2,
+          "max_cta": 1,
+          "max_logos": 1,
+          "allow_badges": false,
+          "allow_icons": false,
+          "allow_price_block": false,
+          "density": "sparse",
+          "principles": [
+            "ONE AD = ONE PRIMARY MESSAGE.",
+            "Default: 1 headline, 0–3 supporting, 1 CTA, 1 logo.",
+            "Extra badges/icons/price blocks only when campaign intent requires them.",
+            "Premium ≠ more elements — let the photograph breathe.",
+            "Do not invent decorative panels, left rails, or bottom bands."
+          ],
+          "element_budget": {
+            "headline": 1,
+            "supporting": 2,
+            "cta": 1,
+            "logo": 1,
+            "price_block": 0,
+            "badges": 0,
+            "icons": 0
+          }
+        },
+        "self_critique": {
+          "status": "pass",
+          "checks": {
+            "two_second_clarity": true,
+            "one_dominant_message": true,
+            "asset_present": true,
+            "not_blind_repeat": true,
+            "cta_present": true,
+            "logo_locked": true,
+            "language_ok": true,
+            "claims_present_or_lifestyle": true,
+            "no_invented_finance_language": true,
+            "premium_direction": true,
+            "similarity_noted": true
+          },
+          "issues": [],
+          "forbidden_claim_count": 0,
+          "campaign_intent": "location",
+          "fixed_once": false
+        },
+        "message_strategy": {
+          "big_idea": "Adams Morgan'ın Kalbinde Yaşam",
+          "primary_message": "Adams Morgan'ın canlı sokakları ve The Temple'ın dış cephesi",
+          "sales_attention_hook": "Adams Morgan'ın kalbinde yaşama fırsatı",
+          "hero_headline": "Adams Morgan'ın Kalbinde Yaşam",
+          "supporting_messages": [
+            "Kültürel çeşitlilik ve canlı sosyal yaşam",
+            "Restoranlar, kafeler ve sanat galerileriyle çevrili"
+          ],
+          "cta": "Detayları Keşfedin",
+          "emotional_angle": "Şehrin enerjisini ve çeşitliliğini evinizde hissedin",
+          "commercial_priority": [
+            "location advantage",
+            "primary sales message",
+            "neighborhood proof",
+            "call to action",
+            "brand presence"
+          ],
+          "information_hierarchy": [
+            "1 — PRIMARY: Adams Morgan'ın canlı sokakları ve The Temple'ın dış cephesi",
+            "2 — HOOK: Adams Morgan'ın kalbinde yaşama fırsatı",
+            "3 — SUPPORT: Kültürel çeşitlilik ve canlı sosyal yaşam | Restoranlar, kafeler ve sanat galerileriyle çevrili",
+            "4 — CTA: Detayları Keşfedin",
+            "5 — BRAND: one real project logo"
+          ],
+          "one_ad_one_message": true,
+          "density": "sparse",
+          "campaign_intent": "location"
+        },
+        "design_direction": {
+          "visual_mood": "Adams Morgan'ın canlı sokaklarını ve The Temple'ın dış cephesini gösteren bir görsel",
+          "hierarchy": "Location name / advantage leads; supporting place cues secondary; CTA clear.",
+          "typography_character": "Modern ve sofistike yazı tipi, dikkat çekici başlıklar",
+          "composition_direction": "Görselin merkezinde The Temple'ın dış cephesi, çevresinde Adams Morgan'ın canlı sokakları",
+          "image_treatment": "Preserve real project architecture/photography — enhance atmosphere, do not redesign. Subtle grade toward premium RE editorial.",
+          "contrast": "High readability for primary message and CTA against the locked photograph",
+          "brand_presence": "One verified project logo lockup — never invent or duplicate",
+          "cta_importance": "Single clear CTA; visible and actionable, not tiny footer text",
+          "information_density": "sparse",
+          "premium_level": "elevated",
+          "creative_freedom": "Language=tr. Full creative freedom for placement — no forced left panel, bottom band, badge grid, icon row, or card stack. Vary composition by campaign."
+        }
+      },
+      "16_provider": {
+        "output_type": "ad_social_image",
+        "capability": "image_edit",
+        "provider_id": "gpt_image",
+        "available": true,
+        "missing": false,
+        "reason": null,
+        "model": "gpt-image-2"
+      },
+      "17_final_asset_id": "89751e6a-246f-4e10-a170-3935a0027367",
+      "18_screenshot": "artifacts/creative-quality-lock/B_location-final.png",
+      "19_native_pipeline_used": "NO",
+      "20_gpt_image_call_count": 1,
+      "21_test_result": "READY FOR CREATIVE QUALITY REVIEW",
+      "label": "LOCATION",
+      "production_mode": "finished_ad",
+      "campaign_id": "607a251c-d3f9-4393-b4c8-28bc1b7de5f4"
+    },
+    {
+      "1_campaign_intent": "amenities",
+      "2_big_idea": "Yaşamın Kalbinde, The Temple'da",
+      "3_hero_message": "Yaşamın Kalbinde, The Temple'da",
+      "4_hook": "Şehrin merkezinde modern yaşam fırsatı.",
+      "5_supporting_messages": [
+        "Sade ve şık tasarımlar.",
+        "Şehrin merkezinde benzersiz bir konum.",
+        "Geniş ve ferah yaşam alanları."
+      ],
+      "6_cta": "Detayları Keşfedin",
+      "7_selected_asset": {
+        "asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+        "filename": "IH_DC_TMP_001_Render_Living_Room_001.jpg",
+        "role": "hero_interior"
+      },
+      "8_asset_selection_reason": "intent=amenities; base_media=22.75; photo_render; room=living:8.0; drive_provenance; intent_subject:interior:5.0; pref_tokens=2",
+      "9_logo": {
+        "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "filename": "IH_DC_TMP_001_Logo_Primary.svg"
+      },
+      "10_language": "tr",
+      "11_verified_claims": [],
+      "12_blocked_claims": [],
+      "13_design_direction": {
+        "visual_mood": "Sade ve şık bir iç mekan görseli kullanın.",
+        "hierarchy": "Living feeling leads; features as short support only; CTA soft but clear.",
+        "typography_character": "Modern ve sade yazı tipi.",
+        "composition_direction": "Görselin merkezinde geniş ve ferah bir yaşam alanı.",
+        "image_treatment": "Preserve real project architecture/photography — enhance atmosphere, do not redesign. Subtle grade toward premium RE editorial.",
+        "contrast": "High readability for primary message and CTA against the locked photograph",
+        "brand_presence": "One verified project logo lockup — never invent or duplicate",
+        "cta_importance": "Single clear CTA; visible and actionable, not tiny footer text",
+        "information_density": "medium",
+        "premium_level": "elevated",
+        "creative_freedom": "Language=tr. Full creative freedom for placement — no forced left panel, bottom band, badge grid, icon row, or card stack. Vary composition by campaign."
+      },
+      "14_information_density": "medium",
+      "15_production_brief": {
+        "campaign_intent": "amenities",
+        "big_idea": "Yaşamın Kalbinde, The Temple'da",
+        "hero": "The Temple: Şehrin Kalbinde Modern Yaşam",
+        "cta": "Detayları Keşfedin",
+        "supporting": [
+          "Sade ve şık tasarımlar.",
+          "Şehrin merkezinde benzersiz bir konum.",
+          "Geniş ve ferah yaşam alanları."
+        ],
+        "simplicity_director": {
+          "supporting_messages": [
+            "Sade ve şık tasarımlar.",
+            "Şehrin merkezinde benzersiz bir konum.",
+            "Geniş ve ferah yaşam alanları."
+          ],
+          "max_headlines": 1,
+          "max_supporting": 3,
+          "max_cta": 1,
+          "max_logos": 1,
+          "allow_badges": false,
+          "allow_icons": false,
+          "allow_price_block": false,
+          "density": "medium",
+          "principles": [
+            "ONE AD = ONE PRIMARY MESSAGE.",
+            "Default: 1 headline, 0–3 supporting, 1 CTA, 1 logo.",
+            "Extra badges/icons/price blocks only when campaign intent requires them.",
+            "Premium ≠ more elements — let the photograph breathe.",
+            "Do not invent decorative panels, left rails, or bottom bands."
+          ],
+          "element_budget": {
+            "headline": 1,
+            "supporting": 3,
+            "cta": 1,
+            "logo": 1,
+            "price_block": 0,
+            "badges": 0,
+            "icons": 0
+          }
+        },
+        "self_critique": {
+          "status": "pass",
+          "checks": {
+            "two_second_clarity": true,
+            "one_dominant_message": true,
+            "asset_present": true,
+            "not_blind_repeat": true,
+            "cta_present": true,
+            "logo_locked": true,
+            "language_ok": true,
+            "claims_present_or_lifestyle": true,
+            "no_invented_finance_language": true,
+            "premium_direction": true,
+            "similarity_noted": true
+          },
+          "issues": [],
+          "forbidden_claim_count": 0,
+          "campaign_intent": "amenities",
+          "fixed_once": false
+        },
+        "message_strategy": {
+          "big_idea": "Yaşamın Kalbinde, The Temple'da",
+          "primary_message": "The Temple logosu ve modern yaşam alanı görseli.",
+          "sales_attention_hook": "Şehrin merkezinde modern yaşam fırsatı.",
+          "hero_headline": "Yaşamın Kalbinde, The Temple'da",
+          "supporting_messages": [
+            "Sade ve şık tasarımlar.",
+            "Şehrin merkezinde benzersiz bir konum.",
+            "Geniş ve ferah yaşam alanları."
+          ],
+          "cta": "Detayları Keşfedin",
+          "emotional_angle": "Şehrin kalbinde, modern ve prestijli bir yaşam.",
+          "commercial_priority": [
+            "lifestyle / living experience",
+            "primary sales message",
+            "feature callouts",
+            "call to action",
+            "brand presence"
+          ],
+          "information_hierarchy": [
+            "1 — PRIMARY: The Temple logosu ve modern yaşam alanı görseli.",
+            "2 — HOOK: Şehrin merkezinde modern yaşam fırsatı.",
+            "3 — SUPPORT: Sade ve şık tasarımlar. | Şehrin merkezinde benzersiz bir konum. | Geniş ve ferah yaşam alanları.",
+            "4 — CTA: Detayları Keşfedin",
+            "5 — BRAND: one real project logo"
+          ],
+          "one_ad_one_message": true,
+          "density": "medium",
+          "campaign_intent": "amenities"
+        },
+        "design_direction": {
+          "visual_mood": "Sade ve şık bir iç mekan görseli kullanın.",
+          "hierarchy": "Living feeling leads; features as short support only; CTA soft but clear.",
+          "typography_character": "Modern ve sade yazı tipi.",
+          "composition_direction": "Görselin merkezinde geniş ve ferah bir yaşam alanı.",
+          "image_treatment": "Preserve real project architecture/photography — enhance atmosphere, do not redesign. Subtle grade toward premium RE editorial.",
+          "contrast": "High readability for primary message and CTA against the locked photograph",
+          "brand_presence": "One verified project logo lockup — never invent or duplicate",
+          "cta_importance": "Single clear CTA; visible and actionable, not tiny footer text",
+          "information_density": "medium",
+          "premium_level": "elevated",
+          "creative_freedom": "Language=tr. Full creative freedom for placement — no forced left panel, bottom band, badge grid, icon row, or card stack. Vary composition by campaign."
+        }
+      },
+      "16_provider": {
+        "output_type": "ad_social_image",
+        "capability": "image_edit",
+        "provider_id": "gpt_image",
+        "available": true,
+        "missing": false,
+        "reason": null,
+        "model": "gpt-image-2"
+      },
+      "17_final_asset_id": "bdb75562-b046-4ceb-80c5-f03ede3d9c10",
+      "18_screenshot": "artifacts/creative-quality-lock/C_lifestyle_features-final.png",
+      "19_native_pipeline_used": "NO",
+      "20_gpt_image_call_count": 1,
+      "21_test_result": "READY FOR CREATIVE QUALITY REVIEW",
+      "label": "LIFESTYLE/FEATURES",
+      "production_mode": "finished_ad",
+      "campaign_id": "8dd12437-e518-4b8d-b5e3-006d9b34384e"
+    }
+  ]
+}

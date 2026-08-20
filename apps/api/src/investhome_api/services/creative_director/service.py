@@ -27,8 +27,17 @@ from investhome_api.services.creative_director.orchestrator import (
 from investhome_api.services.creative_director.generate_ad import adapt_final_turkish_texts
 from investhome_api.services.creative_director.pricing import build_pricing_claims, extract_unit_codes
 from investhome_api.services.creative_director.production_brief import build_production_brief
+from investhome_api.services.creative_director.quality_lock.design_direction import build_design_direction
+from investhome_api.services.creative_director.quality_lock.intent import (
+    classify_cd_campaign_intent,
+    is_visual_lifestyle_intent,
+)
+from investhome_api.services.creative_director.quality_lock.message_strategy import build_message_strategy
+from investhome_api.services.creative_director.quality_lock.simplicity import (
+    apply_simplicity_caps,
+    simplicity_caps_for_intent,
+)
 from investhome_api.services.creative_director.research import research_project_drive
-from investhome_api.services.social_design_engine.campaign_intent import classify_campaign_intent
 from investhome_api.services.social_design_engine.generation import extract_campaign_facts
 from investhome_api.services.social_design_engine.fact_governance import CampaignContext
 from investhome_api.services.social_design_engine.verified_facts import (
@@ -137,6 +146,10 @@ def _build_brief_response(
             (campaign.context_json or {}).get("image_generation_performed")
         ),
         "production_brief": (campaign.context_json or {}).get("production_brief") or {},
+        "campaign_intent": (campaign.context_json or {}).get("campaign_intent"),
+        "message_strategy": (campaign.context_json or {}).get("message_strategy") or {},
+        "design_direction": (campaign.context_json or {}).get("design_direction") or {},
+        "simplicity_director": (campaign.context_json or {}).get("simplicity_director") or {},
     }
 
 
@@ -155,12 +168,29 @@ def create_campaign(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="brief is required")
 
     unit_codes = extract_unit_codes(brief)
+    # Early price-pair detection so research can prefer sales-hero frames.
+    pricing_preview = build_pricing_claims(brief=brief, drive_prices={"units": {}})
+    has_price_pair = bool(
+        (pricing_preview.get("price_presentation") or {}).get("list")
+        and (pricing_preview.get("price_presentation") or {}).get("offer")
+    )
+    quality_intent = classify_cd_campaign_intent(
+        brief,
+        language=body.language,
+        project_name=project.project_name,
+        project_knowledge=" ".join(
+            p for p in (project.city, project.state, project.address or "", project.project_name) if p
+        ),
+        has_price_pair=has_price_pair,
+    )
+
     research_pkg = research_project_drive(
         db,
         project=project,
         brief=brief,
         mode=mode,
         unit_codes=unit_codes,
+        campaign_intent=quality_intent.campaign_intent,
     )
     research = research_pkg.to_dict()
 
@@ -175,6 +205,19 @@ def create_campaign(
             }
 
     pricing = build_pricing_claims(brief=brief, drive_prices=drive_prices)
+    # Re-classify if pricing confirms a list→offer pair the preview missed.
+    if (pricing.get("price_presentation") or {}).get("list") and (
+        pricing.get("price_presentation") or {}
+    ).get("offer"):
+        quality_intent = classify_cd_campaign_intent(
+            brief,
+            language=body.language,
+            project_name=project.project_name,
+            project_knowledge=" ".join(
+                p for p in (project.city, project.state, project.address or "", project.project_name) if p
+            ),
+            has_price_pair=True,
+        )
 
     formats_hint = ["instagram_feed"]
     required_caps = infer_required_capabilities(brief=brief, mode=mode, formats=formats_hint)
@@ -183,12 +226,6 @@ def create_campaign(
         if "video_generate" not in required_caps:
             required_caps.append("video_generate")
     orchestration = assign_capabilities(required_caps).to_dict()
-
-    intent = classify_campaign_intent(
-        brief,
-        language=body.language,
-        project_name=project.project_name,
-    )
 
     strategy = generate_creative_strategy(
         user_brief=brief,
@@ -234,8 +271,10 @@ def create_campaign(
         if isinstance(t, dict) and (t.get("eligible") is False or t.get("rejection_reason"))
     ]
 
-    language = (body.language or intent.language or "tr")
-    lifestyle = intent.campaign_intent == "lifestyle" or not pricing.get("list_price")
+    language = (body.language or quality_intent.language or "tr")
+    lifestyle = is_visual_lifestyle_intent(quality_intent.campaign_intent) or not pricing.get(
+        "list_price"
+    )
     texts = adapt_final_turkish_texts(
         language=language,
         strategy=strategy,
@@ -254,15 +293,46 @@ def create_campaign(
         original_brief=brief,
         lifestyle=lifestyle,
     )
+    caps = simplicity_caps_for_intent(quality_intent.campaign_intent)
+    has_price = bool(
+        (pricing.get("price_presentation") or {}).get("list")
+        and (pricing.get("price_presentation") or {}).get("offer")
+    )
+    simplicity = apply_simplicity_caps(
+        supporting_messages=strategy.get("supporting_messages") or [],
+        caps=caps,
+        include_price_block=has_price,
+    )
+    message_strategy = build_message_strategy(
+        campaign_intent=quality_intent.campaign_intent,
+        strategy=strategy,
+        campaign_copy={
+            "big_idea": strategy.get("big_idea") or strategy.get("concept"),
+            "hero_message": strategy.get("hero_message"),
+            "supporting_messages": simplicity.get("supporting_messages"),
+            "sales_hook": strategy.get("sales_hook"),
+            "cta": strategy.get("cta"),
+            "offer": strategy.get("offer"),
+        },
+        pricing=pricing,
+        texts=texts,
+    )
+    design_direction = build_design_direction(
+        campaign_intent=quality_intent.campaign_intent,
+        strategy=strategy,
+        density=caps.density_label,
+        language=language,
+    )
     production_brief = build_production_brief(
         ctx={
             "selected_assets": brief_payload["selected_assets"],
+            "campaign_intent": quality_intent.campaign_intent,
         },
         strategy=strategy,
         campaign_copy={
             "big_idea": strategy.get("big_idea") or strategy.get("concept"),
             "hero_message": strategy.get("hero_message"),
-            "supporting_messages": strategy.get("supporting_messages"),
+            "supporting_messages": simplicity.get("supporting_messages"),
             "sales_hook": strategy.get("sales_hook"),
             "cta": strategy.get("cta"),
             "offer": strategy.get("offer"),
@@ -276,12 +346,21 @@ def create_campaign(
         language=language,
         aspect_ratio="4:5",
         format_preset="portrait",
+        message_strategy=message_strategy.to_dict(),
+        design_direction=design_direction.to_dict(),
+        simplicity_director=simplicity,
+        campaign_intent=quality_intent.campaign_intent,
     )
 
     context = {
         "original_user_brief": brief,
         "language": language,
-        "campaign_intent": intent.campaign_intent,
+        "campaign_intent": quality_intent.campaign_intent,
+        "legacy_campaign_intent": quality_intent.legacy_campaign_intent,
+        "quality_intent": quality_intent.to_dict(),
+        "message_strategy": message_strategy.to_dict(),
+        "design_direction": design_direction.to_dict(),
+        "simplicity_director": simplicity,
         "cd_strategy": strategy,
         "production_brief": production_brief,
         "approved_claims": brief_payload.get("approved_claims") or pricing.get("claims") or [],
@@ -292,7 +371,8 @@ def create_campaign(
         "campaign_copy": {
             "big_idea": brief_payload.get("big_idea"),
             "hero_message": brief_payload.get("hero_message"),
-            "supporting_messages": brief_payload.get("supporting_messages"),
+            "supporting_messages": simplicity.get("supporting_messages")
+            or brief_payload.get("supporting_messages"),
             "sales_hook": brief_payload.get("sales_hook"),
             "cta": brief_payload.get("cta"),
             "offer": brief_payload.get("offer"),
@@ -312,6 +392,11 @@ def create_campaign(
         "image_generation_performed": False,
     }
     campaign.context_json = context
+    brief_payload["campaign_intent"] = quality_intent.campaign_intent
+    brief_payload["message_strategy"] = message_strategy.to_dict()
+    brief_payload["design_direction"] = design_direction.to_dict()
+    brief_payload["simplicity_director"] = simplicity
+    brief_payload["production_brief"] = production_brief
     db.flush()
 
     return CreativeDirectorCampaignResponse(
