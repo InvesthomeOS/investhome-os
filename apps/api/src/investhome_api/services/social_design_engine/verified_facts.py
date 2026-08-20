@@ -16,7 +16,9 @@ from uuid import uuid4
 from investhome_api.services.social_design_engine.campaign_intent import (
     CampaignIntentKind,
     CampaignIntentResult,
+    EXPLICIT_FINANCIAL_FACT_KEYS,
     ExplicitFactRequest,
+    FINANCIAL_CAMPAIGN_INTENTS,
     _mentions_profit_claim,
 )
 from investhome_api.services.social_design_engine.fact_governance import (
@@ -647,26 +649,34 @@ def resolve_missing_facts(
     _ = knowledge
     missing: list[MissingFact] = []
     pool = list(eligible_facts if eligible_facts is not None else selected)
+    financial_intent = intent.campaign_intent in FINANCIAL_CAMPAIGN_INTENTS
 
     def has_eligible(key: str) -> bool:
         return _eligible_covers_request(key, pool, campaign_facts)
 
     for req in intent.explicit_fact_requests:
+        is_financial_req = req.key in EXPLICIT_FINANCIAL_FACT_KEYS
+        # Lifestyle / features / architecture / location / brand — never hard-require finance.
+        required = bool(req.required) and (financial_intent or not is_financial_req)
         if has_eligible(req.key):
             continue
         missing.append(
             MissingFact(
                 key=req.key,
                 label=req.label,
-                category="investment",
-                required=req.required,
-                reason=f"explicitly_requested_but_not_marketing_approved:{req.key}",
+                category="investment" if is_financial_req else "other",
+                required=required,
+                reason=(
+                    "financial_not_required_for_non_financial_intent"
+                    if is_financial_req and not financial_intent
+                    else f"explicitly_requested_but_not_marketing_approved:{req.key}"
+                ),
                 user_can_provide=True,
             )
         )
 
     # Soft missing for investment without eligible metrics — do NOT block
-    if intent.campaign_intent in {"investment", "value_proposition", "rental_income"}:
+    if financial_intent:
         has_metric = any(
             f.is_financial and is_marketing_eligible(f).eligible for f in pool if f.is_financial
         )

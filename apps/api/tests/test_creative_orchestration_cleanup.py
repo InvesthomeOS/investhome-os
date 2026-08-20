@@ -226,3 +226,137 @@ def test_claim_guard_one_cikar_does_not_require_profit() -> None:
     assert _infer_extracted_key("projected profit $1.2M") == "profit"
     profit_reqs = detect_explicit_financial_requests("Projenin net kârını öne çıkar")
     assert any(r.key == "profit" and r.required for r in profit_reqs)
+
+
+FEATURE_LED_TEMPLE_BRIEF = (
+    "The Temple için sosyal medya reklamı hazırla.\n"
+    "Projenin kataloğunu ve Drive'daki bilgileri incele.\n"
+    "Projenin en güçlü özelliklerinden birkaçını seç ve bunları ön plana çıkar.\n"
+    "Gerçek The Temple görsellerini ve logosunu kullan.\n"
+    "Premium, sade ve dikkat çekici olsun.\n"
+    "Türkçe hazırla."
+)
+
+
+def test_claim_guard_feature_led_brief_does_not_require_roi_yield_rent() -> None:
+    """Feature / lifestyle briefs must not demand financial facts."""
+    from investhome_api.services.social_design_engine.campaign_intent import (
+        classify_campaign_intent,
+        detect_explicit_financial_requests,
+    )
+    from investhome_api.services.social_design_engine.verified_facts import resolve_missing_facts
+
+    reqs = detect_explicit_financial_requests(FEATURE_LED_TEMPLE_BRIEF)
+    assert not any(r.key in {"roi", "yield", "rental_income", "rent"} and r.required for r in reqs)
+
+    intent = classify_campaign_intent(FEATURE_LED_TEMPLE_BRIEF, project_name="The Temple")
+    assert intent.campaign_intent not in {"investment", "value_proposition", "rental_income"}
+    assert not any(
+        r.key in {"roi", "yield", "rental_income"} and r.required for r in intent.explicit_fact_requests
+    )
+
+    missing, ok, reason = resolve_missing_facts(
+        intent=intent,
+        knowledge=None,  # type: ignore[arg-type]
+        selected=[],
+        campaign_facts=[],
+    )
+    assert ok is True
+    assert reason is None
+    assert not any(m.key in {"roi", "yield", "rental_income"} and m.required for m in missing)
+
+
+def test_claim_guard_finished_ad_prompt_boilerplate_does_not_require_finance() -> None:
+    """System 'do not invent ROI/yield' lines must not become required facts."""
+    from investhome_api.services.creative_director.production_brief import (
+        render_finished_ad_production_prompt,
+    )
+    from investhome_api.services.social_design_engine.campaign_intent import (
+        classify_campaign_intent,
+        detect_explicit_financial_requests,
+    )
+    from investhome_api.services.social_design_engine.verified_facts import resolve_missing_facts
+
+    prompt = render_finished_ad_production_prompt(
+        production_brief={
+            "headline": "H",
+            "supporting": "S",
+            "cta": "C",
+            "eyebrow": "E",
+            "creative_simplicity": ["keep simple"],
+            "commercial_priority": ["headline"],
+            "visual_hierarchy": ["h1"],
+            "visual_direction": "premium",
+            "brand_direction": {"tone": "premium"},
+            "final_copy": {"eyebrow": "E", "headline": "H", "supporting": "S", "cta": "C"},
+            "approved_claims": [],
+            "blocked_claims": [],
+            "project_asset_lock": {
+                "interior_filename": "a.jpg",
+                "interior_asset_id": "1",
+                "logo_asset_id": "2",
+                "logo_filename": "l.svg",
+            },
+            "language": "tr",
+            "max_supporting_messages": 3,
+            "supporting": ["a"],
+        },
+        art_direction={
+            "primary_visual_message": "x",
+            "first_notice": "y",
+            "second_notice": "z",
+        },
+        original_brief=FEATURE_LED_TEMPLE_BRIEF,
+        lifestyle=True,
+    )
+    assert "ROI" in prompt and "yield" in prompt
+
+    reqs = detect_explicit_financial_requests(prompt)
+    assert not any(r.key in {"roi", "yield", "rental_income"} and r.required for r in reqs)
+
+    intent = classify_campaign_intent(prompt, project_name="The Temple")
+    assert intent.campaign_intent not in {"investment", "value_proposition", "rental_income"}
+    missing, ok, reason = resolve_missing_facts(
+        intent=intent,
+        knowledge=None,  # type: ignore[arg-type]
+        selected=[],
+        campaign_facts=[],
+    )
+    assert ok is True
+    assert reason is None or "ROI" not in reason
+    assert not any(m.key in {"roi", "yield"} and m.required for m in missing)
+
+
+def test_claim_guard_investment_brief_still_requires_roi_yield_when_asked() -> None:
+    """Explicit investment ROI/yield asks must still gate missing facts."""
+    from investhome_api.services.social_design_engine.campaign_intent import (
+        classify_campaign_intent,
+        detect_explicit_financial_requests,
+    )
+    from investhome_api.services.social_design_engine.verified_facts import resolve_missing_facts
+
+    brief = (
+        "The Temple için yatırımcı odaklı Instagram reklamı hazırla. "
+        "ROI ve yield rakamlarını öne çıkar. Türkçe hazırla."
+    )
+    reqs = detect_explicit_financial_requests(brief)
+    assert any(r.key == "roi" and r.required for r in reqs)
+    assert any(r.key == "yield" and r.required for r in reqs)
+
+    intent = classify_campaign_intent(brief, project_name="The Temple")
+    assert intent.campaign_intent in {"investment", "value_proposition", "rental_income"}
+    assert any(r.key == "roi" and r.required for r in intent.explicit_fact_requests)
+    assert any(r.key == "yield" and r.required for r in intent.explicit_fact_requests)
+
+    missing, ok, reason = resolve_missing_facts(
+        intent=intent,
+        knowledge=None,  # type: ignore[arg-type]
+        selected=[],
+        campaign_facts=[],
+    )
+    assert ok is False
+    assert reason is not None
+    assert "ROI" in reason
+    assert "Yield" in reason
+    assert any(m.key == "roi" and m.required for m in missing)
+    assert any(m.key == "yield" and m.required for m in missing)

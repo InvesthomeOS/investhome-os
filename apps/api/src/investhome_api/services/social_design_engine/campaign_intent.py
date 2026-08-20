@@ -49,6 +49,33 @@ EXPLICIT_FINANCIAL_FACT_KEYS: frozenset[str] = frozenset(
     }
 )
 
+# Campaign intents where ROI / yield / rent / return may be required.
+FINANCIAL_CAMPAIGN_INTENTS: frozenset[CampaignIntentKind] = frozenset(
+    {
+        "investment",
+        "value_proposition",
+        "rental_income",
+    }
+)
+
+# Finished-ad / system prompts append the real brief after this marker.
+_ORIGINAL_USER_BRIEF_MARKER = "ORIGINAL USER BRIEF:"
+
+# Forbid/do-not-invent clauses must not become required financial facts.
+_NEGATED_FINANCE_CUES: tuple[str, ...] = (
+    "no invented",
+    "do not invent",
+    "dont invent",
+    "never invent",
+    "never render",
+    "do not render",
+    "must not invent",
+    "must not render",
+    "forbidden",
+    "blocked claim",
+    "without invent",
+)
+
 INTENT_TO_OBJECTIVE: dict[CampaignIntentKind, MarketingObjective] = {
     "investment": "investment",
     "rental_income": "investment",
@@ -117,6 +144,40 @@ def _norm(text: str) -> str:
     return folded.strip().lower()
 
 
+def intent_source_text(instruction: str) -> str:
+    """Prefer the real user brief when system production prompts wrap it."""
+    raw = instruction or ""
+    marker = _ORIGINAL_USER_BRIEF_MARKER
+    idx = raw.find(marker)
+    if idx >= 0:
+        tail = raw[idx + len(marker) :].strip()
+        if tail:
+            return tail
+    return raw
+
+
+def _is_negated_financial_span(normalized: str, start: int, *, window: int = 110) -> bool:
+    """True when a finance token sits inside a do-not-invent / forbidden clause."""
+    before = (normalized or "")[max(0, start - window) : start]
+    return any(cue in before for cue in _NEGATED_FINANCE_CUES)
+
+
+def _has_affirmative_term(normalized: str, term: str) -> bool:
+    """Substring hit that is not under a forbid/do-not-invent clause."""
+    t = normalized or ""
+    needle = (term or "").strip().lower()
+    if not needle:
+        return False
+    start = 0
+    while True:
+        idx = t.find(needle, start)
+        if idx < 0:
+            return False
+        if not _is_negated_financial_span(t, idx):
+            return True
+        start = idx + len(needle)
+
+
 def _detect_language(instruction: str, language: str | None) -> str:
     t = _norm(instruction)
     lang = (language or "").strip().lower()
@@ -161,7 +222,7 @@ def _mentions_profit_claim(normalized: str) -> bool:
 
 def detect_explicit_financial_requests(instruction: str) -> list[ExplicitFactRequest]:
     """Detect when the user requires a specific financial figure in the creative."""
-    raw = instruction or ""
+    raw = intent_source_text(instruction)
     t = _norm(raw)
     found: list[ExplicitFactRequest] = []
 
@@ -255,11 +316,15 @@ def detect_explicit_financial_requests(instruction: str) -> list[ExplicitFactReq
     for key, label, pats in patterns:
         matched = False
         span = ""
+        match_start = -1
         for pat in pats:
             m = re.search(pat, t, re.I)
             if m:
+                if _is_negated_financial_span(t, m.start()):
+                    continue
                 matched = True
                 span = m.group(0)
+                match_start = m.start()
                 break
         if not matched:
             continue
@@ -274,6 +339,9 @@ def detect_explicit_financial_requests(instruction: str) -> list[ExplicitFactReq
         ):
             required = True
         if not required and key not in {"irr", "roi"}:
+            continue
+        # Negated boilerplate never becomes a hard requirement.
+        if match_start >= 0 and _is_negated_financial_span(t, match_start):
             continue
         found.append(ExplicitFactRequest(key=key, label=label, required=required, raw_span=span))
 
@@ -303,7 +371,8 @@ def classify_campaign_intent(
     project_name: str | None = None,
 ) -> CampaignIntentResult:
     """Classify campaign intent from a natural brief (TR/EN)."""
-    raw = instruction or ""
+    raw_full = instruction or ""
+    raw = intent_source_text(raw_full)
     t = _norm(raw)
     lang = _detect_language(raw, language)
     signals: list[str] = []
@@ -329,11 +398,17 @@ def classify_campaign_intent(
         )
     ):
         bump("investment", 4.0, "investor_language")
-    if any(k in t for k in ("roi", "irr", "getiri", "return", "yield", "hedef getiri")):
+    if any(
+        _has_affirmative_term(t, k)
+        for k in ("roi", "irr", "getiri", "return", "yield", "hedef getiri")
+    ):
         bump("investment", 3.5, "return_language")
     if any(k in t for k in ("minimum yatirim", "minimum yatırım", "min investment", "entry")):
         bump("investment", 2.5, "entry_ticket")
-    if any(k in t for k in ("kira gelir", "rental income", "rental yield", "kira getiri")):
+    if any(
+        _has_affirmative_term(t, k)
+        for k in ("kira gelir", "rental income", "rental yield", "kira getiri")
+    ):
         bump("rental_income", 4.5, "rental_income")
         bump("investment", 1.5, "rental_as_investment")
     if any(k in t for k in ("value prop", "değer öner", "deger oner", "value proposition")):
@@ -359,7 +434,7 @@ def classify_campaign_intent(
         bump("neighborhood", 4.0, "neighborhood_language")
         bump("location", 1.5, "neighborhood_as_location")
 
-    # --- Architecture / amenities / lifestyle ---
+    # --- Architecture / amenities / lifestyle / project features ---
     if any(
         k in t
         for k in (
@@ -376,6 +451,19 @@ def classify_campaign_intent(
         bump("architecture", 4.5, "architecture_language")
     if any(k in t for k in ("amenit", "spa", "pool", "rooftop", "lobby", "olanak")):
         bump("amenities", 4.0, "amenities_language")
+    if any(
+        k in t
+        for k in (
+            "ozellik",
+            "özellik",
+            "project feature",
+            "strongest feature",
+            "en guclu ozellik",
+            "en güçlü özellik",
+        )
+    ):
+        bump("amenities", 3.5, "feature_language")
+        bump("generic_project_promotion", 1.5, "feature_led_promotion")
     if any(k in t for k in ("yasam", "yaşam", "lifestyle", "daily living", "city living")):
         bump("lifestyle", 3.5, "lifestyle_language")
 
@@ -444,6 +532,8 @@ def classify_campaign_intent(
         key_message = "architectural character"
     elif campaign_intent == "neighborhood":
         key_message = "neighborhood advantage"
+    elif campaign_intent == "amenities":
+        key_message = "project features"
     elif project_name:
         key_message = project_name
 
@@ -459,6 +549,17 @@ def classify_campaign_intent(
 
     facts = extract_campaign_facts(raw)
     explicit = detect_explicit_financial_requests(raw)
+    # Non-financial campaigns never hard-require ROI/yield/rent even if a token slipped through.
+    if campaign_intent not in FINANCIAL_CAMPAIGN_INTENTS:
+        explicit = [
+            ExplicitFactRequest(
+                key=r.key,
+                label=r.label,
+                required=False if r.key in EXPLICIT_FINANCIAL_FACT_KEYS else r.required,
+                raw_span=r.raw_span,
+            )
+            for r in explicit
+        ]
 
     return CampaignIntentResult(
         campaign_intent=campaign_intent,
