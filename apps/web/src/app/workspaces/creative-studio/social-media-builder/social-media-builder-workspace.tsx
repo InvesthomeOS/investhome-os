@@ -1671,12 +1671,17 @@ export function SocialMediaBuilderWorkspace() {
     async (instruction: string) => {
       const campaignId = creativeDirectorCampaignRef.current || creativeDirectorCampaignId;
       const currentAssetId = selectedPost?.coverAssetId;
+      const projectId = selectedPost?.linkedProjectId || docApi.constructionProjectId;
       if (!campaignId) {
         showToast(t('toasts.revisionNeedCampaign'));
         return;
       }
       if (!currentAssetId || !isMediaAssetId(currentAssetId)) {
         showToast(t('toasts.revisionNeedAsset'));
+        return;
+      }
+      if (!projectId) {
+        showToast(t('toasts.projectRequired'));
         return;
       }
       const text = instruction.trim();
@@ -1699,25 +1704,60 @@ export function SocialMediaBuilderWorkspace() {
           aspect_ratio: formatPreset === 'portrait' ? '4:5' : formatPreset === 'square' ? '1:1' : '4:5',
           format_preset: formatPreset,
         });
-        const finalAssetId = response.final_asset_id;
+        const gptImage = response.gpt_image;
+        const output = gptImage?.outputs?.[0];
+        // Same Final Asset hydration as Oluştur finished-ad — sole full-bleed IMAGE.
+        const finalAssetId = response.final_asset_id || output?.local_asset_id;
         if (!finalAssetId || !isMediaAssetId(finalAssetId)) {
           throw new Error(t('toasts.revisionFailed'));
         }
         const postId = selectedPost?.id;
-        if (postId) {
-          const nextPosts = postsRef.current.map((p) =>
-            p.id === postId
-              ? {
-                  ...p,
-                  coverAssetId: finalAssetId,
-                  campaignContextId: response.campaign_id || campaignId,
-                  generationLifecycle: 'ready' as const,
-                }
-              : p,
-          );
-          postsRef.current = nextPosts;
-          setPosts(nextPosts);
+        if (!postId) {
+          throw new Error(t('toasts.revisionFailed'));
         }
+        clearCanvaRaster(postId);
+        const providerModel =
+          (typeof response.provider_route?.model === 'string' && response.provider_route.model) ||
+          gptImage?.model ||
+          'gpt-image-2';
+        const nextPost = createFinishedAdCanvasPost({
+          localAssetId: finalAssetId,
+          linkedProjectId: projectId,
+          formatPreset: asFormatPreset(response.format_preset || formatPreset),
+          instruction: text,
+          model: providerModel,
+          sessionId: gptImage?.session_id || response.campaign_id || campaignId,
+          campaignContextId: response.campaign_id || campaignId,
+          sourceAssetId: response.interior_asset_id ?? gptImage?.source_image?.asset_id ?? null,
+          index: Math.max(
+            1,
+            postsRef.current.findIndex((p) => p.id === postId) + 1,
+          ),
+          canvasWidth: output?.canvas_width,
+          canvasHeight: output?.canvas_height,
+          compositionWarnings: [
+            ...(Array.isArray(output?.composition_warnings) ? output.composition_warnings : []),
+            ...(Array.isArray(response.warnings) ? response.warnings : []),
+            ...(Array.isArray(gptImage?.warnings) ? gptImage.warnings : []),
+          ].filter((w): w is string => typeof w === 'string' && w.length > 0),
+          provider:
+            (typeof response.provider_route?.provider_id === 'string' &&
+              response.provider_route.provider_id) ||
+            'gpt_image',
+          logoAssetId: response.logo_asset_id,
+          interiorAssetId: response.interior_asset_id,
+        });
+        nextPost.id = postId;
+        nextPost.campaignContextId = response.campaign_id || campaignId;
+        const nextPosts = postsRef.current.map((p) => (p.id === postId ? nextPost : p));
+        postsRef.current = nextPosts;
+        selectedPostIdRef.current = nextPost.id;
+        setPosts(nextPosts);
+        setSelectedPostId(nextPost.id);
+        setFormatPreset(nextPost.formatPreset);
+        designEngineRef.current = 'creative-director';
+        setDesignEngine('creative-director');
+        setBrandLogo(false);
         coverAsset.setCoverImage({
           asset_id: finalAssetId,
           url: null,
@@ -1731,8 +1771,8 @@ export function SocialMediaBuilderWorkspace() {
         persistEpochRef.current += 1;
         void docApi.saveDraft({
           ...buildPersistPayload(),
-          posts: serializeSocialPosts(postsRef.current),
-          selectedPostId: selectedPostIdRef.current,
+          posts: serializeSocialPosts(nextPosts),
+          selectedPostId: nextPost.id,
           designProvider: 'creative-director',
           brandLogo: false,
         });
@@ -1763,32 +1803,56 @@ export function SocialMediaBuilderWorkspace() {
 
   const runUndoAiRevision = useCallback(async () => {
     const campaignId = creativeDirectorCampaignRef.current || creativeDirectorCampaignId;
-    if (!campaignId || !finishedAdCanvas) {
+    const projectId = selectedPost?.linkedProjectId || docApi.constructionProjectId;
+    if (!campaignId || !finishedAdCanvas || !projectId) {
       undoHistory();
       return;
     }
     try {
       const response = await undoCreativeDirectorRevision(campaignId);
-      const finalAssetId = response.final_asset_id;
+      const gptImage = response.gpt_image;
+      const output = gptImage?.outputs?.[0];
+      const finalAssetId = response.final_asset_id || output?.local_asset_id;
       if (!finalAssetId || !isMediaAssetId(finalAssetId)) {
         undoHistory();
         return;
       }
       pushHistory();
       const postId = selectedPost?.id;
-      if (postId) {
-        const nextPosts = postsRef.current.map((p) =>
-          p.id === postId
-            ? {
-                ...p,
-                coverAssetId: finalAssetId,
-                campaignContextId: response.campaign_id || campaignId,
-              }
-            : p,
-        );
-        postsRef.current = nextPosts;
-        setPosts(nextPosts);
+      if (!postId) {
+        undoHistory();
+        return;
       }
+      clearCanvaRaster(postId);
+      const providerModel =
+        (typeof response.provider_route?.model === 'string' && response.provider_route.model) ||
+        gptImage?.model ||
+        'gpt-image-2';
+      const nextPost = createFinishedAdCanvasPost({
+        localAssetId: finalAssetId,
+        linkedProjectId: projectId,
+        formatPreset: asFormatPreset(response.format_preset || formatPreset),
+        instruction: 'Undo AI revision',
+        model: providerModel,
+        sessionId: gptImage?.session_id || response.campaign_id || campaignId,
+        campaignContextId: response.campaign_id || campaignId,
+        sourceAssetId: response.interior_asset_id ?? gptImage?.source_image?.asset_id ?? null,
+        index: Math.max(1, postsRef.current.findIndex((p) => p.id === postId) + 1),
+        canvasWidth: output?.canvas_width,
+        canvasHeight: output?.canvas_height,
+        provider:
+          (typeof response.provider_route?.provider_id === 'string' &&
+            response.provider_route.provider_id) ||
+          'gpt_image',
+        logoAssetId: response.logo_asset_id,
+        interiorAssetId: response.interior_asset_id,
+      });
+      nextPost.id = postId;
+      nextPost.campaignContextId = response.campaign_id || campaignId;
+      const nextPosts = postsRef.current.map((p) => (p.id === postId ? nextPost : p));
+      postsRef.current = nextPosts;
+      setPosts(nextPosts);
+      setBrandLogo(false);
       coverAsset.setCoverImage({
         asset_id: finalAssetId,
         url: null,
@@ -1796,14 +1860,25 @@ export function SocialMediaBuilderWorkspace() {
         role: 'cover',
       });
       markDirty();
+      persistEpochRef.current += 1;
+      void docApi.saveDraft({
+        ...buildPersistPayload(),
+        posts: serializeSocialPosts(nextPosts),
+        selectedPostId: postId,
+        designProvider: 'creative-director',
+        brandLogo: false,
+      });
       showToast(t('toasts.revisionUndone'));
     } catch {
       undoHistory();
     }
   }, [
+    buildPersistPayload,
     coverAsset,
     creativeDirectorCampaignId,
+    docApi,
     finishedAdCanvas,
+    formatPreset,
     markDirty,
     pushHistory,
     selectedPost,

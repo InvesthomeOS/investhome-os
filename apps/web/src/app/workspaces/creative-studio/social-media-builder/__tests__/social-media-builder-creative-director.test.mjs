@@ -89,8 +89,18 @@ describe('Creative Director SMB wiring (finished-ad)', () => {
     const revBlock = workspace.match(/const runAiRevision = useCallback\([\s\S]*?\n  \);/);
     assert.ok(revBlock, 'runAiRevision missing');
     assert.match(revBlock[0], /current_final_asset_id/);
+    assert.match(revBlock[0], /createFinishedAdCanvasPost/);
+    assert.match(revBlock[0], /designProvider: 'creative-director'/);
+    assert.match(revBlock[0], /brandLogo: false/);
     assert.doesNotMatch(revBlock[0], /createCreativeDirectorCampaign/);
     assert.doesNotMatch(revBlock[0], /generateSocialDesign/);
+    assert.doesNotMatch(revBlock[0], /createDefaultElements/);
+    assert.doesNotMatch(revBlock[0], /PLACEHOLDER_HEADLINE/);
+    assert.doesNotMatch(revBlock[0], /createPostFromPreset/);
+    const undoBlock = workspace.match(/const runUndoAiRevision = useCallback\([\s\S]*?\n  \);/);
+    assert.ok(undoBlock, 'runUndoAiRevision missing');
+    assert.match(undoBlock[0], /createFinishedAdCanvasPost/);
+    assert.doesNotMatch(undoBlock[0], /createDefaultElements/);
   });
 
   it('Oluştur create path calls Creative Director then finished-ad generate-ad', () => {

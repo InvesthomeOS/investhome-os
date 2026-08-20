@@ -526,9 +526,10 @@ export function parseSocialPost(
     !Array.isArray(generationMeta.gpt_image)
       ? (generationMeta.gpt_image as Record<string, unknown>).local_asset_id
       : null;
+  // Prefer coverAssetId (revision updates it) over stale gpt_image.local_asset_id.
   const finishedAssetId =
-    (typeof gptLocal === 'string' && isMediaAssetUuid(gptLocal) ? gptLocal.trim() : null) ||
     coverId ||
+    (typeof gptLocal === 'string' && isMediaAssetUuid(gptLocal) ? gptLocal.trim() : null) ||
     (() => {
       const img = parsedElements.find(
         (el): el is SocialImageElement =>

@@ -1,0 +1,56 @@
+{
+  "id": "post-finished-1",
+  "platform": "instagram",
+  "format": "feed",
+  "formatPreset": "portrait",
+  "width": 1080,
+  "height": 1350,
+  "status": "draft",
+  "thumbUrl": "",
+  "name": "Finished Ad",
+  "headline": "",
+  "description": "",
+  "caption": "",
+  "coverAssetId": "a7c29de8-3163-4c49-a3dc-524571fa158b",
+  "linkedProjectId": "d50708cb-60b3-465a-8b16-6d30f802af8d",
+  "elements": [
+    {
+      "id": "img-finished-ad",
+      "type": "IMAGE",
+      "role": "background",
+      "assetId": "a7c29de8-3163-4c49-a3dc-524571fa158b",
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1350,
+      "zIndex": 0
+    }
+  ],
+  "generationMeta": {
+    "provider": "gpt_image",
+    "model": "gpt-image-2",
+    "generated_by": "creative_director_generate_ad",
+    "project_id": "d50708cb-60b3-465a-8b16-6d30f802af8d",
+    "user_prompt": "Başlığı daha premium yap. %25 rozetini biraz küçült. 'Sınırlı sayıda ünite' veya 'Sınırlı sayıda fırsat' ifadesini kaldır. Tasarımın geri kalanını mümkün olduğunca değiştirme.",
+    "campaign_context_id": "7f4015bf-906b-4728-95b5-ef6a888b1236",
+    "generation_context_id": "5fbd3202-6115-493e-a5be-450995675a6e",
+    "selected_asset_ids": [
+      "a7c29de8-3163-4c49-a3dc-524571fa158b"
+    ],
+    "production_mode": "finished_ad",
+    "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+    "interior_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+    "gpt_image": {
+      "local_asset_id": "a7c29de8-3163-4c49-a3dc-524571fa158b",
+      "composition_base_asset_id": null,
+      "source_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+      "session_id": "5fbd3202-6115-493e-a5be-450995675a6e",
+      "composition_warnings": [],
+      "editable_layers": false
+    }
+  },
+  "campaignContextId": "7f4015bf-906b-4728-95b5-ef6a888b1236",
+  "generationContextId": "5fbd3202-6115-493e-a5be-450995675a6e",
+  "generationLifecycle": "ready",
+  "createdAt": "2026-08-20T14:23:47.083Z"
+}
