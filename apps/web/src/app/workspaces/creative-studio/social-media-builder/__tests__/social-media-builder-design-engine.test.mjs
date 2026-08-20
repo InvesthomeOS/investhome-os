@@ -371,7 +371,9 @@ describe('canonical canvas fit / layout safety (renderer contract)', () => {
 
   it('CREATE vs EDIT UI, campaign context persistence, and Gönderiler restore', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
-    assert.match(workspace, /mode: 'create', explicit: true/);
+    // Oluştur create → Creative Director finished-ad; native only for surgical edit follow-ups.
+    assert.match(workspace, /runCreativeDirectorCampaign/);
+    assert.match(workspace, /isOlusturCreateBrief/);
     assert.match(workspace, /mode: 'edit', explicit: true/);
     assert.match(workspace, /designProvider: 'native'/);
     assert.match(workspace, /designEngineRef\.current/);

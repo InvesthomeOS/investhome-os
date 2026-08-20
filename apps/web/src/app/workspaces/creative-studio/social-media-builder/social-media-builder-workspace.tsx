@@ -78,6 +78,8 @@ import {
   buildSocialDesignRequest,
   hasDesignInsufficientContext,
   inferDesignMode,
+  isOlusturCreateBrief,
+  isSurgicalEdit,
   parseGenerationMetaFromDraft,
   selectedElementToDesignContext,
   serializeGenerationMetaForDraft,
@@ -129,7 +131,9 @@ import { applyAiFollowUpEdit } from './social-media-builder-ai-edit';
 import {
   GPT_IMAGE_STAGES,
   asFormatPreset,
+  createFinishedAdCanvasPost,
   createFlattenedGptImagePost,
+  isFinishedAdCanvasPost,
   isMediaAssetId,
 } from './social-media-builder-gpt-image';
 
@@ -539,7 +543,11 @@ export function SocialMediaBuilderWorkspace() {
       : canvaPreviewByPostId[selectedPostId];
   const displayArtboardSrc = canvaPreview?.src || artboardSrc;
   const displayArtboardState = canvaPreview?.src ? 'ready' : artboardState;
-  const hideOsLayers = Boolean(canvaPreview?.src) && canvaPreview?.transferMode === 'editable';
+  const finishedAdCanvas = isFinishedAdCanvasPost(selectedPost);
+  // Finished-ad raster is the sole visual: hide TEXT/CTA overlays + IH logo stub.
+  const hideOsLayers =
+    finishedAdCanvas ||
+    (Boolean(canvaPreview?.src) && canvaPreview?.transferMode === 'editable');
 
   function clearCanvaRaster(postId: string) {
     setCanvaPreviewByPostId((prev) => {
@@ -1561,47 +1569,36 @@ export function SocialMediaBuilderWorkspace() {
         if (!finalAssetId || !isMediaAssetId(finalAssetId)) {
           throw new Error(t('toasts.gptImageFailed'));
         }
-        const headline = response.final_turkish_texts?.headline || '';
         const providerModel =
           (typeof response.provider_route?.model === 'string' && response.provider_route.model) ||
           gptImage?.model ||
           'gpt-image-2';
-        const nextPost = createFlattenedGptImagePost({
+        const nextPost = createFinishedAdCanvasPost({
           localAssetId: finalAssetId,
           linkedProjectId: projectId,
           formatPreset: asFormatPreset(response.format_preset || formatPreset),
-          instruction: headline || 'Creative Director finished ad',
+          instruction: 'Creative Director finished ad',
           model: providerModel,
           sessionId: gptImage?.session_id || response.campaign_id,
           campaignContextId: response.campaign_id,
           sourceAssetId: response.interior_asset_id ?? gptImage?.source_image?.asset_id ?? null,
-          headline,
           index: siblingPosts.length + 1,
           canvasWidth: output?.canvas_width,
           canvasHeight: output?.canvas_height,
-          layers: null,
-          compositionBaseAssetId: null,
           compositionWarnings: [
             ...(Array.isArray(output?.composition_warnings) ? output.composition_warnings : []),
             ...(Array.isArray(response.warnings) ? response.warnings : []),
             ...(Array.isArray(gptImage?.warnings) ? gptImage.warnings : []),
           ].filter((w): w is string => typeof w === 'string' && w.length > 0),
-        });
-        nextPost.id = createdPostId;
-        nextPost.campaignContextId = response.campaign_id;
-        nextPost.name = 'Finished Ad';
-        nextPost.generationMeta = {
-          ...nextPost.generationMeta,
           provider:
             (typeof response.provider_route?.provider_id === 'string' &&
               response.provider_route.provider_id) ||
             'gpt_image',
-          generated_by: 'creative_director_generate_ad',
-          campaign_context_id: response.campaign_id,
-          production_mode: 'finished_ad',
-          logo_asset_id: response.logo_asset_id,
-          interior_asset_id: response.interior_asset_id,
-        };
+          logoAssetId: response.logo_asset_id,
+          interiorAssetId: response.interior_asset_id,
+        });
+        nextPost.id = createdPostId;
+        nextPost.campaignContextId = response.campaign_id;
         const nextPosts = [...siblingPosts, nextPost];
         pushHistory();
         postsRef.current = nextPosts;
@@ -1612,6 +1609,8 @@ export function SocialMediaBuilderWorkspace() {
         createInflightIdRef.current = null;
         designEngineRef.current = 'creative-director';
         setDesignEngine('creative-director');
+        // Logo is baked into finished raster by provider — never add IH stub / extra logo layer.
+        setBrandLogo(false);
         coverAsset.setCoverImage({
           asset_id: finalAssetId,
           url: null,
@@ -1625,6 +1624,7 @@ export function SocialMediaBuilderWorkspace() {
           posts: serializeSocialPosts(nextPosts),
           selectedPostId: nextPost.id,
           designProvider: 'creative-director',
+          brandLogo: false,
         });
         setPilotDesignChosen(true);
       } catch (err) {
@@ -2239,12 +2239,12 @@ export function SocialMediaBuilderWorkspace() {
       onOpenMediaPicker={() => coverAsset.openPicker('cover')}
       enabledComponentKeys={P0_COMPONENT_KEYS}
       onGenerate={(instruction) => {
-        const mode = inferDesignMode(instruction, postsRef.current);
-        if (mode === 'edit') {
-          void runAiGenerate(instruction, { mode: 'edit', explicit: true });
+        // Oluştur / full create briefs always go Creative Director — never native social/design.
+        if (isOlusturCreateBrief(instruction) || !isSurgicalEdit(instruction)) {
+          void runCreativeDirectorCampaign(instruction);
           return;
         }
-        void runCreativeDirectorCampaign(instruction);
+        void runAiGenerate(instruction, { mode: 'edit', explicit: true });
       }}
       generating={generating}
     />
@@ -2444,9 +2444,15 @@ export function SocialMediaBuilderWorkspace() {
       showToast(t('toasts.instructionRequired'));
       return;
     }
+    // Production Oluştur path: always Creative Director finished-ad — never steal into native.
+    if (isOlusturCreateBrief(instruction)) {
+      void runCreativeDirectorCampaign(instruction);
+      return;
+    }
     const canFollowUp = Boolean(selectedPost && (pilotDesignChosen || artDirectorSession));
     if (canFollowUp) {
       if (applyLocalFollowUp(instruction)) return;
+      // Legacy/manual native edit only for surgical follow-ups.
       void runAiGenerate(instruction, { mode: 'edit', explicit: true });
       return;
     }
@@ -3169,6 +3175,7 @@ export function SocialMediaBuilderWorkspace() {
                       data-image-state={displayArtboardState}
                       data-canva-preview={canvaPreview?.src ? 'true' : 'false'}
                       data-generation-lifecycle={selectedPost?.generationLifecycle ?? 'ready'}
+                      data-finished-ad-canvas={finishedAdCanvas ? 'true' : 'false'}
                       data-cover-asset-id={selectedPost?.coverAssetId ?? ''}
                       data-selected-post-id={selectedPost?.id ?? ''}
                       data-width={contentSize.w}

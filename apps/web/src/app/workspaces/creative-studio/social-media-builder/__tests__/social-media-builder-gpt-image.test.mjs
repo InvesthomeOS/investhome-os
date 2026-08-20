@@ -47,6 +47,19 @@ describe('GPT Image SMB wiring', () => {
     assert.match(workspace, /composition_base_asset_id/);
   });
 
+  it('finished-ad hydrate path forces sole background IMAGE without OS layers', () => {
+    const helper = read('social-media-builder-gpt-image.ts');
+    assert.match(helper, /createFinishedAdCanvasPost/);
+    assert.match(helper, /soleFinishedImage/);
+    assert.match(helper, /editable_layers: finishedAd \? false/);
+    const workspace = read('social-media-builder-workspace.tsx');
+    assert.match(workspace, /createFinishedAdCanvasPost\(/);
+    assert.doesNotMatch(
+      workspace.match(/const runGenerateAdFromCampaign = useCallback\([\s\S]*?\n  \);/)?.[0] || '',
+      /createDefaultElements/,
+    );
+  });
+
   it('renders rich headline runs when OS layers include runs', () => {
     const elements = read('social-media-builder-elements.ts');
     const artboard = read('smb-artboard-elements.tsx');

@@ -89,6 +89,50 @@ function ensureBackgroundLayer(
   return [background, ...elements.map((el) => ({ ...el, zIndex: Math.max(1, (el.zIndex ?? 1)) }))];
 }
 
+export function isFinishedAdCanvasMeta(
+  meta: Record<string, unknown> | null | undefined,
+): boolean {
+  if (!meta || typeof meta !== 'object') return false;
+  return (
+    meta.production_mode === 'finished_ad' ||
+    meta.generated_by === 'creative_director_generate_ad'
+  );
+}
+
+export function isFinishedAdCanvasPost(post: SocialPost | null | undefined): boolean {
+  return isFinishedAdCanvasMeta(post?.generationMeta ?? null);
+}
+
+/** Sole full-bleed IMAGE for finished-ad production — never default TEXT/CTA/logo layers. */
+export function createFinishedAdCanvasPost(input: {
+  localAssetId: string;
+  linkedProjectId: string;
+  formatPreset: FormatPresetKey;
+  instruction: string;
+  model: string;
+  sessionId: string;
+  campaignContextId: string | null;
+  sourceAssetId: string | null;
+  index: number;
+  canvasWidth?: number | null;
+  canvasHeight?: number | null;
+  compositionWarnings?: string[] | null;
+  provider?: string | null;
+  logoAssetId?: string | null;
+  interiorAssetId?: string | null;
+}): SocialPost {
+  return createFlattenedGptImagePost({
+    ...input,
+    headline: '',
+    layers: null,
+    compositionBaseAssetId: null,
+    finishedAd: true,
+    provider: input.provider,
+    logoAssetId: input.logoAssetId,
+    interiorAssetId: input.interiorAssetId,
+  });
+}
+
 /** GPT Image creative as a NEW SMB post. Uses editable layers when OS composition returns them. */
 export function createFlattenedGptImagePost(input: {
   localAssetId: string;
@@ -106,22 +150,41 @@ export function createFlattenedGptImagePost(input: {
   layers?: unknown[] | null;
   compositionBaseAssetId?: string | null;
   compositionWarnings?: string[] | null;
+  /** Finished-ad raster: ignore OS layers; exactly one full-bleed background IMAGE. */
+  finishedAd?: boolean;
+  provider?: string | null;
+  logoAssetId?: string | null;
+  interiorAssetId?: string | null;
 }): SocialPost {
   const preset = input.formatPreset;
   const size = resolveFormatSize(preset);
   const width = input.canvasWidth && input.canvasWidth > 0 ? input.canvasWidth : size.w;
   const height = input.canvasHeight && input.canvasHeight > 0 ? input.canvasHeight : size.h;
-  const layeredRaw = asSocialElements(input.layers);
+  const finishedAd = Boolean(input.finishedAd);
+  const layeredRaw = finishedAd ? [] : asSocialElements(input.layers);
   const layered =
     layeredRaw.length > 0
       ? ensureBackgroundLayer(layeredRaw, input.compositionBaseAssetId, width, height)
       : layeredRaw;
-  const coverId =
-    (input.compositionBaseAssetId && isMediaAssetUuid(input.compositionBaseAssetId)
-      ? input.compositionBaseAssetId
-      : null) || input.localAssetId;
-  const elements: SocialElement[] =
-    layered.length > 0
+  const coverId = finishedAd
+    ? input.localAssetId
+    : (input.compositionBaseAssetId && isMediaAssetUuid(input.compositionBaseAssetId)
+        ? input.compositionBaseAssetId
+        : null) || input.localAssetId;
+  const soleFinishedImage: SocialElement = {
+    id: 'img-finished-ad',
+    type: 'IMAGE',
+    role: 'background',
+    assetId: input.localAssetId,
+    x: 0,
+    y: 0,
+    width,
+    height,
+    zIndex: 0,
+  };
+  const elements: SocialElement[] = finishedAd
+    ? [soleFinishedImage]
+    : layered.length > 0
       ? layered
       : [
           {
@@ -144,29 +207,37 @@ export function createFlattenedGptImagePost(input: {
     height,
     status: 'draft',
     thumbUrl: '',
-    name: 'GPT Image',
-    headline: input.headline || '',
+    name: finishedAd ? 'Finished Ad' : 'GPT Image',
+    // Finished ads bake copy into the raster — never rebind TEXT/CTA placeholders.
+    headline: finishedAd ? '' : input.headline || '',
     description: '',
     caption: '',
     coverAssetId: coverId,
     linkedProjectId: input.linkedProjectId,
     elements,
     generationMeta: {
-      provider: 'gpt-image',
+      provider: input.provider || 'gpt-image',
       model: input.model,
-      generated_by: 'gpt_image_design',
+      generated_by: finishedAd ? 'creative_director_generate_ad' : 'gpt_image_design',
       project_id: input.linkedProjectId,
       user_prompt: input.instruction,
       campaign_context_id: input.campaignContextId,
       generation_context_id: input.sessionId,
       selected_asset_ids: [input.localAssetId],
+      ...(finishedAd
+        ? {
+            production_mode: 'finished_ad',
+            logo_asset_id: input.logoAssetId ?? null,
+            interior_asset_id: input.interiorAssetId ?? null,
+          }
+        : {}),
       gpt_image: {
         local_asset_id: input.localAssetId,
-        composition_base_asset_id: input.compositionBaseAssetId ?? null,
+        composition_base_asset_id: finishedAd ? null : input.compositionBaseAssetId ?? null,
         source_asset_id: input.sourceAssetId,
         session_id: input.sessionId,
         composition_warnings: input.compositionWarnings ?? [],
-        editable_layers: layered.length > 0,
+        editable_layers: finishedAd ? false : layered.length > 0,
       },
     },
     campaignContextId: input.campaignContextId,

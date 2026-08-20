@@ -506,28 +506,53 @@ export function parseSocialPost(
   const parsedElements = Array.isArray(body.elements)
     ? body.elements.map(parseElement).filter((e): e is SocialElement => e != null)
     : [];
-  const hasCopy = Boolean(headline.trim() || caption.trim());
-  const elements = ensureUniqueElementIds(
-    parsedElements.length > 0
-      ? parsedElements
-      : hasCopy
-        ? createDefaultElements(width, height, { headline, caption })
-        : [],
-  );
-  const lifecycleRaw = body.generationLifecycle ?? body.generation_lifecycle;
-  const generationLifecycle: SocialPostGenerationLifecycle | null =
-    lifecycleRaw === 'ready' || lifecycleRaw === 'error' || lifecycleRaw === 'generating' || lifecycleRaw === 'creating'
-      ? lifecycleRaw
-      : parsedElements.length || hasCopy
-        ? 'ready'
-        : null;
-
+  const generationMeta =
+    body.generationMeta && typeof body.generationMeta === 'object' && !Array.isArray(body.generationMeta)
+      ? (body.generationMeta as Record<string, unknown>)
+      : null;
+  const finishedAd =
+    generationMeta?.production_mode === 'finished_ad' ||
+    generationMeta?.generated_by === 'creative_director_generate_ad';
   const coverRaw =
     typeof body.coverAssetId === 'string'
       ? body.coverAssetId
       : typeof body.cover_asset_id === 'string'
         ? body.cover_asset_id
         : null;
+  const coverId = coverRaw && isMediaAssetUuid(coverRaw) ? coverRaw.trim() : null;
+  const hasCopy = Boolean(headline.trim() || caption.trim());
+  // Finished-ad: never synthesize default TEXT/CTA/IH stub layers from headline.
+  const elements = ensureUniqueElementIds(
+    parsedElements.length > 0
+      ? parsedElements
+      : finishedAd && coverId
+        ? [
+            {
+              id: 'img-finished-ad',
+              type: 'IMAGE' as const,
+              role: 'background' as const,
+              assetId: coverId,
+              x: 0,
+              y: 0,
+              width,
+              height,
+              zIndex: 0,
+            },
+          ]
+        : finishedAd
+          ? []
+          : hasCopy
+            ? createDefaultElements(width, height, { headline, caption })
+            : [],
+  );
+  const lifecycleRaw = body.generationLifecycle ?? body.generation_lifecycle;
+  const generationLifecycle: SocialPostGenerationLifecycle | null =
+    lifecycleRaw === 'ready' || lifecycleRaw === 'error' || lifecycleRaw === 'generating' || lifecycleRaw === 'creating'
+      ? lifecycleRaw
+      : parsedElements.length || hasCopy || finishedAd
+        ? 'ready'
+        : null;
+
   const linkedRaw =
     typeof body.linked_project_id === 'string'
       ? body.linked_project_id
@@ -545,17 +570,14 @@ export function parseSocialPost(
     status: asPostStatus(body.status),
     thumbUrl: '',
     name: typeof body.name === 'string' ? body.name : 'Social post',
-    headline: headlineFromElements(elements) || headline,
+    headline: finishedAd ? '' : headlineFromElements(elements) || headline,
     description: typeof body.description === 'string' ? body.description : '',
-    caption: captionFromElements(elements) || caption,
-    coverAssetId: coverRaw && isMediaAssetUuid(coverRaw) ? coverRaw.trim() : null,
+    caption: finishedAd ? '' : captionFromElements(elements) || caption,
+    coverAssetId: coverId,
     linkedProjectId:
       typeof linkedRaw === 'string' && linkedRaw.trim() ? linkedRaw.trim() : null,
     elements,
-    generationMeta:
-      body.generationMeta && typeof body.generationMeta === 'object' && !Array.isArray(body.generationMeta)
-        ? (body.generationMeta as Record<string, unknown>)
-        : null,
+    generationMeta,
     campaignContextId: asOptionalId(body.campaignContextId ?? body.campaign_context_id),
     generationContextId: asOptionalId(body.generationContextId ?? body.generation_context_id),
     createdAt: typeof body.createdAt === 'string' ? body.createdAt : typeof body.created_at === 'string' ? body.created_at : null,

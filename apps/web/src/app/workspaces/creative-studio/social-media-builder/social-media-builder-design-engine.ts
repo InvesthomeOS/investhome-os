@@ -40,7 +40,19 @@ const GENERATION_VERBS = [
   'new post',
 ];
 
-const COMPLETE_POST_MARKERS = ['post', 'instagram', 'kare', 'feed', 'gönderi', 'gonderi', 'creative'];
+const COMPLETE_POST_MARKERS = [
+  'post',
+  'instagram',
+  'kare',
+  'feed',
+  'gönderi',
+  'gonderi',
+  'creative',
+  'reklam',
+  'sosyal medya',
+  'kampanya',
+  'campaign',
+];
 
 const SURGICAL_EDIT_HINTS = [
   'taşı',
@@ -88,16 +100,27 @@ const SURGICAL_EDIT_HINTS = [
   'getiriyi öne',
 ];
 
-function isCompletePostGeneration(instruction: string): boolean {
+export function isCompletePostGeneration(instruction: string): boolean {
   const instr = (instruction || '').toLowerCase();
   const hasVerb = GENERATION_VERBS.some((v) => instr.includes(v));
   const hasPost = COMPLETE_POST_MARKERS.some((m) => instr.includes(m));
   return hasVerb && hasPost;
 }
 
-function isSurgicalEdit(instruction: string): boolean {
+export function isSurgicalEdit(instruction: string): boolean {
   const instr = (instruction || '').toLowerCase();
   return SURGICAL_EDIT_HINTS.some((h) => instr.includes(h));
+}
+
+/** True when the AI Design brief is a new create (Oluştur), not a surgical follow-up edit. */
+export function isOlusturCreateBrief(instruction: string): boolean {
+  const text = (instruction || '').trim();
+  if (!text) return false;
+  if (isCompletePostGeneration(text)) return true;
+  if (isSurgicalEdit(text)) return false;
+  // Broad create intent: hazırla / oluştur / generate without surgical edit cues.
+  const lower = text.toLowerCase();
+  return GENERATION_VERBS.some((v) => lower.includes(v));
 }
 
 export function inferDesignMode(

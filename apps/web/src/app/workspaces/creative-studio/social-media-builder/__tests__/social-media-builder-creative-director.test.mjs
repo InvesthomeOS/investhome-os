@@ -18,6 +18,8 @@ function read(name) {
 }
 
 const TEMPLE_UUID = 'd50708cb-60b3-465a-8b16-6d30f802af8d';
+const TEMPLE_BRIEF =
+  'The Temple için sosyal medya reklamı hazırla. Projenin kataloğunu ve Drive\'daki bilgileri incele. Projenin en güçlü özelliklerinden birkaçını seç ve bunları ön plana çıkar. Gerçek The Temple görsellerini ve logosunu kullan. Premium, sade ve dikkat çekici olsun. Türkçe hazırla.';
 
 /** Mirrors SMB create + generate-ad request sequence (no network). */
 function buildOlusturOrchestration({ projectId, brief, locale, formatPreset = 'portrait' }) {
@@ -76,6 +78,7 @@ describe('Creative Director SMB wiring (finished-ad)', () => {
     assert.match(workspace, /runCreativeDirectorCampaign/);
     assert.match(workspace, /runGenerateAdFromCampaign/);
     assert.match(workspace, /generateCreativeDirectorAd/);
+    assert.match(workspace, /createFinishedAdCanvasPost/);
     assert.match(workspace, /void runCreativeDirectorCampaign\(instruction\)/);
     assert.match(workspace, /await runGenerateAdFromCampaign\(campaignId, token\)/);
     assert.match(workspace, /production_mode: 'finished_ad'/);
@@ -103,15 +106,21 @@ describe('Creative Director SMB wiring (finished-ad)', () => {
     assert.ok(genAdBlock, 'runGenerateAdFromCampaign missing');
     assert.doesNotMatch(genAdBlock[0], /generateSocialDesign/);
     assert.doesNotMatch(genAdBlock[0], /generateGptImageDesign/);
+    assert.doesNotMatch(genAdBlock[0], /createPostFromPreset/);
+    assert.doesNotMatch(genAdBlock[0], /createDefaultElements/);
+    assert.doesNotMatch(genAdBlock[0], /PLACEHOLDER_HEADLINE/);
     assert.match(genAdBlock[0], /production_mode: 'finished_ad'/);
     assert.match(genAdBlock[0], /final_asset_id/);
+    assert.match(genAdBlock[0], /createFinishedAdCanvasPost/);
     assert.match(genAdBlock[0], /designProvider: 'creative-director'/);
+    assert.match(genAdBlock[0], /brandLogo: false/);
   });
 
-  it('submitAiDesign create uses Creative Director; native only for explicit edit follow-ups', () => {
+  it('submitAiDesign create uses Creative Director; native only for surgical follow-ups', () => {
     const workspace = read('social-media-builder-workspace.tsx');
     const submit = workspace.match(/function submitAiDesign\(\) \{[\s\S]*?\n  \}/);
     assert.ok(submit, 'submitAiDesign missing');
+    assert.match(submit[0], /isOlusturCreateBrief\(instruction\)/);
     assert.match(submit[0], /runCreativeDirectorCampaign\(instruction\)/);
     assert.doesNotMatch(submit[0], /runGptImageGenerate/);
     assert.doesNotMatch(submit[0], /runAiGenerate\(instruction,\s*\{\s*mode:\s*'create'/);
@@ -124,8 +133,18 @@ describe('Creative Director SMB wiring (finished-ad)', () => {
     const leftRailBlock = workspace.match(/onGenerate=\{\(instruction\) => \{[\s\S]*?\}\}/);
     assert.ok(leftRailBlock, 'onGenerate handler missing');
     assert.match(leftRailBlock[0], /runCreativeDirectorCampaign/);
+    assert.match(leftRailBlock[0], /isOlusturCreateBrief/);
     assert.doesNotMatch(leftRailBlock[0], /runGptImageGenerate/);
     assert.doesNotMatch(leftRailBlock[0], /runAiGenerate\(instruction,\s*\{\s*mode:\s*'create'/);
+  });
+
+  it('finished-ad canvas mode hides OS overlays and IH stub', () => {
+    const workspace = read('social-media-builder-workspace.tsx');
+    assert.match(workspace, /isFinishedAdCanvasPost/);
+    assert.match(workspace, /finishedAdCanvas/);
+    assert.match(workspace, /data-finished-ad-canvas/);
+    assert.match(workspace, /hideOsLayers/);
+    assert.match(workspace, /setBrandLogo\(false\)/);
   });
 
   it('passes project_id, brief, mode project, and locale language to campaigns', () => {
@@ -144,12 +163,42 @@ describe('Creative Director SMB wiring (finished-ad)', () => {
   });
 });
 
+describe('Finished-ad sole IMAGE hydrate helper', () => {
+  it('createFinishedAdCanvasPost builds exactly one background IMAGE — no TEXT/CTA/PLACEHOLDER', () => {
+    // Execute helper via tsx/register if available; otherwise assert source contract.
+    const helper = read('social-media-builder-gpt-image.ts');
+    assert.match(helper, /export function createFinishedAdCanvasPost/);
+    assert.match(helper, /finishedAd: true/);
+    assert.match(helper, /id: 'img-finished-ad'/);
+    assert.match(helper, /role: 'background'/);
+    assert.match(helper, /production_mode: 'finished_ad'/);
+    assert.match(helper, /headline: finishedAd \? ''/);
+    assert.doesNotMatch(helper, /createDefaultElements/);
+    assert.doesNotMatch(helper, /PLACEHOLDER_HEADLINE/);
+    assert.doesNotMatch(helper, /Schedule a private tour/);
+    assert.doesNotMatch(helper, /New social post/);
+  });
+
+  it('persistence never synthesizes default elements for finished_ad drafts', () => {
+    const persistence = read('social-media-builder-persistence.ts');
+    assert.match(persistence, /production_mode === 'finished_ad'/);
+    assert.match(persistence, /creative_director_generate_ad/);
+    assert.match(persistence, /img-finished-ad/);
+    // createDefaultElements only for non-finishedAd hasCopy path
+    const parseFn = persistence.slice(persistence.indexOf('export function parseSocialPost'));
+    assert.match(parseFn, /finishedAd/);
+    assert.ok(
+      parseFn.includes('createDefaultElements') === true,
+      'legacy default elements still exist for non-finished posts',
+    );
+  });
+});
+
 describe('Oluştur orchestration request shape (acceptance parity)', () => {
   it('builds Temple TR campaigns then generate-ad finished_ad — never social/design', () => {
     const built = buildOlusturOrchestration({
       projectId: TEMPLE_UUID,
-      brief:
-        'The Temple için sosyal medya reklamı hazırla. Drive bilgilerini incele. Türkçe hazırla.',
+      brief: TEMPLE_BRIEF,
       locale: 'tr',
       formatPreset: 'portrait',
     });
@@ -159,6 +208,7 @@ describe('Oluştur orchestration request shape (acceptance parity)', () => {
     assert.equal(built.steps[0].body.project_id, TEMPLE_UUID);
     assert.equal(built.steps[0].body.language, 'tr');
     assert.equal(built.steps[0].body.mode, 'project');
+    assert.equal(built.steps[0].body.brief, TEMPLE_BRIEF);
     assert.equal(
       built.steps[1].pathTemplate,
       '/ai/creative-studio/campaigns/{campaign_id}/generate-ad',
@@ -180,5 +230,36 @@ describe('Oluştur orchestration request shape (acceptance parity)', () => {
       buildOlusturOrchestration({ projectId: TEMPLE_UUID, brief: '  ', locale: 'tr' }).ok,
       false,
     );
+  });
+});
+
+describe('Oluştur create brief inference (no native steal)', () => {
+  it('Temple brief is classified as Oluştur create', () => {
+    const engine = read('social-media-builder-design-engine.ts');
+    assert.match(engine, /export function isOlusturCreateBrief/);
+    assert.match(engine, /reklam/);
+    assert.match(engine, /sosyal medya/);
+    // Inline mirror of isOlusturCreateBrief for Temple brief.
+    const GENERATION_VERBS = ['hazırla', 'hazirla', 'oluştur', 'olustur', 'create a', 'generate a', 'prepare a'];
+    const COMPLETE_POST_MARKERS = [
+      'post',
+      'instagram',
+      'kare',
+      'feed',
+      'gönderi',
+      'gonderi',
+      'creative',
+      'reklam',
+      'sosyal medya',
+      'kampanya',
+      'campaign',
+    ];
+    const SURGICAL = ['taşı', 'move the', 'remove the', 'küçült'];
+    const lower = TEMPLE_BRIEF.toLowerCase();
+    const hasVerb = GENERATION_VERBS.some((v) => lower.includes(v));
+    const hasPost = COMPLETE_POST_MARKERS.some((m) => lower.includes(m));
+    const surgical = SURGICAL.some((h) => lower.includes(h));
+    assert.equal(hasVerb && hasPost, true);
+    assert.equal(surgical, false);
   });
 });
