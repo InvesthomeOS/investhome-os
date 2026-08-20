@@ -1,4 +1,4 @@
-"""Creative Director API — campaign brief + context foundation (no image generation)."""
+"""Creative Director API — campaign brief + context + finished-ad generate/revise."""
 
 from __future__ import annotations
 
@@ -16,16 +16,20 @@ from investhome_api.schemas.creative_director import (
     CreativeDirectorGenerateAdRequest,
     CreativeDirectorGenerateAdResponse,
     CreativeDirectorRecomposeAdRequest,
+    CreativeDirectorReviseAdResponse,
     CreativeDirectorReviseRequest,
 )
 from investhome_api.services.creative_director.generate_ad import (
     generate_ad_from_campaign,
     recompose_ad_from_campaign,
 )
+from investhome_api.services.creative_director.revision import (
+    revise_ad_from_campaign,
+    undo_campaign_revision,
+)
 from investhome_api.services.creative_director.service import (
     create_campaign,
     get_campaign,
-    revise_campaign_stub,
 )
 
 router = APIRouter(tags=["ai-creative-studio"])
@@ -65,16 +69,31 @@ def get_creative_director_campaign(
 
 @router.post(
     "/ai/creative-studio/campaigns/{campaign_id}/revise",
-    response_model=CreativeDirectorCampaignResponse,
+    response_model=CreativeDirectorReviseAdResponse,
 )
 def revise_creative_director_campaign(
     campaign_id: UUID,
     body: CreativeDirectorReviseRequest,
     db: Session = Depends(get_db),  # noqa: B008
     user: User = _cs_view,
-) -> CreativeDirectorCampaignResponse:
-    """Stub: records NL revision intent on Campaign Context for a later sprint."""
-    result = revise_campaign_stub(db, user, campaign_id, body)
+) -> CreativeDirectorReviseAdResponse:
+    """Revise EXISTING finished-ad using current Final Asset as reference (no new campaign)."""
+    result = revise_ad_from_campaign(db, user, campaign_id, body)
+    db.commit()
+    return result
+
+
+@router.post(
+    "/ai/creative-studio/campaigns/{campaign_id}/undo-revision",
+    response_model=CreativeDirectorReviseAdResponse,
+)
+def undo_creative_director_revision(
+    campaign_id: UUID,
+    db: Session = Depends(get_db),  # noqa: B008
+    user: User = _cs_view,
+) -> CreativeDirectorReviseAdResponse:
+    """Simple undo — restore previous_asset_id from revision history (0 provider calls)."""
+    result = undo_campaign_revision(db, user, campaign_id)
     db.commit()
     return result
 

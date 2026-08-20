@@ -545,10 +545,14 @@ def _generate_project(
         (source.image_bytes, source.filename, source.content_type),
     ]
     if finished_ad:
-        for row in extras:
-            if row.role == "project_logo" and row.image_bytes:
-                edit_inputs.append((row.image_bytes, row.filename, row.content_type))
-                break
+        skip_logo_input = isinstance(builder_context, dict) and (
+            builder_context.get("skip_logo_edit_input") or builder_context.get("revision_mode")
+        )
+        if not skip_logo_input:
+            for row in extras:
+                if row.role == "project_logo" and row.image_bytes:
+                    edit_inputs.append((row.image_bytes, row.filename, row.content_type))
+                    break
     remote = edit_image(
         api_key=api_key,
         model=availability.model,

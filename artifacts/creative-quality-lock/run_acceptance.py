@@ -115,6 +115,40 @@ def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     reports: list[dict] = []
     total_calls = 0
+    reuse = all(
+        (OUT / f"{item['key']}-generate-ad.json").is_file()
+        and (OUT / f"{item['key']}-campaign-create.json").is_file()
+        and (OUT / f"{item['key']}-report.json").is_file()
+        for item in CAMPAIGNS
+    )
+    if reuse and not __import__("os").environ.get("FORCE_QUALITY_LOCK_LIVE"):
+        # Freeze path: assert existing A/B/C artifacts without re-spending GPT.
+        for item in CAMPAIGNS:
+            key = item["key"]
+            camp_body = json.loads((OUT / f"{key}-campaign-create.json").read_text(encoding="utf-8"))
+            gen_body = json.loads((OUT / f"{key}-generate-ad.json").read_text(encoding="utf-8"))
+            report = json.loads((OUT / f"{key}-report.json").read_text(encoding="utf-8"))
+            calls = int(gen_body.get("gpt_image_call_count") or gen_body.get("provider_call_count") or 0)
+            total_calls += calls
+            shot = OUT / f"{key}-final.png"
+            if shot.is_file():
+                report["18_screenshot"] = str(shot)
+            reports.append(report)
+        summary = {
+            "status": "READY FOR CREATIVE QUALITY REVIEW",
+            "visual_quality_pass_declared": False,
+            "total_provider_calls": total_calls,
+            "max_provider_calls_allowed": 3,
+            "provider_budget_ok": total_calls <= 3,
+            "reused_artifacts": True,
+            "campaigns": reports,
+        }
+        (OUT / "summary.json").write_text(
+            json.dumps(summary, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        print(json.dumps(summary, indent=2, ensure_ascii=False))
+        return 0 if total_calls <= 3 else 1
 
     with httpx.Client(base_url=BASE, timeout=360.0) as client:
         login = client.post(

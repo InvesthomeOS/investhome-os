@@ -13626,6 +13626,11 @@
           "designLabel": "Tasarım {letter}",
           "resultsTitle": "Tasarım alternatifleri"
         },
+        "aiRevision": {
+          "placeholder": "Tasarımda neyi değiştirmek istiyorsunuz?",
+          "submit": "Uygula",
+          "generating": "Tasarım düzenleniyor..."
+        },
         "editor": {
           "more": "Daha Fazla",
           "text": "Metin",
@@ -13978,6 +13983,11 @@
           "gptImageFailed": "GPT Image üretimi başarısız. Native/Ideogram üretim kullanılmadı.",
           "campaignCreated": "Kampanya bağlamı hazır — ID: {campaignId}",
           "campaignFailed": "Creative Director kampanyası oluşturulamadı. Native/GPT Image üretim kullanılmadı.",
+          "revisionApplied": "Tasarım düzenlemesi uygulandı",
+          "revisionFailed": "AI düzenleme başarısız oldu",
+          "revisionUndone": "Önceki tasarıma geri dönüldü",
+          "revisionNeedCampaign": "AI düzenleme için önce bir kampanya tasarımı oluşturun",
+          "revisionNeedAsset": "AI düzenleme için mevcut Final Asset gerekli",
           "logoChanged": "Logo güncellendi",
           "logoRemoved": "Logo kaldırıldı",
           "imageChanged": "Arka plan görseli güncellendi",

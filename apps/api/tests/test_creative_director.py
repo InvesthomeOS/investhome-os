@@ -404,12 +404,13 @@ def test_create_campaign_endpoint_locks_interior_and_logo(
     assert get_resp.json()["campaign_id"] == body["campaign_id"]
     assert get_resp.json()["campaign_context"]["original_user_brief"] == BRIEF
 
+    # Revise requires current_final_asset_id (AI revision mode) — stub log path removed.
     revise = client.post(
         f"/ai/creative-studio/campaigns/{body['campaign_id']}/revise",
         json={"instruction": "Make the CTA softer"},
     )
-    assert revise.status_code == 200
-    assert revise.json()["campaign_context"]["latest_revision_instruction"] == "Make the CTA softer"
+    assert revise.status_code == 422
+    assert "current_final_asset_id" in revise.text.lower() or "current_final" in revise.text.lower()
 
 
 def test_no_silent_image_provider_fallback_in_registry() -> None:

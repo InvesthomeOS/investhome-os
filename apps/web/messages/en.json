@@ -18949,6 +18949,11 @@
           "designLabel": "Design {letter}",
           "resultsTitle": "Design alternatives"
         },
+        "aiRevision": {
+          "placeholder": "What would you like to change in the design?",
+          "submit": "Apply",
+          "generating": "Updating design..."
+        },
         "editor": {
           "more": "More",
           "text": "Text",
@@ -19301,6 +19306,11 @@
           "gptImageFailed": "GPT Image generation failed. Native/Ideogram generation was not used.",
           "campaignCreated": "Campaign context ready — ID: {campaignId}",
           "campaignFailed": "Creative Director campaign could not be created. Native/GPT Image generation was not used.",
+          "revisionApplied": "Design revision applied",
+          "revisionFailed": "AI revision failed",
+          "revisionUndone": "Restored previous design",
+          "revisionNeedCampaign": "Create a campaign design before AI revision",
+          "revisionNeedAsset": "Current Final Asset is required for AI revision",
           "logoChanged": "Logo updated",
           "logoRemoved": "Logo removed",
           "imageChanged": "Background image updated",

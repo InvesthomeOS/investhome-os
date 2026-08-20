@@ -67,9 +67,30 @@ describe('Creative Director SMB wiring (finished-ad)', () => {
     assert.match(api, /\/ai\/creative-studio\/campaigns/);
     assert.match(api, /export async function generateCreativeDirectorAd/);
     assert.match(api, /\/generate-ad/);
+    assert.match(api, /export async function reviseCreativeDirectorAd/);
+    assert.match(api, /\/revise/);
+    assert.match(api, /current_final_asset_id/);
+    assert.match(api, /export async function undoCreativeDirectorRevision/);
     assert.match(api, /production_mode: productionMode/);
     assert.match(api, /input\.production_mode \?\? 'finished_ad'/);
     assert.doesNotMatch(api, /production_mode: input\.production_mode \?\? 'os_compose'/);
+  });
+
+  it('SMB AI revision UI wires revise endpoint without new campaign', () => {
+    const workspace = read('social-media-builder-workspace.tsx');
+    assert.match(workspace, /reviseCreativeDirectorAd/);
+    assert.match(workspace, /undoCreativeDirectorRevision/);
+    assert.match(workspace, /runAiRevision/);
+    assert.match(workspace, /data-testid="smb-ai-revision"/);
+    assert.match(workspace, /data-testid="smb-ai-revision-input"/);
+    assert.match(workspace, /data-testid="smb-ai-revision-submit"/);
+    assert.match(workspace, /hideManualCanvasTools/);
+    assert.match(workspace, /data-button-hierarchy="primary"/);
+    const revBlock = workspace.match(/const runAiRevision = useCallback\([\s\S]*?\n  \);/);
+    assert.ok(revBlock, 'runAiRevision missing');
+    assert.match(revBlock[0], /current_final_asset_id/);
+    assert.doesNotMatch(revBlock[0], /createCreativeDirectorCampaign/);
+    assert.doesNotMatch(revBlock[0], /generateSocialDesign/);
   });
 
   it('Oluştur create path calls Creative Director then finished-ad generate-ad', () => {

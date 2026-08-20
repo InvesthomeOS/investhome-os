@@ -927,3 +927,46 @@ export async function generateCreativeDirectorAd(
     }),
   });
 }
+
+/** AI revision of an EXISTING finished-ad (no new campaign). */
+export type CreativeDirectorReviseRequest = {
+  instruction: string;
+  current_final_asset_id: string;
+  language?: string | null;
+  aspect_ratio?: '1:1' | '4:5' | '16:9' | '9:16' | null;
+  format_preset?: string | null;
+};
+
+export type CreativeDirectorReviseAdResponse = CreativeDirectorGenerateAdResponse & {
+  revision_brief?: Record<string, unknown>;
+  revision_intents?: string[];
+  revision_history?: Array<Record<string, unknown>>;
+  previous_asset_id?: string | null;
+  campaign_context?: Record<string, unknown>;
+  gpt_image_call_count?: number;
+};
+
+export async function reviseCreativeDirectorAd(
+  campaignId: string,
+  input: CreativeDirectorReviseRequest,
+): Promise<CreativeDirectorReviseAdResponse> {
+  return apiFetch(`/ai/creative-studio/campaigns/${campaignId}/revise`, {
+    method: 'POST',
+    body: JSON.stringify({
+      instruction: input.instruction,
+      current_final_asset_id: input.current_final_asset_id,
+      language: input.language ?? undefined,
+      aspect_ratio: input.aspect_ratio ?? '4:5',
+      format_preset: input.format_preset ?? 'portrait',
+    }),
+  });
+}
+
+export async function undoCreativeDirectorRevision(
+  campaignId: string,
+): Promise<CreativeDirectorReviseAdResponse> {
+  return apiFetch(`/ai/creative-studio/campaigns/${campaignId}/undo-revision`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}

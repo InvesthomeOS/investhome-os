@@ -17,6 +17,8 @@ import {
   generateSocialDesign,
   getGptImageProviderStatus,
   getIdeogramProviderStatus,
+  reviseCreativeDirectorAd,
+  undoCreativeDirectorRevision,
   type GptImageProviderStatus,
   type IdeogramProviderStatus,
 } from '@/lib/api/creative-studio';
@@ -262,6 +264,8 @@ export function SocialMediaBuilderWorkspace() {
   const [pilotDesignChosen, setPilotDesignChosen] = useState(false);
   const [creativeDirectorCampaignId, setCreativeDirectorCampaignId] = useState<string | null>(null);
   const creativeDirectorCampaignRef = useRef<string | null>(null);
+  const [aiRevisionPrompt, setAiRevisionPrompt] = useState('');
+  const [aiRevising, setAiRevising] = useState(false);
   const [postMenuId, setPostMenuId] = useState<string | null>(null);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
   const [canvaBusy, setCanvaBusy] = useState(false);
@@ -376,14 +380,25 @@ export function SocialMediaBuilderWorkspace() {
     [t],
   );
 
-  const localLeftItems = useMemo(
-    () => smbLeftRail.map((i) => ({ id: i.id, icon: i.icon, label: i.label ?? i.id })),
-    [smbLeftRail],
-  );
-  const localRightItems = useMemo(
-    () => smbRightRail.map((i) => ({ id: i.id, icon: i.icon, label: i.label ?? i.id })),
-    [smbRightRail],
-  );
+  const localLeftItems = useMemo(() => {
+    const finished = isFinishedAdCanvasPost(selectedPost);
+    return smbLeftRail
+      .filter((i) => {
+        if (!finished) return true;
+        // Finished-ad AI-first: hide unused manual rails (prefer hide over delete).
+        return i.id === 'media' || i.id === 'ai' || i.id === 'brand';
+      })
+      .map((i) => ({ id: i.id, icon: i.icon, label: i.label ?? i.id }));
+  }, [selectedPost, smbLeftRail]);
+  const localRightItems = useMemo(() => {
+    const finished = isFinishedAdCanvasPost(selectedPost);
+    return smbRightRail
+      .filter((i) => {
+        if (!finished) return true;
+        return i.id === 'content' || i.id === 'settings';
+      })
+      .map((i) => ({ id: i.id, icon: i.icon, label: i.label ?? i.id }));
+  }, [selectedPost, smbRightRail]);
 
   useEffect(() => {
     if (ftv.autoFit) ftv.fitToView();
@@ -547,10 +562,17 @@ export function SocialMediaBuilderWorkspace() {
   const displayArtboardSrc = canvaPreview?.src || artboardSrc;
   const displayArtboardState = canvaPreview?.src ? 'ready' : artboardState;
   const finishedAdCanvas = isFinishedAdCanvasPost(selectedPost);
+  const canAiRevise =
+    Boolean(creativeDirectorCampaignId) &&
+    finishedAdCanvas &&
+    Boolean(selectedPost?.coverAssetId) &&
+    isMediaAssetId(selectedPost?.coverAssetId || '');
   // Finished-ad raster is the sole visual: hide TEXT/CTA overlays + IH logo stub.
   const hideOsLayers =
     finishedAdCanvas ||
     (Boolean(canvaPreview?.src) && canvaPreview?.transferMode === 'editable');
+  // Finished-ad AI-first: hide manual canvas chrome (prefer hide over delete).
+  const hideManualCanvasTools = finishedAdCanvas;
 
   function clearCanvaRaster(postId: string) {
     setCanvaPreviewByPostId((prev) => {
@@ -1645,6 +1667,150 @@ export function SocialMediaBuilderWorkspace() {
     [coverAsset, docApi, formatPreset, locale, markDirty, pushHistory, t],
   );
 
+  const runAiRevision = useCallback(
+    async (instruction: string) => {
+      const campaignId = creativeDirectorCampaignRef.current || creativeDirectorCampaignId;
+      const currentAssetId = selectedPost?.coverAssetId;
+      if (!campaignId) {
+        showToast(t('toasts.revisionNeedCampaign'));
+        return;
+      }
+      if (!currentAssetId || !isMediaAssetId(currentAssetId)) {
+        showToast(t('toasts.revisionNeedAsset'));
+        return;
+      }
+      const text = instruction.trim();
+      if (!text) {
+        showToast(t('toasts.instructionRequired'));
+        return;
+      }
+      if (generatingRef.current || aiRevising) return;
+
+      setAiRevising(true);
+      generatingRef.current = true;
+      setGenerating(true);
+      setAiStatus('gptImageGenerating');
+      try {
+        pushHistory();
+        const response = await reviseCreativeDirectorAd(campaignId, {
+          instruction: text,
+          current_final_asset_id: currentAssetId,
+          language: locale,
+          aspect_ratio: formatPreset === 'portrait' ? '4:5' : formatPreset === 'square' ? '1:1' : '4:5',
+          format_preset: formatPreset,
+        });
+        const finalAssetId = response.final_asset_id;
+        if (!finalAssetId || !isMediaAssetId(finalAssetId)) {
+          throw new Error(t('toasts.revisionFailed'));
+        }
+        const postId = selectedPost?.id;
+        if (postId) {
+          const nextPosts = postsRef.current.map((p) =>
+            p.id === postId
+              ? {
+                  ...p,
+                  coverAssetId: finalAssetId,
+                  campaignContextId: response.campaign_id || campaignId,
+                  generationLifecycle: 'ready' as const,
+                }
+              : p,
+          );
+          postsRef.current = nextPosts;
+          setPosts(nextPosts);
+        }
+        coverAsset.setCoverImage({
+          asset_id: finalAssetId,
+          url: null,
+          alt: null,
+          role: 'cover',
+        });
+        setCreativeDirectorCampaignId(response.campaign_id || campaignId);
+        creativeDirectorCampaignRef.current = response.campaign_id || campaignId;
+        setAiRevisionPrompt('');
+        markDirty();
+        persistEpochRef.current += 1;
+        void docApi.saveDraft({
+          ...buildPersistPayload(),
+          posts: serializeSocialPosts(postsRef.current),
+          selectedPostId: selectedPostIdRef.current,
+          designProvider: 'creative-director',
+          brandLogo: false,
+        });
+        showToast(t('toasts.revisionApplied'));
+      } catch (err) {
+        showToast(generateErrorMessage(err, t('toasts.revisionFailed')));
+      } finally {
+        setAiRevising(false);
+        generatingRef.current = false;
+        setGenerating(false);
+        setAiStatus('idle');
+      }
+    },
+    [
+      aiRevising,
+      buildPersistPayload,
+      coverAsset,
+      creativeDirectorCampaignId,
+      docApi,
+      formatPreset,
+      locale,
+      markDirty,
+      pushHistory,
+      selectedPost,
+      t,
+    ],
+  );
+
+  const runUndoAiRevision = useCallback(async () => {
+    const campaignId = creativeDirectorCampaignRef.current || creativeDirectorCampaignId;
+    if (!campaignId || !finishedAdCanvas) {
+      undoHistory();
+      return;
+    }
+    try {
+      const response = await undoCreativeDirectorRevision(campaignId);
+      const finalAssetId = response.final_asset_id;
+      if (!finalAssetId || !isMediaAssetId(finalAssetId)) {
+        undoHistory();
+        return;
+      }
+      pushHistory();
+      const postId = selectedPost?.id;
+      if (postId) {
+        const nextPosts = postsRef.current.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                coverAssetId: finalAssetId,
+                campaignContextId: response.campaign_id || campaignId,
+              }
+            : p,
+        );
+        postsRef.current = nextPosts;
+        setPosts(nextPosts);
+      }
+      coverAsset.setCoverImage({
+        asset_id: finalAssetId,
+        url: null,
+        alt: null,
+        role: 'cover',
+      });
+      markDirty();
+      showToast(t('toasts.revisionUndone'));
+    } catch {
+      undoHistory();
+    }
+  }, [
+    coverAsset,
+    creativeDirectorCampaignId,
+    finishedAdCanvas,
+    markDirty,
+    pushHistory,
+    selectedPost,
+    t,
+    undoHistory,
+  ]);
+
   const runCreativeDirectorCampaign = useCallback(
     async (instruction: string) => {
       const projectId = docApi.constructionProjectId;
@@ -2545,13 +2711,49 @@ export function SocialMediaBuilderWorkspace() {
               size="sm"
               data-testid="smb-ai-design-submit"
               data-ai-workflow={pilotDesignChosen ? 'edit' : 'create'}
-              disabled={generating}
+              data-button-hierarchy="primary"
+              disabled={generating || aiRevising}
               onClick={() => submitAiDesign()}
             >
               <IhIcon name="sparkles" size={12} />
-              {generating ? t('aiDesign.generating') : t('aiDesign.submit')}
+              {generating && !aiRevising ? t('aiDesign.generating') : t('aiDesign.submit')}
             </Button>
           </div>
+          {canAiRevise ? (
+            <div className="smb-ws__ai-revision" data-testid="smb-ai-revision">
+              <div className="smb-ws__ai-design-row">
+                <TextArea
+                  id="smb-ai-revision-input"
+                  className="smb-ws__ai-design-input smb-ws__ai-design-textarea"
+                  rows={2}
+                  value={aiRevisionPrompt}
+                  onChange={(e) => setAiRevisionPrompt(e.target.value)}
+                  placeholder={t('aiRevision.placeholder')}
+                  data-testid="smb-ai-revision-input"
+                  disabled={generating || aiRevising}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                      e.preventDefault();
+                      void runAiRevision(aiRevisionPrompt);
+                    }
+                  }}
+                />
+              </div>
+              <div className="smb-ws__ai-design-actions">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  data-testid="smb-ai-revision-submit"
+                  data-button-hierarchy="primary"
+                  disabled={generating || aiRevising || !aiRevisionPrompt.trim()}
+                  onClick={() => void runAiRevision(aiRevisionPrompt)}
+                >
+                  <IhIcon name="sparkles" size={12} />
+                  {aiRevising ? t('aiRevision.generating') : t('aiRevision.submit')}
+                </Button>
+              </div>
+            </div>
+          ) : null}
           {creativeDirectorCampaignId ? (
             <span
               className="smb-ws__sr-only"
@@ -2820,11 +3022,19 @@ export function SocialMediaBuilderWorkspace() {
                 className="smb-ws__icon-btn"
                 aria-label={t('undo')}
                 data-testid="smb-undo"
-                disabled={!historyPast.length}
-                onClick={() => undoHistory()}
+                data-button-hierarchy="utility"
+                disabled={!historyPast.length && !(finishedAdCanvas && creativeDirectorCampaignId)}
+                onClick={() => {
+                  if (finishedAdCanvas && creativeDirectorCampaignId) {
+                    void runUndoAiRevision();
+                  } else {
+                    undoHistory();
+                  }
+                }}
               >
                 <IhIcon name="refresh" size={12} />
               </button>
+              {hideManualCanvasTools ? null : (
               <button
                 type="button"
                 className="smb-ws__icon-btn"
@@ -2835,6 +3045,7 @@ export function SocialMediaBuilderWorkspace() {
               >
                 <IhIcon name="arrowRight" size={12} />
               </button>
+              )}
             </div>
           </div>
           <div className="smb-ws__toolbar-right">
@@ -2865,8 +3076,18 @@ export function SocialMediaBuilderWorkspace() {
           isFullscreen={focus.isFullscreen}
           onExitFullscreen={focus.exitFullscreen}
           layoutClassName="smb-ws__layout"
-          leftRail={smbLeftRail}
-          rightRail={smbRightRail}
+          leftRail={localLeftItems.map((i) => ({
+            id: i.id,
+            icon: i.icon,
+            labelKey: 'brief' as const,
+            label: i.label,
+          }))}
+          rightRail={localRightItems.map((i) => ({
+            id: i.id,
+            icon: i.icon,
+            labelKey: 'export' as const,
+            label: i.label,
+          }))}
           onLeftRailSelect={(id) => {
             if ((SMB_LEFT_RAIL_IDS as string[]).includes(id)) {
               setLeftRailId(id as SmbLeftRailId);
@@ -2901,6 +3122,7 @@ export function SocialMediaBuilderWorkspace() {
                           variant="secondary"
                           size="sm"
                           data-testid="smb-output-story"
+                          data-button-hierarchy="secondary"
                           onClick={() => handleFormatChange('story')}
                         >
                           {t('output.story')}
@@ -2909,6 +3131,7 @@ export function SocialMediaBuilderWorkspace() {
                           variant="secondary"
                           size="sm"
                           data-testid="smb-output-reel"
+                          data-button-hierarchy="secondary"
                           onClick={() => handleFormatChange('reelsCover')}
                         >
                           {t('output.reel')}
@@ -2917,6 +3140,7 @@ export function SocialMediaBuilderWorkspace() {
                           variant="secondary"
                           size="sm"
                           data-testid="smb-output-variation"
+                          data-button-hierarchy="secondary"
                           disabled={generating}
                           onClick={() => regenerateCurrentDesign()}
                         >
@@ -2926,6 +3150,7 @@ export function SocialMediaBuilderWorkspace() {
                           variant="secondary"
                           size="sm"
                           data-testid="smb-output-download"
+                          data-button-hierarchy="utility"
                           onClick={() => {
                             void runDownload();
                           }}
@@ -2936,6 +3161,7 @@ export function SocialMediaBuilderWorkspace() {
                           variant="secondary"
                           size="sm"
                           data-testid="smb-output-publish"
+                          data-button-hierarchy="utility"
                           disabled
                           title={t('output.publishUnavailable')}
                         >
@@ -3057,7 +3283,53 @@ export function SocialMediaBuilderWorkspace() {
                     </div>
                   ),
                 }}
-                dock={{
+                dock={
+                  hideManualCanvasTools
+                    ? {
+                        testId: 'smb-scene-actions',
+                        className: 'smb-ws__scene-actions smb-ws__scene-actions--ai-first',
+                        primary: (
+                          <div className="smb-ws__dock-stack" data-testid="smb-finished-ad-dock">
+                            <CsBottomActionToolbar
+                              testId="smb-bat"
+                              ariaLabel={t('canvas.toolbarAria')}
+                              moreLabel={t('editor.more')}
+                              maxVisible={3}
+                              primary={{
+                                label: t('editor.undo'),
+                                icon: 'refresh',
+                                onClick: () => {
+                                  void runUndoAiRevision();
+                                },
+                                testId: 'smb-action-undo',
+                                disabled: !historyPast.length && !creativeDirectorCampaignId,
+                              }}
+                              actions={[
+                                {
+                                  key: 'download',
+                                  icon: 'inbox' as const,
+                                  label: t('download'),
+                                  onClick: () => {
+                                    void runDownload();
+                                  },
+                                  testId: 'smb-action-download',
+                                  priority: 'high' as const,
+                                },
+                                {
+                                  key: 'publish',
+                                  icon: 'quickAction' as const,
+                                  label: t('publish'),
+                                  onClick: () => undefined,
+                                  testId: 'smb-action-publish',
+                                  disabled: true,
+                                  priority: 'high' as const,
+                                },
+                              ]}
+                            />
+                          </div>
+                        ),
+                      }
+                    : {
                   testId: 'smb-scene-actions',
                   className: 'smb-ws__scene-actions',
                   primary: (
@@ -3168,7 +3440,8 @@ export function SocialMediaBuilderWorkspace() {
                     />
                     </div>
                   ),
-                }}
+                }
+              }
               >
                 <div className="smb-ws__canvas-stage" data-testid="smb-preview-shell">
                   <FocusFitStage engine={ftv} artboardTestId="smb-ftv-artboard">
@@ -3311,7 +3584,7 @@ export function SocialMediaBuilderWorkspace() {
                       />
                       )}
                       </div>
-                      {!previewMode && selectedElementId && selectedElement ? (
+                      {!previewMode && !hideManualCanvasTools && selectedElementId && selectedElement ? (
                         <div
                           className="smb-ws__selection-chrome"
                           data-testid="smb-selection-chrome"

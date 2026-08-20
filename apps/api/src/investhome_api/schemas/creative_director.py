@@ -18,7 +18,16 @@ class CreativeDirectorCampaignRequest(BaseModel):
 
 
 class CreativeDirectorReviseRequest(BaseModel):
+    """AI revision of an existing finished-ad (no new campaign)."""
+
     instruction: str = Field(..., min_length=1, max_length=8000)
+    current_final_asset_id: UUID | None = Field(
+        default=None,
+        description="Current finished-ad Final Asset used as GPT Image edit reference.",
+    )
+    language: str | None = Field(default=None, max_length=16)
+    aspect_ratio: Literal["1:1", "4:5", "16:9", "9:16"] | None = "4:5"
+    format_preset: str | None = Field(default="portrait", max_length=32)
 
 
 class CreativeDirectorCampaignResponse(BaseModel):
@@ -75,3 +84,13 @@ class CreativeDirectorGenerateAdResponse(BaseModel):
     latency_ms: int = 0
     warnings: list[str] = Field(default_factory=list)
     gpt_image: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreativeDirectorReviseAdResponse(CreativeDirectorGenerateAdResponse):
+    """Revision response — finished-ad edit with history."""
+
+    revision_brief: dict[str, Any] = Field(default_factory=dict)
+    revision_intents: list[str] = Field(default_factory=list)
+    revision_history: list[dict[str, Any]] = Field(default_factory=list)
+    previous_asset_id: UUID | None = None
+    campaign_context: dict[str, Any] = Field(default_factory=dict)
