@@ -915,13 +915,15 @@ export async function generateCreativeDirectorAd(
   campaignId: string,
   input: CreativeDirectorGenerateAdRequest = {},
 ): Promise<CreativeDirectorGenerateAdResponse> {
+  // Default matches Unit 204 acceptance + SMB Oluştur production path.
+  const productionMode = input.production_mode ?? 'finished_ad';
   return apiFetch(`/ai/creative-studio/campaigns/${campaignId}/generate-ad`, {
     method: 'POST',
     body: JSON.stringify({
       language: input.language ?? undefined,
       aspect_ratio: input.aspect_ratio ?? '4:5',
       format_preset: input.format_preset ?? 'portrait',
-      production_mode: input.production_mode ?? 'finished_ad',
+      production_mode: productionMode,
     }),
   });
 }

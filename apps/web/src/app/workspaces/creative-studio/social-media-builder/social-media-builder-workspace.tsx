@@ -409,7 +409,7 @@ export function SocialMediaBuilderWorkspace() {
       linkedProjectId?: string | null;
       ideogramPoc?: Record<string, unknown> | null;
       artDirector?: Record<string, unknown> | null;
-      designProvider?: 'native' | 'ideogram' | 'gpt-image';
+      designProvider?: 'native' | 'ideogram' | 'gpt-image' | 'creative-director';
     } | null) => {
       const coverId = draft?.coverImage?.asset_id ?? null;
       const hydrated = hydrateSocialPostsFromDraft({
@@ -497,7 +497,8 @@ export function SocialMediaBuilderWorkspace() {
       if (
         draft?.designProvider === 'native' ||
         draft?.designProvider === 'ideogram' ||
-        draft?.designProvider === 'gpt-image'
+        draft?.designProvider === 'gpt-image' ||
+        draft?.designProvider === 'creative-director'
       ) {
         designEngineRef.current = draft.designProvider;
         setDesignEngine(draft.designProvider);
@@ -1555,38 +1556,51 @@ export function SocialMediaBuilderWorkspace() {
         if (token !== generateAbortRef.current) return;
         const gptImage = response.gpt_image;
         const output = gptImage?.outputs?.[0];
-        if (!output?.local_asset_id) {
+        // Same Final Asset as acceptance: finished-ad bitmap, not OS-compose layers.
+        const finalAssetId = response.final_asset_id || output?.local_asset_id;
+        if (!finalAssetId || !isMediaAssetId(finalAssetId)) {
           throw new Error(t('toasts.gptImageFailed'));
         }
         const headline = response.final_turkish_texts?.headline || '';
+        const providerModel =
+          (typeof response.provider_route?.model === 'string' && response.provider_route.model) ||
+          gptImage?.model ||
+          'gpt-image-2';
         const nextPost = createFlattenedGptImagePost({
-          localAssetId: output.local_asset_id,
+          localAssetId: finalAssetId,
           linkedProjectId: projectId,
           formatPreset: asFormatPreset(response.format_preset || formatPreset),
-          instruction: headline || 'Creative Director master ad',
-          model: gptImage.model,
-          sessionId: gptImage.session_id,
+          instruction: headline || 'Creative Director finished ad',
+          model: providerModel,
+          sessionId: gptImage?.session_id || response.campaign_id,
           campaignContextId: response.campaign_id,
-          sourceAssetId: response.interior_asset_id ?? gptImage.source_image?.asset_id ?? null,
+          sourceAssetId: response.interior_asset_id ?? gptImage?.source_image?.asset_id ?? null,
           headline,
           index: siblingPosts.length + 1,
-          canvasWidth: output.canvas_width,
-          canvasHeight: output.canvas_height,
-          layers: Array.isArray(output.layers) ? output.layers : null,
-          compositionBaseAssetId: output.composition_base_asset_id ?? null,
+          canvasWidth: output?.canvas_width,
+          canvasHeight: output?.canvas_height,
+          layers: null,
+          compositionBaseAssetId: null,
           compositionWarnings: [
-            ...(Array.isArray(output.composition_warnings) ? output.composition_warnings : []),
+            ...(Array.isArray(output?.composition_warnings) ? output.composition_warnings : []),
             ...(Array.isArray(response.warnings) ? response.warnings : []),
-            ...(Array.isArray(gptImage.warnings) ? gptImage.warnings : []),
+            ...(Array.isArray(gptImage?.warnings) ? gptImage.warnings : []),
           ].filter((w): w is string => typeof w === 'string' && w.length > 0),
         });
         nextPost.id = createdPostId;
         nextPost.campaignContextId = response.campaign_id;
+        nextPost.name = 'Finished Ad';
         nextPost.generationMeta = {
           ...nextPost.generationMeta,
-          provider: 'gpt-image',
+          provider:
+            (typeof response.provider_route?.provider_id === 'string' &&
+              response.provider_route.provider_id) ||
+            'gpt_image',
           generated_by: 'creative_director_generate_ad',
           campaign_context_id: response.campaign_id,
+          production_mode: 'finished_ad',
+          logo_asset_id: response.logo_asset_id,
+          interior_asset_id: response.interior_asset_id,
         };
         const nextPosts = [...siblingPosts, nextPost];
         pushHistory();
@@ -1596,14 +1610,10 @@ export function SocialMediaBuilderWorkspace() {
         setSelectedPostId(nextPost.id);
         setFormatPreset(nextPost.formatPreset);
         createInflightIdRef.current = null;
-        designEngineRef.current = 'gpt-image';
-        setDesignEngine('gpt-image');
-        const coverForPreview =
-          output.composition_base_asset_id && isMediaAssetId(output.composition_base_asset_id)
-            ? output.composition_base_asset_id
-            : output.local_asset_id;
+        designEngineRef.current = 'creative-director';
+        setDesignEngine('creative-director');
         coverAsset.setCoverImage({
-          asset_id: coverForPreview,
+          asset_id: finalAssetId,
           url: null,
           alt: null,
           role: 'cover',
@@ -1614,7 +1624,7 @@ export function SocialMediaBuilderWorkspace() {
           ...buildPersistPayload(),
           posts: serializeSocialPosts(nextPosts),
           selectedPostId: nextPost.id,
-          designProvider: 'gpt-image',
+          designProvider: 'creative-director',
         });
         setPilotDesignChosen(true);
       } catch (err) {
