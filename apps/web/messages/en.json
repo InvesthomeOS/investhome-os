@@ -18951,7 +18951,7 @@
         },
         "aiRevision": {
           "placeholder": "What would you like to change in the design?",
-          "submit": "Apply",
+          "submit": "Edit with AI",
           "generating": "Updating design..."
         },
         "editor": {

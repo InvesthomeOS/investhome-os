@@ -192,6 +192,17 @@ function generateErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+/** Campaign id for finished-ad revise/undo — from post field or generation meta. */
+function resolvePostCampaignId(post: SocialPost | null | undefined): string | null {
+  if (!post) return null;
+  if (typeof post.campaignContextId === 'string' && post.campaignContextId.trim()) {
+    return post.campaignContextId.trim();
+  }
+  const fromMeta = post.generationMeta?.campaign_context_id;
+  if (typeof fromMeta === 'string' && fromMeta.trim()) return fromMeta.trim();
+  return null;
+}
+
 function visualTemplateForProject(
   projectId: string,
   templates: typeof SMB_PROJECTS,
@@ -264,7 +275,6 @@ export function SocialMediaBuilderWorkspace() {
   const [pilotDesignChosen, setPilotDesignChosen] = useState(false);
   const [creativeDirectorCampaignId, setCreativeDirectorCampaignId] = useState<string | null>(null);
   const creativeDirectorCampaignRef = useRef<string | null>(null);
-  const [aiRevisionPrompt, setAiRevisionPrompt] = useState('');
   const [aiRevising, setAiRevising] = useState(false);
   const [postMenuId, setPostMenuId] = useState<string | null>(null);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
@@ -469,6 +479,11 @@ export function SocialMediaBuilderWorkspace() {
       if (typeof draft?.brandLogo === 'boolean') setBrandLogo(draft.brandLogo);
       if (active && isFinishedAdCanvasPost(active)) {
         setBrandLogo(false);
+        const campaignId = resolvePostCampaignId(active);
+        if (campaignId) {
+          setCreativeDirectorCampaignId(campaignId);
+          creativeDirectorCampaignRef.current = campaignId;
+        }
       }
       if (Array.isArray(draft?.platforms) && draft.platforms.length) {
         setPlatforms(
@@ -562,11 +577,8 @@ export function SocialMediaBuilderWorkspace() {
   const displayArtboardSrc = canvaPreview?.src || artboardSrc;
   const displayArtboardState = canvaPreview?.src ? 'ready' : artboardState;
   const finishedAdCanvas = isFinishedAdCanvasPost(selectedPost);
-  const canAiRevise =
-    Boolean(creativeDirectorCampaignId) &&
-    finishedAdCanvas &&
-    Boolean(selectedPost?.coverAssetId) &&
-    isMediaAssetId(selectedPost?.coverAssetId || '');
+  /** Finished-ad selected → primary AI action is revise ("AI ile Düzenle"), not Oluştur create. */
+  const revisionPrimary = finishedAdCanvas;
   // Finished-ad raster is the sole visual: hide TEXT/CTA overlays + IH logo stub.
   const hideOsLayers =
     finishedAdCanvas ||
@@ -1007,6 +1019,11 @@ export function SocialMediaBuilderWorkspace() {
     setFormatPreset(post.formatPreset);
     setSelectedElementId(null);
     setGenerationMeta(parseGenerationMetaFromDraft(post.generationMeta));
+    const campaignId = resolvePostCampaignId(post);
+    if (campaignId) {
+      setCreativeDirectorCampaignId(campaignId);
+      creativeDirectorCampaignRef.current = campaignId;
+    }
     // Picker selection follows the post; render uses post-scoped Asset ID hydration.
     // Do not hydrateMedia here — that wipes the shared resolved blob and races A→B→A.
     if (post.coverAssetId) {
@@ -1669,7 +1686,10 @@ export function SocialMediaBuilderWorkspace() {
 
   const runAiRevision = useCallback(
     async (instruction: string) => {
-      const campaignId = creativeDirectorCampaignRef.current || creativeDirectorCampaignId;
+      const campaignId =
+        creativeDirectorCampaignRef.current ||
+        creativeDirectorCampaignId ||
+        resolvePostCampaignId(selectedPost);
       const currentAssetId = selectedPost?.coverAssetId;
       const projectId = selectedPost?.linkedProjectId || docApi.constructionProjectId;
       if (!campaignId) {
@@ -1766,7 +1786,7 @@ export function SocialMediaBuilderWorkspace() {
         });
         setCreativeDirectorCampaignId(response.campaign_id || campaignId);
         creativeDirectorCampaignRef.current = response.campaign_id || campaignId;
-        setAiRevisionPrompt('');
+        setAiPrompt('');
         markDirty();
         persistEpochRef.current += 1;
         void docApi.saveDraft({
@@ -1802,7 +1822,10 @@ export function SocialMediaBuilderWorkspace() {
   );
 
   const runUndoAiRevision = useCallback(async () => {
-    const campaignId = creativeDirectorCampaignRef.current || creativeDirectorCampaignId;
+    const campaignId =
+      creativeDirectorCampaignRef.current ||
+      creativeDirectorCampaignId ||
+      resolvePostCampaignId(selectedPost);
     const projectId = selectedPost?.linkedProjectId || docApi.constructionProjectId;
     if (!campaignId || !finishedAdCanvas || !projectId) {
       undoHistory();
@@ -2766,74 +2789,57 @@ export function SocialMediaBuilderWorkspace() {
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
               placeholder={
-                pilotDesignChosen || artDirectorSession
-                  ? t('aiDesign.followUpPlaceholder')
-                  : t('aiDesign.placeholder')
+                revisionPrimary
+                  ? t('aiRevision.placeholder')
+                  : pilotDesignChosen || artDirectorSession
+                    ? t('aiDesign.followUpPlaceholder')
+                    : t('aiDesign.placeholder')
               }
               data-testid="smb-ai-design-input"
-              disabled={generating}
+              data-revision-input={revisionPrimary ? 'true' : undefined}
+              disabled={generating || aiRevising}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault();
-                  submitAiDesign();
+                  if (revisionPrimary) void runAiRevision(aiPrompt);
+                  else submitAiDesign();
                 }
               }}
             />
           </div>
-          <div className="smb-ws__ai-design-actions">
+          <div
+            className="smb-ws__ai-design-actions"
+            data-testid={revisionPrimary ? 'smb-ai-revision' : 'smb-ai-design-actions'}
+          >
             <Button
               variant="primary"
               size="sm"
-              data-testid="smb-ai-design-submit"
-              data-ai-workflow={pilotDesignChosen ? 'edit' : 'create'}
+              data-testid={revisionPrimary ? 'smb-ai-revision-submit' : 'smb-ai-design-submit'}
+              data-ai-workflow={revisionPrimary ? 'revise' : pilotDesignChosen ? 'edit' : 'create'}
               data-button-hierarchy="primary"
-              disabled={generating || aiRevising}
-              onClick={() => submitAiDesign()}
+              disabled={generating || aiRevising || (revisionPrimary && !aiPrompt.trim())}
+              onClick={() => {
+                if (revisionPrimary) void runAiRevision(aiPrompt);
+                else submitAiDesign();
+              }}
             >
               <IhIcon name="sparkles" size={12} />
-              {generating && !aiRevising ? t('aiDesign.generating') : t('aiDesign.submit')}
+              {revisionPrimary
+                ? aiRevising
+                  ? t('aiRevision.generating')
+                  : t('aiRevision.submit')
+                : generating && !aiRevising
+                  ? t('aiDesign.generating')
+                  : t('aiDesign.submit')}
             </Button>
           </div>
-          {canAiRevise ? (
-            <div className="smb-ws__ai-revision" data-testid="smb-ai-revision">
-              <div className="smb-ws__ai-design-row">
-                <TextArea
-                  id="smb-ai-revision-input"
-                  className="smb-ws__ai-design-input smb-ws__ai-design-textarea"
-                  rows={2}
-                  value={aiRevisionPrompt}
-                  onChange={(e) => setAiRevisionPrompt(e.target.value)}
-                  placeholder={t('aiRevision.placeholder')}
-                  data-testid="smb-ai-revision-input"
-                  disabled={generating || aiRevising}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                      e.preventDefault();
-                      void runAiRevision(aiRevisionPrompt);
-                    }
-                  }}
-                />
-              </div>
-              <div className="smb-ws__ai-design-actions">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  data-testid="smb-ai-revision-submit"
-                  data-button-hierarchy="primary"
-                  disabled={generating || aiRevising || !aiRevisionPrompt.trim()}
-                  onClick={() => void runAiRevision(aiRevisionPrompt)}
-                >
-                  <IhIcon name="sparkles" size={12} />
-                  {aiRevising ? t('aiRevision.generating') : t('aiRevision.submit')}
-                </Button>
-              </div>
-            </div>
-          ) : null}
-          {creativeDirectorCampaignId ? (
+          {creativeDirectorCampaignId || resolvePostCampaignId(selectedPost) ? (
             <span
               className="smb-ws__sr-only"
               data-testid="smb-creative-director-campaign-id"
-              data-campaign-id={creativeDirectorCampaignId}
+              data-campaign-id={
+                creativeDirectorCampaignId || resolvePostCampaignId(selectedPost) || ''
+              }
             />
           ) : null}
           {artDirectorSession?.selectedAsset ? (
@@ -3098,9 +3104,9 @@ export function SocialMediaBuilderWorkspace() {
                 aria-label={t('undo')}
                 data-testid="smb-undo"
                 data-button-hierarchy="utility"
-                disabled={!historyPast.length && !(finishedAdCanvas && creativeDirectorCampaignId)}
+                disabled={!historyPast.length && !(finishedAdCanvas && (creativeDirectorCampaignId || resolvePostCampaignId(selectedPost)))}
                 onClick={() => {
-                  if (finishedAdCanvas && creativeDirectorCampaignId) {
+                  if (finishedAdCanvas && (creativeDirectorCampaignId || resolvePostCampaignId(selectedPost))) {
                     void runUndoAiRevision();
                   } else {
                     undoHistory();
@@ -3377,7 +3383,7 @@ export function SocialMediaBuilderWorkspace() {
                                   void runUndoAiRevision();
                                 },
                                 testId: 'smb-action-undo',
-                                disabled: !historyPast.length && !creativeDirectorCampaignId,
+                                disabled: !historyPast.length && !(creativeDirectorCampaignId || resolvePostCampaignId(selectedPost)),
                               }}
                               actions={[
                                 {

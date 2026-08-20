@@ -81,17 +81,23 @@ describe('Creative Director SMB wiring (finished-ad)', () => {
     assert.match(workspace, /reviseCreativeDirectorAd/);
     assert.match(workspace, /undoCreativeDirectorRevision/);
     assert.match(workspace, /runAiRevision/);
-    assert.match(workspace, /data-testid="smb-ai-revision"/);
-    assert.match(workspace, /data-testid="smb-ai-revision-input"/);
-    assert.match(workspace, /data-testid="smb-ai-revision-submit"/);
+    assert.match(workspace, /revisionPrimary/);
+    assert.match(workspace, /finishedAdCanvas/);
+    assert.match(workspace, /data-testid=\{revisionPrimary \? 'smb-ai-revision' : 'smb-ai-design-actions'\}/);
+    assert.match(workspace, /data-testid=\{revisionPrimary \? 'smb-ai-revision-submit' : 'smb-ai-design-submit'\}/);
+    assert.match(workspace, /data-ai-workflow=\{revisionPrimary \? 'revise'/);
+    assert.match(workspace, /t\('aiRevision\.submit'\)/);
+    assert.match(workspace, /void runAiRevision\(aiPrompt\)/);
     assert.match(workspace, /hideManualCanvasTools/);
     assert.match(workspace, /data-button-hierarchy="primary"/);
+    assert.match(workspace, /resolvePostCampaignId/);
     const revBlock = workspace.match(/const runAiRevision = useCallback\([\s\S]*?\n  \);/);
     assert.ok(revBlock, 'runAiRevision missing');
     assert.match(revBlock[0], /current_final_asset_id/);
     assert.match(revBlock[0], /createFinishedAdCanvasPost/);
     assert.match(revBlock[0], /designProvider: 'creative-director'/);
     assert.match(revBlock[0], /brandLogo: false/);
+    assert.match(revBlock[0], /resolvePostCampaignId\(selectedPost\)/);
     assert.doesNotMatch(revBlock[0], /createCreativeDirectorCampaign/);
     assert.doesNotMatch(revBlock[0], /generateSocialDesign/);
     assert.doesNotMatch(revBlock[0], /createDefaultElements/);
@@ -101,6 +107,23 @@ describe('Creative Director SMB wiring (finished-ad)', () => {
     assert.ok(undoBlock, 'runUndoAiRevision missing');
     assert.match(undoBlock[0], /createFinishedAdCanvasPost/);
     assert.doesNotMatch(undoBlock[0], /createDefaultElements/);
+  });
+
+  it('finished-ad selected shows AI ile Düzenle primary and routes to revise not create', () => {
+    const workspace = read('social-media-builder-workspace.tsx');
+    const tr = readFileSync(join(smbDir, '../../../../../messages/tr.json'), 'utf8');
+    assert.match(tr, /"submit": "AI ile Düzenle"/);
+    assert.match(workspace, /const revisionPrimary = finishedAdCanvas/);
+    assert.match(workspace, /if \(revisionPrimary\) void runAiRevision\(aiPrompt\)/);
+    assert.match(workspace, /else submitAiDesign\(\)/);
+    // Primary revise path must not fall through to campaign create.
+    const actionsBlock = workspace.match(
+      /data-testid=\{revisionPrimary \? 'smb-ai-revision-submit'[\s\S]*?<\/Button>/,
+    );
+    assert.ok(actionsBlock, 'revision/create primary button missing');
+    assert.match(actionsBlock[0], /runAiRevision\(aiPrompt\)/);
+    assert.doesNotMatch(actionsBlock[0], /runCreativeDirectorCampaign/);
+    assert.doesNotMatch(actionsBlock[0], /createCreativeDirectorCampaign/);
   });
 
   it('Oluştur create path calls Creative Director then finished-ad generate-ad', () => {

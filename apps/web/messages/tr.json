@@ -13628,7 +13628,7 @@
         },
         "aiRevision": {
           "placeholder": "Tasarımda neyi değiştirmek istiyorsunuz?",
-          "submit": "Uygula",
+          "submit": "AI ile Düzenle",
           "generating": "Tasarım düzenleniyor..."
         },
         "editor": {

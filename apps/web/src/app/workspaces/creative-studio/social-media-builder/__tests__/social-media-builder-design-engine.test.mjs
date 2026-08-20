@@ -63,8 +63,8 @@ describe('workspace wires design engine (same canvas)', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
     assert.match(workspace, /data-testid="smb-ai-design-command"/);
     assert.match(workspace, /data-testid="smb-ai-design-input"/);
-    assert.match(workspace, /data-testid="smb-ai-design-submit"/);
-    assert.match(workspace, /data-ai-workflow=\{pilotDesignChosen \? 'edit' : 'create'\}/);
+    assert.match(workspace, /smb-ai-design-submit/);
+    assert.match(workspace, /data-ai-workflow=\{revisionPrimary \? 'revise' : pilotDesignChosen \? 'edit' : 'create'\}/);
     assert.match(workspace, /aiDesign\.title/);
     assert.match(workspace, /aiDesign\.submit/);
     assert.match(workspace, /aiDesign\.placeholder/);
