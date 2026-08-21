@@ -1698,6 +1698,7 @@ export function SocialMediaBuilderWorkspace() {
           language: locale,
           aspect_ratio: formatPreset === 'portrait' ? '4:5' : formatPreset === 'square' ? '1:1' : '4:5',
           format_preset: formatPreset,
+          selected_element_id: selectedElementIdRef.current,
         });
         const gptImage = response.gpt_image;
         const output = gptImage?.outputs?.[0];
@@ -1783,7 +1784,10 @@ export function SocialMediaBuilderWorkspace() {
           designProvider: 'creative-director',
           brandLogo: false,
         });
-        showToast(t('toasts.revisionApplied'));
+        showToast(
+          (typeof response.user_feedback === 'string' && response.user_feedback.trim()) ||
+            t('toasts.revisionApplied'),
+        );
       } catch (err) {
         showToast(generateErrorMessage(err, t('toasts.revisionFailed')));
       } finally {

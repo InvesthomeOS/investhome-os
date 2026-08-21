@@ -941,6 +941,7 @@ export type CreativeDirectorReviseRequest = {
   language?: string | null;
   aspect_ratio?: '1:1' | '4:5' | '16:9' | '9:16' | null;
   format_preset?: string | null;
+  selected_element_id?: string | null;
 };
 
 export type CreativeDirectorReviseAdResponse = CreativeDirectorGenerateAdResponse & {
@@ -957,6 +958,9 @@ export type CreativeDirectorReviseAdResponse = CreativeDirectorGenerateAdRespons
   campaign_context?: Record<string, unknown>;
   gpt_image_call_count?: number;
   revision_route?: 'LAYER_ONLY' | 'IMAGE_REQUIRED' | null;
+  user_feedback?: string | null;
+  change_diff_validation?: Record<string, unknown>;
+  interpreted_plan?: Record<string, unknown>;
 };
 
 export async function reviseCreativeDirectorAd(
@@ -971,6 +975,7 @@ export async function reviseCreativeDirectorAd(
       language: input.language ?? undefined,
       aspect_ratio: input.aspect_ratio ?? '4:5',
       format_preset: input.format_preset ?? 'portrait',
+      selected_element_id: input.selected_element_id ?? undefined,
     }),
   });
 }

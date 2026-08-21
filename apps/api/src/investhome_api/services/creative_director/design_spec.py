@@ -17,7 +17,23 @@ RevisionRoute = Literal["LAYER_ONLY", "IMAGE_REQUIRED"]
 _LAYER_ONLY_TARGETS = frozenset(
     {"headline", "cta", "badge", "logo", "support_message", "price"}
 )
-_LAYER_ONLY_ACTIONS = frozenset({"replace_text", "scale", "remove", "preserve", "minimum_change"})
+_LAYER_ONLY_ACTIONS = frozenset(
+    {
+        "replace_text",
+        "scale",
+        "remove",
+        "preserve",
+        "minimum_change",
+        "translate",
+        "set_position",
+        "align",
+        "set_font_size",
+        "set_color",
+        "hide",
+        "set_geometry",
+        "tone_adjust",
+    }
+)
 _IMAGE_REQUIRED_TARGETS = frozenset({"background", "layout", "style", "overall"})
 
 _IMAGE_REQUIRED_PHRASES = (
@@ -26,6 +42,10 @@ _IMAGE_REQUIRED_PHRASES = (
     "koltuğu değiştir",
     "koltugu degistir",
     "koltuğu degistir",
+    "koltuğu kaldır",
+    "koltugu kaldir",
+    "arka plandaki koltuğu",
+    "arka plandaki koltugu",
     "yeni sahne",
     "new scene",
     "arka planı değiştir",
@@ -561,14 +581,16 @@ def route_revision(
         action = getattr(op, "action", None) if not isinstance(op, dict) else op.get("action")
         target_s = str(target or "").lower()
         action_s = str(action or "").lower()
+        if action_s in {"minimum_change", "preserve"}:
+            continue
+        if action_s == "tone_adjust" and target_s in _LAYER_ONLY_TARGETS | {"overall", "layout"}:
+            # Soft tone stays on layers — never auto-grade background
+            continue
         if target_s in _IMAGE_REQUIRED_TARGETS:
             return "IMAGE_REQUIRED"
         if target_s not in _LAYER_ONLY_TARGETS:
             return "IMAGE_REQUIRED"
-        if action_s and action_s not in _LAYER_ONLY_ACTIONS and action_s != "tone_adjust":
-            # tone_adjust on text/logo stays layer-only; on overall would already hit IMAGE
-            if action_s == "tone_adjust" and target_s in _LAYER_ONLY_TARGETS:
-                continue
+        if action_s and action_s not in _LAYER_ONLY_ACTIONS:
             return "IMAGE_REQUIRED"
     return "LAYER_ONLY"
 
@@ -586,16 +608,83 @@ def _find_element(spec: dict[str, Any], *ids_or_roles: str) -> dict[str, Any] | 
     return None
 
 
+def _resolve_layer(spec: dict[str, Any], target: str, element_id: str | None = None) -> dict[str, Any] | None:
+    if element_id:
+        found = _find_element(spec, element_id)
+        if found is not None:
+            return found
+    if target == "price":
+        # Prefer offer/new price over struck old-price for relational anchors
+        return _find_element(spec, "new-price", "new_price") or _find_element(
+            spec, "old-price", "old_price"
+        )
+    lookup = {
+        "headline": ("headline",),
+        "cta": ("cta",),
+        "badge": ("discount-badge", "discount_badge", "badge"),
+        "logo": ("logo",),
+        "support_message": ("support-message-1", "support_message"),
+        "subheadline": ("subheadline",),
+    }.get(target, (target,))
+    return _find_element(spec, *lookup)
+
+
+def _scale_element(el: dict[str, Any], factor: float, *, aspect_lock: bool = True) -> None:
+    factor = float(factor)
+    cx = float(el.get("x", 0)) + float(el.get("width", 0)) / 2
+    cy = float(el.get("y", 0)) + float(el.get("height", 0)) / 2
+    nw = max(8, int(round(float(el.get("width", 0)) * factor)))
+    if aspect_lock or el.get("lock_aspect_ratio"):
+        nh = max(8, int(round(float(el.get("height", 0)) * factor)))
+    else:
+        nh = max(8, int(round(float(el.get("height", 0)) * factor)))
+    el["width"] = nw
+    el["height"] = nh
+    el["x"] = int(round(cx - nw / 2))
+    el["y"] = int(round(cy - nh / 2))
+    for bag_key in ("style", "typography"):
+        bag = el.get(bag_key) if isinstance(el.get(bag_key), dict) else None
+        if bag and bag.get("font_size"):
+            bag["font_size"] = max(10, int(round(float(bag["font_size"]) * factor)))
+            el[bag_key] = bag
+
+
 def apply_layer_operations(
     design_spec: dict[str, Any],
     operations: list[Any],
 ) -> dict[str, Any]:
-    """Apply LAYER_ONLY revision ops onto a design_spec copy. No provider calls."""
+    """Apply LAYER_ONLY revision ops onto a design_spec copy. No provider calls.
+
+    Scale runs before translate/align so geometric finals win after size changes.
+    """
     spec = deepcopy(design_spec)
     elements = list(spec.get("elements") or [])
     spec["elements"] = elements
 
-    for raw in operations:
+    def _priority_key(raw: Any) -> tuple[int, int]:
+        if hasattr(raw, "model_dump"):
+            op = raw.model_dump(by_alias=True, exclude_none=True)
+        elif isinstance(raw, dict):
+            op = dict(raw)
+        else:
+            return (50, 0)
+        action = str(op.get("action") or "").lower()
+        # Lower key runs first: scale → geometry → text/color → remove
+        if action == "scale":
+            return (0, 0)
+        if action in {"set_font_size"}:
+            return (1, 0)
+        if action in {"translate", "set_position", "align", "set_geometry"}:
+            return (2, 0)
+        if action in {"replace_text", "set_color", "tone_adjust"}:
+            return (3, 0)
+        if action in {"remove", "hide"}:
+            return (4, 0)
+        return (5, 0)
+
+    ordered = sorted(list(operations or []), key=_priority_key)
+
+    for raw in ordered:
         if hasattr(raw, "model_dump"):
             op = raw.model_dump(by_alias=True, exclude_none=True)
         elif isinstance(raw, dict):
@@ -606,62 +695,115 @@ def apply_layer_operations(
         action = str(op.get("action") or "").lower()
         to_value = op.get("to") if op.get("to") is not None else op.get("to_value")
         scale_factor = op.get("scale_factor")
+        element_id = op.get("element_id")
+        el = _resolve_layer(spec, target, element_id if isinstance(element_id, str) else None)
 
-        if target == "headline" and action == "replace_text" and to_value:
-            el = _find_element(spec, "headline", "headline")
-            if el is not None:
-                el["content"] = str(to_value)
-
-        elif target == "cta" and action == "replace_text" and to_value:
-            el = _find_element(spec, "cta", "cta")
-            if el is not None:
-                el["content"] = str(to_value)
-
-        elif target == "support_message" and action == "replace_text" and to_value:
-            el = _find_element(spec, "support-message-1", "support_message")
-            if el is not None:
-                el["content"] = str(to_value)
-
-        elif target == "price" and action == "replace_text" and to_value:
-            # Prefer new-price layer for offer updates
-            el = _find_element(spec, "new-price", "new_price") or _find_element(
-                spec, "old-price", "old_price"
-            )
-            if el is not None:
-                el["content"] = str(to_value)
+        if action == "replace_text" and to_value and el is not None:
+            el["content"] = str(to_value)
+            if target == "price":
                 el["claim_sensitive"] = True
 
-        elif target == "badge" and action == "scale" and scale_factor:
-            el = _find_element(spec, "discount-badge", "discount_badge", "badge")
-            if el is not None:
-                factor = float(scale_factor)
-                cx = float(el.get("x", 0)) + float(el.get("width", 0)) / 2
-                cy = float(el.get("y", 0)) + float(el.get("height", 0)) / 2
-                nw = max(8, int(round(float(el.get("width", 0)) * factor)))
-                nh = max(8, int(round(float(el.get("height", 0)) * factor)))
-                el["width"] = nw
-                el["height"] = nh
-                el["x"] = int(round(cx - nw / 2))
-                el["y"] = int(round(cy - nh / 2))
+        elif action == "scale" and scale_factor and el is not None:
+            _scale_element(el, float(scale_factor), aspect_lock=True)
+
+        elif action == "translate" and el is not None:
+            dx = float(op.get("dx") or 0)
+            dy = float(op.get("dy") or 0)
+            el["x"] = int(round(float(el.get("x", 0)) + dx))
+            el["y"] = int(round(float(el.get("y", 0)) + dy))
+
+        elif action in {"set_position", "align", "set_geometry"} and el is not None:
+            live_x = False
+            live_y = False
+            edge = str(op.get("align_edge") or "").lower()
+            ref_name = str(op.get("reference_element") or "")
+
+            if action == "align" and edge:
+                ew = float(el.get("width") or 0)
+                eh = float(el.get("height") or 0)
+                if ref_name in {"canvas", "canvas_center"} or (
+                    edge in {"centerx", "center"} and not ref_name
+                ):
+                    canvas = spec.get("canvas") if isinstance(spec.get("canvas"), dict) else {}
+                    cw = float(canvas.get("width") or 1080)
+                    el["x"] = int(round((cw - ew) / 2))
+                    live_x = True
+                else:
+                    ref = _resolve_layer(spec, ref_name) if ref_name else None
+                    if ref is not None:
+                        rx = float(ref.get("x") or 0)
+                        ry = float(ref.get("y") or 0)
+                        rw = float(ref.get("width") or 0)
+                        rh = float(ref.get("height") or 0)
+                        if edge == "left":
+                            el["x"] = int(round(rx))
+                            live_x = True
+                        elif edge == "right":
+                            el["x"] = int(round(rx + rw - ew))
+                            live_x = True
+                        elif edge in {"centerx", "center"}:
+                            el["x"] = int(round(rx + rw / 2 - ew / 2))
+                            live_x = True
+                        elif edge == "top":
+                            el["y"] = int(round(ry))
+                            live_y = True
+                        elif edge == "bottom":
+                            el["y"] = int(round(ry + rh - eh))
+                            live_y = True
+
+            # CTA below price: y = ref.bottom + dy
+            if (
+                action == "set_position"
+                and ref_name
+                and op.get("dy") is not None
+                and op.get("y") is None
+            ):
+                ref = _resolve_layer(spec, ref_name)
+                if ref is not None:
+                    el["y"] = int(
+                        round(
+                            float(ref.get("y") or 0)
+                            + float(ref.get("height") or 0)
+                            + float(op["dy"])
+                        )
+                    )
+                    live_y = True
+
+            if op.get("x") is not None and not live_x:
+                el["x"] = int(round(float(op["x"])))
+            if op.get("y") is not None and not live_y:
+                el["y"] = int(round(float(op["y"])))
+            if op.get("width") is not None:
+                el["width"] = max(8, int(round(float(op["width"]))))
+            if op.get("height") is not None:
+                el["height"] = max(8, int(round(float(op["height"]))))
+
+        elif action == "set_font_size" and el is not None and op.get("font_size") is not None:
+            fs = max(8, int(round(float(op["font_size"]))))
+            typo = el.get("typography") if isinstance(el.get("typography"), dict) else {}
+            typo["font_size"] = fs
+            el["typography"] = typo
+            style = el.get("style") if isinstance(el.get("style"), dict) else {}
+            if style:
+                style["font_size"] = fs
+                el["style"] = style
+
+        elif action == "set_color" and el is not None and op.get("color"):
+            color = str(op["color"])
+            if el.get("type") == "cta" or target == "cta":
                 style = el.get("style") if isinstance(el.get("style"), dict) else {}
-                if style.get("font_size"):
-                    style["font_size"] = max(10, int(round(float(style["font_size"]) * factor)))
+                style["background_color"] = color
+                el["style"] = style
+            else:
+                typo = el.get("typography") if isinstance(el.get("typography"), dict) else {}
+                typo["color"] = color
+                el["typography"] = typo
+                style = el.get("style") if isinstance(el.get("style"), dict) else {}
+                if "background_color" in style or target == "badge":
+                    style["background_color"] = color
                     el["style"] = style
 
-        elif target == "logo" and action == "scale" and scale_factor:
-            el = _find_element(spec, "logo", "logo")
-            if el is not None:
-                factor = float(scale_factor)
-                cx = float(el.get("x", 0)) + float(el.get("width", 0)) / 2
-                cy = float(el.get("y", 0)) + float(el.get("height", 0)) / 2
-                nw = max(8, int(round(float(el.get("width", 0)) * factor)))
-                nh = max(8, int(round(float(el.get("height", 0)) * factor)))
-                el["width"] = nw
-                el["height"] = nh
-                el["x"] = int(round(cx - nw / 2))
-                el["y"] = int(round(cy - nh / 2))
-
-        elif action == "remove":
+        elif action in {"remove", "hide"}:
             remove_ids = {
                 "headline": {"headline"},
                 "cta": {"cta"},
@@ -670,6 +812,12 @@ def apply_layer_operations(
                 "support_message": {"support-message-1", "support-message-2"},
                 "price": {"old-price", "new-price"},
             }.get(target, set())
+            if isinstance(element_id, str) and element_id:
+                remove_ids = set(remove_ids) | {element_id.lower()}
+            # hide old-price only when noted
+            note = str(op.get("note") or "").lower()
+            if "old-price" in note or element_id == "old-price":
+                remove_ids = {"old-price"}
             if remove_ids:
                 spec["elements"] = [
                     e

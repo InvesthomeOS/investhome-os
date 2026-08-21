@@ -31,6 +31,11 @@ class CreativeDirectorReviseRequest(BaseModel):
     language: str | None = Field(default=None, max_length=16)
     aspect_ratio: Literal["1:1", "4:5", "16:9", "9:16"] | None = "4:5"
     format_preset: str | None = Field(default="portrait", max_length=32)
+    selected_element_id: str | None = Field(
+        default=None,
+        max_length=128,
+        description="SMB selected layer id — strongest target for vague commands.",
+    )
 
 
 RevisionAction = Literal[
@@ -40,6 +45,13 @@ RevisionAction = Literal[
     "tone_adjust",
     "preserve",
     "minimum_change",
+    "translate",
+    "set_position",
+    "align",
+    "set_font_size",
+    "set_color",
+    "hide",
+    "set_geometry",
 ]
 RevisionTarget = Literal[
     "headline",
@@ -54,6 +66,14 @@ RevisionTarget = Literal[
     "overall",
 ]
 RevisionConfidence = Literal["high", "medium", "low"]
+RevisionPriority = Literal[
+    "exact_numeric",
+    "relational_geometric",
+    "percentage",
+    "relative_nl",
+    "subjective",
+    "ambiguous",
+]
 
 
 class RevisionOperation(BaseModel):
@@ -67,6 +87,18 @@ class RevisionOperation(BaseModel):
     confidence: RevisionConfidence = "medium"
     mode: Literal["exact", "subjective", "ambiguous"] = "exact"
     note: str | None = None
+    priority: RevisionPriority | None = "exact_numeric"
+    dx: float | None = None
+    dy: float | None = None
+    x: float | None = None
+    y: float | None = None
+    width: float | None = None
+    height: float | None = None
+    font_size: float | None = None
+    color: str | None = None
+    align_edge: str | None = None
+    reference_element: str | None = None
+    element_id: str | None = None
 
     model_config = {"populate_by_name": True}
 
@@ -80,6 +112,10 @@ class RevisionDiff(BaseModel):
     command_mode: Literal["exact", "subjective", "mixed", "ambiguous"] = "exact"
     max_subjective_ops: int = 3
     quality_lock: dict[str, Any] = Field(default_factory=dict)
+    strict_preserve: bool = False
+    selected_element_id: str | None = None
+    geometry_operations: list[dict[str, Any]] = Field(default_factory=list)
+    requested_changes: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class CreativeDirectorCampaignResponse(BaseModel):
@@ -196,3 +232,6 @@ class CreativeDirectorReviseAdResponse(CreativeDirectorGenerateAdResponse):
     previous_asset_id: UUID | None = None
     campaign_context: dict[str, Any] = Field(default_factory=dict)
     revision_route: RevisionRoute | None = None
+    user_feedback: str | None = None
+    change_diff_validation: dict[str, Any] = Field(default_factory=dict)
+    interpreted_plan: dict[str, Any] = Field(default_factory=dict)

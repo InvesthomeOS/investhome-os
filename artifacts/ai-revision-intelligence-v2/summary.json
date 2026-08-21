@@ -1,0 +1,33 @@
+{
+  "status": "READY FOR AI REVISION INTELLIGENCE v2 REVIEW",
+  "visual_quality_pass_declared": false,
+  "sprint": "AI Revision Intelligence v2 — geometric + min-change",
+  "pipeline_unchanged": true,
+  "production_path": "User Brief → Creative Director → Drive → Smart Asset Selection → Production Brief → Finished-Ad → Editable Finished-Ad / SMB",
+  "new_flow": "User prompt + selected_element_id + design_spec → Interpreter → Plan → Geometry Resolver → Locks → Router → Change Diff Validation → Updated Design",
+  "raw_nl_never_sent_to_image_provider": true,
+  "acceptance": {
+    "A_headline_only_preserve": "PASS",
+    "B_logo_up_own_height": "PASS",
+    "C_headline_down_half_height": "PASS",
+    "D_logo_align_left_headline": "PASS",
+    "E_cta_below_price_30px": "PASS",
+    "F_badge_align_price_right": "PASS",
+    "G_headline_canvas_center": "PASS",
+    "H_logo_top_right_safe_margin": "PASS",
+    "I_percentage_scales": "PASS",
+    "J_selected_element_biraz": "PASS",
+    "K_strict_preserve": "PASS",
+    "L_image_required_sofa": "PASS",
+    "undo_redo_regression": "PASS",
+    "finished_ad_generation_regression": "PASS"
+  },
+  "unit_tests": {
+    "test_ai_revision_intelligence_v2.py": "26 passed",
+    "test_editable_finished_ad.py": "included in 26",
+    "test_creative_revision.py_subset": "15 passed"
+  },
+  "gpt_calls_layer_only": 0,
+  "api_rebuilt": true,
+  "commit_message": "feat(creative): AI revision intelligence v2 (geometric + min-change)"
+}

@@ -11,6 +11,7 @@ import io
 import logging
 import math
 import re
+from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -35,6 +36,12 @@ from investhome_api.services.creative_director.design_spec import (
     design_spec_to_smb_elements,
     route_revision,
     sync_production_brief_from_spec,
+)
+from investhome_api.services.creative_director.revision_intelligence import (
+    build_user_feedback,
+    interpret_revision_plan,
+    snapshot_elements,
+    validate_change_diff,
 )
 from investhome_api.services.creative_director.generate_ad import (
     _as_dict,
@@ -212,297 +219,19 @@ def build_revision_diff(
     *,
     instruction: str,
     production_brief: dict[str, Any] | None = None,
+    design_spec: dict[str, Any] | None = None,
+    selected_element_id: str | None = None,
 ) -> RevisionDiff:
-    """Revision Director: structured diff — never copy user NL verbatim into provider."""
-    pb = production_brief or {}
-    final = _as_dict(pb.get("final_copy"))
-    instr = (instruction or "").strip()
-    low = _normalize_tr(instr)
-    ops: list[RevisionOperation] = []
-    preserve = list(DEFAULT_PRESERVE)
-    forbidden = list(DEFAULT_FORBIDDEN)
+    """Revision Director: structured plan — never copy user NL verbatim into provider.
 
-    # Explicit preserve clauses from user.
-    if any(
-        tok in low
-        for tok in (
-            "başka hiçbir şeyi değiştirme",
-            "başka hiçbir şey değiştirme",
-            "değiştirme",
-            "keep everything else",
-            "do not change anything else",
-        )
-    ):
-        for item in (
-            "prices",
-            "logo",
-            "cta",
-            "background",
-            "unaffected_elements",
-            "image_treatment",
-        ):
-            if item not in preserve:
-                preserve.append(item)
-
-    if "fiyat" in low and "değiştirme" in low:
-        preserve.append("prices")
-        forbidden.append("price_changes")
-    if "logo" in low and "değiştirme" in low:
-        preserve.append("logo")
-        forbidden.append("logo_redraw")
-    if "cta" in low and "değiştirme" in low and "yap" not in low.split("cta")[-1][:40]:
-        # "CTA'yı ... değiştirme" without a replace — preserve CTA
-        if not re.search(r"cta['’]?y[ıi]\s+['\"].+?['\"]\s+yap", low):
-            preserve.append("cta")
-    if any(tok in low for tok in ("arka plan", "background")) and "değiştirme" in low:
-        preserve.append("background")
-        forbidden.append("background_regrade")
-
-    # Exact: headline replace — Başlığı X yap / Başlığı 'X' yap
-    headline_pat = re.compile(
-        r"(?:başl[ıi][gğ][ıi]|headline)\s*(?:y[ıi])?\s*['\"“”‘’]?(.+?)['\"“”‘’]?\s+yap",
-        re.IGNORECASE | re.DOTALL,
-    )
-    headline_to = _extract_quoted_or_tail(headline_pat, instr)
-    # Prefer quoted form when present
-    quoted_headline = re.search(
-        r"(?:başl[ıi][gğ][ıi]|headline)[^\n]*?['\"“”‘’](.+?)['\"“”‘’]",
-        instr,
-        re.IGNORECASE,
-    )
-    if quoted_headline:
-        headline_to = quoted_headline.group(1).strip()
-    if headline_to and "daha premium" not in _normalize_tr(headline_to):
-        # Drop trailing preserve clauses accidentally captured
-        headline_to = re.split(
-            r"\.\s*(?:%|fiyat|logo|cta|başka|arka)",
-            headline_to,
-            maxsplit=1,
-            flags=re.IGNORECASE,
-        )[0].strip()
-        headline_to = _strip_quotes(headline_to)
-        if headline_to and "daha" not in _normalize_tr(headline_to)[:8]:
-            ops.append(
-                RevisionOperation(
-                    target="headline",
-                    action="replace_text",
-                    **{
-                        "from": str(final.get("headline") or pb.get("hero") or "") or None,
-                        "to": headline_to,
-                    },
-                    confidence="high",
-                    mode="exact",
-                )
-            )
-
-    # Exact: CTA replace
-    cta_quoted = re.search(
-        r"cta['’]?y?[ıi]?\s*['\"“”‘’](.+?)['\"“”‘’]\s*yap",
-        instr,
-        re.IGNORECASE,
-    )
-    cta_plain = re.search(
-        r"cta['’]?y?[ıi]?\s+(.+?)\s+yap",
-        instr,
-        re.IGNORECASE,
-    )
-    cta_to = None
-    if cta_quoted:
-        cta_to = cta_quoted.group(1).strip()
-    elif cta_plain and "detayları incele" in _normalize_tr(cta_plain.group(1)):
-        cta_to = "Detayları İncele"
-    elif "cta" in low and "detayları incele" in low:
-        cta_to = "Detayları İncele"
-    if cta_to:
-        ops.append(
-            RevisionOperation(
-                target="cta",
-                action="replace_text",
-                **{"from": str(final.get("cta") or pb.get("cta") or "") or None, "to": cta_to},
-                confidence="high",
-                mode="exact",
-            )
-        )
-
-    # Exact: badge scale — "%25 rozetini %30 küçült" → factor 0.70 (reduce by 30%)
-    badge_pct = re.search(
-        r"(?:%?\s*25|25\s*%|rozet|badge).{0,60}?"
-        r"%?\s*(\d+)\s*(?:['’]?[uıi]?)?\s*(?:kadar\s+)?(?:küçült|kucult|smaller)",
-        low,
-    )
-    badge_generic = any(tok in low for tok in ("%25", "25%", "rozet", "badge")) and any(
-        tok in low for tok in ("küçült", "kucult", "smaller", "küçük")
-    )
-    if badge_pct:
-        shrink_pct = float(badge_pct.group(1))
-        # "%30 küçült" / "mevcut boyutunun %30'u kadar küçült" → badge.scale = current * 0.70
-        factor = max(0.05, min(0.99, 1.0 - (shrink_pct / 100.0)))
-        ops.append(
-            RevisionOperation(
-                target="badge",
-                action="scale",
-                scale_factor=round(factor, 4),
-                confidence="high",
-                mode="exact",
-                note=f"badge.scale = current * {factor:.2f}",
-            )
-        )
-    elif badge_generic:
-        ops.append(
-            RevisionOperation(
-                target="badge",
-                action="scale",
-                scale_factor=0.85,
-                confidence="medium",
-                mode="subjective",
-                note="slightly smaller badge",
-            )
-        )
-
-    # Exact: remove support / scarcity line
-    if any(tok in low for tok in ("kaldır", "remove", "sil")) and any(
-        tok in low
-        for tok in (
-            "sınırlı",
-            "scarcity",
-            "limited",
-            "destek",
-            "support",
-            "ifade",
-            "mesaj",
-        )
-    ):
-        ops.append(
-            RevisionOperation(
-                target="support_message",
-                action="remove",
-                **{
-                    "from": "scarcity_or_support_line",
-                    "to": None,
-                },
-                confidence="high",
-                mode="exact",
-            )
-        )
-
-    # Exact-ish: shrink logo (require logo near a scale verb — avoid "logoyu ... değiştirme")
-    logo_shrink = re.search(
-        r"logo[yu]?[^\n]{0,40}(?:%?\s*(\d+)\s*(?:'?[ıi]?\s*)?(?:kadar\s+)?)?(?:küçült|kucult|smaller)",
-        low,
-    )
-    if logo_shrink:
-        factor = 0.85
-        if logo_shrink.group(1):
-            factor = max(0.05, min(0.99, 1.0 - float(logo_shrink.group(1)) / 100.0))
-        ops.append(
-            RevisionOperation(
-                target="logo",
-                action="scale",
-                scale_factor=round(factor, 4),
-                confidence="high" if logo_shrink.group(1) else "medium",
-                mode="exact" if logo_shrink.group(1) else "subjective",
-                note=f"logo.scale = current * {factor:.2f}",
-            )
-        )
-
-    # Subjective tone (limit 1–3 targeted mods; no full redesign)
-    subjective_markers = (
-        "daha premium",
-        "premium",
-        "sade",
-        "sadeleştir",
-        "satış odaklı",
-        "sales",
-        "daha modern",
-        "editorial",
-    )
-    is_subjective = any(m in low for m in subjective_markers) and not any(
-        o.target == "headline" and o.mode == "exact" for o in ops
-    )
-    if is_subjective or ("premium" in low and ("başlık" in low or "headline" in low)):
-        if not any(o.target == "headline" for o in ops):
-            ops.append(
-                RevisionOperation(
-                    target="headline",
-                    action="tone_adjust",
-                    **{
-                        "from": str(final.get("headline") or pb.get("hero") or "") or None,
-                        "to": "more_premium_tone_same_meaning",
-                    },
-                    confidence="medium",
-                    mode="subjective",
-                    note="Limit to tone; do not invent facts or redesign",
-                )
-            )
-        if any(m in low for m in ("sade", "sadeleştir", "simplify")) and not any(
-            o.target == "support_message" for o in ops
-        ):
-            ops.append(
-                RevisionOperation(
-                    target="layout",
-                    action="tone_adjust",
-                    to_value="simpler_breathing_room",
-                    confidence="medium",
-                    mode="subjective",
-                )
-            )
-        if "satış" in low or "sales" in low:
-            ops.append(
-                RevisionOperation(
-                    target="cta",
-                    action="tone_adjust",
-                    to_value="more_sales_focused",
-                    confidence="medium",
-                    mode="subjective",
-                )
-            )
-
-    # Ambiguous → minimum-change
-    if not ops:
-        ops.append(
-            RevisionOperation(
-                target="overall",
-                action="minimum_change",
-                confidence="low",
-                mode="ambiguous",
-                note="Ambiguous instruction — apply minimum visible change only",
-            )
-        )
-
-    # Cap subjective ops to 1–3
-    exact_ops = [o for o in ops if o.mode == "exact"]
-    subjective_ops = [o for o in ops if o.mode == "subjective"]
-    ambiguous_ops = [o for o in ops if o.mode == "ambiguous"]
-    if len(subjective_ops) > 3:
-        subjective_ops = subjective_ops[:3]
-    ops = exact_ops + subjective_ops + ambiguous_ops
-
-    if exact_ops and not subjective_ops:
-        command_mode: str = "exact"
-    elif subjective_ops and not exact_ops:
-        command_mode = "subjective"
-    elif exact_ops and subjective_ops:
-        command_mode = "mixed"
-    else:
-        command_mode = "ambiguous"
-
-    # Deduplicate preserve/forbidden
-    def _uniq(items: list[str]) -> list[str]:
-        seen: set[str] = set()
-        out: list[str] = []
-        for x in items:
-            if x not in seen:
-                seen.add(x)
-                out.append(x)
-        return out
-
-    return RevisionDiff(
-        operations=ops,
-        preserve=_uniq(preserve),
-        forbidden_changes=_uniq(forbidden),
-        command_mode=command_mode,  # type: ignore[arg-type]
-        max_subjective_ops=3,
-        quality_lock=dict(QUALITY_LOCK_BRIEF),
+    Delegates to Revision Intelligence v2 (geometric + min-change). Legacy callers
+    without design_spec still receive a valid RevisionDiff.
+    """
+    return interpret_revision_plan(
+        instruction=instruction,
+        production_brief=production_brief,
+        design_spec=design_spec,
+        selected_element_id=selected_element_id,
     )
 
 
@@ -934,6 +663,17 @@ def lean_revision_history(history: list[Any] | None) -> list[dict[str, Any]]:
                 "revision_route": item.get("revision_route"),
                 "design_spec": item.get("design_spec"),
                 "master_background_asset_id": item.get("master_background_asset_id"),
+                "user_prompt": item.get("user_prompt") or item.get("instruction"),
+                "selected_element_id": item.get("selected_element_id"),
+                "interpreted_plan": item.get("interpreted_plan"),
+                "geometry_operations": item.get("geometry_operations") or [],
+                "changed_elements": item.get("changed_elements") or [],
+                "previous_values": item.get("previous_values") or {},
+                "new_values": item.get("new_values") or {},
+                "provider_used": item.get("provider_used") or item.get("provider"),
+                "provider_calls": item.get("provider_calls"),
+                "user_feedback": item.get("user_feedback"),
+                "change_diff_validation": item.get("change_diff_validation"),
             }
         )
     return lean_history
@@ -1155,7 +895,14 @@ def revise_ad_from_campaign(
                 prior_ops.append(dict(op))
 
     intents = interpret_revision_intents(instruction)
-    revision_diff = build_revision_diff(instruction=instruction, production_brief=production_brief)
+    base_spec_for_plan = ctx.get("design_spec") if isinstance(ctx.get("design_spec"), dict) else None
+    selected_element_id = getattr(body, "selected_element_id", None)
+    revision_diff = build_revision_diff(
+        instruction=instruction,
+        production_brief=production_brief,
+        design_spec=base_spec_for_plan,
+        selected_element_id=selected_element_id,
+    )
     new_ops = [_op_dict(o) for o in revision_diff.operations]
     cumulative_after = prior_ops + new_ops
     revision_route = route_revision(
@@ -1168,6 +915,21 @@ def revise_ad_from_campaign(
         or ctx.get("design_spec")
         or ctx.get("production_mode") == "editable_finished_ad"
     )
+    interpreted_plan = {
+        "operations": new_ops,
+        "command_mode": revision_diff.command_mode,
+        "strict_preserve": revision_diff.strict_preserve,
+        "selected_element_id": selected_element_id,
+        "geometry_operations": list(revision_diff.geometry_operations or []),
+        "requested_changes": list(revision_diff.requested_changes or []),
+        "priority_order": [
+            "exact_numeric",
+            "relational_geometric",
+            "percentage",
+            "relative_nl",
+            "subjective",
+        ],
+    }
 
     revision_brief = build_revision_brief(
         instruction=instruction,
@@ -1212,7 +974,44 @@ def revise_ad_from_campaign(
                 language=language,
                 campaign_intent=str(production_brief.get("campaign_intent") or ""),
             )
-        next_spec = apply_layer_operations(base_spec, revision_diff.operations)
+            # Re-interpret with concrete geometry when spec was missing at plan time
+            revision_diff = build_revision_diff(
+                instruction=instruction,
+                production_brief=production_brief,
+                design_spec=base_spec,
+                selected_element_id=selected_element_id,
+            )
+            new_ops = [_op_dict(o) for o in revision_diff.operations]
+            cumulative_after = prior_ops + new_ops
+            interpreted_plan = {
+                "operations": new_ops,
+                "command_mode": revision_diff.command_mode,
+                "strict_preserve": revision_diff.strict_preserve,
+                "selected_element_id": selected_element_id,
+                "geometry_operations": list(revision_diff.geometry_operations or []),
+                "requested_changes": list(revision_diff.requested_changes or []),
+                "priority_order": [
+                    "exact_numeric",
+                    "relational_geometric",
+                    "percentage",
+                    "relative_nl",
+                    "subjective",
+                ],
+            }
+
+        before_snap = snapshot_elements(base_spec)
+        candidate_spec = apply_layer_operations(base_spec, revision_diff.operations)
+        validation = validate_change_diff(
+            before=before_snap,
+            after_spec=candidate_spec,
+            revision_diff=revision_diff,
+        )
+        if validation.get("status") == "fail":
+            next_spec = deepcopy(base_spec)
+        else:
+            next_spec = candidate_spec
+        user_feedback = build_user_feedback(revision_diff, validation)
+
         production_brief = sync_production_brief_from_spec(production_brief, next_spec)
         editable_layers = design_spec_to_smb_elements(next_spec)
         master_bg_raw = next_spec.get("master_background_asset_id") or ctx.get(
@@ -1266,6 +1065,23 @@ def revise_ad_from_campaign(
             "master_asset_id": str(master_id),
             "revision_source_asset_id": str(master_id),
             "instruction": instruction,
+            "user_prompt": instruction,
+            "selected_element_id": selected_element_id,
+            "interpreted_plan": interpreted_plan,
+            "geometry_operations": list(revision_diff.geometry_operations or []),
+            "changed_elements": validation.get("changed_elements") or [],
+            "previous_values": {
+                c["id"]: c.get("previous")
+                for c in (validation.get("changed_elements") or [])
+                if isinstance(c, dict) and c.get("id")
+            },
+            "new_values": {
+                c["id"]: c.get("new")
+                for c in (validation.get("changed_elements") or [])
+                if isinstance(c, dict) and c.get("id")
+            },
+            "provider_used": "layer_only",
+            "provider_calls": 0,
             "revision_brief": revision_brief,
             "operations": new_ops,
             "intents": intents,
@@ -1274,10 +1090,17 @@ def revise_ad_from_campaign(
             "campaign_context_id": str(row.id),
             "claim_guard": claim_guard.get("status"),
             "language": language,
-            "quality_guard": {"status": "n/a", "gpt_calls": 0, "route": "LAYER_ONLY"},
+            "quality_guard": {
+                "status": "n/a",
+                "gpt_calls": 0,
+                "route": "LAYER_ONLY",
+                "change_diff_validation": validation,
+            },
             "revision_route": "LAYER_ONLY",
             "design_spec": next_spec,
             "master_background_asset_id": str(master_bg_id),
+            "user_feedback": user_feedback,
+            "change_diff_validation": validation,
         }
         history.append(entry)
         revision_index = len(history) - 1
@@ -1299,6 +1122,8 @@ def revise_ad_from_campaign(
             "revision_route": "LAYER_ONLY",
             "master_asset_id": str(master_id),
             "revision_diff": revision_diff.model_dump(by_alias=True),
+            "interpreted_plan": interpreted_plan,
+            "user_feedback": user_feedback,
         }
         ctx["latest_revision_diff"] = revision_diff.model_dump(by_alias=True)
         ctx["design_spec"] = next_spec
@@ -1330,7 +1155,12 @@ def revise_ad_from_campaign(
             revision_operations=cumulative_after,
             master_asset_id=master_id,
             revision_source_asset_id=master_id,
-            quality_guard={"status": "n/a", "gpt_calls": 0, "route": "LAYER_ONLY"},
+            quality_guard={
+                "status": "n/a",
+                "gpt_calls": 0,
+                "route": "LAYER_ONLY",
+                "change_diff_validation": validation,
+            },
             previous_asset_id=current_id,
             provider_route={"provider_id": "layer_only", "available": True, "missing": False},
             interior_asset_id=interior_id,
@@ -1344,6 +1174,7 @@ def revise_ad_from_campaign(
                 "instruction": instruction,
                 "revision_route": "LAYER_ONLY",
                 "gpt_image_call_count": 0,
+                "user_feedback": user_feedback,
             },
             final_turkish_texts=texts,
             claim_guard=claim_guard,
@@ -1362,6 +1193,9 @@ def revise_ad_from_campaign(
             else master_id,
             editable_layers=editable_layers,
             revision_route="LAYER_ONLY",
+            user_feedback=user_feedback,
+            change_diff_validation=validation,
+            interpreted_plan=interpreted_plan,
         )
 
     provider_route = route_ad_social_image(prefer_edit=True)
