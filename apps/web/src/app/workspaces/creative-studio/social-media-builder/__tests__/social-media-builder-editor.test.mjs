@@ -457,8 +457,9 @@ describe('workspace wiring — real editor controls', () => {
     assert.match(workspace, /data-testid="smb-publish"[\s\S]*?disabled/);
     assert.match(workspace, /data-testid="smb-undo"/);
     assert.match(workspace, /data-testid="smb-redo"/);
-    assert.match(workspace, /disabled=\{!historyPast\.length\}/);
-    assert.match(workspace, /disabled=\{!historyFuture\.length\}/);
+    assert.match(workspace, /disabled=\{!historyPast\.length && !canUndoAiRevision\}/);
+    assert.match(workspace, /disabled=\{!historyFuture\.length && !canRedoAiRevision\}/);
+    assert.match(workspace, /disabled: !historyPast\.length/);
     assert.match(workspace, /undoHistory/);
     assert.match(workspace, /redoHistory/);
   });
@@ -571,7 +572,7 @@ describe('fullscreen selection / color input safety', () => {
     const drawers = readSmb('social-media-builder-rail-drawers.tsx');
     assert.match(drawers, /toColorInputValue\(selectedElement\.backgroundColor/);
     assert.match(drawers, /toColorInputValue\(selectedElement\.textColor/);
-    assert.match(drawers, /toColorInputValue\(selectedElement\.color/);
+    assert.match(drawers, /toColorInputValue\(\s*isText \? selectedElement\.color/);
   });
 
   it('avoids setPointerCapture/releasePointerCapture on artboard drag (FS crash)', () => {

@@ -226,6 +226,54 @@ describe('Creative Director SMB wiring (finished-ad)', () => {
     assert.match(workspace, /setBrandLogo\(false\)/);
   });
 
+  it('consolidates primary canvas actions into single teal bottom bar', () => {
+    const workspace = read('social-media-builder-workspace.tsx');
+    const batSrc = readFileSync(
+      join(smbDir, '../_components/cs-bottom-action-toolbar.tsx'),
+      'utf8',
+    );
+    const sharedCss = readFileSync(
+      join(smbDir, '../creative-studio-shared.css'),
+      'utf8',
+    );
+
+    // Upper pilot output row removed — controls live in the dock.
+    assert.doesNotMatch(workspace, /data-testid="smb-pilot-output"/);
+    assert.doesNotMatch(workspace, /smb-ws__output-actions/);
+    assert.doesNotMatch(workspace, /data-testid="smb-output-download"/);
+    assert.doesNotMatch(workspace, /data-testid="smb-output-publish"/);
+
+    const finishedDock = workspace.match(
+      /data-testid="smb-finished-ad-dock"[\s\S]*?maxVisible=\{7\}[\s\S]*?\/>/,
+    );
+    assert.ok(finishedDock, 'finished-ad bottom dock missing');
+    assert.match(finishedDock[0], /singleRow/);
+    assert.match(finishedDock[0], /dividerAfterKey="variation"/);
+    assert.match(finishedDock[0], /maxVisible=\{7\}/);
+    assert.doesNotMatch(finishedDock[0], /\bprimary=\{/);
+    assert.match(finishedDock[0], /testId: 'smb-output-story'/);
+    assert.match(finishedDock[0], /testId: 'smb-output-reel'/);
+    assert.match(finishedDock[0], /testId: 'smb-output-variation'/);
+    assert.match(finishedDock[0], /testId: 'smb-action-undo'/);
+    assert.match(finishedDock[0], /testId: 'smb-action-redo'/);
+    assert.match(finishedDock[0], /testId: 'smb-action-download'/);
+    assert.match(finishedDock[0], /testId: 'smb-action-publish'/);
+    assert.match(finishedDock[0], /handleFormatChange\('story'\)/);
+    assert.match(finishedDock[0], /handleFormatChange\('reelsCover'\)/);
+    assert.match(finishedDock[0], /regenerateCurrentDesign\(\)/);
+    assert.match(finishedDock[0], /runUndoAiRevision|undoHistory/);
+    assert.match(finishedDock[0], /runRedoAiRevision|redoHistory/);
+    assert.match(finishedDock[0], /runDownload/);
+
+    // Shared BAT: icon actions, optional primary, divider, single-row CSS.
+    assert.match(batSrc, /dividerAfterKey\?:/);
+    assert.match(batSrc, /singleRow\?:/);
+    assert.match(batSrc, /primary\?:/);
+    assert.match(batSrc, /cs-bat__divider/);
+    assert.match(sharedCss, /\.cs-bat__row--single/);
+    assert.match(sharedCss, /\.cs-bat__divider/);
+  });
+
   it('passes project_id, brief, mode project, and locale language to campaigns', () => {
     const workspace = read('social-media-builder-workspace.tsx');
     assert.match(workspace, /project_id: projectId/);

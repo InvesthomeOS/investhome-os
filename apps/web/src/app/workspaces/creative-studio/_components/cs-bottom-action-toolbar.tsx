@@ -1,6 +1,13 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  Fragment,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useTranslations } from 'next-intl';
 
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
@@ -21,13 +28,22 @@ export type CsBottomActionPrimary = {
   icon?: IhIconName;
   onClick: () => void;
   testId?: string;
+  disabled?: boolean;
 };
 
 export type CsBottomActionToolbarProps = {
-  primary: CsBottomActionPrimary;
+  /** Solid pill CTA. Omit for icon-only action rows (no large primary). */
+  primary?: CsBottomActionPrimary | null;
   actions: CsBottomActionItem[];
   /** Optional custom node between primary and action grid (rare). */
   afterPrimary?: ReactNode;
+  /**
+   * Insert a vertical divider after this action key.
+   * When set, action order is preserved (no priority re-sort).
+   */
+  dividerAfterKey?: string;
+  /** Keep actions on one row; CSS shrinks spacing/labels before wrapping. */
+  singleRow?: boolean;
   ariaLabel?: string;
   moreLabel?: string;
   className?: string;
@@ -48,6 +64,31 @@ function sortForCollapse(actions: CsBottomActionItem[]): CsBottomActionItem[] {
   return [...actions].sort((a, b) => (rank[a.priority ?? 'normal'] - rank[b.priority ?? 'normal']));
 }
 
+function renderActionButton(
+  action: CsBottomActionItem,
+  onActivate: (action: CsBottomActionItem) => void,
+) {
+  return (
+    <button
+      type="button"
+      className="cs-bat__action"
+      data-testid={action.testId}
+      title={action.label}
+      disabled={action.disabled}
+      aria-disabled={action.disabled || undefined}
+      onClick={() => {
+        if (action.disabled) return;
+        onActivate(action);
+      }}
+    >
+      <span className="cs-bat__action-icon" aria-hidden="true">
+        <IhIcon name={action.icon} size={16} />
+      </span>
+      <span className="cs-bat__action-label">{action.label}</span>
+    </button>
+  );
+}
+
 /**
  * Shared Creative Studio bottom action row content:
  * solid light primary pill + icon-above-label ghost tools + overflow More.
@@ -58,6 +99,8 @@ export function CsBottomActionToolbar({
   primary,
   actions,
   afterPrimary,
+  dividerAfterKey,
+  singleRow = false,
   ariaLabel,
   moreLabel,
   className,
@@ -72,8 +115,10 @@ export function CsBottomActionToolbar({
     typeof maxVisible === 'number' ? maxVisible : actions.length,
   );
 
-  const ordered = sortForCollapse(actions);
+  const preserveOrder = Boolean(dividerAfterKey) || singleRow;
+  const ordered = preserveOrder ? actions : sortForCollapse(actions);
   const moreText = moreLabel ?? t('dock.more');
+  const hasPrimary = Boolean(primary);
 
   useLayoutEffect(() => {
     if (typeof maxVisible === 'number') {
@@ -87,7 +132,7 @@ export function CsBottomActionToolbar({
     function measure() {
       const el = rootRef.current;
       if (!el) return;
-      const primaryW = primaryRef.current?.offsetWidth ?? 120;
+      const primaryW = hasPrimary ? (primaryRef.current?.offsetWidth ?? 120) : 0;
       const afterW = afterPrimary ? 48 : 0;
       const available = Math.max(0, el.clientWidth - primaryW - afterW - GAP_PX * 3 - 8);
       const canFitWithMore = Math.max(0, Math.floor((available - MORE_MIN_PX - GAP_PX) / (ITEM_MIN_PX + GAP_PX)));
@@ -103,7 +148,7 @@ export function CsBottomActionToolbar({
     const ro = new ResizeObserver(measure);
     ro.observe(root);
     return () => ro.disconnect();
-  }, [afterPrimary, maxVisible, ordered.length]);
+  }, [afterPrimary, hasPrimary, maxVisible, ordered.length]);
 
   useEffect(() => {
     if (!overflowOpen) return;
@@ -123,45 +168,47 @@ export function CsBottomActionToolbar({
   return (
     <div
       ref={rootRef}
-      className={['cs-bat__row', className].filter(Boolean).join(' ')}
+      className={['cs-bat__row', singleRow ? 'cs-bat__row--single' : null, className]
+        .filter(Boolean)
+        .join(' ')}
       data-testid={testId}
       role="group"
       aria-label={ariaLabel ?? t('dock.aria')}
     >
-      <div className="cs-bat__primary" ref={primaryRef}>
-        <button
-          type="button"
-          className="cs-bat__primary-btn"
-          data-testid={primary.testId}
-          onClick={primary.onClick}
-        >
-          <IhIcon name={primary.icon ?? 'plus'} size={14} />
-          <span>{primary.label}</span>
-        </button>
-      </div>
+      {primary ? (
+        <div className="cs-bat__primary" ref={primaryRef}>
+          <button
+            type="button"
+            className="cs-bat__primary-btn"
+            data-testid={primary.testId}
+            disabled={primary.disabled}
+            aria-disabled={primary.disabled || undefined}
+            onClick={() => {
+              if (primary.disabled) return;
+              primary.onClick();
+            }}
+          >
+            <IhIcon name={primary.icon ?? 'plus'} size={14} />
+            <span>{primary.label}</span>
+          </button>
+        </div>
+      ) : null}
 
       {afterPrimary}
 
-      <div className="cs-bat__actions" role="group">
+      <div
+        className={['cs-bat__actions', singleRow ? 'cs-bat__actions--single' : null]
+          .filter(Boolean)
+          .join(' ')}
+        role="group"
+      >
         {visible.map((action) => (
-          <button
-            key={action.key}
-            type="button"
-            className="cs-bat__action"
-            data-testid={action.testId}
-            title={action.label}
-            disabled={action.disabled}
-            aria-disabled={action.disabled || undefined}
-            onClick={() => {
-              if (action.disabled) return;
-              action.onClick();
-            }}
-          >
-            <span className="cs-bat__action-icon" aria-hidden="true">
-              <IhIcon name={action.icon} size={16} />
-            </span>
-            <span className="cs-bat__action-label">{action.label}</span>
-          </button>
+          <Fragment key={action.key}>
+            {renderActionButton(action, (item) => item.onClick())}
+            {dividerAfterKey && action.key === dividerAfterKey ? (
+              <span className="cs-bat__divider" aria-hidden="true" data-testid={`${testId}-divider`} />
+            ) : null}
+          </Fragment>
         ))}
 
         {hasOverflow ? (

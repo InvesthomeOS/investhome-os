@@ -46,8 +46,8 @@ describe('interactive canvas wiring', () => {
     assert.match(workspace, /redoHistory/);
     assert.match(workspace, /data-testid="smb-undo"/);
     assert.match(workspace, /data-testid="smb-redo"/);
-    assert.match(workspace, /disabled=\{!historyPast\.length\}/);
-    assert.match(workspace, /disabled=\{!historyFuture\.length\}/);
+    assert.match(workspace, /disabled=\{!historyPast\.length && !canUndoAiRevision\}/);
+    assert.match(workspace, /disabled=\{!historyFuture\.length && !canRedoAiRevision\}/);
     assert.match(workspace, /editingElementId/);
     assert.match(workspace, /canvasShortcutBlockedByTextEdit/);
     assert.match(workspace, /beginGestureHistory/);

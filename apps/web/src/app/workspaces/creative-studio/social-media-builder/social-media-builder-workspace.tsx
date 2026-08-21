@@ -3333,64 +3333,7 @@ export function SocialMediaBuilderWorkspace() {
                 stageTestId="smb-canvas-stage"
                 toolbar={
                   <div className="smb-ws__center-head">
-                    {pilotDesignChosen ? (
-                      <div
-                        className="smb-ws__output-actions"
-                        role="group"
-                        aria-label={t('canvas.formatsAria')}
-                        data-testid="smb-pilot-output"
-                      >
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          data-testid="smb-output-story"
-                          data-button-hierarchy="secondary"
-                          onClick={() => handleFormatChange('story')}
-                        >
-                          {t('output.story')}
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          data-testid="smb-output-reel"
-                          data-button-hierarchy="secondary"
-                          onClick={() => handleFormatChange('reelsCover')}
-                        >
-                          {t('output.reel')}
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          data-testid="smb-output-variation"
-                          data-button-hierarchy="secondary"
-                          disabled={generating}
-                          onClick={() => regenerateCurrentDesign()}
-                        >
-                          {t('output.variation')}
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          data-testid="smb-output-download"
-                          data-button-hierarchy="utility"
-                          onClick={() => {
-                            void runDownload();
-                          }}
-                        >
-                          {t('download')}
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          data-testid="smb-output-publish"
-                          data-button-hierarchy="utility"
-                          disabled
-                          title={t('output.publishUnavailable')}
-                        >
-                          {t('publish')}
-                        </Button>
-                      </div>
-                    ) : (
+                    {pilotDesignChosen ? null : (
                       <div
                         className="smb-ws__format-tabs"
                         role="group"
@@ -3516,18 +3459,47 @@ export function SocialMediaBuilderWorkspace() {
                               testId="smb-bat"
                               ariaLabel={t('canvas.toolbarAria')}
                               moreLabel={t('editor.more')}
-                              maxVisible={3}
-                              primary={{
-                                label: t('undo'),
-                                icon: 'refresh',
-                                onClick: () => {
-                                  if (canUndoAiRevision) void runUndoAiRevision();
-                                  else undoHistory();
-                                },
-                                testId: 'smb-action-undo',
-                                disabled: !historyPast.length && !canUndoAiRevision,
-                              }}
+                              maxVisible={7}
+                              singleRow
+                              dividerAfterKey="variation"
                               actions={[
+                                {
+                                  key: 'story',
+                                  icon: 'design' as const,
+                                  label: t('output.story'),
+                                  onClick: () => handleFormatChange('story'),
+                                  testId: 'smb-output-story',
+                                  priority: 'high' as const,
+                                },
+                                {
+                                  key: 'reel',
+                                  icon: 'activity' as const,
+                                  label: t('output.reel'),
+                                  onClick: () => handleFormatChange('reelsCover'),
+                                  testId: 'smb-output-reel',
+                                  priority: 'high' as const,
+                                },
+                                {
+                                  key: 'variation',
+                                  icon: 'sparkles' as const,
+                                  label: t('output.variation'),
+                                  onClick: () => regenerateCurrentDesign(),
+                                  testId: 'smb-output-variation',
+                                  disabled: generating,
+                                  priority: 'high' as const,
+                                },
+                                {
+                                  key: 'undo',
+                                  icon: 'refresh' as const,
+                                  label: t('undo'),
+                                  onClick: () => {
+                                    if (canUndoAiRevision) void runUndoAiRevision();
+                                    else undoHistory();
+                                  },
+                                  testId: 'smb-action-undo',
+                                  disabled: !historyPast.length && !canUndoAiRevision,
+                                  priority: 'high' as const,
+                                },
                                 {
                                   key: 'redo',
                                   icon: 'arrowRight' as const,
@@ -3592,6 +3564,54 @@ export function SocialMediaBuilderWorkspace() {
                         testId: 'smb-action-text',
                       }}
                       actions={[
+                        ...(pilotDesignChosen
+                          ? [
+                              {
+                                key: 'story',
+                                icon: 'design' as const,
+                                label: t('output.story'),
+                                onClick: () => handleFormatChange('story'),
+                                testId: 'smb-output-story',
+                                priority: 'high' as const,
+                              },
+                              {
+                                key: 'reel',
+                                icon: 'activity' as const,
+                                label: t('output.reel'),
+                                onClick: () => handleFormatChange('reelsCover'),
+                                testId: 'smb-output-reel',
+                                priority: 'high' as const,
+                              },
+                              {
+                                key: 'variation',
+                                icon: 'sparkles' as const,
+                                label: t('output.variation'),
+                                onClick: () => regenerateCurrentDesign(),
+                                testId: 'smb-output-variation',
+                                disabled: generating,
+                                priority: 'high' as const,
+                              },
+                              {
+                                key: 'download',
+                                icon: 'inbox' as const,
+                                label: t('download'),
+                                onClick: () => {
+                                  void runDownload();
+                                },
+                                testId: 'smb-action-download',
+                                priority: 'high' as const,
+                              },
+                              {
+                                key: 'publish',
+                                icon: 'quickAction' as const,
+                                label: t('publish'),
+                                onClick: () => undefined,
+                                testId: 'smb-action-publish',
+                                disabled: true,
+                                priority: 'high' as const,
+                              },
+                            ]
+                          : []),
                         {
                           key: 'changeImage',
                           icon: 'inventory',
