@@ -278,6 +278,105 @@ def _version_label(history: list[Any]) -> str:
     return f"v{n + 1}" if n >= 1 else "v2"
 
 
+def revision_entries(history: list[Any] | None) -> list[dict[str, Any]]:
+    """Lean entries that carry a final asset id (skip stubs / malformed)."""
+    out: list[dict[str, Any]] = []
+    for item in history or []:
+        if isinstance(item, dict) and item.get("new_asset_id"):
+            out.append(item)
+    return out
+
+
+def normalize_revision_cursor(
+    history: list[Any] | None,
+    revision_index: Any = None,
+) -> tuple[list[dict[str, Any]], int]:
+    """Resolve (entries, index). Missing index → tip (legacy pop-history compatible)."""
+    entries = revision_entries(history)
+    if not entries:
+        return [], 0
+    if isinstance(revision_index, int) and 0 <= revision_index < len(entries):
+        return entries, revision_index
+    return entries, len(entries) - 1
+
+
+def asset_id_at_index(history: list[dict[str, Any]], index: int) -> str | None:
+    if index < 0 or index >= len(history):
+        return None
+    raw = history[index].get("new_asset_id")
+    return str(raw) if raw else None
+
+
+def move_revision_cursor(
+    history: list[Any] | None,
+    revision_index: Any,
+    *,
+    delta: int,
+) -> tuple[list[dict[str, Any]], int, str]:
+    """Undo (delta=-1) / redo (delta=+1) without mutating GPT — switch saved final assets."""
+    entries, index = normalize_revision_cursor(history, revision_index)
+    if not entries:
+        raise ValueError("No revision history.")
+    next_index = index + int(delta)
+    if next_index < 0:
+        raise ValueError("No previous revision to undo.")
+    if next_index >= len(entries):
+        raise ValueError("No forward revision to redo.")
+    asset_id = asset_id_at_index(entries, next_index)
+    if not asset_id:
+        raise ValueError("Revision entry missing asset id.")
+    return entries, next_index, asset_id
+
+
+def truncate_forward_history(
+    history: list[Any] | None,
+    revision_index: Any,
+) -> tuple[list[dict[str, Any]], int]:
+    """After undo, a new revise clears unreachable forward versions (A→B→C, undo to B, revise→D)."""
+    entries, index = normalize_revision_cursor(history, revision_index)
+    if not entries:
+        return [], 0
+    kept = entries[: index + 1]
+    return kept, len(kept) - 1
+
+
+def lean_revision_history(history: list[Any] | None) -> list[dict[str, Any]]:
+    """Persist lean history entries (avoid nesting full production_brief snapshots)."""
+    lean_history: list[dict[str, Any]] = []
+    for item in history or []:
+        if not isinstance(item, dict):
+            continue
+        if not item.get("new_asset_id"):
+            continue
+        rb = item.get("revision_brief")
+        lean_rb = None
+        if isinstance(rb, dict):
+            lean_rb = {
+                "mode": rb.get("mode"),
+                "instruction": rb.get("instruction"),
+                "intents": rb.get("intents"),
+                "copy_overrides": rb.get("copy_overrides"),
+                "cta": rb.get("cta"),
+                "language": rb.get("language"),
+            }
+        lean_history.append(
+            {
+                "version": item.get("version"),
+                "previous_asset_id": item.get("previous_asset_id"),
+                "new_asset_id": item.get("new_asset_id"),
+                "instruction": item.get("instruction"),
+                "revision_brief": lean_rb,
+                "intents": item.get("intents"),
+                "provider": item.get("provider"),
+                "timestamp": item.get("timestamp"),
+                "campaign_context_id": item.get("campaign_context_id"),
+                "claim_guard": item.get("claim_guard"),
+                "language": item.get("language"),
+            }
+        )
+    return lean_history
+
+
 def revise_ad_from_campaign(
     db: Session,
     user: User,
@@ -444,7 +543,11 @@ def revise_ad_from_campaign(
     )
     asset_lock["status"] = "pass" if logo_lock.get("status") == "pass" else "fail"
 
-    history = list(ctx.get("revision_history") or [])
+    # Cursor model: undo then revise clears unreachable forward versions.
+    history, _cursor = truncate_forward_history(
+        ctx.get("revision_history"),
+        ctx.get("revision_index"),
+    )
     # Ensure original entry exists once.
     if not any(isinstance(h, dict) and h.get("version") == "original" for h in history):
         history.insert(
@@ -475,6 +578,7 @@ def revise_ad_from_campaign(
         "language": language,
     }
     history.append(entry)
+    revision_index = len(history) - 1
 
     generated = list(ctx.get("generated_assets") or [])
     generated.append(
@@ -499,7 +603,9 @@ def revise_ad_from_campaign(
         }
     )
 
-    ctx["revision_history"] = history
+    lean_history = lean_revision_history(history)
+    ctx["revision_history"] = lean_history
+    ctx["revision_index"] = revision_index
     ctx["latest_revision_instruction"] = instruction
     ctx["latest_revision_brief"] = {
         "mode": revision_brief.get("mode"),
@@ -515,38 +621,6 @@ def revise_ad_from_campaign(
     ctx["image_generation_performed"] = True
     ctx["latest_master_ad_asset_id"] = str(new_asset_id)
     ctx["language"] = language
-    # Persist lean history entries (avoid nesting full production_brief snapshots).
-    lean_history: list[dict[str, Any]] = []
-    for item in history:
-        if not isinstance(item, dict):
-            continue
-        rb = item.get("revision_brief")
-        lean_rb = None
-        if isinstance(rb, dict):
-            lean_rb = {
-                "mode": rb.get("mode"),
-                "instruction": rb.get("instruction"),
-                "intents": rb.get("intents"),
-                "copy_overrides": rb.get("copy_overrides"),
-                "cta": rb.get("cta"),
-                "language": rb.get("language"),
-            }
-        lean_history.append(
-            {
-                "version": item.get("version"),
-                "previous_asset_id": item.get("previous_asset_id"),
-                "new_asset_id": item.get("new_asset_id"),
-                "instruction": item.get("instruction"),
-                "revision_brief": lean_rb,
-                "intents": item.get("intents"),
-                "provider": item.get("provider"),
-                "timestamp": item.get("timestamp"),
-                "campaign_context_id": item.get("campaign_context_id"),
-                "claim_guard": item.get("claim_guard"),
-                "language": item.get("language"),
-            }
-        )
-    ctx["revision_history"] = lean_history
     row.context_json = dict(ctx)
     flag_modified(row, "context_json")
     if row.status == "draft":
@@ -580,6 +654,7 @@ def revise_ad_from_campaign(
         revision_brief=revision_brief,
         revision_intents=intents,
         revision_history=lean_history,
+        revision_index=revision_index,
         previous_asset_id=current_id,
         provider_route=provider_route.to_dict(),
         interior_asset_id=interior_id,
@@ -607,40 +682,41 @@ def revise_ad_from_campaign(
     )
 
 
-def undo_campaign_revision(
+def _move_campaign_revision(
     db: Session,
     user: User,
     campaign_id: UUID,
+    *,
+    delta: int,
 ) -> CreativeDirectorReviseAdResponse:
-    """Simple undo — restore previous_asset_id from last revision entry."""
+    """Undo/redo cursor move — restore saved final_asset_id (0 provider / GPT calls)."""
     _ = user
     row = db.get(CreativeDirectorCampaign, campaign_id)
     if row is None or row.archived_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
     ctx = dict(row.context_json or {})
-    history = list(ctx.get("revision_history") or [])
-    # Find last real revision (not original).
-    last_idx = None
-    for i in range(len(history) - 1, -1, -1):
-        entry = history[i]
-        if isinstance(entry, dict) and entry.get("version") not in {None, "original"} and entry.get(
-            "previous_asset_id"
-        ):
-            last_idx = i
-            break
-    if last_idx is None:
+    try:
+        history, next_index, restored_asset = move_revision_cursor(
+            ctx.get("revision_history"),
+            ctx.get("revision_index"),
+            delta=delta,
+        )
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="No revision to undo.",
-        )
-    entry = history[last_idx]
-    previous_id = UUID(str(entry["previous_asset_id"]))
-    undone = history.pop(last_idx)
-    ctx["revision_history"] = history
-    ctx["latest_master_ad_asset_id"] = str(previous_id)
-    ctx["latest_undo"] = {
-        "undone_version": undone.get("version"),
-        "restored_asset_id": str(previous_id),
+            detail=str(exc),
+        ) from exc
+
+    restored_id = UUID(str(restored_asset))
+    previous_tip = asset_id_at_index(history, next_index - delta)
+    mode = "undo" if delta < 0 else "redo"
+    lean_history = lean_revision_history(history)
+    ctx["revision_history"] = lean_history
+    ctx["revision_index"] = next_index
+    ctx["latest_master_ad_asset_id"] = str(restored_id)
+    ctx[f"latest_{mode}"] = {
+        "restored_asset_id": str(restored_id),
+        "revision_index": next_index,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
     row.context_json = dict(ctx)
@@ -657,16 +733,17 @@ def undo_campaign_revision(
         format_preset="portrait",
         production_mode="finished_ad",
         production_brief=_as_dict(ctx.get("production_brief")),
-        revision_brief={"mode": "undo", "restored_asset_id": str(previous_id)},
+        revision_brief={"mode": mode, "restored_asset_id": str(restored_id)},
         revision_intents=[],
-        revision_history=history,
-        previous_asset_id=UUID(str(undone.get("new_asset_id"))) if undone.get("new_asset_id") else None,
-        provider_route={"provider_id": "undo", "available": True, "missing": False},
+        revision_history=lean_history,
+        revision_index=next_index,
+        previous_asset_id=UUID(str(previous_tip)) if previous_tip else None,
+        provider_route={"provider_id": mode, "available": True, "missing": False},
         interior_asset_id=interior_id,
         logo_asset_id=logo_id,
-        final_asset_id=previous_id,
-        final_asset_url=asset_url(previous_id),
-        creative_brief_summary={"mode": "undo"},
+        final_asset_id=restored_id,
+        final_asset_url=asset_url(restored_id),
+        creative_brief_summary={"mode": mode},
         final_turkish_texts={},
         claim_guard={"status": "pass"},
         project_asset_lock={"status": "pass"},
@@ -677,3 +754,21 @@ def undo_campaign_revision(
         gpt_image={},
         campaign_context=ctx,
     )
+
+
+def undo_campaign_revision(
+    db: Session,
+    user: User,
+    campaign_id: UUID,
+) -> CreativeDirectorReviseAdResponse:
+    """Undo — move revision cursor back (keeps forward history for redo; 0 GPT calls)."""
+    return _move_campaign_revision(db, user, campaign_id, delta=-1)
+
+
+def redo_campaign_revision(
+    db: Session,
+    user: User,
+    campaign_id: UUID,
+) -> CreativeDirectorReviseAdResponse:
+    """Redo — move revision cursor forward to a saved final_asset_id (0 GPT calls)."""
+    return _move_campaign_revision(db, user, campaign_id, delta=+1)

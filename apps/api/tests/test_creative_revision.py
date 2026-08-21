@@ -12,7 +12,10 @@ from investhome_api.services.creative_director.quality_lock.intent import (
 from investhome_api.services.creative_director.revision import (
     build_revision_brief,
     interpret_revision_intents,
+    move_revision_cursor,
+    normalize_revision_cursor,
     render_revision_production_prompt,
+    truncate_forward_history,
 )
 
 def _artifacts_dir() -> Path:
@@ -203,3 +206,59 @@ def test_intent_classifiers_match_quality_lock_briefs() -> None:
         project_name="The Temple",
     )
     assert loc.campaign_intent == "location"
+
+
+def test_revision_cursor_undo_redo_and_branch_clear_zero_gpt() -> None:
+    """A→B→C undo×2 redo×2 then undo+branch clear — pure cursor math, 0 GPT."""
+    a, b, c, d = (str(uuid4()) for _ in range(4))
+    history = [
+        {"version": "original", "new_asset_id": a, "previous_asset_id": None},
+        {"version": "v2", "new_asset_id": b, "previous_asset_id": a},
+        {"version": "v3", "new_asset_id": c, "previous_asset_id": b},
+    ]
+    entries, index = normalize_revision_cursor(history, None)
+    assert len(entries) == 3 and index == 2
+
+    entries, index, asset = move_revision_cursor(entries, index, delta=-1)
+    assert asset == b and index == 1
+    entries, index, asset = move_revision_cursor(entries, index, delta=-1)
+    assert asset == a and index == 0
+
+    entries, index, asset = move_revision_cursor(entries, index, delta=+1)
+    assert asset == b and index == 1
+    entries, index, asset = move_revision_cursor(entries, index, delta=+1)
+    assert asset == c and index == 2
+    assert len(entries) == 3  # forward history preserved
+
+    # Undo to B then new revise → D clears C
+    entries, index, asset = move_revision_cursor(entries, index, delta=-1)
+    assert asset == b and index == 1
+    kept, tip = truncate_forward_history(entries, index)
+    assert [h["new_asset_id"] for h in kept] == [a, b]
+    assert tip == 1
+    kept.append({"version": "v4", "new_asset_id": d, "previous_asset_id": b})
+    entries, index = normalize_revision_cursor(kept, len(kept) - 1)
+    assert [h["new_asset_id"] for h in entries] == [a, b, d]
+    assert index == 2
+    try:
+        move_revision_cursor(entries, index, delta=+1)
+        raise AssertionError("redo past tip should fail")
+    except ValueError:
+        pass
+    try:
+        move_revision_cursor(entries, 0, delta=-1)
+        raise AssertionError("undo at original should fail")
+    except ValueError:
+        pass
+
+
+def test_revision_cursor_legacy_missing_index_defaults_to_tip() -> None:
+    a, b = str(uuid4()), str(uuid4())
+    history = [
+        {"version": "original", "new_asset_id": a},
+        {"version": "v2", "new_asset_id": b},
+    ]
+    entries, index = normalize_revision_cursor(history, None)
+    assert index == 1
+    _, index, asset = move_revision_cursor(entries, index, delta=-1)
+    assert asset == a and index == 0

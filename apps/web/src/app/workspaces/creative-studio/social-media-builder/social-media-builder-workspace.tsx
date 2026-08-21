@@ -15,8 +15,10 @@ import {
   generateGptImageDesign,
   generateIdeogramDesign,
   generateSocialDesign,
+  getCreativeDirectorCampaign,
   getGptImageProviderStatus,
   getIdeogramProviderStatus,
+  redoCreativeDirectorRevision,
   reviseCreativeDirectorAd,
   undoCreativeDirectorRevision,
   type GptImageProviderStatus,
@@ -203,6 +205,33 @@ function resolvePostCampaignId(post: SocialPost | null | undefined): string | nu
   return null;
 }
 
+function parseAiRevisionCursor(source: {
+  revision_history?: unknown;
+  revision_index?: unknown;
+  campaign_context?: Record<string, unknown> | null;
+} | null | undefined): { history: Array<Record<string, unknown>>; index: number } {
+  const ctx = source?.campaign_context;
+  const rawHistory =
+    (Array.isArray(source?.revision_history) ? source.revision_history : null) ??
+    (ctx && Array.isArray(ctx.revision_history) ? ctx.revision_history : null) ??
+    [];
+  const history = rawHistory.filter(
+    (e): e is Record<string, unknown> =>
+      Boolean(e) && typeof e === 'object' && typeof (e as { new_asset_id?: unknown }).new_asset_id === 'string',
+  );
+  const rawIndex =
+    typeof source?.revision_index === 'number'
+      ? source.revision_index
+      : typeof ctx?.revision_index === 'number'
+        ? ctx.revision_index
+        : history.length
+          ? history.length - 1
+          : 0;
+  const index =
+    history.length === 0 ? 0 : Math.max(0, Math.min(rawIndex, history.length - 1));
+  return { history, index };
+}
+
 function visualTemplateForProject(
   projectId: string,
   templates: typeof SMB_PROJECTS,
@@ -275,6 +304,13 @@ export function SocialMediaBuilderWorkspace() {
   const [pilotDesignChosen, setPilotDesignChosen] = useState(false);
   const [creativeDirectorCampaignId, setCreativeDirectorCampaignId] = useState<string | null>(null);
   const creativeDirectorCampaignRef = useRef<string | null>(null);
+  /** Campaign revision cursor — index into saved final_asset_id history (persisted server-side). */
+  const [aiRevisionHistory, setAiRevisionHistory] = useState<Array<Record<string, unknown>>>([]);
+  const [aiRevisionIndex, setAiRevisionIndex] = useState(0);
+  const canUndoAiRevisionRef = useRef(false);
+  const canRedoAiRevisionRef = useRef(false);
+  const runUndoAiRevisionRef = useRef<() => void>(() => undefined);
+  const runRedoAiRevisionRef = useRef<() => void>(() => undefined);
   const [aiRevising, setAiRevising] = useState(false);
   const [postMenuId, setPostMenuId] = useState<string | null>(null);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
@@ -483,6 +519,15 @@ export function SocialMediaBuilderWorkspace() {
         if (campaignId) {
           setCreativeDirectorCampaignId(campaignId);
           creativeDirectorCampaignRef.current = campaignId;
+          void getCreativeDirectorCampaign(campaignId)
+            .then((camp) => {
+              const cursor = parseAiRevisionCursor(camp.campaign_context);
+              setAiRevisionHistory(cursor.history);
+              setAiRevisionIndex(cursor.index);
+            })
+            .catch(() => {
+              /* keep local cursor if campaign fetch fails */
+            });
         }
       }
       if (Array.isArray(draft?.platforms) && draft.platforms.length) {
@@ -579,12 +624,28 @@ export function SocialMediaBuilderWorkspace() {
   const finishedAdCanvas = isFinishedAdCanvasPost(selectedPost);
   /** Finished-ad selected → primary AI action is revise ("AI ile Düzenle"), not Oluştur create. */
   const revisionPrimary = finishedAdCanvas;
+  const canUndoAiRevision = finishedAdCanvas && aiRevisionHistory.length > 0 && aiRevisionIndex > 0;
+  const canRedoAiRevision =
+    finishedAdCanvas && aiRevisionHistory.length > 0 && aiRevisionIndex < aiRevisionHistory.length - 1;
   // Finished-ad raster is the sole visual: hide TEXT/CTA overlays + IH logo stub.
   const hideOsLayers =
     finishedAdCanvas ||
     (Boolean(canvaPreview?.src) && canvaPreview?.transferMode === 'editable');
   // Finished-ad AI-first: hide manual canvas chrome (prefer hide over delete).
   const hideManualCanvasTools = finishedAdCanvas;
+
+  const applyAiRevisionCursor = useCallback(
+    (source: {
+      revision_history?: unknown;
+      revision_index?: unknown;
+      campaign_context?: Record<string, unknown> | null;
+    } | null | undefined) => {
+      const cursor = parseAiRevisionCursor(source);
+      setAiRevisionHistory(cursor.history);
+      setAiRevisionIndex(cursor.index);
+    },
+    [],
+  );
 
   function clearCanvaRaster(postId: string) {
     setCanvaPreviewByPostId((prev) => {
@@ -822,13 +883,15 @@ export function SocialMediaBuilderWorkspace() {
       if (mod && event.key.toLowerCase() === 'z' && !event.shiftKey) {
         if (typing) return;
         event.preventDefault();
-        undoHistory();
+        if (canUndoAiRevisionRef.current) runUndoAiRevisionRef.current();
+        else undoHistory();
         return;
       }
       if ((mod && event.key.toLowerCase() === 'z' && event.shiftKey) || (mod && event.key.toLowerCase() === 'y')) {
         if (typing) return;
         event.preventDefault();
-        redoHistory();
+        if (canRedoAiRevisionRef.current) runRedoAiRevisionRef.current();
+        else redoHistory();
         return;
       }
 
@@ -1786,6 +1849,7 @@ export function SocialMediaBuilderWorkspace() {
         });
         setCreativeDirectorCampaignId(response.campaign_id || campaignId);
         creativeDirectorCampaignRef.current = response.campaign_id || campaignId;
+        applyAiRevisionCursor(response);
         setAiPrompt('');
         markDirty();
         persistEpochRef.current += 1;
@@ -1808,6 +1872,7 @@ export function SocialMediaBuilderWorkspace() {
     },
     [
       aiRevising,
+      applyAiRevisionCursor,
       buildPersistPayload,
       coverAsset,
       creativeDirectorCampaignId,
@@ -1821,31 +1886,22 @@ export function SocialMediaBuilderWorkspace() {
     ],
   );
 
-  const runUndoAiRevision = useCallback(async () => {
-    const campaignId =
-      creativeDirectorCampaignRef.current ||
-      creativeDirectorCampaignId ||
-      resolvePostCampaignId(selectedPost);
-    const projectId = selectedPost?.linkedProjectId || docApi.constructionProjectId;
-    if (!campaignId || !finishedAdCanvas || !projectId) {
-      undoHistory();
-      return;
-    }
-    try {
-      const response = await undoCreativeDirectorRevision(campaignId);
+  const hydrateFinishedAdFromRevisionMove = useCallback(
+    (
+      response: Awaited<ReturnType<typeof undoCreativeDirectorRevision>>,
+      campaignId: string,
+      projectId: string,
+      instruction: string,
+    ) => {
       const gptImage = response.gpt_image;
       const output = gptImage?.outputs?.[0];
       const finalAssetId = response.final_asset_id || output?.local_asset_id;
       if (!finalAssetId || !isMediaAssetId(finalAssetId)) {
-        undoHistory();
-        return;
+        return false;
       }
       pushHistory();
       const postId = selectedPost?.id;
-      if (!postId) {
-        undoHistory();
-        return;
-      }
+      if (!postId) return false;
       clearCanvaRaster(postId);
       const providerModel =
         (typeof response.provider_route?.model === 'string' && response.provider_route.model) ||
@@ -1855,7 +1911,7 @@ export function SocialMediaBuilderWorkspace() {
         localAssetId: finalAssetId,
         linkedProjectId: projectId,
         formatPreset: asFormatPreset(response.format_preset || formatPreset),
-        instruction: 'Undo AI revision',
+        instruction,
         model: providerModel,
         sessionId: gptImage?.session_id || response.campaign_id || campaignId,
         campaignContextId: response.campaign_id || campaignId,
@@ -1882,6 +1938,7 @@ export function SocialMediaBuilderWorkspace() {
         alt: null,
         role: 'cover',
       });
+      applyAiRevisionCursor(response);
       markDirty();
       persistEpochRef.current += 1;
       void docApi.saveDraft({
@@ -1891,23 +1948,102 @@ export function SocialMediaBuilderWorkspace() {
         designProvider: 'creative-director',
         brandLogo: false,
       });
+      return true;
+    },
+    [
+      applyAiRevisionCursor,
+      buildPersistPayload,
+      coverAsset,
+      docApi,
+      formatPreset,
+      markDirty,
+      pushHistory,
+      selectedPost,
+    ],
+  );
+
+  const runUndoAiRevision = useCallback(async () => {
+    const campaignId =
+      creativeDirectorCampaignRef.current ||
+      creativeDirectorCampaignId ||
+      resolvePostCampaignId(selectedPost);
+    const projectId = selectedPost?.linkedProjectId || docApi.constructionProjectId;
+    if (!campaignId || !finishedAdCanvas || !projectId || !canUndoAiRevision) {
+      undoHistory();
+      return;
+    }
+    try {
+      const response = await undoCreativeDirectorRevision(campaignId);
+      const ok = hydrateFinishedAdFromRevisionMove(
+        response,
+        campaignId,
+        projectId,
+        'Undo AI revision',
+      );
+      if (!ok) {
+        undoHistory();
+        return;
+      }
       showToast(t('toasts.revisionUndone'));
     } catch {
       undoHistory();
     }
   }, [
-    buildPersistPayload,
-    coverAsset,
+    canUndoAiRevision,
     creativeDirectorCampaignId,
-    docApi,
+    docApi.constructionProjectId,
     finishedAdCanvas,
-    formatPreset,
-    markDirty,
-    pushHistory,
+    hydrateFinishedAdFromRevisionMove,
     selectedPost,
     t,
     undoHistory,
   ]);
+
+  const runRedoAiRevision = useCallback(async () => {
+    const campaignId =
+      creativeDirectorCampaignRef.current ||
+      creativeDirectorCampaignId ||
+      resolvePostCampaignId(selectedPost);
+    const projectId = selectedPost?.linkedProjectId || docApi.constructionProjectId;
+    if (!campaignId || !finishedAdCanvas || !projectId || !canRedoAiRevision) {
+      redoHistory();
+      return;
+    }
+    try {
+      const response = await redoCreativeDirectorRevision(campaignId);
+      const ok = hydrateFinishedAdFromRevisionMove(
+        response,
+        campaignId,
+        projectId,
+        'Redo AI revision',
+      );
+      if (!ok) {
+        redoHistory();
+        return;
+      }
+      showToast(t('toasts.revisionRedone'));
+    } catch {
+      redoHistory();
+    }
+  }, [
+    canRedoAiRevision,
+    creativeDirectorCampaignId,
+    docApi.constructionProjectId,
+    finishedAdCanvas,
+    hydrateFinishedAdFromRevisionMove,
+    redoHistory,
+    selectedPost,
+    t,
+  ]);
+
+  canUndoAiRevisionRef.current = canUndoAiRevision;
+  canRedoAiRevisionRef.current = canRedoAiRevision;
+  runUndoAiRevisionRef.current = () => {
+    void runUndoAiRevision();
+  };
+  runRedoAiRevisionRef.current = () => {
+    void runRedoAiRevision();
+  };
 
   const runCreativeDirectorCampaign = useCallback(
     async (instruction: string) => {
@@ -3104,9 +3240,9 @@ export function SocialMediaBuilderWorkspace() {
                 aria-label={t('undo')}
                 data-testid="smb-undo"
                 data-button-hierarchy="utility"
-                disabled={!historyPast.length && !(finishedAdCanvas && (creativeDirectorCampaignId || resolvePostCampaignId(selectedPost)))}
+                disabled={!historyPast.length && !canUndoAiRevision}
                 onClick={() => {
-                  if (finishedAdCanvas && (creativeDirectorCampaignId || resolvePostCampaignId(selectedPost))) {
+                  if (canUndoAiRevision) {
                     void runUndoAiRevision();
                   } else {
                     undoHistory();
@@ -3115,18 +3251,23 @@ export function SocialMediaBuilderWorkspace() {
               >
                 <IhIcon name="refresh" size={12} />
               </button>
-              {hideManualCanvasTools ? null : (
               <button
                 type="button"
                 className="smb-ws__icon-btn"
                 aria-label={t('redo')}
                 data-testid="smb-redo"
-                disabled={!historyFuture.length}
-                onClick={() => redoHistory()}
+                data-button-hierarchy="utility"
+                disabled={!historyFuture.length && !canRedoAiRevision}
+                onClick={() => {
+                  if (canRedoAiRevision) {
+                    void runRedoAiRevision();
+                  } else {
+                    redoHistory();
+                  }
+                }}
               >
                 <IhIcon name="arrowRight" size={12} />
               </button>
-              )}
             </div>
           </div>
           <div className="smb-ws__toolbar-right">
@@ -3377,15 +3518,28 @@ export function SocialMediaBuilderWorkspace() {
                               moreLabel={t('editor.more')}
                               maxVisible={3}
                               primary={{
-                                label: t('editor.undo'),
+                                label: t('undo'),
                                 icon: 'refresh',
                                 onClick: () => {
-                                  void runUndoAiRevision();
+                                  if (canUndoAiRevision) void runUndoAiRevision();
+                                  else undoHistory();
                                 },
                                 testId: 'smb-action-undo',
-                                disabled: !historyPast.length && !(creativeDirectorCampaignId || resolvePostCampaignId(selectedPost)),
+                                disabled: !historyPast.length && !canUndoAiRevision,
                               }}
                               actions={[
+                                {
+                                  key: 'redo',
+                                  icon: 'arrowRight' as const,
+                                  label: t('redo'),
+                                  onClick: () => {
+                                    if (canRedoAiRevision) void runRedoAiRevision();
+                                    else redoHistory();
+                                  },
+                                  testId: 'smb-action-redo',
+                                  disabled: !historyFuture.length && !canRedoAiRevision,
+                                  priority: 'high' as const,
+                                },
                                 {
                                   key: 'download',
                                   icon: 'inbox' as const,

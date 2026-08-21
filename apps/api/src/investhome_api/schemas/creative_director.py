@@ -92,5 +92,6 @@ class CreativeDirectorReviseAdResponse(CreativeDirectorGenerateAdResponse):
     revision_brief: dict[str, Any] = Field(default_factory=dict)
     revision_intents: list[str] = Field(default_factory=list)
     revision_history: list[dict[str, Any]] = Field(default_factory=list)
+    revision_index: int = 0
     previous_asset_id: UUID | None = None
     campaign_context: dict[str, Any] = Field(default_factory=dict)

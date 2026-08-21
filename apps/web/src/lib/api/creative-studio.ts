@@ -941,6 +941,7 @@ export type CreativeDirectorReviseAdResponse = CreativeDirectorGenerateAdRespons
   revision_brief?: Record<string, unknown>;
   revision_intents?: string[];
   revision_history?: Array<Record<string, unknown>>;
+  revision_index?: number;
   previous_asset_id?: string | null;
   campaign_context?: Record<string, unknown>;
   gpt_image_call_count?: number;
@@ -962,10 +963,25 @@ export async function reviseCreativeDirectorAd(
   });
 }
 
+export async function getCreativeDirectorCampaign(
+  campaignId: string,
+): Promise<CreativeDirectorCampaignResponse> {
+  return apiFetch(`/ai/creative-studio/campaigns/${campaignId}`);
+}
+
 export async function undoCreativeDirectorRevision(
   campaignId: string,
 ): Promise<CreativeDirectorReviseAdResponse> {
   return apiFetch(`/ai/creative-studio/campaigns/${campaignId}/undo-revision`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export async function redoCreativeDirectorRevision(
+  campaignId: string,
+): Promise<CreativeDirectorReviseAdResponse> {
+  return apiFetch(`/ai/creative-studio/campaigns/${campaignId}/redo-revision`, {
     method: 'POST',
     body: JSON.stringify({}),
   });

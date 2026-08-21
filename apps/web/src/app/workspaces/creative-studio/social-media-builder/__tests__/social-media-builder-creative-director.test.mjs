@@ -71,6 +71,9 @@ describe('Creative Director SMB wiring (finished-ad)', () => {
     assert.match(api, /\/revise/);
     assert.match(api, /current_final_asset_id/);
     assert.match(api, /export async function undoCreativeDirectorRevision/);
+    assert.match(api, /export async function redoCreativeDirectorRevision/);
+    assert.match(api, /\/redo-revision/);
+    assert.match(api, /export async function getCreativeDirectorCampaign/);
     assert.match(api, /production_mode: productionMode/);
     assert.match(api, /input\.production_mode \?\? 'finished_ad'/);
     assert.doesNotMatch(api, /production_mode: input\.production_mode \?\? 'os_compose'/);
@@ -80,7 +83,11 @@ describe('Creative Director SMB wiring (finished-ad)', () => {
     const workspace = read('social-media-builder-workspace.tsx');
     assert.match(workspace, /reviseCreativeDirectorAd/);
     assert.match(workspace, /undoCreativeDirectorRevision/);
+    assert.match(workspace, /redoCreativeDirectorRevision/);
     assert.match(workspace, /runAiRevision/);
+    assert.match(workspace, /runRedoAiRevision/);
+    assert.match(workspace, /canUndoAiRevision/);
+    assert.match(workspace, /canRedoAiRevision/);
     assert.match(workspace, /revisionPrimary/);
     assert.match(workspace, /finishedAdCanvas/);
     assert.match(workspace, /data-testid=\{revisionPrimary \? 'smb-ai-revision' : 'smb-ai-design-actions'\}/);
@@ -105,14 +112,32 @@ describe('Creative Director SMB wiring (finished-ad)', () => {
     assert.doesNotMatch(revBlock[0], /createPostFromPreset/);
     const undoBlock = workspace.match(/const runUndoAiRevision = useCallback\([\s\S]*?\n  \);/);
     assert.ok(undoBlock, 'runUndoAiRevision missing');
-    assert.match(undoBlock[0], /createFinishedAdCanvasPost/);
+    assert.match(undoBlock[0], /hydrateFinishedAdFromRevisionMove|createFinishedAdCanvasPost/);
     assert.doesNotMatch(undoBlock[0], /createDefaultElements/);
+    const redoBlock = workspace.match(/const runRedoAiRevision = useCallback\([\s\S]*?\n  \);/);
+    assert.ok(redoBlock, 'runRedoAiRevision missing');
+    assert.match(redoBlock[0], /redoCreativeDirectorRevision/);
+    assert.match(redoBlock[0], /hydrateFinishedAdFromRevisionMove/);
+    assert.doesNotMatch(redoBlock[0], /createDefaultElements/);
+    assert.match(workspace, /data-testid="smb-redo"/);
+    assert.match(workspace, /canRedoAiRevision/);
+    // Finished-ad keeps both undo+redo toolbar buttons (redo not hidden).
+    assert.doesNotMatch(
+      workspace,
+      /hideManualCanvasTools \? null : \(\s*<button[\s\S]*?data-testid="smb-redo"/,
+    );
   });
 
   it('finished-ad selected shows AI ile Düzenle primary and routes to revise not create', () => {
     const workspace = read('social-media-builder-workspace.tsx');
     const tr = readFileSync(join(smbDir, '../../../../../messages/tr.json'), 'utf8');
+    const en = readFileSync(join(smbDir, '../../../../../messages/en.json'), 'utf8');
     assert.match(tr, /"submit": "AI ile Düzenle"/);
+    assert.match(tr, /"undo": "Geri Al"/);
+    assert.match(tr, /"redo": "İleri Al"/);
+    assert.match(en, /"redo": "Redo"/);
+    assert.match(tr, /"revisionRedone"/);
+    assert.match(en, /"revisionRedone"/);
     assert.match(workspace, /const revisionPrimary = finishedAdCanvas/);
     assert.match(workspace, /if \(revisionPrimary\) void runAiRevision\(aiPrompt\)/);
     assert.match(workspace, /else submitAiDesign\(\)/);

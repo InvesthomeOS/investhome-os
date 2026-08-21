@@ -19309,6 +19309,7 @@
           "revisionApplied": "Design revision applied",
           "revisionFailed": "AI revision failed",
           "revisionUndone": "Restored previous design",
+          "revisionRedone": "Restored next design",
           "revisionNeedCampaign": "Create a campaign design before AI revision",
           "revisionNeedAsset": "Current Final Asset is required for AI revision",
           "logoChanged": "Logo updated",

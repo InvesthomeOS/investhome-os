@@ -129,6 +129,20 @@ def main() -> int:
             json.dumps(undo_body, indent=2, ensure_ascii=False), encoding="utf-8"
         )
 
+        undo2 = client.post(f"/ai/creative-studio/campaigns/{campaign_id}/undo-revision")
+        undo2.raise_for_status()
+        undo2_body = undo2.json()
+
+        redo1 = client.post(f"/ai/creative-studio/campaigns/{campaign_id}/redo-revision")
+        redo1.raise_for_status()
+        redo1_body = redo1.json()
+        redo2 = client.post(f"/ai/creative-studio/campaigns/{campaign_id}/redo-revision")
+        redo2.raise_for_status()
+        redo2_body = redo2.json()
+        (OUT / "revision-redo.json").write_text(
+            json.dumps(redo2_body, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+
     history = rev2_body.get("revision_history") or hist
     summary = {
         "status": "READY FOR AI REVISION + SMB UX REVIEW",
@@ -142,6 +156,13 @@ def main() -> int:
         "7_campaign_context_id": campaign_id,
         "8_revision_history_working": bool(history) and len(history) >= 2,
         "9_undo_working": undo_body.get("final_asset_id") == v2_id,
+        "9b_undo_twice_to_original": undo2_body.get("final_asset_id") == original_asset_id,
+        "9c_redo_working": redo1_body.get("final_asset_id") == v2_id
+        and redo2_body.get("final_asset_id") == v3_id,
+        "9d_undo_redo_gpt_calls": int(undo_body.get("gpt_image_call_count") or 0)
+        + int(undo2_body.get("gpt_image_call_count") or 0)
+        + int(redo1_body.get("gpt_image_call_count") or 0)
+        + int(redo2_body.get("gpt_image_call_count") or 0),
         "10_claim_guard": (rev1_body.get("claim_guard") or {}).get("status"),
         "11_language_lock": rev1_body.get("language") == "tr",
         "12_logo_lock": (rev1_body.get("project_asset_lock") or {}).get("logo_locked")
@@ -164,6 +185,12 @@ def main() -> int:
         return 1
     if not summary["9_undo_working"]:
         print("ERROR: undo did not restore v2 asset", file=sys.stderr)
+        return 1
+    if not summary.get("9c_redo_working"):
+        print("ERROR: redo did not restore v2 then v3", file=sys.stderr)
+        return 1
+    if summary.get("9d_undo_redo_gpt_calls", 0) != 0:
+        print("ERROR: undo/redo must not call GPT Image", file=sys.stderr)
         return 1
     return 0
 

@@ -24,6 +24,7 @@ from investhome_api.services.creative_director.generate_ad import (
     recompose_ad_from_campaign,
 )
 from investhome_api.services.creative_director.revision import (
+    redo_campaign_revision,
     revise_ad_from_campaign,
     undo_campaign_revision,
 )
@@ -92,8 +93,23 @@ def undo_creative_director_revision(
     db: Session = Depends(get_db),  # noqa: B008
     user: User = _cs_view,
 ) -> CreativeDirectorReviseAdResponse:
-    """Simple undo — restore previous_asset_id from revision history (0 provider calls)."""
+    """Undo — move revision cursor back to a prior final_asset_id (0 provider calls)."""
     result = undo_campaign_revision(db, user, campaign_id)
+    db.commit()
+    return result
+
+
+@router.post(
+    "/ai/creative-studio/campaigns/{campaign_id}/redo-revision",
+    response_model=CreativeDirectorReviseAdResponse,
+)
+def redo_creative_director_revision(
+    campaign_id: UUID,
+    db: Session = Depends(get_db),  # noqa: B008
+    user: User = _cs_view,
+) -> CreativeDirectorReviseAdResponse:
+    """Redo — move revision cursor forward to a saved final_asset_id (0 provider calls)."""
+    result = redo_campaign_revision(db, user, campaign_id)
     db.commit()
     return result
 

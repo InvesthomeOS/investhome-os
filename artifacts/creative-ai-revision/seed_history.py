@@ -80,12 +80,22 @@ def main() -> None:
             raise SystemExit(f"campaign {CAMPAIGN_ID} not found")
         ctx = dict(row.context_json or {})
         ctx["revision_history"] = history
+        ctx["revision_index"] = len(history) - 1
         ctx["latest_master_ad_asset_id"] = v3_id
         ctx["latest_revision_instruction"] = history[-1]["instruction"]
         row.context_json = dict(ctx)
         flag_modified(row, "context_json")
         db.commit()
-        print(json.dumps({"seeded": True, "history_len": len(history), "latest": v3_id}))
+        print(
+            json.dumps(
+                {
+                    "seeded": True,
+                    "history_len": len(history),
+                    "revision_index": ctx["revision_index"],
+                    "latest": v3_id,
+                }
+            )
+        )
     finally:
         db.close()
 
