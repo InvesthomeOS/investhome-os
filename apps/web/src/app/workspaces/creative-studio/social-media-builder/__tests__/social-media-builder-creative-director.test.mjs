@@ -265,6 +265,23 @@ describe('Creative Director SMB wiring (finished-ad)', () => {
     assert.match(finishedDock[0], /runRedoAiRevision|redoHistory/);
     assert.match(finishedDock[0], /runDownload/);
 
+    // Real layout contract: exactly 7 icon+label actions; undo is not a white primary pill.
+    const finishedActionKeys = [
+      ...'story|reel|variation|undo|redo|download|publish'.split('|'),
+    ];
+    for (const key of finishedActionKeys) {
+      assert.match(finishedDock[0], new RegExp(`key: '${key}'`));
+    }
+    assert.equal(
+      (finishedDock[0].match(/\bkey: '/g) || []).length,
+      7,
+      'finished-ad dock must expose exactly 7 actions',
+    );
+    assert.doesNotMatch(
+      finishedDock[0],
+      /primary=\{\{[\s\S]*?label:\s*t\(['"]undo['"]\)/,
+    );
+
     // Shared BAT: icon actions, optional primary, divider, single-row CSS.
     assert.match(batSrc, /dividerAfterKey\?:/);
     assert.match(batSrc, /singleRow\?:/);

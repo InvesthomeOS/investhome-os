@@ -1,0 +1,60 @@
+{
+  "duplicatePilotOutput": false,
+  "aboveCanvasDuplicateCount": 0,
+  "finishedAd": true,
+  "finishedDock": true,
+  "actionCount": 7,
+  "actions": [
+    {
+      "testId": "smb-output-story",
+      "label": "Story Yap",
+      "className": "cs-bat__action",
+      "isPrimaryPill": false
+    },
+    {
+      "testId": "smb-output-reel",
+      "label": "Reel Yap",
+      "className": "cs-bat__action",
+      "isPrimaryPill": false
+    },
+    {
+      "testId": "smb-output-variation",
+      "label": "Varyasyon Oluştur",
+      "className": "cs-bat__action",
+      "isPrimaryPill": false
+    },
+    {
+      "testId": "smb-action-undo",
+      "label": "Geri Al",
+      "className": "cs-bat__action",
+      "isPrimaryPill": false
+    },
+    {
+      "testId": "smb-action-redo",
+      "label": "İleri Al",
+      "className": "cs-bat__action",
+      "isPrimaryPill": false
+    },
+    {
+      "testId": "smb-action-download",
+      "label": "İndir",
+      "className": "cs-bat__action",
+      "isPrimaryPill": false
+    },
+    {
+      "testId": "smb-action-publish",
+      "label": "Yayınla",
+      "className": "cs-bat__action",
+      "isPrimaryPill": false
+    }
+  ],
+  "divider": true,
+  "undoIsPrimaryPill": false,
+  "undoClass": "cs-bat__action",
+  "storyInBat": true,
+  "reelInBat": true,
+  "variationInBat": true,
+  "downloadInBat": true,
+  "publishInBat": true,
+  "redoInBat": true
+}
