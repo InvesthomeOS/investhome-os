@@ -27,46 +27,35 @@ import {
 import { exportDesignToCanva, canvaPreviewPngToObjectUrl, type CanvaExportResult } from '@/lib/api/platform';
 
 import {
-  BOTTOM_ACTIONS,
   CAMPAIGN_STATUS_TONE,
   DEFAULT_POSTS,
-  FLOATING_ACTIONS,
-  FORMAT_PRESETS,
   GENERATION_STATUS_STAGES,
   SMB_HOME,
   SMB_LEFT_RAIL_ICONS,
   SMB_LEFT_RAIL_IDS,
   SMB_PROJECTS,
-  SMB_RIGHT_RAIL_ICONS,
-  SMB_RIGHT_RAIL_IDS,
   aspectThumbClass,
   createGeneratingPost,
   createPostFromPreset,
   mintCreatePostId,
   resolveFormatSize,
   type AiStatusKey,
-  type BgMode,
   type BottomActionKey,
   type CampaignStatus,
-  type FloatingActionKey,
   type FormatPresetKey,
   type PlatformKey,
   type SmbLeftRailId,
-  type SmbRightRailId,
   type SocialPost,
 } from './social-media-builder-model';
 import {
   P0_BOTTOM_ACTIONS,
   P0_COMPONENT_KEYS,
-  alignElement,
-  bringElementForward,
   captionFromElements,
   createButtonElement,
   createImageElement,
   createTextElement,
   duplicateElement,
   ensureUniqueElementIds,
-  sendElementBackward,
   type SocialElement,
 } from './social-media-builder-elements';
 import {
@@ -143,12 +132,11 @@ import {
 } from './social-media-builder-gpt-image';
 
 import {
-  SmbLayerStyleBar,
   SmbLeftRailDrawer,
   SmbLocalRail,
-  SmbRightRailDrawer,
   SmbZoomToolbar,
 } from './social-media-builder-rail-drawers';
+import { SmbRightEditPanel } from './smb-right-edit-panel';
 
 import { CsBottomActionToolbar, CsMediaPickerDialog } from '../_components';
 import { CsBuilderBootstrapView } from '../_components/cs-builder-bootstrap-view';
@@ -270,7 +258,7 @@ export function SocialMediaBuilderWorkspace() {
   const [generationMeta, setGenerationMeta] = useState<DesignGenerationMeta | null>(null);
   const [aiPrompt, setAiPrompt] = useState('');
   const [leftRailId, setLeftRailId] = useState<SmbLeftRailId>('templates');
-  const [rightRailId, setRightRailId] = useState<SmbRightRailId>('content');
+  const [editPanelOpen, setEditPanelOpen] = useState(true);
   const focus = useCreativeStudioFocusMode({ storageKey: 'social-media-builder' });
 
   const [posts, setPosts] = useState<SocialPost[]>(DEFAULT_POSTS);
@@ -284,14 +272,11 @@ export function SocialMediaBuilderWorkspace() {
     () => new Set(['instagram', 'facebook', 'linkedin', 'x']),
   );
   const [brandLogo, setBrandLogo] = useState(true);
-  const [bgMode, setBgMode] = useState<BgMode>('image');
   const [canvasLocked, setCanvasLocked] = useState(false);
-  const [floatingMoreOpen, setFloatingMoreOpen] = useState(false);
-  const [alignMenuOpen, setAlignMenuOpen] = useState(false);
-  const [layerMenuOpen, setLayerMenuOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [elementImagePickerOpen, setElementImagePickerOpen] = useState(false);
+  const [replaceElementId, setReplaceElementId] = useState<string | null>(null);
   const [aiDesignCollapsed, setAiDesignCollapsed] = useState(false);
   const [designEngine, setDesignEngine] = useState<DesignEngineKind>('native');
   const designEngineRef = useRef<DesignEngineKind>('native');
@@ -390,14 +375,14 @@ export function SocialMediaBuilderWorkspace() {
     selectedPost?.elements.find((el) => el.id === selectedElementId) ?? null;
   const contentSize = resolveFormatSize(formatPreset);
 
-  const smbFitPadX = focus.isFullscreen ? 16 : 24;
-  const smbFitPadY = focus.isFullscreen ? 16 : 32;
+  const smbFitPadX = focus.isFullscreen ? 12 : editPanelOpen ? 16 : 12;
+  const smbFitPadY = focus.isFullscreen ? 12 : 16;
 
   const ftv = useFitToViewEngine({
     contentWidth: Math.max(1, contentSize.w),
     contentHeight: Math.max(1, contentSize.h),
     enabled: true,
-    contentKey: `${formatPreset}-${selectedPost?.id ?? 'empty'}-${focus.mode}-${focus.isFullscreen ? 'fs' : 'win'}-${smbFitPadX}x${smbFitPadY}`,
+    contentKey: `${formatPreset}-${selectedPost?.id ?? 'empty'}-${focus.mode}-${focus.isFullscreen ? 'fs' : 'win'}-${editPanelOpen ? 'edit' : 'wide'}-${smbFitPadX}x${smbFitPadY}`,
     canvasType: 'artwork',
     padX: smbFitPadX,
     padY: smbFitPadY,
@@ -417,13 +402,14 @@ export function SocialMediaBuilderWorkspace() {
   );
 
   const smbRightRail: FocusRailItem[] = useMemo(
-    () =>
-      SMB_RIGHT_RAIL_IDS.map((id) => ({
-        id,
-        icon: SMB_RIGHT_RAIL_ICONS[id],
+    () => [
+      {
+        id: 'edit',
+        icon: 'design',
         labelKey: 'export',
-        label: t(`rails.labels.${id}`),
-      })),
+        label: t('editPanel.title'),
+      },
+    ],
     [t],
   );
 
@@ -437,21 +423,16 @@ export function SocialMediaBuilderWorkspace() {
       })
       .map((i) => ({ id: i.id, icon: i.icon, label: i.label ?? i.id }));
   }, [selectedPost, smbLeftRail]);
-  const localRightItems = useMemo(() => {
-    const finished = isFinishedAdCanvasPost(selectedPost);
-    return smbRightRail
-      .filter((i) => {
-        if (!finished) return true;
-        return i.id === 'content' || i.id === 'settings';
-      })
-      .map((i) => ({ id: i.id, icon: i.icon, label: i.label ?? i.id }));
-  }, [selectedPost, smbRightRail]);
+  const localRightItems = useMemo(
+    () => smbRightRail.map((i) => ({ id: i.id, icon: i.icon, label: i.label ?? i.id })),
+    [smbRightRail],
+  );
 
   useEffect(() => {
     if (ftv.autoFit) ftv.fitToView();
     else ftv.refit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focus.mode, focus.isFullscreen, formatPreset, selectedPostId, smbFitPadX, smbFitPadY]);
+  }, [focus.mode, focus.isFullscreen, formatPreset, selectedPostId, smbFitPadX, smbFitPadY, editPanelOpen]);
 
   useEffect(() => {
     if (!focus.isFullscreen) setAiDesignCollapsed(false);
@@ -633,8 +614,6 @@ export function SocialMediaBuilderWorkspace() {
   const hideOsLayers =
     (finishedAdCanvas && !editableFinishedAd) ||
     (Boolean(canvaPreview?.src) && canvaPreview?.transferMode === 'editable');
-  // Keep finished-ad bottom bar; allow minimal layer chrome for editable mode only.
-  const hideManualCanvasTools = finishedAdCanvas && !editableFinishedAd;
 
   const applyAiRevisionCursor = useCallback(
     (source: {
@@ -842,30 +821,6 @@ export function SocialMediaBuilderWorkspace() {
   }, [hydrated, docApi.loadStatus, coverAsset.coverImage, posts, selectedPostId, brandLogo, platforms, generating]);
 
   useEffect(() => {
-    if (!floatingMoreOpen && !alignMenuOpen && !layerMenuOpen) return;
-    function onDocPointer(event: MouseEvent) {
-      const target = event.target as HTMLElement | null;
-      if (target?.closest?.('[data-testid="smb-floating-actions"]')) return;
-      setFloatingMoreOpen(false);
-      setAlignMenuOpen(false);
-      setLayerMenuOpen(false);
-    }
-    function onKey(event: globalThis.KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setFloatingMoreOpen(false);
-        setAlignMenuOpen(false);
-        setLayerMenuOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', onDocPointer);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDocPointer);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [floatingMoreOpen, alignMenuOpen, layerMenuOpen]);
-
-  useEffect(() => {
     function onKey(event: globalThis.KeyboardEvent) {
       const target = event.target as HTMLElement | null;
       const tag = target?.tagName?.toLowerCase() ?? '';
@@ -972,10 +927,6 @@ export function SocialMediaBuilderWorkspace() {
     markDirty();
   }
 
-  function patchPost(patch: Partial<SocialPost>) {
-    updateSelectedPost((p) => ({ ...p, ...patch }));
-  }
-
   function selectElement(elementId: string | null) {
     if (editingElementId && editingElementId !== elementId) {
       setEditingElementId(null);
@@ -983,32 +934,25 @@ export function SocialMediaBuilderWorkspace() {
     if (!elementId) {
       setSelectedElementId(null);
       setEditingElementId(null);
-      setAlignMenuOpen(false);
-      setLayerMenuOpen(false);
-      setFloatingMoreOpen(false);
       return;
     }
     const exists = selectedPost?.elements.some((el) => el.id === elementId);
     if (!exists) {
       setSelectedElementId(null);
       setEditingElementId(null);
-      setAlignMenuOpen(false);
-      setLayerMenuOpen(false);
-      setFloatingMoreOpen(false);
       return;
     }
     setSelectedElementId(elementId);
-    setRightRailId('style');
+    setEditPanelOpen(true);
   }
 
   /**
    * Clear selection on background pointerdown — never on click.
    *
-   * Layer pointerdown selects and mounts selection chrome under the cursor.
-   * The completing click then retargets to the nearest common ancestor (artboard /
-   * cover img). Deselecting on that ghost click is what wiped the toolbar.
-   * Layers + chrome already stopPropagation on pointerdown, so a true empty-canvas
-   * press still reaches this handler; the retargeted click no longer matters.
+   * Layer pointerdown selects under the cursor. The completing click then
+   * retargets to the nearest common ancestor (artboard / cover img). Deselecting
+   * on that ghost click used to wipe selection chrome; layers already stopPropagation
+   * on pointerdown, so a true empty-canvas press still reaches this handler.
    */
   function handleArtboardBackgroundPointerDown(event: {
     target: EventTarget | null;
@@ -1016,8 +960,6 @@ export function SocialMediaBuilderWorkspace() {
   }) {
     const target = event.target as HTMLElement | null;
     if (target?.closest?.('[data-testid^="smb-el-"]')) return;
-    if (target?.closest?.('[data-testid="smb-selection-chrome"]')) return;
-    if (target?.closest?.('[data-testid="smb-floating-actions"]')) return;
     if (typeof event.button === 'number' && event.button !== 0) return;
     selectElement(null);
   }
@@ -1064,19 +1006,6 @@ export function SocialMediaBuilderWorkspace() {
     updateSelectedPost((p) => ({ ...p, elements: ensureUniqueElementIds(elements) }), {
       history: opts?.history !== false,
     });
-  }
-
-  function togglePlatform(key: PlatformKey) {
-    setPlatforms((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        if (next.size > 1) next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-    markDirty();
   }
 
   function selectPost(post: SocialPost) {
@@ -1151,9 +1080,6 @@ export function SocialMediaBuilderWorkspace() {
     setSelectedPostId(result.selectedPostId ?? '');
     setSelectedElementId(null);
     setEditingElementId(null);
-    setFloatingMoreOpen(false);
-    setAlignMenuOpen(false);
-    setLayerMenuOpen(false);
 
     const nextActive =
       result.posts.find((p) => p.id === result.selectedPostId) ?? result.posts[0] ?? null;
@@ -1218,7 +1144,7 @@ export function SocialMediaBuilderWorkspace() {
   function addElement(el: SocialElement) {
     updateSelectedPost((p) => ({ ...p, elements: [...p.elements, el] }));
     setSelectedElementId(el.id);
-    setRightRailId('content');
+    setEditPanelOpen(true);
   }
 
   const runDownload = useCallback(async () => {
@@ -1409,85 +1335,55 @@ export function SocialMediaBuilderWorkspace() {
     transferCurrentPostToCanva,
   ]);
 
-  function handleFloating(action: FloatingActionKey | 'more') {
-    if (action === 'more') {
-      setFloatingMoreOpen(!floatingMoreOpen);
-      setAlignMenuOpen(false);
-      setLayerMenuOpen(false);
+  function handleCopySelectedElement() {
+    if (!selectedElement) {
+      showToast(t('toasts.selectElement'));
       return;
     }
-    if (action === 'edit') {
-      if (selectedPostId) clearCanvaRaster(selectedPostId);
-      if (!selectedElementId) {
-        const first = selectedPost?.elements[0];
-        if (first) setSelectedElementId(first.id);
-      }
-      setRightRailId('content');
+    const clone = duplicateElement(selectedElement, contentSize.w, contentSize.h);
+    addElement(clone);
+    showToast(t('floating.copy'));
+  }
+
+  function handleDeleteSelectedElement() {
+    if (selectedElement && selectedPost) {
+      replaceElements(selectedPost.elements.filter((el) => el.id !== selectedElement.id));
+      setSelectedElementId(null);
+      markDirty();
+      void persistNow();
+      showToast(t('toasts.elementRemoved'));
       return;
     }
-    if (action === 'copy') {
-      if (!selectedElement) {
-        showToast(t('toasts.selectElement'));
-        return;
-      }
-      const clone = duplicateElement(selectedElement, contentSize.w, contentSize.h);
-      addElement(clone);
-      showToast(t('floating.copy'));
-      return;
-    }
-    if (action === 'delete') {
-      if (selectedElement && selectedPost) {
-        replaceElements(selectedPost.elements.filter((el) => el.id !== selectedElement.id));
-        setSelectedElementId(null);
-        markDirty();
-        void persistNow();
-        showToast(t('toasts.elementRemoved'));
-        return;
-      }
-      // No element selected → clear cover background (existing Sil behavior).
-      coverAsset.clearCover();
-      updateSelectedPost((p) => ({ ...p, coverAssetId: null, thumbUrl: '' }));
-      void (async () => {
-        let ok = false;
-        for (let attempt = 0; attempt < 8 && !ok; attempt += 1) {
-          ok = await docApi.saveDraft({
-            ...buildPersistPayload(),
-            coverImage: null,
-            posts: serializeSocialPosts(
-              postsRef.current.map((p) =>
-                p.id === selectedPostId
-                  ? { ...p, coverAssetId: null, linkedProjectId: docApi.constructionProjectId }
-                  : { ...p, linkedProjectId: docApi.constructionProjectId },
-              ),
+    // No element selected → clear cover background (existing Sil behavior).
+    coverAsset.clearCover();
+    updateSelectedPost((p) => ({ ...p, coverAssetId: null, thumbUrl: '' }));
+    void (async () => {
+      let ok = false;
+      for (let attempt = 0; attempt < 8 && !ok; attempt += 1) {
+        ok = await docApi.saveDraft({
+          ...buildPersistPayload(),
+          coverImage: null,
+          posts: serializeSocialPosts(
+            postsRef.current.map((p) =>
+              p.id === selectedPostId
+                ? { ...p, coverAssetId: null, linkedProjectId: docApi.constructionProjectId }
+                : { ...p, linkedProjectId: docApi.constructionProjectId },
             ),
+          ),
+        });
+        if (!ok) {
+          await new Promise((resolve) => {
+            window.setTimeout(resolve, 80);
           });
-          if (!ok) {
-            await new Promise((resolve) => {
-              window.setTimeout(resolve, 80);
-            });
-          }
         }
-        if (ok) {
-          setSaved(true);
-          showToast(t('toasts.imageRemoved'));
-        } else {
-          showToast(t('toasts.saveFailed'));
-        }
-      })();
-      return;
-    }
-    if (action === 'layer') {
-      setLayerMenuOpen(!layerMenuOpen);
-      setAlignMenuOpen(false);
-      setFloatingMoreOpen(false);
-      return;
-    }
-    if (action === 'align') {
-      setAlignMenuOpen(!alignMenuOpen);
-      setLayerMenuOpen(false);
-      setFloatingMoreOpen(false);
-      return;
-    }
+      }
+      if (ok) {
+        setSaved(true);
+        showToast(t('toasts.imageRemoved'));
+      } else {
+        showToast(t('toasts.saveFailed'));
+      }
+    })();
   }
 
   function handleBottomAction(action: BottomActionKey) {
@@ -2563,7 +2459,7 @@ export function SocialMediaBuilderWorkspace() {
             coverAsset.clearCover();
           }
           markDirty();
-          setRightRailId('content');
+          setEditPanelOpen(true);
         } else if (inferredMode === 'create' && inflightId) {
           persistEpochRef.current += 1;
           const errored = postsRef.current.map((p) =>
@@ -2691,38 +2587,28 @@ export function SocialMediaBuilderWorkspace() {
   );
 
   const rightDrawerContent = (
-    <SmbRightRailDrawer
-      id={rightRailId}
-      onSelectTab={setRightRailId}
+    <SmbRightEditPanel
+      open={editPanelOpen}
+      onOpenChange={setEditPanelOpen}
+      selectedElement={focus.mode === 'preview' ? null : selectedElement}
       post={selectedPost}
-      patchPost={patchPost}
-      selectedElement={selectedElement}
+      formatPreset={formatPreset}
+      onFormatChange={handleFormatChange}
       patchElement={(patch) => {
         if (!selectedElementId) return;
         patchElement(selectedElementId, patch);
       }}
-      formatPreset={formatPreset}
-      setFormatPreset={handleFormatChange}
-      platforms={platforms}
-      togglePlatform={togglePlatform}
-      brandLogo={brandLogo}
-      setBrandLogo={(v) => {
-        setBrandLogo(v);
-        markDirty();
+      onCopy={handleCopySelectedElement}
+      onDelete={handleDeleteSelectedElement}
+      onReplaceImage={() => {
+        if (selectedElementId) setReplaceElementId(selectedElementId);
       }}
-      bgMode={bgMode}
-      setBgMode={setBgMode}
-      markDirty={markDirty}
-      onToast={showToast}
-      onChangeImage={() => coverAsset.openPicker('cover')}
-      coverDisplayUrl={displayArtboardSrc ?? ''}
-      onDownload={() => {
-        void runDownload();
+      onReplaceLogo={() => {
+        if (selectedElementId) setReplaceElementId(selectedElementId);
       }}
-      onOpenInCanva={() => {
-        void runOpenInCanva();
-      }}
-      canvaBusy={canvaBusy}
+      onChangeBackground={() => coverAsset.openPicker('cover')}
+      canvasWidth={contentSize.w}
+      canvasHeight={contentSize.h}
     />
   );
 
@@ -2745,13 +2631,11 @@ export function SocialMediaBuilderWorkspace() {
     focus.isFocus || focus.isFullscreen ? (
       rightDrawerContent
     ) : (
-      <div className="smb-ws__panel smb-ws__right" aria-label={t('right.aria')} data-testid="smb-right">
-        <SmbLocalRail
-          side="right"
-          items={localRightItems}
-          activeId={rightRailId}
-          onSelect={(id) => setRightRailId(id as SmbRightRailId)}
-        />
+      <div
+        className={`smb-ws__edit-panel-slot${editPanelOpen ? '' : ' is-collapsed'}`}
+        aria-label={t('editPanel.aria')}
+        data-testid="smb-right"
+      >
         {rightDrawerContent}
       </div>
     );
@@ -2908,18 +2792,6 @@ export function SocialMediaBuilderWorkspace() {
     void runCreativeDirectorCampaign(instruction);
   }
 
-  function ensureCanvasElementSelected() {
-    if (selectedElementId) return true;
-    const first = selectedPost?.elements.find((el) => el.type !== 'IMAGE' || el.role === 'logo')
-      ?? selectedPost?.elements[0];
-    if (!first) {
-      showToast(t('toasts.selectElement'));
-      return false;
-    }
-    setSelectedElementId(first.id);
-    return true;
-  }
-
   const showVariantChooser =
     Boolean(artDirectorSession && artDirectorSession.variants.length > 0 && !pilotDesignChosen);
 
@@ -2958,7 +2830,7 @@ export function SocialMediaBuilderWorkspace() {
             <TextArea
               id="smb-ai-design-input"
               className="smb-ws__ai-design-input smb-ws__ai-design-textarea"
-              rows={3}
+              rows={2}
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
               placeholder={
@@ -3334,7 +3206,7 @@ export function SocialMediaBuilderWorkspace() {
           onModeChange={focus.setMode}
           isFullscreen={focus.isFullscreen}
           onExitFullscreen={focus.exitFullscreen}
-          layoutClassName="smb-ws__layout"
+          layoutClassName={`smb-ws__layout${editPanelOpen ? '' : ' smb-ws__layout--edit-collapsed'}`}
           leftRail={localLeftItems.map((i) => ({
             id: i.id,
             icon: i.icon,
@@ -3352,10 +3224,8 @@ export function SocialMediaBuilderWorkspace() {
               setLeftRailId(id as SmbLeftRailId);
             }
           }}
-          onRightRailSelect={(id) => {
-            if ((SMB_RIGHT_RAIL_IDS as string[]).includes(id)) {
-              setRightRailId(id as SmbRightRailId);
-            }
+          onRightRailSelect={() => {
+            setEditPanelOpen(true);
           }}
           left={leftDrawer}
           center={
@@ -3368,30 +3238,8 @@ export function SocialMediaBuilderWorkspace() {
               <FocusCanvasLayout
                 isFullscreen={focus.isFullscreen}
                 stageTestId="smb-canvas-stage"
-                toolbar={
-                  <div className="smb-ws__center-head">
-                    {pilotDesignChosen ? null : (
-                      <div
-                        className="smb-ws__format-tabs"
-                        role="group"
-                        aria-label={t('canvas.formatsAria')}
-                      >
-                        {FORMAT_PRESETS.map((f) => (
-                          <button
-                            key={f.key}
-                            type="button"
-                            className={`smb-ws__format-tab${formatPreset === f.key ? ' is-active' : ''}`}
-                            aria-pressed={formatPreset === f.key}
-                            data-testid={`smb-format-${f.key}`}
-                            onClick={() => handleFormatChange(f.key)}
-                          >
-                            {t(`formats.${f.key}`)}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                }
+                showPinControl={focus.isFullscreen}
+                toolbar={undefined}
                 tray={{
                   label: t('canvas.stripTitle'),
                   count: posts.length,
@@ -3485,266 +3333,92 @@ export function SocialMediaBuilderWorkspace() {
                     </div>
                   ),
                 }}
-                dock={
-                  finishedAdCanvas
-                    ? {
-                        testId: 'smb-scene-actions',
-                        className: 'smb-ws__scene-actions smb-ws__scene-actions--ai-first',
-                        primary: (
-                          <div className="smb-ws__dock-stack" data-testid="smb-finished-ad-dock">
-                            <CsBottomActionToolbar
-                              testId="smb-bat"
-                              ariaLabel={t('canvas.toolbarAria')}
-                              moreLabel={t('editor.more')}
-                              maxVisible={7}
-                              singleRow
-                              dividerAfterKey="variation"
-                              actions={[
-                                {
-                                  key: 'story',
-                                  icon: 'design' as const,
-                                  label: t('output.story'),
-                                  onClick: () => handleFormatChange('story'),
-                                  testId: 'smb-output-story',
-                                  priority: 'high' as const,
-                                },
-                                {
-                                  key: 'reel',
-                                  icon: 'activity' as const,
-                                  label: t('output.reel'),
-                                  onClick: () => handleFormatChange('reelsCover'),
-                                  testId: 'smb-output-reel',
-                                  priority: 'high' as const,
-                                },
-                                {
-                                  key: 'variation',
-                                  icon: 'sparkles' as const,
-                                  label: t('output.variation'),
-                                  onClick: () => regenerateCurrentDesign(),
-                                  testId: 'smb-output-variation',
-                                  disabled: generating,
-                                  priority: 'high' as const,
-                                },
-                                {
-                                  key: 'undo',
-                                  icon: 'refresh' as const,
-                                  label: t('undo'),
-                                  onClick: () => {
-                                    if (canUndoAiRevision) void runUndoAiRevision();
-                                    else undoHistory();
-                                  },
-                                  testId: 'smb-action-undo',
-                                  disabled: !historyPast.length && !canUndoAiRevision,
-                                  priority: 'high' as const,
-                                },
-                                {
-                                  key: 'redo',
-                                  icon: 'arrowRight' as const,
-                                  label: t('redo'),
-                                  onClick: () => {
-                                    if (canRedoAiRevision) void runRedoAiRevision();
-                                    else redoHistory();
-                                  },
-                                  testId: 'smb-action-redo',
-                                  disabled: !historyFuture.length && !canRedoAiRevision,
-                                  priority: 'high' as const,
-                                },
-                                {
-                                  key: 'download',
-                                  icon: 'inbox' as const,
-                                  label: t('download'),
-                                  onClick: () => {
-                                    void runDownload();
-                                  },
-                                  testId: 'smb-action-download',
-                                  priority: 'high' as const,
-                                },
-                                {
-                                  key: 'publish',
-                                  icon: 'quickAction' as const,
-                                  label: t('publish'),
-                                  onClick: () => undefined,
-                                  testId: 'smb-action-publish',
-                                  disabled: true,
-                                  priority: 'high' as const,
-                                },
-                              ]}
-                            />
-                            {editableFinishedAd && selectedElement ? (
-                              <SmbLayerStyleBar
-                                selectedElement={selectedElement}
-                                patchElement={(patch) => {
-                                  if (!selectedElementId) return;
-                                  patchElement(selectedElementId, patch);
-                                }}
-                                placement="dock"
-                                testIdPrefix="smb-editable-style"
-                              />
-                            ) : null}
-                          </div>
-                        ),
-                      }
-                    : {
+                dock={{
                   testId: 'smb-scene-actions',
-                  className: 'smb-ws__scene-actions',
+                  className: 'smb-ws__scene-actions smb-ws__scene-actions--ai-first',
                   primary: (
-                    <div className="smb-ws__dock-stack">
-                    {!previewMode && selectedElement ? (
-                      <SmbLayerStyleBar
-                        selectedElement={selectedElement}
-                        patchElement={(patch) => {
-                          if (!selectedElementId) return;
-                          patchElement(selectedElementId, patch);
-                        }}
-                        placement="dock"
-                        testIdPrefix="smb-dock-style"
+                    <div className="smb-ws__dock-stack" data-testid="smb-finished-ad-dock">
+                      <CsBottomActionToolbar
+                        testId="smb-bat"
+                        ariaLabel={t('canvas.toolbarAria')}
+                        moreLabel={t('editor.more')}
+                        maxVisible={7}
+                        singleRow
+                        dividerAfterKey="variation"
+                        actions={[
+                          {
+                            key: 'story',
+                            icon: 'design' as const,
+                            label: t('output.story'),
+                            onClick: () => handleFormatChange('story'),
+                            testId: 'smb-output-story',
+                            priority: 'high' as const,
+                          },
+                          {
+                            key: 'reel',
+                            icon: 'activity' as const,
+                            label: t('output.reel'),
+                            onClick: () => handleFormatChange('reelsCover'),
+                            testId: 'smb-output-reel',
+                            priority: 'high' as const,
+                          },
+                          {
+                            key: 'variation',
+                            icon: 'sparkles' as const,
+                            label: t('output.variation'),
+                            onClick: () => regenerateCurrentDesign(),
+                            testId: 'smb-output-variation',
+                            disabled: generating,
+                            priority: 'high' as const,
+                          },
+                          {
+                            key: 'undo',
+                            icon: 'refresh' as const,
+                            label: t('undo'),
+                            onClick: () => {
+                              if (canUndoAiRevision) void runUndoAiRevision();
+                              else undoHistory();
+                            },
+                            testId: 'smb-action-undo',
+                            disabled: !historyPast.length && !canUndoAiRevision,
+                            priority: 'high' as const,
+                          },
+                          {
+                            key: 'redo',
+                            icon: 'arrowRight' as const,
+                            label: t('redo'),
+                            onClick: () => {
+                              if (canRedoAiRevision) void runRedoAiRevision();
+                              else redoHistory();
+                            },
+                            testId: 'smb-action-redo',
+                            disabled: !historyFuture.length && !canRedoAiRevision,
+                            priority: 'high' as const,
+                          },
+                          {
+                            key: 'download',
+                            icon: 'inbox' as const,
+                            label: t('download'),
+                            onClick: () => {
+                              void runDownload();
+                            },
+                            testId: 'smb-action-download',
+                            priority: 'high' as const,
+                          },
+                          {
+                            key: 'publish',
+                            icon: 'quickAction' as const,
+                            label: t('publish'),
+                            onClick: () => undefined,
+                            testId: 'smb-action-publish',
+                            disabled: true,
+                            priority: 'high' as const,
+                          },
+                        ]}
                       />
-                    ) : null}
-                    <CsBottomActionToolbar
-                      testId="smb-bat"
-                      ariaLabel={t('canvas.toolbarAria')}
-                      moreLabel={t('editor.more')}
-                      maxVisible={5}
-                      primary={{
-                        label: t('editor.text'),
-                        icon: 'documents',
-                        onClick: () => handleBottomAction('text'),
-                        testId: 'smb-action-text',
-                      }}
-                      actions={[
-                        ...(pilotDesignChosen
-                          ? [
-                              {
-                                key: 'story',
-                                icon: 'design' as const,
-                                label: t('output.story'),
-                                onClick: () => handleFormatChange('story'),
-                                testId: 'smb-output-story',
-                                priority: 'high' as const,
-                              },
-                              {
-                                key: 'reel',
-                                icon: 'activity' as const,
-                                label: t('output.reel'),
-                                onClick: () => handleFormatChange('reelsCover'),
-                                testId: 'smb-output-reel',
-                                priority: 'high' as const,
-                              },
-                              {
-                                key: 'variation',
-                                icon: 'sparkles' as const,
-                                label: t('output.variation'),
-                                onClick: () => regenerateCurrentDesign(),
-                                testId: 'smb-output-variation',
-                                disabled: generating,
-                                priority: 'high' as const,
-                              },
-                              {
-                                key: 'download',
-                                icon: 'inbox' as const,
-                                label: t('download'),
-                                onClick: () => {
-                                  void runDownload();
-                                },
-                                testId: 'smb-action-download',
-                                priority: 'high' as const,
-                              },
-                              {
-                                key: 'publish',
-                                icon: 'quickAction' as const,
-                                label: t('publish'),
-                                onClick: () => undefined,
-                                testId: 'smb-action-publish',
-                                disabled: true,
-                                priority: 'high' as const,
-                              },
-                            ]
-                          : []),
-                        {
-                          key: 'changeImage',
-                          icon: 'inventory',
-                          label: t('editor.changeImage'),
-                          onClick: () => coverAsset.openPicker('cover'),
-                          testId: 'smb-action-change-image',
-                          priority: 'high',
-                        },
-                        {
-                          key: 'logo',
-                          icon: 'theme',
-                          label: t('editor.logo'),
-                          onClick: () => {
-                            setBrandLogo((v) => !v);
-                            markDirty();
-                            showToast(brandLogo ? t('toasts.logoRemoved') : t('toasts.logoChanged'));
-                          },
-                          testId: 'smb-action-logo',
-                          priority: 'high',
-                        },
-                        {
-                          key: 'move',
-                          icon: 'target',
-                          label: t('editor.move'),
-                          onClick: () => {
-                            if (ensureCanvasElementSelected()) showToast(t('editor.moveHint'));
-                          },
-                          testId: 'smb-action-move',
-                          priority: 'high',
-                        },
-                        {
-                          key: 'resize',
-                          icon: 'design',
-                          label: t('editor.resize'),
-                          onClick: () => {
-                            if (ensureCanvasElementSelected()) showToast(t('editor.resizeHint'));
-                          },
-                          testId: 'smb-action-resize',
-                          priority: 'high',
-                        },
-                        {
-                          key: 'undo',
-                          icon: 'refresh',
-                          label: t('editor.undo'),
-                          onClick: () => undoHistory(),
-                          testId: 'smb-action-undo',
-                          disabled: !historyPast.length,
-                          priority: 'high',
-                        },
-                        {
-                          key: 'addComponent',
-                          icon: 'plus',
-                          label: t('bottomBar.actions.addComponent'),
-                          onClick: () => handleBottomAction('addComponent'),
-                          testId: 'smb-action-addComponent',
-                          priority: 'low',
-                        },
-                        ...BOTTOM_ACTIONS.filter(
-                          (a) => a.key !== 'addComponent' && a.key !== 'text',
-                        ).map((action) => ({
-                          key: action.key,
-                          icon: action.icon,
-                          label: t(`bottomBar.actions.${action.key}`),
-                          onClick: () => handleBottomAction(action.key),
-                          testId: `smb-action-${action.key}`,
-                          disabled: !P0_BOTTOM_ACTIONS.has(action.key),
-                          priority: 'low' as const,
-                        })),
-                        {
-                          key: 'openInCanva',
-                          icon: 'inbox' as const,
-                          label: t('openInCanva'),
-                          onClick: () => {
-                            void runOpenInCanva();
-                          },
-                          testId: 'smb-open-in-canva',
-                          disabled: canvaBusy,
-                          priority: 'low' as const,
-                        },
-                      ]}
-                    />
                     </div>
                   ),
-                }
-              }
+                }}
               >
                 <div className="smb-ws__canvas-stage" data-testid="smb-preview-shell">
                   <FocusFitStage engine={ftv} artboardTestId="smb-ftv-artboard">
@@ -3880,6 +3554,7 @@ export function SocialMediaBuilderWorkspace() {
                           pushHistory();
                           setSelectedElementId(id);
                           setEditingElementId(id);
+                          setEditPanelOpen(true);
                         }}
                         onEndEdit={() => setEditingElementId(null)}
                         onGestureStart={beginGestureHistory}
@@ -3887,164 +3562,6 @@ export function SocialMediaBuilderWorkspace() {
                       />
                       )}
                       </div>
-                      {!previewMode && !hideManualCanvasTools && selectedElementId && selectedElement ? (
-                        <div
-                          className="smb-ws__selection-chrome"
-                          data-testid="smb-selection-chrome"
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onMouseDown={(e) => e.stopPropagation()}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                        <div
-                          className="smb-ws__floating-actions"
-                          data-testid="smb-floating-actions"
-                          data-align-open={alignMenuOpen ? 'true' : 'false'}
-                          data-layer-open={layerMenuOpen ? 'true' : 'false'}
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onMouseDown={(e) => e.stopPropagation()}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {FLOATING_ACTIONS.map((action) => (
-                            <div key={action.key} className="smb-ws__floating-more">
-                              <button
-                                type="button"
-                                className={`smb-ws__floating-btn${
-                                  (action.key === 'align' && alignMenuOpen) ||
-                                  (action.key === 'layer' && layerMenuOpen)
-                                    ? ' is-active'
-                                    : ''
-                                }`}
-                                data-testid={`smb-floating-${action.key}`}
-                                onClick={() => handleFloating(action.key)}
-                              >
-                                <IhIcon name={action.icon} size={11} />
-                                {t(`floating.${action.key}`)}
-                              </button>
-                              {action.key === 'layer' && layerMenuOpen ? (
-                                <div className="smb-ws__floating-menu" role="menu" data-testid="smb-layer-menu">
-                                  <button
-                                    type="button"
-                                    role="menuitem"
-                                    data-testid="smb-layer-forward"
-                                    onClick={() => {
-                                      if (!selectedElementId) return;
-                                      replaceElements(
-                                        bringElementForward(selectedPost?.elements ?? [], selectedElementId),
-                                      );
-                                      setLayerMenuOpen(false);
-                                    }}
-                                  >
-                                    {t('floating.layerForward')}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    role="menuitem"
-                                    data-testid="smb-layer-backward"
-                                    onClick={() => {
-                                      if (!selectedElementId) return;
-                                      replaceElements(
-                                        sendElementBackward(selectedPost?.elements ?? [], selectedElementId),
-                                      );
-                                      setLayerMenuOpen(false);
-                                    }}
-                                  >
-                                    {t('floating.layerBackward')}
-                                  </button>
-                                </div>
-                              ) : null}
-                              {action.key === 'align' && alignMenuOpen ? (
-                                <div className="smb-ws__floating-menu" role="menu" data-testid="smb-align-menu">
-                                  {(['left', 'center', 'right', 'top', 'middle', 'bottom'] as const).map(
-                                    (mode) => (
-                                      <button
-                                        key={mode}
-                                        type="button"
-                                        role="menuitem"
-                                        data-testid={`smb-align-${mode}`}
-                                        onClick={() => {
-                                          if (!selectedElement) return;
-                                          const next = alignElement(
-                                            selectedElement,
-                                            mode,
-                                            contentSize.w,
-                                            contentSize.h,
-                                          );
-                                          patchElement(selectedElement.id, {
-                                            x: next.x,
-                                            y: next.y,
-                                            ...(next.type === 'TEXT' ? { align: next.align } : {}),
-                                          });
-                                          setAlignMenuOpen(false);
-                                        }}
-                                      >
-                                        {t(`floating.alignModes.${mode}`)}
-                                      </button>
-                                    ),
-                                  )}
-                                </div>
-                              ) : null}
-                            </div>
-                          ))}
-                          <div className="smb-ws__floating-more">
-                            <button
-                              type="button"
-                              className={`smb-ws__floating-btn${floatingMoreOpen ? ' is-active' : ''}`}
-                              aria-expanded={floatingMoreOpen}
-                              data-testid="smb-floating-more"
-                              onClick={() => handleFloating('more')}
-                            >
-                              ⋯
-                            </button>
-                            {floatingMoreOpen ? (
-                              <div className="smb-ws__floating-menu" role="menu">
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  data-testid="smb-floating-ai-edit"
-                                  disabled={generating || designEngine === 'ideogram'}
-                                  onClick={() => {
-                                    setLeftRailId('ai');
-                                    if (!selectedPost) return;
-                                    if (designEngineRef.current === 'ideogram') return;
-                                    void runGptImageGenerate(defaultSocialInstruction(selectedPost));
-                                    setFloatingMoreOpen(false);
-                                  }}
-                                >
-                                  {t('floating.menu.aiEdit')}
-                                </button>
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  data-testid="smb-floating-duplicate"
-                                  onClick={() => {
-                                    handleFloating('copy');
-                                    setFloatingMoreOpen(false);
-                                  }}
-                                >
-                                  {t('floating.menu.duplicate')}
-                                </button>
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  onClick={() => {
-                                    setRightRailId('settings');
-                                    setFloatingMoreOpen(false);
-                                  }}
-                                >
-                                  {t('floating.menu.export')}
-                                </button>
-                              </div>
-                            ) : null}
-                          </div>
-                        </div>
-                        <SmbLayerStyleBar
-                          selectedElement={selectedElement}
-                          patchElement={(patch) => patchElement(selectedElement.id, patch)}
-                          placement="selection"
-                          testIdPrefix="smb-live-style"
-                        />
-                        </div>
-                      ) : null}
                     </div>
                   </FocusFitStage>
                 </div>
@@ -4140,6 +3657,27 @@ export function SocialMediaBuilderWorkspace() {
             showToast(t('toasts.imageChanged'));
           }}
           testId="smb-element-media-picker-dialog"
+        />
+      ) : null}
+
+      {replaceElementId ? (
+        <CsMediaPickerDialog
+          open={Boolean(replaceElementId)}
+          onClose={() => setReplaceElementId(null)}
+          media={coverAsset.media}
+          linkedProjectId={docApi.constructionProjectId}
+          lockLinkedProject
+          selectedAssetId={(() => {
+            const el = selectedPost?.elements.find((row) => row.id === replaceElementId);
+            return el?.type === 'IMAGE' ? el.assetId : null;
+          })()}
+          onSelect={(ref) => {
+            if (!ref.asset_id || !replaceElementId) return;
+            patchElement(replaceElementId, { assetId: ref.asset_id });
+            setReplaceElementId(null);
+            showToast(t('toasts.imageChanged'));
+          }}
+          testId="smb-replace-media-picker-dialog"
         />
       ) : null}
 

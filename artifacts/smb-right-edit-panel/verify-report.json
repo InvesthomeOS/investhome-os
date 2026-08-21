@@ -1,0 +1,37 @@
+{
+  "floatingToolbar": 0,
+  "topFormatTabs": 0,
+  "editPanelOpen": 1,
+  "editContext": "text",
+  "bottomActions": [
+    {
+      "testId": "smb-output-story",
+      "label": "Story Yap"
+    },
+    {
+      "testId": "smb-output-reel",
+      "label": "Reel Yap"
+    },
+    {
+      "testId": "smb-output-variation",
+      "label": "Varyasyon Oluştur"
+    },
+    {
+      "testId": "smb-action-undo",
+      "label": "Geri Al"
+    },
+    {
+      "testId": "smb-action-redo",
+      "label": "İleri Al"
+    },
+    {
+      "testId": "smb-action-download",
+      "label": "İndir"
+    },
+    {
+      "testId": "smb-action-publish",
+      "label": "Yayınla"
+    }
+  ],
+  "bottomActionCount": 7
+}

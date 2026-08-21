@@ -18979,6 +18979,34 @@
         "right": {
           "aria": "Post inspector"
         },
+        "editPanel": {
+          "title": "Edit",
+          "aria": "Edit panel",
+          "open": "Open edit panel",
+          "close": "Collapse edit panel",
+          "format": "Format",
+          "canvas": "Canvas",
+          "canvasSize": "{name} · {size}",
+          "replaceImage": "Replace image",
+          "replaceLogo": "Replace logo",
+          "fill": "Fill color",
+          "contexts": {
+            "design": "Design",
+            "text": "Text",
+            "image": "Image",
+            "logo": "Logo",
+            "cta": "Button",
+            "badge": "Badge"
+          },
+          "formatLabels": {
+            "square": "1:1",
+            "portrait": "4:5",
+            "landscape": "16:9",
+            "story": "Story",
+            "reelsCover": "Reels Cover",
+            "carousel": "Carousel"
+          }
+        },
         "platforms": {
           "instagram": "Instagram",
           "facebook": "Facebook",

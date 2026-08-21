@@ -287,20 +287,17 @@ describe('media scoped by linked_project_id + no Unsplash production seed', () =
     assert.doesNotMatch(workspace, /SMB_ASSETS\.map/);
   });
 
-  it('MediaDrawer is the only picker entry (onOpenMediaPicker)', () => {
+  it('MediaDrawer is the only picker entry for insert; replace uses CsMediaPicker', () => {
     const rail = readSmb('social-media-builder-rail-drawers.tsx');
     const workspace = readSmb('social-media-builder-workspace.tsx');
     assert.match(rail, /onOpenMediaPicker/);
     assert.match(rail, /smb-media-open-picker/);
     assert.match(workspace, /onOpenMediaPicker=\{\(\) => coverAsset\.openPicker\('cover'\)\}/);
-    // Floating menu must not open the media picker (MediaDrawer-only).
-    const start = workspace.indexOf('data-testid="smb-floating-actions"\n');
-    const startAlt = workspace.indexOf('data-testid="smb-floating-actions"\r\n');
-    const idx = start >= 0 ? start : startAlt >= 0 ? startAlt : workspace.lastIndexOf('data-testid="smb-floating-actions"');
-    assert.ok(idx >= 0, 'expected floating actions block');
-    const slice = workspace.slice(idx, idx + 9000);
-    assert.match(slice, /data-testid="smb-floating-more"/);
-    assert.doesNotMatch(slice, /openPicker/);
+    // Floating canvas toolbar must be gone — edits live in the right panel.
+    assert.doesNotMatch(workspace, /data-testid="smb-floating-actions"/);
+    assert.doesNotMatch(workspace, /smb-ws__format-tabs/);
+    assert.match(workspace, /smb-replace-media-picker-dialog/);
+    assert.doesNotMatch(workspace, /data-testid="smb-floating-more"/);
   });
 
   it('Content change-image and bottom image open CsMediaPicker', () => {
@@ -308,14 +305,14 @@ describe('media scoped by linked_project_id + no Unsplash production seed', () =
     const workspace = readSmb('social-media-builder-workspace.tsx');
     assert.match(rail, /onChangeImage/);
     assert.match(rail, /smb-content-change-image/);
-    assert.match(workspace, /onChangeImage=\{\(\) => coverAsset\.openPicker\('cover'\)\}/);
+    assert.match(workspace, /onChangeBackground=\{\(\) => coverAsset\.openPicker\('cover'\)\}/);
     assert.match(workspace, /action === 'image'/);
     assert.match(workspace, /setElementImagePickerOpen\(true\)/);
   });
 
   it('Sil clears cover Asset ID and persists via saveDraft', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
-    assert.match(workspace, /action === 'delete'/);
+    assert.match(workspace, /function handleDeleteSelectedElement/);
     assert.match(workspace, /coverAsset\.clearCover\(\)/);
     assert.match(workspace, /coverImage:\s*null/);
     assert.match(workspace, /toasts\.imageRemoved/);

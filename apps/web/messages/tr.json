@@ -13656,6 +13656,34 @@
         "right": {
           "aria": "Gönderi denetçisi"
         },
+        "editPanel": {
+          "title": "Düzenle",
+          "aria": "Düzenleme paneli",
+          "open": "Düzenle panelini aç",
+          "close": "Düzenle panelini kapat",
+          "format": "Format",
+          "canvas": "Tuval",
+          "canvasSize": "{name} · {size}",
+          "replaceImage": "Görseli Değiştir",
+          "replaceLogo": "Logo Değiştir",
+          "fill": "Dolgu rengi",
+          "contexts": {
+            "design": "Tasarım",
+            "text": "Metin",
+            "image": "Görsel",
+            "logo": "Logo",
+            "cta": "Buton",
+            "badge": "Rozet"
+          },
+          "formatLabels": {
+            "square": "1:1",
+            "portrait": "4:5",
+            "landscape": "16:9",
+            "story": "Story",
+            "reelsCover": "Reels Cover",
+            "carousel": "Carousel"
+          }
+        },
         "platforms": {
           "instagram": "Instagram",
           "facebook": "Facebook",

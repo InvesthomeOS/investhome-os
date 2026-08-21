@@ -140,25 +140,30 @@ describe('style drawer wiring', () => {
     assert.match(drawer, /role === 'logo'/);
   });
 
-  it('opens the style rail when a layer is selected', () => {
+  it('opens the right edit panel when a layer is selected', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
-    assert.match(workspace, /setSelectedElementId\(elementId\);\s*setRightRailId\('style'\)/s);
+    assert.match(workspace, /setSelectedElementId\(elementId\);\s*setEditPanelOpen\(true\)/s);
   });
 
-  it('pins compact typography controls on selection chrome and the bottom dock', () => {
+  it('routes selected-layer style edits to the right edit panel (no floating chrome)', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
-    const drawer = readSmb('social-media-builder-rail-drawers.tsx');
-    assert.match(drawer, /export function SmbLayerStyleBar/);
-    assert.match(drawer, /data-testid=\{tid\('font-size-stepper'\)\}/);
-    assert.match(workspace, /smb-ws__selection-chrome/);
-    assert.match(workspace, /testIdPrefix="smb-live-style"/);
-    assert.match(workspace, /testIdPrefix="smb-dock-style"/);
-    assert.match(workspace, /<SmbLayerStyleBar/);
+    const panel = readSmb('smb-right-edit-panel.tsx');
+    assert.match(panel, /export function SmbRightEditPanel/);
+    assert.match(panel, /data-testid="smb-edit-panel"/);
+    assert.match(panel, /smb-edit-context-text/);
+    assert.match(panel, /smb-edit-context-image/);
+    assert.match(panel, /smb-edit-context-logo/);
+    assert.match(panel, /smb-edit-context-cta/);
+    assert.match(panel, /smb-edit-context-design/);
+    assert.match(workspace, /<SmbRightEditPanel/);
+    assert.doesNotMatch(workspace, /smb-ws__selection-chrome/);
+    assert.doesNotMatch(workspace, /data-testid="smb-floating-actions"/);
+    assert.doesNotMatch(workspace, /testIdPrefix="smb-live-style"/);
+    assert.doesNotMatch(workspace, /testIdPrefix="smb-dock-style"/);
   });
 
-  it('keeps the live style bar on selectedElementId after mouseup, not pointer-down-only', () => {
+  it('keeps selection after mouseup via pointerdown deselect only', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
-    assert.match(workspace, /!previewMode && selectedElementId && selectedElement/);
     assert.match(workspace, /handleArtboardBackgroundPointerDown/);
     assert.match(workspace, /onPointerDown=\{handleArtboardBackgroundPointerDown\}/);
     assert.doesNotMatch(workspace, /suppressArtboardDeselectRef/);
@@ -167,7 +172,7 @@ describe('style drawer wiring', () => {
     assert.doesNotMatch(workspace, /selectedElementId && isDragging/);
   });
 
-  it('ships i18n keys for layer style controls', () => {
+  it('ships i18n keys for layer style controls and edit panel', () => {
     const en = readMessages('en.json');
     const tr = readMessages('tr.json');
     for (const src of [en, tr]) {
@@ -178,6 +183,9 @@ describe('style drawer wiring', () => {
       assert.match(src, /"medium"/);
       assert.match(src, /"semibold"/);
       assert.match(src, /"lockAspect"/);
+      assert.match(src, /"editPanel"/);
+      assert.match(src, /"replaceImage"/);
+      assert.match(src, /"replaceLogo"/);
     }
   });
 });
