@@ -1,11 +1,16 @@
-"""AI Revision Mode — revise an existing finished-ad without a new campaign.
+"""AI Revision Mode — MASTER + cumulative ops (never chain prior rasters).
 
-Uses the CURRENT final asset as GPT Image reference. Surgical changes only.
-Claim Guard / language lock / logo lock stay on.
+Immutable master_asset_id = first approved finished-ad.
+Every revise: MASTER A + cumulative approved ops → provider → current tip.
+Undo/Redo: GPT-free cursor over saved final_asset_id versions.
 """
 
 from __future__ import annotations
 
+import io
+import logging
+import math
+import re
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -20,6 +25,8 @@ from investhome_api.schemas.creative_director import (
     CreativeDirectorGenerateAdRequest,
     CreativeDirectorReviseAdResponse,
     CreativeDirectorReviseRequest,
+    RevisionDiff,
+    RevisionOperation,
 )
 from investhome_api.schemas.gpt_image_design import GptImageDesignRequest
 from investhome_api.services.creative_director.generate_ad import (
@@ -38,9 +45,14 @@ from investhome_api.services.creative_director.provider_router import (
     assert_image_provider_available,
     route_ad_social_image,
 )
-from investhome_api.services.creative_studio_media_service import get_asset_or_404
+from investhome_api.services.creative_studio_media_service import (
+    get_asset_or_404,
+    open_asset_content,
+)
 from investhome_api.services.gpt_image_design.persistence import asset_url
 from investhome_api.services.gpt_image_design.service import generate_gpt_image_creatives
+
+logger = logging.getLogger(__name__)
 
 REVISION_INTENTS = (
     "COPY_CHANGE",
@@ -66,6 +78,51 @@ _CLAIM_INVENTION_MARKERS = (
     "guaranteed",
     "garanti getiri",
 )
+
+# Quality Comparison Guard thresholds (0–255 luminance / channel space).
+QUALITY_BRIGHTNESS_DELTA_MAX = 12.0
+QUALITY_CONTRAST_DELTA_MAX = 15.0
+QUALITY_COLOR_SHIFT_MAX = 18.0
+QUALITY_DIMENSION_DELTA_PCT_MAX = 2.0
+
+DEFAULT_PRESERVE = [
+    "exposure",
+    "brightness",
+    "white_balance",
+    "contrast",
+    "sharpness",
+    "resolution",
+    "architectural_interior_details",
+    "composition_unless_requested",
+    "logo_quality",
+    "unaffected_typography",
+    "verified_prices",
+    "project_logo",
+    "background_photograph",
+]
+
+DEFAULT_FORBIDDEN = [
+    "darkening",
+    "recoloring",
+    "cinematic_grading",
+    "contrast_increase",
+    "vignette",
+    "blur_changes",
+    "sharpening_changes",
+    "crop_changes",
+    "lighting_changes",
+    "full_redesign",
+    "generation_from_prior_revision_raster",
+]
+
+QUALITY_LOCK_BRIEF = {
+    "preserve": list(DEFAULT_PRESERVE),
+    "forbidden_unless_explicitly_requested": list(DEFAULT_FORBIDDEN),
+    "rule": (
+        "If revision intent is not color grading / lighting, do not change image treatment. "
+        "Source image is the IMMUTABLE MASTER finished-ad — apply cumulative ops only."
+    ),
+}
 
 
 def _normalize_tr(text: str) -> str:
@@ -106,7 +163,7 @@ def interpret_revision_intents(instruction: str) -> list[str]:
     )
     if any(m in raw for m in copy_markers):
         add("COPY_CHANGE")
-    if any(m in raw for m in ("görsel", "visual", "renk", "color", "kontrast", "ışık")):
+    if any(m in raw for m in ("görsel", "visual", "renk", "color", "kontrast", "ışık", "karart", "darken")):
         add("VISUAL_CHANGE")
     if any(m in raw for m in ("asset", "görseli değiştir", "foto", "render", "başka görsel")):
         add("ASSET_CHANGE")
@@ -126,6 +183,322 @@ def interpret_revision_intents(instruction: str) -> list[str]:
     return found
 
 
+def _strip_quotes(value: str) -> str:
+    v = (value or "").strip()
+    if len(v) >= 2 and v[0] in "'\"“”‘’" and v[-1] in "'\"“”‘’":
+        return v[1:-1].strip()
+    return v
+
+
+def _extract_quoted_or_tail(pattern: re.Pattern[str], text: str) -> str | None:
+    m = pattern.search(text)
+    if not m:
+        return None
+    return _strip_quotes(m.group(1).strip().rstrip("."))
+
+
+def _op_dict(op: RevisionOperation) -> dict[str, Any]:
+    return op.model_dump(by_alias=True, exclude_none=True)
+
+
+def build_revision_diff(
+    *,
+    instruction: str,
+    production_brief: dict[str, Any] | None = None,
+) -> RevisionDiff:
+    """Revision Director: structured diff — never copy user NL verbatim into provider."""
+    pb = production_brief or {}
+    final = _as_dict(pb.get("final_copy"))
+    instr = (instruction or "").strip()
+    low = _normalize_tr(instr)
+    ops: list[RevisionOperation] = []
+    preserve = list(DEFAULT_PRESERVE)
+    forbidden = list(DEFAULT_FORBIDDEN)
+
+    # Explicit preserve clauses from user.
+    if any(
+        tok in low
+        for tok in (
+            "başka hiçbir şeyi değiştirme",
+            "başka hiçbir şey değiştirme",
+            "değiştirme",
+            "keep everything else",
+            "do not change anything else",
+        )
+    ):
+        for item in (
+            "prices",
+            "logo",
+            "cta",
+            "background",
+            "unaffected_elements",
+            "image_treatment",
+        ):
+            if item not in preserve:
+                preserve.append(item)
+
+    if "fiyat" in low and "değiştirme" in low:
+        preserve.append("prices")
+        forbidden.append("price_changes")
+    if "logo" in low and "değiştirme" in low:
+        preserve.append("logo")
+        forbidden.append("logo_redraw")
+    if "cta" in low and "değiştirme" in low and "yap" not in low.split("cta")[-1][:40]:
+        # "CTA'yı ... değiştirme" without a replace — preserve CTA
+        if not re.search(r"cta['’]?y[ıi]\s+['\"].+?['\"]\s+yap", low):
+            preserve.append("cta")
+    if any(tok in low for tok in ("arka plan", "background")) and "değiştirme" in low:
+        preserve.append("background")
+        forbidden.append("background_regrade")
+
+    # Exact: headline replace — Başlığı X yap / Başlığı 'X' yap
+    headline_pat = re.compile(
+        r"(?:başl[ıi][gğ][ıi]|headline)\s*(?:y[ıi])?\s*['\"“”‘’]?(.+?)['\"“”‘’]?\s+yap",
+        re.IGNORECASE | re.DOTALL,
+    )
+    headline_to = _extract_quoted_or_tail(headline_pat, instr)
+    # Prefer quoted form when present
+    quoted_headline = re.search(
+        r"(?:başl[ıi][gğ][ıi]|headline)[^\n]*?['\"“”‘’](.+?)['\"“”‘’]",
+        instr,
+        re.IGNORECASE,
+    )
+    if quoted_headline:
+        headline_to = quoted_headline.group(1).strip()
+    if headline_to and "daha premium" not in _normalize_tr(headline_to):
+        # Drop trailing preserve clauses accidentally captured
+        headline_to = re.split(
+            r"\.\s*(?:%|fiyat|logo|cta|başka|arka)",
+            headline_to,
+            maxsplit=1,
+            flags=re.IGNORECASE,
+        )[0].strip()
+        headline_to = _strip_quotes(headline_to)
+        if headline_to and "daha" not in _normalize_tr(headline_to)[:8]:
+            ops.append(
+                RevisionOperation(
+                    target="headline",
+                    action="replace_text",
+                    **{
+                        "from": str(final.get("headline") or pb.get("hero") or "") or None,
+                        "to": headline_to,
+                    },
+                    confidence="high",
+                    mode="exact",
+                )
+            )
+
+    # Exact: CTA replace
+    cta_quoted = re.search(
+        r"cta['’]?y?[ıi]?\s*['\"“”‘’](.+?)['\"“”‘’]\s*yap",
+        instr,
+        re.IGNORECASE,
+    )
+    cta_plain = re.search(
+        r"cta['’]?y?[ıi]?\s+(.+?)\s+yap",
+        instr,
+        re.IGNORECASE,
+    )
+    cta_to = None
+    if cta_quoted:
+        cta_to = cta_quoted.group(1).strip()
+    elif cta_plain and "detayları incele" in _normalize_tr(cta_plain.group(1)):
+        cta_to = "Detayları İncele"
+    elif "cta" in low and "detayları incele" in low:
+        cta_to = "Detayları İncele"
+    if cta_to:
+        ops.append(
+            RevisionOperation(
+                target="cta",
+                action="replace_text",
+                **{"from": str(final.get("cta") or pb.get("cta") or "") or None, "to": cta_to},
+                confidence="high",
+                mode="exact",
+            )
+        )
+
+    # Exact: badge scale — "%25 rozetini %30 küçült" → factor 0.70 (reduce by 30%)
+    badge_pct = re.search(
+        r"(?:%?\s*25|25\s*%|rozet|badge).{0,60}?"
+        r"%?\s*(\d+)\s*(?:['’]?[uıi]?)?\s*(?:kadar\s+)?(?:küçült|kucult|smaller)",
+        low,
+    )
+    badge_generic = any(tok in low for tok in ("%25", "25%", "rozet", "badge")) and any(
+        tok in low for tok in ("küçült", "kucult", "smaller", "küçük")
+    )
+    if badge_pct:
+        shrink_pct = float(badge_pct.group(1))
+        # "%30 küçült" / "mevcut boyutunun %30'u kadar küçült" → badge.scale = current * 0.70
+        factor = max(0.05, min(0.99, 1.0 - (shrink_pct / 100.0)))
+        ops.append(
+            RevisionOperation(
+                target="badge",
+                action="scale",
+                scale_factor=round(factor, 4),
+                confidence="high",
+                mode="exact",
+                note=f"badge.scale = current * {factor:.2f}",
+            )
+        )
+    elif badge_generic:
+        ops.append(
+            RevisionOperation(
+                target="badge",
+                action="scale",
+                scale_factor=0.85,
+                confidence="medium",
+                mode="subjective",
+                note="slightly smaller badge",
+            )
+        )
+
+    # Exact: remove support / scarcity line
+    if any(tok in low for tok in ("kaldır", "remove", "sil")) and any(
+        tok in low
+        for tok in (
+            "sınırlı",
+            "scarcity",
+            "limited",
+            "destek",
+            "support",
+            "ifade",
+            "mesaj",
+        )
+    ):
+        ops.append(
+            RevisionOperation(
+                target="support_message",
+                action="remove",
+                **{
+                    "from": "scarcity_or_support_line",
+                    "to": None,
+                },
+                confidence="high",
+                mode="exact",
+            )
+        )
+
+    # Exact-ish: shrink logo (require logo near a scale verb — avoid "logoyu ... değiştirme")
+    logo_shrink = re.search(
+        r"logo[yu]?[^\n]{0,40}(?:%?\s*(\d+)\s*(?:'?[ıi]?\s*)?(?:kadar\s+)?)?(?:küçült|kucult|smaller)",
+        low,
+    )
+    if logo_shrink:
+        factor = 0.85
+        if logo_shrink.group(1):
+            factor = max(0.05, min(0.99, 1.0 - float(logo_shrink.group(1)) / 100.0))
+        ops.append(
+            RevisionOperation(
+                target="logo",
+                action="scale",
+                scale_factor=round(factor, 4),
+                confidence="high" if logo_shrink.group(1) else "medium",
+                mode="exact" if logo_shrink.group(1) else "subjective",
+                note=f"logo.scale = current * {factor:.2f}",
+            )
+        )
+
+    # Subjective tone (limit 1–3 targeted mods; no full redesign)
+    subjective_markers = (
+        "daha premium",
+        "premium",
+        "sade",
+        "sadeleştir",
+        "satış odaklı",
+        "sales",
+        "daha modern",
+        "editorial",
+    )
+    is_subjective = any(m in low for m in subjective_markers) and not any(
+        o.target == "headline" and o.mode == "exact" for o in ops
+    )
+    if is_subjective or ("premium" in low and ("başlık" in low or "headline" in low)):
+        if not any(o.target == "headline" for o in ops):
+            ops.append(
+                RevisionOperation(
+                    target="headline",
+                    action="tone_adjust",
+                    **{
+                        "from": str(final.get("headline") or pb.get("hero") or "") or None,
+                        "to": "more_premium_tone_same_meaning",
+                    },
+                    confidence="medium",
+                    mode="subjective",
+                    note="Limit to tone; do not invent facts or redesign",
+                )
+            )
+        if any(m in low for m in ("sade", "sadeleştir", "simplify")) and not any(
+            o.target == "support_message" for o in ops
+        ):
+            ops.append(
+                RevisionOperation(
+                    target="layout",
+                    action="tone_adjust",
+                    to_value="simpler_breathing_room",
+                    confidence="medium",
+                    mode="subjective",
+                )
+            )
+        if "satış" in low or "sales" in low:
+            ops.append(
+                RevisionOperation(
+                    target="cta",
+                    action="tone_adjust",
+                    to_value="more_sales_focused",
+                    confidence="medium",
+                    mode="subjective",
+                )
+            )
+
+    # Ambiguous → minimum-change
+    if not ops:
+        ops.append(
+            RevisionOperation(
+                target="overall",
+                action="minimum_change",
+                confidence="low",
+                mode="ambiguous",
+                note="Ambiguous instruction — apply minimum visible change only",
+            )
+        )
+
+    # Cap subjective ops to 1–3
+    exact_ops = [o for o in ops if o.mode == "exact"]
+    subjective_ops = [o for o in ops if o.mode == "subjective"]
+    ambiguous_ops = [o for o in ops if o.mode == "ambiguous"]
+    if len(subjective_ops) > 3:
+        subjective_ops = subjective_ops[:3]
+    ops = exact_ops + subjective_ops + ambiguous_ops
+
+    if exact_ops and not subjective_ops:
+        command_mode: str = "exact"
+    elif subjective_ops and not exact_ops:
+        command_mode = "subjective"
+    elif exact_ops and subjective_ops:
+        command_mode = "mixed"
+    else:
+        command_mode = "ambiguous"
+
+    # Deduplicate preserve/forbidden
+    def _uniq(items: list[str]) -> list[str]:
+        seen: set[str] = set()
+        out: list[str] = []
+        for x in items:
+            if x not in seen:
+                seen.add(x)
+                out.append(x)
+        return out
+
+    return RevisionDiff(
+        operations=ops,
+        preserve=_uniq(preserve),
+        forbidden_changes=_uniq(forbidden),
+        command_mode=command_mode,  # type: ignore[arg-type]
+        max_subjective_ops=3,
+        quality_lock=dict(QUALITY_LOCK_BRIEF),
+    )
+
+
 def build_revision_brief(
     *,
     instruction: str,
@@ -134,44 +507,61 @@ def build_revision_brief(
     original_brief: str,
     language: str,
     current_final_asset_id: UUID,
+    master_asset_id: UUID | None = None,
+    revision_diff: RevisionDiff | dict[str, Any] | None = None,
+    cumulative_operations: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """CD revision brief — only necessary changes; preserve locked facts."""
+    """CD revision brief — structured diff + quality lock; preserve locked facts."""
     lang = (language or "tr").strip().lower() or "tr"
     final = _as_dict(production_brief.get("final_copy"))
     instr = (instruction or "").strip()
-    low = _normalize_tr(instr)
 
-    # Surgical copy overrides inferred from common revision patterns.
-    copy_overrides: dict[str, str] = {}
-    if "cta" in low and "detayları incele" in low:
-        copy_overrides["cta"] = "Detayları İncele"
-
-    # Remove scarcity-style supporting lines when instructed.
-    supporting = list(production_brief.get("supporting") or [])
-    if any(tok in low for tok in ("sınırlı", "scarcity", "limited")) and "kaldır" in low:
-        scarcity_markers = ("sınırlı", "limited", "son ünite", "last chance")
-        supporting = [
-            s for s in supporting if not any(m in str(s).lower() for m in scarcity_markers)
+    diff = revision_diff
+    if diff is None:
+        diff = build_revision_diff(instruction=instr, production_brief=production_brief)
+    if isinstance(diff, RevisionDiff):
+        diff_payload = diff.model_dump(by_alias=True)
+        ops = list(diff.operations)
+    else:
+        diff_payload = dict(diff)
+        ops = [
+            RevisionOperation.model_validate(o) if not isinstance(o, RevisionOperation) else o
+            for o in (diff_payload.get("operations") or [])
         ]
-        copy_overrides["remove_scarcity"] = "true"
 
-    if "premium" in low and ("başlık" in low or "headline" in low):
-        hero = str(final.get("headline") or production_brief.get("hero") or "").strip()
-        if hero and "premium" not in hero.lower():
-            # Soft premium tone — do not invent new facts.
+    copy_overrides: dict[str, str] = {}
+    supporting = list(production_brief.get("supporting") or [])
+
+    for op in ops:
+        if op.target == "cta" and op.action == "replace_text" and op.to_value:
+            copy_overrides["cta"] = op.to_value
+        if op.target == "headline" and op.action == "replace_text" and op.to_value:
+            copy_overrides["headline"] = op.to_value
+        if op.target == "headline" and op.action == "tone_adjust":
             copy_overrides["headline_direction"] = "more_premium_tone"
-            copy_overrides["headline_keep_meaning"] = hero
-
-    if any(tok in low for tok in ("%25", "25%", "rozet")) and any(
-        tok in low for tok in ("küçült", "smaller", "küçük")
-    ):
-        copy_overrides["badge_scale"] = "slightly_smaller"
+            copy_overrides["headline_keep_meaning"] = str(
+                op.from_value or final.get("headline") or production_brief.get("hero") or ""
+            )
+        if op.target == "badge" and op.action == "scale" and op.scale_factor is not None:
+            copy_overrides["badge_scale"] = str(op.scale_factor)
+            copy_overrides["badge_scale_note"] = op.note or f"scale_factor={op.scale_factor}"
+        if op.target == "support_message" and op.action == "remove":
+            scarcity_markers = ("sınırlı", "limited", "son ünite", "last chance")
+            supporting = [
+                s for s in supporting if not any(m in str(s).lower() for m in scarcity_markers)
+            ]
+            copy_overrides["remove_scarcity"] = "true"
+        if op.target == "logo" and op.action == "scale" and op.scale_factor is not None:
+            copy_overrides["logo_scale"] = str(op.scale_factor)
 
     locked_cta = lock_copy_to_language(
         copy_overrides.get("cta") or final.get("cta") or production_brief.get("cta"),
         language=lang,
         fallback="Detayları İncele",
     )
+    if copy_overrides.get("headline"):
+        # Exact headline — do not run through soft tone rewrite.
+        pass
 
     return {
         "mode": "revision",
@@ -180,18 +570,30 @@ def build_revision_brief(
         "language": lang,
         "language_lock": lang.startswith("tr"),
         "current_final_asset_id": str(current_final_asset_id),
+        "master_asset_id": str(master_asset_id) if master_asset_id else None,
+        "revision_source": "master_asset",
         "preserve_campaign_context": True,
         "preserve_design_when_possible": True,
         "keep_unchanged_default": True,
         "copy_overrides": copy_overrides,
         "cta": locked_cta,
         "supporting": supporting,
+        "revision_diff": diff_payload,
+        "cumulative_operations": list(cumulative_operations or []),
+        "quality_lock": dict(QUALITY_LOCK_BRIEF),
         "production_brief_snapshot": {
             "campaign_intent": production_brief.get("campaign_intent"),
             "big_idea": production_brief.get("big_idea"),
-            "hero": production_brief.get("hero"),
+            "hero": copy_overrides.get("headline") or production_brief.get("hero"),
             "cta": locked_cta,
-            "final_copy": {**final, **{k: v for k, v in copy_overrides.items() if k in final or k == "cta"}},
+            "final_copy": {
+                **final,
+                **{
+                    k: v
+                    for k, v in copy_overrides.items()
+                    if k in ("headline", "cta") or k in final
+                },
+            },
             "approved_claims": production_brief.get("approved_claims"),
             "forbidden_claims": production_brief.get("forbidden_claims"),
             "asset_lock": production_brief.get("asset_lock"),
@@ -206,6 +608,23 @@ def build_revision_brief(
     }
 
 
+def _format_operation_line(op: dict[str, Any] | RevisionOperation) -> str:
+    d = _op_dict(op) if isinstance(op, RevisionOperation) else dict(op)
+    target = d.get("target")
+    action = d.get("action")
+    conf = d.get("confidence", "medium")
+    parts = [f"- [{conf}] {target}.{action}"]
+    if d.get("from") is not None:
+        parts.append(f"from={d.get('from')!r}")
+    if d.get("to") is not None:
+        parts.append(f"to={d.get('to')!r}")
+    if d.get("scale_factor") is not None:
+        parts.append(f"scale_factor={d.get('scale_factor')}")
+    if d.get("note"):
+        parts.append(f"({d.get('note')})")
+    return " ".join(parts)
+
+
 def render_revision_production_prompt(
     *,
     revision_brief: dict[str, Any],
@@ -213,7 +632,7 @@ def render_revision_production_prompt(
     original_brief: str,
     lifestyle: bool = False,
 ) -> str:
-    """Prompt for GPT Image edit of an EXISTING finished ad — surgical only."""
+    """Prompt for GPT Image edit from IMMUTABLE MASTER + cumulative structured ops."""
     base = render_finished_ad_production_prompt(
         production_brief=production_brief,
         art_direction=_as_dict(production_brief.get("design_direction")),
@@ -222,58 +641,184 @@ def render_revision_production_prompt(
     )
     intents = ", ".join(revision_brief.get("intents") or [])
     overrides = _as_dict(revision_brief.get("copy_overrides"))
+    diff = _as_dict(revision_brief.get("revision_diff"))
+    cumulative = list(revision_brief.get("cumulative_operations") or [])
+    new_ops = list(diff.get("operations") or [])
+    preserve = list(diff.get("preserve") or DEFAULT_PRESERVE)
+    forbidden = list(diff.get("forbidden_changes") or DEFAULT_FORBIDDEN)
+
     lines = [
-        "AI REVISION MODE — EDIT THE EXISTING FINISHED AD.",
-        "Input image is the CURRENT FINAL ASSET (already a complete ad).",
-        "KEEP EVERYTHING ELSE UNCHANGED when possible.",
+        "AI REVISION FIDELITY LOCK — EDIT FROM IMMUTABLE MASTER ONLY.",
+        "Input image is the MASTER finished-ad (first approved). NOT a prior revision raster.",
+        "FORBIDDEN: generation-over-generation on the last revision (A→B→C chain).",
+        "Apply the CUMULATIVE approved revision operations listed below onto the MASTER.",
         "Do NOT redesign the whole layout. Do NOT invent a new campaign.",
         "Do NOT invent ROI, yield, scarcity, rent, or extra prices.",
         "Preserve logo lock, language lock, verified prices, and brand mark.",
         f"Revision intents: {intents or 'COPY_CHANGE'}.",
-        f"User revision instruction: {revision_brief.get('instruction')}",
+        f"Command mode: {diff.get('command_mode') or 'exact'}.",
+        f"Master asset id: {revision_brief.get('master_asset_id')}.",
         "",
-        "SURGICAL CHANGES ONLY:",
+        "IMAGE QUALITY LOCK — PRESERVE:",
+        *[f"- {p}" for p in (QUALITY_LOCK_BRIEF["preserve"])],
+        "",
+        "IMAGE QUALITY LOCK — FORBIDDEN unless explicitly requested:",
+        *[f"- {f}" for f in (QUALITY_LOCK_BRIEF["forbidden_unless_explicitly_requested"])],
+        "",
+        "If this revision is not about color grading / lighting, do NOT change image treatment.",
+        "No darkening, recoloring, cinematic grade, vignette, blur, crop, or contrast boost.",
+        "",
+        "STRUCTURED REVISION DIFF (do not reinterpret exact values):",
     ]
+    for op in new_ops:
+        lines.append(_format_operation_line(op))
+
+    if cumulative:
+        lines.append("")
+        lines.append("CUMULATIVE APPROVED OPERATIONS (already accepted — keep all of these):")
+        for op in cumulative:
+            lines.append(_format_operation_line(op))
+
+    lines.extend(
+        [
+            "",
+            "SURGICAL APPLY:",
+        ]
+    )
+    if overrides.get("headline"):
+        lines.append(f"- Set headline text EXACTLY to: {overrides['headline']}")
     if overrides.get("cta"):
-        lines.append(f"- Change CTA text exactly to: {overrides['cta']}")
+        lines.append(f"- Set CTA text EXACTLY to: {overrides['cta']}")
     if overrides.get("headline_direction") == "more_premium_tone":
         lines.append(
-            f"- Make the headline more premium in tone while keeping meaning of: "
-            f"{overrides.get('headline_keep_meaning')}"
+            f"- Soft premium tone on headline while keeping meaning of: "
+            f"{overrides.get('headline_keep_meaning')} (max 1 targeted change; no redesign)"
         )
-    if overrides.get("badge_scale") == "slightly_smaller":
-        lines.append("- Make the ~25% / %25 discount badge slightly smaller.")
+    if overrides.get("badge_scale"):
+        lines.append(
+            f"- Scale the ~25% / %25 discount badge by factor {overrides['badge_scale']} "
+            f"relative to MASTER badge size ({overrides.get('badge_scale_note') or ''})."
+        )
+    if overrides.get("logo_scale"):
+        lines.append(f"- Scale project logo by factor {overrides['logo_scale']} (do not redraw).")
     if overrides.get("remove_scarcity") == "true":
         lines.append(
-            "- Remove any scarcity / 'sınırlı sayıda ünite' / limited-units wording. "
-            "Do not replace it with another scarcity claim."
+            "- Remove scarcity / 'sınırlı sayıda ünite' / limited-units / support line named. "
+            "Do not replace with another scarcity claim."
         )
     if "SIMPLIFY" in (revision_brief.get("intents") or []):
-        lines.append("- Simplify: fewer elements, more breathing room, no new badges.")
-    if not any(
-        k in overrides for k in ("cta", "headline_direction", "badge_scale", "remove_scarcity")
-    ):
-        lines.append(f"- Apply only what the instruction asks: {revision_brief.get('instruction')}")
+        lines.append("- Simplify: fewer elements, more breathing room, no new badges (max 1–3 mods).")
 
     lines.extend(
         [
             "",
             "PRESERVE UNCHANGED:",
-            "- Same photograph / architecture composition base",
-            "- Same project logo (do not redraw or duplicate)",
-            "- Same verified list/offer prices when present ($400,000 → $300,000, ~25%)",
-            "- Same language (Turkish when language=tr)",
-            "- Overall design system unless instruction explicitly changes style/layout",
+            *[f"- {p}" for p in preserve],
+            "",
+            "FORBIDDEN CHANGES:",
+            *[f"- {f}" for f in forbidden],
             "",
             "BASE PRODUCTION BRIEF (for locked facts — do not expand scope):",
             base,
         ]
     )
+    # Never dump raw user instruction as the sole apply directive.
     return "\n".join(lines)
 
 
+def resolve_master_asset_id(
+    ctx: dict[str, Any],
+    *,
+    current_final_asset_id: UUID | None = None,
+    history: list[Any] | None = None,
+) -> UUID:
+    """Immutable master = first approved finished-ad for this campaign."""
+    raw = ctx.get("master_asset_id")
+    if raw:
+        return UUID(str(raw))
+    entries = revision_entries(history if history is not None else ctx.get("revision_history"))
+    for item in entries:
+        if item.get("version") == "original" and item.get("new_asset_id"):
+            return UUID(str(item["new_asset_id"]))
+    if entries and entries[0].get("new_asset_id"):
+        return UUID(str(entries[0]["new_asset_id"]))
+    # Fall back to first generate_ad asset or current tip (becomes master on first revise).
+    for g in ctx.get("generated_assets") or []:
+        if isinstance(g, dict) and g.get("asset_id") and g.get("role") in {
+            "master_instagram_4_5",
+            "finished_ad",
+            "master_finished_ad",
+        }:
+            return UUID(str(g["asset_id"]))
+    latest = ctx.get("latest_master_ad_asset_id")
+    if latest:
+        return UUID(str(latest))
+    if current_final_asset_id is not None:
+        return current_final_asset_id
+    raise ValueError("master_asset_id cannot be resolved")
+
+
+def ensure_master_asset_id(ctx: dict[str, Any], asset_id: UUID) -> UUID:
+    """Set master once; never overwrite."""
+    existing = ctx.get("master_asset_id")
+    if existing:
+        return UUID(str(existing))
+    ctx["master_asset_id"] = str(asset_id)
+    return asset_id
+
+
+def revision_operations_at_cursor(
+    ctx: dict[str, Any],
+    revision_index: int | None = None,
+) -> list[dict[str, Any]]:
+    """Cumulative approved ops aligned with current undo/redo tip."""
+    entries, index = normalize_revision_cursor(
+        ctx.get("revision_history"),
+        revision_index if revision_index is not None else ctx.get("revision_index"),
+    )
+    stored = ctx.get("revision_operations")
+    if isinstance(stored, list) and stored and not entries:
+        return [dict(o) for o in stored if isinstance(o, dict)]
+
+    cumulative: list[dict[str, Any]] = []
+    for i, item in enumerate(entries):
+        if i == 0 and item.get("version") == "original":
+            continue
+        if revision_index is not None and i > index:
+            break
+        if i > index:
+            break
+        ops = item.get("operations") or []
+        if isinstance(ops, list):
+            for op in ops:
+                if isinstance(op, dict):
+                    cumulative.append(dict(op))
+        # Legacy entries without structured ops — skip
+    return cumulative
+
+
+def truncate_forward_operations(
+    ops: list[dict[str, Any]] | None,
+    history: list[Any] | None,
+    revision_index: Any,
+) -> list[dict[str, Any]]:
+    """After undo+new revise, ops must match truncated history tip."""
+    entries, index = normalize_revision_cursor(history, revision_index)
+    cumulative: list[dict[str, Any]] = []
+    for i, item in enumerate(entries):
+        if i > index:
+            break
+        if item.get("version") == "original":
+            continue
+        for op in item.get("operations") or []:
+            if isinstance(op, dict):
+                cumulative.append(dict(op))
+    if cumulative:
+        return cumulative
+    return list(ops or [])[:0]  # cleared when no ops on kept entries
+
+
 def _version_label(history: list[Any]) -> str:
-    # original + len(history) prior revisions → next is v{n+1} where original is implicit v1
     n = 1 + sum(1 for h in history if isinstance(h, dict) and h.get("new_asset_id"))
     return f"v{n + 1}" if n >= 1 else "v2"
 
@@ -358,23 +903,148 @@ def lean_revision_history(history: list[Any] | None) -> list[dict[str, Any]]:
                 "copy_overrides": rb.get("copy_overrides"),
                 "cta": rb.get("cta"),
                 "language": rb.get("language"),
+                "master_asset_id": rb.get("master_asset_id"),
+                "revision_source": rb.get("revision_source"),
+                "revision_diff": rb.get("revision_diff"),
             }
         lean_history.append(
             {
                 "version": item.get("version"),
                 "previous_asset_id": item.get("previous_asset_id"),
                 "new_asset_id": item.get("new_asset_id"),
+                "master_asset_id": item.get("master_asset_id"),
+                "revision_source_asset_id": item.get("revision_source_asset_id"),
                 "instruction": item.get("instruction"),
                 "revision_brief": lean_rb,
+                "operations": item.get("operations") or [],
                 "intents": item.get("intents"),
                 "provider": item.get("provider"),
                 "timestamp": item.get("timestamp"),
                 "campaign_context_id": item.get("campaign_context_id"),
                 "claim_guard": item.get("claim_guard"),
                 "language": item.get("language"),
+                "quality_guard": item.get("quality_guard"),
             }
         )
     return lean_history
+
+
+def _image_stats(content: bytes) -> dict[str, float]:
+    from PIL import Image, ImageStat
+
+    with Image.open(io.BytesIO(content)) as im:
+        rgb = im.convert("RGB")
+        w, h = rgb.size
+        # Downsample for speed
+        thumb = rgb.copy()
+        thumb.thumbnail((256, 256))
+        stat = ImageStat.Stat(thumb)
+        means = stat.mean  # R,G,B
+        stddevs = stat.stddev
+        brightness = float(sum(means) / 3.0)
+        contrast = float(sum(stddevs) / 3.0)
+        return {
+            "width": float(w),
+            "height": float(h),
+            "brightness": brightness,
+            "contrast": contrast,
+            "mean_r": float(means[0]),
+            "mean_g": float(means[1]),
+            "mean_b": float(means[2]),
+        }
+
+
+def compare_revision_quality(
+    *,
+    master_bytes: bytes,
+    revised_bytes: bytes,
+    revision_diff: RevisionDiff | dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Best-effort quality guard vs MASTER. Fails on brightness/treatment drift when not requested."""
+    master = _image_stats(master_bytes)
+    revised = _image_stats(revised_bytes)
+    brightness_delta = revised["brightness"] - master["brightness"]
+    contrast_delta = revised["contrast"] - master["contrast"]
+    color_shift = math.sqrt(
+        (revised["mean_r"] - master["mean_r"]) ** 2
+        + (revised["mean_g"] - master["mean_g"]) ** 2
+        + (revised["mean_b"] - master["mean_b"]) ** 2
+    )
+    dim_delta_pct = 0.0
+    if master["width"] > 0 and master["height"] > 0:
+        dim_delta_pct = max(
+            abs(revised["width"] - master["width"]) / master["width"] * 100.0,
+            abs(revised["height"] - master["height"]) / master["height"] * 100.0,
+        )
+
+    diff = revision_diff
+    if isinstance(diff, RevisionDiff):
+        ops = diff.operations
+        forbidden = set(diff.forbidden_changes)
+    else:
+        d = _as_dict(diff)
+        ops = [
+            RevisionOperation.model_validate(o) if isinstance(o, dict) else o
+            for o in (d.get("operations") or [])
+        ]
+        forbidden = set(d.get("forbidden_changes") or [])
+
+    requests_grade = False
+    for o in ops:
+        note = _normalize_tr(str(o.note or "") + str(getattr(o, "to_value", None) or ""))
+        if any(k in note for k in ("darken", "grade", "kontrast", "ışık", "color", "recolor")):
+            requests_grade = True
+        if o.target == "background" and o.action not in {"preserve", "minimum_change"}:
+            requests_grade = True
+        if o.target == "overall" and o.action == "tone_adjust":
+            requests_grade = True
+    _ = forbidden  # reserved for future forbid-aware thresholds
+
+    failures: list[str] = []
+    if not requests_grade:
+        if abs(brightness_delta) > QUALITY_BRIGHTNESS_DELTA_MAX:
+            failures.append(
+                f"brightness_drift={brightness_delta:.2f} (max ±{QUALITY_BRIGHTNESS_DELTA_MAX})"
+            )
+        if abs(contrast_delta) > QUALITY_CONTRAST_DELTA_MAX:
+            failures.append(
+                f"contrast_drift={contrast_delta:.2f} (max ±{QUALITY_CONTRAST_DELTA_MAX})"
+            )
+        if color_shift > QUALITY_COLOR_SHIFT_MAX:
+            failures.append(f"color_shift={color_shift:.2f} (max {QUALITY_COLOR_SHIFT_MAX})")
+    if dim_delta_pct > QUALITY_DIMENSION_DELTA_PCT_MAX:
+        failures.append(f"dimension_drift_pct={dim_delta_pct:.2f}")
+
+    status_val = "fail" if failures else "pass"
+    return {
+        "status": status_val,
+        "master": master,
+        "revised": revised,
+        "brightness_delta": round(brightness_delta, 3),
+        "contrast_delta": round(contrast_delta, 3),
+        "color_shift": round(color_shift, 3),
+        "dimension_delta_pct": round(dim_delta_pct, 3),
+        "thresholds": {
+            "brightness": QUALITY_BRIGHTNESS_DELTA_MAX,
+            "contrast": QUALITY_CONTRAST_DELTA_MAX,
+            "color_shift": QUALITY_COLOR_SHIFT_MAX,
+            "dimension_pct": QUALITY_DIMENSION_DELTA_PCT_MAX,
+        },
+        "failures": failures,
+        "compared_against": "master_asset",
+    }
+
+
+def _read_asset_bytes(db: Session, asset_id: UUID) -> bytes:
+    asset = get_asset_or_404(asset_id, db)
+    stream, _media = open_asset_content(asset)
+    try:
+        return stream.read()
+    finally:
+        try:
+            stream.close()
+        except Exception:
+            pass
 
 
 def revise_ad_from_campaign(
@@ -383,7 +1053,7 @@ def revise_ad_from_campaign(
     campaign_id: UUID,
     body: CreativeDirectorReviseRequest,
 ) -> CreativeDirectorReviseAdResponse:
-    """Revise existing finished-ad using current final asset as GPT Image reference."""
+    """Revise from IMMUTABLE MASTER + cumulative ops (never prior revision raster)."""
     instruction = (body.instruction or "").strip()
     if not instruction:
         raise HTTPException(
@@ -425,7 +1095,6 @@ def revise_ad_from_campaign(
         production_brief,
     ) = prep
 
-    # Honor explicit language override on revise.
     if body.language:
         language = body.language.strip().lower() or language
 
@@ -440,6 +1109,26 @@ def revise_ad_from_campaign(
             detail="current_final_asset_id does not belong to this campaign project.",
         )
 
+    # Cursor truncate (undo then revise clears forward history + ops).
+    history, _cursor = truncate_forward_history(
+        ctx.get("revision_history"),
+        ctx.get("revision_index"),
+    )
+
+    master_id = ensure_master_asset_id(
+        ctx,
+        resolve_master_asset_id(ctx, current_final_asset_id=current_id, history=history),
+    )
+    master_asset = get_asset_or_404(master_id, db)
+    if (
+        master_asset.linked_project_id is not None
+        and master_asset.linked_project_id != row.linked_project_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="master_asset_id does not belong to this campaign project.",
+        )
+
     logo_lock = verify_logo_lock(logo_meta)
     if logo_lock.get("status") != "pass":
         raise HTTPException(
@@ -447,7 +1136,19 @@ def revise_ad_from_campaign(
             detail="Project logo Asset ID missing or unverified. AI must not invent logos.",
         )
 
+    prior_ops: list[dict[str, Any]] = []
+    for item in history:
+        if item.get("version") == "original":
+            continue
+        for op in item.get("operations") or []:
+            if isinstance(op, dict):
+                prior_ops.append(dict(op))
+
     intents = interpret_revision_intents(instruction)
+    revision_diff = build_revision_diff(instruction=instruction, production_brief=production_brief)
+    new_ops = [_op_dict(o) for o in revision_diff.operations]
+    cumulative_after = prior_ops + new_ops
+
     revision_brief = build_revision_brief(
         instruction=instruction,
         intents=intents,
@@ -455,15 +1156,21 @@ def revise_ad_from_campaign(
         original_brief=original_brief,
         language=language,
         current_final_asset_id=current_id,
+        master_asset_id=master_id,
+        revision_diff=revision_diff,
+        cumulative_operations=prior_ops,
     )
 
-    # Apply surgical CTA override into production brief copy for prompt + claim guard texts.
     if revision_brief.get("cta"):
         texts = dict(texts)
         texts["cta"] = str(revision_brief["cta"])
         pb_copy = dict(production_brief)
         final_copy = dict(_as_dict(pb_copy.get("final_copy")))
         final_copy["cta"] = texts["cta"]
+        if revision_brief.get("copy_overrides", {}).get("headline"):
+            final_copy["headline"] = revision_brief["copy_overrides"]["headline"]
+            texts["headline"] = final_copy["headline"]
+            pb_copy["hero"] = final_copy["headline"]
         pb_copy["final_copy"] = final_copy
         pb_copy["cta"] = texts["cta"]
         production_brief = pb_copy
@@ -496,11 +1203,15 @@ def revise_ad_from_campaign(
         "finished_ad": True,
         "revision_mode": True,
         "revision_brief": revision_brief,
+        "revision_diff": revision_diff.model_dump(by_alias=True),
+        "master_asset_id": str(master_id),
+        "revision_source_asset_id": str(master_id),
+        "cumulative_operations": cumulative_after,
         "image_provider_route": provider_route.to_dict(),
-        # Logo already baked into finished-ad reference — do not re-attach as edit input.
         "skip_logo_edit_input": True,
     }
 
+    # CRITICAL: always edit MASTER — never the previous revision raster.
     gpt_body = GptImageDesignRequest(
         linked_project_id=row.linked_project_id,
         instruction=instruction_prompt,
@@ -509,9 +1220,15 @@ def revise_ad_from_campaign(
         format_preset=format_preset,
         aspect_ratio=aspect_ratio,  # type: ignore[arg-type]
         language=language,
-        # CURRENT final asset is the edit reference (not a fresh interior generate).
-        selected_asset_ids=[current_id],
+        selected_asset_ids=[master_id],
         builder_context=builder_context,
+    )
+
+    logger.info(
+        "revision_fidelity_lock source=master_asset_id=%s tip=%s ops=%s",
+        master_id,
+        current_id,
+        len(cumulative_after),
     )
 
     result = generate_gpt_image_creatives(db, user, gpt_body)
@@ -523,13 +1240,53 @@ def revise_ad_from_campaign(
         )
 
     new_asset_id = output.local_asset_id
+    source_used = result.source_image.asset_id if result.source_image else master_id
+    if str(source_used) != str(master_id):
+        logger.warning(
+            "revision_source_mismatch expected_master=%s got=%s",
+            master_id,
+            source_used,
+        )
+
+    # Quality Comparison Guard vs MASTER
+    quality_guard: dict[str, Any]
+    try:
+        master_bytes = _read_asset_bytes(db, master_id)
+        revised_bytes = _read_asset_bytes(db, new_asset_id)
+        quality_guard = compare_revision_quality(
+            master_bytes=master_bytes,
+            revised_bytes=revised_bytes,
+            revision_diff=revision_diff,
+        )
+    except Exception as exc:  # best-effort — do not block if IO fails
+        logger.warning("revision_quality_guard_unavailable: %s", exc)
+        quality_guard = {
+            "status": "skip",
+            "failures": [],
+            "reason": str(exc),
+            "compared_against": "master_asset",
+        }
+
+    if quality_guard.get("status") == "fail":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": (
+                    "Revision failed quality preservation guard "
+                    "(brightness/exposure/treatment drift vs master)."
+                ),
+                "quality_guard": quality_guard,
+                "master_asset_id": str(master_id),
+                "rejected_asset_id": str(new_asset_id),
+            },
+        )
+
     claim_guard = claim_guard_summary(
         approved_claims=approved_claims,
         allowed_tokens=allowed_tokens,
         texts=texts,
         lifestyle=lifestyle,
     )
-    # Revision references finished ad, not raw interior — mark architecture preserved via reference.
     asset_lock = project_asset_lock_summary(
         interior_id=interior_id,
         logo_id=logo_id,
@@ -537,27 +1294,24 @@ def revise_ad_from_campaign(
         logo_meta=logo_meta,
         source_asset_id=interior_id,
     )
-    asset_lock["revision_reference_asset_id"] = str(current_id)
-    asset_lock["revision_source_used"] = str(
-        result.source_image.asset_id if result.source_image else current_id
-    )
+    asset_lock["revision_reference_asset_id"] = str(master_id)
+    asset_lock["revision_source_used"] = str(source_used)
+    asset_lock["master_asset_id"] = str(master_id)
+    asset_lock["revision_model"] = "master_plus_cumulative_ops"
     asset_lock["status"] = "pass" if logo_lock.get("status") == "pass" else "fail"
 
-    # Cursor model: undo then revise clears unreachable forward versions.
-    history, _cursor = truncate_forward_history(
-        ctx.get("revision_history"),
-        ctx.get("revision_index"),
-    )
-    # Ensure original entry exists once.
     if not any(isinstance(h, dict) and h.get("version") == "original" for h in history):
         history.insert(
             0,
             {
                 "version": "original",
                 "previous_asset_id": None,
-                "new_asset_id": str(current_id),
+                "new_asset_id": str(master_id),
+                "master_asset_id": str(master_id),
+                "revision_source_asset_id": str(master_id),
                 "instruction": None,
                 "revision_brief": None,
+                "operations": [],
                 "provider": None,
                 "timestamp": None,
                 "campaign_context_id": str(row.id),
@@ -568,14 +1322,23 @@ def revise_ad_from_campaign(
         "version": version,
         "previous_asset_id": str(current_id),
         "new_asset_id": str(new_asset_id),
+        "master_asset_id": str(master_id),
+        "revision_source_asset_id": str(master_id),
         "instruction": instruction,
         "revision_brief": revision_brief,
+        "operations": new_ops,
         "intents": intents,
         "provider": result.provider,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "campaign_context_id": str(row.id),
         "claim_guard": claim_guard.get("status"),
         "language": language,
+        "quality_guard": {
+            "status": quality_guard.get("status"),
+            "brightness_delta": quality_guard.get("brightness_delta"),
+            "contrast_delta": quality_guard.get("contrast_delta"),
+            "color_shift": quality_guard.get("color_shift"),
+        },
     }
     history.append(entry)
     revision_index = len(history) - 1
@@ -588,6 +1351,8 @@ def revise_ad_from_campaign(
             "language": language,
             "provider": result.provider,
             "previous_asset_id": str(current_id),
+            "master_asset_id": str(master_id),
+            "revision_source_asset_id": str(master_id),
             "version": version,
         }
     )
@@ -597,15 +1362,21 @@ def revise_ad_from_campaign(
             "type": "revise_ad",
             "asset_id": str(new_asset_id),
             "previous_asset_id": str(current_id),
+            "master_asset_id": str(master_id),
+            "revision_source_asset_id": str(master_id),
             "language": language,
             "version": version,
             "claim_guard": claim_guard.get("status"),
+            "quality_guard": quality_guard.get("status"),
         }
     )
 
     lean_history = lean_revision_history(history)
     ctx["revision_history"] = lean_history
     ctx["revision_index"] = revision_index
+    ctx["master_asset_id"] = str(master_id)
+    ctx["revision_operations"] = cumulative_after
+    ctx["current_revision_index"] = revision_index
     ctx["latest_revision_instruction"] = instruction
     ctx["latest_revision_brief"] = {
         "mode": revision_brief.get("mode"),
@@ -615,11 +1386,16 @@ def revise_ad_from_campaign(
         "cta": revision_brief.get("cta"),
         "language": revision_brief.get("language"),
         "current_final_asset_id": revision_brief.get("current_final_asset_id"),
+        "master_asset_id": str(master_id),
+        "revision_source": "master_asset",
+        "revision_diff": revision_diff.model_dump(by_alias=True),
     }
+    ctx["latest_revision_diff"] = revision_diff.model_dump(by_alias=True)
+    ctx["latest_quality_guard"] = quality_guard
     ctx["generated_assets"] = generated
     ctx["output_history"] = output_history
     ctx["image_generation_performed"] = True
-    ctx["latest_master_ad_asset_id"] = str(new_asset_id)
+    ctx["latest_master_ad_asset_id"] = str(new_asset_id)  # tip (display); master stays immutable
     ctx["language"] = language
     row.context_json = dict(ctx)
     flag_modified(row, "context_json")
@@ -653,8 +1429,13 @@ def revise_ad_from_campaign(
         production_brief=production_brief,
         revision_brief=revision_brief,
         revision_intents=intents,
+        revision_diff=revision_diff.model_dump(by_alias=True),
         revision_history=lean_history,
         revision_index=revision_index,
+        revision_operations=cumulative_after,
+        master_asset_id=master_id,
+        revision_source_asset_id=master_id,
+        quality_guard=quality_guard,
         previous_asset_id=current_id,
         provider_route=provider_route.to_dict(),
         interior_asset_id=interior_id,
@@ -668,6 +1449,9 @@ def revise_ad_from_campaign(
             "instruction": instruction,
             "cta": texts.get("cta"),
             "language": language,
+            "master_asset_id": str(master_id),
+            "revision_source": "master_asset",
+            "cumulative_ops_count": len(cumulative_after),
         },
         final_turkish_texts=texts,
         claim_guard=claim_guard,
@@ -711,13 +1495,31 @@ def _move_campaign_revision(
     previous_tip = asset_id_at_index(history, next_index - delta)
     mode = "undo" if delta < 0 else "redo"
     lean_history = lean_revision_history(history)
+    # Realign cumulative ops to cursor tip (no GPT).
+    tip_ops: list[dict[str, Any]] = []
+    for i, item in enumerate(lean_history):
+        if i > next_index:
+            break
+        if item.get("version") == "original":
+            continue
+        for op in item.get("operations") or []:
+            if isinstance(op, dict):
+                tip_ops.append(dict(op))
+    master_raw = ctx.get("master_asset_id")
+    if not master_raw and lean_history:
+        master_raw = lean_history[0].get("master_asset_id") or lean_history[0].get("new_asset_id")
     ctx["revision_history"] = lean_history
     ctx["revision_index"] = next_index
+    ctx["current_revision_index"] = next_index
+    ctx["revision_operations"] = tip_ops
+    if master_raw:
+        ctx["master_asset_id"] = str(master_raw)
     ctx["latest_master_ad_asset_id"] = str(restored_id)
     ctx[f"latest_{mode}"] = {
         "restored_asset_id": str(restored_id),
         "revision_index": next_index,
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "gpt_image_call_count": 0,
     }
     row.context_json = dict(ctx)
     flag_modified(row, "context_json")
@@ -725,6 +1527,7 @@ def _move_campaign_revision(
 
     interior_id, logo_id, _, _ = resolve_locked_assets(ctx)
     language = str(ctx.get("language") or "tr")
+    master_uuid = UUID(str(master_raw)) if master_raw else None
     return CreativeDirectorReviseAdResponse(
         campaign_id=row.id,
         project_id=row.linked_project_id,
@@ -735,15 +1538,20 @@ def _move_campaign_revision(
         production_brief=_as_dict(ctx.get("production_brief")),
         revision_brief={"mode": mode, "restored_asset_id": str(restored_id)},
         revision_intents=[],
+        revision_diff={},
         revision_history=lean_history,
         revision_index=next_index,
+        revision_operations=tip_ops,
+        master_asset_id=master_uuid,
+        revision_source_asset_id=master_uuid,
+        quality_guard={"status": "n/a", "gpt_calls": 0},
         previous_asset_id=UUID(str(previous_tip)) if previous_tip else None,
         provider_route={"provider_id": mode, "available": True, "missing": False},
         interior_asset_id=interior_id,
         logo_asset_id=logo_id,
         final_asset_id=restored_id,
         final_asset_url=asset_url(restored_id),
-        creative_brief_summary={"mode": mode},
+        creative_brief_summary={"mode": mode, "gpt_image_call_count": 0},
         final_turkish_texts={},
         claim_guard={"status": "pass"},
         project_asset_lock={"status": "pass"},

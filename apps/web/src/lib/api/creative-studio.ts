@@ -940,8 +940,13 @@ export type CreativeDirectorReviseRequest = {
 export type CreativeDirectorReviseAdResponse = CreativeDirectorGenerateAdResponse & {
   revision_brief?: Record<string, unknown>;
   revision_intents?: string[];
+  revision_diff?: Record<string, unknown>;
   revision_history?: Array<Record<string, unknown>>;
   revision_index?: number;
+  revision_operations?: Array<Record<string, unknown>>;
+  master_asset_id?: string | null;
+  revision_source_asset_id?: string | null;
+  quality_guard?: Record<string, unknown>;
   previous_asset_id?: string | null;
   campaign_context?: Record<string, unknown>;
   gpt_image_call_count?: number;

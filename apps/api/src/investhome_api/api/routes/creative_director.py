@@ -78,7 +78,7 @@ def revise_creative_director_campaign(
     db: Session = Depends(get_db),  # noqa: B008
     user: User = _cs_view,
 ) -> CreativeDirectorReviseAdResponse:
-    """Revise EXISTING finished-ad using current Final Asset as reference (no new campaign)."""
+    """Revise from immutable master_asset_id + cumulative ops (not prior revision raster)."""
     result = revise_ad_from_campaign(db, user, campaign_id, body)
     db.commit()
     return result

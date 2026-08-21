@@ -23,11 +23,63 @@ class CreativeDirectorReviseRequest(BaseModel):
     instruction: str = Field(..., min_length=1, max_length=8000)
     current_final_asset_id: UUID | None = Field(
         default=None,
-        description="Current finished-ad Final Asset used as GPT Image edit reference.",
+        description=(
+            "Current tip finished-ad for cursor/history. Generation source is always "
+            "immutable master_asset_id (not this raster)."
+        ),
     )
     language: str | None = Field(default=None, max_length=16)
     aspect_ratio: Literal["1:1", "4:5", "16:9", "9:16"] | None = "4:5"
     format_preset: str | None = Field(default="portrait", max_length=32)
+
+
+RevisionAction = Literal[
+    "replace_text",
+    "scale",
+    "remove",
+    "tone_adjust",
+    "preserve",
+    "minimum_change",
+]
+RevisionTarget = Literal[
+    "headline",
+    "cta",
+    "badge",
+    "logo",
+    "support_message",
+    "price",
+    "background",
+    "layout",
+    "style",
+    "overall",
+]
+RevisionConfidence = Literal["high", "medium", "low"]
+
+
+class RevisionOperation(BaseModel):
+    """One structured surgical change — never a verbatim NL dump to the provider."""
+
+    target: RevisionTarget
+    action: RevisionAction
+    from_value: str | None = Field(default=None, alias="from")
+    to_value: str | None = Field(default=None, alias="to")
+    scale_factor: float | None = None
+    confidence: RevisionConfidence = "medium"
+    mode: Literal["exact", "subjective", "ambiguous"] = "exact"
+    note: str | None = None
+
+    model_config = {"populate_by_name": True}
+
+
+class RevisionDiff(BaseModel):
+    """Structured Revision Diff produced before any provider call."""
+
+    operations: list[RevisionOperation] = Field(default_factory=list)
+    preserve: list[str] = Field(default_factory=list)
+    forbidden_changes: list[str] = Field(default_factory=list)
+    command_mode: Literal["exact", "subjective", "mixed", "ambiguous"] = "exact"
+    max_subjective_ops: int = 3
+    quality_lock: dict[str, Any] = Field(default_factory=dict)
 
 
 class CreativeDirectorCampaignResponse(BaseModel):
@@ -91,7 +143,12 @@ class CreativeDirectorReviseAdResponse(CreativeDirectorGenerateAdResponse):
 
     revision_brief: dict[str, Any] = Field(default_factory=dict)
     revision_intents: list[str] = Field(default_factory=list)
+    revision_diff: dict[str, Any] = Field(default_factory=dict)
     revision_history: list[dict[str, Any]] = Field(default_factory=list)
     revision_index: int = 0
+    revision_operations: list[dict[str, Any]] = Field(default_factory=list)
+    master_asset_id: UUID | None = None
+    revision_source_asset_id: UUID | None = None
+    quality_guard: dict[str, Any] = Field(default_factory=dict)
     previous_asset_id: UUID | None = None
     campaign_context: dict[str, Any] = Field(default_factory=dict)

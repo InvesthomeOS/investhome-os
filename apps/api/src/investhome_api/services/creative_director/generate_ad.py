@@ -1131,6 +1131,11 @@ def generate_ad_from_campaign(
     ctx["output_history"] = history
     ctx["image_generation_performed"] = True
     ctx["latest_master_ad_asset_id"] = str(output.local_asset_id)
+    # Immutable revision master: first approved finished-ad only (never overwrite).
+    if production_mode == "finished_ad" and not ctx.get("master_asset_id"):
+        ctx["master_asset_id"] = str(output.local_asset_id)
+        ctx["revision_operations"] = []
+        ctx["current_revision_index"] = 0
     ctx["language"] = language
     row.context_json = ctx
     if row.status == "draft":
