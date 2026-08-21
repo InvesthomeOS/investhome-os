@@ -27,7 +27,7 @@ class GptImageProviderStatusResponse(BaseModel):
 
 class GptImageDesignRequest(BaseModel):
     linked_project_id: UUID | None = None
-    instruction: str = Field(..., min_length=1, max_length=8000)
+    instruction: str = Field(..., min_length=1, max_length=12000)
     design_provider: GptImageProvider = "gpt-image"
     campaign_mode: GptImageCampaignMode = "project"
     aspect_ratio: GptImageAspectRatio | None = None

@@ -1,0 +1,600 @@
+{
+  "status": "READY FOR REAL SMB + ARCHITECTURAL TRUTH REVIEW",
+  "visual_quality_pass_declared": false,
+  "production_mode_default": "finished_ad",
+  "golden_pipeline": "Prompt → Intent → Project Context → Drive/ML → Smart Asset Selection → CD → Production Brief → Golden Finished-Ad → SMB",
+  "tests": {
+    "interior": {
+      "status": "ok",
+      "campaign_id": "de913af0-de19-4986-867e-7948d0fa1439",
+      "production_mode": "finished_ad",
+      "final_asset_id": "ef1cbf58-f8c5-4001-a557-00251840cf68",
+      "master_finished_ad_asset_id": "ef1cbf58-f8c5-4001-a557-00251840cf68",
+      "design_spec_present": false,
+      "editable_layers_count": 0,
+      "quality_guard": {
+        "status": "review",
+        "mode": "finished_ad",
+        "checks": {
+          "logo_locked": true,
+          "facts_language": true,
+          "architecture_truth": true,
+          "headline_present": true,
+          "cta_present": true,
+          "language_set": true,
+          "headline_length_ok": true
+        },
+        "failures": [],
+        "warnings": [],
+        "architecture_truth": {
+          "status": "pass",
+          "fail_closed": false,
+          "checks": {
+            "approved_source_exists": true,
+            "source_id_traceable": true,
+            "architecture_locked_respected": true,
+            "no_unapproved_exterior": true,
+            "no_generated_architecture_as_truth": true,
+            "historic_addition_not_invented": true,
+            "no_neighbor_as_project": true
+          },
+          "failures": [],
+          "asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+          "filename": "IH_DC_TMP_001_Render_Living_Room_001.jpg",
+          "classification": "INTERIOR_APPROVED",
+          "architecture_locked": true,
+          "creative_freedom_level": 1,
+          "project_relation": "project_primary",
+          "approved_status": "approved",
+          "source_used_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+          "campaign_intent": "launch",
+          "message": "Architectural truth established from approved project asset.",
+          "note": "User visual approval required — do not declare Visual Quality PASS."
+        },
+        "automatic_fail_triggers": [
+          "text_overflow",
+          "cropped_headline",
+          "distorted_logo",
+          "unreadable_text",
+          "architecture_truth_fail_closed"
+        ],
+        "note": "User visual approval required — do not declare Visual Quality PASS."
+      },
+      "truth": {
+        "source_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+        "filename": "IH_DC_TMP_001_Render_Living_Room_001.jpg",
+        "classification": "INTERIOR_APPROVED",
+        "architecture_locked": true,
+        "creative_freedom_level": 1,
+        "approved_status": "approved",
+        "project_relation": "project_primary",
+        "architecture_truth_guard": {
+          "status": "pass",
+          "fail_closed": false,
+          "checks": {
+            "approved_source_exists": true,
+            "source_id_traceable": true,
+            "architecture_locked_respected": true,
+            "no_unapproved_exterior": true,
+            "no_generated_architecture_as_truth": true,
+            "historic_addition_not_invented": true,
+            "no_neighbor_as_project": true
+          },
+          "failures": [],
+          "asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+          "filename": "IH_DC_TMP_001_Render_Living_Room_001.jpg",
+          "classification": "INTERIOR_APPROVED",
+          "architecture_locked": true,
+          "creative_freedom_level": 1,
+          "project_relation": "project_primary",
+          "approved_status": "approved",
+          "source_used_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+          "campaign_intent": "launch",
+          "message": "Architectural truth established from approved project asset.",
+          "note": "User visual approval required — do not declare Visual Quality PASS."
+        },
+        "drive_architecture_truth": null,
+        "campaign_intent": "launch"
+      },
+      "screenshot": "/tmp/smb-architectural-truth/interior-final.png",
+      "visual_quality_pass_declared": false,
+      "revisions": [
+        {
+          "step": "r1_headline",
+          "instruction": "Başlığı Zamansız Bir Yaşam yap. Diğer hiçbir şeyi değiştirme.",
+          "http_status": 200,
+          "status": "ok",
+          "revision_route": "IMAGE_REQUIRED",
+          "master_finished_ad_asset_id": "ef1cbf58-f8c5-4001-a557-00251840cf68",
+          "revision_source_asset_id": "ef1cbf58-f8c5-4001-a557-00251840cf68",
+          "final_asset_id": "e69ca2b3-0ef2-48a6-9787-84b7576721e4",
+          "quality_guard": {
+            "status": "pass",
+            "master": {
+              "width": 1088.0,
+              "height": 1360.0,
+              "brightness": 83.19430259146341,
+              "contrast": 52.01966818273956,
+              "mean_r": 91.48713795731707,
+              "mean_g": 83.44390243902438,
+              "mean_b": 74.65186737804878
+            },
+            "revised": {
+              "width": 1088.0,
+              "height": 1360.0,
+              "brightness": 83.91514227642277,
+              "contrast": 53.518653421316,
+              "mean_r": 92.27086509146342,
+              "mean_g": 84.09830411585367,
+              "mean_b": 75.37625762195123
+            },
+            "brightness_delta": 0.721,
+            "contrast_delta": 1.499,
+            "color_shift": 1.252,
+            "dimension_delta_pct": 0.0,
+            "thresholds": {
+              "brightness": 12.0,
+              "contrast": 15.0,
+              "color_shift": 18.0,
+              "dimension_pct": 2.0
+            },
+            "failures": [],
+            "compared_against": "master_asset"
+          },
+          "master_unchanged": true,
+          "source_is_master": true,
+          "screenshot": "/tmp/smb-architectural-truth/r1_headline-final.png"
+        },
+        {
+          "step": "r2_logo",
+          "instruction": "Logoyu %20 küçült. Başka hiçbir şeyi değiştirme.",
+          "http_status": 200,
+          "status": "ok",
+          "revision_route": "IMAGE_REQUIRED",
+          "master_finished_ad_asset_id": "ef1cbf58-f8c5-4001-a557-00251840cf68",
+          "revision_source_asset_id": "ef1cbf58-f8c5-4001-a557-00251840cf68",
+          "final_asset_id": "c8a7ea42-7485-466a-b8c0-3d76ca37c472",
+          "quality_guard": {
+            "status": "pass",
+            "master": {
+              "width": 1088.0,
+              "height": 1360.0,
+              "brightness": 83.19430259146341,
+              "contrast": 52.01966818273956,
+              "mean_r": 91.48713795731707,
+              "mean_g": 83.44390243902438,
+              "mean_b": 74.65186737804878
+            },
+            "revised": {
+              "width": 1088.0,
+              "height": 1360.0,
+              "brightness": 82.75500508130081,
+              "contrast": 52.23439615825237,
+              "mean_r": 90.86055640243903,
+              "mean_g": 83.00072408536586,
+              "mean_b": 74.40373475609756
+            },
+            "brightness_delta": -0.439,
+            "contrast_delta": 0.215,
+            "color_shift": 0.807,
+            "dimension_delta_pct": 0.0,
+            "thresholds": {
+              "brightness": 12.0,
+              "contrast": 15.0,
+              "color_shift": 18.0,
+              "dimension_pct": 2.0
+            },
+            "failures": [],
+            "compared_against": "master_asset"
+          },
+          "master_unchanged": true,
+          "source_is_master": true,
+          "screenshot": "/tmp/smb-architectural-truth/r2_logo-final.png"
+        },
+        {
+          "step": "r3_remove_cta",
+          "instruction": "CTA'yı kaldır. Başka hiçbir şeyi değiştirme.",
+          "http_status": 200,
+          "status": "ok",
+          "revision_route": "IMAGE_REQUIRED",
+          "master_finished_ad_asset_id": "ef1cbf58-f8c5-4001-a557-00251840cf68",
+          "revision_source_asset_id": "ef1cbf58-f8c5-4001-a557-00251840cf68",
+          "final_asset_id": "924e2c47-0d17-4a02-93a2-1fce7a989127",
+          "quality_guard": {
+            "status": "pass",
+            "master": {
+              "width": 1088.0,
+              "height": 1360.0,
+              "brightness": 83.19430259146341,
+              "contrast": 52.01966818273956,
+              "mean_r": 91.48713795731707,
+              "mean_g": 83.44390243902438,
+              "mean_b": 74.65186737804878
+            },
+            "revised": {
+              "width": 1088.0,
+              "height": 1360.0,
+              "brightness": 84.4398818597561,
+              "contrast": 54.43554529370309,
+              "mean_r": 93.2509336890244,
+              "mean_g": 84.61305259146341,
+              "mean_b": 75.45565929878049
+            },
+            "brightness_delta": 1.246,
+            "contrast_delta": 2.416,
+            "color_shift": 2.264,
+            "dimension_delta_pct": 0.0,
+            "thresholds": {
+              "brightness": 12.0,
+              "contrast": 15.0,
+              "color_shift": 18.0,
+              "dimension_pct": 2.0
+            },
+            "failures": [],
+            "compared_against": "master_asset"
+          },
+          "master_unchanged": true,
+          "source_is_master": true,
+          "screenshot": "/tmp/smb-architectural-truth/r3_remove_cta-final.png"
+        },
+        {
+          "step": "r4_move_headline",
+          "instruction": "Başlığı kendi yüksekliği kadar aşağı kaydır. Başka hiçbir şeyi değiştirme.",
+          "http_status": 200,
+          "status": "ok",
+          "revision_route": "IMAGE_REQUIRED",
+          "master_finished_ad_asset_id": "ef1cbf58-f8c5-4001-a557-00251840cf68",
+          "revision_source_asset_id": "ef1cbf58-f8c5-4001-a557-00251840cf68",
+          "final_asset_id": "9e9429ad-3ccc-4a36-8d40-d79e5a7a49b2",
+          "quality_guard": {
+            "status": "pass",
+            "master": {
+              "width": 1088.0,
+              "height": 1360.0,
+              "brightness": 83.19430259146341,
+              "contrast": 52.01966818273956,
+              "mean_r": 91.48713795731707,
+              "mean_g": 83.44390243902438,
+              "mean_b": 74.65186737804878
+            },
+            "revised": {
+              "width": 1088.0,
+              "height": 1360.0,
+              "brightness": 88.48431783536586,
+              "contrast": 55.35741213314113,
+              "mean_r": 97.22160823170732,
+              "mean_g": 88.5303163109756,
+              "mean_b": 79.70102896341463
+            },
+            "brightness_delta": 5.29,
+            "contrast_delta": 3.338,
+            "color_shift": 9.179,
+            "dimension_delta_pct": 0.0,
+            "thresholds": {
+              "brightness": 12.0,
+              "contrast": 15.0,
+              "color_shift": 18.0,
+              "dimension_pct": 2.0
+            },
+            "failures": [],
+            "compared_against": "master_asset"
+          },
+          "master_unchanged": true,
+          "source_is_master": true,
+          "screenshot": "/tmp/smb-architectural-truth/r4_move_headline-final.png"
+        }
+      ]
+    },
+    "architecture": {
+      "http_status": 422,
+      "campaign_id": "b3217020-8604-45fb-8b89-67cacb4786d4",
+      "truth": {
+        "source_asset_id": null,
+        "filename": null,
+        "classification": "UNCLASSIFIED",
+        "architecture_locked": false,
+        "creative_freedom_level": 1,
+        "approved_status": "unapproved",
+        "project_relation": "project_primary",
+        "architecture_truth_guard": {},
+        "drive_architecture_truth": {
+          "intent": "location",
+          "require_historic_plus_addition": true,
+          "candidates_reviewed": 40,
+          "approved_exterior_options": [
+            {
+              "asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_004.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "07863b0f-22e8-43c6-a629-7ceca7651b16",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_005.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "c0afa1bf-b487-410c-be3d-91c31852550d",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_007.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "f491ee6e-de7d-4258-a153-4104e326b736",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_010.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "5d26caf3-c237-4a78-9f3a-91f05dd24fa2",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_001.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "543aeb03-c4c9-46f9-9d9f-81bf53f45438",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_002.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "7346e259-f999-4fbb-a8d5-63708d4e0c81",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_003.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "2d44757b-079c-4a78-a4a9-5fe6370466c8",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_008.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "7696df34-0544-44b9-89f5-0d1b2523c412",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_009.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "65f68756-a006-43d4-9c86-2c0ec25ad229",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Sunset_001.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            }
+          ],
+          "fallback_pool": [],
+          "selected": null,
+          "status": "fail_closed",
+          "fail_closed": true,
+          "message": "Approved Historic+Addition exterior render missing. Cannot invent The Temple Addition — FAIL CLOSED."
+        },
+        "campaign_intent": "location"
+      },
+      "campaign_truth": {
+        "source_asset_id": null,
+        "filename": null,
+        "classification": "UNCLASSIFIED",
+        "architecture_locked": false,
+        "creative_freedom_level": 1,
+        "approved_status": "unapproved",
+        "project_relation": "project_primary",
+        "architecture_truth_guard": {},
+        "drive_architecture_truth": {
+          "intent": "location",
+          "require_historic_plus_addition": true,
+          "candidates_reviewed": 40,
+          "approved_exterior_options": [
+            {
+              "asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_004.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "07863b0f-22e8-43c6-a629-7ceca7651b16",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_005.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "c0afa1bf-b487-410c-be3d-91c31852550d",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_007.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "f491ee6e-de7d-4258-a153-4104e326b736",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_010.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "5d26caf3-c237-4a78-9f3a-91f05dd24fa2",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_001.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "543aeb03-c4c9-46f9-9d9f-81bf53f45438",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_002.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "7346e259-f999-4fbb-a8d5-63708d4e0c81",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_003.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "2d44757b-079c-4a78-a4a9-5fe6370466c8",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_008.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "7696df34-0544-44b9-89f5-0d1b2523c412",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_009.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "65f68756-a006-43d4-9c86-2c0ec25ad229",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Sunset_001.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            }
+          ],
+          "fallback_pool": [],
+          "selected": null,
+          "status": "fail_closed",
+          "fail_closed": true,
+          "message": "Approved Historic+Addition exterior render missing. Cannot invent The Temple Addition — FAIL CLOSED."
+        },
+        "campaign_intent": "location"
+      },
+      "fail_closed_expected_if_missing_hpa": true,
+      "visual_quality_pass_declared": false,
+      "status": "fail_closed",
+      "detail": "Campaign Context has no locked interior asset. Cannot generate ad."
+    },
+    "location": {
+      "http_status": 200,
+      "campaign_id": "dab19e92-ac27-445a-aab2-be4258087f43",
+      "truth": {
+        "source_asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+        "filename": "IH_DC_TMP_001_Render_Exterior_Day_004.jpg",
+        "classification": "EXTERIOR_APPROVED",
+        "architecture_locked": true,
+        "creative_freedom_level": 0,
+        "approved_status": "approved",
+        "project_relation": "project_primary",
+        "architecture_truth_guard": {
+          "status": "pass",
+          "fail_closed": false,
+          "checks": {
+            "approved_source_exists": true,
+            "source_id_traceable": true,
+            "architecture_locked_respected": true,
+            "no_unapproved_exterior": true,
+            "no_generated_architecture_as_truth": true,
+            "historic_addition_not_invented": true,
+            "no_neighbor_as_project": true
+          },
+          "failures": [],
+          "asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+          "filename": "IH_DC_TMP_001_Render_Exterior_Day_004.jpg",
+          "classification": "EXTERIOR_APPROVED",
+          "architecture_locked": true,
+          "creative_freedom_level": 0,
+          "project_relation": "project_primary",
+          "approved_status": "approved",
+          "source_used_asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+          "campaign_intent": "location",
+          "message": "Architectural truth established from approved project asset.",
+          "note": "User visual approval required — do not declare Visual Quality PASS."
+        },
+        "drive_architecture_truth": {
+          "intent": "location",
+          "require_historic_plus_addition": false,
+          "candidates_reviewed": 40,
+          "approved_exterior_options": [
+            {
+              "asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_004.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "07863b0f-22e8-43c6-a629-7ceca7651b16",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_005.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "c0afa1bf-b487-410c-be3d-91c31852550d",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_007.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "f491ee6e-de7d-4258-a153-4104e326b736",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_010.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "5d26caf3-c237-4a78-9f3a-91f05dd24fa2",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_001.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "543aeb03-c4c9-46f9-9d9f-81bf53f45438",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_002.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "7346e259-f999-4fbb-a8d5-63708d4e0c81",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_003.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "2d44757b-079c-4a78-a4a9-5fe6370466c8",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_008.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "7696df34-0544-44b9-89f5-0d1b2523c412",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Day_009.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            },
+            {
+              "asset_id": "65f68756-a006-43d4-9c86-2c0ec25ad229",
+              "filename": "IH_DC_TMP_001_Render_Exterior_Sunset_001.jpg",
+              "classification": "EXTERIOR_APPROVED"
+            }
+          ],
+          "fallback_pool": [
+            {
+              "pool": "approved_exterior",
+              "count": 10
+            }
+          ],
+          "selected": {
+            "asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+            "filename": "IH_DC_TMP_001_Render_Exterior_Day_004.jpg",
+            "classification": "EXTERIOR_APPROVED",
+            "pool": "approved_exterior"
+          },
+          "status": "pass",
+          "fail_closed": false,
+          "message": null
+        },
+        "campaign_intent": "location"
+      },
+      "visual_quality_pass_declared": false,
+      "status": "ok",
+      "production_mode": "finished_ad",
+      "final_asset_id": "d5a19186-756c-4c17-a9a7-f0304cc4d641",
+      "architecture_truth_guard": {
+        "status": "pass",
+        "fail_closed": false,
+        "checks": {
+          "approved_source_exists": true,
+          "source_id_traceable": true,
+          "architecture_locked_respected": true,
+          "no_unapproved_exterior": true,
+          "no_generated_architecture_as_truth": true,
+          "historic_addition_not_invented": true,
+          "no_neighbor_as_project": true
+        },
+        "failures": [],
+        "asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+        "filename": "IH_DC_TMP_001_Render_Exterior_Day_004.jpg",
+        "classification": "EXTERIOR_APPROVED",
+        "architecture_locked": true,
+        "creative_freedom_level": 0,
+        "project_relation": "project_primary",
+        "approved_status": "approved",
+        "source_used_asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+        "campaign_intent": "location",
+        "message": "Architectural truth established from approved project asset.",
+        "note": "User visual approval required — do not declare Visual Quality PASS."
+      },
+      "screenshot": "/tmp/smb-architectural-truth/location-final.png"
+    }
+  },
+  "provider_call_breakdown": {
+    "total": 6,
+    "note": "Undo/Redo not exercised in this harness (GPT=0 elsewhere)."
+  },
+  "smb_flow": {
+    "path": "Creative Studio → Social Media Builder → Project → AI Design → Oluştur → finished-ad → AI ile Düzenle",
+    "revision_button": "AI ile Düzenle",
+    "create_button": "Oluştur",
+    "artifacts_are_qa_only": true
+  },
+  "honest_notes": {
+    "visual_quality_pass_declared": false,
+    "user_visual_approval_required": true,
+    "cursor_artifacts_are_qa_only": true,
+    "smb_is_production_surface": true
+  }
+}

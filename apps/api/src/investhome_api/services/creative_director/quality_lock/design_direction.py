@@ -49,6 +49,7 @@ def build_design_direction(
     strategy: dict[str, Any] | None = None,
     density: str = "medium",
     language: str = "tr",
+    creative_freedom_level: int | None = None,
 ) -> DesignDirection:
     """Provider-facing art direction cues derived from intent + CD strategy."""
     strategy = strategy or {}
@@ -76,6 +77,37 @@ def build_design_direction(
     dens = density if density in {"sparse", "medium", "rich"} else "medium"
     premium = "high" if "premium" in tone.lower() or "lüks" in tone.lower() or "luxury" in tone.lower() else "elevated"
 
+    level = 1 if creative_freedom_level is None else int(creative_freedom_level)
+    if level <= 0:
+        freedom = (
+            f"Language={language}. LEVEL 0 STRICT architectural truth — crop/position/typography/"
+            "gradient/CTA/graphics only. NEVER regenerate or invent project architecture, facade, "
+            "Addition, massing, or Historic+Addition relationships."
+        )
+        image_treatment = (
+            "Immutable architecture photograph — preserve source building pixels. "
+            "Controlled grade only; do not redesign facade or site relationship."
+        )
+    elif level == 1:
+        freedom = (
+            f"Language={language}. LEVEL 1 CONTROLLED — approved interiors only. "
+            "Placement freedom without forced panels; do not invent room geometry."
+        )
+        image_treatment = (
+            "Preserve real project interior architecture/photography — enhance atmosphere, do not redesign. "
+            "Subtle grade toward premium RE editorial."
+        )
+    else:
+        freedom = (
+            f"Language={language}. LEVEL 2 CREATIVE for lifestyle/place imagery — no forced left panel, "
+            "bottom band, badge grid, icon row, or card stack. Never invent project architectural facts "
+            "or present neighbor buildings as The Temple."
+        )
+        image_treatment = (
+            "Preserve supplied photography. Do not invent The Temple exterior or Addition. "
+            "Subtle grade toward premium RE editorial."
+        )
+
     return DesignDirection(
         visual_mood=visual or mood,
         hierarchy=hierarchy,
@@ -86,17 +118,11 @@ def build_design_direction(
             "Photograph-led full-bleed composition with intentional negative space for type. "
             "No mandatory side or bottom panels."
         ),
-        image_treatment=(
-            "Preserve real project architecture/photography — enhance atmosphere, do not redesign. "
-            "Subtle grade toward premium RE editorial."
-        ),
+        image_treatment=image_treatment,
         contrast="High readability for primary message and CTA against the locked photograph",
         brand_presence="One verified project logo lockup — never invent or duplicate",
         cta_importance="Single clear CTA; visible and actionable, not tiny footer text",
         information_density=dens,
         premium_level=premium,
-        creative_freedom=(
-            f"Language={language}. Full creative freedom for placement — no forced left panel, "
-            "bottom band, badge grid, icon row, or card stack. Vary composition by campaign."
-        ),
+        creative_freedom=freedom,
     )

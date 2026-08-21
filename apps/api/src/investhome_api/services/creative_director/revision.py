@@ -1222,6 +1222,13 @@ def revise_ad_from_campaign(
         original_brief=original_brief,
         lifestyle=lifestyle,
     )
+    # Keep within GptImageDesignRequest.instruction max_length.
+    _max_instruction = 12000
+    if len(instruction_prompt) > _max_instruction:
+        instruction_prompt = (
+            instruction_prompt[: _max_instruction - 96]
+            + "\n\n[truncated — preserve architecture lock + revision ops above]"
+        )
 
     builder_context: dict[str, Any] = {
         "creative_director_campaign_id": str(row.id),

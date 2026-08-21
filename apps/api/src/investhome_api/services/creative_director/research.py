@@ -14,6 +14,12 @@ from investhome_api.models.project import Project
 from investhome_api.schemas.social_design_engine import SocialDesignMediaCandidate
 from investhome_api.services.ai_search.hybrid_search import ProjectScopeError, hybrid_search
 from investhome_api.services.gpt_image_design.source import TEMPLE_PRIMARY_LOGO_ID, prefer_project_logo
+from investhome_api.services.creative_director.quality_lock.architecture_truth import (
+    annotate_asset_truth,
+    classify_candidate,
+    creative_freedom_level_for,
+    pick_truthful_hero_for_intent,
+)
 from investhome_api.services.creative_director.quality_lock.asset_scoring import (
     pick_hero_asset_for_intent,
     selection_role_for_intent,
@@ -54,9 +60,16 @@ class SelectedAsset:
     provenance_source: str | None = None
     selection_score: float | None = None
     selection_reason: str | None = None
+    classification: str | None = None
+    architecture_locked: bool | None = None
+    creative_freedom_level: int | None = None
+    project_relation: str = "project_primary"
+    approved: bool | None = None
+    approved_status: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        raw = asdict(self)
+        return annotate_asset_truth(raw)
 
 
 @dataclass
@@ -71,6 +84,7 @@ class DriveResearchPackage:
     drive_sources: list[dict[str, Any]]
     unit_mentions: list[dict[str, Any]]
     warnings: list[str] = field(default_factory=list)
+    architecture_truth: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -84,6 +98,7 @@ class DriveResearchPackage:
             "unit_mentions": list(self.unit_mentions),
             "warnings": list(self.warnings),
             "media_candidate_count": len(self.media_candidates),
+            "architecture_truth": self.architecture_truth,
         }
 
 
@@ -100,6 +115,19 @@ def _to_selected(
     selection_score: float | None = None,
     selection_reason: str | None = None,
 ) -> SelectedAsset:
+    classification = classify_candidate(cand, role=role)
+    annotated = annotate_asset_truth(
+        {
+            "asset_id": str(cand.asset_id),
+            "filename": cand.filename,
+            "folder_category": cand.folder_category,
+            "visual_subject": cand.visual_subject,
+            "tags": list(cand.tags or []),
+            "role": role,
+            "provenance_source": cand.provenance_source,
+            "classification": classification,
+        }
+    )
     return SelectedAsset(
         asset_id=str(cand.asset_id),
         filename=cand.filename,
@@ -111,6 +139,16 @@ def _to_selected(
         provenance_source=cand.provenance_source,
         selection_score=selection_score,
         selection_reason=selection_reason,
+        classification=str(annotated.get("classification") or classification),
+        architecture_locked=bool(annotated.get("architecture_locked")),
+        creative_freedom_level=int(
+            annotated.get("creative_freedom_level")
+            if annotated.get("creative_freedom_level") is not None
+            else creative_freedom_level_for(classification)
+        ),
+        project_relation=str(annotated.get("project_relation") or "project_primary"),
+        approved=bool(annotated.get("approved")),
+        approved_status=str(annotated.get("approved_status") or "unapproved"),
     )
 
 
@@ -446,6 +484,7 @@ def research_project_drive(
 
     selected_interior = None
     selected_logo = None
+    truth_report: dict[str, Any] | None = None
     if mode == "project":
         dims: dict[UUID, tuple[int | None, int | None]] = {}
         dim_ids = [c.asset_id for c in candidates]
@@ -458,7 +497,57 @@ def research_project_drive(
                 dims[row.id] = (row.width, row.height)
 
         recent_set = {str(x) for x in (recent_asset_ids or []) if str(x).strip()}
-        if intent:
+        brief_l = (brief or "").lower()
+        require_hpa = any(
+            k in brief_l
+            for k in (
+                "historic+addition",
+                "historic + addition",
+                "historic and addition",
+                "tarihi+addition",
+                "historic plus addition",
+                "historic_plus_addition",
+            )
+        )
+        hero_cand = None
+        hero_score: float | None = None
+        hero_reason: str | None = None
+        role = "hero"
+        if intent in {"location", "architecture", "project_brand", "investment"} or require_hpa:
+            truth_cand, truth_reason, truth_report = pick_truthful_hero_for_intent(
+                candidates,
+                campaign_intent=intent or "location",
+                require_historic_plus_addition=require_hpa,
+            )
+            if truth_report.get("fail_closed"):
+                warnings.append(str(truth_report.get("message") or truth_reason))
+                warnings.append("architectural_truth_fail_closed")
+                hero_cand = None
+                hero_reason = truth_reason
+                role = selection_role_for_intent(intent or "architecture")
+            elif truth_cand is not None:
+                hero_cand = truth_cand
+                hero_score = float(truth_cand.score or 0.0)
+                hero_reason = truth_reason
+                role = selection_role_for_intent(intent or "location")
+            elif intent:
+                # Soft miss only — never after Historic+Addition fail-closed
+                hero_cand, hero_score, hero_reason = pick_hero_asset_for_intent(
+                    candidates,
+                    campaign_intent=intent,
+                    brief=brief,
+                    dimensions=dims,
+                    recent_asset_ids=recent_set,
+                )
+                role = selection_role_for_intent(intent)
+            else:
+                hero_cand, hero_score, hero_reason = pick_real_interior(
+                    candidates,
+                    brief=brief,
+                    dimensions=dims,
+                )
+                role = "hero_interior"
+        elif intent:
             hero_cand, hero_score, hero_reason = pick_hero_asset_for_intent(
                 candidates,
                 campaign_intent=intent,
@@ -478,7 +567,8 @@ def research_project_drive(
         if hero_cand is None:
             warnings.append(
                 "No real project hero asset found in Drive/Media Library. "
-                "PROJECT MODE will not invent or substitute an AI image."
+                "PROJECT MODE will not invent or substitute an AI image. "
+                "Fake architecture fallback FORBIDDEN."
             )
         else:
             selected_interior = _to_selected(
@@ -526,6 +616,9 @@ def research_project_drive(
                 "role": selected_interior.role or "selected_hero",
                 "selection_score": selected_interior.selection_score,
                 "selection_reason": selected_interior.selection_reason,
+                "classification": selected_interior.classification,
+                "architecture_locked": selected_interior.architecture_locked,
+                "creative_freedom_level": selected_interior.creative_freedom_level,
             },
         )
     if selected_logo:
@@ -540,6 +633,7 @@ def research_project_drive(
                 "excerpt": "",
                 "score": 1.0,
                 "role": "selected_logo",
+                "classification": selected_logo.classification,
             },
         )
 
@@ -554,4 +648,5 @@ def research_project_drive(
         drive_sources=drive_sources,
         unit_mentions=_unit_mentions_from_hits(hits, unit_codes or []),
         warnings=warnings,
+        architecture_truth=truth_report,
     )

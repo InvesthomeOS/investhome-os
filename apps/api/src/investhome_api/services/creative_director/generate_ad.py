@@ -34,6 +34,10 @@ from investhome_api.services.creative_director.production_brief import (
     render_finished_ad_production_prompt,
     verify_logo_lock,
 )
+from investhome_api.services.creative_director.quality_lock.architecture_truth import (
+    annotate_asset_truth,
+    architecture_truth_guard,
+)
 from investhome_api.services.creative_director.quality_lock.intent import is_visual_lifestyle_intent
 from investhome_api.services.creative_director.quality_lock.self_critique import (
     critique_and_fix_production_brief,
@@ -86,12 +90,14 @@ def _finished_ad_quality_guard(
     texts: dict[str, str],
     production_brief: dict[str, Any],
     language: str,
+    architecture_truth: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Structural quality gate for golden finished-ad path (no layer reconstruction).
 
-    Automatic FAIL on missing logo lock, claim-guard fail, empty primary copy, or
-    language mismatch signals. Visual overflow/premium feel require user review —
-    never declare Visual Quality PASS from this guard alone.
+    Automatic FAIL on missing logo lock, claim-guard fail, empty primary copy,
+    architecture truth fail-closed, or language mismatch signals. Visual overflow/
+    premium feel require user review — never declare Visual Quality PASS from this
+    guard alone.
     """
     failures: list[str] = []
     checks: dict[str, bool] = {}
@@ -105,6 +111,14 @@ def _finished_ad_quality_guard(
     checks["facts_language"] = claim_ok
     if not claim_ok:
         failures.append("claim_guard_fail")
+
+    truth = architecture_truth or {}
+    truth_ok = str(truth.get("status") or "pass").lower() in {"pass", "ok", "review", ""}
+    if truth.get("fail_closed"):
+        truth_ok = False
+    checks["architecture_truth"] = truth_ok
+    if not truth_ok:
+        failures.append("architecture_truth_fail_closed")
 
     headline = str(texts.get("headline") or production_brief.get("hero") or "").strip()
     checks["headline_present"] = bool(headline)
@@ -125,7 +139,7 @@ def _finished_ad_quality_guard(
     if headline and not checks["headline_length_ok"]:
         warnings.append("cropped_headline_risk")
 
-    # Hard automatic FAIL only for structural lock / facts / empty primary message
+    # Hard automatic FAIL only for structural lock / facts / architecture / empty primary
     hard_failures = [f for f in failures if f != "cropped_headline_risk"]
     status_val = "fail" if hard_failures else "review"
     return {
@@ -134,11 +148,13 @@ def _finished_ad_quality_guard(
         "checks": checks,
         "failures": hard_failures,
         "warnings": warnings,
+        "architecture_truth": truth or None,
         "automatic_fail_triggers": [
             "text_overflow",
             "cropped_headline",
             "distorted_logo",
             "unreadable_text",
+            "architecture_truth_fail_closed",
         ],
         "note": "User visual approval required — do not declare Visual Quality PASS.",
     }
@@ -192,7 +208,23 @@ def resolve_locked_assets(ctx: dict[str, Any]) -> tuple[UUID, UUID, dict[str, An
     logo_dict["logo_locked"] = True
     logo_dict["ai_must_not_draw_logo"] = True
     logo_dict["no_duplicate_logos"] = True
-    return interior_id, logo_id, _as_dict(interior_meta), logo_dict
+    interior_dict = annotate_asset_truth(_as_dict(interior_meta))
+    return interior_id, logo_id, interior_dict, logo_dict
+
+
+def _brief_requires_historic_plus_addition(original_brief: str) -> bool:
+    brief = (original_brief or "").strip().lower()
+    return any(
+        k in brief
+        for k in (
+            "historic+addition",
+            "historic + addition",
+            "historic and addition",
+            "tarihi+addition",
+            "historic plus addition",
+            "historic_plus_addition",
+        )
+    )
 
 
 def _brief_bans_unit_and_price(original_brief: str) -> bool:
@@ -594,6 +626,7 @@ def project_asset_lock_summary(
 ) -> dict[str, Any]:
     locked_ok = source_asset_id is not None and source_asset_id == interior_id
     logo_lock = verify_logo_lock(logo_meta)
+    truth = annotate_asset_truth(dict(interior_meta or {}))
     return {
         "status": "pass" if locked_ok and logo_lock.get("status") == "pass" else "fail",
         "interior_asset_id": str(interior_id),
@@ -609,6 +642,14 @@ def project_asset_lock_summary(
         "gpt_must_not_draw_logo": True,
         "ai_must_not_draw_logo": True,
         "no_duplicate_logos": True,
+        "asset_id": str(interior_id),
+        "classification": truth.get("classification"),
+        "architecture_locked": bool(truth.get("architecture_locked")),
+        "creative_freedom_level": truth.get("creative_freedom_level"),
+        "project_relation": truth.get("project_relation"),
+        "approved_status": truth.get("approved_status"),
+        "approved": bool(truth.get("approved")),
+        "no_invented_architecture": True,
     }
 
 
@@ -1050,6 +1091,29 @@ def generate_ad_from_campaign(
             detail=str(exc),
         ) from exc
 
+    # Fail-closed BEFORE provider spend when architectural fidelity cannot be established.
+    pre_truth = architecture_truth_guard(
+        hero_meta=interior_meta,
+        source_asset_id=str(interior_id),
+        campaign_intent=str(
+            ctx.get("campaign_intent") or production_brief.get("campaign_intent") or ""
+        ),
+        require_historic_plus_addition=_brief_requires_historic_plus_addition(original_brief),
+    )
+    drive_truth = _as_dict(_as_dict(ctx.get("drive_research")).get("architecture_truth"))
+    if drive_truth.get("fail_closed") or pre_truth.get("fail_closed"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": (
+                    "Architectural Truth Lock FAIL CLOSED — approved exterior/architecture "
+                    "source missing or untraceable. Fake architecture fallback FORBIDDEN."
+                ),
+                "architecture_truth_guard": pre_truth,
+                "drive_architecture_truth": drive_truth or None,
+            },
+        )
+
     if production_mode in {"finished_ad", "editable_finished_ad"}:
         instruction = render_finished_ad_production_prompt(
             production_brief=production_brief,
@@ -1139,6 +1203,29 @@ def generate_ad_from_campaign(
         logo_meta=logo_meta,
         source_asset_id=source_id,
     )
+
+    truth_guard = architecture_truth_guard(
+        hero_meta=interior_meta,
+        source_asset_id=str(source_id) if source_id else None,
+        campaign_intent=str(
+            ctx.get("campaign_intent") or production_brief.get("campaign_intent") or ""
+        ),
+        require_historic_plus_addition=_brief_requires_historic_plus_addition(original_brief),
+    )
+    if truth_guard.get("fail_closed"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": (
+                    "Architectural Truth Lock FAIL CLOSED — cannot establish project "
+                    "architecture fidelity. Fake architecture will not be published."
+                ),
+                "architecture_truth_guard": truth_guard,
+            },
+        )
+    asset_lock["architecture_truth_guard"] = truth_guard
+    production_brief = dict(production_brief)
+    production_brief["architecture_truth_guard"] = truth_guard
 
     output_meta = output.metadata if isinstance(getattr(output, "metadata", None), dict) else {}
     duplication_guard = dict(output_meta.get("duplication_guard") or {})
@@ -1244,6 +1331,7 @@ def generate_ad_from_campaign(
             texts=texts,
             production_brief=production_brief,
             language=language,
+            architecture_truth=truth_guard,
         )
         ctx["latest_quality_guard"] = quality_guard
 
@@ -1315,6 +1403,7 @@ def generate_ad_from_campaign(
         final_turkish_texts=texts,
         claim_guard=claim_guard,
         project_asset_lock=asset_lock,
+        architecture_truth_guard=truth_guard,
         duplication_guard=duplication_guard,
         provider_call_count=result.provider_call_count,
         gpt_image_call_count=result.provider_call_count,

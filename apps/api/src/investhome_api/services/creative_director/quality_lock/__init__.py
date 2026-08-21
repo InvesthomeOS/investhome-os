@@ -33,6 +33,15 @@ from investhome_api.services.creative_director.quality_lock.asset_scoring import
     score_candidate_for_intent,
     selection_role_for_intent,
 )
+from investhome_api.services.creative_director.quality_lock.architecture_truth import (
+    annotate_asset_truth,
+    architecture_truth_guard,
+    classify_architecture_asset,
+    classify_candidate,
+    creative_freedom_level_for,
+    is_architecture_locked,
+    pick_truthful_hero_for_intent,
+)
 
 __all__ = [
     "CD_CAMPAIGN_INTENTS",
@@ -52,4 +61,11 @@ __all__ = [
     "pick_hero_asset_for_intent",
     "score_candidate_for_intent",
     "selection_role_for_intent",
+    "annotate_asset_truth",
+    "architecture_truth_guard",
+    "classify_architecture_asset",
+    "classify_candidate",
+    "creative_freedom_level_for",
+    "is_architecture_locked",
+    "pick_truthful_hero_for_intent",
 ]

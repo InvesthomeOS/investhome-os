@@ -322,6 +322,11 @@ def create_campaign(
         strategy=strategy,
         density=caps.density_label,
         language=language,
+        creative_freedom_level=(
+            (research.get("selected_interior") or {}).get("creative_freedom_level")
+            if isinstance(research.get("selected_interior"), dict)
+            else None
+        ),
     )
     production_brief = build_production_brief(
         ctx={
@@ -385,6 +390,7 @@ def create_campaign(
         "cta": brief_payload.get("cta"),
         "pricing": pricing,
         "drive_research": research,
+        "architecture_truth": research.get("architecture_truth"),
         "orchestration": orchestration,
         "generated_assets": [],
         "output_history": [],

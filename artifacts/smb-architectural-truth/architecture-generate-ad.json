@@ -1,0 +1,17 @@
+{
+  "success": false,
+  "error": {
+    "code": "validation_error",
+    "message": "Campaign Context has no locked interior asset. Cannot generate ad.",
+    "field": null
+  },
+  "meta": {
+    "request_id": "f15eece5-c35c-4e77-8d5c-a8b93bdea071",
+    "page": null,
+    "page_size": null,
+    "total": null,
+    "pages": null
+  },
+  "details": null,
+  "detail": "Campaign Context has no locked interior asset. Cannot generate ad."
+}

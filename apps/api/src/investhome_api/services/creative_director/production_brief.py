@@ -157,6 +157,19 @@ def build_production_brief(
     brand_assets = [logo_meta] if logo_meta else []
     logo_lock = verify_logo_lock(logo_meta)
 
+    from investhome_api.services.creative_director.quality_lock.architecture_truth import (
+        annotate_asset_truth,
+        creative_freedom_level_for,
+        freedom_prompt_text,
+    )
+
+    hero_truth = annotate_asset_truth(dict(interior_meta or {}))
+    freedom_level = int(
+        hero_truth.get("creative_freedom_level")
+        if hero_truth.get("creative_freedom_level") is not None
+        else creative_freedom_level_for(str(hero_truth.get("classification") or "UNCLASSIFIED"))
+    )
+
     intent_raw = (
         campaign_intent
         or ctx.get("campaign_intent")
@@ -226,6 +239,7 @@ def build_production_brief(
         strategy=strategy,
         density=str(simplicity.get("density") or caps.density_label),
         language=language,
+        creative_freedom_level=freedom_level,
     ).to_dict()
 
     return {
@@ -271,8 +285,8 @@ def build_production_brief(
             "cta": texts.get("cta"),
         },
         "asset_lock": {
-            "interior_asset_id": interior_meta.get("asset_id"),
-            "interior_filename": interior_meta.get("filename"),
+            "interior_asset_id": hero_truth.get("asset_id") or interior_meta.get("asset_id"),
+            "interior_filename": hero_truth.get("filename") or interior_meta.get("filename"),
             "hero_role": interior_meta.get("role") or "hero",
             "selection_score": interior_meta.get("selection_score"),
             "selection_reason": interior_meta.get("selection_reason"),
@@ -285,6 +299,24 @@ def build_production_brief(
             "ai_must_not_draw_logo": True,
             "no_duplicate_logos": True,
             "no_invented_architecture": True,
+            # Architectural Truth Lock
+            "asset_id": hero_truth.get("asset_id") or interior_meta.get("asset_id"),
+            "classification": hero_truth.get("classification"),
+            "architecture_locked": bool(hero_truth.get("architecture_locked")),
+            "creative_freedom_level": freedom_level,
+            "creative_freedom_text": freedom_prompt_text(freedom_level),
+            "project_relation": hero_truth.get("project_relation"),
+            "approved_status": hero_truth.get("approved_status"),
+            "approved": bool(hero_truth.get("approved")),
+        },
+        "architecture_truth": {
+            "asset_id": hero_truth.get("asset_id"),
+            "filename": hero_truth.get("filename"),
+            "classification": hero_truth.get("classification"),
+            "architecture_locked": bool(hero_truth.get("architecture_locked")),
+            "creative_freedom_level": freedom_level,
+            "project_relation": hero_truth.get("project_relation"),
+            "approved_status": hero_truth.get("approved_status"),
         },
         "logo_lock": logo_lock,
         "creative_simplicity": list(CREATIVE_SIMPLICITY_PRINCIPLES),
@@ -303,6 +335,10 @@ def render_finished_ad_production_prompt(
     lifestyle: bool = False,
 ) -> str:
     """Comprehensive art direction for GPT Image finished-ad output (text + logo in-image)."""
+    from investhome_api.services.creative_director.quality_lock.architecture_truth import (
+        architecture_lock_prompt_block,
+    )
+
     final = _as_dict(production_brief.get("final_copy"))
     approved = production_brief.get("approved_claims") or []
     forbidden = production_brief.get("forbidden_claims") or []
@@ -410,9 +446,28 @@ def render_finished_ad_production_prompt(
             "  Never duplicate the logo. One project logo lockup only.",
             "  If SVG cannot embed cleanly, place an honest rasterized logo lockup without duplicating text elsewhere.",
             "",
+            *architecture_lock_prompt_block(
+                {
+                    "asset_id": asset_lock.get("asset_id") or asset_lock.get("interior_asset_id"),
+                    "filename": asset_lock.get("interior_filename"),
+                    "classification": asset_lock.get("classification"),
+                    "architecture_locked": asset_lock.get("architecture_locked"),
+                    "creative_freedom_level": asset_lock.get("creative_freedom_level"),
+                    "project_relation": asset_lock.get("project_relation"),
+                    "approved_status": asset_lock.get("approved_status"),
+                    "approved": asset_lock.get("approved"),
+                    "provenance_source": "google_drive",
+                    "visual_subject": None,
+                    "folder_category": None,
+                    "tags": [],
+                    "role": asset_lock.get("hero_role"),
+                }
+            ),
+            "",
             "QUALITY BAR:",
             "- Premium luxury real-estate campaign, strong sales message, clear CTA, no duplicate logo/text.",
             "- No invented project info, ROI, yield, rent, or extra prices.",
+            "- No invented architecture, facade changes, or Historic+Addition invention.",
             "- Professional art direction: modern, editorial, high contrast readability.",
             "",
             "ART DIRECTION PLAN:",

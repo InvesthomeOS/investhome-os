@@ -1,0 +1,2207 @@
+{
+  "campaign_id": "b3217020-8604-45fb-8b89-67cacb4786d4",
+  "project_id": "d50708cb-60b3-465a-8b16-6d30f802af8d",
+  "brief": {
+    "campaign_id": "b3217020-8604-45fb-8b89-67cacb4786d4",
+    "project_id": "d50708cb-60b3-465a-8b16-6d30f802af8d",
+    "mode": "project",
+    "language": null,
+    "objective": "The Temple projesinin mimari ve lokasyon avantajlarını vurgulamak.",
+    "audience": "Washington DC'de tarihi ve modern yaşamı bir arada arayan şehir sakinleri.",
+    "big_idea": "Geçmişin İzinde, Geleceğe Adım",
+    "concept": "Tarihi dokunun modern eklemelerle yeniden hayat bulduğu bir yaşam alanı.",
+    "hero_message": "Tarihi Doku, Modern Yaşam",
+    "supporting_messages": [
+      "Washington DC'nin kalbinde eşsiz bir konum.",
+      "Tarihi mimari ile modern eklemelerin uyumu.",
+      "Şehrin merkezinde, geçmişin izleriyle dolu bir yaşam."
+    ],
+    "emphasis": [
+      "Tarihi Doku",
+      "Modern Yaşam",
+      "Washington DC"
+    ],
+    "sales_hook": "Tarihi ve modernin buluştuğu özel bir proje.",
+    "offer": null,
+    "pricing": null,
+    "value_proposition": "Tarihi bir yapının modern eklemelerle yeniden yorumlanması.",
+    "proof_points": [
+      "Washington DC'nin prestijli bir bölgesinde yer alıyor.",
+      "Tarihi ve modern mimarinin eşsiz birleşimi."
+    ],
+    "cta": "Detayları Keşfet",
+    "first_2_seconds": "Tarihi ve modern mimarinin çarpıcı birleşimi.",
+    "thinking_notes": "Goal: Mimari ve lokasyon avantajlarını vurgulamak. Hook: Tarihi ve modernin buluşması. Number that matters: Lokasyon. Emotional feature: Tarihi bir yapının parçası olma hissi.",
+    "visual_direction": "Tarihi ve modern mimari unsurların bir arada olduğu bir dış cephe görüntüsü.",
+    "composition_direction": "Tarihi ve modern unsurların dengeli bir şekilde yer aldığı bir kompozisyon.",
+    "typography_direction": "Klasik ve modern fontların uyumlu kullanımı.",
+    "color_direction": "Tarihi dokuyu vurgulayan sıcak tonlar ve modernliği temsil eden nötr renkler.",
+    "selected_assets": [],
+    "brand_assets": [
+      {
+        "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "filename": "IH_DC_TMP_001_Logo_Primary.svg",
+        "content_type": "image/svg+xml",
+        "folder_category": "01_BRAND",
+        "visual_subject": "BRANDING",
+        "tags": [],
+        "role": "project_logo",
+        "provenance_source": "google_drive",
+        "selection_score": null,
+        "selection_reason": null,
+        "classification": "LOGO_PRIMARY",
+        "architecture_locked": false,
+        "creative_freedom_level": 0,
+        "project_relation": "project_primary",
+        "approved": true,
+        "approved_status": "approved"
+      }
+    ],
+    "tone": "Zarif, bilgilendirici ve davetkar.",
+    "formats": [
+      "Instagram Story",
+      "Instagram Post"
+    ],
+    "claims": [
+      {
+        "key": "unit_code",
+        "display": "Unit 204",
+        "value": "204",
+        "source": "retrieved",
+        "source_reference": "rag_hybrid_search",
+        "verified": true,
+        "is_financial": false,
+        "notes": null
+      }
+    ],
+    "approved_claims": [
+      {
+        "key": "unit_code",
+        "display": "Unit 204",
+        "value": "204",
+        "source": "retrieved",
+        "source_reference": "rag_hybrid_search",
+        "verified": true,
+        "is_financial": false,
+        "notes": null
+      }
+    ],
+    "blocked_claims": [],
+    "claim_eligibility_trace": [],
+    "required_capabilities": [
+      "text",
+      "reasoning",
+      "image_edit",
+      "architecture_render"
+    ],
+    "capability_assignments": [
+      {
+        "capability": "text",
+        "required": true,
+        "provider_id": "openai_gpt",
+        "available": true,
+        "missing": false,
+        "reason": null
+      },
+      {
+        "capability": "reasoning",
+        "required": true,
+        "provider_id": "openai_gpt",
+        "available": true,
+        "missing": false,
+        "reason": null
+      },
+      {
+        "capability": "image_edit",
+        "required": true,
+        "provider_id": "gpt_image",
+        "available": true,
+        "missing": false,
+        "reason": null
+      },
+      {
+        "capability": "architecture_render",
+        "required": true,
+        "provider_id": "architecture_stub",
+        "available": false,
+        "missing": true,
+        "reason": "Architecture render provider not configured"
+      }
+    ],
+    "missing_capabilities": [
+      "architecture_render"
+    ],
+    "provider_registry": [
+      {
+        "provider_id": "openai_gpt",
+        "capabilities": [
+          "text",
+          "reasoning"
+        ],
+        "available": true,
+        "configured": true,
+        "reason": null,
+        "model": "gpt-4o"
+      },
+      {
+        "provider_id": "gpt_image",
+        "capabilities": [
+          "image_generate",
+          "image_edit"
+        ],
+        "available": true,
+        "configured": true,
+        "reason": null,
+        "model": "gpt-image-2"
+      },
+      {
+        "provider_id": "ideogram",
+        "capabilities": [
+          "image_generate",
+          "image_edit"
+        ],
+        "available": true,
+        "configured": true,
+        "reason": null,
+        "model": "V_4_0"
+      },
+      {
+        "provider_id": "video_stub",
+        "capabilities": [
+          "video_generate",
+          "video_edit"
+        ],
+        "available": false,
+        "configured": false,
+        "reason": "Video provider not configured",
+        "model": null
+      },
+      {
+        "provider_id": "architecture_stub",
+        "capabilities": [
+          "architecture_render"
+        ],
+        "available": false,
+        "configured": false,
+        "reason": "Architecture render provider not configured",
+        "model": null
+      },
+      {
+        "provider_id": "voice_stub",
+        "capabilities": [
+          "voice"
+        ],
+        "available": false,
+        "configured": false,
+        "reason": "Voice provider not configured",
+        "model": null
+      },
+      {
+        "provider_id": "music_stub",
+        "capabilities": [
+          "music"
+        ],
+        "available": false,
+        "configured": false,
+        "reason": "Music provider not configured",
+        "model": null
+      },
+      {
+        "provider_id": "presentation_stub",
+        "capabilities": [
+          "presentation"
+        ],
+        "available": false,
+        "configured": false,
+        "reason": "Presentation provider not configured",
+        "model": null
+      },
+      {
+        "provider_id": "document_stub",
+        "capabilities": [
+          "document"
+        ],
+        "available": false,
+        "configured": false,
+        "reason": "Document generation provider not configured",
+        "model": null
+      }
+    ],
+    "drive_sources": [
+      {
+        "file": "IH_DC_TMP_001_Logo_Primary.svg",
+        "category": "01_BRAND",
+        "source": "google_drive",
+        "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "summary": "Selected real project logo",
+        "excerpt": "",
+        "score": 1.0,
+        "role": "selected_logo",
+        "classification": "LOGO_PRIMARY"
+      },
+      {
+        "file": "IH_DC_TMP_001_FLOOR PLANS_A103.pdf",
+        "category": "03_FLOOR_PLANS",
+        "source": "drive",
+        "asset_id": "8151bd41-9aba-4d07-93f4-ede680afef42",
+        "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+        "excerpt": "7'-0\" 5'-0\" 10'-3 1/2\" 2'-0\" 7'-2 1/2\" 4'-7\" 3'-0\" 8'-0\" 5'-5 1/2\" 11'-5 1/2\" 13'-8\" 16'-8\" 5'-5 1/2\" 7'-0\" 2'-6\" 11/7/2025 1:16:03 PM A103 34-UNIT ADDITION TO EXISTING CHURCH 1610 COLUMBIA RD NW, WAS",
+        "score": 0.385465
+      },
+      {
+        "file": "IH_DC_TMP_001_FLOOR PLANS_A101.pdf",
+        "category": "03_FLOOR_PLANS",
+        "source": "drive",
+        "asset_id": "973585df-2703-4509-a405-f06f790ddd61",
+        "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+        "excerpt": "GREEN BUILDING NOTES GRAPHIC LEGEND EXTG MASONRY WALLS CONCRETE WALLS INTERIOR 1-HR FIRE SEPARATION INTERIOR 2-HR FIRE SEPARATION INTERIOR 3-HR FIRE SEPARATION HORIZONTAL ASSEMBLY CMU WALLS A301 1 A30",
+        "score": 0.361123
+      },
+      {
+        "file": "IH_DC_TMP_001_FLOOR PLANS_A102.pdf",
+        "category": "03_FLOOR_PLANS",
+        "source": "drive",
+        "asset_id": "cf1b2875-df74-435e-8c76-72ccb66cb8bd",
+        "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+        "excerpt": "1 3042 BATH 3045 BED 2 3046 HALL 3103 UNIT 304 UNIT 301 CL 3016 WIC 3013 BED 2 3033 CL 3032 BED 1 3034 CL 3035 BATH 1 3036 CL 3043 HALL 3044 302 303 304 305 306 307 308 309 314 317 319 301 305 307 315",
+        "score": 0.354149
+      },
+      {
+        "file": "IH_DC_TMP_001_Color_Palette.pdf",
+        "category": "01_BRAND",
+        "source": "drive",
+        "asset_id": "5e1e5c44-f1c7-4c35-b6ea-e1b4b802ee08",
+        "summary": "INKTYPE Process CMYK 69, 47, 100, 45 HSB 81, 56%, 30%",
+        "excerpt": "INKTYPE Process\nCMYK 69, 47, 100, 45\nHSB 81, 56%, 30%\nRGB 62, 77, 34\nHEX #3E4D22\nR=58 G=76 B=0\nINKTYPE Process\nCMYK 3, 4, 7, 0\nHSB 35, 5%, 96%\nRGB 244, 239, 232\nHEX #F4EFE8\nR=244 G=239 B=231\nINKTYPE P",
+        "score": 0.345375
+      },
+      {
+        "file": "IH_DC_TMP_001_Font_License.pdf",
+        "category": "01_BRAND",
+        "source": "drive",
+        "asset_id": "3466d5e4-cdfb-40ff-ab1c-b0f4e12bfa5b",
+        "summary": "Playfair Display Bold ABCÇDEFGĞHIİJKLMNOÖPQRŞTUÜVWXYZ abcçdefgğhıijklmnoöpqrştuüvwxyz",
+        "excerpt": "INKTYPE Process\nCMYK 69, 47, 100, 45\nHSB 81, 56%, 30%\nRGB 62, 77, 34\nHEX #3E4D22\nR=58 G=76 B=0\nINKTYPE Process\nCMYK 3, 4, 7, 0\nHSB 35, 5%, 96%\nRGB 244, 239, 232\nHEX #F4EFE8\nR=244 G=239 B=231\nINKTYPE P",
+        "score": 0.345375
+      },
+      {
+        "file": "IH_DC_TMp_001_The Temple Catalog Texts.docx",
+        "category": null,
+        "source": "drive",
+        "asset_id": "189ae246-694f-4168-844f-593947779362",
+        "summary": "The Temple Proje Sunumu ZAMANIN ÖTESİNDE BİR SEMBOL (A Symbol Beyond Time) Tarihçe, Konsept ve Kimlik",
+        "excerpt": "4. Mimari Tasarım ve İç Mekân Deneyimi\nMimari Bir İmza (A Statement in Architecture): Tarihi dokusunu koruyan dış cephe, The Temple'ın karakterini tanımlayan en güçlü unsurlardan biridir [cite: 106, 1",
+        "score": 0.344649
+      },
+      {
+        "file": "IH_DC_TMP_001_Project_Specifications.txt",
+        "category": "00_PROJECT_INFO",
+        "source": "drive",
+        "asset_id": "1761f488-393f-41a3-bc5d-67e89856af8d",
+        "summary": "Residential Development Historic + New Construction",
+        "excerpt": "Residential Development\nHistoric + New Construction\nWalkable Location\nStrong Rental Market",
+        "score": 0.333385
+      },
+      {
+        "file": "IH_DC_TMP_001_FLOOR PLANS_A104.pdf",
+        "category": "03_FLOOR_PLANS",
+        "source": "drive",
+        "asset_id": "3af750ec-9e1a-4979-a882-b778c2bd0208",
+        "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+        "excerpt": "609 612 614 619 621 630 633 616 643 644 645 646 647 648 650 651 652 653 654 655 656 657 658 611 649 612 613 614 615 659 616 617 618 619 620 621 622 660 661 623 624 625 626 627 628 629 630 631 632 633 ",
+        "score": 0.331387
+      },
+      {
+        "file": "IH_DC_TMP_001_WALL_TYPE PLANS.pdf",
+        "category": "03_FLOOR_PLANS",
+        "source": "drive",
+        "asset_id": "10b11fe5-618a-4786-b8ae-ebc7babd45b9",
+        "summary": "INTERIOR 1-HR FIRE SEPARATION NEW WALLS - SEE ASSEMBLY PAGE TYP WALL - 0M4A LEVEL 0,1 0W4A",
+        "excerpt": "BED WIC BATH BED BATH OFFICE / SITTING KITCHEN / LIVING CL BATH BED 2 BED BATH CL BED BATH CL BATH WIC KITCHEN / LIVING CL CL CL UNIT 201 UNIT 202 UNIT 203 UNIT 204 UNIT 205 UNIT 206 X1W6D P2W6A X2W6D",
+        "score": 0.325558
+      },
+      {
+        "file": "IH_DC_TMP_001_FLOOR PLANS_A100.pdf",
+        "category": "03_FLOOR_PLANS",
+        "source": "drive",
+        "asset_id": "18736c07-7e45-4dc6-a841-5b39714fd207",
+        "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+        "excerpt": "16'-10\" 14'-9 1/2\" 9'-10\" 7'-4 1/2\" 18'-0\" 9'-2\" 14'-0\" 9'-8\" 30'-2\" 17'-9 1/2\" 20'-5 1/2\" 19' -6 1/2\" 6'-6\" 11/7/2025 1:15:09 PM A100 34-UNIT ADDITION TO EXISTING CHURCH 1610 COLUMBIA RD NW, WASHINGT",
+        "score": 0.318258
+      },
+      {
+        "file": "meridian_hill.txt",
+        "category": "05_LOCATION",
+        "source": "drive",
+        "asset_id": "ecb921ff-f7ed-4553-bed0-a5ad122ab7eb",
+        "summary": "Historic urban park within walking distance.",
+        "excerpt": "Meridian Hill Park\n\nHistoric urban park within walking distance.",
+        "score": 0.316604
+      },
+      {
+        "file": "IH_DC_TMP_001_Description_EN.docx",
+        "category": "00_PROJECT_INFO",
+        "source": "drive",
+        "asset_id": "a290bd1d-1b29-4158-befd-ece4b8e6f129",
+        "summary": "The Temple Description (EN) The Temple is a residential redevelopment project in Adams Morgan, Washington, DC, combining a historic building with a modern addition to create premium investment and living opportunities.",
+        "excerpt": "The Temple Description (EN)\nThe Temple is a residential redevelopment project in Adams Morgan, Washington, DC, combining a historic building with a modern addition to create premium investment and liv",
+        "score": 0.314407
+      },
+      {
+        "file": "IH_DC_TMP_001_Project_Summary.docx",
+        "category": "00_PROJECT_INFO",
+        "source": "drive",
+        "asset_id": "e9572999-5d9e-445e-a635-0f2bb6bfeacd",
+        "summary": "The Temple - Project Summary Project Code: IH-DC-TMP-001 Address: 1610 Columbia Rd NW, Washington, DC",
+        "excerpt": "The Temple - Project Summary\nProject Code: IH-DC-TMP-001\nProject: The Temple\nAddress: 1610 Columbia Rd NW, Washington, DC\nType: Historic Redevelopment + Residential Addition\nUnits: 65\nLocation: Adams ",
+        "score": 0.614678
+      },
+      {
+        "file": "overview.txt",
+        "category": "05_LOCATION",
+        "source": "drive",
+        "asset_id": "a2286daa-5473-44e7-aca3-4fa6650ab483",
+        "summary": "Project: The Temple Address: 1610 Columbia Rd NW, Washington, DC Neighborhood: - Adams Morgan - Columbia Heights - Dupont Circle - U Nearby: - Downtown Washington DC - Union Station - Reagan National",
+        "excerpt": "Overview\n\nProject: The Temple Address: 1610 Columbia Rd NW, Washington, DC\n\nNeighborhood: - Adams Morgan - Columbia Heights - Dupont Circle - U\nStreet Corridor\n\nNearby: - Downtown Washington DC - Unio",
+        "score": 0.597679
+      },
+      {
+        "file": "location_summary.txt",
+        "category": "05_LOCATION",
+        "source": "drive",
+        "asset_id": "40c146fa-056a-40b2-9a29-fa1991bac94e",
+        "summary": "The Temple is located in the heart of Adams Morgan, offering excellent walkability, strong rental demand, convenient metro access, vibrant dining, parks, and proximity to major government and business districts.",
+        "excerpt": "Location Summary\n\nThe Temple is located in the heart of Adams Morgan, offering excellent\nwalkability, strong rental demand, convenient metro access, vibrant\ndining, parks, and proximity to major gover",
+        "score": 0.597591
+      },
+      {
+        "file": "IH_DC_TMP_001_Facts.txt",
+        "category": "00_PROJECT_INFO",
+        "source": "drive",
+        "asset_id": "1e58ac73-4e63-43b5-be6f-485281a231c2",
+        "summary": "Project Code: IH-DC-TMP-001 Location: Adams Morgan",
+        "excerpt": "Project Code: IH-DC-TMP-001\nUnits: 65\nHistoric Units: 31\nAddition Units: 34\nLocation: Adams Morgan\nCity: Washington DC",
+        "score": 0.479919
+      },
+      {
+        "file": "overview.txt",
+        "category": "05_LOCATION",
+        "source": "drive",
+        "asset_id": "bc4eaef0-cd55-4f35-a259-924d5e26bbcb",
+        "summary": "Neighborhood: Adams Morgan - Young professionals - Government employees",
+        "excerpt": "Neighborhood: Adams Morgan\nCity: Washington, DC\nPrimary Residents:\n- Young professionals\n- Government employees\n- Embassy staff\n- University students\n- Medical professionals\n- International residents",
+        "score": 0.474503
+      },
+      {
+        "file": "IH_DC_TMp_001_The Temple Catalog Texts.docx",
+        "category": null,
+        "source": "drive",
+        "asset_id": "189ae246-694f-4168-844f-593947779362",
+        "summary": "The Temple Proje Sunumu ZAMANIN ÖTESİNDE BİR SEMBOL (A Symbol Beyond Time) Tarihçe, Konsept ve Kimlik",
+        "excerpt": "The Temple, mimari mirası ile çağdaş yaşamın kusursuz birleşimini sunuyor [cite: 69]. Her detayı özenle tasarlanmış yaşam alanları, estetik ve fonksiyonelliği bir araya getirir [cite: 70]. Bu proje, s",
+        "score": 0.439361
+      },
+      {
+        "file": "overview.txt",
+        "category": "05_LOCATION",
+        "source": "drive",
+        "asset_id": "00caf53c-7b78-4db5-b70d-2d51a07e0c1e",
+        "summary": "Adams Morgan is one of Washington DC's most vibrant neighborhoods. Known for restaurants, cafes, nightlife and walkability.",
+        "excerpt": "Adams Morgan is one of Washington DC's most vibrant neighborhoods.\nKnown for restaurants, cafes, nightlife and walkability.",
+        "score": 0.435598
+      },
+      {
+        "file": "shopping_dining.txt",
+        "category": "05_LOCATION",
+        "source": "drive",
+        "asset_id": "e946124e-1600-47c3-ad06-12fdb964b22d",
+        "summary": "Shopping & Dining - Adams Morgan - Union Market",
+        "excerpt": "Shopping & Dining\n\n- Adams Morgan\n- Union Market\n- CityCenterDC\n- Georgetown\n- Whole Foods\n- Trader Joe’s",
+        "score": 0.432602
+      },
+      {
+        "file": "IH_DC_TMP_001_FAQ.txt",
+        "category": "00_PROJECT_INFO",
+        "source": "drive",
+        "asset_id": "4f40de7e-6e98-45d2-b43c-75c936fe6470",
+        "summary": "Q: Where is the project? A: Adams Morgan, Washington DC. A: Historic redevelopment with modern addition.",
+        "excerpt": "Q: Where is the project?\nA: Adams Morgan, Washington DC.\n\nQ: Total units?\nA: 65.\n\nQ: Project type?\nA: Historic redevelopment with modern addition.",
+        "score": 0.425126
+      },
+      {
+        "file": "IH_DC_TMP_001_Description_TR.docx",
+        "category": "00_PROJECT_INFO",
+        "source": "drive",
+        "asset_id": "ccc74991-6e11-4af1-b307-e65257a9967b",
+        "summary": "The Temple Description (TR) The Temple, Washington DC'nin Adams Morgan bölgesinde yer alan tarihi bir konut geliştirme projesidir. Tarihi bina ile modern ek yapıyı birleştirerek yatırım ve yaşam odaklı daireler sunar.",
+        "excerpt": "The Temple Description (TR)\nThe Temple, Washington DC'nin Adams Morgan bölgesinde yer alan tarihi bir konut geliştirme projesidir. Tarihi bina ile modern ek yapıyı birleştirerek yatırım ve yaşam odakl",
+        "score": 0.413911
+      },
+      {
+        "file": "walking_times.txt",
+        "category": "05_LOCATION",
+        "source": "drive",
+        "asset_id": "934c25be-ef23-444e-82cd-1aeed66d1459",
+        "summary": "- Meridian Hill Park: 3 min - Adams Morgan restaurants: 2 min - Columbia Heights Metro: ~10 min",
+        "excerpt": "Walking Times\n\n- Meridian Hill Park: 3 min\n- Adams Morgan restaurants: 2 min\n- Columbia Heights Metro: ~10 min\n- U Street Corridor: ~15 min",
+        "score": 0.39962
+      },
+      {
+        "file": "IH_DC_TMP_001_FLOOR PLANS_A103.pdf",
+        "category": "03_FLOOR_PLANS",
+        "source": "drive",
+        "asset_id": "8151bd41-9aba-4d07-93f4-ede680afef42",
+        "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+        "excerpt": "GREEN BUILDING NOTES GRAPHIC LEGEND EXTG MASONRY WALLS CONCRETE WALLS INTERIOR 1-HR FIRE SEPARATION INTERIOR 2-HR FIRE SEPARATION INTERIOR 3-HR FIRE SEPARATION HORIZONTAL ASSEMBLY CMU WALLS A301 1 A30",
+        "score": 0.445909
+      }
+    ],
+    "unit_research": [
+      {
+        "unit_code": "204",
+        "found_in_drive": true,
+        "hit_count": 1,
+        "excerpts": [
+          {
+            "file": "IH_DC_TMP_001_WALL_TYPE PLANS.pdf",
+            "excerpt": "BED WIC BATH BED BATH OFFICE / SITTING KITCHEN / LIVING CL BATH BED 2 BED BATH CL BED BATH CL BATH WIC KITCHEN / LIVING CL CL CL UNIT 201 UNIT 202 UNIT 203 UNIT 204 UNIT 205 UNIT 206 X1W6D P2W6A X2W6D 1W4A 1W4A 1W4A G-12 0W4C 0W4C G-12 G-12",
+            "score": 0.325558
+          }
+        ]
+      }
+    ],
+    "pricing_honesty": {
+      "prices_from_user_brief": true,
+      "unit_confirmed_in_drive": true,
+      "invented_yields": false
+    },
+    "recommended_outputs": [
+      "Instagram Story",
+      "Instagram Post"
+    ],
+    "required_assets": [
+      "IH_DC_TMP_001_Logo_Primary.svg"
+    ],
+    "required_project_data": [
+      "Proje adı: The Temple",
+      "Lokasyon: 1610 Columbia Rd NW, Washington, DC"
+    ],
+    "warnings": [
+      "Approved Historic+Addition exterior render missing. Cannot invent The Temple Addition — FAIL CLOSED.",
+      "architectural_truth_fail_closed",
+      "No real project hero asset found in Drive/Media Library. PROJECT MODE will not invent or substitute an AI image. Fake architecture fallback FORBIDDEN."
+    ],
+    "generated_assets": [],
+    "output_history": [],
+    "image_generation_performed": false,
+    "production_brief": {
+      "objective": "The Temple projesinin mimari ve lokasyon avantajlarını vurgulamak.",
+      "campaign_intent": "location",
+      "big_idea": "Geçmişin İzinde, Geleceğe Adım",
+      "hero": "Tarihi Doku, Modern Yaşam",
+      "sales_hook": "Tarihi ve modernin buluştuğu özel bir proje.",
+      "offer": "",
+      "supporting": [
+        "Washington DC'nin kalbinde eşsiz bir konum."
+      ],
+      "cta": "Detayları Keşfet",
+      "message_strategy": {
+        "big_idea": "Geçmişin İzinde, Geleceğe Adım",
+        "primary_message": "Tarihi ve modern mimarinin çarpıcı birleşimi.",
+        "sales_attention_hook": "Tarihi ve modernin buluştuğu özel bir proje.",
+        "hero_headline": "Geçmişin İzinde, Geleceğe Adım",
+        "supporting_messages": [
+          "Washington DC'nin kalbinde eşsiz bir konum.",
+          "Şehrin merkezinde, geçmişin izleriyle dolu bir yaşam."
+        ],
+        "cta": "Detayları Keşfet",
+        "emotional_angle": "Tarihi bir yapının parçası olmanın verdiği gurur ve modern yaşamın konforu.",
+        "commercial_priority": [
+          "location advantage",
+          "primary sales message",
+          "neighborhood proof",
+          "call to action",
+          "brand presence"
+        ],
+        "information_hierarchy": [
+          "1 — PRIMARY: Tarihi ve modern mimarinin çarpıcı birleşimi.",
+          "2 — HOOK: Tarihi ve modernin buluştuğu özel bir proje.",
+          "3 — SUPPORT: Washington DC'nin kalbinde eşsiz bir konum. | Şehrin merkezinde, geçmişin izleriyle dolu bir yaşam.",
+          "4 — CTA: Detayları Keşfet",
+          "5 — BRAND: one real project logo"
+        ],
+        "one_ad_one_message": true,
+        "density": "sparse",
+        "campaign_intent": "location"
+      },
+      "commercial_priority": [
+        "location advantage",
+        "primary sales message",
+        "neighborhood proof",
+        "call to action",
+        "brand presence"
+      ],
+      "visual_hierarchy": [
+        "1 — PRIMARY: Tarihi ve modern mimarinin çarpıcı birleşimi.",
+        "2 — HOOK: Tarihi ve modernin buluştuğu özel bir proje.",
+        "3 — SUPPORT: Washington DC'nin kalbinde eşsiz bir konum. | Şehrin merkezinde, geçmişin izleriyle dolu bir yaşam.",
+        "4 — CTA: Detayları Keşfet",
+        "5 — BRAND: one real project logo"
+      ],
+      "visual_direction": "Tarihi ve modern mimari unsurların bir arada olduğu bir dış cephe görüntüsü.",
+      "design_direction": {
+        "visual_mood": "Tarihi ve modern mimari unsurların bir arada olduğu bir dış cephe görüntüsü.",
+        "hierarchy": "Location name / advantage leads; supporting place cues secondary; CTA clear.",
+        "typography_character": "Klasik ve modern fontların uyumlu kullanımı.",
+        "composition_direction": "Tarihi ve modern unsurların dengeli bir şekilde yer aldığı bir kompozisyon.",
+        "image_treatment": "Preserve real project interior architecture/photography — enhance atmosphere, do not redesign. Subtle grade toward premium RE editorial.",
+        "contrast": "High readability for primary message and CTA against the locked photograph",
+        "brand_presence": "One verified project logo lockup — never invent or duplicate",
+        "cta_importance": "Single clear CTA; visible and actionable, not tiny footer text",
+        "information_density": "sparse",
+        "premium_level": "elevated",
+        "creative_freedom": "Language=tr. LEVEL 1 CONTROLLED — approved interiors only. Placement freedom without forced panels; do not invent room geometry."
+      },
+      "brand_direction": {
+        "tone": "Zarif, bilgilendirici ve davetkar.",
+        "color_direction": "Tarihi dokuyu vurgulayan sıcak tonlar ve modernliği temsil eden nötr renkler.",
+        "typography_direction": "Klasik ve modern fontların uyumlu kullanımı.",
+        "composition_direction": "Tarihi ve modern unsurların dengeli bir şekilde yer aldığı bir kompozisyon."
+      },
+      "selected_assets": [],
+      "brand_assets": [
+        {
+          "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+          "filename": "IH_DC_TMP_001_Logo_Primary.svg",
+          "content_type": "image/svg+xml",
+          "folder_category": "01_BRAND",
+          "visual_subject": "BRANDING",
+          "tags": [],
+          "role": "project_logo",
+          "provenance_source": "google_drive",
+          "selection_score": null,
+          "selection_reason": null,
+          "classification": "LOGO_PRIMARY",
+          "architecture_locked": false,
+          "creative_freedom_level": 0,
+          "project_relation": "project_primary",
+          "approved": true,
+          "approved_status": "approved"
+        }
+      ],
+      "approved_claims": [
+        {
+          "key": "unit_code",
+          "display": "Unit 204",
+          "value": "204",
+          "source": "retrieved",
+          "source_reference": "rag_hybrid_search",
+          "verified": true,
+          "is_financial": false,
+          "notes": null
+        }
+      ],
+      "forbidden_claims": [],
+      "language": "tr",
+      "language_lock": true,
+      "format": "Instagram 4:5",
+      "format_preset": "portrait",
+      "aspect_ratio": "4:5",
+      "final_copy": {
+        "eyebrow": "Tarihi ve modernin buluştuğu özel bir proje.",
+        "headline": "Geçmişin İzinde, Geleceğe Adım",
+        "supporting": "Washington DC'nin kalbinde eşsiz bir konum. · Şehrin merkezinde, geçmişin izleriyle dolu bir yaşam.",
+        "list_price": "",
+        "offer_price": "",
+        "value_badge": "",
+        "unit": "",
+        "price_hierarchy": "",
+        "cta": "Detayları Keşfet"
+      },
+      "asset_lock": {
+        "interior_asset_id": null,
+        "interior_filename": null,
+        "hero_role": "hero",
+        "selection_score": null,
+        "selection_reason": null,
+        "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "logo_filename": "IH_DC_TMP_001_Logo_Primary.svg",
+        "interior_architecture_locked": true,
+        "project_asset_locked": true,
+        "logo_locked": true,
+        "verified_project_logo": true,
+        "ai_must_not_draw_logo": true,
+        "no_duplicate_logos": true,
+        "no_invented_architecture": true,
+        "asset_id": null,
+        "classification": "UNCLASSIFIED",
+        "architecture_locked": false,
+        "creative_freedom_level": 1,
+        "creative_freedom_text": "LEVEL 1 CONTROLLED — Approved interior. Preserve room geometry, windows, materials, and furniture layout. Atmosphere/grade/typography only — do not invent another room.",
+        "project_relation": "project_primary",
+        "approved_status": "unapproved",
+        "approved": false
+      },
+      "architecture_truth": {
+        "asset_id": null,
+        "filename": null,
+        "classification": "UNCLASSIFIED",
+        "architecture_locked": false,
+        "creative_freedom_level": 1,
+        "project_relation": "project_primary",
+        "approved_status": "unapproved"
+      },
+      "logo_lock": {
+        "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "logo_filename": "IH_DC_TMP_001_Logo_Primary.svg",
+        "logo_locked": true,
+        "verified_project_logo": true,
+        "ai_must_not_draw_logo": true,
+        "no_duplicate_logos": true,
+        "status": "pass"
+      },
+      "creative_simplicity": [
+        "ONE AD = ONE PRIMARY MESSAGE.",
+        "Do not clutter the ad with unnecessary information.",
+        "Use one main sales message + offer + at most 3 supporting messages + a single CTA.",
+        "Default element budget: 1 headline, 0–3 supporting, 1 CTA, 1 logo.",
+        "Keep the visual as visible as possible — let the photograph breathe.",
+        "Avoid large bottom bands, unnecessary badges, and repeating price messages.",
+        "Premium ≠ more elements. No forced left/bottom panels."
+      ],
+      "simplicity_director": {
+        "supporting_messages": [
+          "Washington DC'nin kalbinde eşsiz bir konum.",
+          "Tarihi mimari ile modern eklemelerin uyumu."
+        ],
+        "max_headlines": 1,
+        "max_supporting": 2,
+        "max_cta": 1,
+        "max_logos": 1,
+        "allow_badges": false,
+        "allow_icons": false,
+        "allow_price_block": false,
+        "density": "sparse",
+        "principles": [
+          "ONE AD = ONE PRIMARY MESSAGE.",
+          "Default: 1 headline, 0–3 supporting, 1 CTA, 1 logo.",
+          "Extra badges/icons/price blocks only when campaign intent requires them.",
+          "Premium ≠ more elements — let the photograph breathe.",
+          "Do not invent decorative panels, left rails, or bottom bands."
+        ],
+        "element_budget": {
+          "headline": 1,
+          "supporting": 2,
+          "cta": 1,
+          "logo": 1,
+          "price_block": 0,
+          "badges": 0,
+          "icons": 0
+        }
+      },
+      "max_supporting_messages": 2,
+      "campaign_mode": "lifestyle",
+      "information_density": "sparse"
+    },
+    "campaign_intent": "location",
+    "message_strategy": {
+      "big_idea": "Geçmişin İzinde, Geleceğe Adım",
+      "primary_message": "Tarihi ve modern mimarinin çarpıcı birleşimi.",
+      "sales_attention_hook": "Tarihi ve modernin buluştuğu özel bir proje.",
+      "hero_headline": "Geçmişin İzinde, Geleceğe Adım",
+      "supporting_messages": [
+        "Washington DC'nin kalbinde eşsiz bir konum.",
+        "Şehrin merkezinde, geçmişin izleriyle dolu bir yaşam."
+      ],
+      "cta": "Detayları Keşfet",
+      "emotional_angle": "Tarihi bir yapının parçası olmanın verdiği gurur ve modern yaşamın konforu.",
+      "commercial_priority": [
+        "location advantage",
+        "primary sales message",
+        "neighborhood proof",
+        "call to action",
+        "brand presence"
+      ],
+      "information_hierarchy": [
+        "1 — PRIMARY: Tarihi ve modern mimarinin çarpıcı birleşimi.",
+        "2 — HOOK: Tarihi ve modernin buluştuğu özel bir proje.",
+        "3 — SUPPORT: Washington DC'nin kalbinde eşsiz bir konum. | Şehrin merkezinde, geçmişin izleriyle dolu bir yaşam.",
+        "4 — CTA: Detayları Keşfet",
+        "5 — BRAND: one real project logo"
+      ],
+      "one_ad_one_message": true,
+      "density": "sparse",
+      "campaign_intent": "location"
+    },
+    "design_direction": {
+      "visual_mood": "Tarihi ve modern mimari unsurların bir arada olduğu bir dış cephe görüntüsü.",
+      "hierarchy": "Location name / advantage leads; supporting place cues secondary; CTA clear.",
+      "typography_character": "Klasik ve modern fontların uyumlu kullanımı.",
+      "composition_direction": "Tarihi ve modern unsurların dengeli bir şekilde yer aldığı bir kompozisyon.",
+      "image_treatment": "Preserve real project interior architecture/photography — enhance atmosphere, do not redesign. Subtle grade toward premium RE editorial.",
+      "contrast": "High readability for primary message and CTA against the locked photograph",
+      "brand_presence": "One verified project logo lockup — never invent or duplicate",
+      "cta_importance": "Single clear CTA; visible and actionable, not tiny footer text",
+      "information_density": "sparse",
+      "premium_level": "elevated",
+      "creative_freedom": "Language=tr. LEVEL 1 CONTROLLED — approved interiors only. Placement freedom without forced panels; do not invent room geometry."
+    },
+    "simplicity_director": {
+      "supporting_messages": [
+        "Washington DC'nin kalbinde eşsiz bir konum.",
+        "Tarihi mimari ile modern eklemelerin uyumu."
+      ],
+      "max_headlines": 1,
+      "max_supporting": 2,
+      "max_cta": 1,
+      "max_logos": 1,
+      "allow_badges": false,
+      "allow_icons": false,
+      "allow_price_block": false,
+      "density": "sparse",
+      "principles": [
+        "ONE AD = ONE PRIMARY MESSAGE.",
+        "Default: 1 headline, 0–3 supporting, 1 CTA, 1 logo.",
+        "Extra badges/icons/price blocks only when campaign intent requires them.",
+        "Premium ≠ more elements — let the photograph breathe.",
+        "Do not invent decorative panels, left rails, or bottom bands."
+      ],
+      "element_budget": {
+        "headline": 1,
+        "supporting": 2,
+        "cta": 1,
+        "logo": 1,
+        "price_block": 0,
+        "badges": 0,
+        "icons": 0
+      }
+    }
+  },
+  "campaign_context": {
+    "original_user_brief": "The Temple için mimari / lokasyon Instagram reklamı hazırla.\nSADECE onaylı proje exterior / Historic+Addition render kullan.\nHistoric + Addition mekânsal ilişkisini uydurma veya yeniden çizme.\nOnaylı asset yoksa üretme — fail closed.\nTürkçe hazırla. Fiyat veya Unit 204 kullanma.",
+    "language": "tr",
+    "campaign_intent": "location",
+    "legacy_campaign_intent": "location",
+    "quality_intent": {
+      "campaign_intent": "location",
+      "legacy_campaign_intent": "location",
+      "confidence": 0.98,
+      "language": "tr",
+      "asset_preference": "neighborhood",
+      "primary_message_focus": "location advantage",
+      "signals": [
+        "unit_or_launch",
+        "unit_sales",
+        "location_language",
+        "architecture_language"
+      ],
+      "density": "medium"
+    },
+    "message_strategy": {
+      "big_idea": "Geçmişin İzinde, Geleceğe Adım",
+      "primary_message": "Tarihi ve modern mimarinin çarpıcı birleşimi.",
+      "sales_attention_hook": "Tarihi ve modernin buluştuğu özel bir proje.",
+      "hero_headline": "Geçmişin İzinde, Geleceğe Adım",
+      "supporting_messages": [
+        "Washington DC'nin kalbinde eşsiz bir konum.",
+        "Şehrin merkezinde, geçmişin izleriyle dolu bir yaşam."
+      ],
+      "cta": "Detayları Keşfet",
+      "emotional_angle": "Tarihi bir yapının parçası olmanın verdiği gurur ve modern yaşamın konforu.",
+      "commercial_priority": [
+        "location advantage",
+        "primary sales message",
+        "neighborhood proof",
+        "call to action",
+        "brand presence"
+      ],
+      "information_hierarchy": [
+        "1 — PRIMARY: Tarihi ve modern mimarinin çarpıcı birleşimi.",
+        "2 — HOOK: Tarihi ve modernin buluştuğu özel bir proje.",
+        "3 — SUPPORT: Washington DC'nin kalbinde eşsiz bir konum. | Şehrin merkezinde, geçmişin izleriyle dolu bir yaşam.",
+        "4 — CTA: Detayları Keşfet",
+        "5 — BRAND: one real project logo"
+      ],
+      "one_ad_one_message": true,
+      "density": "sparse",
+      "campaign_intent": "location"
+    },
+    "design_direction": {
+      "visual_mood": "Tarihi ve modern mimari unsurların bir arada olduğu bir dış cephe görüntüsü.",
+      "hierarchy": "Location name / advantage leads; supporting place cues secondary; CTA clear.",
+      "typography_character": "Klasik ve modern fontların uyumlu kullanımı.",
+      "composition_direction": "Tarihi ve modern unsurların dengeli bir şekilde yer aldığı bir kompozisyon.",
+      "image_treatment": "Preserve real project interior architecture/photography — enhance atmosphere, do not redesign. Subtle grade toward premium RE editorial.",
+      "contrast": "High readability for primary message and CTA against the locked photograph",
+      "brand_presence": "One verified project logo lockup — never invent or duplicate",
+      "cta_importance": "Single clear CTA; visible and actionable, not tiny footer text",
+      "information_density": "sparse",
+      "premium_level": "elevated",
+      "creative_freedom": "Language=tr. LEVEL 1 CONTROLLED — approved interiors only. Placement freedom without forced panels; do not invent room geometry."
+    },
+    "simplicity_director": {
+      "supporting_messages": [
+        "Washington DC'nin kalbinde eşsiz bir konum.",
+        "Tarihi mimari ile modern eklemelerin uyumu."
+      ],
+      "max_headlines": 1,
+      "max_supporting": 2,
+      "max_cta": 1,
+      "max_logos": 1,
+      "allow_badges": false,
+      "allow_icons": false,
+      "allow_price_block": false,
+      "density": "sparse",
+      "principles": [
+        "ONE AD = ONE PRIMARY MESSAGE.",
+        "Default: 1 headline, 0–3 supporting, 1 CTA, 1 logo.",
+        "Extra badges/icons/price blocks only when campaign intent requires them.",
+        "Premium ≠ more elements — let the photograph breathe.",
+        "Do not invent decorative panels, left rails, or bottom bands."
+      ],
+      "element_budget": {
+        "headline": 1,
+        "supporting": 2,
+        "cta": 1,
+        "logo": 1,
+        "price_block": 0,
+        "badges": 0,
+        "icons": 0
+      }
+    },
+    "cd_strategy": {
+      "big_idea": "Geçmişin İzinde, Geleceğe Adım",
+      "objective": "The Temple projesinin mimari ve lokasyon avantajlarını vurgulamak.",
+      "audience": "Washington DC'de tarihi ve modern yaşamı bir arada arayan şehir sakinleri.",
+      "concept": "Tarihi dokunun modern eklemelerle yeniden hayat bulduğu bir yaşam alanı.",
+      "hero_message": "Tarihi Doku, Modern Yaşam",
+      "primary_message": "The Temple: Tarihi ve modernin buluşma noktası.",
+      "supporting_messages": [
+        "Washington DC'nin kalbinde eşsiz bir konum.",
+        "Tarihi mimari ile modern eklemelerin uyumu.",
+        "Şehrin merkezinde, geçmişin izleriyle dolu bir yaşam."
+      ],
+      "emphasis": [
+        "Tarihi Doku",
+        "Modern Yaşam",
+        "Washington DC"
+      ],
+      "sales_hook": "Tarihi ve modernin buluştuğu özel bir proje.",
+      "offer": null,
+      "price_presentation": null,
+      "value_proposition": "Tarihi bir yapının modern eklemelerle yeniden yorumlanması.",
+      "proof_points": [
+        "Washington DC'nin prestijli bir bölgesinde yer alıyor.",
+        "Tarihi ve modern mimarinin eşsiz birleşimi."
+      ],
+      "cta": "Detayları Keşfet",
+      "emotional_angle": "Tarihi bir yapının parçası olmanın verdiği gurur ve modern yaşamın konforu.",
+      "commercial_priority": [
+        "mimari",
+        "lokasyon",
+        "tarihi değer"
+      ],
+      "visual_direction": "Tarihi ve modern mimari unsurların bir arada olduğu bir dış cephe görüntüsü.",
+      "composition_direction": "Tarihi ve modern unsurların dengeli bir şekilde yer aldığı bir kompozisyon.",
+      "typography_direction": "Klasik ve modern fontların uyumlu kullanımı.",
+      "color_direction": "Tarihi dokuyu vurgulayan sıcak tonlar ve modernliği temsil eden nötr renkler.",
+      "tone": "Zarif, bilgilendirici ve davetkar.",
+      "formats": [
+        "Instagram Story",
+        "Instagram Post"
+      ],
+      "required_assets": [
+        "IH_DC_TMP_001_Logo_Primary.svg"
+      ],
+      "required_project_data": [
+        "Proje adı: The Temple",
+        "Lokasyon: 1610 Columbia Rd NW, Washington, DC"
+      ],
+      "recommended_outputs": [
+        "Instagram Story",
+        "Instagram Post"
+      ],
+      "first_2_seconds": "Tarihi ve modern mimarinin çarpıcı birleşimi.",
+      "thinking_notes": "Goal: Mimari ve lokasyon avantajlarını vurgulamak. Hook: Tarihi ve modernin buluşması. Number that matters: Lokasyon. Emotional feature: Tarihi bir yapının parçası olma hissi.",
+      "_llm": {
+        "provider": "openai",
+        "model": "gpt-4o",
+        "input_tokens": 1625,
+        "output_tokens": 660
+      }
+    },
+    "production_brief": {
+      "objective": "The Temple projesinin mimari ve lokasyon avantajlarını vurgulamak.",
+      "campaign_intent": "location",
+      "big_idea": "Geçmişin İzinde, Geleceğe Adım",
+      "hero": "Tarihi Doku, Modern Yaşam",
+      "sales_hook": "Tarihi ve modernin buluştuğu özel bir proje.",
+      "offer": "",
+      "supporting": [
+        "Washington DC'nin kalbinde eşsiz bir konum."
+      ],
+      "cta": "Detayları Keşfet",
+      "message_strategy": {
+        "big_idea": "Geçmişin İzinde, Geleceğe Adım",
+        "primary_message": "Tarihi ve modern mimarinin çarpıcı birleşimi.",
+        "sales_attention_hook": "Tarihi ve modernin buluştuğu özel bir proje.",
+        "hero_headline": "Geçmişin İzinde, Geleceğe Adım",
+        "supporting_messages": [
+          "Washington DC'nin kalbinde eşsiz bir konum.",
+          "Şehrin merkezinde, geçmişin izleriyle dolu bir yaşam."
+        ],
+        "cta": "Detayları Keşfet",
+        "emotional_angle": "Tarihi bir yapının parçası olmanın verdiği gurur ve modern yaşamın konforu.",
+        "commercial_priority": [
+          "location advantage",
+          "primary sales message",
+          "neighborhood proof",
+          "call to action",
+          "brand presence"
+        ],
+        "information_hierarchy": [
+          "1 — PRIMARY: Tarihi ve modern mimarinin çarpıcı birleşimi.",
+          "2 — HOOK: Tarihi ve modernin buluştuğu özel bir proje.",
+          "3 — SUPPORT: Washington DC'nin kalbinde eşsiz bir konum. | Şehrin merkezinde, geçmişin izleriyle dolu bir yaşam.",
+          "4 — CTA: Detayları Keşfet",
+          "5 — BRAND: one real project logo"
+        ],
+        "one_ad_one_message": true,
+        "density": "sparse",
+        "campaign_intent": "location"
+      },
+      "commercial_priority": [
+        "location advantage",
+        "primary sales message",
+        "neighborhood proof",
+        "call to action",
+        "brand presence"
+      ],
+      "visual_hierarchy": [
+        "1 — PRIMARY: Tarihi ve modern mimarinin çarpıcı birleşimi.",
+        "2 — HOOK: Tarihi ve modernin buluştuğu özel bir proje.",
+        "3 — SUPPORT: Washington DC'nin kalbinde eşsiz bir konum. | Şehrin merkezinde, geçmişin izleriyle dolu bir yaşam.",
+        "4 — CTA: Detayları Keşfet",
+        "5 — BRAND: one real project logo"
+      ],
+      "visual_direction": "Tarihi ve modern mimari unsurların bir arada olduğu bir dış cephe görüntüsü.",
+      "design_direction": {
+        "visual_mood": "Tarihi ve modern mimari unsurların bir arada olduğu bir dış cephe görüntüsü.",
+        "hierarchy": "Location name / advantage leads; supporting place cues secondary; CTA clear.",
+        "typography_character": "Klasik ve modern fontların uyumlu kullanımı.",
+        "composition_direction": "Tarihi ve modern unsurların dengeli bir şekilde yer aldığı bir kompozisyon.",
+        "image_treatment": "Preserve real project interior architecture/photography — enhance atmosphere, do not redesign. Subtle grade toward premium RE editorial.",
+        "contrast": "High readability for primary message and CTA against the locked photograph",
+        "brand_presence": "One verified project logo lockup — never invent or duplicate",
+        "cta_importance": "Single clear CTA; visible and actionable, not tiny footer text",
+        "information_density": "sparse",
+        "premium_level": "elevated",
+        "creative_freedom": "Language=tr. LEVEL 1 CONTROLLED — approved interiors only. Placement freedom without forced panels; do not invent room geometry."
+      },
+      "brand_direction": {
+        "tone": "Zarif, bilgilendirici ve davetkar.",
+        "color_direction": "Tarihi dokuyu vurgulayan sıcak tonlar ve modernliği temsil eden nötr renkler.",
+        "typography_direction": "Klasik ve modern fontların uyumlu kullanımı.",
+        "composition_direction": "Tarihi ve modern unsurların dengeli bir şekilde yer aldığı bir kompozisyon."
+      },
+      "selected_assets": [],
+      "brand_assets": [
+        {
+          "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+          "filename": "IH_DC_TMP_001_Logo_Primary.svg",
+          "content_type": "image/svg+xml",
+          "folder_category": "01_BRAND",
+          "visual_subject": "BRANDING",
+          "tags": [],
+          "role": "project_logo",
+          "provenance_source": "google_drive",
+          "selection_score": null,
+          "selection_reason": null,
+          "classification": "LOGO_PRIMARY",
+          "architecture_locked": false,
+          "creative_freedom_level": 0,
+          "project_relation": "project_primary",
+          "approved": true,
+          "approved_status": "approved"
+        }
+      ],
+      "approved_claims": [
+        {
+          "key": "unit_code",
+          "display": "Unit 204",
+          "value": "204",
+          "source": "retrieved",
+          "source_reference": "rag_hybrid_search",
+          "verified": true,
+          "is_financial": false,
+          "notes": null
+        }
+      ],
+      "forbidden_claims": [],
+      "language": "tr",
+      "language_lock": true,
+      "format": "Instagram 4:5",
+      "format_preset": "portrait",
+      "aspect_ratio": "4:5",
+      "final_copy": {
+        "eyebrow": "Tarihi ve modernin buluştuğu özel bir proje.",
+        "headline": "Geçmişin İzinde, Geleceğe Adım",
+        "supporting": "Washington DC'nin kalbinde eşsiz bir konum. · Şehrin merkezinde, geçmişin izleriyle dolu bir yaşam.",
+        "list_price": "",
+        "offer_price": "",
+        "value_badge": "",
+        "unit": "",
+        "price_hierarchy": "",
+        "cta": "Detayları Keşfet"
+      },
+      "asset_lock": {
+        "interior_asset_id": null,
+        "interior_filename": null,
+        "hero_role": "hero",
+        "selection_score": null,
+        "selection_reason": null,
+        "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "logo_filename": "IH_DC_TMP_001_Logo_Primary.svg",
+        "interior_architecture_locked": true,
+        "project_asset_locked": true,
+        "logo_locked": true,
+        "verified_project_logo": true,
+        "ai_must_not_draw_logo": true,
+        "no_duplicate_logos": true,
+        "no_invented_architecture": true,
+        "asset_id": null,
+        "classification": "UNCLASSIFIED",
+        "architecture_locked": false,
+        "creative_freedom_level": 1,
+        "creative_freedom_text": "LEVEL 1 CONTROLLED — Approved interior. Preserve room geometry, windows, materials, and furniture layout. Atmosphere/grade/typography only — do not invent another room.",
+        "project_relation": "project_primary",
+        "approved_status": "unapproved",
+        "approved": false
+      },
+      "architecture_truth": {
+        "asset_id": null,
+        "filename": null,
+        "classification": "UNCLASSIFIED",
+        "architecture_locked": false,
+        "creative_freedom_level": 1,
+        "project_relation": "project_primary",
+        "approved_status": "unapproved"
+      },
+      "logo_lock": {
+        "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "logo_filename": "IH_DC_TMP_001_Logo_Primary.svg",
+        "logo_locked": true,
+        "verified_project_logo": true,
+        "ai_must_not_draw_logo": true,
+        "no_duplicate_logos": true,
+        "status": "pass"
+      },
+      "creative_simplicity": [
+        "ONE AD = ONE PRIMARY MESSAGE.",
+        "Do not clutter the ad with unnecessary information.",
+        "Use one main sales message + offer + at most 3 supporting messages + a single CTA.",
+        "Default element budget: 1 headline, 0–3 supporting, 1 CTA, 1 logo.",
+        "Keep the visual as visible as possible — let the photograph breathe.",
+        "Avoid large bottom bands, unnecessary badges, and repeating price messages.",
+        "Premium ≠ more elements. No forced left/bottom panels."
+      ],
+      "simplicity_director": {
+        "supporting_messages": [
+          "Washington DC'nin kalbinde eşsiz bir konum.",
+          "Tarihi mimari ile modern eklemelerin uyumu."
+        ],
+        "max_headlines": 1,
+        "max_supporting": 2,
+        "max_cta": 1,
+        "max_logos": 1,
+        "allow_badges": false,
+        "allow_icons": false,
+        "allow_price_block": false,
+        "density": "sparse",
+        "principles": [
+          "ONE AD = ONE PRIMARY MESSAGE.",
+          "Default: 1 headline, 0–3 supporting, 1 CTA, 1 logo.",
+          "Extra badges/icons/price blocks only when campaign intent requires them.",
+          "Premium ≠ more elements — let the photograph breathe.",
+          "Do not invent decorative panels, left rails, or bottom bands."
+        ],
+        "element_budget": {
+          "headline": 1,
+          "supporting": 2,
+          "cta": 1,
+          "logo": 1,
+          "price_block": 0,
+          "badges": 0,
+          "icons": 0
+        }
+      },
+      "max_supporting_messages": 2,
+      "campaign_mode": "lifestyle",
+      "information_density": "sparse"
+    },
+    "approved_claims": [
+      {
+        "key": "unit_code",
+        "display": "Unit 204",
+        "value": "204",
+        "source": "retrieved",
+        "source_reference": "rag_hybrid_search",
+        "verified": true,
+        "is_financial": false,
+        "notes": null
+      }
+    ],
+    "blocked_claims": [],
+    "claim_eligibility_trace": [],
+    "selected_assets": [],
+    "selected_logo": {
+      "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+      "filename": "IH_DC_TMP_001_Logo_Primary.svg",
+      "content_type": "image/svg+xml",
+      "folder_category": "01_BRAND",
+      "visual_subject": "BRANDING",
+      "tags": [],
+      "role": "project_logo",
+      "provenance_source": "google_drive",
+      "selection_score": null,
+      "selection_reason": null,
+      "classification": "LOGO_PRIMARY",
+      "architecture_locked": false,
+      "creative_freedom_level": 0,
+      "project_relation": "project_primary",
+      "approved": true,
+      "approved_status": "approved"
+    },
+    "campaign_copy": {
+      "big_idea": "Geçmişin İzinde, Geleceğe Adım",
+      "hero_message": "Tarihi Doku, Modern Yaşam",
+      "supporting_messages": [
+        "Washington DC'nin kalbinde eşsiz bir konum.",
+        "Tarihi mimari ile modern eklemelerin uyumu."
+      ],
+      "sales_hook": "Tarihi ve modernin buluştuğu özel bir proje.",
+      "cta": "Detayları Keşfet",
+      "offer": null,
+      "value_proposition": "Tarihi bir yapının modern eklemelerle yeniden yorumlanması.",
+      "emphasis": [
+        "Tarihi Doku",
+        "Modern Yaşam",
+        "Washington DC"
+      ]
+    },
+    "visual_direction": "Tarihi ve modern mimari unsurların bir arada olduğu bir dış cephe görüntüsü.",
+    "audience": "Washington DC'de tarihi ve modern yaşamı bir arada arayan şehir sakinleri.",
+    "offer": null,
+    "cta": "Detayları Keşfet",
+    "pricing": {
+      "unit_codes": [
+        "204"
+      ],
+      "list_price": null,
+      "launch_price": null,
+      "discount": null,
+      "price_presentation": null,
+      "claims": [
+        {
+          "key": "unit_code",
+          "display": "Unit 204",
+          "value": "204",
+          "source": "retrieved",
+          "source_reference": "rag_hybrid_search",
+          "verified": true,
+          "is_financial": false,
+          "notes": null
+        }
+      ],
+      "honesty": {
+        "prices_from_user_brief": true,
+        "unit_confirmed_in_drive": true,
+        "invented_yields": false
+      }
+    },
+    "drive_research": {
+      "project_id": "d50708cb-60b3-465a-8b16-6d30f802af8d",
+      "project_name": "The Temple",
+      "mode": "project",
+      "hits": [
+        {
+          "asset_id": "8151bd41-9aba-4d07-93f4-ede680afef42",
+          "document_id": "187cbf88-a570-4fd5-834e-2b5cd4969545",
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A103.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "7'-0\" 5'-0\" 10'-3 1/2\" 2'-0\" 7'-2 1/2\" 4'-7\" 3'-0\" 8'-0\" 5'-5 1/2\" 11'-5 1/2\" 13'-8\" 16'-8\" 5'-5 1/2\" 7'-0\" 2'-6\" 11/7/2025 1:16:03 PM A103 34-UNIT ADDITION TO EXISTING CHURCH 1610 COLUMBIA RD NW, WASHINGTON DC 20009 SQ 2578 LT 0830 PROPOSED FLOOR PLANS PERMIT SUBMISSION 2025-1103 1 FOURTH FLOOR PROPOSED 2 FIFTH FLOOR PROPOSED NO.\n\nDESCRIPTION DATE",
+          "score": 0.385465
+        },
+        {
+          "asset_id": "973585df-2703-4509-a405-f06f790ddd61",
+          "document_id": "5dc0a7f7-aa7d-4f69-bf6a-8c6a80f399d7",
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A101.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "GREEN BUILDING NOTES GRAPHIC LEGEND EXTG MASONRY WALLS CONCRETE WALLS INTERIOR 1-HR FIRE SEPARATION INTERIOR 2-HR FIRE SEPARATION INTERIOR 3-HR FIRE SEPARATION HORIZONTAL ASSEMBLY CMU WALLS A301 1 A301 2 A302 1 A302 2 3 A401 3 A401 2 A402 2 A402 1 A402 1 A402 2 A401 2 A401 AREAWAY WIN WELL WIN WELL WIN WELL WIN WELL WIN WELL WIN WELL KITCHEN / LIVING 1021 STAIR 1101 BED 1024 UNIT 104 UNIT 102 28'-6\" 9'-3\" 9'-0\" 9'-3\" 9'-0\" 22'-0\" 5'-0\" 23'-0\" RAMP LANDING RAMP ENTRY COURT UNIT 105 UNIT 106 STAIR",
+          "score": 0.361123
+        },
+        {
+          "asset_id": "cf1b2875-df74-435e-8c76-72ccb66cb8bd",
+          "document_id": "0f7a662d-d78a-4f6d-b8cc-2dd1719741d1",
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A102.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "1 3042 BATH 3045 BED 2 3046 HALL 3103 UNIT 304 UNIT 301 CL 3016 WIC 3013 BED 2 3033 CL 3032 BED 1 3034 CL 3035 BATH 1 3036 CL 3043 HALL 3044 302 303 304 305 306 307 308 309 314 317 319 301 305 307 315 316 318 303 309 306 308 310 311 302 304 312 313 310 311 312 313 314 320 321 322 323 324 315 325 326 327 328 329 330 331 332 333 334 335 336 337 338 339 340 341 342 343 344 345 346 347 348 349 350 351 352 353 354 355 301 356 358 359 272 316 317 318 319 320 360 361 362 363 321 322 323 324 325 326 327",
+          "score": 0.354149
+        },
+        {
+          "asset_id": "5e1e5c44-f1c7-4c35-b6ea-e1b4b802ee08",
+          "document_id": "efee927e-7140-4f2f-a36b-87d4202e42a7",
+          "file": "IH_DC_TMP_001_Color_Palette.pdf",
+          "category": "01_BRAND",
+          "source": "drive",
+          "summary": "INKTYPE Process CMYK 69, 47, 100, 45 HSB 81, 56%, 30%",
+          "excerpt": "INKTYPE Process\nCMYK 69, 47, 100, 45\nHSB 81, 56%, 30%\nRGB 62, 77, 34\nHEX #3E4D22\nR=58 G=76 B=0\nINKTYPE Process\nCMYK 3, 4, 7, 0\nHSB 35, 5%, 96%\nRGB 244, 239, 232\nHEX #F4EFE8\nR=244 G=239 B=231\nINKTYPE Process\nCMYK 34, 82, 97, 44\nHSB 17, 79%, 44%\nRGB 112, 49, 24\nHEX #703118\nR=112 G=48 B=23\nINKTYPE Process\nCMYK 90, 78, 54, 67\nHSB 213, 67%, 17%\nRGB 14, 27, 43\nHEX #0E1B2B\nR=14 G=27 B=44",
+          "score": 0.345375
+        },
+        {
+          "asset_id": "3466d5e4-cdfb-40ff-ab1c-b0f4e12bfa5b",
+          "document_id": "71dfd971-72a2-4824-929c-167691bd286a",
+          "file": "IH_DC_TMP_001_Font_License.pdf",
+          "category": "01_BRAND",
+          "source": "drive",
+          "summary": "Playfair Display Bold ABCÇDEFGĞHIİJKLMNOÖPQRŞTUÜVWXYZ abcçdefgğhıijklmnoöpqrştuüvwxyz",
+          "excerpt": "INKTYPE Process\nCMYK 69, 47, 100, 45\nHSB 81, 56%, 30%\nRGB 62, 77, 34\nHEX #3E4D22\nR=58 G=76 B=0\nINKTYPE Process\nCMYK 3, 4, 7, 0\nHSB 35, 5%, 96%\nRGB 244, 239, 232\nHEX #F4EFE8\nR=244 G=239 B=231\nINKTYPE Process\nCMYK 34, 82, 97, 44\nHSB 17, 79%, 44%\nRGB 112, 49, 24\nHEX #703118\nR=112 G=48 B=23\nINKTYPE Process\nCMYK 90, 78, 54, 67\nHSB 213, 67%, 17%\nRGB 14, 27, 43\nHEX #0E1B2B\nR=14 G=27 B=44",
+          "score": 0.345375
+        },
+        {
+          "asset_id": "189ae246-694f-4168-844f-593947779362",
+          "document_id": "7716a648-dd22-4174-83c6-f16dd65cdf56",
+          "file": "IH_DC_TMp_001_The Temple Catalog Texts.docx",
+          "category": null,
+          "source": "drive",
+          "summary": "The Temple Proje Sunumu ZAMANIN ÖTESİNDE BİR SEMBOL (A Symbol Beyond Time) Tarihçe, Konsept ve Kimlik",
+          "excerpt": "4. Mimari Tasarım ve İç Mekân Deneyimi\nMimari Bir İmza (A Statement in Architecture): Tarihi dokusunu koruyan dış cephe, The Temple'ın karakterini tanımlayan en güçlü unsurlardan biridir [cite: 106, 107, 108]. Klasik mimari detaylar, modern dokunuşlarla birleşerek zamansız bir estetik ortaya koyar [cite: 109]. Bu yapı, sadece bir bina değil; şehrin siluetine eklenen bir imzadır [cite: 110, 111]. Geçmişin izlerini taşıyan mimari, bugünün şehir hayatı ile yeniden anlam kazanırken, bulunduğu çevrey",
+          "score": 0.344649
+        },
+        {
+          "asset_id": "1761f488-393f-41a3-bc5d-67e89856af8d",
+          "document_id": "e702a527-40a1-456b-9ffd-627115716cbe",
+          "file": "IH_DC_TMP_001_Project_Specifications.txt",
+          "category": "00_PROJECT_INFO",
+          "source": "drive",
+          "summary": "Residential Development Historic + New Construction",
+          "excerpt": "Residential Development\nHistoric + New Construction\nWalkable Location\nStrong Rental Market",
+          "score": 0.333385
+        },
+        {
+          "asset_id": "3af750ec-9e1a-4979-a882-b778c2bd0208",
+          "document_id": "b3d98480-ad66-4355-a2cd-c92b0d870e5b",
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A104.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "609 612 614 619 621 630 633 616 643 644 645 646 647 648 650 651 652 653 654 655 656 657 658 611 649 612 613 614 615 659 616 617 618 619 620 621 622 660 661 623 624 625 626 627 628 629 630 631 632 633 634 552 553 554 555 556 557 558 559 560 561 562 563 564 635 662 663 520 569 664 665 666 667 668 669 670 671 672 673 674 675 636 676 643 644 645 646 647 UNIT 501 UNIT 502 UNIT 503 UNIT 504 UNIT 505 UNIT 506 CL 5245 648 STAIR 1 -5 STAIR U501 STAIR U502 STAIR U503 STAIR U504 STAIR U505 STAIR U506 ROOF ",
+          "score": 0.331387
+        },
+        {
+          "asset_id": "10b11fe5-618a-4786-b8ae-ebc7babd45b9",
+          "document_id": "82e8b2bc-4af5-458d-abaf-0fac2f6cb233",
+          "file": "IH_DC_TMP_001_WALL_TYPE PLANS.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "summary": "INTERIOR 1-HR FIRE SEPARATION NEW WALLS - SEE ASSEMBLY PAGE TYP WALL - 0M4A LEVEL 0,1 0W4A",
+          "excerpt": "BED WIC BATH BED BATH OFFICE / SITTING KITCHEN / LIVING CL BATH BED 2 BED BATH CL BED BATH CL BATH WIC KITCHEN / LIVING CL CL CL UNIT 201 UNIT 202 UNIT 203 UNIT 204 UNIT 205 UNIT 206 X1W6D P2W6A X2W6D 1W4A 1W4A 1W4A G-12 0W4C 0W4C G-12 G-12 G-12 1W4A 1W4A 1W4A X1W6D X1W6D X1W6D 1W4A 0W4C 0W4C 1W4B G-12 G-12 G-12 G-12 1W4A 1W4B X1W4B X1W6D X1W6D X1W6D X1W6D X1W6D X1W6D X2W6D 1W4A 1W4A 1W4A 1W4A 1W6B KITCHEN / LIVING KITCHEN / LIVING KITCHEN / LIVING STAIR STAIR BED WIC BATH BED BED CL BATH KITCHE",
+          "score": 0.325558
+        },
+        {
+          "asset_id": "18736c07-7e45-4dc6-a841-5b39714fd207",
+          "document_id": "bdfa7855-f6ce-40c4-a289-9f4bdc888067",
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A100.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "16'-10\" 14'-9 1/2\" 9'-10\" 7'-4 1/2\" 18'-0\" 9'-2\" 14'-0\" 9'-8\" 30'-2\" 17'-9 1/2\" 20'-5 1/2\" 19' -6 1/2\" 6'-6\" 11/7/2025 1:15:09 PM A100 34-UNIT ADDITION TO EXISTING CHURCH 1610 COLUMBIA RD NW, WASHINGTON DC 20009 SQ 2578 LT 0830 PROPOSED FLOOR PLANS PERMIT SUBMISSION 2025-1103 3/16\" = 1'-0\" 1 CELLAR NO.\n\nDESCRIPTION DATE\n3/16\" = 1'-0\" 2 FOUNDATION PLAN",
+          "score": 0.318258
+        },
+        {
+          "asset_id": "ecb921ff-f7ed-4553-bed0-a5ad122ab7eb",
+          "document_id": "11953fe1-8730-4425-bfc5-353ff4b79a61",
+          "file": "meridian_hill.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "summary": "Historic urban park within walking distance.",
+          "excerpt": "Meridian Hill Park\n\nHistoric urban park within walking distance.",
+          "score": 0.316604
+        },
+        {
+          "asset_id": "a290bd1d-1b29-4158-befd-ece4b8e6f129",
+          "document_id": "96a84575-2c80-40a9-b528-207b177a47ed",
+          "file": "IH_DC_TMP_001_Description_EN.docx",
+          "category": "00_PROJECT_INFO",
+          "source": "drive",
+          "summary": "The Temple Description (EN) The Temple is a residential redevelopment project in Adams Morgan, Washington, DC, combining a historic building with a modern addition to create premium investment and living opportunities.",
+          "excerpt": "The Temple Description (EN)\nThe Temple is a residential redevelopment project in Adams Morgan, Washington, DC, combining a historic building with a modern addition to create premium investment and living opportunities.",
+          "score": 0.314407
+        },
+        {
+          "asset_id": "e9572999-5d9e-445e-a635-0f2bb6bfeacd",
+          "document_id": "0e22ae82-cd1a-41ae-a522-40cb7362b8c9",
+          "file": "IH_DC_TMP_001_Project_Summary.docx",
+          "category": "00_PROJECT_INFO",
+          "source": "drive",
+          "summary": "The Temple - Project Summary Project Code: IH-DC-TMP-001 Address: 1610 Columbia Rd NW, Washington, DC",
+          "excerpt": "The Temple - Project Summary\nProject Code: IH-DC-TMP-001\nProject: The Temple\nAddress: 1610 Columbia Rd NW, Washington, DC\nType: Historic Redevelopment + Residential Addition\nUnits: 65\nLocation: Adams Morgan",
+          "score": 0.614678
+        },
+        {
+          "asset_id": "a2286daa-5473-44e7-aca3-4fa6650ab483",
+          "document_id": "48d08a5c-80d9-490e-9f73-887301e6616e",
+          "file": "overview.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "summary": "Project: The Temple Address: 1610 Columbia Rd NW, Washington, DC Neighborhood: - Adams Morgan - Columbia Heights - Dupont Circle - U Nearby: - Downtown Washington DC - Union Station - Reagan National",
+          "excerpt": "Overview\n\nProject: The Temple Address: 1610 Columbia Rd NW, Washington, DC\n\nNeighborhood: - Adams Morgan - Columbia Heights - Dupont Circle - U\nStreet Corridor\n\nNearby: - Downtown Washington DC - Union Station - Reagan National\nAirport (DCA)",
+          "score": 0.597679
+        },
+        {
+          "asset_id": "40c146fa-056a-40b2-9a29-fa1991bac94e",
+          "document_id": "4de5567f-c4fc-462a-b985-0a0f09649246",
+          "file": "location_summary.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "summary": "The Temple is located in the heart of Adams Morgan, offering excellent walkability, strong rental demand, convenient metro access, vibrant dining, parks, and proximity to major government and business districts.",
+          "excerpt": "Location Summary\n\nThe Temple is located in the heart of Adams Morgan, offering excellent\nwalkability, strong rental demand, convenient metro access, vibrant\ndining, parks, and proximity to major government and business districts.",
+          "score": 0.597591
+        },
+        {
+          "asset_id": "1e58ac73-4e63-43b5-be6f-485281a231c2",
+          "document_id": "053dad0a-ade6-4140-899c-9fe0183dfe5d",
+          "file": "IH_DC_TMP_001_Facts.txt",
+          "category": "00_PROJECT_INFO",
+          "source": "drive",
+          "summary": "Project Code: IH-DC-TMP-001 Location: Adams Morgan",
+          "excerpt": "Project Code: IH-DC-TMP-001\nUnits: 65\nHistoric Units: 31\nAddition Units: 34\nLocation: Adams Morgan\nCity: Washington DC",
+          "score": 0.479919
+        },
+        {
+          "asset_id": "bc4eaef0-cd55-4f35-a259-924d5e26bbcb",
+          "document_id": "231cccc7-2b5d-4285-91db-f8d797b7548f",
+          "file": "overview.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "summary": "Neighborhood: Adams Morgan - Young professionals - Government employees",
+          "excerpt": "Neighborhood: Adams Morgan\nCity: Washington, DC\nPrimary Residents:\n- Young professionals\n- Government employees\n- Embassy staff\n- University students\n- Medical professionals\n- International residents",
+          "score": 0.474503
+        },
+        {
+          "asset_id": "189ae246-694f-4168-844f-593947779362",
+          "document_id": "7716a648-dd22-4174-83c6-f16dd65cdf56",
+          "file": "IH_DC_TMp_001_The Temple Catalog Texts.docx",
+          "category": null,
+          "source": "drive",
+          "summary": "The Temple Proje Sunumu ZAMANIN ÖTESİNDE BİR SEMBOL (A Symbol Beyond Time) Tarihçe, Konsept ve Kimlik",
+          "excerpt": "The Temple, mimari mirası ile çağdaş yaşamın kusursuz birleşimini sunuyor [cite: 69]. Her detayı özenle tasarlanmış yaşam alanları, estetik ve fonksiyonelliği bir araya getirir [cite: 70]. Bu proje, sadece bir konut değil; zamansız bir yaşam deneyimidir (The Temple Hikayesi / Yeniden Doğuyor - The Temple is Reborn) [cite: 71, 72, 74, 75].",
+          "score": 0.439361
+        },
+        {
+          "asset_id": "00caf53c-7b78-4db5-b70d-2d51a07e0c1e",
+          "document_id": "0676ea07-b61b-43ce-b182-b5ac9694f20a",
+          "file": "overview.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "summary": "Adams Morgan is one of Washington DC's most vibrant neighborhoods. Known for restaurants, cafes, nightlife and walkability.",
+          "excerpt": "Adams Morgan is one of Washington DC's most vibrant neighborhoods.\nKnown for restaurants, cafes, nightlife and walkability.",
+          "score": 0.435598
+        },
+        {
+          "asset_id": "e946124e-1600-47c3-ad06-12fdb964b22d",
+          "document_id": "2fc5b8b1-3bfd-4f44-8596-d95296e601d7",
+          "file": "shopping_dining.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "summary": "Shopping & Dining - Adams Morgan - Union Market",
+          "excerpt": "Shopping & Dining\n\n- Adams Morgan\n- Union Market\n- CityCenterDC\n- Georgetown\n- Whole Foods\n- Trader Joe’s",
+          "score": 0.432602
+        },
+        {
+          "asset_id": "4f40de7e-6e98-45d2-b43c-75c936fe6470",
+          "document_id": "de760c59-7102-4bf3-8508-b501d3406137",
+          "file": "IH_DC_TMP_001_FAQ.txt",
+          "category": "00_PROJECT_INFO",
+          "source": "drive",
+          "summary": "Q: Where is the project? A: Adams Morgan, Washington DC. A: Historic redevelopment with modern addition.",
+          "excerpt": "Q: Where is the project?\nA: Adams Morgan, Washington DC.\n\nQ: Total units?\nA: 65.\n\nQ: Project type?\nA: Historic redevelopment with modern addition.",
+          "score": 0.425126
+        },
+        {
+          "asset_id": "ccc74991-6e11-4af1-b307-e65257a9967b",
+          "document_id": "1e31023d-c424-4647-93f7-0ebdf39fd00f",
+          "file": "IH_DC_TMP_001_Description_TR.docx",
+          "category": "00_PROJECT_INFO",
+          "source": "drive",
+          "summary": "The Temple Description (TR) The Temple, Washington DC'nin Adams Morgan bölgesinde yer alan tarihi bir konut geliştirme projesidir. Tarihi bina ile modern ek yapıyı birleştirerek yatırım ve yaşam odaklı daireler sunar.",
+          "excerpt": "The Temple Description (TR)\nThe Temple, Washington DC'nin Adams Morgan bölgesinde yer alan tarihi bir konut geliştirme projesidir. Tarihi bina ile modern ek yapıyı birleştirerek yatırım ve yaşam odaklı daireler sunar.",
+          "score": 0.413911
+        },
+        {
+          "asset_id": "934c25be-ef23-444e-82cd-1aeed66d1459",
+          "document_id": "f1cc2730-8377-4141-b572-b36e7cf3e336",
+          "file": "walking_times.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "summary": "- Meridian Hill Park: 3 min - Adams Morgan restaurants: 2 min - Columbia Heights Metro: ~10 min",
+          "excerpt": "Walking Times\n\n- Meridian Hill Park: 3 min\n- Adams Morgan restaurants: 2 min\n- Columbia Heights Metro: ~10 min\n- U Street Corridor: ~15 min",
+          "score": 0.39962
+        },
+        {
+          "asset_id": "8151bd41-9aba-4d07-93f4-ede680afef42",
+          "document_id": "187cbf88-a570-4fd5-834e-2b5cd4969545",
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A103.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "GREEN BUILDING NOTES GRAPHIC LEGEND EXTG MASONRY WALLS CONCRETE WALLS INTERIOR 1-HR FIRE SEPARATION INTERIOR 2-HR FIRE SEPARATION INTERIOR 3-HR FIRE SEPARATION HORIZONTAL ASSEMBLY CMU WALLS A301 1 A301 2 A302 1 A302 2 3 A401 3 A401 2 A402 2 A402 1 A402 1 A402 2 A401 2 A401 STAIR 4102 STAIR 4101 KITCHEN / LIVING 4021 BED 4022 CL 4024 CL 4025 BATH 4023 TRASH 4104 ELEV 4105 KITCHEN / LIVING 4051 BED 4053 WIC 4054 BATH 4055 BED 4057 BATH 4058 CL 4056 OFFICE / SITTING 4052 HALL 4103 UNIT 405 KITCHEN ",
+          "score": 0.445909
+        },
+        {
+          "asset_id": "db88ed7a-3412-4be6-aae3-435c28c4433e",
+          "document_id": "8ffc72a1-53f8-4251-a589-662443f781d1",
+          "file": "IH_DC_TMP_001_Address.txt",
+          "category": "00_PROJECT_INFO",
+          "source": "drive",
+          "summary": "The Temple 1610 Columbia Rd NW Washington, DC 20009",
+          "excerpt": "The Temple\n1610 Columbia Rd NW\nWashington, DC 20009\nUnited States",
+          "score": 0.429115
+        },
+        {
+          "asset_id": "d2ef0a34-08da-4c01-a338-0319d3190c83",
+          "document_id": "3415004c-95e5-45ec-ae81-a69169678137",
+          "file": "zoo.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "summary": "Smithsonian National Zoo Major family attraction near the project.",
+          "excerpt": "Smithsonian National Zoo\n\nMajor family attraction near the project.",
+          "score": 0.427326
+        },
+        {
+          "asset_id": "10b11fe5-618a-4786-b8ae-ebc7babd45b9",
+          "document_id": "82e8b2bc-4af5-458d-abaf-0fac2f6cb233",
+          "file": "IH_DC_TMP_001_WALL_TYPE PLANS.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "summary": "INTERIOR 1-HR FIRE SEPARATION NEW WALLS - SEE ASSEMBLY PAGE TYP WALL - 0M4A LEVEL 0,1 0W4A",
+          "excerpt": "GENERAL NOTES KITCHEN / LIVING KITCHEN / LIVING KITCHEN / LIVING BED STAIR EXT EXT EXT EXT EXT BED WIC BATH BATH WIC BED KITCHEN / LIVING WIC BATH CL BED KITCHEN / LIVING BATH ELEV STAIR UTILITY / STOR BLDG WATER HEATERS HALL HALL BED WIC BATH BED BATH OFFICE / SITTING BATH 2 CL BATH 1 BED 1 KITCHEN / LIVING BED 2 CL TO CHURCH UNIT 004 UNIT 005 UNIT 006 UNIT 003 UNIT 002 UNIT 001 X4C8 X4C8 X4C8 X4C8 X4C8 C-8 X4C8 C-8 X4C8 X4C8 X4C8 X4C8 1M4A 1M4A 1M4A 0M4C 0M4C 0M4C 0M4C 0M4C 0M4C 0M4C 0M4C 1M4B",
+          "score": 0.418054
+        },
+        {
+          "asset_id": "78b58f8b-1ddc-4766-98b1-d8c83feb288f",
+          "document_id": "099db24e-a35f-47a5-9d77-88fb0b8efda6",
+          "file": "government.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "summary": "- Department of State",
+          "excerpt": "Government\n\n- The White House\n- U.S. Capitol\n- Supreme Court\n- Department of State\n- World Bank\n- IMF Headquarters",
+          "score": 0.416848
+        },
+        {
+          "asset_id": "18736c07-7e45-4dc6-a841-5b39714fd207",
+          "document_id": "bdfa7855-f6ce-40c4-a289-9f4bdc888067",
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A100.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "GREEN BUILDING NOTES GRAPHIC LEGEND EXTG MASONRY WALLS CONCRETE WALLS INTERIOR 1-HR FIRE SEPARATION INTERIOR 2-HR FIRE SEPARATION INTERIOR 3-HR FIRE SEPARATION HORIZONTAL ASSEMBLY CMU WALLS A301 1 A301 2 A302 1 A302 2 3 A401 3 A401 2 A402 2 A402 1 A402 1 A402 2 A401 2 A401 KITCHEN / LIVING 0060 KITCHEN / LIVING 0040 KITCHEN / LIVING 0030 BED 0021 STAIR 0101 BED 0041 WIC 0042 BATH 0043 BATH 0032 WIC 0033 BED 0031 KITCHEN / LIVING 0020 WIC 0023 BATH 0022 CL 0012 BED 0011 KITCHEN / LIVING 0010 BATH",
+          "score": 0.404728
+        },
+        {
+          "asset_id": "cf1b2875-df74-435e-8c76-72ccb66cb8bd",
+          "document_id": "0f7a662d-d78a-4f6d-b8cc-2dd1719741d1",
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A102.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "ALL GLAZING SHALL HAVE A MAX. U-FACTOR OF: 0.33\nFOR NON-METAL FRAMING / 0.38 FOR METAL\nFRAMING (FIXED) / 0.45 FOR METAL FRAMING\n(OPERABLE). C. U-FACTORS AND SHGC OF FENESTRATION\nDETERMINED IN ACCORDANCE WITH N.F.R.C. 200\nD. EXTERIOR INSULATION AT ENTIRE THERMAL ENVELOPE\nTO BE INSTALLED PER MANUFACTURER'S INSTRUCTIONS\nE. FENETRATION TO MEET AAMA/WDMA/CSA\n101/I.S.2/A440 OR DOES NOT EXCEED CODE LIMITS\nPER N.F.R.C 400. GREEN BUILDING NOTES\nGRAPHIC LEGEND\nEXTG MASONRY WALLS\nCONCRETE WALLS\nINTERIOR 1-",
+          "score": 0.358876
+        },
+        {
+          "asset_id": "3466d5e4-cdfb-40ff-ab1c-b0f4e12bfa5b",
+          "document_id": "71dfd971-72a2-4824-929c-167691bd286a",
+          "file": "IH_DC_TMP_001_Font_License.pdf",
+          "category": "01_BRAND",
+          "source": "drive",
+          "summary": "Playfair Display Bold ABCÇDEFGĞHIİJKLMNOÖPQRŞTUÜVWXYZ abcçdefgğhıijklmnoöpqrştuüvwxyz",
+          "excerpt": "Playfair Display Bold\nABCÇDEFGĞHIİJKLMNOÖPQRŞTUÜVWXYZ\nabcçdefgğhıijklmnoöpqrştuüvwxyz\n0123456789\nMontserrat Light\nABCÇDEFGĞHIİJKLMNOÖPQRŞTUÜVWXYZ\nabcçdefgğhıijklmnoöpqrştuüvwxyz\n0123456789\nMontserrat Regular\nABCÇDEFGĞHIİJKLMNOÖPQRŞTUÜVWXYZ\nabcçdefgğhıijklmnoöpqrştuüvwxyz\n0123456789\nMontserrat Medium\nABCÇDEFGĞHIİJKLMNOÖPQRŞTUÜVWXYZ\nabcçdefgğhıijklmnoöpqrştuüvwxyz\n0123456789\nMontserrat SemiBold\nABCÇDEFGĞHIİJKLMNOÖPQRŞTUÜVWXYZ\nabcçdefgğhıijklmnoöpqrştuüvwxyz\n0123456789\nMontserrat SemiBold Italic\nAB",
+          "score": 0.352014
+        },
+        {
+          "asset_id": "c10cbb78-248f-4fea-8292-52adebc56f22",
+          "document_id": "1ea9ae4e-1ae6-4ce9-b373-da6f9aa02cf6",
+          "file": "IH_DC_TMP_001_Project_Timeline.txt",
+          "category": "00_PROJECT_INFO",
+          "source": "drive",
+          "summary": "Acquisition Development Construction",
+          "excerpt": "Acquisition\nDevelopment\nConstruction\nLease-up\nRefinance\nOperations",
+          "score": 0.345502
+        },
+        {
+          "asset_id": "3af750ec-9e1a-4979-a882-b778c2bd0208",
+          "document_id": "b3d98480-ad66-4355-a2cd-c92b0d870e5b",
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A104.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "ALL GLAZING SHALL HAVE A MAX. U-FACTOR OF: 0.33\nFOR NON-METAL FRAMING / 0.38 FOR METAL\nFRAMING (FIXED) / 0.45 FOR METAL FRAMING\n(OPERABLE). C. U-FACTORS AND SHGC OF FENESTRATION\nDETERMINED IN ACCORDANCE WITH N.F.R.C. 200\nD. EXTERIOR INSULATION AT ENTIRE THERMAL ENVELOPE\nTO BE INSTALLED PER MANUFACTURER'S INSTRUCTIONS\nE. FENETRATION TO MEET AAMA/WDMA/CSA\n101/I.S.2/A440 OR DOES NOT EXCEED CODE LIMITS\nPER N.F.R.C 400.",
+          "score": 0.340006
+        },
+        {
+          "asset_id": "18736c07-7e45-4dc6-a841-5b39714fd207",
+          "document_id": "bdfa7855-f6ce-40c4-a289-9f4bdc888067",
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A100.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "ALL GLAZING SHALL HAVE A MAX. U-FACTOR OF: 0.33\nFOR NON-METAL FRAMING / 0.38 FOR METAL\nFRAMING (FIXED) / 0.45 FOR METAL FRAMING\n(OPERABLE). C. U-FACTORS AND SHGC OF FENESTRATION\nDETERMINED IN ACCORDANCE WITH N.F.R.C. 200\nD. EXTERIOR INSULATION AT ENTIRE THERMAL ENVELOPE\nTO BE INSTALLED PER MANUFACTURER'S INSTRUCTIONS\nE. FENETRATION TO MEET AAMA/WDMA/CSA\n101/I.S.2/A440 OR DOES NOT EXCEED CODE LIMITS\nPER N.F.R.C 400.",
+          "score": 0.340006
+        },
+        {
+          "asset_id": "973585df-2703-4509-a405-f06f790ddd61",
+          "document_id": "5dc0a7f7-aa7d-4f69-bf6a-8c6a80f399d7",
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A101.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "ALL GLAZING SHALL HAVE A MAX. U-FACTOR OF: 0.33\nFOR NON-METAL FRAMING / 0.38 FOR METAL\nFRAMING (FIXED) / 0.45 FOR METAL FRAMING\n(OPERABLE). C. U-FACTORS AND SHGC OF FENESTRATION\nDETERMINED IN ACCORDANCE WITH N.F.R.C. 200\nD. EXTERIOR INSULATION AT ENTIRE THERMAL ENVELOPE\nTO BE INSTALLED PER MANUFACTURER'S INSTRUCTIONS\nE. FENETRATION TO MEET AAMA/WDMA/CSA\n101/I.S.2/A440 OR DOES NOT EXCEED CODE LIMITS\nPER N.F.R.C 400.",
+          "score": 0.340006
+        },
+        {
+          "asset_id": "4066b7bb-f3f7-4b83-98fc-94d20f86d26a",
+          "document_id": "5b26a7ea-2939-49b3-b157-385ceb0aaad1",
+          "file": "historic.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "summary": "The original building is a historic structure. Exterior preservation requirements apply where applicable.",
+          "excerpt": "The original building is a historic structure.\nExterior preservation requirements apply where applicable.",
+          "score": 0.339862
+        },
+        {
+          "asset_id": null,
+          "document_id": "58c7ca41-8d9a-4b3d-aecb-f0bd9945aaa6",
+          "file": "README.md",
+          "category": "01_BRAND",
+          "source": "drive",
+          "summary": "Brand Assets | Contents. Contains all official branding materials. Only approved branding files should be stored here.",
+          "excerpt": "# Brand Assets\n\nContains all official branding materials.\n\n## Contents\n- Logo\n- Colors\n- Fonts\n- Brand Guidelines\n\nOnly approved branding files should be stored here.",
+          "score": 0.445835
+        },
+        {
+          "asset_id": null,
+          "document_id": "65240473-f427-4fe5-90e3-6ed1997b273f",
+          "file": "metadata.json",
+          "category": "01_BRAND",
+          "source": "drive",
+          "summary": "builders: [\"website\", \"landing\", \"proposal\", \"email\", \"social\"]",
+          "excerpt": "category: brand\nsearchable: True\nindex: True\nasset_type: brand\nversioning: True\nbuilders: [\"website\", \"landing\", \"proposal\", \"email\", \"social\"]",
+          "score": 0.413455
+        },
+        {
+          "asset_id": "95a8d99d-2f3d-4389-b8e2-3eb8f43b1f43",
+          "document_id": "3ca6c209-2496-49b5-8390-37922719c849",
+          "file": "overview.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "summary": "Washington DC remains one of the strongest residential rental markets in the United States. Demand is supported by government, universities and international organizations.",
+          "excerpt": "Washington DC remains one of the strongest residential rental markets in the United States.\nDemand is supported by government, universities and international organizations.",
+          "score": 0.376589
+        },
+        {
+          "asset_id": "de0ec21c-a7f0-4ecf-9690-68bebeeacdd4",
+          "document_id": "eaa082b1-f5c2-42ed-b1c8-b80d30b645f1",
+          "file": "income.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "summary": "Median household income is above the Washington DC average. The area attracts high-income professionals and long-term renters.",
+          "excerpt": "Median household income is above the Washington DC average.\nThe area attracts high-income professionals and long-term renters.",
+          "score": 0.374809
+        },
+        {
+          "asset_id": "189ae246-694f-4168-844f-593947779362",
+          "document_id": "7716a648-dd22-4174-83c6-f16dd65cdf56",
+          "file": "IH_DC_TMp_001_The Temple Catalog Texts.docx",
+          "category": null,
+          "source": "drive",
+          "summary": "The Temple Proje Sunumu ZAMANIN ÖTESİNDE BİR SEMBOL (A Symbol Beyond Time) Tarihçe, Konsept ve Kimlik",
+          "excerpt": "EKSİKSİZ. (Smart. Elegant. Complete.) [cite: 129, 130, 131, 132]\nDaire Seçenekleri ve Planlar: Fonksiyonel planlama ile maksimum verim sağlayan 1+1 daireler (Örnek: Unit 203), modern şehir yaşamına mükemmel uyum sağlar [cite: 135, 136, 139]. Her metrekare, konfor ve estetik düşünülerek kompakt ama eksiksiz kurgulanmıştır [cite: 140, 141]. Projede ayrıca geniş yaşam alanları sunan 2+1 daire planları da (Örnek: Unit 401) yer almaktadır [cite: 112, 113]. Size Ait Bir Sığınak (Your Private Sanctuary",
+          "score": 0.438514
+        },
+        {
+          "asset_id": null,
+          "document_id": "0efb9222-9563-47f6-9ead-22f3f05bb21e",
+          "file": "README.md",
+          "category": "04_UNIT_PLANS",
+          "source": "drive",
+          "summary": "Unit Plans. Contains individual apartment layouts. Organize by unit type and revision.",
+          "excerpt": "# Unit Plans\n\nContains individual apartment layouts.\n\nOrganize by unit type and revision.",
+          "score": 0.398111
+        },
+        {
+          "asset_id": "8151bd41-9aba-4d07-93f4-ede680afef42",
+          "document_id": "187cbf88-a570-4fd5-834e-2b5cd4969545",
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A103.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "- IZ UNIT FINISHES TO MATCH THOSE OF MARKET RATE\nUNITS.",
+          "score": 0.395493
+        },
+        {
+          "asset_id": "cf1b2875-df74-435e-8c76-72ccb66cb8bd",
+          "document_id": "0f7a662d-d78a-4f6d-b8cc-2dd1719741d1",
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A102.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "2'-0\" 4'-7 1/2\" 10'-6\" 9'-4 1/2\" 4'-1 1/2\" 3'-6\" 3'-6\" 2'-0\" 4'-6\" 10'-5\" 9'-0\" 11'-3\" 7'-4 1/2\" 2'-6\" 5'-0\" 5'-10 1/2\" 5'-0\" 3'-1 1/2\" 2'-6\" 3'-5\" 5'-0\" 2'-0\" 4'-0\" 1'-0\" 2'-0\" 3'-0\" 5'-3\" 5'-0\" 6'-0\" 4'-3\" 15'-9\" 6'-0\" 3'-10 1/2\" 11/7/2025 1:15:45 PM A102 34-UNIT ADDITION TO EXISTING CHURCH 1610 COLUMBIA RD NW, WASHINGTON DC 20009 SQ 2578 LT 0830 PROPOSED FLOOR PLANS PERMIT SUBMISSION 2025-1103 3/16\" = 1'-0\" 1 SECOND FLOOR PROPOSED 2 THIRD FLOOR PROPOSED NO.\n\nDESCRIPTION DATE",
+          "score": 0.389112
+        }
+      ],
+      "selected_interior": null,
+      "selected_logo": {
+        "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "filename": "IH_DC_TMP_001_Logo_Primary.svg",
+        "content_type": "image/svg+xml",
+        "folder_category": "01_BRAND",
+        "visual_subject": "BRANDING",
+        "tags": [],
+        "role": "project_logo",
+        "provenance_source": "google_drive",
+        "selection_score": null,
+        "selection_reason": null,
+        "classification": "LOGO_PRIMARY",
+        "architecture_locked": false,
+        "creative_freedom_level": 0,
+        "project_relation": "project_primary",
+        "approved": true,
+        "approved_status": "approved"
+      },
+      "drive_sources": [
+        {
+          "file": "IH_DC_TMP_001_Logo_Primary.svg",
+          "category": "01_BRAND",
+          "source": "google_drive",
+          "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+          "summary": "Selected real project logo",
+          "excerpt": "",
+          "score": 1.0,
+          "role": "selected_logo",
+          "classification": "LOGO_PRIMARY"
+        },
+        {
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A103.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "asset_id": "8151bd41-9aba-4d07-93f4-ede680afef42",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "7'-0\" 5'-0\" 10'-3 1/2\" 2'-0\" 7'-2 1/2\" 4'-7\" 3'-0\" 8'-0\" 5'-5 1/2\" 11'-5 1/2\" 13'-8\" 16'-8\" 5'-5 1/2\" 7'-0\" 2'-6\" 11/7/2025 1:16:03 PM A103 34-UNIT ADDITION TO EXISTING CHURCH 1610 COLUMBIA RD NW, WAS",
+          "score": 0.385465
+        },
+        {
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A101.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "asset_id": "973585df-2703-4509-a405-f06f790ddd61",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "GREEN BUILDING NOTES GRAPHIC LEGEND EXTG MASONRY WALLS CONCRETE WALLS INTERIOR 1-HR FIRE SEPARATION INTERIOR 2-HR FIRE SEPARATION INTERIOR 3-HR FIRE SEPARATION HORIZONTAL ASSEMBLY CMU WALLS A301 1 A30",
+          "score": 0.361123
+        },
+        {
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A102.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "asset_id": "cf1b2875-df74-435e-8c76-72ccb66cb8bd",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "1 3042 BATH 3045 BED 2 3046 HALL 3103 UNIT 304 UNIT 301 CL 3016 WIC 3013 BED 2 3033 CL 3032 BED 1 3034 CL 3035 BATH 1 3036 CL 3043 HALL 3044 302 303 304 305 306 307 308 309 314 317 319 301 305 307 315",
+          "score": 0.354149
+        },
+        {
+          "file": "IH_DC_TMP_001_Color_Palette.pdf",
+          "category": "01_BRAND",
+          "source": "drive",
+          "asset_id": "5e1e5c44-f1c7-4c35-b6ea-e1b4b802ee08",
+          "summary": "INKTYPE Process CMYK 69, 47, 100, 45 HSB 81, 56%, 30%",
+          "excerpt": "INKTYPE Process\nCMYK 69, 47, 100, 45\nHSB 81, 56%, 30%\nRGB 62, 77, 34\nHEX #3E4D22\nR=58 G=76 B=0\nINKTYPE Process\nCMYK 3, 4, 7, 0\nHSB 35, 5%, 96%\nRGB 244, 239, 232\nHEX #F4EFE8\nR=244 G=239 B=231\nINKTYPE P",
+          "score": 0.345375
+        },
+        {
+          "file": "IH_DC_TMP_001_Font_License.pdf",
+          "category": "01_BRAND",
+          "source": "drive",
+          "asset_id": "3466d5e4-cdfb-40ff-ab1c-b0f4e12bfa5b",
+          "summary": "Playfair Display Bold ABCÇDEFGĞHIİJKLMNOÖPQRŞTUÜVWXYZ abcçdefgğhıijklmnoöpqrştuüvwxyz",
+          "excerpt": "INKTYPE Process\nCMYK 69, 47, 100, 45\nHSB 81, 56%, 30%\nRGB 62, 77, 34\nHEX #3E4D22\nR=58 G=76 B=0\nINKTYPE Process\nCMYK 3, 4, 7, 0\nHSB 35, 5%, 96%\nRGB 244, 239, 232\nHEX #F4EFE8\nR=244 G=239 B=231\nINKTYPE P",
+          "score": 0.345375
+        },
+        {
+          "file": "IH_DC_TMp_001_The Temple Catalog Texts.docx",
+          "category": null,
+          "source": "drive",
+          "asset_id": "189ae246-694f-4168-844f-593947779362",
+          "summary": "The Temple Proje Sunumu ZAMANIN ÖTESİNDE BİR SEMBOL (A Symbol Beyond Time) Tarihçe, Konsept ve Kimlik",
+          "excerpt": "4. Mimari Tasarım ve İç Mekân Deneyimi\nMimari Bir İmza (A Statement in Architecture): Tarihi dokusunu koruyan dış cephe, The Temple'ın karakterini tanımlayan en güçlü unsurlardan biridir [cite: 106, 1",
+          "score": 0.344649
+        },
+        {
+          "file": "IH_DC_TMP_001_Project_Specifications.txt",
+          "category": "00_PROJECT_INFO",
+          "source": "drive",
+          "asset_id": "1761f488-393f-41a3-bc5d-67e89856af8d",
+          "summary": "Residential Development Historic + New Construction",
+          "excerpt": "Residential Development\nHistoric + New Construction\nWalkable Location\nStrong Rental Market",
+          "score": 0.333385
+        },
+        {
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A104.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "asset_id": "3af750ec-9e1a-4979-a882-b778c2bd0208",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "609 612 614 619 621 630 633 616 643 644 645 646 647 648 650 651 652 653 654 655 656 657 658 611 649 612 613 614 615 659 616 617 618 619 620 621 622 660 661 623 624 625 626 627 628 629 630 631 632 633 ",
+          "score": 0.331387
+        },
+        {
+          "file": "IH_DC_TMP_001_WALL_TYPE PLANS.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "asset_id": "10b11fe5-618a-4786-b8ae-ebc7babd45b9",
+          "summary": "INTERIOR 1-HR FIRE SEPARATION NEW WALLS - SEE ASSEMBLY PAGE TYP WALL - 0M4A LEVEL 0,1 0W4A",
+          "excerpt": "BED WIC BATH BED BATH OFFICE / SITTING KITCHEN / LIVING CL BATH BED 2 BED BATH CL BED BATH CL BATH WIC KITCHEN / LIVING CL CL CL UNIT 201 UNIT 202 UNIT 203 UNIT 204 UNIT 205 UNIT 206 X1W6D P2W6A X2W6D",
+          "score": 0.325558
+        },
+        {
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A100.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "asset_id": "18736c07-7e45-4dc6-a841-5b39714fd207",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "16'-10\" 14'-9 1/2\" 9'-10\" 7'-4 1/2\" 18'-0\" 9'-2\" 14'-0\" 9'-8\" 30'-2\" 17'-9 1/2\" 20'-5 1/2\" 19' -6 1/2\" 6'-6\" 11/7/2025 1:15:09 PM A100 34-UNIT ADDITION TO EXISTING CHURCH 1610 COLUMBIA RD NW, WASHINGT",
+          "score": 0.318258
+        },
+        {
+          "file": "meridian_hill.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "asset_id": "ecb921ff-f7ed-4553-bed0-a5ad122ab7eb",
+          "summary": "Historic urban park within walking distance.",
+          "excerpt": "Meridian Hill Park\n\nHistoric urban park within walking distance.",
+          "score": 0.316604
+        },
+        {
+          "file": "IH_DC_TMP_001_Description_EN.docx",
+          "category": "00_PROJECT_INFO",
+          "source": "drive",
+          "asset_id": "a290bd1d-1b29-4158-befd-ece4b8e6f129",
+          "summary": "The Temple Description (EN) The Temple is a residential redevelopment project in Adams Morgan, Washington, DC, combining a historic building with a modern addition to create premium investment and living opportunities.",
+          "excerpt": "The Temple Description (EN)\nThe Temple is a residential redevelopment project in Adams Morgan, Washington, DC, combining a historic building with a modern addition to create premium investment and liv",
+          "score": 0.314407
+        },
+        {
+          "file": "IH_DC_TMP_001_Project_Summary.docx",
+          "category": "00_PROJECT_INFO",
+          "source": "drive",
+          "asset_id": "e9572999-5d9e-445e-a635-0f2bb6bfeacd",
+          "summary": "The Temple - Project Summary Project Code: IH-DC-TMP-001 Address: 1610 Columbia Rd NW, Washington, DC",
+          "excerpt": "The Temple - Project Summary\nProject Code: IH-DC-TMP-001\nProject: The Temple\nAddress: 1610 Columbia Rd NW, Washington, DC\nType: Historic Redevelopment + Residential Addition\nUnits: 65\nLocation: Adams ",
+          "score": 0.614678
+        },
+        {
+          "file": "overview.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "asset_id": "a2286daa-5473-44e7-aca3-4fa6650ab483",
+          "summary": "Project: The Temple Address: 1610 Columbia Rd NW, Washington, DC Neighborhood: - Adams Morgan - Columbia Heights - Dupont Circle - U Nearby: - Downtown Washington DC - Union Station - Reagan National",
+          "excerpt": "Overview\n\nProject: The Temple Address: 1610 Columbia Rd NW, Washington, DC\n\nNeighborhood: - Adams Morgan - Columbia Heights - Dupont Circle - U\nStreet Corridor\n\nNearby: - Downtown Washington DC - Unio",
+          "score": 0.597679
+        },
+        {
+          "file": "location_summary.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "asset_id": "40c146fa-056a-40b2-9a29-fa1991bac94e",
+          "summary": "The Temple is located in the heart of Adams Morgan, offering excellent walkability, strong rental demand, convenient metro access, vibrant dining, parks, and proximity to major government and business districts.",
+          "excerpt": "Location Summary\n\nThe Temple is located in the heart of Adams Morgan, offering excellent\nwalkability, strong rental demand, convenient metro access, vibrant\ndining, parks, and proximity to major gover",
+          "score": 0.597591
+        },
+        {
+          "file": "IH_DC_TMP_001_Facts.txt",
+          "category": "00_PROJECT_INFO",
+          "source": "drive",
+          "asset_id": "1e58ac73-4e63-43b5-be6f-485281a231c2",
+          "summary": "Project Code: IH-DC-TMP-001 Location: Adams Morgan",
+          "excerpt": "Project Code: IH-DC-TMP-001\nUnits: 65\nHistoric Units: 31\nAddition Units: 34\nLocation: Adams Morgan\nCity: Washington DC",
+          "score": 0.479919
+        },
+        {
+          "file": "overview.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "asset_id": "bc4eaef0-cd55-4f35-a259-924d5e26bbcb",
+          "summary": "Neighborhood: Adams Morgan - Young professionals - Government employees",
+          "excerpt": "Neighborhood: Adams Morgan\nCity: Washington, DC\nPrimary Residents:\n- Young professionals\n- Government employees\n- Embassy staff\n- University students\n- Medical professionals\n- International residents",
+          "score": 0.474503
+        },
+        {
+          "file": "IH_DC_TMp_001_The Temple Catalog Texts.docx",
+          "category": null,
+          "source": "drive",
+          "asset_id": "189ae246-694f-4168-844f-593947779362",
+          "summary": "The Temple Proje Sunumu ZAMANIN ÖTESİNDE BİR SEMBOL (A Symbol Beyond Time) Tarihçe, Konsept ve Kimlik",
+          "excerpt": "The Temple, mimari mirası ile çağdaş yaşamın kusursuz birleşimini sunuyor [cite: 69]. Her detayı özenle tasarlanmış yaşam alanları, estetik ve fonksiyonelliği bir araya getirir [cite: 70]. Bu proje, s",
+          "score": 0.439361
+        },
+        {
+          "file": "overview.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "asset_id": "00caf53c-7b78-4db5-b70d-2d51a07e0c1e",
+          "summary": "Adams Morgan is one of Washington DC's most vibrant neighborhoods. Known for restaurants, cafes, nightlife and walkability.",
+          "excerpt": "Adams Morgan is one of Washington DC's most vibrant neighborhoods.\nKnown for restaurants, cafes, nightlife and walkability.",
+          "score": 0.435598
+        },
+        {
+          "file": "shopping_dining.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "asset_id": "e946124e-1600-47c3-ad06-12fdb964b22d",
+          "summary": "Shopping & Dining - Adams Morgan - Union Market",
+          "excerpt": "Shopping & Dining\n\n- Adams Morgan\n- Union Market\n- CityCenterDC\n- Georgetown\n- Whole Foods\n- Trader Joe’s",
+          "score": 0.432602
+        },
+        {
+          "file": "IH_DC_TMP_001_FAQ.txt",
+          "category": "00_PROJECT_INFO",
+          "source": "drive",
+          "asset_id": "4f40de7e-6e98-45d2-b43c-75c936fe6470",
+          "summary": "Q: Where is the project? A: Adams Morgan, Washington DC. A: Historic redevelopment with modern addition.",
+          "excerpt": "Q: Where is the project?\nA: Adams Morgan, Washington DC.\n\nQ: Total units?\nA: 65.\n\nQ: Project type?\nA: Historic redevelopment with modern addition.",
+          "score": 0.425126
+        },
+        {
+          "file": "IH_DC_TMP_001_Description_TR.docx",
+          "category": "00_PROJECT_INFO",
+          "source": "drive",
+          "asset_id": "ccc74991-6e11-4af1-b307-e65257a9967b",
+          "summary": "The Temple Description (TR) The Temple, Washington DC'nin Adams Morgan bölgesinde yer alan tarihi bir konut geliştirme projesidir. Tarihi bina ile modern ek yapıyı birleştirerek yatırım ve yaşam odaklı daireler sunar.",
+          "excerpt": "The Temple Description (TR)\nThe Temple, Washington DC'nin Adams Morgan bölgesinde yer alan tarihi bir konut geliştirme projesidir. Tarihi bina ile modern ek yapıyı birleştirerek yatırım ve yaşam odakl",
+          "score": 0.413911
+        },
+        {
+          "file": "walking_times.txt",
+          "category": "05_LOCATION",
+          "source": "drive",
+          "asset_id": "934c25be-ef23-444e-82cd-1aeed66d1459",
+          "summary": "- Meridian Hill Park: 3 min - Adams Morgan restaurants: 2 min - Columbia Heights Metro: ~10 min",
+          "excerpt": "Walking Times\n\n- Meridian Hill Park: 3 min\n- Adams Morgan restaurants: 2 min\n- Columbia Heights Metro: ~10 min\n- U Street Corridor: ~15 min",
+          "score": 0.39962
+        },
+        {
+          "file": "IH_DC_TMP_001_FLOOR PLANS_A103.pdf",
+          "category": "03_FLOOR_PLANS",
+          "source": "drive",
+          "asset_id": "8151bd41-9aba-4d07-93f4-ede680afef42",
+          "summary": "GENERAL CONTRACTOR TO PERFORM SITE VISIT QUESTIONS AND ISSUES TO BE REPORTED TO 2PLYS PRIOR TO SUBMITTAL OF BID TO",
+          "excerpt": "GREEN BUILDING NOTES GRAPHIC LEGEND EXTG MASONRY WALLS CONCRETE WALLS INTERIOR 1-HR FIRE SEPARATION INTERIOR 2-HR FIRE SEPARATION INTERIOR 3-HR FIRE SEPARATION HORIZONTAL ASSEMBLY CMU WALLS A301 1 A30",
+          "score": 0.445909
+        }
+      ],
+      "unit_mentions": [
+        {
+          "unit_code": "204",
+          "found_in_drive": true,
+          "hit_count": 1,
+          "excerpts": [
+            {
+              "file": "IH_DC_TMP_001_WALL_TYPE PLANS.pdf",
+              "excerpt": "BED WIC BATH BED BATH OFFICE / SITTING KITCHEN / LIVING CL BATH BED 2 BED BATH CL BED BATH CL BATH WIC KITCHEN / LIVING CL CL CL UNIT 201 UNIT 202 UNIT 203 UNIT 204 UNIT 205 UNIT 206 X1W6D P2W6A X2W6D 1W4A 1W4A 1W4A G-12 0W4C 0W4C G-12 G-12",
+              "score": 0.325558
+            }
+          ]
+        }
+      ],
+      "warnings": [
+        "Approved Historic+Addition exterior render missing. Cannot invent The Temple Addition — FAIL CLOSED.",
+        "architectural_truth_fail_closed",
+        "No real project hero asset found in Drive/Media Library. PROJECT MODE will not invent or substitute an AI image. Fake architecture fallback FORBIDDEN."
+      ],
+      "media_candidate_count": 40,
+      "architecture_truth": {
+        "intent": "location",
+        "require_historic_plus_addition": true,
+        "candidates_reviewed": 40,
+        "approved_exterior_options": [
+          {
+            "asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+            "filename": "IH_DC_TMP_001_Render_Exterior_Day_004.jpg",
+            "classification": "EXTERIOR_APPROVED"
+          },
+          {
+            "asset_id": "07863b0f-22e8-43c6-a629-7ceca7651b16",
+            "filename": "IH_DC_TMP_001_Render_Exterior_Day_005.jpg",
+            "classification": "EXTERIOR_APPROVED"
+          },
+          {
+            "asset_id": "c0afa1bf-b487-410c-be3d-91c31852550d",
+            "filename": "IH_DC_TMP_001_Render_Exterior_Day_007.jpg",
+            "classification": "EXTERIOR_APPROVED"
+          },
+          {
+            "asset_id": "f491ee6e-de7d-4258-a153-4104e326b736",
+            "filename": "IH_DC_TMP_001_Render_Exterior_Day_010.jpg",
+            "classification": "EXTERIOR_APPROVED"
+          },
+          {
+            "asset_id": "5d26caf3-c237-4a78-9f3a-91f05dd24fa2",
+            "filename": "IH_DC_TMP_001_Render_Exterior_Day_001.jpg",
+            "classification": "EXTERIOR_APPROVED"
+          },
+          {
+            "asset_id": "543aeb03-c4c9-46f9-9d9f-81bf53f45438",
+            "filename": "IH_DC_TMP_001_Render_Exterior_Day_002.jpg",
+            "classification": "EXTERIOR_APPROVED"
+          },
+          {
+            "asset_id": "7346e259-f999-4fbb-a8d5-63708d4e0c81",
+            "filename": "IH_DC_TMP_001_Render_Exterior_Day_003.jpg",
+            "classification": "EXTERIOR_APPROVED"
+          },
+          {
+            "asset_id": "2d44757b-079c-4a78-a4a9-5fe6370466c8",
+            "filename": "IH_DC_TMP_001_Render_Exterior_Day_008.jpg",
+            "classification": "EXTERIOR_APPROVED"
+          },
+          {
+            "asset_id": "7696df34-0544-44b9-89f5-0d1b2523c412",
+            "filename": "IH_DC_TMP_001_Render_Exterior_Day_009.jpg",
+            "classification": "EXTERIOR_APPROVED"
+          },
+          {
+            "asset_id": "65f68756-a006-43d4-9c86-2c0ec25ad229",
+            "filename": "IH_DC_TMP_001_Render_Exterior_Sunset_001.jpg",
+            "classification": "EXTERIOR_APPROVED"
+          }
+        ],
+        "fallback_pool": [],
+        "selected": null,
+        "status": "fail_closed",
+        "fail_closed": true,
+        "message": "Approved Historic+Addition exterior render missing. Cannot invent The Temple Addition — FAIL CLOSED."
+      }
+    },
+    "architecture_truth": {
+      "intent": "location",
+      "require_historic_plus_addition": true,
+      "candidates_reviewed": 40,
+      "approved_exterior_options": [
+        {
+          "asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+          "filename": "IH_DC_TMP_001_Render_Exterior_Day_004.jpg",
+          "classification": "EXTERIOR_APPROVED"
+        },
+        {
+          "asset_id": "07863b0f-22e8-43c6-a629-7ceca7651b16",
+          "filename": "IH_DC_TMP_001_Render_Exterior_Day_005.jpg",
+          "classification": "EXTERIOR_APPROVED"
+        },
+        {
+          "asset_id": "c0afa1bf-b487-410c-be3d-91c31852550d",
+          "filename": "IH_DC_TMP_001_Render_Exterior_Day_007.jpg",
+          "classification": "EXTERIOR_APPROVED"
+        },
+        {
+          "asset_id": "f491ee6e-de7d-4258-a153-4104e326b736",
+          "filename": "IH_DC_TMP_001_Render_Exterior_Day_010.jpg",
+          "classification": "EXTERIOR_APPROVED"
+        },
+        {
+          "asset_id": "5d26caf3-c237-4a78-9f3a-91f05dd24fa2",
+          "filename": "IH_DC_TMP_001_Render_Exterior_Day_001.jpg",
+          "classification": "EXTERIOR_APPROVED"
+        },
+        {
+          "asset_id": "543aeb03-c4c9-46f9-9d9f-81bf53f45438",
+          "filename": "IH_DC_TMP_001_Render_Exterior_Day_002.jpg",
+          "classification": "EXTERIOR_APPROVED"
+        },
+        {
+          "asset_id": "7346e259-f999-4fbb-a8d5-63708d4e0c81",
+          "filename": "IH_DC_TMP_001_Render_Exterior_Day_003.jpg",
+          "classification": "EXTERIOR_APPROVED"
+        },
+        {
+          "asset_id": "2d44757b-079c-4a78-a4a9-5fe6370466c8",
+          "filename": "IH_DC_TMP_001_Render_Exterior_Day_008.jpg",
+          "classification": "EXTERIOR_APPROVED"
+        },
+        {
+          "asset_id": "7696df34-0544-44b9-89f5-0d1b2523c412",
+          "filename": "IH_DC_TMP_001_Render_Exterior_Day_009.jpg",
+          "classification": "EXTERIOR_APPROVED"
+        },
+        {
+          "asset_id": "65f68756-a006-43d4-9c86-2c0ec25ad229",
+          "filename": "IH_DC_TMP_001_Render_Exterior_Sunset_001.jpg",
+          "classification": "EXTERIOR_APPROVED"
+        }
+      ],
+      "fallback_pool": [],
+      "selected": null,
+      "status": "fail_closed",
+      "fail_closed": true,
+      "message": "Approved Historic+Addition exterior render missing. Cannot invent The Temple Addition — FAIL CLOSED."
+    },
+    "orchestration": {
+      "required_capabilities": [
+        "text",
+        "reasoning",
+        "image_edit",
+        "architecture_render"
+      ],
+      "assignments": [
+        {
+          "capability": "text",
+          "required": true,
+          "provider_id": "openai_gpt",
+          "available": true,
+          "missing": false,
+          "reason": null
+        },
+        {
+          "capability": "reasoning",
+          "required": true,
+          "provider_id": "openai_gpt",
+          "available": true,
+          "missing": false,
+          "reason": null
+        },
+        {
+          "capability": "image_edit",
+          "required": true,
+          "provider_id": "gpt_image",
+          "available": true,
+          "missing": false,
+          "reason": null
+        },
+        {
+          "capability": "architecture_render",
+          "required": true,
+          "provider_id": "architecture_stub",
+          "available": false,
+          "missing": true,
+          "reason": "Architecture render provider not configured"
+        }
+      ],
+      "providers": [
+        {
+          "provider_id": "openai_gpt",
+          "capabilities": [
+            "text",
+            "reasoning"
+          ],
+          "available": true,
+          "configured": true,
+          "reason": null,
+          "model": "gpt-4o"
+        },
+        {
+          "provider_id": "gpt_image",
+          "capabilities": [
+            "image_generate",
+            "image_edit"
+          ],
+          "available": true,
+          "configured": true,
+          "reason": null,
+          "model": "gpt-image-2"
+        },
+        {
+          "provider_id": "ideogram",
+          "capabilities": [
+            "image_generate",
+            "image_edit"
+          ],
+          "available": true,
+          "configured": true,
+          "reason": null,
+          "model": "V_4_0"
+        },
+        {
+          "provider_id": "video_stub",
+          "capabilities": [
+            "video_generate",
+            "video_edit"
+          ],
+          "available": false,
+          "configured": false,
+          "reason": "Video provider not configured",
+          "model": null
+        },
+        {
+          "provider_id": "architecture_stub",
+          "capabilities": [
+            "architecture_render"
+          ],
+          "available": false,
+          "configured": false,
+          "reason": "Architecture render provider not configured",
+          "model": null
+        },
+        {
+          "provider_id": "voice_stub",
+          "capabilities": [
+            "voice"
+          ],
+          "available": false,
+          "configured": false,
+          "reason": "Voice provider not configured",
+          "model": null
+        },
+        {
+          "provider_id": "music_stub",
+          "capabilities": [
+            "music"
+          ],
+          "available": false,
+          "configured": false,
+          "reason": "Music provider not configured",
+          "model": null
+        },
+        {
+          "provider_id": "presentation_stub",
+          "capabilities": [
+            "presentation"
+          ],
+          "available": false,
+          "configured": false,
+          "reason": "Presentation provider not configured",
+          "model": null
+        },
+        {
+          "provider_id": "document_stub",
+          "capabilities": [
+            "document"
+          ],
+          "available": false,
+          "configured": false,
+          "reason": "Document generation provider not configured",
+          "model": null
+        }
+      ],
+      "missing_capabilities": [
+        "architecture_render"
+      ]
+    },
+    "generated_assets": [],
+    "output_history": [],
+    "revision_history": [],
+    "image_generation_performed": false
+  }
+}

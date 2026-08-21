@@ -1,0 +1,95 @@
+{
+  "status": "ok",
+  "campaign_id": "de913af0-de19-4986-867e-7948d0fa1439",
+  "production_mode": "finished_ad",
+  "final_asset_id": "ef1cbf58-f8c5-4001-a557-00251840cf68",
+  "master_finished_ad_asset_id": "ef1cbf58-f8c5-4001-a557-00251840cf68",
+  "design_spec_present": false,
+  "editable_layers_count": 0,
+  "quality_guard": {
+    "status": "review",
+    "mode": "finished_ad",
+    "checks": {
+      "logo_locked": true,
+      "facts_language": true,
+      "architecture_truth": true,
+      "headline_present": true,
+      "cta_present": true,
+      "language_set": true,
+      "headline_length_ok": true
+    },
+    "failures": [],
+    "warnings": [],
+    "architecture_truth": {
+      "status": "pass",
+      "fail_closed": false,
+      "checks": {
+        "approved_source_exists": true,
+        "source_id_traceable": true,
+        "architecture_locked_respected": true,
+        "no_unapproved_exterior": true,
+        "no_generated_architecture_as_truth": true,
+        "historic_addition_not_invented": true,
+        "no_neighbor_as_project": true
+      },
+      "failures": [],
+      "asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+      "filename": "IH_DC_TMP_001_Render_Living_Room_001.jpg",
+      "classification": "INTERIOR_APPROVED",
+      "architecture_locked": true,
+      "creative_freedom_level": 1,
+      "project_relation": "project_primary",
+      "approved_status": "approved",
+      "source_used_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+      "campaign_intent": "launch",
+      "message": "Architectural truth established from approved project asset.",
+      "note": "User visual approval required — do not declare Visual Quality PASS."
+    },
+    "automatic_fail_triggers": [
+      "text_overflow",
+      "cropped_headline",
+      "distorted_logo",
+      "unreadable_text",
+      "architecture_truth_fail_closed"
+    ],
+    "note": "User visual approval required — do not declare Visual Quality PASS."
+  },
+  "truth": {
+    "source_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+    "filename": "IH_DC_TMP_001_Render_Living_Room_001.jpg",
+    "classification": "INTERIOR_APPROVED",
+    "architecture_locked": true,
+    "creative_freedom_level": 1,
+    "approved_status": "approved",
+    "project_relation": "project_primary",
+    "architecture_truth_guard": {
+      "status": "pass",
+      "fail_closed": false,
+      "checks": {
+        "approved_source_exists": true,
+        "source_id_traceable": true,
+        "architecture_locked_respected": true,
+        "no_unapproved_exterior": true,
+        "no_generated_architecture_as_truth": true,
+        "historic_addition_not_invented": true,
+        "no_neighbor_as_project": true
+      },
+      "failures": [],
+      "asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+      "filename": "IH_DC_TMP_001_Render_Living_Room_001.jpg",
+      "classification": "INTERIOR_APPROVED",
+      "architecture_locked": true,
+      "creative_freedom_level": 1,
+      "project_relation": "project_primary",
+      "approved_status": "approved",
+      "source_used_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+      "campaign_intent": "launch",
+      "message": "Architectural truth established from approved project asset.",
+      "note": "User visual approval required — do not declare Visual Quality PASS."
+    },
+    "drive_architecture_truth": null,
+    "campaign_intent": "launch"
+  },
+  "screenshot": "/tmp/smb-architectural-truth/interior-final.png",
+  "visual_quality_pass_declared": false
+}
