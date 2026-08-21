@@ -1,0 +1,458 @@
+{
+  "version": 2,
+  "mode": "editable_finished_ad",
+  "canvas": {
+    "width": 1080,
+    "height": 1350,
+    "aspect_ratio": "4:5",
+    "format_preset": "portrait"
+  },
+  "language": "tr",
+  "campaign_intent": "price_campaign",
+  "composition_plan": {
+    "version": 2,
+    "campaign_intent": "price_campaign",
+    "layout_family": "price_lower_third",
+    "language": "tr",
+    "aspect_ratio": "4:5",
+    "primary_message": "Unit 204'ün fiyat avantajı ve modern iç mekan görseli",
+    "secondary_message": "Modern ve şık tasarım",
+    "focal_point": {
+      "zone": "upper_mid_image",
+      "description": "Living/interior subject stays clear above the offer stack"
+    },
+    "image": {
+      "crop": "cover",
+      "position": "center",
+      "treatment": "bottom_dark_gradient"
+    },
+    "zones": {
+      "dark": [
+        {
+          "anchor": "bottom",
+          "height_pct": 0.48
+        }
+      ],
+      "light": [],
+      "text_safe": [
+        {
+          "anchor": "bottom",
+          "y_pct": 0.48,
+          "height_pct": 0.46
+        }
+      ]
+    },
+    "typography": {
+      "headline": {
+        "placement": "lower_third_left",
+        "scale": "hero",
+        "align": "left",
+        "color": "#F7F3EB",
+        "font_family": "serif"
+      },
+      "eyebrow": {
+        "placement": "above_headline",
+        "scale": "small_caps",
+        "align": "left",
+        "color": "#C4A35A",
+        "font_family": "sans"
+      },
+      "secondary": {
+        "placement": "below_headline",
+        "scale": "body",
+        "align": "left",
+        "color": "#E8E0D4",
+        "font_family": "sans"
+      },
+      "price": {
+        "placement": "mid_lower_stack",
+        "scale": "price_hero",
+        "align": "left",
+        "color": "#C4A35A",
+        "font_family": "sans"
+      },
+      "cta": {
+        "placement": "bottom_left",
+        "scale": "action",
+        "align": "center",
+        "color": "#1A1510",
+        "font_family": "sans"
+      }
+    },
+    "logo": {
+      "placement": "top_left",
+      "scale": 0.2,
+      "align": "left"
+    },
+    "cta": {
+      "placement": "bottom_left",
+      "style": "gold_pill",
+      "width_pct": 0.62
+    },
+    "decorative_elements": [
+      "bottom_dark_gradient",
+      "eyebrow_pill",
+      "price_frame",
+      "discount_badge",
+      "gold_divider"
+    ],
+    "badges": true,
+    "dividers": true,
+    "overlays": [
+      "bottom_dark_gradient"
+    ],
+    "gradients": [
+      "bottom_dark_gradient"
+    ],
+    "content_density": "medium",
+    "alignment_system": "left",
+    "safe_margins": {
+      "x_pct": 0.07,
+      "y_pct": 0.045
+    },
+    "visual_balance": "image_above_offer_stack",
+    "design_direction_echo": {
+      "visual_mood": "Tarihi ve modern unsurları bir arada gösteren iç mekan görselleri.",
+      "hierarchy": "Price/offer may lead if that is the campaign intent; otherwise headline leads. Never compete with three equal-weight messages.",
+      "information_density": "medium"
+    },
+    "golden_principles": {
+      "composition": "Photograph-led full-bleed with intentional negative space; text rides dark/light contrast zones — never a flat top-stack of logo→headline→CTA.",
+      "hierarchy": "ONE primary message; headline or price leads by intent; support quieter; single CTA.",
+      "typography": "Display/serif for hero line; restrained sans for support/price/CTA; deliberate size jumps.",
+      "image_treatment": "Preserve master asset quality; add editable gradient/overlay contrast — do not AI-regrade.",
+      "negative_space": "Let the photograph breathe; premium ≠ more elements.",
+      "overlays": "Localized dark or light gradients for text-safe zones as editable layers.",
+      "logo": "One real project logo; top-left or top-center by intent; never invent.",
+      "cta": "Single clear actionable CTA; proportionate pill/button — not tiny footer text.",
+      "spacing": "Safe margins ~6–8% width; consistent rhythm between eyebrow→headline→support→CTA.",
+      "density": "Sparse for lifestyle/location; medium only when price/offer requires it.",
+      "alignment": "Intent-specific: left price stack, center brand/lifestyle, split location.",
+      "focal_point": "Image focal zone reserved; type sits in planned text-safe areas."
+    }
+  },
+  "composition": {
+    "focal_zone": "upper_mid_image",
+    "text_zones": [
+      {
+        "anchor": "bottom",
+        "y_pct": 0.48,
+        "height_pct": 0.46
+      }
+    ],
+    "safe_margins": {
+      "x_pct": 0.07,
+      "y_pct": 0.045
+    },
+    "alignment_system": "left",
+    "layout_family": "price_lower_third"
+  },
+  "background": {
+    "asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+    "crop": "cover",
+    "position": "center",
+    "treatment": "bottom_dark_gradient"
+  },
+  "master_background_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+  "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+  "finished_ad_raster_asset_id": "5752a0c4-785c-447e-95d1-024da6419d68",
+  "locked_background": true,
+  "elements": [
+    {
+      "id": "master_background",
+      "type": "image",
+      "role": "background",
+      "asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+      "locked": true,
+      "editable": false,
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1350,
+      "z_index": 0,
+      "opacity": 1.0,
+      "treatment": {
+        "crop": "cover",
+        "position": "center",
+        "treatment": "bottom_dark_gradient"
+      }
+    },
+    {
+      "id": "overlay-bottom-dark",
+      "type": "gradient",
+      "role": "overlay",
+      "locked": false,
+      "editable": true,
+      "x": 0,
+      "y": 621,
+      "width": 1080,
+      "height": 729,
+      "z_index": 5,
+      "opacity": 1.0,
+      "style": {
+        "fill": "linear-gradient(to top, rgba(8,6,4,0.94) 0%, rgba(8,6,4,0.72) 28%, rgba(8,6,4,0.38) 58%, transparent 100%)",
+        "shape_kind": "rect"
+      }
+    },
+    {
+      "id": "logo",
+      "type": "logo",
+      "role": "logo",
+      "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+      "locked": false,
+      "editable": true,
+      "lock_aspect_ratio": true,
+      "x": 76,
+      "y": 54,
+      "width": 216,
+      "height": 88,
+      "z_index": 10,
+      "opacity": 1.0
+    },
+    {
+      "id": "discount-badge",
+      "type": "badge",
+      "role": "discount_badge",
+      "content": "%25",
+      "locked": false,
+      "editable": true,
+      "x": 810,
+      "y": 108,
+      "width": 194,
+      "height": 135,
+      "z_index": 12,
+      "style": {
+        "background_color": "rgba(20,16,12,0.82)",
+        "text_color": "#C4A35A",
+        "border_color": "#C4A35A",
+        "border_radius": 97,
+        "font_size": 39,
+        "font_weight": "bold",
+        "align": "center"
+      }
+    },
+    {
+      "id": "eyebrow-pill",
+      "type": "shape",
+      "role": "eyebrow_frame",
+      "locked": false,
+      "editable": true,
+      "x": 76,
+      "y": 648,
+      "width": 668,
+      "height": 51,
+      "z_index": 18,
+      "style": {
+        "fill": "transparent",
+        "border_color": "#C4A35A",
+        "border_width": 1,
+        "border_radius": 25,
+        "shape_kind": "rect"
+      }
+    },
+    {
+      "id": "unit-label",
+      "type": "text",
+      "role": "unit_label",
+      "content": "UNIT 204",
+      "locked": false,
+      "editable": true,
+      "x": 88,
+      "y": 648,
+      "width": 644,
+      "height": 51,
+      "z_index": 19,
+      "typography": {
+        "font_family": "sans",
+        "font_size": 24,
+        "font_weight": "semibold",
+        "align": "left",
+        "color": "#C4A35A",
+        "letter_spacing": 0.08
+      }
+    },
+    {
+      "id": "headline",
+      "type": "text",
+      "role": "headline",
+      "content": "Modern. Şık. Tarihi.",
+      "locked": false,
+      "editable": true,
+      "x": 76,
+      "y": 722,
+      "width": 928,
+      "height": 122,
+      "z_index": 20,
+      "typography": {
+        "font_family": "serif",
+        "font_size": 84,
+        "font_weight": "bold",
+        "align": "left",
+        "color": "#F7F3EB",
+        "line_height": 1.05
+      }
+    },
+    {
+      "id": "subheadline",
+      "type": "text",
+      "role": "subheadline",
+      "content": "Tarihi karakterle modern yaşam bir arada.",
+      "locked": false,
+      "editable": true,
+      "x": 76,
+      "y": 837,
+      "width": 928,
+      "height": 68,
+      "z_index": 21,
+      "typography": {
+        "font_family": "sans",
+        "font_size": 30,
+        "font_weight": "medium",
+        "align": "left",
+        "color": "#E8E0D4",
+        "line_height": 1.25
+      }
+    },
+    {
+      "id": "price-frame",
+      "type": "rectangle",
+      "role": "price_frame",
+      "locked": false,
+      "editable": true,
+      "x": 76,
+      "y": 918,
+      "width": 854,
+      "height": 148,
+      "z_index": 22,
+      "style": {
+        "fill": "rgba(255,255,255,0.04)",
+        "border_color": "#C4A35A",
+        "border_width": 1,
+        "border_radius": 4,
+        "shape_kind": "rect"
+      }
+    },
+    {
+      "id": "price-divider",
+      "type": "divider",
+      "role": "divider",
+      "locked": false,
+      "editable": true,
+      "x": 485,
+      "y": 950,
+      "width": 2,
+      "height": 82,
+      "z_index": 23,
+      "style": {
+        "fill": "#C4A35A",
+        "shape_kind": "line"
+      }
+    },
+    {
+      "id": "old-price",
+      "type": "text",
+      "role": "old_price",
+      "content": "$400,000",
+      "locked": false,
+      "editable": true,
+      "claim_sensitive": true,
+      "x": 92,
+      "y": 959,
+      "width": 358,
+      "height": 59,
+      "z_index": 24,
+      "typography": {
+        "font_family": "sans",
+        "font_size": 39,
+        "font_weight": "normal",
+        "align": "left",
+        "color": "#D4C4A8",
+        "text_decoration": "line-through"
+      }
+    },
+    {
+      "id": "new-price",
+      "type": "text",
+      "role": "new_price",
+      "content": "$300,000",
+      "locked": false,
+      "editable": true,
+      "claim_sensitive": true,
+      "x": 520,
+      "y": 944,
+      "width": 375,
+      "height": 91,
+      "z_index": 25,
+      "typography": {
+        "font_family": "sans",
+        "font_size": 78,
+        "font_weight": "bold",
+        "align": "left",
+        "color": "#C4A35A"
+      }
+    },
+    {
+      "id": "support-message-1",
+      "type": "text",
+      "role": "support_message",
+      "content": "Modern ve şık tasarım",
+      "locked": false,
+      "editable": true,
+      "x": 76,
+      "y": 1094,
+      "width": 928,
+      "height": 40,
+      "z_index": 26,
+      "typography": {
+        "font_family": "sans",
+        "font_size": 26,
+        "font_weight": "normal",
+        "align": "left",
+        "color": "#EDE6DA"
+      }
+    },
+    {
+      "id": "support-message-2",
+      "type": "text",
+      "role": "support_message",
+      "content": "Tarihi karakterle harmanlanmış",
+      "locked": false,
+      "editable": true,
+      "x": 76,
+      "y": 1137,
+      "width": 928,
+      "height": 40,
+      "z_index": 27,
+      "typography": {
+        "font_family": "sans",
+        "font_size": 26,
+        "font_weight": "normal",
+        "align": "left",
+        "color": "#EDE6DA"
+      }
+    },
+    {
+      "id": "cta",
+      "type": "cta",
+      "role": "cta",
+      "content": "Detayları Keşfet",
+      "locked": false,
+      "editable": true,
+      "x": 76,
+      "y": 1215,
+      "width": 670,
+      "height": 70,
+      "z_index": 40,
+      "style": {
+        "background_color": "#C4A35A",
+        "text_color": "#1A1510",
+        "border_color": "#C4A35A",
+        "border_radius": 24,
+        "padding": 15,
+        "font_size": 28,
+        "font_weight": "semibold",
+        "align": "center"
+      }
+    }
+  ]
+}

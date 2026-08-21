@@ -98,6 +98,7 @@ def test_design_spec_to_smb_elements_maps_types():
     assert types["headline"] == "TEXT"
     assert types["cta"] == "BUTTON"
     assert types["discount-badge"] == "TEXT"
+    assert types["overlay-bottom-dark"] == "SHAPE"
 
 
 def test_route_layer_only_for_headline_cta_badge_logo():

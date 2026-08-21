@@ -1,0 +1,41 @@
+{
+  "scores": {
+    "A_lifestyle": {
+      "Composition": 8,
+      "Typography": 7,
+      "Hierarchy": 8,
+      "Spacing": 8,
+      "Asset choice": 8,
+      "Brand integration": 8,
+      "Premium feel": 7,
+      "Simplicity": 8,
+      "CTA quality": 8,
+      "Overall advertising quality": 7
+    },
+    "B_price": {
+      "Composition": 8,
+      "Typography": 7,
+      "Hierarchy": 8,
+      "Spacing": 7,
+      "Asset choice": 8,
+      "Brand integration": 8,
+      "Premium feel": 7,
+      "Simplicity": 7,
+      "CTA quality": 8,
+      "Overall advertising quality": 7
+    },
+    "C_location": {
+      "Composition": 8,
+      "Typography": 7,
+      "Hierarchy": 8,
+      "Spacing": 8,
+      "Asset choice": 8,
+      "Brand integration": 8,
+      "Premium feel": 7,
+      "Simplicity": 8,
+      "CTA quality": 8,
+      "Overall advertising quality": 7
+    }
+  },
+  "notes": "Scores are honest engineering review vs golden CD raster quality. Editable primitives approximate overlays/frames/CTA; golden AI micro-effects (glow, multi-color headline spans, icon glyphs) remain partially unmatched. Target guide none<7 avg>=8 may miss Overall/Premium/Typography — NOT Visual Quality PASS."
+}

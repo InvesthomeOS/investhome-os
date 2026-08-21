@@ -1,0 +1,1070 @@
+{
+  "campaign_id": "1ca7f023-37b4-468e-84ad-9b4a29f75ae5",
+  "project_id": "d50708cb-60b3-465a-8b16-6d30f802af8d",
+  "language": "tr",
+  "aspect_ratio": "4:5",
+  "format_preset": "portrait",
+  "production_mode": "editable_finished_ad",
+  "production_brief": {
+    "objective": "The Temple projesinin lokasyon avantajlarını vurgulamak.",
+    "campaign_intent": "location",
+    "big_idea": "Adams Morgan'da Yaşamın Kalbi",
+    "hero": "Adams Morgan'ın Kalbinde Yaşa",
+    "sales_hook": "Adams Morgan'ın kalbinde premium yaşam",
+    "offer": "",
+    "supporting": [
+      "Kültürel çeşitlilik ve zengin sosyal yaşam.",
+      "Merkezi konum, her yere kolay erişim."
+    ],
+    "cta": "Detayları Keşfet",
+    "message_strategy": {
+      "big_idea": "Adams Morgan'da Yaşamın Kalbi",
+      "primary_message": "Adams Morgan'ın canlı atmosferi ve The Temple logosu",
+      "sales_attention_hook": "Adams Morgan'ın kalbinde premium yaşam",
+      "hero_headline": "Adams Morgan'da Yaşamın Kalbi",
+      "supporting_messages": [
+        "Kültürel çeşitlilik ve zengin sosyal yaşam.",
+        "Merkezi konum, her yere kolay erişim."
+      ],
+      "cta": "Detayları Keşfet",
+      "emotional_angle": "Canlı ve merkezi bir yaşam tarzı",
+      "commercial_priority": [
+        "location advantage",
+        "primary sales message",
+        "neighborhood proof",
+        "call to action",
+        "brand presence"
+      ],
+      "information_hierarchy": [
+        "1 — PRIMARY: Adams Morgan'ın canlı atmosferi ve The Temple logosu",
+        "2 — HOOK: Adams Morgan'ın kalbinde premium yaşam",
+        "3 — SUPPORT: Kültürel çeşitlilik ve zengin sosyal yaşam. | Merkezi konum, her yere kolay erişim.",
+        "4 — CTA: Detayları Keşfet",
+        "5 — BRAND: one real project logo"
+      ],
+      "one_ad_one_message": true,
+      "density": "sparse",
+      "campaign_intent": "location"
+    },
+    "commercial_priority": [
+      "location advantage",
+      "primary sales message",
+      "neighborhood proof",
+      "call to action",
+      "brand presence"
+    ],
+    "visual_hierarchy": [
+      "1 — PRIMARY: Adams Morgan'ın canlı atmosferi ve The Temple logosu",
+      "2 — HOOK: Adams Morgan'ın kalbinde premium yaşam",
+      "3 — SUPPORT: Kültürel çeşitlilik ve zengin sosyal yaşam. | Merkezi konum, her yere kolay erişim.",
+      "4 — CTA: Detayları Keşfet",
+      "5 — BRAND: one real project logo"
+    ],
+    "visual_direction": "Adams Morgan'ın canlı atmosferini yansıtan bir dış mekan görüntüsü.",
+    "design_direction": {
+      "visual_mood": "Adams Morgan'ın canlı atmosferini yansıtan bir dış mekan görüntüsü.",
+      "hierarchy": "Location name / advantage leads; supporting place cues secondary; CTA clear.",
+      "typography_character": "Modern ve şık yazı tipleri, dikkat çekici başlıklar.",
+      "composition_direction": "Görselde The Temple'ın merkezi konumunu ve çevresini vurgulayan bir açı.",
+      "image_treatment": "Preserve real project architecture/photography — enhance atmosphere, do not redesign. Subtle grade toward premium RE editorial.",
+      "contrast": "High readability for primary message and CTA against the locked photograph",
+      "brand_presence": "One verified project logo lockup — never invent or duplicate",
+      "cta_importance": "Single clear CTA; visible and actionable, not tiny footer text",
+      "information_density": "sparse",
+      "premium_level": "elevated",
+      "creative_freedom": "Language=tr. Full creative freedom for placement — no forced left panel, bottom band, badge grid, icon row, or card stack. Vary composition by campaign."
+    },
+    "brand_direction": {
+      "tone": "Canlı, davetkar, modern",
+      "color_direction": "Canlı ve enerjik renkler, semtin dinamizmini yansıtacak şekilde.",
+      "typography_direction": "Modern ve şık yazı tipleri, dikkat çekici başlıklar.",
+      "composition_direction": "Görselde The Temple'ın merkezi konumunu ve çevresini vurgulayan bir açı."
+    },
+    "selected_assets": [
+      {
+        "asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+        "filename": "IH_DC_TMP_001_Render_Exterior_Day_004.jpg",
+        "content_type": "image/jpeg",
+        "folder_category": "02_RENDER",
+        "visual_subject": "AERIAL",
+        "tags": [],
+        "role": "hero_exterior",
+        "provenance_source": "google_drive",
+        "selection_score": 20.2,
+        "selection_reason": "intent=location; base_media=12.25; photo_render; room=generic:0.0; drive_provenance; intent_subject:neighborhood:10.0; pref_tokens=1"
+      }
+    ],
+    "brand_assets": [
+      {
+        "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "filename": "IH_DC_TMP_001_Logo_Primary.svg",
+        "content_type": "image/svg+xml",
+        "folder_category": "01_BRAND",
+        "visual_subject": "BRANDING",
+        "tags": [],
+        "role": "project_logo",
+        "provenance_source": "google_drive",
+        "selection_score": null,
+        "selection_reason": null,
+        "logo_locked": true,
+        "ai_must_not_draw_logo": true,
+        "no_duplicate_logos": true
+      }
+    ],
+    "approved_claims": [],
+    "forbidden_claims": [],
+    "language": "tr",
+    "language_lock": true,
+    "format": "Instagram 4:5",
+    "format_preset": "portrait",
+    "aspect_ratio": "4:5",
+    "final_copy": {
+      "eyebrow": "Adams Morgan'ın kalbinde premium yaşam",
+      "headline": "Adams Morgan'da Yaşamın Kalbi",
+      "supporting": "Kültürel çeşitlilik ve zengin sosyal yaşam. · Merkezi konum, her yere kolay erişim.",
+      "list_price": "",
+      "offer_price": "",
+      "value_badge": "",
+      "unit": "",
+      "price_hierarchy": "",
+      "cta": "Detayları Keşfet"
+    },
+    "asset_lock": {
+      "interior_asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+      "interior_filename": "IH_DC_TMP_001_Render_Exterior_Day_004.jpg",
+      "hero_role": "hero_exterior",
+      "selection_score": 20.2,
+      "selection_reason": "intent=location; base_media=12.25; photo_render; room=generic:0.0; drive_provenance; intent_subject:neighborhood:10.0; pref_tokens=1",
+      "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+      "logo_filename": "IH_DC_TMP_001_Logo_Primary.svg",
+      "interior_architecture_locked": true,
+      "project_asset_locked": true,
+      "logo_locked": true,
+      "verified_project_logo": true,
+      "ai_must_not_draw_logo": true,
+      "no_duplicate_logos": true,
+      "no_invented_architecture": true
+    },
+    "logo_lock": {
+      "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+      "logo_filename": "IH_DC_TMP_001_Logo_Primary.svg",
+      "logo_locked": true,
+      "verified_project_logo": true,
+      "ai_must_not_draw_logo": true,
+      "no_duplicate_logos": true,
+      "status": "pass"
+    },
+    "creative_simplicity": [
+      "ONE AD = ONE PRIMARY MESSAGE.",
+      "Do not clutter the ad with unnecessary information.",
+      "Use one main sales message + offer + at most 3 supporting messages + a single CTA.",
+      "Default element budget: 1 headline, 0–3 supporting, 1 CTA, 1 logo.",
+      "Keep the visual as visible as possible — let the photograph breathe.",
+      "Avoid large bottom bands, unnecessary badges, and repeating price messages.",
+      "Premium ≠ more elements. No forced left/bottom panels."
+    ],
+    "simplicity_director": {
+      "supporting_messages": [
+        "Kültürel çeşitlilik ve zengin sosyal yaşam.",
+        "Merkezi konum, her yere kolay erişim."
+      ],
+      "max_headlines": 1,
+      "max_supporting": 2,
+      "max_cta": 1,
+      "max_logos": 1,
+      "allow_badges": false,
+      "allow_icons": false,
+      "allow_price_block": false,
+      "density": "sparse",
+      "principles": [
+        "ONE AD = ONE PRIMARY MESSAGE.",
+        "Default: 1 headline, 0–3 supporting, 1 CTA, 1 logo.",
+        "Extra badges/icons/price blocks only when campaign intent requires them.",
+        "Premium ≠ more elements — let the photograph breathe.",
+        "Do not invent decorative panels, left rails, or bottom bands."
+      ],
+      "element_budget": {
+        "headline": 1,
+        "supporting": 2,
+        "cta": 1,
+        "logo": 1,
+        "price_block": 0,
+        "badges": 0,
+        "icons": 0
+      }
+    },
+    "max_supporting_messages": 2,
+    "campaign_mode": "lifestyle",
+    "information_density": "sparse",
+    "self_critique": {
+      "status": "pass",
+      "checks": {
+        "two_second_clarity": true,
+        "one_dominant_message": true,
+        "asset_present": true,
+        "not_blind_repeat": true,
+        "cta_present": true,
+        "logo_locked": true,
+        "language_ok": true,
+        "claims_present_or_lifestyle": true,
+        "no_invented_finance_language": true,
+        "premium_direction": true,
+        "similarity_noted": true
+      },
+      "issues": [],
+      "forbidden_claim_count": 0,
+      "campaign_intent": "location",
+      "fixed_once": false
+    }
+  },
+  "provider_route": {
+    "output_type": "ad_social_image",
+    "capability": "image_edit",
+    "provider_id": "gpt_image",
+    "available": true,
+    "missing": false,
+    "reason": null,
+    "model": "gpt-image-2"
+  },
+  "interior_asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+  "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+  "final_asset_id": "846f193d-0c2f-4796-a7f1-0784a37e460a",
+  "final_asset_url": "/creative-studio/media/assets/846f193d-0c2f-4796-a7f1-0784a37e460a/content",
+  "composition_base_asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+  "creative_brief_summary": {
+    "big_idea": "Adams Morgan'da Yaşamın Kalbi",
+    "hero": "Adams Morgan'ın Kalbinde Yaşa",
+    "sales_hook": "Adams Morgan'ın kalbinde premium yaşam",
+    "offer": null,
+    "price_hierarchy": "",
+    "value": "",
+    "emphasis": [
+      "Adams Morgan",
+      "merkezi konum",
+      "kültürel çeşitlilik"
+    ],
+    "supporting": [
+      "Kültürel çeşitlilik ve zengin sosyal yaşam.",
+      "Merkezi konum, her yere kolay erişim."
+    ],
+    "cta": "Detayları Keşfet",
+    "tone": "Canlı, davetkar, modern",
+    "visual_direction": "Adams Morgan'ın canlı atmosferini yansıtan bir dış mekan görüntüsü.",
+    "composition_direction": "Görselde The Temple'ın merkezi konumunu ve çevresini vurgulayan bir açı.",
+    "composition_family": null,
+    "art_direction": {
+      "primary_visual_message": "Adams Morgan'da Yaşamın Kalbi",
+      "secondary_message": "Adams Morgan'ın kalbinde premium yaşam",
+      "commercial_priority": [
+        "brand presence",
+        "lifestyle / interior experience",
+        "call to action"
+      ],
+      "visual_hierarchy": [
+        "1 — FIRST GLANCE: Adams Morgan'da Yaşamın Kalbi",
+        "2 — SECOND READ: Adams Morgan'ın kalbinde premium yaşam",
+        "3 — FEATURES: Kültürel çeşitlilik ve zengin sosyal yaşam.; Merkezi konum, her yere kolay erişim.",
+        "4 — ACTION: Detayları Keşfet",
+        "5 — BRAND: Temple logo (OS-composited, never AI-drawn)"
+      ],
+      "sales_hierarchy": [
+        "brand presence",
+        "lifestyle / interior experience",
+        "call to action"
+      ],
+      "price_hierarchy": {
+        "secondary": "",
+        "primary": "",
+        "advantage": "",
+        "dramatization": "No price dramatization — lifestyle interior quality and calm living experience."
+      },
+      "emphasis_strategy": [
+        {
+          "word": "Adams Morgan",
+          "treatment": "bold large in gold",
+          "note": "Distinct from adjacent emphasis words — avoid rendering all the same."
+        },
+        {
+          "word": "merkezi konum",
+          "treatment": "semibold medium in navy",
+          "note": "Distinct from adjacent emphasis words — avoid rendering all the same."
+        },
+        {
+          "word": "kültürel çeşitlilik",
+          "treatment": "medium medium in ivory-on-navy",
+          "note": "Distinct from adjacent emphasis words — avoid rendering all the same."
+        }
+      ],
+      "typography_hierarchy": [
+        "Headline: largest editorial — sanctuary / calm city-center living",
+        "Hero/sales hook: medium weight supporting the headline",
+        "Feature callouts: 3 short lines — varied weight, not uniform",
+        "CTA: high-contrast actionable weight",
+        "Brand: quiet but visible logo zone"
+      ],
+      "information_groups": [
+        {
+          "name": "hero_concept",
+          "label": "Hero concept cluster",
+          "elements": [
+            "Adams Morgan'da Yaşamın Kalbi",
+            "Adams Morgan'ın Kalbinde Yaşa"
+          ],
+          "relationship": "Big idea and hero express calm city-center sanctuary — keep proximate, not separated."
+        },
+        {
+          "name": "feature_callouts",
+          "label": "Supporting feature callouts",
+          "elements": [
+            "Kültürel çeşitlilik ve zengin sosyal yaşam.",
+            "Merkezi konum, her yere kolay erişim."
+          ],
+          "relationship": "Up to 3 short verified lifestyle features — grouped as callouts, not random corners."
+        },
+        {
+          "name": "action",
+          "label": "CTA cluster",
+          "elements": [
+            "Detayları Keşfet"
+          ],
+          "relationship": "Real ad CTA — button, pill, outline, or text+arrow — visible and actionable."
+        }
+      ],
+      "cta_prominence": "CTA zone (OS typesets — do NOT draw text): reserve high-contrast actionable area for 'Detayları Keşfet' — button/pill air only, no rasterized CTA.",
+      "badge_callout_opportunity": "Optional feature badges near callout cluster — only if they strengthen lifestyle story.",
+      "contrast_strategy": "Warm interior palette with navy/ivory type — high contrast for headline and CTA, not price panels",
+      "negative_space_usage": "Conscious breath around headline, feature callouts, and CTA — premium composition, not meaningless empty canvas or random decorative gaps.",
+      "image_text_balance": "Locked living-room interior carries atmosphere; type zones get composed air — roughly 60% visual / 40% message space, flexible not fixed panels.",
+      "brand_presence": "The Temple project logo zone — upper area, visible air only; OS composites real SVG, never AI-generated",
+      "visual_storytelling": "Adams Morgan'ın canlı atmosferini yansıtan bir dış mekan görüntüsü.",
+      "decoration_rule": "Decoration only if it serves campaign: no random building sketch, map pin, long gold line, or watermark unless it strengthens sales or brand story.",
+      "asset_lock": {
+        "interior_asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+        "interior_filename": "IH_DC_TMP_001_Render_Exterior_Day_004.jpg",
+        "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "logo_filename": "IH_DC_TMP_001_Logo_Primary.svg",
+        "must_not_invent_interior": true,
+        "must_not_draw_logo": true
+      },
+      "emphasis_words": [
+        "Adams Morgan",
+        "merkezi konum",
+        "kültürel çeşitlilik"
+      ],
+      "first_notice": "Adams Morgan'da Yaşamın Kalbi",
+      "second_notice": "Adams Morgan'ın kalbinde premium yaşam",
+      "language": "tr"
+    },
+    "source_constraints": {
+      "interior_asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+      "interior_filename": "IH_DC_TMP_001_Render_Exterior_Day_004.jpg",
+      "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+      "logo_filename": "IH_DC_TMP_001_Logo_Primary.svg"
+    },
+    "brand": "The Temple + Investhome",
+    "language": "tr",
+    "format": "Instagram 4:5",
+    "prompt_excerpt": "FINISHED PROFESSIONAL INSTAGRAM AD — Instagram 4:5 — LANGUAGE: tr.\nDeliver a publishable, flattened social advertisement — typography, price hierarchy, CTA, and brand lockups integrated in the composition (not a blank background for later overlay).\n\nLANGUAGE LOCK:\n- Campaign language is tr. All user-visible slogans, headlines, CTAs, and supporting lines MUST be tr.\n- Do not invent or render English slogans/headlines/CTAs when language is tr.\n\nCAMPAIGN INTENT:\n- location\n- Primary focus: Adams Morgan'ın canlı atmosferi ve The Temple logosu\n- Emotional angle: Canlı ve merkezi bir yaşam tarzı\n\nCREATIVE DIRECTOR PRODUCTION BRIEF:\n- Objective: The Temple projesinin lokasyon avantajlarını vurgulamak.\n- Big Idea: Adams Morgan'da Yaşamın Kalbi\n- Hero: Adams Morgan'ın Kalbinde Yaşa\n- Sales Hook: Adams Morgan'ın kalbinde premium yaşam\n- Offer: \n- Supporting (max 2): Kültürel çeşitlilik ve zengin sosyal yaşam. · Merkezi konum, her yere kolay erişim.\n- CTA: Detayları Keşfet\n\nDESIGN DIRECTION (creative freedom — no fixed panels):\n- Visual mood: Adams Morgan'ın canlı atmosferini yansıtan bir dış mekan görüntüsü.\n- Hierarchy: Location name / advantage leads; supporting place cues secondary; CTA clear.\n- Typography character: Modern ve şık yazı tipleri, dikkat çekici başlıklar.\n- Composition: Görselde The Temple'ın merkezi konumunu ve çevresini vurgulayan bir açı.\n- Image treatment: Preserve real project architecture/photography — enhance atmosphere, do not redesign. Subtle grade toward premium RE editorial.\n- Contrast: High readability for primary message and CTA against the locked photograph\n- Brand presence: One verified project logo lockup — never invent or duplicate\n- CTA importance: Single clear CTA; visible and actionable, not tiny footer text\n- Information density: sparse\n- Premium level: elevated\n- Freedom: Language=tr. Full creative freedom for placement — no forced left panel, bottom band, badge grid, icon row, or card stack. Vary composition by campaign.\n\nCREATIVE SIMPL"
+  },
+  "final_turkish_texts": {
+    "language": "tr",
+    "big_idea": "Adams Morgan'da Yaşamın Kalbi",
+    "hero": "Adams Morgan'ın Kalbinde Yaşa",
+    "sales_hook": "Adams Morgan'ın kalbinde premium yaşam",
+    "eyebrow": "Adams Morgan'ın kalbinde premium yaşam",
+    "headline": "Adams Morgan'da Yaşamın Kalbi",
+    "supporting": "Kültürel çeşitlilik ve zengin sosyal yaşam. · Merkezi konum, her yere kolay erişim.",
+    "supporting_callouts": "Kültürel çeşitlilik ve zengin sosyal yaşam.|Merkezi konum, her yere kolay erişim.",
+    "offer": "",
+    "list_price": "",
+    "offer_price": "",
+    "value": "Adams Morgan'da merkezi konum ve zengin sosyal yaşam.",
+    "value_badge": "",
+    "cta": "Detayları Keşfet",
+    "unit": "",
+    "price_hierarchy": "",
+    "campaign_mode": "lifestyle"
+  },
+  "claim_guard": {
+    "status": "pass",
+    "campaign_mode": "lifestyle",
+    "approved_claims": [],
+    "allowed_financial_tokens": [],
+    "banned_public_tokens_blocked": true,
+    "violations": [],
+    "invented_financial_claims_blocked": true
+  },
+  "project_asset_lock": {
+    "status": "pass",
+    "interior_asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+    "interior_filename": "IH_DC_TMP_001_Render_Exterior_Day_004.jpg",
+    "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+    "logo_filename": "IH_DC_TMP_001_Logo_Primary.svg",
+    "logo_locked": true,
+    "verified_project_logo": true,
+    "source_used_asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+    "interior_architecture_locked": true,
+    "logo_os_composited": true,
+    "gpt_must_not_invent_interior": true,
+    "gpt_must_not_draw_logo": true,
+    "ai_must_not_draw_logo": true,
+    "no_duplicate_logos": true
+  },
+  "duplication_guard": {
+    "internal_leak_count": 0
+  },
+  "provider_call_count": 1,
+  "gpt_image_call_count": 1,
+  "latency_ms": 80335,
+  "warnings": [
+    "Investhome global logo asset bulunamadı"
+  ],
+  "gpt_image": {
+    "provider": "gpt-image",
+    "model": "gpt-image-2",
+    "endpoint": "https://api.openai.com/v1/images/edits",
+    "campaign_mode": "project",
+    "session_id": "eebd3a2a-a0d7-487a-bb04-72ef283c9c6f",
+    "linked_project_id": "d50708cb-60b3-465a-8b16-6d30f802af8d",
+    "campaign_context_id": "1ca7f023-37b4-468e-84ad-9b4a29f75ae5",
+    "generation_context_id": "da506fae-e438-4c83-af39-6bc616d4fa77",
+    "aspect_ratio": "4:5",
+    "format_preset": "portrait",
+    "source_image": {
+      "asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+      "filename": "IH_DC_TMP_001_Render_Exterior_Day_004.jpg",
+      "content_type": "image/jpeg",
+      "folder_category": "02_RENDER",
+      "tags": [],
+      "role": "source"
+    },
+    "extra_images": [
+      {
+        "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "filename": "IH_DC_TMP_001_Logo_Primary.png",
+        "content_type": "image/png",
+        "folder_category": "01_BRAND",
+        "tags": [],
+        "role": "project_logo"
+      }
+    ],
+    "brief": {
+      "prompt": "FINISHED PROFESSIONAL INSTAGRAM AD — Instagram 4:5 — LANGUAGE: tr.\nDeliver a publishable, flattened social advertisement — typography, price hierarchy, CTA, and brand lockups integrated in the composition (not a blank background for later overlay).\n\nLANGUAGE LOCK:\n- Campaign language is tr. All user-visible slogans, headlines, CTAs, and supporting lines MUST be tr.\n- Do not invent or render English slogans/headlines/CTAs when language is tr.\n\nCAMPAIGN INTENT:\n- location\n- Primary focus: Adams Morgan'ın canlı atmosferi ve The Temple logosu\n- Emotional angle: Canlı ve merkezi bir yaşam tarzı\n\nCREATIVE DIRECTOR PRODUCTION BRIEF:\n- Objective: The Temple projesinin lokasyon avantajlarını vurgulamak.\n- Big Idea: Adams Morgan'da Yaşamın Kalbi\n- Hero: Adams Morgan'ın Kalbinde Yaşa\n- Sales Hook: Adams Morgan'ın kalbinde premium yaşam\n- Offer: \n- Supporting (max 2): Kültürel çeşitlilik ve zengin sosyal yaşam. · Merkezi konum, her yere kolay erişim.\n- CTA: Detayları Keşfet\n\nDESIGN DIRECTION (creative freedom — no fixed panels):\n- Visual mood: Adams Morgan'ın canlı atmosferini yansıtan bir dış mekan görüntüsü.\n- Hierarchy: Location name / advantage leads; supporting place cues secondary; CTA clear.\n- Typography character: Modern ve şık yazı tipleri, dikkat çekici başlıklar.\n- Composition: Görselde The Temple'ın merkezi konumunu ve çevresini vurgulayan bir açı.\n- Image treatment: Preserve real project architecture/photography — enhance atmosphere, do not redesign. Subtle grade toward premium RE editorial.\n- Contrast: High readability for primary message and CTA against the locked photograph\n- Brand presence: One verified project logo lockup — never invent or duplicate\n- CTA importance: Single clear CTA; visible and actionable, not tiny footer text\n- Information density: sparse\n- Premium level: elevated\n- Freedom: Language=tr. Full creative freedom for placement — no forced left panel, bottom band, badge grid, icon row, or card stack. Vary composition by campaign.\n\nCREATIVE SIMPL",
+      "production_mode": "finished_ad"
+    },
+    "outputs": [
+      {
+        "local_asset_id": "846f193d-0c2f-4796-a7f1-0784a37e460a",
+        "local_asset_url": "/creative-studio/media/assets/846f193d-0c2f-4796-a7f1-0784a37e460a/content",
+        "provider": "gpt-image",
+        "provider_generation_id": "7ed22203-613b-4932-9e32-d19b3eab8462",
+        "resolution": "1088x1360",
+        "canvas_width": 1080,
+        "canvas_height": 1350,
+        "metadata": {
+          "provider": "gpt-image",
+          "production_mode": "finished_ad",
+          "provider_generation_id": "7ed22203-613b-4932-9e32-d19b3eab8462",
+          "local_asset_id": "846f193d-0c2f-4796-a7f1-0784a37e460a",
+          "project_id": "d50708cb-60b3-465a-8b16-6d30f802af8d",
+          "campaign_context_id": "1ca7f023-37b4-468e-84ad-9b4a29f75ae5",
+          "campaign_mode": "project-finished-ad",
+          "source_asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+          "source_filename": "IH_DC_TMP_001_Render_Exterior_Day_004.jpg",
+          "extra_image_roles": [
+            "project_logo"
+          ],
+          "image_provider_route": {
+            "output_type": "ad_social_image",
+            "capability": "image_edit",
+            "provider_id": "gpt_image",
+            "available": true,
+            "missing": false,
+            "model": "gpt-image-2"
+          }
+        },
+        "layers": [],
+        "composition_base_asset_id": null,
+        "composition_warnings": [
+          "Investhome global logo asset bulunamadı"
+        ]
+      }
+    ],
+    "warnings": [
+      "Investhome global logo asset bulunamadı"
+    ],
+    "provider_call_count": 1,
+    "latency_ms": 80335
+  },
+  "design_spec": {
+    "version": 2,
+    "mode": "editable_finished_ad",
+    "canvas": {
+      "width": 1080,
+      "height": 1350,
+      "aspect_ratio": "4:5",
+      "format_preset": "portrait"
+    },
+    "language": "tr",
+    "campaign_intent": "location",
+    "composition_plan": {
+      "version": 2,
+      "campaign_intent": "location",
+      "layout_family": "location_place_led",
+      "language": "tr",
+      "aspect_ratio": "4:5",
+      "primary_message": "Adams Morgan'ın canlı atmosferi ve The Temple logosu",
+      "secondary_message": "Kültürel çeşitlilik ve zengin sosyal yaşam.",
+      "focal_point": {
+        "zone": "right_architecture",
+        "description": "Architecture/street reads on the open side; type on quieter side"
+      },
+      "image": {
+        "crop": "cover",
+        "position": "center",
+        "treatment": "top_dark_gradient"
+      },
+      "zones": {
+        "dark": [
+          {
+            "anchor": "top",
+            "height_pct": 0.22
+          },
+          {
+            "anchor": "left_mid",
+            "height_pct": 0.35
+          }
+        ],
+        "light": [],
+        "text_safe": [
+          {
+            "anchor": "upper_center",
+            "y_pct": 0.1,
+            "height_pct": 0.28
+          },
+          {
+            "anchor": "mid_left",
+            "y_pct": 0.42,
+            "height_pct": 0.28
+          }
+        ]
+      },
+      "typography": {
+        "headline": {
+          "placement": "upper_center",
+          "scale": "hero",
+          "align": "center",
+          "color": "#FFFFFF",
+          "accent_color": "#C4A35A",
+          "font_family": "serif"
+        },
+        "eyebrow": {
+          "placement": "below_logo",
+          "scale": "small_caps",
+          "align": "center",
+          "color": "#C4A35A",
+          "font_family": "sans"
+        },
+        "secondary": {
+          "placement": "mid_left",
+          "scale": "body",
+          "align": "left",
+          "color": "#F7F3EB",
+          "font_family": "sans"
+        },
+        "cta": {
+          "placement": "bottom_left",
+          "scale": "action",
+          "align": "center",
+          "color": "#1A1510",
+          "font_family": "sans"
+        }
+      },
+      "logo": {
+        "placement": "top_center",
+        "scale": 0.18,
+        "align": "center"
+      },
+      "cta": {
+        "placement": "bottom_left",
+        "style": "gold_pill",
+        "width_pct": 0.48
+      },
+      "decorative_elements": [
+        "top_dark_gradient",
+        "eyebrow_pill",
+        "gold_divider"
+      ],
+      "badges": false,
+      "dividers": true,
+      "overlays": [
+        "top_dark_gradient"
+      ],
+      "gradients": [
+        "top_dark_gradient"
+      ],
+      "content_density": "sparse",
+      "alignment_system": "center_then_left",
+      "safe_margins": {
+        "x_pct": 0.07,
+        "y_pct": 0.045
+      },
+      "visual_balance": "place_headline_over_architecture",
+      "design_direction_echo": {
+        "visual_mood": "Adams Morgan'ın canlı atmosferini yansıtan bir dış mekan görüntüsü.",
+        "hierarchy": "Location name / advantage leads; supporting place cues secondary; CTA clear.",
+        "information_density": "sparse"
+      },
+      "golden_principles": {
+        "composition": "Photograph-led full-bleed with intentional negative space; text rides dark/light contrast zones — never a flat top-stack of logo→headline→CTA.",
+        "hierarchy": "ONE primary message; headline or price leads by intent; support quieter; single CTA.",
+        "typography": "Display/serif for hero line; restrained sans for support/price/CTA; deliberate size jumps.",
+        "image_treatment": "Preserve master asset quality; add editable gradient/overlay contrast — do not AI-regrade.",
+        "negative_space": "Let the photograph breathe; premium ≠ more elements.",
+        "overlays": "Localized dark or light gradients for text-safe zones as editable layers.",
+        "logo": "One real project logo; top-left or top-center by intent; never invent.",
+        "cta": "Single clear actionable CTA; proportionate pill/button — not tiny footer text.",
+        "spacing": "Safe margins ~6–8% width; consistent rhythm between eyebrow→headline→support→CTA.",
+        "density": "Sparse for lifestyle/location; medium only when price/offer requires it.",
+        "alignment": "Intent-specific: left price stack, center brand/lifestyle, split location.",
+        "focal_point": "Image focal zone reserved; type sits in planned text-safe areas."
+      }
+    },
+    "composition": {
+      "focal_zone": "right_architecture",
+      "text_zones": [
+        {
+          "anchor": "upper_center",
+          "y_pct": 0.1,
+          "height_pct": 0.28
+        },
+        {
+          "anchor": "mid_left",
+          "y_pct": 0.42,
+          "height_pct": 0.28
+        }
+      ],
+      "safe_margins": {
+        "x_pct": 0.07,
+        "y_pct": 0.045
+      },
+      "alignment_system": "center_then_left",
+      "layout_family": "location_place_led"
+    },
+    "background": {
+      "asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+      "crop": "cover",
+      "position": "center",
+      "treatment": "top_dark_gradient"
+    },
+    "master_background_asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+    "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+    "finished_ad_raster_asset_id": "846f193d-0c2f-4796-a7f1-0784a37e460a",
+    "locked_background": true,
+    "elements": [
+      {
+        "id": "master_background",
+        "type": "image",
+        "role": "background",
+        "asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+        "locked": true,
+        "editable": false,
+        "x": 0,
+        "y": 0,
+        "width": 1080,
+        "height": 1350,
+        "z_index": 0,
+        "opacity": 1.0,
+        "treatment": {
+          "crop": "cover",
+          "position": "center",
+          "treatment": "top_dark_gradient"
+        }
+      },
+      {
+        "id": "overlay-top-dark",
+        "type": "gradient",
+        "role": "overlay",
+        "locked": false,
+        "editable": true,
+        "x": 0,
+        "y": 0,
+        "width": 1080,
+        "height": 405,
+        "z_index": 4,
+        "opacity": 1.0,
+        "style": {
+          "fill": "linear-gradient(to bottom, rgba(8,6,4,0.78) 0%, rgba(8,6,4,0.35) 55%, transparent 100%)",
+          "shape_kind": "rect"
+        }
+      },
+      {
+        "id": "overlay-mid-left",
+        "type": "gradient",
+        "role": "overlay",
+        "locked": false,
+        "editable": true,
+        "x": 0,
+        "y": 513,
+        "width": 669,
+        "height": 486,
+        "z_index": 5,
+        "opacity": 1.0,
+        "style": {
+          "fill": "linear-gradient(to right, rgba(8,6,4,0.55) 0%, rgba(8,6,4,0.22) 70%, transparent 100%)",
+          "shape_kind": "rect"
+        }
+      },
+      {
+        "id": "logo",
+        "type": "logo",
+        "role": "logo",
+        "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "locked": false,
+        "editable": true,
+        "lock_aspect_ratio": true,
+        "x": 443,
+        "y": 54,
+        "width": 194,
+        "height": 88,
+        "z_index": 10,
+        "opacity": 1.0
+      },
+      {
+        "id": "eyebrow-pill",
+        "type": "shape",
+        "role": "eyebrow_frame",
+        "x": 119,
+        "y": 189,
+        "width": 842,
+        "height": 49,
+        "z_index": 18,
+        "editable": true,
+        "style": {
+          "fill": "transparent",
+          "border_color": "#C4A35A",
+          "border_width": 1,
+          "border_radius": 24,
+          "shape_kind": "rect"
+        }
+      },
+      {
+        "id": "subheadline",
+        "type": "text",
+        "role": "subheadline",
+        "content": "ADAMS MORGAN'IN KALBINDE YAŞA",
+        "locked": false,
+        "editable": true,
+        "x": 129,
+        "y": 189,
+        "width": 822,
+        "height": 49,
+        "z_index": 19,
+        "typography": {
+          "font_family": "sans",
+          "font_size": 22,
+          "font_weight": "semibold",
+          "align": "center",
+          "color": "#C4A35A"
+        }
+      },
+      {
+        "id": "headline",
+        "type": "text",
+        "role": "headline",
+        "content": "Adams Morgan'da Yaşamın Kalbi",
+        "locked": false,
+        "editable": true,
+        "x": 76,
+        "y": 297,
+        "width": 928,
+        "height": 189,
+        "z_index": 20,
+        "typography": {
+          "font_family": "serif",
+          "font_size": 80,
+          "font_weight": "bold",
+          "align": "center",
+          "color": "#FFFFFF",
+          "line_height": 1.08
+        }
+      },
+      {
+        "id": "support-divider",
+        "type": "divider",
+        "role": "divider",
+        "x": 76,
+        "y": 675,
+        "width": 389,
+        "height": 2,
+        "z_index": 21,
+        "editable": true,
+        "style": {
+          "fill": "#C4A35A",
+          "shape_kind": "line"
+        }
+      },
+      {
+        "id": "support-message-1",
+        "type": "text",
+        "role": "support_message",
+        "content": "Kültürel çeşitlilik ve zengin sosyal yaşam.",
+        "locked": false,
+        "editable": true,
+        "x": 76,
+        "y": 716,
+        "width": 510,
+        "height": 61,
+        "z_index": 22,
+        "typography": {
+          "font_family": "sans",
+          "font_size": 28,
+          "font_weight": "normal",
+          "align": "left",
+          "color": "#F7F3EB"
+        }
+      },
+      {
+        "id": "support-message-2",
+        "type": "text",
+        "role": "support_message",
+        "content": "Merkezi konum, her yere kolay erişim.",
+        "locked": false,
+        "editable": true,
+        "x": 76,
+        "y": 790,
+        "width": 510,
+        "height": 61,
+        "z_index": 23,
+        "typography": {
+          "font_family": "sans",
+          "font_size": 28,
+          "font_weight": "normal",
+          "align": "left",
+          "color": "#F7F3EB"
+        }
+      },
+      {
+        "id": "cta",
+        "type": "cta",
+        "role": "cta",
+        "content": "Detayları Keşfet",
+        "locked": false,
+        "editable": true,
+        "x": 76,
+        "y": 1188,
+        "width": 518,
+        "height": 68,
+        "z_index": 40,
+        "style": {
+          "background_color": "#C4A35A",
+          "text_color": "#1A1510",
+          "border_radius": 24,
+          "padding": 15,
+          "font_size": 28,
+          "font_weight": "semibold",
+          "align": "center"
+        }
+      }
+    ]
+  },
+  "master_background_asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+  "finished_ad_raster_asset_id": "846f193d-0c2f-4796-a7f1-0784a37e460a",
+  "editable_layers": [
+    {
+      "id": "master_background",
+      "type": "IMAGE",
+      "role": "background",
+      "assetId": "299bd265-a0ea-486d-866d-1947f103fd57",
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1350,
+      "zIndex": 0,
+      "lockAspectRatio": false,
+      "opacity": 1.0,
+      "objectFit": "cover",
+      "_locked": true,
+      "_designRole": "background"
+    },
+    {
+      "id": "overlay-top-dark",
+      "type": "SHAPE",
+      "fill": "linear-gradient(to bottom, rgba(8,6,4,0.78) 0%, rgba(8,6,4,0.35) 55%, transparent 100%)",
+      "shapeKind": "rect",
+      "borderRadius": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 405,
+      "zIndex": 4,
+      "opacity": 1.0,
+      "_designRole": "overlay",
+      "_borderColor": null,
+      "_borderWidth": null
+    },
+    {
+      "id": "overlay-mid-left",
+      "type": "SHAPE",
+      "fill": "linear-gradient(to right, rgba(8,6,4,0.55) 0%, rgba(8,6,4,0.22) 70%, transparent 100%)",
+      "shapeKind": "rect",
+      "borderRadius": 0,
+      "x": 0,
+      "y": 513,
+      "width": 669,
+      "height": 486,
+      "zIndex": 5,
+      "opacity": 1.0,
+      "_designRole": "overlay",
+      "_borderColor": null,
+      "_borderWidth": null
+    },
+    {
+      "id": "logo",
+      "type": "IMAGE",
+      "role": "logo",
+      "assetId": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+      "x": 443,
+      "y": 54,
+      "width": 194,
+      "height": 88,
+      "zIndex": 10,
+      "lockAspectRatio": true,
+      "opacity": 1.0,
+      "objectFit": "contain",
+      "_locked": false,
+      "_designRole": "logo"
+    },
+    {
+      "id": "eyebrow-pill",
+      "type": "SHAPE",
+      "fill": "transparent",
+      "shapeKind": "rect",
+      "borderRadius": 24,
+      "x": 119,
+      "y": 189,
+      "width": 842,
+      "height": 49,
+      "zIndex": 18,
+      "opacity": 1.0,
+      "_designRole": "eyebrow_frame",
+      "_borderColor": "#C4A35A",
+      "_borderWidth": 1
+    },
+    {
+      "id": "subheadline",
+      "type": "TEXT",
+      "role": "body",
+      "content": "ADAMS MORGAN'IN KALBINDE YAŞA",
+      "fontSize": 22,
+      "fontWeight": "semibold",
+      "align": "center",
+      "color": "#C4A35A",
+      "fontFamily": "sans",
+      "lineHeight": null,
+      "x": 129,
+      "y": 189,
+      "width": 822,
+      "height": 49,
+      "zIndex": 19,
+      "opacity": 1.0,
+      "_designRole": "subheadline",
+      "_textDecoration": null
+    },
+    {
+      "id": "headline",
+      "type": "TEXT",
+      "role": "headline",
+      "content": "Adams Morgan'da Yaşamın Kalbi",
+      "fontSize": 80,
+      "fontWeight": "bold",
+      "align": "center",
+      "color": "#FFFFFF",
+      "fontFamily": "serif",
+      "lineHeight": 1.08,
+      "x": 76,
+      "y": 297,
+      "width": 928,
+      "height": 189,
+      "zIndex": 20,
+      "opacity": 1.0,
+      "_designRole": "headline",
+      "_textDecoration": null
+    },
+    {
+      "id": "support-divider",
+      "type": "SHAPE",
+      "fill": "#C4A35A",
+      "shapeKind": "line",
+      "borderRadius": 0,
+      "x": 76,
+      "y": 675,
+      "width": 389,
+      "height": 2,
+      "zIndex": 21,
+      "opacity": 1.0,
+      "_designRole": "divider",
+      "_borderColor": null,
+      "_borderWidth": null
+    },
+    {
+      "id": "support-message-1",
+      "type": "TEXT",
+      "role": "body",
+      "content": "Kültürel çeşitlilik ve zengin sosyal yaşam.",
+      "fontSize": 28,
+      "fontWeight": "normal",
+      "align": "left",
+      "color": "#F7F3EB",
+      "fontFamily": "sans",
+      "lineHeight": null,
+      "x": 76,
+      "y": 716,
+      "width": 510,
+      "height": 61,
+      "zIndex": 22,
+      "opacity": 1.0,
+      "_designRole": "support_message",
+      "_textDecoration": null
+    },
+    {
+      "id": "support-message-2",
+      "type": "TEXT",
+      "role": "body",
+      "content": "Merkezi konum, her yere kolay erişim.",
+      "fontSize": 28,
+      "fontWeight": "normal",
+      "align": "left",
+      "color": "#F7F3EB",
+      "fontFamily": "sans",
+      "lineHeight": null,
+      "x": 76,
+      "y": 790,
+      "width": 510,
+      "height": 61,
+      "zIndex": 23,
+      "opacity": 1.0,
+      "_designRole": "support_message",
+      "_textDecoration": null
+    },
+    {
+      "id": "cta",
+      "type": "BUTTON",
+      "label": "Detayları Keşfet",
+      "backgroundColor": "#C4A35A",
+      "textColor": "#1A1510",
+      "fontSize": 28,
+      "fontWeight": "semibold",
+      "align": "center",
+      "borderRadius": 24,
+      "padding": 15,
+      "x": 76,
+      "y": 1188,
+      "width": 518,
+      "height": 68,
+      "zIndex": 40,
+      "opacity": 1.0,
+      "_designRole": "cta"
+    }
+  ]
+}

@@ -133,7 +133,20 @@ class DesignSpecElement(BaseModel):
     """One editable overlay (or locked background) in a Design Spec."""
 
     id: str
-    type: Literal["image", "logo", "text", "badge", "cta"]
+    type: Literal[
+        "image",
+        "logo",
+        "text",
+        "badge",
+        "cta",
+        "shape",
+        "rectangle",
+        "line",
+        "divider",
+        "gradient",
+        "overlay",
+        "icon",
+    ]
     role: str | None = None
     content: str | None = None
     asset_id: str | None = None
@@ -149,16 +162,20 @@ class DesignSpecElement(BaseModel):
     opacity: float | None = 1.0
     typography: dict[str, Any] | None = None
     style: dict[str, Any] | None = None
+    treatment: dict[str, Any] | None = None
 
 
 class DesignSpec(BaseModel):
     """Structured editable finished-ad layout — OS renders; does not invent creative."""
 
-    version: int = 1
+    version: int = 2
     mode: Literal["editable_finished_ad"] = "editable_finished_ad"
     canvas: dict[str, Any] = Field(default_factory=dict)
     language: str = "tr"
     campaign_intent: str | None = None
+    composition_plan: dict[str, Any] | None = None
+    composition: dict[str, Any] | None = None
+    background: dict[str, Any] | None = None
     master_background_asset_id: str
     logo_asset_id: str
     finished_ad_raster_asset_id: str | None = None

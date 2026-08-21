@@ -92,6 +92,48 @@ function wrapText(
   return lines;
 }
 
+/** Best-effort CSS linear-gradient → canvas gradient for overlay fidelity. */
+function parseCssLinearGradient(
+  ctx: CanvasRenderingContext2D,
+  css: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): CanvasGradient | null {
+  const inner = css.slice(css.indexOf('(') + 1, css.lastIndexOf(')')).trim();
+  if (!inner) return null;
+  const toTop = /to\s+top/i.test(inner);
+  const toBottom = /to\s+bottom/i.test(inner);
+  const toRight = /to\s+right/i.test(inner);
+  let grad: CanvasGradient;
+  if (toRight) {
+    grad = ctx.createLinearGradient(x, y, x + w, y);
+  } else if (toTop) {
+    grad = ctx.createLinearGradient(x, y + h, x, y);
+  } else if (toBottom) {
+    grad = ctx.createLinearGradient(x, y, x, y + h);
+  } else {
+    grad = ctx.createLinearGradient(x, y + h, x, y);
+  }
+  const stopRe =
+    /(rgba?\([^)]+\)|transparent|#[0-9a-fA-F]{3,8})\s+(\d+(?:\.\d+)?)%/g;
+  let match: RegExpExecArray | null;
+  let count = 0;
+  while ((match = stopRe.exec(inner)) !== null) {
+    const color = match[1] === 'transparent' ? 'rgba(0,0,0,0)' : match[1];
+    const pos = Math.max(0, Math.min(1, Number(match[2]) / 100));
+    try {
+      grad.addColorStop(pos, color);
+      count += 1;
+    } catch {
+      /* ignore invalid stop */
+    }
+  }
+  if (count === 0) return null;
+  return grad;
+}
+
 async function drawElement(
   ctx: CanvasRenderingContext2D,
   el: SocialElement,
@@ -134,14 +176,29 @@ async function drawElement(
   }
 
   if (el.type === 'SHAPE') {
-    ctx.fillStyle = el.fill || '#C4A35A';
+    const fill = el.fill || '#C4A35A';
     const radius = el.borderRadius ?? 0;
-    if (radius > 0) {
+    ctx.save();
+    ctx.globalAlpha = typeof el.opacity === 'number' ? Math.max(0, Math.min(1, el.opacity)) : 1;
+    if (typeof fill === 'string' && fill.includes('linear-gradient')) {
+      const grad = parseCssLinearGradient(ctx, fill, el.x, el.y, el.width, el.height);
+      if (grad) {
+        ctx.fillStyle = grad;
+      } else {
+        ctx.fillStyle = 'rgba(8,6,4,0.45)';
+      }
+    } else {
+      ctx.fillStyle = fill;
+    }
+    if (el.shapeKind === 'line' || (el.height <= 3 && el.width > el.height * 4)) {
+      ctx.fillRect(el.x, el.y, el.width, Math.max(1, el.height));
+    } else if (radius > 0) {
       roundRect(ctx, el.x, el.y, el.width, el.height, radius);
       ctx.fill();
     } else {
       ctx.fillRect(el.x, el.y, el.width, el.height);
     }
+    ctx.restore();
     return;
   }
 

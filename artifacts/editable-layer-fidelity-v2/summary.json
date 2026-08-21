@@ -1,0 +1,199 @@
+{
+  "status": "READY FOR CREATIVE QUALITY → EDITABLE LAYER FIDELITY v2 REVIEW",
+  "visual_quality_pass_declared": false,
+  "total_provider_calls_generate": 3,
+  "campaigns": [
+    {
+      "key": "A_lifestyle",
+      "label": "LIFESTYLE",
+      "campaign_id": "a8964451-8ef3-44b4-bc6e-f65abd09961b",
+      "production_mode": "editable_finished_ad",
+      "layout_family": "lifestyle_editorial",
+      "quality_critique": {
+        "status": "pass",
+        "checks": {
+          "two_second_clarity": true,
+          "one_dominant_message": true,
+          "asset_present": true,
+          "not_blind_repeat": true,
+          "cta_present": true,
+          "logo_locked": true,
+          "language_ok": true,
+          "claims_present_or_lifestyle": true,
+          "no_invented_finance_language": true,
+          "premium_direction": true,
+          "similarity_noted": true
+        },
+        "issues": [],
+        "forbidden_claim_count": 0,
+        "campaign_intent": "lifestyle",
+        "fixed_once": false
+      },
+      "layer_counts": {
+        "total_layers": 11,
+        "text_layers": 4,
+        "logo_layers": 1,
+        "shape_layers": 2,
+        "overlay_layers": 2,
+        "cta_layers": 1,
+        "badge_layers": 0,
+        "raster_decorative_layers": 0
+      },
+      "gpt_image_call_count": 1,
+      "final_png": "/app/artifacts/editable-layer-fidelity-v2/A_lifestyle-final.png",
+      "design_spec": "/app/artifacts/editable-layer-fidelity-v2/A_lifestyle-design-spec.json"
+    },
+    {
+      "key": "B_price",
+      "label": "PRICE",
+      "campaign_id": "4a69afa1-8df4-4b18-b398-12b662d772bf",
+      "production_mode": "editable_finished_ad",
+      "layout_family": "price_lower_third",
+      "quality_critique": {
+        "status": "pass",
+        "checks": {
+          "two_second_clarity": true,
+          "one_dominant_message": true,
+          "asset_present": true,
+          "not_blind_repeat": true,
+          "cta_present": true,
+          "logo_locked": true,
+          "language_ok": true,
+          "claims_present_or_lifestyle": true,
+          "no_invented_finance_language": true,
+          "premium_direction": true,
+          "similarity_noted": true
+        },
+        "issues": [],
+        "forbidden_claim_count": 2,
+        "campaign_intent": "price_campaign",
+        "fixed_once": false
+      },
+      "layer_counts": {
+        "total_layers": 15,
+        "text_layers": 7,
+        "logo_layers": 1,
+        "shape_layers": 3,
+        "overlay_layers": 1,
+        "cta_layers": 1,
+        "badge_layers": 1,
+        "raster_decorative_layers": 0
+      },
+      "gpt_image_call_count": 1,
+      "final_png": "/app/artifacts/editable-layer-fidelity-v2/B_price-final.png",
+      "design_spec": "/app/artifacts/editable-layer-fidelity-v2/B_price-design-spec.json"
+    },
+    {
+      "key": "C_location",
+      "label": "LOCATION",
+      "campaign_id": "1ca7f023-37b4-468e-84ad-9b4a29f75ae5",
+      "production_mode": "editable_finished_ad",
+      "layout_family": "location_place_led",
+      "quality_critique": {
+        "status": "pass",
+        "checks": {
+          "two_second_clarity": true,
+          "one_dominant_message": true,
+          "asset_present": true,
+          "not_blind_repeat": true,
+          "cta_present": true,
+          "logo_locked": true,
+          "language_ok": true,
+          "claims_present_or_lifestyle": true,
+          "no_invented_finance_language": true,
+          "premium_direction": true,
+          "similarity_noted": true
+        },
+        "issues": [],
+        "forbidden_claim_count": 0,
+        "campaign_intent": "location",
+        "fixed_once": false
+      },
+      "layer_counts": {
+        "total_layers": 11,
+        "text_layers": 4,
+        "logo_layers": 1,
+        "shape_layers": 2,
+        "overlay_layers": 2,
+        "cta_layers": 1,
+        "badge_layers": 0,
+        "raster_decorative_layers": 0
+      },
+      "gpt_image_call_count": 1,
+      "final_png": "/app/artifacts/editable-layer-fidelity-v2/C_location-final.png",
+      "design_spec": "/app/artifacts/editable-layer-fidelity-v2/C_location-design-spec.json"
+    }
+  ],
+  "quality_scores": {
+    "A_lifestyle": {
+      "Composition": 8,
+      "Typography": 7,
+      "Hierarchy": 8,
+      "Spacing": 8,
+      "Asset choice": 8,
+      "Brand integration": 8,
+      "Premium feel": 7,
+      "Simplicity": 8,
+      "CTA quality": 8,
+      "Overall advertising quality": 7
+    },
+    "B_price": {
+      "Composition": 8,
+      "Typography": 7,
+      "Hierarchy": 8,
+      "Spacing": 7,
+      "Asset choice": 8,
+      "Brand integration": 8,
+      "Premium feel": 7,
+      "Simplicity": 7,
+      "CTA quality": 8,
+      "Overall advertising quality": 7
+    },
+    "C_location": {
+      "Composition": 8,
+      "Typography": 7,
+      "Hierarchy": 8,
+      "Spacing": 8,
+      "Asset choice": 8,
+      "Brand integration": 8,
+      "Premium feel": 7,
+      "Simplicity": 8,
+      "CTA quality": 8,
+      "Overall advertising quality": 7
+    }
+  },
+  "score_notes": "Scores are honest engineering review vs golden CD raster quality. Editable primitives approximate overlays/frames/CTA; golden AI micro-effects (glow, multi-color headline spans, icon glyphs) remain partially unmatched. Target guide none<7 avg>=8 may miss Overall/Premium/Typography — NOT Visual Quality PASS.",
+  "a_revision_regression": [
+    {
+      "instruction": "Başlığı 'Zamansız Bir Yaşam' yap. Başka hiçbir şeyi değiştirme.",
+      "revision_route": "LAYER_ONLY",
+      "gpt_image_call_count": 0,
+      "unexpected_mutation_count": 0,
+      "background_asset_unchanged": true
+    },
+    {
+      "instruction": "Logoyu %20 büyüt. Başka hiçbir şeyi değiştirme.",
+      "revision_route": "LAYER_ONLY",
+      "gpt_image_call_count": 0,
+      "unexpected_mutation_count": 0,
+      "background_asset_unchanged": true
+    },
+    {
+      "instruction": "CTA'yı 'Detayları İncele' yap. Başka hiçbir şeyi değiştirme.",
+      "revision_route": "LAYER_ONLY",
+      "gpt_image_call_count": 0,
+      "unexpected_mutation_count": 0,
+      "background_asset_unchanged": true
+    }
+  ],
+  "smb_screenshots": {
+    "A": "artifacts/editable-layer-fidelity-v2/A_lifestyle-smb-screenshot.png",
+    "B": "artifacts/editable-layer-fidelity-v2/B_price-smb-screenshot.png",
+    "C": "artifacts/editable-layer-fidelity-v2/C_location-smb-screenshot.png",
+    "note": "Layer-composed exports (editable renderer fidelity). Browser SMB capture not separately automated."
+  },
+  "background_pixel_diff_expectation": 0,
+  "gpt_on_layer_revisions_expectation": 0,
+  "score_target_met": false,
+  "score_target_notes": "Guide none<7 avg>=8: category floors met (>=7) but several avgs sit ~7.6–7.7; Overall/Premium/Typography often 7 — miss average>=8. NOT Visual Quality PASS."
+}

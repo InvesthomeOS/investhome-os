@@ -24,8 +24,7 @@ from investhome_api.services.creative_director.art_direction_translator import (
     translate_campaign_art_direction,
 )
 from investhome_api.services.creative_director.design_spec import (
-    build_design_spec,
-    design_spec_to_smb_elements,
+    assemble_editable_design,
 )
 from investhome_api.services.creative_director.production_brief import (
     build_production_brief,
@@ -1155,7 +1154,7 @@ def generate_ad_from_campaign(
     if production_mode == "editable_finished_ad":
         master_background_id = interior_id
         finished_raster_id = output.local_asset_id
-        design_spec = build_design_spec(
+        assembled = assemble_editable_design(
             production_brief=production_brief,
             texts=texts,
             master_background_asset_id=master_background_id,
@@ -1166,8 +1165,12 @@ def generate_ad_from_campaign(
             language=language,
             campaign_intent=str(production_brief.get("campaign_intent") or ""),
         )
-        editable_layers = design_spec_to_smb_elements(design_spec)
+        design_spec = assembled["design_spec"]
+        editable_layers = assembled["editable_layers"]
         ctx["design_spec"] = design_spec
+        ctx["composition_plan"] = assembled.get("composition_plan")
+        ctx["quality_critique"] = assembled.get("quality_critique")
+        ctx["geometry_check"] = assembled.get("geometry_check")
         ctx["master_background_asset_id"] = str(master_background_id)
         ctx["finished_ad_raster_asset_id"] = str(finished_raster_id)
         ctx["editable_finished_ad"] = True

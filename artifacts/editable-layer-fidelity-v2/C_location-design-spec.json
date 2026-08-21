@@ -1,0 +1,372 @@
+{
+  "version": 2,
+  "mode": "editable_finished_ad",
+  "canvas": {
+    "width": 1080,
+    "height": 1350,
+    "aspect_ratio": "4:5",
+    "format_preset": "portrait"
+  },
+  "language": "tr",
+  "campaign_intent": "location",
+  "composition_plan": {
+    "version": 2,
+    "campaign_intent": "location",
+    "layout_family": "location_place_led",
+    "language": "tr",
+    "aspect_ratio": "4:5",
+    "primary_message": "Adams Morgan'ın canlı atmosferi ve The Temple logosu",
+    "secondary_message": "Kültürel çeşitlilik ve zengin sosyal yaşam.",
+    "focal_point": {
+      "zone": "right_architecture",
+      "description": "Architecture/street reads on the open side; type on quieter side"
+    },
+    "image": {
+      "crop": "cover",
+      "position": "center",
+      "treatment": "top_dark_gradient"
+    },
+    "zones": {
+      "dark": [
+        {
+          "anchor": "top",
+          "height_pct": 0.22
+        },
+        {
+          "anchor": "left_mid",
+          "height_pct": 0.35
+        }
+      ],
+      "light": [],
+      "text_safe": [
+        {
+          "anchor": "upper_center",
+          "y_pct": 0.1,
+          "height_pct": 0.28
+        },
+        {
+          "anchor": "mid_left",
+          "y_pct": 0.42,
+          "height_pct": 0.28
+        }
+      ]
+    },
+    "typography": {
+      "headline": {
+        "placement": "upper_center",
+        "scale": "hero",
+        "align": "center",
+        "color": "#FFFFFF",
+        "accent_color": "#C4A35A",
+        "font_family": "serif"
+      },
+      "eyebrow": {
+        "placement": "below_logo",
+        "scale": "small_caps",
+        "align": "center",
+        "color": "#C4A35A",
+        "font_family": "sans"
+      },
+      "secondary": {
+        "placement": "mid_left",
+        "scale": "body",
+        "align": "left",
+        "color": "#F7F3EB",
+        "font_family": "sans"
+      },
+      "cta": {
+        "placement": "bottom_left",
+        "scale": "action",
+        "align": "center",
+        "color": "#1A1510",
+        "font_family": "sans"
+      }
+    },
+    "logo": {
+      "placement": "top_center",
+      "scale": 0.18,
+      "align": "center"
+    },
+    "cta": {
+      "placement": "bottom_left",
+      "style": "gold_pill",
+      "width_pct": 0.48
+    },
+    "decorative_elements": [
+      "top_dark_gradient",
+      "eyebrow_pill",
+      "gold_divider"
+    ],
+    "badges": false,
+    "dividers": true,
+    "overlays": [
+      "top_dark_gradient"
+    ],
+    "gradients": [
+      "top_dark_gradient"
+    ],
+    "content_density": "sparse",
+    "alignment_system": "center_then_left",
+    "safe_margins": {
+      "x_pct": 0.07,
+      "y_pct": 0.045
+    },
+    "visual_balance": "place_headline_over_architecture",
+    "design_direction_echo": {
+      "visual_mood": "Adams Morgan'ın canlı atmosferini yansıtan bir dış mekan görüntüsü.",
+      "hierarchy": "Location name / advantage leads; supporting place cues secondary; CTA clear.",
+      "information_density": "sparse"
+    },
+    "golden_principles": {
+      "composition": "Photograph-led full-bleed with intentional negative space; text rides dark/light contrast zones — never a flat top-stack of logo→headline→CTA.",
+      "hierarchy": "ONE primary message; headline or price leads by intent; support quieter; single CTA.",
+      "typography": "Display/serif for hero line; restrained sans for support/price/CTA; deliberate size jumps.",
+      "image_treatment": "Preserve master asset quality; add editable gradient/overlay contrast — do not AI-regrade.",
+      "negative_space": "Let the photograph breathe; premium ≠ more elements.",
+      "overlays": "Localized dark or light gradients for text-safe zones as editable layers.",
+      "logo": "One real project logo; top-left or top-center by intent; never invent.",
+      "cta": "Single clear actionable CTA; proportionate pill/button — not tiny footer text.",
+      "spacing": "Safe margins ~6–8% width; consistent rhythm between eyebrow→headline→support→CTA.",
+      "density": "Sparse for lifestyle/location; medium only when price/offer requires it.",
+      "alignment": "Intent-specific: left price stack, center brand/lifestyle, split location.",
+      "focal_point": "Image focal zone reserved; type sits in planned text-safe areas."
+    }
+  },
+  "composition": {
+    "focal_zone": "right_architecture",
+    "text_zones": [
+      {
+        "anchor": "upper_center",
+        "y_pct": 0.1,
+        "height_pct": 0.28
+      },
+      {
+        "anchor": "mid_left",
+        "y_pct": 0.42,
+        "height_pct": 0.28
+      }
+    ],
+    "safe_margins": {
+      "x_pct": 0.07,
+      "y_pct": 0.045
+    },
+    "alignment_system": "center_then_left",
+    "layout_family": "location_place_led"
+  },
+  "background": {
+    "asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+    "crop": "cover",
+    "position": "center",
+    "treatment": "top_dark_gradient"
+  },
+  "master_background_asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+  "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+  "finished_ad_raster_asset_id": "846f193d-0c2f-4796-a7f1-0784a37e460a",
+  "locked_background": true,
+  "elements": [
+    {
+      "id": "master_background",
+      "type": "image",
+      "role": "background",
+      "asset_id": "299bd265-a0ea-486d-866d-1947f103fd57",
+      "locked": true,
+      "editable": false,
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1350,
+      "z_index": 0,
+      "opacity": 1.0,
+      "treatment": {
+        "crop": "cover",
+        "position": "center",
+        "treatment": "top_dark_gradient"
+      }
+    },
+    {
+      "id": "overlay-top-dark",
+      "type": "gradient",
+      "role": "overlay",
+      "locked": false,
+      "editable": true,
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 405,
+      "z_index": 4,
+      "opacity": 1.0,
+      "style": {
+        "fill": "linear-gradient(to bottom, rgba(8,6,4,0.78) 0%, rgba(8,6,4,0.35) 55%, transparent 100%)",
+        "shape_kind": "rect"
+      }
+    },
+    {
+      "id": "overlay-mid-left",
+      "type": "gradient",
+      "role": "overlay",
+      "locked": false,
+      "editable": true,
+      "x": 0,
+      "y": 513,
+      "width": 669,
+      "height": 486,
+      "z_index": 5,
+      "opacity": 1.0,
+      "style": {
+        "fill": "linear-gradient(to right, rgba(8,6,4,0.55) 0%, rgba(8,6,4,0.22) 70%, transparent 100%)",
+        "shape_kind": "rect"
+      }
+    },
+    {
+      "id": "logo",
+      "type": "logo",
+      "role": "logo",
+      "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+      "locked": false,
+      "editable": true,
+      "lock_aspect_ratio": true,
+      "x": 443,
+      "y": 54,
+      "width": 194,
+      "height": 88,
+      "z_index": 10,
+      "opacity": 1.0
+    },
+    {
+      "id": "eyebrow-pill",
+      "type": "shape",
+      "role": "eyebrow_frame",
+      "x": 119,
+      "y": 189,
+      "width": 842,
+      "height": 49,
+      "z_index": 18,
+      "editable": true,
+      "style": {
+        "fill": "transparent",
+        "border_color": "#C4A35A",
+        "border_width": 1,
+        "border_radius": 24,
+        "shape_kind": "rect"
+      }
+    },
+    {
+      "id": "subheadline",
+      "type": "text",
+      "role": "subheadline",
+      "content": "ADAMS MORGAN'IN KALBINDE YAŞA",
+      "locked": false,
+      "editable": true,
+      "x": 129,
+      "y": 189,
+      "width": 822,
+      "height": 49,
+      "z_index": 19,
+      "typography": {
+        "font_family": "sans",
+        "font_size": 22,
+        "font_weight": "semibold",
+        "align": "center",
+        "color": "#C4A35A"
+      }
+    },
+    {
+      "id": "headline",
+      "type": "text",
+      "role": "headline",
+      "content": "Adams Morgan'da Yaşamın Kalbi",
+      "locked": false,
+      "editable": true,
+      "x": 76,
+      "y": 297,
+      "width": 928,
+      "height": 189,
+      "z_index": 20,
+      "typography": {
+        "font_family": "serif",
+        "font_size": 80,
+        "font_weight": "bold",
+        "align": "center",
+        "color": "#FFFFFF",
+        "line_height": 1.08
+      }
+    },
+    {
+      "id": "support-divider",
+      "type": "divider",
+      "role": "divider",
+      "x": 76,
+      "y": 675,
+      "width": 389,
+      "height": 2,
+      "z_index": 21,
+      "editable": true,
+      "style": {
+        "fill": "#C4A35A",
+        "shape_kind": "line"
+      }
+    },
+    {
+      "id": "support-message-1",
+      "type": "text",
+      "role": "support_message",
+      "content": "Kültürel çeşitlilik ve zengin sosyal yaşam.",
+      "locked": false,
+      "editable": true,
+      "x": 76,
+      "y": 716,
+      "width": 510,
+      "height": 61,
+      "z_index": 22,
+      "typography": {
+        "font_family": "sans",
+        "font_size": 28,
+        "font_weight": "normal",
+        "align": "left",
+        "color": "#F7F3EB"
+      }
+    },
+    {
+      "id": "support-message-2",
+      "type": "text",
+      "role": "support_message",
+      "content": "Merkezi konum, her yere kolay erişim.",
+      "locked": false,
+      "editable": true,
+      "x": 76,
+      "y": 790,
+      "width": 510,
+      "height": 61,
+      "z_index": 23,
+      "typography": {
+        "font_family": "sans",
+        "font_size": 28,
+        "font_weight": "normal",
+        "align": "left",
+        "color": "#F7F3EB"
+      }
+    },
+    {
+      "id": "cta",
+      "type": "cta",
+      "role": "cta",
+      "content": "Detayları Keşfet",
+      "locked": false,
+      "editable": true,
+      "x": 76,
+      "y": 1188,
+      "width": 518,
+      "height": 68,
+      "z_index": 40,
+      "style": {
+        "background_color": "#C4A35A",
+        "text_color": "#1A1510",
+        "border_radius": 24,
+        "padding": 15,
+        "font_size": 28,
+        "font_weight": "semibold",
+        "align": "center"
+      }
+    }
+  ]
+}
