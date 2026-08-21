@@ -914,15 +914,18 @@ export type CreativeDirectorGenerateAdResponse = {
   finished_ad_raster_asset_id?: string | null;
   editable_layers?: unknown[];
   gpt_image_call_count?: number;
+  master_asset_id?: string | null;
+  master_finished_ad_asset_id?: string | null;
+  quality_guard?: Record<string, unknown>;
 };
 
 export async function generateCreativeDirectorAd(
   campaignId: string,
   input: CreativeDirectorGenerateAdRequest = {},
 ): Promise<CreativeDirectorGenerateAdResponse> {
-  // Editable layered finished-ad is the default SMB production path (v1).
-  // Pass production_mode: 'finished_ad' explicitly for legacy flat raster.
-  const productionMode = input.production_mode ?? 'editable_finished_ad';
+  // Golden hybrid: GPT Image finished-ad is the default production designer.
+  // Pass production_mode: 'editable_finished_ad' only for optional/legacy layer reconstruction.
+  const productionMode = input.production_mode ?? 'finished_ad';
   return apiFetch(`/ai/creative-studio/campaigns/${campaignId}/generate-ad`, {
     method: 'POST',
     body: JSON.stringify({
@@ -952,6 +955,7 @@ export type CreativeDirectorReviseAdResponse = CreativeDirectorGenerateAdRespons
   revision_index?: number;
   revision_operations?: Array<Record<string, unknown>>;
   master_asset_id?: string | null;
+  master_finished_ad_asset_id?: string | null;
   revision_source_asset_id?: string | null;
   quality_guard?: Record<string, unknown>;
   previous_asset_id?: string | null;

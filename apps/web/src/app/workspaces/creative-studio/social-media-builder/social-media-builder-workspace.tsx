@@ -1562,7 +1562,8 @@ export function SocialMediaBuilderWorkspace() {
           language: locale,
           aspect_ratio: formatPreset === 'portrait' ? '4:5' : formatPreset === 'square' ? '1:1' : '4:5',
           format_preset: formatPreset,
-          production_mode: 'editable_finished_ad',
+          // Golden hybrid: finished-ad raster is primary designer (not layer reconstruction).
+          production_mode: 'finished_ad',
         });
         if (token !== generateAbortRef.current) return;
         const gptImage = response.gpt_image;
@@ -1576,8 +1577,8 @@ export function SocialMediaBuilderWorkspace() {
           (typeof response.provider_route?.model === 'string' && response.provider_route.model) ||
           gptImage?.model ||
           'gpt-image-2';
-        const editableMode =
-          response.production_mode === 'editable_finished_ad' || Boolean(response.design_spec);
+        // Only hydrate editable layers when API explicitly returns editable mode (legacy/opt-in).
+        const editableMode = response.production_mode === 'editable_finished_ad';
         const nextPost = createFinishedAdCanvasPost({
           localAssetId: finalAssetId,
           linkedProjectId: projectId,
@@ -1716,8 +1717,7 @@ export function SocialMediaBuilderWorkspace() {
           (typeof response.provider_route?.model === 'string' && response.provider_route.model) ||
           gptImage?.model ||
           'gpt-image-2';
-        const editableMode =
-          response.production_mode === 'editable_finished_ad' || Boolean(response.design_spec);
+        const editableMode = response.production_mode === 'editable_finished_ad';
         const nextPost = createFinishedAdCanvasPost({
           localAssetId: finalAssetId,
           linkedProjectId: projectId,
@@ -1856,8 +1856,7 @@ export function SocialMediaBuilderWorkspace() {
           'gpt_image',
         logoAssetId: response.logo_asset_id,
         interiorAssetId: response.interior_asset_id,
-        editableFinishedAd:
-          response.production_mode === 'editable_finished_ad' || Boolean(response.design_spec),
+        editableFinishedAd: response.production_mode === 'editable_finished_ad',
         designSpec: response.design_spec ?? null,
         editableLayers: response.editable_layers ?? null,
         masterBackgroundAssetId: response.master_background_asset_id ?? response.interior_asset_id,

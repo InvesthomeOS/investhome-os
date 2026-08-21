@@ -469,7 +469,7 @@ def resolve_master_asset_id(
     history: list[Any] | None = None,
 ) -> UUID:
     """Immutable master = first approved finished-ad for this campaign."""
-    raw = ctx.get("master_asset_id")
+    raw = ctx.get("master_finished_ad_asset_id") or ctx.get("master_asset_id")
     if raw:
         return UUID(str(raw))
     entries = revision_entries(history if history is not None else ctx.get("revision_history"))
@@ -495,11 +495,15 @@ def resolve_master_asset_id(
 
 
 def ensure_master_asset_id(ctx: dict[str, Any], asset_id: UUID) -> UUID:
-    """Set master once; never overwrite."""
-    existing = ctx.get("master_asset_id")
+    """Set master once; never overwrite. Keep master_finished_ad_asset_id in sync."""
+    existing = ctx.get("master_finished_ad_asset_id") or ctx.get("master_asset_id")
     if existing:
-        return UUID(str(existing))
+        mid = UUID(str(existing))
+        ctx["master_asset_id"] = str(mid)
+        ctx["master_finished_ad_asset_id"] = str(mid)
+        return mid
     ctx["master_asset_id"] = str(asset_id)
+    ctx["master_finished_ad_asset_id"] = str(asset_id)
     return asset_id
 
 
@@ -910,11 +914,14 @@ def revise_ad_from_campaign(
         revision_diff=revision_diff,
         intents=intents,
     )
+    # Golden hybrid: LAYER_ONLY only when campaign was explicitly editable_finished_ad.
+    # Default finished_ad production always revises via IMAGE_REQUIRED from MASTER.
     editable_mode = bool(
-        ctx.get("editable_finished_ad")
-        or ctx.get("design_spec")
+        ctx.get("editable_finished_ad") is True
         or ctx.get("production_mode") == "editable_finished_ad"
     )
+    if not editable_mode:
+        revision_route = "IMAGE_REQUIRED"
     interpreted_plan = {
         "operations": new_ops,
         "command_mode": revision_diff.command_mode,
@@ -1109,6 +1116,7 @@ def revise_ad_from_campaign(
         ctx["revision_history"] = lean_history
         ctx["revision_index"] = revision_index
         ctx["master_asset_id"] = str(master_id)
+        ctx["master_finished_ad_asset_id"] = str(master_id)
         ctx["revision_operations"] = cumulative_after
         ctx["current_revision_index"] = revision_index
         ctx["latest_revision_instruction"] = instruction
@@ -1154,6 +1162,7 @@ def revise_ad_from_campaign(
             revision_index=revision_index,
             revision_operations=cumulative_after,
             master_asset_id=master_id,
+            master_finished_ad_asset_id=master_id,
             revision_source_asset_id=master_id,
             quality_guard={
                 "status": "n/a",
@@ -1401,6 +1410,7 @@ def revise_ad_from_campaign(
     ctx["revision_history"] = lean_history
     ctx["revision_index"] = revision_index
     ctx["master_asset_id"] = str(master_id)
+    ctx["master_finished_ad_asset_id"] = str(master_id)
     ctx["revision_operations"] = cumulative_after
     ctx["current_revision_index"] = revision_index
     ctx["latest_revision_instruction"] = instruction
@@ -1460,6 +1470,7 @@ def revise_ad_from_campaign(
         revision_index=revision_index,
         revision_operations=cumulative_after,
         master_asset_id=master_id,
+        master_finished_ad_asset_id=master_id,
         revision_source_asset_id=master_id,
         quality_guard=quality_guard,
         previous_asset_id=current_id,
@@ -1558,6 +1569,7 @@ def _move_campaign_revision(
     ctx["revision_operations"] = tip_ops
     if master_raw:
         ctx["master_asset_id"] = str(master_raw)
+        ctx["master_finished_ad_asset_id"] = str(master_raw)
     ctx["latest_master_ad_asset_id"] = str(restored_id)
     tip_entry = lean_history[next_index] if 0 <= next_index < len(lean_history) else {}
     if isinstance(tip_entry, dict) and isinstance(tip_entry.get("design_spec"), dict):
@@ -1583,7 +1595,9 @@ def _move_campaign_revision(
         if ctx.get("master_background_asset_id")
         else None
     )
-    editable = bool(ctx.get("editable_finished_ad") or design_spec)
+    editable = bool(
+        ctx.get("editable_finished_ad") is True or ctx.get("production_mode") == "editable_finished_ad"
+    )
     return CreativeDirectorReviseAdResponse(
         campaign_id=row.id,
         project_id=row.linked_project_id,
@@ -1599,6 +1613,7 @@ def _move_campaign_revision(
         revision_index=next_index,
         revision_operations=tip_ops,
         master_asset_id=master_uuid,
+        master_finished_ad_asset_id=master_uuid,
         revision_source_asset_id=master_uuid,
         quality_guard={"status": "n/a", "gpt_calls": 0},
         previous_asset_id=UUID(str(previous_tip)) if previous_tip else None,

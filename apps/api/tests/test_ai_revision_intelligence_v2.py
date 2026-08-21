@@ -317,15 +317,41 @@ def test_undo_redo_cursor_regression_gpt_zero():
 
 
 def test_finished_ad_generation_path_regression():
-    """Smoke: generate path still builds editable finished-ad design_spec (not VLD)."""
+    """Smoke: default production mode is finished_ad (not editable layer reconstruction)."""
     from investhome_api.schemas.creative_director import CreativeDirectorGenerateAdRequest
+    from investhome_api.services.creative_director.generate_ad import _resolve_production_mode
 
-    body = CreativeDirectorGenerateAdRequest(production_mode="finished_ad")
+    body = CreativeDirectorGenerateAdRequest()
     assert body.production_mode == "finished_ad"
+    assert _resolve_production_mode(body) == "finished_ad"
+    # Legacy editable path still available when explicitly requested
+    body_edit = CreativeDirectorGenerateAdRequest(production_mode="editable_finished_ad")
+    assert body_edit.production_mode == "editable_finished_ad"
+    # Design spec builder still exists for optional/legacy LAYER_ONLY revisions
     spec = _temple_spec()
     assert spec["mode"] == "editable_finished_ad"
     assert spec["master_background_asset_id"]
     assert any(el["id"] == "headline" for el in spec["elements"])
+
+
+def test_master_finished_ad_alias_aligned():
+    from investhome_api.services.creative_director.revision import (
+        ensure_master_asset_id,
+        resolve_master_asset_id,
+    )
+    from uuid import uuid4
+
+    mid = uuid4()
+    ctx: dict = {}
+    ensured = ensure_master_asset_id(ctx, mid)
+    assert ensured == mid
+    assert ctx["master_asset_id"] == str(mid)
+    assert ctx["master_finished_ad_asset_id"] == str(mid)
+    assert resolve_master_asset_id(ctx) == mid
+    # Never overwrite
+    ensure_master_asset_id(ctx, uuid4())
+    assert ctx["master_asset_id"] == str(mid)
+    assert ctx["master_finished_ad_asset_id"] == str(mid)
 
 
 def test_legacy_build_revision_diff_delegates():

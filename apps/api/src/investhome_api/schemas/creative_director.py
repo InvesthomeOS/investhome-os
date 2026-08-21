@@ -227,11 +227,15 @@ class CreativeDirectorGenerateAdResponse(BaseModel):
     latency_ms: int = 0
     warnings: list[str] = Field(default_factory=list)
     gpt_image: dict[str, Any] = Field(default_factory=dict)
-    # Editable finished-ad layered design (v1)
+    # Optional/legacy editable finished-ad layered design (NOT production default)
     design_spec: dict[str, Any] | None = None
     master_background_asset_id: UUID | None = None
     finished_ad_raster_asset_id: UUID | None = None
     editable_layers: list[dict[str, Any]] = Field(default_factory=list)
+    # Immutable golden master (alias of master_asset_id)
+    master_asset_id: UUID | None = None
+    master_finished_ad_asset_id: UUID | None = None
+    quality_guard: dict[str, Any] = Field(default_factory=dict)
 
 
 class CreativeDirectorReviseAdResponse(CreativeDirectorGenerateAdResponse):
@@ -243,9 +247,7 @@ class CreativeDirectorReviseAdResponse(CreativeDirectorGenerateAdResponse):
     revision_history: list[dict[str, Any]] = Field(default_factory=list)
     revision_index: int = 0
     revision_operations: list[dict[str, Any]] = Field(default_factory=list)
-    master_asset_id: UUID | None = None
     revision_source_asset_id: UUID | None = None
-    quality_guard: dict[str, Any] = Field(default_factory=dict)
     previous_asset_id: UUID | None = None
     campaign_context: dict[str, Any] = Field(default_factory=dict)
     revision_route: RevisionRoute | None = None

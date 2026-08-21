@@ -1,0 +1,323 @@
+{
+  "status": "READY FOR GOLDEN CREATIVE QUALITY REVIEW",
+  "visual_quality_pass_declared": false,
+  "architecture": "hybrid_ai_design — GPT Image primary designer; editability second",
+  "production_mode_default": "finished_ad",
+  "layer_reconstruction": "NOT production default",
+  "total_provider_calls": 6,
+  "campaigns": [
+    {
+      "label": "LIFESTYLE",
+      "campaign_id": "cc010ded-2010-4cd7-a1cd-e95e3af46144",
+      "production_mode": "finished_ad",
+      "final_asset_id": "ad1dc95b-b0fb-4e36-bb20-e793dc9e77f5",
+      "master_asset_id": "ad1dc95b-b0fb-4e36-bb20-e793dc9e77f5",
+      "master_finished_ad_asset_id": "ad1dc95b-b0fb-4e36-bb20-e793dc9e77f5",
+      "finished_ad_raster_asset_id": "ad1dc95b-b0fb-4e36-bb20-e793dc9e77f5",
+      "design_spec_present": false,
+      "editable_layers_count": 0,
+      "provider_call_count": 1,
+      "quality_guard": {
+        "status": "review",
+        "mode": "finished_ad",
+        "checks": {
+          "logo_locked": true,
+          "facts_language": true,
+          "headline_present": true,
+          "cta_present": true,
+          "language_set": true,
+          "headline_length_ok": true
+        },
+        "failures": [],
+        "warnings": [],
+        "automatic_fail_triggers": [
+          "text_overflow",
+          "cropped_headline",
+          "distorted_logo",
+          "unreadable_text"
+        ],
+        "note": "User visual approval required — do not declare Visual Quality PASS."
+      },
+      "campaign_intent": "launch",
+      "hero": "Tarihin Modernle Buluşması",
+      "cta": "Detayları Keşfedin",
+      "screenshot": "artifacts/golden-creative-quality-lock/A_lifestyle-final.png",
+      "native_pipeline_used": "NO",
+      "visual_quality_pass_declared": false
+    },
+    {
+      "label": "PRICE",
+      "campaign_id": "858a3fc3-ccea-4c77-869d-448fd7153c7a",
+      "production_mode": "finished_ad",
+      "final_asset_id": "67a76648-45c9-48be-9c3e-7efef8944ad1",
+      "master_asset_id": "67a76648-45c9-48be-9c3e-7efef8944ad1",
+      "master_finished_ad_asset_id": "67a76648-45c9-48be-9c3e-7efef8944ad1",
+      "finished_ad_raster_asset_id": "67a76648-45c9-48be-9c3e-7efef8944ad1",
+      "design_spec_present": false,
+      "editable_layers_count": 0,
+      "provider_call_count": 1,
+      "quality_guard": {
+        "status": "review",
+        "mode": "finished_ad",
+        "checks": {
+          "logo_locked": true,
+          "facts_language": true,
+          "headline_present": true,
+          "cta_present": true,
+          "language_set": true,
+          "headline_length_ok": true
+        },
+        "failures": [],
+        "warnings": [],
+        "automatic_fail_triggers": [
+          "text_overflow",
+          "cropped_headline",
+          "distorted_logo",
+          "unreadable_text"
+        ],
+        "note": "User visual approval required — do not declare Visual Quality PASS."
+      },
+      "campaign_intent": "price_campaign",
+      "hero": "Fırsatın Tapınağı: The Temple",
+      "cta": "Lansman Fiyatını Kaçırma",
+      "screenshot": "artifacts/golden-creative-quality-lock/B_price-final.png",
+      "native_pipeline_used": "NO",
+      "visual_quality_pass_declared": false
+    },
+    {
+      "label": "LOCATION",
+      "campaign_id": "84af2de0-642c-4170-ae84-98b8a23427b9",
+      "production_mode": "finished_ad",
+      "final_asset_id": "d594b6f3-ecc8-402d-932c-e343327fcebb",
+      "master_asset_id": "d594b6f3-ecc8-402d-932c-e343327fcebb",
+      "master_finished_ad_asset_id": "d594b6f3-ecc8-402d-932c-e343327fcebb",
+      "finished_ad_raster_asset_id": "d594b6f3-ecc8-402d-932c-e343327fcebb",
+      "design_spec_present": false,
+      "editable_layers_count": 0,
+      "provider_call_count": 1,
+      "quality_guard": {
+        "status": "review",
+        "mode": "finished_ad",
+        "checks": {
+          "logo_locked": true,
+          "facts_language": true,
+          "headline_present": true,
+          "cta_present": true,
+          "language_set": true,
+          "headline_length_ok": true
+        },
+        "failures": [],
+        "warnings": [],
+        "automatic_fail_triggers": [
+          "text_overflow",
+          "cropped_headline",
+          "distorted_logo",
+          "unreadable_text"
+        ],
+        "note": "User visual approval required — do not declare Visual Quality PASS."
+      },
+      "campaign_intent": "location",
+      "hero": "Adams Morgan'ın Kalbinde Yaşam",
+      "cta": "Detayları Keşfet",
+      "screenshot": "artifacts/golden-creative-quality-lock/C_location-final.png",
+      "native_pipeline_used": "NO",
+      "visual_quality_pass_declared": false
+    }
+  ],
+  "revision_target": {
+    "label": "PRICE",
+    "campaign_id": "858a3fc3-ccea-4c77-869d-448fd7153c7a",
+    "master_asset_id": "67a76648-45c9-48be-9c3e-7efef8944ad1"
+  },
+  "revisions": [
+    {
+      "step": "r1_headline",
+      "status": "ok",
+      "instruction": "Başlığı 'Zamansız Bir Yaşam' yap. Başka hiçbir şeyi değiştirme.",
+      "revision_route": "IMAGE_REQUIRED",
+      "master_asset_id": "67a76648-45c9-48be-9c3e-7efef8944ad1",
+      "master_finished_ad_asset_id": "67a76648-45c9-48be-9c3e-7efef8944ad1",
+      "revision_source_asset_id": "67a76648-45c9-48be-9c3e-7efef8944ad1",
+      "final_asset_id": "466b2446-4153-4d06-b014-c4139f4e53be",
+      "quality_guard": {
+        "status": "pass",
+        "master": {
+          "width": 1088.0,
+          "height": 1360.0,
+          "brightness": 86.22724212398374,
+          "contrast": 58.65378373749868,
+          "mean_r": 96.7297256097561,
+          "mean_g": 86.34213033536585,
+          "mean_b": 75.60987042682927
+        },
+        "revised": {
+          "width": 1088.0,
+          "height": 1360.0,
+          "brightness": 85.9056275406504,
+          "contrast": 58.940107553557745,
+          "mean_r": 96.6327743902439,
+          "mean_g": 86.08224085365853,
+          "mean_b": 75.00186737804879
+        },
+        "brightness_delta": -0.322,
+        "contrast_delta": 0.286,
+        "color_shift": 0.668,
+        "dimension_delta_pct": 0.0,
+        "thresholds": {
+          "brightness": 12.0,
+          "contrast": 15.0,
+          "color_shift": 18.0,
+          "dimension_pct": 2.0
+        },
+        "failures": [],
+        "compared_against": "master_asset"
+      },
+      "provider_call_count": 1,
+      "master_unchanged": true,
+      "source_is_master": true
+    },
+    {
+      "step": "r2_logo",
+      "status": "ok",
+      "instruction": "Logoyu %20 küçült. Başka hiçbir şeyi değiştirme.",
+      "revision_route": "IMAGE_REQUIRED",
+      "master_asset_id": "67a76648-45c9-48be-9c3e-7efef8944ad1",
+      "master_finished_ad_asset_id": "67a76648-45c9-48be-9c3e-7efef8944ad1",
+      "revision_source_asset_id": "67a76648-45c9-48be-9c3e-7efef8944ad1",
+      "final_asset_id": "e4d1811a-786f-4e0a-ac62-ad6b105bce24",
+      "quality_guard": {
+        "status": "pass",
+        "master": {
+          "width": 1088.0,
+          "height": 1360.0,
+          "brightness": 86.22724212398374,
+          "contrast": 58.65378373749868,
+          "mean_r": 96.7297256097561,
+          "mean_g": 86.34213033536585,
+          "mean_b": 75.60987042682927
+        },
+        "revised": {
+          "width": 1088.0,
+          "height": 1360.0,
+          "brightness": 85.10215955284554,
+          "contrast": 58.99643377396655,
+          "mean_r": 95.58854801829268,
+          "mean_g": 85.23229801829268,
+          "mean_b": 74.48563262195123
+        },
+        "brightness_delta": -1.125,
+        "contrast_delta": 0.343,
+        "color_shift": 1.949,
+        "dimension_delta_pct": 0.0,
+        "thresholds": {
+          "brightness": 12.0,
+          "contrast": 15.0,
+          "color_shift": 18.0,
+          "dimension_pct": 2.0
+        },
+        "failures": [],
+        "compared_against": "master_asset"
+      },
+      "provider_call_count": 1,
+      "master_unchanged": true,
+      "source_is_master": true
+    },
+    {
+      "step": "r3_remove_cta",
+      "status": "ok",
+      "instruction": "CTA'yı kaldır. Başka hiçbir şeyi değiştirme.",
+      "revision_route": "IMAGE_REQUIRED",
+      "master_asset_id": "67a76648-45c9-48be-9c3e-7efef8944ad1",
+      "master_finished_ad_asset_id": "67a76648-45c9-48be-9c3e-7efef8944ad1",
+      "revision_source_asset_id": "67a76648-45c9-48be-9c3e-7efef8944ad1",
+      "final_asset_id": "8b52cb58-15e8-455d-9cf0-2db4a9b9b592",
+      "quality_guard": {
+        "status": "pass",
+        "master": {
+          "width": 1088.0,
+          "height": 1360.0,
+          "brightness": 86.22724212398374,
+          "contrast": 58.65378373749868,
+          "mean_r": 96.7297256097561,
+          "mean_g": 86.34213033536585,
+          "mean_b": 75.60987042682927
+        },
+        "revised": {
+          "width": 1088.0,
+          "height": 1360.0,
+          "brightness": 82.45240091463414,
+          "contrast": 58.75298903649743,
+          "mean_r": 92.32827743902439,
+          "mean_g": 82.39022484756097,
+          "mean_b": 72.63870045731707
+        },
+        "brightness_delta": -3.775,
+        "contrast_delta": 0.099,
+        "color_shift": 6.62,
+        "dimension_delta_pct": 0.0,
+        "thresholds": {
+          "brightness": 12.0,
+          "contrast": 15.0,
+          "color_shift": 18.0,
+          "dimension_pct": 2.0
+        },
+        "failures": [],
+        "compared_against": "master_asset"
+      },
+      "provider_call_count": 1,
+      "master_unchanged": true,
+      "source_is_master": true
+    }
+  ],
+  "undo_redo": {
+    "undo_ok": true,
+    "redo_ok": true,
+    "undo_gpt_calls": 0,
+    "redo_gpt_calls": 0,
+    "undo_asset_id": "e4d1811a-786f-4e0a-ac62-ad6b105bce24",
+    "redo_asset_id": "8b52cb58-15e8-455d-9cf0-2db4a9b9b592"
+  },
+  "comparison_notes": {
+    "vs_golden_baseline": {
+      "baseline_dir": "/artifacts/creative-quality-lock",
+      "baseline_exists": true,
+      "notes": [
+        "Compare A/B/C PNGs visually to artifacts/creative-quality-lock PRICE/LOCATION/LIFESTYLE finals.",
+        "Expect finished_ad GPT Image premium editorial language — not OS layer templates.",
+        "User visual approval required; do not declare Visual Quality PASS."
+      ]
+    },
+    "vs_fail_fidelity_v2": {
+      "fail_dir": "/artifacts/editable-layer-fidelity-v2",
+      "fail_exists": true,
+      "avoid": [
+        "overflow headlines",
+        "crude white price boxes",
+        "meaningless gold bars",
+        "random overlays",
+        "weak logo",
+        "generic templates",
+        "text outside canvas"
+      ],
+      "notes": [
+        "artifacts/editable-layer-fidelity-v2 A/B/C are FAILURE REFERENCES — not production.",
+        "This run uses finished_ad raster hydration only (no layer reconstruction)."
+      ]
+    }
+  },
+  "honest_visual_notes": {
+    "visual_quality_pass_declared": false,
+    "A_lifestyle": "Premium interior finished-ad, TR editorial type, logo+CTA present; intent classifier returned launch not amenities — copy still lifestyle-leaning. User review required.",
+    "B_price": "Sales finished-ad with Unit 204, \\/\\/~25%, gold CTA; denser commercial layout than lifestyle — not fidelity-v2 white-box template language. User review required.",
+    "C_location": "Adams Morgan location exterior finished-ad, location-led hierarchy, TR. User review required.",
+    "vs_golden_baseline": "Same production_mode=finished_ad GPT Image path as creative-quality-lock era; new A/B/C are NEW generates for review, not freezes of old assets.",
+    "vs_fail_fidelity_v2": "No layer reconstruction / design_spec / editable_layers on generate — avoids overflow-headline / crude white price-box / gold-bar template language of fidelity-v2 failure set.",
+    "revisions": "All 3 IMAGE_REQUIRED from immutable master; quality_guard structural pass vs master; undo/redo GPT=0."
+  },
+  "provider_call_breakdown": {
+    "generate_A_B_C": 3,
+    "revisions_r1_r2_r3": 3,
+    "undo_redo": 0,
+    "total": 6
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "visual_quality_pass_declared": false,
+  "A_lifestyle": "Premium interior finished-ad, TR editorial type, logo+CTA present; intent classifier returned launch not amenities — copy still lifestyle-leaning. User review required.",
+  "B_price": "Sales finished-ad with Unit 204, \\/\\/~25%, gold CTA; denser commercial layout than lifestyle — not fidelity-v2 white-box template language. User review required.",
+  "C_location": "Adams Morgan location exterior finished-ad, location-led hierarchy, TR. User review required.",
+  "vs_golden_baseline": {
+    "baseline_dir": "/artifacts/creative-quality-lock",
+    "baseline_exists": true,
+    "notes": [
+      "Compare A/B/C PNGs visually to artifacts/creative-quality-lock PRICE/LOCATION/LIFESTYLE finals.",
+      "Expect finished_ad GPT Image premium editorial language — not OS layer templates.",
+      "User visual approval required; do not declare Visual Quality PASS."
+    ]
+  },
+  "vs_fail_fidelity_v2": {
+    "fail_dir": "/artifacts/editable-layer-fidelity-v2",
+    "fail_exists": true,
+    "avoid": [
+      "overflow headlines",
+      "crude white price boxes",
+      "meaningless gold bars",
+      "random overlays",
+      "weak logo",
+      "generic templates",
+      "text outside canvas"
+    ],
+    "notes": [
+      "artifacts/editable-layer-fidelity-v2 A/B/C are FAILURE REFERENCES — not production.",
+      "This run uses finished_ad raster hydration only (no layer reconstruction)."
+    ]
+  },
+  "revisions": "All 3 IMAGE_REQUIRED from immutable master; quality_guard structural pass vs master; undo/redo GPT=0."
+}

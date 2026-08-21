@@ -1,0 +1,39 @@
+{
+  "label": "LIFESTYLE",
+  "campaign_id": "cc010ded-2010-4cd7-a1cd-e95e3af46144",
+  "production_mode": "finished_ad",
+  "final_asset_id": "ad1dc95b-b0fb-4e36-bb20-e793dc9e77f5",
+  "master_asset_id": "ad1dc95b-b0fb-4e36-bb20-e793dc9e77f5",
+  "master_finished_ad_asset_id": "ad1dc95b-b0fb-4e36-bb20-e793dc9e77f5",
+  "finished_ad_raster_asset_id": "ad1dc95b-b0fb-4e36-bb20-e793dc9e77f5",
+  "design_spec_present": false,
+  "editable_layers_count": 0,
+  "provider_call_count": 1,
+  "quality_guard": {
+    "status": "review",
+    "mode": "finished_ad",
+    "checks": {
+      "logo_locked": true,
+      "facts_language": true,
+      "headline_present": true,
+      "cta_present": true,
+      "language_set": true,
+      "headline_length_ok": true
+    },
+    "failures": [],
+    "warnings": [],
+    "automatic_fail_triggers": [
+      "text_overflow",
+      "cropped_headline",
+      "distorted_logo",
+      "unreadable_text"
+    ],
+    "note": "User visual approval required — do not declare Visual Quality PASS."
+  },
+  "campaign_intent": "launch",
+  "hero": "Tarihin Modernle Buluşması",
+  "cta": "Detayları Keşfedin",
+  "screenshot": "/artifacts/golden-creative-quality-lock/A_lifestyle-final.png",
+  "native_pipeline_used": "NO",
+  "visual_quality_pass_declared": false
+}

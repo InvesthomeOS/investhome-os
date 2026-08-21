@@ -79,6 +79,71 @@ def _asset_id(row: Any) -> UUID | None:
         return None
 
 
+def _finished_ad_quality_guard(
+    *,
+    claim_guard: dict[str, Any],
+    asset_lock: dict[str, Any],
+    texts: dict[str, str],
+    production_brief: dict[str, Any],
+    language: str,
+) -> dict[str, Any]:
+    """Structural quality gate for golden finished-ad path (no layer reconstruction).
+
+    Automatic FAIL on missing logo lock, claim-guard fail, empty primary copy, or
+    language mismatch signals. Visual overflow/premium feel require user review —
+    never declare Visual Quality PASS from this guard alone.
+    """
+    failures: list[str] = []
+    checks: dict[str, bool] = {}
+
+    logo_ok = str(asset_lock.get("status") or "").lower() == "pass"
+    checks["logo_locked"] = logo_ok
+    if not logo_ok:
+        failures.append("distorted_or_unlocked_logo")
+
+    claim_ok = str(claim_guard.get("status") or "").lower() in {"pass", "ok", "n/a", "lifestyle"}
+    checks["facts_language"] = claim_ok
+    if not claim_ok:
+        failures.append("claim_guard_fail")
+
+    headline = str(texts.get("headline") or production_brief.get("hero") or "").strip()
+    checks["headline_present"] = bool(headline)
+    if not headline:
+        failures.append("missing_headline")
+
+    cta = str(texts.get("cta") or production_brief.get("cta") or "").strip()
+    checks["cta_present"] = bool(cta)
+
+    lang = (language or "").lower()
+    checks["language_set"] = lang.startswith("tr") or lang.startswith("en")
+    if not checks["language_set"]:
+        failures.append("language_unset")
+
+    # Heuristic risk flags (warnings only — visual overflow needs human review)
+    checks["headline_length_ok"] = len(headline) <= 90
+    warnings: list[str] = []
+    if headline and not checks["headline_length_ok"]:
+        warnings.append("cropped_headline_risk")
+
+    # Hard automatic FAIL only for structural lock / facts / empty primary message
+    hard_failures = [f for f in failures if f != "cropped_headline_risk"]
+    status_val = "fail" if hard_failures else "review"
+    return {
+        "status": status_val,
+        "mode": "finished_ad",
+        "checks": checks,
+        "failures": hard_failures,
+        "warnings": warnings,
+        "automatic_fail_triggers": [
+            "text_overflow",
+            "cropped_headline",
+            "distorted_logo",
+            "unreadable_text",
+        ],
+        "note": "User visual approval required — do not declare Visual Quality PASS.",
+    }
+
+
 def _resolve_production_mode(
     body: CreativeDirectorGenerateAdRequest | CreativeDirectorRecomposeAdRequest | None,
 ) -> str:
@@ -1144,13 +1209,44 @@ def generate_ad_from_campaign(
     # Immutable revision master: first approved finished-ad only (never overwrite).
     if production_mode in {"finished_ad", "editable_finished_ad"} and not ctx.get("master_asset_id"):
         ctx["master_asset_id"] = str(output.local_asset_id)
+        ctx["master_finished_ad_asset_id"] = str(output.local_asset_id)
         ctx["revision_operations"] = []
         ctx["current_revision_index"] = 0
+    elif production_mode in {"finished_ad", "editable_finished_ad"} and not ctx.get(
+        "master_finished_ad_asset_id"
+    ):
+        # Align alias when master already set from prior path
+        ctx["master_finished_ad_asset_id"] = str(ctx.get("master_asset_id") or output.local_asset_id)
 
     design_spec: dict[str, Any] | None = None
     editable_layers: list[dict[str, Any]] = []
     master_background_id: UUID | None = None
     finished_raster_id: UUID | None = None
+    quality_guard: dict[str, Any] = {
+        "status": "review",
+        "mode": production_mode,
+        "checks": {},
+        "failures": [],
+        "note": "User visual approval required — do not declare Visual Quality PASS.",
+    }
+
+    if production_mode == "finished_ad":
+        # Golden hybrid default: single finished-ad raster is the deliverable.
+        # Do NOT reconstruct as simplified editable layers.
+        finished_raster_id = output.local_asset_id
+        ctx["production_mode"] = "finished_ad"
+        ctx["editable_finished_ad"] = False
+        ctx["finished_ad_raster_asset_id"] = str(finished_raster_id)
+        ctx.pop("design_spec", None)
+        quality_guard = _finished_ad_quality_guard(
+            claim_guard=claim_guard,
+            asset_lock=asset_lock,
+            texts=texts,
+            production_brief=production_brief,
+            language=language,
+        )
+        ctx["latest_quality_guard"] = quality_guard
+
     if production_mode == "editable_finished_ad":
         master_background_id = interior_id
         finished_raster_id = output.local_asset_id
@@ -1175,12 +1271,29 @@ def generate_ad_from_campaign(
         ctx["finished_ad_raster_asset_id"] = str(finished_raster_id)
         ctx["editable_finished_ad"] = True
         ctx["production_mode"] = "editable_finished_ad"
+        critique = assembled.get("quality_critique") or {}
+        quality_guard = {
+            "status": critique.get("status") or "review",
+            "mode": "editable_finished_ad",
+            "checks": critique.get("checks") or {},
+            "failures": critique.get("issues") or [],
+            "note": "Legacy editable path — not production default.",
+        }
+        ctx["latest_quality_guard"] = quality_guard
 
     ctx["language"] = language
     row.context_json = ctx
     if row.status == "draft":
         row.status = "ready"
     db.flush()
+
+    master_id_out: UUID | None = None
+    raw_master = ctx.get("master_finished_ad_asset_id") or ctx.get("master_asset_id")
+    if raw_master:
+        try:
+            master_id_out = UUID(str(raw_master))
+        except (TypeError, ValueError):
+            master_id_out = None
 
     return CreativeDirectorGenerateAdResponse(
         campaign_id=row.id,
@@ -1212,4 +1325,7 @@ def generate_ad_from_campaign(
         master_background_asset_id=master_background_id,
         finished_ad_raster_asset_id=finished_raster_id,
         editable_layers=editable_layers,
+        master_asset_id=master_id_out,
+        master_finished_ad_asset_id=master_id_out,
+        quality_guard=quality_guard,
     )
