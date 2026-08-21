@@ -1,0 +1,54 @@
+{
+  "finishedAdCanvas": true,
+  "coverAssetId": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+  "dockVisible": true,
+  "layerCount": 8,
+  "layers": [
+    {
+      "id": "smb-el-logo",
+      "type": "IMAGE",
+      "role": "logo"
+    },
+    {
+      "id": "smb-el-headline",
+      "type": "TEXT",
+      "role": "headline"
+    },
+    {
+      "id": "smb-el-unit-label",
+      "type": "TEXT",
+      "role": "body"
+    },
+    {
+      "id": "smb-el-old-price",
+      "type": "TEXT",
+      "role": "body"
+    },
+    {
+      "id": "smb-el-new-price",
+      "type": "TEXT",
+      "role": "body"
+    },
+    {
+      "id": "smb-el-discount-badge",
+      "type": "TEXT",
+      "role": "eyebrow"
+    },
+    {
+      "id": "smb-el-support-message-1",
+      "type": "TEXT",
+      "role": "body"
+    },
+    {
+      "id": "smb-el-cta",
+      "type": "BUTTON",
+      "role": null
+    }
+  ],
+  "documentId": "7439c442-1b50-40b6-bb36-49816fdeda9c",
+  "csProjectId": "36b8b36a-d562-404a-ba70-4527b27ca10b",
+  "seededPostId": "p-editable-1787305104974",
+  "production_mode": "editable_finished_ad",
+  "screenshot": "artifacts/editable-finished-ad/smb-editable-finished-ad.png",
+  "visual_quality": "NOT_CLAIMED"
+}

@@ -1,0 +1,236 @@
+{
+  "version": 1,
+  "mode": "editable_finished_ad",
+  "canvas": {
+    "width": 1080,
+    "height": 1350,
+    "aspect_ratio": "4:5",
+    "format_preset": "portrait"
+  },
+  "language": "tr",
+  "campaign_intent": "price_campaign",
+  "master_background_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+  "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+  "finished_ad_raster_asset_id": "f00ef35d-fc9a-422d-9531-b6b62e756816",
+  "locked_background": true,
+  "elements": [
+    {
+      "id": "master_background",
+      "type": "image",
+      "role": "background",
+      "asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+      "locked": true,
+      "editable": false,
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1350,
+      "z_index": 0,
+      "opacity": 1.0
+    },
+    {
+      "id": "logo",
+      "type": "logo",
+      "role": "logo",
+      "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+      "locked": false,
+      "editable": true,
+      "lock_aspect_ratio": true,
+      "x": 100,
+      "y": 70,
+      "width": 190,
+      "height": 76,
+      "z_index": 10,
+      "opacity": 1.0
+    },
+    {
+      "id": "headline",
+      "type": "text",
+      "role": "headline",
+      "content": "Zamansız Bir Yaşam",
+      "locked": false,
+      "editable": true,
+      "x": 76,
+      "y": 189,
+      "width": 928,
+      "height": 122,
+      "z_index": 20,
+      "typography": {
+        "font_family": "serif",
+        "font_size": 78,
+        "font_weight": "bold",
+        "align": "left",
+        "color": "#F7F3EB",
+        "line_height": 1.05
+      }
+    },
+    {
+      "id": "subheadline",
+      "type": "text",
+      "role": "subheadline",
+      "content": "The Temple'da Modern Yaşam, Tarihi Doku ile Buluşuyor!",
+      "locked": false,
+      "editable": true,
+      "x": 76,
+      "y": 317,
+      "width": 928,
+      "height": 81,
+      "z_index": 21,
+      "typography": {
+        "font_family": "sans",
+        "font_size": 35,
+        "font_weight": "medium",
+        "align": "left",
+        "color": "#E8E0D4",
+        "line_height": 1.25
+      }
+    },
+    {
+      "id": "unit-label",
+      "type": "text",
+      "role": "unit_label",
+      "content": "Unit 204",
+      "locked": false,
+      "editable": true,
+      "x": 76,
+      "y": 648,
+      "width": 510,
+      "height": 47,
+      "z_index": 22,
+      "typography": {
+        "font_family": "sans",
+        "font_size": 30,
+        "font_weight": "semibold",
+        "align": "left",
+        "color": "#D4C4A8"
+      }
+    },
+    {
+      "id": "old-price",
+      "type": "text",
+      "role": "old_price",
+      "content": "$400,000",
+      "locked": false,
+      "editable": true,
+      "claim_sensitive": true,
+      "x": 76,
+      "y": 702,
+      "width": 418,
+      "height": 54,
+      "z_index": 23,
+      "typography": {
+        "font_family": "sans",
+        "font_size": 37,
+        "font_weight": "normal",
+        "align": "left",
+        "color": "#B8A990",
+        "text_decoration": "line-through"
+      }
+    },
+    {
+      "id": "new-price",
+      "type": "text",
+      "role": "new_price",
+      "content": "$300,000",
+      "locked": false,
+      "editable": true,
+      "claim_sensitive": true,
+      "x": 76,
+      "y": 753,
+      "width": 510,
+      "height": 95,
+      "z_index": 24,
+      "typography": {
+        "font_family": "sans",
+        "font_size": 84,
+        "font_weight": "bold",
+        "align": "left",
+        "color": "#FFFFFF"
+      }
+    },
+    {
+      "id": "discount-badge",
+      "type": "badge",
+      "role": "discount_badge",
+      "content": "%25",
+      "locked": false,
+      "editable": true,
+      "x": 857,
+      "y": 694,
+      "width": 121,
+      "height": 85,
+      "z_index": 25,
+      "style": {
+        "background_color": "#C4A35A",
+        "text_color": "#1A1510",
+        "border_radius": 86,
+        "font_size": 31,
+        "font_weight": "bold",
+        "align": "center"
+      }
+    },
+    {
+      "id": "support-message-1",
+      "type": "text",
+      "role": "support_message",
+      "content": "Tarihi karakter, modern tasarım.",
+      "locked": false,
+      "editable": true,
+      "x": 76,
+      "y": 972,
+      "width": 928,
+      "height": 47,
+      "z_index": 26,
+      "typography": {
+        "font_family": "sans",
+        "font_size": 28,
+        "font_weight": "normal",
+        "align": "left",
+        "color": "#EDE6DA"
+      }
+    },
+    {
+      "id": "support-message-2",
+      "type": "text",
+      "role": "support_message",
+      "content": "Sınırlı sayıda ünite, kaçırmayın.",
+      "locked": false,
+      "editable": true,
+      "x": 76,
+      "y": 1026,
+      "width": 928,
+      "height": 47,
+      "z_index": 27,
+      "typography": {
+        "font_family": "sans",
+        "font_size": 28,
+        "font_weight": "normal",
+        "align": "left",
+        "color": "#EDE6DA"
+      }
+    },
+    {
+      "id": "cta",
+      "type": "cta",
+      "role": "cta",
+      "content": "Detayları İncele",
+      "locked": false,
+      "editable": true,
+      "x": 76,
+      "y": 1188,
+      "width": 594,
+      "height": 74,
+      "z_index": 40,
+      "style": {
+        "background_color": "#F7F3EB",
+        "text_color": "#1A1510",
+        "border_color": "#F7F3EB",
+        "border_radius": 15,
+        "padding": 18,
+        "font_size": 30,
+        "font_weight": "semibold",
+        "align": "center"
+      }
+    }
+  ]
+}

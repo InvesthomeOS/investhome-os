@@ -29,6 +29,13 @@ from investhome_api.schemas.creative_director import (
     RevisionOperation,
 )
 from investhome_api.schemas.gpt_image_design import GptImageDesignRequest
+from investhome_api.services.creative_director.design_spec import (
+    apply_layer_operations,
+    build_design_spec,
+    design_spec_to_smb_elements,
+    route_revision,
+    sync_production_brief_from_spec,
+)
 from investhome_api.services.creative_director.generate_ad import (
     _as_dict,
     _prepare_campaign_ad_context,
@@ -924,6 +931,9 @@ def lean_revision_history(history: list[Any] | None) -> list[dict[str, Any]]:
                 "claim_guard": item.get("claim_guard"),
                 "language": item.get("language"),
                 "quality_guard": item.get("quality_guard"),
+                "revision_route": item.get("revision_route"),
+                "design_spec": item.get("design_spec"),
+                "master_background_asset_id": item.get("master_background_asset_id"),
             }
         )
     return lean_history
@@ -1148,6 +1158,16 @@ def revise_ad_from_campaign(
     revision_diff = build_revision_diff(instruction=instruction, production_brief=production_brief)
     new_ops = [_op_dict(o) for o in revision_diff.operations]
     cumulative_after = prior_ops + new_ops
+    revision_route = route_revision(
+        instruction=instruction,
+        revision_diff=revision_diff,
+        intents=intents,
+    )
+    editable_mode = bool(
+        ctx.get("editable_finished_ad")
+        or ctx.get("design_spec")
+        or ctx.get("production_mode") == "editable_finished_ad"
+    )
 
     revision_brief = build_revision_brief(
         instruction=instruction,
@@ -1160,6 +1180,7 @@ def revise_ad_from_campaign(
         revision_diff=revision_diff,
         cumulative_operations=prior_ops,
     )
+    revision_brief["revision_route"] = revision_route
 
     if revision_brief.get("cta"):
         texts = dict(texts)
@@ -1174,6 +1195,174 @@ def revise_ad_from_campaign(
         pb_copy["final_copy"] = final_copy
         pb_copy["cta"] = texts["cta"]
         production_brief = pb_copy
+
+    # ── LAYER_ONLY path (editable finished-ad): mutate design_spec, GPT=0 ──
+    if editable_mode and revision_route == "LAYER_ONLY":
+        base_spec = ctx.get("design_spec")
+        if not isinstance(base_spec, dict) or not base_spec.get("elements"):
+            bg = ctx.get("master_background_asset_id") or str(interior_id)
+            base_spec = build_design_spec(
+                production_brief=production_brief,
+                texts=texts,
+                master_background_asset_id=bg,
+                logo_asset_id=logo_id,
+                finished_ad_raster_asset_id=ctx.get("finished_ad_raster_asset_id") or str(master_id),
+                aspect_ratio=aspect_ratio,
+                format_preset=format_preset,
+                language=language,
+                campaign_intent=str(production_brief.get("campaign_intent") or ""),
+            )
+        next_spec = apply_layer_operations(base_spec, revision_diff.operations)
+        production_brief = sync_production_brief_from_spec(production_brief, next_spec)
+        editable_layers = design_spec_to_smb_elements(next_spec)
+        master_bg_raw = next_spec.get("master_background_asset_id") or ctx.get(
+            "master_background_asset_id"
+        ) or str(interior_id)
+        master_bg_id = UUID(str(master_bg_raw))
+        tip_asset_id = current_id  # display tip unchanged — layers carry the edit
+
+        claim_guard = claim_guard_summary(
+            approved_claims=approved_claims,
+            allowed_tokens=allowed_tokens,
+            texts=texts,
+            lifestyle=lifestyle,
+        )
+        asset_lock = project_asset_lock_summary(
+            interior_id=interior_id,
+            logo_id=logo_id,
+            interior_meta=interior_meta,
+            logo_meta=logo_meta,
+            source_asset_id=interior_id,
+        )
+        asset_lock["master_asset_id"] = str(master_id)
+        asset_lock["revision_model"] = "layer_only_design_spec"
+        asset_lock["status"] = "pass" if logo_lock.get("status") == "pass" else "fail"
+
+        if not any(isinstance(h, dict) and h.get("version") == "original" for h in history):
+            history.insert(
+                0,
+                {
+                    "version": "original",
+                    "previous_asset_id": None,
+                    "new_asset_id": str(master_id),
+                    "master_asset_id": str(master_id),
+                    "revision_source_asset_id": str(master_id),
+                    "instruction": None,
+                    "revision_brief": None,
+                    "operations": [],
+                    "provider": None,
+                    "timestamp": None,
+                    "campaign_context_id": str(row.id),
+                    "revision_route": None,
+                    "design_spec": base_spec,
+                    "master_background_asset_id": str(master_bg_id),
+                },
+            )
+        version = _version_label(history)
+        entry = {
+            "version": version,
+            "previous_asset_id": str(current_id),
+            "new_asset_id": str(tip_asset_id),
+            "master_asset_id": str(master_id),
+            "revision_source_asset_id": str(master_id),
+            "instruction": instruction,
+            "revision_brief": revision_brief,
+            "operations": new_ops,
+            "intents": intents,
+            "provider": "layer_only",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "campaign_context_id": str(row.id),
+            "claim_guard": claim_guard.get("status"),
+            "language": language,
+            "quality_guard": {"status": "n/a", "gpt_calls": 0, "route": "LAYER_ONLY"},
+            "revision_route": "LAYER_ONLY",
+            "design_spec": next_spec,
+            "master_background_asset_id": str(master_bg_id),
+        }
+        history.append(entry)
+        revision_index = len(history) - 1
+        lean_history = lean_revision_history(history)
+
+        ctx["revision_history"] = lean_history
+        ctx["revision_index"] = revision_index
+        ctx["master_asset_id"] = str(master_id)
+        ctx["revision_operations"] = cumulative_after
+        ctx["current_revision_index"] = revision_index
+        ctx["latest_revision_instruction"] = instruction
+        ctx["latest_revision_brief"] = {
+            "mode": revision_brief.get("mode"),
+            "instruction": revision_brief.get("instruction"),
+            "intents": revision_brief.get("intents"),
+            "copy_overrides": revision_brief.get("copy_overrides"),
+            "cta": revision_brief.get("cta"),
+            "language": revision_brief.get("language"),
+            "revision_route": "LAYER_ONLY",
+            "master_asset_id": str(master_id),
+            "revision_diff": revision_diff.model_dump(by_alias=True),
+        }
+        ctx["latest_revision_diff"] = revision_diff.model_dump(by_alias=True)
+        ctx["design_spec"] = next_spec
+        ctx["master_background_asset_id"] = str(master_bg_id)
+        ctx["editable_finished_ad"] = True
+        ctx["production_mode"] = "editable_finished_ad"
+        ctx["production_brief"] = production_brief
+        ctx["latest_master_ad_asset_id"] = str(tip_asset_id)
+        ctx["language"] = language
+        row.context_json = dict(ctx)
+        flag_modified(row, "context_json")
+        if row.status == "draft":
+            row.status = "ready"
+        db.flush()
+
+        return CreativeDirectorReviseAdResponse(
+            campaign_id=row.id,
+            project_id=row.linked_project_id,
+            language=language,
+            aspect_ratio=aspect_ratio,
+            format_preset=format_preset,
+            production_mode="editable_finished_ad",
+            production_brief=production_brief,
+            revision_brief=revision_brief,
+            revision_intents=intents,
+            revision_diff=revision_diff.model_dump(by_alias=True),
+            revision_history=lean_history,
+            revision_index=revision_index,
+            revision_operations=cumulative_after,
+            master_asset_id=master_id,
+            revision_source_asset_id=master_id,
+            quality_guard={"status": "n/a", "gpt_calls": 0, "route": "LAYER_ONLY"},
+            previous_asset_id=current_id,
+            provider_route={"provider_id": "layer_only", "available": True, "missing": False},
+            interior_asset_id=interior_id,
+            logo_asset_id=logo_id,
+            final_asset_id=tip_asset_id,
+            final_asset_url=asset_url(tip_asset_id),
+            composition_base_asset_id=master_bg_id,
+            creative_brief_summary={
+                "mode": "revision_layer_only",
+                "version": version,
+                "instruction": instruction,
+                "revision_route": "LAYER_ONLY",
+                "gpt_image_call_count": 0,
+            },
+            final_turkish_texts=texts,
+            claim_guard=claim_guard,
+            project_asset_lock=asset_lock,
+            duplication_guard={"status": "pass"},
+            provider_call_count=0,
+            gpt_image_call_count=0,
+            latency_ms=0,
+            warnings=[],
+            gpt_image={},
+            campaign_context=ctx,
+            design_spec=next_spec,
+            master_background_asset_id=master_bg_id,
+            finished_ad_raster_asset_id=UUID(str(ctx["finished_ad_raster_asset_id"]))
+            if ctx.get("finished_ad_raster_asset_id")
+            else master_id,
+            editable_layers=editable_layers,
+            revision_route="LAYER_ONLY",
+        )
 
     provider_route = route_ad_social_image(prefer_edit=True)
     try:
@@ -1339,6 +1528,9 @@ def revise_ad_from_campaign(
             "contrast_delta": quality_guard.get("contrast_delta"),
             "color_shift": quality_guard.get("color_shift"),
         },
+        "revision_route": revision_route,
+        "design_spec": ctx.get("design_spec"),
+        "master_background_asset_id": ctx.get("master_background_asset_id"),
     }
     history.append(entry)
     revision_index = len(history) - 1
@@ -1425,7 +1617,7 @@ def revise_ad_from_campaign(
         language=language,
         aspect_ratio=aspect_ratio,
         format_preset=format_preset,
-        production_mode="finished_ad",
+        production_mode="editable_finished_ad" if editable_mode else "finished_ad",
         production_brief=production_brief,
         revision_brief=revision_brief,
         revision_intents=intents,
@@ -1442,7 +1634,11 @@ def revise_ad_from_campaign(
         logo_asset_id=logo_id,
         final_asset_id=new_asset_id,
         final_asset_url=asset_url(new_asset_id),
-        composition_base_asset_id=None,
+        composition_base_asset_id=(
+            UUID(str(ctx["master_background_asset_id"]))
+            if ctx.get("master_background_asset_id")
+            else None
+        ),
         creative_brief_summary={
             "mode": "revision",
             "version": version,
@@ -1452,6 +1648,7 @@ def revise_ad_from_campaign(
             "master_asset_id": str(master_id),
             "revision_source": "master_asset",
             "cumulative_ops_count": len(cumulative_after),
+            "revision_route": revision_route,
         },
         final_turkish_texts=texts,
         claim_guard=claim_guard,
@@ -1463,6 +1660,19 @@ def revise_ad_from_campaign(
         warnings=list(result.warnings or []),
         gpt_image=gpt_image_payload,
         campaign_context=ctx,
+        design_spec=ctx.get("design_spec") if isinstance(ctx.get("design_spec"), dict) else None,
+        master_background_asset_id=(
+            UUID(str(ctx["master_background_asset_id"]))
+            if ctx.get("master_background_asset_id")
+            else None
+        ),
+        finished_ad_raster_asset_id=new_asset_id,
+        editable_layers=(
+            design_spec_to_smb_elements(ctx["design_spec"])
+            if isinstance(ctx.get("design_spec"), dict)
+            else []
+        ),
+        revision_route=revision_route,
     )
 
 
@@ -1515,6 +1725,11 @@ def _move_campaign_revision(
     if master_raw:
         ctx["master_asset_id"] = str(master_raw)
     ctx["latest_master_ad_asset_id"] = str(restored_id)
+    tip_entry = lean_history[next_index] if 0 <= next_index < len(lean_history) else {}
+    if isinstance(tip_entry, dict) and isinstance(tip_entry.get("design_spec"), dict):
+        ctx["design_spec"] = tip_entry["design_spec"]
+    if isinstance(tip_entry, dict) and tip_entry.get("master_background_asset_id"):
+        ctx["master_background_asset_id"] = tip_entry["master_background_asset_id"]
     ctx[f"latest_{mode}"] = {
         "restored_asset_id": str(restored_id),
         "revision_index": next_index,
@@ -1528,13 +1743,20 @@ def _move_campaign_revision(
     interior_id, logo_id, _, _ = resolve_locked_assets(ctx)
     language = str(ctx.get("language") or "tr")
     master_uuid = UUID(str(master_raw)) if master_raw else None
+    design_spec = ctx.get("design_spec") if isinstance(ctx.get("design_spec"), dict) else None
+    master_bg = (
+        UUID(str(ctx["master_background_asset_id"]))
+        if ctx.get("master_background_asset_id")
+        else None
+    )
+    editable = bool(ctx.get("editable_finished_ad") or design_spec)
     return CreativeDirectorReviseAdResponse(
         campaign_id=row.id,
         project_id=row.linked_project_id,
         language=language,
         aspect_ratio="4:5",
         format_preset="portrait",
-        production_mode="finished_ad",
+        production_mode="editable_finished_ad" if editable else "finished_ad",
         production_brief=_as_dict(ctx.get("production_brief")),
         revision_brief={"mode": mode, "restored_asset_id": str(restored_id)},
         revision_intents=[],
@@ -1561,6 +1783,16 @@ def _move_campaign_revision(
         warnings=[],
         gpt_image={},
         campaign_context=ctx,
+        design_spec=design_spec,
+        master_background_asset_id=master_bg,
+        finished_ad_raster_asset_id=(
+            UUID(str(ctx["finished_ad_raster_asset_id"]))
+            if ctx.get("finished_ad_raster_asset_id")
+            else restored_id
+        ),
+        editable_layers=design_spec_to_smb_elements(design_spec) if design_spec else [],
+        revision_route="LAYER_ONLY" if editable else None,
+        composition_base_asset_id=master_bg,
     )
 
 

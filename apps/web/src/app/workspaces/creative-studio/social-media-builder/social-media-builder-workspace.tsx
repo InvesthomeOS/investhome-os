@@ -137,6 +137,7 @@ import {
   asFormatPreset,
   createFinishedAdCanvasPost,
   createFlattenedGptImagePost,
+  isEditableFinishedAdPost,
   isFinishedAdCanvasPost,
   isMediaAssetId,
 } from './social-media-builder-gpt-image';
@@ -622,17 +623,18 @@ export function SocialMediaBuilderWorkspace() {
   const displayArtboardSrc = canvaPreview?.src || artboardSrc;
   const displayArtboardState = canvaPreview?.src ? 'ready' : artboardState;
   const finishedAdCanvas = isFinishedAdCanvasPost(selectedPost);
+  const editableFinishedAd = isEditableFinishedAdPost(selectedPost);
   /** Finished-ad selected → primary AI action is revise ("AI ile Düzenle"), not Oluştur create. */
   const revisionPrimary = finishedAdCanvas;
   const canUndoAiRevision = finishedAdCanvas && aiRevisionHistory.length > 0 && aiRevisionIndex > 0;
   const canRedoAiRevision =
     finishedAdCanvas && aiRevisionHistory.length > 0 && aiRevisionIndex < aiRevisionHistory.length - 1;
-  // Finished-ad raster is the sole visual: hide TEXT/CTA overlays + IH logo stub.
+  // Legacy flat finished-ad hides overlays; editable finished-ad shows Design Spec layers.
   const hideOsLayers =
-    finishedAdCanvas ||
+    (finishedAdCanvas && !editableFinishedAd) ||
     (Boolean(canvaPreview?.src) && canvaPreview?.transferMode === 'editable');
-  // Finished-ad AI-first: hide manual canvas chrome (prefer hide over delete).
-  const hideManualCanvasTools = finishedAdCanvas;
+  // Keep finished-ad bottom bar; allow minimal layer chrome for editable mode only.
+  const hideManualCanvasTools = finishedAdCanvas && !editableFinishedAd;
 
   const applyAiRevisionCursor = useCallback(
     (source: {
@@ -1664,7 +1666,7 @@ export function SocialMediaBuilderWorkspace() {
           language: locale,
           aspect_ratio: formatPreset === 'portrait' ? '4:5' : formatPreset === 'square' ? '1:1' : '4:5',
           format_preset: formatPreset,
-          production_mode: 'finished_ad',
+          production_mode: 'editable_finished_ad',
         });
         if (token !== generateAbortRef.current) return;
         const gptImage = response.gpt_image;
@@ -1678,6 +1680,8 @@ export function SocialMediaBuilderWorkspace() {
           (typeof response.provider_route?.model === 'string' && response.provider_route.model) ||
           gptImage?.model ||
           'gpt-image-2';
+        const editableMode =
+          response.production_mode === 'editable_finished_ad' || Boolean(response.design_spec);
         const nextPost = createFinishedAdCanvasPost({
           localAssetId: finalAssetId,
           linkedProjectId: projectId,
@@ -1688,8 +1692,12 @@ export function SocialMediaBuilderWorkspace() {
           campaignContextId: response.campaign_id,
           sourceAssetId: response.interior_asset_id ?? gptImage?.source_image?.asset_id ?? null,
           index: siblingPosts.length + 1,
-          canvasWidth: output?.canvas_width,
-          canvasHeight: output?.canvas_height,
+          canvasWidth:
+            (response.design_spec as { canvas?: { width?: number } } | null | undefined)?.canvas
+              ?.width ?? output?.canvas_width,
+          canvasHeight:
+            (response.design_spec as { canvas?: { height?: number } } | null | undefined)?.canvas
+              ?.height ?? output?.canvas_height,
           compositionWarnings: [
             ...(Array.isArray(output?.composition_warnings) ? output.composition_warnings : []),
             ...(Array.isArray(response.warnings) ? response.warnings : []),
@@ -1701,6 +1709,11 @@ export function SocialMediaBuilderWorkspace() {
             'gpt_image',
           logoAssetId: response.logo_asset_id,
           interiorAssetId: response.interior_asset_id,
+          editableFinishedAd: editableMode,
+          designSpec: response.design_spec ?? null,
+          editableLayers: response.editable_layers ?? null,
+          masterBackgroundAssetId: response.master_background_asset_id ?? response.interior_asset_id,
+          finishedAdRasterAssetId: response.finished_ad_raster_asset_id ?? finalAssetId,
         });
         nextPost.id = createdPostId;
         nextPost.campaignContextId = response.campaign_id;
@@ -1714,10 +1727,13 @@ export function SocialMediaBuilderWorkspace() {
         createInflightIdRef.current = null;
         designEngineRef.current = 'creative-director';
         setDesignEngine('creative-director');
-        // Logo is baked into finished raster by provider — never add IH stub / extra logo layer.
+        // Editable mode uses real Media Library logo layer; never invent IH stub.
         setBrandLogo(false);
         coverAsset.setCoverImage({
-          asset_id: finalAssetId,
+          asset_id:
+            (editableMode &&
+              (response.master_background_asset_id || response.interior_asset_id)) ||
+            finalAssetId,
           url: null,
           alt: null,
           role: 'cover',
@@ -1803,6 +1819,8 @@ export function SocialMediaBuilderWorkspace() {
           (typeof response.provider_route?.model === 'string' && response.provider_route.model) ||
           gptImage?.model ||
           'gpt-image-2';
+        const editableMode =
+          response.production_mode === 'editable_finished_ad' || Boolean(response.design_spec);
         const nextPost = createFinishedAdCanvasPost({
           localAssetId: finalAssetId,
           linkedProjectId: projectId,
@@ -1816,8 +1834,12 @@ export function SocialMediaBuilderWorkspace() {
             1,
             postsRef.current.findIndex((p) => p.id === postId) + 1,
           ),
-          canvasWidth: output?.canvas_width,
-          canvasHeight: output?.canvas_height,
+          canvasWidth:
+            (response.design_spec as { canvas?: { width?: number } } | null | undefined)?.canvas
+              ?.width ?? output?.canvas_width,
+          canvasHeight:
+            (response.design_spec as { canvas?: { height?: number } } | null | undefined)?.canvas
+              ?.height ?? output?.canvas_height,
           compositionWarnings: [
             ...(Array.isArray(output?.composition_warnings) ? output.composition_warnings : []),
             ...(Array.isArray(response.warnings) ? response.warnings : []),
@@ -1826,10 +1848,15 @@ export function SocialMediaBuilderWorkspace() {
           provider:
             (typeof response.provider_route?.provider_id === 'string' &&
               response.provider_route.provider_id) ||
-            'gpt_image',
+            (response.revision_route === 'LAYER_ONLY' ? 'layer_only' : 'gpt_image'),
           logoAssetId: response.logo_asset_id,
           interiorAssetId: response.interior_asset_id,
-        });
+          editableFinishedAd: editableMode,
+          designSpec: response.design_spec ?? null,
+          editableLayers: response.editable_layers ?? null,
+          masterBackgroundAssetId: response.master_background_asset_id ?? response.interior_asset_id,
+          finishedAdRasterAssetId: response.finished_ad_raster_asset_id ?? finalAssetId,
+        })
         nextPost.id = postId;
         nextPost.campaignContextId = response.campaign_id || campaignId;
         const nextPosts = postsRef.current.map((p) => (p.id === postId ? nextPost : p));
@@ -1917,14 +1944,24 @@ export function SocialMediaBuilderWorkspace() {
         campaignContextId: response.campaign_id || campaignId,
         sourceAssetId: response.interior_asset_id ?? gptImage?.source_image?.asset_id ?? null,
         index: Math.max(1, postsRef.current.findIndex((p) => p.id === postId) + 1),
-        canvasWidth: output?.canvas_width,
-        canvasHeight: output?.canvas_height,
+        canvasWidth:
+          (response.design_spec as { canvas?: { width?: number } } | null | undefined)?.canvas
+            ?.width ?? output?.canvas_width,
+        canvasHeight:
+          (response.design_spec as { canvas?: { height?: number } } | null | undefined)?.canvas
+            ?.height ?? output?.canvas_height,
         provider:
           (typeof response.provider_route?.provider_id === 'string' &&
             response.provider_route.provider_id) ||
           'gpt_image',
         logoAssetId: response.logo_asset_id,
         interiorAssetId: response.interior_asset_id,
+        editableFinishedAd:
+          response.production_mode === 'editable_finished_ad' || Boolean(response.design_spec),
+        designSpec: response.design_spec ?? null,
+        editableLayers: response.editable_layers ?? null,
+        masterBackgroundAssetId: response.master_background_asset_id ?? response.interior_asset_id,
+        finishedAdRasterAssetId: response.finished_ad_raster_asset_id ?? finalAssetId,
       });
       nextPost.id = postId;
       nextPost.campaignContextId = response.campaign_id || campaignId;
@@ -3449,7 +3486,7 @@ export function SocialMediaBuilderWorkspace() {
                   ),
                 }}
                 dock={
-                  hideManualCanvasTools
+                  finishedAdCanvas
                     ? {
                         testId: 'smb-scene-actions',
                         className: 'smb-ws__scene-actions smb-ws__scene-actions--ai-first',
@@ -3533,6 +3570,17 @@ export function SocialMediaBuilderWorkspace() {
                                 },
                               ]}
                             />
+                            {editableFinishedAd && selectedElement ? (
+                              <SmbLayerStyleBar
+                                selectedElement={selectedElement}
+                                patchElement={(patch) => {
+                                  if (!selectedElementId) return;
+                                  patchElement(selectedElementId, patch);
+                                }}
+                                placement="dock"
+                                testIdPrefix="smb-editable-style"
+                              />
+                            ) : null}
                           </div>
                         ),
                       }

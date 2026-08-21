@@ -89,7 +89,45 @@ class CreativeDirectorCampaignResponse(BaseModel):
     campaign_context: dict[str, Any] = Field(default_factory=dict)
 
 
-CreativeDirectorProductionMode = Literal["finished_ad", "os_compose"]
+CreativeDirectorProductionMode = Literal["finished_ad", "os_compose", "editable_finished_ad"]
+RevisionRoute = Literal["LAYER_ONLY", "IMAGE_REQUIRED"]
+
+
+class DesignSpecElement(BaseModel):
+    """One editable overlay (or locked background) in a Design Spec."""
+
+    id: str
+    type: Literal["image", "logo", "text", "badge", "cta"]
+    role: str | None = None
+    content: str | None = None
+    asset_id: str | None = None
+    locked: bool = False
+    editable: bool = True
+    lock_aspect_ratio: bool | None = None
+    claim_sensitive: bool | None = None
+    x: float = 0
+    y: float = 0
+    width: float = 0
+    height: float = 0
+    z_index: int = 0
+    opacity: float | None = 1.0
+    typography: dict[str, Any] | None = None
+    style: dict[str, Any] | None = None
+
+
+class DesignSpec(BaseModel):
+    """Structured editable finished-ad layout — OS renders; does not invent creative."""
+
+    version: int = 1
+    mode: Literal["editable_finished_ad"] = "editable_finished_ad"
+    canvas: dict[str, Any] = Field(default_factory=dict)
+    language: str = "tr"
+    campaign_intent: str | None = None
+    master_background_asset_id: str
+    logo_asset_id: str
+    finished_ad_raster_asset_id: str | None = None
+    locked_background: bool = True
+    elements: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class CreativeDirectorGenerateAdRequest(BaseModel):
@@ -136,6 +174,11 @@ class CreativeDirectorGenerateAdResponse(BaseModel):
     latency_ms: int = 0
     warnings: list[str] = Field(default_factory=list)
     gpt_image: dict[str, Any] = Field(default_factory=dict)
+    # Editable finished-ad layered design (v1)
+    design_spec: dict[str, Any] | None = None
+    master_background_asset_id: UUID | None = None
+    finished_ad_raster_asset_id: UUID | None = None
+    editable_layers: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class CreativeDirectorReviseAdResponse(CreativeDirectorGenerateAdResponse):
@@ -152,3 +195,4 @@ class CreativeDirectorReviseAdResponse(CreativeDirectorGenerateAdResponse):
     quality_guard: dict[str, Any] = Field(default_factory=dict)
     previous_asset_id: UUID | None = None
     campaign_context: dict[str, Any] = Field(default_factory=dict)
+    revision_route: RevisionRoute | None = None

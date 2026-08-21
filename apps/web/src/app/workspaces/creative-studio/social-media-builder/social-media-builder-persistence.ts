@@ -512,7 +512,17 @@ export function parseSocialPost(
       : null;
   const finishedAd =
     generationMeta?.production_mode === 'finished_ad' ||
+    generationMeta?.production_mode === 'editable_finished_ad' ||
     generationMeta?.generated_by === 'creative_director_generate_ad';
+  const editableFinishedAd =
+    generationMeta?.production_mode === 'editable_finished_ad' ||
+    (Boolean(
+      generationMeta?.gpt_image &&
+        typeof generationMeta.gpt_image === 'object' &&
+        !Array.isArray(generationMeta.gpt_image) &&
+        (generationMeta.gpt_image as Record<string, unknown>).editable_layers === true,
+    ) &&
+      Boolean(generationMeta?.design_spec));
   const coverRaw =
     typeof body.coverAssetId === 'string'
       ? body.coverAssetId
@@ -538,9 +548,10 @@ export function parseSocialPost(
       return img?.assetId && isMediaAssetUuid(img.assetId) ? img.assetId : null;
     })();
   const hasCopy = Boolean(headline.trim() || caption.trim());
-  // Finished-ad: always exactly one full-bleed IMAGE — strip any rebound TEXT/CTA placeholders.
+  // Legacy finished-ad raster: always exactly one full-bleed IMAGE.
+  // Editable finished-ad: preserve layered elements (+ design_spec) on reload.
   const elements = ensureUniqueElementIds(
-    finishedAd
+    finishedAd && !editableFinishedAd
       ? finishedAssetId
         ? [
             {
@@ -704,6 +715,7 @@ export function isFinishedAdSocialPost(post: SocialPost | null | undefined): boo
     post.generationMeta && typeof post.generationMeta === 'object' ? post.generationMeta : null;
   return (
     meta?.production_mode === 'finished_ad' ||
+    meta?.production_mode === 'editable_finished_ad' ||
     meta?.generated_by === 'creative_director_generate_ad'
   );
 }

@@ -884,7 +884,7 @@ export type CreativeDirectorGenerateAdRequest = {
   language?: string | null;
   aspect_ratio?: '1:1' | '4:5' | '16:9' | '9:16' | null;
   format_preset?: string | null;
-  production_mode?: 'finished_ad' | 'os_compose';
+  production_mode?: 'finished_ad' | 'os_compose' | 'editable_finished_ad';
 };
 
 export type CreativeDirectorGenerateAdResponse = {
@@ -893,7 +893,7 @@ export type CreativeDirectorGenerateAdResponse = {
   language: string;
   aspect_ratio: string;
   format_preset: string;
-  production_mode?: 'finished_ad' | 'os_compose';
+  production_mode?: 'finished_ad' | 'os_compose' | 'editable_finished_ad';
   production_brief?: Record<string, unknown>;
   provider_route?: Record<string, unknown>;
   interior_asset_id: string;
@@ -909,14 +909,20 @@ export type CreativeDirectorGenerateAdResponse = {
   latency_ms: number;
   warnings: string[];
   gpt_image: GptImageDesignResponse;
+  design_spec?: Record<string, unknown> | null;
+  master_background_asset_id?: string | null;
+  finished_ad_raster_asset_id?: string | null;
+  editable_layers?: unknown[];
+  gpt_image_call_count?: number;
 };
 
 export async function generateCreativeDirectorAd(
   campaignId: string,
   input: CreativeDirectorGenerateAdRequest = {},
 ): Promise<CreativeDirectorGenerateAdResponse> {
-  // Default matches Unit 204 acceptance + SMB Oluştur production path.
-  const productionMode = input.production_mode ?? 'finished_ad';
+  // Editable layered finished-ad is the default SMB production path (v1).
+  // Pass production_mode: 'finished_ad' explicitly for legacy flat raster.
+  const productionMode = input.production_mode ?? 'editable_finished_ad';
   return apiFetch(`/ai/creative-studio/campaigns/${campaignId}/generate-ad`, {
     method: 'POST',
     body: JSON.stringify({
@@ -950,6 +956,7 @@ export type CreativeDirectorReviseAdResponse = CreativeDirectorGenerateAdRespons
   previous_asset_id?: string | null;
   campaign_context?: Record<string, unknown>;
   gpt_image_call_count?: number;
+  revision_route?: 'LAYER_ONLY' | 'IMAGE_REQUIRED' | null;
 };
 
 export async function reviseCreativeDirectorAd(

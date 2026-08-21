@@ -1,0 +1,68 @@
+{
+  "temple_project_id": "d50708cb-60b3-465a-8b16-6d30f802af8d",
+  "reference_finished_ad_raster": "f00ef35d-fc9a-422d-9531-b6b62e756816",
+  "required_layers_present": [
+    "cta",
+    "discount-badge",
+    "headline",
+    "logo",
+    "master_background",
+    "new-price",
+    "old-price",
+    "subheadline",
+    "support-message-1",
+    "support-message-2",
+    "unit-label"
+  ],
+  "required_layers_ok": true,
+  "steps": [
+    {
+      "step": "A",
+      "instruction": "Başlığı 'Zamansız Bir Yaşam' yap",
+      "revision_route": "LAYER_ONLY",
+      "gpt_image_call_count": 0,
+      "pass": true
+    },
+    {
+      "step": "B",
+      "instruction": "%25 rozetini %30 küçült",
+      "revision_route": "LAYER_ONLY",
+      "gpt_image_call_count": 0,
+      "pass": true
+    },
+    {
+      "step": "C",
+      "instruction": "CTA'yı 'Detayları İncele' yap",
+      "revision_route": "LAYER_ONLY",
+      "gpt_image_call_count": 0,
+      "pass": true
+    },
+    {
+      "step": "D",
+      "instruction": "Logoyu %20 küçült",
+      "revision_route": "LAYER_ONLY",
+      "gpt_image_call_count": 0,
+      "pass": true
+    }
+  ],
+  "after_abcd": {
+    "headline": "Zamansız Bir Yaşam",
+    "cta": "Detayları İncele",
+    "badge_size": [
+      121,
+      85
+    ],
+    "logo_size": [
+      190,
+      76
+    ],
+    "master_background_locked": true
+  },
+  "smb_layer_count": 11,
+  "visual_quality": "NOT_CLAIMED — do not declare Visual Quality PASS",
+  "notes": [
+    "Layered Design Spec is AI-brief-derived layout over real master_background.",
+    "Reference raster remains stored for comparison; layered composition is independent.",
+    "Undo/redo for layer-only is GPT=0 via design_spec snapshots in revision_history."
+  ]
+}

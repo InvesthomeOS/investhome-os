@@ -23,6 +23,10 @@ from investhome_api.services.creative_director.art_direction_translator import (
     render_gpt_image_art_direction_prompt,
     translate_campaign_art_direction,
 )
+from investhome_api.services.creative_director.design_spec import (
+    build_design_spec,
+    design_spec_to_smb_elements,
+)
 from investhome_api.services.creative_director.production_brief import (
     build_production_brief,
     lock_copy_to_language,
@@ -84,7 +88,11 @@ def _resolve_production_mode(
     if body.skip_gpt_image:
         return "os_compose"
     mode = (body.production_mode or "finished_ad").strip().lower()
-    return mode if mode in {"finished_ad", "os_compose"} else "finished_ad"
+    return (
+        mode
+        if mode in {"finished_ad", "os_compose", "editable_finished_ad"}
+        else "finished_ad"
+    )
 
 
 def resolve_locked_assets(ctx: dict[str, Any]) -> tuple[UUID, UUID, dict[str, Any], dict[str, Any]]:
@@ -978,7 +986,7 @@ def generate_ad_from_campaign(
             detail=str(exc),
         ) from exc
 
-    if production_mode == "finished_ad":
+    if production_mode in {"finished_ad", "editable_finished_ad"}:
         instruction = render_finished_ad_production_prompt(
             production_brief=production_brief,
             art_direction=art_direction.to_dict(),
@@ -996,7 +1004,7 @@ def generate_ad_from_campaign(
         )
 
     forced_verified: list[str] = []
-    if not lifestyle and production_mode != "finished_ad":
+    if not lifestyle and production_mode not in {"finished_ad", "editable_finished_ad"}:
         forced_verified = [texts["price_hierarchy"] + " · " + texts["value_badge"]]
 
     callouts = [x.strip() for x in str(texts.get("supporting_callouts") or "").split("|") if x.strip()]
@@ -1012,8 +1020,11 @@ def generate_ad_from_campaign(
         "image_provider_route": provider_route.to_dict(),
         "feature_callouts": callouts,
     }
-    if production_mode == "finished_ad":
+    if production_mode in {"finished_ad", "editable_finished_ad"}:
+        # Provider still produces a flat reference raster; editable mode hydrates layers separately.
         builder_context["finished_ad"] = True
+        if production_mode == "editable_finished_ad":
+            builder_context["editable_finished_ad"] = True
     else:
         builder_context.update(
             {
@@ -1132,10 +1143,36 @@ def generate_ad_from_campaign(
     ctx["image_generation_performed"] = True
     ctx["latest_master_ad_asset_id"] = str(output.local_asset_id)
     # Immutable revision master: first approved finished-ad only (never overwrite).
-    if production_mode == "finished_ad" and not ctx.get("master_asset_id"):
+    if production_mode in {"finished_ad", "editable_finished_ad"} and not ctx.get("master_asset_id"):
         ctx["master_asset_id"] = str(output.local_asset_id)
         ctx["revision_operations"] = []
         ctx["current_revision_index"] = 0
+
+    design_spec: dict[str, Any] | None = None
+    editable_layers: list[dict[str, Any]] = []
+    master_background_id: UUID | None = None
+    finished_raster_id: UUID | None = None
+    if production_mode == "editable_finished_ad":
+        master_background_id = interior_id
+        finished_raster_id = output.local_asset_id
+        design_spec = build_design_spec(
+            production_brief=production_brief,
+            texts=texts,
+            master_background_asset_id=master_background_id,
+            logo_asset_id=logo_id,
+            finished_ad_raster_asset_id=finished_raster_id,
+            aspect_ratio=aspect_ratio,
+            format_preset=format_preset,
+            language=language,
+            campaign_intent=str(production_brief.get("campaign_intent") or ""),
+        )
+        editable_layers = design_spec_to_smb_elements(design_spec)
+        ctx["design_spec"] = design_spec
+        ctx["master_background_asset_id"] = str(master_background_id)
+        ctx["finished_ad_raster_asset_id"] = str(finished_raster_id)
+        ctx["editable_finished_ad"] = True
+        ctx["production_mode"] = "editable_finished_ad"
+
     ctx["language"] = language
     row.context_json = ctx
     if row.status == "draft":
@@ -1148,14 +1185,16 @@ def generate_ad_from_campaign(
         language=language,
         aspect_ratio=aspect_ratio,
         format_preset=format_preset,
-        production_mode=production_mode,
+        production_mode=production_mode,  # type: ignore[arg-type]
         production_brief=production_brief,
         provider_route=provider_route.to_dict(),
         interior_asset_id=interior_id,
         logo_asset_id=logo_id,
         final_asset_id=output.local_asset_id,
         final_asset_url=output.local_asset_url,
-        composition_base_asset_id=output.composition_base_asset_id,
+        composition_base_asset_id=(
+            master_background_id if production_mode == "editable_finished_ad" else output.composition_base_asset_id
+        ),
         creative_brief_summary=creative_brief_summary,
         final_turkish_texts=texts,
         claim_guard=claim_guard,
@@ -1166,4 +1205,8 @@ def generate_ad_from_campaign(
         latency_ms=result.latency_ms,
         warnings=list(result.warnings or []),
         gpt_image=result.model_dump(mode="json"),
+        design_spec=design_spec,
+        master_background_asset_id=master_background_id,
+        finished_ad_raster_asset_id=finished_raster_id,
+        editable_layers=editable_layers,
     )

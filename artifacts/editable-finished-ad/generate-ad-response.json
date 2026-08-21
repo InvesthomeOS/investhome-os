@@ -1,0 +1,1028 @@
+{
+  "campaign_id": "3ef1cbfa-cc97-407a-acc6-68d925cbf71c",
+  "project_id": "d50708cb-60b3-465a-8b16-6d30f802af8d",
+  "language": "tr",
+  "aspect_ratio": "4:5",
+  "format_preset": "portrait",
+  "production_mode": "editable_finished_ad",
+  "production_brief": {
+    "objective": "Highlight the unique blend of modern living in a historic setting with a compelling launch price.",
+    "campaign_intent": "price_campaign",
+    "big_idea": "Tarihi Dokusuyla Modern Yaşam",
+    "hero": "Modern. Şık. Tarihi.",
+    "sales_hook": "Unit 204 Lansman Fırsatı",
+    "offer": "$400,000 → $400,000",
+    "supporting": [
+      "Tarihi dokunuşlarla modern yaşam"
+    ],
+    "cta": "Lansman Fiyatını Kaçırmayın",
+    "message_strategy": {
+      "big_idea": "Tarihi Dokusuyla Modern Yaşam",
+      "primary_message": "The elegance of the living room with the price advantage prominently displayed.",
+      "sales_attention_hook": "Unit 204 Lansman Fırsatı",
+      "hero_headline": "Modern. Şık. Tarihi.",
+      "supporting_messages": [
+        "Unit 204 Lansman Fırsatı"
+      ],
+      "cta": "Lansman Fiyatını Kaçırmayın",
+      "emotional_angle": "Tarihi bir binada modern yaşamın keyfini çıkarın.",
+      "commercial_priority": [
+        "price hook / launch offer",
+        "primary sales message",
+        "product / unit opportunity",
+        "call to action",
+        "brand presence"
+      ],
+      "information_hierarchy": [
+        "1 — PRIMARY: The elegance of the living room with the price advantage prominently displayed.",
+        "2 — HOOK: Unit 204 Lansman Fırsatı",
+        "3 — SUPPORT: Unit 204 Lansman Fırsatı",
+        "4 — CTA: Lansman Fiyatını Kaçırmayın",
+        "5 — BRAND: one real project logo"
+      ],
+      "one_ad_one_message": true,
+      "density": "medium",
+      "campaign_intent": "price_campaign"
+    },
+    "commercial_priority": [
+      "price hook / launch offer",
+      "primary sales message",
+      "product / unit opportunity",
+      "call to action",
+      "brand presence"
+    ],
+    "visual_hierarchy": [
+      "1 — PRIMARY: The elegance of the living room with the price advantage prominently displayed.",
+      "2 — HOOK: Unit 204 Lansman Fırsatı",
+      "3 — SUPPORT: Unit 204 Lansman Fırsatı",
+      "4 — CTA: Lansman Fiyatını Kaçırmayın",
+      "5 — BRAND: one real project logo"
+    ],
+    "visual_direction": "Highlight the elegance of the interior with a focus on the blend of modern and historic elements.",
+    "design_direction": {
+      "visual_mood": "Highlight the elegance of the interior with a focus on the blend of modern and historic elements.",
+      "hierarchy": "Price/offer may lead if that is the campaign intent; otherwise headline leads. Never compete with three equal-weight messages.",
+      "typography_character": "Elegant and modern font to reflect the sophistication of the property.",
+      "composition_direction": "Use a clean layout that allows the interior image to take center stage, with minimal text overlay.",
+      "image_treatment": "Preserve real project architecture/photography — enhance atmosphere, do not redesign. Subtle grade toward premium RE editorial.",
+      "contrast": "High readability for primary message and CTA against the locked photograph",
+      "brand_presence": "One verified project logo lockup — never invent or duplicate",
+      "cta_importance": "Single clear CTA; visible and actionable, not tiny footer text",
+      "information_density": "medium",
+      "premium_level": "elevated",
+      "creative_freedom": "Language=tr. Full creative freedom for placement — no forced left panel, bottom band, badge grid, icon row, or card stack. Vary composition by campaign."
+    },
+    "brand_direction": {
+      "tone": "Sophisticated and inviting",
+      "color_direction": "Warm and inviting tones that complement the historic and modern blend.",
+      "typography_direction": "Elegant and modern font to reflect the sophistication of the property.",
+      "composition_direction": "Use a clean layout that allows the interior image to take center stage, with minimal text overlay."
+    },
+    "selected_assets": [
+      {
+        "asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+        "filename": "IH_DC_TMP_001_Render_Living_Room_001.jpg",
+        "content_type": "image/jpeg",
+        "folder_category": "02_RENDER",
+        "visual_subject": "INTERIOR",
+        "tags": [],
+        "role": "hero",
+        "provenance_source": "google_drive",
+        "selection_score": 30.2,
+        "selection_reason": "intent=price_campaign; base_media=19.75; photo_render; room=living:8.0; brief_character_fit; drive_provenance; intent_subject:living:8.0; pref_tokens=1"
+      }
+    ],
+    "brand_assets": [
+      {
+        "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "filename": "IH_DC_TMP_001_Logo_Primary.svg",
+        "content_type": "image/svg+xml",
+        "folder_category": "01_BRAND",
+        "visual_subject": "BRANDING",
+        "tags": [],
+        "role": "project_logo",
+        "provenance_source": "google_drive",
+        "selection_score": null,
+        "selection_reason": null,
+        "logo_locked": true,
+        "ai_must_not_draw_logo": true,
+        "no_duplicate_logos": true
+      }
+    ],
+    "approved_claims": [
+      {
+        "key": "unit_code",
+        "display": "Unit 204",
+        "value": "204",
+        "source": "retrieved",
+        "source_reference": "rag_hybrid_search",
+        "verified": true,
+        "is_financial": false,
+        "notes": null
+      },
+      {
+        "key": "list_price",
+        "display": "$400,000",
+        "value": 400000.0,
+        "source": "user_campaign_input",
+        "source_reference": "user_brief",
+        "verified": true,
+        "is_financial": true,
+        "notes": "User-supplied campaign list price"
+      },
+      {
+        "key": "launch_price",
+        "display": "$400,000",
+        "value": 400000.0,
+        "source": "user_campaign_input",
+        "source_reference": "user_brief",
+        "verified": true,
+        "is_financial": true,
+        "notes": "User-supplied campaign launch/offer price"
+      },
+      {
+        "key": "launch_discount_percent",
+        "display": "~0%",
+        "value": 0.0,
+        "source": "derived_safe",
+        "source_reference": "deterministic_from_user_supplied_price_pair",
+        "verified": true,
+        "is_financial": true,
+        "notes": "Derived only because both list and launch prices were supplied as a pair"
+      }
+    ],
+    "forbidden_claims": [
+      {
+        "fact_id": "cf_1f0ba605cc",
+        "fact": "$400,000",
+        "key": "campaign_min_investment",
+        "source": "user_campaign_input",
+        "source_reference": "user_prompt",
+        "marketing_status": "campaign_only",
+        "derivation_type": "user_supplied",
+        "visibility": "public",
+        "eligible": false,
+        "eligibility": "conflicting_values",
+        "rejection_reason": "conflicting_values",
+        "conflict_status": "conflicting",
+        "claim_family": "min_investment",
+        "is_financial": true,
+        "campaign_scoped": true,
+        "campaign_context_id": "3ef1cbfa-cc97-407a-acc6-68d925cbf71c"
+      },
+      {
+        "fact_id": "cf_cf739ae914",
+        "fact": "$300,000",
+        "key": "campaign_min_investment",
+        "source": "user_campaign_input",
+        "source_reference": "user_prompt",
+        "marketing_status": "campaign_only",
+        "derivation_type": "user_supplied",
+        "visibility": "public",
+        "eligible": false,
+        "eligibility": "conflicting_values",
+        "rejection_reason": "conflicting_values",
+        "conflict_status": "conflicting",
+        "claim_family": "min_investment",
+        "is_financial": true,
+        "campaign_scoped": true,
+        "campaign_context_id": "3ef1cbfa-cc97-407a-acc6-68d925cbf71c"
+      }
+    ],
+    "language": "tr",
+    "language_lock": true,
+    "format": "Instagram 4:5",
+    "format_preset": "portrait",
+    "aspect_ratio": "4:5",
+    "final_copy": {
+      "eyebrow": "Unit 204 Lansman Fırsatı",
+      "headline": "Modern. Şık. Tarihi.",
+      "supporting": "Unit 204 Lansman Fırsatı",
+      "list_price": "$400,000",
+      "offer_price": "$400,000",
+      "value_badge": "~0% lansman fiyat avantajı",
+      "unit": "Unit 204",
+      "price_hierarchy": "$400,000 → $400,000",
+      "cta": "Lansman Fiyatını Kaçırmayın"
+    },
+    "asset_lock": {
+      "interior_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+      "interior_filename": "IH_DC_TMP_001_Render_Living_Room_001.jpg",
+      "hero_role": "hero",
+      "selection_score": 30.2,
+      "selection_reason": "intent=price_campaign; base_media=19.75; photo_render; room=living:8.0; brief_character_fit; drive_provenance; intent_subject:living:8.0; pref_tokens=1",
+      "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+      "logo_filename": "IH_DC_TMP_001_Logo_Primary.svg",
+      "interior_architecture_locked": true,
+      "project_asset_locked": true,
+      "logo_locked": true,
+      "verified_project_logo": true,
+      "ai_must_not_draw_logo": true,
+      "no_duplicate_logos": true,
+      "no_invented_architecture": true
+    },
+    "logo_lock": {
+      "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+      "logo_filename": "IH_DC_TMP_001_Logo_Primary.svg",
+      "logo_locked": true,
+      "verified_project_logo": true,
+      "ai_must_not_draw_logo": true,
+      "no_duplicate_logos": true,
+      "status": "pass"
+    },
+    "creative_simplicity": [
+      "ONE AD = ONE PRIMARY MESSAGE.",
+      "Do not clutter the ad with unnecessary information.",
+      "Use one main sales message + offer + at most 3 supporting messages + a single CTA.",
+      "Default element budget: 1 headline, 0–3 supporting, 1 CTA, 1 logo.",
+      "Keep the visual as visible as possible — let the photograph breathe.",
+      "Avoid large bottom bands, unnecessary badges, and repeating price messages.",
+      "Premium ≠ more elements. No forced left/bottom panels."
+    ],
+    "simplicity_director": {
+      "supporting_messages": [
+        "Washington DC'nin kalbinde",
+        "Tarihi dokunuşlarla modern yaşam"
+      ],
+      "max_headlines": 1,
+      "max_supporting": 2,
+      "max_cta": 1,
+      "max_logos": 1,
+      "allow_badges": true,
+      "allow_icons": false,
+      "allow_price_block": true,
+      "density": "medium",
+      "principles": [
+        "ONE AD = ONE PRIMARY MESSAGE.",
+        "Default: 1 headline, 0–3 supporting, 1 CTA, 1 logo.",
+        "Extra badges/icons/price blocks only when campaign intent requires them.",
+        "Premium ≠ more elements — let the photograph breathe.",
+        "Do not invent decorative panels, left rails, or bottom bands."
+      ],
+      "element_budget": {
+        "headline": 1,
+        "supporting": 2,
+        "cta": 1,
+        "logo": 1,
+        "price_block": 1,
+        "badges": 1,
+        "icons": 0
+      }
+    },
+    "max_supporting_messages": 2,
+    "campaign_mode": "launch_price",
+    "information_density": "medium",
+    "self_critique": {
+      "status": "pass",
+      "checks": {
+        "two_second_clarity": true,
+        "one_dominant_message": true,
+        "asset_present": true,
+        "not_blind_repeat": true,
+        "cta_present": true,
+        "logo_locked": true,
+        "language_ok": true,
+        "claims_present_or_lifestyle": true,
+        "no_invented_finance_language": true,
+        "premium_direction": true,
+        "similarity_noted": true
+      },
+      "issues": [],
+      "forbidden_claim_count": 2,
+      "campaign_intent": "price_campaign",
+      "fixed_once": false
+    }
+  },
+  "provider_route": {
+    "output_type": "ad_social_image",
+    "capability": "image_edit",
+    "provider_id": "gpt_image",
+    "available": true,
+    "missing": false,
+    "reason": null,
+    "model": "gpt-image-2"
+  },
+  "interior_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+  "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+  "final_asset_id": "0bca607c-2630-4c46-a5cc-2f96fe767edd",
+  "final_asset_url": "/creative-studio/media/assets/0bca607c-2630-4c46-a5cc-2f96fe767edd/content",
+  "composition_base_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+  "creative_brief_summary": {
+    "big_idea": "Tarihi Dokusuyla Modern Yaşam",
+    "hero": "Modern. Şık. Tarihi.",
+    "sales_hook": "Lansman fiyatıyla %25 avantaj",
+    "offer": "Lansman Fiyatı $300,000",
+    "price_hierarchy": "$400,000 → $400,000",
+    "value": "~0% lansman fiyat avantajı",
+    "emphasis": [
+      "Modern",
+      "Şık",
+      "Tarihi",
+      "$300,000"
+    ],
+    "supporting": [
+      "Washington DC'nin kalbinde",
+      "Tarihi dokunuşlarla modern yaşam"
+    ],
+    "cta": "Lansman Fiyatını Kaçırmayın",
+    "tone": "Sophisticated and inviting",
+    "visual_direction": "Highlight the elegance of the interior with a focus on the blend of modern and historic elements.",
+    "composition_direction": "Use a clean layout that allows the interior image to take center stage, with minimal text overlay.",
+    "composition_family": null,
+    "art_direction": {
+      "primary_visual_message": "$400,000 launch price with $400,000 struck through",
+      "secondary_message": "Modern. Şık. Tarihi.",
+      "commercial_priority": [
+        "price hook / launch offer",
+        "product / unit opportunity",
+        "creative idea / brand story",
+        "lifestyle / interior experience",
+        "value proof / advantage",
+        "call to action",
+        "brand presence"
+      ],
+      "visual_hierarchy": [
+        "1 — FIRST GLANCE: $400,000 launch price with $400,000 struck through",
+        "2 — SECOND READ: Modern. Şık. Tarihi.",
+        "3 — PRODUCT: Unit 204 at The Temple",
+        "4 — VALUE: ~0% lansman fiyat avantajı",
+        "5 — ACTION: Lansman Fiyatını Kaçırmayın",
+        "6 — BRAND: Temple logo (OS-composited, never AI-drawn)"
+      ],
+      "sales_hierarchy": [
+        "price dramatization",
+        "product / unit opportunity",
+        "creative idea / brand story",
+        "lifestyle / interior experience",
+        "value proof / advantage",
+        "call to action",
+        "brand presence"
+      ],
+      "price_hierarchy": {
+        "secondary": "$400,000",
+        "primary": "$400,000",
+        "advantage": "~0% lansman fiyat avantajı",
+        "dramatization": "Strikethrough old price, dominant new price, size contrast, optional badge/callout — understood at a glance like a real ad, not a catalog line."
+      },
+      "emphasis_strategy": [
+        {
+          "word": "Modern",
+          "treatment": "bold large in gold",
+          "note": "Distinct from adjacent emphasis words — avoid rendering all the same."
+        },
+        {
+          "word": "Şık",
+          "treatment": "semibold medium in navy",
+          "note": "Distinct from adjacent emphasis words — avoid rendering all the same."
+        },
+        {
+          "word": "Tarihi",
+          "treatment": "medium medium in ivory-on-navy",
+          "note": "Distinct from adjacent emphasis words — avoid rendering all the same."
+        },
+        {
+          "word": "$300,000",
+          "treatment": "bold small-badge in gold-accent",
+          "note": "Distinct from adjacent emphasis words — avoid rendering all the same."
+        }
+      ],
+      "typography_hierarchy": [
+        "Headline: largest serif/editorial — Modern. Şık. Tarihi. rhythm",
+        "Price primary: bold numeral treatment — dominant over list price",
+        "Price secondary: smaller, strikethrough or muted",
+        "Eyebrow/supporting: medium sans — unit + launch context",
+        "CTA: high-contrast actionable weight",
+        "Brand: quiet but visible logo zone"
+      ],
+      "information_groups": [
+        {
+          "name": "launch_opportunity",
+          "label": "Launch opportunity cluster",
+          "elements": [
+            "Unit 204",
+            "Unit 204 Lansman Fırsatı"
+          ],
+          "relationship": "Unit identity and launch framing belong together — one visual cluster."
+        },
+        {
+          "name": "price_story",
+          "label": "Price dramatization cluster",
+          "elements": [
+            "$400,000",
+            "$400,000",
+            "~0% lansman fiyat avantajı"
+          ],
+          "relationship": "Old price $400,000 → dominant new $400,000 with ~0% lansman fiyat avantajı advantage — one sales story, not separated to random corners."
+        },
+        {
+          "name": "creative_concept",
+          "label": "Creative concept cluster",
+          "elements": [
+            "Modern. Şık. Tarihi.",
+            "Modern. Şık. Tarihi."
+          ],
+          "relationship": "Headline and hero express the same Modern + Şık + Tarihi idea — keep proximate."
+        },
+        {
+          "name": "action",
+          "label": "CTA cluster",
+          "elements": [
+            "Lansman Fiyatını Kaçırmayın"
+          ],
+          "relationship": "Real ad CTA — button, pill, outline, or text+arrow — visible and actionable."
+        }
+      ],
+      "cta_prominence": "CTA zone (OS typesets — do NOT draw text): reserve high-contrast actionable area for 'Lansman Fiyatını Kaçırmayın' — button/pill air only, no rasterized CTA.",
+      "badge_callout_opportunity": "Optional launch badge for ~0% lansman fiyat avantajı near price cluster — only if it strengthens the offer.",
+      "contrast_strategy": "Navy / gold / ivory luxury RE palette — high contrast for price and CTA against interior warmth",
+      "negative_space_usage": "Conscious breath around headline, price cluster, and CTA — premium composition, not meaningless empty canvas or random decorative gaps.",
+      "image_text_balance": "Locked living-room interior carries atmosphere; type and price zones get composed air — roughly 55–65% visual / 35–45% message space, flexible not fixed panels.",
+      "brand_presence": "The Temple project logo zone — upper area, visible air only; OS composites real SVG, never AI-generated",
+      "visual_storytelling": "Highlight the elegance of the interior with a focus on the blend of modern and historic elements.",
+      "decoration_rule": "Decoration only if it serves campaign: no random building sketch, map pin, long gold line, or watermark unless it strengthens sales or brand story.",
+      "asset_lock": {
+        "interior_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+        "interior_filename": "IH_DC_TMP_001_Render_Living_Room_001.jpg",
+        "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "logo_filename": "IH_DC_TMP_001_Logo_Primary.svg",
+        "must_not_invent_interior": true,
+        "must_not_draw_logo": true
+      },
+      "emphasis_words": [
+        "Modern",
+        "Şık",
+        "Tarihi",
+        "$300,000"
+      ],
+      "first_notice": "$400,000 launch price with $400,000 struck through",
+      "second_notice": "Modern. Şık. Tarihi.",
+      "language": "tr"
+    },
+    "source_constraints": {
+      "interior_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+      "interior_filename": "IH_DC_TMP_001_Render_Living_Room_001.jpg",
+      "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+      "logo_filename": "IH_DC_TMP_001_Logo_Primary.svg"
+    },
+    "brand": "The Temple + Investhome",
+    "language": "tr",
+    "format": "Instagram 4:5",
+    "prompt_excerpt": "FINISHED PROFESSIONAL INSTAGRAM AD — Instagram 4:5 — LANGUAGE: tr.\nDeliver a publishable, flattened social advertisement — typography, price hierarchy, CTA, and brand lockups integrated in the composition (not a blank background for later overlay).\n\nLANGUAGE LOCK:\n- Campaign language is tr. All user-visible slogans, headlines, CTAs, and supporting lines MUST be tr.\n- Do not invent or render English slogans/headlines/CTAs when language is tr.\n\nCAMPAIGN INTENT:\n- price_campaign\n- Primary focus: The elegance of the living room with the price advantage prominently displayed.\n- Emotional angle: Tarihi bir binada modern yaşamın keyfini çıkarın.\n\nCREATIVE DIRECTOR PRODUCTION BRIEF:\n- Objective: Highlight the unique blend of modern living in a historic setting with a compelling launch price.\n- Big Idea: Tarihi Dokusuyla Modern Yaşam\n- Hero: Modern. Şık. Tarihi.\n- Sales Hook: Unit 204 Lansman Fırsatı\n- Offer: $400,000 → $400,000\n- Supporting (max 2): Tarihi dokunuşlarla modern yaşam\n- CTA: Lansman Fiyatını Kaçırmayın\n\nDESIGN DIRECTION (creative freedom — no fixed panels):\n- Visual mood: Highlight the elegance of the interior with a focus on the blend of modern and historic elements.\n- Hierarchy: Price/offer may lead if that is the campaign intent; otherwise headline leads. Never compete with three equal-weight messages.\n- Typography character: Elegant and modern font to reflect the sophistication of the property.\n- Composition: Use a clean layout that allows the interior image to take center stage, with minimal text overlay.\n- Image treatment: Preserve real project architecture/photography — enhance atmosphere, do not redesign. Subtle grade toward premium RE editorial.\n- Contrast: High readability for primary message and CTA against the locked photograph\n- Brand presence: One verified project logo lockup — never invent or duplicate\n- CTA importance: Single clear CTA; visible and actionable, not tiny footer text\n- Information density: medium\n- Premium level: elevated\n- Freedo"
+  },
+  "final_turkish_texts": {
+    "language": "tr",
+    "big_idea": "Modern. Şık. Tarihi.",
+    "hero": "Modern. Şık. Tarihi.",
+    "sales_hook": "Unit 204 Lansman Fırsatı",
+    "eyebrow": "Unit 204 Lansman Fırsatı",
+    "headline": "Modern. Şık. Tarihi.",
+    "supporting": "Unit 204 Lansman Fırsatı",
+    "supporting_callouts": "",
+    "offer": "$400,000 → $400,000",
+    "list_price": "$400,000",
+    "offer_price": "$400,000",
+    "value": "Tarihi bir binada modern yaşamın keyfini çıkarın.",
+    "value_badge": "~0% lansman fiyat avantajı",
+    "cta": "Lansman Fiyatını Kaçırmayın",
+    "unit": "Unit 204",
+    "price_hierarchy": "$400,000 → $400,000",
+    "campaign_mode": "launch_price"
+  },
+  "claim_guard": {
+    "status": "pass",
+    "campaign_mode": "launch_price",
+    "approved_claims": [
+      {
+        "key": "unit_code",
+        "display": "Unit 204",
+        "value": "204",
+        "source": "retrieved",
+        "source_reference": "rag_hybrid_search",
+        "verified": true,
+        "is_financial": false,
+        "notes": null
+      },
+      {
+        "key": "list_price",
+        "display": "$400,000",
+        "value": 400000.0,
+        "source": "user_campaign_input",
+        "source_reference": "user_brief",
+        "verified": true,
+        "is_financial": true,
+        "notes": "User-supplied campaign list price"
+      },
+      {
+        "key": "launch_price",
+        "display": "$400,000",
+        "value": 400000.0,
+        "source": "user_campaign_input",
+        "source_reference": "user_brief",
+        "verified": true,
+        "is_financial": true,
+        "notes": "User-supplied campaign launch/offer price"
+      },
+      {
+        "key": "launch_discount_percent",
+        "display": "~0%",
+        "value": 0.0,
+        "source": "derived_safe",
+        "source_reference": "deterministic_from_user_supplied_price_pair",
+        "verified": true,
+        "is_financial": true,
+        "notes": "Derived only because both list and launch prices were supplied as a pair"
+      }
+    ],
+    "allowed_financial_tokens": [
+      "$400,000",
+      "$400,000 → $400,000 (~0% launch price advantage)",
+      "~0%",
+      "25%",
+      "Unit 204",
+      "$300,000"
+    ],
+    "required_public_tokens": [
+      "$400,000",
+      "Unit 204",
+      "~0% lansman fiyat avantajı"
+    ],
+    "missing_required_tokens": [],
+    "invented_financial_claims_blocked": true,
+    "public_price_hierarchy": "$400,000 → $400,000",
+    "public_value_badge": "~0% lansman fiyat avantajı"
+  },
+  "project_asset_lock": {
+    "status": "pass",
+    "interior_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+    "interior_filename": "IH_DC_TMP_001_Render_Living_Room_001.jpg",
+    "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+    "logo_filename": "IH_DC_TMP_001_Logo_Primary.svg",
+    "logo_locked": true,
+    "verified_project_logo": true,
+    "source_used_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+    "interior_architecture_locked": true,
+    "logo_os_composited": true,
+    "gpt_must_not_invent_interior": true,
+    "gpt_must_not_draw_logo": true,
+    "ai_must_not_draw_logo": true,
+    "no_duplicate_logos": true
+  },
+  "duplication_guard": {
+    "internal_leak_count": 0
+  },
+  "provider_call_count": 1,
+  "gpt_image_call_count": 1,
+  "latency_ms": 93745,
+  "warnings": [
+    "Investhome global logo asset bulunamadı"
+  ],
+  "gpt_image": {
+    "provider": "gpt-image",
+    "model": "gpt-image-2",
+    "endpoint": "https://api.openai.com/v1/images/edits",
+    "campaign_mode": "project",
+    "session_id": "eadb4d20-de54-4cc7-94a7-2b79bc489f37",
+    "linked_project_id": "d50708cb-60b3-465a-8b16-6d30f802af8d",
+    "campaign_context_id": "3ef1cbfa-cc97-407a-acc6-68d925cbf71c",
+    "generation_context_id": "254c997a-f2e6-4422-9095-3b2b1b2759d9",
+    "aspect_ratio": "4:5",
+    "format_preset": "portrait",
+    "source_image": {
+      "asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+      "filename": "IH_DC_TMP_001_Render_Living_Room_001.jpg",
+      "content_type": "image/jpeg",
+      "folder_category": "02_RENDER",
+      "tags": [],
+      "role": "source"
+    },
+    "extra_images": [
+      {
+        "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "filename": "IH_DC_TMP_001_Logo_Primary.png",
+        "content_type": "image/png",
+        "folder_category": "01_BRAND",
+        "tags": [],
+        "role": "project_logo"
+      }
+    ],
+    "brief": {
+      "prompt": "FINISHED PROFESSIONAL INSTAGRAM AD — Instagram 4:5 — LANGUAGE: tr.\nDeliver a publishable, flattened social advertisement — typography, price hierarchy, CTA, and brand lockups integrated in the composition (not a blank background for later overlay).\n\nLANGUAGE LOCK:\n- Campaign language is tr. All user-visible slogans, headlines, CTAs, and supporting lines MUST be tr.\n- Do not invent or render English slogans/headlines/CTAs when language is tr.\n\nCAMPAIGN INTENT:\n- price_campaign\n- Primary focus: The elegance of the living room with the price advantage prominently displayed.\n- Emotional angle: Tarihi bir binada modern yaşamın keyfini çıkarın.\n\nCREATIVE DIRECTOR PRODUCTION BRIEF:\n- Objective: Highlight the unique blend of modern living in a historic setting with a compelling launch price.\n- Big Idea: Tarihi Dokusuyla Modern Yaşam\n- Hero: Modern. Şık. Tarihi.\n- Sales Hook: Unit 204 Lansman Fırsatı\n- Offer: $400,000 → $400,000\n- Supporting (max 2): Tarihi dokunuşlarla modern yaşam\n- CTA: Lansman Fiyatını Kaçırmayın\n\nDESIGN DIRECTION (creative freedom — no fixed panels):\n- Visual mood: Highlight the elegance of the interior with a focus on the blend of modern and historic elements.\n- Hierarchy: Price/offer may lead if that is the campaign intent; otherwise headline leads. Never compete with three equal-weight messages.\n- Typography character: Elegant and modern font to reflect the sophistication of the property.\n- Composition: Use a clean layout that allows the interior image to take center stage, with minimal text overlay.\n- Image treatment: Preserve real project architecture/photography — enhance atmosphere, do not redesign. Subtle grade toward premium RE editorial.\n- Contrast: High readability for primary message and CTA against the locked photograph\n- Brand presence: One verified project logo lockup — never invent or duplicate\n- CTA importance: Single clear CTA; visible and actionable, not tiny footer text\n- Information density: medium\n- Premium level: elevated\n- Freedo",
+      "production_mode": "finished_ad"
+    },
+    "outputs": [
+      {
+        "local_asset_id": "0bca607c-2630-4c46-a5cc-2f96fe767edd",
+        "local_asset_url": "/creative-studio/media/assets/0bca607c-2630-4c46-a5cc-2f96fe767edd/content",
+        "provider": "gpt-image",
+        "provider_generation_id": "1623e93e-0e85-4f93-be29-33470540f462",
+        "resolution": "1088x1360",
+        "canvas_width": 1080,
+        "canvas_height": 1350,
+        "metadata": {
+          "provider": "gpt-image",
+          "production_mode": "finished_ad",
+          "provider_generation_id": "1623e93e-0e85-4f93-be29-33470540f462",
+          "local_asset_id": "0bca607c-2630-4c46-a5cc-2f96fe767edd",
+          "project_id": "d50708cb-60b3-465a-8b16-6d30f802af8d",
+          "campaign_context_id": "3ef1cbfa-cc97-407a-acc6-68d925cbf71c",
+          "campaign_mode": "project-finished-ad",
+          "source_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+          "source_filename": "IH_DC_TMP_001_Render_Living_Room_001.jpg",
+          "extra_image_roles": [
+            "project_logo"
+          ],
+          "image_provider_route": {
+            "output_type": "ad_social_image",
+            "capability": "image_edit",
+            "provider_id": "gpt_image",
+            "available": true,
+            "missing": false,
+            "model": "gpt-image-2"
+          }
+        },
+        "layers": [],
+        "composition_base_asset_id": null,
+        "composition_warnings": [
+          "Investhome global logo asset bulunamadı"
+        ]
+      }
+    ],
+    "warnings": [
+      "Investhome global logo asset bulunamadı"
+    ],
+    "provider_call_count": 1,
+    "latency_ms": 93745
+  },
+  "design_spec": {
+    "version": 1,
+    "mode": "editable_finished_ad",
+    "canvas": {
+      "width": 1080,
+      "height": 1350,
+      "aspect_ratio": "4:5",
+      "format_preset": "portrait"
+    },
+    "language": "tr",
+    "campaign_intent": "price_campaign",
+    "master_background_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+    "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+    "finished_ad_raster_asset_id": "0bca607c-2630-4c46-a5cc-2f96fe767edd",
+    "locked_background": true,
+    "elements": [
+      {
+        "id": "master_background",
+        "type": "image",
+        "role": "background",
+        "asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+        "locked": true,
+        "editable": false,
+        "x": 0,
+        "y": 0,
+        "width": 1080,
+        "height": 1350,
+        "z_index": 0,
+        "opacity": 1.0
+      },
+      {
+        "id": "logo",
+        "type": "logo",
+        "role": "logo",
+        "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+        "locked": false,
+        "editable": true,
+        "lock_aspect_ratio": true,
+        "x": 76,
+        "y": 61,
+        "width": 238,
+        "height": 95,
+        "z_index": 10,
+        "opacity": 1.0
+      },
+      {
+        "id": "headline",
+        "type": "text",
+        "role": "headline",
+        "content": "Modern. Şık. Tarihi.",
+        "locked": false,
+        "editable": true,
+        "x": 76,
+        "y": 189,
+        "width": 928,
+        "height": 122,
+        "z_index": 20,
+        "typography": {
+          "font_family": "serif",
+          "font_size": 78,
+          "font_weight": "bold",
+          "align": "left",
+          "color": "#F7F3EB",
+          "line_height": 1.05
+        }
+      },
+      {
+        "id": "unit-label",
+        "type": "text",
+        "role": "unit_label",
+        "content": "Unit 204",
+        "locked": false,
+        "editable": true,
+        "x": 76,
+        "y": 648,
+        "width": 510,
+        "height": 47,
+        "z_index": 22,
+        "typography": {
+          "font_family": "sans",
+          "font_size": 30,
+          "font_weight": "semibold",
+          "align": "left",
+          "color": "#D4C4A8"
+        }
+      },
+      {
+        "id": "old-price",
+        "type": "text",
+        "role": "old_price",
+        "content": "$400,000",
+        "locked": false,
+        "editable": true,
+        "claim_sensitive": true,
+        "x": 76,
+        "y": 702,
+        "width": 418,
+        "height": 54,
+        "z_index": 23,
+        "typography": {
+          "font_family": "sans",
+          "font_size": 37,
+          "font_weight": "normal",
+          "align": "left",
+          "color": "#B8A990",
+          "text_decoration": "line-through"
+        }
+      },
+      {
+        "id": "new-price",
+        "type": "text",
+        "role": "new_price",
+        "content": "$400,000",
+        "locked": false,
+        "editable": true,
+        "claim_sensitive": true,
+        "x": 76,
+        "y": 753,
+        "width": 510,
+        "height": 95,
+        "z_index": 24,
+        "typography": {
+          "font_family": "sans",
+          "font_size": 84,
+          "font_weight": "bold",
+          "align": "left",
+          "color": "#FFFFFF"
+        }
+      },
+      {
+        "id": "discount-badge",
+        "type": "badge",
+        "role": "discount_badge",
+        "content": "%0",
+        "locked": false,
+        "editable": true,
+        "x": 831,
+        "y": 675,
+        "width": 173,
+        "height": 122,
+        "z_index": 25,
+        "style": {
+          "background_color": "#C4A35A",
+          "text_color": "#1A1510",
+          "border_radius": 86,
+          "font_size": 45,
+          "font_weight": "bold",
+          "align": "center"
+        }
+      },
+      {
+        "id": "support-message-1",
+        "type": "text",
+        "role": "support_message",
+        "content": "Tarihi dokunuşlarla modern yaşam",
+        "locked": false,
+        "editable": true,
+        "x": 76,
+        "y": 972,
+        "width": 928,
+        "height": 47,
+        "z_index": 26,
+        "typography": {
+          "font_family": "sans",
+          "font_size": 28,
+          "font_weight": "normal",
+          "align": "left",
+          "color": "#EDE6DA"
+        }
+      },
+      {
+        "id": "cta",
+        "type": "cta",
+        "role": "cta",
+        "content": "Lansman Fiyatını Kaçırmayın",
+        "locked": false,
+        "editable": true,
+        "x": 76,
+        "y": 1188,
+        "width": 594,
+        "height": 74,
+        "z_index": 40,
+        "style": {
+          "background_color": "#F7F3EB",
+          "text_color": "#1A1510",
+          "border_color": "#F7F3EB",
+          "border_radius": 15,
+          "padding": 18,
+          "font_size": 30,
+          "font_weight": "semibold",
+          "align": "center"
+        }
+      }
+    ]
+  },
+  "master_background_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+  "finished_ad_raster_asset_id": "0bca607c-2630-4c46-a5cc-2f96fe767edd",
+  "editable_layers": [
+    {
+      "id": "master_background",
+      "type": "IMAGE",
+      "role": "background",
+      "assetId": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1350,
+      "zIndex": 0,
+      "lockAspectRatio": false,
+      "opacity": 1.0,
+      "objectFit": "cover",
+      "_locked": true,
+      "_designRole": "background"
+    },
+    {
+      "id": "logo",
+      "type": "IMAGE",
+      "role": "logo",
+      "assetId": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+      "x": 76,
+      "y": 61,
+      "width": 238,
+      "height": 95,
+      "zIndex": 10,
+      "lockAspectRatio": true,
+      "opacity": 1.0,
+      "objectFit": "contain",
+      "_locked": false,
+      "_designRole": "logo"
+    },
+    {
+      "id": "headline",
+      "type": "TEXT",
+      "role": "headline",
+      "content": "Modern. Şık. Tarihi.",
+      "fontSize": 78,
+      "fontWeight": "bold",
+      "align": "left",
+      "color": "#F7F3EB",
+      "fontFamily": "serif",
+      "lineHeight": 1.05,
+      "x": 76,
+      "y": 189,
+      "width": 928,
+      "height": 122,
+      "zIndex": 20,
+      "opacity": 1.0,
+      "_designRole": "headline",
+      "_textDecoration": null
+    },
+    {
+      "id": "unit-label",
+      "type": "TEXT",
+      "role": "body",
+      "content": "Unit 204",
+      "fontSize": 30,
+      "fontWeight": "semibold",
+      "align": "left",
+      "color": "#D4C4A8",
+      "fontFamily": "sans",
+      "lineHeight": null,
+      "x": 76,
+      "y": 648,
+      "width": 510,
+      "height": 47,
+      "zIndex": 22,
+      "opacity": 1.0,
+      "_designRole": "unit_label",
+      "_textDecoration": null
+    },
+    {
+      "id": "old-price",
+      "type": "TEXT",
+      "role": "body",
+      "content": "$400,000",
+      "fontSize": 37,
+      "fontWeight": "normal",
+      "align": "left",
+      "color": "#B8A990",
+      "fontFamily": "sans",
+      "lineHeight": null,
+      "x": 76,
+      "y": 702,
+      "width": 418,
+      "height": 54,
+      "zIndex": 23,
+      "opacity": 1.0,
+      "_designRole": "old_price",
+      "_textDecoration": "line-through"
+    },
+    {
+      "id": "new-price",
+      "type": "TEXT",
+      "role": "body",
+      "content": "$400,000",
+      "fontSize": 84,
+      "fontWeight": "bold",
+      "align": "left",
+      "color": "#FFFFFF",
+      "fontFamily": "sans",
+      "lineHeight": null,
+      "x": 76,
+      "y": 753,
+      "width": 510,
+      "height": 95,
+      "zIndex": 24,
+      "opacity": 1.0,
+      "_designRole": "new_price",
+      "_textDecoration": null
+    },
+    {
+      "id": "discount-badge",
+      "type": "TEXT",
+      "role": "eyebrow",
+      "content": "%0",
+      "fontSize": 45,
+      "fontWeight": "bold",
+      "align": "center",
+      "color": "#1A1510",
+      "fontFamily": "sans",
+      "x": 831,
+      "y": 675,
+      "width": 173,
+      "height": 122,
+      "zIndex": 25,
+      "opacity": 1.0,
+      "_designRole": "discount_badge",
+      "_badgeStyle": {
+        "backgroundColor": "#C4A35A",
+        "borderRadius": 86
+      }
+    },
+    {
+      "id": "support-message-1",
+      "type": "TEXT",
+      "role": "body",
+      "content": "Tarihi dokunuşlarla modern yaşam",
+      "fontSize": 28,
+      "fontWeight": "normal",
+      "align": "left",
+      "color": "#EDE6DA",
+      "fontFamily": "sans",
+      "lineHeight": null,
+      "x": 76,
+      "y": 972,
+      "width": 928,
+      "height": 47,
+      "zIndex": 26,
+      "opacity": 1.0,
+      "_designRole": "support_message",
+      "_textDecoration": null
+    },
+    {
+      "id": "cta",
+      "type": "BUTTON",
+      "label": "Lansman Fiyatını Kaçırmayın",
+      "backgroundColor": "#F7F3EB",
+      "textColor": "#1A1510",
+      "fontSize": 30,
+      "fontWeight": "semibold",
+      "align": "center",
+      "borderRadius": 15,
+      "padding": 18,
+      "x": 76,
+      "y": 1188,
+      "width": 594,
+      "height": 74,
+      "zIndex": 40,
+      "opacity": 1.0,
+      "_designRole": "cta"
+    }
+  ]
+}

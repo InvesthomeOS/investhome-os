@@ -1,0 +1,60 @@
+{
+  "campaign_id": "3ef1cbfa-cc97-407a-acc6-68d925cbf71c",
+  "production_mode": "editable_finished_ad",
+  "master_background_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+  "finished_ad_raster_asset_id": "0bca607c-2630-4c46-a5cc-2f96fe767edd",
+  "design_spec_element_ids": [
+    "master_background",
+    "logo",
+    "headline",
+    "unit-label",
+    "old-price",
+    "new-price",
+    "discount-badge",
+    "support-message-1",
+    "cta"
+  ],
+  "generate_gpt_image_call_count": 1,
+  "steps": [
+    {
+      "step": "A",
+      "instruction": "Başlığı 'Zamansız Bir Yaşam' yap. Başka hiçbir şeyi değiştirme.",
+      "revision_route": "LAYER_ONLY",
+      "gpt_image_call_count": 0,
+      "provider_call_count": 0,
+      "has_design_spec": true,
+      "editable_layer_count": 9
+    },
+    {
+      "step": "B",
+      "instruction": "%25 rozetini %30 küçült. Başka hiçbir şeyi değiştirme.",
+      "revision_route": "LAYER_ONLY",
+      "gpt_image_call_count": 0,
+      "provider_call_count": 0,
+      "has_design_spec": true,
+      "editable_layer_count": 9
+    },
+    {
+      "step": "C",
+      "instruction": "CTA'yı 'Detayları İncele' yap. Başka hiçbir şeyi değiştirme.",
+      "revision_route": "LAYER_ONLY",
+      "gpt_image_call_count": 0,
+      "provider_call_count": 0,
+      "has_design_spec": true,
+      "editable_layer_count": 9
+    },
+    {
+      "step": "D",
+      "instruction": "Logoyu %20 küçült. Başka hiçbir şeyi değiştirme.",
+      "revision_route": "LAYER_ONLY",
+      "gpt_image_call_count": 0,
+      "provider_call_count": 0,
+      "has_design_spec": true,
+      "editable_layer_count": 9
+    }
+  ],
+  "undo_gpt": 0,
+  "redo_gpt": 0,
+  "visual_quality": "NOT_CLAIMED",
+  "all_layer_only_gpt0": true
+}
