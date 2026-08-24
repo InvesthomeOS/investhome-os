@@ -1648,6 +1648,16 @@ export function SocialMediaBuilderWorkspace() {
       } catch (err) {
         if (token !== generateAbortRef.current) return;
         setCampaignStatus('failed');
+        const failedId = createInflightIdRef.current;
+        if (failedId) {
+          const failedPosts = postsRef.current.map((p) =>
+            p.id === failedId
+              ? { ...p, generationLifecycle: 'error' as const, name: 'Generation failed' }
+              : p,
+          );
+          postsRef.current = failedPosts;
+          setPosts(failedPosts);
+        }
         showToast(generateErrorMessage(err, t('toasts.gptImageFailed')));
         throw err;
       } finally {
@@ -1669,6 +1679,11 @@ export function SocialMediaBuilderWorkspace() {
       const currentAssetId = selectedPost?.coverAssetId;
       const projectId = selectedPost?.linkedProjectId || docApi.constructionProjectId;
       if (!campaignId) {
+        console.warn('[SMB_REV_V3] missing campaign id — /revise not called', {
+          postId: selectedPost?.id,
+          campaignContextId: selectedPost?.campaignContextId ?? null,
+          metaCampaignId: selectedPost?.generationMeta?.campaign_context_id ?? null,
+        });
         showToast(t('toasts.revisionNeedCampaign'));
         return;
       }
@@ -1717,7 +1732,29 @@ export function SocialMediaBuilderWorkspace() {
           (typeof response.provider_route?.model === 'string' && response.provider_route.model) ||
           gptImage?.model ||
           'gpt-image-2';
-        const editableMode = response.production_mode === 'editable_finished_ad';
+        const layerOnlyRevision =
+          response.revision_route === 'LAYER_ONLY' ||
+          response.production_mode === 'editable_finished_ad';
+        const editableMode = layerOnlyRevision;
+        const coverAssetId =
+          (editableMode &&
+            (response.master_background_asset_id || response.interior_asset_id)) ||
+          finalAssetId;
+        console.info('[SMB_REV_V3]', {
+          revision_route: response.revision_route,
+          production_mode: response.production_mode,
+          provider_call_count: response.gpt_image_call_count ?? response.provider_call_count ?? null,
+          interpreted_plan: response.interpreted_plan,
+          layer_count: Array.isArray(response.editable_layers) ? response.editable_layers.length : 0,
+          layer_ids: Array.isArray(response.editable_layers)
+            ? response.editable_layers.map((row) =>
+                row && typeof row === 'object' && 'id' in row ? String((row as { id?: unknown }).id ?? '') : '',
+              )
+            : [],
+          cover_asset_id: coverAssetId,
+          baked_raster_id: finalAssetId,
+          editable_mode: editableMode,
+        });
         const nextPost = createFinishedAdCanvasPost({
           localAssetId: finalAssetId,
           linkedProjectId: projectId,
@@ -1753,7 +1790,7 @@ export function SocialMediaBuilderWorkspace() {
           editableLayers: response.editable_layers ?? null,
           masterBackgroundAssetId: response.master_background_asset_id ?? response.interior_asset_id,
           finishedAdRasterAssetId: response.finished_ad_raster_asset_id ?? finalAssetId,
-        })
+        });
         nextPost.id = postId;
         nextPost.campaignContextId = response.campaign_id || campaignId;
         const nextPosts = postsRef.current.map((p) => (p.id === postId ? nextPost : p));
@@ -1766,7 +1803,7 @@ export function SocialMediaBuilderWorkspace() {
         setDesignEngine('creative-director');
         setBrandLogo(false);
         coverAsset.setCoverImage({
-          asset_id: finalAssetId,
+          asset_id: nextPost.coverAssetId || coverAssetId,
           url: null,
           alt: null,
           role: 'cover',
@@ -1856,7 +1893,9 @@ export function SocialMediaBuilderWorkspace() {
           'gpt_image',
         logoAssetId: response.logo_asset_id,
         interiorAssetId: response.interior_asset_id,
-        editableFinishedAd: response.production_mode === 'editable_finished_ad',
+        editableFinishedAd:
+          response.revision_route === 'LAYER_ONLY' ||
+          response.production_mode === 'editable_finished_ad',
         designSpec: response.design_spec ?? null,
         editableLayers: response.editable_layers ?? null,
         masterBackgroundAssetId: response.master_background_asset_id ?? response.interior_asset_id,
@@ -1869,7 +1908,7 @@ export function SocialMediaBuilderWorkspace() {
       setPosts(nextPosts);
       setBrandLogo(false);
       coverAsset.setCoverImage({
-        asset_id: finalAssetId,
+        asset_id: nextPost.coverAssetId || finalAssetId,
         url: null,
         alt: null,
         role: 'cover',
@@ -3265,6 +3304,12 @@ export function SocialMediaBuilderWorkspace() {
                             key={post.id}
                             className={`smb-ws__page-card${selectedPostId === post.id ? ' is-selected' : ''}${postMenuId === post.id ? ' is-menu-open' : ''}`}
                             data-testid={`smb-post-card-${post.id}`}
+                          data-production-mode={
+                            typeof post.generationMeta?.production_mode === 'string'
+                              ? String(post.generationMeta.production_mode)
+                              : ''
+                          }
+                          data-campaign-id={resolvePostCampaignId(post) || ''}
                           >
                             <button
                               type="button"
@@ -3432,6 +3477,11 @@ export function SocialMediaBuilderWorkspace() {
                       data-canva-preview={canvaPreview?.src ? 'true' : 'false'}
                       data-generation-lifecycle={selectedPost?.generationLifecycle ?? 'ready'}
                       data-finished-ad-canvas={finishedAdCanvas ? 'true' : 'false'}
+                      data-editable-finished-ad={editableFinishedAd ? 'true' : 'false'}
+                      data-hide-os-layers={hideOsLayers ? 'true' : 'false'}
+                      data-campaign-id={
+                        creativeDirectorCampaignId || resolvePostCampaignId(selectedPost) || ''
+                      }
                       data-cover-asset-id={selectedPost?.coverAssetId ?? ''}
                       data-selected-post-id={selectedPost?.id ?? ''}
                       data-width={contentSize.w}

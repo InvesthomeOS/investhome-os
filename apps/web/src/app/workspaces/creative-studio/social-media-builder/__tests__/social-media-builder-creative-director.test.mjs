@@ -95,13 +95,16 @@ describe('Creative Director SMB wiring (finished-ad)', () => {
     assert.match(workspace, /data-ai-workflow=\{revisionPrimary \? 'revise'/);
     assert.match(workspace, /t\('aiRevision\.submit'\)/);
     assert.match(workspace, /void runAiRevision\(aiPrompt\)/);
-    assert.match(workspace, /hideManualCanvasTools/);
+    assert.match(workspace, /hideOsLayers/);
     assert.match(workspace, /data-button-hierarchy="primary"/);
     assert.match(workspace, /resolvePostCampaignId/);
     const revBlock = workspace.match(/const runAiRevision = useCallback\([\s\S]*?\n  \);/);
     assert.ok(revBlock, 'runAiRevision missing');
     assert.match(revBlock[0], /current_final_asset_id/);
     assert.match(revBlock[0], /createFinishedAdCanvasPost/);
+    assert.match(revBlock[0], /revision_route === 'LAYER_ONLY'/);
+    assert.match(revBlock[0], /\[SMB_REV_V3\]/);
+    assert.match(revBlock[0], /coverAssetId/);
     assert.match(revBlock[0], /designProvider: 'creative-director'/);
     assert.match(revBlock[0], /brandLogo: false/);
     assert.match(revBlock[0], /resolvePostCampaignId\(selectedPost\)/);
@@ -315,8 +318,8 @@ describe('Finished-ad sole IMAGE hydrate helper', () => {
     assert.match(helper, /finishedAd: true/);
     assert.match(helper, /id: 'img-finished-ad'/);
     assert.match(helper, /role: 'background'/);
-    assert.match(helper, /production_mode: 'finished_ad'/);
-    assert.match(helper, /headline: finishedAd \? ''/);
+    assert.match(helper, /production_mode: editableFinishedAd \? 'editable_finished_ad' : 'finished_ad'/);
+    assert.match(helper, /headline: finishedAd && !editableFinishedAd \? ''/);
     assert.doesNotMatch(helper, /createDefaultElements/);
     assert.doesNotMatch(helper, /PLACEHOLDER_HEADLINE/);
     assert.doesNotMatch(helper, /Schedule a private tour/);

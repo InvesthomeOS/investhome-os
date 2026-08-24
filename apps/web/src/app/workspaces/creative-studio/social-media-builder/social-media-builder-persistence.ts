@@ -606,7 +606,11 @@ export function parseSocialPost(
       typeof linkedRaw === 'string' && linkedRaw.trim() ? linkedRaw.trim() : null,
     elements,
     generationMeta,
-    campaignContextId: asOptionalId(body.campaignContextId ?? body.campaign_context_id),
+    campaignContextId: asOptionalId(
+      body.campaignContextId ??
+        body.campaign_context_id ??
+        generationMeta?.campaign_context_id,
+    ),
     generationContextId: asOptionalId(body.generationContextId ?? body.generation_context_id),
     createdAt: typeof body.createdAt === 'string' ? body.createdAt : typeof body.created_at === 'string' ? body.created_at : null,
     updatedAt: typeof body.updatedAt === 'string' ? body.updatedAt : typeof body.updated_at === 'string' ? body.updated_at : null,
@@ -846,6 +850,21 @@ export function mergeHydratedPostsWithLocal(input: {
       return existing;
     }
     if (existing && isPlaceholderSocialPost(post) && !isPlaceholderSocialPost(existing)) {
+      return existing;
+    }
+    const existingMeta =
+      existing?.generationMeta && typeof existing.generationMeta === 'object'
+        ? existing.generationMeta
+        : null;
+    const incomingMeta =
+      post.generationMeta && typeof post.generationMeta === 'object' ? post.generationMeta : null;
+    if (
+      existing &&
+      existingMeta?.production_mode === 'editable_finished_ad' &&
+      incomingMeta?.production_mode === 'finished_ad' &&
+      existing.elements.some((el) => el.type === 'TEXT') &&
+      !post.elements.some((el) => el.type === 'TEXT')
+    ) {
       return existing;
     }
     return post;

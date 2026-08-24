@@ -34,6 +34,7 @@ from investhome_api.services.creative_director.design_spec import (
     apply_layer_operations,
     build_design_spec,
     design_spec_to_smb_elements,
+    ensure_revision_overlay_targets,
     route_revision,
     sync_production_brief_from_spec,
 )
@@ -42,6 +43,11 @@ from investhome_api.services.creative_director.revision_intelligence import (
     interpret_revision_plan,
     snapshot_elements,
     validate_change_diff,
+)
+from investhome_api.services.creative_director.revision_intelligence_v3 import (
+    dump_semantic_plan,
+    extract_working_instruction,
+    validate_execution,
 )
 from investhome_api.services.creative_director.generate_ad import (
     _as_dict,
@@ -898,7 +904,8 @@ def revise_ad_from_campaign(
             if isinstance(op, dict):
                 prior_ops.append(dict(op))
 
-    intents = interpret_revision_intents(instruction)
+    working_instruction, _ = extract_working_instruction(instruction)
+    intents = interpret_revision_intents(working_instruction)
     base_spec_for_plan = ctx.get("design_spec") if isinstance(ctx.get("design_spec"), dict) else None
     selected_element_id = getattr(body, "selected_element_id", None)
     revision_diff = build_revision_diff(
@@ -910,20 +917,23 @@ def revise_ad_from_campaign(
     new_ops = [_op_dict(o) for o in revision_diff.operations]
     cumulative_after = prior_ops + new_ops
     revision_route = route_revision(
-        instruction=instruction,
+        instruction=working_instruction,
         revision_diff=revision_diff,
         intents=intents,
     )
-    # Golden hybrid: LAYER_ONLY only when campaign was explicitly editable_finished_ad.
-    # Default finished_ad production always revises via IMAGE_REQUIRED from MASTER.
+    # v3 execution lock: layer/property ops stay LAYER_ONLY even on finished_ad.
+    # IMAGE_REQUIRED only when the photograph itself must change.
+    layer_capable = revision_route == "LAYER_ONLY"
     editable_mode = bool(
         ctx.get("editable_finished_ad") is True
         or ctx.get("production_mode") == "editable_finished_ad"
+        or layer_capable
     )
     if not editable_mode:
         revision_route = "IMAGE_REQUIRED"
     interpreted_plan = {
         "operations": new_ops,
+        "semantic_plan": dump_semantic_plan(revision_diff),
         "command_mode": revision_diff.command_mode,
         "strict_preserve": revision_diff.strict_preserve,
         "selected_element_id": selected_element_id,
@@ -968,6 +978,7 @@ def revise_ad_from_campaign(
     # ── LAYER_ONLY path (editable finished-ad): mutate design_spec, GPT=0 ──
     if editable_mode and revision_route == "LAYER_ONLY":
         base_spec = ctx.get("design_spec")
+        reconstructed = False
         if not isinstance(base_spec, dict) or not base_spec.get("elements"):
             bg = ctx.get("master_background_asset_id") or str(interior_id)
             base_spec = build_design_spec(
@@ -981,7 +992,27 @@ def revise_ad_from_campaign(
                 language=language,
                 campaign_intent=str(production_brief.get("campaign_intent") or ""),
             )
-            # Re-interpret with concrete geometry when spec was missing at plan time
+            reconstructed = True
+        ids_before_overlay = {
+            str(el.get("id"))
+            for el in (base_spec.get("elements") or [])
+            if isinstance(el, dict) and el.get("id")
+        }
+        # Raster-only generate pops design_spec. Residence/brand_minimal
+        # reconstruction (and some stored specs) omit kicker + 2nd feature.
+        # Always bind them from the production brief so LAYER_ONLY ops resolve.
+        base_spec = ensure_revision_overlay_targets(
+            base_spec,
+            production_brief=production_brief,
+            texts=texts,
+        )
+        ids_after_overlay = {
+            str(el.get("id"))
+            for el in (base_spec.get("elements") or [])
+            if isinstance(el, dict) and el.get("id")
+        }
+        if reconstructed or ids_after_overlay != ids_before_overlay:
+            # Re-interpret with concrete geometry once overlay targets exist.
             revision_diff = build_revision_diff(
                 instruction=instruction,
                 production_brief=production_brief,
@@ -992,6 +1023,7 @@ def revise_ad_from_campaign(
             cumulative_after = prior_ops + new_ops
             interpreted_plan = {
                 "operations": new_ops,
+                "semantic_plan": dump_semantic_plan(revision_diff),
                 "command_mode": revision_diff.command_mode,
                 "strict_preserve": revision_diff.strict_preserve,
                 "selected_element_id": selected_element_id,
@@ -1007,17 +1039,89 @@ def revise_ad_from_campaign(
             }
 
         before_snap = snapshot_elements(base_spec)
+        logger.info(
+            "SMB_REV_V3 plan campaign=%s route=%s ops=%s resolved=%s",
+            row.id,
+            revision_route,
+            [
+                {
+                    "action": o.get("action"),
+                    "target": o.get("target"),
+                    "element_id": o.get("element_id"),
+                    "element_ids": o.get("element_ids"),
+                    "scale_factor": o.get("scale_factor") or o.get("value"),
+                }
+                for o in new_ops
+            ],
+            {
+                str(o.get("target")): o.get("element_ids") or o.get("element_id")
+                for o in new_ops
+            },
+        )
         candidate_spec = apply_layer_operations(base_spec, revision_diff.operations)
-        validation = validate_change_diff(
+        after_snap = snapshot_elements(candidate_spec)
+        logger.info(
+            "SMB_REV_V3 apply campaign=%s before_fonts=%s after_fonts=%s removed=%s provider_calls=0",
+            row.id,
+            {
+                eid: (el.get("typography") or el.get("style") or {}).get("font_size")
+                for eid, el in before_snap.items()
+            },
+            {
+                eid: (el.get("typography") or el.get("style") or {}).get("font_size")
+                for eid, el in after_snap.items()
+            },
+            sorted(set(before_snap) - set(after_snap)),
+        )
+        preservation = validate_change_diff(
             before=before_snap,
             after_spec=candidate_spec,
             revision_diff=revision_diff,
         )
-        if validation.get("status") == "fail":
-            next_spec = deepcopy(base_spec)
-        else:
-            next_spec = candidate_spec
+        execution = validate_execution(
+            before=before_snap,
+            after_spec=candidate_spec,
+            revision_diff=revision_diff,
+        )
+        combined_ok = (
+            preservation.get("status") == "pass" and execution.get("status") == "pass"
+        )
+        validation = {
+            **preservation,
+            "execution_validation": execution,
+            "status": "pass" if combined_ok else "fail",
+        }
+        if not combined_ok:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "message": (
+                        "Revision failed execution or preservation validation. "
+                        "Requested operations must all apply; unmentioned elements must not change."
+                    ),
+                    "execution_validation": execution,
+                    "change_diff_validation": preservation,
+                    "interpreted_plan": dump_semantic_plan(revision_diff),
+                },
+            )
+        next_spec = candidate_spec
         user_feedback = build_user_feedback(revision_diff, validation)
+        interpreted_plan["execution_trace"] = {
+            "resolved_layer_ids": {
+                str(o.get("target")): o.get("element_ids") or o.get("element_id")
+                for o in new_ops
+            },
+            "before_fonts": {
+                eid: (el.get("typography") or el.get("style") or {}).get("font_size")
+                for eid, el in before_snap.items()
+            },
+            "after_fonts": {
+                eid: (el.get("typography") or el.get("style") or {}).get("font_size")
+                for eid, el in after_snap.items()
+            },
+            "removed_ids": sorted(set(before_snap) - set(after_snap)),
+            "provider_calls": 0,
+        }
 
         production_brief = sync_production_brief_from_spec(production_brief, next_spec)
         editable_layers = design_spec_to_smb_elements(next_spec)
@@ -1205,6 +1309,7 @@ def revise_ad_from_campaign(
             user_feedback=user_feedback,
             change_diff_validation=validation,
             interpreted_plan=interpreted_plan,
+            execution_validation=execution,
         )
 
     provider_route = route_ad_social_image(prefer_edit=True)

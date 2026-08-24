@@ -525,6 +525,31 @@ def research_project_drive(
                 hero_cand = None
                 hero_reason = truth_reason
                 role = selection_role_for_intent(intent or "architecture")
+                # Brand-language briefs ("logo", "reklam") classify as project_brand
+                # and the exterior pool fail-closes even when approved interiors exist.
+                # Historic+Addition stays fail-closed. Social ads may use a real interior.
+                if not require_hpa and intent == "project_brand":
+                    hero_cand, hero_score, hero_reason = pick_real_interior(
+                        candidates,
+                        brief=brief,
+                        dimensions=dims,
+                    )
+                    if hero_cand is not None:
+                        role = "hero_interior"
+                        warnings.append("project_brand_interior_fallback")
+                        truth_report = {
+                            **truth_report,
+                            "fail_closed": False,
+                            "status": "pass_interior_fallback",
+                            "message": (
+                                "project_brand exterior pool miss; locked approved interior"
+                            ),
+                            "selected": {
+                                "asset_id": str(hero_cand.asset_id),
+                                "filename": hero_cand.filename,
+                                "pool": "interior_fallback",
+                            },
+                        }
             elif truth_cand is not None:
                 hero_cand = truth_cand
                 hero_score = float(truth_cand.score or 0.0)

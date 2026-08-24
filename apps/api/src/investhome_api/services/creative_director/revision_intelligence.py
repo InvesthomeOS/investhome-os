@@ -35,26 +35,59 @@ STRICT_PRESERVE_PHRASES = (
     "başka hiçbir şeyi değiştirme",
     "baska hicbir seyi degistirme",
     "başka hiçbir şey değiştirme",
+    "kesinlikle değiştirme",
+    "kesinlikle degistirme",
+    "diğer tüm tasarım",
+    "diger tum tasarim",
+    "geri kalan tasarımı koru",
+    "geri kalan tasarimi koru",
+    "görsele dokunma",
+    "gorsele dokunma",
+    "sadece logoyu değiştir",
+    "sadece logoyu degistir",
 )
 
 ROLE_ALIASES: dict[str, tuple[str, ...]] = {
-    "headline": ("headline", "başlık", "baslik"),
-    "cta": ("cta",),
+    "headline": ("headline", "başlık", "baslik", "primary_headline", "text-headline"),
+    "primary_headline": ("headline", "primary_headline", "text-headline"),
+    "cta": ("cta", "cta-primary"),
     "badge": ("discount-badge", "discount_badge", "badge", "rozet"),
-    "logo": ("logo",),
+    "logo": ("logo", "logo-project"),
     "support_message": ("support-message-1", "support_message", "support-message-2"),
+    "left_feature_texts": (
+        "feature-1",
+        "feature-2",
+        "support-message-1",
+        "support-message-2",
+        "left_feature_texts",
+    ),
+    "feature_text": ("feature-1", "feature-2", "feature-3", "support-message-1"),
     "price": ("new-price", "new_price", "old-price", "old_price", "fiyat"),
     "old_price": ("old-price", "old_price"),
     "new_price": ("new-price", "new_price"),
     "subheadline": ("subheadline", "alt başlık", "alt baslik"),
+    "eyebrow": ("eyebrow", "unit-label", "eyebrow-pill"),
+    "top_small_description": (
+        "subheadline",
+        "unit-label",
+        "eyebrow",
+        "top-description",
+        "top_small_description",
+    ),
 }
 
 TARGET_LABELS_TR = {
     "headline": "Başlık",
+    "primary_headline": "Başlık",
     "cta": "CTA",
     "badge": "Rozet",
     "logo": "Logo",
     "support_message": "Destek metni",
+    "left_feature_texts": "Özellik metinleri",
+    "feature_text": "Özellik metni",
+    "top_small_description": "Üst açıklama",
+    "subheadline": "Alt başlık",
+    "eyebrow": "Üst etiket",
     "price": "Fiyat",
     "old_price": "Eski fiyat",
     "background": "Arka plan",
@@ -195,11 +228,14 @@ def _op(
         "target": target if target in {
             "headline", "cta", "badge", "logo", "support_message",
             "price", "background", "layout", "style", "overall",
+            "subheadline", "eyebrow", "top_small_description",
+            "primary_headline", "left_feature_texts", "feature_text",
         } else ("price" if "price" in target else "overall"),
         "action": action if action in {
-            "replace_text", "scale", "remove", "tone_adjust", "preserve",
+            "replace_text", "scale", "resize", "remove", "delete", "tone_adjust", "preserve",
             "minimum_change", "translate", "set_position", "align",
             "set_font_size", "set_color", "hide", "set_geometry",
+            "improve_readability",
         } else "minimum_change",
         "mode": mode,
         "confidence": confidence,
@@ -211,10 +247,13 @@ def _op(
     if target not in {
         "headline", "cta", "badge", "logo", "support_message",
         "price", "background", "layout", "style", "overall",
+        "subheadline", "eyebrow", "top_small_description",
+        "primary_headline", "left_feature_texts", "feature_text",
     }:
         payload["element_id"] = target
         if payload["target"] == "overall" and action in {
-            "translate", "scale", "set_position", "align", "set_font_size", "set_color", "hide",
+            "translate", "scale", "resize", "set_position", "align", "set_font_size", "set_color",
+            "hide", "delete", "remove", "improve_readability",
         }:
             # Prefer price bucket only for price ids; else map text-ish to headline
             if "logo" in target:
@@ -951,6 +990,16 @@ def parse_common_ops(
                     priority="exact_numeric",
                 )
             )
+        if any(tok in low for tok in ("rozet", "badge", "%25", "25%")):
+            ops.append(
+                _op(
+                    target="badge",
+                    action="delete",
+                    element_id="discount-badge",
+                    note="hide badge",
+                    priority="exact_numeric",
+                )
+            )
         if any(tok in low for tok in ("sınırlı", "scarcity", "destek", "support")):
             ops.append(
                 _op(
@@ -1049,150 +1098,16 @@ def interpret_revision_plan(
     design_spec: dict[str, Any] | None = None,
     selected_element_id: str | None = None,
 ) -> RevisionDiff:
-    """Revision Interpreter → Structured Revision Plan (priority-ordered)."""
-    instr = (instruction or "").strip()
-    low = normalize_tr(instr)
-    strict = detect_strict_preserve(instr)
-
-    preserve = [
-        "exposure",
-        "brightness",
-        "white_balance",
-        "contrast",
-        "sharpness",
-        "resolution",
-        "architectural_interior_details",
-        "composition_unless_requested",
-        "logo_quality",
-        "unaffected_typography",
-        "verified_prices",
-        "project_logo",
-        "background_photograph",
-        "unaffected_elements",
-        "positions_unless_requested",
-        "colors_unless_requested",
-        "layout_unless_requested",
-    ]
-    forbidden = [
-        "darkening",
-        "recoloring",
-        "cinematic_grading",
-        "contrast_increase",
-        "vignette",
-        "blur_changes",
-        "sharpening_changes",
-        "crop_changes",
-        "lighting_changes",
-        "full_redesign",
-        "generation_from_prior_revision_raster",
-        "unexpected_mutations",
-    ]
-    if strict:
-        for item in ("prices", "logo", "cta", "background", "image_treatment", "unaffected_elements"):
-            if item not in preserve:
-                preserve.append(item)
-        forbidden.append("any_mutation_outside_plan")
-
-    buckets: list[RevisionOperation] = []
-    buckets.extend(
-        parse_exact_numeric_ops(
-            instr, design_spec=design_spec, selected_element_id=selected_element_id
-        )
+    """Revision Interpreter → Structured Revision Plan (v3 execution lock)."""
+    from investhome_api.services.creative_director.revision_intelligence_v3 import (
+        interpret_revision_plan_v3,
     )
-    buckets.extend(
-        parse_geometric_ops(
-            instr, design_spec=design_spec, selected_element_id=selected_element_id
-        )
-    )
-    buckets.extend(parse_percentage_ops(instr, selected_element_id=selected_element_id))
-    buckets.extend(
-        parse_relative_nl_ops(
-            instr, design_spec=design_spec, selected_element_id=selected_element_id
-        )
-    )
-    buckets.extend(
-        parse_common_ops(
-            instr,
-            production_brief=production_brief,
-            selected_element_id=selected_element_id,
-        )
-    )
-    buckets.extend(parse_subjective_ops(instr, existing=buckets))
 
-    # Deduplicate by (target, action, note)
-    seen: set[str] = set()
-    ops: list[RevisionOperation] = []
-    for op in sorted(buckets, key=lambda o: PRIORITY_RANK.get(o.priority or "exact_numeric", 9)):
-        key = f"{op.target}:{op.action}:{op.note}:{op.to_value}:{op.scale_factor}:{op.dx}:{op.dy}:{op.x}:{op.y}"
-        if key in seen:
-            continue
-        seen.add(key)
-        ops.append(op)
-
-    # Cap subjective
-    exactish = [o for o in ops if o.mode != "subjective"]
-    subjective = [o for o in ops if o.mode == "subjective"][:3]
-    ops = exactish + subjective
-
-    if not ops:
-        # Vague "biraz" without selection → refuse redesign
-        if "biraz" in low and not selected_element_id:
-            ops.append(
-                RevisionOperation(
-                    target="overall",
-                    action="minimum_change",
-                    confidence="low",
-                    mode="ambiguous",
-                    priority="ambiguous",
-                    note="Ambiguous without selected element — no whole-design rewrite",
-                )
-            )
-        else:
-            ops.append(
-                RevisionOperation(
-                    target="overall",
-                    action="minimum_change",
-                    confidence="low",
-                    mode="ambiguous",
-                    priority="ambiguous",
-                    note="Ambiguous instruction — apply minimum visible change only",
-                )
-            )
-
-    if any(o.mode == "exact" for o in ops) and not any(o.mode == "subjective" for o in ops):
-        command_mode: str = "exact"
-    elif any(o.mode == "subjective" for o in ops) and not any(o.mode == "exact" for o in ops):
-        command_mode = "subjective"
-    elif any(o.mode == "exact" for o in ops) and any(o.mode == "subjective" for o in ops):
-        command_mode = "mixed"
-    else:
-        command_mode = "ambiguous"
-
-    geometry_ops = [
-        o.model_dump(by_alias=True, exclude_none=True)
-        for o in ops
-        if o.action in {"translate", "set_position", "align", "set_geometry"}
-        or (o.priority == "relational_geometric")
-    ]
-
-    return RevisionDiff(
-        operations=ops,
-        preserve=preserve,
-        forbidden_changes=forbidden,
-        command_mode=command_mode,  # type: ignore[arg-type]
-        max_subjective_ops=3,
-        quality_lock={
-            "preserve": list(preserve),
-            "forbidden_unless_explicitly_requested": list(forbidden),
-            "rule": "MINIMUM CHANGE BY DEFAULT. Anything not in requested_changes = PRESERVE.",
-        },
-        strict_preserve=strict,
+    return interpret_revision_plan_v3(
+        instruction=instruction,
+        production_brief=production_brief,
+        design_spec=design_spec,
         selected_element_id=selected_element_id,
-        geometry_operations=geometry_ops,
-        requested_changes=[
-            o.model_dump(by_alias=True, exclude_none=True) for o in ops
-            if o.action != "minimum_change"
-        ],
     )
 
 
@@ -1218,9 +1133,11 @@ def _el_fingerprint(el: dict[str, Any]) -> tuple[Any, ...]:
         el.get("asset_id"),
         el.get("opacity"),
         typo.get("font_size"),
+        typo.get("font_weight"),
         typo.get("color"),
         style.get("background_color"),
         style.get("font_size"),
+        style.get("font_weight"),
     )
 
 
@@ -1253,6 +1170,9 @@ def validate_change_diff(
         allowed_targets.update(aliases)
         if op.element_id:
             allowed_targets.add(op.element_id)
+        for eid in op.element_ids or []:
+            if eid:
+                allowed_targets.add(str(eid))
 
     changed: list[dict[str, Any]] = []
     unexpected: list[str] = []
@@ -1357,12 +1277,14 @@ def build_user_feedback(
         label = TARGET_LABELS_TR.get(op.target, op.target)
         if op.action == "replace_text":
             parts.append(f"{label} güncellendi.")
-        elif op.action == "scale":
+        elif op.action in {"scale", "resize"}:
             parts.append(f"{label} boyutu güncellendi.")
         elif op.action in {"translate", "set_position", "align", "set_geometry"}:
             parts.append(f"{label} konumu güncellendi.")
-        elif op.action in {"remove", "hide"}:
+        elif op.action in {"remove", "hide", "delete"}:
             parts.append(f"{label} kaldırıldı.")
+        elif op.action == "improve_readability":
+            parts.append(f"{label} okunabilirliği artırıldı.")
         elif op.action == "set_font_size":
             parts.append(f"{label} yazı boyutu güncellendi.")
         elif op.action == "set_color":

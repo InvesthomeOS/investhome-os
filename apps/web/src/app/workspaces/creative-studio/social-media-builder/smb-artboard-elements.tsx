@@ -356,6 +356,7 @@ export function SmbArtboardElements({
               data-testid={`smb-el-${el.id}`}
               data-el-type="TEXT"
               data-el-role={el.role}
+              data-font-size={fontSize}
               data-text-edit={editing ? 'true' : 'false'}
               onClick={(e) => {
                 e.stopPropagation();

@@ -56,9 +56,9 @@ function asSocialElements(raw: unknown[] | null | undefined): SocialElement[] {
   for (const row of raw) {
     if (!row || typeof row !== 'object' || Array.isArray(row)) continue;
     const el = row as Record<string, unknown>;
-    const type = el.type;
+    const type = String(el.type ?? '').toUpperCase();
     if (type !== 'TEXT' && type !== 'IMAGE' && type !== 'BUTTON' && type !== 'METRIC_GROUP' && type !== 'SHAPE') continue;
-    out.push(el as SocialElement);
+    out.push({ ...el, type } as SocialElement);
   }
   return ensureUniqueElementIds(out);
 }

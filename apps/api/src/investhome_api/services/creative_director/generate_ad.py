@@ -179,13 +179,12 @@ def resolve_locked_assets(ctx: dict[str, Any]) -> tuple[UUID, UUID, dict[str, An
     """PROJECT ASSET LOCK — interior + logo from stored Campaign Context only."""
     selected_assets = _as_list(ctx.get("selected_assets"))
     interior_meta = selected_assets[0] if selected_assets else None
-    if not isinstance(interior_meta, dict):
-        drive = _as_dict(ctx.get("drive_research"))
-        interior_meta = drive.get("selected_interior")
+    drive = _as_dict(ctx.get("drive_research"))
+    if not isinstance(interior_meta, dict) or _asset_id(interior_meta) is None:
+        interior_meta = drive.get("selected_interior") or interior_meta
     logo_meta = ctx.get("selected_logo")
-    if not isinstance(logo_meta, dict):
-        drive = _as_dict(ctx.get("drive_research"))
-        logo_meta = drive.get("selected_logo")
+    if not isinstance(logo_meta, dict) or _asset_id(logo_meta) is None:
+        logo_meta = drive.get("selected_logo") or logo_meta
     interior_id = _asset_id(interior_meta)
     logo_id = _asset_id(logo_meta)
     if interior_id is None:

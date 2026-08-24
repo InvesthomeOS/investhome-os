@@ -51,13 +51,25 @@ describe('GPT Image SMB wiring', () => {
     const helper = read('social-media-builder-gpt-image.ts');
     assert.match(helper, /createFinishedAdCanvasPost/);
     assert.match(helper, /soleFinishedImage/);
-    assert.match(helper, /editable_layers: finishedAd \? false/);
+    assert.match(helper, /editable_layers: editableFinishedAd \? true : finishedAd \? false/);
     const workspace = read('social-media-builder-workspace.tsx');
     assert.match(workspace, /createFinishedAdCanvasPost\(/);
     assert.doesNotMatch(
       workspace.match(/const runGenerateAdFromCampaign = useCallback\([\s\S]*?\n  \);/)?.[0] || '',
       /createDefaultElements/,
     );
+  });
+
+  it('LAYER_ONLY revision hydrates overlay layers instead of the baked raster', () => {
+    const helper = read('social-media-builder-gpt-image.ts');
+    assert.match(helper, /editableFinishedAd && layered.length > 0/);
+    const workspace = read('social-media-builder-workspace.tsx');
+    const rev = workspace.match(/const runAiRevision = useCallback\([\s\S]*?\n  \);/)?.[0] || '';
+    assert.match(rev, /revision_route === 'LAYER_ONLY'/);
+    assert.match(rev, /editableFinishedAd: editableMode/);
+    assert.match(rev, /\[SMB_REV_V3\]/);
+    assert.match(rev, /nextPost\.coverAssetId \|\| coverAssetId/);
+    assert.doesNotMatch(rev, /asset_id: finalAssetId/);
   });
 
   it('renders rich headline runs when OS layers include runs', () => {

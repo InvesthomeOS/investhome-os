@@ -41,7 +41,9 @@ class CreativeDirectorReviseRequest(BaseModel):
 RevisionAction = Literal[
     "replace_text",
     "scale",
+    "resize",
     "remove",
+    "delete",
     "tone_adjust",
     "preserve",
     "minimum_change",
@@ -52,6 +54,7 @@ RevisionAction = Literal[
     "set_color",
     "hide",
     "set_geometry",
+    "improve_readability",
 ]
 RevisionTarget = Literal[
     "headline",
@@ -64,6 +67,12 @@ RevisionTarget = Literal[
     "layout",
     "style",
     "overall",
+    "subheadline",
+    "eyebrow",
+    "top_small_description",
+    "primary_headline",
+    "left_feature_texts",
+    "feature_text",
 ]
 RevisionConfidence = Literal["high", "medium", "low"]
 RevisionPriority = Literal[
@@ -99,6 +108,9 @@ class RevisionOperation(BaseModel):
     align_edge: str | None = None
     reference_element: str | None = None
     element_id: str | None = None
+    element_ids: list[str] | None = None
+    value: float | None = None
+    semantic_target: str | None = None
 
     model_config = {"populate_by_name": True}
 
@@ -255,3 +267,4 @@ class CreativeDirectorReviseAdResponse(CreativeDirectorGenerateAdResponse):
     user_feedback: str | None = None
     change_diff_validation: dict[str, Any] = Field(default_factory=dict)
     interpreted_plan: dict[str, Any] = Field(default_factory=dict)
+    execution_validation: dict[str, Any] = Field(default_factory=dict)
