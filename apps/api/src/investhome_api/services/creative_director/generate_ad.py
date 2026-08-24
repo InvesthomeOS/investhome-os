@@ -5,11 +5,14 @@ Reuses GPT Image PROJECT MODE + Final Composition. Does not rewrite CD brief log
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from investhome_api.models.creative_director_campaign import CreativeDirectorCampaign
 from investhome_api.models.user_auth import User
@@ -1317,13 +1320,30 @@ def generate_ad_from_campaign(
     }
 
     if production_mode == "finished_ad":
-        # Golden hybrid default: single finished-ad raster is the deliverable.
-        # Do NOT reconstruct as simplified editable layers.
+        # Golden hybrid default: single finished-ad raster is the client deliverable.
+        # Keep a Design Spec in campaign context so LAYER_ONLY revision can mutate
+        # copy without reconstructing a new creative or swapping the photograph.
         finished_raster_id = output.local_asset_id
         ctx["production_mode"] = "finished_ad"
         ctx["editable_finished_ad"] = False
         ctx["finished_ad_raster_asset_id"] = str(finished_raster_id)
-        ctx.pop("design_spec", None)
+        ctx["master_background_asset_id"] = str(interior_id)
+        try:
+            assembled = assemble_editable_design(
+                production_brief=production_brief,
+                texts=texts,
+                master_background_asset_id=interior_id,
+                logo_asset_id=logo_id,
+                finished_ad_raster_asset_id=finished_raster_id,
+                aspect_ratio=aspect_ratio,
+                format_preset=format_preset,
+                language=language,
+                campaign_intent=str(production_brief.get("campaign_intent") or ""),
+            )
+            ctx["design_spec"] = assembled.get("design_spec")
+            ctx["composition_plan"] = assembled.get("composition_plan")
+        except Exception:
+            logger.exception("finished_ad design_spec persist failed campaign=%s", row.id)
         quality_guard = _finished_ad_quality_guard(
             claim_guard=claim_guard,
             asset_lock=asset_lock,

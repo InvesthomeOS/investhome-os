@@ -336,6 +336,8 @@ def resolve_spatial_targets(
             "sol taraftaki",
             "iki açıklama",
             "iki aciklama",
+            "soldaki iki açıklama",
+            "soldaki iki aciklama",
         )
     ):
         feats: list[dict[str, Any]] = []

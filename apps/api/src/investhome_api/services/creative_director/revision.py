@@ -33,6 +33,7 @@ from investhome_api.schemas.gpt_image_design import GptImageDesignRequest
 from investhome_api.services.creative_director.design_spec import (
     apply_layer_operations,
     build_design_spec,
+    compose_layer_only_on_locked_raster,
     design_spec_to_smb_elements,
     ensure_revision_overlay_targets,
     route_revision,
@@ -1121,15 +1122,41 @@ def revise_ad_from_campaign(
             },
             "removed_ids": sorted(set(before_snap) - set(after_snap)),
             "provider_calls": 0,
+            "revision_source": {
+                "campaign_id": str(row.id),
+                "asset_id": str(current_id),
+                "raster_asset_id": str(ctx.get("finished_ad_raster_asset_id") or current_id),
+                "interior_asset_id": str(interior_id),
+                "logo_asset_id": str(logo_id),
+                "master_asset_id": str(master_id),
+            },
         }
 
         production_brief = sync_production_brief_from_spec(production_brief, next_spec)
-        editable_layers = design_spec_to_smb_elements(next_spec)
-        master_bg_raw = next_spec.get("master_background_asset_id") or ctx.get(
-            "master_background_asset_id"
-        ) or str(interior_id)
-        master_bg_id = UUID(str(master_bg_raw))
-        tip_asset_id = current_id  # display tip unchanged — layers carry the edit
+        # Selected post cover is the source of truth — never another campaign raster.
+        locked_raster = str(current_id)
+        editable_layers = compose_layer_only_on_locked_raster(
+            after_spec=next_spec,
+            before_snap=before_snap,
+            locked_raster_asset_id=locked_raster,
+        )
+        if any(
+            str(el.get("type") or "").upper() in {"IMAGE", "BUTTON"}
+            for el in editable_layers
+            if isinstance(el, dict)
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="LAYER_ONLY revision must not overlay IMAGE or BUTTON on the selected raster.",
+            )
+        # Cover / display master is the SELECTED finished raster — never a new interior.
+        master_bg_id = UUID(str(locked_raster))
+        tip_asset_id = current_id  # display tip unchanged — selected raster stays the cover
+        if str(tip_asset_id) != locked_raster:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="LAYER_ONLY revision must keep the selected raster asset.",
+            )
 
         claim_guard = claim_guard_summary(
             approved_claims=approved_claims,
@@ -1165,7 +1192,8 @@ def revise_ad_from_campaign(
                     "campaign_context_id": str(row.id),
                     "revision_route": None,
                     "design_spec": base_spec,
-                    "master_background_asset_id": str(master_bg_id),
+                    "master_background_asset_id": str(interior_id),
+                    "finished_ad_raster_asset_id": str(current_id),
                 },
             )
         version = _version_label(history)
@@ -1239,7 +1267,8 @@ def revise_ad_from_campaign(
         }
         ctx["latest_revision_diff"] = revision_diff.model_dump(by_alias=True)
         ctx["design_spec"] = next_spec
-        ctx["master_background_asset_id"] = str(master_bg_id)
+        ctx["master_background_asset_id"] = str(interior_id)
+        ctx["finished_ad_raster_asset_id"] = str(current_id)
         ctx["editable_finished_ad"] = True
         ctx["production_mode"] = "editable_finished_ad"
         ctx["production_brief"] = production_brief
@@ -1301,9 +1330,7 @@ def revise_ad_from_campaign(
             campaign_context=ctx,
             design_spec=next_spec,
             master_background_asset_id=master_bg_id,
-            finished_ad_raster_asset_id=UUID(str(ctx["finished_ad_raster_asset_id"]))
-            if ctx.get("finished_ad_raster_asset_id")
-            else master_id,
+            finished_ad_raster_asset_id=UUID(str(current_id)),
             editable_layers=editable_layers,
             revision_route="LAYER_ONLY",
             user_feedback=user_feedback,

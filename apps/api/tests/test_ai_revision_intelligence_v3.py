@@ -8,6 +8,7 @@ from pathlib import Path
 from investhome_api.services.creative_director.design_spec import (
     apply_layer_operations,
     build_design_spec,
+    compose_layer_only_on_locked_raster,
     ensure_revision_overlay_targets,
     route_revision,
 )
@@ -525,3 +526,59 @@ def test_write_v3_artifacts():
         (ARTIFACTS / "render-error.txt").write_text(str(exc), encoding="utf-8")
     assert execution["status"] == "pass"
     assert (ARTIFACTS / "summary.json").is_file()
+
+
+SELECTED_DESIGN_PROMPT = (
+    "Üstteki küçük açıklama metnini tamamen kaldır.\n"
+    "Ana başlığı %10 büyüt.\n"
+    "Soldaki iki açıklama metnini %15 büyüt.\n"
+    "Logo, arka plan görseli, CTA butonu, renkler ve tasarımın geri kalanını kesinlikle değiştirme."
+)
+
+
+def test_selected_design_prompt_does_not_regenerate_creative():
+    plan, before, after, preservation, execution, route = _apply(SELECTED_DESIGN_PROMPT)
+    assert route == "LAYER_ONLY"
+    semantic = dump_semantic_plan(plan)
+    actions = {(o["action"], o["target"]) for o in semantic["operations"]}
+    assert ("delete", "top_small_description") in actions
+    assert ("resize", "primary_headline") in actions
+    assert ("resize", "left_feature_texts") in actions
+    assert execution["status"] == "pass"
+    assert preservation["background_asset_unchanged"] is True
+    a = _by_id(after)
+    assert abs(_font(a["headline"]) - before["headline"]["typography"]["font_size"] * 1.10) <= 1
+    assert abs(_font(a["feature-1"]) - before["feature-1"]["typography"]["font_size"] * 1.15) <= 1
+    assert abs(_font(a["feature-2"]) - before["feature-2"]["typography"]["font_size"] * 1.15) <= 1
+    assert a["cta"]["content"] == before["cta"]["content"]
+    assert a["logo"]["asset_id"] == before["logo"]["asset_id"]
+    assert a["master_background"]["asset_id"] == before["master_background"]["asset_id"]
+
+
+def test_compose_layer_only_on_locked_raster_one_semantic_one_visible():
+    spec = _smb_real_spec()
+    _plan, before, after, _preservation, _execution, route = _apply(SELECTED_DESIGN_PROMPT, spec)
+    assert route == "LAYER_ONLY"
+    layers = compose_layer_only_on_locked_raster(
+        after_spec=after,
+        before_snap=before,
+        locked_raster_asset_id="raster-selected",
+    )
+    types = {_s_type(el) for el in layers}
+    ids = {str(el.get("id") or "").lower() for el in layers}
+    assert "IMAGE" not in types
+    assert "BUTTON" not in types
+    assert "logo" not in ids
+    assert "cta" not in ids
+    assert "master_background" not in ids
+    texts = [el for el in layers if _s_type(el) == "TEXT"]
+    copies = [str(el.get("content") or el.get("text") or "").strip().lower() for el in texts]
+    copies = [c for c in copies if c]
+    assert len(copies) == len(set(copies))
+    assert sum(1 for el in texts if str(el.get("id") or "") == "headline") == 1
+    assert not any(str(el.get("id") or "") in {"top-description", "unit-label", "eyebrow"} for el in texts)
+
+
+def _s_type(el: dict) -> str:
+    return str(el.get("type") or "").upper()
+

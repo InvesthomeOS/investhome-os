@@ -1,6 +1,6 @@
 import { test as base, expect, type Page } from '@playwright/test';
 
-export const DEMO_PASSWORD = 'Demo123!';
+export const DEMO_PASSWORD = process.env.PW_DEMO_PASSWORD || process.env.DEMO_PASSWORD || 'Investhome2026!';
 
 export const DEMO_USERS = {
   superadmin: 'superadmin@investhome.demo',

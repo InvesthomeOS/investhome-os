@@ -1673,9 +1673,9 @@ export function SocialMediaBuilderWorkspace() {
   const runAiRevision = useCallback(
     async (instruction: string) => {
       const campaignId =
+        resolvePostCampaignId(selectedPost) ||
         creativeDirectorCampaignRef.current ||
-        creativeDirectorCampaignId ||
-        resolvePostCampaignId(selectedPost);
+        creativeDirectorCampaignId;
       const currentAssetId = selectedPost?.coverAssetId;
       const projectId = selectedPost?.linkedProjectId || docApi.constructionProjectId;
       if (!campaignId) {
@@ -1736,10 +1736,37 @@ export function SocialMediaBuilderWorkspace() {
           response.revision_route === 'LAYER_ONLY' ||
           response.production_mode === 'editable_finished_ad';
         const editableMode = layerOnlyRevision;
-        const coverAssetId =
-          (editableMode &&
-            (response.master_background_asset_id || response.interior_asset_id)) ||
-          finalAssetId;
+        const lockedCoverId = currentAssetId;
+        const lockedInteriorId = selectedPost?.generationMeta?.interior_asset_id || null;
+        const returnedInterior = response.interior_asset_id || null;
+        if (
+          layerOnlyRevision &&
+          response.campaign_id &&
+          String(response.campaign_id) !== String(campaignId)
+        ) {
+          throw new Error(t('toasts.revisionFailed'));
+        }
+        if (
+          layerOnlyRevision &&
+          lockedInteriorId &&
+          returnedInterior &&
+          String(returnedInterior) !== String(lockedInteriorId)
+        ) {
+          throw new Error(t('toasts.revisionFailed'));
+        }
+        // LAYER_ONLY must keep the SELECTED raster as cover. Never swap to interior.
+        const coverAssetId = layerOnlyRevision
+          ? lockedCoverId
+          : (editableMode && (response.master_background_asset_id || response.interior_asset_id)) ||
+            finalAssetId;
+        console.info('[SMB_REV_V3] source', {
+          postId,
+          campaignId,
+          locked_cover_id: lockedCoverId,
+          locked_interior_id: lockedInteriorId,
+          selected_design_spec: Boolean(selectedPost?.generationMeta?.design_spec),
+          selected_master_asset_id: selectedPost?.generationMeta?.master_background_asset_id ?? null,
+        });
         console.info('[SMB_REV_V3]', {
           revision_route: response.revision_route,
           production_mode: response.production_mode,
@@ -1753,10 +1780,11 @@ export function SocialMediaBuilderWorkspace() {
             : [],
           cover_asset_id: coverAssetId,
           baked_raster_id: finalAssetId,
+          interior_asset_id: returnedInterior,
           editable_mode: editableMode,
         });
         const nextPost = createFinishedAdCanvasPost({
-          localAssetId: finalAssetId,
+          localAssetId: layerOnlyRevision ? lockedCoverId : finalAssetId,
           linkedProjectId: projectId,
           formatPreset: asFormatPreset(response.format_preset || formatPreset),
           instruction: text,
@@ -1788,11 +1816,25 @@ export function SocialMediaBuilderWorkspace() {
           editableFinishedAd: editableMode,
           designSpec: response.design_spec ?? null,
           editableLayers: response.editable_layers ?? null,
-          masterBackgroundAssetId: response.master_background_asset_id ?? response.interior_asset_id,
-          finishedAdRasterAssetId: response.finished_ad_raster_asset_id ?? finalAssetId,
+          masterBackgroundAssetId: layerOnlyRevision
+            ? lockedCoverId
+            : response.master_background_asset_id ?? response.interior_asset_id,
+          finishedAdRasterAssetId: lockedCoverId,
         });
         nextPost.id = postId;
         nextPost.campaignContextId = response.campaign_id || campaignId;
+        if (layerOnlyRevision && nextPost.coverAssetId && nextPost.coverAssetId !== lockedCoverId) {
+          throw new Error(t('toasts.revisionFailed'));
+        }
+        console.info('[SMB_REV_V3] after', {
+          postId: nextPost.id,
+          campaignId: nextPost.campaignContextId,
+          cover_asset_id: nextPost.coverAssetId,
+          interior_asset_id: nextPost.generationMeta?.interior_asset_id ?? null,
+          master_background_asset_id: nextPost.generationMeta?.master_background_asset_id ?? null,
+          finished_ad_raster_asset_id: nextPost.generationMeta?.finished_ad_raster_asset_id ?? null,
+          logo_asset_id: nextPost.generationMeta?.logo_asset_id ?? null,
+        });
         const nextPosts = postsRef.current.map((p) => (p.id === postId ? nextPost : p));
         postsRef.current = nextPosts;
         selectedPostIdRef.current = nextPost.id;
@@ -1871,8 +1913,12 @@ export function SocialMediaBuilderWorkspace() {
         (typeof response.provider_route?.model === 'string' && response.provider_route.model) ||
         gptImage?.model ||
         'gpt-image-2';
+      const layerOnly =
+        response.revision_route === 'LAYER_ONLY' ||
+        response.production_mode === 'editable_finished_ad';
+      const lockedCoverId = selectedPost?.coverAssetId || finalAssetId;
       const nextPost = createFinishedAdCanvasPost({
-        localAssetId: finalAssetId,
+        localAssetId: layerOnly ? lockedCoverId : finalAssetId,
         linkedProjectId: projectId,
         formatPreset: asFormatPreset(response.format_preset || formatPreset),
         instruction,
@@ -1893,13 +1939,15 @@ export function SocialMediaBuilderWorkspace() {
           'gpt_image',
         logoAssetId: response.logo_asset_id,
         interiorAssetId: response.interior_asset_id,
-        editableFinishedAd:
-          response.revision_route === 'LAYER_ONLY' ||
-          response.production_mode === 'editable_finished_ad',
+        editableFinishedAd: layerOnly,
         designSpec: response.design_spec ?? null,
         editableLayers: response.editable_layers ?? null,
-        masterBackgroundAssetId: response.master_background_asset_id ?? response.interior_asset_id,
-        finishedAdRasterAssetId: response.finished_ad_raster_asset_id ?? finalAssetId,
+        masterBackgroundAssetId: layerOnly
+          ? lockedCoverId
+          : response.master_background_asset_id ?? response.interior_asset_id,
+        finishedAdRasterAssetId: layerOnly
+          ? lockedCoverId
+          : response.finished_ad_raster_asset_id ?? finalAssetId,
       });
       nextPost.id = postId;
       nextPost.campaignContextId = response.campaign_id || campaignId;
@@ -1908,7 +1956,7 @@ export function SocialMediaBuilderWorkspace() {
       setPosts(nextPosts);
       setBrandLogo(false);
       coverAsset.setCoverImage({
-        asset_id: nextPost.coverAssetId || finalAssetId,
+        asset_id: nextPost.coverAssetId || lockedCoverId,
         url: null,
         alt: null,
         role: 'cover',
@@ -3309,6 +3357,7 @@ export function SocialMediaBuilderWorkspace() {
                               ? String(post.generationMeta.production_mode)
                               : ''
                           }
+                          data-finished-ad-canvas={isFinishedAdCanvasPost(post) ? 'true' : 'false'}
                           data-campaign-id={resolvePostCampaignId(post) || ''}
                           >
                             <button
@@ -3484,6 +3533,21 @@ export function SocialMediaBuilderWorkspace() {
                       }
                       data-cover-asset-id={selectedPost?.coverAssetId ?? ''}
                       data-selected-post-id={selectedPost?.id ?? ''}
+                      data-interior-asset-id={
+                        selectedPost?.generationMeta?.interior_asset_id
+                          ? String(selectedPost.generationMeta.interior_asset_id)
+                          : ''
+                      }
+                      data-logo-asset-id={
+                        selectedPost?.generationMeta?.logo_asset_id
+                          ? String(selectedPost.generationMeta.logo_asset_id)
+                          : ''
+                      }
+                      data-raster-asset-id={
+                        selectedPost?.generationMeta?.finished_ad_raster_asset_id
+                          ? String(selectedPost.generationMeta.finished_ad_raster_asset_id)
+                          : selectedPost?.coverAssetId ?? ''
+                      }
                       data-width={contentSize.w}
                       data-height={contentSize.h}
                       data-text-edit-mode={editingElementId ? 'true' : 'false'}
@@ -3559,7 +3623,7 @@ export function SocialMediaBuilderWorkspace() {
                           ) : null}
                         </div>
                       )}
-                      {displayArtboardState === 'ready' && !hideOsLayers ? (
+                      {displayArtboardState === 'ready' && !hideOsLayers && !editableFinishedAd ? (
                         <div
                           className="smb-ws__artboard-overlay"
                           data-overlay={
@@ -3573,7 +3637,7 @@ export function SocialMediaBuilderWorkspace() {
                           aria-hidden="true"
                         />
                       ) : null}
-                      {brandLogo && !hideOsLayers && !hasRealLogoLayer ? (
+                      {brandLogo && !hideOsLayers && !hasRealLogoLayer && !editableFinishedAd ? (
                         <span
                           className="smb-ws__logo-preview"
                           style={{ position: 'absolute', top: '6%', left: '6%', zIndex: 2 }}

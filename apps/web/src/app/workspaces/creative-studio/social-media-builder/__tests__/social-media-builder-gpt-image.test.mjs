@@ -60,16 +60,18 @@ describe('GPT Image SMB wiring', () => {
     );
   });
 
-  it('LAYER_ONLY revision hydrates overlay layers instead of the baked raster', () => {
+  it('LAYER_ONLY revision keeps the selected raster cover and hydrates text overlays', () => {
     const helper = read('social-media-builder-gpt-image.ts');
-    assert.match(helper, /editableFinishedAd && layered.length > 0/);
+    assert.match(helper, /rasterLocked/);
+    assert.match(helper, /must not inject a second photograph/);
     const workspace = read('social-media-builder-workspace.tsx');
-    const rev = workspace.match(/const runAiRevision = useCallback\([\s\S]*?\n  \);/)?.[0] || '';
+    const rev =
+      workspace.match(/const runAiRevision = useCallback\([\s\S]*?\n  \);/)?.[0] || '';
     assert.match(rev, /revision_route === 'LAYER_ONLY'/);
-    assert.match(rev, /editableFinishedAd: editableMode/);
-    assert.match(rev, /\[SMB_REV_V3\]/);
-    assert.match(rev, /nextPost\.coverAssetId \|\| coverAssetId/);
-    assert.doesNotMatch(rev, /asset_id: finalAssetId/);
+    assert.match(rev, /lockedCoverId/);
+    assert.match(rev, /localAssetId: layerOnlyRevision \? lockedCoverId/);
+    assert.match(rev, /\[SMB_REV_V3\] source/);
+    assert.match(rev, /\[SMB_REV_V3\] after/);
   });
 
   it('renders rich headline runs when OS layers include runs', () => {

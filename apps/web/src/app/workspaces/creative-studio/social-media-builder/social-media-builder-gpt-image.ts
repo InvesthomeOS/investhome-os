@@ -205,18 +205,34 @@ export function createFlattenedGptImagePost(input: {
       : null) ||
     (input.interiorAssetId && isMediaAssetUuid(input.interiorAssetId) ? input.interiorAssetId : null);
 
+  const rasterLocked =
+    Boolean(editableFinishedAd) &&
+    Boolean(input.localAssetId) &&
+    (input.finishedAdRasterAssetId === input.localAssetId || masterBg === input.localAssetId);
+
   const layeredRaw = editableFinishedAd
     ? asSocialElements(input.layers)
     : finishedAd
       ? []
       : asSocialElements(input.layers);
-  let layered =
-    layeredRaw.length > 0
-      ? ensureBackgroundLayer(layeredRaw, masterBg || input.compositionBaseAssetId, width, height)
-      : layeredRaw;
+  let layered = layeredRaw;
+  if (rasterLocked) {
+    layered = layeredRaw.filter((el) => {
+      const role = String(el.role || '').toLowerCase();
+      const id = String(el.id || '').toLowerCase();
+      if (el.type === 'IMAGE' || el.type === 'BUTTON') return false;
+      if (role === 'logo' || role === 'background' || role === 'cta') return false;
+      if (id === 'logo' || id === 'cta' || id === 'master_background') return false;
+      return true;
+    });
+  } else if (layeredRaw.length > 0) {
+    layered = ensureBackgroundLayer(layeredRaw, masterBg || input.compositionBaseAssetId, width, height);
+  }
 
   // Ensure locked master background for editable finished-ad even when layers omit it.
-  if (editableFinishedAd && masterBg) {
+  // Raster-locked LAYER_ONLY keeps the selected finished raster as the <img> cover
+  // and must not inject a second photograph (interior or duplicate raster).
+  if (editableFinishedAd && masterBg && !rasterLocked) {
     const hasBg = layered.some(
       (el) => el.type === 'IMAGE' && (el.role === 'background' || el.id === 'master_background'),
     );
@@ -245,13 +261,15 @@ export function createFlattenedGptImagePost(input: {
     }
   }
 
-  const coverId = editableFinishedAd
-    ? masterBg || input.localAssetId
-    : finishedAd
-      ? input.localAssetId
-      : (input.compositionBaseAssetId && isMediaAssetUuid(input.compositionBaseAssetId)
-          ? input.compositionBaseAssetId
-          : null) || input.localAssetId;
+  const coverId = rasterLocked
+    ? input.localAssetId
+    : editableFinishedAd
+      ? masterBg || input.localAssetId
+      : finishedAd
+        ? input.localAssetId
+        : (input.compositionBaseAssetId && isMediaAssetUuid(input.compositionBaseAssetId)
+            ? input.compositionBaseAssetId
+            : null) || input.localAssetId;
   const soleFinishedImage: SocialElement = {
     id: 'img-finished-ad',
     type: 'IMAGE',
@@ -323,7 +341,9 @@ export function createFlattenedGptImagePost(input: {
             production_mode: editableFinishedAd ? 'editable_finished_ad' : 'finished_ad',
             logo_asset_id: input.logoAssetId ?? null,
             interior_asset_id: input.interiorAssetId ?? null,
-            master_background_asset_id: masterBg,
+            master_background_asset_id: rasterLocked
+              ? input.interiorAssetId ?? masterBg
+              : masterBg,
             finished_ad_raster_asset_id:
               input.finishedAdRasterAssetId ?? (editableFinishedAd ? input.localAssetId : null),
             design_spec: input.designSpec ?? null,
@@ -331,11 +351,13 @@ export function createFlattenedGptImagePost(input: {
         : {}),
       gpt_image: {
         local_asset_id: input.localAssetId,
-        composition_base_asset_id: editableFinishedAd
-          ? masterBg
-          : finishedAd
-            ? null
-            : input.compositionBaseAssetId ?? null,
+        composition_base_asset_id: rasterLocked
+          ? input.localAssetId
+          : editableFinishedAd
+            ? masterBg
+            : finishedAd
+              ? null
+              : input.compositionBaseAssetId ?? null,
         source_asset_id: input.sourceAssetId,
         session_id: input.sessionId,
         composition_warnings: input.compositionWarnings ?? [],

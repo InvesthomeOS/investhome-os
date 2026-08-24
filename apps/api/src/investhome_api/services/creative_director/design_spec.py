@@ -1185,11 +1185,10 @@ def ensure_revision_overlay_targets(
     final = production_brief.get("final_copy") if isinstance(production_brief.get("final_copy"), dict) else {}
     kicker_text = _s(
         texts.get("unit")
-        or texts.get("hero")
-        or texts.get("sales_hook")
         or final.get("unit")
         or final.get("eyebrow")
         or final.get("subheadline")
+        or texts.get("sales_hook")
     )
     supporting = _supporting_list(production_brief, texts)
 
@@ -1204,6 +1203,11 @@ def ensure_revision_overlay_targets(
         or _s(el.get("role")).lower() == "support_message"
     ]
     ids = {_s(el.get("id")).lower() for el in elements}
+
+    headline_copy = _s(texts.get("headline") or final.get("headline") or production_brief.get("hero"))
+    if kicker_text and headline_copy and kicker_text.strip().lower() == headline_copy.strip().lower():
+        # Never inject a kicker that duplicates the headline ("Eviniz, Sığınak" ×2).
+        kicker_text = ""
 
     if kicker_text and not has_kicker:
         pill_h = int(round(height * 0.036))
@@ -1273,6 +1277,169 @@ def ensure_revision_overlay_targets(
     spec = dict(spec)
     spec["elements"] = elements
     return spec
+
+
+_RASTER_COPY_IDS = frozenset(
+    {
+        "unit-label",
+        "subheadline",
+        "eyebrow",
+        "top-description",
+        "headline",
+        "support-message-1",
+        "support-message-2",
+        "feature-1",
+        "feature-2",
+    }
+)
+_RASTER_COPY_ROLES = frozenset(
+    {
+        "subheadline",
+        "unit_label",
+        "eyebrow",
+        "headline",
+        "support_message",
+    }
+)
+_FORBIDDEN_RASTER_OVERLAY_IDS = frozenset(
+    {"master_background", "logo", "cta", "img-finished-ad", "background-gpt-image"}
+)
+
+
+def _is_raster_copy_element(eid: str, el: dict[str, Any]) -> bool:
+    low = str(eid).lower()
+    role = _s(el.get("role")).lower()
+    etype = _s(el.get("type")).lower()
+    if low in _FORBIDDEN_RASTER_OVERLAY_IDS or role in {"logo", "background", "cta"}:
+        return False
+    return (
+        low in _RASTER_COPY_IDS
+        or role in _RASTER_COPY_ROLES
+        or (etype in {"text"} and low not in _FORBIDDEN_RASTER_OVERLAY_IDS)
+    )
+
+
+def _copy_fingerprint(el: dict[str, Any] | None) -> tuple[Any, ...]:
+    if not isinstance(el, dict):
+        return ()
+    typo = el.get("typography") if isinstance(el.get("typography"), dict) else {}
+    style = el.get("style") if isinstance(el.get("style"), dict) else {}
+    return (
+        _s(el.get("content") or el.get("text") or el.get("label")),
+        int(typo.get("font_size") or style.get("font_size") or el.get("font_size") or 0),
+        int(el.get("x") or 0),
+        int(el.get("y") or 0),
+        int(el.get("width") or 0),
+        int(el.get("height") or 0),
+        el.get("visible") is not False,
+    )
+
+
+def _semantic_copy_id(eid: str, role: str) -> str:
+    low = str(eid).lower()
+    role_l = str(role).lower()
+    if low in _KICKER_IDS or role_l in {"subheadline", "unit_label", "eyebrow"}:
+        return "kicker"
+    if low in {"support-message-1", "feature-1"}:
+        return "feature-1"
+    if low in {"support-message-2", "feature-2"}:
+        return "feature-2"
+    if low == "headline" or role_l == "headline":
+        return "headline"
+    return low
+
+
+def compose_layer_only_on_locked_raster(
+    *,
+    after_spec: dict[str, Any],
+    before_snap: dict[str, dict[str, Any]],
+    locked_raster_asset_id: str,
+) -> list[dict[str, Any]]:
+    """LAYER_ONLY overlays on the SELECTED finished raster.
+
+    The photograph, baked logo, and baked CTA stay in the raster pixels.
+    Overlay only mutated/deleted copy. Unchanged baked text is left alone so
+    one semantic element stays one visible element.
+    """
+    del locked_raster_asset_id  # cover is the raster on the client; do not emit a 2nd photo
+    after_by_id: dict[str, dict[str, Any]] = {}
+    for el in after_spec.get("elements") or []:
+        if isinstance(el, dict) and el.get("id"):
+            after_by_id[_s(el.get("id")).lower()] = el
+
+    changed_copy_ids: set[str] = set()
+    for eid, el in before_snap.items():
+        if not _is_raster_copy_element(str(eid), el):
+            continue
+        low = str(eid).lower()
+        after_el = after_by_id.get(low)
+        if after_el is None or after_el.get("visible") is False:
+            changed_copy_ids.add(low)
+        elif _copy_fingerprint(el) != _copy_fingerprint(after_el):
+            changed_copy_ids.add(low)
+
+    layers: list[dict[str, Any]] = []
+    for eid, el in before_snap.items():
+        low = str(eid).lower()
+        if low not in changed_copy_ids:
+            continue
+        typo = el.get("typography") if isinstance(el.get("typography"), dict) else {}
+        font = int(typo.get("font_size") or el.get("font_size") or 0)
+        pad = max(12, int(font * 0.28) if font else 12)
+        w = int(el.get("width") or 0)
+        h = int(el.get("height") or 0)
+        if w <= 4 or h <= 4:
+            continue
+        x = int(el.get("x") or 0) - pad
+        y = int(el.get("y") or 0) - pad
+        layers.append(
+            {
+                "id": f"hide-plate-{eid}",
+                "type": "SHAPE",
+                "fill": "rgba(12,10,8,0.94)",
+                "shapeKind": "rect",
+                "borderRadius": 6,
+                "x": max(0, x),
+                "y": max(0, y),
+                "width": w + pad * 2,
+                "height": h + pad * 2,
+                "zIndex": 35,
+                "opacity": 1,
+                "_designRole": "revision_hide_plate",
+            }
+        )
+    smb = design_spec_to_smb_elements(after_spec)
+    seen_semantic: set[str] = set()
+    seen_copy: set[str] = set()
+    for el in smb:
+        if not isinstance(el, dict):
+            continue
+        eid = _s(el.get("id")).lower()
+        etype = _s(el.get("type")).upper()
+        role = _s(el.get("role")).lower()
+        if eid not in changed_copy_ids:
+            continue
+        if eid in _FORBIDDEN_RASTER_OVERLAY_IDS or role in {"logo", "background", "cta"}:
+            continue
+        if etype in {"IMAGE", "BUTTON"}:
+            continue
+        if etype == "SHAPE" and eid.startswith("hide-plate-"):
+            continue
+        if etype != "TEXT":
+            continue
+        semantic = _semantic_copy_id(eid, role)
+        copy = _s(el.get("content") or el.get("text") or el.get("label")).strip().lower()
+        if semantic in seen_semantic:
+            continue
+        if copy and copy in seen_copy:
+            continue
+        seen_semantic.add(semantic)
+        if copy:
+            seen_copy.add(copy)
+        row = dict(el)
+        row["zIndex"] = max(int(row.get("zIndex") or 0), 50)
+        layers.append(row)
+    return layers
 
 
 def design_spec_to_smb_elements(design_spec: dict[str, Any]) -> list[dict[str, Any]]:
