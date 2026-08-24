@@ -100,35 +100,156 @@ def _s(value: Any, default: str = "") -> str:
     return text if text else default
 
 
-def _supporting_list(production_brief: dict[str, Any], texts: dict[str, str]) -> list[str]:
-    raw = production_brief.get("supporting")
-    out: list[str] = []
-    if isinstance(raw, list):
-        for item in raw:
-            line = _s(item)
-            if line:
-                out.append(line)
-
-    def _from_text_blob(value: Any) -> list[str]:
-        if isinstance(value, list):
-            return [_s(item) for item in value if _s(item)]
-        blob = _s(value)
-        if not blob:
-            return []
-        parts = [p.strip() for p in blob.replace("|", "\n").split("\n") if p.strip()]
+def _split_supporting_blob(value: Any) -> list[str]:
+    """Split persisted supporting copy into left-feature lines. Never invent text."""
+    if isinstance(value, list):
+        parts: list[str] = []
+        for item in value:
+            parts.extend(_split_supporting_blob(item))
         return parts
+    blob = _s(value)
+    if not blob:
+        return []
+    normalized = blob.replace("•", "\n").replace(" · ", "\n").replace("·", "\n").replace("|", "\n")
+    return [p.strip(" -–—") for p in normalized.split("\n") if p.strip(" -–—")]
 
-    if not out:
-        out.extend(_from_text_blob(texts.get("supporting")))
-    if not out:
-        final = production_brief.get("final_copy") if isinstance(production_brief.get("final_copy"), dict) else {}
-        out.extend(_from_text_blob(final.get("supporting")))
-    # Unique, keep order, max two left-feature slots used by SMB revision.
-    uniq: list[str] = []
-    for line in out:
-        if line not in uniq:
-            uniq.append(line)
-    return uniq[:2]
+
+def collect_supporting_lines(
+    *sources: Any,
+    headline: str = "",
+    limit: int = 2,
+) -> list[str]:
+    """Unique supporting lines from existing metadata. Never invent copy."""
+    out: list[str] = []
+    headline_key = _s(headline).strip().lower()
+    seen: set[str] = set()
+    for source in sources:
+        for line in _split_supporting_blob(source):
+            key = line.strip().lower()
+            if not key or key == headline_key or key in seen:
+                continue
+            seen.add(key)
+            out.append(line)
+            if len(out) >= limit:
+                return out
+    return out[:limit]
+
+
+def _supporting_list(production_brief: dict[str, Any], texts: dict[str, str]) -> list[str]:
+    """Collect up to two real supporting lines from campaign/spec metadata."""
+    final = production_brief.get("final_copy") if isinstance(production_brief.get("final_copy"), dict) else {}
+    strategy = (
+        production_brief.get("message_strategy")
+        if isinstance(production_brief.get("message_strategy"), dict)
+        else {}
+    )
+    cd_strategy = (
+        production_brief.get("cd_strategy")
+        if isinstance(production_brief.get("cd_strategy"), dict)
+        else {}
+    )
+    return collect_supporting_lines(
+        texts.get("supporting_callouts"),
+        texts.get("supporting_messages"),
+        final.get("supporting_callouts"),
+        production_brief.get("supporting"),
+        production_brief.get("supporting_messages"),
+        strategy.get("supporting_messages"),
+        cd_strategy.get("supporting_messages"),
+        texts.get("feature_callouts"),
+        production_brief.get("feature_callouts"),
+        texts.get("supporting"),
+        final.get("supporting"),
+        final.get("supporting_messages"),
+        headline=_s(texts.get("headline") or final.get("headline") or production_brief.get("hero")),
+        limit=2,
+    )
+
+
+def hydrate_supporting_copy(
+    *,
+    texts: dict[str, Any],
+    production_brief: dict[str, Any] | None = None,
+    campaign_copy: dict[str, Any] | None = None,
+    strategy: dict[str, Any] | None = None,
+    ctx: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Bind campaign/strategy supporting lines onto texts + brief before spec assembly."""
+    texts_out = dict(texts or {})
+    brief_out = dict(production_brief or {})
+    if isinstance(strategy, dict) and strategy.get("supporting_messages"):
+        brief_out["cd_strategy"] = strategy
+    merged = collect_supporting_lines(
+        (ctx or {}).get("supporting_callouts") if isinstance(ctx, dict) else None,
+        texts_out.get("supporting_callouts"),
+        texts_out.get("supporting_messages"),
+        brief_out.get("supporting"),
+        brief_out.get("supporting_messages"),
+        (campaign_copy or {}).get("supporting_messages") if isinstance(campaign_copy, dict) else None,
+        (strategy or {}).get("supporting_messages") if isinstance(strategy, dict) else None,
+        texts_out.get("supporting"),
+        headline=_s(texts_out.get("headline") or brief_out.get("hero")),
+        limit=2,
+    )
+    if merged:
+        texts_out["supporting_callouts"] = "|".join(merged)
+    return texts_out, brief_out
+
+
+def stamp_editable_text_targets(spec: dict[str, Any]) -> dict[str, Any]:
+    """Refresh compact semantic metadata from the live spec elements."""
+    out = dict(spec or {})
+    elements = [el for el in (out.get("elements") or []) if isinstance(el, dict)]
+    out["editable_text_targets"] = _editable_text_targets(elements)
+    return out
+
+
+_EDITABLE_COPY_IDS = frozenset(
+    {
+        "unit-label",
+        "subheadline",
+        "eyebrow",
+        "top-description",
+        "headline",
+        "support-message-1",
+        "support-message-2",
+        "feature-1",
+        "feature-2",
+    }
+)
+
+
+def _editable_text_targets(elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Compact semantic metadata so LAYER_ONLY revise does not have to guess missing copy."""
+    out: list[dict[str, Any]] = []
+    for el in elements:
+        if not isinstance(el, dict):
+            continue
+        eid = _s(el.get("id"))
+        role = _s(el.get("role")).lower()
+        if eid.lower() not in _EDITABLE_COPY_IDS and role not in {
+            "headline",
+            "support_message",
+            "subheadline",
+            "unit_label",
+            "eyebrow",
+        }:
+            continue
+        typo = el.get("typography") if isinstance(el.get("typography"), dict) else {}
+        style = el.get("style") if isinstance(el.get("style"), dict) else {}
+        out.append(
+            {
+                "id": eid,
+                "role": el.get("role") or role,
+                "content": _s(el.get("content")),
+                "x": int(el.get("x") or 0),
+                "y": int(el.get("y") or 0),
+                "width": int(el.get("width") or 0),
+                "height": int(el.get("height") or 0),
+                "font_size": int(typo.get("font_size") or style.get("font_size") or 0),
+            }
+        )
+    return out
 
 
 def _badge_display(badge: str) -> str:
@@ -962,20 +1083,22 @@ def _build_brand_elements(
                 },
             }
         )
-    if supporting:
+    support_y = int(round(height * 0.78))
+    support_h = int(round(height * 0.04))
+    for idx, line in enumerate(supporting[:2]):
         elements.append(
             {
-                "id": "support-message-1",
+                "id": f"support-message-{idx + 1}",
                 "type": "text",
                 "role": "support_message",
-                "content": supporting[0],
+                "content": line,
                 "locked": False,
                 "editable": True,
                 "x": margin,
-                "y": int(round(height * 0.78)),
+                "y": support_y + idx * int(round(height * 0.045)),
                 "width": content_w,
-                "height": int(round(height * 0.04)),
-                "z_index": 26,
+                "height": support_h,
+                "z_index": 26 + idx,
                 "typography": {
                     "font_family": "sans",
                     "font_size": int(round(width * 0.026)),
@@ -1159,6 +1282,7 @@ def build_design_spec(
         else None,
         "locked_background": True,
         "elements": elements,
+        "editable_text_targets": _editable_text_targets(elements),
     }
 
 
@@ -1191,6 +1315,19 @@ def ensure_revision_overlay_targets(
         or texts.get("sales_hook")
     )
     supporting = _supporting_list(production_brief, texts)
+    persisted_targets = [
+        rec
+        for rec in (spec.get("editable_text_targets") or [])
+        if isinstance(rec, dict) and rec.get("id")
+    ]
+    persisted_by_id = {_s(rec.get("id")).lower(): rec for rec in persisted_targets}
+    for rec in persisted_targets:
+        rid = _s(rec.get("id")).lower()
+        content = _s(rec.get("content"))
+        if rid in {"support-message-1", "feature-1", "support-message-2", "feature-2"} and content:
+            if content not in supporting:
+                supporting.append(content)
+    supporting = supporting[:2]
 
     has_kicker = any(
         _s(el.get("id")).lower() in _KICKER_IDS or _s(el.get("role")).lower() in _KICKER_ROLES
@@ -1236,6 +1373,14 @@ def ensure_revision_overlay_targets(
         ids.add("unit-label")
 
     feature_y0 = int(round(height * 0.42))
+    sm1 = next(
+        (
+            el
+            for el in elements
+            if _s(el.get("id")).lower() in {"support-message-1", "feature-1"}
+        ),
+        None,
+    )
     for idx, line in enumerate(supporting[:2]):
         fid = f"support-message-{idx + 1}"
         already = next(
@@ -1250,6 +1395,26 @@ def ensure_revision_overlay_targets(
             continue
         if fid in ids or f"feature-{idx + 1}" in ids:
             continue
+        persisted = persisted_by_id.get(fid) or persisted_by_id.get(f"feature-{idx + 1}")
+        x = margin
+        y = feature_y0 + idx * int(round(height * 0.055))
+        w = int(round(width * 0.48))
+        h = int(round(height * 0.045))
+        font = int(round(width * 0.024))
+        if persisted:
+            x = int(persisted.get("x") or x)
+            y = int(persisted.get("y") or y)
+            w = int(persisted.get("width") or w)
+            h = int(persisted.get("height") or h)
+            font = int(persisted.get("font_size") or font)
+            line = _s(persisted.get("content")) or line
+        elif idx == 1 and sm1:
+            x = int(sm1.get("x") or x)
+            w = int(sm1.get("width") or w)
+            h = int(sm1.get("height") or h)
+            y = int(sm1.get("y") or 0) + int(sm1.get("height") or h) + int(round(height * 0.012))
+            typo = sm1.get("typography") if isinstance(sm1.get("typography"), dict) else {}
+            font = int(typo.get("font_size") or font)
         elements.append(
             {
                 "id": fid,
@@ -1258,14 +1423,14 @@ def ensure_revision_overlay_targets(
                 "content": line,
                 "locked": False,
                 "editable": True,
-                "x": margin,
-                "y": feature_y0 + idx * int(round(height * 0.055)),
-                "width": int(round(width * 0.48)),
-                "height": int(round(height * 0.045)),
+                "x": x,
+                "y": y,
+                "width": w,
+                "height": h,
                 "z_index": 26 + idx,
                 "typography": {
                     "font_family": "sans",
-                    "font_size": int(round(width * 0.024)),
+                    "font_size": font,
                     "font_weight": "normal",
                     "align": "left",
                     "color": "#E8E0D4",
@@ -1276,6 +1441,7 @@ def ensure_revision_overlay_targets(
 
     spec = dict(spec)
     spec["elements"] = elements
+    spec["editable_text_targets"] = _editable_text_targets(elements)
     return spec
 
 
@@ -1349,6 +1515,22 @@ def _semantic_copy_id(eid: str, role: str) -> str:
     return low
 
 
+def _json_safe_layer(row: dict[str, Any]) -> dict[str, Any]:
+    """Drop nulls and coerce geometry so the SMB client can render every overlay."""
+    out: dict[str, Any] = {}
+    for key, val in row.items():
+        if val is None:
+            continue
+        if key in {"x", "y", "width", "height", "zIndex", "fontSize", "borderRadius"}:
+            try:
+                out[key] = int(round(float(val)))
+            except (TypeError, ValueError):
+                continue
+        else:
+            out[key] = val
+    return out
+
+
 def compose_layer_only_on_locked_raster(
     *,
     after_spec: dict[str, Any],
@@ -1389,7 +1571,10 @@ def compose_layer_only_on_locked_raster(
         w = int(el.get("width") or 0)
         h = int(el.get("height") or 0)
         if w <= 4 or h <= 4:
-            continue
+            if low not in {"support-message-1", "support-message-2", "feature-1", "feature-2", "headline"}:
+                continue
+            w = max(w, 48)
+            h = max(h, 24)
         x = int(el.get("x") or 0) - pad
         y = int(el.get("y") or 0) - pad
         layers.append(
@@ -1429,17 +1614,52 @@ def compose_layer_only_on_locked_raster(
             continue
         semantic = _semantic_copy_id(eid, role)
         copy = _s(el.get("content") or el.get("text") or el.get("label")).strip().lower()
+        # Distinct feature ids are distinct messages. Do not drop support-message-2
+        # just because copy collides with support-message-1 after language lock.
         if semantic in seen_semantic:
             continue
-        if copy and copy in seen_copy:
+        if copy and copy in seen_copy and semantic not in {"feature-1", "feature-2", "headline"}:
             continue
         seen_semantic.add(semantic)
         if copy:
             seen_copy.add(copy)
         row = dict(el)
         row["zIndex"] = max(int(row.get("zIndex") or 0), 50)
-        layers.append(row)
-    return layers
+        layers.append(_json_safe_layer(row))
+    present_ids = {_s(el.get("id")).lower() for el in layers if isinstance(el, dict)}
+    sm2_smb = next(
+        (
+            el
+            for el in smb
+            if isinstance(el, dict) and _s(el.get("id")).lower() in {"support-message-2", "feature-2"}
+        ),
+        None,
+    )
+    sm1_layer = next(
+        (
+            el
+            for el in layers
+            if isinstance(el, dict)
+            and _s(el.get("id")).lower() in {"support-message-1", "feature-1"}
+            and _s(el.get("type")).upper() == "TEXT"
+        ),
+        None,
+    )
+    if (
+        "support-message-2" not in present_ids
+        and "feature-2" not in present_ids
+        and ("support-message-2" in changed_copy_ids or "feature-2" in changed_copy_ids)
+    ):
+        row = dict(sm2_smb) if isinstance(sm2_smb, dict) else (dict(sm1_layer) if isinstance(sm1_layer, dict) else None)
+        if row is not None:
+            row["id"] = "support-message-2"
+            row["type"] = "TEXT"
+            row["role"] = "body"
+            if sm2_smb is None and sm1_layer is not None:
+                row["y"] = int(sm1_layer.get("y") or 0) + int(sm1_layer.get("height") or 0) + 16
+            row["zIndex"] = max(int(row.get("zIndex") or 0), 50)
+            layers.append(_json_safe_layer(row))
+    return [_json_safe_layer(el) if isinstance(el, dict) else el for el in layers]
 
 
 def design_spec_to_smb_elements(design_spec: dict[str, Any]) -> list[dict[str, Any]]:

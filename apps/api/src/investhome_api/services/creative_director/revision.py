@@ -33,10 +33,13 @@ from investhome_api.schemas.gpt_image_design import GptImageDesignRequest
 from investhome_api.services.creative_director.design_spec import (
     apply_layer_operations,
     build_design_spec,
+    collect_supporting_lines,
     compose_layer_only_on_locked_raster,
     design_spec_to_smb_elements,
     ensure_revision_overlay_targets,
+    hydrate_supporting_copy,
     route_revision,
+    stamp_editable_text_targets,
     sync_production_brief_from_spec,
 )
 from investhome_api.services.creative_director.revision_intelligence import (
@@ -1002,6 +1005,18 @@ def revise_ad_from_campaign(
         # Raster-only generate pops design_spec. Residence/brand_minimal
         # reconstruction (and some stored specs) omit kicker + 2nd feature.
         # Always bind them from the production brief so LAYER_ONLY ops resolve.
+        texts, production_brief = hydrate_supporting_copy(
+            texts=texts,
+            production_brief=production_brief if isinstance(production_brief, dict) else {},
+            campaign_copy=campaign_copy if isinstance(campaign_copy, dict) else None,
+            strategy=strategy if isinstance(strategy, dict) else None,
+            ctx=ctx if isinstance(ctx, dict) else None,
+        )
+        if isinstance(base_spec, dict) and not base_spec.get("editable_text_targets"):
+            stored = ctx.get("editable_text_targets")
+            if isinstance(stored, list) and stored:
+                base_spec = dict(base_spec)
+                base_spec["editable_text_targets"] = stored
         base_spec = ensure_revision_overlay_targets(
             base_spec,
             production_brief=production_brief,
@@ -1140,6 +1155,11 @@ def revise_ad_from_campaign(
             before_snap=before_snap,
             locked_raster_asset_id=locked_raster,
         )
+        logger.info(
+            "SMB_REV_V3 compose campaign=%s layer_ids=%s",
+            row.id,
+            [el.get("id") for el in editable_layers if isinstance(el, dict)],
+        )
         if any(
             str(el.get("type") or "").upper() in {"IMAGE", "BUTTON"}
             for el in editable_layers
@@ -1266,7 +1286,12 @@ def revise_ad_from_campaign(
             "user_feedback": user_feedback,
         }
         ctx["latest_revision_diff"] = revision_diff.model_dump(by_alias=True)
+        next_spec = stamp_editable_text_targets(next_spec)
         ctx["design_spec"] = next_spec
+        if texts.get("supporting_callouts"):
+            ctx["supporting_callouts"] = texts["supporting_callouts"]
+        if next_spec.get("editable_text_targets"):
+            ctx["editable_text_targets"] = next_spec["editable_text_targets"]
         ctx["master_background_asset_id"] = str(interior_id)
         ctx["finished_ad_raster_asset_id"] = str(current_id)
         ctx["editable_finished_ad"] = True

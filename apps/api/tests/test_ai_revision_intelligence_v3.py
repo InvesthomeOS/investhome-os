@@ -582,3 +582,207 @@ def test_compose_layer_only_on_locked_raster_one_semantic_one_visible():
 def _s_type(el: dict) -> str:
     return str(el.get("type") or "").upper()
 
+
+def test_support_message_2_hydrated_from_joined_callouts_when_brief_has_one_line():
+    """Simplicity may persist a 1-item supporting list while the raster/GPT prompt had two callouts."""
+    brief = {
+        "supporting": ["Tarihi dokunuşlarla modern yaşam"],
+        "final_copy": {
+            "headline": "Zamansız Ötesinde",
+            "supporting": "Tarihi dokunuşlarla modern yaşam",
+        },
+        "hero": "Zamansız Ötesinde",
+        "campaign_intent": "lifestyle",
+        "cd_strategy": {
+            "supporting_messages": [
+                "Tarihi dokunuşlarla modern yaşam",
+                "Şehirden uzak, size yakın",
+            ]
+        },
+    }
+    texts = {
+        "headline": "Zamansız Ötesinde",
+        "supporting": "Tarihi dokunuşlarla modern yaşam · Şehirden uzak, size yakın",
+        "supporting_callouts": "Tarihi dokunuşlarla modern yaşam|Şehirden uzak, size yakın",
+        "cta": "Detayları İncele",
+    }
+    spec = {
+        "canvas": {"width": 1080, "height": 1350},
+        "elements": [
+            {
+                "id": "unit-label",
+                "type": "text",
+                "role": "unit_label",
+                "content": "The Temple",
+                "x": 72,
+                "y": 140,
+                "width": 480,
+                "height": 36,
+                "typography": {"font_size": 22},
+            },
+            {
+                "id": "headline",
+                "type": "text",
+                "role": "headline",
+                "content": "Zamansız Ötesinde",
+                "x": 72,
+                "y": 190,
+                "width": 760,
+                "height": 180,
+                "typography": {"font_size": 64},
+            },
+            {
+                "id": "support-message-1",
+                "type": "text",
+                "role": "support_message",
+                "content": "Tarihi dokunuşlarla modern yaşam",
+                "x": 72,
+                "y": 560,
+                "width": 480,
+                "height": 48,
+                "typography": {"font_size": 26},
+            },
+        ],
+    }
+    out = ensure_revision_overlay_targets(spec, production_brief=brief, texts=texts)
+    by_id = {el["id"]: el for el in out["elements"] if isinstance(el, dict) and el.get("id")}
+    assert "support-message-1" in by_id
+    assert "support-message-2" in by_id
+    assert "Şehirden uzak" in by_id["support-message-2"]["content"]
+    assert by_id["support-message-2"]["y"] > by_id["support-message-1"]["y"]
+
+    _plan, before, after, _preservation, _execution, route = _apply(SELECTED_DESIGN_PROMPT, out)
+    assert route == "LAYER_ONLY"
+    after_by = {el["id"]: el for el in after["elements"] if isinstance(el, dict)}
+    assert abs(_font(after_by["support-message-1"]) - before["support-message-1"]["typography"]["font_size"] * 1.15) <= 1
+    assert abs(_font(after_by["support-message-2"]) - before["support-message-2"]["typography"]["font_size"] * 1.15) <= 1
+
+    layers = compose_layer_only_on_locked_raster(
+        after_spec=after,
+        before_snap=before,
+        locked_raster_asset_id="raster-selected",
+    )
+    layer_ids = {str(el.get("id") or "").lower() for el in layers}
+    assert "support-message-1" in layer_ids
+    assert "support-message-2" in layer_ids
+    assert "IMAGE" not in {_s_type(el) for el in layers}
+    assert "logo" not in layer_ids
+    assert "cta" not in layer_ids
+
+
+def test_support_message_2_hydrated_from_cd_strategy_when_callouts_missing():
+    """Existing finished-ads may lack persisted callouts; CD strategy still has both lines."""
+    brief = {
+        "supporting": ["Tarihi dokunuşlarla modern yaşam"],
+        "final_copy": {"headline": "Zamansız Ötesinde", "supporting": "Tarihi dokunuşlarla modern yaşam"},
+        "hero": "Zamansız Ötesinde",
+        "campaign_intent": "general_awareness",
+        "cd_strategy": {
+            "supporting_messages": [
+                "Tarihi dokunuşlarla modern yaşam",
+                "Şehirden uzak, size yakın",
+            ]
+        },
+    }
+    texts = {
+        "headline": "Zamansız Ötesinde",
+        "supporting": "Tarihi dokunuşlarla modern yaşam",
+        "cta": "Detayları İncele",
+    }
+    spec = {
+        "canvas": {"width": 1080, "height": 1350},
+        "elements": [
+            {
+                "id": "headline",
+                "type": "text",
+                "role": "headline",
+                "content": "Zamansız Ötesinde",
+                "x": 72,
+                "y": 190,
+                "width": 760,
+                "height": 180,
+                "typography": {"font_size": 64},
+            },
+            {
+                "id": "support-message-1",
+                "type": "text",
+                "role": "support_message",
+                "content": "Tarihi dokunuşlarla modern yaşam",
+                "x": 72,
+                "y": 560,
+                "width": 480,
+                "height": 48,
+                "typography": {"font_size": 26},
+            },
+        ],
+    }
+    out = ensure_revision_overlay_targets(spec, production_brief=brief, texts=texts)
+    ids = {el["id"] for el in out["elements"] if isinstance(el, dict)}
+    assert "support-message-2" in ids
+    sm2 = next(el for el in out["elements"] if el.get("id") == "support-message-2")
+    assert "Şehirden uzak" in sm2["content"]
+
+
+def test_hydrate_supporting_copy_fills_commercial_callouts_from_strategy():
+    from investhome_api.services.creative_director.design_spec import (
+        ensure_revision_overlay_targets,
+        hydrate_supporting_copy,
+        stamp_editable_text_targets,
+    )
+
+    texts = {
+        "headline": "Zamansız Ötesinde",
+        "supporting": "$400,000 → $400,000 · %0 lansman fiyat avantajı",
+        "supporting_callouts": "",
+        "cta": "Detayları İncele",
+    }
+    brief = {"supporting": ["Tarihi dokunuşlarla modern yaşam"], "hero": "Zamansız Ötesinde"}
+    strategy = {
+        "supporting_messages": [
+            "Washington DC'nin kalbinde",
+            "Tarihi dokunuşlarla modern yaşam",
+        ]
+    }
+    hydrated, brief_out = hydrate_supporting_copy(
+        texts=texts,
+        production_brief=brief,
+        strategy=strategy,
+    )
+    assert "Washington DC'nin kalbinde" in str(hydrated.get("supporting_callouts"))
+    spec = {
+        "canvas": {"width": 1080, "height": 1350},
+        "elements": [
+            {
+                "id": "headline",
+                "type": "text",
+                "role": "headline",
+                "content": "Zamansız Ötesinde",
+                "x": 76,
+                "y": 189,
+                "width": 1021,
+                "height": 134,
+                "typography": {"font_size": 86},
+            },
+            {
+                "id": "support-message-1",
+                "type": "text",
+                "role": "support_message",
+                "content": "Tarihi dokunuşlarla modern yaşam",
+                "x": 76,
+                "y": 972,
+                "width": 1067,
+                "height": 54,
+                "typography": {"font_size": 32},
+            },
+        ],
+    }
+    out = stamp_editable_text_targets(
+        ensure_revision_overlay_targets(spec, production_brief=brief_out, texts=hydrated)
+    )
+    ids = {el["id"] for el in out["elements"] if isinstance(el, dict)}
+    assert "support-message-2" in ids
+    sm2 = next(el for el in out["elements"] if el.get("id") == "support-message-2")
+    assert "Washington DC" in sm2["content"]
+    target_ids = {t["id"] for t in out["editable_text_targets"]}
+    assert "support-message-2" in target_ids
+

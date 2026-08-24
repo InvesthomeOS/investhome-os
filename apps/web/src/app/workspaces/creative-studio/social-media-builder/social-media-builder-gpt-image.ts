@@ -50,6 +50,11 @@ export function gptImagePreviewUrl(
   });
 }
 
+function asFiniteNumber(value: unknown, fallback: number): number {
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 function asSocialElements(raw: unknown[] | null | undefined): SocialElement[] {
   if (!Array.isArray(raw) || !raw.length) return [];
   const out: SocialElement[] = [];
@@ -58,7 +63,22 @@ function asSocialElements(raw: unknown[] | null | undefined): SocialElement[] {
     const el = row as Record<string, unknown>;
     const type = String(el.type ?? '').toUpperCase();
     if (type !== 'TEXT' && type !== 'IMAGE' && type !== 'BUTTON' && type !== 'METRIC_GROUP' && type !== 'SHAPE') continue;
-    out.push({ ...el, type } as SocialElement);
+    const x = asFiniteNumber(el.x, NaN);
+    const y = asFiniteNumber(el.y, NaN);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    const next: Record<string, unknown> = {
+      ...el,
+      type,
+      x,
+      y,
+      width: asFiniteNumber(el.width, type === 'SHAPE' ? 8 : 40),
+      height: asFiniteNumber(el.height, type === 'SHAPE' ? 8 : 24),
+    };
+    if (type === 'TEXT') {
+      next.fontSize = asFiniteNumber(el.fontSize, 24);
+      if (typeof next.content !== 'string') next.content = String(next.content ?? '');
+    }
+    out.push(next as SocialElement);
   }
   return ensureUniqueElementIds(out);
 }

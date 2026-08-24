@@ -162,6 +162,23 @@ test.describe('SMB Revision Intelligence v3.1 — selected design preservation',
       expect(identityAfter.interiorAssetId).toBe(identityBefore.interiorAssetId);
     }
 
+    const overlayTextsEarly = await page.locator('[data-testid^="smb-el-"]').allTextContents();
+    writeFileSync(
+      resolve(screenshotDir, 'e2e-identity.json'),
+      JSON.stringify(
+        {
+          identity_before: identityBefore,
+          identity_after: identityAfter,
+          background_hash_before: beforeImage.hash,
+          background_hash_after: afterImage.hash,
+          overlay_texts_early: overlayTextsEarly,
+        },
+        null,
+        2,
+      ),
+      'utf8',
+    );
+
     await expect(page.locator(kickerSel)).toHaveCount(0);
     await expect(page.locator(headlineSel)).toHaveCount(1);
     const overlayTexts = await page.locator('[data-testid^="smb-el-"]').allTextContents();

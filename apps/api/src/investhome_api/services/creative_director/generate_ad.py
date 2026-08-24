@@ -28,6 +28,10 @@ from investhome_api.services.creative_director.art_direction_translator import (
 )
 from investhome_api.services.creative_director.design_spec import (
     assemble_editable_design,
+    collect_supporting_lines,
+    ensure_revision_overlay_targets,
+    hydrate_supporting_copy,
+    stamp_editable_text_targets,
 )
 from investhome_api.services.creative_director.production_brief import (
     build_production_brief,
@@ -1329,19 +1333,37 @@ def generate_ad_from_campaign(
         ctx["finished_ad_raster_asset_id"] = str(finished_raster_id)
         ctx["master_background_asset_id"] = str(interior_id)
         try:
-            assembled = assemble_editable_design(
-                production_brief=production_brief,
+            spec_texts, spec_brief = hydrate_supporting_copy(
                 texts=texts,
+                production_brief=production_brief,
+                campaign_copy=campaign_copy,
+                strategy=strategy,
+                ctx=ctx,
+            )
+            assembled = assemble_editable_design(
+                production_brief=spec_brief,
+                texts=spec_texts,
                 master_background_asset_id=interior_id,
                 logo_asset_id=logo_id,
                 finished_ad_raster_asset_id=finished_raster_id,
                 aspect_ratio=aspect_ratio,
                 format_preset=format_preset,
                 language=language,
-                campaign_intent=str(production_brief.get("campaign_intent") or ""),
+                campaign_intent=str(spec_brief.get("campaign_intent") or production_brief.get("campaign_intent") or ""),
             )
-            ctx["design_spec"] = assembled.get("design_spec")
+            spec = assembled.get("design_spec") if isinstance(assembled.get("design_spec"), dict) else {}
+            spec = ensure_revision_overlay_targets(
+                spec,
+                production_brief=spec_brief,
+                texts=spec_texts,
+            )
+            spec = stamp_editable_text_targets(spec)
+            ctx["design_spec"] = spec
             ctx["composition_plan"] = assembled.get("composition_plan")
+            if spec.get("editable_text_targets"):
+                ctx["editable_text_targets"] = spec["editable_text_targets"]
+            if spec_texts.get("supporting_callouts"):
+                ctx["supporting_callouts"] = spec_texts["supporting_callouts"]
         except Exception:
             logger.exception("finished_ad design_spec persist failed campaign=%s", row.id)
         quality_guard = _finished_ad_quality_guard(
@@ -1357,21 +1379,38 @@ def generate_ad_from_campaign(
     if production_mode == "editable_finished_ad":
         master_background_id = interior_id
         finished_raster_id = output.local_asset_id
-        assembled = assemble_editable_design(
-            production_brief=production_brief,
+        spec_texts, spec_brief = hydrate_supporting_copy(
             texts=texts,
+            production_brief=production_brief,
+            campaign_copy=campaign_copy,
+            strategy=strategy,
+            ctx=ctx,
+        )
+        assembled = assemble_editable_design(
+            production_brief=spec_brief,
+            texts=spec_texts,
             master_background_asset_id=master_background_id,
             logo_asset_id=logo_id,
             finished_ad_raster_asset_id=finished_raster_id,
             aspect_ratio=aspect_ratio,
             format_preset=format_preset,
             language=language,
-            campaign_intent=str(production_brief.get("campaign_intent") or ""),
+            campaign_intent=str(spec_brief.get("campaign_intent") or production_brief.get("campaign_intent") or ""),
         )
         design_spec = assembled["design_spec"]
+        design_spec = ensure_revision_overlay_targets(
+            design_spec if isinstance(design_spec, dict) else {},
+            production_brief=spec_brief,
+            texts=spec_texts,
+        )
+        design_spec = stamp_editable_text_targets(design_spec)
         editable_layers = assembled["editable_layers"]
         ctx["design_spec"] = design_spec
         ctx["composition_plan"] = assembled.get("composition_plan")
+        if isinstance(design_spec, dict) and design_spec.get("editable_text_targets"):
+            ctx["editable_text_targets"] = design_spec["editable_text_targets"]
+        if spec_texts.get("supporting_callouts"):
+            ctx["supporting_callouts"] = spec_texts["supporting_callouts"]
         ctx["quality_critique"] = assembled.get("quality_critique")
         ctx["geometry_check"] = assembled.get("geometry_check")
         ctx["master_background_asset_id"] = str(master_background_id)

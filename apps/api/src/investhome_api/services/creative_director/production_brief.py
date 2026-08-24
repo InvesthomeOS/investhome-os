@@ -277,6 +277,7 @@ def build_production_brief(
             "eyebrow": texts.get("eyebrow"),
             "headline": texts.get("headline"),
             "supporting": texts.get("supporting"),
+            "supporting_callouts": texts.get("supporting_callouts"),
             "list_price": texts.get("list_price"),
             "offer_price": texts.get("offer_price"),
             "value_badge": texts.get("value_badge"),
