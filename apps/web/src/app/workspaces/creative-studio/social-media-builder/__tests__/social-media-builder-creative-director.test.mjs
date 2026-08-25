@@ -68,7 +68,17 @@ describe('Creative Director SMB wiring (finished-ad)', () => {
     assert.match(api, /export async function generateCreativeDirectorAd/);
     assert.match(api, /\/generate-ad/);
     assert.match(api, /export async function reviseCreativeDirectorAd/);
-    assert.match(api, /\/revise/);
+    assert.match(api, /return apiFetch\(`\/ai\/creative-studio\/campaigns\/\$\{campaignId\}\/revise`/);
+    assert.match(api, /export async function generateCreativeDirectorAd/);
+    assert.match(api, /return apiFetch\(`\/ai\/creative-studio\/campaigns\/\$\{campaignId\}\/generate-ad`/);
+    const client = readFileSync(join(here, '../../../../../lib/api/client.ts'), 'utf8');
+    assert.match(client, /credentials: 'include'/);
+    assert.match(client, /pageHost === '127\.0\.0\.1'/);
+    assert.doesNotMatch(
+      api.slice(api.indexOf('export async function reviseCreativeDirectorAd'), api.indexOf('export async function getCreativeDirectorCampaign')),
+      /\bfetch\(/,
+      'revise must use apiFetch, not a raw fetch client',
+    );
     assert.match(api, /current_final_asset_id/);
     assert.match(api, /export async function undoCreativeDirectorRevision/);
     assert.match(api, /export async function redoCreativeDirectorRevision/);

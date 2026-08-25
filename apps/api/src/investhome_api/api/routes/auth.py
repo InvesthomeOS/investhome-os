@@ -1,7 +1,6 @@
 """Authentication routes."""
 
 from datetime import UTC, datetime, timedelta
-from typing import Literal
 
 from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Request, Response, status
 from sqlalchemy import select
@@ -20,24 +19,17 @@ from investhome_api.schemas.auth import (
 from investhome_api.services import session_service
 from investhome_api.services.audit_service import record_auth_event, record_login_failed
 from investhome_api.services.auth_service import (
+    cookie_samesite,
     create_access_token,
     decode_access_token,
     hash_password,
+    set_session_cookie,
     verify_password,
 )
 from investhome_api.services.permission_service import load_user_with_roles
 from investhome_api.services.user_service import serialize_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-_SameSite = Literal["lax", "strict", "none"]
-
-
-def _cookie_samesite(settings: Settings) -> _SameSite:
-    value = (settings.auth_cookie_samesite or "lax").lower()
-    if value in {"lax", "strict", "none"}:
-        return value  # type: ignore[return-value]
-    return "lax"
 
 
 def _clear_auth_cookie(response: Response, settings: Settings) -> None:
@@ -47,7 +39,7 @@ def _clear_auth_cookie(response: Response, settings: Settings) -> None:
         path="/",
         secure=settings.auth_cookie_secure,
         httponly=True,
-        samesite=_cookie_samesite(settings),
+        samesite=cookie_samesite(settings),
     )
 
 
@@ -98,16 +90,7 @@ def login(
     )
     token, expires_at, _jti = create_access_token(loaded.id, jti=auth_session.token_jti)
     auth_session.expires_at = expires_at
-    response.set_cookie(
-        key=settings.auth_cookie_name,
-        value=token,
-        httponly=True,
-        secure=settings.auth_cookie_secure,
-        samesite=_cookie_samesite(settings),
-        max_age=settings.jwt_expire_minutes * 60,
-        expires=expires_at,
-        path="/",
-    )
+    set_session_cookie(response, token, expires_at)
 
     record_auth_event(
         "auth.login",
@@ -134,7 +117,10 @@ def logout(
     Never 401 before clearing: stale cookies must be removable so the shell can recover.
     """
     settings = get_settings()
-    token = extract_token(authorization, ih_session)
+    token = extract_token(
+        authorization,
+        ih_session or request.cookies.get(settings.auth_cookie_name),
+    )
     user: User | None = None
     did_mutate = False
 

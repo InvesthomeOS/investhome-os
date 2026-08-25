@@ -1,5 +1,23 @@
 export function getApiBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+  const configured = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+  if (typeof window === 'undefined') {
+    return configured;
+  }
+  try {
+    const api = new URL(configured);
+    const pageHost = window.location.hostname;
+    // localhost vs 127.0.0.1 is cross-site; SameSite=Lax would drop ih_session.
+    if (
+      (pageHost === '127.0.0.1' && api.hostname === 'localhost') ||
+      (pageHost === 'localhost' && api.hostname === '127.0.0.1')
+    ) {
+      api.hostname = pageHost;
+      return api.origin;
+    }
+  } catch {
+    return configured;
+  }
+  return configured;
 }
 
 const REQUEST_ID_HEADER = 'X-Request-Id';

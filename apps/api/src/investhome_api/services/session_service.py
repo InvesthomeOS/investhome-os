@@ -116,6 +116,19 @@ def touch_session(db: Session, session: AuthSession) -> None:
     session.last_seen_at = now
 
 
+def extend_session_expiry(session_id: uuid.UUID, expires_at: datetime) -> None:
+    """Persist a sliding JWT expiry without using the request-scoped session."""
+    from investhome_api.db.session import SessionLocal as current_session_local
+
+    with current_session_local() as refresh_db:
+        refresh_db.execute(
+            update(AuthSession)
+            .where(AuthSession.id == session_id)
+            .values(expires_at=expires_at)
+        )
+        refresh_db.commit()
+
+
 def revoke_session(
     db: Session,
     session: AuthSession,

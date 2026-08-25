@@ -177,3 +177,85 @@ def test_relogin_after_logout(auth_client: TestClient) -> None:
     me = auth_client.get("/auth/me")
     assert me.status_code == 200
     assert me.json()["email"] == "admin@example.com"
+
+
+def test_revise_without_session_returns_401(auth_client: TestClient) -> None:
+    campaign_id = "00000000-0000-0000-0000-000000000001"
+    asset_id = "00000000-0000-0000-0000-000000000002"
+    response = auth_client.post(
+        f"/ai/creative-studio/campaigns/{campaign_id}/revise",
+        json={"instruction": "grow headline", "current_final_asset_id": asset_id},
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Not authenticated"
+
+
+def test_generate_ad_without_session_returns_401(auth_client: TestClient) -> None:
+    campaign_id = "00000000-0000-0000-0000-000000000001"
+    response = auth_client.post(
+        f"/ai/creative-studio/campaigns/{campaign_id}/generate-ad",
+        json={"production_mode": "finished_ad"},
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Not authenticated"
+
+
+def test_revise_with_session_cookie_is_not_401(auth_client: TestClient) -> None:
+    _login(auth_client, "admin@example.com")
+    campaign_id = "00000000-0000-0000-0000-000000000001"
+    asset_id = "00000000-0000-0000-0000-000000000002"
+    response = auth_client.post(
+        f"/ai/creative-studio/campaigns/{campaign_id}/revise",
+        json={"instruction": "grow headline", "current_final_asset_id": asset_id},
+    )
+    assert response.status_code != 401
+    assert response.json().get("detail") != "Not authenticated"
+
+
+def test_empty_bearer_falls_back_to_session_cookie(auth_client: TestClient) -> None:
+    _login(auth_client, "admin@example.com")
+    response = auth_client.get("/auth/me", headers={"Authorization": "Bearer "})
+    assert response.status_code == 200
+    assert response.json()["email"] == "admin@example.com"
+
+
+def test_near_expiry_session_cookie_is_refreshed(auth_client: TestClient) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    import jwt
+
+    from investhome_api.config.settings import get_settings
+    from investhome_api.db import session as session_module
+    from investhome_api.models.security_enterprise import AuthSession
+    from sqlalchemy import select
+
+    login = auth_client.post(
+        "/auth/login",
+        json={"email": "admin@example.com", "password": DEMO_PASSWORD},
+    )
+    assert login.status_code == 200
+    settings = get_settings()
+    current = auth_client.cookies.get("ih_session")
+    assert current
+    payload = jwt.decode(current, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    near_exp = datetime.now(UTC) + timedelta(minutes=1)
+    payload["exp"] = near_exp
+    short_token = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    auth_client.cookies.set("ih_session", short_token)
+    db = session_module.SessionLocal()
+    try:
+        session_row = db.scalar(select(AuthSession).where(AuthSession.token_jti == payload["jti"]))
+        assert session_row is not None
+        session_row.expires_at = near_exp
+        db.commit()
+    finally:
+        db.close()
+
+    me = auth_client.get("/auth/me")
+    assert me.status_code == 200
+    set_cookie = " | ".join(
+        v.decode() if isinstance(v, bytes) else v
+        for k, v in me.headers.multi_items()
+        if k.lower() == "set-cookie"
+    )
+    assert "ih_session=" in set_cookie.lower()

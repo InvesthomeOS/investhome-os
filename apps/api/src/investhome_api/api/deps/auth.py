@@ -2,13 +2,18 @@
 
 from uuid import UUID
 
-from fastapi import Cookie, Depends, Header, HTTPException, status
+from fastapi import Cookie, Depends, Header, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from investhome_api.config.settings import get_settings
 from investhome_api.db.session import get_db
 from investhome_api.models.user_auth import User, UserStatus
-from investhome_api.services.auth_service import decode_access_token
+from investhome_api.services.auth_service import (
+    create_access_token,
+    decode_access_token,
+    seconds_until_token_expiry,
+    set_session_cookie,
+)
 from investhome_api.services.permission_service import (
     load_user_with_roles,
     user_can_manage_roles,
@@ -23,13 +28,43 @@ def extract_token(
     session_cookie: str | None = None,
 ) -> str | None:
     if authorization and authorization.lower().startswith("bearer "):
-        return authorization[7:].strip()
-    if session_cookie:
-        return session_cookie
+        bearer = authorization[7:].strip()
+        if bearer:
+            return bearer
+    if session_cookie and session_cookie.strip():
+        return session_cookie.strip()
     return None
 
 
+def _maybe_refresh_session_cookie(
+    response: Response,
+    db: Session,
+    user: User,
+    token: str,
+    jti: str | None,
+) -> None:
+    """Extend an already-valid session cookie. Never issues a new login."""
+    if not jti:
+        return
+    remaining = seconds_until_token_expiry(token)
+    if remaining is None:
+        return
+    settings = get_settings()
+    ttl_seconds = settings.jwt_expire_minutes * 60
+    if remaining > ttl_seconds * 0.5:
+        return
+    auth_session = session_service.get_active_session(db, jti)
+    if auth_session is None:
+        return
+    new_token, expires_at, _issued_jti = create_access_token(user.id, jti=jti)
+    session_service.extend_session_expiry(auth_session.id, expires_at)
+    auth_session.expires_at = expires_at
+    set_session_cookie(response, new_token, expires_at)
+
+
 def get_current_user(
+    request: Request,
+    response: Response,
     db: Session = Depends(get_db),
     authorization: str | None = Header(default=None),
     ih_session: str | None = Cookie(default=None),
@@ -38,7 +73,8 @@ def get_current_user(
     if not settings.auth_enabled:
         return _dev_bypass_user(db)
 
-    token = extract_token(authorization, ih_session)
+    cookie_token = ih_session or request.cookies.get(settings.auth_cookie_name)
+    token = extract_token(authorization, cookie_token)
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -80,6 +116,7 @@ def get_current_user(
 
     # Attach jti for logout / current-session detection (not persisted on User model)
     object.__setattr__(user, "_session_jti", jti)
+    _maybe_refresh_session_cookie(response, db, user, token, jti)
     return user
 
 def _dev_bypass_user(db: Session) -> User:
