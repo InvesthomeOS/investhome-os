@@ -1,0 +1,163 @@
+{
+  "campaign_id": "36a3f65d-7907-4893-bc4b-2581f3780f59",
+  "post_id": "ef3bfcf7-54ab-4733-a51d-656c03261e7e",
+  "production_mode": "golden_native_v1",
+  "gpt_image_call_count": 0,
+  "interior_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+  "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+  "art_direction": "v2_image_aware",
+  "image_analysis": {
+    "available": true,
+    "visual_focal_point": {
+      "x": 0.562,
+      "y": 0.55
+    },
+    "furniture_building_focal": {
+      "x": 0.125,
+      "y": 0.3,
+      "width": 0.875,
+      "height": 0.5
+    },
+    "window_or_view": {
+      "x": 0.25,
+      "y": 0.0,
+      "width": 0.5,
+      "height": 0.4
+    },
+    "safe_headline_zone": {
+      "x": 0.065,
+      "y": 0.07,
+      "width": 0.5,
+      "height": 0.3
+    },
+    "safe_logo_zone": {
+      "x": 0.7,
+      "y": 0.045,
+      "width": 0.23,
+      "height": 0.08,
+      "lum": 185.27106995884773
+    },
+    "safe_cta_zone": {
+      "x": 0.065,
+      "y": 0.875,
+      "width": 0.38,
+      "height": 0.055
+    },
+    "do_not_cover": [
+      {
+        "role": "furniture_building_focal",
+        "x": 0.125,
+        "y": 0.3,
+        "width": 0.875,
+        "height": 0.5
+      },
+      {
+        "role": "window_or_view",
+        "x": 0.25,
+        "y": 0.0,
+        "width": 0.5,
+        "height": 0.4
+      }
+    ],
+    "headline_zone_name": "top_left",
+    "headline_zone_luminance": 209.4,
+    "headline_ink": "#2A241C",
+    "mean_luminance": 160.2
+  },
+  "recipe": {
+    "renderer": "golden_native_v1",
+    "art_direction": "v2_image_aware",
+    "background_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+    "crop": "cover",
+    "position": "center",
+    "headline": {
+      "text": "Tarihin\nModernle\nBuluşması",
+      "placement": "top_left",
+      "width": 540,
+      "x": 70,
+      "y": 95,
+      "max_width": 540,
+      "font_size": 82,
+      "font_weight": "bold",
+      "font_family": "serif",
+      "line_height": 1.05,
+      "letter_spacing": 0.4,
+      "align": "left",
+      "color": "#2A241C",
+      "contrast_treatment": "ink_from_zone_luminance"
+    },
+    "logo": {
+      "asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+      "placement": "top_right",
+      "scale": 0.118,
+      "object_fit": "contain",
+      "plate": null,
+      "x": 883,
+      "y": 61,
+      "width": 127,
+      "height": 62
+    },
+    "cta": {
+      "text": "The Temple'ı Keşfet →",
+      "placement": "bottom_left",
+      "style": "minimal_outlined",
+      "cta_style": "MINIMAL_BUTTON",
+      "x": 70,
+      "y": 1181,
+      "width": 367,
+      "height": 51,
+      "background_color": "transparent",
+      "text_color": "#C4A35A",
+      "align": "left"
+    },
+    "margins": {
+      "x": 70,
+      "x_pct": 0.065
+    },
+    "palette": {
+      "headline": "#2A241C",
+      "cream": "#F4EFE6",
+      "warm_white": "#F7F3EC",
+      "muted_gold": "#C4A35A",
+      "charcoal": "#2A241C",
+      "cta_fill": "transparent",
+      "cta_text": "#C4A35A",
+      "visual_mood": "Editoryal ve yüksek segment bir tasarım"
+    }
+  },
+  "layers": [
+    {
+      "id": "master_background",
+      "type": "image",
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1350
+    },
+    {
+      "id": "logo",
+      "type": "logo",
+      "x": 883,
+      "y": 61,
+      "width": 127,
+      "height": 62
+    },
+    {
+      "id": "headline",
+      "type": "text",
+      "x": 70,
+      "y": 95,
+      "width": 540,
+      "height": 300
+    },
+    {
+      "id": "cta",
+      "type": "cta",
+      "x": 70,
+      "y": 1181,
+      "width": 367,
+      "height": 51
+    }
+  ],
+  "archived_extra_campaigns": 1
+}

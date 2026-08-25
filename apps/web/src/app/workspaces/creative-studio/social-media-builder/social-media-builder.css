@@ -457,10 +457,14 @@
   color: #5b6b75;
 }
 
+.smb-ws__el--logo {
+  background: transparent;
+}
 .smb-ws__el--logo img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  background: transparent;
 }
 
 .smb-ws__ideogram-poc {
@@ -4759,6 +4763,9 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
   overflow: visible;
 }
+.smb-ws__el--text[data-el-role='headline'] {
+  text-shadow: 0 1px 1px rgba(12, 10, 8, 0.22), 0 8px 24px rgba(12, 10, 8, 0.14);
+}
 .smb-ws__el--text.is-selected {
   overflow: visible;
 }
@@ -4820,6 +4827,9 @@
 .smb-ws__el--image {
   overflow: hidden;
   background: rgba(255, 255, 255, 0.12);
+}
+.smb-ws__el--image.smb-ws__el--logo {
+  background: transparent;
 }
 .smb-ws__el--image img {
   width: 100%;

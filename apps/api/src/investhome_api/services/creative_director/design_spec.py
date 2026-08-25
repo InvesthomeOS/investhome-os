@@ -441,7 +441,10 @@ def project_structured_design_data(
 
 GOLDEN_NATIVE_V1_LAYER_IDS = ("master_background", "logo", "headline", "cta")
 GOLDEN_NATIVE_V1_REQUIRED_SLOTS = ("background", "project-logo", "headline", "cta-primary")
-_NATIVE_DARK_INK = frozenset({"#2A241C", "#1A1510", "#0C0A08", "#000000", "#111111", "#2A241C"})
+_NATIVE_CREAM = "#F4EFE6"
+_NATIVE_WARM_WHITE = "#F7F3EC"
+_NATIVE_MUTED_GOLD = "#C4A35A"
+_NATIVE_CHARCOAL = "#2A241C"
 
 
 def is_golden_native_v1(value: Any) -> bool:
@@ -1509,65 +1512,377 @@ def build_design_spec(
     }
 
 
-def _native_headline_color(plan: dict[str, Any]) -> str:
-    """CD recipe: native v1 has no overlay wash, so dark ink on photography is not used."""
-    typo = plan.get("typography") if isinstance(plan.get("typography"), dict) else {}
-    headline = typo.get("headline") if isinstance(typo.get("headline"), dict) else {}
-    planned = _s(headline.get("color"), "#F4EFE6")
-    if planned.upper() in _NATIVE_DARK_INK:
-        return "#F4EFE6"
-    return planned or "#F4EFE6"
+def _native_cover_crop(image: Any, canvas_w: int, canvas_h: int) -> Any:
+    """Match SMB object-fit: cover; object-position: center."""
+    src_w, src_h = image.size
+    if src_w <= 0 or src_h <= 0 or canvas_w <= 0 or canvas_h <= 0:
+        return image
+    target_ratio = canvas_w / canvas_h
+    src_ratio = src_w / src_h
+    if src_ratio > target_ratio:
+        new_w = max(1, int(round(src_h * target_ratio)))
+        left = max(0, (src_w - new_w) // 2)
+        image = image.crop((left, 0, left + new_w, src_h))
+    elif src_ratio < target_ratio:
+        new_h = max(1, int(round(src_w / target_ratio)))
+        top = max(0, (src_h - new_h) // 2)
+        image = image.crop((0, top, src_w, top + new_h))
+    return image.resize((canvas_w, canvas_h))
 
 
-def _native_font_size(width: int, scale: str) -> int:
-    key = (scale or "").strip().lower()
-    if key in {"editorial_hero", "hero"}:
-        return int(round(width * 0.070))
-    if key == "brand":
-        return int(round(width * 0.056))
-    return int(round(width * 0.064))
-
-
-def _native_headline_box(
+def analyze_native_photograph(
+    image_bytes: bytes | None,
     *,
-    width: int,
-    height: int,
-    margin: int,
-    content_w: int,
-    placement: str,
-) -> dict[str, int]:
-    key = (placement or "").strip().lower()
-    if key in {"lower_third_left", "lower_third", "mid_lower_stack"}:
-        return {
-            "x": margin,
-            "y": int(round(height * 0.56)),
-            "width": content_w,
-            "height": int(round(height * 0.20)),
+    canvas_width: int,
+    canvas_height: int,
+) -> dict[str, Any]:
+    """Read the locked interior before placing type — no fifth layer, no GPT Image."""
+    empty = {
+        "available": False,
+        "visual_focal_point": {"x": 0.50, "y": 0.52},
+        "negative_space": [],
+        "bright_regions": [],
+        "dark_regions": [],
+        "furniture_building_focal": {"x": 0.22, "y": 0.34, "width": 0.56, "height": 0.36},
+        "safe_headline_zone": {"x": 0.07, "y": 0.08, "width": 0.50, "height": 0.28},
+        "safe_logo_zone": {"x": 0.72, "y": 0.045, "width": 0.21, "height": 0.08},
+        "safe_cta_zone": {"x": 0.07, "y": 0.86, "width": 0.40, "height": 0.08},
+        "do_not_cover": [{"role": "furniture_focal", "x": 0.22, "y": 0.34, "width": 0.56, "height": 0.36}],
+        "headline_ink": _NATIVE_CHARCOAL,
+        "headline_align": "left",
+        "headline_family": "serif",
+    }
+    if not image_bytes:
+        return empty
+    try:
+        from io import BytesIO
+
+        from PIL import Image, ImageFilter, ImageStat
+    except Exception:
+        return empty
+    try:
+        src = Image.open(BytesIO(image_bytes)).convert("RGB")
+        framed = _native_cover_crop(src, canvas_width, canvas_height)
+        gray = framed.convert("L")
+        edges = gray.filter(ImageFilter.FIND_EDGES)
+        cols, rows = 8, 10
+        cell_w = canvas_width / cols
+        cell_h = canvas_height / rows
+        grid: list[list[dict[str, float]]] = []
+        lum_all: list[float] = []
+        edge_all: list[float] = []
+        for r in range(rows):
+            row: list[dict[str, float]] = []
+            for c in range(cols):
+                box = (
+                    int(c * cell_w),
+                    int(r * cell_h),
+                    int((c + 1) * cell_w),
+                    int((r + 1) * cell_h),
+                )
+                lum = float(ImageStat.Stat(gray.crop(box)).mean[0])
+                edge = float(ImageStat.Stat(edges.crop(box)).mean[0])
+                std = float(ImageStat.Stat(gray.crop(box)).stddev[0])
+                row.append({"lum": lum, "edge": edge, "std": std})
+                lum_all.append(lum)
+                edge_all.append(edge)
+            grid.append(row)
+        mean_lum = sum(lum_all) / max(len(lum_all), 1)
+        mean_edge = sum(edge_all) / max(len(edge_all), 1)
+        bright: list[dict[str, float]] = []
+        dark: list[dict[str, float]] = []
+        negative: list[dict[str, float]] = []
+        focal_cells: list[tuple[int, int]] = []
+        view_cells: list[tuple[int, int]] = []
+        for r in range(rows):
+            for c in range(cols):
+                cell = grid[r][c]
+                nx, ny = c / cols, r / rows
+                nw, nh = 1 / cols, 1 / rows
+                rec = {"x": nx, "y": ny, "width": nw, "height": nh, "lum": cell["lum"], "edge": cell["edge"]}
+                if cell["lum"] >= 168:
+                    bright.append(rec)
+                if cell["lum"] <= 102:
+                    dark.append(rec)
+                if cell["edge"] < mean_edge * 0.72 and cell["std"] < 38:
+                    negative.append(rec)
+                in_mid = 0.22 <= ny <= 0.78 and 0.12 <= nx <= 0.88
+                if in_mid and cell["edge"] > mean_edge * 1.28:
+                    focal_cells.append((c, r))
+                # Bright, quiet upper-center = windows / sky — do not cover the view.
+                if (
+                    ny < 0.48
+                    and 0.22 <= nx <= 0.72
+                    and cell["lum"] >= 188
+                    and cell["edge"] < mean_edge * 0.85
+                ):
+                    view_cells.append((c, r))
+
+        def _bbox(cells: list[tuple[int, int]]) -> dict[str, float] | None:
+            if not cells:
+                return None
+            cs = [c for c, _r in cells]
+            rs = [r for _c, r in cells]
+            x0, x1 = min(cs) / cols, (max(cs) + 1) / cols
+            y0, y1 = min(rs) / rows, (max(rs) + 1) / rows
+            return {"x": x0, "y": y0, "width": x1 - x0, "height": y1 - y0}
+
+        focal_box = _bbox(focal_cells) or {"x": 0.22, "y": 0.34, "width": 0.56, "height": 0.36}
+        view_box = _bbox(view_cells)
+        do_not_cover: list[dict[str, Any]] = [{"role": "furniture_building_focal", **focal_box}]
+        if view_box:
+            do_not_cover.append({"role": "window_or_view", **view_box})
+
+        protected = set(focal_cells) | set(view_cells)
+
+        def _region_ok(c0: int, c1: int, r0: int, r1: int) -> dict[str, float]:
+            vals: list[dict[str, float]] = []
+            hit = 0
+            total = 0
+            for r in range(r0, r1):
+                for c in range(c0, c1):
+                    total += 1
+                    vals.append(grid[r][c])
+                    if (c, r) in protected:
+                        hit += 1
+            lum = sum(v["lum"] for v in vals) / max(len(vals), 1)
+            edge = sum(v["edge"] for v in vals) / max(len(vals), 1)
+            return {
+                "lum": lum,
+                "edge": edge,
+                "protected_frac": hit / max(total, 1),
+            }
+
+        candidates = [
+            ("top_left", 0, 4, 0, 3, 1.20),
+            ("upper_left", 0, 4, 1, 4, 1.12),
+            ("top_right_type", 4, 8, 0, 3, 0.72),
+            ("lower_left", 0, 4, 6, 9, 1.00),
+            ("lower_third_left", 0, 5, 7, 10, 0.88),
+        ]
+        scored: list[tuple[float, str, dict[str, float]]] = []
+        for name, c0, c1, r0, r1, bias in candidates:
+            stats = _region_ok(c0, c1, r0, r1)
+            # Prefer quiet, unprotected negative space. Bright walls are OK (charcoal ink).
+            score = bias * (1.0 - stats["protected_frac"]) * (1.15 if stats["edge"] < mean_edge else 0.75)
+            if stats["protected_frac"] > 0.55:
+                continue
+            scored.append((score, name, stats))
+        scored.sort(key=lambda row: row[0], reverse=True)
+        if scored:
+            _score, zone_name, zone_stats = scored[0]
+        else:
+            zone_name, zone_stats = "top_left", _region_ok(0, 4, 0, 3)
+
+        zone_boxes = {
+            "top_left": {"x": 0.065, "y": 0.07, "width": 0.50, "height": 0.30},
+            "upper_left": {"x": 0.065, "y": 0.10, "width": 0.50, "height": 0.28},
+            "top_right_type": {"x": 0.44, "y": 0.07, "width": 0.50, "height": 0.28},
+            "lower_left": {"x": 0.065, "y": 0.58, "width": 0.52, "height": 0.24},
+            "lower_third_left": {"x": 0.065, "y": 0.66, "width": 0.54, "height": 0.22},
         }
+        headline_zone = dict(zone_boxes.get(zone_name) or zone_boxes["top_left"])
+        ink = _NATIVE_CREAM if zone_stats["lum"] < 128 else _NATIVE_CHARCOAL
+        align = "left" if "right" not in zone_name else "right"
+
+        if "left" in zone_name:
+            right_top = _region_ok(6, 8, 0, 2)
+            right_lower = _region_ok(6, 8, 1, 3)
+            logo_y = 0.045
+            if right_top["lum"] > 170 and right_lower["lum"] + 8 < right_top["lum"]:
+                logo_y = 0.09
+            logo_zone = {
+                "x": 0.70,
+                "y": logo_y,
+                "width": 0.23,
+                "height": 0.08,
+                "lum": min(right_top["lum"], right_lower["lum"]),
+            }
+        else:
+            left_top = _region_ok(0, 2, 0, 2)
+            left_lower = _region_ok(0, 2, 1, 3)
+            logo_y = 0.045
+            if left_top["lum"] > 170 and left_lower["lum"] + 8 < left_top["lum"]:
+                logo_y = 0.09
+            logo_zone = {
+                "x": 0.065,
+                "y": logo_y,
+                "width": 0.23,
+                "height": 0.08,
+                "lum": min(left_top["lum"], left_lower["lum"]),
+            }
+
+        floor = _region_ok(0, 8, 8, 10)
+        cta_y = 0.875 if floor["protected_frac"] < 0.45 else 0.82
+        cta_zone = {
+            "x": headline_zone["x"],
+            "y": cta_y,
+            "width": 0.38,
+            "height": 0.055,
+        }
+
+        brightest = max(lum_all) if lum_all else mean_lum
+        darkest = min(lum_all) if lum_all else mean_lum
+        return {
+            "available": True,
+            "canvas": {"width": canvas_width, "height": canvas_height},
+            "mean_luminance": round(mean_lum, 1),
+            "mean_edge": round(mean_edge, 1),
+            "brightest": round(brightest, 1),
+            "darkest": round(darkest, 1),
+            "visual_focal_point": {
+                "x": round(focal_box["x"] + focal_box["width"] / 2, 3),
+                "y": round(focal_box["y"] + focal_box["height"] / 2, 3),
+            },
+            "negative_space": negative[:12],
+            "bright_regions": bright[:12],
+            "dark_regions": dark[:12],
+            "furniture_building_focal": focal_box,
+            "window_or_view": view_box,
+            "safe_headline_zone": headline_zone,
+            "safe_logo_zone": logo_zone,
+            "safe_cta_zone": cta_zone,
+            "do_not_cover": do_not_cover,
+            "headline_zone_name": zone_name,
+            "headline_zone_luminance": round(zone_stats["lum"], 1),
+            "headline_ink": ink,
+            "headline_align": align,
+            "headline_family": "serif",
+        }
+    except Exception:
+        return empty
+
+
+def _norm_to_px(zone: dict[str, Any], width: int, height: int) -> dict[str, int]:
     return {
-        "x": margin,
-        "y": int(round(height * 0.155)),
-        "width": content_w,
-        "height": int(round(height * 0.22)),
+        "x": int(round(float(zone.get("x") or 0) * width)),
+        "y": int(round(float(zone.get("y") or 0) * height)),
+        "width": int(round(float(zone.get("width") or 0.4) * width)),
+        "height": int(round(float(zone.get("height") or 0.2) * height)),
     }
 
 
-def _native_cta_box(
+def _rects_overlap(a: dict[str, int], b: dict[str, int], *, pad: int = 12) -> bool:
+    return not (
+        a["x"] + a["width"] + pad < b["x"]
+        or b["x"] + b["width"] + pad < a["x"]
+        or a["y"] + a["height"] + pad < b["y"]
+        or b["y"] + b["height"] + pad < a["y"]
+    )
+
+
+def _editorial_headline_breaks(text: str) -> str:
+    """CD owns line breaks — editorial stack, not one long centered line."""
+    raw = (text or "").replace("\r\n", "\n").strip()
+    if not raw:
+        return raw
+    if "\n" in raw:
+        return "\n".join(line.strip() for line in raw.split("\n") if line.strip())
+    words = raw.split()
+    if len(words) <= 1:
+        return raw
+    if len(words) <= 3:
+        return "\n".join(words)
+    # 4+ words: 2–3 lines by running width, prefer a short last line.
+    target = max(2, min(3, (len(words) + 1) // 2))
+    lines: list[list[str]] = [[] for _ in range(target)]
+    lengths = [0] * target
+    idx = 0
+    for word in words:
+        if idx < target - 1 and lengths[idx] >= max(8, len(raw) / target):
+            idx += 1
+        lines[idx].append(word)
+        lengths[idx] += len(word) + 1
+    return "\n".join(" ".join(part) for part in lines if part)
+
+
+def _editorial_cta_copy(cta: str) -> str:
+    label = (cta or "").strip() or "Detayları İncele"
+    if not label.endswith("→"):
+        return f"{label} →"
+    return label
+
+
+def _native_art_direction_boxes(
     *,
     width: int,
     height: int,
     margin: int,
-    placement: str,
-    width_pct: float,
-) -> dict[str, int]:
-    cta_w = int(round(width * float(width_pct or 0.46)))
-    cta_h = int(round(height * 0.052))
-    y = int(round(height * 0.88))
-    if (placement or "").strip().lower() in {"bottom_left"}:
-        x = margin
+    analysis: dict[str, Any],
+    headline_lines: int,
+) -> dict[str, Any]:
+    """Place the 4 layers from photograph analysis, not a fixed Instagram template."""
+    headline_zone = analysis.get("safe_headline_zone") if isinstance(analysis.get("safe_headline_zone"), dict) else {}
+    logo_zone = analysis.get("safe_logo_zone") if isinstance(analysis.get("safe_logo_zone"), dict) else {}
+    cta_zone = analysis.get("safe_cta_zone") if isinstance(analysis.get("safe_cta_zone"), dict) else {}
+    align = _s(analysis.get("headline_align"), "left")
+    ink = _s(analysis.get("headline_ink"), _NATIVE_CHARCOAL)
+    family = _s(analysis.get("headline_family"), "serif")
+
+    if headline_lines >= 3:
+        font_size = int(round(width * 0.076))
+        line_height = 1.05
+        letter_spacing = 0.4
+    elif headline_lines == 2:
+        font_size = int(round(width * 0.068))
+        line_height = 1.08
+        letter_spacing = 0.6
     else:
-        x = int(round((width - cta_w) / 2))
-    return {"x": x, "y": y, "width": cta_w, "height": cta_h}
+        font_size = int(round(width * 0.058))
+        line_height = 1.12
+        letter_spacing = 0.8
+
+    headline = _norm_to_px(headline_zone, width, height)
+    headline["x"] = max(margin, min(headline["x"], width - margin - 80))
+    headline["width"] = max(int(width * 0.42), min(headline["width"], int(width * 0.56)))
+    if align == "right":
+        headline["x"] = max(margin, width - margin - headline["width"])
+    else:
+        headline["x"] = margin if headline["x"] > margin + 24 else headline["x"]
+        headline["x"] = max(margin, headline["x"])
+    headline["height"] = max(int(round(font_size * line_height * headline_lines * 1.16)), int(height * 0.16))
+    headline["y"] = max(int(height * 0.045), min(headline["y"], int(height * 0.72)))
+
+    logo_scale = 0.118
+    logo_w = int(round(width * logo_scale))
+    logo_h = int(round(height * 0.046))
+    logo = _norm_to_px(logo_zone, width, height)
+    logo["width"] = logo_w
+    logo["height"] = logo_h
+    if align == "left":
+        logo["x"] = width - margin - logo_w
+    else:
+        logo["x"] = margin
+    logo["y"] = max(int(height * 0.038), min(logo["y"], int(height * 0.12)))
+    if _rects_overlap(logo, headline, pad=16):
+        logo["y"] = max(margin, headline["y"] - logo_h - int(height * 0.02))
+        if _rects_overlap(logo, headline, pad=16):
+            logo["y"] = min(int(height * 0.12), headline["y"] + headline["height"] + int(height * 0.02))
+
+    cta_w = int(round(width * 0.34))
+    cta_h = int(round(height * 0.038))
+    cta = _norm_to_px(cta_zone, width, height)
+    cta["width"] = cta_w
+    cta["height"] = cta_h
+    cta["x"] = headline["x"] if align != "right" else max(margin, headline["x"] + headline["width"] - cta_w)
+    cta["y"] = max(int(height * 0.78), min(int(round((cta_zone.get("y") or 0.875) * height)), height - margin - cta_h))
+    if _rects_overlap(cta, headline, pad=20):
+        cta["y"] = min(height - margin - cta_h, headline["y"] + headline["height"] + int(height * 0.04))
+    if _rects_overlap(cta, logo, pad=12):
+        cta["y"] = min(height - margin - cta_h, max(cta["y"], logo["y"] + logo["height"] + 16))
+
+    return {
+        "headline": headline,
+        "logo": logo,
+        "cta": cta,
+        "align": align,
+        "ink": ink,
+        "family": family,
+        "font_size": font_size,
+        "line_height": line_height,
+        "letter_spacing": letter_spacing,
+        "logo_scale": logo_scale,
+    }
 
 
 def build_golden_native_v1_spec(
@@ -1581,11 +1896,14 @@ def build_golden_native_v1_spec(
     language: str = "tr",
     campaign_intent: str | None = None,
     composition_plan: dict[str, Any] | None = None,
+    image_bytes: bytes | None = None,
+    image_analysis: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Proof-of-concept Design Spec: exactly 4 real layers. Renderer applies CD recipe only.
 
     Layers: BACKGROUND (approved interior IMAGE), HEADLINE (TEXT), PROJECT LOGO (IMAGE),
     CTA (editable button). No supporting copy, badge, price, icon, or overlay wash.
+    Art direction v2 places those four layers from a photograph reading.
     """
     width, height = canvas_size_for_aspect(aspect_ratio, format_preset)
     final = production_brief.get("final_copy") if isinstance(production_brief.get("final_copy"), dict) else {}
@@ -1610,87 +1928,102 @@ def build_golden_native_v1_spec(
         language=language,
     )
 
-    headline = _s(texts.get("headline") or final.get("headline") or production_brief.get("hero"))
-    cta = _s(texts.get("cta") or final.get("cta") or production_brief.get("cta"), "Detayları İncele")
-    margin = int(round(width * float((plan.get("safe_margins") or {}).get("x_pct") or 0.07)))
-    content_w = width - margin * 2
+    headline_src = _s(texts.get("headline") or final.get("headline") or production_brief.get("hero"))
+    headline = _editorial_headline_breaks(headline_src)
+    cta = _editorial_cta_copy(
+        _s(texts.get("cta") or final.get("cta") or production_brief.get("cta"), "Detayları İncele")
+    )
+    margin = int(round(width * 0.065))
     bg_id = str(master_background_asset_id)
     logo_id = str(logo_asset_id)
 
-    image_plan = plan.get("image") if isinstance(plan.get("image"), dict) else {}
-    logo_plan = plan.get("logo") if isinstance(plan.get("logo"), dict) else {}
-    cta_plan = plan.get("cta") if isinstance(plan.get("cta"), dict) else {}
-    typo_plan = plan.get("typography") if isinstance(plan.get("typography"), dict) else {}
-    headline_typo = typo_plan.get("headline") if isinstance(typo_plan.get("headline"), dict) else {}
-    cta_typo = typo_plan.get("cta") if isinstance(typo_plan.get("cta"), dict) else {}
+    analysis = image_analysis if isinstance(image_analysis, dict) else None
+    if analysis is None or not analysis.get("available"):
+        computed = analyze_native_photograph(
+            image_bytes,
+            canvas_width=width,
+            canvas_height=height,
+        )
+        if analysis is None or computed.get("available"):
+            analysis = computed
+    analysis = analysis or analyze_native_photograph(None, canvas_width=width, canvas_height=height)
 
-    headline_color = _native_headline_color(plan)
-    headline_align = _s(headline_typo.get("align"), "center")
-    headline_family = _s(headline_typo.get("font_family"), "serif")
-    headline_scale = _s(headline_typo.get("scale"), "editorial_hero")
-    headline_size = _native_font_size(width, headline_scale)
-    headline_box = _native_headline_box(
+    boxes = _native_art_direction_boxes(
         width=width,
         height=height,
         margin=margin,
-        content_w=content_w,
-        placement=_s(headline_typo.get("placement"), "upper_center"),
+        analysis=analysis,
+        headline_lines=max(1, headline.count("\n") + 1),
     )
-    logo_geo = _logo_geometry(
-        width=width,
-        height=height,
-        margin=margin,
-        placement=_s(logo_plan.get("placement"), "top_center"),
-        scale=float(logo_plan.get("scale") or 0.17),
-    )
-    cta_box = _native_cta_box(
-        width=width,
-        height=height,
-        margin=margin,
-        placement=_s(cta_plan.get("placement"), "bottom_center"),
-        width_pct=float(cta_plan.get("width_pct") or 0.46),
-    )
-    cta_h = cta_box["height"]
+    headline_box = boxes["headline"]
+    logo_geo = boxes["logo"]
+    cta_box = boxes["cta"]
+    headline_color = boxes["ink"]
+    headline_align = boxes["align"]
+    headline_family = boxes["family"]
+    headline_size = boxes["font_size"]
+    line_height = boxes["line_height"]
+    letter_spacing = boxes["letter_spacing"]
+
+    image_plan = plan.get("image") if isinstance(plan.get("image"), dict) else {}
+    headline_placement = str(analysis.get("headline_zone_name") or "top_left")
+    logo_placement = "top_right" if headline_align == "left" else "top_left"
+    cta_placement = "bottom_left" if headline_align != "right" else "bottom_right"
 
     recipe = {
         "renderer": "golden_native_v1",
+        "art_direction": "v2_image_aware",
         "background_asset_id": bg_id,
         "crop": image_plan.get("crop") or "cover",
         "position": image_plan.get("position") or "center",
         "headline": {
             "text": headline,
-            "placement": headline_typo.get("placement") or "upper_center",
+            "placement": headline_placement,
             "width": headline_box["width"],
             "x": headline_box["x"],
             "y": headline_box["y"],
+            "max_width": headline_box["width"],
             "font_size": headline_size,
             "font_weight": "bold",
             "font_family": headline_family,
-            "line_height": 1.08,
+            "line_height": line_height,
+            "letter_spacing": letter_spacing,
             "align": headline_align,
             "color": headline_color,
+            "contrast_treatment": "ink_from_zone_luminance",
         },
         "logo": {
             "asset_id": logo_id,
-            "placement": logo_plan.get("placement") or "top_center",
-            "scale": float(logo_plan.get("scale") or 0.17),
+            "placement": logo_placement,
+            "scale": boxes["logo_scale"],
+            "object_fit": "contain",
+            "plate": None,
             **logo_geo,
         },
         "cta": {
             "text": cta,
-            "placement": cta_plan.get("placement") or "bottom_center",
-            "style": cta_plan.get("style") or "soft_gold_pill",
+            "placement": cta_placement,
+            "style": "minimal_outlined",
+            "cta_style": "MINIMAL_BUTTON",
             **cta_box,
-            "background_color": "#C4A35A",
-            "text_color": _s(cta_typo.get("color"), "#1A1510"),
+            "background_color": "transparent",
+            "text_color": _NATIVE_MUTED_GOLD,
+            "align": headline_align,
         },
-        "margins": {"x": margin, "x_pct": (plan.get("safe_margins") or {}).get("x_pct") or 0.07},
-        "spacing": {"logo_to_headline": headline_box["y"] - (logo_geo["y"] + logo_geo["height"])},
+        "margins": {"x": margin, "x_pct": 0.065},
         "palette": {
             "headline": headline_color,
-            "cta_fill": "#C4A35A",
-            "cta_text": _s(cta_typo.get("color"), "#1A1510"),
-            "visual_mood": ((production_brief.get("design_direction") or {}) if isinstance(production_brief.get("design_direction"), dict) else {}).get("visual_mood"),
+            "cream": _NATIVE_CREAM,
+            "warm_white": _NATIVE_WARM_WHITE,
+            "muted_gold": _NATIVE_MUTED_GOLD,
+            "charcoal": _NATIVE_CHARCOAL,
+            "cta_fill": "transparent",
+            "cta_text": _NATIVE_MUTED_GOLD,
+            "visual_mood": (
+                (production_brief.get("design_direction") or {})
+                if isinstance(production_brief.get("design_direction"), dict)
+                else {}
+            ).get("visual_mood"),
         },
     }
 
@@ -1743,7 +2076,8 @@ def build_golden_native_v1_spec(
                 "font_weight": "bold",
                 "align": headline_align,
                 "color": headline_color,
-                "line_height": 1.08,
+                "line_height": line_height,
+                "letter_spacing": letter_spacing,
             },
         },
         {
@@ -1759,13 +2093,15 @@ def build_golden_native_v1_spec(
             "height": cta_box["height"],
             "z_index": 40,
             "style": {
-                "background_color": "#C4A35A",
-                "text_color": _s(cta_typo.get("color"), "#1A1510"),
-                "border_radius": int(round(cta_h * 0.45)),
-                "padding": int(round(cta_h * 0.22)),
-                "font_size": int(round(width * 0.024)),
+                "background_color": "transparent",
+                "text_color": _NATIVE_MUTED_GOLD,
+                "border_radius": 4,
+                "padding": 8,
+                "font_size": int(round(width * 0.018)),
                 "font_weight": "semibold",
-                "align": "center",
+                "font_family": "sans",
+                "align": headline_align,
+                "cta_style": "MINIMAL_BUTTON",
             },
         },
     ]
@@ -1774,6 +2110,7 @@ def build_golden_native_v1_spec(
         "version": 1,
         "mode": "golden_native_v1",
         "renderer": "golden_native_v1",
+        "art_direction": "v2_image_aware",
         "canvas": {
             "width": width,
             "height": height,
@@ -1783,13 +2120,27 @@ def build_golden_native_v1_spec(
         "language": language,
         "campaign_intent": intent,
         "composition_plan": plan,
+        "image_analysis": {
+            "available": bool(analysis.get("available")),
+            "visual_focal_point": analysis.get("visual_focal_point"),
+            "furniture_building_focal": analysis.get("furniture_building_focal"),
+            "window_or_view": analysis.get("window_or_view"),
+            "safe_headline_zone": analysis.get("safe_headline_zone"),
+            "safe_logo_zone": analysis.get("safe_logo_zone"),
+            "safe_cta_zone": analysis.get("safe_cta_zone"),
+            "do_not_cover": analysis.get("do_not_cover"),
+            "headline_zone_name": analysis.get("headline_zone_name"),
+            "headline_zone_luminance": analysis.get("headline_zone_luminance"),
+            "headline_ink": analysis.get("headline_ink"),
+            "mean_luminance": analysis.get("mean_luminance"),
+        },
         "creative_director_recipe": recipe,
         "composition": {
             "focal_zone": (plan.get("focal_point") or {}).get("zone"),
             "text_zones": (plan.get("zones") or {}).get("text_safe"),
             "safe_margins": plan.get("safe_margins"),
-            "alignment_system": plan.get("alignment_system"),
-            "layout_family": plan.get("layout_family"),
+            "alignment_system": headline_align,
+            "layout_family": "image_aware_editorial",
         },
         "background": {
             "asset_id": bg_id,
@@ -2295,9 +2646,11 @@ def design_spec_to_smb_elements(design_spec: dict[str, Any]) -> list[dict[str, A
                     "textColor": _s(style.get("text_color"), "#1A1510"),
                     "fontSize": int(style.get("font_size") or 28),
                     "fontWeight": _s(style.get("font_weight"), "semibold"),
+                    "fontFamily": _s(style.get("font_family")) or None,
                     "align": _s(style.get("align"), "center"),
                     "borderRadius": int(style.get("border_radius") or 8),
                     "padding": int(style.get("padding") or 12),
+                    "ctaStyle": _s(style.get("cta_style")) or None,
                     "x": x,
                     "y": y,
                     "width": w,
@@ -2373,6 +2726,7 @@ def design_spec_to_smb_elements(design_spec: dict[str, Any]) -> list[dict[str, A
                 "color": _s(typo.get("color"), "#FFFFFF"),
                 "fontFamily": _s(typo.get("font_family"), "sans"),
                 "lineHeight": typo.get("line_height"),
+                "letterSpacing": typo.get("letter_spacing"),
                 "x": x,
                 "y": y,
                 "width": w,

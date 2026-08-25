@@ -1114,6 +1114,15 @@ def _generate_golden_native_v1(
         strategy=strategy,
         ctx=ctx,
     )
+    bg_bytes: bytes | None = None
+    try:
+        bg_bytes, _bg_asset = _load_background_bytes(
+            db,
+            interior_id,
+            linked_project_id=row.linked_project_id,
+        )
+    except Exception:
+        logger.exception("golden_native_v1 photograph analysis skipped — interior bytes unavailable")
     spec = build_golden_native_v1_spec(
         production_brief=spec_brief,
         texts=spec_texts,
@@ -1123,6 +1132,7 @@ def _generate_golden_native_v1(
         format_preset=format_preset,
         language=language,
         campaign_intent=str(spec_brief.get("campaign_intent") or production_brief.get("campaign_intent") or ""),
+        image_bytes=bg_bytes,
     )
     spec = stamp_editable_text_targets(spec)
     editable_layers = design_spec_to_smb_elements(spec)
