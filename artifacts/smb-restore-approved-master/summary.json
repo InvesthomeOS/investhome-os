@@ -1,0 +1,11 @@
+{
+  "restore_result": "cover restored to approved master",
+  "cover_id": "f1310474-d9b9-45f9-8fde-99aaddbc2431",
+  "master_id": "f1310474-d9b9-45f9-8fde-99aaddbc2431",
+  "refresh": {
+    "post_id": "067c22d3-dcc3-4569-8f3c-127a0afbef98",
+    "cover_asset_id": "f1310474-d9b9-45f9-8fde-99aaddbc2431",
+    "master_finished_ad_asset_id": "f1310474-d9b9-45f9-8fde-99aaddbc2431"
+  },
+  "provider_call_count": 0
+}
