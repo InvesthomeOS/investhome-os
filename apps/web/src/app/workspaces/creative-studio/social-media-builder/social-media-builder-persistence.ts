@@ -788,6 +788,145 @@ export function normalizeSelectedPostId(
  * Hydrate must not wipe an in-flight CREATE or a newer completed generation
  * with a stale draft (empty posts[] / older placeholder).
  */
+export type SmbSelectedIdentity = {
+  postId: string | null;
+  campaignId: string | null;
+  coverAssetId: string | null;
+  masterFinishedAdAssetId: string | null;
+};
+
+export const SMB_SELECTED_IDENTITY_STORAGE_PREFIX = 'ih.cs.smb.selectedIdentity:';
+
+export function smbSelectedIdentityStorageKey(projectId: string | null | undefined): string {
+  return `${SMB_SELECTED_IDENTITY_STORAGE_PREFIX}${projectId && projectId.trim() ? projectId.trim() : 'none'}`;
+}
+
+export function parseSmbSelectedIdentity(raw: unknown): SmbSelectedIdentity | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const body = raw as Record<string, unknown>;
+  const postId = typeof body.postId === 'string' && body.postId.trim() ? body.postId.trim() : null;
+  const campaignId =
+    typeof body.campaignId === 'string' && body.campaignId.trim() ? body.campaignId.trim() : null;
+  const coverAssetId =
+    typeof body.coverAssetId === 'string' && isMediaAssetUuid(body.coverAssetId)
+      ? body.coverAssetId.trim()
+      : null;
+  const masterFinishedAdAssetId =
+    typeof body.masterFinishedAdAssetId === 'string' && isMediaAssetUuid(body.masterFinishedAdAssetId)
+      ? body.masterFinishedAdAssetId.trim()
+      : null;
+  if (!postId && !campaignId && !coverAssetId && !masterFinishedAdAssetId) return null;
+  return { postId, campaignId, coverAssetId, masterFinishedAdAssetId };
+}
+
+export function readSmbSelectedIdentity(projectId: string | null | undefined): SmbSelectedIdentity | null {
+  if (typeof sessionStorage === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(smbSelectedIdentityStorageKey(projectId));
+    if (!raw) return null;
+    return parseSmbSelectedIdentity(JSON.parse(raw) as unknown);
+  } catch {
+    return null;
+  }
+}
+
+export function writeSmbSelectedIdentity(
+  projectId: string | null | undefined,
+  identity: SmbSelectedIdentity | null,
+): void {
+  if (typeof sessionStorage === 'undefined') return;
+  const key = smbSelectedIdentityStorageKey(projectId);
+  try {
+    if (!identity || (!identity.postId && !identity.coverAssetId && !identity.campaignId)) {
+      sessionStorage.removeItem(key);
+      return;
+    }
+    sessionStorage.setItem(key, JSON.stringify(identity));
+  } catch {
+    /* quota / private mode — draft persist remains the fallback */
+  }
+}
+
+function campaignIdFromPost(post: {
+  campaignContextId?: string | null;
+  generationMeta?: Record<string, unknown> | null;
+}): string | null {
+  if (typeof post.campaignContextId === 'string' && post.campaignContextId.trim()) {
+    return post.campaignContextId.trim();
+  }
+  const meta = post.generationMeta;
+  const raw = meta?.campaign_context_id ?? meta?.campaign_id;
+  return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
+}
+
+function masterFinishedAdIdFromPost(post: {
+  generationMeta?: Record<string, unknown> | null;
+}): string | null {
+  const meta = post.generationMeta;
+  const raw = meta?.master_finished_ad_asset_id ?? meta?.master_asset_id;
+  return typeof raw === 'string' && isMediaAssetUuid(raw) ? raw.trim() : null;
+}
+
+/**
+ * Restore the exact filmstrip selection. Never auto-pick latest / posts[0]
+ * when a persisted identity still matches.
+ */
+export function resolvePersistedSelectedPostId(input: {
+  posts: Array<{
+    id: string;
+    coverAssetId?: string | null;
+    campaignContextId?: string | null;
+    generationMeta?: Record<string, unknown> | null;
+  }>;
+  draftSelectedPostId?: string | null;
+  coverAssetId?: string | null;
+  identity?: SmbSelectedIdentity | null;
+  localSelectedPostId?: string | null;
+  preferLocalSelection?: boolean;
+}): string | null {
+  const posts = input.posts;
+  if (!posts.length) return null;
+  const hasId = (id: string | null | undefined): id is string =>
+    Boolean(id && posts.some((p) => p.id === id));
+
+  if (hasId(input.identity?.postId)) return input.identity!.postId;
+  if (hasId(input.draftSelectedPostId)) return input.draftSelectedPostId;
+
+  const cover = input.identity?.coverAssetId || input.coverAssetId || null;
+  if (cover) {
+    const byCover = posts.find((p) => p.coverAssetId === cover);
+    if (byCover) return byCover.id;
+  }
+
+  const campaign = input.identity?.campaignId || null;
+  if (campaign) {
+    const byCampaign = posts.find((p) => campaignIdFromPost(p) === campaign);
+    if (byCampaign) return byCampaign.id;
+  }
+
+  const master = input.identity?.masterFinishedAdAssetId || null;
+  if (master) {
+    const byMaster = posts.find((p) => masterFinishedAdIdFromPost(p) === master);
+    if (byMaster) return byMaster.id;
+  }
+
+  if (input.preferLocalSelection !== false && hasId(input.localSelectedPostId)) {
+    return input.localSelectedPostId;
+  }
+
+  return posts[0]?.id ?? null;
+}
+
+export function identityFromSocialPost(post: SocialPost | null | undefined): SmbSelectedIdentity | null {
+  if (!post) return null;
+  return {
+    postId: post.id,
+    campaignId: campaignIdFromPost(post),
+    coverAssetId: post.coverAssetId && isMediaAssetUuid(post.coverAssetId) ? post.coverAssetId : null,
+    masterFinishedAdAssetId: masterFinishedAdIdFromPost(post),
+  };
+}
+
 export function mergeHydratedPostsWithLocal(input: {
   incoming: SocialPost[];
   local: SocialPost[];
@@ -795,6 +934,10 @@ export function mergeHydratedPostsWithLocal(input: {
   generating: boolean;
   incomingSelectedPostId?: string | null;
   localSelectedPostId?: string | null;
+  identity?: SmbSelectedIdentity | null;
+  coverAssetId?: string | null;
+  /** False on first refresh hydrate so DEFAULT p1 cannot steal the canvas. */
+  preferLocalSelection?: boolean;
 }): { posts: SocialPost[]; selectedPostId: string | null } {
   const incoming = input.incoming.filter((p) => !input.deletedIds.has(p.id));
   const local = input.local.filter((p) => !input.deletedIds.has(p.id));
@@ -822,9 +965,14 @@ export function mergeHydratedPostsWithLocal(input: {
       }
     }
     const selected =
-      (input.localSelectedPostId && ordered.some((p) => p.id === input.localSelectedPostId)
-        ? input.localSelectedPostId
-        : null) ??
+      resolvePersistedSelectedPostId({
+        posts: ordered,
+        draftSelectedPostId: input.incomingSelectedPostId,
+        coverAssetId: input.coverAssetId,
+        identity: input.identity,
+        localSelectedPostId: input.localSelectedPostId,
+        preferLocalSelection: input.preferLocalSelection !== false,
+      }) ??
       localInFlight[0]?.id ??
       ordered[0]?.id ??
       null;
@@ -832,10 +980,14 @@ export function mergeHydratedPostsWithLocal(input: {
   }
 
   if (!incoming.length && localCompleted.length) {
-    const selected =
-      (input.localSelectedPostId && localCompleted.some((p) => p.id === input.localSelectedPostId)
-        ? input.localSelectedPostId
-        : localCompleted[0]?.id) ?? null;
+    const selected = resolvePersistedSelectedPostId({
+      posts: localCompleted,
+      draftSelectedPostId: input.incomingSelectedPostId,
+      coverAssetId: input.coverAssetId,
+      identity: input.identity,
+      localSelectedPostId: input.localSelectedPostId,
+      preferLocalSelection: input.preferLocalSelection !== false,
+    });
     return { posts: localCompleted, selectedPostId: selected };
   }
 
@@ -872,7 +1024,9 @@ export function mergeHydratedPostsWithLocal(input: {
   const posts = [...merged, ...extraLocal];
   // Prefer local finished-ad / completed selection over stale draft selectedPostId
   // (otherwise "New social post" siblings steal the canvas after Oluştur).
+  // On refresh, caller must pass preferLocalSelection=false so DEFAULT p1 cannot win.
   const localSelectedProtected =
+    input.preferLocalSelection !== false &&
     Boolean(
       input.localSelectedPostId &&
         local.some(
@@ -880,17 +1034,18 @@ export function mergeHydratedPostsWithLocal(input: {
             p.id === input.localSelectedPostId &&
             (isFinishedAdSocialPost(p) || isCompletedGeneratedPost(p)),
         ),
-    ) && posts.some((p) => p.id === input.localSelectedPostId);
-  const selected =
-    (localSelectedProtected ? input.localSelectedPostId! : null) ??
-    (input.incomingSelectedPostId && posts.some((p) => p.id === input.incomingSelectedPostId)
-      ? input.incomingSelectedPostId
-      : null) ??
-    (input.localSelectedPostId && posts.some((p) => p.id === input.localSelectedPostId)
-      ? input.localSelectedPostId
-      : null) ??
-    posts[0]?.id ??
-    null;
+    ) &&
+    posts.some((p) => p.id === input.localSelectedPostId);
+  const selected = localSelectedProtected
+    ? input.localSelectedPostId!
+    : resolvePersistedSelectedPostId({
+        posts,
+        draftSelectedPostId: input.incomingSelectedPostId,
+        coverAssetId: input.coverAssetId,
+        identity: input.identity,
+        localSelectedPostId: input.localSelectedPostId,
+        preferLocalSelection: input.preferLocalSelection !== false,
+      });
   return { posts, selectedPostId: selected };
 }
 
@@ -994,27 +1149,30 @@ export function hydrateSocialPostsFromDraft(input: {
   coverAssetId?: string | null;
   linkedProjectId?: string | null;
   selectedPostId?: string | null;
+  selectedIdentity?: SmbSelectedIdentity | null;
   seedDefaults?: boolean;
 }): { posts: SocialPost[]; selectedPostId: string | null } {
   const linked = input.linkedProjectId ?? null;
   const parsed = parseSocialPosts(input.posts, linked);
   if (parsed.length) {
-    const withCover = parsed.map((p, i) => {
-      const cover =
-        p.coverAssetId ||
-        (i === 0 && input.coverAssetId && isMediaAssetUuid(input.coverAssetId)
-          ? input.coverAssetId
-          : null);
-      return {
-        ...p,
-        coverAssetId: cover,
-        linkedProjectId: p.linkedProjectId || linked,
-      };
+    const withOwnCover = parsed.map((p) => ({
+      ...p,
+      linkedProjectId: p.linkedProjectId || linked,
+    }));
+    const selected = resolvePersistedSelectedPostId({
+      posts: withOwnCover,
+      draftSelectedPostId: input.selectedPostId,
+      coverAssetId: input.coverAssetId,
+      identity: input.selectedIdentity,
+      preferLocalSelection: false,
     });
-    const selected =
-      (input.selectedPostId && withCover.some((p) => p.id === input.selectedPostId)
-        ? input.selectedPostId
-        : withCover[0]!.id);
+    const withCover = withOwnCover.map((p) => {
+      if (p.coverAssetId) return p;
+      if (p.id === selected && input.coverAssetId && isMediaAssetUuid(input.coverAssetId)) {
+        return { ...p, coverAssetId: input.coverAssetId };
+      }
+      return p;
+    });
     return { posts: withCover, selectedPostId: selected };
   }
 

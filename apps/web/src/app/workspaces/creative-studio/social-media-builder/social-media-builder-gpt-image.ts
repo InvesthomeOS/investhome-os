@@ -163,6 +163,7 @@ export function createFinishedAdCanvasPost(input: {
   editableLayers?: unknown[] | null;
   masterBackgroundAssetId?: string | null;
   finishedAdRasterAssetId?: string | null;
+  masterFinishedAdAssetId?: string | null;
 }): SocialPost {
   return createFlattenedGptImagePost({
     ...input,
@@ -206,6 +207,7 @@ export function createFlattenedGptImagePost(input: {
   designSpec?: Record<string, unknown> | null;
   masterBackgroundAssetId?: string | null;
   finishedAdRasterAssetId?: string | null;
+  masterFinishedAdAssetId?: string | null;
   provider?: string | null;
   logoAssetId?: string | null;
   interiorAssetId?: string | null;
@@ -366,6 +368,10 @@ export function createFlattenedGptImagePost(input: {
               : masterBg,
             finished_ad_raster_asset_id:
               input.finishedAdRasterAssetId ?? (editableFinishedAd ? input.localAssetId : null),
+            master_finished_ad_asset_id:
+              input.masterFinishedAdAssetId ??
+              input.finishedAdRasterAssetId ??
+              (editableFinishedAd ? null : input.localAssetId),
             design_spec: input.designSpec ?? null,
           }
         : {}),

@@ -72,6 +72,7 @@ from investhome_api.services.gpt_image_design.persistence import (
 )
 from investhome_api.services.gpt_image_design.source import (
     INVESHOME_GLOBAL_LOGO_MISSING,
+    load_project_image_by_id,
     resolve_project_inputs,
 )
 from investhome_api.services.social_design_engine.fact_governance import (
@@ -548,6 +549,40 @@ def _generate_project(
         skip_logo_input = isinstance(builder_context, dict) and (
             builder_context.get("skip_logo_edit_input") or builder_context.get("revision_mode")
         )
+        revision_route = (
+            str(builder_context.get("revision_route") or "")
+            if isinstance(builder_context, dict)
+            else ""
+        )
+        visual_ref_id = None
+        if isinstance(builder_context, dict) and revision_route == "CREATIVE_RECOMPOSE":
+            raw_ref = (
+                builder_context.get("revision_visual_reference_asset_id")
+                or builder_context.get("master_asset_id")
+            )
+            try:
+                visual_ref_id = UUID(str(raw_ref)) if raw_ref else None
+            except (TypeError, ValueError):
+                visual_ref_id = None
+        if visual_ref_id and str(visual_ref_id) != str(source.asset_id):
+            master_ref = load_project_image_by_id(
+                db,
+                linked_project_id=linked_project_id,
+                asset_id=visual_ref_id,
+                role="master_visual_reference",
+            )
+            if master_ref is not None and master_ref.image_bytes:
+                # FIRST = immutable master finished-ad (composition reference).
+                # SECOND = original approved source photograph (reconstruction only).
+                edit_inputs = [
+                    (master_ref.image_bytes, "master-finished-ad.png", master_ref.content_type),
+                    (source.image_bytes, source.filename, source.content_type),
+                ]
+                logger.info(
+                    "gpt_image_revision_dual_input master=%s source=%s",
+                    visual_ref_id,
+                    source.asset_id,
+                )
         if not skip_logo_input:
             for row in extras:
                 if row.role == "project_logo" and row.image_bytes:

@@ -84,9 +84,14 @@ import {
   deleteSocialPost,
   hydrateSocialPostsFromDraft,
   hasAppliedCreateResult,
+  identityFromSocialPost,
+  isCompletedGeneratedPost,
+  isFinishedAdSocialPost,
   isInFlightGenerationPost,
   mergeCreateGenerationResult,
   mergeHydratedPostsWithLocal,
+  parseSmbSelectedIdentity,
+  readSmbSelectedIdentity,
   stripInFlightPostsForPersist,
   loadLastConstructionProjectId,
   loadPersistedLinkedProjectIdHint,
@@ -94,6 +99,7 @@ import {
   saveEmergencySnapshot,
   saveLastConstructionProjectId,
   serializeSocialPosts,
+  writeSmbSelectedIdentity,
 } from './social-media-builder-persistence';
 import { SmbPostCardMore } from './smb-post-overflow-menu';
 import { exportSocialPostPng, fetchCanvaLayerImages, renderSocialPostPng, buildCanvaLayersPayload } from './social-media-builder-export';
@@ -459,11 +465,24 @@ export function SocialMediaBuilderWorkspace() {
       designProvider?: 'native' | 'ideogram' | 'gpt-image' | 'creative-director';
     } | null) => {
       const coverId = draft?.coverImage?.asset_id ?? null;
+      const projectId = draft?.linkedProjectId ?? docApi.constructionProjectId;
+      const storedIdentity = readSmbSelectedIdentity(projectId);
+      const draftIdentity = parseSmbSelectedIdentity(
+        (draft as { selectedIdentity?: unknown } | null)?.selectedIdentity,
+      );
+      const identity = storedIdentity || draftIdentity;
+      const localIsDefaultSeed = postsRef.current.every(
+        (p) =>
+          DEFAULT_POSTS.some((d) => d.id === p.id) &&
+          !isFinishedAdSocialPost(p) &&
+          !isCompletedGeneratedPost(p),
+      );
       const hydrated = hydrateSocialPostsFromDraft({
         posts: draft?.posts,
         coverAssetId: coverId,
         linkedProjectId: draft?.linkedProjectId ?? docApi.constructionProjectId,
         selectedPostId: draft?.selectedPostId,
+        selectedIdentity: identity,
       });
       const incoming = hydrated.posts.filter((p) => !deletedPostIdsRef.current.has(p.id));
       const merged = mergeHydratedPostsWithLocal({
@@ -472,7 +491,10 @@ export function SocialMediaBuilderWorkspace() {
         deletedIds: deletedPostIdsRef.current,
         generating: generatingRef.current,
         incomingSelectedPostId: hydrated.selectedPostId,
-        localSelectedPostId: selectedPostIdRef.current,
+        localSelectedPostId: localIsDefaultSeed ? null : selectedPostIdRef.current,
+        identity,
+        coverAssetId: coverId,
+        preferLocalSelection: !localIsDefaultSeed,
       });
       const nextPosts = merged.posts.map((p) => ({
         ...p,
@@ -485,6 +507,7 @@ export function SocialMediaBuilderWorkspace() {
       const nextSelected = active?.id ?? '';
       selectedPostIdRef.current = nextSelected;
       setSelectedPostId(nextSelected);
+      writeSmbSelectedIdentity(projectId, identityFromSocialPost(active));
       const skipClobber =
         generatingRef.current || nextPosts.some((p) => isInFlightGenerationPost(p));
       if (!skipClobber) {
@@ -761,6 +784,7 @@ export function SocialMediaBuilderWorkspace() {
           role: 'cover' as const,
         }
       : null;
+    const identity = identityFromSocialPost(active);
     return {
       linkedProjectId: docApi.constructionProjectId,
       coverImage: coverFromPost,
@@ -772,6 +796,7 @@ export function SocialMediaBuilderWorkspace() {
         })),
       ),
       selectedPostId: persistSelected,
+      selectedIdentity: identity,
       brandLogo,
       platforms: Array.from(platforms),
       generationMeta: serializeGenerationMetaForDraft(generationMeta),
@@ -1009,6 +1034,7 @@ export function SocialMediaBuilderWorkspace() {
   }
 
   function selectPost(post: SocialPost) {
+    selectedPostIdRef.current = post.id;
     setSelectedPostId(post.id);
     setFormatPreset(post.formatPreset);
     setSelectedElementId(null);
@@ -1029,6 +1055,15 @@ export function SocialMediaBuilderWorkspace() {
       });
     } else {
       coverAsset.clearCover();
+    }
+    writeSmbSelectedIdentity(docApi.constructionProjectId, identityFromSocialPost(post));
+    persistEpochRef.current += 1;
+    if (docApi.loadStatus === 'ready' && !generatingRef.current) {
+      void docApi.saveDraft({
+        ...buildPersistPayload(),
+        selectedPostId: post.id,
+        selectedIdentity: identityFromSocialPost(post),
+      });
     }
   }
 
@@ -1611,6 +1646,7 @@ export function SocialMediaBuilderWorkspace() {
           editableLayers: response.editable_layers ?? null,
           masterBackgroundAssetId: response.master_background_asset_id ?? response.interior_asset_id,
           finishedAdRasterAssetId: response.finished_ad_raster_asset_id ?? finalAssetId,
+          masterFinishedAdAssetId: response.master_finished_ad_asset_id ?? finalAssetId,
         });
         nextPost.id = createdPostId;
         nextPost.campaignContextId = response.campaign_id;
@@ -1727,14 +1763,26 @@ export function SocialMediaBuilderWorkspace() {
         if (!postId) {
           throw new Error(t('toasts.revisionFailed'));
         }
+        const fidelity = response.quality_guard;
+        const compositionFail =
+          Boolean(fidelity) &&
+          typeof fidelity === 'object' &&
+          (String((fidelity as { status?: unknown }).status || '') === 'fail' ||
+            String((fidelity as { composition_fidelity?: unknown }).composition_fidelity || '') ===
+              'fail' ||
+            (Array.isArray((fidelity as { composition_failures?: unknown }).composition_failures) &&
+              ((fidelity as { composition_failures: unknown[] }).composition_failures.length > 0)));
+        const microEditRevision =
+          response.revision_route === 'LAYER_ONLY' ||
+          response.revision_route === 'MICRO_EDIT';
+        if (!microEditRevision && compositionFail) {
+          throw new Error(t('toasts.revisionFailed'));
+        }
         clearCanvaRaster(postId);
         const providerModel =
           (typeof response.provider_route?.model === 'string' && response.provider_route.model) ||
           gptImage?.model ||
           'gpt-image-2';
-        const microEditRevision =
-          response.revision_route === 'LAYER_ONLY' ||
-          response.revision_route === 'MICRO_EDIT';
         const editableMode = microEditRevision;
         const lockedCoverId = currentAssetId;
         const lockedInteriorId = selectedPost?.generationMeta?.interior_asset_id || null;
@@ -1817,6 +1865,11 @@ export function SocialMediaBuilderWorkspace() {
             ? lockedCoverId
             : response.master_background_asset_id ?? response.interior_asset_id,
           finishedAdRasterAssetId: microEditRevision ? lockedCoverId : finalAssetId,
+          masterFinishedAdAssetId:
+            (typeof selectedPost?.generationMeta?.master_finished_ad_asset_id === 'string' &&
+              selectedPost.generationMeta.master_finished_ad_asset_id) ||
+            response.master_finished_ad_asset_id ||
+            null,
         });
         nextPost.id = postId;
         nextPost.campaignContextId = response.campaign_id || campaignId;
@@ -1853,10 +1906,12 @@ export function SocialMediaBuilderWorkspace() {
         setAiPrompt('');
         markDirty();
         persistEpochRef.current += 1;
+        writeSmbSelectedIdentity(projectId, identityFromSocialPost(nextPost));
         void docApi.saveDraft({
           ...buildPersistPayload(),
           posts: serializeSocialPosts(nextPosts),
           selectedPostId: nextPost.id,
+          selectedIdentity: identityFromSocialPost(nextPost),
           designProvider: 'creative-director',
           brandLogo: false,
         });
@@ -1945,6 +2000,11 @@ export function SocialMediaBuilderWorkspace() {
         finishedAdRasterAssetId: microEdit
           ? lockedCoverId
           : response.finished_ad_raster_asset_id ?? finalAssetId,
+        masterFinishedAdAssetId:
+          (typeof selectedPost?.generationMeta?.master_finished_ad_asset_id === 'string' &&
+            selectedPost.generationMeta.master_finished_ad_asset_id) ||
+          response.master_finished_ad_asset_id ||
+          null,
       });
       nextPost.id = postId;
       nextPost.campaignContextId = response.campaign_id || campaignId;
@@ -3538,6 +3598,11 @@ export function SocialMediaBuilderWorkspace() {
                       data-logo-asset-id={
                         selectedPost?.generationMeta?.logo_asset_id
                           ? String(selectedPost.generationMeta.logo_asset_id)
+                          : ''
+                      }
+                      data-master-finished-ad-asset-id={
+                        selectedPost?.generationMeta?.master_finished_ad_asset_id
+                          ? String(selectedPost.generationMeta.master_finished_ad_asset_id)
                           : ''
                       }
                       data-raster-asset-id={

@@ -60,6 +60,8 @@ export type BuilderMediaDraft = {
    */
   posts?: Record<string, unknown>[];
   selectedPostId?: string | null;
+  /** SMB exact filmstrip identity — survive refresh without picking latest/first. */
+  selectedIdentity?: Record<string, unknown> | null;
   brandLogo?: boolean;
   platforms?: string[];
   /**
@@ -83,6 +85,7 @@ export type BuilderMediaPersistInput = {
   galleryImages?: CsImageRef[];
   posts?: Record<string, unknown>[];
   selectedPostId?: string | null;
+  selectedIdentity?: Record<string, unknown> | null;
   brandLogo?: boolean;
   platforms?: string[];
   generationMeta?: Record<string, unknown> | null;
@@ -121,6 +124,9 @@ export function serializeBuilderMediaDraft(
   if (postsProvided) {
     draft.posts = input.posts;
     draft.selectedPostId = input.selectedPostId ?? null;
+    if (input.selectedIdentity && typeof input.selectedIdentity === 'object') {
+      draft.selectedIdentity = input.selectedIdentity;
+    }
   }
   if (typeof input.brandLogo === 'boolean') draft.brandLogo = input.brandLogo;
   if (Array.isArray(input.platforms)) draft.platforms = input.platforms;
@@ -246,6 +252,12 @@ export function deserializeBuilderMediaDraft(
     posts,
     selectedPostId:
       typeof body.selectedPostId === 'string' ? body.selectedPostId : null,
+    selectedIdentity:
+      body.selectedIdentity &&
+      typeof body.selectedIdentity === 'object' &&
+      !Array.isArray(body.selectedIdentity)
+        ? (body.selectedIdentity as Record<string, unknown>)
+        : null,
     brandLogo: typeof body.brandLogo === 'boolean' ? body.brandLogo : undefined,
     platforms: Array.isArray(body.platforms)
       ? body.platforms.filter((p): p is string => typeof p === 'string')

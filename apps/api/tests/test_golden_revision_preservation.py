@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import io
+
 from investhome_api.services.creative_director.design_spec import (
     compose_layer_only_on_locked_raster,
     route_revision,
@@ -134,3 +136,111 @@ def test_working_brief_applies_headline_and_drops_first_support():
     assert out["final_copy"]["headline"] == "Zamansız Bir Yaşam"
     assert out["supporting"] == ["Stunning architectural design."]
     assert abs(float(out.get("logo_scale") or 1) - 0.85) < 0.02
+
+
+def _layout_png(*, cta_left: bool, headline_top: bool, support: bool, logo: bool) -> bytes:
+    from PIL import Image, ImageDraw
+
+    img = Image.new("RGB", (300, 400), (40, 42, 48))
+    draw = ImageDraw.Draw(img)
+    # architectural center
+    draw.rectangle((90, 130, 210, 270), fill=(90, 88, 82))
+    if headline_top:
+        draw.rectangle((18, 18, 180, 70), fill=(240, 236, 228))
+    else:
+        draw.rectangle((70, 150, 230, 210), fill=(240, 236, 228))
+    if support:
+        draw.rectangle((18, 140, 120, 175), fill=(200, 196, 188))
+    if logo:
+        draw.rectangle((230, 16, 286, 52), fill=(196, 163, 90))
+    if cta_left:
+        draw.rectangle((18, 350, 110, 386), fill=(20, 18, 16))
+    else:
+        draw.rectangle((190, 350, 282, 386), fill=(20, 18, 16))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def test_composition_fidelity_rejects_cta_move():
+    from investhome_api.services.creative_director.revision import (
+        compare_recompose_composition_fidelity,
+    )
+
+    master = _layout_png(cta_left=True, headline_top=True, support=True, logo=True)
+    moved = _layout_png(cta_left=False, headline_top=True, support=True, logo=True)
+    result = compare_recompose_composition_fidelity(
+        master_bytes=master,
+        revised_bytes=moved,
+        revision_diff={
+            "operations": [
+                {"target": "headline", "action": "replace_text", "to_value": "Zamansız Bir Yaşam"},
+            ]
+        },
+    )
+    assert result["status"] == "fail"
+    assert any("cta" in f for f in result["composition_failures"])
+
+
+def test_composition_fidelity_allows_local_headline_and_support_delete():
+    from investhome_api.services.creative_director.revision import (
+        compare_recompose_composition_fidelity,
+    )
+
+    master = _layout_png(cta_left=True, headline_top=True, support=True, logo=True)
+    revised = _layout_png(cta_left=True, headline_top=True, support=False, logo=True)
+    result = compare_recompose_composition_fidelity(
+        master_bytes=master,
+        revised_bytes=revised,
+        revision_diff={
+            "operations": [
+                {"target": "headline", "action": "replace_text", "to_value": "Zamansız Bir Yaşam"},
+                {"target": "support_message", "action": "remove"},
+                {"target": "logo", "action": "scale", "to_value": "0.85"},
+            ]
+        },
+    )
+    assert result["status"] == "pass"
+
+
+def test_composition_fidelity_rejects_headline_region_move():
+    from investhome_api.services.creative_director.revision import (
+        compare_recompose_composition_fidelity,
+    )
+
+    master = _layout_png(cta_left=True, headline_top=True, support=True, logo=True)
+    moved = _layout_png(cta_left=True, headline_top=False, support=True, logo=True)
+    result = compare_recompose_composition_fidelity(
+        master_bytes=master,
+        revised_bytes=moved,
+        revision_diff={
+            "operations": [
+                {"target": "headline", "action": "replace_text", "to_value": "Zamansız Bir Yaşam"},
+            ]
+        },
+    )
+    assert result["status"] == "fail"
+    assert any("headline" in f for f in result["composition_failures"])
+
+
+def test_recompose_prompt_sends_master_as_visual_reference():
+    from investhome_api.services.creative_director.revision import render_revision_production_prompt
+
+    prompt = render_revision_production_prompt(
+        revision_brief={
+            "instruction": ACCEPTANCE_PROMPT,
+            "intents": ["COPY_CHANGE"],
+            "master_asset_id": "master-1",
+            "master_source_asset_id": "source-1",
+            "copy_overrides": {},
+            "revision_diff": {"operations": [], "preserve": [], "forbidden_changes": []},
+            "cumulative_operations": [],
+            "production_brief_snapshot": {"hero": "Eviniz, Sığınak", "cta": "Detayları Keşfet"},
+        },
+        production_brief={"cta": "Detayları Keşfet", "final_copy": {"headline": "Eviniz, Sığınak"}},
+        original_brief="The Temple",
+        lifestyle=False,
+    )
+    assert "MASTER finished advertisement" in prompt
+    assert "DO NOT DESIGN A NEW ADVERTISEMENT" in prompt
+    assert "existing visual zone" in prompt

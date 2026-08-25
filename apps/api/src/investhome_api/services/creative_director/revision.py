@@ -399,9 +399,20 @@ def render_revision_production_prompt(
     snapshot = _as_dict(revision_brief.get("production_brief_snapshot"))
 
     lines = [
+        "CREATIVE_RECOMPOSE — EDIT THE SUPPLIED MASTER ADVERTISEMENT. DO NOT DESIGN A NEW ADVERTISEMENT.",
+        "Image 1 (first input) is the immutable MASTER finished advertisement. It is the composition reference.",
+        "Image 2 is the original approved source photograph. Use it ONLY where reconstruction of the photograph is necessary.",
+        "Do not design a new advertisement from the source image plus a text brief.",
+        "Preserve all unrequested visual properties and element positions:",
+        "logo anchor, CTA anchor, headline region, alignment, margins, palette,",
+        "decorative elements, hierarchy, background crop, overall composition.",
+        "User-unmentioned elements are IMMUTABLE.",
+        "If the headline text changes: reflow the headline INSIDE its existing visual zone first",
+        "(line break, local font-size, local spacing, tiny collision nudge).",
+        "FORBIDDEN unless explicitly requested: moving headline to another region, moving CTA,",
+        "moving logo, deleting other copy, changing typography style, changing background crop,",
+        "changing decorative elements, simplifying or redesigning the whole ad.",
         "REVISION CREATIVE BRIEF — REVISE THIS CAMPAIGN, DO NOT CREATE A DIFFERENT CAMPAIGN.",
-        "Input image is the ORIGINAL approved project photograph / MASTER source asset.",
-        "FORBIDDEN: previous revised raster as source. FORBIDDEN: generation-over-generation.",
         "Preserve the original creative concept, image, logo, palette, CTA style and composition language.",
         "Rebalance typography and spacing only as necessary. Do not redesign the ad.",
         "Do NOT invent a new campaign, new background, new branding, or new architecture.",
@@ -943,6 +954,168 @@ def compare_revision_quality(
         },
         "failures": failures,
         "compared_against": "master_asset",
+    }
+
+
+_HEADLINE_TARGETS = frozenset(
+    {"headline", "primary_headline", "subheadline", "eyebrow", "top_small_description"}
+)
+_SUPPORT_DELETE_TARGETS = frozenset(
+    {
+        "support_message",
+        "left_feature_texts",
+        "feature_text",
+        "top_small_description",
+        "subheadline",
+        "eyebrow",
+    }
+)
+_CTA_TARGETS = frozenset({"cta"})
+_LOGO_TARGETS = frozenset({"logo"})
+_BACKGROUND_TARGETS = frozenset({"background", "layout", "style", "overall"})
+
+
+def _revision_requested_targets(
+    revision_diff: RevisionDiff | dict[str, Any] | None,
+) -> tuple[set[str], set[str]]:
+    if isinstance(revision_diff, RevisionDiff):
+        ops = revision_diff.operations
+    else:
+        d = _as_dict(revision_diff)
+        ops = [
+            RevisionOperation.model_validate(o) if isinstance(o, dict) else o
+            for o in (d.get("operations") or [])
+        ]
+    targets: set[str] = set()
+    delete_targets: set[str] = set()
+    for op in ops:
+        target = str(getattr(op, "target", "") or "").strip()
+        action = str(getattr(op, "action", "") or "").strip()
+        if target:
+            targets.add(target)
+        if action in {"remove", "delete", "hide"}:
+            delete_targets.add(target)
+    return targets, delete_targets
+
+
+def _grid_energy(gray: Any, rows: int = 3, cols: int = 3) -> list[list[float]]:
+    from PIL import ImageStat
+
+    w, h = gray.size
+    grid: list[list[float]] = []
+    for r in range(rows):
+        row: list[float] = []
+        for c in range(cols):
+            box = (
+                int(c * w / cols),
+                int(r * h / rows),
+                int((c + 1) * w / cols),
+                int((r + 1) * h / rows),
+            )
+            crop = gray.crop(box)
+            if crop.size[0] < 2 or crop.size[1] < 2:
+                row.append(0.0)
+                continue
+            stat = ImageStat.Stat(crop)
+            var = stat.var[0] if stat.var else 0.0
+            row.append(float(var))
+        grid.append(row)
+    return grid
+
+
+def _rel_drop(before: float, after: float) -> float:
+    if before < 8.0:
+        return 0.0
+    return (before - after) / before
+
+
+def compare_recompose_composition_fidelity(
+    *,
+    master_bytes: bytes,
+    revised_bytes: bytes,
+    revision_diff: RevisionDiff | dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Fail-closed layout lock vs MASTER. Unrequested CTA/logo/headline-region/crop moves reject."""
+    from PIL import Image, ImageChops, ImageStat
+
+    targets, delete_targets = _revision_requested_targets(revision_diff)
+    headline_ok = bool(targets & _HEADLINE_TARGETS)
+    support_delete_ok = bool(delete_targets & _SUPPORT_DELETE_TARGETS) or bool(
+        targets & {"support_message", "left_feature_texts", "feature_text"}
+    )
+    cta_ok = bool(targets & _CTA_TARGETS)
+    logo_ok = bool(targets & _LOGO_TARGETS)
+    background_ok = bool(targets & _BACKGROUND_TARGETS)
+
+    with Image.open(io.BytesIO(master_bytes)) as im_m, Image.open(io.BytesIO(revised_bytes)) as im_r:
+        master = im_m.convert("L")
+        revised = im_r.convert("L")
+        if revised.size != master.size:
+            revised = revised.resize(master.size)
+        master_grid = _grid_energy(master)
+        revised_grid = _grid_energy(revised)
+        diff = ImageChops.difference(master, revised)
+        center_box = (
+            int(master.size[0] * 0.30),
+            int(master.size[1] * 0.30),
+            int(master.size[0] * 0.70),
+            int(master.size[1] * 0.70),
+        )
+        center_mad = float(ImageStat.Stat(diff.crop(center_box)).mean[0])
+
+    failures: list[str] = []
+    cta_master = master_grid[2][0]
+    cta_rev = revised_grid[2][0]
+    cta_right_master = master_grid[2][2]
+    cta_right_rev = revised_grid[2][2]
+    master_cta_anchor = "left" if cta_master >= cta_right_master else "right"
+    revised_cta_anchor = "left" if cta_rev >= cta_right_rev else "right"
+    if not cta_ok:
+        if master_cta_anchor != revised_cta_anchor and (cta_master + cta_right_master) > 20:
+            failures.append(
+                f"cta_anchor_changed master={master_cta_anchor} result={revised_cta_anchor}"
+            )
+        if _rel_drop(cta_master, cta_rev) > 0.45 and (cta_right_rev - cta_right_master) > 12:
+            failures.append("cta_region_energy_moved")
+
+    logo_master = master_grid[0][2]
+    logo_rev = revised_grid[0][2]
+    if not logo_ok and _rel_drop(logo_master, logo_rev) > 0.55:
+        failures.append("logo_anchor_lost")
+    if logo_ok and logo_master > 12 and logo_rev < 4:
+        failures.append("logo_disappeared")
+
+    headline_master = master_grid[0][0] + master_grid[0][1]
+    headline_rev = revised_grid[0][0] + revised_grid[0][1]
+    center_master = master_grid[1][1]
+    center_rev = revised_grid[1][1]
+    if headline_ok:
+        if headline_master > 20 and _rel_drop(headline_master, headline_rev) > 0.70:
+            if (center_rev - center_master) > 20:
+                failures.append("headline_region_moved")
+    else:
+        if _rel_drop(headline_master, headline_rev) > 0.50:
+            failures.append("headline_region_changed")
+
+    support_master = master_grid[1][0]
+    support_rev = revised_grid[1][0]
+    if not support_delete_ok and _rel_drop(support_master, support_rev) > 0.55:
+        failures.append("supporting_text_disappeared")
+
+    if not background_ok and not headline_ok and not support_delete_ok and center_mad > 36:
+        failures.append(f"background_crop_or_composition_changed mad={center_mad:.1f}")
+
+    status_val = "fail" if failures else "pass"
+    return {
+        "status": status_val,
+        "composition_fidelity": status_val,
+        "composition_failures": failures,
+        "cta_anchor": {"master": master_cta_anchor, "result": revised_cta_anchor},
+        "center_mad": round(center_mad, 3),
+        "grid_master": master_grid,
+        "grid_revised": revised_grid,
+        "requested_targets": sorted(targets),
+        "compared_against": "master_finished_ad",
     }
 
 
@@ -1586,15 +1759,19 @@ def revise_ad_from_campaign(
         "production_mode": "finished_ad",
         "finished_ad": True,
         "revision_mode": True,
+        "revision_route": revision_route,
         "revision_brief": revision_brief,
         "revision_diff": revision_diff.model_dump(by_alias=True),
         "master_asset_id": str(master_id),
+        "revision_visual_reference_asset_id": str(master_id),
         "revision_source_asset_id": str(master_source_id),
+        "skip_logo_edit_input": True,
         "cumulative_operations": cumulative_after,
         "image_provider_route": provider_route.to_dict(),
     }
 
-    # CRITICAL: always generate from MASTER source image — never a prior revision raster.
+    # Source pick stays the original approved photograph. CREATIVE_RECOMPOSE also
+    # injects the immutable MASTER finished-ad as image-1 via builder_context.
     gpt_body = GptImageDesignRequest(
         linked_project_id=row.linked_project_id,
         instruction=instruction_prompt,
@@ -1633,8 +1810,11 @@ def revise_ad_from_campaign(
             source_used,
         )
 
-    # Quality Comparison Guard vs MASTER finished-ad (advisory for recompose).
+    # Quality Comparison Guard vs MASTER finished-ad.
+    # Photometric drift is advisory; composition/anchor drift is fail-closed.
     quality_guard: dict[str, Any]
+    master_bytes = b""
+    revised_bytes = b""
     try:
         master_bytes = _read_asset_bytes(db, master_id)
         revised_bytes = _read_asset_bytes(db, new_asset_id)
@@ -1657,7 +1837,43 @@ def revise_ad_from_campaign(
         quality_guard["failures"] = []
         quality_guard["note"] = (
             "Photometric drift vs master is advisory for CREATIVE_RECOMPOSE; "
-            "user visual review required."
+            "composition fidelity is fail-closed."
+        )
+
+    composition: dict[str, Any] = {
+        "status": "skip",
+        "composition_failures": [],
+    }
+    if master_bytes and revised_bytes:
+        try:
+            composition = compare_recompose_composition_fidelity(
+                master_bytes=master_bytes,
+                revised_bytes=revised_bytes,
+                revision_diff=revision_diff,
+            )
+        except Exception as exc:
+            logger.warning("revision_composition_fidelity_unavailable: %s", exc)
+            composition = {
+                "status": "skip",
+                "composition_failures": [],
+                "reason": str(exc),
+            }
+    quality_guard["composition_fidelity"] = composition.get("status")
+    quality_guard["composition_failures"] = list(composition.get("composition_failures") or [])
+    quality_guard["cta_anchor"] = composition.get("cta_anchor")
+    if composition.get("status") == "fail":
+        quality_guard["status"] = "fail"
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": (
+                    "CREATIVE_RECOMPOSE failed composition fidelity vs MASTER. "
+                    "Result was not hydrated onto the SMB canvas."
+                ),
+                "quality_guard": quality_guard,
+                "master_asset_id": str(master_id),
+                "rejected_asset_id": str(new_asset_id),
+            },
         )
 
     artifact = golden_revision_artifact_guard(

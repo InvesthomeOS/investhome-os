@@ -1,0 +1,69 @@
+{
+  "visual_quality_pass_declared": false,
+  "identity_before": {
+    "postId": "067c22d3-dcc3-4569-8f3c-127a0afbef98",
+    "campaignId": "a45f7a43-cade-447e-8aa5-b6d126688ff7",
+    "coverAssetId": "30cf8e51-28c0-4db5-b4e6-dde6f2ea800d",
+    "masterFinishedAdAssetId": ""
+  },
+  "identity_after_recompose": {
+    "postId": "067c22d3-dcc3-4569-8f3c-127a0afbef98",
+    "campaignId": "a45f7a43-cade-447e-8aa5-b6d126688ff7",
+    "coverAssetId": "0537ce84-0faa-469f-bc8a-1f8347240c98",
+    "masterFinishedAdAssetId": "f1310474-d9b9-45f9-8fde-99aaddbc2431"
+  },
+  "identity_after_refresh": {
+    "postId": "067c22d3-dcc3-4569-8f3c-127a0afbef98",
+    "campaignId": "a45f7a43-cade-447e-8aa5-b6d126688ff7",
+    "coverAssetId": "0537ce84-0faa-469f-bc8a-1f8347240c98",
+    "masterFinishedAdAssetId": "f1310474-d9b9-45f9-8fde-99aaddbc2431"
+  },
+  "recompose_http": 200,
+  "revision_route": "CREATIVE_RECOMPOSE",
+  "quality_guard": {
+    "status": "pass",
+    "master": {
+      "width": 1088,
+      "height": 1360,
+      "brightness": 71.01639989837399,
+      "contrast": 61.005649683498916,
+      "mean_r": 77.27764862804878,
+      "mean_g": 72.88805259146342,
+      "mean_b": 62.883498475609755
+    },
+    "revised": {
+      "width": 1088,
+      "height": 1360,
+      "brightness": 70.45243267276423,
+      "contrast": 64.37032726005442,
+      "mean_r": 76.48307926829268,
+      "mean_g": 72.34946646341463,
+      "mean_b": 62.52475228658537
+    },
+    "brightness_delta": -0.564,
+    "contrast_delta": 3.365,
+    "color_shift": 1.025,
+    "dimension_delta_pct": 0,
+    "thresholds": {
+      "brightness": 12,
+      "contrast": 15,
+      "color_shift": 18,
+      "dimension_pct": 2
+    },
+    "failures": [],
+    "compared_against": "master_asset",
+    "composition_fidelity": "pass",
+    "composition_failures": [],
+    "cta_anchor": {
+      "master": "left",
+      "result": "left"
+    },
+    "artifact_guard": {
+      "status": "pass",
+      "failures": [],
+      "compared_against": "master_creative_lock"
+    }
+  },
+  "final_asset_id": "0537ce84-0faa-469f-bc8a-1f8347240c98",
+  "generate_ad_during_revise": 0
+}

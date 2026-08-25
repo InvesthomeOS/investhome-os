@@ -514,3 +514,25 @@ def resolve_project_inputs(
     if not investhome_found and INVESHOME_GLOBAL_LOGO_MISSING not in warnings:
         warnings.append(INVESHOME_GLOBAL_LOGO_MISSING)
     return source, extras, references, notes, warnings
+
+
+def load_project_image_by_id(
+    db: Session,
+    *,
+    linked_project_id: UUID,
+    asset_id: UUID,
+    role: str = "visual_reference",
+) -> ResolvedSourceImage | None:
+    """Load a project media asset for GPT Image edits without reranking candidates."""
+    asset = db.get(CreativeStudioMediaAsset, asset_id)
+    if asset is None or asset.archived_at is not None:
+        return None
+    if asset.linked_project_id is not None and asset.linked_project_id != linked_project_id:
+        return None
+    candidate = _candidate_from_asset(db, asset)
+    return resolve_image_bytes(
+        db,
+        linked_project_id=linked_project_id,
+        candidate=candidate,
+        role=role,
+    )

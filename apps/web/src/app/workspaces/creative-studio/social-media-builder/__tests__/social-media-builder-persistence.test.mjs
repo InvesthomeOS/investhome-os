@@ -374,11 +374,22 @@ describe('media scoped by linked_project_id + no Unsplash production seed', () =
     assert.match(workspace, /seedFromTemplate:\s*false/);
   });
 
-  it('workspace Select uses construction project UUIDs not temple/309h slugs', () => {
+  it('hydrate restores selectedPostId and does not apply coverImage to post 0', () => {
+    const persistence = readSmb('social-media-builder-persistence.ts');
+    assert.match(persistence, /export function resolvePersistedSelectedPostId/);
+    assert.match(persistence, /preferLocalSelection/);
+    assert.match(persistence, /writeSmbSelectedIdentity/);
+    assert.match(persistence, /readSmbSelectedIdentity/);
+    assert.match(persistence, /const withOwnCover = parsed\.map/);
+    assert.match(persistence, /if \(p\.id === selected && input\.coverAssetId/);
+  });
+
+  it('workspace refresh hydrate ignores DEFAULT p1 and persists identity on select', () => {
     const workspace = readSmb('social-media-builder-workspace.tsx');
-    assert.match(workspace, /docApi\.constructionProjects\.map/);
-    assert.match(workspace, /p\.project_name/);
-    assert.doesNotMatch(workspace, /SMB_PROJECTS\.map/);
-    assert.doesNotMatch(workspace, /as ProjectId/);
+    assert.match(workspace, /localIsDefaultSeed/);
+    assert.match(workspace, /preferLocalSelection: !localIsDefaultSeed/);
+    assert.match(workspace, /writeSmbSelectedIdentity/);
+    assert.match(workspace, /data-master-finished-ad-asset-id/);
+    assert.match(workspace, /compositionFail/);
   });
 });
