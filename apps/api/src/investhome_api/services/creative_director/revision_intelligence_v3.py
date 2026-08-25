@@ -300,6 +300,14 @@ def resolve_spatial_targets(
     ):
         headline = _find_by_target(spec, "headline")
         hl_id = str(headline.get("id") or "") if headline else ""
+        feature_ids = {
+            "support-message-1",
+            "support-message-2",
+            "support-message-3",
+            "feature-1",
+            "feature-2",
+            "feature-3",
+        }
         ranked = [
             e
             for e in texts
@@ -310,8 +318,14 @@ def resolve_spatial_targets(
                 "badge",
                 "cta",
                 "logo",
+                "support_message",
+                "body",
+                "feature",
             }
             and not str(e.get("id") or "").lower().startswith("discount")
+            and not str(e.get("id") or "").lower().startswith("support-message")
+            and not str(e.get("id") or "").lower().startswith("feature-")
+            and str(e.get("id") or "").lower() not in feature_ids
         ]
         ranked.sort(key=lambda e: (float(e.get("y") or 0), _font_size(e)))
         top = [e for e in ranked if float(e.get("y") or 0) <= ch * 0.50]
@@ -323,7 +337,8 @@ def resolve_spatial_targets(
             if str(e.get("id") or "").lower() in preferred_ids
             or str(e.get("role") or "").lower() in preferred_roles
         ]
-        pick = (preferred or top or ranked)[:1]
+        # No kicker layer → delete is a no-op. Never steal left feature copy.
+        pick = preferred[:1]
         return "top_small_description", pick
 
     if any(
@@ -468,7 +483,7 @@ def parse_v3_clause_ops(
             found = find_element(design_spec, fid)
             if found and found not in bound:
                 bound.append(found)
-        if bound or semantic != "overall":
+        if bound:
             ops.append(
                 _bind_op(
                     semantic=semantic,

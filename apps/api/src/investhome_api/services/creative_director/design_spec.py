@@ -2289,6 +2289,15 @@ def apply_layer_operations(
                 i in {"unit-label", "subheadline", "eyebrow", "top-description"} for i in remove_ids
             ):
                 remove_ids.add("eyebrow-pill")
+            if target in {"top_small_description", "subheadline", "eyebrow"}:
+                remove_ids -= {
+                    "support-message-1",
+                    "support-message-2",
+                    "support-message-3",
+                    "feature-1",
+                    "feature-2",
+                    "feature-3",
+                }
             if remove_ids:
                 spec["elements"] = [
                     e

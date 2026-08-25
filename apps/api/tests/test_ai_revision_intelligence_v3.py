@@ -555,6 +555,63 @@ def test_selected_design_prompt_does_not_regenerate_creative():
     assert a["master_background"]["asset_id"] == before["master_background"]["asset_id"]
 
 
+def test_kicker_delete_does_not_steal_support_messages():
+    """Real Temple finished-ad: no unit-label; SM1/SM2 are the left copy."""
+    spec = _smb_real_spec()
+    spec["elements"] = [
+        el
+        for el in spec["elements"]
+        if el["id"] not in {"top-description", "feature-1", "feature-2"}
+    ]
+    spec["elements"].extend(
+        [
+            _el(
+                eid="support-message-1",
+                etype="text",
+                role="support_message",
+                x=72,
+                y=430,
+                w=480,
+                h=48,
+                content="Tarihi dokunuşlarla modern yaşam",
+                font=26,
+                z=26,
+            ),
+            _el(
+                eid="support-message-2",
+                etype="text",
+                role="support_message",
+                x=72,
+                y=490,
+                w=480,
+                h=48,
+                content="Washington DC'nin kalbinde",
+                font=26,
+                z=27,
+            ),
+        ]
+    )
+    plan, before, after, preservation, execution, route = _apply(SELECTED_DESIGN_PROMPT, spec)
+    assert route == "LAYER_ONLY"
+    assert execution["status"] == "pass"
+    assert preservation["status"] == "pass"
+    ids = {el["id"] for el in after["elements"]}
+    assert "support-message-1" in ids
+    assert "support-message-2" in ids
+    a = _by_id(after)
+    assert abs(_font(a["headline"]) - before["headline"]["typography"]["font_size"] * 1.10) <= 1
+    assert abs(_font(a["support-message-1"]) - before["support-message-1"]["typography"]["font_size"] * 1.15) <= 1
+    assert abs(_font(a["support-message-2"]) - before["support-message-2"]["typography"]["font_size"] * 1.15) <= 1
+    deleted = [
+        tuple(o.get("element_ids") or ([o.get("element_id")] if o.get("element_id") else []))
+        for o in dump_semantic_plan(plan)["operations"]
+        if o.get("action") == "delete"
+    ]
+    for el_ids in deleted:
+        assert "support-message-1" not in el_ids
+        assert "support-message-2" not in el_ids
+
+
 def test_compose_layer_only_on_locked_raster_one_semantic_one_visible():
     spec = _smb_real_spec()
     _plan, before, after, _preservation, _execution, route = _apply(SELECTED_DESIGN_PROMPT, spec)
