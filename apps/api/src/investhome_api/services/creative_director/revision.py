@@ -65,7 +65,6 @@ from investhome_api.services.creative_director.generate_ad import (
 )
 from investhome_api.services.creative_director.production_brief import (
     lock_copy_to_language,
-    render_finished_ad_production_prompt,
     verify_logo_lock,
 )
 from investhome_api.services.creative_director.provider_router import (
@@ -363,16 +362,96 @@ def _format_operation_line(op: dict[str, Any] | RevisionOperation) -> str:
     target = d.get("target")
     action = d.get("action")
     conf = d.get("confidence", "medium")
+    to_value = d.get("to") if d.get("to") is not None else d.get("to_value")
+    from_value = d.get("from") if d.get("from") is not None else d.get("from_value")
     parts = [f"- [{conf}] {target}.{action}"]
-    if d.get("from") is not None:
-        parts.append(f"from={d.get('from')!r}")
-    if d.get("to") is not None:
-        parts.append(f"to={d.get('to')!r}")
+    if from_value is not None:
+        parts.append(f"from={from_value!r}")
+    if to_value is not None:
+        parts.append(f"to={to_value!r}")
     if d.get("scale_factor") is not None:
         parts.append(f"scale_factor={d.get('scale_factor')}")
     if d.get("note"):
         parts.append(f"({d.get('note')})")
     return " ".join(parts)
+
+
+RECOMPOSE_LOCK_DEFAULT = [
+    "element positions",
+    "headline zone / region (not the requested headline copy)",
+    "logo zone / position / treatment (except requested scale)",
+    "CTA zone / size / position / style / copy",
+    "font character and typography style",
+    "visual hierarchy",
+    "margins and alignment",
+    "colors and palette",
+    "remaining supporting copy",
+    "decorative details",
+    "background crop",
+    "image lighting and grade",
+    "overall visual density — do not simplify or redesign",
+]
+
+
+def build_recompose_change_lock_lists(
+    *,
+    revision_diff: RevisionDiff | dict[str, Any] | None,
+    copy_overrides: dict[str, Any] | None = None,
+    master_visible_copy: dict[str, Any] | None = None,
+) -> tuple[list[str], list[str]]:
+    """CHANGE = explicit requests only. LOCK = everything else visible in master."""
+    if isinstance(revision_diff, RevisionDiff):
+        ops = [_op_dict(o) for o in revision_diff.operations]
+    else:
+        d = _as_dict(revision_diff)
+        ops = [_op_dict(o) if not isinstance(o, dict) else dict(o) for o in (d.get("operations") or [])]
+    overrides = _as_dict(copy_overrides)
+    visible = _as_dict(master_visible_copy)
+    change: list[str] = []
+    for op in ops:
+        target = str(op.get("target") or "").strip().lower()
+        action = str(op.get("action") or "").strip().lower()
+        to_value = op.get("to") if op.get("to") is not None else op.get("to_value")
+        scale = op.get("scale_factor")
+        if target in {"headline", "primary_headline"} and action in {"replace_text", "set_text"} and to_value:
+            change.append(
+                f"headline copy → {to_value}. Fit inside the EXISTING headline region only "
+                "(line wrap, modest font-size, modest line-height, small local spacing). "
+                "Do not move the headline to another region or enlarge it dramatically."
+            )
+        elif target in {"support_message", "left_feature_texts", "feature_text"} and action in {
+            "remove",
+            "delete",
+            "hide",
+        }:
+            change.append(
+                "remove the FIRST left supporting line only. Keep every remaining supporting line "
+                "in the same place, size, and style."
+            )
+        elif target == "logo" and action == "scale":
+            factor = float(scale) if scale is not None else float(overrides.get("logo_scale") or 0.85)
+            pct = abs(1.0 - factor) * 100.0
+            direction = "smaller" if factor < 1.0 else "larger"
+            change.append(
+                f"logo approximately {pct:.0f}% {direction} (scale_factor={factor}). "
+                "Same mark, same corner, same treatment. Do not redraw or restyle the logo."
+            )
+        elif target == "cta" and to_value:
+            change.append(f"CTA copy → {to_value}. Keep CTA size, position, and style.")
+        else:
+            change.append(_format_operation_line(op).lstrip("- ").strip())
+    if not change:
+        change.append("No structured ops — apply only the explicit user request. Change nothing else.")
+
+    remaining = visible.get("supporting") or []
+    cta = visible.get("cta") or ""
+    lock = list(RECOMPOSE_LOCK_DEFAULT)
+    if cta:
+        lock.append(f"CTA copy stays exactly: {cta}")
+    if remaining:
+        lock.append("remaining supporting copy stays exactly: " + " | ".join(str(s) for s in remaining))
+    lock.append("Default: if the user did not request it, preserve it.")
+    return change, lock
 
 
 def render_revision_production_prompt(
@@ -382,117 +461,73 @@ def render_revision_production_prompt(
     original_brief: str,
     lifestyle: bool = False,
 ) -> str:
-    """Prompt for GPT Image: ORIGINAL SOURCE IMAGE + MASTER creative + cumulative ops."""
-    base = render_finished_ad_production_prompt(
-        production_brief=production_brief,
-        art_direction=_as_dict(production_brief.get("design_direction")),
-        original_brief=original_brief,
-        lifestyle=lifestyle,
-    )
-    intents = ", ".join(revision_brief.get("intents") or [])
+    """Edit-only CREATIVE_RECOMPOSE prompt. Never a new-ad generation brief."""
+    del lifestyle  # signature stable; generation brief is intentionally not used.
     overrides = _as_dict(revision_brief.get("copy_overrides"))
     diff = _as_dict(revision_brief.get("revision_diff"))
     cumulative = list(revision_brief.get("cumulative_operations") or [])
-    new_ops = list(diff.get("operations") or [])
-    preserve = list(diff.get("preserve") or DEFAULT_PRESERVE)
-    forbidden = list(diff.get("forbidden_changes") or DEFAULT_FORBIDDEN)
     snapshot = _as_dict(revision_brief.get("production_brief_snapshot"))
+    visible = _as_dict(revision_brief.get("master_visible_copy"))
+    if not visible:
+        visible = {
+            "headline": snapshot.get("hero") or _as_dict(production_brief.get("final_copy")).get("headline"),
+            "cta": snapshot.get("cta") or production_brief.get("cta"),
+            "supporting": snapshot.get("supporting") or production_brief.get("supporting") or [],
+        }
+    change, lock = build_recompose_change_lock_lists(
+        revision_diff=diff,
+        copy_overrides=overrides,
+        master_visible_copy=visible,
+    )
+    revision_brief["change_list"] = list(change)
+    revision_brief["lock_list"] = list(lock)
 
     lines = [
-        "CREATIVE_RECOMPOSE — EDIT THE SUPPLIED MASTER ADVERTISEMENT. DO NOT DESIGN A NEW ADVERTISEMENT.",
-        "Image 1 (first input) is the immutable MASTER finished advertisement. It is the composition reference.",
-        "Image 2 is the original approved source photograph. Use it ONLY where reconstruction of the photograph is necessary.",
-        "Do not design a new advertisement from the source image plus a text brief.",
-        "Preserve all unrequested visual properties and element positions:",
-        "logo anchor, CTA anchor, headline region, alignment, margins, palette,",
-        "decorative elements, hierarchy, background crop, overall composition.",
-        "User-unmentioned elements are IMMUTABLE.",
-        "If the headline text changes: reflow the headline INSIDE its existing visual zone first",
-        "(line break, local font-size, local spacing, tiny collision nudge).",
-        "FORBIDDEN unless explicitly requested: moving headline to another region, moving CTA,",
-        "moving logo, deleting other copy, changing typography style, changing background crop,",
-        "changing decorative elements, simplifying or redesigning the whole ad.",
-        "REVISION CREATIVE BRIEF — REVISE THIS CAMPAIGN, DO NOT CREATE A DIFFERENT CAMPAIGN.",
-        "Preserve the original creative concept, image, logo, palette, CTA style and composition language.",
-        "Rebalance typography and spacing only as necessary. Do not redesign the ad.",
-        "Do NOT invent a new campaign, new background, new branding, or new architecture.",
-        "Do NOT invent ROI, yield, scarcity, rent, or extra prices.",
-        f"Revision intents: {intents or 'COPY_CHANGE'}.",
-        f"Command mode: {diff.get('command_mode') or 'exact'}.",
+        "AI REVISION FIDELITY LOCK — EDIT IMAGE 1. DO NOT DESIGN A NEW ADVERTISEMENT.",
+        "CREATIVE_RECOMPOSE — MINIMUM NECESSARY CHANGE TO THE SAME ADVERTISEMENT.",
+        "",
+        "PROVIDER INPUTS:",
+        "IMAGE 1 IS THE DESIGN TO EDIT. It is the IMMUTABLE MASTER finished advertisement.",
+        "Do not reinterpret Image 1. Do not restyle it. Do not create a new advertisement from it.",
+        "IMAGE 2 IS RECONSTRUCTION MATERIAL ONLY (approved clean source photograph).",
+        "Use Image 2 only if a tiny patch of the photograph must be reconstructed after a local edit.",
+        "Do not design a new advertisement from Image 2 plus a text brief.",
+        "",
+        f"Campaign identity (do not restyle): {(original_brief or '')[:240]}",
         f"Master finished-ad asset id: {revision_brief.get('master_asset_id')}.",
         f"Master source asset id: {revision_brief.get('master_source_asset_id')}.",
+        f"Command mode: {diff.get('command_mode') or 'exact'}.",
         "",
-        "ORIGINAL CONCEPT:",
-        f"- {snapshot.get('big_idea') or snapshot.get('campaign_intent') or original_brief[:400]}",
-        "ORIGINAL HERO MESSAGE:",
-        f"- {snapshot.get('hero') or ''}",
         "CURRENT USER REQUEST:",
         f"- {revision_brief.get('instruction') or ''}",
         "",
-        "IMAGE QUALITY LOCK — PRESERVE:",
-        *[f"- {p}" for p in (QUALITY_LOCK_BRIEF["preserve"])],
+        "STRUCTURED REVISION DIFF",
+        "CHANGE (only these explicit requests):",
+        *[f"- {item}" for item in change],
+        "",
+        "LOCK (everything else visible in the master — preserve pixel-faithfully):",
+        *[f"- {item}" for item in lock],
+        "",
+        "LOCAL RECOMPOSITION ONLY:",
+        "When headline copy changes: first attempt to fit the new headline inside the EXISTING headline region.",
+        "Allowed: line wrapping, modest font-size adjustment, modest line-height adjustment, small local spacing.",
+        "FORBIDDEN unless explicitly in CHANGE: move headline to a different region, enlarge headline dramatically,",
+        "redesign hierarchy, move CTA, move logo, delete unrequested copy, simplify the ad,",
+        "change background crop, change lighting, change colors, change decorative details.",
+        "The result must clearly look like THE SAME ADVERTISEMENT as Image 1.",
         "",
         "IMAGE QUALITY LOCK — FORBIDDEN unless explicitly requested:",
         *[f"- {f}" for f in (QUALITY_LOCK_BRIEF["forbidden_unless_explicitly_requested"])],
-        "",
-        "If this revision is not about color grading / lighting, do NOT change image treatment.",
-        "No darkening, recoloring, cinematic grade, vignette, blur, crop, or contrast boost.",
-        "",
-        "REQUIRED CHANGES (structured — do not reinterpret exact values):",
     ]
-    for op in new_ops:
-        lines.append(_format_operation_line(op))
-
     if cumulative:
-        lines.append("")
-        lines.append("CUMULATIVE APPROVED OPERATIONS (already accepted — keep all of these):")
+        lines.extend(
+            [
+                "",
+                "CUMULATIVE APPROVED OPERATIONS (already accepted — keep all of these):",
+            ]
+        )
         for op in cumulative:
             lines.append(_format_operation_line(op))
-
-    lines.extend(
-        [
-            "",
-            "SURGICAL APPLY:",
-        ]
-    )
-    if overrides.get("headline"):
-        lines.append(f"- Set headline text EXACTLY to: {overrides['headline']}")
-    if overrides.get("cta"):
-        lines.append(f"- Set CTA text EXACTLY to: {overrides['cta']}")
-    if overrides.get("headline_direction") == "more_premium_tone":
-        lines.append(
-            f"- Soft premium tone on headline while keeping meaning of: "
-            f"{overrides.get('headline_keep_meaning')} (max 1 targeted change; no redesign)"
-        )
-    if overrides.get("badge_scale"):
-        lines.append(
-            f"- Scale the ~25% / %25 discount badge by factor {overrides['badge_scale']} "
-            f"relative to MASTER badge size ({overrides.get('badge_scale_note') or ''})."
-        )
-    if overrides.get("logo_scale"):
-        lines.append(f"- Scale project logo by factor {overrides['logo_scale']} (do not redraw).")
-    if overrides.get("remove_scarcity") == "true":
-        lines.append(
-            "- Remove scarcity / 'sınırlı sayıda ünite' / limited-units / support line named. "
-            "Do not replace with another scarcity claim."
-        )
-    if "SIMPLIFY" in (revision_brief.get("intents") or []):
-        lines.append("- Simplify: fewer elements, more breathing room, no new badges (max 1–3 mods).")
-
-    lines.extend(
-        [
-            "",
-            "PRESERVE UNCHANGED:",
-            *[f"- {p}" for p in preserve],
-            "",
-            "FORBIDDEN CHANGES:",
-            *[f"- {f}" for f in forbidden],
-            "",
-            "BASE PRODUCTION BRIEF (for locked facts — do not expand scope):",
-            base,
-        ]
-    )
-    # Never dump raw user instruction as the sole apply directive.
     return "\n".join(lines)
 
 
@@ -1908,6 +1943,13 @@ def revise_ad_from_campaign(
         "big_idea": working_brief.get("big_idea") or _as_dict(ctx.get("master_production_brief")).get("big_idea"),
         "campaign_intent": working_brief.get("campaign_intent"),
     }
+    master_pb = _as_dict(ctx.get("master_production_brief")) or _as_dict(production_brief)
+    master_final = _as_dict(master_pb.get("final_copy"))
+    revision_brief["master_visible_copy"] = {
+        "headline": master_final.get("headline") or master_pb.get("hero"),
+        "cta": master_pb.get("cta") or master_final.get("cta"),
+        "supporting": list(master_pb.get("supporting") or []),
+    }
 
     instruction_prompt = render_revision_production_prompt(
         revision_brief=revision_brief,
@@ -1942,6 +1984,8 @@ def revise_ad_from_campaign(
         "revision_source_asset_id": str(master_source_id),
         "skip_logo_edit_input": True,
         "cumulative_operations": cumulative_after,
+        "change_list": list(revision_brief.get("change_list") or []),
+        "lock_list": list(revision_brief.get("lock_list") or []),
         "image_provider_route": provider_route.to_dict(),
     }
 
@@ -1960,12 +2004,13 @@ def revise_ad_from_campaign(
     )
 
     logger.info(
-        "revision_fidelity_lock source=master_source_asset_id=%s master_finished=%s tip=%s ops=%s route=%s",
+        "revision_fidelity_lock source=master_source_asset_id=%s master_finished=%s tip=%s ops=%s route=%s change=%s",
         master_source_id,
         master_id,
         current_id,
         len(cumulative_after),
         revision_route,
+        revision_brief.get("change_list"),
     )
 
     result = generate_gpt_image_creatives(db, user, gpt_body)
@@ -2054,6 +2099,9 @@ def revise_ad_from_campaign(
                 "quality_guard": quality_guard,
                 "master_asset_id": str(master_id),
                 "rejected_asset_id": str(new_asset_id),
+                "change_list": list(revision_brief.get("change_list") or []),
+                "lock_list": list(revision_brief.get("lock_list") or []),
+                "gpt_image_call_count": int(getattr(result, "provider_call_count", 0) or 0),
             },
         )
 

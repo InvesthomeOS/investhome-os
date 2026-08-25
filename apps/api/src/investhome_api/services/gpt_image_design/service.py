@@ -572,17 +572,41 @@ def _generate_project(
                 role="master_visual_reference",
             )
             if master_ref is not None and master_ref.image_bytes:
-                # FIRST = immutable master finished-ad (composition reference).
-                # SECOND = original approved source photograph (reconstruction only).
+                # IMAGE 1 = master finished-ad (the design to edit).
+                # IMAGE 2 = approved source photograph (reconstruction material only).
                 edit_inputs = [
-                    (master_ref.image_bytes, "master-finished-ad.png", master_ref.content_type),
-                    (source.image_bytes, source.filename, source.content_type),
+                    (
+                        master_ref.image_bytes,
+                        "image1-master-finished-ad.png",
+                        master_ref.content_type,
+                    ),
+                    (
+                        source.image_bytes,
+                        "image2-source-photo.png",
+                        source.content_type,
+                    ),
                 ]
                 logger.info(
                     "gpt_image_revision_dual_input master=%s source=%s",
                     visual_ref_id,
                     source.asset_id,
                 )
+            elif revision_route == "CREATIVE_RECOMPOSE":
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=(
+                        "CREATIVE_RECOMPOSE requires IMAGE 1 = master finished-ad. "
+                        "Source-only redesign is not allowed."
+                    ),
+                )
+        elif revision_route == "CREATIVE_RECOMPOSE":
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "CREATIVE_RECOMPOSE requires IMAGE 1 = master finished-ad. "
+                    "Source-only redesign is not allowed."
+                ),
+            )
         if not skip_logo_input:
             for row in extras:
                 if row.role == "project_logo" and row.image_bytes:

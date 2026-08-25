@@ -300,15 +300,34 @@ def test_recompose_prompt_sends_master_as_visual_reference():
             "intents": ["COPY_CHANGE"],
             "master_asset_id": "master-1",
             "master_source_asset_id": "source-1",
-            "copy_overrides": {},
-            "revision_diff": {"operations": [], "preserve": [], "forbidden_changes": []},
+            "copy_overrides": {"headline": "Zamansız Bir Yaşam", "logo_scale": "0.85"},
+            "revision_diff": {
+                "operations": [
+                    {"target": "headline", "action": "replace_text", "to_value": "Zamansız Bir Yaşam"},
+                    {"target": "support_message", "action": "remove"},
+                    {"target": "logo", "action": "scale", "scale_factor": 0.85},
+                ],
+                "preserve": [],
+                "forbidden_changes": [],
+            },
             "cumulative_operations": [],
+            "master_visible_copy": {
+                "headline": "Eviniz, Sığınak",
+                "cta": "Detayları Keşfet",
+                "supporting": ["Prime location in DC.", "Stunning architectural design."],
+            },
             "production_brief_snapshot": {"hero": "Eviniz, Sığınak", "cta": "Detayları Keşfet"},
         },
         production_brief={"cta": "Detayları Keşfet", "final_copy": {"headline": "Eviniz, Sığınak"}},
         original_brief="The Temple",
         lifestyle=False,
     )
-    assert "MASTER finished advertisement" in prompt
+    assert "IMAGE 1 IS THE DESIGN TO EDIT" in prompt
+    assert "IMAGE 2 IS RECONSTRUCTION MATERIAL ONLY" in prompt
     assert "DO NOT DESIGN A NEW ADVERTISEMENT" in prompt
-    assert "existing visual zone" in prompt
+    assert "EXISTING headline region" in prompt
+    assert "FINISHED PROFESSIONAL INSTAGRAM AD" not in prompt
+    assert "creative freedom" not in prompt.lower()
+    assert "Zamansız Bir Yaşam" in prompt
+    assert "CHANGE (only these explicit requests)" in prompt
+    assert "LOCK (everything else visible in the master" in prompt

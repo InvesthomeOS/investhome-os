@@ -1,0 +1,43 @@
+{
+  "visual_quality_pass_declared": false,
+  "provider_input": {
+    "image_1": "IMAGE 1 IS THE DESIGN TO EDIT — master finished-ad f1310474-d9b9-45f9-8fde-99aaddbc2431 (filename image1-master-finished-ad.png)",
+    "image_2": "IMAGE 2 IS RECONSTRUCTION MATERIAL ONLY — source photo f491ee6e-de7d-4258-a153-4104e326b736 (filename image2-source-photo.png)",
+    "logo_edit_input": "skipped",
+    "generation_brief_appended": false
+  },
+  "change_list": [
+    "headline copy → Zamansız Bir Yaşam. Fit inside the EXISTING headline region only (line wrap, modest font-size, modest line-height, small local spacing). Do not move the headline to another region or enlarge it dramatically.",
+    "remove the FIRST left supporting line only. Keep every remaining supporting line in the same place, size, and style.",
+    "logo approximately 15% smaller (scale_factor=0.85). Same mark, same corner, same treatment. Do not redraw or restyle the logo."
+  ],
+  "lock_list": [
+    "element positions",
+    "headline zone / region (not the requested headline copy)",
+    "logo zone / position / treatment (except requested scale)",
+    "CTA zone / size / position / style / copy",
+    "font character and typography style",
+    "visual hierarchy",
+    "margins and alignment",
+    "colors and palette",
+    "remaining supporting copy",
+    "decorative details",
+    "background crop",
+    "image lighting and grade",
+    "overall visual density — do not simplify or redesign",
+    "Default: if the user did not request it, preserve it."
+  ],
+  "provider_result": {
+    "http": 422,
+    "gpt_image_edits_http": 200,
+    "revision_route": "CREATIVE_RECOMPOSE",
+    "dual_input": true,
+    "rejected_raster_persisted": false
+  },
+  "fidelity_result": "fail-closed 422 after GPT Image 200; cover not updated; no retry with a freer prompt",
+  "cover_before": "f1310474-d9b9-45f9-8fde-99aaddbc2431",
+  "cover_after": "f1310474-d9b9-45f9-8fde-99aaddbc2431",
+  "master_id": "f1310474-d9b9-45f9-8fde-99aaddbc2431",
+  "provider_call_count": 1,
+  "generate_ad_during_revise": 0
+}
