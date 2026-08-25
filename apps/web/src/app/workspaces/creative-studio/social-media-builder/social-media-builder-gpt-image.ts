@@ -136,6 +136,96 @@ export function isFinishedAdCanvasPost(post: SocialPost | null | undefined): boo
   return isFinishedAdCanvasMeta(post?.generationMeta ?? null);
 }
 
+export type StructuredDesignElement = {
+  id: string;
+  source_element_id?: string;
+  role?: string;
+  content?: string;
+  visible?: boolean;
+  asset_id?: string | null;
+  geometry?: { x?: number; y?: number; width?: number; height?: number; z_index?: number };
+  alignment?: string;
+  typography?: { font_size?: number; font_weight?: string; color?: string };
+  opacity?: number;
+};
+
+export function readStructuredDesignElements(
+  meta: Record<string, unknown> | null | undefined,
+): StructuredDesignElement[] {
+  const raw = meta?.structured_design_data;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return [];
+  const els = (raw as { elements?: unknown }).elements;
+  if (!Array.isArray(els)) return [];
+  return els.filter(
+    (row): row is StructuredDesignElement =>
+      Boolean(row && typeof row === 'object' && typeof (row as { id?: unknown }).id === 'string'),
+  );
+}
+
+export function structuredElementToSocial(el: StructuredDesignElement): SocialElement | null {
+  if (el.visible === false) return null;
+  const sourceId = String(el.source_element_id || el.id);
+  const semantic = String(el.id || '').toLowerCase();
+  const role = String(el.role || el.id || '').toLowerCase();
+  if (semantic === 'background' || role === 'background' || sourceId === 'master_background') {
+    return null;
+  }
+  const g = el.geometry || {};
+  const x = Number(g.x || 0);
+  const y = Number(g.y || 0);
+  const width = Math.max(8, Number(g.width || 0));
+  const height = Math.max(8, Number(g.height || 0));
+  const zIndex = Math.max(1, Number(g.z_index || 10));
+  if (semantic === 'project-logo' || role === 'logo' || sourceId === 'logo') {
+    return {
+      id: 'logo',
+      type: 'IMAGE',
+      role: 'logo',
+      assetId: typeof el.asset_id === 'string' ? el.asset_id : null,
+      x,
+      y,
+      width,
+      height,
+      zIndex,
+      opacity: typeof el.opacity === 'number' ? el.opacity : 1,
+      objectFit: 'contain',
+      lockAspectRatio: true,
+    };
+  }
+  if (semantic === 'cta-primary' || role === 'cta' || sourceId === 'cta') {
+    return {
+      id: 'cta',
+      type: 'BUTTON',
+      label: el.content || '',
+      backgroundColor: '#c4a574',
+      textColor: '#1a1410',
+      x,
+      y,
+      width,
+      height,
+      zIndex,
+      fontSize: Number(el.typography?.font_size || 22),
+    };
+  }
+  const textRole = semantic === 'headline' || role === 'headline' ? 'headline' : 'body';
+  const align = el.alignment === 'center' || el.alignment === 'right' ? el.alignment : 'left';
+  return {
+    id: sourceId,
+    type: 'TEXT',
+    content: el.content || '',
+    fontSize: Number(el.typography?.font_size || 32),
+    fontWeight: 'semibold',
+    align,
+    color: String(el.typography?.color || '#f4efe8'),
+    role: textRole,
+    x,
+    y,
+    width,
+    height,
+    zIndex,
+  };
+}
+
 export function isEditableFinishedAdPost(post: SocialPost | null | undefined): boolean {
   return isEditableFinishedAdMeta(post?.generationMeta ?? null);
 }
@@ -160,6 +250,7 @@ export function createFinishedAdCanvasPost(input: {
   /** Editable layered mode — hydrate from design_spec / editable_layers. */
   editableFinishedAd?: boolean;
   designSpec?: Record<string, unknown> | null;
+  structuredDesignData?: Record<string, unknown> | null;
   editableLayers?: unknown[] | null;
   masterBackgroundAssetId?: string | null;
   finishedAdRasterAssetId?: string | null;
@@ -175,6 +266,7 @@ export function createFinishedAdCanvasPost(input: {
     finishedAd: true,
     editableFinishedAd: Boolean(input.editableFinishedAd),
     designSpec: input.designSpec,
+    structuredDesignData: input.structuredDesignData,
     masterBackgroundAssetId: input.masterBackgroundAssetId,
     finishedAdRasterAssetId: input.finishedAdRasterAssetId,
     provider: input.provider,
@@ -205,6 +297,7 @@ export function createFlattenedGptImagePost(input: {
   /** Layered editable finished-ad — master background + overlays from design_spec. */
   editableFinishedAd?: boolean;
   designSpec?: Record<string, unknown> | null;
+  structuredDesignData?: Record<string, unknown> | null;
   masterBackgroundAssetId?: string | null;
   finishedAdRasterAssetId?: string | null;
   masterFinishedAdAssetId?: string | null;
@@ -242,9 +335,9 @@ export function createFlattenedGptImagePost(input: {
     layered = layeredRaw.filter((el) => {
       const role = String(el.role || '').toLowerCase();
       const id = String(el.id || '').toLowerCase();
-      if (el.type === 'IMAGE' || el.type === 'BUTTON') return false;
-      if (role === 'logo' || role === 'background' || role === 'cta') return false;
-      if (id === 'logo' || id === 'cta' || id === 'master_background') return false;
+      // Keep the finished raster as the sole photograph. Allow logo / CTA / text / zone covers.
+      if (role === 'background' || id === 'master_background' || id === 'img-finished-ad') return false;
+      if (el.type === 'IMAGE' && role !== 'logo' && id !== 'logo' && id !== 'project-logo') return false;
       return true;
     });
   } else if (layeredRaw.length > 0) {
@@ -373,6 +466,7 @@ export function createFlattenedGptImagePost(input: {
               input.finishedAdRasterAssetId ??
               (editableFinishedAd ? null : input.localAssetId),
             design_spec: input.designSpec ?? null,
+            structured_design_data: input.structuredDesignData ?? null,
           }
         : {}),
       gpt_image: {

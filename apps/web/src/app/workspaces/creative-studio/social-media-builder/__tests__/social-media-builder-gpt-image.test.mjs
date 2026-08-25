@@ -69,7 +69,7 @@ describe('GPT Image SMB wiring', () => {
       workspace.match(/const runAiRevision = useCallback\([\s\S]*?\n  \);/)?.[0] || '';
     assert.match(rev, /revision_route === 'LAYER_ONLY'/);
     assert.match(rev, /lockedCoverId/);
-    assert.match(rev, /localAssetId: layerOnlyRevision \? lockedCoverId/);
+    assert.match(rev, /localAssetId: microEditRevision \? lockedCoverId/);
     assert.match(rev, /\[SMB_REV_V3\] source/);
     assert.match(rev, /\[SMB_REV_V3\] after/);
   });

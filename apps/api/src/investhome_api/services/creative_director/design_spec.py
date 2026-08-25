@@ -67,6 +67,32 @@ _MICRO_EDIT_ACTIONS = frozenset(
         "minimum_change",
     }
 )
+_STRUCTURED_MICRO_TARGETS = frozenset(
+    {
+        "logo",
+        "cta",
+        "badge",
+        "headline",
+        "primary_headline",
+        "support_message",
+        "left_feature_texts",
+        "feature_text",
+        "price",
+        "old-price",
+        "new-price",
+        "discount-badge",
+        "unit-label",
+    }
+)
+_STRUCTURED_MICRO_ACTIONS = _MICRO_EDIT_ACTIONS | frozenset(
+    {
+        "hide",
+        "remove",
+        "delete",
+        "set_font_size",
+        "set_color",
+    }
+)
 _COPY_REBALANCE_TARGETS = frozenset(
     {
         "headline",
@@ -292,6 +318,130 @@ def _editable_text_targets(elements: list[dict[str, Any]]) -> list[dict[str, Any
             }
         )
     return out
+
+
+_STRUCTURED_ID_ALIASES = {
+    "master_background": "background",
+    "logo": "project-logo",
+    "cta": "cta-primary",
+}
+
+_STRUCTURED_REQUIRED_SLOTS = (
+    "background",
+    "project-logo",
+    "headline",
+    "support-message-1",
+    "support-message-2",
+    "cta-primary",
+)
+_STRUCTURED_FINANCIAL_SLOTS = (
+    "old-price",
+    "new-price",
+    "discount-badge",
+    "unit-label",
+)
+
+
+def project_structured_design_data(
+    spec: dict[str, Any] | None,
+    *,
+    production_brief: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Compact semantic twin of the Golden raster. Not a new designer — edit/export metadata."""
+    spec = spec if isinstance(spec, dict) else {}
+    brief = production_brief if isinstance(production_brief, dict) else {}
+    elements_out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for el in spec.get("elements") or []:
+        if not isinstance(el, dict):
+            continue
+        raw_id = _s(el.get("id"))
+        if not raw_id:
+            continue
+        semantic_id = _STRUCTURED_ID_ALIASES.get(raw_id.lower(), raw_id)
+        if semantic_id in seen:
+            continue
+        seen.add(semantic_id)
+        role = _s(el.get("role")) or semantic_id
+        typo = el.get("typography") if isinstance(el.get("typography"), dict) else {}
+        style = el.get("style") if isinstance(el.get("style"), dict) else {}
+        elements_out.append(
+            {
+                "id": semantic_id,
+                "source_element_id": raw_id,
+                "role": role,
+                "content": _s(el.get("content") or el.get("text") or el.get("label")),
+                "visible": el.get("visible") is not False,
+                "locked": bool(el.get("locked")),
+                "asset_id": el.get("asset_id") or el.get("assetId"),
+                "geometry": {
+                    "x": int(el.get("x") or 0),
+                    "y": int(el.get("y") or 0),
+                    "width": int(el.get("width") or 0),
+                    "height": int(el.get("height") or 0),
+                    "z_index": int(el.get("z_index") or el.get("zIndex") or 0),
+                },
+                "alignment": _s(typo.get("align") or style.get("align") or el.get("align")),
+                "typography": {
+                    "font_family": typo.get("font_family") or style.get("font_family"),
+                    "font_size": typo.get("font_size") or style.get("font_size") or el.get("font_size"),
+                    "font_weight": typo.get("font_weight") or style.get("font_weight"),
+                    "color": typo.get("color") or style.get("color") or el.get("color"),
+                    "line_height": typo.get("line_height") or style.get("line_height"),
+                },
+                "opacity": el.get("opacity") if el.get("opacity") is not None else 1.0,
+            }
+        )
+    present = {e["id"] for e in elements_out}
+    financial = bool(present & set(_STRUCTURED_FINANCIAL_SLOTS)) or _s(brief.get("campaign_intent")).startswith(
+        "price"
+    )
+    required = list(_STRUCTURED_REQUIRED_SLOTS)
+    if financial:
+        required.extend(_STRUCTURED_FINANCIAL_SLOTS)
+    return {
+        "version": 1,
+        "mode": "structured_golden_design",
+        "visual_source_of_truth": "finished_ad_raster",
+        "rebuild_from_layers": False,
+        "finished_ad_raster_asset_id": spec.get("finished_ad_raster_asset_id"),
+        "background_asset_id": spec.get("master_background_asset_id"),
+        "logo_asset_id": spec.get("logo_asset_id"),
+        "locked_facts": {
+            "approved_claims": brief.get("approved_claims") or [],
+            "cta": brief.get("cta") or _as_brief_cta(brief),
+            "language": spec.get("language") or brief.get("language"),
+        },
+        "required_slots": required,
+        "present_slots": sorted(present),
+        "missing_slots": [s for s in required if s not in present],
+        "elements": elements_out,
+        "visual_zones": spec.get("composition") if isinstance(spec.get("composition"), dict) else {},
+        "typography_hierarchy": [
+            {
+                "id": e["id"],
+                "font_size": (e.get("typography") or {}).get("font_size"),
+                "font_weight": (e.get("typography") or {}).get("font_weight"),
+            }
+            for e in elements_out
+            if e.get("id") in {"headline", "support-message-1", "support-message-2", "cta-primary"}
+        ],
+        "palette": {
+            "visual_mood": (brief.get("design_direction") or {}).get("visual_mood")
+            if isinstance(brief.get("design_direction"), dict)
+            else None,
+            "hierarchy": (brief.get("design_direction") or {}).get("hierarchy")
+            if isinstance(brief.get("design_direction"), dict)
+            else None,
+        },
+        "source_background_asset_id": spec.get("master_background_asset_id"),
+        "project_logo_asset_id": spec.get("logo_asset_id"),
+    }
+
+
+def _as_brief_cta(brief: dict[str, Any]) -> str:
+    final = brief.get("final_copy") if isinstance(brief.get("final_copy"), dict) else {}
+    return _s(brief.get("cta") or final.get("cta"))
 
 
 def _badge_display(badge: str) -> str:
@@ -1557,6 +1707,29 @@ def _semantic_copy_id(eid: str, role: str) -> str:
     return low
 
 
+def _zone_cover_layer(eid: str, el: dict[str, Any], *, z_index: int = 60) -> dict[str, Any]:
+    """Cover baked pixels for a hidden/moved overlay without banned hide-plate ids."""
+    w = max(int(el.get("width") or 0), 8)
+    h = max(int(el.get("height") or 0), 8)
+    pad = 8
+    return _json_safe_layer(
+        {
+            "id": f"{eid}-zone-cover",
+            "type": "SHAPE",
+            "fill": "rgba(8,6,4,0.88)",
+            "shapeKind": "rect",
+            "borderRadius": 4,
+            "x": max(0, int(el.get("x") or 0) - pad),
+            "y": max(0, int(el.get("y") or 0) - pad),
+            "width": w + pad * 2,
+            "height": h + pad * 2,
+            "zIndex": z_index,
+            "opacity": 1,
+            "_designRole": "zone_cover",
+        }
+    )
+
+
 def _json_safe_layer(row: dict[str, Any]) -> dict[str, Any]:
     """Drop nulls and coerce geometry so the SMB client can render every overlay."""
     out: dict[str, Any] = {}
@@ -1603,43 +1776,7 @@ def compose_layer_only_on_locked_raster(
             changed_copy_ids.add(low)
 
     layers: list[dict[str, Any]] = []
-    for eid, el in before_snap.items():
-        low = str(eid).lower()
-        if low not in changed_copy_ids:
-            continue
-        if low in {"discount-badge", "badge"} or str(el.get("role") or "").lower() in {
-            "discount_badge",
-            "badge",
-        }:
-            continue
-        typo = el.get("typography") if isinstance(el.get("typography"), dict) else {}
-        font = int(typo.get("font_size") or el.get("font_size") or 0)
-        pad = max(12, int(font * 0.28) if font else 12)
-        w = int(el.get("width") or 0)
-        h = int(el.get("height") or 0)
-        if w <= 4 or h <= 4:
-            if low not in {"support-message-1", "support-message-2", "feature-1", "feature-2", "headline"}:
-                continue
-            w = max(w, 48)
-            h = max(h, 24)
-        x = int(el.get("x") or 0) - pad
-        y = int(el.get("y") or 0) - pad
-        layers.append(
-            {
-                "id": f"hide-plate-{eid}",
-                "type": "SHAPE",
-                "fill": "rgba(12,10,8,0.94)",
-                "shapeKind": "rect",
-                "borderRadius": 6,
-                "x": max(0, x),
-                "y": max(0, y),
-                "width": w + pad * 2,
-                "height": h + pad * 2,
-                "zIndex": 35,
-                "opacity": 1,
-                "_designRole": "revision_hide_plate",
-            }
-        )
+    # MICRO_EDIT never emits banned hide-plates. Replacement TEXT sits on the locked raster.
     smb = design_spec_to_smb_elements(after_spec)
     seen_semantic: set[str] = set()
     seen_copy: set[str] = set()
@@ -1699,6 +1836,16 @@ def compose_layer_only_on_locked_raster(
             row = dict(el)
             row["zIndex"] = max(int(row.get("zIndex") or 0), 70)
             layers.append(_json_safe_layer(row))
+    # Hidden CTA / logo: cover baked pixels. Do not use hide-plate ids (artifact guard).
+    for eid, el in before_snap.items():
+        low = str(eid).lower()
+        role = _s(el.get("role")).lower()
+        if low not in {"cta", "logo"} and role not in {"cta", "logo"}:
+            continue
+        after_el = after_by_id.get(low)
+        hidden = after_el is None or after_el.get("visible") is False
+        if hidden:
+            layers.append(_zone_cover_layer(low, el, z_index=65))
     present_ids = {_s(el.get("id")).lower() for el in layers if isinstance(el, dict)}
     sm2_smb = next(
         (
@@ -1940,13 +2087,14 @@ def route_revision(
     instruction: str,
     revision_diff: Any,
     intents: list[str] | None = None,
+    has_structured_design: bool = False,
 ) -> RevisionRoute:
     """Golden Creative router: MICRO_EDIT vs CREATIVE_RECOMPOSE vs IMAGE_REQUIRED.
 
-    MICRO_EDIT is GPT=0 layer/property edit on truly local logo/CTA/badge ops.
-    Headline, hierarchy deletes, large type, simplify → CREATIVE_RECOMPOSE
-    (rebuild from MASTER source image + cumulative brief). LAYER_ONLY remains
-    a compatibility alias of MICRO_EDIT for existing callers.
+    MICRO_EDIT is GPT=0 layer/property edit. With structured_design_data, headline
+    copy, CTA hide, and local logo/CTA geometry stay MICRO_EDIT. New composition,
+    new photograph, or simplify still CREATIVE_RECOMPOSE. LAYER_ONLY remains a
+    compatibility alias of MICRO_EDIT.
     """
     try:
         from investhome_api.services.creative_director.revision_intelligence_v3 import (
@@ -1988,41 +2136,61 @@ def route_revision(
     if not mutating:
         if any(tok in low for tok in ("görsel", "visual", "render", "interior", "sahne", "scene", "atmosfer")):
             return "CREATIVE_RECOMPOSE"
+        if has_structured_design and any(
+            tok in low
+            for tok in (
+                "başlık",
+                "baslik",
+                "headline",
+                "cta",
+                "logo",
+                "rozet",
+                "badge",
+            )
+        ):
+            return "MICRO_EDIT"
         if any(tok in low for tok in ("başlık", "baslik", "headline")):
             return "CREATIVE_RECOMPOSE"
         if any(tok in low for tok in ("cta", "rozet", "badge", "logo")):
             return "MICRO_EDIT"
         return "CREATIVE_RECOMPOSE"
 
+    micro_targets = _STRUCTURED_MICRO_TARGETS if has_structured_design else _MICRO_EDIT_TARGETS
+    micro_actions = _STRUCTURED_MICRO_ACTIONS if has_structured_design else _MICRO_EDIT_ACTIONS
     micro_ok = True
     for op in mutating:
         target_s = str(_op_field(op, "target") or "").lower()
         action_s = str(_op_field(op, "action") or "").lower()
         if action_s in {"delete", "remove", "hide"}:
-            micro_ok = False
-            break
+            if not (
+                has_structured_design
+                and target_s in {"cta", "support_message", "badge", "left_feature_texts", "feature_text"}
+            ):
+                micro_ok = False
+                break
         if target_s in _IMAGE_REQUIRED_TARGETS:
             micro_ok = False
             break
-        if target_s in _COPY_REBALANCE_TARGETS:
+        if not has_structured_design and target_s in _COPY_REBALANCE_TARGETS:
             micro_ok = False
             break
-        if action_s in {"set_font_size", "improve_readability", "tone_adjust"}:
+        if not has_structured_design and action_s in {"set_font_size", "improve_readability", "tone_adjust"}:
             micro_ok = False
             break
         if action_s == "replace_text" and target_s != "cta":
+            if not (has_structured_design and target_s in {"headline", "primary_headline", "support_message"}):
+                micro_ok = False
+                break
+        if target_s not in micro_targets:
             micro_ok = False
             break
-        if target_s not in _MICRO_EDIT_TARGETS:
+        if action_s not in micro_actions:
             micro_ok = False
             break
-        if action_s not in _MICRO_EDIT_ACTIONS:
+        if target_s == "logo" and action_s in {"scale", "resize"} and _op_scale_delta(op) > 0.35:
             micro_ok = False
             break
-        if target_s == "logo" and action_s in {"scale", "resize"} and _op_scale_delta(op) > 0.25:
-            micro_ok = False
-            break
-        if target_s == "cta" and action_s in {"scale", "resize"} and _op_scale_delta(op) > 0.15:
+        if target_s == "cta" and action_s in {"scale", "resize"} and _op_scale_delta(op) > 0.25:
             micro_ok = False
             break
         if target_s == "badge" and action_s in {"scale", "resize"} and _op_scale_delta(op) > 0.35:
@@ -2427,7 +2595,12 @@ def apply_layer_operations(
                     "feature-2",
                     "feature-3",
                 }
-            if remove_ids:
+            hide_in_place = action == "hide" or target in {"cta", "logo", "badge"}
+            if hide_in_place:
+                for e in spec["elements"]:
+                    if isinstance(e, dict) and _s(e.get("id")).lower() in remove_ids:
+                        e["visible"] = False
+            elif remove_ids:
                 spec["elements"] = [
                     e
                     for e in spec["elements"]

@@ -12,6 +12,7 @@ import {
   type FormatPresetKey,
   type SocialPost,
 } from './social-media-builder-model';
+import { readStructuredDesignElements } from './social-media-builder-gpt-image';
 import {
   clampFontSize,
   clampOpacity,
@@ -45,6 +46,7 @@ export type SmbRightEditPanelProps = {
   onReplaceImage: () => void;
   onReplaceLogo: () => void;
   onChangeBackground: () => void;
+  onSelectStructuredSlot?: (slotId: string) => void;
   canvasWidth: number;
   canvasHeight: number;
 };
@@ -75,6 +77,7 @@ export function SmbRightEditPanel({
   onReplaceImage,
   onReplaceLogo,
   onChangeBackground,
+  onSelectStructuredSlot,
   canvasWidth,
   canvasHeight,
 }: SmbRightEditPanelProps) {
@@ -128,6 +131,7 @@ export function SmbRightEditPanel({
             canvasWidth={canvasWidth}
             canvasHeight={canvasHeight}
             onChangeBackground={onChangeBackground}
+            onSelectStructuredSlot={onSelectStructuredSlot}
           />
         ) : null}
 
@@ -167,6 +171,7 @@ function DesignSection({
   canvasWidth,
   canvasHeight,
   onChangeBackground,
+  onSelectStructuredSlot,
 }: {
   formatPreset: FormatPresetKey;
   onFormatChange: (key: FormatPresetKey) => void;
@@ -174,10 +179,34 @@ function DesignSection({
   canvasWidth: number;
   canvasHeight: number;
   onChangeBackground: () => void;
+  onSelectStructuredSlot?: (slotId: string) => void;
 }) {
   const t = useTranslations('creativeStudio.ds.socialMediaBuilder');
+  const structuredSlots = readStructuredDesignElements(post?.generationMeta).filter((el) => {
+    const id = String(el.id || '').toLowerCase();
+    return id !== 'background' && el.visible !== false;
+  });
   return (
     <div data-testid="smb-edit-context-design">
+      {structuredSlots.length > 0 ? (
+        <>
+          <p className="smb-ws__section-label">Structured elements</p>
+          <div className="smb-ws__edit-format-grid" role="list" data-testid="smb-structured-slots">
+            {structuredSlots.map((slot) => (
+              <button
+                key={slot.id}
+                type="button"
+                className="smb-ws__edit-format-btn"
+                data-testid={`smb-structured-slot-${slot.id}`}
+                onClick={() => onSelectStructuredSlot?.(slot.id)}
+              >
+                <strong>{slot.id}</strong>
+                <span>{slot.content ? String(slot.content).slice(0, 42) : slot.role || slot.id}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
       <p className="smb-ws__section-label">{t('editPanel.contexts.design')}</p>
       <p className="smb-ws__section-label">{t('editPanel.format')}</p>
       <div className="smb-ws__edit-format-grid" role="group" aria-label={t('canvas.formatsAria')}>

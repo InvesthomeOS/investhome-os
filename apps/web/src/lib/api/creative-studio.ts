@@ -910,6 +910,7 @@ export type CreativeDirectorGenerateAdResponse = {
   warnings: string[];
   gpt_image: GptImageDesignResponse;
   design_spec?: Record<string, unknown> | null;
+  structured_design_data?: Record<string, unknown> | null;
   master_background_asset_id?: string | null;
   finished_ad_raster_asset_id?: string | null;
   editable_layers?: unknown[];

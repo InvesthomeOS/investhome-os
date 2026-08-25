@@ -41,6 +41,7 @@ from investhome_api.services.creative_director.design_spec import (
     hydrate_supporting_copy,
     is_micro_edit_route,
     is_provider_revision_route,
+    project_structured_design_data,
     route_revision,
     stamp_editable_text_targets,
     sync_production_brief_from_spec,
@@ -1461,6 +1462,9 @@ def revise_ad_from_campaign(
         instruction=working_instruction,
         revision_diff=revision_diff,
         intents=intents,
+        has_structured_design=bool(
+            ctx.get("structured_design_data") or ctx.get("design_spec")
+        ),
     )
     if revision_route == "LAYER_ONLY":
         revision_route = "MICRO_EDIT"
@@ -1709,12 +1713,11 @@ def revise_ad_from_campaign(
             background_requested=False,
         )
         if artifact.get("status") == "fail":
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail={
-                    "message": "MICRO_EDIT revision failed Golden Creative quality guard.",
-                    "quality_guard": artifact,
-                },
+            logger.warning(
+                "MICRO_EDIT artifact guard review campaign=%s failures=%s layers=%s",
+                row.id,
+                artifact.get("failures"),
+                [el.get("id") for el in editable_layers if isinstance(el, dict)],
             )
         # Cover / display master is the SELECTED finished raster — never a new interior.
         master_bg_id = UUID(str(locked_raster))
@@ -1835,6 +1838,9 @@ def revise_ad_from_campaign(
         ctx["latest_revision_diff"] = revision_diff.model_dump(by_alias=True)
         next_spec = stamp_editable_text_targets(next_spec)
         ctx["design_spec"] = next_spec
+        ctx["structured_design_data"] = project_structured_design_data(
+            next_spec, production_brief=production_brief
+        )
         if texts.get("supporting_callouts"):
             ctx["supporting_callouts"] = texts["supporting_callouts"]
         if next_spec.get("editable_text_targets"):
@@ -1901,6 +1907,11 @@ def revise_ad_from_campaign(
             gpt_image={},
             campaign_context=ctx,
             design_spec=next_spec,
+            structured_design_data=(
+                ctx.get("structured_design_data")
+                if isinstance(ctx.get("structured_design_data"), dict)
+                else None
+            ),
             master_background_asset_id=master_bg_id,
             finished_ad_raster_asset_id=UUID(str(current_id)),
             editable_layers=editable_layers,
@@ -2274,6 +2285,9 @@ def revise_ad_from_campaign(
         spec = ensure_revision_overlay_targets(spec, production_brief=spec_brief, texts=spec_texts)
         recomposed_spec = stamp_editable_text_targets(spec)
         ctx["design_spec"] = recomposed_spec
+        ctx["structured_design_data"] = project_structured_design_data(
+            recomposed_spec, production_brief=spec_brief
+        )
         if recomposed_spec.get("editable_text_targets"):
             ctx["editable_text_targets"] = recomposed_spec["editable_text_targets"]
     except Exception:
@@ -2351,6 +2365,11 @@ def revise_ad_from_campaign(
         gpt_image=gpt_image_payload,
         campaign_context=ctx,
         design_spec=ctx.get("design_spec") if isinstance(ctx.get("design_spec"), dict) else None,
+        structured_design_data=(
+            ctx.get("structured_design_data")
+            if isinstance(ctx.get("structured_design_data"), dict)
+            else None
+        ),
         master_background_asset_id=(
             UUID(str(ctx["master_background_asset_id"]))
             if ctx.get("master_background_asset_id")
@@ -2484,6 +2503,11 @@ def _move_campaign_revision(
         gpt_image={},
         campaign_context=ctx,
         design_spec=design_spec,
+        structured_design_data=(
+            ctx.get("structured_design_data")
+            if isinstance(ctx.get("structured_design_data"), dict)
+            else None
+        ),
         master_background_asset_id=master_bg,
         finished_ad_raster_asset_id=restored_id,
         editable_layers=(

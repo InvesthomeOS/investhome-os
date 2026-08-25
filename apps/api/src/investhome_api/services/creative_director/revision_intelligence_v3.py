@@ -925,10 +925,15 @@ def validate_execution(
         detail: dict[str, Any] = {"action": action, "target": op.semantic_target or op.target, "ids": ids}
 
         if action in {"delete", "remove", "hide"}:
-            passed = all(i not in after for i in ids if i in before or True) and all(
-                i not in after for i in ids
-            )
-            detail["exists"] = {i: i in after for i in ids}
+            passed = True
+            exists: dict[str, bool] = {}
+            for i in ids:
+                a = after.get(i)
+                hidden = a is None or a.get("visible") is False
+                exists[i] = not hidden
+                if not hidden:
+                    passed = False
+            detail["exists"] = exists
         elif action in {"resize", "scale"} and op.scale_factor:
             factor = float(op.scale_factor)
             for i in ids:

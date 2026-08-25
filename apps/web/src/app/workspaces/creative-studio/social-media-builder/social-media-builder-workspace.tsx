@@ -135,6 +135,8 @@ import {
   isEditableFinishedAdPost,
   isFinishedAdCanvasPost,
   isMediaAssetId,
+  readStructuredDesignElements,
+  structuredElementToSocial,
 } from './social-media-builder-gpt-image';
 
 import {
@@ -634,8 +636,14 @@ export function SocialMediaBuilderWorkspace() {
   const canRedoAiRevision =
     finishedAdCanvas && aiRevisionHistory.length > 0 && aiRevisionIndex < aiRevisionHistory.length - 1;
   // Legacy flat finished-ad hides overlays; editable finished-ad shows Design Spec layers.
+  // Structured slot selection injects overlays without making the OS renderer the designer.
+  const hasStructuredOverlays = (selectedPost?.elements ?? []).some((el) => {
+    const id = String(el.id || '');
+    const role = String(el.role || '');
+    return id !== 'img-finished-ad' && role !== 'background';
+  });
   const hideOsLayers =
-    (finishedAdCanvas && !editableFinishedAd) ||
+    (finishedAdCanvas && !editableFinishedAd && !hasStructuredOverlays) ||
     (Boolean(canvaPreview?.src) && canvaPreview?.transferMode === 'editable');
 
   const applyAiRevisionCursor = useCallback(
@@ -1031,6 +1039,23 @@ export function SocialMediaBuilderWorkspace() {
     updateSelectedPost((p) => ({ ...p, elements: ensureUniqueElementIds(elements) }), {
       history: opts?.history !== false,
     });
+  }
+
+  function selectStructuredSlot(slotId: string) {
+    const post = selectedPost;
+    if (!post) return;
+    const slot = readStructuredDesignElements(post.generationMeta).find(
+      (el) => el.id === slotId || el.source_element_id === slotId,
+    );
+    if (!slot) return;
+    const social = structuredElementToSocial(slot);
+    if (!social) return;
+    const existing = post.elements.find((el) => el.id === social.id);
+    if (!existing) {
+      replaceElements([...post.elements, social]);
+    }
+    setSelectedElementId(social.id);
+    setEditPanelOpen(true);
   }
 
   function selectPost(post: SocialPost) {
@@ -1643,6 +1668,7 @@ export function SocialMediaBuilderWorkspace() {
           interiorAssetId: response.interior_asset_id,
           editableFinishedAd: editableMode,
           designSpec: response.design_spec ?? null,
+          structuredDesignData: response.structured_design_data ?? null,
           editableLayers: response.editable_layers ?? null,
           masterBackgroundAssetId: response.master_background_asset_id ?? response.interior_asset_id,
           finishedAdRasterAssetId: response.finished_ad_raster_asset_id ?? finalAssetId,
@@ -1860,6 +1886,7 @@ export function SocialMediaBuilderWorkspace() {
           interiorAssetId: response.interior_asset_id,
           editableFinishedAd: editableMode,
           designSpec: response.design_spec ?? null,
+          structuredDesignData: response.structured_design_data ?? null,
           editableLayers: microEditRevision ? (response.editable_layers ?? null) : [],
           masterBackgroundAssetId: microEditRevision
             ? lockedCoverId
@@ -1993,6 +2020,7 @@ export function SocialMediaBuilderWorkspace() {
         interiorAssetId: response.interior_asset_id,
         editableFinishedAd: microEdit,
         designSpec: response.design_spec ?? null,
+        structuredDesignData: response.structured_design_data ?? null,
         editableLayers: microEdit ? (response.editable_layers ?? null) : [],
         masterBackgroundAssetId: microEdit
           ? lockedCoverId
@@ -2754,6 +2782,7 @@ export function SocialMediaBuilderWorkspace() {
         if (selectedElementId) setReplaceElementId(selectedElementId);
       }}
       onChangeBackground={() => coverAsset.openPicker('cover')}
+      onSelectStructuredSlot={selectStructuredSlot}
       canvasWidth={contentSize.w}
       canvasHeight={contentSize.h}
     />

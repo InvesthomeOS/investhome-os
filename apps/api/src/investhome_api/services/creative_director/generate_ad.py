@@ -32,6 +32,7 @@ from investhome_api.services.creative_director.design_spec import (
     collect_supporting_lines,
     ensure_revision_overlay_targets,
     hydrate_supporting_copy,
+    project_structured_design_data,
     stamp_editable_text_targets,
 )
 from investhome_api.services.creative_director.production_brief import (
@@ -1370,11 +1371,16 @@ def generate_ad_from_campaign(
             )
             spec = stamp_editable_text_targets(spec)
             ctx["design_spec"] = spec
+            ctx["structured_design_data"] = project_structured_design_data(
+                spec, production_brief=spec_brief
+            )
             ctx["composition_plan"] = assembled.get("composition_plan")
             if spec.get("editable_text_targets"):
                 ctx["editable_text_targets"] = spec["editable_text_targets"]
             if spec_texts.get("supporting_callouts"):
                 ctx["supporting_callouts"] = spec_texts["supporting_callouts"]
+            design_spec = spec
+            editable_layers = []
         except Exception:
             logger.exception("finished_ad design_spec persist failed campaign=%s", row.id)
         quality_guard = _finished_ad_quality_guard(
@@ -1417,6 +1423,9 @@ def generate_ad_from_campaign(
         design_spec = stamp_editable_text_targets(design_spec)
         editable_layers = assembled["editable_layers"]
         ctx["design_spec"] = design_spec
+        ctx["structured_design_data"] = project_structured_design_data(
+            design_spec, production_brief=spec_brief
+        )
         ctx["composition_plan"] = assembled.get("composition_plan")
         if isinstance(design_spec, dict) and design_spec.get("editable_text_targets"):
             ctx["editable_text_targets"] = design_spec["editable_text_targets"]
@@ -1480,6 +1489,9 @@ def generate_ad_from_campaign(
         warnings=list(result.warnings or []),
         gpt_image=result.model_dump(mode="json"),
         design_spec=design_spec,
+        structured_design_data=(
+            ctx.get("structured_design_data") if isinstance(ctx.get("structured_design_data"), dict) else None
+        ),
         master_background_asset_id=master_background_id,
         finished_ad_raster_asset_id=finished_raster_id,
         editable_layers=editable_layers,

@@ -34,6 +34,7 @@ describe('SMB right edit panel + clean canvas', () => {
     assert.match(panel, /data-testid="smb-edit-panel"/);
     assert.match(panel, /data-edit-context=\{ctx\}/);
     assert.match(panel, /smb-edit-context-design/);
+    assert.match(panel, /smb-structured-slots/);
     assert.match(panel, /smb-edit-context-text/);
     assert.match(panel, /smb-edit-context-image/);
     assert.match(panel, /smb-edit-context-logo/);
