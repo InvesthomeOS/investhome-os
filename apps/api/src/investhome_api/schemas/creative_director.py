@@ -137,7 +137,12 @@ class CreativeDirectorCampaignResponse(BaseModel):
     campaign_context: dict[str, Any] = Field(default_factory=dict)
 
 
-CreativeDirectorProductionMode = Literal["finished_ad", "os_compose", "editable_finished_ad"]
+CreativeDirectorProductionMode = Literal[
+    "finished_ad",
+    "os_compose",
+    "editable_finished_ad",
+    "golden_native_v1",
+]
 RevisionRoute = Literal["LAYER_ONLY", "MICRO_EDIT", "CREATIVE_RECOMPOSE", "IMAGE_REQUIRED"]
 
 

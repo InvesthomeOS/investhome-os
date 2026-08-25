@@ -327,6 +327,8 @@ def test_finished_ad_generation_path_regression():
     # Legacy editable path still available when explicitly requested
     body_edit = CreativeDirectorGenerateAdRequest(production_mode="editable_finished_ad")
     assert body_edit.production_mode == "editable_finished_ad"
+    body_native = CreativeDirectorGenerateAdRequest(production_mode="golden_native_v1")
+    assert _resolve_production_mode(body_native) == "golden_native_v1"
     # Design spec builder still exists for optional/legacy LAYER_ONLY revisions
     spec = _temple_spec()
     assert spec["mode"] == "editable_finished_ad"

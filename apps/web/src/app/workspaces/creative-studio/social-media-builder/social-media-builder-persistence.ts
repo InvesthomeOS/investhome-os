@@ -513,9 +513,11 @@ export function parseSocialPost(
   const finishedAd =
     generationMeta?.production_mode === 'finished_ad' ||
     generationMeta?.production_mode === 'editable_finished_ad' ||
+    generationMeta?.production_mode === 'golden_native_v1' ||
     generationMeta?.generated_by === 'creative_director_generate_ad';
   const editableFinishedAd =
     generationMeta?.production_mode === 'editable_finished_ad' ||
+    generationMeta?.production_mode === 'golden_native_v1' ||
     (Boolean(
       generationMeta?.gpt_image &&
         typeof generationMeta.gpt_image === 'object' &&
@@ -720,6 +722,7 @@ export function isFinishedAdSocialPost(post: SocialPost | null | undefined): boo
   return (
     meta?.production_mode === 'finished_ad' ||
     meta?.production_mode === 'editable_finished_ad' ||
+    meta?.production_mode === 'golden_native_v1' ||
     meta?.generated_by === 'creative_director_generate_ad'
   );
 }

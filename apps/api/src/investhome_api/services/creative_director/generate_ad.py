@@ -29,9 +29,12 @@ from investhome_api.services.creative_director.art_direction_translator import (
 )
 from investhome_api.services.creative_director.design_spec import (
     assemble_editable_design,
+    build_golden_native_v1_spec,
     collect_supporting_lines,
+    design_spec_to_smb_elements,
     ensure_revision_overlay_targets,
     hydrate_supporting_copy,
+    project_golden_native_structured_data,
     project_structured_design_data,
     stamp_editable_text_targets,
 )
@@ -179,7 +182,7 @@ def _resolve_production_mode(
     mode = (body.production_mode or "finished_ad").strip().lower()
     return (
         mode
-        if mode in {"finished_ad", "os_compose", "editable_finished_ad"}
+        if mode in {"finished_ad", "os_compose", "editable_finished_ad", "golden_native_v1"}
         else "finished_ad"
     )
 
@@ -1041,6 +1044,268 @@ def recompose_ad_from_campaign(
     )
 
 
+def _generate_golden_native_v1(
+    db: Session,
+    user: User,
+    *,
+    row: CreativeDirectorCampaign,
+    ctx: dict[str, Any],
+    strategy: dict[str, Any],
+    campaign_copy: dict[str, Any],
+    pricing: dict[str, Any],
+    original_brief: str,
+    lifestyle: bool,
+    approved_claims: list[Any],
+    language: str,
+    format_preset: str,
+    aspect_ratio: str,
+    interior_id: UUID,
+    logo_id: UUID,
+    interior_meta: dict[str, Any],
+    logo_meta: dict[str, Any],
+    texts: dict[str, str],
+    allowed_tokens: list[Any],
+    art_direction: Any,
+    production_brief: dict[str, Any],
+    pre_truth: dict[str, Any],
+) -> CreativeDirectorGenerateAdResponse:
+    """POC: compose 4 real layers from the CD recipe. Zero GPT Image calls."""
+    del user  # unused — native path does not persist a new raster
+    truth_guard = architecture_truth_guard(
+        hero_meta=interior_meta,
+        source_asset_id=str(interior_id),
+        campaign_intent=str(
+            ctx.get("campaign_intent") or production_brief.get("campaign_intent") or ""
+        ),
+        require_historic_plus_addition=_brief_requires_historic_plus_addition(original_brief),
+    )
+    if truth_guard.get("fail_closed"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": (
+                    "Architectural Truth Lock FAIL CLOSED — cannot establish project "
+                    "architecture fidelity. Fake architecture will not be published."
+                ),
+                "architecture_truth_guard": truth_guard,
+            },
+        )
+    claim_guard = claim_guard_summary(
+        approved_claims=approved_claims,
+        allowed_tokens=allowed_tokens,
+        texts=texts,
+        lifestyle=lifestyle,
+    )
+    asset_lock = project_asset_lock_summary(
+        interior_id=interior_id,
+        logo_id=logo_id,
+        interior_meta=interior_meta,
+        logo_meta=logo_meta,
+        source_asset_id=interior_id,
+    )
+    asset_lock["architecture_truth_guard"] = truth_guard
+    production_brief = dict(production_brief)
+    production_brief["architecture_truth_guard"] = truth_guard
+
+    spec_texts, spec_brief = hydrate_supporting_copy(
+        texts=texts,
+        production_brief=production_brief,
+        campaign_copy=campaign_copy,
+        strategy=strategy,
+        ctx=ctx,
+    )
+    spec = build_golden_native_v1_spec(
+        production_brief=spec_brief,
+        texts=spec_texts,
+        master_background_asset_id=interior_id,
+        logo_asset_id=logo_id,
+        aspect_ratio=aspect_ratio,
+        format_preset=format_preset,
+        language=language,
+        campaign_intent=str(spec_brief.get("campaign_intent") or production_brief.get("campaign_intent") or ""),
+    )
+    spec = stamp_editable_text_targets(spec)
+    editable_layers = design_spec_to_smb_elements(spec)
+    canvas = spec.get("canvas") if isinstance(spec.get("canvas"), dict) else {}
+    canvas_w = int(canvas.get("width") or 1080)
+    canvas_h = int(canvas.get("height") or 1350)
+    layer_texts = [
+        str(el.get("content") or el.get("label") or "")
+        for el in editable_layers
+        if isinstance(el, dict)
+    ]
+    duplication_guard = {
+        "status": "pass",
+        "internal_leak_count": count_internal_leaks(*layer_texts),
+        "gpt_generated_text_count": 0,
+        "gpt_generated_logo_count": 0,
+    }
+    quality_guard = _finished_ad_quality_guard(
+        claim_guard=claim_guard,
+        asset_lock=asset_lock,
+        texts=spec_texts,
+        production_brief=spec_brief,
+        language=language,
+        architecture_truth=truth_guard,
+    )
+    quality_guard["mode"] = "golden_native_v1"
+    quality_guard["note"] = (
+        "Golden Native Renderer v1 POC — user visual approval required. "
+        "Do not declare Visual Quality PASS."
+    )
+
+    ctx = dict(row.context_json or ctx or {})
+    generated = list(ctx.get("generated_assets") or [])
+    generated.append(
+        {
+            "asset_id": str(interior_id),
+            "role": "golden_native_v1_interior",
+            "language": language,
+            "provider": "golden_native_v1",
+            "composition_base_asset_id": str(interior_id),
+        }
+    )
+    history = list(ctx.get("output_history") or [])
+    history.append(
+        {
+            "type": "generate_ad",
+            "asset_id": str(interior_id),
+            "language": language,
+            "format": aspect_ratio,
+            "claim_guard": claim_guard.get("status"),
+            "project_asset_lock": asset_lock.get("status"),
+            "production_mode": "golden_native_v1",
+            "gpt_image_call_count": 0,
+        }
+    )
+    ctx["generated_assets"] = generated
+    ctx["output_history"] = history
+    ctx["image_generation_performed"] = False
+    ctx["latest_master_ad_asset_id"] = str(interior_id)
+    if not ctx.get("master_asset_id"):
+        ctx["master_asset_id"] = str(interior_id)
+        ctx["master_finished_ad_asset_id"] = str(interior_id)
+        ctx["revision_operations"] = []
+        ctx["current_revision_index"] = 0
+    elif not ctx.get("master_finished_ad_asset_id"):
+        ctx["master_finished_ad_asset_id"] = str(ctx.get("master_asset_id") or interior_id)
+    if not ctx.get("master_production_brief"):
+        ctx["master_production_brief"] = deepcopy(production_brief)
+    if not ctx.get("master_source_assets"):
+        ctx["master_source_assets"] = {
+            "interior_asset_id": str(interior_id),
+            "logo_asset_id": str(logo_id),
+        }
+    if not ctx.get("master_creative_direction"):
+        ctx["master_creative_direction"] = art_direction.to_dict() if hasattr(art_direction, "to_dict") else {}
+    ctx["design_spec"] = spec
+    ctx["structured_design_data"] = project_golden_native_structured_data(
+        spec, production_brief=spec_brief
+    )
+    ctx["composition_plan"] = spec.get("composition_plan")
+    if spec.get("editable_text_targets"):
+        ctx["editable_text_targets"] = spec["editable_text_targets"]
+    ctx["master_background_asset_id"] = str(interior_id)
+    ctx["finished_ad_raster_asset_id"] = str(interior_id)
+    ctx["editable_finished_ad"] = True
+    ctx["golden_native_v1"] = True
+    ctx["production_mode"] = "golden_native_v1"
+    ctx["production_brief"] = spec_brief
+    ctx["latest_quality_guard"] = quality_guard
+    ctx["language"] = language
+    row.context_json = ctx
+    if row.status == "draft":
+        row.status = "ready"
+    db.flush()
+
+    creative_brief_summary = {
+        "big_idea": campaign_copy.get("big_idea") or strategy.get("big_idea"),
+        "hero": campaign_copy.get("hero_message") or strategy.get("hero_message"),
+        "sales_hook": campaign_copy.get("sales_hook") or strategy.get("sales_hook"),
+        "offer": campaign_copy.get("offer") or _as_dict(pricing.get("price_presentation")).get("copy"),
+        "price_hierarchy": spec_texts.get("price_hierarchy") or texts.get("price_hierarchy"),
+        "value": spec_texts.get("value_badge") or texts.get("value_badge"),
+        "emphasis": campaign_copy.get("emphasis") or strategy.get("emphasis"),
+        "supporting": campaign_copy.get("supporting_messages") or strategy.get("supporting_messages"),
+        "cta": spec_texts.get("cta") or texts.get("cta"),
+        "tone": strategy.get("tone"),
+        "visual_direction": strategy.get("visual_direction"),
+        "composition_direction": strategy.get("composition_direction"),
+        "composition_family": (spec.get("composition") or {}).get("layout_family"),
+        "art_direction": art_direction.to_dict() if hasattr(art_direction, "to_dict") else {},
+        "source_constraints": {
+            "interior_asset_id": str(interior_id),
+            "interior_filename": interior_meta.get("filename"),
+            "logo_asset_id": str(logo_id),
+            "logo_filename": logo_meta.get("filename"),
+        },
+        "brand": "The Temple + Investhome",
+        "language": language,
+        "format": f"Instagram {aspect_ratio}",
+        "prompt_excerpt": (original_brief or "")[:1200],
+        "renderer": "golden_native_v1",
+        "pre_truth": pre_truth,
+    }
+    gpt_image_payload = {
+        "outputs": [
+            {
+                "local_asset_id": str(interior_id),
+                "local_asset_url": asset_url(interior_id),
+                "composition_base_asset_id": str(interior_id),
+                "canvas_width": canvas_w,
+                "canvas_height": canvas_h,
+                "layers": editable_layers,
+                "metadata": {
+                    "production_mode": "golden_native_v1",
+                    "gpt_generated_text_count": 0,
+                    "gpt_generated_logo_count": 0,
+                    "background_asset_id": str(interior_id),
+                    "logo_asset_id": str(logo_id),
+                },
+            }
+        ],
+        "provider_call_count": 0,
+        "brief": {"production_mode": "golden_native_v1"},
+    }
+    master_id_out = interior_id
+    return CreativeDirectorGenerateAdResponse(
+        campaign_id=row.id,
+        project_id=row.linked_project_id,
+        language=language,
+        aspect_ratio=aspect_ratio,
+        format_preset=format_preset,
+        production_mode="golden_native_v1",
+        production_brief=spec_brief,
+        provider_route={"provider_id": "golden_native_v1", "available": True, "missing": False},
+        interior_asset_id=interior_id,
+        logo_asset_id=logo_id,
+        final_asset_id=interior_id,
+        final_asset_url=asset_url(interior_id),
+        composition_base_asset_id=interior_id,
+        creative_brief_summary=creative_brief_summary,
+        final_turkish_texts=spec_texts,
+        claim_guard=claim_guard,
+        project_asset_lock=asset_lock,
+        architecture_truth_guard=truth_guard,
+        duplication_guard=duplication_guard,
+        provider_call_count=0,
+        gpt_image_call_count=0,
+        latency_ms=0,
+        warnings=["golden_native_v1_poc"],
+        gpt_image=gpt_image_payload,
+        design_spec=spec,
+        structured_design_data=ctx.get("structured_design_data")
+        if isinstance(ctx.get("structured_design_data"), dict)
+        else None,
+        master_background_asset_id=interior_id,
+        finished_ad_raster_asset_id=interior_id,
+        editable_layers=editable_layers,
+        master_asset_id=master_id_out,
+        master_finished_ad_asset_id=master_id_out,
+        quality_guard=quality_guard,
+    )
+
+
 def generate_ad_from_campaign(
     db: Session,
     user: User,
@@ -1090,14 +1355,15 @@ def generate_ad_from_campaign(
         production_brief,
     ) = prep
     production_mode = _resolve_production_mode(body)
-    provider_route = route_ad_social_image(prefer_edit=True)
-    try:
-        assert_image_provider_available(provider_route)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
-        ) from exc
+    if production_mode != "golden_native_v1":
+        provider_route = route_ad_social_image(prefer_edit=True)
+        try:
+            assert_image_provider_available(provider_route)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(exc),
+            ) from exc
 
     # Fail-closed BEFORE provider spend when architectural fidelity cannot be established.
     pre_truth = architecture_truth_guard(
@@ -1120,6 +1386,32 @@ def generate_ad_from_campaign(
                 "architecture_truth_guard": pre_truth,
                 "drive_architecture_truth": drive_truth or None,
             },
+        )
+
+    if production_mode == "golden_native_v1":
+        return _generate_golden_native_v1(
+            db,
+            user,
+            row=row,
+            ctx=ctx,
+            strategy=strategy,
+            campaign_copy=campaign_copy,
+            pricing=pricing,
+            original_brief=original_brief,
+            lifestyle=lifestyle,
+            approved_claims=approved_claims,
+            language=language,
+            format_preset=format_preset,
+            aspect_ratio=aspect_ratio,
+            interior_id=interior_id,
+            logo_id=logo_id,
+            interior_meta=interior_meta,
+            logo_meta=logo_meta,
+            texts=texts,
+            allowed_tokens=allowed_tokens,
+            art_direction=art_direction,
+            production_brief=production_brief,
+            pre_truth=pre_truth,
         )
 
     if production_mode in {"finished_ad", "editable_finished_ad"}:

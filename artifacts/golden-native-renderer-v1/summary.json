@@ -1,0 +1,50 @@
+{
+  "campaign_id": "51ab94cf-f1b0-48a9-a225-f2c8b29faa48",
+  "production_mode": "golden_native_v1",
+  "generate_ad_calls": 1,
+  "gpt_image_initial_calls": 0,
+  "gpt_image_revision_calls": 0,
+  "background_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+  "logo_asset_id": "7b58877e-efca-4e9a-9027-6fd18fb1b345",
+  "headline_layer": {
+    "id": "headline",
+    "type": "text",
+    "initial": "Tarihin Modern Yansıması",
+    "after_edit": "Zamansız Bir Yaşam",
+    "x": 76,
+    "y": 209,
+    "width": 928,
+    "height": 297,
+    "font_family": "serif",
+    "font_size": 76,
+    "font_weight": "bold",
+    "align": "center",
+    "color": "#F4EFE6",
+    "line_height": 1.08
+  },
+  "cta_layer": {
+    "id": "cta",
+    "type": "cta",
+    "content": "The Temple'ı Keşfet",
+    "x": 292,
+    "y": 1188,
+    "width": 497,
+    "height": 70,
+    "visible_after_remove": false
+  },
+  "logo_layer": {
+    "id": "logo",
+    "type": "logo",
+    "initial_width": 184,
+    "after_scale_width": 147,
+    "placement": "top_center"
+  },
+  "cover_asset_id": "c3d11c35-d8b7-485c-b216-0a4da68b751a",
+  "cover_unchanged": true,
+  "screenshots": [
+    "smb-initial.png",
+    "smb-headline-changed.png",
+    "smb-logo-minus-20.png",
+    "smb-cta-removed.png"
+  ]
+}

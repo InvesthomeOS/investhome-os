@@ -34,13 +34,16 @@ from investhome_api.services.creative_director.design_spec import (
     apply_layer_operations,
     assemble_editable_design,
     build_design_spec,
+    build_golden_native_v1_spec,
     collect_supporting_lines,
     compose_layer_only_on_locked_raster,
     design_spec_to_smb_elements,
     ensure_revision_overlay_targets,
     hydrate_supporting_copy,
+    is_golden_native_v1,
     is_micro_edit_route,
     is_provider_revision_route,
+    project_golden_native_structured_data,
     project_structured_design_data,
     route_revision,
     stamp_editable_text_targets,
@@ -1525,21 +1528,32 @@ def revise_ad_from_campaign(
 
     # ── MICRO_EDIT path: mutate design_spec, GPT=0, no hide-plate copy overlays ──
     if micro_edit:
+        native_v1 = (
+            is_golden_native_v1(ctx)
+            or ctx.get("golden_native_v1") is True
+            or is_golden_native_v1(ctx.get("design_spec"))
+        )
         base_spec = ctx.get("design_spec")
         reconstructed = False
         if not isinstance(base_spec, dict) or not base_spec.get("elements"):
             bg = ctx.get("master_background_asset_id") or str(interior_id)
-            base_spec = build_design_spec(
+            builder_kwargs = dict(
                 production_brief=production_brief,
                 texts=texts,
                 master_background_asset_id=bg,
                 logo_asset_id=logo_id,
-                finished_ad_raster_asset_id=ctx.get("finished_ad_raster_asset_id") or str(master_id),
                 aspect_ratio=aspect_ratio,
                 format_preset=format_preset,
                 language=language,
                 campaign_intent=str(production_brief.get("campaign_intent") or ""),
             )
+            if native_v1:
+                base_spec = build_golden_native_v1_spec(**builder_kwargs)
+            else:
+                base_spec = build_design_spec(
+                    **builder_kwargs,
+                    finished_ad_raster_asset_id=ctx.get("finished_ad_raster_asset_id") or str(master_id),
+                )
             reconstructed = True
         ids_before_overlay = {
             str(el.get("id"))
@@ -1561,11 +1575,12 @@ def revise_ad_from_campaign(
             if isinstance(stored, list) and stored:
                 base_spec = dict(base_spec)
                 base_spec["editable_text_targets"] = stored
-        base_spec = ensure_revision_overlay_targets(
-            base_spec,
-            production_brief=production_brief,
-            texts=texts,
-        )
+        if not native_v1:
+            base_spec = ensure_revision_overlay_targets(
+                base_spec,
+                production_brief=production_brief,
+                texts=texts,
+            )
         ids_after_overlay = {
             str(el.get("id"))
             for el in (base_spec.get("elements") or [])
@@ -1694,11 +1709,15 @@ def revise_ad_from_campaign(
         production_brief = sync_production_brief_from_spec(production_brief, next_spec)
         # Selected post cover is the source of truth — never another campaign raster.
         locked_raster = str(current_id)
-        editable_layers = compose_layer_only_on_locked_raster(
-            after_spec=next_spec,
-            before_snap=before_snap,
-            locked_raster_asset_id=locked_raster,
-        )
+        if native_v1:
+            # Real layers, not overlays on a baked Golden raster.
+            editable_layers = design_spec_to_smb_elements(next_spec)
+        else:
+            editable_layers = compose_layer_only_on_locked_raster(
+                after_spec=next_spec,
+                before_snap=before_snap,
+                locked_raster_asset_id=locked_raster,
+            )
         logger.info(
             "SMB_REV_V3 compose campaign=%s layer_ids=%s",
             row.id,
@@ -1838,9 +1857,14 @@ def revise_ad_from_campaign(
         ctx["latest_revision_diff"] = revision_diff.model_dump(by_alias=True)
         next_spec = stamp_editable_text_targets(next_spec)
         ctx["design_spec"] = next_spec
-        ctx["structured_design_data"] = project_structured_design_data(
-            next_spec, production_brief=production_brief
-        )
+        if native_v1:
+            ctx["structured_design_data"] = project_golden_native_structured_data(
+                next_spec, production_brief=production_brief
+            )
+        else:
+            ctx["structured_design_data"] = project_structured_design_data(
+                next_spec, production_brief=production_brief
+            )
         if texts.get("supporting_callouts"):
             ctx["supporting_callouts"] = texts["supporting_callouts"]
         if next_spec.get("editable_text_targets"):
@@ -1848,7 +1872,8 @@ def revise_ad_from_campaign(
         ctx["master_background_asset_id"] = str(interior_id)
         ctx["finished_ad_raster_asset_id"] = str(current_id)
         ctx["editable_finished_ad"] = True
-        ctx["production_mode"] = "editable_finished_ad"
+        ctx["golden_native_v1"] = bool(native_v1)
+        ctx["production_mode"] = "golden_native_v1" if native_v1 else "editable_finished_ad"
         ctx["production_brief"] = production_brief
         ctx["latest_master_ad_asset_id"] = str(tip_asset_id)
         ctx["language"] = language
@@ -1864,7 +1889,7 @@ def revise_ad_from_campaign(
             language=language,
             aspect_ratio=aspect_ratio,
             format_preset=format_preset,
-            production_mode="editable_finished_ad",
+            production_mode="golden_native_v1" if native_v1 else "editable_finished_ad",
             production_brief=production_brief,
             revision_brief=revision_brief,
             revision_intents=intents,

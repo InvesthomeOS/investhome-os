@@ -60,6 +60,16 @@ describe('GPT Image SMB wiring', () => {
     );
   });
 
+  it('treats golden_native_v1 as an editable finished-ad canvas without changing the default generate mode', () => {
+    const helper = read('social-media-builder-gpt-image.ts');
+    const workspace = read('social-media-builder-workspace.tsx');
+    const api = readFileSync(apiFile, 'utf8');
+    assert.match(helper, /golden_native_v1/);
+    assert.match(workspace, /production_mode === 'golden_native_v1'/);
+    assert.match(workspace, /production_mode: 'finished_ad'/);
+    assert.match(api, /golden_native_v1/);
+  });
+
   it('LAYER_ONLY revision keeps the selected raster cover and hydrates text overlays', () => {
     const helper = read('social-media-builder-gpt-image.ts');
     assert.match(helper, /rasterLocked/);

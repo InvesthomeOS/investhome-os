@@ -439,6 +439,37 @@ def project_structured_design_data(
     }
 
 
+GOLDEN_NATIVE_V1_LAYER_IDS = ("master_background", "logo", "headline", "cta")
+GOLDEN_NATIVE_V1_REQUIRED_SLOTS = ("background", "project-logo", "headline", "cta-primary")
+_NATIVE_DARK_INK = frozenset({"#2A241C", "#1A1510", "#0C0A08", "#000000", "#111111", "#2A241C"})
+
+
+def is_golden_native_v1(value: Any) -> bool:
+    """True when campaign/spec is the 4-layer Golden Native Renderer v1 POC."""
+    if not isinstance(value, dict):
+        return False
+    mode = _s(value.get("mode") or value.get("production_mode") or value.get("renderer"))
+    return mode == "golden_native_v1"
+
+
+def project_golden_native_structured_data(
+    spec: dict[str, Any] | None,
+    *,
+    production_brief: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Semantic twin for native v1 — only the four real layers, rebuild from layers."""
+    data = project_structured_design_data(spec, production_brief=production_brief)
+    present = set(data.get("present_slots") or [])
+    required = list(GOLDEN_NATIVE_V1_REQUIRED_SLOTS)
+    data["version"] = 1
+    data["mode"] = "golden_native_v1"
+    data["visual_source_of_truth"] = "native_layers"
+    data["rebuild_from_layers"] = True
+    data["required_slots"] = required
+    data["missing_slots"] = [s for s in required if s not in present]
+    return data
+
+
 def _as_brief_cta(brief: dict[str, Any]) -> str:
     final = brief.get("final_copy") if isinstance(brief.get("final_copy"), dict) else {}
     return _s(brief.get("cta") or final.get("cta"))
@@ -1472,6 +1503,303 @@ def build_design_spec(
         "finished_ad_raster_asset_id": str(finished_ad_raster_asset_id)
         if finished_ad_raster_asset_id
         else None,
+        "locked_background": True,
+        "elements": elements,
+        "editable_text_targets": _editable_text_targets(elements),
+    }
+
+
+def _native_headline_color(plan: dict[str, Any]) -> str:
+    """CD recipe: native v1 has no overlay wash, so dark ink on photography is not used."""
+    typo = plan.get("typography") if isinstance(plan.get("typography"), dict) else {}
+    headline = typo.get("headline") if isinstance(typo.get("headline"), dict) else {}
+    planned = _s(headline.get("color"), "#F4EFE6")
+    if planned.upper() in _NATIVE_DARK_INK:
+        return "#F4EFE6"
+    return planned or "#F4EFE6"
+
+
+def _native_font_size(width: int, scale: str) -> int:
+    key = (scale or "").strip().lower()
+    if key in {"editorial_hero", "hero"}:
+        return int(round(width * 0.070))
+    if key == "brand":
+        return int(round(width * 0.056))
+    return int(round(width * 0.064))
+
+
+def _native_headline_box(
+    *,
+    width: int,
+    height: int,
+    margin: int,
+    content_w: int,
+    placement: str,
+) -> dict[str, int]:
+    key = (placement or "").strip().lower()
+    if key in {"lower_third_left", "lower_third", "mid_lower_stack"}:
+        return {
+            "x": margin,
+            "y": int(round(height * 0.56)),
+            "width": content_w,
+            "height": int(round(height * 0.20)),
+        }
+    return {
+        "x": margin,
+        "y": int(round(height * 0.155)),
+        "width": content_w,
+        "height": int(round(height * 0.22)),
+    }
+
+
+def _native_cta_box(
+    *,
+    width: int,
+    height: int,
+    margin: int,
+    placement: str,
+    width_pct: float,
+) -> dict[str, int]:
+    cta_w = int(round(width * float(width_pct or 0.46)))
+    cta_h = int(round(height * 0.052))
+    y = int(round(height * 0.88))
+    if (placement or "").strip().lower() in {"bottom_left"}:
+        x = margin
+    else:
+        x = int(round((width - cta_w) / 2))
+    return {"x": x, "y": y, "width": cta_w, "height": cta_h}
+
+
+def build_golden_native_v1_spec(
+    *,
+    production_brief: dict[str, Any],
+    texts: dict[str, str],
+    master_background_asset_id: UUID | str,
+    logo_asset_id: UUID | str,
+    aspect_ratio: str = "4:5",
+    format_preset: str = "portrait",
+    language: str = "tr",
+    campaign_intent: str | None = None,
+    composition_plan: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Proof-of-concept Design Spec: exactly 4 real layers. Renderer applies CD recipe only.
+
+    Layers: BACKGROUND (approved interior IMAGE), HEADLINE (TEXT), PROJECT LOGO (IMAGE),
+    CTA (editable button). No supporting copy, badge, price, icon, or overlay wash.
+    """
+    width, height = canvas_size_for_aspect(aspect_ratio, format_preset)
+    final = production_brief.get("final_copy") if isinstance(production_brief.get("final_copy"), dict) else {}
+    intent = _s(
+        campaign_intent
+        or production_brief.get("campaign_intent")
+        or texts.get("campaign_mode"),
+        "lifestyle",
+    ).lower()
+
+    plan = composition_plan or build_composition_plan(
+        campaign_intent=intent,
+        production_brief=production_brief,
+        texts=texts,
+        design_direction=production_brief.get("design_direction")
+        if isinstance(production_brief.get("design_direction"), dict)
+        else None,
+        message_strategy=production_brief.get("message_strategy")
+        if isinstance(production_brief.get("message_strategy"), dict)
+        else None,
+        aspect_ratio=aspect_ratio,
+        language=language,
+    )
+
+    headline = _s(texts.get("headline") or final.get("headline") or production_brief.get("hero"))
+    cta = _s(texts.get("cta") or final.get("cta") or production_brief.get("cta"), "Detayları İncele")
+    margin = int(round(width * float((plan.get("safe_margins") or {}).get("x_pct") or 0.07)))
+    content_w = width - margin * 2
+    bg_id = str(master_background_asset_id)
+    logo_id = str(logo_asset_id)
+
+    image_plan = plan.get("image") if isinstance(plan.get("image"), dict) else {}
+    logo_plan = plan.get("logo") if isinstance(plan.get("logo"), dict) else {}
+    cta_plan = plan.get("cta") if isinstance(plan.get("cta"), dict) else {}
+    typo_plan = plan.get("typography") if isinstance(plan.get("typography"), dict) else {}
+    headline_typo = typo_plan.get("headline") if isinstance(typo_plan.get("headline"), dict) else {}
+    cta_typo = typo_plan.get("cta") if isinstance(typo_plan.get("cta"), dict) else {}
+
+    headline_color = _native_headline_color(plan)
+    headline_align = _s(headline_typo.get("align"), "center")
+    headline_family = _s(headline_typo.get("font_family"), "serif")
+    headline_scale = _s(headline_typo.get("scale"), "editorial_hero")
+    headline_size = _native_font_size(width, headline_scale)
+    headline_box = _native_headline_box(
+        width=width,
+        height=height,
+        margin=margin,
+        content_w=content_w,
+        placement=_s(headline_typo.get("placement"), "upper_center"),
+    )
+    logo_geo = _logo_geometry(
+        width=width,
+        height=height,
+        margin=margin,
+        placement=_s(logo_plan.get("placement"), "top_center"),
+        scale=float(logo_plan.get("scale") or 0.17),
+    )
+    cta_box = _native_cta_box(
+        width=width,
+        height=height,
+        margin=margin,
+        placement=_s(cta_plan.get("placement"), "bottom_center"),
+        width_pct=float(cta_plan.get("width_pct") or 0.46),
+    )
+    cta_h = cta_box["height"]
+
+    recipe = {
+        "renderer": "golden_native_v1",
+        "background_asset_id": bg_id,
+        "crop": image_plan.get("crop") or "cover",
+        "position": image_plan.get("position") or "center",
+        "headline": {
+            "text": headline,
+            "placement": headline_typo.get("placement") or "upper_center",
+            "width": headline_box["width"],
+            "x": headline_box["x"],
+            "y": headline_box["y"],
+            "font_size": headline_size,
+            "font_weight": "bold",
+            "font_family": headline_family,
+            "line_height": 1.08,
+            "align": headline_align,
+            "color": headline_color,
+        },
+        "logo": {
+            "asset_id": logo_id,
+            "placement": logo_plan.get("placement") or "top_center",
+            "scale": float(logo_plan.get("scale") or 0.17),
+            **logo_geo,
+        },
+        "cta": {
+            "text": cta,
+            "placement": cta_plan.get("placement") or "bottom_center",
+            "style": cta_plan.get("style") or "soft_gold_pill",
+            **cta_box,
+            "background_color": "#C4A35A",
+            "text_color": _s(cta_typo.get("color"), "#1A1510"),
+        },
+        "margins": {"x": margin, "x_pct": (plan.get("safe_margins") or {}).get("x_pct") or 0.07},
+        "spacing": {"logo_to_headline": headline_box["y"] - (logo_geo["y"] + logo_geo["height"])},
+        "palette": {
+            "headline": headline_color,
+            "cta_fill": "#C4A35A",
+            "cta_text": _s(cta_typo.get("color"), "#1A1510"),
+            "visual_mood": ((production_brief.get("design_direction") or {}) if isinstance(production_brief.get("design_direction"), dict) else {}).get("visual_mood"),
+        },
+    }
+
+    elements: list[dict[str, Any]] = [
+        {
+            "id": "master_background",
+            "type": "image",
+            "role": "background",
+            "asset_id": bg_id,
+            "locked": True,
+            "editable": False,
+            "x": 0,
+            "y": 0,
+            "width": width,
+            "height": height,
+            "z_index": 0,
+            "opacity": 1.0,
+            "treatment": {
+                "crop": recipe["crop"],
+                "position": recipe["position"],
+            },
+        },
+        {
+            "id": "logo",
+            "type": "logo",
+            "role": "logo",
+            "asset_id": logo_id,
+            "locked": False,
+            "editable": True,
+            "lock_aspect_ratio": True,
+            **logo_geo,
+            "z_index": 10,
+            "opacity": 1.0,
+        },
+        {
+            "id": "headline",
+            "type": "text",
+            "role": "headline",
+            "content": headline,
+            "locked": False,
+            "editable": True,
+            "x": headline_box["x"],
+            "y": headline_box["y"],
+            "width": headline_box["width"],
+            "height": headline_box["height"],
+            "z_index": 20,
+            "typography": {
+                "font_family": headline_family,
+                "font_size": headline_size,
+                "font_weight": "bold",
+                "align": headline_align,
+                "color": headline_color,
+                "line_height": 1.08,
+            },
+        },
+        {
+            "id": "cta",
+            "type": "cta",
+            "role": "cta",
+            "content": cta,
+            "locked": False,
+            "editable": True,
+            "x": cta_box["x"],
+            "y": cta_box["y"],
+            "width": cta_box["width"],
+            "height": cta_box["height"],
+            "z_index": 40,
+            "style": {
+                "background_color": "#C4A35A",
+                "text_color": _s(cta_typo.get("color"), "#1A1510"),
+                "border_radius": int(round(cta_h * 0.45)),
+                "padding": int(round(cta_h * 0.22)),
+                "font_size": int(round(width * 0.024)),
+                "font_weight": "semibold",
+                "align": "center",
+            },
+        },
+    ]
+
+    return {
+        "version": 1,
+        "mode": "golden_native_v1",
+        "renderer": "golden_native_v1",
+        "canvas": {
+            "width": width,
+            "height": height,
+            "aspect_ratio": aspect_ratio,
+            "format_preset": format_preset,
+        },
+        "language": language,
+        "campaign_intent": intent,
+        "composition_plan": plan,
+        "creative_director_recipe": recipe,
+        "composition": {
+            "focal_zone": (plan.get("focal_point") or {}).get("zone"),
+            "text_zones": (plan.get("zones") or {}).get("text_safe"),
+            "safe_margins": plan.get("safe_margins"),
+            "alignment_system": plan.get("alignment_system"),
+            "layout_family": plan.get("layout_family"),
+        },
+        "background": {
+            "asset_id": bg_id,
+            "crop": recipe["crop"],
+            "position": recipe["position"],
+            "treatment": image_plan.get("treatment"),
+        },
+        "master_background_asset_id": bg_id,
+        "logo_asset_id": logo_id,
+        "finished_ad_raster_asset_id": None,
         "locked_background": True,
         "elements": elements,
         "editable_text_targets": _editable_text_targets(elements),

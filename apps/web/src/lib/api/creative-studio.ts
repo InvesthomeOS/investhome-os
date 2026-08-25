@@ -884,7 +884,7 @@ export type CreativeDirectorGenerateAdRequest = {
   language?: string | null;
   aspect_ratio?: '1:1' | '4:5' | '16:9' | '9:16' | null;
   format_preset?: string | null;
-  production_mode?: 'finished_ad' | 'os_compose' | 'editable_finished_ad';
+  production_mode?: 'finished_ad' | 'os_compose' | 'editable_finished_ad' | 'golden_native_v1';
 };
 
 export type CreativeDirectorGenerateAdResponse = {
@@ -893,7 +893,7 @@ export type CreativeDirectorGenerateAdResponse = {
   language: string;
   aspect_ratio: string;
   format_preset: string;
-  production_mode?: 'finished_ad' | 'os_compose' | 'editable_finished_ad';
+  production_mode?: 'finished_ad' | 'os_compose' | 'editable_finished_ad' | 'golden_native_v1';
   production_brief?: Record<string, unknown>;
   provider_route?: Record<string, unknown>;
   interior_asset_id: string;

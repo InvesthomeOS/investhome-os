@@ -116,6 +116,7 @@ export function isFinishedAdCanvasMeta(
   return (
     meta.production_mode === 'finished_ad' ||
     meta.production_mode === 'editable_finished_ad' ||
+    meta.production_mode === 'golden_native_v1' ||
     meta.generated_by === 'creative_director_generate_ad'
   );
 }
@@ -124,7 +125,9 @@ export function isEditableFinishedAdMeta(
   meta: Record<string, unknown> | null | undefined,
 ): boolean {
   if (!meta || typeof meta !== 'object') return false;
-  if (meta.production_mode === 'editable_finished_ad') return true;
+  if (meta.production_mode === 'editable_finished_ad' || meta.production_mode === 'golden_native_v1') {
+    return true;
+  }
   const gpt =
     meta.gpt_image && typeof meta.gpt_image === 'object' && !Array.isArray(meta.gpt_image)
       ? (meta.gpt_image as Record<string, unknown>)
@@ -255,6 +258,7 @@ export function createFinishedAdCanvasPost(input: {
   masterBackgroundAssetId?: string | null;
   finishedAdRasterAssetId?: string | null;
   masterFinishedAdAssetId?: string | null;
+  productionMode?: string | null;
 }): SocialPost {
   return createFlattenedGptImagePost({
     ...input,
@@ -272,6 +276,7 @@ export function createFinishedAdCanvasPost(input: {
     provider: input.provider,
     logoAssetId: input.logoAssetId,
     interiorAssetId: input.interiorAssetId,
+    productionMode: input.productionMode,
   });
 }
 
@@ -301,6 +306,7 @@ export function createFlattenedGptImagePost(input: {
   masterBackgroundAssetId?: string | null;
   finishedAdRasterAssetId?: string | null;
   masterFinishedAdAssetId?: string | null;
+  productionMode?: string | null;
   provider?: string | null;
   logoAssetId?: string | null;
   interiorAssetId?: string | null;
@@ -453,7 +459,9 @@ export function createFlattenedGptImagePost(input: {
       selected_asset_ids: [input.localAssetId],
       ...(finishedAd
         ? {
-            production_mode: editableFinishedAd ? 'editable_finished_ad' : 'finished_ad',
+            production_mode:
+              input.productionMode ||
+              (editableFinishedAd ? 'editable_finished_ad' : 'finished_ad'),
             logo_asset_id: input.logoAssetId ?? null,
             interior_asset_id: input.interiorAssetId ?? null,
             master_background_asset_id: rasterLocked

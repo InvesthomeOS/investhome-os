@@ -1637,8 +1637,10 @@ export function SocialMediaBuilderWorkspace() {
           (typeof response.provider_route?.model === 'string' && response.provider_route.model) ||
           gptImage?.model ||
           'gpt-image-2';
-        // Only hydrate editable layers when API explicitly returns editable mode (legacy/opt-in).
-        const editableMode = response.production_mode === 'editable_finished_ad';
+        // Golden hybrid: finished-ad raster is primary designer (not layer reconstruction).
+        const editableMode =
+          response.production_mode === 'editable_finished_ad' ||
+          response.production_mode === 'golden_native_v1';
         const nextPost = createFinishedAdCanvasPost({
           localAssetId: finalAssetId,
           linkedProjectId: projectId,
@@ -1673,6 +1675,7 @@ export function SocialMediaBuilderWorkspace() {
           masterBackgroundAssetId: response.master_background_asset_id ?? response.interior_asset_id,
           finishedAdRasterAssetId: response.finished_ad_raster_asset_id ?? finalAssetId,
           masterFinishedAdAssetId: response.master_finished_ad_asset_id ?? finalAssetId,
+          productionMode: response.production_mode ?? null,
         });
         nextPost.id = createdPostId;
         nextPost.campaignContextId = response.campaign_id;
@@ -1897,6 +1900,7 @@ export function SocialMediaBuilderWorkspace() {
               selectedPost.generationMeta.master_finished_ad_asset_id) ||
             response.master_finished_ad_asset_id ||
             null,
+          productionMode: response.production_mode ?? null,
         });
         nextPost.id = postId;
         nextPost.campaignContextId = response.campaign_id || campaignId;
@@ -2033,6 +2037,7 @@ export function SocialMediaBuilderWorkspace() {
             selectedPost.generationMeta.master_finished_ad_asset_id) ||
           response.master_finished_ad_asset_id ||
           null,
+        productionMode: response.production_mode ?? null,
       });
       nextPost.id = postId;
       nextPost.campaignContextId = response.campaign_id || campaignId;

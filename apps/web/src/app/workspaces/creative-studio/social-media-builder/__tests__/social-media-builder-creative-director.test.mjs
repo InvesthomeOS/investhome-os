@@ -328,7 +328,8 @@ describe('Finished-ad sole IMAGE hydrate helper', () => {
     assert.match(helper, /finishedAd: true/);
     assert.match(helper, /id: 'img-finished-ad'/);
     assert.match(helper, /role: 'background'/);
-    assert.match(helper, /production_mode: editableFinishedAd \? 'editable_finished_ad' : 'finished_ad'/);
+    assert.match(helper, /input\.productionMode/);
+    assert.match(helper, /editableFinishedAd \? 'editable_finished_ad' : 'finished_ad'/);
     assert.match(helper, /headline: finishedAd && !editableFinishedAd \? ''/);
     assert.doesNotMatch(helper, /createDefaultElements/);
     assert.doesNotMatch(helper, /PLACEHOLDER_HEADLINE/);
