@@ -138,20 +138,34 @@ def test_working_brief_applies_headline_and_drops_first_support():
     assert abs(float(out.get("logo_scale") or 1) - 0.85) < 0.02
 
 
-def _layout_png(*, cta_left: bool, headline_top: bool, support: bool, logo: bool) -> bytes:
+def _layout_png(
+    *,
+    cta_left: bool,
+    headline_top: bool,
+    first_support: bool,
+    remaining_support: bool,
+    logo: bool,
+    giant_headline: bool = False,
+    logo_large: bool = False,
+) -> bytes:
     from PIL import Image, ImageDraw
 
     img = Image.new("RGB", (300, 400), (40, 42, 48))
     draw = ImageDraw.Draw(img)
-    # architectural center
     draw.rectangle((90, 130, 210, 270), fill=(90, 88, 82))
-    if headline_top:
+    if giant_headline:
+        draw.rectangle((12, 12, 270, 150), fill=(240, 236, 228))
+    elif headline_top:
         draw.rectangle((18, 18, 180, 70), fill=(240, 236, 228))
     else:
         draw.rectangle((70, 150, 230, 210), fill=(240, 236, 228))
-    if support:
-        draw.rectangle((18, 140, 120, 175), fill=(200, 196, 188))
-    if logo:
+    if first_support:
+        draw.rectangle((18, 88, 120, 118), fill=(200, 196, 188))
+    if remaining_support:
+        draw.rectangle((18, 168, 120, 198), fill=(200, 196, 188))
+    if logo_large:
+        draw.rectangle((210, 8, 294, 72), fill=(196, 163, 90))
+    elif logo:
         draw.rectangle((230, 16, 286, 52), fill=(196, 163, 90))
     if cta_left:
         draw.rectangle((18, 350, 110, 386), fill=(20, 18, 16))
@@ -162,21 +176,30 @@ def _layout_png(*, cta_left: bool, headline_top: bool, support: bool, logo: bool
     return buf.getvalue()
 
 
+_ACCEPT_DIFF = {
+    "operations": [
+        {"target": "headline", "action": "replace_text", "to_value": "Zamansız Bir Yaşam"},
+        {"target": "support_message", "action": "remove"},
+        {"target": "logo", "action": "scale", "to_value": "0.85"},
+    ]
+}
+
+
 def test_composition_fidelity_rejects_cta_move():
     from investhome_api.services.creative_director.revision import (
         compare_recompose_composition_fidelity,
     )
 
-    master = _layout_png(cta_left=True, headline_top=True, support=True, logo=True)
-    moved = _layout_png(cta_left=False, headline_top=True, support=True, logo=True)
+    master = _layout_png(
+        cta_left=True, headline_top=True, first_support=True, remaining_support=True, logo=True
+    )
+    moved = _layout_png(
+        cta_left=False, headline_top=True, first_support=True, remaining_support=True, logo=True
+    )
     result = compare_recompose_composition_fidelity(
         master_bytes=master,
         revised_bytes=moved,
-        revision_diff={
-            "operations": [
-                {"target": "headline", "action": "replace_text", "to_value": "Zamansız Bir Yaşam"},
-            ]
-        },
+        revision_diff={"operations": [{"target": "headline", "action": "replace_text"}]},
     )
     assert result["status"] == "fail"
     assert any("cta" in f for f in result["composition_failures"])
@@ -187,20 +210,18 @@ def test_composition_fidelity_allows_local_headline_and_support_delete():
         compare_recompose_composition_fidelity,
     )
 
-    master = _layout_png(cta_left=True, headline_top=True, support=True, logo=True)
-    revised = _layout_png(cta_left=True, headline_top=True, support=False, logo=True)
+    master = _layout_png(
+        cta_left=True, headline_top=True, first_support=True, remaining_support=True, logo=True
+    )
+    revised = _layout_png(
+        cta_left=True, headline_top=True, first_support=False, remaining_support=True, logo=True
+    )
     result = compare_recompose_composition_fidelity(
         master_bytes=master,
         revised_bytes=revised,
-        revision_diff={
-            "operations": [
-                {"target": "headline", "action": "replace_text", "to_value": "Zamansız Bir Yaşam"},
-                {"target": "support_message", "action": "remove"},
-                {"target": "logo", "action": "scale", "to_value": "0.85"},
-            ]
-        },
+        revision_diff=_ACCEPT_DIFF,
     )
-    assert result["status"] == "pass"
+    assert result["status"] == "pass", result["composition_failures"]
 
 
 def test_composition_fidelity_rejects_headline_region_move():
@@ -208,19 +229,66 @@ def test_composition_fidelity_rejects_headline_region_move():
         compare_recompose_composition_fidelity,
     )
 
-    master = _layout_png(cta_left=True, headline_top=True, support=True, logo=True)
-    moved = _layout_png(cta_left=True, headline_top=False, support=True, logo=True)
+    master = _layout_png(
+        cta_left=True, headline_top=True, first_support=True, remaining_support=True, logo=True
+    )
+    moved = _layout_png(
+        cta_left=True, headline_top=False, first_support=True, remaining_support=True, logo=True
+    )
     result = compare_recompose_composition_fidelity(
         master_bytes=master,
         revised_bytes=moved,
-        revision_diff={
-            "operations": [
-                {"target": "headline", "action": "replace_text", "to_value": "Zamansız Bir Yaşam"},
-            ]
-        },
+        revision_diff={"operations": [{"target": "headline", "action": "replace_text"}]},
     )
     assert result["status"] == "fail"
     assert any("headline" in f for f in result["composition_failures"])
+
+
+def test_visual_fidelity_rejects_unrequested_support_loss_and_giant_headline():
+    from investhome_api.services.creative_director.revision import (
+        compare_recompose_composition_fidelity,
+    )
+
+    master = _layout_png(
+        cta_left=True, headline_top=True, first_support=True, remaining_support=True, logo=True
+    )
+    simplified = _layout_png(
+        cta_left=True,
+        headline_top=True,
+        first_support=False,
+        remaining_support=False,
+        logo=True,
+        giant_headline=True,
+        logo_large=True,
+    )
+    result = compare_recompose_composition_fidelity(
+        master_bytes=master,
+        revised_bytes=simplified,
+        revision_diff=_ACCEPT_DIFF,
+    )
+    assert result["status"] == "fail"
+    failures = " ".join(result["composition_failures"])
+    assert "supporting_text_disappeared" in failures or "headline_scale" in failures
+
+
+def test_visual_fidelity_rejects_real_temple_bad_raster():
+    from pathlib import Path
+
+    from investhome_api.services.creative_director.revision import (
+        compare_recompose_composition_fidelity,
+    )
+
+    fixtures = Path(__file__).resolve().parent / "fixtures" / "visual_fidelity"
+    master = (fixtures / "temple_master.png").read_bytes()
+    bad = (fixtures / "temple_bad_current.png").read_bytes()
+    result = compare_recompose_composition_fidelity(
+        master_bytes=master,
+        revised_bytes=bad,
+        revision_diff=_ACCEPT_DIFF,
+    )
+    assert result["status"] == "fail"
+    assert result["visual_fidelity"] == "fail"
+    assert result["composition_failures"]
 
 
 def test_recompose_prompt_sends_master_as_visual_reference():

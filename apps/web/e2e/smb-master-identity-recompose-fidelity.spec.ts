@@ -153,9 +153,19 @@ test.describe('SMB master identity + CREATIVE_RECOMPOSE fidelity', () => {
           identity_after_refresh: identityRefresh,
           recompose_http: recompose?.status ?? null,
           revision_route: recompose?.body?.revision_route ?? null,
-          quality_guard: recompose?.body?.quality_guard ?? null,
+          quality_guard:
+            recompose?.body?.quality_guard ??
+            (recompose?.body?.detail as { quality_guard?: unknown } | undefined)?.quality_guard ??
+            null,
+          fidelity_message:
+            (recompose?.body?.detail as { message?: unknown } | undefined)?.message ?? null,
+          rejected_asset_id:
+            (recompose?.body?.detail as { rejected_asset_id?: unknown } | undefined)
+              ?.rejected_asset_id ?? null,
           final_asset_id: recompose?.body?.final_asset_id ?? null,
           generate_ad_during_revise: generateAdDuringRevise,
+          cover_unchanged_on_fail:
+            recompose?.status !== 200 && identityAfter.coverAssetId === identityBefore.coverAssetId,
         },
         null,
         2,

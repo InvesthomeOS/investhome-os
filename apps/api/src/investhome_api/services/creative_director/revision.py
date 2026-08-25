@@ -974,6 +974,25 @@ _CTA_TARGETS = frozenset({"cta"})
 _LOGO_TARGETS = frozenset({"logo"})
 _BACKGROUND_TARGETS = frozenset({"background", "layout", "style", "overall"})
 
+# Visual lock vs MASTER finished-ad (not metadata). Tuned so the real Temple
+# redesign rasters fail while a true local reflow in the requested zones can pass.
+VISUAL_COMPARE_SIZE = (384, 480)
+VISUAL_CTA_MAD_MAX = 16.0
+VISUAL_CENTER_MAD_MAX = 15.0
+VISUAL_CENTER_EDGE_MAD_MAX = 24.0
+VISUAL_HEADLINE_OVERLAY_GROWTH_MAX = 1.25
+VISUAL_LOGO_OVERLAY_GROWTH_MAX = 1.20
+VISUAL_REMAINING_SUPPORT_MAD_MAX = 16.0
+VISUAL_LOCKED_MAD_MAX = 10.0
+VISUAL_LOGO_MAD_MAX_UNREQUESTED = 14.0
+
+_HEADLINE_BOX = (0.02, 0.04, 0.72, 0.34)
+_SUPPORT_BOX = (0.02, 0.26, 0.55, 0.50)
+_REMAINING_SUPPORT_BOX = (0.02, 0.36, 0.55, 0.62)
+_LOGO_BOX = (0.62, 0.02, 0.98, 0.22)
+_CTA_BOX = (0.02, 0.78, 0.42, 0.96)
+_CENTER_BOX = (0.28, 0.28, 0.78, 0.78)
+
 
 def _revision_requested_targets(
     revision_diff: RevisionDiff | dict[str, Any] | None,
@@ -998,35 +1017,156 @@ def _revision_requested_targets(
     return targets, delete_targets
 
 
-def _grid_energy(gray: Any, rows: int = 3, cols: int = 3) -> list[list[float]]:
-    from PIL import ImageStat
+def _crop_frac(img: Any, box: tuple[float, float, float, float]) -> Any:
+    w, h = img.size
+    x0, y0, x1, y1 = box
+    return img.crop((int(x0 * w), int(y0 * h), int(x1 * w), int(y1 * h)))
 
-    w, h = gray.size
-    grid: list[list[float]] = []
-    for r in range(rows):
-        row: list[float] = []
-        for c in range(cols):
-            box = (
-                int(c * w / cols),
-                int(r * h / rows),
-                int((c + 1) * w / cols),
-                int((r + 1) * h / rows),
-            )
-            crop = gray.crop(box)
-            if crop.size[0] < 2 or crop.size[1] < 2:
-                row.append(0.0)
+
+def _mad(a: Any, b: Any) -> float:
+    from PIL import ImageChops, ImageStat
+
+    if a.size != b.size:
+        b = b.resize(a.size)
+    return float(ImageStat.Stat(ImageChops.difference(a, b)).mean[0])
+
+
+def _overlay_mask(rgb: Any) -> Any:
+    """Cream/gold/white UI overlay — not a perfect text OCR, used for scale/treatment."""
+    from PIL import Image
+
+    w, h = rgb.size
+    px = rgb.load()
+    out = Image.new("L", (w, h), 0)
+    op = out.load()
+    for y in range(h):
+        for x in range(w):
+            r, g, b = px[x, y][:3]
+            mx = max(r, g, b)
+            mn = min(r, g, b)
+            lum = (r + g + b) / 3.0
+            gold = (r - b) > 28 and (g - b) > 12 and 70 <= lum <= 220
+            light = lum >= 205 and (mx - mn) < 55
+            cream = lum >= 175 and (r + g) / 2 - b > 18 and (mx - mn) < 80
+            if gold or light or cream:
+                op[x, y] = 255
+    return out
+
+
+def _mask_ratio(mask: Any) -> float:
+    hist = mask.histogram()
+    on = sum(hist[200:])
+    return on / float(mask.size[0] * mask.size[1] or 1)
+
+
+def _frac_box_to_px(size: tuple[int, int], box: tuple[float, float, float, float]) -> tuple[int, int, int, int]:
+    w, h = size
+    return (int(box[0] * w), int(box[1] * h), int(box[2] * w), int(box[3] * h))
+
+
+def _locked_mad(master_g: Any, revised_g: Any, exempt_boxes: list[tuple[float, float, float, float]]) -> float:
+    from PIL import Image, ImageChops
+
+    w, h = master_g.size
+    diff = ImageChops.difference(master_g, revised_g)
+    exempt = Image.new("L", (w, h), 0)
+    for box in exempt_boxes:
+        x0, y0, x1, y1 = _frac_box_to_px((w, h), box)
+        exempt.paste(255, (x0, y0, x1, y1))
+    px = diff.load()
+    ex = exempt.load()
+    acc = 0.0
+    n = 0
+    step = 2  # subsample
+    for y in range(0, h, step):
+        for x in range(0, w, step):
+            if ex[x, y] > 0:
                 continue
-            stat = ImageStat.Stat(crop)
-            var = stat.var[0] if stat.var else 0.0
-            row.append(float(var))
-        grid.append(row)
-    return grid
+            acc += px[x, y]
+            n += 1
+    return acc / float(n or 1)
 
 
-def _rel_drop(before: float, after: float) -> float:
-    if before < 8.0:
-        return 0.0
-    return (before - after) / before
+def _region_metrics(
+    master_g: Any,
+    revised_g: Any,
+    edges_m: Any,
+    edges_r: Any,
+    ov_m: Any,
+    ov_r: Any,
+    box: tuple[float, float, float, float],
+) -> dict[str, float]:
+    return {
+        "mad": round(_mad(_crop_frac(master_g, box), _crop_frac(revised_g, box)), 3),
+        "edge_mad": round(_mad(_crop_frac(edges_m, box), _crop_frac(edges_r, box)), 3),
+        "overlay_master": round(_mask_ratio(_crop_frac(ov_m, box)), 4),
+        "overlay_revised": round(_mask_ratio(_crop_frac(ov_r, box)), 4),
+    }
+
+
+def _left_text_bands(gray: Any, *, y0_frac: float, y1_frac: float, thresh: float = 18.0) -> list[tuple[int, int]]:
+    """Horizontal bands where the left column is brighter than the right (editorial type)."""
+    w, h = gray.size
+    y0 = max(0, int(y0_frac * h))
+    y1 = min(h, int(y1_frac * h))
+    left_w = max(8, int(w * 0.48))
+    right0 = int(w * 0.55)
+    px = gray.load()
+    bands: list[tuple[int, int]] = []
+    in_band = False
+    start = y0
+    for y in range(y0, y1):
+        left_acc = 0
+        for x in range(left_w):
+            left_acc += px[x, y]
+        right_acc = 0
+        n = 0
+        for x in range(right0, w):
+            right_acc += px[x, y]
+            n += 1
+        delta = (left_acc / float(left_w)) - (right_acc / float(n or 1))
+        if delta > thresh:
+            if not in_band:
+                in_band = True
+                start = y
+        elif in_band:
+            if (y - start) >= 4:
+                bands.append((start, y))
+            in_band = False
+    if in_band and (y1 - start) >= 4:
+        bands.append((start, y1))
+    return bands
+
+
+def _support_line_boxes(gray: Any) -> tuple[tuple[float, float, float, float] | None, tuple[float, float, float, float] | None]:
+    """First vs remaining supporting-copy bands below the headline, as frac boxes."""
+    w, h = gray.size
+    bands = _left_text_bands(gray, y0_frac=0.18, y1_frac=0.58, thresh=18.0)
+    support: list[tuple[int, int]] = []
+    for y0, y1 in bands:
+        if y0 >= int(0.18 * h) and y0 < int(0.50 * h) and (y1 - y0) >= 8:
+            support.append((y0, y1))
+    if len(support) == 1 and (support[0][1] - support[0][0]) >= max(22, int(0.05 * h)):
+        y0, y1 = support[0]
+        mid = (y0 + y1) // 2
+        support = [(y0, mid), (mid, y1)]
+    elif len(support) > 2:
+        support = [support[0], (support[1][0], support[-1][1])]
+
+    def _box(band: tuple[int, int] | None) -> tuple[float, float, float, float] | None:
+        if not band:
+            return None
+        pad = 4
+        return (
+            0.02,
+            max(0.0, (band[0] - pad) / float(h)),
+            0.55,
+            min(1.0, (band[1] + pad) / float(h)),
+        )
+
+    first = _box(support[0] if support else None)
+    remaining = _box(support[1] if len(support) > 1 else None)
+    return first, remaining
 
 
 def compare_recompose_composition_fidelity(
@@ -1035,8 +1175,12 @@ def compare_recompose_composition_fidelity(
     revised_bytes: bytes,
     revision_diff: RevisionDiff | dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Fail-closed layout lock vs MASTER. Unrequested CTA/logo/headline-region/crop moves reject."""
-    from PIL import Image, ImageChops, ImageStat
+    """Fail-closed VISUAL lock vs MASTER finished-ad.
+
+    Requested ops are exempted. Unrequested supporting-copy loss, giant headline,
+    CTA/logo treatment, crop, or layout simplification must reject.
+    """
+    from PIL import Image, ImageFilter
 
     targets, delete_targets = _revision_requested_targets(revision_diff)
     headline_ok = bool(targets & _HEADLINE_TARGETS)
@@ -1048,72 +1192,103 @@ def compare_recompose_composition_fidelity(
     background_ok = bool(targets & _BACKGROUND_TARGETS)
 
     with Image.open(io.BytesIO(master_bytes)) as im_m, Image.open(io.BytesIO(revised_bytes)) as im_r:
-        master = im_m.convert("L")
-        revised = im_r.convert("L")
-        if revised.size != master.size:
-            revised = revised.resize(master.size)
-        master_grid = _grid_energy(master)
-        revised_grid = _grid_energy(revised)
-        diff = ImageChops.difference(master, revised)
-        center_box = (
-            int(master.size[0] * 0.30),
-            int(master.size[1] * 0.30),
-            int(master.size[0] * 0.70),
-            int(master.size[1] * 0.70),
-        )
-        center_mad = float(ImageStat.Stat(diff.crop(center_box)).mean[0])
+        master_rgb = im_m.convert("RGB")
+        master_rgb.thumbnail(VISUAL_COMPARE_SIZE, Image.Resampling.LANCZOS)
+        revised_rgb = im_r.convert("RGB")
+        if revised_rgb.size != master_rgb.size:
+            revised_rgb = revised_rgb.resize(master_rgb.size, Image.Resampling.LANCZOS)
+        master_g = master_rgb.convert("L")
+        revised_g = revised_rgb.convert("L")
+        edges_m = master_g.filter(ImageFilter.FIND_EDGES)
+        edges_r = revised_g.filter(ImageFilter.FIND_EDGES)
+        ov_m = _overlay_mask(master_rgb)
+        ov_r = _overlay_mask(revised_rgb)
+
+    first_support_box, remaining_support_box = _support_line_boxes(master_g)
+    remaining_box = remaining_support_box or _REMAINING_SUPPORT_BOX
+    first_box = first_support_box or _SUPPORT_BOX
+    regions = {
+        "headline": _region_metrics(master_g, revised_g, edges_m, edges_r, ov_m, ov_r, _HEADLINE_BOX),
+        "support": _region_metrics(master_g, revised_g, edges_m, edges_r, ov_m, ov_r, first_box),
+        "remaining_support": _region_metrics(master_g, revised_g, edges_m, edges_r, ov_m, ov_r, remaining_box),
+        "logo": _region_metrics(master_g, revised_g, edges_m, edges_r, ov_m, ov_r, _LOGO_BOX),
+        "cta": _region_metrics(master_g, revised_g, edges_m, edges_r, ov_m, ov_r, _CTA_BOX),
+        "center": _region_metrics(master_g, revised_g, edges_m, edges_r, ov_m, ov_r, _CENTER_BOX),
+    }
+    regions["remaining_support"]["band_detected"] = 1.0 if remaining_support_box else 0.0
+    exempt: list[tuple[float, float, float, float]] = []
+    if headline_ok:
+        exempt.append(_HEADLINE_BOX)
+    if support_delete_ok:
+        exempt.append(first_box)
+    if logo_ok:
+        exempt.append(_LOGO_BOX)
+    locked_mad = round(_locked_mad(master_g, revised_g, exempt), 3)
+
+    headline_ov_m = regions["headline"]["overlay_master"] or 0.0001
+    headline_growth = regions["headline"]["overlay_revised"] / headline_ov_m
+    logo_ov_m = regions["logo"]["overlay_master"] or 0.0001
+    logo_growth = regions["logo"]["overlay_revised"] / logo_ov_m
+    headline_drop = 1.0 - (regions["headline"]["overlay_revised"] / headline_ov_m)
 
     failures: list[str] = []
-    cta_master = master_grid[2][0]
-    cta_rev = revised_grid[2][0]
-    cta_right_master = master_grid[2][2]
-    cta_right_rev = revised_grid[2][2]
-    master_cta_anchor = "left" if cta_master >= cta_right_master else "right"
-    revised_cta_anchor = "left" if cta_rev >= cta_right_rev else "right"
-    if not cta_ok:
-        if master_cta_anchor != revised_cta_anchor and (cta_master + cta_right_master) > 20:
-            failures.append(
-                f"cta_anchor_changed master={master_cta_anchor} result={revised_cta_anchor}"
-            )
-        if _rel_drop(cta_master, cta_rev) > 0.45 and (cta_right_rev - cta_right_master) > 12:
-            failures.append("cta_region_energy_moved")
-
-    logo_master = master_grid[0][2]
-    logo_rev = revised_grid[0][2]
-    if not logo_ok and _rel_drop(logo_master, logo_rev) > 0.55:
-        failures.append("logo_anchor_lost")
-    if logo_ok and logo_master > 12 and logo_rev < 4:
-        failures.append("logo_disappeared")
-
-    headline_master = master_grid[0][0] + master_grid[0][1]
-    headline_rev = revised_grid[0][0] + revised_grid[0][1]
-    center_master = master_grid[1][1]
-    center_rev = revised_grid[1][1]
+    if not cta_ok and regions["cta"]["mad"] > VISUAL_CTA_MAD_MAX:
+        failures.append(f"cta_visual_changed mad={regions['cta']['mad']}")
+    if logo_ok:
+        if logo_growth > VISUAL_LOGO_OVERLAY_GROWTH_MAX:
+            failures.append(f"logo_treatment_changed overlay_growth={logo_growth:.2f}")
+    elif regions["logo"]["mad"] > VISUAL_LOGO_MAD_MAX_UNREQUESTED:
+        failures.append(f"logo_visual_changed mad={regions['logo']['mad']}")
     if headline_ok:
-        if headline_master > 20 and _rel_drop(headline_master, headline_rev) > 0.70:
-            if (center_rev - center_master) > 20:
-                failures.append("headline_region_moved")
-    else:
-        if _rel_drop(headline_master, headline_rev) > 0.50:
-            failures.append("headline_region_changed")
+        if headline_growth > VISUAL_HEADLINE_OVERLAY_GROWTH_MAX:
+            failures.append(f"headline_scale_changed overlay_growth={headline_growth:.2f}")
+        elif headline_drop > 0.45 and regions["center"]["mad"] > 12:
+            failures.append("headline_region_moved")
+    elif regions["headline"]["mad"] > 18:
+        failures.append(f"headline_unrequested_change mad={regions['headline']['mad']}")
+    if support_delete_ok:
+        if remaining_support_box and regions["remaining_support"]["mad"] > VISUAL_REMAINING_SUPPORT_MAD_MAX:
+            failures.append(
+                f"supporting_text_disappeared remaining_mad={regions['remaining_support']['mad']}"
+            )
+    elif regions["support"]["mad"] > VISUAL_REMAINING_SUPPORT_MAD_MAX:
+        failures.append(f"supporting_text_disappeared mad={regions['support']['mad']}")
+    if not background_ok:
+        if regions["center"]["mad"] > VISUAL_CENTER_MAD_MAX:
+            failures.append(f"background_crop_or_composition_changed mad={regions['center']['mad']}")
+        elif regions["center"]["edge_mad"] > VISUAL_CENTER_EDGE_MAD_MAX:
+            failures.append(
+                f"background_crop_or_composition_changed edge_mad={regions['center']['edge_mad']}"
+            )
+        if locked_mad > VISUAL_LOCKED_MAD_MAX:
+            failures.append(f"unrequested_layout_simplification locked_mad={locked_mad}")
 
-    support_master = master_grid[1][0]
-    support_rev = revised_grid[1][0]
-    if not support_delete_ok and _rel_drop(support_master, support_rev) > 0.55:
-        failures.append("supporting_text_disappeared")
+    cta_left_m = _crop_frac(master_g, (0.02, 0.78, 0.36, 0.96))
+    cta_right_m = _crop_frac(master_g, (0.64, 0.78, 0.98, 0.96))
+    cta_left_r = _crop_frac(revised_g, (0.02, 0.78, 0.36, 0.96))
+    cta_right_r = _crop_frac(revised_g, (0.64, 0.78, 0.98, 0.96))
+    from PIL import ImageStat as _IS
 
-    if not background_ok and not headline_ok and not support_delete_ok and center_mad > 36:
-        failures.append(f"background_crop_or_composition_changed mad={center_mad:.1f}")
+    def _var(im: Any) -> float:
+        v = _IS.Stat(im).var
+        return float(v[0] if v else 0.0)
+
+    master_cta_anchor = "left" if _var(cta_left_m) >= _var(cta_right_m) else "right"
+    revised_cta_anchor = "left" if _var(cta_left_r) >= _var(cta_right_r) else "right"
+    if not cta_ok and master_cta_anchor != revised_cta_anchor:
+        failures.append(f"cta_anchor_changed master={master_cta_anchor} result={revised_cta_anchor}")
 
     status_val = "fail" if failures else "pass"
     return {
         "status": status_val,
         "composition_fidelity": status_val,
+        "visual_fidelity": status_val,
         "composition_failures": failures,
         "cta_anchor": {"master": master_cta_anchor, "result": revised_cta_anchor},
-        "center_mad": round(center_mad, 3),
-        "grid_master": master_grid,
-        "grid_revised": revised_grid,
+        "regions": regions,
+        "headline_overlay_growth": round(headline_growth, 3),
+        "logo_overlay_growth": round(logo_growth, 3),
+        "locked_mad": locked_mad,
         "requested_targets": sorted(targets),
         "compared_against": "master_finished_ad",
     }
@@ -1859,15 +2034,21 @@ def revise_ad_from_campaign(
                 "reason": str(exc),
             }
     quality_guard["composition_fidelity"] = composition.get("status")
+    quality_guard["visual_fidelity"] = composition.get("visual_fidelity") or composition.get("status")
     quality_guard["composition_failures"] = list(composition.get("composition_failures") or [])
     quality_guard["cta_anchor"] = composition.get("cta_anchor")
+    quality_guard["headline_overlay_growth"] = composition.get("headline_overlay_growth")
+    quality_guard["logo_overlay_growth"] = composition.get("logo_overlay_growth")
+    quality_guard["locked_mad"] = composition.get("locked_mad")
+    quality_guard["visual_regions"] = composition.get("regions")
+    quality_guard["compared_against"] = composition.get("compared_against") or "master_finished_ad"
     if composition.get("status") == "fail":
         quality_guard["status"] = "fail"
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={
                 "message": (
-                    "CREATIVE_RECOMPOSE failed composition fidelity vs MASTER. "
+                    "CREATIVE_RECOMPOSE failed visual fidelity vs MASTER finished-ad. "
                     "Result was not hydrated onto the SMB canvas."
                 ),
                 "quality_guard": quality_guard,
