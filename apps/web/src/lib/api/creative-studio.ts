@@ -961,7 +961,7 @@ export type CreativeDirectorReviseAdResponse = CreativeDirectorGenerateAdRespons
   previous_asset_id?: string | null;
   campaign_context?: Record<string, unknown>;
   gpt_image_call_count?: number;
-  revision_route?: 'LAYER_ONLY' | 'IMAGE_REQUIRED' | null;
+  revision_route?: 'LAYER_ONLY' | 'MICRO_EDIT' | 'CREATIVE_RECOMPOSE' | 'IMAGE_REQUIRED' | null;
   user_feedback?: string | null;
   change_diff_validation?: Record<string, unknown>;
   interpreted_plan?: Record<string, unknown>;

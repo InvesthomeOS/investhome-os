@@ -344,6 +344,29 @@ def resolve_spatial_targets(
     if any(
         tok in low
         for tok in (
+            "soldaki ilk",
+            "ilk açıklama",
+            "ilk aciklama",
+            "first supporting",
+            "first feature",
+        )
+    ):
+        feats: list[dict[str, Any]] = []
+        for e in texts:
+            eid = str(e.get("id") or "").lower()
+            role = str(e.get("role") or "").lower()
+            if (
+                eid.startswith("feature-")
+                or eid.startswith("support-message")
+                or role in {"support_message", "body"}
+            ) and role != "headline":
+                feats.append(e)
+        feats.sort(key=lambda e: (float(e.get("y") or 0), float(e.get("x") or 0)))
+        return "left_feature_texts", feats[:1]
+
+    if any(
+        tok in low
+        for tok in (
             "özellik",
             "ozellik",
             "feature",

@@ -1732,33 +1732,30 @@ export function SocialMediaBuilderWorkspace() {
           (typeof response.provider_route?.model === 'string' && response.provider_route.model) ||
           gptImage?.model ||
           'gpt-image-2';
-        const layerOnlyRevision =
+        const microEditRevision =
           response.revision_route === 'LAYER_ONLY' ||
-          response.production_mode === 'editable_finished_ad';
-        const editableMode = layerOnlyRevision;
+          response.revision_route === 'MICRO_EDIT';
+        const editableMode = microEditRevision;
         const lockedCoverId = currentAssetId;
         const lockedInteriorId = selectedPost?.generationMeta?.interior_asset_id || null;
         const returnedInterior = response.interior_asset_id || null;
         if (
-          layerOnlyRevision &&
+          microEditRevision &&
           response.campaign_id &&
           String(response.campaign_id) !== String(campaignId)
         ) {
           throw new Error(t('toasts.revisionFailed'));
         }
         if (
-          layerOnlyRevision &&
+          microEditRevision &&
           lockedInteriorId &&
           returnedInterior &&
           String(returnedInterior) !== String(lockedInteriorId)
         ) {
           throw new Error(t('toasts.revisionFailed'));
         }
-        // LAYER_ONLY must keep the SELECTED raster as cover. Never swap to interior.
-        const coverAssetId = layerOnlyRevision
-          ? lockedCoverId
-          : (editableMode && (response.master_background_asset_id || response.interior_asset_id)) ||
-            finalAssetId;
+        // MICRO_EDIT keeps the SELECTED raster as cover. CREATIVE_RECOMPOSE hydrates the new raster.
+        const coverAssetId = microEditRevision ? lockedCoverId : finalAssetId;
         console.info('[SMB_REV_V3] source', {
           postId,
           campaignId,
@@ -1784,7 +1781,7 @@ export function SocialMediaBuilderWorkspace() {
           editable_mode: editableMode,
         });
         const nextPost = createFinishedAdCanvasPost({
-          localAssetId: layerOnlyRevision ? lockedCoverId : finalAssetId,
+          localAssetId: microEditRevision ? lockedCoverId : finalAssetId,
           linkedProjectId: projectId,
           formatPreset: asFormatPreset(response.format_preset || formatPreset),
           instruction: text,
@@ -1810,20 +1807,20 @@ export function SocialMediaBuilderWorkspace() {
           provider:
             (typeof response.provider_route?.provider_id === 'string' &&
               response.provider_route.provider_id) ||
-            (response.revision_route === 'LAYER_ONLY' ? 'layer_only' : 'gpt_image'),
+            (microEditRevision ? 'layer_only' : 'gpt_image'),
           logoAssetId: response.logo_asset_id,
           interiorAssetId: response.interior_asset_id,
           editableFinishedAd: editableMode,
           designSpec: response.design_spec ?? null,
-          editableLayers: response.editable_layers ?? null,
-          masterBackgroundAssetId: layerOnlyRevision
+          editableLayers: microEditRevision ? (response.editable_layers ?? null) : [],
+          masterBackgroundAssetId: microEditRevision
             ? lockedCoverId
             : response.master_background_asset_id ?? response.interior_asset_id,
-          finishedAdRasterAssetId: lockedCoverId,
+          finishedAdRasterAssetId: microEditRevision ? lockedCoverId : finalAssetId,
         });
         nextPost.id = postId;
         nextPost.campaignContextId = response.campaign_id || campaignId;
-        if (layerOnlyRevision && nextPost.coverAssetId && nextPost.coverAssetId !== lockedCoverId) {
+        if (microEditRevision && nextPost.coverAssetId && nextPost.coverAssetId !== lockedCoverId) {
           throw new Error(t('toasts.revisionFailed'));
         }
         console.info('[SMB_REV_V3] after', {
@@ -1913,12 +1910,12 @@ export function SocialMediaBuilderWorkspace() {
         (typeof response.provider_route?.model === 'string' && response.provider_route.model) ||
         gptImage?.model ||
         'gpt-image-2';
-      const layerOnly =
+      const microEdit =
         response.revision_route === 'LAYER_ONLY' ||
-        response.production_mode === 'editable_finished_ad';
+        response.revision_route === 'MICRO_EDIT';
       const lockedCoverId = selectedPost?.coverAssetId || finalAssetId;
       const nextPost = createFinishedAdCanvasPost({
-        localAssetId: layerOnly ? lockedCoverId : finalAssetId,
+        localAssetId: microEdit ? lockedCoverId : finalAssetId,
         linkedProjectId: projectId,
         formatPreset: asFormatPreset(response.format_preset || formatPreset),
         instruction,
@@ -1939,13 +1936,13 @@ export function SocialMediaBuilderWorkspace() {
           'gpt_image',
         logoAssetId: response.logo_asset_id,
         interiorAssetId: response.interior_asset_id,
-        editableFinishedAd: layerOnly,
+        editableFinishedAd: microEdit,
         designSpec: response.design_spec ?? null,
-        editableLayers: response.editable_layers ?? null,
-        masterBackgroundAssetId: layerOnly
+        editableLayers: microEdit ? (response.editable_layers ?? null) : [],
+        masterBackgroundAssetId: microEdit
           ? lockedCoverId
           : response.master_background_asset_id ?? response.interior_asset_id,
-        finishedAdRasterAssetId: layerOnly
+        finishedAdRasterAssetId: microEdit
           ? lockedCoverId
           : response.finished_ad_raster_asset_id ?? finalAssetId,
       });

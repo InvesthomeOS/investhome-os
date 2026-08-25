@@ -138,7 +138,7 @@ class CreativeDirectorCampaignResponse(BaseModel):
 
 
 CreativeDirectorProductionMode = Literal["finished_ad", "os_compose", "editable_finished_ad"]
-RevisionRoute = Literal["LAYER_ONLY", "IMAGE_REQUIRED"]
+RevisionRoute = Literal["LAYER_ONLY", "MICRO_EDIT", "CREATIVE_RECOMPOSE", "IMAGE_REQUIRED"]
 
 
 class DesignSpecElement(BaseModel):

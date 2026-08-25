@@ -6,6 +6,7 @@ Reuses GPT Image PROJECT MODE + Final Composition. Does not rewrite CD brief log
 from __future__ import annotations
 
 import logging
+from copy import deepcopy
 from typing import Any
 from uuid import UUID
 
@@ -1310,6 +1311,16 @@ def generate_ad_from_campaign(
     ):
         # Align alias when master already set from prior path
         ctx["master_finished_ad_asset_id"] = str(ctx.get("master_asset_id") or output.local_asset_id)
+    if production_mode in {"finished_ad", "editable_finished_ad"}:
+        if not ctx.get("master_production_brief"):
+            ctx["master_production_brief"] = deepcopy(production_brief)
+        if not ctx.get("master_source_assets"):
+            ctx["master_source_assets"] = {
+                "interior_asset_id": str(interior_id),
+                "logo_asset_id": str(logo_id),
+            }
+        if not ctx.get("master_creative_direction"):
+            ctx["master_creative_direction"] = art_direction.to_dict()
 
     design_spec: dict[str, Any] | None = None
     editable_layers: list[dict[str, Any]] = []

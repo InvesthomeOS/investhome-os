@@ -13,7 +13,7 @@ from uuid import UUID
 
 from investhome_api.services.creative_director.composition_plan import build_composition_plan
 
-RevisionRoute = Literal["LAYER_ONLY", "IMAGE_REQUIRED"]
+RevisionRoute = Literal["LAYER_ONLY", "MICRO_EDIT", "CREATIVE_RECOMPOSE", "IMAGE_REQUIRED"]
 
 # Ops that mutate overlay layers without re-rasterizing the photograph.
 _LAYER_ONLY_TARGETS = frozenset(
@@ -53,6 +53,48 @@ _LAYER_ONLY_ACTIONS = frozenset(
     }
 )
 _IMAGE_REQUIRED_TARGETS = frozenset({"background", "layout", "style", "overall"})
+_MICRO_EDIT_TARGETS = frozenset({"logo", "cta", "badge"})
+_MICRO_EDIT_ACTIONS = frozenset(
+    {
+        "scale",
+        "resize",
+        "replace_text",
+        "translate",
+        "set_position",
+        "align",
+        "set_geometry",
+        "preserve",
+        "minimum_change",
+    }
+)
+_COPY_REBALANCE_TARGETS = frozenset(
+    {
+        "headline",
+        "primary_headline",
+        "support_message",
+        "left_feature_texts",
+        "feature_text",
+        "top_small_description",
+        "subheadline",
+        "eyebrow",
+        "price",
+    }
+)
+_FURNITURE_IMAGE_PHRASES = (
+    "başka interior",
+    "baska interior",
+    "koltuğu değiştir",
+    "koltugu degistir",
+    "koltuğu degistir",
+    "koltuğu kaldır",
+    "koltugu kaldir",
+    "arka plandaki koltuğu",
+    "arka plandaki koltugu",
+    "yeni sahne",
+    "new scene",
+    "mimari",
+    "architectural",
+)
 
 _IMAGE_REQUIRED_PHRASES = (
     "başka interior",
@@ -1565,6 +1607,11 @@ def compose_layer_only_on_locked_raster(
         low = str(eid).lower()
         if low not in changed_copy_ids:
             continue
+        if low in {"discount-badge", "badge"} or str(el.get("role") or "").lower() in {
+            "discount_badge",
+            "badge",
+        }:
+            continue
         typo = el.get("typography") if isinstance(el.get("typography"), dict) else {}
         font = int(typo.get("font_size") or el.get("font_size") or 0)
         pad = max(12, int(font * 0.28) if font else 12)
@@ -1626,6 +1673,32 @@ def compose_layer_only_on_locked_raster(
         row = dict(el)
         row["zIndex"] = max(int(row.get("zIndex") or 0), 50)
         layers.append(_json_safe_layer(row))
+    # MICRO_EDIT: overlay mutated logo / CTA / badge without hide-plates.
+    for el in smb:
+        if not isinstance(el, dict):
+            continue
+        eid = _s(el.get("id")).lower()
+        role = _s(el.get("role")).lower()
+        etype = _s(el.get("type")).upper()
+        before_el = before_snap.get(eid) or before_snap.get(_s(el.get("id")))
+        after_el = after_by_id.get(eid)
+        if not before_el or not after_el:
+            continue
+        if _copy_fingerprint(before_el) == _copy_fingerprint(after_el):
+            continue
+        if eid == "logo" or role == "logo" or etype == "LOGO":
+            row = dict(el)
+            row["type"] = "IMAGE" if etype not in {"IMAGE", "LOGO"} else el.get("type")
+            row["zIndex"] = max(int(row.get("zIndex") or 0), 70)
+            layers.append(_json_safe_layer(row))
+        elif eid == "cta" or role == "cta" or etype == "BUTTON":
+            row = dict(el)
+            row["zIndex"] = max(int(row.get("zIndex") or 0), 70)
+            layers.append(_json_safe_layer(row))
+        elif eid in {"discount-badge", "badge"} or role in {"discount_badge", "badge"}:
+            row = dict(el)
+            row["zIndex"] = max(int(row.get("zIndex") or 0), 70)
+            layers.append(_json_safe_layer(row))
     present_ids = {_s(el.get("id")).lower() for el in layers if isinstance(el, dict)}
     sm2_smb = next(
         (
@@ -1838,15 +1911,43 @@ def design_spec_to_smb_elements(design_spec: dict[str, Any]) -> list[dict[str, A
     return out
 
 
+def is_micro_edit_route(route: str | None) -> bool:
+    return str(route or "") in {"LAYER_ONLY", "MICRO_EDIT"}
+
+
+def is_provider_revision_route(route: str | None) -> bool:
+    return str(route or "") in {"CREATIVE_RECOMPOSE", "IMAGE_REQUIRED"}
+
+
+def _op_field(op: Any, name: str) -> Any:
+    if isinstance(op, dict):
+        return op.get(name)
+    return getattr(op, name, None)
+
+
+def _op_scale_delta(op: Any) -> float:
+    raw = _op_field(op, "scale_factor")
+    if raw is None:
+        raw = _op_field(op, "value")
+    try:
+        return abs(float(raw) - 1.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def route_revision(
     *,
     instruction: str,
     revision_diff: Any,
     intents: list[str] | None = None,
 ) -> RevisionRoute:
-    """Smart revision router: LAYER_ONLY (GPT=0) vs IMAGE_REQUIRED."""
-    # Route on the working instruction only. Preserve-clauses like
-    # "görseli … değiştirme" must not force IMAGE_REQUIRED.
+    """Golden Creative router: MICRO_EDIT vs CREATIVE_RECOMPOSE vs IMAGE_REQUIRED.
+
+    MICRO_EDIT is GPT=0 layer/property edit on truly local logo/CTA/badge ops.
+    Headline, hierarchy deletes, large type, simplify → CREATIVE_RECOMPOSE
+    (rebuild from MASTER source image + cumulative brief). LAYER_ONLY remains
+    a compatibility alias of MICRO_EDIT for existing callers.
+    """
     try:
         from investhome_api.services.creative_director.revision_intelligence_v3 import (
             extract_working_instruction,
@@ -1856,52 +1957,80 @@ def route_revision(
     except Exception:
         working = instruction
     low = (working or instruction or "").replace("İ", "i").replace("I", "ı").lower()
-    for phrase in _IMAGE_REQUIRED_PHRASES:
+    for phrase in _FURNITURE_IMAGE_PHRASES:
         if phrase in low:
             return "IMAGE_REQUIRED"
+    for phrase in _IMAGE_REQUIRED_PHRASES:
+        if phrase in low:
+            return "CREATIVE_RECOMPOSE"
 
     intent_set = {str(i).upper() for i in (intents or [])}
-    if intent_set & {"ASSET_CHANGE", "STYLE_CHANGE"} and not (
-        intent_set <= {"COPY_CHANGE", "LAYOUT_CHANGE", "COMMERCIAL_EMPHASIS", "LANGUAGE_CHANGE", "SIMPLIFY"}
+    if "SIMPLIFY" in intent_set or any(
+        tok in low for tok in ("daha sade", "sadeleştir", "sadelestir", "simplify", "basitleştir")
     ):
-        # Pure ASSET/STYLE without copy-only → image path
-        if "ASSET_CHANGE" in intent_set or (
-            "STYLE_CHANGE" in intent_set and "COPY_CHANGE" not in intent_set and "LAYOUT_CHANGE" not in intent_set
-        ):
-            return "IMAGE_REQUIRED"
+        return "CREATIVE_RECOMPOSE"
+    if "ASSET_CHANGE" in intent_set:
+        return "CREATIVE_RECOMPOSE"
+    if "STYLE_CHANGE" in intent_set and "COPY_CHANGE" not in intent_set and "LAYOUT_CHANGE" not in intent_set:
+        return "CREATIVE_RECOMPOSE"
 
-    ops = []
+    ops: list[Any] = []
     if hasattr(revision_diff, "operations"):
         ops = list(revision_diff.operations or [])
     elif isinstance(revision_diff, dict):
         ops = list(revision_diff.get("operations") or [])
 
-    if not ops:
-        # Ambiguous visual language without structured ops → image path
+    mutating = [
+        op
+        for op in ops
+        if str(_op_field(op, "action") or "").lower() not in {"minimum_change", "preserve"}
+    ]
+    if not mutating:
         if any(tok in low for tok in ("görsel", "visual", "render", "interior", "sahne", "scene", "atmosfer")):
-            return "IMAGE_REQUIRED"
-        # Default copy-ish instruction with no ops still tries layer path only if clearly copy
-        if any(tok in low for tok in ("başlık", "headline", "cta", "rozet", "badge", "logo", "yazı", "metin")):
-            return "LAYER_ONLY"
-        return "IMAGE_REQUIRED"
+            return "CREATIVE_RECOMPOSE"
+        if any(tok in low for tok in ("başlık", "baslik", "headline")):
+            return "CREATIVE_RECOMPOSE"
+        if any(tok in low for tok in ("cta", "rozet", "badge", "logo")):
+            return "MICRO_EDIT"
+        return "CREATIVE_RECOMPOSE"
 
-    for op in ops:
-        target = getattr(op, "target", None) if not isinstance(op, dict) else op.get("target")
-        action = getattr(op, "action", None) if not isinstance(op, dict) else op.get("action")
-        target_s = str(target or "").lower()
-        action_s = str(action or "").lower()
-        if action_s in {"minimum_change", "preserve"}:
-            continue
-        if action_s == "tone_adjust" and target_s in _LAYER_ONLY_TARGETS | {"overall", "layout"}:
-            # Soft tone stays on layers — never auto-grade background
-            continue
+    micro_ok = True
+    for op in mutating:
+        target_s = str(_op_field(op, "target") or "").lower()
+        action_s = str(_op_field(op, "action") or "").lower()
+        if action_s in {"delete", "remove", "hide"}:
+            micro_ok = False
+            break
         if target_s in _IMAGE_REQUIRED_TARGETS:
-            return "IMAGE_REQUIRED"
-        if target_s not in _LAYER_ONLY_TARGETS:
-            return "IMAGE_REQUIRED"
-        if action_s and action_s not in _LAYER_ONLY_ACTIONS:
-            return "IMAGE_REQUIRED"
-    return "LAYER_ONLY"
+            micro_ok = False
+            break
+        if target_s in _COPY_REBALANCE_TARGETS:
+            micro_ok = False
+            break
+        if action_s in {"set_font_size", "improve_readability", "tone_adjust"}:
+            micro_ok = False
+            break
+        if action_s == "replace_text" and target_s != "cta":
+            micro_ok = False
+            break
+        if target_s not in _MICRO_EDIT_TARGETS:
+            micro_ok = False
+            break
+        if action_s not in _MICRO_EDIT_ACTIONS:
+            micro_ok = False
+            break
+        if target_s == "logo" and action_s in {"scale", "resize"} and _op_scale_delta(op) > 0.25:
+            micro_ok = False
+            break
+        if target_s == "cta" and action_s in {"scale", "resize"} and _op_scale_delta(op) > 0.15:
+            micro_ok = False
+            break
+        if target_s == "badge" and action_s in {"scale", "resize"} and _op_scale_delta(op) > 0.35:
+            micro_ok = False
+            break
+    if micro_ok:
+        return "MICRO_EDIT"
+    return "CREATIVE_RECOMPOSE"
 
 
 def _find_element(spec: dict[str, Any], *ids_or_roles: str) -> dict[str, Any] | None:
