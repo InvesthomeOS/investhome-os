@@ -50,6 +50,7 @@ def build_design_direction(
     density: str = "medium",
     language: str = "tr",
     creative_freedom_level: int | None = None,
+    ad_scope: str | None = None,
 ) -> DesignDirection:
     """Provider-facing art direction cues derived from intent + CD strategy."""
     strategy = strategy or {}
@@ -76,6 +77,35 @@ def build_design_direction(
 
     dens = density if density in {"sparse", "medium", "rich"} else "medium"
     premium = "high" if "premium" in tone.lower() or "lüks" in tone.lower() or "luxury" in tone.lower() else "elevated"
+
+    if str(ad_scope or "").strip().lower() == "brand":
+        return DesignDirection(
+            visual_mood=visual or "Urban editorial — Investhome market/location campaign",
+            hierarchy=hierarchy,
+            typography_character=typography
+            or "Expressive display for the primary line; restrained sans for support; high contrast CTA",
+            composition_direction=composition
+            or (
+                "Place-led full-bleed composition with intentional negative space for type. "
+                "No mandatory side or bottom panels."
+            ),
+            image_treatment=(
+                "Use the locked city/place photograph. Do not treat it as project architecture. "
+                "Do not invent The Temple or any selected-project building."
+            ),
+            contrast="High readability for primary message and CTA against the locked photograph",
+            brand_presence="One verified Investhome company logo lockup — never invent or duplicate",
+            cta_importance="Single clear CTA; visible and actionable, not tiny footer text",
+            information_density=dens,
+            premium_level=premium,
+            creative_freedom=(
+                f"Language={language}. BRAND/MARKET AD — no project interior lock, "
+                "no project exterior lock, no project architecture constraints. "
+                "Do not inherit the selected project's creative direction. "
+                "Use Investhome brand rules, market/location direction, requested visual type, "
+                "and approved company assets only."
+            ),
+        )
 
     level = 1 if creative_freedom_level is None else int(creative_freedom_level)
     if level <= 0:

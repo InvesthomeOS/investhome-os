@@ -48,28 +48,46 @@ test.describe('Creative Generation Engine v1', () => {
     await expect(page.getByTestId('smb-ai-design-input')).toBeVisible({ timeout: 30_000 });
 
     const projectSelect = page.locator('#smb-project');
-    if (await projectSelect.count()) {
-      const options = projectSelect.locator('option');
-      const n = await options.count();
-      for (let i = 0; i < n; i += 1) {
-        const label = ((await options.nth(i).textContent()) || '').toLowerCase();
-        const value = await options.nth(i).getAttribute('value');
-        if (value && (label.includes('temple') || label.includes('tapınak') || label.includes('tapinak'))) {
-          await projectSelect.selectOption(value);
-          break;
-        }
+    await expect(projectSelect).toBeVisible({ timeout: 30_000 });
+    await expect
+      .poll(async () => projectSelect.locator('option').count(), { timeout: 30_000 })
+      .toBeGreaterThan(1);
+    const options = projectSelect.locator('option');
+    const n = await options.count();
+    let templeValue = '';
+    for (let i = 0; i < n; i += 1) {
+      const label = ((await options.nth(i).textContent()) || '').toLowerCase();
+      const value = await options.nth(i).getAttribute('value');
+      if (value && (label.includes('temple') || label.includes('tapınak') || label.includes('tapinak'))) {
+        templeValue = value;
+        break;
       }
     }
+    expect(templeValue).toBeTruthy();
+    await projectSelect.selectOption(templeValue);
+    await expect(projectSelect).toHaveValue(templeValue);
 
     await page.getByTestId('smb-local-rail-left-ai').click();
     await expect(page.getByTestId('smb-ai-prompt')).toBeVisible({ timeout: 15_000 });
     await page.getByTestId('smb-ai-prompt').fill(BRIEF);
+    await expect(page.getByTestId('smb-ai-prompt')).toHaveValue(BRIEF);
+    await expect(page.getByTestId('smb-ai-generate')).toBeEnabled();
 
+    const campaignWait = page.waitForResponse(
+      (res) =>
+        res.url().includes('/ai/creative-studio/campaigns') &&
+        !res.url().includes('/generate-ad') &&
+        !res.url().includes('/revise') &&
+        res.request().method() === 'POST',
+      { timeout: 120_000 },
+    );
     const generateWait = page.waitForResponse(
       (res) => res.url().includes('/generate-ad') && res.request().method() === 'POST',
       { timeout: 600_000 },
     );
     await page.getByTestId('smb-ai-generate').click();
+    const campaignRes = await campaignWait;
+    expect(campaignRes.status(), await campaignRes.text()).toBe(200);
     const generateRes = await generateWait;
     expect(generateRes.status()).toBe(200);
 
@@ -77,10 +95,10 @@ test.describe('Creative Generation Engine v1', () => {
     await expect(artboard).toHaveAttribute('data-finished-ad-canvas', 'true', { timeout: 60_000 });
     await expect(artboard).toHaveAttribute('data-generation-lifecycle', 'ready', { timeout: 60_000 });
     await page.screenshot({
-      path: resolve(screenshotDir, 'smb-generation-engine-v1.png'),
+      path: resolve(screenshotDir, 'smb-generation-engine-v1-lock.png'),
       fullPage: true,
     });
-    await artboard.screenshot({ path: resolve(screenshotDir, 'artboard.png') });
+    await artboard.screenshot({ path: resolve(screenshotDir, 'artboard-lock.png') });
 
     const campaign = campaignPayloads[campaignPayloads.length - 1];
     expect(campaign?.status).toBe(200);
@@ -91,6 +109,24 @@ test.describe('Creative Generation Engine v1', () => {
     expect(engine.aspect_ratio).toBe('4:5');
     expect(engine.production_mode).toBe('finished_ad');
     expect(engine.native_renderer_primary).toBe(false);
+
+    const drive = (campaignCtx.drive_research || {}) as Record<string, unknown>;
+    const hero = (drive.selected_interior || {}) as Record<string, unknown>;
+    const logo = (drive.selected_logo || {}) as Record<string, unknown>;
+    const truth = (drive.architecture_truth || {}) as Record<string, unknown>;
+    expect(hero.project_relation).toBe('brand_independent');
+    expect(logo.project_relation).toBe('brand_independent');
+    expect(String(hero.filename || '').toLowerCase()).not.toContain('temple');
+    expect(String(hero.filename || '').toLowerCase()).not.toContain('screencapture');
+    expect(String(hero.filename || '').toLowerCase()).not.toContain('localhost');
+    expect(String(logo.filename || '').toLowerCase()).toContain('investhome');
+    const design = (campaignCtx.design_direction || {}) as Record<string, unknown>;
+    const designBlob = Object.values(design).join(' ').toLowerCase();
+    expect(designBlob).not.toContain('approved interiors only');
+    const trace = (hero.selection_trace || truth.asset_trace || {}) as Record<string, unknown>;
+    expect(String(trace.asset_id || hero.asset_id || '')).toBeTruthy();
+    expect(String(trace.visual_role || hero.role || '')).toBe('city_visual');
+    expect(String(trace.approval_status || '')).toMatch(/approved|unapproved/);
 
     const gen = generatePayloads[generatePayloads.length - 1];
     expect(gen?.status).toBe(200);
@@ -104,6 +140,10 @@ test.describe('Creative Generation Engine v1', () => {
     const pb = (genBody.production_brief || {}) as Record<string, unknown>;
     const pbEngine = (pb.generation_engine || engine) as Record<string, unknown>;
     expect(pbEngine.ad_scope).toBe('brand');
+    const assetLock = (pb.asset_lock || {}) as Record<string, unknown>;
+    const archTruth = (pb.architecture_truth || {}) as Record<string, unknown>;
+    expect(assetLock.project_relation).toBe('brand_independent');
+    expect(archTruth.project_relation).toBe('brand_independent');
 
     const gpt = (genBody.gpt_image || {}) as Record<string, unknown>;
     const extras = Array.isArray(gpt.extra_images) ? (gpt.extra_images as Array<Record<string, unknown>>) : [];
@@ -116,6 +156,20 @@ test.describe('Creative Generation Engine v1', () => {
         {
           user_brief: BRIEF,
           classification: engine,
+          project_relation: hero.project_relation,
+          design_direction: design,
+          visual_asset: {
+            asset_id: hero.asset_id,
+            filename: hero.filename,
+            role: hero.role,
+            selection_trace: trace,
+          },
+          asset_approval_status: trace.approval_status || hero.approved_status,
+          logo_asset: {
+            asset_id: logo.asset_id,
+            filename: logo.filename,
+            role: logo.role,
+          },
           campaign_status: campaign?.status,
           generate_status: gen?.status,
           production_mode: genBody.production_mode,
@@ -125,7 +179,7 @@ test.describe('Creative Generation Engine v1', () => {
           logo_asset_id: genBody.logo_asset_id,
           provider_call_count: genBody.provider_call_count,
           gpt_image_call_count: genBody.gpt_image_call_count,
-          screenshot: 'artifacts/creative-generation-engine-v1/smb-generation-engine-v1.png',
+          screenshot: 'artifacts/creative-generation-engine-v1/smb-generation-engine-v1-lock.png',
         },
         null,
         2,

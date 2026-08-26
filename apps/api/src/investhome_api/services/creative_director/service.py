@@ -364,6 +364,7 @@ def create_campaign(
             if isinstance(research.get("selected_interior"), dict)
             else None
         ),
+        ad_scope=ad_scope,
     )
     format_preset = "portrait"
     aspect_ratio = "4:5"

@@ -300,7 +300,7 @@ def looks_like_neighbor_as_project(hay: str) -> bool:
 def annotate_asset_truth(
     meta: dict[str, Any],
     *,
-    project_relation: str = "project_primary",
+    project_relation: str | None = None,
 ) -> dict[str, Any]:
     """Attach architectural truth fields onto a selected-asset dict (in place + return)."""
     out = dict(meta)
@@ -313,10 +313,24 @@ def annotate_asset_truth(
         asset_id=str(out.get("asset_id") or out.get("id") or "") or None,
         classification=classification,
     )
+    role = str(out.get("role") or "").strip().lower()
+    existing = str(out.get("project_relation") or "").strip()
+    brand_roles = {"city_visual", "investhome_logo", "brand_logo"}
+    brand_relations = {"brand_independent", "place_not_project"}
+    if role in brand_roles or existing in brand_relations:
+        relation = "brand_independent"
+    elif project_relation:
+        relation = project_relation
+    elif existing:
+        relation = existing
+    else:
+        relation = "project_primary"
+    if role in brand_roles:
+        relation = "brand_independent"
     out["classification"] = classification
     out["architecture_locked"] = locked
     out["creative_freedom_level"] = freedom
-    out["project_relation"] = project_relation
+    out["project_relation"] = relation
     out["approved"] = approved
     out["approved_status"] = "approved" if approved else "unapproved"
     return out

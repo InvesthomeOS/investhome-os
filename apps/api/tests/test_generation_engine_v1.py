@@ -28,6 +28,12 @@ from investhome_api.services.creative_director.generation_engine import (
     detect_output_format,
     interpret_short_user_brief,
 )
+from investhome_api.services.creative_director.quality_lock.architecture_truth import (
+    annotate_asset_truth,
+)
+from investhome_api.services.creative_director.quality_lock.design_direction import (
+    build_design_direction,
+)
 from investhome_api.services.creative_director.research import pick_city_visual
 from investhome_api.services.gpt_image_design.source import TEMPLE_PRIMARY_LOGO_ID
 
@@ -199,11 +205,93 @@ def test_pick_city_visual_skips_interior_and_temple_exterior() -> None:
         visual_subject="LOCATION",
         source_type="google_drive",
     )
-    picked, score, reason = pick_city_visual([interior, exterior, city], brief=DC_BRIEF)
+    unclassified = SocialDesignMediaCandidate(
+        asset_id=uuid4(),
+        filename="01 Street Veiw.jpg",
+        content_type="image/jpeg",
+        folder_category="",
+        tags=[],
+        score=40.0,
+        linked_project_id=TEMPLE_PROJECT_ID,
+        visual_subject=None,
+        source_type="google_drive",
+    )
+    screenshot = SocialDesignMediaCandidate(
+        asset_id=uuid4(),
+        filename="screencapture-localhost-3000-workspaces-creative-studio-ai-chat-2026-08-05.png",
+        content_type="image/png",
+        folder_category="",
+        tags=["lifestyle"],
+        score=90.0,
+        linked_project_id=TEMPLE_PROJECT_ID,
+        visual_subject="AMENITY",
+        source_type="media_library",
+    )
+    picked, score, reason, trace = pick_city_visual(
+        [interior, exterior, unclassified, screenshot, city],
+        brief=DC_BRIEF,
+    )
     assert picked is not None
     assert picked.asset_id == city.asset_id
+    assert picked.asset_id != unclassified.asset_id
+    assert picked.asset_id != screenshot.asset_id
     assert score is not None and score > 4.0
     assert reason and "city_place_visual" in reason
+    assert trace is not None
+    assert trace["asset_id"] == str(city.asset_id)
+    assert trace["visual_role"] == "city_visual"
+    assert trace["approval_status"] == "approved"
+    assert int(trace["trust_tier"]) < 4
+    assert trace["source"]
+
+
+def test_pick_city_visual_unclassified_is_last_fallback_and_unapproved() -> None:
+    street = SocialDesignMediaCandidate(
+        asset_id=uuid4(),
+        filename="01 Street Veiw.jpg",
+        content_type="image/jpeg",
+        folder_category="",
+        tags=[],
+        score=40.0,
+        linked_project_id=TEMPLE_PROJECT_ID,
+        visual_subject=None,
+        source_type="google_drive",
+    )
+    picked, _score, reason, trace = pick_city_visual([street], brief=DC_BRIEF)
+    assert picked is not None
+    assert picked.asset_id == street.asset_id
+    assert reason and "unclassified_last_fallback" in reason
+    assert trace is not None
+    assert trace["approval_status"] == "unapproved"
+    assert int(trace["trust_tier"]) == 4
+    assert trace["classification"] == "UNCLASSIFIED"
+
+
+def test_annotate_brand_roles_never_become_project_primary() -> None:
+    out = annotate_asset_truth(
+        {
+            "asset_id": str(uuid4()),
+            "filename": "01 Street Veiw.jpg",
+            "role": "city_visual",
+            "project_relation": "project_primary",
+            "provenance_source": "google_drive",
+        },
+        project_relation="project_primary",
+    )
+    assert out["project_relation"] == "brand_independent"
+
+
+def test_brand_design_direction_has_no_project_interior_lock() -> None:
+    design = build_design_direction(
+        campaign_intent="investment",
+        language="tr",
+        creative_freedom_level=1,
+        ad_scope="brand",
+    )
+    blob = " ".join(str(v) for v in design.to_dict().values()).lower()
+    assert "approved interiors only" not in blob
+    assert "interior architecture" not in blob
+    assert "project interior lock" in blob or "brand/market ad" in blob
 
 
 def test_create_campaign_dc_brief_locks_brand_assets(client, db_session: Session) -> None:
@@ -223,6 +311,15 @@ def test_create_campaign_dc_brief_locks_brand_assets(client, db_session: Session
         filename="Temple_Exterior_Facade.jpg",
         folder_category="02_RENDER",
         tags=["exterior", "facade", "temple"],
+    )
+    _asset(
+        db_session,
+        project,
+        filename="01 Street Veiw.jpg",
+        folder_category="",
+        tags=[],
+        width=2400,
+        height=1600,
     )
     city = _asset(
         db_session,
@@ -274,8 +371,17 @@ def test_create_campaign_dc_brief_locks_brand_assets(client, db_session: Session
     logo = ctx["drive_research"]["selected_logo"]
     assert hero["asset_id"] == str(city.id)
     assert hero["role"] == "city_visual"
+    assert hero["project_relation"] == "brand_independent"
     assert hero["asset_id"] != str(interior.id)
+    assert "street veiw" not in (hero.get("filename") or "").lower()
+    trace = hero.get("selection_trace") or {}
+    assert trace.get("asset_id") == str(city.id)
+    assert trace.get("visual_role") == "city_visual"
+    assert trace.get("source")
+    assert trace.get("approval_status") in {"approved", "unapproved"}
+    assert int(trace.get("trust_tier") or 99) < 4
     assert logo["role"] == "investhome_logo"
+    assert logo["project_relation"] == "brand_independent"
     assert "temple" not in (logo.get("filename") or "").lower()
     assert "investhome" in (logo.get("filename") or "").lower()
     assert logo["asset_id"] != str(interior.id)
@@ -284,6 +390,13 @@ def test_create_campaign_dc_brief_locks_brand_assets(client, db_session: Session
     assert pb["format_preset"] == "portrait"
     assert pb["aspect_ratio"] == "4:5"
     assert pb["generation_engine"]["ad_scope"] == "brand"
+    assert pb["asset_lock"]["project_relation"] == "brand_independent"
+    assert pb["architecture_truth"]["project_relation"] == "brand_independent"
+    design = ctx["design_direction"]
+    design_blob = " ".join(str(v) for v in design.values()).lower()
+    assert "approved interiors only" not in design_blob
+    assert "interior architecture" not in design_blob
+    assert "no project interior lock" in design_blob or "brand/market ad" in design_blob
     strategy = ctx["cd_strategy"]
     blob = " ".join(
         [

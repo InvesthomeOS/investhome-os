@@ -167,7 +167,14 @@ def build_production_brief(
         freedom_prompt_text,
     )
 
-    hero_truth = annotate_asset_truth(dict(interior_meta or {}))
+    engine = _as_dict(ctx.get("generation_engine"))
+    brand_ad = str(engine.get("ad_scope") or "") == "brand"
+    hero_truth = annotate_asset_truth(
+        dict(interior_meta or {}),
+        project_relation="brand_independent" if brand_ad else None,
+    )
+    if brand_ad:
+        hero_truth["project_relation"] = "brand_independent"
     freedom_level = int(
         hero_truth.get("creative_freedom_level")
         if hero_truth.get("creative_freedom_level") is not None
@@ -181,8 +188,6 @@ def build_production_brief(
         or ""
     )
     intent = str(intent_raw).strip().lower() or "general_awareness"
-    engine = _as_dict(ctx.get("generation_engine"))
-    brand_ad = str(engine.get("ad_scope") or "") == "brand"
     # Preserve legacy max-3 when caller did not supply a quality-lock intent.
     caps = (
         simplicity_caps_for_intent(intent)
@@ -240,13 +245,22 @@ def build_production_brief(
         texts=texts,
         art_direction=art_direction,
     ).to_dict()
-    design = design_direction or build_design_direction(
-        campaign_intent=intent,
-        strategy=strategy,
-        density=str(simplicity.get("density") or caps.density_label),
-        language=language,
-        creative_freedom_level=freedom_level,
-    ).to_dict()
+    if brand_ad:
+        design = build_design_direction(
+            campaign_intent=intent,
+            strategy=strategy,
+            density=str(simplicity.get("density") or caps.density_label),
+            language=language,
+            ad_scope="brand",
+        ).to_dict()
+    else:
+        design = design_direction or build_design_direction(
+            campaign_intent=intent,
+            strategy=strategy,
+            density=str(simplicity.get("density") or caps.density_label),
+            language=language,
+            creative_freedom_level=freedom_level,
+        ).to_dict()
 
     return {
         "objective": strategy.get("objective") or campaign_copy.get("objective"),
@@ -312,10 +326,17 @@ def build_production_brief(
             "classification": hero_truth.get("classification"),
             "architecture_locked": bool(hero_truth.get("architecture_locked")),
             "creative_freedom_level": freedom_level,
-            "creative_freedom_text": freedom_prompt_text(freedom_level),
-            "project_relation": hero_truth.get("project_relation"),
+            "creative_freedom_text": (
+                str(design.get("creative_freedom") or "")
+                if brand_ad
+                else freedom_prompt_text(freedom_level)
+            ),
+            "project_relation": (
+                "brand_independent" if brand_ad else hero_truth.get("project_relation")
+            ),
             "approved_status": hero_truth.get("approved_status"),
             "approved": bool(hero_truth.get("approved")),
+            "selection_trace": interior_meta.get("selection_trace") if isinstance(interior_meta, dict) else None,
         },
         "architecture_truth": {
             "asset_id": hero_truth.get("asset_id"),
@@ -323,8 +344,11 @@ def build_production_brief(
             "classification": hero_truth.get("classification"),
             "architecture_locked": bool(hero_truth.get("architecture_locked")),
             "creative_freedom_level": freedom_level,
-            "project_relation": hero_truth.get("project_relation"),
+            "project_relation": (
+                "brand_independent" if brand_ad else hero_truth.get("project_relation")
+            ),
             "approved_status": hero_truth.get("approved_status"),
+            "asset_trace": interior_meta.get("selection_trace") if isinstance(interior_meta, dict) else None,
         },
         "logo_lock": logo_lock,
         "creative_simplicity": list(CREATIVE_SIMPLICITY_PRINCIPLES),

@@ -8,7 +8,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from investhome_api.models.project import Project
 from investhome_api.schemas.social_design_engine import SocialDesignMediaCandidate
@@ -71,10 +71,17 @@ class SelectedAsset:
     project_relation: str = "project_primary"
     approved: bool | None = None
     approved_status: str | None = None
+    selection_trace: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         raw = asdict(self)
-        return annotate_asset_truth(raw)
+        relation = self.project_relation or "project_primary"
+        annotated = annotate_asset_truth(raw, project_relation=relation)
+        if str(self.role or "") in {"city_visual", "investhome_logo", "brand_logo"}:
+            annotated["project_relation"] = "brand_independent"
+        if self.selection_trace:
+            annotated["selection_trace"] = dict(self.selection_trace)
+        return annotated
 
 
 @dataclass
@@ -120,6 +127,7 @@ def _to_selected(
     selection_score: float | None = None,
     selection_reason: str | None = None,
     project_relation: str | None = None,
+    selection_trace: dict[str, Any] | None = None,
 ) -> SelectedAsset:
     classification = classify_candidate(cand, role=role)
     relation = project_relation or "project_primary"
@@ -154,9 +162,10 @@ def _to_selected(
             if annotated.get("creative_freedom_level") is not None
             else creative_freedom_level_for(classification)
         ),
-        project_relation=str(annotated.get("project_relation") or "project_primary"),
+        project_relation=str(annotated.get("project_relation") or relation),
         approved=bool(annotated.get("approved")),
         approved_status=str(annotated.get("approved_status") or "unapproved"),
+        selection_trace=selection_trace,
     )
 
 
@@ -209,14 +218,42 @@ _CITY_EXCLUDE_TOKENS = (
 )
 
 
+def _city_visual_trust(
+    cand: SocialDesignMediaCandidate,
+    *,
+    classification: str,
+) -> tuple[int, str]:
+    """Lower tier number = higher trust. Unclassified is last fallback, never treated as approved."""
+    hay = _haystack(cand)
+    provenance = f"{cand.provenance_source or ''} {cand.source_type or ''}".lower()
+    drive_or_ml = any(tok in provenance for tok in ("drive", "media_library", "upload", "google"))
+    subject = (cand.visual_subject or "").upper()
+    folder = (cand.folder_category or "").upper()
+    classified_place = classification in {"LOCATION", "NEIGHBORHOOD"} or subject in {
+        "LOCATION",
+        "NEIGHBORHOOD",
+    }
+    folder_loc = "05_LOCATION" in folder or folder in {"LOCATION", "NEIGHBORHOOD"}
+    generative = any(tok in hay for tok in ("ideogram", "gpt-image", "provider:ideogram", "provider:gpt-image"))
+    if classification == "UNCLASSIFIED":
+        return 4, "unclassified_fallback"
+    if classified_place and folder_loc and drive_or_ml and not generative:
+        return 1, "approved_company_or_location"
+    if classified_place and drive_or_ml and not generative:
+        return 2, "verified_media_library_location"
+    if classified_place and not generative:
+        return 3, "approved_external_or_provider_city"
+    return 4, "unclassified_fallback"
+
+
 def pick_city_visual(
     candidates: list[SocialDesignMediaCandidate],
     *,
     brief: str = "",
-) -> tuple[SocialDesignMediaCandidate | None, float | None, str | None]:
+) -> tuple[SocialDesignMediaCandidate | None, float | None, str | None, dict[str, Any] | None]:
     """Brand/market hero: place imagery, never project interior or locked architecture."""
     brief_l = (brief or "").lower()
-    scored: list[tuple[float, str, SocialDesignMediaCandidate]] = []
+    scored: list[tuple[int, float, str, dict[str, Any], SocialDesignMediaCandidate]] = []
     for cand in candidates:
         ctype = (cand.content_type or "").lower()
         if not ctype.startswith("image/") or ctype == "image/svg+xml":
@@ -233,15 +270,16 @@ def pick_city_visual(
         hay = _haystack(cand)
         if any(tok in hay for tok in _CITY_EXCLUDE_TOKENS):
             continue
+        if any(tok in hay for tok in ("screencapture", "localhost", "ai-chat")):
+            continue
         subject = (cand.visual_subject or "").upper()
         folder = (cand.folder_category or "").upper()
         place_subject = subject in {"LOCATION", "NEIGHBORHOOD"} or classification in {
             "LOCATION",
             "NEIGHBORHOOD",
-            "LIFESTYLE",
         }
         token_hit = any(tok in hay for tok in _CITY_VISUAL_TOKENS)
-        folder_hit = "05_LOCATION" in folder or "LOCATION" in folder or "NEIGHBORHOOD" in folder
+        folder_hit = "05_LOCATION" in folder or folder in {"LOCATION", "NEIGHBORHOOD"}
         if not (place_subject or token_hit or folder_hit):
             continue
         score = float(cand.score or 0.0)
@@ -261,12 +299,29 @@ def pick_city_visual(
         if "washington" in brief_l and any(tok in hay for tok in ("washington", "dc", "adams")):
             score += 3.0
             reasons.append("brief_place_fit")
-        scored.append((score, "+".join(reasons), cand))
+        tier, trust_label = _city_visual_trust(cand, classification=classification)
+        if tier == 4:
+            score -= 20.0
+            reasons.append("unclassified_last_fallback")
+        else:
+            reasons.append(trust_label)
+        approved = classification not in {"UNCLASSIFIED", "FLOORPLAN"} and tier < 4
+        trace = {
+            "asset_id": str(cand.asset_id),
+            "source": cand.provenance_source or cand.source_type,
+            "approval_status": "approved" if approved else "unapproved",
+            "visual_role": "city_visual",
+            "trust_tier": tier,
+            "trust_label": trust_label,
+            "classification": classification,
+            "filename": cand.filename,
+        }
+        scored.append((tier, score, "+".join(reasons), trace, cand))
     if not scored:
-        return None, None, None
-    scored.sort(key=lambda row: -row[0])
+        return None, None, None, None
+    scored.sort(key=lambda row: (row[0], -row[1]))
     best = scored[0]
-    return best[2], best[0], best[1]
+    return best[4], best[1], best[2], best[3]
 
 
 # Room / subject weights for campaign hero interiors (filename alone is not enough).
@@ -594,8 +649,11 @@ def research_project_drive(
             db.scalars(
                 select(CreativeStudioMediaAsset).where(
                     CreativeStudioMediaAsset.archived_at.is_(None),
-                    CreativeStudioMediaAsset.linked_project_id == linked_project_id,
                     CreativeStudioMediaAsset.content_type.ilike("image/%"),
+                    or_(
+                        CreativeStudioMediaAsset.linked_project_id == linked_project_id,
+                        CreativeStudioMediaAsset.linked_project_id.is_(None),
+                    ),
                 ).limit(500)
             ).all()
         )
@@ -618,29 +676,39 @@ def research_project_drive(
     selected_logo = None
     truth_report: dict[str, Any] | None = None
     if scope == "brand":
-        city_cand, city_score, city_reason = pick_city_visual(candidates, brief=brief)
+        city_cand, city_score, city_reason, city_trace = pick_city_visual(candidates, brief=brief)
         if city_cand is None:
             warnings.append(
                 "No Washington DC / city place visual found in Drive/Media Library. "
                 "Brand/market ads will not substitute a project interior or architecture render."
             )
         else:
+            if city_trace and city_trace.get("trust_tier") == 4:
+                warnings.append(
+                    "City visual is UNCLASSIFIED/unapproved last fallback — not treated as an approved asset."
+                )
             selected_interior = _to_selected(
                 city_cand,
                 role="city_visual",
                 selection_score=city_score,
                 selection_reason=city_reason,
-                project_relation="place_not_project",
+                project_relation="brand_independent",
+                selection_trace=city_trace,
             )
             truth_report = {
                 "intent": intent or "investment",
                 "status": "brand_place_visual",
                 "fail_closed": False,
                 "message": "Brand/market ad — locked place imagery, not project architecture.",
+                "project_relation": "brand_independent",
+                "asset_trace": city_trace,
                 "selected": {
                     "asset_id": str(city_cand.asset_id),
                     "filename": city_cand.filename,
                     "pool": "city_visual",
+                    "approval_status": (city_trace or {}).get("approval_status"),
+                    "visual_role": "city_visual",
+                    "source": (city_trace or {}).get("source"),
                 },
             }
         logo_cand = find_global_investhome_logo(db)
@@ -649,7 +717,11 @@ def research_project_drive(
                 "Approved Investhome logo not found. Will not invent a logo or fake brand mark."
             )
         else:
-            selected_logo = _to_selected(logo_cand, role="investhome_logo")
+            selected_logo = _to_selected(
+                logo_cand,
+                role="investhome_logo",
+                project_relation="brand_independent",
+            )
     elif mode == "project":
         dims: dict[UUID, tuple[int | None, int | None]] = {}
         dim_ids = [c.asset_id for c in candidates]

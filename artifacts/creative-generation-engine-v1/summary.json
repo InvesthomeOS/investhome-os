@@ -34,6 +34,41 @@
     "production_mode": "finished_ad",
     "native_renderer_primary": false
   },
+  "project_relation": "brand_independent",
+  "design_direction": {
+    "visual_mood": "Washington DC'nin ikonik şehir manzarası",
+    "hierarchy": "One dominant read in the first 2 seconds; secondary lines quieter; CTA actionable; logo present once.",
+    "typography_character": "Modern ve sade yazı tipleri",
+    "composition_direction": "Şehir manzarası ön planda, logo ve mesajlar dengeli yerleştirilmiş",
+    "image_treatment": "Use the locked city/place photograph. Do not treat it as project architecture. Do not invent The Temple or any selected-project building.",
+    "contrast": "High readability for primary message and CTA against the locked photograph",
+    "brand_presence": "One verified Investhome company logo lockup — never invent or duplicate",
+    "cta_importance": "Single clear CTA; visible and actionable, not tiny footer text",
+    "information_density": "sparse",
+    "premium_level": "elevated",
+    "creative_freedom": "Language=tr. BRAND/MARKET AD — no project interior lock, no project exterior lock, no project architecture constraints. Do not inherit the selected project's creative direction. Use Investhome brand rules, market/location direction, requested visual type, and approved company assets only."
+  },
+  "visual_asset": {
+    "asset_id": "376eeb12-5ef8-43d1-83a8-036c4ba0d1ac",
+    "filename": "01 Street Veiw.jpg",
+    "role": "city_visual",
+    "selection_trace": {
+      "asset_id": "376eeb12-5ef8-43d1-83a8-036c4ba0d1ac",
+      "source": "media_library",
+      "approval_status": "unapproved",
+      "visual_role": "city_visual",
+      "trust_tier": 4,
+      "trust_label": "unclassified_fallback",
+      "classification": "UNCLASSIFIED",
+      "filename": "01 Street Veiw.jpg"
+    }
+  },
+  "asset_approval_status": "unapproved",
+  "logo_asset": {
+    "asset_id": "d758ab45-bcd9-4c36-9c9e-c2211af71513",
+    "filename": "Investhome_Logo_Primary.png",
+    "role": "investhome_logo"
+  },
   "campaign_status": 200,
   "generate_status": 200,
   "production_mode": "finished_ad",
@@ -43,5 +78,5 @@
   "logo_asset_id": "d758ab45-bcd9-4c36-9c9e-c2211af71513",
   "provider_call_count": 1,
   "gpt_image_call_count": 1,
-  "screenshot": "artifacts/creative-generation-engine-v1/smb-generation-engine-v1.png"
+  "screenshot": "artifacts/creative-generation-engine-v1/smb-generation-engine-v1-lock.png"
 }
