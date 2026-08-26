@@ -7,6 +7,9 @@ from typing import Any
 from uuid import UUID
 
 from investhome_api.schemas.social_design_engine import SocialDesignMediaCandidate
+from investhome_api.services.creative_director.quality_lock.architecture_truth import (
+    is_workspace_screenshot,
+)
 from investhome_api.services.creative_director.quality_lock.intent import intent_to_asset_preference
 from investhome_api.services.social_design_engine.generation import AssetPreference, asset_preference_tokens
 from investhome_api.services.social_design_engine.media import pick_best_asset
@@ -264,6 +267,8 @@ def pick_hero_asset_for_intent(
         ctype = (cand.content_type or "").lower()
         if ctype == "image/svg+xml" or not ctype.startswith("image/"):
             continue
+        if is_workspace_screenshot(_haystack(cand)):
+            continue
         if _subject_family(cand) in {"branding", "floor_plan"}:
             continue
         w, h = dims.get(cand.asset_id, (None, None))
@@ -278,9 +283,18 @@ def pick_hero_asset_for_intent(
         ranked.append((s, reason, cand))
 
     if not ranked:
-        interiors = [c for c in candidates if _is_interior(c) and not _is_exterior_primary(c)]
+        interiors = [
+            c
+            for c in candidates
+            if _is_interior(c)
+            and not _is_exterior_primary(c)
+            and not is_workspace_screenshot(_haystack(c))
+        ]
         pool = interiors or [
-            c for c in candidates if _subject_family(c) not in {"branding", "floor_plan"}
+            c
+            for c in candidates
+            if _subject_family(c) not in {"branding", "floor_plan"}
+            and not is_workspace_screenshot(_haystack(c))
         ]
         picked_id = pick_best_asset(pool, require_image=True, campaign_type="LIFESTYLE")
         by_id = {c.asset_id: c for c in pool}

@@ -27,6 +27,8 @@ from investhome_api.schemas.creative_director import (
 from investhome_api.schemas.gpt_image_design import GptImageDesignRequest
 from investhome_api.services.creative_director.art_direction_translator import (
     append_architecture_lock_to_prompt,
+    append_project_visual_lock,
+    render_ai_first_master_prompt,
     render_gpt_image_art_direction_prompt,
     translate_campaign_art_direction,
 )
@@ -40,6 +42,8 @@ from investhome_api.services.creative_director.design_spec import (
     project_golden_native_structured_data,
     project_structured_design_data,
     stamp_editable_text_targets,
+    _badge_display,
+    _tr_usd_display,
 )
 from investhome_api.services.creative_director.production_brief import (
     build_production_brief,
@@ -51,6 +55,7 @@ from investhome_api.services.creative_director.production_brief import (
 from investhome_api.services.creative_director.quality_lock.architecture_truth import (
     annotate_asset_truth,
     architecture_truth_guard,
+    is_workspace_screenshot,
 )
 from investhome_api.services.creative_director.quality_lock.intent import is_visual_lifestyle_intent
 from investhome_api.services.creative_director.quality_lock.self_critique import (
@@ -189,6 +194,58 @@ def _resolve_production_mode(
     )
 
 
+def _use_v2_editable_layers(production_mode: str, ctx: dict[str, Any]) -> bool:
+    """Keep Revision Engine v2 for existing campaigns only. Do not expand it."""
+    if production_mode == "editable_finished_ad":
+        return True
+    return production_mode == "finished_ad" and bool(ctx.get("revision_engine_v2"))
+
+
+def build_master_creative_record(
+    *,
+    campaign_id: UUID | str,
+    project_id: UUID | str,
+    source_visual: dict[str, Any],
+    logo_meta: dict[str, Any],
+    format_preset: str,
+    aspect_ratio: str,
+    ad_scope: str,
+    texts: dict[str, str],
+    creative_direction: dict[str, Any],
+    master_asset_id: UUID | str,
+    original_brief: str,
+) -> dict[str, Any]:
+    """User-facing 'tasarım' record. Layer internals stay off the SMB UI."""
+    approval = str(
+        source_visual.get("approved_status")
+        or ("approved" if source_visual.get("approved") else "unapproved")
+    )
+    return {
+        "master_creative_id": str(campaign_id),
+        "project_id": str(project_id),
+        "source_visual_asset_id": str(source_visual.get("asset_id") or ""),
+        "source_visual_filename": source_visual.get("filename"),
+        "source_visual_folder": source_visual.get("folder_category"),
+        "source_visual_origin": source_visual.get("provenance_source")
+        or source_visual.get("source_type")
+        or "media_library",
+        "source_visual_approval": approval,
+        "logo_asset_id": str(logo_meta.get("asset_id") or ""),
+        "logo_filename": logo_meta.get("filename"),
+        "format_preset": format_preset,
+        "format": aspect_ratio,
+        "ad_scope": ad_scope,
+        "campaign_copy": dict(texts),
+        "creative_direction": creative_direction,
+        "current_version": 1,
+        "revision_history": [],
+        "master_asset_id": str(master_asset_id),
+        "workflow": "ai_first_master_v1",
+        "original_brief": original_brief,
+        "pixel_surgery_fallback": False,
+    }
+
+
 def resolve_locked_assets(ctx: dict[str, Any]) -> tuple[UUID, UUID, dict[str, Any], dict[str, Any]]:
     """PROJECT ASSET LOCK — interior + logo from stored Campaign Context only."""
     selected_assets = _as_list(ctx.get("selected_assets"))
@@ -222,6 +279,18 @@ def resolve_locked_assets(ctx: dict[str, Any]) -> tuple[UUID, UUID, dict[str, An
     logo_dict["ai_must_not_draw_logo"] = True
     logo_dict["no_duplicate_logos"] = True
     interior_dict = annotate_asset_truth(_as_dict(interior_meta))
+    hero_hay = " ".join(
+        str(interior_dict.get(k) or "")
+        for k in ("filename", "folder_category", "visual_subject", "provenance_source")
+    )
+    if is_workspace_screenshot(hero_hay):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "PROJECT visual lock FAIL CLOSED — workspace screenshot is not an "
+                "approved project image. Fake architecture fallback FORBIDDEN."
+            ),
+        )
     return interior_id, logo_id, interior_dict, logo_dict
 
 
@@ -356,9 +425,9 @@ def extract_labeled_brief_copy(brief: str) -> dict[str, str]:
     raw = brief or ""
     out: dict[str, str] = {}
     patterns = {
-        "headline": r"(?:ana\s*fikir|big\s*idea|headline)\s*[:\-]\s*(.+)",
+        "headline": r"(?:ana\s*fikir|ana\s*mesaj|big\s*idea|headline)\s*[:\-]\s*(.+)",
         "cta": r"(?:cta|çağrı|cagri)\s*[:\-]\s*(.+)",
-        "supporting": r"(?:mesaj|message)\s*[:\-]\s*(.+)",
+        "supporting": r"(?:^|\n)\s*(?<!ana\s)(?:mesaj|message)\s*[:\-]\s*(.+)",
     }
     for key, pattern in patterns.items():
         match = re.search(pattern, raw, re.I)
@@ -369,6 +438,13 @@ def extract_labeled_brief_copy(brief: str) -> dict[str, str]:
     unit_match = re.search(r"\b(\d\s*\+\s*\d)\b", raw)
     if unit_match:
         out["unit"] = re.sub(r"\s+", "", unit_match.group(1))
+    if "supporting" not in out:
+        for line in raw.splitlines():
+            stripped = line.strip()
+            folded = stripped.lower()
+            if "lansman döneminde" in folded or "lansman doneminde" in folded:
+                out["supporting"] = stripped
+                break
     return out
 
 
@@ -789,8 +865,9 @@ def _prepare_campaign_ad_context(
         format_preset = str(engine.get("format_preset") or "portrait").strip() or "portrait"
         aspect_ratio = str(engine.get("aspect_ratio") or "4:5").strip() or "4:5"
     else:
-        format_preset = (body.format_preset or "portrait").strip() or "portrait"
-        aspect_ratio = (body.aspect_ratio or "4:5").strip() or "4:5"
+        # AI-first master default: Instagram portrait 4:5 (ignore SMB square seed).
+        format_preset = "portrait"
+        aspect_ratio = "4:5"
     art_direction = translate_campaign_art_direction(
         ctx=ctx,
         texts=texts,
@@ -1414,7 +1491,13 @@ def generate_ad_from_campaign(
         art_direction,
         production_brief,
     ) = prep
+    interior_meta = dict(interior_meta)
+    interior_meta["asset_id"] = str(interior_id)
+    logo_meta = dict(logo_meta)
+    logo_meta["asset_id"] = str(logo_id)
     production_mode = _resolve_production_mode(body)
+    use_v2_layers = _use_v2_editable_layers(production_mode, ctx)
+    ai_first_master = production_mode == "finished_ad" and not use_v2_layers
     engine = _as_dict(ctx.get("generation_engine"))
     brand_ad = str(engine.get("ad_scope") or "") == "brand"
     if production_mode != "golden_native_v1":
@@ -1477,8 +1560,8 @@ def generate_ad_from_campaign(
             pre_truth=pre_truth,
         )
 
-    if production_mode in {"finished_ad", "editable_finished_ad"}:
-        # Visual foundation only. Do not send commercial copy to the image model.
+    if use_v2_layers:
+        # Existing Revision Engine v2 campaigns only: visual foundation, OS layers.
         foundation_texts = {
             **texts,
             "headline": "",
@@ -1544,6 +1627,26 @@ def generate_ad_from_campaign(
             "Reserve contrast air for OS-rendered editable layers "
             "(headline, prices, discount badge, logo, CTA).\n"
         )
+    elif ai_first_master:
+        paint_texts = dict(texts)
+        if paint_texts.get("list_price"):
+            paint_texts["list_price"] = _tr_usd_display(paint_texts["list_price"])
+        if paint_texts.get("value_badge"):
+            paint_texts["value_badge"] = _badge_display(paint_texts["value_badge"]) or paint_texts[
+                "value_badge"
+            ]
+        instruction = render_ai_first_master_prompt(
+            art_direction,
+            texts=paint_texts,
+            interior_meta=interior_meta,
+            logo_meta=logo_meta,
+            original_brief=original_brief,
+            aspect_ratio=aspect_ratio,
+            brand_ad=brand_ad,
+        )
+        instruction = append_project_visual_lock(
+            instruction, interior_lock=not brand_ad, brand_ad=brand_ad
+        )
     else:
         instruction = render_gpt_image_art_direction_prompt(
             art_direction,
@@ -1555,7 +1658,7 @@ def generate_ad_from_campaign(
         )
 
     forced_verified: list[str] = []
-    if not lifestyle and production_mode not in {"finished_ad", "editable_finished_ad"}:
+    if not lifestyle and not use_v2_layers and not ai_first_master:
         forced_verified = [texts["price_hierarchy"] + " · " + texts["value_badge"]]
 
     callouts = [x.strip() for x in str(texts.get("supporting_callouts") or "").split("|") if x.strip()]
@@ -1574,14 +1677,19 @@ def generate_ad_from_campaign(
     if brand_ad:
         builder_context["brand_market_ad"] = True
         builder_context["skip_project_logo"] = True
-    if production_mode in {"finished_ad", "editable_finished_ad"}:
-        # Provider produces atmosphere/foundation; OS composites commercial layers.
+    if use_v2_layers:
         builder_context["finished_ad"] = True
         builder_context["skip_logo_edit_input"] = True
         builder_context["revision_engine_v2"] = True
         builder_context["visual_foundation"] = True
-        if production_mode == "editable_finished_ad":
-            builder_context["editable_finished_ad"] = True
+        builder_context["editable_finished_ad"] = True
+    elif ai_first_master:
+        builder_context["finished_ad"] = True
+        builder_context["skip_logo_edit_input"] = False
+        builder_context["ai_first_master"] = True
+        builder_context["master_ad"] = True
+        builder_context["use_art_direction_prompt"] = True
+        builder_context["pixel_surgery_fallback"] = False
     else:
         builder_context.update(
             {
@@ -1724,17 +1832,14 @@ def generate_ad_from_campaign(
     ctx["image_generation_performed"] = True
     ctx["latest_master_ad_asset_id"] = str(output.local_asset_id)
     # Immutable revision master: first approved finished-ad only (never overwrite).
-    if production_mode in {"finished_ad", "editable_finished_ad"} and not ctx.get("master_asset_id"):
+    if (use_v2_layers or ai_first_master) and not ctx.get("master_asset_id"):
         ctx["master_asset_id"] = str(output.local_asset_id)
         ctx["master_finished_ad_asset_id"] = str(output.local_asset_id)
         ctx["revision_operations"] = []
         ctx["current_revision_index"] = 0
-    elif production_mode in {"finished_ad", "editable_finished_ad"} and not ctx.get(
-        "master_finished_ad_asset_id"
-    ):
-        # Align alias when master already set from prior path
+    elif (use_v2_layers or ai_first_master) and not ctx.get("master_finished_ad_asset_id"):
         ctx["master_finished_ad_asset_id"] = str(ctx.get("master_asset_id") or output.local_asset_id)
-    if production_mode in {"finished_ad", "editable_finished_ad"}:
+    if use_v2_layers or ai_first_master:
         if not ctx.get("master_production_brief"):
             ctx["master_production_brief"] = deepcopy(production_brief)
         if not ctx.get("master_source_assets"):
@@ -1757,8 +1862,8 @@ def generate_ad_from_campaign(
         "note": "User visual approval required — do not declare Visual Quality PASS.",
     }
 
-    if production_mode in {"finished_ad", "editable_finished_ad"}:
-        # Revision Engine v2: GPT raster is visual foundation; commercial copy is layers.
+    if use_v2_layers:
+        # Existing Revision Engine v2 campaigns only.
         foundation_id = output.local_asset_id
         master_background_id = foundation_id
         finished_raster_id = foundation_id
@@ -1825,6 +1930,50 @@ def generate_ad_from_campaign(
             ),
         }
         ctx["latest_quality_guard"] = quality_guard
+    elif ai_first_master:
+        master_background_id = output.local_asset_id
+        finished_raster_id = output.local_asset_id
+        src = dict(interior_meta)
+        src["asset_id"] = str(interior_id)
+        logo_rec = dict(logo_meta)
+        logo_rec["asset_id"] = str(logo_id)
+        master_creative = build_master_creative_record(
+            campaign_id=row.id,
+            project_id=row.linked_project_id,
+            source_visual=src,
+            logo_meta=logo_rec,
+            format_preset=format_preset,
+            aspect_ratio=aspect_ratio,
+            ad_scope="brand" if brand_ad else "project",
+            texts=texts,
+            creative_direction=art_direction.to_dict(),
+            master_asset_id=output.local_asset_id,
+            original_brief=original_brief,
+        )
+        ctx["master_creative"] = master_creative
+        ctx["ai_first_master"] = True
+        ctx["workflow"] = "ai_first_master_v1"
+        ctx["production_mode"] = "finished_ad"
+        ctx["editable_finished_ad"] = False
+        ctx["revision_engine_v2"] = False
+        ctx["finished_ad_raster_asset_id"] = str(output.local_asset_id)
+        ctx["master_background_asset_id"] = str(output.local_asset_id)
+        quality_guard = {
+            "status": "review",
+            "mode": "ai_first_master_v1",
+            "checks": {
+                "project_visual_locked": not brand_ad,
+                "logo_locked": True,
+                "format": aspect_ratio,
+            },
+            "failures": [],
+            "note": (
+                "AI-first master creative. User visual approval required — "
+                "do not declare Visual Quality PASS."
+            ),
+        }
+        ctx["latest_quality_guard"] = quality_guard
+        production_mode = "finished_ad"
 
     ctx["language"] = language
     row.context_json = ctx
@@ -1877,4 +2026,5 @@ def generate_ad_from_campaign(
         master_asset_id=master_id_out,
         master_finished_ad_asset_id=master_id_out,
         quality_guard=quality_guard,
+        master_creative=ctx.get("master_creative") if isinstance(ctx.get("master_creative"), dict) else None,
     )

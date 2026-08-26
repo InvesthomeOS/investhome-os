@@ -982,20 +982,14 @@ export function mergeHydratedPostsWithLocal(input: {
     return { posts: ordered, selectedPostId: selected };
   }
 
-  if (!incoming.length && localCompleted.length) {
-    const selected = resolvePersistedSelectedPostId({
-      posts: localCompleted,
-      draftSelectedPostId: input.incomingSelectedPostId,
-      coverAssetId: input.coverAssetId,
-      identity: input.identity,
-      localSelectedPostId: input.localSelectedPostId,
-      preferLocalSelection: input.preferLocalSelection !== false,
-    });
-    return { posts: localCompleted, selectedPostId: selected };
+  if (!incoming.length) {
+    return { posts: [], selectedPostId: null };
   }
 
   const incomingIds = new Set(incoming.map((p) => p.id));
-  const extraLocal = localCompleted.filter((p) => !incomingIds.has(p.id));
+  const extraLocal = input.generating
+    ? localCompleted.filter((p) => !incomingIds.has(p.id))
+    : [];
   const merged = incoming.map((post) => {
     const existing = local.find((l) => l.id === post.id);
     if (existing && isFinishedAdSocialPost(existing) && !isFinishedAdSocialPost(post)) {

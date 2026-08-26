@@ -27,6 +27,9 @@ from investhome_api.services.creative_director.orchestrator import (
 from investhome_api.services.creative_director.generate_ad import adapt_final_turkish_texts
 from investhome_api.services.creative_director.pricing import build_pricing_claims, extract_unit_codes
 from investhome_api.services.creative_director.production_brief import build_production_brief
+from investhome_api.services.creative_director.quality_lock.architecture_truth import (
+    is_workspace_screenshot,
+)
 from investhome_api.services.creative_director.quality_lock.design_direction import build_design_direction
 from investhome_api.services.creative_director.quality_lock.intent import (
     classify_cd_campaign_intent,
@@ -229,6 +232,32 @@ def create_campaign(
                 "ad_scope": "brand",
             },
         )
+
+    if ad_scope != "brand":
+        hero = research_pkg.selected_interior
+        hero_hay = ""
+        if hero is not None:
+            hero_hay = " ".join(
+                [
+                    str(hero.filename or ""),
+                    str(hero.folder_category or ""),
+                    str(hero.provenance_source or ""),
+                    " ".join(hero.tags or []),
+                ]
+            )
+        if hero is None or is_workspace_screenshot(hero_hay):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "message": (
+                        "No approved original project visual found in Drive/Media Library. "
+                        "Workspace screenshots and AI-invented architecture are forbidden. "
+                        "FAIL CLOSED."
+                    ),
+                    "ad_scope": "project",
+                    "selected_interior": hero.to_dict() if hero is not None else None,
+                },
+            )
 
     # Drive price hints from unit research (presence only — do not invent amounts).
     drive_prices: dict[str, Any] = {"units": {}}

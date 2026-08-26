@@ -79,6 +79,8 @@ export type SmbLeftRailDrawerProps = {
   /** Shared Creative Studio generation — real API, not toast demo. */
   onGenerate?: (instruction: string) => void;
   generating?: boolean;
+  /** False while construction-project switch is still resolving. */
+  projectReady?: boolean;
   /** When set, non-listed component keys are disabled (honest P0 UI). */
   enabledComponentKeys?: ReadonlySet<string>;
 };
@@ -343,7 +345,7 @@ function BrandDrawer(_props: SmbLeftRailDrawerProps) {
   );
 }
 
-function AiDrawer({ onToast, onGenerate, generating }: SmbLeftRailDrawerProps) {
+function AiDrawer({ onToast, onGenerate, generating, projectReady = true }: SmbLeftRailDrawerProps) {
   const t = useTranslations('creativeStudio.ds.socialMediaBuilder');
   const [prompt, setPrompt] = useState('');
 
@@ -364,14 +366,14 @@ function AiDrawer({ onToast, onGenerate, generating }: SmbLeftRailDrawerProps) {
             onChange={(e) => setPrompt(e.target.value)}
             placeholder={t('rails.ai.placeholder')}
             data-testid="smb-ai-prompt"
-            disabled={generating}
+            disabled={generating || !projectReady}
           />
         </Field>
         <Button
           variant="primary"
           size="sm"
           data-testid="smb-ai-generate"
-          disabled={generating}
+          disabled={generating || !projectReady}
           onClick={() => {
             const instruction = prompt.trim();
             if (!instruction) {

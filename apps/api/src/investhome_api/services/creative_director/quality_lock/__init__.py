@@ -40,6 +40,7 @@ from investhome_api.services.creative_director.quality_lock.architecture_truth i
     classify_candidate,
     creative_freedom_level_for,
     is_architecture_locked,
+    is_workspace_screenshot,
     pick_truthful_hero_for_intent,
 )
 
@@ -67,5 +68,6 @@ __all__ = [
     "classify_candidate",
     "creative_freedom_level_for",
     "is_architecture_locked",
+    "is_workspace_screenshot",
     "pick_truthful_hero_for_intent",
 ]

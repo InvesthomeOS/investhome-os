@@ -23,6 +23,7 @@ from investhome_api.services.creative_director.quality_lock.architecture_truth i
     annotate_asset_truth,
     classify_candidate,
     creative_freedom_level_for,
+    is_workspace_screenshot,
     pick_truthful_hero_for_intent,
 )
 from investhome_api.services.creative_director.quality_lock.asset_scoring import (
@@ -474,7 +475,13 @@ def pick_real_interior(
 
     Scores among interiors; does not return the first match or filename sort alone.
     """
-    interiors = [c for c in candidates if _is_interior(c) and not _is_exterior_primary(c)]
+    interiors = [
+        c
+        for c in candidates
+        if _is_interior(c)
+        and not _is_exterior_primary(c)
+        and not is_workspace_screenshot(_haystack(c))
+    ]
     if not interiors:
         return None, None, None
 

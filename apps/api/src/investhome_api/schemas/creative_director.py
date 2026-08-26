@@ -255,6 +255,7 @@ class CreativeDirectorGenerateAdResponse(BaseModel):
     master_finished_ad_asset_id: UUID | None = None
     quality_guard: dict[str, Any] = Field(default_factory=dict)
     structured_design_data: dict[str, Any] | None = None
+    master_creative: dict[str, Any] | None = None
 
 
 class CreativeDirectorReviseAdResponse(CreativeDirectorGenerateAdResponse):

@@ -230,6 +230,16 @@ describe('Creative Director SMB wiring (finished-ad)', () => {
     assert.doesNotMatch(leftRailBlock[0], /runAiGenerate\(instruction,\s*\{\s*mode:\s*'create'/);
   });
 
+  it('waits for construction project ready before Creative Director generate', () => {
+    const workspace = read('social-media-builder-workspace.tsx');
+    const drawers = read('social-media-builder-rail-drawers.tsx');
+    assert.match(workspace, /data-construction-project-id=\{docApi\.constructionProjectId/);
+    assert.match(workspace, /data-load-status=\{docApi\.loadStatus\}/);
+    assert.match(workspace, /docApi\.loadStatus !== 'ready'/);
+    assert.match(drawers, /projectReady\?: boolean/);
+    assert.match(drawers, /disabled=\{generating \|\| !projectReady\}/);
+  });
+
   it('finished-ad canvas mode hides OS overlays and IH stub', () => {
     const workspace = read('social-media-builder-workspace.tsx');
     assert.match(workspace, /isFinishedAdCanvasPost/);

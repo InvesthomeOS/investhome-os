@@ -78,6 +78,19 @@ _NEIGHBOR_TOKENS = (
     "streetscape",
     "context only",
 )
+WORKSPACE_SCREENSHOT_TOKENS = (
+    "screencapture",
+    "localhost",
+    "127.0.0.1",
+    "ai-chat",
+    "workspaces-creative-studio",
+)
+
+
+def is_workspace_screenshot(hay: str | None) -> bool:
+    """UI/localhost captures are never approved project architecture."""
+    blob = (hay or "").lower()
+    return any(tok in blob for tok in WORKSPACE_SCREENSHOT_TOKENS)
 _LOCATION_TOKENS = (
     "neighborhood",
     "neighbourhood",
@@ -421,6 +434,8 @@ def pick_truthful_hero_for_intent(
         ctype = (cand.content_type or "").lower()
         if ctype == "image/svg+xml" or not ctype.startswith("image/"):
             continue
+        if is_workspace_screenshot(_haystack_candidate(cand)):
+            continue
         classification = classify_candidate(cand)
         if classification == "FLOORPLAN" or classification.startswith("LOGO"):
             continue
@@ -602,6 +617,11 @@ def architecture_truth_guard(
         failures.append("neighbor_treated_as_project")
     else:
         checks["no_neighbor_as_project"] = True
+
+    hay = _haystack_meta(meta)
+    checks["not_workspace_screenshot"] = not is_workspace_screenshot(hay)
+    if not checks["not_workspace_screenshot"]:
+        failures.append("workspace_screenshot_not_project_visual")
 
     fail_closed = bool(failures) and not allow_publish_without_lock
     status_val = "fail" if fail_closed else ("pass" if not failures else "review")

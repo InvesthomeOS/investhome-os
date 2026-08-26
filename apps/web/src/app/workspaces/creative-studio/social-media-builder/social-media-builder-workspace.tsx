@@ -1597,7 +1597,14 @@ export function SocialMediaBuilderWorkspace() {
         setCampaignStatus('draft');
         setAiStatus(GPT_IMAGE_STAGES[0]!);
       }
-      const siblingPosts = postsRef.current.filter((p) => !isInFlightGenerationPost(p));
+      const siblingPosts = postsRef.current.filter((p) => {
+        if (isInFlightGenerationPost(p)) return false;
+        const isDefaultSeed =
+          DEFAULT_POSTS.some((d) => d.id === p.id) &&
+          !isFinishedAdSocialPost(p) &&
+          !isCompletedGeneratedPost(p);
+        return !isDefaultSeed;
+      });
       const createdPostId = mintCreatePostId();
       const inflight = createGeneratingPost(formatPreset, siblingPosts.length + 1, {
         linkedProjectId: projectId,
@@ -2161,7 +2168,7 @@ export function SocialMediaBuilderWorkspace() {
   const runCreativeDirectorCampaign = useCallback(
     async (instruction: string) => {
       const projectId = docApi.constructionProjectId;
-      if (!projectId) {
+      if (!projectId || docApi.loadStatus !== 'ready') {
         showToast(t('toasts.projectRequired'));
         return;
       }
@@ -2234,7 +2241,7 @@ export function SocialMediaBuilderWorkspace() {
         }
       }
     },
-    [docApi.constructionProjectId, locale, runGenerateAdFromCampaign, t],
+    [docApi.constructionProjectId, docApi.loadStatus, locale, runGenerateAdFromCampaign, t],
   );
 
   const runGptImageGenerate = useCallback(
@@ -2251,7 +2258,14 @@ export function SocialMediaBuilderWorkspace() {
       if (generatingRef.current) return;
       designEngineRef.current = 'gpt-image';
       setDesignEngine('gpt-image');
-      const siblingPosts = postsRef.current.filter((p) => !isInFlightGenerationPost(p));
+      const siblingPosts = postsRef.current.filter((p) => {
+        if (isInFlightGenerationPost(p)) return false;
+        const isDefaultSeed =
+          DEFAULT_POSTS.some((d) => d.id === p.id) &&
+          !isFinishedAdSocialPost(p) &&
+          !isCompletedGeneratedPost(p);
+        return !isDefaultSeed;
+      });
       const createdPostId = mintCreatePostId();
       const token = ++generateAbortRef.current;
       generatingRef.current = true;
@@ -2763,6 +2777,7 @@ export function SocialMediaBuilderWorkspace() {
         void runAiGenerate(instruction, { mode: 'edit', explicit: true });
       }}
       generating={generating}
+      projectReady={docApi.loadStatus === 'ready'}
     />
   );
 
@@ -3140,6 +3155,8 @@ export function SocialMediaBuilderWorkspace() {
       <div
         className="smb-ws"
         data-testid="smb-workspace"
+        data-construction-project-id={docApi.constructionProjectId ?? ''}
+        data-load-status={docApi.loadStatus}
         data-design-engine={designEngine}
         data-design-provider={designEngine}
         data-art-director={designEngine === 'native' ? 'true' : undefined}
@@ -3307,7 +3324,11 @@ export function SocialMediaBuilderWorkspace() {
 
         <div className="smb-ws__toolbar" role="toolbar" aria-label={t('toolbarAria')}>
           <div className="smb-ws__toolbar-left">
-            <div className="smb-ws__project">
+            <div
+              className="smb-ws__project"
+              data-construction-project-id={docApi.constructionProjectId ?? ''}
+              data-load-status={docApi.loadStatus}
+            >
               <Select
                 id="smb-project"
                 label={t('fields.project')}

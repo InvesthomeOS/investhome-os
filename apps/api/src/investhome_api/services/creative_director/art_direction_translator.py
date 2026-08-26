@@ -318,11 +318,12 @@ def translate_campaign_art_direction(
     emphasis_strategy = _build_emphasis_strategy(emphasis)
     price_primary = _price_is_primary_hook(commercial_priority) and not lifestyle
 
-    list_price = texts.get("list_price") or str(presentation.get("list") or "$400,000")
-    offer_price = texts.get("offer_price") or str(presentation.get("offer") or "$300,000")
-    discount_display = texts.get("value_badge") or str(
-        _as_dict(presentation.get("discount")).get("display") or "~25%"
-    )
+    list_price = (texts.get("list_price") or str(presentation.get("list") or "")).strip()
+    offer_price = (texts.get("offer_price") or str(presentation.get("offer") or "")).strip()
+    discount_display = (
+        texts.get("value_badge") or str(_as_dict(presentation.get("discount")).get("display") or "")
+    ).strip()
+    has_price_pair = bool(list_price and offer_price)
 
     support_callouts = [
         x.strip()
@@ -373,13 +374,20 @@ def translate_campaign_art_direction(
     else:
         first_notice = (
             f"{offer_price} launch price with {list_price} struck through"
-            if price_primary
+            if price_primary and has_price_pair
             else texts.get("headline") or str(campaign_copy.get("big_idea") or "")
         )
         second_notice = (
             texts.get("headline") or f"{texts.get('unit')} launch opportunity"
-            if price_primary
-            else f"{offer_price} → {discount_display} price advantage"
+            if price_primary and has_price_pair
+            else (
+                texts.get("supporting")
+                or (
+                    f"{list_price} · {discount_display}".strip(" ·")
+                    if (list_price or discount_display)
+                    else ""
+                )
+            )
         )
         visual_hierarchy = [
             f"1 — FIRST GLANCE: {first_notice}",
@@ -390,13 +398,13 @@ def translate_campaign_art_direction(
             f"6 — BRAND: Temple logo (OS-composited, never AI-drawn)",
         ]
         price_hierarchy = {
-            "secondary": list_price,
-            "primary": offer_price,
+            "secondary": list_price if offer_price else "",
+            "primary": offer_price or list_price,
             "advantage": discount_display,
             "dramatization": (
                 "Strikethrough old price, dominant new price, size contrast, optional badge/callout — "
                 "understood at a glance like a real ad, not a catalog line."
-                if price_primary
+                if price_primary and has_price_pair
                 else "Price visible but subordinate to creative story — still clear hierarchy."
             ),
         }
@@ -626,6 +634,94 @@ def render_gpt_image_art_direction_prompt(
         ]
     )
     return "\n".join(lines)
+
+
+def render_ai_first_master_prompt(
+    plan: ArtDirectionPlan,
+    *,
+    texts: dict[str, str],
+    interior_meta: dict[str, Any],
+    logo_meta: dict[str, Any],
+    original_brief: str,
+    aspect_ratio: str = "4:5",
+    brand_ad: bool = False,
+) -> str:
+    """AI is the designer: complete advertisement on the locked project visual.
+
+    No OS lower-third / price-frame template. Exact commercial copy is painted
+    by the model. Architecture and the real logo asset stay locked.
+    """
+    headline = str(texts.get("headline") or "").strip()
+    unit = str(texts.get("unit") or "").strip()
+    list_price = str(texts.get("list_price") or "").strip()
+    badge = str(texts.get("value_badge") or "").strip()
+    supporting = str(texts.get("supporting") or texts.get("hero") or "").strip()
+    cta = str(texts.get("cta") or "").strip()
+    hero_kind = "approved project photograph" if not brand_ad else "campaign hero visual"
+    lines = [
+        f"MASTER Instagram {aspect_ratio} advertisement. You are the senior art director.",
+        "Design the COMPLETE finished advertisement. The OS will not overlay a template.",
+        "Do NOT use a generic dark lower-third, price-frame box, catalog band, or Native Renderer recipe.",
+        "Premium editorial real-estate advertising: photograph-led, strong typography,",
+        "confident hierarchy, sophisticated spacing, restrained luxury.",
+        "",
+        "WHAT MUST BE NOTICED FIRST:",
+        f"  {plan.first_notice or headline}",
+        "WHAT MUST BE NOTICED SECOND:",
+        f"  {plan.second_notice or supporting}",
+        "",
+        "EXACT COMMERCIAL COPY — paint these strings, no substitutes, no extra offers:",
+        f"  Headline: {headline}",
+        f"  Unit: {unit}",
+        f"  List price (display): {list_price}",
+        f"  Advantage: {badge}",
+        f"  Message: {supporting}",
+        f"  CTA: {cta}",
+        "",
+        "VISUAL HIERARCHY:",
+        *[f"  {item}" for item in plan.visual_hierarchy],
+        f"CONTRAST: {plan.contrast_strategy}",
+        f"NEGATIVE SPACE: {plan.negative_space_usage}",
+        f"STORYTELLING: {plan.visual_storytelling}",
+        f"DECORATION: {plan.decoration_rule}",
+        "",
+        f"HERO: edit the supplied {hero_kind} only.",
+        f"  Source file: {interior_meta.get('filename')} (asset {interior_meta.get('asset_id')})",
+        "  Do NOT invent a building, interior, exterior, or other project's architecture.",
+        f"LOGO: use the supplied real logo image {logo_meta.get('filename')} "
+        f"(asset {logo_meta.get('asset_id')}). Place it. Do not redraw or invent a mark.",
+        "",
+        "ORIGINAL USER BRIEF:",
+        (original_brief or "").strip(),
+    ]
+    return "\n".join(lines)
+
+
+def append_project_visual_lock(
+    prompt: str,
+    *,
+    interior_lock: bool = True,
+    brand_ad: bool = False,
+) -> str:
+    """Asset lock for AI-first master generate. Allows commercial paint; forbids fake architecture/logos."""
+    lines = [
+        "",
+        "PROJECT / BRAND ASSET LOCK:",
+        "- Use the supplied logo image. Never invent or regenerate a logo.",
+        "- Do not use another project's photograph.",
+    ]
+    if brand_ad:
+        lines.append(
+            "- Brand/market ad: a topical hero visual may be created; still never invent a project building."
+        )
+    elif interior_lock:
+        lines.extend(
+            [
+                "- PROJECT CREATIVE: only the supplied approved project photograph.",
+                "- Preserve architecture, furniture, windows, and materials. No AI project visual generation.",
+            ]
+        )
+    return prompt + "\n".join(lines)
 
 
 def append_architecture_lock_to_prompt(prompt: str, *, interior_lock: bool = True) -> str:
