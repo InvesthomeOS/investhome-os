@@ -91,6 +91,141 @@ def test_master_creative_record_shape() -> None:
     assert rec["logo_filename"] == "IH_DC_TMP_001_Logo_Primary.svg"
 
 
+TEMPLE_VISUAL_REPLACE = (
+    "Bu iç mekan görseli yerine The Temple projesinin Drive klasöründeki onaylı dış cephe "
+    "görsellerinden en uygun olanını kullan.\n"
+    "Tasarımın geri kalanını kesinlikle değiştirme.\n"
+    "Başlık, metinler, 2+1, 675.000 USD, %35, logo, CTA, fontlar, renkler, boyutlar, "
+    "konumlar, hizalamalar ve genel kompozisyon birebir aynı kalsın.\n"
+    "Sadece ana proje görselini değiştir."
+)
+
+
+def test_sadece_does_not_classify_simplify() -> None:
+    from investhome_api.services.creative_director.revision import interpret_revision_intents
+    from investhome_api.services.creative_director.revision_intelligence import parse_subjective_ops
+
+    for instruction in (
+        "Sadece görseli değiştir.",
+        "Sadece ana proje görselini değiştir.",
+        "Başka hiçbir şeyi değiştirme.",
+        TEMPLE_VISUAL_REPLACE,
+    ):
+        intents = interpret_revision_intents(instruction)
+        assert "SIMPLIFY" not in intents, instruction
+        ops = parse_subjective_ops(instruction, existing=[])
+        assert not any(
+            o.target == "support_message" and o.action == "remove" for o in ops
+        ), instruction
+
+
+def test_sade_word_still_simplifies() -> None:
+    from investhome_api.services.creative_director.revision import interpret_revision_intents
+
+    intents = interpret_revision_intents("Tasarımı daha sade yap.")
+    assert "SIMPLIFY" in intents
+
+
+def test_visual_replace_phrases_are_asset_change() -> None:
+    from investhome_api.services.creative_director.master_revision_controller import (
+        classify_revision_command,
+    )
+    from investhome_api.services.creative_director.revision import interpret_revision_intents
+
+    phrases = (
+        "görseli değiştir",
+        "görselini değiştir",
+        "bu görsel yerine başka bir foto kullan",
+        "bu görselin yerine Drive görseli koy",
+        "başka görsel kullan",
+        "başka fotoğraf kullan",
+        "dış cephe görselini kullan",
+        "Drive'daki dış cepheyi kullan",
+        "ana proje görselini değiştir",
+    )
+    for phrase in phrases:
+        plan = classify_revision_command(phrase)
+        assert plan["intent"] == "VISUAL_REPLACE_ONLY", phrase
+        intents = interpret_revision_intents(phrase)
+        assert "ASSET_CHANGE" in intents, phrase
+        assert "SIMPLIFY" not in intents, phrase
+
+
+def test_live_temple_command_is_visual_replace_only() -> None:
+    from investhome_api.services.creative_director.design_spec import route_revision
+    from investhome_api.services.creative_director.master_revision_controller import (
+        classify_revision_command,
+    )
+    from investhome_api.services.creative_director.revision import (
+        build_revision_diff,
+        interpret_revision_intents,
+    )
+
+    plan = classify_revision_command(TEMPLE_VISUAL_REPLACE)
+    assert plan["intent"] == "VISUAL_REPLACE_ONLY"
+    assert "SIMPLIFY" not in interpret_revision_intents(TEMPLE_VISUAL_REPLACE)
+    diff = build_revision_diff(instruction=TEMPLE_VISUAL_REPLACE, production_brief={})
+    route = route_revision(
+        instruction=TEMPLE_VISUAL_REPLACE,
+        revision_diff=diff,
+        intents=interpret_revision_intents(TEMPLE_VISUAL_REPLACE),
+    )
+    assert route == "VISUAL_REPLACE_ONLY"
+    assert not any(o.target == "support_message" for o in diff.operations)
+
+
+def _visual_replace_ad_png(*, bright_hero: bool, cta: bool, logo: bool) -> bytes:
+    import io
+
+    from PIL import Image, ImageDraw
+
+    img = Image.new("RGB", (400, 500), (18, 22, 32))
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((20, 20, 250, 90), fill=(240, 236, 228))
+    draw.rectangle((20, 100, 180, 140), fill=(196, 163, 90))
+    draw.rectangle((0, 180, 400, 500), fill=(70, 80, 70))
+    if bright_hero:
+        # Bright stone only in the leftover left-rail CTA crop — not the centered button.
+        draw.rectangle((0, 390, 60, 500), fill=(210, 190, 150))
+    if cta:
+        draw.rectangle((110, 390, 290, 440), fill=(196, 163, 90))
+    if logo:
+        draw.rectangle((150, 455, 250, 490), fill=(220, 200, 140))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def test_visual_replace_fidelity_allows_bright_exterior_in_left_cta_box() -> None:
+    from investhome_api.services.creative_director.revision import (
+        compare_recompose_composition_fidelity,
+    )
+
+    result = compare_recompose_composition_fidelity(
+        master_bytes=_visual_replace_ad_png(bright_hero=False, cta=True, logo=True),
+        revised_bytes=_visual_replace_ad_png(bright_hero=True, cta=True, logo=True),
+        revision_diff={"operations": [{"target": "background", "action": "minimum_change"}]},
+        hero_visual_replace=True,
+    )
+    assert result["status"] == "pass", result["composition_failures"]
+    assert result.get("hero_visual_replace") is True
+
+
+def test_visual_replace_fidelity_rejects_cta_overlay_loss() -> None:
+    from investhome_api.services.creative_director.revision import (
+        compare_recompose_composition_fidelity,
+    )
+
+    result = compare_recompose_composition_fidelity(
+        master_bytes=_visual_replace_ad_png(bright_hero=False, cta=True, logo=True),
+        revised_bytes=_visual_replace_ad_png(bright_hero=True, cta=False, logo=True),
+        revision_diff={"operations": [{"target": "background", "action": "minimum_change"}]},
+        hero_visual_replace=True,
+    )
+    assert result["status"] == "fail"
+    assert any("cta" in f for f in result["composition_failures"])
+
+
 def test_pick_real_interior_rejects_workspace_screenshot() -> None:
     from uuid import uuid4
 

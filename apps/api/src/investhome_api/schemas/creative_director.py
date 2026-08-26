@@ -143,7 +143,13 @@ CreativeDirectorProductionMode = Literal[
     "editable_finished_ad",
     "golden_native_v1",
 ]
-RevisionRoute = Literal["LAYER_ONLY", "MICRO_EDIT", "CREATIVE_RECOMPOSE", "IMAGE_REQUIRED"]
+RevisionRoute = Literal[
+    "LAYER_ONLY",
+    "MICRO_EDIT",
+    "CREATIVE_RECOMPOSE",
+    "IMAGE_REQUIRED",
+    "VISUAL_REPLACE_ONLY",
+]
 
 
 class DesignSpecElement(BaseModel):

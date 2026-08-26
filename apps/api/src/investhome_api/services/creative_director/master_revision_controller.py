@@ -6,6 +6,7 @@ Does not call PRICE_BLOCK_ONLY, hide plates, or pixel surgery.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Literal
 
 RevisionIntent = Literal[
@@ -14,6 +15,43 @@ RevisionIntent = Literal[
     "LOGO_EDIT_ONLY",
     "CREATIVE_RECOMPOSE",
 ]
+
+# Multi-word phrases match as substrings. Single tokens use Turkish word boundaries
+# so "sadece" never counts as "sade".
+_TR_WORD = r"a-z0-9çğıöşüâîû"
+
+VISUAL_REPLACE_PHRASES = (
+    "görseli değiştir",
+    "gorseli degistir",
+    "görselini değiştir",
+    "gorselini degistir",
+    "görseli yerine",
+    "gorseli yerine",
+    "görselin yerine",
+    "gorselin yerine",
+    "bu görsel yerine",
+    "bu gorsel yerine",
+    "bu görselin yerine",
+    "bu gorselin yerine",
+    "başka görsel kullan",
+    "baska gorsel kullan",
+    "başka fotoğraf kullan",
+    "baska fotograf kullan",
+    "dış cephe görselini kullan",
+    "dis cephe gorselini kullan",
+    "dış cepheyi kullan",
+    "dis cepheyi kullan",
+    "drive'daki dış cepheyi kullan",
+    "drive daki dış cepheyi kullan",
+    "ana proje görselini değiştir",
+    "ana proje gorselini degistir",
+    "dış cephe",
+    "dis cephe",
+    "fotoğrafı değiştir",
+    "fotografi degistir",
+    "başka görsel",
+    "baska gorsel",
+)
 
 _LOCKS: dict[str, tuple[str, ...]] = {
     "VISUAL_REPLACE_ONLY": (
@@ -61,6 +99,22 @@ def _norm(text: str) -> str:
     )
 
 
+def has_tr_word(text: str, token: str) -> bool:
+    """True when token is a whole Turkish word, not a substring of a longer word."""
+    raw = _norm(text)
+    tok = _norm(token).strip()
+    if not raw or not tok:
+        return False
+    if " " in tok:
+        return tok in raw
+    return re.search(rf"(?<![{_TR_WORD}]){re.escape(tok)}(?![{_TR_WORD}])", raw) is not None
+
+
+def is_visual_replace_command(instruction: str) -> bool:
+    raw = _norm(instruction)
+    return any(phrase in raw for phrase in VISUAL_REPLACE_PHRASES)
+
+
 def classify_revision_command(instruction: str) -> dict[str, Any]:
     """Map a user revision sentence to a locked-revision intent.
 
@@ -74,25 +128,25 @@ def classify_revision_command(instruction: str) -> dict[str, Any]:
             "baska hicbir seyi degistirme",
             "başka hiçbir şeyi değiştirme",
             "baska hicbir sey",
+            "kesinlikle değiştirme",
+            "kesinlikle degistirme",
+            "geri kalan",
+            "birebir aynı",
+            "birebir ayni",
+            "aynı kalsın",
+            "ayni kalsin",
             "nothing else",
             "don't change anything else",
             "do not change anything else",
         )
     )
-    visual = any(
+    visual = is_visual_replace_command(instruction) or any(
         tok in raw
         for tok in (
-            "görsel yerine",
-            "gorsel yerine",
-            "dış cephe",
-            "dis cephe",
             "exterior",
             "interior kullan",
             "bu görsel",
             "bu gorsel",
-            "fotoğrafı değiştir",
-            "fotografi degistir",
-            "render",
         )
     )
     price = any(

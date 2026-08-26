@@ -964,3 +964,121 @@ def research_project_drive(
         warnings=warnings,
         architecture_truth=truth_report,
     )
+
+
+def select_visual_replace_source(
+    db: Session,
+    *,
+    project: Project,
+    instruction: str,
+    exclude_asset_ids: set[str] | None = None,
+    logo_asset_id: str | None = None,
+) -> tuple[SelectedAsset | None, dict[str, Any]]:
+    """Pick an approved project exterior via existing Drive research. No second asset system."""
+    skip = {str(x).strip() for x in (exclude_asset_ids or set()) if str(x).strip()}
+    if logo_asset_id:
+        skip.add(str(logo_asset_id))
+    pkg = research_project_drive(
+        db,
+        project=project,
+        brief=instruction,
+        mode="project",
+        campaign_intent="architecture",
+        visual_kind="exterior",
+        recent_asset_ids=list(skip),
+        ad_scope="project",
+    )
+    skip_uuids: set[UUID] = set()
+    for raw_id in skip:
+        try:
+            skip_uuids.add(UUID(raw_id))
+        except (TypeError, ValueError):
+            continue
+    pool = list(pkg.media_candidates or [])
+    seen = {str(c.asset_id) for c in pool}
+    extra = list_media_candidates(
+        db,
+        linked_project_id=project.id,
+        instruction=instruction,
+        limit=80,
+        exclude_asset_ids=skip_uuids,
+    )
+    for cand in extra:
+        aid = str(cand.asset_id)
+        if aid not in seen:
+            seen.add(aid)
+            pool.append(cand)
+    candidates: list[Any] = []
+    candidate_trace: list[dict[str, Any]] = []
+    for cand in pool:
+        aid = str(cand.asset_id)
+        if aid in skip:
+            continue
+        classification = classify_candidate(cand)
+        if classification.startswith("LOGO") or classification == "FLOORPLAN":
+            continue
+        hay = " ".join(
+            [
+                str(cand.filename or ""),
+                str(cand.folder_category or ""),
+                str(cand.visual_subject or ""),
+                " ".join(cand.tags or []),
+            ]
+        ).lower()
+        if any(tok in hay for tok in ("gpt-image", "ideogram", "provider:gpt-image")):
+            continue
+        exterior = classification in APPROVED_EXTERIOR_OPTIONS or (
+            "exterior" in hay and not _is_interior(cand)
+        )
+        if not exterior:
+            continue
+        candidates.append(cand)
+        candidate_trace.append(
+            {
+                "asset_id": aid,
+                "filename": cand.filename,
+                "folder": cand.folder_category,
+                "role": cand.visual_subject or classification,
+                "approval_status": "approved" if classification in APPROVED_EXTERIOR_OPTIONS else "unapproved",
+                "source": cand.provenance_source,
+                "score": float(cand.score or 0.0),
+                "classification": classification,
+            }
+        )
+
+    selected = pkg.selected_interior
+    if selected is not None and str(selected.asset_id) in skip:
+        selected = None
+    if selected is not None and selected.classification not in APPROVED_EXTERIOR_OPTIONS:
+        selected = None
+    truth: dict[str, Any] | None = pkg.architecture_truth
+    if selected is None and candidates:
+        ext_cand, ext_reason, ext_report = pick_truthful_hero_for_intent(
+            candidates,
+            campaign_intent="architecture",
+        )
+        truth = ext_report
+        if ext_cand is not None and str(ext_cand.asset_id) not in skip:
+            selected = _to_selected(
+                ext_cand,
+                role="hero_exterior",
+                selection_score=float(ext_cand.score or 0.0),
+                selection_reason=ext_reason or "user_requested_exterior",
+                selection_trace=ext_report,
+            )
+
+    if selected is not None and (
+        str(selected.asset_id) in skip
+        or (selected.classification or "") not in APPROVED_EXTERIOR_OPTIONS
+    ):
+        selected = None
+
+    report = {
+        "project_id": str(project.id),
+        "candidates": candidate_trace,
+        "selected": selected.to_dict() if selected else None,
+        "warnings": list(pkg.warnings or []),
+        "architecture_truth": truth,
+        "excluded_asset_ids": sorted(skip),
+    }
+    return selected, report

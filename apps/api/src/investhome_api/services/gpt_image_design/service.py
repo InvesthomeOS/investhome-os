@@ -562,7 +562,8 @@ def _generate_project(
             else ""
         )
         visual_ref_id = None
-        if isinstance(builder_context, dict) and revision_route == "CREATIVE_RECOMPOSE":
+        _dual_input_routes = {"CREATIVE_RECOMPOSE", "VISUAL_REPLACE_ONLY"}
+        if isinstance(builder_context, dict) and revision_route in _dual_input_routes:
             raw_ref = (
                 builder_context.get("revision_visual_reference_asset_id")
                 or builder_context.get("master_asset_id")
@@ -598,19 +599,19 @@ def _generate_project(
                     visual_ref_id,
                     source.asset_id,
                 )
-            elif revision_route == "CREATIVE_RECOMPOSE":
+            elif revision_route in _dual_input_routes:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail=(
-                        "CREATIVE_RECOMPOSE requires IMAGE 1 = master finished-ad. "
+                        f"{revision_route} requires IMAGE 1 = master finished-ad. "
                         "Source-only redesign is not allowed."
                     ),
                 )
-        elif revision_route == "CREATIVE_RECOMPOSE":
+        elif revision_route in _dual_input_routes:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=(
-                    "CREATIVE_RECOMPOSE requires IMAGE 1 = master finished-ad. "
+                    f"{revision_route} requires IMAGE 1 = master finished-ad. "
                     "Source-only redesign is not allowed."
                 ),
             )

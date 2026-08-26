@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from investhome_api.models.creative_director_campaign import CreativeDirectorCampaign
+from investhome_api.models.project import Project
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.creative_director import (
     CreativeDirectorGenerateAdRequest,
@@ -67,6 +68,11 @@ from investhome_api.services.creative_director.generate_ad import (
     project_asset_lock_summary,
     resolve_locked_assets,
 )
+from investhome_api.services.creative_director.master_revision_controller import (
+    classify_revision_command,
+    is_visual_replace_command,
+)
+from investhome_api.services.creative_director.research import select_visual_replace_source
 from investhome_api.services.creative_director.production_brief import (
     lock_copy_to_language,
     verify_logo_lock,
@@ -195,7 +201,15 @@ def interpret_revision_intents(instruction: str) -> list[str]:
         add("COPY_CHANGE")
     if any(m in raw for m in ("görsel", "visual", "renk", "color", "kontrast", "ışık", "karart", "darken")):
         add("VISUAL_CHANGE")
-    if any(m in raw for m in ("asset", "görseli değiştir", "foto", "render", "başka görsel")):
+    from investhome_api.services.creative_director.master_revision_controller import (
+        VISUAL_REPLACE_PHRASES,
+        has_tr_word,
+        is_visual_replace_command,
+    )
+
+    if is_visual_replace_command(instruction) or any(
+        m in raw for m in ("asset", "foto", "render", *VISUAL_REPLACE_PHRASES)
+    ):
         add("ASSET_CHANGE")
     if any(m in raw for m in ("layout", "düzen", "yerleşim", "konum", "aşağı", "yukarı", "küçült", "büyüt")):
         add("LAYOUT_CHANGE")
@@ -203,7 +217,10 @@ def interpret_revision_intents(instruction: str) -> list[str]:
         add("STYLE_CHANGE")
     if any(m in raw for m in ("türkçe", "english", "dil", "language", "ingilizce")):
         add("LANGUAGE_CHANGE")
-    if any(m in raw for m in ("sade", "simplify", "basit", "azalt", "kalabalık", "sadeleştir")):
+    if any(
+        has_tr_word(raw, m)
+        for m in ("sade", "simplify", "basit", "azalt", "kalabalık", "sadeleştir", "sadelestir")
+    ):
         add("SIMPLIFY")
     if any(m in raw for m in ("fiyat", "price", "satış", "offer", "ticari", "commercial", "%", "indirim")):
         add("COMMERCIAL_EMPHASIS")
@@ -456,6 +473,55 @@ def build_recompose_change_lock_lists(
         lock.append("remaining supporting copy stays exactly: " + " | ".join(str(s) for s in remaining))
     lock.append("Default: if the user did not request it, preserve it.")
     return change, lock
+
+
+def render_visual_replace_production_prompt(
+    *,
+    revision_brief: dict[str, Any],
+    original_brief: str,
+    selected_filename: str | None = None,
+) -> str:
+    """Replace only the hero photograph. Do not redesign the advertisement."""
+    selected = selected_filename or revision_brief.get("selected_exterior_filename") or "approved exterior"
+    lock = list(revision_brief.get("lock_list") or RECOMPOSE_LOCK_DEFAULT)
+    lines = [
+        "VISUAL_REPLACE_ONLY — REPLACE THE HERO PHOTOGRAPH. DO NOT REDESIGN THE ADVERTISEMENT.",
+        "EDIT IMAGE 1. Do not create a new advertisement. Do not restyle. Do not recompose.",
+        "",
+        "PROVIDER INPUTS:",
+        "IMAGE 1 IS THE CURRENT MASTER FINISHED ADVERTISEMENT — the design to keep.",
+        "IMAGE 2 IS THE NEW APPROVED PROJECT EXTERIOR PHOTOGRAPH — use it as the new hero visual only.",
+        "Do not use any previous interior photograph. Image 2 is the replacement scene.",
+        "",
+        f"Campaign identity (do not restyle): {(original_brief or '')[:240]}",
+        f"Master finished-ad asset id: {revision_brief.get('master_asset_id')}.",
+        f"New source visual: {selected} ({revision_brief.get('master_source_asset_id')}).",
+        "",
+        "CHANGE (only this):",
+        "- Replace the hero / background photograph with Image 2. Keep crop framing as close as possible to Image 1.",
+        "",
+        "LOCK (must stay the same as Image 1):",
+        *[f"- {item}" for item in lock],
+        "- Headline copy and placement (ALIRKEN KAZAN if present)",
+        "- Unit line 2+1",
+        "- Price 675.000 USD / $675,000",
+        "- Discount %35",
+        "- Supporting copy",
+        "- Project logo (same mark, size, corner, treatment)",
+        "- CTA copy, size, position, style",
+        "- Typography, font scale, colors, spacing, alignment, decorative elements",
+        "- Overall visual hierarchy",
+        "",
+        "CURRENT USER REQUEST:",
+        f"- {revision_brief.get('instruction') or ''}",
+        "",
+        "FORBIDDEN:",
+        "- Redesign, restyle, or recreate the advertisement",
+        "- Move, rewrite, or restyle locked commercial elements",
+        "- Invent architecture that is not in Image 2",
+        "- Draw or replace the logo",
+    ]
+    return "\n".join(lines)
 
 
 def render_revision_production_prompt(
@@ -1031,6 +1097,9 @@ _REMAINING_SUPPORT_BOX = (0.02, 0.36, 0.55, 0.62)
 _LOGO_BOX = (0.62, 0.02, 0.98, 0.22)
 _CTA_BOX = (0.02, 0.78, 0.42, 0.96)
 _CENTER_BOX = (0.28, 0.28, 0.78, 0.78)
+# AI-first Temple masters place CTA + logo on the bottom center, not the left rail.
+_CTA_REPLACE_BOX = (0.18, 0.74, 0.82, 0.93)
+_LOGO_FOOTER_BOX = (0.18, 0.88, 0.82, 0.995)
 
 
 def _revision_requested_targets(
@@ -1096,6 +1165,40 @@ def _mask_ratio(mask: Any) -> float:
     hist = mask.histogram()
     on = sum(hist[200:])
     return on / float(mask.size[0] * mask.size[1] or 1)
+
+
+def _mask_on_count(mask: Any) -> int:
+    hist = mask.histogram()
+    return int(sum(hist[200:]))
+
+
+def _overlay_lock_failures(
+    name: str,
+    ov_m: Any,
+    ov_r: Any,
+    box: tuple[float, float, float, float],
+    *,
+    growth_max: float = 1.45,
+    drop_max: float = 0.50,
+) -> list[str]:
+    """Lock commercial overlay pixels. Ignore bright hero-photo pixels in the same box."""
+    from PIL import ImageChops, ImageFilter
+
+    master_mask = _crop_frac(ov_m, box)
+    revised_mask = _crop_frac(ov_r, box)
+    master_on = _mask_on_count(master_mask)
+    if master_on < 12:
+        return []
+    retained = _mask_on_count(ImageChops.multiply(master_mask, revised_mask))
+    drop = 1.0 - (retained / master_on)
+    if drop > drop_max:
+        return [f"{name}_overlay_lost drop={drop:.2f}"]
+    dilated = master_mask.filter(ImageFilter.MaxFilter(9))
+    extra = _mask_on_count(ImageChops.subtract(revised_mask, dilated))
+    growth = (master_on + extra) / master_on
+    if growth > growth_max:
+        return [f"{name}_treatment_changed overlay_growth={growth:.2f}"]
+    return []
 
 
 def _frac_box_to_px(size: tuple[int, int], box: tuple[float, float, float, float]) -> tuple[int, int, int, int]:
@@ -1213,11 +1316,13 @@ def compare_recompose_composition_fidelity(
     master_bytes: bytes,
     revised_bytes: bytes,
     revision_diff: RevisionDiff | dict[str, Any] | None = None,
+    hero_visual_replace: bool = False,
 ) -> dict[str, Any]:
     """Fail-closed VISUAL lock vs MASTER finished-ad.
 
     Requested ops are exempted. Unrequested supporting-copy loss, giant headline,
     CTA/logo treatment, crop, or layout simplification must reject.
+    VISUAL_REPLACE_ONLY may change the hero photograph; commercial overlay must stay.
     """
     from PIL import Image, ImageFilter
 
@@ -1228,7 +1333,7 @@ def compare_recompose_composition_fidelity(
     )
     cta_ok = bool(targets & _CTA_TARGETS)
     logo_ok = bool(targets & _LOGO_TARGETS)
-    background_ok = bool(targets & _BACKGROUND_TARGETS)
+    background_ok = bool(targets & _BACKGROUND_TARGETS) or hero_visual_replace
 
     with Image.open(io.BytesIO(master_bytes)) as im_m, Image.open(io.BytesIO(revised_bytes)) as im_r:
         master_rgb = im_m.convert("RGB")
@@ -1271,36 +1376,47 @@ def compare_recompose_composition_fidelity(
     headline_drop = 1.0 - (regions["headline"]["overlay_revised"] / headline_ov_m)
 
     failures: list[str] = []
-    if not cta_ok and regions["cta"]["mad"] > VISUAL_CTA_MAD_MAX:
-        failures.append(f"cta_visual_changed mad={regions['cta']['mad']}")
-    if logo_ok:
-        if logo_growth > VISUAL_LOGO_OVERLAY_GROWTH_MAX:
-            failures.append(f"logo_treatment_changed overlay_growth={logo_growth:.2f}")
-    elif regions["logo"]["mad"] > VISUAL_LOGO_MAD_MAX_UNREQUESTED:
-        failures.append(f"logo_visual_changed mad={regions['logo']['mad']}")
-    if headline_ok:
-        if headline_growth > VISUAL_HEADLINE_OVERLAY_GROWTH_MAX:
-            failures.append(f"headline_scale_changed overlay_growth={headline_growth:.2f}")
-        elif headline_drop > 0.45 and regions["center"]["mad"] > 12:
-            failures.append("headline_region_moved")
-    elif regions["headline"]["mad"] > 18:
-        failures.append(f"headline_unrequested_change mad={regions['headline']['mad']}")
-    if support_delete_ok:
-        if remaining_support_box and regions["remaining_support"]["mad"] > VISUAL_REMAINING_SUPPORT_MAD_MAX:
-            failures.append(
-                f"supporting_text_disappeared remaining_mad={regions['remaining_support']['mad']}"
-            )
-    elif regions["support"]["mad"] > VISUAL_REMAINING_SUPPORT_MAD_MAX:
-        failures.append(f"supporting_text_disappeared mad={regions['support']['mad']}")
-    if not background_ok:
-        if regions["center"]["mad"] > VISUAL_CENTER_MAD_MAX:
-            failures.append(f"background_crop_or_composition_changed mad={regions['center']['mad']}")
-        elif regions["center"]["edge_mad"] > VISUAL_CENTER_EDGE_MAD_MAX:
-            failures.append(
-                f"background_crop_or_composition_changed edge_mad={regions['center']['edge_mad']}"
-            )
-        if locked_mad > VISUAL_LOCKED_MAD_MAX:
-            failures.append(f"unrequested_layout_simplification locked_mad={locked_mad}")
+    if hero_visual_replace:
+        # Do not use the left-rail CTA box: a brighter exterior in that crop is
+        # not a CTA redesign. Lock overlay where the master actually has UI.
+        for name, box in (
+            ("headline", _HEADLINE_BOX),
+            ("cta", _CTA_REPLACE_BOX),
+            ("logo", _LOGO_FOOTER_BOX),
+            ("logo_corner", _LOGO_BOX),
+        ):
+            failures.extend(_overlay_lock_failures(name, ov_m, ov_r, box))
+    else:
+        if not cta_ok and regions["cta"]["mad"] > VISUAL_CTA_MAD_MAX:
+            failures.append(f"cta_visual_changed mad={regions['cta']['mad']}")
+        if logo_ok:
+            if logo_growth > VISUAL_LOGO_OVERLAY_GROWTH_MAX:
+                failures.append(f"logo_treatment_changed overlay_growth={logo_growth:.2f}")
+        elif regions["logo"]["mad"] > VISUAL_LOGO_MAD_MAX_UNREQUESTED:
+            failures.append(f"logo_visual_changed mad={regions['logo']['mad']}")
+        if headline_ok:
+            if headline_growth > VISUAL_HEADLINE_OVERLAY_GROWTH_MAX:
+                failures.append(f"headline_scale_changed overlay_growth={headline_growth:.2f}")
+            elif headline_drop > 0.45 and regions["center"]["mad"] > 12:
+                failures.append("headline_region_moved")
+        elif regions["headline"]["mad"] > 18:
+            failures.append(f"headline_unrequested_change mad={regions['headline']['mad']}")
+        if support_delete_ok:
+            if remaining_support_box and regions["remaining_support"]["mad"] > VISUAL_REMAINING_SUPPORT_MAD_MAX:
+                failures.append(
+                    f"supporting_text_disappeared remaining_mad={regions['remaining_support']['mad']}"
+                )
+        elif regions["support"]["mad"] > VISUAL_REMAINING_SUPPORT_MAD_MAX:
+            failures.append(f"supporting_text_disappeared mad={regions['support']['mad']}")
+        if not background_ok:
+            if regions["center"]["mad"] > VISUAL_CENTER_MAD_MAX:
+                failures.append(f"background_crop_or_composition_changed mad={regions['center']['mad']}")
+            elif regions["center"]["edge_mad"] > VISUAL_CENTER_EDGE_MAD_MAX:
+                failures.append(
+                    f"background_crop_or_composition_changed edge_mad={regions['center']['edge_mad']}"
+                )
+            if locked_mad > VISUAL_LOCKED_MAD_MAX:
+                failures.append(f"unrequested_layout_simplification locked_mad={locked_mad}")
 
     cta_left_m = _crop_frac(master_g, (0.02, 0.78, 0.36, 0.96))
     cta_right_m = _crop_frac(master_g, (0.64, 0.78, 0.98, 0.96))
@@ -1314,7 +1430,7 @@ def compare_recompose_composition_fidelity(
 
     master_cta_anchor = "left" if _var(cta_left_m) >= _var(cta_right_m) else "right"
     revised_cta_anchor = "left" if _var(cta_left_r) >= _var(cta_right_r) else "right"
-    if not cta_ok and master_cta_anchor != revised_cta_anchor:
+    if not cta_ok and not hero_visual_replace and master_cta_anchor != revised_cta_anchor:
         failures.append(f"cta_anchor_changed master={master_cta_anchor} result={revised_cta_anchor}")
 
     status_val = "fail" if failures else "pass"
@@ -1330,6 +1446,7 @@ def compare_recompose_composition_fidelity(
         "locked_mad": locked_mad,
         "requested_targets": sorted(targets),
         "compared_against": "master_finished_ad",
+        "hero_visual_replace": hero_visual_replace,
     }
 
 
@@ -1451,6 +1568,16 @@ def revise_ad_from_campaign(
 
     working_instruction, _ = extract_working_instruction(instruction)
     intents = interpret_revision_intents(working_instruction)
+    classified = classify_revision_command(instruction)
+    visual_replace_only = classified.get("intent") == "VISUAL_REPLACE_ONLY" or is_visual_replace_command(
+        instruction
+    )
+    if visual_replace_only:
+        intents = [tag for tag in intents if tag != "SIMPLIFY"]
+        if "ASSET_CHANGE" not in intents:
+            intents.insert(0, "ASSET_CHANGE")
+        if "VISUAL_CHANGE" not in intents:
+            intents.insert(0, "VISUAL_CHANGE")
     from investhome_api.services.creative_director.price_block_revision import (
         apply_local_price_zone,
         is_baked_price_ad,
@@ -1478,6 +1605,75 @@ def revise_ad_from_campaign(
     )
     if revision_route == "LAYER_ONLY":
         revision_route = "MICRO_EDIT"
+
+    visual_replace_pick: dict[str, Any] | None = None
+    previous_source_id = UUID(str(interior_id))
+    if visual_replace_only:
+        if price_intent is not None:
+            price_intent = None
+        revision_route = "VISUAL_REPLACE_ONLY"
+        revision_diff = RevisionDiff(
+            operations=[
+                RevisionOperation(
+                    target="background",
+                    action="minimum_change",
+                    note="VISUAL_REPLACE_ONLY: replace hero photograph",
+                    confidence="high",
+                    mode="exact",
+                    priority="exact_numeric",
+                )
+            ],
+            preserve=list(classified.get("locked") or []),
+            forbidden_changes=list(classified.get("locked") or []),
+            command_mode="exact",
+            strict_preserve=True,
+            requested_changes=[{"target": "hero_visual", "action": "replace"}],
+        )
+        new_ops = [_op_dict(o) for o in revision_diff.operations]
+        cumulative_after = prior_ops + new_ops
+        project_row = db.get(Project, row.linked_project_id)
+        if project_row is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="VISUAL_REPLACE_ONLY requires a linked construction project.",
+            )
+        picked, pick_report = select_visual_replace_source(
+            db,
+            project=project_row,
+            instruction=instruction,
+            exclude_asset_ids={str(interior_id), str(master_id), str(current_id)},
+            logo_asset_id=str(logo_id) if logo_id else None,
+        )
+        visual_replace_pick = pick_report
+        if picked is None or not picked.asset_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "message": (
+                        "VISUAL_REPLACE_ONLY: no approved Temple exterior found in this "
+                        "project's Drive / Media Library. Will not keep the current interior."
+                    ),
+                    "visual_replace": pick_report,
+                },
+            )
+        if str(picked.asset_id) == str(interior_id):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "message": "VISUAL_REPLACE_ONLY selected the current interior. Fail closed.",
+                    "visual_replace": pick_report,
+                },
+            )
+        interior_id = UUID(str(picked.asset_id))
+        interior_meta = picked.to_dict()
+        logger.info(
+            "visual_replace_only selected=%s filename=%s excluded_interior=%s candidates=%s",
+            picked.asset_id,
+            picked.filename,
+            previous_source_id,
+            len(pick_report.get("candidates") or []),
+        )
+
     micro_edit = is_micro_edit_route(revision_route)
     editable_mode = micro_edit and bool(
         ctx.get("editable_finished_ad") is True
@@ -1501,6 +1697,10 @@ def revise_ad_from_campaign(
             "subjective",
         ],
     }
+    if visual_replace_only:
+        interpreted_plan["scope"] = "VISUAL_REPLACE_ONLY"
+        interpreted_plan["intent"] = "VISUAL_REPLACE_ONLY"
+        interpreted_plan["visual_replace"] = visual_replace_pick
 
     revision_brief = build_revision_brief(
         instruction=instruction,
@@ -1516,8 +1716,19 @@ def revise_ad_from_campaign(
     revision_brief["revision_route"] = revision_route
     revision_brief["master_source_asset_id"] = str(interior_id)
     source_assets = _as_dict(ctx.get("master_source_assets"))
-    if source_assets.get("interior_asset_id"):
+    if source_assets.get("interior_asset_id") and not visual_replace_only:
         revision_brief["master_source_asset_id"] = str(source_assets["interior_asset_id"])
+    if visual_replace_only:
+        revision_brief["intent"] = "VISUAL_REPLACE_ONLY"
+        revision_brief["visual_replace"] = visual_replace_pick
+        revision_brief["previous_source_visual_asset_id"] = str(previous_source_id)
+        revision_brief["selected_exterior_filename"] = (
+            (interior_meta or {}).get("filename") if isinstance(interior_meta, dict) else None
+        )
+        revision_brief["lock_list"] = list(classified.get("locked") or [])
+        revision_brief["change_list"] = [
+            "Replace hero photograph with the selected approved project exterior. Change nothing else."
+        ]
 
     if revision_brief.get("cta"):
         texts = dict(texts)
@@ -2308,12 +2519,19 @@ def revise_ad_from_campaign(
         "supporting": list(master_pb.get("supporting") or []),
     }
 
-    instruction_prompt = render_revision_production_prompt(
-        revision_brief=revision_brief,
-        production_brief=production_brief,
-        original_brief=original_brief,
-        lifestyle=lifestyle,
-    )
+    if visual_replace_only:
+        instruction_prompt = render_visual_replace_production_prompt(
+            revision_brief=revision_brief,
+            original_brief=original_brief,
+            selected_filename=revision_brief.get("selected_exterior_filename"),
+        )
+    else:
+        instruction_prompt = render_revision_production_prompt(
+            revision_brief=revision_brief,
+            production_brief=production_brief,
+            original_brief=original_brief,
+            lifestyle=lifestyle,
+        )
     # Keep within GptImageDesignRequest.instruction max_length.
     _max_instruction = 12000
     if len(instruction_prompt) > _max_instruction:
@@ -2346,8 +2564,7 @@ def revise_ad_from_campaign(
         "image_provider_route": provider_route.to_dict(),
     }
 
-    # Source pick stays the original approved photograph. CREATIVE_RECOMPOSE also
-    # injects the immutable MASTER finished-ad as image-1 via builder_context.
+    # VISUAL_REPLACE_ONLY: IMAGE 2 = new exterior. CREATIVE_RECOMPOSE: IMAGE 2 = original source.
     gpt_body = GptImageDesignRequest(
         linked_project_id=row.linked_project_id,
         instruction=instruction_prompt,
@@ -2427,6 +2644,7 @@ def revise_ad_from_campaign(
                 master_bytes=master_bytes,
                 revised_bytes=revised_bytes,
                 revision_diff=revision_diff,
+                hero_visual_replace=visual_replace_only,
             )
         except Exception as exc:
             logger.warning("revision_composition_fidelity_unavailable: %s", exc)
@@ -2446,11 +2664,17 @@ def revise_ad_from_campaign(
     quality_guard["compared_against"] = composition.get("compared_against") or "master_finished_ad"
     if composition.get("status") == "fail":
         quality_guard["status"] = "fail"
+        logger.warning(
+            "composition_fidelity_fail route=%s hero_visual_replace=%s failures=%s",
+            revision_route,
+            visual_replace_only,
+            composition.get("composition_failures"),
+        )
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={
                 "message": (
-                    "CREATIVE_RECOMPOSE failed visual fidelity vs MASTER finished-ad. "
+                    f"{revision_route} failed visual fidelity vs MASTER finished-ad. "
                     "Result was not hydrated onto the SMB canvas."
                 ),
                 "quality_guard": quality_guard,
@@ -2464,11 +2688,11 @@ def revise_ad_from_campaign(
 
     artifact = golden_revision_artifact_guard(
         editable_layers=[],
-        interior_before=str(master_source_id),
+        interior_before=str(previous_source_id if visual_replace_only else master_source_id),
         interior_after=str(source_used or master_source_id),
         logo_before=str(logo_id),
         logo_after=str(logo_id),
-        background_requested=revision_route == "IMAGE_REQUIRED",
+        background_requested=revision_route in {"IMAGE_REQUIRED", "VISUAL_REPLACE_ONLY"},
     )
     quality_guard["artifact_guard"] = artifact
     if artifact.get("status") == "fail":
@@ -2518,13 +2742,18 @@ def revise_ad_from_campaign(
                 "campaign_context_id": str(row.id),
             },
         )
-    version = _version_label(history)
+    version = "v2" if visual_replace_only and all(
+        not isinstance(h, dict) or h.get("version") == "original" for h in history
+    ) else _version_label(history)
     entry = {
         "version": version,
+        "intent": "VISUAL_REPLACE_ONLY" if visual_replace_only else revision_route,
         "previous_asset_id": str(current_id),
         "new_asset_id": str(new_asset_id),
         "master_asset_id": str(master_id),
-        "revision_source_asset_id": str(master_id),
+        "revision_source_asset_id": str(master_source_id),
+        "previous_source_visual_asset_id": str(previous_source_id),
+        "source_visual_asset_id": str(master_source_id),
         "instruction": instruction,
         "revision_brief": revision_brief,
         "operations": new_ops,
@@ -2607,6 +2836,55 @@ def revise_ad_from_campaign(
     ctx["production_mode"] = "finished_ad"
     ctx["editable_finished_ad"] = False
     ctx["revision_instruction_log"] = list(ctx.get("revision_instruction_log") or []) + [instruction]
+    if visual_replace_only:
+        ctx["master_background_asset_id"] = str(master_source_id)
+        selected_assets = list(ctx.get("selected_assets") or [])
+        hero_meta = dict(interior_meta) if isinstance(interior_meta, dict) else {"asset_id": str(master_source_id)}
+        hero_meta["role"] = "hero_exterior"
+        hero_meta["asset_id"] = str(master_source_id)
+        if selected_assets:
+            selected_assets[0] = hero_meta
+        else:
+            selected_assets = [hero_meta]
+        ctx["selected_assets"] = selected_assets
+        source_lock = dict(_as_dict(ctx.get("master_source_assets")))
+        source_lock["interior_asset_id"] = str(previous_source_id)
+        source_lock["source_visual_asset_id"] = str(master_source_id)
+        source_lock["previous_source_visual_asset_id"] = str(previous_source_id)
+        ctx["master_source_assets"] = source_lock
+        mc = dict(ctx.get("master_creative") or {})
+        mc_hist = list(mc.get("revision_history") or [])
+        mc_hist.append(
+            {
+                "version": 2 if version == "v2" else version,
+                "intent": "VISUAL_REPLACE_ONLY",
+                "previous_cover_asset_id": str(current_id),
+                "new_cover_asset_id": str(new_asset_id),
+                "previous_source_visual_asset_id": str(previous_source_id),
+                "source_visual_asset_id": str(master_source_id),
+                "source_visual_filename": (
+                    interior_meta.get("filename") if isinstance(interior_meta, dict) else None
+                ),
+                "master_asset_id": str(master_id),
+            }
+        )
+        mc["current_version"] = 2 if version == "v2" else mc.get("current_version")
+        mc["source_visual_asset_id"] = str(master_source_id)
+        mc["source_visual_filename"] = (
+            interior_meta.get("filename") if isinstance(interior_meta, dict) else mc.get("source_visual_filename")
+        )
+        mc["source_visual_folder"] = (
+            interior_meta.get("folder_category") if isinstance(interior_meta, dict) else mc.get("source_visual_folder")
+        )
+        mc["source_visual_approval"] = (
+            interior_meta.get("approved_status")
+            or ("approved" if interior_meta.get("approved") else mc.get("source_visual_approval"))
+            if isinstance(interior_meta, dict)
+            else mc.get("source_visual_approval")
+        )
+        mc["revision_history"] = mc_hist
+        mc["master_asset_id"] = str(master_id)
+        ctx["master_creative"] = mc
     recomposed_spec: dict[str, Any] | None = None
     try:
         spec_texts, spec_brief = hydrate_supporting_copy(
@@ -2699,6 +2977,7 @@ def revise_ad_from_campaign(
             "revision_source": "master_source_image",
             "cumulative_ops_count": len(cumulative_after),
             "revision_route": revision_route,
+            "intent": "VISUAL_REPLACE_ONLY" if visual_replace_only else revision_route,
         },
         final_turkish_texts=texts,
         claim_guard=claim_guard,
@@ -2724,6 +3003,8 @@ def revise_ad_from_campaign(
         finished_ad_raster_asset_id=new_asset_id,
         editable_layers=[],
         revision_route=revision_route,
+        interpreted_plan=interpreted_plan,
+        master_creative=ctx.get("master_creative") if isinstance(ctx.get("master_creative"), dict) else None,
     )
 
 

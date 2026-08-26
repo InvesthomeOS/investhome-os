@@ -14,7 +14,13 @@ from uuid import UUID
 
 from investhome_api.services.creative_director.composition_plan import build_composition_plan
 
-RevisionRoute = Literal["LAYER_ONLY", "MICRO_EDIT", "CREATIVE_RECOMPOSE", "IMAGE_REQUIRED"]
+RevisionRoute = Literal[
+    "LAYER_ONLY",
+    "MICRO_EDIT",
+    "CREATIVE_RECOMPOSE",
+    "IMAGE_REQUIRED",
+    "VISUAL_REPLACE_ONLY",
+]
 
 # Ops that mutate overlay layers without re-rasterizing the photograph.
 _LAYER_ONLY_TARGETS = frozenset(
@@ -2851,7 +2857,7 @@ def is_micro_edit_route(route: str | None) -> bool:
 
 
 def is_provider_revision_route(route: str | None) -> bool:
-    return str(route or "") in {"CREATIVE_RECOMPOSE", "IMAGE_REQUIRED"}
+    return str(route or "") in {"CREATIVE_RECOMPOSE", "IMAGE_REQUIRED", "VISUAL_REPLACE_ONLY"}
 
 
 def _op_field(op: Any, name: str) -> Any:
@@ -2892,6 +2898,15 @@ def route_revision(
         working, _ = extract_working_instruction(instruction)
     except Exception:
         working = instruction
+    try:
+        from investhome_api.services.creative_director.master_revision_controller import (
+            classify_revision_command,
+        )
+
+        if classify_revision_command(instruction or working).get("intent") == "VISUAL_REPLACE_ONLY":
+            return "VISUAL_REPLACE_ONLY"
+    except Exception:
+        pass
     low = (working or instruction or "").replace("İ", "i").replace("I", "ı").lower()
     for phrase in _FURNITURE_IMAGE_PHRASES:
         if phrase in low:

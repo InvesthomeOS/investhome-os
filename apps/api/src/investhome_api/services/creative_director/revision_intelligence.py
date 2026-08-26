@@ -1060,7 +1060,9 @@ def parse_subjective_ops(instruction: str, *, existing: list[RevisionOperation])
                 priority="subjective",
             )
         )
-    if any(m in low for m in ("sade", "sadeleştir", "kalabalık")):
+    from investhome_api.services.creative_director.master_revision_controller import has_tr_word
+
+    if any(has_tr_word(low, m) for m in ("sade", "sadeleştir", "sadelestir", "kalabalık")):
         ops.append(
             _op(
                 target="support_message",
