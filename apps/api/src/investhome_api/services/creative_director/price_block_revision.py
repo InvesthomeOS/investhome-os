@@ -283,6 +283,133 @@ def _pad_box(
     )
 
 
+def _scan_white_glyphs(
+    image: Any,
+    search: tuple[int, int, int, int],
+    *,
+    min_row: int,
+) -> tuple[int, int, int, int] | None:
+    rgb = image.convert("RGB")
+    pixels = rgb.load()
+    sx0, sy0, sx1, sy1 = search
+    white_x: list[int] = []
+    white_y: list[int] = []
+    for y in range(sy0, sy1):
+        for x in range(sx0, sx1):
+            r, g, b = pixels[x, y]
+            if _is_gold(r, g, b):
+                continue
+            if _luma(r, g, b) < 220:
+                continue
+            white_x.append(x)
+            white_y.append(y)
+    return _bottom_dense_bbox(white_x, white_y, min_row=min_row)
+
+
+def _photo_start_y(image: Any, *, from_y: int) -> int:
+    """First row that looks like photography rather than navy overlay."""
+    rgb = image.convert("RGB")
+    pixels = rgb.load()
+    width, height = rgb.size
+    x0, x1 = int(width * 0.20), int(width * 0.80)
+    span = max(1, x1 - x0)
+    start = max(from_y + 16, int(height * 0.36))
+    consecutive = 0
+    first: int | None = None
+    for y in range(start, int(height * 0.70)):
+        mid = 0
+        for x in range(x0, x1):
+            r, g, b = pixels[x, y]
+            luma = _luma(r, g, b)
+            if 50 <= luma < 200 and not _is_gold(r, g, b):
+                mid += 1
+        if mid > 0.45 * span:
+            consecutive += 1
+            if first is None:
+                first = y
+            if consecutive >= 6:
+                return first
+        else:
+            consecutive = 0
+            first = None
+    return int(height * 0.42)
+
+
+def _navy_gap_below(
+    image: Any,
+    glyph: tuple[int, int, int, int],
+    photo_y: int,
+) -> tuple[int, int] | None:
+    """Rows of navy immediately below the list-price numerals, before USD/photo."""
+    rgb = image.convert("RGB")
+    pixels = rgb.load()
+    width, _height = rgb.size
+    gx0, _gy0, gx1, gy1 = glyph
+    x0 = max(0, gx0 - 8)
+    x1 = min(width, gx1 + 8)
+    span = max(1, x1 - x0)
+    y0 = gy1 + 4
+    y1 = y0
+    for y in range(y0, min(photo_y - 4, gy1 + 48)):
+        dark = 0
+        for x in range(x0, x1):
+            r, g, b = pixels[x, y]
+            if _is_gold(r, g, b):
+                continue
+            if _luma(r, g, b) < 45:
+                dark += 1
+        if dark < 0.70 * span:
+            break
+        y1 = y + 1
+    if y1 - y0 < 16:
+        return None
+    return y0, y1
+
+
+def locate_overlay_list_price(
+    image: Any,
+) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int], tuple[int, int, int, int]] | None:
+    """List price in the upper stats band (AI-first overlay), not the bottom furniture zone."""
+    from PIL import Image
+
+    assert isinstance(image, Image.Image)
+    width, height = image.size
+    search = (
+        int(width * 0.38),
+        int(height * 0.26),
+        int(width * 0.62),
+        int(height * 0.34),
+    )
+    glyph = _scan_white_glyphs(image, search, min_row=18)
+    if glyph is None:
+        return None
+    gx0, gy0, gx1, gy1 = glyph
+    if gy0 > int(height * 0.45) or gy1 > int(height * 0.48):
+        return None
+    photo_y = _photo_start_y(image, from_y=gy1)
+    gap = _navy_gap_below(image, glyph, photo_y)
+    if gap is None:
+        return None
+    add_y0, add_y1 = gap
+    if add_y1 > photo_y - 2:
+        return None
+    strike = _pad_box(glyph, pad=3, width=width, height=height)
+    cx = (gx0 + gx1) // 2
+    draw_w = min(int(width * 0.42), max(gx1 - gx0 + 24, int(width * 0.28)))
+    add = (
+        max(int(width * 0.30), cx - draw_w // 2),
+        add_y0,
+        min(int(width * 0.70), cx + draw_w // 2),
+        add_y1,
+    )
+    draw = _union_box(strike, add)
+    if draw[3] > photo_y - 2:
+        return None
+    if (draw[2] - draw[0]) * (draw[3] - draw[1]) > 0.12 * width * height:
+        return None
+    return draw, strike, glyph
+
+
 def locate_price_zone(
     image: Any,
     *,
@@ -308,18 +435,7 @@ def locate_price_zone(
         int(height * 0.995),
     )
     sx0, sy0, sx1, sy1 = search
-    white_x: list[int] = []
-    white_y: list[int] = []
-    for y in range(sy0, sy1):
-        for x in range(sx0, sx1):
-            r, g, b = pixels[x, y]
-            if _is_gold(r, g, b):
-                continue
-            if _luma(r, g, b) < 220:
-                continue
-            white_x.append(x)
-            white_y.append(y)
-    glyph = _bottom_dense_bbox(white_x, white_y, min_row=12)
+    glyph = _scan_white_glyphs(image, search, min_row=12)
     if glyph is None:
         _fail_closed("PRICE_BLOCK_ONLY fail-closed — baked list price glyphs not found.")
 
@@ -573,6 +689,136 @@ def _draw_price_block(image: Any, box: tuple[int, int, int, int], intent: PriceB
         y += h + gap
 
 
+def _draw_overlay_launch_savings(
+    image: Any,
+    box: tuple[int, int, int, int],
+    intent: PriceBlockIntent,
+) -> None:
+    """Compact launch + savings in the navy gap. Does not redraw the list price."""
+    from PIL import ImageDraw
+
+    draw = ImageDraw.Draw(image)
+    x0, y0, x1, y1 = box
+    zone_w = max(8, x1 - x0)
+    zone_h = max(8, y1 - y0)
+    cx = (x0 + x1) // 2
+    launch = format_tr_usd(intent.launch_amount)
+    savings = f"{intent.savings_label} {format_tr_usd(intent.savings_amount)}"
+    if zone_h < 28:
+        font = _load_font(max(11, min(16, zone_h - 4)), bold=True, serif=True)
+        text = f"{launch}   {savings}"
+        bbox = draw.textbbox((0, 0), text, font=font)
+        tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        x = max(x0 + 2, min(cx - tw // 2, x1 - tw - 2))
+        y = y0 + max(1, (zone_h - th) // 2)
+        draw.text((x, y), text, font=font, fill=_GOLD)
+        return
+    scale = 1.0
+    for _ in range(6):
+        amount_font = _load_font(max(12, int(zone_h * 0.42 * scale)), bold=True, serif=True)
+        label_font = _load_font(max(10, int(zone_h * 0.28 * scale)), bold=True)
+        b1 = draw.textbbox((0, 0), launch, font=amount_font)
+        b2 = draw.textbbox((0, 0), savings, font=label_font)
+        total_h = (b1[3] - b1[1]) + (b2[3] - b2[1]) + 2
+        too_wide = (b1[2] - b1[0]) > zone_w - 8 or (b2[2] - b2[0]) > zone_w - 8
+        if not too_wide and total_h <= zone_h - 2:
+            break
+        scale *= 0.88
+    y = y0 + 1
+    for text, font in ((launch, amount_font), (savings, label_font)):
+        bbox = draw.textbbox((0, 0), text, font=font)
+        tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        x = max(x0 + 2, min(cx - tw // 2, x1 - tw - 2))
+        draw.text((x, y), text, font=font, fill=_GOLD)
+        y += th + 1
+
+
+def _stroke_list_price(image: Any, glyph: tuple[int, int, int, int]) -> None:
+    from PIL import ImageDraw
+
+    draw = ImageDraw.Draw(image)
+    gx0, gy0, gx1, gy1 = glyph
+    mid_y = gy0 + int((gy1 - gy0) * 0.55)
+    width = max(2, (gy1 - gy0) // 10)
+    draw.line((gx0, mid_y, gx1 - 1, mid_y), fill=_WHITE, width=width)
+
+
+def _assert_hero_unchanged(original: Any, working: Any, photo_y: int) -> None:
+    orig_px = original.load()
+    new_px = working.load()
+    width, height = original.size
+    leaked = 0
+    for y in range(max(0, photo_y), height):
+        for x in range(width):
+            if orig_px[x, y] != new_px[x, y]:
+                leaked += 1
+    if leaked > 0:
+        _fail_closed(
+            "PRICE_BLOCK_ONLY fail-closed — hero / background pixels changed. "
+            "Existing finished-ad was not persisted.",
+            leaked_pixels=leaked,
+            photo_y=photo_y,
+        )
+
+
+def apply_overlay_price_edit(
+    source_bytes: bytes,
+    *,
+    intent: PriceBlockIntent,
+) -> tuple[bytes, dict[str, Any]]:
+    """Strikethrough baked list price in place; add launch + savings in navy gap. GPT=0."""
+    from PIL import Image
+
+    original = Image.open(io.BytesIO(source_bytes)).convert("RGBA")
+    working = original.copy()
+    located = locate_overlay_list_price(working)
+    if located is None:
+        _fail_closed("PRICE_BLOCK_ONLY fail-closed — overlay list price glyphs not found.")
+    draw_box, strike_box, glyph_box = located
+    photo_y = _photo_start_y(working, from_y=glyph_box[3])
+    _stroke_list_price(working, glyph_box)
+    add_box = (draw_box[0], strike_box[3], draw_box[2], draw_box[3])
+    if add_box[3] - add_box[1] < 16:
+        _fail_closed("PRICE_BLOCK_ONLY fail-closed — no navy gap to add launch/savings.")
+    _draw_overlay_launch_savings(working, add_box, intent)
+
+    orig_px = original.load()
+    new_px = working.load()
+    width, height = original.size
+    x0, y0, x1, y1 = draw_box
+    for y in range(height):
+        for x in range(width):
+            if x0 <= x < x1 and y0 <= y < y1:
+                continue
+            if orig_px[x, y] != new_px[x, y]:
+                new_px[x, y] = orig_px[x, y]
+    _assert_hero_unchanged(original, working, photo_y)
+    out = io.BytesIO()
+    working.convert("RGB").save(out, format="PNG", optimize=True)
+    trace = {
+        "scope": "PRICE_BLOCK_ONLY",
+        "baked": True,
+        "method": "overlay_list_price_strikethrough",
+        "provider_calls": 0,
+        "zone": {"x0": x0, "y0": y0, "x1": x1, "y1": y1},
+        "cleanup_box": {
+            "x0": strike_box[0],
+            "y0": strike_box[1],
+            "x1": strike_box[2],
+            "y1": strike_box[3],
+        },
+        "glyph_zone": {
+            "x0": glyph_box[0],
+            "y0": glyph_box[1],
+            "x1": glyph_box[2],
+            "y1": glyph_box[3],
+        },
+        "photo_y": photo_y,
+        "intent": intent.to_dict(),
+    }
+    return out.getvalue(), trace
+
+
 def apply_local_price_zone(
     source_bytes: bytes,
     *,
@@ -583,6 +829,17 @@ def apply_local_price_zone(
     from PIL import Image
 
     original = Image.open(io.BytesIO(source_bytes)).convert("RGBA")
+    probe = original.convert("RGB")
+    width, height = probe.size
+    bottom_search = (
+        int(width * 0.28),
+        int(height * 0.86),
+        int(width * 0.64),
+        int(height * 0.995),
+    )
+    if _scan_white_glyphs(probe, bottom_search, min_row=12) is None:
+        return apply_overlay_price_edit(source_bytes, intent=intent)
+
     working = original.copy()
     draw_box, cleanup_box, glyph_box = locate_price_zone(working, spec=spec, intent=intent)
     mask = _build_glyph_mask(working, cleanup_box)

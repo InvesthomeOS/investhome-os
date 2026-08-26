@@ -149,6 +149,7 @@ RevisionRoute = Literal[
     "CREATIVE_RECOMPOSE",
     "IMAGE_REQUIRED",
     "VISUAL_REPLACE_ONLY",
+    "PRICE_EDIT_ONLY",
 ]
 
 

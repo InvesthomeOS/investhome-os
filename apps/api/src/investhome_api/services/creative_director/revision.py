@@ -70,7 +70,6 @@ from investhome_api.services.creative_director.generate_ad import (
 )
 from investhome_api.services.creative_director.master_revision_controller import (
     classify_revision_command,
-    is_visual_replace_command,
 )
 from investhome_api.services.creative_director.research import select_visual_replace_source
 from investhome_api.services.creative_director.production_brief import (
@@ -173,7 +172,13 @@ def _normalize_tr(text: str) -> str:
 
 def interpret_revision_intents(instruction: str) -> list[str]:
     """Map NL revision instruction → revision intent tags (deterministic heuristics)."""
-    raw = _normalize_tr(instruction).strip()
+    from investhome_api.services.creative_director.master_revision_controller import (
+        has_tr_word,
+        is_visual_replace_command,
+        working_revision_text,
+    )
+
+    raw = working_revision_text(instruction).strip()
     if not raw:
         return []
     found: list[str] = []
@@ -201,15 +206,8 @@ def interpret_revision_intents(instruction: str) -> list[str]:
         add("COPY_CHANGE")
     if any(m in raw for m in ("görsel", "visual", "renk", "color", "kontrast", "ışık", "karart", "darken")):
         add("VISUAL_CHANGE")
-    from investhome_api.services.creative_director.master_revision_controller import (
-        VISUAL_REPLACE_PHRASES,
-        has_tr_word,
-        is_visual_replace_command,
-    )
 
-    if is_visual_replace_command(instruction) or any(
-        m in raw for m in ("asset", "foto", "render", *VISUAL_REPLACE_PHRASES)
-    ):
+    if is_visual_replace_command(instruction):
         add("ASSET_CHANGE")
     if any(m in raw for m in ("layout", "düzen", "yerleşim", "konum", "aşağı", "yukarı", "küçült", "büyüt")):
         add("LAYOUT_CHANGE")
@@ -923,6 +921,7 @@ def lean_revision_history(history: list[Any] | None) -> list[dict[str, Any]]:
         lean_history.append(
             {
                 "version": item.get("version"),
+                "intent": item.get("intent") or item.get("revision_route"),
                 "previous_asset_id": item.get("previous_asset_id"),
                 "new_asset_id": item.get("new_asset_id"),
                 "master_asset_id": item.get("master_asset_id"),
@@ -1569,15 +1568,23 @@ def revise_ad_from_campaign(
     working_instruction, _ = extract_working_instruction(instruction)
     intents = interpret_revision_intents(working_instruction)
     classified = classify_revision_command(instruction)
-    visual_replace_only = classified.get("intent") == "VISUAL_REPLACE_ONLY" or is_visual_replace_command(
-        instruction
-    )
+    classified_intent = str(classified.get("intent") or "")
+    visual_replace_only = classified_intent == "VISUAL_REPLACE_ONLY"
+    price_edit_only = classified_intent == "PRICE_EDIT_ONLY"
     if visual_replace_only:
         intents = [tag for tag in intents if tag != "SIMPLIFY"]
         if "ASSET_CHANGE" not in intents:
             intents.insert(0, "ASSET_CHANGE")
         if "VISUAL_CHANGE" not in intents:
             intents.insert(0, "VISUAL_CHANGE")
+    if price_edit_only:
+        intents = [
+            tag
+            for tag in intents
+            if tag not in {"VISUAL_CHANGE", "ASSET_CHANGE", "LAYOUT_CHANGE"}
+        ]
+        if "COMMERCIAL_EMPHASIS" not in intents:
+            intents.insert(0, "COMMERCIAL_EMPHASIS")
     from investhome_api.services.creative_director.price_block_revision import (
         apply_local_price_zone,
         is_baked_price_ad,
@@ -1609,7 +1616,7 @@ def revise_ad_from_campaign(
     visual_replace_pick: dict[str, Any] | None = None
     previous_source_id = UUID(str(interior_id))
     if visual_replace_only:
-        if price_intent is not None:
+        if price_intent is not None and not price_edit_only:
             price_intent = None
         revision_route = "VISUAL_REPLACE_ONLY"
         revision_diff = RevisionDiff(
@@ -1746,9 +1753,18 @@ def revise_ad_from_campaign(
 
     if price_intent is not None:
         interpreted_plan["price_block"] = price_intent.to_dict()
-        interpreted_plan["scope"] = "PRICE_BLOCK_ONLY"
+        interpreted_plan["scope"] = "PRICE_EDIT_ONLY" if price_edit_only else "PRICE_BLOCK_ONLY"
+        interpreted_plan["intent"] = "PRICE_EDIT_ONLY" if price_edit_only else interpreted_plan.get("intent")
         revision_brief["price_block"] = price_intent.to_dict()
-        revision_brief["scope"] = "PRICE_BLOCK_ONLY"
+        revision_brief["scope"] = interpreted_plan["scope"]
+        if price_edit_only:
+            revision_brief["intent"] = "PRICE_EDIT_ONLY"
+            revision_brief["lock_list"] = list(classified.get("locked") or [])
+            revision_brief["change_list"] = [
+                "old_price_decoration",
+                "launch_price",
+                "savings",
+            ]
 
     v2_layers = bool(
         ctx.get("revision_engine_v2")
@@ -1788,12 +1804,25 @@ def revise_ad_from_campaign(
 
     # ── PRICE_BLOCK_ONLY baked raster: local zone edit, GPT=0, fail-closed ──
     elif price_intent is not None and is_baked_price_ad(ctx):
+        source_visual_before = str(interior_id)
         source_bytes = _read_asset_bytes(db, current_id)
         patched_bytes, price_trace = apply_local_price_zone(
             source_bytes,
             spec=None,
             intent=price_intent,
         )
+        if str(interior_id) != source_visual_before:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "message": (
+                        "PRICE_EDIT_ONLY fail-closed — source visual changed. "
+                        "Existing finished-ad was not persisted."
+                    ),
+                    "source_visual_before": source_visual_before,
+                    "source_visual_after": str(interior_id),
+                },
+            )
         new_asset = persist_gpt_image(
             db,
             actor=user,
@@ -1821,7 +1850,9 @@ def revise_ad_from_campaign(
         texts["offer_price"] = final_copy["offer_price"]
         texts["savings"] = final_copy["savings"]
 
-        revision_route = "CREATIVE_RECOMPOSE"
+        revision_route = "PRICE_EDIT_ONLY"
+        interpreted_plan["intent"] = "PRICE_EDIT_ONLY"
+        interpreted_plan["scope"] = "PRICE_EDIT_ONLY"
         interpreted_plan["execution_trace"] = {
             "provider_calls": 0,
             "price_block": price_trace,
@@ -1833,6 +1864,7 @@ def revise_ad_from_campaign(
                 "interior_asset_id": str(interior_id),
                 "logo_asset_id": str(logo_id),
                 "master_asset_id": str(master_id),
+                "source_visual_asset_id": str(interior_id),
             },
         }
         revision_brief["revision_route"] = revision_route
@@ -1884,13 +1916,22 @@ def revise_ad_from_campaign(
                     "finished_ad_raster_asset_id": str(current_id),
                 },
             )
-        version = _version_label(history)
+        mc = dict(ctx.get("master_creative") or {})
+        try:
+            prev_version = int(mc.get("current_version") or 1)
+        except (TypeError, ValueError):
+            prev_version = 1
+        version_n = prev_version + 1
+        version = f"v{version_n}"
         entry = {
             "version": version,
+            "intent": "PRICE_EDIT_ONLY",
             "previous_asset_id": str(current_id),
             "new_asset_id": str(new_asset_id),
             "master_asset_id": str(master_id),
-            "revision_source_asset_id": str(master_id),
+            "revision_source_asset_id": str(interior_id),
+            "source_visual_asset_id": str(interior_id),
+            "previous_source_visual_asset_id": str(interior_id),
             "instruction": instruction,
             "user_prompt": instruction,
             "interpreted_plan": interpreted_plan,
@@ -1935,9 +1976,28 @@ def revise_ad_from_campaign(
                 "version": version,
                 "claim_guard": claim_guard.get("status"),
                 "quality_guard": quality_guard.get("status"),
-                "scope": "PRICE_BLOCK_ONLY",
+                "scope": "PRICE_EDIT_ONLY",
+                "intent": "PRICE_EDIT_ONLY",
             }
         )
+
+        mc_hist = list(mc.get("revision_history") or [])
+        mc_hist.append(
+            {
+                "version": version_n,
+                "intent": "PRICE_EDIT_ONLY",
+                "previous_cover_asset_id": str(current_id),
+                "new_cover_asset_id": str(new_asset_id),
+                "source_visual_asset_id": str(interior_id),
+                "previous_source_visual_asset_id": str(interior_id),
+                "master_asset_id": str(master_id),
+            }
+        )
+        mc["current_version"] = version_n
+        mc["revision_history"] = mc_hist
+        mc["master_asset_id"] = str(master_id)
+        mc["source_visual_asset_id"] = str(interior_id)
+        ctx["master_creative"] = mc
 
         ctx["revision_history"] = lean_history
         ctx["revision_index"] = revision_index
@@ -1947,12 +2007,13 @@ def revise_ad_from_campaign(
         ctx["current_revision_index"] = revision_index
         ctx["latest_revision_instruction"] = instruction
         ctx["latest_revision_brief"] = {
-            "mode": "price_block_only",
+            "mode": "price_edit_only",
             "instruction": instruction,
             "intents": intents,
             "language": language,
             "revision_route": revision_route,
-            "scope": "PRICE_BLOCK_ONLY",
+            "scope": "PRICE_EDIT_ONLY",
+            "intent": "PRICE_EDIT_ONLY",
             "price_block": price_intent.to_dict(),
             "master_asset_id": str(master_id),
             "revision_diff": revision_diff.model_dump(by_alias=True),
@@ -1979,10 +2040,11 @@ def revise_ad_from_campaign(
         db.flush()
 
         logger.info(
-            "PRICE_BLOCK_ONLY campaign=%s cover=%s -> %s zone=%s provider_calls=0",
+            "PRICE_EDIT_ONLY campaign=%s cover=%s -> %s source_visual=%s zone=%s provider_calls=0",
             row.id,
             current_id,
             new_asset_id,
+            interior_id,
             price_trace.get("zone"),
         )
 
@@ -2002,7 +2064,7 @@ def revise_ad_from_campaign(
             revision_operations=cumulative_after,
             master_asset_id=master_id,
             master_finished_ad_asset_id=master_id,
-            revision_source_asset_id=master_id,
+            revision_source_asset_id=interior_id,
             quality_guard=quality_guard,
             previous_asset_id=current_id,
             provider_route={"provider_id": "price_block_local", "available": True, "missing": False},
@@ -2012,12 +2074,13 @@ def revise_ad_from_campaign(
             final_asset_url=asset_url(new_asset_id),
             composition_base_asset_id=interior_id,
             creative_brief_summary={
-                "mode": "price_block_only",
+                "mode": "price_edit_only",
                 "version": version,
                 "instruction": instruction,
                 "revision_route": revision_route,
                 "gpt_image_call_count": 0,
-                "scope": "PRICE_BLOCK_ONLY",
+                "scope": "PRICE_EDIT_ONLY",
+                "intent": "PRICE_EDIT_ONLY",
             },
             final_turkish_texts=texts,
             claim_guard=claim_guard,
@@ -2044,9 +2107,8 @@ def revise_ad_from_campaign(
             editable_layers=[],
             revision_route=revision_route,
             interpreted_plan=interpreted_plan,
+            master_creative=ctx.get("master_creative") if isinstance(ctx.get("master_creative"), dict) else None,
         )
-
-    # ── MICRO_EDIT path: mutate design_spec, GPT=0, no hide-plate copy overlays ──
     if micro_edit:
         native_v1 = (
             is_golden_native_v1(ctx)
@@ -2555,7 +2617,7 @@ def revise_ad_from_campaign(
         "revision_brief": revision_brief,
         "revision_diff": revision_diff.model_dump(by_alias=True),
         "master_asset_id": str(master_id),
-        "revision_visual_reference_asset_id": str(master_id),
+        "revision_visual_reference_asset_id": str(current_id),
         "revision_source_asset_id": str(master_source_id),
         "skip_logo_edit_input": True,
         "cumulative_operations": cumulative_after,
@@ -2610,7 +2672,7 @@ def revise_ad_from_campaign(
     master_bytes = b""
     revised_bytes = b""
     try:
-        master_bytes = _read_asset_bytes(db, master_id)
+        master_bytes = _read_asset_bytes(db, current_id)
         revised_bytes = _read_asset_bytes(db, new_asset_id)
         quality_guard = compare_revision_quality(
             master_bytes=master_bytes,

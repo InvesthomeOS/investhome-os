@@ -968,6 +968,7 @@ export type CreativeDirectorReviseAdResponse = CreativeDirectorGenerateAdRespons
     | 'CREATIVE_RECOMPOSE'
     | 'IMAGE_REQUIRED'
     | 'VISUAL_REPLACE_ONLY'
+    | 'PRICE_EDIT_ONLY'
     | null;
   user_feedback?: string | null;
   change_diff_validation?: Record<string, unknown>;

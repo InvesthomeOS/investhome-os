@@ -146,3 +146,30 @@ def test_wood_grain_outside_glyph_mask_is_unchanged() -> None:
             if before.getpixel((x, y)) != after.getpixel((x, y)):
                 leaked += 1
     assert leaked == 0
+
+
+def test_overlay_stats_band_price_does_not_touch_hero() -> None:
+    from PIL import Image, ImageDraw
+
+    img = Image.new("RGB", (400, 500), (12, 16, 28))
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((155, 132, 250, 168), fill=(245, 241, 234))
+    for y in range(210, 500):
+        for x in range(400):
+            img.putpixel((x, y), (110, 100, 90))
+    before = img.copy()
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    intent = parse_price_block(INSTRUCTION)
+    assert intent is not None
+    patched, trace = apply_local_price_zone(buf.getvalue(), spec=None, intent=intent)
+    assert trace["provider_calls"] == 0
+    assert trace["method"] == "overlay_list_price_strikethrough"
+    after = Image.open(io.BytesIO(patched)).convert("RGB")
+    hero_changed = 0
+    for y in range(210, 500):
+        for x in range(400):
+            if before.getpixel((x, y)) != after.getpixel((x, y)):
+                hero_changed += 1
+    assert hero_changed == 0
+    assert after.size == before.size

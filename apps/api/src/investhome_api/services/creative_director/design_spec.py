@@ -20,6 +20,7 @@ RevisionRoute = Literal[
     "CREATIVE_RECOMPOSE",
     "IMAGE_REQUIRED",
     "VISUAL_REPLACE_ONLY",
+    "PRICE_EDIT_ONLY",
 ]
 
 # Ops that mutate overlay layers without re-rasterizing the photograph.
@@ -2903,8 +2904,12 @@ def route_revision(
             classify_revision_command,
         )
 
-        if classify_revision_command(instruction or working).get("intent") == "VISUAL_REPLACE_ONLY":
+        classified = classify_revision_command(instruction or working)
+        intent = classified.get("intent")
+        if intent == "VISUAL_REPLACE_ONLY":
             return "VISUAL_REPLACE_ONLY"
+        if intent == "PRICE_EDIT_ONLY":
+            return "PRICE_EDIT_ONLY"
     except Exception:
         pass
     low = (working or instruction or "").replace("İ", "i").replace("I", "ı").lower()

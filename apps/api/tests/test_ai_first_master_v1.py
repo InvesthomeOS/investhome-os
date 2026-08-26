@@ -41,6 +41,89 @@ def test_classify_creative_recompose() -> None:
     assert plan["intent"] == "CREATIVE_RECOMPOSE"
 
 
+TEMPLE_PRICE_EDIT = (
+    "Liste fiyatı 675.000 USD aynı kalsın ve üzeri çizili gösterilsin.\n"
+    "%35 lansman indirimi sonrası satış fiyatını 438.750 USD olarak ekle.\n"
+    "Ayrıca 'Kazancınız 236.250 USD' bilgisini ekle.\n"
+    "Bunun dışında tasarımda hiçbir şeyi değiştirme.\n"
+    "Dış cephe görseli, ALIRKEN KAZAN başlığı, 2+1 bilgisi, %35,\n"
+    "The Temple logosu, CTA, renkler, tipografi, görsel yerleşimi\n"
+    "ve genel tasarım birebir aynı kalsın."
+)
+
+
+def test_preservation_phrases_do_not_create_visual_replace() -> None:
+    from investhome_api.services.creative_director.master_revision_controller import (
+        is_visual_replace_command,
+    )
+    from investhome_api.services.creative_director.revision import interpret_revision_intents
+
+    phrases = (
+        "dış cephe görseli aynı kalsın",
+        "dış cepheyi değiştirme",
+        "görseli değiştirme",
+        "mevcut görsel aynı kalsın",
+        "arka planı değiştirme",
+        "fotoğraf aynı kalsın",
+        "birebir aynı kalsın",
+        "başka hiçbir şeyi değiştirme",
+        "dış cephe görseli birebir aynı kalsın",
+        "bu görseli koru",
+    )
+    for phrase in phrases:
+        assert not is_visual_replace_command(phrase), phrase
+        plan = classify_revision_command(phrase)
+        assert plan["intent"] != "VISUAL_REPLACE_ONLY", phrase
+        intents = interpret_revision_intents(phrase)
+        assert "ASSET_CHANGE" not in intents, phrase
+        assert "VISUAL_CHANGE" not in intents, phrase
+
+
+def test_positive_replace_phrases_still_visual_replace() -> None:
+    from investhome_api.services.creative_director.master_revision_controller import (
+        is_visual_replace_command,
+    )
+
+    phrases = (
+        "görseli değiştir",
+        "başka dış cephe kullan",
+        "bu görsel yerine diğer dış cepheyi kullan",
+        "Sadece görseli değiştir.",
+    )
+    for phrase in phrases:
+        assert is_visual_replace_command(phrase), phrase
+        plan = classify_revision_command(phrase)
+        assert plan["intent"] == "VISUAL_REPLACE_ONLY", phrase
+
+
+def test_live_temple_price_command_is_price_edit_only() -> None:
+    from investhome_api.services.creative_director.design_spec import route_revision
+    from investhome_api.services.creative_director.master_revision_controller import (
+        is_visual_replace_command,
+    )
+    from investhome_api.services.creative_director.revision import (
+        build_revision_diff,
+        interpret_revision_intents,
+    )
+
+    plan = classify_revision_command(TEMPLE_PRICE_EDIT)
+    assert plan["intent"] == "PRICE_EDIT_ONLY"
+    assert "hero_visual" in plan["locked"]
+    assert "source_visual" in plan["locked"]
+    assert not is_visual_replace_command(TEMPLE_PRICE_EDIT)
+    intents = interpret_revision_intents(TEMPLE_PRICE_EDIT)
+    assert "ASSET_CHANGE" not in intents
+    assert "VISUAL_CHANGE" not in intents
+    assert "COMMERCIAL_EMPHASIS" in intents
+    diff = build_revision_diff(instruction=TEMPLE_PRICE_EDIT, production_brief={})
+    route = route_revision(
+        instruction=TEMPLE_PRICE_EDIT,
+        revision_diff=diff,
+        intents=intents,
+    )
+    assert route == "PRICE_EDIT_ONLY"
+
+
 def test_ana_mesaj_locks_alirken_kazan() -> None:
     from investhome_api.services.creative_director.generate_ad import extract_labeled_brief_copy
 

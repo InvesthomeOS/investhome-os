@@ -580,7 +580,7 @@ def _generate_project(
                 role="master_visual_reference",
             )
             if master_ref is not None and master_ref.image_bytes:
-                # IMAGE 1 = master finished-ad (the design to edit).
+                # IMAGE 1 = current approved finished-ad (the design to edit).
                 # IMAGE 2 = approved source photograph (reconstruction material only).
                 edit_inputs = [
                     (
