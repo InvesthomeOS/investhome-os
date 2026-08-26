@@ -79,7 +79,7 @@ from investhome_api.services.creative_studio_media_service import (
     get_asset_or_404,
     open_asset_content,
 )
-from investhome_api.services.gpt_image_design.persistence import asset_url
+from investhome_api.services.gpt_image_design.persistence import asset_url, persist_gpt_image
 from investhome_api.services.gpt_image_design.service import generate_gpt_image_creatives
 
 logger = logging.getLogger(__name__)
@@ -1451,6 +1451,13 @@ def revise_ad_from_campaign(
 
     working_instruction, _ = extract_working_instruction(instruction)
     intents = interpret_revision_intents(working_instruction)
+    from investhome_api.services.creative_director.price_block_revision import (
+        apply_local_price_zone,
+        is_baked_price_ad,
+        parse_price_block,
+    )
+
+    price_intent = parse_price_block(instruction) or parse_price_block(working_instruction)
     base_spec_for_plan = ctx.get("design_spec") if isinstance(ctx.get("design_spec"), dict) else None
     selected_element_id = getattr(body, "selected_element_id", None)
     revision_diff = build_revision_diff(
@@ -1525,6 +1532,272 @@ def revise_ad_from_campaign(
         pb_copy["final_copy"] = final_copy
         pb_copy["cta"] = texts["cta"]
         production_brief = pb_copy
+
+    if price_intent is not None:
+        interpreted_plan["price_block"] = price_intent.to_dict()
+        interpreted_plan["scope"] = "PRICE_BLOCK_ONLY"
+        revision_brief["price_block"] = price_intent.to_dict()
+        revision_brief["scope"] = "PRICE_BLOCK_ONLY"
+
+    # ── PRICE_BLOCK_ONLY baked raster: local zone edit, GPT=0, fail-closed ──
+    if price_intent is not None and is_baked_price_ad(ctx):
+        source_bytes = _read_asset_bytes(db, current_id)
+        patched_bytes, price_trace = apply_local_price_zone(
+            source_bytes,
+            spec=None,
+            intent=price_intent,
+        )
+        new_asset = persist_gpt_image(
+            db,
+            actor=user,
+            linked_project_id=row.linked_project_id,
+            content=patched_bytes,
+            content_type="image/png",
+            campaign_mode="price_block_revision",
+            session_id=str(row.id),
+            provider_generation_id="price_block_local_v1",
+            campaign_context_id=str(row.id),
+            brief_excerpt="PRICE_BLOCK_ONLY local zone",
+        )
+        new_asset_id = new_asset.id
+        from investhome_api.services.creative_director.price_block_revision import format_tr_usd
+
+        pb_copy = dict(production_brief)
+        final_copy = dict(_as_dict(pb_copy.get("final_copy")))
+        final_copy["list_price"] = format_tr_usd(price_intent.list_amount)
+        final_copy["offer_price"] = format_tr_usd(price_intent.launch_amount)
+        final_copy["savings"] = format_tr_usd(price_intent.savings_amount)
+        pb_copy["final_copy"] = final_copy
+        production_brief = pb_copy
+        texts = dict(texts)
+        texts["list_price"] = final_copy["list_price"]
+        texts["offer_price"] = final_copy["offer_price"]
+        texts["savings"] = final_copy["savings"]
+
+        revision_route = "CREATIVE_RECOMPOSE"
+        interpreted_plan["execution_trace"] = {
+            "provider_calls": 0,
+            "price_block": price_trace,
+            "revision_source": {
+                "campaign_id": str(row.id),
+                "asset_id": str(current_id),
+                "raster_asset_id": str(current_id),
+                "new_asset_id": str(new_asset_id),
+                "interior_asset_id": str(interior_id),
+                "logo_asset_id": str(logo_id),
+                "master_asset_id": str(master_id),
+            },
+        }
+        revision_brief["revision_route"] = revision_route
+        revision_brief["price_zone"] = price_trace.get("zone")
+
+        claim_guard = claim_guard_summary(
+            approved_claims=approved_claims,
+            allowed_tokens=allowed_tokens,
+            texts=texts,
+            lifestyle=lifestyle,
+        )
+        asset_lock = project_asset_lock_summary(
+            interior_id=interior_id,
+            logo_id=logo_id,
+            interior_meta=interior_meta,
+            logo_meta=logo_meta,
+            source_asset_id=interior_id,
+        )
+        asset_lock["master_asset_id"] = str(master_id)
+        asset_lock["revision_model"] = "price_block_local_zone"
+        asset_lock["status"] = "pass" if logo_lock.get("status") == "pass" else "fail"
+
+        quality_guard: dict[str, Any] = {
+            "status": "pass",
+            "gpt_calls": 0,
+            "route": revision_route,
+            "composition_fidelity": "pass",
+            "composition_failures": [],
+            "price_block": price_trace,
+            "compared_against": "selected_finished_ad",
+        }
+
+        if not any(isinstance(h, dict) and h.get("version") == "original" for h in history):
+            history.insert(
+                0,
+                {
+                    "version": "original",
+                    "previous_asset_id": None,
+                    "new_asset_id": str(master_id),
+                    "master_asset_id": str(master_id),
+                    "revision_source_asset_id": str(master_id),
+                    "instruction": None,
+                    "revision_brief": None,
+                    "operations": [],
+                    "provider": None,
+                    "timestamp": None,
+                    "campaign_context_id": str(row.id),
+                    "revision_route": None,
+                    "finished_ad_raster_asset_id": str(current_id),
+                },
+            )
+        version = _version_label(history)
+        entry = {
+            "version": version,
+            "previous_asset_id": str(current_id),
+            "new_asset_id": str(new_asset_id),
+            "master_asset_id": str(master_id),
+            "revision_source_asset_id": str(master_id),
+            "instruction": instruction,
+            "user_prompt": instruction,
+            "interpreted_plan": interpreted_plan,
+            "provider_used": "price_block_local",
+            "provider_calls": 0,
+            "revision_brief": revision_brief,
+            "operations": new_ops,
+            "intents": intents,
+            "provider": "price_block_local",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "campaign_context_id": str(row.id),
+            "claim_guard": claim_guard.get("status"),
+            "language": language,
+            "quality_guard": quality_guard,
+            "revision_route": revision_route,
+            "finished_ad_raster_asset_id": str(new_asset_id),
+        }
+        history.append(entry)
+        revision_index = len(history) - 1
+        lean_history = lean_revision_history(history)
+
+        generated = list(ctx.get("generated_assets") or [])
+        generated.append(
+            {
+                "asset_id": str(new_asset_id),
+                "role": "price_block_revision",
+                "language": language,
+                "provider": "price_block_local",
+                "previous_asset_id": str(current_id),
+                "master_asset_id": str(master_id),
+                "version": version,
+            }
+        )
+        output_history = list(ctx.get("output_history") or [])
+        output_history.append(
+            {
+                "type": "revise_ad",
+                "asset_id": str(new_asset_id),
+                "previous_asset_id": str(current_id),
+                "master_asset_id": str(master_id),
+                "language": language,
+                "version": version,
+                "claim_guard": claim_guard.get("status"),
+                "quality_guard": quality_guard.get("status"),
+                "scope": "PRICE_BLOCK_ONLY",
+            }
+        )
+
+        ctx["revision_history"] = lean_history
+        ctx["revision_index"] = revision_index
+        ctx["master_asset_id"] = str(master_id)
+        ctx["master_finished_ad_asset_id"] = str(master_id)
+        ctx["revision_operations"] = cumulative_after
+        ctx["current_revision_index"] = revision_index
+        ctx["latest_revision_instruction"] = instruction
+        ctx["latest_revision_brief"] = {
+            "mode": "price_block_only",
+            "instruction": instruction,
+            "intents": intents,
+            "language": language,
+            "revision_route": revision_route,
+            "scope": "PRICE_BLOCK_ONLY",
+            "price_block": price_intent.to_dict(),
+            "master_asset_id": str(master_id),
+            "revision_diff": revision_diff.model_dump(by_alias=True),
+            "interpreted_plan": interpreted_plan,
+        }
+        ctx["latest_revision_diff"] = revision_diff.model_dump(by_alias=True)
+        ctx["latest_quality_guard"] = quality_guard
+        ctx["generated_assets"] = generated
+        ctx["output_history"] = output_history
+        ctx["image_generation_performed"] = False
+        ctx["latest_master_ad_asset_id"] = str(new_asset_id)
+        ctx["language"] = language
+        ctx["finished_ad_raster_asset_id"] = str(new_asset_id)
+        ctx["production_mode"] = "finished_ad"
+        ctx["editable_finished_ad"] = False
+        ctx["production_brief"] = production_brief
+        ctx["revision_instruction_log"] = list(ctx.get("revision_instruction_log") or []) + [
+            instruction
+        ]
+        row.context_json = dict(ctx)
+        flag_modified(row, "context_json")
+        if row.status == "draft":
+            row.status = "ready"
+        db.flush()
+
+        logger.info(
+            "PRICE_BLOCK_ONLY campaign=%s cover=%s -> %s zone=%s provider_calls=0",
+            row.id,
+            current_id,
+            new_asset_id,
+            price_trace.get("zone"),
+        )
+
+        return CreativeDirectorReviseAdResponse(
+            campaign_id=row.id,
+            project_id=row.linked_project_id,
+            language=language,
+            aspect_ratio=aspect_ratio,
+            format_preset=format_preset,
+            production_mode="finished_ad",
+            production_brief=production_brief,
+            revision_brief=revision_brief,
+            revision_intents=intents,
+            revision_diff=revision_diff.model_dump(by_alias=True),
+            revision_history=lean_history,
+            revision_index=revision_index,
+            revision_operations=cumulative_after,
+            master_asset_id=master_id,
+            master_finished_ad_asset_id=master_id,
+            revision_source_asset_id=master_id,
+            quality_guard=quality_guard,
+            previous_asset_id=current_id,
+            provider_route={"provider_id": "price_block_local", "available": True, "missing": False},
+            interior_asset_id=interior_id,
+            logo_asset_id=logo_id,
+            final_asset_id=new_asset_id,
+            final_asset_url=asset_url(new_asset_id),
+            composition_base_asset_id=interior_id,
+            creative_brief_summary={
+                "mode": "price_block_only",
+                "version": version,
+                "instruction": instruction,
+                "revision_route": revision_route,
+                "gpt_image_call_count": 0,
+                "scope": "PRICE_BLOCK_ONLY",
+            },
+            final_turkish_texts=texts,
+            claim_guard=claim_guard,
+            project_asset_lock=asset_lock,
+            duplication_guard={"status": "pass"},
+            provider_call_count=0,
+            gpt_image_call_count=0,
+            latency_ms=0,
+            warnings=[],
+            gpt_image={},
+            campaign_context=ctx,
+            design_spec=ctx.get("design_spec") if isinstance(ctx.get("design_spec"), dict) else None,
+            structured_design_data=(
+                ctx.get("structured_design_data")
+                if isinstance(ctx.get("structured_design_data"), dict)
+                else None
+            ),
+            master_background_asset_id=(
+                UUID(str(ctx["master_background_asset_id"]))
+                if ctx.get("master_background_asset_id")
+                else interior_id
+            ),
+            finished_ad_raster_asset_id=new_asset_id,
+            editable_layers=[],
+            revision_route=revision_route,
+            interpreted_plan=interpreted_plan,
+        )
 
     # ── MICRO_EDIT path: mutate design_spec, GPT=0, no hide-plate copy overlays ──
     if micro_edit:

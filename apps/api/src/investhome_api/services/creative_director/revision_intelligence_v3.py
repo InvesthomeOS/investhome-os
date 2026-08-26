@@ -1033,6 +1033,10 @@ def interpret_revision_plan_v3(
     if detect_strict_preserve(instr):
         strict = True
 
+    from investhome_api.services.creative_director.price_block_revision import parse_price_block
+
+    price_intent = parse_price_block(instr) or parse_price_block(working)
+
     preserve = [
         "background",
         "image",
@@ -1051,7 +1055,6 @@ def interpret_revision_plan_v3(
         "composition_unless_requested",
         "logo_quality",
         "unaffected_typography",
-        "verified_prices",
         "project_logo",
         "background_photograph",
         "unaffected_elements",
@@ -1063,7 +1066,17 @@ def interpret_revision_plan_v3(
         "image_contrast",
         "image_quality",
         "aspect_ratio",
+        "headline",
+        "discount",
+        "cta",
+        "logo",
+        "other_copy",
     ]
+    if price_intent is None:
+        preserve.append("verified_prices")
+    else:
+        strict = True
+        preserve.append("unmentioned_price_zone_excluded")
     forbidden = [
         "darkening",
         "recoloring",
@@ -1081,12 +1094,18 @@ def interpret_revision_plan_v3(
     ]
     if strict:
         for item in ("prices", "logo", "cta", "background", "image_treatment", "unaffected_elements"):
+            if price_intent is not None and item == "prices":
+                continue
             if item not in preserve:
                 preserve.append(item)
         forbidden.append("any_mutation_outside_plan")
 
     buckets: list[RevisionOperation] = []
-    clauses = _split_clauses(working) or [working]
+    if price_intent is not None:
+        buckets.extend(price_intent.operations())
+        clauses: list[str] = []
+    else:
+        clauses = _split_clauses(working) or [working]
     for clause in clauses:
         v3_ops = parse_v3_clause_ops(
             clause, design_spec=design_spec, selected_element_id=selected_element_id
@@ -1118,7 +1137,8 @@ def interpret_revision_plan_v3(
                 selected_element_id=selected_element_id,
             )
         )
-    buckets.extend(parse_subjective_ops(working, existing=buckets))
+    if price_intent is None:
+        buckets.extend(parse_subjective_ops(working, existing=buckets))
 
     seen: set[str] = set()
     ops: list[RevisionOperation] = []
