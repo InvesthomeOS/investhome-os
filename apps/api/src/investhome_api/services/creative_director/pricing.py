@@ -17,10 +17,22 @@ _TR_MONEY_RE = re.compile(
     re.I,
 )
 _PCT_RE = re.compile(r"(?:%|yüzde)\s*(\d{1,2})\b|(\d{1,2})\s*%", re.I)
+_UNIT_TYPE_RE = re.compile(r"\b(\d\s*\+\s*\d)\b")
 _UNIT_RE = re.compile(
-    r"\b(?:unit|daire|apt\.?|apartment)\s*#?\s*([A-Za-z0-9\-]+)\b",
+    r"\b(?:unit|apt\.?|apartment)\s*#?\s*([A-Za-z0-9\-]+)\b|"
+    r"\bdaire\s+#?\s*(\d+[A-Za-z0-9\-]*)\b",
     re.I,
 )
+_UNIT_STOPWORDS = {
+    "LISTE",
+    "FIYAT",
+    "FIYATI",
+    "LANSMAN",
+    "NIN",
+    "ICIN",
+    "DAIRE",
+    "APARTMENT",
+}
 
 
 @dataclass(frozen=True)
@@ -144,11 +156,17 @@ def extract_money_mentions(brief: str) -> list[MoneyMention]:
 def extract_unit_codes(brief: str) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
-    for m in _UNIT_RE.finditer(brief or ""):
-        code = m.group(1).strip().upper()
+    for m in _UNIT_TYPE_RE.finditer(brief or ""):
+        code = re.sub(r"\s+", "", m.group(1) or "")
         if code and code not in seen:
             seen.add(code)
             out.append(code)
+    for m in _UNIT_RE.finditer(brief or ""):
+        code = (m.group(1) or m.group(2) or "").strip().upper()
+        if not code or code in _UNIT_STOPWORDS or code in seen:
+            continue
+        seen.add(code)
+        out.append(code)
     return out
 
 
@@ -213,10 +231,11 @@ def build_pricing_claims(
     claims: list[ClaimRecord] = []
     if unit_key:
         unit_in_drive = bool(drive_unit)
+        unit_display = unit_key if re.fullmatch(r"\d\+\d", unit_key or "") else f"Unit {unit_key}"
         claims.append(
             ClaimRecord(
                 key="unit_code",
-                display=f"Unit {unit_key}",
+                display=unit_display,
                 value=unit_key,
                 source="retrieved" if unit_in_drive else "user_campaign_input",
                 source_reference=(

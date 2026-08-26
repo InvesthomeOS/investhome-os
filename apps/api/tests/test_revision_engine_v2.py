@@ -12,7 +12,15 @@ from investhome_api.services.creative_director.price_block_revision import (
     is_baked_price_ad,
     parse_price_block,
 )
-from investhome_api.services.creative_director.pricing import build_pricing_claims
+from investhome_api.services.creative_director.generate_ad import (
+    adapt_final_turkish_texts,
+    extract_labeled_brief_copy,
+    is_lifestyle_campaign,
+)
+from investhome_api.services.creative_director.pricing import (
+    build_pricing_claims,
+    extract_unit_codes,
+)
 from investhome_api.services.creative_director.revision_intelligence import interpret_revision_plan
 
 BRIEF = (
@@ -63,12 +71,63 @@ def _v2_spec():
     )
 
 
+GOLDEN_MASTER_BRIEF = """THE TEMPLE — LAUNCH OFFER
+The Temple için premium bir lansman reklamı hazırla.
+Ana fikir:
+ALIRKEN KAZAN
+2+1 daire liste fiyatı:
+675.000 USD
+Lansman avantajı:
+%35
+Mesaj:
+The Temple'da yerinizi lansman döneminde alın.
+CTA:
+PROJEYİ KEŞFET
+Use the real approved The Temple visual and real The Temple logo."""
+
+
 def test_pricing_extracts_tr_list_and_percent() -> None:
     claims = build_pricing_claims(brief=BRIEF)
     assert claims["list_price"] == 675000.0
     assert claims["launch_price"] is None
     assert claims["discount"]["display"] == "%35"
     assert claims["price_presentation"]["list"]
+    assert extract_unit_codes(BRIEF) == ["2+1"]
+    assert extract_unit_codes("2+1 dairenin liste fiyatı 675.000 USD") == ["2+1"]
+    assert "204" in extract_unit_codes("The Temple Unit 204 lansman")
+
+
+def test_golden_master_brief_copy_is_literal() -> None:
+    labeled = extract_labeled_brief_copy(GOLDEN_MASTER_BRIEF)
+    assert labeled["headline"] == "ALIRKEN KAZAN"
+    assert labeled["cta"] == "PROJEYİ KEŞFET"
+    assert labeled["unit"] == "2+1"
+    assert "lansman döneminde" in labeled["supporting"]
+    claims = build_pricing_claims(brief=GOLDEN_MASTER_BRIEF)
+    assert claims["list_price"] == 675000.0
+    assert claims["launch_price"] is None
+    assert claims["discount"]["display"] == "%35"
+    assert claims["claims"][0]["display"] == "2+1"
+    assert is_lifestyle_campaign(
+        ctx={"campaign_intent": "general_awareness"},
+        pricing=claims,
+        original_brief=GOLDEN_MASTER_BRIEF,
+    ) is False
+    texts = adapt_final_turkish_texts(
+        language="tr",
+        strategy={},
+        campaign_copy={"cta": "Explore Details"},
+        pricing=claims,
+        approved_claims=claims["claims"],
+        original_brief=GOLDEN_MASTER_BRIEF,
+        lifestyle=False,
+    )
+    assert texts["headline"] == "ALIRKEN KAZAN"
+    assert texts["cta"] == "PROJEYİ KEŞFET"
+    assert texts["unit"] == "2+1"
+    assert "675" in texts["list_price"]
+    assert texts["offer_price"] == ""
+    assert "%35" in texts["value_badge"]
 
 
 def test_v2_initial_layers_list_price_unstruck_hidden_offer() -> None:

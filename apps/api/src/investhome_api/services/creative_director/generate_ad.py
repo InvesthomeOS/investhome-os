@@ -6,7 +6,9 @@ Reuses GPT Image PROJECT MODE + Final Composition. Does not rewrite CD brief log
 from __future__ import annotations
 
 import logging
+import re
 from copy import deepcopy
+from dataclasses import replace
 from typing import Any
 from uuid import UUID
 
@@ -262,6 +264,8 @@ def is_lifestyle_campaign(
     """Interior / lifestyle campaigns without launch price dramatization."""
     if _has_price_presentation(pricing):
         return False
+    if pricing.get("list_price") or pricing.get("launch_price") or _as_dict(pricing.get("discount")):
+        return False
     intent = str(ctx.get("campaign_intent") or "").strip().lower()
     if is_visual_lifestyle_intent(intent) or intent in {
         "location",
@@ -345,6 +349,27 @@ def _looks_history_modern(*, big_idea: str, emphasis: list[Any], brief: str) -> 
     historic = any(tok in hay for tok in ("history", "historic", "heritage", "tarihi", "tarih"))
     modern = "modern" in hay
     return historic and modern
+
+
+def extract_labeled_brief_copy(brief: str) -> dict[str, str]:
+    """Read user-authored commercial labels from the brief. Does not invent facts."""
+    raw = brief or ""
+    out: dict[str, str] = {}
+    patterns = {
+        "headline": r"(?:ana\s*fikir|big\s*idea|headline)\s*[:\-]\s*(.+)",
+        "cta": r"(?:cta|çağrı|cagri)\s*[:\-]\s*(.+)",
+        "supporting": r"(?:mesaj|message)\s*[:\-]\s*(.+)",
+    }
+    for key, pattern in patterns.items():
+        match = re.search(pattern, raw, re.I)
+        if match:
+            value = match.group(1).strip().split("\n")[0].strip()[:120]
+            if value:
+                out[key] = value
+    unit_match = re.search(r"\b(\d\s*\+\s*\d)\b", raw)
+    if unit_match:
+        out["unit"] = re.sub(r"\s+", "", unit_match.group(1))
+    return out
 
 
 def adapt_final_turkish_texts(
@@ -473,6 +498,20 @@ def adapt_final_turkish_texts(
         cta = cta_src or "Explore Details"
         hero_tr = hero
         value_tr = value_src or f"{discount_display} launch price advantage"
+
+    labeled = extract_labeled_brief_copy(original_brief)
+    if labeled.get("headline"):
+        headline = labeled["headline"]
+    if labeled.get("cta"):
+        cta = labeled["cta"]
+    if labeled.get("supporting"):
+        supporting = labeled["supporting"]
+        hero_tr = labeled["supporting"]
+        sales_line = labeled["supporting"]
+    if labeled.get("unit"):
+        unit_display = labeled["unit"]
+        if lang.startswith("tr"):
+            eyebrow = unit_display
 
     return {
         "language": lang,
@@ -1439,22 +1478,66 @@ def generate_ad_from_campaign(
         )
 
     if production_mode in {"finished_ad", "editable_finished_ad"}:
-        # Revision Engine v2: GPT paints visual foundation only. OS typesets
-        # commercial layers. Do not bake headline / price / CTA / logo into pixels.
-        foundation_texts = dict(texts)
-        instruction = render_gpt_image_art_direction_prompt(
+        # Visual foundation only. Do not send commercial copy to the image model.
+        foundation_texts = {
+            **texts,
+            "headline": "",
+            "list_price": "",
+            "offer_price": "",
+            "value_badge": "",
+            "cta": "",
+            "unit": "",
+            "price_hierarchy": "",
+            "supporting": "",
+            "sales_hook": "",
+            "eyebrow": "",
+            "campaign_mode": "lifestyle",
+        }
+        foundation_plan = replace(
             art_direction,
+            first_notice="Locked project photograph with premium editorial lighting and atmosphere",
+            second_notice="Reserved contrast air for OS-typeset commercial layers — no painted copy",
+            commercial_priority=[
+                "architectural photography",
+                "editorial atmosphere",
+                "reserved commercial-layer air",
+            ],
+            sales_hierarchy=[
+                "photograph-led composition",
+                "lighting and grading",
+                "contrast air for later OS layers",
+            ],
+            visual_hierarchy=[
+                "1 — FIRST GLANCE: architectural photography of the locked project visual",
+                "2 — SECOND READ: lighting, grading, atmospheric treatment",
+                "3 — RESERVE AIR: headline / offer / logo / CTA zones without painting them",
+            ],
+            price_hierarchy={
+                "secondary": "",
+                "primary": "",
+                "advantage": "",
+                "dramatization": "Do not paint prices. OS typesets commercial layers.",
+            },
+            information_groups=[],
+            cta_prominence="Reserve CTA contrast air only — do not paint a button or letters.",
+            badge_callout_opportunity="Do not paint a discount badge or any letters.",
+        )
+        instruction = render_gpt_image_art_direction_prompt(
+            foundation_plan,
             texts=foundation_texts,
             interior_meta=interior_meta,
             logo_meta=logo_meta,
-            original_brief=original_brief,
+            original_brief=(
+                "Premium editorial real-estate atmosphere for The Temple. "
+                "Architectural photography dominant. No text, no numbers, no logo."
+            ),
             aspect_ratio=aspect_ratio,
         )
         instruction = append_architecture_lock_to_prompt(
             instruction, interior_lock=not brand_ad
         )
         instruction += (
-            "\n\n=== REVISION ENGINE v2 VISUAL FOUNDATION ===\n"
+            "\n\n=== VISUAL FOUNDATION ONLY ===\n"
             "This raster is the VISUAL FOUNDATION only.\n"
             "Do NOT paint commercial copy: no headlines, no prices, no USD, "
             "no percent badges, no CTA buttons, no logos, no letters, no digits.\n"
