@@ -104,19 +104,24 @@ test.describe('Revision Engine v1 — local price block', () => {
         break;
       }
     }
-    if (!selected) {
-      for (let i = 0; i < count; i += 1) {
-        await finishedCard.nth(i).locator('button').first().click();
-        const artboard = page.getByTestId('smb-artboard');
-        const cover = (await artboard.getAttribute('data-cover-asset-id')) || '';
-        if (!cover) continue;
-        const img = page.getByTestId('smb-artboard-img');
-        if ((await img.count()) === 0) continue;
-        selected = true;
-        break;
-      }
+    expect(selected, 'Need the real Alırken Kazan finished_ad').toBeTruthy();
+
+    const undoBtn = page.getByTestId('smb-undo');
+    for (let i = 0; i < 4; i += 1) {
+      const coverNow = (await page.getByTestId('smb-artboard').getAttribute('data-cover-asset-id')) || '';
+      if (coverNow === TEMPLE_ALIRKEN_COVER) break;
+      if ((await undoBtn.count()) === 0) break;
+      if (await undoBtn.isDisabled()) break;
+      await undoBtn.click();
+      await expect
+        .poll(async () => (await page.getByTestId('smb-artboard').getAttribute('data-cover-asset-id')) || '', {
+          timeout: 20_000,
+        })
+        .not.toBe(coverNow);
     }
-    expect(selected, 'Need a real Temple finished_ad with baked 675.000 USD').toBeTruthy();
+    await expect(page.getByTestId('smb-artboard')).toHaveAttribute('data-cover-asset-id', TEMPLE_ALIRKEN_COVER, {
+      timeout: 20_000,
+    });
 
     const artboard = page.getByTestId('smb-artboard');
     const identityBefore = {
@@ -132,10 +137,10 @@ test.describe('Revision Engine v1 — local price block', () => {
     const box = await page.getByTestId('smb-artboard').boundingBox();
     expect(box).toBeTruthy();
     const zoneClip = {
-      x: Math.round((box?.width || 800) * 0.28),
-      y: Math.round((box?.height || 1000) * 0.70),
-      width: Math.round((box?.width || 800) * 0.44),
-      height: Math.round((box?.height || 1000) * 0.28),
+      x: Math.round((box?.width || 800) * 0.30),
+      y: Math.round((box?.height || 1000) * 0.78),
+      width: Math.round((box?.width || 800) * 0.40),
+      height: Math.round((box?.height || 1000) * 0.21),
     };
     await page.getByTestId('smb-artboard').screenshot({
       path: resolve(screenshotDir, 'smb-price-before.png'),

@@ -217,127 +217,296 @@ def _spec_price_box(spec: dict[str, Any] | None, intent: PriceBlockIntent) -> tu
     return x0, y0, x1, y1
 
 
+def _luma(r: int, g: int, b: int) -> float:
+    return 0.299 * r + 0.587 * g + 0.114 * b
+
+
+def _fail_closed(message: str, **extra: Any) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail={"message": message, "scope": "PRICE_BLOCK_ONLY", **extra},
+    )
+
+
+def _bottom_dense_bbox(
+    xs: list[int],
+    ys: list[int],
+    *,
+    min_row: int,
+) -> tuple[int, int, int, int] | None:
+    from collections import Counter
+
+    if len(xs) < 40:
+        return None
+    counts = Counter(ys)
+    seeded = [y for y, count in counts.items() if count >= min_row]
+    if not seeded:
+        return min(xs), min(ys), max(xs) + 1, max(ys) + 1
+    y_bottom = max(seeded)
+    y_top = y_bottom
+    y = y_bottom
+    floor = max(6, min_row // 2)
+    while (y - 1) in counts and counts[y - 1] >= floor and (y_bottom - (y - 1)) < 48:
+        y -= 1
+        y_top = y
+    band_x = [x for x, yy in zip(xs, ys, strict=True) if y_top <= yy <= y_bottom]
+    if len(band_x) < 30:
+        return min(xs), min(ys), max(xs) + 1, max(ys) + 1
+    band_y = [yy for yy in ys if y_top <= yy <= y_bottom]
+    return min(band_x), min(band_y), max(band_x) + 1, max(band_y) + 1
+
+
+def _union_box(
+    a: tuple[int, int, int, int],
+    b: tuple[int, int, int, int],
+) -> tuple[int, int, int, int]:
+    return min(a[0], b[0]), min(a[1], b[1]), max(a[2], b[2]), max(a[3], b[3])
+
+
+def _pad_box(
+    box: tuple[int, int, int, int],
+    *,
+    pad: int,
+    width: int,
+    height: int,
+) -> tuple[int, int, int, int]:
+    x0, y0, x1, y1 = box
+    return (
+        max(0, x0 - pad),
+        max(0, y0 - pad),
+        min(width, x1 + pad),
+        min(height, y1 + pad),
+    )
+
+
 def locate_price_zone(
     image: Any,
     *,
     spec: dict[str, Any] | None,
     intent: PriceBlockIntent,
-) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int]]:
-    """Return (draw_box, glyph_box). Knockout stays on glyphs; typeset uses draw_box."""
+) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int], tuple[int, int, int, int]]:
+    """Return (draw_box, cleanup_box, glyph_box).
+
+    Cleanup is the old baked 675.000 USD glyphs only. Draw is where new type may land.
+    design_spec geometry is never used — it inflates the inpaint rectangle.
+    """
     from PIL import Image
 
+    del spec, intent
     assert isinstance(image, Image.Image)
     width, height = image.size
-    spec_box = _spec_price_box(spec, intent)
-    if spec_box is not None:
-        sx0, sy0, sx1, sy1 = spec_box
-        if (sx1 - sx0) * (sy1 - sy0) > 0.12 * width * height:
-            spec_box = None
-
     rgb = image.convert("RGB")
     pixels = rgb.load()
-    y0 = int(height * 0.87)
-    y1 = int(height * 0.995)
-    x0 = int(width * 0.28)
-    x1 = int(width * 0.62)
-    xs: list[int] = []
-    ys: list[int] = []
-    for y in range(y0, y1):
-        for x in range(x0, x1):
+    search = (
+        int(width * 0.28),
+        int(height * 0.86),
+        int(width * 0.64),
+        int(height * 0.995),
+    )
+    sx0, sy0, sx1, sy1 = search
+    white_x: list[int] = []
+    white_y: list[int] = []
+    for y in range(sy0, sy1):
+        for x in range(sx0, sx1):
             r, g, b = pixels[x, y]
-            luma = 0.299 * r + 0.587 * g + 0.114 * b
-            if luma < 220:
-                continue
             if _is_gold(r, g, b):
                 continue
-            xs.append(x)
-            ys.append(y)
-    if len(xs) < 80:
-        if spec_box is not None:
-            found = spec_box
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail={
-                    "message": "PRICE_BLOCK_ONLY fail-closed — baked list price zone not found.",
-                    "scope": "PRICE_BLOCK_ONLY",
-                },
-            )
-    else:
-        found = (min(xs), min(ys), max(xs) + 1, max(ys) + 1)
-        if spec_box is not None:
-            found = (
-                min(found[0], spec_box[0]),
-                min(found[1], spec_box[1]),
-                max(found[2], spec_box[2]),
-                max(found[3], spec_box[3]),
-            )
-    gx0 = max(0, found[0] - 16)
-    gy0 = max(0, found[1] - 56)
-    gx1 = min(width, found[2] + 16)
-    gy1 = min(height, found[3] + 18)
+            if _luma(r, g, b) < 220:
+                continue
+            white_x.append(x)
+            white_y.append(y)
+    glyph = _bottom_dense_bbox(white_x, white_y, min_row=12)
+    if glyph is None:
+        _fail_closed("PRICE_BLOCK_ONLY fail-closed — baked list price glyphs not found.")
+
+    gx0, gy0, gx1, gy1 = glyph
+    for y in range(gy1, min(sy1, gy1 + 18)):
+        row_hits = 0
+        for x in range(gx0, gx1):
+            r, g, b = pixels[x, y]
+            if _luma(r, g, b) >= 185 and not _is_gold(r, g, b):
+                row_hits += 1
+        if row_hits < 4:
+            break
+        gy1 = y + 1
     glyph = (gx0, gy0, gx1, gy1)
-    return _expand_zone(found, width, height), glyph
 
+    lx0, ly0, lx1, ly1 = glyph
+    label_y0 = max(sy0, ly0 - max(18, int(height * 0.038)))
+    label_x: list[int] = []
+    label_y: list[int] = []
+    for y in range(label_y0, ly0):
+        for x in range(max(sx0, lx0 - 8), min(sx1, lx1 + 8)):
+            r, g, b = pixels[x, y]
+            luma = _luma(r, g, b)
+            if _is_gold(r, g, b) or luma >= 168:
+                label_x.append(x)
+                label_y.append(y)
+    if len(label_x) >= 25:
+        label_box = (min(label_x), min(label_y), max(label_x) + 1, max(label_y) + 1)
+        if (label_box[3] - label_box[1]) <= 36:
+            glyph = _union_box(glyph, label_box)
 
-def _expand_zone(
-    box: tuple[int, int, int, int],
-    width: int,
-    height: int,
-) -> tuple[int, int, int, int]:
-    x0, y0, x1, y1 = box
-    pad_x = max(8, int(width * 0.012))
-    found_h = max(8, y1 - y0)
-    needed_h = max(found_h + 48, int(height * 0.195))
-    y1 = min(height - 1, y1 + 36)
-    y0 = max(int(height * 0.74), y1 - needed_h)
-    x0 = max(int(width * 0.26), x0 - pad_x)
-    x1 = min(int(width * 0.66), x1 + pad_x)
-    area = (x1 - x0) * (y1 - y0)
-    if area > 0.22 * width * height:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={
-                "message": "PRICE_BLOCK_ONLY fail-closed — price zone too large to edit safely.",
-                "scope": "PRICE_BLOCK_ONLY",
-            },
+    cleanup = _pad_box(glyph, pad=5, width=width, height=height)
+    cleanup = (
+        cleanup[0],
+        cleanup[1],
+        cleanup[2],
+        min(height, cleanup[3] + 8),
+    )
+    cw, ch = cleanup[2] - cleanup[0], cleanup[3] - cleanup[1]
+    if cw * ch > 0.07 * width * height or ch > 0.12 * height or cw > 0.45 * width:
+        _fail_closed(
+            "PRICE_BLOCK_ONLY fail-closed — cleanup box too large to edit safely.",
+            cleanup={"x0": cleanup[0], "y0": cleanup[1], "x1": cleanup[2], "y1": cleanup[3]},
         )
-    return x0, y0, x1, y1
+
+    cx = (cleanup[0] + cleanup[2]) // 2
+    draw_w = min(int(width * 0.36), max(cw + 28, int(width * 0.26)))
+    draw_h = min(int(height * 0.20), max(int(height * 0.175), ch + int(height * 0.12)))
+    draw_x0 = max(int(width * 0.27), cx - draw_w // 2)
+    draw_x1 = min(int(width * 0.73), cx + draw_w // 2)
+    draw_y1 = min(height - 1, cleanup[3] + 4)
+    draw_y0 = max(int(height * 0.74), draw_y1 - draw_h)
+    draw_x0 = min(draw_x0, cleanup[0])
+    draw_x1 = max(draw_x1, cleanup[2])
+    draw_y0 = min(draw_y0, cleanup[1])
+    draw_y1 = max(draw_y1, cleanup[3])
+    draw = (draw_x0, draw_y0, draw_x1, draw_y1)
+    dw, dh = draw[2] - draw[0], draw[3] - draw[1]
+    if dw * dh > 0.18 * width * height:
+        _fail_closed(
+            "PRICE_BLOCK_ONLY fail-closed — draw box too large to edit safely.",
+            zone={"x0": draw[0], "y0": draw[1], "x1": draw[2], "y1": draw[3]},
+        )
+    return draw, cleanup, glyph
 
 
 def _is_gold(r: int, g: int, b: int) -> bool:
     return r > 180 and g > 140 and b < 140
 
 
-def _knockout_bright_glyphs(image: Any, box: tuple[int, int, int, int]) -> None:
-    """Inpaint the original glyph rectangle from left/right floor — not a flat plate."""
-    x0, y0, x1, y1 = box
-    px = image.load()
-    width, height = image.size
-
-    def _pix(x: int, y: int):
-        x = min(max(0, x), width - 1)
-        y = min(max(0, y), height - 1)
-        return px[x, y]
-
+def _build_glyph_mask(
+    image: Any,
+    cleanup: tuple[int, int, int, int],
+) -> set[tuple[int, int]]:
+    """Bright / gold type pixels inside the cleanup box, dilated 2px — not the furniture."""
+    x0, y0, x1, y1 = cleanup
+    rgb = image.convert("RGB")
+    pixels = rgb.load()
+    hits: set[tuple[int, int]] = set()
     for y in range(y0, y1):
-        left = _pix(x0 - 3, y)
-        right = _pix(x1 + 2, y)
-        span = max(1, x1 - x0)
-        lr, lg, lb = left[:3]
-        rr, rg, rb = right[:3]
         for x in range(x0, x1):
-            t = (x - x0) / span
-            fill = (
-                int(lr * (1 - t) + rr * t),
-                int(lg * (1 - t) + rg * t),
-                int(lb * (1 - t) + rb * t),
-            )
-            pix = px[x, y]
-            if len(pix) == 4:
-                px[x, y] = fill + (pix[3],)
-            else:
-                px[x, y] = fill
+            r, g, b = pixels[x, y]
+            luma = _luma(r, g, b)
+            if _is_gold(r, g, b) and luma >= 130:
+                hits.add((x, y))
+            elif luma >= 205:
+                hits.add((x, y))
+    mask: set[tuple[int, int]] = set()
+    for x, y in hits:
+        for dy in range(-1, 2):
+            for dx in range(-1, 2):
+                xx, yy = x + dx, y + dy
+                if x0 <= xx < x1 and y0 <= yy < y1:
+                    mask.add((xx, yy))
+    if len(mask) < 40:
+        _fail_closed("PRICE_BLOCK_ONLY fail-closed — baked glyph mask empty.")
+    return mask
+
+
+def _sample_local(original: Any, mask: set[tuple[int, int]], x: int, y: int):
+    """Copy a nearby original non-glyph pixel. Prefer same-row to keep wood/ottoman grain."""
+    px = original.load()
+    width, height = original.size
+    for radius in (1, 2, 3, 5, 8, 12):
+        for dx in (radius, -radius):
+            xx = x + dx
+            if 0 <= xx < width and (xx, y) not in mask:
+                return px[xx, y][:3]
+        for dy in (radius, -radius):
+            yy = y + dy
+            if 0 <= yy < height and (x, yy) not in mask:
+                return px[x, yy][:3]
+        for dy in range(-radius, radius + 1):
+            for dx in range(-radius, radius + 1):
+                if max(abs(dx), abs(dy)) != radius:
+                    continue
+                xx, yy = x + dx, y + dy
+                if xx < 0 or yy < 0 or xx >= width or yy >= height:
+                    continue
+                if (xx, yy) in mask:
+                    continue
+                return px[xx, yy][:3]
+    return px[x, y][:3]
+
+
+def _knockout_glyph_mask(working: Any, original: Any, mask: set[tuple[int, int]]) -> None:
+    """Replace only glyph pixels with local original texture — never a row lerp."""
+    px = working.load()
+    for x, y in mask:
+        fill = _sample_local(original, mask, x, y)
+        pix = px[x, y]
+        if len(pix) == 4:
+            px[x, y] = fill + (pix[3],)
+        else:
+            px[x, y] = fill
+
+
+def _assert_cleanup_texture(
+    original: Any,
+    working: Any,
+    mask: set[tuple[int, int]],
+    cleanup: tuple[int, int, int, int],
+) -> None:
+    """Fail-closed if furniture/floor pixels moved or a smear/patch appeared."""
+    orig_px = original.load()
+    new_px = working.load()
+    width, height = original.size
+    leaked_non_glyph = 0
+    leftover_bright = 0
+    x0, y0, x1, y1 = cleanup
+    for y in range(height):
+        for x in range(width):
+            if orig_px[x, y] == new_px[x, y]:
+                continue
+            if (x, y) not in mask:
+                leaked_non_glyph += 1
+    if leaked_non_glyph > 0:
+        _fail_closed(
+            "PRICE_BLOCK_ONLY fail-closed — cleanup changed pixels outside the glyph mask. "
+            "Existing finished-ad was not persisted.",
+            leaked_pixels=leaked_non_glyph,
+        )
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            if (x, y) in mask:
+                continue
+            r, g, b = new_px[x, y][:3]
+            if _luma(r, g, b) >= 190:
+                leftover_bright += 1
+    if leftover_bright > 12:
+        _fail_closed(
+            "PRICE_BLOCK_ONLY fail-closed — baked price glyphs still visible after cleanup.",
+            leftover_bright=leftover_bright,
+        )
+    furniture_smear_rows = 0
+    n = max(1, x1 - x0)
+    for y in range(y0, y1):
+        dark_changed = 0
+        for x in range(x0, x1):
+            if orig_px[x, y] == new_px[x, y]:
+                continue
+            if _luma(*orig_px[x, y][:3]) < 140:
+                dark_changed += 1
+        if dark_changed >= 0.45 * n:
+            furniture_smear_rows += 1
+    if furniture_smear_rows >= 8:
+        _fail_closed(
+            "PRICE_BLOCK_ONLY fail-closed — horizontal smear / repair patch detected. "
+            "Existing finished-ad was not persisted.",
+            smear_rows=furniture_smear_rows,
+        )
 
 
 def _draw_price_block(image: Any, box: tuple[int, int, int, int], intent: PriceBlockIntent) -> None:
@@ -406,22 +575,17 @@ def apply_local_price_zone(
     spec: dict[str, Any] | None,
     intent: PriceBlockIntent,
 ) -> tuple[bytes, dict[str, Any]]:
-    """Patch only the price zone. Outside pixels must remain identical."""
+    """Cleanup old glyphs only; draw new type in a separate box. Outside pixels identical."""
     from PIL import Image
 
     original = Image.open(io.BytesIO(source_bytes)).convert("RGBA")
     working = original.copy()
-    draw_box, glyph_box = locate_price_zone(working, spec=spec, intent=intent)
+    draw_box, cleanup_box, glyph_box = locate_price_zone(working, spec=spec, intent=intent)
+    mask = _build_glyph_mask(working, cleanup_box)
+    _knockout_glyph_mask(working, original, mask)
+    _assert_cleanup_texture(original, working, mask, cleanup_box)
     x0, y0, x1, y1 = draw_box
-    crop = working.crop((x0, y0, x1, y1))
-    gx0 = max(0, glyph_box[0] - x0)
-    gy0 = max(0, glyph_box[1] - y0)
-    gx1 = min(crop.size[0], glyph_box[2] - x0)
-    gy1 = min(crop.size[1], glyph_box[3] - y0)
-    if gx1 > gx0 + 4 and gy1 > gy0 + 4:
-        _knockout_bright_glyphs(crop, (gx0, gy0, gx1, gy1))
-    _draw_price_block(crop, (0, 0, crop.size[0], crop.size[1]), intent)
-    working.paste(crop, (x0, y0))
+    _draw_price_block(working, draw_box, intent)
 
     orig_px = original.load()
     new_px = working.load()
@@ -434,16 +598,10 @@ def apply_local_price_zone(
             if orig_px[x, y] != new_px[x, y]:
                 leaked += 1
     if leaked > 0:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={
-                "message": (
-                    "PRICE_BLOCK_ONLY fail-closed — edit leaked outside the price zone. "
-                    "Existing finished-ad was not persisted."
-                ),
-                "leaked_pixels": leaked,
-                "scope": "PRICE_BLOCK_ONLY",
-            },
+        _fail_closed(
+            "PRICE_BLOCK_ONLY fail-closed — edit leaked outside the price zone. "
+            "Existing finished-ad was not persisted.",
+            leaked_pixels=leaked,
         )
     out = io.BytesIO()
     working.convert("RGB").save(out, format="PNG", optimize=True)
@@ -451,9 +609,21 @@ def apply_local_price_zone(
         "scope": "PRICE_BLOCK_ONLY",
         "baked": True,
         "zone": {"x0": x0, "y0": y0, "x1": x1, "y1": y1},
-        "glyph_zone": {"x0": glyph_box[0], "y0": glyph_box[1], "x1": glyph_box[2], "y1": glyph_box[3]},
+        "cleanup_box": {
+            "x0": cleanup_box[0],
+            "y0": cleanup_box[1],
+            "x1": cleanup_box[2],
+            "y1": cleanup_box[3],
+        },
+        "glyph_zone": {
+            "x0": glyph_box[0],
+            "y0": glyph_box[1],
+            "x1": glyph_box[2],
+            "y1": glyph_box[3],
+        },
+        "glyph_mask_pixels": len(mask),
         "provider_calls": 0,
-        "method": "local_price_zone_knockout_typeset",
+        "method": "local_price_zone_glyph_mask",
         "intent": intent.to_dict(),
     }
     return out.getvalue(), trace

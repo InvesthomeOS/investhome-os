@@ -66,7 +66,16 @@ def test_apply_local_price_zone_does_not_leak_outside_bbox() -> None:
     assert trace["provider_calls"] == 0
     assert trace["baked"] is True
     zone = trace["zone"]
+    cleanup = trace["cleanup_box"]
+    glyph = trace["glyph_zone"]
     x0, y0, x1, y1 = zone["x0"], zone["y0"], zone["x1"], zone["y1"]
+    cw = cleanup["x1"] - cleanup["x0"]
+    ch = cleanup["y1"] - cleanup["y0"]
+    dw = x1 - x0
+    dh = y1 - y0
+    assert ch < dh
+    assert cw * ch < dw * dh
+    assert (glyph["y1"] - glyph["y0"]) <= ch
 
     original = Image.open(io.BytesIO(source)).convert("RGB")
     after = Image.open(io.BytesIO(patched)).convert("RGB")
@@ -79,3 +88,61 @@ def test_apply_local_price_zone_does_not_leak_outside_bbox() -> None:
                 leaked += 1
     assert leaked == 0
     assert after.size == original.size
+
+
+def test_oversized_design_spec_does_not_inflate_cleanup() -> None:
+    from PIL import Image
+
+    img = Image.new("RGB", (400, 500), (28, 22, 18))
+    for y in range(438, 472):
+        for x in range(148, 252):
+            if (x + y) % 2 == 0:
+                img.putpixel((x, y), (245, 241, 234))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    intent = parse_price_block(INSTRUCTION)
+    assert intent is not None
+    huge_spec = {
+        "elements": [
+            {"id": "old-price", "content": "675.000 USD", "x": 0, "y": 0, "width": 400, "height": 400}
+        ]
+    }
+    _patched, trace = apply_local_price_zone(buf.getvalue(), spec=huge_spec, intent=intent)
+    cleanup = trace["cleanup_box"]
+    assert (cleanup["x1"] - cleanup["x0"]) * (cleanup["y1"] - cleanup["y0"]) < 0.12 * 400 * 500
+    assert cleanup["y0"] > 350
+
+
+def test_wood_grain_outside_glyph_mask_is_unchanged() -> None:
+    from PIL import Image
+
+    img = Image.new("RGB", (400, 500), (40, 28, 18))
+    for y in range(400, 500):
+        tone = 28 + (y % 7) * 4
+        for x in range(400):
+            img.putpixel((x, y), (tone + (x % 5), tone, 16))
+    for y in range(438, 468):
+        for x in range(150, 250):
+            img.putpixel((x, y), (245, 241, 234))
+    before = img.copy()
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    intent = parse_price_block(INSTRUCTION)
+    assert intent is not None
+    patched, trace = apply_local_price_zone(buf.getvalue(), spec=None, intent=intent)
+    after = Image.open(io.BytesIO(patched)).convert("RGB")
+    far = 0
+    for y in range(400, 500):
+        for x in range(0, 40):
+            if before.getpixel((x, y)) != after.getpixel((x, y)):
+                far += 1
+    assert far == 0
+    zone = trace["zone"]
+    leaked = 0
+    for y in range(500):
+        for x in range(400):
+            if zone["x0"] <= x < zone["x1"] and zone["y0"] <= y < zone["y1"]:
+                continue
+            if before.getpixel((x, y)) != after.getpixel((x, y)):
+                leaked += 1
+    assert leaked == 0
