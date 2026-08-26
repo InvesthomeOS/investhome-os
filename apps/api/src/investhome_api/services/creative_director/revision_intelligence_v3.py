@@ -980,7 +980,9 @@ def validate_execution(
             found = False
             for i in ids:
                 a = after.get(i)
-                if a and expected and str(a.get("content") or "") == str(expected):
+                got = str(a.get("content") or "") if a else ""
+                exp = str(expected or "")
+                if a and exp and (got == exp or exp in got):
                     found = True
             passed = found
         elif action == "improve_readability":

@@ -139,6 +139,8 @@ def parse_price_block(instruction: str) -> PriceBlockIntent | None:
 def is_baked_price_ad(ctx: dict[str, Any] | None) -> bool:
     """Finished-ad raster is the visual source — price glyphs live in pixels."""
     ctx = ctx or {}
+    if ctx.get("revision_engine_v2") is True or ctx.get("visual_foundation_asset_id"):
+        return False
     if ctx.get("golden_native_v1") is True:
         return False
     mode = str(ctx.get("production_mode") or "")
@@ -149,6 +151,8 @@ def is_baked_price_ad(ctx: dict[str, Any] | None) -> bool:
             for el in (spec.get("elements") or [])
             if isinstance(el, dict)
         }
+        if spec.get("revision_engine_v2") is True:
+            return False
         if "old-price" in ids and "new-price" in ids:
             return False
     return True

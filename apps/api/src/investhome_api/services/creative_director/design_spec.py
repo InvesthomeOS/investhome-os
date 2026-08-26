@@ -7,6 +7,7 @@ a rendering property, not a simplified design style.
 
 from __future__ import annotations
 
+import re
 from copy import deepcopy
 from typing import Any, Literal
 from uuid import UUID
@@ -80,6 +81,7 @@ _STRUCTURED_MICRO_TARGETS = frozenset(
         "price",
         "old-price",
         "new-price",
+        "savings-price",
         "discount-badge",
         "unit-label",
     }
@@ -337,6 +339,7 @@ _STRUCTURED_REQUIRED_SLOTS = (
 _STRUCTURED_FINANCIAL_SLOTS = (
     "old-price",
     "new-price",
+    "savings-price",
     "discount-badge",
     "unit-label",
 )
@@ -482,14 +485,71 @@ def _badge_display(badge: str) -> str:
     if not badge:
         return ""
     if "%" in badge:
-        import re
-
-        m = re.search(r"(\d+)\s*%", badge.replace("~", ""))
+        m = re.search(r"%\s*(\d+)|(\d+)\s*%", badge.replace("~", ""))
         if m:
-            return f"%{m.group(1)}"
+            return f"%{m.group(1) or m.group(2)}"
         if badge.strip().startswith("~"):
             return badge.replace("lansman fiyat avantajı", "").strip() or badge
     return badge
+
+
+def _tr_usd_display(raw: str) -> str:
+    """Normalize money copy to '675.000 USD' for editable commercial layers."""
+    text = (raw or "").strip()
+    if not text:
+        return ""
+    digits = re.sub(r"[^\d]", "", text)
+    if not digits:
+        return text
+    try:
+        amount = int(digits)
+    except ValueError:
+        return text
+    if amount < 1000:
+        return text
+    grouped = f"{amount:,}".replace(",", ".")
+    return f"{grouped} USD"
+
+
+def _strikethrough_shape(text_el: dict[str, Any]) -> dict[str, Any]:
+    """Thin gold bar through a price TEXT box — visible without SMB CSS changes."""
+    x = int(text_el.get("x") or 0)
+    y = int(text_el.get("y") or 0)
+    w = max(8, int(text_el.get("width") or 0))
+    h = max(8, int(text_el.get("height") or 0))
+    line_h = max(3, int(round(h * 0.07)))
+    eid = _s(text_el.get("id")) or "old-price"
+    return {
+        "id": f"{eid}-strikethrough",
+        "type": "rectangle",
+        "role": "strikethrough",
+        "locked": False,
+        "editable": True,
+        "visible": True,
+        "x": x,
+        "y": y + int(round(h * 0.48)) - line_h // 2,
+        "width": w,
+        "height": line_h,
+        "z_index": int(text_el.get("z_index") or 24) + 1,
+        "opacity": 1.0,
+        "style": {
+            "fill": "#C4A35A",
+            "shape_kind": "rect",
+        },
+    }
+
+
+def _upsert_strikethrough(spec: dict[str, Any], text_el: dict[str, Any]) -> None:
+    shape = _strikethrough_shape(text_el)
+    elements = spec.get("elements")
+    if not isinstance(elements, list):
+        return
+    sid = str(shape["id"])
+    for idx, el in enumerate(elements):
+        if isinstance(el, dict) and _s(el.get("id")) == sid:
+            elements[idx] = shape
+            return
+    elements.append(shape)
 
 
 def _logo_geometry(
@@ -548,6 +608,7 @@ def _build_price_elements(
     copy: dict[str, str],
     supporting: list[str],
     plan: dict[str, Any],
+    revision_engine_v2: bool = False,
 ) -> list[dict[str, Any]]:
     elements: list[dict[str, Any]] = []
     _append_gradient(
@@ -713,11 +774,15 @@ def _build_price_elements(
             }
         )
 
-    # Price frame
+    # Price frame — CD recipe geometry; v2 keeps list price unstruck until revision.
     frame_y = int(round(height * 0.68))
-    frame_h = int(round(height * 0.11))
+    frame_h = int(round(height * 0.16 if revision_engine_v2 else height * 0.11))
     frame_w = int(round(content_w * 0.92))
-    if copy["old_price"] or copy["new_price"]:
+    old_price = _tr_usd_display(copy["old_price"]) if revision_engine_v2 else copy["old_price"]
+    new_price = _tr_usd_display(copy["new_price"]) if revision_engine_v2 else copy["new_price"]
+    savings_price = _tr_usd_display(copy.get("savings_price") or "")
+    has_price_stack = bool(old_price or new_price or revision_engine_v2)
+    if has_price_stack:
         elements.append(
             {
                 "id": "price-frame",
@@ -739,72 +804,102 @@ def _build_price_elements(
                 },
             }
         )
-        elements.append(
-            {
-                "id": "price-divider",
-                "type": "divider",
-                "role": "divider",
-                "locked": False,
-                "editable": True,
-                "x": margin + int(frame_w * 0.48),
-                "y": frame_y + int(frame_h * 0.22),
-                "width": 2,
-                "height": int(frame_h * 0.56),
-                "z_index": 23,
-                "style": {"fill": "#C4A35A", "shape_kind": "line"},
-            }
-        )
-    if copy["old_price"]:
+        if not revision_engine_v2:
+            elements.append(
+                {
+                    "id": "price-divider",
+                    "type": "divider",
+                    "role": "divider",
+                    "locked": False,
+                    "editable": True,
+                    "x": margin + int(frame_w * 0.48),
+                    "y": frame_y + int(frame_h * 0.22),
+                    "width": 2,
+                    "height": int(frame_h * 0.56),
+                    "z_index": 23,
+                    "style": {"fill": "#C4A35A", "shape_kind": "line"},
+                }
+            )
+    if old_price or revision_engine_v2:
+        old_typo: dict[str, Any] = {
+            "font_family": "sans",
+            "font_size": int(round(width * 0.036)),
+            "font_weight": "normal",
+            "align": "left",
+            "color": "#D4C4A8",
+        }
+        if not revision_engine_v2:
+            old_typo["text_decoration"] = "line-through"
         elements.append(
             {
                 "id": "old-price",
                 "type": "text",
                 "role": "old_price",
-                "content": copy["old_price"],
+                "content": old_price,
                 "locked": False,
                 "editable": True,
                 "claim_sensitive": True,
+                "visible": bool(old_price),
                 "x": margin + 16,
-                "y": frame_y + int(frame_h * 0.28),
-                "width": int(frame_w * 0.42),
-                "height": int(frame_h * 0.4),
+                "y": frame_y + int(frame_h * (0.10 if revision_engine_v2 else 0.28)),
+                "width": int(frame_w * (0.90 if revision_engine_v2 else 0.42)),
+                "height": int(frame_h * (0.28 if revision_engine_v2 else 0.4)),
                 "z_index": 24,
-                "typography": {
-                    "font_family": "sans",
-                    "font_size": int(round(width * 0.036)),
-                    "font_weight": "normal",
-                    "align": "left",
-                    "color": "#D4C4A8",
-                    "text_decoration": "line-through",
-                },
+                "typography": old_typo,
             }
         )
-    if copy["new_price"]:
+    if new_price or revision_engine_v2:
         elements.append(
             {
                 "id": "new-price",
                 "type": "text",
                 "role": "new_price",
-                "content": copy["new_price"],
+                "content": new_price,
                 "locked": False,
                 "editable": True,
                 "claim_sensitive": True,
-                "x": margin + int(frame_w * 0.52),
-                "y": frame_y + int(frame_h * 0.18),
-                "width": int(frame_w * 0.44),
-                "height": int(frame_h * 0.62),
+                "visible": bool(new_price) and not revision_engine_v2,
+                "x": margin + (16 if revision_engine_v2 else int(frame_w * 0.52)),
+                "y": frame_y + int(frame_h * (0.38 if revision_engine_v2 else 0.18)),
+                "width": int(frame_w * (0.90 if revision_engine_v2 else 0.44)),
+                "height": int(frame_h * (0.32 if revision_engine_v2 else 0.62)),
                 "z_index": 25,
                 "typography": {
                     "font_family": "sans",
-                    "font_size": int(round(width * 0.072)),
+                    "font_size": int(round(width * (0.048 if revision_engine_v2 else 0.072))),
                     "font_weight": "bold",
                     "align": "left",
                     "color": "#C4A35A",
                 },
             }
         )
+    if revision_engine_v2:
+        elements.append(
+            {
+                "id": "savings-price",
+                "type": "text",
+                "role": "savings_price",
+                "content": f"Kazancınız {savings_price}" if savings_price else "",
+                "locked": False,
+                "editable": True,
+                "claim_sensitive": True,
+                "visible": bool(savings_price),
+                "x": margin + 16,
+                "y": frame_y + int(frame_h * 0.72),
+                "width": int(frame_w * 0.90),
+                "height": int(frame_h * 0.24),
+                "z_index": 26,
+                "typography": {
+                    "font_family": "sans",
+                    "font_size": int(round(width * 0.028)),
+                    "font_weight": "medium",
+                    "align": "left",
+                    "color": "#E8E0D4",
+                },
+            }
+        )
 
-    support_y = int(round(height * 0.81))
+    support_y = int(round(height * (0.85 if revision_engine_v2 else 0.81)))
     for idx, line in enumerate(supporting[:2]):
         elements.append(
             {
@@ -815,10 +910,10 @@ def _build_price_elements(
                 "locked": False,
                 "editable": True,
                 "x": margin,
-                "y": support_y + idx * int(round(height * 0.032)),
+                "y": support_y + idx * int(round(height * 0.028)),
                 "width": content_w,
-                "height": int(round(height * 0.03)),
-                "z_index": 26 + idx,
+                "height": int(round(height * 0.026)),
+                "z_index": 28 + idx,
                 "typography": {
                     "font_family": "sans",
                     "font_size": int(round(width * 0.024)),
@@ -1374,6 +1469,7 @@ def build_design_spec(
     language: str = "tr",
     campaign_intent: str | None = None,
     composition_plan: dict[str, Any] | None = None,
+    revision_engine_v2: bool = False,
 ) -> dict[str, Any]:
     """Emit Design Spec from composition plan + FINAL brief (intent-specific layout)."""
     width, height = canvas_size_for_aspect(aspect_ratio, format_preset)
@@ -1423,12 +1519,14 @@ def build_design_spec(
     bg_id = str(master_background_asset_id)
     logo_id = str(logo_asset_id)
 
+    savings_price = _s(texts.get("savings") or final.get("savings"))
     copy = {
         "headline": headline,
         "subheadline": subheadline,
         "unit": unit_label,
         "old_price": old_price,
         "new_price": new_price,
+        "savings_price": savings_price,
         "badge": badge,
         "cta": cta,
     }
@@ -1462,13 +1560,19 @@ def build_design_spec(
         supporting=supporting,
         plan=plan,
     )
-    if family == "price_lower_third" or intent in {
+    use_price_stack = (
+        revision_engine_v2
+        and bool(copy["old_price"] or copy["badge"] or copy["new_price"])
+    ) or family == "price_lower_third" or intent in {
         "price_campaign",
         "sales_offer",
         "launch",
         "launch_price",
-    }:
-        elements.extend(_build_price_elements(**builder_kwargs))
+    }
+    if use_price_stack:
+        elements.extend(
+            _build_price_elements(**builder_kwargs, revision_engine_v2=revision_engine_v2)
+        )
     elif family == "location_place_led" or intent == "location":
         elements.extend(_build_location_elements(**builder_kwargs))
     elif family == "lifestyle_editorial" or intent in {"lifestyle", "amenities"}:
@@ -1507,6 +1611,7 @@ def build_design_spec(
         if finished_ad_raster_asset_id
         else None,
         "locked_background": True,
+        "revision_engine_v2": bool(revision_engine_v2),
         "elements": elements,
         "editable_text_targets": _editable_text_targets(elements),
     }
@@ -2710,7 +2815,7 @@ def design_spec_to_smb_elements(design_spec: dict[str, Any]) -> list[dict[str, A
 
         # Default: text
         text_role = "headline" if role in {"headline", "primary"} else "body"
-        if role in {"subheadline", "support_message", "unit_label", "old_price", "new_price"}:
+        if role in {"subheadline", "support_message", "unit_label", "old_price", "new_price", "savings_price"}:
             text_role = "body" if role != "headline" else "headline"
         if role == "headline":
             text_role = "headline"
@@ -2727,6 +2832,7 @@ def design_spec_to_smb_elements(design_spec: dict[str, Any]) -> list[dict[str, A
                 "fontFamily": _s(typo.get("font_family"), "sans"),
                 "lineHeight": typo.get("line_height"),
                 "letterSpacing": typo.get("letter_spacing"),
+                "textDecoration": typo.get("text_decoration") or None,
                 "x": x,
                 "y": y,
                 "width": w,
@@ -2860,7 +2966,15 @@ def route_revision(
             micro_ok = False
             break
         if action_s == "replace_text" and target_s != "cta":
-            if not (has_structured_design and target_s in {"headline", "primary_headline", "support_message"}):
+            if not (
+                has_structured_design
+                and target_s in {
+                    "headline",
+                    "primary_headline",
+                    "support_message",
+                    "price",
+                }
+            ):
                 micro_ok = False
                 break
         if target_s not in micro_targets:
@@ -3110,10 +3224,62 @@ def apply_layer_operations(
         el = layers[0] if layers else None
 
         if action == "replace_text" and to_value:
+            if not layers and str(element_id or "").lower() == "savings-price":
+                anchor = _find_element(spec, "new-price", "new_price") or _find_element(
+                    spec, "old-price", "old_price"
+                )
+                if anchor is not None:
+                    created = {
+                        "id": "savings-price",
+                        "type": "text",
+                        "role": "savings_price",
+                        "content": "",
+                        "locked": False,
+                        "editable": True,
+                        "claim_sensitive": True,
+                        "visible": False,
+                        "x": int(anchor.get("x") or 0),
+                        "y": int(anchor.get("y") or 0) + int(anchor.get("height") or 40) + 8,
+                        "width": int(anchor.get("width") or 400),
+                        "height": int(round(int(anchor.get("height") or 40) * 0.7)),
+                        "z_index": int(anchor.get("z_index") or 25) + 1,
+                        "typography": {
+                            "font_family": "sans",
+                            "font_size": int(
+                                round(
+                                    float(
+                                        ((anchor.get("typography") or {}) or {}).get("font_size")
+                                        or 28
+                                    )
+                                    * 0.62
+                                )
+                            ),
+                            "font_weight": "medium",
+                            "align": "left",
+                            "color": "#E8E0D4",
+                        },
+                    }
+                    spec.setdefault("elements", []).append(created)
+                    layers = [created]
             for layer in layers:
-                layer["content"] = str(to_value)
+                eid = _s(layer.get("id")).lower()
+                content = str(to_value)
+                note = str(op.get("note") or "").lower()
+                if eid == "savings-price" or "savings" in note:
+                    low = content.lower()
+                    if "kazanc" not in low:
+                        content = f"Kazancınız {content}"
+                layer["content"] = content
+                layer["visible"] = True
                 if target == "price":
                     layer["claim_sensitive"] = True
+                if eid == "old-price" and (
+                    "strikethrough" in note or "line-through" in note or "çiz" in note
+                ):
+                    typo = dict(layer.get("typography") or {})
+                    typo["text_decoration"] = "line-through"
+                    layer["typography"] = typo
+                    _upsert_strikethrough(spec, layer)
 
         elif action in {"scale", "resize"} and scale_factor:
             for layer in layers:
@@ -3249,7 +3415,7 @@ def apply_layer_operations(
                     "top-description",
                     "eyebrow-pill",
                 },
-                "price": {"old-price", "new-price"},
+                "price": {"old-price", "new-price", "savings-price"},
             }.get(target, set())
             # Prefer geometrically resolved layers. Literal element_ids from a
             # unit-test spec (top-description / feature-1) must not skip the
@@ -3303,6 +3469,7 @@ def assemble_editable_design(
     format_preset: str = "portrait",
     language: str = "tr",
     campaign_intent: str | None = None,
+    revision_engine_v2: bool = False,
 ) -> dict[str, Any]:
     """Composition plan → design spec → quality critic (one revise) → geometry check."""
     from investhome_api.services.creative_director.composition_critic import (
@@ -3340,6 +3507,7 @@ def assemble_editable_design(
         language=language,
         campaign_intent=intent,
         composition_plan=plan,
+        revision_engine_v2=revision_engine_v2,
     )
     critique = critique_composition(composition_plan=plan, design_spec=spec)
     if critique.get("status") == "fail":
@@ -3375,6 +3543,7 @@ def sync_production_brief_from_spec(
         "cta": "cta",
         "new-price": "offer_price",
         "old-price": "list_price",
+        "savings-price": "savings",
         "discount-badge": "value_badge",
         "unit-label": "unit",
     }

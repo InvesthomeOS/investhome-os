@@ -24,6 +24,7 @@ from investhome_api.schemas.creative_director import (
 )
 from investhome_api.schemas.gpt_image_design import GptImageDesignRequest
 from investhome_api.services.creative_director.art_direction_translator import (
+    append_architecture_lock_to_prompt,
     render_gpt_image_art_direction_prompt,
     translate_campaign_art_direction,
 )
@@ -43,7 +44,6 @@ from investhome_api.services.creative_director.production_brief import (
     lock_copy_to_language,
     lock_supporting_messages,
     looks_english_ad_copy,
-    render_finished_ad_production_prompt,
     verify_logo_lock,
 )
 from investhome_api.services.creative_director.quality_lock.architecture_truth import (
@@ -406,10 +406,16 @@ def adapt_final_turkish_texts(
         }
 
     presentation = _as_dict(pricing.get("price_presentation"))
-    list_price = str(presentation.get("list") or "$400,000").strip()
-    offer_price = str(presentation.get("offer") or "$300,000").strip()
+    has_list = bool(str(presentation.get("list") or "").strip())
+    has_offer = bool(str(presentation.get("offer") or "").strip())
+    if has_list or has_offer:
+        list_price = str(presentation.get("list") or "").strip()
+        offer_price = str(presentation.get("offer") or "").strip()
+    else:
+        list_price = "$400,000"
+        offer_price = "$300,000"
     discount = _as_dict(presentation.get("discount") or pricing.get("discount"))
-    discount_display = str(discount.get("display") or "~25%").strip() or "~25%"
+    discount_display = str(discount.get("display") or ("~25%" if not has_list else "")).strip()
     unit_display = "Unit 204"
     for claim in approved_claims:
         if isinstance(claim, dict) and claim.get("key") == "unit_code":
@@ -1433,11 +1439,27 @@ def generate_ad_from_campaign(
         )
 
     if production_mode in {"finished_ad", "editable_finished_ad"}:
-        instruction = render_finished_ad_production_prompt(
-            production_brief=production_brief,
-            art_direction=art_direction.to_dict(),
+        # Revision Engine v2: GPT paints visual foundation only. OS typesets
+        # commercial layers. Do not bake headline / price / CTA / logo into pixels.
+        foundation_texts = dict(texts)
+        instruction = render_gpt_image_art_direction_prompt(
+            art_direction,
+            texts=foundation_texts,
+            interior_meta=interior_meta,
+            logo_meta=logo_meta,
             original_brief=original_brief,
-            lifestyle=lifestyle,
+            aspect_ratio=aspect_ratio,
+        )
+        instruction = append_architecture_lock_to_prompt(
+            instruction, interior_lock=not brand_ad
+        )
+        instruction += (
+            "\n\n=== REVISION ENGINE v2 VISUAL FOUNDATION ===\n"
+            "This raster is the VISUAL FOUNDATION only.\n"
+            "Do NOT paint commercial copy: no headlines, no prices, no USD, "
+            "no percent badges, no CTA buttons, no logos, no letters, no digits.\n"
+            "Reserve contrast air for OS-rendered editable layers "
+            "(headline, prices, discount badge, logo, CTA).\n"
         )
     else:
         instruction = render_gpt_image_art_direction_prompt(
@@ -1470,8 +1492,11 @@ def generate_ad_from_campaign(
         builder_context["brand_market_ad"] = True
         builder_context["skip_project_logo"] = True
     if production_mode in {"finished_ad", "editable_finished_ad"}:
-        # Provider still produces a flat reference raster; editable mode hydrates layers separately.
+        # Provider produces atmosphere/foundation; OS composites commercial layers.
         builder_context["finished_ad"] = True
+        builder_context["skip_logo_edit_input"] = True
+        builder_context["revision_engine_v2"] = True
+        builder_context["visual_foundation"] = True
         if production_mode == "editable_finished_ad":
             builder_context["editable_finished_ad"] = True
     else:
@@ -1649,67 +1674,11 @@ def generate_ad_from_campaign(
         "note": "User visual approval required — do not declare Visual Quality PASS.",
     }
 
-    if production_mode == "finished_ad":
-        # Golden hybrid default: single finished-ad raster is the client deliverable.
-        # Keep a Design Spec in campaign context so LAYER_ONLY revision can mutate
-        # copy without reconstructing a new creative or swapping the photograph.
-        finished_raster_id = output.local_asset_id
-        ctx["production_mode"] = "finished_ad"
-        ctx["editable_finished_ad"] = False
-        ctx["finished_ad_raster_asset_id"] = str(finished_raster_id)
-        ctx["master_background_asset_id"] = str(interior_id)
-        try:
-            spec_texts, spec_brief = hydrate_supporting_copy(
-                texts=texts,
-                production_brief=production_brief,
-                campaign_copy=campaign_copy,
-                strategy=strategy,
-                ctx=ctx,
-            )
-            assembled = assemble_editable_design(
-                production_brief=spec_brief,
-                texts=spec_texts,
-                master_background_asset_id=interior_id,
-                logo_asset_id=logo_id,
-                finished_ad_raster_asset_id=finished_raster_id,
-                aspect_ratio=aspect_ratio,
-                format_preset=format_preset,
-                language=language,
-                campaign_intent=str(spec_brief.get("campaign_intent") or production_brief.get("campaign_intent") or ""),
-            )
-            spec = assembled.get("design_spec") if isinstance(assembled.get("design_spec"), dict) else {}
-            spec = ensure_revision_overlay_targets(
-                spec,
-                production_brief=spec_brief,
-                texts=spec_texts,
-            )
-            spec = stamp_editable_text_targets(spec)
-            ctx["design_spec"] = spec
-            ctx["structured_design_data"] = project_structured_design_data(
-                spec, production_brief=spec_brief
-            )
-            ctx["composition_plan"] = assembled.get("composition_plan")
-            if spec.get("editable_text_targets"):
-                ctx["editable_text_targets"] = spec["editable_text_targets"]
-            if spec_texts.get("supporting_callouts"):
-                ctx["supporting_callouts"] = spec_texts["supporting_callouts"]
-            design_spec = spec
-            editable_layers = []
-        except Exception:
-            logger.exception("finished_ad design_spec persist failed campaign=%s", row.id)
-        quality_guard = _finished_ad_quality_guard(
-            claim_guard=claim_guard,
-            asset_lock=asset_lock,
-            texts=texts,
-            production_brief=production_brief,
-            language=language,
-            architecture_truth=truth_guard,
-        )
-        ctx["latest_quality_guard"] = quality_guard
-
-    if production_mode == "editable_finished_ad":
-        master_background_id = interior_id
-        finished_raster_id = output.local_asset_id
+    if production_mode in {"finished_ad", "editable_finished_ad"}:
+        # Revision Engine v2: GPT raster is visual foundation; commercial copy is layers.
+        foundation_id = output.local_asset_id
+        master_background_id = foundation_id
+        finished_raster_id = foundation_id
         spec_texts, spec_brief = hydrate_supporting_copy(
             texts=texts,
             production_brief=production_brief,
@@ -1726,7 +1695,10 @@ def generate_ad_from_campaign(
             aspect_ratio=aspect_ratio,
             format_preset=format_preset,
             language=language,
-            campaign_intent=str(spec_brief.get("campaign_intent") or production_brief.get("campaign_intent") or ""),
+            campaign_intent=str(
+                spec_brief.get("campaign_intent") or production_brief.get("campaign_intent") or ""
+            ),
+            revision_engine_v2=True,
         )
         design_spec = assembled["design_spec"]
         design_spec = ensure_revision_overlay_targets(
@@ -1735,7 +1707,12 @@ def generate_ad_from_campaign(
             texts=spec_texts,
         )
         design_spec = stamp_editable_text_targets(design_spec)
-        editable_layers = assembled["editable_layers"]
+        if isinstance(design_spec, dict):
+            design_spec["revision_engine_v2"] = True
+        editable_layers = design_spec_to_smb_elements(
+            design_spec if isinstance(design_spec, dict) else {}
+        )
+        production_mode = "editable_finished_ad"
         ctx["design_spec"] = design_spec
         ctx["structured_design_data"] = project_structured_design_data(
             design_spec, production_brief=spec_brief
@@ -1749,15 +1726,20 @@ def generate_ad_from_campaign(
         ctx["geometry_check"] = assembled.get("geometry_check")
         ctx["master_background_asset_id"] = str(master_background_id)
         ctx["finished_ad_raster_asset_id"] = str(finished_raster_id)
+        ctx["visual_foundation_asset_id"] = str(foundation_id)
+        ctx["revision_engine_v2"] = True
         ctx["editable_finished_ad"] = True
         ctx["production_mode"] = "editable_finished_ad"
         critique = assembled.get("quality_critique") or {}
         quality_guard = {
             "status": critique.get("status") or "review",
-            "mode": "editable_finished_ad",
+            "mode": "revision_engine_v2",
             "checks": critique.get("checks") or {},
             "failures": critique.get("issues") or [],
-            "note": "Legacy editable path — not production default.",
+            "note": (
+                "Visual foundation + editable commercial layers. "
+                "User visual approval required — do not declare Visual Quality PASS."
+            ),
         }
         ctx["latest_quality_guard"] = quality_guard
 

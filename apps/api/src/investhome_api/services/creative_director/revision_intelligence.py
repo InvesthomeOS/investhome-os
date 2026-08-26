@@ -66,7 +66,7 @@ ROLE_ALIASES: dict[str, tuple[str, ...]] = {
         "left_feature_texts",
     ),
     "feature_text": ("feature-1", "feature-2", "feature-3", "support-message-1"),
-    "price": ("new-price", "new_price", "old-price", "old_price", "fiyat"),
+    "price": ("new-price", "new_price", "old-price", "old_price", "savings-price", "savings_price", "fiyat"),
     "old_price": ("old-price", "old_price"),
     "new_price": ("new-price", "new_price"),
     "subheadline": ("subheadline", "alt başlık", "alt baslik"),

@@ -12,6 +12,11 @@ _MONEY_RE = re.compile(
     r"\$\s*([\d]{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)\s*(k|m|mn|million)?\b",
     re.I,
 )
+_TR_MONEY_RE = re.compile(
+    r"(\d{1,3}(?:\.\d{3})+|\d{4,7})(?:\s*(?:USD|\$))",
+    re.I,
+)
+_PCT_RE = re.compile(r"(?:%|yüzde)\s*(\d{1,2})\b|(\d{1,2})\s*%", re.I)
 _UNIT_RE = re.compile(
     r"\b(?:unit|daire|apt\.?|apartment)\s*#?\s*([A-Za-z0-9\-]+)\b",
     re.I,
@@ -99,14 +104,36 @@ def _role_for_span(text: str, start: int, end: int) -> str | None:
 
 def extract_money_mentions(brief: str) -> list[MoneyMention]:
     out: list[MoneyMention] = []
+    seen_spans: list[tuple[int, int]] = []
     for m in _MONEY_RE.finditer(brief or ""):
         raw = m.group(0).replace(" ", "")
         amount = parse_money_token(m.group(0))
         if amount is None:
             continue
+        seen_spans.append((m.start(), m.end()))
         out.append(
             MoneyMention(
                 raw=raw if raw.startswith("$") else f"${raw.lstrip('$')}",
+                amount=amount,
+                role_hint=_role_for_span(brief or "", m.start(), m.end()),
+            )
+        )
+    for m in _TR_MONEY_RE.finditer(brief or ""):
+        if any(m.start() < end and m.end() > start for start, end in seen_spans):
+            continue
+        digits = re.sub(r"[^\d]", "", m.group(1) or "")
+        if not digits:
+            continue
+        try:
+            amount = Decimal(digits)
+        except InvalidOperation:
+            continue
+        if amount < 1000:
+            continue
+        seen_spans.append((m.start(), m.end()))
+        out.append(
+            MoneyMention(
+                raw=m.group(0).strip(),
                 amount=amount,
                 role_hint=_role_for_span(brief or "", m.start(), m.end()),
             )
@@ -261,6 +288,31 @@ def build_pricing_claims(
                 notes="Derived only because both list and launch prices were supplied as a pair",
             )
         )
+    elif discount is None:
+        pct_m = _PCT_RE.search(brief or "")
+        if pct_m:
+            n = int(pct_m.group(1) or pct_m.group(2) or 0)
+            if 0 < n <= 90:
+                display = f"%{n}"
+                discount = {
+                    "percent": float(n),
+                    "display": display,
+                    "source": "user_campaign_input",
+                    "source_reference": "user_brief",
+                    "inputs_verified": True,
+                }
+                claims.append(
+                    ClaimRecord(
+                        key="launch_discount_percent",
+                        display=display,
+                        value=float(n),
+                        source="user_campaign_input",
+                        source_reference="user_brief",
+                        verified=True,
+                        is_financial=True,
+                        notes="User-supplied campaign discount percent",
+                    )
+                )
 
     price_presentation = None
     if list_price is not None and launch_price is not None:
@@ -278,7 +330,12 @@ def build_pricing_claims(
     elif launch_price is not None:
         price_presentation = {"offer": format_usd(launch_price), "copy": format_usd(launch_price)}
     elif list_price is not None:
-        price_presentation = {"list": format_usd(list_price), "copy": format_usd(list_price)}
+        price_presentation = {
+            "list": format_usd(list_price),
+            "copy": format_usd(list_price),
+        }
+        if discount:
+            price_presentation["discount"] = discount
 
     return {
         "unit_codes": units,

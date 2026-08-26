@@ -1539,8 +1539,44 @@ def revise_ad_from_campaign(
         revision_brief["price_block"] = price_intent.to_dict()
         revision_brief["scope"] = "PRICE_BLOCK_ONLY"
 
+    v2_layers = bool(
+        ctx.get("revision_engine_v2")
+        or ctx.get("visual_foundation_asset_id")
+        or (
+            isinstance(ctx.get("design_spec"), dict)
+            and ctx["design_spec"].get("revision_engine_v2") is True
+        )
+    )
+
+    # Revision Engine v2: real editable price layers. Fail-closed — never
+    # fall back to PRICE_BLOCK_ONLY pixel surgery or a full GPT redesign.
+    if price_intent is not None and v2_layers:
+        spec_now = ctx.get("design_spec") if isinstance(ctx.get("design_spec"), dict) else {}
+        ids_now = {
+            str(el.get("id") or "").lower()
+            for el in (spec_now.get("elements") or [])
+            if isinstance(el, dict)
+        }
+        if "old-price" not in ids_now:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "message": (
+                        "Revision Engine v2 fail-closed — editable old-price layer is missing. "
+                        "Will not inpaint, hide-plate, or regenerate this creative."
+                    ),
+                    "scope": "REVISION_ENGINE_V2",
+                    "required_layers": ["old-price", "new-price", "savings-price"],
+                    "present_layers": sorted(ids_now),
+                },
+            )
+        revision_route = "MICRO_EDIT"
+        micro_edit = True
+        interpreted_plan["scope"] = "REVISION_ENGINE_V2"
+        revision_brief["scope"] = "REVISION_ENGINE_V2"
+
     # ── PRICE_BLOCK_ONLY baked raster: local zone edit, GPT=0, fail-closed ──
-    if price_intent is not None and is_baked_price_ad(ctx):
+    elif price_intent is not None and is_baked_price_ad(ctx):
         source_bytes = _read_asset_bytes(db, current_id)
         patched_bytes, price_trace = apply_local_price_zone(
             source_bytes,
@@ -1806,6 +1842,7 @@ def revise_ad_from_campaign(
             or ctx.get("golden_native_v1") is True
             or is_golden_native_v1(ctx.get("design_spec"))
         )
+        engine_v2 = bool(v2_layers)
         base_spec = ctx.get("design_spec")
         reconstructed = False
         if not isinstance(base_spec, dict) or not base_spec.get("elements"):
@@ -1826,6 +1863,7 @@ def revise_ad_from_campaign(
                 base_spec = build_design_spec(
                     **builder_kwargs,
                     finished_ad_raster_asset_id=ctx.get("finished_ad_raster_asset_id") or str(master_id),
+                    revision_engine_v2=engine_v2,
                 )
             reconstructed = True
         ids_before_overlay = {
@@ -1982,8 +2020,8 @@ def revise_ad_from_campaign(
         production_brief = sync_production_brief_from_spec(production_brief, next_spec)
         # Selected post cover is the source of truth — never another campaign raster.
         locked_raster = str(current_id)
-        if native_v1:
-            # Real layers, not overlays on a baked Golden raster.
+        if native_v1 or engine_v2:
+            # Real layers on a clean visual foundation — never overlays on baked type.
             editable_layers = design_spec_to_smb_elements(next_spec)
         else:
             editable_layers = compose_layer_only_on_locked_raster(
@@ -2142,7 +2180,17 @@ def revise_ad_from_campaign(
             ctx["supporting_callouts"] = texts["supporting_callouts"]
         if next_spec.get("editable_text_targets"):
             ctx["editable_text_targets"] = next_spec["editable_text_targets"]
-        ctx["master_background_asset_id"] = str(interior_id)
+        if engine_v2:
+            foundation = (
+                ctx.get("visual_foundation_asset_id")
+                or ctx.get("finished_ad_raster_asset_id")
+                or current_id
+            )
+            ctx["master_background_asset_id"] = str(foundation)
+            ctx["visual_foundation_asset_id"] = str(foundation)
+            ctx["revision_engine_v2"] = True
+        else:
+            ctx["master_background_asset_id"] = str(interior_id)
         ctx["finished_ad_raster_asset_id"] = str(current_id)
         ctx["editable_finished_ad"] = True
         ctx["golden_native_v1"] = bool(native_v1)
