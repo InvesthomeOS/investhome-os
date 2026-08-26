@@ -1,0 +1,47 @@
+{
+  "user_brief": "Washington DC'deki gayrimenkul yatırım fırsatlarını Türkiye'deki yatırımcılara anlatan çarpıcı bir Instagram postu hazırla. Amerikan renklerini kullan.",
+  "classification": {
+    "version": 1,
+    "ad_scope": "brand",
+    "purpose": "brand_investment",
+    "visual_kind": "city",
+    "audience": "Türkiye'deki yatırımcılar",
+    "place": "Washington DC",
+    "logo_role": "investhome_logo",
+    "format_specified": true,
+    "format_preset": "portrait",
+    "aspect_ratio": "4:5",
+    "format_label": "Instagram Post",
+    "color_direction": "Amerikan paleti: navy, cream, restrained red accent — luxury editorial, not a flag collage",
+    "cta": null,
+    "required_assets": [
+      "approved_investhome_logo",
+      "washington_dc_or_city_visual"
+    ],
+    "required_facts": [],
+    "forbidden_changes": [
+      "invent_logo",
+      "invent_roi",
+      "invent_price",
+      "fake_brand_mark",
+      "project_render_as_hero",
+      "the_temple_as_product"
+    ],
+    "invented_facts_blocked": [
+      "no_price_invented",
+      "no_roi_invented"
+    ],
+    "production_mode": "finished_ad",
+    "native_renderer_primary": false
+  },
+  "campaign_status": 200,
+  "generate_status": 200,
+  "production_mode": "finished_ad",
+  "format_preset": "portrait",
+  "aspect_ratio": "4:5",
+  "interior_asset_id": "376eeb12-5ef8-43d1-83a8-036c4ba0d1ac",
+  "logo_asset_id": "d758ab45-bcd9-4c36-9c9e-c2211af71513",
+  "provider_call_count": 1,
+  "gpt_image_call_count": 1,
+  "screenshot": "artifacts/creative-generation-engine-v1/smb-generation-engine-v1.png"
+}

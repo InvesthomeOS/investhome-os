@@ -151,6 +151,10 @@ def _local_creative_brief(user_prompt: str) -> str:
     if not isinstance(payload, dict):
         payload = {}
 
+    engine = payload.get("generation_engine") if isinstance(payload.get("generation_engine"), dict) else {}
+    if str(engine.get("ad_scope") or "") == "brand":
+        return _local_brand_market_brief(payload, engine)
+
     project = payload.get("project") if isinstance(payload.get("project"), dict) else {}
     pricing = payload.get("pricing") if isinstance(payload.get("pricing"), dict) else {}
     brief = str(payload.get("user_brief") or "")
@@ -258,7 +262,71 @@ def _local_creative_brief(user_prompt: str) -> str:
     )
 
 
-def _sanitize_strategy(strategy: dict[str, Any], *, pricing: dict[str, Any], project: dict[str, Any]) -> dict[str, Any]:
+def _local_brand_market_brief(payload: dict[str, Any], engine: dict[str, Any]) -> str:
+    """Brand/market ad — Investhome, not a named project. No invented commercial facts."""
+    brief = str(payload.get("user_brief") or "")
+    place = str(engine.get("place") or "Washington DC")
+    audience = str(engine.get("audience") or "Türkiye'deki yatırımcılar")
+    american = bool(engine.get("color_direction"))
+    fmt = str(engine.get("format_label") or "Instagram Post")
+    color = str(
+        engine.get("color_direction")
+        or "Navy, cream, restrained red accent — luxury editorial, not a flag collage"
+    )
+    cta = str(engine.get("cta") or "Fırsatları İncele")
+    return json.dumps(
+        {
+            "big_idea": f"{place} — Amerikan gayrimenkulünün kapısı",
+            "objective": "Investhome marka yatırımı: DC pazarına Türkiye'den bakış",
+            "audience": audience,
+            "concept": (
+                f"Investhome, {place} gayrimenkul yatırım fırsatlarını "
+                "Türkiye'deki yatırımcılara çarpıcı bir marka hikâyesiyle anlatır."
+            ),
+            "hero_message": f"{place}'de yatırım zamanı",
+            "primary_message": f"{place} gayrimenkul yatırım fırsatları",
+            "supporting_messages": [
+                "Türkiye'den ABD pazarına güvenilir köprü",
+                "Investhome ile seçilmiş fırsatlar",
+            ],
+            "emphasis": [place, "yatırım", "Investhome"],
+            "sales_hook": f"{place} yatırım fırsatları",
+            "offer": "",
+            "price_presentation": "",
+            "value_proposition": "Onaylı fiyat veya getiri yok — yalnızca pazar ve marka hikâyesi",
+            "proof_points": [
+                "Onaylı Investhome logosu",
+                f"Gerçek {place} şehir/yer görseli",
+            ],
+            "cta": cta,
+            "first_2_seconds": f"{place} şehir görseli + Investhome markası + yatırım vaadi",
+            "thinking_notes": (
+                "goal=brand investment awareness; sold=Investhome market access in DC; "
+                "why_now=user asked for striking IG post; hook=place + trust; number=none; "
+                f"emotion=American opportunity; action={cta}"
+            ),
+            "visual_direction": (
+                f"Luxury editorial city campaign. Hero: authentic {place} place photography — "
+                "not a project interior, not The Temple architecture. Real Investhome logo lockup."
+            ),
+            "composition_direction": (
+                "Editorial 4:5 portrait. Strong skyline/street negative space for a short headline; "
+                "logo anchored; CTA restrained. Do not collage a US flag."
+            ),
+            "typography_direction": "Sharp display headline; short supporting; high contrast",
+            "color_direction": color if american else "Navy, cream, restrained red accent",
+            "tone": "Confident, international, premium — brand campaign, not a listing",
+            "formats": [fmt.lower().replace(" ", "_"), "instagram_feed"],
+            "required_assets": ["approved_investhome_logo", "washington_dc_or_city_visual"],
+            "required_project_data": [],
+            "recommended_outputs": ["instagram_post"],
+            "brief_echo": brief[:200],
+        },
+        ensure_ascii=False,
+    )
+
+
+def _sanitize_strategy(strategy: dict[str, Any], *, pricing: dict[str, Any], project: dict[str, Any], generation_engine: dict[str, Any] | None = None) -> dict[str, Any]:
     """Light guard against banned listing clichés when the model slips."""
     name = str(project.get("name") or "Project")
     units = pricing.get("unit_codes") if isinstance(pricing.get("unit_codes"), list) else []
@@ -266,24 +334,32 @@ def _sanitize_strategy(strategy: dict[str, Any], *, pricing: dict[str, Any], pro
     pp = pricing.get("price_presentation") if isinstance(pricing.get("price_presentation"), dict) else {}
     discount = pricing.get("discount") if isinstance(pricing.get("discount"), dict) else None
     discount_display = str(discount.get("display") or "") if discount else ""
+    brand_ad = str((generation_engine or {}).get("ad_scope") or "") == "brand"
 
     if contains_cliche(str(strategy.get("hero_message") or "")):
         strategy["hero_message"] = strategy.get("big_idea") or strategy.get("concept") or f"{name}"
     if contains_cliche(str(strategy.get("cta") or "")):
-        strategy["cta"] = "Detayları İncele"
+        strategy["cta"] = "Fırsatları İncele" if brand_ad else "Detayları İncele"
     if contains_cliche(str(strategy.get("sales_hook") or "")):
-        price_copy = pp.get("copy")
-        strategy["sales_hook"] = (
-            f"Unit {unit} launch opportunity" if unit else f"{name} launch opportunity"
-        )
-        if price_copy:
-            strategy["sales_hook"] = f"{strategy['sales_hook']}: {price_copy}"
+        if brand_ad:
+            strategy["sales_hook"] = str(
+                (generation_engine or {}).get("place") or "Washington DC"
+            ) + " yatırım fırsatları"
+        else:
+            price_copy = pp.get("copy")
+            strategy["sales_hook"] = (
+                f"Unit {unit} launch opportunity" if unit else f"{name} launch opportunity"
+            )
+            if price_copy:
+                strategy["sales_hook"] = f"{strategy['sales_hook']}: {price_copy}"
     if contains_cliche(str(strategy.get("value_proposition") or "")) or re.search(
         r"\b(roi|return|guaranteed profit|yield)\b",
         str(strategy.get("value_proposition") or ""),
         re.I,
     ):
-        if discount_display:
+        if brand_ad:
+            strategy["value_proposition"] = "Onaylı fiyat veya getiri yok — yalnızca pazar hikâyesi"
+        elif discount_display:
             strategy["value_proposition"] = f"{discount_display} launch price advantage"
         else:
             strategy["value_proposition"] = f"Launch entry at {name}"
@@ -326,13 +402,25 @@ def generate_creative_strategy(
     pricing: dict[str, Any],
     mode: str,
     provider: LLMProvider | None = None,
+    generation_engine: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Ask LLM for CD strategy. Asset IDs / capabilities are filled by orchestration."""
     llm = provider or get_llm_provider()
+    engine = generation_engine or {}
+    brand_ad = str(engine.get("ad_scope") or "") == "brand"
+    extra_instructions = ""
+    if brand_ad:
+        extra_instructions = (
+            " BRAND/MARKET AD: Do not sell a named project (The Temple). "
+            "Use Investhome as the brand. Do not invent prices, ROI, or units. "
+            "Hero is city/place imagery, not project interiors or architecture. "
+            "Real Investhome logo only — never invent a mark."
+        )
     payload = {
         "marker": CREATIVE_BRIEF_MARKER,
         "mode": mode,
         "user_brief": user_brief,
+        "generation_engine": engine,
         "project": project,
         "research_summary": {
             "selected_interior": research_summary.get("selected_interior"),
@@ -352,6 +440,7 @@ def generate_creative_strategy(
             "Invent the campaign like a senior CD. Decide big_idea, hero, hook, CTA, hierarchy. "
             "Use pricing.discount only as launch price advantage — never as ROI. "
             "No listing clichés. Do not invent prices or asset IDs. "
+            f"{extra_instructions} "
             f"Respond with {CREATIVE_BRIEF_MARKER} object only."
         ),
     }
@@ -393,7 +482,9 @@ def generate_creative_strategy(
         elif not isinstance(val, list):
             strategy[key] = [str(val)]
 
-    strategy = _sanitize_strategy(strategy, pricing=pricing, project=project)
+    strategy = _sanitize_strategy(
+        strategy, pricing=pricing, project=project, generation_engine=engine
+    )
     strategy["_llm"] = meta
     return strategy
 

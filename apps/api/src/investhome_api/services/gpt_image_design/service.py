@@ -342,6 +342,9 @@ def _generate_project(
     )
     assert_context_has_no_forbidden_media(context)
 
+    skip_project_logo = isinstance(builder_context, dict) and bool(
+        builder_context.get("skip_project_logo") or builder_context.get("brand_market_ad")
+    )
     source, extras, design_refs, logo_notes, composition_warnings = resolve_project_inputs(
         db,
         linked_project_id=linked_project_id,
@@ -349,6 +352,7 @@ def _generate_project(
         selected_asset_ids=list(body.selected_asset_ids or []),
         project_name=project.project_name,
         project_code=getattr(project, "project_code", None),
+        skip_project_logo=skip_project_logo,
     )
     logger.info(
         "gpt_image_project_source mode=edits project_id=%s asset_id=%s extra_images=%s "
@@ -423,11 +427,14 @@ def _generate_project(
     has_project_logo = any(row.role == "project_logo" for row in extras)
     has_ih_logo = any(row.role == "investhome_logo" for row in extras)
     interior_lock = False
+    brand_market = isinstance(builder_context, dict) and bool(builder_context.get("brand_market_ad"))
     if isinstance(builder_context, dict) and builder_context.get("interior_project_asset_lock"):
         interior_lock = True
     src_name = (source.filename or "").lower()
-    if any(tok in src_name for tok in ("living", "interior", "bedroom", "kitchen", "bath")):
+    if not brand_market and any(tok in src_name for tok in ("living", "interior", "bedroom", "kitchen", "bath")):
         interior_lock = True
+    if brand_market:
+        interior_lock = False
     design_plan = build_gpt_image_design_plan(
         canvas_width=canvas_w,
         canvas_height=canvas_h,

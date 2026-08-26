@@ -207,7 +207,7 @@ def resolve_locked_assets(ctx: dict[str, Any]) -> tuple[UUID, UUID, dict[str, An
     if logo_id is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Campaign Context has no locked project logo. Cannot generate ad.",
+            detail="Campaign Context has no locked logo. Cannot invent a logo.",
         )
     logo_dict = _as_dict(logo_meta)
     logo_lock = verify_logo_lock(logo_dict)
@@ -739,8 +739,13 @@ def _prepare_campaign_ad_context(
         lifestyle=lifestyle,
     )
     allowed_tokens = _pricing_tokens(pricing, approved_claims, lifestyle=lifestyle)
-    format_preset = (body.format_preset or "portrait").strip() or "portrait"
-    aspect_ratio = (body.aspect_ratio or "4:5").strip() or "4:5"
+    engine = _as_dict(ctx.get("generation_engine"))
+    if engine.get("format_specified") and engine.get("format_preset"):
+        format_preset = str(engine.get("format_preset") or "portrait").strip() or "portrait"
+        aspect_ratio = str(engine.get("aspect_ratio") or "4:5").strip() or "4:5"
+    else:
+        format_preset = (body.format_preset or "portrait").strip() or "portrait"
+        aspect_ratio = (body.aspect_ratio or "4:5").strip() or "4:5"
     art_direction = translate_campaign_art_direction(
         ctx=ctx,
         texts=texts,
@@ -1365,6 +1370,8 @@ def generate_ad_from_campaign(
         production_brief,
     ) = prep
     production_mode = _resolve_production_mode(body)
+    engine = _as_dict(ctx.get("generation_engine"))
+    brand_ad = str(engine.get("ad_scope") or "") == "brand"
     if production_mode != "golden_native_v1":
         provider_route = route_ad_social_image(prefer_edit=True)
         try:
@@ -1383,9 +1390,10 @@ def generate_ad_from_campaign(
             ctx.get("campaign_intent") or production_brief.get("campaign_intent") or ""
         ),
         require_historic_plus_addition=_brief_requires_historic_plus_addition(original_brief),
+        allow_publish_without_lock=brand_ad,
     )
     drive_truth = _as_dict(_as_dict(ctx.get("drive_research")).get("architecture_truth"))
-    if drive_truth.get("fail_closed") or pre_truth.get("fail_closed"):
+    if not brand_ad and (drive_truth.get("fail_closed") or pre_truth.get("fail_closed")):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={
@@ -1450,7 +1458,7 @@ def generate_ad_from_campaign(
         "creative_director_campaign_id": str(row.id),
         "approved_financial_tokens": allowed_tokens,
         "preferred_logo_asset_id": str(logo_id),
-        "interior_project_asset_lock": True,
+        "interior_project_asset_lock": not brand_ad,
         "campaign_mode": "lifestyle" if lifestyle else "launch_price",
         "art_direction_plan": art_direction.to_dict(),
         "production_brief": production_brief,
@@ -1458,6 +1466,9 @@ def generate_ad_from_campaign(
         "image_provider_route": provider_route.to_dict(),
         "feature_callouts": callouts,
     }
+    if brand_ad:
+        builder_context["brand_market_ad"] = True
+        builder_context["skip_project_logo"] = True
     if production_mode in {"finished_ad", "editable_finished_ad"}:
         # Provider still produces a flat reference raster; editable mode hydrates layers separately.
         builder_context["finished_ad"] = True
@@ -1521,8 +1532,9 @@ def generate_ad_from_campaign(
             ctx.get("campaign_intent") or production_brief.get("campaign_intent") or ""
         ),
         require_historic_plus_addition=_brief_requires_historic_plus_addition(original_brief),
+        allow_publish_without_lock=brand_ad,
     )
-    if truth_guard.get("fail_closed"):
+    if not brand_ad and truth_guard.get("fail_closed"):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={

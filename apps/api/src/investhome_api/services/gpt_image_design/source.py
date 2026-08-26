@@ -429,6 +429,7 @@ def resolve_project_inputs(
     selected_asset_ids: list[UUID] | None,
     project_name: str | None,
     project_code: str | None,
+    skip_project_logo: bool = False,
 ) -> tuple[ResolvedSourceImage, list[ResolvedSourceImage], list[SocialDesignMediaCandidate], list[str], list[str]]:
     """Returns source, logos, design refs, logo_notes, composition_warnings."""
     source_candidate, candidates = pick_source_asset(
@@ -454,23 +455,25 @@ def resolve_project_inputs(
     warnings: list[str] = []
 
     # Prefer Temple Primary SVG when present in this project library.
-    project_logo = prefer_project_logo(
-        candidates,
-        project_name=project_name,
-        project_code=project_code,
-        preferred_asset_id=TEMPLE_PRIMARY_LOGO_ID,
-    )
-    if project_logo is None and any(c.asset_id == TEMPLE_PRIMARY_LOGO_ID for c in candidates):
-        project_logo = _candidate_for(candidates, TEMPLE_PRIMARY_LOGO_ID)
-    if project_logo is None:
-        # Direct fetch of preferred Primary when it belongs to this project.
-        preferred_asset = db.get(CreativeStudioMediaAsset, TEMPLE_PRIMARY_LOGO_ID)
-        if (
-            preferred_asset is not None
-            and preferred_asset.archived_at is None
-            and preferred_asset.linked_project_id == linked_project_id
-        ):
-            project_logo = _candidate_from_asset(db, preferred_asset)
+    project_logo = None
+    if not skip_project_logo:
+        project_logo = prefer_project_logo(
+            candidates,
+            project_name=project_name,
+            project_code=project_code,
+            preferred_asset_id=TEMPLE_PRIMARY_LOGO_ID,
+        )
+        if project_logo is None and any(c.asset_id == TEMPLE_PRIMARY_LOGO_ID for c in candidates):
+            project_logo = _candidate_for(candidates, TEMPLE_PRIMARY_LOGO_ID)
+        if project_logo is None:
+            # Direct fetch of preferred Primary when it belongs to this project.
+            preferred_asset = db.get(CreativeStudioMediaAsset, TEMPLE_PRIMARY_LOGO_ID)
+            if (
+                preferred_asset is not None
+                and preferred_asset.archived_at is None
+                and preferred_asset.linked_project_id == linked_project_id
+            ):
+                project_logo = _candidate_from_asset(db, preferred_asset)
 
     # Investhome: search global/company brand assets first — never silent fallback.
     supporting = find_global_investhome_logo(db)

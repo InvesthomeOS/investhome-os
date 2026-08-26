@@ -13,8 +13,13 @@ from sqlalchemy import select
 from investhome_api.models.project import Project
 from investhome_api.schemas.social_design_engine import SocialDesignMediaCandidate
 from investhome_api.services.ai_search.hybrid_search import ProjectScopeError, hybrid_search
-from investhome_api.services.gpt_image_design.source import TEMPLE_PRIMARY_LOGO_ID, prefer_project_logo
+from investhome_api.services.gpt_image_design.source import (
+    TEMPLE_PRIMARY_LOGO_ID,
+    find_global_investhome_logo,
+    prefer_project_logo,
+)
 from investhome_api.services.creative_director.quality_lock.architecture_truth import (
+    APPROVED_EXTERIOR_OPTIONS,
     annotate_asset_truth,
     classify_candidate,
     creative_freedom_level_for,
@@ -114,8 +119,10 @@ def _to_selected(
     role: str,
     selection_score: float | None = None,
     selection_reason: str | None = None,
+    project_relation: str | None = None,
 ) -> SelectedAsset:
     classification = classify_candidate(cand, role=role)
+    relation = project_relation or "project_primary"
     annotated = annotate_asset_truth(
         {
             "asset_id": str(cand.asset_id),
@@ -126,7 +133,8 @@ def _to_selected(
             "role": role,
             "provenance_source": cand.provenance_source,
             "classification": classification,
-        }
+        },
+        project_relation=relation,
     )
     return SelectedAsset(
         asset_id=str(cand.asset_id),
@@ -165,6 +173,100 @@ def _is_interior(cand: SocialDesignMediaCandidate) -> bool:
 def _is_exterior_primary(cand: SocialDesignMediaCandidate) -> bool:
     subject = (cand.visual_subject or "").upper()
     return subject in {"EXTERIOR", "AERIAL", "NEIGHBORHOOD", "LOCATION"}
+
+
+_CITY_VISUAL_TOKENS = (
+    "washington",
+    " dc",
+    "d.c",
+    "skyline",
+    "capitol",
+    "adams",
+    "morgan",
+    "neighborhood",
+    "location",
+    "streetscape",
+    "street",
+    "city",
+    "sehir",
+    "şehir",
+    "district",
+    "veiw",
+)
+_CITY_EXCLUDE_TOKENS = (
+    "chapel",
+    "temple",
+    "tmp_001",
+    "ideogram",
+    "gpt-image",
+    "provider:ideogram",
+    "living",
+    "bedroom",
+    "kitchen",
+    "bathroom",
+    "interior",
+    "addition",
+)
+
+
+def pick_city_visual(
+    candidates: list[SocialDesignMediaCandidate],
+    *,
+    brief: str = "",
+) -> tuple[SocialDesignMediaCandidate | None, float | None, str | None]:
+    """Brand/market hero: place imagery, never project interior or locked architecture."""
+    brief_l = (brief or "").lower()
+    scored: list[tuple[float, str, SocialDesignMediaCandidate]] = []
+    for cand in candidates:
+        ctype = (cand.content_type or "").lower()
+        if not ctype.startswith("image/") or ctype == "image/svg+xml":
+            continue
+        if _is_interior(cand):
+            continue
+        classification = classify_candidate(cand)
+        if classification in APPROVED_EXTERIOR_OPTIONS:
+            continue
+        if classification == "INTERIOR_APPROVED" or classification == "FLOORPLAN":
+            continue
+        if classification.startswith("LOGO"):
+            continue
+        hay = _haystack(cand)
+        if any(tok in hay for tok in _CITY_EXCLUDE_TOKENS):
+            continue
+        subject = (cand.visual_subject or "").upper()
+        folder = (cand.folder_category or "").upper()
+        place_subject = subject in {"LOCATION", "NEIGHBORHOOD"} or classification in {
+            "LOCATION",
+            "NEIGHBORHOOD",
+            "LIFESTYLE",
+        }
+        token_hit = any(tok in hay for tok in _CITY_VISUAL_TOKENS)
+        folder_hit = "05_LOCATION" in folder or "LOCATION" in folder or "NEIGHBORHOOD" in folder
+        if not (place_subject or token_hit or folder_hit):
+            continue
+        score = float(cand.score or 0.0)
+        reasons: list[str] = ["city_place_visual"]
+        if subject in {"LOCATION", "NEIGHBORHOOD"} or classification in {"LOCATION", "NEIGHBORHOOD"}:
+            score += 8.0
+            reasons.append("place_subject")
+        if any(tok in hay for tok in ("washington", "skyline", "capitol")):
+            score += 10.0
+            reasons.append("washington_dc")
+        if "adams" in hay or "morgan" in hay:
+            score += 4.0
+            reasons.append("neighborhood")
+        if folder_hit:
+            score += 3.0
+            reasons.append("location_folder")
+        if "washington" in brief_l and any(tok in hay for tok in ("washington", "dc", "adams")):
+            score += 3.0
+            reasons.append("brief_place_fit")
+        scored.append((score, "+".join(reasons), cand))
+    if not scored:
+        return None, None, None
+    scored.sort(key=lambda row: -row[0])
+    best = scored[0]
+    return best[2], best[0], best[1]
 
 
 # Room / subject weights for campaign hero interiors (filename alone is not enough).
@@ -419,11 +521,15 @@ def research_project_drive(
     retrieval_limit: int = 12,
     campaign_intent: str | None = None,
     recent_asset_ids: list[str] | None = None,
+    ad_scope: str = "project",
+    visual_kind: str | None = None,
 ) -> DriveResearchPackage:
     """Research Drive/RAG + lock real hero visual + logo. No image generation."""
     warnings: list[str] = []
     linked_project_id = project.id
     intent = (campaign_intent or "").strip().lower() or None
+    scope = (ad_scope or "project").strip().lower() or "project"
+    kind = (visual_kind or "unspecified").strip().lower() or "unspecified"
     search_queries = [
         brief,
         f"{project.project_name} interior living lobby",
@@ -431,7 +537,14 @@ def research_project_drive(
         f"{project.project_name} logo brand",
         f"{project.project_name} unit price list inventory",
     ]
-    if intent == "location":
+    if scope == "brand":
+        search_queries = [
+            brief,
+            "Washington DC skyline neighborhood street location",
+            "Adams Morgan location neighborhood street",
+            "Investhome brand logo",
+        ]
+    elif intent == "location":
         search_queries.insert(1, f"{project.project_name} Adams Morgan location neighborhood street")
     for code in unit_codes or []:
         search_queries.append(f"{project.project_name} Unit {code} price")
@@ -472,20 +585,72 @@ def research_project_drive(
                 )
             )
 
-    pref = intent_to_asset_preference(intent or "lifestyle")
-    candidates = list_media_candidates(
-        db,
-        linked_project_id=linked_project_id,
-        instruction=brief,
-        limit=32,
-        preference_tokens=asset_preference_tokens(pref),
-        campaign_type="LIFESTYLE",
-    )
+    pref = "neighborhood" if scope == "brand" else intent_to_asset_preference(intent or "lifestyle")
+    if scope == "brand":
+        from investhome_api.models.creative_studio_media import CreativeStudioMediaAsset
+        from investhome_api.services.gpt_image_design.source import _candidate_from_asset
+
+        brand_rows = list(
+            db.scalars(
+                select(CreativeStudioMediaAsset).where(
+                    CreativeStudioMediaAsset.archived_at.is_(None),
+                    CreativeStudioMediaAsset.linked_project_id == linked_project_id,
+                    CreativeStudioMediaAsset.content_type.ilike("image/%"),
+                ).limit(500)
+            ).all()
+        )
+        candidates = []
+        for row in brand_rows:
+            if (row.content_type or "").lower() == "image/svg+xml":
+                continue
+            candidates.append(_candidate_from_asset(db, row))
+    else:
+        candidates = list_media_candidates(
+            db,
+            linked_project_id=linked_project_id,
+            instruction=brief,
+            limit=32,
+            preference_tokens=asset_preference_tokens(pref),
+            campaign_type="LIFESTYLE",
+        )
 
     selected_interior = None
     selected_logo = None
     truth_report: dict[str, Any] | None = None
-    if mode == "project":
+    if scope == "brand":
+        city_cand, city_score, city_reason = pick_city_visual(candidates, brief=brief)
+        if city_cand is None:
+            warnings.append(
+                "No Washington DC / city place visual found in Drive/Media Library. "
+                "Brand/market ads will not substitute a project interior or architecture render."
+            )
+        else:
+            selected_interior = _to_selected(
+                city_cand,
+                role="city_visual",
+                selection_score=city_score,
+                selection_reason=city_reason,
+                project_relation="place_not_project",
+            )
+            truth_report = {
+                "intent": intent or "investment",
+                "status": "brand_place_visual",
+                "fail_closed": False,
+                "message": "Brand/market ad — locked place imagery, not project architecture.",
+                "selected": {
+                    "asset_id": str(city_cand.asset_id),
+                    "filename": city_cand.filename,
+                    "pool": "city_visual",
+                },
+            }
+        logo_cand = find_global_investhome_logo(db)
+        if logo_cand is None:
+            warnings.append(
+                "Approved Investhome logo not found. Will not invent a logo or fake brand mark."
+            )
+        else:
+            selected_logo = _to_selected(logo_cand, role="investhome_logo")
+    elif mode == "project":
         dims: dict[UUID, tuple[int | None, int | None]] = {}
         dim_ids = [c.asset_id for c in candidates]
         if dim_ids:
@@ -589,6 +754,43 @@ def research_project_drive(
             )
             role = "hero_interior"
 
+        if kind == "exterior" and hero_cand is not None and _is_interior(hero_cand):
+            ext_cand, ext_reason, ext_report = pick_truthful_hero_for_intent(
+                candidates,
+                campaign_intent="architecture",
+                require_historic_plus_addition=require_hpa,
+            )
+            if ext_cand is not None:
+                hero_cand = ext_cand
+                hero_score = float(ext_cand.score or 0.0)
+                hero_reason = ext_reason or "user_requested_exterior"
+                role = "hero_exterior"
+                truth_report = ext_report
+            else:
+                warnings.append(
+                    "User requested exterior (dış cephe); no approved exterior found. "
+                    "Will not substitute an interior."
+                )
+                hero_cand = None
+                truth_report = ext_report
+        elif kind == "interior" and hero_cand is not None and not _is_interior(hero_cand):
+            int_cand, int_score, int_reason = pick_real_interior(
+                candidates,
+                brief=brief,
+                dimensions=dims,
+            )
+            if int_cand is not None:
+                hero_cand = int_cand
+                hero_score = int_score
+                hero_reason = int_reason or "user_requested_interior"
+                role = "hero_interior"
+            else:
+                warnings.append(
+                    "User requested interior; no real interior found. "
+                    "Will not substitute an exterior."
+                )
+                hero_cand = None
+
         if hero_cand is None:
             warnings.append(
                 "No real project hero asset found in Drive/Media Library. "
@@ -635,7 +837,11 @@ def research_project_drive(
                 "category": selected_interior.folder_category,
                 "source": selected_interior.provenance_source or "media_library",
                 "asset_id": selected_interior.asset_id,
-                "summary": "Selected real project hero asset",
+                "summary": (
+                    "Selected city/place visual"
+                    if selected_interior.role == "city_visual"
+                    else "Selected real project hero asset"
+                ),
                 "excerpt": "",
                 "score": 1.0,
                 "role": selected_interior.role or "selected_hero",
@@ -654,7 +860,11 @@ def research_project_drive(
                 "category": selected_logo.folder_category,
                 "source": selected_logo.provenance_source or "media_library",
                 "asset_id": selected_logo.asset_id,
-                "summary": "Selected real project logo",
+                "summary": (
+                    "Selected approved Investhome logo"
+                    if selected_logo.role == "investhome_logo"
+                    else "Selected real project logo"
+                ),
                 "excerpt": "",
                 "score": 1.0,
                 "role": "selected_logo",

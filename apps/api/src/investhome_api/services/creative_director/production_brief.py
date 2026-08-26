@@ -99,19 +99,23 @@ CREATIVE_SIMPLICITY_PRINCIPLES: tuple[str, ...] = (
 
 
 def verify_logo_lock(logo_meta: dict[str, Any] | None) -> dict[str, Any]:
-    """Require a verified real project logo Asset ID before final production."""
+    """Require a verified real logo Asset ID before final production. Never invent a mark."""
     meta = _as_dict(logo_meta)
     asset_id = str(meta.get("asset_id") or meta.get("id") or "").strip()
     role = str(meta.get("role") or "").strip().lower()
-    locked = bool(asset_id) and role in {"", "project_logo", "logo"}
+    project_roles = {"", "project_logo", "logo"}
+    brand_roles = {"investhome_logo", "brand_logo"}
+    role_ok = role in project_roles or role in brand_roles
+    locked = bool(asset_id) and role_ok
     return {
         "logo_asset_id": asset_id or None,
         "logo_filename": meta.get("filename"),
-        "logo_locked": bool(asset_id),
-        "verified_project_logo": locked and bool(asset_id),
+        "logo_locked": bool(asset_id) and role_ok,
+        "verified_project_logo": bool(asset_id) and role in project_roles,
+        "verified_brand_logo": bool(asset_id) and role in brand_roles,
         "ai_must_not_draw_logo": True,
         "no_duplicate_logos": True,
-        "status": "pass" if asset_id else "fail",
+        "status": "pass" if locked else "fail",
     }
 
 
@@ -177,6 +181,8 @@ def build_production_brief(
         or ""
     )
     intent = str(intent_raw).strip().lower() or "general_awareness"
+    engine = _as_dict(ctx.get("generation_engine"))
+    brand_ad = str(engine.get("ad_scope") or "") == "brand"
     # Preserve legacy max-3 when caller did not supply a quality-lock intent.
     caps = (
         simplicity_caps_for_intent(intent)
@@ -293,10 +299,11 @@ def build_production_brief(
             "selection_reason": interior_meta.get("selection_reason"),
             "logo_asset_id": logo_lock.get("logo_asset_id") or logo_meta.get("asset_id"),
             "logo_filename": logo_meta.get("filename"),
-            "interior_architecture_locked": True,
-            "project_asset_locked": True,
+            "interior_architecture_locked": (not brand_ad) and bool(hero_truth.get("architecture_locked")),
+            "project_asset_locked": not brand_ad,
             "logo_locked": bool(logo_lock.get("logo_locked")),
             "verified_project_logo": bool(logo_lock.get("verified_project_logo")),
+            "verified_brand_logo": bool(logo_lock.get("verified_brand_logo")),
             "ai_must_not_draw_logo": True,
             "no_duplicate_logos": True,
             "no_invented_architecture": True,
@@ -325,6 +332,16 @@ def build_production_brief(
         "max_supporting_messages": max_supporting,
         "campaign_mode": texts.get("campaign_mode"),
         "information_density": design.get("information_density") or simplicity.get("density"),
+        "generation_engine": engine or None,
+        "required_facts": list(engine.get("required_facts") or strategy.get("required_project_data") or []),
+        "required_assets": list(engine.get("required_assets") or strategy.get("required_assets") or []),
+        "forbidden_changes": list(engine.get("forbidden_changes") or []),
+        "image_direction": strategy.get("visual_direction"),
+        "output_format": {
+            "format_preset": format_preset,
+            "aspect_ratio": aspect_ratio,
+            "label": engine.get("format_label"),
+        },
     }
 
 

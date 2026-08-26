@@ -38,6 +38,10 @@ from investhome_api.services.creative_director.quality_lock.simplicity import (
     simplicity_caps_for_intent,
 )
 from investhome_api.services.creative_director.research import research_project_drive
+from investhome_api.services.creative_director.generation_engine import (
+    generation_engine_for_context,
+    interpret_short_user_brief,
+)
 from investhome_api.services.social_design_engine.generation import extract_campaign_facts
 from investhome_api.services.social_design_engine.fact_governance import CampaignContext
 from investhome_api.services.social_design_engine.verified_facts import (
@@ -183,6 +187,13 @@ def create_campaign(
         ),
         has_price_pair=has_price_pair,
     )
+    parsed_brief = interpret_short_user_brief(
+        brief,
+        project_name=project.project_name,
+        language=body.language,
+    )
+    engine = generation_engine_for_context(parsed_brief)
+    ad_scope = str(engine.get("ad_scope") or "project")
 
     research_pkg = research_project_drive(
         db,
@@ -191,8 +202,33 @@ def create_campaign(
         mode=mode,
         unit_codes=unit_codes,
         campaign_intent=quality_intent.campaign_intent,
+        ad_scope=ad_scope,
+        visual_kind=str(engine.get("visual_kind") or "unspecified"),
     )
     research = research_pkg.to_dict()
+    if ad_scope == "brand" and not research_pkg.selected_logo:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": (
+                    "Approved Investhome logo not found. Cannot invent a logo or fake brand mark. "
+                    "FAIL CLOSED."
+                ),
+                "logo_asset": None,
+                "ad_scope": "brand",
+            },
+        )
+    if ad_scope == "brand" and not research_pkg.selected_interior:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": (
+                    "No Washington DC / city place visual found. "
+                    "Will not substitute a project interior or architecture render."
+                ),
+                "ad_scope": "brand",
+            },
+        )
 
     # Drive price hints from unit research (presence only — do not invent amounts).
     drive_prices: dict[str, Any] = {"units": {}}
@@ -241,6 +277,7 @@ def create_campaign(
         research_summary=research,
         pricing=pricing,
         mode=mode,
+        generation_engine=engine,
     )
 
     campaign = CreativeDirectorCampaign(
@@ -328,10 +365,16 @@ def create_campaign(
             else None
         ),
     )
+    format_preset = "portrait"
+    aspect_ratio = "4:5"
+    if engine.get("format_specified") and engine.get("format_preset"):
+        format_preset = str(engine.get("format_preset") or "portrait")
+        aspect_ratio = str(engine.get("aspect_ratio") or "4:5")
     production_brief = build_production_brief(
         ctx={
             "selected_assets": brief_payload["selected_assets"],
             "campaign_intent": quality_intent.campaign_intent,
+            "generation_engine": engine,
         },
         strategy=strategy,
         campaign_copy={
@@ -349,8 +392,8 @@ def create_campaign(
         interior_meta=research.get("selected_interior") or {},
         logo_meta=research.get("selected_logo") or {},
         language=language,
-        aspect_ratio="4:5",
-        format_preset="portrait",
+        aspect_ratio=aspect_ratio,
+        format_preset=format_preset,
         message_strategy=message_strategy.to_dict(),
         design_direction=design_direction.to_dict(),
         simplicity_director=simplicity,
@@ -360,6 +403,8 @@ def create_campaign(
     context = {
         "original_user_brief": brief,
         "language": language,
+        "user_brief_analysis": parsed_brief,
+        "generation_engine": engine,
         "campaign_intent": quality_intent.campaign_intent,
         "legacy_campaign_intent": quality_intent.legacy_campaign_intent,
         "quality_intent": quality_intent.to_dict(),

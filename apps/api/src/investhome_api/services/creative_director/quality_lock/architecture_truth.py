@@ -160,7 +160,12 @@ def classify_architecture_asset(
     )
     role_l = (role or "").lower()
 
-    if subject == "BRANDING" or "logo" in hay or role_l in {"project_logo", "logo"}:
+    if subject == "BRANDING" or "logo" in hay or role_l in {
+        "project_logo",
+        "logo",
+        "investhome_logo",
+        "brand_logo",
+    }:
         if any(k in hay for k in ("white", "light", "reversed")):
             return "LOGO_WHITE"
         if any(k in hay for k in ("dark", "black", "navy")):
