@@ -11,6 +11,7 @@ stamping is not used on this path.
 from __future__ import annotations
 
 import io
+import json
 import logging
 import os
 from pathlib import Path
@@ -45,8 +46,11 @@ COMMERCIAL_CHANGE_MIN_MAD = 4.0
 MIN_TYPE_COMPONENT_H = 14
 PROVIDER_FULL_REDESIGN_MAD = 42.0
 EVIDENCE_DIR = Path(
-    os.environ.get("BOUNDED_RECOMPOSE_EVIDENCE_DIR", "/tmp/bounded-local-recomposition-v1")
+    os.environ.get("BOUNDED_RECOMPOSE_EVIDENCE_DIR", "/tmp/bounded-local-recomposition-v2")
 )
+GHOST_UNCHANGED_MAX_RATIO = 0.35
+GHOST_UNCHANGED_MIN_PIXELS = 24
+OVERLAP_IOU = 0.38
 
 
 def write_evidence_files(**files: bytes | None) -> str:
@@ -56,6 +60,24 @@ def write_evidence_files(**files: bytes | None) -> str:
         if data:
             (EVIDENCE_DIR / name).write_bytes(data)
     return str(EVIDENCE_DIR)
+
+
+def _dump_gates(payload: dict[str, Any], name: str = "gates.json") -> None:
+    EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
+    (EVIDENCE_DIR / name).write_text(
+        json.dumps(payload, indent=2, default=str),
+        encoding="utf-8",
+    )
+
+
+def _fail_closed(message: str, **extra: Any) -> None:
+    payload = {"message": message, **extra}
+    _dump_gates(payload, "fail.json")
+    logger.warning("bounded_recompose_fail %s", message)
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail=payload,
+    )
 
 
 def _as_dict(value: Any) -> dict[str, Any]:
@@ -116,15 +138,14 @@ def detect_price_content_growth(
 
 def commercial_bbox(edit_map: dict[str, Any]) -> dict[str, int]:
     region = region_by_role(edit_map, "commercial_group")
-    box = None
-    if region:
-        box = region.get("safe_bbox") or region.get("bbox")
+    box = (region or {}).get("safe_bbox")
     if not box:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
                 "BOUNDED_LOCAL_RECOMPOSITION fail-closed — "
-                "commercial_group bbox missing on Edit Map."
+                "Edit Map v1.1 commercial_group.safe_bbox is required. "
+                "The Phase 1 semantic bbox was not used."
             ),
         )
     return {
@@ -164,7 +185,7 @@ def render_mask_debug(cover: Image.Image, bbox: dict[str, int]) -> Image.Image:
     d = ImageDraw.Draw(composed)
     d.text(
         (bbox["x0"] + 8, max(0, bbox["y0"] - 14)),
-        "mutable: commercial_group",
+        "mutable: commercial_group.safe_bbox",
         fill=(255, 200, 40),
     )
     return composed
@@ -187,26 +208,33 @@ def build_region_edit_prompt(intent: PriceBlockIntent) -> str:
             "Do NOT change the subheadline.",
             "Do NOT change the gold CTA button or its text.",
             "Do NOT change The Temple logo.",
-            "Do NOT expand the edit into the photograph below the mask.",
+            "Do NOT expand the edit into the photograph below the mask (hero starts at the mask bottom).",
             "Do NOT change canvas size, global palette, or overall ad identity.",
             "",
-            "Inside the masked commercial group, locally recompose the existing stats",
-            "(2+1 / DAİRE, list price, %35) so the following facts fit with a premium,",
-            "readable real-estate hierarchy in navy / gold / white, visually compatible",
-            "with the current master. You may restack, change column proportions, and",
-            "redesign internal separators INSIDE the mask. This is not a fixed template.",
+            "Inside the masked commercial group, create a coherent LOCAL COMMERCIAL COMPOSITION.",
+            "Do NOT keep the old three equal columns and squeeze extra lines into them.",
+            "Do NOT simply stamp two extra text lines. Redesign the hierarchy inside the mask.",
+            "You may change column widths, restack, move 2+1 and %35, redesign separators,",
+            "and adjust type sizes moderately. Navy / gold / white only. Not a fixed template.",
+            "",
+            "Hierarchy (make this especially clear):",
+            f"PRIMARY — {intent.launch_label}: {launch_s}",
+            f"SECONDARY — {intent.list_label}: {list_s} with a clear strikethrough",
+            f"IMPORTANT BENEFIT — {intent.savings_label}: {save_s}",
+            "SUPPORT — %35 LANSMAN AVANTAJI and 2+1 DAİRE",
             "",
             "Required facts (do not invent others, no ROI / yield / extra discount):",
             "2+1",
             "DAİRE",
-            f"{intent.list_label}: {list_s} — keep list price and show it struck through",
+            f"{intent.list_label}: {list_s} — struck through",
             f"{intent.launch_label}: {launch_s}",
             f"{intent.savings_label}: {save_s}",
             "LANSMAN AVANTAJI",
             "%35",
             "",
-            "Typography must stay readable. No tiny emergency text, no overlapping copy,",
-            "no duplicated prices, no ghost text, no generic spreadsheet table, no pasted patch.",
+            "Typography must stay readable and premium. No tiny emergency text, no overlapping copy,",
+            "no duplicated prices, no ghost leftovers of the old stats, no generic spreadsheet table,",
+            "no pasted-on patch. The block must look intentionally designed.",
         ]
     )
 
@@ -504,6 +532,174 @@ def immutable_region_deltas(
     return out
 
 
+def _is_type_pixel(r: int, g: int, b: int) -> bool:
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    gold = r > 180 and g > 140 and b < 140
+    white = (not gold) and lum >= 200
+    return gold or white
+
+
+def _tail_bands(edit_map: dict[str, Any], bbox: dict[str, int]) -> list[tuple[str, int, int]]:
+    region = region_by_role(edit_map, "commercial_group") or {}
+    semantic = region.get("semantic_bbox") or {}
+    visual = region.get("visual_bbox") or {}
+    bands: list[tuple[str, int, int]] = []
+    if semantic and visual:
+        if int(visual.get("y0") or bbox["y0"]) < int(semantic.get("y0") or bbox["y0"]):
+            bands.append(
+                ("upper_tail", int(visual["y0"]), int(semantic["y0"]))
+            )
+        if int(semantic.get("y1") or bbox["y1"]) < int(visual.get("y1") or bbox["y1"]):
+            bands.append(
+                ("lower_tail", int(semantic["y1"]), int(visual["y1"]))
+            )
+    if not bands:
+        bands.append(("safe_region", bbox["y0"], bbox["y1"]))
+    return bands
+
+
+def ghost_check(
+    original: Image.Image,
+    composed: Image.Image,
+    bbox: dict[str, int],
+    edit_map: dict[str, Any],
+) -> dict[str, Any]:
+    """Reject leftover original commercial type, especially old glyph tails."""
+    orig = original.convert("RGB")
+    new = composed.convert("RGB")
+    po, pn = orig.load(), new.load()
+    bands = _tail_bands(edit_map, bbox)
+    band_stats: list[dict[str, Any]] = []
+    failures: list[str] = []
+    for name, y0, y1 in bands:
+        y0 = max(bbox["y0"], y0)
+        y1 = min(bbox["y1"], y1)
+        original_type = 0
+        unchanged = 0
+        for y in range(y0, y1):
+            for x in range(bbox["x0"], bbox["x1"]):
+                r, g, b = po[x, y]
+                if not _is_type_pixel(r, g, b):
+                    continue
+                original_type += 1
+                r2, g2, b2 = pn[x, y]
+                if abs(r - r2) + abs(g - g2) + abs(b - b2) < 18:
+                    unchanged += 1
+        ratio = unchanged / max(1, original_type)
+        stat = {
+            "band": name,
+            "y0": y0,
+            "y1": y1,
+            "original_type_pixels": original_type,
+            "unchanged_type_pixels": unchanged,
+            "unchanged_ratio": round(ratio, 3),
+        }
+        band_stats.append(stat)
+        if original_type >= GHOST_UNCHANGED_MIN_PIXELS and ratio > GHOST_UNCHANGED_MAX_RATIO:
+            failures.append(f"ghost_residual:{name}")
+    below_hero = 0
+    hero = region_by_role(edit_map, "hero_visual")
+    hero_y = int((hero or {}).get("bbox", {}).get("y0") or bbox["y1"])
+    if bbox["y1"] > hero_y:
+        failures.append("safe_region_crosses_hero_boundary")
+    for y in range(hero_y, min(orig.size[1], hero_y + 8)):
+        for x in range(bbox["x0"], bbox["x1"]):
+            r, g, b = pn[x, y]
+            if _is_type_pixel(r, g, b):
+                r0, g0, b0 = po[x, y]
+                if abs(r - r0) + abs(g - g0) + abs(b - b0) > 30:
+                    below_hero += 1
+    if below_hero > 12:
+        failures.append("commercial_pixels_below_hero_boundary")
+    return {
+        "status": "fail" if failures else "pass",
+        "failures": failures,
+        "bands": band_stats,
+        "new_type_below_hero": below_hero,
+        "hero_boundary_y": hero_y,
+    }
+
+
+def overlap_check(composed: Image.Image, bbox: dict[str, int]) -> dict[str, Any]:
+    crop = composed.crop((bbox["x0"], bbox["y0"], bbox["x1"], bbox["y1"]))
+    boxes = [b for b in _type_components(crop) if (b[3] - b[1]) >= 12 and (b[2] - b[0]) >= 12]
+    overlaps = 0
+    for i, a in enumerate(boxes):
+        for b in boxes[i + 1 :]:
+            ix0, iy0 = max(a[0], b[0]), max(a[1], b[1])
+            ix1, iy1 = min(a[2], b[2]), min(a[3], b[3])
+            if ix1 <= ix0 or iy1 <= iy0:
+                continue
+            inter = (ix1 - ix0) * (iy1 - iy0)
+            area_a = max(1, (a[2] - a[0]) * (a[3] - a[1]))
+            area_b = max(1, (b[2] - b[0]) * (b[3] - b[1]))
+            iou = inter / float(area_a + area_b - inter)
+            if iou > OVERLAP_IOU:
+                overlaps += 1
+    failures = ["overlapping_commercial_type"] if overlaps >= 3 else []
+    return {
+        "status": "fail" if failures else "pass",
+        "failures": failures,
+        "large_component_count": len(boxes),
+        "overlap_pairs": overlaps,
+    }
+
+
+def visual_quality_gate(
+    readability: dict[str, Any],
+    overlap: dict[str, Any],
+    ghost: dict[str, Any],
+    facts: dict[str, Any],
+) -> dict[str, Any]:
+    failures: list[str] = []
+    for block in (readability, overlap, ghost):
+        failures.extend(list(block.get("failures") or []))
+    if facts.get("status") == "fail":
+        failures.extend(list(facts.get("failures") or ["facts_failed"]))
+    max_h = int(readability.get("max_component_height") or 0)
+    if max_h and max_h < 18:
+        failures.append("commercial_hierarchy_too_small")
+    return {
+        "status": "fail" if failures else "pass",
+        "failures": failures,
+        "readability": readability.get("status"),
+        "overlap": overlap.get("status"),
+        "ghost": ghost.get("status"),
+        "facts": facts.get("status"),
+        "facts_confidence": facts.get("confidence"),
+    }
+
+
+def render_pixel_diff(
+    original: Image.Image, composed: Image.Image, bbox: dict[str, int]
+) -> Image.Image:
+    """Gold = change inside safe region. Cyan = any change outside (should be none)."""
+    orig = original.convert("RGB")
+    new = composed.convert("RGB")
+    w, h = orig.size
+    out = Image.new("RGB", (w, h), (8, 10, 16))
+    po, pn, pp = orig.load(), new.load(), out.load()
+    for y in range(0, h, 1):
+        for x in range(0, w, 1):
+            r, g, b = po[x, y]
+            r2, g2, b2 = pn[x, y]
+            d = (abs(r - r2) + abs(g - g2) + abs(b - b2)) // 3
+            inside = bbox["x0"] <= x < bbox["x1"] and bbox["y0"] <= y < bbox["y1"]
+            if d < 4:
+                pp[x, y] = (int(r * 0.25), int(g * 0.25), int(b * 0.28))
+            elif inside:
+                pp[x, y] = (min(255, 40 + d * 2), min(255, 30 + d), 8)
+            else:
+                pp[x, y] = (8, min(255, 40 + d), min(255, 40 + d * 2))
+    draw = ImageDraw.Draw(out)
+    draw.rectangle(
+        [bbox["x0"], bbox["y0"], bbox["x1"] - 1, bbox["y1"] - 1],
+        outline=(255, 200, 40),
+        width=2,
+    )
+    return out
+
+
 def execute_bounded_commercial_recomposition(
     *,
     cover_bytes: bytes,
@@ -634,49 +830,39 @@ def execute_bounded_commercial_recomposition(
     composed.save(composed_buf, format="PNG")
     before_crop = original.crop((bbox["x0"], bbox["y0"], bbox["x1"], bbox["y1"]))
     after_crop = composed.crop((bbox["x0"], bbox["y0"], bbox["x1"], bbox["y1"]))
-    bc, ac = io.BytesIO(), io.BytesIO()
+    bc, ac, df = io.BytesIO(), io.BytesIO(), io.BytesIO()
     before_crop.save(bc, format="PNG")
     after_crop.save(ac, format="PNG")
+    render_pixel_diff(original, composed, bbox).save(df, format="PNG")
     write_evidence_files(
         **{
             "after-composed-candidate.png": composed_buf.getvalue(),
             "before-crop.png": bc.getvalue(),
             "after-crop.png": ac.getvalue(),
+            "pixel-diff.png": df.getvalue(),
         }
     )
     composed_outside = _mean_abs_delta_outside(original, composed, bbox)
     commercial_mad = _mean_abs_delta(original, composed, bbox)
     if commercial_mad < COMMERCIAL_CHANGE_MIN_MAD:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={
-                "message": "BOUNDED_LOCAL_RECOMPOSITION fail-closed — commercial group did not change.",
-                "commercial_mad": round(commercial_mad, 3),
-            },
+        _fail_closed(
+            "BOUNDED_LOCAL_RECOMPOSITION fail-closed — commercial group did not change.",
+            commercial_mad=round(commercial_mad, 3),
         )
 
     locks = immutable_region_deltas(original, composed, edit_map)
     lock_failures = [k for k, v in locks.items() if v.get("status") == "fail"]
     if lock_failures or composed_outside >= 0.51:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={
-                "message": "BOUNDED_LOCAL_RECOMPOSITION fail-closed — immutable region changed.",
-                "lock_failures": lock_failures,
-                "composed_outside_mad": round(composed_outside, 4),
-                "locks": locks,
-            },
+        _fail_closed(
+            "BOUNDED_LOCAL_RECOMPOSITION fail-closed — immutable region changed.",
+            lock_failures=lock_failures,
+            composed_outside_mad=round(composed_outside, 4),
+            locks=locks,
         )
 
     read = readability_check(composed, bbox)
-    if read["status"] == "fail":
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={
-                "message": "BOUNDED_LOCAL_RECOMPOSITION fail-closed — commercial type is unreadable.",
-                "readability": read,
-            },
-        )
+    ghost = ghost_check(original, composed, bbox, edit_map)
+    overlap = overlap_check(composed, bbox)
     facts = fact_check(
         composed,
         bbox,
@@ -686,13 +872,35 @@ def execute_bounded_commercial_recomposition(
             "revised_prompt": getattr(remote, "revised_prompt", None),
         },
     )
-    if facts["status"] == "fail":
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={
-                "message": "BOUNDED_LOCAL_RECOMPOSITION fail-closed — required price facts not found.",
-                "facts": facts,
+    quality = visual_quality_gate(read, overlap, ghost, facts)
+    _dump_gates(
+        {
+            "safe_bbox": bbox,
+            "provider_calls": calls,
+            "generate_calls": 0,
+            "visual_replace_calls": 0,
+            "preservation": {
+                "raw_outside_mad": round(raw_outside, 4),
+                "composed_outside_mad": round(composed_outside, 4),
+                "commercial_mad": round(commercial_mad, 4),
+                "locks": locks,
             },
+            "readability": read,
+            "ghost": ghost,
+            "overlap": overlap,
+            "facts": facts,
+            "visual_quality": quality,
+        }
+    )
+    if quality["status"] == "fail":
+        reason = ", ".join(quality.get("failures") or ["visual_quality"])
+        _fail_closed(
+            f"BOUNDED_LOCAL_RECOMPOSITION fail-closed — {reason}.",
+            visual_quality=quality,
+            ghost=ghost,
+            overlap=overlap,
+            readability=read,
+            facts=facts,
         )
 
     out_buf = io.BytesIO()
@@ -704,11 +912,14 @@ def execute_bounded_commercial_recomposition(
         "intent": "PRICE_EDIT_ONLY",
         "content_growth": growth,
         "mutable_region": bbox,
+        "safe_bbox": bbox,
+        "edit_map_version": edit_map.get("version"),
         "provider_capability": "edit_region",
         "provider_id": route.provider_id,
         "provider_model": availability.model,
         "provider_calls": calls,
         "generate_calls": 0,
+        "visual_replace_calls": 0,
         "calls_before": calls_before,
         "prompt": prompt,
         "preservation": {
@@ -718,7 +929,10 @@ def execute_bounded_commercial_recomposition(
             "locks": locks,
         },
         "readability": read,
+        "ghost": ghost,
+        "overlap": overlap,
         "facts": facts,
+        "visual_quality": quality,
         "source_visual_asset_id": str(source_visual_asset_id),
         "evidence_dir": str(EVIDENCE_DIR),
         "evidence": {
@@ -726,6 +940,7 @@ def execute_bounded_commercial_recomposition(
             "mask_debug_png": mask_dbg_buf.getvalue(),
             "before_crop_png": bc.getvalue(),
             "after_crop_png": ac.getvalue(),
+            "pixel_diff_png": df.getvalue(),
         },
     }
     logger.info(

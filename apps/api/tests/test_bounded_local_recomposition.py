@@ -173,6 +173,85 @@ def test_occupied_new_and_savings_require_bbox() -> None:
     assert group["column_relationship"]["layout"] == "restacked_price_hierarchy"
 
 
+def test_commercial_bbox_requires_safe_bbox() -> None:
+    from fastapi import HTTPException
+
+    from investhome_api.services.creative_director.bounded_local_recomposition import (
+        commercial_bbox,
+    )
+
+    edit_map = {
+        "regions": [
+            {
+                "semantic_role": "commercial_group",
+                "bbox": {"x0": 226, "y0": 319, "x1": 882, "y1": 550},
+            }
+        ]
+    }
+    try:
+        commercial_bbox(edit_map)
+        raise AssertionError("Phase 1 semantic bbox must not be used")
+    except HTTPException as exc:
+        assert exc.status_code == 422
+        assert "safe_bbox" in str(exc.detail)
+
+
+def test_ghost_check_rejects_unchanged_original_tails() -> None:
+    from investhome_api.services.creative_director.bounded_local_recomposition import (
+        ghost_check,
+    )
+
+    original = Image.new("RGB", (120, 80), (8, 12, 28))
+    draw = ImageDraw.Draw(original)
+    draw.rectangle([10, 8, 110, 18], fill=(220, 180, 60))
+    draw.rectangle([10, 62, 110, 72], fill=(230, 230, 230))
+    composed = original.copy()
+    bbox = {"x0": 8, "y0": 4, "x1": 114, "y1": 76}
+    edit_map = {
+        "regions": [
+            {
+                "semantic_role": "commercial_group",
+                "semantic_bbox": {"x0": 8, "y0": 20, "x1": 114, "y1": 60},
+                "visual_bbox": {"x0": 8, "y0": 8, "x1": 114, "y1": 74},
+                "safe_bbox": bbox,
+            },
+            {"semantic_role": "hero_visual", "bbox": {"x0": 0, "y0": 76, "x1": 120, "y1": 80}},
+        ]
+    }
+    result = ghost_check(original, composed, bbox, edit_map)
+    assert result["status"] == "fail"
+    assert any("ghost_residual" in f for f in result["failures"])
+
+
+def test_ghost_check_passes_when_tails_are_rewritten() -> None:
+    from investhome_api.services.creative_director.bounded_local_recomposition import (
+        ghost_check,
+    )
+
+    original = Image.new("RGB", (120, 80), (8, 12, 28))
+    draw = ImageDraw.Draw(original)
+    draw.rectangle([10, 8, 110, 18], fill=(220, 180, 60))
+    draw.rectangle([10, 62, 110, 72], fill=(230, 230, 230))
+    composed = Image.new("RGB", (120, 80), (8, 12, 28))
+    cdraw = ImageDraw.Draw(composed)
+    cdraw.rectangle([18, 22, 100, 54], fill=(240, 240, 240))
+    cdraw.rectangle([18, 40, 70, 52], fill=(210, 170, 70))
+    bbox = {"x0": 8, "y0": 4, "x1": 114, "y1": 76}
+    edit_map = {
+        "regions": [
+            {
+                "semantic_role": "commercial_group",
+                "semantic_bbox": {"x0": 8, "y0": 20, "x1": 114, "y1": 60},
+                "visual_bbox": {"x0": 8, "y0": 8, "x1": 114, "y1": 74},
+                "safe_bbox": bbox,
+            },
+            {"semantic_role": "hero_visual", "bbox": {"x0": 0, "y0": 76, "x1": 120, "y1": 80}},
+        ]
+    }
+    result = ghost_check(original, composed, bbox, edit_map)
+    assert result["status"] == "pass", result
+
+
 def test_commercial_bbox_prefers_safe_bbox() -> None:
     from investhome_api.services.creative_director.bounded_local_recomposition import (
         commercial_bbox,
