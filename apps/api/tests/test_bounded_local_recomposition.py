@@ -100,6 +100,8 @@ def test_content_growth_one_slot_to_three() -> None:
     assert growth["occupied_slots_after"] == 3
     assert growth["fits_current_geometry"] is False
     assert growth["execution"] == EXECUTION
+    assert growth["mutable_region_role"] == "commercial_content_zone"
+    assert growth["content_growth_route"] == "commercial_content_zone"
 
 
 def test_mask_alpha_zero_only_inside_commercial_bbox() -> None:
@@ -194,6 +196,29 @@ def test_commercial_bbox_requires_safe_bbox() -> None:
     except HTTPException as exc:
         assert exc.status_code == 422
         assert "safe_bbox" in str(exc.detail)
+
+
+def test_content_growth_bbox_uses_commercial_content_zone() -> None:
+    from investhome_api.services.creative_director.bounded_local_recomposition import (
+        commercial_bbox,
+    )
+
+    zone = {"x0": 220, "y0": 248, "x1": 890, "y1": 554}
+    group = {"x0": 221, "y0": 303, "x1": 886, "y1": 554}
+    edit_map = {
+        "regions": [
+            {
+                "semantic_role": "commercial_group",
+                "safe_bbox": group,
+            },
+            {
+                "semantic_role": "commercial_content_zone",
+                "safe_bbox": zone,
+            },
+        ]
+    }
+    assert commercial_bbox(edit_map) == group
+    assert commercial_bbox(edit_map, content_growth=True) == zone
 
 
 def test_ghost_check_rejects_unchanged_original_tails() -> None:

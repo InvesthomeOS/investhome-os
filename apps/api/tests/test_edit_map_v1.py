@@ -109,7 +109,7 @@ def test_stamp_current_cover_does_not_overwrite_master() -> None:
 def test_synthetic_raster_edit_map_passes() -> None:
     edit_map = _map_from_synthetic()
     assert edit_map["validation_status"] == "pass"
-    assert edit_map["edit_map_version"] == "1.1"
+    assert edit_map["edit_map_version"] == "1.2"
     assert edit_map["cover_asset_id"] == COVER_V2
     assert edit_map["source_visual_asset_id"] == SOURCE_V2
     assert edit_map["logo_asset_id"] == LOGO
@@ -130,6 +130,7 @@ def test_synthetic_raster_edit_map_passes() -> None:
         "cta",
         "supporting_copy",
         "commercial_group",
+        "commercial_content_zone",
     ):
         assert role in regions, role
         assert regions[role]["occupied"] is True, role
@@ -167,6 +168,16 @@ def test_synthetic_raster_edit_map_passes() -> None:
         "discount",
     ]
     assert "hero_visual" in pres["PRICE_EDIT_ONLY"]["immutable"]
+    assert pres["PRICE_EDIT_ONLY"]["content_growth"]["mutable_region"] == "commercial_content_zone"
+    zone = regions["commercial_content_zone"]
+    assert zone["occupancy"]["supporting_copy"] is True
+    assert zone["occupancy"]["old_price"] is True
+    assert zone["occupancy"]["new_price"] is False
+    assert zone["occupancy"]["savings_price"] is False
+    assert "supporting_copy" in zone["children"]
+    assert zone["safe_bbox"]["y1"] <= hero["y0"]
+    assert zone["top_lock_y"] <= zone["safe_bbox"]["y0"]
+    assert edit_map["content_growth"]["when_cannot_fit"] == "commercial_content_zone"
     assert pres["VISUAL_REPLACE_ONLY"]["mutable"] == ["hero_visual"]
     assert "old_price" in pres["VISUAL_REPLACE_ONLY"]["immutable"]
     assert "cta" in pres["VISUAL_REPLACE_ONLY"]["immutable"]
@@ -300,10 +311,63 @@ def test_safe_bbox_covers_visual_and_stops_at_hero() -> None:
     assert commercial["hero_boundary"]["y"] == hero["bbox"]["y0"]
     assert commercial["pixel_coverage"]["strict_outside_safe"] == 0
     assert commercial["pixel_coverage"]["ghost_risk"] is False
+    zone = next(r for r in edit_map["regions"] if r["semantic_role"] == "commercial_content_zone")
+    assert zone["safe_bbox"]["y0"] >= zone["top_lock_y"]
+    assert zone["safe_bbox"]["y1"] <= hero["bbox"]["y0"]
+    assert bbox_iou(zone["safe_bbox"], hero["bbox"]) == 0.0
+    supporting = next(r for r in edit_map["regions"] if r["semantic_role"] == "supporting_copy")
+    assert supporting["bbox"]
     group = next(g for g in edit_map["groups"] if g["id"] == "commercial_group")
     assert "up_px" in group["expansion"]
     assert "down_px" in group["expansion"]
     debug = render_geometry_debug(im, edit_map)
+    assert debug.size == im.size
+
+
+def test_commercial_content_zone_sits_between_headline_and_hero() -> None:
+    from investhome_api.services.creative_director.edit_map import (
+        bbox_contains,
+        render_content_zone_debug,
+    )
+
+    im = _synthetic_temple_raster()
+    layout = analyze_raster(im)
+    edit_map = build_edit_map(
+        layout,
+        cover_asset_id=COVER_V2,
+        source_visual_asset_id=SOURCE_V2,
+        logo_asset_id=LOGO,
+        image=im,
+    )
+    validate_edit_map(
+        edit_map,
+        expected_cover_asset_id=COVER_V2,
+        expected_source_visual_asset_id=SOURCE_V2,
+        expected_logo_asset_id=LOGO,
+        current_cover_asset_id=COVER_V2,
+    )
+    assert edit_map["validation_status"] == "pass"
+    regions = {r["semantic_role"]: r for r in edit_map["regions"]}
+    zone = regions["commercial_content_zone"]
+    headline = regions["headline"]
+    hero = regions["hero_visual"]
+    commercial = regions["commercial_group"]
+    supporting = regions["supporting_copy"]
+    cta = regions["cta"]
+    logo = regions["logo"]
+    assert zone["occupied"] is True
+    assert zone["safe_bbox"] == zone["bbox"]
+    assert zone["safe_bbox"]["y0"] >= zone["top_lock_y"]
+    assert zone["safe_bbox"]["y1"] <= hero["bbox"]["y0"]
+    assert zone["safe_bbox"]["y0"] >= headline["bbox"]["y0"]
+    assert bbox_contains(zone["safe_bbox"], supporting["bbox"], slack=24)
+    assert bbox_contains(zone["safe_bbox"], commercial["visual_bbox"] or commercial["bbox"], slack=8)
+    assert bbox_iou(zone["safe_bbox"], hero["bbox"]) == 0.0
+    assert bbox_iou(zone["safe_bbox"], cta["bbox"]) == 0.0
+    assert bbox_iou(zone["safe_bbox"], logo["bbox"]) == 0.0
+    assert zone["occupancy"]["new_price"] is False
+    assert zone["occupancy"]["savings_price"] is False
+    debug = render_content_zone_debug(im, edit_map)
     assert debug.size == im.size
 
 

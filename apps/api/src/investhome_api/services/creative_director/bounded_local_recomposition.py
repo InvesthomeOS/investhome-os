@@ -124,30 +124,46 @@ def detect_price_content_growth(
         {},
     )
     capacity = ((group.get("expansion") or {}).get("internal_capacity") or {})
+    fits = int(capacity.get("additional_price_rows") or 0) >= (occupied_after - occupied_before)
+    use_zone = bool(growth) and not fits
     return {
         "content_growth": bool(growth),
         "before": before,
         "after_request": after,
         "occupied_slots_before": occupied_before,
         "occupied_slots_after": occupied_after,
-        "fits_current_geometry": int(capacity.get("additional_price_rows") or 0)
-        >= (occupied_after - occupied_before),
+        "fits_current_geometry": fits,
         "execution": EXECUTION if growth else "in_place_price_edit",
+        "mutable_region_role": "commercial_content_zone" if use_zone else "commercial_group",
+        "content_growth_route": "commercial_content_zone" if use_zone else "commercial_group",
     }
 
 
-def commercial_bbox(edit_map: dict[str, Any]) -> dict[str, int]:
-    region = region_by_role(edit_map, "commercial_group")
-    box = (region or {}).get("safe_bbox")
-    if not box:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=(
-                "BOUNDED_LOCAL_RECOMPOSITION fail-closed — "
-                "Edit Map v1.1 commercial_group.safe_bbox is required. "
-                "The Phase 1 semantic bbox was not used."
-            ),
-        )
+def commercial_bbox(edit_map: dict[str, Any], *, content_growth: bool = False) -> dict[str, int]:
+    if content_growth:
+        region = region_by_role(edit_map, "commercial_content_zone")
+        box = (region or {}).get("safe_bbox")
+        if not box:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "BOUNDED_LOCAL_RECOMPOSITION fail-closed — "
+                    "content growth requires commercial_content_zone.safe_bbox. "
+                    "The smaller commercial_group region cannot be used."
+                ),
+            )
+    else:
+        region = region_by_role(edit_map, "commercial_group")
+        box = (region or {}).get("safe_bbox")
+        if not box:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "BOUNDED_LOCAL_RECOMPOSITION fail-closed — "
+                    "Edit Map v1.1 commercial_group.safe_bbox is required. "
+                    "The Phase 1 semantic bbox was not used."
+                ),
+            )
     return {
         "x0": int(box["x0"]),
         "y0": int(box["y0"]),
@@ -731,7 +747,11 @@ def execute_bounded_commercial_recomposition(
                 "growth": growth,
             },
         )
-    bbox = commercial_bbox(edit_map)
+    bbox = commercial_bbox(
+        edit_map,
+        content_growth=bool(growth.get("content_growth"))
+        and not bool(growth.get("fits_current_geometry")),
+    )
     original = Image.open(io.BytesIO(cover_bytes)).convert("RGB")
     width, height = original.size
     if bbox["y1"] > height or bbox["x1"] > width:
@@ -912,6 +932,7 @@ def execute_bounded_commercial_recomposition(
         "intent": "PRICE_EDIT_ONLY",
         "content_growth": growth,
         "mutable_region": bbox,
+        "mutable_region_role": growth.get("mutable_region_role"),
         "safe_bbox": bbox,
         "edit_map_version": edit_map.get("version"),
         "provider_capability": "edit_region",

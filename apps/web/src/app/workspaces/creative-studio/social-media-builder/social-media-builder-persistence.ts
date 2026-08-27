@@ -797,20 +797,10 @@ export function shouldPreferMasterCover(
   master: CampaignMasterCoverTip,
 ): boolean {
   if (!master.coverAssetId || !isMediaAssetUuid(master.coverAssetId)) return false;
-  if (!coverPointersMatch(post, master.coverAssetId)) {
-    const localVersion = readPersistedCoverVersion(post);
-    if (master.currentVersion != null && localVersion != null) {
-      if (master.currentVersion < localVersion) return false;
-      if (master.currentVersion > localVersion) return true;
-    }
-    if (master.currentVersion != null && localVersion == null) return true;
-    if (post.coverAssetId && post.coverAssetId !== master.coverAssetId) return true;
-    return true;
-  }
-  return false;
+  return !coverPointersMatch(post, master.coverAssetId);
 }
 
-/** Align a finished-ad post to the persisted master tip. Never copy an older v2 over a newer v3. */
+/** Align a finished-ad post to the persisted master tip. Current approved cover wins, including rollback. */
 export function applyNewerMasterCoverToPost(
   post: SocialPost,
   master: CampaignMasterCoverTip,

@@ -55,14 +55,11 @@ function readPersistedCoverVersion(post) {
 
 function applyNewerMasterCoverToPost(post, master) {
   const cover = master.coverAssetId;
-  const localVersion = readPersistedCoverVersion(post);
-  if (master.currentVersion != null && localVersion != null && master.currentVersion < localVersion) {
-    return post;
-  }
-  if (post.coverAssetId === cover && localVersion === master.currentVersion) {
+  if (!cover || post.coverAssetId === cover) {
     const gpt = post.generationMeta?.gpt_image || {};
     const bg = post.elements.find((el) => el.type === 'IMAGE' && el.id === 'img-finished-ad');
     if (
+      post.coverAssetId === cover &&
       post.generationMeta?.finished_ad_raster_asset_id === cover &&
       gpt.local_asset_id === cover &&
       (!bg || bg.assetId === cover)
@@ -124,7 +121,9 @@ describe('v3 cover hydration — source wiring', () => {
     assert.match(persistence, /export function resolveCampaignMasterCover/);
     assert.match(persistence, /export function applyNewerMasterCoverToPost/);
     assert.match(persistence, /export function applyNewerMasterCoverToPosts/);
-    assert.match(persistence, /export function shouldPreferMasterCover/);
+    assert.match(persistence, /shouldPreferMasterCover/);
+    assert.match(persistence, /return !coverPointersMatch\(post, master.coverAssetId\)/);
+    assert.doesNotMatch(persistence, /master\.currentVersion < localVersion/);
     assert.match(persistence, /pickNewerCoverPost\(existing, post\)/);
     assert.match(persistence, /current_version/);
   });
@@ -169,5 +168,29 @@ describe('v3 cover hydration — behavior', () => {
     });
     const picked = pickNewerCoverPost(localV3, staleDraftPost());
     assert.equal(picked.coverAssetId, V3);
+  });
+
+  it('campaign current cover wins after rollback even if local version is higher', () => {
+    const localV3 = {
+      id: 'ad357b88-36ab-469a-a4ac-45700fade56d',
+      campaignContextId: CAMPAIGN,
+      coverAssetId: V3,
+      elements: [{ id: 'img-finished-ad', type: 'IMAGE', role: 'background', assetId: V3 }],
+      generationMeta: {
+        production_mode: 'finished_ad',
+        current_version: 3,
+        finished_ad_raster_asset_id: V3,
+        gpt_image: { local_asset_id: V3, editable_layers: false },
+      },
+    };
+    const next = applyNewerMasterCoverToPost(localV3, {
+      coverAssetId: V2,
+      currentVersion: 2,
+    });
+    assert.equal(next.coverAssetId, V2);
+    assert.equal(next.elements[0].assetId, V2);
+    assert.equal(next.generationMeta.finished_ad_raster_asset_id, V2);
+    assert.equal(next.generationMeta.gpt_image.local_asset_id, V2);
+    assert.equal(next.generationMeta.current_version, 2);
   });
 });
