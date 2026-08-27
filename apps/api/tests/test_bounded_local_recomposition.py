@@ -321,3 +321,58 @@ def test_fact_check_fails_when_commercial_type_unreadable() -> None:
     result = blr.fact_check(im, {"x0": 0, "y0": 0, "x1": 80, "y1": 80}, intent)
     assert result["status"] == "fail"
     assert "commercial_type_not_readable" in result["failures"]
+
+
+def test_region_prompt_unlocks_supporting_copy_inside_zone() -> None:
+    from investhome_api.services.creative_director.bounded_local_recomposition import (
+        build_region_edit_prompt,
+    )
+
+    intent = parse_price_block(COMMAND)
+    prompt = build_region_edit_prompt(intent, region_role="commercial_content_zone", hero_y=554)
+    assert "Do NOT change the subheadline" not in prompt
+    assert "commercial content zone" in prompt.lower()
+    assert "438.750" in prompt
+    assert "236.250" in prompt
+    assert "y=554" in prompt
+    assert "ALIRKEN KAZAN" in prompt
+
+
+def test_subheadline_lock_skipped_when_inside_content_zone() -> None:
+    from investhome_api.services.creative_director.bounded_local_recomposition import (
+        immutable_region_deltas,
+    )
+
+    original = Image.new("RGB", (100, 100), (8, 12, 28))
+    composed = original.copy()
+    ImageDraw.Draw(composed).rectangle([20, 30, 80, 70], fill=(240, 240, 240))
+    edit_map = {
+        "regions": [
+            {"semantic_role": "headline", "bbox": {"x0": 10, "y0": 0, "x1": 90, "y1": 20}},
+            {"semantic_role": "subheadline", "bbox": {"x0": 10, "y0": 22, "x1": 90, "y1": 40}},
+            {"semantic_role": "hero_visual", "bbox": {"x0": 0, "y0": 80, "x1": 100, "y1": 100}},
+            {"semantic_role": "cta", "bbox": {"x0": 20, "y0": 82, "x1": 80, "y1": 90}},
+            {"semantic_role": "logo", "bbox": {"x0": 30, "y0": 92, "x1": 70, "y1": 98}},
+        ]
+    }
+    zone = {"x0": 10, "y0": 20, "x1": 90, "y1": 80}
+    locks = immutable_region_deltas(original, composed, edit_map, mutable_bbox=zone)
+    assert locks["headline"]["status"] == "pass"
+    assert locks["hero_visual"]["status"] == "pass"
+    assert locks["cta"]["status"] == "pass"
+    assert locks["logo"]["status"] == "pass"
+    assert locks["subheadline"]["status"] == "skip"
+
+
+def test_clipping_check_flags_type_on_hero_edge() -> None:
+    from investhome_api.services.creative_director.bounded_local_recomposition import (
+        clipping_check,
+    )
+
+    im = Image.new("RGB", (200, 80), (8, 12, 28))
+    draw = ImageDraw.Draw(im)
+    draw.rectangle([0, 77, 199, 79], fill=(240, 240, 240))
+    bbox = {"x0": 0, "y0": 0, "x1": 200, "y1": 80}
+    result = clipping_check(im, bbox)
+    assert result["status"] == "fail"
+    assert "commercial_clipped_at_hero_boundary" in result["failures"]

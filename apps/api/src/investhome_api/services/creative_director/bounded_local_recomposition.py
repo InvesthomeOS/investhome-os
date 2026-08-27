@@ -1,8 +1,9 @@
-"""Bounded local recomposition — commercial_group only.
+"""Bounded local recomposition — commercial_content_zone on content growth.
 
 PRICE_EDIT_ONLY stays the semantic intent. When price occupancy grows
-(1 slot → 3), OS asks the image provider for an edit_region call and then
-composites the result back onto the current approved cover.
+(1 slot → 3) and commercial_group cannot fit, OS asks the image provider
+for an edit_region call inside commercial_content_zone, then composites
+the result back onto the current approved cover.
 
 OS does not author the commercial design. Overlay / glyph / PRICE_BLOCK
 stamping is not used on this path.
@@ -186,7 +187,12 @@ def build_commercial_mask(size: tuple[int, int], bbox: dict[str, int]) -> bytes:
     return buf.getvalue()
 
 
-def render_mask_debug(cover: Image.Image, bbox: dict[str, int]) -> Image.Image:
+def render_mask_debug(
+    cover: Image.Image,
+    bbox: dict[str, int],
+    *,
+    label: str = "mutable: commercial_content_zone.safe_bbox",
+) -> Image.Image:
     im = cover.convert("RGBA")
     overlay = Image.new("RGBA", im.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
@@ -201,42 +207,64 @@ def render_mask_debug(cover: Image.Image, bbox: dict[str, int]) -> Image.Image:
     d = ImageDraw.Draw(composed)
     d.text(
         (bbox["x0"] + 8, max(0, bbox["y0"] - 14)),
-        "mutable: commercial_group.safe_bbox",
+        label,
         fill=(255, 200, 40),
     )
     return composed
 
 
-def build_region_edit_prompt(intent: PriceBlockIntent) -> str:
+def build_region_edit_prompt(
+    intent: PriceBlockIntent,
+    *,
+    region_role: str = "commercial_content_zone",
+    hero_y: int | None = 554,
+) -> str:
     list_s = format_tr_usd(intent.list_amount)
     launch_s = format_tr_usd(intent.launch_amount)
     save_s = format_tr_usd(intent.savings_amount)
+    hero_line = (
+        f"Do NOT write into the photograph. The hero starts at y={hero_y} "
+        "(the bottom edge of the mask). No commercial type may survive at or below that line."
+        if hero_y is not None
+        else "Do NOT write into the photograph below the mask."
+    )
     return "\n".join(
         [
-            "BOUNDED LOCAL EDIT of the commercial information region only.",
+            "BOUNDED LOCAL EDIT of the commercial content zone only.",
             "The attached MASK marks the only pixels you may change (fully transparent = edit).",
             "Opaque mask pixels must remain identical to the source advertisement.",
             "",
-            "Do NOT redesign the advertisement.",
-            "Do NOT recreate the ad.",
-            "Do NOT change the photograph / hero visual.",
-            "Do NOT change the headline ALIRKEN / KAZAN.",
-            "Do NOT change the subheadline.",
-            "Do NOT change the gold CTA button or its text.",
-            "Do NOT change The Temple logo.",
-            "Do NOT expand the edit into the photograph below the mask (hero starts at the mask bottom).",
-            "Do NOT change canvas size, global palette, or overall ad identity.",
+            "This is ONE commercial composition, not a table and not a dashboard card.",
+            "The mask includes both the supporting sentence and the commercial facts.",
+            "You MAY restack, move, or reduce prominence of:",
+            "  “The Temple'da yerinizi lansman döneminde alın.”",
+            "  2+1 / DAİRE",
+            "  LİSTE FİYATI / 675.000 USD",
+            "  %35 / LANSMAN AVANTAJI",
+            "and you MUST add LANSMAN FİYATI / 438.750 USD and KAZANCINIZ / 236.250 USD.",
+            "Do NOT preserve three equal columns if they no longer fit.",
+            "Do NOT squeeze extra lines into the old geometry.",
+            "Do NOT stamp text, overlay glyphs, or create a giant boxed price panel.",
             "",
-            "Inside the masked commercial group, create a coherent LOCAL COMMERCIAL COMPOSITION.",
-            "Do NOT keep the old three equal columns and squeeze extra lines into them.",
-            "Do NOT simply stamp two extra text lines. Redesign the hierarchy inside the mask.",
-            "You may change column widths, restack, move 2+1 and %35, redesign separators,",
-            "and adjust type sizes moderately. Navy / gold / white only. Not a fixed template.",
+            "LOCKED — pixel-identical, outside the mask:",
+            "  headline ALIRKEN KAZAN and its decorative treatment",
+            "  Day_004 exterior photograph / hero crop / hero position",
+            "  gold CTA PROJEYİ KEŞFET",
+            "  The Temple logo and bottom treatment",
+            "  canvas size, global palette, overall advertisement identity",
+            hero_line,
+            "",
+            "Inside the mask, design a premium editorial real-estate hierarchy.",
+            "Prefer two columns, asymmetric columns, or a stacked price stack.",
+            "Generous spacing. Readable type. Balanced gold / white / navy.",
+            "Minimal separators. No generic spreadsheet. No fragments at the bottom.",
+            "The supporting sentence may become smaller to create breathing room.",
+            "The result must still feel like the SAME The Temple advertisement.",
             "",
             "Hierarchy (make this especially clear):",
             f"PRIMARY — {intent.launch_label}: {launch_s}",
             f"SECONDARY — {intent.list_label}: {list_s} with a clear strikethrough",
-            f"IMPORTANT BENEFIT — {intent.savings_label}: {save_s}",
+            f"BENEFIT — {intent.savings_label}: {save_s}",
             "SUPPORT — %35 LANSMAN AVANTAJI and 2+1 DAİRE",
             "",
             "Required facts (do not invent others, no ROI / yield / extra discount):",
@@ -249,8 +277,9 @@ def build_region_edit_prompt(intent: PriceBlockIntent) -> str:
             "%35",
             "",
             "Typography must stay readable and premium. No tiny emergency text, no overlapping copy,",
-            "no duplicated prices, no ghost leftovers of the old stats, no generic spreadsheet table,",
-            "no pasted-on patch. The block must look intentionally designed.",
+            "no duplicated prices, no ghost leftovers of the old stats, no type touching the mask",
+            "edges or the hero. The block must look intentionally art-directed.",
+            f"Mutable region role: {region_role}.",
         ]
     )
 
@@ -533,15 +562,29 @@ def fact_check(
 
 
 def immutable_region_deltas(
-    original: Image.Image, composed: Image.Image, edit_map: dict[str, Any]
+    original: Image.Image,
+    composed: Image.Image,
+    edit_map: dict[str, Any],
+    *,
+    mutable_bbox: dict[str, int] | None = None,
 ) -> dict[str, Any]:
-    roles = ("hero_visual", "headline", "subheadline", "cta", "logo")
+    from investhome_api.services.creative_director.edit_map import bbox_iou
+
+    hard = ("hero_visual", "headline", "cta", "logo")
+    conditional = ("subheadline", "supporting_copy")
     out: dict[str, Any] = {}
-    for role in roles:
+    for role in hard + conditional:
         region = region_by_role(edit_map, role)
         box = (region or {}).get("bbox") if region else None
         if not box:
             out[role] = {"status": "skip", "mad": None}
+            continue
+        if role in conditional and mutable_bbox and bbox_iou(box, mutable_bbox) > 0.08:
+            out[role] = {
+                "status": "skip",
+                "mad": None,
+                "reason": "inside_commercial_content_zone",
+            }
             continue
         mad = _mean_abs_delta(original, composed, box)
         out[role] = {"status": "pass" if mad < 0.51 else "fail", "mad": round(mad, 4)}
@@ -636,6 +679,38 @@ def ghost_check(
     }
 
 
+def clipping_check(composed: Image.Image, bbox: dict[str, int]) -> dict[str, Any]:
+    """Reject commercial type sitting on the zone/hero edges."""
+    crop = composed.crop((bbox["x0"], bbox["y0"], bbox["x1"], bbox["y1"]))
+    rgb = crop.convert("RGB")
+    w, h = rgb.size
+    px = rgb.load()
+
+    def _count(xs: range, ys: range) -> int:
+        n = 0
+        for y in ys:
+            for x in xs:
+                r, g, b = px[x, y]
+                if _is_type_pixel(r, g, b):
+                    n += 1
+        return n
+
+    top = _count(range(w), range(0, min(3, h)))
+    bottom = _count(range(w), range(max(0, h - 3), h))
+    left = _count(range(0, min(3, w)), range(h))
+    right = _count(range(max(0, w - 3), w), range(h))
+    failures: list[str] = []
+    if bottom > max(24, int(w * 0.16)):
+        failures.append("commercial_clipped_at_hero_boundary")
+    if top > max(28, int(w * 0.22)):
+        failures.append("commercial_clipped_at_headline_lock")
+    return {
+        "status": "fail" if failures else "pass",
+        "failures": failures,
+        "edges": {"top": top, "bottom": bottom, "left": left, "right": right},
+    }
+
+
 def overlap_check(composed: Image.Image, bbox: dict[str, int]) -> dict[str, Any]:
     crop = composed.crop((bbox["x0"], bbox["y0"], bbox["x1"], bbox["y1"]))
     boxes = [b for b in _type_components(crop) if (b[3] - b[1]) >= 12 and (b[2] - b[0]) >= 12]
@@ -666,9 +741,10 @@ def visual_quality_gate(
     overlap: dict[str, Any],
     ghost: dict[str, Any],
     facts: dict[str, Any],
+    clipping: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     failures: list[str] = []
-    for block in (readability, overlap, ghost):
+    for block in (readability, overlap, ghost, clipping or {}):
         failures.extend(list(block.get("failures") or []))
     if facts.get("status") == "fail":
         failures.extend(list(facts.get("failures") or ["facts_failed"]))
@@ -681,6 +757,7 @@ def visual_quality_gate(
         "readability": readability.get("status"),
         "overlap": overlap.get("status"),
         "ghost": ghost.get("status"),
+        "clipping": (clipping or {}).get("status"),
         "facts": facts.get("status"),
         "facts_confidence": facts.get("confidence"),
     }
@@ -747,11 +824,13 @@ def execute_bounded_commercial_recomposition(
                 "growth": growth,
             },
         )
-    bbox = commercial_bbox(
-        edit_map,
-        content_growth=bool(growth.get("content_growth"))
-        and not bool(growth.get("fits_current_geometry")),
+    use_zone = bool(growth.get("content_growth")) and not bool(
+        growth.get("fits_current_geometry")
     )
+    bbox = commercial_bbox(edit_map, content_growth=use_zone)
+    region_role = str(growth.get("mutable_region_role") or "commercial_group")
+    hero = region_by_role(edit_map, "hero_visual") or {}
+    hero_y = int((hero.get("bbox") or {}).get("y0") or bbox["y1"])
     original = Image.open(io.BytesIO(cover_bytes)).convert("RGB")
     width, height = original.size
     if bbox["y1"] > height or bbox["x1"] > width:
@@ -776,9 +855,13 @@ def execute_bounded_commercial_recomposition(
         )
 
     mask_png = build_commercial_mask((width, height), bbox)
-    prompt = build_region_edit_prompt(intent)
+    prompt = build_region_edit_prompt(intent, region_role=region_role, hero_y=hero_y)
     cover_png = _to_png_rgb(original)
-    mask_dbg = render_mask_debug(original, bbox)
+    mask_dbg = render_mask_debug(
+        original,
+        bbox,
+        label=f"mutable: {region_role}.safe_bbox",
+    )
     mask_dbg_buf = io.BytesIO()
     mask_dbg.save(mask_dbg_buf, format="PNG")
     write_evidence_files(
@@ -798,7 +881,7 @@ def execute_bounded_commercial_recomposition(
             size=f"{width}x{height}",
             quality=availability.quality,
             base_url=availability.base_url,
-            variant="edit_region_commercial_group",
+            variant="edit_region_commercial_content_zone" if use_zone else "edit_region_commercial_group",
             mask=mask_png,
         )
     except Exception as exc:
@@ -870,7 +953,9 @@ def execute_bounded_commercial_recomposition(
             commercial_mad=round(commercial_mad, 3),
         )
 
-    locks = immutable_region_deltas(original, composed, edit_map)
+    locks = immutable_region_deltas(
+        original, composed, edit_map, mutable_bbox=bbox
+    )
     lock_failures = [k for k, v in locks.items() if v.get("status") == "fail"]
     if lock_failures or composed_outside >= 0.51:
         _fail_closed(
@@ -883,6 +968,7 @@ def execute_bounded_commercial_recomposition(
     read = readability_check(composed, bbox)
     ghost = ghost_check(original, composed, bbox, edit_map)
     overlap = overlap_check(composed, bbox)
+    clipping = clipping_check(composed, bbox)
     facts = fact_check(
         composed,
         bbox,
@@ -892,10 +978,11 @@ def execute_bounded_commercial_recomposition(
             "revised_prompt": getattr(remote, "revised_prompt", None),
         },
     )
-    quality = visual_quality_gate(read, overlap, ghost, facts)
+    quality = visual_quality_gate(read, overlap, ghost, facts, clipping)
     _dump_gates(
         {
             "safe_bbox": bbox,
+            "mutable_region_role": region_role,
             "provider_calls": calls,
             "generate_calls": 0,
             "visual_replace_calls": 0,
@@ -908,6 +995,7 @@ def execute_bounded_commercial_recomposition(
             "readability": read,
             "ghost": ghost,
             "overlap": overlap,
+            "clipping": clipping,
             "facts": facts,
             "visual_quality": quality,
         }
@@ -921,6 +1009,7 @@ def execute_bounded_commercial_recomposition(
             overlap=overlap,
             readability=read,
             facts=facts,
+            clipping=clipping,
         )
 
     out_buf = io.BytesIO()
@@ -934,7 +1023,7 @@ def execute_bounded_commercial_recomposition(
         "mutable_region": bbox,
         "mutable_region_role": growth.get("mutable_region_role"),
         "safe_bbox": bbox,
-        "edit_map_version": edit_map.get("version"),
+        "edit_map_version": edit_map.get("edit_map_version") or edit_map.get("version"),
         "provider_capability": "edit_region",
         "provider_id": route.provider_id,
         "provider_model": availability.model,
@@ -952,6 +1041,7 @@ def execute_bounded_commercial_recomposition(
         "readability": read,
         "ghost": ghost,
         "overlap": overlap,
+        "clipping": clipping,
         "facts": facts,
         "visual_quality": quality,
         "source_visual_asset_id": str(source_visual_asset_id),
