@@ -1,8 +1,8 @@
-"""AI Revision Mode — MASTER + cumulative ops (never chain prior rasters).
+"""AI Revision Mode — current approved cover is visual source of truth.
 
-Immutable master_asset_id = first approved finished-ad.
-Every revise: MASTER A + cumulative approved ops → provider → current tip.
-Undo/Redo: GPT-free cursor over saved final_asset_id versions.
+Immutable master_asset_id = first approved finished-ad (v1), never overwritten.
+Every revise starts from master_creative.current_cover_asset_id, not v1,
+unless the user explicitly reverts. Undo/Redo: GPT-free cursor over saved covers.
 """
 
 from __future__ import annotations
@@ -70,6 +70,12 @@ from investhome_api.services.creative_director.generate_ad import (
 )
 from investhome_api.services.creative_director.master_revision_controller import (
     classify_revision_command,
+)
+from investhome_api.services.creative_director.edit_map import (
+    attach_edit_map_for_cover,
+    rebind_edit_map_for_cover,
+    resolve_current_cover_asset_id,
+    stamp_current_cover,
 )
 from investhome_api.services.creative_director.research import select_visual_replace_source
 from investhome_api.services.creative_director.production_brief import (
@@ -629,6 +635,18 @@ def resolve_master_asset_id(
     if current_final_asset_id is not None:
         return current_final_asset_id
     raise ValueError("master_asset_id cannot be resolved")
+
+
+def resolve_revision_visual_asset_id(
+    ctx: dict[str, Any],
+    *,
+    smb_current_final_asset_id: UUID,
+) -> UUID:
+    """IMAGE 1 / quality compare = current approved cover, never v1 master by default."""
+    try:
+        return resolve_current_cover_asset_id(ctx, fallback=smb_current_final_asset_id)
+    except ValueError:
+        return smb_current_final_asset_id
 
 
 def ensure_master_asset_id(ctx: dict[str, Any], asset_id: UUID) -> UUID:
@@ -1523,6 +1541,26 @@ def revise_ad_from_campaign(
             detail="current_final_asset_id does not belong to this campaign project.",
         )
 
+    os_cover = resolve_revision_visual_asset_id(ctx, smb_current_final_asset_id=current_id)
+    if os_cover != current_id:
+        os_asset = get_asset_or_404(os_cover, db)
+        if (
+            os_asset.linked_project_id is not None
+            and os_asset.linked_project_id != row.linked_project_id
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="current_cover_asset_id does not belong to this campaign project.",
+            )
+        logger.info(
+            "revision_visual_sot cover=%s smb_current=%s master=%s",
+            os_cover,
+            current_id,
+            ctx.get("master_asset_id"),
+        )
+        current_id = os_cover
+    stamp_current_cover(ctx, current_id)
+
     # Cursor truncate (undo then revise clears forward history + ops).
     history, _cursor = truncate_forward_history(
         ctx.get("revision_history"),
@@ -1998,6 +2036,17 @@ def revise_ad_from_campaign(
         mc["master_asset_id"] = str(master_id)
         mc["source_visual_asset_id"] = str(interior_id)
         ctx["master_creative"] = mc
+        stamp_current_cover(ctx, new_asset_id)
+        try:
+            attach_edit_map_for_cover(
+                db,
+                ctx,
+                cover_asset_id=new_asset_id,
+                source_visual_asset_id=interior_id,
+                logo_asset_id=logo_id,
+            )
+        except Exception as exc:
+            logger.warning("edit_map_attach_on_price_edit_failed: %s", exc)
 
         ctx["revision_history"] = lean_history
         ctx["revision_index"] = revision_index
@@ -2947,6 +2996,7 @@ def revise_ad_from_campaign(
         mc["revision_history"] = mc_hist
         mc["master_asset_id"] = str(master_id)
         ctx["master_creative"] = mc
+        stamp_current_cover(ctx, new_asset_id)
     recomposed_spec: dict[str, Any] | None = None
     try:
         spec_texts, spec_brief = hydrate_supporting_copy(
@@ -2978,6 +3028,17 @@ def revise_ad_from_campaign(
             ctx["editable_text_targets"] = recomposed_spec["editable_text_targets"]
     except Exception:
         logger.exception("CREATIVE_RECOMPOSE design_spec persist failed campaign=%s", row.id)
+    stamp_current_cover(ctx, new_asset_id)
+    try:
+        attach_edit_map_for_cover(
+            db,
+            ctx,
+            cover_asset_id=new_asset_id,
+            source_visual_asset_id=master_source_id if visual_replace_only else interior_id,
+            logo_asset_id=logo_id,
+        )
+    except Exception as exc:
+        logger.warning("edit_map_attach_on_revise_failed: %s", exc)
     row.context_json = dict(ctx)
     flag_modified(row, "context_json")
     if row.status == "draft":
@@ -3131,6 +3192,7 @@ def _move_campaign_revision(
         else None
     )
     ctx["finished_ad_raster_asset_id"] = str(restored_id)
+    rebind_edit_map_for_cover(ctx, restored_id)
     ctx["production_mode"] = "finished_ad" if not is_micro_edit_route(restored_route) else ctx.get(
         "production_mode"
     ) or "finished_ad"

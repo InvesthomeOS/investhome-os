@@ -5,8 +5,9 @@ assets, and returns a structured Creative Brief + durable Campaign Context.
 
 Image generation is a separate step: generate_ad_from_campaign reuses GPT Image
 PROJECT MODE against the stored Campaign Context (does not rewrite CD brief logic).
-AI revision: revise_ad_from_campaign edits from immutable master_asset_id +
-cumulative revision operations (never chains prior revision rasters).
+AI revision starts from master_creative.current_cover_asset_id (visual source
+of truth). master_asset_id remains the immutable v1 original unless the user
+explicitly reverts. Edit Map is OS data coupled to one cover raster.
 """
 
 from investhome_api.services.creative_director.generate_ad import generate_ad_from_campaign

@@ -172,6 +172,8 @@ def test_master_creative_record_shape() -> None:
     assert rec["pixel_surgery_fallback"] is False
     assert rec["source_visual_approval"] == "approved"
     assert rec["logo_filename"] == "IH_DC_TMP_001_Logo_Primary.svg"
+    assert rec["current_cover_asset_id"] == rec["master_asset_id"]
+    assert rec["current_edit_map_id"] is None
 
 
 TEMPLE_VISUAL_REPLACE = (

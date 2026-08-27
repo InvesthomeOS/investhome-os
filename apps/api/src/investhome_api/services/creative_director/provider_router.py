@@ -8,6 +8,16 @@ from typing import Any
 from investhome_api.config.settings import Settings, get_settings
 from investhome_api.services.creative_director.orchestrator import assign_capabilities
 
+# Future revision capabilities. Edit Map schema is OS-owned — providers may
+# analyze or edit regions later, they do not own the map.
+EDIT_MAP_PROVIDER_CAPABILITIES = (
+    "generate_finished_ad",
+    "analyze_design",
+    "edit_region",
+    "replace_hero",
+    "adapt_format",
+)
+
 
 @dataclass
 class ImageProductionRoute:

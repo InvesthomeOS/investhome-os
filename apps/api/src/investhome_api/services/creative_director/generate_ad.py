@@ -240,6 +240,8 @@ def build_master_creative_record(
         "current_version": 1,
         "revision_history": [],
         "master_asset_id": str(master_asset_id),
+        "current_cover_asset_id": str(master_asset_id),
+        "current_edit_map_id": None,
         "workflow": "ai_first_master_v1",
         "original_brief": original_brief,
         "pixel_surgery_fallback": False,
@@ -1951,6 +1953,19 @@ def generate_ad_from_campaign(
             original_brief=original_brief,
         )
         ctx["master_creative"] = master_creative
+        ctx["current_cover_asset_id"] = str(output.local_asset_id)
+        try:
+            from investhome_api.services.creative_director.edit_map import attach_edit_map_for_cover
+
+            attach_edit_map_for_cover(
+                db,
+                ctx,
+                cover_asset_id=output.local_asset_id,
+                source_visual_asset_id=interior_id,
+                logo_asset_id=logo_id,
+            )
+        except Exception as exc:
+            logger.warning("edit_map_attach_on_generate_failed: %s", exc)
         ctx["ai_first_master"] = True
         ctx["workflow"] = "ai_first_master_v1"
         ctx["production_mode"] = "finished_ad"
