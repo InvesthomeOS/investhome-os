@@ -18,8 +18,10 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
-EDIT_MAP_VERSION = "v1"
+EDIT_MAP_VERSION = "1.1"
 MIN_MAP_CONFIDENCE = 0.55
+CLEAN_PAD_PX = 4
+AA_LUMA_MIN = 48
 
 # OS-owned capability names. Not GPT Image keys. Not invoked in Phase 1.
 EDIT_MAP_PROVIDER_CAPABILITIES = (
@@ -99,6 +101,18 @@ def _is_navy(r: int, g: int, b: int) -> bool:
     return _luma(r, g, b) < 40
 
 
+def _is_soft_commercial_type(r: int, g: int, b: int) -> bool:
+    """Anti-aliased gold/white on navy. Not photo chroma."""
+    lum = _luma(r, g, b)
+    if lum < AA_LUMA_MIN:
+        return False
+    if _is_gold(r, g, b) or _is_white(r, g, b):
+        return True
+    goldish = r > 120 and g > 90 and b < 130 and r >= g - 8 and (r - b) > 25
+    light = lum >= 90 and abs(r - g) < 40 and abs(g - b) < 40
+    return bool(goldish or light)
+
+
 def _is_photo(r: int, g: int, b: int) -> bool:
     lum = _luma(r, g, b)
     return 50 <= lum < 200 and not _is_gold(r, g, b)
@@ -164,6 +178,228 @@ def _cluster_xs(xs: list[int], gap: int = 24) -> list[tuple[int, int]]:
         else:
             out[-1][1] = x
     return [(a, b) for a, b in out]
+
+
+def measure_commercial_visual_bounds(image: Any, layout: dict[str, Any]) -> dict[str, Any]:
+    """Tight raster extent of commercial type/decoration between copy and hero."""
+    from PIL import Image as PILImage
+
+    if not isinstance(image, PILImage.Image):
+        raise TypeError("measure_commercial_visual_bounds requires a PIL Image")
+    im = image.convert("RGB")
+    width, height = im.size
+    px = im.load()
+    photo_start = int(layout.get("photo_start") or height)
+    sub = layout.get("subheadline_bbox")
+    head = layout.get("headline_bbox")
+    after_copy = 0
+    if sub:
+        after_copy = int(sub["y1"])
+    elif head:
+        after_copy = int(head["y1"])
+    y0 = min(max(after_copy + 2, 0), photo_start)
+    y1 = photo_start
+    pad_x = int(width * 0.06)
+    x0, x1 = pad_x, width - pad_x
+    strict: list[tuple[int, int]] = []
+    soft: list[tuple[int, int]] = []
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            r, g, b = px[x, y]
+            if _is_gold(r, g, b) or _is_white(r, g, b):
+                strict.append((x, y))
+            elif _is_soft_commercial_type(r, g, b):
+                soft.append((x, y))
+    pts = strict + soft
+    if not pts:
+        semantic = layout.get("commercial_bbox")
+        return {
+            "visual_bbox": dict(semantic) if semantic else None,
+            "strict_bbox": dict(semantic) if semantic else None,
+            "strict_count": 0,
+            "soft_count": 0,
+            "anti_alias_extent": {"left_px": 0, "up_px": 0, "right_px": 0, "down_px": 0},
+            "hero_boundary": photo_start,
+            "scan": {"x0": x0, "y0": y0, "x1": x1, "y1": y1},
+        }
+
+    def _bbox(points: list[tuple[int, int]]) -> dict[str, int]:
+        xs = [p[0] for p in points]
+        ys = [p[1] for p in points]
+        return bbox_dict(min(xs), min(ys), max(xs) + 1, max(ys) + 1)
+
+    visual = _bbox(pts)
+    strict_box = _bbox(strict) if strict else dict(visual)
+    aa = {
+        "left_px": max(0, strict_box["x0"] - visual["x0"]),
+        "up_px": max(0, strict_box["y0"] - visual["y0"]),
+        "right_px": max(0, visual["x1"] - strict_box["x1"]),
+        "down_px": max(0, visual["y1"] - strict_box["y1"]),
+    }
+    return {
+        "visual_bbox": visual,
+        "strict_bbox": strict_box,
+        "strict_count": len(strict),
+        "soft_count": len(soft),
+        "anti_alias_extent": aa,
+        "hero_boundary": photo_start,
+        "scan": {"x0": x0, "y0": y0, "x1": x1, "y1": y1},
+    }
+
+
+def compute_safe_commercial_region(
+    *,
+    visual_bbox: dict[str, int] | None,
+    semantic_bbox: dict[str, int] | None,
+    headline_bbox: dict[str, int] | None,
+    subheadline_bbox: dict[str, int] | None,
+    hero_bbox: dict[str, int] | None,
+    canvas_width: int,
+    canvas_height: int,
+    anti_alias_extent: dict[str, int] | None = None,
+) -> dict[str, Any]:
+    """Cover all commercial pixels with a small pad. Never enter the hero."""
+    aa = anti_alias_extent or {}
+    requested = {
+        "left_px": max(CLEAN_PAD_PX, int(aa.get("left_px") or 0) + 2),
+        "right_px": max(CLEAN_PAD_PX, int(aa.get("right_px") or 0) + 2),
+        "up_px": max(CLEAN_PAD_PX, int(aa.get("up_px") or 0) + 2),
+        "down_px": max(CLEAN_PAD_PX, int(aa.get("down_px") or 0) + 2),
+    }
+    seed = visual_bbox or semantic_bbox
+    if not seed:
+        raise ValueError("commercial visual/semantic bbox missing")
+    hero_y0 = int(hero_bbox["y0"]) if hero_bbox else canvas_height
+    sub_y1 = int(subheadline_bbox["y1"]) if subheadline_bbox else 0
+    head_y1 = int(headline_bbox["y1"]) if headline_bbox else 0
+    copy_floor = max(sub_y1, head_y1)
+
+    x0 = max(0, seed["x0"] - requested["left_px"])
+    y0 = max(0, seed["y0"] - requested["up_px"])
+    x1 = min(canvas_width, seed["x1"] + requested["right_px"])
+    y1 = min(canvas_height, seed["y1"] + requested["down_px"])
+    blocked: list[str] = []
+    if y1 > hero_y0:
+        y1 = hero_y0
+        blocked.append("hero_visual")
+    if y0 < copy_floor:
+        # Keep covering visual pixels; only stop the pad if it would overlap copy.
+        if seed["y0"] >= copy_floor:
+            y0 = copy_floor
+            blocked.append("subheadline" if sub_y1 >= head_y1 else "headline")
+        else:
+            blocked.append("subheadline" if subheadline_bbox else "headline")
+    applied = {
+        "left_px": seed["x0"] - x0,
+        "up_px": seed["y0"] - y0,
+        "right_px": x1 - seed["x1"],
+        "down_px": y1 - seed["y1"],
+    }
+    safe = bbox_dict(x0, y0, x1, y1)
+    up_room = max(0, safe["y0"] - copy_floor)
+    down_room = max(0, hero_y0 - safe["y1"])
+    left_room = safe["x0"]
+    right_room = max(0, canvas_width - safe["x1"])
+    allowed = []
+    if up_room:
+        allowed.append("up")
+    if down_room:
+        allowed.append("down")
+    if left_room:
+        allowed.append("left")
+    if right_room:
+        allowed.append("right")
+    additional_price_rows = 0 if (up_room + down_room) < 64 else (1 if (up_room + down_room) < 120 else 2)
+    expansion = {
+        "up_px": up_room,
+        "down_px": down_room,
+        "left_px": left_room,
+        "right_px": right_room,
+        "allowed_directions": allowed,
+        "maximum_safe_expansion": {
+            "up_px": up_room,
+            "down_px": down_room,
+            "left_px": left_room,
+            "right_px": right_room,
+        },
+        "blocked_by": list(blocked) + (["hero_visual"] if down_room == 0 else []),
+        "internal_capacity": {
+            "additional_price_rows": additional_price_rows,
+            "down_px_before_hero": down_room,
+            "up_px_before_copy": up_room,
+            "note": (
+                "Downward expansion stops before the hero photograph. "
+                "Price-slot growth may use bounded upward expansion only if copy stays locked. "
+                "1 occupied price slot → 3 still requires bounded local recomposition."
+            ),
+        },
+    }
+    # Unique blocked_by, preserve order
+    seen: set[str] = set()
+    uniq: list[str] = []
+    for item in expansion["blocked_by"]:
+        if item not in seen:
+            seen.add(item)
+            uniq.append(item)
+    expansion["blocked_by"] = uniq
+    return {
+        "safe_bbox": safe,
+        "safety_margin": {
+            "requested_px": requested,
+            "anti_alias_extent_px": {
+                "left_px": int(aa.get("left_px") or 0),
+                "up_px": int(aa.get("up_px") or 0),
+                "right_px": int(aa.get("right_px") or 0),
+                "down_px": int(aa.get("down_px") or 0),
+            },
+            "applied_px": applied,
+            "clean_pad_px": CLEAN_PAD_PX,
+            "unit": "px",
+            "note": (
+                f"{CLEAN_PAD_PX}px clean pad around visual bounds plus measured anti-alias. "
+                "Downward pad is clamped so the mutable region never enters the hero."
+            ),
+        },
+        "hero_boundary": {"y": hero_y0, "source": "photo_start"},
+        "blocked_by": uniq,
+        "expansion": expansion,
+        "copy_floor_y": copy_floor,
+    }
+
+
+def commercial_pixel_coverage(
+    image: Any,
+    safe_bbox: dict[str, int],
+    layout: dict[str, Any],
+) -> dict[str, Any]:
+    """Count commercial type pixels in the copy→hero band that sit outside the safe mask."""
+    from PIL import Image as PILImage
+
+    im = image.convert("RGB") if isinstance(image, PILImage.Image) else image
+    px = im.load()
+    photo_start = int(layout.get("photo_start") or im.size[1])
+    sub = layout.get("subheadline_bbox")
+    y0 = int(sub["y1"]) + 2 if sub else 0
+    y1 = photo_start
+    pad_x = int(im.size[0] * 0.06)
+    outside = 0
+    inside = 0
+    for y in range(y0, y1):
+        for x in range(pad_x, im.size[0] - pad_x):
+            r, g, b = px[x, y]
+            if not (_is_gold(r, g, b) or _is_white(r, g, b)):
+                continue
+            if safe_bbox["x0"] <= x < safe_bbox["x1"] and safe_bbox["y0"] <= y < safe_bbox["y1"]:
+                inside += 1
+            else:
+                outside += 1
+    return {
+        "strict_inside_safe": inside,
+        "strict_outside_safe": outside,
+        "ghost_risk": outside > 0,
+        "status": "pass" if outside == 0 else "fail",
+        "band": {"x0": pad_x, "y0": y0, "x1": im.size[0] - pad_x, "y1": y1},
+    }
 
 
 def analyze_raster(image: Any) -> dict[str, Any]:
@@ -471,6 +707,7 @@ def build_edit_map(
     logo_asset_id: str,
     created_from: dict[str, Any] | None = None,
     occupied_price_slots: dict[str, bool] | None = None,
+    image: Any = None,
 ) -> dict[str, Any]:
     """Attach semantic facts to raster geometry. Raster is visual truth."""
     width = int(layout["canvas_width"])
@@ -524,32 +761,69 @@ def build_edit_map(
     gap_commercial_hero = _gap(commercial, hero, "below")
     gap_sub_commercial = _gap(subhead, commercial, "below")
 
-    # Center column currently holds label + one price. Room to add two more
-    # price lines inside the group before the photo is the internal capacity.
-    internal_down = 0
-    if commercial and hero:
-        internal_down = max(0, hero["y0"] - commercial["y1"])
-    additional_price_rows = 0 if internal_down < 64 else (1 if internal_down < 120 else 2)
-
-    commercial_expansion = {
-        "allowed_directions": ["down_internal"] if internal_down else [],
-        "maximum_safe_expansion": {
+    visual_info: dict[str, Any] = {}
+    safe_info: dict[str, Any] = {}
+    semantic_bbox = dict(commercial) if commercial else None
+    visual_bbox = None
+    if image is not None and commercial and hero:
+        visual_info = measure_commercial_visual_bounds(image, layout)
+        visual_bbox = visual_info.get("visual_bbox")
+        safe_info = compute_safe_commercial_region(
+            visual_bbox=visual_bbox,
+            semantic_bbox=semantic_bbox,
+            headline_bbox=headline,
+            subheadline_bbox=subhead,
+            hero_bbox=hero,
+            canvas_width=width,
+            canvas_height=height,
+            anti_alias_extent=visual_info.get("anti_alias_extent"),
+        )
+        commercial = safe_info["safe_bbox"]
+        gap_headline_commercial = _gap(headline, commercial, "below")
+        gap_commercial_hero = _gap(commercial, hero, "below")
+        gap_sub_commercial = _gap(subhead, commercial, "below")
+        commercial_expansion = {
+            "allowed_directions": list(safe_info["expansion"]["allowed_directions"]),
+            "maximum_safe_expansion": dict(safe_info["expansion"]["maximum_safe_expansion"]),
+            "blocked_by": list(safe_info["blocked_by"]),
+            "internal_capacity": dict(safe_info["expansion"]["internal_capacity"]),
+            "up_px": safe_info["expansion"]["up_px"],
+            "down_px": safe_info["expansion"]["down_px"],
+            "left_px": safe_info["expansion"]["left_px"],
+            "right_px": safe_info["expansion"]["right_px"],
+        }
+    else:
+        internal_down = 0
+        if commercial and hero:
+            internal_down = max(0, hero["y0"] - commercial["y1"])
+        additional_price_rows = 0 if internal_down < 64 else (1 if internal_down < 120 else 2)
+        commercial_expansion = {
+            "allowed_directions": ["down_internal"] if internal_down else [],
+            "maximum_safe_expansion": {
+                "up_px": 0,
+                "down_px": min(internal_down, 24),
+                "left_px": 0,
+                "right_px": 0,
+            },
+            "blocked_by": ["headline", "subheadline", "hero_visual", "canvas_left", "canvas_right"],
+            "internal_capacity": {
+                "additional_price_rows": additional_price_rows,
+                "down_px_before_hero": internal_down,
+                "note": (
+                    "Center column is sized for label + one occupied price. "
+                    "1 occupied price slot → 3 occupied price slots exceeds internal "
+                    "capacity and requires bounded local recomposition of commercial_group."
+                ),
+            },
             "up_px": 0,
-            "down_px": min(internal_down, 24),
+            "down_px": min(internal_down, 24) if commercial and hero else 0,
             "left_px": 0,
             "right_px": 0,
-        },
-        "blocked_by": ["headline", "subheadline", "hero_visual", "canvas_left", "canvas_right"],
-        "internal_capacity": {
-            "additional_price_rows": additional_price_rows,
-            "down_px_before_hero": internal_down,
-            "note": (
-                "Center column is sized for label + one occupied price. "
-                "1 occupied price slot → 3 occupied price slots exceeds internal "
-                "capacity and requires bounded local recomposition of commercial_group."
-            ),
-        },
-    }
+        }
+
+    pixel_coverage = None
+    if image is not None and commercial:
+        pixel_coverage = commercial_pixel_coverage(image, commercial, layout)
 
     regions = [
         _region(
@@ -664,6 +938,14 @@ def build_edit_map(
                 + (["savings_price"] if sav_occ else [])
                 + ["discount"],
                 "column_relationship": column_layout,
+                "semantic_bbox": semantic_bbox,
+                "visual_bbox": visual_bbox,
+                "safe_bbox": commercial,
+                "safety_margin": safe_info.get("safety_margin"),
+                "hero_boundary": safe_info.get("hero_boundary")
+                or ({"y": hero["y0"], "source": "photo_start"} if hero else None),
+                "blocked_by": list(commercial_expansion.get("blocked_by") or []),
+                "pixel_coverage": pixel_coverage,
                 "blocked_boundaries": {
                     "above": "headline",
                     "below": "hero_visual",
@@ -824,6 +1106,14 @@ def build_edit_map(
                 if not occ
             ],
             "bbox": commercial,
+            "semantic_bbox": semantic_bbox,
+            "visual_bbox": visual_bbox,
+            "safe_bbox": commercial,
+            "safety_margin": safe_info.get("safety_margin"),
+            "hero_boundary": safe_info.get("hero_boundary")
+            or ({"y": hero["y0"], "source": "photo_start"} if hero else None),
+            "blocked_by": list(commercial_expansion.get("blocked_by") or []),
+            "pixel_coverage": pixel_coverage,
             "column_relationship": column_layout,
             "blocked_boundaries": {
                 "above": "headline",
@@ -855,7 +1145,7 @@ def build_edit_map(
         "source_visual_asset_id": str(source_visual_asset_id),
         "logo_asset_id": str(logo_asset_id),
         "created_from": {
-            "method": "raster_band_analysis",
+            "method": "raster_band_analysis+visual_bounds",
             "provider": None,
             "provider_calls": 0,
             "semantic_facts": True,
@@ -895,7 +1185,11 @@ def build_preservation_map() -> dict[str, Any]:
         "PRICE_EDIT_ONLY": {
             "mutable": list(commercial),
             "immutable": list(outside_price),
-            "note": "Only the commercial group may change. Hero, headline, logo, CTA stay locked.",
+            "note": (
+                "Only commercial_group.safe_bbox may change. "
+                "Hero, headline, logo, CTA stay locked. Mutable mask must cover all "
+                "original commercial pixels so ghosts cannot remain."
+            ),
         },
         "VISUAL_REPLACE_ONLY": {
             "mutable": ["hero_visual"],
@@ -976,14 +1270,26 @@ def validate_edit_map(
     hero = regions.get("hero_visual")
     if commercial and hero and commercial.get("bbox") and hero.get("bbox"):
         overlap = bbox_iou(commercial["bbox"], hero["bbox"])
-        if overlap > 0.25:
-            failures.append("hero_overlaps_commercial_group")
-        if commercial["bbox"]["y1"] > hero["bbox"]["y0"] + 12:
-            warnings.append("commercial_group_crosses_photo_start")
+        if overlap > 0.0 or commercial["bbox"]["y1"] > hero["bbox"]["y0"]:
+            failures.append("safe_bbox_invades_hero")
     headline = regions.get("headline")
     if commercial and headline and commercial.get("bbox") and headline.get("bbox"):
-        if bbox_iou(commercial["bbox"], headline["bbox"]) > 0.30:
+        if bbox_iou(commercial["bbox"], headline["bbox"]) > 0.02:
             failures.append("commercial_group_overlaps_headline")
+    subhead = regions.get("subheadline")
+    if commercial and subhead and commercial.get("bbox") and subhead.get("bbox"):
+        if bbox_iou(commercial["bbox"], subhead["bbox"]) > 0.02:
+            failures.append("commercial_group_overlaps_subheadline")
+    coverage = (commercial or {}).get("pixel_coverage") or {}
+    if coverage.get("ghost_risk") is True or coverage.get("strict_outside_safe"):
+        failures.append("commercial_pixels_outside_safe_bbox")
+    safe = (commercial or {}).get("safe_bbox")
+    visual = (commercial or {}).get("visual_bbox")
+    if safe and visual:
+        if not bbox_contains(safe, visual, slack=0):
+            failures.append("visual_bbox_not_inside_safe_bbox")
+    if hero and safe and safe["y1"] > hero["bbox"]["y0"]:
+        failures.append("safe_bbox_invades_hero")
 
     group = groups.get("commercial_group")
     if group is None:
@@ -1151,6 +1457,7 @@ def build_edit_map_from_raster_bytes(
         logo_asset_id=logo_asset_id,
         created_from=created_from,
         occupied_price_slots=occupied_price_slots,
+        image=image,
     )
     return edit_map, layout
 
@@ -1236,3 +1543,63 @@ def render_debug_overlay(image: Any, edit_map: dict[str, Any]) -> Any:
         else:
             draw.text((box["x0"] + 4, ty), label, fill=color)
     return overlay.convert("RGB")
+
+
+def render_geometry_debug(image: Any, edit_map: dict[str, Any]) -> Any:
+    """Internal QA: semantic / visual / safe commercial boxes + hero boundary."""
+    from PIL import ImageDraw, ImageFont
+
+    im = image.convert("RGB")
+    draw = ImageDraw.Draw(im)
+    try:
+        font = ImageFont.load_default()
+    except Exception:
+        font = None
+    commercial = next(
+        (
+            r
+            for r in (edit_map.get("regions") or [])
+            if isinstance(r, dict) and r.get("semantic_role") == "commercial_group"
+        ),
+        {},
+    )
+    hero = next(
+        (
+            r
+            for r in (edit_map.get("regions") or [])
+            if isinstance(r, dict) and r.get("semantic_role") == "hero_visual"
+        ),
+        {},
+    )
+
+    def _box(item: dict[str, Any] | None, color: tuple[int, int, int], width: int, label: str) -> None:
+        if not item:
+            return
+        draw.rectangle(
+            [item["x0"], item["y0"], item["x1"] - 1, item["y1"] - 1],
+            outline=color,
+            width=width,
+        )
+        ty = max(0, item["y0"] - 12)
+        if font:
+            draw.text((item["x0"] + 4, ty), label, fill=color, font=font)
+        else:
+            draw.text((item["x0"] + 4, ty), label, fill=color)
+
+    _box(commercial.get("semantic_bbox"), (255, 80, 220), 2, "semantic")
+    _box(commercial.get("visual_bbox"), (80, 255, 80), 3, "visual")
+    _box(commercial.get("safe_bbox") or commercial.get("bbox"), (255, 200, 40), 5, "safe")
+    hero_y = None
+    boundary = commercial.get("hero_boundary")
+    if isinstance(boundary, dict):
+        hero_y = boundary.get("y")
+    if hero_y is None and hero.get("bbox"):
+        hero_y = hero["bbox"]["y0"]
+    if hero_y is not None:
+        y = int(hero_y)
+        draw.line([(0, y), (im.size[0] - 1, y)], fill=(255, 40, 40), width=3)
+        if font:
+            draw.text((8, max(0, y - 14)), f"hero boundary y={y}", fill=(255, 40, 40), font=font)
+        else:
+            draw.text((8, max(0, y - 14)), f"hero boundary y={y}", fill=(255, 40, 40))
+    return im

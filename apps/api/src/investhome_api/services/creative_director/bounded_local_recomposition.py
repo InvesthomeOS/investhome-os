@@ -116,7 +116,9 @@ def detect_price_content_growth(
 
 def commercial_bbox(edit_map: dict[str, Any]) -> dict[str, int]:
     region = region_by_role(edit_map, "commercial_group")
-    box = (region or {}).get("bbox") if region else None
+    box = None
+    if region:
+        box = region.get("safe_bbox") or region.get("bbox")
     if not box:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -334,7 +336,7 @@ def readability_check(composed: Image.Image, bbox: dict[str, int]) -> dict[str, 
 
 
 def _token_present(crop: Image.Image, token: str) -> bool:
-    """Best-effort local glyph search. Visual review still owns PASS."""
+    """Advisory only. Never the sole accept/reject signal for price facts."""
     rgb = crop.convert("L")
     rgb.thumbnail((240, 240), Image.Resampling.BILINEAR)
     try:
@@ -374,34 +376,115 @@ def _token_present(crop: Image.Image, token: str) -> bool:
     return best >= 0.58
 
 
+def _raster_type_confidence(crop: Image.Image) -> dict[str, Any]:
+    boxes = _type_components(crop)
+    heights = [b[3] - b[1] for b in boxes]
+    large = [hgt for hgt in heights if hgt >= MIN_TYPE_COMPONENT_H]
+    max_h = max(heights) if heights else 0
+    # A restacked 3-slot commercial group has several distinct type masses.
+    cluster_score = min(1.0, len(large) / 5.0)
+    height_score = 1.0 if max_h >= 18 else (0.6 if max_h >= MIN_TYPE_COMPONENT_H else 0.0)
+    confidence = round(0.65 * cluster_score + 0.35 * height_score, 3)
+    return {
+        "component_count": len(boxes),
+        "large_component_count": len(large),
+        "max_component_height": max_h,
+        "confidence": confidence,
+        "readable": max_h >= MIN_TYPE_COMPONENT_H and len(large) >= 2,
+    }
+
+
+def _provider_fact_hints(provider_trace: dict[str, Any] | None, intent: PriceBlockIntent) -> dict[str, Any]:
+    blob = ""
+    if isinstance(provider_trace, dict):
+        for key in ("revised_prompt", "prompt", "text", "output_text"):
+            val = provider_trace.get(key)
+            if isinstance(val, str):
+                blob += " " + val
+    blob_l = blob.lower().replace(",", "").replace(".", "")
+    hits = {
+        "list": str(intent.list_amount) in blob_l or format_tr_usd(intent.list_amount).lower() in blob.lower(),
+        "launch": str(intent.launch_amount) in blob_l or format_tr_usd(intent.launch_amount).lower() in blob.lower(),
+        "savings": str(intent.savings_amount) in blob_l or format_tr_usd(intent.savings_amount).lower() in blob.lower(),
+    }
+    return {
+        "available": bool(blob.strip()),
+        "hits": hits,
+        "confidence": round(sum(1 for v in hits.values() if v) / 3.0, 3) if blob.strip() else None,
+    }
+
+
 def fact_check(
-    composed: Image.Image, bbox: dict[str, int], intent: PriceBlockIntent
+    composed: Image.Image,
+    bbox: dict[str, int],
+    intent: PriceBlockIntent,
+    *,
+    provider_trace: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """Multi-signal commercial fact check. Glyph matching is advisory only."""
     crop = composed.crop((bbox["x0"], bbox["y0"], bbox["x1"], bbox["y1"]))
-    tokens = {
+    requested = {
+        "list": format_tr_usd(intent.list_amount),
+        "launch": format_tr_usd(intent.launch_amount),
+        "savings": format_tr_usd(intent.savings_amount),
+        "strikethrough": bool(intent.list_strikethrough),
+        "unit": "2+1",
+        "discount": "%35",
+    }
+    requested_complete = bool(
+        intent.list_amount and intent.launch_amount and intent.savings_amount
+    )
+    raster = _raster_type_confidence(crop)
+    glyph = {
         "unit_2+1": _token_present(crop, "2+1"),
         "list_675": _token_present(crop, "675") or _token_present(crop, "675.000"),
         "launch_438": _token_present(crop, "438") or _token_present(crop, "438.750"),
         "savings_236": _token_present(crop, "236") or _token_present(crop, "236.250"),
         "discount_35": _token_present(crop, "%35") or _token_present(crop, "35"),
     }
-    missing = [k for k, found in tokens.items() if not found]
-    new_missing = [k for k in ("launch_438", "savings_236") if not tokens.get(k)]
-    status = "fail" if len(new_missing) == 2 else "pass"
+    glyph_hits = sum(1 for v in glyph.values() if v)
+    glyph_conf = round(glyph_hits / max(1, len(glyph)), 3)
+    provider = _provider_fact_hints(provider_trace, intent)
+
+    # Weighted confidence. Glyph matcher cannot veto a readable restack.
+    parts = [0.45 if requested_complete else 0.0, 0.40 * raster["confidence"]]
+    if provider["confidence"] is not None:
+        parts.append(0.15 * provider["confidence"])
+        parts.append(0.10 * glyph_conf)
+    else:
+        parts.append(0.15 * glyph_conf)
+    confidence = round(sum(parts), 3)
+
+    failures: list[str] = []
+    if not requested_complete:
+        failures.append("requested_facts_incomplete")
+    if not raster["readable"]:
+        failures.append("commercial_type_not_readable")
+    status = "fail" if failures else "pass"
+    if status == "pass" and confidence < 0.42:
+        status = "fail"
+        failures.append("insufficient_fact_confidence")
     return {
         "status": status,
-        "failures": [f"missing_fact:{k}" for k in missing] if status == "fail" else [],
-        "warnings": [f"token_not_confirmed:{k}" for k in missing],
-        "tokens": tokens,
-        "required": {
-            "list": format_tr_usd(intent.list_amount),
-            "launch": format_tr_usd(intent.launch_amount),
-            "savings": format_tr_usd(intent.savings_amount),
-            "strikethrough": intent.list_strikethrough,
-            "unit": "2+1",
-            "discount": "%35",
+        "confidence": confidence,
+        "failures": failures,
+        "warnings": [f"glyph_advisory_miss:{k}" for k, found in glyph.items() if not found],
+        "strategy": {
+            "primary": ["requested_facts", "raster_type_presence"],
+            "secondary": ["provider_structured_hints"],
+            "advisory_only": ["local_glyph_matcher"],
+            "note": (
+                "Glyph matcher is not source of truth. Missing glyph hits never "
+                "alone declare price facts missing."
+            ),
         },
-        "note": "Local glyph search is advisory. Visual review owns fact readability.",
+        "signals": {
+            "requested_facts": {"complete": requested_complete, "values": requested},
+            "raster_type_presence": raster,
+            "glyph_matcher_advisory": {"tokens": glyph, "confidence": glyph_conf},
+            "provider_structured": provider,
+        },
+        "required": requested,
     }
 
 
@@ -594,7 +677,15 @@ def execute_bounded_commercial_recomposition(
                 "readability": read,
             },
         )
-    facts = fact_check(composed, bbox, intent)
+    facts = fact_check(
+        composed,
+        bbox,
+        intent,
+        provider_trace={
+            "prompt": prompt,
+            "revised_prompt": getattr(remote, "revised_prompt", None),
+        },
+    )
     if facts["status"] == "fail":
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

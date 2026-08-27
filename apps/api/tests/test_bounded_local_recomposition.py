@@ -171,3 +171,49 @@ def test_occupied_new_and_savings_require_bbox() -> None:
     assert "new_price" in group["children"]
     assert "savings_price" in group["children"]
     assert group["column_relationship"]["layout"] == "restacked_price_hierarchy"
+
+
+def test_commercial_bbox_prefers_safe_bbox() -> None:
+    from investhome_api.services.creative_director.bounded_local_recomposition import (
+        commercial_bbox,
+    )
+
+    edit_map = {
+        "regions": [
+            {
+                "semantic_role": "commercial_group",
+                "bbox": {"x0": 226, "y0": 319, "x1": 882, "y1": 550},
+                "safe_bbox": {"x0": 221, "y0": 303, "x1": 886, "y1": 554},
+            }
+        ]
+    }
+    box = commercial_bbox(edit_map)
+    assert box == {"x0": 221, "y0": 303, "x1": 886, "y1": 554}
+
+
+def test_fact_check_does_not_fail_on_glyph_miss(monkeypatch) -> None:
+    from investhome_api.services.creative_director import bounded_local_recomposition as blr
+
+    monkeypatch.setattr(blr, "_token_present", lambda *_a, **_k: False)
+    im = Image.new("RGB", (220, 140), (8, 12, 28))
+    draw = ImageDraw.Draw(im)
+    draw.rectangle([8, 8, 70, 55], fill=(240, 240, 240))
+    draw.rectangle([78, 8, 140, 55], fill=(240, 240, 240))
+    draw.rectangle([148, 8, 210, 55], fill=(210, 170, 70))
+    draw.rectangle([20, 70, 100, 120], fill=(240, 240, 240))
+    intent = parse_price_block(COMMAND)
+    result = blr.fact_check(im, {"x0": 0, "y0": 0, "x1": 220, "y1": 140}, intent)
+    assert result["status"] == "pass", result
+    assert not any(str(f).startswith("missing_fact:") for f in result["failures"])
+    assert "local_glyph_matcher" in result["strategy"]["advisory_only"]
+    assert result["signals"]["glyph_matcher_advisory"]["confidence"] == 0.0
+
+
+def test_fact_check_fails_when_commercial_type_unreadable() -> None:
+    from investhome_api.services.creative_director import bounded_local_recomposition as blr
+
+    im = Image.new("RGB", (80, 80), (8, 12, 28))
+    intent = parse_price_block(COMMAND)
+    result = blr.fact_check(im, {"x0": 0, "y0": 0, "x1": 80, "y1": 80}, intent)
+    assert result["status"] == "fail"
+    assert "commercial_type_not_readable" in result["failures"]

@@ -62,6 +62,7 @@ def _map_from_synthetic() -> dict:
         cover_asset_id=COVER_V2,
         source_visual_asset_id=SOURCE_V2,
         logo_asset_id=LOGO,
+        image=im,
     )
     validate_edit_map(
         edit_map,
@@ -108,7 +109,7 @@ def test_stamp_current_cover_does_not_overwrite_master() -> None:
 def test_synthetic_raster_edit_map_passes() -> None:
     edit_map = _map_from_synthetic()
     assert edit_map["validation_status"] == "pass"
-    assert edit_map["edit_map_version"] == "v1"
+    assert edit_map["edit_map_version"] == "1.1"
     assert edit_map["cover_asset_id"] == COVER_V2
     assert edit_map["source_visual_asset_id"] == SOURCE_V2
     assert edit_map["logo_asset_id"] == LOGO
@@ -152,7 +153,7 @@ def test_synthetic_raster_edit_map_passes() -> None:
     hero = regions["hero_visual"]["bbox"]
     commercial = regions["commercial_group"]["bbox"]
     assert bbox_iou(hero, commercial) < 0.25
-    assert commercial["y1"] <= hero["y0"] + 12
+    assert commercial["y1"] <= hero["y0"]
 
     assert edit_map["future_slots"]["old_price"]["occupied"] is True
     assert edit_map["future_slots"]["new_price"]["occupied"] is False
@@ -221,7 +222,7 @@ def test_hero_must_not_become_commercial_group() -> None:
         current_cover_asset_id=COVER_V2,
     )
     assert result["status"] == "fail"
-    assert "hero_overlaps_commercial_group" in result["failures"]
+    assert "safe_bbox_invades_hero" in result["failures"]
 
 
 def test_ornament_row_does_not_steal_photo_start() -> None:
@@ -253,6 +254,7 @@ def test_debug_overlay_is_not_blank_and_same_size() -> None:
         cover_asset_id=COVER_V2,
         source_visual_asset_id=SOURCE_V2,
         logo_asset_id=LOGO,
+        image=im,
     )
     debug = render_debug_overlay(im, edit_map)
     assert debug.size == im.size
@@ -267,3 +269,64 @@ def test_provider_capabilities_are_os_names_not_gpt_hardcode() -> None:
     assert ROUTER_CAPS == EDIT_MAP_PROVIDER_CAPABILITIES
     assert "gpt-image" not in ROUTER_CAPS
     assert "gpt_image" not in ROUTER_CAPS
+
+
+def test_safe_bbox_covers_visual_and_stops_at_hero() -> None:
+    from investhome_api.services.creative_director.edit_map import render_geometry_debug
+
+    im = _synthetic_temple_raster()
+    layout = analyze_raster(im)
+    edit_map = build_edit_map(
+        layout,
+        cover_asset_id=COVER_V2,
+        source_visual_asset_id=SOURCE_V2,
+        logo_asset_id=LOGO,
+        image=im,
+    )
+    validate_edit_map(
+        edit_map,
+        expected_cover_asset_id=COVER_V2,
+        expected_source_visual_asset_id=SOURCE_V2,
+        expected_logo_asset_id=LOGO,
+        current_cover_asset_id=COVER_V2,
+    )
+    assert edit_map["validation_status"] == "pass"
+    commercial = next(r for r in edit_map["regions"] if r["semantic_role"] == "commercial_group")
+    hero = next(r for r in edit_map["regions"] if r["semantic_role"] == "hero_visual")
+    assert commercial["semantic_bbox"]
+    assert commercial["visual_bbox"]
+    assert commercial["safe_bbox"] == commercial["bbox"]
+    assert commercial["safe_bbox"]["y1"] <= hero["bbox"]["y0"]
+    assert commercial["hero_boundary"]["y"] == hero["bbox"]["y0"]
+    assert commercial["pixel_coverage"]["strict_outside_safe"] == 0
+    assert commercial["pixel_coverage"]["ghost_risk"] is False
+    group = next(g for g in edit_map["groups"] if g["id"] == "commercial_group")
+    assert "up_px" in group["expansion"]
+    assert "down_px" in group["expansion"]
+    debug = render_geometry_debug(im, edit_map)
+    assert debug.size == im.size
+
+
+def test_glyph_tails_below_semantic_are_inside_safe_bbox() -> None:
+    """Type pixels just above the hero must sit inside the mutable mask."""
+    im = _synthetic_temple_raster(width=400, height=500)
+    photo_y = int(500 * 0.42)
+    for y in range(photo_y - 6, photo_y):
+        for x in range(50, 350):
+            im.putpixel((x, y), (240, 240, 240))
+    layout = analyze_raster(im)
+    semantic = layout["commercial_bbox"]
+    edit_map = build_edit_map(
+        layout,
+        cover_asset_id=COVER_V2,
+        source_visual_asset_id=SOURCE_V2,
+        logo_asset_id=LOGO,
+        image=im,
+    )
+    commercial = next(r for r in edit_map["regions"] if r["semantic_role"] == "commercial_group")
+    safe = commercial["safe_bbox"]
+    visual = commercial["visual_bbox"]
+    assert visual["y1"] > semantic["y1"] or visual["y1"] >= photo_y - 1
+    assert safe["y1"] >= visual["y1"]
+    assert safe["y1"] <= layout["hero_bbox"]["y0"]
+    assert commercial["pixel_coverage"]["strict_outside_safe"] == 0
