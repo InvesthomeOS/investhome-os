@@ -84,12 +84,15 @@ import {
   deleteSocialPost,
   hydrateSocialPostsFromDraft,
   hasAppliedCreateResult,
+  applyNewerMasterCoverToPost,
+  applyNewerMasterCoverToPosts,
   identityFromSocialPost,
   isCompletedGeneratedPost,
   isFinishedAdSocialPost,
   isInFlightGenerationPost,
   mergeCreateGenerationResult,
   mergeHydratedPostsWithLocal,
+  resolveCampaignMasterCover,
   parseSmbSelectedIdentity,
   readSmbSelectedIdentity,
   stripInFlightPostsForPersist,
@@ -531,6 +534,34 @@ export function SocialMediaBuilderWorkspace() {
               const cursor = parseAiRevisionCursor(camp.campaign_context);
               setAiRevisionHistory(cursor.history);
               setAiRevisionIndex(cursor.index);
+              const master = resolveCampaignMasterCover(camp);
+              if (!master) return;
+              const stillOnCampaign = postsRef.current.some(
+                (p) => resolvePostCampaignId(p) === campaignId,
+              );
+              if (!stillOnCampaign) return;
+              const nextPosts = applyNewerMasterCoverToPosts(
+                postsRef.current,
+                campaignId,
+                master,
+              );
+              if (nextPosts === postsRef.current) return;
+              postsRef.current = nextPosts;
+              setPosts(nextPosts);
+              const nextActive =
+                nextPosts.find((p) => p.id === selectedPostIdRef.current) ??
+                nextPosts[0] ??
+                null;
+              if (nextActive?.coverAssetId) {
+                coverAsset.setCoverImage({
+                  asset_id: nextActive.coverAssetId,
+                  url: null,
+                  alt: null,
+                  role: 'cover',
+                });
+                writeSmbSelectedIdentity(projectId, identityFromSocialPost(nextActive));
+              }
+              persistEpochRef.current += 1;
             })
             .catch(() => {
               /* keep local cursor if campaign fetch fails */
@@ -1911,6 +1942,10 @@ export function SocialMediaBuilderWorkspace() {
         });
         nextPost.id = postId;
         nextPost.campaignContextId = response.campaign_id || campaignId;
+        const masterCover = resolveCampaignMasterCover(response);
+        if (!microEditRevision && masterCover) {
+          Object.assign(nextPost, applyNewerMasterCoverToPost(nextPost, masterCover));
+        }
         if (microEditRevision && nextPost.coverAssetId && nextPost.coverAssetId !== lockedCoverId) {
           throw new Error(t('toasts.revisionFailed'));
         }

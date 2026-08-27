@@ -727,6 +727,158 @@ export function isFinishedAdSocialPost(post: SocialPost | null | undefined): boo
   );
 }
 
+export type CampaignMasterCoverTip = {
+  coverAssetId: string;
+  currentVersion: number | null;
+};
+
+export function readPersistedCoverVersion(post: SocialPost | null | undefined): number | null {
+  const meta =
+    post?.generationMeta && typeof post.generationMeta === 'object' ? post.generationMeta : null;
+  const raw = meta?.current_version ?? meta?.cover_version;
+  const n = typeof raw === 'number' ? raw : Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Current master cover from campaign GET / revise response. Draft covers are not source of truth. */
+export function resolveCampaignMasterCover(
+  source: {
+    campaign_context?: Record<string, unknown> | null;
+    current_cover_asset_id?: unknown;
+    master_creative?: Record<string, unknown> | null;
+  } | null | undefined,
+): CampaignMasterCoverTip | null {
+  if (!source) return null;
+  const ctx =
+    source.campaign_context && typeof source.campaign_context === 'object'
+      ? source.campaign_context
+      : null;
+  const mcRaw = ctx?.master_creative ?? source.master_creative;
+  const mc = mcRaw && typeof mcRaw === 'object' ? (mcRaw as Record<string, unknown>) : {};
+  const coverRaw =
+    mc.current_cover_asset_id ??
+    (ctx ? ctx.current_cover_asset_id : null) ??
+    source.current_cover_asset_id;
+  const cover =
+    typeof coverRaw === 'string' && isMediaAssetUuid(coverRaw) ? coverRaw.trim() : null;
+  if (!cover) return null;
+  const versionRaw = mc.current_version ?? (ctx ? ctx.current_version : null);
+  const version = typeof versionRaw === 'number' ? versionRaw : Number(versionRaw);
+  return {
+    coverAssetId: cover,
+    currentVersion: Number.isFinite(version) ? version : null,
+  };
+}
+
+function coverPointersMatch(post: SocialPost, cover: string): boolean {
+  const meta =
+    post.generationMeta && typeof post.generationMeta === 'object' ? post.generationMeta : {};
+  const gpt =
+    meta.gpt_image && typeof meta.gpt_image === 'object' && !Array.isArray(meta.gpt_image)
+      ? (meta.gpt_image as Record<string, unknown>)
+      : {};
+  const bg = post.elements.find(
+    (el) =>
+      el.type === 'IMAGE' &&
+      (el.id === 'img-finished-ad' || el.role === 'background'),
+  );
+  const bgId = bg && bg.type === 'IMAGE' ? bg.assetId : null;
+  return (
+    post.coverAssetId === cover &&
+    (typeof meta.finished_ad_raster_asset_id !== 'string' ||
+      meta.finished_ad_raster_asset_id === cover) &&
+    (typeof gpt.local_asset_id !== 'string' || gpt.local_asset_id === cover) &&
+    (!bgId || bgId === cover)
+  );
+}
+
+export function shouldPreferMasterCover(
+  post: SocialPost,
+  master: CampaignMasterCoverTip,
+): boolean {
+  if (!master.coverAssetId || !isMediaAssetUuid(master.coverAssetId)) return false;
+  if (!coverPointersMatch(post, master.coverAssetId)) {
+    const localVersion = readPersistedCoverVersion(post);
+    if (master.currentVersion != null && localVersion != null) {
+      if (master.currentVersion < localVersion) return false;
+      if (master.currentVersion > localVersion) return true;
+    }
+    if (master.currentVersion != null && localVersion == null) return true;
+    if (post.coverAssetId && post.coverAssetId !== master.coverAssetId) return true;
+    return true;
+  }
+  return false;
+}
+
+/** Align a finished-ad post to the persisted master tip. Never copy an older v2 over a newer v3. */
+export function applyNewerMasterCoverToPost(
+  post: SocialPost,
+  master: CampaignMasterCoverTip,
+): SocialPost {
+  if (!shouldPreferMasterCover(post, master)) return post;
+  const cover = master.coverAssetId;
+  const previous = post.coverAssetId;
+  const elements = post.elements.map((el) => {
+    if (el.type !== 'IMAGE') return el;
+    const id = String(el.id || '');
+    const role = String(el.role || '');
+    if (id === 'img-finished-ad' || role === 'background' || (previous && el.assetId === previous)) {
+      return { ...el, assetId: cover };
+    }
+    return el;
+  });
+  const meta: Record<string, unknown> =
+    post.generationMeta && typeof post.generationMeta === 'object'
+      ? { ...post.generationMeta }
+      : {};
+  if (master.currentVersion != null) meta.current_version = master.currentVersion;
+  meta.finished_ad_raster_asset_id = cover;
+  if (meta.gpt_image && typeof meta.gpt_image === 'object' && !Array.isArray(meta.gpt_image)) {
+    meta.gpt_image = { ...(meta.gpt_image as Record<string, unknown>), local_asset_id: cover };
+  }
+  return {
+    ...post,
+    coverAssetId: cover,
+    thumbUrl: '',
+    elements,
+    generationMeta: meta,
+  };
+}
+
+export function applyNewerMasterCoverToPosts(
+  posts: SocialPost[],
+  campaignId: string | null | undefined,
+  master: CampaignMasterCoverTip | null,
+): SocialPost[] {
+  if (!master || !campaignId) return posts;
+  let changed = false;
+  const next = posts.map((post) => {
+    if (campaignIdFromPost(post) !== campaignId) return post;
+    const applied = applyNewerMasterCoverToPost(post, master);
+    if (applied !== post) changed = true;
+    return applied;
+  });
+  return changed ? next : posts;
+}
+
+function pickNewerCoverPost(existing: SocialPost, incoming: SocialPost): SocialPost {
+  const existingVersion = readPersistedCoverVersion(existing);
+  const incomingVersion = readPersistedCoverVersion(incoming);
+  if (
+    existing.coverAssetId &&
+    incoming.coverAssetId &&
+    existing.coverAssetId !== incoming.coverAssetId
+  ) {
+    if (existingVersion != null && incomingVersion != null) {
+      if (existingVersion > incomingVersion) return existing;
+      if (incomingVersion > existingVersion) return incoming;
+    }
+    if (existingVersion != null && incomingVersion == null) return existing;
+    if (incomingVersion != null && existingVersion == null) return incoming;
+  }
+  return incoming;
+}
+
 export function isPlaceholderSocialPost(post: SocialPost | null | undefined): boolean {
   if (!post) return false;
   if (isInFlightGenerationPost(post)) return true;
@@ -1000,6 +1152,16 @@ export function mergeHydratedPostsWithLocal(input: {
     }
     if (existing && isPlaceholderSocialPost(post) && !isPlaceholderSocialPost(existing)) {
       return existing;
+    }
+    if (
+      existing &&
+      isFinishedAdSocialPost(existing) &&
+      isFinishedAdSocialPost(post) &&
+      existing.coverAssetId &&
+      post.coverAssetId &&
+      existing.coverAssetId !== post.coverAssetId
+    ) {
+      return pickNewerCoverPost(existing, post);
     }
     const existingMeta =
       existing?.generationMeta && typeof existing.generationMeta === 'object'
