@@ -201,6 +201,7 @@ def edit_image(
     base_url: str = DEFAULT_BASE_URL,
     variant: str | None = None,
     timeout: float = CALL_TIMEOUT_SECONDS,
+    mask: bytes | None = None,
 ) -> GptImageRemote:
     """POST /v1/images/edits — official multi-image edit. Project mode only."""
     if not images:
@@ -223,6 +224,8 @@ def edit_image(
                 ),
             )
         )
+    if mask:
+        files.append(("mask", ("mask.png", mask, "image/png")))
     data: dict[str, str] = {
         "model": model,
         "prompt": prompt,

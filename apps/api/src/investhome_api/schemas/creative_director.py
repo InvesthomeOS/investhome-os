@@ -150,6 +150,7 @@ RevisionRoute = Literal[
     "IMAGE_REQUIRED",
     "VISUAL_REPLACE_ONLY",
     "PRICE_EDIT_ONLY",
+    "BOUNDED_LOCAL_RECOMPOSITION",
 ]
 
 

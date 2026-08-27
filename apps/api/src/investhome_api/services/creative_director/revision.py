@@ -73,7 +73,9 @@ from investhome_api.services.creative_director.master_revision_controller import
 )
 from investhome_api.services.creative_director.edit_map import (
     attach_edit_map_for_cover,
+    load_edit_map,
     rebind_edit_map_for_cover,
+    render_debug_overlay,
     resolve_current_cover_asset_id,
     stamp_current_cover,
 )
@@ -1630,6 +1632,14 @@ def revise_ad_from_campaign(
     )
 
     price_intent = parse_price_block(instruction) or parse_price_block(working_instruction)
+    if price_edit_only and price_intent is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "PRICE_EDIT_ONLY fail-closed — price facts could not be parsed. "
+                "Full-ad generation was not used."
+            ),
+        )
     base_spec_for_plan = ctx.get("design_spec") if isinstance(ctx.get("design_spec"), dict) else None
     selected_element_id = getattr(body, "selected_element_id", None)
     revision_diff = build_revision_diff(
@@ -1840,15 +1850,91 @@ def revise_ad_from_campaign(
         interpreted_plan["scope"] = "REVISION_ENGINE_V2"
         revision_brief["scope"] = "REVISION_ENGINE_V2"
 
-    # ── PRICE_BLOCK_ONLY baked raster: local zone edit, GPT=0, fail-closed ──
-    elif price_intent is not None and is_baked_price_ad(ctx):
+    # ── PRICE_EDIT_ONLY: bounded local recomposition on content growth ──
+    # Overlay / glyph PRICE_BLOCK is the failed designer and is not used here.
+    elif price_intent is not None and (price_edit_only or is_baked_price_ad(ctx)):
         source_visual_before = str(interior_id)
         source_bytes = _read_asset_bytes(db, current_id)
-        patched_bytes, price_trace = apply_local_price_zone(
-            source_bytes,
-            spec=None,
-            intent=price_intent,
-        )
+        bounded = False
+        persist_mode = "price_block_revision"
+        persist_brief = "PRICE_BLOCK_ONLY local zone"
+        persist_gen_id = "price_block_local_v1"
+        provider_used = "price_block_local"
+        provider_calls_n = 0
+        occupied_slots: dict[str, bool] | None = None
+        execution_name: str | None = None
+        if price_edit_only:
+            from investhome_api.services.creative_director.bounded_local_recomposition import (
+                LOCKED_SOURCE_VISUAL_DAY_004,
+                detect_price_content_growth,
+                execute_bounded_commercial_recomposition,
+                public_trace,
+                write_evidence_files,
+            )
+
+            mc_now = _as_dict(ctx.get("master_creative"))
+            src_now = _as_dict(ctx.get("master_source_assets"))
+            locked_source = UUID(
+                str(
+                    mc_now.get("source_visual_asset_id")
+                    or src_now.get("source_visual_asset_id")
+                    or interior_id
+                )
+            )
+            interior_id = locked_source
+            source_visual_before = str(interior_id)
+            map_id, edit_map = load_edit_map(ctx, cover_asset_id=current_id)
+            if edit_map is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={
+                        "message": (
+                            "PRICE_EDIT_ONLY fail-closed — Edit Map missing for the current "
+                            "approved cover. Overlay / PRICE_BLOCK was not used."
+                        ),
+                        "current_cover_asset_id": str(current_id),
+                        "edit_map_id": map_id,
+                    },
+                )
+            growth = detect_price_content_growth(edit_map, price_intent)
+            if not growth.get("content_growth"):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={
+                        "message": (
+                            "PRICE_EDIT_ONLY fail-closed — content growth required for "
+                            "BOUNDED_LOCAL_RECOMPOSITION. Overlay was not used."
+                        ),
+                        "growth": growth,
+                    },
+                )
+            patched_bytes, price_trace = execute_bounded_commercial_recomposition(
+                cover_bytes=source_bytes,
+                edit_map=edit_map,
+                intent=price_intent,
+                source_visual_asset_id=str(interior_id),
+                expected_source_visual_asset_id=LOCKED_SOURCE_VISUAL_DAY_004,
+            )
+            price_trace = public_trace(price_trace)
+            price_trace["edit_map_id_used"] = map_id
+            bounded = True
+            persist_mode = "bounded_local_recomposition"
+            persist_brief = "PRICE_EDIT_ONLY bounded local recomposition"
+            persist_gen_id = "bounded_local_recomposition_v1"
+            provider_used = str(price_trace.get("provider_id") or "gpt-image")
+            provider_calls_n = int(price_trace.get("provider_calls") or 1)
+            occupied_slots = {
+                "old_price": True,
+                "new_price": True,
+                "savings_price": True,
+            }
+            execution_name = "BOUNDED_LOCAL_RECOMPOSITION"
+        else:
+            patched_bytes, price_trace = apply_local_price_zone(
+                source_bytes,
+                spec=None,
+                intent=price_intent,
+            )
         if str(interior_id) != source_visual_before:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -1867,11 +1953,11 @@ def revise_ad_from_campaign(
             linked_project_id=row.linked_project_id,
             content=patched_bytes,
             content_type="image/png",
-            campaign_mode="price_block_revision",
+            campaign_mode=persist_mode,
             session_id=str(row.id),
-            provider_generation_id="price_block_local_v1",
+            provider_generation_id=persist_gen_id,
             campaign_context_id=str(row.id),
-            brief_excerpt="PRICE_BLOCK_ONLY local zone",
+            brief_excerpt=persist_brief,
         )
         new_asset_id = new_asset.id
         from investhome_api.services.creative_director.price_block_revision import format_tr_usd
@@ -1888,11 +1974,15 @@ def revise_ad_from_campaign(
         texts["offer_price"] = final_copy["offer_price"]
         texts["savings"] = final_copy["savings"]
 
-        revision_route = "PRICE_EDIT_ONLY"
+        revision_route = execution_name or "PRICE_EDIT_ONLY"
         interpreted_plan["intent"] = "PRICE_EDIT_ONLY"
         interpreted_plan["scope"] = "PRICE_EDIT_ONLY"
+        if execution_name:
+            interpreted_plan["execution"] = execution_name
         interpreted_plan["execution_trace"] = {
-            "provider_calls": 0,
+            "provider_calls": provider_calls_n,
+            "generate_calls": 0,
+            "execution": execution_name or "price_block_local",
             "price_block": price_trace,
             "revision_source": {
                 "campaign_id": str(row.id),
@@ -1906,7 +1996,8 @@ def revise_ad_from_campaign(
             },
         }
         revision_brief["revision_route"] = revision_route
-        revision_brief["price_zone"] = price_trace.get("zone")
+        revision_brief["execution"] = execution_name
+        revision_brief["price_zone"] = price_trace.get("zone") or price_trace.get("mutable_region")
 
         claim_guard = claim_guard_summary(
             approved_claims=approved_claims,
@@ -1922,13 +2013,17 @@ def revise_ad_from_campaign(
             source_asset_id=interior_id,
         )
         asset_lock["master_asset_id"] = str(master_id)
-        asset_lock["revision_model"] = "price_block_local_zone"
+        asset_lock["revision_model"] = (
+            "bounded_local_recomposition" if bounded else "price_block_local_zone"
+        )
         asset_lock["status"] = "pass" if logo_lock.get("status") == "pass" else "fail"
 
         quality_guard: dict[str, Any] = {
             "status": "pass",
-            "gpt_calls": 0,
+            "gpt_calls": provider_calls_n,
+            "generate_calls": 0,
             "route": revision_route,
+            "execution": execution_name or "price_block_local",
             "composition_fidelity": "pass",
             "composition_failures": [],
             "price_block": price_trace,
@@ -1964,6 +2059,7 @@ def revise_ad_from_campaign(
         entry = {
             "version": version,
             "intent": "PRICE_EDIT_ONLY",
+            "execution": execution_name,
             "previous_asset_id": str(current_id),
             "new_asset_id": str(new_asset_id),
             "master_asset_id": str(master_id),
@@ -1973,12 +2069,13 @@ def revise_ad_from_campaign(
             "instruction": instruction,
             "user_prompt": instruction,
             "interpreted_plan": interpreted_plan,
-            "provider_used": "price_block_local",
-            "provider_calls": 0,
+            "provider_used": provider_used,
+            "provider_calls": provider_calls_n,
+            "generate_calls": 0,
             "revision_brief": revision_brief,
             "operations": new_ops,
             "intents": intents,
-            "provider": "price_block_local",
+            "provider": provider_used,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "campaign_context_id": str(row.id),
             "claim_guard": claim_guard.get("status"),
@@ -1995,9 +2092,9 @@ def revise_ad_from_campaign(
         generated.append(
             {
                 "asset_id": str(new_asset_id),
-                "role": "price_block_revision",
+                "role": persist_mode,
                 "language": language,
-                "provider": "price_block_local",
+                "provider": provider_used,
                 "previous_asset_id": str(current_id),
                 "master_asset_id": str(master_id),
                 "version": version,
@@ -2016,6 +2113,7 @@ def revise_ad_from_campaign(
                 "quality_guard": quality_guard.get("status"),
                 "scope": "PRICE_EDIT_ONLY",
                 "intent": "PRICE_EDIT_ONLY",
+                "execution": execution_name,
             }
         )
 
@@ -2024,6 +2122,7 @@ def revise_ad_from_campaign(
             {
                 "version": version_n,
                 "intent": "PRICE_EDIT_ONLY",
+                "execution": execution_name,
                 "previous_cover_asset_id": str(current_id),
                 "new_cover_asset_id": str(new_asset_id),
                 "source_visual_asset_id": str(interior_id),
@@ -2037,16 +2136,40 @@ def revise_ad_from_campaign(
         mc["source_visual_asset_id"] = str(interior_id)
         ctx["master_creative"] = mc
         stamp_current_cover(ctx, new_asset_id)
+        new_map = None
         try:
-            attach_edit_map_for_cover(
+            new_map = attach_edit_map_for_cover(
                 db,
                 ctx,
                 cover_asset_id=new_asset_id,
                 source_visual_asset_id=interior_id,
                 logo_asset_id=logo_id,
+                occupied_price_slots=occupied_slots,
             )
         except Exception as exc:
             logger.warning("edit_map_attach_on_price_edit_failed: %s", exc)
+        if bounded and not new_map:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "BOUNDED_LOCAL_RECOMPOSITION fail-closed — v3 Edit Map could not be "
+                    "generated. Cover was not persisted as current."
+                ),
+            )
+        if bounded and new_map:
+            try:
+                from PIL import Image
+                from investhome_api.services.creative_director.bounded_local_recomposition import (
+                    write_evidence_files,
+                )
+
+                composed_im = Image.open(io.BytesIO(patched_bytes)).convert("RGB")
+                dbg = render_debug_overlay(composed_im, new_map)
+                dbg_buf = io.BytesIO()
+                dbg.save(dbg_buf, format="PNG")
+                write_evidence_files(**{"after-edit-map.png": dbg_buf.getvalue()})
+            except Exception as exc:
+                logger.warning("edit_map_debug_dump_failed: %s", exc)
 
         ctx["revision_history"] = lean_history
         ctx["revision_index"] = revision_index
@@ -2063,6 +2186,7 @@ def revise_ad_from_campaign(
             "revision_route": revision_route,
             "scope": "PRICE_EDIT_ONLY",
             "intent": "PRICE_EDIT_ONLY",
+            "execution": execution_name,
             "price_block": price_intent.to_dict(),
             "master_asset_id": str(master_id),
             "revision_diff": revision_diff.model_dump(by_alias=True),
@@ -2089,12 +2213,13 @@ def revise_ad_from_campaign(
         db.flush()
 
         logger.info(
-            "PRICE_EDIT_ONLY campaign=%s cover=%s -> %s source_visual=%s zone=%s provider_calls=0",
+            "PRICE_EDIT_ONLY campaign=%s cover=%s -> %s source_visual=%s execution=%s provider_calls=%s",
             row.id,
             current_id,
             new_asset_id,
             interior_id,
-            price_trace.get("zone"),
+            execution_name or "price_block_local",
+            provider_calls_n,
         )
 
         return CreativeDirectorReviseAdResponse(
@@ -2116,7 +2241,12 @@ def revise_ad_from_campaign(
             revision_source_asset_id=interior_id,
             quality_guard=quality_guard,
             previous_asset_id=current_id,
-            provider_route={"provider_id": "price_block_local", "available": True, "missing": False},
+            provider_route={
+                "provider_id": provider_used,
+                "available": True,
+                "missing": False,
+                "capability": "edit_region" if bounded else "price_block_local",
+            },
             interior_asset_id=interior_id,
             logo_asset_id=logo_id,
             final_asset_id=new_asset_id,
@@ -2127,16 +2257,17 @@ def revise_ad_from_campaign(
                 "version": version,
                 "instruction": instruction,
                 "revision_route": revision_route,
-                "gpt_image_call_count": 0,
+                "gpt_image_call_count": provider_calls_n,
                 "scope": "PRICE_EDIT_ONLY",
                 "intent": "PRICE_EDIT_ONLY",
+                "execution": execution_name,
             },
             final_turkish_texts=texts,
             claim_guard=claim_guard,
             project_asset_lock=asset_lock,
             duplication_guard={"status": "pass"},
-            provider_call_count=0,
-            gpt_image_call_count=0,
+            provider_call_count=provider_calls_n,
+            gpt_image_call_count=provider_calls_n,
             latency_ms=0,
             warnings=[],
             gpt_image={},

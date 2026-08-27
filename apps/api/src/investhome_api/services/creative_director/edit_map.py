@@ -470,6 +470,7 @@ def build_edit_map(
     source_visual_asset_id: str,
     logo_asset_id: str,
     created_from: dict[str, Any] | None = None,
+    occupied_price_slots: dict[str, bool] | None = None,
 ) -> dict[str, Any]:
     """Attach semantic facts to raster geometry. Raster is visual truth."""
     width = int(layout["canvas_width"])
@@ -487,6 +488,37 @@ def build_edit_map(
     old_price = cols.get("old_price")
     discount = cols.get("discount")
     column_layout = layout.get("column_layout")
+    slots = {
+        "old_price": True,
+        "new_price": False,
+        "savings_price": False,
+        **(occupied_price_slots or {}),
+    }
+    new_occ = bool(slots.get("new_price"))
+    sav_occ = bool(slots.get("savings_price"))
+    new_bbox = None
+    sav_bbox = None
+    if (new_occ or sav_occ) and (old_price or commercial):
+        base = dict(old_price or commercial)
+        h = max(1, base["y1"] - base["y0"])
+        if new_occ and sav_occ:
+            third = h / 3.0
+            old_price = bbox_dict(base["x0"], base["y0"], base["x1"], int(base["y0"] + third))
+            new_bbox = bbox_dict(
+                base["x0"], int(base["y0"] + third), base["x1"], int(base["y0"] + 2 * third)
+            )
+            sav_bbox = bbox_dict(base["x0"], int(base["y0"] + 2 * third), base["x1"], base["y1"])
+        elif new_occ:
+            mid = (base["y0"] + base["y1"]) // 2
+            old_price = bbox_dict(base["x0"], base["y0"], base["x1"], mid)
+            new_bbox = bbox_dict(base["x0"], mid, base["x1"], base["y1"])
+        if column_layout:
+            column_layout = dict(column_layout)
+            column_layout["layout"] = "restacked_price_hierarchy"
+            column_layout["note"] = (
+                "Price occupancy grew inside commercial_group. "
+                "Bands are inferred from the center column, not a template."
+            )
 
     gap_headline_commercial = _gap(headline, commercial, "below")
     gap_commercial_hero = _gap(commercial, hero, "below")
@@ -627,7 +659,10 @@ def build_edit_map(
                 },
             },
             extra={
-                "children": list(COMMERCIAL_CHILD_ROLES),
+                "children": ["unit_label", "old_price"]
+                + (["new_price"] if new_occ else [])
+                + (["savings_price"] if sav_occ else [])
+                + ["discount"],
                 "column_relationship": column_layout,
                 "blocked_boundaries": {
                     "above": "headline",
@@ -703,29 +738,37 @@ def build_edit_map(
         _region(
             region_id="new_price",
             role="new_price",
-            bbox=None,
-            occupied=False,
+            bbox=new_bbox,
+            occupied=new_occ,
             group_id="commercial_group",
             hierarchy_rank=6,
-            confidence=1.0,
+            confidence=0.62 if new_occ else 1.0,
             extra={
-                "slot_kind": "future",
+                "slot_kind": "occupied" if new_occ else "future",
                 "column": "center",
-                "note": "Not on this raster. Occupying this slot later requires bounded local recomposition.",
+                "note": (
+                    "Launch price inferred inside commercial_group after bounded recomposition."
+                    if new_occ
+                    else "Not on this raster. Occupying this slot later requires bounded local recomposition."
+                ),
             },
         ),
         _region(
             region_id="savings_price",
             role="savings_price",
-            bbox=None,
-            occupied=False,
+            bbox=sav_bbox,
+            occupied=sav_occ,
             group_id="commercial_group",
             hierarchy_rank=6,
-            confidence=1.0,
+            confidence=0.62 if sav_occ else 1.0,
             extra={
-                "slot_kind": "future",
+                "slot_kind": "occupied" if sav_occ else "future",
                 "column": "center",
-                "note": "Not on this raster. Occupying this slot later requires bounded local recomposition.",
+                "note": (
+                    "Savings inferred inside commercial_group after bounded recomposition."
+                    if sav_occ
+                    else "Not on this raster. Occupying this slot later requires bounded local recomposition."
+                ),
             },
         ),
         _region(
@@ -771,8 +814,15 @@ def build_edit_map(
         {
             "id": "commercial_group",
             "semantic_role": "commercial_group",
-            "children": ["unit_label", "old_price", "discount"],
-            "future_children": ["new_price", "savings_price"],
+            "children": ["unit_label", "old_price"]
+            + (["new_price"] if new_occ else [])
+            + (["savings_price"] if sav_occ else [])
+            + ["discount"],
+            "future_children": [
+                role
+                for role, occ in (("new_price", new_occ), ("savings_price", sav_occ))
+                if not occ
+            ],
             "bbox": commercial,
             "column_relationship": column_layout,
             "blocked_boundaries": {
@@ -817,8 +867,8 @@ def build_edit_map(
         "groups": groups,
         "future_slots": {
             "old_price": {"occupied": True, "rendered_pixels": True},
-            "new_price": {"occupied": False, "rendered_pixels": False},
-            "savings_price": {"occupied": False, "rendered_pixels": False},
+            "new_price": {"occupied": new_occ, "rendered_pixels": new_occ},
+            "savings_price": {"occupied": sav_occ, "rendered_pixels": sav_occ},
         },
         "immutable_mask_metadata": preservation,
         "confidence": overall,
@@ -912,7 +962,11 @@ def validate_edit_map(
             failures.append(f"missing_future_slot:{role}")
             continue
         if region.get("occupied"):
-            failures.append(f"future_slot_marked_occupied:{role}")
+            if not region.get("bbox"):
+                failures.append(f"occupied_slot_missing_bbox:{role}")
+            elif not bbox_inside_canvas(region["bbox"], width, height):
+                failures.append(f"bbox_outside_canvas:{role}")
+            continue
         if region.get("rendered_pixels"):
             failures.append(f"unoccupied_slot_has_rendered_pixels:{role}")
         if region.get("bbox"):
@@ -1009,6 +1063,30 @@ def stamp_current_cover(
     return ctx
 
 
+def load_edit_map(
+    ctx: dict[str, Any],
+    *,
+    cover_asset_id: UUID | str | None = None,
+    map_id: str | None = None,
+) -> tuple[str | None, dict[str, Any] | None]:
+    """Load the Edit Map bound to the current cover. Never reuse another cover's map."""
+    maps = _as_dict(ctx.get("edit_maps"))
+    mid = map_id or ctx.get("current_edit_map_id")
+    mc = _as_dict(ctx.get("master_creative"))
+    if not mid:
+        mid = mc.get("current_edit_map_id")
+    if not mid and cover_asset_id:
+        mid = _as_dict(ctx.get("edit_maps_by_cover")).get(str(cover_asset_id))
+    if not mid:
+        return None, None
+    edit_map = maps.get(str(mid))
+    if not isinstance(edit_map, dict):
+        return str(mid), None
+    if cover_asset_id and str(edit_map.get("cover_asset_id")) != str(cover_asset_id):
+        return str(mid), None
+    return str(mid), edit_map
+
+
 def persist_edit_map(ctx: dict[str, Any], edit_map: dict[str, Any]) -> dict[str, Any]:
     map_id = str(edit_map["id"])
     cover = str(edit_map["cover_asset_id"])
@@ -1059,6 +1137,7 @@ def build_edit_map_from_raster_bytes(
     source_visual_asset_id: str,
     logo_asset_id: str,
     created_from: dict[str, Any] | None = None,
+    occupied_price_slots: dict[str, bool] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     from PIL import Image
     import io
@@ -1071,6 +1150,7 @@ def build_edit_map_from_raster_bytes(
         source_visual_asset_id=source_visual_asset_id,
         logo_asset_id=logo_asset_id,
         created_from=created_from,
+        occupied_price_slots=occupied_price_slots,
     )
     return edit_map, layout
 
@@ -1082,6 +1162,7 @@ def attach_edit_map_for_cover(
     cover_asset_id: UUID | str,
     source_visual_asset_id: UUID | str,
     logo_asset_id: UUID | str,
+    occupied_price_slots: dict[str, bool] | None = None,
 ) -> dict[str, Any] | None:
     """Generate + validate + persist. Fail-soft: never block generate/revise."""
     cover = UUID(str(cover_asset_id))
@@ -1092,6 +1173,7 @@ def attach_edit_map_for_cover(
             cover_asset_id=str(cover),
             source_visual_asset_id=str(source_visual_asset_id),
             logo_asset_id=str(logo_asset_id),
+            occupied_price_slots=occupied_price_slots,
         )
         validate_edit_map(
             edit_map,
@@ -1128,6 +1210,8 @@ def render_debug_overlay(image: Any, edit_map: dict[str, Any]) -> Any:
         "commercial_group": (255, 200, 40, 255),
         "unit_label": (80, 220, 120, 255),
         "old_price": (255, 80, 80, 255),
+        "new_price": (255, 120, 160, 255),
+        "savings_price": (255, 160, 80, 255),
         "discount": (255, 140, 40, 255),
         "cta": (220, 80, 255, 255),
         "logo": (120, 255, 80, 255),
@@ -1137,8 +1221,6 @@ def render_debug_overlay(image: Any, edit_map: dict[str, Any]) -> Any:
         if not region.get("occupied") or not region.get("bbox"):
             continue
         role = region.get("semantic_role")
-        if role in {"new_price", "savings_price"}:
-            continue
         box = region["bbox"]
         color = colors.get(role, (255, 255, 0, 255))
         width = 5 if role == "commercial_group" else (4 if role == "hero_visual" else 2)
