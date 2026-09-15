@@ -101,6 +101,9 @@ from investhome_api.models.work_item import (  # noqa: F401
     WorkItemParticipant,
     WorkItemStatusHistory,
 )
+from investhome_api.models.crm_contact import CrmContact, CrmContactStatus, CrmContactType, CrmRecordKind  # noqa: F401
+from investhome_api.models.crm_agreement import CrmAgreement, CrmAgreementStatus  # noqa: F401
+
 from investhome_api.models.notification import Notification  # noqa: F401
 from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole  # noqa: F401
 

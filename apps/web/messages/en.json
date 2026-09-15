@@ -307,7 +307,9 @@
   "salesInventoryMatching": {
     "loading": "Loading inventory matching…",
     "priceHidden": "Hidden",
-    "errors": { "loadFailed": "Unable to load inventory matching data." },
+    "errors": {
+      "loadFailed": "Unable to load inventory matching data."
+    },
     "sections": {
       "searchCriteria": "Search Criteria",
       "matchingResults": "Matching Results",
@@ -354,7 +356,9 @@
       "favorites": "No favorites yet.",
       "rejected": "No rejected assets."
     },
-    "badges": { "stale": "Changed" },
+    "badges": {
+      "stale": "Changed"
+    },
     "availability": {
       "available": "Available",
       "unavailable": "Unavailable",
@@ -682,17 +686,59 @@
       "version": "Version",
       "notes": "Notes"
     },
-    "recipient": { "empty": "No recipients.", "primary": "Primary" },
-    "items": { "empty": "No inventory items.", "title": "Item", "amount": "Amount", "currency": "Currency" },
-    "pricing": { "summary": "Total: {currency} {total}", "approvedPriceNote": "Prices reference approved inventory price records." },
-    "terms": { "payment": "Payment terms", "promotional": "Promotional terms", "disclaimer": "Disclaimer", "defaultDisclaimer": "For informational purposes only." },
-    "documents": { "hint": "Link documents from the Document Engine.", "noGeneration": "No automated document generation — manual upload only." },
-    "branding": { "hint": "Brand profile assets are referenced for output.", "defaults": "Using safe default branding." },
-    "preview": { "loading": "Generating preview…", "error": "Preview unavailable.", "download": "Download HTML", "refresh": "Refresh" },
-    "approval": { "commentsPlaceholder": "Review comments", "approve": "Approve", "revision": "Request revision", "reject": "Reject" },
-    "versions": { "version": "Version {number}", "approved": "Approved" },
-    "activity": { "empty": "No activity yet." },
-    "stale": { "title": "Stale data detected", "message": "{count} item(s) have outdated pricing or inventory.", "refresh": "Refresh pricing", "refreshing": "Refreshing…" },
+    "recipient": {
+      "empty": "No recipients.",
+      "primary": "Primary"
+    },
+    "items": {
+      "empty": "No inventory items.",
+      "title": "Item",
+      "amount": "Amount",
+      "currency": "Currency"
+    },
+    "pricing": {
+      "summary": "Total: {currency} {total}",
+      "approvedPriceNote": "Prices reference approved inventory price records."
+    },
+    "terms": {
+      "payment": "Payment terms",
+      "promotional": "Promotional terms",
+      "disclaimer": "Disclaimer",
+      "defaultDisclaimer": "For informational purposes only."
+    },
+    "documents": {
+      "hint": "Link documents from the Document Engine.",
+      "noGeneration": "No automated document generation — manual upload only."
+    },
+    "branding": {
+      "hint": "Brand profile assets are referenced for output.",
+      "defaults": "Using safe default branding."
+    },
+    "preview": {
+      "loading": "Generating preview…",
+      "error": "Preview unavailable.",
+      "download": "Download HTML",
+      "refresh": "Refresh"
+    },
+    "approval": {
+      "commentsPlaceholder": "Review comments",
+      "approve": "Approve",
+      "revision": "Request revision",
+      "reject": "Reject"
+    },
+    "versions": {
+      "version": "Version {number}",
+      "approved": "Approved"
+    },
+    "activity": {
+      "empty": "No activity yet."
+    },
+    "stale": {
+      "title": "Stale data detected",
+      "message": "{count} item(s) have outdated pricing or inventory.",
+      "refresh": "Refresh pricing",
+      "refreshing": "Refreshing…"
+    },
     "errors": {
       "not_found": "Proposal not found.",
       "not_editable": "Proposal cannot be edited in this status.",
@@ -713,7 +759,10 @@
     "meetingUrlHint": "Meeting URL is stored for reference only — no external calendar sync.",
     "noOutcome": "No outcome recorded yet.",
     "tabPlaceholder": "Details available in related records.",
-    "empty": { "title": "No work items", "description": "Create a task, meeting, or follow-up to get started." },
+    "empty": {
+      "title": "No work items",
+      "description": "Create a task, meeting, or follow-up to get started."
+    },
     "kpis": {
       "today": "Due today",
       "overdue": "Overdue",
@@ -737,43 +786,110 @@
       "team_work": "Team Work"
     },
     "types": {
-      "task": "Task", "call": "Call", "meeting": "Meeting", "follow_up": "Follow-up",
-      "site_visit": "Site visit", "document_request": "Document request",
-      "proposal_follow_up": "Proposal follow-up", "reservation_follow_up": "Reservation follow-up",
-      "deposit_follow_up": "Deposit follow-up", "contract_follow_up": "Contract follow-up",
-      "closing_follow_up": "Closing follow-up", "other": "Other"
+      "task": "Task",
+      "call": "Call",
+      "meeting": "Meeting",
+      "follow_up": "Follow-up",
+      "site_visit": "Site visit",
+      "document_request": "Document request",
+      "proposal_follow_up": "Proposal follow-up",
+      "reservation_follow_up": "Reservation follow-up",
+      "deposit_follow_up": "Deposit follow-up",
+      "contract_follow_up": "Contract follow-up",
+      "closing_follow_up": "Closing follow-up",
+      "other": "Other"
     },
     "statuses": {
-      "open": "Open", "in_progress": "In progress", "waiting": "Waiting", "blocked": "Blocked",
-      "completed": "Completed", "cancelled": "Cancelled", "overdue": "Overdue", "archived": "Archived"
+      "open": "Open",
+      "in_progress": "In progress",
+      "waiting": "Waiting",
+      "blocked": "Blocked",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "overdue": "Overdue",
+      "archived": "Archived"
     },
-    "priorities": { "low": "Low", "medium": "Medium", "high": "High", "urgent": "Urgent" },
-    "columns": { "title": "Title", "type": "Type", "status": "Status", "priority": "Priority", "due": "Due" },
+    "priorities": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "columns": {
+      "title": "Title",
+      "type": "Type",
+      "status": "Status",
+      "priority": "Priority",
+      "due": "Due"
+    },
     "tabs": {
-      "overview": "Overview", "details": "Details", "meeting": "Meeting", "followUp": "Follow-up",
-      "participants": "Participants", "related": "Related", "outcome": "Outcome", "history": "History", "activity": "Activity"
+      "overview": "Overview",
+      "details": "Details",
+      "meeting": "Meeting",
+      "followUp": "Follow-up",
+      "participants": "Participants",
+      "related": "Related",
+      "outcome": "Outcome",
+      "history": "History",
+      "activity": "Activity"
     },
     "fields": {
-      "type": "Type", "status": "Status", "priority": "Priority", "due": "Due date", "description": "Description",
-      "meetingType": "Meeting type", "location": "Location", "meetingUrl": "Meeting URL", "agenda": "Agenda",
-      "contactMethod": "Contact method", "responseStatus": "Response", "notes": "Notes",
-      "lead": "Lead", "opportunity": "Opportunity", "proposal": "Proposal"
+      "type": "Type",
+      "status": "Status",
+      "priority": "Priority",
+      "due": "Due date",
+      "description": "Description",
+      "meetingType": "Meeting type",
+      "location": "Location",
+      "meetingUrl": "Meeting URL",
+      "agenda": "Agenda",
+      "contactMethod": "Contact method",
+      "responseStatus": "Response",
+      "notes": "Notes",
+      "lead": "Lead",
+      "opportunity": "Opportunity",
+      "proposal": "Proposal"
     },
-    "actions": { "complete": "Complete", "edit": "Edit" },
+    "actions": {
+      "complete": "Complete",
+      "edit": "Edit"
+    },
     "form": {
-      "createTitle": "Create work item", "editTitle": "Edit work item", "title": "Title", "type": "Type",
-      "priority": "Priority", "due": "Due date", "description": "Description", "private": "Private item",
-      "cancel": "Cancel", "save": "Save"
+      "createTitle": "Create work item",
+      "editTitle": "Edit work item",
+      "title": "Title",
+      "type": "Type",
+      "priority": "Priority",
+      "due": "Due date",
+      "description": "Description",
+      "private": "Private item",
+      "cancel": "Cancel",
+      "save": "Save"
     },
     "complete": {
-      "title": "Complete work item", "outcome": "Outcome", "createNext": "Schedule next follow-up", "submit": "Complete"
+      "title": "Complete work item",
+      "outcome": "Outcome",
+      "createNext": "Schedule next follow-up",
+      "submit": "Complete"
     },
     "calendar": {
-      "day": "Day", "week": "Week", "month": "Month", "internalOnly": "Internal calendar — no external sync",
-      "emptyTitle": "No scheduled items", "emptyDescription": "Work items with due dates appear here."
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "internalOnly": "Internal calendar — no external sync",
+      "emptyTitle": "No scheduled items",
+      "emptyDescription": "Work items with due dates appear here."
     },
-    "team": { "emptyTitle": "No team work", "emptyDescription": "Assigned work items appear grouped by user.", "unassigned": "Unassigned" },
-    "layout": { "list": "List", "calendar": "Calendar", "team": "Team" }
+    "team": {
+      "emptyTitle": "No team work",
+      "emptyDescription": "Assigned work items appear grouped by user.",
+      "unassigned": "Unassigned"
+    },
+    "layout": {
+      "list": "List",
+      "calendar": "Calendar",
+      "team": "Team"
+    }
   },
   "salesReadiness": {
     "title": "Contract Readiness",
@@ -786,10 +902,23 @@
     "permissionDenied": "You do not have permission to view contract readiness.",
     "viewsLabel": "Readiness views",
     "mandatory": "Mandatory",
-    "requirementStatus": "Requirement status",
+    "requirementStatus": {
+      "missing": "Missing",
+      "pending": "Pending",
+      "received": "Received",
+      "under_review": "Under Review",
+      "verified": "Verified",
+      "rejected": "Rejected",
+      "waived": "Waived",
+      "expired": "Expired",
+      "not_applicable": "Not Applicable"
+    },
     "yes": "Yes",
     "no": "No",
-    "empty": { "title": "No readiness cases", "description": "Create a readiness case from an opportunity with inventory selected." },
+    "empty": {
+      "title": "No readiness cases",
+      "description": "Create a readiness case from an opportunity with inventory selected."
+    },
     "kpis": {
       "activeCases": "Active Readiness Cases",
       "blocked": "Blocked",
@@ -825,17 +954,6 @@
       "handed_off": "Handed Off",
       "cancelled": "Cancelled",
       "archived": "Archived"
-    },
-    "requirementStatus": {
-      "missing": "Missing",
-      "pending": "Pending",
-      "received": "Received",
-      "under_review": "Under Review",
-      "verified": "Verified",
-      "rejected": "Rejected",
-      "waived": "Waived",
-      "expired": "Expired",
-      "not_applicable": "Not Applicable"
     },
     "groups": {
       "reservation": "Reservation",
@@ -911,8 +1029,13 @@
       "cancel": "Cancel",
       "submit": "Waive"
     },
-    "actions": { "verify": "Verify", "waive": "Waive" },
-    "detail": { "title": "Readiness Case" },
+    "actions": {
+      "verify": "Verify",
+      "waive": "Waive"
+    },
+    "detail": {
+      "title": "Readiness Case"
+    },
     "opportunityTab": {
       "title": "Contract Readiness",
       "empty": "No active readiness case.",
@@ -2047,7 +2170,9 @@
     "download": "Download",
     "archive": "Archive",
     "restore": "Restore",
-    "labels": { "unknown": "—" },
+    "labels": {
+      "unknown": "—"
+    },
     "columns": {
       "document": "Document",
       "type": "Type",
@@ -3534,6 +3659,4490 @@
         "available": "Available",
         "configured": "Configured",
         "not_configured": "Not configured"
+      }
+    }
+  },
+  "crm": {
+    "title": "CRM",
+    "workspaceLabel": "Relationship management",
+    "eyebrow": "Relationships",
+    "dashboardTitle": "CRM Dashboard",
+    "dashboardSubtitle": "Contacts, activities, tasks, and communication summary.",
+    "dashboard": {
+      "ds": {
+        "title": "CRM Dashboard",
+        "subtitle": "Decide who to contact, which leads need attention, and what changed — in five seconds.",
+        "viewAll": "View all",
+        "actions": {
+          "copilot": "AI Copilot",
+          "newLead": "New lead"
+        },
+        "priorities": {
+          "aria": "Today's priorities",
+          "title": "Today's Priorities",
+          "followUps": {
+            "label": "Follow-ups Today",
+            "desc": "Contacts waiting for your next touch.",
+            "action": "See list"
+          },
+          "meetings": {
+            "label": "Meetings Today",
+            "desc": "Scheduled conversations on your calendar.",
+            "action": "Open calendar"
+          },
+          "highPriorityLeads": {
+            "label": "High Priority Leads",
+            "desc": "Leads that need attention now.",
+            "action": "Review leads"
+          },
+          "unread": {
+            "label": "Unread Communications",
+            "desc": "Messages waiting for a reply.",
+            "action": "Open inbox"
+          },
+          "overdueTasks": {
+            "label": "Overdue Tasks",
+            "desc": "Past-due work still open.",
+            "action": "Clear overdue"
+          }
+        },
+        "kpis": {
+          "aria": "CRM summary KPIs",
+          "title": "CRM Summary KPIs",
+          "totalContacts": "Total Contacts",
+          "activeLeads": "Active Leads",
+          "pipelineValue": "Pipeline Value",
+          "activitiesWeek": "Activities This Week",
+          "vsLastMonth": "vs last month",
+          "hints": {
+            "totalContacts": "Active relationships in CRM",
+            "activeLeads": "Leads currently in motion",
+            "pipelineValue": "Open opportunity value",
+            "activitiesWeek": "Logged activities this week"
+          }
+        },
+        "ops": {
+          "aria": "Operational workspace",
+          "title": "Operational Workspace",
+          "tasks": "Upcoming Tasks",
+          "leads": "Recent Leads",
+          "activities": "Recent Activities",
+          "newBadge": "New"
+        },
+        "taskKinds": {
+          "meeting": "Meeting",
+          "call": "Call",
+          "email": "Email",
+          "task": "Task"
+        },
+        "insights": {
+          "aria": "AI insights",
+          "title": "AI Insights",
+          "items": {
+            "noReply": "4 investors haven't replied in 10+ days",
+            "noReplyBody": "Re-engage before relationships go cold.",
+            "atRisk": "2 opportunities are losing momentum",
+            "atRiskBody": "Schedule a next step or risk stalling.",
+            "engagementUp": "Temple Tower engagement is rising",
+            "engagementUpBody": "Closing probability improved this week.",
+            "scheduleMeetings": "3 high-value leads need a meeting",
+            "scheduleMeetingsBody": "Book discovery calls while interest is warm."
+          }
+        },
+        "pipeline": {
+          "title": "Pipeline Trend",
+          "period": "This month",
+          "aria": "Pipeline value trend this month"
+        },
+        "timeline": {
+          "aria": "Recent activity timeline",
+          "title": "Recent Timeline"
+        },
+        "meetings": {
+          "aria": "Upcoming meetings",
+          "title": "Upcoming Meetings",
+          "join": "Join",
+          "open": "Open"
+        },
+        "empty": {
+          "tasks": "No upcoming tasks",
+          "tasksHint": "Assigned work items will appear here.",
+          "leads": "No recent leads",
+          "leadsHint": "New leads show up as they enter the pipeline.",
+          "activities": "No recent activities",
+          "activitiesHint": "Calls, emails, and meetings appear here.",
+          "timeline": "No timeline events",
+          "timelineHint": "CRM changes since yesterday will appear here.",
+          "meetings": "No upcoming meetings",
+          "meetingsHint": "Scheduled meetings will appear on this agenda."
+        }
+      }
+    },
+    "accessDenied": "You do not have permission to view the CRM workspace.",
+    "accessDeniedHint": "Contact your administrator for CRM access.",
+    "loadFailed": "Unable to load CRM data.",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar",
+    "navAriaLabel": "CRM workspace navigation",
+    "searchTrigger": "Search CRM",
+    "emptyTitle": "No records yet",
+    "emptyDescription": "No data has been created for this module yet.",
+    "moduleInitializingTitle": "Module initializing",
+    "moduleInitializingDescription": "This CRM module will be enabled in a follow-up sprint.",
+    "emptyContacts": "No contacts yet",
+    "emptyContactsHint": "Create your first contact or import from CSV.",
+    "emptyActivities": "No recent activity",
+    "emptyTasks": "No upcoming tasks",
+    "emptyTasksHint": "Work Items integration is active — assigned tasks appear here.",
+    "emptyMeetings": "No meetings today",
+    "emptyMeetingsHint": "No meetings scheduled for today.",
+    "emptyAlerts": "No relationship alerts",
+    "emptyAlertsHint": "Contacts not updated in 90+ days appear here.",
+    "emptyFavorites": "No favorite contacts",
+    "emptyPinned": "No pinned companies",
+    "emptyPinnedHint": "Pin organization records for quick access.",
+    "systemActor": "System",
+    "contactsSummary": "{total} contacts · Page {page}/{pages}",
+    "nav": {
+      "section": "CRM",
+      "dashboard": "Dashboard",
+      "leads": "Leads",
+      "pipeline": "Pipeline",
+      "matches": "Matches",
+      "contacts": "Contacts",
+      "junk": "Junk",
+      "agents": "Acentalar",
+      "agreements": "Anlaşmalar",
+      "companies": "Companies",
+      "investors": "Investors",
+      "relationships": "Relationships",
+      "timeline": "Timeline",
+      "activities": "Activities",
+      "tasks": "Tasks",
+      "calendar": "Calendar",
+      "notes": "Notes",
+      "files": "Files",
+      "tags": "Tags",
+      "communication": "Communication",
+      "documents": "Documents",
+      "search": "Search",
+      "reports": "Reports",
+      "settings": "Settings",
+      "templates": "Templates",
+      "sequences": "Sequences",
+      "signatures": "Signatures",
+      "analytics": "Analytics",
+      "preferences": "Preferences",
+      "adminSection": "Administration",
+      "admin": "Admin",
+      "adminBadge": "New",
+      "systemLogs": "System Logs",
+      "integrations": "Integrations"
+    },
+    "matches": {
+      "title": "Matches",
+      "subtitle": "Discover the best investment opportunities for this customer. {count} matches found.",
+      "viewAria": "Match view mode",
+      "view": {
+        "card": "Card",
+        "table": "Table"
+      },
+      "newAnalysis": "New Match Analysis",
+      "scoreLabel": "Match Score",
+      "favorite": "Favorite match",
+      "viewDetails": "View Details",
+      "addToCompare": "+ Add to Comparison",
+      "inComparison": "Added to Comparison",
+      "statusLabel": "Status",
+      "status": {
+        "construction": "Under Construction",
+        "ready": "Ready",
+        "preSales": "Pre-Sales",
+        "completed": "Completed"
+      },
+      "metrics": {
+        "roi": "ROI (Annual)",
+        "monthlyRent": "Monthly Rent",
+        "cashFlow": "Monthly Cash Flow",
+        "delivery": "Delivery Date"
+      },
+      "whyTitle": "Why This Matches",
+      "whyMore": "+{count} more reasons",
+      "whyShowLess": "Show less",
+      "why": {
+        "withinBudget": "Within your budget",
+        "highRentalYield": "High rental yield",
+        "preferredArea": "In preferred area",
+        "strongCashFlow": "Strong monthly cash flow",
+        "nearTargetRoi": "Near your ROI target",
+        "developerTrackRecord": "Strong developer track record",
+        "stableMarket": "Stable market fundamentals",
+        "mortgageFriendly": "Mortgage-friendly pricing",
+        "unitTypeMatch": "Matches preferred unit type",
+        "growthCorridor": "Located in a growth corridor",
+        "readyDelivery": "Near-term delivery",
+        "nearBudgetCeiling": "Near upper budget range"
+      },
+      "customer": {
+        "aria": "Customer investment summary",
+        "verified": "Verified",
+        "viewProfile": "View profile",
+        "budget": "Budget",
+        "investmentGoal": "Investment Goal",
+        "preferredAreas": "Preferred Areas",
+        "roiTarget": "ROI Target",
+        "riskProfile": "Risk Profile",
+        "language": "Language",
+        "nationality": "Nationality",
+        "investmentHorizon": "Investment Horizon",
+        "financing": "Financing",
+        "investorType": "Investor Type",
+        "preferredUnit": "Preferred Unit",
+        "goals": {
+          "rentalIncome": "Rental Income",
+          "appreciation": "Appreciation",
+          "balanced": "Balanced"
+        },
+        "risk": {
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        },
+        "languages": {
+          "turkish": "Turkish",
+          "english": "English"
+        },
+        "nationalities": {
+          "turkey": "Türkiye",
+          "usa": "United States",
+          "other": "Other"
+        },
+        "horizons": {
+          "1-3y": "1–3 Years",
+          "3-5y": "3–5 Years",
+          "5-10y": "5–10 Years"
+        },
+        "financingOptions": {
+          "mortgageEligible": "Mortgage Eligible",
+          "cash": "Cash",
+          "mixed": "Mixed"
+        },
+        "investor": {
+          "individual": "Individual",
+          "corporate": "Corporate"
+        }
+      },
+      "ai": {
+        "aria": "AI match actions",
+        "title": "Investhome AI",
+        "openPrompt": "Show the best inventory matches for this customer",
+        "actions": {
+          "best": "Show Best Matches",
+          "roi": "Sort by ROI",
+          "rent": "By Rental Yield",
+          "safest": "Safest Investments",
+          "newProjects": "New Projects"
+        }
+      },
+      "filters": {
+        "aria": "Match filters",
+        "any": "Any",
+        "city": "City",
+        "project": "Project",
+        "price": "Price Range",
+        "roi": "ROI",
+        "capRate": "Cap Rate",
+        "delivery": "Delivery Date",
+        "rooms": "Rooms",
+        "status": "Status",
+        "clear": "Clear Filters"
+      },
+      "table": {
+        "project": "Project",
+        "score": "Score",
+        "price": "Price",
+        "roi": "ROI",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "pagination": {
+        "aria": "Match pagination",
+        "total": "Total {count} matches.",
+        "perPage": "Per page",
+        "pageUnit": "page"
+      },
+      "rail": {
+        "aria": "Executive insights",
+        "aiBest": "AI Best Recommendation",
+        "customerSummary": "Customer Summary",
+        "riskAlerts": "Risk Alerts",
+        "documents": "Related Documents",
+        "recentActivity": "Recent Activity",
+        "summaries": {
+          "marinaHeights": "Highest overall fit for rental income goals in Miami with strong cash flow and budget alignment."
+        },
+        "alerts": {
+          "deliveryHorizon": "Delivery beyond horizon",
+          "deliveryHorizonBody": "Some projects deliver after the preferred 3–5 year window.",
+          "currencyExposure": "Currency exposure",
+          "currencyExposureBody": "Prices are USD-denominated; confirm FX preference with the customer."
+        },
+        "docNames": {
+          "investmentPitch": "Investment Pitch",
+          "financialAnalysis": "Financial Analysis",
+          "comparisonSheet": "Comparison Sheet"
+        },
+        "docMeta": {
+          "pdfMeta": "PDF · 2.4 MB",
+          "xlsxMeta": "Excel · 1.1 MB"
+        },
+        "activity": {
+          "aiAnalysisCompleted": "AI analysis completed",
+          "projectsAdded": "3 new projects added",
+          "preferenceUpdated": "Customer preference updated",
+          "hoursAgo2": "2 hours ago",
+          "yesterday": "Yesterday",
+          "daysAgo3": "3 days ago"
+        }
+      }
+    },
+    "documents": {
+      "title": "Documents",
+      "subtitle": "All contracts, plans, PDFs, images, and files are managed from one place.",
+      "viewAria": "Document view mode",
+      "view": {
+        "card": "Card",
+        "table": "Table"
+      },
+      "uploadNew": "Upload New Document",
+      "viewDocument": "View",
+      "share": "Share",
+      "status": {
+        "signed": "Signed",
+        "awaitingSignature": "Awaiting Signature",
+        "shared": "Shared",
+        "draft": "Draft",
+        "rejected": "Rejected"
+      },
+      "meta": {
+        "size": "Size",
+        "version": "Version",
+        "date": "Date"
+      },
+      "kpis": {
+        "aria": "Document summary metrics",
+        "total": "Total Documents",
+        "awaitingSignature": "Awaiting Signature",
+        "addedLast7Days": "Added in Last 7 Days",
+        "shared": "Shared Documents",
+        "thisMonth": "this month",
+        "hints": {
+          "allTime": "All time",
+          "totalAwaiting": "Total {count} documents",
+          "last7Days": "Last 7 days",
+          "activelyShared": "Actively shared"
+        }
+      },
+      "ai": {
+        "aria": "AI document actions",
+        "title": "Investhome AI",
+        "openPrompt": "Summarize documents and show awaiting signatures",
+        "actions": {
+          "summarize": "Summarize Documents",
+          "missing": "Find Missing Documents",
+          "awaitingSignature": "Show Awaiting Signatures",
+          "recent": "Recently Added"
+        }
+      },
+      "filters": {
+        "aria": "Document filters",
+        "any": "All",
+        "customer": "Customer",
+        "project": "Project",
+        "type": "Document Type",
+        "status": "Status",
+        "date": "Date Range",
+        "search": "Search",
+        "searchPlaceholder": "Search by document name...",
+        "clear": "Clear Filters",
+        "dateRanges": {
+          "last7": "Last 7 days",
+          "last30": "Last 30 days",
+          "last90": "Last 90 days"
+        }
+      },
+      "table": {
+        "name": "Document",
+        "owner": "Customer",
+        "project": "Project",
+        "status": "Status",
+        "size": "Size",
+        "version": "Version",
+        "date": "Date",
+        "actions": "Actions"
+      },
+      "pagination": {
+        "aria": "Document pagination",
+        "total": "Total {count} documents",
+        "perPage": "Per page",
+        "pageUnit": "page"
+      },
+      "rail": {
+        "aria": "Document insights",
+        "aiSummary": "AI Document Summary",
+        "viewSummary": "View Summary",
+        "lastUpdated": "Last updated: {date}",
+        "donutUnit": "Docs",
+        "recentlyOpened": "Recently Opened",
+        "signatureStatus": "Signature Status",
+        "signatureTotal": "Total {count} documents",
+        "signed": "Signed",
+        "awaiting": "Awaiting Signature",
+        "rejected": "Rejected",
+        "missing": "Missing Documents",
+        "missingCount": "{count} documents missing",
+        "missingHint": "Required documents are still missing for some customers.",
+        "recentActivity": "Recent Activity",
+        "summaries": {
+          "marinaSalesContract": "Marina Heights sales contract is signed. Payment plan approved; missing ID copy and proof of address still need completion."
+        },
+        "openedAt": {
+          "minutesAgo10": "10 min ago",
+          "hoursAgo1": "1 hour ago",
+          "yesterday": "Yesterday"
+        },
+        "missingItems": {
+          "idCopy": "ID copy",
+          "proofOfAddress": "Proof of address",
+          "bankStatement": "Bank statement"
+        },
+        "activity": {
+          "ahmetSigned": "Ahmet Yılmaz signed a document",
+          "ayseShared": "Ayşe Demir shared a document",
+          "mehmetUploaded": "Mehmet Kaya uploaded a new document",
+          "zeynepViewed": "Zeynep Arslan viewed a document",
+          "hoursAgo2": "2 hours ago",
+          "hoursAgo5": "5 hours ago",
+          "yesterday": "Yesterday",
+          "daysAgo2": "2 days ago"
+        }
+      },
+      "ds": {
+        "title": "Documents",
+        "subtitle": "All contracts, plans, PDFs, images, and files are managed from one place.",
+        "demoBadge": "demo data",
+        "actions": {
+          "create": "New Document",
+          "favorite": "Favorite",
+          "preview": "Preview",
+          "open": "Open",
+          "download": "Download",
+          "share": "Share",
+          "copyLink": "Copy Link",
+          "uploadVersion": "Upload New Version",
+          "move": "Move",
+          "delete": "Delete",
+          "quick": "Quick Actions"
+        },
+        "filters": {
+          "aria": "Document filters",
+          "search": "Search",
+          "searchPlaceholder": "Search documents...",
+          "type": "Type",
+          "allTypes": "All types",
+          "entity": "Entity",
+          "allEntities": "All entities",
+          "tag": "Tag",
+          "allTags": "All tags",
+          "owner": "Owner",
+          "allOwners": "All owners",
+          "dateFrom": "From",
+          "dateTo": "To",
+          "reset": "Reset Filters"
+        },
+        "tabs": {
+          "aria": "Document categories",
+          "all": "All",
+          "recent": "Recently Added",
+          "favorites": "Favorites",
+          "shared": "Shared",
+          "lead": "Lead",
+          "investor": "Investor",
+          "projects": "Projects",
+          "companies": "Companies",
+          "contracts": "Contracts",
+          "finance": "Finance",
+          "marketing": "Marketing",
+          "legal": "Legal",
+          "construction": "Construction",
+          "architecture": "Architecture",
+          "permits": "Permits",
+          "technical": "Technical",
+          "presentations": "Presentations"
+        },
+        "nav": {
+          "aria": "Document collections",
+          "shortcuts": "Shortcuts",
+          "byEntity": "By Entity",
+          "folders": "Folders"
+        },
+        "shortcuts": {
+          "recentUploads": "Recent Uploads",
+          "frequent": "Frequently Used",
+          "mine": "My Documents",
+          "shared": "Shared",
+          "trash": "Trash"
+        },
+        "folders": {
+          "contracts": "Contracts",
+          "finance": "Finance",
+          "marketing": "Marketing",
+          "legal": "Legal",
+          "construction": "Construction",
+          "general": "General"
+        },
+        "entities": {
+          "lead": "Lead",
+          "investor": "Investor",
+          "project": "Project",
+          "company": "Company",
+          "opportunity": "Opportunity"
+        },
+        "storage": {
+          "title": "Storage",
+          "manage": "Manage",
+          "usage": "{used} GB / {total} GB"
+        },
+        "center": {
+          "aria": "Documents workspace",
+          "title": "Documents",
+          "cardView": "Card",
+          "listView": "List",
+          "sort": "Sort",
+          "more": "More",
+          "export": "Export",
+          "emptyTitle": "No documents found",
+          "emptyDescription": "Adjust filters or upload a new document.",
+          "viewAria": "Document view mode"
+        },
+        "sort": {
+          "newest": "Newest",
+          "oldest": "Oldest",
+          "name_asc": "Name A–Z",
+          "name_desc": "Name Z–A",
+          "size": "Size",
+          "type": "Type"
+        },
+        "list": {
+          "name": "Document",
+          "folder": "Folder",
+          "related": "Related",
+          "size": "Size",
+          "date": "Date",
+          "owner": "Owner"
+        },
+        "pagination": {
+          "aria": "Document pagination",
+          "range": "{from}–{to} / {total} documents",
+          "prev": "Previous",
+          "next": "Next"
+        },
+        "preview": {
+          "aria": "Document preview",
+          "open": "Open preview",
+          "close": "Close",
+          "emptyTitle": "No document selected",
+          "emptyDescription": "Select a document to preview details.",
+          "tabsAria": "Preview tabs",
+          "tabs": {
+            "preview": "Preview",
+            "details": "Details",
+            "history": "History",
+            "shares": "Shares ({count})"
+          },
+          "pdfPlaceholder": "PDF preview area",
+          "imagePlaceholder": "Image preview",
+          "videoPlaceholder": "Video thumbnail",
+          "cadPlaceholder": "CAD preview not available",
+          "genericPlaceholder": "Preview unavailable"
+        },
+        "details": {
+          "fileInfo": "File Information",
+          "size": "Size",
+          "type": "Type",
+          "version": "Version",
+          "current": "Current",
+          "updated": "Last Updated",
+          "createdBy": "Created By",
+          "owner": "Owner",
+          "folder": "Folder",
+          "language": "Language",
+          "related": "Related Records",
+          "noRelated": "No related records",
+          "tags": "Tags",
+          "activity": "Recent Activity"
+        },
+        "shares": {
+          "emptyTitle": "No shares",
+          "emptyDescription": "This document has not been shared yet.",
+          "access": {
+            "view": "View",
+            "edit": "Edit",
+            "comment": "Comment"
+          }
+        },
+        "activity": {
+          "uploaded": "Uploaded",
+          "justNow": "Just now"
+        },
+        "toast": {
+          "uploaded": "Document uploaded",
+          "download": "Download started",
+          "share": "Share panel opened",
+          "linkCopied": "Link copied",
+          "move": "Move ready",
+          "deleted": "Document moved to trash",
+          "storage": "Storage management coming soon",
+          "export": "Export preparing"
+        }
+      }
+    },
+    "g2": {
+      "analytics": {
+        "section": "CRM analytics",
+        "contacts": "Contacts",
+        "contactsSpark": "Contact trend",
+        "activities": "Activities",
+        "activitiesSpark": "Activity trend",
+        "pipeline": "Pipeline value",
+        "pipelineSpark": "Pipeline trend",
+        "pipelineHint": "Weighted expectation",
+        "trendUp": "+trend",
+        "revenueLine": "Expected revenue line",
+        "revenueTitle": "Expected revenue",
+        "engagementArea": "Engagement area",
+        "engagementTitle": "Engagement comparison"
+      },
+      "drawer": {
+        "summary": "Summary",
+        "timeline": "Timeline",
+        "nextAction": "Next action",
+        "customer": "Customer",
+        "proposal": "Proposals",
+        "reservation": "Reservation",
+        "notes": "Notes",
+        "activities": "Activities",
+        "emails": "Emails",
+        "tasks": "Tasks",
+        "documents": "Documents",
+        "ai": "AI Insights",
+        "projects": "Related projects",
+        "investors": "Related investors",
+        "emptySection": "No records in this section yet."
+      },
+      "leads": {
+        "eyebrow": "CRM · Leads",
+        "title": "Lead list",
+        "subtitle": "{count} leads",
+        "demoBadge": "demo data",
+        "loading": "Loading leads…",
+        "loadError": "Could not load leads.",
+        "accessDenied": "You cannot view leads.",
+        "accessDeniedHint": "Requires leads.view or sales.view.",
+        "searchPlaceholder": "Search lead, company, country…",
+        "allStages": "All stages",
+        "apply": "Apply",
+        "clear": "Clear",
+        "savedViews": "Saved filters",
+        "selectAll": "Select all",
+        "bulkSelected": "{count} selected",
+        "bulkClear": "Clear selection",
+        "empty": "No leads found",
+        "emptyHint": "Clear filters or create a new lead.",
+        "open": "Open",
+        "openFull": "Full record",
+        "openLegacy": "Classic sales",
+        "prev": "Previous",
+        "next": "Next",
+        "pageOf": "Page {page}/{pages}",
+        "lastTouch": "Last activity: {date}",
+        "aiHint": "Lead score: {score}",
+        "views": {
+          "all": "All",
+          "new": "New",
+          "qualified": "Qualified",
+          "meeting": "Meeting",
+          "won": "Won"
+        },
+        "columns": {
+          "name": "Lead name",
+          "company": "Company",
+          "investor": "Investor / market",
+          "stage": "Stage",
+          "budget": "Budget",
+          "country": "Country",
+          "assigned": "Assigned to",
+          "created": "Created",
+          "lastActivity": "Last activity",
+          "priority": "Priority",
+          "actions": "Actions"
+        },
+        "priority": {
+          "low": "Low",
+          "normal": "Normal",
+          "high": "High",
+          "urgent": "Urgent"
+        }
+      },
+      "pipeline": {
+        "eyebrow": "CRM",
+        "title": "Opportunities",
+        "subtitle": "Track open deals, next actions, and stage momentum.",
+        "liveCount": "{count} live results",
+        "demoBadge": "demo data",
+        "loading": "Loading opportunities…",
+        "accessDenied": "You cannot view opportunities.",
+        "accessDeniedHint": "Requires sales.view.",
+        "viewLabel": "View",
+        "board": "Board",
+        "list": "List",
+        "openSales": "Sales workspace",
+        "openFull": "Full opportunity",
+        "quickEdit": "Quick edit",
+        "probability": "Probability %",
+        "changeProbability": "Change probability",
+        "probabilityUpdated": "Probability updated",
+        "probabilityFailed": "Probability could not be updated.",
+        "probabilityInvalid": "Probability must be between 0 and 100.",
+        "nextActionUpdated": "Next action updated",
+        "save": "Save",
+        "stageNeedsConfirm": "This stage needs a confirmation modal — local preview applied.",
+        "noStagePermission": "You cannot change stages.",
+        "invalidTransition": "Invalid stage transition.",
+        "stageError": "Could not update stage; the card was moved back.",
+        "aiHint": "Pipeline score and close probability follow the current stage.",
+        "summaryAria": "Opportunity summary",
+        "filtersAria": "Opportunity filters",
+        "activeFiltersAria": "Active filters",
+        "openCount": "Open Opportunities",
+        "missingNextAction": "Missing Next Action",
+        "overdueNextAction": "Overdue Next Action",
+        "pipelineByCurrency": "Pipeline by Currency",
+        "weighted": "Weighted",
+        "weightedShort": "Wtd",
+        "sensitiveHidden": "Sensitive values hidden",
+        "kpiHintTotal": "Total",
+        "kpiHintAction": "Action",
+        "kpiHintLive": "Live opportunity",
+        "kpiHintNeedsAssign": "Needs assignment",
+        "kpiHintPastDue": "Past due",
+        "seeAllCurrencies": "See all",
+        "showFewerCurrencies": "Show less",
+        "addOpportunity": "Add opportunity",
+        "searchChip": "Search",
+        "sortLabel": "Sort",
+        "directionLabel": "Direction",
+        "ascending": "Ascending",
+        "descending": "Descending",
+        "resultCount": "{count} results",
+        "partialResult": "Showing {visible} of {total}",
+        "teamNamesUnavailable": "Team names unavailable",
+        "noMatches": "No matching opportunities",
+        "adjustFilters": "Try adjusting filters or clearing the current search.",
+        "clearFilters": "Clear filters",
+        "emptyStage": "No opportunities in this stage",
+        "overdue": "Overdue",
+        "stages": {
+          "newLead": "New lead",
+          "qualified": "Qualified",
+          "meeting": "Meeting",
+          "reservation": "Reservation",
+          "contract": "Contract",
+          "closing": "Closing",
+          "won": "Won",
+          "lost": "Lost"
+        },
+        "listCols": {
+          "opportunity": "Opportunity",
+          "stage": "Stage",
+          "revenue": "Expected revenue",
+          "probability": "Probability",
+          "closeDate": "Expected close"
+        },
+        "totalShort": "Total",
+        "boardStagesAria": "Opportunity stages",
+        "cardCustomer": "Customer",
+        "cardProject": "Project"
+      }
+    },
+    "kpi": {
+      "section": "Summary metrics",
+      "totalContacts": "Total Contacts",
+      "withEmail": "With Email",
+      "withPhone": "With Phone",
+      "favorites": "Favorites",
+      "recentInteractions": "Recent Interactions"
+    },
+    "quickActions": {
+      "title": "Quick actions",
+      "viewContacts": "View contacts",
+      "search": "Search",
+      "viewTasks": "Tasks",
+      "viewTimeline": "Timeline"
+    },
+    "sections": {
+      "recentContacts": "Recent Contacts",
+      "recentActivities": "Recent Activities",
+      "upcomingTasks": "Upcoming Tasks",
+      "todaysMeetings": "Today's Meetings",
+      "recentlyUpdated": "Recently Updated",
+      "relationshipAlerts": "Relationship Alerts",
+      "favoriteContacts": "Favorite Contacts",
+      "pinnedCompanies": "Pinned Companies",
+      "communicationSummary": "Communication Summary"
+    },
+    "alerts": {
+      "staleRelationship": "Not updated in 90+ days"
+    },
+    "fields": {
+      "displayName": "Name",
+      "contactType": "Contact type",
+      "email": "Email",
+      "phone": "Phone",
+      "status": "Status"
+    },
+    "contactTypes": {
+      "investor": "Investor",
+      "prospect": "Prospect",
+      "buyer": "Buyer",
+      "broker": "Broker",
+      "realtor": "Realtor",
+      "partner": "Partner",
+      "vendor": "Vendor",
+      "contractor": "Contractor",
+      "attorney": "Attorney",
+      "lender": "Lender",
+      "property_manager": "Property Manager",
+      "architect": "Architect",
+      "consultant": "Consultant",
+      "media_contact": "Media Contact",
+      "government_contact": "Government Contact",
+      "internal_team": "Internal Team"
+    },
+    "statuses": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "prospect": "Prospect",
+      "archived": "Archived"
+    },
+    "agents": {
+      "title": "Acentalar",
+      "subtitle": "Broker and realtor contacts. One canonical person record — Active or Passive.",
+      "statusFilter": "Status",
+      "statusAll": "All",
+      "statusActive": "Aktif",
+      "statusPassive": "Pasif",
+      "emptyTitle": "No agents yet",
+      "emptyDescription": "Bitrix agent import has not been committed. Matching brokers will appear here after load.",
+      "loadError": "Unable to load agents.",
+      "loading": "Loading agents…",
+      "columns": {
+        "name": "Name",
+        "type": "Type",
+        "phone": "Phone",
+        "email": "Email",
+        "status": "Status",
+        "company": "Company"
+      },
+      "tableAria": "Agents list"
+    },
+    "agreements": {
+      "title": "Anlaşmalar",
+      "subtitle": "Historical CRM agreements grouped by project. Not Sales opportunities.",
+      "projectFilter": "Project",
+      "allProjects": "All projects",
+      "emptyTitle": "No agreements yet",
+      "emptyDescription": "Bitrix agreement files have not been committed. Rows will group by project after load.",
+      "loadError": "Unable to load agreements.",
+      "loading": "Loading agreements…",
+      "columns": {
+        "contact": "Contact",
+        "project": "Project",
+        "unit": "Unit",
+        "investmentAmount": "Investment Amount",
+        "email": "Email",
+        "phone": "Phone",
+        "status": "Status",
+        "date": "Date",
+        "source": "Source"
+      },
+      "reviewRequired": "Review required",
+      "tableAria": "Agreements list"
+    },
+    "contacts": {
+      "title": "Contacts",
+      "eyebrow": "Relationship records",
+      "subtitle": "Single source of truth for every person connected to Investhome.",
+      "createContact": "New contact",
+      "import": {
+        "title": "Import contacts",
+        "subtitle": "Upload CSV rows to create CRM contacts.",
+        "instructions": "Paste CSV with header: display_name,contact_type,primary_email,primary_phone,organization_name",
+        "placeholder": "display_name,contact_type,primary_email,primary_phone,organization_name\nJane Doe,prospect,jane@example.com,+15551234567,Acme Inc",
+        "cancel": "Back to contacts",
+        "submit": "Import",
+        "accessDenied": "Import not permitted",
+        "accessDeniedHint": "You need crm.import permission.",
+        "result": "Created {created}, updated {updated}, skipped {skipped}."
+      },
+      "export": "Export CSV",
+      "loading": "Loading contacts…",
+      "loadError": "Unable to load contacts.",
+      "accessDenied": "You do not have permission to manage CRM contacts.",
+      "accessDeniedHint": "Contact your administrator for CRM contact access.",
+      "emptyTitle": "No contacts match your filters",
+      "emptyDescription": "Create a contact or adjust filters to see results.",
+      "searchPlaceholder": "Search name, email, phone, company…",
+      "bulkSelected": "{count} selected",
+      "bulkPriorityHigh": "Set priority: high",
+      "bulkArchive": "Archive selected",
+      "bulkClear": "Clear selection",
+      "columns": {
+        "contact": "Contact",
+        "type": "Type",
+        "company": "Company",
+        "lifecycle": "Lifecycle",
+        "relationship": "Relationship",
+        "owner": "Owner",
+        "lastContact": "Last contact",
+        "nextFollowUp": "Next follow-up",
+        "priority": "Priority",
+        "score": "Score",
+        "tags": "Tags"
+      },
+      "lifecycle": {
+        "new": "New",
+        "engaged": "Engaged",
+        "qualified": "Qualified",
+        "active_relationship": "Active relationship",
+        "dormant": "Dormant",
+        "churned": "Churned"
+      },
+      "priority": {
+        "low": "Low",
+        "normal": "Normal",
+        "high": "High",
+        "urgent": "Urgent"
+      },
+      "filters": {
+        "allTypes": "All types",
+        "allLifecycle": "All lifecycle stages",
+        "allPriority": "All priorities"
+      },
+      "presets": {
+        "all": "All contacts",
+        "investors": "Investors",
+        "prospects": "Prospects",
+        "followUpDue": "Follow-up due",
+        "highPriority": "High priority",
+        "stale": "Stale relationships"
+      },
+      "form": {
+        "title": "Create contact",
+        "displayName": "Display name",
+        "contactType": "Contact type",
+        "email": "Email",
+        "phone": "Phone",
+        "organization": "Organization",
+        "notes": "Notes",
+        "cancel": "Cancel",
+        "save": "Save contact",
+        "duplicateTitle": "Possible duplicate",
+        "duplicateMessage": "A contact similar to \"{name}\" already exists.",
+        "saveAnyway": "Save anyway"
+      },
+      "detail": {
+        "loading": "Loading contact…",
+        "loadError": "Unable to load contact.",
+        "accessDenied": "Access denied",
+        "accessDeniedHint": "You do not have permission to view this contact.",
+        "archive": "Archive",
+        "restore": "Restore",
+        "tabs": {
+          "overview": "Overview",
+          "timeline": "Timeline",
+          "relationships": "Relationships",
+          "compliance": "Compliance"
+        },
+        "sections": {
+          "contact": "Contact info",
+          "relationship": "Relationship intelligence",
+          "investment": "Investment profile",
+          "buyer": "Buyer profile",
+          "notes": "Notes"
+        },
+        "fields": {
+          "email": "Email",
+          "phone": "Phone",
+          "owner": "Owner",
+          "lifecycle": "Lifecycle",
+          "score": "Relationship score",
+          "engagement": "Engagement score"
+        },
+        "timelineEmpty": "No timeline entries",
+        "timelineEmptyHint": "Activity on this contact will appear here.",
+        "relationshipsEmpty": "No linked relationships",
+        "relationshipsEmptyHint": "Referred contacts and related records appear here.",
+        "complianceEmpty": "No compliance data",
+        "complianceEmptyHint": "Compliance fields require view_compliance permission."
+      },
+      "importAction": "Import",
+      "relationshipStatuses": {
+        "unknown": "Unknown",
+        "cold": "Cold",
+        "warm": "Warm",
+        "hot": "Hot",
+        "active": "Active",
+        "at_risk": "At risk",
+        "lost": "Lost"
+      },
+      "ds": {
+        "title": "Contacts",
+        "subtitle": "Manage investors, brokers, partners and business relationships.",
+        "loading": "Loading contacts…",
+        "actions": {
+          "import": "Import",
+          "export": "Export",
+          "add": "Add Contact",
+          "call": "Call",
+          "email": "Email",
+          "whatsapp": "WhatsApp",
+          "createTask": "Create Task",
+          "openDetail": "Open Detail"
+        },
+        "kpis": {
+          "aria": "Contact portfolio KPIs",
+          "total": "Total Contacts",
+          "activeInvestors": "Active Investors",
+          "brokers": "Brokers",
+          "followUpsToday": "Follow-ups Today",
+          "vsLastMonth": "vs last month",
+          "hints": {
+            "total": "Active relationships in CRM",
+            "activeInvestors": "Investors currently engaged",
+            "brokers": "Broker and realtor partners",
+            "followUpsToday": "Due follow-ups for today"
+          }
+        },
+        "filters": {
+          "aria": "Contact filters",
+          "search": "Search",
+          "searchPlaceholder": "Search contacts…",
+          "role": "Role",
+          "status": "Status",
+          "owner": "Owner",
+          "sort": "Sort",
+          "any": "Any"
+        },
+        "sort": {
+          "activity_desc": "Last activity",
+          "name_asc": "Name A–Z",
+          "name_desc": "Name Z–A",
+          "followup_asc": "Next follow-up",
+          "score_desc": "AI score",
+          "priority_desc": "Priority"
+        },
+        "view": {
+          "aria": "Contacts view mode",
+          "table": "Table",
+          "cards": "Cards"
+        },
+        "quick": {
+          "aria": "Quick role filters",
+          "all": "All",
+          "investors": "Investors",
+          "brokers": "Brokers",
+          "developers": "Developers",
+          "partners": "Partners",
+          "vendors": "Vendors",
+          "archived": "Archived"
+        },
+        "roles": {
+          "investor": "Investor",
+          "broker": "Broker",
+          "developer": "Developer",
+          "partner": "Partner",
+          "vendor": "Vendor",
+          "other": "Other"
+        },
+        "statuses": {
+          "lead": "Lead",
+          "qualified": "Qualified",
+          "investor": "Investor",
+          "negotiating": "Negotiating",
+          "client": "Client",
+          "inactive": "Inactive",
+          "lost": "Lost"
+        },
+        "sources": {
+          "referral": "Referral",
+          "event": "Event",
+          "website": "Website",
+          "linkedin": "LinkedIn",
+          "cold_outreach": "Cold outreach",
+          "partner": "Partner"
+        },
+        "priorities": {
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High",
+          "urgent": "Urgent"
+        },
+        "aiScore": {
+          "tooltip": "AI evaluates engagement, responsiveness and investment potential."
+        },
+        "columns": {
+          "avatar": "Avatar",
+          "fullName": "Full Name",
+          "company": "Company",
+          "role": "Role",
+          "status": "Status",
+          "source": "Source",
+          "lastActivity": "Last Activity",
+          "nextFollowUp": "Next Follow-up",
+          "owner": "Owner",
+          "priority": "Priority",
+          "aiScore": "AI Score",
+          "actions": "Actions"
+        },
+        "table": {
+          "aria": "Contacts table",
+          "title": "All Contacts"
+        },
+        "grid": {
+          "aria": "Contact cards"
+        },
+        "empty": {
+          "title": "No contacts yet",
+          "description": "Import your existing contacts or create your first relationship.",
+          "import": "Import Contacts",
+          "add": "Add Contact"
+        },
+        "pagination": "Page {page} of {pages} · {total} contacts",
+        "prevPage": "Previous",
+        "nextPage": "Next"
+      }
+    },
+    "leads": {
+      "ds": {
+        "title": "Leads",
+        "subtitle": "Manage, prioritize, and convert potential investors into opportunities.",
+        "loading": "Loading leads…",
+        "demoBadge": "demo data",
+        "accessDenied": "You cannot view leads.",
+        "accessDeniedHint": "Requires leads.view or sales.view.",
+        "createError": "Could not create lead.",
+        "selectAll": "Select all",
+        "actions": {
+          "add": "New Lead",
+          "call": "Call",
+          "email": "Email",
+          "whatsapp": "WhatsApp",
+          "createTask": "Create Task",
+          "openDetail": "Open Detail"
+        },
+        "kpis": {
+          "aria": "Lead portfolio KPIs",
+          "total": "Total Leads",
+          "active": "Active Leads",
+          "hot": "Hot Leads",
+          "potentialValue": "Potential Value",
+          "converted": "Converted Leads",
+          "vsLastMonth": "vs last month",
+          "hints": {
+            "total": "All non-archived leads",
+            "active": "Leads currently in pipeline",
+            "hot": "High-score priority leads",
+            "potentialValue": "Sum of estimated budgets",
+            "converted": "Won leads"
+          }
+        },
+        "filters": {
+          "aria": "Lead filters",
+          "search": "Search",
+          "searchPlaceholder": "Search leads…",
+          "status": "Status",
+          "source": "Source",
+          "owner": "Owner",
+          "score": "Lead score",
+          "sort": "Sort",
+          "any": "All"
+        },
+        "sort": {
+          "activity_desc": "Last interaction",
+          "name_asc": "Name A–Z",
+          "name_desc": "Name Z–A",
+          "score_desc": "Lead score",
+          "created_desc": "Created",
+          "budget_desc": "Potential value"
+        },
+        "quick": {
+          "aria": "Quick lead filters",
+          "all": "All",
+          "new": "New",
+          "active": "Active",
+          "hot": "Hot",
+          "qualified": "Qualified",
+          "follow_up": "Awaiting Follow-up",
+          "converted": "Converted",
+          "archived": "Archive"
+        },
+        "score": {
+          "tooltip": "Lead score based on engagement and qualification signals.",
+          "high": "High (70+)",
+          "medium": "Medium (40–69)",
+          "low": "Low (<40)"
+        },
+        "columns": {
+          "lead": "Lead",
+          "company": "Company",
+          "status": "Status",
+          "score": "Lead Score",
+          "source": "Source",
+          "owner": "Owner",
+          "lastActivity": "Last Interaction",
+          "created": "Created",
+          "actions": "Actions"
+        },
+        "table": {
+          "aria": "Leads table",
+          "title": "All Leads"
+        },
+        "preview": {
+          "aria": "Lead preview",
+          "close": "Close",
+          "emptyTitle": "Select a lead",
+          "emptyHint": "Choose a lead from the list for quick context.",
+          "info": "Lead Details",
+          "email": "Email",
+          "phone": "Phone",
+          "location": "Location",
+          "lastInteraction": "Last Interaction",
+          "lastTouchLabel": "Last update",
+          "viewDetails": "View Details",
+          "nextStep": "Next Step",
+          "projectFollowUp": "{project} follow-up",
+          "assignee": "Owner: {name}",
+          "noAssignee": "No owner assigned",
+          "goCalendar": "Go to Calendar",
+          "openTask": "Open Task",
+          "noNextStep": "No planned next step.",
+          "notes": "Notes",
+          "viewAllNotes": "View All Notes",
+          "noNotes": "No notes yet."
+        },
+        "empty": {
+          "title": "No leads yet",
+          "description": "Create your first lead to start the pipeline.",
+          "add": "New Lead"
+        },
+        "pagination": "{start}–{end} / {total} leads",
+        "prevPage": "Previous",
+        "nextPage": "Next"
+      }
+    },
+    "modules": {
+      "contacts": {
+        "title": "Contacts",
+        "description": "Manage all your people, contact details, and relationships from one hub."
+      },
+      "leads": {
+        "title": "Leads",
+        "description": "Manage, prioritize, and convert potential investors into opportunities."
+      },
+      "pipeline": {
+        "title": "Pipeline",
+        "description": "Opportunity board — drag-and-drop stages and expected revenue."
+      },
+      "matches": {
+        "title": "Matches",
+        "description": "Customer–inventory match recommendations and comparison."
+      },
+      "companies": {
+        "title": "Companies",
+        "description": "Manage all your companies, partnerships, and investor relationships from one place."
+      },
+      "relationships": {
+        "title": "Relationships",
+        "description": "Relationship map across contacts, companies, and projects."
+      },
+      "timeline": {
+        "title": "Timeline",
+        "description": "Unified activity and interaction timeline."
+      },
+      "activities": {
+        "title": "Activities",
+        "description": "All activity records within CRM scope."
+      },
+      "tasks": {
+        "title": "Tasks",
+        "description": "Contact-linked tasks and follow-ups."
+      },
+      "notes": {
+        "title": "Notes",
+        "description": "Contact and relationship notes."
+      },
+      "files": {
+        "title": "Files",
+        "description": "Contact-linked files and attachments."
+      },
+      "tags": {
+        "title": "Tags",
+        "description": "Contact tags and segmentation."
+      },
+      "communication": {
+        "title": "Communication Center",
+        "description": "Manage email, WhatsApp, phone, meetings, and customer communication from one hub."
+      },
+      "documents": {
+        "title": "Documents",
+        "description": "Manage, share, and track documents."
+      },
+      "search": {
+        "title": "Search",
+        "description": "Global CRM search for contacts and companies."
+      },
+      "reports": {
+        "title": "Reports",
+        "description": "Analyze business performance, uncover insights, and make better decisions."
+      },
+      "settings": {
+        "title": "Settings",
+        "description": "Manage and configure your system to fit your needs."
+      }
+    },
+    "timeline": {
+      "title": "Timeline",
+      "subtitle": "Chronological view of all CRM activities, notes, tasks, and system events.",
+      "accessDenied": "You do not have permission to view the timeline.",
+      "accessDeniedHint": "Contact your administrator for CRM activity access.",
+      "loadFailed": "Unable to load timeline.",
+      "emptyTitle": "No activity yet",
+      "emptyDescription": "Create your first activity or adjust filters.",
+      "createActivity": "Create activity",
+      "loadMore": "Load more",
+      "systemEvent": "System event",
+      "ds": {
+        "title": "Timeline",
+        "subtitle": "Chronological history of every important CRM event across people, companies, and projects.",
+        "actions": {
+          "addEvent": "Add New Event",
+          "copilot": "AI Copilot",
+          "openRecord": "Open Record",
+          "openLead": "Open Lead",
+          "openContact": "Open Contact",
+          "openCompany": "Open Company",
+          "openProject": "Open Project",
+          "createFollowUp": "Create Follow-up",
+          "createTask": "Create Task",
+          "addNote": "Add Note",
+          "startCommunication": "Start Communication"
+        },
+        "filters": {
+          "aria": "Timeline filters",
+          "search": "Search",
+          "searchPlaceholder": "Search events…",
+          "status": "Status",
+          "allStatuses": "All statuses",
+          "category": "Category",
+          "allCategories": "All categories",
+          "owner": "Owner",
+          "allOwners": "All owners",
+          "entityType": "Entity type",
+          "allEntityTypes": "All entity types",
+          "dateFrom": "From",
+          "dateTo": "To",
+          "apply": "Apply",
+          "today": "Today",
+          "reset": "Reset Filters"
+        },
+        "entities": {
+          "title": "Entities",
+          "count": "{count} entities",
+          "summaryAria": "Entity summary",
+          "summaryTotal": "{count} Total",
+          "summaryActive": "{count} Active",
+          "summaryFavorites": "{count} Favorites",
+          "search": "Search entities",
+          "searchPlaceholder": "Search entity…",
+          "tabsAria": "Entity types",
+          "all": "All",
+          "people": "People",
+          "companies": "Companies",
+          "investors": "Investors",
+          "projects": "Projects",
+          "leads": "Leads",
+          "favorites": "Favorites",
+          "add": "Add New Entity",
+          "emptyTitle": "No entities found",
+          "emptyDescription": "Try another tab or clear the entity search."
+        },
+        "feed": {
+          "title": "Timeline Feed",
+          "count": "{count} events",
+          "backToToday": "Back to Today",
+          "today": "Today",
+          "yesterday": "Yesterday",
+          "loadMore": "Show more"
+        },
+        "detail": {
+          "title": "Selected Event Detail",
+          "open": "Open event detail",
+          "close": "Close",
+          "emptyTitle": "No event selected",
+          "emptyDescription": "Choose an event from the timeline to inspect details and related records.",
+          "eventInformation": "Event Information",
+          "relatedRecord": "Related Record",
+          "relatedEntity": "Related entity",
+          "description": "Description",
+          "noDescription": "No description provided.",
+          "owner": "Owner",
+          "meta": "Event metadata",
+          "category": "Category",
+          "channel": "Channel",
+          "relatedRecords": "Related records",
+          "attachments": "Attachments",
+          "notes": "Internal notes",
+          "quickActions": "Quick Actions"
+        },
+        "empty": {
+          "title": "No timeline events",
+          "description": "Important CRM interactions will appear here. Create an event or reset filters to continue."
+        },
+        "categories": {
+          "whatsapp": "WhatsApp",
+          "email": "Email",
+          "call": "Call",
+          "meeting": "Meeting",
+          "task": "Task",
+          "note": "Note",
+          "document": "Document",
+          "lead": "Lead",
+          "investor": "Investor",
+          "project": "Project",
+          "status": "Status Update",
+          "construction": "Construction",
+          "payment": "Payment",
+          "contract": "Contract",
+          "inspection": "Inspection",
+          "activity": "Activity"
+        },
+        "statuses": {
+          "completed": "Completed",
+          "planned": "Planned",
+          "scheduled": "Scheduled",
+          "in_progress": "In progress",
+          "cancelled": "Cancelled",
+          "missed": "Missed",
+          "deferred": "Deferred"
+        }
+      }
+    },
+    "communication": {
+      "compose": "New Message",
+      "searchPlaceholder": "Search conversations…",
+      "folders": {
+        "inbox": "Inbox",
+        "drafts": "Drafts",
+        "sent": "Sent",
+        "all": "All",
+        "unread": "Unread",
+        "assignedToMe": "Assigned to me",
+        "scheduled": "Scheduled",
+        "calls": "Calls",
+        "meetings": "Meetings",
+        "whatsapp": "WhatsApp",
+        "sms": "SMS",
+        "internal": "Internal",
+        "followUpDue": "Follow-up due",
+        "failed": "Failed",
+        "archived": "Archived"
+      },
+      "calls": {
+        "title": "Call logs",
+        "subtitle": "Manual call logging and outcome tracking.",
+        "accessDenied": "You do not have permission to view call logs.",
+        "accessDeniedHint": "Contact your administrator for CRM communication access.",
+        "logCall": "Log call",
+        "clickToCallNote": "Click-to-call requires a connected telephony provider.",
+        "callHistory": "Call history",
+        "loading": "Loading calls…",
+        "emptyTitle": "No call logs",
+        "emptyDescription": "Log a call to start tracking outcomes.",
+        "save": "Save call",
+        "saveCallLog": "Save call log",
+        "columns": {
+          "subject": "Subject",
+          "status": "Status",
+          "date": "Date"
+        },
+        "direction": {
+          "inbound": "Inbound",
+          "outbound": "Outbound"
+        },
+        "outcomes": {
+          "connected": "Connected",
+          "noAnswer": "No answer",
+          "no_answer": "No answer",
+          "voicemail": "Voicemail",
+          "left_voicemail": "Left voicemail",
+          "busy": "Busy",
+          "wrong_number": "Wrong number",
+          "callback_requested": "Callback requested"
+        },
+        "fields": {
+          "subject": "Subject",
+          "contactId": "Contact ID",
+          "direction": "Direction",
+          "duration": "Duration (sec)",
+          "outcome": "Outcome",
+          "selectOutcome": "Select outcome",
+          "notes": "Notes"
+        }
+      },
+      "meetings": {
+        "title": "Meetings",
+        "subtitle": "Scheduled and completed meetings.",
+        "accessDenied": "You do not have permission to view meetings.",
+        "accessDeniedHint": "Contact your administrator for CRM communication access.",
+        "loading": "Loading meetings…",
+        "emptyTitle": "No meetings",
+        "emptyDescription": "Schedule a meeting from calendar or activities.",
+        "createMeeting": "Create meeting",
+        "columns": {
+          "subject": "Subject",
+          "status": "Status",
+          "date": "Date"
+        }
+      },
+      "templates": {
+        "title": "Templates",
+        "subtitle": "Templates for email, SMS, WhatsApp, and more.",
+        "accessDenied": "You do not have permission to manage templates.",
+        "accessDeniedHint": "Contact your administrator for CRM communication access.",
+        "searchPlaceholder": "Search templates…",
+        "createTemplate": "Create template",
+        "loading": "Loading templates…",
+        "emptyTitle": "No templates",
+        "emptyDescription": "Create a template to reuse message content.",
+        "save": "Save template",
+        "variablesHint": "Use {{contact.name}} and other variables in the body.",
+        "fields": {
+          "name": "Name",
+          "type": "Type",
+          "subject": "Subject",
+          "body": "Body"
+        },
+        "types": {
+          "email": "Email",
+          "whatsapp": "WhatsApp",
+          "sms": "SMS",
+          "callScript": "Call script",
+          "meetingAgenda": "Meeting agenda",
+          "internal": "Internal",
+          "followUp": "Follow-up"
+        }
+      },
+      "sequences": {
+        "title": "Sequences",
+        "subtitle": "Multi-step communication sequences (architecture only).",
+        "accessDenied": "You do not have permission to manage sequences.",
+        "accessDeniedHint": "Contact your administrator for CRM communication access.",
+        "loading": "Loading sequences…",
+        "emptyTitle": "No sequences",
+        "emptyDescription": "Sequence automation will be enabled in a follow-up sprint.",
+        "createSequence": "Create sequence",
+        "save": "Save",
+        "inactive": "Inactive",
+        "active": "Active",
+        "stepCount": "{count} steps",
+        "architectureNote": "Architecture-only — execution engine not enabled.",
+        "fields": {
+          "name": "Name",
+          "description": "Description"
+        }
+      },
+      "analytics": {
+        "title": "Communication analytics",
+        "subtitle": "Volume, tracking, and follow-up metrics.",
+        "accessDenied": "You do not have permission to view communication analytics.",
+        "accessDeniedHint": "Contact your administrator for CRM communication access.",
+        "loading": "Loading analytics…",
+        "emptyTitle": "No analytics data",
+        "emptyDescription": "Metrics appear once messages are sent.",
+        "analyticsDenied": "Analytics access denied",
+        "analyticsDeniedHint": "You need communication analytics permission.",
+        "unavailable": "Unavailable"
+      },
+      "signatures": {
+        "title": "Signatures",
+        "subtitle": "Personal and team signatures.",
+        "accessDenied": "You do not have permission to manage signatures.",
+        "accessDeniedHint": "Contact your administrator for CRM communication access.",
+        "createSignature": "Create signature",
+        "loading": "Loading signatures…",
+        "emptyTitle": "No signatures",
+        "emptyDescription": "Create a signature for outbound messages.",
+        "save": "Save signature",
+        "default": "Default",
+        "fields": {
+          "name": "Name",
+          "body": "Body"
+        }
+      },
+      "preferences": {
+        "title": "Communication preferences",
+        "subtitle": "Contact and company channel preferences and DNC.",
+        "accessDenied": "You do not have permission to view preferences.",
+        "save": "Save preferences",
+        "saved": "Preferences saved.",
+        "readOnly": "You can view preferences but cannot edit them.",
+        "fields": {
+          "entityType": "Entity type",
+          "entityId": "Entity ID",
+          "preferredChannel": "Preferred channel",
+          "doNotContact": "Do not contact (DNC)"
+        },
+        "entityTypes": {
+          "contact": "Contact",
+          "company": "Company"
+        }
+      },
+      "accessDenied": "You do not have permission to view communications.",
+      "accessDeniedHint": "Contact your administrator for CRM communication access.",
+      "loadFailed": "Unable to load conversations.",
+      "loadFailedHint": "Try again or adjust filters.",
+      "loadingThreads": "Loading conversations…",
+      "loadingMore": "Loading more…",
+      "loadingThread": "Loading thread…",
+      "threadLoadFailed": "Unable to load this thread.",
+      "emptyThreadsTitle": "No conversations",
+      "emptyThreadsDescription": "Compose a message or adjust folder filters.",
+      "selectThreadTitle": "Select a conversation",
+      "selectThreadDescription": "Choose a thread from the list to view messages.",
+      "noMessagesTitle": "No messages",
+      "noMessagesDescription": "This conversation has no messages yet.",
+      "noSubject": "(No subject)",
+      "messageCount": "{count} messages",
+      "hasAttachments": "Has attachments",
+      "reply": "Reply",
+      "archive": "Archive",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "markRead": "Mark as read",
+      "cancel": "Cancel",
+      "saveDraft": "Save draft",
+      "saving": "Saving…",
+      "composerDraftNote": "Drafts are saved for this channel only.",
+      "providerNote": "Outbound delivery depends on connected channel providers.",
+      "foldersHeading": "Folders",
+      "foldersAriaLabel": "Communication folders",
+      "threadListAriaLabel": "Conversation list",
+      "toolsHeading": "Tools",
+      "toggleFolders": "Toggle folders",
+      "channels": {
+        "email": "Email",
+        "whatsapp": "WhatsApp",
+        "sms": "SMS",
+        "phone": "Phone",
+        "call": "Call",
+        "meeting": "Meeting",
+        "internal": "Internal",
+        "zoom": "Zoom",
+        "teams": "Microsoft Teams",
+        "internal_message": "Internal message",
+        "note": "Note",
+        "system_notification": "System notification",
+        "other": "Other"
+      },
+      "statuses": {
+        "draft": "Draft",
+        "queued": "Queued",
+        "sent": "Sent",
+        "delivered": "Delivered",
+        "failed": "Failed",
+        "read": "Read",
+        "scheduled": "Scheduled",
+        "opened": "Opened",
+        "clicked": "Clicked",
+        "replied": "Replied",
+        "cancelled": "Cancelled",
+        "archived": "Archived",
+        "open": "Open",
+        "pending": "Pending",
+        "snoozed": "Snoozed",
+        "closed": "Closed"
+      },
+      "providers": {
+        "connected": "Connected",
+        "disconnected": "Not connected",
+        "error": "Provider error",
+        "status": {
+          "available": "Available",
+          "unavailable": "Unavailable",
+          "pending_sync": "Syncing",
+          "not_connected": "Not connected"
+        }
+      },
+      "fields": {
+        "subject": "Subject",
+        "body": "Message",
+        "to": "To",
+        "channel": "Channel",
+        "contactId": "Contact ID",
+        "companyId": "Company ID",
+        "direction": "Direction",
+        "duration": "Duration (sec)",
+        "outcome": "Outcome",
+        "selectOutcome": "Select outcome",
+        "entityType": "Entity type",
+        "entityId": "Entity ID",
+        "preferredChannel": "Preferred channel",
+        "doNotContact": "Do not contact (DNC)",
+        "recipientEntityId": "Recipient entity ID",
+        "scheduleAt": "Schedule at"
+      },
+      "channelsHub": {
+        "tabsAria": "Communication channels",
+        "timelineAria": "Channel activity timeline",
+        "channels": {
+          "email": "Email",
+          "calls": "Calls",
+          "sms": "SMS",
+          "whatsapp": "WhatsApp",
+          "meetings": "Meetings"
+        },
+        "filters": {
+          "aria": "Channel filters",
+          "search": "Search",
+          "searchPlaceholder": "Search activities…",
+          "status": "Status",
+          "anyStatus": "All statuses",
+          "clear": "Clear"
+        },
+        "status": {
+          "sent": "Sent",
+          "delivered": "Delivered",
+          "failed": "Failed",
+          "scheduled": "Scheduled",
+          "completed": "Completed",
+          "missed": "Missed"
+        },
+        "empty": {
+          "title": "No activities",
+          "description": "No activity for this channel and filter set."
+        }
+      },
+      "ds": {
+        "title": "Communication Center",
+        "subtitle": "Manage email, WhatsApp, phone, meetings, and customer communication from one hub.",
+        "accessDenied": "You do not have permission to view communications.",
+        "accessDeniedHint": "Contact your administrator for CRM communication access.",
+        "actions": {
+          "compose": "New Message"
+        },
+        "channels": {
+          "aria": "Communication channels",
+          "all": "All",
+          "email": "Email",
+          "whatsapp": "WhatsApp",
+          "phone": "Calls",
+          "meeting": "Meetings",
+          "task": "Tasks",
+          "note": "Notes"
+        },
+        "stream": {
+          "title": "Communication Stream",
+          "count": "{count} conversations",
+          "emptyTitle": "No conversations found",
+          "emptyDescription": "Adjust filters or compose a new message."
+        },
+        "toolbar": {
+          "aria": "Stream toolbar",
+          "search": "Search",
+          "searchPlaceholder": "Search communications…",
+          "sort": "Sort",
+          "filterUnread": "Show unread only"
+        },
+        "sort": {
+          "recent": "Latest interaction",
+          "unread": "Unread first",
+          "name_asc": "Name A–Z",
+          "name_desc": "Name Z–A"
+        },
+        "pagination": {
+          "range": "{from}–{to} / {total} conversations",
+          "prev": "Previous page",
+          "next": "Next page"
+        },
+        "conversation": {
+          "title": "Conversation",
+          "types": {
+            "whatsapp": "WhatsApp",
+            "email": "Email",
+            "phone": "Phone Call",
+            "meeting": "Meeting",
+            "task": "Task",
+            "note": "CRM Note"
+          },
+          "emptyTitle": "Select a conversation",
+          "emptyDescription": "Choose a communication from the stream to view the timeline.",
+          "active": "Active",
+          "star": "Favorite",
+          "viewLead": "View lead detail",
+          "today": "Today",
+          "noMessages": "No messages",
+          "noMessagesHint": "This conversation has no timeline items yet."
+        },
+        "composer": {
+          "channelsAria": "Compose channel",
+          "placeholder": "Type your message…",
+          "attach": "Attach file",
+          "emoji": "Emoji",
+          "schedule": "Schedule",
+          "template": "Template",
+          "ai": "AI Assist",
+          "send": "Send",
+          "tabs": {
+            "whatsapp": "WhatsApp",
+            "email": "Email",
+            "phone": "Plan call",
+            "meeting": "Plan meeting",
+            "note": "Add note"
+          }
+        },
+        "attachments": {
+          "pdf": "PDF",
+          "docx": "DOCX",
+          "image": "Image",
+          "meeting_summary": "Meeting summary",
+          "voice": "Voice note",
+          "download": "Download"
+        },
+        "info": {
+          "title": "Information Panel",
+          "open": "Open information panel",
+          "close": "Close",
+          "edit": "Edit",
+          "seeAll": "See all",
+          "viewDetail": "View lead detail",
+          "score": "Lead score",
+          "contact": "Contact Information",
+          "activities": "Recent Activities",
+          "tasks": "Upcoming Tasks",
+          "projects": "Related Projects",
+          "notes": "CRM Notes",
+          "ai": "AI Suggestions",
+          "noTasks": "No upcoming tasks",
+          "emptyTitle": "No contact selected",
+          "emptyDescription": "Select a communication to view CRM context.",
+          "fields": {
+            "company": "Company",
+            "email": "Email",
+            "phone": "Phone",
+            "location": "Location",
+            "source": "Source",
+            "created": "Created"
+          }
+        }
+      }
+    },
+    "activities": {
+      "title": "Activities",
+      "subtitle": "Manage, track, and analyze all customer interactions from one hub.",
+      "accessDenied": "You do not have permission to view activities.",
+      "accessDeniedHint": "Contact your administrator for CRM activity access.",
+      "loadFailed": "Unable to load activities.",
+      "emptyTitle": "No activities found",
+      "emptyDescription": "Create a new activity or reset filters.",
+      "create": "Create activity",
+      "selectedCount": "{count} selected",
+      "bulkPriorityHigh": "Priority: high",
+      "bulkArchive": "Archive",
+      "selectActivity": "Select activity",
+      "systemEvent": "System",
+      "types": {
+        "note": "Note",
+        "phone": "Phone Call",
+        "phone_call": "Phone call",
+        "email": "Email",
+        "whatsapp": "WhatsApp",
+        "meeting": "Meeting",
+        "documentShared": "Document Shared",
+        "missedCall": "Missed Call",
+        "sms": "SMS",
+        "videoCall": "Video Call",
+        "task": "Task",
+        "follow_up": "Follow-up",
+        "system_event": "System event",
+        "other": "Other"
+      },
+      "status": {
+        "completed": "Completed",
+        "pending": "Pending",
+        "cancelled": "Cancelled",
+        "inProgress": "In Progress"
+      },
+      "statuses": {
+        "planned": "Planned",
+        "scheduled": "Scheduled",
+        "in_progress": "In progress",
+        "completed": "Completed",
+        "cancelled": "Cancelled",
+        "missed": "Missed",
+        "deferred": "Deferred",
+        "archived": "Archived"
+      },
+      "priority": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "critical": "Critical"
+      },
+      "priorities": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "critical": "Critical"
+      },
+      "kpis": {
+        "aria": "Activity summary metrics",
+        "today": "Today's Activities",
+        "completed": "Completed",
+        "pending": "Pending",
+        "overdue": "Overdue",
+        "thisMonth": "this month",
+        "hints": {
+          "todayHint": "Scheduled for today",
+          "completedHint": "Completed today",
+          "pendingHint": "Pending interactions",
+          "overdueHint": "Overdue follow-ups"
+        }
+      },
+      "ai": {
+        "aria": "AI activity actions",
+        "title": "Investhome AI",
+        "openPrompt": "Summarize today's activities and show follow-ups needed",
+        "actions": {
+          "summarizeToday": "Summarize Today",
+          "showFollowUps": "Show Follow-ups",
+          "missedCustomers": "Missed Customers",
+          "aiSummary": "AI Summary"
+        }
+      },
+      "filters": {
+        "aria": "Activity filters",
+        "ariaLabel": "Activity filters",
+        "any": "All",
+        "customer": "Customer",
+        "salesRep": "Sales Representative",
+        "type": "Activity Type",
+        "status": "Status",
+        "priority": "Priority",
+        "date": "Date Range",
+        "search": "Search",
+        "searchPlaceholder": "Search activities...",
+        "clear": "Clear Filters",
+        "dateRanges": {
+          "today": "Today",
+          "last7": "Last 7 days",
+          "last30": "Last 30 days",
+          "last90": "Last 90 days"
+        },
+        "allTypes": "All types",
+        "allStatuses": "All statuses",
+        "allPriorities": "All priorities",
+        "allEntities": "All entities",
+        "entityContact": "Contact",
+        "entityCompany": "Company",
+        "entityRelationship": "Relationship",
+        "filterLogic": "Filter logic",
+        "and": "AND",
+        "or": "OR",
+        "pendingOnly": "Pending only",
+        "completedOnly": "Completed only",
+        "apply": "Apply",
+        "reset": "Reset"
+      },
+      "table": {
+        "aria": "Activities table",
+        "activity": "Activity",
+        "customer": "Customer",
+        "project": "Project",
+        "salesRep": "Sales Representative",
+        "dateTime": "Date & Time",
+        "status": "Status",
+        "priority": "Priority",
+        "aiSummary": "AI Summary",
+        "actions": "Actions"
+      },
+      "pagination": {
+        "aria": "Activity pagination",
+        "total": "Total {count} activities",
+        "perPage": "Per page",
+        "pageUnit": "page"
+      },
+      "actions": {
+        "detail": "Detail",
+        "edit": "Edit",
+        "more": "More",
+        "expand": "Show all",
+        "collapse": "Show less"
+      },
+      "rowDescriptions": {
+        "phoneDesc1": "Discussed project details and payment plan",
+        "whatsappDesc1": "Shared price list and available units",
+        "emailDesc1": "Sent payment plan proposal",
+        "meetingDesc1": "Site visit and unit selection planned",
+        "noteDesc1": "Customer clarified financing preferences",
+        "documentDesc1": "Shared sales contract draft",
+        "missedCallDesc1": "Customer missed the call — awaiting callback",
+        "smsDesc1": "Appointment reminder sent",
+        "videoDesc1": "Remote project presentation completed",
+        "phoneDesc2": "Follow-up call — proposal feedback",
+        "meetingDesc2": "Office meeting and reservation discussion",
+        "emailDesc2": "Missing document list shared"
+      },
+      "aiSummaries": {
+        "summary1": "Customer liked project details; payment plan to be finalized.",
+        "summary2": "Requested pricing via WhatsApp; awaiting reply.",
+        "summary3": "Email proposal opened; initial response positive.",
+        "summary4": "Meeting in progress; unit selection is priority.",
+        "summary5": "Note: financing leaning toward bank loan.",
+        "summary6": "Document shared; signature process can start.",
+        "summary7": "Missed call; retry contact same day.",
+        "summary8": "SMS cancelled; channel switched to WhatsApp.",
+        "summary9": "Video presentation done; reservation is near.",
+        "summary10": "Follow-up call planned; gather proposal feedback.",
+        "summary11": "Meeting completed; reservation form next.",
+        "summary12": "Document email sent; awaiting reply."
+      },
+      "rail": {
+        "aria": "Activity insights",
+        "daySummary": "Day Summary",
+        "completed": "Completed",
+        "pending": "Pending",
+        "overdue": "Overdue",
+        "viewDetailedSummary": "View Detailed Summary",
+        "aiRecommendations": "AI Recommendations",
+        "upcomingMeetings": "Upcoming Meetings",
+        "overdueFollowUps": "Overdue Follow-ups",
+        "recentNotes": "Recent Notes",
+        "daysOverdue": "{count} days overdue",
+        "assessments": {
+          "dayAssessment": "18 activities completed today. Prioritize 7 overdue follow-ups; same-day callbacks recommended for Elif Yıldız and Burak Şahin."
+        },
+        "recommendations": {
+          "recFollowElif": "Close the overdue follow-up with Elif Yıldız today.",
+          "recCallBurak": "Retry the missed call for Burak Şahin.",
+          "recSendDocs": "Remind Can Özkan about the awaiting signature document."
+        },
+        "notes": {
+          "noteAhmet": "Payment plan revision accepted.",
+          "noteAyse": "Second visit planned for Marina 2+1.",
+          "noteMehmet": "Bank pre-approval process started."
+        },
+        "noteTimes": {
+          "hoursAgo2": "2 hours ago",
+          "hoursAgo5": "5 hours ago",
+          "yesterday": "Yesterday"
+        }
+      },
+      "form": {
+        "modes": {
+          "activity": "Create activity",
+          "task": "Create task",
+          "note": "Create note",
+          "meeting": "Create meeting",
+          "follow-up": "Create follow-up"
+        },
+        "entityType": "Entity type",
+        "entity": "Related entity",
+        "selectEntity": "Select entity",
+        "activityType": "Activity type",
+        "title": "Title",
+        "description": "Description",
+        "priority": "Priority",
+        "visibility": "Visibility",
+        "visibilityOrganization": "Organization",
+        "visibilityTeam": "Team",
+        "visibilityPrivate": "Private",
+        "dueDate": "Due date",
+        "startDate": "Start",
+        "validationRequired": "Title and entity are required.",
+        "saveFailed": "Unable to save"
+      },
+      "detail": {
+        "title": "Activity detail",
+        "close": "Close",
+        "loading": "Loading…",
+        "loadFailed": "Unable to load detail",
+        "description": "Description",
+        "created": "Created",
+        "dueDate": "Due date",
+        "location": "Location",
+        "meetingUrl": "Meeting URL",
+        "checklist": "Checklist",
+        "comments": "Comments",
+        "completeTask": "Complete task"
+      }
+    },
+    "tasks": {
+      "title": "Tasks",
+      "subtitle": "Plan, prioritize, and complete sales team tasks on time.",
+      "listTitle": "Task List",
+      "accessDenied": "You do not have permission to view tasks.",
+      "accessDeniedHint": "Contact your administrator for CRM task access.",
+      "loadFailed": "Unable to load tasks.",
+      "emptyTitle": "No tasks",
+      "emptyDescription": "Create your first task.",
+      "create": "Create task",
+      "complete": "Complete",
+      "widgets": "Task summary",
+      "todaysTasks": "Today's tasks",
+      "overdueTasks": "Overdue tasks",
+      "upcomingMeetings": "Upcoming meetings",
+      "followUpsDue": "Follow-ups due",
+      "viewModes": "View modes",
+      "viewAria": "Task view mode",
+      "view": {
+        "list": "List",
+        "card": "Card",
+        "kanban": "Kanban"
+      },
+      "views": {
+        "list": "List",
+        "kanban": "Kanban",
+        "calendar": "Calendar",
+        "my": "My tasks",
+        "team": "Team tasks"
+      },
+      "status": {
+        "open": "Open",
+        "inProgress": "In Progress",
+        "completed": "Completed",
+        "waiting": "Waiting",
+        "cancelled": "Cancelled"
+      },
+      "statuses": {
+        "not_started": "Not started",
+        "in_progress": "In progress",
+        "waiting": "Waiting",
+        "completed": "Completed",
+        "cancelled": "Cancelled",
+        "deferred": "Deferred"
+      },
+      "priority": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "critical": "Critical"
+      },
+      "kanban": {
+        "todo": "To Do",
+        "inProgress": "In Progress",
+        "review": "In Review",
+        "completed": "Completed"
+      },
+      "kpis": {
+        "aria": "Task summary metrics",
+        "open": "Open Tasks",
+        "dueToday": "Due Today",
+        "overdue": "Overdue",
+        "completed": "Completed",
+        "thisMonth": "this month",
+        "thisWeek": "this week",
+        "hints": {
+          "openHint": "Active open tasks",
+          "dueTodayHint": "Due by end of day",
+          "overdueHint": "Past due tasks",
+          "completedHint": "Completed this period"
+        }
+      },
+      "ai": {
+        "aria": "AI task actions",
+        "title": "Investhome AI",
+        "openPrompt": "Prioritize today's tasks and draft a completion plan",
+        "actions": {
+          "sortByPriority": "Show Critical",
+          "dueToday": "Due Today",
+          "showOverdue": "Show Overdue",
+          "createPlan": "Create AI Plan"
+        }
+      },
+      "filters": {
+        "aria": "Task filters",
+        "any": "All",
+        "assignee": "Assignee",
+        "customer": "Customer",
+        "project": "Project",
+        "priority": "Priority",
+        "status": "Status",
+        "dueDate": "Due Date",
+        "tag": "Tag",
+        "search": "Search",
+        "searchPlaceholder": "Search tasks...",
+        "clear": "Clear Filters",
+        "dateRanges": {
+          "today": "Today",
+          "soon": "Upcoming",
+          "overdue": "Overdue"
+        }
+      },
+      "table": {
+        "aria": "Tasks table",
+        "task": "Task",
+        "customer": "Customer",
+        "project": "Project",
+        "dueDate": "Due Date",
+        "priority": "Priority",
+        "assignee": "Assignee",
+        "aiNote": "AI Note",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "pagination": {
+        "aria": "Task pagination",
+        "total": "Total {count} tasks",
+        "perPage": "Per page",
+        "pageUnit": "page"
+      },
+      "actions": {
+        "detail": "Detail",
+        "edit": "Edit",
+        "assign": "Assign",
+        "more": "More",
+        "selectTask": "Select task {title}",
+        "expand": "Show all",
+        "collapse": "Show less"
+      },
+      "dueUrgency": {
+        "dueEndToday": "Due end of day",
+        "hoursLeft3": "3 hours left",
+        "tomorrow": "Tomorrow"
+      },
+      "tags": {
+        "contract": "Contract",
+        "analysis": "Analysis",
+        "payment": "Payment",
+        "closing": "Closing",
+        "followUp": "Follow-up"
+      },
+      "titles": {
+        "sendLandContract": "Send land contract",
+        "checkRoiAnalysis": "Review ROI analysis",
+        "sharePaymentPlan": "Share payment plan",
+        "prepareClosingDocs": "Prepare closing documents",
+        "customerFollowUpCall": "Make customer follow-up call",
+        "sendBrochurePack": "Send brochure pack",
+        "scheduleSiteVisit": "Schedule site visit",
+        "reviewReservationForm": "Review reservation form",
+        "collectBankDocs": "Collect bank documents",
+        "confirmUnitHold": "Confirm unit hold"
+      },
+      "descriptions": {
+        "sendLandContractDesc": "Send the signed land contract draft to the investor today.",
+        "checkRoiAnalysisDesc": "Validate ROI assumptions before the afternoon investor call.",
+        "sharePaymentPlanDesc": "Share the revised installment plan with the customer.",
+        "prepareClosingDocsDesc": "Assemble closing package and legal attachments.",
+        "customerFollowUpCallDesc": "Call to confirm interest and next visit slot.",
+        "sendBrochurePackDesc": "Email project brochure and unit comparison sheet.",
+        "scheduleSiteVisitDesc": "Coordinate site visit time with sales and operations.",
+        "reviewReservationFormDesc": "Check reservation form completeness before signature.",
+        "collectBankDocsDesc": "Collect missing bank pre-approval documents.",
+        "confirmUnitHoldDesc": "Confirm temporary unit hold with inventory team."
+      },
+      "dueLabels": {
+        "today1600": "Today 16:00",
+        "today1730": "Today 17:30",
+        "today1500": "Today 15:00",
+        "tomorrow1100": "Tomorrow 11:00",
+        "mon1400": "Mon 14:00",
+        "tue1030": "Tue 10:30",
+        "wed0900": "Wed 09:00",
+        "thu1600": "Thu 16:00",
+        "overdue2d": "2 days overdue",
+        "overdue1d": "1 day overdue",
+        "done": "Completed"
+      },
+      "aiNotes": {
+        "note1": "Investor has been waiting for the document for two days.",
+        "note2": "ROI numbers must be ready before the call.",
+        "note3": "Customer asked for a softer installment curve.",
+        "note4": "Legal package is waiting on two attachments.",
+        "note5": "Overdue follow-up — same-day callback recommended.",
+        "note6": "Brochure pack can unlock the next visit.",
+        "note7": "Visit timing should avoid Friday traffic.",
+        "note8": "Reservation form cleared; ready for signature.",
+        "note9": "Bank docs are blocking closing progress.",
+        "note10": "Hold cancelled after customer paused decision."
+      },
+      "rail": {
+        "aria": "Task insights",
+        "daySummary": "Today's Status",
+        "open": "Open",
+        "dueToday": "Today",
+        "overdue": "Overdue",
+        "viewTaskSummary": "View Task Summary",
+        "todayPriorities": "Today's Priorities",
+        "upcomingDeadlines": "Upcoming Deadlines",
+        "aiRecommendations": "AI Recommendations",
+        "teamPerformance": "Team Performance",
+        "completedRatio": "{completed}/{total} completed",
+        "assessments": {
+          "dayAssessment": "42 open tasks remain. Prioritize 8 due today and clear 5 overdue items before evening handoff."
+        },
+        "recommendations": {
+          "recAhmetFirst": "Complete Ahmet Yılmaz's contract task first.",
+          "recRoiBeforeCall": "Finish ROI review before the investor call.",
+          "recOverdueBatch": "Batch the two overdue follow-ups this afternoon."
+        }
+      }
+    },
+    "notes": {
+      "title": "Notes",
+      "subtitle": "Manage all your notes related to people, companies, and projects.",
+      "accessDenied": "You do not have permission to view notes.",
+      "accessDeniedHint": "Contact your administrator for CRM note access.",
+      "loadFailed": "Unable to load notes.",
+      "emptyTitle": "No notes",
+      "emptyDescription": "Create your first note.",
+      "create": "New Note",
+      "ds": {
+        "title": "Notes",
+        "subtitle": "Manage all your notes related to people, companies, and projects.",
+        "demoBadge": "demo data",
+        "actions": {
+          "create": "New Note",
+          "copilot": "AI Copilot",
+          "edit": "Edit note",
+          "share": "Share",
+          "downloadPdf": "Download as PDF",
+          "copy": "Copy",
+          "delete": "Delete"
+        },
+        "filters": {
+          "aria": "Notes filters",
+          "search": "Search",
+          "searchPlaceholder": "Search notes…",
+          "category": "Category",
+          "allCategories": "All categories",
+          "owner": "Owner",
+          "allOwners": "All owners",
+          "entityType": "Entity type",
+          "allEntityTypes": "All entity types",
+          "tag": "Tags",
+          "allTags": "All tags",
+          "dateFrom": "From",
+          "dateTo": "To",
+          "view": "View",
+          "sort": "Sort",
+          "reset": "Reset filters"
+        },
+        "views": {
+          "list": "List",
+          "compact": "Compact"
+        },
+        "sort": {
+          "newest": "Newest",
+          "oldest": "Oldest",
+          "title_asc": "Title A–Z",
+          "priority": "Priority",
+          "updated": "Last updated"
+        },
+        "categories": {
+          "meeting": "Meeting note",
+          "general": "General",
+          "follow_up": "Follow-up",
+          "research": "Research",
+          "internal": "Internal",
+          "other": "Other"
+        },
+        "entityTypes": {
+          "contact": "Contact",
+          "company": "Company",
+          "investor": "Investor",
+          "lead": "Lead",
+          "project": "Project",
+          "activity": "Activity",
+          "meeting": "Meeting",
+          "communication": "Communication",
+          "opportunity": "Opportunity",
+          "other": "Other"
+        },
+        "statuses": {
+          "planned": "Draft",
+          "scheduled": "Scheduled",
+          "in_progress": "In progress",
+          "completed": "Completed",
+          "cancelled": "Cancelled",
+          "missed": "Missed",
+          "deferred": "Deferred",
+          "archived": "Archived"
+        },
+        "priorities": {
+          "low": "Low",
+          "medium": "Medium",
+          "high": "Important",
+          "critical": "Critical"
+        },
+        "visibility": {
+          "private": "Private",
+          "team": "Team",
+          "organization": "Organization",
+          "restricted": "Restricted"
+        },
+        "explorer": {
+          "title": "Notes",
+          "titleWithCount": "Notes ({count})",
+          "tabsAria": "Note folders",
+          "tabs": {
+            "all": "All",
+            "important": "Important",
+            "shared": "Shared",
+            "draft": "Draft"
+          },
+          "importantBadge": "Important",
+          "loadMore": "Load more",
+          "emptyTitle": "No notes found",
+          "emptyDescription": "Adjust filters or create a new note to start your knowledge hub."
+        },
+        "viewer": {
+          "title": "Note viewer",
+          "emptyTitle": "Select a note",
+          "emptyDescription": "Choose a note from the explorer to read and act.",
+          "favorite": "Favorite",
+          "menu": "Note menu",
+          "tabsAria": "Note sections",
+          "tabs": {
+            "note": "Note",
+            "details": "Details",
+            "relations": "Relations ({count})",
+            "tags": "Tags ({count})",
+            "history": "History"
+          },
+          "noBody": "No note content",
+          "noBodyHint": "This note has no body yet. Edit it to add details.",
+          "actionItems": "Next steps",
+          "noActions": "No action items",
+          "noActionsHint": "Add checklist items when you edit this note.",
+          "attachments": "Attachments",
+          "noAttachments": "No attachments",
+          "noAttachmentsHint": "Attach PDF, DOCX, or images when available.",
+          "comments": "Comments",
+          "noComments": "No comments yet",
+          "noCommentsHint": "Start an internal discussion on this note.",
+          "commentPlaceholder": "Add a comment…",
+          "sendComment": "Send"
+        },
+        "attachments": {
+          "download": "Download",
+          "preview": "Preview",
+          "more": "More",
+          "kinds": {
+            "pdf": "PDF",
+            "docx": "DOCX",
+            "xlsx": "XLSX",
+            "image": "Image",
+            "zip": "ZIP",
+            "other": "File"
+          }
+        },
+        "info": {
+          "title": "Note details",
+          "open": "Open details",
+          "close": "Close details",
+          "emptyTitle": "No note selected",
+          "emptyDescription": "Select a note to see status, people, and quick actions.",
+          "status": "Status",
+          "priority": "Priority",
+          "visibility": "Visibility",
+          "category": "Category",
+          "owner": "Owner",
+          "updated": "Last updated",
+          "createdBy": "Created by",
+          "updatedBy": "Last updated by",
+          "entity": "Related entity",
+          "people": "Related people",
+          "noPeople": "No related people",
+          "noPeopleHint": "Link contacts when you edit the note.",
+          "tags": "Tags",
+          "noTags": "No tags",
+          "noTagsHint": "Add tags to find this note faster.",
+          "quickActions": "Quick actions"
+        },
+        "history": {
+          "created": "Note created",
+          "updated": "Note updated"
+        }
+      }
+    },
+    "calendar": {
+      "title": "Calendar",
+      "subtitle": "Manage your meetings, tasks, and customer events from one place.",
+      "accessDenied": "You do not have permission to view the calendar.",
+      "accessDeniedHint": "Contact your administrator for CRM calendar access.",
+      "loadFailed": "Unable to load calendar.",
+      "emptyTitle": "No events",
+      "emptyDescription": "No scheduled events in this range.",
+      "createMeeting": "Create meeting",
+      "prev": "Previous",
+      "next": "Next",
+      "noDate": "No date",
+      "viewModes": "Calendar view",
+      "viewAria": "Calendar view mode",
+      "participants": "{count} participants",
+      "views": {
+        "day": "Day",
+        "week": "Week",
+        "month": "Month",
+        "agenda": "Agenda"
+      },
+      "days": {
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat",
+        "sun": "Sun"
+      },
+      "allDay": {
+        "aria": "All-day events",
+        "label": "All day",
+        "short": "All day"
+      },
+      "kpis": {
+        "aria": "Calendar summary metrics",
+        "todayEvents": "Today's Events",
+        "thisWeek": "This Week",
+        "upcomingMeetings": "Upcoming Meetings",
+        "completed": "Completed",
+        "attendanceRate": "Attendance Rate",
+        "trendSuffix": "this week",
+        "hints": {
+          "todayEventsHint": "6 meetings, 8 calls, 4 tasks",
+          "thisWeekHint": "22 meetings, 18 calls, 14 tasks",
+          "upcomingMeetingsHint": "Within the next 48 hours",
+          "completedHint": "Completed this week",
+          "attendanceRateHint": "Meeting attendance rate"
+        }
+      },
+      "actions": {
+        "newEvent": "New Event",
+        "aiPlan": "AI Plan",
+        "filters": "Filters"
+      },
+      "filters": {
+        "stub": "Filters are presentation-only — no live calendar engine is connected."
+      },
+      "ai": {
+        "aria": "Calendar AI actions",
+        "title": "Investhome AI",
+        "openPrompt": "Summarize my calendar today and suggest conflict fixes",
+        "planPrompt": "Create an AI schedule plan for this week",
+        "newEventPrompt": "Help me create a new event"
+      },
+      "dateNav": {
+        "aria": "Date navigation",
+        "today": "Today",
+        "prev": "Previous range",
+        "next": "Next range",
+        "pick": "Pick date range",
+        "ranges": {
+          "jul21to27": "21 - 27 July 2025"
+        }
+      },
+      "types": {
+        "phone": "Phone",
+        "meeting": "Meeting",
+        "investorMeeting": "Investor Meeting",
+        "siteVisit": "Site Visit",
+        "internalMeeting": "Internal Meeting",
+        "documentHandoff": "Document Handoff",
+        "task": "Task",
+        "presentation": "Presentation",
+        "demo": "Demo"
+      },
+      "events": {
+        "siteVisitSaturday": "Site Visit",
+        "reportingSunday": "Reporting",
+        "ahmetProjectPresentation": "Ahmet Yılmaz - Project Presentation",
+        "aysePhoneCall": "Ayşe Demir - Phone Call",
+        "marinaProgressMeeting": "Marina Heights - Progress Meeting",
+        "roiAnalysisReview": "ROI Analysis - Review",
+        "yusufPhoneCall": "Yusuf Bildirici - Phone Call",
+        "eminInternalReview": "Emin Bilgin - Internal Review",
+        "weeklyTeamMeeting": "Team Meeting - Weekly Review",
+        "investorBriefing": "Zeynep Arslan - Investor Meeting",
+        "documentHandoff": "Mehmet Kaya - Document Handoff",
+        "followUpTask": "Elif Yıldız - Follow-up Task"
+      },
+      "rail": {
+        "aria": "Calendar side panel",
+        "upcoming": "Upcoming Events",
+        "quickCreate": "Quick Create",
+        "aiSuggestions": "AI Suggestions",
+        "sync": "Calendar Sync",
+        "when": {
+          "today": "Today",
+          "tomorrow": "Tomorrow",
+          "later": "This week"
+        },
+        "quick": {
+          "meeting": "Add Meeting",
+          "call": "Add Call",
+          "task": "Add Task",
+          "reminder": "Add Reminder"
+        },
+        "suggestions": {
+          "conflictToday": "3 events conflict today — reshuffle the 11:00–12:15 window.",
+          "followUpSlot": "Add a 20-minute follow-up block after the Ayşe Demir call.",
+          "freeSlotWed": "Wed 13:30–14:15 is free — good for a site visit.",
+          "rescheduleDemo": "Moving the ROI demo to Thu 15:00 reduces the conflict."
+        },
+        "providers": {
+          "google": "Google Calendar",
+          "outlook": "Outlook Calendar"
+        },
+        "syncStatus": {
+          "connected": "Connected",
+          "notConnected": "Not connected"
+        }
+      }
+    },
+    "relationships": {
+      "title": "Relationships",
+      "description": "Network intelligence across contacts, companies, and platform entities.",
+      "loading": "Loading relationships…",
+      "loadFailed": "Unable to load relationships.",
+      "accessDenied": "You do not have permission to view relationships.",
+      "create": "New relationship",
+      "networkView": "Network graph",
+      "intelligenceView": "Intelligence",
+      "emptyTitle": "No relationships yet",
+      "emptyDescription": "Create your first relationship or explore the network graph.",
+      "summary": "{total} relationships · Page {page}",
+      "pagination": "Page {page} of {pages} · {total} relationships",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "actions": {
+        "export": "Export"
+      },
+      "view": {
+        "aria": "Relationships view mode",
+        "list": "List"
+      },
+      "quick": {
+        "aria": "Quick relationship filters"
+      },
+      "table": {
+        "aria": "Relationships table",
+        "title": "All Relationships"
+      },
+      "score": {
+        "tooltip": "Relationship health score based on engagement, trust, and business value."
+      },
+      "fields": {
+        "source": "Source",
+        "target": "Target",
+        "type": "Type",
+        "category": "Category",
+        "strength": "Strength",
+        "score": "Score",
+        "status": "Status"
+      },
+      "savedViews": {
+        "all": "All",
+        "active": "Active",
+        "stale": "Stale",
+        "atRisk": "At risk",
+        "confidential": "Confidential"
+      },
+      "filters": {
+        "aria": "Relationship filters",
+        "search": "Search",
+        "searchPlaceholder": "Search relationships…",
+        "any": "Any",
+        "status": "Status",
+        "allStatuses": "All statuses",
+        "active": "Active",
+        "inactive": "Inactive",
+        "pending": "Pending",
+        "archived": "Archived",
+        "category": "Category",
+        "allCategories": "All categories",
+        "organizational": "Organizational",
+        "commercial": "Commercial",
+        "personal": "Personal",
+        "referral": "Referral",
+        "investment": "Investment",
+        "operational": "Operational",
+        "type": "Type",
+        "allTypes": "All types",
+        "parent": "Parent",
+        "subsidiary": "Subsidiary",
+        "partner": "Partner",
+        "client": "Client",
+        "vendor": "Vendor",
+        "referredBy": "Referred by",
+        "colleague": "Colleague"
+      },
+      "network": {
+        "title": "Relationship network",
+        "description": "Interactive graph with incremental loading from the API.",
+        "loading": "Loading graph…",
+        "loadFailed": "Unable to load network graph.",
+        "accessDenied": "Access denied.",
+        "backToList": "Back to list",
+        "fitView": "Fit view",
+        "exportData": "Export data",
+        "searchNodes": "Search nodes…",
+        "depth": "Depth",
+        "emptyTitle": "No graph data",
+        "emptyDescription": "Create relationships or select a center entity to visualize the network.",
+        "entityType": "Entity type",
+        "score": "Score",
+        "expandNode": "Expand node"
+      },
+      "intelligence": {
+        "title": "Relationship intelligence",
+        "description": "Score distribution, alerts, and explainable recommendations.",
+        "loading": "Loading dashboard…",
+        "loadFailed": "Unable to load intelligence dashboard.",
+        "accessDenied": "Access denied.",
+        "backToList": "Back to list",
+        "networkView": "Network graph",
+        "emptyTitle": "No intelligence data",
+        "emptyDescription": "Relationship metrics appear once relationships are created.",
+        "totalRelationships": "Total relationships",
+        "activeRelationships": "Active",
+        "averageScore": "Average score",
+        "atRisk": "At risk",
+        "stale": "Stale",
+        "openAlerts": "Open alerts",
+        "scoreDistribution": "Score distribution",
+        "categoryBreakdown": "By category",
+        "topInfluencers": "Top influencers",
+        "noInfluencers": "No influencers yet",
+        "recommendations": "Recommendations",
+        "noRecommendations": "No recommendations"
+      },
+      "detail": {
+        "back": "Back to relationships",
+        "loading": "Loading…",
+        "loadFailed": "Unable to load relationship.",
+        "accessDenied": "Access denied.",
+        "recalculateScores": "Recalculate scores",
+        "source": "Source",
+        "target": "Target",
+        "category": "Category",
+        "strength": "Strength",
+        "status": "Status",
+        "confidential": "Confidential",
+        "verified": "Verified",
+        "notes": "Notes",
+        "timelineEmpty": "No timeline events",
+        "timelineHint": "Audit events appear here as the relationship changes.",
+        "interactionsEmpty": "No interactions",
+        "interactionsHint": "Linked activities and touchpoints will appear here.",
+        "tabs": {
+          "overview": "Overview",
+          "timeline": "Timeline",
+          "interactions": "Interactions",
+          "scores": "Scores",
+          "intro": "Warm intro"
+        },
+        "scores": {
+          "relationship_score": "Relationship",
+          "engagement_score": "Engagement",
+          "influence_score": "Influence",
+          "trust_score": "Trust",
+          "business_value_score": "Business value",
+          "risk_score": "Risk"
+        }
+      },
+      "intro": {
+        "title": "Warm introduction paths",
+        "description": "Find introduction routes via the relationship graph (server-side path finding).",
+        "targetType": "Target type",
+        "targetId": "Target entity ID",
+        "targetIdPlaceholder": "Enter entity UUID",
+        "strategy": "Strategy",
+        "shortest": "Shortest path",
+        "strongest": "Strongest path",
+        "highestInfluence": "Highest influence",
+        "all": "All strategies",
+        "contact": "Contact",
+        "company": "Company",
+        "searching": "Finding paths…",
+        "searchFailed": "Path search failed",
+        "noPaths": "No introduction path found",
+        "path": "Path {number}",
+        "hops": "{count} hops",
+        "score": "Score {value}"
+      },
+      "decisionMap": {
+        "title": "Decision map",
+        "loading": "Loading decision map…",
+        "loadFailed": "Unable to load decision map.",
+        "emptyTitle": "No decision makers mapped",
+        "emptyDescription": "Add contacts and their influence roles for this company.",
+        "influence": "Influence {level}"
+      },
+      "createWizard": {
+        "title": "Create relationship",
+        "back": "Back",
+        "step": "Step {current} of {total}: {name}",
+        "accessDenied": "You do not have permission to create relationships.",
+        "loadingContacts": "Loading contacts…",
+        "source": "Source",
+        "target": "Target",
+        "selectContact": "Select contact",
+        "type": "Type",
+        "strength": "Strength",
+        "reciprocalPreview": "{type} will display as {reciprocal} on the target side",
+        "singleRecordNote": "Only one directional record is stored; reciprocal label is derived from config.",
+        "markConfidential": "Mark as confidential",
+        "duplicateFound": "A duplicate relationship already exists",
+        "noDuplicates": "No duplicates detected",
+        "confirmMessage": "Ready to create this relationship.",
+        "createFailed": "Failed to create relationship",
+        "previous": "Previous",
+        "next": "Next",
+        "submit": "Create relationship",
+        "steps": {
+          "entities": "Select entities",
+          "type": "Relationship type",
+          "reciprocal": "Reciprocal preview",
+          "category": "Category",
+          "strength": "Strength",
+          "confidential": "Confidentiality",
+          "notes": "Notes",
+          "duplicates": "Duplicate check",
+          "review": "Review",
+          "confirm": "Confirm"
+        }
+      },
+      "types": {
+        "colleague": "Colleague",
+        "partner": "Partner",
+        "parent": "Parent",
+        "subsidiary": "Subsidiary",
+        "client": "Client",
+        "vendor": "Vendor",
+        "referred_by": "Referred by",
+        "referred_to": "Referred to",
+        "investor": "Investor",
+        "advisor": "Advisor",
+        "employs": "Employs",
+        "employed_by": "Employed by",
+        "other": "Other",
+        "investee": "Investee",
+        "advisee": "Advisee"
+      },
+      "categories": {
+        "organizational": "Organizational",
+        "commercial": "Commercial",
+        "personal": "Personal",
+        "referral": "Referral",
+        "investment": "Investment",
+        "operational": "Operational",
+        "other": "Other"
+      },
+      "strengths": {
+        "weak": "Weak",
+        "moderate": "Moderate",
+        "strong": "Strong",
+        "strategic": "Strategic"
+      }
+    },
+    "companies": {
+      "title": "Companies",
+      "subtitle": "Manage all your companies, partnerships, and investor relationships from one place.",
+      "createTitle": "New CRM Company",
+      "createDescription": "Create a CRM organization record distinct from internal org workspace companies.",
+      "emptyTitle": "No CRM companies yet",
+      "emptyDescription": "Create your first CRM company or import from CSV.",
+      "summary": "{total} companies · Page {page}/{pages}",
+      "kpis": {
+        "aria": "Company summary metrics",
+        "total": "Total Companies",
+        "activePartners": "Active Partners",
+        "investors": "Investor Companies",
+        "newThisMonth": "New Companies This Month",
+        "openCollaborations": "Open Collaborations",
+        "thisMonth": "this month",
+        "hints": {
+          "totalHint": "All registered companies.",
+          "activePartnersHint": "Active business partners.",
+          "investorsHint": "Companies with investor status.",
+          "newThisMonthHint": "Companies added this month.",
+          "openCollaborationsHint": "Ongoing collaborations."
+        }
+      },
+      "ai": {
+        "aria": "AI company actions",
+        "title": "Investhome AI",
+        "openPrompt": "Analyze the company portfolio, summarize missing info and similar partnership opportunities",
+        "actions": {
+          "newCompany": "New Company",
+          "aiAnalysis": "AI Analysis",
+          "similar": "Similar Companies",
+          "missingInfo": "Show Missing Info"
+        }
+      },
+      "filters": {
+        "aria": "Company filters",
+        "any": "All",
+        "search": "Search",
+        "searchPlaceholder": "Search companies…",
+        "category": "Category",
+        "country": "Country",
+        "status": "Status",
+        "relation": "Relationship Type",
+        "owner": "Account Owner",
+        "tag": "Tag",
+        "clear": "Clear Filters",
+        "allStatuses": "All statuses",
+        "includeArchived": "Include archived"
+      },
+      "table": {
+        "aria": "Companies table",
+        "select": "Select",
+        "company": "Company",
+        "category": "Category",
+        "country": "Country",
+        "contact": "Contact",
+        "openProjects": "Open Projects",
+        "lastActivity": "Last Activity",
+        "health": "Health Score",
+        "aiSummary": "AI Summary",
+        "actions": "Actions"
+      },
+      "pagination": {
+        "aria": "Company pagination",
+        "total": "Total {count} companies",
+        "perPage": "Per page",
+        "pageUnit": "page"
+      },
+      "category": {
+        "investor": "Investor",
+        "developer": "Developer",
+        "architecture": "Architecture",
+        "legal": "Legal",
+        "title": "Title",
+        "broker": "Broker",
+        "bank": "Bank",
+        "partner": "Partner"
+      },
+      "country": {
+        "us": "USA",
+        "ae": "UAE",
+        "uk": "United Kingdom",
+        "tr": "Turkey",
+        "de": "Germany",
+        "sg": "Singapore"
+      },
+      "status": {
+        "active": "Active",
+        "prospect": "Prospect",
+        "inactive": "Inactive",
+        "archived": "Archived"
+      },
+      "relation": {
+        "strategicPartner": "Strategic Partner",
+        "vendor": "Vendor",
+        "client": "Client",
+        "investor": "Investor",
+        "advisor": "Advisor"
+      },
+      "health": {
+        "excellent": "Excellent",
+        "good": "Good",
+        "medium": "Medium",
+        "attention": "Attention",
+        "risk": "At Risk"
+      },
+      "roles": {
+        "managingPartner": "Managing Partner",
+        "ceo": "CEO",
+        "designDirector": "Design Director",
+        "partner": "Partner",
+        "opsLead": "Operations Lead",
+        "investmentLead": "Investment Lead",
+        "broker": "Broker",
+        "relationshipMgr": "Relationship Manager"
+      },
+      "lastActivity": {
+        "meeting": "Meeting",
+        "call": "Call",
+        "email": "Email",
+        "note": "Note",
+        "task": "Task"
+      },
+      "tags": {
+        "strategic": "Strategic",
+        "capital": "Capital",
+        "pipeline": "Pipeline",
+        "coastal": "Coastal",
+        "design": "Design",
+        "legal": "Legal",
+        "closing": "Closing",
+        "title": "Title",
+        "local": "Local",
+        "broker": "Broker",
+        "finance": "Finance"
+      },
+      "subtitles": {
+        "templeSubtitle": "Global capital partner",
+        "marinaSubtitle": "Coastal development company",
+        "baySubtitle": "Architectural design studio",
+        "libertySubtitle": "International law firm",
+        "sunsetSubtitle": "Title and escrow services",
+        "bosphorusSubtitle": "Regional investment company",
+        "harborSubtitle": "International real-estate broker",
+        "nordicSubtitle": "Corporate finance partner"
+      },
+      "aiSummaries": {
+        "temple": "Strong capital relationship; warm window open for a new fund round.",
+        "marina": "Clear new project opportunity; follow-up recommended to accelerate decisions.",
+        "bay": "Design revisions pending; communication is steady but decision speed is medium.",
+        "liberty": "Contract review is delayed; missing documents may block closing.",
+        "sunset": "No recent activity; relationship risk is high and re-engagement is needed.",
+        "bosphorus": "Local investor momentum is strong; two open opportunities under active follow-up.",
+        "harbor": "Broker network is active; a strong candidate for Asia-side matches.",
+        "nordic": "Financing lane is healthy; credit terms should be refreshed."
+      },
+      "rail": {
+        "aria": "Company insights",
+        "recent": "Recently Added Companies",
+        "upcoming": "Upcoming Meetings",
+        "aiRecommendations": "AI Recommendations",
+        "categoryDistribution": "Category Distribution",
+        "activePartners": "Most Active Partners",
+        "other": "Other",
+        "activityCount": "{count} activities",
+        "addedAt": {
+          "hoursAgo2": "2 hours ago",
+          "yesterday": "Yesterday",
+          "daysAgo3": "3 days ago",
+          "daysAgo5": "5 days ago"
+        },
+        "meetingTypes": {
+          "projectKickoff": "Project kickoff meeting",
+          "capitalReview": "Capital review",
+          "pipelineSync": "Pipeline sync"
+        },
+        "meetingWhen": {
+          "tomorrow1000": "Tomorrow 10:00",
+          "wed1430": "Wed 14:30",
+          "thu1100": "Thu 11:00"
+        },
+        "recommendations": {
+          "marinaOpportunity": "There is a new project opportunity with Marina Heights.",
+          "sunsetRisk": "Plan re-engagement for Sunset Title.",
+          "libertyFollowUp": "Accelerate contract follow-up with Liberty Law Partners.",
+          "templeExpansion": "Evaluate an additional fund round with The Temple Group."
+        },
+        "lastContact": {
+          "daysAgo1": "Last contact 1 day ago",
+          "daysAgo2": "Last contact 2 days ago",
+          "hoursAgo6": "Last contact 6 hours ago"
+        }
+      },
+      "fields": {
+        "companyType": "Company type",
+        "domain": "Domain",
+        "industry": "Industry",
+        "contacts": "Contacts",
+        "updated": "Updated"
+      },
+      "companyTypes": {
+        "investment_company": "Investment Company",
+        "buyer_entity": "Buyer Entity",
+        "brokerage": "Brokerage",
+        "law_firm": "Law Firm",
+        "bank": "Bank",
+        "lender": "Lender",
+        "property_management": "Property Management",
+        "construction": "Construction",
+        "contractor": "Contractor",
+        "architecture": "Architecture",
+        "accounting": "Accounting",
+        "consulting": "Consulting",
+        "insurance": "Insurance",
+        "media": "Media",
+        "government": "Government",
+        "vendor": "Vendor",
+        "partner": "Partner",
+        "internal_entity": "Internal Entity",
+        "other": "Other"
+      },
+      "savedViews": {
+        "all": "All",
+        "investors": "Investment companies",
+        "brokerages": "Brokerages",
+        "lenders": "Lenders",
+        "vendors": "Vendors",
+        "prospects": "Prospects",
+        "archived": "Archived"
+      },
+      "actions": {
+        "create": "New company",
+        "import": "Import",
+        "archive": "Archive",
+        "backToList": "Back to list",
+        "detail": "Detail",
+        "edit": "Edit",
+        "note": "Note",
+        "more": "More",
+        "selectCompany": "Select {name}",
+        "expand": "See all",
+        "collapse": "Show less"
+      },
+      "form": {
+        "sections": {
+          "identity": "Identity",
+          "contact": "Contact information",
+          "registration": "Legal & registration",
+          "profile": "Type-specific profile",
+          "notes": "Notes"
+        },
+        "displayName": "Display name",
+        "legalName": "Legal name",
+        "tradeName": "Trade name",
+        "website": "Website",
+        "linkedin": "LinkedIn URL",
+        "registrationNumber": "Registration number",
+        "taxId": "Tax ID",
+        "ein": "EIN",
+        "description": "Description",
+        "notes": "Internal notes",
+        "duplicateWarning": "Possible duplicate: {name}",
+        "aum": "AUM",
+        "profileNotes": "Profile notes",
+        "licenseNumber": "License number",
+        "specialization": "Specialization",
+        "lenderType": "Lender type",
+        "nmlsId": "NMLS ID",
+        "vendorCategory": "Vendor category",
+        "paymentTerms": "Payment terms",
+        "barNumber": "Bar number",
+        "unitsManaged": "Units managed"
+      },
+      "tabs": {
+        "label": "Company detail tabs",
+        "overview": "Overview",
+        "contacts": "Contacts",
+        "timeline": "Timeline",
+        "relationships": "Relationships",
+        "hierarchy": "Hierarchy",
+        "compliance": "Compliance",
+        "audit": "Audit"
+      },
+      "contacts": {
+        "empty": "No linked contacts",
+        "emptyHint": "Link CRM contacts to this company from the contacts module.",
+        "role": "Role",
+        "jobTitle": "Job title",
+        "primary": "Primary"
+      },
+      "timeline": {
+        "empty": "No timeline events",
+        "emptyHint": "Activity appears here as the company record changes."
+      },
+      "relationships": {
+        "empty": "No company relationships",
+        "emptyHint": "Add parent, subsidiary, partner, or vendor relationships."
+      },
+      "hierarchy": {
+        "empty": "No hierarchy",
+        "emptyHint": "Set parent companies to build an organization tree."
+      },
+      "compliance": {
+        "empty": "No compliance data",
+        "emptyHint": "Compliance fields require view_compliance permission."
+      },
+      "audit": {
+        "hint": "Full immutable audit trail is recorded for all field and relationship changes."
+      },
+      "import": {
+        "title": "Import CRM companies",
+        "pageDescription": "Upload a CSV file to bulk-create CRM companies.",
+        "description": "Import external organization records into the CRM companies module.",
+        "formatHint": "Required columns: display_name. Optional: legal_name, company_type, status, primary_email, domain, industry.",
+        "selectFile": "Select CSV file",
+        "failed": "Import failed",
+        "result": "Imported {imported}, skipped {skipped}."
+      }
+    },
+    "matchDetail": {
+      "eyebrow": "Match detail",
+      "back": "Back to matches",
+      "notFoundTitle": "Match not found",
+      "notFoundDescription": "This match record does not exist or may have been removed.",
+      "unitType": "Unit type",
+      "location": "Location",
+      "developer": "Developer",
+      "area": "Area",
+      "customerName": "Customer",
+      "email": "Email",
+      "phone": "Phone",
+      "scoreHint": "Match score computed from preferences and project metrics.",
+      "scoreFactor": "Score factor",
+      "notesBody": "Notes for {project} are kept here. Demo presentation.",
+      "tabs": {
+        "overview": "Overview",
+        "customer": "Customer",
+        "project": "Project",
+        "score": "Match Score",
+        "documents": "Documents",
+        "timeline": "Timeline",
+        "activities": "Activities",
+        "notes": "Notes",
+        "ai": "AI Insights"
+      }
+    },
+    "documentDetail": {
+      "eyebrow": "Document detail",
+      "back": "Back to documents",
+      "notFoundTitle": "Document not found",
+      "notFoundDescription": "This document record does not exist or may have been removed.",
+      "download": "Download",
+      "shareHint": "Share link prepared (demo).",
+      "previewHint": "Document preview — live file opens here when connected.",
+      "fileType": "File type",
+      "relatedCustomer": "Related customer",
+      "relatedProject": "Related project",
+      "currentVersion": "Current version",
+      "initialUpload": "Initial upload",
+      "notesBody": "Notes for {name} are kept here. Demo presentation.",
+      "tabs": {
+        "preview": "Preview",
+        "metadata": "Metadata",
+        "related": "Related",
+        "versions": "Version History",
+        "timeline": "Timeline",
+        "activity": "Activity",
+        "notes": "Notes"
+      }
+    },
+    "personDetail": {
+      "eyebrow": "Person detail",
+      "back": "Back to list",
+      "notFoundTitle": "Person not found",
+      "notFoundDescription": "This person record does not exist or may have been removed.",
+      "score": "Relation score",
+      "tabs": {
+        "overview": "Overview",
+        "company": "Company",
+        "activity": "Activity",
+        "notes": "Notes"
+      }
+    },
+    "companyFoundationDetail": {
+      "eyebrow": "Company detail",
+      "back": "Back to companies",
+      "notFoundTitle": "Company not found",
+      "notFoundDescription": "This company record does not exist or may have been removed.",
+      "tabs": {
+        "overview": "Overview",
+        "contact": "Contact",
+        "activity": "Activity",
+        "notes": "Notes"
+      }
+    },
+    "investorsWorkspace": {
+      "title": "Investors",
+      "subtitle": "Manage investor relationships, decision makers, and capital partners from one place."
+    },
+    "people": {
+      "title": "People",
+      "subtitle": "Manage all your people, contact details, and relationships from one hub.",
+      "kpis": {
+        "aria": "People summary metrics",
+        "total": "Total People",
+        "active": "Active People",
+        "decisionMakers": "Decision Makers",
+        "newThisMonth": "New People This Month",
+        "meetingPending": "Meetings Pending",
+        "thisMonth": "this month",
+        "hints": {
+          "totalHint": "All registered people.",
+          "activeHint": "Active in the last 30 days.",
+          "decisionMakersHint": "C-level and decision makers.",
+          "newThisMonthHint": "People added this month.",
+          "meetingPendingHint": "Meetings to schedule."
+        }
+      },
+      "ai": {
+        "aria": "AI people actions",
+        "title": "Investhome AI",
+        "openPrompt": "Analyze the people portfolio, summarize similar contacts and missing information",
+        "actions": {
+          "newPerson": "New Person",
+          "aiAnalysis": "AI Analysis",
+          "similar": "Similar People",
+          "missingInfo": "Show Missing Info"
+        }
+      },
+      "filters": {
+        "aria": "People filters",
+        "any": "All",
+        "search": "Search",
+        "searchPlaceholder": "Search people…",
+        "company": "Company",
+        "role": "Role",
+        "department": "Department",
+        "country": "Country",
+        "owner": "Account Owner",
+        "tag": "Tag",
+        "clear": "Clear Filters"
+      },
+      "table": {
+        "aria": "People table",
+        "select": "Select",
+        "person": "Person",
+        "company": "Company",
+        "role": "Role",
+        "department": "Department",
+        "contact": "Contact",
+        "lastActivity": "Last Activity",
+        "relation": "Relationship Strength",
+        "aiNote": "AI Note",
+        "actions": "Actions"
+      },
+      "pagination": {
+        "aria": "People pagination",
+        "total": "Total {count} people",
+        "perPage": "Per page",
+        "pageUnit": "page"
+      },
+      "role": {
+        "ceo": "CEO",
+        "decisionMaker": "Decision Maker",
+        "broker": "Broker",
+        "partner": "Partner",
+        "architect": "Architect",
+        "lawyer": "Lawyer",
+        "finance": "Finance",
+        "operations": "Operations",
+        "investor": "Investor",
+        "influencer": "Influencer"
+      },
+      "department": {
+        "executive": "Executive",
+        "investment": "Investment",
+        "sales": "Sales",
+        "legal": "Legal",
+        "design": "Design",
+        "operations": "Operations",
+        "finance": "Finance",
+        "brokerage": "Brokerage"
+      },
+      "country": {
+        "us": "USA",
+        "ae": "UAE",
+        "uk": "United Kingdom",
+        "tr": "Turkey",
+        "de": "Germany",
+        "sg": "Singapore"
+      },
+      "relation": {
+        "veryStrong": "Very Strong",
+        "strong": "Strong",
+        "medium": "Medium",
+        "attention": "Attention",
+        "weak": "Weak"
+      },
+      "source": {
+        "referral": "Referral",
+        "event": "Event",
+        "website": "Website",
+        "email": "Email",
+        "ads": "Ads",
+        "other": "Other"
+      },
+      "channels": {
+        "email": "Email",
+        "phone": "Phone",
+        "linkedin": "LinkedIn",
+        "whatsapp": "WhatsApp"
+      },
+      "titles": {
+        "managingPartner": "Managing Partner",
+        "ceo": "CEO",
+        "designDirector": "Design Director",
+        "partner": "Partner",
+        "opsLead": "Operations Lead",
+        "investmentLead": "Investment Lead",
+        "broker": "Broker",
+        "relationshipMgr": "Relationship Manager"
+      },
+      "lastActivity": {
+        "meeting": "Meeting",
+        "call": "Call",
+        "email": "Email",
+        "note": "Note",
+        "task": "Task"
+      },
+      "tags": {
+        "strategic": "Strategic",
+        "capital": "Capital",
+        "pipeline": "Pipeline",
+        "coastal": "Coastal",
+        "design": "Design",
+        "legal": "Legal",
+        "closing": "Closing",
+        "ops": "Operations",
+        "local": "Local",
+        "broker": "Broker",
+        "finance": "Finance"
+      },
+      "aiNotes": {
+        "james": "Strong relationship; warm capital window is open and follow-up is a priority.",
+        "sara": "Decision-maker momentum is high; accelerate the project kickoff meeting.",
+        "elena": "Design revisions pending; communication is steady but decision speed is medium.",
+        "oliver": "Contract review is delayed; missing documents may block closing.",
+        "mia": "No recent activity; relationship risk is high and re-engagement is needed.",
+        "emre": "Local investor momentum is strong; two open opportunities are in active follow-up.",
+        "wei": "Broker network is active; a strong candidate for Asia-side matches.",
+        "lukas": "Financing line is healthy; credit terms should be refreshed."
+      },
+      "rail": {
+        "aria": "People insights",
+        "recent": "Recently Added People",
+        "upcoming": "Upcoming Meetings",
+        "sourceDistribution": "People Source",
+        "activePeople": "Most Active People",
+        "activityCount": "{count} activities",
+        "addedAt": {
+          "hoursAgo2": "2 hours ago",
+          "yesterday": "Yesterday",
+          "daysAgo3": "3 days ago"
+        },
+        "meetingWhen": {
+          "jul241000": "24 Jul 2026 10:00",
+          "jul251430": "25 Jul 2026 14:30",
+          "jul261100": "26 Jul 2026 11:00"
+        },
+        "lastContact": {
+          "daysAgo1": "Last contact 1 day ago",
+          "daysAgo2": "Last contact 2 days ago",
+          "hoursAgo6": "Last contact 6 hours ago"
+        }
+      },
+      "actions": {
+        "detail": "Detail",
+        "message": "Message",
+        "note": "Note",
+        "more": "More",
+        "selectPerson": "Select {name}",
+        "expand": "See all",
+        "collapse": "Show less"
+      }
+    },
+    "admin": {
+      "title": "Admin Workspace",
+      "subtitle": "Manage your system — monitor users, roles, permissions, and system health.",
+      "kpis": {
+        "aria": "Admin summary metrics",
+        "activeUsers": "Active Users",
+        "onlineUsers": "Online Users",
+        "uptime": "System Uptime",
+        "openAlerts": "Open Alerts",
+        "apiRequests": "API Requests (24h)",
+        "hints": {
+          "activeUsersHint": "Registered active accounts.",
+          "onlineUsersHint": "Currently active.",
+          "uptimeHint": "Last 30 days.",
+          "openAlertsHint": "Needs attention.",
+          "apiRequestsHint": "Last 24 hours."
+        }
+      },
+      "ai": {
+        "aria": "Admin quick actions",
+        "title": "Investhome AI",
+        "openPrompt": "Summarize system health, open alerts, and recent audit events",
+        "actions": {
+          "newUser": "New User",
+          "createRole": "Create Role",
+          "systemScan": "System Scan",
+          "auditLog": "Audit Log"
+        }
+      },
+      "filters": {
+        "aria": "Admin filters",
+        "any": "All",
+        "search": "Search",
+        "searchPlaceholder": "Search…",
+        "role": "Role",
+        "workspace": "Workspace",
+        "status": "Status",
+        "lastLogin": "Last Login",
+        "clear": "Clear Filters"
+      },
+      "tabs": {
+        "aria": "Admin workspace tabs",
+        "users": "Users",
+        "roles": "Roles",
+        "workspacePermissions": "Workspace Permissions",
+        "auditLog": "Audit Log",
+        "services": "Services"
+      },
+      "table": {
+        "aria": "Users table",
+        "select": "Select",
+        "user": "User",
+        "role": "Role",
+        "workspace": "Workspace",
+        "lastLogin": "Last Login",
+        "status": "Status",
+        "mfa": "MFA",
+        "aiUsage": "AI Usage",
+        "actions": "Actions"
+      },
+      "pagination": {
+        "aria": "Users pagination",
+        "total": "Total {count} users",
+        "perPage": "Per page",
+        "pageUnit": "page"
+      },
+      "role": {
+        "systemAdmin": "System Administrator",
+        "admin": "Administrator",
+        "salesManager": "Sales Manager",
+        "salesRep": "Sales Representative",
+        "analyst": "Analyst",
+        "support": "Support",
+        "marketing": "Marketing"
+      },
+      "roleDescriptions": {
+        "systemAdmin": "Full platform control and security override.",
+        "admin": "Workspace and user administration.",
+        "salesManager": "Sales team oversight and pipeline access.",
+        "salesRep": "Day-to-day CRM and opportunity work.",
+        "analyst": "Read-heavy analytics and reporting access.",
+        "support": "Ticket and customer support tooling.",
+        "marketing": "Campaign and content workspace access."
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive",
+        "suspended": "Suspended"
+      },
+      "workspace": {
+        "crm": "CRM",
+        "sales": "Sales",
+        "finance": "Finance",
+        "marketing": "Marketing",
+        "operations": "Operations",
+        "platform": "Platform"
+      },
+      "lastLogin": {
+        "now": "Online now",
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "week": "This week",
+        "month": "This month",
+        "never": "Never",
+        "onlineNow": "Online now"
+      },
+      "mfa": {
+        "on": "On",
+        "off": "Off"
+      },
+      "access": {
+        "full": "Full access",
+        "edit": "Edit",
+        "view": "View only"
+      },
+      "audit": {
+        "userCreated": "New user created",
+        "roleUpdated": "Role updated",
+        "permissionChanged": "Permission changed",
+        "mfaEnabled": "MFA enabled",
+        "userSuspended": "User suspended",
+        "systemScan": "System scan completed"
+      },
+      "health": {
+        "api": "API",
+        "web": "Web",
+        "database": "Database",
+        "queue": "Queue",
+        "storage": "Storage"
+      },
+      "healthStatus": {
+        "running": "Running",
+        "degraded": "Degraded",
+        "down": "Down"
+      },
+      "workerStatus": {
+        "running": "Running",
+        "idle": "Idle",
+        "error": "Error"
+      },
+      "queue": {
+        "mail": "Mail",
+        "notification": "Notification",
+        "import": "Import",
+        "ai": "AI"
+      },
+      "stub": {
+        "rolesAria": "Roles table",
+        "permissionsAria": "Workspace permissions table",
+        "auditAria": "Audit log table",
+        "servicesAria": "Services table",
+        "usersCol": "Users",
+        "descriptionCol": "Description",
+        "accessCol": "Access",
+        "eventCol": "Event",
+        "actorCol": "Actor",
+        "timeCol": "Time",
+        "serviceCol": "Service",
+        "detailCol": "Detail"
+      },
+      "rail": {
+        "aria": "System operations rail",
+        "systemHealth": "System Health",
+        "recentAudit": "Recent Audit Events",
+        "workerStatus": "Worker Status",
+        "queueStatus": "Queue Status",
+        "apiPerformance": "API Performance (24h)",
+        "apiChartAria": "API request volume over 24 hours",
+        "requests24h": "Requests",
+        "avgResponse": "Avg response",
+        "errorRate": "Error rate",
+        "heartbeat": "Heartbeat {time}"
+      },
+      "actions": {
+        "detail": "Detail",
+        "edit": "Edit",
+        "permission": "Permissions",
+        "delete": "Delete",
+        "more": "More",
+        "selectUser": "Select {name}"
+      },
+      "systemLogs": {
+        "title": "System Logs",
+        "subtitle": "Operational events across API, workers, and integrations.",
+        "filters": {
+          "aria": "Log filters",
+          "search": "Search",
+          "searchPlaceholder": "Search logs…",
+          "level": "Level",
+          "service": "Service",
+          "anyLevel": "All levels",
+          "anyService": "All services",
+          "clear": "Clear"
+        },
+        "levels": {
+          "info": "Info",
+          "warning": "Warning",
+          "error": "Error",
+          "debug": "Debug"
+        },
+        "columns": {
+          "timestamp": "Timestamp",
+          "level": "Level",
+          "service": "Service",
+          "message": "Message",
+          "actor": "Actor"
+        },
+        "empty": {
+          "title": "No logs found",
+          "description": "Try a different filter or search term."
+        }
+      },
+      "integrationsPage": {
+        "title": "Integrations",
+        "subtitle": "Manage connected providers for CRM and platform services.",
+        "listAria": "Integrations list",
+        "lastSync": "Last sync",
+        "connect": "Connect",
+        "disconnect": "Disconnect",
+        "justNow": "Just now",
+        "never": "Never",
+        "toast": {
+          "updated": "Integration updated"
+        },
+        "filters": {
+          "aria": "Integration filters",
+          "search": "Search",
+          "searchPlaceholder": "Search integrations…",
+          "status": "Status",
+          "anyStatus": "All statuses",
+          "clear": "Clear"
+        },
+        "status": {
+          "connected": "Connected",
+          "degraded": "Degraded",
+          "disconnected": "Disconnected"
+        },
+        "empty": {
+          "title": "No integrations found",
+          "description": "Try a different filter or search term."
+        }
+      }
+    },
+    "search": {
+      "title": "CRM Search",
+      "subtitle": "Search contacts, companies, and related CRM records.",
+      "placeholder": "Search CRM…",
+      "paletteTitle": "Search CRM",
+      "hintTitle": "Search tips",
+      "hint": "Use name, email, phone, company, or tags. Press Enter to search.",
+      "empty": "No results",
+      "zeroHint": "Try a different query or clear filters.",
+      "accessDenied": "You do not have permission to search CRM.",
+      "accessDeniedHint": "Contact your administrator for CRM search access.",
+      "search": "Search",
+      "loadMore": "Load more",
+      "export": "Export CSV",
+      "advanced": "Advanced search",
+      "savedSearches": "Saved searches",
+      "recentSearches": "Recent searches",
+      "quickActions": "Quick actions",
+      "resultCount": "{count} results",
+      "selectedCount": "{count} selected",
+      "clearSelection": "Clear selection",
+      "selectResult": "Select result",
+      "didYouMean": "Did you mean",
+      "viewMode": "View mode",
+      "tabs": {
+        "all": "All"
+      },
+      "views": {
+        "list": "List",
+        "table": "Table",
+        "card": "Cards",
+        "compact": "Compact"
+      },
+      "actions": {
+        "createContact": "New contact",
+        "createCompany": "New company",
+        "createTask": "New task",
+        "openSearch": "Open search"
+      },
+      "filters": {
+        "title": "Filters",
+        "show": "Show filters",
+        "hide": "Hide filters",
+        "includeArchived": "Include archived",
+        "exactMatch": "Exact match"
+      },
+      "keyboard": {
+        "open": "Open search",
+        "close": "Close",
+        "navigate": "Navigate results"
+      },
+      "errors": {
+        "failed": "Search failed"
+      },
+      "advancedQuery": {
+        "title": "Advanced query",
+        "subtitle": "Build structured CRM search queries.",
+        "freeText": "Free text",
+        "syntaxPlaceholder": "field:value AND field:value",
+        "logicAnd": "AND",
+        "logicOr": "OR",
+        "addCondition": "Add condition",
+        "addGroup": "Add group",
+        "remove": "Remove",
+        "valuePlaceholder": "Value",
+        "execute": "Run search",
+        "preview": "Preview ({count})",
+        "previewLoading": "Loading preview…",
+        "operators": {
+          "contains": "Contains",
+          "equals": "Equals",
+          "starts_with": "Starts with",
+          "ends_with": "Ends with",
+          "gt": "Greater than",
+          "lt": "Less than",
+          "is_empty": "Is empty",
+          "is_not_empty": "Is not empty"
+        }
+      },
+      "saved": {
+        "title": "Saved searches",
+        "subtitle": "Reusable CRM search queries.",
+        "create": "Save search",
+        "namePlaceholder": "Search name",
+        "loading": "Loading saved searches…",
+        "loadError": "Unable to load saved searches.",
+        "emptyTitle": "No saved searches",
+        "emptyDescription": "Save a search to reuse it later.",
+        "default": "Default",
+        "run": "Run",
+        "delete": "Delete"
+      },
+      "entityPicker": {
+        "placeholder": "Search entities…",
+        "loading": "Loading…",
+        "loadMore": "More results available",
+        "createNew": "Create new",
+        "remove": "Remove",
+        "types": {
+          "crm_contact": "Contact",
+          "crm_company": "Company",
+          "crm_relationship": "Relationship",
+          "crm_activity": "Activity",
+          "crm_communication": "Communication",
+          "crm_task": "Task",
+          "sales_opportunity": "Opportunity",
+          "investor": "Investor",
+          "project": "Project",
+          "inventory_asset": "Inventory asset",
+          "financial_transaction": "Transaction",
+          "document": "Document",
+          "file": "File",
+          "action": "Action"
+        }
+      },
+      "entities": {
+        "crm_contact": "Contacts",
+        "crm_company": "Companies",
+        "crm_relationship": "Relationships",
+        "crm_activity": "Activities",
+        "crm_communication": "Communications",
+        "crm_task": "Tasks",
+        "sales_opportunity": "Opportunities",
+        "investor": "Investors",
+        "project": "Projects",
+        "inventory_asset": "Inventory",
+        "financial_transaction": "Transactions",
+        "document": "Documents",
+        "file": "Files",
+        "action": "Actions"
+      },
+      "clearRecent": "Clear recent",
+      "removeRecent": "Remove recent search",
+      "recentEmptyTitle": "No recent searches",
+      "recentEmpty": "Run a search to build your recent history.",
+      "suggestedResults": "Suggested results",
+      "quickResults": "Quick results"
+    },
+    "activityEvents": {
+      "unknown": "Activity update",
+      "lead": {
+        "created": "Lead created",
+        "updated": "Lead updated",
+        "archived": "Lead archived"
+      },
+      "investor": {
+        "created": "Investor created",
+        "updated": "Investor updated"
+      },
+      "contact": {
+        "created": "Contact created",
+        "updated": "Contact updated",
+        "archived": "Contact archived"
+      },
+      "company": {
+        "created": "Company created",
+        "updated": "Company updated"
+      },
+      "relationship": {
+        "created": "Relationship created",
+        "updated": "Relationship updated"
+      },
+      "note": {
+        "created": "Note created"
+      },
+      "task": {
+        "created": "Task created",
+        "updated": "Task updated",
+        "completed": "Task completed"
+      },
+      "status": {
+        "changed": "Status changed"
+      },
+      "communication": {
+        "sent": "Communication sent"
+      },
+      "project": {
+        "created": "Project created",
+        "updated": "Project updated",
+        "archived": "Project archived"
+      }
+    },
+    "reports": {
+      "title": "Reports",
+      "subtitle": "Analyze business performance, uncover insights, and make better decisions.",
+      "actions": {
+        "createReport": "Create Report",
+        "reportLibrary": "Report Library",
+        "viewAll": "View all"
+      },
+      "filters": {
+        "aria": "Report filters",
+        "any": "All",
+        "dateRange": "Date Range",
+        "comparison": "Comparison",
+        "team": "Team",
+        "user": "User",
+        "source": "Source",
+        "clear": "Clear Filters",
+        "datePresets": {
+          "last7": "Last 7 days",
+          "last30": "Last 30 days",
+          "thisQuarter": "This quarter",
+          "rangeWeek": "21 July 2026 – 27 July 2026"
+        },
+        "comparisonOptions": {
+          "previousPeriod": "Previous Period",
+          "previousYear": "Previous Year",
+          "none": "No comparison"
+        },
+        "teamOptions": {
+          "all": "All",
+          "sales": "Sales",
+          "enterprise": "Enterprise",
+          "partners": "Partners"
+        },
+        "userOptions": {
+          "all": "All",
+          "ayse": "Ayşe Yılmaz",
+          "mehmet": "Mehmet Kaya",
+          "zeynep": "Zeynep Demir",
+          "can": "Can Öztürk",
+          "elif": "Elif Arslan"
+        }
+      },
+      "kpis": {
+        "aria": "Report summary metrics",
+        "totalRevenue": "Total Revenue",
+        "newOpportunities": "New Opportunities",
+        "wonDeals": "Won Deals",
+        "activeCustomers": "Active Customers",
+        "meetings": "Meetings",
+        "sparkAria": "{name} trend"
+      },
+      "sections": {
+        "analytics": "Primary analytics view",
+        "operations": "Operational reports view"
+      },
+      "charts": {
+        "revenueTrend": "Revenue Trend",
+        "revenueTrendAria": "Line chart comparing current and previous period revenue",
+        "funnel": "Opportunity Stage Distribution",
+        "funnelAria": "Opportunity stage funnel",
+        "performanceSummary": "Performance Summary",
+        "performanceSummaryAria": "Executive performance summary",
+        "monthlyComparison": "Monthly Comparison",
+        "monthlyComparisonAria": "Grouped bar chart of monthly comparison",
+        "thisPeriod": "This Period",
+        "previousPeriod": "Previous Period",
+        "granularity": "Time granularity",
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "funnelMode": "Funnel view",
+        "valueBased": "Value Based",
+        "countBased": "Count Based",
+        "months": {
+          "jan": "Jan",
+          "feb": "Feb",
+          "mar": "Mar",
+          "apr": "Apr",
+          "may": "May",
+          "jun": "Jun"
+        }
+      },
+      "performance": {
+        "totalRevenue": "Total Revenue",
+        "newOpportunities": "New Opportunities",
+        "wonDeals": "Won Deals",
+        "avgDealSize": "Average Deal Size",
+        "winRate": "Win Rate"
+      },
+      "funnel": {
+        "stages": {
+          "new": "New",
+          "review": "Review",
+          "proposal": "Proposal",
+          "negotiation": "Negotiation",
+          "won": "Won"
+        }
+      },
+      "team": {
+        "title": "Team Performance",
+        "aria": "Team performance table",
+        "trendAria": "{name} performance trend",
+        "columns": {
+          "user": "User",
+          "revenue": "Revenue",
+          "opportunities": "Opportunities",
+          "won": "Won",
+          "trend": "Trend"
+        }
+      },
+      "goals": {
+        "title": "KPI Goals",
+        "aria": "KPI goal progress list",
+        "target": "Target",
+        "actual": "Actual",
+        "progressAria": "{name} goal progress {pct} percent",
+        "items": {
+          "revenue": "Revenue Goal",
+          "newOpportunities": "New Opportunities Goal",
+          "wonDeals": "Won Deals Goal",
+          "meetings": "Meetings Goal",
+          "activeCustomers": "Active Customers Goal"
+        }
+      },
+      "sources": {
+        "referral": "Referral",
+        "event": "Event",
+        "website": "Website",
+        "email": "Email",
+        "social": "Social Media",
+        "other": "Other"
+      },
+      "rail": {
+        "aria": "Report insights",
+        "topSources": "Top Sources",
+        "topSourcesAria": "Source distribution donut chart",
+        "quickReports": "Quick Reports",
+        "aiInsights": "AI Insights",
+        "openAi": "Analyze with AI",
+        "aiPrompt": "Analyze report performance and summarize opportunity and source insights"
+      },
+      "quickReports": {
+        "salesPerformance": "Sales Performance Report",
+        "pipeline": "Pipeline Report",
+        "customerAnalysis": "Customer Analysis Report",
+        "activityAnalysis": "Activity Analysis Report",
+        "wonOpportunities": "Won Opportunities Report"
+      },
+      "aiInsights": {
+        "referralMomentum": "Referral is delivering the highest conversion this period.",
+        "negotiationGap": "Volume drops in negotiation — review proposal quality.",
+        "teamLead": "Ayşe Yılmaz leads team revenue with a strong won-deal trend."
+      }
+    },
+    "settings": {
+      "title": "Settings",
+      "subtitle": "Manage system configuration and connections.",
+      "overview": {
+        "aria": "Settings overview",
+        "subtitle": "Manage system configuration and connections.",
+        "lastUpdated": "Last updated",
+        "systemStatus": "System status: Healthy",
+        "changeHistory": "Change History",
+        "export": "Export Settings",
+        "editSettings": "Edit Settings",
+        "history": {
+          "item1": "General language set to Türkçe — 24 Jul 2026",
+          "item2": "Slack integration connected — 22 Jul 2026",
+          "item3": "Notification push channel enabled — 20 Jul 2026"
+        }
+      },
+      "actions": {
+        "edit": "Edit",
+        "manage": "Manage",
+        "editDeferred": "{section} edit screen ships in a later sprint.",
+        "save": "Save",
+        "cancel": "Cancel",
+        "saveSuccess": "Settings saved",
+        "exportSuccess": "Settings exported"
+      },
+      "nav": {
+        "aria": "Settings categories",
+        "categories": {
+          "general": {
+            "label": "General",
+            "description": "Company details and core settings"
+          },
+          "crm": {
+            "label": "CRM",
+            "description": "Pipeline, opportunity, and activity settings"
+          },
+          "ai": {
+            "label": "AI",
+            "description": "AI models and configurations"
+          },
+          "users": {
+            "label": "Users & Roles",
+            "description": "User, role, and permission management"
+          },
+          "notifications": {
+            "label": "Notifications",
+            "description": "Email, SMS, and WhatsApp settings"
+          },
+          "integrations": {
+            "label": "Integrations",
+            "description": "Third-party integrations"
+          },
+          "security": {
+            "label": "Security",
+            "description": "Session, MFA, and security settings"
+          },
+          "system": {
+            "label": "System",
+            "description": "System status and logs"
+          },
+          "billing": {
+            "label": "Billing",
+            "description": "Plan, usage, and billing"
+          }
+        }
+      },
+      "stub": {
+        "message": "Production configuration for this section is coming soon. For now, review the System Control Center cards under General.",
+        "cta": "Back to General"
+      },
+      "general": {
+        "title": "General Settings",
+        "company": "Company",
+        "companyName": "Company Name",
+        "logo": "Logo",
+        "changeLogo": "Change",
+        "language": "Language",
+        "timezone": "Timezone",
+        "companyId": "Company ID",
+        "lastUpdated": "Last Updated",
+        "lastUpdatedValues": {
+          "recent": "24 July 2026, 14:32"
+        },
+        "languageOptions": {
+          "tr": "Türkçe",
+          "en": "English"
+        },
+        "timezoneOptions": {
+          "europeIstanbul": "GMT+03:00 Istanbul",
+          "europeLondon": "GMT+00:00 London",
+          "americaNewYork": "GMT-05:00 New York"
+        }
+      },
+      "ai": {
+        "title": "AI Configuration",
+        "provider": "Provider",
+        "model": "Model",
+        "temperature": "Temperature",
+        "defaultLanguage": "Language",
+        "promptPolicy": "Prompt Policy",
+        "totalUsage": "Monthly Usage",
+        "monthlyUsage": "Monthly Usage",
+        "promptPolicyPlaceholder": "Enterprise prompt policy placeholder — production rules will be configured here.",
+        "promptPolicyValues": {
+          "enterprise": "Enterprise"
+        },
+        "totalUsageValues": {
+          "summary": "12,450 / 50,000 requests"
+        },
+        "providerOptions": {
+          "openai": "OpenAI",
+          "azure": "Azure OpenAI",
+          "anthropic": "Anthropic"
+        },
+        "modelOptions": {
+          "gpt4o": "GPT-4o",
+          "gpt4oMini": "GPT-4o Mini",
+          "gpt41": "GPT-4.1"
+        }
+      },
+      "crmSettings": {
+        "title": "CRM Configuration",
+        "aria": "CRM configuration entities",
+        "entities": {
+          "pipelineStages": "Pipeline Stages",
+          "opportunityStages": "Opportunity Stages",
+          "activityTypes": "Activity Types",
+          "taskTypes": "Task Types",
+          "tags": "Tags"
+        },
+        "manageHint": "Manage {name}. Current count: {count}. Save to apply a presentation update."
+      },
+      "notifications": {
+        "title": "Notification Channels",
+        "aria": "Notification channels",
+        "switchAria": "Toggle {channel} notifications",
+        "channels": {
+          "email": "Email",
+          "whatsapp": "WhatsApp",
+          "sms": "SMS",
+          "push": "Push Notifications"
+        },
+        "status": {
+          "on": "Active",
+          "off": "Off"
+        },
+        "manageHint": "{channel} is currently {state}. Save to toggle this channel."
+      },
+      "integrations": {
+        "title": "Integrations",
+        "aria": "Third-party integrations",
+        "manageAll": "Manage All",
+        "connect": "Connect",
+        "lastSync": "Last Sync",
+        "items": {
+          "googleCalendar": "Google Calendar",
+          "outlook": "Outlook",
+          "gmail": "Gmail",
+          "slack": "Slack",
+          "zapier": "Zapier",
+          "quickbooks": "QuickBooks",
+          "microsoft365": "Microsoft 365"
+        },
+        "status": {
+          "connected": "Connected",
+          "disconnected": "Not Connected"
+        },
+        "lastSyncValues": {
+          "live": "Live",
+          "minutesAgo": "12 min ago",
+          "hourAgo": "1 hour ago",
+          "dayAgo": "1 day ago",
+          "never": "Never"
+        },
+        "manageHint": "{name} is currently {state}. Save to connect or disconnect."
+      },
+      "security": {
+        "title": "Security",
+        "aria": "Security status",
+        "manage": "Manage Security",
+        "items": {
+          "mfa": "MFA",
+          "apiKeys": "API Keys",
+          "sessionTimeout": "Session Timeout",
+          "passwordPolicy": "Password Policy",
+          "loginHistory": "Last Login"
+        },
+        "values": {
+          "mfa": {
+            "enabled": "Enabled"
+          },
+          "apiKeys": {
+            "activeCount": "4 active keys"
+          },
+          "sessionTimeout": {
+            "timeout": "30 minutes"
+          },
+          "passwordPolicy": {
+            "strong": "Strong"
+          },
+          "loginHistory": {
+            "recent": "Today 09:42 · Istanbul"
+          }
+        },
+        "noteLabel": "Security note"
+      },
+      "system": {
+        "title": "System",
+        "aria": "System status",
+        "items": {
+          "queue": "Queue",
+          "workers": "Workers",
+          "cache": "Cache",
+          "storage": "Storage",
+          "backgroundJobs": "Background Jobs",
+          "logSize": "Log Size"
+        },
+        "values": {
+          "queue": {
+            "healthy": "Healthy · 12 pending"
+          },
+          "workers": {
+            "running": "4 / 4 running"
+          },
+          "cache": {
+            "hitRate": "94% hit rate"
+          },
+          "storage": {
+            "used": "245 GB / 1 TB"
+          },
+          "backgroundJobs": {
+            "active": "3 active jobs"
+          },
+          "logSize": {
+            "size": "1.2 GB"
+          }
+        }
+      },
+      "rail": {
+        "aria": "System control summary",
+        "viewDetails": "View Details",
+        "health": {
+          "title": "System Health",
+          "healthy": "Running",
+          "services": {
+            "api": "API",
+            "web": "Web",
+            "database": "Database",
+            "queue": "Queue",
+            "storage": "Storage"
+          }
+        },
+        "license": {
+          "title": "License",
+          "active": "Active",
+          "expires": "Expires",
+          "expiresValue": "21 July 2026",
+          "userLimit": "User Limit",
+          "activeUsers": "Active Users",
+          "plans": {
+            "enterprise": "Enterprise Plan"
+          }
+        },
+        "aiUsage": {
+          "title": "AI Usage",
+          "requests": "Request Count",
+          "tokens": "Token Usage",
+          "requestsUsed": "12,450",
+          "requestsLimit": "50,000",
+          "tokensUsed": "2.4M",
+          "tokensLimit": "10M",
+          "requestsProgressAria": "AI request usage {pct} percent",
+          "tokensProgressAria": "Token usage {pct} percent"
+        },
+        "storage": {
+          "title": "Storage",
+          "total": "Total Usage",
+          "used": "245 GB",
+          "limit": "1 TB",
+          "progressAria": "Storage usage {pct} percent"
+        },
+        "lastUpdated": {
+          "title": "Last Updated",
+          "values": {
+            "recent": "24 July 2026, 14:32"
+          }
+        },
+        "noteLabel": "Notes"
+      }
+    },
+    "files": {
+      "title": "Files",
+      "subtitle": "Search, organize, and link files to customers, investors, and projects.",
+      "viewAria": "Files view mode",
+      "view": {
+        "grid": "Grid",
+        "list": "List"
+      },
+      "upload": {
+        "cta": "Upload",
+        "success": "Uploaded {name}",
+        "unassigned": "Unassigned",
+        "you": "You"
+      },
+      "filters": {
+        "aria": "File filters",
+        "search": "Search",
+        "searchPlaceholder": "Search files…",
+        "category": "Category",
+        "related": "Related",
+        "type": "Type",
+        "anyRelated": "All related",
+        "anyType": "All types",
+        "clear": "Clear"
+      },
+      "categories": {
+        "aria": "File categories",
+        "all": "All",
+        "contracts": "Contracts",
+        "identity": "Identity",
+        "financial": "Financial",
+        "marketing": "Marketing",
+        "legal": "Legal",
+        "other": "Other"
+      },
+      "related": {
+        "customer": "Customer",
+        "investor": "Investor",
+        "project": "Project"
+      },
+      "recent": {
+        "title": "Recent files"
+      },
+      "meta": {
+        "category": "Category",
+        "size": "Size",
+        "updated": "Updated"
+      },
+      "columns": {
+        "name": "Name",
+        "category": "Category",
+        "related": "Related",
+        "version": "Version",
+        "size": "Size",
+        "updated": "Updated"
+      },
+      "empty": {
+        "title": "No files found",
+        "description": "Try a different search or upload a new file."
+      }
+    },
+    "tags": {
+      "title": "Tags",
+      "subtitle": "Create and manage CRM tags for segmentation.",
+      "create": "Create tag",
+      "edit": "Edit",
+      "delete": "Delete",
+      "listAria": "Tag list",
+      "usageCount": "{count} uses",
+      "filters": {
+        "aria": "Tag filters",
+        "search": "Search",
+        "searchPlaceholder": "Search tags…",
+        "category": "Category",
+        "color": "Color",
+        "anyCategory": "All categories",
+        "anyColor": "All colors",
+        "clear": "Clear"
+      },
+      "categories": {
+        "lifecycle": "Lifecycle",
+        "interest": "Interest",
+        "priority": "Priority",
+        "source": "Source",
+        "custom": "Custom"
+      },
+      "colors": {
+        "navy": "Navy",
+        "cyan": "Cyan",
+        "green": "Green",
+        "amber": "Amber",
+        "rose": "Rose",
+        "violet": "Violet",
+        "slate": "Slate"
+      },
+      "empty": {
+        "title": "No tags found",
+        "description": "Create a tag or clear filters."
+      },
+      "form": {
+        "createTitle": "Create tag",
+        "editTitle": "Edit tag",
+        "name": "Name",
+        "namePlaceholder": "Tag name",
+        "color": "Color",
+        "category": "Category",
+        "description": "Description",
+        "preview": "Preview",
+        "cancel": "Cancel",
+        "save": "Save",
+        "defaultDescription": "Custom CRM tag"
+      },
+      "deleteConfirm": {
+        "title": "Delete tag",
+        "message": "This removes the tag from the local list. Usage links are presentation-only."
+      },
+      "toast": {
+        "created": "Tag created",
+        "updated": "Tag updated",
+        "deleted": "Tag deleted"
       }
     }
   }

@@ -61,7 +61,7 @@ export const OPPORTUNITY_LOSS_REASONS = [
 export type OpportunityLossReason = (typeof OPPORTUNITY_LOSS_REASONS)[number];
 
 export const OPPORTUNITY_PARTY_TYPES = ['lead', 'investor'] as const;
-export type OpportunityPartyType = (typeof OPPORTUNITY_PARTY_TYPES)[number];
+export type OpportunityPartyType = (typeof OPPORTUNITY_PARTY_TYPES)[number] | 'crm_contact';
 
 export const OPPORTUNITY_PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
 export type OpportunityPriority = (typeof OPPORTUNITY_PRIORITIES)[number];
@@ -71,8 +71,15 @@ export interface SalesOpportunity {
   opportunity_code: string;
   display_id: string | null;
   lead_id: string | null;
+  crm_contact_id?: string | null;
   party_id: string;
   party_type: OpportunityPartyType;
+  party_label?: string | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
+  contact_owner_name?: string | null;
+  contact_last_activity_at?: string | null;
+  contact_next_follow_up_at?: string | null;
   assigned_sales_user_id: string | null;
   stage: OpportunityStage;
   probability: number;
@@ -289,7 +296,7 @@ export const PIPELINE_COLUMNS: {
 
 export const ALLOWED_STAGE_TRANSITIONS: Record<OpportunityStage, readonly OpportunityStage[]> = {
   new: ['qualified', 'lost', 'dormant', 'cancelled'],
-  qualified: ['meeting_scheduled', 'inventory_matching', 'lost', 'dormant', 'cancelled'],
+  qualified: ['new', 'meeting_scheduled', 'inventory_matching', 'lost', 'dormant', 'cancelled'],
   meeting_scheduled: ['meeting_completed', 'qualified', 'lost', 'dormant', 'cancelled'],
   meeting_completed: ['inventory_matching', 'proposal_preparation', 'lost', 'dormant', 'cancelled'],
   inventory_matching: ['proposal_preparation', 'soft_hold', 'lost', 'dormant', 'cancelled'],

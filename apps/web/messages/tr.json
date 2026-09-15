@@ -307,7 +307,9 @@
   "salesInventoryMatching": {
     "loading": "Envanter eşleştirme yükleniyor…",
     "priceHidden": "Gizli",
-    "errors": { "loadFailed": "Envanter eşleştirme verileri yüklenemedi." },
+    "errors": {
+      "loadFailed": "Envanter eşleştirme verileri yüklenemedi."
+    },
     "sections": {
       "searchCriteria": "Arama Kriterleri",
       "matchingResults": "Eşleşme Sonuçları",
@@ -354,7 +356,9 @@
       "favorites": "Henüz favori yok.",
       "rejected": "Reddedilen varlık yok."
     },
-    "badges": { "stale": "Değişti" },
+    "badges": {
+      "stale": "Değişti"
+    },
     "availability": {
       "available": "Müsait",
       "unavailable": "Müsait değil",
@@ -633,39 +637,116 @@
     "createButton": "Teklif Oluştur",
     "backToSales": "Satışa dön",
     "builderAriaLabel": "Teklif oluşturucu bölümleri",
-    "table": { "number": "Numara", "title": "Başlık", "status": "Durum", "validUntil": "Geçerlilik", "updated": "Güncellendi" },
+    "table": {
+      "number": "Numara",
+      "title": "Başlık",
+      "status": "Durum",
+      "validUntil": "Geçerlilik",
+      "updated": "Güncellendi"
+    },
     "tabs": {
-      "overview": "Genel Bakış", "recipient": "Alıcı", "items": "Envanter Kalemleri", "pricing": "Fiyatlandırma",
-      "terms": "Şartlar", "documents": "Belgeler ve Medya", "branding": "Marka", "preview": "Önizleme",
-      "approval": "Onay", "versions": "Sürümler", "activity": "Aktivite"
+      "overview": "Genel Bakış",
+      "recipient": "Alıcı",
+      "items": "Envanter Kalemleri",
+      "pricing": "Fiyatlandırma",
+      "terms": "Şartlar",
+      "documents": "Belgeler ve Medya",
+      "branding": "Marka",
+      "preview": "Önizleme",
+      "approval": "Onay",
+      "versions": "Sürümler",
+      "activity": "Aktivite"
     },
     "actions": {
-      "submit": "İncelemeye gönder", "markSent": "Gönderildi işaretle", "markViewed": "Görüntülendi işaretle",
-      "markAccepted": "Kabul edildi işaretle", "markRejected": "Reddedildi işaretle", "newVersion": "Yeni sürüm"
+      "submit": "İncelemeye gönder",
+      "markSent": "Gönderildi işaretle",
+      "markViewed": "Görüntülendi işaretle",
+      "markAccepted": "Kabul edildi işaretle",
+      "markRejected": "Reddedildi işaretle",
+      "newVersion": "Yeni sürüm"
     },
     "statuses": {
-      "draft": "Taslak", "internal_review": "İç inceleme", "revision_requested": "Revizyon istendi",
-      "approved": "Onaylandı", "sent": "Gönderildi", "viewed": "Görüntülendi", "accepted": "Kabul edildi",
-      "rejected": "Reddedildi", "expired": "Süresi doldu", "superseded": "Yerini aldı", "archived": "Arşivlendi"
+      "draft": "Taslak",
+      "internal_review": "İç inceleme",
+      "revision_requested": "Revizyon istendi",
+      "approved": "Onaylandı",
+      "sent": "Gönderildi",
+      "viewed": "Görüntülendi",
+      "accepted": "Kabul edildi",
+      "rejected": "Reddedildi",
+      "expired": "Süresi doldu",
+      "superseded": "Yerini aldı",
+      "archived": "Arşivlendi"
     },
-    "overview": { "number": "Teklif numarası", "status": "Durum", "currency": "Para birimi", "validUntil": "Geçerlilik", "version": "Sürüm", "notes": "Notlar" },
-    "recipient": { "empty": "Alıcı yok.", "primary": "Birincil" },
-    "items": { "empty": "Envanter kalemi yok.", "title": "Kalem", "amount": "Tutar", "currency": "Para birimi" },
-    "pricing": { "summary": "Toplam: {currency} {total}", "approvedPriceNote": "Fiyatlar onaylı envanter fiyat kayıtlarına referans verir." },
-    "terms": { "payment": "Ödeme şartları", "promotional": "Promosyon şartları", "disclaimer": "Sorumluluk reddi", "defaultDisclaimer": "Yalnızca bilgilendirme amaçlıdır." },
-    "documents": { "hint": "Belge Motoru'ndan belge bağlayın.", "noGeneration": "Otomatik belge üretimi yok — yalnızca manuel yükleme." },
-    "branding": { "hint": "Marka profili varlıkları çıktıda referans alınır.", "defaults": "Varsayılan marka kullanılıyor." },
-    "preview": { "loading": "Önizleme oluşturuluyor…", "error": "Önizleme kullanılamıyor.", "download": "HTML indir", "refresh": "Yenile" },
-    "approval": { "commentsPlaceholder": "İnceleme yorumları", "approve": "Onayla", "revision": "Revizyon iste", "reject": "Reddet" },
-    "versions": { "version": "Sürüm {number}", "approved": "Onaylandı" },
-    "activity": { "empty": "Henüz aktivite yok." },
-    "stale": { "title": "Eski veri tespit edildi", "message": "{count} kalemde güncel olmayan fiyat/envanter var.", "refresh": "Fiyatları yenile", "refreshing": "Yenileniyor…" },
+    "overview": {
+      "number": "Teklif numarası",
+      "status": "Durum",
+      "currency": "Para birimi",
+      "validUntil": "Geçerlilik",
+      "version": "Sürüm",
+      "notes": "Notlar"
+    },
+    "recipient": {
+      "empty": "Alıcı yok.",
+      "primary": "Birincil"
+    },
+    "items": {
+      "empty": "Envanter kalemi yok.",
+      "title": "Kalem",
+      "amount": "Tutar",
+      "currency": "Para birimi"
+    },
+    "pricing": {
+      "summary": "Toplam: {currency} {total}",
+      "approvedPriceNote": "Fiyatlar onaylı envanter fiyat kayıtlarına referans verir."
+    },
+    "terms": {
+      "payment": "Ödeme şartları",
+      "promotional": "Promosyon şartları",
+      "disclaimer": "Sorumluluk reddi",
+      "defaultDisclaimer": "Yalnızca bilgilendirme amaçlıdır."
+    },
+    "documents": {
+      "hint": "Belge Motoru'ndan belge bağlayın.",
+      "noGeneration": "Otomatik belge üretimi yok — yalnızca manuel yükleme."
+    },
+    "branding": {
+      "hint": "Marka profili varlıkları çıktıda referans alınır.",
+      "defaults": "Varsayılan marka kullanılıyor."
+    },
+    "preview": {
+      "loading": "Önizleme oluşturuluyor…",
+      "error": "Önizleme kullanılamıyor.",
+      "download": "HTML indir",
+      "refresh": "Yenile"
+    },
+    "approval": {
+      "commentsPlaceholder": "İnceleme yorumları",
+      "approve": "Onayla",
+      "revision": "Revizyon iste",
+      "reject": "Reddet"
+    },
+    "versions": {
+      "version": "Sürüm {number}",
+      "approved": "Onaylandı"
+    },
+    "activity": {
+      "empty": "Henüz aktivite yok."
+    },
+    "stale": {
+      "title": "Eski veri tespit edildi",
+      "message": "{count} kalemde güncel olmayan fiyat/envanter var.",
+      "refresh": "Fiyatları yenile",
+      "refreshing": "Yenileniyor…"
+    },
     "errors": {
-      "not_found": "Teklif bulunamadı.", "not_editable": "Bu durumda teklif düzenlenemez.",
+      "not_found": "Teklif bulunamadı.",
+      "not_editable": "Bu durumda teklif düzenlenemez.",
       "no_items": "Göndermeden önce en az bir envanter kalemi ekleyin.",
       "stale_on_submit": "Göndermeden önce eski fiyat/envanter sorunlarını çözün.",
       "send_requires_approved": "Gönderilmeden önce teklif onaylanmalıdır.",
-      "expired": "Teklifin süresi doldu.", "expired_requires_renewal": "Süresi dolmuş teklifler kabul için yeni sürüm gerektirir."
+      "expired": "Teklifin süresi doldu.",
+      "expired_requires_renewal": "Süresi dolmuş teklifler kabul için yeni sürüm gerektirir."
     }
   },
   "work": {
@@ -678,7 +759,10 @@
     "meetingUrlHint": "Toplantı URL'si yalnızca referans olarak saklanır — harici takvim senkronizasyonu yok.",
     "noOutcome": "Henüz sonuç kaydedilmedi.",
     "tabPlaceholder": "Detaylar ilgili kayıtlarda mevcuttur.",
-    "empty": { "title": "İş öğesi yok", "description": "Başlamak için görev, toplantı veya takip oluşturun." },
+    "empty": {
+      "title": "İş öğesi yok",
+      "description": "Başlamak için görev, toplantı veya takip oluşturun."
+    },
     "kpis": {
       "today": "Bugün vadesi gelen",
       "overdue": "Gecikmiş",
@@ -689,48 +773,123 @@
       "noNextAction": "Sonraki aksiyon yok"
     },
     "views": {
-      "today": "Bugün", "overdue": "Gecikmiş", "upcoming": "Yaklaşan", "meetings": "Toplantılar",
-      "calls": "Aramalar", "follow_ups": "Takipler", "waiting": "Beklemede", "blocked": "Engelli",
-      "completed": "Tamamlanan", "my_work": "İşlerim", "team_work": "Ekip İşleri"
+      "today": "Bugün",
+      "overdue": "Gecikmiş",
+      "upcoming": "Yaklaşan",
+      "meetings": "Toplantılar",
+      "calls": "Aramalar",
+      "follow_ups": "Takipler",
+      "waiting": "Beklemede",
+      "blocked": "Engelli",
+      "completed": "Tamamlanan",
+      "my_work": "İşlerim",
+      "team_work": "Ekip İşleri"
     },
     "types": {
-      "task": "Görev", "call": "Arama", "meeting": "Toplantı", "follow_up": "Takip",
-      "site_visit": "Saha ziyareti", "document_request": "Belge talebi",
-      "proposal_follow_up": "Teklif takibi", "reservation_follow_up": "Rezervasyon takibi",
-      "deposit_follow_up": "Depozito takibi", "contract_follow_up": "Sözleşme takibi",
-      "closing_follow_up": "Kapanış takibi", "other": "Diğer"
+      "task": "Görev",
+      "call": "Arama",
+      "meeting": "Toplantı",
+      "follow_up": "Takip",
+      "site_visit": "Saha ziyareti",
+      "document_request": "Belge talebi",
+      "proposal_follow_up": "Teklif takibi",
+      "reservation_follow_up": "Rezervasyon takibi",
+      "deposit_follow_up": "Depozito takibi",
+      "contract_follow_up": "Sözleşme takibi",
+      "closing_follow_up": "Kapanış takibi",
+      "other": "Diğer"
     },
     "statuses": {
-      "open": "Açık", "in_progress": "Devam ediyor", "waiting": "Beklemede", "blocked": "Engelli",
-      "completed": "Tamamlandı", "cancelled": "İptal", "overdue": "Gecikmiş", "archived": "Arşivlendi"
+      "open": "Açık",
+      "in_progress": "Devam ediyor",
+      "waiting": "Beklemede",
+      "blocked": "Engelli",
+      "completed": "Tamamlandı",
+      "cancelled": "İptal",
+      "overdue": "Gecikmiş",
+      "archived": "Arşivlendi"
     },
-    "priorities": { "low": "Düşük", "medium": "Orta", "high": "Yüksek", "urgent": "Acil" },
-    "columns": { "title": "Başlık", "type": "Tür", "status": "Durum", "priority": "Öncelik", "due": "Vade" },
+    "priorities": {
+      "low": "Düşük",
+      "medium": "Orta",
+      "high": "Yüksek",
+      "urgent": "Acil"
+    },
+    "columns": {
+      "title": "Başlık",
+      "type": "Tür",
+      "status": "Durum",
+      "priority": "Öncelik",
+      "due": "Vade"
+    },
     "tabs": {
-      "overview": "Genel Bakış", "details": "Detaylar", "meeting": "Toplantı", "followUp": "Takip",
-      "participants": "Katılımcılar", "related": "İlişkili", "outcome": "Sonuç", "history": "Geçmiş", "activity": "Aktivite"
+      "overview": "Genel Bakış",
+      "details": "Detaylar",
+      "meeting": "Toplantı",
+      "followUp": "Takip",
+      "participants": "Katılımcılar",
+      "related": "İlişkili",
+      "outcome": "Sonuç",
+      "history": "Geçmiş",
+      "activity": "Aktivite"
     },
     "fields": {
-      "type": "Tür", "status": "Durum", "priority": "Öncelik", "due": "Vade tarihi", "description": "Açıklama",
-      "meetingType": "Toplantı türü", "location": "Konum", "meetingUrl": "Toplantı URL", "agenda": "Gündem",
-      "contactMethod": "İletişim yöntemi", "responseStatus": "Yanıt", "notes": "Notlar",
-      "lead": "Lead", "opportunity": "Fırsat", "proposal": "Teklif"
+      "type": "Tür",
+      "status": "Durum",
+      "priority": "Öncelik",
+      "due": "Vade tarihi",
+      "description": "Açıklama",
+      "meetingType": "Toplantı türü",
+      "location": "Konum",
+      "meetingUrl": "Toplantı URL",
+      "agenda": "Gündem",
+      "contactMethod": "İletişim yöntemi",
+      "responseStatus": "Yanıt",
+      "notes": "Notlar",
+      "lead": "Lead",
+      "opportunity": "Fırsat",
+      "proposal": "Teklif"
     },
-    "actions": { "complete": "Tamamla", "edit": "Düzenle" },
+    "actions": {
+      "complete": "Tamamla",
+      "edit": "Düzenle"
+    },
     "form": {
-      "createTitle": "İş öğesi oluştur", "editTitle": "İş öğesini düzenle", "title": "Başlık", "type": "Tür",
-      "priority": "Öncelik", "due": "Vade tarihi", "description": "Açıklama", "private": "Özel öğe",
-      "cancel": "İptal", "save": "Kaydet"
+      "createTitle": "İş öğesi oluştur",
+      "editTitle": "İş öğesini düzenle",
+      "title": "Başlık",
+      "type": "Tür",
+      "priority": "Öncelik",
+      "due": "Vade tarihi",
+      "description": "Açıklama",
+      "private": "Özel öğe",
+      "cancel": "İptal",
+      "save": "Kaydet"
     },
     "complete": {
-      "title": "İş öğesini tamamla", "outcome": "Sonuç", "createNext": "Sonraki takibi planla", "submit": "Tamamla"
+      "title": "İş öğesini tamamla",
+      "outcome": "Sonuç",
+      "createNext": "Sonraki takibi planla",
+      "submit": "Tamamla"
     },
     "calendar": {
-      "day": "Gün", "week": "Hafta", "month": "Ay", "internalOnly": "Dahili takvim — harici senkronizasyon yok",
-      "emptyTitle": "Planlanmış öğe yok", "emptyDescription": "Vade tarihi olan iş öğeleri burada görünür."
+      "day": "Gün",
+      "week": "Hafta",
+      "month": "Ay",
+      "internalOnly": "Dahili takvim — harici senkronizasyon yok",
+      "emptyTitle": "Planlanmış öğe yok",
+      "emptyDescription": "Vade tarihi olan iş öğeleri burada görünür."
     },
-    "team": { "emptyTitle": "Ekip işi yok", "emptyDescription": "Atanan iş öğeleri kullanıcıya göre gruplanır.", "unassigned": "Atanmamış" },
-    "layout": { "list": "Liste", "calendar": "Takvim", "team": "Ekip" }
+    "team": {
+      "emptyTitle": "Ekip işi yok",
+      "emptyDescription": "Atanan iş öğeleri kullanıcıya göre gruplanır.",
+      "unassigned": "Atanmamış"
+    },
+    "layout": {
+      "list": "Liste",
+      "calendar": "Takvim",
+      "team": "Ekip"
+    }
   },
   "salesReadiness": {
     "title": "Sözleşme Hazırlığı",
@@ -743,10 +902,23 @@
     "permissionDenied": "Sözleşme hazırlığını görüntüleme izniniz yok.",
     "viewsLabel": "Hazırlık görünümleri",
     "mandatory": "Zorunlu",
-    "requirementStatus": "Gereklilik durumu",
+    "requirementStatus": {
+      "missing": "Eksik",
+      "pending": "Beklemede",
+      "received": "Alındı",
+      "under_review": "İncelemede",
+      "verified": "Doğrulandı",
+      "rejected": "Reddedildi",
+      "waived": "Muaf Tutuldu",
+      "expired": "Süresi Doldu",
+      "not_applicable": "Uygulanamaz"
+    },
     "yes": "Evet",
     "no": "Hayır",
-    "empty": { "title": "Hazırlık dosyası yok", "description": "Envanter seçili bir fırsattan hazırlık dosyası oluşturun." },
+    "empty": {
+      "title": "Hazırlık dosyası yok",
+      "description": "Envanter seçili bir fırsattan hazırlık dosyası oluşturun."
+    },
     "kpis": {
       "activeCases": "Aktif Hazırlık Dosyaları",
       "blocked": "Engellendi",
@@ -782,17 +954,6 @@
       "handed_off": "Devredildi",
       "cancelled": "İptal",
       "archived": "Arşivlendi"
-    },
-    "requirementStatus": {
-      "missing": "Eksik",
-      "pending": "Beklemede",
-      "received": "Alındı",
-      "under_review": "İncelemede",
-      "verified": "Doğrulandı",
-      "rejected": "Reddedildi",
-      "waived": "Muaf Tutuldu",
-      "expired": "Süresi Doldu",
-      "not_applicable": "Uygulanamaz"
     },
     "groups": {
       "reservation": "Rezervasyon",
@@ -868,8 +1029,13 @@
       "cancel": "İptal",
       "submit": "Muaf Tut"
     },
-    "actions": { "verify": "Doğrula", "waive": "Muaf Tut" },
-    "detail": { "title": "Hazırlık Dosyası" },
+    "actions": {
+      "verify": "Doğrula",
+      "waive": "Muaf Tut"
+    },
+    "detail": {
+      "title": "Hazırlık Dosyası"
+    },
     "opportunityTab": {
       "title": "Sözleşme Hazırlığı",
       "empty": "Aktif hazırlık dosyası yok.",
@@ -1999,7 +2165,9 @@
     "download": "İndir",
     "archive": "Arşivle",
     "restore": "Geri yükle",
-    "labels": { "unknown": "—" },
+    "labels": {
+      "unknown": "—"
+    },
     "columns": {
       "document": "Belge",
       "type": "Tür",
@@ -3412,6 +3580,4490 @@
         "available": "Kullanılabilir",
         "configured": "Yapılandırıldı",
         "not_configured": "Yapılandırılmadı"
+      }
+    }
+  },
+  "crm": {
+    "title": "CRM",
+    "workspaceLabel": "İlişki yönetimi",
+    "eyebrow": "İlişkiler",
+    "dashboardTitle": "CRM Panosu",
+    "dashboardSubtitle": "Kişiler, aktiviteler, görevler ve iletişim özeti.",
+    "dashboard": {
+      "ds": {
+        "title": "CRM Pano",
+        "subtitle": "Kiminle iletişime geçeceğinizi, hangi leadlerin dikkat istediğini ve nelerin değiştiğini beş saniyede görün.",
+        "viewAll": "Tümünü gör",
+        "actions": {
+          "copilot": "YZ Copilot",
+          "newLead": "Yeni lead"
+        },
+        "priorities": {
+          "aria": "Bugünün öncelikleri",
+          "title": "Bugün Öncelikli İşleriniz",
+          "followUps": {
+            "label": "Bugünkü Takipler",
+            "desc": "Sonraki temasınızı bekleyen kişiler.",
+            "action": "Listeyi gör"
+          },
+          "meetings": {
+            "label": "Bugünkü Toplantılar",
+            "desc": "Takviminizdeki planlı görüşmeler.",
+            "action": "Takvimi aç"
+          },
+          "highPriorityLeads": {
+            "label": "Yüksek Öncelikli Leadler",
+            "desc": "Hemen dikkat gerektiren leadler.",
+            "action": "Leadleri incele"
+          },
+          "unread": {
+            "label": "Okunmamış İletiler",
+            "desc": "Yanıt bekleyen mesajlar.",
+            "action": "Gelen kutusunu aç"
+          },
+          "overdueTasks": {
+            "label": "Süresi Geçen Görevler",
+            "desc": "Hâlâ açık olan gecikmiş işler.",
+            "action": "Gecikenleri temizle"
+          }
+        },
+        "kpis": {
+          "aria": "CRM özet KPI’ları",
+          "title": "CRM Özet KPI’lar",
+          "totalContacts": "Toplam Kişi",
+          "activeLeads": "Aktif Leadler",
+          "pipelineValue": "Pipeline Değeri",
+          "activitiesWeek": "Bu Haftaki Aktiviteler",
+          "vsLastMonth": "geçen aya göre",
+          "hints": {
+            "totalContacts": "CRM’deki aktif ilişkiler",
+            "activeLeads": "Hareket halindeki leadler",
+            "pipelineValue": "Açık fırsat değeri",
+            "activitiesWeek": "Bu hafta kaydedilen aktiviteler"
+          }
+        },
+        "ops": {
+          "aria": "Operasyonel çalışma alanı",
+          "title": "Operasyonel Çalışma Alanı",
+          "tasks": "Yaklaşan Görevlerim",
+          "leads": "Son Eklenen Leadler",
+          "activities": "Son Aktiviteler",
+          "newBadge": "Yeni"
+        },
+        "taskKinds": {
+          "meeting": "Toplantı",
+          "call": "Arama",
+          "email": "E-posta",
+          "task": "Görev"
+        },
+        "insights": {
+          "aria": "YZ içgörüleri",
+          "title": "YZ İçgörüler",
+          "items": {
+            "noReply": "4 yatırımcı 10+ gündür yanıt vermedi",
+            "noReplyBody": "İlişkiler soğumadan yeniden temas kurun.",
+            "atRisk": "2 fırsat ivme kaybediyor",
+            "atRiskBody": "Sonraki adımı planlayın, aksi halde durabilir.",
+            "engagementUp": "Temple Tower etkileşimi yükseliyor",
+            "engagementUpBody": "Kapanış olasılığı bu hafta arttı.",
+            "scheduleMeetings": "3 yüksek değerli lead toplantı bekliyor",
+            "scheduleMeetingsBody": "İlgi sıcakken keşif görüşmesi ayarlayın."
+          }
+        },
+        "pipeline": {
+          "title": "Pipeline Trendi",
+          "period": "Bu ay",
+          "aria": "Bu ayın pipeline değer trendi"
+        },
+        "timeline": {
+          "aria": "Son aktivite zaman çizelgesi",
+          "title": "Son Zaman Çizelgesi"
+        },
+        "meetings": {
+          "aria": "Yaklaşan toplantılar",
+          "title": "Yaklaşan Toplantılar",
+          "join": "Katıl",
+          "open": "Aç"
+        },
+        "empty": {
+          "tasks": "Yaklaşan görev yok",
+          "tasksHint": "Atanan iş öğeleri burada görünür.",
+          "leads": "Son lead yok",
+          "leadsHint": "Yeni leadler pipeline’a girdikçe burada görünür.",
+          "activities": "Son aktivite yok",
+          "activitiesHint": "Aramalar, e-postalar ve toplantılar burada görünür.",
+          "timeline": "Zaman çizelgesi olayı yok",
+          "timelineHint": "Dünden beri CRM değişiklikleri burada görünür.",
+          "meetings": "Yaklaşan toplantı yok",
+          "meetingsHint": "Planlanan toplantılar bu ajandada görünür."
+        }
+      }
+    },
+    "accessDenied": "CRM çalışma alanını görüntüleme yetkiniz yok.",
+    "accessDeniedHint": "CRM erişimi için yöneticinize başvurun.",
+    "loadFailed": "CRM verileri yüklenemedi.",
+    "collapseSidebar": "Kenar çubuğunu daralt",
+    "expandSidebar": "Kenar çubuğunu genişlet",
+    "navAriaLabel": "CRM çalışma alanı gezinmesi",
+    "searchTrigger": "CRM'de ara",
+    "emptyTitle": "Henüz kayıt yok",
+    "emptyDescription": "Bu modül için henüz veri oluşturulmadı.",
+    "moduleInitializingTitle": "Modül hazırlanıyor",
+    "moduleInitializingDescription": "Bu CRM modülü sonraki bir sprintte etkinleştirilecek.",
+    "emptyContacts": "Henüz kişi yok",
+    "emptyContactsHint": "İlk kişinizi oluşturun veya CSV'den içe aktarın.",
+    "emptyActivities": "Son zamanlarda aktivite yok",
+    "emptyTasks": "Yaklaşan görev yok",
+    "emptyTasksHint": "İş Öğeleri entegrasyonu etkin — atanan görevler burada görünür.",
+    "emptyMeetings": "Bugün toplantı yok",
+    "emptyMeetingsHint": "Bugün için planlanmış toplantı yok.",
+    "emptyAlerts": "İlişki uyarısı yok",
+    "emptyAlertsHint": "90+ gündür güncellenmeyen kişiler burada görünür.",
+    "emptyFavorites": "Favori kişi yok",
+    "emptyPinned": "Sabitlenmiş şirket yok",
+    "emptyPinnedHint": "Hızlı erişim için kurum kayıtlarını sabitleyin.",
+    "systemActor": "Sistem",
+    "contactsSummary": "{total} kişi · Sayfa {page}/{pages}",
+    "nav": {
+      "section": "CRM",
+      "dashboard": "Pano",
+      "leads": "Leadler",
+      "pipeline": "Pipeline",
+      "matches": "Matches",
+      "contacts": "Kişiler",
+      "junk": "Junk",
+      "agents": "Acentalar",
+      "agreements": "Anlaşmalar",
+      "companies": "Şirketler",
+      "investors": "Yatırımcılar",
+      "relationships": "İlişkiler",
+      "timeline": "Zaman Çizelgesi",
+      "activities": "Aktiviteler",
+      "tasks": "Görevler",
+      "calendar": "Takvim",
+      "notes": "Notlar",
+      "files": "Dosyalar",
+      "tags": "Etiketler",
+      "communication": "İletişim",
+      "documents": "Belgeler",
+      "search": "Ara",
+      "reports": "Raporlar",
+      "settings": "Ayarlar",
+      "templates": "Şablonlar",
+      "sequences": "Sekanslar",
+      "signatures": "İmzalar",
+      "analytics": "Analitik",
+      "preferences": "Tercihler",
+      "adminSection": "Yönetim",
+      "admin": "Admin",
+      "adminBadge": "Yeni",
+      "systemLogs": "Sistem Logları",
+      "integrations": "Entegrasyonlar"
+    },
+    "matches": {
+      "title": "Matches (Eşleşmeler)",
+      "subtitle": "Bu müşteriye en uygun yatırım fırsatlarını keşfedin. {count} eşleşme bulundu.",
+      "viewAria": "Eşleşme görünüm modu",
+      "view": {
+        "card": "Kart",
+        "table": "Tablo"
+      },
+      "newAnalysis": "Yeni Eşleşme Analizi",
+      "scoreLabel": "Eşleşme Skoru",
+      "favorite": "Favori eşleşme",
+      "viewDetails": "Detayları Gör",
+      "addToCompare": "+ Karşılaştırmaya Ekle",
+      "inComparison": "Karşılaştırmaya Eklendi",
+      "statusLabel": "Durum",
+      "status": {
+        "construction": "İnşaat",
+        "ready": "Hazır",
+        "preSales": "Ön Satış",
+        "completed": "Tamamlandı"
+      },
+      "metrics": {
+        "roi": "ROI (Yıllık)",
+        "monthlyRent": "Aylık Kira",
+        "cashFlow": "Aylık Nakit Akışı",
+        "delivery": "Teslim Tarihi"
+      },
+      "whyTitle": "Neden Eşleşiyor?",
+      "whyMore": "+{count} neden daha",
+      "whyShowLess": "Daha az göster",
+      "why": {
+        "withinBudget": "Bütçeniz dahilinde",
+        "highRentalYield": "Yüksek kira getirisi",
+        "preferredArea": "Tercih edilen bölgede",
+        "strongCashFlow": "Güçlü aylık nakit akışı",
+        "nearTargetRoi": "Hedef ROI’ye yakın",
+        "developerTrackRecord": "Güçlü geliştirici geçmişi",
+        "stableMarket": "Stabil pazar temelleri",
+        "mortgageFriendly": "Mortgage’a uygun fiyat",
+        "unitTypeMatch": "Tercih edilen ünite tipine uygun",
+        "growthCorridor": "Büyüme koridorunda",
+        "readyDelivery": "Yakın teslim tarihi",
+        "nearBudgetCeiling": "Bütçe üst sınırına yakın"
+      },
+      "customer": {
+        "aria": "Müşteri yatırım özeti",
+        "verified": "Doğrulanmış",
+        "viewProfile": "Profili görüntüle",
+        "budget": "Bütçe",
+        "investmentGoal": "Yatırım Amacı",
+        "preferredAreas": "Tercih Edilen Bölgeler",
+        "roiTarget": "Hedef ROI",
+        "riskProfile": "Risk Profili",
+        "language": "Dil",
+        "nationality": "Uyruk",
+        "investmentHorizon": "Yatırım Vadesi",
+        "financing": "Finansman",
+        "investorType": "Yatırımcı Türü",
+        "preferredUnit": "Tercih Edilen Ünite",
+        "goals": {
+          "rentalIncome": "Kira Geliri",
+          "appreciation": "Değer Artışı",
+          "balanced": "Dengeli"
+        },
+        "risk": {
+          "low": "Düşük",
+          "medium": "Orta",
+          "high": "Yüksek"
+        },
+        "languages": {
+          "turkish": "Türkçe",
+          "english": "İngilizce"
+        },
+        "nationalities": {
+          "turkey": "Türkiye",
+          "usa": "Amerika Birleşik Devletleri",
+          "other": "Diğer"
+        },
+        "horizons": {
+          "1-3y": "1–3 Yıl",
+          "3-5y": "3–5 Yıl",
+          "5-10y": "5–10 Yıl"
+        },
+        "financingOptions": {
+          "mortgageEligible": "Mortgage Uygun",
+          "cash": "Peşin",
+          "mixed": "Karma"
+        },
+        "investor": {
+          "individual": "Bireysel",
+          "corporate": "Kurumsal"
+        }
+      },
+      "ai": {
+        "aria": "YZ eşleşme aksiyonları",
+        "title": "Investhome AI",
+        "openPrompt": "Bu müşteri için en iyi envanter eşleşmelerini göster",
+        "actions": {
+          "best": "En İyi Eşleşmeleri Göster",
+          "roi": "ROI’ye Göre Sırala",
+          "rent": "Kira Getirisine Göre",
+          "safest": "En Güvenli Yatırımlar",
+          "newProjects": "Yeni Projeler"
+        }
+      },
+      "filters": {
+        "aria": "Eşleşme filtreleri",
+        "any": "Tümü",
+        "city": "Şehir",
+        "project": "Proje",
+        "price": "Fiyat Aralığı",
+        "roi": "ROI",
+        "capRate": "Cap Rate",
+        "delivery": "Teslim Tarihi",
+        "rooms": "Oda Sayısı",
+        "status": "Durum",
+        "clear": "Filtreleri Temizle"
+      },
+      "table": {
+        "project": "Proje",
+        "score": "Skor",
+        "price": "Fiyat",
+        "roi": "ROI",
+        "status": "Durum",
+        "actions": "Aksiyonlar"
+      },
+      "pagination": {
+        "aria": "Eşleşme sayfalama",
+        "total": "Toplam {count} eşleşme.",
+        "perPage": "Sayfa başı",
+        "pageUnit": "sayfa"
+      },
+      "rail": {
+        "aria": "Yönetici içgörüleri",
+        "aiBest": "AI En İyi Öneri",
+        "customerSummary": "Müşteri Özeti",
+        "riskAlerts": "Dikkat Edilmesi Gerekenler",
+        "documents": "İlgili Belgeler",
+        "recentActivity": "Son Aktiviteler",
+        "summaries": {
+          "marinaHeights": "Miami’de kira geliri hedeflerine en yüksek genel uyum; güçlü nakit akışı ve bütçe uyumu."
+        },
+        "alerts": {
+          "deliveryHorizon": "Teslim vadeyi aşıyor",
+          "deliveryHorizonBody": "Bazı projeler tercih edilen 3–5 yıllık vadenin sonrasında teslim ediliyor.",
+          "currencyExposure": "Döviz riski",
+          "currencyExposureBody": "Fiyatlar USD cinsinden; müşteriyle kur tercihini doğrulayın."
+        },
+        "docNames": {
+          "investmentPitch": "Yatırım Sunumu",
+          "financialAnalysis": "Finansal Analiz",
+          "comparisonSheet": "Karşılaştırma Dosyası"
+        },
+        "docMeta": {
+          "pdfMeta": "PDF · 2.4 MB",
+          "xlsxMeta": "Excel · 1.1 MB"
+        },
+        "activity": {
+          "aiAnalysisCompleted": "YZ analizi tamamlandı",
+          "projectsAdded": "3 yeni proje eklendi",
+          "preferenceUpdated": "Müşteri tercihi güncellendi",
+          "hoursAgo2": "2 saat önce",
+          "yesterday": "Dün",
+          "daysAgo3": "3 gün önce"
+        }
+      }
+    },
+    "documents": {
+      "title": "Belgeler",
+      "subtitle": "Tüm sözleşmeler, planlar, PDF'ler, görseller ve dosyalar tek merkezden yönetilir.",
+      "viewAria": "Belge görünüm modu",
+      "view": {
+        "card": "Kart",
+        "table": "Tablo"
+      },
+      "uploadNew": "Yeni Belge Yükle",
+      "viewDocument": "Görüntüle",
+      "share": "Paylaş",
+      "status": {
+        "signed": "İmzalandı",
+        "awaitingSignature": "İmza Bekliyor",
+        "shared": "Paylaşıldı",
+        "draft": "Taslak",
+        "rejected": "Reddedildi"
+      },
+      "meta": {
+        "size": "Boyut",
+        "version": "Sürüm",
+        "date": "Tarih"
+      },
+      "kpis": {
+        "aria": "Belge özet metrikleri",
+        "total": "Toplam Belge",
+        "awaitingSignature": "İmzalanmayı Bekleyen",
+        "addedLast7Days": "Son 7 Günde Eklenen",
+        "shared": "Paylaşılan Belgeler",
+        "thisMonth": "bu ay",
+        "hints": {
+          "allTime": "Tüm zamanlar",
+          "totalAwaiting": "Toplam {count} belge",
+          "last7Days": "Son 7 gün",
+          "activelyShared": "Aktif paylaşılan"
+        }
+      },
+      "ai": {
+        "aria": "YZ belge aksiyonları",
+        "title": "Investhome AI",
+        "openPrompt": "Belgeleri özetle ve imza bekleyenleri göster",
+        "actions": {
+          "summarize": "Belgeleri Özetle",
+          "missing": "Eksik Evrakları Bul",
+          "awaitingSignature": "İmza Bekleyenleri Göster",
+          "recent": "Son Eklenenler"
+        }
+      },
+      "filters": {
+        "aria": "Belge filtreleri",
+        "any": "Tümü",
+        "customer": "Müşteri",
+        "project": "Proje",
+        "type": "Belge Tipi",
+        "status": "Durum",
+        "date": "Tarih Aralığı",
+        "search": "Arama",
+        "searchPlaceholder": "Belge adı ile ara...",
+        "clear": "Filtreleri Temizle",
+        "dateRanges": {
+          "last7": "Son 7 gün",
+          "last30": "Son 30 gün",
+          "last90": "Son 90 gün"
+        }
+      },
+      "table": {
+        "name": "Belge",
+        "owner": "Müşteri",
+        "project": "Proje",
+        "status": "Durum",
+        "size": "Boyut",
+        "version": "Sürüm",
+        "date": "Tarih",
+        "actions": "Aksiyonlar"
+      },
+      "pagination": {
+        "aria": "Belge sayfalama",
+        "total": "Toplam {count} belge",
+        "perPage": "Sayfa başı",
+        "pageUnit": "sayfa"
+      },
+      "rail": {
+        "aria": "Belge içgörüleri",
+        "aiSummary": "AI Belge Özeti",
+        "viewSummary": "Özeti Görüntüle",
+        "lastUpdated": "Son güncelleme: {date}",
+        "donutUnit": "Belge",
+        "recentlyOpened": "Son Açılan Belgeler",
+        "signatureStatus": "İmza Durumu",
+        "signatureTotal": "Toplam {count} belge",
+        "signed": "İmzalandı",
+        "awaiting": "İmza Bekliyor",
+        "rejected": "Reddedildi",
+        "missing": "Eksik Evraklar",
+        "missingCount": "{count} belge eksik",
+        "missingHint": "Bazı müşteriler için zorunlu evraklar henüz yüklenmedi.",
+        "recentActivity": "Son Aktiviteler",
+        "summaries": {
+          "marinaSalesContract": "Marina Heights satış sözleşmesi imzalandı. Ödeme planı onaylandı; eksik kimlik fotokopisi ve ikamet belgesi tamamlanmalı."
+        },
+        "openedAt": {
+          "minutesAgo10": "10 dk önce",
+          "hoursAgo1": "1 saat önce",
+          "yesterday": "Dün"
+        },
+        "missingItems": {
+          "idCopy": "Kimlik fotokopisi",
+          "proofOfAddress": "İkametgâh belgesi",
+          "bankStatement": "Banka ekstresi"
+        },
+        "activity": {
+          "ahmetSigned": "Ahmet Yılmaz bir belgeyi imzaladı",
+          "ayseShared": "Ayşe Demir bir belge paylaştı",
+          "mehmetUploaded": "Mehmet Kaya yeni belge yükledi",
+          "zeynepViewed": "Zeynep Arslan belgesi görüntüledi",
+          "hoursAgo2": "2 saat önce",
+          "hoursAgo5": "5 saat önce",
+          "yesterday": "Dün",
+          "daysAgo2": "2 gün önce"
+        }
+      },
+      "ds": {
+        "title": "Belgeler",
+        "subtitle": "Tüm sözleşmeler, planlar, PDF'ler, görseller ve dosyalar tek merkezden yönetilir.",
+        "demoBadge": "demo veri",
+        "actions": {
+          "create": "Yeni Belge",
+          "favorite": "Favori",
+          "preview": "Önizle",
+          "open": "Aç",
+          "download": "İndir",
+          "share": "Paylaş",
+          "copyLink": "Bağlantıyı Kopyala",
+          "uploadVersion": "Yeni Sürüm Yükle",
+          "move": "Taşı",
+          "delete": "Sil",
+          "quick": "Hızlı Aksiyonlar"
+        },
+        "filters": {
+          "aria": "Belge filtreleri",
+          "search": "Ara",
+          "searchPlaceholder": "Belgelerde ara...",
+          "type": "Tür",
+          "allTypes": "Tüm türler",
+          "entity": "Varlık",
+          "allEntities": "Tüm varlıklar",
+          "tag": "Etiket",
+          "allTags": "Tüm etiketler",
+          "owner": "Sahip",
+          "allOwners": "Tüm sahipler",
+          "dateFrom": "Başlangıç",
+          "dateTo": "Bitiş",
+          "reset": "Filtreleri Sıfırla"
+        },
+        "tabs": {
+          "aria": "Belge kategorileri",
+          "all": "Tümü",
+          "recent": "Son Eklenen",
+          "favorites": "Favoriler",
+          "shared": "Paylaşılan",
+          "lead": "Lead",
+          "investor": "Yatırımcı",
+          "projects": "Projeler",
+          "companies": "Şirketler",
+          "contracts": "Sözleşmeler",
+          "finance": "Finans",
+          "marketing": "Pazarlama",
+          "legal": "Hukuk",
+          "construction": "İnşaat",
+          "architecture": "Mimari",
+          "permits": "Ruhsatlar",
+          "technical": "Teknik",
+          "presentations": "Sunumlar"
+        },
+        "nav": {
+          "aria": "Belge koleksiyonları",
+          "shortcuts": "Kısayollar",
+          "byEntity": "Varlıklara Göre",
+          "folders": "Klasörler"
+        },
+        "shortcuts": {
+          "recentUploads": "Son Yüklenenler",
+          "frequent": "Sık Kullanılanlar",
+          "mine": "Benim Belgelerim",
+          "shared": "Paylaşılanlar",
+          "trash": "Çöp Kutusu"
+        },
+        "folders": {
+          "contracts": "Sözleşmeler",
+          "finance": "Finans",
+          "marketing": "Pazarlama",
+          "legal": "Hukuk",
+          "construction": "İnşaat",
+          "general": "Genel"
+        },
+        "entities": {
+          "lead": "Lead",
+          "investor": "Yatırımcı",
+          "project": "Proje",
+          "company": "Şirket",
+          "opportunity": "Fırsat"
+        },
+        "storage": {
+          "title": "Depolama",
+          "manage": "Yönet",
+          "usage": "{used} GB / {total} GB"
+        },
+        "center": {
+          "aria": "Belgeler çalışma alanı",
+          "title": "Belgeler",
+          "cardView": "Kart",
+          "listView": "Liste",
+          "sort": "Sırala",
+          "more": "Diğer",
+          "export": "Dışa Aktar",
+          "emptyTitle": "Belge bulunamadı",
+          "emptyDescription": "Filtreleri değiştirin veya yeni bir belge yükleyin.",
+          "viewAria": "Görünüm modu"
+        },
+        "sort": {
+          "newest": "Son Eklenen",
+          "oldest": "En Eski",
+          "name_asc": "Ad A–Z",
+          "name_desc": "Ad Z–A",
+          "size": "Boyut",
+          "type": "Tür"
+        },
+        "list": {
+          "name": "Belge",
+          "folder": "Klasör",
+          "related": "İlişkili",
+          "size": "Boyut",
+          "date": "Tarih",
+          "owner": "Sahip"
+        },
+        "pagination": {
+          "aria": "Belge sayfalama",
+          "range": "{from}–{to} / {total} belge",
+          "prev": "Önceki",
+          "next": "Sonraki"
+        },
+        "preview": {
+          "aria": "Belge önizleme",
+          "open": "Önizlemeyi aç",
+          "close": "Kapat",
+          "emptyTitle": "Belge seçilmedi",
+          "emptyDescription": "Önizleme ve detaylar için bir belge seçin.",
+          "tabsAria": "Önizleme sekmeleri",
+          "tabs": {
+            "preview": "Önizleme",
+            "details": "Detaylar",
+            "history": "Geçmiş",
+            "shares": "Paylaşımlar ({count})"
+          },
+          "pdfPlaceholder": "PDF önizleme alanı",
+          "imagePlaceholder": "Görsel önizleme",
+          "videoPlaceholder": "Video küçük resmi",
+          "cadPlaceholder": "CAD önizleme desteklenmiyor",
+          "genericPlaceholder": "Önizleme mevcut değil"
+        },
+        "details": {
+          "fileInfo": "Dosya Bilgileri",
+          "size": "Boyut",
+          "type": "Tür",
+          "version": "Sürüm",
+          "current": "Güncel",
+          "updated": "Son Güncelleme",
+          "createdBy": "Oluşturan",
+          "owner": "Sahip",
+          "folder": "Klasör",
+          "language": "Dil",
+          "related": "İlişkili Varlıklar",
+          "noRelated": "İlişkili kayıt yok",
+          "tags": "Etiketler",
+          "activity": "Son Aktiviteler"
+        },
+        "shares": {
+          "emptyTitle": "Paylaşım yok",
+          "emptyDescription": "Bu belge henüz kimseyle paylaşılmadı.",
+          "access": {
+            "view": "Görüntüle",
+            "edit": "Düzenle",
+            "comment": "Yorum"
+          }
+        },
+        "activity": {
+          "uploaded": "Yüklendi",
+          "justNow": "Az önce"
+        },
+        "toast": {
+          "uploaded": "Belge yüklendi",
+          "download": "İndirme başlatıldı",
+          "share": "Paylaşım paneli açıldı",
+          "linkCopied": "Bağlantı kopyalandı",
+          "move": "Taşıma hazır",
+          "deleted": "Belge çöp kutusuna taşındı",
+          "storage": "Depolama yönetimi yakında",
+          "export": "Dışa aktarma hazırlanıyor"
+        }
+      }
+    },
+    "g2": {
+      "analytics": {
+        "section": "CRM analitik",
+        "contacts": "Kişiler",
+        "contactsSpark": "Kişi trendi",
+        "activities": "Aktiviteler",
+        "activitiesSpark": "Aktivite trendi",
+        "pipeline": "Pipeline değeri",
+        "pipelineSpark": "Pipeline trendi",
+        "pipelineHint": "Ağırlıklı beklenti",
+        "trendUp": "+trend",
+        "revenueLine": "Beklenen gelir çizgisi",
+        "revenueTitle": "Beklenen gelir",
+        "engagementArea": "Etkileşim alanı",
+        "engagementTitle": "Etkileşim karşılaştırması"
+      },
+      "drawer": {
+        "summary": "Özet",
+        "timeline": "Zaman çizelgesi",
+        "nextAction": "Sonraki aksiyon",
+        "customer": "Müşteri",
+        "proposal": "Teklifler",
+        "reservation": "Rezervasyon",
+        "notes": "Notlar",
+        "activities": "Aktiviteler",
+        "emails": "E-postalar",
+        "tasks": "Görevler",
+        "documents": "Belgeler",
+        "ai": "YZ İçgörüleri",
+        "projects": "İlgili projeler",
+        "investors": "İlgili yatırımcılar",
+        "emptySection": "Bu bölüm için henüz kayıt yok."
+      },
+      "leads": {
+        "eyebrow": "CRM · Leadler",
+        "title": "Lead listesi",
+        "subtitle": "{count} lead",
+        "demoBadge": "demo veri",
+        "loading": "Leadler yükleniyor…",
+        "loadError": "Leadler yüklenemedi.",
+        "accessDenied": "Leadleri görüntüleme yetkiniz yok.",
+        "accessDeniedHint": "leads.view veya sales.view izni gerekir.",
+        "searchPlaceholder": "Lead, şirket, ülke ara…",
+        "allStages": "Tüm aşamalar",
+        "apply": "Uygula",
+        "clear": "Temizle",
+        "savedViews": "Kayıtlı filtreler",
+        "selectAll": "Tümünü seç",
+        "bulkSelected": "{count} seçildi",
+        "bulkClear": "Seçimi temizle",
+        "empty": "Lead bulunamadı",
+        "emptyHint": "Filtreleri temizleyin veya yeni lead oluşturun.",
+        "open": "Aç",
+        "openFull": "Tam kayıt",
+        "openLegacy": "Klasik satış",
+        "prev": "Önceki",
+        "next": "Sonraki",
+        "pageOf": "Sayfa {page}/{pages}",
+        "lastTouch": "Son aktivite: {date}",
+        "aiHint": "Lead skoru: {score}",
+        "views": {
+          "all": "Tümü",
+          "new": "Yeni",
+          "qualified": "Nitelikli",
+          "meeting": "Toplantı",
+          "won": "Kazanılan"
+        },
+        "columns": {
+          "name": "Lead adı",
+          "company": "Şirket",
+          "investor": "Yatırımcı / pazar",
+          "stage": "Aşama",
+          "budget": "Bütçe",
+          "country": "Ülke",
+          "assigned": "Atanan",
+          "created": "Oluşturulma",
+          "lastActivity": "Son aktivite",
+          "priority": "Öncelik",
+          "actions": "İşlem"
+        },
+        "priority": {
+          "low": "Düşük",
+          "normal": "Normal",
+          "high": "Yüksek",
+          "urgent": "Acil"
+        }
+      },
+      "pipeline": {
+        "eyebrow": "CRM",
+        "title": "Fırsatlar",
+        "subtitle": "Açık fırsatları, sonraki aksiyonları ve aşama ivmesini izleyin.",
+        "liveCount": "{count} canlı sonuç",
+        "demoBadge": "demo veri",
+        "loading": "Fırsatlar yükleniyor…",
+        "accessDenied": "Fırsatları görüntüleme yetkiniz yok.",
+        "accessDeniedHint": "sales.view izni gerekir.",
+        "viewLabel": "Görünüm",
+        "board": "Pano",
+        "list": "Liste",
+        "openSales": "Satış alanı",
+        "openFull": "Tam fırsat",
+        "quickEdit": "Hızlı düzenle",
+        "probability": "Olasılık %",
+        "changeProbability": "Olasılığı değiştir",
+        "probabilityUpdated": "Olasılık güncellendi",
+        "probabilityFailed": "Olasılık güncellenemedi.",
+        "probabilityInvalid": "Olasılık 0 ile 100 arasında olmalıdır.",
+        "nextActionUpdated": "Sonraki aksiyon güncellendi",
+        "save": "Kaydet",
+        "stageNeedsConfirm": "Bu aşama onay modalı gerektirir — yerel önizleme uygulandı.",
+        "noStagePermission": "Aşama değiştirme izniniz yok.",
+        "invalidTransition": "Geçersiz aşama geçişi.",
+        "stageError": "Aşama güncellenemedi; kart önceki aşamaya alındı.",
+        "aiHint": "Pipeline skoru ve kapanış olasılığı mevcut aşamaya göre.",
+        "summaryAria": "Fırsat özeti",
+        "filtersAria": "Fırsat filtreleri",
+        "activeFiltersAria": "Aktif filtreler",
+        "openCount": "Açık Fırsatlar",
+        "missingNextAction": "Eksik Sonraki Aksiyon",
+        "overdueNextAction": "Gecikmiş Sonraki Aksiyon",
+        "pipelineByCurrency": "Para Birimine Göre Hat",
+        "weighted": "Ağırlıklı",
+        "weightedShort": "Ağr.",
+        "sensitiveHidden": "Hassas değerler gizli",
+        "kpiHintTotal": "Toplam",
+        "kpiHintAction": "Aksiyon",
+        "kpiHintLive": "Canlı fırsat",
+        "kpiHintNeedsAssign": "Atanması gereken",
+        "kpiHintPastDue": "Süresi geçmiş",
+        "seeAllCurrencies": "Tümünü gör",
+        "showFewerCurrencies": "Daha az göster",
+        "addOpportunity": "Fırsat ekle",
+        "searchChip": "Arama",
+        "sortLabel": "Sıralama",
+        "directionLabel": "Yön",
+        "ascending": "Artan",
+        "descending": "Azalan",
+        "resultCount": "{count} sonuç",
+        "partialResult": "{total} kayıttan {visible} gösteriliyor",
+        "teamNamesUnavailable": "Ekip adları kullanılamıyor",
+        "noMatches": "Eşleşen fırsat yok",
+        "adjustFilters": "Filtreleri ayarlamayı veya aramayı temizlemeyi deneyin.",
+        "clearFilters": "Filtreleri temizle",
+        "emptyStage": "Bu aşamada fırsat yok",
+        "overdue": "Gecikmiş",
+        "stages": {
+          "newLead": "Yeni lead",
+          "qualified": "Nitelikli",
+          "meeting": "Toplantı",
+          "reservation": "Rezervasyon",
+          "contract": "Sözleşme",
+          "closing": "Kapanış",
+          "won": "Kazanılan",
+          "lost": "Kaybedilen"
+        },
+        "listCols": {
+          "opportunity": "Fırsat",
+          "stage": "Aşama",
+          "revenue": "Beklenen gelir",
+          "probability": "Olasılık",
+          "closeDate": "Beklenen kapanış"
+        },
+        "totalShort": "Toplam",
+        "boardStagesAria": "Fırsat aşamaları",
+        "cardCustomer": "Müşteri",
+        "cardProject": "Proje"
+      }
+    },
+    "kpi": {
+      "section": "Özet metrikler",
+      "totalContacts": "Toplam Kişi",
+      "withEmail": "E-postası Olan",
+      "withPhone": "Telefonu Olan",
+      "favorites": "Favoriler",
+      "recentInteractions": "Son Etkileşimler"
+    },
+    "quickActions": {
+      "title": "Hızlı işlemler",
+      "viewContacts": "Kişileri görüntüle",
+      "search": "Ara",
+      "viewTasks": "Görevler",
+      "viewTimeline": "Zaman Çizelgesi"
+    },
+    "sections": {
+      "recentContacts": "Son Kişiler",
+      "recentActivities": "Son Aktiviteler",
+      "upcomingTasks": "Yaklaşan Görevler",
+      "todaysMeetings": "Bugünün Toplantıları",
+      "recentlyUpdated": "Son Güncellenenler",
+      "relationshipAlerts": "İlişki Uyarıları",
+      "favoriteContacts": "Favori Kişiler",
+      "pinnedCompanies": "Sabitlenmiş Şirketler",
+      "communicationSummary": "İletişim Özeti"
+    },
+    "alerts": {
+      "staleRelationship": "90+ gündür güncellenmedi"
+    },
+    "fields": {
+      "displayName": "Ad",
+      "contactType": "Kişi türü",
+      "email": "E-posta",
+      "phone": "Telefon",
+      "status": "Durum"
+    },
+    "contactTypes": {
+      "investor": "Yatırımcı",
+      "prospect": "Potansiyel Müşteri",
+      "buyer": "Alıcı",
+      "broker": "Emlak Komisyoncusu",
+      "realtor": "Emlakçı",
+      "partner": "İş Ortağı",
+      "vendor": "Tedarikçi",
+      "contractor": "Müteahhit",
+      "attorney": "Avukat",
+      "lender": "Kredi Veren",
+      "property_manager": "Mülk Yöneticisi",
+      "architect": "Mimar",
+      "consultant": "Danışman",
+      "media_contact": "Medya İletişimi",
+      "government_contact": "Devlet Kurumu İletişimi",
+      "internal_team": "Dahili Ekip"
+    },
+    "statuses": {
+      "active": "Aktif",
+      "inactive": "Pasif",
+      "prospect": "Potansiyel Müşteri",
+      "archived": "Arşivlendi"
+    },
+    "agents": {
+      "title": "Acentalar",
+      "subtitle": "Broker ve realtor kişiler. Kişi başına tek kayıt — Aktif veya Pasif.",
+      "statusFilter": "Durum",
+      "statusAll": "Tümü",
+      "statusActive": "Aktif",
+      "statusPassive": "Pasif",
+      "emptyTitle": "Henüz acente yok",
+      "emptyDescription": "Bitrix acente aktarımı henüz işlenmedi. Eşleşen brokerlar yüklemeden sonra burada görünür.",
+      "loadError": "Acentalar yüklenemedi.",
+      "loading": "Acentalar yükleniyor…",
+      "columns": {
+        "name": "Ad",
+        "type": "Tür",
+        "phone": "Telefon",
+        "email": "E-posta",
+        "status": "Durum",
+        "company": "Şirket"
+      },
+      "tableAria": "Acenta listesi"
+    },
+    "agreements": {
+      "title": "Anlaşmalar",
+      "subtitle": "Proje gruplarına göre tarihsel CRM anlaşmaları. Satış fırsatı değildir.",
+      "projectFilter": "Proje",
+      "allProjects": "Tüm projeler",
+      "emptyTitle": "Henüz anlaşma yok",
+      "emptyDescription": "Bitrix anlaşma dosyaları henüz işlenmedi. Yüklemeden sonra satırlar projeye göre gruplanır.",
+      "loadError": "Anlaşmalar yüklenemedi.",
+      "loading": "Anlaşmalar yükleniyor…",
+      "columns": {
+        "contact": "Kişi",
+        "project": "Proje",
+        "unit": "Daire No",
+        "investmentAmount": "Yatırım Tutarı",
+        "email": "E-posta",
+        "phone": "Telefon",
+        "status": "Durum",
+        "date": "Tarih",
+        "source": "Kaynak"
+      },
+      "reviewRequired": "İnceleme Gerekli",
+      "tableAria": "Anlaşma listesi"
+    },
+    "contacts": {
+      "title": "Kişiler",
+      "eyebrow": "İlişki kayıtları",
+      "subtitle": "Investhome ile bağlantılı her kişi için tek gerçek kaynağı.",
+      "createContact": "Yeni kişi",
+      "import": {
+        "title": "Kişileri içe aktar",
+        "subtitle": "CRM kişileri oluşturmak için CSV satırları yükleyin.",
+        "instructions": "Başlık satırıyla CSV yapıştırın: display_name,contact_type,primary_email,primary_phone,organization_name",
+        "placeholder": "display_name,contact_type,primary_email,primary_phone,organization_name\nJane Doe,prospect,jane@example.com,+15551234567,Acme Inc",
+        "cancel": "Kişilere geri dön",
+        "submit": "İçe Aktar",
+        "accessDenied": "İçe aktarmaya izin verilmiyor",
+        "accessDeniedHint": "crm.import iznine ihtiyacınız var.",
+        "result": "{created} oluşturuldu, {updated} güncellendi, {skipped} atlandı."
+      },
+      "export": "CSV Dışa Aktar",
+      "loading": "Kişiler yükleniyor…",
+      "loadError": "Kişiler yüklenemedi.",
+      "accessDenied": "CRM kişilerini yönetme yetkiniz yok.",
+      "accessDeniedHint": "CRM kişi erişimi için yöneticinize başvurun.",
+      "emptyTitle": "Filtrelerinize uyan kişi yok",
+      "emptyDescription": "Sonuç görmek için bir kişi oluşturun veya filtreleri ayarlayın.",
+      "searchPlaceholder": "Ad, e-posta, telefon, şirket ara…",
+      "bulkSelected": "{count} seçildi",
+      "bulkPriorityHigh": "Önceliği ayarla: yüksek",
+      "bulkArchive": "Seçilenleri arşivle",
+      "bulkClear": "Seçimi temizle",
+      "columns": {
+        "contact": "Kişi",
+        "type": "Tür",
+        "company": "Şirket",
+        "lifecycle": "Yaşam döngüsü",
+        "relationship": "İlişki",
+        "owner": "Sahip",
+        "lastContact": "Son iletişim",
+        "nextFollowUp": "Sonraki takip",
+        "priority": "Öncelik",
+        "score": "Skor",
+        "tags": "Etiketler"
+      },
+      "lifecycle": {
+        "new": "Yeni",
+        "engaged": "Etkileşimde",
+        "qualified": "Nitelikli",
+        "active_relationship": "Aktif ilişki",
+        "dormant": "Durgun",
+        "churned": "Kaybedildi"
+      },
+      "priority": {
+        "low": "Düşük",
+        "normal": "Normal",
+        "high": "Yüksek",
+        "urgent": "Acil"
+      },
+      "filters": {
+        "allTypes": "Tüm türler",
+        "allLifecycle": "Tüm yaşam döngüsü aşamaları",
+        "allPriority": "Tüm öncelikler"
+      },
+      "presets": {
+        "all": "Tüm kişiler",
+        "investors": "Yatırımcılar",
+        "prospects": "Potansiyel Müşteriler",
+        "followUpDue": "Takip zamanı geldi",
+        "highPriority": "Yüksek öncelik",
+        "stale": "Durgun ilişkiler"
+      },
+      "form": {
+        "title": "Kişi oluştur",
+        "displayName": "Görünen ad",
+        "contactType": "Kişi türü",
+        "email": "E-posta",
+        "phone": "Telefon",
+        "organization": "Kurum",
+        "notes": "Notlar",
+        "cancel": "İptal",
+        "save": "Kişiyi kaydet",
+        "duplicateTitle": "Olası kopya",
+        "duplicateMessage": "\"{name}\" ile benzer bir kişi zaten mevcut.",
+        "saveAnyway": "Yine de kaydet"
+      },
+      "detail": {
+        "loading": "Kişi yükleniyor…",
+        "loadError": "Kişi yüklenemedi.",
+        "accessDenied": "Erişim reddedildi",
+        "accessDeniedHint": "Bu kişiyi görüntüleme yetkiniz yok.",
+        "archive": "Arşivle",
+        "restore": "Geri yükle",
+        "tabs": {
+          "overview": "Genel Bakış",
+          "timeline": "Zaman Çizelgesi",
+          "relationships": "İlişkiler",
+          "compliance": "Uyumluluk"
+        },
+        "sections": {
+          "contact": "Kişi bilgileri",
+          "relationship": "İlişki zekası",
+          "investment": "Yatırım profili",
+          "buyer": "Alıcı profili",
+          "notes": "Notlar"
+        },
+        "fields": {
+          "email": "E-posta",
+          "phone": "Telefon",
+          "owner": "Sahip",
+          "lifecycle": "Yaşam döngüsü",
+          "score": "İlişki skoru",
+          "engagement": "Etkileşim skoru"
+        },
+        "timelineEmpty": "Zaman çizelgesi girdisi yok",
+        "timelineEmptyHint": "Bu kişiyle ilgili aktiviteler burada görünür.",
+        "relationshipsEmpty": "Bağlı ilişki yok",
+        "relationshipsEmptyHint": "Yönlendirilen kişiler ve ilgili kayıtlar burada görünür.",
+        "complianceEmpty": "Uyumluluk verisi yok",
+        "complianceEmptyHint": "Uyumluluk alanları için view_compliance izni gereklidir."
+      },
+      "importAction": "İçe Aktar",
+      "relationshipStatuses": {
+        "unknown": "Bilinmiyor",
+        "cold": "Soğuk",
+        "warm": "Ilık",
+        "hot": "Sıcak",
+        "active": "Aktif",
+        "at_risk": "Risk altında",
+        "lost": "Kayıp"
+      },
+      "ds": {
+        "title": "Kişiler",
+        "subtitle": "Yatırımcıları, brokerları, ortakları ve iş ilişkilerini yönetin.",
+        "loading": "Kişiler yükleniyor…",
+        "actions": {
+          "import": "İçe Aktar",
+          "export": "Dışa Aktar",
+          "add": "Kişi Ekle",
+          "call": "Ara",
+          "email": "E-posta",
+          "whatsapp": "WhatsApp",
+          "createTask": "Görev Oluştur",
+          "openDetail": "Detayı Aç"
+        },
+        "kpis": {
+          "aria": "Kişi portföy KPI’ları",
+          "total": "Toplam Kişi",
+          "activeInvestors": "Aktif Yatırımcılar",
+          "brokers": "Brokerlar",
+          "followUpsToday": "Bugünkü Takipler",
+          "vsLastMonth": "geçen aya göre",
+          "hints": {
+            "total": "CRM’deki aktif ilişkiler",
+            "activeInvestors": "Şu an etkileşimde olan yatırımcılar",
+            "brokers": "Broker ve emlak ortakları",
+            "followUpsToday": "Bugün yapılması gereken takipler"
+          }
+        },
+        "filters": {
+          "aria": "Kişi filtreleri",
+          "search": "Ara",
+          "searchPlaceholder": "Kişi ara…",
+          "role": "Rol",
+          "status": "Durum",
+          "owner": "Sahip",
+          "sort": "Sırala",
+          "any": "Tümü"
+        },
+        "sort": {
+          "activity_desc": "Son aktivite",
+          "name_asc": "Ad A–Z",
+          "name_desc": "Ad Z–A",
+          "followup_asc": "Sonraki takip",
+          "score_desc": "AI skoru",
+          "priority_desc": "Öncelik"
+        },
+        "view": {
+          "aria": "Kişiler görünüm modu",
+          "table": "Tablo",
+          "cards": "Kartlar"
+        },
+        "quick": {
+          "aria": "Hızlı rol filtreleri",
+          "all": "Tümü",
+          "investors": "Yatırımcılar",
+          "brokers": "Brokerlar",
+          "developers": "Geliştiriciler",
+          "partners": "Ortaklar",
+          "vendors": "Tedarikçiler",
+          "archived": "Arşiv"
+        },
+        "roles": {
+          "investor": "Yatırımcı",
+          "broker": "Broker",
+          "developer": "Geliştirici",
+          "partner": "Ortak",
+          "vendor": "Tedarikçi",
+          "other": "Diğer"
+        },
+        "statuses": {
+          "lead": "Lead",
+          "qualified": "Nitelikli",
+          "investor": "Yatırımcı",
+          "negotiating": "Müzakere",
+          "client": "Müşteri",
+          "inactive": "Pasif",
+          "lost": "Kayıp"
+        },
+        "sources": {
+          "referral": "Referans",
+          "event": "Etkinlik",
+          "website": "Web sitesi",
+          "linkedin": "LinkedIn",
+          "cold_outreach": "Soğuk arama",
+          "partner": "Ortak"
+        },
+        "priorities": {
+          "low": "Düşük",
+          "medium": "Orta",
+          "high": "Yüksek",
+          "urgent": "Acil"
+        },
+        "aiScore": {
+          "tooltip": "AI; etkileşim, yanıt hızı ve yatırım potansiyelini değerlendirir."
+        },
+        "columns": {
+          "avatar": "Avatar",
+          "fullName": "Ad Soyad",
+          "company": "Şirket",
+          "role": "Rol",
+          "status": "Durum",
+          "source": "Kaynak",
+          "lastActivity": "Son Aktivite",
+          "nextFollowUp": "Sonraki Takip",
+          "owner": "Sahip",
+          "priority": "Öncelik",
+          "aiScore": "AI Skoru",
+          "actions": "İşlemler"
+        },
+        "table": {
+          "aria": "Kişiler tablosu",
+          "title": "Tüm Kişiler"
+        },
+        "grid": {
+          "aria": "Kişi kartları"
+        },
+        "empty": {
+          "title": "Henüz kişi yok",
+          "description": "Mevcut kişilerinizi içe aktarın veya ilk ilişkinizi oluşturun.",
+          "import": "Kişileri İçe Aktar",
+          "add": "Kişi Ekle"
+        },
+        "pagination": "Sayfa {page} / {pages} · {total} kişi",
+        "prevPage": "Önceki",
+        "nextPage": "Sonraki"
+      }
+    },
+    "leads": {
+      "ds": {
+        "title": "Leadler",
+        "subtitle": "Potansiyel yatırımcıları yönetin, önceliklendirin ve fırsatlara dönüştürün.",
+        "loading": "Leadler yükleniyor…",
+        "demoBadge": "demo veri",
+        "accessDenied": "Leadleri görüntüleme yetkiniz yok.",
+        "accessDeniedHint": "leads.view veya sales.view izni gerekir.",
+        "createError": "Lead oluşturulamadı.",
+        "selectAll": "Tümünü seç",
+        "actions": {
+          "add": "Yeni Lead",
+          "call": "Ara",
+          "email": "E-posta",
+          "whatsapp": "WhatsApp",
+          "createTask": "Görev Oluştur",
+          "openDetail": "Detayı Aç"
+        },
+        "kpis": {
+          "aria": "Lead portföy KPI’ları",
+          "total": "Toplam Lead",
+          "active": "Aktif Lead",
+          "hot": "Sıcak Lead",
+          "potentialValue": "Potansiyel Değer",
+          "converted": "Dönüşen Lead",
+          "vsLastMonth": "geçen aya göre",
+          "hints": {
+            "total": "Arşiv dışı tüm leadler",
+            "active": "Pipeline’daki aktif leadler",
+            "hot": "Yüksek skorlu öncelikli leadler",
+            "potentialValue": "Tahmini bütçe toplamı",
+            "converted": "Kazanılan leadler"
+          }
+        },
+        "filters": {
+          "aria": "Lead filtreleri",
+          "search": "Ara",
+          "searchPlaceholder": "Lead ara…",
+          "status": "Durum",
+          "source": "Kaynak",
+          "owner": "Sorumlu",
+          "score": "Lead puanı",
+          "sort": "Sırala",
+          "any": "Tümü"
+        },
+        "sort": {
+          "activity_desc": "Son etkileşim",
+          "name_asc": "Ad A–Z",
+          "name_desc": "Ad Z–A",
+          "score_desc": "Lead puanı",
+          "created_desc": "Oluşturulma",
+          "budget_desc": "Potansiyel değer"
+        },
+        "quick": {
+          "aria": "Hızlı lead filtreleri",
+          "all": "Tümü",
+          "new": "Yeni",
+          "active": "Aktif",
+          "hot": "Sıcak",
+          "qualified": "Nitelikli",
+          "follow_up": "Takip Bekleyen",
+          "converted": "Dönüşen",
+          "archived": "Arşiv"
+        },
+        "score": {
+          "tooltip": "Lead skoru; etkileşim ve nitelendirme verilerine göre hesaplanır.",
+          "high": "Yüksek (70+)",
+          "medium": "Orta (40–69)",
+          "low": "Düşük (<40)"
+        },
+        "columns": {
+          "lead": "Lead",
+          "company": "Şirket",
+          "status": "Durum",
+          "score": "Lead Puanı",
+          "source": "Kaynak",
+          "owner": "Sorumlu",
+          "lastActivity": "Son Etkileşim",
+          "created": "Oluşturulma",
+          "actions": "İşlemler"
+        },
+        "table": {
+          "aria": "Leadler tablosu",
+          "title": "Tüm Leadler"
+        },
+        "preview": {
+          "aria": "Lead önizleme",
+          "close": "Kapat",
+          "emptyTitle": "Lead seçin",
+          "emptyHint": "Hızlı bağlam için listeden bir lead seçin.",
+          "info": "Lead Bilgileri",
+          "email": "E-posta",
+          "phone": "Telefon",
+          "location": "Konum",
+          "lastInteraction": "Son Etkileşim",
+          "lastTouchLabel": "Son güncelleme",
+          "viewDetails": "Detayları Gör",
+          "nextStep": "Sonraki Adım",
+          "projectFollowUp": "{project} takibi",
+          "assignee": "Sorumlu: {name}",
+          "noAssignee": "Sorumlu atanmadı",
+          "goCalendar": "Takvime Git",
+          "openTask": "Görevi Aç",
+          "noNextStep": "Planlanmış sonraki adım yok.",
+          "notes": "Notlar",
+          "viewAllNotes": "Tüm Notları Gör",
+          "noNotes": "Henüz not yok."
+        },
+        "empty": {
+          "title": "Henüz lead bulunmuyor",
+          "description": "İlk lead kaydınızı oluşturarak pipeline’ı başlatın.",
+          "add": "Yeni Lead"
+        },
+        "pagination": "{start}–{end} / {total} lead",
+        "prevPage": "Önceki",
+        "nextPage": "Sonraki"
+      }
+    },
+    "modules": {
+      "contacts": {
+        "title": "Kişiler",
+        "description": "Tüm kişilerinizi, iletişim bilgilerini ve ilişkilerini tek merkezden yönetin."
+      },
+      "leads": {
+        "title": "Leadler",
+        "description": "Potansiyel yatırımcıları yönetin, önceliklendirin ve fırsatlara dönüştürün."
+      },
+      "pipeline": {
+        "title": "Pipeline",
+        "description": "Fırsat panosu — sürükle-bırak aşamalar ve beklenen gelir."
+      },
+      "matches": {
+        "title": "Matches",
+        "description": "Müşteri–envanter eşleşme önerileri ve karşılaştırma."
+      },
+      "companies": {
+        "title": "Şirketler",
+        "description": "Tüm şirketlerinizi, iş ortaklıklarınızı ve yatırımcı ilişkilerinizi tek yerden yönetin."
+      },
+      "relationships": {
+        "title": "İlişkiler",
+        "description": "Kişiler, şirketler ve projeler arasındaki ilişki haritası."
+      },
+      "timeline": {
+        "title": "Zaman Çizelgesi",
+        "description": "Birleşik aktivite ve etkileşim zaman çizelgesi."
+      },
+      "activities": {
+        "title": "Aktiviteler",
+        "description": "CRM kapsamındaki tüm aktivite kayıtları."
+      },
+      "tasks": {
+        "title": "Görevler",
+        "description": "Kişilere bağlı görevler ve takipler."
+      },
+      "notes": {
+        "title": "Notlar",
+        "description": "Kişi ve ilişki notları."
+      },
+      "files": {
+        "title": "Dosyalar",
+        "description": "Kişilere bağlı dosyalar ve ekler."
+      },
+      "tags": {
+        "title": "Etiketler",
+        "description": "Kişi etiketleri ve segmentasyon."
+      },
+      "communication": {
+        "title": "İletişim Merkezi",
+        "description": "E-posta, WhatsApp, telefon, toplantılar ve müşteri iletişimini tek merkezden yönetin."
+      },
+      "documents": {
+        "title": "Belgeler",
+        "description": "Belgeleri yönetin, paylaşın ve takip edin."
+      },
+      "search": {
+        "title": "Arama",
+        "description": "Kişiler ve şirketler için genel CRM araması."
+      },
+      "reports": {
+        "title": "Raporlar",
+        "description": "İş performansınızı analiz edin, içgörüler elde edin ve daha iyi kararlar alın."
+      },
+      "settings": {
+        "title": "Ayarlar",
+        "description": "Sisteminizi ihtiyaçlarınıza göre yönetin ve yapılandırın."
+      }
+    },
+    "timeline": {
+      "title": "Zaman Çizelgesi",
+      "subtitle": "Tüm CRM aktivitelerinin, notların, görevlerin ve sistem olaylarının kronolojik görünümü.",
+      "accessDenied": "Zaman çizelgesini görüntüleme yetkiniz yok.",
+      "accessDeniedHint": "CRM aktivite erişimi için yöneticinize başvurun.",
+      "loadFailed": "Zaman çizelgesi yüklenemedi.",
+      "emptyTitle": "Henüz aktivite yok",
+      "emptyDescription": "İlk aktivitenizi oluşturun veya filtreleri ayarlayın.",
+      "createActivity": "Aktivite oluştur",
+      "loadMore": "Daha fazla yükle",
+      "systemEvent": "Sistem olayı",
+      "ds": {
+        "title": "Zaman Çizelgesi",
+        "subtitle": "Kişi, şirket ve projelerdeki önemli CRM olaylarının kronolojik geçmişi.",
+        "actions": {
+          "addEvent": "Yeni Olay Ekle",
+          "copilot": "YZ Copilot",
+          "openRecord": "Kaydı Aç",
+          "openLead": "Lead Aç",
+          "openContact": "Kişiyi Aç",
+          "openCompany": "Şirketi Aç",
+          "openProject": "Projeyi Aç",
+          "createFollowUp": "Takip Oluştur",
+          "createTask": "Görev Oluştur",
+          "addNote": "Not Ekle",
+          "startCommunication": "İletişim Başlat"
+        },
+        "filters": {
+          "aria": "Zaman çizelgesi filtreleri",
+          "search": "Ara",
+          "searchPlaceholder": "Olaylarda ara…",
+          "status": "Durum",
+          "allStatuses": "Tümü",
+          "category": "Kategori",
+          "allCategories": "Tüm kategoriler",
+          "owner": "Sahip",
+          "allOwners": "Tüm sahipler",
+          "entityType": "Varlık tipi",
+          "allEntityTypes": "Tüm varlık tipleri",
+          "dateFrom": "Başlangıç",
+          "dateTo": "Bitiş",
+          "apply": "Uygula",
+          "today": "Bugün",
+          "reset": "Filtreleri Sıfırla"
+        },
+        "entities": {
+          "title": "Varlıklar",
+          "count": "{count} varlık",
+          "summaryAria": "Varlık özeti",
+          "summaryTotal": "{count} Toplam",
+          "summaryActive": "{count} Aktif",
+          "summaryFavorites": "{count} Favori",
+          "search": "Varlık ara",
+          "searchPlaceholder": "Varlık ara…",
+          "tabsAria": "Varlık türleri",
+          "all": "Tümü",
+          "people": "Kişiler",
+          "companies": "Şirketler",
+          "investors": "Yatırımcılar",
+          "projects": "Projeler",
+          "leads": "Leadler",
+          "favorites": "Favoriler",
+          "add": "Yeni Varlık Ekle",
+          "emptyTitle": "Varlık bulunamadı",
+          "emptyDescription": "Başka bir sekme deneyin veya varlık aramasını temizleyin."
+        },
+        "feed": {
+          "title": "Zaman Çizelgesi",
+          "count": "{count} olay",
+          "backToToday": "Bugüne Dön",
+          "today": "Bugün",
+          "yesterday": "Dün",
+          "loadMore": "Daha fazla göster"
+        },
+        "detail": {
+          "title": "Seçilen Olay Detayı",
+          "open": "Olay detayını aç",
+          "close": "Kapat",
+          "emptyTitle": "Olay seçilmedi",
+          "emptyDescription": "Detay ve ilişkili kayıtları görmek için zaman çizelgesinden bir olay seçin.",
+          "eventInformation": "Olay Bilgisi",
+          "relatedRecord": "İlgili Kayıt",
+          "relatedEntity": "İlgili varlık",
+          "description": "Açıklama",
+          "noDescription": "Açıklama eklenmemiş.",
+          "owner": "Sahip",
+          "meta": "Olay meta verileri",
+          "category": "Kategori",
+          "channel": "Kanal",
+          "relatedRecords": "İlişkili kayıtlar",
+          "attachments": "Ekler",
+          "notes": "Notlar",
+          "quickActions": "Hızlı Aksiyonlar"
+        },
+        "empty": {
+          "title": "Zaman çizelgesi olayı yok",
+          "description": "Önemli CRM etkileşimleri burada görünür. Devam etmek için bir olay ekleyin veya filtreleri sıfırlayın."
+        },
+        "categories": {
+          "whatsapp": "WhatsApp",
+          "email": "E-posta",
+          "call": "Arama",
+          "meeting": "Toplantı",
+          "task": "Görev",
+          "note": "Not",
+          "document": "Belge",
+          "lead": "Lead",
+          "investor": "Yatırımcı",
+          "project": "Proje",
+          "status": "Durum Güncellemesi",
+          "construction": "İnşaat",
+          "payment": "Ödeme",
+          "contract": "Sözleşme",
+          "inspection": "İnceleme",
+          "activity": "Aktivite"
+        },
+        "statuses": {
+          "completed": "Tamamlandı",
+          "planned": "Planlandı",
+          "scheduled": "Zamanlandı",
+          "in_progress": "Devam ediyor",
+          "cancelled": "İptal",
+          "missed": "Kaçırıldı",
+          "deferred": "Ertelendi"
+        }
+      }
+    },
+    "communication": {
+      "compose": "Yeni İleti",
+      "searchPlaceholder": "Konuşmalarda ara…",
+      "folders": {
+        "inbox": "Gelen kutusu",
+        "drafts": "Taslaklar",
+        "sent": "Gönderilen",
+        "all": "Tümü",
+        "unread": "Okunmamış",
+        "assignedToMe": "Bana atanan",
+        "scheduled": "Zamanlanmış",
+        "calls": "Aramalar",
+        "meetings": "Toplantılar",
+        "whatsapp": "WhatsApp",
+        "sms": "SMS",
+        "internal": "Dahili",
+        "followUpDue": "Takip zamanı gelen",
+        "failed": "Başarısız",
+        "archived": "Arşivlenen"
+      },
+      "calls": {
+        "title": "Arama kayıtları",
+        "subtitle": "Manuel arama kaydı ve sonuç takibi.",
+        "accessDenied": "Arama kayıtlarını görüntüleme yetkiniz yok.",
+        "accessDeniedHint": "CRM iletişim erişimi için yöneticinize başvurun.",
+        "logCall": "Arama kaydet",
+        "clickToCallNote": "Tıkla-ara için bağlı bir telefon sağlayıcısı gerekir.",
+        "callHistory": "Arama geçmişi",
+        "loading": "Aramalar yükleniyor…",
+        "emptyTitle": "Arama kaydı yok",
+        "emptyDescription": "Sonuçları izlemek için bir arama kaydedin.",
+        "save": "Aramayı kaydet",
+        "saveCallLog": "Arama kaydını kaydet",
+        "columns": {
+          "subject": "Konu",
+          "status": "Durum",
+          "date": "Tarih"
+        },
+        "direction": {
+          "inbound": "Gelen",
+          "outbound": "Giden"
+        },
+        "outcomes": {
+          "connected": "Bağlandı",
+          "noAnswer": "Cevap yok",
+          "no_answer": "Cevap yok",
+          "voicemail": "Sesli mesaj",
+          "left_voicemail": "Sesli mesaj bırakıldı",
+          "busy": "Meşgul",
+          "wrong_number": "Yanlış numara",
+          "callback_requested": "Geri arama istendi"
+        },
+        "fields": {
+          "subject": "Konu",
+          "contactId": "Kişi ID",
+          "direction": "Yön",
+          "duration": "Süre (sn)",
+          "outcome": "Sonuç",
+          "selectOutcome": "Sonuç seçin",
+          "notes": "Notlar"
+        }
+      },
+      "meetings": {
+        "title": "Toplantılar",
+        "subtitle": "Planlanan ve tamamlanan toplantılar.",
+        "accessDenied": "Toplantıları görüntüleme yetkiniz yok.",
+        "accessDeniedHint": "CRM iletişim erişimi için yöneticinize başvurun.",
+        "loading": "Toplantılar yükleniyor…",
+        "emptyTitle": "Toplantı yok",
+        "emptyDescription": "Takvim veya aktivitelerden toplantı planlayın.",
+        "createMeeting": "Toplantı oluştur",
+        "columns": {
+          "subject": "Konu",
+          "status": "Durum",
+          "date": "Tarih"
+        }
+      },
+      "templates": {
+        "title": "Şablonlar",
+        "subtitle": "E-posta, SMS, WhatsApp ve diğerleri için şablonlar.",
+        "accessDenied": "Şablonları yönetme yetkiniz yok.",
+        "accessDeniedHint": "CRM iletişim erişimi için yöneticinize başvurun.",
+        "searchPlaceholder": "Şablon ara…",
+        "createTemplate": "Şablon oluştur",
+        "loading": "Şablonlar yükleniyor…",
+        "emptyTitle": "Şablon yok",
+        "emptyDescription": "Mesaj içeriğini yeniden kullanmak için şablon oluşturun.",
+        "save": "Şablonu kaydet",
+        "variablesHint": "Gövde içinde {{contact.name}} ve diğer değişkenleri kullanın.",
+        "fields": {
+          "name": "Ad",
+          "type": "Tür",
+          "subject": "Konu",
+          "body": "Gövde"
+        },
+        "types": {
+          "email": "E-posta",
+          "whatsapp": "WhatsApp",
+          "sms": "SMS",
+          "callScript": "Arama metni",
+          "meetingAgenda": "Toplantı gündemi",
+          "internal": "Dahili",
+          "followUp": "Takip"
+        }
+      },
+      "sequences": {
+        "title": "Sekanslar",
+        "subtitle": "Çok adımlı iletişim sekansları (yalnızca mimari).",
+        "accessDenied": "Sekansları yönetme yetkiniz yok.",
+        "accessDeniedHint": "CRM iletişim erişimi için yöneticinize başvurun.",
+        "loading": "Sekanslar yükleniyor…",
+        "emptyTitle": "Sekans yok",
+        "emptyDescription": "Sekans otomasyonu sonraki sprintte etkinleştirilecek.",
+        "createSequence": "Sekans oluştur",
+        "save": "Kaydet",
+        "inactive": "Pasif",
+        "active": "Aktif",
+        "stepCount": "{count} adım",
+        "architectureNote": "Yalnızca mimari — yürütme motoru etkin değil.",
+        "fields": {
+          "name": "Ad",
+          "description": "Açıklama"
+        }
+      },
+      "analytics": {
+        "title": "İletişim analitiği",
+        "subtitle": "Hacim, izleme ve takip metrikleri.",
+        "accessDenied": "İletişim analitiğini görüntüleme yetkiniz yok.",
+        "accessDeniedHint": "CRM iletişim erişimi için yöneticinize başvurun.",
+        "loading": "Analitik yükleniyor…",
+        "emptyTitle": "Analitik verisi yok",
+        "emptyDescription": "Mesaj gönderildikçe metrikler görünür.",
+        "analyticsDenied": "Analitik erişimi reddedildi",
+        "analyticsDeniedHint": "İletişim analitiği yetkisine ihtiyacınız var.",
+        "unavailable": "Kullanılamıyor"
+      },
+      "signatures": {
+        "title": "İmzalar",
+        "subtitle": "Kişisel ve ekip imzaları.",
+        "accessDenied": "İmzaları yönetme yetkiniz yok.",
+        "accessDeniedHint": "CRM iletişim erişimi için yöneticinize başvurun.",
+        "createSignature": "İmza oluştur",
+        "loading": "İmzalar yükleniyor…",
+        "emptyTitle": "İmza yok",
+        "emptyDescription": "Giden mesajlar için bir imza oluşturun.",
+        "save": "İmzayı kaydet",
+        "default": "Varsayılan",
+        "fields": {
+          "name": "Ad",
+          "body": "Gövde"
+        }
+      },
+      "preferences": {
+        "title": "İletişim tercihleri",
+        "subtitle": "Kişi ve şirket kanal tercihleri ile DNC.",
+        "accessDenied": "Tercihleri görüntüleme yetkiniz yok.",
+        "save": "Tercihleri kaydet",
+        "saved": "Tercihler kaydedildi.",
+        "readOnly": "Tercihleri görüntüleyebilirsiniz ancak düzenleyemezsiniz.",
+        "fields": {
+          "entityType": "Varlık türü",
+          "entityId": "Varlık ID",
+          "preferredChannel": "Tercih edilen kanal",
+          "doNotContact": "İletişim kurma (DNC)"
+        },
+        "entityTypes": {
+          "contact": "Kişi",
+          "company": "Şirket"
+        }
+      },
+      "accessDenied": "İletişimleri görüntüleme yetkiniz yok.",
+      "accessDeniedHint": "CRM iletişim erişimi için yöneticinize başvurun.",
+      "loadFailed": "Konuşmalar yüklenemedi.",
+      "loadFailedHint": "Yeniden deneyin veya filtreleri ayarlayın.",
+      "loadingThreads": "Konuşmalar yükleniyor…",
+      "loadingMore": "Daha fazla yükleniyor…",
+      "loadingThread": "Konuşma yükleniyor…",
+      "threadLoadFailed": "Bu konuşma yüklenemedi.",
+      "emptyThreadsTitle": "Konuşma yok",
+      "emptyThreadsDescription": "Mesaj oluşturun veya klasör filtrelerini ayarlayın.",
+      "selectThreadTitle": "Bir konuşma seçin",
+      "selectThreadDescription": "Mesajları görmek için listeden bir konuşma seçin.",
+      "noMessagesTitle": "Mesaj yok",
+      "noMessagesDescription": "Bu konuşmada henüz mesaj yok.",
+      "noSubject": "(Konu yok)",
+      "messageCount": "{count} mesaj",
+      "hasAttachments": "Ekleri var",
+      "reply": "Yanıtla",
+      "archive": "Arşivle",
+      "pin": "Sabitle",
+      "unpin": "Sabitlemeyi kaldır",
+      "markRead": "Okundu işaretle",
+      "cancel": "İptal",
+      "saveDraft": "Taslağı kaydet",
+      "saving": "Kaydediliyor…",
+      "composerDraftNote": "Taslaklar yalnızca bu kanal için kaydedilir.",
+      "providerNote": "Giden teslimat bağlı kanal sağlayıcılarına bağlıdır.",
+      "foldersHeading": "Klasörler",
+      "foldersAriaLabel": "İletişim klasörleri",
+      "threadListAriaLabel": "Konuşma listesi",
+      "toolsHeading": "Araçlar",
+      "toggleFolders": "Klasörleri aç/kapat",
+      "channels": {
+        "email": "E-posta",
+        "whatsapp": "WhatsApp",
+        "sms": "SMS",
+        "phone": "Telefon",
+        "call": "Arama",
+        "meeting": "Toplantı",
+        "internal": "Dahili",
+        "zoom": "Zoom",
+        "teams": "Microsoft Teams",
+        "internal_message": "Dahili mesaj",
+        "note": "Not",
+        "system_notification": "Sistem bildirimi",
+        "other": "Diğer"
+      },
+      "statuses": {
+        "draft": "Taslak",
+        "queued": "Kuyrukta",
+        "sent": "Gönderildi",
+        "delivered": "Teslim edildi",
+        "failed": "Başarısız",
+        "read": "Okundu",
+        "scheduled": "Zamanlandı",
+        "opened": "Açıldı",
+        "clicked": "Tıklandı",
+        "replied": "Yanıtlandı",
+        "cancelled": "İptal edildi",
+        "archived": "Arşivlendi",
+        "open": "Açık",
+        "pending": "Beklemede",
+        "snoozed": "Ertelendi",
+        "closed": "Kapalı"
+      },
+      "providers": {
+        "connected": "Bağlı",
+        "disconnected": "Bağlı değil",
+        "error": "Sağlayıcı hatası",
+        "status": {
+          "available": "Kullanılabilir",
+          "unavailable": "Kullanılamıyor",
+          "pending_sync": "Senkronize ediliyor",
+          "not_connected": "Bağlı değil"
+        }
+      },
+      "fields": {
+        "subject": "Konu",
+        "body": "Mesaj",
+        "to": "Kime",
+        "channel": "Kanal",
+        "contactId": "Kişi ID",
+        "companyId": "Şirket ID",
+        "direction": "Yön",
+        "duration": "Süre (sn)",
+        "outcome": "Sonuç",
+        "selectOutcome": "Sonuç seçin",
+        "entityType": "Varlık türü",
+        "entityId": "Varlık ID",
+        "preferredChannel": "Tercih edilen kanal",
+        "doNotContact": "İletişim kurma (DNC)",
+        "recipientEntityId": "Alıcı varlık ID",
+        "scheduleAt": "Zamanla"
+      },
+      "channelsHub": {
+        "tabsAria": "İletişim kanalları",
+        "timelineAria": "Kanal aktivite zaman çizelgesi",
+        "channels": {
+          "email": "E-posta",
+          "calls": "Aramalar",
+          "sms": "SMS",
+          "whatsapp": "WhatsApp",
+          "meetings": "Toplantılar"
+        },
+        "filters": {
+          "aria": "Kanal filtreleri",
+          "search": "Ara",
+          "searchPlaceholder": "Aktivite ara…",
+          "status": "Durum",
+          "anyStatus": "Tüm durumlar",
+          "clear": "Temizle"
+        },
+        "status": {
+          "sent": "Gönderildi",
+          "delivered": "İletildi",
+          "failed": "Başarısız",
+          "scheduled": "Planlandı",
+          "completed": "Tamamlandı",
+          "missed": "Cevapsız"
+        },
+        "empty": {
+          "title": "Aktivite yok",
+          "description": "Bu kanal ve filtre için aktivite bulunamadı."
+        }
+      },
+      "ds": {
+        "title": "İletişim Merkezi",
+        "subtitle": "E-posta, WhatsApp, telefon, toplantılar ve müşteri iletişimini tek merkezden yönetin.",
+        "accessDenied": "İletişimleri görüntüleme yetkiniz yok.",
+        "accessDeniedHint": "CRM iletişim erişimi için yöneticinize başvurun.",
+        "actions": {
+          "compose": "Yeni İleti"
+        },
+        "channels": {
+          "aria": "İletişim kanalları",
+          "all": "Tümü",
+          "email": "E-posta",
+          "whatsapp": "WhatsApp",
+          "phone": "Aramalar",
+          "meeting": "Toplantılar",
+          "task": "Görevler",
+          "note": "Notlar"
+        },
+        "stream": {
+          "title": "İletişim Akışı",
+          "count": "{count} iletişim",
+          "emptyTitle": "İletişim bulunamadı",
+          "emptyDescription": "Filtreleri değiştirin veya yeni bir ileti oluşturun."
+        },
+        "toolbar": {
+          "aria": "Akış araç çubuğu",
+          "search": "Ara",
+          "searchPlaceholder": "İletişimde ara…",
+          "sort": "Sırala",
+          "filterUnread": "Okunmamışları göster"
+        },
+        "sort": {
+          "recent": "Son etkileşim",
+          "unread": "Okunmamışlar önce",
+          "name_asc": "Ad A–Z",
+          "name_desc": "Ad Z–A"
+        },
+        "pagination": {
+          "range": "{from}–{to} / {total} iletişim",
+          "prev": "Önceki sayfa",
+          "next": "Sonraki sayfa"
+        },
+        "conversation": {
+          "title": "Konuşma",
+          "types": {
+            "whatsapp": "WhatsApp",
+            "email": "E-posta",
+            "phone": "Telefon Görüşmesi",
+            "meeting": "Toplantı",
+            "task": "Görev",
+            "note": "CRM Notu"
+          },
+          "emptyTitle": "Bir konuşma seçin",
+          "emptyDescription": "Mesajları görmek için soldaki listeden bir iletişim seçin.",
+          "active": "Aktif",
+          "star": "Favori",
+          "viewLead": "Lead detayını gör",
+          "today": "Bugün",
+          "noMessages": "Mesaj yok",
+          "noMessagesHint": "Bu konuşmada henüz zaman çizelgesi öğesi yok."
+        },
+        "composer": {
+          "channelsAria": "Gönderim kanalı",
+          "placeholder": "Mesajınızı yazın…",
+          "attach": "Ek ekle",
+          "emoji": "Emoji",
+          "schedule": "Zamanla",
+          "template": "Şablon",
+          "ai": "YZ Asistan",
+          "send": "Gönder",
+          "tabs": {
+            "whatsapp": "WhatsApp",
+            "email": "E-posta",
+            "phone": "Arama planla",
+            "meeting": "Toplantı planla",
+            "note": "Not ekle"
+          }
+        },
+        "attachments": {
+          "pdf": "PDF",
+          "docx": "DOCX",
+          "image": "Görsel",
+          "meeting_summary": "Toplantı özeti",
+          "voice": "Ses notu",
+          "download": "İndir"
+        },
+        "info": {
+          "title": "Bilgi Paneli",
+          "open": "Bilgi panelini aç",
+          "close": "Kapat",
+          "edit": "Düzenle",
+          "seeAll": "Tümünü gör",
+          "viewDetail": "Lead detayını gör",
+          "score": "Lead skoru",
+          "contact": "Kişi Bilgileri",
+          "activities": "Son Aktiviteler",
+          "tasks": "Yaklaşan Görevler",
+          "projects": "İlgili Projeler",
+          "notes": "CRM Notları",
+          "ai": "YZ Önerileri",
+          "noTasks": "Yaklaşan görev yok",
+          "emptyTitle": "Kişi seçilmedi",
+          "emptyDescription": "Bilgileri görmek için bir iletişim seçin.",
+          "fields": {
+            "company": "Şirket",
+            "email": "E-posta",
+            "phone": "Telefon",
+            "location": "Konum",
+            "source": "Kaynak",
+            "created": "Oluşturma"
+          }
+        }
+      }
+    },
+    "activities": {
+      "title": "Aktiviteler",
+      "subtitle": "Tüm müşteri etkileşimlerinizi yönetin, takip edin ve analiz edin.",
+      "accessDenied": "Aktiviteleri görüntüleme yetkiniz yok.",
+      "accessDeniedHint": "CRM aktivite erişimi için yöneticinize başvurun.",
+      "loadFailed": "Aktiviteler yüklenemedi.",
+      "emptyTitle": "Aktivite bulunamadı",
+      "emptyDescription": "Yeni bir aktivite oluşturun veya filtreleri sıfırlayın.",
+      "create": "Aktivite oluştur",
+      "selectedCount": "{count} seçildi",
+      "bulkPriorityHigh": "Öncelik: yüksek",
+      "bulkArchive": "Arşivle",
+      "selectActivity": "Aktivite seç",
+      "systemEvent": "Sistem",
+      "types": {
+        "note": "Not",
+        "phone": "Telefon Görüşmesi",
+        "phone_call": "Telefon görüşmesi",
+        "email": "E-posta",
+        "whatsapp": "WhatsApp",
+        "meeting": "Toplantı",
+        "documentShared": "Belge Paylaşıldı",
+        "missedCall": "Cevapsız Arama",
+        "sms": "SMS",
+        "videoCall": "Video Görüşmesi",
+        "task": "Görev",
+        "follow_up": "Takip",
+        "system_event": "Sistem olayı",
+        "other": "Diğer"
+      },
+      "status": {
+        "completed": "Tamamlandı",
+        "pending": "Bekliyor",
+        "cancelled": "İptal",
+        "inProgress": "Devam Ediyor"
+      },
+      "statuses": {
+        "planned": "Planlandı",
+        "scheduled": "Zamanlandı",
+        "in_progress": "Devam ediyor",
+        "completed": "Tamamlandı",
+        "cancelled": "İptal edildi",
+        "missed": "Kaçırıldı",
+        "deferred": "Ertelendi",
+        "archived": "Arşivlendi"
+      },
+      "priority": {
+        "low": "Düşük",
+        "medium": "Orta",
+        "high": "Yüksek",
+        "critical": "Kritik"
+      },
+      "priorities": {
+        "low": "Düşük",
+        "medium": "Orta",
+        "high": "Yüksek",
+        "critical": "Kritik"
+      },
+      "kpis": {
+        "aria": "Aktivite özet metrikleri",
+        "today": "Bugünkü Aktiviteler",
+        "completed": "Tamamlanan",
+        "pending": "Bekleyen",
+        "overdue": "Geciken",
+        "thisMonth": "bu ay",
+        "hints": {
+          "todayHint": "Bugün planlanan",
+          "completedHint": "Bugün tamamlanan",
+          "pendingHint": "Bekleyen etkileşimler",
+          "overdueHint": "Geciken takipler"
+        }
+      },
+      "ai": {
+        "aria": "YZ aktivite aksiyonları",
+        "title": "Investhome AI",
+        "openPrompt": "Bugünkü aktiviteleri özetle ve takip gerekenleri göster",
+        "actions": {
+          "summarizeToday": "Bugünü Özetle",
+          "showFollowUps": "Takip Gerekenleri Göster",
+          "missedCustomers": "Cevapsız Müşteriler",
+          "aiSummary": "AI Özeti"
+        }
+      },
+      "filters": {
+        "aria": "Aktivite filtreleri",
+        "ariaLabel": "Aktivite filtreleri",
+        "any": "Tümü",
+        "customer": "Müşteri",
+        "salesRep": "Satış Temsilcisi",
+        "type": "Aktivite Türü",
+        "status": "Durum",
+        "priority": "Öncelik",
+        "date": "Tarih Aralığı",
+        "search": "Arama",
+        "searchPlaceholder": "Aktivite ara...",
+        "clear": "Filtreleri Temizle",
+        "dateRanges": {
+          "today": "Bugün",
+          "last7": "Son 7 gün",
+          "last30": "Son 30 gün",
+          "last90": "Son 90 gün"
+        },
+        "allTypes": "Tüm türler",
+        "allStatuses": "Tüm durumlar",
+        "allPriorities": "Tüm öncelikler",
+        "allEntities": "Tüm varlıklar",
+        "entityContact": "Kişi",
+        "entityCompany": "Şirket",
+        "entityRelationship": "İlişki",
+        "filterLogic": "Filtre mantığı",
+        "and": "AND",
+        "or": "OR",
+        "pendingOnly": "Sadece bekleyenler",
+        "completedOnly": "Sadece tamamlananlar",
+        "apply": "Uygula",
+        "reset": "Sıfırla"
+      },
+      "table": {
+        "aria": "Aktivite tablosu",
+        "activity": "Aktivite",
+        "customer": "Müşteri",
+        "project": "Proje",
+        "salesRep": "Satış Temsilcisi",
+        "dateTime": "Tarih & Saat",
+        "status": "Durum",
+        "priority": "Öncelik",
+        "aiSummary": "AI Özeti",
+        "actions": "Aksiyonlar"
+      },
+      "pagination": {
+        "aria": "Aktivite sayfalama",
+        "total": "Toplam {count} aktivite",
+        "perPage": "Sayfa başı",
+        "pageUnit": "sayfa"
+      },
+      "actions": {
+        "detail": "Detay",
+        "edit": "Düzenle",
+        "more": "Daha fazla",
+        "expand": "Tümünü gör",
+        "collapse": "Daha az"
+      },
+      "rowDescriptions": {
+        "phoneDesc1": "Proje detayları ve ödeme planı görüşüldü",
+        "whatsappDesc1": "Fiyat listesi ve müsait daireler paylaşıldı",
+        "emailDesc1": "Ödeme planı teklifi gönderildi",
+        "meetingDesc1": "Saha gezisi ve daire seçimi planlandı",
+        "noteDesc1": "Müşteri finansman tercihlerini netleştirdi",
+        "documentDesc1": "Satış sözleşmesi taslağı paylaşıldı",
+        "missedCallDesc1": "Müşteri aramayı kaçırdı — geri dönüş bekleniyor",
+        "smsDesc1": "Randevu hatırlatması gönderildi",
+        "videoDesc1": "Uzaktan proje sunumu tamamlandı",
+        "phoneDesc2": "Takip araması — teklif geri bildirimi",
+        "meetingDesc2": "Ofis toplantısı ve rezervasyon görüşmesi",
+        "emailDesc2": "Eksik evrak listesi iletildi"
+      },
+      "aiSummaries": {
+        "summary1": "Müşteri proje detaylarından memnun kaldı; ödeme planı netleştirilecek.",
+        "summary2": "WhatsApp üzerinden fiyat bilgisi istendi; yanıt bekleniyor.",
+        "summary3": "E-posta teklifi açıldı; olumlu ilk tepki alındı.",
+        "summary4": "Toplantı devam ediyor; daire seçimi öncelikli.",
+        "summary5": "Not kaydı: finansman banka kredisi yönünde.",
+        "summary6": "Belge paylaşıldı; imza süreci başlatılabilir.",
+        "summary7": "Cevapsız arama; aynı gün içinde yeniden aranmalı.",
+        "summary8": "SMS iptal edildi; kanal WhatsApp'a alındı.",
+        "summary9": "Video görüşmede sunum tamamlandı; rezervasyon yakın.",
+        "summary10": "Takip araması planlandı; teklif geri bildirimi alınacak.",
+        "summary11": "Toplantı tamamlandı; rezervasyon formu hazırlanacak.",
+        "summary12": "Evrak e-postası gönderildi; yanıt bekleniyor."
+      },
+      "rail": {
+        "aria": "Aktivite içgörüleri",
+        "daySummary": "Günün Özeti",
+        "completed": "Tamamlanan",
+        "pending": "Bekleyen",
+        "overdue": "Geciken",
+        "viewDetailedSummary": "Detaylı Özeti Görüntüle",
+        "aiRecommendations": "AI Tavsiyeleri",
+        "upcomingMeetings": "Yaklaşan Toplantılar",
+        "overdueFollowUps": "Geciken Takipler",
+        "recentNotes": "Son Notlar",
+        "daysOverdue": "{count} gün gecikmiş",
+        "assessments": {
+          "dayAssessment": "Bugün 18 aktivite tamamlandı. 7 geciken takip önceliklendirilmeli; Elif Yıldız ve Burak Şahin için aynı gün dönüş önerilir."
+        },
+        "recommendations": {
+          "recFollowElif": "Elif Yıldız ile geciken takibi bugün kapatın.",
+          "recCallBurak": "Burak Şahin için cevapsız aramayı yeniden deneyin.",
+          "recSendDocs": "Can Özkan'a imza bekleyen belgeyi hatırlatın."
+        },
+        "notes": {
+          "noteAhmet": "Ödeme planı revizyonu kabul edildi.",
+          "noteAyse": "Marina 2+1 için ikinci ziyaret planlandı.",
+          "noteMehmet": "Banka ön onay süreci başladı."
+        },
+        "noteTimes": {
+          "hoursAgo2": "2 saat önce",
+          "hoursAgo5": "5 saat önce",
+          "yesterday": "Dün"
+        }
+      },
+      "form": {
+        "modes": {
+          "activity": "Aktivite oluştur",
+          "task": "Görev oluştur",
+          "note": "Not oluştur",
+          "meeting": "Toplantı oluştur",
+          "follow-up": "Takip oluştur"
+        },
+        "entityType": "Varlık türü",
+        "entity": "İlgili varlık",
+        "selectEntity": "Varlık seç",
+        "activityType": "Aktivite türü",
+        "title": "Başlık",
+        "description": "Açıklama",
+        "priority": "Öncelik",
+        "visibility": "Görünürlük",
+        "visibilityOrganization": "Kurum",
+        "visibilityTeam": "Ekip",
+        "visibilityPrivate": "Özel",
+        "dueDate": "Son tarih",
+        "startDate": "Başlangıç",
+        "validationRequired": "Başlık ve varlık zorunludur.",
+        "saveFailed": "Kaydedilemedi"
+      },
+      "detail": {
+        "title": "Aktivite detayı",
+        "close": "Kapat",
+        "loading": "Yükleniyor…",
+        "loadFailed": "Detay yüklenemedi",
+        "description": "Açıklama",
+        "created": "Oluşturuldu",
+        "dueDate": "Son tarih",
+        "location": "Konum",
+        "meetingUrl": "Toplantı URL'si",
+        "checklist": "Kontrol listesi",
+        "comments": "Yorumlar",
+        "completeTask": "Görevi tamamla"
+      }
+    },
+    "tasks": {
+      "title": "Görevler",
+      "subtitle": "Satış ekibinin görevlerini planlayın, önceliklendirin ve zamanında tamamlayın.",
+      "listTitle": "Görev Listesi",
+      "accessDenied": "Görevleri görüntüleme yetkiniz yok.",
+      "accessDeniedHint": "CRM görev erişimi için yöneticinize başvurun.",
+      "loadFailed": "Görevler yüklenemedi.",
+      "emptyTitle": "Görev yok",
+      "emptyDescription": "İlk görevinizi oluşturun.",
+      "create": "Görev oluştur",
+      "complete": "Tamamla",
+      "widgets": "Görev özeti",
+      "todaysTasks": "Bugünün görevleri",
+      "overdueTasks": "Süresi geçen görevler",
+      "upcomingMeetings": "Yaklaşan toplantılar",
+      "followUpsDue": "Zamanı gelen takipler",
+      "viewModes": "Görünüm modları",
+      "viewAria": "Görev görünüm modu",
+      "view": {
+        "list": "Liste",
+        "card": "Kart",
+        "kanban": "Kanban"
+      },
+      "views": {
+        "list": "Liste",
+        "kanban": "Kanban",
+        "calendar": "Takvim",
+        "my": "Görevlerim",
+        "team": "Ekip görevleri"
+      },
+      "status": {
+        "open": "Açık",
+        "inProgress": "Devam Ediyor",
+        "completed": "Tamamlandı",
+        "waiting": "Beklemede",
+        "cancelled": "İptal"
+      },
+      "statuses": {
+        "not_started": "Başlamadı",
+        "in_progress": "Devam ediyor",
+        "waiting": "Bekliyor",
+        "completed": "Tamamlandı",
+        "cancelled": "İptal edildi",
+        "deferred": "Ertelendi"
+      },
+      "priority": {
+        "low": "Düşük",
+        "medium": "Orta",
+        "high": "Yüksek",
+        "critical": "Kritik"
+      },
+      "kanban": {
+        "todo": "Yapılacak",
+        "inProgress": "Devam Ediyor",
+        "review": "İncelemede",
+        "completed": "Tamamlandı"
+      },
+      "kpis": {
+        "aria": "Görev özet metrikleri",
+        "open": "Açık Görevler",
+        "dueToday": "Bugün Bitecek",
+        "overdue": "Geciken",
+        "completed": "Tamamlanan",
+        "thisMonth": "bu ay",
+        "thisWeek": "bu hafta",
+        "hints": {
+          "openHint": "Aktif açık görevler",
+          "dueTodayHint": "Son teslim bugün",
+          "overdueHint": "Geciken görevler",
+          "completedHint": "Dönemde tamamlanan"
+        }
+      },
+      "ai": {
+        "aria": "AI görev aksiyonları",
+        "title": "Investhome AI",
+        "openPrompt": "Bugünkü görevleri önceliklendir ve tamamlanma planı oluştur",
+        "actions": {
+          "sortByPriority": "Kritikleri Göster",
+          "dueToday": "Bugün Bitecekler",
+          "showOverdue": "Gecikenleri Göster",
+          "createPlan": "AI Plan Oluştur"
+        }
+      },
+      "filters": {
+        "aria": "Görev filtreleri",
+        "any": "Tümü",
+        "assignee": "Atanan Kişi",
+        "customer": "Müşteri",
+        "project": "Proje",
+        "priority": "Öncelik",
+        "status": "Durum",
+        "dueDate": "Son Tarih",
+        "tag": "Etiket",
+        "search": "Arama",
+        "searchPlaceholder": "Görev ara...",
+        "clear": "Filtreleri Temizle",
+        "dateRanges": {
+          "today": "Bugün",
+          "soon": "Yaklaşan",
+          "overdue": "Geciken"
+        }
+      },
+      "table": {
+        "aria": "Görev tablosu",
+        "task": "Görev",
+        "customer": "Müşteri",
+        "project": "Proje",
+        "dueDate": "Son Tarih",
+        "priority": "Öncelik",
+        "assignee": "Atanan",
+        "aiNote": "AI Notu",
+        "status": "Durum",
+        "actions": "Aksiyonlar"
+      },
+      "pagination": {
+        "aria": "Görev sayfalama",
+        "total": "Toplam {count} görev",
+        "perPage": "Sayfa başına",
+        "pageUnit": "sayfa"
+      },
+      "actions": {
+        "detail": "Detay",
+        "edit": "Düzenle",
+        "assign": "Ata",
+        "more": "Daha Fazla",
+        "selectTask": "{title} görevini seç",
+        "expand": "Tümünü Gör",
+        "collapse": "Daha az"
+      },
+      "dueUrgency": {
+        "dueEndToday": "Bugün son gün",
+        "hoursLeft3": "3 saat kaldı",
+        "tomorrow": "Yarın"
+      },
+      "tags": {
+        "contract": "Sözleşme",
+        "analysis": "Analiz",
+        "payment": "Ödeme",
+        "closing": "Kapanış",
+        "followUp": "Takip"
+      },
+      "titles": {
+        "sendLandContract": "Arsa sözleşmesini gönder",
+        "checkRoiAnalysis": "ROI analizini kontrol et",
+        "sharePaymentPlan": "Ödeme planını paylaş",
+        "prepareClosingDocs": "Kapanış evraklarını hazırla",
+        "customerFollowUpCall": "Müşteri takip araması yap",
+        "sendBrochurePack": "Broşür paketini gönder",
+        "scheduleSiteVisit": "Şantiye ziyareti planla",
+        "reviewReservationForm": "Rezervasyon formunu incele",
+        "collectBankDocs": "Banka belgelerini topla",
+        "confirmUnitHold": "Birim rezervasyonunu onayla"
+      },
+      "descriptions": {
+        "sendLandContractDesc": "İmzalı arsa sözleşmesi taslağını yatırımcıya bugün gönderin.",
+        "checkRoiAnalysisDesc": "Öğleden sonraki yatırımcı görüşmesi öncesi ROI varsayımlarını doğrulayın.",
+        "sharePaymentPlanDesc": "Güncellenmiş taksit planını müşteriyle paylaşın.",
+        "prepareClosingDocsDesc": "Kapanış paketini ve yasal ekleri hazırlayın.",
+        "customerFollowUpCallDesc": "İlgiyi ve sonraki ziyaret slotunu teyit etmek için arayın.",
+        "sendBrochurePackDesc": "Proje broşürünü ve birim karşılaştırma sayfasını e-posta ile gönderin.",
+        "scheduleSiteVisitDesc": "Şantiye ziyareti saatini satış ve operasyonla koordine edin.",
+        "reviewReservationFormDesc": "İmza öncesi rezervasyon formunun eksiksizliğini kontrol edin.",
+        "collectBankDocsDesc": "Eksik banka ön onay belgelerini toplayın.",
+        "confirmUnitHoldDesc": "Geçici birim rezervasyonunu envanter ekibiyle onaylayın."
+      },
+      "dueLabels": {
+        "today1600": "Bugün 16:00",
+        "today1730": "Bugün 17:30",
+        "today1500": "Bugün 15:00",
+        "tomorrow1100": "Yarın 11:00",
+        "mon1400": "Pzt 14:00",
+        "tue1030": "Sal 10:30",
+        "wed0900": "Çar 09:00",
+        "thu1600": "Per 16:00",
+        "overdue2d": "2 gün gecikti",
+        "overdue1d": "1 gün gecikti",
+        "done": "Tamamlandı"
+      },
+      "aiNotes": {
+        "note1": "Yatırımcı iki gündür belge bekliyor.",
+        "note2": "ROI rakamları görüşme öncesi hazır olmalı.",
+        "note3": "Müşteri daha yumuşak bir taksit eğrisi istedi.",
+        "note4": "Yasal paket iki ek belge bekliyor.",
+        "note5": "Geciken takip — aynı gün geri arama önerilir.",
+        "note6": "Broşür paketi sonraki ziyareti açabilir.",
+        "note7": "Ziyaret saati Cuma trafiğinden kaçınmalı.",
+        "note8": "Rezervasyon formu temizlendi; imzaya hazır.",
+        "note9": "Banka belgeleri kapanışı blokluyor.",
+        "note10": "Müşteri kararı erteleyince hold iptal edildi."
+      },
+      "rail": {
+        "aria": "Görev içgörüleri",
+        "daySummary": "Bugünkü Durum",
+        "open": "Açık",
+        "dueToday": "Bugün",
+        "overdue": "Geciken",
+        "viewTaskSummary": "Görev Özetini Gör",
+        "todayPriorities": "Günün Öncelikleri",
+        "upcomingDeadlines": "Yaklaşan Deadline'lar",
+        "aiRecommendations": "AI Tavsiyeleri",
+        "teamPerformance": "Takım Performansı",
+        "completedRatio": "{completed}/{total} tamamlandı",
+        "assessments": {
+          "dayAssessment": "42 açık görev kaldı. Bugün bitecek 8 görevi önceliklendirin ve 5 geciken kalemi akşam devrine kadar kapatın."
+        },
+        "recommendations": {
+          "recAhmetFirst": "Ahmet Yılmaz görevi önce tamamlanmalı.",
+          "recRoiBeforeCall": "Yatırımcı görüşmesi öncesi ROI incelemesini bitirin.",
+          "recOverdueBatch": "İki geciken takibi öğleden sonra toplu kapatın."
+        }
+      }
+    },
+    "notes": {
+      "title": "Notlar",
+      "subtitle": "Kişi, şirket ve projeler ile ilgili tüm notlarınızı yönetin.",
+      "accessDenied": "Notları görüntüleme yetkiniz yok.",
+      "accessDeniedHint": "CRM not erişimi için yöneticinize başvurun.",
+      "loadFailed": "Notlar yüklenemedi.",
+      "emptyTitle": "Not yok",
+      "emptyDescription": "İlk notunuzu oluşturun.",
+      "create": "Yeni Not",
+      "ds": {
+        "title": "Notlar",
+        "subtitle": "Kişi, şirket ve projeler ile ilgili tüm notlarınızı yönetin.",
+        "demoBadge": "demo veri",
+        "actions": {
+          "create": "Yeni Not",
+          "copilot": "YZ Copilot",
+          "edit": "Notu Düzenle",
+          "share": "Paylaş",
+          "downloadPdf": "PDF Olarak İndir",
+          "copy": "Kopyala",
+          "delete": "Sil"
+        },
+        "filters": {
+          "aria": "Not filtreleri",
+          "search": "Ara",
+          "searchPlaceholder": "Notlarda ara…",
+          "category": "Kategori",
+          "allCategories": "Tüm Kategoriler",
+          "owner": "Sahip",
+          "allOwners": "Tüm Sahipler",
+          "entityType": "Varlık tipi",
+          "allEntityTypes": "Tüm Varlık Tipleri",
+          "tag": "Etiketler",
+          "allTags": "Tüm Etiketler",
+          "dateFrom": "Başlangıç",
+          "dateTo": "Bitiş",
+          "view": "Görünüm",
+          "sort": "Sırala",
+          "reset": "Filtreleri sıfırla"
+        },
+        "views": {
+          "list": "Liste",
+          "compact": "Kompakt"
+        },
+        "sort": {
+          "newest": "En Yeni",
+          "oldest": "En Eski",
+          "title_asc": "Başlık A–Z",
+          "priority": "Öncelik",
+          "updated": "Son güncelleme"
+        },
+        "categories": {
+          "meeting": "Toplantı Notu",
+          "general": "Genel",
+          "follow_up": "Takip",
+          "research": "Araştırma",
+          "internal": "Dahili",
+          "other": "Diğer"
+        },
+        "entityTypes": {
+          "contact": "Kişi",
+          "company": "Şirket",
+          "investor": "Yatırımcı",
+          "lead": "Lead",
+          "project": "Proje",
+          "activity": "Aktivite",
+          "meeting": "Toplantı",
+          "communication": "İletişim",
+          "opportunity": "Fırsat",
+          "other": "Diğer"
+        },
+        "statuses": {
+          "planned": "Taslak",
+          "scheduled": "Planlandı",
+          "in_progress": "Devam ediyor",
+          "completed": "Tamamlandı",
+          "cancelled": "İptal",
+          "missed": "Kaçırıldı",
+          "deferred": "Ertelendi",
+          "archived": "Arşiv"
+        },
+        "priorities": {
+          "low": "Düşük",
+          "medium": "Orta",
+          "high": "Önemli",
+          "critical": "Kritik"
+        },
+        "visibility": {
+          "private": "Özel",
+          "team": "Ekip",
+          "organization": "Organizasyon",
+          "restricted": "Kısıtlı"
+        },
+        "explorer": {
+          "title": "Notlar",
+          "titleWithCount": "Notlar ({count})",
+          "tabsAria": "Not klasörleri",
+          "tabs": {
+            "all": "Tümü",
+            "important": "Önemli",
+            "shared": "Paylaşılan",
+            "draft": "Taslak"
+          },
+          "importantBadge": "Önemli",
+          "loadMore": "Daha Fazla Yükle",
+          "emptyTitle": "Not bulunamadı",
+          "emptyDescription": "Filtreleri ayarlayın veya bilgi merkezinizi başlatmak için yeni not oluşturun."
+        },
+        "viewer": {
+          "title": "Not görüntüleyici",
+          "emptyTitle": "Bir not seçin",
+          "emptyDescription": "Okumak ve işlem yapmak için sol listeden bir not seçin.",
+          "favorite": "Favori",
+          "menu": "Not menüsü",
+          "tabsAria": "Not bölümleri",
+          "tabs": {
+            "note": "Not",
+            "details": "Detaylar",
+            "relations": "İlişkiler ({count})",
+            "tags": "Etiketler ({count})",
+            "history": "Geçmiş"
+          },
+          "noBody": "Not içeriği yok",
+          "noBodyHint": "Bu notun henüz gövdesi yok. Düzenleyerek ekleyin.",
+          "actionItems": "Sonraki adımlar",
+          "noActions": "Aksiyon maddesi yok",
+          "noActionsHint": "Notu düzenlerken kontrol listesi ekleyebilirsiniz.",
+          "attachments": "Ekler",
+          "noAttachments": "Ek yok",
+          "noAttachmentsHint": "Uygun olduğunda PDF, DOCX veya görsel ekleyin.",
+          "comments": "Yorumlar",
+          "noComments": "Henüz yorum yok",
+          "noCommentsHint": "Bu not üzerinde dahili bir tartışma başlatın.",
+          "commentPlaceholder": "Yorum ekleyin…",
+          "sendComment": "Gönder"
+        },
+        "attachments": {
+          "download": "İndir",
+          "preview": "Önizle",
+          "more": "Daha fazla",
+          "kinds": {
+            "pdf": "PDF",
+            "docx": "DOCX",
+            "xlsx": "XLSX",
+            "image": "Görsel",
+            "zip": "ZIP",
+            "other": "Dosya"
+          }
+        },
+        "info": {
+          "title": "Not Detayları",
+          "open": "Detayları aç",
+          "close": "Detayları kapat",
+          "emptyTitle": "Not seçilmedi",
+          "emptyDescription": "Durum, kişiler ve hızlı aksiyonlar için bir not seçin.",
+          "status": "Durum",
+          "priority": "Öncelik",
+          "visibility": "Görünürlük",
+          "category": "Kategori",
+          "owner": "Sahip",
+          "updated": "Son güncelleme",
+          "createdBy": "Oluşturan",
+          "updatedBy": "Son Güncelleyen",
+          "entity": "Varlık",
+          "people": "İlişkili Kişiler",
+          "noPeople": "İlişkili kişi yok",
+          "noPeopleHint": "Notu düzenlerken kişi bağlayın.",
+          "tags": "Etiketler",
+          "noTags": "Etiket yok",
+          "noTagsHint": "Bu notu daha hızlı bulmak için etiket ekleyin.",
+          "quickActions": "Hızlı Aksiyonlar"
+        },
+        "history": {
+          "created": "Not oluşturuldu",
+          "updated": "Not güncellendi"
+        }
+      }
+    },
+    "calendar": {
+      "title": "Takvim",
+      "subtitle": "Toplantılarınızı, görevlerinizi ve müşteri etkinliklerinizi tek yerden yönetin.",
+      "accessDenied": "Takvimi görüntüleme yetkiniz yok.",
+      "accessDeniedHint": "CRM takvim erişimi için yöneticinize başvurun.",
+      "loadFailed": "Takvim yüklenemedi.",
+      "emptyTitle": "Etkinlik yok",
+      "emptyDescription": "Bu aralıkta planlanmış etkinlik yok.",
+      "createMeeting": "Toplantı oluştur",
+      "prev": "Önceki",
+      "next": "Sonraki",
+      "noDate": "Tarih yok",
+      "viewModes": "Takvim görünümü",
+      "viewAria": "Takvim görünüm modu",
+      "participants": "{count} katılımcı",
+      "views": {
+        "day": "Gün",
+        "week": "Hafta",
+        "month": "Ay",
+        "agenda": "Ajanda"
+      },
+      "days": {
+        "mon": "Pzt",
+        "tue": "Sal",
+        "wed": "Çar",
+        "thu": "Per",
+        "fri": "Cum",
+        "sat": "Cmt",
+        "sun": "Paz"
+      },
+      "allDay": {
+        "aria": "Tüm gün etkinlikleri",
+        "label": "Tüm gün",
+        "short": "Tüm gün"
+      },
+      "kpis": {
+        "aria": "Takvim özet metrikleri",
+        "todayEvents": "Bugünkü Etkinlikler",
+        "thisWeek": "Bu Hafta",
+        "upcomingMeetings": "Yaklaşan Toplantılar",
+        "completed": "Tamamlananlar",
+        "attendanceRate": "Katılım Oranı",
+        "trendSuffix": "bu hafta",
+        "hints": {
+          "todayEventsHint": "6 toplantı, 8 arama, 4 görev",
+          "thisWeekHint": "22 toplantı, 18 arama, 14 görev",
+          "upcomingMeetingsHint": "Sonraki 48 saat içinde",
+          "completedHint": "Bu hafta tamamlananlar",
+          "attendanceRateHint": "Toplantı katılım oranı"
+        }
+      },
+      "actions": {
+        "newEvent": "Yeni Etkinlik",
+        "aiPlan": "AI Planla",
+        "filters": "Filtreler"
+      },
+      "filters": {
+        "stub": "Filtreler sunum amaçlıdır — canlı takvim motoru bağlı değildir."
+      },
+      "ai": {
+        "aria": "Takvim AI eylemleri",
+        "title": "Investhome AI",
+        "openPrompt": "Bugünkü takvimimi özetle ve çakışmaları öner",
+        "planPrompt": "Bu hafta için AI ile bir etkinlik planı oluştur",
+        "newEventPrompt": "Yeni etkinlik oluşturmama yardım et"
+      },
+      "dateNav": {
+        "aria": "Tarih gezinme",
+        "today": "Bugün",
+        "prev": "Önceki aralık",
+        "next": "Sonraki aralık",
+        "pick": "Tarih aralığı seç",
+        "ranges": {
+          "jul21to27": "21 - 27 Temmuz 2025"
+        }
+      },
+      "types": {
+        "phone": "Telefon",
+        "meeting": "Toplantı",
+        "investorMeeting": "Yatırımcı Görüşmesi",
+        "siteVisit": "Saha Ziyareti",
+        "internalMeeting": "İç Toplantı",
+        "documentHandoff": "Belge Teslimi",
+        "task": "Görev",
+        "presentation": "Sunum",
+        "demo": "Demo"
+      },
+      "events": {
+        "siteVisitSaturday": "Saha Ziyareti",
+        "reportingSunday": "Raporlama",
+        "ahmetProjectPresentation": "Ahmet Yılmaz - Proje Sunumu",
+        "aysePhoneCall": "Ayşe Demir - Telefon Görüşmesi",
+        "marinaProgressMeeting": "Marina Heights - İlerleme Toplantısı",
+        "roiAnalysisReview": "ROI Analizi - Değerlendirme",
+        "yusufPhoneCall": "Yusuf Bildirici - Telefon Görüşmesi",
+        "eminInternalReview": "Emin Bilgin - İç Değerlendirme",
+        "weeklyTeamMeeting": "Ekip Toplantısı - Haftalık Değerlendirme",
+        "investorBriefing": "Zeynep Arslan - Yatırımcı Görüşmesi",
+        "documentHandoff": "Mehmet Kaya - Belge Teslimi",
+        "followUpTask": "Elif Yıldız - Takip Görevi"
+      },
+      "rail": {
+        "aria": "Takvim paneli",
+        "upcoming": "Yaklaşan Etkinlikler",
+        "quickCreate": "Hızlı Oluştur",
+        "aiSuggestions": "AI Önerileri",
+        "sync": "Takvim Senkronizasyonu",
+        "when": {
+          "today": "Bugün",
+          "tomorrow": "Yarın",
+          "later": "Bu hafta"
+        },
+        "quick": {
+          "meeting": "Toplantı Ekle",
+          "call": "Arama Ekle",
+          "task": "Görev Ekle",
+          "reminder": "Hatırlatma Ekle"
+        },
+        "suggestions": {
+          "conflictToday": "Bugün 3 etkinlik çakışıyor — 11:00–12:15 arası yeniden sıralayın.",
+          "followUpSlot": "Ayşe Demir aramasından sonra 20 dk takip bloğu ekleyin.",
+          "freeSlotWed": "Çarşamba 13:30–14:15 boş — saha ziyareti için uygun.",
+          "rescheduleDemo": "ROI demosunu Perşembe 15:00'e kaydırmak çakışmayı azaltır."
+        },
+        "providers": {
+          "google": "Google Calendar",
+          "outlook": "Outlook Calendar"
+        },
+        "syncStatus": {
+          "connected": "Bağlandı",
+          "notConnected": "Bağlı değil"
+        }
+      }
+    },
+    "relationships": {
+      "title": "İlişkiler",
+      "description": "Kişiler, şirketler ve platform varlıkları arasında ağ zekası.",
+      "loading": "İlişkiler yükleniyor…",
+      "loadFailed": "İlişkiler yüklenemedi.",
+      "accessDenied": "İlişkileri görüntüleme yetkiniz yok.",
+      "create": "Yeni ilişki",
+      "networkView": "Ağ grafiği",
+      "intelligenceView": "Zeka",
+      "emptyTitle": "Henüz ilişki yok",
+      "emptyDescription": "İlk ilişkinizi oluşturun veya ağ grafiğini keşfedin.",
+      "summary": "{total} ilişki · Sayfa {page}",
+      "pagination": "Sayfa {page} / {pages} · {total} ilişki",
+      "prevPage": "Önceki",
+      "nextPage": "Sonraki",
+      "actions": {
+        "export": "Dışa Aktar"
+      },
+      "view": {
+        "aria": "İlişkiler görünüm modu",
+        "list": "Liste"
+      },
+      "quick": {
+        "aria": "Hızlı ilişki filtreleri"
+      },
+      "table": {
+        "aria": "İlişkiler tablosu",
+        "title": "Tüm İlişkiler"
+      },
+      "score": {
+        "tooltip": "Etkileşim, güven ve iş değerine dayalı ilişki sağlık skoru."
+      },
+      "fields": {
+        "source": "Kaynak",
+        "target": "Hedef",
+        "type": "Tür",
+        "category": "Kategori",
+        "strength": "Güç",
+        "score": "Skor",
+        "status": "Durum"
+      },
+      "savedViews": {
+        "all": "Tümü",
+        "active": "Aktif",
+        "stale": "Durgun",
+        "atRisk": "Riskli",
+        "confidential": "Gizli"
+      },
+      "filters": {
+        "aria": "İlişki filtreleri",
+        "search": "Ara",
+        "searchPlaceholder": "İlişkilerde ara…",
+        "any": "Tümü",
+        "status": "Durum",
+        "allStatuses": "Tüm durumlar",
+        "active": "Aktif",
+        "inactive": "Pasif",
+        "pending": "Beklemede",
+        "archived": "Arşivlendi",
+        "category": "Kategori",
+        "allCategories": "Tüm kategoriler",
+        "organizational": "Kurumsal",
+        "commercial": "Ticari",
+        "personal": "Kişisel",
+        "referral": "Yönlendirme",
+        "investment": "Yatırım",
+        "operational": "Operasyonel",
+        "type": "Tür",
+        "allTypes": "Tüm türler",
+        "parent": "Ana",
+        "subsidiary": "Bağlı Şirket",
+        "partner": "İş Ortağı",
+        "client": "Müşteri",
+        "vendor": "Tedarikçi",
+        "referredBy": "Yönlendiren",
+        "colleague": "Meslektaş"
+      },
+      "network": {
+        "title": "İlişki ağı",
+        "description": "API'den kademeli yükleme yapan etkileşimli grafik.",
+        "loading": "Grafik yükleniyor…",
+        "loadFailed": "Ağ grafiği yüklenemedi.",
+        "accessDenied": "Erişim reddedildi.",
+        "backToList": "Listeye geri dön",
+        "fitView": "Görünümü sığdır",
+        "exportData": "Veriyi dışa aktar",
+        "searchNodes": "Düğümlerde ara…",
+        "depth": "Derinlik",
+        "emptyTitle": "Grafik verisi yok",
+        "emptyDescription": "Ağı görselleştirmek için ilişki oluşturun veya bir merkez varlık seçin.",
+        "entityType": "Varlık türü",
+        "score": "Skor",
+        "expandNode": "Düğümü genişlet"
+      },
+      "intelligence": {
+        "title": "İlişki zekası",
+        "description": "Skor dağılımı, uyarılar ve açıklanabilir öneriler.",
+        "loading": "Pano yükleniyor…",
+        "loadFailed": "Zeka panosu yüklenemedi.",
+        "accessDenied": "Erişim reddedildi.",
+        "backToList": "Listeye geri dön",
+        "networkView": "Ağ grafiği",
+        "emptyTitle": "Zeka verisi yok",
+        "emptyDescription": "İlişki metrikleri, ilişkiler oluşturulduğunda görünür.",
+        "totalRelationships": "Toplam ilişki",
+        "activeRelationships": "Aktif",
+        "averageScore": "Ortalama skor",
+        "atRisk": "Riskli",
+        "stale": "Durgun",
+        "openAlerts": "Açık uyarılar",
+        "scoreDistribution": "Skor dağılımı",
+        "categoryBreakdown": "Kategoriye göre",
+        "topInfluencers": "En etkili kişiler",
+        "noInfluencers": "Henüz etkili kişi yok",
+        "recommendations": "Öneriler",
+        "noRecommendations": "Öneri yok"
+      },
+      "detail": {
+        "back": "İlişkilere geri dön",
+        "loading": "Yükleniyor…",
+        "loadFailed": "İlişki yüklenemedi.",
+        "accessDenied": "Erişim reddedildi.",
+        "recalculateScores": "Skorları yeniden hesapla",
+        "source": "Kaynak",
+        "target": "Hedef",
+        "category": "Kategori",
+        "strength": "Güç",
+        "status": "Durum",
+        "confidential": "Gizli",
+        "verified": "Doğrulandı",
+        "notes": "Notlar",
+        "timelineEmpty": "Zaman çizelgesi olayı yok",
+        "timelineHint": "İlişki değiştikçe denetim olayları burada görünür.",
+        "interactionsEmpty": "Etkileşim yok",
+        "interactionsHint": "Bağlı aktiviteler ve etkileşim noktaları burada görünür.",
+        "tabs": {
+          "overview": "Genel Bakış",
+          "timeline": "Zaman Çizelgesi",
+          "interactions": "Etkileşimler",
+          "scores": "Skorlar",
+          "intro": "Sıcak tanıtım"
+        },
+        "scores": {
+          "relationship_score": "İlişki",
+          "engagement_score": "Etkileşim",
+          "influence_score": "Etki",
+          "trust_score": "Güven",
+          "business_value_score": "İş değeri",
+          "risk_score": "Risk"
+        }
+      },
+      "intro": {
+        "title": "Sıcak tanıtım yolları",
+        "description": "İlişki grafiği üzerinden tanıtım rotaları bulun (sunucu taraflı yol bulma).",
+        "targetType": "Hedef türü",
+        "targetId": "Hedef varlık kimliği",
+        "targetIdPlaceholder": "Varlık UUID'sini girin",
+        "strategy": "Strateji",
+        "shortest": "En kısa yol",
+        "strongest": "En güçlü yol",
+        "highestInfluence": "En yüksek etki",
+        "all": "Tüm stratejiler",
+        "contact": "Kişi",
+        "company": "Şirket",
+        "searching": "Yollar bulunuyor…",
+        "searchFailed": "Yol araması başarısız oldu",
+        "noPaths": "Tanıtım yolu bulunamadı",
+        "path": "Yol {number}",
+        "hops": "{count} adım",
+        "score": "Skor {value}"
+      },
+      "decisionMap": {
+        "title": "Karar haritası",
+        "loading": "Karar haritası yükleniyor…",
+        "loadFailed": "Karar haritası yüklenemedi.",
+        "emptyTitle": "Haritalanmış karar verici yok",
+        "emptyDescription": "Bu şirket için kişileri ve etki rollerini ekleyin.",
+        "influence": "Etki {level}"
+      },
+      "createWizard": {
+        "title": "İlişki oluştur",
+        "back": "Geri",
+        "step": "Adım {current}/{total}: {name}",
+        "accessDenied": "İlişki oluşturma yetkiniz yok.",
+        "loadingContacts": "Kişiler yükleniyor…",
+        "source": "Kaynak",
+        "target": "Hedef",
+        "selectContact": "Kişi seç",
+        "type": "Tür",
+        "strength": "Güç",
+        "reciprocalPreview": "{type}, hedef tarafında {reciprocal} olarak görüntülenecek",
+        "singleRecordNote": "Yalnızca tek yönlü bir kayıt saklanır; karşılıklı etiket yapılandırmadan türetilir.",
+        "markConfidential": "Gizli olarak işaretle",
+        "duplicateFound": "Bu ilişkinin bir kopyası zaten mevcut",
+        "noDuplicates": "Kopya tespit edilmedi",
+        "confirmMessage": "Bu ilişkiyi oluşturmaya hazır.",
+        "createFailed": "İlişki oluşturulamadı",
+        "previous": "Önceki",
+        "next": "Sonraki",
+        "submit": "İlişki oluştur",
+        "steps": {
+          "entities": "Varlıkları seç",
+          "type": "İlişki türü",
+          "reciprocal": "Karşılıklı önizleme",
+          "category": "Kategori",
+          "strength": "Güç",
+          "confidential": "Gizlilik",
+          "notes": "Notlar",
+          "duplicates": "Kopya kontrolü",
+          "review": "İnceleme",
+          "confirm": "Onayla"
+        }
+      },
+      "types": {
+        "colleague": "Meslektaş",
+        "partner": "İş ortağı",
+        "parent": "Ana",
+        "subsidiary": "Bağlı şirket",
+        "client": "Müşteri",
+        "vendor": "Tedarikçi",
+        "referred_by": "Yönlendiren",
+        "referred_to": "Yönlendirilen",
+        "investor": "Yatırımcı",
+        "advisor": "Danışman",
+        "employs": "İstihdam eder",
+        "employed_by": "İstihdam edilir",
+        "other": "Diğer",
+        "investee": "Yatırım yapılan",
+        "advisee": "Danışılan"
+      },
+      "categories": {
+        "organizational": "Kurumsal",
+        "commercial": "Ticari",
+        "personal": "Kişisel",
+        "referral": "Yönlendirme",
+        "investment": "Yatırım",
+        "operational": "Operasyonel",
+        "other": "Diğer"
+      },
+      "strengths": {
+        "weak": "Zayıf",
+        "moderate": "Orta",
+        "strong": "Güçlü",
+        "strategic": "Stratejik"
+      }
+    },
+    "companies": {
+      "title": "Şirketler",
+      "subtitle": "Tüm şirketlerinizi, iş ortaklıklarınızı ve yatırımcı ilişkilerinizi tek yerden yönetin.",
+      "createTitle": "Yeni CRM Şirketi",
+      "createDescription": "Dahili kurum çalışma alanı şirketlerinden farklı bir CRM kurum kaydı oluşturun.",
+      "emptyTitle": "Henüz CRM şirketi yok",
+      "emptyDescription": "İlk CRM şirketinizi oluşturun veya CSV'den içe aktarın.",
+      "summary": "{total} şirket · Sayfa {page}/{pages}",
+      "kpis": {
+        "aria": "Şirket özet metrikleri",
+        "total": "Toplam Şirket",
+        "activePartners": "Aktif Partner",
+        "investors": "Yatırımcı Şirketler",
+        "newThisMonth": "Bu Ay Yeni Şirket",
+        "openCollaborations": "Açık İş Birlikleri",
+        "thisMonth": "bu ay",
+        "hints": {
+          "totalHint": "Tüm kayıtlı şirketler.",
+          "activePartnersHint": "Aktif iş ortakları.",
+          "investorsHint": "Yatırımcı statüsündeki şirketler.",
+          "newThisMonthHint": "Bu ay eklenen şirketler.",
+          "openCollaborationsHint": "Devam eden iş birlikleri."
+        }
+      },
+      "ai": {
+        "aria": "AI şirket aksiyonları",
+        "title": "Investhome AI",
+        "openPrompt": "Şirket portföyünü analiz et, eksik bilgileri ve benzer ortaklık fırsatlarını özetle",
+        "actions": {
+          "newCompany": "Yeni Şirket",
+          "aiAnalysis": "AI Analizi",
+          "similar": "Benzer Şirketler",
+          "missingInfo": "Eksik Bilgileri Göster"
+        }
+      },
+      "filters": {
+        "aria": "Şirket filtreleri",
+        "any": "Tümü",
+        "search": "Arama",
+        "searchPlaceholder": "Şirketlerde ara…",
+        "category": "Kategori",
+        "country": "Ülke",
+        "status": "Durum",
+        "relation": "İlişki Türü",
+        "owner": "Account Owner",
+        "tag": "Etiket",
+        "clear": "Filtreleri Temizle",
+        "allStatuses": "Tüm durumlar",
+        "includeArchived": "Arşivlenenleri dahil et"
+      },
+      "table": {
+        "aria": "Şirket tablosu",
+        "select": "Seç",
+        "company": "Şirket",
+        "category": "Kategori",
+        "country": "Ülke",
+        "contact": "İlgili Kişi",
+        "openProjects": "Açık Projeler",
+        "lastActivity": "Son Aktivite",
+        "health": "Sağlık Skoru",
+        "aiSummary": "AI Özeti",
+        "actions": "Aksiyonlar"
+      },
+      "pagination": {
+        "aria": "Şirket sayfalama",
+        "total": "Toplam {count} şirket",
+        "perPage": "Sayfa başına",
+        "pageUnit": "sayfa"
+      },
+      "category": {
+        "investor": "Yatırımcı",
+        "developer": "Geliştirici",
+        "architecture": "Mimarlık",
+        "legal": "Hukuk",
+        "title": "Title",
+        "broker": "Broker",
+        "bank": "Banka",
+        "partner": "Partner"
+      },
+      "country": {
+        "us": "ABD",
+        "ae": "BAE",
+        "uk": "Birleşik Krallık",
+        "tr": "Türkiye",
+        "de": "Almanya",
+        "sg": "Singapur"
+      },
+      "status": {
+        "active": "Aktif",
+        "prospect": "Aday",
+        "inactive": "Pasif",
+        "archived": "Arşiv"
+      },
+      "relation": {
+        "strategicPartner": "Stratejik Partner",
+        "vendor": "Tedarikçi",
+        "client": "Müşteri",
+        "investor": "Yatırımcı",
+        "advisor": "Danışman"
+      },
+      "health": {
+        "excellent": "Mükemmel",
+        "good": "İyi",
+        "medium": "Orta",
+        "attention": "Dikkat",
+        "risk": "Riskli"
+      },
+      "roles": {
+        "managingPartner": "Managing Partner",
+        "ceo": "CEO",
+        "designDirector": "Tasarım Direktörü",
+        "partner": "Partner",
+        "opsLead": "Operasyon Lideri",
+        "investmentLead": "Yatırım Lideri",
+        "broker": "Broker",
+        "relationshipMgr": "İlişki Yöneticisi"
+      },
+      "lastActivity": {
+        "meeting": "Toplantı",
+        "call": "Arama",
+        "email": "E-posta",
+        "note": "Not",
+        "task": "Görev"
+      },
+      "tags": {
+        "strategic": "Stratejik",
+        "capital": "Sermaye",
+        "pipeline": "Pipeline",
+        "coastal": "Kıyı",
+        "design": "Tasarım",
+        "legal": "Hukuk",
+        "closing": "Kapanış",
+        "title": "Title",
+        "local": "Yerel",
+        "broker": "Broker",
+        "finance": "Finans"
+      },
+      "subtitles": {
+        "templeSubtitle": "Küresel sermaye ortağı",
+        "marinaSubtitle": "Sahil geliştirme şirketi",
+        "baySubtitle": "Mimari tasarım stüdyosu",
+        "libertySubtitle": "Uluslararası hukuk bürosu",
+        "sunsetSubtitle": "Tapu ve title hizmetleri",
+        "bosphorusSubtitle": "Bölgesel yatırım şirketi",
+        "harborSubtitle": "Uluslararası emlak brokerı",
+        "nordicSubtitle": "Kurumsal finans ortağı"
+      },
+      "aiSummaries": {
+        "temple": "Güçlü sermaye ilişkisi; yeni fon turu için sıcak fırsat penceresi açık.",
+        "marina": "Yeni proje fırsatı belirgin; karar sürecini hızlandırmak için takip önerilir.",
+        "bay": "Tasarım revizyonları bekleniyor; iletişim düzenli ancak karar hızı orta.",
+        "liberty": "Sözleşme incelemesi gecikiyor; eksik belgeler kapanışı engelleyebilir.",
+        "sunset": "Uzun süredir aktivite yok; ilişki riski yüksek, yeniden etkileşim gerekli.",
+        "bosphorus": "Yerel yatırımcı momentumu güçlü; iki açık fırsat aktif takipte.",
+        "harbor": "Broker ağı aktif; Asya tarafı eşleşmeler için uygun aday.",
+        "nordic": "Finansman hattı sağlıklı; kredi koşulları güncellenmeli."
+      },
+      "rail": {
+        "aria": "Şirket içgörüleri",
+        "recent": "Son Eklenen Şirketler",
+        "upcoming": "Yaklaşan Görüşmeler",
+        "aiRecommendations": "AI Tavsiyeleri",
+        "categoryDistribution": "Kategori Dağılımı",
+        "activePartners": "En Aktif Partnerler",
+        "other": "Diğer",
+        "activityCount": "{count} aktivite",
+        "addedAt": {
+          "hoursAgo2": "2 saat önce",
+          "yesterday": "Dün",
+          "daysAgo3": "3 gün önce",
+          "daysAgo5": "5 gün önce"
+        },
+        "meetingTypes": {
+          "projectKickoff": "Proje başlangıç toplantısı",
+          "capitalReview": "Sermaye değerlendirme",
+          "pipelineSync": "Pipeline senkronu"
+        },
+        "meetingWhen": {
+          "tomorrow1000": "Yarın 10:00",
+          "wed1430": "Çar 14:30",
+          "thu1100": "Per 11:00"
+        },
+        "recommendations": {
+          "marinaOpportunity": "Marina Heights ile yeni proje fırsatı var.",
+          "sunsetRisk": "Sunset Title için yeniden etkileşim planlayın.",
+          "libertyFollowUp": "Liberty Law Partners sözleşme takibini hızlandırın.",
+          "templeExpansion": "The Temple Group için ek fon turu değerlendirin."
+        },
+        "lastContact": {
+          "daysAgo1": "Son temas 1 gün önce",
+          "daysAgo2": "Son temas 2 gün önce",
+          "hoursAgo6": "Son temas 6 saat önce"
+        }
+      },
+      "fields": {
+        "companyType": "Şirket türü",
+        "domain": "Alan Adı",
+        "industry": "Sektör",
+        "contacts": "Kişiler",
+        "updated": "Güncellendi"
+      },
+      "companyTypes": {
+        "investment_company": "Yatırım Şirketi",
+        "buyer_entity": "Alıcı Kurumu",
+        "brokerage": "Emlak Komisyonculuğu",
+        "law_firm": "Hukuk Bürosu",
+        "bank": "Banka",
+        "lender": "Kredi Veren",
+        "property_management": "Mülk Yönetimi",
+        "construction": "İnşaat",
+        "contractor": "Müteahhit",
+        "architecture": "Mimarlık",
+        "accounting": "Muhasebe",
+        "consulting": "Danışmanlık",
+        "insurance": "Sigorta",
+        "media": "Medya",
+        "government": "Devlet",
+        "vendor": "Tedarikçi",
+        "partner": "İş Ortağı",
+        "internal_entity": "Dahili Kurum",
+        "other": "Diğer"
+      },
+      "savedViews": {
+        "all": "Tümü",
+        "investors": "Yatırım şirketleri",
+        "brokerages": "Emlak komisyoncuları",
+        "lenders": "Kredi verenler",
+        "vendors": "Tedarikçiler",
+        "prospects": "Potansiyel Müşteriler",
+        "archived": "Arşivlenenler"
+      },
+      "actions": {
+        "create": "Yeni şirket",
+        "import": "İçe Aktar",
+        "archive": "Arşivle",
+        "backToList": "Listeye geri dön",
+        "detail": "Detay",
+        "edit": "Düzenle",
+        "note": "Not",
+        "more": "Daha Fazla",
+        "selectCompany": "{name} şirketini seç",
+        "expand": "Tümünü Gör",
+        "collapse": "Daha az"
+      },
+      "form": {
+        "sections": {
+          "identity": "Kimlik",
+          "contact": "İletişim bilgileri",
+          "registration": "Yasal & tescil",
+          "profile": "Türe özel profil",
+          "notes": "Notlar"
+        },
+        "displayName": "Görünen ad",
+        "legalName": "Yasal ad",
+        "tradeName": "Ticari unvan",
+        "website": "Web sitesi",
+        "linkedin": "LinkedIn URL'si",
+        "registrationNumber": "Tescil numarası",
+        "taxId": "Vergi numarası",
+        "ein": "EIN",
+        "description": "Açıklama",
+        "notes": "Dahili notlar",
+        "duplicateWarning": "Olası kopya: {name}",
+        "aum": "AUM",
+        "profileNotes": "Profil notları",
+        "licenseNumber": "Lisans numarası",
+        "specialization": "Uzmanlık alanı",
+        "lenderType": "Kredi veren türü",
+        "nmlsId": "NMLS Kimliği",
+        "vendorCategory": "Tedarikçi kategorisi",
+        "paymentTerms": "Ödeme koşulları",
+        "barNumber": "Baro numarası",
+        "unitsManaged": "Yönetilen birim sayısı"
+      },
+      "tabs": {
+        "label": "Şirket detay sekmeleri",
+        "overview": "Genel Bakış",
+        "contacts": "Kişiler",
+        "timeline": "Zaman Çizelgesi",
+        "relationships": "İlişkiler",
+        "hierarchy": "Hiyerarşi",
+        "compliance": "Uyumluluk",
+        "audit": "Denetim"
+      },
+      "contacts": {
+        "empty": "Bağlı kişi yok",
+        "emptyHint": "Kişiler modülünden CRM kişilerini bu şirkete bağlayın.",
+        "role": "Rol",
+        "jobTitle": "Görev unvanı",
+        "primary": "Birincil"
+      },
+      "timeline": {
+        "empty": "Zaman çizelgesi olayı yok",
+        "emptyHint": "Şirket kaydı değiştikçe aktiviteler burada görünür."
+      },
+      "relationships": {
+        "empty": "Şirket ilişkisi yok",
+        "emptyHint": "Ana şirket, bağlı şirket, iş ortağı veya tedarikçi ilişkileri ekleyin."
+      },
+      "hierarchy": {
+        "empty": "Hiyerarşi yok",
+        "emptyHint": "Bir kurum ağacı oluşturmak için ana şirketleri belirleyin."
+      },
+      "compliance": {
+        "empty": "Uyumluluk verisi yok",
+        "emptyHint": "Uyumluluk alanları için view_compliance izni gereklidir."
+      },
+      "audit": {
+        "hint": "Tüm alan ve ilişki değişiklikleri için değiştirilemez tam denetim izi kaydedilir."
+      },
+      "import": {
+        "title": "CRM şirketlerini içe aktar",
+        "pageDescription": "CRM şirketlerini toplu oluşturmak için bir CSV dosyası yükleyin.",
+        "description": "Harici kurum kayıtlarını CRM şirketler moduluna aktarın.",
+        "formatHint": "Gerekli sütunlar: display_name. İsteğe bağlı: legal_name, company_type, status, primary_email, domain, industry.",
+        "selectFile": "CSV dosyası seç",
+        "failed": "İçe aktarma başarısız oldu",
+        "result": "{imported} içe aktarıldı, {skipped} atlandı."
+      }
+    },
+    "matchDetail": {
+      "eyebrow": "Eşleşme detayı",
+      "back": "Eşleşmelere dön",
+      "notFoundTitle": "Eşleşme bulunamadı",
+      "notFoundDescription": "Bu eşleşme kaydı mevcut değil veya kaldırılmış olabilir.",
+      "unitType": "Ünite tipi",
+      "location": "Konum",
+      "developer": "Geliştirici",
+      "area": "Alan",
+      "customerName": "Müşteri",
+      "email": "E-posta",
+      "phone": "Telefon",
+      "scoreHint": "Tercihler ve proje metriklerine göre hesaplanan eşleşme skoru.",
+      "scoreFactor": "Skor faktörü",
+      "notesBody": "{project} için notlar burada tutulur. Demo sunumu.",
+      "tabs": {
+        "overview": "Genel Bakış",
+        "customer": "Müşteri",
+        "project": "Proje",
+        "score": "Eşleşme Skoru",
+        "documents": "Belgeler",
+        "timeline": "Zaman Çizelgesi",
+        "activities": "Aktiviteler",
+        "notes": "Notlar",
+        "ai": "YZ İçgörüleri"
+      }
+    },
+    "documentDetail": {
+      "eyebrow": "Belge detayı",
+      "back": "Belgelere dön",
+      "notFoundTitle": "Belge bulunamadı",
+      "notFoundDescription": "Bu belge kaydı mevcut değil veya kaldırılmış olabilir.",
+      "download": "İndir",
+      "shareHint": "Paylaşım bağlantısı hazırlandı (demo).",
+      "previewHint": "Belge önizlemesi — canlı dosya bağlanınca burada açılır.",
+      "fileType": "Dosya türü",
+      "relatedCustomer": "İlgili müşteri",
+      "relatedProject": "İlgili proje",
+      "currentVersion": "Güncel sürüm",
+      "initialUpload": "İlk yükleme",
+      "notesBody": "{name} için notlar burada tutulur. Demo sunumu.",
+      "tabs": {
+        "preview": "Önizleme",
+        "metadata": "Metadata",
+        "related": "İlgili Kayıtlar",
+        "versions": "Sürüm Geçmişi",
+        "timeline": "Zaman Çizelgesi",
+        "activity": "Aktivite",
+        "notes": "Notlar"
+      }
+    },
+    "personDetail": {
+      "eyebrow": "Kişi detayı",
+      "back": "Listeye dön",
+      "notFoundTitle": "Kişi bulunamadı",
+      "notFoundDescription": "Bu kişi kaydı mevcut değil veya kaldırılmış olabilir.",
+      "score": "İlişki skoru",
+      "tabs": {
+        "overview": "Genel Bakış",
+        "company": "Şirket",
+        "activity": "Aktivite",
+        "notes": "Notlar"
+      }
+    },
+    "companyFoundationDetail": {
+      "eyebrow": "Şirket detayı",
+      "back": "Şirketlere dön",
+      "notFoundTitle": "Şirket bulunamadı",
+      "notFoundDescription": "Bu şirket kaydı mevcut değil veya kaldırılmış olabilir.",
+      "tabs": {
+        "overview": "Genel Bakış",
+        "contact": "İlgili Kişi",
+        "activity": "Aktivite",
+        "notes": "Notlar"
+      }
+    },
+    "investorsWorkspace": {
+      "title": "Yatırımcılar",
+      "subtitle": "Yatırımcı ilişkilerinizi, karar vericileri ve sermaye ortaklarını tek yerden yönetin."
+    },
+    "people": {
+      "title": "Kişiler",
+      "subtitle": "Tüm kişilerinizi, iletişim bilgilerini ve ilişkilerini tek merkezden yönetin.",
+      "kpis": {
+        "aria": "Kişi özet metrikleri",
+        "total": "Toplam Kişi",
+        "active": "Aktif Kişiler",
+        "decisionMakers": "Karar Vericiler",
+        "newThisMonth": "Bu Ay Yeni Kişi",
+        "meetingPending": "Toplantı Bekleyen",
+        "thisMonth": "bu ay",
+        "hints": {
+          "totalHint": "Tüm kayıtlı kişiler.",
+          "activeHint": "Son 30 günde aktif.",
+          "decisionMakersHint": "C-level ve karar vericiler.",
+          "newThisMonthHint": "Bu ay eklenen kişiler.",
+          "meetingPendingHint": "Planlanacak toplantılar."
+        }
+      },
+      "ai": {
+        "aria": "AI kişi aksiyonları",
+        "title": "Investhome AI",
+        "openPrompt": "Kişi portföyünü analiz et, benzer kişileri ve eksik bilgileri özetle",
+        "actions": {
+          "newPerson": "Yeni Kişi",
+          "aiAnalysis": "AI Analizi",
+          "similar": "Benzer Kişiler",
+          "missingInfo": "Eksik Bilgileri Göster"
+        }
+      },
+      "filters": {
+        "aria": "Kişi filtreleri",
+        "any": "Tümü",
+        "search": "Arama",
+        "searchPlaceholder": "Kişi ara…",
+        "company": "Şirket",
+        "role": "Rol",
+        "department": "Departman",
+        "country": "Ülke",
+        "owner": "Account Owner",
+        "tag": "Etiket",
+        "clear": "Filtreleri Temizle"
+      },
+      "table": {
+        "aria": "Kişi tablosu",
+        "select": "Seç",
+        "person": "Kişi",
+        "company": "Şirket",
+        "role": "Rol",
+        "department": "Departman",
+        "contact": "İletişim",
+        "lastActivity": "Son Aktivite",
+        "relation": "İlişki Gücü",
+        "aiNote": "AI Notu",
+        "actions": "Aksiyonlar"
+      },
+      "pagination": {
+        "aria": "Kişi sayfalama",
+        "total": "Toplam {count} kişi",
+        "perPage": "Sayfa başına",
+        "pageUnit": "sayfa"
+      },
+      "role": {
+        "ceo": "CEO",
+        "decisionMaker": "Karar Verici",
+        "broker": "Broker",
+        "partner": "Partner",
+        "architect": "Mimar",
+        "lawyer": "Avukat",
+        "finance": "Finans",
+        "operations": "Operasyon",
+        "investor": "Yatırımcı",
+        "influencer": "Etkileyici"
+      },
+      "department": {
+        "executive": "Yönetim",
+        "investment": "Yatırım",
+        "sales": "Satış",
+        "legal": "Hukuk",
+        "design": "Tasarım",
+        "operations": "Operasyon",
+        "finance": "Finans",
+        "brokerage": "Brokerlık"
+      },
+      "country": {
+        "us": "ABD",
+        "ae": "BAE",
+        "uk": "Birleşik Krallık",
+        "tr": "Türkiye",
+        "de": "Almanya",
+        "sg": "Singapur"
+      },
+      "relation": {
+        "veryStrong": "Çok Güçlü",
+        "strong": "Güçlü",
+        "medium": "Orta",
+        "attention": "Dikkat",
+        "weak": "Zayıf"
+      },
+      "source": {
+        "referral": "Referans",
+        "event": "Etkinlik",
+        "website": "Website",
+        "email": "E-mail",
+        "ads": "Reklam",
+        "other": "Diğer"
+      },
+      "channels": {
+        "email": "E-posta",
+        "phone": "Telefon",
+        "linkedin": "LinkedIn",
+        "whatsapp": "WhatsApp"
+      },
+      "titles": {
+        "managingPartner": "Managing Partner",
+        "ceo": "CEO",
+        "designDirector": "Tasarım Direktörü",
+        "partner": "Partner",
+        "opsLead": "Operasyon Lideri",
+        "investmentLead": "Yatırım Lideri",
+        "broker": "Broker",
+        "relationshipMgr": "İlişki Yöneticisi"
+      },
+      "lastActivity": {
+        "meeting": "Toplantı",
+        "call": "Arama",
+        "email": "E-posta",
+        "note": "Not",
+        "task": "Görev"
+      },
+      "tags": {
+        "strategic": "Stratejik",
+        "capital": "Sermaye",
+        "pipeline": "Pipeline",
+        "coastal": "Kıyı",
+        "design": "Tasarım",
+        "legal": "Hukuk",
+        "closing": "Kapanış",
+        "ops": "Operasyon",
+        "local": "Yerel",
+        "broker": "Broker",
+        "finance": "Finans"
+      },
+      "aiNotes": {
+        "james": "Güçlü ilişki; sermaye turu için sıcak fırsat penceresi açık ve takip öncelikli.",
+        "sara": "Karar verici momentumu yüksek; proje başlangıç toplantısını hızlandırın.",
+        "elena": "Tasarım revizyonları bekleniyor; iletişim düzenli ancak karar hızı orta.",
+        "oliver": "Sözleşme incelemesi gecikiyor; eksik belgeler kapanışı engelleyebilir.",
+        "mia": "Uzun süredir aktivite yok; ilişki riski yüksek, yeniden etkileşim gerekli.",
+        "emre": "Yerel yatırımcı momentumu güçlü; iki açık fırsat aktif takipte.",
+        "wei": "Broker ağı aktif; Asya tarafı eşleşmeler için uygun aday.",
+        "lukas": "Finansman hattı sağlıklı; kredi koşulları güncellenmeli."
+      },
+      "rail": {
+        "aria": "Kişi içgörüleri",
+        "recent": "Son Eklenen Kişiler",
+        "upcoming": "Yaklaşan Toplantılar",
+        "sourceDistribution": "Kişi Kaynağı",
+        "activePeople": "En Aktif Kişiler",
+        "activityCount": "{count} aktivite",
+        "addedAt": {
+          "hoursAgo2": "2 saat önce",
+          "yesterday": "Dün",
+          "daysAgo3": "3 gün önce"
+        },
+        "meetingWhen": {
+          "jul241000": "24 Tem 2026 10:00",
+          "jul251430": "25 Tem 2026 14:30",
+          "jul261100": "26 Tem 2026 11:00"
+        },
+        "lastContact": {
+          "daysAgo1": "Son temas 1 gün önce",
+          "daysAgo2": "Son temas 2 gün önce",
+          "hoursAgo6": "Son temas 6 saat önce"
+        }
+      },
+      "actions": {
+        "detail": "Detay",
+        "message": "Mesaj",
+        "note": "Not",
+        "more": "Daha Fazla",
+        "selectPerson": "{name} kişisini seç",
+        "expand": "Tümünü Gör",
+        "collapse": "Daha az"
+      }
+    },
+    "admin": {
+      "title": "Admin Workspace",
+      "subtitle": "Sisteminizi yönetin, kullanıcıları, rolleri, yetkileri ve sistem sağlığını izleyin.",
+      "kpis": {
+        "aria": "Yönetim özet metrikleri",
+        "activeUsers": "Aktif Kullanıcılar",
+        "onlineUsers": "Çevrimiçi Kullanıcılar",
+        "uptime": "Sistem Uptime",
+        "openAlerts": "Açık Uyarılar",
+        "apiRequests": "API İstekleri (24 Saat)",
+        "hints": {
+          "activeUsersHint": "Kayıtlı aktif hesaplar.",
+          "onlineUsersHint": "Şu anda aktif.",
+          "uptimeHint": "Son 30 gün.",
+          "openAlertsHint": "Dikkat gerektiriyor.",
+          "apiRequestsHint": "Son 24 saat."
+        }
+      },
+      "ai": {
+        "aria": "Yönetim hızlı aksiyonları",
+        "title": "Investhome AI",
+        "openPrompt": "Sistem sağlığını, açık uyarıları ve son audit olaylarını özetle",
+        "actions": {
+          "newUser": "Yeni Kullanıcı",
+          "createRole": "Rol Oluştur",
+          "systemScan": "Sistem Taraması",
+          "auditLog": "Audit Log"
+        }
+      },
+      "filters": {
+        "aria": "Yönetim filtreleri",
+        "any": "Tümü",
+        "search": "Arama",
+        "searchPlaceholder": "Ara...",
+        "role": "Rol",
+        "workspace": "Workspace",
+        "status": "Durum",
+        "lastLogin": "Son Giriş",
+        "clear": "Filtreleri Temizle"
+      },
+      "tabs": {
+        "aria": "Yönetim sekmeleri",
+        "users": "Kullanıcılar",
+        "roles": "Roller",
+        "workspacePermissions": "Workspace Yetkileri",
+        "auditLog": "Audit Log",
+        "services": "Servisler"
+      },
+      "table": {
+        "aria": "Kullanıcılar tablosu",
+        "select": "Seç",
+        "user": "Kullanıcı",
+        "role": "Rol",
+        "workspace": "Workspace",
+        "lastLogin": "Son Giriş",
+        "status": "Durum",
+        "mfa": "MFA",
+        "aiUsage": "AI Kullanımı",
+        "actions": "Aksiyonlar"
+      },
+      "pagination": {
+        "aria": "Kullanıcı sayfalama",
+        "total": "Toplam {count} kullanıcı",
+        "perPage": "Sayfa boyutu",
+        "pageUnit": "sayfa"
+      },
+      "role": {
+        "systemAdmin": "Sistem Yöneticisi",
+        "admin": "Yönetici",
+        "salesManager": "Satış Müdürü",
+        "salesRep": "Satış Temsilcisi",
+        "analyst": "Analist",
+        "support": "Destek",
+        "marketing": "Pazarlama"
+      },
+      "roleDescriptions": {
+        "systemAdmin": "Tam platform kontrolü ve güvenlik yetkisi.",
+        "admin": "Workspace ve kullanıcı yönetimi.",
+        "salesManager": "Satış ekibi ve pipeline erişimi.",
+        "salesRep": "Günlük CRM ve fırsat çalışmaları.",
+        "analyst": "Analitik ve raporlama erişimi.",
+        "support": "Destek ve ticket araçları.",
+        "marketing": "Kampanya ve içerik workspace erişimi."
+      },
+      "status": {
+        "active": "Aktif",
+        "inactive": "Pasif",
+        "suspended": "Askıda"
+      },
+      "workspace": {
+        "crm": "CRM",
+        "sales": "Satış",
+        "finance": "Finans",
+        "marketing": "Pazarlama",
+        "operations": "Operasyon",
+        "platform": "Platform"
+      },
+      "lastLogin": {
+        "now": "Şu anda aktif",
+        "today": "Bugün",
+        "yesterday": "Dün",
+        "week": "Bu hafta",
+        "month": "Bu ay",
+        "never": "Hiç",
+        "onlineNow": "Şu anda aktif"
+      },
+      "mfa": {
+        "on": "Açık",
+        "off": "Kapalı"
+      },
+      "access": {
+        "full": "Tam yetki",
+        "edit": "Düzenleme",
+        "view": "Salt görüntüleme"
+      },
+      "audit": {
+        "userCreated": "Yeni kullanıcı oluşturuldu",
+        "roleUpdated": "Rol güncellendi",
+        "permissionChanged": "Yetki değiştirildi",
+        "mfaEnabled": "MFA açıldı",
+        "userSuspended": "Kullanıcı askıya alındı",
+        "systemScan": "Sistem taraması tamamlandı"
+      },
+      "health": {
+        "api": "API",
+        "web": "Web",
+        "database": "Database",
+        "queue": "Queue",
+        "storage": "Storage"
+      },
+      "healthStatus": {
+        "running": "Çalışıyor",
+        "degraded": "Bozulmuş",
+        "down": "Kapalı"
+      },
+      "workerStatus": {
+        "running": "Çalışıyor",
+        "idle": "Boşta",
+        "error": "Hata"
+      },
+      "queue": {
+        "mail": "Mail",
+        "notification": "Notification",
+        "import": "Import",
+        "ai": "AI"
+      },
+      "stub": {
+        "rolesAria": "Roller tablosu",
+        "permissionsAria": "Workspace yetkileri tablosu",
+        "auditAria": "Audit log tablosu",
+        "servicesAria": "Servisler tablosu",
+        "usersCol": "Kullanıcılar",
+        "descriptionCol": "Açıklama",
+        "accessCol": "Yetki",
+        "eventCol": "Olay",
+        "actorCol": "Aktör",
+        "timeCol": "Zaman",
+        "serviceCol": "Servis",
+        "detailCol": "Detay"
+      },
+      "rail": {
+        "aria": "Sistem operasyon paneli",
+        "systemHealth": "Sistem Sağlığı",
+        "recentAudit": "Son Audit Olayları",
+        "workerStatus": "Worker Durumu",
+        "queueStatus": "Queue Durumu",
+        "apiPerformance": "API Performansı (24 Saat)",
+        "apiChartAria": "Son 24 saatte API istek hacmi",
+        "requests24h": "İstekler",
+        "avgResponse": "Ort. yanıt",
+        "errorRate": "Hata oranı",
+        "heartbeat": "Heartbeat {time}"
+      },
+      "actions": {
+        "detail": "Detay",
+        "edit": "Düzenle",
+        "permission": "Yetki",
+        "delete": "Sil",
+        "more": "Daha fazla",
+        "selectUser": "{name} kullanıcısını seç"
+      },
+      "systemLogs": {
+        "title": "Sistem Logları",
+        "subtitle": "API, worker ve entegrasyon operasyon olayları.",
+        "filters": {
+          "aria": "Log filtreleri",
+          "search": "Ara",
+          "searchPlaceholder": "Log ara…",
+          "level": "Seviye",
+          "service": "Servis",
+          "anyLevel": "Tüm seviyeler",
+          "anyService": "Tüm servisler",
+          "clear": "Temizle"
+        },
+        "levels": {
+          "info": "Bilgi",
+          "warning": "Uyarı",
+          "error": "Hata",
+          "debug": "Hata ayıklama"
+        },
+        "columns": {
+          "timestamp": "Zaman",
+          "level": "Seviye",
+          "service": "Servis",
+          "message": "Mesaj",
+          "actor": "Aktör"
+        },
+        "empty": {
+          "title": "Log bulunamadı",
+          "description": "Farklı bir filtre veya arama deneyin."
+        }
+      },
+      "integrationsPage": {
+        "title": "Entegrasyonlar",
+        "subtitle": "CRM ve platform sağlayıcı bağlantılarını yönetin.",
+        "listAria": "Entegrasyon listesi",
+        "lastSync": "Son senkron",
+        "connect": "Bağla",
+        "disconnect": "Bağlantıyı kes",
+        "justNow": "Az önce",
+        "never": "Hiç",
+        "toast": {
+          "updated": "Entegrasyon güncellendi"
+        },
+        "filters": {
+          "aria": "Entegrasyon filtreleri",
+          "search": "Ara",
+          "searchPlaceholder": "Entegrasyon ara…",
+          "status": "Durum",
+          "anyStatus": "Tüm durumlar",
+          "clear": "Temizle"
+        },
+        "status": {
+          "connected": "Bağlı",
+          "degraded": "Kısmi",
+          "disconnected": "Bağlı değil"
+        },
+        "empty": {
+          "title": "Entegrasyon bulunamadı",
+          "description": "Farklı bir filtre veya arama deneyin."
+        }
+      }
+    },
+    "search": {
+      "title": "CRM Arama",
+      "subtitle": "Kişileri, şirketleri ve ilgili CRM kayıtlarını arayın.",
+      "placeholder": "CRM’de ara…",
+      "paletteTitle": "CRM Ara",
+      "hintTitle": "Arama ipuçları",
+      "hint": "Ad, e-posta, telefon, şirket veya etiket kullanın. Aramak için Enter’a basın.",
+      "empty": "Sonuç yok",
+      "zeroHint": "Farklı bir sorgu deneyin veya filtreleri temizleyin.",
+      "accessDenied": "CRM araması yapma yetkiniz yok.",
+      "accessDeniedHint": "CRM arama erişimi için yöneticinize başvurun.",
+      "search": "Ara",
+      "loadMore": "Daha fazla yükle",
+      "export": "CSV Dışa Aktar",
+      "advanced": "Gelişmiş arama",
+      "savedSearches": "Kayıtlı aramalar",
+      "recentSearches": "Son aramalar",
+      "quickActions": "Hızlı işlemler",
+      "resultCount": "{count} sonuç",
+      "selectedCount": "{count} seçili",
+      "clearSelection": "Seçimi temizle",
+      "selectResult": "Sonucu seç",
+      "didYouMean": "Bunu mu demek istediniz",
+      "viewMode": "Görünüm",
+      "tabs": {
+        "all": "Tümü"
+      },
+      "views": {
+        "list": "Liste",
+        "table": "Tablo",
+        "card": "Kartlar",
+        "compact": "Kompakt"
+      },
+      "actions": {
+        "createContact": "Yeni kişi",
+        "createCompany": "Yeni şirket",
+        "createTask": "Yeni görev",
+        "openSearch": "Aramayı aç"
+      },
+      "filters": {
+        "title": "Filtreler",
+        "show": "Filtreleri göster",
+        "hide": "Filtreleri gizle",
+        "includeArchived": "Arşivlenenleri dahil et",
+        "exactMatch": "Tam eşleşme"
+      },
+      "keyboard": {
+        "open": "Aramayı aç",
+        "close": "Kapat",
+        "navigate": "Sonuçlarda gezin"
+      },
+      "errors": {
+        "failed": "Arama başarısız"
+      },
+      "advancedQuery": {
+        "title": "Gelişmiş sorgu",
+        "subtitle": "Yapılandırılmış CRM arama sorguları oluşturun.",
+        "freeText": "Serbest metin",
+        "syntaxPlaceholder": "alan:değer AND alan:değer",
+        "logicAnd": "AND",
+        "logicOr": "OR",
+        "addCondition": "Koşul ekle",
+        "addGroup": "Grup ekle",
+        "remove": "Kaldır",
+        "valuePlaceholder": "Değer",
+        "execute": "Aramayı çalıştır",
+        "preview": "Önizleme ({count})",
+        "previewLoading": "Önizleme yükleniyor…",
+        "operators": {
+          "contains": "İçerir",
+          "equals": "Eşittir",
+          "starts_with": "İle başlar",
+          "ends_with": "İle biter",
+          "gt": "Büyüktür",
+          "lt": "Küçüktür",
+          "is_empty": "Boş",
+          "is_not_empty": "Boş değil"
+        }
+      },
+      "saved": {
+        "title": "Kayıtlı aramalar",
+        "subtitle": "Yeniden kullanılabilir CRM arama sorguları.",
+        "create": "Aramayı kaydet",
+        "namePlaceholder": "Arama adı",
+        "loading": "Kayıtlı aramalar yükleniyor…",
+        "loadError": "Kayıtlı aramalar yüklenemedi.",
+        "emptyTitle": "Kayıtlı arama yok",
+        "emptyDescription": "Daha sonra kullanmak için bir arama kaydedin.",
+        "default": "Varsayılan",
+        "run": "Çalıştır",
+        "delete": "Sil"
+      },
+      "entityPicker": {
+        "placeholder": "Varlık ara…",
+        "loading": "Yükleniyor…",
+        "loadMore": "Daha fazla sonuç var",
+        "createNew": "Yeni oluştur",
+        "remove": "Kaldır",
+        "types": {
+          "crm_contact": "Kişi",
+          "crm_company": "Şirket",
+          "crm_relationship": "İlişki",
+          "crm_activity": "Aktivite",
+          "crm_communication": "İletişim",
+          "crm_task": "Görev",
+          "sales_opportunity": "Fırsat",
+          "investor": "Yatırımcı",
+          "project": "Proje",
+          "inventory_asset": "Envanter varlığı",
+          "financial_transaction": "İşlem",
+          "document": "Belge",
+          "file": "Dosya",
+          "action": "İşlem"
+        }
+      },
+      "entities": {
+        "crm_contact": "Kişiler",
+        "crm_company": "Şirketler",
+        "crm_relationship": "İlişkiler",
+        "crm_activity": "Aktiviteler",
+        "crm_communication": "İletişimler",
+        "crm_task": "Görevler",
+        "sales_opportunity": "Fırsatlar",
+        "investor": "Yatırımcılar",
+        "project": "Projeler",
+        "inventory_asset": "Envanter",
+        "financial_transaction": "İşlemler",
+        "document": "Belgeler",
+        "file": "Dosyalar",
+        "action": "İşlemler"
+      },
+      "clearRecent": "Son aramaları temizle",
+      "removeRecent": "Son aramayı kaldır",
+      "recentEmptyTitle": "Son arama yok",
+      "recentEmpty": "Geçmiş oluşturmak için bir arama çalıştırın.",
+      "suggestedResults": "Önerilen sonuçlar",
+      "quickResults": "Hızlı sonuçlar"
+    },
+    "activityEvents": {
+      "unknown": "Aktivite güncellemesi",
+      "lead": {
+        "created": "Potansiyel müşteri oluşturuldu",
+        "updated": "Potansiyel müşteri güncellendi",
+        "archived": "Potansiyel müşteri arşivlendi"
+      },
+      "investor": {
+        "created": "Yatırımcı oluşturuldu",
+        "updated": "Yatırımcı güncellendi"
+      },
+      "contact": {
+        "created": "Kişi oluşturuldu",
+        "updated": "Kişi güncellendi",
+        "archived": "Kişi arşivlendi"
+      },
+      "company": {
+        "created": "Şirket oluşturuldu",
+        "updated": "Şirket güncellendi"
+      },
+      "relationship": {
+        "created": "İlişki oluşturuldu",
+        "updated": "İlişki güncellendi"
+      },
+      "note": {
+        "created": "Not oluşturuldu"
+      },
+      "task": {
+        "created": "Görev oluşturuldu",
+        "updated": "Görev güncellendi",
+        "completed": "Görev tamamlandı"
+      },
+      "status": {
+        "changed": "Durum değişti"
+      },
+      "communication": {
+        "sent": "İletişim gönderildi"
+      },
+      "project": {
+        "created": "Proje oluşturuldu",
+        "updated": "Proje güncellendi",
+        "archived": "Proje arşivlendi"
+      }
+    },
+    "reports": {
+      "title": "Raporlar",
+      "subtitle": "İş performansınızı analiz edin, içgörüler elde edin ve daha iyi kararlar alın.",
+      "actions": {
+        "createReport": "Rapor Oluştur",
+        "reportLibrary": "Rapor Kütüphanesi",
+        "viewAll": "Tümünü Gör"
+      },
+      "filters": {
+        "aria": "Rapor filtreleri",
+        "any": "Tümü",
+        "dateRange": "Tarih Aralığı",
+        "comparison": "Karşılaştırma",
+        "team": "Takım",
+        "user": "Kullanıcı",
+        "source": "Kaynak",
+        "clear": "Filtreleri Temizle",
+        "datePresets": {
+          "last7": "Son 7 gün",
+          "last30": "Son 30 gün",
+          "thisQuarter": "Bu çeyrek",
+          "rangeWeek": "21 Temmuz 2026 - 27 Temmuz 2026"
+        },
+        "comparisonOptions": {
+          "previousPeriod": "Önceki Dönem",
+          "previousYear": "Önceki Yıl",
+          "none": "Karşılaştırma yok"
+        },
+        "teamOptions": {
+          "all": "Tümü",
+          "sales": "Satış",
+          "enterprise": "Kurumsal",
+          "partners": "İş Ortakları"
+        },
+        "userOptions": {
+          "all": "Tümü",
+          "ayse": "Ayşe Yılmaz",
+          "mehmet": "Mehmet Kaya",
+          "zeynep": "Zeynep Demir",
+          "can": "Can Öztürk",
+          "elif": "Elif Arslan"
+        }
+      },
+      "kpis": {
+        "aria": "Rapor özet metrikleri",
+        "totalRevenue": "Toplam Gelir",
+        "newOpportunities": "Yeni İş Fırsatı",
+        "wonDeals": "Kazanılan Fırsatlar",
+        "activeCustomers": "Aktif Müşteri",
+        "meetings": "Toplantı Sayısı",
+        "sparkAria": "{name} trendi"
+      },
+      "sections": {
+        "analytics": "Ana analitik görünüm",
+        "operations": "Operasyonel rapor görünümü"
+      },
+      "charts": {
+        "revenueTrend": "Gelir Trendi",
+        "revenueTrendAria": "Bu dönem ve önceki dönem gelir trendi çizgi grafiği",
+        "funnel": "Fırsat Aşaması Dağılımı",
+        "funnelAria": "Fırsat aşaması hunisi",
+        "performanceSummary": "Performans Özeti",
+        "performanceSummaryAria": "Yönetici performans özeti",
+        "monthlyComparison": "Aylık Karşılaştırma",
+        "monthlyComparisonAria": "Aylık dönem karşılaştırma çubuk grafiği",
+        "thisPeriod": "Bu Dönem",
+        "previousPeriod": "Önceki Dönem",
+        "granularity": "Zaman aralığı",
+        "daily": "Günlük",
+        "weekly": "Haftalık",
+        "funnelMode": "Huni görünümü",
+        "valueBased": "Değer Bazlı",
+        "countBased": "Adet Bazlı",
+        "months": {
+          "jan": "Oca",
+          "feb": "Şub",
+          "mar": "Mar",
+          "apr": "Nis",
+          "may": "May",
+          "jun": "Haz"
+        }
+      },
+      "performance": {
+        "totalRevenue": "Toplam Gelir",
+        "newOpportunities": "Yeni İş Fırsatı",
+        "wonDeals": "Kazanılan Fırsatlar",
+        "avgDealSize": "Ortalama İşlem Büyüklüğü",
+        "winRate": "Kazanma Oranı"
+      },
+      "funnel": {
+        "stages": {
+          "new": "Yeni",
+          "review": "İnceleme",
+          "proposal": "Teklif",
+          "negotiation": "Müzakere",
+          "won": "Kazanıldı"
+        }
+      },
+      "team": {
+        "title": "Ekip Performansı",
+        "aria": "Ekip performans tablosu",
+        "trendAria": "{name} performans trendi",
+        "columns": {
+          "user": "Kullanıcı",
+          "revenue": "Gelir",
+          "opportunities": "Fırsat",
+          "won": "Kazanılan",
+          "trend": "Trend"
+        }
+      },
+      "goals": {
+        "title": "KPI Hedefleri",
+        "aria": "KPI hedef ilerleme listesi",
+        "target": "Hedef",
+        "actual": "Gerçekleşme",
+        "progressAria": "{name} hedef ilerlemesi {pct} yüzde",
+        "items": {
+          "revenue": "Gelir Hedefi",
+          "newOpportunities": "Yeni Fırsat Hedefi",
+          "wonDeals": "Kazanılan Fırsat Hedefi",
+          "meetings": "Toplantı Hedefi",
+          "activeCustomers": "Aktif Müşteri Hedefi"
+        }
+      },
+      "sources": {
+        "referral": "Referans",
+        "event": "Etkinlik",
+        "website": "Website",
+        "email": "E-mail",
+        "social": "Sosyal Medya",
+        "other": "Diğer"
+      },
+      "rail": {
+        "aria": "Rapor içgörüleri",
+        "topSources": "En İyi Kaynaklar",
+        "topSourcesAria": "Kaynak dağılımı pasta grafiği",
+        "quickReports": "Hızlı Raporlar",
+        "aiInsights": "AI İçgörüleri",
+        "openAi": "AI ile Analiz Et",
+        "aiPrompt": "Rapor performansını analiz et, fırsat ve kaynak içgörülerini özetle"
+      },
+      "quickReports": {
+        "salesPerformance": "Satış Performansı Raporu",
+        "pipeline": "Pipeline Raporu",
+        "customerAnalysis": "Müşteri Analizi Raporu",
+        "activityAnalysis": "Aktivite Analizi Raporu",
+        "wonOpportunities": "Kazanılan Fırsatlar Raporu"
+      },
+      "aiInsights": {
+        "referralMomentum": "Referans kaynağı bu dönemde en yüksek dönüşümü sağlıyor.",
+        "negotiationGap": "Müzakere aşamasında hacim düşüşü var; teklif kalitesini gözden geçirin.",
+        "teamLead": "Ayşe Yılmaz ekip gelir liderliğinde; kazanılan fırsat trendi güçlü."
+      }
+    },
+    "settings": {
+      "title": "Ayarlar",
+      "subtitle": "Sistem yapılandırmasını ve bağlantıları yönetin.",
+      "overview": {
+        "aria": "Ayarlar genel bakış",
+        "subtitle": "Sistem yapılandırmasını ve bağlantıları yönetin.",
+        "lastUpdated": "Son güncelleme",
+        "systemStatus": "Sistem durumu: Sağlıklı",
+        "changeHistory": "Değişiklik Geçmişi",
+        "export": "Ayarları Dışa Aktar",
+        "editSettings": "Ayarları Düzenle",
+        "history": {
+          "item1": "Genel dil Türkçe olarak ayarlandı — 24 Tem 2026",
+          "item2": "Slack entegrasyonu bağlandı — 22 Tem 2026",
+          "item3": "Push bildirim kanalı açıldı — 20 Tem 2026"
+        }
+      },
+      "actions": {
+        "edit": "Düzenle",
+        "manage": "Yönet",
+        "editDeferred": "{section} düzenleme ekranı bu sprintte sunulacak.",
+        "save": "Kaydet",
+        "cancel": "İptal",
+        "saveSuccess": "Ayarlar kaydedildi",
+        "exportSuccess": "Ayarlar dışa aktarıldı"
+      },
+      "nav": {
+        "aria": "Ayarlar kategorileri",
+        "categories": {
+          "general": {
+            "label": "Genel",
+            "description": "Şirket bilgileri ve temel ayarlar"
+          },
+          "crm": {
+            "label": "CRM",
+            "description": "Pipeline, fırsat, aktivite ayarları"
+          },
+          "ai": {
+            "label": "AI",
+            "description": "AI modelleri ve yapılandırmalar"
+          },
+          "users": {
+            "label": "Kullanıcılar & Roller",
+            "description": "Kullanıcı, rol ve yetki yönetimi"
+          },
+          "notifications": {
+            "label": "Bildirimler",
+            "description": "Email, SMS, WhatsApp ayarları"
+          },
+          "integrations": {
+            "label": "Entegrasyonlar",
+            "description": "Üçüncü parti entegrasyonlar"
+          },
+          "security": {
+            "label": "Güvenlik",
+            "description": "Oturum, MFA ve güvenlik ayarları"
+          },
+          "system": {
+            "label": "Sistem",
+            "description": "Sistem durumu ve loglar"
+          },
+          "billing": {
+            "label": "Faturalama",
+            "description": "Plan, kullanım ve faturalandırma"
+          }
+        }
+      },
+      "stub": {
+        "message": "Bu bölümün üretim yapılandırması yakında eklenecek. Şimdilik genel sistem kontrol merkezi kartlarını Genel altında inceleyebilirsiniz.",
+        "cta": "Genele Dön"
+      },
+      "general": {
+        "title": "Genel Ayarlar",
+        "company": "Şirket",
+        "companyName": "Şirket Adı",
+        "logo": "Logo",
+        "changeLogo": "Değiştir",
+        "language": "Dil",
+        "timezone": "Saat Dilimi",
+        "companyId": "Şirket Kimliği",
+        "lastUpdated": "Son Güncelleme",
+        "lastUpdatedValues": {
+          "recent": "24 Temmuz 2026, 14:32"
+        },
+        "languageOptions": {
+          "tr": "Türkçe",
+          "en": "English"
+        },
+        "timezoneOptions": {
+          "europeIstanbul": "GMT+03:00 Istanbul",
+          "europeLondon": "GMT+00:00 London",
+          "americaNewYork": "GMT-05:00 New York"
+        }
+      },
+      "ai": {
+        "title": "AI Yapılandırması",
+        "provider": "Provider",
+        "model": "Model",
+        "temperature": "Temperature",
+        "defaultLanguage": "Dil",
+        "promptPolicy": "Prompt Politikası",
+        "totalUsage": "Aylık Kullanım",
+        "monthlyUsage": "Aylık Kullanım",
+        "promptPolicyPlaceholder": "Kurumsal prompt politikası yer tutucusu — üretim kuralları burada yapılandırılacak.",
+        "promptPolicyValues": {
+          "enterprise": "Kurumsal"
+        },
+        "totalUsageValues": {
+          "summary": "12.450 / 50.000 istek"
+        },
+        "providerOptions": {
+          "openai": "OpenAI",
+          "azure": "Azure OpenAI",
+          "anthropic": "Anthropic"
+        },
+        "modelOptions": {
+          "gpt4o": "GPT-4o",
+          "gpt4oMini": "GPT-4o Mini",
+          "gpt41": "GPT-4.1"
+        }
+      },
+      "crmSettings": {
+        "title": "CRM Yapılandırması",
+        "aria": "CRM yapılandırma varlıkları",
+        "entities": {
+          "pipelineStages": "Pipeline Aşamaları",
+          "opportunityStages": "Fırsat Aşamaları",
+          "activityTypes": "Aktivite Türleri",
+          "taskTypes": "Görev Türleri",
+          "tags": "Etiketler"
+        },
+        "manageHint": "{name} yönetiliyor. Güncel sayı: {count}. Sunum güncellemesi için kaydedin."
+      },
+      "notifications": {
+        "title": "Bildirim Kanalları",
+        "aria": "Bildirim kanalları",
+        "switchAria": "{channel} bildirimlerini aç veya kapat",
+        "channels": {
+          "email": "E-posta",
+          "whatsapp": "WhatsApp",
+          "sms": "SMS",
+          "push": "Push Bildirimleri"
+        },
+        "status": {
+          "on": "Aktif",
+          "off": "Kapalı"
+        },
+        "manageHint": "{channel} şu an {state}. Kanalı değiştirmek için kaydedin."
+      },
+      "integrations": {
+        "title": "Entegrasyonlar",
+        "aria": "Üçüncü parti entegrasyonlar",
+        "manageAll": "Tümünü Yönet",
+        "connect": "Bağla",
+        "lastSync": "Son Senkronizasyon",
+        "items": {
+          "googleCalendar": "Google Calendar",
+          "outlook": "Outlook",
+          "gmail": "Gmail",
+          "slack": "Slack",
+          "zapier": "Zapier",
+          "quickbooks": "QuickBooks",
+          "microsoft365": "Microsoft 365"
+        },
+        "status": {
+          "connected": "Bağlı",
+          "disconnected": "Bağlı Değil"
+        },
+        "lastSyncValues": {
+          "live": "Canlı",
+          "minutesAgo": "12 dk önce",
+          "hourAgo": "1 saat önce",
+          "dayAgo": "1 gün önce",
+          "never": "Hiç"
+        },
+        "manageHint": "{name} şu an {state}. Bağlamak veya koparmak için kaydedin."
+      },
+      "security": {
+        "title": "Güvenlik",
+        "aria": "Güvenlik durumu",
+        "manage": "Güvenliği Yönet",
+        "items": {
+          "mfa": "MFA",
+          "apiKeys": "API Keys",
+          "sessionTimeout": "Session Timeout",
+          "passwordPolicy": "Password Policy",
+          "loginHistory": "Son Giriş"
+        },
+        "values": {
+          "mfa": {
+            "enabled": "Aktif"
+          },
+          "apiKeys": {
+            "activeCount": "4 aktif anahtar"
+          },
+          "sessionTimeout": {
+            "timeout": "30 dakika"
+          },
+          "passwordPolicy": {
+            "strong": "Güçlü"
+          },
+          "loginHistory": {
+            "recent": "Bugün 09:42 · İstanbul"
+          }
+        },
+        "noteLabel": "Güvenlik notu"
+      },
+      "system": {
+        "title": "Sistem",
+        "aria": "Sistem durumu",
+        "items": {
+          "queue": "Queue",
+          "workers": "Workers",
+          "cache": "Cache",
+          "storage": "Storage",
+          "backgroundJobs": "Background Jobs",
+          "logSize": "Log Size"
+        },
+        "values": {
+          "queue": {
+            "healthy": "Sağlıklı · 12 bekleyen"
+          },
+          "workers": {
+            "running": "4 / 4 çalışıyor"
+          },
+          "cache": {
+            "hitRate": "%94 isabet"
+          },
+          "storage": {
+            "used": "245 GB / 1 TB"
+          },
+          "backgroundJobs": {
+            "active": "3 aktif iş"
+          },
+          "logSize": {
+            "size": "1.2 GB"
+          }
+        }
+      },
+      "rail": {
+        "aria": "Sistem kontrol özeti",
+        "viewDetails": "Detayları Gör",
+        "health": {
+          "title": "Sistem Sağlığı",
+          "healthy": "Çalışıyor",
+          "services": {
+            "api": "API",
+            "web": "Web",
+            "database": "Database",
+            "queue": "Queue",
+            "storage": "Storage"
+          }
+        },
+        "license": {
+          "title": "Lisans",
+          "active": "Aktif",
+          "expires": "Bitiş",
+          "expiresValue": "21 Temmuz 2026",
+          "userLimit": "Kullanıcı Limiti",
+          "activeUsers": "Aktif Kullanıcı",
+          "plans": {
+            "enterprise": "Enterprise Plan"
+          }
+        },
+        "aiUsage": {
+          "title": "AI Kullanımı",
+          "requests": "İstek Sayısı",
+          "tokens": "Token Kullanımı",
+          "requestsUsed": "12.450",
+          "requestsLimit": "50.000",
+          "tokensUsed": "2.4M",
+          "tokensLimit": "10M",
+          "requestsProgressAria": "AI istek kullanımı yüzde {pct}",
+          "tokensProgressAria": "Token kullanımı yüzde {pct}"
+        },
+        "storage": {
+          "title": "Depolama",
+          "total": "Toplam Kullanım",
+          "used": "245 GB",
+          "limit": "1 TB",
+          "progressAria": "Depolama kullanımı yüzde {pct}"
+        },
+        "lastUpdated": {
+          "title": "Son Güncelleme",
+          "values": {
+            "recent": "24 Temmuz 2026, 14:32"
+          }
+        },
+        "noteLabel": "Notlar"
+      }
+    },
+    "files": {
+      "title": "Dosyalar",
+      "subtitle": "Dosyaları arayın, düzenleyin ve müşteri, yatırımcı ve projelere bağlayın.",
+      "viewAria": "Dosya görünüm modu",
+      "view": {
+        "grid": "Izgara",
+        "list": "Liste"
+      },
+      "upload": {
+        "cta": "Yükle",
+        "success": "{name} yüklendi",
+        "unassigned": "Atanmamış",
+        "you": "Siz"
+      },
+      "filters": {
+        "aria": "Dosya filtreleri",
+        "search": "Ara",
+        "searchPlaceholder": "Dosya ara…",
+        "category": "Kategori",
+        "related": "İlişkili",
+        "type": "Tür",
+        "anyRelated": "Tüm ilişkiler",
+        "anyType": "Tüm türler",
+        "clear": "Temizle"
+      },
+      "categories": {
+        "aria": "Dosya kategorileri",
+        "all": "Tümü",
+        "contracts": "Sözleşmeler",
+        "identity": "Kimlik",
+        "financial": "Finans",
+        "marketing": "Pazarlama",
+        "legal": "Hukuk",
+        "other": "Diğer"
+      },
+      "related": {
+        "customer": "Müşteri",
+        "investor": "Yatırımcı",
+        "project": "Proje"
+      },
+      "recent": {
+        "title": "Son dosyalar"
+      },
+      "meta": {
+        "category": "Kategori",
+        "size": "Boyut",
+        "updated": "Güncellendi"
+      },
+      "columns": {
+        "name": "Ad",
+        "category": "Kategori",
+        "related": "İlişkili",
+        "version": "Sürüm",
+        "size": "Boyut",
+        "updated": "Güncellendi"
+      },
+      "empty": {
+        "title": "Dosya bulunamadı",
+        "description": "Farklı bir arama deneyin veya yeni dosya yükleyin."
+      }
+    },
+    "tags": {
+      "title": "Etiketler",
+      "subtitle": "Segmentasyon için CRM etiketlerini oluşturun ve yönetin.",
+      "create": "Etiket oluştur",
+      "edit": "Düzenle",
+      "delete": "Sil",
+      "listAria": "Etiket listesi",
+      "usageCount": "{count} kullanım",
+      "filters": {
+        "aria": "Etiket filtreleri",
+        "search": "Ara",
+        "searchPlaceholder": "Etiket ara…",
+        "category": "Kategori",
+        "color": "Renk",
+        "anyCategory": "Tüm kategoriler",
+        "anyColor": "Tüm renkler",
+        "clear": "Temizle"
+      },
+      "categories": {
+        "lifecycle": "Yaşam döngüsü",
+        "interest": "İlgi",
+        "priority": "Öncelik",
+        "source": "Kaynak",
+        "custom": "Özel"
+      },
+      "colors": {
+        "navy": "Lacivert",
+        "cyan": "Camgöbeği",
+        "green": "Yeşil",
+        "amber": "Kehribar",
+        "rose": "Gül",
+        "violet": "Menekşe",
+        "slate": "Gri"
+      },
+      "empty": {
+        "title": "Etiket bulunamadı",
+        "description": "Etiket oluşturun veya filtreleri temizleyin."
+      },
+      "form": {
+        "createTitle": "Etiket oluştur",
+        "editTitle": "Etiketi düzenle",
+        "name": "Ad",
+        "namePlaceholder": "Etiket adı",
+        "color": "Renk",
+        "category": "Kategori",
+        "description": "Açıklama",
+        "preview": "Önizleme",
+        "cancel": "İptal",
+        "save": "Kaydet",
+        "defaultDescription": "Özel CRM etiketi"
+      },
+      "deleteConfirm": {
+        "title": "Etiketi sil",
+        "message": "Etiket yerel listeden kaldırılır. Kullanım bağlantıları sunum amaçlıdır."
+      },
+      "toast": {
+        "created": "Etiket oluşturuldu",
+        "updated": "Etiket güncellendi",
+        "deleted": "Etiket silindi"
       }
     }
   }

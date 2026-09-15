@@ -1,0 +1,632 @@
+'use client';
+
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { useLocale } from 'next-intl';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import { Button, EmptyState, ErrorState, Input, LoadingState, Select, StatusChip, TextArea } from '@investhome/ui';
+
+import { IhIcon } from '@/components/icons/ih-icons';
+import { fetchUsers, hasPermission, type UserRecord } from '@/lib/api/auth';
+import { fetchDocumentsByEntity, linkDocument, type Document } from '@/lib/api/documents';
+import { useCrmAccess } from '@/lib/crm/use-crm-access';
+import { completeTask, createActivity, createFollowUp, createTask } from '@/workspaces/crm/api/activities';
+import {
+  assignContactOwner,
+  changeContactStatus,
+  fetchContactTimeline,
+  fetchJunkReasons,
+  updateContact,
+} from '@/workspaces/crm/api/contacts';
+import { notifyContactUpdated } from '@/workspaces/crm/contact-card/contact-card-context';
+import { contactQueries, contactQueryKeys } from '@/workspaces/crm/hooks/use-contacts';
+import { CRM_CONTACT_TYPES, type CrmContactType } from '@/workspaces/crm/types';
+
+import '@/app/workspaces/crm/contacts/_components/ds/contacts-ds.css';
+import './contact-card.css';
+
+const NOTE_TYPES = [
+  { value: 'phone_call', label: 'Telefon Görüşmesi' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'email', label: 'E-posta' },
+  { value: 'meeting', label: 'Toplantı' },
+  { value: 'note', label: 'Genel Not' },
+] as const;
+
+const TASK_STATUSES = [
+  { value: 'not_started', label: 'Başlamadı' },
+  { value: 'in_progress', label: 'Devam ediyor' },
+  { value: 'waiting', label: 'Beklemede' },
+  { value: 'completed', label: 'Tamamlandı' },
+] as const;
+
+const ACTIVITY_TYPE_LABELS: Record<string, string> = {
+  phone_call: 'Telefon Görüşmesi',
+  whatsapp: 'WhatsApp',
+  email: 'E-posta',
+  meeting: 'Toplantı',
+  note: 'Genel Not',
+  comment: 'Tarihsel Bitrix yorumu',
+  task: 'Görev',
+  follow_up: 'Takip',
+  system_event: 'Sistem',
+  contract_signed: 'Anlaşma',
+};
+
+type Panel = 'edit' | 'note' | 'task' | 'assign' | null;
+
+function toLocalInput(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function toIso(local: string): string {
+  return new Date(local).toISOString();
+}
+
+function nowLocal(): string {
+  return toLocalInput(new Date().toISOString());
+}
+
+function friendlyError(message: string): string {
+  if (message.includes('invalid_phone')) return 'Telefon numarası geçersiz.';
+  if (message.includes('invalid_email')) return 'E-posta adresi geçersiz.';
+  return message;
+}
+
+function splitList(value: string): string[] {
+  return value
+    .split(/[,;\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export function UnifiedContactCard({
+  contactId,
+  variant = 'page',
+}: {
+  contactId: string;
+  variant?: 'page' | 'drawer';
+}) {
+  const locale = useLocale();
+  const queryClient = useQueryClient();
+  const { authLoading, canRead, has, user } = useCrmAccess();
+  const canUpdate = has('update');
+  const canViewDocuments = Boolean(user && hasPermission(user, 'documents', 'view'));
+  const canLinkDocuments = Boolean(user && hasPermission(user, 'documents', 'update'));
+  const query = useQuery({
+    ...contactQueries.detail(contactId),
+    enabled: !authLoading && canRead,
+  });
+  const timelineQuery = useQuery({
+    queryKey: ['crm', 'contacts', 'timeline', contactId],
+    queryFn: () => fetchContactTimeline(contactId),
+    enabled: !authLoading && canRead,
+  });
+  const reasonsQuery = useQuery({
+    queryKey: ['crm', 'contacts', 'junk-reasons'],
+    queryFn: fetchJunkReasons,
+    enabled: !authLoading && canRead,
+  });
+  const usersQuery = useQuery({
+    queryKey: ['users', 'crm-assign'],
+    queryFn: () => fetchUsers({ status: 'active' }),
+    enabled: !authLoading && canUpdate,
+  });
+  const documentsQuery = useQuery({
+    queryKey: ['crm', 'contacts', 'documents', contactId],
+    queryFn: async () => {
+      const [crmDocs, contactDocs] = await Promise.all([
+        fetchDocumentsByEntity('crm_contact', contactId).catch(() => ({ items: [] as Document[] })),
+        fetchDocumentsByEntity('contact', contactId).catch(() => ({ items: [] as Document[] })),
+      ]);
+      const seen = new Set<string>();
+      return [...crmDocs.items, ...contactDocs.items].filter((doc) => {
+        if (seen.has(doc.id)) return false;
+        seen.add(doc.id);
+        return true;
+      });
+    },
+    enabled: !authLoading && canRead && canViewDocuments,
+  });
+
+  const [panel, setPanel] = useState<Panel>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [extraPhones, setExtraPhones] = useState('');
+  const [email, setEmail] = useState('');
+  const [extraEmails, setExtraEmails] = useState('');
+  const [company, setCompany] = useState('');
+  const [position, setPosition] = useState('');
+  const [statusValue, setStatusValue] = useState<'active' | 'archived'>('active');
+  const [junkReason, setJunkReason] = useState('');
+  const [roles, setRoles] = useState<CrmContactType[]>([]);
+  const [ownerId, setOwnerId] = useState('');
+  const [followUpAt, setFollowUpAt] = useState('');
+  const [note, setNote] = useState('');
+  const [noteType, setNoteType] = useState<(typeof NOTE_TYPES)[number]['value']>('phone_call');
+  const [noteAt, setNoteAt] = useState(nowLocal);
+  const [noteNeedsFollowUp, setNoteNeedsFollowUp] = useState(false);
+  const [noteFollowUpAt, setNoteFollowUpAt] = useState('');
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskDescription, setTaskDescription] = useState('');
+  const [taskAssignee, setTaskAssignee] = useState('');
+  const [taskDue, setTaskDue] = useState('');
+  const [taskStatus, setTaskStatus] = useState<(typeof TASK_STATUSES)[number]['value']>('not_started');
+  const [linkDocumentId, setLinkDocumentId] = useState('');
+  const contact = query.data;
+
+  useEffect(() => {
+    if (!contact) return;
+    setDisplayName(contact.display_name);
+    setPhone(contact.primary_phone ?? '');
+    setExtraPhones((contact.secondary_phones ?? []).join(', '));
+    setEmail(contact.primary_email ?? '');
+    setExtraEmails((contact.secondary_emails ?? []).join(', '));
+    setCompany(contact.organization_name ?? '');
+    setPosition(contact.job_title ?? '');
+    setStatusValue(contact.status === 'archived' ? 'archived' : 'active');
+    setJunkReason(contact.junk_reason ?? '');
+    setRoles(contact.contact_types.length ? contact.contact_types : [contact.contact_type]);
+    setOwnerId(contact.owner_user_id ?? '');
+    setFollowUpAt(toLocalInput(contact.next_follow_up_at));
+    setTaskAssignee(contact.owner_user_id ?? user?.id ?? '');
+  }, [contact, user?.id]);
+
+  const refresh = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: contactQueryKeys.detail(contactId) }),
+      queryClient.invalidateQueries({ queryKey: ['crm', 'contacts', 'timeline', contactId] }),
+      queryClient.invalidateQueries({ queryKey: contactQueryKeys.all }),
+      queryClient.invalidateQueries({ queryKey: ['crm', 'contacts', 'documents', contactId] }),
+    ]);
+    notifyContactUpdated(contactId);
+  };
+
+  const actionMutation = useMutation({
+    mutationFn: async (work: () => Promise<unknown>) => work(),
+    onSuccess: () => {
+      setError(null);
+      void refresh();
+    },
+    onError: (err: Error) => setError(friendlyError(err.message)),
+  });
+
+  const users: UserRecord[] = usersQuery.data?.items ?? [];
+  const timeline = useMemo(
+    () => [...(timelineQuery.data?.items ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    [timelineQuery.data?.items],
+  );
+  const openTasks = (contact?.crm_activities ?? []).filter(
+    (activity) => activity.activity_type === 'task' && activity.status !== 'completed' && activity.task_status !== 'completed',
+  );
+
+  if (authLoading || query.isLoading) return <LoadingState label="Loading…" />;
+  if (!canRead) return <EmptyState title="CRM" description="Access denied" />;
+  if (query.isError || !contact) {
+    return <ErrorState title="CRM" message={query.error?.message ?? 'Contact unavailable'} />;
+  }
+
+  const categories = [
+    contact.is_agent ? 'Acenta' : 'Müşteri',
+    ...(contact.has_agreements ? ['Anlaşmalı'] : []),
+  ];
+  const isJunk = contact.status === 'archived';
+  const ownerName = contact.owner_name ?? contact.bitrix_responsible ?? '—';
+
+  const togglePanel = (next: Panel) => setPanel((current) => (current === next ? null : next));
+
+  const submitEdit = (event: FormEvent) => {
+    event.preventDefault();
+    actionMutation.mutate(async () => {
+      await updateContact(contactId, {
+        display_name: displayName.trim() || contact.display_name,
+        primary_phone: phone.trim() || null,
+        secondary_phones: splitList(extraPhones),
+        primary_email: email.trim() || null,
+        secondary_emails: splitList(extraEmails),
+        organization_name: company.trim() || null,
+        job_title: position.trim() || null,
+        status: statusValue,
+        junk_reason: statusValue === 'archived' ? junkReason.trim() || null : contact.junk_reason,
+        contact_type: roles[0] ?? contact.contact_type,
+        contact_types: roles,
+        owner_user_id: ownerId || undefined,
+        next_follow_up_at: followUpAt ? toIso(followUpAt) : null,
+      });
+      setPanel(null);
+    });
+  };
+
+  const submitNote = (event: FormEvent) => {
+    event.preventDefault();
+    if (!note.trim()) return;
+    const typeLabel = NOTE_TYPES.find((item) => item.value === noteType)?.label ?? 'Not';
+    actionMutation.mutate(async () => {
+      await createActivity({
+        entity_type: 'contact',
+        entity_id: contactId,
+        activity_type: noteType,
+        title: typeLabel,
+        description: note.trim(),
+        start_date: noteAt ? toIso(noteAt) : new Date().toISOString(),
+        status: 'completed',
+      });
+      if (noteNeedsFollowUp && noteFollowUpAt) {
+        await createFollowUp({
+          entity_type: 'contact',
+          entity_id: contactId,
+          reason: 'relationship_review',
+          title: 'Takip',
+          due_date: toIso(noteFollowUpAt),
+          notes: note.trim(),
+        });
+      }
+      setNote('');
+      setNoteNeedsFollowUp(false);
+      setNoteFollowUpAt('');
+      setNoteAt(nowLocal());
+      setPanel(null);
+    });
+  };
+
+  const submitTask = (event: FormEvent) => {
+    event.preventDefault();
+    if (!taskTitle.trim()) return;
+    actionMutation.mutate(async () => {
+      await createTask({
+        entity_type: 'contact',
+        entity_id: contactId,
+        activity_type: 'task',
+        title: taskTitle.trim(),
+        description: taskDescription.trim() || undefined,
+        assigned_user_id: taskAssignee || user?.id,
+        due_date: taskDue ? toIso(taskDue) : undefined,
+        task_status: taskStatus,
+        status: taskStatus === 'completed' ? 'completed' : 'planned',
+      });
+      setTaskTitle('');
+      setTaskDescription('');
+      setTaskDue('');
+      setTaskStatus('not_started');
+      setPanel(null);
+    });
+  };
+
+  const submitOwner = (event: FormEvent) => {
+    event.preventDefault();
+    if (!ownerId) return;
+    actionMutation.mutate(async () => {
+      try {
+        await assignContactOwner(contactId, ownerId);
+      } catch {
+        await updateContact(contactId, { owner_user_id: ownerId });
+      }
+      setPanel(null);
+    });
+  };
+
+  const submitLinkDocument = (event: FormEvent) => {
+    event.preventDefault();
+    if (!linkDocumentId.trim()) return;
+    actionMutation.mutate(async () => {
+      await linkDocument(linkDocumentId.trim(), 'crm_contact', contactId);
+      setLinkDocumentId('');
+    });
+  };
+
+  return (
+    <div
+      className={`crm-verify-detail crm-contact-card crm-contact-card--${variant}`}
+      data-testid="unified-contact-card"
+    >
+      {variant === 'page' ? (
+        <Button className="crm-contact-card__back" variant="secondary" size="sm" onClick={() => window.history.back()}>
+          <IhIcon name="chevronLeft" size={13} /> Kişilere dön
+        </Button>
+      ) : null}
+
+      <header className="crm-verify-detail__hero crm-contact-card__hero">
+        <div className="crm-contact-card__hero-top">
+          <div>
+            <h1>{contact.display_name}</h1>
+            <p>
+              {[contact.job_title, contact.organization_name, contact.source ?? 'OS']
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          </div>
+          <StatusChip tone={isJunk ? 'default' : 'success'}>{isJunk ? 'Junk' : 'Aktif'}</StatusChip>
+        </div>
+        <dl className="crm-contact-card__facts">
+          <div><dt>Telefon</dt><dd>{contact.primary_phone || '—'}</dd></div>
+          <div><dt>E-posta</dt><dd>{contact.primary_email || '—'}</dd></div>
+          <div><dt>Şirket</dt><dd>{contact.organization_name || '—'}</dd></div>
+          <div><dt>Pozisyon</dt><dd>{contact.job_title || '—'}</dd></div>
+          <div><dt>Durum</dt><dd>{isJunk ? 'Junk' : 'Aktif'}</dd></div>
+          <div><dt>Kategori / Roller</dt><dd>{[...categories, ...roles].join(' · ') || '—'}</dd></div>
+          <div><dt>Kaynak</dt><dd>{contact.source ?? 'OS'}</dd></div>
+          <div><dt>Sorumlu</dt><dd>{ownerName}</dd></div>
+          <div>
+            <dt>Son aktivite</dt>
+            <dd>{contact.last_contact_at ? new Date(contact.last_contact_at).toLocaleString(locale) : '—'}</dd>
+          </div>
+          <div>
+            <dt>Sonraki takip</dt>
+            <dd>{contact.next_follow_up_at ? new Date(contact.next_follow_up_at).toLocaleString(locale) : '—'}</dd>
+          </div>
+        </dl>
+        {canUpdate ? (
+          <div className="crm-contact-card__actions">
+            <Button type="button" size="sm" variant={panel === 'edit' ? 'primary' : 'secondary'} onClick={() => togglePanel('edit')}>Düzenle</Button>
+            <Button type="button" size="sm" variant={panel === 'note' ? 'primary' : 'secondary'} onClick={() => togglePanel('note')}>Not Ekle</Button>
+            <Button type="button" size="sm" variant={panel === 'task' ? 'primary' : 'secondary'} onClick={() => togglePanel('task')}>Görev Ekle</Button>
+            <Button type="button" size="sm" variant={panel === 'assign' ? 'primary' : 'secondary'} onClick={() => togglePanel('assign')}>Sorumlu Ata</Button>
+          </div>
+        ) : null}
+      </header>
+
+      {isJunk ? (
+        <div className="crm-contact-card__banner crm-contact-card__banner--junk" data-testid="contact-junk-banner">
+          <strong>Durum: Junk</strong>
+          <div>Junk Sebebi: {contact.junk_reason || contact.bitrix_history?.junk_reason || '—'}</div>
+        </div>
+      ) : null}
+
+      {contact.agent?.is_agent ? (
+        <div className="crm-contact-card__banner" data-testid="contact-agent-banner">
+          <strong>Acenta</strong>
+          <div>
+            {[contact.agent.brokerage_name || contact.organization_name, contact.primary_phone, contact.primary_email]
+              .filter(Boolean)
+              .join(' · ') || '—'}
+            {' · '}
+            {contact.agent.status === 'active' ? 'Aktif' : 'Pasif'}
+          </div>
+        </div>
+      ) : null}
+
+      {error ? <div className="crm-verify-detail__error">{error}</div> : null}
+
+      {panel === 'edit' ? (
+        <section className="crm-verify-detail__section" data-testid="contact-edit-panel">
+          <h2>Kişiyi Düzenle</h2>
+          <form onSubmit={submitEdit} className="crm-contact-card__panel">
+            <div className="crm-contact-card__panel-grid">
+              <Input label="Ad Soyad" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+              <Input label="Telefon" value={phone} onChange={(event) => setPhone(event.target.value)} />
+              <Input label="Ek telefonlar" value={extraPhones} onChange={(event) => setExtraPhones(event.target.value)} />
+              <Input label="E-posta" value={email} onChange={(event) => setEmail(event.target.value)} />
+              <Input label="Ek e-postalar" value={extraEmails} onChange={(event) => setExtraEmails(event.target.value)} />
+              <Input label="Şirket" value={company} onChange={(event) => setCompany(event.target.value)} />
+              <Input label="Pozisyon" value={position} onChange={(event) => setPosition(event.target.value)} />
+              <Select label="Durum" value={statusValue} onChange={(event) => setStatusValue(event.target.value as 'active' | 'archived')}>
+                <option value="active">Aktif</option>
+                <option value="archived">Junk</option>
+              </Select>
+              {statusValue === 'archived' ? (
+                <>
+                  <Select label="Junk sebebi" value={junkReason} onChange={(event) => setJunkReason(event.target.value)}>
+                    <option value="">Seçin veya yazın</option>
+                    {(reasonsQuery.data?.items ?? []).map((item) => (
+                      <option key={item.reason} value={item.reason}>{item.reason}</option>
+                    ))}
+                  </Select>
+                  <Input label="Junk sebebi (serbest)" value={junkReason} onChange={(event) => setJunkReason(event.target.value)} />
+                </>
+              ) : null}
+              <Select label="Sorumlu" value={ownerId} onChange={(event) => setOwnerId(event.target.value)}>
+                <option value="">Seçin</option>
+                {users.map((item) => (
+                  <option key={item.id} value={item.id}>{item.full_name}</option>
+                ))}
+              </Select>
+              <Input label="Sonraki takip" type="datetime-local" value={followUpAt} onChange={(event) => setFollowUpAt(event.target.value)} />
+            </div>
+            <div>
+              <div className="crm-contact-card__meta-line">Tür / roller</div>
+              <div className="crm-contact-card__roles">
+                {CRM_CONTACT_TYPES.map((type) => (
+                  <label key={type}>
+                    <input
+                      type="checkbox"
+                      checked={roles.includes(type)}
+                      onChange={() => {
+                        setRoles((current) =>
+                          current.includes(type) ? current.filter((item) => item !== type) : [...current, type],
+                        );
+                      }}
+                    />
+                    {type}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <Button type="submit" size="sm" disabled={actionMutation.isPending}>Kaydet</Button>
+          </form>
+        </section>
+      ) : null}
+
+      {panel === 'note' ? (
+        <section className="crm-verify-detail__section" data-testid="contact-note-panel">
+          <h2>Not Ekle</h2>
+          <form onSubmit={submitNote} className="crm-contact-card__panel">
+            <TextArea label="Not / görüşme özeti" value={note} onChange={(event) => setNote(event.target.value)} />
+            <div className="crm-contact-card__panel-grid">
+              <Select label="Aktivite türü" value={noteType} onChange={(event) => setNoteType(event.target.value as typeof noteType)}>
+                {NOTE_TYPES.map((item) => (
+                  <option key={item.value} value={item.value}>{item.label}</option>
+                ))}
+              </Select>
+              <Input label="Tarih / saat" type="datetime-local" value={noteAt} onChange={(event) => setNoteAt(event.target.value)} />
+              <Select label="Takip gerekli mi?" value={noteNeedsFollowUp ? 'yes' : 'no'} onChange={(event) => setNoteNeedsFollowUp(event.target.value === 'yes')}>
+                <option value="no">Hayır</option>
+                <option value="yes">Evet</option>
+              </Select>
+              {noteNeedsFollowUp ? (
+                <Input label="Takip tarihi" type="datetime-local" value={noteFollowUpAt} onChange={(event) => setNoteFollowUpAt(event.target.value)} />
+              ) : null}
+            </div>
+            <Button type="submit" size="sm" disabled={actionMutation.isPending || !note.trim()}>Notu kaydet</Button>
+          </form>
+        </section>
+      ) : null}
+
+      {panel === 'task' ? (
+        <section className="crm-verify-detail__section" data-testid="contact-task-panel">
+          <h2>Görev Ekle</h2>
+          <form onSubmit={submitTask} className="crm-contact-card__panel">
+            <Input label="Görev başlığı" value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} />
+            <TextArea label="Açıklama" value={taskDescription} onChange={(event) => setTaskDescription(event.target.value)} />
+            <div className="crm-contact-card__panel-grid">
+              <Select label="Atanan kullanıcı" value={taskAssignee} onChange={(event) => setTaskAssignee(event.target.value)}>
+                <option value="">Seçin</option>
+                {users.map((item) => (
+                  <option key={item.id} value={item.id}>{item.full_name}</option>
+                ))}
+              </Select>
+              <Input label="Son tarih" type="datetime-local" value={taskDue} onChange={(event) => setTaskDue(event.target.value)} />
+              <Select label="Durum" value={taskStatus} onChange={(event) => setTaskStatus(event.target.value as typeof taskStatus)}>
+                {TASK_STATUSES.map((item) => (
+                  <option key={item.value} value={item.value}>{item.label}</option>
+                ))}
+              </Select>
+            </div>
+            <Button type="submit" size="sm" disabled={actionMutation.isPending || !taskTitle.trim()}>Görevi kaydet</Button>
+          </form>
+        </section>
+      ) : null}
+
+      {panel === 'assign' ? (
+        <section className="crm-verify-detail__section" data-testid="contact-assign-panel">
+          <h2>Sorumlu Ata</h2>
+          <p className="crm-contact-card__meta-line">Mevcut sorumlu: {ownerName}</p>
+          <form onSubmit={submitOwner} className="crm-contact-card__panel">
+            <Select label="Yeni sorumlu" value={ownerId} onChange={(event) => setOwnerId(event.target.value)}>
+              <option value="">Kullanıcı seç</option>
+              {users.map((item) => (
+                <option key={item.id} value={item.id}>{item.full_name}</option>
+              ))}
+            </Select>
+            <Button type="submit" size="sm" disabled={actionMutation.isPending || !ownerId}>Atamayı kaydet</Button>
+          </form>
+        </section>
+      ) : null}
+
+      {openTasks.length ? (
+        <section className="crm-verify-detail__section">
+          <h2>Açık görevler <span>{openTasks.length}</span></h2>
+          <div className="crm-verify-detail__records">
+            {openTasks.map((task) => (
+              <article key={task.id}>
+                <strong>{task.title}</strong>
+                <small>
+                  {task.due_date ? new Date(task.due_date).toLocaleString(locale) : 'Tarihsiz'}
+                  {task.task_status ? ` · ${task.task_status}` : ''}
+                </small>
+                {canUpdate ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={actionMutation.isPending}
+                    onClick={() => actionMutation.mutate(async () => completeTask(task.id))}
+                  >
+                    Görevi tamamla
+                  </Button>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="crm-verify-detail__section" data-testid="contact-timeline">
+        <h2>Geçmiş & Notlar <span>{timeline.length}</span></h2>
+        {timelineQuery.isLoading ? <p>Loading…</p> : null}
+        {timeline.length ? (
+          <div className="crm-verify-detail__records crm-verify-detail__timeline">
+            {timeline.map((entry) => (
+              <article key={entry.id} data-imported={entry.imported_historical_comment ? 'true' : 'false'}>
+                <strong>
+                  {entry.imported_historical_comment
+                    ? 'Tarihsel Bitrix yorumu'
+                    : ACTIVITY_TYPE_LABELS[entry.activity_type] ?? entry.title}
+                </strong>
+                <small>
+                  {new Date(entry.created_at).toLocaleString(locale)}
+                  {entry.actor_name ? ` · ${entry.actor_name}` : ''}
+                  {entry.status ? ` · ${entry.status}` : ''}
+                </small>
+                {entry.title && entry.title !== ACTIVITY_TYPE_LABELS[entry.activity_type] ? <p>{entry.title}</p> : null}
+                {entry.summary ? <p>{entry.summary}</p> : null}
+              </article>
+            ))}
+          </div>
+        ) : <p>Kayıt yok</p>}
+      </section>
+
+      <section className="crm-verify-detail__section" data-testid="contact-agreements">
+        <h2>Anlaşmalar / Yatırımlar <span>{contact.crm_agreements.length}</span></h2>
+        {contact.crm_agreements.length ? (
+          <div className="crm-verify-detail__records">
+            {contact.crm_agreements.map((agreement) => {
+              const isReit = agreement.project_group === 'reit';
+              return (
+                <article key={agreement.id}>
+                  <strong>{agreement.project_label}</strong>
+                  <small>
+                    Durum: {agreement.status}
+                    {agreement.agreement_date ? ` · Anlaşma tarihi: ${agreement.agreement_date}` : ''}
+                    {isReit
+                      ? ` · Yatırım Tutarı: ${agreement.investment_amount || '—'}`
+                      : ` · Daire No: ${agreement.unit_number || '—'}`}
+                    {!isReit && agreement.purchase_price ? ` · Satış / anlaşma fiyatı: ${agreement.purchase_price}` : ''}
+                    {!isReit && agreement.payment_amount ? ` · Ödeme: ${agreement.payment_amount}` : ''}
+                    {!isReit && agreement.deposit ? ` · Kapora: ${agreement.deposit}` : ''}
+                  </small>
+                </article>
+              );
+            })}
+          </div>
+        ) : <p>Kayıt yok</p>}
+      </section>
+
+      <section className="crm-verify-detail__section" data-testid="contact-documents">
+        <h2>Belgeler <span>{documentsQuery.data?.length ?? 0}</span></h2>
+        {!canViewDocuments ? (
+          <p>Belge görüntüleme yetkisi yok.</p>
+        ) : documentsQuery.isLoading ? (
+          <p>Loading…</p>
+        ) : documentsQuery.data?.length ? (
+          <ul className="crm-contact-card__docs">
+            {documentsQuery.data.map((doc) => (
+              <li key={doc.id}>
+                <a href={`/workspaces/crm/documents/${doc.id}`}>{doc.title}</a>
+                <small>{doc.document_type} · v{doc.version_number}</small>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>Bu kişiye bağlı belge yok.</p>
+        )}
+        {canLinkDocuments ? (
+          <form onSubmit={submitLinkDocument} className="crm-contact-card__panel">
+            <Input
+              label="Mevcut belge ID ile bağla"
+              value={linkDocumentId}
+              onChange={(event) => setLinkDocumentId(event.target.value)}
+            />
+            <Button type="submit" size="sm" variant="secondary" disabled={actionMutation.isPending || !linkDocumentId.trim()}>
+              Belgeyi bağla
+            </Button>
+          </form>
+        ) : null}
+      </section>
+    </div>
+  );
+}
