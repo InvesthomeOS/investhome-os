@@ -19,6 +19,7 @@ class SalesOpportunityCreate(BaseModel):
     party_id: UUID
     party_type: OpportunityPartyType
     lead_id: UUID | None = None
+    crm_contact_id: UUID | None = None
     display_id: str | None = Field(default=None, max_length=50)
     assigned_sales_user_id: UUID | None = None
     stage: OpportunityStage = OpportunityStage.NEW
@@ -68,8 +69,15 @@ class SalesOpportunityResponse(BaseModel):
     opportunity_code: str
     display_id: str | None
     lead_id: UUID | None
+    crm_contact_id: UUID | None = None
     party_id: UUID
     party_type: OpportunityPartyType
+    party_label: str | None = None
+    contact_phone: str | None = None
+    contact_email: str | None = None
+    contact_owner_name: str | None = None
+    contact_last_activity_at: datetime | None = None
+    contact_next_follow_up_at: datetime | None = None
     assigned_sales_user_id: UUID | None
     stage: OpportunityStage
     probability: int

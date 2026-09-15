@@ -15,6 +15,7 @@ ALLOWED_STAGE_TRANSITIONS: dict[OpportunityStage, frozenset[OpportunityStage]] =
     ),
     OpportunityStage.QUALIFIED: frozenset(
         {
+            OpportunityStage.NEW,
             OpportunityStage.MEETING_SCHEDULED,
             OpportunityStage.INVENTORY_MATCHING,
             OpportunityStage.LOST,

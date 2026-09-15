@@ -124,6 +124,10 @@ from investhome_api.models.crm_activity import (  # noqa: F401
     CrmActivityComment,
     CrmActivityEntityLink,
 )
+from investhome_api.models.crm_agreement import (  # noqa: F401
+    CrmAgreement,
+    CrmAgreementStatus,
+)
 from investhome_api.models.lead import Lead, LeadStatus
 from investhome_api.models.marketing_lead_attribution import (  # noqa: F401
     MarketingAttributionSource,

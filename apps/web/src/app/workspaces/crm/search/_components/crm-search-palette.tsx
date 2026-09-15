@@ -16,6 +16,7 @@ import {
 import { useCrmSearchStore } from '@/workspaces/crm/stores/crm-search-store';
 import { CRM_SEARCH_DEBOUNCE_MS, CRM_SEARCH_MIN_QUERY_LENGTH } from '@/workspaces/crm/types/search';
 import type { CrmSearchResultItem } from '@/workspaces/crm/types/search';
+import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 
 function HighlightText({ text, query }: { text: string; query: string }) {
   if (!query.trim()) return <>{text}</>;
@@ -52,6 +53,7 @@ export function CrmSearchPalette() {
   const t = useTranslations('crm.search');
   const tCommon = useTranslations('common');
   const router = useRouter();
+  const { openContact } = useContactCard();
   const { authLoading, user, canRead: canSearch } = useCrmAccess();
   const { paletteOpen, closePalette, query, setQuery, activeItemIndex, setActiveItemIndex } = useCrmSearchStore();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -104,9 +106,13 @@ export function CrmSearchPalette() {
     (item: CrmSearchResultItem) => {
       void recordRecent.mutateAsync({ query: debouncedQuery, result_count: searchQuery.data?.total ?? 0 });
       closePalette();
+      if (item.entity_type === 'crm_contact') {
+        openContact(item.entity_id || item.id);
+        return;
+      }
       router.push(item.url as Route);
     },
-    [closePalette, debouncedQuery, recordRecent, router, searchQuery.data?.total],
+    [closePalette, debouncedQuery, openContact, recordRecent, router, searchQuery.data?.total],
   );
 
   useEffect(() => {

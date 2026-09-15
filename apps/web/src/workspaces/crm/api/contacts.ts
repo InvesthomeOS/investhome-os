@@ -1,4 +1,4 @@
-import { apiFetch } from '@/lib/api/client';
+import { apiFetch, getApiBaseUrl } from '@/lib/api/client';
 
 import type {
   CrmContactDetail,
@@ -13,9 +13,16 @@ import type {
 export type ContactListParams = {
   search?: string;
   contact_type?: CrmContactType;
+  contact_types?: CrmContactType[];
   lifecycle_stage?: CrmLifecycleStage;
   priority?: CrmContactPriority;
   status?: CrmContactStatus;
+  source_group?: 'bitrix' | 'other';
+  role_group?: 'agent' | 'other';
+  category?: 'customer' | 'agent' | 'agreement';
+  junk_reason?: string;
+  agreement_project?: string;
+  bitrix_list?: 'current_junk';
   owner_user_id?: string;
   company_id?: string;
   include_archived?: boolean;
@@ -32,11 +39,11 @@ export type ContactInput = {
   display_name: string;
   first_name?: string;
   last_name?: string;
-  organization_name?: string;
-  job_title?: string;
+  organization_name?: string | null;
+  job_title?: string | null;
   department?: string;
-  primary_email?: string;
-  primary_phone?: string;
+  primary_email?: string | null;
+  primary_phone?: string | null;
   linkedin_url?: string;
   whatsapp?: string;
   website?: string;
@@ -55,7 +62,10 @@ export type ContactInput = {
   is_favorite?: boolean;
   is_pinned?: boolean;
   last_contact_at?: string;
-  next_follow_up_at?: string;
+  next_follow_up_at?: string | null;
+  junk_reason?: string | null;
+  secondary_emails?: string[] | null;
+  secondary_phones?: string[] | null;
   investment_profile?: Record<string, unknown>;
   buyer_profile?: Record<string, unknown>;
   broker_profile?: Record<string, unknown>;
@@ -99,9 +109,20 @@ function buildSearchParams(params: ContactListParams): URLSearchParams {
   search.set('page_size', String(params.page_size ?? 25));
   if (params.search) search.set('search', params.search);
   if (params.contact_type) search.set('contact_type', params.contact_type);
+  if (params.contact_types) {
+    for (const type of params.contact_types) {
+      search.append('contact_types', type);
+    }
+  }
   if (params.lifecycle_stage) search.set('lifecycle_stage', params.lifecycle_stage);
   if (params.priority) search.set('priority', params.priority);
   if (params.status) search.set('status', params.status);
+  if (params.source_group) search.set('source_group', params.source_group);
+  if (params.role_group) search.set('role_group', params.role_group);
+  if (params.category) search.set('category', params.category);
+  if (params.junk_reason) search.set('junk_reason', params.junk_reason);
+  if (params.agreement_project) search.set('agreement_project', params.agreement_project);
+  if (params.bitrix_list) search.set('bitrix_list', params.bitrix_list);
   if (params.owner_user_id) search.set('owner_user_id', params.owner_user_id);
   if (params.company_id) search.set('company_id', params.company_id);
   if (params.include_archived) search.set('include_archived', 'true');
@@ -194,6 +215,76 @@ export async function exportContactsCsv(): Promise<Blob> {
     { credentials: 'include' },
   );
   if (!response.ok) throw new Error('Export failed');
+  return response.blob();
+}
+
+export type BitrixVerificationSummary = {
+  total_contacts: number;
+  bitrix_contacts: number;
+  non_bitrix_contacts: number;
+  active_bitrix: number;
+  archived_bitrix: number;
+  bitrix_with_phone: number;
+  bitrix_with_email: number;
+  bitrix_with_external_id: number;
+  imported_historical_comments: number;
+  imported_agents: number;
+  imported_agreements: number;
+  agreements_by_project: Record<string, number>;
+};
+
+export async function fetchBitrixVerificationSummary(): Promise<BitrixVerificationSummary> {
+  return apiFetch<BitrixVerificationSummary>('/crm/contacts/bitrix-verification-summary');
+}
+
+export async function fetchJunkReasons(): Promise<{ items: Array<{ reason: string; count: number }>; total: number }> {
+  return apiFetch('/crm/contacts/junk-reasons');
+}
+
+export async function assignContactOwner(
+  id: string,
+  ownerUserId: string,
+): Promise<{ contact: CrmContactDetail }> {
+  return apiFetch(`/crm/contacts/${id}/assign-owner`, {
+    method: 'POST',
+    body: JSON.stringify({ owner_user_id: ownerUserId }),
+  });
+}
+
+export async function changeContactStatus(
+  id: string,
+  payload: { status: CrmContactStatus; junk_reason?: string; next_follow_up_at?: string },
+): Promise<{ contact: CrmContactDetail }> {
+  return apiFetch(`/crm/contacts/${id}/status`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export type ContactTimelineEntry = {
+  id: string;
+  source: string;
+  activity_type: string;
+  title: string;
+  summary: string | null;
+  status: string | null;
+  actor_name: string | null;
+  created_at: string;
+  is_system_event: boolean;
+  imported_historical_comment?: boolean;
+  metadata?: Record<string, unknown> | null;
+};
+
+export async function fetchContactTimeline(id: string): Promise<{ items: ContactTimelineEntry[] }> {
+  return apiFetch(`/crm/contacts/${id}/timeline`);
+}
+
+export async function exportBitrixVerificationCsv(): Promise<Blob> {
+  const response = await fetch(
+    `${getApiBaseUrl()}/crm/contacts/export/bitrix-verification`,
+    { credentials: 'include' },
+  );
+  if (!response.ok) throw new Error('Bitrix verification export failed');
   return response.blob();
 }
 

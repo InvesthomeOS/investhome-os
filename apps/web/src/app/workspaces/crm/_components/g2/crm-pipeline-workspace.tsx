@@ -1,7 +1,7 @@
 'use client';
 
 import type { Route } from 'next';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
@@ -50,6 +50,11 @@ import {
 import { useAuth } from '@/lib/auth/auth-context';
 import { useRecordDeepLink } from '@/lib/hooks/use-record-deep-link';
 import { useSalesLabels } from '@/lib/i18n/sales-labels';
+import {
+  CRM_CONTACT_UPDATED_EVENT,
+  opportunityContactId,
+  useContactCard,
+} from '@/workspaces/crm/contact-card/contact-card-context';
 
 import { CrmDrawerField, CrmRecordDrawer } from './crm-record-drawer';
 import { OpportunityCard } from './opportunity-card';
@@ -156,6 +161,7 @@ function CrmPipelineWorkspaceContent({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { getStageLabel, getPriorityLabel, getNextActionLabel } = useSalesLabels();
+  const { openContact } = useContactCard();
   const permissions = useMemo(
     () => preview?.permissions ?? getOpportunityPermissions(user),
     [preview?.permissions, user],
@@ -184,6 +190,7 @@ function CrmPipelineWorkspaceContent({
   const [enrichmentWarning, setEnrichmentWarning] = useState(false);
   const [selected, setSelected] = useState<SalesOpportunity | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const draggingIdRef = useRef<string | null>(null);
   const [overStage, setOverStage] = useState<OpportunityStage | null>(null);
   const [announcement, setAnnouncement] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -311,6 +318,14 @@ function CrmPipelineWorkspaceContent({
   }, [load, permissions.canView, preview]);
 
   useEffect(() => {
+    const handler = () => {
+      void load();
+    };
+    window.addEventListener(CRM_CONTACT_UPDATED_EVENT, handler);
+    return () => window.removeEventListener(CRM_CONTACT_UPDATED_EVENT, handler);
+  }, [load]);
+
+  useEffect(() => {
     if (preview) {
       setUsers(preview.users);
       setEnrichmentWarning(false);
@@ -356,6 +371,19 @@ function CrmPipelineWorkspaceContent({
     setSelected(null);
     replaceUrl({ opportunity: null }, 'push');
   }, [replaceUrl]);
+
+  const openPipelineCustomer = useCallback(
+    (opportunity: SalesOpportunity) => {
+      const contactId = opportunityContactId(opportunity);
+      if (contactId) {
+        setSelected(null);
+        openContact(contactId);
+        return;
+      }
+      openOpportunity(opportunity);
+    },
+    [openContact, openOpportunity],
+  );
 
   const filteredItems = useMemo(
     () => filterOpportunities(items, filters),
@@ -417,6 +445,8 @@ function CrmPipelineWorkspaceContent({
         return;
       }
       setSubmitting(true);
+      const previous = opportunity;
+      updateOpportunityInState({ ...opportunity, stage: targetStage });
       try {
         const updated = await changeOpportunityStage(opportunity.id, {
           stage: targetStage,
@@ -426,6 +456,7 @@ function CrmPipelineWorkspaceContent({
         setStageModal(null);
         setAnnouncement(`${updated.opportunity_code}: ${getStageLabel(updated.stage)}`);
       } catch {
+        updateOpportunityInState(previous);
         setAnnouncement(t('stageError'));
       } finally {
         setSubmitting(false);
@@ -440,8 +471,10 @@ function CrmPipelineWorkspaceContent({
   );
 
   const dropOnStage = useCallback(
-    (stage: OpportunityStage) => {
-      const opportunity = items.find((item) => item.id === draggingId);
+    (stage: OpportunityStage, droppedId?: string) => {
+      const id = droppedId || draggingIdRef.current || draggingId;
+      const opportunity = items.find((item) => item.id === id);
+      draggingIdRef.current = null;
       setDraggingId(null);
       setOverStage(null);
       if (!opportunity || opportunity.stage === stage) return;
@@ -839,19 +872,27 @@ function CrmPipelineWorkspaceContent({
                   onDragOver={(event) => {
                     if (!permissions.canChangeStage) return;
                     event.preventDefault();
+                    event.dataTransfer.dropEffect = 'move';
                     setOverStage(stage);
                   }}
-                  onDragLeave={() => setOverStage((current) => current === stage ? null : current)}
+                  onDragLeave={(event) => {
+                    const next = event.relatedTarget as Node | null;
+                    if (next && event.currentTarget.contains(next)) return;
+                    setOverStage((current) => (current === stage ? null : current));
+                  }}
                   onDrop={(event) => {
                     event.preventDefault();
-                    dropOnStage(stage);
+                    const droppedId =
+                      event.dataTransfer.getData('application/x-opportunity-id') ||
+                      event.dataTransfer.getData('text/plain');
+                    dropOnStage(stage, droppedId || undefined);
                   }}
                 >
                   <header className="opportunities-column__header">
                     <div>
                       <strong>{getStageLabel(stage)}</strong>
                     </div>
-                    <StatusChip tone="default">{stageItems.length}</StatusChip>
+                    <span className="opportunities-column__count">{stageItems.length}</span>
                     <small>
                       {permissions.canViewSensitiveValues
                         ? totals.length
@@ -880,15 +921,19 @@ function CrmPipelineWorkspaceContent({
                               ? userNames[opportunity.assigned_sales_user_id]
                               : undefined
                           }
-                          customerName={cardContext.customerName}
+                          customerName={cardContext.customerName ?? opportunity.party_label}
                           projectName={cardContext.projectName}
                           canViewSensitiveValues={permissions.canViewSensitiveValues}
                           draggable={permissions.canChangeStage}
                           dragging={draggingId === opportunity.id}
                           selected={selected?.id === opportunity.id}
-                          onOpen={() => openOpportunity(opportunity)}
-                          onDragStart={() => setDraggingId(opportunity.id)}
+                          onOpen={() => openPipelineCustomer(opportunity)}
+                          onDragStart={() => {
+                            draggingIdRef.current = opportunity.id;
+                            setDraggingId(opportunity.id);
+                          }}
                           onDragEnd={() => {
+                            draggingIdRef.current = null;
                             setDraggingId(null);
                             setOverStage(null);
                           }}
@@ -941,11 +986,11 @@ function CrmPipelineWorkspaceContent({
                   return (
                     <tr
                       key={opportunity.id}
-                      onClick={() => openOpportunity(opportunity)}
+                      onClick={() => openPipelineCustomer(opportunity)}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault();
-                          openOpportunity(opportunity);
+                          openPipelineCustomer(opportunity);
                         }
                       }}
                       tabIndex={0}

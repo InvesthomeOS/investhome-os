@@ -18,6 +18,7 @@ from investhome_api.db.session import SessionLocal
 from investhome_api.models.investor import Investor
 from investhome_api.models.lead import Lead, LeadStatus
 from investhome_api.models.project import Project
+from investhome_api.models.crm_contact import CrmContact
 
 DEMO_LEADS: list[dict[str, object]] = [
     {
@@ -146,6 +147,15 @@ DEMO_LEADS: list[dict[str, object]] = [
 def seed_demo_leads() -> int:
     """Insert missing demo leads idempotently by email. Returns number of rows inserted."""
     with SessionLocal() as session:
+        from sqlalchemy import func
+
+        bitrix_present = session.scalar(
+            select(func.count())
+            .select_from(CrmContact)
+            .where(func.lower(CrmContact.source) == "bitrix")
+        )
+        if bitrix_present:
+            return 0
         inserted = 0
         for payload in DEMO_LEADS:
             email = str(payload.get("email") or "").lower()

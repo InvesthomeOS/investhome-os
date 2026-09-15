@@ -952,7 +952,8 @@
     },
     "partyTypes": {
       "lead": "Lead",
-      "investor": "Yatırımcı"
+      "investor": "Yatırımcı",
+      "crm_contact": "CRM Kişi"
     },
     "priorities": {
       "low": "Düşük",
@@ -8445,7 +8446,7 @@
       "hero": {
         "aria": "YZ üretim kısayolları",
         "headline": "Bugün ne üretmek istiyorsunuz?",
-        "support": "Bir üretim yolu seçin — her kısayol yönlendirilmiş bir YZ iş akışı başlatır.",
+        "support": "Hızlı Tasarım veya Premium Kampanyalar ile başlayın.",
         "shortcuts": {
           "website": "Website",
           "blog": "Blog",
@@ -8456,6 +8457,106 @@
           "presentation": "Sunum",
           "proposal": "Teklif"
         }
+      },
+      "creationPaths": {
+        "aria": "Oluşturma yolları",
+        "quickTitle": "Hızlı Tasarım",
+        "quickDescription": "Günlük sosyal içerik ve hızlı kampanyalar.",
+        "premiumTitle": "Premium Kampanyalar",
+        "premiumDescription": "Onaylı kampanya tasarımlarını açın ve doğal dille güncelleyin.",
+        "launch": "Başla"
+      },
+      "premium": {
+        "listTitle": "Premium Kampanyalar",
+        "listSubtitle": "Onaylı kampanya tasarımlarını açın, değiştirin ve indirin.",
+        "backStudio": "Kreatif Stüdyo",
+        "empty": "Henüz onaylı bir premium kampanya yok.",
+        "loadError": "Kampanyalar yüklenemedi.",
+        "formatsAria": "Mevcut formatlar",
+        "updated": "Son güncelleme",
+        "open": "Kampanyayı aç",
+        "studio": "Kreatif Stüdyo",
+        "campaigns": "Premium Kampanyalar",
+        "instructionLabel": "Ne değişsin?",
+        "instructionPlaceholder": "Tasarımda neyi değiştirmek istiyorsunuz?",
+        "examplesAria": "Örnek komutlar",
+        "examples": {
+          "price": "Fiyatı 375.000 USD yap.",
+          "copy": "Son Daireler yazısını Son Fırsatlar olarak değiştir.",
+          "visual": "Bu görsel yerine diğer onaylı dış cephe görselini kullan.",
+          "family": "Bu değişikliği tüm kampanyaya uygula."
+        },
+        "exampleChips": {
+          "price": "Fiyatı 375.000 USD yap",
+          "copy": "Son Daireler → Son Fırsatlar",
+          "visual": "Görseli değiştir",
+          "family": "Tüm kampanyaya uygula"
+        },
+        "scopeAria": "Değişiklik kapsamı",
+        "scopeSelected": "Bu tasarım",
+        "scopeCampaign": "Tüm kampanya",
+        "apply": "Uygula",
+        "working": "Tasarım güncelleniyor...",
+        "compareAria": "Önce / Sonra",
+        "before": "Önce",
+        "after": "Sonra",
+        "approve": "Onayla",
+        "revert": "Geri Al",
+        "download": "İndir",
+        "publish": "Yayınla",
+        "zoomAria": "Yakınlaştırma",
+        "zoomOut": "Uzaklaştır",
+        "zoomIn": "Yakınlaştır",
+        "fit": "Sığdır",
+        "formats": {
+          "4:5": "Gönderi 4:5",
+          "9:16": "Story 9:16",
+          "1:1": "Kare 1:1"
+        },
+        "formatSelectorAria": "Format seçimi"
+      },
+      "quick": {
+        "title": "Hızlı Tasarım",
+        "subtitle": "Projeyi seçin, isteğinizi yazın, onaylı görsellerle günlük kreatif üretin.",
+        "studio": "Kreatif Stüdyo",
+        "projectsAria": "Proje seçimi",
+        "selectProject": "Proje seç",
+        "promptLabel": "Nasıl bir tasarım hazırlayalım?",
+        "promptPlaceholder": "Lansman avantajını anlatan şık bir Instagram reklamı hazırla.",
+        "examplesAria": "Örnek istekler",
+        "examples": {
+          "launch": "Lansman avantajını anlatan şık bir Instagram reklamı hazırla.",
+          "invest": "Yatırım odaklı daha sade bir reklam hazırla.",
+          "dc": "Washington D.C. vurgusu güçlü olsun.",
+          "interior": "İç mekan görseli kullan."
+        },
+        "formatsAria": "Format seçimi",
+        "formats": {
+          "4:5": "Gönderi 4:5",
+          "9:16": "Story 9:16",
+          "1:1": "Kare 1:1",
+          "16:9": "Yatay 16:9"
+        },
+        "generate": "Üret",
+        "generating": "Tasarım hazırlanıyor...",
+        "assetsReady": "{count} onaylı proje görseli · Logo hazır",
+        "assetsMissing": "Onaylı proje görseli veya logo henüz hazır değil.",
+        "reviseLabel": "Ne değişsin?",
+        "revisePlaceholder": "Fiyatı değiştir. Başlığı küçült. Daha sade yap.",
+        "apply": "Uygula",
+        "working": "Tasarım güncelleniyor...",
+        "approve": "Onayla",
+        "vary": "Yeni Varyasyon",
+        "replaceImage": "Görseli Değiştir",
+        "download": "İndir",
+        "pickerTitle": "Onaylı proje görseli seçin",
+        "pickerClose": "Kapat",
+        "emptyPreview": "İsteğinizi yazın ve üretin. İlk tasarım sizin komutunuzla oluşur.",
+        "loadError": "Projeler yüklenemedi.",
+        "zoomAria": "Yakınlaştırma",
+        "zoomOut": "Uzaklaştır",
+        "zoomIn": "Yakınlaştır",
+        "fit": "Sığdır"
       },
       "kpis": {
         "aria": "Kreatif Stüdyo KPI’ları",
@@ -8487,8 +8588,8 @@
           "description": "YZ destekli SEO blog makaleleri — eğit, otorite oluştur, organik trafik büyüt."
         },
         "socialStudio": {
-          "title": "Social Media Builder",
-          "description": "YZ sosyal içerik üretimi — brief, platformlar, kreatifler, caption, planlama."
+          "title": "Hızlı Tasarım",
+          "description": "Günlük sosyal içerik — brief, platformlar, kreatifler, caption, planlama."
         },
         "adsBuilder": {
           "title": "Ads Builder",
@@ -15884,6 +15985,9 @@
       "pipeline": "Pipeline",
       "matches": "Matches",
       "contacts": "Kişiler",
+      "junk": "Junk",
+      "agents": "Acentalar",
+      "agreements": "Anlaşmalar",
       "companies": "Şirketler",
       "investors": "Yatırımcılar",
       "relationships": "İlişkiler",
@@ -16490,7 +16594,7 @@
         "stageNeedsConfirm": "Bu aşama onay modalı gerektirir — yerel önizleme uygulandı.",
         "noStagePermission": "Aşama değiştirme izniniz yok.",
         "invalidTransition": "Geçersiz aşama geçişi.",
-        "stageError": "Aşama güncellenemedi.",
+        "stageError": "Aşama güncellenemedi; kart önceki aşamaya alındı.",
         "aiHint": "Pipeline skoru ve kapanış olasılığı mevcut aşamaya göre.",
         "summaryAria": "Fırsat özeti",
         "filtersAria": "Fırsat filtreleri",
@@ -16605,6 +16709,50 @@
       "inactive": "Pasif",
       "prospect": "Potansiyel Müşteri",
       "archived": "Arşivlendi"
+    },
+    "agents": {
+      "title": "Acentalar",
+      "subtitle": "Broker ve realtor kişiler. Kişi başına tek kayıt — Aktif veya Pasif.",
+      "statusFilter": "Durum",
+      "statusAll": "Tümü",
+      "statusActive": "Aktif",
+      "statusPassive": "Pasif",
+      "emptyTitle": "Henüz acente yok",
+      "emptyDescription": "Bitrix acente aktarımı henüz işlenmedi. Eşleşen brokerlar yüklemeden sonra burada görünür.",
+      "loadError": "Acentalar yüklenemedi.",
+      "loading": "Acentalar yükleniyor…",
+      "columns": {
+        "name": "Ad",
+        "type": "Tür",
+        "phone": "Telefon",
+        "email": "E-posta",
+        "status": "Durum",
+        "company": "Şirket"
+      },
+      "tableAria": "Acenta listesi"
+    },
+    "agreements": {
+      "title": "Anlaşmalar",
+      "subtitle": "Proje gruplarına göre tarihsel CRM anlaşmaları. Satış fırsatı değildir.",
+      "projectFilter": "Proje",
+      "allProjects": "Tüm projeler",
+      "emptyTitle": "Henüz anlaşma yok",
+      "emptyDescription": "Bitrix anlaşma dosyaları henüz işlenmedi. Yüklemeden sonra satırlar projeye göre gruplanır.",
+      "loadError": "Anlaşmalar yüklenemedi.",
+      "loading": "Anlaşmalar yükleniyor…",
+      "columns": {
+        "contact": "Kişi",
+        "project": "Proje",
+        "unit": "Daire No",
+        "investmentAmount": "Yatırım Tutarı",
+        "email": "E-posta",
+        "phone": "Telefon",
+        "status": "Durum",
+        "date": "Tarih",
+        "source": "Kaynak"
+      },
+      "reviewRequired": "İnceleme Gerekli",
+      "tableAria": "Anlaşma listesi"
     },
     "contacts": {
       "title": "Kişiler",

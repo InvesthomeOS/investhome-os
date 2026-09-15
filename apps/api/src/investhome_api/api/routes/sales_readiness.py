@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from investhome_api.api.deps.auth import require_permission
 from investhome_api.db.session import get_db
+from investhome_api.models.crm_contact import CrmContact
 from investhome_api.models.inventory import InventoryAsset
 from investhome_api.models.lead import Lead
 from investhome_api.models.investor import Investor
@@ -70,6 +71,9 @@ def _enrich_case(
         if opportunity.party_type == OpportunityPartyType.LEAD:
             lead = db.get(Lead, case.party_id)
             response.party_name = lead.full_name if lead else None
+        elif opportunity.party_type == OpportunityPartyType.CRM_CONTACT:
+            contact = db.get(CrmContact, case.party_id)
+            response.party_name = contact.display_name if contact else None
         else:
             investor = db.get(Investor, case.party_id)
             response.party_name = investor.full_name if investor else None

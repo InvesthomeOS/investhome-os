@@ -959,7 +959,8 @@
     },
     "partyTypes": {
       "lead": "Lead",
-      "investor": "Investor"
+      "investor": "Investor",
+      "crm_contact": "CRM Contact"
     },
     "priorities": {
       "low": "Low",
@@ -7045,6 +7046,9 @@
       "pipeline": "Pipeline",
       "matches": "Matches",
       "contacts": "Contacts",
+      "junk": "Junk",
+      "agents": "Acentalar",
+      "agreements": "Anlaşmalar",
       "companies": "Companies",
       "investors": "Investors",
       "relationships": "Relationships",
@@ -7651,7 +7655,7 @@
         "stageNeedsConfirm": "This stage needs a confirmation modal — local preview applied.",
         "noStagePermission": "You cannot change stages.",
         "invalidTransition": "Invalid stage transition.",
-        "stageError": "Could not update stage.",
+        "stageError": "Could not update stage; the card was moved back.",
         "aiHint": "Pipeline score and close probability follow the current stage.",
         "summaryAria": "Opportunity summary",
         "filtersAria": "Opportunity filters",
@@ -7766,6 +7770,50 @@
       "inactive": "Inactive",
       "prospect": "Prospect",
       "archived": "Archived"
+    },
+    "agents": {
+      "title": "Acentalar",
+      "subtitle": "Broker and realtor contacts. One canonical person record — Active or Passive.",
+      "statusFilter": "Status",
+      "statusAll": "All",
+      "statusActive": "Aktif",
+      "statusPassive": "Pasif",
+      "emptyTitle": "No agents yet",
+      "emptyDescription": "Bitrix agent import has not been committed. Matching brokers will appear here after load.",
+      "loadError": "Unable to load agents.",
+      "loading": "Loading agents…",
+      "columns": {
+        "name": "Name",
+        "type": "Type",
+        "phone": "Phone",
+        "email": "Email",
+        "status": "Status",
+        "company": "Company"
+      },
+      "tableAria": "Agents list"
+    },
+    "agreements": {
+      "title": "Anlaşmalar",
+      "subtitle": "Historical CRM agreements grouped by project. Not Sales opportunities.",
+      "projectFilter": "Project",
+      "allProjects": "All projects",
+      "emptyTitle": "No agreements yet",
+      "emptyDescription": "Bitrix agreement files have not been committed. Rows will group by project after load.",
+      "loadError": "Unable to load agreements.",
+      "loading": "Loading agreements…",
+      "columns": {
+        "contact": "Contact",
+        "project": "Project",
+        "unit": "Unit",
+        "investmentAmount": "Investment Amount",
+        "email": "Email",
+        "phone": "Phone",
+        "status": "Status",
+        "date": "Date",
+        "source": "Source"
+      },
+      "reviewRequired": "Review required",
+      "tableAria": "Agreements list"
     },
     "contacts": {
       "title": "Contacts",
@@ -13767,7 +13815,7 @@
       "hero": {
         "aria": "AI production shortcuts",
         "headline": "What would you like to create today?",
-        "support": "Pick a production path — each shortcut launches a guided AI workflow.",
+        "support": "Start with Quick Design or Premium Campaigns.",
         "shortcuts": {
           "website": "Website",
           "blog": "Blog",
@@ -13778,6 +13826,106 @@
           "presentation": "Presentation",
           "proposal": "Proposal"
         }
+      },
+      "creationPaths": {
+        "aria": "Creation paths",
+        "quickTitle": "Quick Design",
+        "quickDescription": "Everyday social content and fast campaigns.",
+        "premiumTitle": "Premium Campaigns",
+        "premiumDescription": "Open approved campaign designs and update them in natural language.",
+        "launch": "Start"
+      },
+      "premium": {
+        "listTitle": "Premium Campaigns",
+        "listSubtitle": "Open approved campaign designs, revise them, and download.",
+        "backStudio": "Creative Studio",
+        "empty": "No approved premium campaign yet.",
+        "loadError": "Campaigns could not be loaded.",
+        "formatsAria": "Available formats",
+        "updated": "Last updated",
+        "open": "Open campaign",
+        "studio": "Creative Studio",
+        "campaigns": "Premium Campaigns",
+        "instructionLabel": "What should change?",
+        "instructionPlaceholder": "What would you like to change in the design?",
+        "examplesAria": "Example commands",
+        "examples": {
+          "price": "Change the price to 375,000 USD.",
+          "copy": "Change Last Units to Last Chance.",
+          "visual": "Use the other approved exterior photo instead.",
+          "family": "Apply this change to the whole campaign."
+        },
+        "exampleChips": {
+          "price": "Set price to 375,000 USD",
+          "copy": "Last Units → Last Chance",
+          "visual": "Change visual",
+          "family": "Apply to whole campaign"
+        },
+        "scopeAria": "Revision scope",
+        "scopeSelected": "This design",
+        "scopeCampaign": "Whole campaign",
+        "apply": "Apply",
+        "working": "Updating design...",
+        "compareAria": "Before / After",
+        "before": "Before",
+        "after": "After",
+        "approve": "Approve",
+        "revert": "Undo",
+        "download": "Download",
+        "publish": "Publish",
+        "zoomAria": "Zoom",
+        "zoomOut": "Zoom out",
+        "zoomIn": "Zoom in",
+        "fit": "Fit",
+        "formats": {
+          "4:5": "Feed 4:5",
+          "9:16": "Story 9:16",
+          "1:1": "Square 1:1"
+        },
+        "formatSelectorAria": "Format selector"
+      },
+      "quick": {
+        "title": "Quick Creative",
+        "subtitle": "Select a project, write your request, and generate an everyday creative from approved assets.",
+        "studio": "Creative Studio",
+        "projectsAria": "Project selector",
+        "selectProject": "Select project",
+        "promptLabel": "What should we design?",
+        "promptPlaceholder": "Create a refined Instagram ad about the launch advantage.",
+        "examplesAria": "Example requests",
+        "examples": {
+          "launch": "Create a refined Instagram ad about the launch advantage.",
+          "invest": "Make a calmer, investment-focused ad.",
+          "dc": "Make the Washington D.C. emphasis stronger.",
+          "interior": "Use an interior photo."
+        },
+        "formatsAria": "Format selector",
+        "formats": {
+          "4:5": "Feed 4:5",
+          "9:16": "Story 9:16",
+          "1:1": "Square 1:1",
+          "16:9": "Landscape 16:9"
+        },
+        "generate": "Generate",
+        "generating": "Preparing the design...",
+        "assetsReady": "{count} approved project photos · Logo ready",
+        "assetsMissing": "Approved project photo or logo is not ready yet.",
+        "reviseLabel": "What should change?",
+        "revisePlaceholder": "Change the price. Make the headline smaller. Make it simpler.",
+        "apply": "Apply",
+        "working": "Updating design...",
+        "approve": "Approve",
+        "vary": "New variation",
+        "replaceImage": "Change image",
+        "download": "Download",
+        "pickerTitle": "Choose an approved project photo",
+        "pickerClose": "Close",
+        "emptyPreview": "Write your request and generate. The first creative waits for your instruction.",
+        "loadError": "Projects could not be loaded.",
+        "zoomAria": "Zoom",
+        "zoomOut": "Zoom out",
+        "zoomIn": "Zoom in",
+        "fit": "Fit"
       },
       "kpis": {
         "aria": "Creative Studio KPIs",
@@ -13809,8 +13957,8 @@
           "description": "AI-powered SEO blog articles — educate, build authority, grow organic traffic."
         },
         "socialStudio": {
-          "title": "Social Media Builder",
-          "description": "AI social content production — brief, platforms, creatives, captions, schedule."
+          "title": "Quick Design",
+          "description": "Everyday social content — brief, platforms, creatives, captions, schedule."
         },
         "adsBuilder": {
           "title": "Ads Builder",

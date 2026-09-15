@@ -420,3 +420,34 @@ def test_activity_logged_on_create(client: TestClient, db: Session) -> None:
     ).all()
     assert len(logs) >= 1
     assert any(log.description_key == "activity.sales_opportunity.created" for log in logs)
+
+
+def test_opportunity_serializes_canonical_contact_summary(client: TestClient) -> None:
+    contact = client.post(
+        "/crm/contacts",
+        json={
+            "contact_type": "prospect",
+            "record_kind": "person",
+            "display_name": "Pipeline Contact",
+            "primary_email": "pipeline.contact@example.com",
+            "primary_phone": "+15557654321",
+            "lifecycle_stage": "new",
+            "priority": "normal",
+        },
+    )
+    assert contact.status_code == 201, contact.text
+    contact_id = contact.json()["contact"]["id"]
+    create = client.post(
+        "/sales/opportunities",
+        json={
+            **_opportunity_payload(party_id=contact_id),
+            "party_type": OpportunityPartyType.CRM_CONTACT.value,
+            "lead_id": None,
+        },
+    )
+    assert create.status_code == 201, create.text
+    body = create.json()
+    assert body["crm_contact_id"] == contact_id
+    assert body["contact_phone"]
+    assert body["contact_email"] == "pipeline.contact@example.com"
+    assert body["party_label"] == "Pipeline Contact"

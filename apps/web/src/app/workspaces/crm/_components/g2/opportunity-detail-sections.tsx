@@ -18,6 +18,8 @@ import {
 } from '@/lib/api/sales';
 import { fetchProposals, type SalesProposal } from '@/lib/api/sales-proposals';
 import { useSalesLabels } from '@/lib/i18n/sales-labels';
+import { fetchContact } from '@/workspaces/crm/api/contacts';
+import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 
 type OpportunityDetailMode =
   | 'timeline'
@@ -60,6 +62,7 @@ export function OpportunityDetailSections({
   const t = useTranslations('sales');
   const tCommon = useTranslations('common');
   const { getNextActionLabel } = useSalesLabels();
+  const { openContact } = useContactCard();
   const [state, setState] = useState<LoadState<unknown>>({ status: 'loading', data: null });
 
   const load = useCallback(async () => {
@@ -110,11 +113,22 @@ export function OpportunityDetailSections({
       } else if (mode === 'reservation' && opportunity.reservation_id) {
         setState({ status: 'ready', data: await fetchReservation(opportunity.reservation_id) });
       } else if (mode === 'customer') {
-        const customer =
-          opportunity.party_type === 'lead'
-            ? await fetchLead(opportunity.party_id)
-            : await fetchInvestor(opportunity.party_id);
-        setState({ status: 'ready', data: customer });
+        if (opportunity.party_type === 'lead') {
+          setState({ status: 'ready', data: await fetchLead(opportunity.party_id) });
+        } else if (opportunity.party_type === 'crm_contact') {
+          const contact = await fetchContact(opportunity.crm_contact_id ?? opportunity.party_id);
+          setState({
+            status: 'ready',
+            data: {
+              full_name: contact.display_name,
+              email: contact.primary_email,
+              phone: contact.primary_phone,
+              crm_contact_id: contact.id,
+            },
+          });
+        } else {
+          setState({ status: 'ready', data: await fetchInvestor(opportunity.party_id) });
+        }
       }
     } catch {
       setState({ status: 'error', data: null });
@@ -126,6 +140,7 @@ export function OpportunityDetailSections({
     opportunity.id,
     opportunity.party_id,
     opportunity.party_type,
+    opportunity.crm_contact_id,
     opportunity.reservation_id,
     preview,
   ]);
@@ -199,12 +214,28 @@ export function OpportunityDetailSections({
       full_name: string;
       email?: string | null;
       phone?: string | null;
+      crm_contact_id?: string;
     };
+    const contactHref = customer.crm_contact_id ?? (
+      opportunity.party_type === 'crm_contact'
+        ? opportunity.crm_contact_id ?? opportunity.party_id
+        : null
+    );
     return (
       <dl className="crm-g2-drawer__grid">
         <div><dt>{t('party.name')}</dt><dd>{customer.full_name}</dd></div>
         <div><dt>{t('party.email')}</dt><dd>{customer.email ?? '—'}</dd></div>
         <div><dt>{t('party.phone')}</dt><dd>{customer.phone ?? '—'}</dd></div>
+        {contactHref ? (
+          <div>
+            <dt>CRM</dt>
+            <dd>
+              <Button type="button" size="sm" variant="secondary" onClick={() => openContact(contactHref)}>
+                Kişi Kartı
+              </Button>
+            </dd>
+          </div>
+        ) : null}
       </dl>
     );
   }

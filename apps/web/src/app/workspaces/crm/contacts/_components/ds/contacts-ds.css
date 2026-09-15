@@ -719,6 +719,114 @@
   font-size: var(--shot-font-small);
 }
 
+.crm-verify-detail {
+  display: grid;
+  gap: 16px;
+}
+
+.crm-verify-detail__hero,
+.crm-verify-detail__section {
+  border: 1px solid var(--border-color, #dfe4ea);
+  border-radius: 12px;
+  background: var(--surface-primary, #fff);
+  padding: 20px;
+}
+
+.crm-verify-detail__hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.crm-verify-detail__hero h1,
+.crm-verify-detail__section h2 {
+  margin: 0;
+}
+
+.crm-verify-detail__hero p {
+  margin: 6px 0 0;
+  color: var(--text-secondary, #667085);
+}
+
+.crm-verify-detail__section h2 {
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+.crm-verify-detail__section h2 span {
+  margin-left: 6px;
+  color: var(--text-secondary, #667085);
+  font-weight: 500;
+}
+
+.crm-verify-detail__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px 24px;
+  margin: 0;
+}
+
+.crm-verify-detail__facts dt {
+  color: var(--text-secondary, #667085);
+  font-size: 12px;
+}
+
+.crm-verify-detail__facts dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.crm-verify-detail__records {
+  display: grid;
+  gap: 10px;
+}
+
+.crm-verify-detail__records article {
+  border-top: 1px solid var(--border-color, #dfe4ea);
+  padding-top: 10px;
+}
+
+.crm-verify-detail__records article:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.crm-verify-detail__records small {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-secondary, #667085);
+}
+
+.crm-verify-detail__records p {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+}
+
+.crm-verify-detail__error {
+  border: 1px solid #f0c7c7;
+  border-radius: 8px;
+  background: #fff6f6;
+  color: #8a2b2b;
+  padding: 10px 12px;
+}
+
+.crm-verify-detail__actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.crm-verify-detail__form {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.crm-verify-detail__timeline article[data-imported='true'] strong {
+  color: var(--shot-navy, #075b75);
+}
+
 .ctc-ds__pagination > div {
   display: flex;
   gap: 8px;

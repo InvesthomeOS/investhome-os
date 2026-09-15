@@ -52,6 +52,7 @@ export type CrmContactSummary = {
   organization_name: string | null;
   primary_email: string | null;
   primary_phone: string | null;
+  source: string | null;
   status: CrmContactStatus;
   lifecycle_stage: CrmLifecycleStage;
   relationship_status: CrmRelationshipStatus;
@@ -70,6 +71,20 @@ export type CrmContactSummary = {
   next_follow_up_at: string | null;
   relationship_score: number;
   engagement_score: number;
+  junk_reason?: string | null;
+  junked_at?: string | null;
+  review_required?: boolean;
+  is_agent?: boolean;
+  has_agreements?: boolean;
+  agreement_projects?: string[];
+  bitrix_original_stage: string | null;
+  bitrix_historical_junk: boolean;
+  bitrix_source_channel?: string | null;
+  bitrix_responsible?: string | null;
+  secondary_emails?: string[] | null;
+  secondary_phones?: string[] | null;
+  whatsapp?: string | null;
+  job_title?: string | null;
   updated_at: string;
   created_at: string;
 };
@@ -90,7 +105,6 @@ export type CrmContactDetail = CrmContactSummary & {
   state_province: string | null;
   postal_code: string | null;
   country: string | null;
-  source: string | null;
   referred_by_contact_id: string | null;
   notes: string | null;
   communication_prefs: Record<string, unknown> | null;
@@ -99,6 +113,54 @@ export type CrmContactDetail = CrmContactSummary & {
   buyer_profile: Record<string, unknown> | null;
   broker_profile: Record<string, unknown> | null;
   vendor_profile: Record<string, unknown> | null;
+  bitrix_history: {
+    external_ids: string[];
+    source_files: string[];
+    source_roles: string[];
+    historical_junk: boolean;
+    original_asama: string | null;
+    mapped_sales_stage: string | null;
+    conflict_fields: string[];
+    warning_flags: string[];
+    junk_reason?: string | null;
+    review_required?: boolean;
+  } | null;
+  crm_activities: Array<{
+    id: string;
+    activity_type: string;
+    activity_category: string;
+    title: string;
+    description: string | null;
+    status: string;
+    imported_historical_comment: boolean;
+    due_date?: string | null;
+    assigned_user_id?: string | null;
+    task_status?: string | null;
+    created_at: string;
+  }>;
+  crm_agreements: Array<{
+    id: string;
+    project_group: string;
+    project_label: string;
+    status: string;
+    agreement_date: string | null;
+    unit_number?: string | null;
+    investment_amount?: string | null;
+    payment_amount?: string | null;
+    deposit?: string | null;
+    purchase_price?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    review_required?: boolean;
+    relationship?: string;
+  }>;
+  agent: {
+    is_agent: boolean;
+    status: string;
+    contact_types: CrmContactType[];
+    brokerage_name: string | null;
+    specialization: string | null;
+  } | null;
 };
 
 export type CrmActivitySummary = {
@@ -181,6 +243,9 @@ export const CRM_NAV_ITEMS: CrmNavItem[] = [
   { href: '/workspaces/crm/pipeline', labelKey: 'nav.pipeline' },
   { href: '/workspaces/crm/matches', labelKey: 'nav.matches' },
   { href: '/workspaces/crm/contacts', labelKey: 'nav.contacts' },
+  { href: '/workspaces/crm/junk', labelKey: 'nav.junk' },
+  { href: '/workspaces/crm/agents', labelKey: 'nav.agents' },
+  { href: '/workspaces/crm/agreements', labelKey: 'nav.agreements' },
   { href: '/workspaces/crm/companies', labelKey: 'nav.companies' },
   { href: '/workspaces/crm/investors', labelKey: 'nav.investors' },
   { href: '/workspaces/crm/relationships', labelKey: 'nav.relationships' },

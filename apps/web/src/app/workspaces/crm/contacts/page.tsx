@@ -1,4 +1,4 @@
-import { ContactsDsWorkspace } from './_components/ds/contacts-ds-workspace';
+import { ContactsLiveVerificationWorkspace } from './_components/contacts-live-verification-workspace';
 
 /**
  * Canonical Contacts nav route (`/workspaces/crm/contacts`).
@@ -7,7 +7,7 @@ import { ContactsDsWorkspace } from './_components/ds/contacts-ds-workspace';
 export default function CrmContactsPage() {
   return (
     <main className="dashboard crm-module-shell" data-testid="crm-contacts-page">
-      <ContactsDsWorkspace />
+      <ContactsLiveVerificationWorkspace />
     </main>
   );
 }

@@ -162,6 +162,7 @@ from investhome_api.models.crm_relationship import (  # noqa: F401
     CrmRelationshipScoreSnapshot,
     CrmRelationshipTypeConfig,
 )
+from investhome_api.models.crm_agreement import CrmAgreement, CrmAgreementStatus  # noqa: F401
 from investhome_api.models.crm_activity import (  # noqa: F401
     CrmActivity,
     CrmActivityComment,

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from investhome_api.db.demo.markers import INTEGRATED_DEMO_SOURCE
@@ -20,6 +20,7 @@ from investhome_api.models.inventory import (
 )
 from investhome_api.models.lead import Lead, LeadStatus
 from investhome_api.models.project import Project
+from investhome_api.models.crm_contact import CrmContact
 from investhome_api.models.sales import (
     OpportunityInventory,
     OpportunityPartyType,
@@ -177,6 +178,14 @@ def seed_sales_chain(session: Session | None = None) -> dict[str, int]:
     session = session or SessionLocal()
     counts = {"leads": 0, "opportunities": 0, "reservations": 0, "opp_projects": 0, "opp_inventory": 0}
     try:
+        bitrix_present = session.scalar(
+            select(func.count())
+            .select_from(CrmContact)
+            .where(func.lower(CrmContact.source) == "bitrix")
+        )
+        if bitrix_present:
+            counts["skipped"] = 1
+            return counts
         sales_user = session.scalar(select(User).where(User.email == "sales@investhome.demo"))
         sales_id = sales_user.id if sales_user else None
 

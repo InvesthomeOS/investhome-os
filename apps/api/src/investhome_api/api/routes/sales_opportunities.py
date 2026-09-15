@@ -65,7 +65,7 @@ def list_opportunities(
         limit=limit,
     )
     return SalesOpportunityListResponse(
-        items=[SalesOpportunityResponse.model_validate(item) for item in items],
+        items=[svc.serialize_opportunity(db, item) for item in items],
         total=total,
         offset=offset,
         limit=limit,
@@ -103,7 +103,7 @@ def get_pipeline(
                     PipelineStageGroup(
                         stage=stage.value,
                         count=len(items),
-                        opportunities=[SalesOpportunityResponse.model_validate(o) for o in items],
+                        opportunities=[svc.serialize_opportunity(db, o) for o in items],
                     )
                 )
     return PipelineSummaryResponse(stages=summary["stages"], total=summary["total"], groups=groups)
@@ -127,7 +127,7 @@ def get_opportunity(
         opportunity = svc.get_opportunity_or_raise(db, opportunity_id)
     except svc.OpportunityError as exc:
         raise _handle_opportunity_error(exc) from exc
-    return SalesOpportunityResponse.model_validate(opportunity)
+    return svc.serialize_opportunity(db, opportunity)
 
 
 @router.post("", response_model=SalesOpportunityResponse, status_code=status.HTTP_201_CREATED)
@@ -149,7 +149,7 @@ def create_opportunity(
     except svc.OpportunityError as exc:
         db.rollback()
         raise _handle_opportunity_error(exc) from exc
-    return SalesOpportunityResponse.model_validate(opportunity)
+    return svc.serialize_opportunity(db, opportunity)
 
 
 @router.patch("/{opportunity_id}", response_model=SalesOpportunityResponse)
@@ -174,7 +174,7 @@ def update_opportunity(
     except svc.OpportunityError as exc:
         db.rollback()
         raise _handle_opportunity_error(exc) from exc
-    return SalesOpportunityResponse.model_validate(opportunity)
+    return svc.serialize_opportunity(db, opportunity)
 
 
 @router.delete("/{opportunity_id}", response_model=SalesOpportunityResponse)
@@ -192,7 +192,7 @@ def archive_opportunity(
     except svc.OpportunityError as exc:
         db.rollback()
         raise _handle_opportunity_error(exc) from exc
-    return SalesOpportunityResponse.model_validate(opportunity)
+    return svc.serialize_opportunity(db, opportunity)
 
 
 @router.post("/{opportunity_id}/restore", response_model=SalesOpportunityResponse)
@@ -210,7 +210,7 @@ def restore_opportunity(
     except svc.OpportunityError as exc:
         db.rollback()
         raise _handle_opportunity_error(exc) from exc
-    return SalesOpportunityResponse.model_validate(opportunity)
+    return svc.serialize_opportunity(db, opportunity)
 
 
 @router.post("/{opportunity_id}/stage", response_model=SalesOpportunityResponse)
@@ -240,7 +240,7 @@ def change_stage(
     except svc.OpportunityError as exc:
         db.rollback()
         raise _handle_opportunity_error(exc) from exc
-    return SalesOpportunityResponse.model_validate(opportunity)
+    return svc.serialize_opportunity(db, opportunity)
 
 
 @router.post("/{opportunity_id}/probability", response_model=SalesOpportunityResponse)
@@ -266,7 +266,7 @@ def change_probability(
     except svc.OpportunityError as exc:
         db.rollback()
         raise _handle_opportunity_error(exc) from exc
-    return SalesOpportunityResponse.model_validate(opportunity)
+    return svc.serialize_opportunity(db, opportunity)
 
 
 @router.post("/{opportunity_id}/next-action", response_model=SalesOpportunityResponse)
@@ -292,7 +292,7 @@ def update_next_action(
     except svc.OpportunityError as exc:
         db.rollback()
         raise _handle_opportunity_error(exc) from exc
-    return SalesOpportunityResponse.model_validate(opportunity)
+    return svc.serialize_opportunity(db, opportunity)
 
 
 @router.post("/{opportunity_id}/inventory", response_model=OpportunityInventoryResponse, status_code=status.HTTP_201_CREATED)

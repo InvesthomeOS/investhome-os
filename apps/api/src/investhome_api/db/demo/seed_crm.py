@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from investhome_api.db.demo.markers import DEMO_METADATA, INTEGRATED_DEMO_SOURCE
@@ -84,6 +84,14 @@ def seed_crm(session: Session | None = None) -> dict[str, int]:
     session = session or SessionLocal()
     counts = {"companies": 0, "contacts": 0, "activities": 0, "notes": 0, "tasks": 0, "links": 0}
     try:
+        bitrix_present = session.scalar(
+            select(func.count())
+            .select_from(CrmContact)
+            .where(func.lower(CrmContact.source) == "bitrix")
+        )
+        if bitrix_present:
+            counts["skipped"] = 1
+            return counts
         owner = session.scalar(
             select(User).where(User.email == "sales@investhome.demo")
         ) or session.scalar(select(User).where(User.is_demo.is_(True)).limit(1))

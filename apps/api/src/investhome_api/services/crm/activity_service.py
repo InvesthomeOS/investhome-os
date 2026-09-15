@@ -28,6 +28,7 @@ from investhome_api.models.crm_activity import (
     CrmFollowUpRule,
     CrmTaskStatus,
 )
+from investhome_api.models.crm_contact import CrmContact
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.crm_activities import (
     CrmActivityBulkUpdateRequest,
@@ -60,6 +61,33 @@ MEETING_TYPES = frozenset(
 TASK_TYPES = frozenset({CrmActivityType.TASK, CrmActivityType.REMINDER})
 NOTE_TYPES = frozenset({CrmActivityType.NOTE, CrmActivityType.INTERNAL_DISCUSSION})
 FOLLOW_UP_TYPES = frozenset({CrmActivityType.FOLLOW_UP})
+CONTACT_TOUCH_TYPES = frozenset(
+    {
+        CrmActivityType.PHONE_CALL,
+        CrmActivityType.WHATSAPP,
+        CrmActivityType.EMAIL,
+        CrmActivityType.SMS,
+        CrmActivityType.MEETING,
+        CrmActivityType.ZOOM_MEETING,
+        CrmActivityType.TEAMS_MEETING,
+        CrmActivityType.NOTE,
+        CrmActivityType.COMMENT,
+        CrmActivityType.FOLLOW_UP,
+    }
+)
+
+
+def _touch_contact_last_activity(db: Session, activity: CrmActivity) -> None:
+    if activity.entity_type != CrmActivityEntityType.CONTACT:
+        return
+    if activity.activity_type not in CONTACT_TOUCH_TYPES:
+        return
+    contact = db.get(CrmContact, activity.entity_id)
+    if contact is None:
+        return
+    stamp = activity.start_date or datetime.now(tz=UTC)
+    if contact.last_contact_at is None or stamp >= contact.last_contact_at:
+        contact.last_contact_at = stamp
 
 
 def _can_view_private_notes(user: User) -> bool:
@@ -510,6 +538,7 @@ def create_activity(db: Session, user: User, payload: CrmActivityCreate) -> CrmA
     db.flush()
     _attach_children(db, activity, payload)
     _apply_follow_up_rules(db, activity)
+    _touch_contact_last_activity(db, activity)
     db.commit()
     db.refresh(activity)
     loaded = get_activity_or_none(db, activity.id)
@@ -605,6 +634,22 @@ def complete_task(db: Session, user: User, activity: CrmActivity) -> CrmActivity
     activity.completed_at = datetime.now(tz=UTC)
     activity.updated_by = user.id
     _apply_follow_up_rules(db, activity)
+    if activity.entity_type == CrmActivityEntityType.CONTACT:
+        db.add(
+            CrmActivity(
+                entity_type=activity.entity_type,
+                entity_id=activity.entity_id,
+                activity_type=CrmActivityType.SYSTEM_EVENT,
+                activity_category=CrmActivityCategory.SYSTEM,
+                title=f"Görev tamamlandı: {activity.title}",
+                description=activity.description,
+                status=CrmActivityStatus.COMPLETED,
+                created_by=user.id,
+                updated_by=user.id,
+                owner_id=user.id,
+                metadata_json={"event": "task_completed", "task_id": str(activity.id)},
+            )
+        )
     db.commit()
     loaded = get_activity_or_none(db, activity.id)
     assert loaded is not None
@@ -836,7 +881,15 @@ def create_follow_up(db: Session, user: User, payload: CrmFollowUpCreate) -> Crm
         owner_id=payload.owner_id or user.id,
         assigned_user_id=payload.assigned_user_id,
     )
-    return create_activity(db, user, create_payload)
+    detail = create_activity(db, user, create_payload)
+    if payload.entity_type == CrmActivityEntityType.CONTACT:
+        from investhome_api.models.crm_contact import CrmContact
+
+        contact = db.get(CrmContact, payload.entity_id)
+        if contact is not None:
+            contact.next_follow_up_at = payload.due_date
+            db.commit()
+    return detail
 
 
 def complete_follow_up(db: Session, user: User, activity: CrmActivity) -> CrmActivityDetail:

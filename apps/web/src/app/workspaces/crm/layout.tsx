@@ -1,6 +1,7 @@
 'use client';
 
 import { OsShell } from '@/components/shell/os-shell';
+import { ContactCardProvider } from '@/workspaces/crm/contact-card/contact-card-context';
 
 import { CrmSidebar } from './_components/crm-sidebar';
 import { CrmWorkspaceExtras } from './_components/crm-workspace-extras';
@@ -14,8 +15,10 @@ export default function CrmLayout({
 }>) {
   return (
     <OsShell withQueryProvider shellClassName="crm-shell" workspaceChrome={<CrmSidebar />}>
-      <CrmWorkspaceExtras />
-      {children}
+      <ContactCardProvider>
+        <CrmWorkspaceExtras />
+        {children}
+      </ContactCardProvider>
     </OsShell>
   );
 }

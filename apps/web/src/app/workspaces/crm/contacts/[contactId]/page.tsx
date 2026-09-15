@@ -1,4 +1,4 @@
-import { ContactDetailView } from '../_components/contact-detail-view';
+import { ContactVerificationDetail } from '../_components/contact-verification-detail';
 import { CrmModuleShell } from '../../_components/crm-module-shell';
 
 type ContactDetailPageProps = {
@@ -9,7 +9,7 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
   const { contactId } = await params;
   return (
     <CrmModuleShell titleKey="modules.contacts.title" descriptionKey="modules.contacts.description">
-      <ContactDetailView contactId={contactId} />
+      <ContactVerificationDetail contactId={contactId} />
     </CrmModuleShell>
   );
 }

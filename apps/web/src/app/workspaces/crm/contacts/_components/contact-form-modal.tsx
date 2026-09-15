@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useMutation } from '@tanstack/react-query';
 
-import { Button, Dialog } from '@investhome/ui';
+import { Button, Dialog, Input, Select, TextArea } from '@investhome/ui';
 
 import { checkDuplicates, createContact, type ContactInput } from '@/workspaces/crm/api/contacts';
 import { CRM_CONTACT_TYPES, type CrmContactType } from '@/workspaces/crm/types';
@@ -99,23 +99,23 @@ export function ContactFormModal({ open, onClose, onSuccess }: ContactFormModalP
             <Button type="button" variant="secondary" onClick={onClose}>
               {t('cancel')}
             </Button>
-            <Button type="button" onClick={() => void submit()} disabled={createMutation.isPending}>
+            <Button type="button" variant="primary" onClick={() => void submit()} disabled={createMutation.isPending}>
               {t('save')}
             </Button>
           </>
         }
       >
-        <div className="crm-contact-form__body">
-          <label>
-            {t('displayName')}
-            <input
+        <div className="crm-contact-form leads-form">
+          <div className="leads-form__grid crm-contact-form__row">
+            <Input
+              id="crm-contact-display-name"
+              label={t('displayName')}
               value={form.display_name}
               onChange={(event) => setForm((prev) => ({ ...prev, display_name: event.target.value }))}
             />
-          </label>
-          <label>
-            {t('contactType')}
-            <select
+            <Select
+              id="crm-contact-type"
+              label={t('contactType')}
               value={form.contact_type}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, contact_type: event.target.value as CrmContactType }))
@@ -126,39 +126,41 @@ export function ContactFormModal({ open, onClose, onSuccess }: ContactFormModalP
                   {tTypes(type)}
                 </option>
               ))}
-            </select>
-          </label>
-          <label>
-            {t('email')}
-            <input
+            </Select>
+          </div>
+          <div className="leads-form__grid">
+            <Input
+              id="crm-contact-email"
               type="email"
+              label={t('email')}
               value={form.primary_email ?? ''}
               onChange={(event) => setForm((prev) => ({ ...prev, primary_email: event.target.value }))}
             />
-          </label>
-          <label>
-            {t('phone')}
-            <input
+            <Input
+              id="crm-contact-phone"
+              label={t('phone')}
               value={form.primary_phone ?? ''}
               onChange={(event) => setForm((prev) => ({ ...prev, primary_phone: event.target.value }))}
             />
-          </label>
-          <label>
-            {t('organization')}
-            <input
-              value={form.organization_name ?? ''}
-              onChange={(event) => setForm((prev) => ({ ...prev, organization_name: event.target.value }))}
-            />
-          </label>
-          <label>
-            {t('notes')}
-            <textarea
-              rows={3}
-              value={form.notes ?? ''}
-              onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))}
-            />
-          </label>
-          {error ? <p className="crm-contact-form__error">{error}</p> : null}
+          </div>
+          <Input
+            id="crm-contact-organization"
+            label={t('organization')}
+            value={form.organization_name ?? ''}
+            onChange={(event) => setForm((prev) => ({ ...prev, organization_name: event.target.value }))}
+          />
+          <TextArea
+            id="crm-contact-notes"
+            label={t('notes')}
+            rows={3}
+            value={form.notes ?? ''}
+            onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))}
+          />
+          {error ? (
+            <p className="ih-field__error" role="alert">
+              {error}
+            </p>
+          ) : null}
         </div>
       </Dialog>
 

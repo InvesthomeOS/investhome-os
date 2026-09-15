@@ -85,6 +85,7 @@ class OpportunityLossReason(str, enum.Enum):
 class OpportunityPartyType(str, enum.Enum):
     LEAD = "lead"
     INVESTOR = "investor"
+    CRM_CONTACT = "crm_contact"
 
 
 class OpportunityPriority(str, enum.Enum):
@@ -100,6 +101,7 @@ class SalesOpportunity(Base):
         Index("ix_sales_opportunities_opportunity_code", "opportunity_code", unique=True),
         Index("ix_sales_opportunities_stage", "stage"),
         Index("ix_sales_opportunities_lead_id", "lead_id"),
+        Index("ix_sales_opportunities_crm_contact_id", "crm_contact_id"),
         Index("ix_sales_opportunities_party_id", "party_id"),
         Index("ix_sales_opportunities_assigned_sales_user_id", "assigned_sales_user_id"),
         Index("ix_sales_opportunities_reservation_id", "reservation_id"),
@@ -112,6 +114,11 @@ class SalesOpportunity(Base):
     lead_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid,
         ForeignKey("leads.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    crm_contact_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("crm_contacts.id", ondelete="SET NULL"),
         nullable=True,
     )
     party_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)

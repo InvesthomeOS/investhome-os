@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from uuid import UUID
 
@@ -79,6 +79,7 @@ class CrmContactSummary(BaseModel):
     organization_name: str | None = None
     primary_email: str | None = None
     primary_phone: str | None = None
+    source: str | None = None
     status: CrmContactStatus
     lifecycle_stage: CrmLifecycleStage = CrmLifecycleStage.NEW
     relationship_status: CrmRelationshipStatus = CrmRelationshipStatus.UNKNOWN
@@ -97,6 +98,20 @@ class CrmContactSummary(BaseModel):
     next_follow_up_at: datetime | None = None
     relationship_score: int = 0
     engagement_score: int = 0
+    junk_reason: str | None = None
+    junked_at: datetime | None = None
+    review_required: bool = False
+    is_agent: bool = False
+    has_agreements: bool = False
+    agreement_projects: list[str] = Field(default_factory=list)
+    bitrix_original_stage: str | None = None
+    bitrix_historical_junk: bool = False
+    bitrix_source_channel: str | None = None
+    bitrix_responsible: str | None = None
+    secondary_emails: list[str] | None = None
+    secondary_phones: list[str] | None = None
+    whatsapp: str | None = None
+    job_title: str | None = None
     updated_at: datetime
     created_at: datetime
 
@@ -117,7 +132,6 @@ class CrmContactDetail(CrmContactSummary):
     state_province: str | None = None
     postal_code: str | None = None
     country: str | None = None
-    source: str | None = None
     referred_by_contact_id: UUID | None = None
     notes: str | None = None
     communication_prefs: dict[str, Any] | None = None
@@ -126,6 +140,77 @@ class CrmContactDetail(CrmContactSummary):
     buyer_profile: CrmBuyerProfileSchema | None = None
     broker_profile: CrmBrokerProfileSchema | None = None
     vendor_profile: CrmVendorProfileSchema | None = None
+    bitrix_history: CrmBitrixHistory | None = None
+    crm_activities: list[CrmContactActivityVerification] = Field(default_factory=list)
+    crm_agreements: list[CrmContactAgreementVerification] = Field(default_factory=list)
+    agent: CrmContactAgentVerification | None = None
+
+
+class CrmBitrixHistory(BaseModel):
+    external_ids: list[str] = Field(default_factory=list)
+    source_files: list[str] = Field(default_factory=list)
+    source_roles: list[str] = Field(default_factory=list)
+    historical_junk: bool = False
+    original_asama: str | None = None
+    mapped_sales_stage: str | None = None
+    conflict_fields: list[str] = Field(default_factory=list)
+    warning_flags: list[str] = Field(default_factory=list)
+    junk_reason: str | None = None
+    review_required: bool = False
+
+
+class CrmContactActivityVerification(BaseModel):
+    id: UUID
+    activity_type: str
+    activity_category: str
+    title: str
+    description: str | None = None
+    status: str
+    imported_historical_comment: bool = False
+    due_date: datetime | None = None
+    assigned_user_id: UUID | None = None
+    task_status: str | None = None
+    created_at: datetime
+
+
+class CrmContactAgreementVerification(BaseModel):
+    id: UUID
+    project_group: str
+    project_label: str
+    status: str
+    agreement_date: date | None = None
+    unit_number: str | None = None
+    investment_amount: str | None = None
+    payment_amount: str | None = None
+    deposit: str | None = None
+    purchase_price: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    review_required: bool = False
+    relationship: str = "Anlaşma tarafı"
+
+
+class CrmContactAgentVerification(BaseModel):
+    is_agent: bool
+    status: str
+    contact_types: list[CrmContactType] = Field(default_factory=list)
+    brokerage_name: str | None = None
+    specialization: str | None = None
+
+
+class CrmBitrixVerificationSummary(BaseModel):
+    total_contacts: int
+    bitrix_contacts: int
+    non_bitrix_contacts: int
+    active_bitrix: int
+    archived_bitrix: int
+    bitrix_with_phone: int
+    bitrix_with_email: int
+    bitrix_with_external_id: int
+    imported_historical_comments: int
+    imported_agents: int
+    imported_agreements: int
+    agreements_by_project: dict[str, int] = Field(default_factory=dict)
 
 
 class CrmContactCreate(BaseModel):
@@ -168,6 +253,7 @@ class CrmContactCreate(BaseModel):
     notes: str | None = Field(default=None, max_length=5000)
     is_favorite: bool = False
     is_pinned: bool = False
+    junk_reason: str | None = Field(default=None, max_length=255)
     communication_prefs: dict[str, Any] | None = None
     compliance_data: dict[str, Any] | None = None
     investment_profile: CrmInvestmentProfileSchema | None = None
@@ -216,6 +302,7 @@ class CrmContactUpdate(BaseModel):
     notes: str | None = Field(default=None, max_length=5000)
     is_favorite: bool | None = None
     is_pinned: bool | None = None
+    junk_reason: str | None = Field(default=None, max_length=255)
     communication_prefs: dict[str, Any] | None = None
     compliance_data: dict[str, Any] | None = None
     investment_profile: CrmInvestmentProfileSchema | None = None
@@ -275,6 +362,12 @@ class CrmContactBulkUpdateRequest(BaseModel):
 
 class CrmContactAssignOwnerRequest(BaseModel):
     owner_user_id: UUID
+
+
+class CrmContactStatusChangeRequest(BaseModel):
+    status: CrmContactStatus
+    junk_reason: str | None = Field(default=None, max_length=255)
+    next_follow_up_at: datetime | None = None
 
 
 class CrmContactImportRow(BaseModel):
@@ -345,12 +438,29 @@ class CrmContactSavedViewResponse(BaseModel):
 
 
 class CrmContactTimelineEntry(BaseModel):
-    id: UUID
-    action: str
-    description_key: str
+    id: str
+    source: str
+    activity_type: str
+    title: str
+    summary: str | None = None
+    status: str | None = None
     actor_name: str | None = None
     created_at: datetime
+    is_system_event: bool = False
+    imported_historical_comment: bool = False
+    action: str | None = None
+    description_key: str | None = None
     metadata: dict[str, Any] | None = None
+
+
+class CrmJunkReasonCount(BaseModel):
+    reason: str
+    count: int
+
+
+class CrmJunkReasonListResponse(BaseModel):
+    items: list[CrmJunkReasonCount]
+    total: int
 
 
 class CrmContactRelationshipEntry(BaseModel):

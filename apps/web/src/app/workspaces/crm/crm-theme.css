@@ -4914,3 +4914,565 @@
   background-image: none !important;
 }
 
+/* Create-contact modal — Dashboard form grid; display name wider than type. */
+.crm-contact-form .crm-contact-form__row {
+  grid-template-columns: minmax(0, 1.55fr) minmax(11rem, 0.9fr);
+}
+
+.crm-contact-form .ih-input:not(.ih-input--textarea),
+.crm-contact-form .ih-select {
+  box-sizing: border-box;
+  height: var(--control-height);
+  min-height: var(--control-height);
+  background: var(--surface);
+}
+
+.crm-contact-form .ih-input--textarea {
+  background: var(--surface);
+}
+
+@media (max-width: 960px) {
+  .crm-contact-form .crm-contact-form__row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Shared CRM dark theme — Tema Koyu on ALL CRM pages
+   Navy family approved on Pipeline. Workspace roots inherit
+   these tokens so page CSS does not stay locked to light.
+   ═══════════════════════════════════════════════════════════ */
+
+html[data-theme='dark'] .crm-shell,
+html[data-theme='dark'] .crm-shell [class*='-ds'],
+html[data-theme='dark'] .crm-shell .lds,
+html[data-theme='dark'] .crm-shell .opportunities-workspace,
+html[data-theme='dark'] .crm-shell .crm-people,
+html[data-theme='dark'] .crm-shell .crm-companies,
+html[data-theme='dark'] .crm-shell .crm-tasks,
+html[data-theme='dark'] .crm-shell .crm-matches,
+html[data-theme='dark'] .crm-shell .crm-files,
+html[data-theme='dark'] .crm-shell .crm-tags,
+html[data-theme='dark'] .crm-shell .crm-settings,
+html[data-theme='dark'] .crm-shell .crm-reports,
+html[data-theme='dark'] .crm-shell .crm-documents,
+html[data-theme='dark'] .crm-shell .crm-entity-detail,
+html[data-theme='dark'] .crm-shell .crm-contact-card,
+html[data-theme='dark'] .crm-shell .crm-verify-detail,
+html[data-theme='dark'] .crm-shell .crm-contact-form,
+html[data-theme='dark'] .crm-shell .crm-module-shell,
+html[data-theme='dark'] .crm-shell .crm-g2-page,
+html[data-theme='dark'] .crm-shell .journey-workspace {
+  color-scheme: dark;
+  --shot-navy: #3d8fb0;
+  --shot-cyan: #5eb8c6;
+  --shot-ink: #e8eef2;
+  --shot-muted: #8a9eaa;
+  --crm-accent: #5eb8c6;
+  --crm-accent-muted: color-mix(in srgb, #5eb8c6 16%, transparent);
+  --workspace-accent: #5eb8c6;
+  --brand-primary: #3d8fb0;
+  --brand-primary-hover: #4aa0c2;
+  --brand-primary-soft: color-mix(in srgb, #5eb8c6 16%, transparent);
+  --brand-primary-ink: #d5eef3;
+  --brand-accent: #5eb8c6;
+  --brand-text: #e8eef2;
+  --brand-surface: #132028;
+  --brand-surface-muted: #101a21;
+  --brand-border: rgba(120, 168, 186, 0.16);
+  --bg: #0c161d;
+  --background: #0c161d;
+  --surface: #132028;
+  --surface-default: #132028;
+  --surface-muted: #101a21;
+  --surface-subtle: #101a21;
+  --surface-elevated: #172830;
+  --surface-primary: #172830;
+  --border: rgba(120, 168, 186, 0.16);
+  --border-default: rgba(120, 168, 186, 0.16);
+  --border-subtle: rgba(120, 168, 186, 0.1);
+  --border-color: rgba(120, 168, 186, 0.16);
+  --text: #e8eef2;
+  --text-primary: #e8eef2;
+  --text-secondary: #8a9eaa;
+  --text-secondary-ds: #8a9eaa;
+  --muted: #8a9eaa;
+  --foreground: #e8eef2;
+  --focus-ring: #5eb8c6;
+  --crm-g2-bg: #0c161d;
+  --crm-g2-surface: #172830;
+  --crm-g2-border: rgba(120, 168, 186, 0.16);
+  --crm-g2-text: #e8eef2;
+  --crm-g2-muted: #8a9eaa;
+  --crm-g2-brand: #3d8fb0;
+  --crm-g2-accent: #5eb8c6;
+  --crm-g2-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.32);
+  --ctc-ink: #e8eef2;
+  --ctc-muted: #8a9eaa;
+  --ctc-navy: #3d8fb0;
+  --ctc-cyan: #5eb8c6;
+  --ctc-border: rgba(120, 168, 186, 0.16);
+  --ctc-border-strong: rgba(120, 168, 186, 0.22);
+  --ctc-card-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
+  --ctc-card-shadow-hover: 0 12px 24px rgba(0, 0, 0, 0.32);
+  --cd-ink: #e8eef2;
+  --cd-muted: #8a9eaa;
+  --cd-navy: #3d8fb0;
+  --cd-cyan: #5eb8c6;
+  --cd-border: rgba(120, 168, 186, 0.16);
+  --cd-border-strong: rgba(120, 168, 186, 0.22);
+  --cd-card-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
+  --cd-card-shadow-hover: 0 12px 24px rgba(0, 0, 0, 0.32);
+  --lds-ink: #e8eef2;
+  --lds-muted: #8a9eaa;
+  --lds-navy: #3d8fb0;
+  --lds-border: rgba(120, 168, 186, 0.16);
+  --pe-ink: #e8eef2;
+  --pe-muted: #8a9eaa;
+  --pe-navy: #3d8fb0;
+  --pe-border: rgba(120, 168, 186, 0.16);
+  --co-ink: #e8eef2;
+  --co-muted: #8a9eaa;
+  --co-navy: #3d8fb0;
+  --co-border: rgba(120, 168, 186, 0.16);
+  --act-ink: #e8eef2;
+  --act-muted: #8a9eaa;
+  --act-navy: #3d8fb0;
+  --act-border: rgba(120, 168, 186, 0.16);
+  --tasks-ink: #e8eef2;
+  --tasks-muted: #8a9eaa;
+  --tasks-navy: #3d8fb0;
+  --tasks-border: rgba(120, 168, 186, 0.16);
+  --tl-ink: #e8eef2;
+  --tl-muted: #8a9eaa;
+  --tl-navy: #3d8fb0;
+  --tl-border: rgba(120, 168, 186, 0.16);
+  --rel-ink: #e8eef2;
+  --rel-muted: #8a9eaa;
+  --rel-navy: #3d8fb0;
+  --rel-border: rgba(120, 168, 186, 0.16);
+  --cm-ink: #e8eef2;
+  --cm-muted: #8a9eaa;
+  --cm-navy: #3d8fb0;
+  --cm-border: rgba(120, 168, 186, 0.16);
+  --nt-ink: #e8eef2;
+  --nt-muted: #8a9eaa;
+  --nt-navy: #3d8fb0;
+  --nt-border: rgba(120, 168, 186, 0.16);
+  --cal-ink: #e8eef2;
+  --cal-muted: #8a9eaa;
+  --cal-navy: #3d8fb0;
+  --cal-border: rgba(120, 168, 186, 0.16);
+  --docs-ink: #e8eef2;
+  --docs-muted: #8a9eaa;
+  --docs-navy: #3d8fb0;
+  --docs-border: rgba(120, 168, 186, 0.16);
+  --doc-ink: #e8eef2;
+  --doc-muted: #8a9eaa;
+  --doc-navy: #3d8fb0;
+  --doc-border: rgba(120, 168, 186, 0.16);
+  --st-ink: #e8eef2;
+  --st-muted: #8a9eaa;
+  --st-navy: #3d8fb0;
+  --st-border: rgba(120, 168, 186, 0.16);
+  --rp-ink: #e8eef2;
+  --rp-muted: #8a9eaa;
+  --rp-navy: #3d8fb0;
+  --rp-border: rgba(120, 168, 186, 0.16);
+  --matches-ink: #e8eef2;
+  --matches-muted: #8a9eaa;
+  --matches-navy: #3d8fb0;
+  --matches-border: rgba(120, 168, 186, 0.16);
+  --ed-border: rgba(120, 168, 186, 0.16);
+  --journey-ink: #e8eef2;
+  --journey-navy: #3d8fb0;
+  --journey-border: rgba(120, 168, 186, 0.16);
+  color: #e8eef2;
+}
+
+html[data-theme='dark'] .crm-shell.dashboard-shell {
+  background:
+    radial-gradient(1200px 480px at 0% 0%, color-mix(in srgb, #5eb8c6 8%, transparent), transparent 62%),
+    #0c161d;
+}
+
+html[data-theme='dark'] .crm-shell .dashboard-shell__sidebar {
+  background: linear-gradient(180deg, #0e1a22 0%, #0a141b 100%);
+  border-color: rgba(120, 168, 186, 0.12);
+  box-shadow: 1px 0 0 rgba(120, 168, 186, 0.06);
+}
+
+html[data-theme='dark'] .crm-shell .app-header {
+  background: color-mix(in srgb, #132028 94%, transparent);
+  border-bottom-color: rgba(120, 168, 186, 0.12);
+  color: #e8eef2;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+}
+
+html[data-theme='dark'] .crm-shell .dashboard-shell__nav-link,
+html[data-theme='dark'] .crm-shell .app-header__workspace {
+  color: #d7e4ea;
+}
+
+html[data-theme='dark'] .crm-shell .dashboard-shell__nav-link--active {
+  color: #8fd4e0;
+}
+
+html[data-theme='dark'] .crm-shell .dashboard-shell__main,
+html[data-theme='dark'] .crm-shell .os-workspace-chrome,
+html[data-theme='dark'] .crm-shell .os-workspace-chrome__content,
+html[data-theme='dark'] .crm-shell .dashboard-shell__content {
+  background: #0c161d;
+  color: #e8eef2;
+}
+
+html[data-theme='dark'] .crm-shell .crm-shell__sidebar,
+html[data-theme='dark'] .crm-shell .os-workspace-rail {
+  background: #0a141b;
+  border-color: rgba(120, 168, 186, 0.12);
+  color: #d7e4ea;
+  box-shadow: inset -1px 0 0 rgba(120, 168, 186, 0.08);
+}
+
+html[data-theme='dark'] .crm-shell .os-workspace-rail__link {
+  color: #9eb3bd;
+}
+
+html[data-theme='dark'] .crm-shell .os-workspace-rail__link:hover {
+  background: color-mix(in srgb, #5eb8c6 10%, transparent);
+  color: #e8eef2;
+}
+
+html[data-theme='dark'] .crm-shell .os-workspace-rail__link--active,
+html[data-theme='dark'] .crm-shell .crm-shell__sidebar .os-workspace-rail__link--active {
+  background: color-mix(in srgb, #5eb8c6 18%, transparent);
+  color: #8fd4e0;
+  box-shadow: inset 2px 0 0 #5eb8c6;
+}
+
+html[data-theme='dark'] .crm-shell .os-workspace-rail svg {
+  color: currentColor;
+  opacity: 0.92;
+}
+
+html[data-theme='dark'] .crm-shell h1,
+html[data-theme='dark'] .crm-shell h2,
+html[data-theme='dark'] .crm-shell h3,
+html[data-theme='dark'] .crm-shell h4,
+html[data-theme='dark'] .crm-shell [class$='__header'] h1,
+html[data-theme='dark'] .crm-shell [class$='__header'] h2,
+html[data-theme='dark'] .crm-shell [class*='__section-head'] h2,
+html[data-theme='dark'] .crm-shell [class*='-ds'] h1,
+html[data-theme='dark'] .crm-shell [class*='-ds'] h2,
+html[data-theme='dark'] .crm-shell [class*='-ds'] h3,
+html[data-theme='dark'] .crm-shell [class*='-ds'] h4,
+html[data-theme='dark'] .crm-shell .lds h1,
+html[data-theme='dark'] .crm-shell .lds h2,
+html[data-theme='dark'] .crm-shell [class^='crm-'] h1,
+html[data-theme='dark'] .crm-shell [class^='crm-'] h2,
+html[data-theme='dark'] .crm-shell .dashboard__title {
+  color: #f3f7f9;
+}
+
+html[data-theme='dark'] .crm-shell .dashboard__subtitle,
+html[data-theme='dark'] .crm-shell [class$='__header'] p {
+  color: #8a9eaa;
+}
+
+html[data-theme='dark'] .crm-shell [class*='-ds'] strong,
+html[data-theme='dark'] .crm-shell [class*='-ds'] b,
+html[data-theme='dark'] .crm-shell .lds strong,
+html[data-theme='dark'] .crm-shell [class^='crm-'] strong,
+html[data-theme='dark'] .crm-shell [class*='-ds'] [class*='-title'],
+html[data-theme='dark'] .crm-shell [class*='-ds'] [class*='-name'],
+html[data-theme='dark'] .crm-shell [class*='-ds'] [class*='-value'],
+html[data-theme='dark'] .crm-shell [class*='-ds'] [class$='__count'],
+html[data-theme='dark'] .crm-shell [class*='-ds'] dd {
+  color: #f3f7f9;
+}
+
+html[data-theme='dark'] .crm-shell [class*='-ds'] dt,
+html[data-theme='dark'] .crm-shell [class*='-ds'] [class*='-meta'],
+html[data-theme='dark'] .crm-shell [class*='-ds'] [class*='-desc'],
+html[data-theme='dark'] .crm-shell [class*='-ds'] [class*='-hint'],
+html[data-theme='dark'] .crm-shell [class*='-ds'] [class*='-muted'] {
+  color: #8a9eaa;
+}
+
+html[data-theme='dark'] .crm-shell .ih-kpi-card {
+  border-color: rgba(120, 168, 186, 0.14);
+  background: linear-gradient(180deg, #1a2c35 0%, #15242c 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 8px 20px rgba(0, 0, 0, 0.22);
+  color: #e8eef2;
+}
+
+html[data-theme='dark'] .crm-shell .ih-kpi-card__value,
+html[data-theme='dark'] .crm-shell .ih-kpi-card__label {
+  color: #f3f7f9;
+}
+
+html[data-theme='dark'] .crm-shell .ih-kpi-card__hint,
+html[data-theme='dark'] .crm-shell .ih-kpi-card__delta {
+  color: #8a9eaa;
+}
+
+html[data-theme='dark'] .crm-shell .ih-kpi-card__icon {
+  background: color-mix(in srgb, #5eb8c6 16%, #15242c);
+  color: #8fd4e0;
+}
+
+html[data-theme='dark'] .crm-shell .ih-filter-bar,
+html[data-theme='dark'] .crm-shell [class$='__toolbar'],
+html[data-theme='dark'] .crm-shell [class*='__toolbar '],
+html[data-theme='dark'] .crm-shell [class$='__table-section'],
+html[data-theme='dark'] .crm-shell [class$='__panel'],
+html[data-theme='dark'] .crm-shell [class$='__card'],
+html[data-theme='dark'] .crm-shell [class$='__priority'],
+html[data-theme='dark'] .crm-shell [class$='__insights'],
+html[data-theme='dark'] .crm-shell [class$='__chart-panel'],
+html[data-theme='dark'] .crm-shell [class$='__timeline'],
+html[data-theme='dark'] .crm-shell [class$='__meeting'],
+html[data-theme='dark'] .crm-shell [class$='__preview'],
+html[data-theme='dark'] .crm-shell [class*='__preview '],
+html[data-theme='dark'] .crm-shell [class*='__preview-'],
+html[data-theme='dark'] .crm-shell [class$='__quick'],
+html[data-theme='dark'] .crm-shell [class*='__quick '],
+html[data-theme='dark'] .crm-shell [class$='__conversation'],
+html[data-theme='dark'] .crm-shell [class$='__composer'],
+html[data-theme='dark'] .crm-shell [class$='__workspace'] [class$='__info'],
+html[data-theme='dark'] .crm-shell [class*='search'][class$='__section'],
+html[data-theme='dark'] .crm-shell [class$='__overview'],
+html[data-theme='dark'] .crm-shell [class$='__tabs'],
+html[data-theme='dark'] .crm-shell .ih-tabs,
+html[data-theme='dark'] .crm-shell .ds-card,
+html[data-theme='dark'] .crm-shell .ds-right-rail-card,
+html[data-theme='dark'] .crm-shell [class$='__rail-card'],
+html[data-theme='dark'] .crm-shell .crm-modal {
+  border-color: rgba(120, 168, 186, 0.14);
+  background: #172830;
+  color: #e8eef2;
+}
+
+html[data-theme='dark'] .crm-shell [class$='__preview-head'],
+html[data-theme='dark'] .crm-shell [class$='__panel-head'],
+html[data-theme='dark'] .crm-shell [class$='__drawer'] {
+  background: #15242c;
+  border-color: rgba(120, 168, 186, 0.12);
+  color: #e8eef2;
+}
+
+html[data-theme='dark'] .crm-shell [class$='__row'],
+html[data-theme='dark'] .crm-shell [class*='__row '],
+html[data-theme='dark'] .crm-shell [class$='__insight'],
+html[data-theme='dark'] .crm-shell [class*='__insight '] {
+  background: transparent;
+  color: #e8eef2;
+  border-color: rgba(120, 168, 186, 0.1);
+}
+
+html[data-theme='dark'] .crm-shell [class$='__event'],
+html[data-theme='dark'] .crm-shell [class$='__entity'],
+html[data-theme='dark'] .crm-shell [class$='__bubble'] {
+  color: #e8eef2;
+}
+
+html[data-theme='dark'] .crm-shell [class*='__priority-icon'],
+html[data-theme='dark'] .crm-shell [class*='__act-icon'],
+html[data-theme='dark'] .crm-shell [class*='__insight-go'] {
+  background: color-mix(in srgb, #5eb8c6 16%, #15242c);
+  color: #8fd4e0;
+}
+
+html[data-theme='dark'] .crm-shell [class$='__badge']:not([class*='is-']),
+html[data-theme='dark'] .crm-shell [class*='__badge ']:not([class*='is-']) {
+  background: color-mix(in srgb, #5eb8c6 14%, #15242c);
+  color: #d5eef3;
+  border-color: rgba(120, 168, 186, 0.16);
+}
+
+html[data-theme='dark'] .crm-shell [class$='__icon-btn'],
+html[data-theme='dark'] .crm-shell [class$='__page-btn'] {
+  border-color: rgba(120, 168, 186, 0.16);
+  background: #121c24;
+  color: #d7e4ea;
+}
+
+html[data-theme='dark'] .crm-shell [class$='__icon-btn']:hover,
+html[data-theme='dark'] .crm-shell [class$='__page-btn']:hover {
+  border-color: color-mix(in srgb, #5eb8c6 40%, transparent);
+  background: #1b303a;
+  color: #f3f7f9;
+}
+
+html[data-theme='dark'] .crm-shell [class$='__check'],
+html[data-theme='dark'] .crm-shell [class$='__task-check'] {
+  background: #101a21;
+  border-color: rgba(120, 168, 186, 0.28);
+}
+
+html[data-theme='dark'] .crm-shell [class$='__empty'],
+html[data-theme='dark'] .crm-shell .ih-empty-state {
+  border-color: rgba(120, 168, 186, 0.14);
+  background: #121c24;
+  color: #8a9eaa;
+}
+
+html[data-theme='dark'] .crm-shell table,
+html[data-theme='dark'] .crm-shell .ih-table,
+html[data-theme='dark'] .crm-shell [class$='__table'] {
+  color: #e8eef2;
+}
+
+html[data-theme='dark'] .crm-shell th,
+html[data-theme='dark'] .crm-shell .ih-table th,
+html[data-theme='dark'] .crm-shell [class$='__table'] th {
+  background: #121c24;
+  color: #8a9eaa;
+  border-bottom-color: rgba(120, 168, 186, 0.12);
+}
+
+html[data-theme='dark'] .crm-shell td,
+html[data-theme='dark'] .crm-shell .ih-table td,
+html[data-theme='dark'] .crm-shell [class$='__table'] td {
+  border-bottom-color: rgba(120, 168, 186, 0.1);
+  color: #d7e4ea;
+}
+
+html[data-theme='dark'] .crm-shell tbody tr:hover,
+html[data-theme='dark'] .crm-shell .ih-table tbody tr:hover,
+html[data-theme='dark'] .crm-shell [class$='__row']:hover {
+  background: #1b303a;
+}
+
+html[data-theme='dark'] .crm-shell input:not([type='checkbox']):not([type='radio']),
+html[data-theme='dark'] .crm-shell select,
+html[data-theme='dark'] .crm-shell textarea,
+html[data-theme='dark'] .crm-shell .ih-input,
+html[data-theme='dark'] .crm-shell .ih-select {
+  border-color: rgba(120, 168, 186, 0.16);
+  background: #101a21;
+  color: #e8eef2;
+}
+
+html[data-theme='dark'] .crm-shell input:not([type='checkbox']):not([type='radio']):focus,
+html[data-theme='dark'] .crm-shell select:focus,
+html[data-theme='dark'] .crm-shell textarea:focus,
+html[data-theme='dark'] .crm-shell .ih-input:focus,
+html[data-theme='dark'] .crm-shell .ih-select:focus {
+  border-color: color-mix(in srgb, #5eb8c6 50%, transparent);
+  outline-color: color-mix(in srgb, #5eb8c6 40%, transparent);
+}
+
+html[data-theme='dark'] .crm-shell .ih-field__label,
+html[data-theme='dark'] .crm-shell label > span:first-child {
+  color: #8a9eaa;
+}
+
+html[data-theme='dark'] .crm-shell .ih-btn--ghost,
+html[data-theme='dark'] .crm-shell button.ih-btn--ghost,
+html[data-theme='dark'] .crm-shell .ih-btn--secondary,
+html[data-theme='dark'] .crm-shell button.ih-btn--secondary {
+  border-color: rgba(120, 168, 186, 0.18);
+  background: #121c24;
+  color: #d5eef3;
+}
+
+html[data-theme='dark'] .crm-shell .ih-btn--ghost:hover:not(:disabled),
+html[data-theme='dark'] .crm-shell button.ih-btn--ghost:hover:not(:disabled),
+html[data-theme='dark'] .crm-shell .ih-btn--secondary:hover:not(:disabled),
+html[data-theme='dark'] .crm-shell button.ih-btn--secondary:hover:not(:disabled) {
+  border-color: color-mix(in srgb, #5eb8c6 40%, transparent);
+  background: #1b303a;
+  color: #f3f7f9;
+}
+
+html[data-theme='dark'] .crm-shell .ih-btn--primary,
+html[data-theme='dark'] .crm-shell button.ih-btn--primary {
+  border-color: #2f7f99;
+  background: #1f6f88;
+  color: #f3f7f9;
+}
+
+html[data-theme='dark'] .crm-shell .ds-segmented {
+  border-color: rgba(120, 168, 186, 0.16);
+  background: #121c24;
+}
+
+html[data-theme='dark'] .crm-shell .ds-segmented__item--active {
+  background: color-mix(in srgb, #5eb8c6 16%, #172830);
+  color: #d5eef3;
+}
+
+html[data-theme='dark'] .crm-shell .ih-status-chip {
+  border-color: rgba(120, 168, 186, 0.16);
+  background: color-mix(in srgb, #5eb8c6 12%, #15242c);
+  color: #d5eef3;
+}
+
+html[data-theme='dark'] .crm-shell .ih-dialog__panel,
+html[data-theme='dark'] .crm-shell .ih-drawer__panel,
+html[data-theme='dark'] .crm-shell .leads-modal__dialog,
+html[data-theme='dark'] .crm-shell .leads-drawer__panel,
+html[data-theme='dark'] .crm-shell .crm-modal {
+  background: #172830;
+  border-color: rgba(120, 168, 186, 0.16);
+  color: #e8eef2;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+html[data-theme='dark'] .crm-shell .ih-dialog__title,
+html[data-theme='dark'] .crm-shell .ih-drawer__title {
+  color: #f3f7f9;
+}
+
+html[data-theme='dark'] .crm-shell .ih-drawer__header,
+html[data-theme='dark'] .crm-shell .ih-drawer__footer,
+html[data-theme='dark'] .crm-shell .ih-dialog__header,
+html[data-theme='dark'] .crm-shell .ih-dialog__footer {
+  border-color: rgba(120, 168, 186, 0.12);
+  color: #e8eef2;
+}
+
+html[data-theme='dark'] .crm-shell .ih-drawer__close,
+html[data-theme='dark'] .crm-shell .ih-dialog__close {
+  border-color: rgba(120, 168, 186, 0.16);
+  background: #121c24;
+  color: #d7e4ea;
+}
+
+html[data-theme='dark'] .crm-shell .crm-g2-toast {
+  border-color: rgba(120, 168, 186, 0.16);
+  background: #172830;
+  color: #e8eef2;
+}
+
+html[data-theme='dark'] .crm-shell .crm-contact-card__banner,
+html[data-theme='dark'] .crm-shell .crm-verify-detail__hero,
+html[data-theme='dark'] .crm-shell .crm-verify-detail__section,
+html[data-theme='dark'] .crm-shell .crm-verify-detail__records article {
+  background: #172830;
+  border-color: rgba(120, 168, 186, 0.16);
+  color: #e8eef2;
+}
+
+html[data-theme='dark'] .crm-shell .crm-contact-card__banner--junk {
+  background: color-mix(in srgb, #c45c5c 14%, #172830);
+  border-color: color-mix(in srgb, #c45c5c 32%, transparent);
+}
+
+html[data-theme='dark'] .crm-shell .crm-contact-card__facts dt,
+html[data-theme='dark'] .crm-shell .crm-contact-card__hero p,
+html[data-theme='dark'] .crm-shell .crm-contact-card__meta-line {
+  color: #8a9eaa;
+}
+
+html[data-theme='dark'] .crm-shell .global-search-trigger,
+html[data-theme='dark'] .crm-shell .global-search-trigger.crm-search-trigger {
+  border-color: rgba(120, 168, 186, 0.16);
+  background: #101a21;
+  color: #8a9eaa;
+}
+

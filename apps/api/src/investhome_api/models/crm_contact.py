@@ -198,6 +198,9 @@ class CrmContact(Base):
     is_pinned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_demo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    junk_reason: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    junked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    review_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
