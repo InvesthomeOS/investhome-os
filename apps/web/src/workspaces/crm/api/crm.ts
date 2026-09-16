@@ -13,6 +13,21 @@ export async function fetchCrmDashboard(): Promise<CrmDashboardData> {
   return apiFetch<CrmDashboardData>('/crm/dashboard');
 }
 
+export type CrmTagItem = {
+  id: string;
+  name: string;
+  color: string | null;
+  usage_count: number;
+};
+
+export type CrmTagListResponse = {
+  items: CrmTagItem[];
+};
+
+export async function fetchCrmTags(): Promise<CrmTagListResponse> {
+  return apiFetch<CrmTagListResponse>('/crm/tags');
+}
+
 export async function fetchCrmContacts(
   params: FetchCrmContactsParams = {},
 ): Promise<CrmContactListResponse> {

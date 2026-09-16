@@ -1,5 +1,6 @@
-import { fetchCrmDashboard } from '@/workspaces/crm/api/crm';
+import { fetchCrmDashboard, fetchCrmTags } from '@/workspaces/crm/api/crm';
 import { fetchContacts } from '@/workspaces/crm/api/contacts';
+import { fetchCrmReportsSummary } from '@/workspaces/crm/api/reports';
 import type { ContactListParams } from '@/workspaces/crm/api/contacts';
 
 export type FetchCrmContactsParams = ContactListParams & {
@@ -30,6 +31,14 @@ export const crmQueries = {
   dashboard: () => ({
     queryKey: ['crm', 'dashboard'] as const,
     queryFn: () => fetchCrmDashboard(),
+  }),
+  reports: () => ({
+    queryKey: ['crm', 'reports', 'summary'] as const,
+    queryFn: () => fetchCrmReportsSummary(),
+  }),
+  tags: () => ({
+    queryKey: ['crm', 'tags'] as const,
+    queryFn: () => fetchCrmTags(),
   }),
   contacts: (params: FetchCrmContactsParams = {}) => crmContactQueries.list(params),
 };

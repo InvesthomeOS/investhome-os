@@ -4,8 +4,7 @@ import './settings.css';
 
 /**
  * Canonical CRM Settings route.
- * Presentation uses typed local fixtures until live settings services are wired
- * into the Dashboard Freeze System Control Center foundation.
+ * Integration connection state is shown only when a backend confirms it.
  */
 export default function CrmSettingsPage() {
   const preview = makeSettingsPreview();

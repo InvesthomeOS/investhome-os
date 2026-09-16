@@ -166,16 +166,23 @@ export function CrmDashboardDsWorkspace() {
     ...crmQueries.dashboard(),
     enabled: !authLoading && canView,
   });
+  const reportsQuery = useQuery({
+    ...crmQueries.reports(),
+    enabled: !authLoading && canView,
+  });
 
   const data = useMemo(
     () =>
-      buildDashboardDsData(dashboardQuery.data, locale, (key) =>
-        crmActivityEventLabel(tEvents, key),
+      buildDashboardDsData(
+        dashboardQuery.data,
+        locale,
+        (key) => crmActivityEventLabel(tEvents, key),
+        reportsQuery.data,
       ),
-    [dashboardQuery.data, locale, tEvents],
+    [dashboardQuery.data, reportsQuery.data, locale, tEvents],
   );
 
-  if (authLoading) {
+  if (authLoading || dashboardQuery.isLoading || (canView && reportsQuery.isLoading)) {
     return (
       <div className="crm-dash-ds" data-testid="crm-dashboard-ds-workspace">
         <LoadingState label={tCommon('loading')} />
@@ -191,7 +198,13 @@ export function CrmDashboardDsWorkspace() {
     );
   }
 
-  /* Sparse/errored API still renders the command center via fixture merge. */
+  if (dashboardQuery.isError) {
+    return (
+      <div className="crm-dash-ds" data-testid="crm-dashboard-ds-workspace">
+        <ErrorState title={tCrm('loadFailed')} message={tCrm('accessDeniedHint')} />
+      </div>
+    );
+  }
 
   return (
     <div className="crm-dash-ds" data-testid="crm-dashboard-ds-workspace">
@@ -339,24 +352,28 @@ export function CrmDashboardDsWorkspace() {
             <div className="crm-dash-ds__panel-head">
               <h3>{t('insights.title')}</h3>
             </div>
-            <div className="crm-dash-ds__insight-list">
-              {data.insights.map((insight) => (
-                <Link
-                  key={insight.id}
-                  href={insight.href as Route}
-                  className={`crm-dash-ds__insight is-${insight.tone}`}
-                >
-                  <span className="crm-dash-ds__insight-dot" aria-hidden="true" />
-                  <div className="crm-dash-ds__insight-text">
-                    <strong>{t(`insights.items.${insight.titleKey}`)}</strong>
-                    <span>{t(`insights.items.${insight.bodyKey}`)}</span>
-                  </div>
-                  <span className="crm-dash-ds__insight-go" aria-hidden="true">
-                    <IhIcon name="arrowRight" size={11} />
-                  </span>
-                </Link>
-              ))}
-            </div>
+            {data.insights.length === 0 ? (
+              <PanelEmpty title={t('empty.insights')} hint={t('empty.insightsHint')} />
+            ) : (
+              <div className="crm-dash-ds__insight-list">
+                {data.insights.map((insight) => (
+                  <Link
+                    key={insight.id}
+                    href={insight.href as Route}
+                    className={`crm-dash-ds__insight is-${insight.tone}`}
+                  >
+                    <span className="crm-dash-ds__insight-dot" aria-hidden="true" />
+                    <div className="crm-dash-ds__insight-text">
+                      <strong>{t(`insights.items.${insight.titleKey}`)}</strong>
+                      <span>{t(`insights.items.${insight.bodyKey}`)}</span>
+                    </div>
+                    <span className="crm-dash-ds__insight-go" aria-hidden="true">
+                      <IhIcon name="arrowRight" size={11} />
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="crm-dash-ds__chart-panel">
@@ -365,13 +382,17 @@ export function CrmDashboardDsWorkspace() {
               <span className="crm-dash-ds__row-time">{t('pipeline.period')}</span>
             </div>
             <div className="crm-dash-ds__chart-body">
-              <LineChart
-                data={data.pipelineTrend}
-                ariaLabel={t('pipeline.aria')}
-                locale={locale}
-                height={112}
-                format="number"
-              />
+              {data.pipelineTrend.length === 0 ? (
+                <PanelEmpty title={t('empty.pipeline')} hint={t('empty.pipelineHint')} />
+              ) : (
+                <LineChart
+                  data={data.pipelineTrend}
+                  ariaLabel={t('pipeline.aria')}
+                  locale={locale}
+                  height={112}
+                  format="number"
+                />
+              )}
             </div>
           </div>
         </div>

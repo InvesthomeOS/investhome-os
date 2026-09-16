@@ -194,17 +194,9 @@ export function CrmSettingsWorkspace({
       }));
     }
     if (editor.kind === 'integrations' && editor.entityId) {
-      setIntegrations((prev) =>
-        prev.map((item) =>
-          item.id === editor.entityId
-            ? {
-                ...item,
-                connected: !item.connected,
-                lastSyncKey: item.connected ? 'never' : 'minutesAgo',
-              }
-            : item,
-        ),
-      );
+      setToast(t('integrations.status.notConfigured'));
+      setEditor(null);
+      return;
     }
     setToast(t('actions.saveSuccess'));
     setEditor(null);
@@ -545,7 +537,7 @@ export function CrmSettingsWorkspace({
                                 >
                                   {integration.connected
                                     ? t('integrations.status.connected')
-                                    : t('integrations.status.disconnected')}
+                                    : t('integrations.status.notConfigured')}
                                 </StatusChip>
                                 <em className="crm-settings__sync-text">
                                   {t(`integrations.lastSyncValues.${integration.lastSyncKey}`)}
@@ -841,7 +833,7 @@ export function CrmSettingsWorkspace({
                 name: editor.title,
                 state: activeIntegration.connected
                   ? t('integrations.status.connected')
-                  : t('integrations.status.disconnected'),
+                  : t('integrations.status.notConfigured'),
               })}
             </p>
           )}

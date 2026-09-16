@@ -1,17 +1,11 @@
-import { CrmTagsWorkspace } from './_components/crm-tags-workspace';
-import { makeTagsPreview } from './tags-demo-data';
+import { CrmTagsLiveWorkspace } from './_components/crm-tags-live-workspace';
 import './tags.css';
 
-/**
- * Canonical CRM Tags route.
- * Presentation uses typed local fixtures / local state until a tags API is wired.
- */
+/** Canonical CRM Tags route — live CrmTag rows only, no fixture tags. */
 export default function CrmTagsPage() {
-  const preview = makeTagsPreview();
-
   return (
     <main className="dashboard crm-module-shell" data-testid="crm-tags-page">
-      <CrmTagsWorkspace preview={preview} />
+      <CrmTagsLiveWorkspace />
     </main>
   );
 }

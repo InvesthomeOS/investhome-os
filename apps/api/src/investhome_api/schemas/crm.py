@@ -69,3 +69,14 @@ class CrmDashboardResponse(BaseModel):
     favorite_contacts: list[CrmContactSummary] = Field(default_factory=list)
     pinned_companies: list[CrmPinnedCompanySummary] = Field(default_factory=list)
     communication_summary: CrmCommunicationSummary = Field(default_factory=CrmCommunicationSummary)
+
+
+class CrmTagItem(BaseModel):
+    id: UUID
+    name: str
+    color: str | None = None
+    usage_count: int = 0
+
+
+class CrmTagListResponse(BaseModel):
+    items: list[CrmTagItem] = Field(default_factory=list)
