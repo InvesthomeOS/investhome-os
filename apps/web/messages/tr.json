@@ -6470,7 +6470,9 @@
         "employed_by": "İstihdam edilir",
         "other": "Diğer",
         "investee": "Yatırım yapılan",
-        "advisee": "Danışılan"
+        "advisee": "Danışılan",
+        "contact_company": "Şirket kişisi",
+        "company_contact": "İlgili kişi"
       },
       "categories": {
         "organizational": "Kurumsal",

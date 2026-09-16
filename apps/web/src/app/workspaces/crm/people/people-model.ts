@@ -116,8 +116,9 @@ export type PeopleActiveItem = {
   name: string;
   initials: string;
   avatarTone: PeopleAvatarTone;
-  activityCount: number;
-  lastContactKey: string;
+  activityCount?: number;
+  lastContactKey?: string;
+  lastContactLabel?: string;
 };
 
 export type PeopleWorkspacePreview = {

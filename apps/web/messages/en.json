@@ -6549,7 +6549,9 @@
         "employed_by": "Employed by",
         "other": "Other",
         "investee": "Investee",
-        "advisee": "Advisee"
+        "advisee": "Advisee",
+        "contact_company": "Company contact",
+        "company_contact": "Has contact"
       },
       "categories": {
         "organizational": "Organizational",

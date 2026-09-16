@@ -1759,6 +1759,18 @@
   letter-spacing: -0.02em;
 }
 
+.crm-company-detail__contact-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .crm-contact-detail__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
