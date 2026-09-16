@@ -1,0 +1,1453 @@
+/* CRM Tasks — Dashboard UI Freeze v1.0 final polish (composition unchanged). */
+
+.crm-tasks {
+  --shot-navy: #075b75;
+  --shot-cyan: #58aebb;
+  --shot-ink: #1e2b33;
+  --shot-muted: #718087;
+  --shot-font-caption: 8.8px;
+  --shot-font-small: 10.45px;
+  --shot-font-body: 11.55px;
+  --shot-font-heading: 13.2px;
+  --shot-font-title: 24.2px;
+  --shot-gap: 12px;
+  --shot-card-pad-y: 13px;
+  --shot-card-pad-x: 15px;
+  --tasks-ink: var(--shot-ink);
+  --tasks-muted: var(--shot-muted);
+  --tasks-navy: var(--shot-navy);
+  --tasks-cyan: var(--shot-cyan);
+  --tasks-border: #e1e7e9;
+  --tasks-border-strong: #dce4e7;
+  --tasks-card-shadow: 0 2px 7px rgba(31, 57, 68, 0.05);
+  --tasks-card-shadow-hover: 0 4px 14px rgba(7, 91, 117, 0.08);
+  --tasks-card-radius: 8px;
+  --tasks-control-height: 1.95rem;
+  --tasks-rail-width: min(300px, 22vw);
+  --tasks-warn-bg: #fdf0e4;
+  --tasks-warn-fg: #c77938;
+  --tasks-warn-dot: #d58a4b;
+  --tasks-danger: #c45c5c;
+  --tasks-success: #2f8a5b;
+  --brand-primary: var(--shot-navy);
+  --brand-primary-hover: #064a5f;
+  --focus-ring: #2794ad;
+  /* Dashboard UI Freeze v1.0 — remap DS tokens so shared .ds-segmented
+     (and other DS primitives) do not inherit root brand beige/brown. */
+  --bg: #f6f8fa;
+  --background: #f6f8fa;
+  --surface: #ffffff;
+  --surface-default: #ffffff;
+  --surface-muted: #f1f6f8;
+  --surface-subtle: #f1f6f8;
+  --surface-elevated: #ffffff;
+  --border: #dce4e7;
+  --border-default: #dce4e7;
+  --border-subtle: #e6eef1;
+  --text: var(--shot-ink);
+  --text-primary: var(--shot-ink);
+  --text-secondary: #58717d;
+  --text-secondary-ds: #58717d;
+  --muted: var(--shot-muted);
+  --shadow-subtle: 0 1px 2px rgba(7, 91, 117, 0.06);
+  --radius-medium: 8px;
+  box-sizing: border-box;
+  display: grid;
+  gap: var(--shot-gap);
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  color: var(--tasks-ink);
+  font-size: var(--shot-font-body);
+}
+
+.crm-tasks *,
+.crm-tasks *::before,
+.crm-tasks *::after {
+  box-sizing: border-box;
+}
+
+.crm-tasks__header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--shot-gap);
+  padding-bottom: 2px;
+}
+
+.crm-tasks__header h1 {
+  margin: 0;
+  color: #152a36;
+  font-size: var(--shot-font-title);
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.crm-tasks__header p {
+  margin: 6px 0 0;
+  max-width: 56ch;
+  color: var(--tasks-muted);
+  font-size: var(--shot-font-small);
+  line-height: 1.45;
+}
+
+.crm-tasks__kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--shot-gap);
+  min-width: 0;
+  align-items: stretch;
+}
+
+.crm-tasks__kpi.ih-kpi-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  /* Fixed floor so stacked breakpoints stay equal when a card omits delta. */
+  min-height: 138px;
+  gap: 6px;
+  padding: 12px var(--shot-card-pad-x);
+  border: 1px solid var(--tasks-border);
+  border-radius: var(--tasks-card-radius);
+  background: #fff;
+  box-shadow: var(--tasks-card-shadow);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.crm-tasks__kpi.ih-kpi-card:hover {
+  border-color: #c9d6db;
+  box-shadow: var(--tasks-card-shadow-hover);
+}
+
+.crm-tasks__kpi .ih-kpi-card__label {
+  color: #6a7a82;
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.crm-tasks__kpi .ih-kpi-card__value {
+  margin-top: 0;
+  color: #152a36;
+  font-size: var(--shot-font-title);
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.crm-tasks__kpi .ih-kpi-card__hint {
+  color: var(--tasks-muted);
+  font-size: var(--shot-font-caption);
+}
+
+.crm-tasks__kpi .ih-kpi-card__delta {
+  margin-top: auto;
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+}
+
+.crm-tasks__kpi .ih-kpi-card__icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: #e3f1f3;
+  color: var(--shot-navy);
+  opacity: 1;
+}
+
+.crm-tasks__kpi .ih-kpi-card__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.crm-tasks__kpi.ih-kpi-card--warning .ih-kpi-card__icon {
+  background: #fdeceb;
+  color: var(--tasks-danger);
+}
+
+.crm-tasks__ai.screenshot-dashboard__intro-ai {
+  gap: 10px;
+  padding: 7px;
+  border-color: var(--tasks-border);
+  border-radius: var(--tasks-card-radius);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: none;
+}
+
+.crm-tasks__ai.screenshot-dashboard__intro-ai button {
+  flex: 1 1 108px;
+  min-height: 46px !important;
+  gap: 8px;
+  padding: 0 13px;
+  border-radius: 7px;
+  font-size: var(--shot-font-small);
+  font-weight: 500;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.crm-tasks__ai-icon {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  place-items: center;
+  color: var(--shot-navy);
+  opacity: 0.92;
+}
+
+.crm-tasks__ai.screenshot-dashboard__intro-ai button.is-featured .crm-tasks__ai-icon,
+.crm-tasks__ai.screenshot-dashboard__intro-ai button:hover .crm-tasks__ai-icon {
+  opacity: 1;
+  color: var(--shot-navy);
+}
+
+.crm-tasks__ai.screenshot-dashboard__intro-ai .screenshot-dashboard__intro-ai-primary {
+  min-height: 48px !important;
+  flex: 0 0 auto;
+  margin-left: auto;
+  gap: 8px;
+  padding-inline: 18px;
+  font-size: var(--shot-font-body);
+  font-weight: 650;
+}
+
+.crm-tasks__filters {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px var(--shot-card-pad-x);
+  border: 1px solid var(--tasks-border);
+  border-radius: var(--tasks-card-radius);
+  background: #fff;
+  box-shadow: var(--tasks-card-shadow);
+}
+
+.crm-tasks__filters .ih-field {
+  min-width: 96px;
+  flex: 1 1 96px;
+  margin: 0;
+  gap: 4px;
+}
+
+.crm-tasks__filters .ih-field__label {
+  color: #6a7a82;
+  font-size: var(--shot-font-caption);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.crm-tasks__filters .ih-select,
+.crm-tasks__filters select,
+.crm-tasks__filters .ih-input,
+.crm-tasks__filters input {
+  min-height: var(--tasks-control-height);
+  border-color: var(--tasks-border-strong);
+  border-radius: 4px;
+  color: #485961;
+  background: #fff;
+  font-size: var(--shot-font-small);
+  box-shadow: none;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.crm-tasks__filters .ih-select:hover,
+.crm-tasks__filters select:hover,
+.crm-tasks__filters .ih-input:hover,
+.crm-tasks__filters input:hover {
+  border-color: color-mix(in srgb, var(--shot-navy) 28%, var(--tasks-border-strong));
+}
+
+.crm-tasks__filters .ih-select:focus,
+.crm-tasks__filters select:focus,
+.crm-tasks__filters .ih-input:focus,
+.crm-tasks__filters input:focus {
+  border-color: color-mix(in srgb, var(--shot-navy) 40%, var(--tasks-border-strong));
+  outline: 2px solid color-mix(in srgb, var(--shot-cyan) 45%, transparent);
+  outline-offset: 1px;
+}
+
+.crm-tasks__filters > .ih-btn {
+  flex: 0 0 auto;
+  min-height: var(--tasks-control-height) !important;
+  height: var(--tasks-control-height);
+  margin-bottom: 1px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.crm-tasks .ih-btn--secondary,
+.crm-tasks button.ih-btn--secondary {
+  min-height: var(--tasks-control-height) !important;
+  height: var(--tasks-control-height);
+  padding-block: 0;
+  border-color: color-mix(in srgb, var(--shot-navy) 22%, var(--tasks-border-strong));
+  background: #fff;
+  color: var(--shot-ink);
+  font-size: var(--shot-font-small);
+  font-weight: 600;
+  box-shadow: none;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.crm-tasks .ih-btn--secondary:hover:not(:disabled),
+.crm-tasks button.ih-btn--secondary:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--shot-navy) 36%, var(--tasks-border-strong));
+  background: #f1f6f8;
+  color: var(--shot-navy);
+}
+
+.crm-tasks__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--tasks-rail-width);
+  gap: var(--shot-gap);
+  align-items: start;
+  min-width: 0;
+}
+
+.crm-tasks__main {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  align-content: start;
+}
+
+.crm-tasks__main-toolbar {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 2px 0;
+}
+
+.crm-tasks__main-toolbar h2 {
+  margin: 0;
+  color: #152a36;
+  font-size: var(--shot-font-heading);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* SegmentedControl — shared @investhome/ui / design-system.css .ds-segmented
+   (tokens remapped on .crm-tasks). Layout only — no beige/brown overrides. */
+.crm-tasks__main-toolbar .ds-segmented {
+  flex: 0 0 auto;
+}
+
+.crm-tasks__table-wrap {
+  overflow: auto;
+  border: 1px solid var(--tasks-border);
+  border-radius: var(--tasks-card-radius);
+  background: #fff;
+  box-shadow: var(--tasks-card-shadow);
+}
+
+.crm-tasks__table {
+  width: 100%;
+  min-width: 1020px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--shot-font-small);
+}
+
+.crm-tasks__table th,
+.crm-tasks__table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #e8eef0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.crm-tasks__table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: #3d525c;
+  font-size: var(--shot-font-caption);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: #eef3f5;
+  white-space: nowrap;
+  border-bottom: 1px solid #d7e0e4;
+  padding-block: 8px;
+}
+
+.crm-tasks__table td strong {
+  display: block;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #152a36;
+  font-weight: 700;
+}
+
+.crm-tasks__row {
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.crm-tasks__row:hover {
+  background: #f4f8fa;
+  box-shadow:
+    inset 0 0 0 1px rgba(7, 91, 117, 0.04),
+    0 1px 4px rgba(7, 91, 117, 0.05);
+}
+
+.crm-tasks__row:focus,
+.crm-tasks__row:focus-within {
+  background: #f1f7f9;
+  box-shadow: inset 0 0 0 1px rgba(7, 91, 117, 0.06);
+  outline: none;
+}
+
+.crm-tasks__row:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.crm-tasks__row > td:first-child {
+  box-shadow: inset 3px 0 0 transparent;
+}
+
+.crm-tasks__row.is-priority-low > td:first-child {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--shot-cyan) 70%, transparent);
+}
+
+.crm-tasks__row.is-priority-medium > td:first-child {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--tasks-warn-dot) 80%, transparent);
+}
+
+.crm-tasks__row.is-priority-high > td:first-child {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--tasks-danger) 75%, transparent);
+}
+
+.crm-tasks__row.is-priority-critical > td:first-child {
+  box-shadow: inset 3px 0 0 #9e3f3f;
+}
+
+.crm-tasks__task-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 200px;
+  padding-left: 2px;
+}
+
+.crm-tasks__checkbox {
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+  flex: 0 0 auto;
+}
+
+.crm-tasks__checkbox input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--shot-navy);
+  cursor: pointer;
+}
+
+.crm-tasks__task-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.crm-tasks__task-text strong {
+  display: block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #122833;
+  font-size: var(--shot-font-small);
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.crm-tasks__clamp-fade {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  max-width: 240px;
+  color: var(--tasks-muted);
+  font-size: var(--shot-font-caption);
+  line-height: 1.35;
+  white-space: normal;
+  -webkit-mask-image: linear-gradient(180deg, #000 66%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 66%, transparent 100%);
+}
+
+.crm-tasks__task-text .crm-tasks__clamp-fade {
+  margin-top: 0;
+}
+
+.crm-tasks__project {
+  display: inline-flex;
+  max-width: 120px;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--shot-navy) 12%, #fff);
+  color: var(--shot-navy);
+}
+
+.crm-tasks__due-wrap {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.crm-tasks__due {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #243742;
+  font-size: var(--shot-font-small);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.crm-tasks__due.is-today {
+  color: var(--shot-navy);
+}
+
+.crm-tasks__due.is-overdue {
+  color: var(--tasks-danger);
+}
+
+.crm-tasks__due.is-soon {
+  color: var(--tasks-warn-fg);
+}
+
+.crm-tasks__due.is-done {
+  color: var(--tasks-success);
+}
+
+.crm-tasks__due-urgency {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  color: var(--tasks-muted);
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.crm-tasks__due-urgency.is-dueEndToday,
+.crm-tasks__due-urgency.is-hoursLeft3 {
+  color: var(--shot-navy);
+}
+
+.crm-tasks__due-urgency.is-tomorrow {
+  color: var(--tasks-warn-fg);
+}
+
+.crm-tasks__rep {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.crm-tasks__rep > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 110px;
+  color: #243742;
+  font-size: var(--shot-font-small);
+  font-weight: 600;
+}
+
+.crm-tasks__avatar {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--shot-navy) 12%, #fff);
+  color: var(--shot-navy);
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+}
+
+/* StatusChip — Dashboard token padding/height/type (Activities parity). */
+.crm-tasks__badge.ih-status-chip,
+.crm-tasks .ih-status-chip.crm-tasks__badge {
+  padding: 0.32rem 0.62rem;
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.crm-tasks__priority--high.ih-status-chip {
+  font-weight: 700;
+}
+
+.crm-tasks__priority--critical.ih-status-chip {
+  background: #f8e4e4;
+  color: #8f2f2f;
+  border-color: #efc4c4;
+  font-weight: 700;
+}
+
+.crm-tasks__ai-summary {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  max-width: 200px;
+}
+
+.crm-tasks__ai-note {
+  margin: 0;
+  max-width: 200px;
+  color: #405159;
+  font-size: var(--shot-font-caption);
+  line-height: 1.4;
+}
+
+.crm-tasks__ai-note.is-expanded {
+  display: block;
+  overflow: visible;
+  mask-image: none;
+  -webkit-mask-image: none;
+  -webkit-line-clamp: unset;
+}
+
+.crm-tasks button.crm-tasks__ai-more,
+.crm-tasks__ai-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  min-height: 0 !important;
+  height: auto !important;
+  background: transparent;
+  box-shadow: none;
+  color: var(--shot-navy);
+  font: inherit;
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: color 140ms ease;
+}
+
+.crm-tasks__ai-more:hover {
+  color: var(--brand-primary-hover);
+}
+
+.crm-tasks__ai-more[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.crm-tasks__ai-more svg {
+  transition: transform 140ms ease;
+}
+
+.crm-tasks__row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.crm-tasks__icon-action {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid var(--tasks-border-strong);
+  border-radius: 6px;
+  background: #fff;
+  color: #485961;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.crm-tasks__icon-action:hover {
+  border-color: color-mix(in srgb, var(--shot-navy) 36%, var(--tasks-border-strong));
+  background: #f1f6f8;
+  color: var(--shot-navy);
+  box-shadow: 0 1px 3px rgba(7, 91, 117, 0.08);
+}
+
+.crm-tasks__icon-action:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+  border-color: color-mix(in srgb, var(--shot-navy) 40%, var(--tasks-border-strong));
+  color: var(--shot-navy);
+}
+
+.crm-tasks__icon-action:active {
+  background: color-mix(in srgb, var(--shot-navy) 10%, #fff);
+}
+
+.crm-tasks__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.crm-tasks__card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--tasks-border);
+  border-radius: var(--tasks-card-radius);
+  background: #fff;
+  box-shadow:
+    var(--tasks-card-shadow),
+    inset 3px 0 0 transparent;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.crm-tasks__card.is-priority-low {
+  box-shadow:
+    var(--tasks-card-shadow),
+    inset 3px 0 0 color-mix(in srgb, var(--shot-cyan) 70%, transparent);
+}
+
+.crm-tasks__card.is-priority-medium {
+  box-shadow:
+    var(--tasks-card-shadow),
+    inset 3px 0 0 color-mix(in srgb, var(--tasks-warn-dot) 80%, transparent);
+}
+
+.crm-tasks__card.is-priority-high {
+  box-shadow:
+    var(--tasks-card-shadow),
+    inset 3px 0 0 color-mix(in srgb, var(--tasks-danger) 75%, transparent);
+}
+
+.crm-tasks__card.is-priority-critical {
+  box-shadow:
+    var(--tasks-card-shadow),
+    inset 3px 0 0 #9e3f3f;
+}
+
+.crm-tasks__card:hover {
+  border-color: #c9d6db;
+  box-shadow: var(--tasks-card-shadow-hover);
+}
+
+.crm-tasks__card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.crm-tasks__card-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.crm-tasks__card-meta dt {
+  color: var(--tasks-muted);
+  font-size: var(--shot-font-caption);
+  font-weight: 600;
+}
+
+.crm-tasks__card-meta dd {
+  margin: 2px 0 0;
+  color: #243742;
+  font-size: var(--shot-font-small);
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-tasks__card-meta dd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.crm-tasks__card-ai {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #f6fafb;
+  color: #405159;
+  font-size: var(--shot-font-caption);
+  line-height: 1.4;
+}
+
+.crm-tasks__card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.crm-tasks__kanban {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.crm-tasks__kanban-column {
+  display: grid;
+  gap: 8px;
+  min-width: 180px;
+  padding: 10px;
+  border: 1px solid var(--tasks-border);
+  border-radius: var(--tasks-card-radius);
+  background: #f7fafb;
+  box-shadow: var(--tasks-card-shadow);
+}
+
+.crm-tasks__kanban-column > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.crm-tasks__kanban-column h3 {
+  margin: 0;
+  color: #243742;
+  font-size: var(--shot-font-small);
+  font-weight: 750;
+}
+
+.crm-tasks__kanban-column > header span {
+  display: inline-grid;
+  min-width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 999px;
+  background: #e3f1f3;
+  color: var(--shot-navy);
+  font-size: var(--shot-font-caption);
+  font-weight: 700;
+}
+
+.crm-tasks__kanban-list {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-height: 120px;
+}
+
+.crm-tasks__kanban-card {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid var(--tasks-border);
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(31, 57, 68, 0.05);
+  cursor: grab;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.crm-tasks__kanban-card:hover {
+  border-color: #c9d6db;
+  box-shadow: var(--tasks-card-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.crm-tasks__kanban-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.crm-tasks__kanban-card h4 {
+  margin: 0;
+  color: #122833;
+  font-size: var(--shot-font-small);
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.crm-tasks__kanban-card > p {
+  margin: 0;
+  color: var(--tasks-muted);
+  font-size: var(--shot-font-caption);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-tasks__kanban-card-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.crm-tasks__kanban-card-meta .crm-tasks__due-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.crm-tasks__pagination {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  padding: 2px 2px 0;
+}
+
+.crm-tasks__pagination > p {
+  margin: 0;
+  color: var(--tasks-muted);
+  font-size: var(--shot-font-small);
+  font-weight: 600;
+}
+
+.crm-tasks__page-numbers {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.crm-tasks__page-numbers button {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--tasks-border-strong);
+  border-radius: 4px;
+  background: #fff;
+  color: #485961;
+  font: inherit;
+  font-size: var(--shot-font-small);
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.crm-tasks__page-numbers button.is-active,
+.crm-tasks__page-numbers button:hover {
+  border-color: var(--tasks-navy);
+  color: #fff;
+  background: var(--tasks-navy);
+}
+
+.crm-tasks__page-numbers button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.crm-tasks__page-ellipsis {
+  color: var(--tasks-muted);
+  font-size: var(--shot-font-small);
+  padding: 0 2px;
+}
+
+.crm-tasks__page-size {
+  min-width: 96px;
+  margin: 0;
+  gap: 2px;
+}
+
+.crm-tasks__page-size .ih-field__label {
+  font-size: var(--shot-font-caption);
+}
+
+.crm-tasks__page-size .ih-select,
+.crm-tasks__page-size select {
+  min-height: var(--tasks-control-height);
+  border-color: var(--tasks-border-strong);
+  border-radius: 4px;
+  font-size: var(--shot-font-small);
+}
+
+.crm-tasks__rail {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  align-content: start;
+}
+
+.crm-tasks__rail-card {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 11px 13px;
+  border: 1px solid var(--tasks-border);
+  border-radius: var(--tasks-card-radius);
+  background: #fff;
+  box-shadow: var(--tasks-card-shadow);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.crm-tasks__rail-card:hover {
+  border-color: #d3dde1;
+  box-shadow: 0 3px 10px rgba(31, 57, 68, 0.06);
+}
+
+.crm-tasks__rail-card h3 {
+  margin: 0;
+  padding-bottom: 2px;
+  color: #152a36;
+  font-size: var(--shot-font-small);
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.crm-tasks__rail-card--ai {
+  background: linear-gradient(180deg, #f7fbfc 0%, #fff 48%);
+}
+
+.crm-tasks__rail-card--warn {
+  border-color: color-mix(in srgb, var(--tasks-warn-dot) 35%, var(--tasks-border));
+  background: linear-gradient(180deg, #fff8f1 0%, #fff 55%);
+}
+
+.crm-tasks__day-counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.crm-tasks__day-counts div {
+  padding: 7px 6px;
+  border-radius: 6px;
+  background: #f6fafb;
+  text-align: center;
+}
+
+.crm-tasks__day-counts dt {
+  color: var(--tasks-muted);
+  font-size: var(--shot-font-caption);
+  font-weight: 600;
+}
+
+.crm-tasks__day-counts dd {
+  margin: 2px 0 0;
+  color: #152a36;
+  font-size: var(--shot-font-heading);
+  font-weight: 750;
+}
+
+.crm-tasks__day-counts dd.is-warning {
+  color: var(--tasks-warn-fg);
+}
+
+.crm-tasks__day-counts dd.is-danger {
+  color: var(--tasks-danger);
+}
+
+.crm-tasks__assessment {
+  margin: 0;
+  color: #405159;
+  font-size: var(--shot-font-caption);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.crm-tasks__recs {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crm-tasks__recs li {
+  position: relative;
+  padding: 6px 8px 6px 16px;
+  border-radius: 4px;
+  color: #405159;
+  background: #f8fafb;
+  font-size: var(--shot-font-caption);
+  line-height: 1.35;
+}
+
+.crm-tasks__recs li::before {
+  content: '';
+  position: absolute;
+  top: 11px;
+  left: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--shot-cyan);
+}
+
+.crm-tasks__list,
+.crm-tasks__priority-list,
+.crm-tasks__team {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crm-tasks__list li,
+.crm-tasks__priority-list li,
+.crm-tasks__team li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 6px 2px;
+  border-bottom: 1px solid #eef1f2;
+  border-radius: 4px;
+  transition: background 140ms ease;
+}
+
+.crm-tasks__team li {
+  flex-direction: column;
+  gap: 5px;
+  padding-block: 7px;
+}
+
+.crm-tasks__list li:last-child,
+.crm-tasks__priority-list li:last-child,
+.crm-tasks__team li:last-child {
+  border-bottom: 0;
+  padding-bottom: 1px;
+}
+
+.crm-tasks__list li:hover,
+.crm-tasks__priority-list li:hover,
+.crm-tasks__team li:hover {
+  background: #f8fafb;
+}
+
+.crm-tasks__team-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+
+.crm-tasks__team-head strong {
+  flex: 1;
+  min-width: 0;
+}
+
+.crm-tasks__team-rate {
+  display: inline-flex !important;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 6px;
+  max-width: none !important;
+  color: var(--tasks-muted);
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.crm-tasks__team-rate em {
+  font-style: normal;
+  color: var(--shot-navy);
+  font-weight: 750;
+}
+
+.crm-tasks__team-bar {
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8eef0;
+}
+
+.crm-tasks__team-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--shot-cyan) 0%, var(--shot-navy) 100%);
+  transition: width 180ms ease;
+}
+
+.crm-tasks__list-icon,
+.crm-tasks__priority-index {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  border-radius: 6px;
+  background: #e3f1f3;
+  color: var(--shot-navy);
+  font-size: var(--shot-font-caption);
+  font-weight: 750;
+}
+
+.crm-tasks__list li > div,
+.crm-tasks__priority-list li > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.crm-tasks__list strong,
+.crm-tasks__priority-list strong,
+.crm-tasks__team strong {
+  display: block;
+  color: #243742;
+  font-size: var(--shot-font-caption);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-tasks__list span,
+.crm-tasks__priority-list span {
+  display: block;
+  color: var(--tasks-muted);
+  font-size: var(--shot-font-caption);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-tasks button:focus-visible,
+.crm-tasks a:focus-visible,
+.crm-tasks select:focus-visible,
+.crm-tasks input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crm-tasks *,
+  .crm-tasks *::before,
+  .crm-tasks *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media (max-width: 1599px) {
+  .crm-tasks {
+    --tasks-rail-width: min(290px, 23vw);
+  }
+}
+
+@media (max-width: 1439px) {
+  .crm-tasks {
+    --tasks-rail-width: min(280px, 24vw);
+  }
+
+  .crm-tasks__header h1 {
+    font-size: calc(var(--shot-font-title) * 0.94);
+  }
+}
+
+@media (max-width: 1365px) {
+  .crm-tasks__kpi-row {
+    gap: 10px;
+  }
+
+  .crm-tasks__task-cell {
+    min-width: 190px;
+  }
+
+  .crm-tasks__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1279px) {
+  .crm-tasks__kpi-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .crm-tasks__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .crm-tasks__rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .crm-tasks__kanban {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .crm-tasks__ai.screenshot-dashboard__intro-ai {
+    flex-wrap: wrap;
+  }
+
+  .crm-tasks__ai.screenshot-dashboard__intro-ai .screenshot-dashboard__intro-ai-primary {
+    margin-left: 0;
+  }
+
+  .crm-tasks__filters .ih-field {
+    flex-basis: calc(33.33% - 8px);
+  }
+
+  .crm-tasks__header h1 {
+    font-size: calc(var(--shot-font-title) * 0.88);
+  }
+
+  .crm-tasks__main-toolbar {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 768px) {
+  .crm-tasks__header {
+    flex-direction: column;
+  }
+
+  .crm-tasks__kpi-row,
+  .crm-tasks__rail,
+  .crm-tasks__kanban {
+    grid-template-columns: 1fr;
+  }
+
+  .crm-tasks__filters .ih-field {
+    flex-basis: calc(50% - 8px);
+  }
+
+  .crm-tasks__pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .crm-tasks__table {
+    min-width: 860px;
+  }
+}
+
+@media (max-width: 720px) {
+  .crm-tasks__filters .ih-field {
+    flex-basis: 100%;
+  }
+
+  .crm-tasks__header h1 {
+    font-size: calc(var(--shot-font-title) * 0.82);
+  }
+}
+
+.crm-tasks__contact-btn {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.crm-tasks__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.crm-tasks__editor {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--crm-ink, #102027) 45%, transparent);
+}
+
+.crm-tasks__editor-card {
+  width: min(480px, calc(100vw - 32px));
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 16px;
+  background: var(--crm-surface, #fff);
+  color: inherit;
+}
+
+.crm-tasks__contact-hits {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.crm-tasks__contact-hits button {
+  width: 100%;
+  text-align: left;
+}
+
+.crm-tasks__editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
