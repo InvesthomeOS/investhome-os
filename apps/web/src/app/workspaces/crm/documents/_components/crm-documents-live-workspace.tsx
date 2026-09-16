@@ -62,6 +62,12 @@ type RelatedHit = {
   label: string;
 };
 
+function isSmokeOrDemoDocument(doc: Document): boolean {
+  if (doc.is_demo) return true;
+  const hay = `${doc.title} ${doc.original_file_name}`.toLowerCase();
+  return /\bsmoke(\b|[\s_-])/.test(hay);
+}
+
 function relatedHits(doc: Document): RelatedHit[] {
   const hits: RelatedHit[] = [];
   const push = (kind: RelatedHit['kind'], id: string | null, label: string) => {
@@ -108,7 +114,7 @@ export function CrmDocumentsLiveWorkspace() {
   });
 
   const items = useMemo(
-    () => (listQuery.data?.items ?? []).filter((doc) => !doc.is_demo),
+    () => (listQuery.data?.items ?? []).filter((doc) => !isSmokeOrDemoDocument(doc)),
     [listQuery.data?.items],
   );
   const hiddenDemo = (listQuery.data?.items ?? []).length - items.length;

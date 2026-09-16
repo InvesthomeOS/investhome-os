@@ -3774,7 +3774,11 @@
           "timeline": "No timeline events",
           "timelineHint": "CRM changes since yesterday will appear here.",
           "meetings": "No upcoming meetings",
-          "meetingsHint": "Scheduled meetings will appear on this agenda."
+          "meetingsHint": "Scheduled meetings will appear on this agenda.",
+          "insights": "No AI insights",
+          "insightsHint": "Insights appear only when they are generated from live CRM data.",
+          "pipeline": "No pipeline trend",
+          "pipelineHint": "Trend data is not available from CRM yet."
         }
       }
     },
@@ -7900,7 +7904,8 @@
         },
         "status": {
           "connected": "Connected",
-          "disconnected": "Not Connected"
+          "disconnected": "Not connected",
+          "notConfigured": "Not configured"
         },
         "lastSyncValues": {
           "live": "Live",
@@ -8088,7 +8093,7 @@
     },
     "tags": {
       "title": "Tags",
-      "subtitle": "Create and manage CRM tags for segmentation.",
+      "subtitle": "CRM tags assigned to real contacts.",
       "create": "Create tag",
       "edit": "Edit",
       "delete": "Delete",
@@ -8121,8 +8126,8 @@
         "slate": "Slate"
       },
       "empty": {
-        "title": "No tags found",
-        "description": "Create a tag or clear filters."
+        "title": "No CRM tags",
+        "description": "No real CRM tags have been assigned yet."
       },
       "form": {
         "createTitle": "Create tag",

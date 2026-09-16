@@ -3695,7 +3695,11 @@
           "timeline": "Zaman çizelgesi olayı yok",
           "timelineHint": "Dünden beri CRM değişiklikleri burada görünür.",
           "meetings": "Yaklaşan toplantı yok",
-          "meetingsHint": "Planlanan toplantılar bu ajandada görünür."
+          "meetingsHint": "Planlanan toplantılar bu ajandada görünür.",
+          "insights": "YZ içgörüsü yok",
+          "insightsHint": "İçgörüler yalnızca canlı CRM verisinden üretildiğinde görünür.",
+          "pipeline": "Pipeline trendi yok",
+          "pipelineHint": "CRM henüz trend verisi sağlamıyor."
         }
       }
     },
@@ -7821,7 +7825,8 @@
         },
         "status": {
           "connected": "Bağlı",
-          "disconnected": "Bağlı Değil"
+          "disconnected": "Bağlı değil",
+          "notConfigured": "Henüz yapılandırılmadı"
         },
         "lastSyncValues": {
           "live": "Canlı",
@@ -8009,7 +8014,7 @@
     },
     "tags": {
       "title": "Etiketler",
-      "subtitle": "Segmentasyon için CRM etiketlerini oluşturun ve yönetin.",
+      "subtitle": "Gerçek kişilere atanmış CRM etiketleri.",
       "create": "Etiket oluştur",
       "edit": "Düzenle",
       "delete": "Sil",
@@ -8042,8 +8047,8 @@
         "slate": "Gri"
       },
       "empty": {
-        "title": "Etiket bulunamadı",
-        "description": "Etiket oluşturun veya filtreleri temizleyin."
+        "title": "CRM etiketi yok",
+        "description": "Henüz atanmış gerçek bir CRM etiketi yok."
       },
       "form": {
         "createTitle": "Etiket oluştur",
