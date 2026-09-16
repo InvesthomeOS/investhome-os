@@ -852,11 +852,14 @@
   .crm-reports__rail {
     grid-template-columns: 1fr;
   }
-
-  .crm-reports__kpi-value {
-    font-size: 20px;
-  }
 }
+
+.crm-reports__empty {
+  margin: 0;
+  color: var(--rp-muted);
+  font-size: var(--shot-font-small);
+}
+
 
 @media (max-width: 720px) {
   .crm-reports__kpi-row {

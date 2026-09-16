@@ -27,6 +27,7 @@ from investhome_api.api.routes import (
     crm_companies,
     crm_contacts,
     crm_relationships,
+    crm_reports,
     crm_search,
     departments,
     design_studio,
@@ -185,6 +186,7 @@ def create_app() -> FastAPI:
     app.include_router(crm_bitrix.router)
     app.include_router(crm_companies.router)
     app.include_router(crm_relationships.router)
+    app.include_router(crm_reports.router)
     app.include_router(crm_activities.router)
     app.include_router(crm_communications.router)
     app.include_router(crm_search.router)

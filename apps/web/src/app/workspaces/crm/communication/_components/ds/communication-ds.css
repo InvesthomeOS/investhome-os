@@ -1161,8 +1161,46 @@
     grid-column: 1 / -1;
     justify-content: flex-end;
   }
+}
 
-  .comm-ds__bubble {
-    max-width: 100%;
+.comm-ds__toolbar--history {
+  grid-template-columns: minmax(160px, 1.4fr) repeat(4, minmax(110px, 0.7fr));
+}
+
+.comm-ds__table-wrap,
+.comm-ds__empty {
+  overflow: auto;
+  border: 1px solid var(--cm-border);
+  border-radius: var(--cm-card-radius);
+  background: #fff;
+}
+
+.comm-ds__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.comm-ds__table th,
+.comm-ds__table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--cm-border);
+  text-align: left;
+  vertical-align: top;
+  font-size: var(--shot-font-small);
+}
+
+.comm-ds__table th {
+  color: var(--cm-muted);
+  font-weight: 650;
+}
+
+.comm-ds__pagination {
+  justify-content: flex-end;
+}
+
+@media (max-width: 900px) {
+  .comm-ds__toolbar--history {
+    grid-template-columns: 1fr 1fr;
   }
 }
+

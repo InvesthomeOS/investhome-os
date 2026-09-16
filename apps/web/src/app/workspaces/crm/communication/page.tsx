@@ -1,13 +1,9 @@
-import { CommunicationDsWorkspace } from './_components/ds/communication-ds-workspace';
+import { CrmCommunicationHistoryWorkspace } from './_components/crm-communication-history-workspace';
 
-/**
- * Canonical Communication nav route (`/workspaces/crm/communication`).
- * Contacts/Projects-quality DS — operational communication workspace (no KPI strip).
- */
 export default function CrmCommunicationPage() {
   return (
     <main className="dashboard crm-module-shell" data-testid="crm-communication-page">
-      <CommunicationDsWorkspace />
+      <CrmCommunicationHistoryWorkspace />
     </main>
   );
 }
