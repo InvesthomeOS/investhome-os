@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from investhome_api.models.crm_company import CrmCompany
 from investhome_api.models.crm_contact import CrmContact
+from investhome_api.models.project import Project
 from investhome_api.models.crm_relationship import (
     CrmDecisionMapRole,
     CrmReferral,
@@ -88,6 +89,9 @@ def _resolve_display_name(
     if entity_type == CrmRelationshipEntityType.COMPANY:
         company = db.get(CrmCompany, entity_id)
         return company.display_name if company else None
+    if entity_type == CrmRelationshipEntityType.PROJECT:
+        project = db.get(Project, entity_id)
+        return project.project_name if project else None
     return None
 
 

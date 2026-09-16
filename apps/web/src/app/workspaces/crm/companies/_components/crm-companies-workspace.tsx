@@ -5,10 +5,13 @@ import type { Route } from 'next';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { useTranslations } from 'next-intl';
+import { useQuery } from '@tanstack/react-query';
 
-import { Button, Input, KpiCard, Select, StatusChip } from '@investhome/ui';
+import { Button, Input, KpiCard, LoadingState, Select, StatusChip } from '@investhome/ui';
 
 import { IhIcon } from '@/components/icons/ih-icons';
+import { crmCompaniesQueries } from '@/lib/query/crm-companies-queries';
+import { buildCompaniesPreview } from '@/workspaces/crm/lib/map-live-workspace';
 import {
   COMPANY_AI_ACTIONS,
   COMPANY_CATEGORY_ORDER,
@@ -83,11 +86,11 @@ function HealthScore({ score, health }: { score: number; health: CompanyHealthKe
   );
 }
 
-function AiSummaryCell({ noteKey }: { noteKey: string }) {
+function AiSummaryCell({ noteKey, note }: { noteKey: string; note?: string }) {
   const t = useTranslations('crm.companies');
   const [expanded, setExpanded] = useState(false);
-  const note = t(`aiSummaries.${noteKey}`);
-  const needsToggle = note.length > 48;
+  const text = note || t(`aiSummaries.${noteKey}`);
+  const needsToggle = text.length > 48;
 
   return (
     <div className="crm-companies__ai-summary">
@@ -97,9 +100,9 @@ function AiSummaryCell({ noteKey }: { noteKey: string }) {
             ? 'crm-companies__ai-note is-expanded'
             : 'crm-companies__ai-note crm-companies__clamp-fade'
         }
-        title={note}
+        title={text}
       >
-        {note}
+        {text}
       </p>
       {needsToggle ? (
         <button
@@ -202,12 +205,12 @@ function CategoryDonut({
 }
 
 export function CrmCompaniesWorkspace({
-  preview,
+  preview: previewProp,
   onOpenAi,
   detailBasePath = '/workspaces/crm/companies',
   newCompanyHref = '/workspaces/crm/companies/new',
 }: {
-  preview: CompanyWorkspacePreview;
+  preview?: CompanyWorkspacePreview;
   /** Opens Dashboard Freeze AI drawer when provided by the shell. */
   onOpenAi?: (prompt?: string) => void;
   detailBasePath?: string;
@@ -229,6 +232,17 @@ export function CrmCompaniesWorkspace({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
+  const liveQuery = useQuery({
+    ...crmCompaniesQueries.list({
+      page,
+      pageSize,
+      search: filters.search.trim() || undefined,
+      status: filters.status || undefined,
+    }),
+    enabled: !previewProp,
+  });
+  const preview = previewProp ?? buildCompaniesPreview(liveQuery.data?.items ?? [], liveQuery.data?.total ?? 0, pageSize);
+
   const openCompany = (id: string) => {
     router.push(`${detailBasePath}/${id}` as Route);
   };
@@ -240,6 +254,7 @@ export function CrmCompaniesWorkspace({
   };
 
   const filteredCompanies = useMemo(() => {
+    if (!previewProp) return preview.companies;
     return preview.companies.filter((row) => {
       if (filters.category && row.category !== filters.category) return false;
       if (filters.country && row.country !== filters.country) return false;
@@ -265,10 +280,12 @@ export function CrmCompaniesWorkspace({
       }
       return true;
     });
-  }, [aiAction, filters, preview.companies]);
+  }, [aiAction, filters, preview.companies, previewProp]);
 
-  const totalPages = Math.max(1, preview.totalPages);
-  const pageItems = filteredCompanies.slice(0, Math.min(pageSize, filteredCompanies.length));
+  const totalPages = Math.max(1, previewProp ? preview.totalPages : Math.ceil((preview.totalCompanies || 1) / pageSize));
+  const pageItems = previewProp
+    ? filteredCompanies.slice(0, Math.min(pageSize, filteredCompanies.length))
+    : filteredCompanies;
 
   const clearFilters = () => {
     setFilters({
@@ -286,6 +303,10 @@ export function CrmCompaniesWorkspace({
   const setRowChecked = (id: string, checked: boolean) => {
     setCheckedIds((prev) => ({ ...prev, [id]: checked }));
   };
+
+  if (!previewProp && liveQuery.isLoading) {
+    return <LoadingState label={t('title')} />;
+  }
 
   return (
     <div className="crm-companies" data-testid="crm-companies-workspace">
@@ -357,7 +378,10 @@ export function CrmCompaniesWorkspace({
         <Input
           label={t('filters.search')}
           value={filters.search}
-          onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+          onChange={(e) => {
+            setFilters((prev) => ({ ...prev, search: e.target.value }));
+            setPage(1);
+          }}
           placeholder={t('filters.searchPlaceholder')}
         />
         <Select
@@ -494,8 +518,8 @@ export function CrmCompaniesWorkspace({
                         <CompanyLogo initials={row.initials} tone={row.logoTone} />
                         <div className="crm-companies__company-text">
                           <strong title={row.name}>{row.name}</strong>
-                          <span title={t(`subtitles.${row.subtitleKey}`)}>
-                            {t(`subtitles.${row.subtitleKey}`)}
+                          <span title={row.subtitle ?? t(`subtitles.${row.subtitleKey}`)}>
+                            {row.subtitle ?? t(`subtitles.${row.subtitleKey}`)}
                           </span>
                         </div>
                       </Link>
@@ -521,7 +545,7 @@ export function CrmCompaniesWorkspace({
                         </span>
                         <div>
                           <strong title={row.contactName}>{row.contactName}</strong>
-                          <span>{t(`roles.${row.contactRoleKey}`)}</span>
+                          <span>{row.contactDetail ?? t(`roles.${row.contactRoleKey}`)}</span>
                         </div>
                       </div>
                     </td>
@@ -532,7 +556,7 @@ export function CrmCompaniesWorkspace({
                       <div className="crm-companies__activity">
                         <IhIcon name="activity" size={12} />
                         <div>
-                          <strong>{t(`lastActivity.${row.lastActivityKey}`)}</strong>
+                          <strong>{row.lastActivityLabel ?? t(`lastActivity.${row.lastActivityKey}`)}</strong>
                           <time>{row.lastActivityDate}</time>
                         </div>
                       </div>
@@ -541,7 +565,7 @@ export function CrmCompaniesWorkspace({
                       <HealthScore score={row.healthScore} health={row.health} />
                     </td>
                     <td>
-                      <AiSummaryCell noteKey={row.aiSummaryKey} />
+                      <AiSummaryCell noteKey={row.aiSummaryKey} note={row.aiSummary} />
                     </td>
                     <td>
                       <RowActions href={detailHref} />
@@ -616,29 +640,37 @@ export function CrmCompaniesWorkspace({
 
           <section className="crm-companies__rail-card">
             <h3>{t('rail.upcoming')}</h3>
-            <ul className="crm-companies__meetings">
-              {preview.upcomingMeetings.map((item) => (
-                <li key={item.id}>
-                  <span className="crm-companies__meeting-icon" aria-hidden="true">
-                    <IhIcon name="calendar" size={13} />
-                  </span>
-                  <div>
-                    <strong title={item.company}>{item.company}</strong>
-                    <span>{t(`rail.meetingTypes.${item.typeKey}`)}</span>
-                    <time>{t(`rail.meetingWhen.${item.whenKey}`)}</time>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            {preview.upcomingMeetings.length ? (
+              <ul className="crm-companies__meetings">
+                {preview.upcomingMeetings.map((item) => (
+                  <li key={item.id}>
+                    <span className="crm-companies__meeting-icon" aria-hidden="true">
+                      <IhIcon name="calendar" size={13} />
+                    </span>
+                    <div>
+                      <strong title={item.company}>{item.company}</strong>
+                      <span>{t(`rail.meetingTypes.${item.typeKey}`)}</span>
+                      <time>{t(`rail.meetingWhen.${item.whenKey}`)}</time>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>—</p>
+            )}
           </section>
 
           <section className="crm-companies__rail-card crm-companies__rail-card--ai">
             <h3>{t('rail.aiRecommendations')}</h3>
-            <ul className="crm-companies__recs">
-              {preview.recommendations.map((item) => (
-                <li key={item.id}>{t(`rail.recommendations.${item.bodyKey}`)}</li>
-              ))}
-            </ul>
+            {preview.recommendations.length ? (
+              <ul className="crm-companies__recs">
+                {preview.recommendations.map((item) => (
+                  <li key={item.id}>{t(`rail.recommendations.${item.bodyKey}`)}</li>
+                ))}
+              </ul>
+            ) : (
+              <p>—</p>
+            )}
           </section>
 
           <section className="crm-companies__rail-card">

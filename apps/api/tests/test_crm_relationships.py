@@ -329,3 +329,76 @@ def test_decision_map(client: TestClient, db: Session) -> None:
     dm = client.get(f"/crm/relationships/company/{company_id}/decision-map")
     assert dm.status_code == 200
     assert len(dm.json()["roles"]) == 1
+
+
+def test_canonical_backfill_replaces_qa_rows_and_is_idempotent(client: TestClient, db: Session) -> None:
+    from uuid import UUID
+
+    from investhome_api.models.crm_agreement import CrmAgreement
+    from investhome_api.models.crm_company import CrmCompanyContact
+    from investhome_api.models.crm_relationship import CrmRelationship
+    from investhome_api.models.project import Project
+    from investhome_api.services.crm.canonical_relationship_backfill import (
+        backfill_canonical_relationships,
+        relationship_duplicate_count,
+    )
+
+    alpha_id = _create_contact(db, "QA Contact Alpha")
+    beta_id = _create_contact(db, "QA Contact Beta")
+    real_contact_id = _create_contact(db, "Levi Sunny")
+    company_id = _create_company(db, "KW Platin")
+    contact_uuid = UUID(real_contact_id)
+    company_uuid = UUID(company_id)
+    db.add(CrmCompanyContact(company_id=company_uuid, contact_id=contact_uuid))
+    project = Project(project_code="P-1812H", project_name="1812 H Place NE")
+    db.add(project)
+    db.flush()
+    db.add(
+        CrmAgreement(
+            contact_id=contact_uuid,
+            project_id=project.id,
+            project_group="1812_h_pl",
+            source="bitrix",
+            source_external_id="1812:canonical-backfill-1",
+        )
+    )
+    db.add(
+        CrmAgreement(
+            contact_id=contact_uuid,
+            project_group="reit",
+            source="bitrix",
+            source_external_id="reit:canonical-backfill-unlinked",
+        )
+    )
+    db.commit()
+
+    qa = client.post("/crm/relationships", json=_relationship_payload(alpha_id, beta_id))
+    assert qa.status_code == 201, qa.text
+
+    first = backfill_canonical_relationships(db)
+    db.commit()
+    assert first.qa_removed >= 1
+    assert first.contact_company_created == 1
+    assert first.investor_project_created == 1
+    assert first.investor_project_unlinked == 1
+
+    listed = client.get("/crm/relationships?page_size=100")
+    assert listed.status_code == 200
+    items = listed.json()["items"]
+    types = {(row["source_entity_type"], row["target_entity_type"], row["relationship_type"]) for row in items}
+    names = {(row["source_display_name"], row["target_display_name"], row["relationship_type"]) for row in items}
+    assert ("contact", "company", "contact_company") in types
+    assert ("contact", "project", "investor") in types
+    assert ("Levi Sunny", "KW Platin", "contact_company") in names
+    assert ("Levi Sunny", "1812 H Place NE", "investor") in names
+    assert not any(row["source_display_name"] in {"QA Contact Alpha", "QA Contact Beta"} and row["target_display_name"] in {"QA Contact Alpha", "QA Contact Beta"} for row in items)
+
+    second = backfill_canonical_relationships(db)
+    db.commit()
+    assert second.qa_removed == 0
+    assert second.contact_company_created == 0
+    assert second.investor_project_created == 0
+    assert second.contact_company_skipped >= 1
+    assert second.investor_project_skipped >= 1
+    assert relationship_duplicate_count(db) == 0
+    assert db.query(CrmRelationship).count() >= 2

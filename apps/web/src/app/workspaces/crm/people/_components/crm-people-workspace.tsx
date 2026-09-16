@@ -100,11 +100,11 @@ function RelationScore({ score, relation }: { score: number; relation: PeopleRel
   );
 }
 
-function AiNoteCell({ noteKey }: { noteKey: string }) {
+function AiNoteCell({ noteKey, note }: { noteKey: string; note?: string }) {
   const t = useTranslations('crm.people');
   const [expanded, setExpanded] = useState(false);
-  const note = t(`aiNotes.${noteKey}`);
-  const needsToggle = note.length > 48;
+  const text = note || t(`aiNotes.${noteKey}`);
+  const needsToggle = text.length > 48;
 
   return (
     <div className="crm-people__ai-summary">
@@ -114,9 +114,9 @@ function AiNoteCell({ noteKey }: { noteKey: string }) {
             ? 'crm-people__ai-note is-expanded'
             : 'crm-people__ai-note crm-people__clamp-fade'
         }
-        title={note}
+        title={text}
       >
-        {note}
+        {text}
       </p>
       {needsToggle ? (
         <button
@@ -261,6 +261,7 @@ function SourceDonut({
 export function CrmPeopleWorkspace({
   preview,
   onOpenAi,
+  onOpenPerson,
   detailBasePath = '/workspaces/crm/people',
   newPersonHref = '/workspaces/crm/contacts/new',
   titleOverride,
@@ -270,6 +271,7 @@ export function CrmPeopleWorkspace({
   preview: PeopleWorkspacePreview;
   /** Opens Dashboard Freeze AI drawer when provided by the shell. */
   onOpenAi?: (prompt?: string) => void;
+  onOpenPerson?: (id: string) => void;
   detailBasePath?: string;
   newPersonHref?: string;
   titleOverride?: string;
@@ -293,6 +295,10 @@ export function CrmPeopleWorkspace({
   const [pageSize, setPageSize] = useState(20);
 
   const openPerson = (id: string) => {
+    if (onOpenPerson) {
+      onOpenPerson(id);
+      return;
+    }
     router.push(`${detailBasePath}/${id}` as Route);
   };
 
@@ -554,12 +560,21 @@ export function CrmPeopleWorkspace({
                       </label>
                     </td>
                     <td>
-                      <Link href={detailHref as Route} className="crm-people__person-cell" onClick={(e) => e.stopPropagation()}>
+                      <Link
+                        href={detailHref as Route}
+                        className="crm-people__person-cell"
+                        onClick={(e) => {
+                          if (!onOpenPerson) return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onOpenPerson(row.id);
+                        }}
+                      >
                         <PersonAvatar initials={row.initials} tone={row.avatarTone} />
                         <div className="crm-people__person-text">
                           <strong title={row.name}>{row.name}</strong>
-                          <span title={t(`titles.${row.titleKey}`)}>
-                            {t(`titles.${row.titleKey}`)}
+                          <span title={row.title ?? t(`titles.${row.titleKey}`)}>
+                            {row.title ?? t(`titles.${row.titleKey}`)}
                           </span>
                         </div>
                       </Link>
@@ -588,7 +603,7 @@ export function CrmPeopleWorkspace({
                       <div className="crm-people__activity">
                         <IhIcon name="activity" size={12} />
                         <div>
-                          <strong>{t(`lastActivity.${row.lastActivityKey}`)}</strong>
+                          <strong>{row.lastActivityLabel ?? t(`lastActivity.${row.lastActivityKey}`)}</strong>
                           <time>{row.lastActivityDate}</time>
                         </div>
                       </div>
@@ -597,7 +612,7 @@ export function CrmPeopleWorkspace({
                       <RelationScore score={row.relationScore} relation={row.relation} />
                     </td>
                     <td>
-                      <AiNoteCell noteKey={row.aiNoteKey} />
+                      <AiNoteCell noteKey={row.aiNoteKey} note={row.aiNote} />
                     </td>
                     <td>
                       <RowActions href={detailHref} />
@@ -719,8 +734,15 @@ export function CrmPeopleWorkspace({
                   <div>
                     <strong title={item.name}>{item.name}</strong>
                     <span>
-                      {t('rail.activityCount', { count: item.activityCount })} ·{' '}
-                      {t(`rail.lastContact.${item.lastContactKey}`)}
+                      {[
+                        item.activityCount != null
+                          ? t('rail.activityCount', { count: item.activityCount })
+                          : null,
+                        item.lastContactLabel ??
+                          (item.lastContactKey ? t(`rail.lastContact.${item.lastContactKey}`) : null),
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </span>
                   </div>
                 </li>

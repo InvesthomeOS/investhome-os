@@ -15,6 +15,7 @@ import {
   crmCompaniesQueryKeys,
 } from '@/lib/query/crm-companies-queries';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
+import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import { fetchCrmCompanyHierarchy, fetchCrmCompanyTimeline } from '@/workspaces/crm/api/companies';
 
 import { CrmAnalyticsStrip } from './g2/crm-analytics-strip';
@@ -36,6 +37,7 @@ export function CrmCompanyDetailView({ companyId }: { companyId: string }) {
   const tCrm = useTranslations('crm');
   const tCommon = useTranslations('common');
   const { authLoading, user, canReadCompanies: canView } = useCrmAccess();
+  const { openContact } = useContactCard();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<DetailTab>('overview');
   const canQuery = !authLoading && canView;
@@ -168,7 +170,15 @@ export function CrmCompanyDetailView({ companyId }: { companyId: string }) {
               <tbody>
                 {company.contacts.map((contact) => (
                   <tr key={contact.id}>
-                    <td>{contact.contact_display_name ?? contact.contact_id}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="crm-company-detail__contact-link"
+                        onClick={() => openContact(contact.contact_id)}
+                      >
+                        {contact.contact_display_name ?? contact.contact_id}
+                      </button>
+                    </td>
                     <td>{contact.role}</td>
                     <td>{contact.job_title ?? '—'}</td>
                     <td>{contact.is_primary ? tCommon('yes') : tCommon('no')}</td>

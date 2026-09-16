@@ -164,6 +164,24 @@ DEFAULT_TYPE_CONFIGS: list[dict] = [
         "reciprocal_label": "Other",
         "prevents_hierarchy_cycle": False,
     },
+    {
+        "relationship_type": "contact_company",
+        "reciprocal_type": "company_contact",
+        "category": CrmRelationshipCategory.ORGANIZATIONAL,
+        "is_directional": True,
+        "label": "Company Contact",
+        "reciprocal_label": "Has Contact",
+        "prevents_hierarchy_cycle": False,
+    },
+    {
+        "relationship_type": "company_contact",
+        "reciprocal_type": "contact_company",
+        "category": CrmRelationshipCategory.ORGANIZATIONAL,
+        "is_directional": True,
+        "label": "Has Contact",
+        "reciprocal_label": "Company Contact",
+        "prevents_hierarchy_cycle": False,
+    },
 ]
 
 

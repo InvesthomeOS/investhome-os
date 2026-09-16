@@ -18,6 +18,7 @@ import {
 import { IhIcon } from '@/components/icons/ih-icons';
 import { crmLabel } from '@/lib/crm/crm-labels';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
+import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import {
   relationshipMutations,
   relationshipQueries,
@@ -80,6 +81,8 @@ const CATEGORY_OPTIONS = [
   'operational',
 ] as const;
 const TYPE_OPTIONS = [
+  'contact_company',
+  'investor',
   'parent',
   'subsidiary',
   'partner',
@@ -87,6 +90,7 @@ const TYPE_OPTIONS = [
   'vendor',
   'referred_by',
   'colleague',
+  'employed_by',
 ] as const;
 
 function scoreBand(score: number): ScoreBand {
@@ -169,6 +173,7 @@ function RelationshipsDsWorkspaceInner() {
   const tStatuses = useTranslations('crm.relationships.filters');
   const tCommon = useTranslations('common');
   const router = useRouter();
+  const { openContact } = useContactCard();
   const { authLoading, canRead, canCreate } = useCrmAccess();
 
   const [draft, setDraft] = useState<DraftFilters>(EMPTY_DRAFT);
@@ -271,6 +276,21 @@ function RelationshipsDsWorkspaceInner() {
 
   const goNew = () => {
     router.push('/workspaces/crm/relationships/new' as Route);
+  };
+
+  const openEntity = (type: string, id: string) => {
+    if (type === 'contact') {
+      openContact(id);
+      return;
+    }
+    if (type === 'company') {
+      router.push(`/workspaces/crm/companies/${id}` as Route);
+      return;
+    }
+    if (type === 'project' || type === 'investment') {
+      router.push('/workspaces/crm/projects' as Route);
+      return;
+    }
   };
 
   const openRow = (row: CrmRelationshipSummary) => {
@@ -498,23 +518,31 @@ function RelationshipsDsWorkspaceInner() {
                       tabIndex={0}
                     >
                       <td>
-                        <strong
-                          title={
-                            row.source_display_name ?? row.source_entity_id
-                          }
+                        <button
+                          type="button"
+                          className="rel-ds__entity-link"
+                          title={row.source_display_name ?? row.source_entity_id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEntity(row.source_entity_type, row.source_entity_id);
+                          }}
                         >
-                          {row.source_display_name ??
-                            row.source_entity_id.slice(0, 8)}
-                        </strong>
+                          {row.source_display_name ?? row.source_entity_id.slice(0, 8)}
+                        </button>
                       </td>
                       <td>{crmLabel(tTypes, row.relationship_type)}</td>
-                      <td
-                        title={
-                          row.target_display_name ?? row.target_entity_id
-                        }
-                      >
-                        {row.target_display_name ??
-                          row.target_entity_id.slice(0, 8)}
+                      <td>
+                        <button
+                          type="button"
+                          className="rel-ds__entity-link"
+                          title={row.target_display_name ?? row.target_entity_id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEntity(row.target_entity_type, row.target_entity_id);
+                          }}
+                        >
+                          {row.target_display_name ?? row.target_entity_id.slice(0, 8)}
+                        </button>
                       </td>
                       <td>{crmLabel(tCategories, row.category)}</td>
                       <td>

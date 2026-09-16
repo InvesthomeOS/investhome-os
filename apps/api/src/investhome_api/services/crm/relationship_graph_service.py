@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from investhome_api.models.crm_company import CrmCompany
 from investhome_api.models.crm_contact import CrmContact
+from investhome_api.models.project import Project
 from investhome_api.models.crm_relationship import (
     CrmRelationship,
     CrmRelationshipEntityType,
@@ -51,6 +52,9 @@ def _resolve_entity_label(
     if entity_type == CrmRelationshipEntityType.COMPANY:
         company = db.get(CrmCompany, entity_id)
         return company.display_name if company else str(entity_id)[:8]
+    if entity_type == CrmRelationshipEntityType.PROJECT:
+        project = db.get(Project, entity_id)
+        return project.project_name if project else str(entity_id)[:8]
     return f"{entity_type.value}:{str(entity_id)[:8]}"
 
 
