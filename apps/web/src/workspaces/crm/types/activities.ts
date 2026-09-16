@@ -160,6 +160,11 @@ export type CrmActivitySummary = {
   archived_at: string | null;
   has_attachments: boolean;
   comment_count: number;
+  entity_name?: string | null;
+  assigned_user_name?: string | null;
+  owner_name?: string | null;
+  created_by_name?: string | null;
+  related_entity_name?: string | null;
 };
 
 export type CrmActivityDetail = CrmActivitySummary & {
@@ -231,6 +236,8 @@ export type CrmCalendarEvent = {
   entity_id: string;
   assigned_user_id: string | null;
   color: string | null;
+  entity_name?: string | null;
+  assigned_user_name?: string | null;
 };
 
 export type CrmCalendarResponse = {
@@ -261,6 +268,7 @@ export type ActivityListParams = {
   owner_id?: string;
   assigned_user_id?: string;
   created_by?: string;
+  responsible_user_id?: string;
   visibility?: CrmActivityVisibility;
   tags?: string[];
   has_attachments?: boolean;

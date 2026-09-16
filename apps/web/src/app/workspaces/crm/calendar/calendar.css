@@ -817,6 +817,21 @@
   font-weight: 650;
 }
 
+.crm-calendar-ds__month-events li button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .crm-calendar-ds__month-events li span {
   overflow: hidden;
   text-overflow: ellipsis;

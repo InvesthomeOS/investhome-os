@@ -101,10 +101,13 @@ export async function addActivityComment(
 export async function fetchTasks(params: ActivityListParams & { my_tasks?: boolean; team_tasks?: boolean } = {}): Promise<CrmActivityListResponse> {
   const search = buildSearchParams({
     page: params.page ?? 1,
-    page_size: params.page_size ?? 25,
+    page_size: params.page_size ?? 100,
     assigned_user_id: params.assigned_user_id,
     my_tasks: params.my_tasks ? 'true' : undefined,
     team_tasks: params.team_tasks ? 'true' : undefined,
+    status: params.status,
+    entity_id: params.entity_id,
+    search: params.search,
   });
   return apiFetch<CrmActivityListResponse>(`/crm/tasks?${search.toString()}`);
 }
@@ -115,6 +118,10 @@ export async function createTask(payload: ActivityInput): Promise<{ activity: Cr
 
 export async function completeTask(id: string): Promise<{ activity: CrmActivityDetail }> {
   return apiFetch(`/crm/tasks/${id}/complete`, { method: 'POST' });
+}
+
+export async function reopenTask(id: string): Promise<{ activity: CrmActivityDetail }> {
+  return updateActivity(id, { task_status: 'not_started', status: 'planned' });
 }
 
 export async function fetchNotes(params: ActivityListParams = {}): Promise<CrmActivityListResponse> {

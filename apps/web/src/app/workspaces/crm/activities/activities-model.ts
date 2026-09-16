@@ -27,17 +27,22 @@ export type ActivityRow = {
   id: string;
   type: ActivityTypeKey;
   titleKey: string;
+  title?: string;
   descriptionKey: string;
+  description?: string;
   customer: string;
+  customerId?: string;
   customerDetail: string;
   project: string;
   projectTone: 'navy' | 'cyan' | 'green' | 'amber' | 'slate';
   salesRep: string;
   salesRepInitials: string;
   dateTime: string;
+  occurredAt?: string;
   status: ActivityStatusKey;
   priority: ActivityPriorityKey;
   aiSummaryKey: string;
+  aiSummary?: string;
 };
 
 export type ActivityKpi = {
@@ -77,7 +82,9 @@ export type ActivityRecentNote = {
   id: string;
   author: string;
   bodyKey: string;
+  body?: string;
   timeKey: string;
+  time?: string;
 };
 
 export type ActivityWorkspacePreview = {

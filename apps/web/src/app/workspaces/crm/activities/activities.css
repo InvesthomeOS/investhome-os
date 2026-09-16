@@ -1090,3 +1090,20 @@
     font-size: calc(var(--shot-font-title) * 0.82);
   }
 }
+
+.crm-activities-ds__contact-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.crm-activities-ds__contact-btn:disabled {
+  cursor: default;
+}

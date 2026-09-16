@@ -183,6 +183,9 @@ export function UnifiedContactCard({
       queryClient.invalidateQueries({ queryKey: ['crm', 'contacts', 'timeline', contactId] }),
       queryClient.invalidateQueries({ queryKey: contactQueryKeys.all }),
       queryClient.invalidateQueries({ queryKey: ['crm', 'contacts', 'documents', contactId] }),
+      queryClient.invalidateQueries({ queryKey: ['crm', 'activities'] }),
+      queryClient.invalidateQueries({ queryKey: ['crm', 'tasks'] }),
+      queryClient.invalidateQueries({ queryKey: ['crm', 'calendar'] }),
     ]);
     notifyContactUpdated(contactId);
   };

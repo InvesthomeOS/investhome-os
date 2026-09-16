@@ -17,18 +17,24 @@ export type TaskAiActionKey =
 export type TaskRow = {
   id: string;
   titleKey: string;
+  title?: string;
   descriptionKey: string;
+  description?: string;
   customer: string;
+  customerId?: string;
   project: string;
   dueLabelKey: string;
+  dueLabel?: string;
   dueTone: 'today' | 'soon' | 'overdue' | 'done' | 'neutral';
   priority: TaskPriorityKey;
   status: TaskStatusKey;
   kanbanColumn: TaskKanbanColumnKey;
   assignee: string;
+  assigneeId?: string;
   assigneeInitials: string;
   tag: string;
   aiNoteKey: string;
+  aiNote?: string;
   checked?: boolean;
 };
 
@@ -50,7 +56,9 @@ export type TaskDaySummary = {
 export type TaskPriorityItem = {
   id: string;
   titleKey: string;
+  title?: string;
   dueLabelKey: string;
+  dueLabel?: string;
 };
 
 export type TaskDeadlineItem = {

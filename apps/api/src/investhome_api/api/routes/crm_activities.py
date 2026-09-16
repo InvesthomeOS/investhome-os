@@ -142,6 +142,7 @@ def get_activities(
     owner_id: UUID | None = Query(default=None),
     assigned_user_id: UUID | None = Query(default=None),
     created_by: UUID | None = Query(default=None),
+    responsible_user_id: UUID | None = Query(default=None),
     visibility: CrmActivityVisibility | None = Query(default=None),
     tags: str | None = Query(default=None),
     has_attachments: bool | None = Query(default=None),
@@ -171,6 +172,7 @@ def get_activities(
         owner_id=owner_id,
         assigned_user_id=assigned_user_id,
         created_by=created_by,
+        responsible_user_id=responsible_user_id,
         visibility=visibility,
         tags=_parse_tags(tags),
         has_attachments=has_attachments,
@@ -326,17 +328,22 @@ def get_tasks(
     my_tasks: bool = Query(default=False),
     team_tasks: bool = Query(default=False),
     task_status: CrmTaskStatus | None = Query(default=None, alias="status"),
+    entity_id: UUID | None = Query(default=None),
+    search: str | None = Query(default=None, max_length=255),
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=25, ge=1, le=100),
+    page_size: int = Query(default=25, ge=1, le=200),
     db: Session = Depends(get_db),
     user: User = Depends(_require_view_activities()),
 ) -> CrmActivityListResponse:
-    del task_status, team_tasks
+    del team_tasks
     items, meta = list_tasks(
         db,
         user,
         assigned_user_id=assigned_user_id,
         my_tasks=my_tasks,
+        status=task_status,
+        entity_id=entity_id,
+        search=search,
         page=page,
         page_size=page_size,
     )

@@ -50,6 +50,48 @@ def test_list_activities(client: TestClient) -> None:
     assert response.json()["total"] >= 1
 
 
+def test_list_activities_pagination_search_and_filters(client: TestClient) -> None:
+    contact_id = _create_contact(client)
+    titles = [f"Paged comment {i} {uuid4().hex[:4]}" for i in range(3)]
+    created_ids: list[str] = []
+    for title in titles:
+        created = client.post("/crm/activities", json=_activity_payload(contact_id, title=title))
+        assert created.status_code == 201, created.text
+        created_ids.append(created.json()["activity"]["id"])
+
+    page1 = client.get("/crm/activities?page=1&page_size=2&sort_by=created_at&sort_dir=desc")
+    page2 = client.get("/crm/activities?page=2&page_size=2&sort_by=created_at&sort_dir=desc")
+    assert page1.status_code == 200
+    assert page2.status_code == 200
+    body1 = page1.json()
+    body2 = page2.json()
+    assert body1["page"] == 1
+    assert body1["page_size"] == 2
+    assert body1["total"] >= 3
+    ids1 = {item["id"] for item in body1["items"]}
+    ids2 = {item["id"] for item in body2["items"]}
+    assert ids1.isdisjoint(ids2)
+
+    search = client.get(f"/crm/activities?search={quote(titles[0])}")
+    assert search.status_code == 200
+    search_ids = {item["id"] for item in search.json()["items"]}
+    assert created_ids[0] in search_ids
+
+    contact_name = client.get(f"/crm/contacts/{contact_id}").json()["display_name"]
+    by_name = client.get(f"/crm/activities?search={quote(contact_name)}")
+    assert by_name.status_code == 200
+    assert any(item["entity_id"] == contact_id for item in by_name.json()["items"])
+
+    by_type = client.get(f"/crm/activities?activity_types=note&entity_id={contact_id}")
+    assert by_type.status_code == 200
+    assert by_type.json()["total"] >= 3
+
+    by_contact = client.get(f"/crm/activities?entity_type=contact&entity_id={contact_id}&page_size=2")
+    assert by_contact.status_code == 200
+    assert by_contact.json()["total"] >= 3
+    assert len(by_contact.json()["items"]) == 2
+
+
 def test_get_timeline(client: TestClient) -> None:
     contact_id = _create_contact(client)
     client.post("/crm/activities", json=_activity_payload(contact_id))

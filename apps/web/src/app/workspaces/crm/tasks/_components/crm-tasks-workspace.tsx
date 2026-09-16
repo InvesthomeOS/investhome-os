@@ -1,11 +1,18 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { FormEvent, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { Button, Input, KpiCard, SegmentedControl, Select, StatusChip } from '@investhome/ui';
+import { Button, Input, KpiCard, LoadingState, SegmentedControl, Select, StatusChip, TextArea } from '@investhome/ui';
 
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
+import { fetchUsers, type UserRecord } from '@/lib/api/auth';
+import { completeTask, createTask, fetchTasks, reopenTask, updateActivity } from '@/workspaces/crm/api/activities';
+import { fetchContacts } from '@/workspaces/crm/api/contacts';
+import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
+import { activityQueries } from '@/workspaces/crm/hooks/use-activities';
+import { buildTasksPreview } from '@/workspaces/crm/lib/map-live-workspace';
 
 import {
   TASK_KANBAN_COLUMNS,
@@ -80,6 +87,8 @@ function TaskIdentity({
   onCheckedChange: (checked: boolean) => void;
 }) {
   const t = useTranslations('crm.tasks');
+  const title = row.title ?? t(`titles.${row.titleKey}`);
+  const description = row.description ?? t(`descriptions.${row.descriptionKey}`);
 
   return (
     <div className="crm-tasks__task-cell">
@@ -87,25 +96,25 @@ function TaskIdentity({
         <input
           type="checkbox"
           checked={checked}
-          aria-label={t('actions.selectTask', { title: t(`titles.${row.titleKey}`) })}
+          aria-label={t('actions.selectTask', { title })}
           onChange={(e) => onCheckedChange(e.target.checked)}
           onClick={(e) => e.stopPropagation()}
         />
       </label>
       <div className="crm-tasks__task-text">
-        <strong title={t(`titles.${row.titleKey}`)}>{t(`titles.${row.titleKey}`)}</strong>
-        <span className="crm-tasks__clamp-fade" title={t(`descriptions.${row.descriptionKey}`)}>
-          {t(`descriptions.${row.descriptionKey}`)}
+        <strong title={title}>{title}</strong>
+        <span className="crm-tasks__clamp-fade" title={description}>
+          {description}
         </span>
       </div>
     </div>
   );
 }
 
-function AiNoteCell({ noteKey }: { noteKey: string }) {
+function AiNoteCell({ noteKey, noteText }: { noteKey: string; noteText?: string }) {
   const t = useTranslations('crm.tasks');
   const [expanded, setExpanded] = useState(false);
-  const note = t(`aiNotes.${noteKey}`);
+  const note = noteText ?? t(`aiNotes.${noteKey}`);
   const needsToggle = note.length > 36;
 
   return (
@@ -145,7 +154,7 @@ function DueCell({ row }: { row: TaskRow }) {
   return (
     <div className="crm-tasks__due-wrap">
       <span className={`crm-tasks__due is-${row.dueTone}`}>
-        {t(`dueLabels.${row.dueLabelKey}`)}
+        {row.dueLabel ?? t(`dueLabels.${row.dueLabelKey}`)}
       </span>
       {urgency ? (
         <span className={`crm-tasks__due-urgency is-${urgency}`} title={t(`dueUrgency.${urgency}`)}>
@@ -156,42 +165,39 @@ function DueCell({ row }: { row: TaskRow }) {
   );
 }
 
-function RowActions() {
+function RowActions({
+  row,
+  onEdit,
+  onComplete,
+  onReopen,
+}: {
+  row: TaskRow;
+  onEdit?: (row: TaskRow) => void;
+  onComplete?: (id: string) => void;
+  onReopen?: (id: string) => void;
+}) {
   const t = useTranslations('crm.tasks');
+  const done = row.status === 'completed';
 
   return (
     <div className="crm-tasks__row-actions">
       <button
         type="button"
         className="crm-tasks__icon-action"
-        aria-label={t('actions.detail')}
-        title={t('actions.detail')}
+        aria-label={done ? 'Yeniden aç' : t('actions.detail')}
+        title={done ? 'Yeniden aç' : t('actions.detail')}
+        onClick={() => (done ? onReopen?.(row.id) : onComplete?.(row.id))}
       >
-        <IhIcon name="search" size={14} />
+        <IhIcon name="check" size={14} />
       </button>
       <button
         type="button"
         className="crm-tasks__icon-action"
         aria-label={t('actions.edit')}
         title={t('actions.edit')}
+        onClick={() => onEdit?.(row)}
       >
         <IhIcon name="settings" size={14} />
-      </button>
-      <button
-        type="button"
-        className="crm-tasks__icon-action"
-        aria-label={t('actions.assign')}
-        title={t('actions.assign')}
-      >
-        <IhIcon name="user" size={14} />
-      </button>
-      <button
-        type="button"
-        className="crm-tasks__icon-action"
-        aria-label={t('actions.more')}
-        title={t('actions.more')}
-      >
-        <IhIcon name="chevronDown" size={14} />
       </button>
     </div>
   );
@@ -201,10 +207,16 @@ function TaskCardView({
   row,
   checked,
   onCheckedChange,
+  onEdit,
+  onComplete,
+  onReopen,
 }: {
   row: TaskRow;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
+  onEdit?: (row: TaskRow) => void;
+  onComplete?: (id: string) => void;
+  onReopen?: (id: string) => void;
 }) {
   const t = useTranslations('crm.tasks');
 
@@ -254,14 +266,14 @@ function TaskCardView({
       </dl>
 
       <div className="crm-tasks__card-ai">
-        <AiNoteCell noteKey={row.aiNoteKey} />
+        <AiNoteCell noteKey={row.aiNoteKey} noteText={row.aiNote} />
       </div>
 
       <footer className="crm-tasks__card-footer">
         <StatusChip tone={STATUS_TONE[row.status]} className="crm-tasks__badge">
           {t(`status.${row.status}`)}
         </StatusChip>
-        <RowActions />
+        <RowActions row={row} onEdit={onEdit} onComplete={onComplete} onReopen={onReopen} />
       </footer>
     </article>
   );
@@ -290,7 +302,7 @@ function KanbanCard({
             type="checkbox"
             checked={checked}
             onChange={(e) => onCheckedChange(e.target.checked)}
-            aria-label={t('actions.selectTask', { title: t(`titles.${row.titleKey}`) })}
+            aria-label={t('actions.selectTask', { title: row.title ?? t(`titles.${row.titleKey}`) })}
           />
         </label>
         <StatusChip
@@ -304,7 +316,7 @@ function KanbanCard({
           {t(`priority.${row.priority}`)}
         </StatusChip>
       </div>
-      <h4 title={t(`titles.${row.titleKey}`)}>{t(`titles.${row.titleKey}`)}</h4>
+      <h4 title={row.title ?? t(`titles.${row.titleKey}`)}>{row.title ?? t(`titles.${row.titleKey}`)}</h4>
       <p>
         {row.customer} · {row.project}
       </p>
@@ -319,14 +331,24 @@ function KanbanCard({
 }
 
 export function CrmTasksWorkspace({
-  preview,
+  preview: previewProp,
   onOpenAi,
 }: {
-  preview: TaskWorkspacePreview;
-  /** Opens Dashboard Freeze AI drawer when provided by the shell. */
+  preview?: TaskWorkspacePreview;
   onOpenAi?: (prompt?: string) => void;
 }) {
   const t = useTranslations('crm.tasks');
+  const { openContact } = useContactCard();
+  const queryClient = useQueryClient();
+  const liveQuery = useQuery({
+    ...activityQueries.tasks({ page: 1, page_size: 100 }),
+    enabled: !previewProp,
+  });
+  const preview = previewProp ?? buildTasksPreview(liveQuery.data?.items ?? [], liveQuery.data?.total ?? 0);
+  const usersQuery = useQuery({
+    queryKey: ['crm', 'users', 'task-assignees'],
+    queryFn: () => fetchUsers({ status: 'active' }),
+  });
   const [view, setView] = useState<TaskViewMode>('list');
   const [aiAction, setAiAction] = useState<TaskAiActionKey | null>(null);
   const [filters, setFilters] = useState<Record<FilterKey, string>>({
@@ -341,9 +363,97 @@ export function CrmTasksWorkspace({
   });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [checkedIds, setCheckedIds] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(preview.tasks.map((task) => [task.id, Boolean(task.checked)])),
-  );
+  const [checkedIds, setCheckedIds] = useState<Record<string, boolean>>({});
+  const [editor, setEditor] = useState<null | { mode: 'create' | 'edit'; row?: TaskRow }>(null);
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    contactId: '',
+    contactLabel: '',
+    assigneeId: '',
+    dueDate: '',
+    priority: 'medium',
+  });
+  const [contactHits, setContactHits] = useState<Array<{ id: string; display_name: string }>>([]);
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ['crm'] });
+  };
+
+  const completeMutation = useMutation({
+    mutationFn: completeTask,
+    onSuccess: invalidate,
+  });
+  const reopenMutation = useMutation({
+    mutationFn: reopenTask,
+    onSuccess: invalidate,
+  });
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (editor?.mode === 'edit' && editor.row) {
+        await updateActivity(editor.row.id, {
+          title: form.title.trim(),
+          description: form.description.trim() || undefined,
+          assigned_user_id: form.assigneeId || undefined,
+          due_date: form.dueDate ? new Date(form.dueDate).toISOString() : undefined,
+          priority: form.priority as 'low' | 'medium' | 'high' | 'critical',
+        });
+        return;
+      }
+      if (!form.contactId || !form.title.trim()) return;
+      await createTask({
+        entity_type: 'contact',
+        entity_id: form.contactId,
+        activity_type: 'task',
+        title: form.title.trim(),
+        description: form.description.trim() || undefined,
+        assigned_user_id: form.assigneeId || undefined,
+        due_date: form.dueDate ? new Date(form.dueDate).toISOString() : undefined,
+        task_status: 'not_started',
+        priority: form.priority as 'low' | 'medium' | 'high' | 'critical',
+      });
+    },
+    onSuccess: () => {
+      setEditor(null);
+      invalidate();
+    },
+  });
+
+  const openEditor = (row?: TaskRow) => {
+    if (row) {
+      setForm({
+        title: row.title ?? '',
+        description: row.description ?? '',
+        contactId: row.customerId ?? '',
+        contactLabel: row.customer,
+        assigneeId: row.assigneeId ?? '',
+        dueDate: '',
+        priority: row.priority,
+      });
+      setEditor({ mode: 'edit', row });
+      return;
+    }
+    setForm({
+      title: '',
+      description: '',
+      contactId: '',
+      contactLabel: '',
+      assigneeId: '',
+      dueDate: '',
+      priority: 'medium',
+    });
+    setEditor({ mode: 'create' });
+  };
+
+  const searchContacts = async (query: string) => {
+    setForm((prev) => ({ ...prev, contactLabel: query }));
+    if (query.trim().length < 2) {
+      setContactHits([]);
+      return;
+    }
+    const result = await fetchContacts({ search: query.trim(), page_size: 8, status: 'active' });
+    setContactHits(result.items.map((item) => ({ id: item.id, display_name: item.display_name })));
+  };
 
   const setTaskChecked = (id: string, checked: boolean) => {
     setCheckedIds((prev) => ({ ...prev, [id]: checked }));
@@ -410,6 +520,14 @@ export function CrmTasksWorkspace({
     });
     setPage(1);
   };
+
+  if (!previewProp && liveQuery.isLoading) {
+    return <LoadingState />;
+  }
+
+  const users = Array.isArray(usersQuery.data)
+    ? usersQuery.data
+    : ((usersQuery.data as { items?: UserRecord[] } | undefined)?.items ?? []);
 
   return (
     <div className="crm-tasks" data-testid="crm-tasks-workspace">
@@ -550,7 +668,7 @@ export function CrmTasksWorkspace({
           <option value="">{t('filters.any')}</option>
           {preview.tags.map((tag) => (
             <option key={tag} value={tag}>
-              {t(`tags.${tag}`)}
+              {tag}
             </option>
           ))}
         </Select>
@@ -570,7 +688,11 @@ export function CrmTasksWorkspace({
         <div className="crm-tasks__main">
           <div className="crm-tasks__main-toolbar">
             <h2>{t('listTitle')}</h2>
-            <SegmentedControl
+            <div className="crm-tasks__toolbar-actions">
+              <Button size="sm" onClick={() => openEditor()}>
+                Görev oluştur
+              </Button>
+              <SegmentedControl
               ariaLabel={t('viewAria')}
               value={view}
               onChange={setView}
@@ -580,6 +702,7 @@ export function CrmTasksWorkspace({
                 { value: 'kanban', label: t('view.kanban') },
               ]}
             />
+            </div>
           </div>
 
           {view === 'list' ? (
@@ -614,7 +737,14 @@ export function CrmTasksWorkspace({
                         />
                       </td>
                       <td>
-                        <strong title={row.customer}>{row.customer}</strong>
+                        <button
+                          type="button"
+                          className="crm-tasks__contact-btn"
+                          onClick={() => row.customerId && openContact(row.customerId)}
+                          disabled={!row.customerId}
+                        >
+                          <strong title={row.customer}>{row.customer}</strong>
+                        </button>
                       </td>
                       <td>
                         <span className="crm-tasks__project">{row.project}</span>
@@ -645,7 +775,7 @@ export function CrmTasksWorkspace({
                         </div>
                       </td>
                       <td>
-                        <AiNoteCell noteKey={row.aiNoteKey} />
+                        <AiNoteCell noteKey={row.aiNoteKey} noteText={row.aiNote} />
                       </td>
                       <td>
                         <StatusChip tone={STATUS_TONE[row.status]} className="crm-tasks__badge">
@@ -653,7 +783,12 @@ export function CrmTasksWorkspace({
                         </StatusChip>
                       </td>
                       <td>
-                        <RowActions />
+                        <RowActions
+                          row={row}
+                          onEdit={openEditor}
+                          onComplete={(id) => completeMutation.mutate(id)}
+                          onReopen={(id) => reopenMutation.mutate(id)}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -670,6 +805,9 @@ export function CrmTasksWorkspace({
                     row={row}
                     checked={Boolean(checkedIds[row.id])}
                     onCheckedChange={(checked) => setTaskChecked(row.id, checked)}
+                    onEdit={openEditor}
+                    onComplete={(id) => completeMutation.mutate(id)}
+                    onReopen={(id) => reopenMutation.mutate(id)}
                   />
                 </div>
               ))}
@@ -778,10 +916,10 @@ export function CrmTasksWorkspace({
                     {index + 1}
                   </span>
                   <div>
-                    <strong title={t(`titles.${item.titleKey}`)}>
-                      {t(`titles.${item.titleKey}`)}
+                    <strong title={item.title ?? t(`titles.${item.titleKey}`)}>
+                      {item.title ?? t(`titles.${item.titleKey}`)}
                     </strong>
-                    <span>{t(`dueLabels.${item.dueLabelKey}`)}</span>
+                    <span>{item.dueLabel ?? t(`dueLabels.${item.dueLabelKey}`)}</span>
                   </div>
                 </li>
               ))}
@@ -797,10 +935,10 @@ export function CrmTasksWorkspace({
                     <IhIcon name="clock" size={12} />
                   </span>
                   <div>
-                    <strong title={t(`titles.${item.titleKey}`)}>
-                      {t(`titles.${item.titleKey}`)}
+                    <strong title={item.title ?? t(`titles.${item.titleKey}`)}>
+                      {item.title ?? t(`titles.${item.titleKey}`)}
                     </strong>
-                    <span>{t(`dueLabels.${item.dueLabelKey}`)}</span>
+                    <span>{item.dueLabel ?? t(`dueLabels.${item.dueLabelKey}`)}</span>
                   </div>
                 </li>
               ))}
@@ -856,6 +994,94 @@ export function CrmTasksWorkspace({
           </section>
         </aside>
       </div>
+      {editor ? (
+        <div className="crm-tasks__editor" role="dialog" aria-modal="true" aria-label={editor.mode === 'create' ? 'Görev oluştur' : 'Görevi düzenle'}>
+          <form
+            className="crm-tasks__editor-card"
+            onSubmit={(event: FormEvent) => {
+              event.preventDefault();
+              saveMutation.mutate();
+            }}
+          >
+            <h2>{editor.mode === 'create' ? 'Görev oluştur' : 'Görevi düzenle'}</h2>
+            <Input
+              label="Başlık"
+              value={form.title}
+              onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+              required
+            />
+            <TextArea
+              label="Açıklama"
+              value={form.description}
+              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+            />
+            {editor.mode === 'create' ? (
+              <div>
+                <Input
+                  label="Kişi"
+                  value={form.contactLabel}
+                  onChange={(e) => void searchContacts(e.target.value)}
+                  required
+                />
+                {contactHits.length ? (
+                  <ul className="crm-tasks__contact-hits">
+                    {contactHits.map((hit) => (
+                      <li key={hit.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setForm((prev) => ({ ...prev, contactId: hit.id, contactLabel: hit.display_name }));
+                            setContactHits([]);
+                          }}
+                        >
+                          {hit.display_name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
+            <Select
+              label="Atanan"
+              value={form.assigneeId}
+              onChange={(e) => setForm((prev) => ({ ...prev, assigneeId: e.target.value }))}
+            >
+              <option value="">—</option>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.full_name}
+                </option>
+              ))}
+            </Select>
+            <Input
+              label="Son tarih"
+              type="datetime-local"
+              value={form.dueDate}
+              onChange={(e) => setForm((prev) => ({ ...prev, dueDate: e.target.value }))}
+            />
+            <Select
+              label="Öncelik"
+              value={form.priority}
+              onChange={(e) => setForm((prev) => ({ ...prev, priority: e.target.value }))}
+            >
+              {TASK_PRIORITY_ORDER.map((priority) => (
+                <option key={priority} value={priority}>
+                  {t(`priority.${priority}`)}
+                </option>
+              ))}
+            </Select>
+            <div className="crm-tasks__editor-actions">
+              <Button type="button" variant="secondary" onClick={() => setEditor(null)}>
+                Vazgeç
+              </Button>
+              <Button type="submit" disabled={saveMutation.isPending}>
+                Kaydet
+              </Button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </div>
   );
 }

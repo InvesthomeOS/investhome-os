@@ -2,10 +2,14 @@
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useQuery } from '@tanstack/react-query';
 
-import { Button, KpiCard, SegmentedControl } from '@investhome/ui';
+import { Button, KpiCard, LoadingState, SegmentedControl } from '@investhome/ui';
 
 import { IhIcon } from '@/components/icons/ih-icons';
+import { fetchCalendar } from '@/workspaces/crm/api/activities';
+import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
+import { buildCalendarPreview, toDateIso } from '@/workspaces/crm/lib/map-live-workspace';
 
 import {
   CALENDAR_DAY_KEYS,
@@ -38,9 +42,11 @@ function eventHeight(durationMinutes: number): number {
 function EventCard({
   event,
   compact,
+  onOpen,
 }: {
   event: CalendarEvent;
   compact?: boolean;
+  onOpen?: (event: CalendarEvent) => void;
 }) {
   const t = useTranslations('crm.calendar');
   const startHour = event.startMinute == null ? null : Math.floor((DAY_START_MINUTE + event.startMinute) / 60);
@@ -56,13 +62,19 @@ function EventCard({
         ? `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`
         : `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')} – ${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`;
   const typeLabel = t(`types.${event.type}`);
+  const title = event.title ?? t(`events.${event.titleKey}`);
 
   return (
     <article
       className={`crm-calendar-ds__event is-${event.type}${compact ? ' is-compact' : ''}`}
       data-testid={`calendar-event-${event.id}`}
       tabIndex={0}
-      title={`${timeLabel} · ${t(`events.${event.titleKey}`)} · ${typeLabel}`}
+      role="button"
+      onClick={() => onOpen?.(event)}
+      onKeyDown={(eventKey) => {
+        if (eventKey.key === 'Enter' || eventKey.key === ' ') onOpen?.(event);
+      }}
+      title={`${timeLabel} · ${title} · ${typeLabel}`}
     >
       <header className="crm-calendar-ds__event-head">
         <span className="crm-calendar-ds__event-time">{timeLabel}</span>
@@ -74,8 +86,8 @@ function EventCard({
           <IhIcon name={CALENDAR_EVENT_TYPE_ICONS[event.type]} size={11} />
         </span>
       </header>
-      <strong className="crm-calendar-ds__event-title" title={t(`events.${event.titleKey}`)}>
-        {t(`events.${event.titleKey}`)}
+      <strong className="crm-calendar-ds__event-title" title={title}>
+        {title}
       </strong>
       {!compact ? (
         <>
@@ -100,7 +112,13 @@ function EventCard({
   );
 }
 
-function WeekView({ preview }: { preview: CalendarWorkspacePreview }) {
+function WeekView({
+  preview,
+  onOpen,
+}: {
+  preview: CalendarWorkspacePreview;
+  onOpen?: (event: CalendarEvent) => void;
+}) {
   const t = useTranslations('crm.calendar');
   const timedEvents = preview.events.filter((e) => !e.allDay && e.startMinute != null);
   const allDayEvents = preview.events.filter((e) => e.allDay);
@@ -138,7 +156,7 @@ function WeekView({ preview }: { preview: CalendarWorkspacePreview }) {
             {allDayEvents
               .filter((e) => e.dayIndex === index)
               .map((event) => (
-                <EventCard key={event.id} event={event} compact />
+                <EventCard key={event.id} event={event} compact onOpen={onOpen} />
               ))}
           </div>
         ))}
@@ -189,7 +207,7 @@ function WeekView({ preview }: { preview: CalendarWorkspacePreview }) {
                       height: eventHeight(event.durationMinutes),
                     }}
                   >
-                    <EventCard event={event} />
+                    <EventCard event={event} onOpen={onOpen} />
                   </div>
                 ))}
               </div>
@@ -201,7 +219,13 @@ function WeekView({ preview }: { preview: CalendarWorkspacePreview }) {
   );
 }
 
-function DayView({ preview }: { preview: CalendarWorkspacePreview }) {
+function DayView({
+  preview,
+  onOpen,
+}: {
+  preview: CalendarWorkspacePreview;
+  onOpen?: (event: CalendarEvent) => void;
+}) {
   const t = useTranslations('crm.calendar');
   const dayEvents = preview.events.filter(
     (e) => e.dayIndex === preview.currentDayIndex && !e.allDay && e.startMinute != null,
@@ -216,7 +240,7 @@ function DayView({ preview }: { preview: CalendarWorkspacePreview }) {
       {allDay.length > 0 ? (
         <div className="crm-calendar-ds__day-allday">
           {allDay.map((event) => (
-            <EventCard key={event.id} event={event} compact />
+            <EventCard key={event.id} event={event} compact onOpen={onOpen} />
           ))}
         </div>
       ) : null}
@@ -246,7 +270,7 @@ function DayView({ preview }: { preview: CalendarWorkspacePreview }) {
                 height: eventHeight(event.durationMinutes),
               }}
             >
-              <EventCard event={event} />
+              <EventCard event={event} onOpen={onOpen} />
             </div>
           ))}
         </div>
@@ -255,7 +279,13 @@ function DayView({ preview }: { preview: CalendarWorkspacePreview }) {
   );
 }
 
-function MonthView({ preview }: { preview: CalendarWorkspacePreview }) {
+function MonthView({
+  preview,
+  onOpen,
+}: {
+  preview: CalendarWorkspacePreview;
+  onOpen?: (event: CalendarEvent) => void;
+}) {
   const t = useTranslations('crm.calendar');
   const cells = useMemo(() => {
     const start = new Date(`${preview.weekStartIso}T00:00:00`);
@@ -263,13 +293,9 @@ function MonthView({ preview }: { preview: CalendarWorkspacePreview }) {
     return Array.from({ length: 35 }, (_, i) => {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
-      const weekOffset = Math.floor(i / 7) - 1;
-      const dayIndex = i % 7;
-      const inFixtureWeek = weekOffset === 0;
-      const events = inFixtureWeek
-        ? preview.events.filter((e) => e.dayIndex === dayIndex).slice(0, 3)
-        : [];
-      return { key: `${d.toISOString()}-${i}`, date: d, events, inFixtureWeek, dayIndex };
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const events = preview.events.filter((e) => (e.dateIso ?? '') === iso).slice(0, 3);
+      return { key: `${iso}-${i}`, date: d, events, iso };
     });
   }, [preview]);
 
@@ -282,14 +308,11 @@ function MonthView({ preview }: { preview: CalendarWorkspacePreview }) {
       </div>
       <div className="crm-calendar-ds__month-grid">
         {cells.map((cell) => {
-          const isToday =
-            cell.inFixtureWeek && cell.dayIndex === preview.currentDayIndex;
+          const isToday = cell.iso === toDateIso(new Date());
           return (
             <div
               key={cell.key}
-              className={`crm-calendar-ds__month-cell${isToday ? ' is-today' : ''}${
-                cell.inFixtureWeek ? '' : ' is-muted'
-              }`}
+              className={`crm-calendar-ds__month-cell${isToday ? ' is-today' : ''}`}
             >
               <span className={`crm-calendar-ds__month-num${isToday ? ' is-today' : ''}`}>
                 {cell.date.getDate()}
@@ -297,8 +320,10 @@ function MonthView({ preview }: { preview: CalendarWorkspacePreview }) {
               <ul className="crm-calendar-ds__month-events">
                 {cell.events.map((event) => (
                   <li key={event.id} className={`is-${event.type}`}>
-                    <IhIcon name={CALENDAR_EVENT_TYPE_ICONS[event.type]} size={10} />
-                    <span>{t(`events.${event.titleKey}`)}</span>
+                    <button type="button" onClick={() => onOpen?.(event)}>
+                      <IhIcon name={CALENDAR_EVENT_TYPE_ICONS[event.type]} size={10} />
+                      <span>{event.title ?? t(`events.${event.titleKey}`)}</span>
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -339,7 +364,7 @@ function AgendaView({ preview }: { preview: CalendarWorkspacePreview }) {
                 <span>{timeLabel}</span>
               </div>
               <div className="crm-calendar-ds__agenda-body">
-                <strong>{t(`events.${event.titleKey}`)}</strong>
+                <strong>{event.title ?? t(`events.${event.titleKey}`)}</strong>
                 <span>
                   {event.customer} · {event.project}
                 </span>
@@ -357,16 +382,38 @@ function AgendaView({ preview }: { preview: CalendarWorkspacePreview }) {
 }
 
 export function CrmCalendarWorkspace({
-  preview,
+  preview: previewProp,
   onOpenAi,
 }: {
-  preview: CalendarWorkspacePreview;
-  /** Opens Dashboard Freeze AI drawer when provided by the shell. */
+  preview?: CalendarWorkspacePreview;
   onOpenAi?: (prompt?: string) => void;
 }) {
   const t = useTranslations('crm.calendar');
-  const [view, setView] = useState<CalendarViewMode>('week');
+  const { openContact } = useContactCard();
+  const [view, setView] = useState<CalendarViewMode>('month');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  monthStart.setDate(monthStart.getDate() - 7);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 7, 23, 59, 59);
+  const liveQuery = useQuery({
+    queryKey: ['crm', 'calendar', monthStart.toISOString(), monthEnd.toISOString()],
+    queryFn: () =>
+      fetchCalendar({
+        start: monthStart.toISOString(),
+        end: monthEnd.toISOString(),
+      }),
+    enabled: !previewProp,
+  });
+  const preview =
+    previewProp ?? buildCalendarPreview(liveQuery.data?.events ?? []);
+  const openItem = (event: CalendarEvent) => {
+    if (event.customerId) openContact(event.customerId);
+  };
+
+  if (!previewProp && liveQuery.isLoading) {
+    return <LoadingState />;
+  }
 
   return (
     <div className="crm-calendar-ds" data-testid="crm-calendar-workspace">
@@ -481,14 +528,14 @@ export function CrmCalendarWorkspace({
                 title={t('dateNav.pick')}
               >
                 <IhIcon name="calendar" size={14} />
-                <span>{t(`dateNav.ranges.${preview.rangeLabelKey}`)}</span>
+                <span>{preview.rangeLabel ?? t(`dateNav.ranges.${preview.rangeLabelKey}`)}</span>
               </button>
             </div>
           </div>
 
-          {view === 'week' ? <WeekView preview={preview} /> : null}
-          {view === 'day' ? <DayView preview={preview} /> : null}
-          {view === 'month' ? <MonthView preview={preview} /> : null}
+          {view === 'week' ? <WeekView preview={preview} onOpen={openItem} /> : null}
+          {view === 'day' ? <DayView preview={preview} onOpen={openItem} /> : null}
+          {view === 'month' ? <MonthView preview={preview} onOpen={openItem} /> : null}
           {view === 'agenda' ? <AgendaView preview={preview} /> : null}
         </div>
 
@@ -502,8 +549,8 @@ export function CrmCalendarWorkspace({
                     <IhIcon name={CALENDAR_EVENT_TYPE_ICONS[item.type]} size={13} />
                   </span>
                   <div>
-                    <strong title={t(`events.${item.titleKey}`)}>
-                      {t(`events.${item.titleKey}`)}
+                    <strong title={item.title ?? t(`events.${item.titleKey}`)}>
+                      {item.title ?? t(`events.${item.titleKey}`)}
                     </strong>
                     <span>
                       {item.timeLabel} · {t(`rail.when.${item.when}`)}

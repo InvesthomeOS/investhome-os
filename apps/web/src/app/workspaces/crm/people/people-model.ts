@@ -58,6 +58,7 @@ export type PeopleRow = {
   id: string;
   name: string;
   titleKey: string;
+  title?: string;
   initials: string;
   avatarTone: PeopleAvatarTone;
   company: string;
@@ -71,10 +72,12 @@ export type PeopleRow = {
   hasLinkedIn: boolean;
   hasWhatsApp: boolean;
   lastActivityKey: string;
+  lastActivityLabel?: string;
   lastActivityDate: string;
   relationScore: number;
   relation: PeopleRelationKey;
   aiNoteKey: string;
+  aiNote?: string;
   owner: string;
   tags: string[];
 };

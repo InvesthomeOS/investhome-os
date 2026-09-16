@@ -138,6 +138,11 @@ class CrmActivitySummary(BaseModel):
     archived_at: datetime | None = None
     has_attachments: bool = False
     comment_count: int = 0
+    entity_name: str | None = None
+    assigned_user_name: str | None = None
+    owner_name: str | None = None
+    created_by_name: str | None = None
+    related_entity_name: str | None = None
 
 
 class CrmActivityDetail(CrmActivitySummary):
@@ -313,6 +318,8 @@ class CrmCalendarEvent(BaseModel):
     entity_id: UUID
     assigned_user_id: UUID | None = None
     color: str | None = None
+    entity_name: str | None = None
+    assigned_user_name: str | None = None
 
 
 class CrmCalendarResponse(BaseModel):

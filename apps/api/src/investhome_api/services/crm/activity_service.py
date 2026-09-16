@@ -6,7 +6,7 @@ import math
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import String, and_, cast, exists, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from investhome_api.models.activity import ActivityEntityType, ActivityLog
@@ -77,6 +77,12 @@ CONTACT_TOUCH_TYPES = frozenset(
 )
 
 
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 def _touch_contact_last_activity(db: Session, activity: CrmActivity) -> None:
     if activity.entity_type != CrmActivityEntityType.CONTACT:
         return
@@ -85,8 +91,9 @@ def _touch_contact_last_activity(db: Session, activity: CrmActivity) -> None:
     contact = db.get(CrmContact, activity.entity_id)
     if contact is None:
         return
-    stamp = activity.start_date or datetime.now(tz=UTC)
-    if contact.last_contact_at is None or stamp >= contact.last_contact_at:
+    stamp = _as_utc(activity.start_date or datetime.now(tz=UTC))
+    last = contact.last_contact_at
+    if last is None or stamp >= _as_utc(last):
         contact.last_contact_at = stamp
 
 
@@ -142,7 +149,29 @@ def _paginate(total: int, page: int, page_size: int) -> dict[str, int]:
     return {"page": page, "page_size": page_size, "total": total, "pages": pages}
 
 
-def _serialize_summary(activity: CrmActivity) -> CrmActivitySummary:
+def _exclude_demo_clause():
+    """Hide deterministically marked demo/seed rows without touching Bitrix data."""
+    blob = func.lower(cast(CrmActivity.metadata_json, String))
+    return or_(
+        CrmActivity.metadata_json.is_(None),
+        and_(
+            ~blob.like('%"demo_seed": true%'),
+            ~blob.like('%"demo_seed":true%'),
+            ~blob.like('%"source": "integrated_demo_seed"%'),
+            ~blob.like('%"source":"integrated_demo_seed"%'),
+        ),
+    )
+
+
+def _serialize_summary(
+    activity: CrmActivity,
+    *,
+    entity_name: str | None = None,
+    assigned_user_name: str | None = None,
+    owner_name: str | None = None,
+    created_by_name: str | None = None,
+    related_entity_name: str | None = None,
+) -> CrmActivitySummary:
     return CrmActivitySummary(
         id=activity.id,
         entity_type=activity.entity_type,
@@ -152,7 +181,7 @@ def _serialize_summary(activity: CrmActivity) -> CrmActivitySummary:
         activity_type=activity.activity_type,
         activity_category=activity.activity_category,
         title=activity.title,
-        summary=activity.summary,
+        summary=activity.summary or (activity.description[:1000] if activity.description else None),
         status=activity.status,
         task_status=activity.task_status,
         priority=activity.priority,
@@ -178,7 +207,90 @@ def _serialize_summary(activity: CrmActivity) -> CrmActivitySummary:
         archived_at=activity.archived_at,
         has_attachments=bool(activity.attachments),
         comment_count=len([c for c in activity.comments if c.deleted_at is None]),
+        entity_name=entity_name,
+        assigned_user_name=assigned_user_name,
+        owner_name=owner_name,
+        created_by_name=created_by_name,
+        related_entity_name=related_entity_name,
     )
+
+
+def _summaries_for_rows(db: Session, rows: list[CrmActivity]) -> list[CrmActivitySummary]:
+    if not rows:
+        return []
+    contact_ids = {
+        row.entity_id
+        for row in rows
+        if row.entity_type == CrmActivityEntityType.CONTACT
+    }
+    contact_ids.update(
+        row.related_entity_id
+        for row in rows
+        if row.related_entity_type == CrmActivityEntityType.CONTACT and row.related_entity_id
+    )
+    user_ids = {
+        user_id
+        for row in rows
+        for user_id in (row.assigned_user_id, row.owner_id, row.created_by)
+        if user_id
+    }
+    project_ids = {
+        row.related_entity_id
+        for row in rows
+        if row.related_entity_type == CrmActivityEntityType.PROJECT and row.related_entity_id
+    }
+    project_ids.update(
+        row.entity_id for row in rows if row.entity_type == CrmActivityEntityType.PROJECT
+    )
+    contacts = (
+        {
+            contact.id: contact.display_name
+            for contact in db.scalars(select(CrmContact).where(CrmContact.id.in_(contact_ids))).all()
+        }
+        if contact_ids
+        else {}
+    )
+    users = (
+        {
+            user.id: user.full_name
+            for user in db.scalars(select(User).where(User.id.in_(user_ids))).all()
+        }
+        if user_ids
+        else {}
+    )
+    projects: dict = {}
+    if project_ids:
+        from investhome_api.models.project import Project
+
+        projects = {
+            project.id: project.name
+            for project in db.scalars(select(Project).where(Project.id.in_(project_ids))).all()
+        }
+
+    summaries: list[CrmActivitySummary] = []
+    for row in rows:
+        entity_name = None
+        if row.entity_type == CrmActivityEntityType.CONTACT:
+            entity_name = contacts.get(row.entity_id)
+        elif row.entity_type == CrmActivityEntityType.PROJECT:
+            entity_name = projects.get(row.entity_id)
+        related_name = None
+        if row.related_entity_id:
+            if row.related_entity_type == CrmActivityEntityType.PROJECT:
+                related_name = projects.get(row.related_entity_id)
+            elif row.related_entity_type == CrmActivityEntityType.CONTACT:
+                related_name = contacts.get(row.related_entity_id)
+        summaries.append(
+            _serialize_summary(
+                row,
+                entity_name=entity_name,
+                assigned_user_name=users.get(row.assigned_user_id) if row.assigned_user_id else None,
+                owner_name=users.get(row.owner_id) if row.owner_id else None,
+                created_by_name=users.get(row.created_by) if row.created_by else None,
+                related_entity_name=related_name,
+            )
+        )
+    return summaries
 
 
 def _serialize_detail(activity: CrmActivity) -> CrmActivityDetail:
@@ -244,9 +356,12 @@ def _apply_activity_filters(
     date_from: datetime | None = None,
     date_to: datetime | None = None,
     include_archived: bool = False,
+    task_status: CrmTaskStatus | None = None,
+    responsible_user_id: UUID | None = None,
 ):
     if not include_archived:
         query = query.where(CrmActivity.archived_at.is_(None))
+    query = query.where(_exclude_demo_clause())
     if entity_type is not None:
         query = query.where(CrmActivity.entity_type == entity_type)
     if entity_id is not None:
@@ -278,17 +393,33 @@ def _apply_activity_filters(
         query = query.where(CrmActivity.status == CrmActivityStatus.COMPLETED)
     if pending is True:
         query = query.where(CrmActivity.status.not_in([CrmActivityStatus.COMPLETED, CrmActivityStatus.CANCELLED]))
+    if task_status is not None:
+        query = query.where(CrmActivity.task_status == task_status)
+    if responsible_user_id is not None:
+        query = query.where(
+            or_(
+                CrmActivity.assigned_user_id == responsible_user_id,
+                CrmActivity.created_by == responsible_user_id,
+                CrmActivity.owner_id == responsible_user_id,
+            )
+        )
     if date_from is not None:
         query = query.where(CrmActivity.created_at >= date_from)
     if date_to is not None:
         query = query.where(CrmActivity.created_at <= date_to)
     if search:
         pattern = f"%{search.strip()}%"
+        contact_name_match = exists().where(
+            CrmContact.id == CrmActivity.entity_id,
+            CrmActivity.entity_type == CrmActivityEntityType.CONTACT,
+            CrmContact.display_name.ilike(pattern),
+        )
         query = query.where(
             or_(
                 CrmActivity.title.ilike(pattern),
                 CrmActivity.summary.ilike(pattern),
                 CrmActivity.description.ilike(pattern),
+                contact_name_match,
             )
         )
     return query
@@ -321,6 +452,8 @@ def list_activities(
     sort_dir: str = "desc",
     page: int = 1,
     page_size: int = 25,
+    task_status: CrmTaskStatus | None = None,
+    responsible_user_id: UUID | None = None,
 ) -> tuple[list[CrmActivitySummary], dict[str, int]]:
     query = select(CrmActivity).options(
         selectinload(CrmActivity.attachments),
@@ -350,6 +483,8 @@ def list_activities(
         date_from=date_from,
         date_to=date_to,
         include_archived=include_archived,
+        task_status=task_status,
+        responsible_user_id=responsible_user_id,
     )
     count_query = select(func.count()).select_from(CrmActivity)
     if vis is not None:
@@ -375,6 +510,8 @@ def list_activities(
         date_from=date_from,
         date_to=date_to,
         include_archived=include_archived,
+        task_status=task_status,
+        responsible_user_id=responsible_user_id,
     )
     total = db.scalar(count_query) or 0
     sort_column = {
@@ -389,7 +526,7 @@ def list_activities(
     rows = db.scalars(
         query.order_by(order).offset((page - 1) * page_size).limit(page_size)
     ).all()
-    return [_serialize_summary(row) for row in rows], _paginate(total, page, page_size)
+    return _summaries_for_rows(db, list(rows)), _paginate(total, page, page_size)
 
 
 def _attach_children(db: Session, activity: CrmActivity, payload: CrmActivityCreate) -> None:
@@ -556,6 +693,10 @@ def update_activity(
     for key, value in data.items():
         setattr(activity, key, value)
     activity.updated_by = user.id
+    if payload.task_status is not None and payload.task_status != CrmTaskStatus.COMPLETED:
+        activity.completed_at = None
+        if payload.status is None:
+            activity.status = CrmActivityStatus.PLANNED
     if payload.status == CrmActivityStatus.COMPLETED and activity.completed_at is None:
         activity.completed_at = datetime.now(tz=UTC)
     if payload.task_status == CrmTaskStatus.COMPLETED and activity.completed_at is None:
@@ -777,9 +918,12 @@ def list_tasks(
     my_tasks: bool = False,
     team_tasks: bool = False,
     status: CrmTaskStatus | None = None,
+    entity_id: UUID | None = None,
+    search: str | None = None,
     page: int = 1,
     page_size: int = 25,
 ) -> tuple[list[CrmActivitySummary], dict[str, int]]:
+    del team_tasks
     if my_tasks:
         assigned_user_id = user.id
     return list_activities(
@@ -787,6 +931,9 @@ def list_tasks(
         user,
         activity_types=[CrmActivityType.TASK, CrmActivityType.REMINDER],
         assigned_user_id=assigned_user_id,
+        entity_id=entity_id,
+        search=search,
+        task_status=status,
         status=None,
         page=page,
         page_size=page_size,
@@ -912,6 +1059,7 @@ def get_calendar(
 ) -> CrmCalendarResponse:
     query = select(CrmActivity).where(
         CrmActivity.archived_at.is_(None),
+        _exclude_demo_clause(),
         or_(
             CrmActivity.start_date.between(start, end),
             CrmActivity.due_date.between(start, end),
@@ -922,7 +1070,11 @@ def get_calendar(
         query = query.where(vis)
     if assigned_user_id is not None:
         query = query.where(CrmActivity.assigned_user_id == assigned_user_id)
-    rows = db.scalars(query.order_by(CrmActivity.start_date.asc().nullslast())).all()
+    rows = list(db.scalars(query.order_by(CrmActivity.start_date.asc().nullslast())).all())
+    names = {
+        item.id: item
+        for item in _summaries_for_rows(db, rows)
+    }
     events = [
         CrmCalendarEvent(
             id=row.id,
@@ -936,6 +1088,8 @@ def get_calendar(
             entity_type=row.entity_type,
             entity_id=row.entity_id,
             assigned_user_id=row.assigned_user_id,
+            entity_name=names[row.id].entity_name if row.id in names else None,
+            assigned_user_name=names[row.id].assigned_user_name if row.id in names else None,
         )
         for row in rows
     ]

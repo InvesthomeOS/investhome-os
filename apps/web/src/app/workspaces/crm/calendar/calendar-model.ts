@@ -27,11 +27,15 @@ export type CalendarSyncStatus = 'connected' | 'notConnected';
 export type CalendarEvent = {
   id: string;
   titleKey: string;
+  title?: string;
   customer: string;
+  customerId?: string;
   project: string;
   type: CalendarEventTypeKey;
+  activityType?: string;
   /** 0 = Monday … 6 = Sunday within the fixture week */
   dayIndex: number;
+  dateIso?: string;
   /** Minutes from 08:00; null = all-day */
   startMinute: number | null;
   durationMinutes: number;
@@ -51,6 +55,7 @@ export type CalendarKpi = {
 export type CalendarUpcomingItem = {
   id: string;
   titleKey: string;
+  title?: string;
   timeLabel: string;
   when: CalendarWhenLabel;
   type: CalendarEventTypeKey;
@@ -75,6 +80,7 @@ export type CalendarWorkspacePreview = {
   /** Presentation current-time line (minutes from 08:00). */
   nowMinute: number;
   rangeLabelKey: string;
+  rangeLabel?: string;
   kpis: CalendarKpi[];
   events: CalendarEvent[];
   upcoming: CalendarUpcomingItem[];
