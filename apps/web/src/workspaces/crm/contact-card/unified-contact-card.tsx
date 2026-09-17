@@ -17,6 +17,7 @@ import {
   fetchContactTimeline,
   fetchJunkReasons,
   updateContact,
+  type ContactTimelineEntry,
 } from '@/workspaces/crm/api/contacts';
 import { notifyContactUpdated } from '@/workspaces/crm/contact-card/contact-card-context';
 import { contactQueries, contactQueryKeys } from '@/workspaces/crm/hooks/use-contacts';
@@ -41,19 +42,81 @@ const TASK_STATUSES = [
 ] as const;
 
 const ACTIVITY_TYPE_LABELS: Record<string, string> = {
-  phone_call: 'Telefon Görüşmesi',
+  phone_call: 'Arama',
   whatsapp: 'WhatsApp',
+  sms: 'SMS',
   email: 'E-posta',
   meeting: 'Toplantı',
-  note: 'Genel Not',
-  comment: 'Tarihsel Bitrix yorumu',
+  note: 'Not',
+  comment: 'Yorum',
   task: 'Görev',
   follow_up: 'Takip',
-  system_event: 'Sistem',
+  system_event: 'Durum/Aşama',
+  automation_event: 'Durum/Aşama',
   contract_signed: 'Anlaşma',
+  other: 'Diğer',
 };
 
+const HISTORY_FILTERS = [
+  { id: 'all', label: 'Tümü' },
+  { id: 'comment', label: 'Yorumlar' },
+  { id: 'whatsapp', label: 'WhatsApp' },
+  { id: 'sms', label: 'SMS' },
+  { id: 'task', label: 'Görevler' },
+  { id: 'meeting', label: 'Toplantılar' },
+  { id: 'email', label: 'E-posta' },
+  { id: 'phone_call', label: 'Aramalar' },
+] as const;
+
+type HistoryFilter = (typeof HISTORY_FILTERS)[number]['id'];
 type Panel = 'edit' | 'note' | 'task' | 'assign' | null;
+type BitrixHistoryMeta = {
+  kind?: string;
+  source?: string;
+  author_name?: string;
+  chat_id?: string;
+  message_id?: string;
+  direction?: string;
+  attachment_count?: number;
+  open_channel_summary?: boolean;
+  full_messages_recovered?: boolean | null;
+};
+
+function bitrixHistory(entry: ContactTimelineEntry): BitrixHistoryMeta | null {
+  const history = entry.metadata?.bitrix_history;
+  if (!history || typeof history !== 'object') return null;
+  return history as BitrixHistoryMeta;
+}
+
+function historyTypeLabel(entry: ContactTimelineEntry): string {
+  if (entry.title.startsWith('Durum ') || entry.activity_type === 'system_event' || entry.activity_type === 'automation_event') {
+    return 'Durum/Aşama';
+  }
+  if (entry.imported_historical_comment) return 'Yorum';
+  return ACTIVITY_TYPE_LABELS[entry.activity_type] ?? entry.title;
+}
+
+function matchesHistoryFilter(entry: ContactTimelineEntry, filter: HistoryFilter): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'comment') return entry.activity_type === 'comment' || Boolean(entry.imported_historical_comment);
+  if (filter === 'meeting') {
+    return ['meeting', 'zoom_meeting', 'teams_meeting', 'investor_meeting', 'construction_meeting'].includes(entry.activity_type);
+  }
+  return entry.activity_type === filter;
+}
+
+function conversationMessages(entries: ContactTimelineEntry[], focus: ContactTimelineEntry): ContactTimelineEntry[] {
+  const history = bitrixHistory(focus);
+  const chatId = history?.chat_id;
+  const messages = entries.filter((entry) => {
+    if (entry.activity_type !== 'whatsapp') return false;
+    const meta = bitrixHistory(entry);
+    if (meta?.kind !== 'whatsapp_message') return false;
+    if (chatId) return String(meta.chat_id || '') === String(chatId);
+    return true;
+  });
+  return [...messages].sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
 
 function toLocalInput(iso: string | null | undefined): string {
   if (!iso) return '';
@@ -158,6 +221,8 @@ export function UnifiedContactCard({
   const [taskDue, setTaskDue] = useState('');
   const [taskStatus, setTaskStatus] = useState<(typeof TASK_STATUSES)[number]['value']>('not_started');
   const [linkDocumentId, setLinkDocumentId] = useState('');
+  const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all');
+  const [whatsappFocus, setWhatsappFocus] = useState<ContactTimelineEntry | null>(null);
   const contact = query.data;
 
   useEffect(() => {
@@ -203,6 +268,29 @@ export function UnifiedContactCard({
   const timeline = useMemo(
     () => [...(timelineQuery.data?.items ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at)),
     [timelineQuery.data?.items],
+  );
+  const filteredTimeline = useMemo(
+    () => timeline.filter((entry) => matchesHistoryFilter(entry, historyFilter)),
+    [timeline, historyFilter],
+  );
+  const timelineGroups = useMemo(() => {
+    const groups: { label: string; items: ContactTimelineEntry[] }[] = [];
+    for (const entry of filteredTimeline) {
+      const label = new Date(entry.created_at).toLocaleDateString(locale, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+      const last = groups[groups.length - 1];
+      if (!last || last.label !== label) groups.push({ label, items: [entry] });
+      else last.items.push(entry);
+    }
+    return groups;
+  }, [filteredTimeline, locale]);
+  const whatsappThread = useMemo(
+    () => (whatsappFocus ? conversationMessages(timeline, whatsappFocus) : []),
+    [timeline, whatsappFocus],
   );
   const openTasks = (contact?.crm_activities ?? []).filter(
     (activity) => activity.activity_type === 'task' && activity.status !== 'completed' && activity.task_status !== 'completed',
@@ -549,28 +637,118 @@ export function UnifiedContactCard({
       ) : null}
 
       <section className="crm-verify-detail__section" data-testid="contact-timeline">
-        <h2>Geçmiş & Notlar <span>{timeline.length}</span></h2>
+        <h2>Geçmiş & Notlar <span>{filteredTimeline.length}</span></h2>
+        <div className="crm-contact-card__history-filters" data-testid="contact-timeline-filters">
+          {HISTORY_FILTERS.map((filter) => (
+            <button
+              key={filter.id}
+              type="button"
+              className={historyFilter === filter.id ? 'is-active' : undefined}
+              data-testid={`timeline-filter-${filter.id}`}
+              onClick={() => setHistoryFilter(filter.id)}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
         {timelineQuery.isLoading ? <p>Loading…</p> : null}
-        {timeline.length ? (
+        {filteredTimeline.length ? (
           <div className="crm-verify-detail__records crm-verify-detail__timeline">
-            {timeline.map((entry) => (
-              <article key={entry.id} data-imported={entry.imported_historical_comment ? 'true' : 'false'}>
-                <strong>
-                  {entry.imported_historical_comment
-                    ? 'Tarihsel Bitrix yorumu'
-                    : ACTIVITY_TYPE_LABELS[entry.activity_type] ?? entry.title}
-                </strong>
-                <small>
-                  {new Date(entry.created_at).toLocaleString(locale)}
-                  {entry.actor_name ? ` · ${entry.actor_name}` : ''}
-                  {entry.status ? ` · ${entry.status}` : ''}
-                </small>
-                {entry.title && entry.title !== ACTIVITY_TYPE_LABELS[entry.activity_type] ? <p>{entry.title}</p> : null}
-                {entry.summary ? <p>{entry.summary}</p> : null}
-              </article>
+            {timelineGroups.map((group) => (
+              <div key={group.label} className="crm-contact-card__timeline-day">
+                <p className="crm-contact-card__date-sep">{group.label}</p>
+                {group.items.map((entry) => {
+                  const history = bitrixHistory(entry);
+                  const typeLabel = historyTypeLabel(entry);
+                  const isWhatsapp = entry.activity_type === 'whatsapp';
+                  return (
+                    <article
+                      key={entry.id}
+                      data-imported={entry.imported_historical_comment ? 'true' : 'false'}
+                      data-activity-type={entry.activity_type}
+                      className={isWhatsapp ? 'crm-contact-card__timeline-wa' : undefined}
+                      onClick={isWhatsapp ? () => setWhatsappFocus(entry) : undefined}
+                      onKeyDown={
+                        isWhatsapp
+                          ? (event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                setWhatsappFocus(entry);
+                              }
+                            }
+                          : undefined
+                      }
+                      role={isWhatsapp ? 'button' : undefined}
+                      tabIndex={isWhatsapp ? 0 : undefined}
+                    >
+                      <strong>
+                        <span className={`crm-contact-card__type-chip crm-contact-card__type-chip--${entry.activity_type}`}>
+                          {typeLabel}
+                        </span>
+                      </strong>
+                      <small>
+                        {new Date(entry.created_at).toLocaleString(locale)}
+                        {entry.actor_name ? ` · ${entry.actor_name}` : history?.author_name ? ` · ${history.author_name}` : ''}
+                        {history?.source ? ` · ${history.source}` : entry.imported_historical_comment ? ' · bitrix' : ''}
+                      </small>
+                      {entry.summary ? (
+                        <p>{entry.summary}</p>
+                      ) : entry.title && entry.title !== typeLabel && entry.title !== ACTIVITY_TYPE_LABELS[entry.activity_type] ? (
+                        <p>{entry.title}</p>
+                      ) : null}
+                      {isWhatsapp && history?.open_channel_summary && !history.full_messages_recovered ? (
+                        <p className="crm-contact-card__muted">Open Channel özeti — mesaj içeriği kurtarılamadı.</p>
+                      ) : null}
+                    </article>
+                  );
+                })}
+              </div>
             ))}
           </div>
         ) : <p>Kayıt yok</p>}
+        {whatsappFocus ? (
+          <div className="crm-contact-card__wa-drawer" data-testid="whatsapp-conversation">
+            <div className="crm-contact-card__wa-panel">
+              <div className="crm-contact-card__wa-head">
+                <strong>WhatsApp konuşması</strong>
+                <Button type="button" size="sm" variant="secondary" onClick={() => setWhatsappFocus(null)}>
+                  Kapat
+                </Button>
+              </div>
+              {whatsappThread.length ? (
+                <div className="crm-contact-card__wa-thread">
+                  {whatsappThread.map((message) => {
+                    const meta = bitrixHistory(message);
+                    const direction = String(meta?.direction || 'incoming');
+                    return (
+                      <div
+                        key={message.id}
+                        className={`crm-contact-card__wa-bubble crm-contact-card__wa-bubble--${direction}`}
+                        data-testid="whatsapp-message"
+                      >
+                        <small>
+                          {meta?.author_name || message.actor_name || (direction === 'outgoing' ? 'Giden' : direction === 'system' ? 'Sistem' : 'Gelen')}
+                          {' · '}
+                          {new Date(message.created_at).toLocaleString(locale)}
+                        </small>
+                        <p>{message.summary || message.title}</p>
+                        {Number(meta?.attachment_count || 0) > 0 ? (
+                          <em>Ek var (Bitrix dosyası indirilemedi)</em>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="crm-contact-card__muted">
+                  {bitrixHistory(whatsappFocus)?.open_channel_summary
+                    ? 'Bu Open Channel kaydı özet. Kurtarılmış mesaj içeriği yok.'
+                    : 'Bu sohbet için kurtarılmış mesaj yok.'}
+                </p>
+              )}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section className="crm-verify-detail__section" data-testid="contact-agreements">

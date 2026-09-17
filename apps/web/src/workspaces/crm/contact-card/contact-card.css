@@ -113,3 +113,130 @@
 .crm-contact-card__docs a {
   color: inherit;
 }
+
+.crm-contact-card__history-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 12px;
+}
+
+.crm-contact-card__history-filters button {
+  border: 1px solid var(--border-color, #dfe4ea);
+  background: #fff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.crm-contact-card__history-filters button.is-active {
+  background: #075b75;
+  border-color: #075b75;
+  color: #fff;
+}
+
+.crm-contact-card__date-sep {
+  margin: 14px 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #667085);
+  text-transform: capitalize;
+}
+
+.crm-contact-card__type-chip {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #eef2f4;
+}
+
+.crm-contact-card__type-chip--comment { background: #e8f4f7; color: #075b75; }
+.crm-contact-card__type-chip--whatsapp { background: #e8f8ef; color: #146c43; }
+.crm-contact-card__type-chip--sms { background: #f3eef8; color: #5b3d91; }
+.crm-contact-card__type-chip--task { background: #fff4e5; color: #8a5a00; }
+.crm-contact-card__type-chip--meeting { background: #eef3ff; color: #274690; }
+.crm-contact-card__type-chip--email { background: #f7eee8; color: #8a4b2f; }
+.crm-contact-card__type-chip--phone_call { background: #eceff3; color: #334155; }
+.crm-contact-card__type-chip--system_event,
+.crm-contact-card__type-chip--automation_event { background: #f3f4f6; color: #4b5563; }
+
+.crm-contact-card__timeline-wa {
+  cursor: pointer;
+}
+
+.crm-contact-card__muted {
+  color: var(--text-secondary, #667085);
+  font-size: 12px;
+}
+
+.crm-contact-card__wa-drawer {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  display: grid;
+  place-items: end;
+  z-index: 40;
+}
+
+.crm-contact-card__wa-panel {
+  width: min(480px, 100vw);
+  height: 100%;
+  background: #fff;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
+}
+
+.crm-contact-card__wa-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color, #dfe4ea);
+}
+
+.crm-contact-card__wa-thread {
+  overflow: auto;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+  background: #f4f7f8;
+}
+
+.crm-contact-card__wa-bubble {
+  max-width: 85%;
+  border-radius: 14px;
+  padding: 8px 10px;
+  background: #fff;
+}
+
+.crm-contact-card__wa-bubble small,
+.crm-contact-card__wa-bubble em {
+  display: block;
+  color: var(--text-secondary, #667085);
+  font-size: 11px;
+}
+
+.crm-contact-card__wa-bubble p {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+}
+
+.crm-contact-card__wa-bubble--outgoing {
+  margin-left: auto;
+  background: #d9f6e5;
+}
+
+.crm-contact-card__wa-bubble--incoming {
+  margin-right: auto;
+}
+
+.crm-contact-card__wa-bubble--system {
+  margin: 0 auto;
+  background: #eef2f4;
+  text-align: center;
+}
