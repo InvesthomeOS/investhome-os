@@ -1493,7 +1493,7 @@ def get_contact_timeline(
     contact_id: UUID,
     user: User,
     *,
-    limit: int = 80,
+    limit: int = 2000,
 ) -> list[CrmContactTimelineEntry]:
     from investhome_api.services.activity_service import list_entity_activity
 
@@ -1506,13 +1506,30 @@ def get_contact_timeline(
                 CrmActivity.entity_id == contact_id,
                 CrmActivity.archived_at.is_(None),
             )
-            .order_by(CrmActivity.created_at.desc())
+            .order_by(func.coalesce(CrmActivity.start_date, CrmActivity.created_at).desc())
             .limit(limit)
         ).all()
     )
     for activity in activities:
         metadata = activity.metadata_json if isinstance(activity.metadata_json, dict) else None
         imported = isinstance((metadata or {}).get("bitrix_historical_comment"), dict)
+        history = (metadata or {}).get("bitrix_history") if isinstance(metadata, dict) else None
+        author_name = None
+        if isinstance(history, dict):
+            author_name = history.get("author_name") or None
+            if not author_name:
+                direction = str(history.get("direction") or "")
+                if direction == "system":
+                    author_name = "Sistem"
+                elif direction == "incoming":
+                    author_name = history.get("person_name")
+                elif direction == "outgoing":
+                    author_name = "WhatsApp"
+            actor_name = author_name
+        else:
+            actor_name = _resolve_owner_name(
+                db, activity.created_by or activity.owner_id or activity.assigned_user_id
+            )
         summary = activity.description or activity.summary
         entries.append(
             CrmContactTimelineEntry(
@@ -1526,9 +1543,7 @@ def get_contact_timeline(
                 ),
                 summary=summary,
                 status=activity.status.value,
-                actor_name=_resolve_owner_name(
-                    db, activity.created_by or activity.owner_id or activity.assigned_user_id
-                ),
+                actor_name=actor_name,
                 created_at=activity.start_date or activity.created_at,
                 is_system_event=activity.activity_type
                 in {CrmActivityType.SYSTEM_EVENT, CrmActivityType.AUTOMATION_EVENT},
@@ -1583,7 +1598,7 @@ def get_contact_timeline(
         user,
         entity_type=ActivityEntityType.CRM_CONTACT,
         entity_id=contact_id,
-        limit=limit,
+        limit=min(limit, 80),
     )
     seen_log_keys = {
         (entry.action, entry.created_at.isoformat())
