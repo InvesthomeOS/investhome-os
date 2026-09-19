@@ -15,6 +15,7 @@ from uuid import UUID
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _NON_DIGIT = re.compile(r"\D")
 _WHITESPACE = re.compile(r"\s+")
+AGENT_ADVISOR_NAME_RE = re.compile(r"acenta\s*dan[ıi][sş]man", re.I)
 _ZERO_MASK_PHONE = re.compile(r"0{5,}$")
 _TR_FOLD = str.maketrans({
     "ı": "i",
@@ -91,6 +92,10 @@ def normalize_full_name(value: str | None) -> str | None:
     folded = re.sub(r"[^\w\s]", "", folded, flags=re.UNICODE)
     folded = _WHITESPACE.sub(" ", folded).strip()
     return folded or None
+
+
+def is_agent_advisor_name(value: str | None) -> bool:
+    return bool(AGENT_ADVISOR_NAME_RE.search(value or ""))
 
 
 _MULTI_VALUE_SPLIT = re.compile(r"[,;/|]+")

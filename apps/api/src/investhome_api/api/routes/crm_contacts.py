@@ -75,13 +75,14 @@ from investhome_api.services.crm.contact_service import (
     update_saved_view,
     change_contact_status,
 )
+from investhome_api.services.crm.nedim_purchase_card import resolve_nedim_contact_id
 from investhome_api.models.crm_contact import CrmContactSavedView
 
 router = APIRouter(prefix="/crm/contacts", tags=["crm-contacts"])
 
 
 def _get_contact_or_404(db: Session, contact_id: UUID):
-    contact = get_contact_or_none(db, contact_id)
+    contact = get_contact_or_none(db, resolve_nedim_contact_id(contact_id))
     if contact is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="crm.contacts.errors.not_found")
     return contact
@@ -329,9 +330,10 @@ def get_contact(
     contact_id: UUID,
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("crm", "read")),
+    project_context: str | None = Query(default=None),
 ) -> CrmContactDetail:
     contact = _get_contact_or_404(db, contact_id)
-    return serialize_contact_detail(db, contact, user=user)
+    return serialize_contact_detail(db, contact, user=user, project_context=project_context)
 
 
 @router.post("", response_model=CrmContactMutationResponse, status_code=status.HTTP_201_CREATED)
@@ -533,9 +535,10 @@ def get_timeline(
     contact_id: UUID,
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("crm", "read")),
+    project_context: str | None = Query(default=None),
 ) -> CrmContactTimelineResponse:
     _get_contact_or_404(db, contact_id)
-    items = get_contact_timeline(db, contact_id, user)
+    items = get_contact_timeline(db, contact_id, user, project_context=project_context)
     return CrmContactTimelineResponse(items=items)
 
 

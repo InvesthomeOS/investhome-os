@@ -32,6 +32,86 @@ class CrmAgreementSummary(BaseModel):
     review_required: bool = False
     created_at: datetime
     updated_at: datetime
+    purchase_card_enabled: bool = True
+    owners_label: str | None = None
+    bitrix_deal_id: str | None = None
+    amount_label: str | None = None
+    stage_label: str | None = None
+    participants: list["CrmAgreementParticipantSummary"] = Field(default_factory=list)
+
+
+class CrmAgreementParticipantSummary(BaseModel):
+    contact_id: UUID
+    display_name: str
+    role: str = "owner"
+    ownership_pct: str | None = None
+    is_primary: bool = False
+    source: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    address: str | None = None
+    company: str | None = None
+    position: str | None = None
+    responsible: str | None = None
+
+
+class CrmPurchaseDocument(BaseModel):
+    id: UUID
+    title: str
+    original_file_name: str | None = None
+    bitrix_file_id: str | None = None
+    bitrix_entity_type: str | None = None
+    bitrix_entity_id: str | None = None
+    document_type: str | None = None
+    mime_type: str | None = None
+    source: str | None = None
+    created_at: datetime | None = None
+
+
+class CrmLabeledValue(BaseModel):
+    label: str
+    value: str
+
+
+class CrmRelatedPurchase(BaseModel):
+    agreement_id: UUID
+    project_label: str
+    unit_number: str | None = None
+    amount_label: str | None = None
+    owners_label: str | None = None
+    is_current: bool = False
+
+
+class CrmPurchaseCard(BaseModel):
+    agreement_id: UUID
+    bitrix_deal_id: str | None = None
+    project_group: str
+    project_label: str
+    unit_number: str | None = None
+    amount: str | None = None
+    currency: str | None = None
+    amount_label: str | None = None
+    stage: str | None = None
+    begin_date: str | None = None
+    close_date: str | None = None
+    status: CrmAgreementStatus
+    primary_contact_id: UUID
+    owners_label: str | None = None
+    participants: list[CrmAgreementParticipantSummary] = Field(default_factory=list)
+    payment: dict[str, Any] = Field(default_factory=dict)
+    history: list[Any] = Field(default_factory=list)
+    history_count: int = 0
+    documents: list[CrmPurchaseDocument] = Field(default_factory=list)
+    document_count: int = 0
+    responsible_name: str | None = None
+    comments: str | None = None
+    agreement_date: date | None = None
+    related_purchases: list[CrmRelatedPurchase] = Field(default_factory=list)
+    primary_contact_name: str | None = None
+    llc_name: str | None = None
+    payment_fields: list[CrmLabeledValue] = Field(default_factory=list)
+    llc_fields: list[CrmLabeledValue] = Field(default_factory=list)
+    extra_fields: list[CrmLabeledValue] = Field(default_factory=list)
 
 
 class CrmAgreementListResponse(BaseModel):

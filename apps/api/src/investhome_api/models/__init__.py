@@ -63,6 +63,7 @@ from investhome_api.models.crm_contact import (  # noqa: F401
 )
 from investhome_api.models.crm_agreement import (  # noqa: F401
     CrmAgreement,
+    CrmAgreementParticipant,
     CrmAgreementStatus,
 )
 
@@ -179,5 +180,6 @@ __all__ = [
     "CrmContactType",
     "CrmRecordKind",
     "CrmAgreement",
+    "CrmAgreementParticipant",
     "CrmAgreementStatus",
 ]

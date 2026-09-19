@@ -273,9 +273,13 @@ export type ContactTimelineEntry = {
   is_system_event: boolean;
   imported_historical_comment?: boolean;
   metadata?: Record<string, unknown> | null;
+  project_contexts?: string[];
+  project_assignment?: string | null;
 };
 
-export async function fetchContactTimeline(id: string): Promise<{ items: ContactTimelineEntry[] }> {
+export async function fetchContactTimeline(
+  id: string,
+): Promise<{ items: ContactTimelineEntry[] }> {
   return apiFetch(`/crm/contacts/${id}/timeline`);
 }
 

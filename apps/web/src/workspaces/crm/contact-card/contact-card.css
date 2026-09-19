@@ -35,10 +35,62 @@
   font-size: 1.35rem;
 }
 
-.crm-contact-card__hero p,
-.crm-contact-card__meta-line {
-  margin: 4px 0 0;
-  color: var(--text-secondary, #667085);
+.crm-contact-card__project-badge {
+  display: inline-block;
+  margin: 6px 0 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #12263a;
+  color: #fff;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.crm-contact-card__project-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.crm-contact-card__project-switch select {
+  min-height: 34px;
+  border: 1px solid var(--border-color, #dfe4ea);
+  border-radius: 8px;
+  padding: 0 10px;
+}
+
+.crm-contact-card__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.crm-contact-card__tabs button {
+  border: 1px solid var(--border-color, #dfe4ea);
+  background: #fff;
+  color: #12263a;
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.crm-contact-card__tabs button.is-active {
+  background: #12263a;
+  color: #fff;
+  border-color: #12263a;
+}
+
+.crm-contact-card__project-chip {
+  display: inline-block;
+  margin-left: 6px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  background: #12263a;
+  color: #fff;
 }
 
 .crm-contact-card__facts {
@@ -199,12 +251,24 @@
   border-bottom: 1px solid var(--border-color, #dfe4ea);
 }
 
-.crm-contact-card__wa-thread {
+.crm-contact-card__wa-thread,
+.crm-contact-card__wa-tab {
   overflow: auto;
   padding: 16px;
   display: grid;
   gap: 10px;
   background: #f4f7f8;
+}
+
+.crm-contact-card__wa-tab {
+  min-height: 240px;
+  border-radius: 12px;
+}
+
+.crm-contact-card__wa-empty {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
 }
 
 .crm-contact-card__wa-bubble {
@@ -239,4 +303,159 @@
   margin: 0 auto;
   background: #eef2f4;
   text-align: center;
+}
+
+.crm-purchase-list {
+  display: grid;
+  gap: 10px;
+}
+
+.crm-purchase-list__item {
+  border: 1px solid var(--border-color, #dfe4ea);
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.crm-purchase-list__item.is-active {
+  border-color: #12263a;
+  background: #12263a;
+  color: #fff;
+}
+
+.crm-purchase-list__active {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+
+.crm-purchase-card__crumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+  margin: 0 0 4px;
+}
+
+.crm-purchase-card__crumb button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #1a4d80;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.crm-purchase-card__wa-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.crm-purchase-list__item--stack {
+  display: grid;
+  gap: 4px;
+}
+
+.crm-purchase-list__item--stack strong {
+  font-size: 15px;
+}
+
+.crm-purchase-list__unit,
+.crm-purchase-list__amount,
+.crm-purchase-list__owners {
+  display: block;
+  font-size: 13px;
+}
+
+.crm-purchase-list__amount {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.crm-purchase-card__project {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+}
+
+.crm-purchase-card__unit {
+  margin: 4px 0 8px;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.crm-purchase-card__note {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.crm-purchase-card__related {
+  display: grid;
+  gap: 8px;
+}
+
+.crm-purchase-card__owner-profiles {
+  display: grid;
+  gap: 12px;
+}
+
+.crm-contact-card__facts--compact {
+  margin-top: 8px;
+}
+
+.crm-contact-card__doc-actions {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.crm-purchase-card__owners ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.crm-purchase-card__owners li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.crm-purchase-card__owners button {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.crm-agreement-owners {
+  display: grid;
+  gap: 4px;
+}
+
+.crm-agreement-owner-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  font-weight: 600;
+}
+
+.crm-agreement-owners + small,
+.crm-agreement-owners ~ small {
+  display: block;
+  color: var(--text-secondary, #667085);
 }

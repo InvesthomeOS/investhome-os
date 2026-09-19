@@ -77,6 +77,10 @@ LINK_ENTITY_TYPES = frozenset(
         "permit",
         "construction_milestone",
         "campaign",
+        "deal",
+        "crm_agreement",
+        "opportunity",
+        "property",
         "task",
         "capital_call",
     }
