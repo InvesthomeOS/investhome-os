@@ -469,7 +469,7 @@ def run_bitrix_pipeline(
     if not dry_run:
         if actor is None:
             raise BitrixCommitPermissionError("authorized actor required")
-        if not user_has_permission(actor, "crm", "import", db=db):
+        if not user_has_permission(actor, "crm", "import"):
             raise BitrixCommitPermissionError("crm.import permission required")
 
     before = _db_counts(db)

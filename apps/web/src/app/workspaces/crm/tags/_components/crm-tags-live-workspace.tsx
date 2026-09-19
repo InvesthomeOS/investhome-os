@@ -17,7 +17,7 @@ const CATEGORY_KEYS = ['lifecycle', 'interest', 'priority', 'source', 'custom'] 
 function mapColor(raw: string | null | undefined): TagColorKey {
   const value = (raw ?? '').trim().toLowerCase();
   if (COLOR_KEYS.includes(value as TagColorKey)) return value as TagColorKey;
-  const hexMatch = Object.entries(TAG_COLOR_HEX).find(([, hex]) => hex.toLowerCase() === value);
+  const hexMatch = Object.entries(TAG_COLOR_HEX).find(([, hex]) => String(hex).toLowerCase() === value);
   if (hexMatch) return hexMatch[0] as TagColorKey;
   return 'slate';
 }

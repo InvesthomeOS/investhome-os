@@ -1,7 +1,7 @@
 """CRM agreements table for historical Bitrix Anlaşmalar.
 
 Revision ID: 0070_crm_agreements
-Revises: 0069_creative_director_campaigns
+Revises: 0037_crm_search
 Create Date: 2026-09-03
 
 Additive only. CRM-owned agreements are distinct from Sales opportunities.
@@ -15,7 +15,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0070_crm_agreements"
-down_revision: str | None = "0069_creative_director_campaigns"
+down_revision: str | None = "0037_crm_search"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

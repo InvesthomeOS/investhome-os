@@ -74,6 +74,7 @@ export interface Document {
   project_id: string | null;
   investor_id: string | null;
   lead_id: string | null;
+  company_id?: string | null;
   transaction_id: string | null;
   description: string | null;
   tags: string | null;
@@ -263,6 +264,26 @@ export async function fetchDocumentVersions(id: string): Promise<{
   });
   if (!response.ok) throw new Error('Failed to load versions');
   return response.json() as Promise<{ current_version: number; items: DocumentVersion[] }>;
+}
+
+export async function linkDocument(
+  id: string,
+  entityType: string,
+  entityId: string,
+  relationshipType?: string,
+): Promise<DocumentLink> {
+  const response = await fetch(`${getApiBaseUrl()}/documents/${id}/links`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      entity_type: entityType,
+      entity_id: entityId,
+      relationship_type: relationshipType ?? null,
+    }),
+  });
+  if (!response.ok) throw new Error('Link failed');
+  return response.json() as Promise<DocumentLink>;
 }
 
 export function formatFileSize(bytes: number, locale: string): string {

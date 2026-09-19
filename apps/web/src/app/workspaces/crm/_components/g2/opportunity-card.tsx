@@ -28,8 +28,8 @@ function initialsFromName(name: string): string {
   const cleaned = name.replace(/^#\d+\s*/, '').trim();
   const parts = cleaned.split(/\s+/).filter(Boolean);
   if (!parts.length) return '?';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0] ?? ''}${parts[parts.length - 1]?.[0] ?? ''}`.toUpperCase();
+  if (parts.length === 1) return (parts[0] ?? '?').slice(0, 2).toUpperCase();
+  return `${parts[0]?.[0] ?? ''}${parts[parts.length - 1]?.[0] ?? ''}`.toUpperCase();
 }
 
 function avatarTone(name: string): string {

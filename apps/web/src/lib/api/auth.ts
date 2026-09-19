@@ -70,8 +70,17 @@ export async function changePassword(currentPassword: string, newPassword: strin
   });
 }
 
-export async function fetchUsers(): Promise<{ items: UserRecord[]; total: number }> {
-  return apiFetch('/users');
+export async function fetchUsers(params?: {
+  search?: string;
+  status?: string;
+  include_archived?: boolean;
+}): Promise<{ items: UserRecord[]; total: number }> {
+  const query = new URLSearchParams();
+  if (params?.search) query.set('search', params.search);
+  if (params?.status) query.set('status', params.status);
+  if (params?.include_archived) query.set('include_archived', 'true');
+  const suffix = query.toString() ? `?${query.toString()}` : '';
+  return apiFetch(`/users${suffix}`);
 }
 
 export async function fetchUser(userId: string): Promise<UserRecord> {

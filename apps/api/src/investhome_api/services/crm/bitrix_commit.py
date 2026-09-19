@@ -491,7 +491,7 @@ def commit_safe_bitrix_contacts(
     offset: int = 0,
 ) -> BitrixCommitResult:
     """Commit one safe contact batch in a rollback-safe transaction."""
-    if not user_has_permission(actor, "crm", "import", db=db):
+    if not user_has_permission(actor, "crm", "import"):
         raise BitrixCommitPermissionError("crm.import permission required")
     if limit < 1 or limit > 1_000:
         raise ValueError("limit must be between 1 and 1000")

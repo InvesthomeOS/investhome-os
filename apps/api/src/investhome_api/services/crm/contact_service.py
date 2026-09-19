@@ -14,7 +14,7 @@ from sqlalchemy import String, cast, func, not_, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from investhome_api.models.activity import ActivityEntityType
-from investhome_api.models.company import Company
+from investhome_api.models.crm_company import CrmCompany
 from investhome_api.models.crm_contact import (
     CrmContact,
     CrmContactBrokerProfile,
@@ -167,8 +167,10 @@ def _resolve_owner_name(db: Session, owner_user_id: UUID | None) -> str | None:
 def _resolve_company_name(db: Session, company_id: UUID | None) -> str | None:
     if company_id is None:
         return None
-    company = db.get(Company, company_id)
-    return company.company_name if company else None
+    company = db.get(CrmCompany, company_id)
+    if company is None:
+        return None
+    return company.display_name or company.legal_name or company.trade_name
 
 
 def _agreement_meta_text(agreement: CrmAgreement, keys: tuple[str, ...]) -> str | None:

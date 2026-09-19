@@ -431,7 +431,7 @@ def commit_safe_agreements(
     *,
     actor: User,
 ) -> BitrixAgreementCommitResult:
-    if not user_has_permission(actor, "crm", "import", db=db):
+    if not user_has_permission(actor, "crm", "import"):
         raise BitrixCommitPermissionError("crm.import permission required")
 
     before = _db_counts(db)

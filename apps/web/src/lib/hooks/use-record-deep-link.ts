@@ -1,23 +1,27 @@
 'use client';
 
 import { useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 
 export function useRecordDeepLink<T>(
   fetchById: (id: string) => Promise<T>,
   onOpen: (record: T) => void,
   paramName = 'id',
+  reactToSearchChanges = false,
 ) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const recordId = searchParams.get(paramName);
+  const recordDependency = reactToSearchChanges ? recordId : null;
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    const recordId = params.get(paramName);
-    if (!recordId) return;
+    const targetId = reactToSearchChanges
+      ? recordDependency
+      : new URLSearchParams(window.location.search).get(paramName);
+    if (!targetId) return;
 
     let cancelled = false;
-    void fetchById(recordId)
+    void fetchById(targetId)
       .then((record) => {
         if (!cancelled) onOpen(record);
       })
@@ -26,5 +30,5 @@ export function useRecordDeepLink<T>(
     return () => {
       cancelled = true;
     };
-  }, [pathname, paramName, fetchById, onOpen]);
+  }, [pathname, recordDependency, paramName, reactToSearchChanges, fetchById, onOpen]);
 }

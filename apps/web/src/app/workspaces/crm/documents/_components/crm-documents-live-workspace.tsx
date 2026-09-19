@@ -75,7 +75,7 @@ function relatedHits(doc: Document): RelatedHit[] {
     hits.push({ kind, id, label });
   };
 
-  push('company', doc.company_id, doc.related_record_label || 'company');
+  push('company', doc.company_id ?? null, doc.related_record_label || 'company');
   push('project', doc.project_id, doc.related_record_label || 'project');
 
   for (const link of doc.links ?? []) {

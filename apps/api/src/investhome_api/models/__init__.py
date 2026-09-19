@@ -66,6 +66,18 @@ from investhome_api.models.crm_agreement import (  # noqa: F401
     CrmAgreementParticipant,
     CrmAgreementStatus,
 )
+from investhome_api.models.crm_activity import (  # noqa: F401
+    CrmActivity,
+    CrmActivityEntityType,
+    CrmActivityType,
+)
+from investhome_api.models.crm_company import (  # noqa: F401
+    CrmCompany,
+    CrmCompanyContact,
+)
+from investhome_api.models.crm_relationship import (  # noqa: F401
+    CrmRelationship,
+)
 
 from investhome_api.models.lead import Lead, LeadStatus
 from investhome_api.models.project import (
@@ -182,4 +194,10 @@ __all__ = [
     "CrmAgreement",
     "CrmAgreementParticipant",
     "CrmAgreementStatus",
+    "CrmActivity",
+    "CrmActivityEntityType",
+    "CrmActivityType",
+    "CrmCompany",
+    "CrmCompanyContact",
+    "CrmRelationship",
 ]

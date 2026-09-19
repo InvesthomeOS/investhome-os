@@ -178,7 +178,6 @@ class CrmContact(Base):
     )
     company_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid,
-        ForeignKey("companies.id", ondelete="SET NULL"),
         nullable=True,
     )
     lead_id: Mapped[uuid.UUID | None] = mapped_column(
