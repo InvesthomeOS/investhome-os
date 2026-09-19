@@ -10,6 +10,7 @@ import { fetchAgreements } from '@/workspaces/crm/api/agreements';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 
 import '../../contacts/_components/ds/contacts-ds.css';
+import '@/workspaces/crm/contact-card/contact-card.css';
 
 const FALLBACK_GROUPS = [
   { id: '1307_k_st', label: '1307 K St' },
@@ -23,7 +24,7 @@ const FALLBACK_GROUPS = [
 
 export function AgreementsWorkspace() {
   const t = useTranslations('crm.agreements');
-  const { openContact } = useContactCard();
+  const { openContact, openPurchase } = useContactCard();
   const [projectGroup, setProjectGroup] = useState('');
 
   const query = useQuery({
@@ -32,7 +33,7 @@ export function AgreementsWorkspace() {
       fetchAgreements({
         project_group: projectGroup || undefined,
         page: 1,
-        page_size: 100,
+        page_size: 200,
       }),
   });
 
@@ -108,10 +109,29 @@ export function AgreementsWorkspace() {
                       <tr
                         key={row.id}
                         className="ctc-ds__row"
-                        onClick={() => openContact(row.contact_id)}
+                        onClick={() => openPurchase(row.id)}
                       >
                         <td>
-                          <strong>{row.contact_name ?? row.contact_id}</strong>
+                          <div className="crm-agreement-owners">
+                            {(row.participants && row.participants.length
+                              ? row.participants
+                              : [{ contact_id: row.contact_id, display_name: row.contact_name ?? row.contact_id, ownership_pct: null, is_primary: true }]
+                            ).map((owner) => (
+                              <button
+                                key={owner.contact_id}
+                                type="button"
+                                className="crm-agreement-owner-link"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  openContact(owner.contact_id);
+                                }}
+                              >
+                                {owner.display_name}
+                                {owner.ownership_pct ? ` ${String(owner.ownership_pct).replace(/\.00$/, '')}%` : ''}
+                              </button>
+                            ))}
+                          </div>
+                          {row.amount_label ? <small>{row.amount_label}</small> : null}
                         </td>
                         <td>{row.project_group_label}</td>
                         <td>
@@ -121,7 +141,7 @@ export function AgreementsWorkspace() {
                         <td>{row.contact_phone ?? ''}</td>
                         <td>
                           <StatusChip tone={row.status === 'active' ? 'success' : 'default'}>
-                            {row.review_required ? t('reviewRequired') : row.status}
+                            {row.review_required ? t('reviewRequired') : (row.stage_label || row.status)}
                           </StatusChip>
                         </td>
                         <td>{row.agreement_date ?? ''}</td>

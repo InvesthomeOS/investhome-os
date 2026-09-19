@@ -57,7 +57,10 @@ def test_get_contact_detail(client: TestClient) -> None:
     contact_id = created["contact"]["id"]
     response = client.get(f"/crm/contacts/{contact_id}")
     assert response.status_code == 200
-    assert response.json()["id"] == contact_id
+    body = response.json()
+    assert body["id"] == contact_id
+    assert "amount_and_currency_amount" in body
+    assert body["amount_and_currency_amount"] is None
 
 
 def test_update_contact(client: TestClient) -> None:

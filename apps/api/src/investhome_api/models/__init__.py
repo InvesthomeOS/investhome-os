@@ -126,6 +126,7 @@ from investhome_api.models.crm_activity import (  # noqa: F401
 )
 from investhome_api.models.crm_agreement import (  # noqa: F401
     CrmAgreement,
+    CrmAgreementParticipant,
     CrmAgreementStatus,
 )
 from investhome_api.models.lead import Lead, LeadStatus

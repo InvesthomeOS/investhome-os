@@ -41,7 +41,7 @@ from investhome_api.models.crm_activity import (
     CrmActivityType,
     CrmActivityVisibility,
 )
-from investhome_api.models.crm_agreement import CrmAgreement
+from investhome_api.models.crm_agreement import CrmAgreement, CrmAgreementParticipant
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.crm_contacts import (
     CrmBitrixHistory,
@@ -67,15 +67,22 @@ from investhome_api.schemas.crm_contacts import (
     CrmDuplicateMatch,
     CrmInvestmentProfileSchema,
     CrmJunkReasonCount,
+    CrmLabeledValue,
     CrmVendorProfileSchema,
 )
 from investhome_api.services.crm.bitrix_project_aliases import (
     BITRIX_PROJECT_GROUP_LABELS,
     BitrixProjectGroup,
 )
+from investhome_api.services.crm.nedim_purchase_card import (
+    is_nedim_pilot_contact,
+    is_person_owned_activity,
+    resolve_nedim_contact_id,
+)
 from investhome_api.services.crm.identity import (
     displayable_phone,
     displayable_phones,
+    is_agent_advisor_name,
     normalize_email as identity_normalize_email,
     normalize_full_name,
     normalize_phone as identity_normalize_phone,
@@ -140,6 +147,14 @@ def _contact_types(contact: CrmContact) -> list[CrmContactType]:
     return [contact.contact_type]
 
 
+def is_agent_advisor_contact(contact: CrmContact) -> bool:
+    if is_agent_advisor_name(contact.display_name):
+        return True
+    types = set(_contact_types(contact))
+    types.add(contact.contact_type)
+    return bool(types & {CrmContactType.BROKER, CrmContactType.REALTOR}) and CrmContactType.BUYER not in types
+
+
 def _resolve_owner_name(db: Session, owner_user_id: UUID | None) -> str | None:
     if owner_user_id is None:
         return None
@@ -167,6 +182,50 @@ def _agreement_meta_text(agreement: CrmAgreement, keys: tuple[str, ...]) -> str 
             continue
         return str(value).strip()
     return None
+
+
+def _contact_amount_and_currency(
+    contact: CrmContact,
+    agreements: list[CrmAgreement],
+    *,
+    project_context: str | None = None,
+) -> tuple[str | None, str | None, str | None, str | None]:
+    live = (contact.metadata_json or {}).get("bitrix_live") if isinstance(contact.metadata_json, dict) else None
+    items = live.get("tutar_ve_para_birimi") if isinstance(live, dict) else None
+    if is_nedim_pilot_contact(contact.id) or any(True for _ in agreements):
+        return None, None, None, None
+    amounts: list[str] = []
+    currencies: list[str] = []
+    if isinstance(items, list):
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            amount = str(item.get("amount") or "").strip()
+            if not amount:
+                continue
+            amounts.append(amount)
+            currency = str(item.get("currency") or "").strip()
+            if currency and currency not in currencies:
+                currencies.append(currency)
+        if amounts:
+            return (
+                "Tutar ve para birimi",
+                "OPPORTUNITY+CURRENCY_ID",
+                " | ".join(amounts),
+                " | ".join(currencies) or None,
+            )
+    for agreement in agreements:
+        amount = _agreement_meta_text(agreement, ("tutar_ve_para_birimi_amount", "amount_and_currency_amount"))
+        if not amount:
+            continue
+        return (
+            _agreement_meta_text(agreement, ("tutar_ve_para_birimi_label", "amount_and_currency_label"))
+            or "Tutar ve para birimi",
+            _agreement_meta_text(agreement, ("tutar_ve_para_birimi_field_id", "amount_and_currency_field_id")),
+            amount,
+            _agreement_meta_text(agreement, ("tutar_ve_para_birimi_currency", "amount_and_currency_currency")),
+        )
+    return None, None, None, None
 
 
 def compute_relationship_scores(contact: CrmContact) -> tuple[int, int]:
@@ -269,6 +328,7 @@ def serialize_contact_summary(
     source_channel = None
     bitrix_responsible = None
     bitrix = (contact.metadata_json or {}).get("bitrix_import")
+    live = (contact.metadata_json or {}).get("bitrix_live") if isinstance(contact.metadata_json, dict) else None
     if isinstance(bitrix, dict):
         raw_stage = bitrix.get("original_asama")
         original_asama = str(raw_stage) if raw_stage else None
@@ -283,16 +343,36 @@ def serialize_contact_summary(
         roles = [str(value) for value in bitrix.get("source_roles", []) if value]
         if not original_asama and "junk" in roles:
             original_asama = "Junk Lead"
+    if isinstance(live, dict):
+        if live.get("assigned_name"):
+            bitrix_responsible = str(live.get("assigned_name"))
+        if live.get("source_name"):
+            source_channel = str(live.get("source_name"))
     contact_types = _contact_types(contact)
     is_agent = bool({CrmContactType.BROKER, CrmContactType.REALTOR}.intersection(contact_types))
     projects = agreement_projects
-    if projects is None:
-        projects = [
+    if is_agent_advisor_contact(contact):
+        projects = []
+    elif projects is None:
+        owned = [
             row.project_group
-            for row in db.scalars(
-                select(CrmAgreement).where(CrmAgreement.contact_id == contact.id)
-            ).all()
+            for row in db.scalars(select(CrmAgreement).where(CrmAgreement.contact_id == contact.id)).all()
         ]
+        part_ids = list(
+            db.scalars(
+                select(CrmAgreementParticipant.agreement_id).where(CrmAgreementParticipant.contact_id == contact.id)
+            ).all()
+        )
+        extra: list[str] = []
+        if part_ids:
+            extra = [
+                row.project_group
+                for row in db.scalars(select(CrmAgreement).where(CrmAgreement.id.in_(part_ids))).all()
+            ]
+        projects = []
+        for item in owned + extra:
+            if item not in projects:
+                projects.append(item)
     return CrmContactSummary(
         id=contact.id,
         contact_type=contact.contact_type,
@@ -340,11 +420,26 @@ def serialize_contact_summary(
     )
 
 
+def _profile_fields(contact: CrmContact) -> list[CrmLabeledValue]:
+    meta = contact.metadata_json if isinstance(contact.metadata_json, dict) else {}
+    live = meta.get("bitrix_live") if isinstance(meta.get("bitrix_live"), dict) else {}
+    items: list[CrmLabeledValue] = []
+    for row in live.get("profile_fields") or []:
+        if not isinstance(row, dict):
+            continue
+        label = str(row.get("label") or "").strip()
+        value = str(row.get("value") or "").strip()
+        if label and value:
+            items.append(CrmLabeledValue(label=label, value=value))
+    return items
+
+
 def serialize_contact_detail(
     db: Session,
     contact: CrmContact,
     *,
     user: User | None = None,
+    project_context: str | None = None,
 ) -> CrmContactDetail:
     summary = serialize_contact_summary(db, contact)
     can_view_financial = user is None or user_has_permission(user, "crm", "view_financial")
@@ -397,6 +492,9 @@ def serialize_contact_detail(
     is_agent = bool(
         {CrmContactType.BROKER, CrmContactType.REALTOR}.intersection(contact_types)
     )
+    tutar_label, tutar_field, tutar_amount, tutar_currency = _contact_amount_and_currency(
+        contact, agreements, project_context=None
+    )
 
     detail = CrmContactDetail(
         **summary.model_dump(),
@@ -430,6 +528,10 @@ def serialize_contact_detail(
             CrmVendorProfileSchema.model_validate(contact.vendor_profile) if contact.vendor_profile else None
         ),
         bitrix_history=bitrix_history,
+        amount_and_currency_label=tutar_label,
+        amount_and_currency_field_id=tutar_field,
+        amount_and_currency_amount=tutar_amount,
+        amount_and_currency_currency=tutar_currency,
         crm_activities=[
             CrmContactActivityVerification(
                 id=activity.id,
@@ -489,6 +591,19 @@ def serialize_contact_detail(
                 purchase_price=_agreement_meta_text(
                     agreement, ("purchase_price", "agreement_price", "fiyat", "satis fiyati")
                 ),
+                amount_and_currency_label=_agreement_meta_text(
+                    agreement, ("tutar_ve_para_birimi_label", "amount_and_currency_label")
+                )
+                or "Tutar ve para birimi",
+                amount_and_currency_field_id=_agreement_meta_text(
+                    agreement, ("tutar_ve_para_birimi_field_id", "amount_and_currency_field_id")
+                ),
+                amount_and_currency_amount=_agreement_meta_text(
+                    agreement, ("tutar_ve_para_birimi_amount", "amount_and_currency_amount")
+                ),
+                amount_and_currency_currency=_agreement_meta_text(
+                    agreement, ("tutar_ve_para_birimi_currency", "amount_and_currency_currency")
+                ),
                 review_required=bool(agreement.review_required),
                 relationship="Anlaşma tarafı",
             )
@@ -505,12 +620,21 @@ def serialize_contact_detail(
             if is_agent
             else None
         ),
+        project_card_pilot=None,
+        purchases=_contact_purchases(db, contact),
+        profile_fields=_profile_fields(contact),
     )
     return _strip_sensitive_fields(
         detail,
         can_view_financial=can_view_financial,
         can_view_compliance=can_view_compliance,
     )
+
+
+def _contact_purchases(db: Session, contact: CrmContact):
+    from investhome_api.services.crm.agreement_service import list_contact_purchases
+
+    return list_contact_purchases(db, contact.id)
 
 
 def _load_contact_query():
@@ -868,17 +992,28 @@ def list_crm_contacts(
         CrmContact.id.in_(agent_ids),
     )
     agreement_ids = select(CrmAgreement.contact_id)
+    participant_ids = select(CrmAgreementParticipant.contact_id)
     if agreement_project:
         agreement_ids = select(CrmAgreement.contact_id).where(
             CrmAgreement.project_group == agreement_project
         )
-        query = query.where(CrmContact.id.in_(agreement_ids))
+        participant_ids = (
+            select(CrmAgreementParticipant.contact_id)
+            .join(CrmAgreement, CrmAgreement.id == CrmAgreementParticipant.agreement_id)
+            .where(CrmAgreement.project_group == agreement_project)
+        )
+        query = query.where(or_(CrmContact.id.in_(agreement_ids), CrmContact.id.in_(participant_ids)))
     if role_group == "agent" or category == "agent":
         query = query.where(agent_condition)
     elif role_group == "other":
         query = query.where(not_(agent_condition))
     if category == "agreement":
-        query = query.where(CrmContact.id.in_(select(CrmAgreement.contact_id)))
+        query = query.where(
+            or_(
+                CrmContact.id.in_(select(CrmAgreement.contact_id)),
+                CrmContact.id.in_(select(CrmAgreementParticipant.contact_id)),
+            )
+        )
     elif category == "customer":
         query = query.where(not_(agent_condition))
 
@@ -894,11 +1029,18 @@ def list_crm_contacts(
     rows = db.scalars(query.order_by(order).offset(offset).limit(page_size)).all()
     project_map: dict[UUID, list[str]] = defaultdict(list)
     if rows:
-        for agreement in db.scalars(
-            select(CrmAgreement).where(CrmAgreement.contact_id.in_([row.id for row in rows]))
-        ).all():
+        row_ids = [row.id for row in rows]
+        for agreement in db.scalars(select(CrmAgreement).where(CrmAgreement.contact_id.in_(row_ids))).all():
             if agreement.project_group not in project_map[agreement.contact_id]:
                 project_map[agreement.contact_id].append(agreement.project_group)
+        participant_rows = db.execute(
+            select(CrmAgreementParticipant.contact_id, CrmAgreement.project_group)
+            .join(CrmAgreement, CrmAgreement.id == CrmAgreementParticipant.agreement_id)
+            .where(CrmAgreementParticipant.contact_id.in_(row_ids))
+        ).all()
+        for contact_id, project_group in participant_rows:
+            if project_group not in project_map[contact_id]:
+                project_map[contact_id].append(project_group)
     return [
         serialize_contact_summary(db, row, agreement_projects=project_map.get(row.id, []))
         for row in rows
@@ -1441,6 +1583,12 @@ def export_bitrix_verification_csv(db: Session) -> str:
         agreement_groups.setdefault(agreement.contact_id, set()).add(
             agreement.project_group
         )
+    for contact_id, project_group in db.execute(
+        select(CrmAgreementParticipant.contact_id, CrmAgreement.project_group)
+        .join(CrmAgreement, CrmAgreement.id == CrmAgreementParticipant.agreement_id)
+        .where(CrmAgreementParticipant.contact_id.in_(contact_ids))
+    ).all():
+        agreement_groups.setdefault(contact_id, set()).add(project_group)
 
     buffer = io.StringIO()
     writer = csv.writer(buffer)
@@ -1494,9 +1642,11 @@ def get_contact_timeline(
     user: User,
     *,
     limit: int = 2000,
+    project_context: str | None = None,
 ) -> list[CrmContactTimelineEntry]:
     from investhome_api.services.activity_service import list_entity_activity
 
+    contact_id = resolve_nedim_contact_id(contact_id)
     entries: list[CrmContactTimelineEntry] = []
     activities = list(
         db.scalars(
@@ -1512,6 +1662,8 @@ def get_contact_timeline(
     )
     for activity in activities:
         metadata = activity.metadata_json if isinstance(activity.metadata_json, dict) else None
+        if metadata and not is_person_owned_activity(metadata):
+            continue
         imported = isinstance((metadata or {}).get("bitrix_historical_comment"), dict)
         history = (metadata or {}).get("bitrix_history") if isinstance(metadata, dict) else None
         author_name = None
@@ -1552,6 +1704,7 @@ def get_contact_timeline(
             )
         )
 
+    contact_id = resolve_nedim_contact_id(contact_id)
     contact = get_contact_or_none(db, contact_id)
     if contact is not None:
         for agreement in db.scalars(
@@ -1634,7 +1787,15 @@ def get_contact_timeline(
         )
 
     entries.sort(key=lambda item: item.created_at, reverse=True)
-    return entries[:limit]
+    person_entries: list[CrmContactTimelineEntry] = []
+    for entry in entries:
+        if entry.source == "crm_agreement":
+            continue
+        metadata = entry.metadata if isinstance(entry.metadata, dict) else None
+        if entry.source == "crm_activity" and not is_person_owned_activity(metadata):
+            continue
+        person_entries.append(entry)
+    return person_entries[:limit]
 
 
 def list_junk_reasons(db: Session) -> list[CrmJunkReasonCount]:

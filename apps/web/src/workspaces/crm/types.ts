@@ -89,6 +89,33 @@ export type CrmContactSummary = {
   created_at: string;
 };
 
+export type CrmPurchaseParticipant = {
+  contact_id: string;
+  display_name: string;
+  role: string;
+  ownership_pct: string | null;
+  is_primary: boolean;
+  source: string | null;
+};
+
+export type CrmPurchaseSummary = {
+  agreement_id: string;
+  bitrix_deal_id: string | null;
+  project_group: string;
+  project_label: string;
+  unit_number: string | null;
+  amount: string | null;
+  currency: string | null;
+  amount_label: string | null;
+  stage: string | null;
+  begin_date: string | null;
+  close_date: string | null;
+  owners_label: string | null;
+  participants: CrmPurchaseParticipant[];
+  opens_purchase_card: boolean;
+  status?: string | null;
+};
+
 export type CrmContactDetail = CrmContactSummary & {
   first_name: string | null;
   last_name: string | null;
@@ -125,6 +152,21 @@ export type CrmContactDetail = CrmContactSummary & {
     junk_reason?: string | null;
     review_required?: boolean;
   } | null;
+  amount_and_currency_label?: string | null;
+  amount_and_currency_field_id?: string | null;
+  amount_and_currency_amount?: string | null;
+  amount_and_currency_currency?: string | null;
+  project_card_pilot?: {
+    enabled: boolean;
+    canonical_contact_id: string | null;
+    selected_project: string;
+    available_projects: Array<{ id: string; label: string }>;
+    history_counts: Record<string, number>;
+    unclassified_history_count: number;
+    tutar_by_project: Record<string, string>;
+  } | null;
+  purchases?: CrmPurchaseSummary[];
+  profile_fields?: Array<{ label: string; value: string }>;
   crm_activities: Array<{
     id: string;
     activity_type: string;
@@ -149,6 +191,10 @@ export type CrmContactDetail = CrmContactSummary & {
     payment_amount?: string | null;
     deposit?: string | null;
     purchase_price?: string | null;
+    amount_and_currency_label?: string | null;
+    amount_and_currency_field_id?: string | null;
+    amount_and_currency_amount?: string | null;
+    amount_and_currency_currency?: string | null;
     email?: string | null;
     phone?: string | null;
     review_required?: boolean;

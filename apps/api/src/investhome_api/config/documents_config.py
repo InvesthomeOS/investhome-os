@@ -136,6 +136,7 @@ LINK_ENTITY_TYPES = frozenset(
         "marketing_campaign",
         "marketing_asset",
         "deal",
+        "crm_agreement",
         "opportunity",
         "property",
         "task",

@@ -1,0 +1,78 @@
+.crm-sales-page {
+  display: grid;
+  gap: 16px;
+  padding-bottom: 32px;
+}
+
+.crm-sales-page__crumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.crm-sales-page__crumb a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.crm-sales-page__hero {
+  margin: 0;
+}
+
+.crm-sales-page__owners-line {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.crm-sales-page__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.crm-sales-page__col {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.crm-sales-page__timeline {
+  display: grid;
+  gap: 10px;
+}
+
+.crm-sales-page__timeline-col {
+  position: sticky;
+  top: 16px;
+}
+
+.crm-sales-page__doc-groups {
+  display: grid;
+  gap: 16px;
+}
+
+.crm-sales-page__doc-groups h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.crm-sales-page__doc-groups h3 span {
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+@media (max-width: 1100px) {
+  .crm-sales-page__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .crm-sales-page__timeline-col {
+    position: static;
+  }
+}

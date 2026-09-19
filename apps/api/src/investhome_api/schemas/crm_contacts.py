@@ -19,6 +19,11 @@ from investhome_api.models.crm_contact import (
 )
 
 
+class CrmLabeledValue(BaseModel):
+    label: str
+    value: str
+
+
 class CrmInvestmentProfileSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -141,9 +146,16 @@ class CrmContactDetail(CrmContactSummary):
     broker_profile: CrmBrokerProfileSchema | None = None
     vendor_profile: CrmVendorProfileSchema | None = None
     bitrix_history: CrmBitrixHistory | None = None
+    amount_and_currency_label: str | None = None
+    amount_and_currency_field_id: str | None = None
+    amount_and_currency_amount: str | None = None
+    amount_and_currency_currency: str | None = None
     crm_activities: list[CrmContactActivityVerification] = Field(default_factory=list)
     crm_agreements: list[CrmContactAgreementVerification] = Field(default_factory=list)
     agent: CrmContactAgentVerification | None = None
+    project_card_pilot: "CrmProjectCardPilot | None" = None
+    purchases: list["CrmPurchaseSummary"] = Field(default_factory=list)
+    profile_fields: list[CrmLabeledValue] = Field(default_factory=list)
 
 
 class CrmBitrixHistory(BaseModel):
@@ -157,6 +169,48 @@ class CrmBitrixHistory(BaseModel):
     warning_flags: list[str] = Field(default_factory=list)
     junk_reason: str | None = None
     review_required: bool = False
+
+
+class CrmProjectCardPilotProject(BaseModel):
+    id: str
+    label: str
+
+
+class CrmProjectCardPilot(BaseModel):
+    enabled: bool = False
+    canonical_contact_id: UUID | None = None
+    selected_project: str = "all"
+    available_projects: list[CrmProjectCardPilotProject] = Field(default_factory=list)
+    history_counts: dict[str, int] = Field(default_factory=dict)
+    unclassified_history_count: int = 0
+    tutar_by_project: dict[str, str] = Field(default_factory=dict)
+
+
+class CrmPurchaseParticipant(BaseModel):
+    contact_id: UUID
+    display_name: str
+    role: str = "owner"
+    ownership_pct: str | None = None
+    is_primary: bool = False
+    source: str | None = None
+
+
+class CrmPurchaseSummary(BaseModel):
+    agreement_id: UUID
+    bitrix_deal_id: str | None = None
+    project_group: str
+    project_label: str
+    unit_number: str | None = None
+    amount: str | None = None
+    currency: str | None = None
+    amount_label: str | None = None
+    stage: str | None = None
+    begin_date: str | None = None
+    close_date: str | None = None
+    owners_label: str | None = None
+    participants: list[CrmPurchaseParticipant] = Field(default_factory=list)
+    opens_purchase_card: bool = False
+    status: str | None = None
 
 
 class CrmContactActivityVerification(BaseModel):
@@ -184,6 +238,10 @@ class CrmContactAgreementVerification(BaseModel):
     payment_amount: str | None = None
     deposit: str | None = None
     purchase_price: str | None = None
+    amount_and_currency_label: str | None = None
+    amount_and_currency_field_id: str | None = None
+    amount_and_currency_amount: str | None = None
+    amount_and_currency_currency: str | None = None
     email: str | None = None
     phone: str | None = None
     review_required: bool = False
@@ -451,6 +509,8 @@ class CrmContactTimelineEntry(BaseModel):
     action: str | None = None
     description_key: str | None = None
     metadata: dict[str, Any] | None = None
+    project_contexts: list[str] = Field(default_factory=list)
+    project_assignment: str | None = None
 
 
 class CrmJunkReasonCount(BaseModel):

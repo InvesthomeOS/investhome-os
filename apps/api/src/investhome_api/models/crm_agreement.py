@@ -9,6 +9,8 @@ import enum
 import uuid
 from datetime import date, datetime
 
+from decimal import Decimal
+
 from sqlalchemy import (
     Boolean,
     Date,
@@ -17,6 +19,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     JSON,
+    Numeric,
     String,
     UniqueConstraint,
     Uuid,
@@ -68,6 +71,43 @@ class CrmAgreement(Base):
     unit_number: Mapped[str | None] = mapped_column(String(80), nullable=True)
     investment_amount: Mapped[str | None] = mapped_column(String(80), nullable=True)
     review_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    metadata_json: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class CrmAgreementParticipant(Base):
+    __tablename__ = "crm_agreement_participants"
+    __table_args__ = (
+        UniqueConstraint("agreement_id", "contact_id", name="uq_crm_agreement_participants_agreement_contact"),
+        Index("ix_crm_agreement_participants_agreement_id", "agreement_id"),
+        Index("ix_crm_agreement_participants_contact_id", "contact_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    agreement_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("crm_agreements.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    contact_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("crm_contacts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    role: Mapped[str] = mapped_column(String(40), nullable=False, default="owner")
+    ownership_pct: Mapped[Decimal | None] = mapped_column(Numeric(7, 2), nullable=True)
+    is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    source: Mapped[str] = mapped_column(String(80), nullable=False, default="bitrix_live")
     metadata_json: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -77,6 +77,12 @@ automations/n8n/.n8n/
 data/migration-sources/**
 !data/migration-sources/.gitkeep
 
+# Bitrix CRM import extracts (real customer PII) — never commit
+data/bitrix-import/**
+!data/bitrix-import/.gitkeep
+data/Bitrix_Export/**
+!data/Bitrix_Export/.gitkeep
+
 # Mosaic Lite evaluation clone (temporary � not production)
 .tmp-mosaic/
 
