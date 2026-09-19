@@ -578,25 +578,31 @@ def test_safe_commit_is_idempotent_and_excludes_unsafe_rows(db: Session) -> None
     )
 
     first = commit_safe_bitrix_contacts(db, bundle, actor=_actor(), limit=100)
-    assert first.attempted == 1
-    assert first.created == 1
+    assert first.attempted == 3
+    assert first.created == 3
     assert first.updated == first.skipped == first.failed == 0
-    assert first.review_excluded == 1
-    assert first.quarantine_excluded == 1
+    assert first.review_excluded == 0
+    assert first.quarantine_excluded == 0
 
-    contact = db.query(CrmContact).one()
+    contacts = {contact.display_name: contact for contact in db.query(CrmContact).all()}
+    assert set(contacts) == {"Safe Active", "Suspicious", "Quarantine"}
+    contact = contacts["Safe Active"]
     assert contact.status.value == "active"
     assert contact.source == "Bitrix"
     metadata = (contact.metadata_json or {})["bitrix_import"]
     assert len(metadata["external_ids"]) == 2
     assert metadata["historical_junk"] is True
     assert set(metadata["source_roles"]) == {"active_customers", "junk"}
+    assert contacts["Quarantine"].status.value == "archived"
+    assert contacts["Suspicious"].status.value == "archived"
+    assert contacts["Quarantine"].review_required is True
+    assert contacts["Quarantine"].primary_phone is None
+    assert "BILGI_EKSIK" in (contacts["Quarantine"].notes or "")
 
     second = commit_safe_bitrix_contacts(db, bundle, actor=_actor(), limit=100)
-    assert second.batch_identifier == first.batch_identifier
     assert second.created == second.updated == second.failed == 0
-    assert second.skipped == 1
-    assert db.query(CrmContact).count() == 1
+    assert second.skipped == 3
+    assert db.query(CrmContact).count() == 3
 
 
 def test_safe_commit_never_merges_by_name(db: Session) -> None:
@@ -622,6 +628,60 @@ def test_safe_commit_never_merges_by_name(db: Session) -> None:
         in ((contact.metadata_json or {})["bitrix_import"]["warning_flags"])
         for contact in db.query(CrmContact).all()
     )
+
+
+def test_name_only_source_person_is_created_and_visible(db: Session) -> None:
+    bundle = BitrixBundle(
+        rows=[
+            _row(
+                bitrix_id="N1",
+                full_name="Name Only Person",
+                phone=None,
+                email=None,
+                source_file="Aktif Müşteriler.xls",
+                role="active_customers",
+            )
+        ]
+    )
+    result = commit_safe_bitrix_contacts(db, bundle, actor=_actor(), limit=100)
+    assert result.quarantine_excluded == 0
+    assert result.created == 1
+    contact = db.query(CrmContact).one()
+    assert contact.display_name == "Name Only Person"
+    assert contact.primary_phone is None
+    assert contact.primary_email is None
+    assert contact.archived_at is None
+    assert contact.status.value == "active"
+    assert contact.review_required is True
+    assert "BILGI_EKSIK" in (contact.notes or "")
+
+
+def test_no_phone_is_not_a_skip_reason_and_later_os_edit_is_kept(db: Session) -> None:
+    bundle = BitrixBundle(
+        rows=[
+            _row(
+                bitrix_id="J1",
+                full_name="Junk Name Only",
+                phone=None,
+                email=None,
+                source_file="Junklar.xls",
+                role="junk",
+            )
+        ]
+    )
+    commit_safe_bitrix_contacts(db, bundle, actor=_actor(), limit=100)
+    contact = db.query(CrmContact).one()
+    contact.primary_phone = "+905321009999"
+    contact.notes = "manual later edit"
+    db.flush()
+
+    second = commit_safe_bitrix_contacts(db, bundle, actor=_actor(), limit=100)
+    db.refresh(contact)
+    assert second.quarantine_excluded == 0
+    assert second.created == 0
+    assert contact.primary_phone == "+905321009999"
+    assert contact.notes == "manual later edit"
+    assert db.query(CrmContact).count() == 1
 
 
 def test_safe_commit_rolls_back_whole_batch(db: Session, monkeypatch) -> None:
@@ -918,7 +978,8 @@ def test_safe_agent_enrichment_is_idempotent_and_preserves_primary_type(db: Sess
         ]
     )
     commit_safe_bitrix_contacts(db, source, actor=_actor(), limit=100)
-    contact = db.query(CrmContact).one()
+    assert db.query(CrmContact).count() == 2
+    contact = db.query(CrmContact).filter(CrmContact.primary_phone.is_not(None)).one()
     original_phone = contact.primary_phone
 
     first = commit_safe_agent_roles(db, source, actor=_actor())
@@ -929,7 +990,7 @@ def test_safe_agent_enrichment_is_idempotent_and_preserves_primary_type(db: Sess
     assert first.broker_profiles_reused == 0
     assert first.agent_statuses_active == 1
     assert first.duplicate_source_rows == 1
-    assert first.quarantine_excluded == 1
+    assert first.quarantine_excluded == 0
     assert first.contacts_created_accidentally == 0
     assert contact.contact_type.value == "prospect"
     assert {assignment.contact_type.value for assignment in contact.type_assignments} == {
@@ -946,7 +1007,7 @@ def test_safe_agent_enrichment_is_idempotent_and_preserves_primary_type(db: Sess
     assert second.broker_profiles_reused == 1
     assert second.skipped == 1
     assert second.duplicate_agent_rows == 0
-    assert db.query(CrmContact).count() == 1
+    assert db.query(CrmContact).count() == 2
 
 
 def test_safe_agent_enrichment_stops_before_write_if_contact_missing(db: Session) -> None:
@@ -1030,7 +1091,7 @@ def test_safe_agreement_commit_is_idempotent_and_reuses_one_contact(db: Session)
         ]
     )
     commit_safe_bitrix_contacts(db, source, actor=_actor(), limit=100)
-    assert db.query(CrmContact).count() == 1
+    assert db.query(CrmContact).count() == 2
 
     first = commit_safe_agreements(db, source, actor=_actor())
     assert first.attempted == first.contact_matches == 2
