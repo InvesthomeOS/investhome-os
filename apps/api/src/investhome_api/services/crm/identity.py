@@ -2,6 +2,10 @@
 
 Phone normalization never assumes +1 for bare national numbers.
 Turkish mobiles (05xx / 5xx / +90) and explicit US (+1 / 11-digit NANP) are supported.
+
+ZERO-MISSING RULE: a person who exists in an authoritative source must exist
+visibly in OS. Missing phone/email/address is never a reason to exclude them.
+Name-only matching is review, never a silent merge.
 """
 
 from __future__ import annotations
@@ -11,6 +15,11 @@ import unicodedata
 from dataclasses import dataclass
 from enum import StrEnum
 from uuid import UUID
+
+ZERO_MISSING_NOTE = (
+    "BILGI_EKSIK: Source person kept visible with blank profile fields. "
+    "Missing phone/email/address is not a reason to exclude."
+)
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _NON_DIGIT = re.compile(r"\D")

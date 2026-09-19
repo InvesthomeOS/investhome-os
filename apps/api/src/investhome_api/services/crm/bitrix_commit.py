@@ -1,9 +1,9 @@
-"""Transactional, safe-only Bitrix contact commit engine.
+"""Transactional Bitrix contact commit engine.
 
-Only deterministic contact identities are writable here. Agent and agreement
-rows may contribute a plain canonical contact, but this engine never writes
-agent roles/profiles, agreements, comments, name-only rows, suspicious phones,
-or no-identity rows.
+Phone/email matches stay deterministic. Name-only source people are still
+created or kept visible (BILGI_EKSIK). Missing profile fields are never a
+reason to exclude a person. This engine does not write agent profiles,
+agreements, or comments.
 """
 
 from __future__ import annotations
@@ -32,6 +32,7 @@ from investhome_api.services.crm.bitrix_import import (
     BitrixSourceRow,
 )
 from investhome_api.services.crm.identity import (
+    ZERO_MISSING_NOTE,
     IdentityIndex,
     IdentityMatchKind,
     IdentityRecord,
@@ -67,6 +68,7 @@ class SafeContactPlan:
     source_roles: set[str] = field(default_factory=set)
     conflicts: list[dict[str, Any]] = field(default_factory=list)
     warning_flags: set[str] = field(default_factory=set)
+    review_required: bool = False
     _selected_name_role: str = "junk"
 
     def apply(self, row: BitrixSourceRow, *, phone: str | None, email: str | None) -> None:
@@ -272,11 +274,68 @@ def build_safe_contact_plans(db: Session, bundle: BitrixBundle) -> SafeContactPl
         phone = _safe_phone(row.phone)
         email = normalize_valid_email(row.email)
         if not phone and not email:
+            display_name = (row.full_name or "").strip()
+            if not display_name:
+                quarantine_excluded += 1
+                continue
             if parsed_phone and parsed_phone.suspicious:
                 suspicious_excluded += 1
-                review_excluded += 1
+            name_key = normalize_full_name(display_name)
+            external_ref = (
+                f"{row.source_file}:{row.bitrix_id.strip()}"
+                if row.bitrix_id and row.bitrix_id.strip()
+                else None
+            )
+            external_hits = external_index.get(external_ref, set()) if external_ref else set()
+            reusable = [
+                existing_key
+                for existing_key, existing in plans.items()
+                if existing_key.startswith("db:")
+                and normalize_full_name(existing.display_name) == name_key
+                and not existing.phone
+                and not existing.email
+            ]
+            identified_same_name = [
+                existing_key
+                for existing_key, existing in plans.items()
+                if normalize_full_name(existing.display_name) == name_key
+                and (existing.phone or existing.email)
+            ]
+            inceleme = bool(identified_same_name) or len(reusable) > 1
+            if len(external_hits) == 1:
+                key = next(iter(external_hits))
+                inceleme = False
+            elif len(reusable) == 1 and not identified_same_name:
+                key = reusable[0]
             else:
-                quarantine_excluded += 1
+                external = (row.bitrix_id or "").strip()
+                key = f"name:{name_key}:{row.source_file}:{external or display_name}"
+                if key not in plans:
+                    plans[key] = SafeContactPlan(
+                        key=key,
+                        display_name=display_name,
+                        phone=None,
+                        email=None,
+                        status=(
+                            CrmContactStatus.ACTIVE.value
+                            if row.role in {"active_customers", "agents", "agreements"}
+                            else CrmContactStatus.ARCHIVED.value
+                        ),
+                        review_required=True,
+                        _selected_name_role=row.role,
+                    )
+                    order.append(key)
+            if key not in order:
+                order.append(key)
+            plan = plans[key]
+            plan.apply(row, phone=None, email=None)
+            plan.warning_flags.add("BILGI_EKSIK")
+            plan.review_required = True
+            if inceleme:
+                plan.warning_flags.add("INCELEME_GEREKLI")
+            safe_rows += 1
+            if name_key:
+                name_to_keys.setdefault(name_key, set()).add(key)
             continue
 
         audit_match = audit_index.match(row.phone, row.email, row.full_name)
@@ -387,6 +446,7 @@ def _bitrix_metadata(plan: SafeContactPlan) -> dict[str, Any]:
 def _apply_plan(db: Session, plan: SafeContactPlan) -> str:
     metadata = _bitrix_metadata(plan)
     if plan.existing_id is None:
+        name_only = not plan.phone and not plan.email
         contact = CrmContact(
             contact_type=CrmContactType.PROSPECT,
             record_kind=CrmRecordKind.PERSON,
@@ -396,6 +456,8 @@ def _apply_plan(db: Session, plan: SafeContactPlan) -> str:
             lifecycle_stage=CrmLifecycleStage.NEW,
             source="Bitrix",
             status=CrmContactStatus(plan.status),
+            review_required=plan.review_required or name_only,
+            notes=ZERO_MISSING_NOTE if name_only else None,
             metadata_json={_METADATA_KEY: metadata},
         )
         db.add(contact)
@@ -420,6 +482,19 @@ def _apply_plan(db: Session, plan: SafeContactPlan) -> str:
     if contact.status != desired_status:
         contact.status = desired_status
         changed = True
+    if (
+        plan.review_required
+        and not contact.review_required
+        and not contact.primary_phone
+        and not contact.primary_email
+    ):
+        contact.review_required = True
+        changed = True
+    if not plan.phone and not plan.email:
+        existing_notes = (contact.notes or "").strip()
+        if not existing_notes:
+            contact.notes = ZERO_MISSING_NOTE
+            changed = True
     merged_metadata = dict(contact.metadata_json or {})
     if merged_metadata.get(_METADATA_KEY) != metadata:
         merged_metadata[_METADATA_KEY] = metadata
@@ -470,7 +545,7 @@ def _verify_selected_contacts(
             continue
         phone = _safe_phone(contact.primary_phone)
         email = normalize_valid_email(contact.primary_email)
-        if not phone and not email:
+        if not phone and not email and (plan.phone or plan.email):
             unsafe_written += 1
         matched_ids = set()
         if plan.phone:
