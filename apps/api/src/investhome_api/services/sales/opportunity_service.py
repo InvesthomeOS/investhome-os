@@ -12,6 +12,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from investhome_api.models.activity import ActivityEntityType
+from investhome_api.models.crm_contact import CrmContact
 from investhome_api.models.inventory import InventoryAsset, InventoryReservation
 from investhome_api.models.investor import Investor
 from investhome_api.models.lead import Lead
@@ -35,6 +36,8 @@ from investhome_api.services.activity_recorder import (
     log_entity_updated,
 )
 from investhome_api.services.activity_service import snapshot_entity
+from investhome_api.schemas.sales_opportunity import SalesOpportunityResponse
+from investhome_api.services.crm.identity import displayable_phone
 from investhome_api.services.sales.config import (
     ALLOWED_STAGE_TRANSITIONS,
     CONTRACT_PATH_STAGES,
@@ -59,17 +62,55 @@ def _validate_party(db: Session, party_id: UUID, party_type: OpportunityPartyTyp
         if lead is None or lead.archived_at is not None:
             raise OpportunityError("sales.errors.party_not_found", status_code=404)
         return
+    if party_type == OpportunityPartyType.CRM_CONTACT:
+        contact = db.get(CrmContact, party_id)
+        if contact is None:
+            raise OpportunityError("sales.errors.party_not_found", status_code=404)
+        return
     investor = db.get(Investor, party_id)
     if investor is None or investor.archived_at is not None:
         raise OpportunityError("sales.errors.party_not_found", status_code=404)
+
+
+def _party_contact(db: Session, opportunity: SalesOpportunity) -> CrmContact | None:
+    if opportunity.party_type == OpportunityPartyType.CRM_CONTACT:
+        return db.get(CrmContact, opportunity.crm_contact_id or opportunity.party_id)
+    if opportunity.crm_contact_id:
+        return db.get(CrmContact, opportunity.crm_contact_id)
+    return None
 
 
 def _party_label(db: Session, opportunity: SalesOpportunity) -> str:
     if opportunity.party_type == OpportunityPartyType.LEAD:
         lead = db.get(Lead, opportunity.party_id)
         return lead.full_name if lead else str(opportunity.party_id)
+    contact = _party_contact(db, opportunity)
+    if contact is not None:
+        return contact.display_name
+    if opportunity.party_type == OpportunityPartyType.CRM_CONTACT:
+        return str(opportunity.crm_contact_id or opportunity.party_id)
     investor = db.get(Investor, opportunity.party_id)
     return investor.full_name if investor else str(opportunity.party_id)
+
+
+def serialize_opportunity(db: Session, opportunity: SalesOpportunity) -> SalesOpportunityResponse:
+    payload = SalesOpportunityResponse.model_validate(opportunity)
+    contact = _party_contact(db, opportunity)
+    owner_name = None
+    if contact and contact.owner_user_id:
+        owner = db.get(User, contact.owner_user_id)
+        owner_name = owner.full_name if owner else None
+    return payload.model_copy(
+        update={
+            "party_label": _party_label(db, opportunity),
+            "contact_phone": displayable_phone(contact.primary_phone) if contact else None,
+            "contact_email": contact.primary_email if contact else None,
+            "contact_owner_name": owner_name,
+            "contact_last_activity_at": (contact.last_contact_at if contact else None)
+            or opportunity.last_contact_at,
+            "contact_next_follow_up_at": contact.next_follow_up_at if contact else None,
+        }
+    )
 
 
 def _generate_opportunity_code(db: Session) -> str:
@@ -179,10 +220,18 @@ def create_opportunity(
         if reservation is None:
             raise OpportunityError("sales.errors.reservation_not_found", status_code=404)
 
+    crm_contact_id = data.get("crm_contact_id")
+    if party_type == OpportunityPartyType.CRM_CONTACT:
+        crm_contact_id = crm_contact_id or party_id
+        contact = db.get(CrmContact, crm_contact_id)
+        if contact is None:
+            raise OpportunityError("sales.errors.party_not_found", status_code=404)
+
     opportunity = SalesOpportunity(
         opportunity_code=data.get("opportunity_code") or _generate_opportunity_code(db),
         display_id=data.get("display_id"),
         lead_id=lead_id,
+        crm_contact_id=crm_contact_id,
         party_id=party_id,
         party_type=party_type,
         assigned_sales_user_id=assigned_user_id,
@@ -716,11 +765,19 @@ def list_opportunities(
 
     if search:
         pattern = f"%{search.strip()}%"
+        contact_ids = select(CrmContact.id).where(
+            or_(
+                CrmContact.display_name.ilike(pattern),
+                CrmContact.primary_email.ilike(pattern),
+                CrmContact.primary_phone.ilike(pattern),
+            )
+        )
         query = query.where(
             or_(
                 SalesOpportunity.opportunity_code.ilike(pattern),
                 SalesOpportunity.display_id.ilike(pattern),
                 SalesOpportunity.notes.ilike(pattern),
+                SalesOpportunity.crm_contact_id.in_(contact_ids),
             )
         )
         count_query = count_query.where(
@@ -728,6 +785,7 @@ def list_opportunities(
                 SalesOpportunity.opportunity_code.ilike(pattern),
                 SalesOpportunity.display_id.ilike(pattern),
                 SalesOpportunity.notes.ilike(pattern),
+                SalesOpportunity.crm_contact_id.in_(contact_ids),
             )
         )
 

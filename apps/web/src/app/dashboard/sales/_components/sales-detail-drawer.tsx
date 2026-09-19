@@ -13,6 +13,8 @@ import { EntityDocumentsPanel } from '@/app/dashboard/_components/entity-documen
 import { fetchLead, type Lead } from '@/lib/api/leads';
 import { fetchInvestor, type Investor } from '@/lib/api/investors';
 import { fetchInventoryAsset, fetchReservation, type InventoryAsset, type InventoryReservation } from '@/lib/api/inventory';
+import { fetchContact, type CrmContactDetail } from '@/workspaces/crm/api/contacts';
+
 import type { Project } from '@/lib/api/projects';
 import { hasPermission } from '@/lib/api/auth';
 import {
@@ -127,6 +129,8 @@ export function SalesDetailDrawer({
   const [partyLead, setPartyLead] = useState<Lead | null>(null);
   const [partyInvestor, setPartyInvestor] = useState<Investor | null>(null);
   const [inventoryAssets, setInventoryAssets] = useState<InventoryAsset[]>([]);
+  const [partyContact, setPartyContact] = useState<CrmContactDetail | null>(null);
+
   const [reservation, setReservation] = useState<InventoryReservation | null>(null);
   const [proposals, setProposals] = useState<SalesProposal[]>([]);
   const [proposalsLoading, setProposalsLoading] = useState(false);
@@ -166,6 +170,9 @@ export function SalesDetailDrawer({
         if (opportunity.party_type === 'lead') {
           const lead = await fetchLead(opportunity.party_id);
           if (!cancelled) setPartyLead(lead);
+        } else if (opportunity.party_type === 'crm_contact') {
+          const contact = await fetchContact(opportunity.crm_contact_id ?? opportunity.party_id);
+          if (!cancelled) setPartyContact(contact);
         } else {
           const investor = await fetchInvestor(opportunity.party_id);
           if (!cancelled) setPartyInvestor(investor);
@@ -174,6 +181,7 @@ export function SalesDetailDrawer({
         if (!cancelled) {
           setPartyLead(null);
           setPartyInvestor(null);
+          setPartyContact(null);
         }
       }
     })();
@@ -299,6 +307,7 @@ export function SalesDetailDrawer({
       const email =
         partyLead?.email ??
         partyInvestor?.email ??
+        partyContact?.primary_email ??
         undefined;
       const created = await createProposal({
         opportunity_id: opportunity.id,
@@ -314,7 +323,7 @@ export function SalesDetailDrawer({
     } finally {
       setCreatingProposal(false);
     }
-  }, [loadProposals, opportunity, partyInvestor?.email, partyLead?.email]);
+  }, [loadProposals, opportunity, partyInvestor?.email, partyLead?.email, partyContact?.primary_email]);
 
   const linkedProjects = useMemo(
     () => projects.filter((p) => linkedProjectIds.includes(p.id)),
@@ -429,7 +438,19 @@ export function SalesDetailDrawer({
                 <DetailField label={t('party.phone')} value={partyInvestor.phone ?? tCommon('noValue')} />
               </dl>
             )}
-            {!partyLead && !partyInvestor && <p className="leads__state">{t('party.loadError')}</p>}
+            {partyContact && (
+              <dl className="leads-drawer__grid">
+                <DetailField label={t('party.name')} value={partyContact.display_name} />
+                <DetailField label={t('party.email')} value={partyContact.primary_email ?? tCommon('noValue')} />
+                <DetailField label={t('party.phone')} value={partyContact.primary_phone ?? tCommon('noValue')} />
+                <p>
+                  <Link href={`/workspaces/crm/contacts/${partyContact.id}` as Route}>
+                    Canonical CRM contact
+                  </Link>
+                </p>
+              </dl>
+            )}
+            {!partyLead && !partyInvestor && !partyContact && <p className="leads__state">{t('party.loadError')}</p>}
           </section>
         )}
 

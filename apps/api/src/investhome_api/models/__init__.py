@@ -55,6 +55,30 @@ from investhome_api.models.investor import (
     InvestorType,
     RiskProfile,
 )
+from investhome_api.models.crm_contact import (  # noqa: F401
+    CrmContact,
+    CrmContactStatus,
+    CrmContactType,
+    CrmRecordKind,
+)
+from investhome_api.models.crm_agreement import (  # noqa: F401
+    CrmAgreement,
+    CrmAgreementParticipant,
+    CrmAgreementStatus,
+)
+from investhome_api.models.crm_activity import (  # noqa: F401
+    CrmActivity,
+    CrmActivityEntityType,
+    CrmActivityType,
+)
+from investhome_api.models.crm_company import (  # noqa: F401
+    CrmCompany,
+    CrmCompanyContact,
+)
+from investhome_api.models.crm_relationship import (  # noqa: F401
+    CrmRelationship,
+)
+
 from investhome_api.models.lead import Lead, LeadStatus
 from investhome_api.models.project import (
     DevelopmentType,
@@ -163,4 +187,17 @@ __all__ = [
     "Department",
     "Team",
     "UserDepartment",
+    "CrmContact",
+    "CrmContactStatus",
+    "CrmContactType",
+    "CrmRecordKind",
+    "CrmAgreement",
+    "CrmAgreementParticipant",
+    "CrmAgreementStatus",
+    "CrmActivity",
+    "CrmActivityEntityType",
+    "CrmActivityType",
+    "CrmCompany",
+    "CrmCompanyContact",
+    "CrmRelationship",
 ]

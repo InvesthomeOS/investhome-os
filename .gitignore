@@ -65,3 +65,13 @@ automations/n8n/.n8n/
 
 # Alembic
 # Keep versions tracked; ignore local overrides if any
+
+# G12 real migration extracts (PII / financial) — keep folder via .gitkeep
+data/migration-sources/**
+!data/migration-sources/.gitkeep
+
+# Bitrix CRM import extracts (real customer PII) — never commit
+data/bitrix-import/**
+!data/bitrix-import/.gitkeep
+data/Bitrix_Export/**
+!data/Bitrix_Export/.gitkeep

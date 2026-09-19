@@ -101,6 +101,9 @@ from investhome_api.models.work_item import (  # noqa: F401
     WorkItemParticipant,
     WorkItemStatusHistory,
 )
+from investhome_api.models.crm_contact import CrmContact, CrmContactStatus, CrmContactType, CrmRecordKind  # noqa: F401
+from investhome_api.models.crm_agreement import CrmAgreement, CrmAgreementStatus  # noqa: F401
+
 from investhome_api.models.notification import Notification  # noqa: F401
 from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole  # noqa: F401
 
@@ -223,10 +226,10 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
     permission_map: dict[tuple[str, str], Permission] = {}
     for resource in {
         "leads", "users", "roles", "executive", "activity", "finance", "investors", "projects",
-        "notifications", "search", "documents", "inventory", "sales",
+        "notifications", "search", "documents", "inventory", "sales", "work", "crm",
     }:
         for action in {
-            "view", "create", "update", "manage", "archive", "restore", "manage_status", "download",
+            "view", "read", "create", "update", "manage", "archive", "restore", "manage_status", "download", "import",
             "view_confidential", "view_highly_confidential",
             "analyze", "reprocess", "view_analysis", "ask", "export_analysis", "view_sensitive_analysis", "approve",
             "assign", "change_stage", "change_probability", "view_pipeline",

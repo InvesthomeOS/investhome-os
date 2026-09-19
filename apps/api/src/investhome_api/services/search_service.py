@@ -1559,6 +1559,11 @@ def _search_sales_opportunities(
         if opportunity.party_type == OpportunityPartyType.LEAD:
             lead = db.get(Lead, opportunity.party_id)
             party_name = lead.full_name if lead else None
+        elif opportunity.party_type == OpportunityPartyType.CRM_CONTACT:
+            from investhome_api.models.crm_contact import CrmContact
+
+            contact = db.get(CrmContact, opportunity.crm_contact_id or opportunity.party_id)
+            party_name = contact.display_name if contact else None
         else:
             investor = db.get(Investor, opportunity.party_id)
             party_name = investor.full_name if investor else None

@@ -4,7 +4,8 @@ import createNextIntlPlugin from 'next-intl/plugin';
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
+  // Standalone file tracing uses symlinks; Windows without Developer Mode fails EPERM.
+  ...(process.platform === 'win32' ? {} : { output: 'standalone' as const }),
   reactStrictMode: true,
   transpilePackages: [
     '@investhome/shared',
@@ -14,7 +15,7 @@ const nextConfig: NextConfig = {
     '@investhome/events',
     '@investhome/ai-runtime',
   ],
-  typedRoutes: true,
+  typedRoutes: false,
 };
 
 export default withNextIntl(nextConfig);

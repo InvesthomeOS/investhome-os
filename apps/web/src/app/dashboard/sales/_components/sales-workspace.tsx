@@ -12,6 +12,7 @@ import { hasPermission, fetchUsers, type UserRecord } from '@/lib/api/auth';
 import { fetchLead } from '@/lib/api/leads';
 import { fetchInvestor } from '@/lib/api/investors';
 import { fetchInventoryAssets } from '@/lib/api/inventory';
+import { fetchContact } from '@/workspaces/crm/api/contacts';
 import { fetchProjects, type Project } from '@/lib/api/projects';
 import {
   archiveOpportunity,
@@ -195,6 +196,9 @@ export function SalesWorkspace() {
           if (item.party_type === 'lead') {
             const lead = await fetchLead(item.party_id);
             next[item.party_id] = lead.full_name;
+          } else if (item.party_type === 'crm_contact') {
+            const contact = await fetchContact(item.crm_contact_id ?? item.party_id);
+            next[item.party_id] = contact.display_name;
           } else {
             const investor = await fetchInvestor(item.party_id);
             next[item.party_id] = investor.full_name;

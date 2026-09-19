@@ -84,6 +84,12 @@ class ActivityEntityType(str, enum.Enum):
     SALES_PROPOSAL = "sales_proposal"
     WORK_ITEM = "work_item"
     SALES_READINESS = "sales_readiness"
+    CRM_CONTACT = "crm_contact"
+    CRM_COMPANY = "crm_company"
+    CRM_RELATIONSHIP = "crm_relationship"
+    CRM_COMMUNICATION = "crm_communication"
+    CRM_COMMUNICATION_THREAD = "crm_communication_thread"
+    CRM_ACTIVITY = "crm_activity"
 
 
 class ActivityLog(Base):

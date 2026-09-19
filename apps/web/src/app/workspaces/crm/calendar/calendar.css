@@ -1,0 +1,1282 @@
+/* CRM Calendar — Dashboard UI Freeze v1.0 final polish (presentation only). */
+
+.crm-calendar-ds {
+  --shot-navy: #075b75;
+  --shot-cyan: #58aebb;
+  --shot-ink: #1e2b33;
+  --shot-muted: #718087;
+  --shot-font-caption: 8.8px;
+  --shot-font-small: 10.45px;
+  --shot-font-body: 11.55px;
+  --shot-font-heading: 13.2px;
+  --shot-font-title: 24.2px;
+  --shot-gap: 12px;
+  --shot-card-pad-y: 13px;
+  --shot-card-pad-x: 15px;
+  --cal-ink: var(--shot-ink);
+  --cal-muted: var(--shot-muted);
+  --cal-navy: var(--shot-navy);
+  --cal-cyan: var(--shot-cyan);
+  --cal-border: #e1e7e9;
+  --cal-border-strong: #dce4e7;
+  --cal-card-shadow: 0 2px 7px rgba(31, 57, 68, 0.05);
+  --cal-card-shadow-hover: 0 4px 14px rgba(7, 91, 117, 0.08);
+  --cal-card-radius: 8px;
+  --cal-control-height: 1.95rem;
+  --cal-rail-width: min(300px, 22vw);
+  --cal-success: #2f8a5b;
+  --cal-now: #c45c5c;
+  --brand-primary: var(--shot-navy);
+  --brand-primary-hover: #064a5f;
+  --focus-ring: #2794ad;
+  /* Dashboard UI Freeze v1.0 — remap DS tokens so shared .ds-segmented
+     (and other DS primitives) do not inherit root brand beige/brown. */
+  --bg: #f6f8fa;
+  --background: #f6f8fa;
+  --surface: #ffffff;
+  --surface-default: #ffffff;
+  --surface-muted: #f1f6f8;
+  --surface-subtle: #f1f6f8;
+  --surface-elevated: #ffffff;
+  --border: #dce4e7;
+  --border-default: #dce4e7;
+  --border-subtle: #e6eef1;
+  --text: var(--shot-ink);
+  --text-primary: var(--shot-ink);
+  --text-secondary: #58717d;
+  --text-secondary-ds: #58717d;
+  --muted: var(--shot-muted);
+  --shadow-subtle: 0 1px 2px rgba(7, 91, 117, 0.06);
+  --radius-medium: 8px;
+  box-sizing: border-box;
+  display: grid;
+  gap: var(--shot-gap);
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  color: var(--cal-ink);
+  font-size: var(--shot-font-body);
+}
+
+.crm-calendar-ds *,
+.crm-calendar-ds *::before,
+.crm-calendar-ds *::after {
+  box-sizing: border-box;
+}
+
+.crm-calendar-ds__header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--shot-gap);
+  padding-bottom: 2px;
+}
+
+.crm-calendar-ds__header h1 {
+  margin: 0;
+  color: #152a36;
+  font-size: var(--shot-font-title);
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.crm-calendar-ds__header p {
+  margin: 6px 0 0;
+  max-width: 62ch;
+  color: var(--cal-muted);
+  font-size: var(--shot-font-small);
+  line-height: 1.45;
+}
+
+/* —— KPI row (Tasks/Activities parity) —— */
+.crm-calendar-ds__kpi-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--shot-gap);
+  min-width: 0;
+  align-items: stretch;
+}
+
+.crm-calendar-ds__kpi.ih-kpi-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 138px;
+  gap: 6px;
+  padding: 12px var(--shot-card-pad-x);
+  border: 1px solid var(--cal-border);
+  border-radius: var(--cal-card-radius);
+  background: #fff;
+  box-shadow: var(--cal-card-shadow);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.crm-calendar-ds__kpi.ih-kpi-card:hover {
+  border-color: #c9d6db;
+  box-shadow: var(--cal-card-shadow-hover);
+}
+
+.crm-calendar-ds__kpi .ih-kpi-card__label {
+  color: #6a7a82;
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.crm-calendar-ds__kpi .ih-kpi-card__value {
+  margin-top: 0;
+  color: #152a36;
+  font-size: var(--shot-font-title);
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.crm-calendar-ds__kpi .ih-kpi-card__hint {
+  color: var(--cal-muted);
+  font-size: var(--shot-font-caption);
+}
+
+.crm-calendar-ds__kpi .ih-kpi-card__delta {
+  margin-top: auto;
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+}
+
+.crm-calendar-ds__kpi .ih-kpi-card__delta--up {
+  color: var(--cal-success);
+}
+
+.crm-calendar-ds__kpi .ih-kpi-card__delta--down {
+  color: var(--cal-now);
+}
+
+.crm-calendar-ds__kpi .ih-kpi-card__delta--neutral {
+  color: var(--cal-muted);
+}
+
+.crm-calendar-ds__kpi .ih-kpi-card__icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: #e3f1f3;
+  color: var(--shot-navy);
+  opacity: 1;
+}
+
+.crm-calendar-ds__kpi .ih-kpi-card__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.crm-calendar-ds__kpi.ih-kpi-card--success .ih-kpi-card__icon {
+  background: #e7f5ee;
+  color: var(--cal-success);
+}
+
+/* —— Action bar (Dashboard intro-ai rhythm — no dead gap) —— */
+.crm-calendar-ds__ai.screenshot-dashboard__intro-ai {
+  gap: 10px;
+  padding: 7px;
+  border-color: var(--cal-border);
+  border-radius: var(--cal-card-radius);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: none;
+}
+
+.crm-calendar-ds__ai.screenshot-dashboard__intro-ai button {
+  flex: 0 1 auto;
+  min-height: 46px !important;
+  gap: 8px;
+  padding: 0 13px;
+  border-radius: 7px;
+  font-size: var(--shot-font-small);
+  font-weight: 500;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.crm-calendar-ds__ai-icon {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  place-items: center;
+  color: var(--shot-navy);
+  opacity: 0.92;
+}
+
+.crm-calendar-ds__ai.screenshot-dashboard__intro-ai button.is-featured .crm-calendar-ds__ai-icon,
+.crm-calendar-ds__ai.screenshot-dashboard__intro-ai button:hover .crm-calendar-ds__ai-icon {
+  opacity: 1;
+  color: var(--shot-navy);
+}
+
+.crm-calendar-ds__ai.screenshot-dashboard__intro-ai .crm-calendar-ds__ai-cta {
+  flex: 0 1 auto;
+  border-color: var(--shot-navy);
+  background: var(--shot-navy);
+  color: #fff;
+  font-weight: 650;
+  box-shadow: 0 2px 6px rgba(7, 91, 117, 0.18);
+}
+
+.crm-calendar-ds__ai.screenshot-dashboard__intro-ai .crm-calendar-ds__ai-cta .crm-calendar-ds__ai-icon {
+  color: #fff;
+  opacity: 1;
+}
+
+.crm-calendar-ds__ai.screenshot-dashboard__intro-ai .crm-calendar-ds__ai-cta:hover {
+  border-color: var(--brand-primary-hover);
+  background: var(--brand-primary-hover);
+  color: #fff;
+}
+
+.crm-calendar-ds__ai.screenshot-dashboard__intro-ai .screenshot-dashboard__intro-ai-primary {
+  min-height: 48px !important;
+  flex: 0 0 auto;
+  margin-left: auto;
+  gap: 8px;
+  padding-inline: 18px;
+  font-size: var(--shot-font-body);
+  font-weight: 650;
+}
+
+.crm-calendar-ds .ih-btn {
+  min-height: var(--cal-control-height);
+  border-radius: 7px;
+  font-size: var(--shot-font-small);
+  font-weight: 650;
+}
+
+.crm-calendar-ds .ih-btn--primary,
+.crm-calendar-ds button.ih-btn--primary {
+  background: var(--shot-navy);
+  border-color: var(--shot-navy);
+  color: #fff;
+}
+
+.crm-calendar-ds .ih-btn--primary:hover:not(:disabled),
+.crm-calendar-ds button.ih-btn--primary:hover:not(:disabled) {
+  background: var(--brand-primary-hover);
+  border-color: var(--brand-primary-hover);
+}
+
+.crm-calendar-ds .ih-btn--secondary,
+.crm-calendar-ds button.ih-btn--secondary {
+  border-color: color-mix(in srgb, var(--shot-navy) 22%, var(--cal-border-strong));
+  background: #fff;
+  color: var(--shot-ink);
+}
+
+.crm-calendar-ds .ih-btn--secondary:hover:not(:disabled),
+.crm-calendar-ds button.ih-btn--secondary:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--shot-navy) 36%, var(--cal-border-strong));
+  background: #f1f6f8;
+  color: var(--shot-navy);
+}
+
+.crm-calendar-ds__filters-stub {
+  padding: 10px 12px;
+  border: 1px dashed #c9d6db;
+  border-radius: var(--cal-card-radius);
+  background: #f7fbfc;
+  color: var(--cal-muted);
+  font-size: var(--shot-font-small);
+}
+
+.crm-calendar-ds__filters-stub p {
+  margin: 0;
+}
+
+.crm-calendar-ds__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--cal-rail-width);
+  gap: var(--shot-gap);
+  align-items: start;
+  min-width: 0;
+}
+
+.crm-calendar-ds__main {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  align-content: start;
+}
+
+.crm-calendar-ds__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--cal-border);
+  border-radius: var(--cal-card-radius);
+  background: #fff;
+  box-shadow: var(--cal-card-shadow);
+}
+
+.crm-calendar-ds__toolbar .ds-segmented {
+  flex: 0 0 auto;
+  background: #f1f6f8;
+  border-color: #d7e2e6;
+}
+
+.crm-calendar-ds__toolbar .ds-segmented__item {
+  color: #485961;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.crm-calendar-ds__toolbar .ds-segmented__item:hover {
+  color: var(--shot-navy);
+}
+
+.crm-calendar-ds__toolbar .ds-segmented__item--active {
+  background: #fff;
+  color: var(--shot-navy);
+  box-shadow: 0 1px 2px rgba(7, 91, 117, 0.08);
+}
+
+/* Date nav: Bugün → ← → → range */
+.crm-calendar-ds__date-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.crm-calendar-ds__today-btn.ih-btn,
+.crm-calendar-ds__today-btn.ih-btn--primary,
+.crm-calendar-ds button.crm-calendar-ds__today-btn {
+  min-height: var(--cal-control-height);
+  padding-inline: 14px;
+  border-color: var(--shot-navy);
+  background: var(--shot-navy);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(7, 91, 117, 0.16);
+}
+
+.crm-calendar-ds__today-btn.ih-btn:hover:not(:disabled),
+.crm-calendar-ds button.crm-calendar-ds__today-btn:hover:not(:disabled) {
+  border-color: var(--brand-primary-hover);
+  background: var(--brand-primary-hover);
+  color: #fff;
+}
+
+.crm-calendar-ds__nav-btn,
+.crm-calendar-ds__range-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--cal-control-height);
+  padding: 0 10px;
+  border: 1px solid var(--cal-border-strong);
+  border-radius: 7px;
+  background: #fff;
+  color: #314650;
+  font: inherit;
+  font-size: var(--shot-font-small);
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.crm-calendar-ds__nav-btn {
+  width: var(--cal-control-height);
+  padding: 0;
+}
+
+.crm-calendar-ds__nav-btn:hover,
+.crm-calendar-ds__range-btn:hover {
+  border-color: color-mix(in srgb, var(--shot-navy) 30%, var(--cal-border-strong));
+  background: #f1f6f8;
+  color: var(--shot-navy);
+}
+
+.crm-calendar-ds__nav-btn:active,
+.crm-calendar-ds__range-btn:active,
+.crm-calendar-ds__quick-btn:active,
+.crm-calendar-ds__ai.screenshot-dashboard__intro-ai button:active {
+  transform: translateY(0.5px);
+}
+
+.crm-calendar-ds__week,
+.crm-calendar-ds__day-view,
+.crm-calendar-ds__month,
+.crm-calendar-ds__agenda {
+  overflow: auto;
+  border: 1px solid var(--cal-border);
+  border-radius: var(--cal-card-radius);
+  background: #fff;
+  box-shadow: var(--cal-card-shadow);
+}
+
+/* Week header — Dashboard table-header contrast */
+.crm-calendar-ds__week-head,
+.crm-calendar-ds__all-day {
+  display: grid;
+  grid-template-columns: 52px repeat(7, minmax(0, 1fr));
+  min-width: 720px;
+  border-bottom: 1px solid #e8eef0;
+}
+
+.crm-calendar-ds__week-head {
+  background: #eef3f5;
+}
+
+.crm-calendar-ds__day-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px 8px;
+  border-left: 1px solid #e4ecef;
+}
+
+.crm-calendar-ds__day-head.is-today {
+  background: color-mix(in srgb, var(--shot-navy) 8%, #eef3f5);
+}
+
+.crm-calendar-ds__day-name {
+  color: #3d525c;
+  font-size: var(--shot-font-caption);
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.crm-calendar-ds__day-head.is-today .crm-calendar-ds__day-name {
+  color: var(--shot-navy);
+}
+
+.crm-calendar-ds__day-num {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 999px;
+  color: #152a36;
+  font-size: var(--shot-font-heading);
+  font-weight: 750;
+}
+
+.crm-calendar-ds__day-num.is-today {
+  background: var(--shot-navy);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(7, 91, 117, 0.22);
+}
+
+.crm-calendar-ds__gutter {
+  display: grid;
+  place-items: center;
+  padding: 8px 4px;
+  color: #5a6d76;
+  font-size: var(--shot-font-caption);
+  font-weight: 700;
+}
+
+.crm-calendar-ds__all-day-cell {
+  display: grid;
+  gap: 4px;
+  min-height: 36px;
+  padding: 4px;
+  border-left: 1px solid #eef3f5;
+  align-content: start;
+}
+
+.crm-calendar-ds__week-body,
+.crm-calendar-ds__day-grid {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  min-width: 720px;
+}
+
+.crm-calendar-ds__day-grid {
+  min-width: 0;
+}
+
+.crm-calendar-ds__gutter-col {
+  border-right: 1px solid #e8eef0;
+  background: #fafcfd;
+}
+
+.crm-calendar-ds__hour-label {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 2px 6px 0 0;
+  color: #6a7a82;
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+}
+
+.crm-calendar-ds__days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  position: relative;
+}
+
+.crm-calendar-ds__day-col {
+  position: relative;
+  border-left: 1px solid #eef3f5;
+  min-width: 0;
+}
+
+.crm-calendar-ds__day-col.is-today {
+  background: color-mix(in srgb, var(--shot-navy) 4%, #fff);
+}
+
+.crm-calendar-ds__hour-slot {
+  border-bottom: 1px solid #eef3f5;
+}
+
+/* Today indicator — thin red line + left dot on today's column only */
+.crm-calendar-ds__now-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  height: 2px;
+  background: var(--cal-now);
+  pointer-events: none;
+  box-shadow: 0 0 0 0.5px rgba(196, 92, 92, 0.15);
+}
+
+.crm-calendar-ds__now-line::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cal-now);
+  box-shadow: 0 0 0 2px rgba(196, 92, 92, 0.18);
+}
+
+.crm-calendar-ds__event-pos {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  z-index: 1;
+  min-width: 0;
+}
+
+/* Event cards — denser readable padding + type icon scan */
+.crm-calendar-ds__event {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  height: 100%;
+  min-width: 0;
+  padding: 6px 8px 5px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    box-shadow 140ms ease,
+    transform 140ms ease,
+    border-color 140ms ease;
+}
+
+.crm-calendar-ds__event:hover,
+.crm-calendar-ds__event:focus-visible {
+  box-shadow: 0 2px 8px rgba(7, 91, 117, 0.12);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.crm-calendar-ds__event:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.crm-calendar-ds__event.is-compact {
+  min-height: 30px;
+  gap: 1px;
+  padding: 4px 6px;
+}
+
+.crm-calendar-ds__event-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  min-width: 0;
+}
+
+.crm-calendar-ds__event-time {
+  overflow: hidden;
+  font-size: 9.2px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  opacity: 0.88;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-calendar-ds__event-icon {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  place-items: center;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.55);
+  opacity: 0.95;
+}
+
+.crm-calendar-ds__event-title {
+  display: block;
+  overflow: hidden;
+  color: inherit;
+  font-size: var(--shot-font-caption);
+  font-weight: 750;
+  line-height: 1.28;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-calendar-ds__event-meta {
+  display: block;
+  overflow: hidden;
+  font-size: 9.2px;
+  line-height: 1.25;
+  opacity: 0.82;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-calendar-ds__event-people {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 1px;
+  font-size: 9px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.crm-calendar-ds__event.is-phone {
+  background: #fdecef;
+  border-color: #f3d0d4;
+  color: #8a3d4a;
+}
+
+.crm-calendar-ds__event.is-meeting,
+.crm-calendar-ds__event.is-investorMeeting {
+  background: #e7f2f7;
+  border-color: #c9dde6;
+  color: #1f5f74;
+}
+
+.crm-calendar-ds__event.is-siteVisit {
+  background: #eef6ef;
+  border-color: #cfe3d3;
+  color: #2f6b45;
+}
+
+.crm-calendar-ds__event.is-internalMeeting {
+  background: #e9f6f0;
+  border-color: #c8e6d5;
+  color: #2a6b4d;
+}
+
+.crm-calendar-ds__event.is-documentHandoff {
+  background: #f3f0fa;
+  border-color: #ddd4f0;
+  color: #5a4a7a;
+}
+
+.crm-calendar-ds__event.is-task {
+  background: #eef3f5;
+  border-color: #d5e0e5;
+  color: #3d525c;
+}
+
+.crm-calendar-ds__event.is-presentation {
+  background: #e8f1fb;
+  border-color: #c9dcf2;
+  color: #2f5f8a;
+}
+
+.crm-calendar-ds__event.is-demo {
+  background: #fff7e8;
+  border-color: #f0e0b8;
+  color: #8a6a2f;
+}
+
+.crm-calendar-ds__day-view {
+  padding: 8px;
+}
+
+.crm-calendar-ds__day-allday {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.crm-calendar-ds__day-grid .crm-calendar-ds__day-col {
+  border-left: none;
+  min-height: 100%;
+}
+
+.crm-calendar-ds__month-head,
+.crm-calendar-ds__month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  min-width: 640px;
+}
+
+.crm-calendar-ds__month-head {
+  border-bottom: 1px solid #e8eef0;
+  background: #eef3f5;
+}
+
+.crm-calendar-ds__month-head > div {
+  padding: 8px 6px;
+  color: #3d525c;
+  font-size: var(--shot-font-caption);
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.crm-calendar-ds__month-cell {
+  min-height: 88px;
+  padding: 6px;
+  border-right: 1px solid #eef3f5;
+  border-bottom: 1px solid #eef3f5;
+}
+
+.crm-calendar-ds__month-cell.is-muted {
+  background: #fafcfd;
+  color: #9aa8af;
+}
+
+.crm-calendar-ds__month-cell.is-today {
+  background: color-mix(in srgb, var(--shot-navy) 5%, #fff);
+}
+
+.crm-calendar-ds__month-num {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 999px;
+  font-size: var(--shot-font-caption);
+  font-weight: 750;
+}
+
+.crm-calendar-ds__month-num.is-today {
+  background: var(--shot-navy);
+  color: #fff;
+}
+
+.crm-calendar-ds__month-events {
+  display: grid;
+  gap: 3px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crm-calendar-ds__month-events li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.crm-calendar-ds__month-events li button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.crm-calendar-ds__month-events li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-calendar-ds__month-events li.is-phone {
+  background: #fdecef;
+  color: #8a3d4a;
+}
+
+.crm-calendar-ds__month-events li.is-meeting,
+.crm-calendar-ds__month-events li.is-investorMeeting,
+.crm-calendar-ds__month-events li.is-presentation {
+  background: #e7f2f7;
+  color: #1f5f74;
+}
+
+.crm-calendar-ds__month-events li.is-internalMeeting,
+.crm-calendar-ds__month-events li.is-siteVisit {
+  background: #e9f6f0;
+  color: #2a6b4d;
+}
+
+.crm-calendar-ds__month-events li.is-demo {
+  background: #fff7e8;
+  color: #8a6a2f;
+}
+
+.crm-calendar-ds__month-events li.is-task,
+.crm-calendar-ds__month-events li.is-documentHandoff {
+  background: #eef3f5;
+  color: #3d525c;
+}
+
+.crm-calendar-ds__agenda-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crm-calendar-ds__agenda-item {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 28px;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid #eef3f5;
+  transition: background 140ms ease;
+}
+
+.crm-calendar-ds__agenda-item:hover {
+  background: #f7fbfc;
+}
+
+.crm-calendar-ds__agenda-when {
+  display: grid;
+  gap: 2px;
+}
+
+.crm-calendar-ds__agenda-when strong {
+  color: #152a36;
+  font-size: var(--shot-font-small);
+}
+
+.crm-calendar-ds__agenda-when span {
+  color: var(--cal-muted);
+  font-size: var(--shot-font-caption);
+}
+
+.crm-calendar-ds__agenda-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.crm-calendar-ds__agenda-body strong {
+  overflow: hidden;
+  color: #152a36;
+  font-size: var(--shot-font-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-calendar-ds__agenda-body span,
+.crm-calendar-ds__agenda-body em {
+  overflow: hidden;
+  color: var(--cal-muted);
+  font-size: var(--shot-font-caption);
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Right rail — Dashboard spacing */
+.crm-calendar-ds__rail {
+  display: grid;
+  gap: var(--shot-gap);
+  min-width: 0;
+  align-content: start;
+}
+
+.crm-calendar-ds__rail-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: var(--shot-card-pad-y) var(--shot-card-pad-x);
+  border: 1px solid var(--cal-border);
+  border-radius: var(--cal-card-radius);
+  background: #fff;
+  box-shadow: var(--cal-card-shadow);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.crm-calendar-ds__rail-card:hover {
+  border-color: #d3dde1;
+  box-shadow: 0 3px 10px rgba(31, 57, 68, 0.06);
+}
+
+.crm-calendar-ds__rail-card h3 {
+  margin: 0;
+  padding-bottom: 2px;
+  color: #152a36;
+  font-size: var(--shot-font-small);
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.crm-calendar-ds__rail-card--ai {
+  background: linear-gradient(180deg, #f7fbfc 0%, #fff 48%);
+}
+
+.crm-calendar-ds__upcoming,
+.crm-calendar-ds__quick,
+.crm-calendar-ds__recs,
+.crm-calendar-ds__sync {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crm-calendar-ds__upcoming li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 7px 8px;
+  border-radius: 7px;
+  background: #f6fafb;
+  transition: background 140ms ease;
+}
+
+.crm-calendar-ds__upcoming li:hover {
+  background: #eef5f7;
+}
+
+.crm-calendar-ds__upcoming-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 7px;
+  background: #e3f1f3;
+  color: var(--shot-navy);
+}
+
+.crm-calendar-ds__upcoming li.is-phone .crm-calendar-ds__upcoming-icon {
+  background: #fdeceb;
+  color: #c45c5c;
+}
+
+.crm-calendar-ds__upcoming li.is-demo .crm-calendar-ds__upcoming-icon {
+  background: #fff7e8;
+  color: #8a6a2f;
+}
+
+.crm-calendar-ds__upcoming li.is-internalMeeting .crm-calendar-ds__upcoming-icon,
+.crm-calendar-ds__upcoming li.is-siteVisit .crm-calendar-ds__upcoming-icon {
+  background: #e9f6f0;
+  color: #2a6b4d;
+}
+
+.crm-calendar-ds__upcoming li.is-meeting .crm-calendar-ds__upcoming-icon,
+.crm-calendar-ds__upcoming li.is-investorMeeting .crm-calendar-ds__upcoming-icon {
+  background: #e7f2f7;
+  color: #1f5f74;
+}
+
+.crm-calendar-ds__upcoming strong {
+  display: block;
+  overflow: hidden;
+  color: #152a36;
+  font-size: var(--shot-font-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-calendar-ds__upcoming span {
+  color: var(--cal-muted);
+  font-size: var(--shot-font-caption);
+}
+
+/* Quick Create — Dashboard icon-button containers */
+.crm-calendar-ds__quick-btn {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 10px 0 8px;
+  border: 1px solid var(--cal-border);
+  border-radius: 7px;
+  background: #fff;
+  color: #314650;
+  font: inherit;
+  font-size: var(--shot-font-small);
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.crm-calendar-ds__quick-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  border-radius: 7px;
+  border: 1px solid #d7e4e8;
+  background: #eef5f7;
+  color: var(--shot-navy);
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.crm-calendar-ds__quick-btn:hover {
+  border-color: color-mix(in srgb, var(--shot-navy) 28%, var(--cal-border));
+  background: #f1f6f8;
+  color: var(--shot-navy);
+  box-shadow: 0 1px 3px rgba(7, 91, 117, 0.06);
+}
+
+.crm-calendar-ds__quick-btn:hover .crm-calendar-ds__quick-icon {
+  border-color: color-mix(in srgb, var(--shot-navy) 28%, #d7e4e8);
+  background: #e3f1f3;
+  color: var(--shot-navy);
+}
+
+.crm-calendar-ds__recs li {
+  position: relative;
+  padding: 7px 9px 7px 16px;
+  border-radius: 6px;
+  background: #f6fafb;
+  color: #3d525c;
+  font-size: var(--shot-font-caption);
+  line-height: 1.4;
+  transition: background 140ms ease;
+}
+
+.crm-calendar-ds__recs li:hover {
+  background: #eef5f7;
+}
+
+.crm-calendar-ds__recs li::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 12px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--shot-cyan);
+}
+
+.crm-calendar-ds__sync li {
+  padding: 8px 9px;
+  border-radius: 7px;
+  background: #f6fafb;
+}
+
+.crm-calendar-ds__sync strong {
+  display: block;
+  color: #152a36;
+  font-size: var(--shot-font-small);
+}
+
+.crm-calendar-ds__sync-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  color: var(--cal-muted);
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+}
+
+.crm-calendar-ds__sync-status i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #9aa8af;
+}
+
+.crm-calendar-ds__sync-status.is-connected {
+  color: var(--cal-success);
+}
+
+.crm-calendar-ds__sync-status.is-connected i {
+  background: var(--cal-success);
+}
+
+.crm-calendar-ds__sync-status.is-notConnected i {
+  background: #c45c5c;
+}
+
+.crm-calendar-ds button:focus-visible,
+.crm-calendar-ds [tabindex='0']:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crm-calendar-ds *,
+  .crm-calendar-ds *::before,
+  .crm-calendar-ds *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .crm-calendar-ds__event:hover,
+  .crm-calendar-ds__event:focus-visible,
+  .crm-calendar-ds__nav-btn:active,
+  .crm-calendar-ds__range-btn:active,
+  .crm-calendar-ds__quick-btn:active,
+  .crm-calendar-ds__ai.screenshot-dashboard__intro-ai button:active {
+    transform: none;
+  }
+}
+
+@media (max-width: 1599px) {
+  .crm-calendar-ds {
+    --cal-rail-width: min(290px, 23vw);
+  }
+}
+
+@media (max-width: 1439px) {
+  .crm-calendar-ds {
+    --cal-rail-width: min(280px, 24vw);
+  }
+
+  .crm-calendar-ds__header h1 {
+    font-size: calc(var(--shot-font-title) * 0.94);
+  }
+}
+
+@media (max-width: 1365px) {
+  .crm-calendar-ds__kpi-row {
+    gap: 10px;
+  }
+}
+
+@media (max-width: 1280px) {
+  .crm-calendar-ds__kpi-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .crm-calendar-ds__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .crm-calendar-ds__rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .crm-calendar-ds__kpi-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .crm-calendar-ds__ai.screenshot-dashboard__intro-ai {
+    flex-wrap: wrap;
+  }
+
+  .crm-calendar-ds__ai.screenshot-dashboard__intro-ai .screenshot-dashboard__intro-ai-primary {
+    margin-left: 0;
+    flex: 1 1 100%;
+  }
+
+  .crm-calendar-ds__toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .crm-calendar-ds__header h1 {
+    font-size: calc(var(--shot-font-title) * 0.88);
+  }
+}
+
+@media (max-width: 768px) {
+  .crm-calendar-ds__header {
+    flex-direction: column;
+  }
+
+  .crm-calendar-ds__kpi-row,
+  .crm-calendar-ds__rail {
+    grid-template-columns: 1fr;
+  }
+
+  .crm-calendar-ds__week-head,
+  .crm-calendar-ds__all-day,
+  .crm-calendar-ds__week-body {
+    min-width: 640px;
+  }
+}
+
+@media (max-width: 720px) {
+  .crm-calendar-ds__header h1 {
+    font-size: calc(var(--shot-font-title) * 0.82);
+  }
+
+  .crm-calendar-ds__date-nav {
+    width: 100%;
+  }
+
+  .crm-calendar-ds__range-btn {
+    flex: 1 1 auto;
+  }
+
+  .crm-calendar-ds__ai.screenshot-dashboard__intro-ai button {
+    flex: 1 1 calc(50% - 5px);
+    min-width: 0;
+  }
+}

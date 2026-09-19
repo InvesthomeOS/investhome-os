@@ -18,6 +18,7 @@ from investhome_api.db.session import SessionLocal
 from investhome_api.models.investor import Investor
 from investhome_api.models.lead import Lead, LeadStatus
 from investhome_api.models.project import Project
+from investhome_api.models.crm_contact import CrmContact
 
 DEMO_LEADS: list[dict[str, object]] = [
     {
@@ -148,6 +149,16 @@ def seed_demo_leads() -> int:
     with SessionLocal() as session:
         existing = session.scalar(select(Lead.id).limit(1))
         if existing is not None:
+            return 0
+
+        from sqlalchemy import func
+
+        bitrix_present = session.scalar(
+            select(func.count())
+            .select_from(CrmContact)
+            .where(func.lower(CrmContact.source) == "bitrix")
+        )
+        if bitrix_present:
             return 0
 
         for payload in DEMO_LEADS:

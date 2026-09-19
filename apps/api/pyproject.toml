@@ -21,6 +21,7 @@ dependencies = [
     "pypdf>=5.1.0",
     "python-docx>=1.1.2",
     "openpyxl>=3.1.5",
+    "xlrd>=2.0.1",
     "python-pptx>=1.0.2",
     "chardet>=5.2.0",
     "httpx>=0.28.0",
@@ -35,6 +36,9 @@ dev = [
     "ruff>=0.8.0",
     "mypy>=1.13.0",
 ]
+
+[project.scripts]
+investhome-bitrix = "investhome_api.services.crm.bitrix_import:cli_entry"
 
 [build-system]
 requires = ["hatchling"]
