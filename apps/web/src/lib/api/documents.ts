@@ -50,6 +50,7 @@ export interface DocumentLink {
   entity_type: string;
   entity_id: string;
   relationship_type: string | null;
+  hidden_from_view?: boolean;
   created_at: string;
 }
 
@@ -84,6 +85,8 @@ export interface Document {
   processing_status: string;
   version_notes: string | null;
   is_previewable: boolean;
+  hidden_from_view?: boolean;
+  bitrix_file_id?: string | null;
   related_record_label: string | null;
   is_demo: boolean;
   archived_at: string | null;
@@ -179,9 +182,14 @@ export async function fetchDocuments(filters: DocumentFilters = {}): Promise<Doc
 export async function fetchDocumentsByEntity(
   entityType: string,
   entityId: string,
+  options: { includeHidden?: boolean; pageSize?: number } = {},
 ): Promise<DocumentListResponse> {
+  const search = new URLSearchParams();
+  if (options.includeHidden) search.set('include_hidden', 'true');
+  if (options.pageSize) search.set('page_size', String(options.pageSize));
+  const suffix = search.toString() ? `?${search.toString()}` : '';
   const response = await fetch(
-    `${getApiBaseUrl()}/documents/by-entity/${entityType}/${entityId}`,
+    `${getApiBaseUrl()}/documents/by-entity/${entityType}/${entityId}${suffix}`,
     { credentials: 'include', cache: 'no-store' },
   );
   if (!response.ok) throw new Error('Failed to load entity documents');

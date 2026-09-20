@@ -68,6 +68,8 @@ LINK_ENTITY_TYPES = frozenset(
         "project",
         "investor",
         "lead",
+        "contact",
+        "crm_contact",
         "transaction",
         "user",
         # Future-ready

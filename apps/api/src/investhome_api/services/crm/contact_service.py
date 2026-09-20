@@ -417,6 +417,9 @@ def serialize_contact_summary(
         secondary_phones=displayable_phones(contact.secondary_phones),
         whatsapp=displayable_phone(contact.whatsapp),
         job_title=contact.job_title,
+        city=contact.city,
+        address_line1=contact.address_line1,
+        notes=contact.notes,
         updated_at=contact.updated_at,
         created_at=contact.created_at,
     )
@@ -505,14 +508,11 @@ def serialize_contact_detail(
         department=contact.department,
         linkedin_url=contact.linkedin_url,
         website=contact.website,
-        address_line1=contact.address_line1,
         address_line2=contact.address_line2,
-        city=contact.city,
         state_province=contact.state_province,
         postal_code=contact.postal_code,
         country=contact.country,
         referred_by_contact_id=contact.referred_by_contact_id,
-        notes=contact.notes,
         communication_prefs=contact.communication_prefs,
         compliance_data=contact.compliance_data if can_view_compliance else None,
         investment_profile=(
@@ -754,6 +754,10 @@ _CONTACT_FIELD_LABELS = {
     "next_follow_up_at": "Sonraki takip",
     "whatsapp": "WhatsApp",
     "notes": "Notlar",
+    "address_line1": "Adres",
+    "city": "Şehir",
+    "state_province": "Bölge",
+    "source": "Kaynak",
 }
 
 
@@ -859,7 +863,27 @@ def update_contact(
     previous_owner = contact.owner_user_id
     previous_owner_name = _resolve_owner_name(db, previous_owner) if owner_changed else None
 
+    identity_fields = {
+        "display_name",
+        "primary_phone",
+        "primary_email",
+        "secondary_emails",
+        "secondary_phones",
+        "organization_name",
+        "job_title",
+        "address_line1",
+        "city",
+        "state_province",
+        "source",
+        "notes",
+        "owner_user_id",
+    }
     for key, value in data.items():
+        if isinstance(value, str) and not value.strip():
+            current = getattr(contact, key, None)
+            if key in identity_fields and current not in (None, ""):
+                continue
+            value = None
         setattr(contact, key, value)
 
     if payload.contact_type is not None or payload.contact_types is not None:

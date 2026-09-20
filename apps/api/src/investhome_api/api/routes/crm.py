@@ -4,11 +4,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from investhome_api.api.deps.auth import get_current_user
+from investhome_api.api.deps.auth import get_current_user, require_permission
+from investhome_api.config.documents_config import LINK_ENTITY_TYPES
 from investhome_api.db.session import get_db
 from investhome_api.models.crm_contact import CrmContactTag, CrmTag
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.crm import CrmDashboardResponse, CrmTagItem, CrmTagListResponse
+from investhome_api.schemas.crm_agreements import CrmDocumentVisibilityRequest
+from investhome_api.schemas.document import DocumentLinkResponse
+from investhome_api.services.crm.agreement_service import set_document_surface_hidden
 from investhome_api.services.crm_dashboard_service import build_crm_dashboard
 from investhome_api.services.permission_service import user_has_permission
 
@@ -62,3 +66,27 @@ def list_crm_tags(
             for tag, usage_count in rows
         ]
     )
+
+
+@router.post("/document-visibility", response_model=DocumentLinkResponse)
+def post_document_visibility(
+    body: CrmDocumentVisibilityRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("crm", "update")),
+) -> DocumentLinkResponse:
+    del user
+    if body.entity_type not in LINK_ENTITY_TYPES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid entity type")
+    try:
+        link = set_document_surface_hidden(
+            db,
+            document_id=body.document_id,
+            entity_type=body.entity_type,
+            entity_id=body.entity_id,
+            hidden=body.hidden,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    db.commit()
+    db.refresh(link)
+    return DocumentLinkResponse.model_validate(link)

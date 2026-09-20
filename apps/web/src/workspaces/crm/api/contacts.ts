@@ -66,6 +66,10 @@ export type ContactInput = {
   junk_reason?: string | null;
   secondary_emails?: string[] | null;
   secondary_phones?: string[] | null;
+  address_line1?: string | null;
+  city?: string | null;
+  state_province?: string | null;
+  source?: string | null;
   investment_profile?: Record<string, unknown>;
   buyer_profile?: Record<string, unknown>;
   broker_profile?: Record<string, unknown>;
@@ -147,7 +151,16 @@ export async function updateContact(
   id: string,
   payload: Partial<ContactInput>,
 ): Promise<{ contact: CrmContactDetail }> {
-  return apiFetch(`/crm/contacts/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+  return apiFetch(`/crm/contacts/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+}
+
+export async function setCrmDocumentVisibility(payload: {
+  document_id: string;
+  entity_type: string;
+  entity_id: string;
+  hidden: boolean;
+}): Promise<{ id: string; hidden_from_view?: boolean }> {
+  return apiFetch('/crm/document-visibility', { method: 'POST', body: JSON.stringify(payload) });
 }
 
 export async function archiveContact(id: string): Promise<{ contact: CrmContactDetail }> {

@@ -207,6 +207,7 @@ class DocumentLink(Base):
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
     entity_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
     relationship_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    hidden_from_view: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

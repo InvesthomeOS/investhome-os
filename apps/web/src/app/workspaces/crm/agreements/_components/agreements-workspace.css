@@ -1,0 +1,303 @@
+.ctc-ds:has(.crm-agreements-views) > .ctc-ds__header {
+  position: sticky;
+  top: var(--header-height, 3.75rem);
+  z-index: 6;
+  padding-top: 8px;
+  background: var(--bg, #f6f8fa);
+}
+
+.crm-agreements-views {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 3px;
+  border: 1px solid var(--ctc-border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.crm-agreements-views button {
+  min-height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ctc-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.crm-agreements-views button.is-active {
+  background: var(--shot-navy);
+  color: #fff;
+}
+
+.crm-agreements-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.crm-agreements-count {
+  margin: 0;
+  color: var(--ctc-muted);
+  font-size: 11px;
+}
+
+.crm-agreements-kanban {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(220px, 1fr);
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.crm-agreements-column {
+  min-width: 220px;
+  padding: 10px;
+  border: 1px solid var(--ctc-border);
+  border-radius: 8px;
+  background: #f8fbfc;
+}
+
+.crm-agreements-column h2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 8px;
+  color: #152a36;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.crm-agreements-column h2 span {
+  color: var(--ctc-muted);
+  font-weight: 650;
+}
+
+.crm-agreements-card {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 10px 11px;
+  border: 1px solid var(--ctc-border);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--ctc-card-shadow);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.crm-agreements-card:hover {
+  border-color: #c9d6db;
+  box-shadow: var(--ctc-card-shadow-hover);
+}
+
+.crm-agreements-card strong {
+  color: #152a36;
+  font-size: 12.5px;
+}
+
+.crm-agreements-card small,
+.crm-agreements-meta {
+  color: #58717d;
+  font-size: 11px;
+}
+
+.crm-agreements-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.crm-agreements-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #eef5f7;
+  color: var(--shot-navy);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.crm-agreements-tag.is-rent {
+  background: #e8f6ee;
+  color: #2f8a5b;
+}
+
+.crm-agreements-list-tools {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.crm-agreements-columns {
+  position: relative;
+}
+
+.crm-agreements-columns__panel {
+  position: absolute;
+  right: 0;
+  z-index: 4;
+  display: grid;
+  gap: 6px;
+  min-width: 220px;
+  margin-top: 6px;
+  padding: 10px;
+  border: 1px solid var(--ctc-border);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--ctc-card-shadow-hover);
+}
+
+.crm-agreements-columns__panel label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #152a36;
+  font-size: 11.5px;
+}
+
+.crm-agreements-table td,
+.crm-agreements-table th {
+  white-space: nowrap;
+}
+
+.crm-agreements-feed,
+.crm-agreements-filters {
+  display: grid;
+  gap: 10px;
+}
+
+.crm-agreements-feed {
+  max-height: calc(100vh - 260px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.crm-agreements-filters {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  align-items: end;
+}
+
+.crm-agreements-event {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--ctc-border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.crm-agreements-event button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--shot-navy);
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.crm-agreements-calendar {
+  display: grid;
+  gap: 10px;
+}
+
+.crm-agreements-calendar__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.crm-agreements-calendar__nav h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.crm-agreements-month {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.crm-agreements-month__dow,
+.crm-agreements-day {
+  min-height: 92px;
+  padding: 6px;
+  border: 1px solid var(--ctc-border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.crm-agreements-month__dow {
+  min-height: auto;
+  border: 0;
+  background: transparent;
+  color: var(--ctc-muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.crm-agreements-day.is-muted {
+  opacity: 0.45;
+}
+
+.crm-agreements-day strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+.crm-agreements-day button {
+  display: block;
+  width: 100%;
+  margin: 0 0 3px;
+  padding: 2px 4px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 4px;
+  background: #eef5f7;
+  color: #152a36;
+  font-size: 10px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.crm-hemen-kira {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: #152a36;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+@media (max-width: 860px) {
+  .crm-agreements-kanban {
+    grid-auto-columns: minmax(200px, 80vw);
+  }
+
+  .crm-agreements-month {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+
+  .crm-agreements-month__dow {
+    display: none;
+  }
+}
