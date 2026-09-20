@@ -25,6 +25,22 @@ export type CrmAgreementSummary = {
   bitrix_deal_id?: string | null;
   amount_label?: string | null;
   stage_label?: string | null;
+  hemen_kira?: boolean;
+  responsible_name?: string | null;
+  next_activity_title?: string | null;
+  next_activity_at?: string | null;
+  payment_status?: string | null;
+  payment_method?: string | null;
+  share_ratio?: string | null;
+  company_details?: string | null;
+  payment_dates?: string | null;
+  floor?: string | null;
+  deposit_amount?: string | null;
+  customer_journey?: string | null;
+  potential_status?: string | null;
+  begin_date?: string | null;
+  close_date?: string | null;
+  joint_owners?: boolean;
   participants?: Array<{
     contact_id: string;
     display_name: string;
@@ -45,6 +61,8 @@ export type CrmPurchaseDocument = {
   document_type?: string | null;
   mime_type?: string | null;
   source?: string | null;
+  checksum?: string | null;
+  hidden_from_view?: boolean;
   created_at?: string | null;
 };
 
@@ -119,6 +137,50 @@ export type CrmPurchaseCard = {
   payment_fields?: CrmLabeledValue[];
   llc_fields?: CrmLabeledValue[];
   extra_fields?: CrmLabeledValue[];
+  hemen_kira?: boolean;
+};
+
+export type CrmAgreementActivityItem = {
+  id: string;
+  agreement_id: string | null;
+  contact_id: string | null;
+  contact_name: string | null;
+  project_group: string | null;
+  project_label: string | null;
+  activity_type: string;
+  title: string;
+  summary: string | null;
+  actor_name: string | null;
+  responsible_name: string | null;
+  created_at: string;
+  start_date: string | null;
+  due_date: string | null;
+};
+
+export type CrmAgreementActivityListResponse = {
+  items: CrmAgreementActivityItem[];
+  page: number;
+  page_size: number;
+  total: number;
+  pages: number;
+  request_id: string;
+};
+
+export type CrmAgreementCalendarItem = {
+  id: string;
+  title: string;
+  date: string;
+  kind: string;
+  agreement_id: string | null;
+  contact_name: string | null;
+  project_label: string | null;
+  activity_type: string | null;
+};
+
+export type CrmAgreementCalendarResponse = {
+  items: CrmAgreementCalendarItem[];
+  start: string;
+  end: string;
 };
 
 export type CrmAgreementListResponse = {
@@ -152,7 +214,57 @@ export async function fetchAgreements(
 export async function fetchPurchaseCard(
   agreementId: string,
   viewerContactId?: string | null,
+  options: { includeHidden?: boolean } = {},
 ): Promise<CrmPurchaseCard> {
-  const search = viewerContactId ? `?viewer_contact_id=${viewerContactId}` : '';
-  return apiFetch<CrmPurchaseCard>(`/crm/agreements/${agreementId}${search}`);
+  const search = new URLSearchParams();
+  if (viewerContactId) search.set('viewer_contact_id', viewerContactId);
+  if (options.includeHidden) search.set('include_hidden', 'true');
+  const query = search.toString();
+  return apiFetch<CrmPurchaseCard>(`/crm/agreements/${agreementId}${query ? `?${query}` : ''}`);
+}
+
+export async function patchAgreement(
+  agreementId: string,
+  payload: { hemen_kira: boolean },
+): Promise<CrmPurchaseCard> {
+  return apiFetch<CrmPurchaseCard>(`/crm/agreements/${agreementId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchAgreementActivities(params: {
+  project_group?: string;
+  contact_id?: string;
+  activity_type?: string;
+  responsible?: string;
+  date_from?: string;
+  date_to?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<CrmAgreementActivityListResponse> {
+  const search = new URLSearchParams();
+  search.set('page', String(params.page ?? 1));
+  search.set('page_size', String(params.page_size ?? 50));
+  if (params.project_group) search.set('project_group', params.project_group);
+  if (params.contact_id) search.set('contact_id', params.contact_id);
+  if (params.activity_type) search.set('activity_type', params.activity_type);
+  if (params.responsible) search.set('responsible', params.responsible);
+  if (params.date_from) search.set('date_from', params.date_from);
+  if (params.date_to) search.set('date_to', params.date_to);
+  return apiFetch<CrmAgreementActivityListResponse>(`/crm/agreements/activities?${search.toString()}`);
+}
+
+export async function fetchAgreementCalendar(params: {
+  start: string;
+  end: string;
+  project_group?: string;
+  contact_id?: string;
+}): Promise<CrmAgreementCalendarResponse> {
+  const search = new URLSearchParams();
+  search.set('start', params.start);
+  search.set('end', params.end);
+  if (params.project_group) search.set('project_group', params.project_group);
+  if (params.contact_id) search.set('contact_id', params.contact_id);
+  return apiFetch<CrmAgreementCalendarResponse>(`/crm/agreements/calendar?${search.toString()}`);
 }

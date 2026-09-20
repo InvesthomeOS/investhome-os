@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -184,6 +185,7 @@ def build_list_query(
     date_to: datetime | None = None,
     entity_type: str | None = None,
     entity_id: UUID | None = None,
+    include_hidden: bool = True,
     include_archived: bool = False,
     latest_only: bool = True,
     sort_by: str = "updated_at",
@@ -259,10 +261,13 @@ def build_list_query(
         count_query = count_query.where(Document.document_date <= date_val)
 
     if entity_type and entity_id:
-        link_subq = select(DocumentLink.document_id).where(
+        link_filters = [
             DocumentLink.entity_type == entity_type,
             DocumentLink.entity_id == entity_id,
-        )
+        ]
+        if not include_hidden:
+            link_filters.append(DocumentLink.hidden_from_view.is_(False))
+        link_subq = select(DocumentLink.document_id).where(*link_filters)
         direct_conds = []
         if entity_type == "project":
             direct_conds.append(Document.project_id == entity_id)
@@ -325,6 +330,26 @@ def restore_document(db: Session, document: Document) -> None:
         document.status = DocumentStatus.ACTIVE
 
 
+def _document_bitrix_file_id(document: Document) -> str | None:
+    tags = str(getattr(document, "tags", None) or "")
+    marker = "bitrix_file:"
+    if marker in tags:
+        return tags.split(marker, 1)[1].split(",")[0].strip() or None
+    raw = getattr(document, "notes", None)
+    if isinstance(raw, dict):
+        value = str(raw.get("bitrix_file_id") or "").strip()
+        return value or None
+    if isinstance(raw, str) and raw.strip().startswith("{"):
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+        if isinstance(parsed, dict):
+            value = str(parsed.get("bitrix_file_id") or "").strip()
+            return value or None
+    return None
+
+
 def enrich_response(document: Document, *, uploader_name: str | None = None, related_label: str | None = None) -> dict:
     data = {
         "id": document.id,
@@ -356,6 +381,8 @@ def enrich_response(document: Document, *, uploader_name: str | None = None, rel
         "processing_status": document.processing_status,
         "version_notes": document.version_notes,
         "is_previewable": is_previewable(document.file_extension),
+        "hidden_from_view": any(getattr(link, "hidden_from_view", False) for link in (document.links or [])),
+        "bitrix_file_id": _document_bitrix_file_id(document),
         "related_record_label": related_label,
         "is_demo": document.is_demo,
         "archived_at": document.archived_at,

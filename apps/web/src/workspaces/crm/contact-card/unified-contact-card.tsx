@@ -10,6 +10,7 @@ import { Button, EmptyState, ErrorState, Input, LoadingState, Select, StatusChip
 import { IhIcon } from '@/components/icons/ih-icons';
 import { fetchUsers, hasPermission, type UserRecord } from '@/lib/api/auth';
 import { fetchDocumentsByEntity, linkDocument, type Document } from '@/lib/api/documents';
+import { DocumentGallery, dedupeGalleryDocuments } from '@/workspaces/crm/contact-card/document-gallery';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { completeTask, createActivity, createFollowUp, createTask } from '@/workspaces/crm/api/activities';
 import {
@@ -203,15 +204,14 @@ export function UnifiedContactCard({
     queryKey: ['crm', 'contacts', 'documents', contactId],
     queryFn: async () => {
       const [crmDocs, contactDocs] = await Promise.all([
-        fetchDocumentsByEntity('crm_contact', contactId).catch(() => ({ items: [] as Document[] })),
-        fetchDocumentsByEntity('contact', contactId).catch(() => ({ items: [] as Document[] })),
+        fetchDocumentsByEntity('crm_contact', contactId, { includeHidden: true, pageSize: 100 }).catch(() => ({
+          items: [] as Document[],
+        })),
+        fetchDocumentsByEntity('contact', contactId, { includeHidden: true, pageSize: 100 }).catch(() => ({
+          items: [] as Document[],
+        })),
       ]);
-      const seen = new Set<string>();
-      return [...crmDocs.items, ...contactDocs.items].filter((doc) => {
-        if (seen.has(doc.id)) return false;
-        seen.add(doc.id);
-        return true;
-      });
+      return dedupeGalleryDocuments([...crmDocs.items, ...contactDocs.items]);
     },
     enabled: !authLoading && canRead && canViewDocuments,
   });
@@ -223,6 +223,12 @@ export function UnifiedContactCard({
   const [extraPhones, setExtraPhones] = useState('');
   const [email, setEmail] = useState('');
   const [extraEmails, setExtraEmails] = useState('');
+  const [secondEmail, setSecondEmail] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [region, setRegion] = useState('');
+  const [source, setSource] = useState('');
+  const [notes, setNotes] = useState('');
   const [company, setCompany] = useState('');
   const [position, setPosition] = useState('');
   const [statusValue, setStatusValue] = useState<'active' | 'archived'>('active');
@@ -268,7 +274,13 @@ export function UnifiedContactCard({
     setPhone(contact.primary_phone ?? '');
     setExtraPhones((contact.secondary_phones ?? []).join(', '));
     setEmail(contact.primary_email ?? '');
-    setExtraEmails((contact.secondary_emails ?? []).join(', '));
+    setSecondEmail((contact.secondary_emails ?? [])[0] ?? '');
+    setExtraEmails((contact.secondary_emails ?? []).slice(1).join(', '));
+    setAddress(contact.address_line1 ?? '');
+    setCity(contact.city ?? '');
+    setRegion(contact.state_province ?? '');
+    setSource(contact.source ?? contact.bitrix_source_channel ?? '');
+    setNotes(contact.notes ?? '');
     setCompany(contact.organization_name ?? '');
     setPosition(contact.job_title ?? '');
     setStatusValue(contact.status === 'archived' ? 'archived' : 'active');
@@ -371,22 +383,39 @@ export function UnifiedContactCard({
 
   const submitEdit = (event: FormEvent) => {
     event.preventDefault();
+    const secondaryEmails = [secondEmail, ...splitList(extraEmails)].map((item) => item.trim()).filter(Boolean);
     actionMutation.mutate(async () => {
-      await updateContact(contactId, {
-        display_name: displayName.trim() || contact.display_name,
-        primary_phone: phone.trim() || null,
-        secondary_phones: splitList(extraPhones),
-        primary_email: email.trim() || null,
-        secondary_emails: splitList(extraEmails),
-        organization_name: company.trim() || null,
-        job_title: position.trim() || null,
-        status: statusValue,
-        junk_reason: statusValue === 'archived' ? junkReason.trim() || null : contact.junk_reason,
-        contact_type: roles[0] ?? contact.contact_type,
-        contact_types: roles,
-        owner_user_id: ownerId || undefined,
-        next_follow_up_at: followUpAt ? toIso(followUpAt) : null,
-      });
+      const payload: Parameters<typeof updateContact>[1] = {};
+      if (displayName.trim() && displayName.trim() !== contact.display_name) payload.display_name = displayName.trim();
+      if (phone.trim() !== (contact.primary_phone ?? '')) payload.primary_phone = phone.trim() || undefined;
+      if (email.trim() !== (contact.primary_email ?? '')) payload.primary_email = email.trim() || undefined;
+      if (secondaryEmails.join('|') !== (contact.secondary_emails ?? []).join('|')) {
+        payload.secondary_emails = secondaryEmails;
+      }
+      if (extraPhones !== (contact.secondary_phones ?? []).join(', ')) {
+        payload.secondary_phones = splitList(extraPhones);
+      }
+      if (company.trim() !== (contact.organization_name ?? '')) payload.organization_name = company.trim() || undefined;
+      if (position.trim() !== (contact.job_title ?? '')) payload.job_title = position.trim() || undefined;
+      if (address.trim() !== (contact.address_line1 ?? '')) payload.address_line1 = address.trim() || undefined;
+      if (city.trim() !== (contact.city ?? '')) payload.city = city.trim() || undefined;
+      if (region.trim() !== (contact.state_province ?? '')) payload.state_province = region.trim() || undefined;
+      if (source.trim() !== (contact.source ?? contact.bitrix_source_channel ?? '')) {
+        payload.source = source.trim() || undefined;
+      }
+      if (notes !== (contact.notes ?? '')) payload.notes = notes;
+      if (statusValue !== (contact.status === 'archived' ? 'archived' : 'active')) payload.status = statusValue;
+      if (ownerId && ownerId !== (contact.owner_user_id ?? '')) payload.owner_user_id = ownerId;
+      if (followUpAt !== toLocalInput(contact.next_follow_up_at)) {
+        payload.next_follow_up_at = followUpAt ? toIso(followUpAt) : null;
+      }
+      const currentRoles = (contact.contact_types.length ? contact.contact_types : [contact.contact_type]).join('|');
+      if (roles.join('|') !== currentRoles) {
+        payload.contact_type = roles[0] ?? contact.contact_type;
+        payload.contact_types = roles;
+      }
+      if (statusValue === 'archived') payload.junk_reason = junkReason.trim() || null;
+      await updateContact(contactId, payload);
       setPanel(null);
     });
   };
@@ -494,9 +523,26 @@ export function UnifiedContactCard({
         <p>
           {[contact.primary_phone, contact.primary_email].filter(Boolean).join(' · ') || '—'}
         </p>
+        {(() => {
+          const flags = [
+            /BILGI_EKSIK/i.test(contact.notes || '') || (!contact.primary_phone && !contact.primary_email)
+              ? 'BILGI_EKSIK'
+              : null,
+            /INCELEME_GEREKLI/i.test(contact.notes || '') || contact.review_required || contact.bitrix_history?.review_required
+              ? 'INCELEME_GEREKLI'
+              : null,
+          ].filter(Boolean) as string[];
+          return flags.length ? (
+            <div className="crm-contact-card__flags" data-testid="contact-flags">
+              {flags.map((flag) => (
+                <span key={flag}>{flag}</span>
+              ))}
+            </div>
+          ) : null;
+        })()}
         {canUpdate ? (
           <div className="crm-contact-card__actions">
-            <Button type="button" size="sm" variant={panel === 'edit' ? 'primary' : 'secondary'} onClick={() => togglePanel('edit')}>Düzenle</Button>
+            <Button type="button" size="sm" variant={panel === 'edit' ? 'primary' : 'secondary'} data-testid="contact-edit-open" onClick={() => togglePanel('edit')}>Düzenle</Button>
             <Button type="button" size="sm" variant={panel === 'note' ? 'primary' : 'secondary'} onClick={() => togglePanel('note')}>Not Ekle</Button>
             <Button type="button" size="sm" variant={panel === 'task' ? 'primary' : 'secondary'} onClick={() => togglePanel('task')}>Görev Ekle</Button>
             <Button type="button" size="sm" variant={panel === 'assign' ? 'primary' : 'secondary'} onClick={() => togglePanel('assign')}>Sorumlu Ata</Button>
@@ -658,9 +704,14 @@ export function UnifiedContactCard({
               <Input label="Telefon" value={phone} onChange={(event) => setPhone(event.target.value)} />
               <Input label="Ek telefonlar" value={extraPhones} onChange={(event) => setExtraPhones(event.target.value)} />
               <Input label="E-posta" value={email} onChange={(event) => setEmail(event.target.value)} />
+              <Input label="İkinci E-posta" value={secondEmail} onChange={(event) => setSecondEmail(event.target.value)} />
               <Input label="Ek e-postalar" value={extraEmails} onChange={(event) => setExtraEmails(event.target.value)} />
+              <Input label="Adres" value={address} onChange={(event) => setAddress(event.target.value)} />
+              <Input label="Şehir" value={city} onChange={(event) => setCity(event.target.value)} />
+              <Input label="Bölge" value={region} onChange={(event) => setRegion(event.target.value)} />
               <Input label="Şirket" value={company} onChange={(event) => setCompany(event.target.value)} />
               <Input label="Pozisyon" value={position} onChange={(event) => setPosition(event.target.value)} />
+              <Input label="Kaynak" value={source} onChange={(event) => setSource(event.target.value)} />
               <Select label="Durum" value={statusValue} onChange={(event) => setStatusValue(event.target.value as 'active' | 'archived')}>
                 <option value="active">Aktif</option>
                 <option value="archived">Junk</option>
@@ -684,6 +735,7 @@ export function UnifiedContactCard({
               </Select>
               <Input label="Sonraki takip" type="datetime-local" value={followUpAt} onChange={(event) => setFollowUpAt(event.target.value)} />
             </div>
+            <TextArea label="Notlar" value={notes} onChange={(event) => setNotes(event.target.value)} />
             <div>
               <div className="crm-contact-card__meta-line">Tür / roller</div>
               <div className="crm-contact-card__roles">
@@ -703,7 +755,9 @@ export function UnifiedContactCard({
                 ))}
               </div>
             </div>
-            <Button type="submit" size="sm" disabled={actionMutation.isPending}>Kaydet</Button>
+            <Button type="submit" size="sm" disabled={actionMutation.isPending} data-testid="contact-edit-save">
+              Kaydet
+            </Button>
           </form>
         </section>
       ) : null}
@@ -970,20 +1024,22 @@ export function UnifiedContactCard({
 
       {showDocuments ? (
       <section className="crm-verify-detail__section" data-testid="contact-documents">
-        <h2>Belgeler <span>{documents.length}</span></h2>
+        <h2>Belgeler <span>{documents.filter((doc) => !doc.hidden_from_view).length}</span></h2>
         {!canViewDocuments ? (
           <p>Belge görüntüleme yetkisi yok.</p>
         ) : documentsQuery.isLoading ? (
           <p>Loading…</p>
         ) : documents.length ? (
-          <ul className="crm-contact-card__docs" data-testid="nedim-general-documents">
-            {documents.map((doc) => (
-              <li key={doc.id}>
-                <a href={`/workspaces/crm/documents/${doc.id}`}>{doc.title}</a>
-                <small>{doc.document_type} · v{doc.version_number}</small>
-              </li>
-            ))}
-          </ul>
+          <div data-testid="nedim-general-documents">
+            <DocumentGallery
+              documents={documents}
+              entityType="crm_contact"
+              entityId={contactId}
+              onChanged={() => {
+                void queryClient.invalidateQueries({ queryKey: ['crm', 'contacts', 'documents', contactId] });
+              }}
+            />
+          </div>
         ) : (
           <p>Bu kişiye bağlı belge yok.</p>
         )}

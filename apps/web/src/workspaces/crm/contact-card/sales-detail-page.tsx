@@ -8,6 +8,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Button, ErrorState, LoadingState, StatusChip } from '@investhome/ui';
 
 import { fetchPurchaseCard, type CrmPurchaseCard, type CrmPurchaseDocument } from '@/workspaces/crm/api/agreements';
+import { DocumentGallery } from '@/workspaces/crm/contact-card/document-gallery';
+import { HemenKiraToggle } from '@/workspaces/crm/contact-card/hemen-kira-toggle';
 import { isWhatsappEntry } from '@/workspaces/crm/contact-card/whatsapp-thread';
 
 import './contact-card.css';
@@ -134,42 +136,25 @@ function buildTimeline(card: CrmPurchaseCard): TimelineItem[] {
   return items.sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
-function Documents({ documents }: { documents: CrmPurchaseDocument[] }) {
+function Documents({
+  documents,
+  agreementId,
+  onChanged,
+}: {
+  documents: CrmPurchaseDocument[];
+  agreementId: string;
+  onChanged: () => void;
+}) {
   if (!documents.length) {
     return <p>Bu satın almaya bağlı belge yok.</p>;
   }
-  const groups = [
-    { title: 'Satış Belgeleri', items: documents.filter((doc) => doc.source === 'Satış belgesi') },
-    { title: 'E-posta / Aktivite Ekleri', items: documents.filter((doc) => doc.source === 'E-posta / Aktivite eki') },
-    {
-      title: 'Diğer',
-      items: documents.filter((doc) => doc.source !== 'Satış belgesi' && doc.source !== 'E-posta / Aktivite eki'),
-    },
-  ].filter((group) => group.items.length);
-  const sections = groups.length > 1 ? groups : [{ title: null, items: documents }];
   return (
-    <div className="crm-sales-page__doc-groups">
-      {sections.map((group) => (
-        <div key={group.title || 'all'}>
-          {group.title ? <h3>{group.title} <span>{group.items.length}</span></h3> : null}
-          <ul className="crm-contact-card__docs">
-            {group.items.map((doc) => (
-              <li key={doc.id}>
-                <a href={`/workspaces/crm/documents/${doc.id}`}>{doc.original_file_name || doc.title}</a>
-                <small>
-                  {[doc.document_type, doc.source, doc.created_at ? new Date(doc.created_at).toLocaleDateString('tr-TR') : null]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </small>
-                <span className="crm-contact-card__doc-actions">
-                  <a href={`/workspaces/crm/documents/${doc.id}`}>Aç / Önizle</a>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-    </div>
+    <DocumentGallery
+      documents={documents}
+      entityType="crm_agreement"
+      entityId={agreementId}
+      onChanged={onChanged}
+    />
   );
 }
 
@@ -178,7 +163,7 @@ export function SalesDetailPage({ contactId, agreementId }: { contactId: string;
   const [filter, setFilter] = useState<TimelineFilter>('all');
   const query = useQuery({
     queryKey: ['crm', 'sales-detail', agreementId, contactId],
-    queryFn: () => fetchPurchaseCard(agreementId, contactId),
+    queryFn: () => fetchPurchaseCard(agreementId, contactId, { includeHidden: true }),
     enabled: Boolean(agreementId),
   });
 
@@ -259,6 +244,7 @@ export function SalesDetailPage({ contactId, agreementId }: { contactId: string;
               <Fact label="Kapanış tarihi" value={displayDate(card.close_date)} />
               <Fact label="Sorumlu kişi" value={card.responsible_name} />
             </dl>
+            <HemenKiraToggle agreementId={card.agreement_id} value={Boolean(card.hemen_kira)} />
             {card.comments ? <p className="crm-purchase-card__note">{card.comments}</p> : null}
           </article>
 
@@ -339,7 +325,13 @@ export function SalesDetailPage({ contactId, agreementId }: { contactId: string;
 
           <article className="crm-verify-detail__section" data-testid="sales-documents">
             <h2>Belgeler <span>{card.document_count}</span></h2>
-            <Documents documents={card.documents} />
+            <Documents
+              documents={card.documents}
+              agreementId={card.agreement_id}
+              onChanged={() => {
+                void query.refetch();
+              }}
+            />
           </article>
         </section>
 

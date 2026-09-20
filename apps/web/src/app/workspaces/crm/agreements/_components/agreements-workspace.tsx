@@ -1,31 +1,39 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 
-import { Select, StatusChip } from '@investhome/ui';
+import { Select } from '@investhome/ui';
 
-import { fetchAgreements } from '@/workspaces/crm/api/agreements';
-import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
+import { fetchAgreements, type CrmAgreementSummary } from '@/workspaces/crm/api/agreements';
+import { salesDetailUrl } from '@/workspaces/crm/contact-card/pilot-people';
+
+import { AgreementsActivities } from './agreements-activities';
+import { AgreementsCalendar } from './agreements-calendar';
+import { AgreementsKanban } from './agreements-kanban';
+import { AgreementsList } from './agreements-list';
+import { PROJECT_SELECTOR } from './agreements-stage';
 
 import '../../contacts/_components/ds/contacts-ds.css';
 import '@/workspaces/crm/contact-card/contact-card.css';
+import './agreements-workspace.css';
 
-const FALLBACK_GROUPS = [
-  { id: '1307_k_st', label: '1307 K St' },
-  { id: '1313_penn', label: '1313 Penn' },
-  { id: '1812_h_pl', label: '1812 H Pl' },
-  { id: '2319_ontario', label: '2319 Ontario' },
-  { id: 'reit', label: 'REIT' },
-  { id: 'the_temple', label: 'The Temple' },
-  { id: 'uniloft', label: 'Uniloft' },
-];
+const VIEWS = [
+  { id: 'kanban', labelKey: 'views.kanban' },
+  { id: 'list', labelKey: 'views.list' },
+  { id: 'activities', labelKey: 'views.activities' },
+  { id: 'calendar', labelKey: 'views.calendar' },
+] as const;
+
+type ViewId = (typeof VIEWS)[number]['id'];
 
 export function AgreementsWorkspace() {
   const t = useTranslations('crm.agreements');
-  const { openContact, openPurchase } = useContactCard();
+  const router = useRouter();
   const [projectGroup, setProjectGroup] = useState('');
+  const [view, setView] = useState<ViewId>('kanban');
 
   const query = useQuery({
     queryKey: ['crm', 'agreements', projectGroup],
@@ -37,19 +45,23 @@ export function AgreementsWorkspace() {
       }),
   });
 
-  const groups = query.data?.project_groups?.length ? query.data.project_groups : FALLBACK_GROUPS;
   const items = query.data?.items ?? [];
+  const groups = useMemo(() => {
+    const api = query.data?.project_groups ?? [];
+    return PROJECT_SELECTOR.map((item) => ({
+      id: item.id,
+      label: item.label,
+      apiLabel: api.find((group) => group.id === item.id)?.label || item.label,
+    }));
+  }, [query.data?.project_groups]);
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, typeof items>();
-    for (const row of items) {
-      const key = row.project_group_label || row.project_group;
-      const list = map.get(key) ?? [];
-      list.push(row);
-      map.set(key, list);
-    }
-    return [...map.entries()];
-  }, [items]);
+  const openPurchase = (row: CrmAgreementSummary) => {
+    router.push(salesDetailUrl(row.contact_id, row.id));
+  };
+
+  const openAgreement = (agreementId: string, contactId: string) => {
+    router.push(salesDetailUrl(contactId, agreementId));
+  };
 
   return (
     <div className="ctc-ds" data-testid="crm-agreements-workspace">
@@ -58,12 +70,28 @@ export function AgreementsWorkspace() {
           <h1>{t('title')}</h1>
           <p>{t('subtitle')}</p>
         </div>
+        <div className="crm-agreements-views" role="tablist" aria-label={t('viewsLabel')}>
+          {VIEWS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={view === item.id}
+              className={view === item.id ? 'is-active' : undefined}
+              data-testid={`agreements-view-${item.id}`}
+              onClick={() => setView(item.id)}
+            >
+              {t(item.labelKey)}
+            </button>
+          ))}
+        </div>
       </header>
 
-      <section className="ctc-ds__toolbar" aria-label={t('projectFilter')}>
+      <section className="ctc-ds__toolbar crm-agreements-toolbar" aria-label={t('projectFilter')}>
         <Select
           label={t('projectFilter')}
           value={projectGroup}
+          data-testid="agreements-project-filter"
           onChange={(event) => setProjectGroup(event.target.value)}
         >
           <option value="">{t('allProjects')}</option>
@@ -73,88 +101,32 @@ export function AgreementsWorkspace() {
             </option>
           ))}
         </Select>
+        <p className="crm-agreements-count" data-testid="agreements-count">
+          {query.data ? t('count', { count: query.data.total }) : t('loading')}
+        </p>
       </section>
 
       {query.isLoading ? <p>{t('loading')}</p> : null}
       {query.isError ? <p>{t('loadError')}</p> : null}
 
-      {!query.isLoading && !query.isError ? (
-        <section className="ctc-ds__table-section" aria-label={t('tableAria')}>
-          {items.length === 0 ? (
-            <div className="ctc-ds__empty" data-testid="crm-agreements-empty">
-              <strong>{t('emptyTitle')}</strong>
-              <p>{t('emptyDescription')}</p>
-            </div>
-          ) : (
-            grouped.map(([groupLabel, rows]) => {
-              const isReit = rows.some((row) => row.project_group === 'reit') || groupLabel === 'REIT';
-              return (
-              <div key={groupLabel} className="ctc-ds__table-wrap">
-                <h2>{groupLabel}</h2>
-                <table className="ctc-ds__table">
-                  <thead>
-                    <tr>
-                      <th scope="col">{t('columns.contact')}</th>
-                      <th scope="col">{t('columns.project')}</th>
-                      <th scope="col">{isReit ? t('columns.investmentAmount') : t('columns.unit')}</th>
-                      <th scope="col">{t('columns.email')}</th>
-                      <th scope="col">{t('columns.phone')}</th>
-                      <th scope="col">{t('columns.status')}</th>
-                      <th scope="col">{t('columns.date')}</th>
-                      <th scope="col">{t('columns.source')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row) => (
-                      <tr
-                        key={row.id}
-                        className="ctc-ds__row"
-                        onClick={() => openPurchase(row.id)}
-                      >
-                        <td>
-                          <div className="crm-agreement-owners">
-                            {(row.participants && row.participants.length
-                              ? row.participants
-                              : [{ contact_id: row.contact_id, display_name: row.contact_name ?? row.contact_id, ownership_pct: null, is_primary: true }]
-                            ).map((owner) => (
-                              <button
-                                key={owner.contact_id}
-                                type="button"
-                                className="crm-agreement-owner-link"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  openContact(owner.contact_id);
-                                }}
-                              >
-                                {owner.display_name}
-                                {owner.ownership_pct ? ` ${String(owner.ownership_pct).replace(/\.00$/, '')}%` : ''}
-                              </button>
-                            ))}
-                          </div>
-                          {row.amount_label ? <small>{row.amount_label}</small> : null}
-                        </td>
-                        <td>{row.project_group_label}</td>
-                        <td>
-                          {isReit ? (row.investment_amount ?? '') : (row.unit_number ?? '')}
-                        </td>
-                        <td>{row.contact_email ?? ''}</td>
-                        <td>{row.contact_phone ?? ''}</td>
-                        <td>
-                          <StatusChip tone={row.status === 'active' ? 'success' : 'default'}>
-                            {row.review_required ? t('reviewRequired') : (row.stage_label || row.status)}
-                          </StatusChip>
-                        </td>
-                        <td>{row.agreement_date ?? ''}</td>
-                        <td>{row.source_external_id ?? row.source}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              );
-            })
-          )}
-        </section>
+      {!query.isLoading && !query.isError && items.length === 0 ? (
+        <div className="ctc-ds__empty" data-testid="crm-agreements-empty">
+          <strong>{t('emptyTitle')}</strong>
+          <p>{t('emptyDescription')}</p>
+        </div>
+      ) : null}
+
+      {!query.isLoading && !query.isError && items.length > 0 && view === 'kanban' ? (
+        <AgreementsKanban items={items} onOpen={openPurchase} />
+      ) : null}
+      {!query.isLoading && !query.isError && items.length > 0 && view === 'list' ? (
+        <AgreementsList items={items} onOpen={openPurchase} />
+      ) : null}
+      {!query.isLoading && !query.isError && view === 'activities' ? (
+        <AgreementsActivities projectGroup={projectGroup} items={items} onOpenAgreement={openAgreement} />
+      ) : null}
+      {!query.isLoading && !query.isError && view === 'calendar' ? (
+        <AgreementsCalendar projectGroup={projectGroup} items={items} onOpenAgreement={openAgreement} />
       ) : null}
     </div>
   );

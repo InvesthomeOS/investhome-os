@@ -117,6 +117,9 @@ class CrmContactSummary(BaseModel):
     secondary_phones: list[str] | None = None
     whatsapp: str | None = None
     job_title: str | None = None
+    city: str | None = None
+    address_line1: str | None = None
+    notes: str | None = None
     updated_at: datetime
     created_at: datetime
 

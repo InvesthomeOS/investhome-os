@@ -85,6 +85,9 @@ export type CrmContactSummary = {
   secondary_phones?: string[] | null;
   whatsapp?: string | null;
   job_title?: string | null;
+  city?: string | null;
+  address_line1?: string | null;
+  notes?: string | null;
   updated_at: string;
   created_at: string;
 };

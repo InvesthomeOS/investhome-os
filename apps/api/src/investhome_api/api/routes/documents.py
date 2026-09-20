@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
@@ -135,6 +136,12 @@ def _parse_optional_date(value: str | None) -> date | None:
     return date.fromisoformat(value)
 
 
+def _content_disposition(disposition: str, filename: str) -> str:
+    cleaned = (filename or "document").replace('"', "").replace("\r", "").replace("\n", "")
+    ascii_name = cleaned.encode("ascii", "replace").decode("ascii").replace("?", "_") or "document"
+    return f"{disposition}; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(cleaned)}"
+
+
 @router.get("", response_model=DocumentListResponse)
 def list_documents(
     search: str | None = Query(default=None, max_length=255),
@@ -198,6 +205,7 @@ def list_documents_by_entity(
     entity_id: UUID,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=100),
+    include_hidden: bool = Query(default=False),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("documents", "view")),
 ) -> DocumentListResponse:
@@ -208,11 +216,22 @@ def list_documents_by_entity(
         user,
         entity_type=entity_type,
         entity_id=entity_id,
+        include_hidden=include_hidden,
         page=page,
         page_size=page_size,
     )
+    responses = []
+    for doc in items:
+        item = _to_response(db, doc)
+        hidden = any(
+            link.entity_type == entity_type
+            and link.entity_id == entity_id
+            and getattr(link, "hidden_from_view", False)
+            for link in (doc.links or [])
+        )
+        responses.append(item.model_copy(update={"hidden_from_view": hidden}))
     return DocumentListResponse(
-        items=[_to_response(db, doc) for doc in items],
+        items=responses,
         total=total,
         page=page,
         page_size=page_size,
@@ -578,8 +597,7 @@ def download_document(
         )
         db.commit()
 
-    safe_name = document.original_file_name.replace('"', "")
-    headers = {"Content-Disposition": f'attachment; filename="{safe_name}"'}
+    headers = {"Content-Disposition": _content_disposition("attachment", document.original_file_name)}
     return StreamingResponse(stream, media_type=document.mime_type, headers=headers)
 
 
@@ -601,9 +619,7 @@ def preview_document(
     except FileNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
-    disposition = "inline"
-    safe_name = document.original_file_name.replace('"', "")
-    headers = {"Content-Disposition": f'{disposition}; filename="{safe_name}"'}
+    headers = {"Content-Disposition": _content_disposition("inline", document.original_file_name)}
     return StreamingResponse(stream, media_type=document.mime_type, headers=headers)
 
 

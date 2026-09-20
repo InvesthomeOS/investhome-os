@@ -8,6 +8,7 @@ import { Button, ErrorState, LoadingState, StatusChip } from '@investhome/ui';
 
 import { fetchPurchaseCard, type CrmLabeledValue } from '@/workspaces/crm/api/agreements';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
+import { HemenKiraToggle } from '@/workspaces/crm/contact-card/hemen-kira-toggle';
 import { sortWhatsappConversation, WhatsAppThread } from '@/workspaces/crm/contact-card/whatsapp-thread';
 
 import './contact-card.css';
@@ -240,6 +241,7 @@ export function PurchaseCard({ agreementId }: { agreementId: string }) {
             <Fact label="Kapanış tarihi" value={displayDate(card.close_date)} />
             <Fact label="Sorumlu" value={card.responsible_name} />
           </dl>
+          <HemenKiraToggle agreementId={card.agreement_id} value={Boolean(card.hemen_kira)} />
           <FieldList items={card.extra_fields} />
           {card.comments ? <p className="crm-purchase-card__note">{card.comments}</p> : null}
 
