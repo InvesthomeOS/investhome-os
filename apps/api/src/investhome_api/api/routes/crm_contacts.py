@@ -18,6 +18,7 @@ from investhome_api.models.crm_contact import (
     CrmLifecycleStage,
 )
 from investhome_api.models.user_auth import User
+from investhome_api.schemas.crm import CrmTagAssignRequest
 from investhome_api.schemas.crm_contacts import (
     CrmContactAssignOwnerRequest,
     CrmContactBulkUpdateRequest,
@@ -40,6 +41,9 @@ from investhome_api.schemas.crm_contacts import (
     CrmDuplicateCheckRequest,
     CrmDuplicateCheckResponse,
     CrmJunkReasonListResponse,
+    CrmPeopleCounts,
+    CrmInvestorCounts,
+    CrmContactTagItem,
 )
 from investhome_api.services.activity_recorder import (
     activity_context_from_request,
@@ -47,6 +51,12 @@ from investhome_api.services.activity_recorder import (
     log_entity_updated,
 )
 from investhome_api.services.activity_service import log_activity, snapshot_entity
+from investhome_api.services.crm.tag_service import (
+    TagConflictError,
+    TagNotFoundError,
+    assign_tag,
+    remove_tag,
+)
 from investhome_api.services.crm.contact_service import (
     CRM_CONTACT_ACTIVITY_FIELDS,
     archive_contact,
@@ -65,9 +75,11 @@ from investhome_api.services.crm.contact_service import (
     assign_contact_owner,
     get_contact_timeline,
     import_contacts,
+    investor_workspace_counts,
     list_crm_contacts,
     list_junk_reasons,
     list_saved_views,
+    people_workspace_counts,
     merge_contacts,
     restore_contact,
     serialize_contact_detail,
@@ -104,10 +116,13 @@ def list_contacts(
     status_filter: CrmContactStatus | None = Query(default=None, alias="status"),
     source_group: str | None = Query(default=None, pattern="^(bitrix|other)$"),
     role_group: str | None = Query(default=None, pattern="^(agent|other)$"),
-    category: str | None = Query(default=None, pattern="^(customer|agent|agreement)$"),
+    category: str | None = Query(default=None, pattern="^(customer|agent|agreement|investor)$"),
     junk_reason: str | None = Query(default=None, max_length=255),
     agreement_project: str | None = Query(default=None, max_length=40),
     bitrix_list: str | None = Query(default=None, pattern="^(current_junk)$"),
+    flag: str | None = Query(default=None, pattern="^(bilgi_eksik|inceleme_gerekli)$"),
+    has_investments: bool | None = Query(default=None),
+    tag_id: UUID | None = Query(default=None),
     include_archived: bool = Query(default=False),
     sort_by: str = Query(default="updated_at", max_length=40),
     sort_dir: str = Query(default="desc", pattern="^(asc|desc)$"),
@@ -133,6 +148,9 @@ def list_contacts(
         junk_reason=junk_reason,
         agreement_project=agreement_project,
         bitrix_list=bitrix_list,
+        flag=flag,
+        has_investments=has_investments,
+        tag_id=tag_id,
         include_archived=include_archived,
         sort_by=sort_by,
         sort_dir=sort_dir,
@@ -181,6 +199,24 @@ def bitrix_verification_summary(
 ) -> CrmBitrixVerificationSummary:
     del user
     return get_bitrix_verification_summary(db)
+
+
+@router.get("/people-counts", response_model=CrmPeopleCounts)
+def get_people_counts(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("crm", "read")),
+) -> CrmPeopleCounts:
+    del user
+    return people_workspace_counts(db)
+
+
+@router.get("/investor-counts", response_model=CrmInvestorCounts)
+def get_investor_counts(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("crm", "read")),
+) -> CrmInvestorCounts:
+    del user
+    return investor_workspace_counts(db)
 
 
 @router.get("/junk-reasons", response_model=CrmJunkReasonListResponse)
@@ -528,6 +564,34 @@ def post_assign_owner(
     )
     db.commit()
     return CrmContactMutationResponse(contact=serialize_contact_detail(db, contact, user=user))
+
+
+@router.post("/{contact_id}/tags", response_model=list[CrmContactTagItem])
+def post_contact_tag(
+    contact_id: UUID,
+    body: CrmTagAssignRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("crm", "update")),
+) -> list[CrmContactTagItem]:
+    try:
+        return assign_tag(db, contact_id=contact_id, payload=body, actor=user)
+    except TagNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except TagConflictError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
+@router.delete("/{contact_id}/tags/{tag_id}", response_model=list[CrmContactTagItem])
+def delete_contact_tag(
+    contact_id: UUID,
+    tag_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("crm", "update")),
+) -> list[CrmContactTagItem]:
+    try:
+        return remove_tag(db, contact_id=contact_id, tag_id=tag_id, actor=user)
+    except TagNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.get("/{contact_id}/timeline", response_model=CrmContactTimelineResponse)

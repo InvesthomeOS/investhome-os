@@ -17,6 +17,7 @@ from investhome_api.models.crm_contact import (
     CrmRelationshipStatus,
     CrmRelationshipStrength,
 )
+from investhome_api.schemas.crm_agreements import CrmUnitHistoryStep
 
 
 class CrmLabeledValue(BaseModel):
@@ -73,6 +74,18 @@ class CrmVendorProfileSchema(BaseModel):
     notes: str | None = None
 
 
+class CrmVerifiedAmountTotal(BaseModel):
+    currency: str | None = None
+    total: str
+    label: str
+
+
+class CrmContactTagItem(BaseModel):
+    id: UUID
+    name: str
+    status: str = "active"
+
+
 class CrmContactSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -91,6 +104,7 @@ class CrmContactSummary(BaseModel):
     relationship_strength: CrmRelationshipStrength = CrmRelationshipStrength.MODERATE
     priority: CrmContactPriority = CrmContactPriority.NORMAL
     tags: list[str] | None = None
+    tag_items: list[CrmContactTagItem] = Field(default_factory=list)
     is_favorite: bool = False
     is_pinned: bool = False
     owner_user_id: UUID | None = None
@@ -108,6 +122,8 @@ class CrmContactSummary(BaseModel):
     review_required: bool = False
     is_agent: bool = False
     has_agreements: bool = False
+    agreement_count: int = 0
+    verified_amount_totals: list[CrmVerifiedAmountTotal] = Field(default_factory=list)
     agreement_projects: list[str] = Field(default_factory=list)
     bitrix_original_stage: str | None = None
     bitrix_historical_junk: bool = False
@@ -214,6 +230,12 @@ class CrmPurchaseSummary(BaseModel):
     participants: list[CrmPurchaseParticipant] = Field(default_factory=list)
     opens_purchase_card: bool = False
     status: str | None = None
+    hemen_kira: bool = False
+    is_historical_unit_change: bool = False
+    unit_change_status: str | None = None
+    original_unit: str | None = None
+    final_unit: str | None = None
+    unit_history: list[CrmUnitHistoryStep] = Field(default_factory=list)
 
 
 class CrmContactActivityVerification(BaseModel):
@@ -514,6 +536,22 @@ class CrmContactTimelineEntry(BaseModel):
     metadata: dict[str, Any] | None = None
     project_contexts: list[str] = Field(default_factory=list)
     project_assignment: str | None = None
+
+
+class CrmPeopleCounts(BaseModel):
+    total: int
+    active: int
+    junk: int
+    review_required: int
+    missing_info: int
+
+
+class CrmInvestorCounts(BaseModel):
+    total: int
+    active: int
+    purchases: int
+    missing_info: int
+    review_required: int
 
 
 class CrmJunkReasonCount(BaseModel):

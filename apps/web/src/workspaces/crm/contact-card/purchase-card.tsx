@@ -7,8 +7,11 @@ import { useQuery } from '@tanstack/react-query';
 import { Button, ErrorState, LoadingState, StatusChip } from '@investhome/ui';
 
 import { fetchPurchaseCard, type CrmLabeledValue } from '@/workspaces/crm/api/agreements';
+import { EmailCard, EmailDetail, type EmailViewEntry } from '@/workspaces/crm/contact-card/crm-email-view';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
+import { stripHtml } from '@/workspaces/crm/contact-card/history-html';
 import { HemenKiraToggle } from '@/workspaces/crm/contact-card/hemen-kira-toggle';
+import { UnitHistorySection } from '@/workspaces/crm/contact-card/unit-history';
 import { sortWhatsappConversation, WhatsAppThread } from '@/workspaces/crm/contact-card/whatsapp-thread';
 
 import './contact-card.css';
@@ -64,8 +67,19 @@ function displayDate(value?: string | null): string | null {
   return date.toLocaleDateString('tr-TR');
 }
 
+function isRawBitrixExtra(label: string, value?: string | null): boolean {
+  if (!value) return true;
+  const field = label.trim();
+  const raw = value.trim();
+  if (!field || !raw) return true;
+  if (/^\{[\s\S]*\}$/.test(raw) || raw.startsWith('[{')) return true;
+  if (/ownership percentage/i.test(field)) return true;
+  if (/durumu|status|zoom|yüz yüze|potential/i.test(field) && /^\d{1,5}$/.test(raw)) return true;
+  return false;
+}
+
 function Fact({ label, value }: { label: string; value?: string | null }) {
-  if (!value) return null;
+  if (!value || isRawBitrixExtra(label, value)) return null;
   return (
     <div>
       <dt>{label}</dt>
@@ -75,10 +89,11 @@ function Fact({ label, value }: { label: string; value?: string | null }) {
 }
 
 function FieldList({ items }: { items?: CrmLabeledValue[] | null }) {
-  if (!items?.length) return null;
+  const visible = (items ?? []).filter((item) => !isRawBitrixExtra(item.label, item.value));
+  if (!visible.length) return null;
   return (
     <dl className="crm-contact-card__facts">
-      {items.map((item) => (
+      {visible.map((item) => (
         <Fact key={`${item.label}:${item.value}`} label={item.label} value={item.value} />
       ))}
     </dl>
@@ -90,6 +105,7 @@ export function PurchaseCard({ agreementId }: { agreementId: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const [tab, setTab] = useState<PurchaseTab>('overview');
+  const [emailFocus, setEmailFocus] = useState<EmailViewEntry | null>(null);
   const fromContactId = pathname?.match(/\/contacts\/([0-9a-fA-F-]{36})/)?.[1] || null;
 
   useEffect(() => {
@@ -172,6 +188,11 @@ export function PurchaseCard({ agreementId }: { agreementId: string }) {
           </div>
           <StatusChip tone="success">{stageLabel || '—'}</StatusChip>
         </div>
+        <UnitHistorySection
+          steps={card.unit_history}
+          personId={fromContactId || viewer?.contact_id || card.primary_contact_id}
+          viewingAgreementId={card.agreement_id}
+        />
         <section className="crm-purchase-card__owners" data-testid="purchase-card-owners">
           <h2>Sahipler</h2>
           <ul>
@@ -206,6 +227,8 @@ export function PurchaseCard({ agreementId }: { agreementId: string }) {
                   <strong>{purchaseLine(item)}</strong>
                   {item.is_current ? (
                     <small className="crm-purchase-list__active">AKTİF / AÇIK SATIN ALMA</small>
+                  ) : item.is_historical_unit_change ? (
+                    <small className="crm-purchase-list__active">ÖNCEKİ DAİRE</small>
                   ) : null}
                 </article>
               ))}
@@ -286,17 +309,26 @@ export function PurchaseCard({ agreementId }: { agreementId: string }) {
         <section className="crm-verify-detail__section" data-testid="purchase-history">
           <h2>Geçmiş <span>{card.history_count}</span></h2>
           {card.history.length ? (
-            <div className="crm-verify-detail__records crm-verify-detail__timeline">
-              {card.history.map((entry) => (
-                <article key={entry.id}>
-                  <strong>{entry.title}</strong>
-                  <small>
-                    {new Date(entry.created_at).toLocaleString()}
-                    {entry.actor_name ? ` · ${entry.actor_name}` : ''}
-                  </small>
-                  {entry.summary ? <p>{entry.summary}</p> : null}
-                </article>
-              ))}
+            <div className="crm-verify-detail__records crm-verify-detail__timeline crm-stream">
+              {card.history.map((entry) =>
+                entry.activity_type === 'email' ? (
+                  <EmailCard
+                    key={entry.id}
+                    entry={entry}
+                    locale="tr-TR"
+                    onOpen={() => setEmailFocus(entry)}
+                  />
+                ) : (
+                  <article key={entry.id}>
+                    <strong>{entry.title}</strong>
+                    <small>
+                      {new Date(entry.created_at).toLocaleString()}
+                      {entry.actor_name ? ` · ${entry.actor_name}` : ''}
+                    </small>
+                    {entry.summary ? <p>{stripHtml(entry.summary)}</p> : null}
+                  </article>
+                ),
+              )}
             </div>
           ) : (
             <p data-testid="purchase-history-empty">Bu satın almaya bağlı geçmiş kaydı yok.</p>
@@ -361,7 +393,7 @@ export function PurchaseCard({ agreementId }: { agreementId: string }) {
 
       {tab === 'documents' ? (
         <section className="crm-verify-detail__section" data-testid="purchase-documents">
-          <h2>Belgeler <span>{card.document_count}</span></h2>
+          <h2>Satın Alma Belgeleri <span>{card.document_count}</span></h2>
           {card.documents.length ? (
             <ul className="crm-contact-card__docs">
               {card.documents.map((doc) => (
@@ -381,6 +413,27 @@ export function PurchaseCard({ agreementId }: { agreementId: string }) {
           ) : (
             <p>Bu satın almaya bağlı belge yok.</p>
           )}
+          {(card.person_documents?.length || card.person_document_count) ? (
+            <>
+              <h2>Kişi Belgeleri <span>{card.person_document_count ?? card.person_documents?.length ?? 0}</span></h2>
+              <p className="crm-contact-card__muted">Pasaport / kimlik gibi kişi belgeleri bu satın almaya ait değildir.</p>
+              <ul className="crm-contact-card__docs">
+                {(card.person_documents ?? []).map((doc) => (
+                  <li key={doc.id}>
+                    <a href={`/workspaces/crm/documents/${doc.id}`}>{doc.original_file_name || doc.title}</a>
+                    <small>
+                      {[doc.document_type, doc.source, doc.created_at ? new Date(doc.created_at).toLocaleDateString() : null]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </small>
+                    <span className="crm-contact-card__doc-actions">
+                      <a href={`/workspaces/crm/documents/${doc.id}`}>Aç / Önizle</a>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
         </section>
       ) : null}
 
@@ -426,6 +479,9 @@ export function PurchaseCard({ agreementId }: { agreementId: string }) {
             ))}
           </div>
         </section>
+      ) : null}
+      {emailFocus ? (
+        <EmailDetail entry={emailFocus} locale="tr-TR" onClose={() => setEmailFocus(null)} />
       ) : null}
     </div>
   );

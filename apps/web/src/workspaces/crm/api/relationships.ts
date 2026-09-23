@@ -18,11 +18,15 @@ export type RelationshipListParams = {
   status?: string;
   category?: string;
   relationship_type?: string;
+  pair_kind?: string;
+  owner_user_id?: string;
+  project_group?: string;
   entity_type?: string;
   entity_id?: string;
   include_archived?: boolean;
   sort_by?: string;
   sort_dir?: 'asc' | 'desc';
+  sort_order?: 'asc' | 'desc';
   page?: number;
   page_size?: number;
 };
@@ -51,14 +55,20 @@ export type CrmRelationshipSummary = {
   is_confidential: boolean;
   is_verified: boolean;
   owner_user_id: string | null;
+  owner_name: string | null;
   last_interaction_at: string | null;
+  notes: string | null;
+  pair_kind: string;
+  linked_project_id: string | null;
+  linked_project_label: string | null;
+  linked_agreement_id: string | null;
+  linked_agreement_label: string | null;
   archived_at: string | null;
   created_at: string;
   updated_at: string;
 };
 
 export type CrmRelationshipDetail = CrmRelationshipSummary & {
-  notes: string | null;
   metadata_json: Record<string, unknown> | null;
   started_at: string | null;
   ended_at: string | null;
@@ -69,6 +79,15 @@ export type CrmRelationshipListResponse = {
   total: number;
   page: number;
   page_size: number;
+};
+
+export type CrmRelationshipCounts = {
+  total: number;
+  contact_company: number;
+  contact_project: number;
+  contact_contact: number;
+  company_project: number;
+  company_company: number;
 };
 
 export type CrmGraphNode = {
@@ -156,6 +175,10 @@ export function fetchRelationships(params: RelationshipListParams = {}) {
   return apiFetch<CrmRelationshipListResponse>(`/crm/relationships${buildSearchParams(params)}`);
 }
 
+export function fetchRelationshipCounts() {
+  return apiFetch<CrmRelationshipCounts>('/crm/relationships/counts');
+}
+
 export function fetchRelationship(id: string) {
   return apiFetch<CrmRelationshipDetail>(`/crm/relationships/${id}`);
 }
@@ -200,6 +223,8 @@ export function fetchRelationshipGraph(params: {
   limit?: number;
   category?: string;
   relationship_type?: string;
+  project_group?: string;
+  pair_kind?: string;
 }) {
   return apiFetch<CrmRelationshipGraphResponse>(`/crm/relationships/graph${buildSearchParams(params)}`);
 }

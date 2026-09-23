@@ -17,6 +17,10 @@ export type FetchCrmCompaniesParams = {
   companyType?: string;
   lifecycleStage?: string;
   industry?: string;
+  ownerUserId?: string;
+  country?: string;
+  relationshipStatus?: string;
+  openRelationships?: boolean;
   includeArchived?: boolean;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
@@ -31,10 +35,26 @@ function buildSearchParams(params: FetchCrmCompaniesParams): string {
   if (params.companyType) search.set('company_type', params.companyType);
   if (params.lifecycleStage) search.set('lifecycle_stage', params.lifecycleStage);
   if (params.industry) search.set('industry', params.industry);
+  if (params.ownerUserId) search.set('owner_user_id', params.ownerUserId);
+  if (params.country) search.set('country', params.country);
+  if (params.relationshipStatus) search.set('relationship_status', params.relationshipStatus);
+  if (params.openRelationships) search.set('open_relationships', 'true');
   if (params.includeArchived) search.set('include_archived', 'true');
   if (params.sortBy) search.set('sort_by', params.sortBy);
   if (params.sortOrder) search.set('sort_order', params.sortOrder);
   return search.toString();
+}
+
+export type CrmCompanyCounts = {
+  total: number;
+  brokerage: number;
+  partner: number;
+  investor: number;
+  open_relationships: number;
+};
+
+export async function fetchCrmCompanyCounts(): Promise<CrmCompanyCounts> {
+  return apiFetch<CrmCompanyCounts>('/crm/companies/counts');
 }
 
 export async function fetchCrmCompanies(

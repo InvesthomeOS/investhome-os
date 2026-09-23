@@ -106,7 +106,7 @@ const COPY = {
 type CategoryFilter = '' | 'customer' | 'agent' | 'agreement';
 
 function categoryLabel(
-  copy: (typeof COPY)[keyof typeof COPY],
+  copy: (typeof COPY)['tr'],
   contact: { is_agent?: boolean; has_agreements?: boolean },
 ): string {
   const parts: string[] = [];

@@ -1976,7 +1976,7 @@
 .crm-journey__event--internal_observation .crm-journey__marker {
   border-color: #e4d2b8;
   background: #fbf6ef;
-  color: #8a5a1f;
+  color: #075b75;
 }
 
 .crm-journey__event--ai_generated .crm-journey__marker {
@@ -2108,7 +2108,7 @@
 }
 
 .crm-journey__note-label {
-  color: #8a5a1f;
+  color: #075b75;
   font-size: 0.75rem;
   font-weight: 750;
   letter-spacing: 0.03em;
@@ -2159,7 +2159,7 @@
   padding: 0 0.55rem;
   border-color: transparent;
   background: transparent;
-  color: #8a5a1f;
+  color: #075b75;
 }
 
 .crm-journey__empty {
@@ -4355,7 +4355,7 @@
 
 .crm-event-identity--internal-note .journey-workspace__event-topline small,
 .crm-event-identity--internal-note .journey-workspace__private-indicator {
-  color: #8a5a1f;
+  color: #075b75;
   background: #f5ebd8;
 }
 
@@ -5486,5 +5486,171 @@ html[data-theme='dark'] .crm-shell .global-search-trigger.crm-search-trigger {
   border-color: rgba(120, 168, 186, 0.16);
   background: #101a21;
   color: #8a9eaa;
+}
+
+.crm-live-comm__table-wrap {
+  overflow-x: auto;
+}
+
+.crm-live-comm__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.crm-live-comm__table th,
+.crm-live-comm__table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--ih-border-subtle, #d8dee9);
+}
+
+.crm-live-comm__meta {
+  color: var(--ih-text-muted, #64748b);
+  font-size: 0.85em;
+}
+
+.crm-live-comm__hint {
+  margin: 0;
+  color: var(--ih-text-muted, #64748b);
+}
+
+.crm-live-comm__error {
+  margin: 0;
+  color: #b42318;
+}
+
+.crm-live-comm__banner {
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.45rem;
+  background: #ecfdf3;
+  color: #027a48;
+  font-size: 0.9rem;
+}
+
+.crm-live-comm__row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.crm-live-comm__stack {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.crm-live-comm__card {
+  border: 1px solid var(--ih-border-subtle, #d8dee9);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.crm-live-comm__card-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: baseline;
+}
+
+.crm-live-comm__subject {
+  margin: 0;
+  font-weight: 600;
+}
+
+.crm-live-comm__preview {
+  margin: 0;
+  color: var(--ih-text-muted, #64748b);
+}
+
+.crm-live-comm__suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.crm-live-comm__chip {
+  border: 1px solid var(--ih-border-subtle, #d8dee9);
+  background: #fff;
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  cursor: pointer;
+}
+
+.crm-live-comm__chip--active {
+  border-color: #075b75;
+  background: color-mix(in srgb, #075b75 10%, #fff);
+}
+
+.crm-live-comm__match-form,
+.crm-live-comm__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: flex-end;
+}
+
+/* CRM product visual lock — one dashboard language across workspaces. */
+.crm-module-shell {
+  background: #f6f8fa;
+}
+
+.crm-module-shell .ctc-ds__table-wrap,
+.crm-module-shell table,
+.crm-leads table,
+.crm-matches-live table,
+.crm-pano,
+.crm-reports {
+  min-width: 0;
+}
+
+.crm-module-shell .ctc-ds__table-wrap,
+.crm-module-shell [role='region'] table {
+  overflow-x: auto;
+}
+
+.crm-module-shell .dashboard__header + .ctc-ds > .ctc-ds__header,
+.crm-module-shell .dashboard__header + .crm-pano > .crm-pano__header {
+  margin-top: 0;
+}
+
+.ctc-ds__avatar.is-violet,
+.tl-ds__avatar.is-violet,
+.crm-people__avatar.is-violet,
+.crm-companies__logo.is-violet {
+  background: #0a6f8a;
+}
+
+.ctc-ds__avatar.is-rose,
+.tl-ds__avatar.is-rose,
+.crm-people__avatar.is-rose,
+.crm-companies__logo.is-rose {
+  background: #134a5c;
+}
+
+@media (max-width: 1100px) {
+  .crm-pano__kpi-row,
+  .crm-leads .crm-leads__kpi-row,
+  .crm-people-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .crm-pano__charts,
+  .crm-pano__panels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .crm-pano__kpi-row,
+  .crm-leads .crm-leads__kpi-row,
+  .crm-people-summary,
+  .crm-pano__charts,
+  .crm-pano__panels {
+    grid-template-columns: 1fr;
+  }
 }
 

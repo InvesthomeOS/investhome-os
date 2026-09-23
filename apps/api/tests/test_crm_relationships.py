@@ -402,3 +402,71 @@ def test_canonical_backfill_replaces_qa_rows_and_is_idempotent(client: TestClien
     assert second.investor_project_skipped >= 1
     assert relationship_duplicate_count(db) == 0
     assert db.query(CrmRelationship).count() >= 2
+
+
+def test_workspace_list_exposes_real_fields_and_counts(client: TestClient, db: Session) -> None:
+    from uuid import UUID
+
+    from investhome_api.models.crm_agreement import CrmAgreement
+    from investhome_api.models.crm_company import CrmCompanyContact
+    from investhome_api.models.project import Project
+    from investhome_api.services.crm.canonical_relationship_backfill import backfill_canonical_relationships
+
+    contact_id = _create_contact(db, "Workspace Person")
+    company_id = _create_company(db, "Workspace Co")
+    db.add(CrmCompanyContact(company_id=UUID(company_id), contact_id=UUID(contact_id)))
+    project = Project(project_code="P-REL-WS", project_name="Workspace Project")
+    db.add(project)
+    db.flush()
+    db.add(
+        CrmAgreement(
+            contact_id=UUID(contact_id),
+            project_id=project.id,
+            project_group="1812_h_pl",
+            source="bitrix",
+            source_external_id="rel-workspace-1",
+        )
+    )
+    db.commit()
+    backfill_canonical_relationships(db)
+    db.commit()
+
+    listed = client.get("/crm/relationships?page_size=100&search=Workspace")
+    assert listed.status_code == 200
+    body = listed.json()
+    assert body["total"] >= 2
+    for row in body["items"]:
+        assert "pair_kind" in row
+        assert "owner_name" in row
+        assert "notes" in row
+        assert "linked_project_label" in row
+        if row["relationship_type"] == "investor":
+            assert row["pair_kind"] == "contact_project"
+            assert row["linked_project_label"] == "Workspace Project"
+            assert row["linked_agreement_id"]
+
+    by_kind = client.get("/crm/relationships?pair_kind=contact_company")
+    assert by_kind.status_code == 200
+    assert all(item["pair_kind"] == "contact_company" for item in by_kind.json()["items"])
+
+    by_project = client.get("/crm/relationships?project_group=1812_h_pl")
+    assert by_project.status_code == 200
+    assert by_project.json()["total"] >= 1
+    assert all(item["pair_kind"] == "contact_project" for item in by_project.json()["items"])
+
+    counts = client.get("/crm/relationships/counts")
+    assert counts.status_code == 200
+    payload = counts.json()
+    assert payload["total"] >= 2
+    assert payload["contact_company"] >= 1
+    assert payload["contact_project"] >= 1
+
+    graph = client.get("/crm/relationships/graph?limit=200&pair_kind=contact_project")
+    assert graph.status_code == 200
+    graph_body = graph.json()
+    assert graph_body["truncated"] is False
+    assert len(graph_body["edges"]) >= 1
+    assert all(edge["relationship_type"] == "investor" for edge in graph_body["edges"])
+    node_types = {node["entity_type"] for node in graph_body["nodes"]}
+    assert "contact" in node_types
+    assert "project" in node_types

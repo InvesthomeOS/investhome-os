@@ -1,0 +1,228 @@
+/* CRM Leadler — dashboard language, compact operational workspace. */
+
+.crm-leads .crm-leads__kpi-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.crm-leads .crm-leads__kpi {
+  display: grid;
+  gap: 4px;
+  min-height: 72px;
+  padding: 12px 15px;
+  border: 1px solid #dce4e7;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 7px rgba(31, 57, 68, 0.05);
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.crm-leads .crm-leads__kpi.is-active,
+.crm-leads .crm-leads__kpi:hover {
+  border-color: #075b75;
+  box-shadow: inset 0 0 0 1px #075b75;
+}
+
+.crm-leads .crm-leads__kpi span {
+  color: #718087;
+  font-size: 10.45px;
+  font-weight: 650;
+}
+
+.crm-leads .crm-leads__kpi strong {
+  color: #075b75;
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.crm-leads .crm-leads__views {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid #dce4e7;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.crm-leads .crm-leads__views button {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #718087;
+  font: inherit;
+  font-size: 11.55px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.crm-leads .crm-leads__views button.is-active {
+  background: #075b75;
+  color: #fff;
+}
+
+.crm-leads .crm-leads__banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #dce4e7;
+  border-radius: 8px;
+  background: #fff;
+  color: #152a36;
+  font-size: 11.55px;
+}
+
+.crm-leads .crm-leads__banner strong {
+  color: #075b75;
+}
+
+.crm-leads .crm-leads__kanban {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(180px, 1fr));
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.crm-leads .crm-leads__column {
+  min-height: 220px;
+  padding: 8px;
+  border: 1px solid #dce4e7;
+  border-radius: 8px;
+  background: #f4f7f8;
+}
+
+.crm-leads .crm-leads__column.is-over {
+  border-color: #58aebb;
+  box-shadow: inset 0 0 0 1px #58aebb;
+}
+
+.crm-leads .crm-leads__column h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 8px;
+  color: #075b75;
+  font-size: 11.55px;
+  font-weight: 700;
+}
+
+.crm-leads .crm-leads__column h3 span {
+  color: #718087;
+  font-weight: 650;
+}
+
+.crm-leads .crm-leads__card {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 8px 9px;
+  border: 1px solid #dce4e7;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(31, 57, 68, 0.04);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.crm-leads .crm-leads__card:hover {
+  border-color: #075b75;
+}
+
+.crm-leads .crm-leads__card strong {
+  color: #152a36;
+  font-size: 12px;
+}
+
+.crm-leads .crm-leads__card small {
+  color: #718087;
+  font-size: 10.45px;
+}
+
+.crm-leads .crm-leads__ingest {
+  display: inline-flex;
+  width: fit-content;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #eef6f7;
+  color: #075b75;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.crm-leads .crm-leads__ingest.is-failed,
+.crm-leads .crm-leads__ingest.is-unmatched {
+  background: #f3f5f6;
+  color: #5d6a70;
+}
+
+.crm-leads .crm-leads__conflict {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #dce4e7;
+  border-radius: 8px;
+  background: #f8fbfb;
+}
+
+.crm-leads .crm-leads__conflict a {
+  color: #075b75;
+  font-weight: 650;
+}
+
+.crm-leads .crm-leads__history {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crm-leads .crm-leads__history li {
+  display: grid;
+  gap: 2px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #edf1f2;
+  color: #152a36;
+  font-size: 11.55px;
+}
+
+.crm-leads .crm-leads__history small {
+  color: #718087;
+}
+
+.crm-leads .crm-leads__toast {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 40;
+  padding: 0.65rem 0.9rem;
+  border-radius: 8px;
+  background: #075b75;
+  color: #fff;
+  font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+  .crm-leads .crm-leads__kpi-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .crm-leads .crm-leads__kpi-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

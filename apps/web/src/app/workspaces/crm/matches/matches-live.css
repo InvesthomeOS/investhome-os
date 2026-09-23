@@ -1,0 +1,48 @@
+/* CRM Matches — dashboard language, compact review table. */
+
+.crm-matches-live .crm-matches-live__kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.crm-matches-live .crm-matches-live__flag {
+  display: inline-flex;
+  margin-top: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #eef6f7;
+  color: #075b75;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.crm-matches-live .crm-matches-live__compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.crm-matches-live .crm-matches-live__pane {
+  padding: 10px;
+  border: 1px solid #dce4e7;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.crm-matches-live .crm-matches-live__pane a {
+  color: #075b75;
+  font-weight: 650;
+}
+
+.crm-matches-live .crm-matches-live__warn {
+  color: #075b75;
+  font-weight: 650;
+}
+
+@media (max-width: 900px) {
+  .crm-matches-live .crm-matches-live__kpi-row,
+  .crm-matches-live .crm-matches-live__compare {
+    grid-template-columns: 1fr;
+  }
+}

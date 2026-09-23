@@ -580,7 +580,7 @@ def run_bitrix_forensic_repair(
     dry_run: bool,
 ) -> ForensicRepairReport:
     if not dry_run:
-        if actor is None or not user_has_permission(actor, "crm", "import"):
+        if actor is None or not user_has_permission(actor, "crm", "import", db=db):
             raise BitrixCommitPermissionError("crm.import permission required")
 
     before = _db_counts(db)

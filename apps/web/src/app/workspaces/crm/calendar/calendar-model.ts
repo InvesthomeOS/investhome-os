@@ -1,6 +1,6 @@
 import type { IhIconName } from '@/components/icons/ih-icons';
 
-export type CalendarViewMode = 'day' | 'week' | 'month' | 'agenda';
+export type CalendarViewMode = 'day' | 'week' | 'month' | 'list';
 
 export type CalendarEventTypeKey =
   | 'phone'
@@ -88,7 +88,7 @@ export type CalendarWorkspacePreview = {
   sync: CalendarSyncItem[];
 };
 
-export const CALENDAR_VIEW_ORDER: CalendarViewMode[] = ['day', 'week', 'month', 'agenda'];
+export const CALENDAR_VIEW_ORDER: CalendarViewMode[] = ['month', 'week', 'day', 'list'];
 
 export const CALENDAR_HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18] as const;
 

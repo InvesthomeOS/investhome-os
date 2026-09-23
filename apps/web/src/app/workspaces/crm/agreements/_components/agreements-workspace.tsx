@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 
@@ -32,7 +33,8 @@ type ViewId = (typeof VIEWS)[number]['id'];
 export function AgreementsWorkspace() {
   const t = useTranslations('crm.agreements');
   const router = useRouter();
-  const [projectGroup, setProjectGroup] = useState('');
+  const searchParams = useSearchParams();
+  const [projectGroup, setProjectGroup] = useState(searchParams.get('project') || '');
   const [view, setView] = useState<ViewId>('kanban');
 
   const query = useQuery({

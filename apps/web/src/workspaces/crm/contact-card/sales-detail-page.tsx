@@ -9,7 +9,10 @@ import { Button, ErrorState, LoadingState, StatusChip } from '@investhome/ui';
 
 import { fetchPurchaseCard, type CrmPurchaseCard, type CrmPurchaseDocument } from '@/workspaces/crm/api/agreements';
 import { DocumentGallery } from '@/workspaces/crm/contact-card/document-gallery';
+import { EmailCard, EmailDetail, type EmailViewEntry } from '@/workspaces/crm/contact-card/crm-email-view';
 import { HemenKiraToggle } from '@/workspaces/crm/contact-card/hemen-kira-toggle';
+import { stripHtml } from '@/workspaces/crm/contact-card/history-html';
+import { UnitHistorySection } from '@/workspaces/crm/contact-card/unit-history';
 import { isWhatsappEntry } from '@/workspaces/crm/contact-card/whatsapp-thread';
 
 import './contact-card.css';
@@ -53,10 +56,13 @@ function displayDateTime(value?: string | null): string {
   return date.toLocaleString('tr-TR');
 }
 
-const HIDDEN_FIELD = /deal|purchase card|project context|final_invoice|\bprimary\b|\bsecondary\b/i;
+const HIDDEN_FIELD = /deal|purchase card|project context|final_invoice|\bprimary\b|\bsecondary\b|ownership percentage/i;
 
 function visibleField(label: string, value?: string | null): boolean {
   if (!value) return false;
+  const raw = value.trim();
+  if (/^\{[\s\S]*\}$/.test(raw) || raw.startsWith('[{')) return false;
+  if (/durumu|status|zoom|yüz yüze|potential/i.test(label) && /^\d{1,5}$/.test(raw)) return false;
   return !HIDDEN_FIELD.test(label) && !HIDDEN_FIELD.test(value);
 }
 
@@ -138,21 +144,25 @@ function buildTimeline(card: CrmPurchaseCard): TimelineItem[] {
 
 function Documents({
   documents,
-  agreementId,
+  entityType,
+  entityId,
+  emptyLabel,
   onChanged,
 }: {
   documents: CrmPurchaseDocument[];
-  agreementId: string;
+  entityType: string;
+  entityId: string;
+  emptyLabel: string;
   onChanged: () => void;
 }) {
   if (!documents.length) {
-    return <p>Bu satın almaya bağlı belge yok.</p>;
+    return <p>{emptyLabel}</p>;
   }
   return (
     <DocumentGallery
       documents={documents}
-      entityType="crm_agreement"
-      entityId={agreementId}
+      entityType={entityType}
+      entityId={entityId}
       onChanged={onChanged}
     />
   );
@@ -161,6 +171,7 @@ function Documents({
 export function SalesDetailPage({ contactId, agreementId }: { contactId: string; agreementId: string }) {
   const router = useRouter();
   const [filter, setFilter] = useState<TimelineFilter>('all');
+  const [emailFocus, setEmailFocus] = useState<EmailViewEntry | null>(null);
   const query = useQuery({
     queryKey: ['crm', 'sales-detail', agreementId, contactId],
     queryFn: () => fetchPurchaseCard(agreementId, contactId, { includeHidden: true }),
@@ -228,6 +239,7 @@ export function SalesDetailPage({ contactId, agreementId }: { contactId: string;
           </div>
           {stageLabel ? <StatusChip tone="success">{stageLabel}</StatusChip> : null}
         </div>
+        <UnitHistorySection steps={card.unit_history} personId={contactId} viewingAgreementId={card.agreement_id} />
       </header>
 
       <div className="crm-sales-page__grid">
@@ -324,15 +336,32 @@ export function SalesDetailPage({ contactId, agreementId }: { contactId: string;
           ) : null}
 
           <article className="crm-verify-detail__section" data-testid="sales-documents">
-            <h2>Belgeler <span>{card.document_count}</span></h2>
+            <h2>Satın Alma Belgeleri <span>{card.document_count}</span></h2>
             <Documents
               documents={card.documents}
-              agreementId={card.agreement_id}
+              entityType="crm_agreement"
+              entityId={card.agreement_id}
+              emptyLabel="Bu satın almaya bağlı belge yok."
               onChanged={() => {
                 void query.refetch();
               }}
             />
           </article>
+          {(card.person_documents?.length || card.person_document_count) ? (
+            <article className="crm-verify-detail__section" data-testid="sales-person-documents">
+              <h2>Kişi Belgeleri <span>{card.person_document_count ?? card.person_documents?.length ?? 0}</span></h2>
+              <p className="crm-contact-card__muted">Pasaport / kimlik gibi kişi belgeleri bu satın almaya ait değildir.</p>
+              <Documents
+                documents={card.person_documents ?? []}
+                entityType="crm_contact"
+                entityId={card.primary_contact_id}
+                emptyLabel="Bu kişiye bağlı genel belge yok."
+                onChanged={() => {
+                  void query.refetch();
+                }}
+              />
+            </article>
+          ) : null}
         </section>
 
         <section className="crm-sales-page__col crm-sales-page__timeline-col" data-testid="sales-timeline">
@@ -367,24 +396,47 @@ export function SalesDetailPage({ contactId, agreementId }: { contactId: string;
             ) : null}
 
             {filtered.length ? (
-              <div className="crm-verify-detail__records crm-verify-detail__timeline crm-sales-page__timeline">
-                {filtered.map((entry) => (
-                  <article key={entry.id} data-kind={entry.kind}>
-                    <small>
-                      {kindLabel(entry.kind)}
-                      {' · '}
-                      {displayDateTime(entry.created_at)}
-                      {entry.actor ? ` · ${entry.actor}` : ''}
-                    </small>
-                    <strong>{entry.title}</strong>
-                    {entry.summary ? <p>{entry.summary}</p> : null}
-                    {entry.kind === 'document' ? (
-                      <span className="crm-contact-card__doc-actions">
-                        <a href={`/workspaces/crm/documents/${entry.id.replace(/^doc-/, '')}`}>Aç / Önizle</a>
-                      </span>
-                    ) : null}
-                  </article>
-                ))}
+              <div className="crm-verify-detail__records crm-verify-detail__timeline crm-sales-page__timeline crm-stream">
+                {filtered.map((entry) =>
+                  entry.kind === 'email' ? (
+                    <EmailCard
+                      key={entry.id}
+                      entry={{
+                        id: entry.id,
+                        title: entry.title,
+                        summary: entry.summary,
+                        actor_name: entry.actor,
+                        created_at: entry.created_at,
+                      }}
+                      locale="tr-TR"
+                      onOpen={() =>
+                        setEmailFocus({
+                          id: entry.id,
+                          title: entry.title,
+                          summary: entry.summary,
+                          actor_name: entry.actor,
+                          created_at: entry.created_at,
+                        })
+                      }
+                    />
+                  ) : (
+                    <article key={entry.id} data-kind={entry.kind}>
+                      <small>
+                        {kindLabel(entry.kind)}
+                        {' · '}
+                        {displayDateTime(entry.created_at)}
+                        {entry.actor ? ` · ${entry.actor}` : ''}
+                      </small>
+                      <strong>{entry.title}</strong>
+                      {entry.summary ? <p>{stripHtml(entry.summary)}</p> : null}
+                      {entry.kind === 'document' ? (
+                        <span className="crm-contact-card__doc-actions">
+                          <a href={`/workspaces/crm/documents/${entry.id.replace(/^doc-/, '')}`}>Aç / Önizle</a>
+                        </span>
+                      ) : null}
+                    </article>
+                  ),
+                )}
               </div>
             ) : filter === 'document' ? (
               <p>Bu satın almaya bağlı belge yok.</p>
@@ -401,6 +453,9 @@ export function SalesDetailPage({ contactId, agreementId }: { contactId: string;
           </article>
         </section>
       </div>
+      {emailFocus ? (
+        <EmailDetail entry={emailFocus} locale="tr-TR" onClose={() => setEmailFocus(null)} />
+      ) : null}
     </main>
   );
 }

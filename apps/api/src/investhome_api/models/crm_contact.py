@@ -178,6 +178,7 @@ class CrmContact(Base):
     )
     company_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid,
+        ForeignKey("companies.id", ondelete="SET NULL"),
         nullable=True,
     )
     lead_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -267,10 +268,24 @@ class CrmTag(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
     color: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
 
 
@@ -289,8 +304,38 @@ class CrmContactTag(Base):
         ForeignKey("crm_tags.id", ondelete="CASCADE"),
         nullable=False,
     )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     contact: Mapped[CrmContact] = relationship(back_populates="tag_links")
     tag: Mapped[CrmTag] = relationship()
+
+
+class CrmTagEvent(Base):
+    __tablename__ = "crm_tag_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tag_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("crm_tags.id", ondelete="CASCADE"), nullable=False
+    )
+    contact_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("crm_contacts.id", ondelete="SET NULL"), nullable=True
+    )
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    action: Mapped[str] = mapped_column(String(40), nullable=False)
+    payload: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
 
 
 class CrmContactInvestmentProfile(Base):
@@ -429,6 +474,9 @@ class CrmContactMergeHistory(Base):
 
 class CrmContactDuplicateCandidate(Base):
     __tablename__ = "crm_contact_duplicate_candidates"
+    __table_args__ = (
+        UniqueConstraint("contact_id_a", "contact_id_b", name="uq_crm_dup_candidates_pair"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     contact_id_a: Mapped[uuid.UUID] = mapped_column(
@@ -442,10 +490,29 @@ class CrmContactDuplicateCandidate(Base):
         nullable=False,
     )
     match_reason: Mapped[str] = mapped_column(String(60), nullable=False)
+    match_kind: Mapped[str] = mapped_column(String(20), nullable=False, default="possible")
     match_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    source: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    evidence_json: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    review_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    protected: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    protected_reason: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    merge_queued: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
     )

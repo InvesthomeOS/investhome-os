@@ -429,7 +429,7 @@ def run_bitrix_junk_field_backfill(
     if not dry_run:
         if actor is None:
             raise BitrixCommitPermissionError("authorized actor required")
-        if not user_has_permission(actor, "crm", "import"):
+        if not user_has_permission(actor, "crm", "import", db=db):
             raise BitrixCommitPermissionError("crm.import permission required")
 
     before = _db_counts(db)

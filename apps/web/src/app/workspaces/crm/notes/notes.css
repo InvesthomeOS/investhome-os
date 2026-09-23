@@ -1,0 +1,23 @@
+.crm-notes .crm-notes__preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--shot-ink);
+  font-weight: 650;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.crm-notes .crm-notes__body {
+  margin: 0 0 12px;
+  color: var(--shot-ink) !important;
+  font-size: var(--shot-font-body);
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.crm-notes .crm-tasks__table td:nth-child(2) {
+  min-width: 220px;
+  max-width: 420px;
+}

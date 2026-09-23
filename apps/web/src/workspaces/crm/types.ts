@@ -59,6 +59,7 @@ export type CrmContactSummary = {
   relationship_strength: CrmRelationshipStrength;
   priority: CrmContactPriority;
   tags: string[] | null;
+  tag_items?: Array<{ id: string; name: string; status?: string }>;
   is_favorite: boolean;
   is_pinned: boolean;
   owner_user_id: string | null;
@@ -76,6 +77,8 @@ export type CrmContactSummary = {
   review_required?: boolean;
   is_agent?: boolean;
   has_agreements?: boolean;
+  agreement_count?: number;
+  verified_amount_totals?: Array<{ currency: string | null; total: string; label: string }>;
   agreement_projects?: string[];
   bitrix_original_stage: string | null;
   bitrix_historical_junk: boolean;
@@ -117,6 +120,18 @@ export type CrmPurchaseSummary = {
   participants: CrmPurchaseParticipant[];
   opens_purchase_card: boolean;
   status?: string | null;
+  hemen_kira?: boolean;
+  is_historical_unit_change?: boolean;
+  unit_change_status?: string | null;
+  original_unit?: string | null;
+  final_unit?: string | null;
+  unit_history?: Array<{
+    agreement_id: string;
+    unit_number: string;
+    is_current: boolean;
+    is_historical_unit_change?: boolean;
+    contact_id?: string | null;
+  }>;
 };
 
 export type CrmContactDetail = CrmContactSummary & {
@@ -260,6 +275,37 @@ export type CrmCommunicationSummary = {
   recent_interactions_count: number;
 };
 
+export type CrmDashboardCount = {
+  key: string;
+  label: string;
+  count: number;
+  href?: string | null;
+};
+
+export type CrmDashboardKpis = {
+  current_purchases: number;
+  investors: number;
+  active_tasks: number;
+  open_leads: number;
+  documents_review: number;
+  matches_pending: number;
+};
+
+export type CrmDashboardPurchaseScope = {
+  current: number;
+  historical: number;
+  total: number;
+};
+
+export type CrmDashboardFeedItem = {
+  id: string;
+  title: string;
+  meta?: string | null;
+  href: string;
+  occurred_at?: string | null;
+  kind: string;
+};
+
 export type CrmDashboardData = {
   recent_contacts: CrmContactSummary[];
   recent_activities: CrmActivitySummary[];
@@ -270,6 +316,23 @@ export type CrmDashboardData = {
   favorite_contacts: CrmContactSummary[];
   pinned_companies: CrmPinnedCompanySummary[];
   communication_summary: CrmCommunicationSummary;
+  kpis: CrmDashboardKpis;
+  purchase_scope: CrmDashboardPurchaseScope;
+  charts: {
+    purchases_by_project: CrmDashboardCount[];
+    purchases_by_month: CrmDashboardCount[];
+    task_status: CrmDashboardCount[];
+    communication_channels: CrmDashboardCount[];
+    lead_pipeline: CrmDashboardCount[];
+    document_status: CrmDashboardCount[];
+  };
+  panels: {
+    recent_activities: CrmDashboardFeedItem[];
+    upcoming_tasks: CrmDashboardFeedItem[];
+    recent_documents: CrmDashboardFeedItem[];
+    review_queue: CrmDashboardFeedItem[];
+    recent_leads: CrmDashboardFeedItem[];
+  };
 };
 
 export type CrmContactListResponse = {
@@ -388,11 +451,19 @@ export type CrmCompanyListItem = {
   relationship_status: string;
   relationship_strength: string;
   owner_user_id: string | null;
+  owner_name?: string | null;
   parent_company_id: string | null;
   tags: string[] | null;
   is_favorite: boolean;
   is_pinned: boolean;
   contact_count: number;
+  city?: string | null;
+  country?: string | null;
+  related_people?: Array<{ id: string; display_name: string; contact_type?: string | null; is_broker?: boolean }>;
+  open_relationship_count?: number;
+  related_agreement_count?: number;
+  last_activity_at?: string | null;
+  notes?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -439,6 +510,23 @@ export type CrmCompanyDetail = CrmCompanyListItem & {
   law_firm_profile: Record<string, unknown> | null;
   property_management_profile: Record<string, unknown> | null;
   compliance_data: Record<string, unknown> | null;
+  addresses?: Array<{
+    id: string;
+    city: string | null;
+    country: string | null;
+    address_line1: string | null;
+    is_primary: boolean;
+  }>;
+  related_agreements?: Array<{
+    id: string;
+    project_group: string;
+    unit_number: string | null;
+    investment_amount: string | null;
+    contact_id: string;
+    contact_display_name: string | null;
+  }>;
+  last_contact_at?: string | null;
+  incorporation_country?: string | null;
 };
 
 export type CrmCompanyListResponse = {

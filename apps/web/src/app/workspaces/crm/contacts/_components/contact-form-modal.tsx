@@ -75,10 +75,10 @@ export function ContactFormModal({ open, onClose, onSuccess }: ContactFormModalP
     }
     if (!skipDuplicateCheck) {
       const dupes = await checkDuplicates({
-        primary_email: form.primary_email ?? undefined,
-        primary_phone: form.primary_phone ?? undefined,
+        primary_email: form.primary_email,
+        primary_phone: form.primary_phone,
         display_name: form.display_name,
-        organization_name: form.organization_name ?? undefined,
+        organization_name: form.organization_name,
       });
       if (dupes.matches.length > 0) {
         setDuplicateWarning(dupes.matches[0]?.display_name ?? '');

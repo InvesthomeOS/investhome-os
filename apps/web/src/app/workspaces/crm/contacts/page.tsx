@@ -1,13 +1,17 @@
-import { ContactsLiveVerificationWorkspace } from './_components/contacts-live-verification-workspace';
+import { Suspense } from 'react';
+
+import { PeopleWorkspace } from './_components/people-workspace';
 
 /**
  * Canonical Contacts nav route (`/workspaces/crm/contacts`).
- * Projects-quality DS presentation — detail routes under `/contacts/[contactId]` unchanged.
+ * Operational people table — detail routes under `/contacts/[contactId]` unchanged.
  */
 export default function CrmContactsPage() {
   return (
     <main className="dashboard crm-module-shell" data-testid="crm-contacts-page">
-      <ContactsLiveVerificationWorkspace />
+      <Suspense fallback={null}>
+        <PeopleWorkspace />
+      </Suspense>
     </main>
   );
 }

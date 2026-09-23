@@ -6,9 +6,13 @@ import type {
   CrmActivityDashboardWidgets,
   CrmActivityDetail,
   CrmActivityListResponse,
+  CalendarEventWritePayload,
   CrmCalendarResponse,
+  CrmTaskListResponse,
   CrmTimelineResponse,
   FollowUpInput,
+  TaskWritePayload,
+  NoteWritePayload,
 } from '@/workspaces/crm/types/activities';
 
 function buildSearchParams(params: Record<string, string | number | boolean | undefined>): URLSearchParams {
@@ -98,22 +102,31 @@ export async function addActivityComment(
   return apiFetch(`/crm/activities/${id}/comments`, { method: 'POST', body: JSON.stringify(payload) });
 }
 
-export async function fetchTasks(params: ActivityListParams & { my_tasks?: boolean; team_tasks?: boolean } = {}): Promise<CrmActivityListResponse> {
+export async function fetchTasks(
+  params: ActivityListParams & { my_tasks?: boolean; team_tasks?: boolean } = {},
+): Promise<CrmTaskListResponse> {
   const search = buildSearchParams({
     page: params.page ?? 1,
-    page_size: params.page_size ?? 100,
+    page_size: params.page_size ?? 40,
     assigned_user_id: params.assigned_user_id,
     my_tasks: params.my_tasks ? 'true' : undefined,
     team_tasks: params.team_tasks ? 'true' : undefined,
     status: params.status,
+    workspace_status: params.workspace_status,
     entity_id: params.entity_id,
+    contact_search: params.contact_search,
+    project_group: params.project_group,
     search: params.search,
+    priority: params.priority,
+    due_from: params.due_from,
+    due_to: params.due_to,
+    due_bucket: params.due_bucket,
   });
-  return apiFetch<CrmActivityListResponse>(`/crm/tasks?${search.toString()}`);
+  return apiFetch<CrmTaskListResponse>(`/crm/tasks?${search.toString()}`);
 }
 
-export async function createTask(payload: ActivityInput): Promise<{ activity: CrmActivityDetail }> {
-  return apiFetch('/crm/tasks', { method: 'POST', body: JSON.stringify({ ...payload, activity_type: 'task' }) });
+export async function createTask(payload: TaskWritePayload): Promise<{ activity: CrmActivityDetail }> {
+  return apiFetch('/crm/tasks', { method: 'POST', body: JSON.stringify(payload) });
 }
 
 export async function completeTask(id: string): Promise<{ activity: CrmActivityDetail }> {
@@ -129,7 +142,7 @@ export async function fetchNotes(params: ActivityListParams = {}): Promise<CrmAc
   return apiFetch<CrmActivityListResponse>(`/crm/notes?${search.toString()}`);
 }
 
-export async function createNote(payload: ActivityInput): Promise<{ activity: CrmActivityDetail }> {
+export async function createNote(payload: ActivityInput | NoteWritePayload): Promise<{ activity: CrmActivityDetail }> {
   return apiFetch('/crm/notes', { method: 'POST', body: JSON.stringify({ ...payload, activity_type: 'note' }) });
 }
 
@@ -165,9 +178,17 @@ export async function fetchCalendar(params: {
   start: string;
   end: string;
   assigned_user_id?: string;
+  contact_search?: string;
+  entity_id?: string;
+  project_group?: string;
+  event_kind?: string;
 }): Promise<CrmCalendarResponse> {
   const search = buildSearchParams(params);
   return apiFetch<CrmCalendarResponse>(`/crm/calendar?${search.toString()}`);
+}
+
+export async function createCalendarEvent(payload: CalendarEventWritePayload): Promise<{ activity: CrmActivityDetail }> {
+  return apiFetch('/crm/calendar/events', { method: 'POST', body: JSON.stringify(payload) });
 }
 
 export async function fetchActivityWidgets(): Promise<CrmActivityDashboardWidgets> {

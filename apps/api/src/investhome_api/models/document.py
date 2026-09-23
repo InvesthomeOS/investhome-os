@@ -1,23 +1,57 @@
 import enum
 import uuid
 from datetime import date, datetime
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
     Date,
     DateTime,
-    Enum,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
+    TypeDecorator,
     Uuid,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from investhome_api.db.base import Base
+
+
+class _StrEnum(TypeDecorator):
+    """Persist enum `.value` while accepting legacy `.name` rows (e.g. LOCAL vs local)."""
+
+    impl = String
+    cache_ok = True
+
+    def __init__(self, enum_cls: type[enum.Enum], length: int = 40):
+        super().__init__(length=length)
+        self.enum_cls = enum_cls
+
+    def process_bind_param(self, value: Any, dialect: Any) -> str | None:
+        if value is None:
+            return None
+        if isinstance(value, self.enum_cls):
+            return str(value.value)
+        if isinstance(value, str):
+            try:
+                return str(self.enum_cls(value).value)
+            except ValueError:
+                return str(self.enum_cls[value].value)
+        msg = f"Expected {self.enum_cls.__name__} or str, got {type(value)!r}"
+        raise TypeError(msg)
+
+    def process_result_value(self, value: Any, dialect: Any) -> enum.Enum | None:
+        if value is None:
+            return None
+        try:
+            return self.enum_cls(value)
+        except ValueError:
+            return self.enum_cls[value]
 
 
 class DocumentType(str, enum.Enum):
@@ -48,7 +82,50 @@ class DocumentType(str, enum.Enum):
     CORRESPONDENCE = "correspondence"
     LEGAL_DOCUMENT = "legal_document"
     TAX_DOCUMENT = "tax_document"
+    # Sprint 11A1 — additive file-format types (map formats onto DocumentType)
+    PDF = "pdf"
+    IMAGE = "image"
+    WORD = "word"
+    EXCEL = "excel"
+    POWERPOINT = "powerpoint"
+    VIDEO = "video"
+    TEXT = "text"
+    ZIP = "zip"
     OTHER = "other"
+
+
+class DocumentFileKind(str, enum.Enum):
+    """Normalized file format for workspace filters and type metrics."""
+
+    PDF = "pdf"
+    IMAGE = "image"
+    WORD = "word"
+    EXCEL = "excel"
+    POWERPOINT = "powerpoint"
+    VIDEO = "video"
+    TEXT = "text"
+    ZIP = "zip"
+    OTHER = "other"
+
+
+class DocumentWorkspaceFolder(str, enum.Enum):
+    """Lightweight flat workspace folders — no unlimited nesting."""
+
+    PROJECTS = "projects"
+    MARKETING = "marketing"
+    CONTRACTS = "contracts"
+    INVESTORS = "investors"
+    FINANCE = "finance"
+    LEGAL = "legal"
+    PHOTOS = "photos"
+    CONSTRUCTION = "construction"
+    GENERAL = "general"
+
+
+class DocumentVisibility(str, enum.Enum):
+    PRIVATE = "private"
+    TEAM = "team"
+    ORGANIZATION = "organization"
 
 
 class DocumentStatus(str, enum.Enum):
@@ -97,25 +174,40 @@ class Document(Base):
     mime_type: Mapped[str] = mapped_column(String(120), nullable=False)
     file_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
     storage_provider: Mapped[StorageProvider] = mapped_column(
-        Enum(StorageProvider, native_enum=False, length=20),
+        _StrEnum(StorageProvider, length=20),
         nullable=False,
         default=StorageProvider.LOCAL,
     )
     storage_key: Mapped[str] = mapped_column(String(1000), nullable=False)
     checksum: Mapped[str] = mapped_column(String(64), nullable=False)
     document_type: Mapped[DocumentType] = mapped_column(
-        Enum(DocumentType, native_enum=False, length=50),
+        _StrEnum(DocumentType, length=50),
         nullable=False,
         default=DocumentType.OTHER,
     )
     category: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    folder: Mapped[DocumentWorkspaceFolder] = mapped_column(
+        _StrEnum(DocumentWorkspaceFolder, length=40),
+        nullable=False,
+        default=DocumentWorkspaceFolder.GENERAL,
+    )
+    file_kind: Mapped[DocumentFileKind] = mapped_column(
+        _StrEnum(DocumentFileKind, length=30),
+        nullable=False,
+        default=DocumentFileKind.OTHER,
+    )
     status: Mapped[DocumentStatus] = mapped_column(
-        Enum(DocumentStatus, native_enum=False, length=30),
+        _StrEnum(DocumentStatus, length=30),
         nullable=False,
         default=DocumentStatus.ACTIVE,
     )
+    visibility: Mapped[DocumentVisibility] = mapped_column(
+        _StrEnum(DocumentVisibility, length=30),
+        nullable=False,
+        default=DocumentVisibility.ORGANIZATION,
+    )
     confidentiality_level: Mapped[ConfidentialityLevel] = mapped_column(
-        Enum(ConfidentialityLevel, native_enum=False, length=30),
+        _StrEnum(ConfidentialityLevel, length=30),
         nullable=False,
         default=ConfidentialityLevel.INTERNAL,
     )
@@ -126,21 +218,32 @@ class Document(Base):
         nullable=True,
     )
     uploaded_by_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     project_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     investor_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     lead_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     transaction_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     tags: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     document_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     expiration_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_latest_version: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     processing_status: Mapped[ProcessingStatus] = mapped_column(
-        Enum(ProcessingStatus, native_enum=False, length=30),
+        _StrEnum(ProcessingStatus, length=30),
         nullable=False,
         default=ProcessingStatus.UPLOADED,
     )
     version_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    download_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    preview_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Knowledge Hub lifecycle flags (additive — original file never overwritten by AI)
+    review_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    legal_hold: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    publish_to_website: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    malware_scan_status: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    category_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
     is_demo: Mapped[bool] = mapped_column(default=False, nullable=False)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -181,12 +284,17 @@ class Document(Base):
     __table_args__ = (
         Index("ix_documents_status", "status"),
         Index("ix_documents_document_type", "document_type"),
+        Index("ix_documents_folder", "folder"),
+        Index("ix_documents_file_kind", "file_kind"),
+        Index("ix_documents_visibility", "visibility"),
         Index("ix_documents_confidentiality_level", "confidentiality_level"),
         Index("ix_documents_project_id", "project_id"),
         Index("ix_documents_investor_id", "investor_id"),
         Index("ix_documents_lead_id", "lead_id"),
         Index("ix_documents_transaction_id", "transaction_id"),
         Index("ix_documents_uploaded_by_user_id", "uploaded_by_user_id"),
+        Index("ix_documents_owner_user_id", "owner_user_id"),
+        Index("ix_documents_company_id", "company_id"),
         Index("ix_documents_is_latest_version", "is_latest_version"),
         Index("ix_documents_archived_at", "archived_at"),
         Index("ix_documents_checksum", "checksum"),

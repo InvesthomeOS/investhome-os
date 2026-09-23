@@ -1,0 +1,136 @@
+.crm-rel-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.crm-rel-create {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--shot-navy, #1f4e5f);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.crm-rel-create:hover {
+  color: #fff;
+  text-decoration: none;
+  opacity: 0.92;
+}
+
+.crm-rel-link {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--shot-navy, #1f4e5f);
+  font: inherit;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+
+.crm-rel-link:hover {
+  text-decoration: underline;
+}
+
+.crm-rel-note {
+  display: inline-block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-rel-graph {
+  display: grid;
+  gap: 10px;
+}
+
+.crm-rel-graph-canvas {
+  height: 560px;
+  border: 1px solid var(--ctc-border);
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.crm-rel-graph-panel {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--ctc-border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.crm-rel-graph-panel h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.crm-rel-graph-panel p {
+  margin: 0;
+  color: var(--ctc-muted);
+  font-size: 12px;
+}
+
+.crm-rel-create-form {
+  display: grid;
+  gap: 14px;
+  max-width: 720px;
+}
+
+.crm-rel-create-form section {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--ctc-border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.crm-rel-create-form h2 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.crm-rel-create-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.crm-rel-entity-results {
+  display: grid;
+  gap: 4px;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.crm-rel-entity-results button {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px;
+  border: 1px solid var(--ctc-border);
+  border-radius: 6px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.crm-rel-entity-results button.is-selected {
+  border-color: var(--shot-navy);
+  background: #f3f7f8;
+}
+
+@media (max-width: 720px) {
+  .crm-rel-create-grid {
+    grid-template-columns: 1fr;
+  }
+}

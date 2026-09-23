@@ -84,7 +84,7 @@ const COPY = {
     subtitle: 'Existing CRM activity history — send channels are not invented.',
     search: 'Search title, summary or contact',
     type: 'Type',
-    contact: 'Contact',
+    contact: 'Person',
     responsible: 'Owner',
     date: 'Date',
     all: 'All',
@@ -120,7 +120,7 @@ function dateRange(value: string): { date_from?: string; date_to?: string } {
   return { date_from: new Date(now.getTime() - days * 86_400_000).toISOString(), date_to: end };
 }
 
-function typeLabel(copy: (typeof COPY)[keyof typeof COPY], type: string): string {
+function typeLabel(copy: (typeof COPY)['tr'], type: string): string {
   if (type === 'phone_call') return copy.phone;
   if (type === 'whatsapp') return copy.whatsapp;
   if (type === 'email') return copy.email;

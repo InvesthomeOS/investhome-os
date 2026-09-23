@@ -36,9 +36,9 @@ export const crmQueries = {
     queryKey: ['crm', 'reports', 'summary'] as const,
     queryFn: () => fetchCrmReportsSummary(),
   }),
-  tags: () => ({
-    queryKey: ['crm', 'tags'] as const,
-    queryFn: () => fetchCrmTags(),
+  tags: (params: { search?: string; status?: string } = {}) => ({
+    queryKey: ['crm', 'tags', params] as const,
+    queryFn: () => fetchCrmTags(params),
   }),
   contacts: (params: FetchCrmContactsParams = {}) => crmContactQueries.list(params),
 };

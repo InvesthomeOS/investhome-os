@@ -10,6 +10,7 @@ import {
   fetchAgreementActivities,
   type CrmAgreementSummary,
 } from '@/workspaces/crm/api/agreements';
+import { emailPreviewText } from '@/workspaces/crm/contact-card/history-html';
 
 import { displayDate } from './agreements-stage';
 
@@ -138,7 +139,7 @@ export function AgreementsActivities({
           ) : (
             <strong>{item.title}</strong>
           )}
-          {item.summary ? <p>{item.summary}</p> : null}
+          {item.summary ? <p>{emailPreviewText(item.summary)}</p> : null}
           <small>
             {[item.contact_name, item.responsible_name || item.actor_name].filter(Boolean).join(' · ')}
           </small>

@@ -12,6 +12,7 @@ export type GalleryDocument = {
   title: string;
   original_file_name?: string | null;
   document_type?: string | null;
+  category?: string | null;
   mime_type?: string | null;
   source?: string | null;
   checksum?: string | null;
@@ -40,8 +41,9 @@ export function dedupeGalleryDocuments(items: GalleryDocument[]): GalleryDocumen
   const seen = new Set<string>();
   const unique: GalleryDocument[] = [];
   for (const item of [...items].sort((a, b) => rank(a) - rank(b))) {
+    const tagFile = String(item.bitrix_file_id || '').trim();
     const keys = [
-      item.bitrix_file_id ? `bx:${item.bitrix_file_id}` : '',
+      tagFile ? `bx:${tagFile}` : '',
       item.checksum ? `sum:${item.checksum}` : '',
       `id:${item.id}`,
     ].filter(Boolean);
@@ -84,7 +86,7 @@ function PreviewThumb({ doc }: { doc: GalleryDocument }) {
   return <span className="crm-doc-gallery__icon">DOSYA</span>;
 }
 
-function PreviewBody({ doc }: { doc: GalleryDocument }) {
+export function PreviewBody({ doc }: { doc: GalleryDocument }) {
   const src = usePreviewBlob(doc, isImage(doc) || isPdf(doc));
   if (src && isImage(doc)) {
     return <img src={src} alt={doc.original_file_name || doc.title} />;
@@ -97,6 +99,28 @@ function PreviewBody({ doc }: { doc: GalleryDocument }) {
     <p>
       Bu dosya türü için önizleme yok. <a href={documentDownloadUrl(doc.id)}>İndir / aç</a>
     </p>
+  );
+}
+
+export function DocumentPreviewDialog({
+  doc,
+  onClose,
+}: {
+  doc: GalleryDocument;
+  onClose: () => void;
+}) {
+  return (
+    <div className="crm-doc-gallery__modal" data-testid="crm-doc-preview-modal" role="dialog">
+      <div className="crm-doc-gallery__modal-panel">
+        <header>
+          <strong>{doc.original_file_name || doc.title}</strong>
+          <Button type="button" size="sm" variant="secondary" onClick={onClose}>
+            Kapat
+          </Button>
+        </header>
+        <PreviewBody doc={doc} />
+      </div>
+    </div>
   );
 }
 
@@ -198,19 +222,7 @@ export function DocumentGallery({
           </li>
         ))}
       </ul>
-      {preview ? (
-        <div className="crm-doc-gallery__modal" data-testid="crm-doc-preview-modal" role="dialog">
-          <div className="crm-doc-gallery__modal-panel">
-            <header>
-              <strong>{preview.original_file_name || preview.title}</strong>
-              <Button type="button" size="sm" variant="secondary" onClick={() => setPreview(null)}>
-                Kapat
-              </Button>
-            </header>
-            <PreviewBody doc={preview} />
-          </div>
-        </div>
-      ) : null}
+      {preview ? <DocumentPreviewDialog doc={preview} onClose={() => setPreview(null)} /> : null}
     </div>
   );
 }

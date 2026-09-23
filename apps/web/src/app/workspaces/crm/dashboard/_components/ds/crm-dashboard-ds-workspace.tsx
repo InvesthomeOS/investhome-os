@@ -12,7 +12,7 @@ import { Button, ErrorState, KpiCard, LoadingState, StatusChip } from '@investho
 import { IhIcon } from '@/components/icons/ih-icons';
 import { LineChart } from '@/components/design-system/charts';
 import { crmActivityEventLabel } from '@/lib/crm/crm-labels';
-import { useAiCopilotOptional } from '@/lib/crm/use-ai-copilot-optional';
+import { useAiCopilotOptional } from '@/lib/ai/ai-copilot-context';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { crmQueries } from '@/lib/query/crm-queries';
 

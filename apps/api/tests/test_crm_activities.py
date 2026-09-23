@@ -94,10 +94,24 @@ def test_list_activities_pagination_search_and_filters(client: TestClient) -> No
 
 def test_get_timeline(client: TestClient) -> None:
     contact_id = _create_contact(client)
-    client.post("/crm/activities", json=_activity_payload(contact_id))
+    created = client.post("/crm/activities", json=_activity_payload(contact_id))
+    assert created.status_code == 201, created.text
+    contact_name = client.get(f"/crm/contacts/{contact_id}").json()["display_name"]
     response = client.get(f"/crm/timeline?entity_type=contact&entity_id={contact_id}")
     assert response.status_code == 200
-    assert len(response.json()["items"]) >= 1
+    body = response.json()
+    assert len(body["items"]) >= 1
+    assert body["total"] == len(body["items"]) or body["total"] >= len(body["items"])
+    named = [item for item in body["items"] if item.get("entity_id") == contact_id]
+    assert named
+    assert all(item.get("person_name") not in {None, "Contact", "contact"} for item in named)
+    assert any(item.get("person_name") == contact_name for item in named)
+
+    notes = client.get(
+        f"/crm/timeline?entity_type=contact&entity_id={contact_id}&event_kind=note"
+    )
+    assert notes.status_code == 200
+    assert all(item.get("event_kind") == "note" for item in notes.json()["items"] if item.get("source") == "crm_activity")
 
 
 def test_create_task_and_complete(client: TestClient) -> None:

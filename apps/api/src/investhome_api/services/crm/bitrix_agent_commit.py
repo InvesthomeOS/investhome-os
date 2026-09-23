@@ -281,7 +281,7 @@ def commit_safe_agent_roles(
     *,
     actor: User,
 ) -> BitrixAgentCommitResult:
-    if not user_has_permission(actor, "crm", "import"):
+    if not user_has_permission(actor, "crm", "import", db=db):
         raise BitrixCommitPermissionError("crm.import permission required")
 
     before = _db_counts(db)

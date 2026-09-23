@@ -65,8 +65,6 @@ export type TaskDeadlineItem = {
   id: string;
   titleKey: string;
   dueLabelKey: string;
-  title?: string;
-  dueLabel?: string;
 };
 
 export type TaskAiRecommendation = {

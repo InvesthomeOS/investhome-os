@@ -11,6 +11,7 @@ import {
   fetchIntroductionPaths,
   fetchIntelligenceDashboard,
   fetchRelationship,
+  fetchRelationshipCounts,
   fetchRelationshipGraph,
   fetchRelationshipRecommendations,
   fetchRelationships,
@@ -25,6 +26,7 @@ import {
 export const relationshipQueryKeys = {
   all: ['crm', 'relationships'] as const,
   list: (params: RelationshipListParams) => ['crm', 'relationships', 'list', params] as const,
+  counts: ['crm', 'relationships', 'counts'] as const,
   detail: (id: string) => ['crm', 'relationships', 'detail', id] as const,
   graph: (params: Record<string, unknown>) => ['crm', 'relationships', 'graph', params] as const,
   intelligence: ['crm', 'relationships', 'intelligence'] as const,
@@ -39,6 +41,10 @@ export const relationshipQueries = {
   list: (params: RelationshipListParams) => ({
     queryKey: relationshipQueryKeys.list(params),
     queryFn: () => fetchRelationships(params),
+  }),
+  counts: () => ({
+    queryKey: relationshipQueryKeys.counts,
+    queryFn: fetchRelationshipCounts,
   }),
   detail: (id: string) => ({
     queryKey: relationshipQueryKeys.detail(id),

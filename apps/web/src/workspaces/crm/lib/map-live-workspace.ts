@@ -348,7 +348,7 @@ function mapCalendarType(type: string): CalendarEventTypeKey {
 }
 
 export function mapCalendarEvent(item: CrmCalendarEvent, weekStart: Date): CalendarEvent {
-  const stamp = parseStamp(item.start_date) || parseStamp(item.due_date);
+  const stamp = parseStamp(item.event_at) || parseStamp(item.start_date) || parseStamp(item.due_date);
   const date = stamp ?? weekStart;
   const monday = mondayOf(weekStart);
   const dayIndex = Math.max(0, Math.min(6, Math.round((startOfDay(date).getTime() - monday.getTime()) / 86_400_000)));

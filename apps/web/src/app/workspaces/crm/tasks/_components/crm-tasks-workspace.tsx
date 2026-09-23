@@ -1,380 +1,490 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
-import { useTranslations } from 'next-intl';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Route } from 'next';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { Button, Input, KpiCard, LoadingState, SegmentedControl, Select, StatusChip, TextArea } from '@investhome/ui';
+import { Button, ErrorState, Input, Select, StatusChip, TextArea } from '@investhome/ui';
 
-import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
-import { fetchUsers, type UserRecord } from '@/lib/api/auth';
-import { completeTask, createTask, fetchTasks, reopenTask, updateActivity } from '@/workspaces/crm/api/activities';
-import { fetchContacts } from '@/workspaces/crm/api/contacts';
-import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
-import { activityQueries } from '@/workspaces/crm/hooks/use-activities';
-import { buildTasksPreview } from '@/workspaces/crm/lib/map-live-workspace';
+import { fetchUsers } from '@/lib/api/auth';
+import { useCrmAccess } from '@/lib/crm/use-crm-access';
+import { completeTask, createTask, fetchActivity, fetchTasks, updateActivity } from '@/workspaces/crm/api/activities';
+import { fetchAgreements } from '@/workspaces/crm/api/agreements';
+import { salesDetailUrl } from '@/workspaces/crm/contact-card/pilot-people';
+import { activityQueryKeys } from '@/workspaces/crm/hooks/use-activities';
+import { contactQueries } from '@/workspaces/crm/hooks/use-contacts';
+import type {
+  ActivityListParams,
+  CrmActivityPriority,
+  CrmActivitySummary,
+  CrmTaskStatus,
+} from '@/workspaces/crm/types/activities';
 
-import {
-  TASK_KANBAN_COLUMNS,
-  TASK_PRIORITY_ORDER,
-  TASK_STATUS_ORDER,
-  type TaskAiActionKey,
-  type TaskKanbanColumnKey,
-  type TaskKpiKey,
-  type TaskPriorityKey,
-  type TaskRow,
-  type TaskStatusKey,
-  type TaskViewMode,
-  type TaskWorkspacePreview,
-} from '../tasks-model';
+import '../tasks.css';
 
-const AI_ACTIONS: ReadonlyArray<{ key: TaskAiActionKey; icon: IhIconName }> = [
-  { key: 'sortByPriority', icon: 'sparkles' },
-  { key: 'dueToday', icon: 'clock' },
-  { key: 'showOverdue', icon: 'alert' },
-  { key: 'createPlan', icon: 'calendar' },
-];
+type WorkspaceStatus = 'open' | 'in_progress' | 'completed' | 'cancelled';
+type PriorityKey = 'low' | 'medium' | 'high' | 'critical';
 
-const KPI_ICONS: Record<TaskKpiKey, IhIconName> = {
-  open: 'check',
-  dueToday: 'clock',
-  overdue: 'alert',
-  completed: 'check',
+type OpsFilters = {
+  search: string;
+  status: string;
+  ownerId: string;
+  person: string;
+  personId: string | null;
+  projectGroup: string;
+  priority: string;
+  dateFrom: string;
+  dateTo: string;
+  dueBucket: string;
 };
 
-const STATUS_TONE: Record<TaskStatusKey, 'success' | 'warning' | 'info' | 'default' | 'danger'> = {
-  open: 'info',
-  inProgress: 'warning',
-  completed: 'success',
-  waiting: 'default',
-  cancelled: 'danger',
+type TaskForm = {
+  title: string;
+  description: string;
+  contactId: string;
+  contactLabel: string;
+  projectGroup: string;
+  agreementId: string;
+  ownerId: string;
+  dueDate: string;
+  priority: PriorityKey;
+  status: WorkspaceStatus;
 };
 
-const PRIORITY_TONE: Record<TaskPriorityKey, 'success' | 'warning' | 'info' | 'default' | 'danger'> = {
-  low: 'info',
-  medium: 'warning',
-  high: 'danger',
-  critical: 'danger',
+const EMPTY_FILTERS: OpsFilters = {
+  search: '',
+  status: '',
+  ownerId: '',
+  person: '',
+  personId: null,
+  projectGroup: '',
+  priority: '',
+  dateFrom: '',
+  dateTo: '',
+  dueBucket: '',
 };
 
-type FilterKey =
-  | 'assignee'
-  | 'customer'
-  | 'project'
-  | 'priority'
-  | 'status'
-  | 'dueDate'
-  | 'tag'
-  | 'search';
+const EMPTY_FORM: TaskForm = {
+  title: '',
+  description: '',
+  contactId: '',
+  contactLabel: '',
+  projectGroup: '',
+  agreementId: '',
+  ownerId: '',
+  dueDate: '',
+  priority: 'medium',
+  status: 'open',
+};
 
-/** Presentation-only urgency hint derived from existing due labels/tones. */
-function dueUrgencyKey(row: TaskRow): 'dueEndToday' | 'hoursLeft3' | 'tomorrow' | null {
-  if (row.dueTone === 'today') {
-    if (row.dueLabelKey === 'today1500') return 'hoursLeft3';
-    return 'dueEndToday';
-  }
-  if (row.dueLabelKey === 'tomorrow1100') return 'tomorrow';
-  return null;
+const WORKSPACE_STATUSES: WorkspaceStatus[] = ['open', 'in_progress', 'completed', 'cancelled'];
+const PRIORITIES: PriorityKey[] = ['low', 'medium', 'high', 'critical'];
+
+function personLabel(item: CrmActivitySummary, unresolved: string): string {
+  const name = (item.person_name || item.entity_name || '').trim();
+  if (name && !['contact', 'unknown person', 'unknown'].includes(name.toLowerCase())) return name;
+  if (item.entity_type === 'contact' && item.entity_id) return unresolved;
+  return '—';
 }
 
-function TaskIdentity({
-  row,
-  checked,
-  onCheckedChange,
+function projectUnit(item: CrmActivitySummary): string {
+  const parts = [item.project_label, item.unit_number ? `Daire ${item.unit_number}` : null].filter(Boolean);
+  return parts.join(' · ') || '—';
+}
+
+function workspaceStatus(item: CrmActivitySummary): WorkspaceStatus {
+  const value = item.workspace_status;
+  if (value === 'in_progress' || value === 'completed' || value === 'cancelled') return value;
+  return 'open';
+}
+
+function priorityKey(value: string | null | undefined): PriorityKey {
+  if (value === 'low' || value === 'high' || value === 'critical') return value;
+  return 'medium';
+}
+
+function formatDate(value: string | null | undefined, locale: string): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat(locale === 'tr' ? 'tr-TR' : 'en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+function dueTone(item: CrmActivitySummary): 'overdue' | 'today' | 'done' | 'neutral' {
+  const status = workspaceStatus(item);
+  if (status === 'completed' || status === 'cancelled') return 'done';
+  if (!item.due_date) return 'neutral';
+  const due = new Date(item.due_date);
+  if (Number.isNaN(due.getTime())) return 'neutral';
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate()).getTime();
+  if (dueDay < start) return 'overdue';
+  if (dueDay === start) return 'today';
+  return 'neutral';
+}
+
+function toDuePayload(date: string): string | undefined {
+  if (!date) return undefined;
+  return `${date}T12:00:00+03:00`;
+}
+
+function dateInputValue(value: string | null | undefined): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.slice(0, 10);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function statusToApi(status: WorkspaceStatus): { task_status: CrmTaskStatus; status: 'planned' | 'in_progress' | 'completed' | 'cancelled' } {
+  if (status === 'in_progress') return { task_status: 'in_progress', status: 'in_progress' };
+  if (status === 'completed') return { task_status: 'completed', status: 'completed' };
+  if (status === 'cancelled') return { task_status: 'cancelled', status: 'cancelled' };
+  return { task_status: 'not_started', status: 'planned' };
+}
+
+function TaskDrawer({
+  item,
+  mode,
+  form,
+  canManage,
+  users,
+  projects,
+  purchases,
+  personSuggestions,
+  saving,
+  completing,
+  onClose,
+  onEdit,
+  onComplete,
+  onSave,
+  onFormChange,
+  onPersonQuery,
+  onPickPerson,
 }: {
-  row: TaskRow;
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
+  item: CrmActivitySummary | null;
+  mode: 'detail' | 'create' | 'edit';
+  form: TaskForm;
+  canManage: boolean;
+  users: Array<{ id: string; full_name: string }>;
+  projects: Array<{ id: string; label: string }>;
+  purchases: Array<{ id: string; label: string }>;
+  personSuggestions: Array<{ id: string; display_name: string }>;
+  saving: boolean;
+  completing: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+  onComplete: () => void;
+  onSave: () => void;
+  onFormChange: (patch: Partial<TaskForm>) => void;
+  onPersonQuery: (value: string) => void;
+  onPickPerson: (id: string, name: string) => void;
 }) {
   const t = useTranslations('crm.tasks');
-  const title = row.title ?? t(`titles.${row.titleKey}`);
-  const description = row.description ?? t(`descriptions.${row.descriptionKey}`);
+  const locale = useLocale();
+  const router = useRouter();
+  const unresolved = t('unresolvedIdentity');
+  const person = item ? personLabel(item, unresolved) : form.contactLabel || '—';
+  const purchaseHref =
+    item?.agreement_id && item.entity_type === 'contact' && item.entity_id
+      ? salesDetailUrl(item.entity_id, item.agreement_id)
+      : form.agreementId && form.contactId
+        ? salesDetailUrl(form.contactId, form.agreementId)
+        : undefined;
+  const contactHref =
+    item?.entity_type === 'contact' && item.entity_id
+      ? `/workspaces/crm/contacts/${item.entity_id}`
+      : form.contactId
+        ? `/workspaces/crm/contacts/${form.contactId}`
+        : undefined;
 
   return (
-    <div className="crm-tasks__task-cell">
-      <label className="crm-tasks__checkbox">
-        <input
-          type="checkbox"
-          checked={checked}
-          aria-label={t('actions.selectTask', { title })}
-          onChange={(e) => onCheckedChange(e.target.checked)}
-          onClick={(e) => e.stopPropagation()}
-        />
-      </label>
-      <div className="crm-tasks__task-text">
-        <strong title={title}>{title}</strong>
-        <span className="crm-tasks__clamp-fade" title={description}>
-          {description}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function AiNoteCell({ noteKey, noteText }: { noteKey: string; noteText?: string }) {
-  const t = useTranslations('crm.tasks');
-  const [expanded, setExpanded] = useState(false);
-  const note = noteText ?? t(`aiNotes.${noteKey}`);
-  const needsToggle = note.length > 36;
-
-  return (
-    <div className="crm-tasks__ai-summary">
-      <p
-        className={
-          expanded
-            ? 'crm-tasks__ai-note is-expanded'
-            : 'crm-tasks__ai-note crm-tasks__clamp-fade'
-        }
-        title={note}
-      >
-        {note}
-      </p>
-      {needsToggle ? (
-        <button
-          type="button"
-          className="crm-tasks__ai-more"
-          aria-expanded={expanded}
-          onClick={(e) => {
-            e.stopPropagation();
-            setExpanded((v) => !v);
-          }}
-        >
-          {expanded ? t('actions.collapse') : t('actions.expand')}
-          <IhIcon name="chevronDown" size={11} />
+    <aside className="crm-tasks__drawer" role="dialog" aria-label={t('drawer.title')} data-testid="crm-tasks-drawer">
+      <div className="crm-tasks__drawer-head">
+        <h3>{mode === 'create' ? t('create') : mode === 'edit' ? t('actions.edit') : t('drawer.title')}</h3>
+        <button type="button" className="crm-tasks__link-btn" onClick={onClose}>
+          {t('actions.close')}
         </button>
-      ) : null}
-    </div>
-  );
-}
-
-function DueCell({ row }: { row: TaskRow }) {
-  const t = useTranslations('crm.tasks');
-  const urgency = dueUrgencyKey(row);
-
-  return (
-    <div className="crm-tasks__due-wrap">
-      <span className={`crm-tasks__due is-${row.dueTone}`}>
-        {row.dueLabel ?? t(`dueLabels.${row.dueLabelKey}`)}
-      </span>
-      {urgency ? (
-        <span className={`crm-tasks__due-urgency is-${urgency}`} title={t(`dueUrgency.${urgency}`)}>
-          {t(`dueUrgency.${urgency}`)}
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-function RowActions({
-  row,
-  onEdit,
-  onComplete,
-  onReopen,
-}: {
-  row: TaskRow;
-  onEdit?: (row: TaskRow) => void;
-  onComplete?: (id: string) => void;
-  onReopen?: (id: string) => void;
-}) {
-  const t = useTranslations('crm.tasks');
-  const done = row.status === 'completed';
-
-  return (
-    <div className="crm-tasks__row-actions">
-      <button
-        type="button"
-        className="crm-tasks__icon-action"
-        aria-label={done ? 'Yeniden aç' : t('actions.detail')}
-        title={done ? 'Yeniden aç' : t('actions.detail')}
-        onClick={() => (done ? onReopen?.(row.id) : onComplete?.(row.id))}
-      >
-        <IhIcon name="check" size={14} />
-      </button>
-      <button
-        type="button"
-        className="crm-tasks__icon-action"
-        aria-label={t('actions.edit')}
-        title={t('actions.edit')}
-        onClick={() => onEdit?.(row)}
-      >
-        <IhIcon name="settings" size={14} />
-      </button>
-    </div>
-  );
-}
-
-function TaskCardView({
-  row,
-  checked,
-  onCheckedChange,
-  onEdit,
-  onComplete,
-  onReopen,
-}: {
-  row: TaskRow;
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
-  onEdit?: (row: TaskRow) => void;
-  onComplete?: (id: string) => void;
-  onReopen?: (id: string) => void;
-}) {
-  const t = useTranslations('crm.tasks');
-
-  return (
-    <article
-      className={`crm-tasks__card is-priority-${row.priority} is-status-${row.status}`}
-      data-testid={`task-card-${row.id}`}
-    >
-      <header className="crm-tasks__card-header">
-        <TaskIdentity row={row} checked={checked} onCheckedChange={onCheckedChange} />
-        <StatusChip
-          tone={PRIORITY_TONE[row.priority]}
-          className={
-            row.priority === 'critical'
-              ? 'crm-tasks__badge crm-tasks__priority--critical'
-              : 'crm-tasks__badge'
-          }
-        >
-          {t(`priority.${row.priority}`)}
-        </StatusChip>
-      </header>
-
-      <dl className="crm-tasks__card-meta">
-        <div>
-          <dt>{t('table.customer')}</dt>
-          <dd title={row.customer}>{row.customer}</dd>
-        </div>
-        <div>
-          <dt>{t('table.project')}</dt>
-          <dd title={row.project}>{row.project}</dd>
-        </div>
-        <div>
-          <dt>{t('table.dueDate')}</dt>
-          <dd>
-            <DueCell row={row} />
-          </dd>
-        </div>
-        <div>
-          <dt>{t('table.assignee')}</dt>
-          <dd>
-            <span className="crm-tasks__avatar" aria-hidden="true">
-              {row.assigneeInitials}
-            </span>
-            <span title={row.assignee}>{row.assignee}</span>
-          </dd>
-        </div>
-      </dl>
-
-      <div className="crm-tasks__card-ai">
-        <AiNoteCell noteKey={row.aiNoteKey} noteText={row.aiNote} />
       </div>
-
-      <footer className="crm-tasks__card-footer">
-        <StatusChip tone={STATUS_TONE[row.status]} className="crm-tasks__badge">
-          {t(`status.${row.status}`)}
-        </StatusChip>
-        <RowActions row={row} onEdit={onEdit} onComplete={onComplete} onReopen={onReopen} />
-      </footer>
-    </article>
+      <div className="crm-tasks__drawer-body">
+        {mode === 'detail' && item ? (
+          <>
+            <h4>{item.title}</h4>
+            <dl className="crm-tasks__kv">
+              <dt>{t('drawer.person')}</dt>
+              <dd>{person}</dd>
+              <dt>{t('drawer.project')}</dt>
+              <dd>{item.project_label || '—'}</dd>
+              <dt>{t('drawer.unit')}</dt>
+              <dd>{item.unit_number || '—'}</dd>
+              <dt>{t('drawer.owner')}</dt>
+              <dd>{item.assigned_user_name || item.owner_name || '—'}</dd>
+              <dt>{t('drawer.created')}</dt>
+              <dd>{formatDate(item.created_at, locale)}</dd>
+              <dt>{t('drawer.due')}</dt>
+              <dd>{formatDate(item.due_date, locale)}</dd>
+              <dt>{t('drawer.priority')}</dt>
+              <dd>{t(`priority.${priorityKey(item.priority)}`)}</dd>
+              <dt>{t('drawer.status')}</dt>
+              <dd>{t(`workspaceStatus.${workspaceStatus(item)}`)}</dd>
+              <dt>{t('drawer.source')}</dt>
+              <dd>
+                {[item.source, item.source_task_status, item.source_priority].filter(Boolean).join(' · ') || 'CRM'}
+              </dd>
+            </dl>
+            <section>
+              <h4>{t('drawer.description')}</h4>
+              <p>{item.summary || t('drawer.noDescription')}</p>
+            </section>
+            <div className="crm-tasks__drawer-actions">
+              {contactHref ? (
+                <Button type="button" variant="primary" size="sm" onClick={() => router.push(contactHref as Route)}>
+                  {t('actions.openContact')}
+                </Button>
+              ) : null}
+              {purchaseHref ? (
+                <Button type="button" variant="secondary" size="sm" onClick={() => router.push(purchaseHref as Route)}>
+                  {t('actions.openPurchase')}
+                </Button>
+              ) : null}
+              {canManage && workspaceStatus(item) !== 'completed' ? (
+                <Button type="button" size="sm" onClick={onComplete} disabled={completing}>
+                  {t('actions.complete')}
+                </Button>
+              ) : null}
+              {canManage ? (
+                <Button type="button" variant="secondary" size="sm" onClick={onEdit}>
+                  {t('actions.edit')}
+                </Button>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <form
+            className="crm-tasks__form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onSave();
+            }}
+          >
+            <Input
+              label={t('form.title')}
+              value={form.title}
+              onChange={(event) => onFormChange({ title: event.target.value })}
+              required
+            />
+            <TextArea
+              label={t('form.description')}
+              value={form.description}
+              onChange={(event) => onFormChange({ description: event.target.value })}
+              rows={4}
+            />
+            <div className="crm-tasks__person-field">
+              <Input
+                label={t('form.person')}
+                value={form.contactLabel}
+                onChange={(event) => onPersonQuery(event.target.value)}
+                placeholder={t('filters.personPlaceholder')}
+              />
+              {personSuggestions.length > 0 ? (
+                <ul className="crm-tasks__suggest">
+                  {personSuggestions.map((contact) => (
+                    <li key={contact.id}>
+                      <button type="button" onClick={() => onPickPerson(contact.id, contact.display_name)}>
+                        {contact.display_name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+            <Select
+              label={t('form.project')}
+              value={form.projectGroup}
+              onChange={(event) => onFormChange({ projectGroup: event.target.value })}
+            >
+              <option value="">{t('filters.any')}</option>
+              {projects.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.label}
+                </option>
+              ))}
+            </Select>
+            <Select
+              label={t('form.purchase')}
+              value={form.agreementId}
+              onChange={(event) => onFormChange({ agreementId: event.target.value })}
+            >
+              <option value="">{t('filters.any')}</option>
+              {purchases.map((purchase) => (
+                <option key={purchase.id} value={purchase.id}>
+                  {purchase.label}
+                </option>
+              ))}
+            </Select>
+            <Select
+              label={t('form.owner')}
+              value={form.ownerId}
+              onChange={(event) => onFormChange({ ownerId: event.target.value })}
+            >
+              <option value="">{t('filters.any')}</option>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.full_name}
+                </option>
+              ))}
+            </Select>
+            <Input
+              label={t('form.due')}
+              type="date"
+              value={form.dueDate}
+              onChange={(event) => onFormChange({ dueDate: event.target.value })}
+            />
+            <Select
+              label={t('form.priority')}
+              value={form.priority}
+              onChange={(event) => onFormChange({ priority: event.target.value as PriorityKey })}
+            >
+              {PRIORITIES.map((priority) => (
+                <option key={priority} value={priority}>
+                  {t(`priority.${priority}`)}
+                </option>
+              ))}
+            </Select>
+            <Select
+              label={t('form.status')}
+              value={form.status}
+              onChange={(event) => onFormChange({ status: event.target.value as WorkspaceStatus })}
+            >
+              {WORKSPACE_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {t(`workspaceStatus.${status}`)}
+                </option>
+              ))}
+            </Select>
+            <div className="crm-tasks__drawer-actions">
+              <Button type="submit" size="sm" disabled={saving || !form.title.trim()}>
+                {saving ? t('form.saving') : t('form.save')}
+              </Button>
+            </div>
+          </form>
+        )}
+      </div>
+    </aside>
   );
 }
 
-function KanbanCard({
-  row,
-  checked,
-  onCheckedChange,
-}: {
-  row: TaskRow;
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
-}) {
+export function CrmTasksWorkspace() {
   const t = useTranslations('crm.tasks');
-
-  return (
-    <article
-      className={`crm-tasks__kanban-card is-priority-${row.priority}`}
-      data-testid={`task-kanban-${row.id}`}
-      draggable={false}
-    >
-      <div className="crm-tasks__kanban-card-top">
-        <label className="crm-tasks__checkbox">
-          <input
-            type="checkbox"
-            checked={checked}
-            onChange={(e) => onCheckedChange(e.target.checked)}
-            aria-label={t('actions.selectTask', { title: row.title ?? t(`titles.${row.titleKey}`) })}
-          />
-        </label>
-        <StatusChip
-          tone={PRIORITY_TONE[row.priority]}
-          className={
-            row.priority === 'critical'
-              ? 'crm-tasks__badge crm-tasks__priority--critical'
-              : 'crm-tasks__badge'
-          }
-        >
-          {t(`priority.${row.priority}`)}
-        </StatusChip>
-      </div>
-      <h4 title={row.title ?? t(`titles.${row.titleKey}`)}>{row.title ?? t(`titles.${row.titleKey}`)}</h4>
-      <p>
-        {row.customer} · {row.project}
-      </p>
-      <div className="crm-tasks__kanban-card-meta">
-        <DueCell row={row} />
-        <span className="crm-tasks__avatar" aria-hidden="true" title={row.assignee}>
-          {row.assigneeInitials}
-        </span>
-      </div>
-    </article>
-  );
-}
-
-export function CrmTasksWorkspace({
-  preview: previewProp,
-  onOpenAi,
-}: {
-  preview?: TaskWorkspacePreview;
-  onOpenAi?: (prompt?: string) => void;
-}) {
-  const t = useTranslations('crm.tasks');
-  const { openContact } = useContactCard();
+  const tCommon = useTranslations('common');
+  const locale = useLocale();
+  const { authLoading, canRead: canView, canManageTasks } = useCrmAccess();
   const queryClient = useQueryClient();
-  const liveQuery = useQuery({
-    ...activityQueries.tasks({ page: 1, page_size: 100 }),
-    enabled: !previewProp,
+  const searchParams = useSearchParams();
+  const [filters, setFilters] = useState<OpsFilters>({
+    ...EMPTY_FILTERS,
+    status: searchParams.get('status') || '',
+    dueBucket: searchParams.get('due') || '',
   });
-  const preview = previewProp ?? buildTasksPreview(liveQuery.data?.items ?? [], liveQuery.data?.total ?? 0);
+  const [searchDraft, setSearchDraft] = useState('');
+  const [personDraft, setPersonDraft] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedSnapshot, setSelectedSnapshot] = useState<CrmActivitySummary | null>(null);
+  const [mode, setMode] = useState<'detail' | 'create' | 'edit' | null>(null);
+  const [form, setForm] = useState<TaskForm>(EMPTY_FORM);
+
+  const canQuery = !authLoading && canView;
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setFilters((prev) => ({ ...prev, search: searchDraft })), 220);
+    return () => window.clearTimeout(timer);
+  }, [searchDraft]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setFilters((prev) => ({
+        ...prev,
+        person: personDraft,
+        personId: personDraft.trim() ? prev.personId : null,
+      }));
+    }, 220);
+    return () => window.clearTimeout(timer);
+  }, [personDraft]);
+
+  const apiFilters = useMemo<ActivityListParams>(() => {
+    const params: ActivityListParams = { page: 1, page_size: 40 };
+    if (filters.search.trim()) params.search = filters.search.trim();
+    if (filters.personId) params.entity_id = filters.personId;
+    else if (filters.person.trim()) params.contact_search = filters.person.trim();
+    if (filters.projectGroup) params.project_group = filters.projectGroup;
+    if (filters.ownerId) params.assigned_user_id = filters.ownerId;
+    if (filters.status) params.workspace_status = filters.status;
+    if (filters.priority) params.priority = filters.priority as CrmActivityPriority;
+    if (filters.dateFrom) params.due_from = `${filters.dateFrom}T00:00:00+03:00`;
+    if (filters.dateTo) params.due_to = `${filters.dateTo}T23:59:59+03:00`;
+    if (filters.dueBucket) params.due_bucket = filters.dueBucket;
+    return params;
+  }, [filters]);
+
+  const listQuery = useInfiniteQuery({
+    queryKey: activityQueryKeys.tasks(apiFilters),
+    queryFn: ({ pageParam = 1 }) => fetchTasks({ ...apiFilters, page: pageParam }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (lastPage.page < lastPage.pages ? lastPage.page + 1 : undefined),
+    enabled: canQuery,
+  });
+
+  const items = useMemo(() => listQuery.data?.pages.flatMap((page) => page.items) ?? [], [listQuery.data]);
+  const counters = listQuery.data?.pages[0]?.counters;
+  const total = listQuery.data?.pages[0]?.total ?? items.length;
+  const selected =
+    items.find((item) => item.id === selectedId) ??
+    (selectedSnapshot?.id === selectedId ? selectedSnapshot : null);
+  const detailQuery = useQuery({
+    queryKey: activityQueryKeys.detail(selectedId || ''),
+    queryFn: () => fetchActivity(selectedId || ''),
+    enabled: Boolean(selectedId) && mode === 'detail',
+  });
+  const selectedDetail = selected
+    ? {
+        ...selected,
+        summary: detailQuery.data?.description || detailQuery.data?.summary || selected.summary,
+        person_name: selected.person_name || detailQuery.data?.person_name,
+        project_label: selected.project_label || detailQuery.data?.project_label,
+        project_group: selected.project_group || detailQuery.data?.project_group,
+        unit_number: selected.unit_number || detailQuery.data?.unit_number,
+        agreement_id: selected.agreement_id || detailQuery.data?.agreement_id,
+        source: selected.source || detailQuery.data?.source,
+      }
+    : null;
+
+  const projectsQuery = useQuery({
+    queryKey: ['crm', 'agreements', 'task-projects'],
+    queryFn: () => fetchAgreements({ page: 1, page_size: 1 }),
+    enabled: canQuery,
+  });
   const usersQuery = useQuery({
-    queryKey: ['crm', 'users', 'task-assignees'],
+    queryKey: ['users', 'task-filter'],
     queryFn: () => fetchUsers({ status: 'active' }),
+    enabled: canQuery,
   });
-  const [view, setView] = useState<TaskViewMode>('list');
-  const [aiAction, setAiAction] = useState<TaskAiActionKey | null>(null);
-  const [filters, setFilters] = useState<Record<FilterKey, string>>({
-    assignee: '',
-    customer: '',
-    project: '',
-    priority: '',
-    status: '',
-    dueDate: '',
-    tag: '',
-    search: '',
+  const personSuggestQuery = useQuery({
+    ...contactQueries.list({ search: personDraft.trim() || form.contactLabel.trim(), page: 1, page_size: 8 }),
+    enabled: canQuery && (personDraft.trim().length >= 2 || (mode !== 'detail' && form.contactLabel.trim().length >= 2 && !form.contactId)),
   });
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [checkedIds, setCheckedIds] = useState<Record<string, boolean>>({});
-  const [editor, setEditor] = useState<null | { mode: 'create' | 'edit'; row?: TaskRow }>(null);
-  const [form, setForm] = useState({
-    title: '',
-    description: '',
-    contactId: '',
-    contactLabel: '',
-    assigneeId: '',
-    dueDate: '',
-    priority: 'medium',
+  const purchasesQuery = useQuery({
+    queryKey: ['crm', 'agreements', 'task-purchases', form.contactId],
+    queryFn: () => fetchAgreements({ contact_id: form.contactId, page: 1, page_size: 20 }),
+    enabled: canQuery && Boolean(form.contactId) && mode !== 'detail' && mode !== null,
   });
-  const [contactHits, setContactHits] = useState<Array<{ id: string; display_name: string }>>([]);
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ['crm'] });
@@ -384,703 +494,371 @@ export function CrmTasksWorkspace({
     mutationFn: completeTask,
     onSuccess: invalidate,
   });
-  const reopenMutation = useMutation({
-    mutationFn: reopenTask,
-    onSuccess: invalidate,
-  });
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (editor?.mode === 'edit' && editor.row) {
-        await updateActivity(editor.row.id, {
+      const mapped = statusToApi(form.status);
+      if (mode === 'edit' && selectedId) {
+        await updateActivity(selectedId, {
           title: form.title.trim(),
           description: form.description.trim() || undefined,
-          assigned_user_id: form.assigneeId || undefined,
-          due_date: form.dueDate ? new Date(form.dueDate).toISOString() : undefined,
-          priority: form.priority as 'low' | 'medium' | 'high' | 'critical',
+          assigned_user_id: form.ownerId || undefined,
+          due_date: toDuePayload(form.dueDate),
+          priority: form.priority,
+          task_status: mapped.task_status,
+          status: mapped.status,
+          entity_type: form.contactId ? 'contact' : undefined,
+          entity_id: form.contactId || undefined,
+          related_entity_type: form.agreementId ? 'transaction' : undefined,
+          related_entity_id: form.agreementId || undefined,
+          metadata_json: {
+            task_links: {
+              contact_id: form.contactId || null,
+              project_group: form.projectGroup || null,
+              agreement_id: form.agreementId || null,
+            },
+          },
         });
         return;
       }
-      if (!form.contactId || !form.title.trim()) return;
       await createTask({
-        entity_type: 'contact',
-        entity_id: form.contactId,
-        activity_type: 'task',
         title: form.title.trim(),
         description: form.description.trim() || undefined,
-        assigned_user_id: form.assigneeId || undefined,
-        due_date: form.dueDate ? new Date(form.dueDate).toISOString() : undefined,
-        task_status: 'not_started',
-        priority: form.priority as 'low' | 'medium' | 'high' | 'critical',
+        contact_id: form.contactId || undefined,
+        project_group: form.projectGroup || undefined,
+        agreement_id: form.agreementId || undefined,
+        assigned_user_id: form.ownerId || undefined,
+        due_date: toDuePayload(form.dueDate),
+        priority: form.priority,
+        task_status: mapped.task_status,
       });
     },
     onSuccess: () => {
-      setEditor(null);
+      setMode(null);
+      setSelectedId(null);
+      setSelectedSnapshot(null);
+      setForm(EMPTY_FORM);
       invalidate();
     },
   });
 
-  const openEditor = (row?: TaskRow) => {
-    if (row) {
-      setForm({
-        title: row.title ?? '',
-        description: row.description ?? '',
-        contactId: row.customerId ?? '',
-        contactLabel: row.customer,
-        assigneeId: row.assigneeId ?? '',
-        dueDate: '',
-        priority: row.priority,
-      });
-      setEditor({ mode: 'edit', row });
-      return;
-    }
-    setForm({
-      title: '',
-      description: '',
-      contactId: '',
-      contactLabel: '',
-      assigneeId: '',
-      dueDate: '',
-      priority: 'medium',
-    });
-    setEditor({ mode: 'create' });
-  };
-
-  const searchContacts = async (query: string) => {
-    setForm((prev) => ({ ...prev, contactLabel: query }));
-    if (query.trim().length < 2) {
-      setContactHits([]);
-      return;
-    }
-    const result = await fetchContacts({ search: query.trim(), page_size: 8, status: 'active' });
-    setContactHits(result.items.map((item) => ({ id: item.id, display_name: item.display_name })));
-  };
-
-  const setTaskChecked = (id: string, checked: boolean) => {
-    setCheckedIds((prev) => ({ ...prev, [id]: checked }));
-  };
-
-  const filteredTasks = useMemo(() => {
-    let items = [...preview.tasks];
-
-    if (aiAction === 'sortByPriority') {
-      /* Local presentation filter: surface critical tasks (AI bar label = Kritikleri Göster). */
-      items = items.filter((task) => task.priority === 'critical');
-    } else if (aiAction === 'dueToday') {
-      items = items.filter((task) => task.dueTone === 'today');
-    } else if (aiAction === 'showOverdue') {
-      items = items.filter((task) => task.dueTone === 'overdue');
-    }
-
-    return items.filter((row) => {
-      if (filters.assignee && row.assignee !== filters.assignee) return false;
-      if (filters.customer && row.customer !== filters.customer) return false;
-      if (filters.project && row.project !== filters.project) return false;
-      if (filters.priority && row.priority !== filters.priority) return false;
-      if (filters.status && row.status !== filters.status) return false;
-      if (filters.tag && row.tag !== filters.tag) return false;
-      if (filters.dueDate === 'today' && row.dueTone !== 'today') return false;
-      if (filters.dueDate === 'overdue' && row.dueTone !== 'overdue') return false;
-      if (filters.dueDate === 'soon' && row.dueTone !== 'soon') return false;
-      if (filters.search) {
-        const q = filters.search.trim().toLowerCase();
-        const haystack =
-          `${row.customer} ${row.project} ${row.assignee} ${row.tag} ${row.titleKey}`.toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [aiAction, filters, preview.tasks]);
-
-  const totalPages = Math.max(1, Math.ceil(preview.totalTasks / pageSize));
-  const pageItems = filteredTasks.slice(0, Math.min(pageSize, filteredTasks.length));
-
-  const kanbanGroups = useMemo(() => {
-    const groups: Record<TaskKanbanColumnKey, TaskRow[]> = {
-      todo: [],
-      inProgress: [],
-      review: [],
-      completed: [],
-    };
-    for (const task of filteredTasks) {
-      groups[task.kanbanColumn].push(task);
-    }
-    return groups;
-  }, [filteredTasks]);
-
+  const patchFilters = (patch: Partial<OpsFilters>) => setFilters((prev) => ({ ...prev, ...patch }));
   const clearFilters = () => {
-    setFilters({
-      assignee: '',
-      customer: '',
-      project: '',
-      priority: '',
-      status: '',
-      dueDate: '',
-      tag: '',
-      search: '',
-    });
-    setPage(1);
+    setFilters(EMPTY_FILTERS);
+    setSearchDraft('');
+    setPersonDraft('');
   };
 
-  if (!previewProp && liveQuery.isLoading) {
-    return <LoadingState />;
+  const openCreate = () => {
+    setForm(EMPTY_FORM);
+    setSelectedId(null);
+    setSelectedSnapshot(null);
+    setMode('create');
+  };
+
+  const openDetail = (item: CrmActivitySummary) => {
+    setSelectedSnapshot(item);
+    setSelectedId(item.id);
+    setMode('detail');
+  };
+
+  const openEdit = (item: CrmActivitySummary) => {
+    setSelectedSnapshot(item);
+    setSelectedId(item.id);
+    setForm({
+      title: item.title,
+      description: item.summary || '',
+      contactId: item.entity_type === 'contact' ? item.entity_id : '',
+      contactLabel: personLabel(item, ''),
+      projectGroup: item.project_group || '',
+      agreementId: item.agreement_id || '',
+      ownerId: item.assigned_user_id || item.owner_id || '',
+      dueDate: dateInputValue(item.due_date),
+      priority: priorityKey(item.priority),
+      status: workspaceStatus(item),
+    });
+    setMode('edit');
+  };
+
+  if (authLoading) {
+    return (
+      <div className="crm-tasks crm-tasks--ops" data-testid="crm-tasks-workspace">
+        <div className="crm-tasks__skeleton" aria-hidden="true">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="crm-tasks__skeleton-row" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
-  const users = Array.isArray(usersQuery.data)
-    ? usersQuery.data
-    : ((usersQuery.data as { items?: UserRecord[] } | undefined)?.items ?? []);
+  if (!canView) {
+    return <ErrorState title={t('accessDenied')} message={t('accessDeniedHint')} />;
+  }
+
+  if (listQuery.isError) {
+    return (
+      <ErrorState
+        title={t('loadFailed')}
+        message={listQuery.error?.message ?? t('loadFailed')}
+        action={
+          <Button type="button" onClick={() => void listQuery.refetch()}>
+            {tCommon('retry')}
+          </Button>
+        }
+      />
+    );
+  }
+
+  const users = usersQuery.data?.items ?? [];
+  const projects = projectsQuery.data?.project_groups ?? [];
+  const personSuggestions = personSuggestQuery.data?.items ?? [];
+  const purchases = (purchasesQuery.data?.items ?? []).map((item) => ({
+    id: item.id,
+    label: [item.project_group_label, item.unit_number ? `Daire ${item.unit_number}` : null].filter(Boolean).join(' · '),
+  }));
 
   return (
-    <div className="crm-tasks" data-testid="crm-tasks-workspace">
+    <div className="crm-tasks crm-tasks--ops" data-testid="crm-tasks-workspace">
       <header className="crm-tasks__header">
         <div>
           <h1>{t('title')}</h1>
           <p>{t('subtitle')}</p>
         </div>
+        <div className="crm-tasks__header-actions">
+          <span className="crm-tasks__count">{t('pagination.total', { count: total })}</span>
+          {canManageTasks ? (
+            <Button type="button" size="sm" onClick={openCreate}>
+              {t('create')}
+            </Button>
+          ) : null}
+        </div>
       </header>
 
-      <section className="crm-tasks__kpi-row" aria-label={t('kpis.aria')}>
-        {preview.kpis.map((kpi) => (
-          <KpiCard
-            key={kpi.key}
-            className="crm-tasks__kpi"
-            label={t(`kpis.${kpi.key}`)}
-            value={kpi.value}
-            hint={t(`kpis.hints.${kpi.hintKey}`)}
-            delta={
-              kpi.delta
-                ? `${kpi.delta} ${kpi.key === 'overdue' ? t('kpis.thisWeek') : t('kpis.thisMonth')}`
-                : undefined
-            }
-            {...(kpi.delta ? { deltaTone: kpi.deltaTone } : {})}
-            tone={kpi.key === 'overdue' ? 'warning' : 'default'}
-            icon={<IhIcon name={KPI_ICONS[kpi.key]} size={18} />}
-          />
+      <section className="crm-tasks__counters" aria-label={t('kpis.aria')}>
+        {(
+          [
+            ['open', counters?.open ?? 0, () => patchFilters({ status: 'active', dueBucket: '' })],
+            ['dueToday', counters?.today ?? 0, () => patchFilters({ status: '', dueBucket: 'today' })],
+            ['overdue', counters?.overdue ?? 0, () => patchFilters({ status: '', dueBucket: 'overdue' })],
+            ['completed', counters?.completed ?? 0, () => patchFilters({ status: 'completed', dueBucket: '' })],
+          ] as const
+        ).map(([key, value, onClick]) => (
+          <button
+            key={key}
+            type="button"
+            className={`crm-tasks__counter${key === 'overdue' ? ' is-warn' : ''}${
+              (key === 'open' && (filters.status === 'open' || filters.status === 'active') && !filters.dueBucket) ||
+              (key === 'completed' && filters.status === 'completed') ||
+              (key === 'dueToday' && filters.dueBucket === 'today') ||
+              (key === 'overdue' && filters.dueBucket === 'overdue')
+                ? ' is-active'
+                : ''
+            }`}
+            onClick={onClick}
+          >
+            <strong>{value}</strong>
+            <span>{t(`kpis.${key}`)}</span>
+          </button>
         ))}
       </section>
 
-      <nav className="screenshot-dashboard__intro-ai crm-tasks__ai" aria-label={t('ai.aria')}>
-        {AI_ACTIONS.map((action) => (
-          <button
-            key={action.key}
-            type="button"
-            className={aiAction === action.key ? 'is-featured' : undefined}
-            onClick={() => {
-              if (action.key === 'createPlan') {
-                onOpenAi?.(t('ai.openPrompt'));
-                setAiAction(action.key);
-                return;
-              }
-              setAiAction((prev) => (prev === action.key ? null : action.key));
-            }}
-          >
-            <span className="crm-tasks__ai-icon" aria-hidden="true">
-              <IhIcon name={action.icon} size={16} />
-            </span>
-            <span>{t(`ai.actions.${action.key}`)}</span>
-          </button>
-        ))}
-        <button
-          type="button"
-          className="screenshot-dashboard__intro-ai-primary"
-          onClick={() => onOpenAi?.(t('ai.openPrompt'))}
-        >
-          <IhIcon name="sparkles" size={15} />
-          {t('ai.title')}
-        </button>
-      </nav>
-
       <section className="crm-tasks__filters" aria-label={t('filters.aria')}>
-        <Select
-          label={t('filters.assignee')}
-          value={filters.assignee}
-          onChange={(e) => setFilters((prev) => ({ ...prev, assignee: e.target.value }))}
-        >
+        <div className="crm-tasks__search">
+          <Input
+            label={t('filters.search')}
+            value={searchDraft}
+            onChange={(event) => setSearchDraft(event.target.value)}
+            placeholder={t('filters.searchPlaceholder')}
+          />
+        </div>
+        <Select label={t('filters.status')} value={filters.status} onChange={(event) => patchFilters({ status: event.target.value })}>
           <option value="">{t('filters.any')}</option>
-          {preview.assignees.map((name) => (
-            <option key={name} value={name}>
-              {name}
+          {WORKSPACE_STATUSES.map((status) => (
+            <option key={status} value={status}>
+              {t(`workspaceStatus.${status}`)}
             </option>
           ))}
         </Select>
-        <Select
-          label={t('filters.customer')}
-          value={filters.customer}
-          onChange={(e) => setFilters((prev) => ({ ...prev, customer: e.target.value }))}
-        >
-          <option value="">{t('filters.any')}</option>
-          {preview.customers.map((name) => (
-            <option key={name} value={name}>
-              {name}
+        <Select label={t('filters.owner')} value={filters.ownerId} onChange={(event) => patchFilters({ ownerId: event.target.value })}>
+          <option value="">{t('filters.allOwners')}</option>
+          {users.map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.full_name}
             </option>
           ))}
         </Select>
+        <div className="crm-tasks__person-field">
+          <Input
+            label={t('filters.person')}
+            value={personDraft}
+            onChange={(event) => {
+              setPersonDraft(event.target.value);
+              patchFilters({ personId: null });
+            }}
+            placeholder={t('filters.personPlaceholder')}
+          />
+          {personDraft.trim().length >= 2 && !filters.personId && personSuggestions.length > 0 ? (
+            <ul className="crm-tasks__suggest">
+              {personSuggestions.map((contact) => (
+                <li key={contact.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPersonDraft(contact.display_name);
+                      patchFilters({ person: contact.display_name, personId: contact.id });
+                    }}
+                  >
+                    {contact.display_name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
         <Select
           label={t('filters.project')}
-          value={filters.project}
-          onChange={(e) => setFilters((prev) => ({ ...prev, project: e.target.value }))}
+          value={filters.projectGroup}
+          onChange={(event) => patchFilters({ projectGroup: event.target.value })}
         >
-          <option value="">{t('filters.any')}</option>
-          {preview.projects.map((name) => (
-            <option key={name} value={name}>
-              {name}
+          <option value="">{t('filters.allProjects')}</option>
+          {projects.map((group) => (
+            <option key={group.id} value={group.id}>
+              {group.label}
             </option>
           ))}
         </Select>
         <Select
           label={t('filters.priority')}
           value={filters.priority}
-          onChange={(e) => setFilters((prev) => ({ ...prev, priority: e.target.value }))}
+          onChange={(event) => patchFilters({ priority: event.target.value })}
         >
           <option value="">{t('filters.any')}</option>
-          {TASK_PRIORITY_ORDER.map((priority) => (
+          {PRIORITIES.map((priority) => (
             <option key={priority} value={priority}>
               {t(`priority.${priority}`)}
             </option>
           ))}
         </Select>
-        <Select
-          label={t('filters.status')}
-          value={filters.status}
-          onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
-        >
-          <option value="">{t('filters.any')}</option>
-          {TASK_STATUS_ORDER.map((status) => (
-            <option key={status} value={status}>
-              {t(`status.${status}`)}
-            </option>
-          ))}
-        </Select>
-        <Select
-          label={t('filters.dueDate')}
-          value={filters.dueDate}
-          onChange={(e) => setFilters((prev) => ({ ...prev, dueDate: e.target.value }))}
-        >
-          <option value="">{t('filters.any')}</option>
-          <option value="today">{t('filters.dateRanges.today')}</option>
-          <option value="soon">{t('filters.dateRanges.soon')}</option>
-          <option value="overdue">{t('filters.dateRanges.overdue')}</option>
-        </Select>
-        <Select
-          label={t('filters.tag')}
-          value={filters.tag}
-          onChange={(e) => setFilters((prev) => ({ ...prev, tag: e.target.value }))}
-        >
-          <option value="">{t('filters.any')}</option>
-          {preview.tags.map((tag) => (
-            <option key={tag} value={tag}>
-              {tag}
-            </option>
-          ))}
-        </Select>
         <Input
-          label={t('filters.search')}
-          value={filters.search}
-          onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-          placeholder={t('filters.searchPlaceholder')}
+          label={t('filters.dateFrom')}
+          type="date"
+          value={filters.dateFrom}
+          onChange={(event) => patchFilters({ dateFrom: event.target.value })}
         />
-        <Button variant="secondary" size="sm" onClick={clearFilters}>
-          <IhIcon name="refresh" size={13} />
-          {t('filters.clear')}
-        </Button>
+        <Input
+          label={t('filters.dateTo')}
+          type="date"
+          value={filters.dateTo}
+          onChange={(event) => patchFilters({ dateTo: event.target.value })}
+        />
+        <div className="crm-tasks__filter-actions">
+          <Button type="button" variant="secondary" size="sm" onClick={clearFilters}>
+            {t('filters.clear')}
+          </Button>
+        </div>
       </section>
 
-      <div className="crm-tasks__layout">
-        <div className="crm-tasks__main">
-          <div className="crm-tasks__main-toolbar">
-            <h2>{t('listTitle')}</h2>
-            <div className="crm-tasks__toolbar-actions">
-              <Button size="sm" onClick={() => openEditor()}>
-                Görev oluştur
-              </Button>
-              <SegmentedControl
-              ariaLabel={t('viewAria')}
-              value={view}
-              onChange={setView}
-              options={[
-                { value: 'list', label: t('view.list') },
-                { value: 'card', label: t('view.card') },
-                { value: 'kanban', label: t('view.kanban') },
-              ]}
-            />
-            </div>
+      <div className="crm-tasks__table-wrap" role="region" aria-label={t('table.aria')}>
+        {listQuery.isLoading ? (
+          <div className="crm-tasks__skeleton" aria-hidden="true">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <div key={index} className="crm-tasks__skeleton-row" />
+            ))}
           </div>
-
-          {view === 'list' ? (
-            <div className="crm-tasks__table-wrap" role="region" aria-label={t('table.aria')}>
-              <table className="crm-tasks__table">
-                <thead>
-                  <tr>
-                    <th scope="col">{t('table.task')}</th>
-                    <th scope="col">{t('table.customer')}</th>
-                    <th scope="col">{t('table.project')}</th>
-                    <th scope="col">{t('table.dueDate')}</th>
-                    <th scope="col">{t('table.priority')}</th>
-                    <th scope="col">{t('table.assignee')}</th>
-                    <th scope="col">{t('table.aiNote')}</th>
-                    <th scope="col">{t('table.status')}</th>
-                    <th scope="col">{t('table.actions')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pageItems.map((row) => (
-                    <tr
-                      key={row.id}
-                      className={`crm-tasks__row is-priority-${row.priority} is-status-${row.status}`}
-                      data-testid={`task-row-${row.id}`}
-                      tabIndex={0}
-                    >
-                      <td>
-                        <TaskIdentity
-                          row={row}
-                          checked={Boolean(checkedIds[row.id])}
-                          onCheckedChange={(checked) => setTaskChecked(row.id, checked)}
-                        />
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="crm-tasks__contact-btn"
-                          onClick={() => row.customerId && openContact(row.customerId)}
-                          disabled={!row.customerId}
-                        >
-                          <strong title={row.customer}>{row.customer}</strong>
-                        </button>
-                      </td>
-                      <td>
-                        <span className="crm-tasks__project">{row.project}</span>
-                      </td>
-                      <td>
-                        <DueCell row={row} />
-                      </td>
-                      <td>
-                        <StatusChip
-                          tone={PRIORITY_TONE[row.priority]}
-                          className={
-                            row.priority === 'critical'
-                              ? 'crm-tasks__badge crm-tasks__priority--critical'
-                              : row.priority === 'high'
-                                ? 'crm-tasks__badge crm-tasks__priority--high'
-                                : 'crm-tasks__badge'
-                          }
-                        >
-                          {t(`priority.${row.priority}`)}
-                        </StatusChip>
-                      </td>
-                      <td>
-                        <div className="crm-tasks__rep">
-                          <span className="crm-tasks__avatar" aria-hidden="true">
-                            {row.assigneeInitials}
-                          </span>
-                          <span title={row.assignee}>{row.assignee}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <AiNoteCell noteKey={row.aiNoteKey} noteText={row.aiNote} />
-                      </td>
-                      <td>
-                        <StatusChip tone={STATUS_TONE[row.status]} className="crm-tasks__badge">
-                          {t(`status.${row.status}`)}
-                        </StatusChip>
-                      </td>
-                      <td>
-                        <RowActions
-                          row={row}
-                          onEdit={openEditor}
-                          onComplete={(id) => completeMutation.mutate(id)}
-                          onReopen={(id) => reopenMutation.mutate(id)}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-
-          {view === 'card' ? (
-            <div className="crm-tasks__grid" role="list" aria-label={t('view.card')}>
-              {pageItems.map((row) => (
-                <div key={row.id} role="listitem">
-                  <TaskCardView
-                    row={row}
-                    checked={Boolean(checkedIds[row.id])}
-                    onCheckedChange={(checked) => setTaskChecked(row.id, checked)}
-                    onEdit={openEditor}
-                    onComplete={(id) => completeMutation.mutate(id)}
-                    onReopen={(id) => reopenMutation.mutate(id)}
-                  />
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {view === 'kanban' ? (
-            <div className="crm-tasks__kanban" role="region" aria-label={t('view.kanban')}>
-              {TASK_KANBAN_COLUMNS.map((column) => (
-                <section key={column} className="crm-tasks__kanban-column">
-                  <header>
-                    <h3>{t(`kanban.${column}`)}</h3>
-                    <span>{kanbanGroups[column].length}</span>
-                  </header>
-                  <div className="crm-tasks__kanban-list">
-                    {kanbanGroups[column].map((row) => (
-                      <KanbanCard
-                        key={row.id}
-                        row={row}
-                        checked={Boolean(checkedIds[row.id])}
-                        onCheckedChange={(checked) => setTaskChecked(row.id, checked)}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-          ) : null}
-
-          <footer className="crm-tasks__pagination" aria-label={t('pagination.aria')}>
-            <p>{t('pagination.total', { count: preview.totalTasks })}</p>
-            <div className="crm-tasks__page-numbers" role="navigation">
-              {Array.from({ length: Math.min(totalPages, 3) }, (_, i) => i + 1).map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  className={page === n ? 'is-active' : undefined}
-                  onClick={() => setPage(n)}
-                  aria-current={page === n ? 'page' : undefined}
-                >
-                  {n}
-                </button>
-              ))}
-              {totalPages > 4 ? <span className="crm-tasks__page-ellipsis">…</span> : null}
-              {totalPages > 3 ? (
-                <button
-                  type="button"
-                  className={page === totalPages ? 'is-active' : undefined}
-                  onClick={() => setPage(totalPages)}
-                  aria-current={page === totalPages ? 'page' : undefined}
-                >
-                  {totalPages}
-                </button>
-              ) : null}
-            </div>
-            <label className="ih-field crm-tasks__page-size">
-              <span className="ih-field__label">{t('pagination.perPage')}</span>
-              <select
-                className="ih-select"
-                value={String(pageSize)}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setPage(1);
-                }}
-                aria-label={t('pagination.perPage')}
-              >
-                <option value="10">10 / {t('pagination.pageUnit')}</option>
-                <option value="20">20 / {t('pagination.pageUnit')}</option>
-                <option value="40">40 / {t('pagination.pageUnit')}</option>
-              </select>
-            </label>
-          </footer>
-        </div>
-
-        <aside className="crm-tasks__rail" aria-label={t('rail.aria')}>
-          <section className="crm-tasks__rail-card crm-tasks__rail-card--ai">
-            <h3>{t('rail.daySummary')}</h3>
-            <dl className="crm-tasks__day-counts">
-              <div>
-                <dt>{t('rail.open')}</dt>
-                <dd>{preview.daySummary.open}</dd>
-              </div>
-              <div>
-                <dt>{t('rail.dueToday')}</dt>
-                <dd className="is-warning">{preview.daySummary.dueToday}</dd>
-              </div>
-              <div>
-                <dt>{t('rail.overdue')}</dt>
-                <dd className="is-danger">{preview.daySummary.overdue}</dd>
-              </div>
-            </dl>
-            <p className="crm-tasks__assessment">
-              {t(`rail.assessments.${preview.daySummary.assessmentKey}`)}
-            </p>
-            <Button variant="secondary" size="sm">
-              {t('rail.viewTaskSummary')}
-            </Button>
-          </section>
-
-          <section className="crm-tasks__rail-card">
-            <h3>{t('rail.todayPriorities')}</h3>
-            <ol className="crm-tasks__priority-list">
-              {preview.todayPriorities.map((item, index) => (
-                <li key={item.id}>
-                  <span className="crm-tasks__priority-index" aria-hidden="true">
-                    {index + 1}
-                  </span>
-                  <div>
-                    <strong title={item.title ?? t(`titles.${item.titleKey}`)}>
-                      {item.title ?? t(`titles.${item.titleKey}`)}
-                    </strong>
-                    <span>{item.dueLabel ?? t(`dueLabels.${item.dueLabelKey}`)}</span>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </section>
-
-          <section className="crm-tasks__rail-card">
-            <h3>{t('rail.upcomingDeadlines')}</h3>
-            <ul className="crm-tasks__list">
-              {preview.upcomingDeadlines.map((item) => (
-                <li key={item.id}>
-                  <span className="crm-tasks__list-icon" aria-hidden="true">
-                    <IhIcon name="clock" size={12} />
-                  </span>
-                  <div>
-                    <strong title={item.title ?? t(`titles.${item.titleKey}`)}>
-                      {item.title ?? t(`titles.${item.titleKey}`)}
-                    </strong>
-                    <span>{item.dueLabel ?? t(`dueLabels.${item.dueLabelKey}`)}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="crm-tasks__rail-card crm-tasks__rail-card--ai">
-            <h3>{t('rail.aiRecommendations')}</h3>
-            <ul className="crm-tasks__recs">
-              {preview.aiRecommendations.map((item) => (
-                <li key={item.id}>{t(`rail.recommendations.${item.bodyKey}`)}</li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="crm-tasks__rail-card">
-            <h3>{t('rail.teamPerformance')}</h3>
-            <ul className="crm-tasks__team">
-              {preview.teamPerformance.map((member) => {
-                const pct =
-                  member.total > 0
-                    ? Math.round((member.completed / member.total) * 100)
-                    : 0;
+        ) : items.length === 0 ? (
+          <div className="crm-tasks__empty" data-testid="crm-tasks-empty">
+            <strong>{t('emptyTitle')}</strong>
+            <p>{t('emptyDescription')}</p>
+          </div>
+        ) : (
+          <table className="crm-tasks__table crm-tasks__table--ops">
+            <thead>
+              <tr>
+                <th>{t('table.task')}</th>
+                <th>{t('table.person')}</th>
+                <th>{t('table.project')}</th>
+                <th>{t('table.owner')}</th>
+                <th>{t('table.dueDate')}</th>
+                <th>{t('table.priority')}</th>
+                <th>{t('table.status')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => {
+                const status = workspaceStatus(item);
+                const tone = dueTone(item);
                 return (
-                  <li key={member.id}>
-                    <div className="crm-tasks__team-head">
-                      <strong title={member.name}>{member.name}</strong>
-                      <span className="crm-tasks__team-rate">
-                        {t('rail.completedRatio', {
-                          completed: member.completed,
-                          total: member.total,
-                        })}
-                        <em aria-label={`${pct}%`}>{pct}%</em>
-                      </span>
-                    </div>
-                    <div
-                      className="crm-tasks__team-bar"
-                      role="progressbar"
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-valuenow={pct}
-                      aria-label={t('rail.completedRatio', {
-                        completed: member.completed,
-                        total: member.total,
-                      })}
-                    >
-                      <span style={{ width: `${pct}%` }} />
-                    </div>
-                  </li>
+                  <tr
+                    key={item.id}
+                    className={`crm-tasks__row${selectedId === item.id ? ' is-selected' : ''}${tone === 'overdue' ? ' is-overdue' : ''}`}
+                    onClick={() => openDetail(item)}
+                    data-testid={`crm-task-row-${item.id}`}
+                  >
+                    <td>
+                      <strong>{item.title}</strong>
+                    </td>
+                    <td>{personLabel(item, t('unresolvedIdentity'))}</td>
+                    <td>{projectUnit(item)}</td>
+                    <td>{item.assigned_user_name || item.owner_name || '—'}</td>
+                    <td>
+                      <span className={`crm-tasks__due is-${tone}`}>{formatDate(item.due_date, locale)}</span>
+                    </td>
+                    <td>
+                      <StatusChip tone={item.priority === 'critical' || item.priority === 'high' ? 'danger' : 'info'}>
+                        {t(`priority.${priorityKey(item.priority)}`)}
+                      </StatusChip>
+                    </td>
+                    <td>
+                      <StatusChip
+                        tone={status === 'cancelled' ? 'danger' : status === 'completed' ? 'success' : status === 'in_progress' ? 'warning' : 'info'}
+                      >
+                        {t(`workspaceStatus.${status}`)}
+                      </StatusChip>
+                    </td>
+                  </tr>
                 );
               })}
-            </ul>
-          </section>
-        </aside>
+            </tbody>
+          </table>
+        )}
+        {listQuery.hasNextPage ? (
+          <div className="crm-tasks__load-more">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => void listQuery.fetchNextPage()}
+              disabled={listQuery.isFetchingNextPage}
+            >
+              {listQuery.isFetchingNextPage ? tCommon('loading') : t('loadMore')}
+            </Button>
+          </div>
+        ) : null}
       </div>
-      {editor ? (
-        <div className="crm-tasks__editor" role="dialog" aria-modal="true" aria-label={editor.mode === 'create' ? 'Görev oluştur' : 'Görevi düzenle'}>
-          <form
-            className="crm-tasks__editor-card"
-            onSubmit={(event: FormEvent) => {
-              event.preventDefault();
-              saveMutation.mutate();
-            }}
-          >
-            <h2>{editor.mode === 'create' ? 'Görev oluştur' : 'Görevi düzenle'}</h2>
-            <Input
-              label="Başlık"
-              value={form.title}
-              onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-              required
-            />
-            <TextArea
-              label="Açıklama"
-              value={form.description}
-              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-            />
-            {editor.mode === 'create' ? (
-              <div>
-                <Input
-                  label="Kişi"
-                  value={form.contactLabel}
-                  onChange={(e) => void searchContacts(e.target.value)}
-                  required
-                />
-                {contactHits.length ? (
-                  <ul className="crm-tasks__contact-hits">
-                    {contactHits.map((hit) => (
-                      <li key={hit.id}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setForm((prev) => ({ ...prev, contactId: hit.id, contactLabel: hit.display_name }));
-                            setContactHits([]);
-                          }}
-                        >
-                          {hit.display_name}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            ) : null}
-            <Select
-              label="Atanan"
-              value={form.assigneeId}
-              onChange={(e) => setForm((prev) => ({ ...prev, assigneeId: e.target.value }))}
-            >
-              <option value="">—</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.full_name}
-                </option>
-              ))}
-            </Select>
-            <Input
-              label="Son tarih"
-              type="datetime-local"
-              value={form.dueDate}
-              onChange={(e) => setForm((prev) => ({ ...prev, dueDate: e.target.value }))}
-            />
-            <Select
-              label="Öncelik"
-              value={form.priority}
-              onChange={(e) => setForm((prev) => ({ ...prev, priority: e.target.value }))}
-            >
-              {TASK_PRIORITY_ORDER.map((priority) => (
-                <option key={priority} value={priority}>
-                  {t(`priority.${priority}`)}
-                </option>
-              ))}
-            </Select>
-            <div className="crm-tasks__editor-actions">
-              <Button type="button" variant="secondary" onClick={() => setEditor(null)}>
-                Vazgeç
-              </Button>
-              <Button type="submit" disabled={saveMutation.isPending}>
-                Kaydet
-              </Button>
-            </div>
-          </form>
-        </div>
+
+      {mode ? (
+        <>
+          <button type="button" className="crm-tasks__drawer-backdrop" aria-label={t('actions.close')} onClick={() => setMode(null)} />
+          <TaskDrawer
+            item={selectedDetail}
+            mode={mode}
+            form={form}
+            canManage={canManageTasks}
+            users={users}
+            projects={projects}
+            purchases={purchases}
+            personSuggestions={mode === 'detail' ? [] : personSuggestions}
+            saving={saveMutation.isPending}
+            completing={completeMutation.isPending}
+            onClose={() => setMode(null)}
+            onEdit={() => selected && openEdit(selected)}
+            onComplete={() => selected && completeMutation.mutate(selected.id)}
+            onSave={() => void saveMutation.mutate()}
+            onFormChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+            onPersonQuery={(value) => setForm((prev) => ({ ...prev, contactLabel: value, contactId: '' }))}
+            onPickPerson={(id, name) => setForm((prev) => ({ ...prev, contactId: id, contactLabel: name }))}
+          />
+        </>
       ) : null}
     </div>
   );

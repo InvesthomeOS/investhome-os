@@ -1280,3 +1280,500 @@
     min-width: 0;
   }
 }
+
+/* Operational calendar — live dated CRM records. */
+.crm-cal-ops {
+  gap: 10px;
+}
+
+.crm-cal-ops__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.crm-cal-ops__header h1 {
+  margin: 0;
+  color: var(--cal-ink);
+  font-size: var(--shot-font-title);
+  font-weight: 750;
+}
+
+.crm-cal-ops__header p {
+  margin: 4px 0 0;
+  color: var(--cal-muted);
+  font-size: var(--shot-font-small);
+}
+
+.crm-cal-ops__header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.crm-cal-ops__count {
+  margin-right: 4px;
+  color: var(--cal-muted);
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+}
+
+.crm-cal-ops__toolbar,
+.crm-cal-ops__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--cal-border);
+  border-radius: var(--cal-card-radius);
+  background: var(--surface);
+  box-shadow: var(--cal-card-shadow);
+}
+
+.crm-cal-ops__nav-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--cal-border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--cal-ink);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.crm-cal-ops__range {
+  min-width: 160px;
+  color: var(--cal-ink);
+  font-size: var(--shot-font-heading);
+  font-weight: 700;
+}
+
+.crm-cal-ops__views {
+  display: flex;
+  margin-left: auto;
+  overflow: hidden;
+  border: 1px solid var(--cal-border);
+  border-radius: 7px;
+}
+
+.crm-cal-ops__views button {
+  border: 0;
+  border-right: 1px solid var(--cal-border);
+  background: #fff;
+  color: var(--cal-muted);
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.crm-cal-ops__views button:last-child {
+  border-right: 0;
+}
+
+.crm-cal-ops__views button.is-active {
+  background: #eef6f8;
+  color: var(--cal-navy);
+}
+
+.crm-cal-ops__filters .ih-field {
+  min-width: 130px;
+  max-width: 210px;
+}
+
+.crm-cal-ops__filter-actions {
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 1px;
+}
+
+.crm-cal-ops__person-field {
+  position: relative;
+  flex: 1 1 140px;
+  min-width: 130px;
+  max-width: 210px;
+}
+
+.crm-cal-ops__suggest {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% - 2px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--cal-border);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: var(--cal-card-shadow-hover);
+}
+
+.crm-cal-ops__suggest button {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--cal-ink);
+  font-size: var(--shot-font-small);
+  text-align: left;
+  cursor: pointer;
+}
+
+.crm-cal-ops__suggest button:hover {
+  background: var(--surface-muted);
+}
+
+.crm-cal-ops__month,
+.crm-cal-ops__week,
+.crm-cal-ops__day,
+.crm-cal-ops__list {
+  min-width: 0;
+  border: 1px solid var(--cal-border);
+  border-radius: var(--cal-card-radius);
+  background: var(--surface);
+  box-shadow: var(--cal-card-shadow);
+}
+
+.crm-cal-ops__month-head,
+.crm-cal-ops__month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.crm-cal-ops__month-head {
+  border-bottom: 1px solid var(--cal-border);
+}
+
+.crm-cal-ops__month-head > div {
+  padding: 8px 6px;
+  color: var(--cal-muted);
+  font-size: var(--shot-font-caption);
+  font-weight: 700;
+  text-align: center;
+}
+
+.crm-cal-ops__month-cell {
+  min-height: 118px;
+  padding: 4px;
+  border-right: 1px solid var(--cal-border-strong);
+  border-bottom: 1px solid var(--cal-border-strong);
+}
+
+.crm-cal-ops__month-cell.is-muted {
+  background: #f8fbfc;
+}
+
+.crm-cal-ops__month-cell.is-today {
+  background: #f3fafc;
+  box-shadow: inset 0 0 0 1px var(--cal-cyan);
+}
+
+.crm-cal-ops__month-num {
+  display: block;
+  margin-bottom: 4px;
+  border: 0;
+  background: none;
+  color: var(--cal-ink);
+  font-size: var(--shot-font-small);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.crm-cal-ops__more {
+  display: block;
+  margin-top: 2px;
+  color: var(--cal-navy);
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+}
+
+.crm-cal-ops__chip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0 6px;
+  width: 100%;
+  margin: 0 0 3px;
+  padding: 3px 5px;
+  border: 0;
+  border-radius: 4px;
+  background: #eef6f8;
+  color: var(--cal-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.crm-cal-ops__chip strong,
+.crm-cal-ops__chip-meta {
+  grid-column: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-cal-ops__chip strong {
+  font-size: var(--shot-font-caption);
+  font-weight: 700;
+}
+
+.crm-cal-ops__chip-time,
+.crm-cal-ops__chip em {
+  font-size: 8.5px;
+  font-style: normal;
+  font-weight: 650;
+  color: var(--cal-muted);
+}
+
+.crm-cal-ops__chip-meta {
+  color: var(--cal-muted);
+  font-size: 8.5px;
+}
+
+.crm-cal-ops__chip.is-task { background: #eef6f8; }
+.crm-cal-ops__chip.is-meeting { background: #eaf3fb; }
+.crm-cal-ops__chip.is-reminder { background: #f4eef8; }
+.crm-cal-ops__chip.is-payment { background: #eef8f2; }
+.crm-cal-ops__chip.is-purchase { background: #f3f7ee; }
+.crm-cal-ops__chip.is-closing,
+.crm-cal-ops__chip.is-delivery { background: #eef4f8; }
+.crm-cal-ops__chip.is-document { background: #f7f3ee; }
+.crm-cal-ops__chip.is-overdue {
+  box-shadow: inset 2px 0 0 var(--cal-now);
+}
+.crm-cal-ops__chip.is-done {
+  opacity: 0.72;
+}
+
+.crm-cal-ops__week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.crm-cal-ops__week > section {
+  min-height: 360px;
+  padding: 8px;
+  border-right: 1px solid var(--cal-border-strong);
+}
+
+.crm-cal-ops__week > section.is-today {
+  background: #f3fafc;
+}
+
+.crm-cal-ops__week header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: var(--cal-muted);
+  font-size: var(--shot-font-caption);
+}
+
+.crm-cal-ops__week header strong {
+  color: var(--cal-ink);
+  font-size: var(--shot-font-heading);
+}
+
+.crm-cal-ops__empty-day,
+.crm-cal-ops__empty {
+  padding: 18px 12px;
+  color: var(--cal-muted);
+  text-align: center;
+}
+
+.crm-cal-ops__day,
+.crm-cal-ops__list {
+  overflow: auto;
+}
+
+.crm-cal-ops__row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--cal-border);
+  cursor: pointer;
+}
+
+.crm-cal-ops__row.is-overdue,
+.crm-cal-ops__table tr.is-overdue td:first-child {
+  box-shadow: inset 3px 0 0 var(--cal-now);
+}
+
+.crm-cal-ops__row strong,
+.crm-cal-ops__table strong {
+  color: var(--cal-ink);
+}
+
+.crm-cal-ops__row p {
+  margin: 2px 0 0;
+  color: var(--cal-muted);
+  font-size: var(--shot-font-caption);
+}
+
+.crm-cal-ops__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.crm-cal-ops__table th,
+.crm-cal-ops__table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--cal-border);
+  text-align: left;
+  font-size: var(--shot-font-small);
+}
+
+.crm-cal-ops__table th {
+  color: var(--cal-muted);
+  font-size: var(--shot-font-caption);
+}
+
+.crm-cal-ops__table tbody tr {
+  cursor: pointer;
+}
+
+.crm-cal-ops__drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  border: 0;
+  background: rgba(21, 42, 54, 0.28);
+  cursor: pointer;
+}
+
+.crm-cal-ops__drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  width: min(420px, 92vw);
+  height: 100%;
+  border-left: 1px solid var(--cal-border);
+  background: var(--surface);
+  box-shadow: -8px 0 24px rgba(31, 57, 68, 0.12);
+}
+
+.crm-cal-ops__drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid var(--cal-border);
+}
+
+.crm-cal-ops__drawer-head h3 {
+  margin: 0;
+  color: var(--cal-ink);
+  font-size: var(--shot-font-heading);
+}
+
+.crm-cal-ops__link-btn {
+  border: 0;
+  background: none;
+  color: var(--cal-navy);
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.crm-cal-ops__drawer-body {
+  overflow: auto;
+  padding: 10px 14px 16px;
+}
+
+.crm-cal-ops__drawer-body h4 {
+  margin: 0 0 8px;
+  color: var(--cal-ink);
+  font-size: var(--shot-font-heading);
+}
+
+.crm-cal-ops__kv {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 4px 10px;
+  margin: 0 0 12px;
+}
+
+.crm-cal-ops__kv dt {
+  color: var(--cal-muted);
+  font-size: var(--shot-font-caption);
+  font-weight: 650;
+}
+
+.crm-cal-ops__kv dd {
+  margin: 0;
+  color: var(--cal-ink);
+  font-size: var(--shot-font-small);
+  font-weight: 650;
+}
+
+.crm-cal-ops__drawer-body p {
+  margin: 0;
+  color: var(--cal-muted);
+  font-size: var(--shot-font-small);
+}
+
+.crm-cal-ops__drawer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.crm-cal-ops__form {
+  display: grid;
+  gap: 8px;
+}
+
+.crm-cal-ops__skeleton {
+  height: 220px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #eef3f5 25%, #f7fafb 37%, #eef3f5 63%);
+  background-size: 400% 100%;
+  animation: crm-cal-shimmer 1.4s ease infinite;
+}
+
+@keyframes crm-cal-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@media (max-width: 1024px) {
+  .crm-cal-ops__header,
+  .crm-cal-ops__toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .crm-cal-ops__views {
+    margin-left: 0;
+  }
+
+  .crm-cal-ops__week {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .crm-cal-ops__month-head,
+  .crm-cal-ops__month-grid {
+    min-width: 640px;
+  }
+
+  .crm-cal-ops__month {
+    overflow: auto;
+  }
+}
+

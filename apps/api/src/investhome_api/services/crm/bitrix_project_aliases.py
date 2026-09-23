@@ -64,6 +64,7 @@ _ALIAS_TO_GROUP: dict[str, BitrixProjectGroup] = {
     "2319": BitrixProjectGroup.ONTARIO_2319,
     "reit": BitrixProjectGroup.REIT,
     "the temple": BitrixProjectGroup.THE_TEMPLE,
+    "the temple historic": BitrixProjectGroup.THE_TEMPLE,
     "temple": BitrixProjectGroup.THE_TEMPLE,
     "uniloft": BitrixProjectGroup.UNILOFT,
     "uni loft": BitrixProjectGroup.UNILOFT,

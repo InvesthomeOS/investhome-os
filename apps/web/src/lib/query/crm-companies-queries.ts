@@ -4,6 +4,7 @@ import {
   deleteCrmCompany,
   fetchCrmCompanies,
   fetchCrmCompany,
+  fetchCrmCompanyCounts,
   importCrmCompanies,
   restoreCrmCompany,
   updateCrmCompany,
@@ -12,6 +13,7 @@ import type { FetchCrmCompaniesParams } from '@/workspaces/crm/api/companies';
 
 export const crmCompaniesQueryKeys = {
   all: ['crm', 'companies'] as const,
+  counts: () => ['crm', 'companies', 'counts'] as const,
   list: (params: FetchCrmCompaniesParams) => ['crm', 'companies', 'list', params] as const,
   detail: (id: string) => ['crm', 'companies', 'detail', id] as const,
   hierarchy: () => ['crm', 'companies', 'hierarchy'] as const,
@@ -20,6 +22,10 @@ export const crmCompaniesQueryKeys = {
 };
 
 export const crmCompaniesQueries = {
+  counts: () => ({
+    queryKey: crmCompaniesQueryKeys.counts(),
+    queryFn: fetchCrmCompanyCounts,
+  }),
   list: (params: FetchCrmCompaniesParams = {}) => ({
     queryKey: crmCompaniesQueryKeys.list(params),
     queryFn: () => fetchCrmCompanies(params),

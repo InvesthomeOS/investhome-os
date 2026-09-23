@@ -19,10 +19,13 @@ export type ContactListParams = {
   status?: CrmContactStatus;
   source_group?: 'bitrix' | 'other';
   role_group?: 'agent' | 'other';
-  category?: 'customer' | 'agent' | 'agreement';
+  category?: 'customer' | 'agent' | 'agreement' | 'investor';
   junk_reason?: string;
   agreement_project?: string;
   bitrix_list?: 'current_junk';
+  flag?: 'bilgi_eksik' | 'inceleme_gerekli';
+  has_investments?: boolean;
+  tag_id?: string;
   owner_user_id?: string;
   company_id?: string;
   include_archived?: boolean;
@@ -127,6 +130,10 @@ function buildSearchParams(params: ContactListParams): URLSearchParams {
   if (params.junk_reason) search.set('junk_reason', params.junk_reason);
   if (params.agreement_project) search.set('agreement_project', params.agreement_project);
   if (params.bitrix_list) search.set('bitrix_list', params.bitrix_list);
+  if (params.flag) search.set('flag', params.flag);
+  if (params.has_investments === true) search.set('has_investments', 'true');
+  if (params.has_investments === false) search.set('has_investments', 'false');
+  if (params.tag_id) search.set('tag_id', params.tag_id);
   if (params.owner_user_id) search.set('owner_user_id', params.owner_user_id);
   if (params.company_id) search.set('company_id', params.company_id);
   if (params.include_archived) search.set('include_archived', 'true');
@@ -252,6 +259,30 @@ export async function fetchBitrixVerificationSummary(): Promise<BitrixVerificati
 
 export async function fetchJunkReasons(): Promise<{ items: Array<{ reason: string; count: number }>; total: number }> {
   return apiFetch('/crm/contacts/junk-reasons');
+}
+
+export type PeopleWorkspaceCounts = {
+  total: number;
+  active: number;
+  junk: number;
+  review_required: number;
+  missing_info: number;
+};
+
+export async function fetchPeopleCounts(): Promise<PeopleWorkspaceCounts> {
+  return apiFetch<PeopleWorkspaceCounts>('/crm/contacts/people-counts');
+}
+
+export type InvestorWorkspaceCounts = {
+  total: number;
+  active: number;
+  purchases: number;
+  missing_info: number;
+  review_required: number;
+};
+
+export async function fetchInvestorCounts(): Promise<InvestorWorkspaceCounts> {
+  return apiFetch<InvestorWorkspaceCounts>('/crm/contacts/investor-counts');
 }
 
 export async function assignContactOwner(

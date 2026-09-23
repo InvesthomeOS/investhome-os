@@ -5,15 +5,68 @@ from investhome_api.models.activity import (
     ActivityLog,
     ActivitySource,
 )
+from investhome_api.models.analytics_bi import (  # noqa: F401
+    BiAlertThreshold,
+    BiSavedReport,
+)
+from investhome_api.models.analytics_warehouse import (  # noqa: F401
+    WhDimCampaign,
+    WhDimCurrency,
+    WhDimDate,
+    WhDimInvestor,
+    WhDimProject,
+    WhDqCheckResult,
+    WhExportAudit,
+    WhFactCashMovement,
+    WhFactInvestorActivity,
+    WhFactMarketingSpend,
+    WhFactPipeline,
+    WhFxRate,
+    WhGovernedDataset,
+    WhIngestionRun,
+    WhLineageEdge,
+    WhMartExecutiveDaily,
+    WhMetricCatalogEntry,
+    WhScheduledReport,
+    WhStatusHistory,
+)
+from investhome_api.models.security_enterprise import (  # noqa: F401
+    AuthSession,
+    FeatureFlagOverride,
+    PlatformApiKey,
+    SecurityIncident,
+    TemporaryPermissionGrant,
+)
+from investhome_api.models.platform_core import (  # noqa: F401
+    PlatformBrandingConfig,
+    PlatformEntitlement,
+    PlatformExternalAccessAudit,
+    PlatformExternalUserType,
+    PlatformIntegration,
+    PlatformModule,
+    PlatformWebhookDelivery,
+    PlatformWebhookSubscription,
+)
 from investhome_api.models.document import (
     ConfidentialityLevel,
     Document,
     DocumentAnalysis,
+    DocumentFileKind,
     DocumentLink,
     DocumentStatus,
     DocumentType,
+    DocumentVisibility,
+    DocumentWorkspaceFolder,
     ProcessingStatus,
     StorageProvider,
+)
+from investhome_api.models.knowledge import (  # noqa: F401
+    KnowledgeCategory,
+    KnowledgeCollection,
+    KnowledgeCollectionItem,
+    KnowledgeRetentionPolicy,
+    KnowledgeReviewItem,
+    KnowledgeSetting,
 )
 from investhome_api.models.document_intelligence import (
     AIUsage,
@@ -61,30 +114,69 @@ from investhome_api.models.crm_contact import (  # noqa: F401
     CrmContactType,
     CrmRecordKind,
 )
+from investhome_api.models.crm_company import (  # noqa: F401
+    CrmCompany,
+    CrmCompanyStatus,
+    CrmCompanyType,
+)
+from investhome_api.models.crm_activity import (  # noqa: F401
+    CrmActivity,
+    CrmActivityComment,
+    CrmActivityEntityLink,
+)
+from investhome_api.models.crm_communication import (  # noqa: F401
+    CrmCommunication,
+    CrmCommunicationAttachment,
+    CrmCommunicationThread,
+    CrmUserCommunicationAccount,
+)
 from investhome_api.models.crm_agreement import (  # noqa: F401
     CrmAgreement,
     CrmAgreementParticipant,
     CrmAgreementStatus,
 )
-from investhome_api.models.crm_activity import (  # noqa: F401
-    CrmActivity,
-    CrmActivityEntityType,
-    CrmActivityType,
-)
-from investhome_api.models.crm_company import (  # noqa: F401
-    CrmCompany,
-    CrmCompanyContact,
-)
-from investhome_api.models.crm_relationship import (  # noqa: F401
-    CrmRelationship,
-)
-
 from investhome_api.models.lead import Lead, LeadStatus
+from investhome_api.models.marketing_lead_attribution import (  # noqa: F401
+    MarketingAttributionSource,
+    MarketingLeadAttribution,
+    MarketingLeadAttributionAudit,
+)
 from investhome_api.models.project import (
+    DevelopmentStage,
     DevelopmentType,
     Project,
+    ProjectPriority,
     ProjectStatus,
     ProjectType,
+)
+from investhome_api.models.project_team import (  # noqa: F401
+    ProjectTeamMember,
+    ProjectTeamMemberStatus,
+    ProjectTeamRole,
+)
+from investhome_api.models.project_budget import (  # noqa: F401
+    BudgetCategoryType,
+    BudgetRevisionStatus,
+    BudgetVersionStatus,
+    ProjectBudgetCategory,
+    ProjectBudgetLine,
+    ProjectBudgetRevision,
+    ProjectBudgetRevisionLine,
+    ProjectBudgetVersion,
+    ProjectCostCode,
+)
+from investhome_api.models.project_cost import (  # noqa: F401
+    ProjectCommitment,
+    ProjectCommitmentChangeOrder,
+    ProjectCommitmentChangeOrderLine,
+    ProjectCommitmentLine,
+    ProjectPayment,
+    ProjectPaymentAllocation,
+    ProjectRetainageRelease,
+    ProjectVendor,
+    ProjectVendorBill,
+    ProjectVendorBillLine,
+    Vendor,
 )
 
 from investhome_api.models.notification import (
@@ -93,6 +185,14 @@ from investhome_api.models.notification import (
     NotificationSource,
     NotificationStatus,
     NotificationType,
+)
+from investhome_api.models.company import (  # noqa: F401
+    Company,
+    CompanyAddress,
+    CompanyBankAccount,
+    CompanyContact,
+    CompanyDocument,
+    CompanyRelationship,
 )
 from investhome_api.models.company_foundation import (  # noqa: F401
     BrandAsset,
@@ -105,7 +205,33 @@ from investhome_api.models.company_foundation import (  # noqa: F401
     UserDepartment,
     UserTeam,
 )
+from investhome_api.models.branch import Branch, BranchAsset, BranchDocument, BranchWorkingHours  # noqa: F401
 from investhome_api.models.design_studio import DesignProject, DesignVersion, FurnitureItem, MaterialPackage, StylePreset  # noqa: F401
+from investhome_api.models.creative_studio import (  # noqa: F401
+    CreativeStudioDocument,
+    CreativeStudioDocumentVersion,
+    CreativeStudioProject,
+)
+from investhome_api.models.creative_director_campaign import (  # noqa: F401
+    CreativeDirectorCampaign,
+)
+from investhome_api.models.creative_studio_media import (  # noqa: F401
+    CreativeStudioMediaAsset,
+    CreativeStudioMediaFolder,
+    MediaAssetSourceType,
+    MediaAssetSyncStatus,
+)
+from investhome_api.models.ai_index import (  # noqa: F401
+    AiDocument,
+    AiDocumentStatus,
+    AiDocumentType,
+)
+from investhome_api.models.ai_search import AiChunk, AiEmbedding  # noqa: F401
+from investhome_api.models.project_drive import (  # noqa: F401
+    DriveSyncStatus,
+    GoogleDriveSyncCursor,
+    ProjectDriveMapping,
+)
 from investhome_api.models.user_auth import (
     Permission,
     Role,
@@ -125,10 +251,19 @@ __all__ = [
     "DocumentLink",
     "DocumentAnalysis",
     "DocumentType",
+    "DocumentFileKind",
+    "DocumentWorkspaceFolder",
+    "DocumentVisibility",
     "DocumentStatus",
     "ConfidentialityLevel",
     "ProcessingStatus",
     "StorageProvider",
+    "KnowledgeCategory",
+    "KnowledgeCollection",
+    "KnowledgeCollectionItem",
+    "KnowledgeReviewItem",
+    "KnowledgeRetentionPolicy",
+    "KnowledgeSetting",
     "DocumentChunk",
     "DocumentConversation",
     "DocumentMessage",
@@ -157,6 +292,11 @@ __all__ = [
     "ProjectType",
     "DevelopmentType",
     "ProjectStatus",
+    "ProjectPriority",
+    "DevelopmentStage",
+    "ProjectTeamMember",
+    "ProjectTeamRole",
+    "ProjectTeamMemberStatus",
     "FinancialAccount",
     "AccountType",
     "AccountStatus",
@@ -187,17 +327,4 @@ __all__ = [
     "Department",
     "Team",
     "UserDepartment",
-    "CrmContact",
-    "CrmContactStatus",
-    "CrmContactType",
-    "CrmRecordKind",
-    "CrmAgreement",
-    "CrmAgreementParticipant",
-    "CrmAgreementStatus",
-    "CrmActivity",
-    "CrmActivityEntityType",
-    "CrmActivityType",
-    "CrmCompany",
-    "CrmCompanyContact",
-    "CrmRelationship",
 ]

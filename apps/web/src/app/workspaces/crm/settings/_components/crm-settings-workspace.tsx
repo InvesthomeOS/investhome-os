@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 import {
@@ -118,6 +119,7 @@ export function CrmSettingsWorkspace({
   preview: SettingsWorkspacePreview;
 }) {
   const t = useTranslations('crm.settings');
+  const router = useRouter();
   const tabsId = useId();
   const mainRef = useRef<HTMLDivElement>(null);
   const [activeCategory, setActiveCategory] = useState<SettingsCategoryId>('general');
@@ -246,6 +248,13 @@ export function CrmSettingsWorkspace({
               <p>{t('overview.subtitle')}</p>
             </div>
             <div className="crm-settings__overview-actions">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => router.push('/workspaces/crm/settings/communication-accounts')}
+              >
+                {t('communicationAccounts.navLabel')}
+              </Button>
               <Button
                 variant="secondary"
                 size="sm"
@@ -389,6 +398,23 @@ export function CrmSettingsWorkspace({
                             </Button>
                           </li>
                         ))}
+                        <li className="crm-settings__row crm-settings__row--crm">
+                          <span className="crm-settings__row-icon" aria-hidden="true">
+                            <IhIcon name="mail" size={13} />
+                          </span>
+                          <span className="crm-settings__row-copy">
+                            <strong>{t('communicationAccounts.navLabel')}</strong>
+                            <em>{t('communicationAccounts.rowHint')}</em>
+                          </span>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="crm-settings__row-action"
+                            onClick={() => router.push('/workspaces/crm/settings/communication-accounts')}
+                          >
+                            {t('actions.manage')}
+                          </Button>
+                        </li>
                       </ul>
                     </CardContent>
                   </Card>

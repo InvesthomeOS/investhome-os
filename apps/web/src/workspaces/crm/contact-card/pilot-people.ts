@@ -1,5 +1,6 @@
 export const NEDIM_CONTACT_ID = '811c6aed-5f58-4c89-a9b1-0eebed64b9cf';
 export const IZZET_CONTACT_ID = '339559ed-0d11-4e7c-a021-a07b388a817b';
+export const SEMRIN_CONTACT_ID = '3dde5bdc-0919-4bdc-bc29-5e220e2ff0f2';
 
 export const PILOT_PERSON_IDS = new Set([NEDIM_CONTACT_ID, IZZET_CONTACT_ID]);
 
@@ -15,6 +16,10 @@ export function salesDetailUrl(contactId: string, agreementId: string): string {
 
 export function isPilotPersonId(contactId: string | null | undefined): boolean {
   return Boolean(contactId && PILOT_PERSON_IDS.has(contactId));
+}
+
+export function isSemrinPilotPerson(contactId: string | null | undefined): boolean {
+  return Boolean(contactId);
 }
 
 export function isPilotSalesId(agreementId: string | null | undefined): boolean {

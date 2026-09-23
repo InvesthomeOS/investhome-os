@@ -276,7 +276,7 @@ def commit_safe_historical_comments(
     *,
     actor: User,
 ) -> BitrixCommentCommitResult:
-    if not user_has_permission(actor, "crm", "import"):
+    if not user_has_permission(actor, "crm", "import", db=db):
         raise BitrixCommitPermissionError("crm.import permission required")
 
     before = _db_counts(db)

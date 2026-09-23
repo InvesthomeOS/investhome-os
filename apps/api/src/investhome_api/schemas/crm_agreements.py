@@ -105,6 +105,15 @@ class CrmRelatedPurchase(BaseModel):
     amount_label: str | None = None
     owners_label: str | None = None
     is_current: bool = False
+    is_historical_unit_change: bool = False
+
+
+class CrmUnitHistoryStep(BaseModel):
+    agreement_id: UUID
+    unit_number: str
+    is_current: bool = False
+    is_historical_unit_change: bool = False
+    contact_id: UUID | None = None
 
 
 class CrmPurchaseCard(BaseModel):
@@ -128,6 +137,8 @@ class CrmPurchaseCard(BaseModel):
     history_count: int = 0
     documents: list[CrmPurchaseDocument] = Field(default_factory=list)
     document_count: int = 0
+    person_documents: list[CrmPurchaseDocument] = Field(default_factory=list)
+    person_document_count: int = 0
     responsible_name: str | None = None
     comments: str | None = None
     agreement_date: date | None = None
@@ -138,6 +149,7 @@ class CrmPurchaseCard(BaseModel):
     llc_fields: list[CrmLabeledValue] = Field(default_factory=list)
     extra_fields: list[CrmLabeledValue] = Field(default_factory=list)
     hemen_kira: bool = False
+    unit_history: list[CrmUnitHistoryStep] = Field(default_factory=list)
 
 
 class CrmAgreementPatch(BaseModel):

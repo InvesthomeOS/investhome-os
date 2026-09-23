@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import hashlib
 import math
-from datetime import UTC, datetime, timedelta
+import re
+from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 from uuid import UUID
 
 from sqlalchemy import String, and_, cast, exists, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from investhome_api.models.activity import ActivityEntityType, ActivityLog
+from investhome_api.models.activity import ActivityAction, ActivityEntityType, ActivityLog
 from investhome_api.models.crm_activity import (
     CrmActivity,
     CrmActivityAttachment,
@@ -40,8 +43,12 @@ from investhome_api.schemas.crm_activities import (
     CrmActivitySummary,
     CrmActivityUpdate,
     CrmCalendarEvent,
+    CrmCalendarEventCreate,
     CrmCalendarResponse,
     CrmFollowUpCreate,
+    CrmNoteCreate,
+    CrmTaskCounters,
+    CrmTaskCreate,
     CrmTimelineEntry,
 )
 from investhome_api.services.permission_service import user_has_permission
@@ -59,7 +66,40 @@ MEETING_TYPES = frozenset(
 )
 
 TASK_TYPES = frozenset({CrmActivityType.TASK, CrmActivityType.REMINDER})
+CALENDAR_ACTIVITY_TYPES = frozenset(
+    {
+        *MEETING_TYPES,
+        *TASK_TYPES,
+        CrmActivityType.FOLLOW_UP,
+        CrmActivityType.PAYMENT,
+        CrmActivityType.CLOSING,
+        CrmActivityType.INSPECTION,
+        CrmActivityType.CONTRACT_SIGNED,
+        CrmActivityType.DOCUMENT_SENT,
+        CrmActivityType.DOCUMENT_RECEIVED,
+        CrmActivityType.PROPOSAL_SENT,
+        CrmActivityType.PROPOSAL_RECEIVED,
+        CrmActivityType.RESERVATION,
+    }
+)
+CALENDAR_EVENT_LIMIT = 1500
 NOTE_TYPES = frozenset({CrmActivityType.NOTE, CrmActivityType.INTERNAL_DISCUSSION})
+NOTE_LIST_TYPES = frozenset({*NOTE_TYPES, CrmActivityType.COMMENT})
+_NOTE_HTML_RE = re.compile(r"<[^>]+>")
+_NOTE_GENERIC_TITLES = {
+    "historical bitrix comment",
+    "tarihsel bitrix yorumu",
+    "comment",
+    "yorum",
+    "note",
+    "not",
+    "contact",
+}
+_NOTE_EMPTY_MARKERS = {
+    "(bitrix yorum satırı — metin boş)",
+    "(bitrix yorum satiri — metin bos)",
+    "(bitrix yorum satırı - metin boş)",
+}
 FOLLOW_UP_TYPES = frozenset({CrmActivityType.FOLLOW_UP})
 CONTACT_TOUCH_TYPES = frozenset(
     {
@@ -690,6 +730,22 @@ def update_activity(
     payload: CrmActivityUpdate,
 ) -> CrmActivityDetail:
     data = payload.model_dump(exclude_unset=True)
+    incoming_meta = data.get("metadata_json")
+    if incoming_meta is not None:
+        current_meta = activity.metadata_json if isinstance(activity.metadata_json, dict) else {}
+        merged = dict(current_meta)
+        incoming = incoming_meta if isinstance(incoming_meta, dict) else {}
+        history = current_meta.get("bitrix_history")
+        links = dict(current_meta.get("task_links") or {})
+        links.update(incoming.get("task_links") or {})
+        merged.update(incoming)
+        if history is not None and "bitrix_history" not in incoming:
+            merged["bitrix_history"] = history
+        if links:
+            merged["task_links"] = {
+                key: value for key, value in links.items() if value not in {None, ""}
+            }
+        data["metadata_json"] = merged
     for key, value in data.items():
         setattr(activity, key, value)
     activity.updated_by = user.id
@@ -837,8 +893,15 @@ def get_timeline(
     date_to: datetime | None = None,
     page: int = 1,
     page_size: int = 30,
+    contact_search: str | None = None,
+    project_group: str | None = None,
+    event_kind: str | None = None,
+    owner_id: UUID | None = None,
+    status: CrmActivityStatus | None = None,
 ) -> tuple[list[CrmTimelineEntry], dict[str, int]]:
-    activity_items, meta = list_activities(
+    from investhome_api.services.crm.operational_timeline import build_operational_timeline
+
+    return build_operational_timeline(
         db,
         user,
         search=search,
@@ -850,64 +913,339 @@ def get_timeline(
         date_to=date_to,
         page=page,
         page_size=page_size,
-        sort_by="created_at",
-        sort_dir="desc",
+        contact_search=contact_search,
+        project_group=project_group,
+        event_kind=event_kind,
+        owner_id=owner_id,
+        status=status,
     )
-    entries = [
-        CrmTimelineEntry(
-            id=str(item.id),
-            source="crm_activity",
-            activity_type=item.activity_type.value,
-            title=item.title,
-            summary=item.summary,
-            status=item.status.value,
-            priority=item.priority.value,
-            entity_type=item.entity_type.value,
-            entity_id=item.entity_id,
-            created_at=item.created_at,
-            is_system_event=item.activity_type
-            in {CrmActivityType.SYSTEM_EVENT, CrmActivityType.AUTOMATION_EVENT},
+
+
+_TASK_TZ = ZoneInfo("Europe/Istanbul")
+_GENERIC_TASK_NAMES = {"contact", "company", "investor", "project", "lead", "crm", "kişiler", "unknown person", "unknown"}
+
+
+def _istanbul_day_bounds(now: datetime | None = None) -> tuple[datetime, datetime]:
+    current = (now or datetime.now(tz=UTC)).astimezone(_TASK_TZ)
+    start = current.replace(hour=0, minute=0, second=0, microsecond=0)
+    end = start + timedelta(days=1)
+    return start.astimezone(UTC), end.astimezone(UTC)
+
+
+def _task_workspace_status(task_status: CrmTaskStatus | None, status: CrmActivityStatus | None) -> str:
+    status_value = status.value if status else ""
+    task_value = task_status.value if task_status else ""
+    if task_value == CrmTaskStatus.COMPLETED.value or status_value == CrmActivityStatus.COMPLETED.value:
+        return "completed"
+    if task_value == CrmTaskStatus.CANCELLED.value or status_value == CrmActivityStatus.CANCELLED.value:
+        return "cancelled"
+    if task_value == CrmTaskStatus.IN_PROGRESS.value or status_value == CrmActivityStatus.IN_PROGRESS.value:
+        return "in_progress"
+    return "open"
+
+
+def _task_is_active_clause():
+    return and_(
+        CrmActivity.task_status.is_distinct_from(CrmTaskStatus.COMPLETED),
+        CrmActivity.task_status.is_distinct_from(CrmTaskStatus.CANCELLED),
+        CrmActivity.status.not_in(
+            [CrmActivityStatus.COMPLETED, CrmActivityStatus.CANCELLED, CrmActivityStatus.ARCHIVED]
+        ),
+    )
+
+
+def _task_workspace_status_clause(workspace_status: str):
+    kind = workspace_status.strip().casefold()
+    if kind == "completed":
+        return or_(
+            CrmActivity.task_status == CrmTaskStatus.COMPLETED,
+            CrmActivity.status == CrmActivityStatus.COMPLETED,
         )
-        for item in activity_items
-    ]
+    if kind == "cancelled":
+        return or_(
+            CrmActivity.task_status == CrmTaskStatus.CANCELLED,
+            CrmActivity.status == CrmActivityStatus.CANCELLED,
+        )
+    if kind == "in_progress":
+        return and_(
+            _task_is_active_clause(),
+            or_(
+                CrmActivity.task_status == CrmTaskStatus.IN_PROGRESS,
+                CrmActivity.status == CrmActivityStatus.IN_PROGRESS,
+            ),
+        )
+    if kind == "open":
+        return and_(
+            _task_is_active_clause(),
+            CrmActivity.task_status.is_distinct_from(CrmTaskStatus.IN_PROGRESS),
+            CrmActivity.status.is_distinct_from(CrmActivityStatus.IN_PROGRESS),
+        )
+    if kind == "active":
+        return _task_is_active_clause()
+    return None
 
-    crm_entity_map = {
-        CrmActivityEntityType.CONTACT: ActivityEntityType.CRM_CONTACT,
-        CrmActivityEntityType.COMPANY: ActivityEntityType.CRM_COMPANY,
-        CrmActivityEntityType.RELATIONSHIP: ActivityEntityType.CRM_RELATIONSHIP,
+
+def _task_source(metadata: dict | None) -> str:
+    payload = metadata if isinstance(metadata, dict) else {}
+    history = payload.get("bitrix_history") if isinstance(payload.get("bitrix_history"), dict) else {}
+    if history:
+        record_id = history.get("bitrix_record_id") or history.get("bitrix_entity_id")
+        if record_id:
+            return f"Bitrix · {record_id}"
+        return "Bitrix"
+    source = str(payload.get("source") or "").strip()
+    return source or "CRM"
+
+
+def _clean_task_person_name(value: str | None) -> str | None:
+    name = (value or "").strip()
+    if not name or name.casefold() in _GENERIC_TASK_NAMES:
+        return None
+    return name
+
+
+def _activity_links(meta: dict) -> dict:
+    for key in ("note_links", "task_links"):
+        links = meta.get(key)
+        if isinstance(links, dict):
+            return links
+    return {}
+
+
+def _attach_task_context(
+    db: Session,
+    summaries: list[CrmActivitySummary],
+    rows: list[CrmActivity],
+    *,
+    fallback_contact_agreement: bool = True,
+) -> list[CrmActivitySummary]:
+    from investhome_api.models.crm_agreement import CrmAgreement
+    from investhome_api.services.crm.operational_timeline import (
+        _agreement_context_by_contact,
+        _timeline_project_label,
+    )
+
+    by_id = {row.id: row for row in rows}
+    contact_ids = {
+        row.entity_id
+        for row in rows
+        if row.entity_type == CrmActivityEntityType.CONTACT
     }
-    if entity_type in crm_entity_map and entity_id is not None and page == 1:
-        logs = db.scalars(
-            select(ActivityLog)
-            .where(
-                ActivityLog.entity_type == crm_entity_map[entity_type],
-                ActivityLog.entity_id == entity_id,
+    agreement_ids: set[UUID] = set()
+    for row in rows:
+        meta = row.metadata_json if isinstance(row.metadata_json, dict) else {}
+        links = _activity_links(meta)
+        raw_agreement = links.get("agreement_id") or meta.get("agreement_id")
+        if raw_agreement:
+            try:
+                agreement_ids.add(UUID(str(raw_agreement)))
+            except ValueError:
+                continue
+        if row.related_entity_id and row.related_entity_type == CrmActivityEntityType.TRANSACTION:
+            agreement_ids.add(row.related_entity_id)
+    agreements = (
+        {
+            row.id: row
+            for row in db.scalars(select(CrmAgreement).where(CrmAgreement.id.in_(agreement_ids))).all()
+        }
+        if agreement_ids
+        else {}
+    )
+    for agreement in agreements.values():
+        contact_ids.add(agreement.contact_id)
+    agreement_ctx = _agreement_context_by_contact(db, contact_ids)
+    enriched: list[CrmActivitySummary] = []
+    for summary in summaries:
+        row = by_id.get(summary.id)
+        meta = row.metadata_json if row and isinstance(row.metadata_json, dict) else {}
+        links = _activity_links(meta)
+        person = _clean_task_person_name(summary.entity_name or summary.person_name)
+        agreement = None
+        raw_agreement = links.get("agreement_id") or meta.get("agreement_id")
+        if raw_agreement:
+            try:
+                agreement = agreements.get(UUID(str(raw_agreement)))
+            except ValueError:
+                agreement = None
+        if agreement is None and row and row.related_entity_id:
+            agreement = agreements.get(row.related_entity_id)
+        if (
+            agreement is None
+            and fallback_contact_agreement
+            and row
+            and row.entity_type == CrmActivityEntityType.CONTACT
+        ):
+            ctx = agreement_ctx.get(row.entity_id)
+            agreement = ctx[0] if ctx else None
+        project_group = str(links.get("project_group") or "").strip() or None
+        project_label = None
+        unit_number = None
+        agreement_id = None
+        if agreement is not None:
+            project_label = _timeline_project_label(agreement.project_group, agreement.metadata_json)
+            unit_number = agreement.unit_number
+            agreement_id = agreement.id
+            project_group = project_group or agreement.project_group
+            if not person:
+                person = _clean_task_person_name(summary.entity_name)
+        elif project_group:
+            project_label = _timeline_project_label(project_group, None)
+        workspace_status = _task_workspace_status(summary.task_status, summary.status)
+        enriched.append(
+            summary.model_copy(
+                update={
+                    "person_name": person,
+                    "project_label": project_label,
+                    "project_group": project_group,
+                    "unit_number": unit_number,
+                    "agreement_id": agreement_id,
+                    "source": _task_source(meta),
+                    "source_task_status": summary.task_status.value if summary.task_status else (
+                        summary.status.value if summary.status else None
+                    ),
+                    "source_priority": summary.priority.value if summary.priority else None,
+                    "workspace_status": workspace_status,
+                }
             )
-            .order_by(ActivityLog.created_at.desc())
-            .limit(10)
-        ).all()
-        for log in logs:
-            entries.append(
-                CrmTimelineEntry(
-                    id=f"log-{log.id}",
-                    source="audit_log",
-                    activity_type="system_event",
-                    title=log.description_key,
-                    summary=None,
-                    status=None,
-                    priority=None,
-                    entity_type=entity_type.value,
-                    entity_id=entity_id,
-                    actor_name=log.actor_name,
-                    created_at=log.created_at,
-                    is_system_event=True,
-                    metadata_json=log.metadata_json,
-                )
-            )
-        entries.sort(key=lambda e: e.created_at, reverse=True)
-        entries = entries[:page_size]
+        )
+    return enriched
 
-    return entries, meta
+
+def _apply_task_scope(
+    query,
+    *,
+    contact_ids: set[UUID] | None,
+    due_from: datetime | None,
+    due_to: datetime | None,
+    due_bucket: str | None,
+    workspace_status: str | None,
+):
+    if contact_ids is not None:
+        query = query.where(
+            CrmActivity.entity_type == CrmActivityEntityType.CONTACT,
+            CrmActivity.entity_id.in_(contact_ids),
+        )
+    if due_from is not None:
+        query = query.where(CrmActivity.due_date >= due_from)
+    if due_to is not None:
+        query = query.where(CrmActivity.due_date <= due_to)
+    today_start, today_end = _istanbul_day_bounds()
+    bucket = (due_bucket or "").strip().casefold()
+    if bucket == "today":
+        query = query.where(
+            _task_is_active_clause(),
+            CrmActivity.due_date >= today_start,
+            CrmActivity.due_date < today_end,
+        )
+    elif bucket == "overdue":
+        query = query.where(_task_is_active_clause(), CrmActivity.due_date < today_start)
+    status_clause = _task_workspace_status_clause(workspace_status or "")
+    if status_clause is not None:
+        query = query.where(status_clause)
+    return query
+
+
+def create_workspace_task(db: Session, user: User, payload: CrmTaskCreate) -> CrmActivityDetail:
+    from investhome_api.models.crm_agreement import CrmAgreement
+
+    contact_id = payload.contact_id
+    project_group = (payload.project_group or "").strip() or None
+    agreement_id = payload.agreement_id
+    if agreement_id is not None:
+        agreement = db.get(CrmAgreement, agreement_id)
+        if agreement is not None:
+            contact_id = contact_id or agreement.contact_id
+            project_group = project_group or agreement.project_group
+    entity_type = payload.entity_type
+    entity_id = payload.entity_id
+    if contact_id is not None:
+        entity_type = CrmActivityEntityType.CONTACT
+        entity_id = contact_id
+    elif entity_type is None or entity_id is None:
+        entity_type = CrmActivityEntityType.INTERNAL_USER
+        entity_id = user.id
+    links = {
+        "contact_id": str(contact_id) if contact_id else None,
+        "project_group": project_group,
+        "agreement_id": str(agreement_id) if agreement_id else None,
+    }
+    metadata = dict(payload.metadata_json or {})
+    metadata["task_links"] = {key: value for key, value in links.items() if value}
+    related_type = CrmActivityEntityType.TRANSACTION if agreement_id else None
+    create_payload = CrmActivityCreate(
+        entity_type=entity_type,
+        entity_id=entity_id,
+        related_entity_type=related_type,
+        related_entity_id=agreement_id,
+        activity_type=CrmActivityType.TASK,
+        title=payload.title,
+        summary=payload.summary,
+        description=payload.description,
+        status=CrmActivityStatus.PLANNED,
+        task_status=payload.task_status or CrmTaskStatus.NOT_STARTED,
+        priority=payload.priority,
+        owner_id=user.id,
+        assigned_user_id=payload.assigned_user_id,
+        due_date=payload.due_date,
+        visibility=payload.visibility,
+        metadata_json=metadata,
+    )
+    return create_activity(db, user, create_payload)
+
+
+def create_workspace_note(db: Session, user: User, payload: CrmNoteCreate) -> CrmActivityDetail:
+    from investhome_api.models.crm_agreement import CrmAgreement
+
+    contact_id = payload.contact_id
+    project_group = (payload.project_group or "").strip() or None
+    agreement_id = payload.agreement_id
+    if agreement_id is not None:
+        agreement = db.get(CrmAgreement, agreement_id)
+        if agreement is not None:
+            contact_id = contact_id or agreement.contact_id
+            project_group = project_group or agreement.project_group
+    entity_type = payload.entity_type
+    entity_id = payload.entity_id
+    if contact_id is not None:
+        entity_type = CrmActivityEntityType.CONTACT
+        entity_id = contact_id
+    elif entity_type == CrmActivityEntityType.CONTACT and entity_id is not None:
+        contact_id = entity_id
+    if entity_type is None or entity_id is None:
+        raise ValueError("A person is required to create a note")
+    body = (payload.description or payload.summary or payload.title or "").strip()
+    if not body:
+        raise ValueError("Note text is required")
+    title = (payload.title or "").strip() or body.splitlines()[0][:120]
+    if title.casefold() in _NOTE_GENERIC_TITLES:
+        title = body.splitlines()[0][:120]
+    summary = (payload.summary or body)[:1000]
+    links = {
+        "contact_id": str(contact_id) if contact_id else None,
+        "project_group": project_group,
+        "agreement_id": str(agreement_id) if agreement_id else None,
+    }
+    metadata = dict(payload.metadata_json or {})
+    metadata["note_links"] = {key: value for key, value in links.items() if value}
+    metadata.setdefault("source", "CRM")
+    related_type = CrmActivityEntityType.TRANSACTION if agreement_id else None
+    create_payload = CrmActivityCreate(
+        entity_type=entity_type,
+        entity_id=entity_id,
+        related_entity_type=related_type,
+        related_entity_id=agreement_id,
+        activity_type=CrmActivityType.NOTE,
+        title=title[:500],
+        summary=summary,
+        description=body,
+        status=CrmActivityStatus.COMPLETED,
+        owner_id=user.id,
+        assigned_user_id=user.id,
+        visibility=payload.visibility,
+        metadata_json=metadata,
+        start_date=datetime.now(tz=UTC),
+    )
+    return create_activity(db, user, create_payload)
 
 
 def list_tasks(
@@ -922,24 +1260,170 @@ def list_tasks(
     search: str | None = None,
     page: int = 1,
     page_size: int = 25,
-) -> tuple[list[CrmActivitySummary], dict[str, int]]:
+    contact_search: str | None = None,
+    project_group: str | None = None,
+    priority: CrmActivityPriority | None = None,
+    due_from: datetime | None = None,
+    due_to: datetime | None = None,
+    due_bucket: str | None = None,
+    workspace_status: str | None = None,
+) -> tuple[list[CrmActivitySummary], dict[str, int], CrmTaskCounters]:
     del team_tasks
+    from investhome_api.services.crm.operational_timeline import _resolve_timeline_contact_ids
+
     if my_tasks:
         assigned_user_id = user.id
-    return list_activities(
+    vis = _visibility_filter(user)
+    contact_ids = _resolve_timeline_contact_ids(
         db,
-        user,
-        activity_types=[CrmActivityType.TASK, CrmActivityType.REMINDER],
-        assigned_user_id=assigned_user_id,
+        entity_type=CrmActivityEntityType.CONTACT if entity_id else None,
         entity_id=entity_id,
-        search=search,
-        task_status=status,
-        status=None,
-        page=page,
-        page_size=page_size,
-        sort_by="due_date",
-        sort_dir="asc",
+        contact_search=contact_search,
+        project_group=project_group,
     )
+    if contact_ids is not None and len(contact_ids) == 0:
+        empty = _paginate(0, page, page_size)
+        return [], empty, CrmTaskCounters()
+
+    def _base():
+        query = select(CrmActivity)
+        if vis is not None:
+            query = query.where(vis)
+        query = _apply_activity_filters(
+            query,
+            search=search,
+            entity_id=entity_id if contact_search is None and not project_group else None,
+            activity_types=list(TASK_TYPES),
+            task_status=status,
+            priority=priority,
+            responsible_user_id=assigned_user_id,
+        )
+        return _apply_task_scope(
+            query,
+            contact_ids=contact_ids,
+            due_from=due_from,
+            due_to=due_to,
+            due_bucket=due_bucket,
+            workspace_status=workspace_status,
+        )
+
+    def _count(query) -> int:
+        count_query = select(func.count()).select_from(query.subquery())
+        return db.scalar(count_query) or 0
+
+    query = _base()
+    total = _count(query)
+    rows = list(
+        db.scalars(
+            query.options(selectinload(CrmActivity.attachments), selectinload(CrmActivity.comments))
+            .order_by(CrmActivity.due_date.asc().nulls_last(), CrmActivity.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        ).all()
+    )
+    summaries = _attach_task_context(db, _summaries_for_rows(db, rows), rows)
+
+    counter_base = select(CrmActivity)
+    if vis is not None:
+        counter_base = counter_base.where(vis)
+    counter_base = _apply_activity_filters(
+        counter_base,
+        search=search,
+        entity_id=entity_id if contact_search is None and not project_group else None,
+        activity_types=list(TASK_TYPES),
+        priority=priority,
+        responsible_user_id=assigned_user_id,
+    )
+    counter_base = _apply_task_scope(
+        counter_base,
+        contact_ids=contact_ids,
+        due_from=due_from,
+        due_to=due_to,
+        due_bucket=None,
+        workspace_status=None,
+    )
+    today_start, today_end = _istanbul_day_bounds()
+    open_q = counter_base.where(_task_is_active_clause())
+    today_q = counter_base.where(
+        _task_is_active_clause(),
+        CrmActivity.due_date >= today_start,
+        CrmActivity.due_date < today_end,
+    )
+    overdue_q = counter_base.where(_task_is_active_clause(), CrmActivity.due_date < today_start)
+    completed_q = counter_base.where(
+        or_(
+            CrmActivity.task_status == CrmTaskStatus.COMPLETED,
+            CrmActivity.status == CrmActivityStatus.COMPLETED,
+        )
+    )
+    counters = CrmTaskCounters(
+        open=_count(open_q),
+        today=_count(today_q),
+        overdue=_count(overdue_q),
+        completed=_count(completed_q),
+        total=_count(counter_base),
+    )
+    return summaries, _paginate(total, page, page_size), counters
+
+
+
+def _plain_note_text(activity: CrmActivity) -> str:
+    title = (activity.title or "").strip()
+    body = (activity.description or activity.summary or "").strip()
+    raw = body if title.casefold() in _NOTE_GENERIC_TITLES else (body or title)
+    text = _NOTE_HTML_RE.sub(" ", raw)
+    text = (
+        text.replace("&nbsp;", " ")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&#39;", "'")
+        .replace("&quot;", '"')
+    )
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _looks_like_note_dump(text: str) -> bool:
+    blob = (text or "").strip()
+    if not blob:
+        return True
+    if blob.casefold() in _NOTE_EMPTY_MARKERS:
+        return True
+    if (blob.startswith("{") or blob.startswith("[")) and re.search(
+        r'"(ID|AUTHOR_ID|COMMENT|UF_|fields|result|bitrix)"', blob, re.I
+    ):
+        return True
+    lowered = blob.casefold()
+    if "bitrix24" in lowered and "webhook" in lowered:
+        return True
+    if blob.startswith("<?xml"):
+        return True
+    return False
+
+
+def _note_workspace_source(meta: dict) -> str:
+    if isinstance(meta.get("bitrix_historical_comment"), dict):
+        return "Bitrix"
+    history = meta.get("bitrix_history")
+    if isinstance(history, dict):
+        return "Bitrix"
+    source = str(meta.get("source") or "").strip()
+    if source.casefold().startswith("bitrix"):
+        return "Bitrix"
+    return source or "CRM"
+
+
+def _note_author_name(meta: dict) -> str | None:
+    history = meta.get("bitrix_history") if isinstance(meta.get("bitrix_history"), dict) else {}
+    comment = (
+        meta.get("bitrix_historical_comment")
+        if isinstance(meta.get("bitrix_historical_comment"), dict)
+        else {}
+    )
+    name = str(history.get("author_name") or comment.get("author_name") or "").strip()
+    if name and name.casefold() not in _GENERIC_TASK_NAMES:
+        return name
+    return None
 
 
 def list_notes(
@@ -948,18 +1432,78 @@ def list_notes(
     *,
     entity_type: CrmActivityEntityType | None = None,
     entity_id: UUID | None = None,
+    search: str | None = None,
+    contact_search: str | None = None,
+    project_group: str | None = None,
+    assigned_user_id: UUID | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
     page: int = 1,
     page_size: int = 25,
 ) -> tuple[list[CrmActivitySummary], dict[str, int]]:
-    return list_activities(
+    from investhome_api.services.crm.operational_timeline import _resolve_timeline_contact_ids
+
+    del entity_type
+    vis = _visibility_filter(user)
+    contact_ids = _resolve_timeline_contact_ids(
         db,
-        user,
-        entity_type=entity_type,
+        entity_type=CrmActivityEntityType.CONTACT if entity_id else None,
         entity_id=entity_id,
-        activity_types=list(NOTE_TYPES),
-        page=page,
-        page_size=page_size,
+        contact_search=contact_search,
+        project_group=project_group,
     )
+    if contact_ids is not None and len(contact_ids) == 0:
+        return [], _paginate(0, page, page_size)
+
+    query = select(CrmActivity)
+    if vis is not None:
+        query = query.where(vis)
+    query = _apply_activity_filters(
+        query,
+        search=search,
+        entity_id=entity_id if contact_search is None and not project_group else None,
+        activity_types=list(NOTE_LIST_TYPES),
+        responsible_user_id=assigned_user_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    if contact_ids is not None:
+        query = query.where(
+            CrmActivity.entity_type == CrmActivityEntityType.CONTACT,
+            CrmActivity.entity_id.in_(contact_ids),
+        )
+
+    count_query = select(func.count()).select_from(query.subquery())
+    total = db.scalar(count_query) or 0
+    rows = list(
+        db.scalars(
+            query.options(selectinload(CrmActivity.attachments), selectinload(CrmActivity.comments))
+            .order_by(CrmActivity.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        ).all()
+    )
+    visible_rows = [
+        row for row in rows if (text := _plain_note_text(row)) and not _looks_like_note_dump(text)
+    ]
+    summaries = _attach_task_context(
+        db,
+        _summaries_for_rows(db, visible_rows),
+        visible_rows,
+        fallback_contact_agreement=False,
+    )
+    enriched: list[CrmActivitySummary] = []
+    for summary, row in zip(summaries, visible_rows, strict=False):
+        meta = row.metadata_json if isinstance(row.metadata_json, dict) else {}
+        updates: dict[str, object] = {"source": _note_workspace_source(meta)}
+        author = _note_author_name(meta)
+        if author:
+            updates["created_by_name"] = author
+        preview = _plain_note_text(row)
+        if preview:
+            updates["summary"] = preview[:1000]
+        enriched.append(summary.model_copy(update=updates))
+    return enriched, _paginate(total, page, page_size)
 
 
 def list_meetings(
@@ -1049,6 +1593,108 @@ def complete_follow_up(db: Session, user: User, activity: CrmActivity) -> CrmAct
     return _serialize_detail(loaded)
 
 
+def _calendar_kind(activity_type: CrmActivityType) -> str:
+    if activity_type == CrmActivityType.TASK:
+        return "task"
+    if activity_type in {CrmActivityType.REMINDER, CrmActivityType.FOLLOW_UP}:
+        return "reminder"
+    if activity_type in MEETING_TYPES:
+        return "meeting"
+    if activity_type == CrmActivityType.PAYMENT:
+        return "payment"
+    if activity_type == CrmActivityType.CLOSING:
+        return "closing"
+    if activity_type in {
+        CrmActivityType.CONTRACT_SIGNED,
+        CrmActivityType.DOCUMENT_SENT,
+        CrmActivityType.DOCUMENT_RECEIVED,
+        CrmActivityType.PROPOSAL_SENT,
+        CrmActivityType.PROPOSAL_RECEIVED,
+    }:
+        return "document"
+    if activity_type in {CrmActivityType.INSPECTION, CrmActivityType.RESERVATION}:
+        return "delivery"
+    return "other"
+
+
+def _calendar_stamp(*values: datetime | None) -> datetime | None:
+    for value in values:
+        if value is not None:
+            return value
+    return None
+
+
+def _calendar_in_range(value: datetime | None, start: datetime, end: datetime) -> bool:
+    if value is None:
+        return False
+    stamp = _as_utc(value)
+    return start <= stamp < end
+
+
+def _date_at_istanbul(value: date) -> datetime:
+    return datetime(value.year, value.month, value.day, tzinfo=_TASK_TZ).astimezone(UTC)
+
+
+def _is_all_day(stamp: datetime | None, start_date: datetime | None) -> bool:
+    if start_date is None:
+        return True
+    local = _as_utc(start_date).astimezone(_TASK_TZ)
+    return local.hour == 0 and local.minute == 0 and local.second == 0
+
+
+def create_workspace_event(db: Session, user: User, payload: CrmCalendarEventCreate) -> CrmActivityDetail:
+    kind = (payload.event_kind or "task").strip().casefold()
+    if kind not in {"task", "meeting", "reminder"}:
+        kind = "task"
+    if kind == "meeting":
+        activity_type = CrmActivityType.MEETING
+        create_payload = CrmTaskCreate(
+            title=payload.title,
+            description=payload.description,
+            contact_id=payload.contact_id,
+            project_group=payload.project_group,
+            agreement_id=payload.agreement_id,
+            assigned_user_id=payload.assigned_user_id,
+            due_date=None,
+        )
+        detail_source = create_workspace_task(db, user, create_payload)
+        loaded = get_activity_or_none(db, detail_source.id)
+        assert loaded is not None
+        loaded.activity_type = activity_type
+        loaded.activity_category = CrmActivityCategory.MEETING
+        loaded.status = CrmActivityStatus.SCHEDULED
+        loaded.task_status = None
+        loaded.start_date = payload.occurs_at
+        loaded.due_date = None
+        loaded.updated_by = user.id
+        db.commit()
+        refreshed = get_activity_or_none(db, loaded.id)
+        assert refreshed is not None
+        return _serialize_detail(refreshed)
+    task_payload = CrmTaskCreate(
+        title=payload.title,
+        description=payload.description,
+        contact_id=payload.contact_id,
+        project_group=payload.project_group,
+        agreement_id=payload.agreement_id,
+        assigned_user_id=payload.assigned_user_id,
+        due_date=payload.occurs_at,
+        task_status=CrmTaskStatus.NOT_STARTED,
+    )
+    detail = create_workspace_task(db, user, task_payload)
+    if kind == "reminder":
+        loaded = get_activity_or_none(db, detail.id)
+        assert loaded is not None
+        loaded.activity_type = CrmActivityType.REMINDER
+        loaded.reminder_date = payload.occurs_at
+        loaded.updated_by = user.id
+        db.commit()
+        refreshed = get_activity_or_none(db, loaded.id)
+        assert refreshed is not None
+        return _serialize_detail(refreshed)
+    return detail
+
+
 def get_calendar(
     db: Session,
     user: User,
@@ -1056,44 +1702,250 @@ def get_calendar(
     start: datetime,
     end: datetime,
     assigned_user_id: UUID | None = None,
+    contact_search: str | None = None,
+    entity_id: UUID | None = None,
+    project_group: str | None = None,
+    event_kind: str | None = None,
 ) -> CrmCalendarResponse:
+    from investhome_api.models.crm_agreement import CrmAgreement
+    from investhome_api.models.crm_contact import CrmContact
+    from investhome_api.models.document import Document, DocumentLink
+    from investhome_api.services.crm.operational_timeline import (
+        _resolve_timeline_contact_ids,
+        _timeline_project_label,
+    )
+
+    range_start = _as_utc(start)
+    range_end = _as_utc(end)
+    if range_end <= range_start:
+        range_end = range_start + timedelta(days=1)
+    today_start, _today_end = _istanbul_day_bounds()
+    kind_filter = (event_kind or "").strip().casefold()
+    vis = _visibility_filter(user)
+    contact_ids = _resolve_timeline_contact_ids(
+        db,
+        entity_type=CrmActivityEntityType.CONTACT if entity_id else None,
+        entity_id=entity_id,
+        contact_search=contact_search,
+        project_group=project_group,
+    )
+    if contact_ids is not None and len(contact_ids) == 0:
+        return CrmCalendarResponse(events=[], start=range_start, end=range_end, total=0)
+
     query = select(CrmActivity).where(
         CrmActivity.archived_at.is_(None),
         _exclude_demo_clause(),
+        CrmActivity.activity_type.in_(CALENDAR_ACTIVITY_TYPES),
         or_(
-            CrmActivity.start_date.between(start, end),
-            CrmActivity.due_date.between(start, end),
+            and_(CrmActivity.start_date.is_not(None), CrmActivity.start_date >= range_start, CrmActivity.start_date < range_end),
+            and_(CrmActivity.due_date.is_not(None), CrmActivity.due_date >= range_start, CrmActivity.due_date < range_end),
+            and_(CrmActivity.reminder_date.is_not(None), CrmActivity.reminder_date >= range_start, CrmActivity.reminder_date < range_end),
         ),
     )
-    vis = _visibility_filter(user)
     if vis is not None:
         query = query.where(vis)
     if assigned_user_id is not None:
-        query = query.where(CrmActivity.assigned_user_id == assigned_user_id)
-    rows = list(db.scalars(query.order_by(CrmActivity.start_date.asc().nullslast())).all())
-    names = {
-        item.id: item
-        for item in _summaries_for_rows(db, rows)
-    }
-    events = [
-        CrmCalendarEvent(
-            id=row.id,
-            title=row.title,
-            activity_type=row.activity_type,
-            status=row.status,
-            start_date=row.start_date,
-            end_date=row.end_date,
-            due_date=row.due_date,
-            all_day=row.start_date is not None and row.end_date is None,
-            entity_type=row.entity_type,
-            entity_id=row.entity_id,
-            assigned_user_id=row.assigned_user_id,
-            entity_name=names[row.id].entity_name if row.id in names else None,
-            assigned_user_name=names[row.id].assigned_user_name if row.id in names else None,
+        query = query.where(
+            or_(CrmActivity.assigned_user_id == assigned_user_id, CrmActivity.owner_id == assigned_user_id)
         )
-        for row in rows
-    ]
-    return CrmCalendarResponse(events=events, start=start, end=end)
+    if contact_ids is not None:
+        query = query.where(
+            CrmActivity.entity_type == CrmActivityEntityType.CONTACT,
+            CrmActivity.entity_id.in_(contact_ids),
+        )
+    rows = list(
+        db.scalars(query.order_by(CrmActivity.start_date.asc().nulls_last(), CrmActivity.due_date.asc().nulls_last()).limit(CALENDAR_EVENT_LIMIT)).all()
+    )
+    summaries = {
+        item.id: item
+        for item in _attach_task_context(db, _summaries_for_rows(db, rows), rows)
+    }
+    events: list[CrmCalendarEvent] = []
+    for row in rows:
+        summary = summaries.get(row.id)
+        event_at = None
+        for candidate in (row.start_date, row.due_date, row.reminder_date):
+            if _calendar_in_range(candidate, range_start, range_end):
+                event_at = _as_utc(candidate)
+                break
+        if event_at is None:
+            continue
+        kind = _calendar_kind(row.activity_type)
+        if kind_filter and kind != kind_filter:
+            continue
+        completed = _task_workspace_status(row.task_status, row.status) in {"completed", "cancelled"}
+        overdue = (not completed) and event_at < today_start
+        events.append(
+            CrmCalendarEvent(
+                id=str(row.id),
+                title=row.title,
+                activity_type=row.activity_type.value,
+                event_kind=kind,
+                record_kind="activity",
+                status=row.status.value if row.status else None,
+                start_date=row.start_date,
+                end_date=row.end_date,
+                due_date=row.due_date,
+                event_at=event_at,
+                all_day=_is_all_day(event_at, row.start_date),
+                entity_type=row.entity_type.value if row.entity_type else None,
+                entity_id=row.entity_id,
+                assigned_user_id=row.assigned_user_id,
+                entity_name=summary.entity_name if summary else None,
+                assigned_user_name=(summary.assigned_user_name or summary.owner_name) if summary else None,
+                person_name=summary.person_name if summary else None,
+                project_label=summary.project_label if summary else None,
+                project_group=summary.project_group if summary else None,
+                unit_number=summary.unit_number if summary else None,
+                agreement_id=summary.agreement_id if summary else None,
+                source=_task_source(row.metadata_json if isinstance(row.metadata_json, dict) else None),
+                summary=row.summary or row.description,
+                is_overdue=overdue,
+                is_completed=completed,
+            )
+        )
+
+    include_purchases = kind_filter in {"", "purchase"}
+    include_documents = kind_filter in {"", "document"}
+    start_day = range_start.astimezone(_TASK_TZ).date()
+    end_day = (range_end.astimezone(_TASK_TZ) - timedelta(seconds=1)).date()
+    if include_purchases and assigned_user_id is None:
+        agreement_query = select(CrmAgreement).where(
+            CrmAgreement.agreement_date.is_not(None),
+            CrmAgreement.agreement_date >= start_day,
+            CrmAgreement.agreement_date <= end_day,
+        )
+        if project_group:
+            agreement_query = agreement_query.where(CrmAgreement.project_group == project_group)
+        if contact_ids is not None:
+            agreement_query = agreement_query.where(CrmAgreement.contact_id.in_(contact_ids))
+        elif entity_id is not None:
+            agreement_query = agreement_query.where(CrmAgreement.contact_id == entity_id)
+        agreements = list(db.scalars(agreement_query.limit(CALENDAR_EVENT_LIMIT)).all())
+        contact_map = {
+            contact.id: contact
+            for contact in db.scalars(
+                select(CrmContact).where(CrmContact.id.in_({row.contact_id for row in agreements}))
+            ).all()
+        } if agreements else {}
+        for row in agreements:
+            if row.agreement_date is None:
+                continue
+            event_at = _date_at_istanbul(row.agreement_date)
+            contact = contact_map.get(row.contact_id)
+            person = _clean_task_person_name(contact.display_name if contact else None)
+            events.append(
+                CrmCalendarEvent(
+                    id=f"purchase:{row.id}",
+                    title=f"Satın Alma · {person or _timeline_project_label(row.project_group, row.metadata_json)}",
+                    activity_type="purchase",
+                    event_kind="purchase",
+                    record_kind="purchase",
+                    status=row.status.value if row.status else None,
+                    event_at=event_at,
+                    all_day=True,
+                    entity_type="contact",
+                    entity_id=row.contact_id,
+                    person_name=person,
+                    entity_name=person,
+                    project_label=_timeline_project_label(row.project_group, row.metadata_json),
+                    project_group=row.project_group,
+                    unit_number=row.unit_number,
+                    agreement_id=row.id,
+                    source="CRM satın alma",
+                    is_overdue=False,
+                    is_completed=row.status.value == "completed" if row.status else False,
+                )
+            )
+
+    if include_documents and assigned_user_id is None:
+        doc_query = (
+            select(Document, DocumentLink)
+            .join(DocumentLink, DocumentLink.document_id == Document.id)
+            .where(
+                Document.expiration_date.is_not(None),
+                Document.expiration_date >= start_day,
+                Document.expiration_date <= end_day,
+                Document.is_latest_version.is_(True),
+                DocumentLink.entity_type.in_(("crm_contact", "contact", "crm_agreement")),
+            )
+            .limit(CALENDAR_EVENT_LIMIT)
+        )
+        doc_rows = list(db.execute(doc_query).all())
+        doc_contact_ids = {link.entity_id for _doc, link in doc_rows if link.entity_type in {"crm_contact", "contact"}}
+        doc_agreement_ids = {link.entity_id for _doc, link in doc_rows if link.entity_type == "crm_agreement"}
+        doc_agreements = {
+            row.id: row
+            for row in db.scalars(select(CrmAgreement).where(CrmAgreement.id.in_(doc_agreement_ids))).all()
+        } if doc_agreement_ids else {}
+        for agreement in doc_agreements.values():
+            if agreement.contact_id:
+                doc_contact_ids.add(agreement.contact_id)
+        doc_contacts = {
+            contact.id: contact
+            for contact in db.scalars(select(CrmContact).where(CrmContact.id.in_(doc_contact_ids))).all()
+        } if doc_contact_ids else {}
+        seen_docs: set[str] = set()
+        for document, link in doc_rows:
+            if document.expiration_date is None:
+                continue
+            key = str(document.id)
+            if key in seen_docs:
+                continue
+            person = None
+            contact_id = None
+            agreement_id = None
+            project_label = None
+            project_group_value = None
+            unit_number = None
+            if link.entity_type in {"crm_contact", "contact"}:
+                if contact_ids is not None and link.entity_id not in contact_ids:
+                    continue
+                contact_id = link.entity_id
+                person = _clean_task_person_name(doc_contacts.get(link.entity_id).display_name if doc_contacts.get(link.entity_id) else None)
+            elif link.entity_type == "crm_agreement":
+                agreement = doc_agreements.get(link.entity_id)
+                agreement_id = link.entity_id
+                if agreement is not None:
+                    if project_group and agreement.project_group != project_group:
+                        continue
+                    if contact_ids is not None and agreement.contact_id not in contact_ids:
+                        continue
+                    contact_id = agreement.contact_id
+                    contact = doc_contacts.get(agreement.contact_id) if agreement.contact_id else None
+                    person = _clean_task_person_name(contact.display_name if contact else None)
+                    project_label = _timeline_project_label(agreement.project_group, agreement.metadata_json)
+                    project_group_value = agreement.project_group
+                    unit_number = agreement.unit_number
+            seen_docs.add(key)
+            events.append(
+                CrmCalendarEvent(
+                    id=f"document:{document.id}",
+                    title=document.title,
+                    activity_type="document",
+                    event_kind="document",
+                    record_kind="document",
+                    event_at=_date_at_istanbul(document.expiration_date),
+                    all_day=True,
+                    entity_type="contact" if contact_id else None,
+                    entity_id=contact_id,
+                    person_name=person,
+                    entity_name=person,
+                    project_label=project_label,
+                    project_group=project_group_value,
+                    unit_number=unit_number,
+                    agreement_id=agreement_id,
+                    source="CRM belge",
+                    summary=document.description,
+                    is_overdue=_date_at_istanbul(document.expiration_date) < today_start,
+                    is_completed=False,
+                )
+            )
+
+    events.sort(key=lambda item: (item.event_at, item.title))
+    if len(events) > CALENDAR_EVENT_LIMIT:
+        events = events[:CALENDAR_EVENT_LIMIT]
+    return CrmCalendarResponse(events=events, start=range_start, end=range_end, total=len(events))
 
 
 def get_dashboard_widgets(db: Session, user: User) -> CrmActivityDashboardWidgets:

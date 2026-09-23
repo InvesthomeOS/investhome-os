@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 
 import { Select } from '@investhome/ui';
 
+import { emailPreviewText } from '@/workspaces/crm/contact-card/history-html';
 import type { CrmActivitySummary } from '@/workspaces/crm/types/activities';
 import type { CrmContactSummary } from '@/workspaces/crm/types';
 
@@ -138,7 +139,7 @@ export function AgentsActivities({
             <button type="button" onClick={() => onOpen(item.entity_id)}>
               {item.title}
             </button>
-            {item.summary ? <p>{item.summary}</p> : null}
+            {item.summary ? <p>{emailPreviewText(item.summary)}</p> : null}
             <small>
               {[agent?.display_name, item.assigned_user_name || item.owner_name || (agent ? responsibleOf(agent) : '')]
                 .filter(Boolean)

@@ -126,14 +126,20 @@ class CrmRelationshipSummary(BaseModel):
     is_confidential: bool = False
     is_verified: bool = False
     owner_user_id: UUID | None = None
+    owner_name: str | None = None
     last_interaction_at: datetime | None = None
+    notes: str | None = None
+    pair_kind: str = "other"
+    linked_project_id: UUID | None = None
+    linked_project_label: str | None = None
+    linked_agreement_id: UUID | None = None
+    linked_agreement_label: str | None = None
     archived_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
 
 class CrmRelationshipDetail(CrmRelationshipSummary):
-    notes: str | None = None
     metadata_json: dict | None = None
     started_at: datetime | None = None
     ended_at: datetime | None = None
@@ -177,6 +183,15 @@ class CrmRelationshipListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class CrmRelationshipCounts(BaseModel):
+    total: int = 0
+    contact_company: int = 0
+    contact_project: int = 0
+    contact_contact: int = 0
+    company_project: int = 0
+    company_company: int = 0
 
 
 class CrmRelationshipDuplicateCandidate(BaseModel):

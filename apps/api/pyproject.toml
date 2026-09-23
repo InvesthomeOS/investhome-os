@@ -26,6 +26,12 @@ dependencies = [
     "chardet>=5.2.0",
     "httpx>=0.28.0",
     "pillow>=11.0.0",
+    "cairosvg>=2.7.0",
+    "svglib>=1.5.0",
+    "reportlab>=4.0.0",
+    "google-api-python-client>=2.150.0",
+    "google-auth>=2.36.0",
+    "cryptography>=44.0.0",
 ]
 
 [project.optional-dependencies]
@@ -38,6 +44,8 @@ dev = [
 ]
 
 [project.scripts]
+investhome-demo = "investhome_api.db.demo.cli:console_main"
+investhome-migrate = "investhome_api.migration.cli:console_main"
 investhome-bitrix = "investhome_api.services.crm.bitrix_import:cli_entry"
 
 [build-system]
@@ -63,3 +71,7 @@ packages = ["investhome_api"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "ideogram_live: live Ideogram API calls (requires IDEOGRAM_API_KEY)",
+    "gpt_image_live: live GPT Image API calls (requires AI_API_KEY; spends credits)",
+]

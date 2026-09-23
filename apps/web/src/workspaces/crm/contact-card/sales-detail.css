@@ -21,6 +21,10 @@
   margin: 0;
 }
 
+.crm-sales-page__hero .crm-unit-history {
+  margin-top: 14px;
+}
+
 .crm-sales-page__owners-line {
   margin: 0 0 8px;
   font-size: 14px;

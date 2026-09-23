@@ -235,6 +235,19 @@ def displayable_phone(*values: str | None) -> str | None:
     return str(best).strip() or None
 
 
+def format_display_phone(*values: str | None) -> str | None:
+    """Grouped display form for a safe phone. Does not change stored values."""
+    raw = displayable_phone(*values)
+    if not raw:
+        return None
+    parsed = parse_phone(raw)
+    if parsed and parsed.country == "TR" and parsed.e164 and parsed.e164.startswith("+90"):
+        local = parsed.e164[3:]
+        if len(local) == 10:
+            return f"+90 {local[:3]} {local[3:6]} {local[6:8]} {local[8:]}"
+    return raw
+
+
 def displayable_phones(values: list[str] | tuple[str, ...] | None) -> list[str] | None:
     if not values:
         return None

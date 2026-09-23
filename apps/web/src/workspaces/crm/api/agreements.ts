@@ -88,6 +88,15 @@ export type CrmRelatedPurchase = {
   amount_label: string | null;
   owners_label: string | null;
   is_current: boolean;
+  is_historical_unit_change?: boolean;
+};
+
+export type CrmUnitHistoryStep = {
+  agreement_id: string;
+  unit_number: string;
+  is_current: boolean;
+  is_historical_unit_change?: boolean;
+  contact_id?: string | null;
 };
 
 export type CrmLabeledValue = {
@@ -128,6 +137,8 @@ export type CrmPurchaseCard = {
   history_count: number;
   documents: CrmPurchaseDocument[];
   document_count: number;
+  person_documents?: CrmPurchaseDocument[];
+  person_document_count?: number;
   responsible_name?: string | null;
   comments?: string | null;
   agreement_date?: string | null;
@@ -138,6 +149,7 @@ export type CrmPurchaseCard = {
   llc_fields?: CrmLabeledValue[];
   extra_fields?: CrmLabeledValue[];
   hemen_kira?: boolean;
+  unit_history?: CrmUnitHistoryStep[];
 };
 
 export type CrmAgreementActivityItem = {
@@ -196,6 +208,7 @@ export type CrmAgreementListResponse = {
 export type AgreementListParams = {
   project_group?: string;
   status?: CrmAgreementStatus;
+  contact_id?: string;
   page?: number;
   page_size?: number;
 };
@@ -208,6 +221,7 @@ export async function fetchAgreements(
   search.set('page_size', String(params.page_size ?? 25));
   if (params.project_group) search.set('project_group', params.project_group);
   if (params.status) search.set('status', params.status);
+  if (params.contact_id) search.set('contact_id', params.contact_id);
   return apiFetch<CrmAgreementListResponse>(`/crm/agreements?${search.toString()}`);
 }
 
