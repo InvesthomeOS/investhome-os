@@ -17,8 +17,10 @@ build/
 # Environment
 .env
 .env.local
+.env.production
 .env.*.local
 !.env.example
+!.env.production.example
 
 # Build outputs
 .next/
