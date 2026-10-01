@@ -1,4 +1,4 @@
-"""Design Studio Sprint 2 — style presets, materials, furniture, review fields.
+"""Design Studio Sprint 2 â€” style presets, materials, furniture, review fields.
 
 Revision ID: 0015_design_studio_sprint2
 Revises: 0014_visual_design_studio
@@ -102,76 +102,6 @@ SYSTEM_STYLE_PRESETS = [
 
 
 def upgrade() -> None:
-    op.create_table(
-        "style_presets",
-        sa.Column("id", sa.Uuid(), nullable=False),
-        sa.Column("name", sa.String(length=120), nullable=False),
-        sa.Column("code", sa.String(length=60), nullable=False),
-        sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("color_palette", sa.JSON(), nullable=True),
-        sa.Column("material_preferences", sa.JSON(), nullable=True),
-        sa.Column("furniture_preferences", sa.JSON(), nullable=True),
-        sa.Column("is_system_preset", sa.Boolean(), server_default=sa.text("false"), nullable=False),
-        sa.Column("created_by_user_id", sa.Uuid(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True),
-        sa.ForeignKeyConstraint(["created_by_user_id"], ["users.id"], ondelete="SET NULL"),
-        sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("code"),
-    )
-    op.create_index("ix_style_presets_code", "style_presets", ["code"])
-    op.create_index("ix_style_presets_is_system", "style_presets", ["is_system_preset"])
-
-    op.create_table(
-        "material_packages",
-        sa.Column("id", sa.Uuid(), nullable=False),
-        sa.Column("name", sa.String(length=120), nullable=False),
-        sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("flooring", sa.String(length=120), nullable=True),
-        sa.Column("wall_finish", sa.String(length=120), nullable=True),
-        sa.Column("ceiling_finish", sa.String(length=120), nullable=True),
-        sa.Column("cabinetry", sa.String(length=120), nullable=True),
-        sa.Column("countertop", sa.String(length=120), nullable=True),
-        sa.Column("backsplash", sa.String(length=120), nullable=True),
-        sa.Column("bathroom_finish", sa.String(length=120), nullable=True),
-        sa.Column("metal_finish", sa.String(length=120), nullable=True),
-        sa.Column("door_finish", sa.String(length=120), nullable=True),
-        sa.Column("color_palette", sa.JSON(), nullable=True),
-        sa.Column("reference_document_ids", sa.JSON(), nullable=True),
-        sa.Column("created_by_user_id", sa.Uuid(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True),
-        sa.ForeignKeyConstraint(["created_by_user_id"], ["users.id"], ondelete="SET NULL"),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index("ix_material_packages_name", "material_packages", ["name"])
-
-    op.create_table(
-        "furniture_items",
-        sa.Column("id", sa.Uuid(), nullable=False),
-        sa.Column("name", sa.String(length=120), nullable=False),
-        sa.Column("code", sa.String(length=60), nullable=False),
-        sa.Column("room_type", sa.String(length=40), nullable=True),
-        sa.Column("furniture_type", sa.String(length=40), nullable=False),
-        sa.Column("width", sa.Float(), nullable=True),
-        sa.Column("depth", sa.Float(), nullable=True),
-        sa.Column("height", sa.Float(), nullable=True),
-        sa.Column("measurement_unit", sa.String(length=10), server_default="cm", nullable=False),
-        sa.Column("default_rotation", sa.Float(), server_default="0", nullable=False),
-        sa.Column("icon_or_preview", sa.String(length=500), nullable=True),
-        sa.Column("metadata", sa.JSON(), nullable=True),
-        sa.Column("is_system_item", sa.Boolean(), server_default=sa.text("true"), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True),
-        sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("code"),
-    )
-    op.create_index("ix_furniture_items_code", "furniture_items", ["code"])
-    op.create_index("ix_furniture_items_furniture_type", "furniture_items", ["furniture_type"])
-
     op.add_column("design_projects", sa.Column("review_comment", sa.Text(), nullable=True))
     op.add_column("design_projects", sa.Column("review_submitted_at", sa.DateTime(timezone=True), nullable=True))
     op.add_column("design_projects", sa.Column("reviewed_by_user_id", sa.Uuid(), nullable=True))
@@ -220,11 +150,12 @@ def downgrade() -> None:
     op.drop_column("design_projects", "reviewed_by_user_id")
     op.drop_column("design_projects", "review_submitted_at")
     op.drop_column("design_projects", "review_comment")
-    op.drop_index("ix_furniture_items_furniture_type", table_name="furniture_items")
-    op.drop_index("ix_furniture_items_code", table_name="furniture_items")
-    op.drop_table("furniture_items")
-    op.drop_index("ix_material_packages_name", table_name="material_packages")
-    op.drop_table("material_packages")
-    op.drop_index("ix_style_presets_is_system", table_name="style_presets")
-    op.drop_index("ix_style_presets_code", table_name="style_presets")
-    op.drop_table("style_presets")
+    style_presets = sa.table(
+        "style_presets",
+        sa.column("code", sa.String()),
+    )
+    op.execute(
+        style_presets.delete().where(
+            style_presets.c.code.in_([preset["code"] for preset in SYSTEM_STYLE_PRESETS])
+        )
+    )
