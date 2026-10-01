@@ -18,6 +18,7 @@ x-app-environment: &app-environment
   API_ENABLE_OPENAPI: "false"
   API_AUTH_ENABLED: "true"
   AUTH_COOKIE_SECURE: "true"
+  AUTH_COOKIE_DOMAIN: "os.investhome.com"
   FEATURE_N8N_AUTOMATION: "false"
   PUBLIC_FORM_BOT_VERIFY: "false"
   DOCUMENT_PROCESSING_SYNC: "false"

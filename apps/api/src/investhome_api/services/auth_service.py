@@ -121,6 +121,7 @@ def set_session_cookie(response: Response, token: str, expires_at: datetime) -> 
         max_age=max_age,
         expires=expires_at,
         path="/",
+        domain=settings.auth_cookie_domain,
     )
 
 

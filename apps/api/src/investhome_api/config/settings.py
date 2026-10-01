@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     auth_cookie_name: str = Field(default="ih_session", alias="AUTH_COOKIE_NAME")
     auth_cookie_secure: bool = Field(default=False, alias="AUTH_COOKIE_SECURE")
     auth_cookie_samesite: str = Field(default="lax", alias="AUTH_COOKIE_SAMESITE")
+    auth_cookie_domain: str | None = Field(default=None, alias="AUTH_COOKIE_DOMAIN")
 
     cors_origins: Annotated[list[str], NoDecode] = Field(
         default=["http://localhost:3000", "http://127.0.0.1:3000"],

@@ -90,6 +90,7 @@ def _clear_auth_cookie(response: Response, settings: Settings) -> None:
         secure=settings.auth_cookie_secure,
         httponly=True,
         samesite=cookie_samesite(settings),
+        domain=settings.auth_cookie_domain,
     )
 
 
