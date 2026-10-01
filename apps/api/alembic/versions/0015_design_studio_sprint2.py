@@ -1,4 +1,4 @@
-"""Design Studio Sprint 2 â€” style presets, materials, furniture, review fields.
+"""Design Studio Sprint 2 ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â style presets, materials, furniture, review fields.
 
 Revision ID: 0015_design_studio_sprint2
 Revises: 0014_visual_design_studio
@@ -102,19 +102,6 @@ SYSTEM_STYLE_PRESETS = [
 
 
 def upgrade() -> None:
-    op.add_column("design_projects", sa.Column("review_comment", sa.Text(), nullable=True))
-    op.add_column("design_projects", sa.Column("review_submitted_at", sa.DateTime(timezone=True), nullable=True))
-    op.add_column("design_projects", sa.Column("reviewed_by_user_id", sa.Uuid(), nullable=True))
-    op.add_column("design_projects", sa.Column("reviewed_at", sa.DateTime(timezone=True), nullable=True))
-    op.create_foreign_key(
-        "fk_design_projects_reviewed_by_user_id",
-        "design_projects",
-        "users",
-        ["reviewed_by_user_id"],
-        ["id"],
-        ondelete="SET NULL",
-    )
-
     style_presets = sa.table(
         "style_presets",
         sa.column("id", sa.Uuid()),
@@ -145,11 +132,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint("fk_design_projects_reviewed_by_user_id", "design_projects", type_="foreignkey")
-    op.drop_column("design_projects", "reviewed_at")
-    op.drop_column("design_projects", "reviewed_by_user_id")
-    op.drop_column("design_projects", "review_submitted_at")
-    op.drop_column("design_projects", "review_comment")
     style_presets = sa.table(
         "style_presets",
         sa.column("code", sa.String()),
