@@ -1,0 +1,267 @@
+# Production Compose foundation. Does not replace docker-compose.yml.
+# Does not deploy. Do not point this file at the development .env.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.production config
+#   docker compose -f docker-compose.prod.yml --env-file .env.production --profile n8n config
+#
+# Public traffic: Caddy :80/:443 only.
+# API and worker share image investhome-os-app:${INVESTHOME_IMAGE_TAG}.
+
+name: investhome-os-prod
+
+x-app-image: &app-image
+  image: investhome-os-app:${INVESTHOME_IMAGE_TAG:?INVESTHOME_IMAGE_TAG is required}
+
+x-app-environment: &app-environment
+  API_ENVIRONMENT: production
+  API_DEBUG: "false"
+  API_ENABLE_OPENAPI: "false"
+  API_AUTH_ENABLED: "true"
+  AUTH_COOKIE_SECURE: "true"
+  FEATURE_N8N_AUTOMATION: "false"
+  PUBLIC_FORM_BOT_VERIFY: "false"
+  DOCUMENT_PROCESSING_SYNC: "false"
+  AI_PROVIDER: local
+  OCR_PROVIDER: local
+  DOCUMENT_STORAGE_PROVIDER: local
+  DOCUMENT_STORAGE_ROOT: /var/lib/investhome/documents
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:?POSTGRES_DB is required}
+  REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/0
+  JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+  COMMUNICATION_CREDENTIAL_KEY: ${COMMUNICATION_CREDENTIAL_KEY:?COMMUNICATION_CREDENTIAL_KEY is required}
+  API_CORS_ORIGINS: ${API_CORS_ORIGINS:?API_CORS_ORIGINS is required}
+  API_TRUSTED_PROXY_IPS: ${API_TRUSTED_PROXY_IPS:?API_TRUSTED_PROXY_IPS is required}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./infrastructure/docker/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    command: ["postgres", "-c", "hba_file=/etc/postgresql/pg_hba.conf"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:?POSTGRES_USER is required} -d ${POSTGRES_DB:?POSTGRES_DB is required}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      backend:
+        ipv4_address: 172.30.1.10
+    # No host ports. Not attached to the frontend network.
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command:
+      [
+        "sh",
+        "-c",
+        "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\"",
+      ]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep -q PONG",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      backend:
+        ipv4_address: 172.30.1.11
+
+  api:
+    <<: *app-image
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *app-environment
+    command:
+      [
+        "uvicorn",
+        "investhome_api.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--proxy-headers",
+        "--forwarded-allow-ips",
+        "172.30.0.0/24",
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready')\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    volumes:
+      - document_storage:/var/lib/investhome/documents
+    networks:
+      frontend:
+        ipv4_address: 172.30.0.20
+      backend:
+        ipv4_address: 172.30.1.20
+
+  worker:
+    <<: *app-image
+    restart: unless-stopped
+    environment:
+      <<: *app-environment
+    command: ["arq", "investhome_api.worker.settings.WorkerSettings"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"from sqlalchemy import create_engine, text; import redis; from investhome_api.config.settings import get_settings; s=get_settings(); create_engine(s.database_url).connect().execute(text('select 1')); assert redis.from_url(s.redis_url).ping()\"",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 50s
+    volumes:
+      - document_storage:/var/lib/investhome/documents
+    networks:
+      backend:
+        ipv4_address: 172.30.1.21
+
+  web:
+    build:
+      context: .
+      dockerfile: ./apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL is required}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL is required}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?NEXT_PUBLIC_SITE_URL is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      PORTAL_SESSION_SECRET: ${PORTAL_SESSION_SECRET:?PORTAL_SESSION_SECRET is required}
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:3000/login').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      frontend:
+        ipv4_address: 172.30.0.30
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL is required}
+      PRODUCTION_WEB_HOST: ${PRODUCTION_WEB_HOST:?PRODUCTION_WEB_HOST is required}
+      PRODUCTION_API_HOST: ${PRODUCTION_API_HOST:?PRODUCTION_API_HOST is required}
+    volumes:
+      - ./infrastructure/docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:2019/config/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      frontend:
+        ipv4_address: 172.30.0.2
+
+  n8n:
+    # Optional: docker compose --profile n8n
+    # No host ports. Not on the frontend network. Requires N8N_* secrets in env.
+    profiles: ["n8n"]
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:?POSTGRES_DB is required}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      DB_POSTGRESDB_SCHEMA: n8n
+      N8N_HOST: n8n
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:-}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD:-}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-}
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      GENERIC_TIMEZONE: UTC
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./automations/n8n/workflows:/home/node/workflows:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      backend:
+        ipv4_address: 172.30.1.30
+
+volumes:
+  postgres_data:
+  redis_data:
+  document_storage:
+  caddy_data:
+  caddy_config:
+  n8n_data:
+
+networks:
+  frontend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+  backend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.1.0/24

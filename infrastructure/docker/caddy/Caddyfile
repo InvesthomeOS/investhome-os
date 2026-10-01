@@ -1,0 +1,24 @@
+# Production reverse proxy. Hostnames come from the environment.
+# Do not put real domains or certificates in this file.
+#
+# Public routing:
+#   {$PRODUCTION_WEB_HOST}  -> web:3000
+#   {$PRODUCTION_API_HOST}  -> api:8000  (includes /webhooks/whatsapp)
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$PRODUCTION_WEB_HOST} {
+	encode gzip
+	reverse_proxy web:3000
+}
+
+{$PRODUCTION_API_HOST} {
+	encode gzip
+	reverse_proxy api:8000 {
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+		header_up X-Real-IP {remote_host}
+	}
+}
