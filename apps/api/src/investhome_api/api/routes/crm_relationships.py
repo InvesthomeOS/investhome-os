@@ -21,6 +21,7 @@ from investhome_api.schemas.crm_relationships import (
     CrmRelationshipAlertStatusUpdate,
     CrmRelationshipBulkActionRequest,
     CrmRelationshipBulkActionResponse,
+    CrmRelationshipCounts,
     CrmRelationshipCreate,
     CrmRelationshipDetail,
     CrmRelationshipDuplicateCandidate,
@@ -66,6 +67,7 @@ from investhome_api.services.crm.relationship_service import (
     list_relationships,
     list_reviews,
     list_saved_views,
+    relationship_workspace_counts,
     restore_relationship,
     serialize_referral,
     serialize_relationship_detail,
@@ -102,6 +104,9 @@ def list_crm_relationships(
     status_filter: str | None = Query(default=None, alias="status"),
     category: str | None = Query(default=None),
     relationship_type: str | None = Query(default=None),
+    pair_kind: str | None = Query(default=None),
+    owner_user_id: UUID | None = Query(default=None),
+    project_group: str | None = Query(default=None),
     entity_type: str | None = Query(default=None),
     entity_id: UUID | None = Query(default=None),
     include_archived: bool = Query(default=False),
@@ -118,6 +123,9 @@ def list_crm_relationships(
         status_filter=status_filter,
         category=category,
         relationship_type=relationship_type,
+        pair_kind=pair_kind,
+        owner_user_id=owner_user_id,
+        project_group=project_group,
         entity_type=entity_type,
         entity_id=entity_id,
         include_archived=include_archived,
@@ -127,6 +135,15 @@ def list_crm_relationships(
         page=page,
         page_size=page_size,
     )
+
+
+@router.get("/counts", response_model=CrmRelationshipCounts)
+def get_relationship_counts(
+    db: Session = Depends(get_db),
+    user: User = Depends(_require_relationships_read()),
+) -> CrmRelationshipCounts:
+    del user
+    return relationship_workspace_counts(db)
 
 
 @router.post("", response_model=CrmRelationshipDetail, status_code=status.HTTP_201_CREATED)
@@ -159,9 +176,11 @@ def get_graph(
     center_entity_type: str | None = Query(default=None),
     center_entity_id: UUID | None = Query(default=None),
     depth: int = Query(default=2, ge=1, le=5),
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: int = Query(default=200, ge=1, le=200),
     category: str | None = Query(default=None),
     relationship_type: str | None = Query(default=None),
+    project_group: str | None = Query(default=None),
+    pair_kind: str | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User = Depends(_require_relationships_read()),
 ) -> CrmRelationshipGraphResponse:
@@ -174,6 +193,8 @@ def get_graph(
         include_confidential=can_view_confidential(user),
         category=category,
         relationship_type=relationship_type,
+        project_group=project_group,
+        pair_kind=pair_kind,
     )
 
 

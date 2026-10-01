@@ -28,7 +28,7 @@ export function PurchaseCardDrawer({ agreementId, onClose }: PurchaseCardDrawerP
       <Drawer
         open
         onClose={onClose}
-        title="Satın alma"
+        title="Satın Alma Detayı"
         size={compact ? 'full' : 'lg'}
         ariaLabel="Satın alma detayı"
       >

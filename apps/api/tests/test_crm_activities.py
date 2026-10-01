@@ -94,10 +94,24 @@ def test_list_activities_pagination_search_and_filters(client: TestClient) -> No
 
 def test_get_timeline(client: TestClient) -> None:
     contact_id = _create_contact(client)
-    client.post("/crm/activities", json=_activity_payload(contact_id))
+    created = client.post("/crm/activities", json=_activity_payload(contact_id))
+    assert created.status_code == 201, created.text
+    contact_name = client.get(f"/crm/contacts/{contact_id}").json()["display_name"]
     response = client.get(f"/crm/timeline?entity_type=contact&entity_id={contact_id}")
     assert response.status_code == 200
-    assert len(response.json()["items"]) >= 1
+    body = response.json()
+    assert len(body["items"]) >= 1
+    assert body["total"] == len(body["items"]) or body["total"] >= len(body["items"])
+    named = [item for item in body["items"] if item.get("entity_id") == contact_id]
+    assert named
+    assert all(item.get("person_name") not in {None, "Contact", "contact"} for item in named)
+    assert any(item.get("person_name") == contact_name for item in named)
+
+    notes = client.get(
+        f"/crm/timeline?entity_type=contact&entity_id={contact_id}&event_kind=note"
+    )
+    assert notes.status_code == 200
+    assert all(item.get("event_kind") == "note" for item in notes.json()["items"] if item.get("source") == "crm_activity")
 
 
 def test_create_task_and_complete(client: TestClient) -> None:
@@ -221,3 +235,108 @@ def test_activity_widgets(client: TestClient) -> None:
     body = response.json()
     assert "todays_tasks" in body
     assert "recent_activities" in body
+
+
+def _login(client: TestClient, email: str, password: str = "Demo123!") -> None:
+    response = client.post("/auth/login", json={"email": email, "password": password})
+    assert response.status_code == 200, response.text
+
+
+def _crm_reader(db) -> str:
+    from uuid import uuid4 as _uuid4
+
+    from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole, UserStatus
+    from investhome_api.services.auth_service import hash_password
+
+    perm_read = db.query(Permission).filter_by(resource="crm", action="read").one()
+    perm_activities = db.query(Permission).filter_by(resource="crm", action="view_activities").one_or_none()
+    if perm_activities is None:
+        perm_activities = Permission(resource="crm", action="view_activities")
+        db.add(perm_activities)
+        db.flush()
+    role = Role(name="crm_activity_reader", code=f"crm_act_{_uuid4().hex[:6]}", is_system_role=False)
+    db.add(role)
+    db.flush()
+    db.add(RolePermission(role_id=role.id, permission_id=perm_read.id))
+    db.add(RolePermission(role_id=role.id, permission_id=perm_activities.id))
+    email = f"crm.act.{_uuid4().hex[:8]}@example.com"
+    user = User(
+        email=email,
+        full_name="CRM Activity Reader",
+        hashed_password=hash_password("Demo123!"),
+        status=UserStatus.ACTIVE,
+    )
+    db.add(user)
+    db.flush()
+    db.add(UserRole(user_id=user.id, role_id=role.id))
+    return email
+
+
+def test_private_activity_hidden_from_unauthorized_direct_id_and_contact(
+    auth_client: TestClient, db
+) -> None:
+    from sqlalchemy.orm import Session
+
+    assert isinstance(db, Session)
+    _login(auth_client, "sales@example.com")
+    contact_id = _create_contact(auth_client)
+    private = auth_client.post(
+        "/crm/activities",
+        json=_activity_payload(contact_id, title="Secret private note", visibility="private"),
+    )
+    public = auth_client.post(
+        "/crm/activities",
+        json=_activity_payload(contact_id, title="Org visible note", visibility="organization"),
+    )
+    assert private.status_code == 201, private.text
+    assert public.status_code == 201, public.text
+    private_id = private.json()["activity"]["id"]
+    public_id = public.json()["activity"]["id"]
+
+    owner_detail = auth_client.get(f"/crm/activities/{private_id}")
+    assert owner_detail.status_code == 200, owner_detail.text
+    assert owner_detail.json()["id"] == private_id
+    assert owner_detail.json()["visibility"] == "private"
+    assert auth_client.get(f"/crm/activities/{public_id}").status_code == 200
+
+    owner_list = auth_client.get(f"/crm/activities?entity_type=contact&entity_id={contact_id}")
+    owner_ids = {item["id"] for item in owner_list.json()["items"]}
+    assert private_id in owner_ids
+    assert public_id in owner_ids
+
+    owner_contact = auth_client.get(f"/crm/contacts/{contact_id}")
+    owner_embedded = {item["id"] for item in owner_contact.json()["crm_activities"]}
+    assert private_id in owner_embedded
+    assert public_id in owner_embedded
+
+    email = _crm_reader(db)
+    db.commit()
+    auth_client.post("/auth/logout")
+    _login(auth_client, email)
+
+    hidden = auth_client.get(f"/crm/activities/{private_id}")
+    assert hidden.status_code == 404
+    assert "Secret private note" not in hidden.text
+    visible = auth_client.get(f"/crm/activities/{public_id}")
+    assert visible.status_code == 200
+    assert visible.json()["id"] == public_id
+    assert visible.json()["title"] == "Org visible note"
+
+    other_list = auth_client.get(f"/crm/activities?entity_type=contact&entity_id={contact_id}")
+    other_ids = {item["id"] for item in other_list.json()["items"]}
+    assert private_id not in other_ids
+    assert public_id in other_ids
+
+    other_contact = auth_client.get(f"/crm/contacts/{contact_id}")
+    assert other_contact.status_code == 200
+    embedded = other_contact.json()["crm_activities"]
+    embedded_ids = {item["id"] for item in embedded}
+    assert private_id not in embedded_ids
+    assert public_id in embedded_ids
+    assert all(item.get("title") != "Secret private note" for item in embedded)
+
+    timeline = auth_client.get(f"/crm/contacts/{contact_id}/timeline")
+    assert timeline.status_code == 200
+    timeline_ids = {item["id"] for item in timeline.json()["items"]}
+    assert private_id not in timeline_ids
+    assert public_id in timeline_ids

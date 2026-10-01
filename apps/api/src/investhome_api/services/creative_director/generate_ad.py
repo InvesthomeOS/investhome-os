@@ -459,6 +459,7 @@ def adapt_final_turkish_texts(
     approved_claims: list[Any],
     original_brief: str,
     lifestyle: bool = False,
+    invent_commercial_fallbacks: bool = True,
 ) -> dict[str, str]:
     """Map CD concept → natural Turkish ad copy. Facts stay locked to approved claims."""
     lang = (language or "tr").strip().lower() or "tr"
@@ -506,6 +507,49 @@ def adapt_final_turkish_texts(
             "unit": "",
             "price_hierarchy": "",
             "campaign_mode": "lifestyle",
+        }
+
+    if not invent_commercial_fallbacks:
+        presentation = _as_dict(pricing.get("price_presentation"))
+        list_price = str(presentation.get("list") or "").strip()
+        offer_price = str(presentation.get("offer") or "").strip()
+        discount = _as_dict(presentation.get("discount") or pricing.get("discount"))
+        discount_display = str(discount.get("display") or "").strip()
+        unit_display = ""
+        for claim in approved_claims:
+            if isinstance(claim, dict) and claim.get("key") == "unit_code":
+                unit_display = str(claim.get("display") or "").strip()
+                break
+        headline = lock_copy_to_language(big_idea or hero, language=lang, fallback="") or (big_idea or hero or "")
+        sales_line = lock_copy_to_language(sales_hook, language=lang, fallback="") or ""
+        cta = lock_copy_to_language(cta_src, language=lang, fallback="") or ""
+        labeled = extract_labeled_brief_copy(original_brief)
+        if labeled.get("headline"):
+            headline = labeled["headline"]
+        if labeled.get("cta"):
+            cta = labeled["cta"]
+        if labeled.get("unit"):
+            unit_display = labeled["unit"]
+        price_hierarchy = f"{list_price} → {offer_price}" if (list_price or offer_price) else ""
+        value_badge = f"{discount_display} lansman fiyat avantajı" if discount_display else ""
+        return {
+            "language": lang,
+            "big_idea": headline,
+            "hero": headline,
+            "sales_hook": sales_line,
+            "eyebrow": "",
+            "headline": headline,
+            "supporting": "",
+            "supporting_callouts": "",
+            "offer": price_hierarchy,
+            "list_price": list_price,
+            "offer_price": offer_price,
+            "value": lock_copy_to_language(value_src, language=lang, fallback="") or "",
+            "value_badge": value_badge,
+            "cta": cta,
+            "unit": unit_display,
+            "price_hierarchy": price_hierarchy,
+            "campaign_mode": "project",
         }
 
     presentation = _as_dict(pricing.get("price_presentation"))
@@ -860,6 +904,7 @@ def _prepare_campaign_ad_context(
         approved_claims=approved_claims,
         original_brief=original_brief,
         lifestyle=lifestyle,
+        invent_commercial_fallbacks=not bool(ctx.get("quick_creative")),
     )
     allowed_tokens = _pricing_tokens(pricing, approved_claims, lifestyle=lifestyle)
     engine = _as_dict(ctx.get("generation_engine"))
@@ -1470,6 +1515,29 @@ def generate_ad_from_campaign(
                 background_asset_id=body.background_asset_id,
             ),
         )
+
+    from investhome_api.services.creative_director.stage3_canonical_pipeline import maybe_refuse_legacy_premium_generation
+
+    preview = db.get(CreativeDirectorCampaign, campaign_id)
+    if preview is not None:
+        preview_ctx = dict(preview.context_json or {})
+        preview_brief = str(preview_ctx.get("original_user_brief") or getattr(preview, "original_brief", "") or "")
+        refusal = maybe_refuse_legacy_premium_generation(
+            preview_ctx,
+            user_text=preview_brief,
+            production_mode=str(getattr(body, "production_mode", "") or ""),
+            workflow=str(getattr(body, "workflow", "") or ""),
+        )
+        if refusal:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=refusal["detail"])
+
+    from investhome_api.services.creative_director.phase5_workflow import (
+        generate_ad_phase5,
+        should_route_generate_to_phase5,
+    )
+
+    if should_route_generate_to_phase5(body):
+        return generate_ad_phase5(db, user, campaign_id, body)
 
     prep = _prepare_campaign_ad_context(db, campaign_id, body)
     (

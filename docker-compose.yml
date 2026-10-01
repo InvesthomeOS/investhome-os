@@ -4,16 +4,18 @@ services:
     container_name: investhome-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-investhome}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-investhome}
-      POSTGRES_DB: ${POSTGRES_DB:-investhome}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/docker/postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./infrastructure/docker/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    command: ["postgres", "-c", "hba_file=/etc/postgresql/pg_hba.conf"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-investhome} -d ${POSTGRES_DB:-investhome}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:?POSTGRES_USER is required} -d ${POSTGRES_DB:?POSTGRES_DB is required}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,13 +27,24 @@ services:
     image: redis:7-alpine
     container_name: investhome-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command:
+      [
+        "sh",
+        "-c",
+        "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\"",
+      ]
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        [
+          "CMD-SHELL",
+          "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep -q PONG",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -47,11 +60,11 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-investhome}:${POSTGRES_PASSWORD:-investhome}@postgres:5432/${POSTGRES_DB:-investhome}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:?POSTGRES_DB is required}
       API_ENVIRONMENT: ${API_ENVIRONMENT:-development}
-      API_CORS_ORIGINS: ${API_CORS_ORIGINS:-'["http://localhost:3000"]'}
+      API_CORS_ORIGINS: ${API_CORS_ORIGINS:-'["http://localhost:3000","http://127.0.0.1:3000"]'}
       DOCUMENT_STORAGE_ROOT: /var/lib/investhome/documents
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/0
       DOCUMENT_PROCESSING_SYNC: ${DOCUMENT_PROCESSING_SYNC:-false}
       AI_PROVIDER: ${AI_PROVIDER:-local}
       AI_MODEL: ${AI_MODEL:-local-heuristic-v1}
@@ -66,6 +79,8 @@ services:
       GPT_IMAGE_QUALITY: ${GPT_IMAGE_QUALITY:-medium}
       CANVA_CLIENT_ID: ${CANVA_CLIENT_ID:-}
       CANVA_CLIENT_SECRET: ${CANVA_CLIENT_SECRET:-}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      COMMUNICATION_CREDENTIAL_KEY: ${COMMUNICATION_CREDENTIAL_KEY:?COMMUNICATION_CREDENTIAL_KEY is required}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -93,8 +108,8 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-investhome}:${POSTGRES_PASSWORD:-investhome}@postgres:5432/${POSTGRES_DB:-investhome}
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:?POSTGRES_DB is required}
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/0
       DOCUMENT_STORAGE_ROOT: /var/lib/investhome/documents
       DOCUMENT_PROCESSING_SYNC: "false"
       AI_PROVIDER: ${AI_PROVIDER:-local}
@@ -108,6 +123,8 @@ services:
       GPT_IMAGE_ENABLED: ${GPT_IMAGE_ENABLED:-true}
       GPT_IMAGE_MODEL: ${GPT_IMAGE_MODEL:-gpt-image-2}
       GPT_IMAGE_QUALITY: ${GPT_IMAGE_QUALITY:-medium}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      COMMUNICATION_CREDENTIAL_KEY: ${COMMUNICATION_CREDENTIAL_KEY:?COMMUNICATION_CREDENTIAL_KEY is required}
     command: ["arq", "investhome_api.worker.settings.WorkerSettings"]
     depends_on:
       postgres:
@@ -131,8 +148,8 @@ services:
       - .env
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
-      JWT_SECRET: ${JWT_SECRET:-dev-only-change-in-production-use-long-random-string}
-      PORTAL_SESSION_SECRET: ${PORTAL_SESSION_SECRET:-investhome-portal-demo-session-secret}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      PORTAL_SESSION_SECRET: ${PORTAL_SESSION_SECRET:?PORTAL_SESSION_SECRET is required}
     ports:
       - "${WEB_PORT:-3000}:3000"
     depends_on:
@@ -151,9 +168,9 @@ services:
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: postgres
       DB_POSTGRESDB_PORT: 5432
-      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-investhome}
-      DB_POSTGRESDB_USER: ${POSTGRES_USER:-investhome}
-      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:-investhome}
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:?POSTGRES_DB is required}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       DB_POSTGRESDB_SCHEMA: n8n
       N8N_HOST: ${N8N_HOST:-localhost}
       N8N_PORT: 5678
@@ -162,11 +179,11 @@ services:
       N8N_BASIC_AUTH_ACTIVE: ${N8N_BASIC_AUTH_ACTIVE:-true}
       N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:-admin}
       N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD:-changeme}
-      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-replace-with-32-char-encryption-key}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY is required}
       N8N_DIAGNOSTICS_ENABLED: ${N8N_DIAGNOSTICS_ENABLED:-false}
       GENERIC_TIMEZONE: UTC
     ports:
-      - "${N8N_PORT:-5678}:5678"
+      - "127.0.0.1:${N8N_PORT:-5678}:5678"
     volumes:
       - n8n_data:/home/node/.n8n
       - ./automations/n8n/workflows:/home/node/workflows:ro

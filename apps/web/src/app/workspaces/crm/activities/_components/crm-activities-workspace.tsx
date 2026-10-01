@@ -1,404 +1,470 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useTranslations } from 'next-intl';
-import { useQuery } from '@tanstack/react-query';
+import type { Route } from 'next';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
-import { Button, Input, KpiCard, LoadingState, Select, StatusChip } from '@investhome/ui';
+import { Button, ErrorState, Input, Select, StatusChip } from '@investhome/ui';
 
-import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 import { fetchUsers } from '@/lib/api/auth';
-import { fetchContacts } from '@/workspaces/crm/api/contacts';
-import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
-import { activityQueries } from '@/workspaces/crm/hooks/use-activities';
-import { buildActivitiesPreview, matchesDateFilter } from '@/workspaces/crm/lib/map-live-workspace';
-import type { ActivityListParams, CrmActivityStatus, CrmActivityType } from '@/workspaces/crm/types/activities';
+import { useCrmAccess } from '@/lib/crm/use-crm-access';
+import { fetchAgreements } from '@/workspaces/crm/api/agreements';
+import { salesDetailUrl } from '@/workspaces/crm/contact-card/pilot-people';
+import { activityQueries, activityQueryKeys } from '@/workspaces/crm/hooks/use-activities';
+import { contactQueries } from '@/workspaces/crm/hooks/use-contacts';
+import type { ActivityListParams, CrmActivityStatus } from '@/workspaces/crm/types/activities';
 
 import {
-  ACTIVITY_PRIORITY_ORDER,
-  ACTIVITY_STATUS_ORDER,
-  ACTIVITY_TYPE_ICONS,
-  ACTIVITY_TYPE_ORDER,
-  type ActivityAiActionKey,
-  type ActivityKpiKey,
-  type ActivityPriorityKey,
-  type ActivityRow,
-  type ActivityStatusKey,
-  type ActivityTypeKey,
-  type ActivityWorkspacePreview,
-} from '../activities-model';
+  EVENT_KIND_OPTIONS,
+  TIMELINE_STATUSES,
+  clusterCommunicationEvents,
+  formatEventDateTime,
+  mapTimelineEntry,
+  type TimelineEvent,
+  type TimelineFeedRow,
+} from '@/app/workspaces/crm/timeline/_components/ds/timeline-ds-model';
 
-const AI_ACTIONS: ReadonlyArray<{ key: ActivityAiActionKey; icon: IhIconName }> = [
-  { key: 'summarizeToday', icon: 'sparkles' },
-  { key: 'showFollowUps', icon: 'clock' },
-  { key: 'missedCustomers', icon: 'alert' },
-  { key: 'aiSummary', icon: 'activity' },
-];
+import '../activities.css';
 
-const KPI_ICONS: Record<ActivityKpiKey, IhIconName> = {
-  today: 'calendar',
-  completed: 'check',
-  pending: 'clock',
-  overdue: 'alert',
+type OpsFilters = {
+  search: string;
+  eventKind: string;
+  person: string;
+  personId: string | null;
+  projectGroup: string;
+  ownerId: string;
+  status: string;
+  dateFrom: string;
+  dateTo: string;
 };
 
-const STATUS_TONE: Record<ActivityStatusKey, 'success' | 'warning' | 'info' | 'default' | 'danger'> = {
-  completed: 'success',
-  pending: 'warning',
-  cancelled: 'default',
-  inProgress: 'info',
+const EMPTY_FILTERS: OpsFilters = {
+  search: '',
+  eventKind: '',
+  person: '',
+  personId: null,
+  projectGroup: '',
+  ownerId: '',
+  status: '',
+  dateFrom: '',
+  dateTo: '',
 };
 
-const PRIORITY_TONE: Record<ActivityPriorityKey, 'success' | 'warning' | 'info' | 'default' | 'danger'> = {
-  low: 'info',
-  medium: 'warning',
-  high: 'danger',
-  critical: 'danger',
-};
+function isLiveActivityId(id: string): boolean {
+  return (
+    !id.startsWith('log-') &&
+    !id.startsWith('agreement-') &&
+    !id.startsWith('document-') &&
+    !id.startsWith('cluster-')
+  );
+}
 
-const UI_TYPE_TO_API: Record<ActivityTypeKey, CrmActivityType[]> = {
-  phone: ['phone_call'],
-  whatsapp: ['whatsapp'],
-  email: ['email'],
-  meeting: ['meeting', 'investor_meeting', 'construction_meeting', 'site_visit', 'property_tour'],
-  note: ['note', 'comment', 'internal_discussion'],
-  documentShared: ['document_sent', 'document_received'],
-  missedCall: ['other'],
-  sms: ['sms'],
-  videoCall: ['zoom_meeting', 'teams_meeting'],
-};
+function personLabel(event: TimelineEvent, unresolved: string): string {
+  const name = event.personName?.trim();
+  if (name) return name;
+  if (event.entityKind === 'people' && event.entityId) return unresolved;
+  return '—';
+}
 
-function dateFilterRange(value: string): { date_from?: string; date_to?: string } {
-  if (!value) return {};
-  const now = new Date();
-  const end = now.toISOString();
-  if (value === 'today') {
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    return { date_from: start.toISOString(), date_to: end };
+function projectUnit(event: TimelineEvent): string {
+  const parts = [event.projectLabel, event.unitNumber ? `Daire ${event.unitNumber}` : null].filter(Boolean);
+  return parts.join(' · ') || '—';
+}
+
+function statusKey(status?: string): 'completed' | 'planned' | 'scheduled' | 'in_progress' | 'cancelled' | 'missed' | 'deferred' {
+  if (
+    status === 'planned' ||
+    status === 'scheduled' ||
+    status === 'in_progress' ||
+    status === 'cancelled' ||
+    status === 'missed' ||
+    status === 'deferred'
+  ) {
+    return status;
   }
-  const days = value === '7d' ? 7 : value === '30d' ? 30 : value === '90d' ? 90 : 0;
-  if (!days) return {};
-  const start = new Date(now.getTime() - days * 86_400_000);
-  return { date_from: start.toISOString(), date_to: end };
+  return 'completed';
 }
 
-function mapUiStatus(value: string): { status?: CrmActivityStatus; pending?: boolean; completed?: boolean } {
-  if (value === 'completed') return { status: 'completed' };
-  if (value === 'cancelled') return { status: 'cancelled' };
-  if (value === 'inProgress') return { status: 'in_progress' };
-  if (value === 'pending') return { pending: true };
-  return {};
-}
-
-type FilterKey =
-  | 'customer'
-  | 'salesRep'
-  | 'type'
-  | 'status'
-  | 'priority'
-  | 'date'
-  | 'search';
-
-function ActivityTypeIcon({ type }: { type: ActivityTypeKey }) {
-  return (
-    <span className={`crm-activities-ds__type-icon is-${type}`} aria-hidden="true">
-      <IhIcon name={ACTIVITY_TYPE_ICONS[type]} size={15} />
-    </span>
-  );
-}
-
-function ActivityCell({ row }: { row: ActivityRow }) {
-  const t = useTranslations('crm.activities');
-  const description = row.description ?? t(`rowDescriptions.${row.descriptionKey}`);
-  const title = row.title ?? t(`types.${row.titleKey}`);
-
-  return (
-    <div className="crm-activities-ds__activity-cell">
-      <ActivityTypeIcon type={row.type} />
-      <div className="crm-activities-ds__activity-text">
-        <strong>{title}</strong>
-        <span className="crm-activities-ds__clamp-fade" title={description}>
-          {description}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function AiSummaryCell({ summaryKey, summaryText }: { summaryKey: string; summaryText?: string }) {
-  const t = useTranslations('crm.activities');
-  const [expanded, setExpanded] = useState(false);
-  const summary = summaryText ?? t(`aiSummaries.${summaryKey}`);
-  const needsToggle = summary.length > 48;
-
-  return (
-    <div className="crm-activities-ds__ai-summary">
-      <p
-        className={
-          expanded
-            ? 'crm-activities-ds__ai-cell is-expanded'
-            : 'crm-activities-ds__ai-cell crm-activities-ds__clamp-fade'
-        }
-        title={summary}
-      >
-        {summary}
-      </p>
-      {needsToggle ? (
-        <button
-          type="button"
-          className="crm-activities-ds__ai-more"
-          aria-expanded={expanded}
-          onClick={(e) => {
-            e.stopPropagation();
-            setExpanded((v) => !v);
-          }}
-        >
-          {expanded ? t('actions.collapse') : t('actions.expand')}
-          <IhIcon name="chevronDown" size={11} />
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-export function CrmActivitiesWorkspace({
-  preview: previewProp,
-  onOpenAi,
+function ActivityDrawer({
+  event,
+  onClose,
 }: {
-  preview?: ActivityWorkspacePreview;
-  /** Opens Dashboard Freeze AI drawer when provided by the shell. */
-  onOpenAi?: (prompt?: string) => void;
+  event: TimelineEvent;
+  onClose: () => void;
 }) {
   const t = useTranslations('crm.activities');
-  const { openContact } = useContactCard();
-  const [aiAction, setAiAction] = useState<ActivityAiActionKey>('summarizeToday');
-  const [filters, setFilters] = useState<Record<FilterKey, string>>({
-    customer: '',
-    salesRep: '',
-    type: '',
-    status: '',
-    priority: '',
-    date: '',
-    search: '',
+  const locale = useLocale();
+  const router = useRouter();
+  const liveId = isLiveActivityId(event.id) ? event.id : '';
+  const detailQuery = useQuery({
+    ...activityQueries.detail(liveId),
+    enabled: Boolean(liveId),
   });
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const description =
+    detailQuery.data?.description ||
+    detailQuery.data?.summary ||
+    event.fullDescription ||
+    event.description;
+  const related = detailQuery.data?.attachments?.[0]?.file_name || event.documentName;
+  const person = personLabel(event, t('unresolvedIdentity'));
+  const owner = event.owner?.trim() || detailQuery.data?.owner_name || detailQuery.data?.assigned_user_name || '—';
+  const purchaseHref =
+    event.agreementId && event.entityId && event.entityKind === 'people'
+      ? salesDetailUrl(event.entityId, event.agreementId)
+      : event.purchaseHref;
 
-  const patchFilters = (patch: Partial<Record<FilterKey, string>>) => {
-    setFilters((prev) => ({ ...prev, ...patch }));
-    setPage(1);
-  };
+  return (
+    <aside className="crm-activities-ds__drawer" role="dialog" aria-label={t('drawer.title')} data-testid="crm-activities-drawer">
+      <div className="crm-activities-ds__drawer-head">
+        <h3>{t('drawer.title')}</h3>
+        <button type="button" className="crm-activities-ds__link-btn" onClick={onClose}>
+          {t('actions.close')}
+        </button>
+      </div>
+      <div className="crm-activities-ds__drawer-body">
+        <dl className="crm-activities-ds__kv">
+          <dt>{t('drawer.person')}</dt>
+          <dd>{person}</dd>
+          <dt>{t('drawer.project')}</dt>
+          <dd>{event.projectLabel || '—'}</dd>
+          <dt>{t('drawer.unit')}</dt>
+          <dd>{event.unitNumber || '—'}</dd>
+          <dt>{t('drawer.type')}</dt>
+          <dd>{event.sourceBadge}</dd>
+          <dt>{t('drawer.when')}</dt>
+          <dd>{formatEventDateTime(event.occurredAt, locale)}</dd>
+          <dt>{t('drawer.owner')}</dt>
+          <dd>{owner}</dd>
+          <dt>{t('drawer.status')}</dt>
+          <dd>{t(`statuses.${statusKey(event.status)}`)}</dd>
+          <dt>{t('drawer.source')}</dt>
+          <dd>
+            {[event.sourceBadge, event.recordSource].filter(Boolean).join(' · ') || '—'}
+          </dd>
+        </dl>
+        <section>
+          <h4>{t('drawer.description')}</h4>
+          <p>{description || t('drawer.noDescription')}</p>
+        </section>
+        {related ? (
+          <section>
+            <h4>{t('drawer.related')}</h4>
+            <p>{related}</p>
+          </section>
+        ) : null}
+        <div className="crm-activities-ds__drawer-actions">
+          {event.contactHref ? (
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={() => router.push(event.contactHref as Route)}
+            >
+              {t('actions.openContact')}
+            </Button>
+          ) : null}
+          {purchaseHref ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => router.push(purchaseHref as Route)}
+            >
+              {t('actions.openPurchase')}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    </aside>
+  );
+}
 
-  const listParams = useMemo<ActivityListParams>(() => {
-    const statusBits = mapUiStatus(filters.status);
-    return {
-      page,
-      page_size: pageSize,
+export function CrmActivitiesWorkspace() {
+  const t = useTranslations('crm.activities');
+  const tCommon = useTranslations('common');
+  const locale = useLocale();
+  const { authLoading, canRead: canView } = useCrmAccess();
+  const [filters, setFilters] = useState<OpsFilters>(EMPTY_FILTERS);
+  const [searchDraft, setSearchDraft] = useState('');
+  const [personDraft, setPersonDraft] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [expandedClusters, setExpandedClusters] = useState<Set<string>>(new Set());
+
+  const canQuery = !authLoading && canView;
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setFilters((prev) => ({ ...prev, search: searchDraft }));
+    }, 220);
+    return () => window.clearTimeout(timer);
+  }, [searchDraft]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setFilters((prev) => ({
+        ...prev,
+        person: personDraft,
+        personId: personDraft.trim() ? prev.personId : null,
+      }));
+    }, 220);
+    return () => window.clearTimeout(timer);
+  }, [personDraft]);
+
+  const apiFilters = useMemo<ActivityListParams>(() => {
+    const params: ActivityListParams = {
+      page: 1,
+      page_size: 40,
       sort_by: 'created_at',
       sort_dir: 'desc',
-      search: filters.search.trim() || undefined,
-      entity_type: filters.customer ? 'contact' : undefined,
-      entity_id: filters.customer || undefined,
-      activity_types: filters.type ? UI_TYPE_TO_API[filters.type as ActivityTypeKey] : undefined,
-      priority: (filters.priority as ActivityPriorityKey) || undefined,
-      responsible_user_id: filters.salesRep || undefined,
-      ...dateFilterRange(filters.date),
-      ...statusBits,
     };
-  }, [filters, page, pageSize]);
+    if (filters.search.trim()) params.search = filters.search.trim();
+    if (filters.personId) {
+      params.entity_type = 'contact';
+      params.entity_id = filters.personId;
+    } else if (filters.person.trim()) {
+      params.contact_search = filters.person.trim();
+    }
+    if (filters.projectGroup) params.project_group = filters.projectGroup;
+    if (filters.eventKind) params.event_kind = filters.eventKind;
+    if (filters.ownerId) params.owner_id = filters.ownerId;
+    if (filters.status) params.status = filters.status as CrmActivityStatus;
+    if (filters.dateFrom) params.date_from = `${filters.dateFrom}T00:00:00.000Z`;
+    if (filters.dateTo) params.date_to = `${filters.dateTo}T23:59:59.999Z`;
+    return params;
+  }, [filters]);
 
-  const liveQuery = useQuery({
-    ...activityQueries.list(listParams),
-    enabled: !previewProp,
+  const listQuery = useInfiniteQuery({
+    queryKey: activityQueryKeys.timeline(apiFilters),
+    queryFn: ({ pageParam = 1 }) =>
+      activityQueries.timeline({ ...apiFilters, page: pageParam }).queryFn(),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (lastPage.page < lastPage.pages ? lastPage.page + 1 : undefined),
+    enabled: canQuery,
   });
-  const widgetsQuery = useQuery({
-    ...activityQueries.widgets(),
-    enabled: !previewProp,
+
+  const liveItems = useMemo(
+    () => listQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [listQuery.data],
+  );
+  const events = useMemo(() => liveItems.map(mapTimelineEntry), [liveItems]);
+  const rows = useMemo(() => clusterCommunicationEvents(events), [events]);
+  const total = listQuery.data?.pages[0]?.total ?? events.length;
+  const selected = events.find((event) => event.id === selectedId) ?? null;
+
+  const projectsQuery = useQuery({
+    queryKey: ['crm', 'agreements', 'activity-projects'],
+    queryFn: () => fetchAgreements({ page: 1, page_size: 1 }),
+    enabled: canQuery,
   });
   const usersQuery = useQuery({
     queryKey: ['users', 'activity-filter'],
     queryFn: () => fetchUsers({ status: 'active' }),
-    enabled: !previewProp,
+    enabled: canQuery,
   });
-  const contactsQuery = useQuery({
-    queryKey: ['crm', 'contacts', 'activity-filter'],
-    queryFn: () => fetchContacts({ page: 1, page_size: 100, sort_by: 'last_contact_at', sort_dir: 'desc' }),
-    enabled: !previewProp,
+  const personSuggestQuery = useQuery({
+    ...contactQueries.list({ search: personDraft.trim(), page: 1, page_size: 8 }),
+    enabled: canQuery && personDraft.trim().length >= 2 && !filters.personId,
   });
-  const preview = previewProp ?? buildActivitiesPreview(liveQuery.data?.items ?? [], liveQuery.data?.total ?? 0);
 
-  const filteredActivities = useMemo(() => {
-    if (!previewProp) return preview.activities;
-    let items = [...preview.activities];
-    if (aiAction === 'showFollowUps') {
-      items = items.filter((a) => a.status === 'pending' || a.priority === 'critical');
-    } else if (aiAction === 'missedCustomers') {
-      items = items.filter((a) => a.type === 'missedCall' || a.status === 'pending');
-    }
-    return items.filter((row) => {
-      if (filters.customer && row.customer !== filters.customer) return false;
-      if (filters.salesRep && row.salesRep !== filters.salesRep) return false;
-      if (filters.type && row.type !== filters.type) return false;
-      if (filters.status && row.status !== filters.status) return false;
-      if (filters.priority && row.priority !== filters.priority) return false;
-      if (filters.date && !matchesDateFilter(row.occurredAt, filters.date)) return false;
-      if (filters.search) {
-        const q = filters.search.trim().toLowerCase();
-        const haystack = `${row.title ?? ''} ${row.description ?? ''} ${row.aiSummary ?? ''} ${row.customer} ${row.customerDetail} ${row.project} ${row.salesRep}`.toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [aiAction, filters, preview.activities, previewProp]);
-
-  const totalActivities = previewProp ? filteredActivities.length : preview.totalActivities;
-  const totalPages = Math.max(1, Math.ceil(totalActivities / pageSize));
-  const pageItems = previewProp
-    ? filteredActivities.slice((page - 1) * pageSize, page * pageSize)
-    : filteredActivities;
-
-  const widgets = widgetsQuery.data;
-  const dayCompleted = widgets?.recent_activities.filter((item) => item.status === 'completed').length ?? preview.daySummary.completed;
-  const dayPending = widgets?.todays_tasks.length ?? preview.daySummary.pending;
-  const dayOverdue = widgets?.overdue_tasks.length ?? preview.daySummary.overdue;
-  const upcomingMeetings = widgets
-    ? widgets.upcoming_meetings.map((item) => ({
-        id: item.id,
-        title: item.title,
-        customer: item.entity_name || '—',
-        time: item.start_date || item.due_date || item.created_at,
-      }))
-    : preview.upcomingMeetings;
-  const overdueFollowUps = widgets
-    ? widgets.follow_ups_due.map((item) => ({
-        id: item.id,
-        customer: item.entity_name || '—',
-        daysOverdue: 0,
-      }))
-    : preview.overdueFollowUps;
-  const recentNotes = widgets
-    ? widgets.recent_notes.map((item) => ({
-        id: item.id,
-        author: item.created_by_name || item.assigned_user_name || '—',
-        bodyKey: '',
-        body: item.summary || item.title,
-        timeKey: '',
-        time: item.created_at,
-      }))
-    : preview.recentNotes;
-
-  const clearFilters = () => {
-    setFilters({
-      customer: '',
-      salesRep: '',
-      type: '',
-      status: '',
-      priority: '',
-      date: '',
-      search: '',
-    });
-    setPage(1);
+  const patchFilters = (patch: Partial<OpsFilters>) => {
+    setFilters((prev) => ({ ...prev, ...patch }));
   };
 
-  if (!previewProp && liveQuery.isLoading) {
-    return <LoadingState />;
+  const clearFilters = () => {
+    setFilters(EMPTY_FILTERS);
+    setSearchDraft('');
+    setPersonDraft('');
+    setSelectedId(null);
+  };
+
+  if (authLoading) {
+    return (
+      <div className="crm-activities-ds crm-activities-ds--ops" data-testid="crm-activities-workspace">
+        <div className="crm-activities-ds__skeleton" aria-hidden="true">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="crm-activities-ds__skeleton-row" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
+  if (!canView) {
+    return <ErrorState title={t('accessDenied')} message={t('accessDeniedHint')} />;
+  }
+
+  if (listQuery.isError) {
+    return (
+      <ErrorState
+        title={t('loadFailed')}
+        message={listQuery.error?.message ?? t('loadFailed')}
+        action={
+          <Button type="button" onClick={() => void listQuery.refetch()}>
+            {tCommon('retry')}
+          </Button>
+        }
+      />
+    );
+  }
+
+  const suggestions = personSuggestQuery.data?.items ?? [];
+
+  const renderEventRow = (event: TimelineEvent, nested = false) => {
+    const unresolved = t('unresolvedIdentity');
+    const person = personLabel(event, unresolved);
+    const high = event.priorityTier === 'high';
+    return (
+      <tr
+        key={event.id}
+        className={`crm-activities-ds__row${selectedId === event.id ? ' is-selected' : ''}${high ? ' is-high' : ''}${nested ? ' is-nested' : ''}`}
+        onClick={() => setSelectedId(event.id)}
+        data-testid={`crm-activity-row-${event.id}`}
+      >
+        <td>{formatEventDateTime(event.occurredAt, locale)}</td>
+        <td>
+          <strong>{event.title}</strong>
+        </td>
+        <td>{person}</td>
+        <td>{projectUnit(event)}</td>
+        <td>
+          <span className={`crm-activities-ds__type-pill is-${event.eventKind}`}>{event.sourceBadge}</span>
+        </td>
+        <td>{event.owner?.trim() || '—'}</td>
+        <td>
+          <StatusChip
+            tone={
+              event.status === 'cancelled' || event.status === 'missed'
+                ? 'danger'
+                : event.status === 'completed'
+                  ? 'success'
+                  : 'info'
+            }
+          >
+            {t(`statuses.${statusKey(event.status)}`)}
+          </StatusChip>
+        </td>
+      </tr>
+    );
+  };
+
+  const renderFeedRow = (row: TimelineFeedRow) => {
+    if (row.type === 'cluster') {
+      const expanded = expandedClusters.has(row.id);
+      return (
+        <tbody key={row.id}>
+          <tr className="crm-activities-ds__cluster-row">
+            <td colSpan={7}>
+              <button
+                type="button"
+                className="crm-activities-ds__cluster-toggle"
+                onClick={() =>
+                  setExpandedClusters((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(row.id)) next.delete(row.id);
+                    else next.add(row.id);
+                    return next;
+                  })
+                }
+              >
+                <span className={`crm-activities-ds__type-pill is-${row.eventKind}`}>{row.sourceBadge}</span>
+                <strong>
+                  {row.sourceBadge} — {t('group.messages', { count: row.events.length })}
+                </strong>
+                {row.personName ? <span>{row.personName}</span> : null}
+                <span aria-hidden="true">{expanded ? '▾' : '▸'}</span>
+              </button>
+            </td>
+          </tr>
+          {expanded ? row.events.map((event) => renderEventRow(event, true)) : null}
+        </tbody>
+      );
+    }
+    return <tbody key={row.event.id}>{renderEventRow(row.event)}</tbody>;
+  };
+
   return (
-    <div className="crm-activities-ds" data-testid="crm-activities-workspace">
+    <div className="crm-activities-ds crm-activities-ds--ops" data-testid="crm-activities-workspace">
       <header className="crm-activities-ds__header">
         <div>
           <h1>{t('title')}</h1>
           <p>{t('subtitle')}</p>
         </div>
+        <span className="crm-activities-ds__count">{t('pagination.total', { count: total })}</span>
       </header>
 
-      <section className="crm-activities-ds__kpi-row" aria-label={t('kpis.aria')}>
-        {preview.kpis.map((kpi) => (
-          <KpiCard
-            key={kpi.key}
-            className="crm-activities-ds__kpi"
-            label={t(`kpis.${kpi.key}`)}
-            value={kpi.value}
-            hint={t(`kpis.hints.${kpi.hintKey}`)}
-            delta={`${kpi.delta} ${t('kpis.thisMonth')}`}
-            deltaTone={kpi.deltaTone}
-            tone={kpi.key === 'overdue' ? 'warning' : 'default'}
-            icon={<IhIcon name={KPI_ICONS[kpi.key]} size={18} />}
-          />
-        ))}
-      </section>
-
-      <nav className="screenshot-dashboard__intro-ai crm-activities-ds__ai" aria-label={t('ai.aria')}>
-        {AI_ACTIONS.map((action) => (
-          <button
-            key={action.key}
-            type="button"
-            className={aiAction === action.key ? 'is-featured' : undefined}
-            onClick={() => setAiAction(action.key)}
-          >
-            <span className="crm-activities-ds__ai-icon" aria-hidden="true">
-              <IhIcon name={action.icon} size={16} />
-            </span>
-            <span>{t(`ai.actions.${action.key}`)}</span>
-          </button>
-        ))}
-        <button
-          type="button"
-          className="screenshot-dashboard__intro-ai-primary"
-          onClick={() => onOpenAi?.(t('ai.openPrompt'))}
-        >
-          <IhIcon name="sparkles" size={15} />
-          {t('ai.title')}
-        </button>
-      </nav>
-
       <section className="crm-activities-ds__filters" aria-label={t('filters.aria')}>
-        <Select
-          label={t('filters.customer')}
-          value={filters.customer}
-          onChange={(e) => patchFilters({ customer: e.target.value })}
-        >
-          <option value="">{t('filters.any')}</option>
-          {previewProp
-            ? preview.customers.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))
-            : (contactsQuery.data?.items ?? []).map((contact) => (
-                <option key={contact.id} value={contact.id}>
-                  {contact.display_name}
-                </option>
-              ))}
-        </Select>
-        <Select
-          label={t('filters.salesRep')}
-          value={filters.salesRep}
-          onChange={(e) => patchFilters({ salesRep: e.target.value })}
-        >
-          <option value="">{t('filters.any')}</option>
-          {previewProp
-            ? preview.salesReps.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))
-            : (usersQuery.data?.items ?? []).map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.full_name}
-                </option>
-              ))}
-        </Select>
+        <div className="crm-activities-ds__search">
+          <Input
+            label={t('filters.search')}
+            value={searchDraft}
+            onChange={(e) => setSearchDraft(e.target.value)}
+            placeholder={t('filters.searchPlaceholder')}
+            data-testid="crm-activities-search"
+          />
+        </div>
         <Select
           label={t('filters.type')}
-          value={filters.type}
-          onChange={(e) => patchFilters({ type: e.target.value })}
+          value={filters.eventKind}
+          onChange={(e) => patchFilters({ eventKind: e.target.value })}
         >
           <option value="">{t('filters.any')}</option>
-          {ACTIVITY_TYPE_ORDER.map((type) => (
-            <option key={type} value={type}>
-              {t(`types.${type}`)}
+          {EVENT_KIND_OPTIONS.map((kind) => (
+            <option key={kind} value={kind}>
+              {t(`eventKinds.${kind}`)}
+            </option>
+          ))}
+        </Select>
+        <div className="crm-activities-ds__person-field">
+          <Input
+            label={t('filters.person')}
+            value={personDraft}
+            onChange={(e) => {
+              setPersonDraft(e.target.value);
+              patchFilters({ personId: null });
+            }}
+            placeholder={t('filters.personPlaceholder')}
+          />
+          {suggestions.length > 0 ? (
+            <ul className="crm-activities-ds__suggest">
+              {suggestions.map((contact) => (
+                <li key={contact.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPersonDraft(contact.display_name);
+                      patchFilters({ person: contact.display_name, personId: contact.id });
+                    }}
+                  >
+                    {contact.display_name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+        <Select
+          label={t('filters.project')}
+          value={filters.projectGroup}
+          onChange={(e) => patchFilters({ projectGroup: e.target.value })}
+        >
+          <option value="">{t('filters.allProjects')}</option>
+          {(projectsQuery.data?.project_groups ?? []).map((group) => (
+            <option key={group.id} value={group.id}>
+              {group.label}
+            </option>
+          ))}
+        </Select>
+        <Select
+          label={t('filters.owner')}
+          value={filters.ownerId}
+          onChange={(e) => patchFilters({ ownerId: e.target.value })}
+        >
+          <option value="">{t('filters.allOwners')}</option>
+          {(usersQuery.data?.items ?? []).map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.full_name}
             </option>
           ))}
         </Select>
@@ -408,319 +474,85 @@ export function CrmActivitiesWorkspace({
           onChange={(e) => patchFilters({ status: e.target.value })}
         >
           <option value="">{t('filters.any')}</option>
-          {ACTIVITY_STATUS_ORDER.map((status) => (
+          {TIMELINE_STATUSES.map((status) => (
             <option key={status} value={status}>
-              {t(`status.${status}`)}
+              {t(`statuses.${status}`)}
             </option>
           ))}
-        </Select>
-        <Select
-          label={t('filters.priority')}
-          value={filters.priority}
-          onChange={(e) => patchFilters({ priority: e.target.value })}
-        >
-          <option value="">{t('filters.any')}</option>
-          {ACTIVITY_PRIORITY_ORDER.map((priority) => (
-            <option key={priority} value={priority}>
-              {t(`priority.${priority}`)}
-            </option>
-          ))}
-        </Select>
-        <Select
-          label={t('filters.date')}
-          value={filters.date}
-          onChange={(e) => patchFilters({ date: e.target.value })}
-        >
-          <option value="">{t('filters.any')}</option>
-          <option value="today">{t('filters.dateRanges.today')}</option>
-          <option value="7d">{t('filters.dateRanges.last7')}</option>
-          <option value="30d">{t('filters.dateRanges.last30')}</option>
-          <option value="90d">{t('filters.dateRanges.last90')}</option>
         </Select>
         <Input
-          label={t('filters.search')}
-          value={filters.search}
-          onChange={(e) => patchFilters({ search: e.target.value })}
-          placeholder={t('filters.searchPlaceholder')}
+          label={t('filters.dateFrom')}
+          type="date"
+          value={filters.dateFrom}
+          onChange={(e) => patchFilters({ dateFrom: e.target.value })}
         />
-        <Button variant="secondary" size="sm" onClick={clearFilters}>
-          <IhIcon name="refresh" size={13} />
-          {t('filters.clear')}
-        </Button>
+        <Input
+          label={t('filters.dateTo')}
+          type="date"
+          value={filters.dateTo}
+          onChange={(e) => patchFilters({ dateTo: e.target.value })}
+        />
+        <div className="crm-activities-ds__filter-actions">
+          <Button type="button" variant="secondary" size="sm" onClick={clearFilters}>
+            {t('filters.clear')}
+          </Button>
+        </div>
       </section>
 
-      <div className="crm-activities-ds__layout">
-        <div className="crm-activities-ds__main">
-          <div className="crm-activities-ds__table-wrap" role="region" aria-label={t('table.aria')}>
-            <table className="crm-activities-ds__table">
-              <thead>
-                <tr>
-                  <th scope="col">{t('table.activity')}</th>
-                  <th scope="col">{t('table.customer')}</th>
-                  <th scope="col">{t('table.project')}</th>
-                  <th scope="col">{t('table.salesRep')}</th>
-                  <th scope="col">{t('table.dateTime')}</th>
-                  <th scope="col">{t('table.status')}</th>
-                  <th scope="col">{t('table.priority')}</th>
-                  <th scope="col">{t('table.aiSummary')}</th>
-                  <th scope="col">{t('table.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageItems.map((row) => (
-                  <tr
-                    key={row.id}
-                    className={`crm-activities-ds__row is-${row.status}`}
-                    data-testid={`activity-row-${row.id}`}
-                  >
-                    <td>
-                      <ActivityCell row={row} />
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="crm-activities-ds__contact-btn"
-                        onClick={() => row.customerId && openContact(row.customerId)}
-                        disabled={!row.customerId}
-                      >
-                        <strong title={row.customer}>{row.customer}</strong>
-                        <span title={row.customerDetail}>{row.customerDetail}</span>
-                      </button>
-                    </td>
-                    <td>
-                      <span className={`crm-activities-ds__project is-${row.projectTone}`}>
-                        {row.project}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="crm-activities-ds__rep">
-                        <span className="crm-activities-ds__avatar" aria-hidden="true">
-                          {row.salesRepInitials}
-                        </span>
-                        <span title={row.salesRep}>{row.salesRep}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <time dateTime={row.dateTime}>{row.dateTime}</time>
-                    </td>
-                    <td>
-                      <StatusChip tone={STATUS_TONE[row.status]} className="crm-activities-ds__badge">
-                        {t(`status.${row.status}`)}
-                      </StatusChip>
-                    </td>
-                    <td>
-                      <StatusChip
-                        tone={PRIORITY_TONE[row.priority]}
-                        className={
-                          row.priority === 'critical'
-                            ? 'crm-activities-ds__badge crm-activities-ds__priority--critical'
-                            : 'crm-activities-ds__badge'
-                        }
-                      >
-                        {t(`priority.${row.priority}`)}
-                      </StatusChip>
-                    </td>
-                    <td>
-                      <AiSummaryCell summaryKey={row.aiSummaryKey} summaryText={row.aiSummary} />
-                    </td>
-                    <td>
-                      <div className="crm-activities-ds__row-actions">
-                        <button
-                          type="button"
-                          className="crm-activities-ds__icon-action"
-                          aria-label={t('actions.detail')}
-                          title={t('actions.detail')}
-                        >
-                          <IhIcon name="search" size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          className="crm-activities-ds__icon-action"
-                          aria-label={t('actions.edit')}
-                          title={t('actions.edit')}
-                        >
-                          <IhIcon name="settings" size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          className="crm-activities-ds__icon-action"
-                          aria-label={t('actions.more')}
-                          title={t('actions.more')}
-                        >
-                          <IhIcon name="chevronDown" size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="crm-activities-ds__table-wrap" role="region" aria-label={t('table.aria')}>
+        {listQuery.isLoading ? (
+          <div className="crm-activities-ds__skeleton" aria-hidden="true">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="crm-activities-ds__skeleton-row" />
+            ))}
           </div>
-
-          <footer className="crm-activities-ds__pagination" aria-label={t('pagination.aria')}>
-            <p>{t('pagination.total', { count: totalActivities })}</p>
-            <div className="crm-activities-ds__page-numbers" role="navigation">
-              {Array.from({ length: Math.min(totalPages, 3) }, (_, i) => i + 1).map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  className={page === n ? 'is-active' : undefined}
-                  onClick={() => setPage(n)}
-                  aria-current={page === n ? 'page' : undefined}
-                >
-                  {n}
-                </button>
-              ))}
-              {totalPages > 4 ? <span className="crm-activities-ds__page-ellipsis">…</span> : null}
-              {totalPages > 3 ? (
-                <button
-                  type="button"
-                  className={page === totalPages ? 'is-active' : undefined}
-                  onClick={() => setPage(totalPages)}
-                  aria-current={page === totalPages ? 'page' : undefined}
-                >
-                  {totalPages}
-                </button>
-              ) : null}
-            </div>
-            <label className="ih-field crm-activities-ds__page-size">
-              <span className="ih-field__label">{t('pagination.perPage')}</span>
-              <select
-                className="ih-select"
-                value={String(pageSize)}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setPage(1);
-                }}
-                aria-label={t('pagination.perPage')}
-              >
-                <option value="10">10 / {t('pagination.pageUnit')}</option>
-                <option value="20">20 / {t('pagination.pageUnit')}</option>
-                <option value="40">40 / {t('pagination.pageUnit')}</option>
-              </select>
-            </label>
-          </footer>
-        </div>
-
-        <aside className="crm-activities-ds__rail" aria-label={t('rail.aria')}>
-          <section className="crm-activities-ds__rail-card crm-activities-ds__rail-card--ai">
-            <h3>{t('rail.daySummary')}</h3>
-            <dl className="crm-activities-ds__day-counts">
-              <div>
-                <dt>{t('rail.completed')}</dt>
-                <dd>{dayCompleted}</dd>
-              </div>
-              <div>
-                <dt>{t('rail.pending')}</dt>
-                <dd className="is-warning">{dayPending}</dd>
-              </div>
-              <div>
-                <dt>{t('rail.overdue')}</dt>
-                <dd className="is-danger">{dayOverdue}</dd>
-              </div>
-            </dl>
-            {previewProp ? (
-              <p className="crm-activities-ds__assessment">
-                {t(`rail.assessments.${preview.daySummary.assessmentKey}`)}
-              </p>
-            ) : null}
-          </section>
-
-          {previewProp ? (
-            <section className="crm-activities-ds__rail-card crm-activities-ds__rail-card--ai">
-              <h3>{t('rail.aiRecommendations')}</h3>
-              <ul className="crm-activities-ds__recs">
-                {preview.aiRecommendations.map((item) => (
-                  <li key={item.id}>{t(`rail.recommendations.${item.bodyKey}`)}</li>
-                ))}
-              </ul>
-            </section>
-          ) : widgets?.overdue_tasks.length ? (
-            <section className="crm-activities-ds__rail-card crm-activities-ds__rail-card--ai">
-              <h3>{t('rail.aiRecommendations')}</h3>
-              <ul className="crm-activities-ds__recs">
-                {widgets.overdue_tasks.slice(0, 4).map((item) => (
-                  <li key={item.id}>{item.title}</li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          <section className="crm-activities-ds__rail-card">
-            <h3>{t('rail.upcomingMeetings')}</h3>
-            {upcomingMeetings.length ? (
-              <ul className="crm-activities-ds__list">
-                {upcomingMeetings.map((item) => (
-                  <li key={item.id}>
-                    <span className="crm-activities-ds__list-icon" aria-hidden="true">
-                      <IhIcon name="meeting" size={12} />
-                    </span>
-                    <div>
-                      <strong title={item.title}>{item.title}</strong>
-                      <span>
-                        {item.customer} · {item.time}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="crm-activities-ds__assessment">—</p>
-            )}
-          </section>
-
-          <section className="crm-activities-ds__rail-card crm-activities-ds__rail-card--warn">
-            <h3>{t('rail.overdueFollowUps')}</h3>
-            {overdueFollowUps.length ? (
-              <ul className="crm-activities-ds__list">
-                {overdueFollowUps.map((item) => (
-                  <li key={item.id}>
-                    <span className="crm-activities-ds__list-icon is-warn" aria-hidden="true">
-                      <IhIcon name="alert" size={12} />
-                    </span>
-                    <div>
-                      <strong title={item.customer}>{item.customer}</strong>
-                      {item.daysOverdue ? (
-                        <span>{t('rail.daysOverdue', { count: item.daysOverdue })}</span>
-                      ) : (
-                        <span>{item.customer}</span>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="crm-activities-ds__assessment">—</p>
-            )}
-          </section>
-
-          <section className="crm-activities-ds__rail-card">
-            <h3>{t('rail.recentNotes')}</h3>
-            {recentNotes.length ? (
-              <ul className="crm-activities-ds__list">
-                {recentNotes.map((item) => (
-                  <li key={item.id}>
-                    <span className="crm-activities-ds__list-icon" aria-hidden="true">
-                      <IhIcon name="documents" size={12} />
-                    </span>
-                    <div>
-                      <strong title={item.author}>{item.author}</strong>
-                      <span title={item.body ?? (item.bodyKey ? t(`rail.notes.${item.bodyKey}`) : '')}>
-                        {item.body ?? (item.bodyKey ? t(`rail.notes.${item.bodyKey}`) : '')}
-                      </span>
-                      <time>
-                        {item.time ?? (item.timeKey ? t(`rail.noteTimes.${item.timeKey}`) : '')}
-                      </time>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="crm-activities-ds__assessment">—</p>
-            )}
-          </section>
-        </aside>
+        ) : events.length === 0 ? (
+          <div className="crm-activities-ds__empty" data-testid="crm-activities-empty">
+            <strong>{t('emptyTitle')}</strong>
+            <p>{t('emptyDescription')}</p>
+          </div>
+        ) : (
+          <table className="crm-activities-ds__table crm-activities-ds__table--ops">
+            <thead>
+              <tr>
+                <th>{t('table.dateTime')}</th>
+                <th>{t('table.activity')}</th>
+                <th>{t('table.person')}</th>
+                <th>{t('table.project')}</th>
+                <th>{t('table.type')}</th>
+                <th>{t('table.owner')}</th>
+                <th>{t('table.status')}</th>
+              </tr>
+            </thead>
+            {rows.map(renderFeedRow)}
+          </table>
+        )}
+        {listQuery.hasNextPage ? (
+          <div className="crm-activities-ds__load-more">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => void listQuery.fetchNextPage()}
+              disabled={listQuery.isFetchingNextPage}
+            >
+              {listQuery.isFetchingNextPage ? tCommon('loading') : t('loadMore')}
+            </Button>
+          </div>
+        ) : null}
       </div>
+
+      {selected ? (
+        <>
+          <button
+            type="button"
+            className="crm-activities-ds__drawer-backdrop"
+            aria-label={t('actions.close')}
+            onClick={() => setSelectedId(null)}
+          />
+          <ActivityDrawer event={selected} onClose={() => setSelectedId(null)} />
+        </>
+      ) : null}
     </div>
   );
 }

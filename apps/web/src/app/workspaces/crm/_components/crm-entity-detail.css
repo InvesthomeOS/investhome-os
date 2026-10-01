@@ -10,10 +10,10 @@
   --shot-font-body: 11.55px;
   --shot-font-heading: 13.2px;
   --shot-font-title: 24.2px;
-  --shot-gap: 12px;
-  --ed-border: #e1e7e9;
-  --ed-card-shadow: 0 2px 7px rgba(31, 57, 68, 0.05);
-  --ed-radius: 8px;
+  --shot-gap: 16px;
+  --ed-border: #c5d4da;
+  --ed-card-shadow: 0 6px 16px rgba(7, 91, 117, 0.08);
+  --ed-radius: 16px;
   box-sizing: border-box;
   display: grid;
   gap: var(--shot-gap);

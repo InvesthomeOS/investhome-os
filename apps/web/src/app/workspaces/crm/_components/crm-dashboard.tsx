@@ -1,15 +1,12 @@
 'use client';
 
-import { CrmDashboardDsWorkspace } from '../dashboard/_components/ds/crm-dashboard-ds-workspace';
+import { CrmPanoLiveWorkspace } from '../dashboard/_components/crm-pano-live-workspace';
+import '../dashboard/pano.css';
 
-/**
- * CRM Dashboard — Operational Command Center.
- * Presentation rebuilt on Contacts/Projects DS; shell unchanged via CRM layout.
- */
 export function CrmDashboard() {
   return (
     <main className="dashboard crm-module-shell" data-testid="crm-dashboard-page">
-      <CrmDashboardDsWorkspace />
+      <CrmPanoLiveWorkspace />
     </main>
   );
 }

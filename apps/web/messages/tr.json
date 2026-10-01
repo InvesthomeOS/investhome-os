@@ -5809,6 +5809,42 @@
       "invalidCredentials": "Geçersiz e-posta veya şifre.",
       "accountInactive": "Hesabınız aktif değil.",
       "loginFailed": "Giriş başarısız oldu."
+    },
+    "mfa": {
+      "title": "İki adımlı doğrulama",
+      "subtitle": "Kimlik doğrulama uygulamanızdaki 6 haneli kodu veya bir kurtarma kodunu girin.",
+      "codeLabel": "Doğrulama veya kurtarma kodu",
+      "submit": "Doğrula",
+      "submitting": "Doğrulanıyor…",
+      "back": "Girişe dön",
+      "errors": {
+        "invalidOrExpired": "Kod geçersiz veya oturum adımı süresi doldu. Yeniden deneyin veya baştan giriş yapın.",
+        "tooManyAttempts": "Çok fazla deneme. Bir süre bekleyip yeniden deneyin.",
+        "unavailable": "Doğrulama geçici olarak kullanılamıyor. Kısa süre sonra yeniden deneyin.",
+        "verifyFailed": "Doğrulanamadı. Lütfen yeniden deneyin."
+      }
+    },
+    "enroll": {
+      "title": "İki adımlı doğrulamayı kurun",
+      "subtitle": "Rolünüz için MFA zorunludur. QR kodu tarayın, ardından girişi tamamlamak için 6 haneli kodu girin.",
+      "starting": "Kimlik doğrulama kurulumu hazırlanıyor…",
+      "scanQr": "Bu QR kodu kimlik doğrulama uygulamanızla tarayın.",
+      "manualKey": "Veya bu kurulum anahtarını elle girin",
+      "confirmLabel": "6 haneli doğrulama kodu",
+      "confirm": "Onayla ve devam et",
+      "confirming": "Onaylanıyor…",
+      "statusEnabled": "Hesabınızda MFA artık açık.",
+      "recoveryTitle": "Kurtarma kodlarınızı kaydedin",
+      "recoveryWarning": "Bu kodlar yalnızca bir kez gösterilir. Bir parola yöneticisine veya güvenli bir çevrimdışı yere kaydedin. Kodu bilen biri sizin adınıza giriş yapabilir.",
+      "recoveryAck": "Bu kodları kaydettim",
+      "back": "Girişe dön",
+      "errors": {
+        "invalidCode": "Doğrulama kodu geçersiz. Yeniden deneyin.",
+        "tooManyAttempts": "Çok fazla deneme. Bir süre bekleyip yeniden deneyin.",
+        "unavailable": "MFA kurulumu geçici olarak kullanılamıyor. Kısa süre sonra yeniden deneyin.",
+        "alreadyEnabled": "Bu hesapta MFA zaten açık.",
+        "enrollFailed": "MFA kurulumu başlatılamadı. Lütfen yeniden deneyin."
+      }
     }
   },
   "profile": {
@@ -5822,7 +5858,29 @@
     "newPassword": "Yeni şifre",
     "updatePassword": "Şifreyi Güncelle",
     "passwordUpdated": "Şifreniz güncellendi.",
-    "passwordUpdateFailed": "Şifre güncellenemedi."
+    "passwordUpdateFailed": "Şifre güncellenemedi.",
+    "mfa": {
+      "title": "İki adımlı doğrulama",
+      "statusEnabled": "Hesabınızda MFA açık.",
+      "statusDisabled": "İsteğe bağlı olarak ikinci bir giriş adımı için kimlik doğrulama uygulaması ekleyebilirsiniz.",
+      "enable": "MFA’yı aç",
+      "enabling": "Başlatılıyor…",
+      "scanQr": "Bu QR kodu kimlik doğrulama uygulamanızla tarayın.",
+      "manualKey": "Veya bu kurulum anahtarını elle girin",
+      "confirmLabel": "6 haneli doğrulama kodu",
+      "confirm": "Onayla ve aç",
+      "confirming": "Onaylanıyor…",
+      "recoveryTitle": "Kurtarma kodlarınızı kaydedin",
+      "recoveryWarning": "Bu kodlar yalnızca bir kez gösterilir. Bir parola yöneticisine veya güvenli bir çevrimdışı yere kaydedin. Kodu bilen biri sizin adınıza giriş yapabilir.",
+      "recoveryAck": "Bu kodları kaydettim",
+      "errors": {
+        "invalidCode": "Doğrulama kodu geçersiz. Yeniden deneyin.",
+        "tooManyAttempts": "Çok fazla deneme. Bir süre bekleyip yeniden deneyin.",
+        "unavailable": "MFA kurulumu geçici olarak kullanılamıyor. Kısa süre sonra yeniden deneyin.",
+        "alreadyEnabled": "Bu hesapta MFA zaten açık.",
+        "enrollFailed": "MFA kurulumu başlatılamadı. Lütfen yeniden deneyin."
+      }
+    }
   },
   "adminUsers": {
     "eyebrow": "Yönetim",
@@ -15689,6 +15747,7 @@
     "lastBackup": "Son yedek",
     "never": "Hiç",
     "backupRestoreUnverified": "Geri yükleme provası doğrulanmadı — yedekleme READY sayılmaz.",
+    "backupStatusWarning": "Yedekleme koruması doğrulanmadı. Eski, başarısız veya yapılandırılmamış yedekler güvenlik uyarısıdır.",
     "integrationsTitle": "Harici entegrasyonlar",
     "integrationsSubtitle": "Kimlik bilgileri ve sağlayıcılar bağlanana kadar Unavailable gösterilir.",
     "integrationSentry": "Hata izleme (Sentry)",
@@ -15717,8 +15776,14 @@
     "dashboardTitle": "Güvenlik Panosu",
     "dashboardSubtitle": "Kurumsal güvenlik duruşu — bağlanmayan sağlayıcılar için KPI’lar Kullanılamıyor kalır.",
     "alertsTitle": "Güvenlik uyarıları",
-    "alertsSubtitle": "Başarısız girişler, süresi dolan anahtarlar, olaylar ve SSO hazırlığından türetilir.",
+    "alertsSubtitle": "Başarısız girişler, süresi dolan anahtarlar, olaylar, SSO hazırlığı ve aktif güvenlik sinyallerinden türetilir.",
     "noAlerts": "Aktif güvenlik uyarısı yok.",
+    "signalsTitle": "Güvenlik sinyalleri",
+    "signalsSubtitle": "Çözülmemiş kimlik doğrulama ve güvenlik kalıpları. Ham IP, parola, kod ve sırlar gösterilmez.",
+    "noSignals": "Çözülmemiş güvenlik sinyali yok.",
+    "colSignalType": "Sinyal",
+    "colCount": "Olay",
+    "colFirstSeen": "İlk görülme",
     "generatedAt": "Oluşturulma",
     "sessionsTitle": "Oturumlar",
     "sessionsSubtitle": "Cihaz, tarayıcı ve IP bilgileriyle aktif oturumlar.",
@@ -15803,6 +15868,7 @@
     "backupProvider": "Sağlayıcı",
     "lastBackup": "Son yedekleme",
     "never": "Hiç / bilinmiyor",
+    "backupStatusWarning": "Yedekleme koruması doğrulanmadı. Eski, başarısız veya yapılandırılmamış yedekler güvenlik uyarısıdır.",
     "featureFlagsTitle": "Özellik bayrakları",
     "featureFlagsSubtitle": "Ortam varsayılanları, isteğe bağlı veritabanı override ve rol hedefleme.",
     "flagUpdated": "Özellik bayrağı güncellendi.",
@@ -15829,6 +15895,11 @@
     "openCompanyTeams": "Şirket ekipleri",
     "forceLogout": "Zorla çıkış",
     "resetPassword": "Şifre sıfırla",
+    "resetMfa": "MFA sıfırla",
+    "resetMfaConfirmTitle": "MFA sıfırlansın mı?",
+    "resetMfaConfirmBody": "Bu işlem {name} için MFA’yı kapatır. Kullanıcının tüm aktif oturumları iptal edilir. Yeniden şifreyle giriş yapmaları gerekir.",
+    "resetMfaConfirmSessions": "Bu kullanıcının tüm aktif oturumları iptal edilecek.",
+    "resetMfaDone": "MFA sıfırlandı. Bu kullanıcının tüm oturumları iptal edildi.",
     "suspend": "Askıya al",
     "forceLogoutDone": "Oturumlar iptal edildi.",
     "resetPasswordDone": "Şifre sıfırlama kaydedildi. Geçici kimlik bilgilerini bant dışı iletin.",
@@ -16012,6 +16083,8 @@
       "signatures": "İmzalar",
       "analytics": "Analitik",
       "preferences": "Tercihler",
+      "unmatchedCommunications": "Eşleşmeyen İletişimler",
+      "communicationAccounts": "İletişim Hesapları",
       "adminSection": "Yönetim",
       "admin": "Admin",
       "adminBadge": "Yeni",
@@ -16716,15 +16789,50 @@
     },
     "agents": {
       "title": "Acentalar",
-      "subtitle": "Broker ve realtor kişiler. Kişi başına tek kayıt — Aktif veya Pasif.",
+      "subtitle": "Broker ve realtor kişiler. Satın alma listesi değildir.",
       "statusFilter": "Durum",
       "statusAll": "Tümü",
       "statusActive": "Aktif",
       "statusPassive": "Pasif",
       "emptyTitle": "Henüz acente yok",
-      "emptyDescription": "Bitrix acente aktarımı henüz işlenmedi. Eşleşen brokerlar yüklemeden sonra burada görünür.",
+      "emptyDescription": "Bu görünümde gösterilecek acenta yok.",
       "loadError": "Acentalar yüklenemedi.",
       "loading": "Acentalar yükleniyor…",
+      "count": "{count} acenta",
+      "viewsLabel": "Görünümler",
+      "views": {
+        "kanban": "KANBAN",
+        "list": "LİSTE",
+        "activities": "ETKİNLİKLER",
+        "calendar": "TAKVİM"
+      },
+      "columnPicker": "Sütunlar",
+      "filters": "Filtreler",
+      "personFilter": "Kişi",
+      "allPeople": "Tüm kişiler",
+      "responsibleFilter": "Sorumlu",
+      "allResponsible": "Tüm sorumlular",
+      "activityTypeFilter": "Etkinlik türü",
+      "dateFrom": "Başlangıç",
+      "dateTo": "Bitiş",
+      "emptyActivities": "Bu filtrelere uyan acenta etkinliği yok.",
+      "emptyCalendar": "Bu ayda kayıtlı acenta tarihi yok.",
+      "listColumns": {
+        "acenta": "Acenta",
+        "ofis": "Ofis/Şirket",
+        "durum": "Durum",
+        "telefon": "Telefon",
+        "eposta": "E-posta",
+        "sorumlu": "Sorumlu",
+        "sonEtkinlik": "Son Etkinlik",
+        "sonrakiEtkinlik": "Sonraki Etkinlik",
+        "tarih": "Tarih",
+        "sehir": "Şehir",
+        "adres": "Adres",
+        "kaynak": "Kaynak",
+        "unvan": "Ünvan",
+        "notlar": "Notlar"
+      },
       "columns": {
         "name": "Ad",
         "type": "Tür",
@@ -16737,13 +16845,80 @@
     },
     "agreements": {
       "title": "Anlaşmalar",
-      "subtitle": "Proje gruplarına göre tarihsel CRM anlaşmaları. Satış fırsatı değildir.",
+      "subtitle": "Satın almalar proje ve aşamaya göre.",
       "projectFilter": "Proje",
       "allProjects": "Tüm projeler",
+      "searchLabel": "Arama",
+      "searchPlaceholder": "Müşteri adı, proje, daire no...",
+      "stageFilter": "Aşama",
+      "allStages": "Tüm aşamalar",
+      "statusFilter": "Durum",
+      "resetFilters": "Filtreleri Sıfırla",
+      "filtersTitle": "Filtreler",
+      "yes": "Evet",
+      "no": "Hayır",
+      "openPurchase": "Aç",
+      "unitChangeHint": "Daire değişikliği var",
+      "pageSize": "Sayfa başına",
+      "pager": "{total} kayıttan {from}–{to} arası gösteriliyor",
       "emptyTitle": "Henüz anlaşma yok",
-      "emptyDescription": "Bitrix anlaşma dosyaları henüz işlenmedi. Yüklemeden sonra satırlar projeye göre gruplanır.",
+      "emptyDescription": "Bu filtrede gösterilecek satın alma yok.",
       "loadError": "Anlaşmalar yüklenemedi.",
       "loading": "Anlaşmalar yükleniyor…",
+      "count": "{count} sonuç",
+      "viewsLabel": "Görünümler",
+      "views": {
+        "kanban": "Kanban",
+        "list": "Liste",
+        "activities": "Etkinlikler",
+        "calendar": "Takvim"
+      },
+      "statusOptions": {
+        "allStatus": "Tüm durumlar",
+        "statusActive": "Aktif",
+        "statusCompleted": "Tamamlandı",
+        "statusCancelled": "İptal"
+      },
+      "kpis": {
+        "aria": "Satın alma özeti",
+        "total": "Toplam Satın Alma",
+        "won": "Kazanıldı",
+        "progress": "Devam Ediyor",
+        "capital": "Kapital Kazançlar",
+        "unstaged": "Aşamasız"
+      },
+      "columnPicker": "Sütunlar",
+      "filters": "Filtreler",
+      "personFilter": "Kişi",
+      "allPeople": "Tüm kişiler",
+      "responsibleFilter": "Sorumlu",
+      "allResponsible": "Tüm sorumlular",
+      "activityTypeFilter": "Etkinlik türü",
+      "dateFrom": "Başlangıç",
+      "dateTo": "Bitiş",
+      "emptyActivities": "Bu filtrelere uyan satın alma etkinliği yok.",
+      "emptyCalendar": "Bu ayda kayıtlı satın alma tarihi yok.",
+      "listColumns": {
+        "musteri": "Müşteri",
+        "projeDaire": "Proje/Daire",
+        "asama": "Aşama",
+        "tutar": "Tutar",
+        "ortaklik": "Ortaklık",
+        "odemeDurumu": "Ödeme Durumu",
+        "sonrakiEtkinlik": "Sonraki Etkinlik",
+        "sorumlu": "Sorumlu",
+        "tarih": "Tarih",
+        "hemenKira": "Hemen Kira",
+        "musteriYolculugu": "Müşteri Yolculuğu",
+        "potansiyelDurumu": "Potansiyel Durumu",
+        "odemeSekli": "Ödeme Şekli",
+        "hisseOrani": "Hisse Oranı",
+        "sirketDetaylari": "Şirket Detayları",
+        "odemeTarihleri": "Ödeme Tarihleri",
+        "kat": "Kat",
+        "onOdemeTutari": "Ön Ödeme Tutarı",
+        "actions": "İşlemler"
+      },
       "columns": {
         "contact": "Kişi",
         "project": "Proje",
@@ -17213,7 +17388,7 @@
       "systemEvent": "Sistem olayı",
       "ds": {
         "title": "Zaman Çizelgesi",
-        "subtitle": "Kişi, şirket ve projelerdeki önemli CRM olaylarının kronolojik geçmişi.",
+        "subtitle": "Gerçek CRM kayıtlarının operasyonel zaman çizelgesi.",
         "actions": {
           "addEvent": "Yeni Olay Ekle",
           "copilot": "YZ Copilot",
@@ -17222,6 +17397,7 @@
           "openContact": "Kişiyi Aç",
           "openCompany": "Şirketi Aç",
           "openProject": "Projeyi Aç",
+          "openPurchase": "Satın almayı aç",
           "createFollowUp": "Takip Oluştur",
           "createTask": "Görev Oluştur",
           "addNote": "Not Ekle",
@@ -17231,6 +17407,15 @@
           "aria": "Zaman çizelgesi filtreleri",
           "search": "Ara",
           "searchPlaceholder": "Olaylarda ara…",
+          "person": "Kişi",
+          "personPlaceholder": "Kişi adı…",
+          "project": "Proje",
+          "allProjects": "Tüm projeler",
+          "eventKind": "Olay Türü",
+          "allEventKinds": "Tüm olaylar",
+          "dateFrom": "Başlangıç",
+          "dateTo": "Bitiş",
+          "clear": "Filtreleri Temizle",
           "status": "Durum",
           "allStatuses": "Tümü",
           "category": "Kategori",
@@ -17239,8 +17424,6 @@
           "allOwners": "Tüm sahipler",
           "entityType": "Varlık tipi",
           "allEntityTypes": "Tüm varlık tipleri",
-          "dateFrom": "Başlangıç",
-          "dateTo": "Bitiş",
           "apply": "Uygula",
           "today": "Bugün",
           "reset": "Filtreleri Sıfırla"
@@ -17272,16 +17455,17 @@
           "backToToday": "Bugüne Dön",
           "today": "Bugün",
           "yesterday": "Dün",
-          "loadMore": "Daha fazla göster"
+          "loadMore": "Daha fazla göster",
+          "messageCount": "{count} mesaj"
         },
         "detail": {
-          "title": "Seçilen Olay Detayı",
+          "title": "Olay Detayı",
           "open": "Olay detayını aç",
           "close": "Kapat",
           "emptyTitle": "Olay seçilmedi",
           "emptyDescription": "Detay ve ilişkili kayıtları görmek için zaman çizelgesinden bir olay seçin.",
           "eventInformation": "Olay Bilgisi",
-          "relatedRecord": "İlgili Kayıt",
+          "relatedRecord": "İlgili kayıt",
           "relatedEntity": "İlgili varlık",
           "description": "Açıklama",
           "noDescription": "Açıklama eklenmemiş.",
@@ -17292,11 +17476,29 @@
           "relatedRecords": "İlişkili kayıtlar",
           "attachments": "Ekler",
           "notes": "Notlar",
-          "quickActions": "Hızlı Aksiyonlar"
+          "quickActions": "Hızlı Aksiyonlar",
+          "person": "Kişi",
+          "project": "Proje",
+          "unit": "Daire",
+          "eventType": "Olay türü",
+          "when": "Tarih / saat",
+          "source": "Kaynak"
         },
         "empty": {
           "title": "Zaman çizelgesi olayı yok",
-          "description": "Önemli CRM etkileşimleri burada görünür. Devam etmek için bir olay ekleyin veya filtreleri sıfırlayın."
+          "description": "Filtreleri değiştirin veya CRM kayıtları oluştukça olaylar burada görünür."
+        },
+        "eventKinds": {
+          "whatsapp": "WhatsApp",
+          "email": "Email",
+          "call": "Arama",
+          "meeting": "Toplantı",
+          "document": "Belge",
+          "purchase": "Satın Alma",
+          "payment": "Ödeme",
+          "note": "Not",
+          "task": "Görev",
+          "system": "Sistem"
         },
         "categories": {
           "whatsapp": "WhatsApp",
@@ -17496,6 +17698,111 @@
           "contact": "Kişi",
           "company": "Şirket"
         }
+      },
+      "unmatched": {
+        "title": "Eşleşmeyen İletişimler",
+        "subtitle": "CRM kişisine otomatik bağlanamayan mesajlar.",
+        "accessDenied": "Eşleşmeyen iletişimleri görüntüleme yetkiniz yok.",
+        "accessDeniedHint": "CRM iletişim erişimi için yöneticinize başvurun.",
+        "loading": "Eşleşmeyen iletişimler yükleniyor…",
+        "emptyTitle": "Eşleşmeyen iletişim yok",
+        "emptyDescription": "Güvenli kişi eşleşmesi bulunamayan e-posta ve WhatsApp mesajları burada görünür.",
+        "unknownSender": "Bilinmeyen gönderen",
+        "noSubject": "(Konu yok)",
+        "matchStatus": "Eşleşme durumu",
+        "suggestions": "Önerilen kişiler",
+        "noSuggestions": "Güvenli öneri yok. Kişiyi arayıp seçin.",
+        "searchPerson": "Kişi ara",
+        "searchPlaceholder": "Ad, e-posta veya telefon",
+        "selectPerson": "Kişi seç",
+        "purchase": "Satın alma (isteğe bağlı)",
+        "noPurchase": "Satın alma yok",
+        "confirm": "Kişiye bağla",
+        "ignore": "Yoksay",
+        "matchFailed": "Bu iletişim bağlanamadı.",
+        "previous": "Önceki",
+        "next": "Sonraki",
+        "channels": {
+          "email": "E-posta",
+          "whatsapp": "WhatsApp",
+          "call": "Arama"
+        },
+        "status": {
+          "unmatched": "Eşleşmedi",
+          "ambiguous": "Birden fazla eşleşme",
+          "matched": "Eşleşti",
+          "ignored": "Yoksayıldı"
+        }
+      },
+      "workspace": {
+        "title": "İletişim",
+        "subtitle": "Canlı Bitrix geçmişi ve mevcut CRM iletişim kayıtları.",
+        "kpis": {
+          "aria": "İletişim özeti",
+          "total": "Toplam İletişim",
+          "email": "E-posta",
+          "whatsapp": "WhatsApp",
+          "unmatched": "Eşleşmeyen"
+        },
+        "filters": {
+          "aria": "İletişim filtreleri",
+          "search": "Ara",
+          "searchPlaceholder": "Konu veya mesaj ara…",
+          "channel": "Kanal",
+          "person": "Kişi",
+          "personPlaceholder": "Kişi adı",
+          "project": "Proje",
+          "owner": "Sorumlu",
+          "direction": "Gelen / Giden",
+          "date": "Tarih",
+          "clear": "Filtreleri Temizle",
+          "anyChannel": "Tüm kanallar",
+          "anyPerson": "Tüm kişiler",
+          "anyProject": "Tüm projeler",
+          "anyOwner": "Tüm sorumlular",
+          "anyDirection": "Tümü",
+          "anyDate": "Tüm tarihler",
+          "inbound": "Gelen",
+          "outbound": "Giden",
+          "today": "Bugün",
+          "d7": "7 gün",
+          "d30": "30 gün",
+          "d90": "90 gün"
+        },
+        "channels": {
+          "email": "E-posta",
+          "whatsapp": "WhatsApp",
+          "call": "Arama",
+          "comment": "Yorum",
+          "meeting": "Toplantı",
+          "sms": "SMS",
+          "other": "Diğer"
+        },
+        "columns": {
+          "when": "Tarih / Saat",
+          "channel": "Kanal",
+          "person": "Kişi",
+          "subject": "Konu / Mesaj",
+          "project": "Proje / Daire",
+          "direction": "Gelen / Giden",
+          "owner": "Sorumlu",
+          "actions": "İşlem"
+        },
+        "tableAria": "İletişim tablosu",
+        "unmatchedTab": "Eşleşmeyen İletişimler",
+        "open": "Aç",
+        "more": "Diğer işlemler",
+        "openPerson": "Kişiye Git",
+        "openPurchase": "İlgili Satın Almaya Git",
+        "empty": "Bu filtrelerle eşleşen iletişim kaydı yok.",
+        "previous": "Önceki",
+        "next": "Sonraki",
+        "pager": "{total} kayıttan {from}–{to} arası gösteriliyor",
+        "pageSize": "Sayfa başına",
+        "drawerTitle": "İletişim detayı",
+        "conversationTitle": "WhatsApp konuşması",
+        "commentTitle": "Yorum",
+        "meetingTitle": "Toplantı"
       },
       "accessDenied": "İletişimleri görüntüleme yetkiniz yok.",
       "accessDeniedHint": "CRM iletişim erişimi için yöneticinize başvurun.",
@@ -17738,12 +18045,14 @@
     },
     "activities": {
       "title": "Aktiviteler",
-      "subtitle": "Tüm müşteri etkileşimlerinizi yönetin, takip edin ve analiz edin.",
+      "subtitle": "Operasyonel aktivite listesi — canlı CRM kayıtları.",
+      "emptyTitle": "Aktivite bulunamadı",
+      "emptyDescription": "Filtreleri değiştirin veya CRM kayıtları oluştukça aktiviteler burada görünür.",
+      "unresolvedIdentity": "Kimlik doğrulanamadı",
+      "loadMore": "Daha fazla yükle",
       "accessDenied": "Aktiviteleri görüntüleme yetkiniz yok.",
       "accessDeniedHint": "CRM aktivite erişimi için yöneticinize başvurun.",
       "loadFailed": "Aktiviteler yüklenemedi.",
-      "emptyTitle": "Aktivite bulunamadı",
-      "emptyDescription": "Yeni bir aktivite oluşturun veya filtreleri sıfırlayın.",
       "create": "Aktivite oluştur",
       "selectedCount": "{count} seçildi",
       "bulkPriorityHigh": "Öncelik: yüksek",
@@ -17823,14 +18132,22 @@
         "aria": "Aktivite filtreleri",
         "ariaLabel": "Aktivite filtreleri",
         "any": "Tümü",
-        "customer": "Müşteri",
-        "salesRep": "Satış Temsilcisi",
+        "customer": "Kişi",
+        "person": "Kişi",
+        "personPlaceholder": "Kişi adı…",
+        "project": "Proje",
+        "allProjects": "Tüm projeler",
+        "owner": "Sahip",
+        "allOwners": "Tüm sahipler",
+        "dateFrom": "Başlangıç",
+        "dateTo": "Bitiş",
+        "salesRep": "Sahip",
         "type": "Aktivite Türü",
         "status": "Durum",
         "priority": "Öncelik",
         "date": "Tarih Aralığı",
-        "search": "Arama",
-        "searchPlaceholder": "Aktivite ara...",
+        "search": "Ara",
+        "searchPlaceholder": "Aktivite ara…",
         "clear": "Filtreleri Temizle",
         "dateRanges": {
           "today": "Bugün",
@@ -17856,10 +18173,13 @@
       "table": {
         "aria": "Aktivite tablosu",
         "activity": "Aktivite",
-        "customer": "Müşteri",
-        "project": "Proje",
-        "salesRep": "Satış Temsilcisi",
-        "dateTime": "Tarih & Saat",
+        "customer": "Kişi",
+        "person": "Kişi",
+        "project": "Proje / Daire",
+        "type": "Tür",
+        "owner": "Sahip",
+        "salesRep": "Sahip",
+        "dateTime": "Tarih / Saat",
         "status": "Durum",
         "priority": "Öncelik",
         "aiSummary": "AI Özeti",
@@ -17876,7 +18196,39 @@
         "edit": "Düzenle",
         "more": "Daha fazla",
         "expand": "Tümünü gör",
-        "collapse": "Daha az"
+        "collapse": "Daha az",
+        "openContact": "Kişiyi Aç",
+        "openPurchase": "Satın Almayı Aç",
+        "close": "Kapat"
+      },
+      "drawer": {
+        "title": "Aktivite detayı",
+        "person": "Kişi",
+        "project": "Proje",
+        "unit": "Daire",
+        "type": "Tür",
+        "when": "Tarih / saat",
+        "owner": "Sahip",
+        "status": "Durum",
+        "description": "Açıklama",
+        "noDescription": "Açıklama yok.",
+        "source": "Kaynak",
+        "related": "İlgili kayıt"
+      },
+      "eventKinds": {
+        "whatsapp": "WhatsApp",
+        "email": "Email",
+        "call": "Arama",
+        "meeting": "Toplantı",
+        "document": "Belge",
+        "purchase": "Satın Alma",
+        "payment": "Ödeme",
+        "note": "Not",
+        "task": "Görev",
+        "system": "Sistem"
+      },
+      "group": {
+        "messages": "{count} mesaj"
       },
       "rowDescriptions": {
         "phoneDesc1": "Proje detayları ve ödeme planı görüşüldü",
@@ -17978,14 +18330,16 @@
     },
     "tasks": {
       "title": "Görevler",
-      "subtitle": "Satış ekibinin görevlerini planlayın, önceliklendirin ve zamanında tamamlayın.",
+      "subtitle": "Operasyonel görev listesi — canlı CRM kayıtları.",
       "listTitle": "Görev Listesi",
+      "unresolvedIdentity": "Kimlik doğrulanamadı",
+      "loadMore": "Daha fazla yükle",
       "accessDenied": "Görevleri görüntüleme yetkiniz yok.",
       "accessDeniedHint": "CRM görev erişimi için yöneticinize başvurun.",
       "loadFailed": "Görevler yüklenemedi.",
       "emptyTitle": "Görev yok",
       "emptyDescription": "İlk görevinizi oluşturun.",
-      "create": "Görev oluştur",
+      "create": "Görev Oluştur",
       "complete": "Tamamla",
       "widgets": "Görev özeti",
       "todaysTasks": "Bugünün görevleri",
@@ -18023,9 +18377,16 @@
       },
       "priority": {
         "low": "Düşük",
-        "medium": "Orta",
+        "medium": "Normal",
         "high": "Yüksek",
-        "critical": "Kritik"
+        "critical": "Acil"
+      },
+      "workspaceStatus": {
+        "active": "Aktif",
+        "open": "Açık",
+        "in_progress": "Devam Ediyor",
+        "completed": "Tamamlandı",
+        "cancelled": "İptal"
       },
       "kanban": {
         "todo": "Yapılacak",
@@ -18035,14 +18396,14 @@
       },
       "kpis": {
         "aria": "Görev özet metrikleri",
-        "open": "Açık Görevler",
-        "dueToday": "Bugün Bitecek",
+        "open": "Aktif",
+        "dueToday": "Bugün",
         "overdue": "Geciken",
         "completed": "Tamamlanan",
         "thisMonth": "bu ay",
         "thisWeek": "bu hafta",
         "hints": {
-          "openHint": "Aktif açık görevler",
+          "openHint": "Açık ve devam eden görevler",
           "dueTodayHint": "Son teslim bugün",
           "overdueHint": "Geciken görevler",
           "completedHint": "Dönemde tamamlanan"
@@ -18062,15 +18423,22 @@
       "filters": {
         "aria": "Görev filtreleri",
         "any": "Tümü",
-        "assignee": "Atanan Kişi",
-        "customer": "Müşteri",
+        "assignee": "Sorumlu",
+        "owner": "Sorumlu",
+        "allOwners": "Tüm sorumlular",
+        "customer": "Kişi",
+        "person": "Kişi",
+        "personPlaceholder": "Kişi adı…",
         "project": "Proje",
+        "allProjects": "Tüm projeler",
         "priority": "Öncelik",
         "status": "Durum",
         "dueDate": "Son Tarih",
+        "dateFrom": "Başlangıç",
+        "dateTo": "Bitiş",
         "tag": "Etiket",
-        "search": "Arama",
-        "searchPlaceholder": "Görev ara...",
+        "search": "Ara",
+        "searchPlaceholder": "Görev ara…",
         "clear": "Filtreleri Temizle",
         "dateRanges": {
           "today": "Bugün",
@@ -18081,14 +18449,18 @@
       "table": {
         "aria": "Görev tablosu",
         "task": "Görev",
-        "customer": "Müşteri",
-        "project": "Proje",
+        "customer": "Kişi",
+        "person": "İlgili Kişi",
+        "project": "Proje / Daire",
         "dueDate": "Son Tarih",
         "priority": "Öncelik",
-        "assignee": "Atanan",
+        "assignee": "Sorumlu",
+        "owner": "Sorumlu",
         "aiNote": "AI Notu",
         "status": "Durum",
-        "actions": "Aksiyonlar"
+        "start": "Başlangıç",
+        "end": "Bitiş",
+        "actions": "İşlem"
       },
       "pagination": {
         "aria": "Görev sayfalama",
@@ -18096,14 +18468,49 @@
         "perPage": "Sayfa başına",
         "pageUnit": "sayfa"
       },
+      "pager": "{total} kayıttan {from}–{to} arası gösteriliyor",
+      "pageSize": "Sayfa başına",
       "actions": {
         "detail": "Detay",
+        "open": "Aç",
         "edit": "Düzenle",
+        "complete": "Tamamla",
+        "close": "Kapat",
+        "openContact": "Kişiye Git",
+        "openPurchase": "Satın Almaya Git",
         "assign": "Ata",
         "more": "Daha Fazla",
         "selectTask": "{title} görevini seç",
         "expand": "Tümünü Gör",
         "collapse": "Daha az"
+      },
+      "drawer": {
+        "title": "Görev detayı",
+        "person": "Kişi",
+        "project": "Proje",
+        "unit": "Daire",
+        "owner": "Sorumlu",
+        "created": "Oluşturma",
+        "updated": "Güncelleme",
+        "due": "Son tarih",
+        "priority": "Öncelik",
+        "status": "Durum",
+        "source": "Kaynak",
+        "description": "Açıklama",
+        "noDescription": "Açıklama yok."
+      },
+      "form": {
+        "title": "Görev başlığı",
+        "description": "Açıklama",
+        "person": "Kişi",
+        "project": "Proje",
+        "purchase": "Satın Alma",
+        "owner": "Sorumlu",
+        "due": "Son tarih",
+        "priority": "Öncelik",
+        "status": "Durum",
+        "save": "Kaydet",
+        "saving": "Kaydediliyor…"
       },
       "dueUrgency": {
         "dueEndToday": "Bugün son gün",
@@ -18190,13 +18597,65 @@
     },
     "notes": {
       "title": "Notlar",
-      "subtitle": "Kişi, şirket ve projeler ile ilgili tüm notlarınızı yönetin.",
+      "subtitle": "Canlı CRM notları ve yorumları.",
       "accessDenied": "Notları görüntüleme yetkiniz yok.",
       "accessDeniedHint": "CRM not erişimi için yöneticinize başvurun.",
       "loadFailed": "Notlar yüklenemedi.",
       "emptyTitle": "Not yok",
       "emptyDescription": "İlk notunuzu oluşturun.",
       "create": "Yeni Not",
+      "unresolvedIdentity": "Kimlik doğrulanamadı",
+      "loadMore": "Daha fazla yükle",
+      "filters": {
+        "aria": "Not filtreleri",
+        "any": "Tümü",
+        "search": "Ara",
+        "searchPlaceholder": "Notlarda ara…",
+        "person": "Kişi",
+        "personPlaceholder": "Kişi adı…",
+        "project": "Proje",
+        "allProjects": "Tüm projeler",
+        "owner": "Sorumlu",
+        "allOwners": "Tüm sorumlular",
+        "dateFrom": "Tarih",
+        "dateTo": "Bitiş",
+        "clear": "Filtreleri Temizle"
+      },
+      "table": {
+        "aria": "Not tablosu",
+        "when": "Tarih / Saat",
+        "note": "Not",
+        "person": "Kişi",
+        "project": "Proje / Daire",
+        "author": "Yazarı",
+        "source": "Kaynak"
+      },
+      "pagination": {
+        "total": "Toplam {count} not"
+      },
+      "actions": {
+        "close": "Kapat",
+        "openContact": "Kişiyi Aç",
+        "openPurchase": "Satın Almayı Aç"
+      },
+      "drawer": {
+        "title": "Not detayı",
+        "author": "Yazarı",
+        "when": "Tarih / Saat",
+        "person": "Kişi",
+        "project": "Proje / Daire",
+        "source": "Kaynak",
+        "empty": "Not metni yok."
+      },
+      "form": {
+        "body": "Not",
+        "person": "Kişi",
+        "project": "Proje",
+        "purchase": "Satın Alma",
+        "save": "Kaydet",
+        "saving": "Kaydediliyor…",
+        "personRequired": "Not için kişi seçin."
+      },
       "ds": {
         "title": "Notlar",
         "subtitle": "Kişi, şirket ve projeler ile ilgili tüm notlarınızı yönetin.",
@@ -18369,6 +18828,10 @@
     "calendar": {
       "title": "Takvim",
       "subtitle": "Toplantılarınızı, görevlerinizi ve müşteri etkinliklerinizi tek yerden yönetin.",
+      "opsSubtitle": "Operasyonel takvim — yalnızca tarihli canlı CRM kayıtları.",
+      "eventCount": "{count} etkinlik",
+      "emptyDay": "Etkinlik yok",
+      "unresolvedIdentity": "Kişi",
       "accessDenied": "Takvimi görüntüleme yetkiniz yok.",
       "accessDeniedHint": "CRM takvim erişimi için yöneticinize başvurun.",
       "loadFailed": "Takvim yüklenemedi.",
@@ -18385,7 +18848,8 @@
         "day": "Gün",
         "week": "Hafta",
         "month": "Ay",
-        "agenda": "Ajanda"
+        "agenda": "Ajanda",
+        "list": "Liste"
       },
       "days": {
         "mon": "Pzt",
@@ -18417,13 +18881,91 @@
           "attendanceRateHint": "Toplantı katılım oranı"
         }
       },
+      "filters": {
+        "stub": "Filtreler sunum amaçlıdır — canlı takvim motoru bağlı değildir.",
+        "aria": "Takvim filtreleri",
+        "any": "Tümü",
+        "person": "Kişi",
+        "personPlaceholder": "Kişi adı…",
+        "project": "Proje",
+        "allProjects": "Tüm projeler",
+        "type": "Tür",
+        "owner": "Sorumlu",
+        "allOwners": "Tüm sorumlular",
+        "clear": "Filtreleri Temizle"
+      },
+      "kinds": {
+        "task": "Görev",
+        "meeting": "Toplantı",
+        "reminder": "Hatırlatma",
+        "payment": "Ödeme",
+        "purchase": "Satın Alma",
+        "closing": "Closing",
+        "delivery": "Teslim",
+        "document": "Belge / Sözleşme",
+        "other": "Diğer"
+      },
+      "status": {
+        "completed": "Tamamlandı",
+        "overdue": "Geciken"
+      },
+      "drawer": {
+        "title": "Etkinlik detayı",
+        "datetime": "Tarih / saat",
+        "date": "Tarih",
+        "time": "Saat",
+        "type": "Tür",
+        "person": "Kişi",
+        "project": "Proje",
+        "projectUnit": "Proje / Daire",
+        "unit": "Daire",
+        "owner": "Sorumlu",
+        "status": "Durum",
+        "source": "Kaynak",
+        "description": "Açıklama",
+        "noDescription": "Açıklama yok."
+      },
+      "form": {
+        "title": "Başlık",
+        "kind": "Tür",
+        "date": "Tarih",
+        "time": "Saat",
+        "person": "Kişi",
+        "project": "Proje",
+        "purchase": "Satın Alma",
+        "owner": "Sorumlu",
+        "description": "Açıklama"
+      },
+      "create": {
+        "title": "Yeni etkinlik",
+        "task": "Yeni Görev",
+        "meeting": "Yeni Toplantı",
+        "reminder": "Yeni Hatırlatma"
+      },
+      "table": {
+        "when": "Tarih / Saat",
+        "title": "Başlık",
+        "person": "Kişi",
+        "project": "Proje / Daire",
+        "type": "Tür",
+        "owner": "Sorumlu",
+        "actions": "İşlem",
+        "open": "Aç"
+      },
+      "overflow": {
+        "more": "+{count}",
+        "title": "{date} etkinlikleri"
+      },
       "actions": {
         "newEvent": "Yeni Etkinlik",
         "aiPlan": "AI Planla",
-        "filters": "Filtreler"
-      },
-      "filters": {
-        "stub": "Filtreler sunum amaçlıdır — canlı takvim motoru bağlı değildir."
+        "filters": "Filtreler",
+        "openContact": "Kişiyi Aç",
+        "openPurchase": "Satın Almayı Aç",
+        "openTask": "Görevi Aç",
+        "edit": "Düzenle",
+        "close": "Kapat",
+        "save": "Kaydet"
       },
       "ai": {
         "aria": "Takvim AI eylemleri",
@@ -20046,6 +20588,70 @@
         },
         "manageHint": "{name} yönetiliyor. Güncel sayı: {count}. Sunum güncellemesi için kaydedin."
       },
+      "communicationAccounts": {
+        "title": "İletişim Hesapları",
+        "subtitle": "Investhome OS kullanıcısına bağlı E-posta ve WhatsApp kanalları. CRM müşteri kişileri ayrı tutulur.",
+        "navLabel": "İletişim Hesapları",
+        "rowHint": "Kullanıcıya bağlı E-posta / WhatsApp",
+        "accessDenied": "İletişim hesaplarını görüntüleme yetkiniz yok.",
+        "accessDeniedHint": "CRM ayar erişimi için yöneticinize başvurun.",
+        "registerTitle": "Kanal kaydet",
+        "noCredentialsHint": "Gmail için “Gmail Bağla” düğmesini kullanın. Diğer sağlayıcılar bu formdan kimlik bilgisi olmadan kaydedilebilir.",
+        "viewOnlyHint": "Size atanan kanalları görebilirsiniz. Canlı kutu bağlantısı yönetici gerektirir.",
+        "register": "Hesabı kaydet",
+        "registerFailed": "Bu hesap kaydedilemedi.",
+        "disconnect": "Bağlantıyı Kes",
+        "gmailTitle": "Gmail",
+        "gmailHint": "Pilot: tek bir Gmail / Google Workspace kutusunu bağlayın. Gelen ve Giden kutusu içeri alınır. Gönderme henüz açık değildir.",
+        "gmailConnect": "Gmail Bağla",
+        "gmailNotConfigured": "Gmail OAuth yapılandırılmamış. Mevcut Google Drive OAuth istemcisine Gmail API ve yönlendirme URI’si ekleyin.",
+        "gmailConnected": "Gmail bağlandı. Son 30 gün Gelen ve Giden kutusu senkronize ediliyor.",
+        "gmailConnectFailed": "Gmail bağlantısı başarısız ({reason}).",
+        "syncNow": "Şimdi Senkronize Et",
+        "syncStarted": "Gmail senkronizasyonu tamamlandı.",
+        "syncFailed": "Gmail senkronizasyonu başarısız.",
+        "loading": "Hesaplar yükleniyor…",
+        "emptyTitle": "İletişim hesabı yok",
+        "emptyDescription": "Bir Investhome kullanıcısı için E-posta veya WhatsApp kimliği kaydedin. Bu ekran mesaj göndermez.",
+        "placeholders": {
+          "email": "sales@investhome.com.tr",
+          "phone": "+90 5xx xxx xx xx"
+        },
+        "fields": {
+          "user": "Investhome kullanıcısı",
+          "channel": "Kanal",
+          "provider": "Sağlayıcı",
+          "identity": "Bağlı hesap",
+          "label": "Etiket"
+        },
+        "channels": {
+          "email": "E-posta",
+          "whatsapp": "WhatsApp"
+        },
+        "columns": {
+          "user": "Kullanıcı",
+          "channel": "Kanal",
+          "account": "Bağlı hesap",
+          "status": "Durum",
+          "health": "Sağlık",
+          "lastSync": "Son senkron",
+          "actions": "İşlemler"
+        },
+        "status": {
+          "not_connected": "Bağlı değil",
+          "pending": "Beklemede",
+          "connected": "Bağlı",
+          "error": "Hata",
+          "needs_reauth": "Yeniden Yetkilendirme Gerekli",
+          "disconnected": "Bağlantı kesildi"
+        },
+        "health": {
+          "unknown": "Bilinmiyor",
+          "healthy": "Sağlıklı",
+          "degraded": "Zayıf",
+          "error": "Hata"
+        }
+      },
       "notifications": {
         "title": "Bildirim Kanalları",
         "aria": "Bildirim kanalları",
@@ -20266,65 +20872,180 @@
         "description": "Farklı bir arama deneyin veya yeni dosya yükleyin."
       }
     },
+    "documentHub": {
+      "title": "Belgeler",
+      "subtitle": "Canlı CRM belgeleri — kişi ve satın alma kayıtlarına bağlı gerçek dosyalar.",
+      "kpis": {
+        "aria": "Belge özeti",
+        "total": "Toplam Belge",
+        "person": "Kişi Belgeleri",
+        "purchase": "Satın Alma Belgeleri",
+        "hidden": "Gizlenen",
+        "unresolved": "Eksik Bağlantı / İnceleme Gereken"
+      },
+      "filters": {
+        "aria": "Belge filtreleri",
+        "search": "Ara",
+        "searchPlaceholder": "Belge adı veya kişi ara...",
+        "person": "Kişi",
+        "personPlaceholder": "Kişi adı",
+        "project": "Proje",
+        "unit": "Daire",
+        "unitPlaceholder": "Daire no",
+        "category": "Belge Türü",
+        "source": "Kaynak",
+        "date": "Tarih",
+        "visibility": "Durum",
+        "clear": "Filtreleri Temizle",
+        "anyProject": "Tüm projeler",
+        "anyCategory": "Tüm türler",
+        "anySource": "Tüm kaynaklar",
+        "anyDate": "Tüm tarihler",
+        "visible": "Görünür",
+        "hidden": "Gizli",
+        "allVisibility": "Tümü",
+        "today": "Bugün",
+        "d7": "7 gün",
+        "d30": "30 gün",
+        "d90": "90 gün"
+      },
+      "categories": {
+        "passport": "Pasaport / Kimlik",
+        "reservation": "Ön Rezervasyon",
+        "operating_agreement": "Operating Agreement",
+        "llc": "LLC / Certificate",
+        "payment": "SWIFT / Dekont",
+        "closing": "Closing / Title",
+        "offer": "Teklif",
+        "warranty": "Warranty / Teslim",
+        "correspondence": "Correspondence",
+        "other": "Diğer"
+      },
+      "sources": {
+        "sale": "Satış belgesi",
+        "activity": "E-posta / Aktivite eki",
+        "comment": "Yorum eki",
+        "import1812": "1812 içe aktarma",
+        "manual": "Manuel belge"
+      },
+      "columns": {
+        "document": "Belge",
+        "type": "Tür",
+        "person": "Kişi",
+        "project": "Proje / Daire",
+        "source": "Kaynak",
+        "date": "Tarih",
+        "status": "Durum",
+        "actions": "İşlem"
+      },
+      "status": {
+        "visible": "Görünür",
+        "hidden": "Gizli",
+        "review": "İnceleme Gereken"
+      },
+      "tableAria": "Belge tablosu",
+      "count": "{count} sonuç",
+      "pager": "{total} kayıttan {from}–{to} arası gösteriliyor",
+      "pageSize": "Sayfa başına",
+      "download": "İndir",
+      "more": "Diğer işlemler",
+      "open": "Aç",
+      "preview": "Aç / Önizle",
+      "hide": "Gizle",
+      "restore": "Geri Getir",
+      "openPerson": "Kişiyi Aç",
+      "openPurchase": "Satın Almayı Aç",
+      "historicalHint": "Tarihi daire {unit}",
+      "empty": "Bu filtrelerle eşleşen belge yok.",
+      "previous": "Önceki",
+      "next": "Sonraki",
+      "drawerTitle": "Belge detayı",
+      "drawer": {
+        "filename": "Dosya",
+        "category": "Tür",
+        "size": "Boyut",
+        "date": "Tarih",
+        "source": "Kaynak",
+        "person": "Bağlı kişi",
+        "purchase": "Bağlı satın alma",
+        "unit": "Daire",
+        "historicalUnit": "Tarihi daire",
+        "currentUnit": "Güncel daire",
+        "checksum": "Checksum",
+        "sourceFile": "Kaynak dosya"
+      }
+    },
     "tags": {
       "title": "Etiketler",
-      "subtitle": "Gerçek kişilere atanmış CRM etiketleri.",
-      "create": "Etiket oluştur",
+      "subtitle": "Canlı CRM etiketleri — kişi kartına bağlı gerçek kayıtlar.",
+      "create": "Yeni Etiket",
       "edit": "Düzenle",
-      "delete": "Sil",
+      "view": "Görüntüle",
+      "activate": "Aktifleştir",
+      "deactivate": "Pasifleştir",
       "listAria": "Etiket listesi",
-      "usageCount": "{count} kullanım",
+      "usageCount": "{count} kişi",
+      "accessDenied": "Etiketleri görüntüleme yetkiniz yok.",
+      "accessDeniedHint": "CRM okuma izni gerekir.",
+      "loadFailed": "Etiketler yüklenemedi",
+      "kpis": {
+        "aria": "Etiket özeti",
+        "total": "Toplam Etiket",
+        "tagged": "Etiketli Kişi",
+        "untagged": "Etiketsiz Kişi"
+      },
       "filters": {
         "aria": "Etiket filtreleri",
         "search": "Ara",
         "searchPlaceholder": "Etiket ara…",
-        "category": "Kategori",
-        "color": "Renk",
-        "anyCategory": "Tüm kategoriler",
-        "anyColor": "Tüm renkler",
-        "clear": "Temizle"
+        "status": "Durum",
+        "anyStatus": "Tüm durumlar",
+        "clear": "Filtreleri Temizle"
       },
-      "categories": {
-        "lifecycle": "Yaşam döngüsü",
-        "interest": "İlgi",
-        "priority": "Öncelik",
-        "source": "Kaynak",
-        "custom": "Özel"
+      "status": {
+        "active": "Aktif",
+        "inactive": "Pasif"
       },
-      "colors": {
-        "navy": "Lacivert",
-        "cyan": "Camgöbeği",
-        "green": "Yeşil",
-        "amber": "Kehribar",
-        "rose": "Gül",
-        "violet": "Menekşe",
-        "slate": "Gri"
+      "columns": {
+        "name": "Etiket",
+        "people": "Kişi Sayısı",
+        "status": "Durum",
+        "updated": "Son Güncelleme",
+        "actions": "İşlem"
+      },
+      "table": {
+        "aria": "Etiket tablosu"
+      },
+      "drawer": {
+        "title": "Etiket detayı",
+        "created": "Oluşturulma",
+        "updated": "Güncelleme",
+        "people": "Bağlı kişiler",
+        "noPeople": "Bu etikete bağlı kişi yok."
+      },
+      "actions": {
+        "close": "Kapat"
       },
       "empty": {
         "title": "CRM etiketi yok",
-        "description": "Henüz atanmış gerçek bir CRM etiketi yok."
+        "description": "Henüz canlı bir CRM etiketi yok. Yeni etiket oluşturabilirsiniz."
       },
       "form": {
-        "createTitle": "Etiket oluştur",
+        "createTitle": "Yeni etiket",
         "editTitle": "Etiketi düzenle",
-        "name": "Ad",
+        "name": "Etiket adı",
         "namePlaceholder": "Etiket adı",
-        "color": "Renk",
-        "category": "Kategori",
+        "nameRequired": "Etiket adı gerekli",
         "description": "Açıklama",
-        "preview": "Önizleme",
+        "status": "Durum",
         "cancel": "İptal",
         "save": "Kaydet",
-        "defaultDescription": "Özel CRM etiketi"
-      },
-      "deleteConfirm": {
-        "title": "Etiketi sil",
-        "message": "Etiket yerel listeden kaldırılır. Kullanım bağlantıları sunum amaçlıdır."
+        "saving": "Kaydediliyor…"
       },
       "toast": {
         "created": "Etiket oluşturuldu",
         "updated": "Etiket güncellendi",
-        "deleted": "Etiket silindi"
+        "statusChanged": "Etiket durumu güncellendi"
       }
     }
   },

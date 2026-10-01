@@ -60,6 +60,20 @@ def _upload(client: TestClient, filename: str, content: bytes, mime: str, **form
     return result["document"]
 
 
+def _corrupt_docx() -> bytes:
+    """OOXML zip that passes magic-byte checks but fails python-docx extraction."""
+    import zipfile
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr(
+            "[Content_Types].xml",
+            '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"></Types>',
+        )
+        archive.writestr("word/document.xml", "not-valid-xml-for-docx")
+    return buffer.getvalue()
+
+
 def _make_docx(text: str) -> bytes:
     doc = DocxDocument()
     doc.add_heading("Operating Agreement", level=1)
@@ -307,7 +321,7 @@ class TestProcessingReliability:
         doc = _upload(
             client,
             "bad.docx",
-            b"not-a-real-docx",
+            _corrupt_docx(),
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             document_type="other",
         )
@@ -356,7 +370,7 @@ class TestPermissionsAndConfidentiality:
         auth_client.post("/auth/login", json={"email": "admin@example.com", "password": "Demo123!"})
         upload = auth_client.post(
             "/documents/upload",
-            files={"files": ("bad.docx", io.BytesIO(b"broken"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            files={"files": ("bad.docx", io.BytesIO(_corrupt_docx()), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
         )
         doc_id = upload.json()["results"][0]["document"]["id"]
         _wait_for_processing(auth_client, doc_id)
@@ -398,7 +412,7 @@ class TestIntegrations:
         doc = _upload(
             client,
             "failnotify.docx",
-            b"broken-content",
+            _corrupt_docx(),
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         )
         status = _wait_for_processing(client, doc["id"])

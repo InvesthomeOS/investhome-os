@@ -1,18 +1,14 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 
-import { PORTAL_DEMO_USERS } from '../_data/investors';
+import { isPortalSessionExpired } from '@/lib/auth/portal-session-cookie';
 import type { PortalSessionPayload } from '../_data/types';
+
+export { authenticatePortalDemo } from './portal-demo-auth';
 
 export const PORTAL_SESSION_COOKIE = 'ih_portal_session';
 
-const DEV_FALLBACK_SECRET = 'dev-only-portal-session-secret-change-me';
-
 function portalSessionSecret(): string {
-  return (
-    process.env.PORTAL_SESSION_SECRET ||
-    process.env.JWT_SECRET ||
-    (process.env.NODE_ENV === 'production' ? '' : DEV_FALLBACK_SECRET)
-  );
+  return (process.env.PORTAL_SESSION_SECRET || '').trim();
 }
 
 function signPayload(payloadJson: string, secret: string): string {
@@ -26,7 +22,7 @@ function signPayload(payloadJson: string, secret: string): string {
 export function encodePortalSession(payload: PortalSessionPayload): string {
   const secret = portalSessionSecret();
   if (!secret) {
-    throw new Error('PORTAL_SESSION_SECRET (or JWT_SECRET) is required in production');
+    throw new Error('PORTAL_SESSION_SECRET is required');
   }
   const payloadJson = JSON.stringify(payload);
   const body = Buffer.from(payloadJson, 'utf8').toString('base64url');
@@ -53,24 +49,10 @@ export function decodePortalSession(raw: string | undefined | null): PortalSessi
     const b = Buffer.from(expected);
     if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
     const data = JSON.parse(payloadJson) as PortalSessionPayload;
-    if (!data?.investorId || !data?.email) return null;
+    if (!data?.investorId || !data?.email || !data?.issuedAt) return null;
+    if (isPortalSessionExpired(data.issuedAt)) return null;
     return data;
   } catch {
     return null;
   }
-}
-
-export function authenticatePortalDemo(
-  email: string,
-  password: string,
-): PortalSessionPayload | null {
-  const match = PORTAL_DEMO_USERS.find(
-    (u) => u.email.toLowerCase() === email.trim().toLowerCase() && u.password === password,
-  );
-  if (!match) return null;
-  return {
-    investorId: match.investorId,
-    email: match.email,
-    issuedAt: new Date().toISOString(),
-  };
 }

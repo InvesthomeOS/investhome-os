@@ -20,8 +20,6 @@ export const INVESTOR_A_ID = 'portal-inv-a';
 /** Isolated investor B — never returned to A; used for permission tests. */
 export const INVESTOR_B_ID = 'portal-inv-b';
 
-export const DEMO_PORTAL_PASSWORD = 'Portal123!';
-
 export const investorA: PortalInvestor = {
   id: INVESTOR_A_ID,
   fullName: 'Ayşe Yılmaz',
@@ -49,11 +47,6 @@ export const investorB: PortalInvestor = {
   avatarInitials: 'MC',
   twoFactorEnabled: false,
 };
-
-export const PORTAL_DEMO_USERS = [
-  { email: investorA.email, password: DEMO_PORTAL_PASSWORD, investorId: INVESTOR_A_ID },
-  { email: investorB.email, password: DEMO_PORTAL_PASSWORD, investorId: INVESTOR_B_ID },
-] as const;
 
 export const holdingsA: PortfolioHolding[] = [
   {

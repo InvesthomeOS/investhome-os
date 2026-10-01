@@ -100,8 +100,8 @@ def test_content_growth_one_slot_to_three() -> None:
     assert growth["occupied_slots_after"] == 3
     assert growth["fits_current_geometry"] is False
     assert growth["execution"] == EXECUTION
-    assert growth["mutable_region_role"] == "commercial_content_zone"
-    assert growth["content_growth_route"] == "commercial_content_zone"
+    assert growth["mutable_region_role"] == "upper_creative_zone"
+    assert growth["content_growth_route"] == "upper_creative_zone"
 
 
 def test_mask_alpha_zero_only_inside_commercial_bbox() -> None:
@@ -198,11 +198,12 @@ def test_commercial_bbox_requires_safe_bbox() -> None:
         assert "safe_bbox" in str(exc.detail)
 
 
-def test_content_growth_bbox_uses_commercial_content_zone() -> None:
+def test_content_growth_bbox_uses_upper_creative_zone() -> None:
     from investhome_api.services.creative_director.bounded_local_recomposition import (
         commercial_bbox,
     )
 
+    upper = {"x0": 0, "y0": 0, "x1": 1088, "y1": 554}
     zone = {"x0": 220, "y0": 248, "x1": 890, "y1": 554}
     group = {"x0": 221, "y0": 303, "x1": 886, "y1": 554}
     edit_map = {
@@ -215,10 +216,14 @@ def test_content_growth_bbox_uses_commercial_content_zone() -> None:
                 "semantic_role": "commercial_content_zone",
                 "safe_bbox": zone,
             },
+            {
+                "semantic_role": "upper_creative_zone",
+                "safe_bbox": upper,
+            },
         ]
     }
     assert commercial_bbox(edit_map) == group
-    assert commercial_bbox(edit_map, content_growth=True) == zone
+    assert commercial_bbox(edit_map, content_growth=True) == upper
 
 
 def test_ghost_check_rejects_unchanged_original_tails() -> None:
@@ -323,19 +328,22 @@ def test_fact_check_fails_when_commercial_type_unreadable() -> None:
     assert "commercial_type_not_readable" in result["failures"]
 
 
-def test_region_prompt_unlocks_supporting_copy_inside_zone() -> None:
+def test_region_prompt_recomposes_upper_header() -> None:
     from investhome_api.services.creative_director.bounded_local_recomposition import (
         build_region_edit_prompt,
     )
 
     intent = parse_price_block(COMMAND)
-    prompt = build_region_edit_prompt(intent, region_role="commercial_content_zone", hero_y=554)
+    prompt = build_region_edit_prompt(intent, region_role="upper_creative_zone", hero_y=554)
     assert "Do NOT change the subheadline" not in prompt
-    assert "commercial content zone" in prompt.lower()
+    assert "Do NOT recreate the advertisement" in prompt
+    assert "Do NOT redesign this ad" in prompt
+    assert "authorized upper header" in prompt.lower()
     assert "438.750" in prompt
     assert "236.250" in prompt
     assert "y=554" in prompt
     assert "ALIRKEN KAZAN" in prompt
+    assert "Do not enlarge typography merely to fill space" in prompt
 
 
 def test_subheadline_lock_skipped_when_inside_content_zone() -> None:
@@ -364,6 +372,60 @@ def test_subheadline_lock_skipped_when_inside_content_zone() -> None:
     assert locks["subheadline"]["status"] == "skip"
 
 
+def test_headline_lock_skipped_when_inside_upper_zone() -> None:
+    from investhome_api.services.creative_director.bounded_local_recomposition import (
+        immutable_region_deltas,
+    )
+
+    original = Image.new("RGB", (100, 100), (8, 12, 28))
+    composed = original.copy()
+    ImageDraw.Draw(composed).rectangle([0, 0, 99, 79], fill=(240, 240, 240))
+    edit_map = {
+        "regions": [
+            {"semantic_role": "headline", "bbox": {"x0": 10, "y0": 0, "x1": 90, "y1": 20}},
+            {"semantic_role": "subheadline", "bbox": {"x0": 10, "y0": 22, "x1": 90, "y1": 40}},
+            {"semantic_role": "hero_visual", "bbox": {"x0": 0, "y0": 80, "x1": 100, "y1": 100}},
+            {"semantic_role": "cta", "bbox": {"x0": 20, "y0": 82, "x1": 80, "y1": 90}},
+            {"semantic_role": "logo", "bbox": {"x0": 30, "y0": 92, "x1": 70, "y1": 98}},
+        ]
+    }
+    zone = {"x0": 0, "y0": 0, "x1": 100, "y1": 80}
+    locks = immutable_region_deltas(original, composed, edit_map, mutable_bbox=zone)
+    assert locks["headline"]["status"] == "skip"
+    assert locks["subheadline"]["status"] == "skip"
+    assert locks["hero_visual"]["status"] == "pass"
+    assert locks["cta"]["status"] == "pass"
+    assert locks["logo"]["status"] == "pass"
+
+
+def test_small_copy_inside_large_upper_zone_is_skipped() -> None:
+    from investhome_api.services.creative_director.bounded_local_recomposition import (
+        immutable_region_deltas,
+    )
+
+    original = Image.new("RGB", (200, 120), (8, 12, 28))
+    composed = original.copy()
+    ImageDraw.Draw(composed).rectangle([0, 0, 199, 79], fill=(240, 240, 240))
+    edit_map = {
+        "regions": [
+            {"semantic_role": "headline", "bbox": {"x0": 20, "y0": 4, "x1": 180, "y1": 22}},
+            {"semantic_role": "subheadline", "bbox": {"x0": 30, "y0": 26, "x1": 170, "y1": 38}},
+            {"semantic_role": "supporting_copy", "bbox": {"x0": 40, "y0": 42, "x1": 160, "y1": 52}},
+            {"semantic_role": "hero_visual", "bbox": {"x0": 0, "y0": 80, "x1": 200, "y1": 120}},
+            {"semantic_role": "cta", "bbox": {"x0": 40, "y0": 90, "x1": 160, "y1": 100}},
+            {"semantic_role": "logo", "bbox": {"x0": 70, "y0": 105, "x1": 130, "y1": 116}},
+        ]
+    }
+    zone = {"x0": 0, "y0": 0, "x1": 200, "y1": 80}
+    locks = immutable_region_deltas(original, composed, edit_map, mutable_bbox=zone)
+    assert locks["headline"]["status"] == "skip"
+    assert locks["subheadline"]["status"] == "skip"
+    assert locks["supporting_copy"]["status"] == "skip"
+    assert locks["hero_visual"]["status"] == "pass"
+    assert locks["cta"]["status"] == "pass"
+    assert locks["logo"]["status"] == "pass"
+
+
 def test_clipping_check_flags_type_on_hero_edge() -> None:
     from investhome_api.services.creative_director.bounded_local_recomposition import (
         clipping_check,
@@ -376,3 +438,18 @@ def test_clipping_check_flags_type_on_hero_edge() -> None:
     result = clipping_check(im, bbox)
     assert result["status"] == "fail"
     assert "commercial_clipped_at_hero_boundary" in result["failures"]
+
+
+def test_clipping_check_allows_inset_headline_at_canvas_top() -> None:
+    from investhome_api.services.creative_director.bounded_local_recomposition import (
+        clipping_check,
+    )
+
+    im = Image.new("RGB", (200, 80), (8, 12, 28))
+    draw = ImageDraw.Draw(im)
+    draw.rectangle([20, 8, 180, 28], fill=(240, 240, 240))
+    bbox = {"x0": 0, "y0": 0, "x1": 200, "y1": 80}
+    result = clipping_check(im, bbox)
+    assert result["status"] == "pass", result
+    assert "commercial_clipped_at_canvas_top" not in result["failures"]
+    assert "commercial_clipped_at_headline_lock" not in result["failures"]

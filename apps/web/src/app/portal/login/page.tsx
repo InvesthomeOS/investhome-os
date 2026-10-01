@@ -5,12 +5,14 @@ import type { Route } from 'next';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
+import { safePortalPath } from '@/lib/auth/portal-session-cookie';
+
 function PortalLoginForm() {
   const t = useTranslations('portalG9');
   const router = useRouter();
   const search = useSearchParams();
-  const [email, setEmail] = useState('investor.a@investhome.demo');
-  const [password, setPassword] = useState('Portal123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -29,8 +31,7 @@ function PortalLoginForm() {
         setError(t('login.error'));
         return;
       }
-      const next = (search.get('next') || '/portal') as Route;
-      router.replace(next);
+      router.replace(safePortalPath(search.get('next')) as Route);
       router.refresh();
     } finally {
       setPending(false);
@@ -75,9 +76,6 @@ function PortalLoginForm() {
       >
         {t('login.submit')}
       </button>
-      <div className="portal-login__hint" data-testid="portal-login-hint">
-        {t('login.hint')}
-      </div>
     </form>
   );
 }

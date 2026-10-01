@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
@@ -66,6 +67,7 @@ from investhome_api.services.document_service import (
     get_document_or_404,
     get_version_chain,
     mark_previous_versions_superseded,
+    reject_unauthorized_sensitive_document_fields,
     restore_document,
     restore_document_version,
     user_can_download_document,
@@ -75,6 +77,10 @@ from investhome_api.services.document_validation import (
     content_stream,
     generate_storage_key,
     read_and_validate_upload,
+)
+from investhome_api.services.document_access_audit import (
+    deny_document_access,
+    record_document_access,
 )
 from investhome_api.services.notification_hooks import (
     notify_document_uploaded_confidential,
@@ -134,6 +140,12 @@ def _resolve_related_label(db: Session, document: Document) -> str | None:
         if txn:
             return txn.description or txn.reference_number
     return None
+
+
+def _content_disposition(disposition: str, filename: str) -> str:
+    cleaned = (filename or "document").replace('"', "").replace("\r", "").replace("\n", "")
+    ascii_name = cleaned.encode("ascii", "replace").decode("ascii").replace("?", "_") or "document"
+    return f"{disposition}; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(cleaned)}"
 
 
 def _to_response(db: Session, document: Document) -> DocumentResponse:
@@ -284,6 +296,7 @@ def list_documents_by_entity(
     entity_id: UUID,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=100),
+    include_hidden: bool = Query(default=False),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("documents", "view")),
 ) -> DocumentListResponse:
@@ -294,11 +307,22 @@ def list_documents_by_entity(
         user,
         entity_type=entity_type,
         entity_id=entity_id,
+        include_hidden=include_hidden,
         page=page,
         page_size=page_size,
     )
+    responses = []
+    for doc in items:
+        item = _to_response(db, doc)
+        hidden = any(
+            link.entity_type == entity_type
+            and link.entity_id == entity_id
+            and getattr(link, "hidden_from_view", False)
+            for link in (doc.links or [])
+        )
+        responses.append(item.model_copy(update={"hidden_from_view": hidden}))
     return DocumentListResponse(
-        items=[_to_response(db, doc) for doc in items],
+        items=responses,
         total=total,
         page=page,
         page_size=page_size,
@@ -502,6 +526,13 @@ def update_document(
     previous_title = document.title
     previous_folder = getattr(document, "folder", None)
     updates = payload.model_dump(exclude_unset=True)
+    reject_unauthorized_sensitive_document_fields(
+        db,
+        actor,
+        updates,
+        current_confidentiality=document.confidentiality_level,
+        current_owner_id=getattr(document, "owner_user_id", None),
+    )
     for key, value in updates.items():
         setattr(document, key, value)
     _sync_direct_links(db, document)
@@ -744,7 +775,16 @@ def download_document(
 ):
     document = get_document_or_404(db, document_id, user)
     if not user_can_download_document(user, document):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Download not permitted")
+        deny_document_access(
+            db,
+            document=document,
+            access_type="download",
+            actor=user,
+            request=request,
+            module="documents",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Download not permitted",
+        )
 
     storage = get_storage_provider()
     try:
@@ -752,36 +792,40 @@ def download_document(
     except FileNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
-    from investhome_api.services.activity_recorder import activity_context_from_request, log_activity
-
     document.download_count = int(getattr(document, "download_count", 0) or 0) + 1
-    log_activity(
+    record_document_access(
         db,
-        action=ActivityAction.EXPORTED,
-        entity_type=ActivityEntityType.DOCUMENT,
-        entity_id=document.id,
-        description_key="activity.document.downloaded",
-        actor_user=user,
-        metadata={"title": document.title, "confidentiality": document.confidentiality_level.value},
-        request_context=activity_context_from_request(request),
-        is_demo=document.is_demo,
+        document=document,
+        access_type="download",
+        actor=user,
+        request=request,
+        module="documents",
     )
     db.commit()
 
-    safe_name = document.original_file_name.replace('"', "")
-    headers = {"Content-Disposition": f'attachment; filename="{safe_name}"'}
+    headers = {"Content-Disposition": _content_disposition("attachment", document.original_file_name)}
     return StreamingResponse(stream, media_type=document.mime_type, headers=headers)
 
 
 @router.get("/{document_id}/preview")
 def preview_document(
     document_id: UUID,
+    request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("documents", "view")),
 ):
     document = get_document_or_404(db, document_id, user)
     if not user_can_download_document(user, document):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Download not permitted")
+        deny_document_access(
+            db,
+            document=document,
+            access_type="preview",
+            actor=user,
+            request=request,
+            module="documents",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Download not permitted",
+        )
     if not is_previewable(document.file_extension):
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="documents.errors.preview_unavailable")
 
@@ -792,11 +836,17 @@ def preview_document(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
     document.preview_count = int(getattr(document, "preview_count", 0) or 0) + 1
+    record_document_access(
+        db,
+        document=document,
+        access_type="preview",
+        actor=user,
+        request=request,
+        module="documents",
+    )
     db.commit()
 
-    disposition = "inline"
-    safe_name = document.original_file_name.replace('"', "")
-    headers = {"Content-Disposition": f'{disposition}; filename="{safe_name}"'}
+    headers = {"Content-Disposition": _content_disposition("inline", document.original_file_name)}
     return StreamingResponse(stream, media_type=document.mime_type, headers=headers)
 
 

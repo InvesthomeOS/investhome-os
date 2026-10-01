@@ -124,6 +124,12 @@ from investhome_api.models.crm_activity import (  # noqa: F401
     CrmActivityComment,
     CrmActivityEntityLink,
 )
+from investhome_api.models.crm_communication import (  # noqa: F401
+    CrmCommunication,
+    CrmCommunicationAttachment,
+    CrmCommunicationThread,
+    CrmUserCommunicationAccount,
+)
 from investhome_api.models.crm_agreement import (  # noqa: F401
     CrmAgreement,
     CrmAgreementParticipant,
@@ -234,6 +240,7 @@ from investhome_api.models.user_auth import (
     UserRole,
     UserStatus,
 )
+from investhome_api.models.user_mfa import UserMfa, UserMfaRecoveryCode  # noqa: F401
 
 __all__ = [
     "ActivityLog",
@@ -311,6 +318,8 @@ __all__ = [
     "Role",
     "RolePermission",
     "User",
+    "UserMfa",
+    "UserMfaRecoveryCode",
     "UserRole",
     "UserStatus",
     "CompanyProfile",

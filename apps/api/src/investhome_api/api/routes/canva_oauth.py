@@ -28,6 +28,7 @@ from investhome_api.models.user_auth import User
 from investhome_api.services import canva_export_service as canva_export
 from investhome_api.services import canva_layered_pptx as layered
 from investhome_api.services import canva_oauth_service as canva
+from investhome_api.services.document_validation import read_bytes_capped, validate_upload_content
 
 logger = logging.getLogger(__name__)
 
@@ -196,12 +197,24 @@ async def _read_layer_images(files: list[UploadFile] | None) -> dict[str, bytes]
         name = (upload.filename or "").strip()
         if not name:
             continue
-        payload = await upload.read()
+        payload = await read_bytes_capped(upload)
         if not payload:
             continue
-        collected[name] = payload
-        stem = name.rsplit(".", 1)[0]
+        _, ext, _, safe_name, _ = validate_upload_content(
+            payload,
+            filename=name if "." in name else f"{name}.png",
+            declared_mime=upload.content_type,
+        )
+        if ext not in {"png", "jpg", "jpeg"}:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="documents.errors.unsupported_type",
+            )
+        collected[safe_name] = payload
+        stem = safe_name.rsplit(".", 1)[0]
         collected.setdefault(stem, payload)
+        collected.setdefault(name, payload)
+        collected.setdefault(name.rsplit(".", 1)[0], payload)
     return collected
 
 
@@ -237,7 +250,25 @@ async def canva_export_design(
 
     png_bytes: bytes | None = None
     if file is not None and file.filename:
-        png_bytes = await file.read()
+        payload = await read_bytes_capped(file)
+        if payload:
+            try:
+                _, ext, _, _, _ = validate_upload_content(
+                    payload,
+                    filename=file.filename,
+                    declared_mime=file.content_type,
+                )
+            except HTTPException as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="invalid_png",
+                ) from exc
+            if ext != "png":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="invalid_png",
+                )
+            png_bytes = payload
 
     if not png_bytes and media_asset_id:
         project_raw = (linked_project_id or "").strip()

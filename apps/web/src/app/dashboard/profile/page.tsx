@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 
+import { MfaEnrollCard } from '@/components/auth/mfa-enroll-card';
 import { changePassword } from '@/lib/api/auth';
 import { ApiError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -54,6 +55,8 @@ export default function ProfilePage() {
         <p>{t('timezone')}: {user.timezone}</p>
       </section>
 
+      <MfaEnrollCard mfaEnabled={Boolean(user.mfa_enabled)} onEnabled={refresh} />
+
       <section className="admin-detail">
         <h2>{t('changePassword')}</h2>
         <form className="auth-form" onSubmit={(event) => void handlePasswordChange(event)}>
@@ -63,7 +66,7 @@ export default function ProfilePage() {
           </label>
           <label className="auth-form__field">
             <span>{t('newPassword')}</span>
-            <input name="new_password" type="password" minLength={8} required />
+            <input name="new_password" type="password" minLength={12} maxLength={256} required />
           </label>
           {message && <p className="auth-form__success">{message}</p>}
           {error && <p className="auth-form__error">{error}</p>}

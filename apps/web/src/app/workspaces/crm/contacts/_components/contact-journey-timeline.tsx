@@ -6,6 +6,7 @@ import { useLocale } from 'next-intl';
 import { StatusChip, type StatusChipTone } from '@investhome/ui';
 
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
+import { emailPreviewText, stripHtml } from '@/workspaces/crm/contact-card/history-html';
 
 import {
   JOURNEY_TIMELINE_EVENTS,
@@ -270,7 +271,7 @@ function JourneyEventCard({
             <time dateTime={event.occurredAt}>{dateTime}</time>
           </div>
         </div>
-        <p className="crm-journey__summary">{event.summary}</p>
+        <p className="crm-journey__summary">{emailPreviewText(event.summary)}</p>
         <dl className="crm-journey__meta">
           <div>
             <dt>{labels.assignedTo}</dt>
@@ -392,7 +393,7 @@ export function ContactJourneyTimeline({
                   </div>
                   {expanded ? (
                     <div id={detailId} className="crm-journey__profile-detail">
-                      <p>{event.summary}</p>
+                      <p>{stripHtml(event.summary)}</p>
                       <dl>
                         <div><dt>{labels.statuses[event.status]}</dt><dd>{event.relatedProject ?? '—'}</dd></div>
                       </dl>

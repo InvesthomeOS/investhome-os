@@ -10,35 +10,47 @@ import { Button, EmptyState, ErrorState, Input, LoadingState, Select, StatusChip
 import { IhIcon } from '@/components/icons/ih-icons';
 import { fetchUsers, hasPermission, type UserRecord } from '@/lib/api/auth';
 import { fetchDocumentsByEntity, linkDocument, type Document } from '@/lib/api/documents';
+import { DocumentGallery, dedupeGalleryDocuments } from '@/workspaces/crm/contact-card/document-gallery';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
-import { completeTask, createActivity, createFollowUp, createTask } from '@/workspaces/crm/api/activities';
+import { completeTask, createActivity, createFollowUp, createMeeting, createTask, updateActivity } from '@/workspaces/crm/api/activities';
 import {
   assignContactOwner,
-  changeContactStatus,
   fetchContactTimeline,
   fetchJunkReasons,
   updateContact,
   type ContactTimelineEntry,
 } from '@/workspaces/crm/api/contacts';
+import {
+  assignContactTag,
+  fetchCrmTags,
+  removeContactTag,
+} from '@/workspaces/crm/api/crm';
 import { notifyContactUpdated, useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import { salesDetailUrl } from '@/workspaces/crm/contact-card/pilot-people';
+import { PilotHistoryStream, type PilotHistoryFilter } from '@/workspaces/crm/contact-card/history-stream';
+import { taskStatusLabel } from '@/workspaces/crm/contact-card/history-html';
+import { UnitHistoryInline } from '@/workspaces/crm/contact-card/unit-history';
 import { contactQueries, contactQueryKeys } from '@/workspaces/crm/hooks/use-contacts';
 import { CRM_CONTACT_TYPES, type CrmContactType, type CrmPurchaseSummary } from '@/workspaces/crm/types';
-import {
-  bitrixHistory,
-  sortWhatsappConversation,
-  WhatsAppThread,
-} from '@/workspaces/crm/contact-card/whatsapp-thread';
 
 import '@/app/workspaces/crm/contacts/_components/ds/contacts-ds.css';
 import './contact-card.css';
 
 const NOTE_TYPES = [
-  { value: 'phone_call', label: 'Telefon Görüşmesi' },
+  { value: 'note', label: 'Yorum' },
+  { value: 'phone_call', label: 'Arama' },
   { value: 'whatsapp', label: 'WhatsApp' },
   { value: 'email', label: 'E-posta' },
   { value: 'meeting', label: 'Toplantı' },
-  { value: 'note', label: 'Genel Not' },
+] as const;
+
+const TASK_KINDS = [
+  { value: 'phone_call', label: 'Arama' },
+  { value: 'email', label: 'E-posta' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'meeting', label: 'Toplantı' },
+  { value: 'proposal', label: 'Teklif takibi' },
+  { value: 'task', label: 'Genel takip' },
 ] as const;
 
 const TASK_STATUSES = [
@@ -48,92 +60,207 @@ const TASK_STATUSES = [
   { value: 'completed', label: 'Tamamlandı' },
 ] as const;
 
-const ACTIVITY_TYPE_LABELS: Record<string, string> = {
-  phone_call: 'Arama',
-  whatsapp: 'WhatsApp',
-  sms: 'SMS',
-  email: 'E-posta',
-  meeting: 'Toplantı',
-  note: 'Not',
-  comment: 'Yorum',
-  task: 'Görev',
-  follow_up: 'Takip',
-  system_event: 'Durum/Aşama',
-  automation_event: 'Durum/Aşama',
-  contract_signed: 'Anlaşma',
-  other: 'Diğer',
+const ROLE_LABELS: Record<string, string> = {
+  investor: 'Yatırımcı',
+  prospect: 'Aday',
+  buyer: 'Alıcı',
+  broker: 'Acenta',
+  realtor: 'Emlakçı',
+  partner: 'Partner',
+  vendor: 'Tedarikçi',
+  contractor: 'Yüklenici',
+  attorney: 'Avukat',
+  lender: 'Finans',
+  property_manager: 'Yönetici',
+  architect: 'Mimar',
+  consultant: 'Danışman',
+  media_contact: 'Medya',
+  government_contact: 'Kamu',
+  internal_team: 'İç ekip',
 };
 
-const HISTORY_FILTERS = [
-  { id: 'all', label: 'Tümü' },
-  { id: 'comment', label: 'Yorumlar' },
-  { id: 'whatsapp', label: 'WhatsApp' },
-  { id: 'sms', label: 'SMS' },
-  { id: 'task', label: 'Görevler' },
-  { id: 'meeting', label: 'Toplantılar' },
-  { id: 'email', label: 'E-posta' },
-  { id: 'phone_call', label: 'Aramalar' },
-] as const;
+const SOURCE_RULES: Array<{ match: RegExp; label: string }> = [
+  { match: /instagram/i, label: 'Instagram Lead' },
+  { match: /facebook|meta/i, label: 'Facebook Lead' },
+  { match: /whatsapp|\bwa\b/i, label: 'WhatsApp' },
+  { match: /rc[_\s-]?generator|acenta|agent|broker|referral|referans/i, label: 'Acenta' },
+  { match: /web\s*form|website|web\s*site|crm form|webform|^web$|genel form/i, label: 'Web Sitesi' },
+  { match: /manuel|manual|^os$/i, label: 'Manuel' },
+];
 
-type HistoryFilter = (typeof HISTORY_FILTERS)[number]['id'];
-type Panel = 'edit' | 'note' | 'task' | 'assign' | null;
+type Panel = 'edit' | 'note' | 'task' | 'assign' | 'more' | null;
 
 const PERSON_TABS = [
-  { id: 'overview', label: 'Özet' },
-  { id: 'history', label: 'Geçmiş' },
-  { id: 'whatsapp', label: 'WhatsApp' },
-  { id: 'purchases', label: 'Satın Aldıkları' },
+  { id: 'overview', label: 'Genel' },
+  { id: 'purchases', label: 'Satın Almalar' },
+  { id: 'history', label: 'İletişim' },
   { id: 'documents', label: 'Belgeler' },
   { id: 'tasks', label: 'Görevler' },
 ] as const;
 
 type PersonTab = (typeof PERSON_TABS)[number]['id'];
 
-function investmentSectionTitle(purchases: CrmPurchaseSummary[]) {
-  return purchases.some((item) => item.project_group === 'reit')
-    ? 'YATIRIMLARI / SATIN ALDIKLARI'
-    : 'SATIN ALDIKLARI';
+function formatLeadSource(raw?: string | null): string | null {
+  const value = (raw || '').trim();
+  if (!value) return null;
+  const mapped = SOURCE_RULES.find((rule) => rule.match.test(value))?.label;
+  if (mapped) return mapped;
+  if (/^[A-Z0-9_]+$/.test(value)) return null;
+  return value;
+}
+
+function roleLabel(type: string) {
+  return ROLE_LABELS[type] || type;
+}
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '•';
+  return ((parts[0][0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] || '' : '')).toUpperCase();
+}
+
+function phoneDigits(value?: string | null) {
+  return (value || '').replace(/\D/g, '');
+}
+
+function formatShortDate(iso: string | null | undefined, locale: string) {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso.slice(0, 10);
+  return date.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatDateTime(iso: string | null | undefined, locale: string) {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleString(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function relativeLabel(iso: string | null | undefined, locale: string) {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const diff = Date.now() - date.getTime();
+  const minutes = Math.round(diff / 60000);
+  if (Math.abs(minutes) < 1) return 'Az önce';
+  if (Math.abs(minutes) < 60) return `${Math.abs(minutes)} dk ${minutes > 0 ? 'önce' : 'sonra'}`;
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 24) return `${Math.abs(hours)} saat ${hours > 0 ? 'önce' : 'sonra'}`;
+  const days = Math.round(hours / 24);
+  if (Math.abs(days) < 45) return `${Math.abs(days)} gün ${days > 0 ? 'önce' : 'sonra'}`;
+  return formatShortDate(iso, locale);
+}
+
+function commLabel(type: string | null | undefined) {
+  if (type === 'email') return 'E-posta';
+  if (type === 'whatsapp') return 'WhatsApp';
+  if (type === 'phone_call') return 'Arama';
+  if (type === 'meeting' || type === 'zoom_meeting' || type === 'teams_meeting') return 'Toplantı';
+  if (type === 'sms') return 'Mesaj';
+  return null;
+}
+
+function taskKindLabel(type: string, meta?: Record<string, unknown> | null) {
+  const kind = String(meta?.follow_up_kind || type || '');
+  return TASK_KINDS.find((item) => item.value === kind)?.label
+    || commLabel(kind)
+    || (kind === 'follow_up' || kind === 'reminder' ? 'Genel takip' : kind || 'Genel takip');
+}
+
+function crmStatusLabel(raw?: string | null): string | null {
+  const value = (raw || '').trim();
+  if (!value) return null;
+  if (/deal\s*won|^won$|^kazan[ıi]ld[ıi]$/i.test(value)) return 'Satın Alındı';
+  if (/^completed$|^tamamland[ıi]$/i.test(value)) return 'Tamamlandı';
+  if (/^active$|^aktif$/i.test(value)) return 'Aktif';
+  if (/^cancelled$|^canceled$|^iptal$/i.test(value)) return 'İptal';
+  if (/^lost$|^kaybedildi$/i.test(value)) return 'Kaybedildi';
+  if (/^[A-Z0-9_:]+$/.test(value)) return null;
+  return value;
+}
+
+function purchaseStatusLabel(purchase: CrmPurchaseSummary) {
+  if (purchase.is_historical_unit_change) return 'Daire değişikliği';
+  return crmStatusLabel(purchase.stage) || crmStatusLabel(purchase.status);
 }
 
 function investmentRowTitle(purchase: CrmPurchaseSummary) {
-  if (purchase.project_group === 'reit') {
-    const amount = (purchase.amount_label || '').replace(/^\$/, '').trim() || purchase.amount || '';
-    return amount ? `REIT · ${amount}` : 'REIT';
-  }
-  if (purchase.project_group === '1812_h_pl') {
-    return purchase.unit_number ? `1812 H Place · ${purchase.unit_number}` : '1812 H Place';
-  }
+  if (purchase.project_group === 'reit') return purchase.project_label || 'REIT';
   return purchase.project_label;
 }
 
-function historyTypeLabel(entry: ContactTimelineEntry): string {
-  if (entry.title.startsWith('Durum ') || entry.activity_type === 'system_event' || entry.activity_type === 'automation_event') {
-    return 'Durum/Aşama';
-  }
-  if (entry.imported_historical_comment) return 'Yorum';
-  return ACTIVITY_TYPE_LABELS[entry.activity_type] ?? entry.title;
-}
-
-function matchesHistoryFilter(entry: ContactTimelineEntry, filter: HistoryFilter): boolean {
-  if (filter === 'all') return true;
-  if (filter === 'comment') return entry.activity_type === 'comment' || Boolean(entry.imported_historical_comment);
-  if (filter === 'meeting') {
-    return ['meeting', 'zoom_meeting', 'teams_meeting', 'investor_meeting', 'construction_meeting'].includes(entry.activity_type);
-  }
-  return entry.activity_type === filter;
-}
-
-function conversationMessages(entries: ContactTimelineEntry[], focus: ContactTimelineEntry): ContactTimelineEntry[] {
-  const history = bitrixHistory(focus);
-  const chatId = history?.chat_id;
-  const messages = entries.filter((entry) => {
-    if (entry.activity_type !== 'whatsapp') return false;
-    const meta = bitrixHistory(entry);
-    if (meta?.kind !== 'whatsapp_message') return false;
-    if (chatId) return String(meta.chat_id || '') === String(chatId);
+function isFollowUpEntry(entry: ContactTimelineEntry) {
+  const type = entry.activity_type;
+  if (type === 'task' || type === 'follow_up' || type === 'reminder' || type === 'meeting') return true;
+  if ((type === 'phone_call' || type === 'email' || type === 'whatsapp') && (entry.metadata?.due_date || entry.status === 'planned')) {
     return true;
-  });
-  return [...messages].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  }
+  return false;
+}
+
+function PurchaseHistoryRow({
+  purchase,
+  onOpen,
+  identityTestId,
+}: {
+  purchase: CrmPurchaseSummary;
+  onOpen: (agreementId: string) => void;
+  identityTestId?: string;
+}) {
+  const isReit = purchase.project_group === 'reit';
+  const historical = Boolean(purchase.is_historical_unit_change);
+  const status = purchaseStatusLabel(purchase);
+  const amount = purchase.amount_label || purchase.amount || null;
+  const unit = isReit
+    ? null
+    : historical
+      ? [purchase.unit_number || purchase.original_unit, purchase.final_unit ? `→ ${purchase.final_unit}` : null]
+          .filter(Boolean)
+          .join(' ')
+      : purchase.unit_number;
+  return (
+    <tr
+      className={historical ? 'is-historical' : 'is-current-purchase'}
+      data-testid={`purchase-row-${purchase.bitrix_deal_id || purchase.agreement_id}`}
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(purchase.agreement_id)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpen(purchase.agreement_id);
+        }
+      }}
+    >
+      <td>
+        <strong data-testid={identityTestId}>{investmentRowTitle(purchase)}</strong>
+        {!historical && purchase.unit_history && purchase.unit_history.length > 1 ? (
+          <UnitHistoryInline steps={purchase.unit_history} />
+        ) : null}
+        {purchase.hemen_kira ? <span className="crm-purchase-list__unit">Hemen Kira</span> : null}
+      </td>
+      <td>{unit || '—'}</td>
+      <td>{amount || '—'}</td>
+      <td>{status || '—'}</td>
+    </tr>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value?: string | null }) {
+  if (!value?.trim()) return null;
+  return (
+    <div className="crm-person-info__row">
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
+  );
 }
 
 function toLocalInput(iso: string | null | undefined): string {
@@ -163,6 +290,18 @@ function splitList(value: string): string[] {
     .split(/[,;\n]/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function requestedPersonTab(): PersonTab {
+  if (typeof window === 'undefined') return 'overview';
+  const value = new URLSearchParams(window.location.search).get('tab');
+  if (value === 'whatsapp') return 'history';
+  return PERSON_TABS.some((item) => item.id === value) ? (value as PersonTab) : 'overview';
+}
+
+function requestedHistoryFilter(): PilotHistoryFilter {
+  if (typeof window === 'undefined') return 'all';
+  return new URLSearchParams(window.location.search).get('tab') === 'whatsapp' ? 'whatsapp' : 'all';
 }
 
 export function UnifiedContactCard({
@@ -199,19 +338,23 @@ export function UnifiedContactCard({
     queryFn: () => fetchUsers({ status: 'active' }),
     enabled: !authLoading && canUpdate,
   });
+  const tagsQuery = useQuery({
+    queryKey: ['crm', 'tags', { status: 'active' }],
+    queryFn: () => fetchCrmTags({ status: 'active' }),
+    enabled: !authLoading && canRead,
+  });
   const documentsQuery = useQuery({
     queryKey: ['crm', 'contacts', 'documents', contactId],
     queryFn: async () => {
       const [crmDocs, contactDocs] = await Promise.all([
-        fetchDocumentsByEntity('crm_contact', contactId).catch(() => ({ items: [] as Document[] })),
-        fetchDocumentsByEntity('contact', contactId).catch(() => ({ items: [] as Document[] })),
+        fetchDocumentsByEntity('crm_contact', contactId, { includeHidden: true, pageSize: 100 }).catch(() => ({
+          items: [] as Document[],
+        })),
+        fetchDocumentsByEntity('contact', contactId, { includeHidden: true, pageSize: 100 }).catch(() => ({
+          items: [] as Document[],
+        })),
       ]);
-      const seen = new Set<string>();
-      return [...crmDocs.items, ...contactDocs.items].filter((doc) => {
-        if (seen.has(doc.id)) return false;
-        seen.add(doc.id);
-        return true;
-      });
+      return dedupeGalleryDocuments([...crmDocs.items, ...contactDocs.items]);
     },
     enabled: !authLoading && canRead && canViewDocuments,
   });
@@ -223,6 +366,12 @@ export function UnifiedContactCard({
   const [extraPhones, setExtraPhones] = useState('');
   const [email, setEmail] = useState('');
   const [extraEmails, setExtraEmails] = useState('');
+  const [secondEmail, setSecondEmail] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [region, setRegion] = useState('');
+  const [source, setSource] = useState('');
+  const [notes, setNotes] = useState('');
   const [company, setCompany] = useState('');
   const [position, setPosition] = useState('');
   const [statusValue, setStatusValue] = useState<'active' | 'archived'>('active');
@@ -231,7 +380,7 @@ export function UnifiedContactCard({
   const [ownerId, setOwnerId] = useState('');
   const [followUpAt, setFollowUpAt] = useState('');
   const [note, setNote] = useState('');
-  const [noteType, setNoteType] = useState<(typeof NOTE_TYPES)[number]['value']>('phone_call');
+  const [noteType, setNoteType] = useState<(typeof NOTE_TYPES)[number]['value']>('note');
   const [noteAt, setNoteAt] = useState(nowLocal);
   const [noteNeedsFollowUp, setNoteNeedsFollowUp] = useState(false);
   const [noteFollowUpAt, setNoteFollowUpAt] = useState('');
@@ -240,18 +389,21 @@ export function UnifiedContactCard({
   const [taskAssignee, setTaskAssignee] = useState('');
   const [taskDue, setTaskDue] = useState('');
   const [taskStatus, setTaskStatus] = useState<(typeof TASK_STATUSES)[number]['value']>('not_started');
+  const [taskKind, setTaskKind] = useState<(typeof TASK_KINDS)[number]['value']>('task');
   const [linkDocumentId, setLinkDocumentId] = useState('');
-  const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all');
-  const [whatsappFocus, setWhatsappFocus] = useState<ContactTimelineEntry | null>(null);
   const [tab, setTab] = useState<PersonTab>('overview');
+  const [historyFilter, setHistoryFilter] = useState<PilotHistoryFilter>('all');
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
+  const [rescheduleAt, setRescheduleAt] = useState('');
   const contact = query.data;
+  const referrerQuery = useQuery({
+    ...contactQueries.detail(contact?.referred_by_contact_id || ''),
+    enabled: !authLoading && canRead && Boolean(contact?.referred_by_contact_id),
+  });
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const value = new URLSearchParams(window.location.search).get('tab');
-    if (PERSON_TABS.some((item) => item.id === value)) {
-      setTab(value as PersonTab);
-    }
+    setTab(requestedPersonTab());
+    setHistoryFilter(requestedHistoryFilter());
   }, [contactId]);
 
   useEffect(() => {
@@ -268,7 +420,13 @@ export function UnifiedContactCard({
     setPhone(contact.primary_phone ?? '');
     setExtraPhones((contact.secondary_phones ?? []).join(', '));
     setEmail(contact.primary_email ?? '');
-    setExtraEmails((contact.secondary_emails ?? []).join(', '));
+    setSecondEmail((contact.secondary_emails ?? [])[0] ?? '');
+    setExtraEmails((contact.secondary_emails ?? []).slice(1).join(', '));
+    setAddress(contact.address_line1 ?? '');
+    setCity(contact.city ?? '');
+    setRegion(contact.state_province ?? '');
+    setSource(contact.source ?? contact.bitrix_source_channel ?? '');
+    setNotes(contact.notes ?? '');
     setCompany(contact.organization_name ?? '');
     setPosition(contact.job_title ?? '');
     setStatusValue(contact.status === 'archived' ? 'archived' : 'active');
@@ -288,6 +446,7 @@ export function UnifiedContactCard({
       queryClient.invalidateQueries({ queryKey: ['crm', 'activities'] }),
       queryClient.invalidateQueries({ queryKey: ['crm', 'tasks'] }),
       queryClient.invalidateQueries({ queryKey: ['crm', 'calendar'] }),
+      queryClient.invalidateQueries({ queryKey: ['crm', 'tags'] }),
     ]);
     notifyContactUpdated(contactId);
   };
@@ -306,64 +465,39 @@ export function UnifiedContactCard({
     () => [...(timelineQuery.data?.items ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at)),
     [timelineQuery.data?.items],
   );
-  const filteredTimeline = useMemo(
-    () => timeline.filter((entry) => matchesHistoryFilter(entry, historyFilter)),
-    [timeline, historyFilter],
-  );
-  const timelineGroups = useMemo(() => {
-    const groups: { label: string; items: ContactTimelineEntry[] }[] = [];
-    for (const entry of filteredTimeline) {
-      const label = new Date(entry.created_at).toLocaleDateString(locale, {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
-      const last = groups[groups.length - 1];
-      if (!last || last.label !== label) groups.push({ label, items: [entry] });
-      else last.items.push(entry);
-    }
-    return groups;
-  }, [filteredTimeline, locale]);
-  const whatsappThread = useMemo(
-    () => (whatsappFocus ? conversationMessages(timeline, whatsappFocus) : []),
-    [timeline, whatsappFocus],
-  );
-  const whatsappMessages = useMemo(() => sortWhatsappConversation(timeline), [timeline]);
-  const allOpenTasks = (contact?.crm_activities ?? []).filter(
-    (activity) => activity.activity_type === 'task' && activity.status !== 'completed' && activity.task_status !== 'completed',
+  const followUpEntries = useMemo(() => timeline.filter(isFollowUpEntry), [timeline]);
+  const commEntries = useMemo(
+    () => timeline.filter((entry) => ['email', 'whatsapp', 'phone_call', 'meeting', 'sms', 'comment', 'note'].includes(entry.activity_type)),
+    [timeline],
   );
 
   if (authLoading || query.isLoading) return <LoadingState label="Loading…" />;
   if (!canRead) return <EmptyState title="CRM" description="Access denied" />;
   if (query.isError || !contact) {
-    return <ErrorState title="CRM" message={query.error?.message ?? 'Contact unavailable'} />;
+    return <ErrorState title="CRM" message={query.error?.message ?? 'Kişi yüklenemedi'} />;
   }
 
-  const categories = [
-    contact.is_agent ? 'Acenta' : 'Müşteri',
-    ...(contact.has_agreements ? ['Anlaşmalı'] : []),
-  ];
   const isJunk = contact.status === 'archived';
-  const ownerName = contact.owner_name ?? contact.bitrix_responsible ?? '—';
+  const ownerName = contact.owner_name ?? contact.bitrix_responsible ?? null;
   const purchases = contact.purchases ?? [];
+  const currentPurchases = purchases.filter((item) => !item.is_historical_unit_change);
   const documents = documentsQuery.data ?? [];
-  const openTasks = allOpenTasks;
-  const showHistory = tab === 'history';
-  const showPurchasesOnOverview = purchases.length > 0;
-  const showPurchases = tab === 'purchases' || (tab === 'overview' && showPurchasesOnOverview);
-  const showDocuments = tab === 'documents';
-  const showTasks = tab === 'tasks';
+  const visibleDocuments = documents.filter((doc) => !doc.hidden_from_view);
+  const sourceRaw = contact.bitrix_source_channel || contact.source;
+  const sourceLabel = formatLeadSource(sourceRaw);
+  const referrerName = referrerQuery.data?.display_name?.trim() || null;
+  const waNumber = phoneDigits(contact.whatsapp || contact.primary_phone);
+  const lastComm = commEntries[0];
+  const lastCommChannel = commLabel(lastComm?.activity_type) || commLabel(timeline[0]?.activity_type);
+  const projectCount = new Set(currentPurchases.map((item) => item.project_label).filter(Boolean)).size;
+  const tags = contact.tag_items ?? [];
 
-  const openPurchaseRow = (agreementId: string) => {
-    openPurchase(agreementId);
-  };
-
-  const selectTab = (next: PersonTab) => {
+  const selectTab = (next: PersonTab, filter: PilotHistoryFilter = 'all') => {
     setTab(next);
+    if (next === 'history') setHistoryFilter(filter);
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
-    url.searchParams.set('tab', next);
+    url.searchParams.set('tab', next === 'history' && filter === 'whatsapp' ? 'whatsapp' : next);
     window.history.replaceState(null, '', `${url.pathname}${url.search}`);
   };
 
@@ -371,22 +505,39 @@ export function UnifiedContactCard({
 
   const submitEdit = (event: FormEvent) => {
     event.preventDefault();
+    const secondaryEmails = [secondEmail, ...splitList(extraEmails)].map((item) => item.trim()).filter(Boolean);
     actionMutation.mutate(async () => {
-      await updateContact(contactId, {
-        display_name: displayName.trim() || contact.display_name,
-        primary_phone: phone.trim() || null,
-        secondary_phones: splitList(extraPhones),
-        primary_email: email.trim() || null,
-        secondary_emails: splitList(extraEmails),
-        organization_name: company.trim() || null,
-        job_title: position.trim() || null,
-        status: statusValue,
-        junk_reason: statusValue === 'archived' ? junkReason.trim() || null : contact.junk_reason,
-        contact_type: roles[0] ?? contact.contact_type,
-        contact_types: roles,
-        owner_user_id: ownerId || undefined,
-        next_follow_up_at: followUpAt ? toIso(followUpAt) : null,
-      });
+      const payload: Parameters<typeof updateContact>[1] = {};
+      if (displayName.trim() && displayName.trim() !== contact.display_name) payload.display_name = displayName.trim();
+      if (phone.trim() !== (contact.primary_phone ?? '')) payload.primary_phone = phone.trim() || undefined;
+      if (email.trim() !== (contact.primary_email ?? '')) payload.primary_email = email.trim() || undefined;
+      if (secondaryEmails.join('|') !== (contact.secondary_emails ?? []).join('|')) {
+        payload.secondary_emails = secondaryEmails;
+      }
+      if (extraPhones !== (contact.secondary_phones ?? []).join(', ')) {
+        payload.secondary_phones = splitList(extraPhones);
+      }
+      if (company.trim() !== (contact.organization_name ?? '')) payload.organization_name = company.trim() || undefined;
+      if (position.trim() !== (contact.job_title ?? '')) payload.job_title = position.trim() || undefined;
+      if (address.trim() !== (contact.address_line1 ?? '')) payload.address_line1 = address.trim() || undefined;
+      if (city.trim() !== (contact.city ?? '')) payload.city = city.trim() || undefined;
+      if (region.trim() !== (contact.state_province ?? '')) payload.state_province = region.trim() || undefined;
+      if (source.trim() !== (contact.source ?? contact.bitrix_source_channel ?? '')) {
+        payload.source = source.trim() || undefined;
+      }
+      if (notes !== (contact.notes ?? '')) payload.notes = notes;
+      if (statusValue !== (contact.status === 'archived' ? 'archived' : 'active')) payload.status = statusValue;
+      if (ownerId && ownerId !== (contact.owner_user_id ?? '')) payload.owner_user_id = ownerId;
+      if (followUpAt !== toLocalInput(contact.next_follow_up_at)) {
+        payload.next_follow_up_at = followUpAt ? toIso(followUpAt) : null;
+      }
+      const currentRoles = (contact.contact_types.length ? contact.contact_types : [contact.contact_type]).join('|');
+      if (roles.join('|') !== currentRoles) {
+        payload.contact_type = roles[0] ?? contact.contact_type;
+        payload.contact_types = roles;
+      }
+      if (statusValue === 'archived') payload.junk_reason = junkReason.trim() || null;
+      await updateContact(contactId, payload);
       setPanel(null);
     });
   };
@@ -394,12 +545,12 @@ export function UnifiedContactCard({
   const submitNote = (event: FormEvent) => {
     event.preventDefault();
     if (!note.trim()) return;
-    const typeLabel = NOTE_TYPES.find((item) => item.value === noteType)?.label ?? 'Not';
+    const typeLabel = NOTE_TYPES.find((item) => item.value === noteType)?.label ?? 'Yorum';
     actionMutation.mutate(async () => {
       await createActivity({
         entity_type: 'contact',
         entity_id: contactId,
-        activity_type: noteType,
+        activity_type: noteType === 'note' ? 'comment' : noteType,
         title: typeLabel,
         description: note.trim(),
         start_date: noteAt ? toIso(noteAt) : new Date().toISOString(),
@@ -426,22 +577,49 @@ export function UnifiedContactCard({
   const submitTask = (event: FormEvent) => {
     event.preventDefault();
     if (!taskTitle.trim()) return;
+    const kindLabel = TASK_KINDS.find((item) => item.value === taskKind)?.label ?? 'Görev';
     actionMutation.mutate(async () => {
-      await createTask({
-        entity_type: 'contact',
-        entity_id: contactId,
-        activity_type: 'task',
-        title: taskTitle.trim(),
-        description: taskDescription.trim() || undefined,
-        assigned_user_id: taskAssignee || user?.id,
-        due_date: taskDue ? toIso(taskDue) : undefined,
-        task_status: taskStatus,
-        status: taskStatus === 'completed' ? 'completed' : 'planned',
-      });
+      if (taskKind === 'meeting') {
+        await createMeeting({
+          entity_type: 'contact',
+          entity_id: contactId,
+          activity_type: 'meeting',
+          title: taskTitle.trim(),
+          description: taskDescription.trim() || undefined,
+          assigned_user_id: taskAssignee || user?.id,
+          start_date: taskDue ? toIso(taskDue) : undefined,
+          due_date: taskDue ? toIso(taskDue) : undefined,
+          status: taskStatus === 'completed' ? 'completed' : 'planned',
+        });
+      } else if (taskKind === 'phone_call' || taskKind === 'email' || taskKind === 'whatsapp') {
+        await createActivity({
+          entity_type: 'contact',
+          entity_id: contactId,
+          activity_type: taskKind,
+          title: taskTitle.trim() || kindLabel,
+          description: taskDescription.trim() || undefined,
+          assigned_user_id: taskAssignee || user?.id,
+          due_date: taskDue ? toIso(taskDue) : undefined,
+          task_status: taskStatus,
+          status: taskStatus === 'completed' ? 'completed' : 'planned',
+        });
+      } else {
+        await createTask({
+          entity_type: 'contact',
+          entity_id: contactId,
+          title: taskTitle.trim(),
+          description: taskDescription.trim() || undefined,
+          assigned_user_id: taskAssignee || user?.id,
+          due_date: taskDue ? toIso(taskDue) : undefined,
+          task_status: taskStatus,
+          metadata_json: { follow_up_kind: taskKind },
+        });
+      }
       setTaskTitle('');
       setTaskDescription('');
       setTaskDue('');
       setTaskStatus('not_started');
+      setTaskKind('task');
       setPanel(null);
     });
   };
@@ -468,9 +646,120 @@ export function UnifiedContactCard({
     });
   };
 
+  const completeFollowUpRow = (entry: ContactTimelineEntry) => {
+    actionMutation.mutate(async () => {
+      if (entry.activity_type === 'task') {
+        await completeTask(entry.id);
+      } else {
+        await updateActivity(entry.id, { status: 'completed', task_status: 'completed' });
+      }
+    });
+  };
+
+  const saveReschedule = (entryId: string) => {
+    if (!rescheduleAt) return;
+    actionMutation.mutate(async () => {
+      await updateActivity(entryId, { due_date: toIso(rescheduleAt) });
+      setRescheduleId(null);
+      setRescheduleAt('');
+    });
+  };
+
+  const flags = [
+    /BILGI_EKSIK/i.test(contact.notes || '') || (!contact.primary_phone && !contact.primary_email) ? 'BILGI_EKSIK' : null,
+    /INCELEME_GEREKLI/i.test(contact.notes || '') || contact.review_required || contact.bitrix_history?.review_required
+      ? 'INCELEME_GEREKLI'
+      : null,
+  ].filter(Boolean) as string[];
+
+  const renderPurchaseTable = (items: CrmPurchaseSummary[], testId: string, heading: string) =>
+    items.length ? (
+      <div className="crm-purchase-history-group" data-testid={testId}>
+        {heading ? <h3>{heading}</h3> : null}
+        <table className="crm-person-table">
+          <thead>
+            <tr>
+              <th>Proje / mülk</th>
+              <th>Daire</th>
+              <th>Tutar</th>
+              <th>Durum</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((purchase, index) => (
+              <PurchaseHistoryRow
+                key={purchase.agreement_id}
+                purchase={purchase}
+                onOpen={openPurchase}
+                identityTestId={testId === 'current-purchases' && index === 0 ? 'semrin-pilot-identity' : undefined}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ) : null;
+
+  const renderTaskRows = (items: ContactTimelineEntry[], compact = false) => (
+    <table className="crm-person-table crm-person-table--tasks">
+      <thead>
+        <tr>
+          <th>Tarih</th>
+          <th>Görev</th>
+          <th>Tip</th>
+          <th>Durum</th>
+          {!compact ? <th>Açıklama</th> : null}
+          <th>Sorumlu</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {(compact ? items.slice(0, 4) : items).map((entry) => {
+          const due = typeof entry.metadata?.due_date === 'string' ? entry.metadata.due_date : null;
+          const done = String(entry.metadata?.task_status || entry.status || '') === 'completed';
+          return (
+            <tr key={entry.id}>
+              <td>{formatDateTime(due || entry.created_at, locale) || '—'}</td>
+              <td>{entry.title.replace(/^(Görev|Takip):\s*/i, '')}</td>
+              <td>{taskKindLabel(entry.activity_type, entry.metadata)}</td>
+              <td>{taskStatusLabel(String(entry.metadata?.task_status || entry.status || ''))}</td>
+              {!compact ? <td>{entry.summary || '—'}</td> : null}
+              <td>{String(entry.metadata?.assigned_user_name || entry.actor_name || ownerName || '—')}</td>
+              <td>
+                {canUpdate && !done ? (
+                  <div className="crm-person-table__actions">
+                    <button type="button" onClick={() => completeFollowUpRow(entry)}>
+                      Tamamla
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRescheduleId(entry.id);
+                        setRescheduleAt(toLocalInput(due || entry.created_at));
+                      }}
+                    >
+                      Ertele
+                    </button>
+                  </div>
+                ) : null}
+                {rescheduleId === entry.id ? (
+                  <div className="crm-person-reschedule">
+                    <input type="datetime-local" value={rescheduleAt} onChange={(event) => setRescheduleAt(event.target.value)} />
+                    <button type="button" onClick={() => saveReschedule(entry.id)}>
+                      Kaydet
+                    </button>
+                  </div>
+                ) : null}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+
   return (
     <div
-      className={`crm-verify-detail crm-contact-card crm-contact-card--${variant}`}
+      className={`crm-verify-detail crm-contact-card crm-person-card crm-contact-card--${variant}`}
       data-testid="unified-contact-card"
     >
       {variant === 'page' ? (
@@ -479,27 +768,176 @@ export function UnifiedContactCard({
         </Button>
       ) : null}
 
-      <header className="crm-verify-detail__hero crm-contact-card__hero">
-        <div className="crm-contact-card__hero-top">
-          <div>
-            <h1>{contact.display_name}</h1>
-            <p>
-              {[contact.job_title, contact.organization_name, contact.bitrix_source_channel || contact.source || 'OS']
-                .filter(Boolean)
-                .join(' · ')}
-            </p>
+      <header className="crm-person-hero">
+        <div className="crm-person-hero__main">
+          <div className="crm-person-avatar" aria-hidden="true">
+            {initials(contact.display_name)}
           </div>
-          <StatusChip tone={isJunk ? 'default' : 'success'}>{isJunk ? 'Junk' : 'Aktif'}</StatusChip>
+          <div className="crm-person-hero__identity">
+            <div className="crm-person-hero__name-row">
+              <h1>{contact.display_name}</h1>
+              {(contact.contact_types.length ? contact.contact_types : [contact.contact_type]).map((type) => (
+                <span key={type} className="crm-person-chip">
+                  {roleLabel(type)}
+                </span>
+              ))}
+              {contact.is_agent ? <span className="crm-person-chip">Acenta</span> : null}
+              <StatusChip tone={isJunk ? 'default' : 'success'}>{isJunk ? 'Junk' : 'Aktif'}</StatusChip>
+            </div>
+            <div className="crm-contact-card__tags" data-testid="contact-tags">
+              {tags.map((tag) => (
+                <span key={tag.id} className="crm-contact-card__tag">
+                  <button type="button" onClick={() => router.push(`/workspaces/crm/contacts?tag=${tag.id}`)}>
+                    {tag.name}
+                  </button>
+                  {canUpdate ? (
+                    <button
+                      type="button"
+                      className="crm-contact-card__tag-remove"
+                      aria-label={`${tag.name} kaldır`}
+                      onClick={() => {
+                        void removeContactTag(contactId, tag.id)
+                          .then(() => refresh())
+                          .catch((err: Error) => setError(err.message));
+                      }}
+                    >
+                      ×
+                    </button>
+                  ) : null}
+                </span>
+              ))}
+              {canUpdate ? (
+                <select
+                  className="crm-contact-card__tag-add"
+                  value=""
+                  aria-label="Etiket ekle"
+                  onChange={(event) => {
+                    const tagId = event.target.value;
+                    if (!tagId) return;
+                    void assignContactTag(contactId, tagId)
+                      .then(() => refresh())
+                      .catch((err: Error) => setError(err.message));
+                  }}
+                >
+                  <option value="">+</option>
+                  {(tagsQuery.data?.items ?? [])
+                    .filter((tag) => !tags.some((item) => item.id === tag.id))
+                    .map((tag) => (
+                      <option key={tag.id} value={tag.id}>
+                        {tag.name}
+                      </option>
+                    ))}
+                </select>
+              ) : null}
+            </div>
+          </div>
+          <div className="crm-person-hero__meta">
+            {sourceLabel ? (
+              <div className="crm-person-source" data-testid="contact-lead-source">
+                <dt>Geliş Kaynağı</dt>
+                <dd>{sourceLabel}</dd>
+              </div>
+            ) : null}
+            {referrerName ? (
+              <div className="crm-person-source" data-testid="contact-referrer">
+                <dt>Yönlendiren / Acenta</dt>
+                <dd>{referrerName}</dd>
+              </div>
+            ) : null}
+            {contact.created_at ? (
+              <div className="crm-person-source">
+                <dt>Oluşturulma Tarihi</dt>
+                <dd>{formatShortDate(contact.created_at, locale)}</dd>
+              </div>
+            ) : null}
+          </div>
         </div>
-        <p>
-          {[contact.primary_phone, contact.primary_email].filter(Boolean).join(' · ') || '—'}
-        </p>
-        {canUpdate ? (
-          <div className="crm-contact-card__actions">
-            <Button type="button" size="sm" variant={panel === 'edit' ? 'primary' : 'secondary'} onClick={() => togglePanel('edit')}>Düzenle</Button>
-            <Button type="button" size="sm" variant={panel === 'note' ? 'primary' : 'secondary'} onClick={() => togglePanel('note')}>Not Ekle</Button>
-            <Button type="button" size="sm" variant={panel === 'task' ? 'primary' : 'secondary'} onClick={() => togglePanel('task')}>Görev Ekle</Button>
-            <Button type="button" size="sm" variant={panel === 'assign' ? 'primary' : 'secondary'} onClick={() => togglePanel('assign')}>Sorumlu Ata</Button>
+        {flags.length ? (
+          <div className="crm-contact-card__flags" data-testid="contact-flags">
+            {flags.map((flag) => (
+              <span key={flag}>{flag}</span>
+            ))}
+          </div>
+        ) : null}
+        <div className="crm-person-actions">
+          {contact.primary_email ? (
+            <a className="crm-person-action" href={`mailto:${contact.primary_email}`}>
+              <IhIcon name="mail" size={14} /> E-posta
+            </a>
+          ) : (
+            <button type="button" className="crm-person-action" disabled>
+              <IhIcon name="mail" size={14} /> E-posta
+            </button>
+          )}
+          {waNumber ? (
+            <a className="crm-person-action" href={`https://wa.me/${waNumber}`} target="_blank" rel="noreferrer">
+              <IhIcon name="inbox" size={14} /> WhatsApp
+            </a>
+          ) : (
+            <button type="button" className="crm-person-action" disabled>
+              <IhIcon name="inbox" size={14} /> WhatsApp
+            </button>
+          )}
+          <button
+            type="button"
+            className={`crm-person-action${panel === 'note' ? ' is-active' : ''}`}
+            onClick={() => {
+              setNoteType('note');
+              togglePanel('note');
+            }}
+          >
+            <IhIcon name="activity" size={14} /> Mesaj
+          </button>
+          {canUpdate ? (
+            <button
+              type="button"
+              className={`crm-person-action${panel === 'task' && taskKind === 'meeting' ? ' is-active' : ''}`}
+              onClick={() => {
+                setTaskKind('meeting');
+                togglePanel('task');
+              }}
+            >
+              <IhIcon name="meeting" size={14} /> Toplantı
+            </button>
+          ) : null}
+          {canUpdate ? (
+            <button
+              type="button"
+              className={`crm-person-action${panel === 'more' || panel === 'assign' ? ' is-active' : ''}`}
+              onClick={() => togglePanel(panel === 'more' || panel === 'assign' ? null : 'more')}
+            >
+              Diğer
+            </button>
+          ) : null}
+          {canUpdate ? (
+            <Button type="button" size="sm" data-testid="contact-edit-open" onClick={() => togglePanel('edit')}>
+              Düzenle
+            </Button>
+          ) : null}
+        </div>
+        {panel === 'more' ? (
+          <div className="crm-person-more">
+            <button type="button" onClick={() => togglePanel('assign')}>
+              Sorumlu Ata
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTaskKind('task');
+                togglePanel('task');
+              }}
+            >
+              Görev Oluştur
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStatusValue('archived');
+                togglePanel('edit');
+              }}
+            >
+              Junk&apos;a taşı
+            </button>
           </div>
         ) : null}
       </header>
@@ -515,139 +953,14 @@ export function UnifiedContactCard({
         <div className="crm-contact-card__banner" data-testid="contact-agent-banner">
           <strong>Acenta</strong>
           <div>
-            {[contact.agent.brokerage_name || contact.organization_name, contact.primary_phone, contact.primary_email]
+            {[contact.agent.brokerage_name || contact.organization_name, contact.agent.status === 'active' ? 'Aktif' : 'Pasif']
               .filter(Boolean)
-              .join(' · ') || '—'}
-            {' · '}
-            {contact.agent.status === 'active' ? 'Aktif' : 'Pasif'}
+              .join(' · ')}
           </div>
         </div>
       ) : null}
 
       {error ? <div className="crm-verify-detail__error">{error}</div> : null}
-
-      <nav className="crm-contact-card__tabs" aria-label="Person card tabs" data-testid="person-card-tabs">
-          {PERSON_TABS.filter((item) => item.id !== 'purchases' || purchases.length === 0).map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={tab === item.id ? 'is-active' : undefined}
-              data-testid={`contact-tab-${item.id}`}
-              onClick={() => selectTab(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-
-      {tab === 'overview' ? (
-        <section className="crm-verify-detail__section" data-testid="contact-overview">
-          <h2>Özet</h2>
-          <dl className="crm-contact-card__facts">
-            <div><dt>Telefon</dt><dd>{contact.primary_phone || '—'}</dd></div>
-            {contact.secondary_phones?.length ? (
-              <div><dt>Diğer telefonlar</dt><dd>{contact.secondary_phones.join(', ')}</dd></div>
-            ) : null}
-            {contact.whatsapp ? <div><dt>WhatsApp</dt><dd>{contact.whatsapp}</dd></div> : null}
-            <div><dt>E-posta</dt><dd>{contact.primary_email || '—'}</dd></div>
-            {contact.secondary_emails?.length ? (
-              <div><dt>Diğer e-postalar</dt><dd>{contact.secondary_emails.join(', ')}</dd></div>
-            ) : null}
-            {contact.organization_name ? <div><dt>Şirket</dt><dd>{contact.organization_name}</dd></div> : null}
-            {contact.job_title ? <div><dt>Pozisyon</dt><dd>{contact.job_title}</dd></div> : null}
-            <div><dt>Durum</dt><dd>{isJunk ? 'Junk' : 'Aktif'}</dd></div>
-            <div><dt>Kategori / Roller</dt><dd>{[...categories, ...roles].join(' · ') || '—'}</dd></div>
-            <div><dt>Kaynak</dt><dd>{contact.bitrix_source_channel || contact.source || 'OS'}</dd></div>
-            <div><dt>Sorumlu</dt><dd>{ownerName}</dd></div>
-            <div>
-              <dt>Son aktivite</dt>
-              <dd>{contact.last_contact_at ? new Date(contact.last_contact_at).toLocaleString(locale) : '—'}</dd>
-            </div>
-            <div>
-              <dt>Sonraki takip</dt>
-              <dd>{contact.next_follow_up_at ? new Date(contact.next_follow_up_at).toLocaleString(locale) : '—'}</dd>
-            </div>
-            {contact.address_line1 || contact.city || contact.country ? (
-              <div>
-                <dt>Adres</dt>
-                <dd>
-                  {[contact.address_line1, contact.address_line2, contact.city, contact.state_province, contact.postal_code, contact.country]
-                    .filter(Boolean)
-                    .join(', ')}
-                </dd>
-              </div>
-            ) : null}
-            {contact.notes ? (
-              <div>
-                <dt>Notlar</dt>
-                <dd>{contact.notes}</dd>
-              </div>
-            ) : null}
-            {(contact.profile_fields ?? [])
-              .filter((item) => {
-                const value = item.value.trim();
-                if (!value) return false;
-                if (item.label === 'Adres' && (contact.address_line1 || '').includes(value)) return false;
-                if (item.label === 'Pozisyon' && contact.job_title === value) return false;
-                return true;
-              })
-              .map((item) => (
-                <div key={`${item.label}:${item.value}`}>
-                  <dt>{item.label}</dt>
-                  <dd>{item.value}</dd>
-                </div>
-              ))}
-          </dl>
-        </section>
-      ) : null}
-
-      {showPurchases && purchases.length ? (
-        <section className="crm-verify-detail__section" data-testid="satin-aldiklari">
-          <h2>{investmentSectionTitle(purchases)} <span>{purchases.length}</span></h2>
-          <div className="crm-verify-detail__records crm-purchase-list">
-            {purchases.map((purchase) => {
-              const isReit = purchase.project_group === 'reit';
-              return (
-              <article
-                key={purchase.agreement_id}
-                className="crm-purchase-list__item crm-purchase-list__item--stack"
-                data-testid={`purchase-row-${purchase.bitrix_deal_id || purchase.agreement_id}`}
-                role="button"
-                tabIndex={0}
-                onClick={() => openPurchaseRow(purchase.agreement_id)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    openPurchaseRow(purchase.agreement_id);
-                  }
-                }}
-              >
-                <strong>{investmentRowTitle(purchase)}</strong>
-                {!isReit && purchase.unit_number && purchase.project_group !== '1812_h_pl' ? (
-                  <span className="crm-purchase-list__unit">Daire {purchase.unit_number}</span>
-                ) : null}
-                {!isReit ? (
-                  <span className="crm-purchase-list__amount">
-                    {(purchase.amount_label || purchase.amount || '').replace(' USD', '')}
-                  </span>
-                ) : null}
-                {purchase.stage ? <span className="crm-purchase-list__unit">Aşama: {purchase.stage}</span> : null}
-                <small className="crm-purchase-list__owners">
-                  {purchase.participants.length
-                    ? purchase.participants
-                        .map((item) => {
-                          const share = item.ownership_pct?.replace(/\.00$/, '');
-                          return `${item.display_name}${share ? ` ${share}%` : ''}`;
-                        })
-                        .join(' / ')
-                    : purchase.owners_label || ''}
-                </small>
-              </article>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
 
       {panel === 'edit' ? (
         <section className="crm-verify-detail__section" data-testid="contact-edit-panel">
@@ -658,9 +971,14 @@ export function UnifiedContactCard({
               <Input label="Telefon" value={phone} onChange={(event) => setPhone(event.target.value)} />
               <Input label="Ek telefonlar" value={extraPhones} onChange={(event) => setExtraPhones(event.target.value)} />
               <Input label="E-posta" value={email} onChange={(event) => setEmail(event.target.value)} />
+              <Input label="İkinci E-posta" value={secondEmail} onChange={(event) => setSecondEmail(event.target.value)} />
               <Input label="Ek e-postalar" value={extraEmails} onChange={(event) => setExtraEmails(event.target.value)} />
+              <Input label="Adres" value={address} onChange={(event) => setAddress(event.target.value)} />
+              <Input label="Şehir" value={city} onChange={(event) => setCity(event.target.value)} />
+              <Input label="Bölge" value={region} onChange={(event) => setRegion(event.target.value)} />
               <Input label="Şirket" value={company} onChange={(event) => setCompany(event.target.value)} />
               <Input label="Pozisyon" value={position} onChange={(event) => setPosition(event.target.value)} />
+              <Input label="Kaynak" value={source} onChange={(event) => setSource(event.target.value)} />
               <Select label="Durum" value={statusValue} onChange={(event) => setStatusValue(event.target.value as 'active' | 'archived')}>
                 <option value="active">Aktif</option>
                 <option value="archived">Junk</option>
@@ -684,6 +1002,7 @@ export function UnifiedContactCard({
               </Select>
               <Input label="Sonraki takip" type="datetime-local" value={followUpAt} onChange={(event) => setFollowUpAt(event.target.value)} />
             </div>
+            <TextArea label="Notlar" value={notes} onChange={(event) => setNotes(event.target.value)} />
             <div>
               <div className="crm-contact-card__meta-line">Tür / roller</div>
               <div className="crm-contact-card__roles">
@@ -698,29 +1017,31 @@ export function UnifiedContactCard({
                         );
                       }}
                     />
-                    {type}
+                    {roleLabel(type)}
                   </label>
                 ))}
               </div>
             </div>
-            <Button type="submit" size="sm" disabled={actionMutation.isPending}>Kaydet</Button>
+            <Button type="submit" size="sm" disabled={actionMutation.isPending} data-testid="contact-edit-save">
+              Kaydet
+            </Button>
           </form>
         </section>
       ) : null}
 
       {panel === 'note' ? (
         <section className="crm-verify-detail__section" data-testid="contact-note-panel">
-          <h2>Not Ekle</h2>
+          <h2>Yorum Ekle</h2>
           <form onSubmit={submitNote} className="crm-contact-card__panel">
-            <TextArea label="Not / görüşme özeti" value={note} onChange={(event) => setNote(event.target.value)} />
+            <TextArea label="Yorum" value={note} onChange={(event) => setNote(event.target.value)} />
             <div className="crm-contact-card__panel-grid">
-              <Select label="Aktivite türü" value={noteType} onChange={(event) => setNoteType(event.target.value as typeof noteType)}>
+              <Select label="Tür" value={noteType} onChange={(event) => setNoteType(event.target.value as typeof noteType)}>
                 {NOTE_TYPES.map((item) => (
                   <option key={item.value} value={item.value}>{item.label}</option>
                 ))}
               </Select>
               <Input label="Tarih / saat" type="datetime-local" value={noteAt} onChange={(event) => setNoteAt(event.target.value)} />
-              <Select label="Takip gerekli mi?" value={noteNeedsFollowUp ? 'yes' : 'no'} onChange={(event) => setNoteNeedsFollowUp(event.target.value === 'yes')}>
+              <Select label="Takip görevi oluştur" value={noteNeedsFollowUp ? 'yes' : 'no'} onChange={(event) => setNoteNeedsFollowUp(event.target.value === 'yes')}>
                 <option value="no">Hayır</option>
                 <option value="yes">Evet</option>
               </Select>
@@ -728,25 +1049,30 @@ export function UnifiedContactCard({
                 <Input label="Takip tarihi" type="datetime-local" value={noteFollowUpAt} onChange={(event) => setNoteFollowUpAt(event.target.value)} />
               ) : null}
             </div>
-            <Button type="submit" size="sm" disabled={actionMutation.isPending || !note.trim()}>Notu kaydet</Button>
+            <Button type="submit" size="sm" disabled={actionMutation.isPending || !note.trim()}>Yorumu kaydet</Button>
           </form>
         </section>
       ) : null}
 
       {panel === 'task' ? (
         <section className="crm-verify-detail__section" data-testid="contact-task-panel">
-          <h2>Görev Ekle</h2>
+          <h2>Görev Oluştur</h2>
           <form onSubmit={submitTask} className="crm-contact-card__panel">
-            <Input label="Görev başlığı" value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} />
+            <Input label="Görev" value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder="24 Eyl 14:00 müşteriyi ara" />
             <TextArea label="Açıklama" value={taskDescription} onChange={(event) => setTaskDescription(event.target.value)} />
             <div className="crm-contact-card__panel-grid">
-              <Select label="Atanan kullanıcı" value={taskAssignee} onChange={(event) => setTaskAssignee(event.target.value)}>
+              <Select label="Tip" value={taskKind} onChange={(event) => setTaskKind(event.target.value as typeof taskKind)}>
+                {TASK_KINDS.map((item) => (
+                  <option key={item.value} value={item.value}>{item.label}</option>
+                ))}
+              </Select>
+              <Select label="Sorumlu" value={taskAssignee} onChange={(event) => setTaskAssignee(event.target.value)}>
                 <option value="">Seçin</option>
                 {users.map((item) => (
                   <option key={item.id} value={item.id}>{item.full_name}</option>
                 ))}
               </Select>
-              <Input label="Son tarih" type="datetime-local" value={taskDue} onChange={(event) => setTaskDue(event.target.value)} />
+              <Input label="Tarih" type="datetime-local" value={taskDue} onChange={(event) => setTaskDue(event.target.value)} />
               <Select label="Durum" value={taskStatus} onChange={(event) => setTaskStatus(event.target.value as typeof taskStatus)}>
                 {TASK_STATUSES.map((item) => (
                   <option key={item.value} value={item.value}>{item.label}</option>
@@ -761,7 +1087,7 @@ export function UnifiedContactCard({
       {panel === 'assign' ? (
         <section className="crm-verify-detail__section" data-testid="contact-assign-panel">
           <h2>Sorumlu Ata</h2>
-          <p className="crm-contact-card__meta-line">Mevcut sorumlu: {ownerName}</p>
+          <p className="crm-contact-card__meta-line">Mevcut sorumlu: {ownerName || '—'}</p>
           <form onSubmit={submitOwner} className="crm-contact-card__panel">
             <Select label="Yeni sorumlu" value={ownerId} onChange={(event) => setOwnerId(event.target.value)}>
               <option value="">Kullanıcı seç</option>
@@ -774,232 +1100,238 @@ export function UnifiedContactCard({
         </section>
       ) : null}
 
-      {openTasks.length && showTasks ? (
-        <section className="crm-verify-detail__section">
-          <h2>Açık görevler <span>{openTasks.length}</span></h2>
-          <div className="crm-verify-detail__records">
-            {openTasks.map((task) => (
-              <article key={task.id}>
-                <strong>{task.title}</strong>
-                <small>
-                  {task.due_date ? new Date(task.due_date).toLocaleString(locale) : 'Tarihsiz'}
-                  {task.task_status ? ` · ${task.task_status}` : ''}
-                </small>
+      <nav className="crm-contact-card__tabs crm-person-tabs" aria-label="Person card tabs" data-testid="person-card-tabs">
+        {PERSON_TABS.map((item) => {
+          const count =
+            item.id === 'purchases' ? currentPurchases.length
+            : item.id === 'history' ? commEntries.length
+            : item.id === 'documents' ? visibleDocuments.length
+            : item.id === 'tasks' ? followUpEntries.length
+            : null;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={tab === item.id ? 'is-active' : undefined}
+              data-testid={`contact-tab-${item.id}`}
+              onClick={() => selectTab(item.id)}
+            >
+              {item.label}
+              {count != null ? ` (${count})` : ''}
+            </button>
+          );
+        })}
+      </nav>
+
+      {tab === 'overview' ? (
+        <>
+          <section className="crm-person-kpis" data-testid="contact-summary-cards">
+            <button type="button" className="crm-person-kpi" onClick={() => selectTab('purchases')}>
+              <span>Toplam Satın Alma</span>
+              <strong>{currentPurchases.length}</strong>
+              {projectCount ? <small>{projectCount} aktif projede</small> : null}
+            </button>
+            <button type="button" className="crm-person-kpi" onClick={() => selectTab('history')}>
+              <span>İletişim</span>
+              <strong>{commEntries.length}</strong>
+              {lastCommChannel ? <small>{lastCommChannel}</small> : null}
+            </button>
+            <button type="button" className="crm-person-kpi" onClick={() => selectTab('history')}>
+              <span>Son İletişim</span>
+              <strong>{relativeLabel(contact.last_contact_at || lastComm?.created_at, locale) || '—'}</strong>
+              {lastCommChannel ? <small>{lastCommChannel}</small> : null}
+            </button>
+            <div className="crm-person-kpi">
+              <span>Durum</span>
+              <strong className={isJunk ? '' : 'is-live'}>{isJunk ? 'Junk' : 'Aktif'}</strong>
+              {contact.updated_at ? <small>Son güncelleme: {formatShortDate(contact.updated_at, locale)}</small> : null}
+            </div>
+            <div className="crm-person-kpi" data-testid="contact-summary-tags">
+              <span>Etiketler</span>
+              <div className="crm-person-kpi__tags">
+                {tags.length ? tags.map((tag) => <em key={tag.id}>{tag.name}</em>) : <strong>—</strong>}
+              </div>
+            </div>
+          </section>
+
+          <section className="crm-person-workspace" data-testid="contact-overview">
+            <article className="crm-person-panel">
+              <div className="crm-person-panel__head">
+                <h2>Genel Bilgiler</h2>
                 {canUpdate ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    disabled={actionMutation.isPending}
-                    onClick={() => actionMutation.mutate(async () => completeTask(task.id))}
-                  >
-                    Görevi tamamla
-                  </Button>
+                  <button type="button" onClick={() => togglePanel('edit')}>Düzenle</button>
                 ) : null}
+              </div>
+              <dl className="crm-person-info">
+                <InfoRow label="Ad Soyad" value={contact.display_name} />
+                <InfoRow label="Telefon" value={contact.primary_phone} />
+                <InfoRow label="Ek telefon" value={(contact.secondary_phones ?? []).join(', ')} />
+                <InfoRow label="WhatsApp" value={contact.whatsapp && contact.whatsapp !== contact.primary_phone ? contact.whatsapp : null} />
+                <InfoRow label="E-posta" value={contact.primary_email} />
+                <InfoRow label="İkinci e-posta" value={(contact.secondary_emails ?? []).join(', ')} />
+                <InfoRow label="Adres" value={[contact.address_line1, contact.address_line2].filter(Boolean).join(', ')} />
+                <InfoRow label="Şehir" value={contact.city} />
+                <InfoRow label="Bölge" value={contact.state_province} />
+                <InfoRow label="Ülke" value={contact.country} />
+                <InfoRow label="Şirket" value={contact.organization_name || contact.company_name} />
+                <InfoRow
+                  label="Rol"
+                  value={(contact.contact_types.length ? contact.contact_types : [contact.contact_type]).map(roleLabel).join(', ')}
+                />
+                <InfoRow label="Geliş Kaynağı" value={sourceLabel} />
+                <InfoRow label="Yönlendiren / Acenta" value={referrerName} />
+                <InfoRow label="Sorumlu kullanıcı" value={ownerName} />
+                <InfoRow label="Oluşturulma tarihi" value={formatShortDate(contact.created_at, locale)} />
+                <InfoRow label="Son güncelleme" value={formatShortDate(contact.updated_at, locale)} />
+                {(contact.profile_fields ?? [])
+                  .filter((item) => {
+                    const value = item.value.trim();
+                    if (!value) return false;
+                    if (/adres/i.test(item.label) && (contact.address_line1 || '').includes(value)) return false;
+                    if (/pozisyon|rol/i.test(item.label) && contact.job_title === value) return false;
+                    if (/telefon|e-posta|email|şirket|kaynak/i.test(item.label)) return false;
+                    return true;
+                  })
+                  .map((item) => (
+                    <InfoRow key={`${item.label}:${item.value}`} label={item.label} value={item.value} />
+                  ))}
+              </dl>
+            </article>
+
+            <div className="crm-person-workspace__side">
+              <article className="crm-person-panel">
+                <div className="crm-person-panel__head">
+                  <h2>Satın Almalar</h2>
+                  <button type="button" onClick={() => selectTab('purchases')}>Tümünü Gör</button>
+                </div>
+                {currentPurchases.length ? renderPurchaseTable(currentPurchases.slice(0, 3), 'current-purchases', '') : <p>Satın alma kaydı yok.</p>}
               </article>
-            ))}
-          </div>
-        </section>
+              <article className="crm-person-panel" data-testid="contact-tasks-preview">
+                <div className="crm-person-panel__head">
+                  <h2>Görevler</h2>
+                  <button type="button" onClick={() => { setTaskKind('task'); togglePanel('task'); }}>Görev Oluştur</button>
+                </div>
+                {followUpEntries.length ? renderTaskRows(followUpEntries, true) : <p>Bu kişi için görev kaydı yok.</p>}
+              </article>
+              <article className="crm-person-panel">
+                <div className="crm-person-panel__head">
+                  <h2>Belgeler</h2>
+                  <button type="button" onClick={() => selectTab('documents')}>Tümünü Gör</button>
+                </div>
+                {visibleDocuments.length ? (
+                  <ul className="crm-contact-card__docs">
+                    {visibleDocuments.slice(0, 4).map((doc) => (
+                      <li key={doc.id}>
+                        <a href={`/workspaces/crm/documents/${doc.id}`}>{doc.original_file_name || doc.title}</a>
+                        <small>
+                          {[doc.document_type, doc.created_at ? relativeLabel(doc.created_at, locale) : null]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </small>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>Bu kişiye bağlı belge yok.</p>
+                )}
+              </article>
+            </div>
+          </section>
+        </>
       ) : null}
 
-      {tab === 'tasks' && !openTasks.length ? (
-        <section className="crm-verify-detail__section" data-testid="contact-tasks">
-          <h2>Görevler</h2>
-          <p>Açık görev yok.</p>
-        </section>
-      ) : null}
-
-      {tab === 'whatsapp' ? (
-        <section className="crm-verify-detail__section" data-testid="contact-whatsapp">
-          <h2>WhatsApp <span>{whatsappMessages.length}</span></h2>
-          {whatsappMessages.length ? (
-            <WhatsAppThread messages={whatsappMessages} locale={locale} testId="contact-whatsapp-thread" />
+      {tab === 'purchases' ? (
+        <section className="crm-verify-detail__section" data-testid="satin-aldiklari">
+          <h2>Satın Almalar <span>{currentPurchases.length}</span></h2>
+          {currentPurchases.length ? (
+            renderPurchaseTable(currentPurchases, 'current-purchases', '')
+          ) : contact.crm_agreements.length ? (
+            <div className="crm-verify-detail__records" data-testid="contact-agreements">
+              {contact.crm_agreements.map((agreement) => {
+                const isReit = agreement.project_group === 'reit';
+                return (
+                  <article key={agreement.id}>
+                    <strong>{agreement.project_label}</strong>
+                    <small>
+                      Durum: {agreement.status}
+                      {agreement.agreement_date ? ` · Anlaşma tarihi: ${agreement.agreement_date}` : ''}
+                      {isReit
+                        ? ` · Yatırım Tutarı: ${agreement.investment_amount || '—'}`
+                        : ` · Daire No: ${agreement.unit_number || '—'}`}
+                      {!isReit && agreement.purchase_price ? ` · Satış / anlaşma fiyatı: ${agreement.purchase_price}` : ''}
+                      {!isReit && agreement.payment_amount ? ` · Ödeme: ${agreement.payment_amount}` : ''}
+                      {!isReit && agreement.deposit ? ` · Kapora: ${agreement.deposit}` : ''}
+                    </small>
+                  </article>
+                );
+              })}
+            </div>
           ) : (
-            <p>WhatsApp yazışması yok.</p>
+            <p>Satın alma kaydı yok.</p>
           )}
         </section>
       ) : null}
 
-      {showHistory ? (
-      <section className="crm-verify-detail__section" data-testid="contact-timeline">
-        <h2>Geçmiş & Notlar <span>{filteredTimeline.length}</span></h2>
-        <div className="crm-contact-card__history-filters" data-testid="contact-timeline-filters">
-          {HISTORY_FILTERS.map((filter) => (
-            <button
-              key={filter.id}
-              type="button"
-              className={historyFilter === filter.id ? 'is-active' : undefined}
-              data-testid={`timeline-filter-${filter.id}`}
-              onClick={() => setHistoryFilter(filter.id)}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
-        {timelineQuery.isLoading ? <p>Loading…</p> : null}
-        {filteredTimeline.length ? (
-          <div className="crm-verify-detail__records crm-verify-detail__timeline">
-            {timelineGroups.map((group) => (
-              <div key={group.label} className="crm-contact-card__timeline-day">
-                <p className="crm-contact-card__date-sep">{group.label}</p>
-                {group.items.map((entry) => {
-                  const history = bitrixHistory(entry);
-                  const typeLabel = historyTypeLabel(entry);
-                  const isWhatsapp = entry.activity_type === 'whatsapp';
-                  return (
-                    <article
-                      key={entry.id}
-                      data-imported={entry.imported_historical_comment ? 'true' : 'false'}
-                      data-activity-type={entry.activity_type}
-                      className={isWhatsapp ? 'crm-contact-card__timeline-wa' : undefined}
-                      onClick={isWhatsapp ? () => setWhatsappFocus(entry) : undefined}
-                      onKeyDown={
-                        isWhatsapp
-                          ? (event) => {
-                              if (event.key === 'Enter' || event.key === ' ') {
-                                event.preventDefault();
-                                setWhatsappFocus(entry);
-                              }
-                            }
-                          : undefined
-                      }
-                      role={isWhatsapp ? 'button' : undefined}
-                      tabIndex={isWhatsapp ? 0 : undefined}
-                    >
-                      <strong>
-                        <span className={`crm-contact-card__type-chip crm-contact-card__type-chip--${entry.activity_type}`}>
-                          {typeLabel}
-                        </span>
-                      </strong>
-                      <small>
-                        {new Date(entry.created_at).toLocaleString(locale)}
-                        {entry.actor_name ? ` · ${entry.actor_name}` : history?.author_name ? ` · ${history.author_name}` : ''}
-                        {history?.source ? ` · ${history.source}` : entry.imported_historical_comment ? ' · bitrix' : ''}
-                      </small>
-                      {entry.summary ? (
-                        <p>{entry.summary}</p>
-                      ) : entry.title && entry.title !== typeLabel && entry.title !== ACTIVITY_TYPE_LABELS[entry.activity_type] ? (
-                        <p>{entry.title}</p>
-                      ) : null}
-                      {isWhatsapp && history?.open_channel_summary && !history.full_messages_recovered ? (
-                        <p className="crm-contact-card__muted">Open Channel özeti — mesaj içeriği kurtarılamadı.</p>
-                      ) : null}
-                    </article>
-                  );
-                })}
-              </div>
-            ))}
+      {tab === 'tasks' ? (
+        <section className="crm-verify-detail__section" data-testid="contact-tasks">
+          <div className="crm-person-panel__head">
+            <h2>Görevler / Takip Planı <span>{followUpEntries.length}</span></h2>
+            {canUpdate ? (
+              <Button type="button" size="sm" onClick={() => { setTaskKind('task'); togglePanel('task'); }}>
+                Görev Oluştur
+              </Button>
+            ) : null}
           </div>
-        ) : <p>Kayıt yok</p>}
-        {whatsappFocus ? (
-          <div className="crm-contact-card__wa-drawer" data-testid="whatsapp-conversation">
-            <div className="crm-contact-card__wa-panel">
-              <div className="crm-contact-card__wa-head">
-                <strong>WhatsApp konuşması</strong>
-                <Button type="button" size="sm" variant="secondary" onClick={() => setWhatsappFocus(null)}>
-                  Kapat
-                </Button>
-              </div>
-              {whatsappThread.length ? (
-                <div className="crm-contact-card__wa-thread">
-                  {whatsappThread.map((message) => {
-                    const meta = bitrixHistory(message);
-                    const direction = String(meta?.direction || 'incoming');
-                    return (
-                      <div
-                        key={message.id}
-                        className={`crm-contact-card__wa-bubble crm-contact-card__wa-bubble--${direction}`}
-                        data-testid="whatsapp-message"
-                      >
-                        <small>
-                          {meta?.author_name || message.actor_name || (direction === 'outgoing' ? 'Giden' : direction === 'system' ? 'Sistem' : 'Gelen')}
-                          {' · '}
-                          {new Date(message.created_at).toLocaleString(locale)}
-                        </small>
-                        <p>{message.summary || message.title}</p>
-                        {Number(meta?.attachment_count || 0) > 0 ? (
-                          <em>Ek var (Bitrix dosyası indirilemedi)</em>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="crm-contact-card__muted">
-                  {bitrixHistory(whatsappFocus)?.open_channel_summary
-                    ? 'Bu Open Channel kaydı özet. Kurtarılmış mesaj içeriği yok.'
-                    : 'Bu sohbet için kurtarılmış mesaj yok.'}
-                </p>
-              )}
+          {followUpEntries.length ? renderTaskRows(followUpEntries) : <p>Bu kişi için görev kaydı yok.</p>}
+        </section>
+      ) : null}
+
+      {tab === 'history' ? (
+        <PilotHistoryStream
+          entries={timeline}
+          documents={documents}
+          locale={locale}
+          loading={timelineQuery.isLoading}
+          initialFilter={historyFilter}
+          includeDocuments={false}
+          heading="Yorumlar / İletişim Akışı"
+        />
+      ) : null}
+
+      {tab === 'documents' ? (
+        <section className="crm-verify-detail__section" data-testid="contact-documents">
+          <h2>Belgeler <span>{visibleDocuments.length}</span></h2>
+          {!canViewDocuments ? (
+            <p>Belge görüntüleme yetkisi yok.</p>
+          ) : documentsQuery.isLoading ? (
+            <p>Loading…</p>
+          ) : documents.length ? (
+            <div data-testid="nedim-general-documents">
+              <DocumentGallery
+                documents={documents}
+                entityType="crm_contact"
+                entityId={contactId}
+                onChanged={() => {
+                  void queryClient.invalidateQueries({ queryKey: ['crm', 'contacts', 'documents', contactId] });
+                }}
+              />
             </div>
-          </div>
-        ) : null}
-      </section>
-      ) : null}
-
-      {showPurchases && !purchases.length ? (
-      <section className="crm-verify-detail__section" data-testid="contact-agreements">
-        <h2>Anlaşmalar / Yatırımlar <span>{contact.crm_agreements.length}</span></h2>
-        {contact.crm_agreements.length ? (
-          <div className="crm-verify-detail__records">
-            {contact.crm_agreements.map((agreement) => {
-              const isReit = agreement.project_group === 'reit';
-              return (
-                <article key={agreement.id}>
-                  <strong>{agreement.project_label}</strong>
-                  <small>
-                    Durum: {agreement.status}
-                    {agreement.agreement_date ? ` · Anlaşma tarihi: ${agreement.agreement_date}` : ''}
-                    {isReit
-                      ? ` · Yatırım Tutarı: ${agreement.investment_amount || '—'}`
-                      : ` · Daire No: ${agreement.unit_number || '—'}`}
-                    {!isReit && agreement.purchase_price ? ` · Satış / anlaşma fiyatı: ${agreement.purchase_price}` : ''}
-                    {!isReit && agreement.payment_amount ? ` · Ödeme: ${agreement.payment_amount}` : ''}
-                    {!isReit && agreement.deposit ? ` · Kapora: ${agreement.deposit}` : ''}
-                    {agreement.amount_and_currency_amount
-                      ? ` · ${agreement.amount_and_currency_label || 'Tutar ve para birimi'}: ${agreement.amount_and_currency_amount}${agreement.amount_and_currency_currency ? ` ${agreement.amount_and_currency_currency}` : ''}`
-                      : ''}
-                  </small>
-                </article>
-              );
-            })}
-          </div>
-        ) : <p>Kayıt yok</p>}
-      </section>
-      ) : null}
-
-      {showDocuments ? (
-      <section className="crm-verify-detail__section" data-testid="contact-documents">
-        <h2>Belgeler <span>{documents.length}</span></h2>
-        {!canViewDocuments ? (
-          <p>Belge görüntüleme yetkisi yok.</p>
-        ) : documentsQuery.isLoading ? (
-          <p>Loading…</p>
-        ) : documents.length ? (
-          <ul className="crm-contact-card__docs" data-testid="nedim-general-documents">
-            {documents.map((doc) => (
-              <li key={doc.id}>
-                <a href={`/workspaces/crm/documents/${doc.id}`}>{doc.title}</a>
-                <small>{doc.document_type} · v{doc.version_number}</small>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>Bu kişiye bağlı belge yok.</p>
-        )}
-        {canLinkDocuments ? (
-          <form onSubmit={submitLinkDocument} className="crm-contact-card__panel">
-            <Input
-              label="Mevcut belge ID ile bağla"
-              value={linkDocumentId}
-              onChange={(event) => setLinkDocumentId(event.target.value)}
-            />
-            <Button type="submit" size="sm" variant="secondary" disabled={actionMutation.isPending || !linkDocumentId.trim()}>
-              Belgeyi bağla
-            </Button>
-          </form>
-        ) : null}
-      </section>
+          ) : (
+            <p>Bu kişiye bağlı belge yok.</p>
+          )}
+          {canLinkDocuments ? (
+            <form onSubmit={submitLinkDocument} className="crm-contact-card__panel">
+              <Input
+                label="Mevcut belge ID ile bağla"
+                value={linkDocumentId}
+                onChange={(event) => setLinkDocumentId(event.target.value)}
+              />
+              <Button type="submit" size="sm" variant="secondary" disabled={actionMutation.isPending || !linkDocumentId.trim()}>
+                Belgeyi bağla
+              </Button>
+            </form>
+          ) : null}
+        </section>
       ) : null}
     </div>
   );

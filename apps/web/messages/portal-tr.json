@@ -35,8 +35,7 @@
       "email": "E-posta",
       "password": "Şifre",
       "submit": "Giriş yap",
-      "error": "Geçersiz e-posta veya şifre.",
-      "hint": "Demo yatırımcı A: investor.a@investhome.demo / Portal123!\nİzolasyon testi için B: investor.b@investhome.demo / Portal123!"
+      "error": "Geçersiz e-posta veya şifre."
     },
     "dashboard": {
       "title": "Panel",

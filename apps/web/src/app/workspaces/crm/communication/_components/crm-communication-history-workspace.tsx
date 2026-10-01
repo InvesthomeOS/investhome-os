@@ -84,7 +84,7 @@ const COPY = {
     subtitle: 'Existing CRM activity history — send channels are not invented.',
     search: 'Search title, summary or contact',
     type: 'Type',
-    contact: 'Contact',
+    contact: 'Person',
     responsible: 'Owner',
     date: 'Date',
     all: 'All',

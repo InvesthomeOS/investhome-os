@@ -287,14 +287,14 @@ class FormReadinessResponse(BaseModel):
 
 
 class TrackingPayload(BaseModel):
-    utm_source: str | None = None
-    utm_medium: str | None = None
-    utm_campaign: str | None = None
-    utm_term: str | None = None
-    utm_content: str | None = None
-    referrer: str | None = None
-    landing_url: str | None = None
-    session_id: str | None = None
+    utm_source: str | None = Field(default=None, max_length=128)
+    utm_medium: str | None = Field(default=None, max_length=128)
+    utm_campaign: str | None = Field(default=None, max_length=128)
+    utm_term: str | None = Field(default=None, max_length=128)
+    utm_content: str | None = Field(default=None, max_length=128)
+    referrer: str | None = Field(default=None, max_length=2048)
+    landing_url: str | None = Field(default=None, max_length=2048)
+    session_id: str | None = Field(default=None, max_length=128)
 
 
 class ConsentPayload(BaseModel):
@@ -304,12 +304,30 @@ class ConsentPayload(BaseModel):
     consent_phone: bool | None = None
 
 
+PUBLIC_FORM_MAX_VALUES = 40
+PUBLIC_FORM_MAX_KEY_LENGTH = 64
+PUBLIC_FORM_MAX_VALUE_LENGTH = 2000
+PUBLIC_FORM_MAX_BODY_BYTES = 32_768
+
+
 class PublicFormSubmit(BaseModel):
-    values: dict[str, str | bool | None]
+    values: dict[str, str | bool | None] = Field(max_length=PUBLIC_FORM_MAX_VALUES)
     tracking: TrackingPayload | None = None
     consent: ConsentPayload | None = None
     landing_page_id: UUID | None = None
     idempotency_key: str = Field(min_length=8, max_length=255)
+    cf_turnstile_response: str | None = Field(default=None, max_length=4096)
+    hp_website: str = Field(default="", max_length=200)
+
+    @field_validator("values")
+    @classmethod
+    def cap_public_form_values(cls, values: dict[str, str | bool | None]) -> dict[str, str | bool | None]:
+        for key, raw in values.items():
+            if len(key) > PUBLIC_FORM_MAX_KEY_LENGTH:
+                raise ValueError("field name too long")
+            if isinstance(raw, str) and len(raw) > PUBLIC_FORM_MAX_VALUE_LENGTH:
+                raise ValueError("field too long")
+        return values
 
 
 class SubmissionSummary(BaseModel):

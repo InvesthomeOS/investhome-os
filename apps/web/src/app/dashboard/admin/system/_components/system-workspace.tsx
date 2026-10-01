@@ -22,6 +22,10 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { SecSection, StatusBadge } from '../../_components/sec-ui';
 import { useAdminToast } from '../../_components/use-admin-toast';
 
+function backupToneStatus(status: string): string {
+  return status === 'configured' ? 'not_verified' : status;
+}
+
 export function SystemWorkspace() {
   const t = useTranslations('adminSecurity');
   const router = useRouter();
@@ -38,6 +42,8 @@ export function SystemWorkspace() {
     provider: string;
     message: string;
     last_backup_at: string | null;
+    restore_verified: boolean;
+    warning: boolean;
     env_keys: string[];
   } | null>(null);
   const canUpdate = Boolean(user && hasPermission(user, 'settings', 'update'));
@@ -93,8 +99,12 @@ export function SystemWorkspace() {
       </SecSection>
       <SecSection title={t('backupTitle')}>
         {backup ? (
-          <div className="sec-card">
-            <StatusBadge status={backup.status} />
+          <div
+            className="sec-card"
+            data-testid="backup-status-card"
+            data-backup-warning={backup.warning ? 'true' : 'false'}
+          >
+            <StatusBadge status={backupToneStatus(backup.status)}>{backup.status.replace(/_/g, ' ')}</StatusBadge>
             <p>
               {t('backupHealth')}: <StatusBadge status={backup.health} />
             </p>
@@ -105,6 +115,11 @@ export function SystemWorkspace() {
               {t('lastBackup')}:{' '}
               {backup.last_backup_at ? new Date(backup.last_backup_at).toLocaleString() : t('never')}
             </p>
+            {backup.warning ? (
+              <p className="sec-note" data-testid="backup-status-warning">
+                {t('backupStatusWarning')}
+              </p>
+            ) : null}
             <p className="sec-note">{backup.message}</p>
             <code className="sec-code">{backup.env_keys.join(', ')}</code>
           </div>

@@ -1,7 +1,6 @@
 'use client';
 
 /**
- * Legacy export kept for any residual imports.
- * Canonical Notes surface is NotesDsWorkspace via page.tsx.
+ * Canonical Notes surface is the live CRM table workspace.
  */
-export { NotesDsWorkspace as NotesWorkspace } from './ds/notes-ds-workspace';
+export { CrmNotesWorkspace as NotesWorkspace } from './crm-notes-workspace';

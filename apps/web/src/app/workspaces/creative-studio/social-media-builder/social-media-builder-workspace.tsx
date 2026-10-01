@@ -1717,6 +1717,16 @@ export function SocialMediaBuilderWorkspace() {
         });
         nextPost.id = createdPostId;
         nextPost.campaignContextId = response.campaign_id;
+        const versionNo = Number(
+          (response.quality_guard as { version_number?: unknown } | undefined)?.version_number,
+        );
+        if (
+          (response.quality_guard as { workflow?: unknown } | undefined)?.workflow ===
+            'phase5_real_ai_creative' &&
+          versionNo
+        ) {
+          nextPost.name = `v${versionNo}`;
+        }
         const nextPosts = [...siblingPosts, nextPost];
         pushHistory();
         postsRef.current = nextPosts;
@@ -1821,6 +1831,68 @@ export function SocialMediaBuilderWorkspace() {
         });
         const gptImage = response.gpt_image;
         const output = gptImage?.outputs?.[0];
+        const reelsGuard = response.quality_guard as
+          | { workflow?: unknown; video_provider_missing?: unknown; video_status?: unknown }
+          | undefined;
+        const reelsVideo = (
+          response.campaign_context as
+            | { video?: { asset_id?: string; asset_url?: string; status?: string } }
+            | undefined
+        )?.video;
+        if (reelsGuard?.workflow === 'phase5_reels_video' && reelsGuard.video_provider_missing) {
+          showToast(
+            (typeof response.user_feedback === 'string' && response.user_feedback.trim()) ||
+              t('toasts.revisionFailed'),
+          );
+          return;
+        }
+        if (reelsGuard?.workflow === 'phase5_reels_video' && reelsVideo?.asset_id && isMediaAssetId(reelsVideo.asset_id)) {
+          const reelModel =
+            (typeof response.provider_route?.model === 'string' && response.provider_route.model) ||
+            gptImage?.model ||
+            'gpt-image-2';
+          const created = createFinishedAdCanvasPost({
+            localAssetId: reelsVideo.asset_id,
+            linkedProjectId: projectId,
+            formatPreset: 'reelsCover',
+            instruction: text,
+            model: reelModel,
+            sessionId: gptImage?.session_id || response.campaign_id || campaignId,
+            campaignContextId: response.campaign_id || campaignId,
+            sourceAssetId: response.interior_asset_id ?? gptImage?.source_image?.asset_id ?? null,
+            index: postsRef.current.length + 1,
+            canvasWidth: 1080,
+            canvasHeight: 1920,
+            logoAssetId: response.logo_asset_id,
+            interiorAssetId: response.interior_asset_id,
+            finishedAdRasterAssetId: reelsVideo.asset_id,
+            masterFinishedAdAssetId: response.master_asset_id || null,
+            productionMode: response.production_mode ?? null,
+          });
+          created.name = 'Reels';
+          created.format = 'reel';
+          const nextPosts = [...postsRef.current, created];
+          postsRef.current = nextPosts;
+          selectedPostIdRef.current = created.id;
+          setPosts(nextPosts);
+          setSelectedPostId(created.id);
+          setFormatPreset('reelsCover');
+          setAiPrompt('');
+          markDirty();
+          persistEpochRef.current += 1;
+          void docApi.saveDraft({
+            ...buildPersistPayload(),
+            posts: serializeSocialPosts(nextPosts),
+            selectedPostId: created.id,
+            designProvider: 'creative-director',
+            brandLogo: false,
+          });
+          showToast(
+            (typeof response.user_feedback === 'string' && response.user_feedback.trim()) ||
+              t('toasts.revisionApplied'),
+          );
+          return;
+        }
         // Same Final Asset hydration as Oluştur finished-ad — sole full-bleed IMAGE.
         const finalAssetId = response.final_asset_id || output?.local_asset_id;
         if (!finalAssetId || !isMediaAssetId(finalAssetId)) {
@@ -1942,8 +2014,113 @@ export function SocialMediaBuilderWorkspace() {
         });
         nextPost.id = postId;
         nextPost.campaignContextId = response.campaign_id || campaignId;
+        const versionNo = Number(
+          (response.quality_guard as { version_number?: unknown } | undefined)?.version_number,
+        );
+        if (
+          (response.quality_guard as { workflow?: unknown } | undefined)?.workflow ===
+            'phase5_real_ai_creative' &&
+          versionNo
+        ) {
+          nextPost.name = `v${versionNo}`;
+        }
+        const phase5Workflow =
+          (response.quality_guard as { workflow?: unknown } | undefined)?.workflow ===
+            'phase5_real_ai_creative' ||
+          (response.quality_guard as { workflow?: unknown } | undefined)?.workflow ===
+            'phase5_format_adaptation';
+        const formatFamily = (
+          response.campaign_context as
+            | {
+                format_family?: {
+                  family_id?: string;
+                  master_asset_id?: string;
+                  derivatives?: Array<{
+                    asset_id: string;
+                    asset_url?: string;
+                    format_preset: string;
+                    aspect_ratio: string;
+                    label?: string;
+                    width?: number;
+                    height?: number;
+                  }>;
+                };
+              }
+            | undefined
+        )?.format_family;
+        if (phase5Workflow && Array.isArray(formatFamily?.derivatives) && formatFamily.derivatives.length > 0) {
+          const added = formatFamily.derivatives.map((item, index) => {
+            const preset = asFormatPreset(item.format_preset);
+            const created = createFinishedAdCanvasPost({
+              localAssetId: item.asset_id,
+              linkedProjectId: projectId,
+              formatPreset: preset,
+              instruction: text,
+              model: providerModel,
+              sessionId: gptImage?.session_id || response.campaign_id || campaignId,
+              campaignContextId: response.campaign_id || campaignId,
+              sourceAssetId: response.interior_asset_id ?? gptImage?.source_image?.asset_id ?? null,
+              index: postsRef.current.length + index + 1,
+              canvasWidth: item.width,
+              canvasHeight: item.height,
+              provider:
+                (typeof response.provider_route?.provider_id === 'string' &&
+                  response.provider_route.provider_id) ||
+                'gpt_image',
+              logoAssetId: response.logo_asset_id,
+              interiorAssetId: response.interior_asset_id,
+              finishedAdRasterAssetId: item.asset_id,
+              masterFinishedAdAssetId: formatFamily.master_asset_id || response.master_asset_id || null,
+              productionMode: response.production_mode ?? null,
+            });
+            created.name =
+              item.label === 'Square 1:1'
+                ? 'Kare 1:1'
+                : item.label === 'Story 9:16'
+                  ? 'Story 9:16'
+                  : item.label === 'Landscape 16:9'
+                    ? 'Yatay 16:9'
+                    : item.label || created.name;
+            return created;
+          });
+          const nextPosts = [...postsRef.current, ...added];
+          postsRef.current = nextPosts;
+          const selectId = added[0]?.id || postId;
+          selectedPostIdRef.current = selectId;
+          setPosts(nextPosts);
+          setSelectedPostId(selectId);
+          const selectedAdded = added[0];
+          if (selectedAdded) setFormatPreset(selectedAdded.formatPreset);
+          designEngineRef.current = 'creative-director';
+          setDesignEngine('creative-director');
+          setBrandLogo(false);
+          coverAsset.setCoverImage({
+            asset_id: added[0]?.coverAssetId || coverAssetId,
+            url: null,
+            alt: null,
+            role: 'cover',
+          });
+          setCreativeDirectorCampaignId(response.campaign_id || campaignId);
+          creativeDirectorCampaignRef.current = response.campaign_id || campaignId;
+          applyAiRevisionCursor(response);
+          setAiPrompt('');
+          markDirty();
+          persistEpochRef.current += 1;
+          void docApi.saveDraft({
+            ...buildPersistPayload(),
+            posts: serializeSocialPosts(nextPosts),
+            selectedPostId: selectId,
+            designProvider: 'creative-director',
+            brandLogo: false,
+          });
+          showToast(
+            (typeof response.user_feedback === 'string' && response.user_feedback.trim()) ||
+              t('toasts.revisionApplied'),
+          );
+          return;
+        }
         const masterCover = resolveCampaignMasterCover(response);
-        if (!microEditRevision && masterCover) {
+        if (!microEditRevision && !phase5Workflow && masterCover) {
           Object.assign(nextPost, applyNewerMasterCoverToPost(nextPost, masterCover));
         }
         if (microEditRevision && nextPost.coverAssetId && nextPost.coverAssetId !== lockedCoverId) {

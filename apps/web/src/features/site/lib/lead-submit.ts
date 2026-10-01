@@ -64,6 +64,10 @@ export async function submitSiteLead(
     },
     tracking: trackingFromBrowser(),
     idempotency_key: idempotencyKey(),
+    hp_website: '',
+    ...(process.env.NODE_ENV === 'production'
+      ? {}
+      : { cf_turnstile_response: 'dev-bypass' }),
   };
 
   const controller = new AbortController();

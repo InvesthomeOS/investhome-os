@@ -1,0 +1,54 @@
+.crm-companies-ops .crm-people-flags {
+  display: flex;
+  margin-top: 4px;
+}
+
+.crm-company-ops-detail h2 {
+  margin: 16px 0 8px;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.crm-company-ops-kicker {
+  margin: 0 0 4px;
+  color: var(--ctc-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.crm-company-ops-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.crm-company-ops-form,
+.crm-company-ops-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.crm-company-ops-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crm-company-ops-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--ctc-border);
+}
+
+.crm-company-detail__contact-link {
+  border: 0;
+  background: none;
+  color: var(--shot-navy);
+  font-weight: 650;
+  cursor: pointer;
+}

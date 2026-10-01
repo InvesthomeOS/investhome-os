@@ -157,6 +157,17 @@ export const IMAGE_BUILDER_ROUTE = '/workspaces/creative-studio/image-builder';
 export const PRESENTATION_BUILDER_ROUTE = '/workspaces/creative-studio/presentation-builder';
 export const PROPOSAL_BUILDER_ROUTE = '/workspaces/creative-studio/proposal-builder';
 export const SOCIAL_MEDIA_BUILDER_ROUTE = '/workspaces/creative-studio/social-media-builder';
+export const QUICK_CREATIVE_ROUTE = '/workspaces/creative-studio/hizli-tasarim';
+export const PREMIUM_CAMPAIGNS_ROUTE = '/workspaces/creative-studio/premium-campaigns';
+/** Phase 13.0 FINAL — HUMAN_APPROVED production lock. Do not redesign this workspace. */
+export const PREMIUM_CAMPAIGN_PRODUCTION_LOCK = {
+  status: 'PRODUCTION_READY',
+  ui: 'HUMAN_APPROVED',
+  routing: 'ACTIVE',
+  familyId: 'd0e00220-5f9b-530a-847d-17c1f82bbad9',
+  route: `${PREMIUM_CAMPAIGNS_ROUTE}/d0e00220-5f9b-530a-847d-17c1f82bbad9`,
+  next: 'AI QUICK CREATIVE — LIVE PROJECT WORKFLOW',
+} as const;
 export const ADS_BUILDER_ROUTE = '/workspaces/creative-studio/ads-builder';
 export const BROCHURE_BUILDER_ROUTE = '/workspaces/creative-studio/brochure-builder';
 export const MEDIA_LIBRARY_ROUTE = '/workspaces/creative-studio/media-library';
@@ -169,7 +180,7 @@ export const toolHref = (tool: ToolKey) => {
   if (tool === 'websiteBuilder') return WEBSITE_BUILDER_ROUTE;
   if (tool === 'landingPages') return LANDING_PAGE_BUILDER_ROUTE;
   if (tool === 'blogStudio') return BLOG_BUILDER_ROUTE;
-  if (tool === 'socialStudio') return SOCIAL_MEDIA_BUILDER_ROUTE;
+  if (tool === 'socialStudio') return QUICK_CREATIVE_ROUTE;
   if (tool === 'adsBuilder') return ADS_BUILDER_ROUTE;
   if (tool === 'emailStudio') return EMAIL_BUILDER_ROUTE;
   if (tool === 'videoStudio') return VIDEO_BUILDER_ROUTE;

@@ -1,17 +1,11 @@
-import { CrmMatchesWorkspace } from './_components/crm-matches-workspace';
-import { makeMatchesPreview } from './matches-demo-data';
-import './matches.css';
+import { CrmMatchesLiveWorkspace } from './_components/crm-matches-live-workspace';
+import '@/workspaces/crm/contact-card/contact-card.css';
+import './matches-ops.css';
 
-/**
- * Canonical CRM Matches route.
- * Presentation uses typed local fixtures until a live matching API is wired.
- */
 export default function CrmMatchesPage() {
-  const preview = makeMatchesPreview();
-
   return (
     <main className="dashboard crm-module-shell" data-testid="crm-matches-page">
-      <CrmMatchesWorkspace preview={preview} />
+      <CrmMatchesLiveWorkspace />
     </main>
   );
 }

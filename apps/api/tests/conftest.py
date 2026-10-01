@@ -1,5 +1,12 @@
 """Shared pytest fixtures with auth disabled for module tests."""
 
+import os
+
+os.environ["JWT_SECRET"] = "unit-test-jwt-secret-not-for-production-32"
+os.environ["DATABASE_URL"] = (
+    "postgresql+psycopg://unit-test-db-user:unit-test-db-password-not-used@localhost:5432/unit_test"
+)
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
@@ -10,6 +17,32 @@ from investhome_api.config.settings import get_settings
 from investhome_api.db.base import Base
 from investhome_api.db.session import get_db
 from investhome_api.main import app
+from investhome_api.services.csrf import CSRF_HEADER
+
+
+class AutoCsrfTestClient(TestClient):
+    """Attach a session-bound CSRF header on mutating cookie-auth requests."""
+
+    auto_csrf: bool = True
+
+    def request(self, method: str, url: str, **kwargs):  # type: ignore[override]
+        if (
+            self.auto_csrf
+            and str(method).upper() in {"POST", "PUT", "PATCH", "DELETE"}
+            and self.cookies.get("ih_session")
+        ):
+            headers = dict(kwargs.get("headers") or {})
+            if not any(str(key).lower() == "x-csrf-token" for key in headers):
+                csrf_response = super().request("GET", "/auth/csrf")
+                if csrf_response.status_code == 200:
+                    body = csrf_response.json()
+                    token = body.get("csrf_token")
+                    if not token and isinstance(body.get("data"), dict):
+                        token = body["data"].get("csrf_token")
+                    if token:
+                        headers[CSRF_HEADER] = token
+                        kwargs["headers"] = headers
+        return super().request(method, url, **kwargs)
 from investhome_api.models.document import Document, DocumentAnalysis, DocumentLink  # noqa: F401
 from investhome_api.models.document_intelligence import (  # noqa: F401
     AIUsage,
@@ -162,12 +195,22 @@ from investhome_api.models.crm_relationship import (  # noqa: F401
     CrmRelationshipScoreSnapshot,
     CrmRelationshipTypeConfig,
 )
-from investhome_api.models.crm_agreement import CrmAgreement, CrmAgreementStatus  # noqa: F401
+from investhome_api.models.crm_agreement import (  # noqa: F401
+    CrmAgreement,
+    CrmAgreementParticipant,
+    CrmAgreementStatus,
+)
 from investhome_api.models.crm_activity import (  # noqa: F401
     CrmActivity,
     CrmActivityComment,
     CrmActivityEntityLink,
     CrmFollowUpRule,
+)
+from investhome_api.models.crm_communication import (  # noqa: F401
+    CrmCommunication,
+    CrmCommunicationAttachment,
+    CrmCommunicationThread,
+    CrmUserCommunicationAccount,
 )
 from investhome_api.models.crm_search import CrmRecentSearch, CrmSavedSearch, CrmSearchAuditLog  # noqa: F401
 from investhome_api.models.marketing_lead_attribution import (  # noqa: F401
@@ -289,6 +332,7 @@ from investhome_api.models.marketing_landing_conversion import (  # noqa: F401
 )
 from investhome_api.models.notification import Notification  # noqa: F401
 from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole  # noqa: F401
+from investhome_api.models.user_mfa import UserMfa, UserMfaRecoveryCode  # noqa: F401
 from investhome_api.models import analytics_warehouse as _analytics_warehouse  # noqa: F401
 
 SQLALCHEMY_DATABASE_URL = "sqlite+pysqlite:///:memory:"
@@ -312,9 +356,93 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 
 
 @pytest.fixture(autouse=True)
+def _isolate_login_rate_limit():
+    """Keep login brute-force counters in-process so tests never hit live Redis."""
+    from investhome_api.services.login_rate_limit import reset_login_rate_limiter_for_tests
+
+    reset_login_rate_limiter_for_tests()
+    yield
+    reset_login_rate_limiter_for_tests()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_security_monitor():
+    """Keep security signals in-process and isolated between tests."""
+    from investhome_api.services.security_monitoring import reset_security_monitor_for_tests
+
+    reset_security_monitor_for_tests()
+    yield
+    reset_security_monitor_for_tests()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_public_form_abuse_controls():
+    """Keep public-form rate limits in-process; clear Turnstile test doubles."""
+    from investhome_api.config.settings import get_settings
+    from investhome_api.services.public_form_bot import reset_turnstile_verifier_for_tests
+    from investhome_api.services.public_form_rate_limit import reset_public_form_rate_limiter_for_tests
+
+    reset_public_form_rate_limiter_for_tests()
+    reset_turnstile_verifier_for_tests()
+    get_settings.cache_clear()
+    yield
+    reset_public_form_rate_limiter_for_tests()
+    reset_turnstile_verifier_for_tests()
+    get_settings.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_mfa_challenge_store():
+    """Keep MFA login challenges in-process so tests never hit live Redis."""
+    from investhome_api.services.mfa_challenge import reset_mfa_challenge_store_for_tests
+
+    reset_mfa_challenge_store_for_tests()
+    yield
+    reset_mfa_challenge_store_for_tests()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_mfa_enforcement(request: pytest.FixtureRequest):
+    """Keep existing auth tests on password login; enforcement is covered in test_mfa_enforcement."""
+    from investhome_api.services.mfa_enforcement import set_mfa_enforcement_disabled_for_tests
+
+    disable = "test_mfa_enforcement.py" not in str(request.fspath)
+    set_mfa_enforcement_disabled_for_tests(disable)
+    yield
+    set_mfa_enforcement_disabled_for_tests(False)
+
+
+@pytest.fixture(autouse=True)
 def _configure_auth(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
-    enabled = "test_auth.py" in str(request.fspath)
+    enabled = any(
+        name in str(request.fspath)
+        for name in (
+            "test_auth.py",
+            "test_session_lifetime.py",
+            "test_password_policy.py",
+            "test_jwt_jti.py",
+            "test_mfa_enrollment.py",
+            "test_mfa_login_challenge.py",
+            "test_mfa_admin_reset.py",
+            "test_mfa_enforcement.py",
+            "test_security_center_p11.py",
+            "test_backup_status.py",
+            "test_security_monitoring.py",
+        )
+    )
     monkeypatch.setenv("API_AUTH_ENABLED", "true" if enabled else "false")
+    if not enabled:
+        monkeypatch.setenv("API_ENVIRONMENT", "test")
+        monkeypatch.setenv("API_HOST", "127.0.0.1")
+    monkeypatch.setenv("JWT_SECRET", "unit-test-jwt-secret-not-for-production-32")
+    monkeypatch.setenv(
+        "COMMUNICATION_CREDENTIAL_KEY",
+        "unit-test-communication-credential-key-32b",
+    )
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql+psycopg://unit-test-db-user:unit-test-db-password-not-used@localhost:5432/unit_test",
+    )
     monkeypatch.setenv("DOCUMENT_PROCESSING_SYNC", "true")
     monkeypatch.setenv("AI_INDEX_PROCESSING_SYNC", "true")
     # Tests must not inherit developer .env AI_PROVIDER=openai without a key.
@@ -395,7 +523,7 @@ def client() -> TestClient:
             db.add(MaterialPackage(name=name, flooring=flooring, wall_finish="Paint"))
     db.commit()
     db.close()
-    with TestClient(app) as test_client:
+    with AutoCsrfTestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
     session_module.engine = original_engine
@@ -480,7 +608,10 @@ def auth_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClie
 
     for resource, action in DEFAULT_ROLE_PERMISSIONS["sales"]:
         if (resource, action) not in permission_map:
-            continue
+            perm = Permission(resource=resource, action=action)
+            db.add(perm)
+            db.flush()
+            permission_map[(resource, action)] = perm
         existing = (
             db.query(RolePermission)
             .filter_by(role_id=roles["sales"].id, permission_id=permission_map[(resource, action)].id)

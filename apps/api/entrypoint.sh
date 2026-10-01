@@ -1,6 +1,17 @@
 #!/bin/sh
 set -e
 
+if [ -z "${JWT_SECRET:-}" ]; then
+  echo "JWT_SECRET is required; refusing to start" >&2
+  exit 1
+fi
+case "$JWT_SECRET" in
+  "dev-only-change-in-production-use-long-random-string"|"replace-with-long-random-secret-at-least-32-chars")
+    echo "JWT_SECRET must not use a published default or placeholder value; refusing to start" >&2
+    exit 1
+    ;;
+esac
+
 STORAGE_ROOT="${DOCUMENT_STORAGE_ROOT:-/var/lib/investhome/documents}"
 mkdir -p "$STORAGE_ROOT"
 

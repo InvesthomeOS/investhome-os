@@ -16,6 +16,10 @@ import {
   fetchSequences,
   fetchSignatures,
   fetchTemplates,
+  fetchUnmatchedCommunications,
+  fetchCommunicationAccounts,
+  fetchCommunicationFeed,
+  fetchWhatsappConversation,
   markThreadRead,
   type CommunicationListParams,
   type ThreadListParams,
@@ -34,6 +38,10 @@ export const communicationQueryKeys = {
   signatures: ['crm', 'communications', 'signatures'] as const,
   analytics: ['crm', 'communications', 'analytics'] as const,
   providers: ['crm', 'communications', 'providers'] as const,
+  accounts: ['crm', 'communications', 'accounts'] as const,
+  unmatched: (params: { page?: number } = {}) => ['crm', 'communications', 'unmatched', params] as const,
+  feed: (params: object) => ['crm', 'communications', 'feed', params] as const,
+  conversation: (params: object) => ['crm', 'communications', 'conversation', params] as const,
 };
 
 export const communicationQueries = {
@@ -82,6 +90,22 @@ export const communicationQueries = {
   providers: () => ({
     queryKey: communicationQueryKeys.providers,
     queryFn: () => fetchProviderStatuses(),
+  }),
+  accounts: () => ({
+    queryKey: communicationQueryKeys.accounts,
+    queryFn: () => fetchCommunicationAccounts(),
+  }),
+  unmatched: (params: { page?: number } = {}) => ({
+    queryKey: communicationQueryKeys.unmatched(params),
+    queryFn: () => fetchUnmatchedCommunications(params),
+  }),
+  feed: (params: Parameters<typeof fetchCommunicationFeed>[0] = {}) => ({
+    queryKey: communicationQueryKeys.feed(params),
+    queryFn: () => fetchCommunicationFeed(params),
+  }),
+  conversation: (params: Parameters<typeof fetchWhatsappConversation>[0]) => ({
+    queryKey: communicationQueryKeys.conversation(params),
+    queryFn: () => fetchWhatsappConversation(params),
   }),
 };
 

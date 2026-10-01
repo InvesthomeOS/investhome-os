@@ -10,8 +10,8 @@
   --shot-font-body: 11.55px;
   --shot-font-heading: 13.2px;
   --shot-font-title: 24.2px;
-  --shot-gap: 12px;
-  --bg: #f6f8fa;
+  --shot-gap: 16px;
+  --bg: #f3f6f8;
   --surface: #ffffff;
   --border: #dce4e7;
   --text: var(--shot-ink);

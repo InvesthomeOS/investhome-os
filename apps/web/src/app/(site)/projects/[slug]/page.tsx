@@ -6,6 +6,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 
 import { getProjectBySlug, SITE_PROJECTS } from '@/features/site/content/projects';
 import { buildSiteMetadata, realEstateJsonLd } from '@/features/site/lib/seo';
+import { JsonLdScript } from '@/components/site/json-ld-script';
 
 export function generateStaticParams() {
   return SITE_PROJECTS.map((p) => ({ slug: p.slug }));
@@ -48,10 +49,7 @@ export default async function ProjectDetailPage({
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLdScript data={jsonLd} />
       <section className="site-project-hero">
         <div className="site-project-hero__inner">
           <div className="site-project-hero__meta">{t(`status.${project.status}`)}</div>

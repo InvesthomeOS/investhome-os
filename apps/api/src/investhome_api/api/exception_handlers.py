@@ -14,11 +14,15 @@ from investhome_api.core.request_context import get_request_id
 logger = get_logger("investhome.errors")
 
 
-def _json_error(payload: ApiErrorResponse, status_code: int) -> JSONResponse:
+def _json_error(
+    payload: ApiErrorResponse,
+    status_code: int,
+    headers: dict[str, str] | None = None,
+) -> JSONResponse:
     body = payload.model_dump()
     # Legacy FastAPI clients expect `detail` (string or list).
     body["detail"] = payload.error.message
-    return JSONResponse(status_code=status_code, content=body)
+    return JSONResponse(status_code=status_code, content=body, headers=headers)
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -38,7 +42,8 @@ def register_exception_handlers(app: FastAPI) -> None:
             message = "Request failed"
         code = _status_to_code(exc.status_code)
         payload = error_response(code=code, message=message)
-        return _json_error(payload, exc.status_code)
+        headers = dict(exc.headers) if exc.headers else None
+        return _json_error(payload, exc.status_code, headers=headers)
 
     @app.exception_handler(StarletteHTTPException)
     async def starlette_http_exception_handler(
@@ -46,7 +51,8 @@ def register_exception_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         message = exc.detail if isinstance(exc.detail, str) else "Request failed"
         payload = error_response(code=_status_to_code(exc.status_code), message=message)
-        return _json_error(payload, exc.status_code)
+        headers = dict(exc.headers) if getattr(exc, "headers", None) else None
+        return _json_error(payload, exc.status_code, headers=headers)
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(

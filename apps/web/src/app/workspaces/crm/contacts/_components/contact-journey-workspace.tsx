@@ -13,6 +13,7 @@ import { EmptyState, ErrorState, LoadingState, StatusChip } from '@investhome/ui
 import { IhIcon } from '@/components/icons/ih-icons';
 import { canViewPrivateNotes } from '@/lib/crm/crm-permissions';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
+import { emailPreviewText } from '@/workspaces/crm/contact-card/history-html';
 import { contactQueries } from '@/workspaces/crm/hooks/use-contacts';
 import type { CrmContactDetail } from '@/workspaces/crm/types';
 import type {
@@ -546,7 +547,7 @@ function ContactJourneyWorkspacePresentation({
                           </span>
                           <time dateTime={event.occurredAt}>{dateFormatter.format(new Date(event.occurredAt))}</time>
                         </span>
-                        <span className="journey-workspace__event-summary">{event.summary}</span>
+                        <span className="journey-workspace__event-summary">{emailPreviewText(event.summary)}</span>
                         <span className="journey-workspace__event-meta">
                           <span>{event.assignedTo.initials} · {event.assignedTo.name}</span>
                           {event.relatedProject ? <span><IhIcon name="projects" size={13} />{event.relatedProject}</span> : null}

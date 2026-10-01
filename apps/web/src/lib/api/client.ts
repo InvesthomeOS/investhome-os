@@ -21,12 +21,76 @@ export function getApiBaseUrl(): string {
 }
 
 const REQUEST_ID_HEADER = 'X-Request-Id';
+export const CSRF_HEADER = 'X-CSRF-Token';
+
+const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+const CSRF_EXEMPT_PATHS = new Set([
+  '/auth/login',
+  '/auth/mfa/verify',
+  '/auth/mfa/enroll/required',
+  '/auth/mfa/enroll/required/confirm',
+]);
+
+let csrfTokenMemory: string | null = null;
 
 function createRequestId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
   }
   return `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function requestPath(url: string): string {
+  try {
+    return new URL(url, 'http://investhome.invalid').pathname;
+  } catch {
+    return url.split('?')[0] ?? url;
+  }
+}
+
+export function clearCsrfToken(): void {
+  csrfTokenMemory = null;
+}
+
+export async function ensureCsrfToken(): Promise<string | null> {
+  if (csrfTokenMemory) return csrfTokenMemory;
+  const response = await fetch(`${getApiBaseUrl()}/auth/csrf`, {
+    credentials: 'include',
+    cache: 'no-store',
+  });
+  if (!response.ok) return null;
+  try {
+    const body = (await response.json()) as { csrf_token?: string; data?: { csrf_token?: string } };
+    const token = body.csrf_token ?? body.data?.csrf_token;
+    if (typeof token === 'string' && token.length > 0) {
+      csrfTokenMemory = token;
+      return token;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export async function applyCsrfHeaders(url: string, init?: RequestInit): Promise<Headers> {
+  const headers = new Headers(init?.headers);
+  const method = (init?.method ?? 'GET').toUpperCase();
+  if (!STATE_CHANGING_METHODS.has(method)) return headers;
+  if (CSRF_EXEMPT_PATHS.has(requestPath(url))) return headers;
+  if (headers.has(CSRF_HEADER)) return headers;
+  const token = await ensureCsrfToken();
+  if (token) headers.set(CSRF_HEADER, token);
+  return headers;
+}
+
+export async function staffFetch(url: string, init?: RequestInit): Promise<Response> {
+  const headers = await applyCsrfHeaders(url, init);
+  return fetch(url, {
+    ...init,
+    credentials: 'include',
+    headers,
+    cache: init?.cache ?? 'no-store',
+  });
 }
 
 export type ApiErrorBody = {
@@ -68,18 +132,41 @@ export function parseApiErrorBody(body: ApiErrorBody, status: number): ApiError 
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const requestId = createRequestId();
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...init,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      [REQUEST_ID_HEADER]: requestId,
-      ...init?.headers,
-    },
-    cache: 'no-store',
-  });
+  const url = `${getApiBaseUrl()}${path}`;
+  const headers: Record<string, string> = {
+    [REQUEST_ID_HEADER]: requestId,
+  };
+  if (!(init?.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+  Object.assign(headers, init?.headers);
 
+  const send = () =>
+    staffFetch(url, {
+      ...init,
+      headers,
+      cache: 'no-store',
+    });
+
+  let response = await send();
   const responseRequestId = response.headers.get(REQUEST_ID_HEADER) ?? requestId;
+
+  if (response.status === 403) {
+    const cloned = response.clone();
+    try {
+      const body = (await cloned.json()) as ApiErrorBody;
+      if (body.error?.code === 'csrf_rejected') {
+        clearCsrfToken();
+        const refreshed = await ensureCsrfToken();
+        if (refreshed) {
+          headers[CSRF_HEADER] = refreshed;
+          response = await send();
+        }
+      }
+    } catch {
+      // Keep original 403 when body is not JSON.
+    }
+  }
 
   if (!response.ok) {
     let message = `Request failed with status ${response.status}`;

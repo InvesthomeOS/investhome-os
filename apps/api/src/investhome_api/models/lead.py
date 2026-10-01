@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, Uuid, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, JSON, Numeric, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from investhome_api.db.base import Base
@@ -12,6 +12,7 @@ from investhome_api.db.base import Base
 class LeadStatus(str, enum.Enum):
     NEW = "New"
     CONTACTED = "Contacted"
+    FOLLOW_UP = "Follow Up"
     QUALIFIED = "Qualified"
     MEETING_SCHEDULED = "Meeting Scheduled"
     PROPOSAL_SENT = "Proposal Sent"
@@ -46,6 +47,15 @@ class Lead(Base):
     estimated_budget: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
     interested_project: Mapped[str | None] = mapped_column(String(255), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    campaign: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    provider: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    ingest_status: Mapped[str] = mapped_column(String(20), nullable=False, default="ok")
+    converted_contact_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("crm_contacts.id", ondelete="SET NULL", use_alter=True, name="fk_leads_converted_contact_id"),
+        nullable=True,
+    )
+    metadata_json: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     is_demo: Mapped[bool] = mapped_column(default=False, nullable=False)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(

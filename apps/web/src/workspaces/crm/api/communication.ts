@@ -291,3 +291,195 @@ export async function upsertCommunicationPreferences(
     body: JSON.stringify(payload),
   });
 }
+
+export type CommunicationAccount = {
+  id: string;
+  user_id: string;
+  user_name: string | null;
+  channel_type: string;
+  provider: string;
+  identity: string;
+  account_label: string;
+  status: string;
+  health: string;
+  last_sync_at: string | null;
+  last_error: string | null;
+  has_credentials: boolean;
+  created_at: string | null;
+};
+
+export type UnmatchedCommunication = {
+  id: string;
+  channel: string;
+  direction: string;
+  source: string;
+  sender: string | null;
+  subject: string | null;
+  preview: string | null;
+  occurred_at: string | null;
+  match_status: string;
+  suggested_matches: Array<{ contact_id: string; display_name: string; reason: string }>;
+  conversation_key: string | null;
+};
+
+export async function fetchCommunicationAccounts(userId?: string): Promise<{ items: CommunicationAccount[] }> {
+  const q = buildParams({ user_id: userId });
+  const suffix = q.toString() ? `?${q.toString()}` : '';
+  return apiFetch(`/crm/settings/communication-accounts${suffix}`);
+}
+
+export async function registerCommunicationAccount(payload: {
+  user_id?: string;
+  channel_type: 'email' | 'whatsapp';
+  provider: string;
+  identity: string;
+  account_label?: string;
+}): Promise<CommunicationAccount> {
+  return apiFetch('/crm/settings/communication-accounts', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function disconnectCommunicationAccount(accountId: string): Promise<void> {
+  await apiFetch(`/crm/settings/communication-accounts/${accountId}/disconnect`, { method: 'POST' });
+}
+
+export async function fetchGmailStatus(): Promise<{
+  configured: boolean;
+  redirect_uri: string;
+  connected_count: number;
+  pilot_limit: number;
+}> {
+  return apiFetch('/crm/settings/communication-accounts/gmail/status');
+}
+
+export async function startGmailAuthorize(): Promise<{ authorize_url: string; redirect_uri: string }> {
+  return apiFetch('/crm/settings/communication-accounts/gmail/authorize', { method: 'POST' });
+}
+
+export async function syncCommunicationAccount(accountId: string): Promise<{
+  account_id: string;
+  ok: boolean;
+  ingested: number;
+  duplicates: number;
+  error: string | null;
+}> {
+  return apiFetch(`/crm/settings/communication-accounts/${accountId}/sync`, { method: 'POST' });
+}
+
+export async function fetchUnmatchedCommunications(params: { page?: number; page_size?: number } = {}): Promise<{
+  items: UnmatchedCommunication[];
+  total: number;
+  page: number;
+  page_size: number;
+}> {
+  const q = buildParams({ page: params.page ?? 1, page_size: params.page_size ?? 30 });
+  return apiFetch(`/crm/live-communications/unmatched?${q.toString()}`);
+}
+
+export async function confirmUnmatchedCommunication(
+  communicationId: string,
+  payload: { contact_id: string; agreement_id?: string | null },
+): Promise<{ id: string; match_status: string; contact_id: string | null; activity_id: string | null }> {
+  return apiFetch(`/crm/live-communications/${communicationId}/match`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function ignoreUnmatchedCommunication(communicationId: string): Promise<void> {
+  await apiFetch(`/crm/live-communications/${communicationId}/ignore`, { method: 'POST' });
+}
+
+export type CommunicationFeedParams = {
+  search?: string;
+  channel?: string;
+  contact_id?: string;
+  person?: string;
+  project_group?: string;
+  owner_id?: string;
+  direction?: string;
+  date_from?: string;
+  date_to?: string;
+  page?: number;
+  page_size?: number;
+};
+
+export type CommunicationFeedItem = {
+  id: string;
+  source: string;
+  channel: string;
+  direction: string;
+  occurred_at: string | null;
+  subject: string | null;
+  preview: string | null;
+  contact_id: string | null;
+  contact_name: string | null;
+  agreement_id: string | null;
+  project_group: string | null;
+  project_label: string | null;
+  unit_number: string | null;
+  project_unit: string | null;
+  owner_id: string | null;
+  owner_name: string | null;
+  conversation_key: string | null;
+  source_key: string;
+  activity_id: string | null;
+};
+
+export type CommunicationFeedResponse = {
+  items: CommunicationFeedItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+  stats: { total: number; email: number; whatsapp: number; unmatched: number };
+};
+
+export type CommunicationConversationMessage = {
+  id: string;
+  title: string;
+  summary: string | null;
+  actor_name: string | null;
+  created_at: string;
+  activity_type: string;
+  metadata: Record<string, unknown> | null;
+};
+
+export async function fetchCommunicationFeed(
+  params: CommunicationFeedParams = {},
+): Promise<CommunicationFeedResponse> {
+  const q = buildParams({
+    search: params.search,
+    channel: params.channel,
+    contact_id: params.contact_id,
+    person: params.person,
+    project_group: params.project_group,
+    owner_id: params.owner_id,
+    direction: params.direction,
+    date_from: params.date_from,
+    date_to: params.date_to,
+    page: params.page ?? 1,
+    page_size: params.page_size ?? 25,
+  });
+  return apiFetch(`/crm/live-communications/feed?${q.toString()}`);
+}
+
+export async function fetchWhatsappConversation(params: {
+  activity_id?: string;
+  contact_id?: string;
+  chat_id?: string;
+}): Promise<{
+  contact_id: string | null;
+  contact_name: string | null;
+  conversation_key: string | null;
+  messages: CommunicationConversationMessage[];
+}> {
+  const q = buildParams({
+    activity_id: params.activity_id,
+    contact_id: params.contact_id,
+    chat_id: params.chat_id,
+  });
+  return apiFetch(`/crm/live-communications/conversation?${q.toString()}`);
+}

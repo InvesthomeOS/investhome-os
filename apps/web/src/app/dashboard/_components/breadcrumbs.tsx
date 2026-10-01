@@ -26,6 +26,31 @@ const MODULE_KEYS: Record<string, string> = {
   knowledge: 'documents',
 };
 
+const CRM_SEGMENT_KEYS: Record<string, string> = {
+  leads: 'nav.leads',
+  pipeline: 'nav.pipeline',
+  matches: 'nav.matches',
+  contacts: 'nav.contacts',
+  people: 'nav.contacts',
+  junk: 'nav.junk',
+  agents: 'nav.agents',
+  agreements: 'nav.agreements',
+  companies: 'nav.companies',
+  investors: 'nav.investors',
+  relationships: 'nav.relationships',
+  timeline: 'nav.timeline',
+  activities: 'nav.activities',
+  tasks: 'nav.tasks',
+  calendar: 'nav.calendar',
+  notes: 'nav.notes',
+  tags: 'nav.tags',
+  communication: 'nav.communication',
+  documents: 'nav.documents',
+  files: 'nav.documents',
+  reports: 'nav.reports',
+  settings: 'nav.settings',
+};
+
 function humanize(segment: string): string {
   return segment
     .split('-')
@@ -36,7 +61,7 @@ function humanize(segment: string): string {
 export function Breadcrumbs() {
   const pathname = usePathname();
   const t = useTranslations('navigation');
-  const tCommon = useTranslations('common');
+  const tCrm = useTranslations('crm');
   const tProfile = useTranslations('profile');
 
   const segments = pathname.split('/').filter(Boolean);
@@ -69,9 +94,10 @@ export function Breadcrumbs() {
     crumbs.push({ href: workspaceHref, label: workspaceLabel });
 
     if (segments[2] && segments[2] !== 'dashboard') {
+      const crmKey = workspaceId === 'crm' ? CRM_SEGMENT_KEYS[segments[2]] : null;
       crumbs.push({
         href: pathname as Route,
-        label: humanize(segments[2]),
+        label: crmKey ? tCrm(crmKey as 'nav.dashboard') : humanize(segments[2]),
       });
     }
   } else if (segments[0] === 'company') {

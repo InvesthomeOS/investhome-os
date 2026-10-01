@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -24,6 +25,7 @@ from investhome_api.models.document import (
     DocumentLink,
     DocumentStatus,
     DocumentVisibility,
+    DocumentWorkspaceFolder,
 )
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.document import (
@@ -38,6 +40,41 @@ from investhome_api.services.storage import get_storage_provider
 
 def _auth_bypass() -> bool:
     return not get_settings().auth_enabled
+
+
+DOCUMENT_CONFIDENTIALITY_WRITE_PERMISSION = ("documents", "manage")
+DOCUMENT_OWNERSHIP_WRITE_PERMISSION = ("documents", "transfer_ownership")
+
+
+def _field_value(value):
+    return value.value if hasattr(value, "value") else value
+
+
+def reject_unauthorized_sensitive_document_fields(
+    db: Session,
+    actor: User | None,
+    data: dict,
+    *,
+    current_confidentiality,
+    current_owner_id,
+) -> None:
+    confidentiality_change = (
+        "confidentiality_level" in data
+        and _field_value(data["confidentiality_level"]) != _field_value(current_confidentiality)
+    )
+    ownership_change = "owner_user_id" in data and data["owner_user_id"] != current_owner_id
+    if not confidentiality_change and not ownership_change:
+        return
+    if actor is None:
+        if _auth_bypass():
+            return
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+    if confidentiality_change and not user_has_permission(
+        actor, *DOCUMENT_CONFIDENTIALITY_WRITE_PERMISSION, db=db
+    ):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+    if ownership_change and not user_has_permission(actor, *DOCUMENT_OWNERSHIP_WRITE_PERMISSION, db=db):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
 
 def user_can_view_document(user: User, document: Document) -> bool:
@@ -237,6 +274,7 @@ def build_list_query(
     related_module: str | None = None,
     entity_type: str | None = None,
     entity_id: UUID | None = None,
+    include_hidden: bool = True,
     include_archived: bool = False,
     latest_only: bool = True,
     sort_by: str = "updated_at",
@@ -282,13 +320,13 @@ def build_list_query(
             ),
         ]
         if token:
-            parts.extend(
-                [
-                    Document.folder == token,
-                    Document.file_kind == token,
-                    Document.file_extension == token.lstrip("."),
-                ]
-            )
+            folder_values = {item.value for item in DocumentWorkspaceFolder}
+            kind_values = {item.value for item in DocumentFileKind}
+            if token in folder_values:
+                parts.append(Document.folder == token)
+            if token in kind_values:
+                parts.append(Document.file_kind == token)
+            parts.append(Document.file_extension == token.lstrip("."))
         search_cond = or_(*parts)
         query = query.where(search_cond)
         count_query = count_query.where(search_cond)
@@ -415,10 +453,13 @@ def build_list_query(
             link_entity_types.append("marketing_campaign")
         elif entity_type == "marketing_campaign":
             link_entity_types.append("campaign")
-        link_subq = select(DocumentLink.document_id).where(
+        link_filters = [
             DocumentLink.entity_type.in_(link_entity_types),
             DocumentLink.entity_id == entity_id,
-        )
+        ]
+        if not include_hidden:
+            link_filters.append(DocumentLink.hidden_from_view.is_(False))
+        link_subq = select(DocumentLink.document_id).where(*link_filters)
         direct_conds = []
         if entity_type == "project":
             direct_conds.append(Document.project_id == entity_id)
@@ -843,6 +884,26 @@ def export_documents_metadata_csv(
     return buffer.getvalue(), len(items)
 
 
+def _document_bitrix_file_id(document: Document) -> str | None:
+    tags = str(getattr(document, "tags", None) or "")
+    marker = "bitrix_file:"
+    if marker in tags:
+        return tags.split(marker, 1)[1].split(",")[0].strip() or None
+    raw = getattr(document, "notes", None)
+    if isinstance(raw, dict):
+        value = str(raw.get("bitrix_file_id") or "").strip()
+        return value or None
+    if isinstance(raw, str) and raw.strip().startswith("{"):
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+        if isinstance(parsed, dict):
+            value = str(parsed.get("bitrix_file_id") or "").strip()
+            return value or None
+    return None
+
+
 def enrich_response(
     document: Document,
     *,
@@ -892,6 +953,8 @@ def enrich_response(
         "download_count": int(getattr(document, "download_count", 0) or 0),
         "preview_count": int(getattr(document, "preview_count", 0) or 0),
         "is_previewable": is_previewable(document.file_extension),
+        "hidden_from_view": any(getattr(link, "hidden_from_view", False) for link in (document.links or [])),
+        "bitrix_file_id": _document_bitrix_file_id(document),
         "related_record_label": related_label,
         "is_demo": document.is_demo,
         "archived_at": document.archived_at,

@@ -14,6 +14,8 @@ import {
   CONTENT_STATUS_TONE,
   JOB_STATUS_TONE,
   buildCreativeStudioDsData,
+  PREMIUM_CAMPAIGNS_ROUTE,
+  QUICK_CREATIVE_ROUTE,
   toolHref,
   type ActivityItem,
   type ContentItem,
@@ -289,6 +291,42 @@ export function CreativeStudioDsWorkspace() {
         <div className="cs-ds__hero-copy">
           <h2>{t('hero.headline')}</h2>
           <p>{t('hero.support')}</p>
+        </div>
+        <div className="cs-ds__paths" aria-label={t('creationPaths.aria')}>
+          <Link
+            href={QUICK_CREATIVE_ROUTE as Route}
+            className="cs-ds__path"
+            data-testid="cs-path-quick"
+          >
+            <span className="cs-ds__tool-icon is-sky" aria-hidden="true">
+              <IhIcon name="sparkles" size={22} />
+            </span>
+            <span className="cs-ds__path-copy">
+              <strong>{t('creationPaths.quickTitle')}</strong>
+              <span>{t('creationPaths.quickDescription')}</span>
+            </span>
+            <span className="cs-ds__tool-launch">
+              {t('creationPaths.launch')}
+              <IhIcon name="arrowRight" size={12} />
+            </span>
+          </Link>
+          <Link
+            href={PREMIUM_CAMPAIGNS_ROUTE as Route}
+            className="cs-ds__path"
+            data-testid="cs-path-premium"
+          >
+            <span className="cs-ds__tool-icon is-navy" aria-hidden="true">
+              <IhIcon name="target" size={22} />
+            </span>
+            <span className="cs-ds__path-copy">
+              <strong>{t('creationPaths.premiumTitle')}</strong>
+              <span>{t('creationPaths.premiumDescription')}</span>
+            </span>
+            <span className="cs-ds__tool-launch">
+              {t('creationPaths.launch')}
+              <IhIcon name="arrowRight" size={12} />
+            </span>
+          </Link>
         </div>
         <div className="cs-ds__hero-chips">
           {data.heroShortcuts.map((item) => (

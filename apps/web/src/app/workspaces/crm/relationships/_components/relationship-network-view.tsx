@@ -1,59 +1,76 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocale } from 'next-intl';
+import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 
 import { Button, EmptyState, ErrorState, LoadingState } from '@investhome/ui';
 
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
-import {
-  relationshipQueries,
-  relationshipQueryKeys,
-  relationshipMutations,
-} from '@/workspaces/crm/hooks/use-relationships';
-import {
-  getScoreBandColor,
-  useRelationshipGraphUiStore,
-} from '@/workspaces/crm/stores/relationship-graph-ui-store';
-import type { CrmGraphNode } from '@/workspaces/crm/api/relationships';
+import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
+import { relationshipQueries } from '@/workspaces/crm/hooks/use-relationships';
+import type { CrmGraphEdge, CrmGraphNode } from '@/workspaces/crm/api/relationships';
+
+import './relationships-workspace.css';
 
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { ssr: false });
 
-export function RelationshipNetworkView() {
-  const t = useTranslations('crm.relationships.network');
-  const tCommon = useTranslations('common');
+const NODE_COLORS: Record<string, string> = {
+  contact: '#1f4e5f',
+  company: '#2f6f6a',
+  project: '#c4a35a',
+  investment: '#c47a3a',
+  property: '#6b7c8a',
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  contact_company: 'Kişi ↔ Şirket',
+  investor: 'Kişi ↔ Proje / Yatırım',
+  colleague: 'Kişi ↔ Kişi',
+  partner: 'Ortaklık / Co-owner',
+  company_project: 'Şirket ↔ Proje',
+};
+
+type Props = {
+  embedded?: boolean;
+  search?: string;
+  relationshipType?: string;
+  projectGroup?: string;
+  pairKind?: string;
+};
+
+export function RelationshipNetworkView({
+  embedded = false,
+  search = '',
+  relationshipType = '',
+  projectGroup = '',
+  pairKind = '',
+}: Props) {
+  const locale = useLocale();
+  const tr = locale.startsWith('tr');
+  const router = useRouter();
+  const { openContact } = useContactCard();
   const { authLoading, canRead } = useCrmAccess();
-  const queryClient = useQueryClient();
   const graphRef = useRef<{ zoomToFit?: (ms?: number) => void } | undefined>(undefined);
-  const {
-    selectedNodeId,
-    searchQuery,
-    depth,
-    limit,
-    centerEntityType,
-    centerEntityId,
-    categoryFilter,
-    typeFilter,
-    setSelectedNodeId,
-    setSearchQuery,
-    setDepth,
-    setCenter,
-    markExpanded,
-  } = useRelationshipGraphUiStore();
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [localSearch, setLocalSearch] = useState(search);
+
+  useEffect(() => {
+    setLocalSearch(search);
+  }, [search]);
 
   const graphParams = useMemo(
     () => ({
-      center_entity_type: centerEntityType ?? undefined,
-      center_entity_id: centerEntityId ?? undefined,
-      depth,
-      limit,
-      category: categoryFilter ?? undefined,
-      relationship_type: typeFilter ?? undefined,
+      limit: 200,
+      relationship_type: relationshipType || undefined,
+      project_group: projectGroup || undefined,
+      pair_kind: pairKind || undefined,
     }),
-    [centerEntityType, centerEntityId, depth, limit, categoryFilter, typeFilter],
+    [pairKind, projectGroup, relationshipType],
   );
 
   const graphQuery = useQuery({
@@ -61,36 +78,47 @@ export function RelationshipNetworkView() {
     enabled: !authLoading && canRead,
   });
 
-  const expandMutation = useMutation({
-    mutationFn: ({ nodeId, expandDepth }: { nodeId: string; expandDepth: number }) =>
-      relationshipMutations.expandNode(nodeId, expandDepth),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: relationshipQueryKeys.all }),
-  });
-
   const graphData = useMemo(() => {
     const nodes = graphQuery.data?.nodes ?? [];
     const edges = graphQuery.data?.edges ?? [];
-    const filteredNodes = searchQuery
-      ? nodes.filter((n) => n.label.toLowerCase().includes(searchQuery.toLowerCase()))
+    const query = localSearch.trim().toLowerCase();
+    const filteredNodes = query
+      ? nodes.filter((node) => node.label.toLowerCase().includes(query))
       : nodes;
-    const nodeIds = new Set(filteredNodes.map((n) => n.id));
+    const nodeIds = new Set(filteredNodes.map((node) => node.id));
     return {
-      nodes: filteredNodes.map((n) => ({
-        ...n,
-        color: getScoreBandColor(n.score),
+      nodes: filteredNodes.map((node) => ({
+        ...node,
+        color: NODE_COLORS[node.entity_type] || '#6b7c8a',
       })),
       links: edges
-        .filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target))
-        .map((e) => ({
-          ...e,
-          source: e.source,
-          target: e.target,
+        .filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
+        .map((edge) => ({
+          ...edge,
+          source: edge.source,
+          target: edge.target,
         })),
     };
-  }, [graphQuery.data, searchQuery]);
+  }, [graphQuery.data, localSearch]);
 
-  const selectedNode: CrmGraphNode | undefined = graphQuery.data?.nodes.find(
-    (n) => n.id === selectedNodeId,
+  const selectedNode: CrmGraphNode | undefined = graphQuery.data?.nodes.find((node) => node.id === selectedNodeId);
+  const selectedEdge: CrmGraphEdge | undefined = graphQuery.data?.edges.find((edge) => edge.id === selectedEdgeId);
+
+  const openNode = useCallback(
+    (node: CrmGraphNode) => {
+      if (node.entity_type === 'contact') {
+        openContact(node.entity_id);
+        return;
+      }
+      if (node.entity_type === 'company') {
+        router.push(`/workspaces/crm/companies/${node.entity_id}`);
+        return;
+      }
+      if (node.entity_type === 'project') {
+        router.push(`/dashboard/projects/${node.entity_id}`);
+      }
+    },
+    [openContact, router],
   );
 
   const handleNodeClick = useCallback(
@@ -98,27 +126,20 @@ export function RelationshipNetworkView() {
       if (!node?.id) return;
       const nodeId = String(node.id);
       setSelectedNodeId(nodeId);
-      setCenter(nodeId.split(':')[0] ?? null, nodeId.split(':')[1] ?? null);
+      setSelectedEdgeId(null);
+      const found = graphQuery.data?.nodes.find((item) => item.id === nodeId);
+      if (found) openNode(found);
     },
-    [setSelectedNodeId, setCenter],
+    [graphQuery.data?.nodes, openNode],
   );
 
-  const handleExpand = useCallback(() => {
-    if (!selectedNodeId) return;
-    markExpanded(selectedNodeId);
-    expandMutation.mutate({ nodeId: selectedNodeId, expandDepth: 1 });
-  }, [selectedNodeId, markExpanded, expandMutation]);
-
-  const handleExportData = useCallback(() => {
-    if (!graphQuery.data) return;
-    const blob = new Blob([JSON.stringify(graphQuery.data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'relationship-graph.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [graphQuery.data]);
+  const handleLinkClick = useCallback((link: { id?: string | number; relationship_id?: string }) => {
+    const edgeId = link?.id ? String(link.id) : null;
+    setSelectedEdgeId(edgeId);
+    setSelectedNodeId(null);
+    const relationshipId = link?.relationship_id || edgeId;
+    if (relationshipId) router.push(`/workspaces/crm/relationships/${relationshipId}`);
+  }, [router]);
 
   useEffect(() => {
     if (graphRef.current && graphData.nodes.length > 0) {
@@ -126,17 +147,19 @@ export function RelationshipNetworkView() {
     }
   }, [graphData.nodes.length]);
 
-  if (authLoading) return <LoadingState label={tCommon('loading')} />;
-  if (!canRead) return <ErrorState title={t('accessDenied')} message={t('accessDenied')} />;
-  if (graphQuery.isLoading) return <LoadingState label={t('loading')} />;
+  if (authLoading) return <LoadingState label={tr ? 'Yükleniyor…' : 'Loading…'} />;
+  if (!canRead) {
+    return <ErrorState title={tr ? 'Erişim yok' : 'Access denied'} message={tr ? 'Erişim yok' : 'Access denied'} />;
+  }
+  if (graphQuery.isLoading) return <LoadingState label={tr ? 'Ağ yükleniyor…' : 'Loading graph…'} />;
   if (graphQuery.isError) {
     return (
       <ErrorState
-        title={t('loadFailed')}
-        message={graphQuery.error?.message ?? t('loadFailed')}
+        title={tr ? 'Ağ yüklenemedi' : 'Graph failed'}
+        message={graphQuery.error?.message ?? (tr ? 'Ağ yüklenemedi' : 'Graph failed')}
         action={
           <Button type="button" onClick={() => void graphQuery.refetch()}>
-            {t('loadFailed')}
+            {tr ? 'Yeniden dene' : 'Retry'}
           </Button>
         }
       />
@@ -144,78 +167,91 @@ export function RelationshipNetworkView() {
   }
 
   return (
-    <div className="crm-network-view">
-      <header className="crm-workspace-header">
-        <div>
-          <h1>{t('title')}</h1>
-          <p>{t('description')}</p>
-        </div>
-        <div className="crm-workspace-actions">
-          <Link href="/workspaces/crm/relationships">
-            <Button variant="secondary">{t('backToList')}</Button>
+    <div className={embedded ? 'crm-rel-graph' : 'crm-network-view'} data-testid="crm-relationships-graph">
+      {!embedded ? (
+        <header className="ctc-ds__header">
+          <div>
+            <h1>{tr ? 'Ağ Grafiği' : 'Network graph'}</h1>
+            <p>{tr ? 'Yalnızca CRM’de kayıtlı ilişkiler.' : 'Only stored CRM relationships.'}</p>
+          </div>
+          <Link href="/workspaces/crm/relationships" className="crm-people-tools">
+            {tr ? 'Listeye dön' : 'Back to list'}
           </Link>
-          <Button variant="secondary" onClick={() => graphRef.current?.zoomToFit?.(400)}>
-            {t('fitView')}
-          </Button>
-          <Button variant="secondary" onClick={handleExportData}>
-            {t('exportData')}
-          </Button>
-        </div>
-      </header>
+        </header>
+      ) : null}
 
-      <div className="crm-network-toolbar">
-        <input
-          type="search"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={t('searchNodes')}
-          aria-label={t('searchNodes')}
-        />
-        <label>
-          {t('depth')}
+      {!embedded ? (
+        <div className="crm-network-toolbar">
           <input
-            type="range"
-            min={1}
-            max={5}
-            value={depth}
-            onChange={(e) => setDepth(Number(e.target.value))}
+            type="search"
+            value={localSearch}
+            onChange={(event) => setLocalSearch(event.target.value)}
+            placeholder={tr ? 'Düğüm ara' : 'Search nodes'}
+            aria-label={tr ? 'Düğüm ara' : 'Search nodes'}
+            data-testid="crm-relationships-graph-search"
           />
-          {depth}
-        </label>
-        {graphQuery.data?.warning && <span className="crm-network-warning">{graphQuery.data.warning}</span>}
-      </div>
+        </div>
+      ) : null}
+
+      {graphQuery.data?.warning ? <p className="crm-agreements-count">{graphQuery.data.warning}</p> : null}
+      <p className="crm-agreements-count" data-testid="crm-relationships-graph-stats">
+        {tr
+          ? `${graphData.nodes.length} düğüm · ${graphData.links.length} ilişki`
+          : `${graphData.nodes.length} nodes · ${graphData.links.length} edges`}
+      </p>
 
       {graphData.nodes.length === 0 ? (
-        <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />
+        <EmptyState
+          title={tr ? 'Gösterilecek ilişki yok' : 'No relationships to graph'}
+          description={tr ? 'Filtreleri daraltın veya kayıtlı bir ilişki seçin.' : 'Narrow filters or pick a stored relationship.'}
+        />
       ) : (
-        <div className="crm-network-canvas" style={{ height: 560, border: '1px solid var(--border, #e5e7eb)' }}>
+        <div className="crm-rel-graph-canvas">
           <ForceGraph2D
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ref={graphRef as any}
             graphData={graphData}
             nodeLabel="label"
             nodeColor="color"
-            linkDirectionalArrowLength={4}
+            linkDirectionalArrowLength={3}
             linkDirectionalArrowRelPos={1}
             onNodeClick={handleNodeClick}
+            onLinkClick={handleLinkClick}
             cooldownTicks={80}
           />
         </div>
       )}
 
-      {selectedNode && (
-        <aside className="crm-network-detail-panel">
+      {selectedNode ? (
+        <aside className="crm-rel-graph-panel">
           <h3>{selectedNode.label}</h3>
-          <p>{t('entityType')}: {selectedNode.entity_type}</p>
-          <p>
-            {t('score')}:{' '}
-            <span style={{ color: getScoreBandColor(selectedNode.score) }}>{selectedNode.score}</span>
-          </p>
-          <Button onClick={handleExpand} disabled={expandMutation.isPending}>
-            {t('expandNode')}
+          <p>{selectedNode.entity_type}</p>
+          <Button type="button" variant="secondary" size="sm" onClick={() => openNode(selectedNode)}>
+            {tr ? 'Kayda git' : 'Open record'}
           </Button>
         </aside>
-      )}
+      ) : null}
+
+      {selectedEdge ? (
+        <aside className="crm-rel-graph-panel">
+          <h3>{TYPE_LABELS[selectedEdge.relationship_type] || selectedEdge.relationship_type}</h3>
+          <p>{selectedEdge.source} → {selectedEdge.target}</p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => router.push(`/workspaces/crm/relationships/${selectedEdge.relationship_id}`)}
+          >
+            {tr ? 'İlişki detayı' : 'Relationship detail'}
+          </Button>
+        </aside>
+      ) : null}
+
+      <div>
+        <Button variant="secondary" size="sm" onClick={() => graphRef.current?.zoomToFit?.(400)}>
+          {tr ? 'Sığdır' : 'Fit'}
+        </Button>
+      </div>
     </div>
   );
 }

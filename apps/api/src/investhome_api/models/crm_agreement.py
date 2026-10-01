@@ -71,6 +71,7 @@ class CrmAgreement(Base):
     unit_number: Mapped[str | None] = mapped_column(String(80), nullable=True)
     investment_amount: Mapped[str | None] = mapped_column(String(80), nullable=True)
     review_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    hemen_kira: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     metadata_json: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

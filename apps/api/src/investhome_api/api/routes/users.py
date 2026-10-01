@@ -19,6 +19,12 @@ from investhome_api.schemas.auth import (
 )
 from investhome_api.services.audit_service import record_auth_event
 from investhome_api.services.auth_service import hash_password
+from investhome_api.services.password_policy import (
+    GENERIC_PASSWORD_ERROR,
+    PasswordPolicyError,
+    generate_temporary_password,
+    validate_new_password,
+)
 from investhome_api.services.permission_service import (
     ensure_not_privilege_escalation,
     load_user_with_roles,
@@ -103,7 +109,21 @@ def create_user(
             detail="Password is required for non-invited users",
         )
 
-    temp_password = payload.password or "InvitedUser1!"
+    if payload.password is None:
+        temp_password = generate_temporary_password()
+    else:
+        try:
+            validate_new_password(
+                payload.password,
+                email=email,
+                full_name=payload.full_name,
+            )
+        except PasswordPolicyError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=GENERIC_PASSWORD_ERROR,
+            )
+        temp_password = payload.password
     user = User(
         full_name=payload.full_name,
         email=email,

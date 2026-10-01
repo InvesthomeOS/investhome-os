@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from 'next/navigation';
 
-import { Button, PageHeader } from '@investhome/ui';
+import { Button, Dialog, PageHeader } from '@investhome/ui';
 
 import { EntityActivityTimeline } from '@/app/dashboard/_components/entity-activity-timeline';
 import { EntityDocumentsPanel } from '@/app/dashboard/_components/entity-documents-panel';
@@ -21,10 +21,16 @@ import {
 } from '@/lib/api/auth';
 import {
   forceLogoutUser,
+  resetUserMfa,
   resetUserPassword,
   suspendUser,
 } from '@/lib/api/security-center';
 import { useAuth } from '@/lib/auth/auth-context';
+import {
+  canShowMfaAdminReset,
+  postMfaResetRedirect,
+  shouldExecuteMfaReset,
+} from '@/lib/auth/mfa-admin-reset';
 
 import { AdminDataTable, type AdminTableColumn } from '../../_components/admin-data-table';
 import { AdminFilters, DEFAULT_ADMIN_FILTERS, type AdminFilterState } from '../../_components/admin-filters';
@@ -39,7 +45,7 @@ export function UsersAdminWorkspace() {
   const tCommon = useTranslations('common');
   const router = useRouter();
   const pathname = usePathname();
-  const { user: currentUser, canManageUsers: canManage } = useAuth();
+  const { user: currentUser, canManageUsers: canManage, logout } = useAuth();
   const { notifySuccess, notifyError } = useAdminToast();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [roles, setRoles] = useState<RoleSummary[]>([]);
@@ -48,6 +54,9 @@ export function UsersAdminWorkspace() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [formDirty, setFormDirty] = useState(false);
+  const [mfaResetTarget, setMfaResetTarget] = useState<UserRecord | null>(null);
+  const [mfaResetBusy, setMfaResetBusy] = useState(false);
+  const canResetMfa = canShowMfaAdminReset(currentUser);
   const [draftFilters, setDraftFilters] = useState<AdminFilterState>(DEFAULT_ADMIN_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState<AdminFilterState>(DEFAULT_ADMIN_FILTERS);
 
@@ -144,6 +153,47 @@ export function UsersAdminWorkspace() {
       notifyError(updateError, tShell('saveFailed'));
     }
   };
+
+  const handleConfirmMfaReset = async () => {
+    if (!mfaResetTarget || !currentUser) {
+      return;
+    }
+    if (!shouldExecuteMfaReset({ confirmed: true })) {
+      return;
+    }
+    setMfaResetBusy(true);
+    try {
+      await resetUserMfa(mfaResetTarget.id);
+      notifySuccess(tSec('resetMfaDone'));
+      const redirectTo = postMfaResetRedirect(currentUser.id, mfaResetTarget.id);
+      setMfaResetTarget(null);
+      if (redirectTo) {
+        await logout();
+        return;
+      }
+      await load();
+    } catch (resetError) {
+      notifyError(resetError, tShell('saveFailed'));
+    } finally {
+      setMfaResetBusy(false);
+    }
+  };
+
+  const renderResetMfaButton = (row: UserRecord) =>
+    canResetMfa ? (
+      <Button
+        type="button"
+        variant="ghost"
+        data-testid="mfa-reset-button"
+        data-user-id={row.id}
+        onClick={(event) => {
+          event.stopPropagation();
+          setMfaResetTarget(row);
+        }}
+      >
+        {tSec('resetMfa')}
+      </Button>
+    ) : null;
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -255,6 +305,7 @@ export function UsersAdminWorkspace() {
           <Button type="button" variant="ghost" onClick={() => setSelectedId(row.id)}>
             {tCommon('edit')}
           </Button>
+          {renderResetMfaButton(row)}
           {canManage && row.id !== currentUser?.id ? (
             <>
               <Button
@@ -367,10 +418,46 @@ export function UsersAdminWorkspace() {
           <p>{selected.email}</p>
           <p>{selected.job_title ?? tCommon('noValue')}</p>
           {selected.is_demo ? <span className="dashboard-shell__nav-badge">{tCommon('demo')}</span> : null}
+          {renderResetMfaButton(selected)}
           <EntityDocumentsPanel entityType="user" entityId={selected.id} />
           <EntityActivityTimeline entityType="user" entityId={selected.id} />
         </section>
       ) : null}
+
+      <Dialog
+        open={Boolean(mfaResetTarget)}
+        title={tSec('resetMfaConfirmTitle')}
+        onClose={() => {
+          if (!mfaResetBusy) setMfaResetTarget(null);
+        }}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              data-testid="mfa-reset-cancel"
+              disabled={mfaResetBusy}
+              onClick={() => setMfaResetTarget(null)}
+            >
+              {tCommon('cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              data-testid="mfa-reset-confirm"
+              disabled={mfaResetBusy}
+              onClick={() => void handleConfirmMfaReset()}
+            >
+              {tSec('resetMfa')}
+            </Button>
+          </>
+        }
+      >
+        <div data-testid="mfa-reset-confirm-dialog">
+          <p>{tSec('resetMfaConfirmBody', { name: mfaResetTarget?.full_name ?? mfaResetTarget?.email ?? '' })}</p>
+          <p>{tSec('resetMfaConfirmSessions')}</p>
+        </div>
+      </Dialog>
 
       <AdminFormModal
         open={formOpen}
@@ -393,7 +480,7 @@ export function UsersAdminWorkspace() {
         </label>
         <label>
           {t('fields.password')}
-          <input name="password" type="password" minLength={8} required onChange={() => setFormDirty(true)} />
+          <input name="password" type="password" minLength={12} maxLength={256} required onChange={() => setFormDirty(true)} />
         </label>
         <label>
           {t('fields.jobTitle')}

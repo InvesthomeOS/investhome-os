@@ -1,13 +1,11 @@
-import { NotesDsWorkspace } from './_components/ds/notes-ds-workspace';
+import { CrmNotesWorkspace } from './_components/crm-notes-workspace';
+import '../tasks/tasks.css';
+import './notes.css';
 
-/**
- * Canonical Notes nav route (`/workspaces/crm/notes`).
- * Contacts/Communication/Timeline-quality DS — CRM knowledge workspace (UI only).
- */
 export default function CrmNotesPage() {
   return (
     <main className="dashboard crm-module-shell" data-testid="crm-notes-page">
-      <NotesDsWorkspace />
+      <CrmNotesWorkspace />
     </main>
   );
 }

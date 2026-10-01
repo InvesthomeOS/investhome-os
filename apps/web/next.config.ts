@@ -1,11 +1,14 @@
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 
+import { PERMISSIONS_POLICY, REFERRER_POLICY } from './src/lib/security/security-headers';
+
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
   output: 'standalone',
   reactStrictMode: true,
+  serverExternalPackages: ['jsdom', 'isomorphic-dompurify'],
   transpilePackages: [
     '@investhome/shared',
     '@investhome/ui',
@@ -13,6 +16,7 @@ const nextConfig: NextConfig = {
     '@investhome/permissions',
     '@investhome/events',
     '@investhome/ai-runtime',
+    'uqr',
   ],
   typedRoutes: true,
   // WIP surfaces outside P3 currently fail strict typedRoutes/i18n checks;
@@ -23,6 +27,15 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        jsdom: false,
+      };
+    }
+    return config;
+  },
   async headers() {
     return [
       {
@@ -30,11 +43,8 @@ const nextConfig: NextConfig = {
         headers: [
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'DENY' },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          {
-            key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
-          },
+          { key: 'Referrer-Policy', value: REFERRER_POLICY },
+          { key: 'Permissions-Policy', value: PERMISSIONS_POLICY },
         ],
       },
     ];

@@ -1,4 +1,4 @@
-import { apiFetch, getApiBaseUrl, parseApiErrorBody, ApiError, type ApiErrorBody } from './client';
+import { apiFetch, getApiBaseUrl, parseApiErrorBody, ApiError, staffFetch, type ApiErrorBody } from './client';
 
 export type CanvaExportInput = {
   file?: Blob;
@@ -48,7 +48,7 @@ export async function exportDesignToCanva(input: CanvaExportInput): Promise<Canv
     form.append('layer_images', image.blob, image.filename);
   }
 
-  const response = await fetch(`${getApiBaseUrl()}/platform/integrations/canva/export`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/platform/integrations/canva/export`, {
     method: 'POST',
     credentials: 'include',
     body: form,

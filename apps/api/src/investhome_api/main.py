@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from investhome_api.api.exception_handlers import register_exception_handlers
 from investhome_api.api.routes import (
@@ -24,8 +23,11 @@ from investhome_api.api.routes import (
     crm_agreements,
     crm_bitrix,
     crm_communications,
+    crm_live_communications,
     crm_companies,
     crm_contacts,
+    crm_leads,
+    crm_matches,
     crm_relationships,
     crm_reports,
     crm_search,
@@ -77,6 +79,8 @@ from investhome_api.api.routes import (
     meta,
     notifications,
     platform,
+    premium_studio,
+    quick_studio,
     project_assistant,
     project_budgets,
     project_costs,
@@ -91,10 +95,18 @@ from investhome_api.api.routes import (
     security_center,
     social_design_engine,
     users,
+    whatsapp_webhook,
     work_items,
+)
+from investhome_api.config.cors import (
+    CORS_ALLOWED_HEADERS,
+    CORS_ALLOWED_METHODS,
+    CORS_EXPOSE_HEADERS,
 )
 from investhome_api.config.settings import get_settings
 from investhome_api.core.logging_config import configure_logging
+from investhome_api.middleware.cors import StrictCorsMiddleware
+from investhome_api.middleware.csrf import CsrfProtectMiddleware
 from investhome_api.middleware.request_id import RequestIdMiddleware
 
 
@@ -111,13 +123,15 @@ def create_app() -> FastAPI:
     )
 
     app.add_middleware(RequestIdMiddleware)
+    app.add_middleware(CsrfProtectMiddleware)
+    cors_origins = list(settings.cors_origins)
     app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-        expose_headers=["X-Request-Id"],
+        StrictCorsMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=bool(cors_origins),
+        allow_methods=list(CORS_ALLOWED_METHODS),
+        allow_headers=list(CORS_ALLOWED_HEADERS),
+        expose_headers=list(CORS_EXPOSE_HEADERS),
     )
 
     register_exception_handlers(app)
@@ -172,6 +186,8 @@ def create_app() -> FastAPI:
     app.include_router(ideogram_design_poc.router)
     app.include_router(gpt_image_design.router)
     app.include_router(creative_director.router)
+    app.include_router(premium_studio.router)
+    app.include_router(quick_studio.router)
     app.include_router(inventory.router)
     app.include_router(inventory_pricing.prices_router)
     app.include_router(inventory_pricing.requests_router)
@@ -182,6 +198,8 @@ def create_app() -> FastAPI:
     app.include_router(inventory_assignment.requests_router)
     app.include_router(crm.router)
     app.include_router(crm_contacts.router)
+    app.include_router(crm_leads.router)
+    app.include_router(crm_matches.router)
     app.include_router(crm_agreements.router)
     app.include_router(crm_bitrix.router)
     app.include_router(crm_companies.router)
@@ -189,6 +207,8 @@ def create_app() -> FastAPI:
     app.include_router(crm_reports.router)
     app.include_router(crm_activities.router)
     app.include_router(crm_communications.router)
+    app.include_router(crm_live_communications.router)
+    app.include_router(whatsapp_webhook.router)
     app.include_router(crm_search.router)
     app.include_router(marketing.router)
     app.include_router(marketing_analytics.router)

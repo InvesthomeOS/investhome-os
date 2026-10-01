@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from './client';
+import { CSRF_HEADER, ensureCsrfToken, getApiBaseUrl, staffFetch } from './client';
 
 export type CompanyDocumentCategory =
   | 'legal'
@@ -167,7 +167,7 @@ export async function fetchCompanyDocuments(
 }
 
 export async function fetchCompanyDocument(id: string): Promise<CompanyDocument> {
-  const response = await fetch(`${getApiBaseUrl()}/company-documents/${id}`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/company-documents/${id}`, {
     credentials: 'include',
     cache: 'no-store',
   });
@@ -176,7 +176,7 @@ export async function fetchCompanyDocument(id: string): Promise<CompanyDocument>
 }
 
 export async function fetchDocumentFolders(companyId: string): Promise<{ items: DocumentFolder[]; total: number }> {
-  const response = await fetch(`${getApiBaseUrl()}/company-documents/folders?company_id=${companyId}`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/company-documents/folders?company_id=${companyId}`, {
     credentials: 'include',
     cache: 'no-store',
   });
@@ -217,23 +217,27 @@ export async function uploadCompanyDocument(
   if (meta.expiration_date) form.append('expiration_date', meta.expiration_date);
 
   return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', `${getApiBaseUrl()}/company-documents/upload`);
-    xhr.withCredentials = true;
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable && onProgress) {
-        onProgress(Math.round((event.loaded / event.total) * 100));
-      }
-    };
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(JSON.parse(xhr.responseText) as CompanyDocument);
-      } else {
-        reject(new Error('Upload failed'));
-      }
-    };
-    xhr.onerror = () => reject(new Error('Upload failed'));
-    xhr.send(form);
+    void (async () => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${getApiBaseUrl()}/company-documents/upload`);
+      xhr.withCredentials = true;
+      const token = await ensureCsrfToken();
+      if (token) xhr.setRequestHeader(CSRF_HEADER, token);
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && onProgress) {
+          onProgress(Math.round((event.loaded / event.total) * 100));
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText) as CompanyDocument);
+        } else {
+          reject(new Error('Upload failed'));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Upload failed'));
+      xhr.send(form);
+    })().catch(reject);
   });
 }
 
@@ -246,7 +250,7 @@ export async function bulkUploadCompanyDocuments(
   for (const file of files) form.append('files', file);
   form.append('company_id', companyId);
   if (folderId) form.append('folder_id', folderId);
-  const response = await fetch(`${getApiBaseUrl()}/company-documents/bulk-upload`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/company-documents/bulk-upload`, {
     method: 'POST',
     credentials: 'include',
     body: form,
@@ -264,7 +268,7 @@ export function getDownloadUrl(id: string): string {
 }
 
 export async function archiveCompanyDocument(id: string): Promise<CompanyDocument> {
-  const response = await fetch(`${getApiBaseUrl()}/company-documents/${id}/archive`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/company-documents/${id}/archive`, {
     method: 'POST',
     credentials: 'include',
   });
@@ -273,7 +277,7 @@ export async function archiveCompanyDocument(id: string): Promise<CompanyDocumen
 }
 
 export async function restoreCompanyDocument(id: string): Promise<CompanyDocument> {
-  const response = await fetch(`${getApiBaseUrl()}/company-documents/${id}/restore`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/company-documents/${id}/restore`, {
     method: 'POST',
     credentials: 'include',
   });
@@ -282,7 +286,7 @@ export async function restoreCompanyDocument(id: string): Promise<CompanyDocumen
 }
 
 export async function trashCompanyDocument(id: string): Promise<CompanyDocument> {
-  const response = await fetch(`${getApiBaseUrl()}/company-documents/${id}/trash`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/company-documents/${id}/trash`, {
     method: 'POST',
     credentials: 'include',
   });
@@ -291,7 +295,7 @@ export async function trashCompanyDocument(id: string): Promise<CompanyDocument>
 }
 
 export async function toggleFavorite(id: string, favorited: boolean): Promise<CompanyDocument> {
-  const response = await fetch(`${getApiBaseUrl()}/company-documents/${id}/favorite`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/company-documents/${id}/favorite`, {
     method: favorited ? 'POST' : 'DELETE',
     credentials: 'include',
   });
@@ -303,7 +307,7 @@ export async function createShareLink(
   id: string,
   options: { expires_in_hours?: number; password?: string; max_downloads?: number },
 ): Promise<{ token: string; secure_url: string | null; expires_at: string }> {
-  const response = await fetch(`${getApiBaseUrl()}/company-documents/${id}/share`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/company-documents/${id}/share`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -317,7 +321,7 @@ export async function bulkAction(
   documentIds: string[],
   action: 'archive' | 'restore' | 'trash' | 'favorite' | 'unfavorite',
 ): Promise<{ affected: number }> {
-  const response = await fetch(`${getApiBaseUrl()}/company-documents/bulk-action`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/company-documents/bulk-action`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },

@@ -14,7 +14,6 @@ from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.orm import Session
 
-from investhome_api.config.settings import get_settings
 from investhome_api.models.creative_studio_media import (
     CreativeStudioMediaAsset,
     CreativeStudioMediaFolder,
@@ -27,10 +26,7 @@ from investhome_api.schemas.creative_studio_media import (
 )
 from investhome_api.services.document_validation import (
     content_stream,
-    extract_extension,
-    sanitize_filename,
-    validate_extension,
-    validate_mime_type,
+    read_and_validate_upload,
 )
 from investhome_api.services.google_drive.errors import (
     GoogleDriveAuthError,
@@ -309,33 +305,20 @@ def _parse_tags(raw: str | None) -> list[str] | None:
 
 async def _read_upload(file: UploadFile) -> tuple[bytes, str, str, str, int]:
     """Reuse Document Center validation rules for media uploads."""
-    settings = get_settings()
-    max_bytes = settings.document_max_upload_bytes
-    original_name = sanitize_filename(file.filename or "upload")
-    ext = extract_extension(original_name)
-    validate_extension(ext)
-    mime_type = validate_mime_type(ext, file.content_type)
-
-    chunks: list[bytes] = []
-    total = 0
-    while True:
-        chunk = await file.read(1024 * 1024)
-        if not chunk:
-            break
-        total += len(chunk)
-        if total > max_bytes:
+    try:
+        return await read_and_validate_upload(file)
+    except HTTPException as exc:
+        if exc.detail == "documents.errors.file_too_large":
             raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                status_code=getattr(status, "HTTP_413_CONTENT_TOO_LARGE", 413),
                 detail="creative_studio.media.errors.file_too_large",
-            )
-        chunks.append(chunk)
-
-    if total == 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="creative_studio.media.errors.empty_file",
-        )
-    return b"".join(chunks), ext, mime_type, original_name, total
+            ) from exc
+        if exc.detail == "documents.errors.empty_file":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="creative_studio.media.errors.empty_file",
+            ) from exc
+        raise
 
 
 async def upload_asset(

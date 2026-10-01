@@ -8,6 +8,7 @@ from uuid import UUID
 from fastapi import Request
 from sqlalchemy.orm import Session
 
+from investhome_api.core.request_context import get_request_id
 from investhome_api.models.activity import (
     ActivityAction,
     ActivityActorType,
@@ -27,7 +28,7 @@ def activity_context_from_request(request: Request | None) -> ActivityRequestCon
         return ActivityRequestContext(source=ActivitySource.API)
     forwarded = request.headers.get("x-forwarded-for")
     ip_address = forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else None)
-    request_id = request.headers.get("x-request-id")
+    request_id = request.headers.get("x-request-id") or get_request_id()
     source_header = request.headers.get("x-activity-source", "").lower()
     source = ActivitySource.WEB
     if source_header == "api":

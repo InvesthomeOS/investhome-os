@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from '@/lib/api/client';
+import { getApiBaseUrl, staffFetch } from '@/lib/api/client';
 
 export interface DrawingElement {
   id: string;
@@ -64,7 +64,7 @@ export interface DrawingProcessingStatus {
 }
 
 export async function fetchDrawingAnalysis(documentId: string): Promise<DrawingAnalysis> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${documentId}/drawing-analysis`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${documentId}/drawing-analysis`, {
     credentials: 'include',
   });
   if (!response.ok) throw new Error('drawing_analysis_fetch_failed');
@@ -72,7 +72,7 @@ export async function fetchDrawingAnalysis(documentId: string): Promise<DrawingA
 }
 
 export async function fetchDrawingProcessingStatus(documentId: string): Promise<DrawingProcessingStatus> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${documentId}/drawing-processing-status`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${documentId}/drawing-processing-status`, {
     credentials: 'include',
   });
   if (!response.ok) throw new Error('drawing_status_fetch_failed');
@@ -84,7 +84,7 @@ export function drawingPreviewUrl(documentId: string): string {
 }
 
 export async function correctDrawingScale(documentId: string, scale: string): Promise<DrawingAnalysis> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${documentId}/drawing-scale`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${documentId}/drawing-scale`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -99,7 +99,7 @@ export async function askDrawing(
   question: string,
   locale: 'en' | 'tr',
 ): Promise<{ answer: string; grounded: boolean; sources: string[] }> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${documentId}/drawing-ask`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${documentId}/drawing-ask`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -113,7 +113,7 @@ export async function addDrawingAnnotation(
   documentId: string,
   payload: { label?: string; content?: string },
 ): Promise<DrawingAnnotation> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${documentId}/drawing-annotations`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${documentId}/drawing-annotations`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -124,7 +124,7 @@ export async function addDrawingAnnotation(
 }
 
 export async function reprocessDrawing(documentId: string): Promise<DrawingProcessingStatus> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${documentId}/drawing-reprocess`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${documentId}/drawing-reprocess`, {
     method: 'POST',
     credentials: 'include',
   });

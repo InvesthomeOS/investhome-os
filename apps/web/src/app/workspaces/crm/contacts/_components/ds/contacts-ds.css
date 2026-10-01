@@ -10,18 +10,18 @@
   --shot-font-body: 11.55px;
   --shot-font-heading: 13.2px;
   --shot-font-title: 24.2px;
-  --shot-gap: 12px;
+  --shot-gap: 16px;
   --shot-card-pad-y: 13px;
   --shot-card-pad-x: 15px;
   --ctc-ink: var(--shot-ink);
   --ctc-muted: var(--shot-muted);
   --ctc-navy: var(--shot-navy);
   --ctc-cyan: var(--shot-cyan);
-  --ctc-border: #e1e7e9;
-  --ctc-border-strong: #dce4e7;
-  --ctc-card-shadow: 0 2px 7px rgba(31, 57, 68, 0.05);
-  --ctc-card-shadow-hover: 0 4px 14px rgba(7, 91, 117, 0.08);
-  --ctc-card-radius: 8px;
+  --ctc-border: #c5d4da;
+  --ctc-border-strong: #b7c9d0;
+  --ctc-card-shadow: 0 6px 16px rgba(7, 91, 117, 0.08);
+  --ctc-card-shadow-hover: 0 10px 22px rgba(7, 91, 117, 0.12);
+  --ctc-card-radius: 16px;
   --ctc-control-height: 1.95rem;
   --ctc-danger: #c45c5c;
   --ctc-success: #2f8a5b;
@@ -30,8 +30,8 @@
   --brand-primary: var(--shot-navy);
   --brand-primary-hover: #064a5f;
   --focus-ring: #2794ad;
-  --bg: #f6f8fa;
-  --background: #f6f8fa;
+  --bg: #f3f6f8;
+  --background: #f3f6f8;
   --surface: #ffffff;
   --surface-default: #ffffff;
   --surface-muted: #f1f6f8;
@@ -585,10 +585,10 @@
   background: #c77938;
 }
 .ctc-ds__avatar.is-violet {
-  background: #6b6aa8;
+  background: #0a6f8a;
 }
 .ctc-ds__avatar.is-rose {
-  background: #b45d6e;
+  background: #134a5c;
 }
 
 .ctc-ds__avatar.is-lg {
@@ -721,15 +721,16 @@
 
 .crm-verify-detail {
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
 .crm-verify-detail__hero,
 .crm-verify-detail__section {
-  border: 1px solid var(--border-color, #dfe4ea);
-  border-radius: 12px;
+  border: 1.5px solid color-mix(in srgb, #075b75 18%, #c8d5db);
+  border-radius: 16px;
   background: var(--surface-primary, #fff);
-  padding: 20px;
+  box-shadow: 0 6px 16px rgba(7, 91, 117, 0.08);
+  padding: 20px 22px;
 }
 
 .crm-verify-detail__hero {
@@ -750,8 +751,12 @@
 }
 
 .crm-verify-detail__section h2 {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid color-mix(in srgb, #075b75 14%, #d5e0e4);
   font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
 }
 
 .crm-verify-detail__section h2 span {

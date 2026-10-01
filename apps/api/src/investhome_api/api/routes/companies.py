@@ -60,6 +60,7 @@ from investhome_api.services.company_search_service import (
 )
 from investhome_api.services.activity_service import snapshot_entity
 from investhome_api.services.permission_service import user_has_permission
+from investhome_api.services.document_validation import read_and_validate_csv_import
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
@@ -149,8 +150,8 @@ async def import_companies(
     user: User = Depends(require_permission("company", "create")),
 ) -> CompanyImportResult:
     del user
-    raw = (await file.read()).decode("utf-8-sig")
-    result = import_companies_csv(db, raw)
+    content = await read_and_validate_csv_import(file)
+    result = import_companies_csv(db, content)
     db.commit()
     return result
 

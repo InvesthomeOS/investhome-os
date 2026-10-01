@@ -5897,6 +5897,42 @@
       "invalidCredentials": "Invalid email or password.",
       "accountInactive": "Your account is not active.",
       "loginFailed": "Sign in failed."
+    },
+    "mfa": {
+      "title": "Two-factor authentication",
+      "subtitle": "Enter the 6-digit code from your authenticator app, or a recovery code.",
+      "codeLabel": "Authenticator or recovery code",
+      "submit": "Verify",
+      "submitting": "Verifying…",
+      "back": "Back to sign in",
+      "errors": {
+        "invalidOrExpired": "That code is invalid or the sign-in step has expired. Try again, or start over.",
+        "tooManyAttempts": "Too many attempts. Wait a moment and try again.",
+        "unavailable": "Verification is temporarily unavailable. Try again shortly.",
+        "verifyFailed": "Unable to verify. Please try again."
+      }
+    },
+    "enroll": {
+      "title": "Set up two-factor authentication",
+      "subtitle": "Your role requires MFA. Scan the QR code, then enter a 6-digit code to finish sign-in.",
+      "starting": "Preparing authenticator setup…",
+      "scanQr": "Scan this QR code with your authenticator app.",
+      "manualKey": "Or enter this setup key manually",
+      "confirmLabel": "6-digit authenticator code",
+      "confirm": "Confirm and continue",
+      "confirming": "Confirming…",
+      "statusEnabled": "MFA is now enabled on your account.",
+      "recoveryTitle": "Save your recovery codes",
+      "recoveryWarning": "These codes are shown once. Store them in a password manager or a secure offline location. Anyone with a code can sign in as you.",
+      "recoveryAck": "I have saved these codes",
+      "back": "Back to sign in",
+      "errors": {
+        "invalidCode": "That authenticator code is not valid. Try again.",
+        "tooManyAttempts": "Too many attempts. Wait a moment and try again.",
+        "unavailable": "MFA setup is temporarily unavailable. Try again shortly.",
+        "alreadyEnabled": "MFA is already enabled on this account.",
+        "enrollFailed": "Unable to start MFA setup. Please try again."
+      }
     }
   },
   "profile": {
@@ -5910,7 +5946,29 @@
     "newPassword": "New password",
     "updatePassword": "Update password",
     "passwordUpdated": "Your password was updated.",
-    "passwordUpdateFailed": "Unable to update password."
+    "passwordUpdateFailed": "Unable to update password.",
+    "mfa": {
+      "title": "Two-factor authentication",
+      "statusEnabled": "MFA is enabled on your account.",
+      "statusDisabled": "You can add an authenticator app for a second sign-in step. This is optional.",
+      "enable": "Enable MFA",
+      "enabling": "Starting…",
+      "scanQr": "Scan this QR code with your authenticator app.",
+      "manualKey": "Or enter this setup key manually",
+      "confirmLabel": "6-digit authenticator code",
+      "confirm": "Confirm and enable",
+      "confirming": "Confirming…",
+      "recoveryTitle": "Save your recovery codes",
+      "recoveryWarning": "These codes are shown once. Store them in a password manager or a secure offline location. Anyone with a code can sign in as you.",
+      "recoveryAck": "I have saved these codes",
+      "errors": {
+        "invalidCode": "That authenticator code is not valid. Try again.",
+        "tooManyAttempts": "Too many attempts. Wait a moment and try again.",
+        "unavailable": "MFA setup is temporarily unavailable. Try again shortly.",
+        "alreadyEnabled": "MFA is already enabled on this account.",
+        "enrollFailed": "Unable to start MFA setup. Please try again."
+      }
+    }
   },
   "adminUsers": {
     "eyebrow": "Administration",
@@ -6110,6 +6168,7 @@
     "lastBackup": "Last backup",
     "never": "Never",
     "backupRestoreUnverified": "Restore rehearsal has not been verified — backup cannot be claimed READY.",
+    "backupStatusWarning": "Backup protection is not verified. Stale, failed, or not-configured backups are a security warning.",
     "integrationsTitle": "External integrations",
     "integrationsSubtitle": "Status surfaces Unavailable until credentials and providers are connected.",
     "integrationSentry": "Error tracking (Sentry)",
@@ -6138,8 +6197,14 @@
     "dashboardTitle": "Security Dashboard",
     "dashboardSubtitle": "Enterprise security posture — KPIs stay Unavailable when providers are not connected.",
     "alertsTitle": "Security alerts",
-    "alertsSubtitle": "Derived from failed logins, expired keys, incidents, and SSO readiness.",
+    "alertsSubtitle": "Derived from failed logins, expired keys, incidents, SSO readiness, and active security signals.",
     "noAlerts": "No active security alerts.",
+    "signalsTitle": "Security signals",
+    "signalsSubtitle": "Unresolved authentication and security patterns. Raw IPs, passwords, codes, and secrets are not shown.",
+    "noSignals": "No unresolved security signals.",
+    "colSignalType": "Signal",
+    "colCount": "Events",
+    "colFirstSeen": "First seen",
     "generatedAt": "Generated",
     "sessionsTitle": "Sessions",
     "sessionsSubtitle": "Active sessions with device, browser, and IP metadata.",
@@ -6224,6 +6289,7 @@
     "backupProvider": "Provider",
     "lastBackup": "Last backup",
     "never": "Never / unknown",
+    "backupStatusWarning": "Backup protection is not verified. Stale, failed, or not-configured backups are a security warning.",
     "featureFlagsTitle": "Feature flags",
     "featureFlagsSubtitle": "Env defaults with optional database overrides and role targeting.",
     "flagUpdated": "Feature flag updated.",
@@ -6250,6 +6316,11 @@
     "openCompanyTeams": "Company teams",
     "forceLogout": "Force logout",
     "resetPassword": "Reset password",
+    "resetMfa": "Reset MFA",
+    "resetMfaConfirmTitle": "Reset MFA?",
+    "resetMfaConfirmBody": "This disables MFA for {name}. All active sessions for that user will be revoked. They must sign in again with their password.",
+    "resetMfaConfirmSessions": "All active sessions for this user will be revoked.",
+    "resetMfaDone": "MFA reset. All sessions for this user were revoked.",
     "suspend": "Suspend",
     "forceLogoutDone": "Sessions revoked.",
     "resetPasswordDone": "Password reset recorded. Deliver temporary credentials out-of-band.",
@@ -7073,6 +7144,8 @@
       "signatures": "Signatures",
       "analytics": "Analytics",
       "preferences": "Preferences",
+      "unmatchedCommunications": "Unmatched communications",
+      "communicationAccounts": "Communication accounts",
       "adminSection": "Administration",
       "admin": "Admin",
       "adminBadge": "New",
@@ -7777,15 +7850,50 @@
     },
     "agents": {
       "title": "Acentalar",
-      "subtitle": "Broker and realtor contacts. One canonical person record — Active or Passive.",
+      "subtitle": "Broker and realtor contacts. Not a purchase list.",
       "statusFilter": "Status",
       "statusAll": "All",
       "statusActive": "Aktif",
       "statusPassive": "Pasif",
       "emptyTitle": "No agents yet",
-      "emptyDescription": "Bitrix agent import has not been committed. Matching brokers will appear here after load.",
+      "emptyDescription": "No agents match this view.",
       "loadError": "Unable to load agents.",
       "loading": "Loading agents…",
+      "count": "{count} agents",
+      "viewsLabel": "Views",
+      "views": {
+        "kanban": "KANBAN",
+        "list": "LİSTE",
+        "activities": "ETKİNLİKLER",
+        "calendar": "TAKVİM"
+      },
+      "columnPicker": "Columns",
+      "filters": "Filters",
+      "personFilter": "Person",
+      "allPeople": "All people",
+      "responsibleFilter": "Owner",
+      "allResponsible": "All owners",
+      "activityTypeFilter": "Activity type",
+      "dateFrom": "From",
+      "dateTo": "To",
+      "emptyActivities": "No agent activities match these filters.",
+      "emptyCalendar": "No scheduled agent dates in this month.",
+      "listColumns": {
+        "acenta": "Agent",
+        "ofis": "Office/Company",
+        "durum": "Status",
+        "telefon": "Phone",
+        "eposta": "Email",
+        "sorumlu": "Responsible",
+        "sonEtkinlik": "Last activity",
+        "sonrakiEtkinlik": "Next activity",
+        "tarih": "Date",
+        "sehir": "City",
+        "adres": "Address",
+        "kaynak": "Source",
+        "unvan": "Title",
+        "notlar": "Notes"
+      },
       "columns": {
         "name": "Name",
         "type": "Type",
@@ -7798,13 +7906,80 @@
     },
     "agreements": {
       "title": "Anlaşmalar",
-      "subtitle": "Historical CRM agreements grouped by project. Not Sales opportunities.",
+      "subtitle": "Purchases by project and stage.",
       "projectFilter": "Project",
       "allProjects": "All projects",
+      "searchLabel": "Search",
+      "searchPlaceholder": "Customer, project, unit no...",
+      "stageFilter": "Stage",
+      "allStages": "All stages",
+      "statusFilter": "Status",
+      "resetFilters": "Reset filters",
+      "filtersTitle": "Filters",
+      "yes": "Yes",
+      "no": "No",
+      "openPurchase": "Open",
+      "unitChangeHint": "Unit change exists",
+      "pageSize": "Per page",
+      "pager": "Showing {from}–{to} of {total} records",
       "emptyTitle": "No agreements yet",
-      "emptyDescription": "Bitrix agreement files have not been committed. Rows will group by project after load.",
+      "emptyDescription": "No purchases match this filter.",
       "loadError": "Unable to load agreements.",
       "loading": "Loading agreements…",
+      "count": "{count} results",
+      "viewsLabel": "Views",
+      "views": {
+        "kanban": "Kanban",
+        "list": "List",
+        "activities": "Activities",
+        "calendar": "Calendar"
+      },
+      "statusOptions": {
+        "allStatus": "All statuses",
+        "statusActive": "Active",
+        "statusCompleted": "Completed",
+        "statusCancelled": "Cancelled"
+      },
+      "kpis": {
+        "aria": "Purchase summary",
+        "total": "Total purchases",
+        "won": "Won",
+        "progress": "In progress",
+        "capital": "Capital gains",
+        "unstaged": "Unstaged"
+      },
+      "columnPicker": "Columns",
+      "filters": "Filters",
+      "personFilter": "Person",
+      "allPeople": "All people",
+      "responsibleFilter": "Owner",
+      "allResponsible": "All owners",
+      "activityTypeFilter": "Activity type",
+      "dateFrom": "From",
+      "dateTo": "To",
+      "emptyActivities": "No purchase activities match these filters.",
+      "emptyCalendar": "No saved purchase dates in this month.",
+      "listColumns": {
+        "musteri": "Customer",
+        "projeDaire": "Project/Unit",
+        "asama": "Stage",
+        "tutar": "Amount",
+        "ortaklik": "Joint",
+        "odemeDurumu": "Payment status",
+        "sonrakiEtkinlik": "Next activity",
+        "sorumlu": "Responsible",
+        "tarih": "Date",
+        "hemenKira": "Hemen Kira",
+        "musteriYolculugu": "Customer journey",
+        "potansiyelDurumu": "Potential status",
+        "odemeSekli": "Payment method",
+        "hisseOrani": "Share",
+        "sirketDetaylari": "Company details",
+        "odemeTarihleri": "Payment dates",
+        "kat": "Floor",
+        "onOdemeTutari": "Deposit",
+        "actions": "Actions"
+      },
       "columns": {
         "contact": "Contact",
         "project": "Project",
@@ -8274,7 +8449,7 @@
       "systemEvent": "System event",
       "ds": {
         "title": "Timeline",
-        "subtitle": "Chronological history of every important CRM event across people, companies, and projects.",
+        "subtitle": "Operational timeline of real CRM records.",
         "actions": {
           "addEvent": "Add New Event",
           "copilot": "AI Copilot",
@@ -8283,6 +8458,7 @@
           "openContact": "Open Contact",
           "openCompany": "Open Company",
           "openProject": "Open Project",
+          "openPurchase": "Open purchase",
           "createFollowUp": "Create Follow-up",
           "createTask": "Create Task",
           "addNote": "Add Note",
@@ -8292,6 +8468,15 @@
           "aria": "Timeline filters",
           "search": "Search",
           "searchPlaceholder": "Search events…",
+          "person": "Person",
+          "personPlaceholder": "Person name…",
+          "project": "Project",
+          "allProjects": "All projects",
+          "eventKind": "Event type",
+          "allEventKinds": "All events",
+          "dateFrom": "From",
+          "dateTo": "To",
+          "clear": "Clear filters",
           "status": "Status",
           "allStatuses": "All statuses",
           "category": "Category",
@@ -8300,8 +8485,6 @@
           "allOwners": "All owners",
           "entityType": "Entity type",
           "allEntityTypes": "All entity types",
-          "dateFrom": "From",
-          "dateTo": "To",
           "apply": "Apply",
           "today": "Today",
           "reset": "Reset Filters"
@@ -8333,16 +8516,17 @@
           "backToToday": "Back to Today",
           "today": "Today",
           "yesterday": "Yesterday",
-          "loadMore": "Show more"
+          "loadMore": "Show more",
+          "messageCount": "{count} messages"
         },
         "detail": {
-          "title": "Selected Event Detail",
+          "title": "Event detail",
           "open": "Open event detail",
           "close": "Close",
           "emptyTitle": "No event selected",
           "emptyDescription": "Choose an event from the timeline to inspect details and related records.",
           "eventInformation": "Event Information",
-          "relatedRecord": "Related Record",
+          "relatedRecord": "Related record",
           "relatedEntity": "Related entity",
           "description": "Description",
           "noDescription": "No description provided.",
@@ -8353,11 +8537,29 @@
           "relatedRecords": "Related records",
           "attachments": "Attachments",
           "notes": "Internal notes",
-          "quickActions": "Quick Actions"
+          "quickActions": "Quick Actions",
+          "person": "Person",
+          "project": "Project",
+          "unit": "Unit",
+          "eventType": "Event type",
+          "when": "Date / time",
+          "source": "Source"
         },
         "empty": {
           "title": "No timeline events",
-          "description": "Important CRM interactions will appear here. Create an event or reset filters to continue."
+          "description": "Change filters, or wait for CRM records to appear here."
+        },
+        "eventKinds": {
+          "whatsapp": "WhatsApp",
+          "email": "Email",
+          "call": "Call",
+          "meeting": "Meeting",
+          "document": "Document",
+          "purchase": "Purchase",
+          "payment": "Payment",
+          "note": "Note",
+          "task": "Task",
+          "system": "System"
         },
         "categories": {
           "whatsapp": "WhatsApp",
@@ -8557,6 +8759,111 @@
           "contact": "Contact",
           "company": "Company"
         }
+      },
+      "unmatched": {
+        "title": "Unmatched communications",
+        "subtitle": "Messages that could not be attached to a CRM person automatically.",
+        "accessDenied": "You do not have permission to view unmatched communications.",
+        "accessDeniedHint": "Contact your administrator for CRM communication access.",
+        "loading": "Loading unmatched communications…",
+        "emptyTitle": "No unmatched communications",
+        "emptyDescription": "Incoming Email and WhatsApp messages appear here when a person cannot be matched safely.",
+        "unknownSender": "Unknown sender",
+        "noSubject": "(No subject)",
+        "matchStatus": "Match status",
+        "suggestions": "Suggested people",
+        "noSuggestions": "No safe suggestions. Search and select a person.",
+        "searchPerson": "Search person",
+        "searchPlaceholder": "Name, email, or phone",
+        "selectPerson": "Select person",
+        "purchase": "Purchase (optional)",
+        "noPurchase": "No purchase",
+        "confirm": "Attach to person",
+        "ignore": "Ignore",
+        "matchFailed": "Could not attach this communication.",
+        "previous": "Previous",
+        "next": "Next",
+        "channels": {
+          "email": "Email",
+          "whatsapp": "WhatsApp",
+          "call": "Call"
+        },
+        "status": {
+          "unmatched": "Unmatched",
+          "ambiguous": "Multiple matches",
+          "matched": "Matched",
+          "ignored": "Ignored"
+        }
+      },
+      "workspace": {
+        "title": "Communication",
+        "subtitle": "Live Bitrix history and existing CRM communication records.",
+        "kpis": {
+          "aria": "Communication summary",
+          "total": "Total communications",
+          "email": "Email",
+          "whatsapp": "WhatsApp",
+          "unmatched": "Unmatched"
+        },
+        "filters": {
+          "aria": "Communication filters",
+          "search": "Search",
+          "searchPlaceholder": "Search subject or message…",
+          "channel": "Channel",
+          "person": "Person",
+          "personPlaceholder": "Person name",
+          "project": "Project",
+          "owner": "Owner",
+          "direction": "Inbound / Outbound",
+          "date": "Date",
+          "clear": "Clear filters",
+          "anyChannel": "All channels",
+          "anyPerson": "All people",
+          "anyProject": "All projects",
+          "anyOwner": "All owners",
+          "anyDirection": "All",
+          "anyDate": "All dates",
+          "inbound": "Inbound",
+          "outbound": "Outbound",
+          "today": "Today",
+          "d7": "7 days",
+          "d30": "30 days",
+          "d90": "90 days"
+        },
+        "channels": {
+          "email": "Email",
+          "whatsapp": "WhatsApp",
+          "call": "Call",
+          "comment": "Comment",
+          "meeting": "Meeting",
+          "sms": "SMS",
+          "other": "Other"
+        },
+        "columns": {
+          "when": "Date / time",
+          "channel": "Channel",
+          "person": "Person",
+          "subject": "Subject / message",
+          "project": "Project / unit",
+          "direction": "Inbound / Outbound",
+          "owner": "Owner",
+          "actions": "Actions"
+        },
+        "tableAria": "Communication table",
+        "unmatchedTab": "Unmatched communications",
+        "open": "Open",
+        "more": "More actions",
+        "openPerson": "Go to person",
+        "openPurchase": "Go to related purchase",
+        "empty": "No communications match these filters.",
+        "previous": "Previous",
+        "next": "Next",
+        "pager": "Showing {from}–{to} of {total} records",
+        "pageSize": "Per page",
+        "drawerTitle": "Communication detail",
+        "conversationTitle": "WhatsApp conversation",
+        "commentTitle": "Comment",
+        "meetingTitle": "Meeting"
       },
       "accessDenied": "You do not have permission to view communications.",
       "accessDeniedHint": "Contact your administrator for CRM communication access.",
@@ -8799,12 +9106,14 @@
     },
     "activities": {
       "title": "Activities",
-      "subtitle": "Manage, track, and analyze all customer interactions from one hub.",
+      "subtitle": "Operational activity list — live CRM records.",
+      "emptyTitle": "No activities found",
+      "emptyDescription": "Change filters, or wait for CRM records to appear here.",
+      "unresolvedIdentity": "Identity could not be verified",
+      "loadMore": "Load more",
       "accessDenied": "You do not have permission to view activities.",
       "accessDeniedHint": "Contact your administrator for CRM activity access.",
       "loadFailed": "Unable to load activities.",
-      "emptyTitle": "No activities found",
-      "emptyDescription": "Create a new activity or reset filters.",
       "create": "Create activity",
       "selectedCount": "{count} selected",
       "bulkPriorityHigh": "Priority: high",
@@ -8884,9 +9193,17 @@
         "aria": "Activity filters",
         "ariaLabel": "Activity filters",
         "any": "All",
-        "customer": "Customer",
-        "salesRep": "Sales Representative",
-        "type": "Activity Type",
+        "customer": "Person",
+        "person": "Person",
+        "personPlaceholder": "Person name…",
+        "project": "Project",
+        "allProjects": "All projects",
+        "owner": "Owner",
+        "allOwners": "All owners",
+        "dateFrom": "From",
+        "dateTo": "To",
+        "salesRep": "Owner",
+        "type": "Activity type",
         "status": "Status",
         "priority": "Priority",
         "date": "Date Range",
@@ -8917,10 +9234,13 @@
       "table": {
         "aria": "Activities table",
         "activity": "Activity",
-        "customer": "Customer",
-        "project": "Project",
-        "salesRep": "Sales Representative",
-        "dateTime": "Date & Time",
+        "customer": "Person",
+        "person": "Person",
+        "project": "Project / Unit",
+        "type": "Type",
+        "owner": "Owner",
+        "salesRep": "Owner",
+        "dateTime": "Date / Time",
         "status": "Status",
         "priority": "Priority",
         "aiSummary": "AI Summary",
@@ -8937,7 +9257,39 @@
         "edit": "Edit",
         "more": "More",
         "expand": "Show all",
-        "collapse": "Show less"
+        "collapse": "Show less",
+        "openContact": "Open person",
+        "openPurchase": "Open purchase",
+        "close": "Close"
+      },
+      "drawer": {
+        "title": "Activity detail",
+        "person": "Person",
+        "project": "Project",
+        "unit": "Unit",
+        "type": "Type",
+        "when": "Date / time",
+        "owner": "Owner",
+        "status": "Status",
+        "description": "Description",
+        "noDescription": "No description.",
+        "source": "Source",
+        "related": "Related record"
+      },
+      "eventKinds": {
+        "whatsapp": "WhatsApp",
+        "email": "Email",
+        "call": "Call",
+        "meeting": "Meeting",
+        "document": "Document",
+        "purchase": "Purchase",
+        "payment": "Payment",
+        "note": "Note",
+        "task": "Task",
+        "system": "System"
+      },
+      "group": {
+        "messages": "{count} messages"
       },
       "rowDescriptions": {
         "phoneDesc1": "Discussed project details and payment plan",
@@ -9039,14 +9391,16 @@
     },
     "tasks": {
       "title": "Tasks",
-      "subtitle": "Plan, prioritize, and complete sales team tasks on time.",
+      "subtitle": "Operational task list — live CRM records.",
       "listTitle": "Task List",
+      "unresolvedIdentity": "Identity could not be verified",
+      "loadMore": "Load more",
       "accessDenied": "You do not have permission to view tasks.",
       "accessDeniedHint": "Contact your administrator for CRM task access.",
       "loadFailed": "Unable to load tasks.",
       "emptyTitle": "No tasks",
       "emptyDescription": "Create your first task.",
-      "create": "Create task",
+      "create": "Create Task",
       "complete": "Complete",
       "widgets": "Task summary",
       "todaysTasks": "Today's tasks",
@@ -9084,9 +9438,16 @@
       },
       "priority": {
         "low": "Low",
-        "medium": "Medium",
+        "medium": "Normal",
         "high": "High",
-        "critical": "Critical"
+        "critical": "Urgent"
+      },
+      "workspaceStatus": {
+        "active": "Active",
+        "open": "Open",
+        "in_progress": "In Progress",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
       },
       "kanban": {
         "todo": "To Do",
@@ -9096,14 +9457,14 @@
       },
       "kpis": {
         "aria": "Task summary metrics",
-        "open": "Open Tasks",
-        "dueToday": "Due Today",
+        "open": "Active",
+        "dueToday": "Today",
         "overdue": "Overdue",
         "completed": "Completed",
         "thisMonth": "this month",
         "thisWeek": "this week",
         "hints": {
-          "openHint": "Active open tasks",
+          "openHint": "Open and in-progress tasks",
           "dueTodayHint": "Due by end of day",
           "overdueHint": "Past due tasks",
           "completedHint": "Completed this period"
@@ -9123,15 +9484,22 @@
       "filters": {
         "aria": "Task filters",
         "any": "All",
-        "assignee": "Assignee",
-        "customer": "Customer",
+        "assignee": "Owner",
+        "owner": "Owner",
+        "allOwners": "All owners",
+        "customer": "Person",
+        "person": "Person",
+        "personPlaceholder": "Person name…",
         "project": "Project",
+        "allProjects": "All projects",
         "priority": "Priority",
         "status": "Status",
-        "dueDate": "Due Date",
+        "dueDate": "Due date",
+        "dateFrom": "Start",
+        "dateTo": "End",
         "tag": "Tag",
         "search": "Search",
-        "searchPlaceholder": "Search tasks...",
+        "searchPlaceholder": "Search tasks…",
         "clear": "Clear Filters",
         "dateRanges": {
           "today": "Today",
@@ -9142,13 +9510,17 @@
       "table": {
         "aria": "Tasks table",
         "task": "Task",
-        "customer": "Customer",
-        "project": "Project",
-        "dueDate": "Due Date",
+        "customer": "Person",
+        "person": "Related person",
+        "project": "Project / Unit",
+        "dueDate": "Due date",
         "priority": "Priority",
-        "assignee": "Assignee",
+        "assignee": "Owner",
+        "owner": "Owner",
         "aiNote": "AI Note",
         "status": "Status",
+        "start": "Start",
+        "end": "Due",
         "actions": "Actions"
       },
       "pagination": {
@@ -9157,14 +9529,49 @@
         "perPage": "Per page",
         "pageUnit": "page"
       },
+      "pager": "Showing {from}–{to} of {total} records",
+      "pageSize": "Per page",
       "actions": {
         "detail": "Detail",
+        "open": "Open",
         "edit": "Edit",
+        "complete": "Complete",
+        "close": "Close",
+        "openContact": "Go to person",
+        "openPurchase": "Go to purchase",
         "assign": "Assign",
         "more": "More",
         "selectTask": "Select task {title}",
         "expand": "Show all",
         "collapse": "Show less"
+      },
+      "drawer": {
+        "title": "Task detail",
+        "person": "Person",
+        "project": "Project",
+        "unit": "Unit",
+        "owner": "Owner",
+        "created": "Created",
+        "updated": "Updated",
+        "due": "Due date",
+        "priority": "Priority",
+        "status": "Status",
+        "source": "Source",
+        "description": "Description",
+        "noDescription": "No description."
+      },
+      "form": {
+        "title": "Task title",
+        "description": "Description",
+        "person": "Person",
+        "project": "Project",
+        "purchase": "Purchase",
+        "owner": "Owner",
+        "due": "Due date",
+        "priority": "Priority",
+        "status": "Status",
+        "save": "Save",
+        "saving": "Saving…"
       },
       "dueUrgency": {
         "dueEndToday": "Due end of day",
@@ -9251,13 +9658,65 @@
     },
     "notes": {
       "title": "Notes",
-      "subtitle": "Manage all your notes related to people, companies, and projects.",
+      "subtitle": "Live CRM notes and comments.",
       "accessDenied": "You do not have permission to view notes.",
       "accessDeniedHint": "Contact your administrator for CRM note access.",
       "loadFailed": "Unable to load notes.",
       "emptyTitle": "No notes",
       "emptyDescription": "Create your first note.",
       "create": "New Note",
+      "unresolvedIdentity": "Identity could not be verified",
+      "loadMore": "Load more",
+      "filters": {
+        "aria": "Note filters",
+        "any": "All",
+        "search": "Search",
+        "searchPlaceholder": "Search notes…",
+        "person": "Person",
+        "personPlaceholder": "Person name…",
+        "project": "Project",
+        "allProjects": "All projects",
+        "owner": "Owner",
+        "allOwners": "All owners",
+        "dateFrom": "Date",
+        "dateTo": "To",
+        "clear": "Clear Filters"
+      },
+      "table": {
+        "aria": "Notes table",
+        "when": "Date / Time",
+        "note": "Note",
+        "person": "Person",
+        "project": "Project / Unit",
+        "author": "Author",
+        "source": "Source"
+      },
+      "pagination": {
+        "total": "{count} notes total"
+      },
+      "actions": {
+        "close": "Close",
+        "openContact": "Open Person",
+        "openPurchase": "Open Purchase"
+      },
+      "drawer": {
+        "title": "Note detail",
+        "author": "Author",
+        "when": "Date / Time",
+        "person": "Person",
+        "project": "Project / Unit",
+        "source": "Source",
+        "empty": "No note text."
+      },
+      "form": {
+        "body": "Note",
+        "person": "Person",
+        "project": "Project",
+        "purchase": "Purchase",
+        "save": "Save",
+        "saving": "Saving…",
+        "personRequired": "Select a person for the note."
+      },
       "ds": {
         "title": "Notes",
         "subtitle": "Manage all your notes related to people, companies, and projects.",
@@ -9430,6 +9889,10 @@
     "calendar": {
       "title": "Calendar",
       "subtitle": "Manage your meetings, tasks, and customer events from one place.",
+      "opsSubtitle": "Operational calendar — live dated CRM records only.",
+      "eventCount": "{count} events",
+      "emptyDay": "No events",
+      "unresolvedIdentity": "Person",
       "accessDenied": "You do not have permission to view the calendar.",
       "accessDeniedHint": "Contact your administrator for CRM calendar access.",
       "loadFailed": "Unable to load calendar.",
@@ -9446,7 +9909,8 @@
         "day": "Day",
         "week": "Week",
         "month": "Month",
-        "agenda": "Agenda"
+        "agenda": "Agenda",
+        "list": "List"
       },
       "days": {
         "mon": "Mon",
@@ -9481,10 +9945,88 @@
       "actions": {
         "newEvent": "New Event",
         "aiPlan": "AI Plan",
-        "filters": "Filters"
+        "filters": "Filters",
+        "openContact": "Open person",
+        "openPurchase": "Open purchase",
+        "openTask": "Open task",
+        "edit": "Edit",
+        "close": "Close",
+        "save": "Save"
       },
       "filters": {
-        "stub": "Filters are presentation-only — no live calendar engine is connected."
+        "stub": "Filters are presentation-only — no live calendar engine is connected.",
+        "aria": "Calendar filters",
+        "any": "All",
+        "person": "Person",
+        "personPlaceholder": "Person name…",
+        "project": "Project",
+        "allProjects": "All projects",
+        "type": "Type",
+        "owner": "Owner",
+        "allOwners": "All owners",
+        "clear": "Clear filters"
+      },
+      "kinds": {
+        "task": "Task",
+        "meeting": "Meeting",
+        "reminder": "Reminder",
+        "payment": "Payment",
+        "purchase": "Purchase",
+        "closing": "Closing",
+        "delivery": "Handover",
+        "document": "Document / Contract",
+        "other": "Other"
+      },
+      "status": {
+        "completed": "Completed",
+        "overdue": "Overdue"
+      },
+      "drawer": {
+        "title": "Event detail",
+        "datetime": "Date / time",
+        "date": "Date",
+        "time": "Time",
+        "type": "Type",
+        "person": "Person",
+        "project": "Project",
+        "projectUnit": "Project / Unit",
+        "unit": "Unit",
+        "owner": "Owner",
+        "status": "Status",
+        "source": "Source",
+        "description": "Description",
+        "noDescription": "No description."
+      },
+      "form": {
+        "title": "Title",
+        "kind": "Type",
+        "date": "Date",
+        "time": "Time",
+        "person": "Person",
+        "project": "Project",
+        "purchase": "Purchase",
+        "owner": "Owner",
+        "description": "Description"
+      },
+      "create": {
+        "title": "New event",
+        "task": "New task",
+        "meeting": "New meeting",
+        "reminder": "New reminder"
+      },
+      "table": {
+        "when": "Date / Time",
+        "title": "Title",
+        "person": "Person",
+        "project": "Project / Unit",
+        "type": "Type",
+        "owner": "Owner",
+        "actions": "Actions",
+        "open": "Open"
+      },
+      "overflow": {
+        "more": "+{count}",
+        "title": "{date} events"
       },
       "ai": {
         "aria": "Calendar AI actions",
@@ -11107,6 +11649,70 @@
         },
         "manageHint": "Manage {name}. Current count: {count}. Save to apply a presentation update."
       },
+      "communicationAccounts": {
+        "title": "Communication accounts",
+        "subtitle": "Investhome OS user Email and WhatsApp channels. CRM customer contacts stay separate.",
+        "navLabel": "Communication accounts",
+        "rowHint": "User-owned Email / WhatsApp",
+        "accessDenied": "You do not have permission to view communication accounts.",
+        "accessDeniedHint": "Contact your administrator for CRM settings access.",
+        "registerTitle": "Register a channel",
+        "noCredentialsHint": "Gmail uses the Connect Gmail button. Other providers can be registered here without live credentials.",
+        "viewOnlyHint": "You can see channels assigned to you. Connecting a live mailbox requires an administrator.",
+        "register": "Register account",
+        "registerFailed": "Could not register this account.",
+        "disconnect": "Disconnect",
+        "gmailTitle": "Gmail",
+        "gmailHint": "Pilot: connect one Gmail / Google Workspace mailbox. Inbox and Sent mail are ingested. Sending is not enabled.",
+        "gmailConnect": "Connect Gmail",
+        "gmailNotConfigured": "Gmail OAuth is not configured. Add Gmail API + redirect URI to the existing Google Drive OAuth client.",
+        "gmailConnected": "Gmail connected. Syncing the last 30 days of Inbox and Sent mail.",
+        "gmailConnectFailed": "Gmail connection failed ({reason}).",
+        "syncNow": "Sync now",
+        "syncStarted": "Gmail sync finished.",
+        "syncFailed": "Gmail sync failed.",
+        "loading": "Loading accounts…",
+        "emptyTitle": "No communication accounts",
+        "emptyDescription": "Register an Email or WhatsApp identity for an Investhome user. This does not send messages.",
+        "placeholders": {
+          "email": "sales@investhome.com.tr",
+          "phone": "+90 5xx xxx xx xx"
+        },
+        "fields": {
+          "user": "Investhome user",
+          "channel": "Channel",
+          "provider": "Provider",
+          "identity": "Connected account",
+          "label": "Label"
+        },
+        "channels": {
+          "email": "Email",
+          "whatsapp": "WhatsApp"
+        },
+        "columns": {
+          "user": "User",
+          "channel": "Channel",
+          "account": "Connected account",
+          "status": "Status",
+          "health": "Health",
+          "lastSync": "Last sync",
+          "actions": "Actions"
+        },
+        "status": {
+          "not_connected": "Not connected",
+          "pending": "Pending",
+          "connected": "Connected",
+          "error": "Error",
+          "needs_reauth": "Reauthorization required",
+          "disconnected": "Disconnected"
+        },
+        "health": {
+          "unknown": "Unknown",
+          "healthy": "Healthy",
+          "degraded": "Degraded",
+          "error": "Error"
+        }
+      },
       "notifications": {
         "title": "Notification Channels",
         "aria": "Notification channels",
@@ -11327,65 +11933,180 @@
         "description": "Try a different search or upload a new file."
       }
     },
+    "documentHub": {
+      "title": "Documents",
+      "subtitle": "Live CRM documents linked to real people and purchases.",
+      "kpis": {
+        "aria": "Document summary",
+        "total": "Total documents",
+        "person": "Person documents",
+        "purchase": "Purchase documents",
+        "hidden": "Hidden",
+        "unresolved": "Missing link / needs review"
+      },
+      "filters": {
+        "aria": "Document filters",
+        "search": "Search",
+        "searchPlaceholder": "Search file or person...",
+        "person": "Person",
+        "personPlaceholder": "Person name",
+        "project": "Project",
+        "unit": "Unit",
+        "unitPlaceholder": "Unit number",
+        "category": "Document type",
+        "source": "Source",
+        "date": "Date",
+        "visibility": "Status",
+        "clear": "Clear filters",
+        "anyProject": "All projects",
+        "anyCategory": "All types",
+        "anySource": "All sources",
+        "anyDate": "All dates",
+        "visible": "Visible",
+        "hidden": "Hidden",
+        "allVisibility": "All",
+        "today": "Today",
+        "d7": "7 days",
+        "d30": "30 days",
+        "d90": "90 days"
+      },
+      "categories": {
+        "passport": "Passport / ID",
+        "reservation": "Reservation",
+        "operating_agreement": "Operating Agreement",
+        "llc": "LLC / Certificate",
+        "payment": "SWIFT / Receipt",
+        "closing": "Closing / Title",
+        "offer": "Offer",
+        "warranty": "Warranty / Delivery",
+        "correspondence": "Correspondence",
+        "other": "Other"
+      },
+      "sources": {
+        "sale": "Sale document",
+        "activity": "Email / activity attachment",
+        "comment": "Comment attachment",
+        "import1812": "1812 import",
+        "manual": "Manual document"
+      },
+      "columns": {
+        "document": "Document",
+        "type": "Type",
+        "person": "Person",
+        "project": "Project / unit",
+        "source": "Source",
+        "date": "Date",
+        "status": "Status",
+        "actions": "Action"
+      },
+      "status": {
+        "visible": "Visible",
+        "hidden": "Hidden",
+        "review": "Needs review"
+      },
+      "tableAria": "Documents table",
+      "count": "{count} results",
+      "pager": "Showing {from}–{to} of {total}",
+      "pageSize": "Per page",
+      "download": "Download",
+      "more": "More actions",
+      "open": "Open",
+      "preview": "Open / preview",
+      "hide": "Hide",
+      "restore": "Restore",
+      "openPerson": "Open person",
+      "openPurchase": "Open purchase",
+      "historicalHint": "Historical unit {unit}",
+      "empty": "No documents match these filters.",
+      "previous": "Previous",
+      "next": "Next",
+      "drawerTitle": "Document detail",
+      "drawer": {
+        "filename": "Filename",
+        "category": "Category",
+        "size": "Size",
+        "date": "Date",
+        "source": "Source",
+        "person": "Linked person",
+        "purchase": "Linked purchase",
+        "unit": "Unit",
+        "historicalUnit": "Historical unit",
+        "currentUnit": "Current unit",
+        "checksum": "Checksum",
+        "sourceFile": "Source file"
+      }
+    },
     "tags": {
       "title": "Tags",
-      "subtitle": "CRM tags assigned to real contacts.",
-      "create": "Create tag",
+      "subtitle": "Live CRM tags assigned to real people.",
+      "create": "New tag",
       "edit": "Edit",
-      "delete": "Delete",
+      "view": "View",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
       "listAria": "Tag list",
-      "usageCount": "{count} uses",
+      "usageCount": "{count} people",
+      "accessDenied": "You do not have permission to view tags.",
+      "accessDeniedHint": "CRM read permission is required.",
+      "loadFailed": "Tags could not be loaded",
+      "kpis": {
+        "aria": "Tag summary",
+        "total": "Total tags",
+        "tagged": "Tagged people",
+        "untagged": "Untagged people"
+      },
       "filters": {
         "aria": "Tag filters",
         "search": "Search",
         "searchPlaceholder": "Search tags…",
-        "category": "Category",
-        "color": "Color",
-        "anyCategory": "All categories",
-        "anyColor": "All colors",
-        "clear": "Clear"
+        "status": "Status",
+        "anyStatus": "All statuses",
+        "clear": "Clear filters"
       },
-      "categories": {
-        "lifecycle": "Lifecycle",
-        "interest": "Interest",
-        "priority": "Priority",
-        "source": "Source",
-        "custom": "Custom"
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
       },
-      "colors": {
-        "navy": "Navy",
-        "cyan": "Cyan",
-        "green": "Green",
-        "amber": "Amber",
-        "rose": "Rose",
-        "violet": "Violet",
-        "slate": "Slate"
+      "columns": {
+        "name": "Tag",
+        "people": "People",
+        "status": "Status",
+        "updated": "Last updated",
+        "actions": "Action"
+      },
+      "table": {
+        "aria": "Tags table"
+      },
+      "drawer": {
+        "title": "Tag detail",
+        "created": "Created",
+        "updated": "Updated",
+        "people": "Linked people",
+        "noPeople": "No people are linked to this tag."
+      },
+      "actions": {
+        "close": "Close"
       },
       "empty": {
         "title": "No CRM tags",
-        "description": "No real CRM tags have been assigned yet."
+        "description": "There are no live CRM tags yet. You can create a new tag."
       },
       "form": {
-        "createTitle": "Create tag",
+        "createTitle": "New tag",
         "editTitle": "Edit tag",
-        "name": "Name",
+        "name": "Tag name",
         "namePlaceholder": "Tag name",
-        "color": "Color",
-        "category": "Category",
+        "nameRequired": "Tag name is required",
         "description": "Description",
-        "preview": "Preview",
+        "status": "Status",
         "cancel": "Cancel",
         "save": "Save",
-        "defaultDescription": "Custom CRM tag"
-      },
-      "deleteConfirm": {
-        "title": "Delete tag",
-        "message": "This removes the tag from the local list. Usage links are presentation-only."
+        "saving": "Saving…"
       },
       "toast": {
         "created": "Tag created",
         "updated": "Tag updated",
-        "deleted": "Tag deleted"
+        "statusChanged": "Tag status updated"
       }
     }
   },

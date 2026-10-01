@@ -10,7 +10,9 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
+from datetime import UTC, date, datetime
+
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from investhome_api.models.crm_activity import CrmActivity, CrmActivityEntityType, CrmActivityType
@@ -18,27 +20,51 @@ from investhome_api.models.crm_agreement import CrmAgreement, CrmAgreementPartic
 from investhome_api.models.crm_contact import CrmContact, CrmContactType
 from investhome_api.models.document import Document, DocumentLink
 from investhome_api.schemas.crm_agreements import (
+    CrmAgreementActivityItem,
+    CrmAgreementCalendarItem,
     CrmAgreementParticipantSummary,
     CrmAgreementSummary,
     CrmLabeledValue,
     CrmPurchaseCard,
     CrmPurchaseDocument,
+    CrmPurchaseDocumentGroup,
     CrmRelatedPurchase,
+    CrmUnitHistoryStep,
 )
 from investhome_api.schemas.crm_contacts import CrmContactTimelineEntry, CrmPurchaseParticipant, CrmPurchaseSummary
 from investhome_api.services.crm.bitrix_project_aliases import BITRIX_PROJECT_GROUP_LABELS, BitrixProjectGroup
 from investhome_api.services.crm.contact_service import paginate_total_pages
-from investhome_api.services.crm.identity import displayable_phone, is_agent_advisor_name
+from investhome_api.services.crm.document_surface import (
+    document_notes,
+    person_surface_documents,
+    purchase_linked_documents,
+)
+from investhome_api.services.crm.identity import displayable_phone, format_display_phone, is_agent_advisor_name
 from investhome_api.services.crm.nedim_purchase_card import (
     IZZET_CANONICAL_ID,
     NEDIM_CANONICAL_ID,
+    activity_deal_id,
     deal_id_for_agreement,
     is_deal_owned_activity,
     is_nedim_purchase_agreement,
 )
+from investhome_api.services.crm.unit_change import (
+    historical_unit_change_clause,
+    is_historical_unit_change,
+    unit_history_steps,
+)
 
 FILENAME_STAR = re.compile(r"filename\*=(?:UTF-8''|utf-8'')([^;]+)", re.I)
 BITRIX_TAG = re.compile(r"\[/?[^\]]+\]")
+_VALUE_FIELD_RE = re.compile(
+    r"tarih|date|kapanış|kapaniş|teslim|tapu|kira|fiyat|tutar|ödeme|odeme|kapora|"
+    r"deposit|peşinat|pesinat|ödenen|kalan|bakiye|paid|remaining|opportunity",
+    re.I,
+)
+_SKIP_VALUE_FIELD_RE = re.compile(
+    r"daire no|unit no|önceki daire|mülkiyet kaynağı|adres|address|lokasyon",
+    re.I,
+)
 
 
 def is_purchase_owner_contact(contact: CrmContact) -> bool:
@@ -52,7 +78,11 @@ def is_purchase_owner_contact(contact: CrmContact) -> bool:
     return True
 
 
-def _project_label(project_group: str) -> str:
+def _project_label(project_group: str, meta: dict[str, Any] | None = None) -> str:
+    payload = meta if isinstance(meta, dict) else {}
+    override = str(payload.get("original_project_label") or payload.get("project_label") or "").strip()
+    if override:
+        return override
     try:
         return BITRIX_PROJECT_GROUP_LABELS[BitrixProjectGroup(project_group)]
     except ValueError:
@@ -61,6 +91,18 @@ def _project_label(project_group: str) -> str:
 
 def _meta(row: CrmAgreement) -> dict[str, Any]:
     return row.metadata_json if isinstance(row.metadata_json, dict) else {}
+
+
+def _agreement_has_unit_change(row: CrmAgreement, meta: dict[str, Any]) -> bool:
+    if is_historical_unit_change(row):
+        return False
+    original = str(meta.get("original_unit") or "").strip()
+    final = str(meta.get("final_unit") or "").strip()
+    if original and final and original != final:
+        return True
+    if meta.get("previous_units") or meta.get("previous_agreement_id"):
+        return True
+    return bool(str(meta.get("unit_change_status") or "").strip())
 
 
 def _display_stage(meta: dict[str, Any], live: dict[str, Any]) -> str | None:
@@ -73,6 +115,76 @@ def _display_stage(meta: dict[str, Any], live: dict[str, Any]) -> str | None:
     if re.fullmatch(r"(C\d+:)?[A-Z0-9_]+", label):
         return None
     return label
+
+
+_LIFECYCLE_TR = {
+    "new": "Yeni",
+    "engaged": "Etkileşimde",
+    "qualified": "Nitelikli",
+    "active_relationship": "Aktif ilişki",
+    "dormant": "Durgun",
+    "churned": "Kaybedildi",
+}
+
+_DEAL_STATUS_TR = {
+    "won": "Kazanıldı",
+    "lost": "Kaybedildi",
+    "active": "Aktif",
+    "early": "Erken",
+}
+
+
+def _labeled_lookup(items: list[CrmLabeledValue], *labels: str) -> str | None:
+    wanted = {label.casefold() for label in labels}
+    for item in items:
+        if item.label.casefold() in wanted:
+            return item.value
+    return None
+
+
+def _optional_fields(meta: dict[str, Any], live: dict[str, Any]) -> dict[str, str | None]:
+    labeled = [
+        *_labeled_values(live.get("extra_fields") or meta.get("extra_fields")),
+        *_labeled_values(live.get("payment_fields") or meta.get("payment_fields")),
+        *_labeled_values(live.get("llc_fields") or meta.get("llc_fields")),
+    ]
+    status_raw = str(meta.get("bitrix_deal_status") or live.get("bitrix_deal_status") or "").strip().lower()
+    deposit = (
+        _labeled_lookup(labeled, "Ön Ödeme Tutarı", "Peşinat", "Kapora")
+        or (str(meta.get("deposit") or live.get("deposit") or meta.get("kapora") or live.get("kapora") or "").strip() or None)
+    )
+    return {
+        "payment_status": _DEAL_STATUS_TR.get(status_raw, status_raw or None),
+        "payment_method": _labeled_lookup(labeled, "Ödeme Şekli"),
+        "share_ratio": _labeled_lookup(labeled, "Ownership Percentage", "Sahiplik"),
+        "company_details": str(live.get("llc_name") or "").strip() or _labeled_lookup(labeled, "Şirket / LLC", "LLC"),
+        "payment_dates": _labeled_lookup(labeled, "Ödeme Tarihleri"),
+        "floor": _labeled_lookup(labeled, "Kat"),
+        "deposit_amount": deposit,
+        "potential_status": _labeled_lookup(labeled, "Potansiyel Durumu"),
+        "begin_date": str(meta.get("begin_date") or live.get("begin_date") or "").strip() or None,
+        "close_date": str(meta.get("close_date") or live.get("close_date") or "").strip() or None,
+        "responsible_name": (
+            str(live.get("assigned_name") or meta.get("responsible_person") or "").strip() or None
+        ),
+    }
+
+
+def _share_from_participants(participants: list[CrmAgreementParticipantSummary], fallback: str | None) -> str | None:
+    parts = [f"{item.display_name} {item.ownership_pct}%" for item in participants if item.ownership_pct]
+    if parts:
+        return " · ".join(parts)
+    return fallback
+
+
+def _parse_iso_date(value: Any) -> date | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        return date.fromisoformat(text[:10])
+    except ValueError:
+        return None
 
 
 def format_money(amount: str | None, currency: str | None) -> str | None:
@@ -143,15 +255,34 @@ def _contact_live(contact: CrmContact) -> dict[str, Any]:
 
 
 def _contact_address(contact: CrmContact) -> str | None:
-    parts = [
-        contact.address_line1,
+    line1 = str(contact.address_line1 or "").strip()
+    parts: list[str] = [line1] if line1 else []
+    for part in (
         contact.address_line2,
         contact.city,
+        contact.state_province,
         contact.postal_code,
         contact.country,
-    ]
-    joined = ", ".join(str(part).strip() for part in parts if part and str(part).strip())
-    return joined or None
+    ):
+        text = str(part).strip() if part else ""
+        if not text:
+            continue
+        if line1 and text.casefold() in line1.casefold():
+            continue
+        parts.append(text)
+    return ", ".join(parts) or None
+
+
+def _contact_responsible(contact: CrmContact) -> str | None:
+    live = _contact_live(contact)
+    assigned = str(live.get("assigned_name") or "").strip()
+    if assigned:
+        return assigned
+    meta = contact.metadata_json if isinstance(contact.metadata_json, dict) else {}
+    bitrix = meta.get("bitrix_import") if isinstance(meta.get("bitrix_import"), dict) else {}
+    extras = bitrix.get("source_extras") if isinstance(bitrix.get("source_extras"), dict) else {}
+    responsible = str(extras.get("responsible") or "").strip()
+    return responsible or None
 
 
 def _participant_summaries(
@@ -160,7 +291,6 @@ def _participant_summaries(
     ordered = sorted(participants, key=lambda item: (not item[0].is_primary, item[1].display_name.lower()))
     items: list[CrmAgreementParticipantSummary] = []
     for row, contact in ordered:
-        live = _contact_live(contact)
         items.append(
             CrmAgreementParticipantSummary(
                 contact_id=contact.id,
@@ -169,12 +299,12 @@ def _participant_summaries(
                 ownership_pct=_pct_text(row.ownership_pct),
                 is_primary=bool(row.is_primary),
                 source=row.source,
-                phone=displayable_phone(contact.primary_phone),
+                phone=format_display_phone(contact.primary_phone),
                 email=contact.primary_email,
                 address=_contact_address(contact),
                 company=contact.organization_name,
                 position=contact.job_title,
-                responsible=str(live.get("assigned_name") or "").strip() or None,
+                responsible=_contact_responsible(contact),
             )
         )
     return items
@@ -194,8 +324,8 @@ def serialize_agreement(
     contact_name: str | None = None,
     participants: list[tuple[CrmAgreementParticipant, CrmContact]] | None = None,
 ) -> CrmAgreementSummary:
-    label = _project_label(row.project_group)
     meta = _meta(row)
+    label = _project_label(row.project_group, meta)
     fields = meta.get("agreement_fields") if isinstance(meta.get("agreement_fields"), dict) else {}
     email = None
     phone = None
@@ -226,6 +356,12 @@ def serialize_agreement(
     if not amount:
         amount = str(investment_amount) if investment_amount else None
     stage_label = _display_stage(meta, live)
+    extras = _optional_fields(meta, live)
+    journey = None
+    if contact is not None and getattr(contact, "lifecycle_stage", None) is not None:
+        raw_stage = contact.lifecycle_stage.value if hasattr(contact.lifecycle_stage, "value") else str(contact.lifecycle_stage)
+        journey = _LIFECYCLE_TR.get(raw_stage, raw_stage)
+    share = _share_from_participants(participant_rows, extras.get("share_ratio"))
     return CrmAgreementSummary(
         id=row.id,
         contact_id=row.contact_id,
@@ -249,7 +385,22 @@ def serialize_agreement(
         bitrix_deal_id=deal_id,
         amount_label=format_money(amount, currency) if amount else None,
         stage_label=stage_label,
+        hemen_kira=bool(getattr(row, "hemen_kira", False)),
+        responsible_name=extras.get("responsible_name") or (participant_rows[0].responsible if participant_rows else None),
+        payment_status=extras.get("payment_status"),
+        payment_method=extras.get("payment_method"),
+        share_ratio=share,
+        company_details=extras.get("company_details"),
+        payment_dates=extras.get("payment_dates"),
+        floor=extras.get("floor"),
+        deposit_amount=extras.get("deposit_amount"),
+        customer_journey=journey,
+        potential_status=extras.get("potential_status"),
+        begin_date=extras.get("begin_date"),
+        close_date=extras.get("close_date"),
+        joint_owners=len(participant_rows) > 1,
         participants=participant_rows,
+        has_unit_change=_agreement_has_unit_change(row, meta),
     )
 
 
@@ -287,6 +438,8 @@ def list_agreements(
         query = query.where(CrmAgreement.project_group == project_group)
     if status is not None:
         query = query.where(CrmAgreement.status == status)
+    else:
+        query = query.where(~historical_unit_change_clause())
     if contact_id is not None:
         query = query.where(CrmAgreement.contact_id == contact_id)
 
@@ -304,6 +457,20 @@ def list_agreements(
         for contact in db.scalars(select(CrmContact).where(CrmContact.id.in_(contact_ids))).all():
             contacts[contact.id] = contact
     participants_map = _load_participants_map(db, {row.id for row in rows})
+    next_map = _next_activity_map(db, rows, participants_map)
+    siblings_by_key: dict[tuple[UUID, str], list[CrmAgreement]] = defaultdict(list)
+    historical_rows: list[CrmAgreement] = []
+    if contact_ids:
+        historical_rows = list(
+            db.scalars(
+                select(CrmAgreement).where(
+                    historical_unit_change_clause(),
+                    CrmAgreement.contact_id.in_(contact_ids),
+                )
+            ).all()
+        )
+    for row in [*rows, *historical_rows]:
+        siblings_by_key[(row.contact_id, row.project_group)].append(row)
     items = [
         serialize_agreement(
             row,
@@ -313,6 +480,12 @@ def list_agreements(
         )
         for row in rows
     ]
+    for item, row in zip(items, rows, strict=True):
+        _apply_agreement_list_value_display(item, row, siblings_by_key.get((row.contact_id, row.project_group), []))
+        nxt = next_map.get(item.id)
+        if nxt:
+            item.next_activity_title = nxt[0]
+            item.next_activity_at = nxt[1]
     return items, int(total)
 
 
@@ -342,6 +515,8 @@ def _document_source_label(notes: dict[str, Any]) -> str | None:
     raw = str(notes.get("source_type") or notes.get("source") or "").strip().lower()
     if raw in {"deal_uf", "uf"}:
         return "Satış belgesi"
+    if raw in {"manual_import", "sale_document"}:
+        return "Manuel belge"
     if raw in {"activity", "email", "crm_activity", "activity_attachment"}:
         return "E-posta / Aktivite eki"
     if str(notes.get("bitrix_entity_type") or "").lower() == "deal":
@@ -395,6 +570,167 @@ def _deal_tutar_from_contact(contact: CrmContact | None, deal_id: str | None) ->
     return None, None
 
 
+def _display_text(value: Any) -> str | None:
+    text = str(value or "").strip()
+    return text or None
+
+
+def _is_unit_change_current(row: Any) -> bool:
+    if is_historical_unit_change(row):
+        return False
+    meta = _meta(row)
+    if meta.get("previous_agreement_id") or meta.get("previous_units"):
+        return True
+    original = str(meta.get("original_unit") or "").strip()
+    final = str(meta.get("final_unit") or "").strip()
+    if original and final and original != final:
+        return True
+    return bool(str(meta.get("unit_change_status") or "").strip())
+
+
+def _unit_change_source_rows(focus: Any, siblings: list[Any]) -> list[Any]:
+    if is_historical_unit_change(focus):
+        return []
+    steps = unit_history_steps(focus, siblings)
+    if len(steps) < 2:
+        return []
+    by_id = {getattr(row, "id", None): row for row in siblings}
+    by_id[getattr(focus, "id", None)] = focus
+    sources: list[Any] = []
+    for step in steps:
+        if step.is_current:
+            continue
+        row = by_id.get(step.agreement_id)
+        if row is not None:
+            sources.append(row)
+    return sources
+
+
+def _coalesce_purchase_amount(
+    current_amount: str | None,
+    current_currency: str | None,
+    sources: list[Any],
+) -> tuple[str | None, str | None, str | None]:
+    if current_amount:
+        return current_amount, current_currency, format_money(current_amount, current_currency)
+    seen: list[tuple[str, str | None]] = []
+    for row in sources:
+        amount, currency = _purchase_amount(row)
+        if not amount:
+            continue
+        key = (amount, currency)
+        if key in seen:
+            continue
+        seen.append(key)
+    if not seen:
+        return None, None, None
+    if len(seen) == 1:
+        amount, currency = seen[0]
+        return amount, currency, format_money(amount, currency)
+    labels = [format_money(amount, currency) or amount for amount, currency in seen]
+    raw = " + ".join(amount for amount, _currency in seen)
+    currency = next((item[1] for item in seen if item[1]), None)
+    return raw, currency, " + ".join(labels)
+
+
+def _iso_date_text(value: Any) -> str | None:
+    text = _display_text(value)
+    if not text:
+        return None
+    return text[:10] if re.match(r"\d{4}-\d{2}-\d{2}", text) else text
+
+
+def _source_begin_date(row: Any) -> str | None:
+    meta = _meta(row)
+    live = meta.get("bitrix_live") if isinstance(meta.get("bitrix_live"), dict) else {}
+    return _iso_date_text(meta.get("begin_date") or live.get("begin_date") or getattr(row, "agreement_date", None))
+
+
+def _source_close_date(row: Any) -> str | None:
+    meta = _meta(row)
+    live = meta.get("bitrix_live") if isinstance(meta.get("bitrix_live"), dict) else {}
+    return _iso_date_text(meta.get("close_date") or live.get("close_date"))
+
+
+def _is_copyable_value_field(label: str) -> bool:
+    if _SKIP_VALUE_FIELD_RE.search(label or ""):
+        return False
+    return bool(_VALUE_FIELD_RE.search(label or ""))
+
+
+def _row_labeled_fields(row: Any, key: str) -> list[CrmLabeledValue]:
+    meta = _meta(row)
+    live = meta.get("bitrix_live") if isinstance(meta.get("bitrix_live"), dict) else {}
+    return _labeled_values(live.get(key) or meta.get(key))
+
+
+def _merge_labeled_value_fields(
+    current: list[CrmLabeledValue],
+    sources: list[list[CrmLabeledValue]],
+) -> list[CrmLabeledValue]:
+    present = {item.label.casefold() for item in current}
+    merged = list(current)
+    for group in sources:
+        for item in group:
+            key = item.label.casefold()
+            if key in present or not _is_copyable_value_field(item.label):
+                continue
+            present.add(key)
+            merged.append(item)
+    return merged
+
+
+def _first_source_date(sources: list[Any], getter) -> str | None:
+    for row in sources:
+        value = getter(row)
+        if value:
+            return value
+    return None
+
+
+def _apply_unit_change_value_display(
+    summary: CrmPurchaseSummary,
+    focus: Any,
+    siblings: list[Any],
+) -> list[Any]:
+    sources = _unit_change_source_rows(focus, siblings)
+    if not sources:
+        return []
+    amount, currency, label = _coalesce_purchase_amount(summary.amount, summary.currency, sources)
+    summary.amount = amount
+    summary.currency = currency
+    summary.amount_label = label
+    if not summary.begin_date:
+        summary.begin_date = _first_source_date(sources, _source_begin_date)
+    if not summary.close_date:
+        summary.close_date = _first_source_date(sources, _source_close_date)
+    return sources
+
+
+def _apply_agreement_list_value_display(
+    summary: CrmAgreementSummary,
+    focus: Any,
+    siblings: list[Any],
+) -> None:
+    sources = _unit_change_source_rows(focus, siblings)
+    if not sources:
+        return
+    if not summary.amount_label:
+        amount, _currency, label = _coalesce_purchase_amount(None, None, sources)
+        summary.amount_label = label
+        if amount and not summary.investment_amount:
+            summary.investment_amount = amount
+    if not summary.begin_date:
+        summary.begin_date = _first_source_date(sources, _source_begin_date)
+    if not summary.close_date:
+        summary.close_date = _first_source_date(sources, _source_close_date)
+    if summary.agreement_date is None:
+        for source in sources:
+            if getattr(source, "agreement_date", None):
+                summary.agreement_date = source.agreement_date
+                break
+
+
 def serialize_purchase_summary(
     row: CrmAgreement,
     *,
@@ -403,8 +739,9 @@ def serialize_purchase_summary(
 ) -> CrmPurchaseSummary:
     meta = _meta(row)
     deal_id = deal_id_for_agreement(row.id, meta)
+    historical = is_historical_unit_change(row)
     amount, currency = _purchase_amount(row)
-    if not amount:
+    if not amount and not historical and not _is_unit_change_current(row):
         amount, currency = _deal_tutar_from_contact(contact, deal_id)
     live = meta.get("bitrix_live") if isinstance(meta.get("bitrix_live"), dict) else {}
     summaries = _participant_summaries(participants)
@@ -431,11 +768,12 @@ def serialize_purchase_summary(
         for item in summaries
     ]
     stage_label = _display_stage(meta, live)
+    change_status = str(meta.get("unit_change_status") or "").strip() or None
     return CrmPurchaseSummary(
         agreement_id=row.id,
         bitrix_deal_id=deal_id,
         project_group=row.project_group,
-        project_label=_project_label(row.project_group),
+        project_label=_project_label(row.project_group, meta),
         unit_number=row.unit_number,
         amount=amount,
         currency=currency,
@@ -446,7 +784,116 @@ def serialize_purchase_summary(
         owners_label=_owners_label(summaries, contact.display_name if contact else None),
         participants=purchase_participants,
         opens_purchase_card=True,
-        status=stage_label or (row.status.value if hasattr(row.status, "value") else str(row.status)),
+        status=stage_label,
+        hemen_kira=bool(getattr(row, "hemen_kira", False)),
+        is_historical_unit_change=historical,
+        unit_change_status=change_status,
+        original_unit=str(meta.get("original_unit") or "").strip() or None,
+        final_unit=str(meta.get("final_unit") or "").strip() or None,
+        unit_history=[],
+    )
+
+
+def _compact_change_project(raw: Any) -> str | None:
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    if re.search(r"2617", text, re.I):
+        return "2617 Penn"
+    if re.search(r"\b1812\b", text, re.I):
+        return "1812"
+    cleaned = re.sub(r"\s+LLC$", "", text, flags=re.I).strip()
+    return cleaned or None
+
+
+def _step_project_label(row: CrmAgreement | None, *, is_current: bool) -> str | None:
+    if row is None:
+        return None
+    meta = _meta(row)
+    unit = str(row.unit_number or "").strip()
+    sequence = meta.get("unit_change_sequence")
+    if isinstance(sequence, list):
+        for item in sequence:
+            if isinstance(item, dict) and str(item.get("unit") or "").strip() == unit:
+                label = _compact_change_project(item.get("project"))
+                if label:
+                    return label
+    if not is_current:
+        return _compact_change_project(meta.get("original_project_label") or meta.get("llc_name"))
+    return _compact_change_project(_project_label(row.project_group, meta))
+
+
+def _serialize_unit_history(focus: CrmAgreement, siblings: list[CrmAgreement]) -> list[CrmUnitHistoryStep]:
+    by_id = {row.id: row for row in siblings}
+    by_id[focus.id] = focus
+    return [
+        CrmUnitHistoryStep(
+            agreement_id=step.agreement_id,
+            unit_number=step.unit_number,
+            is_current=step.is_current,
+            is_historical_unit_change=step.is_historical_unit_change,
+            contact_id=step.contact_id,
+            project_label=_step_project_label(by_id.get(step.agreement_id), is_current=step.is_current),
+        )
+        for step in unit_history_steps(focus, siblings)
+    ]
+
+
+def _purchase_document_groups(
+    db: Session,
+    *,
+    focus: CrmAgreement,
+    steps: list[CrmUnitHistoryStep],
+    deal_id: str | None,
+    include_hidden: bool,
+) -> list[CrmPurchaseDocumentGroup]:
+    if len(steps) < 2:
+        return []
+    ordered = [step for step in steps if step.is_current] + [step for step in steps if not step.is_current]
+    seen: set[UUID] = set()
+    groups: list[CrmPurchaseDocumentGroup] = []
+    for step in ordered:
+        docs = purchase_documents(
+            db,
+            step.agreement_id,
+            deal_id if step.agreement_id == focus.id else None,
+            include_hidden=include_hidden,
+        )
+        unique = [item for item in docs if item.id not in seen]
+        for item in unique:
+            seen.add(item.id)
+        groups.append(
+            CrmPurchaseDocumentGroup(
+                unit_number=step.unit_number,
+                is_current=step.is_current,
+                agreement_id=step.agreement_id,
+                documents=unique,
+            )
+        )
+    return groups
+
+
+def _contact_project_agreements(
+    db: Session,
+    contact_id: UUID,
+    project_group: str,
+) -> list[CrmAgreement]:
+    owned_ids = set(db.scalars(select(CrmAgreement.id).where(CrmAgreement.contact_id == contact_id)).all())
+    participant_ids = set(
+        db.scalars(
+            select(CrmAgreementParticipant.agreement_id).where(CrmAgreementParticipant.contact_id == contact_id)
+        ).all()
+    )
+    agreement_ids = owned_ids | participant_ids
+    if not agreement_ids:
+        return []
+    return list(
+        db.scalars(
+            select(CrmAgreement).where(
+                CrmAgreement.id.in_(agreement_ids),
+                CrmAgreement.project_group == project_group,
+            )
+        ).all()
     )
 
 
@@ -479,6 +926,13 @@ def list_contact_purchases(db: Session, contact_id: UUID) -> list[CrmPurchaseSum
         )
         for row in rows
     ]
+    rows_by_project: dict[str, list[CrmAgreement]] = defaultdict(list)
+    for row in rows:
+        rows_by_project[row.project_group].append(row)
+    for summary, row in zip(summaries, rows, strict=True):
+        siblings = rows_by_project.get(row.project_group, [])
+        summary.unit_history = _serialize_unit_history(row, siblings)
+        _apply_unit_change_value_display(summary, row, siblings)
     summaries.sort(
         key=lambda item: (
             item.project_label or "",
@@ -551,48 +1005,71 @@ def purchase_history(db: Session, *, deal_id: str | None, contact_ids: set[UUID]
     return entries
 
 
-def purchase_documents(db: Session, agreement_id: UUID, deal_id: str | None) -> list[CrmPurchaseDocument]:
-    linked_ids = list(
-        db.scalars(
-            select(DocumentLink.document_id).where(
-                DocumentLink.entity_type == "crm_agreement",
-                DocumentLink.entity_id == agreement_id,
+def set_document_surface_hidden(
+    db: Session,
+    *,
+    document_id: UUID,
+    entity_type: str,
+    entity_id: UUID,
+    hidden: bool,
+) -> DocumentLink:
+    document = db.get(Document, document_id)
+    if document is None:
+        raise ValueError("document_not_found")
+    aliases = {
+        "crm_contact": ("crm_contact", "contact"),
+        "contact": ("crm_contact", "contact"),
+    }
+    surfaces = aliases.get(entity_type, (entity_type,))
+    primary: DocumentLink | None = None
+    for surface in surfaces:
+        link = db.scalar(
+            select(DocumentLink).where(
+                DocumentLink.document_id == document_id,
+                DocumentLink.entity_type == surface,
+                DocumentLink.entity_id == entity_id,
             )
-        ).all()
-    )
-    documents: list[Document] = []
-    if linked_ids:
-        documents.extend(db.scalars(select(Document).where(Document.id.in_(linked_ids))).all())
-    if deal_id:
-        extras = list(
-            db.scalars(
-                select(Document).where(
-                    Document.notes.is_not(None),
-                    Document.notes.ilike(f"%bitrix_entity_id%"),
-                    Document.notes.ilike(f"%{deal_id}%"),
-                )
-            ).all()
         )
-        seen = {item.id for item in documents}
-        for document in extras:
-            notes = _document_notes(document)
-            if (
-                str(notes.get("bitrix_entity_type") or "").lower() == "deal"
-                and str(notes.get("bitrix_entity_id") or "") == deal_id
-                and document.id not in seen
-            ):
-                documents.append(document)
-                seen.add(document.id)
+        if link is None:
+            link = DocumentLink(
+                document_id=document_id,
+                entity_type=surface,
+                entity_id=entity_id,
+                relationship_type="crm_view",
+            )
+            db.add(link)
+            db.flush()
+        link.hidden_from_view = hidden
+        if surface == entity_type or primary is None:
+            primary = link
+    db.flush()
+    if primary is None:
+        raise ValueError("document_not_found")
+    return primary
+
+
+def _document_notes(document: Document) -> dict[str, Any]:
+    return document_notes(document)
+
+
+def _serialize_purchase_documents(
+    db: Session,
+    documents: list[Document],
+    *,
+    hidden_ids: set[UUID],
+    include_hidden: bool,
+) -> list[CrmPurchaseDocument]:
     items: list[CrmPurchaseDocument] = []
     seen_docs: set[UUID] = set()
     for document in documents:
         if document.id in seen_docs:
             continue
         seen_docs.add(document.id)
-        notes = _document_notes(document)
-        if deal_id and not _is_deal_owned_document(notes, deal_id):
-            continue
+        notes = document_notes(document)
         filename = _display_filename(document.original_file_name, document.title) or document.original_file_name
+        hidden = document.id in hidden_ids
+        if hidden and not include_hidden:
+            continue
         items.append(
             CrmPurchaseDocument(
                 id=document.id,
@@ -604,16 +1081,20 @@ def purchase_documents(db: Session, agreement_id: UUID, deal_id: str | None) -> 
                 document_type=_file_type_label(document.mime_type, filename),
                 mime_type=document.mime_type,
                 source=_document_source_label(notes),
+                checksum=document.checksum or None,
+                hidden_from_view=hidden,
                 created_at=document.created_at,
             )
         )
     seen_files: set[str] = set()
     unique: list[CrmPurchaseDocument] = []
+    items.sort(key=lambda item: 0 if item.source == "Satış belgesi" else 1)
     for item in items:
-        file_id = item.bitrix_file_id or str(item.id)
-        if file_id in seen_files:
+        keys = [key for key in (item.bitrix_file_id, item.checksum, str(item.id)) if key]
+        if any(key in seen_files for key in keys):
             continue
-        seen_files.add(file_id)
+        for key in keys:
+            seen_files.add(key)
         unique.append(item)
     unique.sort(
         key=lambda item: (
@@ -623,6 +1104,69 @@ def purchase_documents(db: Session, agreement_id: UUID, deal_id: str | None) -> 
         )
     )
     return unique
+
+
+def purchase_documents(
+    db: Session,
+    agreement_id: UUID,
+    deal_id: str | None = None,
+    *,
+    include_hidden: bool = False,
+) -> list[CrmPurchaseDocument]:
+    del deal_id
+    links = list(
+        db.scalars(
+            select(DocumentLink).where(
+                DocumentLink.entity_type == "crm_agreement",
+                DocumentLink.entity_id == agreement_id,
+            )
+        ).all()
+    )
+    hidden_ids = {link.document_id for link in links if link.hidden_from_view}
+    documents = purchase_linked_documents(db, agreement_id, include_hidden=include_hidden)
+    return _serialize_purchase_documents(db, documents, hidden_ids=hidden_ids, include_hidden=include_hidden)
+
+
+def person_documents_for_purchase(
+    db: Session,
+    *,
+    contact_ids: set[UUID],
+    agreement_id: UUID,
+    purchase_doc_ids: set[UUID],
+    include_hidden: bool = False,
+) -> list[CrmPurchaseDocument]:
+    owner_agreement_ids = set(
+        db.scalars(
+            select(CrmAgreement.id).where(
+                or_(
+                    CrmAgreement.contact_id.in_(contact_ids),
+                    CrmAgreement.id.in_(
+                        select(CrmAgreementParticipant.agreement_id).where(
+                            CrmAgreementParticipant.contact_id.in_(contact_ids)
+                        )
+                    ),
+                )
+            )
+        ).all()
+    )
+    documents = person_surface_documents(
+        db,
+        contact_ids,
+        exclude_ids=purchase_doc_ids,
+        owner_agreement_ids=owner_agreement_ids,
+    )
+    hidden_ids: set[UUID] = set()
+    if not include_hidden:
+        hidden_ids = set(
+            db.scalars(
+                select(DocumentLink.document_id).where(
+                    DocumentLink.entity_type.in_(("crm_contact", "contact")),
+                    DocumentLink.entity_id.in_(contact_ids),
+                    DocumentLink.hidden_from_view.is_(True),
+                )
+            ).all()
+        )
+    return _serialize_purchase_documents(db, documents, hidden_ids=hidden_ids, include_hidden=include_hidden)
 
 
 def _labeled_values(raw: Any) -> list[CrmLabeledValue]:
@@ -643,27 +1187,55 @@ def get_purchase_card(
     db: Session,
     agreement_id: UUID,
     viewer_contact_id: UUID | None = None,
+    *,
+    include_hidden_documents: bool = False,
 ) -> CrmPurchaseCard | None:
     row = get_agreement(db, agreement_id)
     if row is None:
         return None
     contact = db.get(CrmContact, row.contact_id)
     participants = _load_participants_map(db, {row.id}).get(row.id, [])
+    siblings = _contact_project_agreements(db, row.contact_id, row.project_group)
     summary = serialize_purchase_summary(row, contact=contact, participants=participants)
+    sources = _apply_unit_change_value_display(summary, row, siblings)
     owner_rows = _participant_summaries(participants)
     contact_ids = {row.contact_id, *(item.contact_id for item in owner_rows)}
     if is_nedim_purchase_agreement(row.id):
         contact_ids.add(NEDIM_CANONICAL_ID)
         contact_ids.add(IZZET_CANONICAL_ID)
     history = purchase_history(db, deal_id=summary.bitrix_deal_id, contact_ids=contact_ids)
-    documents = purchase_documents(db, row.id, summary.bitrix_deal_id)
+    documents = purchase_documents(
+        db,
+        row.id,
+        summary.bitrix_deal_id,
+        include_hidden=include_hidden_documents,
+    )
+    unit_history = _serialize_unit_history(row, siblings)
+    document_groups = _purchase_document_groups(
+        db,
+        focus=row,
+        steps=unit_history,
+        deal_id=summary.bitrix_deal_id,
+        include_hidden=include_hidden_documents,
+    )
+    grouped_ids = {item.id for group in document_groups for item in group.documents}
+    person_docs = person_documents_for_purchase(
+        db,
+        contact_ids=contact_ids,
+        agreement_id=row.id,
+        purchase_doc_ids={item.id for item in documents} | grouped_ids,
+        include_hidden=include_hidden_documents,
+    )
     meta = _meta(row)
     live = meta.get("bitrix_live") if isinstance(meta.get("bitrix_live"), dict) else {}
     related: list[CrmRelatedPurchase] = []
-    if is_nedim_purchase_agreement(row.id):
-        source_id = NEDIM_CANONICAL_ID
-        if viewer_contact_id == IZZET_CANONICAL_ID:
-            source_id = IZZET_CANONICAL_ID
+    change_related = bool(meta.get("unit_change_status") or meta.get("historical_unit_change"))
+    if is_nedim_purchase_agreement(row.id) or change_related:
+        source_id = row.contact_id
+        if is_nedim_purchase_agreement(row.id):
+            source_id = NEDIM_CANONICAL_ID
+            if viewer_contact_id == IZZET_CANONICAL_ID:
+                source_id = IZZET_CANONICAL_ID
         for item in list_contact_purchases(db, source_id):
             related.append(
                 CrmRelatedPurchase(
@@ -673,6 +1245,7 @@ def get_purchase_card(
                     amount_label=item.amount_label,
                     owners_label=item.owners_label,
                     is_current=item.agreement_id == row.id,
+                    is_historical_unit_change=bool(item.is_historical_unit_change),
                 )
             )
         if len(related) <= 1:
@@ -690,9 +1263,37 @@ def get_purchase_card(
             payment[key] = meta.get(key)
         elif live.get(key):
             payment[key] = live.get(key)
+        elif sources:
+            for source in sources:
+                source_meta = _meta(source)
+                source_live = source_meta.get("bitrix_live") if isinstance(source_meta.get("bitrix_live"), dict) else {}
+                value = source_meta.get(key) or source_live.get(key)
+                if value:
+                    payment[key] = value
+                    break
     payment_fields = _labeled_values(live.get("payment_fields") or meta.get("payment_fields"))
+    extra_fields = _labeled_values(live.get("extra_fields") or meta.get("extra_fields"))
+    if sources:
+        payment_fields = _merge_labeled_value_fields(
+            payment_fields,
+            [_row_labeled_fields(source, "payment_fields") for source in sources],
+        )
+        extra_fields = _merge_labeled_value_fields(
+            extra_fields,
+            [_row_labeled_fields(source, "extra_fields") for source in sources],
+        )
     if payment.get("payment_notes") and not any(item.label == "Ödeme notu" for item in payment_fields):
         payment_fields.append(CrmLabeledValue(label="Ödeme notu", value=str(payment["payment_notes"])))
+    agreement_date = row.agreement_date
+    if agreement_date is None and sources:
+        for source in sources:
+            if source.agreement_date:
+                agreement_date = source.agreement_date
+                break
+            parsed = _parse_iso_date(_source_begin_date(source))
+            if parsed:
+                agreement_date = parsed
+                break
     return CrmPurchaseCard(
         agreement_id=row.id,
         bitrix_deal_id=summary.bitrix_deal_id,
@@ -713,14 +1314,305 @@ def get_purchase_card(
         history=history,
         history_count=len(history),
         documents=documents,
-        document_count=len(documents),
+        document_count=len([item for item in documents if not item.hidden_from_view]),
+        document_groups=document_groups,
+        person_documents=person_docs,
+        person_document_count=len([item for item in person_docs if not item.hidden_from_view]),
         responsible_name=str(live.get("assigned_name") or "").strip() or None,
         comments=_plain_text(live.get("comments") or meta.get("comments")),
-        agreement_date=row.agreement_date,
+        agreement_date=agreement_date,
         related_purchases=related,
         primary_contact_name=contact.display_name if contact else None,
         llc_name=str(live.get("llc_name") or "").strip() or None,
         payment_fields=payment_fields,
         llc_fields=_labeled_values(live.get("llc_fields") or meta.get("llc_fields")),
-        extra_fields=_labeled_values(live.get("extra_fields") or meta.get("extra_fields")),
+        extra_fields=extra_fields,
+        hemen_kira=bool(getattr(row, "hemen_kira", False)),
+        unit_history=unit_history,
     )
+
+
+def patch_agreement_hemen_kira(db: Session, agreement_id: UUID, hemen_kira: bool) -> CrmPurchaseCard | None:
+    row = get_agreement(db, agreement_id)
+    if row is None:
+        return None
+    row.hemen_kira = bool(hemen_kira)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return get_purchase_card(db, agreement_id)
+
+
+def _agreement_index(
+    db: Session,
+    *,
+    project_group: str | None = None,
+    contact_id: UUID | None = None,
+) -> list[CrmAgreement]:
+    query = select(CrmAgreement).where(~historical_unit_change_clause())
+    if project_group:
+        query = query.where(CrmAgreement.project_group == project_group)
+    if contact_id is not None:
+        query = query.where(
+            or_(
+                CrmAgreement.contact_id == contact_id,
+                CrmAgreement.id.in_(
+                    select(CrmAgreementParticipant.agreement_id).where(
+                        CrmAgreementParticipant.contact_id == contact_id
+                    )
+                ),
+            )
+        )
+    return list(db.scalars(query).all())
+
+
+def _deal_agreement_maps(
+    rows: list[CrmAgreement],
+    participants_map: dict[UUID, list[tuple[CrmAgreementParticipant, CrmContact]]],
+) -> tuple[dict[str, CrmAgreement], dict[UUID, CrmAgreement], set[UUID]]:
+    deal_map: dict[str, CrmAgreement] = {}
+    id_map: dict[UUID, CrmAgreement] = {}
+    contact_ids: set[UUID] = set()
+    for row in rows:
+        id_map[row.id] = row
+        contact_ids.add(row.contact_id)
+        for participant, _contact in participants_map.get(row.id, []):
+            contact_ids.add(participant.contact_id)
+        deal_id = deal_id_for_agreement(row.id, _meta(row))
+        if deal_id:
+            deal_map[deal_id] = row
+    return deal_map, id_map, contact_ids
+
+
+def _next_activity_map(
+    db: Session,
+    rows: list[CrmAgreement],
+    participants_map: dict[UUID, list[tuple[CrmAgreementParticipant, CrmContact]]],
+) -> dict[UUID, tuple[str, datetime | None]]:
+    if not rows:
+        return {}
+    deal_map, _id_map, contact_ids = _deal_agreement_maps(rows, participants_map)
+    if not contact_ids:
+        return {}
+    now = datetime.now(tz=UTC)
+    activities = list(
+        db.scalars(
+            select(CrmActivity).where(
+                CrmActivity.entity_type == CrmActivityEntityType.CONTACT,
+                CrmActivity.entity_id.in_(contact_ids),
+                CrmActivity.archived_at.is_(None),
+                or_(CrmActivity.due_date >= now, CrmActivity.start_date >= now),
+            ).order_by(CrmActivity.due_date.asc().nullslast(), CrmActivity.start_date.asc().nullslast())
+        ).all()
+    )
+    result: dict[UUID, tuple[str, datetime | None]] = {}
+    for activity in activities:
+        deal_id = activity_deal_id(activity.metadata_json if isinstance(activity.metadata_json, dict) else None)
+        row = deal_map.get(deal_id) if deal_id else None
+        if row is None or row.id in result:
+            continue
+        result[row.id] = (activity.title, activity.due_date or activity.start_date)
+    return result
+
+
+def _activity_actor(db: Session, activity: CrmActivity) -> str | None:
+    entry = _activity_entry(db, activity)
+    return entry.actor_name
+
+
+def list_purchase_activities(
+    db: Session,
+    *,
+    project_group: str | None = None,
+    contact_id: UUID | None = None,
+    activity_type: str | None = None,
+    responsible: str | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    page: int = 1,
+    page_size: int = 50,
+) -> tuple[list[CrmAgreementActivityItem], int]:
+    rows = _agreement_index(db, project_group=project_group, contact_id=contact_id)
+    if not rows:
+        return [], 0
+    participants_map = _load_participants_map(db, {row.id for row in rows})
+    deal_map, _id_map, contact_ids = _deal_agreement_maps(rows, participants_map)
+    contacts = {
+        contact.id: contact
+        for contact in db.scalars(select(CrmContact).where(CrmContact.id.in_(contact_ids))).all()
+    }
+    query = select(CrmActivity).where(
+        CrmActivity.entity_type == CrmActivityEntityType.CONTACT,
+        CrmActivity.entity_id.in_(contact_ids),
+        CrmActivity.archived_at.is_(None),
+    )
+    if activity_type:
+        try:
+            query = query.where(CrmActivity.activity_type == CrmActivityType(activity_type))
+        except ValueError:
+            return [], 0
+    if date_from is not None:
+        query = query.where(
+            or_(CrmActivity.created_at >= date_from, CrmActivity.start_date >= date_from, CrmActivity.due_date >= date_from)
+        )
+    if date_to is not None:
+        query = query.where(
+            or_(CrmActivity.created_at <= date_to, CrmActivity.start_date <= date_to, CrmActivity.due_date <= date_to)
+        )
+    activities = list(db.scalars(query.order_by(CrmActivity.created_at.desc())).all())
+    items: list[CrmAgreementActivityItem] = []
+    responsible_filter = (responsible or "").strip().casefold()
+    for activity in activities:
+        deal_id = activity_deal_id(activity.metadata_json if isinstance(activity.metadata_json, dict) else None)
+        row = deal_map.get(deal_id) if deal_id else None
+        if row is None:
+            continue
+        actor = _activity_actor(db, activity)
+        if responsible_filter and (actor or "").casefold() != responsible_filter:
+            continue
+        contact = contacts.get(activity.entity_id)
+        items.append(
+            CrmAgreementActivityItem(
+                id=activity.id,
+                agreement_id=row.id,
+                contact_id=activity.entity_id,
+                contact_name=contact.display_name if contact else None,
+                project_group=row.project_group,
+                project_label=_project_label(row.project_group, _meta(row)),
+                activity_type=activity.activity_type.value,
+                title=activity.title,
+                summary=activity.summary or activity.description,
+                actor_name=actor,
+                responsible_name=actor,
+                created_at=activity.created_at,
+                start_date=activity.start_date,
+                due_date=activity.due_date,
+            )
+        )
+    total = len(items)
+    start = (page - 1) * page_size
+    return items[start : start + page_size], total
+
+
+def list_purchase_calendar(
+    db: Session,
+    *,
+    start: date,
+    end: date,
+    project_group: str | None = None,
+    contact_id: UUID | None = None,
+) -> list[CrmAgreementCalendarItem]:
+    rows = _agreement_index(db, project_group=project_group, contact_id=contact_id)
+    participants_map = _load_participants_map(db, {row.id for row in rows})
+    deal_map, _id_map, contact_ids = _deal_agreement_maps(rows, participants_map)
+    contacts: dict[UUID, CrmContact] = {}
+    if contact_ids:
+        contacts = {
+            contact.id: contact
+            for contact in db.scalars(select(CrmContact).where(CrmContact.id.in_(contact_ids))).all()
+        }
+    items: list[CrmAgreementCalendarItem] = []
+    for row in rows:
+        meta = _meta(row)
+        live = meta.get("bitrix_live") if isinstance(meta.get("bitrix_live"), dict) else {}
+        owners = row.contact_id
+        contact = contacts.get(owners)
+        name = contact.display_name if contact else None
+        label = _project_label(row.project_group, _meta(row))
+        for kind, raw in (
+            ("purchase", row.agreement_date or meta.get("begin_date") or live.get("begin_date")),
+            ("closing", meta.get("close_date") or live.get("close_date")),
+        ):
+            parsed = raw if isinstance(raw, date) else _parse_iso_date(raw)
+            if parsed is None or parsed < start or parsed > end:
+                continue
+            title = "Satın alma tarihi" if kind == "purchase" else "Kapanış tarihi"
+            items.append(
+                CrmAgreementCalendarItem(
+                    id=f"{row.id}:{kind}:{parsed.isoformat()}",
+                    title=f"{title} · {name or label}",
+                    date=parsed,
+                    kind=kind,
+                    agreement_id=row.id,
+                    contact_name=name,
+                    project_label=label,
+                )
+            )
+    if contact_ids:
+        start_dt = datetime(start.year, start.month, start.day, tzinfo=UTC)
+        end_dt = datetime(end.year, end.month, end.day, 23, 59, 59, tzinfo=UTC)
+        activities = list(
+            db.scalars(
+                select(CrmActivity).where(
+                    CrmActivity.entity_type == CrmActivityEntityType.CONTACT,
+                    CrmActivity.entity_id.in_(contact_ids),
+                    CrmActivity.archived_at.is_(None),
+                    or_(
+                        CrmActivity.start_date.between(start_dt, end_dt),
+                        CrmActivity.due_date.between(start_dt, end_dt),
+                    ),
+                    CrmActivity.activity_type.in_(
+                        {
+                            CrmActivityType.MEETING,
+                            CrmActivityType.ZOOM_MEETING,
+                            CrmActivityType.TEAMS_MEETING,
+                            CrmActivityType.INVESTOR_MEETING,
+                            CrmActivityType.CONSTRUCTION_MEETING,
+                            CrmActivityType.SITE_VISIT,
+                            CrmActivityType.PROPERTY_TOUR,
+                            CrmActivityType.TASK,
+                            CrmActivityType.FOLLOW_UP,
+                            CrmActivityType.REMINDER,
+                            CrmActivityType.PAYMENT,
+                            CrmActivityType.CLOSING,
+                            CrmActivityType.INSPECTION,
+                        }
+                    ),
+                )
+            ).all()
+        )
+        for activity in activities:
+            deal_id = activity_deal_id(activity.metadata_json if isinstance(activity.metadata_json, dict) else None)
+            row = deal_map.get(deal_id) if deal_id else None
+            if row is None:
+                continue
+            when = activity.start_date or activity.due_date
+            if when is None:
+                continue
+            day = when.date()
+            if day < start or day > end:
+                continue
+            contact = contacts.get(activity.entity_id)
+            kind = activity.activity_type.value
+            if activity.activity_type in {
+                CrmActivityType.MEETING,
+                CrmActivityType.ZOOM_MEETING,
+                CrmActivityType.TEAMS_MEETING,
+                CrmActivityType.INVESTOR_MEETING,
+                CrmActivityType.CONSTRUCTION_MEETING,
+                CrmActivityType.SITE_VISIT,
+                CrmActivityType.PROPERTY_TOUR,
+            }:
+                kind = "meeting"
+            elif activity.activity_type in {CrmActivityType.TASK, CrmActivityType.REMINDER}:
+                kind = "task"
+            elif activity.activity_type == CrmActivityType.FOLLOW_UP:
+                kind = "follow_up"
+            elif activity.activity_type == CrmActivityType.PAYMENT:
+                kind = "payment"
+            elif activity.activity_type == CrmActivityType.CLOSING:
+                kind = "closing"
+            items.append(
+                CrmAgreementCalendarItem(
+                    id=str(activity.id),
+                    title=activity.title,
+                    date=day,
+                    kind=kind,
+                    agreement_id=row.id,
+                    contact_name=contact.display_name if contact else None,
+                    project_label=_project_label(row.project_group, _meta(row)),
+                    activity_type=activity.activity_type.value,
+                )
+            )
+    items.sort(key=lambda item: (item.date, item.title))
+    return items

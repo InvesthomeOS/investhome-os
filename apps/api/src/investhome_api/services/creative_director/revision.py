@@ -1500,6 +1500,17 @@ def revise_ad_from_campaign(
             detail="current_final_asset_id is required for AI revision.",
         )
 
+    row_early = db.get(CreativeDirectorCampaign, campaign_id)
+    if row_early is not None:
+        from investhome_api.services.creative_director.phase5_workflow import (
+            revise_ad_phase5,
+            should_route_revise_to_phase5,
+        )
+
+        early_ctx = dict(row_early.context_json or {})
+        if should_route_revise_to_phase5(early_ctx, body.current_final_asset_id):
+            return revise_ad_phase5(db, user, campaign_id, body)
+
     gen_body = CreativeDirectorGenerateAdRequest(
         language=body.language,
         aspect_ratio=body.aspect_ratio or "4:5",

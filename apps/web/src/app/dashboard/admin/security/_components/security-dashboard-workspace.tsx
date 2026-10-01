@@ -67,6 +67,41 @@ export function SecurityDashboardWorkspace() {
               </ul>
             )}
           </SecSection>
+          <SecSection title={t('signalsTitle')} description={t('signalsSubtitle')}>
+            {(data.signals ?? []).length === 0 ? (
+              <p className="sec-empty">{t('noSignals')}</p>
+            ) : (
+              <div className="sec-table-wrap" data-testid="security-signals">
+                <table className="sec-table">
+                  <thead>
+                    <tr>
+                      <th>{t('colSeverity')}</th>
+                      <th>{t('colSignalType')}</th>
+                      <th>{t('colCount')}</th>
+                      <th>{t('colFirstSeen')}</th>
+                      <th>{t('colLastSeen')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(data.signals ?? []).map((signal) => (
+                      <tr key={signal.id} className={`sec-signal sec-signal--${signal.severity}`}>
+                        <td>
+                          <span className={`sec-badge sec-badge--${signal.severity}`}>{signal.severity}</span>
+                        </td>
+                        <td>
+                          <strong>{signal.summary}</strong>
+                          <span className="sec-signal__type">{signal.signal_type}</span>
+                        </td>
+                        <td>{signal.event_count}</td>
+                        <td>{new Date(signal.first_seen).toLocaleString()}</td>
+                        <td>{new Date(signal.last_seen).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </SecSection>
           <p className="sec-meta">
             {t('generatedAt')}: {new Date(data.generated_at).toLocaleString()}
           </p>

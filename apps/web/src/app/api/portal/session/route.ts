@@ -8,6 +8,7 @@ import {
   decodePortalSession,
   encodePortalSession,
 } from '@/app/portal/_lib/session';
+import { PORTAL_SESSION_TTL_SECONDS } from '@/lib/auth/portal-session-cookie';
 
 export async function GET() {
   const jar = await cookies();
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
       sameSite: 'lax',
       path: '/',
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 12,
+      maxAge: PORTAL_SESSION_TTL_SECONDS,
     });
   } catch (err) {
     return NextResponse.json(

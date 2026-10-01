@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
-EDIT_MAP_VERSION = "1.2"
+EDIT_MAP_VERSION = "1.3"
 MIN_MAP_CONFIDENCE = 0.55
 CLEAN_PAD_PX = 4
 AA_LUMA_MIN = 48
@@ -45,6 +45,7 @@ REQUIRED_OCCUPIED_ROLES = (
     "cta",
     "supporting_copy",
     "commercial_content_zone",
+    "upper_creative_zone",
 )
 
 FUTURE_PRICE_ROLES = ("new_price", "savings_price")
@@ -652,6 +653,44 @@ def compute_safe_content_zone(
     }
 
 
+def measure_upper_creative_zone(image: Any, layout: dict[str, Any]) -> dict[str, Any]:
+    """Header/navy plate from canvas top through the hero boundary. Raster is truth."""
+    from PIL import Image as PILImage
+
+    if not isinstance(image, PILImage.Image):
+        raise TypeError("measure_upper_creative_zone requires a PIL Image")
+    im = image.convert("RGB")
+    width, height = im.size
+    px = im.load()
+    photo_start = int(layout.get("photo_start") or height)
+    plate = layout.get("background_plate_bbox")
+    semantic = dict(plate) if plate else bbox_dict(0, 0, width, photo_start)
+    semantic["y0"] = 0
+    semantic["y1"] = photo_start
+    semantic["x0"] = 0
+    semantic["x1"] = width
+    strict: list[tuple[int, int]] = []
+    for y in range(0, photo_start):
+        for x in range(0, width):
+            r, g, b = px[x, y]
+            if _is_gold(r, g, b) or _is_white(r, g, b) or _is_soft_commercial_type(r, g, b):
+                strict.append((x, y))
+    visual = _bbox_from_points(strict) if strict else dict(semantic)
+    safe = bbox_dict(0, 0, width, photo_start)
+    return {
+        "semantic_bbox": semantic,
+        "visual_bbox": visual,
+        "safe_bbox": safe,
+        "hero_boundary": {"y": photo_start, "source": "photo_start"},
+        "canvas_top": 0,
+        "blocked_by": ["hero_visual"],
+        "note": (
+            "Full navy header plate from canvas top to the hero photograph. "
+            "Content-growth PRICE_EDIT_ONLY may recompose this entire upper creative area."
+        ),
+    }
+
+
 def commercial_pixel_coverage(
     image: Any,
     safe_bbox: dict[str, int],
@@ -1183,6 +1222,21 @@ def build_edit_map(
         role for role, occ in (("new_price", new_occ), ("savings_price", sav_occ)) if not occ
     ]
 
+    upper_info: dict[str, Any] = {}
+    upper_bbox = None
+    if image is not None and hero:
+        upper_info = measure_upper_creative_zone(image, layout)
+        upper_bbox = upper_info.get("safe_bbox")
+    elif hero:
+        upper_bbox = bbox_dict(0, 0, width, hero["y0"])
+        upper_info = {
+            "semantic_bbox": dict(upper_bbox),
+            "visual_bbox": dict(upper_bbox),
+            "safe_bbox": dict(upper_bbox),
+            "hero_boundary": {"y": hero["y0"], "source": "photo_start"},
+            "blocked_by": ["hero_visual"],
+        }
+
     regions = [
         _region(
             region_id="background_plate",
@@ -1322,7 +1376,7 @@ def build_edit_map(
                 "expansion_capability": zone_expansion,
                 "future_mutability": {
                     "when_fits": "commercial_group",
-                    "when_content_growth_cannot_fit": "commercial_content_zone",
+                    "when_content_growth_cannot_fit": "upper_creative_zone",
                     "may": [
                         "move supporting copy",
                         "reduce supporting copy prominence",
@@ -1336,7 +1390,6 @@ def build_edit_map(
                         "alter internal spacing",
                     ],
                     "may_not": [
-                        "change headline",
                         "change hero",
                         "change hero crop",
                         "change CTA",
@@ -1354,6 +1407,29 @@ def build_edit_map(
                     "Larger than commercial_group. Includes supporting copy plus the "
                     "2+1 / price / %35 row so content growth can recompose locally."
                 ),
+            },
+        ),
+        _region(
+            region_id="upper_creative_zone",
+            role="upper_creative_zone",
+            bbox=upper_bbox,
+            occupied=bool(upper_bbox),
+            group_id="upper_creative_zone",
+            hierarchy_rank=2,
+            confidence=round(float(conf.get("photo_start", 0.8)), 3),
+            background_context="solid",
+            mutable_for=["PRICE_EDIT_ONLY"],
+            extra={
+                "children": ["headline"] + zone_children,
+                "semantic_bbox": upper_info.get("semantic_bbox"),
+                "visual_bbox": upper_info.get("visual_bbox"),
+                "safe_bbox": upper_bbox,
+                "hero_boundary": upper_info.get("hero_boundary")
+                or ({"y": hero["y0"], "source": "photo_start"} if hero else None),
+                "canvas_top": 0,
+                "blocked_by": list(upper_info.get("blocked_by") or ["hero_visual"]),
+                "note": upper_info.get("note")
+                or "Full header plate above the hero. Used when commercial facts cannot fit below the headline.",
             },
         ),
         _region(
@@ -1606,6 +1682,18 @@ def build_edit_map(
                 "right": "canvas",
             },
         },
+        {
+            "id": "upper_creative_zone",
+            "semantic_role": "upper_creative_zone",
+            "children": ["headline"] + zone_children,
+            "bbox": upper_bbox,
+            "semantic_bbox": upper_info.get("semantic_bbox"),
+            "visual_bbox": upper_info.get("visual_bbox"),
+            "safe_bbox": upper_bbox,
+            "hero_boundary": upper_info.get("hero_boundary")
+            or ({"y": hero["y0"], "source": "photo_start"} if hero else None),
+            "blocked_by": list(upper_info.get("blocked_by") or ["hero_visual"]),
+        },
     ]
 
     preservation = build_preservation_map()
@@ -1637,13 +1725,13 @@ def build_edit_map(
         },
         "content_growth": {
             "when_fits": "commercial_group",
-            "when_cannot_fit": "commercial_content_zone",
-            "mutable_region": "commercial_content_zone",
+            "when_cannot_fit": "upper_creative_zone",
+            "mutable_region": "upper_creative_zone",
             "fallback_region": "commercial_group",
             "note": (
                 "PRICE_EDIT_ONLY that fits uses commercial_group.safe_bbox. "
-                "If content_growth is true and commercial_group cannot fit the requested "
-                "facts, the mutable region is commercial_content_zone."
+                "If content_growth cannot fit, the mutable region is upper_creative_zone "
+                "(the full header above the hero). commercial_content_zone is not used."
             ),
         },
         "immutable_mask_metadata": preservation,
@@ -1672,11 +1760,14 @@ def build_preservation_map() -> dict[str, Any]:
             "mutable": list(commercial),
             "immutable": list(outside_price),
             "content_growth": {
-                "mutable_region": "commercial_content_zone",
+                "mutable_region": "upper_creative_zone",
                 "fallback_region": "commercial_group",
                 "mutable": [
-                    "commercial_content_zone",
+                    "upper_creative_zone",
+                    "headline",
                     "supporting_copy",
+                    "subheadline",
+                    "commercial_content_zone",
                     "unit_label",
                     "old_price",
                     "new_price",
@@ -1684,16 +1775,14 @@ def build_preservation_map() -> dict[str, Any]:
                     "discount",
                 ],
                 "immutable": [
-                    "headline",
                     "hero_visual",
                     "cta",
                     "logo",
-                    "background_plate",
                 ],
                 "note": (
                     "If requested facts fit commercial_group, mutate that smaller region. "
-                    "If content_growth cannot fit, mutate commercial_content_zone as one "
-                    "local composition. Headline, hero, CTA, and logo stay locked."
+                    "If content_growth cannot fit, mutate upper_creative_zone — the full "
+                    "header above the hero. Facts stay locked. CTA, logo, and photograph stay locked."
                 ),
             },
             "note": (
@@ -1861,6 +1950,45 @@ def validate_edit_map(
             for role in CONTENT_ZONE_CHILD_ROLES:
                 if role not in children:
                     failures.append(f"content_zone_missing_child:{role}")
+
+    upper = regions.get("upper_creative_zone")
+    upper_safe = (upper or {}).get("safe_bbox") or (upper or {}).get("bbox")
+    if upper is None:
+        failures.append("missing_upper_creative_zone")
+    elif not upper.get("occupied") or not upper_safe:
+        failures.append("upper_creative_zone_missing_bbox")
+    else:
+        if not bbox_inside_canvas(upper_safe, width, height):
+            failures.append("bbox_outside_canvas:upper_creative_zone")
+        if int(upper_safe.get("y0") or 0) > 2:
+            failures.append("upper_creative_zone_not_from_canvas_top")
+        if hero and hero.get("bbox"):
+            if upper_safe["y1"] > hero["bbox"]["y0"] or bbox_iou(upper_safe, hero["bbox"]) > 0.0:
+                failures.append("upper_creative_zone_invades_hero")
+        if headline and headline.get("bbox"):
+            if not bbox_contains(upper_safe, headline["bbox"], slack=8):
+                failures.append("headline_outside_upper_creative_zone")
+        supporting = regions.get("supporting_copy")
+        if supporting and supporting.get("bbox"):
+            if not bbox_contains(upper_safe, supporting["bbox"], slack=8):
+                failures.append("supporting_copy_outside_upper_creative_zone")
+        if commercial and commercial.get("bbox"):
+            if not bbox_contains(upper_safe, commercial["bbox"], slack=8):
+                failures.append("commercial_group_outside_upper_creative_zone")
+        cta = regions.get("cta")
+        logo = regions.get("logo")
+        if cta and cta.get("bbox") and bbox_iou(upper_safe, cta["bbox"]) > 0.0:
+            failures.append("upper_creative_zone_includes_cta")
+        if logo and logo.get("bbox") and bbox_iou(upper_safe, logo["bbox"]) > 0.0:
+            failures.append("upper_creative_zone_includes_logo")
+        upper_group = groups.get("upper_creative_zone")
+        if upper_group is None:
+            failures.append("missing_upper_creative_zone_group")
+        else:
+            children = list(upper_group.get("children") or [])
+            for role in ("headline", "supporting_copy", "unit_label", "old_price", "discount"):
+                if role not in children:
+                    failures.append(f"upper_creative_zone_missing_child:{role}")
 
     group = groups.get("commercial_group")
     if group is None:
@@ -2087,6 +2215,7 @@ def render_debug_overlay(image: Any, edit_map: dict[str, Any]) -> Any:
         "supporting_copy": (160, 160, 200, 255),
         "commercial_group": (255, 200, 40, 255),
         "commercial_content_zone": (40, 140, 255, 255),
+        "upper_creative_zone": (255, 210, 40, 255),
         "unit_label": (80, 220, 120, 255),
         "old_price": (255, 80, 80, 255),
         "new_price": (255, 120, 160, 255),
@@ -2103,9 +2232,13 @@ def render_debug_overlay(image: Any, edit_map: dict[str, Any]) -> Any:
         box = region["bbox"]
         color = colors.get(role, (255, 255, 0, 255))
         width = (
-            5
-            if role == "commercial_content_zone"
-            else (4 if role in {"commercial_group", "hero_visual"} else 2)
+            6
+            if role == "upper_creative_zone"
+            else (
+                5
+                if role == "commercial_content_zone"
+                else (4 if role in {"commercial_group", "hero_visual"} else 2)
+            )
         )
         draw.rectangle(
             [box["x0"], box["y0"], box["x1"] - 1, box["y1"] - 1],
@@ -2198,4 +2331,70 @@ def render_content_zone_debug(image: Any, edit_map: dict[str, Any]) -> Any:
             draw.text((8, y + 2), f"headline lock y={y}", fill=(255, 80, 80), font=font)
         else:
             draw.text((8, y + 2), f"headline lock y={y}", fill=(255, 80, 80))
+    return im
+
+
+def render_upper_zone_debug(image: Any, edit_map: dict[str, Any]) -> Any:
+    """Gold upper_creative_zone, red hero line. Headline is inside the zone, not locked."""
+    from PIL import ImageDraw, ImageFont
+
+    im = image.convert("RGB")
+    draw = ImageDraw.Draw(im)
+    try:
+        font = ImageFont.load_default()
+    except Exception:
+        font = None
+    regions = {
+        r.get("semantic_role"): r
+        for r in (edit_map.get("regions") or [])
+        if isinstance(r, dict)
+    }
+    upper = regions.get("upper_creative_zone") or {}
+    headline = regions.get("headline") or {}
+    hero = regions.get("hero_visual") or {}
+    cta = regions.get("cta") or {}
+    logo = regions.get("logo") or {}
+
+    def _box(item: dict[str, Any] | None, color: tuple[int, int, int], width: int, label: str) -> None:
+        if not item:
+            return
+        draw.rectangle(
+            [item["x0"], item["y0"], item["x1"] - 1, item["y1"] - 1],
+            outline=color,
+            width=width,
+        )
+        ty = max(0, item["y0"] - 12)
+        if font:
+            draw.text((item["x0"] + 4, ty), label, fill=color, font=font)
+        else:
+            draw.text((item["x0"] + 4, ty), label, fill=color)
+
+    def _locked(item: dict[str, Any] | None, label: str) -> None:
+        box = (item or {}).get("bbox")
+        if not box:
+            return
+        _box(box, (255, 40, 40), 2, f"{label} = locked")
+
+    _box(upper.get("semantic_bbox"), (40, 90, 255), 2, "upper semantic")
+    _box(upper.get("visual_bbox"), (40, 220, 80), 2, "upper visual")
+    _box(upper.get("safe_bbox") or upper.get("bbox"), (255, 200, 40), 5, "UPPER_CREATIVE_ZONE")
+    head_box = headline.get("bbox")
+    if head_box:
+        _box(head_box, (255, 255, 255), 2, "headline (mutable on content growth)")
+    _locked(hero, "hero")
+    _locked(cta, "CTA")
+    _locked(logo, "logo")
+    hero_y = None
+    boundary = upper.get("hero_boundary")
+    if isinstance(boundary, dict):
+        hero_y = boundary.get("y")
+    if hero_y is None and hero.get("bbox"):
+        hero_y = hero["bbox"]["y0"]
+    if hero_y is not None:
+        y = int(hero_y)
+        draw.line([(0, y), (im.size[0] - 1, y)], fill=(255, 40, 40), width=4)
+        if font:
+            draw.text((8, max(0, y - 14)), f"hero boundary y={y} exclusive", fill=(255, 40, 40), font=font)
+        else:
+            draw.text((8, max(0, y - 14)), f"hero boundary y={y} exclusive", fill=(255, 40, 40))
     return im

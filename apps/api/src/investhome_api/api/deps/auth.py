@@ -1,11 +1,12 @@
 """Auth API dependencies."""
 
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import Cookie, Depends, Header, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
-from investhome_api.config.settings import get_settings
+from investhome_api.config.settings import get_settings, validate_auth_bypass
 from investhome_api.db.session import get_db
 from investhome_api.models.user_auth import User, UserStatus
 from investhome_api.services.auth_service import (
@@ -43,20 +44,36 @@ def _maybe_refresh_session_cookie(
     token: str,
     jti: str | None,
 ) -> None:
-    """Extend an already-valid session cookie. Never issues a new login."""
+    """Extend an already-valid session cookie. Never issues a new login or exceeds absolute lifetime."""
     if not jti:
         return
     remaining = seconds_until_token_expiry(token)
     if remaining is None:
         return
-    settings = get_settings()
-    ttl_seconds = settings.jwt_expire_minutes * 60
-    if remaining > ttl_seconds * 0.5:
-        return
+    from investhome_api.services.session_lifetime import (
+        compute_access_expiry,
+        idle_timeout,
+        session_started_at,
+    )
+
     auth_session = session_service.get_active_session(db, jti)
     if auth_session is None:
         return
-    new_token, expires_at, _issued_jti = create_access_token(user.id, jti=jti)
+    started = session_started_at(auth_session)
+    capped_expiry = compute_access_expiry(started_at=started)
+    if capped_expiry is None:
+        return
+    idle_seconds = idle_timeout().total_seconds()
+    until_cap = (capped_expiry - datetime.now(UTC)).total_seconds()
+    if remaining > idle_seconds * 0.5 and remaining <= until_cap + 1:
+        return
+    new_token, expires_at, _issued_jti = create_access_token(
+        user.id,
+        jti=jti,
+        auth_time=started,
+    )
+    if expires_at <= datetime.now(UTC):
+        return
     session_service.extend_session_expiry(auth_session.id, expires_at)
     auth_session.expires_at = expires_at
     set_session_cookie(response, new_token, expires_at)
@@ -71,6 +88,13 @@ def get_current_user(
 ) -> User:
     settings = get_settings()
     if not settings.auth_enabled:
+        try:
+            validate_auth_bypass(settings)
+        except RuntimeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Insecure authentication configuration",
+            ) from exc
         return _dev_bypass_user(db)
 
     cookie_token = ih_session or request.cookies.get(settings.auth_cookie_name)
@@ -88,18 +112,20 @@ def get_current_user(
             detail="Invalid or expired session",
         )
     user_id, jti = decoded
+    if not jti:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired session",
+        )
 
-    # Session revocation: tokens with jti must map to an active auth_sessions row.
-    # Legacy tokens without jti remain valid until they expire (graceful rollout).
-    if jti:
-        auth_session = session_service.get_active_session(db, jti)
-        if auth_session is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Session has been terminated",
-            )
-        # Short-lived SessionLocal + throttle — never write on the request session
-        session_service.touch_session(db, auth_session)
+    auth_session = session_service.get_active_session(db, jti)
+    if auth_session is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session has been terminated",
+        )
+    # Short-lived SessionLocal + throttle — never write on the request session
+    session_service.touch_session(db, auth_session)
 
     user = load_user_with_roles(db, user_id)
     if user is None:

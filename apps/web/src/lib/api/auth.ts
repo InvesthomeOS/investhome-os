@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch, clearCsrfToken } from './client';
 
 export type RoleSummary = {
   id: string;
@@ -47,15 +47,87 @@ export type RoleDetail = RoleSummary & {
   updated_at: string;
 };
 
-export async function login(email: string, password: string): Promise<CurrentUser> {
-  return apiFetch<CurrentUser>('/auth/login', {
+export async function login(
+  email: string,
+  password: string,
+): Promise<CurrentUser | MfaChallengeRequired | MfaEnrollmentRequired> {
+  return apiFetch<CurrentUser | MfaChallengeRequired | MfaEnrollmentRequired>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
 }
 
+export type MfaChallengeRequired = {
+  mfa_required: true;
+  mfa_challenge_token: string;
+  mfa_method?: string;
+  expires_in?: number;
+};
+
+export type MfaEnrollmentRequired = {
+  mfa_enrollment_required: true;
+  mfa_enrollment_challenge_token: string;
+  expires_in?: number;
+};
+
+export type MfaEnrollStart = {
+  otpauth_uri: string;
+  issuer: string;
+  account_label: string;
+  pending: boolean;
+};
+
+export type MfaEnrollConfirm = {
+  mfa_enabled: boolean;
+  mfa_method: string;
+  recovery_codes: string[];
+};
+
+export async function startMfaEnrollment(): Promise<MfaEnrollStart> {
+  return apiFetch<MfaEnrollStart>('/auth/mfa/enroll', { method: 'POST' });
+}
+
+export async function confirmMfaEnrollment(code: string): Promise<MfaEnrollConfirm> {
+  return apiFetch<MfaEnrollConfirm>('/auth/mfa/enroll/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}
+
+export type MfaRequiredEnrollConfirm = MfaEnrollConfirm & {
+  user: CurrentUser;
+};
+
+export async function startRequiredMfaEnrollment(challengeToken: string): Promise<MfaEnrollStart> {
+  return apiFetch<MfaEnrollStart>('/auth/mfa/enroll/required', {
+    method: 'POST',
+    body: JSON.stringify({ challenge_token: challengeToken }),
+  });
+}
+
+export async function confirmRequiredMfaEnrollment(
+  challengeToken: string,
+  code: string,
+): Promise<MfaRequiredEnrollConfirm> {
+  return apiFetch<MfaRequiredEnrollConfirm>('/auth/mfa/enroll/required/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ challenge_token: challengeToken, code }),
+  });
+}
+
+export async function verifyMfaLogin(challengeToken: string, code: string): Promise<CurrentUser> {
+  return apiFetch<CurrentUser>('/auth/mfa/verify', {
+    method: 'POST',
+    body: JSON.stringify({ challenge_token: challengeToken, code }),
+  });
+}
+
 export async function logout(): Promise<void> {
-  await apiFetch('/auth/logout', { method: 'POST' });
+  try {
+    await apiFetch('/auth/logout', { method: 'POST' });
+  } finally {
+    clearCsrfToken();
+  }
 }
 
 export async function fetchCurrentUser(): Promise<CurrentUser> {
@@ -171,4 +243,8 @@ export function canViewUsers(user: CurrentUser | null): boolean {
 
 export function canViewRoles(user: CurrentUser | null): boolean {
   return hasPermission(user, 'roles', 'view') || canManageRoles(user);
+}
+
+export function canManageSecurity(user: CurrentUser | null): boolean {
+  return hasPermission(user, 'security', 'manage');
 }

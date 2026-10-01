@@ -23,7 +23,7 @@ import {
   TEMPLATES_ROUTE,
   PRESENTATION_BUILDER_ROUTE,
   PROPOSAL_BUILDER_ROUTE,
-  SOCIAL_MEDIA_BUILDER_ROUTE,
+  QUICK_CREATIVE_ROUTE,
   TOOL_WORKFLOWS,
   VIDEO_BUILDER_ROUTE,
   WEBSITE_BUILDER_ROUTE,
@@ -87,7 +87,7 @@ export default function CreativeStudioProducePage() {
       return;
     }
     if (toolKey === 'socialStudio') {
-      router.replace(SOCIAL_MEDIA_BUILDER_ROUTE as Route);
+      router.replace(QUICK_CREATIVE_ROUTE as Route);
       return;
     }
     if (toolKey === 'adsBuilder') {

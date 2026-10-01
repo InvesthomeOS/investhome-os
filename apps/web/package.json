@@ -8,7 +8,7 @@
     "start": "next start --port 3000",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "node src/components/design-system/__tests__/design-system.test.mjs && node src/components/design-system/__tests__/executive-dashboard-prototype.test.mjs && node src/components/design-system/__tests__/executive-dashboard-production.test.mjs && node src/components/design-system/__tests__/design-asset-registry.test.mjs",
+    "test": "node src/components/design-system/__tests__/design-system.test.mjs && node src/components/design-system/__tests__/executive-dashboard-prototype.test.mjs && node src/components/design-system/__tests__/executive-dashboard-production.test.mjs && node src/components/design-system/__tests__/design-asset-registry.test.mjs && node --test src/lib/auth/__tests__/mfa-frontend.test.mjs && node --test src/lib/auth/__tests__/mfa-admin-reset.test.mjs && node --test src/lib/auth/__tests__/mfa-enforcement.test.mjs && node --test src/lib/auth/__tests__/portal-session-cookie.test.mjs && node src/lib/auth/__tests__/session-cookie.test.mjs && node --test src/lib/auth/__tests__/portal-demo-auth.test.mjs && node --test src/lib/auth/__tests__/portal-open-redirect.test.mjs && node --test src/lib/auth/__tests__/csrf-frontend.test.mjs && node --test src/lib/security/__tests__/security-headers.test.mjs && node --test src/workspaces/crm/contact-card/__tests__/email-html-xss.test.mjs",
     "clean": "rimraf .next",
     "test:e2e": "node ../../.pw-verify/run-e2e.mjs"
   },
@@ -17,12 +17,14 @@
     "@investhome/shared": "workspace:*",
     "@investhome/ui": "workspace:*",
     "@tanstack/react-query": "^5.62.8",
+    "isomorphic-dompurify": "^2.26.0",
     "next": "^15.1.0",
     "next-intl": "^4.13.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-force-graph-2d": "^1.29.1",
     "react-hook-form": "^7.81.0",
+    "uqr": "^0.1.2",
     "zod": "^4.4.3",
     "zustand": "^5.0.2"
   },

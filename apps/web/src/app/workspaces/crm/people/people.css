@@ -10,18 +10,18 @@
   --shot-font-body: 11.55px;
   --shot-font-heading: 13.2px;
   --shot-font-title: 24.2px;
-  --shot-gap: 12px;
+  --shot-gap: 16px;
   --shot-card-pad-y: 13px;
   --shot-card-pad-x: 15px;
   --pe-ink: var(--shot-ink);
   --pe-muted: var(--shot-muted);
   --pe-navy: var(--shot-navy);
   --pe-cyan: var(--shot-cyan);
-  --pe-border: #e1e7e9;
+  --pe-border: #c5d4da;
   --pe-border-strong: #dce4e7;
-  --pe-card-shadow: 0 2px 7px rgba(31, 57, 68, 0.05);
-  --pe-card-shadow-hover: 0 4px 14px rgba(7, 91, 117, 0.08);
-  --pe-card-radius: 8px;
+  --pe-card-shadow: 0 6px 16px rgba(7, 91, 117, 0.08);
+  --pe-card-shadow-hover: 0 10px 22px rgba(7, 91, 117, 0.12);
+  --pe-card-radius: 16px;
   --pe-control-height: 1.95rem;
   --pe-rail-width: min(300px, 22vw);
   --pe-warn-bg: #fdf0e4;
@@ -32,8 +32,8 @@
   --brand-primary-hover: #064a5f;
   --focus-ring: #2794ad;
   /* Cool DS token remaps — avoid beige/brown inheritance */
-  --bg: #f6f8fa;
-  --background: #f6f8fa;
+  --bg: #f3f6f8;
+  --background: #f3f6f8;
   --surface: #ffffff;
   --surface-default: #ffffff;
   --surface-muted: #f1f6f8;

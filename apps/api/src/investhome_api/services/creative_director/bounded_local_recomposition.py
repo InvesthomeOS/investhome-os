@@ -1,9 +1,9 @@
-"""Bounded local recomposition — commercial_content_zone on content growth.
+"""Bounded local recomposition — upper_creative_zone on content growth.
 
 PRICE_EDIT_ONLY stays the semantic intent. When price occupancy grows
 (1 slot → 3) and commercial_group cannot fit, OS asks the image provider
-for an edit_region call inside commercial_content_zone, then composites
-the result back onto the current approved cover.
+for one edit_region call inside upper_creative_zone (the full header above
+the hero), then composites the result back onto the current approved cover.
 
 OS does not author the commercial design. Overlay / glyph / PRICE_BLOCK
 stamping is not used on this path.
@@ -135,22 +135,22 @@ def detect_price_content_growth(
         "occupied_slots_after": occupied_after,
         "fits_current_geometry": fits,
         "execution": EXECUTION if growth else "in_place_price_edit",
-        "mutable_region_role": "commercial_content_zone" if use_zone else "commercial_group",
-        "content_growth_route": "commercial_content_zone" if use_zone else "commercial_group",
+        "mutable_region_role": "upper_creative_zone" if use_zone else "commercial_group",
+        "content_growth_route": "upper_creative_zone" if use_zone else "commercial_group",
     }
 
 
 def commercial_bbox(edit_map: dict[str, Any], *, content_growth: bool = False) -> dict[str, int]:
     if content_growth:
-        region = region_by_role(edit_map, "commercial_content_zone")
+        region = region_by_role(edit_map, "upper_creative_zone")
         box = (region or {}).get("safe_bbox")
         if not box:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=(
                     "BOUNDED_LOCAL_RECOMPOSITION fail-closed — "
-                    "content growth requires commercial_content_zone.safe_bbox. "
-                    "The smaller commercial_group region cannot be used."
+                    "content growth requires upper_creative_zone.safe_bbox. "
+                    "The smaller commercial_group / commercial_content_zone regions cannot be used."
                 ),
             )
     else:
@@ -191,7 +191,7 @@ def render_mask_debug(
     cover: Image.Image,
     bbox: dict[str, int],
     *,
-    label: str = "mutable: commercial_content_zone.safe_bbox",
+    label: str = "mutable: upper_creative_zone.safe_bbox",
 ) -> Image.Image:
     im = cover.convert("RGBA")
     overlay = Image.new("RGBA", im.size, (0, 0, 0, 0))
@@ -216,7 +216,7 @@ def render_mask_debug(
 def build_region_edit_prompt(
     intent: PriceBlockIntent,
     *,
-    region_role: str = "commercial_content_zone",
+    region_role: str = "upper_creative_zone",
     hero_y: int | None = 554,
 ) -> str:
     list_s = format_tr_usd(intent.list_amount)
@@ -224,10 +224,68 @@ def build_region_edit_prompt(
     save_s = format_tr_usd(intent.savings_amount)
     hero_line = (
         f"Do NOT write into the photograph. The hero starts at y={hero_y} "
-        "(the bottom edge of the mask). No commercial type may survive at or below that line."
+        "(the bottom edge of the mask, exclusive). No commercial type may survive at or below that line."
         if hero_y is not None
         else "Do NOT write into the photograph below the mask."
     )
+    if region_role == "upper_creative_zone":
+        return "\n".join(
+            [
+                "Recompose ONLY the authorized upper header region.",
+                "The attached MASK marks the only pixels you may change (fully transparent = edit).",
+                "Opaque mask pixels must remain identical to the source advertisement.",
+                "The photograph and lower advertisement are immutable.",
+                "The result must remain recognizably the same advertisement.",
+                "Do NOT recreate the advertisement. Do NOT redesign this ad.",
+                "",
+                "Use the available upper space efficiently.",
+                "Do not enlarge typography merely to fill space.",
+                "Fit ALL required commercial facts comfortably.",
+                "This is controlled local recomposition of the header, not a full redesign.",
+                "",
+                "You MAY, inside the mask only:",
+                "  reposition ALIRKEN KAZAN moderately",
+                "  resize ALIRKEN KAZAN moderately",
+                "  reposition or quiet the supporting sentence",
+                "  restack commercial facts (asymmetric, 2-column, or stacked hierarchy)",
+                "  reposition 2+1 / DAİRE and %35 / LANSMAN AVANTAJI",
+                "  redesign separators and internal spacing",
+                "  adjust gold / white emphasis",
+                "  simplify decorative navy-plate elements",
+                "Keep navy, gold, white, premium The Temple identity.",
+                "",
+                "Do NOT create a dashboard, pricing table, giant boxes, or a generic template.",
+                "Do NOT add unrelated copy. Do NOT invent prices. Do NOT change the photograph, CTA, or logo.",
+                "Do NOT use emergency tiny typography. Do NOT write over the hero.",
+                hero_line,
+                "",
+                "Hierarchy (this order, clearly):",
+                "1. ALIRKEN KAZAN — campaign headline",
+                f"2. {launch_s} — {intent.launch_label} — PRIMARY commercial number",
+                f"3. {list_s} — {intent.list_label} — secondary, visibly struck through",
+                f"4. {save_s} — {intent.savings_label} — clear financial benefit",
+                "5. %35 — LANSMAN AVANTAJI",
+                "6. 2+1 — DAİRE",
+                "Supporting sentence may remain but should be visually quieter:",
+                "  “The Temple'da yerinizi lansman döneminde alın.”",
+                "",
+                "Required facts (do not invent others, do not remove 2+1 or %35):",
+                "ALIRKEN KAZAN",
+                "The Temple'da yerinizi lansman döneminde alın.",
+                "2+1",
+                "DAİRE",
+                f"{intent.list_label}: {list_s} — struck through",
+                f"{intent.launch_label}: {launch_s}",
+                f"{intent.savings_label}: {save_s}",
+                "LANSMAN AVANTAJI",
+                "%35",
+                "",
+                "Typography must stay readable and premium. No overlapping copy,",
+                "no duplicated prices, no ghost leftovers, no type touching the hero.",
+                "The upper area must look intentionally art-directed, same campaign.",
+                f"Mutable region role: {region_role}.",
+            ]
+        )
     return "\n".join(
         [
             "BOUNDED LOCAL EDIT of the commercial content zone only.",
@@ -247,7 +305,6 @@ def build_region_edit_prompt(
             "Do NOT stamp text, overlay glyphs, or create a giant boxed price panel.",
             "",
             "LOCKED — pixel-identical, outside the mask:",
-            "  headline ALIRKEN KAZAN and its decorative treatment",
             "  Day_004 exterior photograph / hero crop / hero position",
             "  gold CTA PROJEYİ KEŞFET",
             "  The Temple logo and bottom treatment",
@@ -568,10 +625,25 @@ def immutable_region_deltas(
     *,
     mutable_bbox: dict[str, int] | None = None,
 ) -> dict[str, Any]:
-    from investhome_api.services.creative_director.edit_map import bbox_iou
+    from investhome_api.services.creative_director.edit_map import bbox_contains
 
-    hard = ("hero_visual", "headline", "cta", "logo")
-    conditional = ("subheadline", "supporting_copy")
+    def _inside_mutable(box: dict[str, int]) -> bool:
+        if not mutable_bbox:
+            return False
+        if bbox_contains(mutable_bbox, box, slack=8):
+            return True
+        ix0 = max(box["x0"], mutable_bbox["x0"])
+        iy0 = max(box["y0"], mutable_bbox["y0"])
+        ix1 = min(box["x1"], mutable_bbox["x1"])
+        iy1 = min(box["y1"], mutable_bbox["y1"])
+        if ix1 <= ix0 or iy1 <= iy0:
+            return False
+        inter = (ix1 - ix0) * (iy1 - iy0)
+        area = max(1, (box["x1"] - box["x0"]) * (box["y1"] - box["y0"]))
+        return (inter / float(area)) > 0.5
+
+    hard = ("hero_visual", "cta", "logo")
+    conditional = ("headline", "subheadline", "supporting_copy")
     out: dict[str, Any] = {}
     for role in hard + conditional:
         region = region_by_role(edit_map, role)
@@ -579,11 +651,11 @@ def immutable_region_deltas(
         if not box:
             out[role] = {"status": "skip", "mad": None}
             continue
-        if role in conditional and mutable_bbox and bbox_iou(box, mutable_bbox) > 0.08:
+        if role in conditional and _inside_mutable(box):
             out[role] = {
                 "status": "skip",
                 "mad": None,
-                "reason": "inside_commercial_content_zone",
+                "reason": "inside_upper_creative_zone",
             }
             continue
         mad = _mean_abs_delta(original, composed, box)
@@ -702,7 +774,11 @@ def clipping_check(composed: Image.Image, bbox: dict[str, int]) -> dict[str, Any
     failures: list[str] = []
     if bottom > max(24, int(w * 0.16)):
         failures.append("commercial_clipped_at_hero_boundary")
-    if top > max(28, int(w * 0.22)):
+    touches_canvas_top = int(bbox.get("y0") or 0) <= 2
+    if touches_canvas_top:
+        if top > max(80, int(w * 0.45)):
+            failures.append("commercial_clipped_at_canvas_top")
+    elif top > max(28, int(w * 0.22)):
         failures.append("commercial_clipped_at_headline_lock")
     return {
         "status": "fail" if failures else "pass",
@@ -881,7 +957,15 @@ def execute_bounded_commercial_recomposition(
             size=f"{width}x{height}",
             quality=availability.quality,
             base_url=availability.base_url,
-            variant="edit_region_commercial_content_zone" if use_zone else "edit_region_commercial_group",
+            variant=(
+                "edit_region_upper_creative_zone"
+                if region_role == "upper_creative_zone"
+                else (
+                    "edit_region_commercial_content_zone"
+                    if use_zone
+                    else "edit_region_commercial_group"
+                )
+            ),
             mask=mask_png,
         )
     except Exception as exc:

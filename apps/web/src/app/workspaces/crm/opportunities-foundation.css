@@ -16,7 +16,7 @@
   --shot-kpi-height: 78px;
   --shot-kpi-pad-y: 14px;
   --shot-kpi-icon-size: 40px;
-  --shot-gap: 12px;
+  --shot-gap: 16px;
   --shot-card-pad-x: 15px;
   --brand-primary: var(--shot-navy);
   --brand-primary-hover: #064a5f;
@@ -29,8 +29,8 @@
   --accent-muted: #3f8f9c;
   --focus-ring: var(--shot-cyan);
   /* Cool DS token remaps — avoid beige/brown inheritance */
-  --bg: #f6f8fa;
-  --background: #f6f8fa;
+  --bg: #f3f6f8;
+  --background: #f3f6f8;
   --surface: #ffffff;
   --surface-default: #ffffff;
   --surface-muted: #f1f6f8;

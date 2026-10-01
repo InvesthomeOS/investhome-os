@@ -21,6 +21,11 @@ from investhome_api.models.security_enterprise import (
 )
 from investhome_api.models.user_auth import User
 from investhome_api.services import session_service
+from investhome_api.services.backup.status import (
+    STATUS_FAILED,
+    STATUS_VERIFIED,
+    backup_status as compute_backup_status,
+)
 from investhome_api.services.company_foundation_service import supported_options
 
 
@@ -227,6 +232,7 @@ def security_dashboard(db: Session) -> dict:
         or 0
     )
 
+    backup = compute_backup_status()
     kpis = [
         {
             "key": "failed_logins_7d",
@@ -273,14 +279,22 @@ def security_dashboard(db: Session) -> dict:
         },
         {
             "key": "backup_health",
-            "label": "Backup health",
-            "value": None,
-            "available": False,
-            "note": "Backup provider not connected — see System → Backup.",
+            "label": "Backup status",
+            "value": backup["status"],
+            "available": True,
+            "note": backup["message"],
         },
     ]
 
     alerts: list[dict] = []
+    if backup["status"] != STATUS_VERIFIED:
+        alerts.append(
+            {
+                "severity": "high" if backup["status"] == STATUS_FAILED else "medium",
+                "title": "Backup protection is not verified",
+                "detail": backup["message"],
+            }
+        )
     if failed_logins >= 20:
         alerts.append(
             {
@@ -315,7 +329,29 @@ def security_dashboard(db: Session) -> dict:
             }
         )
 
-    return {"kpis": kpis, "alerts": alerts, "generated_at": now}
+    from investhome_api.services.security_monitoring import list_active_signals
+
+    signals = list_active_signals()
+    for signal in signals:
+        alerts.append(
+            {
+                "severity": signal["severity"],
+                "title": signal["summary"],
+                "detail": f"{signal['signal_type']} · {signal['event_count']} events",
+            }
+        )
+
+    kpis.append(
+        {
+            "key": "security_signals",
+            "label": "Active security signals",
+            "value": len(signals),
+            "available": True,
+            "note": "Pattern-based monitoring. No external alert provider is connected.",
+        }
+    )
+
+    return {"kpis": kpis, "alerts": alerts, "signals": signals, "generated_at": now}
 
 
 def compliance_overview(db: Session) -> dict:
@@ -420,34 +456,7 @@ def data_governance() -> dict:
 
 
 def backup_status() -> dict:
-    last = os.getenv("BACKUP_LAST_SUCCESS_AT")
-    provider = os.getenv("BACKUP_PROVIDER", "none")
-    if provider in {"", "none", "disabled"}:
-        return {
-            "status": "not_configured",
-            "last_backup_at": None,
-            "health": "unavailable",
-            "provider": "none",
-            "message": "No backup provider connected. Set BACKUP_PROVIDER and related env vars.",
-            "env_keys": ["BACKUP_PROVIDER", "BACKUP_LAST_SUCCESS_AT", "BACKUP_HEALTH_URL"],
-        }
-    health = os.getenv("BACKUP_HEALTH", "unknown")
-    parsed = None
-    if last:
-        try:
-            parsed = datetime.fromisoformat(last.replace("Z", "+00:00"))
-        except ValueError:
-            parsed = None
-    return {
-        "status": "configured" if health != "unknown" else "invalid",
-        "last_backup_at": parsed,
-        "health": health,
-        "provider": provider,
-        "message": "Status from environment — no live probe in this release."
-        if health == "unknown"
-        else f"Provider {provider} reports {health}.",
-        "env_keys": ["BACKUP_PROVIDER", "BACKUP_LAST_SUCCESS_AT", "BACKUP_HEALTH", "BACKUP_HEALTH_URL"],
-    }
+    return compute_backup_status()
 
 
 COMMON_TIMEZONES = [
@@ -672,6 +681,24 @@ def system_health(db: Session) -> dict:
             ),
             "detail": f"Provider: {settings.ai_provider}",
             "link": None,
+        }
+    )
+
+    backup = compute_backup_status()
+    backup_component_status = {
+        "verified": "healthy",
+        "stale": "degraded",
+        "failed": "unavailable",
+        "configured": "degraded",
+        "not_configured": "not_configured",
+    }.get(str(backup["status"]), "not_configured")
+    components.append(
+        {
+            "id": "backup",
+            "label": "Backup",
+            "status": backup_component_status,
+            "detail": backup["message"],
+            "link": "/dashboard/admin/system",
         }
     )
 

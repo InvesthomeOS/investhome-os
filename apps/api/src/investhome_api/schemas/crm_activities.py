@@ -143,6 +143,15 @@ class CrmActivitySummary(BaseModel):
     owner_name: str | None = None
     created_by_name: str | None = None
     related_entity_name: str | None = None
+    person_name: str | None = None
+    project_label: str | None = None
+    project_group: str | None = None
+    unit_number: str | None = None
+    agreement_id: UUID | None = None
+    source: str | None = None
+    source_task_status: str | None = None
+    source_priority: str | None = None
+    workspace_status: str | None = None
 
 
 class CrmActivityDetail(CrmActivitySummary):
@@ -228,6 +237,10 @@ class CrmActivityUpdate(BaseModel):
     metadata_json: dict[str, object] | None = None
     is_pinned: bool | None = None
     is_favorite: bool | None = None
+    entity_type: CrmActivityEntityType | None = None
+    entity_id: UUID | None = None
+    related_entity_type: CrmActivityEntityType | None = None
+    related_entity_id: UUID | None = None
 
 
 class CrmActivityListResponse(BaseModel):
@@ -237,6 +250,52 @@ class CrmActivityListResponse(BaseModel):
     total: int
     pages: int
     request_id: str = ""
+
+
+class CrmTaskCounters(BaseModel):
+    open: int = 0
+    today: int = 0
+    overdue: int = 0
+    completed: int = 0
+    total: int = 0
+
+
+class CrmTaskListResponse(CrmActivityListResponse):
+    counters: CrmTaskCounters = Field(default_factory=CrmTaskCounters)
+
+
+class CrmTaskCreate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    title: str = Field(min_length=1, max_length=500)
+    description: str | None = None
+    summary: str | None = Field(default=None, max_length=1000)
+    entity_type: CrmActivityEntityType | None = None
+    entity_id: UUID | None = None
+    contact_id: UUID | None = None
+    project_group: str | None = Field(default=None, max_length=40)
+    agreement_id: UUID | None = None
+    assigned_user_id: UUID | None = None
+    due_date: datetime | None = None
+    priority: CrmActivityPriority = CrmActivityPriority.MEDIUM
+    task_status: CrmTaskStatus | None = None
+    visibility: CrmActivityVisibility = CrmActivityVisibility.ORGANIZATION
+    metadata_json: dict[str, object] | None = None
+
+
+class CrmNoteCreate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    title: str | None = Field(default=None, max_length=500)
+    description: str | None = None
+    summary: str | None = Field(default=None, max_length=1000)
+    entity_type: CrmActivityEntityType | None = None
+    entity_id: UUID | None = None
+    contact_id: UUID | None = None
+    project_group: str | None = Field(default=None, max_length=40)
+    agreement_id: UUID | None = None
+    visibility: CrmActivityVisibility = CrmActivityVisibility.ORGANIZATION
+    metadata_json: dict[str, object] | None = None
 
 
 class CrmActivityMutationResponse(BaseModel):
@@ -257,6 +316,16 @@ class CrmTimelineEntry(BaseModel):
     created_at: datetime
     is_system_event: bool = False
     metadata_json: dict[str, object] | None = None
+    person_name: str | None = None
+    project_label: str | None = None
+    unit_number: str | None = None
+    agreement_id: UUID | None = None
+    document_id: UUID | None = None
+    document_name: str | None = None
+    event_kind: str = "system"
+    source_badge: str = "Sistem"
+    priority_tier: str = "normal"
+    description: str | None = None
 
 
 class CrmTimelineResponse(BaseModel):
@@ -306,26 +375,52 @@ class CrmFollowUpListResponse(BaseModel):
 
 
 class CrmCalendarEvent(BaseModel):
-    id: UUID
+    id: str
     title: str
-    activity_type: CrmActivityType
-    status: CrmActivityStatus
+    activity_type: str
+    event_kind: str
+    record_kind: str = "activity"
+    status: str | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
     due_date: datetime | None = None
+    event_at: datetime
     all_day: bool = False
-    entity_type: CrmActivityEntityType
-    entity_id: UUID
+    entity_type: str | None = None
+    entity_id: UUID | None = None
     assigned_user_id: UUID | None = None
     color: str | None = None
     entity_name: str | None = None
     assigned_user_name: str | None = None
+    person_name: str | None = None
+    project_label: str | None = None
+    project_group: str | None = None
+    unit_number: str | None = None
+    agreement_id: UUID | None = None
+    source: str | None = None
+    summary: str | None = None
+    is_overdue: bool = False
+    is_completed: bool = False
 
 
 class CrmCalendarResponse(BaseModel):
     events: list[CrmCalendarEvent]
     start: datetime
     end: datetime
+    total: int = 0
+
+
+class CrmCalendarEventCreate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    title: str = Field(min_length=1, max_length=500)
+    event_kind: str = Field(default="task", max_length=20)
+    description: str | None = None
+    occurs_at: datetime
+    contact_id: UUID | None = None
+    project_group: str | None = Field(default=None, max_length=40)
+    agreement_id: UUID | None = None
+    assigned_user_id: UUID | None = None
 
 
 class CrmActivitySavedFilterCreate(BaseModel):

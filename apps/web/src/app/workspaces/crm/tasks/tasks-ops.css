@@ -1,0 +1,700 @@
+.dashboard.crm-module-shell:has(.crm-ops) {
+  max-width: none;
+  min-width: 0;
+  overflow-x: visible;
+  padding: 16px 16px 24px;
+}
+
+@media (max-width: 1100px) {
+  .crm-shell.dashboard-shell:has(.crm-ops) {
+    overflow-x: auto;
+  }
+}
+
+.crm-ops {
+  --ops-petrol: #075b75;
+  --ops-turquoise: #58aebb;
+  --ops-ink: #16323d;
+  --ops-muted: #6b7c84;
+  --ops-line: color-mix(in srgb, #075b75 18%, #c8d5db);
+  --ops-soft: #eef3f5;
+  display: grid;
+  gap: 18px;
+  max-width: none;
+  min-width: 0;
+}
+
+.crm-ops__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px 18px;
+}
+
+.crm-ops__header h1 {
+  margin: 0;
+  color: var(--ops-petrol);
+  font-size: 26px;
+  font-weight: 720;
+  letter-spacing: -0.03em;
+}
+
+.crm-ops__header p {
+  margin: 4px 0 0;
+  color: var(--ops-muted);
+  font-size: 13px;
+}
+
+.crm-ops__header-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.crm-ops__count {
+  color: var(--ops-muted);
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.crm-ops-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.crm-ops-kpis button {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  align-items: center;
+  min-width: 0;
+  min-height: 76px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--ops-line);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(7, 91, 117, 0.08);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.crm-ops-kpis button.is-active {
+  border-color: var(--ops-petrol);
+  box-shadow: 0 6px 16px rgba(7, 91, 117, 0.08), inset 0 0 0 1px var(--ops-petrol);
+}
+
+.crm-ops-kpis button.is-warn {
+  background: #fff8f1;
+  border-color: color-mix(in srgb, #c47a1a 32%, #ead7b4);
+}
+
+.crm-ops-kpis button.is-warn.is-active {
+  border-color: #c47a1a;
+}
+
+.crm-ops-kpis button.is-ok {
+  background: #f3fbf6;
+  border-color: color-mix(in srgb, #2f8a5b 28%, #c8d5db);
+}
+
+.crm-ops-kpis button.is-ok.is-active {
+  border-color: #2f8a5b;
+}
+
+.crm-ops-kpis__icon {
+  display: grid;
+  place-items: center;
+  grid-row: 1 / span 2;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: #e7f3f6;
+  color: var(--ops-petrol);
+}
+
+.crm-ops-kpis button.is-warn .crm-ops-kpis__icon {
+  background: #fdecd4;
+  color: #b56a12;
+}
+
+.crm-ops-kpis button.is-ok .crm-ops-kpis__icon {
+  background: #e8f6ee;
+  color: #2f8a5b;
+}
+
+.crm-ops-kpis button strong {
+  color: var(--ops-petrol);
+  font-size: 22px;
+  font-weight: 740;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
+.crm-ops-kpis button span:last-child {
+  color: var(--ops-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.crm-ops-filtercard {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 14px;
+  align-items: end;
+  padding: 14px 16px;
+  border: 1.5px solid var(--ops-line);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(7, 91, 117, 0.08);
+}
+
+.crm-ops-filtercard .ih-field {
+  flex: 1 1 150px;
+  min-width: 140px;
+}
+
+.crm-ops-filtercard .ih-field:first-child,
+.crm-ops-filtercard .crm-ops-person {
+  flex: 1.4 1 200px;
+  min-width: 180px;
+}
+
+.crm-ops-filtercard .ih-field,
+.crm-ops-filtercard .ih-field__control,
+.crm-ops-filtercard select,
+.crm-ops-filtercard input {
+  min-width: 0;
+  width: 100%;
+}
+
+.crm-ops-filtercard select {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.crm-ops-filtercard__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.crm-ops-person {
+  position: relative;
+}
+
+.crm-ops-suggest {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% - 2px);
+  right: 0;
+  left: 0;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1.5px solid var(--ops-line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 22px rgba(7, 91, 117, 0.12);
+}
+
+.crm-ops-suggest button {
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ops-ink);
+  font-size: 12.5px;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+
+.crm-ops-suggest button:hover {
+  background: #f4fafb;
+}
+
+.crm-ops-tablecard {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 14px 14px;
+  border: 1.5px solid var(--ops-line);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(7, 91, 117, 0.08);
+}
+
+.crm-ops-table-wrap {
+  overflow: auto;
+  max-height: calc(100vh - 360px);
+}
+
+.crm-ops-table {
+  width: 100%;
+  min-width: 1280px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.crm-ops-table th,
+.crm-ops-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e4ecef;
+  color: var(--ops-ink);
+  font-size: 12.5px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.crm-ops-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f7fbfc;
+  color: #4d636c;
+  font-size: 11.5px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.crm-ops-table thead .crm-ops-link {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.crm-ops-table .is-task {
+  min-width: 240px;
+  width: 24%;
+}
+
+.crm-ops-table .is-person,
+.crm-ops-table .is-owner {
+  min-width: 160px;
+  width: 14%;
+}
+
+.crm-ops-table .is-project {
+  min-width: 160px;
+  width: 14%;
+}
+
+.crm-ops-table .is-date {
+  width: 112px;
+  white-space: nowrap;
+}
+
+.crm-ops-table .is-actions {
+  min-width: 108px;
+  white-space: nowrap;
+}
+
+.crm-ops-row {
+  cursor: pointer;
+}
+
+.crm-ops-row:hover td,
+.crm-ops-row.is-selected td {
+  background: #f4fafb;
+}
+
+.crm-ops-task {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.crm-ops-task strong,
+.crm-ops-task small {
+  overflow-wrap: anywhere;
+}
+
+.crm-ops-task strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ops-ink);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.crm-ops-task small {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ops-muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.crm-ops-personline,
+.crm-ops-owner {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.crm-ops-avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #e7f3f6;
+  color: var(--ops-petrol);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.crm-ops-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ops-petrol);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: left;
+  text-decoration: none;
+  unicode-bidi: plaintext;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.crm-ops-owner span {
+  color: var(--ops-ink);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.crm-ops-project {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.crm-ops-project .crm-ops-link,
+.crm-ops-project strong {
+  color: var(--ops-petrol);
+  font-size: 13px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.crm-ops-project span {
+  display: block;
+  color: #4d636c;
+  font-size: 11.5px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.crm-ops-date {
+  color: #4d636c;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.crm-ops-date.is-today {
+  color: var(--ops-petrol);
+  font-weight: 700;
+}
+
+.crm-ops-date.is-overdue {
+  color: #b42318;
+  font-weight: 700;
+}
+
+.crm-ops-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.crm-ops-badge.is-normal,
+.crm-ops-badge.is-low,
+.crm-ops-badge.is-open {
+  background: #eaf3fb;
+  color: #2f6f9a;
+}
+
+.crm-ops-badge.is-high {
+  background: #fdecd4;
+  color: #b56a12;
+}
+
+.crm-ops-badge.is-critical,
+.crm-ops-badge.is-cancelled,
+.crm-ops-badge.is-overdue {
+  background: #fde7e7;
+  color: #b42318;
+}
+
+.crm-ops-badge.is-progress {
+  background: #fdecd4;
+  color: #b56a12;
+}
+
+.crm-ops-badge.is-done {
+  background: #e8f6ee;
+  color: #2f8a5b;
+}
+
+.crm-ops-actions {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.crm-ops-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1.5px solid var(--ops-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ops-petrol);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.crm-ops-action.is-more {
+  min-width: 28px;
+  justify-content: center;
+  padding: 0;
+}
+
+.crm-ops-more {
+  position: relative;
+}
+
+.crm-ops-more__panel {
+  position: absolute;
+  right: 0;
+  z-index: 4;
+  min-width: 180px;
+  margin-top: 4px;
+  padding: 6px;
+  border: 1.5px solid var(--ops-line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 22px rgba(7, 91, 117, 0.12);
+}
+
+.crm-ops-more__panel button,
+.crm-ops-more__panel a {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ops-ink);
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.crm-ops-more__panel button:hover,
+.crm-ops-more__panel a:hover {
+  background: #f4fafb;
+}
+
+.crm-ops-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ops-muted);
+  font-size: 12px;
+}
+
+.crm-ops-pager div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.crm-ops-pager button,
+.crm-ops-pager select {
+  min-width: 32px;
+  min-height: 32px;
+  border: 1.5px solid var(--ops-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ops-ink);
+  cursor: pointer;
+}
+
+.crm-ops-pager button.is-active {
+  background: var(--ops-petrol);
+  border-color: var(--ops-petrol);
+  color: #fff;
+}
+
+.crm-ops-pager button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.crm-ops-pager label {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.crm-ops-empty,
+.crm-ops-skeleton {
+  padding: 24px;
+  border: 1.5px solid var(--ops-line);
+  border-radius: 16px;
+  background: #fff;
+  color: var(--ops-muted);
+}
+
+.crm-ops-skeleton {
+  display: grid;
+  gap: 10px;
+}
+
+.crm-ops-skeleton div {
+  height: 42px;
+  border-radius: 10px;
+  background: #eef3f5;
+}
+
+.crm-ops-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  border: 0;
+  background: rgba(21, 42, 54, 0.28);
+  cursor: pointer;
+}
+
+.crm-ops-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  width: min(480px, 92vw);
+  height: 100%;
+  border-left: 1.5px solid var(--ops-line);
+  background: #fff;
+  box-shadow: -8px 0 24px rgba(7, 91, 117, 0.12);
+}
+
+.crm-ops-drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #e4ecef;
+}
+
+.crm-ops-drawer__head h3 {
+  margin: 0;
+  color: var(--ops-petrol);
+  font-size: 16px;
+}
+
+.crm-ops-drawer__body {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px 24px;
+  overflow: auto;
+  align-content: start;
+}
+
+.crm-ops-drawer__body h4 {
+  margin: 0;
+  color: var(--ops-ink);
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.crm-ops-kv {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 8px 12px;
+  margin: 0;
+}
+
+.crm-ops-kv dt {
+  color: var(--ops-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.crm-ops-kv dd {
+  margin: 0;
+  color: var(--ops-ink);
+  font-size: 13px;
+  word-break: break-word;
+}
+
+.crm-ops-note {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1.5px solid var(--ops-line);
+  border-radius: 12px;
+  background: #f8fafb;
+  color: var(--ops-ink);
+  font-size: 13.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.crm-ops-drawer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.crm-ops-form {
+  display: grid;
+  gap: 12px;
+}
+
+@media (max-width: 1100px) {
+  .crm-ops-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -10,12 +10,12 @@ from investhome_api.models.user_auth import UserStatus
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=8, max_length=128)
+    password: str = Field(min_length=1, max_length=256)
 
 
 class ChangePasswordRequest(BaseModel):
-    current_password: str = Field(min_length=8, max_length=128)
-    new_password: str = Field(min_length=8, max_length=128)
+    current_password: str = Field(min_length=1, max_length=256)
+    new_password: str = Field(min_length=1, max_length=256)
 
 
 class RoleSummary(BaseModel):
@@ -95,7 +95,7 @@ class UserListResponse(BaseModel):
 class UserCreate(BaseModel):
     full_name: str = Field(min_length=1, max_length=255)
     email: EmailStr
-    password: str | None = Field(default=None, min_length=8, max_length=128)
+    password: str | None = Field(default=None, min_length=1, max_length=256)
     phone: str | None = Field(default=None, max_length=50)
     job_title: str | None = Field(default=None, max_length=255)
     department: str | None = Field(default=None, max_length=100)
@@ -133,3 +133,58 @@ class PermissionListResponse(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+class CsrfTokenResponse(BaseModel):
+    csrf_token: str
+
+
+class MfaEnrollStartResponse(BaseModel):
+    otpauth_uri: str
+    issuer: str
+    account_label: str
+    pending: bool = True
+
+
+class MfaEnrollConfirmRequest(BaseModel):
+    code: str = Field(min_length=6, max_length=16)
+
+
+class MfaEnrollConfirmResponse(BaseModel):
+    mfa_enabled: bool
+    mfa_method: str
+    recovery_codes: list[str]
+
+
+class MfaChallengeRequiredResponse(BaseModel):
+    mfa_required: bool = True
+    mfa_challenge_token: str
+    mfa_method: str = "totp"
+    expires_in: int
+
+
+class MfaEnrollmentRequiredResponse(BaseModel):
+    mfa_enrollment_required: bool = True
+    mfa_enrollment_challenge_token: str
+    expires_in: int
+
+
+class MfaEnrollmentChallengeRequest(BaseModel):
+    challenge_token: str = Field(min_length=16, max_length=256)
+
+
+class MfaEnrollmentConfirmRequiredRequest(BaseModel):
+    challenge_token: str = Field(min_length=16, max_length=256)
+    code: str = Field(min_length=6, max_length=16)
+
+
+class MfaEnrollmentCompleteResponse(BaseModel):
+    mfa_enabled: bool
+    mfa_method: str
+    recovery_codes: list[str]
+    user: CurrentUserResponse
+
+
+class MfaVerifyRequest(BaseModel):
+    challenge_token: str = Field(min_length=16, max_length=256)
+    code: str = Field(min_length=6, max_length=32)

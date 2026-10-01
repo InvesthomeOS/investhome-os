@@ -58,6 +58,12 @@ from investhome_api.services.google_drive.jobs import (
     JOB_DRIVE_BACKGROUND_SYNC,
     google_drive_background_sync_job,
 )
+from investhome_api.services.crm.gmail_jobs import (
+    JOB_GMAIL_ACCOUNT_SYNC,
+    JOB_GMAIL_BACKGROUND_SYNC,
+    gmail_account_sync_job,
+    gmail_background_sync_job,
+)
 from investhome_api.services.ai_index.queue import (
     JOB_NAME as AI_INDEX_JOB_NAME,
     JOB_NAME_PROJECT as AI_INDEX_PROJECT_JOB_NAME,
@@ -71,6 +77,13 @@ logger = get_logger("investhome.worker")
 
 _settings = get_settings()
 redis_settings = redis_settings_from_url(_settings.redis_url)
+
+
+def _gmail_sync_cron_minutes() -> set[int]:
+    interval = max(1, min(60, int(_settings.gmail_sync_interval_minutes or 5)))
+    if interval >= 60:
+        return {0}
+    return set(range(0, 60, interval))
 
 
 def _drive_sync_cron_minutes() -> set[int]:
@@ -102,6 +115,8 @@ class WorkerSettings:
         warehouse_ingestion_incremental_job,
         warehouse_ingestion_full_refresh_job,
         google_drive_background_sync_job,
+        gmail_background_sync_job,
+        gmail_account_sync_job,
         process_ai_index_job,
         process_ai_index_project_job,
     ]
@@ -136,6 +151,11 @@ class WorkerSettings:
             name=JOB_DRIVE_BACKGROUND_SYNC,
             minute=_drive_sync_cron_minutes(),
         ),
+        cron(
+            gmail_background_sync_job,
+            name=JOB_GMAIL_BACKGROUND_SYNC,
+            minute=_gmail_sync_cron_minutes(),
+        ),
     ]
     job_timeout = 600
     max_tries = 3
@@ -165,6 +185,8 @@ class WorkerSettings:
         JOB_NAME_INCREMENTAL: warehouse_ingestion_incremental_job,
         JOB_NAME_FULL_REFRESH: warehouse_ingestion_full_refresh_job,
         JOB_DRIVE_BACKGROUND_SYNC: google_drive_background_sync_job,
+        JOB_GMAIL_BACKGROUND_SYNC: gmail_background_sync_job,
+        JOB_GMAIL_ACCOUNT_SYNC: gmail_account_sync_job,
         AI_INDEX_JOB_NAME: process_ai_index_job,
         AI_INDEX_PROJECT_JOB_NAME: process_ai_index_project_job,
     }

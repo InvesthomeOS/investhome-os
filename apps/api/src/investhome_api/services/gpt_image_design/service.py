@@ -56,6 +56,7 @@ from investhome_api.services.gpt_image_design.config import (
     canvas_for_preset,
     openai_api_key,
     provider_availability,
+    resolve_quality,
     resolve_size,
 )
 from investhome_api.services.gpt_image_design.design_plan import (
@@ -72,6 +73,7 @@ from investhome_api.services.gpt_image_design.persistence import (
 )
 from investhome_api.services.gpt_image_design.source import (
     INVESHOME_GLOBAL_LOGO_MISSING,
+    load_design_reference_image,
     load_project_image_by_id,
     resolve_project_inputs,
 )
@@ -345,6 +347,12 @@ def _generate_project(
     skip_project_logo = isinstance(builder_context, dict) and bool(
         builder_context.get("skip_project_logo") or builder_context.get("brand_market_ad")
     )
+    skip_design_references = isinstance(builder_context, dict) and bool(
+        builder_context.get("skip_design_references")
+    )
+    skip_investhome_logo = isinstance(builder_context, dict) and bool(
+        builder_context.get("quick_creative") or builder_context.get("skip_investhome_logo")
+    )
     source, extras, design_refs, logo_notes, composition_warnings = resolve_project_inputs(
         db,
         linked_project_id=linked_project_id,
@@ -353,6 +361,8 @@ def _generate_project(
         project_name=project.project_name,
         project_code=getattr(project, "project_code", None),
         skip_project_logo=skip_project_logo,
+        skip_design_references=skip_design_references,
+        skip_investhome_logo=skip_investhome_logo,
     )
     logger.info(
         "gpt_image_project_source mode=edits project_id=%s asset_id=%s extra_images=%s "
@@ -548,13 +558,23 @@ def _generate_project(
     )
     api_key = openai_api_key(settings)
     calls_before = provider_call_count()
+    quality = availability.quality
+    if isinstance(builder_context, dict) and builder_context.get("gpt_image_quality"):
+        quality = resolve_quality(str(builder_context.get("gpt_image_quality")))
     # GPT Image edits: architecture/composition photo only unless finished_ad (full ad in-image).
     edit_inputs = [
-        (source.image_bytes, source.filename, source.content_type),
+        (source.image_bytes, "image1-project-hero.png", source.content_type),
     ]
     if finished_ad:
         skip_logo_input = isinstance(builder_context, dict) and (
             builder_context.get("skip_logo_edit_input") or builder_context.get("revision_mode")
+        )
+        quick_creative = isinstance(builder_context, dict) and bool(builder_context.get("quick_creative"))
+        revision_mode = isinstance(builder_context, dict) and bool(builder_context.get("revision_mode"))
+        attach_design_reference = (
+            quick_creative
+            and not revision_mode
+            and bool(builder_context.get("attach_design_reference"))
         )
         revision_route = (
             str(builder_context.get("revision_route") or "")
@@ -615,6 +635,48 @@ def _generate_project(
                     "Source-only redesign is not allowed."
                 ),
             )
+        if quick_creative and not revision_mode:
+            from investhome_api.services.creative_director.quick_creative_safety import (
+                QUICK_NO_DESIGN_REFERENCE_MESSAGE,
+                grade_a_design_reference_ids,
+            )
+
+            raw_ref_id = builder_context.get("design_reference_asset_id") if isinstance(builder_context, dict) else None
+            try:
+                ref_uuid = UUID(str(raw_ref_id)) if raw_ref_id else None
+            except (TypeError, ValueError):
+                ref_uuid = None
+            allowed_refs = grade_a_design_reference_ids()
+            if (
+                not attach_design_reference
+                or ref_uuid is None
+                or str(ref_uuid) not in allowed_refs
+                or str(ref_uuid) == str(source.asset_id)
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=QUICK_NO_DESIGN_REFERENCE_MESSAGE,
+                )
+            design_ref = load_design_reference_image(db, asset_id=ref_uuid, role="design_reference")
+            if design_ref is None or not design_ref.image_bytes:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=QUICK_NO_DESIGN_REFERENCE_MESSAGE,
+                )
+            edit_inputs = [
+                (source.image_bytes, "image1-project-hero.png", source.content_type),
+                (design_ref.image_bytes, "image2-design-reference.png", design_ref.content_type),
+            ]
+            extras = [row for row in extras if row.role not in {"project_logo", "investhome_logo"}]
+            extras.append(design_ref)
+            extra_roles = [row.role for row in extras]
+            skip_logo_input = True
+            logger.info(
+                "quick_creative_reference_guided photo=%s reference=%s quality=%s",
+                source.asset_id,
+                ref_uuid,
+                quality,
+            )
         if not skip_logo_input:
             for row in extras:
                 if row.role == "project_logo" and row.image_bytes:
@@ -626,7 +688,7 @@ def _generate_project(
         prompt=prompt,
         images=edit_inputs,
         size=size,
-        quality=availability.quality,
+        quality=quality,
         base_url=availability.base_url,
         variant="project",
     )
@@ -670,6 +732,8 @@ def _generate_project(
                     "source_asset_id": str(source.asset_id),
                     "source_filename": source.filename,
                     "extra_image_roles": extra_roles,
+                    "edit_input_filenames": [name for _payload, name, _ctype in edit_inputs],
+                    "gpt_image_quality": quality,
                     "image_provider_route": (
                         builder_context.get("image_provider_route")
                         if isinstance(builder_context, dict)

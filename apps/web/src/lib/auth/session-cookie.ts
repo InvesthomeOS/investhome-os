@@ -5,9 +5,6 @@
 
 export const SESSION_COOKIE = 'ih_session';
 
-/** Matches API default in settings.py for local/dev alignment. */
-const DEV_JWT_SECRET = 'dev-only-change-in-production-use-long-random-string';
-
 /**
  * Read env without direct `process.env.JWT_SECRET` access.
  * Next.js may inline direct `process.env.X` at build time; bracket access keeps
@@ -23,10 +20,7 @@ function readRuntimeEnv(name: string): string {
 }
 
 export function getSessionJwtSecret(): string {
-  const fromEnv = readRuntimeEnv('JWT_SECRET');
-  if (fromEnv) return fromEnv;
-  const nodeEnv = readRuntimeEnv('NODE_ENV');
-  return nodeEnv === 'production' ? '' : DEV_JWT_SECRET;
+  return readRuntimeEnv('JWT_SECRET').trim();
 }
 
 function base64UrlToBytes(input: string): Uint8Array {
@@ -72,10 +66,23 @@ export async function isValidSessionJwt(
     if (!valid) return false;
 
     const payloadJson = new TextDecoder().decode(base64UrlToBytes(payloadB64));
-    const payload = JSON.parse(payloadJson) as { sub?: string; exp?: number };
+    const payload = JSON.parse(payloadJson) as {
+      sub?: string;
+      exp?: number;
+      jti?: string;
+      auth_time?: number;
+    };
     if (!payload.sub || typeof payload.exp !== 'number') return false;
+    if (typeof payload.jti !== 'string' || !/^[A-Za-z0-9._-]{1,64}$/.test(payload.jti.trim())) {
+      return false;
+    }
     // Small clock skew allowance (30s)
     if (payload.exp * 1000 <= Date.now() - 30_000) return false;
+    // Absolute lifetime from original login (24h). API also enforces this via session.created_at.
+    if (typeof payload.auth_time === 'number') {
+      const absoluteMs = 24 * 60 * 60 * 1000;
+      if (payload.auth_time * 1000 + absoluteMs <= Date.now() - 30_000) return false;
+    }
     return true;
   } catch {
     return false;

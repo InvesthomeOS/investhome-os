@@ -13,13 +13,15 @@ from investhome_api.models.crm_activity import (
     CrmActivityStatus,
     CrmActivityType,
 )
-from investhome_api.models.crm_agreement import CrmAgreement
+from investhome_api.models.crm_agreement import CrmAgreement, CrmAgreementParticipant
 from investhome_api.models.crm_contact import (
     CrmContact,
     CrmContactStatus,
     CrmContactType,
     CrmContactTypeAssignment,
 )
+from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole, UserStatus
+from investhome_api.services.auth_service import hash_password
 from investhome_api.services.crm.contact_service import create_contact
 from investhome_api.schemas.crm_contacts import CrmContactCreate, CrmInvestmentProfileSchema
 
@@ -563,3 +565,325 @@ def test_contact_agreements_promote_financial_metadata(client: TestClient, db: S
     assert unit["payment_amount"] == "120000"
     assert reit["investment_amount"] == "75000"
     assert reit["unit_number"] in {None, ""}
+
+
+def test_people_counts_and_flag_filters(client: TestClient) -> None:
+    missing = client.post(
+        "/crm/contacts",
+        json=_create_contact_payload(display_name="Missing Info Person", notes="BILGI_EKSIK: phone blank"),
+    )
+    review = client.post(
+        "/crm/contacts",
+        json=_create_contact_payload(display_name="Review Person", notes="INCELEME_GEREKLI: check identity"),
+    )
+    junk = client.post("/crm/contacts", json=_create_contact_payload(display_name="Junk Person"))
+    assert missing.status_code == 201
+    assert review.status_code == 201
+    assert junk.status_code == 201
+    archived = client.post(f"/crm/contacts/{junk.json()['contact']['id']}/archive")
+    assert archived.status_code == 200
+
+    counts = client.get("/crm/contacts/people-counts")
+    assert counts.status_code == 200
+    body = counts.json()
+    assert body["total"] >= 3
+    assert body["active"] >= 2
+    assert body["junk"] >= 1
+    assert body["missing_info"] >= 1
+    assert body["review_required"] >= 1
+
+    missing_list = client.get("/crm/contacts", params={"flag": "bilgi_eksik", "include_archived": True})
+    assert missing_list.status_code == 200
+    assert any(item["display_name"] == "Missing Info Person" for item in missing_list.json()["items"])
+
+    review_list = client.get("/crm/contacts", params={"flag": "inceleme_gerekli", "include_archived": True})
+    assert review_list.status_code == 200
+    assert any(item["display_name"] == "Review Person" for item in review_list.json()["items"])
+
+    active_list = client.get("/crm/contacts", params={"status": "active"})
+    assert active_list.status_code == 200
+    names = {item["display_name"] for item in active_list.json()["items"]}
+    assert "Junk Person" not in names
+
+
+def test_investor_workspace_counts_exclude_participants(client: TestClient, db: Session) -> None:
+    primary = client.post("/crm/contacts", json=_create_contact_payload(display_name="Investor Primary")).json()["contact"]
+    other = client.post("/crm/contacts", json=_create_contact_payload(display_name="Investor Other")).json()["contact"]
+    participant = client.post(
+        "/crm/contacts", json=_create_contact_payload(display_name="Investor Participant Only")
+    ).json()["contact"]
+    missing = client.post(
+        "/crm/contacts",
+        json=_create_contact_payload(display_name="Investor Missing", notes="BILGI_EKSIK: email"),
+    ).json()["contact"]
+    reit = CrmAgreement(
+        contact_id=UUID(primary["id"]),
+        project_group="reit",
+        source="bitrix",
+        source_external_id=f"inv-reit-{uuid4().hex[:8]}",
+        investment_amount="50000.00",
+        metadata_json={"currency": "USD"},
+    )
+    uniloft = CrmAgreement(
+        contact_id=UUID(primary["id"]),
+        project_group="uniloft",
+        source="bitrix",
+        source_external_id=f"inv-uni-{uuid4().hex[:8]}",
+        investment_amount="10000.00",
+        metadata_json={"currency": "USD"},
+    )
+    temple = CrmAgreement(
+        contact_id=UUID(other["id"]),
+        project_group="the_temple",
+        source="bitrix",
+        source_external_id=f"inv-temple-{uuid4().hex[:8]}",
+    )
+    missing_row = CrmAgreement(
+        contact_id=UUID(missing["id"]),
+        project_group="1812_h_pl",
+        source="bitrix",
+        source_external_id=f"inv-hpl-{uuid4().hex[:8]}",
+    )
+    db.add_all([reit, uniloft, temple, missing_row])
+    db.flush()
+    db.add(CrmAgreementParticipant(agreement_id=reit.id, contact_id=UUID(participant["id"]), role="owner"))
+    db.commit()
+
+    counts = client.get("/crm/contacts/investor-counts")
+    assert counts.status_code == 200, counts.text
+    body = counts.json()
+    assert body["total"] >= 3
+    assert body["purchases"] >= 4
+    assert body["missing_info"] >= 1
+
+    listed = client.get("/crm/contacts", params={"category": "investor", "include_archived": True, "page_size": 100})
+    assert listed.status_code == 200
+    names = {item["display_name"] for item in listed.json()["items"]}
+    assert "Investor Primary" in names
+    assert "Investor Other" in names
+    assert "Investor Participant Only" not in names
+    primary_row = next(item for item in listed.json()["items"] if item["display_name"] == "Investor Primary")
+    assert primary_row["agreement_count"] >= 2
+    assert any(item["currency"] == "USD" for item in primary_row["verified_amount_totals"])
+    assert "reit" in primary_row["agreement_projects"]
+    assert "uniloft" in primary_row["agreement_projects"]
+
+    project = client.get(
+        "/crm/contacts",
+        params={"category": "investor", "agreement_project": "reit", "include_archived": True, "page_size": 100},
+    )
+    project_names = {item["display_name"] for item in project.json()["items"]}
+    assert "Investor Primary" in project_names
+    assert "Investor Other" not in project_names
+
+    search = client.get("/crm/contacts", params={"category": "investor", "search": "Investor Primary", "include_archived": True})
+    assert any(item["display_name"] == "Investor Primary" for item in search.json()["items"])
+
+    without = client.get("/crm/contacts", params={"has_investments": False, "search": "Investor Participant Only"})
+    assert without.status_code == 200
+    assert any(item["display_name"] == "Investor Participant Only" for item in without.json()["items"])
+
+
+def _ensure_permission(db: Session, resource: str, action: str) -> Permission:
+    perm = db.query(Permission).filter_by(resource=resource, action=action).one_or_none()
+    if perm is None:
+        perm = Permission(resource=resource, action=action)
+        db.add(perm)
+        db.flush()
+    return perm
+
+
+def _crm_user_with_permissions(db: Session, extra: list[tuple[str, str]], *, label: str) -> str:
+    grants = [("crm", "read"), ("crm", "update"), *extra]
+    role = Role(name=label, code=f"{label}_{uuid4().hex[:6]}", is_system_role=False)
+    db.add(role)
+    db.flush()
+    for resource, action in grants:
+        db.add(RolePermission(role_id=role.id, permission_id=_ensure_permission(db, resource, action).id))
+    email = f"{label}.{uuid4().hex[:8]}@example.com"
+    user = User(
+        email=email,
+        full_name=label,
+        hashed_password=hash_password("Demo123!"),
+        status=UserStatus.ACTIVE,
+    )
+    db.add(user)
+    db.flush()
+    db.add(UserRole(user_id=user.id, role_id=role.id))
+    db.commit()
+    return email
+
+
+def _crm_update_only_email(db: Session) -> str:
+    return _crm_user_with_permissions(db, [], label="crm_update_only")
+
+
+def _seed_sensitive_contact(db: Session) -> CrmContact:
+    contact = create_contact(
+        db,
+        CrmContactCreate(
+            contact_type=CrmContactType.PROSPECT,
+            display_name=f"Sensitive Contact {uuid4().hex[:6]}",
+            compliance_data={"kyc_status": "pending"},
+        ),
+    )
+    db.commit()
+    db.refresh(contact)
+    return contact
+
+
+def _reload_contact(db: Session, contact_id: UUID) -> CrmContact:
+    db.expire_all()
+    contact = db.get(CrmContact, contact_id)
+    assert contact is not None
+    return contact
+
+
+def test_crm_update_can_change_ordinary_fields(auth_client: TestClient, db: Session) -> None:
+    email = _crm_update_only_email(db)
+    contact = _seed_sensitive_contact(db)
+    _login(auth_client, email)
+    response = auth_client.patch(
+        f"/crm/contacts/{contact.id}",
+        json={"display_name": "Ordinary Update", "priority": "high"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()["contact"]
+    assert body["display_name"] == "Ordinary Update"
+    assert body["priority"] == "high"
+
+
+def test_crm_update_cannot_change_owner_user_id(auth_client: TestClient, db: Session) -> None:
+    email = _crm_update_only_email(db)
+    contact = _seed_sensitive_contact(db)
+    original_owner = contact.owner_user_id
+    new_owner = db.query(User).filter_by(email="sales@example.com").one()
+    _login(auth_client, email)
+    response = auth_client.patch(
+        f"/crm/contacts/{contact.id}",
+        json={"owner_user_id": str(new_owner.id)},
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Insufficient permissions"
+    reloaded = _reload_contact(db, contact.id)
+    assert reloaded.owner_user_id == original_owner
+
+
+def test_crm_update_cannot_change_compliance_data(auth_client: TestClient, db: Session) -> None:
+    email = _crm_update_only_email(db)
+    contact = _seed_sensitive_contact(db)
+    _login(auth_client, email)
+    response = auth_client.patch(
+        f"/crm/contacts/{contact.id}",
+        json={"compliance_data": {"kyc_status": "verified"}},
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Insufficient permissions"
+    reloaded = _reload_contact(db, contact.id)
+    assert reloaded.compliance_data == {"kyc_status": "pending"}
+
+
+def test_compliance_view_cannot_update_compliance_data(auth_client: TestClient, db: Session) -> None:
+    email = _crm_user_with_permissions(db, [("compliance", "view")], label="crm_compliance_view")
+    contact = _seed_sensitive_contact(db)
+    _login(auth_client, email)
+    response = auth_client.patch(
+        f"/crm/contacts/{contact.id}",
+        json={"compliance_data": {"kyc_status": "verified"}},
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Insufficient permissions"
+    reloaded = _reload_contact(db, contact.id)
+    assert reloaded.compliance_data == {"kyc_status": "pending"}
+
+
+def test_compliance_update_permission_can_update_compliance_data(
+    auth_client: TestClient, db: Session
+) -> None:
+    email = _crm_user_with_permissions(db, [("compliance", "update")], label="crm_compliance_write")
+    contact = _seed_sensitive_contact(db)
+    _login(auth_client, email)
+    response = auth_client.patch(
+        f"/crm/contacts/{contact.id}",
+        json={"compliance_data": {"kyc_status": "verified"}},
+    )
+    assert response.status_code == 200, response.text
+    reloaded = _reload_contact(db, contact.id)
+    assert reloaded.compliance_data == {"kyc_status": "verified"}
+
+
+def test_super_admin_can_update_compliance_data(auth_client: TestClient, db: Session) -> None:
+    contact = _seed_sensitive_contact(db)
+    _login(auth_client, "admin@example.com")
+    response = auth_client.patch(
+        f"/crm/contacts/{contact.id}",
+        json={"compliance_data": {"kyc_status": "verified"}},
+    )
+    assert response.status_code == 200, response.text
+    reloaded = _reload_contact(db, contact.id)
+    assert reloaded.compliance_data == {"kyc_status": "verified"}
+
+
+def test_privileged_user_can_change_owner_and_compliance(auth_client: TestClient, db: Session) -> None:
+    contact = _seed_sensitive_contact(db)
+    new_owner = db.query(User).filter_by(email="sales@example.com").one()
+    _login(auth_client, "admin@example.com")
+    owner_response = auth_client.patch(
+        f"/crm/contacts/{contact.id}",
+        json={"owner_user_id": str(new_owner.id)},
+    )
+    assert owner_response.status_code == 200, owner_response.text
+    assert owner_response.json()["contact"]["owner_user_id"] == str(new_owner.id)
+    compliance_response = auth_client.patch(
+        f"/crm/contacts/{contact.id}",
+        json={"compliance_data": {"kyc_status": "verified"}},
+    )
+    assert compliance_response.status_code == 200, compliance_response.text
+    reloaded = _reload_contact(db, contact.id)
+    assert reloaded.owner_user_id == new_owner.id
+    assert reloaded.compliance_data == {"kyc_status": "verified"}
+
+
+def test_mixed_payload_cannot_smuggle_sensitive_changes(auth_client: TestClient, db: Session) -> None:
+    email = _crm_update_only_email(db)
+    contact = _seed_sensitive_contact(db)
+    original_name = contact.display_name
+    original_owner = contact.owner_user_id
+    new_owner = db.query(User).filter_by(email="sales@example.com").one()
+    _login(auth_client, email)
+    response = auth_client.patch(
+        f"/crm/contacts/{contact.id}",
+        json={
+            "display_name": "Smuggled Rename",
+            "owner_user_id": str(new_owner.id),
+            "compliance_data": {"kyc_status": "verified"},
+        },
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Insufficient permissions"
+    reloaded = _reload_contact(db, contact.id)
+    assert reloaded.display_name == original_name
+    assert reloaded.owner_user_id == original_owner
+    assert reloaded.compliance_data == {"kyc_status": "pending"}
+
+
+def test_compliance_view_mixed_payload_cannot_bypass_write_restriction(
+    auth_client: TestClient, db: Session
+) -> None:
+    email = _crm_user_with_permissions(db, [("compliance", "view")], label="crm_comp_view_mixed")
+    contact = _seed_sensitive_contact(db)
+    original_name = contact.display_name
+    _login(auth_client, email)
+    response = auth_client.patch(
+        f"/crm/contacts/{contact.id}",
+        json={
+            "display_name": "Smuggled Rename",
+            "compliance_data": {"kyc_status": "verified"},
+        },
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Insufficient permissions"
+    reloaded = _reload_contact(db, contact.id)
+    assert reloaded.display_name == original_name
+    assert reloaded.compliance_data == {"kyc_status": "pending"}
+

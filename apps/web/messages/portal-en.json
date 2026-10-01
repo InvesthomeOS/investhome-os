@@ -35,8 +35,7 @@
       "email": "Email",
       "password": "Password",
       "submit": "Sign in",
-      "error": "Invalid email or password.",
-      "hint": "Demo investor A: investor.a@investhome.demo / Portal123!\nIsolation test B: investor.b@investhome.demo / Portal123!"
+      "error": "Invalid email or password."
     },
     "dashboard": {
       "title": "Dashboard",

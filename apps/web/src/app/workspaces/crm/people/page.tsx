@@ -1,18 +1,6 @@
-import { CrmPeopleWorkspace } from './_components/crm-people-workspace';
-import { makePeoplePreview } from './people-demo-data';
-import './people.css';
+import { redirect } from 'next/navigation';
+import type { Route } from 'next';
 
-/**
- * Canonical CRM People (Kişiler) route.
- * Presentation uses typed local fixtures until a live contacts API is re-wired
- * into the Dashboard Freeze foundation workspace.
- */
 export default function CrmPeoplePage() {
-  const preview = makePeoplePreview();
-
-  return (
-    <main className="dashboard crm-module-shell" data-testid="crm-people-page">
-      <CrmPeopleWorkspace preview={preview} />
-    </main>
-  );
+  redirect('/workspaces/crm/contacts' as Route);
 }

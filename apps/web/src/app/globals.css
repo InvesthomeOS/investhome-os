@@ -2468,6 +2468,57 @@ body {
   color: var(--success);
 }
 
+.auth-form__back {
+  margin-top: 1rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 0.875rem;
+}
+
+.auth-card__mfa .auth-card__title {
+  margin-top: 0;
+}
+
+.mfa-qr {
+  display: block;
+  margin: 1rem auto;
+  border-radius: 0.5rem;
+}
+
+.mfa-manual-key {
+  display: grid;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.mfa-manual-key code,
+.mfa-recovery__list code {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  letter-spacing: 0.08em;
+  color: var(--brand-text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  padding: 0.375rem 0.5rem;
+  display: inline-block;
+}
+
+.mfa-recovery__warning {
+  color: var(--muted);
+  margin: 0.75rem 0;
+}
+
+.mfa-recovery__list {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+}
+
 .auth-card__demo {
   margin-top: 1.5rem;
   padding-top: 1rem;
@@ -2857,8 +2908,51 @@ body {
   border-color: #c53030;
 }
 
+.sec-alert--warning,
 .sec-alert--medium {
   border-color: #b7791f;
+}
+
+.sec-alert--info {
+  border-color: var(--border);
+}
+
+.sec-table-wrap {
+  overflow-x: auto;
+}
+
+.sec-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.sec-table th,
+.sec-table td {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.sec-signal__type {
+  display: block;
+  color: var(--text-muted, #667);
+  font-size: 0.8rem;
+  margin-top: 0.15rem;
+}
+
+.sec-badge--critical,
+.sec-badge--high {
+  color: #9b2c2c;
+}
+
+.sec-badge--warning {
+  color: #975a16;
+}
+
+.sec-badge--info {
+  color: var(--text-muted, #667);
 }
 
 .sec-card-grid {
@@ -2867,11 +2961,8 @@ body {
   gap: 0.75rem;
 }
 
-.sec-card {
-  padding: 0.85rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 12px);
-  background: var(--surface);
+.sec-card[data-backup-warning='true'] {
+  border-color: #b7791f;
 }
 
 .sec-card h3 {

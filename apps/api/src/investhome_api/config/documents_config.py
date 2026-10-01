@@ -14,23 +14,14 @@ from investhome_api.services.drawing_intelligence.config import should_process_a
 # Extension -> allowed MIME types (first is preferred for Content-Type responses)
 ALLOWED_EXTENSIONS: dict[str, tuple[str, ...]] = {
     "pdf": ("application/pdf",),
-    "docx": (
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "application/octet-stream",
-    ),
-    "doc": ("application/msword", "application/octet-stream"),
-    "xlsx": (
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "application/octet-stream",
-    ),
-    "xls": ("application/vnd.ms-excel", "application/octet-stream"),
-    "pptx": (
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        "application/octet-stream",
-    ),
-    "ppt": ("application/vnd.ms-powerpoint", "application/octet-stream"),
-    "csv": ("text/csv", "application/csv", "text/plain", "application/octet-stream"),
-    "txt": ("text/plain", "application/octet-stream"),
+    "docx": ("application/vnd.openxmlformats-officedocument.wordprocessingml.document",),
+    "doc": ("application/msword",),
+    "xlsx": ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",),
+    "xls": ("application/vnd.ms-excel",),
+    "pptx": ("application/vnd.openxmlformats-officedocument.presentationml.presentation",),
+    "ppt": ("application/vnd.ms-powerpoint",),
+    "csv": ("text/csv", "application/csv", "text/plain"),
+    "txt": ("text/plain",),
     "jpg": ("image/jpeg",),
     "jpeg": ("image/jpeg",),
     "png": ("image/png",),
@@ -38,10 +29,10 @@ ALLOWED_EXTENSIONS: dict[str, tuple[str, ...]] = {
     "gif": ("image/gif",),
     "mp4": ("video/mp4",),
     "webm": ("video/webm",),
-    "mov": ("video/quicktime", "video/mp4", "application/octet-stream"),
-    "dwg": ("application/acad", "image/vnd.dwg", "application/octet-stream"),
-    "dxf": ("image/vnd.dxf", "application/dxf", "application/octet-stream"),
-    "zip": ("application/zip", "application/x-zip-compressed", "application/octet-stream"),
+    "mov": ("video/quicktime", "video/mp4"),
+    "dwg": ("application/acad", "image/vnd.dwg"),
+    "dxf": ("image/vnd.dxf", "application/dxf", "text/plain"),
+    "zip": ("application/zip", "application/x-zip-compressed"),
 }
 
 # Extensions safe for inline browser preview

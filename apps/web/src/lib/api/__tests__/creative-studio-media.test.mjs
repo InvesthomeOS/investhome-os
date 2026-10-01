@@ -380,3 +380,14 @@ describe('media client with mocked fetch', () => {
     );
   });
 });
+
+describe('premium campaigns client', () => {
+  it('exposes live premium campaign routes without GPT Image revise', () => {
+    assert.match(source, /\/ai\/creative-studio\/premium-campaigns/);
+    assert.match(source, /listPremiumCampaigns/);
+    assert.match(source, /revisePremiumCampaign/);
+    assert.match(source, /approvePremiumCampaign/);
+    assert.match(source, /getPremiumCampaignDownloadUrl/);
+    assert.doesNotMatch(source, /premium-campaigns.*\/revise-ad/);
+  });
+});

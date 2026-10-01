@@ -242,6 +242,63 @@
   line-height: 1.4;
 }
 
+.cs-ds__paths {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.cs-ds__path {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 72px;
+  padding: 12px 14px;
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-card-radius);
+  background: #fff;
+  box-shadow: var(--cs-card-shadow);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.cs-ds__path:hover {
+  border-color: color-mix(in srgb, var(--shot-navy) 28%, var(--cs-border));
+  box-shadow: var(--cs-card-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.cs-ds__path-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cs-ds__path-copy strong {
+  color: #152a36;
+  font-size: var(--shot-font-heading);
+  font-weight: 700;
+}
+
+.cs-ds__path-copy span {
+  color: var(--cs-muted);
+  font-size: var(--shot-font-small);
+  line-height: 1.35;
+}
+
+@media (max-width: 720px) {
+  .cs-ds__paths {
+    grid-template-columns: 1fr;
+  }
+}
+
 .cs-ds__hero-chips {
   display: flex;
   flex-wrap: wrap;

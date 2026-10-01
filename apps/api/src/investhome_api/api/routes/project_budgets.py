@@ -35,6 +35,7 @@ from investhome_api.schemas.project_budget_foundation import (
     CostCodeUpdate,
 )
 from investhome_api.services import project_budget_service as svc
+from investhome_api.services.document_validation import read_and_validate_csv_import
 
 router = APIRouter(tags=["project-budgets"])
 
@@ -498,7 +499,7 @@ async def preview_budget_import(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("projects", "view")),
 ) -> BudgetImportPreviewResponse:
-    content = (await file.read()).decode("utf-8-sig")
+    content = await read_and_validate_csv_import(file)
     return svc.preview_import_csv(db, user, project_id, budget_id, content)
 
 

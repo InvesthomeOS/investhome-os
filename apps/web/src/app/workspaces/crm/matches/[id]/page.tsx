@@ -1,5 +1,6 @@
-import { CrmMatchDetailView } from '../_components/crm-match-detail';
-import '../matches.css';
+import { CrmMatchesLiveWorkspace } from '../_components/crm-matches-live-workspace';
+import '@/workspaces/crm/contact-card/contact-card.css';
+import '../matches-ops.css';
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -7,10 +8,9 @@ type PageProps = {
 
 export default async function CrmMatchDetailPage({ params }: PageProps) {
   const { id } = await params;
-
   return (
-    <main className="dashboard crm-module-shell" data-testid="crm-match-detail-page">
-      <CrmMatchDetailView matchId={id} />
+    <main className="dashboard crm-module-shell" data-testid="crm-matches-page">
+      <CrmMatchesLiveWorkspace initialId={id} />
     </main>
   );
 }

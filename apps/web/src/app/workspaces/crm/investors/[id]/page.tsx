@@ -1,5 +1,4 @@
-import { CrmPersonDetailView } from '../../people/_components/crm-person-detail';
-import '../../people/people.css';
+import { ContactVerificationDetail } from '../../contacts/_components/contact-verification-detail';
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -7,10 +6,9 @@ type PageProps = {
 
 export default async function CrmInvestorDetailPage({ params }: PageProps) {
   const { id } = await params;
-
   return (
     <main className="dashboard crm-module-shell" data-testid="crm-investor-detail-page">
-      <CrmPersonDetailView personId={id} listHref="/workspaces/crm/investors" />
+      <ContactVerificationDetail contactId={id} />
     </main>
   );
 }

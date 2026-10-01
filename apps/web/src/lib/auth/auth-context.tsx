@@ -13,18 +13,39 @@ import {
   login as loginRequest,
   logout as logoutRequest,
   updateUser,
+  verifyMfaLogin,
   type CurrentUser,
 } from '@/lib/api/auth';
-import { ApiError } from '@/lib/api/client';
+import { ApiError, ensureCsrfToken } from '@/lib/api/client';
 import type { AppLocale } from '@/i18n/config';
 import { readLocaleCookie, resolveClientLocale, writeLocaleCookie } from '@/lib/i18n/locale-cookie';
+import { isCurrentUserResponse, isMfaChallengeResponse, isMfaEnrollmentRequiredResponse } from '@/lib/auth/mfa-flow';
 import { safeInternalPath } from '@/lib/auth/session-cookie';
+
+export type MfaPendingChallenge = {
+  token: string;
+  method: string;
+  expiresIn: number;
+  next: string | null;
+};
+
+export type MfaEnrollmentPending = {
+  token: string;
+  expiresIn: number;
+  next: string | null;
+};
 
 type AuthContextValue = {
   user: CurrentUser | null;
   loading: boolean;
   error: string | null;
+  mfaPending: MfaPendingChallenge | null;
+  enrollmentPending: MfaEnrollmentPending | null;
   login: (email: string, password: string, options?: { next?: string | null }) => Promise<void>;
+  completeMfaLogin: (code: string) => Promise<void>;
+  cancelMfaLogin: () => void;
+  finishRequiredEnrollment: (user: CurrentUser) => void;
+  cancelEnrollment: () => void;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
   setPreferredLocale: (locale: AppLocale) => Promise<void>;
@@ -50,6 +71,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathnameRef = useRef(pathname);
   pathnameRef.current = pathname;
   const [user, setUser] = useState<CurrentUser | null>(null);
+  const [mfaPending, setMfaPending] = useState<MfaPendingChallenge | null>(null);
+  const [enrollmentPending, setEnrollmentPending] = useState<MfaEnrollmentPending | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const clearingSessionRef = useRef(false);
@@ -80,6 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const current = await fetchCurrentUser();
       setUser(current);
       applyLocaleFromUser(current.preferred_language);
+      void ensureCsrfToken();
     } catch (err) {
       setUser(null);
       if (err instanceof ApiError && err.status === 401) {
@@ -99,15 +123,85 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(
     async (email: string, password: string, options?: { next?: string | null }) => {
       setError(null);
-      const current = await loginRequest(email, password);
-      setUser(current);
-      // Keep explicit cookie if present; otherwise seed from profile preference.
-      applyLocaleFromUser(current.preferred_language);
+      const result = await loginRequest(email, password);
+      if (isMfaChallengeResponse(result)) {
+        setUser(null);
+        setEnrollmentPending(null);
+        setMfaPending({
+          token: result.mfa_challenge_token,
+          method: result.mfa_method ?? 'totp',
+          expiresIn: result.expires_in ?? 300,
+          next: options?.next ?? null,
+        });
+        return;
+      }
+      if (isMfaEnrollmentRequiredResponse(result)) {
+        setUser(null);
+        setMfaPending(null);
+        setEnrollmentPending({
+          token: result.mfa_enrollment_challenge_token,
+          expiresIn: result.expires_in ?? 300,
+          next: options?.next ?? null,
+        });
+        return;
+      }
+      if (!isCurrentUserResponse(result)) {
+        throw new ApiError('Sign in failed.', 500);
+      }
+      setMfaPending(null);
+      setEnrollmentPending(null);
+      setUser(result);
+      applyLocaleFromUser(result.preferred_language);
+      void ensureCsrfToken();
       router.replace(safeInternalPath(options?.next));
       router.refresh();
     },
     [router],
   );
+
+  const completeMfaLogin = useCallback(
+    async (code: string) => {
+      if (!mfaPending) {
+        throw new Error('mfa_challenge_missing');
+      }
+      const current = await verifyMfaLogin(mfaPending.token, code);
+      if (!isCurrentUserResponse(current)) {
+        throw new ApiError('Unable to verify. Please try again.', 500);
+      }
+      const next = mfaPending.next;
+      setMfaPending(null);
+      setUser(current);
+      applyLocaleFromUser(current.preferred_language);
+      void ensureCsrfToken();
+      router.replace(safeInternalPath(next));
+      router.refresh();
+    },
+    [mfaPending, router],
+  );
+
+  const cancelMfaLogin = useCallback(() => {
+    setMfaPending(null);
+    setEnrollmentPending(null);
+  }, []);
+
+  const finishRequiredEnrollment = useCallback(
+    (current: CurrentUser) => {
+      const next = enrollmentPending?.next ?? null;
+      setEnrollmentPending(null);
+      setMfaPending(null);
+      setUser(current);
+      applyLocaleFromUser(current.preferred_language);
+      void ensureCsrfToken();
+      router.replace(safeInternalPath(next));
+      router.refresh();
+    },
+    [enrollmentPending, router],
+  );
+
+  const cancelEnrollment = useCallback(() => {
+    setEnrollmentPending(null);
+    setUser(null);
+  }, []);
 
   const logout = useCallback(async () => {
     try {
@@ -116,6 +210,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Still clear client state and leave the app shell.
     } finally {
       setUser(null);
+      setMfaPending(null);
+      setEnrollmentPending(null);
       setError(null);
       router.replace('/login');
       router.refresh();
@@ -149,7 +245,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       loading,
       error,
+      mfaPending,
+      enrollmentPending,
       login,
+      completeMfaLogin,
+      cancelMfaLogin,
+      finishRequiredEnrollment,
+      cancelEnrollment,
       logout,
       refresh,
       setPreferredLocale,
@@ -162,7 +264,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       canManageUsers: canManageUsers(user),
       canManageRoles: canManageRoles(user),
     }),
-    [user, loading, error, login, logout, refresh, setPreferredLocale],
+    [user, loading, error, mfaPending, enrollmentPending, login, completeMfaLogin, cancelMfaLogin, finishRequiredEnrollment, cancelEnrollment, logout, refresh, setPreferredLocale],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -192,7 +294,13 @@ export function StaticAuthProvider({
       user,
       loading: false,
       error: null,
+      mfaPending: null,
+      enrollmentPending: null,
       login: async () => undefined,
+      completeMfaLogin: async () => undefined,
+      cancelMfaLogin: () => undefined,
+      finishRequiredEnrollment: () => undefined,
+      cancelEnrollment: () => undefined,
       logout: async () => undefined,
       refresh: async () => undefined,
       setPreferredLocale: async (locale: AppLocale) => {

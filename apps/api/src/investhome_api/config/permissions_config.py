@@ -195,6 +195,7 @@ ACTIONS = frozenset(
         "transfer_ownership",
         "view_companies",
         "view_legal",
+        "edit_legal",
         "edit_ownership",
         "manage_company_contacts",
         "view_relationship_confidential",
@@ -313,6 +314,18 @@ SYSTEM_ROLE_CODES = frozenset(
     }
 )
 
+# Least-privilege revokes applied on sync. Do not re-grant these on the named roles.
+ROLE_PERMISSION_CLEANUP_REVOKES: tuple[tuple[str, str, str], ...] = (
+    ("partner", "documents", "view_confidential"),
+    ("executive", "security", "view"),
+    ("executive", "crm", "manage_provider_connections"),
+    ("executive", "crm", "manage_settings"),
+    ("finance", "documents", "delete"),
+    ("operations", "documents", "delete"),
+    ("operations", "projects", "edit_financial"),
+    ("construction", "projects", "edit_financial"),
+)
+
 # Default permission grants per system role: {role_code: [(resource, action), ...]}
 DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
     "super_admin": [(resource, action) for resource in RESOURCES for action in ACTIONS],
@@ -369,7 +382,6 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("reports", "export"),
         ("users", "view"),
         ("settings", "view"),
-        ("security", "view"),
         ("compliance", "view"),
         ("company", "read"),
         ("company", "view"),
@@ -492,7 +504,6 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("search", "view"),
         ("documents", "view"),
         ("documents", "download"),
-        ("documents", "view_confidential"),
         ("documents", "view_analysis"),
         ("documents", "ask"),
         ("knowledge", "view"),
@@ -811,7 +822,6 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("documents", "export_analysis"),
         ("documents", "view_sensitive_analysis"),
         ("documents", "archive"),
-        ("documents", "delete"),
         ("documents", "export"),
         ("knowledge", "view"),
         ("knowledge", "manage"),
@@ -858,7 +868,6 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("projects", "view_team"),
         ("projects", "manage_team"),
         ("projects", "view_financial"),
-        ("projects", "edit_financial"),
         ("projects", "manage_commitments"),
         ("projects", "manage_bills"),
         ("projects", "manage_project_vendors"),
@@ -1070,7 +1079,6 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("projects", "restore"),
         ("projects", "manage_status"),
         ("projects", "view_financial"),
-        ("projects", "edit_financial"),
         ("projects", "manage_budget"),
         ("projects", "manage_commitments"),
         ("projects", "manage_project_vendors"),
@@ -1083,7 +1091,6 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("documents", "update"),
         ("documents", "download"),
         ("documents", "archive"),
-        ("documents", "delete"),
         ("documents", "export"),
         ("knowledge", "view"),
         ("knowledge", "manage"),

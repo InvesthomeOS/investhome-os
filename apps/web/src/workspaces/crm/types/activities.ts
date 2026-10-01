@@ -165,6 +165,15 @@ export type CrmActivitySummary = {
   owner_name?: string | null;
   created_by_name?: string | null;
   related_entity_name?: string | null;
+  person_name?: string | null;
+  project_label?: string | null;
+  project_group?: string | null;
+  unit_number?: string | null;
+  agreement_id?: string | null;
+  source?: string | null;
+  source_task_status?: string | null;
+  source_priority?: string | null;
+  workspace_status?: 'open' | 'in_progress' | 'completed' | 'cancelled' | string | null;
 };
 
 export type CrmActivityDetail = CrmActivitySummary & {
@@ -198,6 +207,45 @@ export type CrmActivityListResponse = {
   request_id: string;
 };
 
+export type CrmTaskCounters = {
+  open: number;
+  today: number;
+  overdue: number;
+  completed: number;
+  total: number;
+};
+
+export type CrmTaskListResponse = CrmActivityListResponse & {
+  counters?: CrmTaskCounters;
+};
+
+export type TaskWritePayload = {
+  title: string;
+  description?: string;
+  contact_id?: string;
+  project_group?: string;
+  agreement_id?: string;
+  assigned_user_id?: string;
+  due_date?: string;
+  priority?: CrmActivityPriority;
+  task_status?: CrmTaskStatus;
+  entity_type?: CrmActivityEntityType;
+  entity_id?: string;
+  metadata_json?: Record<string, unknown>;
+};
+
+export type NoteWritePayload = {
+  title?: string;
+  description: string;
+  contact_id?: string;
+  project_group?: string;
+  agreement_id?: string;
+  entity_type?: CrmActivityEntityType;
+  entity_id?: string;
+  visibility?: CrmActivityVisibility;
+  metadata_json?: Record<string, unknown>;
+};
+
 export type CrmTimelineEntry = {
   id: string;
   source: string;
@@ -212,6 +260,16 @@ export type CrmTimelineEntry = {
   created_at: string;
   is_system_event: boolean;
   metadata_json: Record<string, unknown> | null;
+  person_name?: string | null;
+  project_label?: string | null;
+  unit_number?: string | null;
+  agreement_id?: string | null;
+  document_id?: string | null;
+  document_name?: string | null;
+  event_kind?: string | null;
+  source_badge?: string | null;
+  priority_tier?: 'high' | 'normal' | string | null;
+  description?: string | null;
 };
 
 export type CrmTimelineResponse = {
@@ -223,27 +281,62 @@ export type CrmTimelineResponse = {
   request_id: string;
 };
 
+export type CrmCalendarEventKind =
+  | 'task'
+  | 'meeting'
+  | 'reminder'
+  | 'payment'
+  | 'purchase'
+  | 'closing'
+  | 'delivery'
+  | 'document'
+  | 'other';
+
 export type CrmCalendarEvent = {
   id: string;
   title: string;
-  activity_type: CrmActivityType;
-  status: CrmActivityStatus;
+  activity_type: string;
+  event_kind: CrmCalendarEventKind | string;
+  record_kind?: 'activity' | 'purchase' | 'document' | string;
+  status: string | null;
   start_date: string | null;
   end_date: string | null;
   due_date: string | null;
+  event_at: string;
   all_day: boolean;
-  entity_type: CrmActivityEntityType;
-  entity_id: string;
+  entity_type: string | null;
+  entity_id: string | null;
   assigned_user_id: string | null;
   color: string | null;
   entity_name?: string | null;
   assigned_user_name?: string | null;
+  person_name?: string | null;
+  project_label?: string | null;
+  project_group?: string | null;
+  unit_number?: string | null;
+  agreement_id?: string | null;
+  source?: string | null;
+  summary?: string | null;
+  is_overdue?: boolean;
+  is_completed?: boolean;
 };
 
 export type CrmCalendarResponse = {
   events: CrmCalendarEvent[];
   start: string;
   end: string;
+  total?: number;
+};
+
+export type CalendarEventWritePayload = {
+  title: string;
+  event_kind: 'task' | 'meeting' | 'reminder';
+  description?: string;
+  occurs_at: string;
+  contact_id?: string;
+  project_group?: string;
+  agreement_id?: string;
+  assigned_user_id?: string;
 };
 
 export type CrmActivityDashboardWidgets = {
@@ -260,6 +353,13 @@ export type ActivityListParams = {
   search?: string;
   entity_type?: CrmActivityEntityType;
   entity_id?: string;
+  contact_search?: string;
+  project_group?: string;
+  workspace_status?: string;
+  due_from?: string;
+  due_to?: string;
+  due_bucket?: 'today' | 'overdue' | string;
+  event_kind?: string;
   activity_type?: CrmActivityType;
   activity_types?: CrmActivityType[];
   activity_category?: CrmActivityCategory;

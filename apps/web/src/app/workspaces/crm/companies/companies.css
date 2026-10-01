@@ -10,18 +10,18 @@
   --shot-font-body: 11.55px;
   --shot-font-heading: 13.2px;
   --shot-font-title: 24.2px;
-  --shot-gap: 12px;
+  --shot-gap: 16px;
   --shot-card-pad-y: 13px;
   --shot-card-pad-x: 15px;
   --co-ink: var(--shot-ink);
   --co-muted: var(--shot-muted);
   --co-navy: var(--shot-navy);
   --co-cyan: var(--shot-cyan);
-  --co-border: #e1e7e9;
+  --co-border: #c5d4da;
   --co-border-strong: #dce4e7;
-  --co-card-shadow: 0 2px 7px rgba(31, 57, 68, 0.05);
-  --co-card-shadow-hover: 0 4px 14px rgba(7, 91, 117, 0.08);
-  --co-card-radius: 8px;
+  --co-card-shadow: 0 6px 16px rgba(7, 91, 117, 0.08);
+  --co-card-shadow-hover: 0 10px 22px rgba(7, 91, 117, 0.12);
+  --co-card-radius: 16px;
   --co-control-height: 1.95rem;
   --co-rail-width: min(300px, 22vw);
   --co-warn-bg: #fdf0e4;
@@ -32,8 +32,8 @@
   --brand-primary-hover: #064a5f;
   --focus-ring: #2794ad;
   /* Cool DS token remaps — avoid beige/brown inheritance */
-  --bg: #f6f8fa;
-  --background: #f6f8fa;
+  --bg: #f3f6f8;
+  --background: #f3f6f8;
   --surface: #ffffff;
   --surface-default: #ffffff;
   --surface-muted: #f1f6f8;

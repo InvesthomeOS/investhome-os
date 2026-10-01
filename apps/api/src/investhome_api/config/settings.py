@@ -1,9 +1,27 @@
+import ipaddress
 import json
+import os
+import secrets
 from functools import lru_cache
+from pathlib import Path
 from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+from investhome_api.config.cors import DEFAULT_CORS_ORIGINS, sanitize_cors_origins
+
+# Published placeholders that must never be accepted at runtime.
+_FORBIDDEN_JWT_SECRETS = frozenset(
+    {
+        "dev-only-change-in-production-use-long-random-string",
+        "replace-with-long-random-secret-at-least-32-chars",
+        "investhome-portal-demo-session-secret",
+        "replace-with-long-random-portal-secret",
+        "dev-only-portal-session-secret-change-me",
+        "replace-with-32-char-encryption-key",
+    }
+)
 
 
 class Settings(BaseSettings):
@@ -23,24 +41,28 @@ class Settings(BaseSettings):
     host: str = Field(default="0.0.0.0", alias="API_HOST")
     port: int = Field(default=8000, alias="API_PORT")
 
-    database_url: str = Field(
-        default="postgresql+psycopg://investhome:investhome@localhost:5432/investhome",
-        alias="DATABASE_URL",
-    )
+    database_url: str = Field(alias="DATABASE_URL")
 
-    jwt_secret: str = Field(
-        default="dev-only-change-in-production-use-long-random-string",
-        alias="JWT_SECRET",
+    jwt_secret: str = Field(alias="JWT_SECRET", min_length=32)
+    communication_credential_key: str | None = Field(
+        default=None,
+        alias="COMMUNICATION_CREDENTIAL_KEY",
+        description="Dedicated AES-256-GCM key for Email/WhatsApp tokens at rest. Required; never derived from JWT_SECRET.",
     )
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     jwt_expire_minutes: int = Field(default=480, alias="JWT_EXPIRE_MINUTES")
+    session_absolute_timeout_minutes: int = Field(
+        default=1440,
+        alias="SESSION_ABSOLUTE_TIMEOUT_MINUTES",
+        description="Absolute maximum browser session lifetime from original login (minutes).",
+    )
     auth_enabled: bool = Field(default=True, alias="API_AUTH_ENABLED")
     auth_cookie_name: str = Field(default="ih_session", alias="AUTH_COOKIE_NAME")
     auth_cookie_secure: bool = Field(default=False, alias="AUTH_COOKIE_SECURE")
     auth_cookie_samesite: str = Field(default="lax", alias="AUTH_COOKIE_SAMESITE")
 
     cors_origins: Annotated[list[str], NoDecode] = Field(
-        default=["http://localhost:3000"],
+        default=["http://localhost:3000", "http://127.0.0.1:3000"],
         alias="API_CORS_ORIGINS",
     )
 
@@ -52,6 +74,18 @@ class Settings(BaseSettings):
     document_max_upload_bytes: int = Field(
         default=52_428_800,
         alias="DOCUMENT_MAX_UPLOAD_BYTES",
+    )
+    document_malware_scan_enabled: bool = Field(
+        default=False,
+        alias="DOCUMENT_MALWARE_SCAN_ENABLED",
+    )
+    document_malware_scan_provider: str = Field(
+        default="stub",
+        alias="DOCUMENT_MALWARE_SCAN_PROVIDER",
+    )
+    document_malware_scan_fail_closed: bool = Field(
+        default=True,
+        alias="DOCUMENT_MALWARE_SCAN_FAIL_CLOSED",
     )
 
     # Google Drive (Creative Studio asset scanner) — never hardcode secrets
@@ -71,7 +105,40 @@ class Settings(BaseSettings):
     )
     google_drive_sync_max_retries: int = Field(default=3, alias="GOOGLE_DRIVE_SYNC_MAX_RETRIES")
 
+    # Gmail mailbox OAuth reuses GOOGLE_DRIVE_CLIENT_ID / SECRET (Web client).
+    # Do not reuse GOOGLE_DRIVE_REFRESH_TOKEN — that token is Drive-only.
+    # Redirect URI is exact-match allowlisted (local HTTP in development; HTTPS in production).
+    gmail_oauth_redirect_uri: str | None = Field(default=None, alias="GMAIL_OAUTH_REDIRECT_URI")
+    gmail_sync_enabled: bool = Field(default=True, alias="GMAIL_SYNC_ENABLED")
+    gmail_sync_interval_minutes: int = Field(default=5, alias="GMAIL_SYNC_INTERVAL_MINUTES")
+    gmail_backfill_days: int = Field(default=30, alias="GMAIL_BACKFILL_DAYS")
+
+    # Meta WhatsApp Cloud API inbound webhook. No usable defaults. Do not reuse JWT secrets.
+    whatsapp_app_secret: str | None = Field(default=None, alias="WHATSAPP_APP_SECRET")
+    whatsapp_verify_token: str | None = Field(default=None, alias="WHATSAPP_VERIFY_TOKEN")
+
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
+    # Backup readiness reporting only. BACKUP_PROVIDER does not connect a live adapter
+    # and cannot produce a verified/healthy status by itself.
+    backup_provider: str = Field(default="none", alias="BACKUP_PROVIDER")
+    backup_freshness_hours: int = Field(default=24, ge=1, alias="BACKUP_FRESHNESS_HOURS")
+    # Security monitoring thresholds (signals only — does not block users).
+    security_monitor_window_seconds: int = Field(default=900, ge=60, alias="SECURITY_MONITOR_WINDOW_SECONDS")
+    security_monitor_failed_login_burst: int = Field(default=5, ge=2, alias="SECURITY_MONITOR_FAILED_LOGIN_BURST")
+    security_monitor_failed_login_critical: int = Field(
+        default=15, ge=3, alias="SECURITY_MONITOR_FAILED_LOGIN_CRITICAL"
+    )
+    security_monitor_multi_account: int = Field(default=3, ge=2, alias="SECURITY_MONITOR_MULTI_ACCOUNT")
+    security_monitor_multi_account_critical: int = Field(
+        default=8, ge=3, alias="SECURITY_MONITOR_MULTI_ACCOUNT_CRITICAL"
+    )
+    security_monitor_mfa_burst: int = Field(default=5, ge=2, alias="SECURITY_MONITOR_MFA_BURST")
+    security_monitor_csrf_burst: int = Field(default=8, ge=2, alias="SECURITY_MONITOR_CSRF_BURST")
+    security_monitor_webhook_burst: int = Field(default=5, ge=2, alias="SECURITY_MONITOR_WEBHOOK_BURST")
+    security_monitor_document_denied_burst: int = Field(
+        default=8, ge=2, alias="SECURITY_MONITOR_DOCUMENT_DENIED_BURST"
+    )
+    security_monitor_pepper: str | None = Field(default=None, alias="SECURITY_MONITOR_PEPPER")
     document_processing_sync: bool = Field(default=False, alias="DOCUMENT_PROCESSING_SYNC")
     document_processing_max_retries: int = Field(default=3, alias="DOCUMENT_PROCESSING_MAX_RETRIES")
     ai_index_processing_sync: bool = Field(default=False, alias="AI_INDEX_PROCESSING_SYNC")
@@ -144,42 +211,167 @@ class Settings(BaseSettings):
     canva_client_id: str | None = Field(default=None, alias="CANVA_CLIENT_ID")
     canva_client_secret: str | None = Field(default=None, alias="CANVA_CLIENT_SECRET")
 
+    # IPs/CIDRs allowed to supply X-Forwarded-For / X-Real-IP.
+    # Empty (default): ignore forwarded headers; use the TCP peer only.
+    # Do not populate with CDN ranges until this API is actually behind that proxy.
+    trusted_proxy_ips: Annotated[list[str], NoDecode] = Field(
+        default_factory=list,
+        alias="API_TRUSTED_PROXY_IPS",
+    )
+    mfa_totp_issuer: str = Field(default="InvestHomeOS", alias="MFA_TOTP_ISSUER")
+
+    # Public marketing form abuse protection (no production Turnstile keys yet).
+    public_form_bot_verify: bool = Field(default=False, alias="PUBLIC_FORM_BOT_VERIFY")
+    turnstile_secret_key: str | None = Field(default=None, alias="TURNSTILE_SECRET_KEY")
+    turnstile_siteverify_url: str = Field(
+        default="https://challenges.cloudflare.com/turnstile/v0/siteverify",
+        alias="TURNSTILE_SITEVERIFY_URL",
+    )
+    public_form_burst_limit: int = Field(default=5, alias="PUBLIC_FORM_BURST_LIMIT")
+    public_form_burst_window_seconds: int = Field(
+        default=600,
+        alias="PUBLIC_FORM_BURST_WINDOW_SECONDS",
+    )
+    public_form_daily_limit: int = Field(default=20, alias="PUBLIC_FORM_DAILY_LIMIT")
+    public_form_daily_window_seconds: int = Field(
+        default=86400,
+        alias="PUBLIC_FORM_DAILY_WINDOW_SECONDS",
+    )
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, value: Any) -> list[str]:
         if value is None:
-            return ["http://localhost:3000"]
+            return list(DEFAULT_CORS_ORIGINS)
         if isinstance(value, list):
-            return [str(origin).strip() for origin in value if str(origin).strip()]
+            return sanitize_cors_origins([str(origin) for origin in value])
         if isinstance(value, str):
             stripped = value.strip()
             if not stripped:
-                return ["http://localhost:3000"]
+                return list(DEFAULT_CORS_ORIGINS)
+            if stripped == "*":
+                return []
             if stripped.startswith("["):
                 parsed = json.loads(stripped)
                 if not isinstance(parsed, list):
                     msg = "API_CORS_ORIGINS JSON value must be an array"
                     raise ValueError(msg)
-                return [str(origin).strip() for origin in parsed if str(origin).strip()]
-            return [origin.strip() for origin in stripped.split(",") if origin.strip()]
+                return sanitize_cors_origins([str(origin) for origin in parsed])
+            return sanitize_cors_origins(stripped.split(","))
         msg = "API_CORS_ORIGINS must be a JSON array or comma-separated string"
         raise ValueError(msg)
 
+    @field_validator("trusted_proxy_ips", mode="before")
+    @classmethod
+    def parse_trusted_proxy_ips(cls, value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()]
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                return []
+            if stripped.startswith("["):
+                parsed = json.loads(stripped)
+                if not isinstance(parsed, list):
+                    msg = "API_TRUSTED_PROXY_IPS JSON value must be an array"
+                    raise ValueError(msg)
+                return [str(item).strip() for item in parsed if str(item).strip()]
+            return [item.strip() for item in stripped.split(",") if item.strip()]
+        msg = "API_TRUSTED_PROXY_IPS must be a JSON array or comma-separated string"
+        raise ValueError(msg)
 
-_DEV_JWT_SECRET = "dev-only-change-in-production-use-long-random-string"
+    @field_validator("jwt_secret")
+    @classmethod
+    def jwt_secret_must_be_unique(cls, value: str) -> str:
+        secret = (value or "").strip()
+        if not secret:
+            raise ValueError("JWT_SECRET is required")
+        if len(secret) < 32:
+            raise ValueError("JWT_SECRET must be at least 32 characters")
+        if secret in _FORBIDDEN_JWT_SECRETS:
+            raise ValueError(
+                "JWT_SECRET must not use a published default or placeholder value"
+            )
+        return secret
+
+
+_LOCAL_DEV_ENVIRONMENTS = frozenset({"development", "dev", "local", "test"})
+_STAGING_ENVIRONMENTS = frozenset({"staging", "stage", "preprod", "uat"})
+_PRODUCTION_ENVIRONMENTS = frozenset({"production", "prod"})
+
+
+def _normalized_environment(settings: Settings) -> str:
+    return (settings.environment or "").strip().lower()
+
+
+def is_loopback_bind(host: str | None) -> bool:
+    value = (host or "").strip().lower()
+    if value in {"localhost", "::1"}:
+        return True
+    if value.startswith("[") and value.endswith("]"):
+        value = value[1:-1]
+    try:
+        return ipaddress.ip_address(value).is_loopback
+    except ValueError:
+        return False
+
+
+def validate_auth_bypass(settings: Settings) -> None:
+    """Fail closed unless auth-disabled mode is explicit local loopback development."""
+    if settings.auth_enabled:
+        return
+    env = _normalized_environment(settings)
+    problems: list[str] = []
+    if env in _PRODUCTION_ENVIRONMENTS:
+        problems.append("API_AUTH_ENABLED must be true in production")
+    if env in _STAGING_ENVIRONMENTS:
+        problems.append("API_AUTH_ENABLED must be true in staging")
+    if env not in _LOCAL_DEV_ENVIRONMENTS:
+        problems.append(
+            "API_AUTH_ENABLED=false is allowed only for explicit local development"
+        )
+    if not is_loopback_bind(settings.host):
+        problems.append(
+            "API_AUTH_ENABLED=false requires a loopback bind (127.0.0.1, ::1, or localhost)"
+        )
+    if problems:
+        raise RuntimeError(
+            "Refusing to start with insecure authentication bypass: " + "; ".join(problems)
+        )
+
+
+def validate_required_secrets(settings: Settings) -> None:
+    """Fail closed in every environment when JWT_SECRET is missing or published."""
+    secret = (settings.jwt_secret or "").strip()
+    if not secret:
+        raise RuntimeError("JWT_SECRET is required")
+    if len(secret) < 32:
+        raise RuntimeError("JWT_SECRET must be at least 32 characters")
+    if secret in _FORBIDDEN_JWT_SECRETS:
+        raise RuntimeError(
+            "JWT_SECRET must not use a published default or placeholder value"
+        )
 
 
 def validate_production_security(settings: Settings) -> None:
     """Fail closed on known-dangerous auth defaults when environment=production."""
+    validate_required_secrets(settings)
     if settings.environment.lower() != "production":
         return
     problems: list[str] = []
     if not settings.auth_enabled:
         problems.append("API_AUTH_ENABLED must be true in production")
-    if settings.jwt_secret == _DEV_JWT_SECRET or len(settings.jwt_secret.strip()) < 32:
-        problems.append(
-            "JWT_SECRET must be set to a unique secret (>=32 chars) in production"
-        )
+    if len(settings.jwt_secret.strip()) < 32:
+        problems.append("JWT_SECRET must be set to a unique secret (>=32 chars)")
+    dedicated = (settings.communication_credential_key or "").strip()
+    if not dedicated:
+        problems.append("COMMUNICATION_CREDENTIAL_KEY is required in production")
+    elif len(dedicated) < 32:
+        problems.append("COMMUNICATION_CREDENTIAL_KEY must be at least 32 characters")
+    elif dedicated == settings.jwt_secret.strip():
+        problems.append("COMMUNICATION_CREDENTIAL_KEY must be distinct from JWT_SECRET")
     if not settings.auth_cookie_secure:
         problems.append("AUTH_COOKIE_SECURE must be true in production")
     if settings.debug:
@@ -193,8 +385,83 @@ def validate_production_security(settings: Settings) -> None:
         )
 
 
+def validate_communication_credential_key(settings: Settings) -> None:
+    """Fail closed: communication credentials never derive from JWT_SECRET."""
+    dedicated = (settings.communication_credential_key or "").strip()
+    jwt = (settings.jwt_secret or "").strip()
+    if dedicated and dedicated == jwt:
+        raise RuntimeError("COMMUNICATION_CREDENTIAL_KEY must be distinct from JWT_SECRET")
+    if dedicated and len(dedicated) < 32:
+        raise RuntimeError("COMMUNICATION_CREDENTIAL_KEY must be at least 32 characters")
+    env = _normalized_environment(settings)
+    if env in _PRODUCTION_ENVIRONMENTS:
+        if not dedicated:
+            raise RuntimeError("COMMUNICATION_CREDENTIAL_KEY is required in production")
+        return
+    if not dedicated:
+        raise RuntimeError("COMMUNICATION_CREDENTIAL_KEY is required")
+
+
+def validate_whatsapp_webhook_secrets(settings: Settings) -> None:
+    """Fail closed in production when Meta webhook secrets are missing."""
+    env = _normalized_environment(settings)
+    if env not in _PRODUCTION_ENVIRONMENTS:
+        return
+    if not (settings.whatsapp_app_secret or "").strip():
+        raise RuntimeError("WHATSAPP_APP_SECRET is required in production")
+    if not (settings.whatsapp_verify_token or "").strip():
+        raise RuntimeError("WHATSAPP_VERIFY_TOKEN is required in production")
+
+
+def _local_dotenv_candidates() -> list[Path]:
+    cwd = Path.cwd().resolve()
+    return [cwd / ".env", cwd.parent / ".env"]
+
+
+def _persist_local_communication_credential_key() -> str | None:
+    """Write a dedicated local key to .env without printing it. Never overwrites a set value."""
+    generated = secrets.token_urlsafe(32)
+    for path in _local_dotenv_candidates():
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        lines = text.splitlines()
+        replaced = False
+        new_lines: list[str] = []
+        for line in lines:
+            if line.startswith("COMMUNICATION_CREDENTIAL_KEY="):
+                current = line.split("=", 1)[1].strip().strip('"').strip("'")
+                if current:
+                    return None
+                new_lines.append(f"COMMUNICATION_CREDENTIAL_KEY={generated}")
+                replaced = True
+            else:
+                new_lines.append(line)
+        if not replaced:
+            if new_lines and new_lines[-1] != "":
+                new_lines.append("")
+            new_lines.append(f"COMMUNICATION_CREDENTIAL_KEY={generated}")
+        path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+        return generated
+    return None
+
+
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()
+    dedicated = (settings.communication_credential_key or "").strip()
+    env = _normalized_environment(settings)
+    if (
+        not dedicated
+        and env not in _PRODUCTION_ENVIRONMENTS
+        and not os.environ.get("PYTEST_CURRENT_TEST")
+    ):
+        generated = _persist_local_communication_credential_key()
+        if generated:
+            os.environ["COMMUNICATION_CREDENTIAL_KEY"] = generated
+            settings = Settings()
+    validate_required_secrets(settings)
+    validate_communication_credential_key(settings)
     validate_production_security(settings)
+    validate_auth_bypass(settings)
     return settings

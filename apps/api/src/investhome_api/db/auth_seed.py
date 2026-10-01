@@ -1,11 +1,12 @@
 """Seed roles, permissions, and demo users."""
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from investhome_api.config.permissions_config import (
     ACTIONS,
     DEFAULT_ROLE_PERMISSIONS,
     RESOURCES,
+    ROLE_PERMISSION_CLEANUP_REVOKES,
     SYSTEM_ROLE_CODES,
 )
 from investhome_api.db.session import SessionLocal
@@ -19,6 +20,7 @@ from investhome_api.models.user_auth import (
 )
 from investhome_api.services.auth_service import hash_password
 
+# Local-development demo login only. Never seeded in production.
 DEMO_PASSWORD = "Investhome2026!"
 
 ROLE_LABELS: dict[str, tuple[str, str]] = {
@@ -212,12 +214,39 @@ def sync_system_permissions() -> int:
                 existing_grants.add(key)
                 added += 1
 
-        if added:
+        revoked = 0
+        for role_code, resource, action in ROLE_PERMISSION_CLEANUP_REVOKES:
+            role = roles.get(role_code)
+            permission = permission_map.get(_permission_key(resource, action))
+            if role is None or permission is None:
+                continue
+            result = session.execute(
+                delete(RolePermission).where(
+                    RolePermission.role_id == role.id,
+                    RolePermission.permission_id == permission.id,
+                )
+            )
+            count = int(result.rowcount or 0)
+            if count:
+                existing_grants.discard((role.id, permission.id))
+                revoked += count
+
+        if added or revoked:
             session.commit()
-        return added
+        return added + revoked
 
 
 def seed_demo_users() -> int:
+    from investhome_api.config.settings import get_settings
+
+    environment = (get_settings().environment or "").strip().lower()
+    if environment in {"production", "prod"}:
+        import os
+
+        override = os.environ.get("ALLOW_DEMO_SEED_IN_PRODUCTION", "").strip().lower()
+        if override not in {"1", "true", "yes"}:
+            return 0
+
     with SessionLocal() as session:
         existing = session.scalar(select(User.id).limit(1))
         if existing is not None:

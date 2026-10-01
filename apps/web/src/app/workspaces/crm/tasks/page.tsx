@@ -1,5 +1,6 @@
 import { CrmTasksWorkspace } from './_components/crm-tasks-workspace';
-import './tasks.css';
+import '@/workspaces/crm/contact-card/contact-card.css';
+import './tasks-ops.css';
 
 export default function CrmTasksPage() {
   return (

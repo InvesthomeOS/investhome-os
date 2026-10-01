@@ -16,9 +16,27 @@ class SecurityKpiItem(BaseModel):
     note: str | None = None
 
 
+class SecuritySignalItem(BaseModel):
+    id: str
+    signal_type: str
+    severity: str
+    event_count: int
+    first_seen: datetime
+    last_seen: datetime
+    correlation_key: str
+    summary: str
+    metadata: dict = Field(default_factory=dict)
+
+
+class SecuritySignalListResponse(BaseModel):
+    items: list[SecuritySignalItem]
+    total: int
+
+
 class SecurityDashboardResponse(BaseModel):
     kpis: list[SecurityKpiItem]
     alerts: list[dict]
+    signals: list[SecuritySignalItem] = Field(default_factory=list)
     generated_at: datetime
 
 
@@ -161,11 +179,16 @@ class DataGovernanceResponse(BaseModel):
 
 
 class BackupStatusResponse(BaseModel):
-    status: str
+    status: str  # not_configured | configured | verified | stale | failed
     last_backup_at: datetime | None
+    backup_age_seconds: int | None = None
+    freshness_hours: int = 24
     health: str
     provider: str
+    declared_provider: str = "none"
     message: str
+    restore_verified: bool = False
+    warning: bool = True
     env_keys: list[str]
 
 

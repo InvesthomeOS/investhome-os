@@ -28,13 +28,46 @@ class CrmCommunicationChannel(str, enum.Enum):
     WHATSAPP = "whatsapp"
     SMS = "sms"
     PHONE = "phone"
+    CALL = "call"
     ZOOM = "zoom"
     TEAMS = "teams"
     MEETING = "meeting"
+    TASK = "task"
+    COMMENT = "comment"
     INTERNAL_MESSAGE = "internal_message"
     NOTE = "note"
     SYSTEM_NOTIFICATION = "system_notification"
     OTHER = "other"
+
+
+class CrmCommunicationSource(str, enum.Enum):
+    BITRIX = "bitrix"
+    LIVE_EMAIL = "live_email"
+    LIVE_WHATSAPP = "live_whatsapp"
+    MANUAL = "manual"
+
+
+class CrmCommunicationMatchStatus(str, enum.Enum):
+    UNMATCHED = "unmatched"
+    MATCHED = "matched"
+    AMBIGUOUS = "ambiguous"
+    IGNORED = "ignored"
+
+
+class CrmUserCommunicationAccountStatus(str, enum.Enum):
+    NOT_CONNECTED = "not_connected"
+    PENDING = "pending"
+    CONNECTED = "connected"
+    ERROR = "error"
+    NEEDS_REAUTH = "needs_reauth"
+    DISCONNECTED = "disconnected"
+
+
+class CrmUserCommunicationAccountHealth(str, enum.Enum):
+    UNKNOWN = "unknown"
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"
+    ERROR = "error"
 
 
 class CrmCommunicationDirection(str, enum.Enum):
@@ -119,6 +152,47 @@ class CrmSequenceEnrollmentType(str, enum.Enum):
     FILTER = "filter"
     OPPORTUNITY = "opportunity"
     EVENT = "event"
+
+
+class CrmUserCommunicationAccount(Base):
+    """Investhome OS user-owned Email / WhatsApp connection — not a CRM contact."""
+
+    __tablename__ = "crm_user_communication_accounts"
+    __table_args__ = (
+        Index("ix_crm_user_comm_accounts_user", "user_id"),
+        Index("ix_crm_user_comm_accounts_channel", "channel_type"),
+        Index("ix_crm_user_comm_accounts_status", "status"),
+        Index(
+            "uq_crm_user_comm_accounts_identity",
+            "channel_type",
+            "identity",
+            unique=True,
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    channel_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    provider: Mapped[str] = mapped_column(String(80), nullable=False)
+    identity: Mapped[str] = mapped_column(String(255), nullable=False)
+    account_label: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    status: Mapped[str] = mapped_column(
+        String(30), nullable=False, default=CrmUserCommunicationAccountStatus.NOT_CONNECTED.value
+    )
+    health: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=CrmUserCommunicationAccountHealth.UNKNOWN.value
+    )
+    last_sync_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    encrypted_credentials: Mapped[str | None] = mapped_column(Text, nullable=True)
+    scopes: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    metadata_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+    created_by: Mapped[uuid.UUID | None] = mapped_column(Uuid(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class CrmCommunicationThread(Base):
@@ -220,6 +294,26 @@ class CrmCommunication(Base):
     activity_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(), ForeignKey("crm_activities.id", ondelete="SET NULL"), nullable=True
     )
+    account_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(), ForeignKey("crm_user_communication_accounts.id", ondelete="SET NULL"), nullable=True
+    )
+    source: Mapped[str] = mapped_column(String(40), nullable=False, default=CrmCommunicationSource.MANUAL.value)
+    match_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=CrmCommunicationMatchStatus.MATCHED.value
+    )
+    contact_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(), ForeignKey("crm_contacts.id", ondelete="SET NULL"), nullable=True
+    )
+    agreement_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(), ForeignKey("crm_agreements.id", ondelete="SET NULL"), nullable=True
+    )
+    sender_identity: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    recipient_identities: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    occurred_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    conversation_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    raw_source: Mapped[str | None] = mapped_column(Text, nullable=True)
+    suggested_matches: Mapped[list | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
@@ -245,6 +339,10 @@ class CrmCommunicationAttachment(Base):
     file_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     mime_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
     storage_key: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    document_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(), ForeignKey("documents.id", ondelete="SET NULL"), nullable=True
+    )
+    checksum: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     communication: Mapped[CrmCommunication] = relationship("CrmCommunication", back_populates="attachments")
@@ -392,6 +490,14 @@ Index("ix_crm_communications_scheduled", CrmCommunication.scheduled_at)
 Index("ix_crm_communications_sent", CrmCommunication.sent_at)
 Index("ix_crm_communications_archived", CrmCommunication.archived_at)
 Index("ix_crm_communications_recipient", CrmCommunication.recipient_entity_type, CrmCommunication.recipient_entity_id)
+Index("ix_crm_communications_account", CrmCommunication.account_id)
+Index("ix_crm_communications_source", CrmCommunication.source)
+Index("ix_crm_communications_match_status", CrmCommunication.match_status)
+Index("ix_crm_communications_contact", CrmCommunication.contact_id)
+Index("ix_crm_communications_content_hash", CrmCommunication.content_hash)
+Index("ix_crm_communications_occurred", CrmCommunication.occurred_at)
+Index("ix_crm_communications_conversation", CrmCommunication.conversation_key)
+Index("ix_crm_comm_attach_document", CrmCommunicationAttachment.document_id)
 
 Index("ix_crm_comm_prefs_entity", CrmCommunicationPreference.entity_type, CrmCommunicationPreference.entity_id)
 Index("ix_crm_comm_audit_comm", CrmCommunicationAuditLog.communication_id)

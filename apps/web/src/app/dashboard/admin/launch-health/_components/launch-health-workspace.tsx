@@ -37,10 +37,23 @@ type MetaPayload = {
 
 function classify(status: string): 'ok' | 'warn' | 'fail' | 'unavailable' {
   const s = status.toLowerCase();
-  if (['healthy', 'ok', 'ready', 'alive', 'configured', 'active'].includes(s)) return 'ok';
-  if (['degraded', 'not_configured', 'missing', 'disabled', 'unknown'].includes(s)) return 'warn';
-  if (['unavailable', 'not_ready', 'invalid', 'error', 'fail'].includes(s)) return 'fail';
+  if (['healthy', 'ok', 'ready', 'alive', 'verified', 'active'].includes(s)) return 'ok';
+  if (['degraded', 'not_configured', 'configured', 'stale', 'warning', 'missing', 'disabled', 'unknown'].includes(s)) {
+    return 'warn';
+  }
+  if (['unavailable', 'not_ready', 'invalid', 'error', 'fail', 'failed'].includes(s)) return 'fail';
   return 'unavailable';
+}
+
+function classifyBackup(status: string | undefined): 'ok' | 'warn' | 'fail' | 'unavailable' {
+  if (!status) return 'unavailable';
+  if (status === 'verified') return 'ok';
+  if (status === 'failed') return 'fail';
+  return 'warn';
+}
+
+function backupToneStatus(status: string): string {
+  return status === 'configured' ? 'not_verified' : status;
 }
 
 export function LaunchHealthWorkspace() {
@@ -54,6 +67,8 @@ export function LaunchHealthWorkspace() {
     provider: string;
     message: string;
     last_backup_at: string | null;
+    restore_verified: boolean;
+    warning: boolean;
   } | null>(null);
   const [flags, setFlags] = useState<FeatureFlagItem[]>([]);
   const [probes, setProbes] = useState<ProbeResult[]>([]);
@@ -119,13 +134,9 @@ export function LaunchHealthWorkspace() {
         {
           id: 'backup',
           label: t('probeBackup'),
-          status: !backupStatus
-            ? 'unavailable'
-            : backupStatus.provider === 'none' || backupStatus.status === 'not_configured'
-              ? 'fail'
-              : classify(backupStatus.health),
+          status: classifyBackup(backupStatus?.status),
           detail: backupStatus
-            ? `${backupStatus.provider} · ${backupStatus.message}`
+            ? `${backupStatus.provider} · ${backupStatus.status} · ${backupStatus.message}`
             : t('unavailable'),
         },
         {
@@ -245,8 +256,12 @@ export function LaunchHealthWorkspace() {
 
       <SecSection title={t('backupTitle')}>
         {backup ? (
-          <div className="sec-card">
-            <StatusBadge status={backup.status} />
+          <div
+            className="sec-card"
+            data-testid="backup-status-card"
+            data-backup-warning={backup.warning ? 'true' : 'false'}
+          >
+            <StatusBadge status={backupToneStatus(backup.status)}>{backup.status.replace(/_/g, ' ')}</StatusBadge>
             <p>
               {t('backupProvider')}: {backup.provider}
             </p>
@@ -257,6 +272,11 @@ export function LaunchHealthWorkspace() {
               {t('lastBackup')}:{' '}
               {backup.last_backup_at ? new Date(backup.last_backup_at).toLocaleString() : t('never')}
             </p>
+            {backup.warning ? (
+              <p className="sec-note" data-testid="backup-status-warning">
+                {t('backupStatusWarning')}
+              </p>
+            ) : null}
             <p className="sec-note">{backup.message}</p>
             <p className="sec-note">{t('backupRestoreUnverified')}</p>
           </div>

@@ -58,6 +58,7 @@ class DocumentLinkResponse(BaseModel):
     entity_type: str
     entity_id: UUID
     relationship_type: str | None
+    hidden_from_view: bool = False
     created_at: datetime
 
 
@@ -119,6 +120,8 @@ class DocumentResponse(BaseModel):
     malware_scan_status: str | None = None
     category_code: str | None = None
     is_previewable: bool = False
+    hidden_from_view: bool = False
+    bitrix_file_id: str | None = None
     related_record_label: str | None = None
     is_demo: bool
     archived_at: datetime | None

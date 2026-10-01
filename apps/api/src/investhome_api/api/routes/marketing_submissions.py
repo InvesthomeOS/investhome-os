@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from investhome_api.api.deps.auth import require_permission
 from investhome_api.db.session import get_db
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.marketing_landing_conversion import (
+    PUBLIC_FORM_MAX_BODY_BYTES,
     PublicFormSubmit,
     ReviewItemResponse,
     SubmissionDetail,
@@ -18,6 +19,7 @@ from investhome_api.schemas.marketing_landing_conversion import (
     SubmissionReviewAction,
     SubmissionSummary,
 )
+from investhome_api.services.login_rate_limit import resolve_client_ip
 from investhome_api.services.marketing.submission_service import (
     compute_pages,
     list_review_queue,
@@ -25,9 +27,51 @@ from investhome_api.services.marketing.submission_service import (
     process_public_submission,
     review_submission,
 )
+from investhome_api.services.public_form_bot import enforce_public_form_bot
+from investhome_api.services.public_form_rate_limit import enforce_public_form_rate_limit
+from investhome_api.core.logging_config import get_logger
 
 router = APIRouter(prefix="/marketing/submissions", tags=["marketing-submissions"])
 public_router = APIRouter(prefix="/public/marketing/forms", tags=["marketing-public"])
+_public_form_log = get_logger("investhome.public_form")
+
+
+def _reject_oversized_public_form(request: Request) -> None:
+    raw = request.headers.get("content-length")
+    if raw is None:
+        return
+    try:
+        size = int(raw)
+    except ValueError:
+        raise HTTPException(
+            status_code=413,
+            detail="Payload too large",
+        ) from None
+    if size > PUBLIC_FORM_MAX_BODY_BYTES:
+        _public_form_log.warning("public_form_payload_too_large")
+        raise HTTPException(
+            status_code=413,
+            detail="Payload too large",
+        )
+
+
+def _reject_oversized_payload(payload: PublicFormSubmit) -> None:
+    size = len(payload.idempotency_key) + len(payload.hp_website or "")
+    size += len(payload.cf_turnstile_response or "")
+    for key, raw in payload.values.items():
+        size += len(key)
+        if isinstance(raw, str):
+            size += len(raw)
+    if payload.tracking:
+        for value in payload.tracking.model_dump().values():
+            if isinstance(value, str):
+                size += len(value)
+    if size > PUBLIC_FORM_MAX_BODY_BYTES:
+        _public_form_log.warning("public_form_payload_too_large")
+        raise HTTPException(
+            status_code=413,
+            detail="Payload too large",
+        )
 
 
 def _submission_summary(sub) -> SubmissionSummary:
@@ -123,13 +167,23 @@ def public_submit_route(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Public form submit — rate limit should be applied at gateway; server validation only."""
-    ip = request.client.host if request.client else None
+    """Public form submit — Redis rate limit, bot check, then server validation."""
+    _reject_oversized_public_form(request)
+    _reject_oversized_payload(payload)
+    if (payload.hp_website or "").strip():
+        _public_form_log.warning("public_form_honeypot")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to submit form.",
+        )
+    ip = resolve_client_ip(request)
+    enforce_public_form_bot(token=payload.cf_turnstile_response, ip=ip)
+    enforce_public_form_rate_limit(ip=ip, form_slug=form_slug)
     ua = request.headers.get("user-agent")
     sub = process_public_submission(
         db,
         form_slug,
-        payload.model_dump(),
+        payload.model_dump(exclude={"cf_turnstile_response", "hp_website"}),
         ip_address=ip,
         user_agent=ua,
     )

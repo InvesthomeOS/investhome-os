@@ -1,6 +1,6 @@
 /** Document intelligence API client. */
 
-import { getApiBaseUrl } from '@/lib/api/client';
+import { getApiBaseUrl, staffFetch } from '@/lib/api/client';
 
 export interface DocumentAnalysis {
   id: string;
@@ -55,7 +55,7 @@ export interface AskDocumentResponse {
 }
 
 export async function fetchDocumentAnalysis(documentId: string): Promise<DocumentAnalysis> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${documentId}/analysis`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${documentId}/analysis`, {
     credentials: 'include',
     cache: 'no-store',
   });
@@ -64,7 +64,7 @@ export async function fetchDocumentAnalysis(documentId: string): Promise<Documen
 }
 
 export async function fetchProcessingStatus(documentId: string): Promise<ProcessingStatusPayload> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${documentId}/processing-status`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${documentId}/processing-status`, {
     credentials: 'include',
     cache: 'no-store',
   });
@@ -73,7 +73,7 @@ export async function fetchProcessingStatus(documentId: string): Promise<Process
 }
 
 export async function reprocessDocument(documentId: string): Promise<ProcessingStatusPayload> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${documentId}/reprocess`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${documentId}/reprocess`, {
     method: 'POST',
     credentials: 'include',
   });
@@ -82,7 +82,7 @@ export async function reprocessDocument(documentId: string): Promise<ProcessingS
 }
 
 export async function acceptClassification(documentId: string): Promise<DocumentAnalysis> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${documentId}/classification`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${documentId}/classification`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -93,7 +93,7 @@ export async function acceptClassification(documentId: string): Promise<Document
 }
 
 export async function rejectClassification(documentId: string): Promise<DocumentAnalysis> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${documentId}/classification`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${documentId}/classification`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -109,7 +109,7 @@ export async function askDocument(
   language: string,
   conversationId?: string,
 ): Promise<AskDocumentResponse> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${documentId}/ask`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${documentId}/ask`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -120,7 +120,7 @@ export async function askDocument(
 }
 
 export async function exportDocumentAnalysis(documentId: string): Promise<Record<string, unknown>> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${documentId}/analysis/export`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${documentId}/analysis/export`, {
     credentials: 'include',
     cache: 'no-store',
   });

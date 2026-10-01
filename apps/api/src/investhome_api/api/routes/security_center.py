@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from investhome_api.api.deps.auth import get_current_user, require_permission
+from investhome_api.core.request_context import get_request_id
 from investhome_api.db.session import get_db
 from investhome_api.models.security_enterprise import AuthSession, PlatformApiKey, TemporaryPermissionGrant
 from investhome_api.models.user_auth import User
@@ -38,6 +39,8 @@ from investhome_api.schemas.security_center import (
     SecurityIncidentItem,
     SecurityIncidentListResponse,
     SecurityKpiItem,
+    SecuritySignalItem,
+    SecuritySignalListResponse,
     SystemConfigResponse,
     SystemHealthComponent,
     SystemHealthResponse,
@@ -50,6 +53,8 @@ from investhome_api.services import security_center_service as service
 from investhome_api.services import session_service
 from investhome_api.services.audit_service import record_auth_event
 from investhome_api.services.auth_service import hash_password
+from investhome_api.services.password_policy import generate_temporary_password
+from investhome_api.services.mfa_admin import reset_user_mfa
 
 router = APIRouter(prefix="/security", tags=["security-center"])
 
@@ -96,7 +101,21 @@ def security_dashboard(
     return SecurityDashboardResponse(
         kpis=[SecurityKpiItem(**k) for k in data["kpis"]],
         alerts=data["alerts"],
+        signals=[SecuritySignalItem(**item) for item in data.get("signals") or []],
         generated_at=data["generated_at"],
+    )
+
+
+@router.get("/signals", response_model=SecuritySignalListResponse)
+def security_signals(
+    _user: User = Depends(require_permission("security", "view")),
+) -> SecuritySignalListResponse:
+    from investhome_api.services.security_monitoring import list_active_signals
+
+    items = list_active_signals()
+    return SecuritySignalListResponse(
+        items=[SecuritySignalItem(**item) for item in items],
+        total=len(items),
     )
 
 
@@ -604,7 +623,7 @@ def reset_password_user(
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     # Temporary password — operator must communicate out-of-band; never return in response.
-    temp = f"Reset-{uuid4_hex()[:10]}!"
+    temp = generate_temporary_password()
     user.hashed_password = hash_password(temp)
     user.updated_at = datetime.now(UTC)
     session_service.revoke_user_sessions(db, user_id, reason="password_reset")
@@ -648,6 +667,39 @@ def suspend_user(
         commit=True,
     )
     return MessageResponse(message="User suspended and sessions revoked")
+
+
+@users_security_router.post("/{user_id}/mfa/reset", response_model=UserSecurityActionsResponse)
+def reset_user_mfa_endpoint(
+    user_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_permission("security", "manage")),
+) -> UserSecurityActionsResponse:
+    user = db.get(User, user_id)
+    if user is None or user.archived_at is not None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    count = reset_user_mfa(db, user)
+    record_auth_event(
+        "security.mfa_reset",
+        db=db,
+        actor=actor,
+        actor_id=actor.id,
+        target_id=user.id,
+        metadata={
+            "action": "mfa_reset",
+            "actor_user_id": str(actor.id),
+            "target_user_id": str(user.id),
+            "sessions_revoked": count,
+            "request_id": get_request_id(),
+        },
+        request=request,
+        commit=True,
+    )
+    return UserSecurityActionsResponse(
+        message="MFA reset. User must sign in again with password.",
+        sessions_revoked=count,
+    )
 
 
 def uuid4_hex() -> str:

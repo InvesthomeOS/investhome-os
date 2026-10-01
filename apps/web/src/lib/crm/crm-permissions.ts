@@ -47,6 +47,7 @@ export type CrmPermissionAction =
   | 'view_analytics'
   | 'view_tracking'
   | 'manage_provider_connections'
+  | 'manage_settings'
   | 'override_restrictions'
   | 'manage_internal_messages'
   | 'use_global_search'
@@ -171,6 +172,10 @@ export function canReadCrmCompanies(user: CurrentUser | null): boolean {
 
 export function canViewCommunications(user: CurrentUser | null): boolean {
   return hasCrmPermission(user, 'view_communications') || canReadCrm(user);
+}
+
+export function canManageCommunicationAccounts(user: CurrentUser | null): boolean {
+  return hasCrmPermission(user, 'manage_provider_connections') || hasCrmPermission(user, 'manage_settings');
 }
 
 export function canCreateCommunications(user: CurrentUser | null): boolean {

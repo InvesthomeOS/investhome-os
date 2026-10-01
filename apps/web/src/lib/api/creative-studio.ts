@@ -2,6 +2,7 @@ import {
   apiFetch,
   getApiBaseUrl,
   parseApiErrorBody,
+  staffFetch,
   ApiError,
   type ApiErrorBody,
 } from '@/lib/api/client';
@@ -350,7 +351,7 @@ export async function uploadCreativeStudioMediaAsset(
   if (input.company_id) form.append('company_id', input.company_id);
   if (input.linked_project_id) form.append('linked_project_id', input.linked_project_id);
 
-  const response = await fetch(`${getApiBaseUrl()}/creative-studio/media/upload`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/creative-studio/media/upload`, {
     method: 'POST',
     credentials: 'include',
     body: form,
@@ -885,6 +886,7 @@ export type CreativeDirectorGenerateAdRequest = {
   aspect_ratio?: '1:1' | '4:5' | '16:9' | '9:16' | null;
   format_preset?: string | null;
   production_mode?: 'finished_ad' | 'os_compose' | 'editable_finished_ad' | 'golden_native_v1';
+  workflow?: 'phase5';
 };
 
 export type CreativeDirectorGenerateAdResponse = {
@@ -934,6 +936,7 @@ export async function generateCreativeDirectorAd(
       aspect_ratio: input.aspect_ratio ?? '4:5',
       format_preset: input.format_preset ?? 'portrait',
       production_mode: productionMode,
+      workflow: 'phase5',
     }),
   });
 }
@@ -1014,4 +1017,191 @@ export async function redoCreativeDirectorRevision(
     method: 'POST',
     body: JSON.stringify({}),
   });
+}
+
+export type PremiumCampaignFormatId = '4:5' | '9:16' | '1:1';
+
+export type PremiumCampaignFormat = {
+  format: PremiumCampaignFormatId;
+  available: boolean;
+  preview_asset_id: string | null;
+  parent_asset_id: string | null;
+  has_draft: boolean;
+  can_approve: boolean;
+  can_revert: boolean;
+  compare: { before_asset_id: string; after_asset_id: string } | null;
+};
+
+export type PremiumCampaignCard = {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  project: string;
+  preview_asset_id: string | null;
+  updated_at: string | null;
+  available_formats: PremiumCampaignFormatId[];
+};
+
+export type PremiumCampaignDetail = PremiumCampaignCard & {
+  formats: PremiumCampaignFormat[];
+  selected_format: PremiumCampaignFormatId;
+  selected: PremiumCampaignFormat | null;
+  publishing: { available: boolean; message: string };
+  result?: { ok: boolean; code: string; message: string | null };
+};
+
+export async function listPremiumCampaigns(): Promise<{ campaigns: PremiumCampaignCard[] }> {
+  return apiFetch('/ai/creative-studio/premium-campaigns');
+}
+
+export async function getPremiumCampaign(
+  familyId: string,
+  format?: PremiumCampaignFormatId,
+): Promise<PremiumCampaignDetail> {
+  const query = format ? `?format=${encodeURIComponent(format)}` : '';
+  return apiFetch(`/ai/creative-studio/premium-campaigns/${familyId}${query}`);
+}
+
+export async function revisePremiumCampaign(
+  familyId: string,
+  input: {
+    instruction: string;
+    format: PremiumCampaignFormatId | '16:9';
+    scope: 'selected' | 'campaign';
+  },
+): Promise<PremiumCampaignDetail> {
+  return apiFetch(`/ai/creative-studio/premium-campaigns/${familyId}/revise`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function approvePremiumCampaign(
+  familyId: string,
+  format: PremiumCampaignFormatId,
+): Promise<PremiumCampaignDetail> {
+  return apiFetch(`/ai/creative-studio/premium-campaigns/${familyId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ format }),
+  });
+}
+
+export async function revertPremiumCampaign(
+  familyId: string,
+  format: PremiumCampaignFormatId,
+): Promise<PremiumCampaignDetail> {
+  return apiFetch(`/ai/creative-studio/premium-campaigns/${familyId}/revert`, {
+    method: 'POST',
+    body: JSON.stringify({ format }),
+  });
+}
+
+export function getPremiumCampaignDownloadUrl(
+  familyId: string,
+  format: PremiumCampaignFormatId,
+): string {
+  return `${getApiBaseUrl()}/ai/creative-studio/premium-campaigns/${familyId}/download?format=${encodeURIComponent(format)}`;
+}
+
+export type QuickCreativeFormatId = '4:5' | '9:16' | '1:1' | '16:9';
+
+export type QuickCreativeProject = {
+  id: string;
+  name: string;
+  code: string;
+  city: string | null;
+  state: string | null;
+  live: boolean;
+};
+
+export type QuickCreativePhoto = {
+  id: string;
+  label: string;
+  kind: 'exterior' | 'interior' | string;
+};
+
+export type QuickCreativeProjectDetail = {
+  project: QuickCreativeProject;
+  photos: QuickCreativePhoto[];
+  photo_count: number;
+  logo_resolved: boolean;
+  ready: boolean;
+  project_reality_firewall: string;
+};
+
+export type QuickCreativeResult = {
+  campaign_id: string;
+  project_id: string;
+  project_name: string;
+  format: QuickCreativeFormatId | string;
+  format_preset: string;
+  preview_asset_id: string | null;
+  selected_photo_label: string | null;
+  approved: boolean;
+  premium: boolean;
+  project_reality_firewall: string;
+  logo_resolved: boolean;
+  photos: QuickCreativePhoto[];
+};
+
+export async function listQuickCreativeProjects(): Promise<{
+  items: QuickCreativeProject[];
+  total: number;
+}> {
+  return apiFetch('/ai/creative-studio/quick/projects');
+}
+
+export async function getQuickCreativeProject(
+  projectId: string,
+): Promise<QuickCreativeProjectDetail> {
+  return apiFetch(`/ai/creative-studio/quick/projects/${projectId}`);
+}
+
+export async function generateQuickCreative(input: {
+  project_id: string;
+  request: string;
+  format: QuickCreativeFormatId;
+  language?: string;
+}): Promise<QuickCreativeResult> {
+  return apiFetch('/ai/creative-studio/quick/generate', {
+    method: 'POST',
+    body: JSON.stringify({
+      project_id: input.project_id,
+      request: input.request,
+      format: input.format,
+      language: input.language ?? 'tr',
+    }),
+  });
+}
+
+export async function reviseQuickCreative(
+  campaignId: string,
+  instruction: string,
+): Promise<QuickCreativeResult> {
+  return apiFetch(`/ai/creative-studio/quick/${campaignId}/revise`, {
+    method: 'POST',
+    body: JSON.stringify({ instruction }),
+  });
+}
+
+export async function replaceQuickCreativeImage(
+  campaignId: string,
+  photoId: string,
+): Promise<QuickCreativeResult> {
+  return apiFetch(`/ai/creative-studio/quick/${campaignId}/replace-image`, {
+    method: 'POST',
+    body: JSON.stringify({ photo_id: photoId }),
+  });
+}
+
+export async function approveQuickCreative(campaignId: string): Promise<QuickCreativeResult> {
+  return apiFetch(`/ai/creative-studio/quick/${campaignId}/approve`, { method: 'POST' });
+}
+
+export async function varyQuickCreative(campaignId: string): Promise<QuickCreativeResult> {
+  return apiFetch(`/ai/creative-studio/quick/${campaignId}/vary`, { method: 'POST' });
+}
+
+export function getQuickCreativeDownloadUrl(campaignId: string): string {
+  return `${getApiBaseUrl()}/ai/creative-studio/quick/${campaignId}/download`;
 }

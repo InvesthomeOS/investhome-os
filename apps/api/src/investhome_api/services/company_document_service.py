@@ -13,9 +13,6 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from investhome_api.config.documents_config import (
-    ALLOWED_EXTENSIONS,
-    BLOCKED_EXTENSIONS,
-    DEFAULT_MAX_UPLOAD_BYTES,
     initial_processing_status,
 )
 from investhome_api.models.company import Company
@@ -41,14 +38,11 @@ from investhome_api.models.document import ConfidentialityLevel, Document, Docum
 from investhome_api.models.user_auth import User
 from investhome_api.services.auth_service import hash_password, verify_password
 from fastapi import HTTPException
-from investhome_api.config.settings import get_settings
 from investhome_api.services.document_validation import (
     compute_checksum,
-    extract_extension,
     generate_storage_key,
     sanitize_filename,
-    validate_extension,
-    validate_mime_type,
+    validate_upload_content,
 )
 from investhome_api.services.permission_service import is_super_admin, user_has_permission
 from investhome_api.services.storage import get_storage_provider, provider_enum
@@ -61,26 +55,21 @@ class _UploadValidation:
     error: str | None = None
 
 
-def _validate_upload_bytes(original_file_name: str, file_content: bytes) -> _UploadValidation:
+def _validate_upload_bytes(
+    original_file_name: str,
+    file_content: bytes,
+    declared_mime: str | None = None,
+) -> _UploadValidation:
     result = _UploadValidation(ok=False)
-    settings = get_settings()
-    max_bytes = settings.document_max_upload_bytes or DEFAULT_MAX_UPLOAD_BYTES
-    if len(file_content) == 0:
-        result.error = "documents.errors.empty_file"
-        return result
-    if len(file_content) > max_bytes:
-        result.error = "documents.errors.file_too_large"
-        return result
-    original_name = sanitize_filename(original_file_name)
-    ext = extract_extension(original_name)
     try:
-        validate_extension(ext)
-        mime_type = validate_mime_type(ext, None)
-    except HTTPException:
-        result.error = "documents.errors.unsupported_type"
-        return result
-    if ext not in ALLOWED_EXTENSIONS or ext in BLOCKED_EXTENSIONS:
-        result.error = "documents.errors.unsupported_type"
+        _, ext, mime_type, _, _ = validate_upload_content(
+            file_content,
+            filename=original_file_name,
+            declared_mime=declared_mime,
+        )
+    except HTTPException as exc:
+        detail = exc.detail if isinstance(exc.detail, str) else "documents.errors.unsupported_type"
+        result.error = detail
         return result
     result.ok = True
     result.extension = ext
@@ -325,6 +314,7 @@ def upload_company_document(
     company_id: UUID,
     file_content: bytes,
     original_file_name: str,
+    declared_mime: str | None = None,
     title: str | None = None,
     description: str | None = None,
     category: CompanyDocumentCategory = CompanyDocumentCategory.OTHER,
@@ -348,7 +338,7 @@ def upload_company_document(
         msg = "company_document.errors.company_not_found"
         raise ValueError(msg)
 
-    validated = _validate_upload_bytes(original_file_name, file_content)
+    validated = _validate_upload_bytes(original_file_name, file_content, declared_mime)
     if not validated.ok:
         msg = validated.error or "company_document.errors.invalid_upload"
         raise ValueError(msg)
@@ -366,7 +356,8 @@ def upload_company_document(
 
     provider.save(storage_key, BytesIO(file_content), content_length=len(file_content))
 
-    doc_title = title or original_file_name.rsplit(".", 1)[0]
+    safe_name = sanitize_filename(original_file_name)
+    doc_title = title or safe_name.rsplit(".", 1)[0]
     tags_json = _tags_to_json(tags)
     engine_doc = _create_engine_document(
         db,
@@ -418,7 +409,7 @@ def upload_company_document(
         version_number=1,
         checksum=checksum,
         file_size=len(file_content),
-        original_file_name=original_file_name,
+        original_file_name=safe_name,
         uploaded_by_user_id=user.id,
         is_current=True,
     )
@@ -435,8 +426,9 @@ def upload_new_version(
     file_content: bytes,
     original_file_name: str,
     version_notes: str | None = None,
+    declared_mime: str | None = None,
 ) -> CompanyDocumentVersion:
-    validated = _validate_upload_bytes(original_file_name, file_content)
+    validated = _validate_upload_bytes(original_file_name, file_content, declared_mime)
     if not validated.ok:
         msg = validated.error or "company_document.errors.invalid_upload"
         raise ValueError(msg)
@@ -490,7 +482,7 @@ def upload_new_version(
         version_notes=version_notes,
         checksum=checksum,
         file_size=len(file_content),
-        original_file_name=original_file_name,
+        original_file_name=sanitize_filename(original_file_name),
         uploaded_by_user_id=user.id,
         is_current=True,
     )

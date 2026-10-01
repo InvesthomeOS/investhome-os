@@ -217,6 +217,8 @@ class CreativeDirectorGenerateAdRequest(BaseModel):
     production_mode: CreativeDirectorProductionMode = "finished_ad"
     skip_gpt_image: bool = False
     background_asset_id: UUID | None = None
+    workflow: Literal["phase5"] | None = None
+    user_request: str | None = Field(default=None, max_length=12000)
 
 
 class CreativeDirectorRecomposeAdRequest(BaseModel):

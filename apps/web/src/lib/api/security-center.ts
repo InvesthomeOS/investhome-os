@@ -8,9 +8,22 @@ export type SecurityKpi = {
   note: string | null;
 };
 
+export type SecuritySignal = {
+  id: string;
+  signal_type: string;
+  severity: string;
+  event_count: number;
+  first_seen: string;
+  last_seen: string;
+  correlation_key: string;
+  summary: string;
+  metadata: Record<string, unknown>;
+};
+
 export type SecurityDashboard = {
   kpis: SecurityKpi[];
   alerts: Array<{ severity: string; title: string; detail: string }>;
+  signals?: SecuritySignal[];
   generated_at: string;
 };
 
@@ -170,9 +183,14 @@ export async function fetchDataGovernance(): Promise<Record<string, unknown>> {
 export async function fetchBackupStatus(): Promise<{
   status: string;
   last_backup_at: string | null;
+  backup_age_seconds: number | null;
+  freshness_hours: number;
   health: string;
   provider: string;
+  declared_provider: string;
   message: string;
+  restore_verified: boolean;
+  warning: boolean;
   env_keys: string[];
 }> {
   return apiFetch('/security/backup');
@@ -233,6 +251,15 @@ export async function resetUserPassword(userId: string): Promise<{ message: stri
 
 export async function suspendUser(userId: string): Promise<{ message: string }> {
   return apiFetch(`/users/${userId}/suspend`, { method: 'POST' });
+}
+
+export type MfaAdminResetResponse = {
+  message: string;
+  sessions_revoked: number;
+};
+
+export async function resetUserMfa(userId: string): Promise<MfaAdminResetResponse> {
+  return apiFetch(`/users/${userId}/mfa/reset`, { method: 'POST' });
 }
 
 export async function fetchTemporaryGrants(): Promise<{

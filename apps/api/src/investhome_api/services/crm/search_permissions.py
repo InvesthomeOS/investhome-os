@@ -27,7 +27,7 @@ ENTITY_PERMISSION_MAP: dict[str, tuple[str, str]] = {
     "crm_company": ("crm", "view_companies"),
     "crm_relationship": ("crm", "read"),
     "crm_activity": ("crm", "view_activities"),
-    "crm_communication": ("crm", "read"),
+    "crm_communication": ("crm", "view_communications"),
     "crm_task": ("crm", "manage_tasks"),
     "sales_opportunity": ("sales", "view"),
     "investor": ("investors", "view"),
@@ -39,19 +39,19 @@ ENTITY_PERMISSION_MAP: dict[str, tuple[str, str]] = {
 
 
 def can_use_global_search(user: User) -> bool:
-    return user_has_permission(user, "crm", "use_global_search") or user_has_permission(user, "crm", "read")
+    return user_has_permission(user, "crm", "use_global_search")
 
 
 def can_use_advanced_search(user: User) -> bool:
-    return user_has_permission(user, "crm", "advanced_search") or user_has_permission(user, "crm", "read")
+    return user_has_permission(user, "crm", "advanced_search")
 
 
 def can_view_suggestions(user: User) -> bool:
-    return user_has_permission(user, "crm", "view_suggestions") or user_has_permission(user, "crm", "read")
+    return user_has_permission(user, "crm", "view_suggestions")
 
 
 def can_manage_saved_searches(user: User) -> bool:
-    return user_has_permission(user, "crm", "manage_saved_searches") or user_has_permission(user, "crm", "read")
+    return user_has_permission(user, "crm", "manage_saved_searches")
 
 
 def can_share_saved_searches(user: User) -> bool:
@@ -100,13 +100,11 @@ def allowed_entity_types(user: User) -> set[str]:
     allowed: set[str] = set()
     for entity_type in CRM_SEARCH_ENTITY_TYPES:
         resource, action = ENTITY_PERMISSION_MAP.get(entity_type, ("crm", "read"))
-        if user_has_permission(user, resource, action) or user_has_permission(user, "crm", "read"):
-            if entity_type == "crm_company" and not user_has_permission(user, "crm", "view_companies"):
-                if not user_has_permission(user, "crm", "read"):
-                    continue
-            if entity_type == "crm_communication" and not can_search_communication_content(user):
-                continue
-            if entity_type == "financial_transaction" and not can_search_financial_content(user):
-                continue
-            allowed.add(entity_type)
+        if not user_has_permission(user, resource, action):
+            continue
+        if entity_type == "crm_communication" and not can_search_communication_content(user):
+            continue
+        if entity_type == "financial_transaction" and not can_search_financial_content(user):
+            continue
+        allowed.add(entity_type)
     return allowed

@@ -62,6 +62,7 @@ def create_session(
             request.client.host if request.client else None
         )
         ua = request.headers.get("user-agent")
+    now = datetime.now(UTC)
     session = AuthSession(
         id=uuid.uuid4(),
         user_id=user.id,
@@ -69,8 +70,9 @@ def create_session(
         ip_address=ip,
         user_agent=(ua[:512] if ua else None),
         device_label=_parse_device_label(ua),
+        created_at=now,
+        last_seen_at=now,
         expires_at=expires_at,
-        last_seen_at=datetime.now(UTC),
     )
     db.add(session)
     db.flush()
@@ -78,14 +80,12 @@ def create_session(
 
 
 def get_active_session(db: Session, token_jti: str) -> AuthSession | None:
-    now = datetime.now(UTC)
+    from investhome_api.services.session_lifetime import is_within_session_lifetime
+
     session = db.scalar(select(AuthSession).where(AuthSession.token_jti == token_jti))
     if session is None or session.revoked_at is not None:
         return None
-    expires = session.expires_at
-    if expires.tzinfo is None:
-        expires = expires.replace(tzinfo=UTC)
-    if expires < now:
+    if not is_within_session_lifetime(session):
         return None
     return session
 

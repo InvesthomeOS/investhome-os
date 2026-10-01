@@ -1,4 +1,4 @@
-import { apiFetch, getApiBaseUrl } from './client';
+import { apiFetch, getApiBaseUrl, staffFetch } from './client';
 
 export type CompanyEntityType =
   | 'corporation'
@@ -222,7 +222,7 @@ export async function transferCompanyOwnership(
 
 export async function exportCompanies(includeArchived = false): Promise<string> {
   const params = includeArchived ? '?include_archived=true' : '';
-  const response = await fetch(`${getApiBaseUrl()}/companies/export${params}`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/companies/export${params}`, {
     credentials: 'include',
   });
   if (!response.ok) {
@@ -234,7 +234,7 @@ export async function exportCompanies(includeArchived = false): Promise<string> 
 export async function importCompanies(file: File): Promise<CompanyImportResult> {
   const formData = new FormData();
   formData.append('file', file);
-  const response = await fetch(`${getApiBaseUrl()}/companies/import`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/companies/import`, {
     method: 'POST',
     credentials: 'include',
     body: formData,

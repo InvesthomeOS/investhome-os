@@ -89,8 +89,20 @@ export type TimelineEvent = {
   companyHref?: string;
   leadHref?: string;
   projectHref?: string;
+  purchaseHref?: string;
   isSystem?: boolean;
   source: 'live' | 'fixture';
+  recordSource?: string;
+  personName?: string | null;
+  projectLabel?: string | null;
+  unitNumber?: string | null;
+  agreementId?: string | null;
+  documentId?: string | null;
+  documentName?: string | null;
+  sourceBadge?: string;
+  eventKind?: string;
+  priorityTier?: 'high' | 'normal';
+  fullDescription?: string;
 };
 
 export type TimelineEntitySummary = {
@@ -118,17 +130,38 @@ export type TimelineDsFilters = {
   entityKindTab: TimelineEntityKind | 'all';
 };
 
-export const EMPTY_TIMELINE_FILTERS: TimelineDsFilters = {
+export type TimelineOpsFilters = {
+  search: string;
+  person: string;
+  personId: string | null;
+  projectGroup: string;
+  eventKind: string;
+  dateFrom: string;
+  dateTo: string;
+};
+
+export const EMPTY_OPS_FILTERS: TimelineOpsFilters = {
   search: '',
-  status: '',
-  category: '',
-  owner: '',
-  entityType: 'all',
+  person: '',
+  personId: null,
+  projectGroup: '',
+  eventKind: '',
   dateFrom: '',
   dateTo: '',
-  entityId: null,
-  entityKindTab: 'all',
 };
+
+export const EVENT_KIND_OPTIONS = [
+  'whatsapp',
+  'email',
+  'call',
+  'meeting',
+  'document',
+  'purchase',
+  'payment',
+  'note',
+  'task',
+  'system',
+] as const;
 
 export const ENTITY_KIND_ORDER: Array<TimelineEntityKind | 'all'> = [
   'all',
@@ -284,18 +317,18 @@ function mapEntityKind(entityType: string | null): TimelineEntityKind {
 function entityKindLabel(kind: TimelineEntityKind): string {
   switch (kind) {
     case 'companies':
-      return 'Company';
+      return 'Şirket';
     case 'investors':
-      return 'Investor';
+      return 'Yatırımcı';
     case 'projects':
-      return 'Project';
+      return 'Proje';
     case 'leads':
       return 'Lead';
     case 'favorites':
-      return 'Favorite';
+      return 'Favori';
     case 'people':
     default:
-      return 'Contact';
+      return 'Kişi';
   }
 }
 
@@ -325,44 +358,144 @@ export function mapTimelineEntry(entry: CrmTimelineEntry): TimelineEvent {
   const meta = entry.metadata_json;
   const entityKind = mapEntityKind(entry.entity_type);
   const category = mapApiCategory(entry.activity_type);
-  const entityId = entry.entity_id ?? entry.id;
-  const entityName =
-    metaString(meta, ['entity_name', 'contact_name', 'company_name', 'project_name', 'name']) ??
-    extractEntityNameFromTitle(entry.title) ??
-    entityKindLabel(entityKind);
+  const entityId = entry.entity_id ?? entry.id.replace(/^(log|agreement|document)-/, '');
+  const personName =
+    (entry.person_name ?? '').trim() ||
+    metaString(meta, ['entity_name', 'contact_name', 'person_name']) ||
+    extractEntityNameFromTitle(entry.title);
+  const safeName =
+    personName &&
+    !['contact', 'company', 'investor', 'project', 'lead', 'crm', 'unknown person', 'unknown'].includes(
+      personName.toLowerCase(),
+    )
+      ? personName
+      : null;
+  const projectLabel = (entry.project_label ?? '').trim() || metaString(meta, ['project_label', 'project_name']);
+  const unitNumber = (entry.unit_number ?? '').trim() || metaString(meta, ['unit_number', 'unit']);
   const actor =
     entry.actor_name?.trim() ||
     metaString(meta, ['actor_name', 'owner_name', 'assigned_user_name']) ||
-    'CRM';
+    '';
+  const eventKind = (entry.event_kind ?? mapKindFromCategory(category)).trim() || 'system';
+  const sourceBadge = (entry.source_badge ?? '').trim() || sourceBadgeForKind(eventKind);
+  const priorityTier = entry.priority_tier === 'high' ? 'high' : eventKind === 'purchase' || eventKind === 'payment' ? 'high' : 'normal';
+  const summary = (entry.summary ?? entry.title ?? '').trim();
+  const agreementId = entry.agreement_id ?? null;
   return {
-    id: entry.id.replace(/^log-/, ''),
+    id: entry.id,
     occurredAt: entry.created_at,
-    title: entry.title,
-    description: entry.summary ?? '',
+    title: summary || entry.title,
+    description: summary,
     category,
     status: mapApiStatus(entry.status),
-    channel: category === 'whatsapp' || category === 'email' || category === 'call' ? category : undefined,
+    channel: eventKind === 'whatsapp' || eventKind === 'email' ? eventKind : undefined,
     owner: actor,
-    ownerInitials: initials(actor),
+    ownerInitials: initials(actor || safeName || '?'),
     entityId,
-    entityName,
+    entityName: safeName ?? '',
     entityKind,
-    entityStatus: entityKindLabel(entityKind),
-    entityStatusTone: 'info',
-    href: entry.entity_id
-      ? entityHref(entityKind, entry.entity_id)
-      : '/workspaces/crm/timeline',
-    contactHref: entityKind === 'people' && entry.entity_id
-      ? `/workspaces/crm/contacts/${entry.entity_id}`
-      : undefined,
-    companyHref: entityKind === 'companies' && entry.entity_id
-      ? `/workspaces/crm/companies/${entry.entity_id}`
-      : undefined,
-    leadHref: entityKind === 'leads' ? '/workspaces/crm/leads' : undefined,
-    projectHref: entityKind === 'projects' ? '/workspaces/crm/projects' : undefined,
+    href: entry.entity_id ? entityHref(entityKind, entry.entity_id) : '/workspaces/crm/timeline',
+    contactHref: entityKind === 'people' && entry.entity_id ? `/workspaces/crm/contacts/${entry.entity_id}` : undefined,
+    companyHref:
+      entityKind === 'companies' && entry.entity_id ? `/workspaces/crm/companies/${entry.entity_id}` : undefined,
+    purchaseHref:
+      agreementId && entry.entity_id
+        ? `/workspaces/crm/contacts/${entry.entity_id}/satin-alma/${agreementId}`
+        : undefined,
     isSystem: entry.is_system_event,
     source: 'live',
+    recordSource: entry.source,
+    personName: safeName,
+    projectLabel: projectLabel || null,
+    unitNumber: unitNumber || null,
+    agreementId,
+    documentId: entry.document_id ?? null,
+    documentName: entry.document_name ?? null,
+    sourceBadge,
+    eventKind,
+    priorityTier,
+    fullDescription: (entry.description ?? entry.summary ?? entry.title ?? '').trim(),
   };
+}
+
+function mapKindFromCategory(category: TimelineEventCategory): string {
+  if (category === 'whatsapp' || category === 'email' || category === 'note' || category === 'task') return category;
+  if (category === 'document' || category === 'payment') return category;
+  if (category === 'contract') return 'purchase';
+  return 'system';
+}
+
+function sourceBadgeForKind(kind: string): string {
+  switch (kind) {
+    case 'whatsapp':
+      return 'WhatsApp';
+    case 'email':
+      return 'Email';
+    case 'call':
+      return 'Arama';
+    case 'meeting':
+      return 'Toplantı';
+    case 'document':
+      return 'Belge';
+    case 'purchase':
+      return 'Satın Alma';
+    case 'payment':
+      return 'Ödeme';
+    case 'note':
+      return 'Not';
+    case 'task':
+      return 'Görev';
+    default:
+      return 'Sistem';
+  }
+}
+
+export type TimelineFeedRow =
+  | { type: 'event'; event: TimelineEvent }
+  | { type: 'cluster'; id: string; eventKind: string; sourceBadge: string; personName: string | null; events: TimelineEvent[] };
+
+const CLUSTERABLE = new Set(['whatsapp', 'email']);
+
+export function clusterCommunicationEvents(events: TimelineEvent[]): TimelineFeedRow[] {
+  const rows: TimelineFeedRow[] = [];
+  let index = 0;
+  while (index < events.length) {
+    const current = events[index]!;
+    if (!CLUSTERABLE.has(current.eventKind)) {
+      rows.push({ type: 'event', event: current });
+      index += 1;
+      continue;
+    }
+    const bucket: TimelineEvent[] = [current];
+    let cursor = index + 1;
+    while (cursor < events.length) {
+      const next = events[cursor]!;
+      if (
+        next.eventKind === current.eventKind &&
+        next.entityId === current.entityId &&
+        CLUSTERABLE.has(next.eventKind)
+      ) {
+        bucket.push(next);
+        cursor += 1;
+        continue;
+      }
+      break;
+    }
+    if (bucket.length >= 3) {
+      rows.push({
+        type: 'cluster',
+        id: `cluster-${current.eventKind}-${current.entityId}-${current.id}`,
+        eventKind: current.eventKind,
+        sourceBadge: current.sourceBadge,
+        personName: current.personName,
+        events: bucket,
+      });
+    } else {
+      for (const event of bucket) rows.push({ type: 'event', event });
+    }
+    index = cursor;
+  }
+  return rows;
 }
 
 function entityHref(kind: TimelineEntityKind, id: string): string {
@@ -833,7 +966,7 @@ export function entitiesFromEvents(
     const candidateName = event.entityName;
     const isGeneric =
       !candidateName ||
-      ['Contact', 'Company', 'Investor', 'Project', 'Lead', 'CRM', 'people', 'companies'].includes(
+      ['Contact', 'Company', 'Investor', 'Project', 'Lead', 'CRM', 'people', 'companies', 'Kişi', 'Şirket', 'Yatırımcı', 'Proje'].includes(
         candidateName,
       );
     if (!existing) {
@@ -849,7 +982,7 @@ export function entitiesFromEvents(
       });
       continue;
     }
-    const existingGeneric = ['Contact', 'Company', 'Investor', 'Project', 'Lead', 'CRM'].includes(
+    const existingGeneric = ['Contact', 'Company', 'Investor', 'Project', 'Lead', 'CRM', 'Kişi', 'Şirket', 'Yatırımcı', 'Proje'].includes(
       existing.name,
     );
     if (existingGeneric && !isGeneric) {

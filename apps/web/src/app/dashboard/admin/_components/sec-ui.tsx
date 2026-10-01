@@ -16,15 +16,19 @@ export function StatusBadge({ status, children }: { status: string; children?: R
     status === 'pilot' ||
     status === 'live' ||
     status === 'editable' ||
+    status === 'verified' ||
     status === 'ok'
       ? 'ok'
       : status === 'missing' ||
           status === 'unavailable' ||
           status === 'not_configured' ||
           status === 'not_connected' ||
+          status === 'not_verified' ||
           status === 'planned' ||
           status === 'partial' ||
           status === 'demo' ||
+          status === 'stale' ||
+          status === 'warning' ||
           status === 'not_required' ||
           status === 'not required'
         ? 'warn'
@@ -37,6 +41,7 @@ export function StatusBadge({ status, children }: { status: string; children?: R
             status === 'kill_switch' ||
             status === 'forbidden' ||
             status === 'immutable' ||
+            status === 'failed' ||
             status === 'dead'
           ? 'bad'
           : status === 'disabled' || status === 'inactive'
@@ -77,13 +82,20 @@ export function KpiGrid({
 }) {
   return (
     <div className="sec-kpi-grid" data-sec-kpis>
-      {items.map((kpi) => (
-        <article key={kpi.key} className={`sec-kpi${!kpi.available ? ' sec-kpi--unavailable' : ''}`}>
-          <p className="sec-kpi__label">{kpi.label}</p>
-          <p className="sec-kpi__value">{kpi.available ? (kpi.value ?? '—') : 'Unavailable'}</p>
-          {kpi.note ? <p className="sec-kpi__note">{kpi.note}</p> : null}
-        </article>
-      ))}
+      {items.map((kpi) => {
+        const backupWarn = kpi.key === 'backup_health' && kpi.value !== 'verified';
+        return (
+          <article
+            key={kpi.key}
+            className={`sec-kpi${!kpi.available || backupWarn ? ' sec-kpi--unavailable' : ''}`}
+            data-testid={kpi.key === 'backup_health' ? 'backup-health-kpi' : undefined}
+          >
+            <p className="sec-kpi__label">{kpi.label}</p>
+            <p className="sec-kpi__value">{kpi.available ? (kpi.value ?? '—') : 'Unavailable'}</p>
+            {kpi.note ? <p className="sec-kpi__note">{kpi.note}</p> : null}
+          </article>
+        );
+      })}
     </div>
   );
 }

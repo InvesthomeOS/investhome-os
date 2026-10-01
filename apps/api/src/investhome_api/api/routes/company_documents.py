@@ -77,7 +77,12 @@ from investhome_api.services.company_document_service import (
     verify_download_token,
     create_download_token,
 )
-from investhome_api.services.document_validation import content_stream
+from investhome_api.services.document_validation import content_stream, read_bytes_capped
+from investhome_api.services.document_service import reject_unauthorized_sensitive_document_fields
+from investhome_api.services.document_access_audit import (
+    deny_document_access,
+    record_document_access,
+)
 from investhome_api.services.storage import get_storage_provider
 
 router = APIRouter(prefix="/company-documents", tags=["company-documents"])
@@ -351,7 +356,7 @@ async def upload_document(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("documents", "create")),
 ) -> CompanyDocumentResponse:
-    content = await file.read()
+    content = await read_bytes_capped(file)
     tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
     try:
         record, is_dup = upload_company_document(
@@ -360,6 +365,7 @@ async def upload_document(
             company_id=company_id,
             file_content=content,
             original_file_name=file.filename or "upload",
+            declared_mime=file.content_type,
             title=title,
             description=description,
             category=category,
@@ -394,7 +400,7 @@ async def bulk_upload_documents(
 ) -> list[CompanyDocumentResponse]:
     results: list[CompanyDocumentResponse] = []
     for upload in files:
-        content = await upload.read()
+        content = await read_bytes_capped(upload)
         try:
             record, _ = upload_company_document(
                 db,
@@ -402,6 +408,7 @@ async def bulk_upload_documents(
                 company_id=company_id,
                 file_content=content,
                 original_file_name=upload.filename or "upload",
+                declared_mime=upload.content_type,
                 folder_id=folder_id,
             )
             _audit(db, request=request, user=user, record=record, action=ActivityAction.CREATED, description_key="activity.company_document.uploaded")
@@ -423,6 +430,13 @@ def update_company_document(
     record = _get_record_or_404(db, record_id)
     before = snapshot_entity(record)
     data = payload.model_dump(exclude_unset=True)
+    reject_unauthorized_sensitive_document_fields(
+        db,
+        user,
+        data,
+        current_confidentiality=record.confidentiality_level,
+        current_owner_id=record.owner_user_id,
+    )
     if "tags" in data:
         from investhome_api.services.company_document_service import _tags_to_json
 
@@ -454,7 +468,7 @@ async def upload_version(
     user: User = Depends(require_permission("documents", "update")),
 ) -> CompanyDocumentVersionResponse:
     record = _get_record_or_404(db, record_id)
-    content = await file.read()
+    content = await read_bytes_capped(file)
     try:
         version = upload_new_version(
             db,
@@ -463,6 +477,7 @@ async def upload_version(
             file_content=content,
             original_file_name=file.filename or "upload",
             version_notes=version_notes,
+            declared_mime=file.content_type,
         )
         _audit(db, request=request, user=user, record=record, action=ActivityAction.UPDATED, description_key="activity.company_document.version_uploaded")
         db.commit()
@@ -510,22 +525,50 @@ def restore_version_endpoint(
 @router.get("/{record_id}/download")
 def download_document(
     record_id: UUID,
+    request: Request,
     token: str | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> StreamingResponse:
     record = _get_record_or_404(db, record_id)
-    if token:
-        if not verify_download_token(token, record_id, user.id):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="company_document.errors.invalid_token")
-    elif not user_can_download_document(db, user, record):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="company_document.errors.forbidden")
-
     engine_doc = db.get(Document, record.document_id)
     if engine_doc is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="company_document.errors.file_not_found")
+    if token:
+        if not verify_download_token(token, record_id, user.id):
+            deny_document_access(
+                db,
+                document=engine_doc,
+                access_type="download",
+                actor=user,
+                request=request,
+                module="company_documents",
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="company_document.errors.invalid_token",
+                reason="invalid_token",
+            )
+    elif not user_can_download_document(db, user, record):
+        deny_document_access(
+            db,
+            document=engine_doc,
+            access_type="download",
+            actor=user,
+            request=request,
+            module="company_documents",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="company_document.errors.forbidden",
+        )
 
     stream = get_storage_provider().open(engine_doc.storage_key)
+    record_document_access(
+        db,
+        document=engine_doc,
+        access_type="download",
+        actor=user,
+        request=request,
+        module="company_documents",
+    )
+    db.commit()
     return StreamingResponse(
         stream,
         media_type=engine_doc.mime_type,
@@ -536,16 +579,37 @@ def download_document(
 @router.get("/{record_id}/preview")
 def preview_document(
     record_id: UUID,
+    request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("documents", "download")),
 ) -> StreamingResponse:
     record = _get_record_or_404(db, record_id)
-    if not user_can_view_document(db, user, record):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="company_document.errors.forbidden")
     engine_doc = db.get(Document, record.document_id)
+    if not user_can_view_document(db, user, record):
+        if engine_doc is not None:
+            deny_document_access(
+                db,
+                document=engine_doc,
+                access_type="preview",
+                actor=user,
+                request=request,
+                module="company_documents",
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="company_document.errors.forbidden",
+            )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="company_document.errors.forbidden")
     if engine_doc is None or not is_previewable(engine_doc.file_extension):
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="documents.errors.preview_unavailable")
     stream = get_storage_provider().open(engine_doc.storage_key)
+    record_document_access(
+        db,
+        document=engine_doc,
+        access_type="preview",
+        actor=user,
+        request=request,
+        module="company_documents",
+    )
+    db.commit()
     return StreamingResponse(stream, media_type=engine_doc.mime_type)
 
 
@@ -590,6 +654,7 @@ def create_share_link_endpoint(
 @router.get("/shared/{token}/download")
 def shared_download(
     token: str,
+    request: Request,
     password: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
@@ -603,6 +668,14 @@ def shared_download(
     if engine_doc is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="company_document.errors.file_not_found")
     increment_share_download(db, link)
+    record_document_access(
+        db,
+        document=engine_doc,
+        access_type="download",
+        actor=None,
+        request=request,
+        module="company_documents_share",
+    )
     db.commit()
     stream = get_storage_provider().open(engine_doc.storage_key)
     return StreamingResponse(

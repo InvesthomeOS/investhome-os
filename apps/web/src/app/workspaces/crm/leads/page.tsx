@@ -1,13 +1,11 @@
-import { LeadsDsWorkspace } from './_components/ds/leads-ds-workspace';
+import { CrmLeadsLiveWorkspace } from './_components/crm-leads-live-workspace';
+import '@/workspaces/crm/contact-card/contact-card.css';
+import './leads-ops.css';
 
-/**
- * Canonical Leads nav route (`/workspaces/crm/leads`).
- * Contacts/Projects-quality DS presentation — detail routes under `/dashboard/leads/[id]` unchanged.
- */
 export default function CrmLeadsPage() {
   return (
     <main className="dashboard crm-module-shell" data-testid="crm-leads-page">
-      <LeadsDsWorkspace />
+      <CrmLeadsLiveWorkspace />
     </main>
   );
 }

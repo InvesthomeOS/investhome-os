@@ -1,5 +1,5 @@
-import { CrmPersonDetailView } from '../_components/crm-person-detail';
-import '../people.css';
+import { redirect } from 'next/navigation';
+import type { Route } from 'next';
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -7,10 +7,5 @@ type PageProps = {
 
 export default async function CrmPersonDetailPage({ params }: PageProps) {
   const { id } = await params;
-
-  return (
-    <main className="dashboard crm-module-shell" data-testid="crm-person-detail-page">
-      <CrmPersonDetailView personId={id} />
-    </main>
-  );
+  redirect(`/workspaces/crm/contacts?contact=${encodeURIComponent(id)}` as Route);
 }

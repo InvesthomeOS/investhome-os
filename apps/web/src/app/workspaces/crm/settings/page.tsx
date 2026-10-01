@@ -1,17 +1,15 @@
-import { CrmSettingsWorkspace } from './_components/crm-settings-workspace';
-import { makeSettingsPreview } from './settings-demo-data';
-import './settings.css';
+import { CrmSettingsLiveWorkspace } from './_components/crm-settings-live-workspace';
+import './settings-ops.css';
 
 /**
  * Canonical CRM Settings route.
- * Integration connection state is shown only when a backend confirms it.
+ * Live company, communication, provider, and security reads only.
+ * Connection state is shown only when a backend confirms it.
  */
 export default function CrmSettingsPage() {
-  const preview = makeSettingsPreview();
-
   return (
     <main className="dashboard crm-module-shell" data-testid="crm-settings-page">
-      <CrmSettingsWorkspace preview={preview} />
+      <CrmSettingsLiveWorkspace />
     </main>
   );
 }

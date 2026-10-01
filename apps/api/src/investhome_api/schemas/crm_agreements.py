@@ -37,7 +37,24 @@ class CrmAgreementSummary(BaseModel):
     bitrix_deal_id: str | None = None
     amount_label: str | None = None
     stage_label: str | None = None
+    hemen_kira: bool = False
+    responsible_name: str | None = None
+    next_activity_title: str | None = None
+    next_activity_at: datetime | None = None
+    payment_status: str | None = None
+    payment_method: str | None = None
+    share_ratio: str | None = None
+    company_details: str | None = None
+    payment_dates: str | None = None
+    floor: str | None = None
+    deposit_amount: str | None = None
+    customer_journey: str | None = None
+    potential_status: str | None = None
+    begin_date: str | None = None
+    close_date: str | None = None
+    joint_owners: bool = False
     participants: list["CrmAgreementParticipantSummary"] = Field(default_factory=list)
+    has_unit_change: bool = False
 
 
 class CrmAgreementParticipantSummary(BaseModel):
@@ -65,7 +82,23 @@ class CrmPurchaseDocument(BaseModel):
     document_type: str | None = None
     mime_type: str | None = None
     source: str | None = None
+    checksum: str | None = None
+    hidden_from_view: bool = False
     created_at: datetime | None = None
+
+
+class CrmPurchaseDocumentGroup(BaseModel):
+    unit_number: str
+    is_current: bool = False
+    agreement_id: UUID
+    documents: list[CrmPurchaseDocument] = Field(default_factory=list)
+
+
+class CrmDocumentVisibilityRequest(BaseModel):
+    document_id: UUID
+    entity_type: str
+    entity_id: UUID
+    hidden: bool
 
 
 class CrmLabeledValue(BaseModel):
@@ -80,6 +113,16 @@ class CrmRelatedPurchase(BaseModel):
     amount_label: str | None = None
     owners_label: str | None = None
     is_current: bool = False
+    is_historical_unit_change: bool = False
+
+
+class CrmUnitHistoryStep(BaseModel):
+    agreement_id: UUID
+    unit_number: str
+    is_current: bool = False
+    is_historical_unit_change: bool = False
+    contact_id: UUID | None = None
+    project_label: str | None = None
 
 
 class CrmPurchaseCard(BaseModel):
@@ -103,6 +146,9 @@ class CrmPurchaseCard(BaseModel):
     history_count: int = 0
     documents: list[CrmPurchaseDocument] = Field(default_factory=list)
     document_count: int = 0
+    document_groups: list[CrmPurchaseDocumentGroup] = Field(default_factory=list)
+    person_documents: list[CrmPurchaseDocument] = Field(default_factory=list)
+    person_document_count: int = 0
     responsible_name: str | None = None
     comments: str | None = None
     agreement_date: date | None = None
@@ -112,6 +158,55 @@ class CrmPurchaseCard(BaseModel):
     payment_fields: list[CrmLabeledValue] = Field(default_factory=list)
     llc_fields: list[CrmLabeledValue] = Field(default_factory=list)
     extra_fields: list[CrmLabeledValue] = Field(default_factory=list)
+    hemen_kira: bool = False
+    unit_history: list[CrmUnitHistoryStep] = Field(default_factory=list)
+
+
+class CrmAgreementPatch(BaseModel):
+    hemen_kira: bool
+
+
+class CrmAgreementActivityItem(BaseModel):
+    id: UUID
+    agreement_id: UUID | None = None
+    contact_id: UUID | None = None
+    contact_name: str | None = None
+    project_group: str | None = None
+    project_label: str | None = None
+    activity_type: str
+    title: str
+    summary: str | None = None
+    actor_name: str | None = None
+    responsible_name: str | None = None
+    created_at: datetime
+    start_date: datetime | None = None
+    due_date: datetime | None = None
+
+
+class CrmAgreementActivityListResponse(BaseModel):
+    items: list[CrmAgreementActivityItem]
+    page: int
+    page_size: int
+    total: int
+    pages: int
+    request_id: str = ""
+
+
+class CrmAgreementCalendarItem(BaseModel):
+    id: str
+    title: str
+    date: date
+    kind: str
+    agreement_id: UUID | None = None
+    contact_name: str | None = None
+    project_label: str | None = None
+    activity_type: str | None = None
+
+
+class CrmAgreementCalendarResponse(BaseModel):
+    items: list[CrmAgreementCalendarItem]
+    start: date
+    end: date
 
 
 class CrmAgreementListResponse(BaseModel):

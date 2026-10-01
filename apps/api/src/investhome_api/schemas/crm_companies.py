@@ -312,6 +312,22 @@ class CrmCompanyUpdate(BaseModel):
     property_management_profile: CrmCompanyPropertyManagementProfileSchema | None = None
 
 
+class CrmCompanyRelatedPerson(BaseModel):
+    id: UUID
+    display_name: str
+    contact_type: str | None = None
+    is_broker: bool = False
+
+
+class CrmCompanyRelatedAgreement(BaseModel):
+    id: UUID
+    project_group: str
+    unit_number: str | None = None
+    investment_amount: str | None = None
+    contact_id: UUID
+    contact_display_name: str | None = None
+
+
 class CrmCompanyListItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
@@ -329,13 +345,29 @@ class CrmCompanyListItem(BaseModel):
     relationship_status: str
     relationship_strength: str
     owner_user_id: UUID | None = None
+    owner_name: str | None = None
     parent_company_id: UUID | None = None
     tags: list[str] | None = None
     is_favorite: bool = False
     is_pinned: bool = False
     contact_count: int = 0
+    city: str | None = None
+    country: str | None = None
+    related_people: list[CrmCompanyRelatedPerson] = Field(default_factory=list)
+    open_relationship_count: int = 0
+    related_agreement_count: int = 0
+    last_activity_at: datetime | None = None
+    notes: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class CrmCompanyCounts(BaseModel):
+    total: int
+    brokerage: int
+    partner: int
+    investor: int
+    open_relationships: int
 
 
 class CrmCompanyDetail(CrmCompanyListItem):
@@ -372,6 +404,7 @@ class CrmCompanyDetail(CrmCompanyListItem):
     property_management_profile: CrmCompanyPropertyManagementProfileSchema | None = None
     legal_data: dict[str, object] | None = None
     compliance_data: dict[str, object] | None = None
+    related_agreements: list[CrmCompanyRelatedAgreement] = Field(default_factory=list)
 
 
 class CrmCompanyListResponse(BaseModel):

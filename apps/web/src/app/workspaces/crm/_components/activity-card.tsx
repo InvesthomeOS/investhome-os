@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from 'next-intl';
 
 import { StatusChip } from '@investhome/ui';
 
+import { emailPreviewText } from '@/workspaces/crm/contact-card/history-html';
 import type { CrmActivitySummary, CrmTimelineEntry } from '@/workspaces/crm/types/activities';
 
 const TYPE_ICONS: Record<string, string> = {
@@ -76,7 +77,9 @@ export function ActivityCard({ item, compact = false, onSelect, selected = false
         )}
       </div>
       <h3 className="crm-activity-card__title">{title}</h3>
-      {!compact && summary && <p className="crm-activity-card__summary">{summary}</p>}
+      {!compact && summary && (
+        <p className="crm-activity-card__summary">{emailPreviewText(summary)}</p>
+      )}
       {!compact && priority && (
         <span className="crm-activity-card__priority">
           {t(`priorities.${priority}` as 'priorities.medium')}

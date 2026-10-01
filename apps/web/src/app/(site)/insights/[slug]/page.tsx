@@ -10,6 +10,7 @@ import {
   SITE_ARTICLES,
 } from '@/features/site/content/articles';
 import { articleJsonLd, buildSiteMetadata } from '@/features/site/lib/seo';
+import { JsonLdScript } from '@/components/site/json-ld-script';
 
 export function generateStaticParams() {
   return SITE_ARTICLES.map((a) => ({ slug: a.slug }));
@@ -55,10 +56,7 @@ export default async function InsightArticlePage({
 
   return (
     <div className="site-page">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLdScript data={jsonLd} />
       <div className="site-page__inner">
         <article className="site-article">
           <div className="site-article__meta">

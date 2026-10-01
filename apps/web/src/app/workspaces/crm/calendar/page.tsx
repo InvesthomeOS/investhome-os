@@ -1,5 +1,6 @@
 import { CrmCalendarWorkspace } from './_components/crm-calendar-workspace';
-import './calendar.css';
+import '@/workspaces/crm/contact-card/contact-card.css';
+import './calendar-ops.css';
 
 export default function CrmCalendarPage() {
   return (

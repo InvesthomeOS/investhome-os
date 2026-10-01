@@ -309,17 +309,23 @@ def generate_image(
     base_url: str = DEFAULT_BASE_URL,
     variant: str | None = None,
     timeout: float = CALL_TIMEOUT_SECONDS,
+    background: str | None = None,
+    output_format: str | None = None,
 ) -> GptImageRemote:
     """POST /v1/images/generations — general Investhome text-to-image. Not a project fallback."""
     endpoint = generations_url(base_url)
     _bump_call_count(endpoint=endpoint, variant=variant)
-    payload = {
+    payload: dict[str, Any] = {
         "model": model,
         "prompt": prompt,
         "size": size,
         "quality": quality,
         "n": 1,
     }
+    if background:
+        payload["background"] = background
+    if output_format:
+        payload["output_format"] = output_format
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",

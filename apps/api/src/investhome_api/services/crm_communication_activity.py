@@ -19,7 +19,7 @@ from investhome_api.services.activity_recorder import (
     log_entity_restored,
     log_entity_updated,
 )
-from investhome_api.services.activity_service import snapshot_entity
+from investhome_api.services.crypto_seal import redact_secret_fields
 
 COMMUNICATION_AUDIT_FIELDS = (
     "channel",
@@ -49,7 +49,7 @@ def record_communication_audit(
             thread_id=thread_id,
             event_type=event_type,
             actor_user_id=actor.id if actor else None,
-            details_json=details,
+            details_json=redact_secret_fields(details) if details else None,
         )
     )
 

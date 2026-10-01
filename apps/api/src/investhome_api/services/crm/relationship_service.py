@@ -9,6 +9,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from investhome_api.models.crm_agreement import CrmAgreement
 from investhome_api.models.crm_company import CrmCompany
 from investhome_api.models.crm_contact import CrmContact
 from investhome_api.models.project import Project
@@ -38,6 +39,7 @@ from investhome_api.schemas.crm_relationships import (
     CrmRelationshipAlertResponse,
     CrmRelationshipBulkActionRequest,
     CrmRelationshipBulkActionResponse,
+    CrmRelationshipCounts,
     CrmRelationshipCreate,
     CrmRelationshipDetail,
     CrmRelationshipDuplicateCandidate,
@@ -95,11 +97,111 @@ def _resolve_display_name(
     return None
 
 
+def relationship_pair_kind(rel: CrmRelationship) -> str:
+    source = rel.source_entity_type
+    target = rel.target_entity_type
+    types = {source, target}
+    if types == {CrmRelationshipEntityType.CONTACT, CrmRelationshipEntityType.COMPANY}:
+        return "contact_company"
+    if types == {CrmRelationshipEntityType.CONTACT, CrmRelationshipEntityType.PROJECT}:
+        return "contact_project"
+    if source == CrmRelationshipEntityType.CONTACT and target == CrmRelationshipEntityType.CONTACT:
+        return "contact_contact"
+    if types == {CrmRelationshipEntityType.COMPANY, CrmRelationshipEntityType.PROJECT}:
+        return "company_project"
+    if source == CrmRelationshipEntityType.COMPANY and target == CrmRelationshipEntityType.COMPANY:
+        return "company_company"
+    return "other"
+
+
+def _pair_kind_clause(pair_kind: str):
+    contact = CrmRelationshipEntityType.CONTACT
+    company = CrmRelationshipEntityType.COMPANY
+    project = CrmRelationshipEntityType.PROJECT
+    if pair_kind == "contact_company":
+        return or_(
+            (CrmRelationship.source_entity_type == contact) & (CrmRelationship.target_entity_type == company),
+            (CrmRelationship.source_entity_type == company) & (CrmRelationship.target_entity_type == contact),
+        )
+    if pair_kind == "contact_project":
+        return or_(
+            (CrmRelationship.source_entity_type == contact) & (CrmRelationship.target_entity_type == project),
+            (CrmRelationship.source_entity_type == project) & (CrmRelationship.target_entity_type == contact),
+        )
+    if pair_kind == "contact_contact":
+        return (CrmRelationship.source_entity_type == contact) & (CrmRelationship.target_entity_type == contact)
+    if pair_kind == "company_project":
+        return or_(
+            (CrmRelationship.source_entity_type == company) & (CrmRelationship.target_entity_type == project),
+            (CrmRelationship.source_entity_type == project) & (CrmRelationship.target_entity_type == company),
+        )
+    if pair_kind == "company_company":
+        return (CrmRelationship.source_entity_type == company) & (CrmRelationship.target_entity_type == company)
+    return None
+
+
+def _project_ids_for_group(db: Session, project_group: str) -> list[UUID]:
+    return list(
+        db.scalars(
+            select(CrmAgreement.project_id).where(
+                CrmAgreement.project_group == project_group,
+                CrmAgreement.project_id.is_not(None),
+            ).distinct()
+        ).all()
+    )
+
+
+def _linked_project(db: Session, rel: CrmRelationship) -> tuple[UUID | None, str | None]:
+    if rel.source_entity_type == CrmRelationshipEntityType.PROJECT:
+        project = db.get(Project, rel.source_entity_id)
+        return rel.source_entity_id, project.project_name if project else None
+    if rel.target_entity_type == CrmRelationshipEntityType.PROJECT:
+        project = db.get(Project, rel.target_entity_id)
+        return rel.target_entity_id, project.project_name if project else None
+    return None, None
+
+
+def _linked_agreement(db: Session, rel: CrmRelationship) -> tuple[UUID | None, str | None]:
+    contact_id = None
+    project_id = None
+    if rel.source_entity_type == CrmRelationshipEntityType.CONTACT:
+        contact_id = rel.source_entity_id
+    elif rel.target_entity_type == CrmRelationshipEntityType.CONTACT:
+        contact_id = rel.target_entity_id
+    if rel.source_entity_type == CrmRelationshipEntityType.PROJECT:
+        project_id = rel.source_entity_id
+    elif rel.target_entity_type == CrmRelationshipEntityType.PROJECT:
+        project_id = rel.target_entity_id
+    if not contact_id or not project_id:
+        return None, None
+    agreements = list(
+        db.scalars(
+            select(CrmAgreement).where(
+                CrmAgreement.contact_id == contact_id,
+                CrmAgreement.project_id == project_id,
+            )
+        ).all()
+    )
+    if len(agreements) != 1:
+        return None, None
+    agreement = agreements[0]
+    label = agreement.unit_number or agreement.project_group
+    return agreement.id, label
+
+
 def serialize_relationship_summary(db: Session, rel: CrmRelationship) -> CrmRelationshipSummary:
     reciprocal_label = None
     if rel.reciprocal_type:
         from investhome_api.services.crm.reciprocal_mapping_service import get_reciprocal_display_label
         reciprocal_label = get_reciprocal_display_label(db, rel.relationship_type)
+
+    owner_name = None
+    if rel.owner_user_id:
+        owner = db.get(User, rel.owner_user_id)
+        owner_name = owner.full_name if owner else None
+
+    linked_project_id, linked_project_label = _linked_project(db, rel)
+    linked_agreement_id, linked_agreement_label = _linked_agreement(db, rel)
 
     return CrmRelationshipSummary(
         id=rel.id,
@@ -125,7 +227,14 @@ def serialize_relationship_summary(db: Session, rel: CrmRelationship) -> CrmRela
         is_confidential=rel.is_confidential,
         is_verified=rel.is_verified,
         owner_user_id=rel.owner_user_id,
+        owner_name=owner_name,
         last_interaction_at=rel.last_interaction_at,
+        notes=rel.notes,
+        pair_kind=relationship_pair_kind(rel),
+        linked_project_id=linked_project_id,
+        linked_project_label=linked_project_label,
+        linked_agreement_id=linked_agreement_id,
+        linked_agreement_label=linked_agreement_label,
         archived_at=rel.archived_at,
         created_at=rel.created_at,
         updated_at=rel.updated_at,
@@ -136,7 +245,6 @@ def serialize_relationship_detail(db: Session, rel: CrmRelationship) -> CrmRelat
     summary = serialize_relationship_summary(db, rel)
     return CrmRelationshipDetail(
         **summary.model_dump(),
-        notes=rel.notes,
         metadata_json=rel.metadata_json,
         started_at=rel.started_at,
         ended_at=rel.ended_at,
@@ -341,6 +449,9 @@ def list_relationships(
     status_filter: str | None = None,
     category: str | None = None,
     relationship_type: str | None = None,
+    pair_kind: str | None = None,
+    owner_user_id: UUID | None = None,
+    project_group: str | None = None,
     entity_type: str | None = None,
     entity_id: UUID | None = None,
     include_archived: bool = False,
@@ -361,6 +472,21 @@ def list_relationships(
         query = query.where(CrmRelationship.category == category)
     if relationship_type:
         query = query.where(CrmRelationship.relationship_type == relationship_type)
+    pair_clause = _pair_kind_clause(pair_kind) if pair_kind else None
+    if pair_clause is not None:
+        query = query.where(pair_clause)
+    if owner_user_id:
+        query = query.where(CrmRelationship.owner_user_id == owner_user_id)
+    if project_group:
+        project_ids = _project_ids_for_group(db, project_group)
+        query = query.where(
+            or_(
+                (CrmRelationship.source_entity_type == CrmRelationshipEntityType.PROJECT)
+                & CrmRelationship.source_entity_id.in_(project_ids),
+                (CrmRelationship.target_entity_type == CrmRelationshipEntityType.PROJECT)
+                & CrmRelationship.target_entity_id.in_(project_ids),
+            )
+        )
     if entity_type and entity_id:
         et = CrmRelationshipEntityType(entity_type)
         query = query.where(
@@ -370,11 +496,30 @@ def list_relationships(
             )
         )
     if search:
-        like = f"%{search}%"
+        like = f"%{search.strip()}%"
+        contact_ids = select(CrmContact.id).where(CrmContact.display_name.ilike(like))
+        company_ids = select(CrmCompany.id).where(
+            or_(CrmCompany.display_name.ilike(like), CrmCompany.legal_name.ilike(like))
+        )
+        project_ids = select(Project.id).where(
+            or_(Project.project_name.ilike(like), Project.project_code.ilike(like))
+        )
         query = query.where(
             or_(
                 CrmRelationship.relationship_type.ilike(like),
                 CrmRelationship.notes.ilike(like),
+                (CrmRelationship.source_entity_type == CrmRelationshipEntityType.CONTACT)
+                & CrmRelationship.source_entity_id.in_(contact_ids),
+                (CrmRelationship.target_entity_type == CrmRelationshipEntityType.CONTACT)
+                & CrmRelationship.target_entity_id.in_(contact_ids),
+                (CrmRelationship.source_entity_type == CrmRelationshipEntityType.COMPANY)
+                & CrmRelationship.source_entity_id.in_(company_ids),
+                (CrmRelationship.target_entity_type == CrmRelationshipEntityType.COMPANY)
+                & CrmRelationship.target_entity_id.in_(company_ids),
+                (CrmRelationship.source_entity_type == CrmRelationshipEntityType.PROJECT)
+                & CrmRelationship.source_entity_id.in_(project_ids),
+                (CrmRelationship.target_entity_type == CrmRelationshipEntityType.PROJECT)
+                & CrmRelationship.target_entity_id.in_(project_ids),
             )
         )
 
@@ -384,6 +529,27 @@ def list_relationships(
     query = query.offset((page - 1) * page_size).limit(page_size)
     items = [serialize_relationship_summary(db, rel) for rel in db.scalars(query).all()]
     return CrmRelationshipListResponse(items=items, total=total, page=page, page_size=page_size)
+
+
+def relationship_workspace_counts(db: Session, *, include_archived: bool = False) -> CrmRelationshipCounts:
+    query = select(CrmRelationship)
+    if not include_archived:
+        query = query.where(CrmRelationship.archived_at.is_(None))
+    counts = CrmRelationshipCounts()
+    for rel in db.scalars(query).all():
+        counts.total += 1
+        kind = relationship_pair_kind(rel)
+        if kind == "contact_company":
+            counts.contact_company += 1
+        elif kind == "contact_project":
+            counts.contact_project += 1
+        elif kind == "contact_contact":
+            counts.contact_contact += 1
+        elif kind == "company_project":
+            counts.company_project += 1
+        elif kind == "company_company":
+            counts.company_company += 1
+    return counts
 
 
 def archive_relationship(db: Session, rel: CrmRelationship) -> CrmRelationship:

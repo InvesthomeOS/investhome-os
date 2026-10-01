@@ -189,12 +189,48 @@ def prefer_project_logo(
     )
 
 
-def find_global_investhome_logo(db: Session) -> SocialDesignMediaCandidate | None:
-    """Company/global brand lockup — not project Media Library only.
+def _investhome_brand_logo_hay(asset: CreativeStudioMediaAsset) -> str:
+    tags = " ".join(str(t) for t in (asset.tags or []) if isinstance(asset.tags, list))
+    return " ".join(
+        [
+            asset.filename or "",
+            asset.folder_category or "",
+            tags,
+        ]
+    ).lower()
 
-    Looks for assets with no project scope (or company-level) whose filename/tags
-    clearly identify the corporate Investhome mark. Never invents a substitute.
-    """
+
+def _is_investhome_brand_logo_asset(asset: CreativeStudioMediaAsset) -> bool:
+    hay = _investhome_brand_logo_hay(asset)
+    if "investhome" not in hay and "invest home" not in hay:
+        return False
+    if "logo" not in hay and (asset.folder_category or "") != "01_BRAND":
+        return False
+    ctype = (asset.content_type or "").lower()
+    if not ctype.startswith("image/"):
+        return False
+    if any(tok in hay for tok in ("temple", "tmp_001", "addition", "historic")):
+        return False
+    return True
+
+
+def _score_investhome_brand_logo(asset: CreativeStudioMediaAsset) -> float:
+    hay = _investhome_brand_logo_hay(asset)
+    ctype = (asset.content_type or "").lower()
+    score = 3.0
+    if "logo" in hay:
+        score += 2.0
+    if "primary" in hay:
+        score += 1.5
+    if ctype == "image/svg+xml":
+        score += 0.5
+    return score
+
+
+def list_global_investhome_logo_assets(db: Session) -> list[CreativeStudioMediaAsset]:
+    """Approved Investhome brand-kit logo files. Never invents a substitute."""
+    seen: set[UUID] = set()
+    found: list[CreativeStudioMediaAsset] = []
     query = (
         select(CreativeStudioMediaAsset)
         .where(CreativeStudioMediaAsset.archived_at.is_(None))
@@ -202,37 +238,12 @@ def find_global_investhome_logo(db: Session) -> SocialDesignMediaCandidate | Non
         .order_by(CreativeStudioMediaAsset.created_at.desc())
         .limit(200)
     )
-    assets = list(db.scalars(query).all())
-    scored: list[tuple[float, CreativeStudioMediaAsset]] = []
-    for asset in assets:
-        hay = " ".join(
-            [
-                asset.filename or "",
-                asset.folder_category or "",
-                " ".join(str(t) for t in (asset.tags or []) if isinstance(asset.tags, list)),
-            ]
-        ).lower()
-        if "investhome" not in hay and "invest home" not in hay:
+    for asset in db.scalars(query).all():
+        if asset.id in seen or not _is_investhome_brand_logo_asset(asset):
             continue
-        if "logo" not in hay and (asset.folder_category or "") != "01_BRAND":
-            continue
-        ctype = (asset.content_type or "").lower()
-        if not ctype.startswith("image/"):
-            continue
-        # Reject project-specific Temple / addition / historic marks.
-        if any(tok in hay for tok in ("temple", "tmp_001", "addition", "historic")):
-            continue
-        score = 3.0
-        if "logo" in hay:
-            score += 2.0
-        if "primary" in hay:
-            score += 1.5
-        if ctype == "image/svg+xml":
-            score += 0.5
-        scored.append((score, asset))
-    if not scored:
-        # Broader corporate search: any non-project asset tagged as Investhome brand logo
-        # across company folders (still linked_project_id NULL only).
+        seen.add(asset.id)
+        found.append(asset)
+    if not found:
         broader = (
             select(CreativeStudioMediaAsset)
             .where(CreativeStudioMediaAsset.archived_at.is_(None))
@@ -251,8 +262,22 @@ def find_global_investhome_logo(db: Session) -> SocialDesignMediaCandidate | Non
             if any(tok in hay for tok in ("temple", "tmp_001", "addition", "historic")):
                 continue
             ctype = (asset.content_type or "").lower()
-            if ctype.startswith("image/"):
-                scored.append((1.0, asset))
+            if not ctype.startswith("image/"):
+                continue
+            if asset.id in seen:
+                continue
+            seen.add(asset.id)
+            found.append(asset)
+    return found
+
+
+def find_global_investhome_logo(db: Session) -> SocialDesignMediaCandidate | None:
+    """Company/global brand lockup — not project Media Library only.
+
+    Looks for assets with no project scope (or company-level) whose filename/tags
+    clearly identify the corporate Investhome mark. Never invents a substitute.
+    """
+    scored = [(_score_investhome_brand_logo(asset), asset) for asset in list_global_investhome_logo_assets(db)]
     if not scored:
         return None
     scored.sort(key=lambda row: (-row[0], (row[1].filename or "").lower()))
@@ -430,6 +455,8 @@ def resolve_project_inputs(
     project_name: str | None,
     project_code: str | None,
     skip_project_logo: bool = False,
+    skip_design_references: bool = False,
+    skip_investhome_logo: bool = False,
 ) -> tuple[ResolvedSourceImage, list[ResolvedSourceImage], list[SocialDesignMediaCandidate], list[str], list[str]]:
     """Returns source, logos, design refs, logo_notes, composition_warnings."""
     source_candidate, candidates = pick_source_asset(
@@ -476,8 +503,8 @@ def resolve_project_inputs(
                 project_logo = _candidate_from_asset(db, preferred_asset)
 
     # Investhome: search global/company brand assets first — never silent fallback.
-    supporting = find_global_investhome_logo(db)
-    investhome_found = supporting is not None
+    supporting = None if skip_investhome_logo else find_global_investhome_logo(db)
+    investhome_found = supporting is not None or skip_investhome_logo
     if not investhome_found:
         warnings.append(INVESHOME_GLOBAL_LOGO_MISSING)
         notes.append(f"investhome_logo: {INVESHOME_GLOBAL_LOGO_MISSING}")
@@ -513,10 +540,33 @@ def resolve_project_inputs(
         )
 
     skip = {source.asset_id, *(row.asset_id for row in extras)}
-    references = pick_design_references(candidates, skip_ids=skip, limit=2)
+    references = [] if skip_design_references else pick_design_references(candidates, skip_ids=skip, limit=2)
     if not investhome_found and INVESHOME_GLOBAL_LOGO_MISSING not in warnings:
         warnings.append(INVESHOME_GLOBAL_LOGO_MISSING)
     return source, extras, references, notes, warnings
+
+
+def load_design_reference_image(
+    db: Session,
+    *,
+    asset_id: UUID,
+    role: str = "design_reference",
+) -> ResolvedSourceImage | None:
+    """Load an allowlisted DESIGN_REFERENCES image without project isolation.
+
+    DESIGN_REFERENCES are Investhome library art-direction files, not project photos.
+    Caller must pass a Grade-A allowlisted id.
+    """
+    asset = db.get(CreativeStudioMediaAsset, asset_id)
+    if asset is None or asset.archived_at is not None:
+        return None
+    candidate = _candidate_from_asset(db, asset)
+    return resolve_image_bytes(
+        db,
+        linked_project_id=None,
+        candidate=candidate,
+        role=role,
+    )
 
 
 def load_project_image_by_id(

@@ -23,6 +23,7 @@ class AttributionLeadStatus:
 _LEAD_STATUS_MAP: dict[LeadStatus, str] = {
     LeadStatus.NEW: AttributionLeadStatus.NEW,
     LeadStatus.CONTACTED: AttributionLeadStatus.CONTACTED,
+    LeadStatus.FOLLOW_UP: AttributionLeadStatus.CONTACTED,
     LeadStatus.QUALIFIED: AttributionLeadStatus.QUALIFIED,
     LeadStatus.MEETING_SCHEDULED: AttributionLeadStatus.OPPORTUNITY,
     LeadStatus.PROPOSAL_SENT: AttributionLeadStatus.OPPORTUNITY,

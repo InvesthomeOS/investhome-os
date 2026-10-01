@@ -35,9 +35,13 @@ from investhome_api.schemas.crm_activities import (
     CrmActivitySavedFilterResponse,
     CrmActivitySummary,
     CrmActivityUpdate,
+    CrmCalendarEventCreate,
     CrmCalendarResponse,
     CrmFollowUpCreate,
     CrmFollowUpListResponse,
+    CrmNoteCreate,
+    CrmTaskCreate,
+    CrmTaskListResponse,
     CrmTimelineResponse,
 )
 from investhome_api.services.crm.activity_service import (
@@ -49,6 +53,9 @@ from investhome_api.services.crm.activity_service import (
     create_activity,
     create_follow_up,
     create_saved_filter,
+    create_workspace_event,
+    create_workspace_note,
+    create_workspace_task,
     delete_activity,
     duplicate_activity,
     get_activity_or_none,
@@ -63,21 +70,14 @@ from investhome_api.services.crm.activity_service import (
     list_tasks,
     restore_activity,
     update_activity,
+    user_can_view_activity,
 )
-from investhome_api.services.permission_service import user_has_permission
 
 router = APIRouter(prefix="/crm", tags=["crm-activities"])
 
 
 def _require_view_activities():
-    async def _dependency(user: User = Depends(require_permission("crm", "read"))) -> User:
-        if not user_has_permission(user, "crm", "view_activities") and not user_has_permission(
-            user, "crm", "read"
-        ):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
-        return user
-
-    return _dependency
+    return require_permission("crm", "view_activities")
 
 
 def _get_activity_or_404(db: Session, activity_id: UUID):
@@ -104,6 +104,11 @@ def get_crm_timeline(
     search: str | None = Query(default=None, max_length=255),
     entity_type: CrmActivityEntityType | None = Query(default=None),
     entity_id: UUID | None = Query(default=None),
+    contact_search: str | None = Query(default=None, max_length=255),
+    project_group: str | None = Query(default=None, max_length=40),
+    event_kind: str | None = Query(default=None, max_length=40),
+    owner_id: UUID | None = Query(default=None),
+    status_filter: CrmActivityStatus | None = Query(default=None, alias="status"),
     activity_type: CrmActivityType | None = Query(default=None),
     activity_types: str | None = Query(default=None),
     date_from: datetime | None = Query(default=None),
@@ -125,6 +130,11 @@ def get_crm_timeline(
         date_to=date_to,
         page=page,
         page_size=page_size,
+        contact_search=contact_search,
+        project_group=project_group,
+        event_kind=event_kind,
+        owner_id=owner_id,
+        status=status_filter,
     )
     return CrmTimelineResponse(items=items, request_id=get_request_id() or "", **meta)
 
@@ -224,10 +234,11 @@ def get_activity(
     db: Session = Depends(get_db),
     user: User = Depends(_require_view_activities()),
 ) -> CrmActivityDetail:
-    del user
-    activity = _get_activity_or_404(db, activity_id)
     from investhome_api.services.crm.activity_service import _serialize_detail
 
+    activity = get_activity_or_none(db, activity_id)
+    if activity is None or not user_can_view_activity(user, activity):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="crm.activities.errors.not_found")
     return _serialize_detail(activity)
 
 
@@ -322,21 +333,28 @@ def post_bulk_update(
     return CrmActivityBulkUpdateResponse(updated=updated)
 
 
-@router.get("/tasks", response_model=CrmActivityListResponse)
+@router.get("/tasks", response_model=CrmTaskListResponse)
 def get_tasks(
     assigned_user_id: UUID | None = Query(default=None),
     my_tasks: bool = Query(default=False),
     team_tasks: bool = Query(default=False),
     task_status: CrmTaskStatus | None = Query(default=None, alias="status"),
+    workspace_status: str | None = Query(default=None, max_length=40),
     entity_id: UUID | None = Query(default=None),
+    contact_search: str | None = Query(default=None, max_length=255),
+    project_group: str | None = Query(default=None, max_length=40),
     search: str | None = Query(default=None, max_length=255),
+    priority: CrmActivityPriority | None = Query(default=None),
+    due_from: datetime | None = Query(default=None),
+    due_to: datetime | None = Query(default=None),
+    due_bucket: str | None = Query(default=None, max_length=20),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=200),
     db: Session = Depends(get_db),
     user: User = Depends(_require_view_activities()),
-) -> CrmActivityListResponse:
+) -> CrmTaskListResponse:
     del team_tasks
-    items, meta = list_tasks(
+    items, meta, counters = list_tasks(
         db,
         user,
         assigned_user_id=assigned_user_id,
@@ -346,18 +364,24 @@ def get_tasks(
         search=search,
         page=page,
         page_size=page_size,
+        contact_search=contact_search,
+        project_group=project_group,
+        priority=priority,
+        due_from=due_from,
+        due_to=due_to,
+        due_bucket=due_bucket,
+        workspace_status=workspace_status,
     )
-    return CrmActivityListResponse(items=items, request_id=get_request_id() or "", **meta)
+    return CrmTaskListResponse(items=items, request_id=get_request_id() or "", counters=counters, **meta)
 
 
 @router.post("/tasks", response_model=CrmActivityMutationResponse, status_code=status.HTTP_201_CREATED)
 def post_task(
-    body: CrmActivityCreate,
+    body: CrmTaskCreate,
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("crm", "manage_tasks")),
 ) -> CrmActivityMutationResponse:
-    payload = body.model_copy(update={"activity_type": CrmActivityType.TASK})
-    return CrmActivityMutationResponse(activity=create_activity(db, user, payload))
+    return CrmActivityMutationResponse(activity=create_workspace_task(db, user, body))
 
 
 @router.post("/tasks/{activity_id}/complete", response_model=CrmActivityMutationResponse)
@@ -377,16 +401,28 @@ def post_complete_task(
 def get_notes(
     entity_type: CrmActivityEntityType | None = Query(default=None),
     entity_id: UUID | None = Query(default=None),
+    search: str | None = Query(default=None, max_length=255),
+    contact_search: str | None = Query(default=None, max_length=255),
+    project_group: str | None = Query(default=None, max_length=40),
+    assigned_user_id: UUID | None = Query(default=None),
+    date_from: datetime | None = Query(default=None),
+    date_to: datetime | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=100),
     db: Session = Depends(get_db),
     user: User = Depends(_require_view_activities()),
 ) -> CrmActivityListResponse:
+    del entity_type
     items, meta = list_notes(
         db,
         user,
-        entity_type=entity_type,
         entity_id=entity_id,
+        search=search,
+        contact_search=contact_search,
+        project_group=project_group,
+        assigned_user_id=assigned_user_id,
+        date_from=date_from,
+        date_to=date_to,
         page=page,
         page_size=page_size,
     )
@@ -395,12 +431,14 @@ def get_notes(
 
 @router.post("/notes", response_model=CrmActivityMutationResponse, status_code=status.HTTP_201_CREATED)
 def post_note(
-    body: CrmActivityCreate,
+    body: CrmNoteCreate,
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("crm", "create")),
 ) -> CrmActivityMutationResponse:
-    payload = body.model_copy(update={"activity_type": CrmActivityType.NOTE})
-    return CrmActivityMutationResponse(activity=create_activity(db, user, payload))
+    try:
+        return CrmActivityMutationResponse(activity=create_workspace_note(db, user, body))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.get("/meetings", response_model=CrmActivityListResponse)
@@ -486,7 +524,30 @@ def get_crm_calendar(
     start: datetime = Query(...),
     end: datetime = Query(...),
     assigned_user_id: UUID | None = Query(default=None),
+    contact_search: str | None = Query(default=None, max_length=255),
+    entity_id: UUID | None = Query(default=None),
+    project_group: str | None = Query(default=None, max_length=40),
+    event_kind: str | None = Query(default=None, max_length=40),
     db: Session = Depends(get_db),
     user: User = Depends(_require_view_activities()),
 ) -> CrmCalendarResponse:
-    return get_calendar(db, user, start=start, end=end, assigned_user_id=assigned_user_id)
+    return get_calendar(
+        db,
+        user,
+        start=start,
+        end=end,
+        assigned_user_id=assigned_user_id,
+        contact_search=contact_search,
+        entity_id=entity_id,
+        project_group=project_group,
+        event_kind=event_kind,
+    )
+
+
+@router.post("/calendar/events", response_model=CrmActivityMutationResponse, status_code=status.HTTP_201_CREATED)
+def post_calendar_event(
+    body: CrmCalendarEventCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("crm", "manage_tasks")),
+) -> CrmActivityMutationResponse:
+    return CrmActivityMutationResponse(activity=create_workspace_event(db, user, body))

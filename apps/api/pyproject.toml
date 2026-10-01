@@ -31,6 +31,8 @@ dependencies = [
     "reportlab>=4.0.0",
     "google-api-python-client>=2.150.0",
     "google-auth>=2.36.0",
+    "cryptography>=44.0.0",
+    "pyotp>=2.9.0",
 ]
 
 [project.optional-dependencies]

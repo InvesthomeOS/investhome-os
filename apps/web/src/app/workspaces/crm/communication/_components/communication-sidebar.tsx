@@ -8,6 +8,7 @@ import { CRM_COMM_FOLDERS, type CrmCommFolderKey } from '@/workspaces/crm/types'
 import { useCommunicationUiStore } from '@/workspaces/crm/stores/communication-ui-store';
 
 const SUB_ROUTES = [
+  { href: '/workspaces/crm/communication/unmatched', labelKey: 'unmatchedCommunications' },
   { href: '/workspaces/crm/communication/templates', labelKey: 'templates' },
   { href: '/workspaces/crm/communication/sequences', labelKey: 'sequences' },
   { href: '/workspaces/crm/communication/signatures', labelKey: 'signatures' },

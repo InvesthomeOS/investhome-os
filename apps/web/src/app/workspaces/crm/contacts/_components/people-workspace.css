@@ -1,0 +1,470 @@
+/* CRM Kişiler — compact petrol list + live preview. */
+
+.crm-people-page {
+  --people-petrol: #075b75;
+  --people-turquoise: #58aebb;
+  --people-line: #c5d4da;
+  --people-ink: #16323d;
+  --people-muted: #6b7c84;
+  gap: 18px;
+}
+
+.crm-people-page .ctc-ds__header h1 {
+  color: var(--people-petrol);
+  font-size: 26px;
+}
+
+.crm-people-page .ctc-ds__header p {
+  max-width: 64ch;
+  color: var(--people-muted);
+  font-size: 13px;
+}
+
+.crm-people-tools {
+  align-self: center;
+  color: var(--people-muted);
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.crm-people-tools:hover {
+  color: var(--people-petrol);
+}
+
+.crm-people-new {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: var(--people-petrol);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.crm-people-new:hover {
+  background: #064a5f;
+}
+
+.crm-people-sticky {
+  position: sticky;
+  top: var(--header-height, 3.75rem);
+  z-index: 5;
+  padding: 0;
+  background: var(--bg, #f3f6f8);
+}
+
+.crm-people-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.crm-people-summary button {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  min-height: 72px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--people-line, #c5d4da);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(7, 91, 117, 0.08);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.crm-people-page .crm-people-summary button {
+  padding: 0;
+}
+
+.crm-people-page .crm-people-summary button > span {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+}
+
+.crm-people-page .crm-people-summary button span span {
+  color: var(--people-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.crm-people-summary button strong {
+  color: var(--people-petrol);
+  font-size: 22px;
+  font-weight: 740;
+  letter-spacing: -0.03em;
+}
+
+.crm-people-summary button.is-active {
+  border-color: var(--people-petrol);
+  box-shadow: inset 0 0 0 1px var(--people-petrol);
+}
+
+.crm-people-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+
+.crm-people-main.is-open {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+}
+
+.crm-people-board {
+  min-width: 0;
+}
+
+.crm-people-filters {
+  align-items: flex-end;
+}
+
+.crm-people-clear {
+  min-height: 32px;
+  margin-bottom: 1px;
+  padding: 0 12px;
+  border: 1px solid var(--people-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--people-petrol);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.crm-people-count {
+  margin: 8px 12px 0;
+}
+
+.crm-people-table.ctc-ds__table-section {
+  margin-top: 0;
+  border-radius: 16px;
+}
+
+.crm-people-table .ctc-ds__table {
+  min-width: 860px;
+}
+
+.crm-people-table .ctc-ds__table-wrap {
+  max-height: calc(100vh - 340px);
+  overflow: auto;
+}
+
+.crm-people-table .ctc-ds__row.is-selected {
+  background: #eef6f8;
+}
+
+.crm-people-contact,
+.crm-people-tags,
+.crm-people-flags {
+  display: grid;
+  gap: 2px;
+}
+
+.crm-people-contact span,
+.crm-people-tags span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #4d636c;
+  font-size: 11.5px;
+}
+
+.crm-people-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.crm-people-tags span {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #e7f3f6;
+  color: var(--people-petrol);
+  font-size: 10.5px;
+  font-weight: 650;
+}
+
+.crm-people-flags {
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.crm-people-flag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+}
+
+.crm-people-flag.is-bilgi_eksik {
+  background: #e7f3f6;
+  color: #075b75;
+}
+
+.crm-people-flag.is-inceleme_gerekli {
+  background: #dceef1;
+  color: #0a6f8a;
+}
+
+.crm-people-row-open {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--people-line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--people-petrol);
+  font-size: 11.5px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.crm-people-row-open:hover {
+  border-color: var(--people-petrol);
+}
+
+.crm-people-preview {
+  position: sticky;
+  top: calc(var(--header-height, 3.75rem) + 8px);
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+  max-height: calc(100vh - 6rem);
+  overflow: auto;
+  padding: 16px;
+  border: 1.5px solid var(--people-line);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(7, 91, 117, 0.08);
+}
+
+.crm-people-preview__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.crm-people-preview__identity {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.crm-people-preview__identity strong,
+.crm-people-preview__identity span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-people-preview__identity strong {
+  color: var(--people-ink);
+  font-size: 15px;
+}
+
+.crm-people-preview__identity span {
+  color: var(--people-muted);
+  font-size: 12px;
+}
+
+.crm-people-preview__close {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--people-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.crm-people-preview__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.crm-people-preview__icon-btn,
+.crm-people-preview__open {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--people-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--people-petrol);
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.crm-people-preview__open {
+  border-color: var(--people-petrol);
+  background: var(--people-petrol);
+  color: #fff;
+}
+
+.crm-people-preview__facts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.crm-people-preview__facts div {
+  display: grid;
+  gap: 2px;
+}
+
+.crm-people-preview__facts dt {
+  color: var(--people-muted);
+  font-size: 11px;
+}
+
+.crm-people-preview__facts dd {
+  margin: 0;
+  color: var(--people-ink);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.crm-people-preview h3 {
+  margin: 0 0 8px;
+  color: var(--people-ink);
+  font-size: 12.5px;
+}
+
+.crm-people-preview__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.crm-people-preview__tags span {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e7f3f6;
+  color: var(--people-petrol);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.crm-people-preview ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crm-people-preview li {
+  display: grid;
+  gap: 2px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eef3f5;
+}
+
+.crm-people-preview li strong {
+  color: var(--people-ink);
+  font-size: 12.5px;
+}
+
+.crm-people-preview li span {
+  color: var(--people-muted);
+  font-size: 11px;
+}
+
+.crm-people-preview__empty {
+  margin: 0;
+  color: var(--people-muted);
+  font-size: 12.5px;
+}
+
+.crm-people-tag-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  margin: 8px 12px 0;
+  padding: 0 10px;
+  border: 1px solid #dce4e7;
+  border-radius: 999px;
+  background: #fff;
+  color: #075b75;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.crm-people-tag-filter button {
+  border: 0;
+  background: transparent;
+  color: #718087;
+  font: inherit;
+  cursor: pointer;
+}
+
+.crm-people-tools-page {
+  display: grid;
+  gap: 12px;
+  max-width: 640px;
+}
+
+.crm-people-tools-page h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.crm-people-tools-page p {
+  margin: 0;
+  color: var(--ctc-muted);
+}
+
+@media (max-width: 1180px) {
+  .crm-people-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .crm-people-main.is-open {
+    grid-template-columns: 1fr;
+  }
+
+  .crm-people-preview {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    width: min(360px, 100%);
+    max-height: none;
+    border-radius: 0;
+    box-shadow: -12px 0 32px rgba(22, 50, 61, 0.12);
+  }
+}
+
+@media (max-width: 720px) {
+  .crm-people-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .crm-people-table .ctc-ds__table-wrap {
+    max-height: none;
+  }
+}

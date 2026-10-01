@@ -4,7 +4,10 @@ import { useLocale, useTranslations } from 'next-intl';
 
 import { Button, EmptyState, LoadingState, StatusChip } from '@investhome/ui';
 
+import { escapeHtml, parseEmailContent, sanitizeHtml, stripHtml } from '@/workspaces/crm/contact-card/history-html';
 import type { CrmActivityDetail } from '@/workspaces/crm/types/activities';
+
+import '@/workspaces/crm/contact-card/contact-card.css';
 
 type ActivityDetailPanelProps = {
   activity: CrmActivityDetail | undefined;
@@ -44,12 +47,20 @@ export function ActivityDetailPanel({
             {activity.priority && <StatusChip tone="warning">{activity.priority}</StatusChip>}
           </div>
           <h3>{activity.title}</h3>
-          {activity.summary && <p className="crm-activity-detail__summary">{activity.summary}</p>}
-          {activity.description && (
-            <section>
-              <h4>{t('description')}</h4>
-              <p>{activity.description}</p>
-            </section>
+          {activity.activity_type === 'email' ? (
+            <SanitizedActivityEmail activity={activity} />
+          ) : (
+            <>
+              {activity.summary && (
+                <p className="crm-activity-detail__summary">{stripHtml(activity.summary)}</p>
+              )}
+              {activity.description && (
+                <section>
+                  <h4>{t('description')}</h4>
+                  <p>{stripHtml(activity.description)}</p>
+                </section>
+              )}
+            </>
           )}
           <dl className="crm-activity-detail__meta">
             <div>
@@ -112,5 +123,17 @@ export function ActivityDetailPanel({
         </div>
       )}
     </aside>
+  );
+}
+
+function SanitizedActivityEmail({ activity }: { activity: CrmActivityDetail }) {
+  const parsed = parseEmailContent(activity.title, activity.description || activity.summary);
+  const html = sanitizeHtml(parsed.html || `<p>${escapeHtml(parsed.text).replace(/\n/g, '<br>')}</p>`);
+  return (
+    <div
+      className="crm-email-detail__body"
+      data-testid="email-sanitized-body"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
   );
 }

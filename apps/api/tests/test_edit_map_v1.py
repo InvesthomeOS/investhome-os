@@ -109,7 +109,7 @@ def test_stamp_current_cover_does_not_overwrite_master() -> None:
 def test_synthetic_raster_edit_map_passes() -> None:
     edit_map = _map_from_synthetic()
     assert edit_map["validation_status"] == "pass"
-    assert edit_map["edit_map_version"] == "1.2"
+    assert edit_map["edit_map_version"] == "1.3"
     assert edit_map["cover_asset_id"] == COVER_V2
     assert edit_map["source_visual_asset_id"] == SOURCE_V2
     assert edit_map["logo_asset_id"] == LOGO
@@ -131,6 +131,7 @@ def test_synthetic_raster_edit_map_passes() -> None:
         "supporting_copy",
         "commercial_group",
         "commercial_content_zone",
+        "upper_creative_zone",
     ):
         assert role in regions, role
         assert regions[role]["occupied"] is True, role
@@ -168,7 +169,7 @@ def test_synthetic_raster_edit_map_passes() -> None:
         "discount",
     ]
     assert "hero_visual" in pres["PRICE_EDIT_ONLY"]["immutable"]
-    assert pres["PRICE_EDIT_ONLY"]["content_growth"]["mutable_region"] == "commercial_content_zone"
+    assert pres["PRICE_EDIT_ONLY"]["content_growth"]["mutable_region"] == "upper_creative_zone"
     zone = regions["commercial_content_zone"]
     assert zone["occupancy"]["supporting_copy"] is True
     assert zone["occupancy"]["old_price"] is True
@@ -177,7 +178,11 @@ def test_synthetic_raster_edit_map_passes() -> None:
     assert "supporting_copy" in zone["children"]
     assert zone["safe_bbox"]["y1"] <= hero["y0"]
     assert zone["top_lock_y"] <= zone["safe_bbox"]["y0"]
-    assert edit_map["content_growth"]["when_cannot_fit"] == "commercial_content_zone"
+    assert edit_map["content_growth"]["when_cannot_fit"] == "upper_creative_zone"
+    upper = regions["upper_creative_zone"]
+    assert upper["safe_bbox"]["y0"] <= 2
+    assert upper["safe_bbox"]["y1"] <= hero["y0"]
+    assert "headline" in upper["children"]
     assert pres["VISUAL_REPLACE_ONLY"]["mutable"] == ["hero_visual"]
     assert "old_price" in pres["VISUAL_REPLACE_ONLY"]["immutable"]
     assert "cta" in pres["VISUAL_REPLACE_ONLY"]["immutable"]
@@ -369,6 +374,19 @@ def test_commercial_content_zone_sits_between_headline_and_hero() -> None:
     assert zone["occupancy"]["savings_price"] is False
     debug = render_content_zone_debug(im, edit_map)
     assert debug.size == im.size
+    upper = regions["upper_creative_zone"]
+    assert upper["safe_bbox"]["y0"] == 0
+    assert upper["safe_bbox"]["y1"] == hero["bbox"]["y0"]
+    assert bbox_contains(upper["safe_bbox"], headline["bbox"], slack=8)
+    assert bbox_contains(upper["safe_bbox"], supporting["bbox"], slack=8)
+    assert bbox_contains(upper["safe_bbox"], commercial["bbox"], slack=8)
+    assert bbox_iou(upper["safe_bbox"], hero["bbox"]) == 0.0
+    assert bbox_iou(upper["safe_bbox"], cta["bbox"]) == 0.0
+    assert bbox_iou(upper["safe_bbox"], logo["bbox"]) == 0.0
+    from investhome_api.services.creative_director.edit_map import render_upper_zone_debug
+
+    upper_dbg = render_upper_zone_debug(im, edit_map)
+    assert upper_dbg.size == im.size
 
 
 def test_glyph_tails_below_semantic_are_inside_safe_bbox() -> None:

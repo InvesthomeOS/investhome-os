@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -33,6 +33,7 @@ from investhome_api.services.document_service import (
     get_document_or_404,
     user_can_view_analysis,
 )
+from investhome_api.services.document_access_audit import record_document_access
 from investhome_api.services.drawing_intelligence.activity import (
     record_annotation_added,
     record_drawing_question_asked,
@@ -131,6 +132,7 @@ def reprocess_drawing(
 @router.get("/{document_id}/drawing-preview")
 def get_drawing_preview(
     document_id: UUID,
+    request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("documents", "download")),
 ) -> Response:
@@ -141,6 +143,15 @@ def get_drawing_preview(
     path = Path(analysis.preview_storage_key)
     if not path.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="documents.errors.drawing_preview_unavailable")
+    record_document_access(
+        db,
+        document=document,
+        access_type="preview",
+        actor=user,
+        request=request,
+        module="drawing_preview",
+    )
+    db.commit()
     return FileResponse(path, media_type="image/svg+xml")
 
 

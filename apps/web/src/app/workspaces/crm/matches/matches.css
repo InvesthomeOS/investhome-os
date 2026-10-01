@@ -11,18 +11,18 @@
   --shot-font-body: 11.55px;
   --shot-font-heading: 13.2px;
   --shot-font-title: 24.2px;
-  --shot-gap: 12px;
+  --shot-gap: 16px;
   --shot-card-pad-y: 13px;
   --shot-card-pad-x: 15px;
   --matches-ink: var(--shot-ink);
   --matches-muted: var(--shot-muted);
   --matches-navy: var(--shot-navy);
   --matches-cyan: var(--shot-cyan);
-  --matches-border: #e1e7e9;
+  --matches-border: #c5d4da;
   --matches-border-strong: #dce4e7;
-  --matches-card-shadow: 0 2px 7px rgba(31, 57, 68, 0.05);
-  --matches-card-shadow-hover: 0 4px 14px rgba(7, 91, 117, 0.08);
-  --matches-card-radius: 8px;
+  --matches-card-shadow: 0 6px 16px rgba(7, 91, 117, 0.08);
+  --matches-card-shadow-hover: 0 10px 22px rgba(7, 91, 117, 0.12);
+  --matches-card-radius: 16px;
   --matches-control-height: 1.95rem;
   --matches-rail-width: min(300px, 22vw);
   --brand-primary: var(--shot-navy);
@@ -30,8 +30,8 @@
   --focus-ring: #2794ad;
   /* Dashboard UI Freeze v1.0 — remap DS tokens so shared .ds-segmented
      (and other DS primitives) do not inherit root brand beige/brown. */
-  --bg: #f6f8fa;
-  --background: #f6f8fa;
+  --bg: #f3f6f8;
+  --background: #f3f6f8;
   --surface: #ffffff;
   --surface-default: #ffffff;
   --surface-muted: #f1f6f8;

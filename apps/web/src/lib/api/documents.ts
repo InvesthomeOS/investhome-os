@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from '@/lib/api/client';
+import { getApiBaseUrl, staffFetch } from '@/lib/api/client';
 
 export const DOCUMENT_TYPES = [
   'contract',
@@ -87,6 +87,7 @@ export interface DocumentLink {
   entity_type: string;
   entity_id: string;
   relationship_type: string | null;
+  hidden_from_view?: boolean;
   created_at: string;
 }
 
@@ -129,6 +130,8 @@ export interface Document {
   download_count: number;
   preview_count: number;
   is_previewable: boolean;
+  hidden_from_view?: boolean;
+  bitrix_file_id?: string | null;
   related_record_label: string | null;
   is_demo: boolean;
   archived_at: string | null;
@@ -319,7 +322,7 @@ function buildQuery(filters: DocumentFilters = {}): string {
 }
 
 export async function fetchDocuments(filters: DocumentFilters = {}): Promise<DocumentListResponse> {
-  const response = await fetch(`${getApiBaseUrl()}/documents${buildQuery(filters)}`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents${buildQuery(filters)}`, {
     credentials: 'include',
     cache: 'no-store',
   });
@@ -329,7 +332,7 @@ export async function fetchDocuments(filters: DocumentFilters = {}): Promise<Doc
 }
 
 export async function fetchDocumentsOverview(): Promise<DocumentWorkspaceOverview> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/overview`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/overview`, {
     credentials: 'include',
     cache: 'no-store',
   });
@@ -343,7 +346,7 @@ export async function exportDocumentsMetadata(filters: DocumentFilters = {}): Pr
   csv: string;
   row_count: number;
 }> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/export${buildQuery(filters)}`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/export${buildQuery(filters)}`, {
     credentials: 'include',
     cache: 'no-store',
   });
@@ -355,9 +358,14 @@ export async function exportDocumentsMetadata(filters: DocumentFilters = {}): Pr
 export async function fetchDocumentsByEntity(
   entityType: string,
   entityId: string,
+  options: { includeHidden?: boolean; pageSize?: number } = {},
 ): Promise<DocumentListResponse> {
+  const search = new URLSearchParams();
+  if (options.includeHidden) search.set('include_hidden', 'true');
+  search.set('page_size', String(options.pageSize ?? 100));
+  const query = search.toString();
   const response = await fetch(
-    `${getApiBaseUrl()}/documents/by-entity/${entityType}/${entityId}`,
+    `${getApiBaseUrl()}/documents/by-entity/${entityType}/${entityId}${query ? `?${query}` : ''}`,
     { credentials: 'include', cache: 'no-store' },
   );
   if (!response.ok) throw new Error('Failed to load entity documents');
@@ -365,7 +373,7 @@ export async function fetchDocumentsByEntity(
 }
 
 export async function fetchDocument(id: string): Promise<Document> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${id}`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${id}`, {
     credentials: 'include',
     cache: 'no-store',
   });
@@ -374,7 +382,7 @@ export async function fetchDocument(id: string): Promise<Document> {
 }
 
 export async function updateDocument(id: string, payload: DocumentUpdatePayload): Promise<Document> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${id}`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${id}`, {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -390,7 +398,7 @@ export async function linkDocument(
   entityId: string,
   relationshipType?: string,
 ): Promise<DocumentLink> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${id}/links`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${id}/links`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -405,7 +413,7 @@ export async function linkDocument(
 }
 
 export async function unlinkDocument(id: string, linkId: string): Promise<void> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${id}/links/${linkId}`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${id}/links/${linkId}`, {
     method: 'DELETE',
     credentials: 'include',
   });
@@ -437,7 +445,7 @@ export async function uploadDocuments(
   if (meta.description) form.append('description', meta.description);
   if (meta.notes) form.append('notes', meta.notes);
 
-  const response = await fetch(`${getApiBaseUrl()}/documents/upload`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/upload`, {
     method: 'POST',
     credentials: 'include',
     body: form,
@@ -456,7 +464,7 @@ export function documentPreviewUrl(id: string): string {
 }
 
 export async function archiveDocument(id: string): Promise<Document> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${id}/archive`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${id}/archive`, {
     method: 'POST',
     credentials: 'include',
   });
@@ -465,7 +473,7 @@ export async function archiveDocument(id: string): Promise<Document> {
 }
 
 export async function restoreDocument(id: string): Promise<Document> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${id}/restore`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${id}/restore`, {
     method: 'POST',
     credentials: 'include',
   });
@@ -477,7 +485,7 @@ export async function fetchDocumentVersions(id: string): Promise<{
   current_version: number;
   items: DocumentVersion[];
 }> {
-  const response = await fetch(`${getApiBaseUrl()}/documents/${id}/versions`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${id}/versions`, {
     credentials: 'include',
     cache: 'no-store',
   });
@@ -489,7 +497,7 @@ export async function restoreDocumentVersion(
   documentId: string,
   versionId: string,
 ): Promise<Document> {
-  const response = await fetch(
+  const response = await staffFetch(
     `${getApiBaseUrl()}/documents/${documentId}/versions/${versionId}/restore`,
     {
       method: 'POST',
@@ -508,7 +516,7 @@ export async function uploadDocumentVersion(
   const form = new FormData();
   form.append('file', file);
   if (versionNotes) form.append('version_notes', versionNotes);
-  const response = await fetch(`${getApiBaseUrl()}/documents/${documentId}/versions`, {
+  const response = await staffFetch(`${getApiBaseUrl()}/documents/${documentId}/versions`, {
     method: 'POST',
     credentials: 'include',
     body: form,

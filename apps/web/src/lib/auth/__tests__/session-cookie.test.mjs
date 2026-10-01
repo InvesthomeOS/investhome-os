@@ -70,14 +70,21 @@ async function isValidSessionJwt(token, secret) {
     if (expected !== sigB64) return false;
     const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
     if (!payload.sub || typeof payload.exp !== 'number') return false;
+    if (typeof payload.jti !== 'string' || !/^[A-Za-z0-9._-]{1,64}$/.test(payload.jti.trim())) {
+      return false;
+    }
     if (payload.exp * 1000 <= Date.now() - 30_000) return false;
+    if (typeof payload.auth_time === 'number') {
+      const absoluteMs = 24 * 60 * 60 * 1000;
+      if (payload.auth_time * 1000 + absoluteMs <= Date.now() - 30_000) return false;
+    }
     return true;
   } catch {
     return false;
   }
 }
 
-const secret = 'dev-only-change-in-production-use-long-random-string';
+const secret = 'unit-test-jwt-secret-not-for-production-32';
 const valid = signHs256(
   {
     sub: '00000000-0000-0000-0000-000000000001',
@@ -97,11 +104,55 @@ const expired = signHs256(
   secret,
 );
 
+const pastAbsolute = signHs256(
+  {
+    sub: '00000000-0000-0000-0000-000000000001',
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    iat: Math.floor(Date.now() / 1000),
+    auth_time: Math.floor(Date.now() / 1000) - 25 * 60 * 60,
+    jti: 'past-absolute-jti',
+  },
+  secret,
+);
+
 assert.equal(await isValidSessionJwt(valid, secret), true, 'valid JWT accepted');
 assert.equal(await isValidSessionJwt(expired, secret), false, 'expired JWT rejected');
+assert.equal(await isValidSessionJwt(pastAbsolute, secret), false, 'absolute lifetime rejected');
+const missingJti = signHs256(
+  {
+    sub: '00000000-0000-0000-0000-000000000001',
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    iat: Math.floor(Date.now() / 1000),
+  },
+  secret,
+);
+const emptyJti = signHs256(
+  {
+    sub: '00000000-0000-0000-0000-000000000001',
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    iat: Math.floor(Date.now() / 1000),
+    jti: '',
+  },
+  secret,
+);
+assert.equal(await isValidSessionJwt(missingJti, secret), false, 'missing jti rejected');
+assert.equal(await isValidSessionJwt(emptyJti, secret), false, 'empty jti rejected');
 assert.equal(await isValidSessionJwt('bogus', secret), false, 'bogus token rejected');
 assert.equal(await isValidSessionJwt(valid, 'wrong-secret'), false, 'bad signature rejected');
 assert.equal(await isValidSessionJwt(undefined, secret), false, 'missing token rejected');
+
+assert.equal(
+  readFileSync(sessionModulePath, 'utf8').includes('jti'),
+  true,
+  'edge JWT check must require jti',
+);
+assert.equal(
+  readFileSync(sessionModulePath, 'utf8').includes('auth_time'),
+  true,
+  'edge JWT check must enforce auth_time absolute lifetime',
+);
+assert.match(authContext, /err\.status === 401/);
+assert.match(authContext, /clearStaleSession/);
 
 // safeInternalPath is pure — assert via source + duplicate
 function safeInternalPath(next, fallback = '/dashboard') {
@@ -119,6 +170,11 @@ assert.equal(safeInternalPath('/login'), '/dashboard');
 assert.equal(
   readFileSync(sessionModulePath, 'utf8').includes('isValidSessionJwt'),
   true,
+);
+assert.equal(
+  readFileSync(sessionModulePath, 'utf8').includes('dev-only-change-in-production'),
+  false,
+  'session-cookie must not ship a default JWT secret',
 );
 
 console.log('session-cookie auth gate checks passed');

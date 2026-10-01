@@ -4,6 +4,7 @@ import { getLocale } from 'next-intl/server';
 import { SiteAnalytics } from '@/components/site/site-analytics';
 import { SiteFooter } from '@/components/site/site-footer';
 import { SiteHeader } from '@/components/site/site-header';
+import { JsonLdScript } from '@/components/site/json-ld-script';
 import { buildSiteMetadata, organizationJsonLd, websiteJsonLd } from '@/features/site/lib/seo';
 
 import './site.css';
@@ -26,10 +27,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
 
   return (
     <div className="site-root" data-theme="light">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLdScript data={jsonLd} />
       <SiteAnalytics />
       <SiteHeader />
       <main id="site-main">{children}</main>

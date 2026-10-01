@@ -59,6 +59,7 @@ def record_auth_event(
         "security.force_logout": (ActivityAction.OTHER, "activity.security.force_logout"),
         "security.password_reset": (ActivityAction.PASSWORD_CHANGED, "activity.security.password_reset"),
         "security.user_suspended": (ActivityAction.DEACTIVATED, "activity.security.user_suspended"),
+        "security.mfa_reset": (ActivityAction.OTHER, "activity.security.mfa_reset"),
         "platform.module_updated": (ActivityAction.UPDATED, "activity.platform.module_updated"),
         "platform.feature_flag_updated": (ActivityAction.UPDATED, "activity.platform.feature_flag_updated"),
         "platform.api_client_created": (ActivityAction.CREATED, "activity.platform.api_client_created"),
@@ -87,6 +88,23 @@ def record_auth_event(
         request=request,
         commit=commit,
     )
+    if event_type in {"security.mfa_reset", "security.session_terminated", "security.sessions_terminated", "security.force_logout"}:
+        try:
+            from investhome_api.services.login_rate_limit import resolve_client_ip
+            from investhome_api.services.security_monitoring import SecurityEventKind, observe_security_event
+
+            kind = (
+                SecurityEventKind.ADMIN_MFA_RESET
+                if event_type == "security.mfa_reset"
+                else SecurityEventKind.SESSION_REVOKED
+            )
+            observe_security_event(
+                kind,
+                ip=resolve_client_ip(request) if request is not None else None,
+                identity=str(actor.id) if actor is not None else None,
+            )
+        except Exception:
+            pass
     _emit_notification_for_auth_event(
         event_type,
         db=db,

@@ -1,5 +1,6 @@
 import { CrmReportsLiveWorkspace } from './_components/crm-reports-live-workspace';
-import './reports.css';
+import '@/workspaces/crm/contact-card/contact-card.css';
+import './reports-ops.css';
 
 export default function CrmReportsPage() {
   return (

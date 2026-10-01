@@ -85,14 +85,7 @@ router = APIRouter(prefix="/crm/communications", tags=["crm-communications"])
 
 
 def _require_view_communications():
-    async def _dependency(user: User = Depends(require_permission("crm", "read"))) -> User:
-        if not user_has_permission(user, "crm", "view_communications") and not user_has_permission(
-            user, "crm", "read"
-        ):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
-        return user
-
-    return _dependency
+    return require_permission("crm", "view_communications")
 
 
 def _require_create_communications():

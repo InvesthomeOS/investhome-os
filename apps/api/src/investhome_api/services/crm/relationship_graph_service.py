@@ -8,6 +8,7 @@ from uuid import UUID
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from investhome_api.models.crm_agreement import CrmAgreement
 from investhome_api.models.crm_company import CrmCompany
 from investhome_api.models.crm_contact import CrmContact
 from investhome_api.models.project import Project
@@ -23,9 +24,10 @@ from investhome_api.schemas.crm_relationships import (
     CrmRelationshipGraphResponse,
     CrmRelationshipStrengthEnum,
 )
+from investhome_api.services.crm.relationship_service import _pair_kind_clause, relationship_pair_kind
 
 DEFAULT_GRAPH_DEPTH = 2
-DEFAULT_GRAPH_LIMIT = 50
+DEFAULT_GRAPH_LIMIT = 200
 MAX_GRAPH_DEPTH = 5
 MAX_GRAPH_LIMIT = 200
 
@@ -155,6 +157,17 @@ def _add_node(
     )
 
 
+def _project_ids_for_group(db: Session, project_group: str) -> list[UUID]:
+    return list(
+        db.scalars(
+            select(CrmAgreement.project_id).where(
+                CrmAgreement.project_group == project_group,
+                CrmAgreement.project_id.is_not(None),
+            ).distinct()
+        ).all()
+    )
+
+
 def get_relationship_graph(
     db: Session,
     *,
@@ -166,6 +179,8 @@ def get_relationship_graph(
     include_archived: bool = False,
     category: str | None = None,
     relationship_type: str | None = None,
+    project_group: str | None = None,
+    pair_kind: str | None = None,
 ) -> CrmRelationshipGraphResponse:
     depth = max(1, min(depth, MAX_GRAPH_DEPTH))
     limit = max(1, min(limit, MAX_GRAPH_LIMIT))
@@ -174,6 +189,18 @@ def get_relationship_graph(
     edges: dict[str, CrmGraphEdge] = {}
     truncated = False
     warning: str | None = None
+    project_ids = set(_project_ids_for_group(db, project_group)) if project_group else None
+
+    def _matches_project(rel: CrmRelationship) -> bool:
+        if project_ids is None:
+            return True
+        return (
+            rel.source_entity_type == CrmRelationshipEntityType.PROJECT
+            and rel.source_entity_id in project_ids
+        ) or (
+            rel.target_entity_type == CrmRelationshipEntityType.PROJECT
+            and rel.target_entity_id in project_ids
+        )
 
     if center_entity_type and center_entity_id:
         queue: deque[tuple[str, UUID, int]] = deque([(center_entity_type, center_entity_id, 0)])
@@ -195,6 +222,10 @@ def get_relationship_graph(
                 if category and rel.category.value != category:
                     continue
                 if relationship_type and rel.relationship_type != relationship_type:
+                    continue
+                if not _matches_project(rel):
+                    continue
+                if pair_kind and relationship_pair_kind(rel) != pair_kind:
                     continue
                 if len(edges) >= limit:
                     truncated = True
@@ -222,11 +253,23 @@ def get_relationship_graph(
             query = query.where(CrmRelationship.category == CrmRelationshipCategory(category))
         if relationship_type:
             query = query.where(CrmRelationship.relationship_type == relationship_type)
+        if project_ids is not None:
+            query = query.where(
+                or_(
+                    (CrmRelationship.source_entity_type == CrmRelationshipEntityType.PROJECT)
+                    & CrmRelationship.source_entity_id.in_(project_ids),
+                    (CrmRelationship.target_entity_type == CrmRelationshipEntityType.PROJECT)
+                    & CrmRelationship.target_entity_id.in_(project_ids),
+                )
+            )
+        pair_clause = _pair_kind_clause(pair_kind) if pair_kind else None
+        if pair_clause is not None:
+            query = query.where(pair_clause)
         query = query.order_by(CrmRelationship.updated_at.desc()).limit(limit)
         rels = list(db.scalars(query).all())
         if len(rels) >= limit:
             truncated = True
-            warning = "Showing most recent relationships only. Specify a center entity for focused graph."
+            warning = "Showing matching relationships only. Search or filter to focus the graph."
         for rel in rels:
             _add_edge(edges, rel)
             _add_node(nodes, db, rel.source_entity_type.value, rel.source_entity_id)

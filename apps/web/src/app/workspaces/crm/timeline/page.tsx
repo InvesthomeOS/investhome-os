@@ -2,7 +2,7 @@ import { TimelineDsWorkspace } from './_components/ds/timeline-ds-workspace';
 
 /**
  * Canonical Timeline nav route (`/workspaces/crm/timeline`).
- * Contacts/Projects/Communication-quality DS — command timeline (presentation only).
+ * Operational feed from live CRM records (activities, purchases, documents).
  */
 export default function CrmTimelinePage() {
   return (

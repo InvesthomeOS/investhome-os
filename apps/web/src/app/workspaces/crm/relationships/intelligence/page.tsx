@@ -1,5 +1,5 @@
-import { RelationshipIntelligenceDashboard } from '../_components/relationship-intelligence-dashboard';
+import { redirect } from 'next/navigation';
 
 export default function CrmRelationshipsIntelligencePage() {
-  return <RelationshipIntelligenceDashboard />;
+  redirect('/workspaces/crm/relationships/tools');
 }

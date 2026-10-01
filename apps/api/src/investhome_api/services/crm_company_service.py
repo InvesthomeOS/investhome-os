@@ -10,9 +10,10 @@ from math import ceil
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import asc, desc, func, or_, select
+from sqlalchemy import asc, desc, exists, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from investhome_api.models.crm_agreement import CrmAgreement, CrmAgreementParticipant
 from investhome_api.models.crm_company import (
     CrmCompany,
     CrmCompanyAddress,
@@ -24,15 +25,19 @@ from investhome_api.models.crm_company import (
     CrmCompanyLenderProfile,
     CrmCompanyPropertyManagementProfile,
     CrmCompanyRelationship,
+    CrmCompanyRelationshipLinkStatus,
     CrmCompanySavedView,
     CrmCompanyStatus,
     CrmCompanyType,
     CrmCompanyTypeAssignment,
     CrmCompanyVendorProfile,
 )
-from investhome_api.models.crm_contact import CrmContact
+from investhome_api.models.crm_contact import CrmContact, CrmContactType
 from investhome_api.models.user_auth import User
+from investhome_api.config.settings import get_settings
+from investhome_api.services.permission_service import user_has_permission
 from investhome_api.schemas.crm_companies import (
+    CrmCompanyCounts,
     CrmCompanyAddressCreate,
     CrmCompanyBrokerageProfileSchema,
     CrmCompanyBulkActionResponse,
@@ -50,6 +55,8 @@ from investhome_api.schemas.crm_companies import (
     CrmCompanyLenderProfileSchema,
     CrmCompanyListItem,
     CrmCompanyListResponse,
+    CrmCompanyRelatedAgreement,
+    CrmCompanyRelatedPerson,
     CrmCompanyMergeResponse,
     CrmCompanyPropertyManagementProfileSchema,
     CrmCompanyRelationshipCreate,
@@ -60,7 +67,6 @@ from investhome_api.schemas.crm_companies import (
     CrmCompanyUpdate,
     CrmCompanyVendorProfileSchema,
 )
-from investhome_api.services.permission_service import user_has_permission
 
 SORTABLE_FIELDS = {
     "display_name": CrmCompany.display_name,
@@ -122,6 +128,59 @@ def can_view_compliance(user: User | None) -> bool:
     if user is None:
         return True
     return user_has_permission(user, "crm", "view_compliance")
+
+
+FINANCIAL_WRITE_PERMISSION = ("crm", "edit_financial")
+LEGAL_TAX_WRITE_PERMISSION = ("crm", "edit_legal")
+_LEGAL_TAX_UPDATE_FIELDS = frozenset({"registration_number", "tax_id", "ein", "legal_data"})
+
+
+def _actor_may(actor: User | None, resource: str, action: str, db: Session) -> bool:
+    if actor is None:
+        return not get_settings().auth_enabled
+    return user_has_permission(actor, resource, action, db=db)
+
+
+def _financial_profile_changed(company: CrmCompany, incoming: dict | None) -> bool:
+    existing = company.financial_profile
+    if incoming is None:
+        return existing is not None
+    if existing is None:
+        return any(value is not None for value in incoming.values())
+    for key, value in incoming.items():
+        if getattr(existing, key, None) != value:
+            return True
+    return False
+
+
+def _legal_tax_value_changed(company: CrmCompany, field: str, incoming) -> bool:
+    current = getattr(company, field, None)
+    if field in {"registration_number", "tax_id", "ein"}:
+        incoming = _normalize(incoming) if isinstance(incoming, str) else incoming
+        current = _normalize(current) if isinstance(current, str) else current
+    return incoming != current
+
+
+def _reject_unauthorized_sensitive_company_fields(
+    db: Session,
+    company: CrmCompany,
+    data: dict,
+    *,
+    actor: User | None,
+) -> None:
+    financial_change = False
+    if "annual_revenue" in data and data["annual_revenue"] != company.annual_revenue:
+        financial_change = True
+    if "financial_profile" in data and _financial_profile_changed(company, data["financial_profile"]):
+        financial_change = True
+    legal_change = any(
+        field in data and _legal_tax_value_changed(company, field, data[field])
+        for field in _LEGAL_TAX_UPDATE_FIELDS
+    )
+    if financial_change and not _actor_may(actor, *FINANCIAL_WRITE_PERMISSION, db):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+    if legal_change and not _actor_may(actor, *LEGAL_TAX_WRITE_PERMISSION, db):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
 
 def _check_duplicate(
@@ -239,13 +298,108 @@ def _company_types(company: CrmCompany) -> list[str]:
     return [a.company_type.value for a in company.type_assignments]
 
 
+BROKER_CONTACT_TYPES = {CrmContactType.BROKER.value, CrmContactType.REALTOR.value}
+OPEN_RELATIONSHIP_STATUSES = {"active", "hot", "warm"}
+
+
 def _contact_count(db: Session, company_id: UUID) -> int:
     return db.scalar(
         select(func.count()).select_from(CrmCompanyContact).where(CrmCompanyContact.company_id == company_id)
     ) or 0
 
 
+def _primary_address(company: CrmCompany) -> CrmCompanyAddress | None:
+    if not company.addresses:
+        return None
+    for address in company.addresses:
+        if address.is_primary:
+            return address
+    return company.addresses[0]
+
+
+def _contact_type_values(contact: CrmContact) -> set[str]:
+    values: set[str] = set()
+    if contact.contact_type:
+        values.add(contact.contact_type.value)
+    for assignment in contact.type_assignments or []:
+        if assignment.contact_type:
+            values.add(assignment.contact_type.value)
+    return values
+
+
+def _related_people(db: Session, company: CrmCompany) -> list[CrmCompanyRelatedPerson]:
+    people: list[CrmCompanyRelatedPerson] = []
+    for link in company.contact_links:
+        contact = db.get(CrmContact, link.contact_id)
+        if contact is None:
+            continue
+        types = _contact_type_values(contact)
+        contact_type = contact.contact_type.value if contact.contact_type else None
+        people.append(
+            CrmCompanyRelatedPerson(
+                id=contact.id,
+                display_name=contact.display_name,
+                contact_type=contact_type,
+                is_broker=bool(types & BROKER_CONTACT_TYPES),
+            )
+        )
+    return people
+
+
+def _related_agreements(db: Session, company: CrmCompany) -> list[CrmCompanyRelatedAgreement]:
+    contact_ids = [link.contact_id for link in company.contact_links]
+    if not contact_ids:
+        return []
+    rows = list(
+        db.scalars(
+            select(CrmAgreement).where(
+                or_(
+                    CrmAgreement.contact_id.in_(contact_ids),
+                    CrmAgreement.id.in_(
+                        select(CrmAgreementParticipant.agreement_id).where(
+                            CrmAgreementParticipant.contact_id.in_(contact_ids)
+                        )
+                    ),
+                )
+            )
+        ).all()
+    )
+    seen: set[UUID] = set()
+    items: list[CrmCompanyRelatedAgreement] = []
+    for agreement in rows:
+        if agreement.id in seen:
+            continue
+        seen.add(agreement.id)
+        contact = db.get(CrmContact, agreement.contact_id)
+        items.append(
+            CrmCompanyRelatedAgreement(
+                id=agreement.id,
+                project_group=agreement.project_group,
+                unit_number=agreement.unit_number,
+                investment_amount=agreement.investment_amount,
+                contact_id=agreement.contact_id,
+                contact_display_name=contact.display_name if contact else None,
+            )
+        )
+    return items
+
+
+def _open_relationship_count(db: Session, company_id: UUID) -> int:
+    return db.scalar(
+        select(func.count()).select_from(CrmCompanyRelationship).where(
+            CrmCompanyRelationship.status == CrmCompanyRelationshipLinkStatus.ACTIVE,
+            or_(
+                CrmCompanyRelationship.source_company_id == company_id,
+                CrmCompanyRelationship.target_company_id == company_id,
+            ),
+        )
+    ) or 0
+
+
 def serialize_company_list_item(db: Session, company: CrmCompany) -> CrmCompanyListItem:
+    address = _primary_address(company)
+    people = _related_people(db, company)
+    owner = db.get(User, company.owner_user_id) if company.owner_user_id else None
     return CrmCompanyListItem(
         id=company.id,
         display_name=company.display_name,
@@ -262,11 +416,19 @@ def serialize_company_list_item(db: Session, company: CrmCompany) -> CrmCompanyL
         relationship_status=company.relationship_status.value,
         relationship_strength=company.relationship_strength.value,
         owner_user_id=company.owner_user_id,
+        owner_name=owner.full_name if owner else None,
         parent_company_id=company.parent_company_id,
         tags=company.tags,
         is_favorite=company.is_favorite,
         is_pinned=company.is_pinned,
         contact_count=_contact_count(db, company.id),
+        city=address.city if address else None,
+        country=address.country if address else company.incorporation_country,
+        related_people=people,
+        open_relationship_count=_open_relationship_count(db, company.id),
+        related_agreement_count=len(_related_agreements(db, company)),
+        last_activity_at=company.last_contact_at,
+        notes=company.notes,
         created_at=company.created_at,
         updated_at=company.updated_at,
     )
@@ -336,6 +498,7 @@ def serialize_company_detail(db: Session, company: CrmCompany, user: User | None
         "addresses": company.addresses,
         "contacts": contacts,
         "relationships": relationships,
+        "related_agreements": _related_agreements(db, company),
         "legal_data": company.legal_data if can_view_legal(user) else None,
         "compliance_data": company.compliance_data if can_view_compliance(user) else None,
     }
@@ -396,6 +559,54 @@ def get_company_or_404(db: Session, company_id: UUID, *, include_archived: bool 
     return company
 
 
+def company_workspace_counts(db: Session) -> CrmCompanyCounts:
+    active = CrmCompany.archived_at.is_(None)
+    total = db.scalar(select(func.count()).select_from(CrmCompany).where(active)) or 0
+    brokerage = db.scalar(
+        select(func.count()).select_from(CrmCompany).where(active, CrmCompany.company_type == CrmCompanyType.BROKERAGE)
+    ) or 0
+    partner = db.scalar(
+        select(func.count()).select_from(CrmCompany).where(active, CrmCompany.company_type == CrmCompanyType.PARTNER)
+    ) or 0
+    investor = db.scalar(
+        select(func.count()).select_from(CrmCompany).where(
+            active, CrmCompany.company_type == CrmCompanyType.INVESTMENT_COMPANY
+        )
+    ) or 0
+    open_company_ids: set[UUID] = set()
+    open_company_ids.update(
+        row[0]
+        for row in db.execute(
+            select(CrmCompanyRelationship.source_company_id).where(
+                CrmCompanyRelationship.status == CrmCompanyRelationshipLinkStatus.ACTIVE
+            )
+        )
+        if row[0] is not None
+    )
+    open_company_ids.update(
+        row[0]
+        for row in db.execute(
+            select(CrmCompanyRelationship.target_company_id).where(
+                CrmCompanyRelationship.status == CrmCompanyRelationshipLinkStatus.ACTIVE
+            )
+        )
+        if row[0] is not None
+    )
+    open_company_ids.update(
+        row[0]
+        for row in db.execute(
+            select(CrmCompany.id).where(active, CrmCompany.relationship_status.in_(tuple(OPEN_RELATIONSHIP_STATUSES)))
+        )
+    )
+    return CrmCompanyCounts(
+        total=int(total),
+        brokerage=int(brokerage),
+        partner=int(partner),
+        investor=int(investor),
+        open_relationships=len(open_company_ids),
+    )
+
+
 def list_crm_companies(
     db: Session,
     *,
@@ -405,13 +616,20 @@ def list_crm_companies(
     lifecycle_stage: str | None = None,
     industry: str | None = None,
     owner_user_id: UUID | None = None,
+    country: str | None = None,
+    relationship_status: str | None = None,
+    open_relationships: bool = False,
     include_archived: bool = False,
     sort_by: str = "updated_at",
     sort_order: str = "desc",
     page: int = 1,
     page_size: int = 20,
 ) -> CrmCompanyListResponse:
-    query = select(CrmCompany).options(selectinload(CrmCompany.type_assignments))
+    query = select(CrmCompany).options(
+        selectinload(CrmCompany.type_assignments),
+        selectinload(CrmCompany.addresses),
+        selectinload(CrmCompany.contact_links),
+    )
     if not include_archived:
         query = query.where(CrmCompany.archived_at.is_(None))
     if status_filter:
@@ -424,15 +642,55 @@ def list_crm_companies(
         query = query.where(CrmCompany.industry.ilike(f"%{industry.strip()}%"))
     if owner_user_id:
         query = query.where(CrmCompany.owner_user_id == owner_user_id)
+    if relationship_status:
+        query = query.where(CrmCompany.relationship_status == relationship_status)
+    if country:
+        query = query.where(
+            exists(
+                select(CrmCompanyAddress.id).where(
+                    CrmCompanyAddress.company_id == CrmCompany.id,
+                    CrmCompanyAddress.country.ilike(country.strip()),
+                )
+            )
+        )
+    if open_relationships:
+        query = query.where(
+            or_(
+                CrmCompany.relationship_status.in_(tuple(OPEN_RELATIONSHIP_STATUSES)),
+                exists(
+                    select(CrmCompanyRelationship.id).where(
+                        CrmCompanyRelationship.status == CrmCompanyRelationshipLinkStatus.ACTIVE,
+                        or_(
+                            CrmCompanyRelationship.source_company_id == CrmCompany.id,
+                            CrmCompanyRelationship.target_company_id == CrmCompany.id,
+                        ),
+                    )
+                ),
+            )
+        )
     if search:
         pattern = f"%{search.strip()}%"
+        person_match = exists(
+            select(CrmCompanyContact.id)
+            .join(CrmContact, CrmContact.id == CrmCompanyContact.contact_id)
+            .where(
+                CrmCompanyContact.company_id == CrmCompany.id,
+                or_(
+                    CrmContact.display_name.ilike(pattern),
+                    CrmContact.primary_email.ilike(pattern),
+                    CrmContact.primary_phone.ilike(pattern),
+                ),
+            )
+        )
         query = query.where(
             or_(
                 CrmCompany.display_name.ilike(pattern),
                 CrmCompany.legal_name.ilike(pattern),
                 CrmCompany.primary_email.ilike(pattern),
+                CrmCompany.primary_phone.ilike(pattern),
                 CrmCompany.domain.ilike(pattern),
                 CrmCompany.registration_number.ilike(pattern),
+                person_match,
             )
         )
     total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
@@ -500,8 +758,15 @@ def create_crm_company(db: Session, payload: CrmCompanyCreate, user: User | None
     return company
 
 
-def update_crm_company(db: Session, company: CrmCompany, payload: CrmCompanyUpdate) -> CrmCompany:
+def update_crm_company(
+    db: Session,
+    company: CrmCompany,
+    payload: CrmCompanyUpdate,
+    *,
+    actor: User | None = None,
+) -> CrmCompany:
     data = payload.model_dump(exclude_unset=True)
+    _reject_unauthorized_sensitive_company_fields(db, company, data, actor=actor)
     if "legal_name" in data:
         val = _normalize(data["legal_name"])
         _check_duplicate(db, field="legal_name", value=val, exclude_id=company.id)

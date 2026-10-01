@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Upl
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 
-from investhome_api.api.deps.auth import get_current_user, require_permission
+from investhome_api.api.deps.auth import require_permission
 from investhome_api.db.session import get_db
 from investhome_api.models.activity import ActivityEntityType
 from investhome_api.models.user_auth import User
@@ -16,6 +16,7 @@ from investhome_api.schemas.crm_companies import (
     CrmCompanyContactCreate,
     CrmCompanyContactResponse,
     CrmCompanyContactUpdate,
+    CrmCompanyCounts,
     CrmCompanyCreate,
     CrmCompanyDetail,
     CrmCompanyDuplicateCandidate,
@@ -50,6 +51,7 @@ from investhome_api.services.crm_company_service import (
     archive_crm_company,
     bulk_action,
     build_hierarchy,
+    company_workspace_counts,
     create_crm_company,
     create_saved_view,
     delete_crm_company,
@@ -66,21 +68,13 @@ from investhome_api.services.crm_company_service import (
     update_company_contact,
     update_crm_company,
 )
-from investhome_api.services.permission_service import user_has_permission
+from investhome_api.services.document_validation import read_and_validate_csv_import
 
 router = APIRouter(prefix="/crm/companies", tags=["crm-companies"])
 
 
 def _require_crm_companies_read():
-    async def _dependency(user: User = Depends(get_current_user)) -> User:
-        if not (
-            user_has_permission(user, "crm", "view_companies")
-            or user_has_permission(user, "crm", "read")
-        ):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
-        return user
-
-    return _dependency
+    return require_permission("crm", "view_companies")
 
 
 @router.get("", response_model=CrmCompanyListResponse)
@@ -91,6 +85,9 @@ def list_companies(
     lifecycle_stage: str | None = Query(default=None),
     industry: str | None = Query(default=None),
     owner_user_id: UUID | None = Query(default=None),
+    country: str | None = Query(default=None),
+    relationship_status: str | None = Query(default=None),
+    open_relationships: bool = Query(default=False),
     include_archived: bool = Query(default=False),
     sort_by: str = Query(default="updated_at"),
     sort_order: str = Query(default="desc"),
@@ -108,12 +105,24 @@ def list_companies(
         lifecycle_stage=lifecycle_stage,
         industry=industry,
         owner_user_id=owner_user_id,
+        country=country,
+        relationship_status=relationship_status,
+        open_relationships=open_relationships,
         include_archived=include_archived,
         sort_by=sort_by,
         sort_order=sort_order,
         page=page,
         page_size=page_size,
     )
+
+
+@router.get("/counts", response_model=CrmCompanyCounts)
+def get_company_counts(
+    db: Session = Depends(get_db),
+    user: User = Depends(_require_crm_companies_read()),
+) -> CrmCompanyCounts:
+    del user
+    return company_workspace_counts(db)
 
 
 @router.post("", response_model=CrmCompanyDetail, status_code=status.HTTP_201_CREATED)
@@ -166,7 +175,7 @@ async def import_companies(
     user: User = Depends(require_permission("crm", "import")),
 ) -> CrmCompanyImportResult:
     del user
-    content = (await file.read()).decode("utf-8-sig")
+    content = await read_and_validate_csv_import(file)
     result = import_crm_companies_csv(db, content)
     db.commit()
     return result
@@ -239,7 +248,7 @@ def update_company(
 ) -> CrmCompanyDetail:
     company = get_company_or_404(db, company_id)
     before = snapshot_entity(company, CRM_COMPANY_ACTIVITY_FIELDS)
-    company = update_crm_company(db, company, payload)
+    company = update_crm_company(db, company, payload, actor=user)
     record_crm_company_updated(db, company, user, before, request)
     db.commit()
     return serialize_company_detail(db, get_company_or_404(db, company_id), user)
@@ -379,7 +388,6 @@ def get_company_timeline(
     db: Session = Depends(get_db),
     user: User = Depends(_require_crm_companies_read()),
 ) -> CrmCompanyTimelineResponse:
-    del user
     get_company_or_404(db, company_id)
     items, total = list_activities(
         db,

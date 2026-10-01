@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 
 import { brandFontStack } from '@/lib/fonts';
+import { getCspNonce } from '@/lib/security/csp-nonce';
 
 import './globals.css';
 import './premium-shell.css';
@@ -33,12 +34,14 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale();
   const messages = await getMessages();
+  const nonce = await getCspNonce();
 
   return (
     <html lang={locale} data-theme="light" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <style
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `html,body{font-family:${brandFontStack};}`,
           }}

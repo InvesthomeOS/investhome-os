@@ -152,22 +152,38 @@ def build_safe_agent_plans(db: Session, bundle: BitrixBundle) -> SafeAgentPlanSe
             continue
         phone = _safe_phone(row.phone)
         email = normalize_valid_email(row.email)
+        contact_id: UUID | None = None
         if not phone and not email:
-            quarantine += 1
-            continue
-        match = index.match(row.phone, row.email, row.full_name)
-        if match.kind == IdentityMatchKind.AMBIGUOUS:
-            review += 1
-            continue
-        if (
-            match.kind not in {IdentityMatchKind.PHONE, IdentityMatchKind.EMAIL}
-            or match.record is None
-            or match.record.contact_id is None
-        ):
-            unmatched += 1
+            name_key = normalize_full_name(row.full_name)
+            name_hits = [
+                record
+                for record in index.records
+                if record.contact_id is not None and record.name_key == name_key
+            ]
+            if not name_key:
+                continue
+            if len(name_hits) == 1:
+                contact_id = name_hits[0].contact_id
+            else:
+                # Person stays visible from contact commit; do not attach a role
+                # without a unique name match, and do not fail the batch.
+                continue
+        else:
+            match = index.match(row.phone, row.email, row.full_name)
+            if match.kind == IdentityMatchKind.AMBIGUOUS:
+                review += 1
+                continue
+            if (
+                match.kind not in {IdentityMatchKind.PHONE, IdentityMatchKind.EMAIL}
+                or match.record is None
+                or match.record.contact_id is None
+            ):
+                unmatched += 1
+                continue
+            contact_id = match.record.contact_id
+        if contact_id is None:
             continue
         safe_rows += 1
-        contact_id = match.record.contact_id
         plan = plans.get(contact_id)
         if plan is None:
             plan = SafeAgentPlan(contact_id=contact_id)

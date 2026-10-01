@@ -133,7 +133,17 @@ class PostgresFtsCrmSearchProvider(CrmSearchProvider):
         handler = dispatch.get(entity_type)
         if handler is None:
             return []
-        return handler(db, query, limit=limit, include_archived=include_archived, exact_match=exact_match)
+        hits = handler(db, query, limit=limit, include_archived=include_archived, exact_match=exact_match)
+        if entity_type != "crm_activity":
+            return hits
+        from investhome_api.services.crm.activity_service import user_can_view_activity
+
+        allowed: list[InternalCrmSearchHit] = []
+        for hit in hits:
+            activity = db.get(CrmActivity, hit.entity_id)
+            if activity is not None and user_can_view_activity(user, activity):
+                allowed.append(hit)
+        return allowed
 
     def _search_contacts(
         self, db: Session, query: str, *, limit: int, include_archived: bool, exact_match: bool
