@@ -104,17 +104,17 @@ function LoginForm() {
               </button>
             </form>
 
-            <div className="auth-card__demo">
-              <p>{t('demoTitle')}</p>
-              <ul>
-                <li>{t('demoAdmin')}</li>
-                <li>{t('demoSales')}</li>
-                <li>{t('demoReadOnly')}</li>
-              </ul>
-              {process.env.NODE_ENV !== 'production' ? (
+            {process.env.NODE_ENV !== 'production' ? (
+              <div className="auth-card__demo">
+                <p>{t('demoTitle')}</p>
+                <ul>
+                  <li>{t('demoAdmin')}</li>
+                  <li>{t('demoSales')}</li>
+                  <li>{t('demoReadOnly')}</li>
+                </ul>
                 <p className="auth-card__demo-password">{t('demoPassword')}</p>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
           </>
         )}
       </div>
