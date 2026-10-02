@@ -13,11 +13,11 @@ from investhome_api.config.settings import get_settings
 from investhome_api.core.request_context import get_request_id
 from investhome_api.services.auth_service import decode_access_token
 from investhome_api.services.csrf import (
-    CSRF_EXEMPT_PATHS,
     CSRF_HEADER,
     SAFE_METHODS,
     csrf_binding_key,
     csrf_token_is_valid,
+    is_csrf_exempt_path,
 )
 
 
@@ -45,7 +45,7 @@ class CsrfProtectMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         path = request.url.path
-        if path in CSRF_EXEMPT_PATHS:
+        if is_csrf_exempt_path(path):
             return await call_next(request)
 
         cookie = request.cookies.get(settings.auth_cookie_name)

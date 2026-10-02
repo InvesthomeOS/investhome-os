@@ -332,6 +332,7 @@ from investhome_api.models.marketing_landing_conversion import (  # noqa: F401
 )
 from investhome_api.models.notification import Notification  # noqa: F401
 from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole  # noqa: F401
+from investhome_api.models.user_invitation import UserInvitation  # noqa: F401
 from investhome_api.models.user_mfa import UserMfa, UserMfaRecoveryCode  # noqa: F401
 from investhome_api.models import analytics_warehouse as _analytics_warehouse  # noqa: F401
 
@@ -428,6 +429,8 @@ def _configure_auth(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPa
             "test_security_center_p11.py",
             "test_backup_status.py",
             "test_security_monitoring.py",
+            "test_user_invitations.py",
+            "test_invitation_email_delivery.py",
         )
     )
     monkeypatch.setenv("API_AUTH_ENABLED", "true" if enabled else "false")
@@ -450,6 +453,16 @@ def _configure_auth(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPa
     monkeypatch.setenv("AI_PROVIDER", "mock")
     monkeypatch.setenv("AI_MODEL", "local-grounded-v1")
     monkeypatch.delenv("AI_API_KEY", raising=False)
+    # Invitation tests must not inherit a developer SMTP relay from .env.
+    monkeypatch.setenv("SMTP_HOST", "")
+    monkeypatch.setenv("SMTP_USERNAME", "")
+    monkeypatch.setenv("SMTP_PASSWORD", "")
+    monkeypatch.setenv("SMTP_FROM_EMAIL", "")
+    monkeypatch.setenv("APP_PUBLIC_URL", "")
+    monkeypatch.setenv("API_DEBUG", "false")
+    from investhome_api.services.notification_gateway import reset_notification_gateway_for_tests
+
+    reset_notification_gateway_for_tests()
     get_settings.cache_clear()
 
 

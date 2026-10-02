@@ -7,10 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from investhome_api.api.deps.auth import get_current_user, require_manage_users, require_permission
+from investhome_api.api.deps.auth import require_manage_users, require_permission
 from investhome_api.db.session import get_db
 from investhome_api.models.user_auth import Role, User, UserRole, UserStatus
 from investhome_api.schemas.auth import (
+    InviteDeliveryResponse,
     UserCreate,
     UserListResponse,
     UserResponse,
@@ -18,16 +19,17 @@ from investhome_api.schemas.auth import (
     UserUpdate,
 )
 from investhome_api.services.audit_service import record_auth_event
-from investhome_api.services.auth_service import hash_password
-from investhome_api.services.password_policy import (
-    GENERIC_PASSWORD_ERROR,
-    PasswordPolicyError,
-    generate_temporary_password,
-    validate_new_password,
-)
+from investhome_api.services import session_service
 from investhome_api.services.permission_service import (
     ensure_not_privilege_escalation,
     load_user_with_roles,
+)
+from investhome_api.services.user_invitation import (
+    InvitationError,
+    active_invitation_for_user,
+    invalidate_outstanding_invitations,
+    issue_invitation,
+    unguessable_password_hash,
 )
 from investhome_api.services.user_service import serialize_user
 
@@ -85,13 +87,13 @@ def get_user(
     return serialize_user(_get_user_or_404(user_id, db))
 
 
-@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=InviteDeliveryResponse, status_code=status.HTTP_201_CREATED)
 def create_user(
     payload: UserCreate,
     request: Request,
     db: Session = Depends(get_db),
     actor: User = Depends(require_manage_users()),
-) -> UserResponse:
+) -> InviteDeliveryResponse:
     email = payload.email.lower()
     existing = db.scalar(select(User.id).where(User.email == email))
     if existing is not None:
@@ -103,38 +105,17 @@ def create_user(
 
     ensure_not_privilege_escalation(actor, [role.code for role in roles])
 
-    if payload.password is None and payload.status != UserStatus.INVITED:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password is required for non-invited users",
-        )
-
-    if payload.password is None:
-        temp_password = generate_temporary_password()
-    else:
-        try:
-            validate_new_password(
-                payload.password,
-                email=email,
-                full_name=payload.full_name,
-            )
-        except PasswordPolicyError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=GENERIC_PASSWORD_ERROR,
-            )
-        temp_password = payload.password
     user = User(
         full_name=payload.full_name,
         email=email,
         phone=payload.phone,
         job_title=payload.job_title,
         department=payload.department,
-        status=payload.status,
+        status=UserStatus.INVITED,
         preferred_language=payload.preferred_language,
         timezone=payload.timezone,
         avatar_url=payload.avatar_url,
-        hashed_password=hash_password(temp_password),
+        hashed_password=unguessable_password_hash(),
     )
     db.add(user)
     db.flush()
@@ -142,16 +123,28 @@ def create_user(
     for role in roles:
         db.add(UserRole(user_id=user.id, role_id=role.id))
 
-    db.commit()
+    issued = issue_invitation(db, user=user, invited_by_user_id=actor.id)
     record_auth_event(
         "users.created",
         db=db,
         actor=actor,
         target_id=user.id,
-        metadata={"email": user.email},
+        metadata={"email": user.email, "delivery_status": issued.delivery_status},
         request=request,
     )
-    return serialize_user(_get_user_or_404(user.id, db))
+    record_auth_event(
+        "user.invited",
+        db=db,
+        actor=actor,
+        target_id=user.id,
+        metadata={"delivery_status": issued.delivery_status},
+        request=request,
+    )
+    db.commit()
+    return InviteDeliveryResponse(
+        user=serialize_user(_get_user_or_404(user.id, db)),
+        delivery_status=issued.delivery_status,
+    )
 
 
 @router.patch("/{user_id}", response_model=UserResponse)
@@ -184,6 +177,8 @@ def update_user(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cannot deactivate your own account",
             )
+        session_service.revoke_user_sessions(db, user.id, reason="status_changed")
+        invalidate_outstanding_invitations(db, user.id)
 
     for field, value in updates.items():
         setattr(user, field, value)
@@ -217,15 +212,113 @@ def deactivate_user(
 
     user.status = UserStatus.INACTIVE
     user.updated_at = datetime.now(UTC)
-    db.commit()
+    session_service.revoke_user_sessions(db, user.id, reason="deactivated")
+    invalidate_outstanding_invitations(db, user.id)
     record_auth_event(
-        "users.deactivated",
+        "user.deactivated",
         db=db,
         actor=actor,
         target_id=user.id,
         request=request,
     )
+    db.commit()
     return serialize_user(_get_user_or_404(user.id, db))
+
+
+@router.post("/{user_id}/activate", response_model=UserResponse)
+def activate_user(
+    user_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_manage_users()),
+) -> UserResponse:
+    user = _get_user_or_404(user_id, db)
+    if user.status == UserStatus.INVITED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invited users must accept their invitation",
+        )
+    if user.status == UserStatus.SUSPENDED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Suspended users cannot be activated from this action",
+        )
+    user.status = UserStatus.ACTIVE
+    user.updated_at = datetime.now(UTC)
+    record_auth_event(
+        "user.activated",
+        db=db,
+        actor=actor,
+        target_id=user.id,
+        request=request,
+    )
+    db.commit()
+    return serialize_user(_get_user_or_404(user.id, db))
+
+
+def _invite_user(
+    *,
+    user_id: UUID,
+    request: Request,
+    db: Session,
+    actor: User,
+    resend: bool,
+) -> InviteDeliveryResponse:
+    user = _get_user_or_404(user_id, db)
+    if user.status != UserStatus.INVITED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not awaiting invitation",
+        )
+    active = active_invitation_for_user(db, user.id)
+    if active is not None and not resend:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An active invitation already exists",
+        )
+    try:
+        issued = issue_invitation(
+            db,
+            user=user,
+            invited_by_user_id=actor.id,
+            invalidate_existing=True,
+        )
+    except InvitationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=exc.message) from exc
+    event = "user.invite_resent" if resend else "user.invited"
+    record_auth_event(
+        event,
+        db=db,
+        actor=actor,
+        target_id=user.id,
+        metadata={"delivery_status": issued.delivery_status},
+        request=request,
+    )
+    db.commit()
+    return InviteDeliveryResponse(
+        user=serialize_user(_get_user_or_404(user.id, db)),
+        delivery_status=issued.delivery_status,
+    )
+
+
+@router.post("/{user_id}/invite", response_model=InviteDeliveryResponse)
+def invite_user(
+    user_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_manage_users()),
+) -> InviteDeliveryResponse:
+    return _invite_user(user_id=user_id, request=request, db=db, actor=actor, resend=False)
+
+
+@router.post("/{user_id}/invite/resend", response_model=InviteDeliveryResponse)
+def resend_user_invite(
+    user_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_manage_users()),
+) -> InviteDeliveryResponse:
+    return _invite_user(user_id=user_id, request=request, db=db, actor=actor, resend=True)
 
 
 @router.put("/{user_id}/roles", response_model=UserResponse)

@@ -31,6 +31,11 @@ def record_auth_event(
         "auth.logout": (ActivityAction.LOGOUT, "activity.user.logout"),
         "auth.password_changed": (ActivityAction.PASSWORD_CHANGED, "activity.user.password_changed"),
         "users.created": (ActivityAction.INVITED, "activity.user.invited"),
+        "user.invited": (ActivityAction.INVITED, "activity.user.invited"),
+        "user.invite_resent": (ActivityAction.INVITED, "activity.user.invite_resent"),
+        "user.invite_accepted": (ActivityAction.ACTIVATED, "activity.user.invite_accepted"),
+        "user.activated": (ActivityAction.ACTIVATED, "activity.user.activated"),
+        "user.deactivated": (ActivityAction.DEACTIVATED, "activity.user.deactivated"),
         "users.updated": (ActivityAction.UPDATED, "activity.user.updated"),
         "users.deactivated": (ActivityAction.DEACTIVATED, "activity.user.deactivated"),
         "users.roles_assigned": (ActivityAction.ROLE_ASSIGNED, "activity.user.role_assigned"),
@@ -131,14 +136,15 @@ def _emit_notification_for_auth_event(
     from investhome_api.models.notification import NotificationPriority, NotificationSource, NotificationType
 
     actor_id = actor.id if actor is not None else None
-    if event_type == "users.created" and target_id is not None:
-        notify_user_invited(
-            db,
-            recipient_user_id=target_id,
-            actor_user_id=actor_id,
-            metadata=metadata,
-        )
-    elif event_type == "users.deactivated" and target_id is not None:
+    if event_type in {"users.created", "user.invited"} and target_id is not None:
+        if event_type == "users.created":
+            notify_user_invited(
+                db,
+                recipient_user_id=target_id,
+                actor_user_id=actor_id,
+                metadata=metadata,
+            )
+    elif event_type in {"users.deactivated", "user.deactivated"} and target_id is not None:
         notify_user_deactivated(db, recipient_user_id=target_id, actor_user_id=actor_id)
     elif event_type == "auth.password_changed" and actor is not None:
         notify_password_changed(db, recipient_user_id=actor.id)

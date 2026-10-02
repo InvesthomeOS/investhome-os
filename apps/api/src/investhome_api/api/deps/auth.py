@@ -134,7 +134,7 @@ def get_current_user(
             detail="Not authenticated",
         )
 
-    if user.status not in {UserStatus.ACTIVE, UserStatus.INVITED}:
+    if user.status not in {UserStatus.ACTIVE}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is not active",

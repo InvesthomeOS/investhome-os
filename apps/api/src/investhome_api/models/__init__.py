@@ -240,6 +240,7 @@ from investhome_api.models.user_auth import (
     UserRole,
     UserStatus,
 )
+from investhome_api.models.user_invitation import UserInvitation  # noqa: F401
 from investhome_api.models.user_mfa import UserMfa, UserMfaRecoveryCode  # noqa: F401
 
 __all__ = [
@@ -318,6 +319,7 @@ __all__ = [
     "Role",
     "RolePermission",
     "User",
+    "UserInvitation",
     "UserMfa",
     "UserMfaRecoveryCode",
     "UserRole",

@@ -30,6 +30,45 @@ def _read_only_role_id(client: TestClient) -> str:
     return next(item["id"] for item in roles if item["code"] == "read_only")
 
 
+def _created_user(response) -> dict:
+    body = response.json()
+    return body["user"] if "user" in body else body
+
+
+def _set_invite_token(monkeypatch, token: str) -> str:
+    monkeypatch.setattr(
+        "investhome_api.services.user_invitation.generate_invite_token",
+        lambda: token,
+    )
+    return token
+
+
+def _invite_and_activate(
+    client: TestClient,
+    monkeypatch,
+    *,
+    email: str,
+    password: str,
+    full_name: str,
+) -> dict:
+    token = f"policy-{email.replace('@', '-').replace('.', '-')}"
+    if len(token) < 16:
+        token = f"{token}-invite-token"
+    _set_invite_token(monkeypatch, token)
+    created = client.post(
+        "/users",
+        json={
+            "full_name": full_name,
+            "email": email,
+            "role_ids": [_read_only_role_id(client)],
+        },
+    )
+    assert created.status_code == 201, created.text
+    accepted = client.post(f"/auth/invite/{token}/accept", json={"password": password})
+    assert accepted.status_code == 200, accepted.text
+    return _created_user(created)
+
+
 def test_policy_constants() -> None:
     assert MIN_PASSWORD_LENGTH == 12
     assert MAX_PASSWORD_LENGTH >= 128
@@ -90,60 +129,57 @@ def test_common_password_rejected_on_change(auth_client: TestClient) -> None:
     assert response.json()["detail"] == GENERIC_PASSWORD_ERROR
 
 
-def test_email_based_password_rejected_on_create(auth_client: TestClient) -> None:
+def test_email_based_password_rejected_on_accept(auth_client: TestClient, monkeypatch) -> None:
     assert _login(auth_client).status_code == 200
     email = "jordan.hale@example.com"
-    response = auth_client.post(
+    token = "policy-jordan-hale-token"
+    _set_invite_token(monkeypatch, token)
+    created = auth_client.post(
         "/users",
         json={
             "full_name": "Jordan Hale",
             "email": email,
-            "password": "jordan.hale-ok",
-            "status": "active",
             "role_ids": [_read_only_role_id(auth_client)],
         },
+    )
+    assert created.status_code == 201, created.text
+    response = auth_client.post(
+        f"/auth/invite/{token}/accept",
+        json={"password": "jordan.hale-ok"},
     )
     assert response.status_code == 400
     assert response.json()["detail"] == GENERIC_PASSWORD_ERROR
     assert "jordan.hale" not in response.text.lower() or response.json()["detail"] == GENERIC_PASSWORD_ERROR
 
 
-def test_strong_password_accepted_on_create_and_login(auth_client: TestClient) -> None:
+def test_strong_password_accepted_on_create_and_login(auth_client: TestClient, monkeypatch) -> None:
     assert _login(auth_client).status_code == 200
     email = "policy.strong@example.com"
-    created = auth_client.post(
-        "/users",
-        json={
-            "full_name": "Policy Strong",
-            "email": email,
-            "password": STRONG_PASSWORD,
-            "status": "active",
-            "role_ids": [_read_only_role_id(auth_client)],
-        },
+    created_user = _invite_and_activate(
+        auth_client,
+        monkeypatch,
+        email=email,
+        password=STRONG_PASSWORD,
+        full_name="Policy Strong",
     )
-    assert created.status_code == 201, created.text
-    assert "password" not in created.json()
-    assert STRONG_PASSWORD not in created.text
+    assert "password" not in created_user
+    assert STRONG_PASSWORD not in str(created_user)
     auth_client.post("/auth/logout")
     login = _login(auth_client, email, STRONG_PASSWORD)
     assert login.status_code == 200
     assert login.json()["email"] == email
 
 
-def test_long_password_is_not_truncated(auth_client: TestClient) -> None:
+def test_long_password_is_not_truncated(auth_client: TestClient, monkeypatch) -> None:
     assert _login(auth_client).status_code == 200
     email = "policy.long@example.com"
-    created = auth_client.post(
-        "/users",
-        json={
-            "full_name": "Policy Long",
-            "email": email,
-            "password": LONG_PASSWORD,
-            "status": "active",
-            "role_ids": [_read_only_role_id(auth_client)],
-        },
+    _invite_and_activate(
+        auth_client,
+        monkeypatch,
+        email=email,
+        password=LONG_PASSWORD,
+        full_name="Policy Long",
     )
-    assert created.status_code == 201, created.text
     auth_client.post("/auth/logout")
     assert _login(auth_client, email, LONG_PASSWORD).status_code == 200
     truncated = LONG_PASSWORD[:72]
@@ -155,20 +191,16 @@ def test_long_password_is_not_truncated(auth_client: TestClient) -> None:
     assert not verify_password(truncated, digest)
 
 
-def test_password_change_enforces_policy_then_accepts_strong(auth_client: TestClient) -> None:
+def test_password_change_enforces_policy_then_accepts_strong(auth_client: TestClient, monkeypatch) -> None:
     assert _login(auth_client).status_code == 200
     email = "policy.change@example.com"
-    created = auth_client.post(
-        "/users",
-        json={
-            "full_name": "Policy Change",
-            "email": email,
-            "password": STRONG_PASSWORD,
-            "status": "active",
-            "role_ids": [_read_only_role_id(auth_client)],
-        },
+    _invite_and_activate(
+        auth_client,
+        monkeypatch,
+        email=email,
+        password=STRONG_PASSWORD,
+        full_name="Policy Change",
     )
-    assert created.status_code == 201, created.text
     auth_client.post("/auth/logout")
     assert _login(auth_client, email, STRONG_PASSWORD).status_code == 200
     rejected = auth_client.post(
@@ -190,21 +222,19 @@ def test_password_change_enforces_policy_then_accepts_strong(auth_client: TestCl
 
 def test_admin_password_reset_does_not_return_secret_and_invalidates_old(
     auth_client: TestClient,
+    monkeypatch,
 ) -> None:
     assert _login(auth_client).status_code == 200
     email = "policy.reset@example.com"
-    created = auth_client.post(
-        "/users",
-        json={
-            "full_name": "Policy Reset",
-            "email": email,
-            "password": STRONG_PASSWORD,
-            "status": "active",
-            "role_ids": [_read_only_role_id(auth_client)],
-        },
+    created_user = _invite_and_activate(
+        auth_client,
+        monkeypatch,
+        email=email,
+        password=STRONG_PASSWORD,
+        full_name="Policy Reset",
     )
-    assert created.status_code == 201, created.text
-    user_id = created.json()["id"]
+    user_id = created_user["id"]
+    assert _login(auth_client).status_code == 200
     reset = auth_client.post(f"/users/{user_id}/reset-password")
     assert reset.status_code == 200, reset.text
     body = reset.json()
@@ -222,11 +252,11 @@ def test_invited_user_does_not_use_fixed_default_password(auth_client: TestClien
         json={
             "full_name": "Policy Invite",
             "email": email,
-            "status": "invited",
             "role_ids": [_read_only_role_id(auth_client)],
         },
     )
     assert created.status_code == 201, created.text
+    assert _created_user(created)["status"] == "invited"
     auth_client.post("/auth/logout")
     known = _login(auth_client, email, "InvitedUser1!")
     assert known.status_code in {401, 403}

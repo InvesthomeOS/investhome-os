@@ -95,15 +95,29 @@ class UserListResponse(BaseModel):
 class UserCreate(BaseModel):
     full_name: str = Field(min_length=1, max_length=255)
     email: EmailStr
-    password: str | None = Field(default=None, min_length=1, max_length=256)
     phone: str | None = Field(default=None, max_length=50)
     job_title: str | None = Field(default=None, max_length=255)
     department: str | None = Field(default=None, max_length=100)
-    status: UserStatus = UserStatus.INVITED
     preferred_language: str = Field(default="tr", pattern=r"^(tr|en)$")
     timezone: str = Field(default="UTC", max_length=64)
     avatar_url: str | None = Field(default=None, max_length=500)
     role_ids: list[UUID] = Field(default_factory=list)
+
+
+class InviteDeliveryResponse(BaseModel):
+    user: UserResponse
+    delivery_status: str
+    channel: str = "email"
+
+
+class InvitePreviewResponse(BaseModel):
+    email: EmailStr
+    full_name: str
+    expires_at: datetime
+
+
+class InviteAcceptRequest(BaseModel):
+    password: str = Field(min_length=1, max_length=256)
 
 
 class UserUpdate(BaseModel):

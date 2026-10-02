@@ -50,9 +50,9 @@ ARCHITECTURE_AUDIT: list[dict] = [
     },
     {
         "capability": "Notification gateway (email/SMS)",
-        "status": "NOT CONFIGURED",
-        "reuse": "services/notification_gateway.py stubs",
-        "notes": "Honest not_connected / planned providers",
+        "status": "PARTIAL",
+        "reuse": "services/notification_gateway.py + smtp_email.py",
+        "notes": "Generic SMTP; not_connected until SMTP_HOST and SMTP_FROM_EMAIL are set",
     },
     {
         "capability": "Marketing webhooks",
@@ -443,7 +443,7 @@ INTEGRATION_SEED: list[dict] = [
         "status": IntegrationStatus.NOT_CONNECTED.value,
         "description_en": "Notification gateway — not connected",
         "description_tr": "Bildirim ağ geçidi — bağlı değil",
-        "env_keys_json": ["SMTP_HOST", "SMTP_USER"],
+        "env_keys_json": ["SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD", "SMTP_USE_TLS", "SMTP_FROM_EMAIL", "SMTP_FROM_NAME", "APP_PUBLIC_URL"],
         "sort_order": 2,
     },
     {

@@ -27,6 +27,12 @@ CSRF_EXEMPT_PATHS = frozenset(
 )
 
 
+def is_csrf_exempt_path(path: str) -> bool:
+    if path in CSRF_EXEMPT_PATHS:
+        return True
+    return path.startswith("/auth/invite/")
+
+
 def csrf_binding_key(*, user_id: str, jti: str | None) -> str:
     if jti and jti.strip():
         return jti.strip()

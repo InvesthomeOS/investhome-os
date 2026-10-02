@@ -161,11 +161,42 @@ export async function fetchUser(userId: string): Promise<UserRecord> {
   return apiFetch(`/users/${userId}`);
 }
 
-export async function createUser(payload: Record<string, unknown>): Promise<UserRecord> {
+export async function createUser(payload: Record<string, unknown>): Promise<InviteDelivery> {
   return apiFetch('/users', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+export type InviteDelivery = {
+  user: UserRecord;
+  delivery_status: 'not_connected' | 'not_sent' | 'failed' | 'sent';
+  channel?: string;
+};
+
+export type InvitePreview = {
+  email: string;
+  full_name: string;
+  expires_at: string;
+};
+
+export async function fetchInvitePreview(token: string): Promise<InvitePreview> {
+  return apiFetch(`/auth/invite/${encodeURIComponent(token)}`);
+}
+
+export async function acceptInvite(token: string, password: string): Promise<void> {
+  await apiFetch(`/auth/invite/${encodeURIComponent(token)}/accept`, {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  });
+}
+
+export async function resendUserInvite(userId: string): Promise<InviteDelivery> {
+  return apiFetch(`/users/${userId}/invite/resend`, { method: 'POST' });
+}
+
+export async function activateUser(userId: string): Promise<UserRecord> {
+  return apiFetch(`/users/${userId}/activate`, { method: 'POST' });
 }
 
 export async function updateUser(userId: string, payload: Record<string, unknown>): Promise<UserRecord> {

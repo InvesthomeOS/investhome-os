@@ -16,6 +16,8 @@ from investhome_api.schemas.auth import (
     ChangePasswordRequest,
     CsrfTokenResponse,
     CurrentUserResponse,
+    InviteAcceptRequest,
+    InvitePreviewResponse,
     LoginRequest,
     MessageResponse,
     MfaChallengeRequiredResponse,
@@ -45,6 +47,10 @@ from investhome_api.services.password_policy import (
     production_blocks_demo_staff_login,
     validate_new_password,
 )
+from investhome_api.services.invite_rate_limit import (
+    enforce_invite_rate_limit,
+    reject_invite_attempt,
+)
 from investhome_api.services.login_rate_limit import (
     clear_failed_login_attempts_for_identity,
     clear_mfa_confirm_failures,
@@ -57,6 +63,12 @@ from investhome_api.services.login_rate_limit import (
     record_failed_mfa_confirm,
     record_failed_mfa_verify,
     resolve_client_ip,
+)
+from investhome_api.services.user_invitation import (
+    InvitationError,
+    accept_invitation,
+    invitation_is_redeemable,
+    lookup_invitation_by_token,
 )
 from investhome_api.services.mfa_challenge import (
     consume_mfa_challenge,
@@ -119,8 +131,6 @@ def _issue_authenticated_session(
 ) -> CurrentUserResponse:
     settings = get_settings()
     user.last_login_at = datetime.now(UTC)
-    if user.status == UserStatus.INVITED:
-        user.status = UserStatus.ACTIVE
     db.flush()
 
     from investhome_api.services.session_lifetime import compute_access_expiry, session_started_at
@@ -196,6 +206,13 @@ def login(
             detail="Account is not active",
         )
 
+    if user.status == UserStatus.INVITED:
+        record_login_failed(db, email=identity, user=user, request=request)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is not active",
+        )
+
     if user.status == UserStatus.SUSPENDED:
         record_login_failed(db, email=identity, user=user, request=request)
         raise HTTPException(
@@ -235,6 +252,57 @@ def login(
         )
 
     return _issue_authenticated_session(db=db, user=loaded, request=request, response=response)
+
+
+@router.get("/invite/{token}", response_model=InvitePreviewResponse)
+def preview_invite(
+    token: str,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> InvitePreviewResponse:
+    client_ip = resolve_client_ip(request)
+    enforce_invite_rate_limit(ip=client_ip, token=token)
+    invitation = lookup_invitation_by_token(db, token)
+    if invitation is None or not invitation_is_redeemable(invitation):
+        reject_invite_attempt(ip=client_ip, token=token)
+    user = db.get(User, invitation.user_id)
+    if user is None or user.archived_at is not None or user.status != UserStatus.INVITED:
+        reject_invite_attempt(ip=client_ip, token=token)
+    return InvitePreviewResponse(
+        email=user.email,
+        full_name=user.full_name,
+        expires_at=invitation.expires_at,
+    )
+
+
+@router.post("/invite/{token}/accept", response_model=MessageResponse)
+def accept_invite(
+    token: str,
+    payload: InviteAcceptRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    client_ip = resolve_client_ip(request)
+    enforce_invite_rate_limit(ip=client_ip, token=token)
+    try:
+        user = accept_invitation(db, token=token, password=payload.password)
+    except InvitationError as exc:
+        if exc.message == "password_policy":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=GENERIC_PASSWORD_ERROR,
+            ) from exc
+        reject_invite_attempt(ip=client_ip, token=token)
+    record_auth_event(
+        "user.invite_accepted",
+        db=db,
+        actor=user,
+        actor_id=user.id,
+        target_id=user.id,
+        request=request,
+    )
+    db.commit()
+    return MessageResponse(message="Invitation accepted")
 
 
 @router.post("/logout", response_model=MessageResponse)

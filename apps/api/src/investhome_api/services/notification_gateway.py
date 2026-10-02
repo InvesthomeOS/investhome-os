@@ -35,6 +35,7 @@ class GatewayMessage:
     recipient: str
     subject: str | None = None
     body: str = ""
+    html_body: str | None = None
     locale: str = "tr"
     metadata: dict[str, Any] = field(default_factory=dict)
     require_human_approval: bool = False
@@ -82,23 +83,6 @@ class InAppNotificationProvider(NotificationProvider):
         )
 
 
-class StubEmailProvider(NotificationProvider):
-    provider_id = "email_smtp"
-    channel = NotificationChannel.EMAIL
-
-    def readiness(self) -> ProviderReadiness:
-        return ProviderReadiness.NOT_CONNECTED
-
-    def send(self, message: GatewayMessage) -> GatewayResult:
-        return GatewayResult(
-            ok=False,
-            provider_id=self.provider_id,
-            channel=self.channel,
-            status="not_connected",
-            detail="SMTP/email provider not configured — Planned for later phase",
-        )
-
-
 class StubSmsProvider(NotificationProvider):
     provider_id = "sms"
     channel = NotificationChannel.SMS
@@ -121,8 +105,10 @@ class NotificationGateway:
 
     def __init__(self) -> None:
         self._providers: dict[str, NotificationProvider] = {}
+        from investhome_api.services.smtp_email import SmtpEmailProvider
+
         self.register(InAppNotificationProvider())
-        self.register(StubEmailProvider())
+        self.register(SmtpEmailProvider())
         self.register(StubSmsProvider())
 
     def register(self, provider: NotificationProvider) -> None:
@@ -194,3 +180,8 @@ def get_notification_gateway() -> NotificationGateway:
     if _gateway is None:
         _gateway = NotificationGateway()
     return _gateway
+
+
+def reset_notification_gateway_for_tests() -> None:
+    global _gateway
+    _gateway = None

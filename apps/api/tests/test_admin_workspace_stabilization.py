@@ -56,13 +56,12 @@ def test_admin_create_user_role_assign_and_deactivate(auth_client: TestClient) -
         json={
             "full_name": "Stabilize Admin User",
             "email": email,
-            "password": "TempPass123!",
-            "status": "active",
             "role_ids": [read_only["id"]],
         },
     )
     assert created.status_code == 201, created.text
-    user_id = created.json()["id"]
+    user_id = created.json()["user"]["id"]
+    assert created.json()["user"]["status"] == "invited"
 
     assign = auth_client.put(
         f"/users/{user_id}/roles",
@@ -175,8 +174,6 @@ def test_admin_mutations_write_activity_logs(auth_client: TestClient) -> None:
             json={
                 "full_name": "Audit Trail User",
                 "email": email,
-                "password": "TempPass123!",
-                "status": "active",
                 "role_ids": [read_only["id"]],
             },
         )

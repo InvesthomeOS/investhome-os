@@ -82,7 +82,7 @@ export async function middleware(request: NextRequest) {
 
   // Public auth route: always reachable, even with a stale/bogus cookie.
   // Do not treat cookie presence as proof of authentication.
-  if (pathname === '/login' || pathname.startsWith('/login/')) {
+  if (pathname === '/login' || pathname.startsWith('/login/') || pathname.startsWith('/invite')) {
     return continueRequest(request);
   }
 

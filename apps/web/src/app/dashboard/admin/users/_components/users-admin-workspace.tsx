@@ -9,12 +9,15 @@ import { Button, Dialog, PageHeader } from '@investhome/ui';
 import { EntityActivityTimeline } from '@/app/dashboard/_components/entity-activity-timeline';
 import { EntityDocumentsPanel } from '@/app/dashboard/_components/entity-documents-panel';
 import {
+  activateUser,
   assignUserRoles,
   canViewUsers,
   createUser,
   deactivateUser,
   fetchRoles,
   fetchUsers,
+  resendUserInvite,
+  type InviteDelivery,
   type RoleSummary,
   type UserRecord,
   updateUser,
@@ -134,9 +137,43 @@ export function UsersAdminWorkspace() {
     }
   };
 
-  const handleRoleChange = async (userId: string, roleId: string) => {
+  const handleActivate = async (userId: string) => {
     try {
-      await assignUserRoles(userId, [roleId]);
+      await activateUser(userId);
+      notifySuccess(tShell('activatedUser'));
+      await load();
+    } catch (activateError) {
+      notifyError(activateError, tShell('saveFailed'));
+    }
+  };
+
+  const notifyInviteDelivery = (result: InviteDelivery, successKey: 'invitedUser' | 'inviteResent') => {
+    notifySuccess(tShell(successKey));
+    if (result.delivery_status === 'not_connected') {
+      notifySuccess(tShell('emailNotConnected'));
+    } else if (result.delivery_status === 'failed') {
+      notifySuccess(tShell('emailFailed'));
+    } else if (result.delivery_status !== 'sent') {
+      notifySuccess(tShell('emailNotSent'));
+    }
+  };
+
+  const handleResendInvite = async (userId: string) => {
+    try {
+      const result = await resendUserInvite(userId);
+      notifyInviteDelivery(result, 'inviteResent');
+      await load();
+    } catch (resendError) {
+      notifyError(resendError, tShell('saveFailed'));
+    }
+  };
+
+  const handleRolesChange = async (userId: string, roleIds: string[]) => {
+    if (roleIds.length === 0) {
+      return;
+    }
+    try {
+      await assignUserRoles(userId, roleIds);
       notifySuccess(tShell('roleAssigned'));
       await load();
     } catch (roleError) {
@@ -198,19 +235,22 @@ export function UsersAdminWorkspace() {
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const roleIds = form.getAll('role_ids').map(String).filter(Boolean);
+    if (roleIds.length === 0) {
+      notifyError(new Error(t('fields.selectRoles')), tShell('saveFailed'));
+      return;
+    }
     try {
-      await createUser({
+      const result = await createUser({
         full_name: String(form.get('full_name')),
         email: String(form.get('email')),
-        password: String(form.get('password')),
         job_title: String(form.get('job_title') || ''),
         department: String(form.get('department') || ''),
-        status: 'active',
-        role_ids: [String(form.get('role_id'))],
+        role_ids: roleIds,
       });
       setFormOpen(false);
       setFormDirty(false);
-      notifySuccess(tShell('savedUser'));
+      notifyInviteDelivery(result, 'invitedUser');
       await load();
     } catch (createError) {
       notifyError(createError, tShell('saveFailed'));
@@ -252,9 +292,13 @@ export function UsersAdminWorkspace() {
       render: (row) =>
         canManage ? (
           <select
-            value={row.roles[0]?.id ?? ''}
+            multiple
+            value={row.roles.map((role) => role.id)}
             onClick={(event) => event.stopPropagation()}
-            onChange={(event) => void handleRoleChange(row.id, event.target.value)}
+            onChange={(event) => {
+              const selected = Array.from(event.currentTarget.selectedOptions, (option) => option.value);
+              void handleRolesChange(row.id, selected);
+            }}
           >
             {roles.map((role) => (
               <option key={role.id} value={role.id}>
@@ -353,6 +397,16 @@ export function UsersAdminWorkspace() {
                   {tSec('suspend')}
                 </Button>
               ) : null}
+              {row.status === 'invited' ? (
+                <Button type="button" variant="ghost" onClick={() => void handleResendInvite(row.id)}>
+                  {t('resendInvite')}
+                </Button>
+              ) : null}
+              {row.status === 'inactive' ? (
+                <Button type="button" variant="ghost" onClick={() => void handleActivate(row.id)}>
+                  {t('activate')}
+                </Button>
+              ) : null}
               {row.status === 'active' ? (
                 <Button type="button" variant="danger" onClick={() => void handleDeactivate(row.id)}>
                   {t('deactivate')}
@@ -374,7 +428,7 @@ export function UsersAdminWorkspace() {
         actions={
           canManage ? (
             <Button type="button" onClick={() => setFormOpen(true)}>
-              {t('createUser')}
+              {t('inviteUser')}
             </Button>
           ) : null
         }
@@ -461,8 +515,8 @@ export function UsersAdminWorkspace() {
 
       <AdminFormModal
         open={formOpen}
-        title={t('createUser')}
-        submitLabel={t('createUser')}
+        title={t('inviteUser')}
+        submitLabel={t('inviteUser')}
         dirty={formDirty}
         onClose={() => {
           setFormOpen(false);
@@ -479,10 +533,6 @@ export function UsersAdminWorkspace() {
           <input name="email" type="email" required onChange={() => setFormDirty(true)} />
         </label>
         <label>
-          {t('fields.password')}
-          <input name="password" type="password" minLength={12} maxLength={256} required onChange={() => setFormDirty(true)} />
-        </label>
-        <label>
           {t('fields.jobTitle')}
           <input name="job_title" onChange={() => setFormDirty(true)} />
         </label>
@@ -490,19 +540,21 @@ export function UsersAdminWorkspace() {
           {t('fields.department')}
           <input name="department" onChange={() => setFormDirty(true)} />
         </label>
-        <label>
-          {t('fields.role')}
-          <select name="role_id" required defaultValue="" onChange={() => setFormDirty(true)}>
-            <option value="" disabled>
-              {t('fields.selectRole')}
-            </option>
-            {roles.map((role) => (
-              <option key={role.id} value={role.id}>
-                {role.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <fieldset>
+          <legend>{t('fields.roles')}</legend>
+          <p>{t('fields.selectRoles')}</p>
+          {roles.map((role) => (
+            <label key={role.id}>
+              <input
+                type="checkbox"
+                name="role_ids"
+                value={role.id}
+                onChange={() => setFormDirty(true)}
+              />
+              {role.name}
+            </label>
+          ))}
+        </fieldset>
       </AdminFormModal>
     </main>
   );

@@ -5898,6 +5898,18 @@
       "accountInactive": "Your account is not active.",
       "loginFailed": "Sign in failed."
     },
+    "invite": {
+      "title": "Set your password",
+      "subtitle": "Choose a password to activate your account.",
+      "passwordLabel": "New password",
+      "confirmLabel": "Confirm password",
+      "submit": "Activate account",
+      "submitting": "Saving…",
+      "invalid": "This invitation is invalid or has expired.",
+      "mismatch": "Passwords do not match.",
+      "accepted": "Your account is ready. Sign in with your new password.",
+      "failed": "Unable to activate this invitation."
+    },
     "mfa": {
       "title": "Two-factor authentication",
       "subtitle": "Enter the 6-digit code from your authenticator app, or a recovery code.",
@@ -5974,7 +5986,10 @@
     "eyebrow": "Administration",
     "title": "Users",
     "subtitle": "Manage internal users, roles, and account status.",
-    "createUser": "Create user",
+    "createUser": "Invite user",
+    "inviteUser": "Invite user",
+    "resendInvite": "Resend invite",
+    "activate": "Activate",
     "deactivate": "Deactivate",
     "loadError": "Unable to load users.",
     "columns": {
@@ -5999,7 +6014,9 @@
       "jobTitle": "Job title",
       "department": "Department",
       "role": "Role",
-      "selectRole": "Select role"
+      "roles": "Roles",
+      "selectRole": "Select role",
+      "selectRoles": "Select one or more roles"
     }
   },
   "adminRoles": {
@@ -6042,13 +6059,19 @@
     "dismissToast": "Dismiss",
     "dirtyWarning": "Discard unsaved changes?",
     "savedUser": "User saved.",
+    "invitedUser": "User invited.",
+    "inviteResent": "Invitation resent.",
+    "emailNotConnected": "Email provider is not connected. Invitation was not sent.",
+    "emailNotSent": "Invitation email was not sent.",
+    "emailFailed": "Invitation email could not be delivered.",
+    "activatedUser": "User activated.",
     "savedRole": "Role created.",
     "deactivatedUser": "User deactivated.",
     "roleAssigned": "Role assignment updated.",
     "permissionsUpdated": "Role permissions updated.",
     "saveFailed": "Unable to save changes.",
     "emptyUsers": "No users match the current filters.",
-    "emptyUsersHint": "Adjust filters or create a user if you have permission.",
+    "emptyUsersHint": "Adjust filters or invite a user if you have permission.",
     "emptyRoles": "No roles match the current filters.",
     "emptyPermissions": "No permissions match the current filters.",
     "readOnlyPermissions": "You can view permissions but cannot edit role assignments.",

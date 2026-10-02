@@ -31,6 +31,11 @@ const CSRF_EXEMPT_PATHS = new Set([
   '/auth/mfa/enroll/required/confirm',
 ]);
 
+function isCsrfExemptPath(path: string): boolean {
+  if (CSRF_EXEMPT_PATHS.has(path)) return true;
+  return path.startsWith('/auth/invite/');
+}
+
 let csrfTokenMemory: string | null = null;
 
 function createRequestId(): string {
@@ -76,7 +81,7 @@ export async function applyCsrfHeaders(url: string, init?: RequestInit): Promise
   const headers = new Headers(init?.headers);
   const method = (init?.method ?? 'GET').toUpperCase();
   if (!STATE_CHANGING_METHODS.has(method)) return headers;
-  if (CSRF_EXEMPT_PATHS.has(requestPath(url))) return headers;
+  if (isCsrfExemptPath(requestPath(url))) return headers;
   if (headers.has(CSRF_HEADER)) return headers;
   const token = await ensureCsrfToken();
   if (token) headers.set(CSRF_HEADER, token);

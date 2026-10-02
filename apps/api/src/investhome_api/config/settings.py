@@ -220,6 +220,16 @@ class Settings(BaseSettings):
         alias="API_TRUSTED_PROXY_IPS",
     )
     mfa_totp_issuer: str = Field(default="InvestHomeOS", alias="MFA_TOTP_ISSUER")
+    user_invite_ttl_hours: int = Field(default=72, ge=1, le=720, alias="USER_INVITE_TTL_HOURS")
+
+    smtp_host: str | None = Field(default=None, alias="SMTP_HOST")
+    smtp_port: int = Field(default=587, ge=1, le=65535, alias="SMTP_PORT")
+    smtp_username: str | None = Field(default=None, alias="SMTP_USERNAME")
+    smtp_password: str | None = Field(default=None, alias="SMTP_PASSWORD")
+    smtp_use_tls: bool = Field(default=True, alias="SMTP_USE_TLS")
+    smtp_from_email: str | None = Field(default=None, alias="SMTP_FROM_EMAIL")
+    smtp_from_name: str = Field(default="InvestHome OS", alias="SMTP_FROM_NAME")
+    app_public_url: str | None = Field(default=None, alias="APP_PUBLIC_URL")
 
     # Public marketing form abuse protection (no production Turnstile keys yet).
     public_form_bot_verify: bool = Field(default=False, alias="PUBLIC_FORM_BOT_VERIFY")
@@ -282,6 +292,45 @@ class Settings(BaseSettings):
             return [item.strip() for item in stripped.split(",") if item.strip()]
         msg = "API_TRUSTED_PROXY_IPS must be a JSON array or comma-separated string"
         raise ValueError(msg)
+
+    @field_validator(
+        "smtp_host",
+        "smtp_username",
+        "smtp_password",
+        "smtp_from_email",
+        "app_public_url",
+        mode="before",
+    )
+    @classmethod
+    def empty_optional_secret_to_none(cls, value: Any) -> Any:
+        if value is None:
+            return None
+        if isinstance(value, str) and not value.strip():
+            return None
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+    @field_validator("smtp_from_name", mode="before")
+    @classmethod
+    def default_smtp_from_name(cls, value: Any) -> str:
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return "InvestHome OS"
+        return str(value).strip()
+
+    @field_validator("smtp_port", mode="before")
+    @classmethod
+    def default_smtp_port(cls, value: Any) -> Any:
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return 587
+        return value
+
+    @field_validator("smtp_use_tls", mode="before")
+    @classmethod
+    def default_smtp_use_tls(cls, value: Any) -> Any:
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return True
+        return value
 
     @field_validator("jwt_secret")
     @classmethod

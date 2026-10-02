@@ -271,9 +271,13 @@ def resolve_client_ip(request: Request) -> str:
     return peer
 
 
-def _hashed_key(prefix: str, value: str) -> str:
+def hashed_limit_key(prefix: str, value: str) -> str:
     digest = hashlib.sha256(value.encode("utf-8")).hexdigest()
     return f"{prefix}{digest}"
+
+
+def _hashed_key(prefix: str, value: str) -> str:
+    return hashed_limit_key(prefix, value)
 
 
 def ip_counter_key(ip: str) -> str:

@@ -5810,6 +5810,18 @@
       "accountInactive": "Hesabınız aktif değil.",
       "loginFailed": "Giriş başarısız oldu."
     },
+    "invite": {
+      "title": "Şifrenizi oluşturun",
+      "subtitle": "Hesabınızı etkinleştirmek için bir şifre seçin.",
+      "passwordLabel": "Yeni şifre",
+      "confirmLabel": "Şifreyi doğrula",
+      "submit": "Hesabı etkinleştir",
+      "submitting": "Kaydediliyor…",
+      "invalid": "Bu davet geçersiz veya süresi dolmuş.",
+      "mismatch": "Şifreler eşleşmiyor.",
+      "accepted": "Hesabınız hazır. Yeni şifrenizle giriş yapın.",
+      "failed": "Davet kabul edilemedi."
+    },
     "mfa": {
       "title": "İki adımlı doğrulama",
       "subtitle": "Kimlik doğrulama uygulamanızdaki 6 haneli kodu veya bir kurtarma kodunu girin.",
@@ -5886,7 +5898,10 @@
     "eyebrow": "Yönetim",
     "title": "Kullanıcılar",
     "subtitle": "Dahili kullanıcıları, rollerini ve durumlarını yönetin.",
-    "createUser": "Kullanıcı Oluştur",
+    "createUser": "Kullanıcı Davet Et",
+    "inviteUser": "Kullanıcı Davet Et",
+    "resendInvite": "Daveti Yeniden Gönder",
+    "activate": "Aktifleştir",
     "deactivate": "Devre Dışı Bırak",
     "loadError": "Kullanıcılar yüklenemedi.",
     "columns": {
@@ -5911,7 +5926,9 @@
       "jobTitle": "Ünvan",
       "department": "Departman",
       "role": "Rol",
-      "selectRole": "Rol seçin"
+      "roles": "Roller",
+      "selectRole": "Rol seçin",
+      "selectRoles": "Bir veya daha fazla rol seçin"
     }
   },
   "adminRoles": {
@@ -15621,13 +15638,19 @@
     "dismissToast": "Kapat",
     "dirtyWarning": "Kaydedilmemiş değişiklikler atılsın mı?",
     "savedUser": "Kullanıcı kaydedildi.",
+    "invitedUser": "Kullanıcı davet edildi.",
+    "inviteResent": "Davet yeniden gönderildi.",
+    "emailNotConnected": "E-posta sağlayıcısı bağlı değil. Davet gönderilmedi.",
+    "emailNotSent": "Davet e-postası gönderilmedi.",
+    "emailFailed": "Davet e-postası iletilemedi.",
+    "activatedUser": "Kullanıcı aktifleştirildi.",
     "savedRole": "Rol oluşturuldu.",
     "deactivatedUser": "Kullanıcı devre dışı bırakıldı.",
     "roleAssigned": "Rol ataması güncellendi.",
     "permissionsUpdated": "Rol izinleri güncellendi.",
     "saveFailed": "Değişiklikler kaydedilemedi.",
     "emptyUsers": "Mevcut filtrelere uyan kullanıcı yok.",
-    "emptyUsersHint": "Filtreleri ayarlayın veya yetkiniz varsa kullanıcı oluşturun.",
+    "emptyUsersHint": "Filtreleri ayarlayın veya yetkiniz varsa kullanıcı davet edin.",
     "emptyRoles": "Mevcut filtrelere uyan rol yok.",
     "emptyPermissions": "Mevcut filtrelere uyan izin yok.",
     "readOnlyPermissions": "İzinleri görüntüleyebilirsiniz ancak rol atamalarını düzenleyemezsiniz.",
