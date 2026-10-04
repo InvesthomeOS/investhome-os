@@ -145,7 +145,8 @@ describe('email HTML XSS hardening', () => {
     assert.match(csp, /script-src \$\{scriptSrc\}/);
     assert.match(csp, /img-src 'self' blob: data:/);
     assert.match(csp, /object-src 'none'/);
-    assert.match(csp, /style-src 'self' 'unsafe-inline'/);
+    assert.match(csp, /style-src-attr 'unsafe-inline'/);
+    assert.match(csp, /style-src-elem/);
     assert.doesNotMatch(csp, /script-src 'unsafe-inline'/);
   });
 });

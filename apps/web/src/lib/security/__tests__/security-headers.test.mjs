@@ -21,6 +21,15 @@ const headersMod = await import(
   pathToFileURL(join(here, '../security-headers.ts')).href
 );
 
+function directiveValue(csp, name) {
+  for (const part of csp.split(';')) {
+    const trimmed = part.trim();
+    const [key, ...rest] = trimmed.split(/\s+/);
+    if (key === name) return rest.join(' ');
+  }
+  return '';
+}
+
 describe('security headers', () => {
   it('emits CSP with required directives and no wildcard policy', () => {
     const csp = headersMod.buildContentSecurityPolicy('test-nonce', {
@@ -48,16 +57,33 @@ describe('security headers', () => {
     assert.doesNotMatch(csp, /default-src \*/);
     assert.doesNotMatch(csp, /script-src[^;]*\*/);
     assert.doesNotMatch(csp, /frame-ancestors \*/);
+    assert.doesNotMatch(csp, /(^|;)\s*[a-z-]+[^;]*\s\*(;|$)/);
   });
 
-  it('allows inline styles and the API origin, including X-CSRF-compatible connect-src', () => {
+  it('authorizes production styles with nonce on elements, not style-src unsafe-inline', () => {
     const csp = headersMod.buildContentSecurityPolicy('n', {
       apiUrl: 'http://localhost:8000',
     });
-    assert.match(csp, /style-src 'self' 'unsafe-inline'/);
+    assert.equal(directiveValue(csp, 'style-src'), `'self' 'nonce-n'`);
+    assert.equal(directiveValue(csp, 'style-src-elem'), `'self' 'nonce-n'`);
+    assert.equal(directiveValue(csp, 'style-src-attr'), `'unsafe-inline'`);
+    assert.doesNotMatch(directiveValue(csp, 'style-src'), /unsafe-inline/);
+    assert.doesNotMatch(directiveValue(csp, 'style-src-elem'), /unsafe-inline/);
     assert.match(csp, /connect-src[^;]*http:\/\/localhost:8000/);
     assert.match(csp, /connect-src[^;]*http:\/\/127\.0\.0\.1:8000/);
-    assert.doesNotMatch(csp, /unsafe-eval/);
+    assert.equal(directiveValue(csp, 'script-src').includes('unsafe-eval'), false);
+  });
+
+  it('keeps unsafe-eval and style-src unsafe-inline development-only', () => {
+    const csp = headersMod.buildContentSecurityPolicy('n', {
+      isDev: true,
+      apiUrl: 'http://localhost:8000',
+    });
+    assert.match(directiveValue(csp, 'script-src'), /unsafe-eval/);
+    assert.equal(directiveValue(csp, 'style-src'), `'self' 'unsafe-inline'`);
+    assert.equal(directiveValue(csp, 'style-src-elem'), '');
+    assert.equal(directiveValue(csp, 'style-src-attr'), `'unsafe-inline'`);
+    assert.doesNotMatch(directiveValue(csp, 'style-src'), /nonce-/);
   });
 
   it('sends HSTS on HTTPS production requests only', () => {
@@ -101,7 +127,11 @@ describe('security headers', () => {
         apiUrl: 'http://localhost:8000',
       },
     );
-    assert.equal(store.get('content-security-policy')?.includes("default-src 'self'"), true);
+    const csp = store.get('content-security-policy');
+    assert.equal(csp?.includes("default-src 'self'"), true);
+    assert.doesNotMatch(directiveValue(csp, 'script-src'), /unsafe-eval/);
+    assert.doesNotMatch(directiveValue(csp, 'style-src'), /unsafe-inline/);
+    assert.match(directiveValue(csp, 'style-src-elem'), /nonce-abc/);
     assert.equal(store.get('x-content-type-options'), 'nosniff');
     assert.equal(store.get('referrer-policy'), 'strict-origin-when-cross-origin');
     assert.equal(store.get('x-frame-options'), 'DENY');
@@ -128,6 +158,8 @@ describe('security headers', () => {
 
     const layout = read('src/app/layout.tsx');
     assert.match(layout, /nonce=\{nonce\}/);
+    assert.match(layout, /<script nonce=\{nonce\}/);
+    assert.match(layout, /<style[\s\S]*?nonce=\{nonce\}/);
     assert.match(layout, /getCspNonce/);
 
     const nextConfig = read('next.config.ts');

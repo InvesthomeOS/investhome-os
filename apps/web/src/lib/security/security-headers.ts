@@ -65,6 +65,26 @@ export function createCspNonce(): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
+function styleSrcDirectives(nonce: string, isDev?: boolean): string[] {
+  const nonceSrc = `'self' 'nonce-${nonce}'`;
+  // React `style={{}}` becomes HTML style attributes. CSP3 ignores
+  // 'unsafe-inline' on style-src when a nonce is present, so attributes
+  // must be authorized via style-src-attr. Removing that would require
+  // migrating 100+ inline style call sites off React style props.
+  const attr = "style-src-attr 'unsafe-inline'";
+  if (isDev) {
+    // Next.js HMR injects un-nonced <style> tags. Do not put a nonce on
+    // style-src in development — CSP3 would then ignore 'unsafe-inline'
+    // for style elements and break Fast Refresh.
+    return [`style-src 'self' 'unsafe-inline'`, attr];
+  }
+  return [
+    `style-src ${nonceSrc}`,
+    `style-src-elem ${nonceSrc}`,
+    attr,
+  ];
+}
+
 export function buildContentSecurityPolicy(nonce: string, options?: {
   isDev?: boolean;
   apiUrl?: string | null;
@@ -80,7 +100,7 @@ export function buildContentSecurityPolicy(nonce: string, options?: {
   return [
     "default-src 'self'",
     `script-src ${scriptSrc}`,
-    "style-src 'self' 'unsafe-inline'",
+    ...styleSrcDirectives(nonce, options?.isDev),
     `img-src 'self' blob: data: ${api}`,
     "font-src 'self' data:",
     `connect-src ${connectSrc}`,
