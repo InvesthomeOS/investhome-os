@@ -92,7 +92,7 @@ def list_mfa_methods() -> list[dict]:
             status, configured = "not_connected", False
             message = "TOTP adapter prepared; enrollment not yet enforced."
         elif pid == "email":
-            status, configured = _env_status(("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD"))
+            status, configured = _env_status(("SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD"))
             if status == "configured":
                 status, configured = "not_connected", False
                 message = "SMTP present; email MFA challenge adapter not wired."

@@ -82,3 +82,20 @@ def test_mfa_methods_not_fake_connected(auth_client: TestClient) -> None:
     assert body["recovery_codes_available"] is False
     for method in body["methods"]:
         assert method["status"] in {"not_connected", "missing", "configured", "invalid", "disabled"}
+
+
+def test_email_mfa_stays_not_connected_when_smtp_username_is_set(
+    auth_client: TestClient, monkeypatch
+) -> None:
+    monkeypatch.setenv("SMTP_HOST", "smtp.example.test")
+    monkeypatch.setenv("SMTP_USERNAME", "smtp-user")
+    monkeypatch.setenv("SMTP_PASSWORD", "smtp-test-password-never-log-this")
+    _login_admin(auth_client)
+    res = auth_client.get("/security/mfa")
+    assert res.status_code == 200
+    email = next(item for item in res.json()["methods"] if item["provider_id"] == "email")
+    assert email["status"] == "not_connected"
+    assert email["configured"] is False
+    assert "not wired" in (email.get("message") or "").lower()
+    blob = str(res.json())
+    assert "smtp-test-password-never-log-this" not in blob
