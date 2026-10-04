@@ -173,6 +173,7 @@ def test_production_bot_misconfig_fails_closed(
     monkeypatch.setenv("API_DEBUG", "false")
     monkeypatch.setenv("API_ENABLE_OPENAPI", "false")
     monkeypatch.setenv("API_AUTH_ENABLED", "true")
+    monkeypatch.setenv("API_CORS_ORIGINS", "https://os.investhome.com")
     monkeypatch.delenv("TURNSTILE_SECRET_KEY", raising=False)
     get_settings.cache_clear()
     form = _published_form(db)

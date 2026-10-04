@@ -245,9 +245,11 @@ services:
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-}
       N8N_DIAGNOSTICS_ENABLED: "false"
       GENERIC_TIMEZONE: UTC
+    entrypoint: ["/bin/sh", "/require-basic-auth.sh"]
     volumes:
       - n8n_data:/home/node/.n8n
       - ./automations/n8n/workflows:/home/node/workflows:ro
+      - ./infrastructure/docker/n8n/require-basic-auth.sh:/require-basic-auth.sh:ro
     depends_on:
       postgres:
         condition: service_healthy

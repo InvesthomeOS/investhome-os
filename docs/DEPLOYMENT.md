@@ -42,7 +42,7 @@ Worker command: `arq investhome_api.worker.settings.WorkerSettings`
 
 **Known issue:** `entrypoint.sh` may override CMD with uvicorn—verify worker logs show ARQ startup.
 
-Redis URL must point to `redis` service in Compose (`REDIS_URL=redis://redis:6379/0`).
+Redis URL must point to the `redis` service and include a password (`REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0`). Unauthenticated URLs such as `redis://localhost:6379/0` are not a valid default.
 
 ## Web
 

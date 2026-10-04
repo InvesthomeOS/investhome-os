@@ -5,11 +5,16 @@ import secrets
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Any
+from urllib.parse import urlparse
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
-from investhome_api.config.cors import DEFAULT_CORS_ORIGINS, sanitize_cors_origins
+from investhome_api.config.cors import (
+    DEFAULT_CORS_ORIGINS,
+    production_cors_problems,
+    sanitize_cors_origins,
+)
 
 # Published placeholders that must never be accepted at runtime.
 _FORBIDDEN_JWT_SECRETS = frozenset(
@@ -62,8 +67,8 @@ class Settings(BaseSettings):
     auth_cookie_samesite: str = Field(default="lax", alias="AUTH_COOKIE_SAMESITE")
     auth_cookie_domain: str | None = Field(default=None, alias="AUTH_COOKIE_DOMAIN")
 
-    cors_origins: Annotated[list[str], NoDecode] = Field(
-        default=["http://localhost:3000", "http://127.0.0.1:3000"],
+    cors_origins: Annotated[list[str] | None, NoDecode] = Field(
+        default=None,
         alias="API_CORS_ORIGINS",
     )
 
@@ -118,7 +123,7 @@ class Settings(BaseSettings):
     whatsapp_app_secret: str | None = Field(default=None, alias="WHATSAPP_APP_SECRET")
     whatsapp_verify_token: str | None = Field(default=None, alias="WHATSAPP_VERIFY_TOKEN")
 
-    redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
+    redis_url: str = Field(alias="REDIS_URL")
     # Backup readiness reporting only. BACKUP_PROVIDER does not connect a live adapter
     # and cannot produce a verified/healthy status by itself.
     backup_provider: str = Field(default="none", alias="BACKUP_PROVIDER")
@@ -251,19 +256,23 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
-    def parse_cors_origins(cls, value: Any) -> list[str]:
+    def parse_cors_origins(cls, value: Any) -> list[str] | None:
         if value is None:
-            return list(DEFAULT_CORS_ORIGINS)
+            return None
         if isinstance(value, list):
             return sanitize_cors_origins([str(origin) for origin in value])
         if isinstance(value, str):
             stripped = value.strip()
             if not stripped:
-                return list(DEFAULT_CORS_ORIGINS)
+                return None
             if stripped == "*":
                 return []
             if stripped.startswith("["):
-                parsed = json.loads(stripped)
+                try:
+                    parsed = json.loads(stripped)
+                except json.JSONDecodeError as exc:
+                    msg = "API_CORS_ORIGINS JSON value is malformed"
+                    raise ValueError(msg) from exc
                 if not isinstance(parsed, list):
                     msg = "API_CORS_ORIGINS JSON value must be an array"
                     raise ValueError(msg)
@@ -271,6 +280,24 @@ class Settings(BaseSettings):
             return sanitize_cors_origins(stripped.split(","))
         msg = "API_CORS_ORIGINS must be a JSON array or comma-separated string"
         raise ValueError(msg)
+
+    @field_validator("redis_url", mode="before")
+    @classmethod
+    def redis_url_required(cls, value: Any) -> str:
+        if value is None or (isinstance(value, str) and not str(value).strip()):
+            raise ValueError("REDIS_URL is required")
+        return str(value).strip()
+
+    @model_validator(mode="after")
+    def apply_development_cors_default(self) -> "Settings":
+        if self.cors_origins is not None:
+            return self
+        env = (self.environment or "").strip().lower()
+        if env in {"production", "prod"}:
+            self.cors_origins = []
+            return self
+        self.cors_origins = list(DEFAULT_CORS_ORIGINS)
+        return self
 
     @field_validator("trusted_proxy_ips", mode="before")
     @classmethod
@@ -405,12 +432,34 @@ def validate_required_secrets(settings: Settings) -> None:
         )
 
 
+def redis_url_is_authenticated(url: str) -> bool:
+    """True when REDIS_URL includes a non-empty password. Never log the URL."""
+    parsed = urlparse((url or "").strip())
+    password = parsed.password
+    return bool(password)
+
+
 def validate_production_security(settings: Settings) -> None:
     """Fail closed on known-dangerous auth defaults when environment=production."""
     validate_required_secrets(settings)
-    if settings.environment.lower() != "production":
+    env = _normalized_environment(settings)
+    production_like = env in _PRODUCTION_ENVIRONMENTS
+    if not production_like and settings.environment.lower() != "production":
         return
     problems: list[str] = []
+    if production_like:
+        if not (settings.redis_url or "").strip():
+            problems.append("REDIS_URL is required in production")
+        elif not redis_url_is_authenticated(settings.redis_url):
+            problems.append("REDIS_URL must include a password in production")
+        problems.extend(production_cors_problems(settings.cors_origins))
+    if settings.environment.lower() != "production":
+        if problems:
+            raise RuntimeError(
+                "Refusing to start with insecure production configuration: "
+                + "; ".join(problems)
+            )
+        return
     if not settings.auth_enabled:
         problems.append("API_AUTH_ENABLED must be true in production")
     if len(settings.jwt_secret.strip()) < 32:

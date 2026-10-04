@@ -124,7 +124,7 @@ def create_app() -> FastAPI:
 
     app.add_middleware(RequestIdMiddleware)
     app.add_middleware(CsrfProtectMiddleware)
-    cors_origins = list(settings.cors_origins)
+    cors_origins = list(settings.cors_origins or [])
     app.add_middleware(
         StrictCorsMiddleware,
         allow_origins=cors_origins,

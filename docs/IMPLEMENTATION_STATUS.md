@@ -486,7 +486,7 @@ No conflicting migration heads in source. Single linear chain.
 | Highly confidential + external AI | OK | Blocked by default (`AI_ALLOW_EXTERNAL_FOR_HIGHLY_CONFIDENTIAL=false`) |
 | CORS | OK | Configurable via `API_CORS_ORIGINS` |
 | Activity sensitive fields | OK | Sanitization in `activity_service` |
-| Docker secrets | Weak defaults | `POSTGRES_PASSWORD=investhome`, n8n `changeme` — dev only |
+| Docker secrets | Required | `POSTGRES_PASSWORD` has no usable default (historical `investhome` example is obsolete). n8n has no `admin`/`changeme` compose default. |
 | Privilege escalation tests | Partial | Document/search/activity confidentiality tested; not all roles |
 
 ---

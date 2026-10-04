@@ -6,6 +6,9 @@ os.environ["JWT_SECRET"] = "unit-test-jwt-secret-not-for-production-32"
 os.environ["DATABASE_URL"] = (
     "postgresql+psycopg://unit-test-db-user:unit-test-db-password-not-used@localhost:5432/unit_test"
 )
+os.environ["REDIS_URL"] = (
+    "redis://:unit-test-redis-password-not-used@localhost:6379/0"
+)
 
 import pytest
 from fastapi.testclient import TestClient

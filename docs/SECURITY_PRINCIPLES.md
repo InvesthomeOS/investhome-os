@@ -1,6 +1,6 @@
 # Investhome OS — Security Principles
 
-**Last updated:** 2026-07-15
+**Last updated:** 2026-10-04
 
 **Related:** [PERMISSION_MODEL.md](./PERMISSION_MODEL.md) · [AI_PRINCIPLES.md](./AI_PRINCIPLES.md) · [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md) · [DOCUMENT_STANDARDS.md](./DOCUMENT_STANDARDS.md)
 
@@ -22,7 +22,7 @@
 
 - Rotate `JWT_SECRET` — never use dev default
 - Set `AUTH_COOKIE_SECURE=true`
-- Restrict `API_CORS_ORIGINS` to exact web origins
+- Restrict `API_CORS_ORIGINS` to exact HTTPS web origins (no localhost fallback in production)
 
 ---
 
@@ -153,14 +153,25 @@ Changes requiring security review per [CHANGE_MANAGEMENT.md](./CHANGE_MANAGEMENT
 
 ---
 
+## Historical / obsolete examples
+
+The following were **historical local examples** and are **not current**. Do not copy them.
+
+| Obsolete example | Current requirement |
+|------------------|---------------------|
+| `POSTGRES_PASSWORD=investhome` | `POSTGRES_PASSWORD` is required. Compose fails closed if it is unset (`:?`). There is no usable default. |
+| n8n `admin` / `changeme` | Set unique `N8N_BASIC_AUTH_USER` / `N8N_BASIC_AUTH_PASSWORD` when n8n is enabled. Published defaults are rejected. |
+| Redis with no password / `redis://localhost:6379/0` | `REDIS_URL` is required. Production URLs must include a password. Compose interpolates `redis://:${REDIS_PASSWORD}@redis:6379/0`. |
+
+---
+
 ## Known Dev Weaknesses (not production-ready)
 
 | Item | Risk | Mitigation for prod |
 |------|------|---------------------|
-| `POSTGRES_PASSWORD=investhome` | DB compromise | Strong unique password |
-| `JWT_SECRET` dev default | Token forgery | Secret manager |
-| n8n `changeme` password | Workflow access | Change + network isolate |
-| Redis no password | Queue poisoning | `requirepass` + network policy |
+| `JWT_SECRET` if left as a published placeholder | Token forgery | Secret manager; fail-closed unique secret |
+| n8n if started without unique basic-auth | Workflow access | Require explicit credentials; isolate the n8n network |
+| Redis if `REDIS_URL` is omitted | Queue poisoning | Required `REDIS_URL` + `requirepass` + network policy |
 
 ---
 

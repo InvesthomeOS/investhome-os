@@ -8,7 +8,7 @@ n8n persists workflow state to the `n8n` PostgreSQL schema created by `infrastru
 
 ## Security
 
-- Enable basic auth in production (`N8N_BASIC_AUTH_*`)
+- Require unique `N8N_BASIC_AUTH_USER` / `N8N_BASIC_AUTH_PASSWORD` (no published defaults)
 - Replace `N8N_ENCRYPTION_KEY` with a cryptographically secure 32+ character value
 - Disable diagnostics in production (`N8N_DIAGNOSTICS_ENABLED=false`)
 

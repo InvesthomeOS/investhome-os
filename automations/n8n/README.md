@@ -15,7 +15,7 @@ automations/n8n/
 When running via Docker Compose:
 
 - URL: http://localhost:5678
-- Credentials: configured via `N8N_BASIC_AUTH_USER` / `N8N_BASIC_AUTH_PASSWORD` in `.env`
+- Credentials: set unique `N8N_BASIC_AUTH_USER` / `N8N_BASIC_AUTH_PASSWORD` in `.env` (no published defaults)
 
 ## Conventions
 

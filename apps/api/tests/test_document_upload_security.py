@@ -200,6 +200,7 @@ def _settings(**overrides: object) -> Settings:
         "API_ENVIRONMENT": "development",
         "JWT_SECRET": _TEST_JWT,
         "DATABASE_URL": _TEST_DB,
+        "REDIS_URL": "redis://:unit-test-redis-password-not-used@localhost:6379/0",
         "DOCUMENT_MALWARE_SCAN_ENABLED": False,
         "DOCUMENT_MALWARE_SCAN_PROVIDER": "stub",
         "DOCUMENT_MALWARE_SCAN_FAIL_CLOSED": True,
