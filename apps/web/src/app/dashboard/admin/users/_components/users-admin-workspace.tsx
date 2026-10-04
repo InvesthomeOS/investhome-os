@@ -17,6 +17,7 @@ import {
   fetchRoles,
   fetchUsers,
   resendUserInvite,
+  combinePersonName,
   type InviteDelivery,
   type RoleSummary,
   type UserRecord,
@@ -241,8 +242,13 @@ export function UsersAdminWorkspace() {
       return;
     }
     try {
+      const fullName = combinePersonName(String(form.get('first_name') || ''), String(form.get('last_name') || ''));
+      if (!fullName) {
+        notifyError(new Error(t('fields.firstName')), tShell('saveFailed'));
+        return;
+      }
       const result = await createUser({
-        full_name: String(form.get('full_name')),
+        full_name: fullName,
         email: String(form.get('email')),
         job_title: String(form.get('job_title') || ''),
         department: String(form.get('department') || ''),
@@ -525,8 +531,12 @@ export function UsersAdminWorkspace() {
         onSubmit={handleCreate}
       >
         <label>
-          {t('fields.fullName')}
-          <input name="full_name" required onChange={() => setFormDirty(true)} />
+          {t('fields.firstName')}
+          <input name="first_name" required autoComplete="given-name" onChange={() => setFormDirty(true)} />
+        </label>
+        <label>
+          {t('fields.lastName')}
+          <input name="last_name" required autoComplete="family-name" onChange={() => setFormDirty(true)} />
         </label>
         <label>
           {t('fields.email')}

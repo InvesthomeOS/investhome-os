@@ -149,6 +149,7 @@ def dispatch_invite_email(
     recipient_name: str,
     token: str,
     locale: str,
+    inviter_name: str = "",
 ) -> str:
     """Send via the notification gateway. Never logs the raw invite URL or token."""
     settings = get_settings()
@@ -159,6 +160,9 @@ def dispatch_invite_email(
         ttl_hours=int(settings.user_invite_ttl_hours),
         locale=locale or "tr",
         from_name=settings.smtp_from_name,
+        invited_email=recipient_email,
+        inviter_name=inviter_name,
+        asset_base_url=_frontend_base_url(),
     )
     gateway = get_notification_gateway()
     message = GatewayMessage(
@@ -208,11 +212,17 @@ def issue_invitation(
     )
     db.add(invitation)
     db.flush()
+    inviter_name = ""
+    if invited_by_user_id is not None:
+        inviter = db.get(User, invited_by_user_id)
+        if inviter is not None:
+            inviter_name = inviter.full_name or ""
     delivery_status = dispatch_invite_email(
         recipient_email=user.email,
         recipient_name=user.full_name,
         token=token,
         locale=user.preferred_language,
+        inviter_name=inviter_name,
     )
     return IssuedInvitation(
         invitation=invitation,
@@ -225,6 +235,7 @@ def accept_invitation(
     *,
     token: str,
     password: str,
+    full_name: str | None = None,
 ) -> User:
     invitation = lookup_invitation_by_token(db, token)
     if invitation is None or not invitation_is_redeemable(invitation):
@@ -234,11 +245,13 @@ def accept_invitation(
     if user is None or user.archived_at is not None or user.status != UserStatus.INVITED:
         raise InvitationError(GENERIC_INVITE_ERROR)
 
+    cleaned_name = (full_name or "").strip()
+    policy_name = cleaned_name or user.full_name
     try:
         validate_new_password(
             password,
             email=user.email,
-            full_name=user.full_name,
+            full_name=policy_name,
             user_id=user.id,
         )
     except PasswordPolicyError as exc:
@@ -248,6 +261,8 @@ def accept_invitation(
     invitation.consumed_at = now
     invitation.updated_at = now
     invalidate_outstanding_invitations(db, user.id)
+    if cleaned_name:
+        user.full_name = cleaned_name[:255]
     user.hashed_password = hash_password(password)
     user.status = UserStatus.ACTIVE
     user.updated_at = now

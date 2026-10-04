@@ -118,6 +118,7 @@ class InvitePreviewResponse(BaseModel):
 
 class InviteAcceptRequest(BaseModel):
     password: str = Field(min_length=1, max_length=256)
+    full_name: str | None = Field(default=None, max_length=255)
 
 
 class UserUpdate(BaseModel):

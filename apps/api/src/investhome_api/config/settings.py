@@ -225,7 +225,7 @@ class Settings(BaseSettings):
         alias="API_TRUSTED_PROXY_IPS",
     )
     mfa_totp_issuer: str = Field(default="InvestHomeOS", alias="MFA_TOTP_ISSUER")
-    user_invite_ttl_hours: int = Field(default=72, ge=1, le=720, alias="USER_INVITE_TTL_HOURS")
+    user_invite_ttl_hours: int = Field(default=168, ge=1, le=720, alias="USER_INVITE_TTL_HOURS")
 
     smtp_host: str | None = Field(default=None, alias="SMTP_HOST")
     smtp_port: int = Field(default=587, ge=1, le=65535, alias="SMTP_PORT")

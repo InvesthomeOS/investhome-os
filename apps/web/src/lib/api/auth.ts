@@ -180,14 +180,31 @@ export type InvitePreview = {
   expires_at: string;
 };
 
+export function splitPersonName(fullName: string): { firstName: string; lastName: string } {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  return { firstName: parts[0] ?? '', lastName: parts.slice(1).join(' ') };
+}
+
+export function combinePersonName(firstName: string, lastName: string): string {
+  return [firstName.trim(), lastName.trim()].filter(Boolean).join(' ');
+}
+
 export async function fetchInvitePreview(token: string): Promise<InvitePreview> {
   return apiFetch(`/auth/invite/${encodeURIComponent(token)}`);
 }
 
-export async function acceptInvite(token: string, password: string): Promise<void> {
+export async function acceptInvite(
+  token: string,
+  password: string,
+  fullName?: string,
+): Promise<void> {
+  const payload: Record<string, string> = { password };
+  if (fullName && fullName.trim()) {
+    payload.full_name = fullName.trim();
+  }
   await apiFetch(`/auth/invite/${encodeURIComponent(token)}/accept`, {
     method: 'POST',
-    body: JSON.stringify({ password }),
+    body: JSON.stringify(payload),
   });
 }
 

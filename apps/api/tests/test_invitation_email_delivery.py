@@ -12,10 +12,17 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from investhome_api.config.settings import get_settings
+from investhome_api.config.settings import Settings, get_settings
 from investhome_api.models.activity import ActivityLog
 from investhome_api.models.user_invitation import UserInvitation
-from investhome_api.services.invitation_email import build_invite_email
+from investhome_api.services.invitation_email import (
+    CTA_LABEL,
+    INVITE_EMAIL_SUBJECT,
+    INVITE_HERO_PATH,
+    INVITE_LOGO_PATH,
+    build_invite_email,
+    format_invite_ttl_label,
+)
 from investhome_api.services.notification_gateway import reset_notification_gateway_for_tests
 from investhome_api.services.smtp_email import smtp_is_configured
 from investhome_api.services.user_invitation import hash_invite_token, invite_url_for_token
@@ -76,6 +83,7 @@ def _configure_smtp(monkeypatch, *, host: str = "smtp.example.test", from_email:
     monkeypatch.setenv("SMTP_FROM_EMAIL", from_email)
     monkeypatch.setenv("SMTP_FROM_NAME", "InvestHome OS")
     monkeypatch.setenv("APP_PUBLIC_URL", PUBLIC_URL)
+    monkeypatch.setenv("USER_INVITE_TTL_HOURS", "168")
     get_settings.cache_clear()
     reset_notification_gateway_for_tests()
 
@@ -115,21 +123,62 @@ def test_invite_url_uses_app_public_url(monkeypatch) -> None:
     assert invite_url_for_token(token) == f"{PUBLIC_URL}/invite/{token}"
 
 
-def test_invite_email_copy_includes_name_ttl_and_one_time_use() -> None:
+def test_default_invite_ttl_is_seven_days() -> None:
+    assert Settings.model_fields["user_invite_ttl_hours"].default == 168
+    assert format_invite_ttl_label(168) == "7 gün"
+    assert format_invite_ttl_label(72) == "3 gün"
+    assert format_invite_ttl_label(24) == "1 gün"
+    assert format_invite_ttl_label(36) == "36 saat"
+
+
+def test_invite_email_copy_includes_name_ttl_and_cta() -> None:
+    token = "sample-token-value"
+    invite_url = f"{PUBLIC_URL}/invite/{token}"
     content = build_invite_email(
         full_name="Ayşe Yılmaz",
-        invite_url=f"{PUBLIC_URL}/invite/sample-token-value",
-        ttl_hours=72,
+        invite_url=invite_url,
+        ttl_hours=168,
         locale="tr",
         from_name="InvestHome OS",
+        invited_email="ayse@example.com",
+        inviter_name="Utku Aslantürk",
+        asset_base_url=PUBLIC_URL,
     )
-    assert content.subject == "InvestHome OS daveti"
-    assert "Ayşe Yılmaz" in content.text_body
-    assert f"{PUBLIC_URL}/invite/sample-token-value" in content.text_body
-    assert "72 saat" in content.text_body
-    assert "bir kez" in content.text_body
-    assert "Ayşe Yılmaz" in content.html_body
-    assert "tek kullanımlık" in content.html_body
+    assert content.subject == INVITE_EMAIL_SUBJECT
+    assert "Merhaba Ayşe," in content.text_body
+    assert "Ayşe Yılmaz" not in content.text_body
+    assert invite_url in content.text_body
+    assert "7 gün" in content.text_body
+    assert "Utku Aslantürk" in content.text_body
+    assert "ayse@example.com" in content.text_body
+    assert "Investhome OS Ekibi" in content.text_body
+    assert CTA_LABEL in content.html_body
+    assert f'href="{invite_url}"' in content.html_body
+    assert content.html_body.count(token) == 1
+    assert f"{PUBLIC_URL}{INVITE_LOGO_PATH}" in content.html_body
+    assert f"{PUBLIC_URL}{INVITE_HERO_PATH}" in content.html_body
+    assert "<table" in content.html_body
+    assert "tracking.gif" not in content.html_body
+    assert "google-analytics" not in content.html_body.lower()
+    assert "72 saat" not in content.text_body
+    assert "72 saat" not in content.html_body
+
+
+def test_invite_email_ttl_label_follows_configured_hours() -> None:
+    content = build_invite_email(
+        full_name="Ada Lovelace",
+        invite_url=f"{PUBLIC_URL}/invite/sample-token-value",
+        ttl_hours=36,
+        locale="en",
+        from_name="InvestHome OS",
+        invited_email="ada@example.com",
+        inviter_name="Admin User",
+        asset_base_url=PUBLIC_URL,
+    )
+    assert content.subject == INVITE_EMAIL_SUBJECT
+    assert "36 saat" in content.text_body
+    assert "36 saat" in content.html_body
+    assert "7 gün" not in content.text_body
 
 
 def test_provider_missing_returns_not_connected(auth_client: TestClient, monkeypatch) -> None:
@@ -189,10 +238,11 @@ def test_successful_smtp_returns_sent(
     msg = FakeSMTP.sent[-1]
     blob = _message_blob(msg)
     assert msg["To"] == email
-    assert "InvestHome OS daveti" in _decoded_subject(msg)
-    assert full_name in blob
+    assert INVITE_EMAIL_SUBJECT in _decoded_subject(msg)
+    assert "Ada" in blob
     assert f"{PUBLIC_URL}/invite/{token}" in blob
-    assert "72" in blob
+    assert CTA_LABEL in blob
+    assert "7 gün" in blob
     assert SMTP_PASSWORD not in blob
     for rec in caplog.records:
         if rec.name.startswith("investhome"):
@@ -300,6 +350,7 @@ def test_raw_token_and_email_body_not_in_audit(
         assert f"{PUBLIC_URL}/invite/" not in blob
         assert "Merhaba" not in blob
         assert full_name not in blob
+        assert "Hesabımı Oluştur" not in blob
         assert "Daveti kabul et" not in blob
 
 

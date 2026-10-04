@@ -204,6 +204,27 @@ def test_accept_sets_password_and_activates(auth_client: TestClient, monkeypatch
     assert fetched.json()["status"] == "active"
 
 
+def test_accept_combines_supplied_full_name(auth_client: TestClient, monkeypatch) -> None:
+    email = f"invite.rename.{uuid4().hex[:8]}@example.com"
+    user, token = _invite_user(
+        auth_client,
+        monkeypatch,
+        email=email,
+        role_ids=[_read_only_role_id(auth_client)],
+        token=f"invite-rename-{uuid4().hex}",
+        full_name="Invited Person",
+    )
+    accepted = auth_client.post(
+        f"/auth/invite/{token}/accept",
+        json={"password": STRONG_PASSWORD, "full_name": "Mustafa Yılmaz"},
+    )
+    assert accepted.status_code == 200, accepted.text
+    fetched = auth_client.get(f"/users/{user['id']}")
+    assert fetched.status_code == 200
+    assert fetched.json()["full_name"] == "Mustafa Yılmaz"
+    assert fetched.json()["status"] == "active"
+
+
 def test_login_before_accept_impossible(auth_client: TestClient, monkeypatch) -> None:
     email = f"invite.nologin.{uuid4().hex[:8]}@example.com"
     _user, _token = _invite_user(

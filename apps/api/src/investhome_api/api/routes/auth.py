@@ -285,7 +285,12 @@ def accept_invite(
     client_ip = resolve_client_ip(request)
     enforce_invite_rate_limit(ip=client_ip, token=token)
     try:
-        user = accept_invitation(db, token=token, password=payload.password)
+        user = accept_invitation(
+            db,
+            token=token,
+            password=payload.password,
+            full_name=payload.full_name,
+        )
     except InvitationError as exc:
         if exc.message == "password_policy":
             raise HTTPException(
