@@ -76,6 +76,7 @@ from investhome_api.api.routes import (
     marketing_templates,
     marketing_webhooks,
     marketing_whatsapp,
+    website_forms,
     meta,
     notifications,
     platform,
@@ -230,6 +231,7 @@ def create_app() -> FastAPI:
     app.include_router(marketing_forms.router)
     app.include_router(marketing_submissions.router)
     app.include_router(marketing_submissions.public_router)
+    app.include_router(website_forms.router)
     app.include_router(marketing_lead_capture.router)
     app.include_router(marketing_conversions.router)
     app.include_router(marketing_conversions.attribution_router)

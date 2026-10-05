@@ -396,6 +396,15 @@ def _isolate_public_form_abuse_controls():
 
 
 @pytest.fixture(autouse=True)
+def _isolate_website_form_replay():
+    from investhome_api.services.website_form_auth import reset_website_form_replay_for_tests
+
+    reset_website_form_replay_for_tests()
+    yield
+    reset_website_form_replay_for_tests()
+
+
+@pytest.fixture(autouse=True)
 def _isolate_mfa_challenge_store():
     """Keep MFA login challenges in-process so tests never hit live Redis."""
     from investhome_api.services.mfa_challenge import reset_mfa_challenge_store_for_tests

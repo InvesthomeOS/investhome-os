@@ -253,6 +253,11 @@ class Settings(BaseSettings):
         default=86400,
         alias="PUBLIC_FORM_DAILY_WINDOW_SECONDS",
     )
+    # WordPress server-to-server website form ingest. Never expose to browsers.
+    website_form_ingest_secret: str | None = Field(
+        default=None,
+        alias="WEBSITE_FORM_INGEST_SECRET",
+    )
 
     @field_validator("cors_origins", mode="before")
     @classmethod
