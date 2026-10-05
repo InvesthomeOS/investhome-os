@@ -101,6 +101,9 @@ describe('sales lead visibility', () => {
     assert.match(workspace, /view === 'leads'/);
     assert.match(workspace, /t\('views\.leads'\)/);
     assert.match(leadTable, /getSourceLabel\(lead\.source\)/);
+    assert.match(leadTable, /tLeads\('table\.created'\)/);
+    assert.equal(tr.leads.table.created, 'Oluşturma Tarihi');
+    assert.equal(en.leads.table.created, 'Created Date');
     assert.doesNotMatch(workspace, /window\.location\.href = '\/dashboard\/leads'/);
   });
 

@@ -462,6 +462,7 @@
       "assignedTo": "Assigned To",
       "budget": "Budget",
       "project": "Project",
+      "created": "Created Date",
       "updated": "Updated"
     },
     "form": {
