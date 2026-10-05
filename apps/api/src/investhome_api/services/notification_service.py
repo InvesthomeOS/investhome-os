@@ -10,6 +10,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import desc, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from investhome_api.config.notification_config import ENTITY_RESOURCE_MAP, SECURITY_ENTITY_TYPES
@@ -87,6 +88,15 @@ def user_can_view_notification(user: User, notification: Notification) -> bool:
     return user_has_permission(user, resource, "view")
 
 
+def _lookup_notification(db: Session, *, recipient_user_id: UUID, dedupe: str) -> Notification | None:
+    return db.scalar(
+        select(Notification).where(
+            Notification.recipient_user_id == recipient_user_id,
+            Notification.dedupe_key == dedupe,
+        )
+    )
+
+
 def create_notification(
     db: Session,
     *,
@@ -105,54 +115,72 @@ def create_notification(
     is_demo: bool = False,
     commit: bool = False,
 ) -> Notification | None:
-    """Create or refresh a notification idempotently. Failures are logged, not raised."""
+    """Create or refresh a notification idempotently. Failures are logged, not raised.
+
+    Duplicate recipient+dedupe_key is a no-op (existing row). UniqueViolation is
+    caught inside a savepoint so the caller session stays usable.
+    """
     dedupe = _dedupe_key(rule_key, related_entity_type, related_entity_id)
     enriched = dict(metadata or {})
     try:
-        existing = db.scalar(
-            select(Notification).where(
-                Notification.recipient_user_id == recipient_user_id,
-                Notification.dedupe_key == dedupe,
+        with db.begin_nested():
+            existing = _lookup_notification(
+                db, recipient_user_id=recipient_user_id, dedupe=dedupe
             )
-        )
-        if existing is not None:
-            if existing.status == NotificationStatus.DISMISSED:
-                return existing
-            existing.priority = priority
-            existing.title_key = title_key
-            existing.message_key = message_key
-            existing.metadata_json = enriched
-            existing.expires_at = expires_at
-            if commit:
-                db.commit()
-                db.refresh(existing)
+            if existing is not None:
+                if existing.status == NotificationStatus.DISMISSED:
+                    result = existing
+                else:
+                    existing.priority = priority
+                    existing.title_key = title_key
+                    existing.message_key = message_key
+                    existing.metadata_json = enriched
+                    existing.expires_at = expires_at
+                    db.flush()
+                    result = existing
             else:
+                notification = Notification(
+                    type=type,
+                    priority=priority,
+                    title_key=title_key,
+                    message_key=message_key,
+                    metadata_json=enriched,
+                    related_entity_type=related_entity_type,
+                    related_entity_id=related_entity_id,
+                    recipient_user_id=recipient_user_id,
+                    created_by=created_by,
+                    source=source,
+                    status=NotificationStatus.UNREAD,
+                    dedupe_key=dedupe,
+                    expires_at=expires_at,
+                    is_demo=is_demo,
+                )
+                db.add(notification)
                 db.flush()
-            return existing
-
-        notification = Notification(
-            type=type,
-            priority=priority,
-            title_key=title_key,
-            message_key=message_key,
-            metadata_json=enriched,
-            related_entity_type=related_entity_type,
-            related_entity_id=related_entity_id,
-            recipient_user_id=recipient_user_id,
-            created_by=created_by,
-            source=source,
-            status=NotificationStatus.UNREAD,
-            dedupe_key=dedupe,
-            expires_at=expires_at,
-            is_demo=is_demo,
-        )
-        db.add(notification)
+                result = notification
         if commit:
             db.commit()
-            db.refresh(notification)
-        else:
-            db.flush()
-        return notification
+            db.refresh(result)
+        return result
+    except IntegrityError:
+        logger.info(
+            "notification_dedupe_hit rule=%s entity=%s/%s",
+            rule_key,
+            related_entity_type,
+            related_entity_id,
+        )
+        if not db.is_active:
+            db.rollback()
+        existing = _lookup_notification(db, recipient_user_id=recipient_user_id, dedupe=dedupe)
+        if existing is not None:
+            return existing
+        logger.exception(
+            "Failed to create notification rule=%s entity=%s/%s",
+            rule_key,
+            related_entity_type,
+            related_entity_id,
+        )
+        return None
     except Exception:
         logger.exception(
             "Failed to create notification rule=%s entity=%s/%s",

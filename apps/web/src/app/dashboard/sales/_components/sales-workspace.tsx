@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { Button, EmptyState, ErrorState, LoadingState } from '@investhome/ui';
@@ -39,6 +39,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { useRecordDeepLink } from '@/lib/hooks/use-record-deep-link';
 import { useSalesLabels } from '@/lib/i18n/sales-labels';
 
+import { mergePartyNames } from './sales-opportunities-load';
 import { SalesDetailDrawer } from './sales-detail-drawer';
 import { SalesFilters, type SalesFilterState } from './sales-filters';
 import { SalesFormModal } from './sales-form-modal';
@@ -115,8 +116,8 @@ export function SalesWorkspace() {
   const { user } = useAuth();
   const { getErrorMessage } = useSalesLabels();
 
-  const [filters, setFilters] = useState<SalesFilterState>(EMPTY_FILTERS);
-  const [appliedFilters, setAppliedFilters] = useState<SalesFilterState>(EMPTY_FILTERS);
+  const [filters, setFilters] = useState<SalesFilterState>(loadStoredFilters);
+  const [appliedFilters, setAppliedFilters] = useState<SalesFilterState>(loadStoredFilters);
   const [kpis, setKpis] = useState<SalesHomeKpis | null>(null);
   const [kpisLoading, setKpisLoading] = useState(true);
   const [activeKpi, setActiveKpi] = useState<SalesKpiKey | null>(null);
@@ -149,11 +150,11 @@ export function SalesWorkspace() {
   const canRestore = user ? hasPermission(user, 'sales', 'restore') : false;
   const canViewPipeline = user ? hasPermission(user, 'sales', 'view_pipeline') : false;
   const canViewSensitiveValue = user ? hasPermission(user, 'sales', 'view_sensitive_value') : false;
-
-  useEffect(() => {
-    setFilters(loadStoredFilters());
-    setAppliedFilters(loadStoredFilters());
-  }, []);
+  const partyNamesRef = useRef(partyNames);
+  partyNamesRef.current = partyNames;
+  const tRef = useRef(t);
+  tRef.current = t;
+  const loadSeqRef = useRef(0);
 
   const kpiLabels = useMemo(
     (): Record<SalesKpiKey, string> => ({
@@ -186,13 +187,12 @@ export function SalesWorkspace() {
   }, []);
 
   const resolvePartyNames = useCallback(async (items: SalesOpportunity[]) => {
+    const current = partyNamesRef.current;
+    const missing = items.filter((item) => !current[item.party_id]);
+    if (missing.length === 0) return;
     const next: Record<string, string> = {};
     await Promise.all(
-      items.map(async (item) => {
-        if (partyNames[item.party_id]) {
-          next[item.party_id] = partyNames[item.party_id]!;
-          return;
-        }
+      missing.map(async (item) => {
         try {
           if (item.party_type === 'lead') {
             const lead = await fetchLead(item.party_id);
@@ -209,11 +209,14 @@ export function SalesWorkspace() {
         }
       }),
     );
-    setPartyNames((current) => ({ ...current, ...next }));
-  }, [partyNames]);
+    const merged = mergePartyNames(partyNamesRef.current, next);
+    if (!merged.changed) return;
+    setPartyNames(merged.next);
+  }, []);
 
   const loadOpportunities = useCallback(
     async (nextFilters: SalesFilterState) => {
+      const seq = ++loadSeqRef.current;
       setLoading(true);
       setError(null);
       try {
@@ -229,6 +232,7 @@ export function SalesWorkspace() {
           offset: (nextFilters.page - 1) * nextFilters.page_size,
           limit: nextFilters.view === 'pipeline' ? 200 : nextFilters.page_size,
         });
+        if (seq !== loadSeqRef.current) return;
         let items = response.items;
         if (nextFilters.priority) {
           items = items.filter((item) => item.priority === nextFilters.priority);
@@ -237,14 +241,17 @@ export function SalesWorkspace() {
         setTotal(response.total);
         void resolvePartyNames(items);
       } catch {
-        setError(t('loadError'));
+        if (seq !== loadSeqRef.current) return;
+        setError(tRef.current('loadError'));
         setOpportunities([]);
         setTotal(0);
       } finally {
-        setLoading(false);
+        if (seq === loadSeqRef.current) {
+          setLoading(false);
+        }
       }
     },
-    [resolvePartyNames, t],
+    [resolvePartyNames],
   );
 
   useEffect(() => {

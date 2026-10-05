@@ -294,3 +294,86 @@ def test_user_only_sees_own_notifications(auth_client: TestClient) -> None:
         )
     finally:
         session.close()
+
+
+def _make_user(db: Session) -> User:
+    from investhome_api.models.user_auth import UserStatus
+
+    user = User(
+        full_name="Notify User",
+        email=f"notify.{uuid4().hex[:10]}@example.com",
+        hashed_password="x" * 60,
+        status=UserStatus.ACTIVE,
+    )
+    db.add(user)
+    db.flush()
+    return user
+
+
+def _notify_kwargs(user_id, entity_id, rule_key: str = "lead.no_followup"):
+    return {
+        "recipient_user_id": user_id,
+        "type": NotificationType.REMINDER,
+        "priority": NotificationPriority.HIGH,
+        "title_key": "notifications.lead.no_followup.title",
+        "message_key": "notifications.lead.no_followup.message",
+        "rule_key": rule_key,
+        "related_entity_type": "lead",
+        "related_entity_id": entity_id,
+        "source": NotificationSource.AUTOMATION,
+        "commit": False,
+    }
+
+
+def test_duplicate_notification_is_noop(db: Session) -> None:
+    from sqlalchemy import func
+
+    user = _make_user(db)
+    entity_id = uuid4()
+    first = create_notification(db, **_notify_kwargs(user.id, entity_id))
+    second = create_notification(db, **_notify_kwargs(user.id, entity_id))
+    assert first is not None and second is not None
+    assert first.id == second.id
+    count = db.scalar(
+        select(func.count()).select_from(Notification).where(Notification.recipient_user_id == user.id)
+    )
+    assert int(count or 0) == 1
+
+
+def test_unique_violation_does_not_poison_session(db: Session, monkeypatch) -> None:
+    from sqlalchemy import func
+
+    import investhome_api.services.notification_service as notification_service
+
+    user = _make_user(db)
+    entity_id = uuid4()
+    kwargs = _notify_kwargs(user.id, entity_id)
+    first = create_notification(db, **kwargs)
+    db.flush()
+    assert first is not None
+
+    real_lookup = notification_service._lookup_notification
+    calls = {"n": 0}
+
+    def fake_lookup(*args, **kwargs_lookup):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return None
+        return real_lookup(*args, **kwargs_lookup)
+
+    monkeypatch.setattr(notification_service, "_lookup_notification", fake_lookup)
+    second = create_notification(db, **kwargs)
+
+    assert second is not None
+    assert second.id == first.id
+    other = create_notification(
+        db,
+        **_notify_kwargs(user.id, uuid4(), rule_key="lead.qualified_waiting"),
+    )
+    assert other is not None
+    db.flush()
+    count = db.scalar(
+        select(func.count()).select_from(Notification).where(Notification.recipient_user_id == user.id)
+    )
+    assert int(count or 0) == 2
+
