@@ -6,6 +6,7 @@ import {
   type LeadSource,
   type LeadStatus,
 } from '@/lib/api/leads';
+import { leadSourceCatalogKey } from '@/lib/i18n/lead-source';
 
 const STATUS_KEYS: Record<LeadStatus, string> = {
   New: 'new',
@@ -41,8 +42,8 @@ export function useLeadLabels() {
       return '—';
     }
 
-    const key = SOURCE_KEYS[source as LeadSource];
-    return key ? tSource(key) : source;
+    const key = leadSourceCatalogKey(source) ?? SOURCE_KEYS[source as LeadSource];
+    return key ? tSource(key as 'website') : source;
   };
 
   const statusOptions = LEAD_STATUSES.map((status) => ({
@@ -51,7 +52,7 @@ export function useLeadLabels() {
   }));
 
   const sourceOptions = LEAD_SOURCES.map((source) => ({
-    value: source,
+    value: source === 'Website' ? 'website' : source,
     label: tSource(SOURCE_KEYS[source]),
   }));
 

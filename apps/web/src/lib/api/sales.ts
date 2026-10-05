@@ -1,5 +1,6 @@
 import { apiFetch } from '@/lib/api/client';
 import { fetchLeads } from '@/lib/api/leads';
+import { countSalesLeadKpis } from '@/lib/sales/lead-visibility';
 import { fetchReservations } from '@/lib/api/inventory';
 
 export const OPPORTUNITY_STAGES = [
@@ -490,8 +491,7 @@ function isInCurrentMonth(isoDate: string): boolean {
 
 export async function fetchSalesHomeKpis(): Promise<SalesHomeKpis> {
   const [
-    newLeads,
-    qualifiedLeads,
+    allLeads,
     meetingLeads,
     metrics,
     openOpportunities,
@@ -503,8 +503,7 @@ export async function fetchSalesHomeKpis(): Promise<SalesHomeKpis> {
     contractStage,
     proposalStages,
   ] = await Promise.all([
-    fetchLeads({ status: 'New' }),
-    fetchLeads({ status: 'Qualified' }),
+    fetchLeads(),
     fetchLeads({ status: 'Meeting Scheduled' }),
     fetchDashboardMetrics(),
     fetchOpportunities({ limit: 200, sort_by: 'updated_at', sort_dir: 'desc' }),
@@ -516,6 +515,7 @@ export async function fetchSalesHomeKpis(): Promise<SalesHomeKpis> {
     fetchOpportunities({ stage: 'contract', limit: 1 }),
     fetchOpportunities({ limit: 200 }),
   ]);
+  const leadKpis = countSalesLeadKpis(allLeads.items);
 
   const openItems = openOpportunities.items.filter((o) => isOpenStage(o.stage));
   const { pipeline, weighted } = aggregatePipelineByCurrency(openItems);
@@ -528,8 +528,8 @@ export async function fetchSalesHomeKpis(): Promise<SalesHomeKpis> {
   const lostThisMonth = lostOpportunities.items.filter((o) => isInCurrentMonth(o.updated_at)).length;
 
   return {
-    new_leads: newLeads.total,
-    qualified_leads: qualifiedLeads.total,
+    new_leads: leadKpis.new_leads,
+    qualified_leads: leadKpis.qualified_leads,
     active_opportunities: metrics.open_opportunities,
     pipeline_value_by_currency: pipeline,
     weighted_pipeline_by_currency: weighted,

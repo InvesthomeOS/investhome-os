@@ -3,6 +3,7 @@
 export type SalesOpportunitiesFilterSnapshot = {
   search: string;
   stage: string;
+  lead_status?: string;
   assigned_sales_user_id: string;
   party_id: string;
   lead_id: string;
@@ -20,6 +21,7 @@ export function salesOpportunitiesRequestKey(filters: SalesOpportunitiesFilterSn
     filters.view,
     filters.search.trim(),
     filters.stage,
+    filters.lead_status ?? '',
     filters.assigned_sales_user_id,
     filters.party_id,
     filters.lead_id,

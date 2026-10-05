@@ -17,6 +17,7 @@ from investhome_api.config.settings import get_settings
 from investhome_api.models.activity import ActivityEntityType, ActivityLog
 from investhome_api.models.crm_contact import CrmContact
 from investhome_api.models.lead import Lead, LeadStatus
+from investhome_api.models.sales import SalesOpportunity
 from investhome_api.services.website_form_auth import (
     NONCE_HEADER,
     SIGNATURE_HEADER,
@@ -107,6 +108,7 @@ def test_new_person_creates_contact_and_lead(client: TestClient, db: Session) ->
     assert lead.status == LeadStatus.NEW
     assert lead.source == "website"
     assert lead.provider == "website"
+    assert list(db.scalars(select(SalesOpportunity).where(SalesOpportunity.lead_id == lead.id)).all()) == []
     assert lead.assigned_manager_id is None
     meta = lead.metadata_json or {}
     assert meta["source_label"] == "Web Site Form"

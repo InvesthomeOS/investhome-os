@@ -768,16 +768,28 @@
     "restoreError": "Unable to restore opportunity.",
     "empty": "No opportunities match your filters.",
     "emptyHint": "Adjust filters or create a new opportunity from a lead.",
+    "emptyOpportunities": "No active sales opportunities yet.",
+    "emptyOpportunitiesHint": "Opportunities appear here after a qualified lead is converted.",
+    "emptyOpportunitiesWithLeads": "Incoming leads are in the Leads view. Opportunities appear after a qualified lead is converted.",
+    "openLeadsView": "View leads",
     "resultCount": "{count} opportunities",
     "unknownParty": "Unknown party",
     "noAccessTitle": "Sales access required",
     "noAccessMessage": "You do not have permission to view the Sales workspace.",
     "views": {
       "pipeline": "Pipeline",
-      "list": "List"
+      "list": "List",
+      "leads": "Leads"
     },
     "followUpCenter": "Follow-up Center",
     "contractReadiness": "Contract Readiness",
+    "leadsView": {
+      "empty": "No leads yet.",
+      "emptyHint": "Leads from the website form or CRM appear here.",
+      "resultCount": "{count} leads",
+      "convert": "Convert to opportunity",
+      "actions": "Action"
+    },
     "proposals": {
       "preview": {
         "print": "Print",
@@ -4353,6 +4365,18 @@
         "updated": "Lead updated: {name}",
         "status_changed": "Lead status changed: {name}",
         "archived": "Lead archived: {name}"
+      },
+      "crm": {
+        "leads": {
+          "website_form": {
+            "received": "Website form received"
+          }
+        },
+        "contacts": {
+          "website_form": {
+            "inquiry": "Website form inquiry"
+          }
+        }
       },
       "investor": {
         "created": "Investor added: {name}",

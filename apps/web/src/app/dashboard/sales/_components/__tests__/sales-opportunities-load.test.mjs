@@ -100,7 +100,7 @@ describe('sales opportunities loading loop', () => {
     );
     assert.doesNotMatch(loadBlock, /\[resolvePartyNames, t\]/);
     assert.match(loadBlock, /\[resolvePartyNames\],/);
-    assert.match(workspace, /\[appliedFilters, canView, loadOpportunities\]/);
+    assert.match(workspace, /\[appliedFilters, canView, loadOpportunities, loadLeads\]/);
     assert.doesNotMatch(
       workspace,
       /setPartyNames\(\(current\) => \(\{ \.\.\.current, \.\.\.next \}\)\)/,

@@ -2,14 +2,20 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { Button, EmptyState, ErrorState, LoadingState } from '@investhome/ui';
 
 import { ApiError } from '@/lib/api/client';
+import {
+  salesEmptyOpportunitiesCopyKey,
+  salesPipelinePresentation,
+  visibleSalesLeadCount,
+} from '@/lib/sales/lead-visibility';
 import { hasPermission, fetchUsers, type UserRecord } from '@/lib/api/auth';
-import { fetchLead } from '@/lib/api/leads';
+import { fetchLead, fetchLeads, type Lead } from '@/lib/api/leads';
 import { fetchInvestor } from '@/lib/api/investors';
 import { fetchInventoryAssets } from '@/lib/api/inventory';
 import { fetchContact } from '@/workspaces/crm/api/contacts';
@@ -44,6 +50,7 @@ import { SalesDetailDrawer } from './sales-detail-drawer';
 import { SalesFilters, type SalesFilterState } from './sales-filters';
 import { SalesFormModal } from './sales-form-modal';
 import { SalesKpiRow } from './sales-kpi-row';
+import { SalesLeadTable } from './sales-lead-table';
 import { SalesNextActionModal } from './sales-next-action-modal';
 import { SalesOpportunityTable } from './sales-opportunity-table';
 import { SalesPipelineKanban } from './sales-pipeline-kanban';
@@ -57,6 +64,7 @@ type FormMode = 'create' | 'edit' | null;
 const EMPTY_FILTERS: SalesFilterState = {
   search: '',
   stage: '',
+  lead_status: '',
   assigned_sales_user_id: '',
   party_id: '',
   lead_id: '',
@@ -83,11 +91,11 @@ function loadStoredFilters(): SalesFilterState {
 function kpiToFilter(key: SalesKpiKey): Partial<SalesFilterState> {
   switch (key) {
     case 'new_leads':
-      return { view: 'list', stage: '', search: '' };
+      return { view: 'leads', lead_status: 'New', stage: '', search: '' };
     case 'qualified_leads':
-      return { view: 'list', stage: 'qualified' };
+      return { view: 'leads', lead_status: 'Qualified', stage: '', search: '' };
     case 'active_opportunities':
-      return { view: 'list', stage: '' };
+      return { view: 'list', stage: '', lead_status: '' };
     case 'meetings_scheduled':
       return { view: 'list', stage: 'meeting_scheduled' };
     case 'proposals_pending':
@@ -113,6 +121,7 @@ export function SalesWorkspace() {
   const t = useTranslations('sales');
   const tCommon = useTranslations('common');
   const locale = useLocale();
+  const router = useRouter();
   const { user } = useAuth();
   const { getErrorMessage } = useSalesLabels();
 
@@ -122,6 +131,7 @@ export function SalesWorkspace() {
   const [kpisLoading, setKpisLoading] = useState(true);
   const [activeKpi, setActiveKpi] = useState<SalesKpiKey | null>(null);
   const [opportunities, setOpportunities] = useState<SalesOpportunity[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -254,6 +264,30 @@ export function SalesWorkspace() {
     [resolvePartyNames],
   );
 
+  const loadLeads = useCallback(async (nextFilters: SalesFilterState) => {
+    const seq = ++loadSeqRef.current;
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetchLeads({
+        search: nextFilters.search,
+        status: nextFilters.lead_status || undefined,
+      });
+      if (seq !== loadSeqRef.current) return;
+      setLeads(response.items);
+      setTotal(response.total);
+    } catch {
+      if (seq !== loadSeqRef.current) return;
+      setError(tRef.current('loadError'));
+      setLeads([]);
+      setTotal(0);
+    } finally {
+      if (seq === loadSeqRef.current) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (!canView) return;
     void loadKpis();
@@ -266,9 +300,21 @@ export function SalesWorkspace() {
 
   useEffect(() => {
     if (!canView) return;
-    void loadOpportunities(appliedFilters);
+    if (appliedFilters.view === 'leads') {
+      void loadLeads(appliedFilters);
+    } else {
+      void loadOpportunities(appliedFilters);
+    }
     localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(appliedFilters));
-  }, [appliedFilters, canView, loadOpportunities]);
+  }, [appliedFilters, canView, loadOpportunities, loadLeads]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const leadId = new URLSearchParams(window.location.search).get('lead_id');
+    if (!leadId) return;
+    setCreateLeadId(leadId);
+    setFormMode('create');
+  }, []);
 
   const handleOpenOpportunity = useCallback((opportunity: SalesOpportunity) => {
     setSelectedOpportunity(opportunity);
@@ -286,17 +332,28 @@ export function SalesWorkspace() {
 
   const handleKpiClick = (key: SalesKpiKey) => {
     setActiveKpi(key);
-    if (key === 'new_leads' || key === 'qualified_leads') {
-      window.location.href = '/dashboard/leads';
-      return;
-    }
     const next = { ...appliedFilters, ...kpiToFilter(key), page: 1 };
     setFilters(next);
     setAppliedFilters(next);
   };
 
   const refreshAll = async () => {
-    await Promise.all([loadKpis(), loadOpportunities(appliedFilters)]);
+    await Promise.all([
+      loadKpis(),
+      appliedFilters.view === 'leads' ? loadLeads(appliedFilters) : loadOpportunities(appliedFilters),
+    ]);
+  };
+
+  const applyView = (view: SalesFilterState['view']) => {
+    const next = {
+      ...appliedFilters,
+      view,
+      page: 1,
+      stage: view === 'leads' ? ('' as const) : appliedFilters.stage,
+      lead_status: view === 'leads' ? appliedFilters.lead_status : ('' as const),
+    };
+    setFilters(next);
+    setAppliedFilters(next);
   };
 
   const handleStageChangeRequest = async (
@@ -471,6 +528,20 @@ export function SalesWorkspace() {
     return map;
   }, [linkedInventory]);
 
+  const leadCount = visibleSalesLeadCount(kpis);
+  const opportunityEmptyKey = salesEmptyOpportunitiesCopyKey(leadCount);
+  const pipelinePresentation = salesPipelinePresentation(loading, opportunities.length);
+
+  const handleOpenLead = (lead: Lead) => {
+    router.push(`/dashboard/leads/${lead.id}` as Route);
+  };
+
+  const handleConvertLead = (lead: Lead) => {
+    setCreateLeadId(lead.id);
+    setFormMode('create');
+    setActionError(null);
+  };
+
   if (!canView) {
     return (
       <main className="dashboard sales">
@@ -504,11 +575,7 @@ export function SalesWorkspace() {
             <button
               type="button"
               className={`leads__button${appliedFilters.view === 'pipeline' ? ' leads__button--primary' : ' leads__button--secondary'}`}
-              onClick={() => {
-                const next = { ...appliedFilters, view: 'pipeline' as const };
-                setFilters(next);
-                setAppliedFilters(next);
-              }}
+              onClick={() => applyView('pipeline')}
               disabled={!canViewPipeline}
             >
               {t('views.pipeline')}
@@ -516,13 +583,16 @@ export function SalesWorkspace() {
             <button
               type="button"
               className={`leads__button${appliedFilters.view === 'list' ? ' leads__button--primary' : ' leads__button--secondary'}`}
-              onClick={() => {
-                const next = { ...appliedFilters, view: 'list' as const };
-                setFilters(next);
-                setAppliedFilters(next);
-              }}
+              onClick={() => applyView('list')}
             >
               {t('views.list')}
+            </button>
+            <button
+              type="button"
+              className={`leads__button${appliedFilters.view === 'leads' ? ' leads__button--primary' : ' leads__button--secondary'}`}
+              onClick={() => applyView('leads')}
+            >
+              {t('views.leads')}
             </button>
             {user && hasPermission(user, 'work', 'view') && (
               <>
@@ -575,10 +645,20 @@ export function SalesWorkspace() {
         )}
 
         {!error && appliedFilters.view === 'pipeline' && canViewPipeline && (
-          loading && opportunities.length === 0 ? (
+          pipelinePresentation === 'skeleton' ? (
             <LoadingState label={tCommon('loading')} />
-          ) : opportunities.length === 0 ? (
-            <EmptyState title={t('empty')} description={t('emptyHint')} />
+          ) : pipelinePresentation === 'empty' ? (
+            <EmptyState
+              title={t('emptyOpportunities')}
+              description={t(opportunityEmptyKey)}
+              action={
+                leadCount > 0 ? (
+                  <button type="button" className="leads__button leads__button--secondary" onClick={() => applyView('leads')}>
+                    {t('openLeadsView')}
+                  </button>
+                ) : undefined
+              }
+            />
           ) : (
             <SalesPipelineKanban
               opportunities={opportunities}
@@ -596,7 +676,39 @@ export function SalesWorkspace() {
           )
         )}
 
-        {!error && (appliedFilters.view === 'list' || !canViewPipeline) && (
+        {!error && appliedFilters.view === 'leads' && (
+          loading && leads.length === 0 ? (
+            <LoadingState label={tCommon('loading')} />
+          ) : leads.length === 0 ? (
+            <EmptyState title={t('leadsView.empty')} description={t('leadsView.emptyHint')} />
+          ) : (
+            <SalesLeadTable
+              leads={leads}
+              loading={loading}
+              userNames={userNames}
+              canConvert={canCreate}
+              onOpen={handleOpenLead}
+              onConvert={handleConvertLead}
+            />
+          )
+        )}
+
+        {!error && (appliedFilters.view === 'list' || (!canViewPipeline && appliedFilters.view !== 'leads')) && (
+          loading && opportunities.length === 0 ? (
+            <LoadingState label={tCommon('loading')} />
+          ) : opportunities.length === 0 ? (
+            <EmptyState
+              title={appliedFilters.stage ? t('empty') : t('emptyOpportunities')}
+              description={appliedFilters.stage ? t('emptyHint') : t(opportunityEmptyKey)}
+              action={
+                !appliedFilters.stage && leadCount > 0 ? (
+                  <button type="button" className="leads__button leads__button--secondary" onClick={() => applyView('leads')}>
+                    {t('openLeadsView')}
+                  </button>
+                ) : undefined
+              }
+            />
+          ) : (
           <SalesOpportunityTable
             opportunities={opportunities}
             total={total}
@@ -625,6 +737,7 @@ export function SalesWorkspace() {
             onDensityChange={setDensity}
             onOpen={handleOpenOpportunity}
           />
+          )
         )}
       </section>
 

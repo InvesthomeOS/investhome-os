@@ -768,16 +768,28 @@
     "restoreError": "Fırsat geri yüklenemedi.",
     "empty": "Filtrelere uyan fırsat bulunamadı.",
     "emptyHint": "Filtreleri değiştirin veya bir lead'den yeni fırsat oluşturun.",
+    "emptyOpportunities": "Henüz aktif satış fırsatı yok.",
+    "emptyOpportunitiesHint": "Fırsat, nitelikli bir lead dönüştürülünce satış hattında görünür.",
+    "emptyOpportunitiesWithLeads": "Gelen leadler Leadler görünümünde. Fırsat, nitelikli lead dönüştürülünce oluşur.",
+    "openLeadsView": "Leadleri gör",
     "resultCount": "{count} fırsat",
     "unknownParty": "Bilinmeyen taraf",
     "noAccessTitle": "Satış erişimi gerekli",
     "noAccessMessage": "Satış çalışma alanını görüntüleme izniniz yok.",
     "views": {
       "pipeline": "Satış Hattı",
-      "list": "Liste"
+      "list": "Liste",
+      "leads": "Leadler"
     },
     "followUpCenter": "Takip Merkezi",
     "contractReadiness": "Sözleşme Hazırlığı",
+    "leadsView": {
+      "empty": "Henüz lead yok.",
+      "emptyHint": "Website formundan veya CRM’den gelen leadler burada listelenir.",
+      "resultCount": "{count} lead",
+      "convert": "Fırsata dönüştür",
+      "actions": "İşlem"
+    },
     "kpis": {
       "newLeads": "Yeni Leadler",
       "qualifiedLeads": "Nitelikli Leadler",
@@ -4341,6 +4353,18 @@
         "updated": "Potansiyel müşteri güncellendi: {name}",
         "status_changed": "Potansiyel müşteri durumu değiştirildi: {name}",
         "archived": "Potansiyel müşteri arşivlendi: {name}"
+      },
+      "crm": {
+        "leads": {
+          "website_form": {
+            "received": "Web sitesi formu alındı"
+          }
+        },
+        "contacts": {
+          "website_form": {
+            "inquiry": "Web sitesi formu kaydı"
+          }
+        }
       },
       "investor": {
         "created": "Yatırımcı eklendi: {name}",
