@@ -8,7 +8,7 @@ from urllib.parse import urljoin
 
 INVITE_EMAIL_SUBJECT = "Investhome OS’e Davetlisiniz"
 INVITE_LOGO_PATH = "/brand/logos/investhome-logo-white.png"
-INVITE_HERO_PATH = "/brand/images/washington-dc-capitol.jpg"
+INVITE_HERO_PATH = "/brand/images/washington-dc-capitol-email.jpg"
 CTA_LABEL = "Hesabımı Oluştur →"
 
 _GOLD = "#C4A15A"
