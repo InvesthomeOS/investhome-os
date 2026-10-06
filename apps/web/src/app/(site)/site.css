@@ -306,6 +306,32 @@
   gap: 0.75rem;
 }
 
+/* Beat `.site-root a { color: inherit }` so the hero primary label stays visible
+   on gold in link / visited / hover / focus (hero itself is `color: #fff`). */
+.site-hero .site-btn--primary,
+.site-hero .site-btn--primary:link,
+.site-hero .site-btn--primary:visited,
+.site-hero .site-btn--primary:active {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: var(--site-ink);
+}
+
+.site-hero .site-btn--primary:hover,
+.site-hero .site-btn--primary:focus {
+  background: var(--brand-primary-hover);
+  border-color: var(--brand-primary-hover);
+  color: var(--site-ink);
+}
+
+.site-hero .site-btn--primary:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+  background: var(--brand-primary-hover);
+  border-color: var(--brand-primary-hover);
+  color: var(--site-ink);
+}
+
 @media (max-width: 900px) {
   .site-hero__visual {
     background-position: center 48%;

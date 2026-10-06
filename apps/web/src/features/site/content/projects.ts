@@ -1,5 +1,6 @@
 export type SiteProject = {
   slug: string;
+  href: string;
   name: { en: string; tr: string };
   location: { en: string; tr: string };
   city: string;
@@ -18,6 +19,7 @@ export type SiteProject = {
 export const SITE_PROJECTS: SiteProject[] = [
   {
     slug: 'the-temple',
+    href: 'https://www.investhome.com/The-Temple/index.html',
     name: { en: 'THE TEMPLE', tr: 'THE TEMPLE' },
     location: { en: '1610 Columbia Rd NW, Washington, DC', tr: '1610 Columbia Rd NW, Washington, DC' },
     city: 'Washington, DC',
@@ -35,6 +37,7 @@ export const SITE_PROJECTS: SiteProject[] = [
   },
   {
     slug: 'uniloft',
+    href: 'https://www.investhome.com/proje/uniloft/',
     name: { en: 'UNILOFT', tr: 'UNILOFT' },
     location: { en: '300 I St NE, Washington, DC', tr: '300 I St NE, Washington, DC' },
     city: 'Washington, DC',
@@ -52,6 +55,7 @@ export const SITE_PROJECTS: SiteProject[] = [
   },
   {
     slug: '1812-h-place',
+    href: 'https://www.investhome.com/proje/1812-h-place/',
     name: { en: '1812 H PLACE', tr: '1812 H PLACE' },
     location: { en: '1812 H Place NE, Washington, DC', tr: '1812 H Place NE, Washington, DC' },
     city: 'Washington, DC',

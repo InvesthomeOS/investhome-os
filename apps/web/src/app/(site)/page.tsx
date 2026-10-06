@@ -24,7 +24,7 @@ export default async function SiteHomePage() {
           <h1>{t('headline')}</h1>
           <p className="site-hero__lead">{t('lead')}</p>
           <div className="site-hero__actions">
-            <Link href={'/projects' as Route} className="site-btn site-btn--light">
+            <Link href={'/projects' as Route} className="site-btn site-btn--primary">
               {t('ctaPrimary')}
             </Link>
             <Link href={'/lead/consultation' as Route} className="site-btn site-btn--ghost" style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.45)' }}>
@@ -92,7 +92,7 @@ export default async function SiteHomePage() {
           </div>
           <div className="site-grid site-grid--3">
             {projects.map((project) => (
-              <Link key={project.slug} href={`/projects/${project.slug}`} className="site-project-card">
+              <a key={project.slug} href={project.href} className="site-project-card">
                 <div className="site-project-card__media">
                   <img
                     src={project.coverImage}
@@ -106,7 +106,7 @@ export default async function SiteHomePage() {
                   <p>{project.summary[locale]}</p>
                   <span className="site-project-card__cta">{tp('view')}</span>
                 </div>
-              </Link>
+              </a>
             ))}
           </div>
           <div style={{ marginTop: '1.75rem' }}>

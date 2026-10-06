@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
 
 import { SITE_PROJECTS } from '@/features/site/content/projects';
@@ -31,7 +30,7 @@ export default async function ProjectsPage() {
         </div>
         <div className="site-grid site-grid--3">
           {SITE_PROJECTS.map((project) => (
-            <Link key={project.slug} href={`/projects/${project.slug}`} className="site-project-card">
+            <a key={project.slug} href={project.href} className="site-project-card">
               <div className="site-project-card__media">
                 <img
                   src={project.coverImage}
@@ -45,7 +44,7 @@ export default async function ProjectsPage() {
                 <p>{project.summary[locale]}</p>
                 <span className="site-project-card__cta">{t('view')}</span>
               </div>
-            </Link>
+            </a>
           ))}
         </div>
         <p className="site-note">{t('apiNote')}</p>
