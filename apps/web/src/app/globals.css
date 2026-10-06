@@ -2385,6 +2385,58 @@ body {
     var(--bg);
 }
 
+.auth-page--visual {
+  min-height: 100dvh;
+  background-color: var(--brand-black);
+  background-image:
+    linear-gradient(180deg, rgba(11, 11, 11, 0.38) 0%, rgba(11, 11, 11, 0.52) 100%),
+    url("/brand/images/washington-dc-capitol.jpg");
+  background-size: cover;
+  background-position: center 42%;
+  background-repeat: no-repeat;
+}
+
+.auth-page--visual .auth-card {
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+}
+
+.auth-page--visual .auth-form__submit,
+.auth-page--visual .auth-form__submit--link {
+  background: var(--brand-black);
+  color: var(--brand-white);
+  border: 1px solid var(--brand-black);
+  border-radius: var(--radius-sm);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.auth-page--visual .auth-form__submit:hover:not(:disabled),
+.auth-page--visual .auth-form__submit--link:hover {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: var(--brand-white);
+}
+
+.auth-page--visual .auth-form__submit:focus-visible,
+.auth-page--visual .auth-form__submit--link:focus-visible {
+  outline: 2px solid var(--brand-secondary);
+  outline-offset: 2px;
+}
+
+.auth-page--visual .auth-form__submit:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+@media (max-width: 640px) {
+  .auth-page--visual {
+    background-position: center 30%;
+    padding: 1.25rem 1rem;
+  }
+}
+
 .auth-card {
   width: min(100%, 420px);
   background: var(--brand-surface);

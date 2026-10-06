@@ -51,7 +51,7 @@ function LoginForm() {
   };
 
   return (
-    <div className="auth-page">
+    <div className="auth-page auth-page--visual">
       <div className="auth-card">
         <div className="auth-card__brand">
           <BrandLogo tone="auto" layout="full" className="auth-card__logo" priority />
@@ -126,7 +126,7 @@ export default function LoginPage() {
   return (
     <PublicBrandingProvider>
       <AuthProvider>
-        <Suspense fallback={<div className="auth-page" />}>
+        <Suspense fallback={<div className="auth-page auth-page--visual" />}>
           <LoginForm />
         </Suspense>
       </AuthProvider>
