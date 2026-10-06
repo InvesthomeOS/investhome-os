@@ -93,11 +93,15 @@ export default async function SiteHomePage() {
           <div className="site-grid site-grid--3">
             {projects.map((project) => (
               <Link key={project.slug} href={`/projects/${project.slug}`} className="site-project-card">
-                <div
-                  className={`site-project-card__media site-project-card__media--${project.gallery[0]?.tone || 'neutral'}`}
-                />
+                <div className="site-project-card__media">
+                  <img
+                    src={project.coverImage}
+                    alt={project.coverAlt[locale]}
+                    style={{ objectPosition: project.coverPosition || 'center' }}
+                  />
+                </div>
                 <div className="site-project-card__body">
-                  <span className="site-project-card__meta">{tp(`status.${project.status}`)}</span>
+                  <span className="site-project-card__meta">{project.city}</span>
                   <h3>{project.name[locale]}</h3>
                   <p>{project.summary[locale]}</p>
                   <span className="site-project-card__cta">{tp('view')}</span>

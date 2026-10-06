@@ -190,12 +190,12 @@ export const SITE_ARTICLES: SiteArticle[] = [
       en: [
         'Grade and amenity packs increasingly separate absorbing assets from stale stock.',
         'Transit adjacency and parking economics still matter for hybrid schedules.',
-        'Review Anatolia Business Hub as an example of income-focused product design.',
+        'Ask the investment team for current income-focused product examples.',
       ],
       tr: [
         'Sınıf ve olanak paketleri, emilen varlıkları durağan stoktan ayırıyor.',
         'Hibrit çalışma için ulaşım yakınlığı ve otopark ekonomisi hâlâ önemli.',
-        'Gelir odaklı ürün tasarımına örnek olarak Anadolu İş Merkezi’ne bakın.',
+        'Güncel gelir odaklı ürün örnekleri için yatırım ekibiyle görüşün.',
       ],
     },
     category: 'market',
@@ -214,7 +214,7 @@ export const SITE_ARTICLES: SiteArticle[] = [
     workflow: {
       status: 'published',
       aiDraftAvailable: true,
-      internalLinks: ['/projects/anatolia-business-hub', '/insights'],
+      internalLinks: ['/projects', '/insights'],
     },
   },
   {

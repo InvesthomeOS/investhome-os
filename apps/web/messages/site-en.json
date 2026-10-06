@@ -47,7 +47,7 @@
       "h3Title": "CRM-ready intent",
       "h3Body": "Consultations, downloads, and analyses flow into Marketing and CRM when forms are published.",
       "projectsTitle": "Featured projects",
-      "projectsLead": "A selective pipeline across residential, office, and lifestyle assets.",
+      "projectsLead": "Investhome projects in Washington, DC.",
       "projectsCta": "View all projects",
       "insightsTitle": "Latest insights",
       "insightsLead": "Guides and market notes from the knowledge center.",
@@ -59,7 +59,7 @@
     },
     "projects": {
       "title": "Projects",
-      "lead": "Explore featured and pipeline assets. Public catalog uses structured placeholders until published project APIs are available.",
+      "lead": "Investhome projects in Washington, DC.",
       "status": {
         "selling": "Selling",
         "coming_soon": "Coming soon",
