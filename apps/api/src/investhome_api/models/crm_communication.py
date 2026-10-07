@@ -26,6 +26,7 @@ from investhome_api.db.base import Base
 class CrmCommunicationChannel(str, enum.Enum):
     EMAIL = "email"
     WHATSAPP = "whatsapp"
+    FACEBOOK = "facebook"
     SMS = "sms"
     PHONE = "phone"
     CALL = "call"
@@ -44,6 +45,7 @@ class CrmCommunicationSource(str, enum.Enum):
     BITRIX = "bitrix"
     LIVE_EMAIL = "live_email"
     LIVE_WHATSAPP = "live_whatsapp"
+    LIVE_FACEBOOK = "live_facebook"
     MANUAL = "manual"
 
 

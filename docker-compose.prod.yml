@@ -102,6 +102,9 @@ services:
     restart: unless-stopped
     environment:
       <<: *app-environment
+      META_APP_SECRET: ${META_APP_SECRET:?META_APP_SECRET is required}
+      META_VERIFY_TOKEN: ${META_VERIFY_TOKEN:?META_VERIFY_TOKEN is required}
+      META_PAGE_ID: ${META_PAGE_ID:?META_PAGE_ID is required}
     command:
       [
         "uvicorn",

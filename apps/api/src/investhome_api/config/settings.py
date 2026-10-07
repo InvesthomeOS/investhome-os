@@ -123,6 +123,11 @@ class Settings(BaseSettings):
     whatsapp_app_secret: str | None = Field(default=None, alias="WHATSAPP_APP_SECRET")
     whatsapp_verify_token: str | None = Field(default=None, alias="WHATSAPP_VERIFY_TOKEN")
 
+    # Meta Page / Messenger inbound webhook. Separate from WhatsApp. No usable defaults.
+    meta_app_secret: str | None = Field(default=None, alias="META_APP_SECRET")
+    meta_verify_token: str | None = Field(default=None, alias="META_VERIFY_TOKEN")
+    meta_page_id: str | None = Field(default=None, alias="META_PAGE_ID")
+
     redis_url: str = Field(alias="REDIS_URL")
     # Backup readiness reporting only. BACKUP_PROVIDER does not connect a live adapter
     # and cannot produce a verified/healthy status by itself.
@@ -515,6 +520,19 @@ def validate_whatsapp_webhook_secrets(settings: Settings) -> None:
         raise RuntimeError("WHATSAPP_APP_SECRET is required in production")
     if not (settings.whatsapp_verify_token or "").strip():
         raise RuntimeError("WHATSAPP_VERIFY_TOKEN is required in production")
+
+
+def validate_meta_webhook_secrets(settings: Settings) -> None:
+    """Fail closed in production when Messenger webhook secrets are missing."""
+    env = _normalized_environment(settings)
+    if env not in _PRODUCTION_ENVIRONMENTS:
+        return
+    if not (settings.meta_app_secret or "").strip():
+        raise RuntimeError("META_APP_SECRET is required in production")
+    if not (settings.meta_verify_token or "").strip():
+        raise RuntimeError("META_VERIFY_TOKEN is required in production")
+    if not (settings.meta_page_id or "").strip():
+        raise RuntimeError("META_PAGE_ID is required in production")
 
 
 def _local_dotenv_candidates() -> list[Path]:

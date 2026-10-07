@@ -1,0 +1,271 @@
+"""Meta Page / Messenger inbound webhook: handshake, signature, ingest, identity."""
+
+from __future__ import annotations
+
+import hashlib
+import hmac
+import json
+from uuid import uuid4
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from investhome_api.config.settings import Settings, get_settings, validate_meta_webhook_secrets
+from investhome_api.models.crm_communication import CrmCommunication
+from investhome_api.models.crm_contact import CrmContact
+from investhome_api.models.lead import Lead
+from investhome_api.models.sales import SalesOpportunity
+from investhome_api.services.crm import meta_webhook as meta
+from investhome_api.services.crm.communication_feed import list_communication_feed
+from investhome_api.services.crm.meta_webhook import FACEBOOK_PSID_KEY
+
+APP_SECRET = "unit-test-meta-app-secret-32charsxxxx"
+VERIFY_TOKEN = "unit-test-meta-verify-token"
+PAGE_ID = "111222333444555"
+WEBHOOK_PATH = "/webhooks/meta"
+
+
+@pytest.fixture(autouse=True)
+def _meta_webhook_env(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("META_APP_SECRET", APP_SECRET)
+    monkeypatch.setenv("META_VERIFY_TOKEN", VERIFY_TOKEN)
+    monkeypatch.setenv("META_PAGE_ID", PAGE_ID)
+    get_settings.cache_clear()
+    meta.reset_meta_idempotency_for_tests()
+    yield
+    meta.reset_meta_idempotency_for_tests()
+    get_settings.cache_clear()
+
+
+def _sign(body: bytes, secret: str = APP_SECRET) -> str:
+    digest = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+    return f"sha256={digest}"
+
+
+def _payload(
+    *,
+    message_id: str,
+    sender: str = "1029384756102938",
+    text: str = "Merhaba",
+    page_id: str = PAGE_ID,
+    object_name: str = "page",
+) -> dict:
+    return {
+        "object": object_name,
+        "entry": [
+            {
+                "id": page_id,
+                "time": 1710000000000,
+                "messaging": [
+                    {
+                        "sender": {"id": sender},
+                        "recipient": {"id": page_id},
+                        "timestamp": 1710000000000,
+                        "message": {"mid": message_id, "text": text},
+                    }
+                ],
+            }
+        ],
+    }
+
+
+def _post(
+    client: TestClient,
+    payload: dict,
+    *,
+    secret: str = APP_SECRET,
+    signature: str | bool | None = True,
+):
+    body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if signature is True:
+        headers["X-Hub-Signature-256"] = _sign(body, secret)
+    elif isinstance(signature, str):
+        headers["X-Hub-Signature-256"] = signature
+    return client.post(WEBHOOK_PATH, content=body, headers=headers), body
+
+
+def test_valid_verification_handshake_accepted(client: TestClient) -> None:
+    response = client.get(
+        WEBHOOK_PATH,
+        params={"hub.mode": "subscribe", "hub.verify_token": VERIFY_TOKEN, "hub.challenge": "1234567890"},
+    )
+    assert response.status_code == 200
+    assert response.text == "1234567890"
+    assert VERIFY_TOKEN not in response.text
+    assert APP_SECRET not in response.text
+
+
+def test_wrong_verify_token_rejected(client: TestClient) -> None:
+    response = client.get(
+        WEBHOOK_PATH,
+        params={"hub.mode": "subscribe", "hub.verify_token": "not-the-token", "hub.challenge": "1234567890"},
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Forbidden"
+    assert "not-the-token" not in response.text
+    assert VERIFY_TOKEN not in response.text
+
+
+def test_invalid_signature_rejected(client: TestClient, db: Session) -> None:
+    message_id = f"mid.{uuid4().hex}"
+    response, _body = _post(client, _payload(message_id=message_id), signature="sha256=" + ("ab" * 32))
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Forbidden"
+    count = db.scalar(
+        select(func.count()).select_from(CrmCommunication).where(
+            CrmCommunication.external_provider_id == message_id
+        )
+    )
+    assert int(count or 0) == 0
+
+
+def test_valid_messenger_text_event_accepted(client: TestClient, db: Session) -> None:
+    message_id = f"mid.{uuid4().hex}"
+    sender = "1029384756102938"
+    response, _ = _post(client, _payload(message_id=message_id, sender=sender, text="Merhaba Facebook"))
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["ok"] is True
+    assert body["duplicate"] is False
+    assert body["ingested"] == 1
+    db.expire_all()
+    comm = db.scalar(select(CrmCommunication).where(CrmCommunication.external_provider_id == message_id))
+    assert comm is not None
+    assert comm.channel == "facebook"
+    assert comm.source == "live_facebook"
+    assert comm.sender_identity == sender
+    assert comm.conversation_key == sender
+    assert comm.body_text == "Merhaba Facebook"
+    assert (comm.metadata_json or {}).get("kind") == "dm"
+    assert comm.contact_id is not None
+
+
+def test_wrong_page_id_ignored(client: TestClient, db: Session) -> None:
+    message_id = f"mid.{uuid4().hex}"
+    response, _ = _post(client, _payload(message_id=message_id, page_id="999888777666555"))
+    assert response.status_code == 200, response.text
+    assert response.json()["ingested"] == 0
+    count = db.scalar(
+        select(func.count()).select_from(CrmCommunication).where(
+            CrmCommunication.external_provider_id == message_id
+        )
+    )
+    assert int(count or 0) == 0
+    assert int(db.scalar(select(func.count()).select_from(CrmContact)) or 0) == 0
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 0
+
+
+def test_instagram_object_ignored(client: TestClient, db: Session) -> None:
+    message_id = f"mid.{uuid4().hex}"
+    response, _ = _post(client, _payload(message_id=message_id, object_name="instagram"))
+    assert response.status_code == 200, response.text
+    assert response.json().get("ignored") is True
+    assert response.json()["ingested"] == 0
+    assert int(db.scalar(select(func.count()).select_from(CrmCommunication)) or 0) == 0
+
+
+def test_duplicate_meta_message_does_not_duplicate_communication(client: TestClient, db: Session) -> None:
+    message_id = f"mid.{uuid4().hex}"
+    payload = _payload(message_id=message_id, text="Once only")
+    first, _ = _post(client, payload)
+    second, _ = _post(client, payload)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["duplicate"] is False
+    assert second.json()["duplicate"] is True
+    db.expire_all()
+    count = db.scalar(
+        select(func.count()).select_from(CrmCommunication).where(
+            CrmCommunication.external_provider_id == message_id
+        )
+    )
+    assert int(count or 0) == 1
+
+
+def test_unknown_psid_creates_exactly_one_contact_and_lead(client: TestClient, db: Session) -> None:
+    message_id = f"mid.{uuid4().hex}"
+    sender = "555666777888999"
+    response, _ = _post(client, _payload(message_id=message_id, sender=sender))
+    assert response.status_code == 200, response.text
+    db.expire_all()
+    contacts = list(db.scalars(select(CrmContact)).all())
+    leads = list(db.scalars(select(Lead)).all())
+    assert len(contacts) == 1
+    assert len(leads) == 1
+    contact = contacts[0]
+    lead = leads[0]
+    assert (contact.metadata_json or {}).get(FACEBOOK_PSID_KEY) == sender
+    assert contact.source == "facebook"
+    assert lead.source == "facebook"
+    assert lead.provider == "facebook"
+    assert contact.lead_id == lead.id
+    assert list(db.scalars(select(SalesOpportunity).where(SalesOpportunity.lead_id == lead.id)).all()) == []
+
+
+def test_webhook_retry_does_not_duplicate_contact_or_lead(client: TestClient, db: Session) -> None:
+    message_id = f"mid.{uuid4().hex}"
+    sender = "444333222111000"
+    payload = _payload(message_id=message_id, sender=sender, text="Retry")
+    _post(client, payload)
+    meta.reset_meta_idempotency_for_tests()
+    replay, _ = _post(client, payload)
+    assert replay.status_code == 200
+    db.expire_all()
+    assert int(db.scalar(select(func.count()).select_from(CrmCommunication).where(
+        CrmCommunication.external_provider_id == message_id
+    )) or 0) == 1
+    assert int(db.scalar(select(func.count()).select_from(CrmContact)) or 0) == 1
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 1
+    assert int(db.scalar(select(func.count()).select_from(SalesOpportunity)) or 0) == 0
+
+
+def test_existing_psid_reuses_contact_and_lead(client: TestClient, db: Session) -> None:
+    sender = "777888999000111"
+    first_id = f"mid.{uuid4().hex}"
+    second_id = f"mid.{uuid4().hex}"
+    first, _ = _post(client, _payload(message_id=first_id, sender=sender, text="One"))
+    second, _ = _post(client, _payload(message_id=second_id, sender=sender, text="Two"))
+    assert first.status_code == 200
+    assert second.status_code == 200
+    db.expire_all()
+    assert int(db.scalar(select(func.count()).select_from(CrmContact)) or 0) == 1
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 1
+    assert int(db.scalar(select(func.count()).select_from(CrmCommunication)) or 0) == 2
+
+
+def test_no_opportunity_created(client: TestClient, db: Session) -> None:
+    message_id = f"mid.{uuid4().hex}"
+    _post(client, _payload(message_id=message_id))
+    db.expire_all()
+    assert int(db.scalar(select(func.count()).select_from(SalesOpportunity)) or 0) == 0
+
+
+def test_facebook_communication_appears_in_feed_contract(client: TestClient, db: Session) -> None:
+    message_id = f"mid.{uuid4().hex}"
+    response, _ = _post(client, _payload(message_id=message_id, text="Feed check"))
+    assert response.status_code == 200, response.text
+    db.expire_all()
+    feed = list_communication_feed(db, channel="facebook", page=1, page_size=25)
+    assert any(item.channel == "facebook" and item.preview and "Feed check" in item.preview for item in feed.items)
+    assert feed.stats.facebook >= 1
+
+
+def test_production_missing_webhook_secret_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("META_APP_SECRET", raising=False)
+    monkeypatch.delenv("META_VERIFY_TOKEN", raising=False)
+    monkeypatch.delenv("META_PAGE_ID", raising=False)
+    settings = Settings(
+        _env_file=None,
+        API_ENVIRONMENT="production",
+        JWT_SECRET="x" * 40,
+        AUTH_COOKIE_SECURE=True,
+        API_DEBUG=False,
+        API_ENABLE_OPENAPI=False,
+        API_AUTH_ENABLED=True,
+        COMMUNICATION_CREDENTIAL_KEY="unit-test-communication-credential-key-32b",
+    )
+    with pytest.raises(RuntimeError, match="META_APP_SECRET"):
+        validate_meta_webhook_secrets(settings)

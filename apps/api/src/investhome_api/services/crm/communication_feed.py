@@ -31,6 +31,7 @@ from investhome_api.services.crm.nedim_purchase_card import activity_deal_id
 COMM_TYPES = (
     CrmActivityType.EMAIL,
     CrmActivityType.WHATSAPP,
+    CrmActivityType.FACEBOOK,
     CrmActivityType.PHONE_CALL,
     CrmActivityType.SMS,
     CrmActivityType.COMMENT,
@@ -47,6 +48,7 @@ COMM_TYPES = (
 CHANNEL_TYPES: dict[str, tuple[CrmActivityType, ...]] = {
     "email": (CrmActivityType.EMAIL,),
     "whatsapp": (CrmActivityType.WHATSAPP,),
+    "facebook": (CrmActivityType.FACEBOOK,),
     "call": (CrmActivityType.PHONE_CALL,),
     "sms": (CrmActivityType.SMS,),
     "comment": (CrmActivityType.COMMENT, CrmActivityType.NOTE),
@@ -88,6 +90,8 @@ def _channel(activity: CrmActivity) -> str:
     kind = str(history.get("kind") or "").lower()
     if "whatsapp" in kind:
         return "whatsapp"
+    if "facebook" in kind:
+        return "facebook"
     if "email" in kind:
         return "email"
     value = activity.activity_type.value if hasattr(activity.activity_type, "value") else str(activity.activity_type)
@@ -239,6 +243,7 @@ def communication_stats(db: Session) -> CommunicationFeedStats:
 
     email = _count(CrmActivityType.EMAIL)
     whatsapp = _count(CrmActivityType.WHATSAPP)
+    facebook = _count(CrmActivityType.FACEBOOK)
     total = _count(*COMM_TYPES)
     unmatched = int(
         db.scalar(
@@ -253,7 +258,9 @@ def communication_stats(db: Session) -> CommunicationFeedStats:
         )
         or 0
     )
-    return CommunicationFeedStats(total=total, email=email, whatsapp=whatsapp, unmatched=unmatched)
+    return CommunicationFeedStats(
+        total=total, email=email, whatsapp=whatsapp, facebook=facebook, unmatched=unmatched
+    )
 
 
 def _agreements_for_contacts(db: Session, contact_ids: list[UUID]) -> dict[UUID, list[CrmAgreement]]:

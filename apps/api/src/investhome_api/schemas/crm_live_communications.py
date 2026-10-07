@@ -138,6 +138,7 @@ class CommunicationFeedStats(BaseModel):
     total: int = 0
     email: int = 0
     whatsapp: int = 0
+    facebook: int = 0
     unmatched: int = 0
 
 

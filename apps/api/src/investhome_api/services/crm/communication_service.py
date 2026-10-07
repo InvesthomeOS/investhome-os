@@ -255,6 +255,7 @@ def _link_activity_for_communication(db: Session, comm: CrmCommunication, user: 
     activity_type_map = {
         CrmCommunicationChannel.EMAIL.value: CrmActivityType.EMAIL,
         CrmCommunicationChannel.WHATSAPP.value: CrmActivityType.WHATSAPP,
+        CrmCommunicationChannel.FACEBOOK.value: CrmActivityType.FACEBOOK,
         CrmCommunicationChannel.SMS.value: CrmActivityType.SMS,
         CrmCommunicationChannel.PHONE.value: CrmActivityType.PHONE_CALL,
         CrmCommunicationChannel.MEETING.value: CrmActivityType.MEETING,

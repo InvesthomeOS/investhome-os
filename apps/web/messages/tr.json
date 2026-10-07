@@ -17793,6 +17793,7 @@
         "channels": {
           "email": "E-posta",
           "whatsapp": "WhatsApp",
+          "facebook": "Facebook",
           "call": "Arama"
         },
         "status": {
@@ -17840,6 +17841,7 @@
         "channels": {
           "email": "E-posta",
           "whatsapp": "WhatsApp",
+          "facebook": "Facebook",
           "call": "Arama",
           "comment": "Yorum",
           "meeting": "Toplantı",

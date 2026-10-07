@@ -57,6 +57,7 @@ logger = logging.getLogger(__name__)
 CHANNEL_ALIASES = {
     "email": CrmCommunicationChannel.EMAIL.value,
     "whatsapp": CrmCommunicationChannel.WHATSAPP.value,
+    "facebook": CrmCommunicationChannel.FACEBOOK.value,
     "call": CrmCommunicationChannel.PHONE.value,
     "phone": CrmCommunicationChannel.PHONE.value,
     "comment": CrmCommunicationChannel.NOTE.value,
@@ -79,12 +80,14 @@ SOURCE_ALIASES = {
     "bitrix": CrmCommunicationSource.BITRIX.value,
     "live_email": CrmCommunicationSource.LIVE_EMAIL.value,
     "live_whatsapp": CrmCommunicationSource.LIVE_WHATSAPP.value,
+    "live_facebook": CrmCommunicationSource.LIVE_FACEBOOK.value,
     "manual": CrmCommunicationSource.MANUAL.value,
 }
 
 ACTIVITY_TYPE_MAP = {
     CrmCommunicationChannel.EMAIL.value: CrmActivityType.EMAIL,
     CrmCommunicationChannel.WHATSAPP.value: CrmActivityType.WHATSAPP,
+    CrmCommunicationChannel.FACEBOOK.value: CrmActivityType.FACEBOOK,
     CrmCommunicationChannel.PHONE.value: CrmActivityType.PHONE_CALL,
     CrmCommunicationChannel.SMS.value: CrmActivityType.SMS,
     CrmCommunicationChannel.MEETING.value: CrmActivityType.MEETING,
@@ -106,6 +109,9 @@ def _now() -> datetime:
 def _normalize_identity(channel: str, value: str | None) -> str | None:
     if channel in {CrmCommunicationChannel.EMAIL.value}:
         return normalize_email(value)
+    if channel == CrmCommunicationChannel.FACEBOOK.value:
+        text = (value or "").strip()
+        return text or None
     parsed = parse_phone(value)
     if parsed and parsed.e164:
         return parsed.e164
@@ -122,6 +128,8 @@ def infer_source(channel: str, source: str | None) -> str:
         return CrmCommunicationSource.LIVE_EMAIL.value
     if channel == CrmCommunicationChannel.WHATSAPP.value:
         return CrmCommunicationSource.LIVE_WHATSAPP.value
+    if channel == CrmCommunicationChannel.FACEBOOK.value:
+        return CrmCommunicationSource.LIVE_FACEBOOK.value
     return CrmCommunicationSource.MANUAL.value
 
 
@@ -304,6 +312,8 @@ def _activity_title(channel: str, subject: str | None, preview: str | None) -> s
         return f"E-posta: {subject or preview or 'E-posta'}"
     if channel == CrmCommunicationChannel.WHATSAPP.value:
         return f"WhatsApp: {preview or subject or 'WhatsApp'}"
+    if channel == CrmCommunicationChannel.FACEBOOK.value:
+        return f"Facebook: {preview or subject or 'Facebook'}"
     if channel == CrmCommunicationChannel.PHONE.value:
         return f"Arama: {subject or preview or 'Arama'}"
     if channel == CrmCommunicationChannel.TASK.value:
@@ -344,7 +354,13 @@ def project_to_person_timeline(
         activity_type=activity_type,
         activity_category=CrmActivityCategory.COMMUNICATION
         if activity_type
-        in {CrmActivityType.EMAIL, CrmActivityType.WHATSAPP, CrmActivityType.PHONE_CALL, CrmActivityType.SMS}
+        in {
+            CrmActivityType.EMAIL,
+            CrmActivityType.WHATSAPP,
+            CrmActivityType.FACEBOOK,
+            CrmActivityType.PHONE_CALL,
+            CrmActivityType.SMS,
+        }
         else CrmActivityCategory.OTHER,
         title=_activity_title(comm.channel, comm.subject, comm.preview),
         summary=(comm.preview or "")[:1000] or None,
@@ -475,6 +491,8 @@ def _collect_match_inputs(
             candidates = [sender]
     emails: list[str] = []
     phones: list[str] = []
+    if channel == CrmCommunicationChannel.FACEBOOK.value:
+        return emails, phones
     bucket = emails if channel == CrmCommunicationChannel.EMAIL.value else phones
     for value in candidates:
         if value:
@@ -638,6 +656,20 @@ def ingest_live_message(
             "rfc_message_id": rfc_message_id,
             "skip_timeline": skip_timeline,
             "bitrix_activity_id": str(bitrix_hit.id) if bitrix_hit is not None else None,
+            **{
+                key: value
+                for key, value in (
+                    payload.get("metadata_json") if isinstance(payload.get("metadata_json"), dict) else {}
+                ).items()
+                if key
+                not in {
+                    "live_ingest",
+                    "source",
+                    "rfc_message_id",
+                    "skip_timeline",
+                    "bitrix_activity_id",
+                }
+            },
         },
     )
     db.add(comm)

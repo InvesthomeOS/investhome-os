@@ -8854,6 +8854,7 @@
         "channels": {
           "email": "Email",
           "whatsapp": "WhatsApp",
+          "facebook": "Facebook",
           "call": "Call"
         },
         "status": {
@@ -8901,6 +8902,7 @@
         "channels": {
           "email": "Email",
           "whatsapp": "WhatsApp",
+          "facebook": "Facebook",
           "call": "Call",
           "comment": "Comment",
           "meeting": "Meeting",

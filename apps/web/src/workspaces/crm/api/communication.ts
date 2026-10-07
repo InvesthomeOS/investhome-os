@@ -434,7 +434,7 @@ export type CommunicationFeedResponse = {
   page: number;
   page_size: number;
   pages: number;
-  stats: { total: number; email: number; whatsapp: number; unmatched: number };
+  stats: { total: number; email: number; whatsapp: number; facebook: number; unmatched: number };
 };
 
 export type CommunicationConversationMessage = {

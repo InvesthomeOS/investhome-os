@@ -37,7 +37,7 @@ const PROJECTS = [
   { value: 'uniloft', label: 'Uniloft' },
 ] as const;
 
-type ChannelKey = 'email' | 'whatsapp' | 'call' | 'comment' | 'meeting' | 'sms' | 'other';
+type ChannelKey = 'email' | 'whatsapp' | 'facebook' | 'call' | 'comment' | 'meeting' | 'sms' | 'other';
 type SortKey = 'when' | 'channel' | 'person' | 'subject' | 'project' | 'direction' | 'owner';
 
 function dateRange(value: string): { date_from?: string; date_to?: string } {
@@ -66,6 +66,7 @@ function formatWhen(value: string | null | undefined, locale: string): string {
 
 function channelKey(channel: string): ChannelKey {
   if (channel === 'whatsapp') return 'whatsapp';
+  if (channel === 'facebook') return 'facebook';
   if (channel === 'call' || channel === 'phone') return 'call';
   if (channel === 'comment' || channel === 'note') return 'comment';
   if (channel === 'meeting') return 'meeting';
@@ -141,6 +142,17 @@ function ChannelIcon({ channel }: { channel: ChannelKey }) {
           strokeLinejoin="round"
         />
         <path d="M9.2 9.6c.2-.5.4-.5.7-.5h.6c.2 0 .4.1.5.4l.5 1.2c.1.2 0 .5-.2.6l-.5.4c.5.9 1.3 1.7 2.2 2.2l.4-.5c.2-.2.4-.3.6-.2l1.2.5c.3.1.4.3.4.5v.6c0 .3 0 .5-.5.7A5.2 5.2 0 0 1 9.2 9.6Z" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (channel === 'facebook') {
+    return (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path
+          d="M14.5 8.5H16V6h-1.5C12.6 6 11 7.6 11 9.5V11H9.5v2.5H11V20h2.5v-6.5H16l.5-2.5h-3V9.5c0-.6.4-1 1-1Z"
+          fill="currentColor"
+        />
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
       </svg>
     );
   }
@@ -245,7 +257,7 @@ export function CrmCommunicationLiveWorkspace() {
     ),
   });
 
-  const stats = feedQuery.data?.stats ?? { total: 0, email: 0, whatsapp: 0, unmatched: 0 };
+  const stats = feedQuery.data?.stats ?? { total: 0, email: 0, whatsapp: 0, facebook: 0, unmatched: 0 };
   const total = feedQuery.data?.total ?? 0;
   const pages = feedQuery.data?.pages ?? 1;
   const from = total ? (page - 1) * pageSize + 1 : 0;
@@ -398,6 +410,7 @@ export function CrmCommunicationLiveWorkspace() {
           <option value="">{t('filters.anyChannel')}</option>
           <option value="email">{t('channels.email')}</option>
           <option value="whatsapp">{t('channels.whatsapp')}</option>
+          <option value="facebook">{t('channels.facebook')}</option>
           <option value="call">{t('channels.call')}</option>
           <option value="comment">{t('channels.comment')}</option>
           <option value="meeting">{t('channels.meeting')}</option>

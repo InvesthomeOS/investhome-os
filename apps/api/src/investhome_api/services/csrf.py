@@ -23,6 +23,8 @@ CSRF_EXEMPT_PATHS = frozenset(
         "/auth/mfa/enroll/required/confirm",
         "/webhooks/whatsapp",
         "/webhooks/whatsapp/",
+        "/webhooks/meta",
+        "/webhooks/meta/",
     }
 )
 
