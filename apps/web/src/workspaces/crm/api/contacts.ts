@@ -72,6 +72,7 @@ export type ContactInput = {
   address_line1?: string | null;
   city?: string | null;
   state_province?: string | null;
+  country?: string | null;
   source?: string | null;
   investment_profile?: Record<string, unknown>;
   buyer_profile?: Record<string, unknown>;

@@ -12,25 +12,23 @@ import { canUpdateCrm } from '@/lib/crm/crm-permissions';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import {
+  CRM_LEAD_JUNK_REASONS,
+  CRM_LEAD_STAGES,
+  crmLeadDisplayName,
+  crmLeadJunkReasonLabel,
+  crmLeadStageLabel,
+  emptyCrmLeadStageBuckets,
   fetchCrmLead,
   fetchCrmLeads,
+  formatCrmInvestmentBudget,
   moveCrmLeadStage,
   type CrmLeadItem,
   type CrmLeadStage,
 } from '@/workspaces/crm/api/crm-leads';
+import { CrmJunkReasonDialog } from '@/workspaces/crm/junk-reason-dialog';
 
-const STAGES: CrmLeadStage[] = ['yeni', 'contacted', 'following', 'qualified', 'converted', 'unqualified'];
-const ACTIVE_STAGES: CrmLeadStage[] = ['yeni', 'contacted', 'following', 'qualified'];
-const CLOSED_STAGES: CrmLeadStage[] = ['converted', 'unqualified'];
-
-const STAGE_LABEL: Record<CrmLeadStage, { tr: string; en: string }> = {
-  yeni: { tr: 'Yeni', en: 'New' },
-  contacted: { tr: 'İletişime Geçildi', en: 'Contacted' },
-  following: { tr: 'Takipte', en: 'Following' },
-  qualified: { tr: 'Nitelikli', en: 'Qualified' },
-  converted: { tr: 'Satışa Döndü', en: 'Converted' },
-  unqualified: { tr: 'Uygun Değil', en: 'Unsuitable' },
-};
+const STAGES = CRM_LEAD_STAGES;
+const MOVABLE_STAGES: CrmLeadStage[] = CRM_LEAD_STAGES.filter((stage) => stage !== 'converted');
 
 const SOURCE_LABEL: Record<string, { tr: string; en: string }> = {
   manual: { tr: 'Manuel', en: 'Manual' },
@@ -49,9 +47,9 @@ const COPY = {
     subtitle: 'Operasyonel satış pipeline. Canlı lead kayıtları, demo kart yok.',
     kpis: 'Pipeline özeti',
     total: 'Aktif pipeline',
-    yeni: 'Yeni',
-    following: 'Takipte',
-    qualified: 'Nitelikli',
+    yeni: 'Yeni Müşteri Adayı',
+    following: 'Proje Ortaklığı',
+    qualified: 'Potansiyel',
     search: 'Ara',
     searchPh: 'Ad, telefon, e-posta',
     source: 'Kaynak',
@@ -62,8 +60,8 @@ const COPY = {
     dateTo: 'Bitiş',
     any: 'Tümü',
     clear: 'Filtreleri Temizle',
-    emptyTitle: 'Aktif pipeline boş',
-    emptyBody: 'Satışa dönen ve uygun olmayan leadler aktif kart olarak görünmez. Demo kayıt eklenmez.',
+    emptyTitle: 'Pipeline boş',
+    emptyBody: 'Bu görünümde lead yok. Demo kayıt eklenmez.',
     phone: 'Telefon',
     email: 'E-posta',
     campaign: 'Kampanya',
@@ -76,23 +74,25 @@ const COPY = {
     openPerson: 'Kişiyi aç',
     identity: 'Kimlik',
     stage: 'Aşama',
-    convertedHint: 'Satışa döndü yalnızca dönüşümle işaretlenir. Bu kayıt tarihsel olarak izlenebilir.',
-    closedHint: 'Uygun değil kayıtları tarihsel olarak saklanır, aktif pipeline sayılmaz.',
+    convertedHint: 'Satış Kapama yalnızca dönüşümle işaretlenir. Bu kayıt tarihsel olarak izlenebilir.',
+    closedHint: 'Junk Lead kayıtları saklanır ve diğer aşamalardan taşınabilir.',
     stageMoved: 'Aşama güncellendi',
-    convertBlocked: 'Satışa dönüş yalnızca Leadler dönüşümü ile yapılır.',
+    convertBlocked: 'Satış Kapama yalnızca Leadler dönüşümü ile yapılır.',
     none: '—',
     filters: 'Pipeline filtreleri',
     today: 'bugün',
     days: 'g',
+    budget: 'Yatırım Bütçesi',
+    junkReason: 'Junk Sebebi',
   },
   en: {
     title: 'Pipeline',
     subtitle: 'Operational sales pipeline. Live lead records, no demo cards.',
     kpis: 'Pipeline summary',
     total: 'Active pipeline',
-    yeni: 'New',
-    following: 'Following',
-    qualified: 'Qualified',
+    yeni: 'New Lead',
+    following: 'Project Partnership',
+    qualified: 'Potential',
     search: 'Search',
     searchPh: 'Name, phone, email',
     source: 'Source',
@@ -103,8 +103,8 @@ const COPY = {
     dateTo: 'To',
     any: 'All',
     clear: 'Clear filters',
-    emptyTitle: 'Active pipeline is empty',
-    emptyBody: 'Converted and unsuitable leads stay historical. Demo cards are not added.',
+    emptyTitle: 'Pipeline is empty',
+    emptyBody: 'No leads in this view. Demo cards are not added.',
     phone: 'Phone',
     email: 'Email',
     campaign: 'Campaign',
@@ -117,14 +117,16 @@ const COPY = {
     openPerson: 'Open person',
     identity: 'Identity',
     stage: 'Stage',
-    convertedHint: 'Converted only after person conversion. The record stays historically traceable.',
-    closedHint: 'Unsuitable leads are preserved historically and are not counted as active pipeline.',
+    convertedHint: 'Sales Closing is marked only after person conversion. The record stays historically traceable.',
+    closedHint: 'Junk Lead records are kept and can be moved from other stages.',
     stageMoved: 'Stage updated',
-    convertBlocked: 'Conversion is done from Leads, not by dropping onto Converted.',
+    convertBlocked: 'Sales Closing is done from Leads, not by dropping onto this column.',
     none: '—',
     filters: 'Pipeline filters',
     today: 'today',
     days: 'd',
+    budget: 'Investment Budget',
+    junkReason: 'Junk Reason',
   },
 };
 
@@ -156,7 +158,7 @@ function sourceLabel(value: string | null | undefined, locale: 'tr' | 'en'): str
 }
 
 function stageLabel(stage: CrmLeadStage, locale: 'tr' | 'en'): string {
-  return STAGE_LABEL[stage][locale];
+  return crmLeadStageLabel(stage, locale);
 }
 
 function activityLabel(key: string, locale: 'tr' | 'en'): string {
@@ -188,6 +190,8 @@ export function CrmPipelineLiveWorkspace() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [junkReason, setJunkReason] = useState('');
+  const [junkPending, setJunkPending] = useState<CrmLeadItem | null>(null);
 
   const filters = useMemo(
     () => ({
@@ -198,8 +202,9 @@ export function CrmPipelineLiveWorkspace() {
       owner_id: ownerId || undefined,
       date_from: dateFrom ? `${dateFrom}T00:00:00Z` : undefined,
       date_to: dateTo ? `${dateTo}T23:59:59Z` : undefined,
+      junk_reason: junkReason || undefined,
     }),
-    [search, stage, source, project, ownerId, dateFrom, dateTo],
+    [search, stage, source, project, ownerId, dateFrom, dateTo, junkReason],
   );
 
   const listQuery = useQuery({
@@ -227,8 +232,19 @@ export function CrmPipelineLiveWorkspace() {
   };
 
   const stageMutation = useMutation({
-    mutationFn: ({ id, next }: { id: string; next: CrmLeadStage }) => moveCrmLeadStage(id, next),
+    mutationFn: ({
+      id,
+      next,
+      junk_reason,
+      junk_reason_detail,
+    }: {
+      id: string;
+      next: CrmLeadStage;
+      junk_reason?: string;
+      junk_reason_detail?: string;
+    }) => moveCrmLeadStage(id, next, { junk_reason, junk_reason_detail }),
     onSuccess: async () => {
+      setJunkPending(null);
       await invalidate();
       showToast(t.stageMoved);
     },
@@ -251,37 +267,22 @@ export function CrmPipelineLiveWorkspace() {
   };
   const items = useMemo(() => {
     const rows = data?.items ?? [];
-    if (stage && CLOSED_STAGES.includes(stage as CrmLeadStage)) {
-      return rows.filter((item) => item.stage === stage);
-    }
     if (stage) {
       return rows.filter((item) => item.stage === stage);
     }
-    return rows.filter((item) => !CLOSED_STAGES.includes(item.stage));
+    return rows;
   }, [data?.items, stage]);
   const selected = detailQuery.data ?? items.find((item) => item.id === selectedId) ?? null;
 
   const grouped = useMemo(() => {
-    const buckets: Record<CrmLeadStage, CrmLeadItem[]> = {
-      yeni: [],
-      contacted: [],
-      following: [],
-      qualified: [],
-      converted: [],
-      unqualified: [],
-    };
+    const buckets = emptyCrmLeadStageBuckets<CrmLeadItem>();
     for (const item of items) {
       buckets[item.stage]?.push(item);
     }
     return buckets;
   }, [items]);
 
-  const columnCount = (column: CrmLeadStage) => {
-    if (!stage && CLOSED_STAGES.includes(column)) {
-      return column === 'converted' ? kpis.converted : kpis.unqualified;
-    }
-    return grouped[column].length;
-  };
+  const columnCount = (column: CrmLeadStage) => grouped[column].length;
 
   const clearFilters = () => {
     setSearchDraft('');
@@ -292,6 +293,7 @@ export function CrmPipelineLiveWorkspace() {
     setOwnerId('');
     setDateFrom('');
     setDateTo('');
+    setJunkReason('');
   };
 
   const openDetail = (item: CrmLeadItem) => {
@@ -302,6 +304,10 @@ export function CrmPipelineLiveWorkspace() {
     if (next === item.stage) return;
     if (next === 'converted') {
       showToast(t.convertBlocked);
+      return;
+    }
+    if (next === 'unqualified') {
+      setJunkPending(item);
       return;
     }
     stageMutation.mutate({ id: item.id, next });
@@ -348,7 +354,10 @@ export function CrmPipelineLiveWorkspace() {
             type="button"
             className={`crm-leads__kpi${stage === value ? ' is-active' : ''}`}
             data-testid={testId}
-            onClick={() => setStage(value)}
+            onClick={() => {
+              setStage(value);
+              if (value !== 'unqualified') setJunkReason('');
+            }}
           >
             <span>{label}</span>
             <strong>{count.toLocaleString(locale)}</strong>
@@ -395,6 +404,16 @@ export function CrmPipelineLiveWorkspace() {
         </Select>
         <Input label={t.dateFrom} type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
         <Input label={t.dateTo} type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+        {stage === 'unqualified' ? (
+          <Select label={t.junkReason} value={junkReason} onChange={(event) => setJunkReason(event.target.value)}>
+            <option value="">{t.any}</option>
+            {CRM_LEAD_JUNK_REASONS.map((item) => (
+              <option key={item.code} value={item.code}>
+                {item[locale]}
+              </option>
+            ))}
+          </Select>
+        ) : null}
         <div className="crm-tasks__filter-actions">
           <Button type="button" variant="secondary" size="sm" onClick={clearFilters}>
             {t.clear}
@@ -403,63 +422,72 @@ export function CrmPipelineLiveWorkspace() {
       </section>
 
       <div className="crm-leads__kanban" data-testid="crm-pipeline-kanban">
-        {STAGES.map((column) => {
-          const closedHidden = !stage && CLOSED_STAGES.includes(column);
-          return (
-            <section
-              key={column}
-              className={`crm-leads__column${stage === column ? ' is-selected' : ''}${closedHidden ? ' is-historical' : ''}`}
-              data-testid={`crm-pipeline-column-${column}`}
-              onDragOver={(event) => {
-                if (column !== 'converted') event.preventDefault();
-              }}
-              onDrop={() => {
-                const item = (data?.items ?? []).find((row) => row.id === draggingId);
-                setDraggingId(null);
-                if (item) handleStageMove(item, column);
-              }}
-            >
-              <h3>
-                <button
-                  type="button"
-                  className="crm-pipeline__column-btn"
-                  onClick={() => setStage(stage === column ? '' : column)}
-                >
-                  {stageLabel(column, locale)}
-                </button>
-                <span>{columnCount(column)}</span>
-              </h3>
-              {closedHidden
-                ? null
-                : grouped[column].map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className="crm-leads__card"
-                      data-testid={`crm-pipeline-card-${item.id}`}
-                      draggable={canWrite && item.stage !== 'converted'}
-                      onDragStart={() => setDraggingId(item.id)}
-                      onDragEnd={() => setDraggingId(null)}
-                      onClick={() => openDetail(item)}
-                    >
-                      <strong>{item.full_name}</strong>
-                      <small>{item.phone || item.email || t.none}</small>
-                      <small>
-                        {sourceLabel(item.source, locale)}
-                        {item.project ? ` · ${item.project}` : ''}
-                      </small>
-                      <small>
-                        {item.owner_name || t.none} · {t.lastActivity} {formatWhen(item.updated_at, locale)}
-                      </small>
-                      <small>
-                        {t.created} {formatWhen(item.created_at, locale)} · {t.stageAge}{' '}
-                        {stageAge(item.updated_at || item.created_at, locale, t)}
-                      </small>
-                    </button>
-                  ))}
-            </section>
-          );
-        })}
+        {STAGES.map((column) => (
+          <section
+            key={column}
+            className={`crm-leads__column${stage === column ? ' is-selected' : ''}`}
+            data-testid={`crm-pipeline-column-${column}`}
+            onDragOver={(event) => {
+              if (column !== 'converted') event.preventDefault();
+            }}
+            onDrop={() => {
+              const item = (data?.items ?? []).find((row) => row.id === draggingId);
+              setDraggingId(null);
+              if (item) handleStageMove(item, column);
+            }}
+          >
+            <h3>
+              <button
+                type="button"
+                className="crm-pipeline__column-btn"
+                onClick={() => {
+                  const next = stage === column ? '' : column;
+                  setStage(next);
+                  if (next !== 'unqualified') setJunkReason('');
+                }}
+              >
+                {stageLabel(column, locale)}
+              </button>
+              <span>{columnCount(column)}</span>
+            </h3>
+            {grouped[column].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="crm-leads__card"
+                data-testid={`crm-pipeline-card-${item.id}`}
+                draggable={canWrite && item.stage !== 'converted'}
+                onDragStart={() => setDraggingId(item.id)}
+                onDragEnd={() => setDraggingId(null)}
+                onClick={() => openDetail(item)}
+              >
+                <strong>{crmLeadDisplayName(item)}</strong>
+                <small>{item.phone || item.email || t.none}</small>
+                <small>
+                  {sourceLabel(item.source, locale)}
+                  {item.project ? ` · ${item.project}` : ''}
+                </small>
+                {item.investment_budget_amount ? (
+                  <small>
+                    {t.budget}:{' '}
+                    {formatCrmInvestmentBudget(
+                      item.investment_budget_amount,
+                      item.investment_budget_currency,
+                      locale,
+                    )}
+                  </small>
+                ) : null}
+                <small>
+                  {item.owner_name || t.none} · {t.lastActivity} {formatWhen(item.updated_at, locale)}
+                </small>
+                <small>
+                  {t.created} {formatWhen(item.created_at, locale)} · {t.stageAge}{' '}
+                  {stageAge(item.updated_at || item.created_at, locale, t)}
+                </small>
+              </button>
+            ))}
+          </section>
+        ))}
       </div>
 
       {activeEmpty ? (
@@ -474,7 +502,7 @@ export function CrmPipelineLiveWorkspace() {
           <button type="button" className="crm-tasks__drawer-backdrop" aria-label={t.close} onClick={() => setSelectedId(null)} />
           <aside className="crm-tasks__drawer" role="dialog" data-testid="crm-pipeline-drawer">
             <div className="crm-tasks__drawer-head">
-              <h3>{selected.full_name}</h3>
+              <h3>{crmLeadDisplayName(selected)}</h3>
               <button type="button" className="crm-tasks__link-btn" onClick={() => setSelectedId(null)}>
                 {t.close}
               </button>
@@ -482,7 +510,7 @@ export function CrmPipelineLiveWorkspace() {
             <div className="crm-tasks__drawer-body">
               <h4>{t.identity}</h4>
               <p>
-                {selected.full_name}
+                {crmLeadDisplayName(selected)}
                 <br />
                 {t.phone}: {selected.phone || t.none}
                 <br />
@@ -495,7 +523,7 @@ export function CrmPipelineLiveWorkspace() {
                   value={selected.stage}
                   onChange={(event) => handleStageMove(selected, event.target.value as CrmLeadStage)}
                 >
-                  {[...ACTIVE_STAGES, 'unqualified' as const].map((item) => (
+                  {MOVABLE_STAGES.map((item) => (
                     <option key={item} value={item}>
                       {stageLabel(item, locale)}
                     </option>
@@ -511,6 +539,13 @@ export function CrmPipelineLiveWorkspace() {
                 <br />
                 {t.project}: {selected.project || t.none}
                 <br />
+                {t.budget}:{' '}
+                {formatCrmInvestmentBudget(
+                  selected.investment_budget_amount,
+                  selected.investment_budget_currency,
+                  locale,
+                )}
+                <br />
                 {t.owner}: {selected.owner_name || t.none}
                 <br />
                 {t.created}: {formatWhen(selected.created_at, locale)}
@@ -523,10 +558,14 @@ export function CrmPipelineLiveWorkspace() {
                   <p>{selected.notes}</p>
                 </>
               ) : null}
-              {selected.converted_contact_id ? (
+              {selected.converted_contact_id || selected.contact_id ? (
                 <p>
-                  <Link href={`/workspaces/crm/contacts/${selected.converted_contact_id}` as Route}>
-                    {t.openPerson}: {selected.converted_contact_name || selected.converted_contact_id}
+                  <Link
+                    href={
+                      `/workspaces/crm/contacts/${selected.converted_contact_id || selected.contact_id}` as Route
+                    }
+                  >
+                    {t.openPerson}: {selected.converted_contact_name || selected.contact_name || selected.contact_id}
                   </Link>
                 </p>
               ) : null}
@@ -543,11 +582,27 @@ export function CrmPipelineLiveWorkspace() {
                 ))}
               </ul>
               {selected.stage === 'converted' ? <p>{t.convertedHint}</p> : null}
-              {selected.stage === 'unqualified' ? <p>{t.closedHint}</p> : null}
+              {selected.stage === 'unqualified' ? (
+                <>
+                  <p>{t.closedHint}</p>
+                  {selected.junk_reason ? (
+                    <p data-testid="crm-pipeline-junk-reason">
+                      {t.junkReason}: {crmLeadJunkReasonLabel(selected.junk_reason, locale)}
+                      {selected.junk_reason === 'other' && selected.junk_reason_detail
+                        ? ` — ${selected.junk_reason_detail}`
+                        : ''}
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
             </div>
-            {selected.converted_contact_id ? (
+            {selected.converted_contact_id || selected.contact_id ? (
               <div className="crm-tasks__drawer-actions">
-                <Button type="button" size="sm" onClick={() => openContact(selected.converted_contact_id as string)}>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => openContact((selected.converted_contact_id || selected.contact_id) as string)}
+                >
                   {t.openPerson}
                 </Button>
               </div>
@@ -562,6 +617,17 @@ export function CrmPipelineLiveWorkspace() {
           </aside>
         </>
       ) : null}
+
+      <CrmJunkReasonDialog
+        open={Boolean(junkPending)}
+        locale={locale}
+        pending={stageMutation.isPending}
+        onCancel={() => setJunkPending(null)}
+        onConfirm={(payload) => {
+          if (!junkPending) return;
+          stageMutation.mutate({ id: junkPending.id, next: 'unqualified', ...payload });
+        }}
+      />
     </div>
   );
 }

@@ -250,7 +250,7 @@ export async function fetchPurchaseCard(
 
 export async function patchAgreement(
   agreementId: string,
-  payload: { hemen_kira: boolean },
+  payload: { hemen_kira?: boolean; amount?: string },
 ): Promise<CrmPurchaseCard> {
   return apiFetch<CrmPurchaseCard>(`/crm/agreements/${agreementId}`, {
     method: 'PATCH',

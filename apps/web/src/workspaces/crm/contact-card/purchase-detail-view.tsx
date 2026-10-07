@@ -2,15 +2,18 @@
 
 import { FormEvent, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import { useLocale } from 'next-intl';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { Button, Input, StatusChip } from '@investhome/ui';
 
 import { IhIcon } from '@/components/icons/ih-icons';
+import { hasPermission } from '@/lib/api/auth';
 import { linkDocument } from '@/lib/api/documents';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { createTask } from '@/workspaces/crm/api/activities';
 import {
+  patchAgreement,
   type CrmLabeledValue,
   type CrmPurchaseCard,
   type CrmPurchaseDocument,
@@ -20,6 +23,7 @@ import { DocumentGallery } from '@/workspaces/crm/contact-card/document-gallery'
 import { HemenKiraToggle } from '@/workspaces/crm/contact-card/hemen-kira-toggle';
 import { looksLikePayloadDump, stripHtml, taskStatusLabel } from '@/workspaces/crm/contact-card/history-html';
 import { UnitHistorySection } from '@/workspaces/crm/contact-card/unit-history';
+import { personCardCopy } from '@/workspaces/crm/contact-card/person-card-copy';
 import { isWhatsappEntry } from '@/workspaces/crm/contact-card/whatsapp-thread';
 
 import './contact-card.css';
@@ -248,8 +252,14 @@ export function PurchaseDetailView({
   onRefresh: () => void;
   pageTestId?: string;
 }) {
+  const t = personCardCopy(useLocale());
   const queryClient = useQueryClient();
-  const { user, canCreate, canManageTasks } = useCrmAccess();
+  const { user, canCreate, canManageTasks, canViewFinancial, has } = useCrmAccess();
+  const canUpdate = has('update');
+  const canUploadDocuments = Boolean(user && hasPermission(user, 'documents', 'update'));
+  const canArchiveDocuments = Boolean(
+    user && (hasPermission(user, 'documents', 'archive') || hasPermission(user, 'documents', 'delete')),
+  );
   const [filter, setFilter] = useState<HistoryFilter>('all');
   const [emailFocus, setEmailFocus] = useState<EmailViewEntry | null>(null);
   const [showMore, setShowMore] = useState(false);
@@ -259,6 +269,8 @@ export function PurchaseDetailView({
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDue, setTaskDue] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [amountEdit, setAmountEdit] = useState(card.amount || card.amount_label || '');
+  const [amountOk, setAmountOk] = useState(false);
 
   const isReit = card.project_group === 'reit';
   const stage = statusLabel(card.stage) || statusLabel(card.status) || null;
@@ -286,6 +298,31 @@ export function PurchaseDetailView({
   const groupedVisible = documentGroups.flatMap((group) => group.documents.filter((item) => !item.hidden_from_view));
   const showDocGroups = documentGroups.length > 1;
   const canAct = Boolean(canCreate || canManageTasks);
+  const canEditAmount = Boolean(canUpdate && canViewFinancial);
+
+  const amountMutation = useMutation({
+    mutationFn: async () => {
+      const next = amountEdit.trim();
+      if (!next) throw new Error(t.amountRequired);
+      await patchAgreement(card.agreement_id, { amount: next });
+    },
+    onSuccess: () => {
+      setError(null);
+      setAmountOk(true);
+      onRefresh();
+      void queryClient.invalidateQueries({ queryKey: ['crm'] });
+    },
+    onError: (err: Error) => {
+      setAmountOk(false);
+      setError(err.message);
+    },
+  });
+
+  const submitAmount = (event: FormEvent) => {
+    event.preventDefault();
+    if (amountMutation.isPending) return;
+    amountMutation.mutate();
+  };
 
   const taskMutation = useMutation({
     mutationFn: async () => {
@@ -341,25 +378,25 @@ export function PurchaseDetailView({
         <nav className="crm-pd-crumb" aria-label="Konum" data-testid="sales-breadcrumb">
           <Link href="/workspaces/crm">CRM</Link>
           <span>›</span>
-          <Link href="/workspaces/crm/contacts">Kişiler</Link>
+          <Link href="/workspaces/crm/contacts">{t.people}</Link>
           <span>›</span>
           <button type="button" onClick={onBack}>
-            {viewer?.display_name || card.primary_contact_name || 'Kişi'}
+            {viewer?.display_name || card.primary_contact_name || t.person}
           </button>
           <span>›</span>
-          <span>Satın Almalar</span>
+          <span>{t.purchases}</span>
           <span>›</span>
           <strong>{crumbUnit}</strong>
         </nav>
         <div className="crm-pd-pagehead__row">
           <div>
             <button type="button" className="crm-pd-back" onClick={onBack}>
-              <IhIcon name="chevronLeft" size={14} /> {viewer ? `${viewer.display_name}'ya dön` : 'Kişiye dön'}
+              <IhIcon name="chevronLeft" size={14} /> {viewer ? `${viewer.display_name}` : t.backToPerson}
             </button>
-            <h1>Satın Alma Detayı</h1>
+            <h1>{t.purchaseDetail}</h1>
           </div>
           <div className="crm-pd-pagehead__actions">
-            {canAct ? (
+            {canUploadDocuments ? (
               <Button type="button" size="sm" variant="secondary" onClick={() => setShowDocLink((value) => !value)}>
                 <IhIcon name="documents" size={14} /> Belge Ekle
               </Button>
@@ -369,7 +406,7 @@ export function PurchaseDetailView({
             </Button>
           </div>
         </div>
-        {showDocLink ? (
+        {showDocLink && canUploadDocuments ? (
           <form className="crm-pd-inline-form" onSubmit={submitDoc}>
             <Input label="Mevcut belge ID" value={docId} onChange={(event) => setDocId(event.target.value)} />
             <Button type="submit" size="sm" disabled={docMutation.isPending || !docId.trim()}>
@@ -404,25 +441,25 @@ export function PurchaseDetailView({
           {address ? <p className="crm-pd-hero__address">{address}</p> : null}
           <div className="crm-pd-hero__facts">
             <div>
-              <span>Daire</span>
+              <span>{t.unit}</span>
               <strong data-testid="purchase-card-unit">{unitLabel || '—'}</strong>
             </div>
             <div>
-              <span>Tutar</span>
+              <span>{t.amount}</span>
               <strong data-testid="purchase-card-amount">{amount || '—'}</strong>
             </div>
             <div>
-              <span>Durum</span>
+              <span>{t.status}</span>
               <StatusChip tone="success">{stage || '—'}</StatusChip>
             </div>
             <div>
-              <span>Satın Alma Tarihi</span>
+              <span>{t.purchaseDate}</span>
               <strong>{agreementDate || '—'}</strong>
             </div>
           </div>
         </div>
         <div className="crm-pd-hero__owners" data-testid="purchase-card-owners">
-          <span>Sahipler</span>
+          <span>{t.owners}</span>
           <ul>
             {card.participants.map((owner) => (
               <li key={owner.contact_id}>
@@ -439,13 +476,29 @@ export function PurchaseDetailView({
       </section>
 
       <section className="crm-pd-grid">
-        <Card title="Temel Bilgiler" testId="purchase-overview">
+        <Card title={t.basics} testId="purchase-overview">
           <dl className="crm-pd-info">
             <InfoRow label="Proje / Mülk" value={projectName} dash />
             <InfoRow label="Daire Numarası" value={unitLabel} dash />
-            <InfoRow label="Satın Alma Fiyatı" value={amount} dash />
-            <InfoRow label="Satın Alma Tarihi" value={agreementDate} dash />
-            <InfoRow label="Durum" value={stage} dash />
+            <InfoRow label={t.purchasePrice} value={amount} dash />
+            {canEditAmount ? (
+              <form className="crm-pd-amount-edit" onSubmit={submitAmount} data-testid="purchase-amount-edit">
+                <Input
+                  label={t.editAmount}
+                  value={amountEdit}
+                  onChange={(event) => {
+                    setAmountOk(false);
+                    setAmountEdit(event.target.value);
+                  }}
+                />
+                <Button type="submit" size="sm" disabled={amountMutation.isPending}>
+                  {amountMutation.isPending ? t.saving : t.saveAmount}
+                </Button>
+                {amountOk ? <small data-testid="purchase-amount-saved">{t.saved}</small> : null}
+              </form>
+            ) : null}
+            <InfoRow label={t.purchaseDate} value={agreementDate} dash />
+            <InfoRow label={t.status} value={stage} dash />
             <InfoRow
               label="Owner / Ortaklar"
               value={card.participants.map((item) => item.display_name).join(', ') || card.owners_label}
@@ -486,7 +539,7 @@ export function PurchaseDetailView({
               </ul>
               {amount ? (
                 <p className="crm-pd-pay__total">
-                  Toplam Tutar: <strong>{amount}</strong>
+                  {t.amount}: <strong>{amount}</strong>
                 </p>
               ) : null}
             </>
@@ -532,7 +585,7 @@ export function PurchaseDetailView({
           }`}
           testId="purchase-documents"
           action={
-            canAct ? (
+            canUploadDocuments ? (
               <button type="button" onClick={() => setShowDocLink(true)}>
                 Belge Ekle
               </button>
@@ -557,6 +610,10 @@ export function PurchaseDetailView({
                         documents={group.documents}
                         entityType="crm_agreement"
                         entityId={group.agreement_id}
+                        canUpload={canUploadDocuments}
+                        canEditMeta={canUploadDocuments}
+                        canUnlink={canUpdate}
+                        canArchive={canArchiveDocuments}
                         onChanged={onRefresh}
                       />
                     ) : (
@@ -571,6 +628,10 @@ export function PurchaseDetailView({
               documents={purchaseDocs as CrmPurchaseDocument[]}
               entityType="crm_agreement"
               entityId={card.agreement_id}
+              canUpload={canUploadDocuments}
+              canEditMeta={canUploadDocuments}
+              canUnlink={canUpdate}
+              canArchive={canArchiveDocuments}
               onChanged={onRefresh}
             />
           ) : (
@@ -584,6 +645,10 @@ export function PurchaseDetailView({
                 documents={personDocs}
                 entityType="crm_contact"
                 entityId={card.primary_contact_id}
+                canUpload={canUploadDocuments}
+                canEditMeta={canUploadDocuments}
+                canUnlink={canUpdate}
+                canArchive={canArchiveDocuments}
                 onChanged={onRefresh}
               />
             </div>

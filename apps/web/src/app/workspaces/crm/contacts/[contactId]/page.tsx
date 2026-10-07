@@ -9,7 +9,7 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
   const { contactId } = await params;
   return (
     <CrmModuleShell titleKey="modules.contacts.title" descriptionKey="modules.contacts.description">
-      <ContactVerificationDetail contactId={contactId} />
+      <ContactVerificationDetail key={contactId} contactId={contactId} />
     </CrmModuleShell>
   );
 }

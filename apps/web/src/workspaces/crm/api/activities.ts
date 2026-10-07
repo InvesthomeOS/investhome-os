@@ -121,6 +121,7 @@ export async function fetchTasks(
     due_from: params.due_from,
     due_to: params.due_to,
     due_bucket: params.due_bucket,
+    lead_id: params.lead_id,
   });
   return apiFetch<CrmTaskListResponse>(`/crm/tasks?${search.toString()}`);
 }

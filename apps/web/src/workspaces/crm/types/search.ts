@@ -1,5 +1,6 @@
 export type CrmSearchEntityType =
   | 'crm_contact'
+  | 'crm_lead'
   | 'crm_company'
   | 'crm_relationship'
   | 'crm_activity'

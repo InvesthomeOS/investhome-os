@@ -2,7 +2,8 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useLocale } from 'next-intl';
-import { useRouter } from 'next/navigation';
+import type { Route } from 'next';
+import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button, EmptyState, ErrorState, Input, LoadingState, Select, StatusChip, TextArea } from '@investhome/ui';
@@ -26,6 +27,7 @@ import {
   removeContactTag,
 } from '@/workspaces/crm/api/crm';
 import { notifyContactUpdated, useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
+import { personCardCopy, type PersonCardCopy } from '@/workspaces/crm/contact-card/person-card-copy';
 import { salesDetailUrl } from '@/workspaces/crm/contact-card/pilot-people';
 import { PilotHistoryStream, type PilotHistoryFilter } from '@/workspaces/crm/contact-card/history-stream';
 import { taskStatusLabel } from '@/workspaces/crm/contact-card/history-html';
@@ -36,87 +38,44 @@ import { CRM_CONTACT_TYPES, type CrmContactType, type CrmPurchaseSummary } from 
 import '@/app/workspaces/crm/contacts/_components/ds/contacts-ds.css';
 import './contact-card.css';
 
-const NOTE_TYPES = [
-  { value: 'note', label: 'Yorum' },
-  { value: 'phone_call', label: 'Arama' },
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'email', label: 'E-posta' },
-  { value: 'meeting', label: 'Toplantı' },
-] as const;
+const NOTE_TYPES = ['note', 'phone_call', 'whatsapp', 'email', 'meeting'] as const;
+const TASK_KINDS = ['phone_call', 'email', 'whatsapp', 'meeting', 'proposal', 'task'] as const;
+const TASK_STATUSES = ['not_started', 'in_progress', 'waiting', 'completed'] as const;
 
-const TASK_KINDS = [
-  { value: 'phone_call', label: 'Arama' },
-  { value: 'email', label: 'E-posta' },
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'meeting', label: 'Toplantı' },
-  { value: 'proposal', label: 'Teklif takibi' },
-  { value: 'task', label: 'Genel takip' },
-] as const;
-
-const TASK_STATUSES = [
-  { value: 'not_started', label: 'Başlamadı' },
-  { value: 'in_progress', label: 'Devam ediyor' },
-  { value: 'waiting', label: 'Beklemede' },
-  { value: 'completed', label: 'Tamamlandı' },
-] as const;
-
-const ROLE_LABELS: Record<string, string> = {
-  investor: 'Yatırımcı',
-  prospect: 'Aday',
-  buyer: 'Alıcı',
-  broker: 'Acenta',
-  realtor: 'Emlakçı',
-  partner: 'Partner',
-  vendor: 'Tedarikçi',
-  contractor: 'Yüklenici',
-  attorney: 'Avukat',
-  lender: 'Finans',
-  property_manager: 'Yönetici',
-  architect: 'Mimar',
-  consultant: 'Danışman',
-  media_contact: 'Medya',
-  government_contact: 'Kamu',
-  internal_team: 'İç ekip',
-};
-
-const SOURCE_RULES: Array<{ match: RegExp; label: string }> = [
-  { match: /instagram/i, label: 'Instagram Lead' },
-  { match: /facebook|meta/i, label: 'Facebook Lead' },
-  { match: /whatsapp|\bwa\b/i, label: 'WhatsApp' },
-  { match: /rc[_\s-]?generator|acenta|agent|broker|referral|referans/i, label: 'Acenta' },
-  { match: /web\s*form|website|web\s*site|crm form|webform|^web$|genel form/i, label: 'Web Sitesi' },
-  { match: /manuel|manual|^os$/i, label: 'Manuel' },
+const SOURCE_RULES: Array<{ match: RegExp; key: keyof PersonCardCopy['sources'] }> = [
+  { match: /instagram/i, key: 'instagram' },
+  { match: /facebook|meta/i, key: 'facebook' },
+  { match: /whatsapp|\bwa\b/i, key: 'whatsapp' },
+  { match: /rc[_\s-]?generator|acenta|agent|broker|referral|referans/i, key: 'agency' },
+  { match: /web\s*form|website|web\s*site|crm form|webform|^web$|genel form/i, key: 'website' },
+  { match: /manuel|manual|^os$/i, key: 'manual' },
 ];
 
 type Panel = 'edit' | 'note' | 'task' | 'assign' | 'more' | null;
 
-const PERSON_TABS = [
-  { id: 'overview', label: 'Genel' },
-  { id: 'purchases', label: 'Satın Almalar' },
-  { id: 'history', label: 'İletişim' },
-  { id: 'documents', label: 'Belgeler' },
-  { id: 'tasks', label: 'Görevler' },
-] as const;
+const PERSON_TABS = ['overview', 'purchases', 'history', 'documents', 'tasks'] as const;
 
-type PersonTab = (typeof PERSON_TABS)[number]['id'];
+type PersonTab = (typeof PERSON_TABS)[number];
 
-function formatLeadSource(raw?: string | null): string | null {
+function formatLeadSource(raw: string | null | undefined, t: PersonCardCopy): string | null {
   const value = (raw || '').trim();
   if (!value) return null;
-  const mapped = SOURCE_RULES.find((rule) => rule.match.test(value))?.label;
-  if (mapped) return mapped;
+  const mapped = SOURCE_RULES.find((rule) => rule.match.test(value))?.key;
+  if (mapped) return t.sources[mapped];
   if (/^[A-Z0-9_]+$/.test(value)) return null;
   return value;
 }
 
-function roleLabel(type: string) {
-  return ROLE_LABELS[type] || type;
+function roleLabel(type: string, t: PersonCardCopy) {
+  return t.roleLabels[type as keyof PersonCardCopy['roleLabels']] || type;
 }
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '•';
-  return ((parts[0][0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] || '' : '')).toUpperCase();
+  const first = parts[0];
+  if (!first) return '•';
+  const last = parts.length > 1 ? parts[parts.length - 1] : undefined;
+  return ((first[0] || '') + (last?.[0] || '')).toUpperCase();
 }
 
 function phoneDigits(value?: string | null) {
@@ -143,52 +102,58 @@ function formatDateTime(iso: string | null | undefined, locale: string) {
   });
 }
 
-function relativeLabel(iso: string | null | undefined, locale: string) {
+function relativeLabel(iso: string | null | undefined, locale: string, t: PersonCardCopy) {
   if (!iso) return null;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return null;
   const diff = Date.now() - date.getTime();
   const minutes = Math.round(diff / 60000);
-  if (Math.abs(minutes) < 1) return 'Az önce';
-  if (Math.abs(minutes) < 60) return `${Math.abs(minutes)} dk ${minutes > 0 ? 'önce' : 'sonra'}`;
+  if (Math.abs(minutes) < 1) return t.justNow;
+  if (Math.abs(minutes) < 60) {
+    return `${Math.abs(minutes)} ${minutes > 0 ? t.minutesAgo : t.minutesLater}`;
+  }
   const hours = Math.round(minutes / 60);
-  if (Math.abs(hours) < 24) return `${Math.abs(hours)} saat ${hours > 0 ? 'önce' : 'sonra'}`;
+  if (Math.abs(hours) < 24) {
+    return `${Math.abs(hours)} ${hours > 0 ? t.hoursAgo : t.hoursLater}`;
+  }
   const days = Math.round(hours / 24);
-  if (Math.abs(days) < 45) return `${Math.abs(days)} gün ${days > 0 ? 'önce' : 'sonra'}`;
+  if (Math.abs(days) < 45) {
+    return `${Math.abs(days)} ${days > 0 ? t.daysAgo : t.daysLater}`;
+  }
   return formatShortDate(iso, locale);
 }
 
-function commLabel(type: string | null | undefined) {
-  if (type === 'email') return 'E-posta';
-  if (type === 'whatsapp') return 'WhatsApp';
-  if (type === 'phone_call') return 'Arama';
-  if (type === 'meeting' || type === 'zoom_meeting' || type === 'teams_meeting') return 'Toplantı';
-  if (type === 'sms') return 'Mesaj';
+function commLabel(type: string | null | undefined, t: PersonCardCopy) {
+  if (type === 'email') return t.email;
+  if (type === 'whatsapp') return t.whatsapp;
+  if (type === 'phone_call') return t.callKind;
+  if (type === 'meeting' || type === 'zoom_meeting' || type === 'teams_meeting') return t.meeting;
+  if (type === 'sms') return t.message;
   return null;
 }
 
-function taskKindLabel(type: string, meta?: Record<string, unknown> | null) {
+function taskKindLabel(type: string, t: PersonCardCopy, meta?: Record<string, unknown> | null) {
   const kind = String(meta?.follow_up_kind || type || '');
-  return TASK_KINDS.find((item) => item.value === kind)?.label
-    || commLabel(kind)
-    || (kind === 'follow_up' || kind === 'reminder' ? 'Genel takip' : kind || 'Genel takip');
+  if (kind === 'proposal') return t.proposalKind;
+  if (kind === 'task' || kind === 'follow_up' || kind === 'reminder') return t.followKind;
+  return commLabel(kind, t) || kind || t.followKind;
 }
 
-function crmStatusLabel(raw?: string | null): string | null {
+function crmStatusLabel(raw: string | null | undefined, t: PersonCardCopy): string | null {
   const value = (raw || '').trim();
   if (!value) return null;
-  if (/deal\s*won|^won$|^kazan[ıi]ld[ıi]$/i.test(value)) return 'Satın Alındı';
-  if (/^completed$|^tamamland[ıi]$/i.test(value)) return 'Tamamlandı';
-  if (/^active$|^aktif$/i.test(value)) return 'Aktif';
-  if (/^cancelled$|^canceled$|^iptal$/i.test(value)) return 'İptal';
-  if (/^lost$|^kaybedildi$/i.test(value)) return 'Kaybedildi';
+  if (/deal\s*won|^won$|^kazan[ıi]ld[ıi]$/i.test(value)) return t.purchased;
+  if (/^completed$|^tamamland[ıi]$/i.test(value)) return t.completed;
+  if (/^active$|^aktif$/i.test(value)) return t.active;
+  if (/^cancelled$|^canceled$|^iptal$/i.test(value)) return t.cancelled;
+  if (/^lost$|^kaybedildi$/i.test(value)) return t.lost;
   if (/^[A-Z0-9_:]+$/.test(value)) return null;
   return value;
 }
 
-function purchaseStatusLabel(purchase: CrmPurchaseSummary) {
-  if (purchase.is_historical_unit_change) return 'Daire değişikliği';
-  return crmStatusLabel(purchase.stage) || crmStatusLabel(purchase.status);
+function purchaseStatusLabel(purchase: CrmPurchaseSummary, t: PersonCardCopy) {
+  if (purchase.is_historical_unit_change) return t.unitChange;
+  return crmStatusLabel(purchase.stage, t) || crmStatusLabel(purchase.status, t);
 }
 
 function investmentRowTitle(purchase: CrmPurchaseSummary) {
@@ -214,9 +179,10 @@ function PurchaseHistoryRow({
   onOpen: (agreementId: string) => void;
   identityTestId?: string;
 }) {
+  const t = personCardCopy(useLocale());
   const isReit = purchase.project_group === 'reit';
   const historical = Boolean(purchase.is_historical_unit_change);
-  const status = purchaseStatusLabel(purchase);
+  const status = purchaseStatusLabel(purchase, t);
   const amount = purchase.amount_label || purchase.amount || null;
   const unit = isReit
     ? null
@@ -244,7 +210,7 @@ function PurchaseHistoryRow({
         {!historical && purchase.unit_history && purchase.unit_history.length > 1 ? (
           <UnitHistoryInline steps={purchase.unit_history} />
         ) : null}
-        {purchase.hemen_kira ? <span className="crm-purchase-list__unit">Hemen Kira</span> : null}
+        {purchase.hemen_kira ? <span className="crm-purchase-list__unit">{t.hemenKira}</span> : null}
       </td>
       <td>{unit || '—'}</td>
       <td>{amount || '—'}</td>
@@ -279,9 +245,9 @@ function nowLocal(): string {
   return toLocalInput(new Date().toISOString());
 }
 
-function friendlyError(message: string): string {
-  if (message.includes('invalid_phone')) return 'Telefon numarası geçersiz.';
-  if (message.includes('invalid_email')) return 'E-posta adresi geçersiz.';
+function friendlyError(message: string, t: PersonCardCopy): string {
+  if (message.includes('invalid_phone')) return t.invalidPhone;
+  if (message.includes('invalid_email')) return t.invalidEmailMsg;
   return message;
 }
 
@@ -296,7 +262,7 @@ function requestedPersonTab(): PersonTab {
   if (typeof window === 'undefined') return 'overview';
   const value = new URLSearchParams(window.location.search).get('tab');
   if (value === 'whatsapp') return 'history';
-  return PERSON_TABS.some((item) => item.id === value) ? (value as PersonTab) : 'overview';
+  return PERSON_TABS.some((item) => item === value) ? (value as PersonTab) : 'overview';
 }
 
 function requestedHistoryFilter(): PilotHistoryFilter {
@@ -304,21 +270,36 @@ function requestedHistoryFilter(): PilotHistoryFilter {
   return new URLSearchParams(window.location.search).get('tab') === 'whatsapp' ? 'whatsapp' : 'all';
 }
 
+function personIdFromRoute(pathname: string | null, paramId: string | undefined): string {
+  const fromPath = pathname?.match(/\/contacts\/([0-9a-fA-F-]{36})(?:\/|$)/)?.[1];
+  if (fromPath) return fromPath;
+  return typeof paramId === 'string' ? paramId : '';
+}
+
 export function UnifiedContactCard({
-  contactId,
+  contactId: contactIdProp,
   variant = 'page',
 }: {
   contactId: string;
   variant?: 'page' | 'drawer';
 }) {
+  const params = useParams<{ contactId?: string }>();
+  const pathname = usePathname();
+  const routeContactId = personIdFromRoute(pathname, params.contactId);
+  const contactId = variant === 'page' && routeContactId ? routeContactId : contactIdProp;
   const locale = useLocale();
+  const t = personCardCopy(locale);
   const queryClient = useQueryClient();
   const router = useRouter();
   const { openPurchase } = useContactCard();
-  const { authLoading, canRead, has, user } = useCrmAccess();
+  const { authLoading, canRead, has, user, canViewFinancial } = useCrmAccess();
   const canUpdate = has('update');
   const canViewDocuments = Boolean(user && hasPermission(user, 'documents', 'view'));
   const canLinkDocuments = Boolean(user && hasPermission(user, 'documents', 'update'));
+  const canUploadDocuments = canLinkDocuments;
+  const canArchiveDocuments = Boolean(
+    user && (hasPermission(user, 'documents', 'archive') || hasPermission(user, 'documents', 'delete')),
+  );
   const query = useQuery({
     ...contactQueries.detail(contactId),
     enabled: !authLoading && canRead,
@@ -362,25 +343,33 @@ export function UnifiedContactCard({
   const [panel, setPanel] = useState<Panel>(null);
   const [error, setError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [extraPhones, setExtraPhones] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
   const [email, setEmail] = useState('');
   const [extraEmails, setExtraEmails] = useState('');
   const [secondEmail, setSecondEmail] = useState('');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [region, setRegion] = useState('');
+  const [country, setCountry] = useState('');
+  const [language, setLanguage] = useState('');
+  const [budgetMin, setBudgetMin] = useState('');
+  const [budgetMax, setBudgetMax] = useState('');
   const [source, setSource] = useState('');
   const [notes, setNotes] = useState('');
   const [company, setCompany] = useState('');
   const [position, setPosition] = useState('');
+  const [saveOk, setSaveOk] = useState(false);
   const [statusValue, setStatusValue] = useState<'active' | 'archived'>('active');
   const [junkReason, setJunkReason] = useState('');
   const [roles, setRoles] = useState<CrmContactType[]>([]);
   const [ownerId, setOwnerId] = useState('');
   const [followUpAt, setFollowUpAt] = useState('');
   const [note, setNote] = useState('');
-  const [noteType, setNoteType] = useState<(typeof NOTE_TYPES)[number]['value']>('note');
+  const [noteType, setNoteType] = useState<(typeof NOTE_TYPES)[number]>('note');
   const [noteAt, setNoteAt] = useState(nowLocal);
   const [noteNeedsFollowUp, setNoteNeedsFollowUp] = useState(false);
   const [noteFollowUpAt, setNoteFollowUpAt] = useState('');
@@ -388,8 +377,8 @@ export function UnifiedContactCard({
   const [taskDescription, setTaskDescription] = useState('');
   const [taskAssignee, setTaskAssignee] = useState('');
   const [taskDue, setTaskDue] = useState('');
-  const [taskStatus, setTaskStatus] = useState<(typeof TASK_STATUSES)[number]['value']>('not_started');
-  const [taskKind, setTaskKind] = useState<(typeof TASK_KINDS)[number]['value']>('task');
+  const [taskStatus, setTaskStatus] = useState<(typeof TASK_STATUSES)[number]>('not_started');
+  const [taskKind, setTaskKind] = useState<(typeof TASK_KINDS)[number]>('task');
   const [linkDocumentId, setLinkDocumentId] = useState('');
   const [tab, setTab] = useState<PersonTab>('overview');
   const [historyFilter, setHistoryFilter] = useState<PilotHistoryFilter>('all');
@@ -410,25 +399,35 @@ export function UnifiedContactCard({
     if (typeof window === 'undefined') return;
     const purchase = new URLSearchParams(window.location.search).get('purchase');
     if (purchase) {
-      router.replace(salesDetailUrl(contactId, purchase));
+      router.replace(salesDetailUrl(contactId, purchase) as Route);
     }
   }, [contactId, router]);
 
   useEffect(() => {
     if (!contact) return;
     setDisplayName(contact.display_name);
+    setFirstName(contact.first_name ?? '');
+    setLastName(contact.last_name ?? '');
     setPhone(contact.primary_phone ?? '');
     setExtraPhones((contact.secondary_phones ?? []).join(', '));
+    setWhatsapp(contact.whatsapp ?? '');
     setEmail(contact.primary_email ?? '');
     setSecondEmail((contact.secondary_emails ?? [])[0] ?? '');
     setExtraEmails((contact.secondary_emails ?? []).slice(1).join(', '));
     setAddress(contact.address_line1 ?? '');
     setCity(contact.city ?? '');
     setRegion(contact.state_province ?? '');
+    setCountry(contact.country ?? '');
+    const prefs = contact.communication_prefs ?? {};
+    setLanguage(typeof prefs.language === 'string' ? prefs.language : '');
+    const buyer = contact.buyer_profile ?? {};
+    setBudgetMin(buyer.budget_min != null ? String(buyer.budget_min) : '');
+    setBudgetMax(buyer.budget_max != null ? String(buyer.budget_max) : '');
     setSource(contact.source ?? contact.bitrix_source_channel ?? '');
     setNotes(contact.notes ?? '');
     setCompany(contact.organization_name ?? '');
     setPosition(contact.job_title ?? '');
+    setSaveOk(false);
     setStatusValue(contact.status === 'archived' ? 'archived' : 'active');
     setJunkReason(contact.junk_reason ?? '');
     setRoles(contact.contact_types.length ? contact.contact_types : [contact.contact_type]);
@@ -457,7 +456,10 @@ export function UnifiedContactCard({
       setError(null);
       void refresh();
     },
-    onError: (err: Error) => setError(friendlyError(err.message)),
+    onError: (err: Error) => {
+      setSaveOk(false);
+      setError(friendlyError(err.message, t));
+    },
   });
 
   const users: UserRecord[] = usersQuery.data?.items ?? [];
@@ -471,10 +473,10 @@ export function UnifiedContactCard({
     [timeline],
   );
 
-  if (authLoading || query.isLoading) return <LoadingState label="Loading…" />;
-  if (!canRead) return <EmptyState title="CRM" description="Access denied" />;
+  if (authLoading || query.isLoading) return <LoadingState label={t.loading} />;
+  if (!canRead) return <EmptyState title="CRM" description={t.accessDenied} />;
   if (query.isError || !contact) {
-    return <ErrorState title="CRM" message={query.error?.message ?? 'Kişi yüklenemedi'} />;
+    return <ErrorState title="CRM" message={query.error?.message ?? t.loadError} />;
   }
 
   const isJunk = contact.status === 'archived';
@@ -484,11 +486,11 @@ export function UnifiedContactCard({
   const documents = documentsQuery.data ?? [];
   const visibleDocuments = documents.filter((doc) => !doc.hidden_from_view);
   const sourceRaw = contact.bitrix_source_channel || contact.source;
-  const sourceLabel = formatLeadSource(sourceRaw);
+  const sourceLabel = formatLeadSource(sourceRaw, t);
   const referrerName = referrerQuery.data?.display_name?.trim() || null;
   const waNumber = phoneDigits(contact.whatsapp || contact.primary_phone);
   const lastComm = commEntries[0];
-  const lastCommChannel = commLabel(lastComm?.activity_type) || commLabel(timeline[0]?.activity_type);
+  const lastCommChannel = commLabel(lastComm?.activity_type, t) || commLabel(timeline[0]?.activity_type, t);
   const projectCount = new Set(currentPurchases.map((item) => item.project_label).filter(Boolean)).size;
   const tags = contact.tag_items ?? [];
 
@@ -505,11 +507,25 @@ export function UnifiedContactCard({
 
   const submitEdit = (event: FormEvent) => {
     event.preventDefault();
+    const combinedName = `${firstName.trim()} ${lastName.trim()}`.trim();
+    const nextDisplay = displayName.trim() || combinedName;
+    if (!nextDisplay) {
+      setError(t.nameRequired);
+      return;
+    }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError(t.invalidEmail);
+      return;
+    }
     const secondaryEmails = [secondEmail, ...splitList(extraEmails)].map((item) => item.trim()).filter(Boolean);
+    setSaveOk(false);
     actionMutation.mutate(async () => {
       const payload: Parameters<typeof updateContact>[1] = {};
-      if (displayName.trim() && displayName.trim() !== contact.display_name) payload.display_name = displayName.trim();
+      if (nextDisplay !== contact.display_name) payload.display_name = nextDisplay;
+      if (firstName.trim() !== (contact.first_name ?? '')) payload.first_name = firstName.trim() || undefined;
+      if (lastName.trim() !== (contact.last_name ?? '')) payload.last_name = lastName.trim() || undefined;
       if (phone.trim() !== (contact.primary_phone ?? '')) payload.primary_phone = phone.trim() || undefined;
+      if (whatsapp.trim() !== (contact.whatsapp ?? '')) payload.whatsapp = whatsapp.trim() || undefined;
       if (email.trim() !== (contact.primary_email ?? '')) payload.primary_email = email.trim() || undefined;
       if (secondaryEmails.join('|') !== (contact.secondary_emails ?? []).join('|')) {
         payload.secondary_emails = secondaryEmails;
@@ -522,6 +538,22 @@ export function UnifiedContactCard({
       if (address.trim() !== (contact.address_line1 ?? '')) payload.address_line1 = address.trim() || undefined;
       if (city.trim() !== (contact.city ?? '')) payload.city = city.trim() || undefined;
       if (region.trim() !== (contact.state_province ?? '')) payload.state_province = region.trim() || undefined;
+      if (country.trim() !== (contact.country ?? '')) payload.country = country.trim() || undefined;
+      const currentLanguage = typeof contact.communication_prefs?.language === 'string' ? contact.communication_prefs.language : '';
+      if (language.trim() !== currentLanguage) {
+        payload.communication_prefs = { language: language.trim() || null };
+      }
+      if (canViewFinancial) {
+        const currentMin = contact.buyer_profile?.budget_min != null ? String(contact.buyer_profile.budget_min) : '';
+        const currentMax = contact.buyer_profile?.budget_max != null ? String(contact.buyer_profile.budget_max) : '';
+        if (budgetMin.trim() !== currentMin || budgetMax.trim() !== currentMax) {
+          payload.buyer_profile = {
+            ...(contact.buyer_profile ?? {}),
+            budget_min: budgetMin.trim() ? Number(budgetMin.trim()) : null,
+            budget_max: budgetMax.trim() ? Number(budgetMax.trim()) : null,
+          };
+        }
+      }
       if (source.trim() !== (contact.source ?? contact.bitrix_source_channel ?? '')) {
         payload.source = source.trim() || undefined;
       }
@@ -538,14 +570,48 @@ export function UnifiedContactCard({
       }
       if (statusValue === 'archived') payload.junk_reason = junkReason.trim() || null;
       await updateContact(contactId, payload);
+      setSaveOk(true);
       setPanel(null);
     });
+  };
+
+  const cancelEdit = () => {
+    if (!contact) return;
+    setDisplayName(contact.display_name);
+    setFirstName(contact.first_name ?? '');
+    setLastName(contact.last_name ?? '');
+    setPhone(contact.primary_phone ?? '');
+    setExtraPhones((contact.secondary_phones ?? []).join(', '));
+    setWhatsapp(contact.whatsapp ?? '');
+    setEmail(contact.primary_email ?? '');
+    setSecondEmail((contact.secondary_emails ?? [])[0] ?? '');
+    setExtraEmails((contact.secondary_emails ?? []).slice(1).join(', '));
+    setAddress(contact.address_line1 ?? '');
+    setCity(contact.city ?? '');
+    setRegion(contact.state_province ?? '');
+    setCountry(contact.country ?? '');
+    const prefs = contact.communication_prefs ?? {};
+    setLanguage(typeof prefs.language === 'string' ? prefs.language : '');
+    const buyer = contact.buyer_profile ?? {};
+    setBudgetMin(buyer.budget_min != null ? String(buyer.budget_min) : '');
+    setBudgetMax(buyer.budget_max != null ? String(buyer.budget_max) : '');
+    setSource(contact.source ?? contact.bitrix_source_channel ?? '');
+    setNotes(contact.notes ?? '');
+    setCompany(contact.organization_name ?? '');
+    setPosition(contact.job_title ?? '');
+    setStatusValue(contact.status === 'archived' ? 'archived' : 'active');
+    setJunkReason(contact.junk_reason ?? '');
+    setRoles(contact.contact_types.length ? contact.contact_types : [contact.contact_type]);
+    setOwnerId(contact.owner_user_id ?? '');
+    setFollowUpAt(toLocalInput(contact.next_follow_up_at));
+    setError(null);
+    setPanel(null);
   };
 
   const submitNote = (event: FormEvent) => {
     event.preventDefault();
     if (!note.trim()) return;
-    const typeLabel = NOTE_TYPES.find((item) => item.value === noteType)?.label ?? 'Yorum';
+    const typeLabel = noteType === 'note' ? t.noteKind : commLabel(noteType, t) || t.comment;
     actionMutation.mutate(async () => {
       await createActivity({
         entity_type: 'contact',
@@ -561,7 +627,7 @@ export function UnifiedContactCard({
           entity_type: 'contact',
           entity_id: contactId,
           reason: 'relationship_review',
-          title: 'Takip',
+          title: t.followKind,
           due_date: toIso(noteFollowUpAt),
           notes: note.trim(),
         });
@@ -577,7 +643,7 @@ export function UnifiedContactCard({
   const submitTask = (event: FormEvent) => {
     event.preventDefault();
     if (!taskTitle.trim()) return;
-    const kindLabel = TASK_KINDS.find((item) => item.value === taskKind)?.label ?? 'Görev';
+    const kindLabel = taskKindLabel(taskKind, t);
     actionMutation.mutate(async () => {
       if (taskKind === 'meeting') {
         await createMeeting({
@@ -679,7 +745,7 @@ export function UnifiedContactCard({
         <table className="crm-person-table">
           <thead>
             <tr>
-              <th>Proje / mülk</th>
+              <th>{t.purchases}</th>
               <th>Daire</th>
               <th>Tutar</th>
               <th>Durum</th>
@@ -704,11 +770,11 @@ export function UnifiedContactCard({
       <thead>
         <tr>
           <th>Tarih</th>
-          <th>Görev</th>
+          <th>{t.task}</th>
           <th>Tip</th>
           <th>Durum</th>
-          {!compact ? <th>Açıklama</th> : null}
-          <th>Sorumlu</th>
+          {!compact ? <th>{t.description}</th> : null}
+          <th>{t.assignee}</th>
           <th></th>
         </tr>
       </thead>
@@ -720,15 +786,25 @@ export function UnifiedContactCard({
             <tr key={entry.id}>
               <td>{formatDateTime(due || entry.created_at, locale) || '—'}</td>
               <td>{entry.title.replace(/^(Görev|Takip):\s*/i, '')}</td>
-              <td>{taskKindLabel(entry.activity_type, entry.metadata)}</td>
-              <td>{taskStatusLabel(String(entry.metadata?.task_status || entry.status || ''))}</td>
+              <td>{taskKindLabel(entry.activity_type, t, entry.metadata)}</td>
+              <td>
+                {entry.metadata?.task_status === 'not_started'
+                  ? t.notStarted
+                  : entry.metadata?.task_status === 'in_progress'
+                    ? t.inProgress
+                    : entry.metadata?.task_status === 'waiting'
+                      ? t.waiting
+                      : String(entry.metadata?.task_status || entry.status || '') === 'completed'
+                        ? t.completed
+                        : taskStatusLabel(String(entry.metadata?.task_status || entry.status || ''))}
+              </td>
               {!compact ? <td>{entry.summary || '—'}</td> : null}
               <td>{String(entry.metadata?.assigned_user_name || entry.actor_name || ownerName || '—')}</td>
               <td>
                 {canUpdate && !done ? (
                   <div className="crm-person-table__actions">
                     <button type="button" onClick={() => completeFollowUpRow(entry)}>
-                      Tamamla
+                      {t.complete}
                     </button>
                     <button
                       type="button"
@@ -737,7 +813,7 @@ export function UnifiedContactCard({
                         setRescheduleAt(toLocalInput(due || entry.created_at));
                       }}
                     >
-                      Ertele
+                      {t.postpone}
                     </button>
                   </div>
                 ) : null}
@@ -745,7 +821,7 @@ export function UnifiedContactCard({
                   <div className="crm-person-reschedule">
                     <input type="datetime-local" value={rescheduleAt} onChange={(event) => setRescheduleAt(event.target.value)} />
                     <button type="button" onClick={() => saveReschedule(entry.id)}>
-                      Kaydet
+                      {t.save}
                     </button>
                   </div>
                 ) : null}
@@ -764,7 +840,7 @@ export function UnifiedContactCard({
     >
       {variant === 'page' ? (
         <Button className="crm-contact-card__back" variant="secondary" size="sm" onClick={() => window.history.back()}>
-          <IhIcon name="chevronLeft" size={13} /> Kişilere dön
+          <IhIcon name="chevronLeft" size={13} /> {t.back}
         </Button>
       ) : null}
 
@@ -778,11 +854,11 @@ export function UnifiedContactCard({
               <h1>{contact.display_name}</h1>
               {(contact.contact_types.length ? contact.contact_types : [contact.contact_type]).map((type) => (
                 <span key={type} className="crm-person-chip">
-                  {roleLabel(type)}
+                  {roleLabel(type, t)}
                 </span>
               ))}
-              {contact.is_agent ? <span className="crm-person-chip">Acenta</span> : null}
-              <StatusChip tone={isJunk ? 'default' : 'success'}>{isJunk ? 'Junk' : 'Aktif'}</StatusChip>
+              {contact.is_agent ? <span className="crm-person-chip">{t.agent}</span> : null}
+              <StatusChip tone={isJunk ? 'default' : 'success'}>{isJunk ? t.junk : t.active}</StatusChip>
             </div>
             <div className="crm-contact-card__tags" data-testid="contact-tags">
               {tags.map((tag) => (
@@ -794,7 +870,7 @@ export function UnifiedContactCard({
                     <button
                       type="button"
                       className="crm-contact-card__tag-remove"
-                      aria-label={`${tag.name} kaldır`}
+                      aria-label={`${tag.name} ${t.removeTag}`}
                       onClick={() => {
                         void removeContactTag(contactId, tag.id)
                           .then(() => refresh())
@@ -810,7 +886,7 @@ export function UnifiedContactCard({
                 <select
                   className="crm-contact-card__tag-add"
                   value=""
-                  aria-label="Etiket ekle"
+                  aria-label={t.addTag}
                   onChange={(event) => {
                     const tagId = event.target.value;
                     if (!tagId) return;
@@ -834,19 +910,19 @@ export function UnifiedContactCard({
           <div className="crm-person-hero__meta">
             {sourceLabel ? (
               <div className="crm-person-source" data-testid="contact-lead-source">
-                <dt>Geliş Kaynağı</dt>
+                <dt>{t.source}</dt>
                 <dd>{sourceLabel}</dd>
               </div>
             ) : null}
             {referrerName ? (
               <div className="crm-person-source" data-testid="contact-referrer">
-                <dt>Yönlendiren / Acenta</dt>
+                <dt>{t.referrer}</dt>
                 <dd>{referrerName}</dd>
               </div>
             ) : null}
             {contact.created_at ? (
               <div className="crm-person-source">
-                <dt>Oluşturulma Tarihi</dt>
+                <dt>{t.createdAt}</dt>
                 <dd>{formatShortDate(contact.created_at, locale)}</dd>
               </div>
             ) : null}
@@ -862,20 +938,20 @@ export function UnifiedContactCard({
         <div className="crm-person-actions">
           {contact.primary_email ? (
             <a className="crm-person-action" href={`mailto:${contact.primary_email}`}>
-              <IhIcon name="mail" size={14} /> E-posta
+              <IhIcon name="mail" size={14} /> {t.email}
             </a>
           ) : (
             <button type="button" className="crm-person-action" disabled>
-              <IhIcon name="mail" size={14} /> E-posta
+              <IhIcon name="mail" size={14} /> {t.email}
             </button>
           )}
           {waNumber ? (
             <a className="crm-person-action" href={`https://wa.me/${waNumber}`} target="_blank" rel="noreferrer">
-              <IhIcon name="inbox" size={14} /> WhatsApp
+              <IhIcon name="inbox" size={14} /> {t.whatsapp}
             </a>
           ) : (
             <button type="button" className="crm-person-action" disabled>
-              <IhIcon name="inbox" size={14} /> WhatsApp
+              <IhIcon name="inbox" size={14} /> {t.whatsapp}
             </button>
           )}
           <button
@@ -886,7 +962,7 @@ export function UnifiedContactCard({
               togglePanel('note');
             }}
           >
-            <IhIcon name="activity" size={14} /> Mesaj
+            <IhIcon name="activity" size={14} /> {t.message}
           </button>
           {canUpdate ? (
             <button
@@ -897,7 +973,7 @@ export function UnifiedContactCard({
                 togglePanel('task');
               }}
             >
-              <IhIcon name="meeting" size={14} /> Toplantı
+              <IhIcon name="meeting" size={14} /> {t.meeting}
             </button>
           ) : null}
           {canUpdate ? (
@@ -906,19 +982,19 @@ export function UnifiedContactCard({
               className={`crm-person-action${panel === 'more' || panel === 'assign' ? ' is-active' : ''}`}
               onClick={() => togglePanel(panel === 'more' || panel === 'assign' ? null : 'more')}
             >
-              Diğer
+              {t.more}
             </button>
           ) : null}
           {canUpdate ? (
             <Button type="button" size="sm" data-testid="contact-edit-open" onClick={() => togglePanel('edit')}>
-              Düzenle
+              {t.edit}
             </Button>
           ) : null}
         </div>
         {panel === 'more' ? (
           <div className="crm-person-more">
             <button type="button" onClick={() => togglePanel('assign')}>
-              Sorumlu Ata
+              {t.assignOwner}
             </button>
             <button
               type="button"
@@ -927,7 +1003,7 @@ export function UnifiedContactCard({
                 togglePanel('task');
               }}
             >
-              Görev Oluştur
+              {t.createTask}
             </button>
             <button
               type="button"
@@ -936,7 +1012,7 @@ export function UnifiedContactCard({
                 togglePanel('edit');
               }}
             >
-              Junk&apos;a taşı
+              {t.moveToJunk}
             </button>
           </div>
         ) : null}
@@ -944,16 +1020,16 @@ export function UnifiedContactCard({
 
       {isJunk ? (
         <div className="crm-contact-card__banner crm-contact-card__banner--junk" data-testid="contact-junk-banner">
-          <strong>Durum: Junk</strong>
-          <div>Junk Sebebi: {contact.junk_reason || contact.bitrix_history?.junk_reason || '—'}</div>
+          <strong>{t.junkStatus}</strong>
+          <div>{t.junkReason}: {contact.junk_reason || contact.bitrix_history?.junk_reason || '—'}</div>
         </div>
       ) : null}
 
       {contact.agent?.is_agent ? (
         <div className="crm-contact-card__banner" data-testid="contact-agent-banner">
-          <strong>Acenta</strong>
+          <strong>{t.agent}</strong>
           <div>
-            {[contact.agent.brokerage_name || contact.organization_name, contact.agent.status === 'active' ? 'Aktif' : 'Pasif']
+            {[contact.agent.brokerage_name || contact.organization_name, contact.agent.status === 'active' ? t.active : t.passive]
               .filter(Boolean)
               .join(' · ')}
           </div>
@@ -961,50 +1037,83 @@ export function UnifiedContactCard({
       ) : null}
 
       {error ? <div className="crm-verify-detail__error">{error}</div> : null}
+      {saveOk && !error ? (
+        <div className="crm-verify-detail__success" data-testid="contact-edit-success">
+          {t.saved}
+        </div>
+      ) : null}
 
       {panel === 'edit' ? (
         <section className="crm-verify-detail__section" data-testid="contact-edit-panel">
-          <h2>Kişiyi Düzenle</h2>
+          <h2>{t.editPerson}</h2>
           <form onSubmit={submitEdit} className="crm-contact-card__panel">
             <div className="crm-contact-card__panel-grid">
-              <Input label="Ad Soyad" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
-              <Input label="Telefon" value={phone} onChange={(event) => setPhone(event.target.value)} />
-              <Input label="Ek telefonlar" value={extraPhones} onChange={(event) => setExtraPhones(event.target.value)} />
-              <Input label="E-posta" value={email} onChange={(event) => setEmail(event.target.value)} />
-              <Input label="İkinci E-posta" value={secondEmail} onChange={(event) => setSecondEmail(event.target.value)} />
-              <Input label="Ek e-postalar" value={extraEmails} onChange={(event) => setExtraEmails(event.target.value)} />
-              <Input label="Adres" value={address} onChange={(event) => setAddress(event.target.value)} />
-              <Input label="Şehir" value={city} onChange={(event) => setCity(event.target.value)} />
-              <Input label="Bölge" value={region} onChange={(event) => setRegion(event.target.value)} />
-              <Input label="Şirket" value={company} onChange={(event) => setCompany(event.target.value)} />
-              <Input label="Pozisyon" value={position} onChange={(event) => setPosition(event.target.value)} />
-              <Input label="Kaynak" value={source} onChange={(event) => setSource(event.target.value)} />
-              <Select label="Durum" value={statusValue} onChange={(event) => setStatusValue(event.target.value as 'active' | 'archived')}>
-                <option value="active">Aktif</option>
-                <option value="archived">Junk</option>
+              <Input label={t.displayName} value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+              <Input label={t.firstName} value={firstName} onChange={(event) => setFirstName(event.target.value)} />
+              <Input label={t.lastName} value={lastName} onChange={(event) => setLastName(event.target.value)} />
+              <Input label={t.phone} value={phone} onChange={(event) => setPhone(event.target.value)} />
+              <Input label={t.whatsapp} value={whatsapp} onChange={(event) => setWhatsapp(event.target.value)} />
+              <Input label={t.extraPhones} value={extraPhones} onChange={(event) => setExtraPhones(event.target.value)} />
+              <Input label={t.email} value={email} onChange={(event) => setEmail(event.target.value)} />
+              <Input label={t.secondEmail} value={secondEmail} onChange={(event) => setSecondEmail(event.target.value)} />
+              <Input label={t.extraEmails} value={extraEmails} onChange={(event) => setExtraEmails(event.target.value)} />
+              <Input label={t.address} value={address} onChange={(event) => setAddress(event.target.value)} />
+              <Input label={t.city} value={city} onChange={(event) => setCity(event.target.value)} />
+              <Input label={t.region} value={region} onChange={(event) => setRegion(event.target.value)} />
+              <Input label={t.country} value={country} onChange={(event) => setCountry(event.target.value)} />
+              <Select label={t.language} value={language} onChange={(event) => setLanguage(event.target.value)}>
+                <option value="">{t.select}</option>
+                <option value="tr">Türkçe</option>
+                <option value="en">English</option>
+                <option value="de">Deutsch</option>
+                <option value="ru">Русский</option>
+                <option value="ar">العربية</option>
+              </Select>
+              {canViewFinancial ? (
+                <>
+                  <Input
+                    label={t.budgetMin}
+                    value={budgetMin}
+                    onChange={(event) => setBudgetMin(event.target.value)}
+                    inputMode="decimal"
+                  />
+                  <Input
+                    label={t.budgetMax}
+                    value={budgetMax}
+                    onChange={(event) => setBudgetMax(event.target.value)}
+                    inputMode="decimal"
+                  />
+                </>
+              ) : null}
+              <Input label={t.company} value={company} onChange={(event) => setCompany(event.target.value)} />
+              <Input label={t.position} value={position} onChange={(event) => setPosition(event.target.value)} />
+              <Input label={t.source} value={source} onChange={(event) => setSource(event.target.value)} />
+              <Select label={t.status} value={statusValue} onChange={(event) => setStatusValue(event.target.value as 'active' | 'archived')}>
+                <option value="active">{t.active}</option>
+                <option value="archived">{t.junk}</option>
               </Select>
               {statusValue === 'archived' ? (
                 <>
-                  <Select label="Junk sebebi" value={junkReason} onChange={(event) => setJunkReason(event.target.value)}>
-                    <option value="">Seçin veya yazın</option>
+                  <Select label={t.junkReasonField} value={junkReason} onChange={(event) => setJunkReason(event.target.value)}>
+                    <option value="">{t.selectOrType}</option>
                     {(reasonsQuery.data?.items ?? []).map((item) => (
                       <option key={item.reason} value={item.reason}>{item.reason}</option>
                     ))}
                   </Select>
-                  <Input label="Junk sebebi (serbest)" value={junkReason} onChange={(event) => setJunkReason(event.target.value)} />
+                  <Input label={t.junkReasonFree} value={junkReason} onChange={(event) => setJunkReason(event.target.value)} />
                 </>
               ) : null}
-              <Select label="Sorumlu" value={ownerId} onChange={(event) => setOwnerId(event.target.value)}>
-                <option value="">Seçin</option>
+              <Select label={t.owner} value={ownerId} onChange={(event) => setOwnerId(event.target.value)}>
+                <option value="">{t.select}</option>
                 {users.map((item) => (
                   <option key={item.id} value={item.id}>{item.full_name}</option>
                 ))}
               </Select>
-              <Input label="Sonraki takip" type="datetime-local" value={followUpAt} onChange={(event) => setFollowUpAt(event.target.value)} />
+              <Input label={t.nextFollowUp} type="datetime-local" value={followUpAt} onChange={(event) => setFollowUpAt(event.target.value)} />
             </div>
-            <TextArea label="Notlar" value={notes} onChange={(event) => setNotes(event.target.value)} />
+            <TextArea label={t.notes} value={notes} onChange={(event) => setNotes(event.target.value)} />
             <div>
-              <div className="crm-contact-card__meta-line">Tür / roller</div>
+              <div className="crm-contact-card__meta-line">{t.roles}</div>
               <div className="crm-contact-card__roles">
                 {CRM_CONTACT_TYPES.map((type) => (
                   <label key={type}>
@@ -1017,85 +1126,107 @@ export function UnifiedContactCard({
                         );
                       }}
                     />
-                    {roleLabel(type)}
+                    {roleLabel(type, t)}
                   </label>
                 ))}
               </div>
             </div>
-            <Button type="submit" size="sm" disabled={actionMutation.isPending} data-testid="contact-edit-save">
-              Kaydet
-            </Button>
+            <div className="crm-contact-card__panel-actions">
+              <Button type="submit" size="sm" disabled={actionMutation.isPending} data-testid="contact-edit-save">
+                {actionMutation.isPending ? t.saving : t.save}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={actionMutation.isPending}
+                data-testid="contact-edit-cancel"
+                onClick={cancelEdit}
+              >
+                {t.cancel}
+              </Button>
+            </div>
           </form>
         </section>
       ) : null}
 
       {panel === 'note' ? (
         <section className="crm-verify-detail__section" data-testid="contact-note-panel">
-          <h2>Yorum Ekle</h2>
+          <h2>{t.addComment}</h2>
           <form onSubmit={submitNote} className="crm-contact-card__panel">
-            <TextArea label="Yorum" value={note} onChange={(event) => setNote(event.target.value)} />
+            <TextArea label={t.comment} value={note} onChange={(event) => setNote(event.target.value)} />
             <div className="crm-contact-card__panel-grid">
-              <Select label="Tür" value={noteType} onChange={(event) => setNoteType(event.target.value as typeof noteType)}>
+              <Select label={t.type} value={noteType} onChange={(event) => setNoteType(event.target.value as typeof noteType)}>
                 {NOTE_TYPES.map((item) => (
-                  <option key={item.value} value={item.value}>{item.label}</option>
+                  <option key={item} value={item}>
+                    {item === 'note' ? t.noteKind : commLabel(item, t) || item}
+                  </option>
                 ))}
               </Select>
-              <Input label="Tarih / saat" type="datetime-local" value={noteAt} onChange={(event) => setNoteAt(event.target.value)} />
-              <Select label="Takip görevi oluştur" value={noteNeedsFollowUp ? 'yes' : 'no'} onChange={(event) => setNoteNeedsFollowUp(event.target.value === 'yes')}>
-                <option value="no">Hayır</option>
-                <option value="yes">Evet</option>
+              <Input label={t.datetime} type="datetime-local" value={noteAt} onChange={(event) => setNoteAt(event.target.value)} />
+              <Select label={t.createFollowUp} value={noteNeedsFollowUp ? 'yes' : 'no'} onChange={(event) => setNoteNeedsFollowUp(event.target.value === 'yes')}>
+                <option value="no">{t.no}</option>
+                <option value="yes">{t.yes}</option>
               </Select>
               {noteNeedsFollowUp ? (
-                <Input label="Takip tarihi" type="datetime-local" value={noteFollowUpAt} onChange={(event) => setNoteFollowUpAt(event.target.value)} />
+                <Input label={t.followUpDate} type="datetime-local" value={noteFollowUpAt} onChange={(event) => setNoteFollowUpAt(event.target.value)} />
               ) : null}
             </div>
-            <Button type="submit" size="sm" disabled={actionMutation.isPending || !note.trim()}>Yorumu kaydet</Button>
+            <Button type="submit" size="sm" disabled={actionMutation.isPending || !note.trim()}>{t.saveComment}</Button>
           </form>
         </section>
       ) : null}
 
       {panel === 'task' ? (
         <section className="crm-verify-detail__section" data-testid="contact-task-panel">
-          <h2>Görev Oluştur</h2>
+          <h2>{t.createTask}</h2>
           <form onSubmit={submitTask} className="crm-contact-card__panel">
-            <Input label="Görev" value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder="24 Eyl 14:00 müşteriyi ara" />
-            <TextArea label="Açıklama" value={taskDescription} onChange={(event) => setTaskDescription(event.target.value)} />
+            <Input label={t.task} value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder={t.taskPlaceholder} />
+            <TextArea label={t.description} value={taskDescription} onChange={(event) => setTaskDescription(event.target.value)} />
             <div className="crm-contact-card__panel-grid">
-              <Select label="Tip" value={taskKind} onChange={(event) => setTaskKind(event.target.value as typeof taskKind)}>
+              <Select label={t.type} value={taskKind} onChange={(event) => setTaskKind(event.target.value as typeof taskKind)}>
                 {TASK_KINDS.map((item) => (
-                  <option key={item.value} value={item.value}>{item.label}</option>
+                  <option key={item} value={item}>{taskKindLabel(item, t)}</option>
                 ))}
               </Select>
-              <Select label="Sorumlu" value={taskAssignee} onChange={(event) => setTaskAssignee(event.target.value)}>
-                <option value="">Seçin</option>
+              <Select label={t.owner} value={taskAssignee} onChange={(event) => setTaskAssignee(event.target.value)}>
+                <option value="">{t.select}</option>
                 {users.map((item) => (
                   <option key={item.id} value={item.id}>{item.full_name}</option>
                 ))}
               </Select>
-              <Input label="Tarih" type="datetime-local" value={taskDue} onChange={(event) => setTaskDue(event.target.value)} />
-              <Select label="Durum" value={taskStatus} onChange={(event) => setTaskStatus(event.target.value as typeof taskStatus)}>
+              <Input label={t.date} type="datetime-local" value={taskDue} onChange={(event) => setTaskDue(event.target.value)} />
+              <Select label={t.status} value={taskStatus} onChange={(event) => setTaskStatus(event.target.value as typeof taskStatus)}>
                 {TASK_STATUSES.map((item) => (
-                  <option key={item.value} value={item.value}>{item.label}</option>
+                  <option key={item} value={item}>
+                    {item === 'not_started'
+                      ? t.notStarted
+                      : item === 'in_progress'
+                        ? t.inProgress
+                        : item === 'waiting'
+                          ? t.waiting
+                          : t.completed}
+                  </option>
                 ))}
               </Select>
             </div>
-            <Button type="submit" size="sm" disabled={actionMutation.isPending || !taskTitle.trim()}>Görevi kaydet</Button>
+            <Button type="submit" size="sm" disabled={actionMutation.isPending || !taskTitle.trim()}>{t.saveTask}</Button>
           </form>
         </section>
       ) : null}
 
       {panel === 'assign' ? (
         <section className="crm-verify-detail__section" data-testid="contact-assign-panel">
-          <h2>Sorumlu Ata</h2>
-          <p className="crm-contact-card__meta-line">Mevcut sorumlu: {ownerName || '—'}</p>
+          <h2>{t.assignOwner}</h2>
+          <p className="crm-contact-card__meta-line">{t.currentOwner}: {ownerName || '—'}</p>
           <form onSubmit={submitOwner} className="crm-contact-card__panel">
-            <Select label="Yeni sorumlu" value={ownerId} onChange={(event) => setOwnerId(event.target.value)}>
-              <option value="">Kullanıcı seç</option>
+            <Select label={t.newOwner} value={ownerId} onChange={(event) => setOwnerId(event.target.value)}>
+              <option value="">{t.selectUser}</option>
               {users.map((item) => (
                 <option key={item.id} value={item.id}>{item.full_name}</option>
               ))}
             </Select>
-            <Button type="submit" size="sm" disabled={actionMutation.isPending || !ownerId}>Atamayı kaydet</Button>
+            <Button type="submit" size="sm" disabled={actionMutation.isPending || !ownerId}>{t.saveAssignment}</Button>
           </form>
         </section>
       ) : null}
@@ -1103,20 +1234,20 @@ export function UnifiedContactCard({
       <nav className="crm-contact-card__tabs crm-person-tabs" aria-label="Person card tabs" data-testid="person-card-tabs">
         {PERSON_TABS.map((item) => {
           const count =
-            item.id === 'purchases' ? currentPurchases.length
-            : item.id === 'history' ? commEntries.length
-            : item.id === 'documents' ? visibleDocuments.length
-            : item.id === 'tasks' ? followUpEntries.length
+            item === 'purchases' ? currentPurchases.length
+            : item === 'history' ? commEntries.length
+            : item === 'documents' ? visibleDocuments.length
+            : item === 'tasks' ? followUpEntries.length
             : null;
           return (
             <button
-              key={item.id}
+              key={item}
               type="button"
-              className={tab === item.id ? 'is-active' : undefined}
-              data-testid={`contact-tab-${item.id}`}
-              onClick={() => selectTab(item.id)}
+              className={tab === item ? 'is-active' : undefined}
+              data-testid={`contact-tab-${item}`}
+              onClick={() => selectTab(item)}
             >
-              {item.label}
+              {t.tabs[item]}
               {count != null ? ` (${count})` : ''}
             </button>
           );
@@ -1127,27 +1258,27 @@ export function UnifiedContactCard({
         <>
           <section className="crm-person-kpis" data-testid="contact-summary-cards">
             <button type="button" className="crm-person-kpi" onClick={() => selectTab('purchases')}>
-              <span>Toplam Satın Alma</span>
+              <span>{t.totalPurchases}</span>
               <strong>{currentPurchases.length}</strong>
-              {projectCount ? <small>{projectCount} aktif projede</small> : null}
+              {projectCount ? <small>{projectCount} {t.inProjects}</small> : null}
             </button>
             <button type="button" className="crm-person-kpi" onClick={() => selectTab('history')}>
-              <span>İletişim</span>
+              <span>{t.communication}</span>
               <strong>{commEntries.length}</strong>
               {lastCommChannel ? <small>{lastCommChannel}</small> : null}
             </button>
             <button type="button" className="crm-person-kpi" onClick={() => selectTab('history')}>
-              <span>Son İletişim</span>
-              <strong>{relativeLabel(contact.last_contact_at || lastComm?.created_at, locale) || '—'}</strong>
+              <span>{t.lastContact}</span>
+              <strong>{relativeLabel(contact.last_contact_at || lastComm?.created_at, locale, t) || '—'}</strong>
               {lastCommChannel ? <small>{lastCommChannel}</small> : null}
             </button>
             <div className="crm-person-kpi">
-              <span>Durum</span>
-              <strong className={isJunk ? '' : 'is-live'}>{isJunk ? 'Junk' : 'Aktif'}</strong>
-              {contact.updated_at ? <small>Son güncelleme: {formatShortDate(contact.updated_at, locale)}</small> : null}
+              <span>{t.status}</span>
+              <strong className={isJunk ? '' : 'is-live'}>{isJunk ? t.junk : t.active}</strong>
+              {contact.updated_at ? <small>{t.lastUpdate}: {formatShortDate(contact.updated_at, locale)}</small> : null}
             </div>
             <div className="crm-person-kpi" data-testid="contact-summary-tags">
-              <span>Etiketler</span>
+              <span>{t.tags}</span>
               <div className="crm-person-kpi__tags">
                 {tags.length ? tags.map((tag) => <em key={tag.id}>{tag.name}</em>) : <strong>—</strong>}
               </div>
@@ -1157,32 +1288,50 @@ export function UnifiedContactCard({
           <section className="crm-person-workspace" data-testid="contact-overview">
             <article className="crm-person-panel">
               <div className="crm-person-panel__head">
-                <h2>Genel Bilgiler</h2>
+                <h2>{t.general}</h2>
                 {canUpdate ? (
-                  <button type="button" onClick={() => togglePanel('edit')}>Düzenle</button>
+                  <button type="button" onClick={() => togglePanel('edit')}>{t.edit}</button>
                 ) : null}
               </div>
               <dl className="crm-person-info">
-                <InfoRow label="Ad Soyad" value={contact.display_name} />
-                <InfoRow label="Telefon" value={contact.primary_phone} />
-                <InfoRow label="Ek telefon" value={(contact.secondary_phones ?? []).join(', ')} />
-                <InfoRow label="WhatsApp" value={contact.whatsapp && contact.whatsapp !== contact.primary_phone ? contact.whatsapp : null} />
-                <InfoRow label="E-posta" value={contact.primary_email} />
-                <InfoRow label="İkinci e-posta" value={(contact.secondary_emails ?? []).join(', ')} />
-                <InfoRow label="Adres" value={[contact.address_line1, contact.address_line2].filter(Boolean).join(', ')} />
-                <InfoRow label="Şehir" value={contact.city} />
-                <InfoRow label="Bölge" value={contact.state_province} />
-                <InfoRow label="Ülke" value={contact.country} />
-                <InfoRow label="Şirket" value={contact.organization_name || contact.company_name} />
+                <InfoRow label={t.displayName} value={contact.display_name} />
+                <InfoRow label={t.firstName} value={contact.first_name} />
+                <InfoRow label={t.lastName} value={contact.last_name} />
+                <InfoRow label={t.phone} value={contact.primary_phone} />
+                <InfoRow label={t.extraPhone} value={(contact.secondary_phones ?? []).join(', ')} />
+                <InfoRow label={t.whatsapp} value={contact.whatsapp && contact.whatsapp !== contact.primary_phone ? contact.whatsapp : null} />
+                <InfoRow label={t.email} value={contact.primary_email} />
+                <InfoRow label={t.secondEmail} value={(contact.secondary_emails ?? []).join(', ')} />
+                <InfoRow label={t.address} value={[contact.address_line1, contact.address_line2].filter(Boolean).join(', ')} />
+                <InfoRow label={t.city} value={contact.city} />
+                <InfoRow label={t.region} value={contact.state_province} />
+                <InfoRow label={t.country} value={contact.country} />
                 <InfoRow
-                  label="Rol"
-                  value={(contact.contact_types.length ? contact.contact_types : [contact.contact_type]).map(roleLabel).join(', ')}
+                  label={t.language}
+                  value={typeof contact.communication_prefs?.language === 'string' ? contact.communication_prefs.language : null}
                 />
-                <InfoRow label="Geliş Kaynağı" value={sourceLabel} />
-                <InfoRow label="Yönlendiren / Acenta" value={referrerName} />
-                <InfoRow label="Sorumlu kullanıcı" value={ownerName} />
-                <InfoRow label="Oluşturulma tarihi" value={formatShortDate(contact.created_at, locale)} />
-                <InfoRow label="Son güncelleme" value={formatShortDate(contact.updated_at, locale)} />
+                {canViewFinancial ? (
+                  <InfoRow
+                    label={t.buyerBudget}
+                    value={
+                      contact.buyer_profile?.budget_min != null || contact.buyer_profile?.budget_max != null
+                        ? [contact.buyer_profile?.budget_min, contact.buyer_profile?.budget_max].filter((item) => item != null).join(' – ')
+                        : null
+                    }
+                  />
+                ) : null}
+                <InfoRow label={t.company} value={contact.organization_name || contact.company_name} />
+                <InfoRow
+                  label={t.role}
+                  value={(contact.contact_types.length ? contact.contact_types : [contact.contact_type])
+                    .map((type) => roleLabel(type, t))
+                    .join(', ')}
+                />
+                <InfoRow label={t.source} value={sourceLabel} />
+                <InfoRow label={t.referrer} value={referrerName} />
+                <InfoRow label={t.ownerUser} value={ownerName} />
+                <InfoRow label={t.createdAt} value={formatShortDate(contact.created_at, locale)} />
+                <InfoRow label={t.updatedAt} value={formatShortDate(contact.updated_at, locale)} />
                 {(contact.profile_fields ?? [])
                   .filter((item) => {
                     const value = item.value.trim();
@@ -1201,22 +1350,22 @@ export function UnifiedContactCard({
             <div className="crm-person-workspace__side">
               <article className="crm-person-panel">
                 <div className="crm-person-panel__head">
-                  <h2>Satın Almalar</h2>
-                  <button type="button" onClick={() => selectTab('purchases')}>Tümünü Gör</button>
+                  <h2>{t.purchases}</h2>
+                  <button type="button" onClick={() => selectTab('purchases')}>{t.viewAll}</button>
                 </div>
-                {currentPurchases.length ? renderPurchaseTable(currentPurchases.slice(0, 3), 'current-purchases', '') : <p>Satın alma kaydı yok.</p>}
+                {currentPurchases.length ? renderPurchaseTable(currentPurchases.slice(0, 3), 'current-purchases', '') : <p>{t.noPurchases}</p>}
               </article>
               <article className="crm-person-panel" data-testid="contact-tasks-preview">
                 <div className="crm-person-panel__head">
-                  <h2>Görevler</h2>
-                  <button type="button" onClick={() => { setTaskKind('task'); togglePanel('task'); }}>Görev Oluştur</button>
+                  <h2>{t.tasksHeading}</h2>
+                  <button type="button" onClick={() => { setTaskKind('task'); togglePanel('task'); }}>{t.createTask}</button>
                 </div>
-                {followUpEntries.length ? renderTaskRows(followUpEntries, true) : <p>Bu kişi için görev kaydı yok.</p>}
+                {followUpEntries.length ? renderTaskRows(followUpEntries, true) : <p>{t.noTasks}</p>}
               </article>
               <article className="crm-person-panel">
                 <div className="crm-person-panel__head">
-                  <h2>Belgeler</h2>
-                  <button type="button" onClick={() => selectTab('documents')}>Tümünü Gör</button>
+                  <h2>{t.documents}</h2>
+                  <button type="button" onClick={() => selectTab('documents')}>{t.viewAll}</button>
                 </div>
                 {visibleDocuments.length ? (
                   <ul className="crm-contact-card__docs">
@@ -1224,7 +1373,7 @@ export function UnifiedContactCard({
                       <li key={doc.id}>
                         <a href={`/workspaces/crm/documents/${doc.id}`}>{doc.original_file_name || doc.title}</a>
                         <small>
-                          {[doc.document_type, doc.created_at ? relativeLabel(doc.created_at, locale) : null]
+                          {[doc.document_type, doc.created_at ? relativeLabel(doc.created_at, locale, t) : null]
                             .filter(Boolean)
                             .join(' · ')}
                         </small>
@@ -1232,7 +1381,7 @@ export function UnifiedContactCard({
                     ))}
                   </ul>
                 ) : (
-                  <p>Bu kişiye bağlı belge yok.</p>
+                  <p>{t.noDocuments}</p>
                 )}
               </article>
             </div>
@@ -1242,7 +1391,7 @@ export function UnifiedContactCard({
 
       {tab === 'purchases' ? (
         <section className="crm-verify-detail__section" data-testid="satin-aldiklari">
-          <h2>Satın Almalar <span>{currentPurchases.length}</span></h2>
+          <h2>{t.purchases} <span>{currentPurchases.length}</span></h2>
           {currentPurchases.length ? (
             renderPurchaseTable(currentPurchases, 'current-purchases', '')
           ) : contact.crm_agreements.length ? (
@@ -1253,21 +1402,21 @@ export function UnifiedContactCard({
                   <article key={agreement.id}>
                     <strong>{agreement.project_label}</strong>
                     <small>
-                      Durum: {agreement.status}
-                      {agreement.agreement_date ? ` · Anlaşma tarihi: ${agreement.agreement_date}` : ''}
+                      {t.agreementStatus}: {agreement.status}
+                      {agreement.agreement_date ? ` · ${t.agreementDate}: ${agreement.agreement_date}` : ''}
                       {isReit
-                        ? ` · Yatırım Tutarı: ${agreement.investment_amount || '—'}`
-                        : ` · Daire No: ${agreement.unit_number || '—'}`}
-                      {!isReit && agreement.purchase_price ? ` · Satış / anlaşma fiyatı: ${agreement.purchase_price}` : ''}
-                      {!isReit && agreement.payment_amount ? ` · Ödeme: ${agreement.payment_amount}` : ''}
-                      {!isReit && agreement.deposit ? ` · Kapora: ${agreement.deposit}` : ''}
+                        ? ` · ${t.investmentAmount}: ${agreement.investment_amount || '—'}`
+                        : ` · ${t.unitNumber}: ${agreement.unit_number || '—'}`}
+                      {!isReit && agreement.purchase_price ? ` · ${t.salePrice}: ${agreement.purchase_price}` : ''}
+                      {!isReit && agreement.payment_amount ? ` · ${t.payment}: ${agreement.payment_amount}` : ''}
+                      {!isReit && agreement.deposit ? ` · ${t.deposit}: ${agreement.deposit}` : ''}
                     </small>
                   </article>
                 );
               })}
             </div>
           ) : (
-            <p>Satın alma kaydı yok.</p>
+            <p>{t.noPurchases}</p>
           )}
         </section>
       ) : null}
@@ -1275,14 +1424,14 @@ export function UnifiedContactCard({
       {tab === 'tasks' ? (
         <section className="crm-verify-detail__section" data-testid="contact-tasks">
           <div className="crm-person-panel__head">
-            <h2>Görevler / Takip Planı <span>{followUpEntries.length}</span></h2>
+            <h2>{t.tasksPlan} <span>{followUpEntries.length}</span></h2>
             {canUpdate ? (
               <Button type="button" size="sm" onClick={() => { setTaskKind('task'); togglePanel('task'); }}>
-                Görev Oluştur
+                {t.createTask}
               </Button>
             ) : null}
           </div>
-          {followUpEntries.length ? renderTaskRows(followUpEntries) : <p>Bu kişi için görev kaydı yok.</p>}
+          {followUpEntries.length ? renderTaskRows(followUpEntries) : <p>{t.noTasks}</p>}
         </section>
       ) : null}
 
@@ -1294,40 +1443,44 @@ export function UnifiedContactCard({
           loading={timelineQuery.isLoading}
           initialFilter={historyFilter}
           includeDocuments={false}
-          heading="Yorumlar / İletişim Akışı"
+          heading={t.historyHeading}
         />
       ) : null}
 
       {tab === 'documents' ? (
         <section className="crm-verify-detail__section" data-testid="contact-documents">
-          <h2>Belgeler <span>{visibleDocuments.length}</span></h2>
+          <h2>{t.documents} <span>{visibleDocuments.length}</span></h2>
           {!canViewDocuments ? (
-            <p>Belge görüntüleme yetkisi yok.</p>
+            <p>{t.noDocumentView}</p>
           ) : documentsQuery.isLoading ? (
-            <p>Loading…</p>
+            <p>{t.loading}</p>
           ) : documents.length ? (
             <div data-testid="nedim-general-documents">
               <DocumentGallery
                 documents={documents}
                 entityType="crm_contact"
                 entityId={contactId}
+                canUpload={canUploadDocuments}
+                canEditMeta={canUploadDocuments}
+                canUnlink={canUpdate}
+                canArchive={canArchiveDocuments}
                 onChanged={() => {
                   void queryClient.invalidateQueries({ queryKey: ['crm', 'contacts', 'documents', contactId] });
                 }}
               />
             </div>
           ) : (
-            <p>Bu kişiye bağlı belge yok.</p>
+            <p>{t.noDocuments}</p>
           )}
           {canLinkDocuments ? (
             <form onSubmit={submitLinkDocument} className="crm-contact-card__panel">
               <Input
-                label="Mevcut belge ID ile bağla"
+                label={t.linkDocument}
                 value={linkDocumentId}
                 onChange={(event) => setLinkDocumentId(event.target.value)}
               />
               <Button type="submit" size="sm" variant="secondary" disabled={actionMutation.isPending || !linkDocumentId.trim()}>
-                Belgeyi bağla
+                {t.linkDocumentAction}
               </Button>
             </form>
           ) : null}

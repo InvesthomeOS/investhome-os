@@ -4875,6 +4875,12 @@
         "message": "{name} nitelikli olmasına rağmen uzun süredir pasif."
       }
     },
+    "crm": {
+      "task_due": {
+        "title": "Takip görevinin zamanı geldi",
+        "message": "{title} görevini yapma zamanı geldi."
+      }
+    },
     "investor": {
       "follow_up_overdue": {
         "title": "Yatırımcı takibi gecikti",
@@ -20197,6 +20203,11 @@
       "hintTitle": "Arama ipuçları",
       "hint": "Ad, e-posta, telefon, şirket veya etiket kullanın. Aramak için Enter’a basın.",
       "empty": "Sonuç yok",
+      "emptyPhone": "Kayıt bulunamadı",
+      "emptyPhoneEn": "No matching record found",
+      "possibleDuplicates": "Olası mükerrer kayıtlar",
+      "openPersonCard": "Kişi kartını aç",
+      "leadStage": "Aşama: {stage}",
       "zeroHint": "Farklı bir sorgu deneyin veya filtreleri temizleyin.",
       "accessDenied": "CRM araması yapma yetkiniz yok.",
       "accessDeniedHint": "CRM arama erişimi için yöneticinize başvurun.",
@@ -20306,6 +20317,7 @@
       },
       "entities": {
         "crm_contact": "Kişiler",
+        "crm_lead": "Leadler",
         "crm_company": "Şirketler",
         "crm_relationship": "İlişkiler",
         "crm_activity": "Aktiviteler",

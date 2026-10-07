@@ -1,7 +1,9 @@
 """CRM operational leads workspace tests — live table only, no demo seed."""
 
+from decimal import Decimal
 from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -9,6 +11,7 @@ from sqlalchemy.orm import Session
 from investhome_api.models.crm_agreement import CrmAgreement
 from investhome_api.models.crm_contact import CrmContact, CrmContactStatus, CrmContactType, CrmRecordKind
 from investhome_api.models.lead import Lead, LeadStatus
+from investhome_api.services.crm.crm_lead_service import LeadValidationError, parse_investment_budget_amount
 
 
 def test_crm_leads_empty_kpis_are_zero(client: TestClient) -> None:
@@ -50,7 +53,14 @@ def test_crm_leads_create_edit_stage_filter_and_kanban_list_consistency(
     assert lead["stage"] == "yeni"
     assert lead["ingest_status"] == "ok"
     assert lead["project"] == "1812"
+    assert lead["investment_budget_amount"] is None
+    assert lead["investment_budget_currency"] is None
     lead_id = lead["id"]
+    contact_id = lead["contact_id"]
+    assert contact_id
+    people = client.get("/crm/contacts", params={"search": "ayse.lead@example.com"})
+    assert people.status_code == 200
+    assert any(item["id"] == contact_id for item in people.json()["items"])
 
     listed = client.get("/crm/leads")
     assert listed.status_code == 200
@@ -134,7 +144,18 @@ def test_crm_leads_duplicate_person_warning_and_confirm(client: TestClient, db: 
     assert confirmed.status_code == 201, confirmed.text
     lead = confirmed.json()
     assert lead["existing_person_id"] == str(person.id)
+    assert lead["contact_id"] == str(person.id)
     people_before = db.scalar(select(func.count()).select_from(CrmContact)) or 0
+    retry = client.post(
+        "/crm/leads?confirm=true",
+        json={
+            "full_name": "New Duplicate",
+            "email": "existing.person@example.com",
+            "source": "manual",
+        },
+    )
+    assert retry.status_code == 409, retry.text
+    assert retry.json()["error"]["code"] == "existing_lead"
 
     converted = client.post(f"/crm/leads/{lead['id']}/convert")
     assert converted.status_code == 200, converted.text
@@ -161,12 +182,16 @@ def test_crm_leads_convert_creates_person_not_purchase(client: TestClient, db: S
         },
     )
     assert created.status_code == 201, created.text
-    lead_id = created.json()["id"]
+    created_body = created.json()
+    lead_id = created_body["id"]
+    created_contact_id = created_body["contact_id"]
+    assert created_contact_id
 
     converted = client.post(f"/crm/leads/{lead_id}/convert")
     assert converted.status_code == 200, converted.text
     body = converted.json()
-    assert body["reused_existing"] is False
+    assert body["reused_existing"] is True
+    assert body["contact_id"] == created_contact_id
     assert body["lead"]["stage"] == "converted"
     contact_id = body["contact_id"]
     db.expire_all()
@@ -208,3 +233,246 @@ def test_crm_leads_ingest_never_discards_failed_or_unmatched(client: TestClient,
     stored = list(db.scalars(select(Lead).where(Lead.provider.in_(["meta", "google"]))).all())
     assert len(stored) >= 2
     assert all(row.archived_at is None for row in stored)
+
+
+def _money(value: object) -> Decimal | None:
+    if value is None:
+        return None
+    return Decimal(str(value))
+
+
+def test_parse_investment_budget_normalizes_user_entry() -> None:
+    assert parse_investment_budget_amount("500000") == Decimal("500000.00")
+    assert parse_investment_budget_amount("500,000") == Decimal("500000.00")
+    assert parse_investment_budget_amount("$500,000") == Decimal("500000.00")
+    assert parse_investment_budget_amount("500000.50") == Decimal("500000.50")
+    with pytest.raises(LeadValidationError):
+        parse_investment_budget_amount(-1)
+    with pytest.raises(LeadValidationError):
+        parse_investment_budget_amount(12.5)
+
+
+def test_manual_lead_creates_and_lists_new_contact(client: TestClient, db: Session) -> None:
+    people_before = db.scalar(select(func.count()).select_from(CrmContact)) or 0
+    created = client.post(
+        "/crm/leads",
+        json={
+            "full_name": "Yeni Kişi Lead",
+            "phone": "+90 555 444 33 22",
+            "email": "yeni.kisi.lead@example.com",
+            "source": "manual",
+        },
+    )
+    assert created.status_code == 201, created.text
+    lead = created.json()
+    contact_id = lead["contact_id"]
+    assert contact_id
+    assert lead["contact_name"] == "Yeni Kişi Lead"
+    assert lead["existing_person_id"] == contact_id
+    db.expire_all()
+    contact = db.get(CrmContact, UUID(contact_id))
+    assert contact is not None
+    assert contact.lead_id == UUID(lead["id"])
+    assert contact.archived_at is None
+    people_after = db.scalar(select(func.count()).select_from(CrmContact)) or 0
+    assert people_after == people_before + 1
+    listed = client.get("/crm/contacts", params={"search": "yeni.kisi.lead@example.com"})
+    assert listed.status_code == 200
+    assert any(item["id"] == contact_id for item in listed.json()["items"])
+    detail = client.get(f"/crm/contacts/{contact_id}")
+    assert detail.status_code == 200
+    assert detail.json()["id"] == contact_id
+    retry = client.post(
+        "/crm/leads",
+        json={
+            "full_name": "Yeni Kişi Lead",
+            "email": "yeni.kisi.lead@example.com",
+            "source": "manual",
+        },
+    )
+    assert retry.status_code == 409, retry.text
+    assert retry.json()["error"]["code"] == "existing_lead"
+    db.expire_all()
+    assert (db.scalar(select(func.count()).select_from(CrmContact)) or 0) == people_after
+
+
+def test_linked_lead_exposes_canonical_contact_name_after_rename(client: TestClient, db: Session) -> None:
+    created = client.post(
+        "/crm/leads",
+        json={
+            "full_name": "Test Test Person",
+            "phone": "+90 555 444 22 11",
+            "email": "canonical.rename@example.com",
+            "source": "manual",
+        },
+    )
+    assert created.status_code == 201, created.text
+    lead = created.json()
+    contact_id = lead["contact_id"]
+    assert lead["full_name"] == "Test Test Person"
+    assert lead["contact_name"] == "Test Test Person"
+
+    renamed = client.put(
+        f"/crm/contacts/{contact_id}",
+        json={"display_name": "Test Person", "first_name": "Test", "last_name": "Person"},
+    )
+    assert renamed.status_code == 200, renamed.text
+    assert renamed.json()["contact"]["display_name"] == "Test Person"
+
+    refreshed = client.get(f"/crm/leads/{lead['id']}")
+    assert refreshed.status_code == 200, refreshed.text
+    body = refreshed.json()
+    assert body["full_name"] == "Test Test Person"
+    assert body["contact_name"] == "Test Person"
+    assert body["contact_id"] == contact_id
+
+
+def test_manual_lead_reuses_matching_contact(client: TestClient, db: Session) -> None:
+    person = CrmContact(
+        contact_type=CrmContactType.PROSPECT,
+        record_kind=CrmRecordKind.PERSON,
+        display_name="Mevcut Yatırımcı",
+        status=CrmContactStatus.ACTIVE,
+        primary_email="mevcut.yatirimci@example.com",
+        primary_phone="+905559998877",
+    )
+    db.add(person)
+    db.commit()
+    people_before = db.scalar(select(func.count()).select_from(CrmContact)) or 0
+    conflict = client.post(
+        "/crm/leads",
+        json={
+            "full_name": "Mevcut Yatırımcı",
+            "email": "mevcut.yatirimci@example.com",
+            "phone": "+90 555 999 88 77",
+            "source": "manual",
+        },
+    )
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "existing_person"
+    confirmed = client.post(
+        "/crm/leads?confirm=true",
+        json={
+            "full_name": "Mevcut Yatırımcı",
+            "email": "mevcut.yatirimci@example.com",
+            "phone": "+90 555 999 88 77",
+            "source": "manual",
+        },
+    )
+    assert confirmed.status_code == 201, confirmed.text
+    body = confirmed.json()
+    assert body["contact_id"] == str(person.id)
+    db.expire_all()
+    assert (db.scalar(select(func.count()).select_from(CrmContact)) or 0) == people_before
+    linked = db.get(CrmContact, person.id)
+    assert linked is not None
+    assert linked.lead_id == UUID(body["id"])
+
+
+def test_manual_lead_ambiguous_person_is_not_silently_merged(client: TestClient, db: Session) -> None:
+    for name in ("Kişi Bir", "Kişi İki"):
+        db.add(
+            CrmContact(
+                contact_type=CrmContactType.PROSPECT,
+                record_kind=CrmRecordKind.PERSON,
+                display_name=name,
+                status=CrmContactStatus.ACTIVE,
+                primary_email="paylasilan.email@example.com",
+            )
+        )
+    db.commit()
+    people_before = db.scalar(select(func.count()).select_from(CrmContact)) or 0
+    conflict = client.post(
+        "/crm/leads?confirm=true",
+        json={
+            "full_name": "Belirsiz Kişi",
+            "email": "paylasilan.email@example.com",
+            "source": "manual",
+        },
+    )
+    assert conflict.status_code == 409, conflict.text
+    assert conflict.json()["error"]["code"] == "ambiguous_person"
+    db.expire_all()
+    assert (db.scalar(select(func.count()).select_from(Lead)) or 0) == 0
+    assert (db.scalar(select(func.count()).select_from(CrmContact)) or 0) == people_before
+
+
+def test_crm_lead_investment_budget_persists_and_survives_edit(client: TestClient, db: Session) -> None:
+    created = client.post(
+        "/crm/leads",
+        json={
+            "full_name": "Bütçeli Lead",
+            "email": "butceli.lead@example.com",
+            "source": "manual",
+            "investment_budget_amount": "$500,000",
+            "investment_budget_currency": "usd",
+        },
+    )
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert _money(body["investment_budget_amount"]) == Decimal("500000.00")
+    assert body["investment_budget_currency"] == "USD"
+    db.expire_all()
+    row = db.get(Lead, UUID(body["id"]))
+    assert row is not None
+    assert row.estimated_budget == Decimal("500000.00")
+    assert row.estimated_budget_currency == "USD"
+    refreshed = client.get(f"/crm/leads/{body['id']}")
+    assert refreshed.status_code == 200
+    assert _money(refreshed.json()["investment_budget_amount"]) == Decimal("500000.00")
+    assert refreshed.json()["investment_budget_currency"] == "USD"
+    patched = client.patch(
+        f"/crm/leads/{body['id']}",
+        json={"investment_budget_amount": "500,000", "investment_budget_currency": "USD"},
+    )
+    assert patched.status_code == 200, patched.text
+    assert _money(patched.json()["investment_budget_amount"]) == Decimal("500000.00")
+    listed = client.get("/crm/leads")
+    match = next(item for item in listed.json()["items"] if item["id"] == body["id"])
+    assert _money(match["investment_budget_amount"]) == Decimal("500000.00")
+    assert match["investment_budget_currency"] == "USD"
+
+
+def test_crm_lead_without_investment_budget_still_creates(client: TestClient) -> None:
+    created = client.post(
+        "/crm/leads",
+        json={"full_name": "Bütçesiz Lead", "email": "butcesiz.lead@example.com", "source": "manual"},
+    )
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert body["investment_budget_amount"] is None
+    assert body["investment_budget_currency"] is None
+    assert body["contact_id"]
+
+
+def test_existing_lead_without_budget_currency_remains_valid(client: TestClient, db: Session) -> None:
+    lead = Lead(
+        full_name="Eski Lead",
+        email="eski.lead@example.com",
+        status=LeadStatus.NEW,
+        ingest_status="ok",
+        estimated_budget=Decimal("100000.00"),
+        is_demo=False,
+    )
+    db.add(lead)
+    db.commit()
+    response = client.get(f"/crm/leads/{lead.id}")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert _money(body["investment_budget_amount"]) == Decimal("100000.00")
+    assert body["investment_budget_currency"] is None
+    listed = client.get("/crm/leads")
+    assert any(item["id"] == str(lead.id) for item in listed.json()["items"])
+
+
+def test_crm_lead_rejects_float_investment_budget(client: TestClient) -> None:
+    response = client.post(
+        "/crm/leads",
+        json={
+            "full_name": "Float Budget",
+            "email": "float.budget@example.com",
+            "source": "manual",
+            "investment_budget_amount": 500000.25,
+        },
+    )
+    assert response.status_code == 422

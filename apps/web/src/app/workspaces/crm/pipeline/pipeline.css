@@ -11,8 +11,9 @@
   box-shadow: inset 0 0 0 1px #075b75;
 }
 
-.crm-pipeline .crm-leads__column.is-historical {
-  background: #f7f9fa;
+.crm-pipeline .crm-leads__column h3 {
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .crm-pipeline .crm-pipeline__column-btn {
@@ -23,6 +24,8 @@
   font: inherit;
   cursor: pointer;
   text-align: left;
+  white-space: normal;
+  line-height: 1.25;
 }
 
 .crm-pipeline .crm-pipeline__column-btn:hover {

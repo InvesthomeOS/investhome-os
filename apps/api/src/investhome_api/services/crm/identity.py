@@ -248,6 +248,59 @@ def format_display_phone(*values: str | None) -> str | None:
     return raw
 
 
+def is_phone_lookup_query(value: str | None) -> bool:
+    """True when the search string is a phone number, not a name or email."""
+    if not value or not str(value).strip() or "@" in str(value):
+        return False
+    parsed = parse_phone(value)
+    if parsed is None:
+        return False
+    compact = _NON_DIGIT.sub("", str(value))
+    return len(parsed.digits) >= 10 and len(compact) >= 10
+
+
+def phones_match(left: str | None, right: str | None) -> bool:
+    """Same person-phone using existing parse_phone / digit identity, never a merge."""
+    left_digits = phone_digits(left)
+    right_digits = phone_digits(right)
+    if len(left_digits) < 7 or len(right_digits) < 7:
+        return False
+    if left_digits[-10:] == right_digits[-10:]:
+        return True
+    parsed_left = parse_phone(left)
+    parsed_right = parse_phone(right)
+    if (
+        parsed_left
+        and parsed_right
+        and parsed_left.match_key
+        and parsed_right.match_key
+        and parsed_left.match_key == parsed_right.match_key
+    ):
+        return True
+    return False
+
+
+def phone_sql_needles(value: str | None) -> set[str]:
+    """Stored-form variants derived from parse_phone for SQL candidate filters."""
+    parsed = parse_phone(value)
+    if parsed is None or len(parsed.digits) < 10:
+        return set()
+    needles: set[str] = {parsed.digits, parsed.digits[-10:]}
+    if parsed.e164:
+        needles.add(parsed.e164)
+        needles.add(parsed.e164.lstrip("+"))
+    if parsed.country == "TR" and parsed.e164 and parsed.e164.startswith("+90"):
+        local = parsed.e164[3:]
+        needles.update({local, f"0{local}", f"90{local}", f"+90{local}"})
+        if len(local) == 10:
+            needles.add(f"+90 {local[:3]} {local[3:6]} {local[6:8]} {local[8:]}")
+            needles.add(f"0{local[:3]} {local[3:6]} {local[6:8]} {local[8:]}")
+    display = format_display_phone(parsed.e164 or value)
+    if display:
+        needles.add(display)
+    return {item for item in needles if item}
+
+
 def displayable_phones(values: list[str] | tuple[str, ...] | None) -> list[str] | None:
     if not values:
         return None

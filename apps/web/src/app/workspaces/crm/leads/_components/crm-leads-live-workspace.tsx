@@ -13,24 +13,34 @@ import { canUpdateCrm } from '@/lib/crm/crm-permissions';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import {
+  CRM_LEAD_JUNK_REASONS,
+  CRM_LEAD_STAGES,
   convertCrmLead,
   createCrmLead,
   CrmLeadConflictError,
+  crmLeadDisplayName,
+  crmLeadJunkReasonLabel,
+  crmLeadStageLabel,
+  emptyCrmLeadStageBuckets,
   fetchCrmLead,
   fetchCrmLeads,
+  formatCrmInvestmentBudget,
   moveCrmLeadStage,
   updateCrmLead,
   type CrmLeadItem,
   type CrmLeadMatch,
   type CrmLeadStage,
+  type CrmLeadTaskItem,
   type CrmLeadWrite,
 } from '@/workspaces/crm/api/crm-leads';
+import { createTask } from '@/workspaces/crm/api/activities';
+import { CrmJunkReasonDialog } from '@/workspaces/crm/junk-reason-dialog';
 
 type ViewMode = 'kanban' | 'list';
 type DrawerMode = 'create' | 'detail' | 'edit' | 'convert';
 type LeadView = CrmLeadItem & { metadata?: Record<string, unknown> | null };
 
-const STAGES: CrmLeadStage[] = ['yeni', 'contacted', 'following', 'qualified', 'converted', 'unqualified'];
+const STAGES = CRM_LEAD_STAGES;
 const CREATE_SOURCES = ['instagram', 'facebook', 'website', 'whatsapp', 'referral', 'manual', 'other'] as const;
 
 const COPY = {
@@ -39,10 +49,10 @@ const COPY = {
     subtitle: 'Operasyonel lead çalışma alanı. Canlı CRM verisi, demo kayıt yok.',
     kpis: 'Lead özeti',
     total: 'Toplam Lead',
-    yeni: 'Yeni',
-    following: 'Takipte',
-    qualified: 'Nitelikli',
-    converted: 'Satışa Döndü',
+    yeni: 'Yeni Müşteri Adayı',
+    following: 'Proje Ortaklığı',
+    qualified: 'Potansiyel',
+    converted: 'Satış Kapama',
     search: 'Ara',
     searchPh: 'Ad, telefon, e-posta ara...',
     stage: 'Aşama',
@@ -87,7 +97,7 @@ const COPY = {
     unmatched: 'Eşleşmeyen kaynak leadleri',
     unmatchedHint: 'Kaynak kayıtları silinmez; eşleşme bekleyen satırlar burada durur.',
     showUnmatched: 'Eşleşmeyenleri göster',
-    convertHint: 'Satışa Döndü yalnızca dönüşüm gerçekleşince işaretlenir. Satın alma otomatik açılmaz.',
+    convertHint: 'Satış Kapama yalnızca dönüşüm gerçekleşince işaretlenir. Satın alma otomatik açılmaz.',
     personCreated: 'Kişi oluşturuldu',
     personReused: 'Mevcut kişi kullanıldı',
     stageMoved: 'Aşama güncellendi',
@@ -96,19 +106,38 @@ const COPY = {
     none: '—',
     filters: 'Lead filtreleri',
     table: 'Lead listesi',
-    reason: 'Sebep',
+    reason: 'Junk Sebebi',
+    junkReason: 'Junk Sebebi',
+    junkReasonDetail: 'Açıklama',
+    junkReasonRequired: 'Junk sebebi gerekli',
+    junkReasonDetailRequired: 'Diğer için kısa açıklama gerekli',
     ingestUnmatched: 'Eşleşmeyen kaynak',
     ingestFailed: 'Kaynak kaydı başarısız',
+    budget: 'Yatırım Bütçesi',
+    budgetPh: '500,000',
+    addTask: 'Görev Ekle',
+    taskName: 'Görev Adı',
+    taskDate: 'Tarih',
+    taskTime: 'Saat',
+    taskCancel: 'İptal',
+    taskCreate: 'Görevi Oluştur',
+    taskCreating: 'Oluşturuluyor…',
+    tasks: 'Görevler',
+    taskStatus: 'Durum',
+    taskCreated: 'Görev oluşturuldu',
+    taskNameRequired: 'Görev adı gerekli',
+    taskDateRequired: 'Tarih gerekli',
+    taskTimeRequired: 'Saat gerekli',
   },
   en: {
     title: 'Leads',
     subtitle: 'Operational lead workspace. Live CRM data only, no demo rows.',
     kpis: 'Lead summary',
     total: 'Total leads',
-    yeni: 'New',
-    following: 'Following',
-    qualified: 'Qualified',
-    converted: 'Converted',
+    yeni: 'New Lead',
+    following: 'Project Partnership',
+    qualified: 'Potential',
+    converted: 'Sales Closing',
     search: 'Search',
     searchPh: 'Search name, phone, email...',
     stage: 'Stage',
@@ -153,7 +182,7 @@ const COPY = {
     unmatched: 'Unmatched source leads',
     unmatchedHint: 'Source rows are kept; unmatched intake stays here.',
     showUnmatched: 'Show unmatched',
-    convertHint: 'Converted is marked only after conversion. A purchase is not created automatically.',
+    convertHint: 'Sales Closing is marked only after conversion. A purchase is not created automatically.',
     personCreated: 'Person created',
     personReused: 'Existing person reused',
     stageMoved: 'Stage updated',
@@ -162,19 +191,29 @@ const COPY = {
     none: '—',
     filters: 'Lead filters',
     table: 'Lead list',
-    reason: 'Reason',
+    reason: 'Junk Reason',
+    junkReason: 'Junk Reason',
+    junkReasonDetail: 'Explanation',
+    junkReasonRequired: 'Junk reason is required',
+    junkReasonDetailRequired: 'A short explanation is required for Other',
     ingestUnmatched: 'Unmatched source',
     ingestFailed: 'Source intake failed',
+    budget: 'Investment Budget',
+    budgetPh: '500,000',
+    addTask: 'Add Task',
+    taskName: 'Task Name',
+    taskDate: 'Date',
+    taskTime: 'Time',
+    taskCancel: 'Cancel',
+    taskCreate: 'Create Task',
+    taskCreating: 'Creating…',
+    tasks: 'Tasks',
+    taskStatus: 'Status',
+    taskCreated: 'Task created',
+    taskNameRequired: 'Task name is required',
+    taskDateRequired: 'Date is required',
+    taskTimeRequired: 'Time is required',
   },
-};
-
-const STAGE_LABEL: Record<CrmLeadStage, { tr: string; en: string }> = {
-  yeni: { tr: 'Yeni', en: 'New' },
-  contacted: { tr: 'İletişime Geçildi', en: 'Contacted' },
-  following: { tr: 'Takipte', en: 'Following' },
-  qualified: { tr: 'Nitelikli', en: 'Qualified' },
-  converted: { tr: 'Satışa Döndü', en: 'Converted' },
-  unqualified: { tr: 'Uygun Değil', en: 'Unqualified' },
 };
 
 const SOURCE_LABEL: Record<string, { tr: string; en: string }> = {
@@ -195,6 +234,10 @@ const SOURCE_LABEL: Record<string, { tr: string; en: string }> = {
   other: { tr: 'Diğer', en: 'Other' },
 };
 
+const EMPTY_TASK_FORM = { title: '', date: '', time: '' };
+const TASK_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TASK_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 const EMPTY_FORM: CrmLeadWrite = {
   full_name: '',
   phone: '',
@@ -205,6 +248,8 @@ const EMPTY_FORM: CrmLeadWrite = {
   owner_user_id: '',
   notes: '',
   stage: 'yeni',
+  investment_budget_amount: '',
+  investment_budget_currency: 'USD',
 };
 
 function formatWhen(value: string | null | undefined, locale: string): string {
@@ -220,6 +265,46 @@ function formatWhen(value: string | null | undefined, locale: string): string {
   }).format(date);
 }
 
+function toIstanbulDuePayload(date: string, time: string): string {
+  return `${date}T${time}:00+03:00`;
+}
+
+function taskFormValid(form: typeof EMPTY_TASK_FORM): boolean {
+  return Boolean(form.title.trim() && TASK_DATE_RE.test(form.date) && TASK_TIME_RE.test(form.time));
+}
+
+function formatTaskDuePart(value: string | null | undefined, locale: 'tr' | 'en', part: 'date' | 'time'): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  if (part === 'date') {
+    return new Intl.DateTimeFormat(locale === 'tr' ? 'tr-TR' : 'en-GB', {
+      timeZone: 'Europe/Istanbul',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }).format(date);
+  }
+  return new Intl.DateTimeFormat(locale === 'tr' ? 'tr-TR' : 'en-GB', {
+    timeZone: 'Europe/Istanbul',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+}
+
+function taskStatusLabel(status: string | null | undefined, locale: 'tr' | 'en'): string {
+  const key = (status || 'open').toLowerCase();
+  const labels: Record<string, { tr: string; en: string }> = {
+    open: { tr: 'Açık', en: 'Open' },
+    not_started: { tr: 'Açık', en: 'Open' },
+    in_progress: { tr: 'Devam ediyor', en: 'In progress' },
+    completed: { tr: 'Tamamlandı', en: 'Completed' },
+    cancelled: { tr: 'İptal', en: 'Cancelled' },
+  };
+  return labels[key]?.[locale] ?? status ?? '—';
+}
+
 function sourceKey(value: string | null | undefined): string {
   return String(value || '')
     .trim()
@@ -227,17 +312,21 @@ function sourceKey(value: string | null | undefined): string {
     .replace(/[\s-]+/g, '_');
 }
 
+function sourceLocaleLabel(key: string, locale: 'tr' | 'en'): string {
+  return SOURCE_LABEL[key]?.[locale] ?? SOURCE_LABEL.other?.[locale] ?? key;
+}
+
 function sourceLabel(value: string | null | undefined, locale: 'tr' | 'en'): string {
   if (!value?.trim()) return '—';
   const key = sourceKey(value);
-  if (SOURCE_LABEL[key]) return SOURCE_LABEL[key][locale];
-  if (/instagram/.test(key)) return SOURCE_LABEL.instagram[locale];
-  if (/facebook|meta/.test(key)) return SOURCE_LABEL.facebook[locale];
-  if (/whatsapp|^wa$/.test(key)) return SOURCE_LABEL.whatsapp[locale];
-  if (/website|web_site|^web$/.test(key)) return SOURCE_LABEL.website[locale];
-  if (/acenta|acente|agency|agent|referral/.test(key)) return SOURCE_LABEL.referral[locale];
-  if (/manual|manuel/.test(key)) return SOURCE_LABEL.manual[locale];
-  if (/^[a-z0-9_]+$/.test(key)) return SOURCE_LABEL.other[locale];
+  if (SOURCE_LABEL[key]) return sourceLocaleLabel(key, locale);
+  if (/instagram/.test(key)) return sourceLocaleLabel('instagram', locale);
+  if (/facebook|meta/.test(key)) return sourceLocaleLabel('facebook', locale);
+  if (/whatsapp|^wa$/.test(key)) return sourceLocaleLabel('whatsapp', locale);
+  if (/website|web_site|^web$/.test(key)) return sourceLocaleLabel('website', locale);
+  if (/acenta|acente|agency|agent|referral/.test(key)) return sourceLocaleLabel('referral', locale);
+  if (/manual|manuel/.test(key)) return sourceLocaleLabel('manual', locale);
+  if (/^[a-z0-9_]+$/.test(key)) return sourceLocaleLabel('other', locale);
   return value.trim();
 }
 
@@ -256,7 +345,7 @@ function isAgencySource(value: string | null | undefined): boolean {
 }
 
 function stageLabel(stage: CrmLeadStage, locale: 'tr' | 'en'): string {
-  return STAGE_LABEL[stage][locale];
+  return crmLeadStageLabel(stage, locale);
 }
 
 function displayOwner(name: string | null | undefined): string {
@@ -280,8 +369,9 @@ function referrerLabel(item: LeadView): string | null {
   return metaText(item, ['referrer_name', 'referrer', 'agency_name', 'agency', 'referred_by', 'yonlendiren']);
 }
 
-function unqualifiedReason(item: LeadView): string | null {
+function unqualifiedReason(item: LeadView, locale: 'tr' | 'en'): string | null {
   if (item.stage !== 'unqualified') return null;
+  if (item.junk_reason) return crmLeadJunkReasonLabel(item.junk_reason, locale);
   return metaText(item, ['lost_reason', 'unqualified_reason', 'reason']);
 }
 
@@ -318,8 +408,9 @@ function activityLabel(key: string, locale: 'tr' | 'en'): string {
 export function CrmLeadsLiveWorkspace() {
   const locale = useLocale() === 'tr' ? 'tr' : 'en';
   const t = COPY[locale];
-  const { canRead, canCreate, authLoading, user } = useCrmAccess();
+  const { canRead, canCreate, authLoading, user, canManageTasks } = useCrmAccess();
   const canWrite = canCreate || canUpdateCrm(user);
+  const canAddTask = canManageTasks;
   const queryClient = useQueryClient();
   const { openContact } = useContactCard();
 
@@ -333,12 +424,17 @@ export function CrmLeadsLiveWorkspace() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [ingestStatus, setIngestStatus] = useState('');
+  const [junkReason, setJunkReason] = useState('');
+  const [junkPending, setJunkPending] = useState<LeadView | null>(null);
   const [drawer, setDrawer] = useState<DrawerMode | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<CrmLeadWrite>(EMPTY_FORM);
   const [conflict, setConflict] = useState<CrmLeadConflictError | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [taskFormOpen, setTaskFormOpen] = useState(false);
+  const [taskForm, setTaskForm] = useState(EMPTY_TASK_FORM);
+  const [taskFormError, setTaskFormError] = useState<string | null>(null);
 
   const filters = useMemo(
     () => ({
@@ -350,8 +446,9 @@ export function CrmLeadsLiveWorkspace() {
       date_from: dateFrom ? `${dateFrom}T00:00:00Z` : undefined,
       date_to: dateTo ? `${dateTo}T23:59:59Z` : undefined,
       ingest_status: ingestStatus || undefined,
+      junk_reason: junkReason || undefined,
     }),
-    [search, stage, source, project, ownerId, dateFrom, dateTo, ingestStatus],
+    [search, stage, source, project, ownerId, dateFrom, dateTo, ingestStatus, junkReason],
   );
 
   const listQuery = useQuery({
@@ -374,6 +471,7 @@ export function CrmLeadsLiveWorkspace() {
 
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ['crm-leads'] });
+    await queryClient.invalidateQueries({ queryKey: ['crm'] });
     if (selectedId) {
       await queryClient.invalidateQueries({ queryKey: ['crm-lead', selectedId] });
     }
@@ -408,8 +506,19 @@ export function CrmLeadsLiveWorkspace() {
   });
 
   const stageMutation = useMutation({
-    mutationFn: ({ id, next }: { id: string; next: CrmLeadStage }) => moveCrmLeadStage(id, next),
+    mutationFn: ({
+      id,
+      next,
+      junk_reason,
+      junk_reason_detail,
+    }: {
+      id: string;
+      next: CrmLeadStage;
+      junk_reason?: string;
+      junk_reason_detail?: string;
+    }) => moveCrmLeadStage(id, next, { junk_reason, junk_reason_detail }),
     onSuccess: async () => {
+      setJunkPending(null);
       await invalidate();
       showToast(t.stageMoved);
     },
@@ -448,15 +557,37 @@ export function CrmLeadsLiveWorkspace() {
   };
   const selected = (detailQuery.data ?? items.find((item) => item.id === selectedId) ?? null) as LeadView | null;
 
+  const taskMutation = useMutation({
+    mutationFn: async () => {
+      const title = taskForm.title.trim();
+      if (!title) throw new Error(t.taskNameRequired);
+      if (!TASK_DATE_RE.test(taskForm.date)) throw new Error(t.taskDateRequired);
+      if (!TASK_TIME_RE.test(taskForm.time)) throw new Error(t.taskTimeRequired);
+      if (!selectedId) throw new Error(t.save);
+      return createTask({
+        title,
+        lead_id: selectedId,
+        contact_id: selected?.contact_id || selected?.converted_contact_id || undefined,
+        due_on: taskForm.date,
+        due_time: taskForm.time,
+        due_date: toIstanbulDuePayload(taskForm.date, taskForm.time),
+        timezone: 'Europe/Istanbul',
+      });
+    },
+    onSuccess: async () => {
+      setTaskForm(EMPTY_TASK_FORM);
+      setTaskFormError(null);
+      setTaskFormOpen(false);
+      await invalidate();
+      showToast(t.taskCreated);
+    },
+    onError: (error) => {
+      setTaskFormError(error instanceof Error ? error.message : t.save);
+    },
+  });
+
   const grouped = useMemo(() => {
-    const buckets: Record<CrmLeadStage, LeadView[]> = {
-      yeni: [],
-      contacted: [],
-      following: [],
-      qualified: [],
-      converted: [],
-      unqualified: [],
-    };
+    const buckets = emptyCrmLeadStageBuckets<LeadView>();
     for (const item of items) {
       buckets[item.stage]?.push(item);
     }
@@ -478,6 +609,7 @@ export function CrmLeadsLiveWorkspace() {
     setDateFrom('');
     setDateTo('');
     setIngestStatus('');
+    setJunkReason('');
   };
 
   const openCreate = (nextStage?: CrmLeadStage) => {
@@ -490,6 +622,9 @@ export function CrmLeadsLiveWorkspace() {
   const openDetail = (item: LeadView) => {
     setSelectedId(item.id);
     setConflict(null);
+    setTaskFormOpen(false);
+    setTaskForm(EMPTY_TASK_FORM);
+    setTaskFormError(null);
     setDrawer('detail');
   };
 
@@ -505,11 +640,21 @@ export function CrmLeadsLiveWorkspace() {
       owner_user_id: item.owner_user_id ?? '',
       notes: item.notes ?? '',
       stage: item.stage,
+      investment_budget_amount: item.investment_budget_amount ?? '',
+      investment_budget_currency: item.investment_budget_currency ?? 'USD',
     });
     setDrawer('edit');
   };
 
   const submitForm = (confirm = false) => {
+    if (form.stage === 'unqualified' && !form.junk_reason) {
+      showToast(t.junkReasonRequired);
+      return;
+    }
+    if (form.stage === 'unqualified' && form.junk_reason === 'other' && !(form.junk_reason_detail || '').trim()) {
+      showToast(t.junkReasonDetailRequired);
+      return;
+    }
     const payload: CrmLeadWrite = {
       full_name: form.full_name?.trim() || undefined,
       phone: form.phone?.trim() || undefined,
@@ -520,6 +665,11 @@ export function CrmLeadsLiveWorkspace() {
       owner_user_id: form.owner_user_id || null,
       notes: form.notes?.trim() || undefined,
       stage: form.stage,
+      junk_reason: form.stage === 'unqualified' ? form.junk_reason : undefined,
+      junk_reason_detail:
+        form.stage === 'unqualified' && form.junk_reason === 'other' ? form.junk_reason_detail?.trim() : undefined,
+      investment_budget_amount: form.investment_budget_amount?.trim() || null,
+      investment_budget_currency: form.investment_budget_currency?.trim() || 'USD',
     };
     if (drawer === 'edit' && selectedId) {
       updateMutation.mutate({ id: selectedId, payload });
@@ -534,6 +684,10 @@ export function CrmLeadsLiveWorkspace() {
       setSelectedId(item.id);
       setDrawer('convert');
       setConflict(null);
+      return;
+    }
+    if (next === 'unqualified') {
+      setJunkPending(item);
       return;
     }
     stageMutation.mutate({ id: item.id, next });
@@ -596,7 +750,10 @@ export function CrmLeadsLiveWorkspace() {
             type="button"
             className={`${item.tone}${stage === item.value ? ' is-active' : ''}`}
             data-testid={item.testId}
-            onClick={() => setStage(item.value)}
+            onClick={() => {
+              setStage(item.value);
+              setJunkReason('');
+            }}
           >
             <span className="crm-ops-kpis__icon" aria-hidden>
               <IhIcon name={item.icon} size={16} />
@@ -632,7 +789,15 @@ export function CrmLeadsLiveWorkspace() {
           }}
           placeholder={t.searchPh}
         />
-        <Select label={t.stage} value={stage} onChange={(event) => setStage(event.target.value)}>
+        <Select
+          label={t.stage}
+          value={stage}
+          onChange={(event) => {
+            const next = event.target.value;
+            setStage(next);
+            if (next !== 'unqualified') setJunkReason('');
+          }}
+        >
           <option value="">{t.any}</option>
           {STAGES.map((item) => (
             <option key={item} value={item}>
@@ -640,6 +805,16 @@ export function CrmLeadsLiveWorkspace() {
             </option>
           ))}
         </Select>
+        {stage === 'unqualified' ? (
+          <Select label={t.junkReason} value={junkReason} onChange={(event) => setJunkReason(event.target.value)}>
+            <option value="">{t.any}</option>
+            {CRM_LEAD_JUNK_REASONS.map((item) => (
+              <option key={item.code} value={item.code}>
+                {item[locale]}
+              </option>
+            ))}
+          </Select>
+        ) : null}
         <Select label={t.source} value={source} onChange={(event) => setSource(event.target.value)}>
           <option value="">{t.any}</option>
           {sourceOptions.map((item) => (
@@ -747,6 +922,7 @@ export function CrmLeadsLiveWorkspace() {
                     <th>{t.source}</th>
                     <th>{t.stage}</th>
                     <th>{t.interestedProject}</th>
+                    <th>{t.budget}</th>
                     <th>{t.owner}</th>
                     <th>{t.lastActivity}</th>
                     <th>{t.nextTask}</th>
@@ -761,7 +937,7 @@ export function CrmLeadsLiveWorkspace() {
                       <tr key={item.id} className="crm-ops-row" onClick={() => openDetail(item)}>
                         <td>
                           <button type="button" className="crm-ops-link" onClick={() => openDetail(item)}>
-                            {item.full_name}
+                            {crmLeadDisplayName(item)}
                           </button>
                         </td>
                         <td>
@@ -782,6 +958,13 @@ export function CrmLeadsLiveWorkspace() {
                           <span className={`crm-ops-badge is-${item.stage}`}>{stageLabel(item.stage, locale)}</span>
                         </td>
                         <td>{item.project || t.none}</td>
+                        <td>
+                          {formatCrmInvestmentBudget(
+                            item.investment_budget_amount,
+                            item.investment_budget_currency,
+                            locale,
+                          )}
+                        </td>
                         <td>{displayOwner(item.owner_name) || t.none}</td>
                         <td>{lastActivityLabel(item, locale, t.none)}</td>
                         <td>{t.none}</td>
@@ -830,7 +1013,7 @@ export function CrmLeadsLiveWorkspace() {
                     ? t.edit
                     : drawer === 'convert'
                       ? t.convert
-                      : selected?.full_name || t.title}
+                      : (selected ? crmLeadDisplayName(selected) : t.title)}
               </h3>
               <button type="button" className="crm-ops-link" onClick={() => setDrawer(null)}>
                 {t.close}
@@ -892,7 +1075,15 @@ export function CrmLeadsLiveWorkspace() {
                     <Select
                       label={t.stage}
                       value={form.stage ?? 'yeni'}
-                      onChange={(event) => setForm((current) => ({ ...current, stage: event.target.value as CrmLeadStage }))}
+                      onChange={(event) => {
+                        const next = event.target.value as CrmLeadStage;
+                        setForm((current) => ({
+                          ...current,
+                          stage: next,
+                          junk_reason: next === 'unqualified' ? current.junk_reason : undefined,
+                          junk_reason_detail: next === 'unqualified' ? current.junk_reason_detail : undefined,
+                        }));
+                      }}
                     >
                       {STAGES.filter((item) => item !== 'converted').map((item) => (
                         <option key={item} value={item}>
@@ -901,6 +1092,42 @@ export function CrmLeadsLiveWorkspace() {
                       ))}
                     </Select>
                   ) : null}
+                  {form.stage === 'unqualified' ? (
+                    <>
+                      <Select
+                        label={t.junkReason}
+                        value={form.junk_reason ?? ''}
+                        onChange={(event) =>
+                          setForm((current) => ({ ...current, junk_reason: event.target.value || undefined }))
+                        }
+                      >
+                        <option value="">{t.any}</option>
+                        {CRM_LEAD_JUNK_REASONS.map((item) => (
+                          <option key={item.code} value={item.code}>
+                            {item[locale]}
+                          </option>
+                        ))}
+                      </Select>
+                      {form.junk_reason === 'other' ? (
+                        <TextArea
+                          label={t.junkReasonDetail}
+                          value={form.junk_reason_detail ?? ''}
+                          rows={3}
+                          onChange={(event) =>
+                            setForm((current) => ({ ...current, junk_reason_detail: event.target.value }))
+                          }
+                        />
+                      ) : null}
+                    </>
+                  ) : null}
+                  <Input
+                    label={t.budget}
+                    value={form.investment_budget_amount ?? ''}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, investment_budget_amount: event.target.value }))
+                    }
+                    placeholder={t.budgetPh}
+                  />
                   <TextArea
                     label={t.comments}
                     value={form.notes ?? ''}
@@ -913,7 +1140,7 @@ export function CrmLeadsLiveWorkspace() {
                       {conflict.matches.map((match) => (
                         <ConflictLink key={`${match.kind}-${match.id}`} match={match} onPerson={(id) => openContact(id)} />
                       ))}
-                      {drawer === 'create' ? (
+                      {drawer === 'create' && conflict.code !== 'existing_lead' ? (
                         <Button type="button" size="sm" variant="secondary" onClick={() => submitForm(true)}>
                           {t.confirmCreate}
                         </Button>
@@ -925,14 +1152,66 @@ export function CrmLeadsLiveWorkspace() {
                   </Button>
                 </form>
               ) : selected ? (
-                <LeadDetail
-                  item={selected}
-                  locale={locale}
-                  t={t}
-                  canWrite={canWrite}
-                  onStage={(next) => handleStageMove(selected, next)}
-                  onPerson={openContact}
-                />
+                <>
+                  {taskFormOpen ? (
+                    <form
+                      className="crm-ops-taskform"
+                      data-testid="crm-lead-task-form"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        if (!taskFormValid(taskForm) || taskMutation.isPending) return;
+                        taskMutation.mutate();
+                      }}
+                    >
+                      <Input
+                        label={t.taskName}
+                        value={taskForm.title}
+                        onChange={(event) => setTaskForm((current) => ({ ...current, title: event.target.value }))}
+                        required
+                      />
+                      <Input
+                        label={t.taskDate}
+                        type="date"
+                        value={taskForm.date}
+                        onChange={(event) => setTaskForm((current) => ({ ...current, date: event.target.value }))}
+                        required
+                      />
+                      <Input
+                        label={t.taskTime}
+                        type="time"
+                        value={taskForm.time}
+                        onChange={(event) => setTaskForm((current) => ({ ...current, time: event.target.value }))}
+                        required
+                      />
+                      {taskFormError ? <p className="crm-ops-conflict">{taskFormError}</p> : null}
+                      <div className="crm-ops-taskform__actions">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            setTaskFormOpen(false);
+                            setTaskFormError(null);
+                            setTaskForm(EMPTY_TASK_FORM);
+                          }}
+                        >
+                          {t.taskCancel}
+                        </Button>
+                        <Button type="submit" size="sm" disabled={!taskFormValid(taskForm) || taskMutation.isPending}>
+                          {taskMutation.isPending ? t.taskCreating : t.taskCreate}
+                        </Button>
+                      </div>
+                    </form>
+                  ) : null}
+                  <LeadDetail
+                    item={selected}
+                    locale={locale}
+                    t={t}
+                    canWrite={canWrite}
+                    onStage={(next) => handleStageMove(selected, next)}
+                    onPerson={openContact}
+                  />
+                </>
               ) : (
                 <LoadingState />
               )}
@@ -952,6 +1231,19 @@ export function CrmLeadsLiveWorkspace() {
                     {t.edit}
                   </Button>
                 ) : null}
+                {canAddTask && drawer !== 'convert' ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      setTaskFormOpen(true);
+                      setTaskFormError(null);
+                    }}
+                  >
+                    {t.addTask}
+                  </Button>
+                ) : null}
                 {canWrite && selected.stage !== 'converted' ? (
                   <Button
                     type="button"
@@ -965,8 +1257,12 @@ export function CrmLeadsLiveWorkspace() {
                     {convertMutation.isPending ? t.converting : t.convert}
                   </Button>
                 ) : null}
-                {selected.converted_contact_id ? (
-                  <Button type="button" size="sm" onClick={() => openContact(selected.converted_contact_id as string)}>
+                {selected.converted_contact_id || selected.contact_id ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => openContact((selected.converted_contact_id || selected.contact_id) as string)}
+                  >
                     {t.openPerson}
                   </Button>
                 ) : null}
@@ -975,6 +1271,17 @@ export function CrmLeadsLiveWorkspace() {
           </aside>
         </>
       ) : null}
+
+      <CrmJunkReasonDialog
+        open={Boolean(junkPending)}
+        locale={locale}
+        pending={stageMutation.isPending}
+        onCancel={() => setJunkPending(null)}
+        onConfirm={(payload) => {
+          if (!junkPending) return;
+          stageMutation.mutate({ id: junkPending.id, next: 'unqualified', ...payload });
+        }}
+      />
     </div>
   );
 }
@@ -1007,7 +1314,7 @@ function LeadCard({
       onDragEnd={onDragEnd}
       onClick={onOpen}
     >
-      <strong>{item.full_name}</strong>
+      <strong>{crmLeadDisplayName(item)}</strong>
       {item.phone ? <small>{item.phone}</small> : null}
       {item.email ? <small>{item.email}</small> : null}
       <div className="crm-ops-leadcard__meta">
@@ -1020,6 +1327,11 @@ function LeadCard({
         </small>
       ) : null}
       {item.project ? <small>{item.project}</small> : null}
+      {item.investment_budget_amount ? (
+        <small>
+          {t.budget}: {formatCrmInvestmentBudget(item.investment_budget_amount, item.investment_budget_currency, locale)}
+        </small>
+      ) : null}
       {displayOwner(item.owner_name) ? <small>{displayOwner(item.owner_name)}</small> : null}
       <small>
         {t.lastActivity}: {lastActivityLabel(item, locale, t.none)}
@@ -1047,13 +1359,13 @@ function LeadDetail({
   onPerson: (id: string) => void;
 }) {
   const referrer = referrerLabel(item);
-  const reason = unqualifiedReason(item);
+  const reason = unqualifiedReason(item, locale);
   const activity = item.activity ?? [];
   return (
     <>
       <dl className="crm-ops-kv">
         <dt>{t.name}</dt>
-        <dd>{item.full_name}</dd>
+        <dd>{crmLeadDisplayName(item)}</dd>
         <dt>{t.phone}</dt>
         <dd>{item.phone || t.none}</dd>
         <dt>{t.email}</dt>
@@ -1070,6 +1382,8 @@ function LeadDetail({
         ) : null}
         <dt>{t.interestedProject}</dt>
         <dd>{item.project || t.none}</dd>
+        <dt>{t.budget}</dt>
+        <dd>{formatCrmInvestmentBudget(item.investment_budget_amount, item.investment_budget_currency, locale)}</dd>
         <dt>{t.stage}</dt>
         <dd>
           <span className={`crm-ops-badge is-${item.stage}`}>{stageLabel(item.stage, locale)}</span>
@@ -1077,7 +1391,10 @@ function LeadDetail({
         {reason ? (
           <>
             <dt>{t.reason}</dt>
-            <dd>{reason}</dd>
+            <dd data-testid="crm-lead-junk-reason">
+              {reason}
+              {item.junk_reason === 'other' && item.junk_reason_detail ? ` — ${item.junk_reason_detail}` : ''}
+            </dd>
           </>
         ) : null}
         <dt>{t.owner}</dt>
@@ -1099,27 +1416,39 @@ function LeadDetail({
         </Select>
       ) : null}
 
-      {item.converted_contact_id ? (
+      {item.converted_contact_id || item.contact_id || item.existing_person_id ? (
         <p>
-          <Link href={`/workspaces/crm/contacts/${item.converted_contact_id}` as Route}>
-            {t.openPerson}: {item.converted_contact_name || item.converted_contact_id}
-          </Link>
+          <button
+            type="button"
+            className="crm-ops-link"
+            onClick={() =>
+              onPerson(
+                (item.converted_contact_id || item.contact_id || item.existing_person_id) as string,
+              )
+            }
+          >
+            {t.openPerson}:{' '}
+            {item.converted_contact_name || item.contact_name || item.existing_person_name || item.contact_id}
+          </button>
         </p>
-      ) : item.existing_person_id ? (
-        <div className="crm-ops-conflict">
-          <strong>{t.warning}</strong>
-          <ConflictLink
-            match={{
-              kind: 'person',
-              id: item.existing_person_id,
-              name: item.existing_person_name || item.existing_person_id,
-              reason: 'email',
-              href: `/workspaces/crm/contacts/${item.existing_person_id}`,
-            }}
-            onPerson={onPerson}
-          />
-        </div>
       ) : null}
+
+      <h4>{t.tasks}</h4>
+      {(item.tasks ?? []).length === 0 ? (
+        <p className="crm-ops-muted">{t.none}</p>
+      ) : (
+        <ul className="crm-ops-tasklist">
+          {(item.tasks ?? []).map((task: CrmLeadTaskItem) => (
+            <li key={task.id}>
+              <strong>{task.title}</strong>
+              <small>
+                {formatTaskDuePart(task.due_date, locale, 'date')} · {formatTaskDuePart(task.due_date, locale, 'time')} ·{' '}
+                {t.taskStatus}: {taskStatusLabel(task.status || task.task_status, locale)}
+              </small>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <h4>{t.history}</h4>
       <ul className="crm-ops-history">

@@ -223,10 +223,14 @@ export type TaskWritePayload = {
   title: string;
   description?: string;
   contact_id?: string;
+  lead_id?: string;
   project_group?: string;
   agreement_id?: string;
   assigned_user_id?: string;
   due_date?: string;
+  due_on?: string;
+  due_time?: string;
+  timezone?: string;
   priority?: CrmActivityPriority;
   task_status?: CrmTaskStatus;
   entity_type?: CrmActivityEntityType;
@@ -353,6 +357,7 @@ export type ActivityListParams = {
   search?: string;
   entity_type?: CrmActivityEntityType;
   entity_id?: string;
+  lead_id?: string;
   contact_search?: string;
   project_group?: string;
   workspace_status?: string;

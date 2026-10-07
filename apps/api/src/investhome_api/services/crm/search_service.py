@@ -9,10 +9,12 @@ import uuid
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import delete, desc, func, or_, select
+from sqlalchemy import String, cast, delete, desc, func, or_, select
 from sqlalchemy.orm import Session
 
+from investhome_api.models.crm_contact import CrmContact
 from investhome_api.models.crm_search import CrmRecentSearch, CrmSavedSearch, CrmSearchAuditLog
+from investhome_api.models.lead import Lead
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.crm_search import (
     CrmDuplicateDiscoveryMatch,
@@ -46,12 +48,25 @@ from investhome_api.services.crm.search_permissions import (
     can_use_natural_language_search,
     can_view_search_analytics,
 )
-from investhome_api.services.crm.search_provider import get_default_provider, hit_to_highlight_fields
+from investhome_api.services.crm.identity import (
+    format_display_phone,
+    is_phone_lookup_query,
+    phone_sql_needles,
+    phones_match,
+)
+from investhome_api.services.crm.search_provider import (
+    InternalCrmSearchHit,
+    get_default_provider,
+    hit_to_highlight_fields,
+)
 from investhome_api.services.crm.search_ranking import suggest_did_you_mean
 from investhome_api.services.search_service import global_search, SearchFilters
 
+PHONE_LOOKUP_EMPTY = "Kayıt bulunamadı / No matching record found"
+
 ENTITY_LABEL_KEYS = {
     "crm_contact": "crm.search.entities.contact",
+    "crm_lead": "crm.search.entities.lead",
     "crm_company": "crm.search.entities.company",
     "crm_relationship": "crm.search.entities.relationship",
     "crm_activity": "crm.search.entities.activity",
@@ -67,6 +82,7 @@ ENTITY_LABEL_KEYS = {
 
 ENTITY_URLS = {
     "crm_contact": "/workspaces/crm/contacts/{id}",
+    "crm_lead": "/workspaces/crm/leads?lead={id}",
     "crm_company": "/workspaces/crm/companies/{id}",
     "crm_relationship": "/workspaces/crm/relationships/{id}",
     "crm_activity": "/workspaces/crm/activities?id={id}",
@@ -81,6 +97,7 @@ ENTITY_URLS = {
 
 ENTITY_ICONS = {
     "crm_contact": "user",
+    "crm_lead": "user",
     "crm_company": "building",
     "crm_relationship": "link",
     "crm_activity": "activity",
@@ -176,6 +193,141 @@ def _apply_parsed_filters(request: CrmSearchQueryRequest, parsed) -> CrmSearchQu
     return request
 
 
+def _contact_phone_values(contact: CrmContact) -> list[str]:
+    values = [contact.primary_phone, contact.whatsapp, *(contact.secondary_phones or [])]
+    return [value for value in values if value]
+
+
+def _phone_lookup_hits(
+    db: Session,
+    query: str,
+    *,
+    include_archived: bool,
+    limit: int,
+) -> list[InternalCrmSearchHit]:
+    from investhome_api.services.crm.crm_lead_service import _linked_contact, _live_leads, stage_of
+
+    needles = phone_sql_needles(query)
+    contact_stmt = select(CrmContact)
+    if not include_archived:
+        contact_stmt = contact_stmt.where(CrmContact.archived_at.is_(None))
+    contact_clauses = []
+    for needle in needles:
+        like = f"%{needle}%"
+        contact_clauses.extend(
+            [
+                CrmContact.primary_phone.ilike(like),
+                CrmContact.whatsapp.ilike(like),
+                cast(CrmContact.secondary_phones, String).ilike(like),
+            ]
+        )
+    if contact_clauses:
+        contact_stmt = contact_stmt.where(or_(*contact_clauses))
+    contact_candidates = db.scalars(contact_stmt.limit(100)).all()
+    contacts = [
+        row for row in contact_candidates if any(phones_match(value, query) for value in _contact_phone_values(row))
+    ]
+
+    lead_stmt = _live_leads(db)
+    lead_clauses = [Lead.phone.ilike(f"%{needle}%") for needle in needles]
+    if lead_clauses:
+        lead_stmt = lead_stmt.where(or_(*lead_clauses))
+    lead_candidates = db.scalars(lead_stmt.limit(100)).all()
+    leads = [row for row in lead_candidates if phones_match(row.phone, query)]
+
+    lead_by_contact: dict[UUID, Lead] = {}
+    unmatched_leads: list[Lead] = []
+    seen_contacts = {row.id for row in contacts}
+    for lead in leads:
+        linked = _linked_contact(db, lead)
+        if linked is None or (linked.archived_at is not None and not include_archived):
+            unmatched_leads.append(lead)
+            continue
+        current = lead_by_contact.get(linked.id)
+        lead_ts = lead.updated_at or lead.created_at
+        current_ts = (current.updated_at or current.created_at) if current is not None else None
+        if current is None or (lead_ts and current_ts and lead_ts > current_ts):
+            lead_by_contact[linked.id] = lead
+        if linked.id not in seen_contacts:
+            contacts.append(linked)
+            seen_contacts.add(linked.id)
+
+    duplicate = len(contacts) > 1 or (len(contacts) + len(unmatched_leads) > 1)
+    hits: list[InternalCrmSearchHit] = []
+    for contact in contacts:
+        lead = lead_by_contact.get(contact.id)
+        if lead is None and contact.lead_id:
+            lead = db.get(Lead, contact.lead_id)
+        stage = stage_of(lead) if lead is not None else None
+        display = format_display_phone(*_contact_phone_values(contact)) or contact.primary_phone
+        preview_parts = [contact.primary_email, f"Stage: {stage}" if stage else None]
+        if duplicate:
+            preview_parts.append("Possible duplicate records")
+        hits.append(
+            InternalCrmSearchHit(
+                entity_type="crm_contact",
+                entity_id=contact.id,
+                title=contact.display_name,
+                subtitle=display,
+                description=contact.primary_email,
+                preview=" · ".join(part for part in preview_parts if part),
+                entity_status=str(contact.status.value) if getattr(contact.status, "value", None) else str(contact.status),
+                owner_id=contact.owner_user_id,
+                tags=contact.tags or [],
+                created_at=contact.created_at,
+                updated_at=contact.updated_at,
+                last_activity_at=contact.last_contact_at,
+                score=100.0,
+                relevance_score=100.0,
+                matched_fields={"phone": display or query},
+                metadata={
+                    "phone_lookup": True,
+                    "display_phone": display,
+                    "email": contact.primary_email,
+                    "lead_id": str(lead.id) if lead is not None else (str(contact.lead_id) if contact.lead_id else None),
+                    "lead_stage": stage,
+                    "kanban_stage": stage,
+                    "possible_duplicate": duplicate,
+                    "open_person_card": True,
+                },
+            )
+        )
+    for lead in unmatched_leads:
+        stage = stage_of(lead)
+        display = format_display_phone(lead.phone) or lead.phone
+        preview_parts = [lead.email, f"Stage: {stage}" if stage else None]
+        if duplicate:
+            preview_parts.append("Possible duplicate records")
+        hits.append(
+            InternalCrmSearchHit(
+                entity_type="crm_lead",
+                entity_id=lead.id,
+                title=lead.full_name,
+                subtitle=display,
+                description=lead.email,
+                preview=" · ".join(part for part in preview_parts if part),
+                entity_status=stage,
+                owner_id=lead.assigned_manager_id,
+                created_at=lead.created_at,
+                updated_at=lead.updated_at,
+                score=95.0,
+                relevance_score=95.0,
+                matched_fields={"phone": display or query},
+                metadata={
+                    "phone_lookup": True,
+                    "display_phone": display,
+                    "email": lead.email,
+                    "lead_id": str(lead.id),
+                    "lead_stage": stage,
+                    "kanban_stage": stage,
+                    "possible_duplicate": duplicate,
+                    "open_person_card": False,
+                },
+            )
+        )
+    return hits[:limit]
+
+
 def crm_global_search(db: Session, user: User, request: CrmSearchQueryRequest) -> CrmSearchResponse:
     started = time.perf_counter()
     parsed = parse_structured_search_query(request.query)
@@ -201,27 +353,38 @@ def crm_global_search(db: Session, user: User, request: CrmSearchQueryRequest) -
     provider = get_default_provider()
     per_entity = request.page_size
     all_hits = []
+    phone_query = is_phone_lookup_query(request.query)
 
-    for entity_type in entity_types:
-        if entity_type in CROSS_MODULE_TYPES:
-            continue
-        if entity_type == "crm_communication" and not can_search_communication_content(user):
-            continue
-        hits = provider.search_entity(
-            db,
-            user,
-            entity_type,
-            request.query,
-            limit=per_entity,
-            include_archived=include_archived,
-            exact_match=request.exact_match,
-            fuzzy_match=request.fuzzy_match,
+    if phone_query and "crm_contact" in entity_types:
+        all_hits.extend(
+            _phone_lookup_hits(
+                db,
+                request.query,
+                include_archived=include_archived,
+                limit=per_entity,
+            )
         )
-        all_hits.extend(hits)
+    else:
+        for entity_type in entity_types:
+            if entity_type in CROSS_MODULE_TYPES:
+                continue
+            if entity_type == "crm_communication" and not can_search_communication_content(user):
+                continue
+            hits = provider.search_entity(
+                db,
+                user,
+                entity_type,
+                request.query,
+                limit=per_entity,
+                include_archived=include_archived,
+                exact_match=request.exact_match,
+                fuzzy_match=request.fuzzy_match,
+            )
+            all_hits.extend(hits)
 
     # Cross-module entities via existing global search
     cross_types = [et for et in entity_types if et in CROSS_MODULE_TYPES]
-    if cross_types and request.query.strip():
+    if cross_types and request.query.strip() and not phone_query:
         gs = global_search(
             db,
             user,
@@ -301,7 +464,11 @@ def crm_global_search(db: Session, user: User, request: CrmSearchQueryRequest) -
         has_more=offset + request.page_size < total,
         took_ms=took_ms,
         did_you_mean=suggest_did_you_mean(request.query, []) if total == 0 else None,
-        explanation=None if total else "No results match your query and filters.",
+        explanation=(
+            None
+            if total
+            else (PHONE_LOOKUP_EMPTY if phone_query else "No results match your query and filters.")
+        ),
         active_filters=[f"{f.field}:{f.value}" for f in parsed.field_filters],
     )
 

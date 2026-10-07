@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useLocale } from 'next-intl';
 import { Drawer } from '@investhome/ui';
 
+import { personCardCopy } from './person-card-copy';
 import { UnifiedContactCard } from './unified-contact-card';
 
 import './contact-card.css';
@@ -13,6 +15,7 @@ type ContactCardDrawerProps = {
 };
 
 export function ContactCardDrawer({ contactId, onClose }: ContactCardDrawerProps) {
+  const t = personCardCopy(useLocale());
   const [compact, setCompact] = useState(false);
 
   useEffect(() => {
@@ -28,7 +31,7 @@ export function ContactCardDrawer({ contactId, onClose }: ContactCardDrawerProps
       <Drawer
         open
         onClose={onClose}
-        title="Kişi Kartı"
+        title={t.title}
         size={compact ? 'full' : 'lg'}
         ariaLabel="Unified CRM contact card"
       >

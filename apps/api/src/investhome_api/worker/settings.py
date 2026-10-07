@@ -34,6 +34,10 @@ from investhome_api.services.sales.proposal_jobs import (
     expire_proposals_job,
     proposal_expiring_reminders_job,
 )
+from investhome_api.services.crm.task_reminder_jobs import (
+    JOB_CRM_TASK_DUE_REMINDERS,
+    crm_task_due_reminders_job,
+)
 from investhome_api.services.work.work_reminder_jobs import (
     JOB_DUE_SOON,
     JOB_FOLLOW_UP_DUE,
@@ -108,6 +112,7 @@ class WorkerSettings:
         overdue_job,
         meeting_approaching_job,
         follow_up_due_job,
+        crm_task_due_reminders_job,
         no_next_action_job,
         stalled_opportunity_job,
         expire_proposals_job,
@@ -134,6 +139,7 @@ class WorkerSettings:
             minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55},
         ),
         cron(follow_up_due_job, name=JOB_FOLLOW_UP_DUE, minute={30}),
+        cron(crm_task_due_reminders_job, name=JOB_CRM_TASK_DUE_REMINDERS, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),
         cron(no_next_action_job, name=JOB_NO_NEXT_ACTION, hour={8}, minute={0}),
         cron(stalled_opportunity_job, name=JOB_STALLED_OPPORTUNITY, hour={9}, minute={0}),
         cron(expire_proposals_job, name=JOB_EXPIRE_PROPOSALS, minute={50}),
@@ -178,6 +184,7 @@ class WorkerSettings:
         JOB_OVERDUE: overdue_job,
         JOB_MEETING_APPROACHING: meeting_approaching_job,
         JOB_FOLLOW_UP_DUE: follow_up_due_job,
+        JOB_CRM_TASK_DUE_REMINDERS: crm_task_due_reminders_job,
         JOB_NO_NEXT_ACTION: no_next_action_job,
         JOB_STALLED_OPPORTUNITY: stalled_opportunity_job,
         JOB_EXPIRE_PROPOSALS: expire_proposals_job,

@@ -33,9 +33,18 @@ function HighlightText({ text, query }: { text: string; query: string }) {
   );
 }
 
+function isPhoneQuery(value: string) {
+  return value.replace(/\D/g, '').length >= 10;
+}
+
+function asText(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
 function entityIcon(entityType: string) {
   const icons: Record<string, string> = {
     crm_contact: 'C',
+    crm_lead: 'L',
     crm_company: 'B',
     crm_relationship: 'R',
     crm_activity: 'A',
@@ -106,7 +115,7 @@ export function CrmSearchPalette() {
     (item: CrmSearchResultItem) => {
       void recordRecent.mutateAsync({ query: debouncedQuery, result_count: searchQuery.data?.total ?? 0 });
       closePalette();
-      if (item.entity_type === 'crm_contact') {
+      if (item.entity_type === 'crm_contact' || item.metadata?.open_person_card === true) {
         openContact(item.entity_id || item.id);
         return;
       }
@@ -233,9 +242,15 @@ export function CrmSearchPalette() {
           )}
 
           {debouncedQuery && !searchQuery.isLoading && flatItems.length === 0 && (
-            <div className="crm-search-zero">
-              <p>{t('empty')}</p>
-              <p className="crm-search-zero__hint">{t('zeroHint')}</p>
+            <div className="crm-search-zero" data-testid="crm-phone-lookup-empty">
+              {isPhoneQuery(debouncedQuery) ? (
+                <p>{t('emptyPhone')}</p>
+              ) : (
+                <>
+                  <p>{t('empty')}</p>
+                  <p className="crm-search-zero__hint">{t('zeroHint')}</p>
+                </>
+              )}
             </div>
           )}
 
@@ -246,12 +261,18 @@ export function CrmSearchPalette() {
                 {group.items.map((item) => {
                   runningIndex += 1;
                   const isActive = runningIndex === activeItemIndex;
-                  const preview = item.highlighted_fields[0]?.snippet || item.preview || item.subtitle || '';
+                  const displayPhone = asText(item.metadata?.display_phone) || item.subtitle || '';
+                  const email = asText(item.metadata?.email);
+                  const stage = asText(item.metadata?.lead_stage) || asText(item.metadata?.kanban_stage);
+                  const duplicate = item.metadata?.possible_duplicate === true;
+                  const preview = item.highlighted_fields[0]?.snippet || item.preview || '';
+                  const openPerson = item.entity_type === 'crm_contact' || item.metadata?.open_person_card === true;
                   return (
-                    <li key={item.entity_id}>
+                    <li key={`${item.entity_type}-${item.entity_id}`}>
                       <Link
                         href={item.url as Route}
                         className={`crm-search-result${isActive ? ' crm-search-result--active' : ''}`}
+                        data-testid={item.metadata?.phone_lookup ? 'crm-phone-lookup-result' : undefined}
                         onMouseEnter={() => setActiveItemIndex(runningIndex)}
                         onClick={(e) => {
                           e.preventDefault();
@@ -265,16 +286,30 @@ export function CrmSearchPalette() {
                           <strong>
                             <HighlightText text={item.title} query={debouncedQuery} />
                           </strong>
-                          {item.subtitle && (
+                          {displayPhone ? (
                             <span className="crm-search-result__subtitle">
-                              <HighlightText text={item.subtitle} query={debouncedQuery} />
+                              <HighlightText text={displayPhone} query={debouncedQuery} />
                             </span>
-                          )}
-                          {preview && (
+                          ) : null}
+                          {email ? (
+                            <span className="crm-search-result__preview">{email}</span>
+                          ) : null}
+                          {stage ? (
+                            <span className="crm-search-result__preview">{t('leadStage', { stage })}</span>
+                          ) : null}
+                          {duplicate ? (
+                            <span className="crm-search-result__preview" data-testid="crm-phone-lookup-duplicate">
+                              {t('possibleDuplicates')}
+                            </span>
+                          ) : null}
+                          {openPerson ? (
+                            <span className="crm-search-result__preview">{t('openPersonCard')}</span>
+                          ) : null}
+                          {preview && !item.metadata?.phone_lookup ? (
                             <span className="crm-search-result__preview">
                               <HighlightText text={preview} query={debouncedQuery} />
                             </span>
-                          )}
+                          ) : null}
                         </span>
                       </Link>
                     </li>
@@ -297,7 +332,7 @@ export function CrmSearchPalette() {
 
 export function useCrmSearchShortcuts() {
   const { authLoading, canRead: canSearch } = useCrmAccess();
-  const { openPalette, togglePalette } = useCrmSearchStore();
+  const { openPalette } = useCrmSearchStore();
 
   useEffect(() => {
     if (authLoading || !canSearch) return;
@@ -307,12 +342,6 @@ export function useCrmSearchShortcuts() {
       const isMac = navigator.platform.toLowerCase().includes('mac');
       const modifier = isMac ? event.metaKey : event.ctrlKey;
 
-      if (modifier && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        togglePalette();
-        return;
-      }
-
       if (event.key === '/' && !isInput && !modifier) {
         event.preventDefault();
         openPalette();
@@ -320,5 +349,5 @@ export function useCrmSearchShortcuts() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [authLoading, canSearch, openPalette, togglePalette]);
+  }, [authLoading, canSearch, openPalette]);
 }

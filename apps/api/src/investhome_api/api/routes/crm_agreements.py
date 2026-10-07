@@ -27,10 +27,11 @@ from investhome_api.services.crm.agreement_service import (
     list_agreements,
     list_purchase_activities,
     list_purchase_calendar,
-    patch_agreement_hemen_kira,
+    patch_agreement,
 )
 from investhome_api.services.crm.contact_service import paginate_total_pages
 from investhome_api.services.crm.financial_visibility import (
+    can_view_crm_financial,
     maybe_strip_agreement_summaries,
     maybe_strip_purchase_card,
 )
@@ -129,13 +130,26 @@ def get_agreement_calendar(
 
 
 @router.patch("/{agreement_id}", response_model=CrmPurchaseCard)
-def patch_agreement(
+def patch_agreement_route(
     agreement_id: UUID,
     body: CrmAgreementPatch,
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("crm", "update")),
 ) -> CrmPurchaseCard:
-    card = patch_agreement_hemen_kira(db, agreement_id, body.hemen_kira)
+    if body.hemen_kira is None and body.amount is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="crm.agreements.errors.empty_patch")
+    if body.amount is not None and not can_view_crm_financial(user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+    try:
+        card = patch_agreement(
+            db,
+            agreement_id,
+            hemen_kira=body.hemen_kira,
+            amount=body.amount,
+            actor=user,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if card is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="crm.agreements.errors.not_found")
     return maybe_strip_purchase_card(user, card)

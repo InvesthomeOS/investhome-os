@@ -163,7 +163,8 @@ class CrmPurchaseCard(BaseModel):
 
 
 class CrmAgreementPatch(BaseModel):
-    hemen_kira: bool
+    hemen_kira: bool | None = None
+    amount: str | None = Field(default=None, max_length=80)
 
 
 class CrmAgreementActivityItem(BaseModel):

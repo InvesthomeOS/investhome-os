@@ -2,7 +2,10 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
+import { useLocale } from 'next-intl';
+
 import { patchAgreement } from '@/workspaces/crm/api/agreements';
+import { personCardCopy } from '@/workspaces/crm/contact-card/person-card-copy';
 
 export function HemenKiraToggle({
   agreementId,
@@ -11,6 +14,7 @@ export function HemenKiraToggle({
   agreementId: string;
   value: boolean;
 }) {
+  const t = personCardCopy(useLocale());
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: (hemenKira: boolean) => patchAgreement(agreementId, { hemen_kira: hemenKira }),
@@ -30,9 +34,9 @@ export function HemenKiraToggle({
         disabled={mutation.isPending}
         onClick={() => mutation.mutate(!value)}
       >
-        {value ? 'Hemen Kira: Evet' : 'Hemen Kira: Hayır'}
+        {value ? `${t.hemenKira}: ${t.yes}` : `${t.hemenKira}: ${t.no}`}
       </button>
-      {mutation.isError ? <small>Kaydedilemedi</small> : null}
+      {mutation.isError ? <small>{t.saveFailed}</small> : null}
     </div>
   );
 }

@@ -43,7 +43,10 @@ def test_crm_pipeline_active_counts_exclude_converted_and_unqualified(
     )
     assert all(row.status_code == 201 for row in (yeni, following, qualified, convert_src, lost)), lost.text
 
-    moved = client.post(f"/crm/leads/{lost.json()['id']}/stage", json={"stage": "unqualified"})
+    moved = client.post(
+        f"/crm/leads/{lost.json()['id']}/stage",
+        json={"stage": "unqualified", "junk_reason": "unreachable"},
+    )
     assert moved.status_code == 200, moved.text
     assert moved.json()["stage"] == "unqualified"
 
@@ -82,3 +85,69 @@ def test_crm_pipeline_active_counts_exclude_converted_and_unqualified(
     row = db.get(Lead, UUID(yeni.json()["id"]))
     assert row is not None
     assert row.status == LeadStatus.CONTACTED
+
+
+EXPECTED_STAGES = [
+    "yeni",
+    "contacted",
+    "following",
+    "proposal",
+    "qualified",
+    "negotiation",
+    "long_term",
+    "unqualified",
+    "converted",
+]
+
+
+def test_crm_pipeline_exposes_nine_stages_in_required_order(client: TestClient) -> None:
+    listed = client.get("/crm/leads")
+    assert listed.status_code == 200
+    assert listed.json()["stages"] == EXPECTED_STAGES
+
+
+def test_crm_pipeline_existing_lead_statuses_map_without_rewrite(client: TestClient, db: Session) -> None:
+    mapping = [
+        (LeadStatus.NEW, "yeni"),
+        (LeadStatus.CONTACTED, "contacted"),
+        (LeadStatus.FOLLOW_UP, "following"),
+        (LeadStatus.PROPOSAL_SENT, "proposal"),
+        (LeadStatus.QUALIFIED, "qualified"),
+        (LeadStatus.NEGOTIATION, "negotiation"),
+        (LeadStatus.MEETING_SCHEDULED, "long_term"),
+        (LeadStatus.LOST, "unqualified"),
+        (LeadStatus.WON, "converted"),
+    ]
+    created_ids: dict[str, str] = {}
+    for status, stage in mapping:
+        lead = Lead(
+            full_name=f"Stage {stage}",
+            email=f"{stage}.map@example.com",
+            source="manual",
+            status=status,
+            provider="manual",
+            ingest_status="ok",
+            is_demo=False,
+        )
+        db.add(lead)
+        db.flush()
+        created_ids[stage] = str(lead.id)
+    db.commit()
+
+    listed = client.get("/crm/leads")
+    assert listed.status_code == 200
+    by_id = {item["id"]: item["stage"] for item in listed.json()["items"]}
+    for stage, lead_id in created_ids.items():
+        assert by_id[lead_id] == stage
+
+    movable = [stage for stage in EXPECTED_STAGES if stage != "converted"]
+    source_id = created_ids["yeni"]
+    for stage in movable:
+        payload: dict[str, str] = {"stage": stage}
+        if stage == "unqualified":
+            payload["junk_reason"] = "unreachable"
+        moved = client.post(f"/crm/leads/{source_id}/stage", json=payload)
+        assert moved.status_code == 200, moved.text
+        assert moved.json()["stage"] == stage
+    blocked = client.post(f"/crm/leads/{source_id}/stage", json={"stage": "converted"})
+    assert blocked.status_code == 400

@@ -816,6 +816,20 @@
   padding: 10px 12px;
 }
 
+.crm-verify-detail__success {
+  border: 1px solid #c7e0c7;
+  border-radius: 8px;
+  background: #f4fff4;
+  color: #1f6b2d;
+  padding: 10px 12px;
+}
+
+.crm-contact-card__panel-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .crm-verify-detail__actions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

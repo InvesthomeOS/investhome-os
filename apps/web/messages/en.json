@@ -4887,6 +4887,12 @@
         "message": "{name} has been inactive despite qualified status."
       }
     },
+    "crm": {
+      "task_due": {
+        "title": "Follow-up task is due",
+        "message": "{title} is due now."
+      }
+    },
     "investor": {
       "follow_up_overdue": {
         "title": "Investor follow-up overdue",
@@ -11258,6 +11264,11 @@
       "hintTitle": "Search tips",
       "hint": "Use name, email, phone, company, or tags. Press Enter to search.",
       "empty": "No results",
+      "emptyPhone": "No matching record found",
+      "emptyPhoneEn": "No matching record found",
+      "possibleDuplicates": "Possible duplicate records",
+      "openPersonCard": "Open person card",
+      "leadStage": "Stage: {stage}",
       "zeroHint": "Try a different query or clear filters.",
       "accessDenied": "You do not have permission to search CRM.",
       "accessDeniedHint": "Contact your administrator for CRM search access.",
@@ -11367,6 +11378,7 @@
       },
       "entities": {
         "crm_contact": "Contacts",
+        "crm_lead": "Leads",
         "crm_company": "Companies",
         "crm_relationship": "Relationships",
         "crm_activity": "Activities",

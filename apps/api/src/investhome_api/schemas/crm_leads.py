@@ -3,12 +3,23 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-CrmLeadStage = Literal["yeni", "contacted", "following", "qualified", "converted", "unqualified"]
+CrmLeadStage = Literal[
+    "yeni",
+    "contacted",
+    "following",
+    "proposal",
+    "qualified",
+    "negotiation",
+    "long_term",
+    "unqualified",
+    "converted",
+]
 CrmLeadIngestStatus = Literal["ok", "unmatched", "failed"]
 
 
@@ -36,6 +47,16 @@ class CrmLeadActivityItem(BaseModel):
     metadata: dict[str, Any] | None = None
 
 
+class CrmLeadTaskItem(BaseModel):
+    id: UUID
+    title: str
+    due_date: datetime | None = None
+    timezone: str | None = None
+    status: str
+    task_status: str | None = None
+    contact_id: UUID | None = None
+
+
 class CrmLeadItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -56,6 +77,13 @@ class CrmLeadItem(BaseModel):
     ingest_status: str
     converted_contact_id: UUID | None = None
     converted_contact_name: str | None = None
+    contact_id: UUID | None = None
+    contact_name: str | None = None
+    investment_budget_amount: Decimal | None = None
+    investment_budget_currency: str | None = None
+    junk_reason: str | None = None
+    junk_reason_detail: str | None = None
+    junked_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -65,6 +93,7 @@ class CrmLeadDetail(CrmLeadItem):
     existing_person_name: str | None = None
     metadata: dict[str, Any] | None = None
     activity: list[CrmLeadActivityItem] = Field(default_factory=list)
+    tasks: list[CrmLeadTaskItem] = Field(default_factory=list)
 
 
 class CrmLeadKpis(BaseModel):
@@ -87,7 +116,17 @@ class CrmLeadListResponse(BaseModel):
     projects: list[str] = Field(default_factory=list)
     owners: list[CrmLeadOwnerOption] = Field(default_factory=list)
     stages: list[str] = Field(
-        default_factory=lambda: ["yeni", "contacted", "following", "qualified", "converted", "unqualified"]
+        default_factory=lambda: [
+            "yeni",
+            "contacted",
+            "following",
+            "proposal",
+            "qualified",
+            "negotiation",
+            "long_term",
+            "unqualified",
+            "converted",
+        ]
     )
 
 
@@ -103,6 +142,17 @@ class CrmLeadWrite(BaseModel):
     owner_user_id: UUID | None = None
     notes: str | None = Field(default=None, max_length=5000)
     stage: CrmLeadStage | None = None
+    junk_reason: str | None = Field(default=None, max_length=40)
+    junk_reason_detail: str | None = Field(default=None, max_length=500)
+    investment_budget_amount: Decimal | str | int | None = None
+    investment_budget_currency: str | None = Field(default=None, max_length=3)
+
+    @field_validator("investment_budget_amount", mode="before")
+    @classmethod
+    def reject_float_budget(cls, value: object) -> object:
+        if isinstance(value, bool) or isinstance(value, float):
+            raise ValueError("Yatırım bütçesi geçersiz")
+        return value
 
 
 class CrmLeadCreate(CrmLeadWrite):
@@ -115,6 +165,8 @@ class CrmLeadUpdate(CrmLeadWrite):
 
 class CrmLeadStageUpdate(BaseModel):
     stage: CrmLeadStage
+    junk_reason: str | None = Field(default=None, max_length=40)
+    junk_reason_detail: str | None = Field(default=None, max_length=500)
 
 
 class CrmLeadConvertRequest(BaseModel):

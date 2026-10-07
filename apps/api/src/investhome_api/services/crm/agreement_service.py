@@ -14,6 +14,7 @@ from datetime import UTC, date, datetime
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from investhome_api.models.crm_activity import CrmActivity, CrmActivityEntityType, CrmActivityType
 from investhome_api.models.crm_agreement import CrmAgreement, CrmAgreementParticipant, CrmAgreementStatus
@@ -1332,15 +1333,77 @@ def get_purchase_card(
     )
 
 
-def patch_agreement_hemen_kira(db: Session, agreement_id: UUID, hemen_kira: bool) -> CrmPurchaseCard | None:
+def _normalize_agreement_amount(raw: str) -> str:
+    text = str(raw or "").strip().replace(" ", "").replace(",", "")
+    text = re.sub(r"[^\d.\-]", "", text)
+    if not text or text in {".", "-", "-."}:
+        raise ValueError("crm.agreements.errors.invalid_amount")
+    number = Decimal(text)
+    if number < 0:
+        raise ValueError("crm.agreements.errors.invalid_amount")
+    if number == number.to_integral_value():
+        return str(int(number))
+    return format(number.normalize(), "f")
+
+
+def patch_agreement(
+    db: Session,
+    agreement_id: UUID,
+    *,
+    hemen_kira: bool | None = None,
+    amount: str | None = None,
+    actor=None,
+) -> CrmPurchaseCard | None:
     row = get_agreement(db, agreement_id)
     if row is None:
         return None
-    row.hemen_kira = bool(hemen_kira)
+    if hemen_kira is None and amount is None:
+        raise ValueError("crm.agreements.errors.empty_patch")
+    previous_amount = row.investment_amount
+    if hemen_kira is not None:
+        row.hemen_kira = bool(hemen_kira)
+    if amount is not None:
+        canonical = _normalize_agreement_amount(amount)
+        row.investment_amount = canonical
+        meta = dict(_meta(row))
+        meta["opportunity"] = canonical
+        meta["investment_amount"] = canonical
+        if row.project_group != BitrixProjectGroup.REIT.value:
+            meta["purchase_price"] = canonical
+        if meta.get("amount_and_currency_amount") not in (None, ""):
+            meta["amount_and_currency_amount"] = canonical
+        if meta.get("tutar_ve_para_birimi_amount") not in (None, ""):
+            meta["tutar_ve_para_birimi_amount"] = canonical
+        row.metadata_json = meta
+        flag_modified(row, "metadata_json")
+        contact = db.get(CrmContact, row.contact_id)
+        if contact is not None and previous_amount != canonical:
+            from investhome_api.models.crm_activity import CrmActivityCategory, CrmActivityType
+            from investhome_api.services.crm.contact_service import _append_contact_activity
+
+            _append_contact_activity(
+                db,
+                contact,
+                activity_type=CrmActivityType.SYSTEM_EVENT,
+                category=CrmActivityCategory.SYSTEM,
+                title="Satın alma tutarı güncellendi",
+                description=f"Tutar: {previous_amount or '—'} → {canonical}",
+                actor=actor,
+                metadata={
+                    "event": "agreement_amount_changed",
+                    "agreement_id": str(row.id),
+                    "from_amount": previous_amount,
+                    "to_amount": canonical,
+                },
+            )
     db.add(row)
     db.commit()
     db.refresh(row)
     return get_purchase_card(db, agreement_id)
+
+
+def patch_agreement_hemen_kira(db: Session, agreement_id: UUID, hemen_kira: bool) -> CrmPurchaseCard | None:
+    return patch_agreement(db, agreement_id, hemen_kira=hemen_kira)
 
 
 def _agreement_index(

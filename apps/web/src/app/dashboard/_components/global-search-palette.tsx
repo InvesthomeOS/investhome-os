@@ -1,5 +1,6 @@
 'use client';
 
+import type { Route } from 'next';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -15,8 +16,11 @@ import {
   type SearchGroup,
   type SearchResultItem,
 } from '@/lib/api/search';
+import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { useNotifications } from '@/lib/notifications/notification-context';
 import { useGlobalSearch } from '@/lib/search/global-search-context';
+import { fetchCrmQuickSearch } from '@/workspaces/crm/api/search';
+import type { CrmSearchResultItem } from '@/workspaces/crm/types/search';
 
 function HighlightText({ text, query }: { text: string; query: string }) {
   if (!query.trim()) return <>{text}</>;
@@ -82,32 +86,50 @@ function labelKeyToPath(labelKey: string) {
   return labelKey.startsWith('search.') ? labelKey.slice('search.'.length) : labelKey;
 }
 
+function isPhoneQuery(value: string) {
+  return value.replace(/\D/g, '').length >= 10;
+}
+
+function asText(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
 export function GlobalSearchPalette() {
   const t = useTranslations('search');
+  const tCrm = useTranslations('crm.search');
   const tCommon = useTranslations('common');
   const locale = useLocale();
   const router = useRouter();
   const { open, closePalette, canSearch } = useGlobalSearch();
+  const { canRead: canReadCrm } = useCrmAccess();
   const { openDrawer: openNotifications } = useNotifications();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [groups, setGroups] = useState<SearchGroup[]>([]);
+  const [crmItems, setCrmItems] = useState<CrmSearchResultItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<SearchFilters>({});
 
-  const flatItems = useMemo(
-    () => groups.flatMap((group) => group.items.map((item) => ({ group, item }))),
-    [groups],
+  const phoneLookup = canReadCrm && isPhoneQuery(query.trim());
+  const osItems = useMemo(
+    () => (phoneLookup ? [] : groups.flatMap((group) => group.items.map((item) => ({ kind: 'os' as const, item })))),
+    [groups, phoneLookup],
   );
+  const crmFlat = useMemo(
+    () => crmItems.map((item) => ({ kind: 'crm' as const, item })),
+    [crmItems],
+  );
+  const flatItems = useMemo(() => [...crmFlat, ...osItems], [crmFlat, osItems]);
 
   useEffect(() => {
     if (open) {
       setQuery('');
       setGroups([]);
+      setCrmItems([]);
       setActiveIndex(0);
       setError(null);
       window.setTimeout(() => inputRef.current?.focus(), 0);
@@ -119,6 +141,7 @@ export function GlobalSearchPalette() {
     const trimmed = query.trim();
     if (trimmed.length < 1) {
       setGroups([]);
+      setCrmItems([]);
       setLoading(false);
       setError(null);
       return;
@@ -127,20 +150,29 @@ export function GlobalSearchPalette() {
     setLoading(true);
     setError(null);
     const timer = window.setTimeout(() => {
-      void fetchGlobalSearch(trimmed, filters)
-        .then((response) => {
-          setGroups(response.groups);
-          setActiveIndex(0);
-        })
+      const phone = canReadCrm && isPhoneQuery(trimmed);
+      const work = phone
+        ? fetchCrmQuickSearch(trimmed).then((response) => {
+            setCrmItems(response.items ?? []);
+            setGroups([]);
+            setActiveIndex(0);
+          })
+        : fetchGlobalSearch(trimmed, filters).then((response) => {
+            setCrmItems([]);
+            setGroups(response.groups);
+            setActiveIndex(0);
+          });
+      void work
         .catch(() => {
           setGroups([]);
+          setCrmItems([]);
           setError(t('errors.failed'));
         })
         .finally(() => setLoading(false));
     }, SEARCH_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [open, canSearch, query, filters, t]);
+  }, [open, canSearch, canReadCrm, query, filters, t]);
 
   const navigateTo = useCallback(
     (item: SearchResultItem) => {
@@ -152,6 +184,23 @@ export function GlobalSearchPalette() {
       router.push(searchResultHref(item));
     },
     [closePalette, openNotifications, router],
+  );
+
+  const personCardHref = useCallback((item: CrmSearchResultItem): Route | null => {
+    if (item.entity_type === 'crm_contact' || item.metadata?.open_person_card === true) {
+      const contactId = item.entity_id || item.id;
+      return contactId ? (`/workspaces/crm/contacts/${contactId}` as Route) : null;
+    }
+    return null;
+  }, []);
+
+  const navigateCrm = useCallback(
+    (item: CrmSearchResultItem) => {
+      const href = personCardHref(item) ?? (item.url as Route);
+      router.push(href);
+      closePalette();
+    },
+    [closePalette, personCardHref, router],
   );
 
   useEffect(() => {
@@ -174,12 +223,14 @@ export function GlobalSearchPalette() {
       if (event.key === 'Enter') {
         event.preventDefault();
         const current = flatItems[activeIndex];
-        if (current) navigateTo(current.item);
+        if (!current) return;
+        if (current.kind === 'crm') navigateCrm(current.item);
+        else navigateTo(current.item);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, flatItems, activeIndex, closePalette, navigateTo]);
+  }, [open, flatItems, activeIndex, closePalette, navigateTo, navigateCrm]);
 
   if (!open || !canSearch) return null;
 
@@ -325,14 +376,74 @@ export function GlobalSearchPalette() {
           )}
           {!loading && error && <p className="global-search-palette__state global-search-palette__state--error">{error}</p>}
           {!loading && !error && query.trim() && flatItems.length === 0 && (
-            <p className="global-search-palette__state global-search-empty">{t('empty')}</p>
+            <p
+              className="global-search-palette__state global-search-empty"
+              data-testid={phoneLookup ? 'crm-phone-lookup-empty' : undefined}
+            >
+              {phoneLookup ? tCrm('emptyPhone') : t('empty')}
+            </p>
           )}
           {!loading && !error && !query.trim() && (
             <p className="global-search-palette__state global-search-empty">{t('hint')}</p>
           )}
 
+          {!loading && !error && crmItems.length > 0 && (
+            <section className="global-search-group">
+              <h3>{tCrm('entities.crm_contact')}</h3>
+              <ul>
+                {crmItems.map((item) => {
+                  runningIndex += 1;
+                  const itemIndex = runningIndex;
+                  const isActive = itemIndex === activeIndex;
+                  const displayPhone = asText(item.metadata?.display_phone) || item.subtitle || '';
+                  const email = asText(item.metadata?.email);
+                  const stage = asText(item.metadata?.lead_stage) || asText(item.metadata?.kanban_stage);
+                  const duplicate = item.metadata?.possible_duplicate === true;
+                  const href = personCardHref(item) ?? (item.url as Route);
+                  return (
+                    <li key={`${item.entity_type}-${item.entity_id}`}>
+                      <Link
+                        href={href}
+                        className={`global-search-result${isActive ? ' global-search-result--active' : ''}`}
+                        data-testid={item.metadata?.phone_lookup ? 'crm-phone-lookup-result' : undefined}
+                        onMouseEnter={() => setActiveIndex(itemIndex)}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          navigateCrm(item);
+                        }}
+                      >
+                        <span className="global-search-result__icon">{entityIcon('company')}</span>
+                        <span className="global-search-result__content">
+                          <strong>
+                            <HighlightText text={item.title} query={query} />
+                          </strong>
+                          {displayPhone ? (
+                            <span className="global-search-result__subtitle">
+                              <HighlightText text={displayPhone} query={query} />
+                            </span>
+                          ) : null}
+                          {email ? <span className="global-search-result__preview">{email}</span> : null}
+                          {stage ? (
+                            <span className="global-search-result__preview">{tCrm('leadStage', { stage })}</span>
+                          ) : null}
+                          {duplicate ? (
+                            <span className="global-search-result__preview" data-testid="crm-phone-lookup-duplicate">
+                              {tCrm('possibleDuplicates')}
+                            </span>
+                          ) : null}
+                          <span className="global-search-result__preview">{tCrm('openPersonCard')}</span>
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+
           {!loading &&
             !error &&
+            !phoneLookup &&
             groups.map((group) => (
               <section key={group.entity_type} className="global-search-group">
                 <h3>{t(labelKeyToPath(group.label_key) as 'entities.lead')}</h3>

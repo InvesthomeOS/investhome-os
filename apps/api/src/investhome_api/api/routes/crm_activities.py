@@ -45,6 +45,7 @@ from investhome_api.schemas.crm_activities import (
     CrmTimelineResponse,
 )
 from investhome_api.services.crm.activity_service import (
+    ActivityValidationError,
     add_comment,
     archive_activity,
     bulk_update_activities,
@@ -348,6 +349,7 @@ def get_tasks(
     due_from: datetime | None = Query(default=None),
     due_to: datetime | None = Query(default=None),
     due_bucket: str | None = Query(default=None, max_length=20),
+    lead_id: UUID | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -371,6 +373,7 @@ def get_tasks(
         due_to=due_to,
         due_bucket=due_bucket,
         workspace_status=workspace_status,
+        lead_id=lead_id,
     )
     return CrmTaskListResponse(items=items, request_id=get_request_id() or "", counters=counters, **meta)
 
@@ -381,7 +384,10 @@ def post_task(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("crm", "manage_tasks")),
 ) -> CrmActivityMutationResponse:
-    return CrmActivityMutationResponse(activity=create_workspace_task(db, user, body))
+    try:
+        return CrmActivityMutationResponse(activity=create_workspace_task(db, user, body))
+    except ActivityValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.post("/tasks/{activity_id}/complete", response_model=CrmActivityMutationResponse)

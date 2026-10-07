@@ -354,6 +354,21 @@
   border-color: color-mix(in srgb, #2f8a5b 24%, #c8d5db);
 }
 
+.crm-ops-kanban__col.is-proposal {
+  background: #f7f9fc;
+  border-color: color-mix(in srgb, #3d6f9e 22%, #c8d5db);
+}
+
+.crm-ops-kanban__col.is-negotiation {
+  background: #f6faf6;
+  border-color: color-mix(in srgb, #3d8a6a 22%, #c8d5db);
+}
+
+.crm-ops-kanban__col.is-long_term {
+  background: #f8f7fb;
+  border-color: color-mix(in srgb, #6a5b8a 22%, #c8d5db);
+}
+
 .crm-ops-kanban__col.is-unqualified {
   background: #f8f6f6;
   border-color: color-mix(in srgb, #8a6a6a 18%, #c8d5db);
@@ -373,9 +388,10 @@
   gap: 7px;
   margin: 0;
   color: var(--ops-ink);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 720;
-  white-space: nowrap;
+  white-space: normal;
+  line-height: 1.25;
 }
 
 .crm-ops-kanban__dot {
@@ -403,6 +419,18 @@
 
 .crm-ops-kanban__col.is-converted .crm-ops-kanban__dot {
   background: #2f8a5b;
+}
+
+.crm-ops-kanban__col.is-proposal .crm-ops-kanban__dot {
+  background: #3d6f9e;
+}
+
+.crm-ops-kanban__col.is-negotiation .crm-ops-kanban__dot {
+  background: #3d8a6a;
+}
+
+.crm-ops-kanban__col.is-long_term .crm-ops-kanban__dot {
+  background: #6a5b8a;
 }
 
 .crm-ops-kanban__col.is-unqualified .crm-ops-kanban__dot {
@@ -556,6 +584,21 @@
 .crm-ops-badge.is-converted {
   background: #e8f6ee;
   color: #2f8a5b;
+}
+
+.crm-ops-badge.is-proposal {
+  background: #e7eef6;
+  color: #3d6f9e;
+}
+
+.crm-ops-badge.is-negotiation {
+  background: #e8f4ee;
+  color: #2f7a58;
+}
+
+.crm-ops-badge.is-long_term {
+  background: #eeeaf6;
+  color: #5b4d8f;
 }
 
 .crm-ops-badge.is-unqualified {
@@ -829,6 +872,49 @@
 .crm-ops-form {
   display: grid;
   gap: 12px;
+}
+
+.crm-ops-taskform {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1.5px solid var(--ops-line);
+  border-radius: 12px;
+  background: #f8fafb;
+}
+
+.crm-ops-taskform__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.crm-ops-tasklist {
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.crm-ops-tasklist li {
+  padding: 10px 12px;
+  border: 1.5px solid var(--ops-line);
+  border-radius: 12px;
+  background: #f8fafb;
+}
+
+.crm-ops-tasklist strong {
+  display: block;
+  font-size: 13.5px;
+}
+
+.crm-ops-tasklist small {
+  display: block;
+  margin-top: 4px;
+  color: var(--ops-muted);
+  font-size: 12px;
 }
 
 .crm-ops-muted {

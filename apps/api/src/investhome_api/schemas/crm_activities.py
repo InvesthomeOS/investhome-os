@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from investhome_api.models.crm_activity import (
     CrmActivityCategory,
@@ -273,14 +273,27 @@ class CrmTaskCreate(BaseModel):
     entity_type: CrmActivityEntityType | None = None
     entity_id: UUID | None = None
     contact_id: UUID | None = None
+    lead_id: UUID | None = None
     project_group: str | None = Field(default=None, max_length=40)
     agreement_id: UUID | None = None
     assigned_user_id: UUID | None = None
     due_date: datetime | None = None
+    due_on: date | None = None
+    due_time: str | None = Field(default=None, max_length=5, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    timezone: str | None = Field(default=None, max_length=64)
+    reminder_date: datetime | None = None
+    reminders: list[CrmActivityReminderInput] | None = None
     priority: CrmActivityPriority = CrmActivityPriority.MEDIUM
     task_status: CrmTaskStatus | None = None
     visibility: CrmActivityVisibility = CrmActivityVisibility.ORGANIZATION
     metadata_json: dict[str, object] | None = None
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def strip_title(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip()
+        return value
 
 
 class CrmNoteCreate(BaseModel):

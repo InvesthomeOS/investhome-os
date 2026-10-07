@@ -90,10 +90,12 @@ from investhome_api.services.crm.identity import (
     displayable_phone,
     displayable_phones,
     is_agent_advisor_name,
+    is_phone_lookup_query,
     normalize_email as identity_normalize_email,
     normalize_full_name,
     normalize_phone as identity_normalize_phone,
     parse_phone,
+    phone_sql_needles,
 )
 from investhome_api.services.crm.tag_service import serialize_contact_tag_items
 from investhome_api.services.crm.financial_visibility import (
@@ -849,20 +851,26 @@ def create_contact(db: Session, payload: CrmContactCreate, *, actor: User | None
 
 _CONTACT_FIELD_LABELS = {
     "display_name": "Ad Soyad",
+    "first_name": "Ad",
+    "last_name": "Soyad",
     "primary_phone": "Telefon",
     "secondary_phones": "Ek telefonlar",
     "primary_email": "E-posta",
     "secondary_emails": "Ek e-postalar",
     "organization_name": "Şirket",
     "job_title": "Pozisyon",
+    "department": "Departman",
     "status": "Durum",
     "junk_reason": "Junk sebebi",
     "next_follow_up_at": "Sonraki takip",
     "whatsapp": "WhatsApp",
     "notes": "Notlar",
     "address_line1": "Adres",
+    "address_line2": "Adres 2",
     "city": "Şehir",
     "state_province": "Bölge",
+    "postal_code": "Posta kodu",
+    "country": "Ülke",
     "source": "Kaynak",
 }
 
@@ -971,17 +979,34 @@ def update_contact(
     previous_owner = contact.owner_user_id
     previous_owner_name = _resolve_owner_name(db, previous_owner) if owner_changed else None
 
+    if "communication_prefs" in data and isinstance(data["communication_prefs"], dict):
+        current_prefs = contact.communication_prefs if isinstance(contact.communication_prefs, dict) else {}
+        data["communication_prefs"] = {**current_prefs, **data["communication_prefs"]}
+    if ("first_name" in data or "last_name" in data) and "display_name" not in data:
+        first = str(data.get("first_name", contact.first_name) or "").strip()
+        last = str(data.get("last_name", contact.last_name) or "").strip()
+        combined = f"{first} {last}".strip()
+        if combined:
+            data["display_name"] = combined[:255]
+
     identity_fields = {
         "display_name",
+        "first_name",
+        "last_name",
         "primary_phone",
         "primary_email",
         "secondary_emails",
         "secondary_phones",
         "organization_name",
         "job_title",
+        "department",
         "address_line1",
+        "address_line2",
         "city",
         "state_province",
+        "postal_code",
+        "country",
+        "whatsapp",
         "source",
         "notes",
         "owner_user_id",
@@ -1077,19 +1102,28 @@ def list_crm_contacts(
 
     if search:
         term = f"%{search.strip()}%"
-        query = query.where(
-            or_(
-                CrmContact.display_name.ilike(term),
-                CrmContact.primary_email.ilike(term),
-                CrmContact.primary_phone.ilike(term),
-                CrmContact.organization_name.ilike(term),
-                CrmContact.whatsapp.ilike(term),
-                CrmContact.job_title.ilike(term),
-                CrmContact.junk_reason.ilike(term),
-                cast(CrmContact.secondary_emails, String).ilike(term),
-                cast(CrmContact.secondary_phones, String).ilike(term),
-            )
-        )
+        clauses = [
+            CrmContact.display_name.ilike(term),
+            CrmContact.primary_email.ilike(term),
+            CrmContact.primary_phone.ilike(term),
+            CrmContact.organization_name.ilike(term),
+            CrmContact.whatsapp.ilike(term),
+            CrmContact.job_title.ilike(term),
+            CrmContact.junk_reason.ilike(term),
+            cast(CrmContact.secondary_emails, String).ilike(term),
+            cast(CrmContact.secondary_phones, String).ilike(term),
+        ]
+        if is_phone_lookup_query(search):
+            for phone_needle in phone_sql_needles(search):
+                like = f"%{phone_needle}%"
+                clauses.extend(
+                    [
+                        CrmContact.primary_phone.ilike(like),
+                        CrmContact.whatsapp.ilike(like),
+                        cast(CrmContact.secondary_phones, String).ilike(like),
+                    ]
+                )
+        query = query.where(or_(*clauses))
 
     if contact_type is not None:
         query = query.where(CrmContact.contact_type == contact_type)

@@ -37,6 +37,7 @@ ENTITY_RESOURCE_MAP: dict[str, str] = {
     "inventory_reservation": "inventory",
     "price_change_request": "inventory",
     "inventory_price": "inventory",
+    "crm_activity": "crm",
 }
 
 SECURITY_ENTITY_TYPES = frozenset({"user", "role"})

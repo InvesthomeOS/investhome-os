@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import math
 import re
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 from uuid import UUID
 
@@ -52,6 +52,10 @@ from investhome_api.schemas.crm_activities import (
     CrmTimelineEntry,
 )
 from investhome_api.services.permission_service import user_has_permission
+
+
+class ActivityValidationError(ValueError):
+    pass
 
 MEETING_TYPES = frozenset(
     {
@@ -689,7 +693,7 @@ def _apply_follow_up_rules(db: Session, activity: CrmActivity) -> CrmActivity | 
     return created
 
 
-def create_activity(db: Session, user: User, payload: CrmActivityCreate) -> CrmActivityDetail:
+def create_activity(db: Session, user: User, payload: CrmActivityCreate, *, commit: bool = True) -> CrmActivityDetail:
     category = payload.activity_category or _default_category(payload.activity_type)
     task_status = payload.task_status
     if payload.activity_type == CrmActivityType.TASK and task_status is None:
@@ -735,8 +739,9 @@ def create_activity(db: Session, user: User, payload: CrmActivityCreate) -> CrmA
     _attach_children(db, activity, payload)
     _apply_follow_up_rules(db, activity)
     _touch_contact_last_activity(db, activity)
-    db.commit()
-    db.refresh(activity)
+    if commit:
+        db.commit()
+        db.refresh(activity)
     loaded = get_activity_or_none(db, activity.id)
     assert loaded is not None
     return _serialize_detail(loaded)
@@ -942,6 +947,62 @@ def get_timeline(
 
 _TASK_TZ = ZoneInfo("Europe/Istanbul")
 _GENERIC_TASK_NAMES = {"contact", "company", "investor", "project", "lead", "crm", "kişiler", "unknown person", "unknown"}
+_DUE_TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
+def _task_lead_clause(lead_id: UUID):
+    key = str(lead_id)
+    blob = cast(CrmActivity.metadata_json, String)
+    return or_(
+        blob.like(f'%"lead_id":"{key}"%'),
+        blob.like(f'%"lead_id": "{key}"%'),
+    )
+
+
+def _combine_task_due(*, due_date: datetime | None, due_on: date | None, due_time: str | None) -> datetime | None:
+    if due_date is not None:
+        if due_date.tzinfo is None:
+            return due_date.replace(tzinfo=_TASK_TZ).astimezone(UTC)
+        return due_date.astimezone(UTC)
+    if due_on is None and not due_time:
+        return None
+    if due_on is None:
+        raise ActivityValidationError("Tarih gerekli")
+    if not due_time:
+        raise ActivityValidationError("Saat gerekli")
+    if not _DUE_TIME_RE.fullmatch(due_time.strip()):
+        raise ActivityValidationError("Saat geçersiz")
+    hour, minute = (int(part) for part in due_time.strip().split(":"))
+    local = datetime.combine(due_on, time(hour, minute), tzinfo=_TASK_TZ)
+    return local.astimezone(UTC)
+
+
+def _resolve_lead_task_contact(db: Session, lead_id: UUID) -> tuple[object, UUID | None]:
+    from investhome_api.models.lead import Lead
+
+    lead = db.get(Lead, lead_id)
+    if lead is None or lead.archived_at is not None or lead.is_demo:
+        raise ActivityValidationError("Lead bulunamadı")
+    contact = None
+    if lead.converted_contact_id is not None:
+        contact = db.get(CrmContact, lead.converted_contact_id)
+        if contact is not None and contact.archived_at is not None:
+            contact = None
+    if contact is None:
+        meta = lead.metadata_json if isinstance(lead.metadata_json, dict) else {}
+        raw = meta.get("existing_person_id")
+        if raw:
+            try:
+                found = db.get(CrmContact, UUID(str(raw)))
+            except ValueError:
+                found = None
+            if found is not None and found.archived_at is None:
+                contact = found
+    if contact is None:
+        contact = db.scalar(
+            select(CrmContact).where(CrmContact.lead_id == lead.id, CrmContact.archived_at.is_(None)).limit(1)
+        )
+    return lead, contact.id if contact is not None else None
 
 
 def _istanbul_day_bounds(now: datetime | None = None) -> tuple[datetime, datetime]:
@@ -1138,7 +1199,10 @@ def _apply_task_scope(
     due_to: datetime | None,
     due_bucket: str | None,
     workspace_status: str | None,
+    lead_id: UUID | None = None,
 ):
+    if lead_id is not None:
+        query = query.where(_task_lead_clause(lead_id))
     if contact_ids is not None:
         query = query.where(
             CrmActivity.entity_type == CrmActivityEntityType.CONTACT,
@@ -1164,17 +1228,28 @@ def _apply_task_scope(
     return query
 
 
-def create_workspace_task(db: Session, user: User, payload: CrmTaskCreate) -> CrmActivityDetail:
+def create_workspace_task(db: Session, user: User, payload: CrmTaskCreate, *, commit: bool = True) -> CrmActivityDetail:
     from investhome_api.models.crm_agreement import CrmAgreement
 
+    title = (payload.title or "").strip()
+    if not title:
+        raise ActivityValidationError("Görev adı gerekli")
     contact_id = payload.contact_id
     project_group = (payload.project_group or "").strip() or None
     agreement_id = payload.agreement_id
+    lead_id = payload.lead_id
+    if lead_id is not None:
+        _lead, linked_contact_id = _resolve_lead_task_contact(db, lead_id)
+        del _lead
+        contact_id = contact_id or linked_contact_id
     if agreement_id is not None:
         agreement = db.get(CrmAgreement, agreement_id)
         if agreement is not None:
             contact_id = contact_id or agreement.contact_id
             project_group = project_group or agreement.project_group
+    due_date = _combine_task_due(due_date=payload.due_date, due_on=payload.due_on, due_time=payload.due_time)
+    if lead_id is not None and due_date is None:
+        raise ActivityValidationError("Tarih ve saat gerekli")
     entity_type = payload.entity_type
     entity_id = payload.entity_id
     if contact_id is not None:
@@ -1187,17 +1262,19 @@ def create_workspace_task(db: Session, user: User, payload: CrmTaskCreate) -> Cr
         "contact_id": str(contact_id) if contact_id else None,
         "project_group": project_group,
         "agreement_id": str(agreement_id) if agreement_id else None,
+        "lead_id": str(lead_id) if lead_id else None,
     }
     metadata = dict(payload.metadata_json or {})
     metadata["task_links"] = {key: value for key, value in links.items() if value}
     related_type = CrmActivityEntityType.TRANSACTION if agreement_id else None
+    timezone = (payload.timezone or "").strip() or ("Europe/Istanbul" if lead_id is not None else None)
     create_payload = CrmActivityCreate(
         entity_type=entity_type,
         entity_id=entity_id,
         related_entity_type=related_type,
         related_entity_id=agreement_id,
         activity_type=CrmActivityType.TASK,
-        title=payload.title,
+        title=title,
         summary=payload.summary,
         description=payload.description,
         status=CrmActivityStatus.PLANNED,
@@ -1205,11 +1282,53 @@ def create_workspace_task(db: Session, user: User, payload: CrmTaskCreate) -> Cr
         priority=payload.priority,
         owner_id=user.id,
         assigned_user_id=payload.assigned_user_id,
-        due_date=payload.due_date,
+        due_date=due_date,
+        reminder_date=payload.reminder_date,
+        timezone=timezone,
         visibility=payload.visibility,
         metadata_json=metadata,
+        reminders=payload.reminders,
     )
-    return create_activity(db, user, create_payload)
+    return create_activity(db, user, create_payload, commit=commit)
+
+
+def list_tasks_for_lead(db: Session, lead_id: UUID):
+    from investhome_api.schemas.crm_leads import CrmLeadTaskItem
+
+    rows = list(
+        db.scalars(
+            select(CrmActivity)
+            .where(
+                CrmActivity.activity_type == CrmActivityType.TASK,
+                CrmActivity.archived_at.is_(None),
+                _task_lead_clause(lead_id),
+            )
+            .order_by(CrmActivity.due_date.asc().nulls_last(), CrmActivity.created_at.desc())
+        ).all()
+    )
+    items: list[CrmLeadTaskItem] = []
+    for row in rows:
+        meta = row.metadata_json if isinstance(row.metadata_json, dict) else {}
+        links = meta.get("task_links") if isinstance(meta.get("task_links"), dict) else {}
+        contact_id = row.entity_id if row.entity_type == CrmActivityEntityType.CONTACT else None
+        raw_contact = links.get("contact_id")
+        if contact_id is None and raw_contact:
+            try:
+                contact_id = UUID(str(raw_contact))
+            except ValueError:
+                contact_id = None
+        items.append(
+            CrmLeadTaskItem(
+                id=row.id,
+                title=row.title,
+                due_date=row.due_date,
+                timezone=row.timezone,
+                status=_task_workspace_status(row.task_status, row.status),
+                task_status=row.task_status.value if row.task_status else None,
+                contact_id=contact_id,
+            )
+        )
+    return items
 
 
 def create_workspace_note(db: Session, user: User, payload: CrmNoteCreate) -> CrmActivityDetail:
@@ -1286,6 +1405,7 @@ def list_tasks(
     due_to: datetime | None = None,
     due_bucket: str | None = None,
     workspace_status: str | None = None,
+    lead_id: UUID | None = None,
 ) -> tuple[list[CrmActivitySummary], dict[str, int], CrmTaskCounters]:
     del team_tasks
     from investhome_api.services.crm.operational_timeline import _resolve_timeline_contact_ids
@@ -1324,6 +1444,7 @@ def list_tasks(
             due_to=due_to,
             due_bucket=due_bucket,
             workspace_status=workspace_status,
+            lead_id=lead_id,
         )
 
     def _count(query) -> int:
@@ -1360,6 +1481,7 @@ def list_tasks(
         due_to=due_to,
         due_bucket=None,
         workspace_status=None,
+        lead_id=lead_id,
     )
     today_start, today_end = _istanbul_day_bounds()
     open_q = counter_base.where(_task_is_active_clause())

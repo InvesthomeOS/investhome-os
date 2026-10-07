@@ -69,9 +69,12 @@ LEAD_STAGE_HREF = {
     "yeni": "/workspaces/crm/leads?stage=yeni",
     "contacted": "/workspaces/crm/leads?stage=contacted",
     "following": "/workspaces/crm/leads?stage=following",
+    "proposal": "/workspaces/crm/leads?stage=proposal",
     "qualified": "/workspaces/crm/leads?stage=qualified",
-    "converted": "/workspaces/crm/leads?stage=converted",
+    "negotiation": "/workspaces/crm/leads?stage=negotiation",
+    "long_term": "/workspaces/crm/leads?stage=long_term",
     "unqualified": "/workspaces/crm/leads?stage=unqualified",
+    "converted": "/workspaces/crm/leads?stage=converted",
 }
 
 TASK_HREF = {

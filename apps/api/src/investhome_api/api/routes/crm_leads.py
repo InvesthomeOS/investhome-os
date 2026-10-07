@@ -20,6 +20,7 @@ from investhome_api.schemas.crm_leads import (
     CrmLeadStageUpdate,
     CrmLeadUpdate,
 )
+from investhome_api.services.crm.activity_service import ActivityValidationError
 from investhome_api.services.crm.crm_lead_service import (
     LeadConflictError,
     LeadNotFoundError,
@@ -49,6 +50,12 @@ def _conflict(exc: LeadConflictError) -> JSONResponse:
     )
 
 
+def _lead_validation_http(exc: LeadValidationError) -> HTTPException:
+    status_code = getattr(exc, "status_code", status.HTTP_400_BAD_REQUEST) or status.HTTP_400_BAD_REQUEST
+    code = getattr(exc, "code", None)
+    return HTTPException(status_code=status_code, detail=code or str(exc))
+
+
 @router.get("", response_model=CrmLeadListResponse)
 def list_leads_workspace(
     db: Session = Depends(get_db),
@@ -61,6 +68,7 @@ def list_leads_workspace(
     date_from: datetime | None = Query(default=None),
     date_to: datetime | None = Query(default=None),
     ingest_status: str | None = Query(default=None, max_length=20),
+    junk_reason: str | None = Query(default=None, max_length=40),
 ) -> CrmLeadListResponse:
     del user
     return list_crm_leads(
@@ -73,6 +81,7 @@ def list_leads_workspace(
         date_from=date_from,
         date_to=date_to,
         ingest_status=ingest_status,
+        junk_reason=junk_reason,
     )
 
 
@@ -89,7 +98,7 @@ def ingest_lead_workspace(
         return lead
     except LeadValidationError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise _lead_validation_http(exc) from exc
 
 
 @router.get("/{lead_id}", response_model=CrmLeadDetail)
@@ -121,7 +130,7 @@ def create_lead_workspace(
         return _conflict(exc)
     except LeadValidationError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise _lead_validation_http(exc) from exc
 
 
 @router.patch("/{lead_id}", response_model=CrmLeadDetail)
@@ -140,6 +149,9 @@ def update_lead_workspace(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lead bulunamadı") from exc
     except LeadValidationError as exc:
         db.rollback()
+        raise _lead_validation_http(exc) from exc
+    except ActivityValidationError as exc:
+        db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
@@ -151,13 +163,23 @@ def move_lead_stage(
     user: User = Depends(require_permission("crm", "update")),
 ) -> CrmLeadDetail:
     try:
-        lead = move_crm_lead_stage(db, lead_id, payload.stage, actor=user)
+        lead = move_crm_lead_stage(
+            db,
+            lead_id,
+            payload.stage,
+            actor=user,
+            junk_reason=payload.junk_reason,
+            junk_reason_detail=payload.junk_reason_detail,
+        )
         db.commit()
         return lead
     except LeadNotFoundError as exc:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lead bulunamadı") from exc
     except LeadValidationError as exc:
+        db.rollback()
+        raise _lead_validation_http(exc) from exc
+    except ActivityValidationError as exc:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -187,7 +209,7 @@ def convert_lead_workspace(
         return _conflict(exc)
     except LeadValidationError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise _lead_validation_http(exc) from exc
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

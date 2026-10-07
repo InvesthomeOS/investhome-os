@@ -87,7 +87,7 @@
 
 .crm-leads .crm-leads__kanban {
   display: grid;
-  grid-template-columns: repeat(6, minmax(180px, 1fr));
+  grid-template-columns: repeat(9, minmax(156px, 1fr));
   gap: 10px;
   overflow-x: auto;
   padding-bottom: 8px;

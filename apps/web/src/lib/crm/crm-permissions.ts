@@ -135,7 +135,7 @@ export function canViewPrivateNotes(user: CurrentUser | null): boolean {
 }
 
 export function canManageCrmTasks(user: CurrentUser | null): boolean {
-  return hasCrmPermission(user, 'manage_tasks') || canUpdateCrm(user);
+  return hasCrmPermission(user, 'manage_tasks');
 }
 
 export function canManageCrmMeetings(user: CurrentUser | null): boolean {
