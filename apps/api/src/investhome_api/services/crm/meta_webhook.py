@@ -14,8 +14,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
+from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update as sql_update
 from sqlalchemy.orm import Session
 
 from investhome_api.config.settings import get_settings, validate_meta_webhook_secrets
@@ -248,6 +249,85 @@ def find_lead_by_facebook_psid(db: Session, psid: str) -> Lead | None:
     return None
 
 
+def _lead_is_active(lead: Lead | None) -> bool:
+    return lead is not None and lead.archived_at is None and not lead.is_demo
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def _active_facebook_lead_for_contact(db: Session, *, contact: CrmContact, psid: str) -> Lead | None:
+    """Reuse the existing live Lead for this Messenger person. Never invent a second one."""
+    if contact.lead_id is not None:
+        linked = db.get(Lead, contact.lead_id)
+        if _lead_is_active(linked):
+            return linked
+    by_psid = find_lead_by_facebook_psid(db, psid)
+    if _lead_is_active(by_psid):
+        if contact.lead_id is None:
+            contact.lead_id = by_psid.id
+            db.flush()
+        return by_psid
+    converted = db.scalar(
+        select(Lead)
+        .where(
+            Lead.converted_contact_id == contact.id,
+            Lead.archived_at.is_(None),
+            Lead.is_demo.is_(False),
+        )
+        .order_by(Lead.created_at.desc())
+        .limit(1)
+    )
+    if _lead_is_active(converted):
+        if contact.lead_id is None:
+            contact.lead_id = converted.id
+            db.flush()
+        return converted
+    return None
+
+
+def _record_facebook_message_on_lead(
+    db: Session,
+    *,
+    lead: Lead,
+    contact: CrmContact,
+    message: "MessengerInbound",
+    communication_id: UUID,
+) -> None:
+    occurred = _as_utc(message.occurred_at or datetime.now(UTC))
+    preview = (message.text or "").strip()[:200] or None
+    _put_meta(
+        lead,
+        last_messenger_mid=message.mid,
+        last_messenger_at=occurred.isoformat(),
+        last_communication_id=str(communication_id),
+        existing_person_id=str(contact.id),
+        existing_person_name=contact.display_name,
+    )
+    _log(
+        db,
+        lead,
+        action=ActivityAction.UPDATED,
+        description_key="crm.leads.facebook_messenger.received",
+        actor=None,
+        metadata={
+            "provider": FACEBOOK_SOURCE,
+            "source": FACEBOOK_SOURCE,
+            "mid": message.mid,
+            "preview": preview,
+            "communication_id": str(communication_id),
+            "contact_id": str(contact.id),
+        },
+        created_at=occurred,
+    )
+    db.flush()
+    db.execute(sql_update(Lead).where(Lead.id == lead.id).values(updated_at=occurred))
+    lead.updated_at = occurred
+
+
 def _create_facebook_lead(db: Session, *, contact: CrmContact, psid: str, display_name: str) -> Lead:
     lead = Lead(
         full_name=display_name,
@@ -274,7 +354,7 @@ def _create_facebook_lead(db: Session, *, contact: CrmContact, psid: str, displa
         db,
         lead,
         action=ActivityAction.CREATED,
-        description_key="crm.leads.facebook_messenger.received",
+        description_key="crm.leads.created",
         actor=None,
         metadata={"provider": FACEBOOK_SOURCE, "source": FACEBOOK_SOURCE},
     )
@@ -288,6 +368,13 @@ def resolve_facebook_sender(db: Session, *, psid: str) -> CrmContact:
     """Attach to an existing PSID contact, or create Contact + Lead once."""
     existing = find_contact_by_facebook_psid(db, psid)
     if existing is not None:
+        if _active_facebook_lead_for_contact(db, contact=existing, psid=psid) is None:
+            _create_facebook_lead(
+                db,
+                contact=existing,
+                psid=psid,
+                display_name=existing.display_name or _placeholder_name(psid),
+            )
         return existing
 
     display_name = _placeholder_name(psid)
@@ -429,7 +516,8 @@ def _ingest_messages(db: Session, messages: list[MessengerInbound], claimed: set
         if f"msg:{item.mid}" not in claimed:
             continue
         contact = resolve_facebook_sender(db, psid=item.psid)
-        _, was_created = ingest_live_message(
+        lead = _active_facebook_lead_for_contact(db, contact=contact, psid=item.psid)
+        comm, was_created = ingest_live_message(
             db,
             {
                 "channel": "facebook",
@@ -445,12 +533,21 @@ def _ingest_messages(db: Session, messages: list[MessengerInbound], claimed: set
                     "kind": "dm",
                     FACEBOOK_PSID_KEY: item.psid,
                     "page_id": item.page_id,
+                    **({"lead_id": str(lead.id)} if lead is not None else {}),
                 },
             },
             actor=None,
         )
         if was_created:
             created += 1
+            if lead is not None:
+                _record_facebook_message_on_lead(
+                    db,
+                    lead=lead,
+                    contact=contact,
+                    message=item,
+                    communication_id=comm.id,
+                )
     return created
 
 

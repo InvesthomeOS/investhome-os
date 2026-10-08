@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -51,18 +52,19 @@ def _payload(
     text: str = "Merhaba",
     page_id: str = PAGE_ID,
     object_name: str = "page",
+    timestamp: int = 1710000000000,
 ) -> dict:
     return {
         "object": object_name,
         "entry": [
             {
                 "id": page_id,
-                "time": 1710000000000,
+                "time": timestamp,
                 "messaging": [
                     {
                         "sender": {"id": sender},
                         "recipient": {"id": page_id},
-                        "timestamp": 1710000000000,
+                        "timestamp": timestamp,
                         "message": {"mid": message_id, "text": text},
                     }
                 ],
@@ -234,6 +236,74 @@ def test_existing_psid_reuses_contact_and_lead(client: TestClient, db: Session) 
     assert int(db.scalar(select(func.count()).select_from(CrmContact)) or 0) == 1
     assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 1
     assert int(db.scalar(select(func.count()).select_from(CrmCommunication)) or 0) == 2
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def test_followup_message_updates_existing_lead_activity(client: TestClient, db: Session) -> None:
+    sender = "888999000111222"
+    first_ts = 1_710_000_000_000
+    second_ts = 1_710_003_600_000
+    first_id = f"mid.{uuid4().hex}"
+    second_id = f"mid.{uuid4().hex}"
+    first, _ = _post(
+        client,
+        _payload(message_id=first_id, sender=sender, text="Ilk mesaj", timestamp=first_ts),
+    )
+    second, _ = _post(
+        client,
+        _payload(message_id=second_id, sender=sender, text="Ikinci mesaj", timestamp=second_ts),
+    )
+    assert first.status_code == 200
+    assert second.status_code == 200
+    db.expire_all()
+    leads = list(db.scalars(select(Lead)).all())
+    contacts = list(db.scalars(select(CrmContact)).all())
+    comms = list(db.scalars(select(CrmCommunication)).all())
+    assert len(leads) == 1
+    assert len(contacts) == 1
+    assert len(comms) == 2
+    lead = leads[0]
+    expected = datetime.fromtimestamp(second_ts / 1000, tz=UTC)
+    assert _as_utc(lead.updated_at) == expected
+    meta = lead.metadata_json or {}
+    assert meta.get("last_messenger_mid") == second_id
+    assert meta.get("last_communication_id")
+    assert all(str((row.metadata_json or {}).get("lead_id")) == str(lead.id) for row in comms)
+
+    detail = client.get(f"/crm/leads/{lead.id}")
+    assert detail.status_code == 200, detail.text
+    activity = detail.json().get("activity") or []
+    received = [item for item in activity if item["description"] == "crm.leads.facebook_messenger.received"]
+    assert len(received) == 2
+    previews = {str((item.get("metadata") or {}).get("preview") or "") for item in received}
+    assert "Ilk mesaj" in previews
+    assert "Ikinci mesaj" in previews
+    latest = received[0]
+    assert latest["metadata"]["mid"] == second_id
+    assert _as_utc(datetime.fromisoformat(latest["created_at"].replace("Z", "+00:00"))) == expected
+
+    listed = client.get("/crm/leads")
+    assert listed.status_code == 200
+    card = next(item for item in listed.json()["items"] if item["id"] == str(lead.id))
+    assert _as_utc(datetime.fromisoformat(card["updated_at"].replace("Z", "+00:00"))) == expected
+
+    pipeline = client.get("/crm/leads", params={"surface": "pipeline"})
+    assert pipeline.status_code == 200
+    assert all(item["id"] != str(lead.id) for item in pipeline.json()["items"])
+    assert int(db.scalar(select(func.count()).select_from(SalesOpportunity)) or 0) == 0
+
+    feed = list_communication_feed(db, channel="facebook", page=1, page_size=25)
+    facebook_rows = [
+        item
+        for item in feed.items
+        if item.channel == "facebook" and item.preview and item.preview in {"Ilk mesaj", "Ikinci mesaj"}
+    ]
+    assert len(facebook_rows) == 2
 
 
 def test_no_opportunity_created(client: TestClient, db: Session) -> None:

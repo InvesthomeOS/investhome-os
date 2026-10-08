@@ -570,6 +570,7 @@ def _log(
     description_key: str,
     actor: User | None,
     metadata: dict[str, Any] | None = None,
+    created_at: datetime | None = None,
 ) -> None:
     log_activity(
         db,
@@ -579,6 +580,7 @@ def _log(
         description_key=description_key,
         actor_user=actor,
         metadata=metadata,
+        created_at=created_at,
         commit=False,
     )
 

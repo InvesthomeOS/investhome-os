@@ -401,6 +401,10 @@ function activityLabel(key: string, locale: 'tr' | 'en'): string {
     'crm.leads.ingest.ok': { tr: 'Kaynak lead alındı', en: 'Provider lead stored' },
     'crm.leads.ingest.unmatched': { tr: 'Eşleşmeyen kaynak lead saklandı', en: 'Unmatched provider lead kept' },
     'crm.leads.ingest.failed': { tr: 'Başarısız kaynak lead saklandı', en: 'Failed provider lead kept' },
+    'crm.leads.facebook_messenger.received': {
+      tr: 'Facebook Messenger mesajı',
+      en: 'Facebook Messenger message',
+    },
   };
   return map[key]?.[locale] ?? key;
 }
@@ -1456,6 +1460,7 @@ function LeadDetail({
         {activity.map((event) => (
           <li key={event.id}>
             {activityLabel(event.description, locale)}
+            {typeof event.metadata?.preview === 'string' && event.metadata.preview ? ` — ${event.metadata.preview}` : ''}
             <small>
               {event.actor_name || t.none} · {formatWhen(event.created_at, locale)}
             </small>
