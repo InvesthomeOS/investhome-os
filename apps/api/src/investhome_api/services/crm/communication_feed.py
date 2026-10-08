@@ -32,6 +32,7 @@ COMM_TYPES = (
     CrmActivityType.EMAIL,
     CrmActivityType.WHATSAPP,
     CrmActivityType.FACEBOOK,
+    CrmActivityType.INSTAGRAM,
     CrmActivityType.PHONE_CALL,
     CrmActivityType.SMS,
     CrmActivityType.COMMENT,
@@ -49,6 +50,7 @@ CHANNEL_TYPES: dict[str, tuple[CrmActivityType, ...]] = {
     "email": (CrmActivityType.EMAIL,),
     "whatsapp": (CrmActivityType.WHATSAPP,),
     "facebook": (CrmActivityType.FACEBOOK,),
+    "instagram": (CrmActivityType.INSTAGRAM,),
     "call": (CrmActivityType.PHONE_CALL,),
     "sms": (CrmActivityType.SMS,),
     "comment": (CrmActivityType.COMMENT, CrmActivityType.NOTE),
@@ -65,6 +67,16 @@ CHANNEL_TYPES: dict[str, tuple[CrmActivityType, ...]] = {
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
+_REPLY_CHANNELS = frozenset({"facebook", "instagram"})
+_THREAD_ACTIVITY_TYPES = {
+    "whatsapp": CrmActivityType.WHATSAPP,
+    "facebook": CrmActivityType.FACEBOOK,
+    "instagram": CrmActivityType.INSTAGRAM,
+}
+
+
+def _can_reply(*, channel: str, contact_id: UUID | None, conversation_key: str | None) -> bool:
+    return channel in _REPLY_CHANNELS and contact_id is not None and bool(conversation_key)
 
 
 def _plain(value: str | None, *, limit: int = 220) -> str:
@@ -112,6 +124,8 @@ def _channel(activity: CrmActivity) -> str:
         return "whatsapp"
     if "facebook" in kind:
         return "facebook"
+    if "instagram" in kind:
+        return "instagram"
     if "email" in kind:
         return "email"
     value = activity.activity_type.value if hasattr(activity.activity_type, "value") else str(activity.activity_type)
@@ -264,6 +278,7 @@ def communication_stats(db: Session) -> CommunicationFeedStats:
     email = _count(CrmActivityType.EMAIL)
     whatsapp = _count(CrmActivityType.WHATSAPP)
     facebook = _count(CrmActivityType.FACEBOOK)
+    instagram = _count(CrmActivityType.INSTAGRAM)
     total = _count(*COMM_TYPES)
     unmatched = int(
         db.scalar(
@@ -279,7 +294,12 @@ def communication_stats(db: Session) -> CommunicationFeedStats:
         or 0
     )
     return CommunicationFeedStats(
-        total=total, email=email, whatsapp=whatsapp, facebook=facebook, unmatched=unmatched
+        total=total,
+        email=email,
+        whatsapp=whatsapp,
+        facebook=facebook,
+        instagram=instagram,
+        unmatched=unmatched,
     )
 
 
@@ -360,6 +380,11 @@ def _serialize_activity(
         conversation_key=str(history.get("chat_id") or "") or None,
         source_key=_feed_activity_source_key(activity),
         activity_id=activity.id,
+        can_reply=_can_reply(
+            channel=_channel(activity),
+            contact_id=contact.id if contact else None,
+            conversation_key=str(history.get("chat_id") or "") or None,
+        ),
     )
 
 
@@ -403,6 +428,11 @@ def _serialize_live(
         conversation_key=row.conversation_key,
         source_key=f"live:{channel}:{source_id}",
         activity_id=row.activity_id,
+        can_reply=_can_reply(
+            channel=channel,
+            contact_id=contact.id if contact else None,
+            conversation_key=row.conversation_key,
+        ),
     )
 
 
@@ -583,14 +613,23 @@ def list_whatsapp_conversation(
     activity_id: UUID | None = None,
     contact_id: UUID | None = None,
     chat_id: str | None = None,
+    channel: str | None = None,
 ) -> CommunicationConversationResponse:
     seed = db.get(CrmActivity, activity_id) if activity_id else None
     history = _history(seed) if seed else {}
+    resolved = (channel or "").strip().lower()
+    if seed is not None:
+        seed_channel = _channel(seed)
+        if seed_channel in _THREAD_ACTIVITY_TYPES:
+            resolved = seed_channel
+    if resolved not in _THREAD_ACTIVITY_TYPES:
+        resolved = "whatsapp"
+    activity_type = _THREAD_ACTIVITY_TYPES[resolved]
     chat = (chat_id or str(history.get("chat_id") or "")).strip()
     person_id = contact_id or (seed.entity_id if seed and seed.entity_type == CrmActivityEntityType.CONTACT else None)
     query = select(CrmActivity).where(
         CrmActivity.archived_at.is_(None),
-        CrmActivity.activity_type == CrmActivityType.WHATSAPP,
+        CrmActivity.activity_type == activity_type,
     )
     if person_id:
         query = query.where(CrmActivity.entity_id == person_id, CrmActivity.entity_type == CrmActivityEntityType.CONTACT)
@@ -608,8 +647,8 @@ def list_whatsapp_conversation(
             summary=row.summary or row.description or row.title,
             actor_name=str(_history(row).get("author_name") or "") or None,
             created_at=_occurred(row),
-            activity_type="whatsapp",
-            metadata={"bitrix_history": _history(row)},
+            activity_type=resolved,
+            metadata={"bitrix_history": _history(row), "live_thread": _history(row)},
         )
         for row in unique
     ]

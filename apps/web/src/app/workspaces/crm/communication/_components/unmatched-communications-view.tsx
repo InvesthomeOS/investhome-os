@@ -31,6 +31,7 @@ function formatWhen(value: string | null) {
 function channelLabel(channel: string, t: (key: string) => string) {
   if (channel === 'whatsapp') return t('channels.whatsapp');
   if (channel === 'facebook') return t('channels.facebook');
+  if (channel === 'instagram') return t('channels.instagram');
   if (channel === 'email') return t('channels.email');
   if (channel === 'phone' || channel === 'call') return t('channels.call');
   return channel;

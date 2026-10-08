@@ -20,7 +20,7 @@ from investhome_api.models.lead import Lead
 from investhome_api.models.sales import SalesOpportunity
 from investhome_api.services.crm import meta_webhook as meta
 from investhome_api.services.crm.communication_feed import list_communication_feed
-from investhome_api.services.crm.meta_webhook import FACEBOOK_PSID_KEY
+from investhome_api.services.crm.meta_webhook import FACEBOOK_PSID_KEY, INSTAGRAM_IGSID_KEY
 
 APP_SECRET = "unit-test-meta-app-secret-32charsxxxx"
 VERIFY_TOKEN = "unit-test-meta-verify-token"
@@ -160,13 +160,31 @@ def test_wrong_page_id_ignored(client: TestClient, db: Session) -> None:
     assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 0
 
 
-def test_instagram_object_ignored(client: TestClient, db: Session) -> None:
-    message_id = f"mid.{uuid4().hex}"
-    response, _ = _post(client, _payload(message_id=message_id, object_name="instagram"))
-    assert response.status_code == 200, response.text
-    assert response.json().get("ignored") is True
-    assert response.json()["ingested"] == 0
-    assert int(db.scalar(select(func.count()).select_from(CrmCommunication)) or 0) == 0
+def _ig_payload(
+    *,
+    message_id: str,
+    sender: str = "17841400001234567",
+    text: str = "Merhaba Instagram",
+    account_id: str = "17841411111111111",
+    timestamp: int = 1710000000000,
+) -> dict:
+    return {
+        "object": "instagram",
+        "entry": [
+            {
+                "id": account_id,
+                "time": timestamp,
+                "messaging": [
+                    {
+                        "sender": {"id": sender},
+                        "recipient": {"id": account_id},
+                        "timestamp": timestamp,
+                        "message": {"mid": message_id, "text": text},
+                    }
+                ],
+            }
+        ],
+    }
 
 
 def test_duplicate_meta_message_does_not_duplicate_communication(client: TestClient, db: Session) -> None:
@@ -362,3 +380,102 @@ def test_production_missing_webhook_secret_fails_closed(monkeypatch: pytest.Monk
     )
     with pytest.raises(RuntimeError, match="META_APP_SECRET"):
         validate_meta_webhook_secrets(settings)
+
+
+def test_instagram_inbound_creates_contact_and_lead(client: TestClient, db: Session) -> None:
+    message_id = f"mid.{uuid4().hex}"
+    sender = "17841400001234567"
+    response, _ = _post(client, _ig_payload(message_id=message_id, sender=sender, text="Merhaba Instagram"))
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["ok"] is True
+    assert body["ingested"] == 1
+    db.expire_all()
+    contacts = list(db.scalars(select(CrmContact)).all())
+    leads = list(db.scalars(select(Lead)).all())
+    comms = list(db.scalars(select(CrmCommunication)).all())
+    assert len(contacts) == 1
+    assert len(leads) == 1
+    assert len(comms) == 1
+    contact = contacts[0]
+    lead = leads[0]
+    comm = comms[0]
+    assert (contact.metadata_json or {}).get(INSTAGRAM_IGSID_KEY) == sender
+    assert contact.source == "instagram"
+    assert lead.source == "instagram"
+    assert lead.provider == "instagram"
+    assert (lead.metadata_json or {}).get("intake") == "instagram_dm"
+    assert contact.lead_id == lead.id
+    assert comm.channel == "instagram"
+    assert comm.source == "live_instagram"
+    assert comm.direction == "inbound"
+    assert comm.conversation_key == sender
+    assert comm.external_provider_id == message_id
+    assert (comm.metadata_json or {}).get("lead_id") == str(lead.id)
+    assert int(db.scalar(select(func.count()).select_from(SalesOpportunity)) or 0) == 0
+    pipeline = client.get("/crm/leads", params={"surface": "pipeline"})
+    assert pipeline.status_code == 200
+    assert all(item["id"] != str(lead.id) for item in pipeline.json()["items"])
+    feed = list_communication_feed(db, channel="instagram", page=1, page_size=25)
+    rows = [item for item in feed.items if item.channel == "instagram" and item.preview and "Merhaba Instagram" in item.preview]
+    assert len(rows) == 1
+    assert rows[0].can_reply is True
+
+
+def test_instagram_repeat_message_updates_same_lead(client: TestClient, db: Session) -> None:
+    sender = "17841400007654321"
+    first_ts = 1_710_000_000_000
+    second_ts = 1_710_003_600_000
+    first_id = f"mid.{uuid4().hex}"
+    second_id = f"mid.{uuid4().hex}"
+    first, _ = _post(client, _ig_payload(message_id=first_id, sender=sender, text="Ilk IG", timestamp=first_ts))
+    second, _ = _post(client, _ig_payload(message_id=second_id, sender=sender, text="Ikinci IG", timestamp=second_ts))
+    assert first.status_code == 200
+    assert second.status_code == 200
+    db.expire_all()
+    assert int(db.scalar(select(func.count()).select_from(CrmContact)) or 0) == 1
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 1
+    assert int(db.scalar(select(func.count()).select_from(CrmCommunication)) or 0) == 2
+    lead = db.scalar(select(Lead))
+    expected = datetime.fromtimestamp(second_ts / 1000, tz=UTC)
+    assert _as_utc(lead.updated_at) == expected
+    assert (lead.metadata_json or {}).get("last_instagram_mid") == second_id
+    detail = client.get(f"/crm/leads/{lead.id}")
+    received = [item for item in (detail.json().get("activity") or []) if item["description"] == "crm.leads.instagram_dm.received"]
+    assert len(received) == 2
+    pipeline = client.get("/crm/leads", params={"surface": "pipeline"})
+    assert all(item["id"] != str(lead.id) for item in pipeline.json()["items"])
+    assert int(db.scalar(select(func.count()).select_from(SalesOpportunity)) or 0) == 0
+    feed = list_communication_feed(db, channel="instagram", page=1, page_size=25)
+    rows = [item for item in feed.items if item.channel == "instagram" and item.preview in {"Ilk IG", "Ikinci IG"}]
+    assert len(rows) == 2
+
+
+def test_instagram_duplicate_webhook_does_not_duplicate(client: TestClient, db: Session) -> None:
+    message_id = f"mid.{uuid4().hex}"
+    payload = _ig_payload(message_id=message_id, text="Once IG")
+    first, _ = _post(client, payload)
+    second, _ = _post(client, payload)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["duplicate"] is False
+    assert second.json()["duplicate"] is True
+    db.expire_all()
+    assert int(db.scalar(select(func.count()).select_from(CrmCommunication).where(
+        CrmCommunication.external_provider_id == message_id
+    )) or 0) == 1
+    assert int(db.scalar(select(func.count()).select_from(CrmContact)) or 0) == 1
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 1
+    assert int(db.scalar(select(func.count()).select_from(SalesOpportunity)) or 0) == 0
+
+
+def test_instagram_comments_payload_is_not_ingested(client: TestClient, db: Session) -> None:
+    payload = {
+        "object": "instagram",
+        "entry": [{"id": "17841411111111111", "changes": [{"field": "comments", "value": {"text": "yorum"}}]}],
+    }
+    response, _ = _post(client, payload)
+    assert response.status_code == 200, response.text
+    assert response.json()["ingested"] == 0
+    assert int(db.scalar(select(func.count()).select_from(CrmCommunication)) or 0) == 0
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 0

@@ -8861,6 +8861,7 @@
           "email": "Email",
           "whatsapp": "WhatsApp",
           "facebook": "Facebook",
+          "instagram": "Instagram",
           "call": "Call"
         },
         "status": {
@@ -8909,6 +8910,7 @@
           "email": "Email",
           "whatsapp": "WhatsApp",
           "facebook": "Facebook",
+          "instagram": "Instagram",
           "call": "Call",
           "comment": "Comment",
           "meeting": "Meeting",
@@ -8938,8 +8940,14 @@
         "pageSize": "Per page",
         "drawerTitle": "Communication detail",
         "conversationTitle": "WhatsApp conversation",
+        "facebookConversationTitle": "Facebook conversation",
+        "instagramConversationTitle": "Instagram conversation",
         "commentTitle": "Comment",
-        "meetingTitle": "Meeting"
+        "meetingTitle": "Meeting",
+        "replyPlaceholder": "Write a reply…",
+        "send": "Send",
+        "sending": "Sending…",
+        "sendFailed": "Message could not be sent."
       },
       "accessDenied": "You do not have permission to view communications.",
       "accessDeniedHint": "Contact your administrator for CRM communication access.",

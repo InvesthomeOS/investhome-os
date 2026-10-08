@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button, ErrorState, Input, Select } from '@investhome/ui';
 
@@ -11,7 +11,9 @@ import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 import { fetchUsers } from '@/lib/api/auth';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { fetchActivity } from '@/workspaces/crm/api/activities';
+import { ApiError } from '@/lib/api/client';
 import type { CommunicationFeedItem } from '@/workspaces/crm/api/communication';
+import { sendLiveCommunication } from '@/workspaces/crm/api/communication';
 import { EmailDetail } from '@/workspaces/crm/contact-card/crm-email-view';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import {
@@ -37,7 +39,7 @@ const PROJECTS = [
   { value: 'uniloft', label: 'Uniloft' },
 ] as const;
 
-type ChannelKey = 'email' | 'whatsapp' | 'facebook' | 'call' | 'comment' | 'meeting' | 'sms' | 'other';
+type ChannelKey = 'email' | 'whatsapp' | 'facebook' | 'instagram' | 'call' | 'comment' | 'meeting' | 'sms' | 'other';
 type SortKey = 'when' | 'channel' | 'person' | 'subject' | 'project' | 'direction' | 'owner';
 
 function dateRange(value: string): { date_from?: string; date_to?: string } {
@@ -67,6 +69,7 @@ function formatWhen(value: string | null | undefined, locale: string): string {
 function channelKey(channel: string): ChannelKey {
   if (channel === 'whatsapp') return 'whatsapp';
   if (channel === 'facebook') return 'facebook';
+  if (channel === 'instagram') return 'instagram';
   if (channel === 'call' || channel === 'phone') return 'call';
   if (channel === 'comment' || channel === 'note') return 'comment';
   if (channel === 'meeting') return 'meeting';
@@ -156,6 +159,15 @@ function ChannelIcon({ channel }: { channel: ChannelKey }) {
       </svg>
     );
   }
+  if (channel === 'instagram') {
+    return (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <rect x="4" y="4" width="16" height="16" rx="5" stroke="currentColor" strokeWidth="1.8" />
+        <circle cx="12" cy="12" r="3.4" stroke="currentColor" strokeWidth="1.8" />
+        <circle cx="16.4" cy="7.6" r="0.9" fill="currentColor" />
+      </svg>
+    );
+  }
   const name: IhIconName = channel === 'email' ? 'mail' : channel === 'call' ? 'phone' : channel === 'meeting' ? 'meeting' : channel === 'comment' ? 'activity' : 'inbox';
   return <IhIcon name={name} size={13} />;
 }
@@ -174,7 +186,9 @@ export function CrmCommunicationLiveWorkspace() {
   const t = useTranslations('crm.communication.workspace');
   const tCommon = useTranslations('common');
   const locale = useLocale();
-  const { authLoading, canViewCommunications } = useCrmAccess();
+  const { authLoading, canViewCommunications, has } = useCrmAccess();
+  const queryClient = useQueryClient();
+  const canSendMeta = has('send_communications');
   const { openContact } = useContactCard();
   const searchParams = useSearchParams();
   const [searchDraft, setSearchDraft] = useState('');
@@ -194,6 +208,8 @@ export function CrmCommunicationLiveWorkspace() {
   const [selected, setSelected] = useState<CommunicationFeedItem | null>(null);
   const [emailOpen, setEmailOpen] = useState<CommunicationFeedItem | null>(null);
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [replyError, setReplyError] = useState('');
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -209,6 +225,11 @@ export function CrmCommunicationLiveWorkspace() {
     window.addEventListener('click', close);
     return () => window.removeEventListener('click', close);
   }, []);
+
+  useEffect(() => {
+    setReplyText('');
+    setReplyError('');
+  }, [selected?.id]);
 
   const listParams = useMemo(
     () => ({
@@ -234,15 +255,27 @@ export function CrmCommunicationLiveWorkspace() {
     queryFn: () => fetchUsers({ status: 'active' }),
     enabled: !authLoading && canViewCommunications,
   });
+  const isThreadChannel = selected?.channel === 'whatsapp'
+    || selected?.channel === 'facebook'
+    || selected?.channel === 'instagram';
+  const canReplySelected = Boolean(
+    selected
+    && canSendMeta
+    && (selected.can_reply
+      || ((selected.channel === 'facebook' || selected.channel === 'instagram')
+        && selected.contact_id
+        && selected.conversation_key)),
+  );
   const conversationQuery = useQuery({
     ...communicationQueries.conversation({
       activity_id: selected?.activity_id || selected?.id || undefined,
       contact_id: selected?.contact_id || undefined,
       chat_id: selected?.conversation_key || undefined,
+      channel: selected?.channel,
     }),
     enabled: Boolean(
       selected
-      && selected.channel === 'whatsapp'
+      && isThreadChannel
       && (selected.activity_id || selected.contact_id || selected.conversation_key),
     ),
   });
@@ -251,13 +284,24 @@ export function CrmCommunicationLiveWorkspace() {
     queryFn: () => fetchActivity(selected!.activity_id!),
     enabled: Boolean(
       selected
-      && selected.channel !== 'whatsapp'
+      && !isThreadChannel
       && selected.channel !== 'email'
       && isActivityId(selected.activity_id),
     ),
   });
+  const sendMutation = useMutation({
+    mutationFn: sendLiveCommunication,
+    onSuccess: async () => {
+      setReplyText('');
+      setReplyError('');
+      await queryClient.invalidateQueries({ queryKey: ['crm', 'communications'] });
+    },
+    onError: (error) => {
+      setReplyError(error instanceof ApiError ? error.message : t('sendFailed'));
+    },
+  });
 
-  const stats = feedQuery.data?.stats ?? { total: 0, email: 0, whatsapp: 0, facebook: 0, unmatched: 0 };
+  const stats = feedQuery.data?.stats ?? { total: 0, email: 0, whatsapp: 0, facebook: 0, instagram: 0, unmatched: 0 };
   const total = feedQuery.data?.total ?? 0;
   const pages = feedQuery.data?.pages ?? 1;
   const from = total ? (page - 1) * pageSize + 1 : 0;
@@ -411,6 +455,7 @@ export function CrmCommunicationLiveWorkspace() {
           <option value="email">{t('channels.email')}</option>
           <option value="whatsapp">{t('channels.whatsapp')}</option>
           <option value="facebook">{t('channels.facebook')}</option>
+          <option value="instagram">{t('channels.instagram')}</option>
           <option value="call">{t('channels.call')}</option>
           <option value="comment">{t('channels.comment')}</option>
           <option value="meeting">{t('channels.meeting')}</option>
@@ -712,7 +757,7 @@ export function CrmCommunicationLiveWorkspace() {
         <>
           <button type="button" className="crm-comm-drawer-backdrop" aria-label={tCommon('close')} onClick={() => setSelected(null)} />
           <aside
-            className={`crm-comm-drawer${selected.channel === 'whatsapp' ? ' is-wide' : ''}`}
+            className={`crm-comm-drawer${isThreadChannel ? ' is-wide' : ''}`}
             role="dialog"
             aria-label={t('drawerTitle')}
             data-testid="crm-comm-drawer"
@@ -721,11 +766,15 @@ export function CrmCommunicationLiveWorkspace() {
               <h3>
                 {selected.channel === 'whatsapp'
                   ? t('conversationTitle')
-                  : selected.channel === 'meeting'
-                    ? t('meetingTitle')
-                    : selected.channel === 'comment' || selected.channel === 'note'
-                      ? t('commentTitle')
-                      : t('drawerTitle')}
+                  : selected.channel === 'facebook'
+                    ? t('facebookConversationTitle')
+                    : selected.channel === 'instagram'
+                      ? t('instagramConversationTitle')
+                      : selected.channel === 'meeting'
+                        ? t('meetingTitle')
+                        : selected.channel === 'comment' || selected.channel === 'note'
+                          ? t('commentTitle')
+                          : t('drawerTitle')}
               </h3>
               <button type="button" className="crm-comm-link" onClick={() => setSelected(null)}>
                 {tCommon('close')}
@@ -758,7 +807,7 @@ export function CrmCommunicationLiveWorkspace() {
                   </a>
                 ) : null}
               </div>
-              {selected.channel === 'whatsapp' ? (
+              {isThreadChannel ? (
                 conversationQuery.data?.messages?.length ? (
                   <WhatsAppThread
                     messages={conversationQuery.data.messages.map((message) => ({
@@ -771,6 +820,8 @@ export function CrmCommunicationLiveWorkspace() {
                       metadata: message.metadata,
                     }))}
                     locale={locale}
+                    channels={[selected.channel]}
+                    testId={selected.channel === 'whatsapp' ? 'whatsapp-thread' : 'meta-dm-thread'}
                   />
                 ) : (
                   <div className="crm-comm-note">{drawerBody || rowCopy(selected).preview || rowCopy(selected).subject}</div>
@@ -778,6 +829,48 @@ export function CrmCommunicationLiveWorkspace() {
               ) : (
                 <div className="crm-comm-note">{drawerBody || rowCopy(selected).preview || rowCopy(selected).subject}</div>
               )}
+              {canReplySelected ? (
+                <form
+                  className="crm-comm-reply"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    if (sendMutation.isPending) return;
+                    const text = replyText.trim();
+                    if (!text || !selected.contact_id) return;
+                    setReplyError('');
+                    sendMutation.mutate({
+                      channel: selected.channel,
+                      contact_id: selected.contact_id,
+                      conversation_key: selected.conversation_key,
+                      text,
+                    });
+                  }}
+                >
+                  <textarea
+                    value={replyText}
+                    onChange={(event) => setReplyText(event.target.value)}
+                    placeholder={t('replyPlaceholder')}
+                    disabled={sendMutation.isPending}
+                    data-testid="crm-comm-reply-input"
+                  />
+                  {replyError ? (
+                    <p className="crm-comm-reply__error" role="alert" data-testid="crm-comm-reply-error">
+                      {replyError}
+                    </p>
+                  ) : null}
+                  <div className="crm-comm-reply__actions">
+                    <Button
+                      type="submit"
+                      size="sm"
+                      loading={sendMutation.isPending}
+                      disabled={sendMutation.isPending || !replyText.trim()}
+                      data-testid="crm-comm-reply-send"
+                    >
+                      {sendMutation.isPending ? t('sending') : t('send')}
+                    </Button>
+                  </div>
+                </form>
+              ) : null}
             </div>
           </aside>
         </>

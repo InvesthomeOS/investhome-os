@@ -671,6 +671,39 @@
   overflow-wrap: anywhere;
 }
 
+.crm-comm-reply {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.crm-comm-reply textarea {
+  width: 100%;
+  min-height: 72px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--comm-line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--comm-ink);
+  font: inherit;
+  resize: vertical;
+}
+
+.crm-comm-reply textarea:disabled {
+  opacity: 0.7;
+}
+
+.crm-comm-reply__error {
+  margin: 0;
+  color: #9b2c2c;
+  font-size: 12.5px;
+}
+
+.crm-comm-reply__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .crm-comm .crm-communication-subview__header h2 {
   margin: 0;
   color: var(--comm-petrol);

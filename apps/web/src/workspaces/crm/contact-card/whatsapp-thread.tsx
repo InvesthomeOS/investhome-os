@@ -47,20 +47,42 @@ export function isWhatsappEntry(entry: WhatsAppEntry): boolean {
   return Boolean(history?.open_channel_summary);
 }
 
+function threadKind(entry: WhatsAppEntry): string {
+  const type = String(entry.activity_type || '').toLowerCase();
+  if (type) return type;
+  return String(bitrixHistory(entry)?.kind || '').toLowerCase();
+}
+
+function isChannelEntry(entry: WhatsAppEntry, channels: string[]): boolean {
+  const allowed = new Set(channels);
+  const kind = threadKind(entry);
+  if (allowed.has(kind)) return true;
+  if (allowed.has('whatsapp') && isWhatsappEntry(entry)) return true;
+  return false;
+}
+
+function channelSenderLabel(entry: WhatsAppEntry): string {
+  const kind = threadKind(entry);
+  if (kind.includes('facebook')) return 'Facebook';
+  if (kind.includes('instagram')) return 'Instagram';
+  return 'WhatsApp';
+}
+
 export function whatsappSender(entry: WhatsAppEntry): string {
   const history = bitrixHistory(entry);
   if (history?.author_name) return String(history.author_name);
   if (entry.actor_name) return entry.actor_name;
   const direction = String(history?.direction || '');
-  if (direction === 'outgoing') return 'WhatsApp';
+  if (direction === 'outgoing' || direction === 'outbound') return channelSenderLabel(entry);
   if (direction === 'system') return 'Sistem';
   if (history?.person_name) return String(history.person_name);
-  return 'WhatsApp';
+  return channelSenderLabel(entry);
 }
 
 export function whatsappDirection(entry: WhatsAppEntry): 'incoming' | 'outgoing' | 'system' {
   const direction = String(bitrixHistory(entry)?.direction || '');
-  if (direction === 'outgoing' || direction === 'system') return direction;
+  if (direction === 'outgoing' || direction === 'outbound') return 'outgoing';
+  if (direction === 'system') return 'system';
   return 'incoming';
 }
 
@@ -85,10 +107,10 @@ export function timelineSourceKey(entry: WhatsAppEntry): string {
   return `id:${entry.id}`;
 }
 
-export function sortWhatsappConversation(entries: WhatsAppEntry[]): WhatsAppEntry[] {
+export function sortWhatsappConversation(entries: WhatsAppEntry[], channels: string[] = ['whatsapp']): WhatsAppEntry[] {
   const seen = new Set<string>();
   const unique: WhatsAppEntry[] = [];
-  for (const entry of [...entries].filter(isWhatsappEntry).sort((a, b) => a.created_at.localeCompare(b.created_at))) {
+  for (const entry of [...entries].filter((item) => isChannelEntry(item, channels)).sort((a, b) => a.created_at.localeCompare(b.created_at))) {
     const key = timelineSourceKey(entry);
     if (seen.has(key)) continue;
     seen.add(key);
@@ -158,13 +180,15 @@ export function WhatsAppThread({
   locale,
   testId = 'whatsapp-thread',
   documents = [],
+  channels = ['whatsapp'],
 }: {
   messages: WhatsAppEntry[];
   locale?: string;
   testId?: string;
   documents?: GalleryDocument[];
+  channels?: string[];
 }) {
-  const ordered = useMemo(() => sortWhatsappConversation(messages), [messages]);
+  const ordered = useMemo(() => sortWhatsappConversation(messages, channels), [messages, channels]);
   return (
     <div className="crm-contact-card__wa-tab" data-testid={testId}>
       {ordered.map((message) => {

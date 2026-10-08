@@ -7,6 +7,7 @@ import {
   canManageCrmTasks,
   canReadCrm,
   canReadCrmCompanies,
+  canSendCommunications,
   canViewCommunications,
   canViewFinancialCrm,
   type CrmPermissionAction,
@@ -29,6 +30,7 @@ export function useCrmAccess() {
     canManageTasks: canManageCrmTasks(user),
     canReadCompanies: canReadCrmCompanies(user),
     canViewCommunications: canViewCommunications(user),
+    canSendCommunications: canSendCommunications(user),
     canViewFinancial: canViewFinancialCrm(user),
     has: (action: CrmPermissionAction) => hasCrmPermission(user, action),
   };

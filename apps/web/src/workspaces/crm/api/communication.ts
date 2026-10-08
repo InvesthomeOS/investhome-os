@@ -426,6 +426,7 @@ export type CommunicationFeedItem = {
   conversation_key: string | null;
   source_key: string;
   activity_id: string | null;
+  can_reply?: boolean;
 };
 
 export type CommunicationFeedResponse = {
@@ -434,7 +435,7 @@ export type CommunicationFeedResponse = {
   page: number;
   page_size: number;
   pages: number;
-  stats: { total: number; email: number; whatsapp: number; facebook: number; unmatched: number };
+  stats: { total: number; email: number; whatsapp: number; facebook: number; instagram?: number; unmatched: number };
 };
 
 export type CommunicationConversationMessage = {
@@ -470,6 +471,7 @@ export async function fetchWhatsappConversation(params: {
   activity_id?: string;
   contact_id?: string;
   chat_id?: string;
+  channel?: string;
 }): Promise<{
   contact_id: string | null;
   contact_name: string | null;
@@ -480,6 +482,27 @@ export async function fetchWhatsappConversation(params: {
     activity_id: params.activity_id,
     contact_id: params.contact_id,
     chat_id: params.chat_id,
+    channel: params.channel,
   });
   return apiFetch(`/crm/live-communications/conversation?${q.toString()}`);
+}
+
+export async function sendLiveCommunication(payload: {
+  channel: string;
+  contact_id: string;
+  conversation_key?: string | null;
+  text: string;
+}): Promise<{
+  id: string;
+  channel: string;
+  direction: string;
+  provider_message_id: string | null;
+  contact_id: string | null;
+  lead_id: string | null;
+  duplicate: boolean;
+}> {
+  return apiFetch('/crm/live-communications/send', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }

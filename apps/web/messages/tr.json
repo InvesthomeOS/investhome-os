@@ -17800,6 +17800,7 @@
           "email": "E-posta",
           "whatsapp": "WhatsApp",
           "facebook": "Facebook",
+          "instagram": "Instagram",
           "call": "Arama"
         },
         "status": {
@@ -17848,6 +17849,7 @@
           "email": "E-posta",
           "whatsapp": "WhatsApp",
           "facebook": "Facebook",
+          "instagram": "Instagram",
           "call": "Arama",
           "comment": "Yorum",
           "meeting": "Toplantı",
@@ -17877,8 +17879,14 @@
         "pageSize": "Sayfa başına",
         "drawerTitle": "İletişim detayı",
         "conversationTitle": "WhatsApp konuşması",
+        "facebookConversationTitle": "Facebook konuşması",
+        "instagramConversationTitle": "Instagram konuşması",
         "commentTitle": "Yorum",
-        "meetingTitle": "Toplantı"
+        "meetingTitle": "Toplantı",
+        "replyPlaceholder": "Yanıt yazın…",
+        "send": "Gönder",
+        "sending": "Gönderiliyor…",
+        "sendFailed": "Mesaj gönderilemedi."
       },
       "accessDenied": "İletişimleri görüntüleme yetkiniz yok.",
       "accessDeniedHint": "CRM iletişim erişimi için yöneticinize başvurun.",

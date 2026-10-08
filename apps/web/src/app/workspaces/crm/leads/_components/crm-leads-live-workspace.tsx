@@ -405,6 +405,18 @@ function activityLabel(key: string, locale: 'tr' | 'en'): string {
       tr: 'Facebook Messenger mesajı',
       en: 'Facebook Messenger message',
     },
+    'crm.leads.facebook_messenger.sent': {
+      tr: 'Facebook Messenger yanıtı',
+      en: 'Facebook Messenger reply',
+    },
+    'crm.leads.instagram_dm.received': {
+      tr: 'Instagram mesajı',
+      en: 'Instagram message',
+    },
+    'crm.leads.instagram_dm.sent': {
+      tr: 'Instagram yanıtı',
+      en: 'Instagram reply',
+    },
   };
   return map[key]?.[locale] ?? key;
 }

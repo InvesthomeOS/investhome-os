@@ -44,6 +44,7 @@ class CrmActivityType(str, enum.Enum):
     EMAIL = "email"
     WHATSAPP = "whatsapp"
     FACEBOOK = "facebook"
+    INSTAGRAM = "instagram"
     SMS = "sms"
     MEETING = "meeting"
     ZOOM_MEETING = "zoom_meeting"

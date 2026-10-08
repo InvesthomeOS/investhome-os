@@ -139,6 +139,7 @@ class CommunicationFeedStats(BaseModel):
     email: int = 0
     whatsapp: int = 0
     facebook: int = 0
+    instagram: int = 0
     unmatched: int = 0
 
 
@@ -162,6 +163,7 @@ class CommunicationFeedItem(BaseModel):
     conversation_key: str | None = None
     source_key: str
     activity_id: UUID | None = None
+    can_reply: bool = False
 
 
 class CommunicationFeedResponse(BaseModel):
@@ -189,4 +191,22 @@ class CommunicationConversationResponse(BaseModel):
     contact_name: str | None = None
     conversation_key: str | None = None
     messages: list[CommunicationConversationMessage] = Field(default_factory=list)
+    request_id: str = ""
+
+
+class LiveSendRequest(BaseModel):
+    channel: str = Field(min_length=3, max_length=40)
+    contact_id: UUID
+    conversation_key: str | None = Field(default=None, max_length=255)
+    text: str = Field(min_length=1, max_length=2000)
+
+
+class LiveSendResponse(BaseModel):
+    id: UUID
+    channel: str
+    direction: str
+    provider_message_id: str | None = None
+    contact_id: UUID | None = None
+    lead_id: UUID | None = None
+    duplicate: bool = False
     request_id: str = ""

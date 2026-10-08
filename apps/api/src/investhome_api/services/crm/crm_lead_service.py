@@ -240,11 +240,30 @@ def _is_facebook_messenger_lead(lead: Lead) -> bool:
     return (lead.source or "").strip().lower() == "facebook" and (lead.provider or "").strip().lower() == "facebook"
 
 
+def _is_instagram_dm_lead(lead: Lead) -> bool:
+    """Instagram DM inbound creates Contact+Lead but is not a sales-pipeline card."""
+    meta = lead.metadata_json if isinstance(lead.metadata_json, dict) else {}
+    if str(meta.get("intake") or "").strip().lower() == "instagram_dm":
+        return True
+    return (lead.source or "").strip().lower() == "instagram" and (lead.provider or "").strip().lower() == "instagram"
+
+
+def _is_meta_dm_lead(lead: Lead) -> bool:
+    return _is_facebook_messenger_lead(lead) or _is_instagram_dm_lead(lead)
+
+
 def _exclude_facebook_messenger_pipeline(query):
+    """Hide Facebook Messenger and Instagram DM leads from the sales pipeline kanban."""
     return query.where(
-        ~and_(
-            func.lower(func.coalesce(Lead.source, "")) == "facebook",
-            func.lower(func.coalesce(Lead.provider, "")) == "facebook",
+        ~or_(
+            and_(
+                func.lower(func.coalesce(Lead.source, "")) == "facebook",
+                func.lower(func.coalesce(Lead.provider, "")) == "facebook",
+            ),
+            and_(
+                func.lower(func.coalesce(Lead.source, "")) == "instagram",
+                func.lower(func.coalesce(Lead.provider, "")) == "instagram",
+            ),
         )
     )
 
@@ -690,8 +709,8 @@ def list_crm_leads(
         kpi_query = _exclude_facebook_messenger_pipeline(kpi_query)
     kpi_rows = list(db.scalars(kpi_query).all())
     if pipeline_surface:
-        rows = [row for row in rows if not _is_facebook_messenger_lead(row)]
-        kpi_rows = [row for row in kpi_rows if not _is_facebook_messenger_lead(row)]
+        rows = [row for row in rows if not _is_meta_dm_lead(row)]
+        kpi_rows = [row for row in kpi_rows if not _is_meta_dm_lead(row)]
     owners_cache: dict[UUID, str] = {}
     sources, projects, owners = _filter_options(db)
     return CrmLeadListResponse(

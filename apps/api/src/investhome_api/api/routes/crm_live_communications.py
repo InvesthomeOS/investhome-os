@@ -34,6 +34,8 @@ from investhome_api.schemas.crm_live_communications import (
     GmailSyncResponse,
     LiveIngestRequest,
     LiveIngestResponse,
+    LiveSendRequest,
+    LiveSendResponse,
     UnmatchedCommunicationOut,
     UnmatchedListResponse,
 )
@@ -54,6 +56,7 @@ from investhome_api.services.crm.live_accounts import (
     upgrade_legacy_credentials,
 )
 from investhome_api.services.crm.live_ingest import confirm_match, ignore_unmatched, ingest_live_message
+from investhome_api.services.crm.meta_send import MetaSendError, send_meta_dm
 from investhome_api.services.permission_service import user_has_permission
 
 router = APIRouter(tags=["crm-live-communications"])
@@ -223,13 +226,61 @@ def get_whatsapp_conversation(
     activity_id: UUID | None = Query(default=None),
     contact_id: UUID | None = Query(default=None),
     chat_id: str | None = Query(default=None),
+    channel: str | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User = Depends(_require_view()),
 ) -> CommunicationConversationResponse:
     _ = user
-    body = list_whatsapp_conversation(db, activity_id=activity_id, contact_id=contact_id, chat_id=chat_id)
+    body = list_whatsapp_conversation(
+        db,
+        activity_id=activity_id,
+        contact_id=contact_id,
+        chat_id=chat_id,
+        channel=channel,
+    )
     body.request_id = get_request_id() or ""
     return body
+
+
+@router.post("/crm/live-communications/send", response_model=LiveSendResponse)
+def send_live_communication(
+    payload: LiveSendRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("crm", "send_communications")),
+) -> LiveSendResponse:
+    try:
+        comm, created = send_meta_dm(
+            db,
+            channel=payload.channel,
+            contact_id=payload.contact_id,
+            text=payload.text,
+            conversation_key=payload.conversation_key,
+            actor=user,
+        )
+        db.commit()
+        db.refresh(comm)
+    except MetaSendError as exc:
+        db.rollback()
+        raise HTTPException(status_code=exc.status_code, detail=exc.public_detail) from exc
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    meta = comm.metadata_json if isinstance(comm.metadata_json, dict) else {}
+    lead_raw = meta.get("lead_id")
+    try:
+        lead_id = UUID(str(lead_raw)) if lead_raw else None
+    except ValueError:
+        lead_id = None
+    return LiveSendResponse(
+        id=comm.id,
+        channel=comm.channel,
+        direction=comm.direction,
+        provider_message_id=comm.external_provider_id,
+        contact_id=comm.contact_id,
+        lead_id=lead_id,
+        duplicate=not created,
+        request_id=get_request_id() or "",
+    )
 
 
 @router.get("/crm/live-communications/unmatched", response_model=UnmatchedListResponse)

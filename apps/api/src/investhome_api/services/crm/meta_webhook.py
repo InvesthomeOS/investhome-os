@@ -1,7 +1,7 @@
-"""Meta Page / Messenger inbound webhook.
+"""Meta Page / Messenger and Instagram DM inbound webhook.
 
-Isolated from WhatsApp Cloud API handling. Does not send outbound messages
-and does not create sales opportunities.
+Isolated from WhatsApp Cloud API handling. Outbound send lives in meta_send.
+Does not create sales opportunities.
 """
 
 from __future__ import annotations
@@ -46,6 +46,8 @@ GENERIC_FORBIDDEN = "Forbidden"
 GENERIC_UNAVAILABLE = "Webhook temporarily unavailable"
 FACEBOOK_PSID_KEY = "facebook_psid"
 FACEBOOK_SOURCE = "facebook"
+INSTAGRAM_IGSID_KEY = "instagram_igsid"
+INSTAGRAM_SOURCE = "instagram"
 
 
 class MetaWebhookRejected(Exception):
@@ -289,6 +291,57 @@ def _active_facebook_lead_for_contact(db: Session, *, contact: CrmContact, psid:
     return None
 
 
+def _record_meta_dm_on_lead(
+    db: Session,
+    *,
+    lead: Lead,
+    contact: CrmContact,
+    mid: str,
+    text: str,
+    occurred_at: datetime | None,
+    communication_id: UUID,
+    description_key: str,
+    provider: str,
+    extra_meta: dict[str, Any] | None = None,
+) -> None:
+    occurred = _as_utc(occurred_at or datetime.now(UTC))
+    preview = (text or "").strip()[:200] or None
+    meta_kwargs: dict[str, Any] = {
+        "last_communication_id": str(communication_id),
+        "existing_person_id": str(contact.id),
+        "existing_person_name": contact.display_name,
+    }
+    if provider == FACEBOOK_SOURCE:
+        meta_kwargs["last_messenger_mid"] = mid
+        meta_kwargs["last_messenger_at"] = occurred.isoformat()
+    else:
+        meta_kwargs["last_instagram_mid"] = mid
+        meta_kwargs["last_instagram_at"] = occurred.isoformat()
+    _put_meta(lead, **meta_kwargs)
+    payload = {
+        "provider": provider,
+        "source": provider,
+        "mid": mid,
+        "preview": preview,
+        "communication_id": str(communication_id),
+        "contact_id": str(contact.id),
+    }
+    if extra_meta:
+        payload.update(extra_meta)
+    _log(
+        db,
+        lead,
+        action=ActivityAction.UPDATED,
+        description_key=description_key,
+        actor=None,
+        metadata=payload,
+        created_at=occurred,
+    )
+    db.flush()
+    db.execute(sql_update(Lead).where(Lead.id == lead.id).values(updated_at=occurred))
+    lead.updated_at = occurred
+
+
 def _record_facebook_message_on_lead(
     db: Session,
     *,
@@ -297,35 +350,17 @@ def _record_facebook_message_on_lead(
     message: "MessengerInbound",
     communication_id: UUID,
 ) -> None:
-    occurred = _as_utc(message.occurred_at or datetime.now(UTC))
-    preview = (message.text or "").strip()[:200] or None
-    _put_meta(
-        lead,
-        last_messenger_mid=message.mid,
-        last_messenger_at=occurred.isoformat(),
-        last_communication_id=str(communication_id),
-        existing_person_id=str(contact.id),
-        existing_person_name=contact.display_name,
-    )
-    _log(
+    _record_meta_dm_on_lead(
         db,
-        lead,
-        action=ActivityAction.UPDATED,
+        lead=lead,
+        contact=contact,
+        mid=message.mid,
+        text=message.text,
+        occurred_at=message.occurred_at,
+        communication_id=communication_id,
         description_key="crm.leads.facebook_messenger.received",
-        actor=None,
-        metadata={
-            "provider": FACEBOOK_SOURCE,
-            "source": FACEBOOK_SOURCE,
-            "mid": message.mid,
-            "preview": preview,
-            "communication_id": str(communication_id),
-            "contact_id": str(contact.id),
-        },
-        created_at=occurred,
+        provider=FACEBOOK_SOURCE,
     )
-    db.flush()
-    db.execute(sql_update(Lead).where(Lead.id == lead.id).values(updated_at=occurred))
-    lead.updated_at = occurred
 
 
 def _create_facebook_lead(db: Session, *, contact: CrmContact, psid: str, display_name: str) -> Lead:
@@ -484,6 +519,293 @@ def extract_messenger_messages(payload: dict[str, Any], *, page_id: str) -> tupl
     return messages, unknown_pages
 
 
+def configured_instagram_account_id() -> str | None:
+    return (get_settings().meta_instagram_account_id or "").strip() or None
+
+
+def _instagram_igsid_from_meta(meta: object) -> str | None:
+    if not isinstance(meta, dict):
+        return None
+    direct = str(meta.get(INSTAGRAM_IGSID_KEY) or "").strip()
+    if direct:
+        return direct
+    nested = meta.get("instagram")
+    if isinstance(nested, dict):
+        return str(nested.get("igsid") or nested.get("id") or "").strip() or None
+    return None
+
+
+def _placeholder_instagram_name(igsid: str) -> str:
+    suffix = igsid[-6:] if len(igsid) > 6 else igsid
+    return f"Instagram · {suffix}"
+
+
+def _store_igsid(meta: dict[str, Any] | None, igsid: str) -> dict[str, Any]:
+    data = dict(meta) if isinstance(meta, dict) else {}
+    data[INSTAGRAM_IGSID_KEY] = igsid
+    instagram = data.get("instagram")
+    nested = dict(instagram) if isinstance(instagram, dict) else {}
+    nested["igsid"] = igsid
+    nested.setdefault("kind", "dm")
+    data["instagram"] = nested
+    return data
+
+
+def find_contact_by_instagram_igsid(db: Session, igsid: str) -> CrmContact | None:
+    if not igsid:
+        return None
+    contacts = list(db.scalars(select(CrmContact).where(CrmContact.archived_at.is_(None))).all())
+    for contact in contacts:
+        if _instagram_igsid_from_meta(contact.metadata_json) == igsid:
+            return contact
+    return None
+
+
+def find_lead_by_instagram_igsid(db: Session, igsid: str) -> Lead | None:
+    if not igsid:
+        return None
+    leads = list(
+        db.scalars(
+            select(Lead).where(
+                Lead.archived_at.is_(None),
+                Lead.provider == INSTAGRAM_SOURCE,
+            )
+        ).all()
+    )
+    for lead in leads:
+        if _instagram_igsid_from_meta(lead.metadata_json) == igsid:
+            return lead
+    return None
+
+
+def _active_instagram_lead_for_contact(db: Session, *, contact: CrmContact, igsid: str) -> Lead | None:
+    if contact.lead_id is not None:
+        linked = db.get(Lead, contact.lead_id)
+        if _lead_is_active(linked):
+            return linked
+    by_igsid = find_lead_by_instagram_igsid(db, igsid)
+    if _lead_is_active(by_igsid):
+        if contact.lead_id is None:
+            contact.lead_id = by_igsid.id
+            db.flush()
+        return by_igsid
+    converted = db.scalar(
+        select(Lead)
+        .where(
+            Lead.converted_contact_id == contact.id,
+            Lead.archived_at.is_(None),
+            Lead.is_demo.is_(False),
+        )
+        .order_by(Lead.created_at.desc())
+        .limit(1)
+    )
+    if _lead_is_active(converted):
+        if contact.lead_id is None:
+            contact.lead_id = converted.id
+            db.flush()
+        return converted
+    return None
+
+
+def _create_instagram_lead(db: Session, *, contact: CrmContact, igsid: str, display_name: str) -> Lead:
+    lead = Lead(
+        full_name=display_name,
+        email=None,
+        phone=None,
+        source=INSTAGRAM_SOURCE,
+        notes="Instagram Direct",
+        status=LeadStatus.NEW,
+        provider=INSTAGRAM_SOURCE,
+        ingest_status="ok",
+        is_demo=False,
+    )
+    db.add(lead)
+    db.flush()
+    _put_meta(
+        lead,
+        intake="instagram_dm",
+        instagram_igsid=igsid,
+        instagram={"igsid": igsid, "kind": "dm"},
+        existing_person_id=str(contact.id),
+        existing_person_name=contact.display_name,
+    )
+    _log(
+        db,
+        lead,
+        action=ActivityAction.CREATED,
+        description_key="crm.leads.created",
+        actor=None,
+        metadata={"provider": INSTAGRAM_SOURCE, "source": INSTAGRAM_SOURCE},
+    )
+    if contact.lead_id is None:
+        contact.lead_id = lead.id
+    db.flush()
+    return lead
+
+
+def resolve_instagram_sender(db: Session, *, igsid: str) -> CrmContact:
+    existing = find_contact_by_instagram_igsid(db, igsid)
+    if existing is not None:
+        if _active_instagram_lead_for_contact(db, contact=existing, igsid=igsid) is None:
+            _create_instagram_lead(
+                db,
+                contact=existing,
+                igsid=igsid,
+                display_name=existing.display_name or _placeholder_instagram_name(igsid),
+            )
+        return existing
+
+    display_name = _placeholder_instagram_name(igsid)
+    existing_lead = find_lead_by_instagram_igsid(db, igsid)
+    if existing_lead is not None and existing_lead.converted_contact_id:
+        linked = db.get(CrmContact, existing_lead.converted_contact_id)
+        if linked is not None and linked.archived_at is None:
+            linked.metadata_json = _store_igsid(linked.metadata_json, igsid)
+            db.flush()
+            return linked
+
+    contact = create_contact(
+        db,
+        CrmContactCreate(
+            contact_type=CrmContactType.PROSPECT,
+            record_kind=CrmRecordKind.PERSON,
+            display_name=display_name,
+            source=INSTAGRAM_SOURCE,
+            notes="Instagram Direct",
+            lifecycle_stage=CrmLifecycleStage.NEW,
+            status=CrmContactStatus.PROSPECT,
+        ),
+        actor=None,
+    )
+    contact.metadata_json = _store_igsid(contact.metadata_json, igsid)
+    db.flush()
+
+    if existing_lead is None:
+        _create_instagram_lead(db, contact=contact, igsid=igsid, display_name=display_name)
+    else:
+        if existing_lead.converted_contact_id is None:
+            existing_lead.converted_contact_id = contact.id
+        if contact.lead_id is None:
+            contact.lead_id = existing_lead.id
+        db.flush()
+    return contact
+
+
+@dataclass(frozen=True)
+class InstagramInbound:
+    mid: str
+    igsid: str
+    ig_account_id: str
+    text: str
+    occurred_at: datetime | None
+
+
+def extract_instagram_messages(payload: dict[str, Any], *, account_id: str | None) -> list[InstagramInbound]:
+    messages: list[InstagramInbound] = []
+    seen: set[str] = set()
+    expected = (account_id or "").strip() or None
+    for entry in payload.get("entry") or []:
+        if not isinstance(entry, dict):
+            continue
+        entry_id = str(entry.get("id") or "").strip()
+        if not entry_id:
+            continue
+        if expected and entry_id != expected:
+            logger.info("meta_webhook_unknown_instagram_account")
+            continue
+        for event in entry.get("messaging") or []:
+            if not isinstance(event, dict):
+                continue
+            message = event.get("message")
+            if not isinstance(message, dict):
+                continue
+            if message.get("is_echo"):
+                continue
+            sender = _dict(event.get("sender"))
+            recipient = _dict(event.get("recipient"))
+            igsid = str(sender.get("id") or "").strip()
+            recipient_id = str(recipient.get("id") or "").strip()
+            if not igsid or (expected and igsid == expected):
+                continue
+            if recipient_id and expected and recipient_id != expected:
+                continue
+            mid = str(message.get("mid") or message.get("id") or "").strip()
+            if not mid or mid in seen:
+                continue
+            seen.add(mid)
+            text = str(message.get("text") or "")
+            occurred_at = _message_timestamp(event.get("timestamp") or message.get("timestamp"))
+            messages.append(
+                InstagramInbound(
+                    mid=mid,
+                    igsid=igsid,
+                    ig_account_id=entry_id,
+                    text=text,
+                    occurred_at=occurred_at,
+                )
+            )
+    return messages
+
+
+def _ingest_instagram_messages(db: Session, messages: list[InstagramInbound], claimed: set[str]) -> int:
+    created = 0
+    for item in messages:
+        if f"ig:msg:{item.mid}" not in claimed:
+            continue
+        contact = resolve_instagram_sender(db, igsid=item.igsid)
+        lead = _active_instagram_lead_for_contact(db, contact=contact, igsid=item.igsid)
+        comm, was_created = ingest_live_message(
+            db,
+            {
+                "channel": "instagram",
+                "direction": "incoming",
+                "source": "live_instagram",
+                "sender": item.igsid,
+                "body_text": item.text,
+                "external_provider_id": item.mid,
+                "conversation_key": item.igsid,
+                "occurred_at": item.occurred_at,
+                "contact_id": str(contact.id),
+                "metadata_json": {
+                    "kind": "dm",
+                    INSTAGRAM_IGSID_KEY: item.igsid,
+                    "ig_account_id": item.ig_account_id,
+                    **({"lead_id": str(lead.id)} if lead is not None else {}),
+                },
+            },
+            actor=None,
+        )
+        if was_created:
+            created += 1
+            if lead is not None:
+                _record_meta_dm_on_lead(
+                    db,
+                    lead=lead,
+                    contact=contact,
+                    mid=item.mid,
+                    text=item.text,
+                    occurred_at=item.occurred_at,
+                    communication_id=comm.id,
+                    description_key="crm.leads.instagram_dm.received",
+                    provider=INSTAGRAM_SOURCE,
+                )
+    return created
+
+
+def _process_instagram(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    messages = extract_instagram_messages(payload, account_id=configured_instagram_account_id())
+    if not messages:
+        return {"ok": True, "duplicate": False, "ingested": 0}
+    keys = [f"ig:msg:{item.mid}" for item in messages]
+    claimed, duplicates = _claim_keys(keys)
+    if duplicates:
+        logger.info("meta_webhook_instagram_replay_duplicate count=%s", len(duplicates))
+    if not claimed:
+        return {"ok": True, "duplicate": True, "ingested": 0}
+    ingested = _ingest_instagram_messages(db, messages, set(claimed))
+    return {"ok": True, "duplicate": False, "ingested": ingested}
+
+
 def _claim_keys(keys: list[str]) -> tuple[list[str], list[str]]:
     store = get_meta_idempotency_store()
     claimed: list[str] = []
@@ -583,6 +905,8 @@ def process_meta_webhook(
         raise MetaWebhookRejected(400, "invalid_request")
 
     object_name = str(payload.get("object") or "").strip()
+    if object_name == "instagram":
+        return _process_instagram(db, payload)
     if object_name != "page":
         logger.info("meta_webhook_ignored_object")
         return {"ok": True, "duplicate": False, "ingested": 0, "ignored": True}

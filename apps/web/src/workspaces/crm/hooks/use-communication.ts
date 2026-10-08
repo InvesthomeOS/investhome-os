@@ -20,6 +20,7 @@ import {
   fetchCommunicationAccounts,
   fetchCommunicationFeed,
   fetchWhatsappConversation,
+  sendLiveCommunication,
   markThreadRead,
   type CommunicationListParams,
   type ThreadListParams,
@@ -117,4 +118,5 @@ export const communicationMutations = {
   createTemplate,
   createSignature,
   createSequence,
+  sendLiveCommunication,
 };

@@ -189,3 +189,39 @@ def test_pipeline_surface_excludes_facebook_messenger_keeps_website(client: Test
     assert str(facebook.id) not in pipe_ids
     assert str(website.id) in pipe_ids
     assert int(db.scalar(select(func.count()).select_from(SalesOpportunity)) or 0) == 0
+
+
+def test_pipeline_surface_excludes_instagram_dm_keeps_website(client: TestClient, db: Session) -> None:
+    instagram = Lead(
+        full_name="Instagram Direct",
+        source="instagram",
+        status=LeadStatus.NEW,
+        provider="instagram",
+        ingest_status="ok",
+        is_demo=False,
+        metadata_json={"intake": "instagram_dm"},
+    )
+    website = Lead(
+        full_name="Website Form IG",
+        email="pipe.website.ig@example.com",
+        source="website",
+        status=LeadStatus.NEW,
+        provider="website",
+        ingest_status="ok",
+        is_demo=False,
+    )
+    db.add_all([instagram, website])
+    db.commit()
+
+    leads = client.get("/crm/leads")
+    assert leads.status_code == 200, leads.text
+    lead_ids = {item["id"] for item in leads.json()["items"]}
+    assert str(instagram.id) in lead_ids
+    assert str(website.id) in lead_ids
+
+    pipeline = client.get("/crm/leads", params={"surface": "pipeline"})
+    assert pipeline.status_code == 200, pipeline.text
+    pipe_ids = {item["id"] for item in pipeline.json()["items"]}
+    assert str(instagram.id) not in pipe_ids
+    assert str(website.id) in pipe_ids
+    assert int(db.scalar(select(func.count()).select_from(SalesOpportunity)) or 0) == 0

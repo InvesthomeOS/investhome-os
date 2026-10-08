@@ -58,6 +58,7 @@ CHANNEL_ALIASES = {
     "email": CrmCommunicationChannel.EMAIL.value,
     "whatsapp": CrmCommunicationChannel.WHATSAPP.value,
     "facebook": CrmCommunicationChannel.FACEBOOK.value,
+    "instagram": CrmCommunicationChannel.INSTAGRAM.value,
     "call": CrmCommunicationChannel.PHONE.value,
     "phone": CrmCommunicationChannel.PHONE.value,
     "comment": CrmCommunicationChannel.NOTE.value,
@@ -81,6 +82,7 @@ SOURCE_ALIASES = {
     "live_email": CrmCommunicationSource.LIVE_EMAIL.value,
     "live_whatsapp": CrmCommunicationSource.LIVE_WHATSAPP.value,
     "live_facebook": CrmCommunicationSource.LIVE_FACEBOOK.value,
+    "live_instagram": CrmCommunicationSource.LIVE_INSTAGRAM.value,
     "manual": CrmCommunicationSource.MANUAL.value,
 }
 
@@ -88,6 +90,7 @@ ACTIVITY_TYPE_MAP = {
     CrmCommunicationChannel.EMAIL.value: CrmActivityType.EMAIL,
     CrmCommunicationChannel.WHATSAPP.value: CrmActivityType.WHATSAPP,
     CrmCommunicationChannel.FACEBOOK.value: CrmActivityType.FACEBOOK,
+    CrmCommunicationChannel.INSTAGRAM.value: CrmActivityType.INSTAGRAM,
     CrmCommunicationChannel.PHONE.value: CrmActivityType.PHONE_CALL,
     CrmCommunicationChannel.SMS.value: CrmActivityType.SMS,
     CrmCommunicationChannel.MEETING.value: CrmActivityType.MEETING,
@@ -109,7 +112,7 @@ def _now() -> datetime:
 def _normalize_identity(channel: str, value: str | None) -> str | None:
     if channel in {CrmCommunicationChannel.EMAIL.value}:
         return normalize_email(value)
-    if channel == CrmCommunicationChannel.FACEBOOK.value:
+    if channel in {CrmCommunicationChannel.FACEBOOK.value, CrmCommunicationChannel.INSTAGRAM.value}:
         text = (value or "").strip()
         return text or None
     parsed = parse_phone(value)
@@ -130,6 +133,8 @@ def infer_source(channel: str, source: str | None) -> str:
         return CrmCommunicationSource.LIVE_WHATSAPP.value
     if channel == CrmCommunicationChannel.FACEBOOK.value:
         return CrmCommunicationSource.LIVE_FACEBOOK.value
+    if channel == CrmCommunicationChannel.INSTAGRAM.value:
+        return CrmCommunicationSource.LIVE_INSTAGRAM.value
     return CrmCommunicationSource.MANUAL.value
 
 
@@ -314,6 +319,8 @@ def _activity_title(channel: str, subject: str | None, preview: str | None) -> s
         return f"WhatsApp: {preview or subject or 'WhatsApp'}"
     if channel == CrmCommunicationChannel.FACEBOOK.value:
         return f"Facebook: {preview or subject or 'Facebook'}"
+    if channel == CrmCommunicationChannel.INSTAGRAM.value:
+        return f"Instagram: {preview or subject or 'Instagram'}"
     if channel == CrmCommunicationChannel.PHONE.value:
         return f"Arama: {subject or preview or 'Arama'}"
     if channel == CrmCommunicationChannel.TASK.value:
@@ -358,6 +365,7 @@ def project_to_person_timeline(
             CrmActivityType.EMAIL,
             CrmActivityType.WHATSAPP,
             CrmActivityType.FACEBOOK,
+            CrmActivityType.INSTAGRAM,
             CrmActivityType.PHONE_CALL,
             CrmActivityType.SMS,
         }
@@ -491,7 +499,7 @@ def _collect_match_inputs(
             candidates = [sender]
     emails: list[str] = []
     phones: list[str] = []
-    if channel == CrmCommunicationChannel.FACEBOOK.value:
+    if channel in {CrmCommunicationChannel.FACEBOOK.value, CrmCommunicationChannel.INSTAGRAM.value}:
         return emails, phones
     bucket = emails if channel == CrmCommunicationChannel.EMAIL.value else phones
     for value in candidates:
