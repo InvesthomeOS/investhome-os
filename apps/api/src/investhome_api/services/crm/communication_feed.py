@@ -85,6 +85,26 @@ def _history(activity: CrmActivity) -> dict:
     return live if isinstance(live, dict) else {}
 
 
+def _activity_communication_id(activity: CrmActivity) -> str:
+    metadata = activity.metadata_json if isinstance(activity.metadata_json, dict) else {}
+    return str(metadata.get("communication_id") or "").strip()
+
+
+def _feed_activity_source_key(activity: CrmActivity) -> str:
+    """Align live-mirrored timeline rows with CrmCommunication source_key so the union is one row."""
+    metadata = activity.metadata_json if isinstance(activity.metadata_json, dict) else {}
+    if metadata.get("live_communication"):
+        live = metadata.get("live_thread") if isinstance(metadata.get("live_thread"), dict) else {}
+        channel = str(metadata.get("channel") or live.get("kind") or _channel(activity)).strip().lower()
+        message_id = str(live.get("message_id") or "").strip()
+        if message_id:
+            return f"live:{channel}:{message_id}"
+        communication_id = _activity_communication_id(activity)
+        if communication_id:
+            return f"live:{channel}:{communication_id}"
+    return _activity_source_key(activity)
+
+
 def _channel(activity: CrmActivity) -> str:
     history = _history(activity)
     kind = str(history.get("kind") or "").lower()
@@ -338,7 +358,7 @@ def _serialize_activity(
         owner_id=owner_id,
         owner_name=owner.full_name if owner else None,
         conversation_key=str(history.get("chat_id") or "") or None,
-        source_key=_activity_source_key(activity),
+        source_key=_feed_activity_source_key(activity),
         activity_id=activity.id,
     )
 
@@ -523,9 +543,23 @@ def list_communication_feed(
     agreements = _agreements_for_contacts(db, contact_ids)
     items = [_serialize_activity(row, contacts=contacts, users=users, agreements=agreements) for row in page_rows]
     if live_rows:
+        activity_ids = {row.id for row in page_rows}
+        mirrored_live_ids = {cid for cid in (_activity_communication_id(row) for row in page_rows) if cid}
+        wa_threads = {
+            str(item.conversation_key)
+            for item in items
+            if item.channel == "whatsapp" and item.conversation_key
+        }
         live_items = [_serialize_live(row, contacts=contacts, users=users, agreements=agreements) for row in live_rows]
-        merged = {item.source_key: item for item in live_items}
-        for item in items:
+        live_items = [
+            item
+            for item in live_items
+            if str(item.id) not in mirrored_live_ids
+            and (item.activity_id is None or item.activity_id not in activity_ids)
+            and not (item.channel == "whatsapp" and item.conversation_key and item.conversation_key in wa_threads)
+        ]
+        merged: dict[str, CommunicationFeedItem] = {}
+        for item in [*live_items, *items]:
             merged[item.source_key] = item
         items = sorted(
             merged.values(),

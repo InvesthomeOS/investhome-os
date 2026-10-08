@@ -10,7 +10,7 @@ from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from investhome_api.models.activity import ActivityAction, ActivityEntityType, ActivityLog
@@ -230,6 +230,23 @@ def _phones_match(left: str | None, right: str | None) -> bool:
 
 def _live_leads(db: Session):
     return select(Lead).where(Lead.archived_at.is_(None), Lead.is_demo.is_(False))
+
+
+def _is_facebook_messenger_lead(lead: Lead) -> bool:
+    """Messenger inbound creates Contact+Lead but is not a sales-pipeline card."""
+    meta = lead.metadata_json if isinstance(lead.metadata_json, dict) else {}
+    if str(meta.get("intake") or "").strip().lower() == "facebook_messenger":
+        return True
+    return (lead.source or "").strip().lower() == "facebook" and (lead.provider or "").strip().lower() == "facebook"
+
+
+def _exclude_facebook_messenger_pipeline(query):
+    return query.where(
+        ~and_(
+            func.lower(func.coalesce(Lead.source, "")) == "facebook",
+            func.lower(func.coalesce(Lead.provider, "")) == "facebook",
+        )
+    )
 
 
 def _find_lead_matches(db: Session, *, email: str | None, phone: str | None, exclude_id: UUID | None = None) -> list[Lead]:
@@ -621,8 +638,12 @@ def list_crm_leads(
     date_to: datetime | None = None,
     ingest_status: str | None = None,
     junk_reason: str | None = None,
+    surface: str | None = None,
 ) -> CrmLeadListResponse:
     query = _live_leads(db)
+    pipeline_surface = (surface or "").strip().lower() == "pipeline"
+    if pipeline_surface:
+        query = _exclude_facebook_messenger_pipeline(query)
     needle = _blank(search)
     if needle:
         like = f"%{needle}%"
@@ -662,7 +683,13 @@ def list_crm_leads(
             query = query.where(Lead.status == LeadStatus.LOST)
 
     rows = list(db.scalars(query.order_by(Lead.created_at.desc()).limit(500)).all())
-    kpi_rows = list(db.scalars(_live_leads(db)).all())
+    kpi_query = _live_leads(db)
+    if pipeline_surface:
+        kpi_query = _exclude_facebook_messenger_pipeline(kpi_query)
+    kpi_rows = list(db.scalars(kpi_query).all())
+    if pipeline_surface:
+        rows = [row for row in rows if not _is_facebook_messenger_lead(row)]
+        kpi_rows = [row for row in kpi_rows if not _is_facebook_messenger_lead(row)]
     owners_cache: dict[UUID, str] = {}
     sources, projects, owners = _filter_options(db)
     return CrmLeadListResponse(

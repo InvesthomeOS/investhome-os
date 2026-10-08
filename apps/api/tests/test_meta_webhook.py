@@ -249,8 +249,31 @@ def test_facebook_communication_appears_in_feed_contract(client: TestClient, db:
     assert response.status_code == 200, response.text
     db.expire_all()
     feed = list_communication_feed(db, channel="facebook", page=1, page_size=25)
-    assert any(item.channel == "facebook" and item.preview and "Feed check" in item.preview for item in feed.items)
+    facebook_rows = [
+        item
+        for item in feed.items
+        if item.channel == "facebook" and item.preview and "Feed check" in item.preview
+    ]
+    assert len(facebook_rows) == 1
     assert feed.stats.facebook >= 1
+
+
+def test_facebook_inbound_is_lead_not_pipeline(client: TestClient, db: Session) -> None:
+    sender = "3210987654321098"
+    message_id = f"mid.{uuid4().hex}"
+    response, _ = _post(client, _payload(message_id=message_id, sender=sender, text="Pipeline olmasin"))
+    assert response.status_code == 200, response.text
+    db.expire_all()
+    leads = list(db.scalars(select(Lead)).all())
+    assert len(leads) == 1
+    lead_id = str(leads[0].id)
+    listed = client.get("/crm/leads")
+    assert listed.status_code == 200, listed.text
+    assert any(item["id"] == lead_id for item in listed.json()["items"])
+    pipeline = client.get("/crm/leads", params={"surface": "pipeline"})
+    assert pipeline.status_code == 200, pipeline.text
+    assert all(item["id"] != lead_id for item in pipeline.json()["items"])
+    assert int(db.scalar(select(func.count()).select_from(SalesOpportunity)) or 0) == 0
 
 
 def test_production_missing_webhook_secret_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:

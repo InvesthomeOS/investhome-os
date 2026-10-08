@@ -133,3 +133,108 @@ def test_communication_feed_dedupes_source_id_and_opens_stats(client: TestClient
     assert grouped.status_code == 200, grouped.text
     wa_rows = [item for item in grouped.json()["items"] if item["conversation_key"] == "chat-9"]
     assert len(wa_rows) == 1
+
+
+def test_live_facebook_message_is_not_duplicated_with_timeline_activity(
+    client: TestClient, db: Session
+) -> None:
+    person = _contact(db, "Facebook Feed Person")
+    mid = f"mid.{uuid4().hex}"
+    comm = CrmCommunication(
+        channel="facebook",
+        direction="inbound",
+        source="live_facebook",
+        match_status=CrmCommunicationMatchStatus.MATCHED.value,
+        contact_id=person.id,
+        sender_identity="1029384756",
+        preview="Merhaba tek satir",
+        body_text="Merhaba tek satir",
+        external_provider_id=mid,
+        conversation_key="1029384756",
+    )
+    db.add(comm)
+    db.flush()
+    activity = CrmActivity(
+        entity_type=CrmActivityEntityType.CONTACT,
+        entity_id=person.id,
+        activity_type=CrmActivityType.FACEBOOK,
+        activity_category=CrmActivityCategory.COMMUNICATION,
+        title="Facebook: Merhaba tek satir",
+        summary="Merhaba tek satir",
+        status=CrmActivityStatus.COMPLETED,
+        metadata_json={
+            "communication_id": str(comm.id),
+            "live_communication": True,
+            "channel": "facebook",
+            "direction": "incoming",
+            "live_thread": {
+                "kind": "facebook",
+                "chat_id": "1029384756",
+                "direction": "incoming",
+                "source": "live_facebook",
+                "message_id": mid,
+            },
+        },
+    )
+    db.add(activity)
+    db.flush()
+    comm.activity_id = activity.id
+    db.commit()
+
+    listed = client.get("/crm/live-communications/feed?channel=facebook")
+    assert listed.status_code == 200, listed.text
+    rows = [
+        item
+        for item in listed.json()["items"]
+        if "Merhaba tek satir" in str(item.get("preview") or item.get("subject") or "")
+    ]
+    assert len(rows) == 1
+
+
+def test_whatsapp_conversation_grouping_keeps_one_row_with_live_mirror(
+    client: TestClient, db: Session
+) -> None:
+    person = _contact(db, "WhatsApp Live Person")
+    chat = "905551112233"
+    db.add(
+        CrmActivity(
+            entity_type=CrmActivityEntityType.CONTACT,
+            entity_id=person.id,
+            activity_type=CrmActivityType.WHATSAPP,
+            activity_category=CrmActivityCategory.COMMUNICATION,
+            title="WhatsApp",
+            summary="Son mesaj",
+            status=CrmActivityStatus.COMPLETED,
+            metadata_json={
+                "communication_id": str(uuid4()),
+                "live_communication": True,
+                "channel": "whatsapp",
+                "live_thread": {
+                    "kind": "whatsapp",
+                    "chat_id": chat,
+                    "direction": "incoming",
+                    "message_id": "wamid.latest",
+                },
+            },
+        )
+    )
+    db.add(
+        CrmCommunication(
+            channel="whatsapp",
+            direction="inbound",
+            source="live_whatsapp",
+            match_status=CrmCommunicationMatchStatus.MATCHED.value,
+            contact_id=person.id,
+            sender_identity=chat,
+            preview="Son mesaj",
+            body_text="Son mesaj",
+            external_provider_id="wamid.latest",
+            conversation_key=chat,
+        )
+    )
+    db.commit()
+
+    grouped = client.get("/crm/live-communications/feed?channel=whatsapp")
+    assert grouped.status_code == 200, grouped.text
+    wa_rows = [item for item in grouped.json()["items"] if item["conversation_key"] == chat]
+    assert len(wa_rows) == 1

@@ -3,9 +3,11 @@
 from uuid import UUID
 
 from fastapi.testclient import TestClient
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from investhome_api.models.lead import Lead, LeadStatus
+from investhome_api.models.sales import SalesOpportunity
 
 
 def test_crm_pipeline_active_counts_exclude_converted_and_unqualified(
@@ -151,3 +153,39 @@ def test_crm_pipeline_existing_lead_statuses_map_without_rewrite(client: TestCli
         assert moved.json()["stage"] == stage
     blocked = client.post(f"/crm/leads/{source_id}/stage", json={"stage": "converted"})
     assert blocked.status_code == 400
+
+
+def test_pipeline_surface_excludes_facebook_messenger_keeps_website(client: TestClient, db: Session) -> None:
+    facebook = Lead(
+        full_name="Facebook Messenger",
+        source="facebook",
+        status=LeadStatus.NEW,
+        provider="facebook",
+        ingest_status="ok",
+        is_demo=False,
+        metadata_json={"intake": "facebook_messenger"},
+    )
+    website = Lead(
+        full_name="Website Form",
+        email="pipe.website@example.com",
+        source="website",
+        status=LeadStatus.NEW,
+        provider="website",
+        ingest_status="ok",
+        is_demo=False,
+    )
+    db.add_all([facebook, website])
+    db.commit()
+
+    leads = client.get("/crm/leads")
+    assert leads.status_code == 200, leads.text
+    lead_ids = {item["id"] for item in leads.json()["items"]}
+    assert str(facebook.id) in lead_ids
+    assert str(website.id) in lead_ids
+
+    pipeline = client.get("/crm/leads", params={"surface": "pipeline"})
+    assert pipeline.status_code == 200, pipeline.text
+    pipe_ids = {item["id"] for item in pipeline.json()["items"]}
+    assert str(facebook.id) not in pipe_ids
+    assert str(website.id) in pipe_ids
+    assert int(db.scalar(select(func.count()).select_from(SalesOpportunity)) or 0) == 0

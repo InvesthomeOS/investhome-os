@@ -115,6 +115,10 @@ def test_new_person_creates_contact_and_lead(client: TestClient, db: Session) ->
     assert meta["kvkk_accepted"] is True
     assert "1812 H Place" in (lead.notes or "")
 
+    pipeline = client.get("/crm/leads", params={"surface": "pipeline"})
+    assert pipeline.status_code == 200, pipeline.text
+    assert any(item["id"] == str(lead.id) for item in pipeline.json()["items"])
+
     contacts = list(db.scalars(select(CrmContact).where(CrmContact.primary_email == payload["email"])).all())
     assert len(contacts) == 1
     contact = contacts[0]

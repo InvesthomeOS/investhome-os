@@ -69,6 +69,7 @@ def list_leads_workspace(
     date_to: datetime | None = Query(default=None),
     ingest_status: str | None = Query(default=None, max_length=20),
     junk_reason: str | None = Query(default=None, max_length=40),
+    surface: str | None = Query(default=None, max_length=40),
 ) -> CrmLeadListResponse:
     del user
     return list_crm_leads(
@@ -82,6 +83,7 @@ def list_leads_workspace(
         date_to=date_to,
         ingest_status=ingest_status,
         junk_reason=junk_reason,
+        surface=surface,
     )
 
 

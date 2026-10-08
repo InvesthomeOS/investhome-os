@@ -212,6 +212,7 @@ export type CrmLeadListParams = {
   date_to?: string;
   ingest_status?: string;
   junk_reason?: string;
+  surface?: 'leads' | 'pipeline';
 };
 
 export class CrmLeadConflictError extends Error {
@@ -247,6 +248,7 @@ export async function fetchCrmLeads(params: CrmLeadListParams = {}): Promise<Crm
     date_to: params.date_to,
     ingest_status: params.ingest_status,
     junk_reason: params.junk_reason,
+    surface: params.surface,
   });
   const suffix = query.toString() ? `?${query.toString()}` : '';
   return apiFetch<CrmLeadListResponse>(`/crm/leads${suffix}`);

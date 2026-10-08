@@ -203,6 +203,7 @@ export function CrmPipelineLiveWorkspace() {
       date_from: dateFrom ? `${dateFrom}T00:00:00Z` : undefined,
       date_to: dateTo ? `${dateTo}T23:59:59Z` : undefined,
       junk_reason: junkReason || undefined,
+      surface: 'pipeline' as const,
     }),
     [search, stage, source, project, ownerId, dateFrom, dateTo, junkReason],
   );
