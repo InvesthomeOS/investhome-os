@@ -17,11 +17,19 @@ from investhome_api.models.lead import Lead
 from investhome_api.models.sales import SalesOpportunity
 from investhome_api.services.crm import meta_send, meta_webhook as meta
 from investhome_api.services.crm.communication_feed import list_communication_feed
-from investhome_api.services.crm.meta_send import GRAPH_MESSAGES_URL, PUBLIC_NOT_CONFIGURED, PUBLIC_SEND_FAILED
+from investhome_api.services.crm.meta_send import (
+    FACEBOOK_MESSAGES_URL,
+    PUBLIC_INSTAGRAM_NOT_CONFIGURED,
+    PUBLIC_NOT_CONFIGURED,
+    PUBLIC_SEND_FAILED,
+    instagram_messages_url,
+)
 
 from test_meta_webhook import APP_SECRET, PAGE_ID, VERIFY_TOKEN, WEBHOOK_PATH, _ig_payload, _payload, _sign
 
 PAGE_TOKEN = "unit-test-meta-page-access-token"
+IG_TOKEN = "unit-test-meta-instagram-access-token"
+IG_ACCOUNT_ID = "17841411111111111"
 SEND_PATH = "/crm/live-communications/send"
 
 
@@ -92,12 +100,16 @@ def test_facebook_outbound_success_stores_once(client: TestClient, db: Session, 
     _inbound_facebook(client, sender=sender)
     db.expire_all()
     contact = _contact_for(db, sender)
+    _enable_instagram_send(monkeypatch)
     calls: list[dict] = []
 
-    def _fake_post(payload: dict, token: str):
+    def _fake_post(url: str, payload: dict, token: str):
         assert token == PAGE_TOKEN
-        assert "access_token" not in GRAPH_MESSAGES_URL
-        calls.append(payload)
+        assert token != IG_TOKEN
+        assert url == FACEBOOK_MESSAGES_URL
+        assert "access_token" not in url
+        assert "graph.instagram.com" not in url
+        calls.append({"url": url, "payload": payload, "token": token})
         return _DummyResponse(200, {"message_id": "mid.out.fb.1", "recipient_id": sender})
 
     monkeypatch.setattr(meta_send, "_post_graph_messages", _fake_post)
@@ -141,7 +153,8 @@ def test_facebook_outbound_graph_failure_is_visible(client: TestClient, db: Sess
     db.expire_all()
     contact = _contact_for(db, sender)
 
-    def _fake_post(payload: dict, token: str):
+    def _fake_post(url: str, payload: dict, token: str):
+        assert url == FACEBOOK_MESSAGES_URL
         return _DummyResponse(400, {"error": {"message": "fail", "code": 10}})
 
     monkeypatch.setattr(meta_send, "_post_graph_messages", _fake_post)
@@ -169,7 +182,7 @@ def test_facebook_outbound_missing_token_fails_closed(
     get_settings.cache_clear()
     called = {"n": 0}
 
-    def _fake_post(payload: dict, token: str):
+    def _fake_post(url: str, payload: dict, token: str):
         called["n"] += 1
         return _DummyResponse(200, {"message_id": "should-not"})
 
@@ -184,13 +197,27 @@ def test_facebook_outbound_missing_token_fails_closed(
     assert PAGE_TOKEN not in response.text
 
 
+def _enable_instagram_send(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("META_INSTAGRAM_ACCESS_TOKEN", IG_TOKEN)
+    monkeypatch.setenv("META_INSTAGRAM_ACCOUNT_ID", IG_ACCOUNT_ID)
+    get_settings.cache_clear()
+
+
 def test_instagram_outbound_success_and_failure(client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch) -> None:
     sender = "17841400009999999"
     _inbound_instagram(client, sender=sender)
     db.expire_all()
     contact = _contact_for(db, sender, instagram=True)
+    _enable_instagram_send(monkeypatch)
 
-    def _ok(payload: dict, token: str):
+    def _ok(url: str, payload: dict, token: str):
+        assert token == IG_TOKEN
+        assert token != PAGE_TOKEN
+        assert url == instagram_messages_url(IG_ACCOUNT_ID)
+        assert url.startswith("https://graph.instagram.com/")
+        assert FACEBOOK_MESSAGES_URL not in url
+        assert "graph.facebook.com" not in url
+        assert "access_token" not in url
         assert payload["recipient"]["id"] == sender
         return _DummyResponse(200, {"message_id": "mid.out.ig.1", "recipient_id": sender})
 
@@ -204,6 +231,7 @@ def test_instagram_outbound_success_and_failure(client: TestClient, db: Session,
     assert ok.json()["direction"] == "outbound"
     assert ok.json()["provider_message_id"] == "mid.out.ig.1"
     assert PAGE_TOKEN not in ok.text
+    assert IG_TOKEN not in ok.text
     db.expire_all()
     outgoing = db.scalar(
         select(CrmCommunication).where(
@@ -220,7 +248,9 @@ def test_instagram_outbound_success_and_failure(client: TestClient, db: Session,
     feed = list_communication_feed(db, channel="instagram", page=1, page_size=25)
     assert sum(1 for item in feed.items if item.preview == "Cevap IG") == 1
 
-    def _fail(payload: dict, token: str):
+    def _fail(url: str, payload: dict, token: str):
+        assert url == instagram_messages_url(IG_ACCOUNT_ID)
+        assert token == IG_TOKEN
         return _DummyResponse(500, {"error": {"message": "down"}})
 
     monkeypatch.setattr(meta_send, "_post_graph_messages", _fail)
@@ -252,7 +282,7 @@ def test_facebook_outbound_readonly_forbidden(auth_client: TestClient, db: Sessi
     monkeypatch.setattr(
         meta_send,
         "_post_graph_messages",
-        lambda payload, token: _DummyResponse(200, {"message_id": "should-not"}),
+        lambda url, payload, token: _DummyResponse(200, {"message_id": "should-not"}),
     )
     _login(auth_client, "readonly@example.com")
     denied = auth_client.post(
@@ -268,11 +298,15 @@ def test_instagram_outbound_auth_admin_allowed(auth_client: TestClient, db: Sess
     _inbound_instagram(auth_client, sender=sender)
     db.expire_all()
     contact = _contact_for(db, sender, instagram=True)
-    monkeypatch.setattr(
-        meta_send,
-        "_post_graph_messages",
-        lambda payload, token: _DummyResponse(200, {"message_id": "mid.out.ig.auth", "recipient_id": sender}),
-    )
+    _enable_instagram_send(monkeypatch)
+
+    def _ok(url: str, payload: dict, token: str):
+        assert token == IG_TOKEN
+        assert token != PAGE_TOKEN
+        assert url == instagram_messages_url(IG_ACCOUNT_ID)
+        return _DummyResponse(200, {"message_id": "mid.out.ig.auth", "recipient_id": sender})
+
+    monkeypatch.setattr(meta_send, "_post_graph_messages", _ok)
     _login(auth_client, "admin@example.com")
     allowed = auth_client.post(
         SEND_PATH,
@@ -281,5 +315,87 @@ def test_instagram_outbound_auth_admin_allowed(auth_client: TestClient, db: Sess
     assert allowed.status_code == 200, allowed.text
     assert allowed.json()["provider_message_id"] == "mid.out.ig.auth"
     assert PAGE_TOKEN not in allowed.text
+    assert IG_TOKEN not in allowed.text
     db.expire_all()
     assert int(db.scalar(select(func.count()).select_from(SalesOpportunity)) or 0) == 0
+
+
+def test_instagram_outbound_never_falls_back_to_facebook_token(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sender = "17841400007777777"
+    _inbound_instagram(client, sender=sender)
+    db.expire_all()
+    contact = _contact_for(db, sender, instagram=True)
+    monkeypatch.delenv("META_INSTAGRAM_ACCESS_TOKEN", raising=False)
+    monkeypatch.delenv("META_INSTAGRAM_ACCOUNT_ID", raising=False)
+    get_settings.cache_clear()
+    called: list[tuple[str, str]] = []
+
+    def _fake_post(url: str, payload: dict, token: str):
+        called.append((url, token))
+        return _DummyResponse(200, {"message_id": "should-not"})
+
+    monkeypatch.setattr(meta_send, "_post_graph_messages", _fake_post)
+    response = client.post(
+        SEND_PATH,
+        json={"channel": "instagram", "contact_id": str(contact.id), "conversation_key": sender, "text": "Fallback yok"},
+    )
+    assert response.status_code == 503, response.text
+    assert response.json()["detail"] == PUBLIC_INSTAGRAM_NOT_CONFIGURED
+    assert called == []
+    assert PAGE_TOKEN not in response.text
+
+
+def test_instagram_outbound_missing_account_id_fails_closed(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sender = "17841400006666666"
+    _inbound_instagram(client, sender=sender)
+    db.expire_all()
+    contact = _contact_for(db, sender, instagram=True)
+    monkeypatch.setenv("META_INSTAGRAM_ACCESS_TOKEN", IG_TOKEN)
+    monkeypatch.delenv("META_INSTAGRAM_ACCOUNT_ID", raising=False)
+    get_settings.cache_clear()
+    called = {"n": 0}
+
+    def _fake_post(url: str, payload: dict, token: str):
+        called["n"] += 1
+        return _DummyResponse(200, {"message_id": "should-not"})
+
+    monkeypatch.setattr(meta_send, "_post_graph_messages", _fake_post)
+    response = client.post(
+        SEND_PATH,
+        json={"channel": "instagram", "contact_id": str(contact.id), "conversation_key": sender, "text": "Account yok"},
+    )
+    assert response.status_code == 503, response.text
+    assert response.json()["detail"] == PUBLIC_INSTAGRAM_NOT_CONFIGURED
+    assert called["n"] == 0
+    assert IG_TOKEN not in response.text
+
+
+def test_instagram_outbound_missing_token_fails_closed(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sender = "17841400005555555"
+    _inbound_instagram(client, sender=sender)
+    db.expire_all()
+    contact = _contact_for(db, sender, instagram=True)
+    monkeypatch.setenv("META_INSTAGRAM_ACCOUNT_ID", IG_ACCOUNT_ID)
+    monkeypatch.delenv("META_INSTAGRAM_ACCESS_TOKEN", raising=False)
+    get_settings.cache_clear()
+    called = {"n": 0}
+
+    def _fake_post(url: str, payload: dict, token: str):
+        called["n"] += 1
+        return _DummyResponse(200, {"message_id": "should-not"})
+
+    monkeypatch.setattr(meta_send, "_post_graph_messages", _fake_post)
+    response = client.post(
+        SEND_PATH,
+        json={"channel": "instagram", "contact_id": str(contact.id), "conversation_key": sender, "text": "IG token yok"},
+    )
+    assert response.status_code == 503, response.text
+    assert response.json()["detail"] == PUBLIC_INSTAGRAM_NOT_CONFIGURED
+    assert called["n"] == 0
+    assert PAGE_TOKEN not in response.text

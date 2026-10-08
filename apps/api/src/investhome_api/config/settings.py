@@ -127,10 +127,12 @@ class Settings(BaseSettings):
     meta_app_secret: str | None = Field(default=None, alias="META_APP_SECRET")
     meta_verify_token: str | None = Field(default=None, alias="META_VERIFY_TOKEN")
     meta_page_id: str | None = Field(default=None, alias="META_PAGE_ID")
-    # Page access token is server-side only. Required to send Messenger/Instagram DMs; fail closed if missing.
+    # Page access token is server-side only. Required to send Facebook Messenger DMs; fail closed if missing.
     meta_page_access_token: str | None = Field(default=None, alias="META_PAGE_ACCESS_TOKEN")
-    # Optional Instagram Business account id used to filter inbound DMs. Not required for webhook startup.
+    # Instagram professional account id. Used to filter inbound DMs and required to send Instagram DMs.
     meta_instagram_account_id: str | None = Field(default=None, alias="META_INSTAGRAM_ACCOUNT_ID")
+    # Instagram Login access token is server-side only. Required to send Instagram DMs; never fall back to the Page token.
+    meta_instagram_access_token: str | None = Field(default=None, alias="META_INSTAGRAM_ACCESS_TOKEN")
 
     redis_url: str = Field(alias="REDIS_URL")
     # Backup readiness reporting only. BACKUP_PROVIDER does not connect a live adapter

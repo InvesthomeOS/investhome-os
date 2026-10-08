@@ -31,10 +31,13 @@ from investhome_api.services.crm.meta_webhook import (
 
 logger = get_logger("investhome.meta.send")
 
-GRAPH_MESSAGES_URL = "https://graph.facebook.com/v21.0/me/messages"
+GRAPH_API_VERSION = "v21.0"
+FACEBOOK_MESSAGES_URL = f"https://graph.facebook.com/{GRAPH_API_VERSION}/me/messages"
+GRAPH_MESSAGES_URL = FACEBOOK_MESSAGES_URL
 GRAPH_TIMEOUT_SECONDS = 15.0
 
 PUBLIC_NOT_CONFIGURED = "Messenger send is not configured"
+PUBLIC_INSTAGRAM_NOT_CONFIGURED = "Instagram send is not configured"
 PUBLIC_RECIPIENT_UNAVAILABLE = "Recipient is not available for this conversation"
 PUBLIC_EMPTY_MESSAGE = "Message text is required"
 PUBLIC_SEND_FAILED = "Message could not be sent"
@@ -59,10 +62,25 @@ def require_page_access_token() -> str:
     return token
 
 
-def _post_graph_messages(payload: dict[str, Any], token: str) -> httpx.Response:
+def require_instagram_credentials() -> tuple[str, str]:
+    """Instagram Login send credentials. Never fall back to the Facebook Page token."""
+    settings = get_settings()
+    token = (settings.meta_instagram_access_token or "").strip()
+    account_id = (settings.meta_instagram_account_id or "").strip()
+    if not token or not account_id:
+        logger.warning("meta_send_missing_instagram_credentials")
+        raise MetaSendError(PUBLIC_INSTAGRAM_NOT_CONFIGURED, 503)
+    return token, account_id
+
+
+def instagram_messages_url(account_id: str) -> str:
+    return f"https://graph.instagram.com/{GRAPH_API_VERSION}/{account_id}/messages"
+
+
+def _post_graph_messages(url: str, payload: dict[str, Any], token: str) -> httpx.Response:
     """POST Graph Send API. Token is Authorization only — never a query string."""
     return httpx.post(
-        GRAPH_MESSAGES_URL,
+        url,
         json=payload,
         headers={
             "Authorization": f"Bearer {token}",
@@ -72,15 +90,20 @@ def _post_graph_messages(payload: dict[str, Any], token: str) -> httpx.Response:
     )
 
 
-def graph_send_text(*, recipient_id: str, text: str) -> str:
-    token = require_page_access_token()
+def graph_send_text(*, channel: str, recipient_id: str, text: str) -> str:
     payload = {
         "recipient": {"id": recipient_id},
         "messaging_type": "RESPONSE",
         "message": {"text": text},
     }
+    if channel == "facebook":
+        token = require_page_access_token()
+        url = FACEBOOK_MESSAGES_URL
+    else:
+        token, account_id = require_instagram_credentials()
+        url = instagram_messages_url(account_id)
     try:
-        response = _post_graph_messages(payload, token)
+        response = _post_graph_messages(url, payload, token)
     except httpx.HTTPError:
         logger.warning("meta_send_graph_transport_error")
         raise MetaSendError(PUBLIC_SEND_FAILED, 502) from None
@@ -135,7 +158,7 @@ def send_meta_dm(
     if not recipient_id:
         raise MetaSendError(PUBLIC_RECIPIENT_UNAVAILABLE, 400)
 
-    provider_message_id = graph_send_text(recipient_id=recipient_id, text=body)
+    provider_message_id = graph_send_text(channel=normalized, recipient_id=recipient_id, text=body)
 
     idem_prefix = "msg" if normalized == "facebook" else "ig:msg"
     claimed, _duplicates = _claim_keys([f"{idem_prefix}:{provider_message_id}"])
@@ -159,7 +182,7 @@ def send_meta_dm(
     else:
         lead = _active_instagram_lead_for_contact(db, contact=contact, igsid=recipient_id)
         source = "live_instagram"
-        sender = (get_settings().meta_instagram_account_id or "").strip() or "instagram"
+        sender = (get_settings().meta_instagram_account_id or "").strip()
         description_key = "crm.leads.instagram_dm.sent"
         provider = INSTAGRAM_SOURCE
         identity_meta = {INSTAGRAM_IGSID_KEY: recipient_id, "ig_account_id": sender}
