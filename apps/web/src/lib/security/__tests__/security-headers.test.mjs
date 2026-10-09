@@ -58,6 +58,8 @@ describe('security headers', () => {
     assert.doesNotMatch(csp, /script-src[^;]*\*/);
     assert.doesNotMatch(csp, /frame-ancestors \*/);
     assert.doesNotMatch(csp, /(^|;)\s*[a-z-]+[^;]*\s\*(;|$)/);
+    assert.match(directiveValue(csp, 'img-src'), /cdninstagram\.com/);
+    assert.match(directiveValue(csp, 'img-src'), /fbcdn\.net/);
   });
 
   it('authorizes production styles with nonce on elements, not style-src unsafe-inline', () => {

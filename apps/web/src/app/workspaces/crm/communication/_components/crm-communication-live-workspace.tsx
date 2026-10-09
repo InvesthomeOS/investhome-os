@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { Button, ErrorState, Input, Select } from '@investhome/ui';
+import { Button, Dialog, ErrorState, Input, Select } from '@investhome/ui';
 
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 import { fetchUsers } from '@/lib/api/auth';
@@ -117,12 +117,12 @@ function CommentParentCard({
   const campaignName = contextText(context.campaign_name);
   const campaignId = contextText(context.campaign_id);
   const platform = contextText(context.platform);
-  const unavailable = !previewUrl && !caption;
+  const unavailable = !previewUrl && (platform === 'instagram' || !caption);
   return (
     <article className="crm-comm-parent" data-testid="crm-comm-parent-card">
       {previewUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img className="crm-comm-parent__media" src={previewUrl} alt="" />
+        <img className="crm-comm-parent__media" src={previewUrl} alt="" referrerPolicy="no-referrer" />
       ) : null}
       {caption ? <p className="crm-comm-parent__caption">{caption}</p> : null}
       {unavailable ? (
@@ -282,6 +282,7 @@ export function CrmCommunicationLiveWorkspace() {
   const [replyText, setReplyText] = useState('');
   const [replyError, setReplyError] = useState('');
   const [composerMode, setComposerMode] = useState<'public' | 'private' | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -302,6 +303,7 @@ export function CrmCommunicationLiveWorkspace() {
     setReplyText('');
     setReplyError('');
     setComposerMode(null);
+    setDeleteConfirmOpen(false);
   }, [selected?.id]);
 
   const listParams = useMemo(
@@ -381,6 +383,19 @@ export function CrmCommunicationLiveWorkspace() {
       await queryClient.invalidateQueries({ queryKey: ['crm', 'communications'] });
     },
     onError: (error) => {
+      setReplyError(error instanceof ApiError ? error.message : t('sendFailed'));
+    },
+  });
+  const deleteMutation = useMutation({
+    mutationFn: sendCommentAction,
+    onSuccess: async () => {
+      setDeleteConfirmOpen(false);
+      setReplyError('');
+      setSelected(null);
+      await queryClient.invalidateQueries({ queryKey: ['crm', 'communications'] });
+    },
+    onError: (error) => {
+      setDeleteConfirmOpen(false);
       setReplyError(error instanceof ApiError ? error.message : t('sendFailed'));
     },
   });
@@ -952,7 +967,7 @@ export function CrmCommunicationLiveWorkspace() {
                             variant="secondary"
                             data-testid="crm-comm-comment-like"
                             loading={likeMutation.isPending}
-                            disabled={likeMutation.isPending}
+                            disabled={likeMutation.isPending || deleteMutation.isPending}
                             onClick={() => {
                               if (!selected.conversation_key || likeMutation.isPending) return;
                               const liked = Boolean(conversationQuery.data?.comment_capabilities?.liked);
@@ -965,6 +980,22 @@ export function CrmCommunicationLiveWorkspace() {
                             }}
                           >
                             {conversationQuery.data?.comment_capabilities?.liked ? t('unlikeComment') : t('likeComment')}
+                          </Button>
+                        ) : null}
+                        {conversationQuery.data?.comment_capabilities?.can_delete ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            data-testid="crm-comm-comment-delete"
+                            loading={deleteMutation.isPending}
+                            disabled={deleteMutation.isPending}
+                            onClick={() => {
+                              setReplyError('');
+                              setDeleteConfirmOpen(true);
+                            }}
+                          >
+                            {t('deleteComment')}
                           </Button>
                         ) : null}
                       </div>
@@ -1110,6 +1141,49 @@ export function CrmCommunicationLiveWorkspace() {
           onClose={() => setEmailOpen(null)}
         />
       ) : null}
+
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={() => {
+          if (!deleteMutation.isPending) setDeleteConfirmOpen(false);
+        }}
+        title={t('deleteComment')}
+        footer={
+          <>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={deleteMutation.isPending}
+              onClick={() => setDeleteConfirmOpen(false)}
+            >
+              {tCommon('cancel')}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              loading={deleteMutation.isPending}
+              disabled={deleteMutation.isPending || !selected?.conversation_key}
+              data-testid="crm-comm-comment-delete-confirm"
+              onClick={() => {
+                if (!selected?.conversation_key || deleteMutation.isPending) return;
+                deleteMutation.mutate({
+                  channel: selected.channel,
+                  conversation_key: selected.conversation_key,
+                  contact_id: selected.contact_id,
+                  action: 'delete',
+                });
+              }}
+            >
+              {deleteMutation.isPending ? t('deleting') : t('deleteComment')}
+            </Button>
+          </>
+        }
+      >
+        <p data-testid="crm-comm-comment-delete-copy">
+          {selected?.channel === 'instagram' ? t('deleteCommentConfirmInstagram') : t('deleteCommentConfirmFacebook')}
+        </p>
+      </Dialog>
     </>,
   );
 }

@@ -101,7 +101,7 @@ export function buildContentSecurityPolicy(nonce: string, options?: {
     "default-src 'self'",
     `script-src ${scriptSrc}`,
     ...styleSrcDirectives(nonce, options?.isDev),
-    `img-src 'self' blob: data: ${api}`,
+    `img-src 'self' blob: data: ${api} https://*.cdninstagram.com https://*.fbcdn.net https://*.instagram.com`,
     "font-src 'self' data:",
     `connect-src ${connectSrc}`,
     `frame-src 'self' blob: ${api}`,

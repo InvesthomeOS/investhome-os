@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from investhome_api.config.settings import get_settings
-from investhome_api.models.crm_communication import CrmCommunication
+from investhome_api.models.crm_communication import CrmCommunication, CrmCommunicationAuditLog
 from investhome_api.models.crm_contact import CrmContact
 from investhome_api.models.lead import Lead
 from investhome_api.models.sales import SalesOpportunity
@@ -21,6 +21,7 @@ from investhome_api.services.crm.meta_comments import (
     FACEBOOK_COMMENTER_KEY,
     PUBLIC_COMMENT_NOT_CONFIGURED,
     PUBLIC_COMMENT_SEND_FAILED,
+    PUBLIC_DELETE_FAILED,
     PUBLIC_LIKE_UNSUPPORTED,
     PUBLIC_PRIVATE_REPLY_ALREADY_SENT,
     PUBLIC_PRIVATE_REPLY_UNAVAILABLE,
@@ -610,6 +611,7 @@ def test_instagram_comment_parent_context_fetched_on_detail(
     assert context["permalink"] == "https://www.instagram.com/reel/abc/"
     assert body["comment_capabilities"]["reply_prefix"] == "@c_hasan_acar "
     assert body["comment_capabilities"]["can_like"] is False
+    assert body["comment_capabilities"]["can_delete"] is True
     assert body["comment_capabilities"]["can_private_reply"] is True
     assert any((message.get("summary") or "") == "Harika reel" for message in body["messages"])
     db.expire_all()
@@ -651,6 +653,7 @@ def test_facebook_comment_parent_context_fetched_on_detail(
     assert context["preview_url"].endswith("preview.jpg")
     assert context["caption"] == "Uniloft daireleri"
     assert caps["can_like"] is True
+    assert caps["can_delete"] is True
     assert caps["can_private_reply"] is True
     assert caps["reply_prefix"] is None
     assert any((message.get("summary") or "") == "Fiyat nedir?" for message in listed.json()["messages"])
@@ -905,3 +908,286 @@ def test_comment_like_capability_by_platform(client: TestClient, db: Session, mo
     db.expire_all()
     seed = _comment_row(db, fb_comment)
     assert (seed.metadata_json or {}).get("user_likes") is True
+
+
+ACTION_PATH = "/crm/live-communications/comment-action"
+
+
+def test_instagram_image_parent_preview_uses_media_url(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    comment_id = f"igimg_{uuid4().hex[:10]}"
+    media_id = "18011100002222"
+    _post(client, _ig_comment_payload(comment_id=comment_id, media_id=media_id, media_product_type="FEED"))
+    db.expire_all()
+    contact = db.scalar(select(CrmContact))
+    assert contact is not None
+    monkeypatch.setenv("META_INSTAGRAM_ACCESS_TOKEN", IG_TOKEN)
+    get_settings.cache_clear()
+
+    def _fake_get(url: str, *, token: str, fields: str):
+        assert token == IG_TOKEN
+        if comment_id in url:
+            return {
+                "id": comment_id,
+                "media": {
+                    "id": media_id,
+                    "caption": "Uniloft daire",
+                    "media_type": "IMAGE",
+                    "permalink": "https://www.instagram.com/p/abc/",
+                    "timestamp": "2026-04-01T12:00:00+0000",
+                },
+            }
+        if media_id in url and "/children" not in url:
+            return {
+                "id": media_id,
+                "caption": "Uniloft daire",
+                "media_type": "IMAGE",
+                "media_url": "https://scontent.cdninstagram.com/image.jpg",
+                "permalink": "https://www.instagram.com/p/abc/",
+                "timestamp": "2026-04-01T12:00:00+0000",
+                "username": "investhome",
+            }
+        return None
+
+    monkeypatch.setattr(meta_comments, "_graph_get", _fake_get)
+    listed = _conversation(client, comment_id=comment_id, channel="instagram", contact_id=str(contact.id))
+    assert listed.status_code == 200, listed.text
+    context = listed.json()["comment_context"]
+    assert context["media_type"] == "IMAGE"
+    assert context["preview_url"] == "https://scontent.cdninstagram.com/image.jpg"
+    assert context["caption"] == "Uniloft daire"
+
+
+def test_instagram_video_parent_preview_prefers_thumbnail(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    comment_id = f"igvid_{uuid4().hex[:10]}"
+    media_id = "18022200003333"
+    _post(client, _ig_comment_payload(comment_id=comment_id, media_id=media_id, media_product_type="REELS"))
+    db.expire_all()
+    contact = db.scalar(select(CrmContact))
+    assert contact is not None
+    monkeypatch.setenv("META_INSTAGRAM_ACCESS_TOKEN", IG_TOKEN)
+    get_settings.cache_clear()
+
+    def _fake_get(url: str, *, token: str, fields: str):
+        if comment_id in url:
+            return {
+                "id": comment_id,
+                "media": {"id": media_id, "caption": "Reel caption", "media_type": "VIDEO"},
+            }
+        if media_id in url and "/children" not in url:
+            return {
+                "id": media_id,
+                "caption": "Reel caption",
+                "media_type": "VIDEO",
+                "media_url": "https://scontent.cdninstagram.com/video.mp4",
+                "thumbnail_url": "https://scontent.cdninstagram.com/reel-thumb.jpg",
+                "permalink": "https://www.instagram.com/reel/xyz/",
+            }
+        return None
+
+    monkeypatch.setattr(meta_comments, "_graph_get", _fake_get)
+    listed = _conversation(client, comment_id=comment_id, channel="instagram", contact_id=str(contact.id))
+    context = listed.json()["comment_context"]
+    assert context["preview_url"] == "https://scontent.cdninstagram.com/reel-thumb.jpg"
+    assert context["caption"] == "Reel caption"
+
+
+def test_instagram_carousel_parent_preview_uses_first_child(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    comment_id = f"igcar_{uuid4().hex[:10]}"
+    media_id = "18033300004444"
+    child_id = "18033300005555"
+    _post(client, _ig_comment_payload(comment_id=comment_id, media_id=media_id))
+    db.expire_all()
+    contact = db.scalar(select(CrmContact))
+    assert contact is not None
+    monkeypatch.setenv("META_INSTAGRAM_ACCESS_TOKEN", IG_TOKEN)
+    get_settings.cache_clear()
+
+    def _fake_get(url: str, *, token: str, fields: str):
+        if comment_id in url:
+            return {
+                "id": comment_id,
+                "media": {"id": media_id, "caption": "Carousel caption", "media_type": "CAROUSEL_ALBUM"},
+            }
+        if url.endswith(f"/{media_id}/children") or f"/{media_id}/children?" in url:
+            return {
+                "data": [
+                    {
+                        "id": child_id,
+                        "media_type": "IMAGE",
+                        "media_url": "https://scontent.cdninstagram.com/cover.jpg",
+                    }
+                ]
+            }
+        if media_id in url:
+            return {"id": media_id, "caption": "Carousel caption", "media_type": "CAROUSEL_ALBUM"}
+        return None
+
+    monkeypatch.setattr(meta_comments, "_graph_get", _fake_get)
+    listed = _conversation(client, comment_id=comment_id, channel="instagram", contact_id=str(contact.id))
+    context = listed.json()["comment_context"]
+    assert context["preview_url"] == "https://scontent.cdninstagram.com/cover.jpg"
+    assert context["caption"] == "Carousel caption"
+
+
+def test_instagram_missing_preview_url_keeps_explicit_fallback(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    comment_id = f"ignoprev_{uuid4().hex[:10]}"
+    media_id = "18044400006666"
+    _post(client, _ig_comment_payload(comment_id=comment_id, media_id=media_id, text="Caption var"))
+    db.expire_all()
+    contact = db.scalar(select(CrmContact))
+    assert contact is not None
+    monkeypatch.setenv("META_INSTAGRAM_ACCESS_TOKEN", IG_TOKEN)
+    get_settings.cache_clear()
+
+    def _fake_get(url: str, *, token: str, fields: str):
+        if comment_id in url or media_id in url:
+            return {
+                "id": media_id if media_id in url else comment_id,
+                "caption": "Caption var",
+                "media_type": "IMAGE",
+                "permalink": "https://www.instagram.com/p/noimg/",
+                "media": {"id": media_id, "caption": "Caption var", "media_type": "IMAGE"},
+            }
+        return None
+
+    monkeypatch.setattr(meta_comments, "_graph_get", _fake_get)
+    listed = _conversation(client, comment_id=comment_id, channel="instagram", contact_id=str(contact.id))
+    context = listed.json()["comment_context"]
+    assert context["caption"] == "Caption var"
+    assert not context.get("preview_url")
+
+
+def test_facebook_comment_delete_success_failure(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    comment_id = f"{PAGE_ID}_del_{uuid4().hex[:8]}"
+    _post(client, _fb_comment_payload(comment_id=comment_id, text="Silinecek FB"))
+    db.expire_all()
+    monkeypatch.setenv("META_PAGE_ACCESS_TOKEN", PAGE_TOKEN)
+    get_settings.cache_clear()
+    calls: list[str] = []
+
+    def _ok(url: str, *, token: str):
+        calls.append(url)
+        assert token == PAGE_TOKEN
+        assert url == f"https://graph.facebook.com/{GRAPH_VERSION}/{comment_id}"
+        assert "/likes" not in url
+        return _DummyResponse(200, {"success": True})
+
+    monkeypatch.setattr(meta_comments, "_graph_delete", _ok)
+    ok = client.post(
+        ACTION_PATH,
+        json={"channel": "facebook", "conversation_key": comment_conversation_key(comment_id), "action": "delete"},
+    )
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["deleted"] is True
+    assert PAGE_TOKEN not in ok.text
+    assert len(calls) == 1
+    db.expire_all()
+    row = db.scalar(select(CrmCommunication).where(CrmCommunication.external_provider_id == comment_id))
+    assert row is not None
+    assert row.archived_at is not None
+    assert (row.metadata_json or {}).get("deleted_on_platform") is True
+    assert (row.metadata_json or {}).get("deleted_at")
+    assert (row.metadata_json or {}).get("deleted_by")
+    feed = list_communication_feed(db, channel="facebook_comment", page=1, page_size=25)
+    assert not any(item.preview == "Silinecek FB" for item in feed.items)
+    audits = list(
+        db.scalars(select(CrmCommunicationAuditLog).where(CrmCommunicationAuditLog.event_type == "communication.deleted")).all()
+    )
+    assert audits
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 0
+
+    comment_fail = f"{PAGE_ID}_delfail_{uuid4().hex[:8]}"
+    _post(client, _fb_comment_payload(comment_id=comment_fail, text="Silinmesin FB", sender="1029384756107001"))
+    monkeypatch.setattr(meta_comments, "_graph_delete", lambda url, *, token: _DummyResponse(400, {"error": {"message": "denied"}}))
+    failed = client.post(
+        ACTION_PATH,
+        json={"channel": "facebook", "conversation_key": comment_conversation_key(comment_fail), "action": "delete"},
+    )
+    assert failed.status_code == 502
+    assert failed.json()["detail"] == PUBLIC_DELETE_FAILED
+    db.expire_all()
+    still = db.scalar(select(CrmCommunication).where(CrmCommunication.external_provider_id == comment_fail))
+    assert still is not None
+    assert still.archived_at is None
+    feed_after = list_communication_feed(db, channel="facebook_comment", page=1, page_size=25)
+    assert any(item.preview == "Silinmesin FB" for item in feed_after.items)
+
+    monkeypatch.delenv("META_PAGE_ACCESS_TOKEN", raising=False)
+    get_settings.cache_clear()
+    missing = client.post(
+        ACTION_PATH,
+        json={"channel": "facebook", "conversation_key": comment_conversation_key(comment_fail), "action": "delete"},
+    )
+    assert missing.status_code == 503
+    assert missing.json()["detail"] == PUBLIC_COMMENT_NOT_CONFIGURED
+
+
+def test_instagram_comment_delete_success_failure(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    comment_id = f"igdel_{uuid4().hex[:10]}"
+    _post(client, _ig_comment_payload(comment_id=comment_id, text="Silinecek IG"))
+    db.expire_all()
+    _enable_instagram_send(monkeypatch)
+
+    def _ok(url: str, *, token: str):
+        assert token == IG_TOKEN
+        assert url == f"https://graph.instagram.com/{GRAPH_VERSION}/{comment_id}"
+        return _DummyResponse(200, {"success": True})
+
+    monkeypatch.setattr(meta_comments, "_graph_delete", _ok)
+    ok = client.post(
+        ACTION_PATH,
+        json={"channel": "instagram", "conversation_key": comment_conversation_key(comment_id), "action": "delete"},
+    )
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["deleted"] is True
+    assert IG_TOKEN not in ok.text
+    db.expire_all()
+    row = db.scalar(select(CrmCommunication).where(CrmCommunication.external_provider_id == comment_id))
+    assert row is not None
+    assert row.archived_at is not None
+    feed = list_communication_feed(db, channel="instagram_comment", page=1, page_size=25)
+    assert not any(item.preview == "Silinecek IG" for item in feed.items)
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 0
+
+    comment_fail = f"igdelfail_{uuid4().hex[:10]}"
+    _post(client, _ig_comment_payload(comment_id=comment_fail, text="Silinmesin IG", sender="17841400006660001"))
+    monkeypatch.setattr(meta_comments, "_graph_delete", lambda url, *, token: _DummyResponse(500, {"error": {"message": "down"}}))
+    failed = client.post(
+        ACTION_PATH,
+        json={"channel": "instagram", "conversation_key": comment_conversation_key(comment_fail), "action": "delete"},
+    )
+    assert failed.status_code == 502
+    assert failed.json()["detail"] == PUBLIC_DELETE_FAILED
+    db.expire_all()
+    still = db.scalar(select(CrmCommunication).where(CrmCommunication.external_provider_id == comment_fail))
+    assert still is not None and still.archived_at is None
+
+    monkeypatch.delenv("META_INSTAGRAM_ACCESS_TOKEN", raising=False)
+    get_settings.cache_clear()
+    missing = client.post(
+        ACTION_PATH,
+        json={"channel": "instagram", "conversation_key": comment_conversation_key(comment_fail), "action": "delete"},
+    )
+    assert missing.status_code == 503
+    assert missing.json()["detail"] == PUBLIC_COMMENT_NOT_CONFIGURED
+
+
+def test_comment_delete_requires_auth(auth_client: TestClient) -> None:
+    response = auth_client.post(
+        ACTION_PATH,
+        json={"channel": "facebook", "conversation_key": comment_conversation_key("x"), "action": "delete"},
+    )
+    assert response.status_code == 401
+    assert PAGE_TOKEN not in response.text

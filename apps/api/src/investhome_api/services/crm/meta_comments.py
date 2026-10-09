@@ -29,6 +29,7 @@ from investhome_api.models.user_auth import User
 from investhome_api.schemas.crm_contacts import CrmContactCreate
 from investhome_api.services.crm.contact_service import create_contact
 from investhome_api.services.crm.live_ingest import ingest_live_message
+from investhome_api.services.crm_communication_activity import record_communication_deleted
 from investhome_api.services.crm.meta_send import (
     FACEBOOK_MESSAGES_URL,
     GRAPH_API_VERSION,
@@ -73,12 +74,26 @@ PUBLIC_PRIVATE_REPLY_ALREADY_SENT = "A private reply was already sent for this c
 PUBLIC_PRIVATE_REPLY_FAILED = "Private reply could not be sent"
 PUBLIC_LIKE_UNSUPPORTED = "Liking comments is not supported for this platform"
 PUBLIC_LIKE_FAILED = "Comment like could not be updated"
+PUBLIC_DELETE_UNSUPPORTED = "Deleting comments is not supported for this platform"
+PUBLIC_DELETE_FAILED = "Comment could not be deleted"
+PUBLIC_DELETE_UNAVAILABLE = "This comment cannot be deleted"
 PUBLIC_CONTEXT_UNAVAILABLE = "Post preview is not available"
 PRIVATE_REPLY_WINDOW = timedelta(days=7)
 INSTAGRAM_LIKE_SUPPORTED = False
 FACEBOOK_LIKE_SUPPORTED = True
+FACEBOOK_DELETE_SUPPORTED = True
+INSTAGRAM_DELETE_SUPPORTED = True
 
 SUPPORTED_CHANNELS = frozenset({"facebook", "instagram"})
+INSTAGRAM_VIDEO_TYPES = frozenset({"VIDEO", "REELS"})
+INSTAGRAM_MEDIA_FIELDS = (
+    "id,caption,media_type,media_product_type,media_url,permalink,"
+    "thumbnail_url,timestamp,username,children{id,media_type,media_url,thumbnail_url}"
+)
+INSTAGRAM_COMMENT_FIELDS = (
+    "id,text,timestamp,username,from,media{" + INSTAGRAM_MEDIA_FIELDS + "}"
+)
+INSTAGRAM_CHILDREN_FIELDS = "id,media_type,media_url,thumbnail_url"
 
 
 @dataclass(frozen=True)
@@ -154,6 +169,10 @@ def context_is_visible(ctx: dict[str, Any] | None) -> bool:
     if not isinstance(ctx, dict):
         return False
     return bool(str(ctx.get("preview_url") or "").strip() or str(ctx.get("caption") or "").strip())
+
+
+def _has_preview_url(ctx: dict[str, Any] | None) -> bool:
+    return bool(isinstance(ctx, dict) and str(ctx.get("preview_url") or "").strip())
 
 
 def _merge_ctx(base: dict[str, Any] | None, extra: dict[str, Any] | None) -> dict[str, Any]:
@@ -419,14 +438,52 @@ def _apply_facebook_post_payload(context: dict[str, Any], payload: dict[str, Any
         context["account_name"] = str(frm.get("name") or "").strip() or context.get("account_name")
 
 
+def _instagram_child_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    children = payload.get("children")
+    if isinstance(children, dict):
+        data = children.get("data")
+        rows = data if isinstance(data, list) else []
+    elif isinstance(children, list):
+        rows = children
+    else:
+        rows = []
+    return [row for row in rows if isinstance(row, dict)]
+
+
+def _leaf_instagram_preview(payload: dict[str, Any]) -> str:
+    media_type = str(payload.get("media_type") or "").strip().upper()
+    media_url = str(payload.get("media_url") or "").strip()
+    thumbnail_url = str(payload.get("thumbnail_url") or "").strip()
+    if media_type in INSTAGRAM_VIDEO_TYPES:
+        return thumbnail_url or media_url
+    return media_url or thumbnail_url
+
+
+def _instagram_preview_url(payload: dict[str, Any]) -> str:
+    direct = _leaf_instagram_preview(payload)
+    if direct:
+        return direct
+    if str(payload.get("media_type") or "").strip().upper() != "CAROUSEL_ALBUM":
+        return ""
+    for child in _instagram_child_rows(payload):
+        url = _leaf_instagram_preview(child)
+        if url:
+            return url
+    return ""
+
+
 def _apply_instagram_media_payload(context: dict[str, Any], payload: dict[str, Any] | None) -> None:
     if not payload:
         return
     context["parent_id"] = str(payload.get("id") or context.get("parent_id") or "").strip() or context.get("parent_id")
     context["caption"] = str(payload.get("caption") or "").strip() or context.get("caption")
     context["permalink"] = str(payload.get("permalink") or "").strip() or context.get("permalink")
-    context["media_type"] = str(payload.get("media_type") or context.get("media_type") or "").strip() or context.get("media_type")
-    context["preview_url"] = str(payload.get("thumbnail_url") or payload.get("media_url") or "").strip() or context.get("preview_url")
+    media_type = str(payload.get("media_type") or payload.get("media_product_type") or context.get("media_type") or "").strip()
+    if media_type:
+        context["media_type"] = media_type
+    preview = _instagram_preview_url(payload)
+    if preview:
+        context["preview_url"] = preview
     context["published_time"] = str(payload.get("timestamp") or "").strip() or context.get("published_time")
     context["account_name"] = str(payload.get("username") or "").strip() or context.get("account_name")
 
@@ -519,7 +576,7 @@ def _instagram_media_context(item: MetaCommentInbound) -> dict[str, Any]:
     comment_payload = _graph_get(
         f"https://graph.instagram.com/{GRAPH_API_VERSION}/{item.comment_id}",
         token=token,
-        fields="id,text,timestamp,username,from,media{id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,username}",
+        fields=INSTAGRAM_COMMENT_FIELDS,
     )
     if comment_payload:
         context["commenter_username"] = str(comment_payload.get("username") or "").strip() or context.get("commenter_username")
@@ -531,15 +588,30 @@ def _instagram_media_context(item: MetaCommentInbound) -> dict[str, Any]:
         if isinstance(media, dict):
             _apply_instagram_media_payload(context, media)
     media_id = str(context.get("parent_id") or item.original_media_id or item.parent_id or "").strip()
-    if not context_is_visible(context) and media_id:
+    if media_id and not _has_preview_url(context):
         _apply_instagram_media_payload(
             context,
             _graph_get(
                 f"https://graph.instagram.com/{GRAPH_API_VERSION}/{media_id}",
                 token=token,
-                fields="id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,username",
+                fields=INSTAGRAM_MEDIA_FIELDS,
             ),
         )
+    if (
+        media_id
+        and not _has_preview_url(context)
+        and str(context.get("media_type") or "").strip().upper() == "CAROUSEL_ALBUM"
+    ):
+        children_payload = _graph_get(
+            f"https://graph.instagram.com/{GRAPH_API_VERSION}/{media_id}/children",
+            token=token,
+            fields=INSTAGRAM_CHILDREN_FIELDS,
+        )
+        if children_payload:
+            _apply_instagram_media_payload(
+                context,
+                {"media_type": "CAROUSEL_ALBUM", "children": children_payload},
+            )
     context["context_status"] = "ready" if context_is_visible(context) else "unavailable"
     if context["context_status"] == "unavailable":
         context["context_error"] = PUBLIC_CONTEXT_UNAVAILABLE
@@ -701,21 +773,25 @@ def comment_capabilities(comm: CrmCommunication) -> dict[str, Any]:
     if occurred is not None:
         stamp = occurred if occurred.tzinfo else occurred.replace(tzinfo=UTC)
         within_window = datetime.now(UTC) - stamp.astimezone(UTC) <= PRIVATE_REPLY_WINDOW
+    already_deleted = comm.archived_at is not None or bool(meta.get("deleted_on_platform") or ctx.get("deleted_on_platform"))
     if comm.channel == "facebook":
         can_private = bool(ctx.get("can_reply_privately") or meta.get("can_reply_privately")) and not sent and within_window
         can_like = FACEBOOK_LIKE_SUPPORTED
         liked = bool(ctx.get("user_likes") or meta.get("user_likes"))
         prefix = None
+        can_delete = FACEBOOK_DELETE_SUPPORTED and not already_deleted
     else:
         can_private = not sent and within_window
         can_like = INSTAGRAM_LIKE_SUPPORTED
         liked = False
         prefix = _reply_prefix(username)
+        can_delete = INSTAGRAM_DELETE_SUPPORTED and not already_deleted
     visible = context_is_visible(ctx)
     return {
         "can_public_reply": True,
         "can_private_reply": can_private,
         "can_like": can_like,
+        "can_delete": can_delete,
         "liked": liked,
         "reply_prefix": prefix,
         "commenter_name": str(ctx.get("commenter_name") or comm.sender_identity or "").strip() or None,
@@ -1058,3 +1134,79 @@ def set_comment_like(
     if seed is not None:
         _persist_comment_context(db, seed, {"user_likes": liked}, {"user_likes": liked})
     return {"liked": liked, "can_like": True}
+
+
+def graph_delete_comment(*, channel: str, comment_id: str) -> None:
+    try:
+        if channel == "facebook":
+            token = require_page_access_token()
+            url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{comment_id}"
+        else:
+            token, _account_id = require_instagram_credentials()
+            url = f"https://graph.instagram.com/{GRAPH_API_VERSION}/{comment_id}"
+    except MetaSendError:
+        raise MetaSendError(PUBLIC_COMMENT_NOT_CONFIGURED, 503) from None
+    response = _graph_delete(url, token=token)
+    if response is None:
+        raise MetaSendError(PUBLIC_DELETE_FAILED, 502)
+    success = False
+    try:
+        body = response.json()
+        success = isinstance(body, dict) and body.get("success") is True
+    except ValueError:
+        success = False
+    if response.status_code >= 400 or not success:
+        logger.warning("meta_comment_delete_rejected status=%s", response.status_code)
+        raise MetaSendError(PUBLIC_DELETE_FAILED, 502)
+
+
+def delete_meta_comment(
+    db: Session,
+    *,
+    channel: str,
+    conversation_key: str | None,
+    actor: User,
+) -> dict[str, Any]:
+    normalized = (channel or "").strip().lower()
+    if normalized not in SUPPORTED_CHANNELS:
+        raise MetaSendError(PUBLIC_UNSUPPORTED_CHANNEL, 400)
+    comment_id = parse_comment_id(conversation_key)
+    if not comment_id:
+        raise MetaSendError(PUBLIC_DELETE_UNAVAILABLE, 400)
+    seed = _comment_seed(db, conversation_key=conversation_key, channel=normalized)
+    if seed is None:
+        raise MetaSendError(PUBLIC_DELETE_UNAVAILABLE, 400)
+    caps = comment_capabilities(seed)
+    if not caps.get("can_delete"):
+        raise MetaSendError(PUBLIC_DELETE_UNSUPPORTED if seed.archived_at is None else PUBLIC_DELETE_UNAVAILABLE, 400)
+    graph_delete_comment(channel=normalized, comment_id=comment_id)
+    now = datetime.now(UTC)
+    from investhome_api.models.crm_activity import CrmActivity
+
+    rows = list(
+        db.scalars(
+            select(CrmCommunication).where(
+                CrmCommunication.archived_at.is_(None),
+                CrmCommunication.channel == normalized,
+                CrmCommunication.conversation_key == conversation_key,
+            )
+        ).all()
+    )
+    for row in rows:
+        meta = dict(row.metadata_json) if isinstance(row.metadata_json, dict) else {}
+        if str(meta.get("kind") or "").strip().lower() != COMMENT_KIND:
+            continue
+        meta["deleted_at"] = now.isoformat()
+        meta["deleted_by"] = str(actor.id) if actor else None
+        meta["deleted_on_platform"] = True
+        row.metadata_json = meta
+        row.archived_at = now
+        db.add(row)
+        if row.activity_id:
+            activity = db.get(CrmActivity, row.activity_id)
+            if activity is not None and activity.archived_at is None:
+                activity.archived_at = now
+                db.add(activity)
+    db.flush()
+    record_communication_deleted(db, communication_id=seed.id, actor=actor)
+    return {"deleted": True, "can_delete": False}

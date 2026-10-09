@@ -192,6 +192,7 @@ class CommentCapabilities(BaseModel):
     can_public_reply: bool = False
     can_private_reply: bool = False
     can_like: bool = False
+    can_delete: bool = False
     liked: bool = False
     reply_prefix: str | None = None
     commenter_name: str | None = None
@@ -239,4 +240,6 @@ class CommentActionRequest(BaseModel):
 class CommentActionResponse(BaseModel):
     liked: bool = False
     can_like: bool = False
+    deleted: bool = False
+    can_delete: bool = False
     request_id: str = ""

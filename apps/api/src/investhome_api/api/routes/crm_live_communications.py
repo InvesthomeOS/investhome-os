@@ -59,6 +59,7 @@ from investhome_api.services.crm.live_accounts import (
 )
 from investhome_api.services.crm.live_ingest import confirm_match, ignore_unmatched, ingest_live_message
 from investhome_api.services.crm.meta_comments import (
+    delete_meta_comment,
     parse_comment_id,
     send_meta_comment_reply,
     send_meta_private_reply,
@@ -307,17 +308,24 @@ def comment_action(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("crm", "send_communications")),
 ) -> CommentActionResponse:
-    _ = user
     action = (payload.action or "").strip().lower()
-    if action not in {"like", "unlike"}:
+    if action not in {"like", "unlike", "delete"}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported comment action")
     try:
-        result = set_comment_like(
-            db,
-            channel=payload.channel,
-            conversation_key=payload.conversation_key,
-            liked=action == "like" if payload.liked is None else bool(payload.liked),
-        )
+        if action == "delete":
+            result = delete_meta_comment(
+                db,
+                channel=payload.channel,
+                conversation_key=payload.conversation_key,
+                actor=user,
+            )
+        else:
+            result = set_comment_like(
+                db,
+                channel=payload.channel,
+                conversation_key=payload.conversation_key,
+                liked=action == "like" if payload.liked is None else bool(payload.liked),
+            )
         db.commit()
     except MetaSendError as exc:
         db.rollback()
@@ -325,6 +333,8 @@ def comment_action(
     return CommentActionResponse(
         liked=bool(result.get("liked")),
         can_like=bool(result.get("can_like")),
+        deleted=bool(result.get("deleted")),
+        can_delete=bool(result.get("can_delete")),
         request_id=get_request_id() or "",
     )
 

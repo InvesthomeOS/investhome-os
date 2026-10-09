@@ -473,6 +473,7 @@ export type CommentCapabilities = {
   can_public_reply: boolean;
   can_private_reply: boolean;
   can_like: boolean;
+  can_delete?: boolean;
   liked: boolean;
   reply_prefix?: string | null;
   commenter_name?: string | null;
@@ -527,9 +528,9 @@ export async function sendCommentAction(payload: {
   channel: string;
   conversation_key?: string | null;
   contact_id?: string | null;
-  action: 'like' | 'unlike';
+  action: 'like' | 'unlike' | 'delete';
   liked?: boolean;
-}): Promise<{ liked: boolean; can_like: boolean }> {
+}): Promise<{ liked: boolean; can_like: boolean; deleted?: boolean; can_delete?: boolean }> {
   return apiFetch('/crm/live-communications/comment-action', {
     method: 'POST',
     body: JSON.stringify(payload),
