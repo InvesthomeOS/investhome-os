@@ -133,6 +133,8 @@ class Settings(BaseSettings):
     meta_instagram_account_id: str | None = Field(default=None, alias="META_INSTAGRAM_ACCOUNT_ID")
     # Instagram Login access token is server-side only. Required to send Instagram DMs; never fall back to the Page token.
     meta_instagram_access_token: str | None = Field(default=None, alias="META_INSTAGRAM_ACCESS_TOKEN")
+    # Instagram Login app secret is server-side only. Used to verify Instagram webhook HMAC; never fall back to META_APP_SECRET.
+    meta_instagram_app_secret: str | None = Field(default=None, alias="META_INSTAGRAM_APP_SECRET")
 
     redis_url: str = Field(alias="REDIS_URL")
     # Backup readiness reporting only. BACKUP_PROVIDER does not connect a live adapter

@@ -23,6 +23,7 @@ from investhome_api.services.crm.communication_feed import list_communication_fe
 from investhome_api.services.crm.meta_webhook import FACEBOOK_PSID_KEY, INSTAGRAM_IGSID_KEY
 
 APP_SECRET = "unit-test-meta-app-secret-32charsxxxx"
+IG_APP_SECRET = "unit-test-meta-ig-app-secret-32charsxxx"
 VERIFY_TOKEN = "unit-test-meta-verify-token"
 PAGE_ID = "111222333444555"
 WEBHOOK_PATH = "/webhooks/meta"
@@ -31,6 +32,7 @@ WEBHOOK_PATH = "/webhooks/meta"
 @pytest.fixture(autouse=True)
 def _meta_webhook_env(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("META_APP_SECRET", APP_SECRET)
+    monkeypatch.setenv("META_INSTAGRAM_APP_SECRET", IG_APP_SECRET)
     monkeypatch.setenv("META_VERIFY_TOKEN", VERIFY_TOKEN)
     monkeypatch.setenv("META_PAGE_ID", PAGE_ID)
     get_settings.cache_clear()
@@ -77,9 +79,11 @@ def _post(
     client: TestClient,
     payload: dict,
     *,
-    secret: str = APP_SECRET,
+    secret: str | None = None,
     signature: str | bool | None = True,
 ):
+    if secret is None:
+        secret = IG_APP_SECRET if str(payload.get("object") or "") == "instagram" else APP_SECRET
     body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
     headers = {"Content-Type": "application/json"}
     if signature is True:
@@ -122,6 +126,110 @@ def test_invalid_signature_rejected(client: TestClient, db: Session) -> None:
         )
     )
     assert int(count or 0) == 0
+
+
+def test_missing_signature_rejected(client: TestClient, db: Session) -> None:
+    message_id = f"mid.{uuid4().hex}"
+    response, _body = _post(client, _payload(message_id=message_id), signature=None)
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Forbidden"
+    count = db.scalar(
+        select(func.count()).select_from(CrmCommunication).where(
+            CrmCommunication.external_provider_id == message_id
+        )
+    )
+    assert int(count or 0) == 0
+
+
+def test_instagram_valid_signature_accepted(client: TestClient, db: Session) -> None:
+    message_id = f"mid.{uuid4().hex}"
+    response, _ = _post(client, _ig_payload(message_id=message_id, text="IG HMAC ok"))
+    assert response.status_code == 200, response.text
+    assert response.json()["ingested"] == 1
+    count = db.scalar(
+        select(func.count()).select_from(CrmCommunication).where(
+            CrmCommunication.external_provider_id == message_id
+        )
+    )
+    assert int(count or 0) == 1
+    assert IG_APP_SECRET not in response.text
+    assert APP_SECRET not in response.text
+
+
+def test_instagram_invalid_signature_rejected(client: TestClient, db: Session) -> None:
+    message_id = f"mid.{uuid4().hex}"
+    response, _ = _post(
+        client,
+        _ig_payload(message_id=message_id),
+        signature="sha256=" + ("cd" * 32),
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Forbidden"
+    count = db.scalar(
+        select(func.count()).select_from(CrmCommunication).where(
+            CrmCommunication.external_provider_id == message_id
+        )
+    )
+    assert int(count or 0) == 0
+    assert IG_APP_SECRET not in response.text
+
+
+def test_instagram_signed_with_facebook_secret_rejected(client: TestClient, db: Session) -> None:
+    message_id = f"mid.{uuid4().hex}"
+    response, _ = _post(client, _ig_payload(message_id=message_id), secret=APP_SECRET)
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Forbidden"
+    count = db.scalar(
+        select(func.count()).select_from(CrmCommunication).where(
+            CrmCommunication.external_provider_id == message_id
+        )
+    )
+    assert int(count or 0) == 0
+
+
+def test_facebook_signed_with_instagram_secret_rejected(client: TestClient, db: Session) -> None:
+    message_id = f"mid.{uuid4().hex}"
+    response, _ = _post(client, _payload(message_id=message_id), secret=IG_APP_SECRET)
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Forbidden"
+    count = db.scalar(
+        select(func.count()).select_from(CrmCommunication).where(
+            CrmCommunication.external_provider_id == message_id
+        )
+    )
+    assert int(count or 0) == 0
+
+
+def test_instagram_missing_signature_rejected(client: TestClient, db: Session) -> None:
+    message_id = f"mid.{uuid4().hex}"
+    response, _ = _post(client, _ig_payload(message_id=message_id), signature=None)
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Forbidden"
+    count = db.scalar(
+        select(func.count()).select_from(CrmCommunication).where(
+            CrmCommunication.external_provider_id == message_id
+        )
+    )
+    assert int(count or 0) == 0
+
+
+def test_instagram_missing_app_secret_fails_closed(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("META_INSTAGRAM_APP_SECRET", raising=False)
+    get_settings.cache_clear()
+    message_id = f"mid.{uuid4().hex}"
+    response, _ = _post(client, _ig_payload(message_id=message_id), secret=APP_SECRET)
+    assert response.status_code == 503
+    count = db.scalar(
+        select(func.count()).select_from(CrmCommunication).where(
+            CrmCommunication.external_provider_id == message_id
+        )
+    )
+    assert int(count or 0) == 0
+    facebook_id = f"mid.{uuid4().hex}"
+    facebook_response, _ = _post(client, _payload(message_id=facebook_id))
+    assert facebook_response.status_code == 200, facebook_response.text
 
 
 def test_valid_messenger_text_event_accepted(client: TestClient, db: Session) -> None:

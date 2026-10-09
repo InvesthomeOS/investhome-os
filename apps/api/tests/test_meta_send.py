@@ -25,7 +25,16 @@ from investhome_api.services.crm.meta_send import (
     instagram_messages_url,
 )
 
-from test_meta_webhook import APP_SECRET, PAGE_ID, VERIFY_TOKEN, WEBHOOK_PATH, _ig_payload, _payload, _sign
+from test_meta_webhook import (
+    APP_SECRET,
+    IG_APP_SECRET,
+    PAGE_ID,
+    VERIFY_TOKEN,
+    WEBHOOK_PATH,
+    _ig_payload,
+    _payload,
+    _sign,
+)
 
 PAGE_TOKEN = "unit-test-meta-page-access-token"
 IG_TOKEN = "unit-test-meta-instagram-access-token"
@@ -36,6 +45,7 @@ SEND_PATH = "/crm/live-communications/send"
 @pytest.fixture(autouse=True)
 def _meta_send_env(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("META_APP_SECRET", APP_SECRET)
+    monkeypatch.setenv("META_INSTAGRAM_APP_SECRET", IG_APP_SECRET)
     monkeypatch.setenv("META_VERIFY_TOKEN", VERIFY_TOKEN)
     monkeypatch.setenv("META_PAGE_ID", PAGE_ID)
     monkeypatch.setenv("META_PAGE_ACCESS_TOKEN", PAGE_TOKEN)
@@ -79,7 +89,7 @@ def _inbound_instagram(client: TestClient, *, sender: str, text: str = "Gelen IG
     response = client.post(
         WEBHOOK_PATH,
         content=body,
-        headers={"Content-Type": "application/json", "X-Hub-Signature-256": _sign(body)},
+        headers={"Content-Type": "application/json", "X-Hub-Signature-256": _sign(body, IG_APP_SECRET)},
     )
     assert response.status_code == 200, response.text
     return sender

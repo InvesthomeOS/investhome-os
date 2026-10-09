@@ -150,6 +150,32 @@ def require_meta_app_secret() -> str:
     return secret
 
 
+def require_meta_instagram_app_secret() -> str:
+    secret = (get_settings().meta_instagram_app_secret or "").strip()
+    if not secret:
+        logger.warning("meta_webhook_missing_instagram_app_secret")
+        raise MetaWebhookRejected(503, GENERIC_UNAVAILABLE)
+    return secret
+
+
+def _peek_webhook_object(raw_body: bytes) -> str | None:
+    """Read only payload.object to choose an HMAC secret. Do not ingest from this parse."""
+    try:
+        payload = json.loads(raw_body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    name = str(payload.get("object") or "").strip().lower()
+    return name or None
+
+
+def _app_secret_for_object(object_name: str | None) -> str:
+    if object_name == "instagram":
+        return require_meta_instagram_app_secret()
+    return require_meta_app_secret()
+
+
 def require_meta_verify_token() -> str:
     settings = get_settings()
     if _is_production():
@@ -883,10 +909,11 @@ def process_meta_webhook(
         logger.warning("meta_webhook_malformed reason=too_large")
         raise MetaWebhookRejected(400, "invalid_request")
 
-    app_secret = require_meta_app_secret()
     if not signature_header:
         logger.warning("meta_webhook_signature_failure reason=missing")
         raise MetaWebhookRejected(403, GENERIC_FORBIDDEN)
+    object_hint = _peek_webhook_object(raw_body)
+    app_secret = _app_secret_for_object(object_hint)
     if not verify_meta_signature(
         app_secret=app_secret,
         raw_body=raw_body,
