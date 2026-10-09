@@ -612,10 +612,11 @@ def test_instagram_unknown_account_is_ignored_with_safe_log(
     assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 0
     joined = "\n".join(record.getMessage() for record in caplog.records)
     assert "meta_webhook_unknown_instagram_account" in joined
-    assert f"parsed_account_id={parsed_account_id}" in joined
-    assert f"configured_account_id={IG_WEBHOOK_ACCOUNT_ID}" in joined
+    assert "parsed_account_id=" not in joined
+    assert "configured_account_id=" not in joined
+    assert parsed_account_id not in joined
+    assert IG_WEBHOOK_ACCOUNT_ID not in joined
     assert IG_ACCOUNT_ID not in joined
-    assert "object=instagram" in joined
     assert text not in joined
     assert sender not in joined
     assert APP_SECRET not in joined
