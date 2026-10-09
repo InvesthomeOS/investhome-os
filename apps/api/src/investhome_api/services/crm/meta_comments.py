@@ -85,6 +85,8 @@ FACEBOOK_DELETE_SUPPORTED = True
 INSTAGRAM_DELETE_SUPPORTED = True
 
 SUPPORTED_CHANNELS = frozenset({"facebook", "instagram"})
+FACEBOOK_COMMENT_VERBS = frozenset({"add", "edit", "edited"})
+FACEBOOK_ANON_COMMENTER_PREFIX = "anon:"
 INSTAGRAM_VIDEO_TYPES = frozenset({"VIDEO", "REELS"})
 INSTAGRAM_MEDIA_FIELDS = (
     "id,caption,media_type,media_product_type,media_url,permalink,"
@@ -312,6 +314,67 @@ def resolve_instagram_commenter(db: Session, *, user_id: str, display_name: str 
     return contact
 
 
+def _as_change_list(value: object) -> list[Any]:
+    if isinstance(value, list):
+        return value
+    if isinstance(value, dict):
+        return [value]
+    return []
+
+
+def _log_facebook_comment_skip(
+    *,
+    reason: str,
+    entry_page_id: str,
+    configured_page_id: str,
+    field: str = "",
+    item: str = "",
+    verb: str = "",
+    comment_id: str = "",
+    parent_post_id: str = "",
+) -> None:
+    logger.info(
+        "meta_webhook_facebook_comment_skip reason=%s entry_page_id=%s configured_page_id=%s field=%s item=%s verb=%s comment_id=%s parent_post_id=%s",
+        reason,
+        entry_page_id or "-",
+        configured_page_id or "-",
+        field or "-",
+        item or "-",
+        verb or "-",
+        comment_id or "-",
+        parent_post_id or "-",
+    )
+
+
+def _facebook_comment_ids(value: dict[str, Any]) -> tuple[str, str]:
+    post = _dict(value.get("post"))
+    post_id = str(
+        value.get("post_id")
+        or post.get("id")
+        or value.get("photo_id")
+        or value.get("video_id")
+        or value.get("share_id")
+        or value.get("parent_id")
+        or ""
+    ).strip()
+    comment_id = str(value.get("comment_id") or value.get("commentId") or "").strip()
+    fallback_id = str(value.get("id") or "").strip()
+    if not comment_id and fallback_id and fallback_id != post_id:
+        comment_id = fallback_id
+    return comment_id, post_id
+
+
+def _facebook_commenter(value: dict[str, Any]) -> tuple[str, str | None]:
+    raw_from = value.get("from") if value.get("from") is not None else value.get("sender")
+    if isinstance(raw_from, str):
+        commenter_id = raw_from.strip()
+        return commenter_id, None
+    sender = _dict(raw_from)
+    commenter_id = str(sender.get("id") or value.get("sender_id") or "").strip()
+    commenter_name = str(sender.get("name") or "").strip() or None
+    return commenter_id, commenter_name
+
+
 def extract_facebook_comments(payload: dict[str, Any], *, page_id: str) -> list[MetaCommentInbound]:
     expected = page_id.strip()
     comments: list[MetaCommentInbound] = []
@@ -320,37 +383,128 @@ def extract_facebook_comments(payload: dict[str, Any], *, page_id: str) -> list[
         if not isinstance(entry, dict):
             continue
         entry_id = str(entry.get("id") or "").strip()
-        if not entry_id or entry_id != expected:
+        changes = _as_change_list(entry.get("changes"))
+        if not entry_id:
+            _log_facebook_comment_skip(reason="missing_entry_id", entry_page_id="", configured_page_id=expected)
             continue
-        for change in entry.get("changes") or []:
-            if not isinstance(change, dict) or str(change.get("field") or "") != "feed":
+        if entry_id != expected:
+            for change in changes:
+                if not isinstance(change, dict):
+                    continue
+                field = str(change.get("field") or "").strip()
+                value = _dict(change.get("value"))
+                item = str(value.get("item") or "").strip().lower()
+                verb = str(value.get("verb") or "").strip().lower()
+                comment_id, post_id = _facebook_comment_ids(value)
+                if (field == "feed" and item == "comment") or comment_id:
+                    _log_facebook_comment_skip(
+                        reason="page_mismatch",
+                        entry_page_id=entry_id,
+                        configured_page_id=expected,
+                        field=field,
+                        item=item,
+                        verb=verb,
+                        comment_id=comment_id,
+                        parent_post_id=post_id,
+                    )
+                    break
+            continue
+        for change in changes:
+            if not isinstance(change, dict):
                 continue
+            field = str(change.get("field") or "").strip()
             value = _dict(change.get("value"))
-            if str(value.get("item") or "") != "comment":
+            item = str(value.get("item") or "").strip().lower()
+            verb = str(value.get("verb") or "").strip().lower()
+            comment_id, post_id = _facebook_comment_ids(value)
+            commenter_id, commenter_name = _facebook_commenter(value)
+            if field != "feed":
+                if item == "comment" or comment_id:
+                    _log_facebook_comment_skip(
+                        reason="field_not_feed",
+                        entry_page_id=entry_id,
+                        configured_page_id=expected,
+                        field=field,
+                        item=item,
+                        verb=verb,
+                        comment_id=comment_id,
+                        parent_post_id=post_id,
+                    )
                 continue
-            if str(value.get("verb") or "").strip().lower() not in {"add", "edited"}:
+            looks_like_comment = item == "comment" or (not item and bool(comment_id) and verb in FACEBOOK_COMMENT_VERBS | {""})
+            if not looks_like_comment:
                 continue
-            comment_id = str(value.get("comment_id") or value.get("commentId") or "").strip()
-            if not comment_id or comment_id in seen:
+            if verb and verb not in FACEBOOK_COMMENT_VERBS:
+                _log_facebook_comment_skip(
+                    reason="unsupported_verb",
+                    entry_page_id=entry_id,
+                    configured_page_id=expected,
+                    field=field,
+                    item=item or "comment",
+                    verb=verb,
+                    comment_id=comment_id,
+                    parent_post_id=post_id,
+                )
                 continue
-            sender = _dict(value.get("from"))
-            commenter_id = str(sender.get("id") or "").strip()
-            if not commenter_id or commenter_id == expected:
+            if not comment_id:
+                _log_facebook_comment_skip(
+                    reason="missing_comment_id",
+                    entry_page_id=entry_id,
+                    configured_page_id=expected,
+                    field=field,
+                    item=item or "comment",
+                    verb=verb,
+                    parent_post_id=post_id,
+                )
                 continue
-            post = _dict(value.get("post"))
-            post_id = str(value.get("post_id") or post.get("id") or "").strip()
+            if comment_id in seen:
+                continue
+            if commenter_id == expected:
+                _log_facebook_comment_skip(
+                    reason="page_own_comment",
+                    entry_page_id=entry_id,
+                    configured_page_id=expected,
+                    field=field,
+                    item=item or "comment",
+                    verb=verb,
+                    comment_id=comment_id,
+                    parent_post_id=post_id,
+                )
+                continue
             if not post_id:
+                _log_facebook_comment_skip(
+                    reason="missing_parent_post_id",
+                    entry_page_id=entry_id,
+                    configured_page_id=expected,
+                    field=field,
+                    item=item or "comment",
+                    verb=verb,
+                    comment_id=comment_id,
+                )
                 continue
+            if not commenter_id:
+                commenter_id = f"{FACEBOOK_ANON_COMMENTER_PREFIX}{comment_id}"
+                logger.info(
+                    "meta_webhook_facebook_comment_placeholder_commenter reason=missing_from entry_page_id=%s configured_page_id=%s field=%s item=%s verb=%s comment_id=%s parent_post_id=%s",
+                    entry_id,
+                    expected,
+                    field,
+                    item or "comment",
+                    verb or "-",
+                    comment_id,
+                    post_id,
+                )
             parent_id = str(value.get("parent_id") or "").strip() or post_id
             parent_comment_id = parent_id if parent_id != post_id else None
             seen.add(comment_id)
+            post = _dict(value.get("post"))
             published = post.get("is_published")
             comments.append(
                 MetaCommentInbound(
                     comment_id=comment_id,
                     commenter_id=commenter_id,
-                    commenter_name=str(sender.get("name") or "").strip() or None,
-                    text=str(value.get("message") or ""),
+                    commenter_name=commenter_name,
+                    text=str(value.get("message") or value.get("text") or ""),
                     parent_id=post_id,
                     occurred_at=_message_timestamp(value.get("created_time") or entry.get("time")),
                     platform="facebook",

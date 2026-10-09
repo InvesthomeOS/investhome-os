@@ -18,6 +18,7 @@ from investhome_api.models.sales import SalesOpportunity
 from investhome_api.services.crm import meta_comments, meta_webhook as meta
 from investhome_api.services.crm.communication_feed import list_communication_feed
 from investhome_api.services.crm.meta_comments import (
+    FACEBOOK_ANON_COMMENTER_PREFIX,
     FACEBOOK_COMMENTER_KEY,
     PUBLIC_COMMENT_NOT_CONFIGURED,
     PUBLIC_COMMENT_SEND_FAILED,
@@ -26,6 +27,7 @@ from investhome_api.services.crm.meta_comments import (
     PUBLIC_PRIVATE_REPLY_ALREADY_SENT,
     PUBLIC_PRIVATE_REPLY_UNAVAILABLE,
     comment_conversation_key,
+    extract_facebook_comments,
 )
 from investhome_api.services.crm.meta_send import FACEBOOK_MESSAGES_URL, instagram_messages_url
 from investhome_api.services.crm.meta_webhook import FACEBOOK_PSID_KEY, INSTAGRAM_IGSID_KEY
@@ -73,20 +75,43 @@ def _fb_comment_payload(
     ad_id: str | None = None,
     ad_title: str | None = None,
     permalink: str | None = "https://www.facebook.com/posts/888111",
+    verb: str = "add",
+    include_from: bool = True,
+    entry_id: str = PAGE_ID,
+    photo_id: str | None = None,
+    video_id: str | None = None,
+    omit_post_id: bool = False,
+    omit_verb: bool = False,
 ) -> dict:
     stamped = int(time())
     post = {"id": post_id, "permalink_url": permalink, "is_published": is_published}
     value = {
         "item": "comment",
-        "verb": "add",
         "comment_id": comment_id,
-        "post_id": post_id,
-        "parent_id": post_id,
         "created_time": stamped,
         "message": text,
-        "from": {"id": sender, "name": name},
-        "post": post,
     }
+    if not omit_verb:
+        value["verb"] = verb
+    if include_from:
+        value["from"] = {"id": sender, "name": name}
+    if omit_post_id:
+        if photo_id:
+            value["photo_id"] = photo_id
+            value["parent_id"] = photo_id
+        elif video_id:
+            value["video_id"] = video_id
+            value["parent_id"] = video_id
+        else:
+            value["parent_id"] = post_id
+    else:
+        value["post_id"] = post_id
+        value["parent_id"] = post_id
+        value["post"] = post
+        if photo_id:
+            value["photo_id"] = photo_id
+        if video_id:
+            value["video_id"] = video_id
     if ad_id:
         value["ad_id"] = ad_id
         post["ad_id"] = ad_id
@@ -95,7 +120,7 @@ def _fb_comment_payload(
         post["ad_title"] = ad_title
     if is_published is False:
         post["promotion_status"] = "active"
-    return {"object": "page", "entry": [{"id": PAGE_ID, "time": stamped, "changes": [{"field": "feed", "value": value}]}]}
+    return {"object": "page", "entry": [{"id": entry_id, "time": stamped, "changes": [{"field": "feed", "value": value}]}]}
 
 
 def _ig_comment_payload(
@@ -171,6 +196,107 @@ def test_facebook_post_comment_inbound(client: TestClient, db: Session) -> None:
     assert any(item.preview == "Fiyat nedir?" and item.kind == "comment" for item in feed.items)
     dm_feed = list_communication_feed(db, channel="facebook_dm", page=1, page_size=25)
     assert not any(item.preview == "Fiyat nedir?" for item in dm_feed.items)
+
+
+def test_facebook_comment_without_from_is_ingested(client: TestClient, db: Session) -> None:
+    comment_id = f"{PAGE_ID}_anon_{uuid4().hex[:8]}"
+    response, _ = _post(client, _fb_comment_payload(comment_id=comment_id, include_from=False))
+    assert response.status_code == 200, response.text
+    assert response.json()["ingested"] == 1
+    db.expire_all()
+    row = _comment_row(db, comment_id)
+    assert row.channel == "facebook"
+    assert (row.metadata_json or {}).get("kind") == "comment"
+    assert (row.metadata_json or {}).get(FACEBOOK_COMMENTER_KEY) == f"{FACEBOOK_ANON_COMMENTER_PREFIX}{comment_id}"
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 0
+    feed = list_communication_feed(db, channel="facebook_comment", page=1, page_size=25)
+    assert any(item.preview == "Fiyat nedir?" and item.kind == "comment" for item in feed.items)
+
+
+def test_facebook_comment_verb_edit_is_ingested(client: TestClient, db: Session) -> None:
+    comment_id = f"{PAGE_ID}_edit_{uuid4().hex[:8]}"
+    response, _ = _post(client, _fb_comment_payload(comment_id=comment_id, verb="edit", text="Duzenlendi"))
+    assert response.status_code == 200, response.text
+    assert response.json()["ingested"] == 1
+    db.expire_all()
+    row = _comment_row(db, comment_id)
+    assert row.body_text == "Duzenlendi"
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 0
+
+
+def test_facebook_photo_comment_without_post_id_is_ingested(client: TestClient, db: Session) -> None:
+    comment_id = f"{PAGE_ID}_photo_{uuid4().hex[:8]}"
+    photo_id = f"{PAGE_ID}_pic_77"
+    response, _ = _post(
+        client,
+        _fb_comment_payload(comment_id=comment_id, omit_post_id=True, photo_id=photo_id, text="Foto yorum"),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["ingested"] == 1
+    db.expire_all()
+    row = _comment_row(db, comment_id)
+    context = (row.metadata_json or {}).get("comment_context") or {}
+    assert context["parent_id"] == photo_id
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 0
+
+
+def test_facebook_comment_page_mismatch_is_skipped(client: TestClient, db: Session, caplog: pytest.LogCaptureFixture) -> None:
+    comment_id = f"{PAGE_ID}_mismatch_{uuid4().hex[:8]}"
+    caplog.set_level("INFO", logger="investhome.meta.comments")
+    with caplog.at_level("INFO", logger="investhome.meta.comments"):
+        response, _ = _post(
+            client,
+            _fb_comment_payload(comment_id=comment_id, entry_id="999000111222"),
+        )
+    assert response.status_code == 200, response.text
+    assert response.json()["ingested"] == 0
+    assert db.scalar(select(CrmCommunication).where(CrmCommunication.external_provider_id == comment_id)) is None
+    assert "reason=page_mismatch" in caplog.text
+    assert "entry_page_id=999000111222" in caplog.text
+    assert f"configured_page_id={PAGE_ID}" in caplog.text
+    assert "Fiyat nedir?" not in caplog.text
+
+
+def test_facebook_page_own_comment_is_skipped(client: TestClient, db: Session, caplog: pytest.LogCaptureFixture) -> None:
+    comment_id = f"{PAGE_ID}_own_{uuid4().hex[:8]}"
+    caplog.set_level("INFO", logger="investhome.meta.comments")
+    with caplog.at_level("INFO", logger="investhome.meta.comments"):
+        response, _ = _post(client, _fb_comment_payload(comment_id=comment_id, sender=PAGE_ID))
+    assert response.status_code == 200, response.text
+    assert response.json()["ingested"] == 0
+    assert "reason=page_own_comment" in caplog.text
+    assert db.scalar(select(CrmCommunication).where(CrmCommunication.external_provider_id == comment_id)) is None
+
+
+def test_facebook_comment_delete_verb_is_skipped(client: TestClient, db: Session, caplog: pytest.LogCaptureFixture) -> None:
+    comment_id = f"{PAGE_ID}_delverb_{uuid4().hex[:8]}"
+    caplog.set_level("INFO", logger="investhome.meta.comments")
+    with caplog.at_level("INFO", logger="investhome.meta.comments"):
+        response, _ = _post(client, _fb_comment_payload(comment_id=comment_id, verb="delete"))
+    assert response.status_code == 200, response.text
+    assert response.json()["ingested"] == 0
+    assert "reason=unsupported_verb" in caplog.text
+    assert "verb=delete" in caplog.text
+
+
+def test_extract_facebook_comments_real_feed_shapes() -> None:
+    comment_id = f"{PAGE_ID}_shape_{uuid4().hex[:8]}"
+    missing_from = _fb_comment_payload(comment_id=comment_id, include_from=False, omit_verb=True)
+    parsed = extract_facebook_comments(missing_from, page_id=PAGE_ID)
+    assert len(parsed) == 1
+    assert parsed[0].commenter_id == f"{FACEBOOK_ANON_COMMENTER_PREFIX}{comment_id}"
+    assert parsed[0].parent_id == f"{PAGE_ID}_888111"
+
+    photo_id = f"{PAGE_ID}_vid_1"
+    video = _fb_comment_payload(
+        comment_id=f"{comment_id}_v",
+        omit_post_id=True,
+        video_id=photo_id,
+        verb="edited",
+    )
+    parsed_video = extract_facebook_comments(video, page_id=PAGE_ID)
+    assert len(parsed_video) == 1
+    assert parsed_video[0].parent_id == photo_id
 
 
 def test_facebook_ad_comment_inbound_uses_webhook_context(client: TestClient, db: Session) -> None:
