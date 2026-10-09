@@ -607,6 +607,35 @@
   width: min(640px, 96vw);
 }
 
+.crm-comm-drawer.is-comment {
+  width: min(920px, 98vw);
+}
+
+.crm-comm-comment-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .crm-comm-comment-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.crm-comm-comment-main {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.crm-comm-comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .crm-comm-drawer__head {
   display: flex;
   align-items: center;
@@ -703,6 +732,12 @@
   gap: 2px;
   color: var(--comm-muted);
   font-size: 12px;
+}
+
+.crm-comm-parent__unavailable {
+  margin: 0;
+  color: #9b2c2c;
+  font-size: 12.5px;
 }
 
 .crm-comm-reply {

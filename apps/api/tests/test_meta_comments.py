@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from time import time
 from uuid import uuid4
 
 import pytest
@@ -20,8 +21,12 @@ from investhome_api.services.crm.meta_comments import (
     FACEBOOK_COMMENTER_KEY,
     PUBLIC_COMMENT_NOT_CONFIGURED,
     PUBLIC_COMMENT_SEND_FAILED,
+    PUBLIC_LIKE_UNSUPPORTED,
+    PUBLIC_PRIVATE_REPLY_ALREADY_SENT,
+    PUBLIC_PRIVATE_REPLY_UNAVAILABLE,
     comment_conversation_key,
 )
+from investhome_api.services.crm.meta_send import FACEBOOK_MESSAGES_URL, instagram_messages_url
 from investhome_api.services.crm.meta_webhook import FACEBOOK_PSID_KEY, INSTAGRAM_IGSID_KEY
 
 from test_meta_send import IG_TOKEN, PAGE_TOKEN, SEND_PATH, _DummyResponse, _enable_instagram_send
@@ -68,6 +73,7 @@ def _fb_comment_payload(
     ad_title: str | None = None,
     permalink: str | None = "https://www.facebook.com/posts/888111",
 ) -> dict:
+    stamped = int(time())
     post = {"id": post_id, "permalink_url": permalink, "is_published": is_published}
     value = {
         "item": "comment",
@@ -75,7 +81,7 @@ def _fb_comment_payload(
         "comment_id": comment_id,
         "post_id": post_id,
         "parent_id": post_id,
-        "created_time": 1710000000,
+        "created_time": stamped,
         "message": text,
         "from": {"id": sender, "name": name},
         "post": post,
@@ -88,7 +94,7 @@ def _fb_comment_payload(
         post["ad_title"] = ad_title
     if is_published is False:
         post["promotion_status"] = "active"
-    return {"object": "page", "entry": [{"id": PAGE_ID, "time": 1710000000, "changes": [{"field": "feed", "value": value}]}]}
+    return {"object": "page", "entry": [{"id": PAGE_ID, "time": stamped, "changes": [{"field": "feed", "value": value}]}]}
 
 
 def _ig_comment_payload(
@@ -107,18 +113,20 @@ def _ig_comment_payload(
         media["original_media_id"] = original_media_id
     if ad_id:
         media["ad_id"] = ad_id
+    stamped = int(time())
     return {
         "object": "instagram",
         "entry": [
             {
                 "id": IG_WEBHOOK_ACCOUNT_ID,
-                "time": 1710000000,
+                "time": stamped,
                 "changes": [
                     {
                         "field": "comments",
                         "value": {
                             "id": comment_id,
                             "text": text,
+                            "timestamp": stamped,
                             "from": {"id": sender, "username": username},
                             "media": media,
                         },
@@ -546,3 +554,354 @@ def test_instagram_incomplete_comments_payload_is_not_ingested(client: TestClien
     assert response.json()["ingested"] == 0
     assert int(db.scalar(select(func.count()).select_from(CrmCommunication)) or 0) == 0
     assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 0
+
+
+def _conversation(client: TestClient, *, comment_id: str, channel: str, contact_id: str):
+    return client.get(
+        "/crm/live-communications/conversation",
+        params={
+            "chat_id": comment_conversation_key(comment_id),
+            "channel": channel,
+            "contact_id": contact_id,
+        },
+    )
+
+
+def test_instagram_comment_parent_context_fetched_on_detail(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    comment_id = f"igctx_{uuid4().hex[:10]}"
+    sender = "17841400001234567"
+    _post(client, _ig_comment_payload(comment_id=comment_id, sender=sender, username="c_hasan_acar"))
+    db.expire_all()
+    row = _comment_row(db, comment_id)
+    assert not ((row.metadata_json or {}).get("comment_context") or {}).get("preview_url")
+    contact = db.scalar(select(CrmContact))
+    assert contact is not None
+    monkeypatch.setenv("META_INSTAGRAM_ACCESS_TOKEN", IG_TOKEN)
+    get_settings.cache_clear()
+
+    def _fake_get(url: str, *, token: str, fields: str):
+        assert token == IG_TOKEN
+        if comment_id in url:
+            return {
+                "id": comment_id,
+                "username": "c_hasan_acar",
+                "from": {"id": sender, "username": "c_hasan_acar"},
+                "media": {
+                    "id": "17999900001111",
+                    "caption": "Uniloft reel",
+                    "media_type": "VIDEO",
+                    "thumbnail_url": "https://scontent.cdninstagram.com/thumb.jpg",
+                    "permalink": "https://www.instagram.com/reel/abc/",
+                    "timestamp": "2026-04-01T12:00:00+0000",
+                    "username": "investhome",
+                },
+            }
+        return None
+
+    monkeypatch.setattr(meta_comments, "_graph_get", _fake_get)
+    listed = _conversation(client, comment_id=comment_id, channel="instagram", contact_id=str(contact.id))
+    assert listed.status_code == 200, listed.text
+    body = listed.json()
+    context = body["comment_context"]
+    assert context["preview_url"] == "https://scontent.cdninstagram.com/thumb.jpg"
+    assert context["caption"] == "Uniloft reel"
+    assert context["permalink"] == "https://www.instagram.com/reel/abc/"
+    assert body["comment_capabilities"]["reply_prefix"] == "@c_hasan_acar "
+    assert body["comment_capabilities"]["can_like"] is False
+    assert body["comment_capabilities"]["can_private_reply"] is True
+    assert any((message.get("summary") or "") == "Harika reel" for message in body["messages"])
+    db.expire_all()
+    stored = (_comment_row(db, comment_id).metadata_json or {}).get("comment_context") or {}
+    assert stored["preview_url"] == context["preview_url"]
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 0
+
+
+def test_facebook_comment_parent_context_fetched_on_detail(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    comment_id = f"{PAGE_ID}_fbctx_{uuid4().hex[:8]}"
+    _post(client, _fb_comment_payload(comment_id=comment_id, permalink=None))
+    db.expire_all()
+    contact = db.scalar(select(CrmContact))
+    assert contact is not None
+    monkeypatch.setenv("META_PAGE_ACCESS_TOKEN", PAGE_TOKEN)
+    get_settings.cache_clear()
+
+    def _fake_get(url: str, *, token: str, fields: str):
+        if comment_id in url:
+            return {"id": comment_id, "can_reply_privately": True, "user_likes": False, "from": {"name": "Ali Yorum"}}
+        if "888111" in url:
+            return {
+                "id": f"{PAGE_ID}_888111",
+                "message": "Uniloft daireleri",
+                "permalink_url": "https://www.facebook.com/posts/mapped",
+                "full_picture": "https://scontent.xx.fbcdn.net/preview.jpg",
+                "created_time": "2026-04-01T12:00:00+0000",
+                "from": {"name": "Investhome"},
+            }
+        return None
+
+    monkeypatch.setattr(meta_comments, "_graph_get", _fake_get)
+    listed = _conversation(client, comment_id=comment_id, channel="facebook", contact_id=str(contact.id))
+    assert listed.status_code == 200, listed.text
+    context = listed.json()["comment_context"]
+    caps = listed.json()["comment_capabilities"]
+    assert context["preview_url"].endswith("preview.jpg")
+    assert context["caption"] == "Uniloft daireleri"
+    assert caps["can_like"] is True
+    assert caps["can_private_reply"] is True
+    assert caps["reply_prefix"] is None
+    assert any((message.get("summary") or "") == "Fiyat nedir?" for message in listed.json()["messages"])
+
+
+def test_missing_context_fetch_fallback_is_visible(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    comment_id = f"igmiss_{uuid4().hex[:10]}"
+    _post(client, _ig_comment_payload(comment_id=comment_id, text="Bos onizleme"))
+    db.expire_all()
+    contact = db.scalar(select(CrmContact))
+    assert contact is not None
+    monkeypatch.setenv("META_INSTAGRAM_ACCESS_TOKEN", IG_TOKEN)
+    get_settings.cache_clear()
+    monkeypatch.setattr(meta_comments, "_graph_get", lambda *args, **kwargs: None)
+    listed = _conversation(client, comment_id=comment_id, channel="instagram", contact_id=str(contact.id))
+    assert listed.status_code == 200
+    body = listed.json()
+    caps = body["comment_capabilities"]
+    assert caps["context_status"] == "unavailable"
+    assert caps["context_error"]
+    context = body["comment_context"]
+    assert context["parent_id"] == "17999900001111"
+    assert not context.get("preview_url")
+    assert not context.get("caption")
+    assert any((message.get("summary") or "") == "Bos onizleme" for message in body["messages"])
+
+
+def test_instagram_private_reply_from_comment(client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    comment_id = f"igpriv_{uuid4().hex[:10]}"
+    sender = "17841400003330001"
+    _post(client, _ig_comment_payload(comment_id=comment_id, sender=sender, username="c_hasan_acar"))
+    db.expire_all()
+    contact = db.scalar(select(CrmContact))
+    assert contact is not None
+    _enable_instagram_send(monkeypatch)
+    calls: list[dict] = []
+
+    def _ok(url: str, payload: dict, token: str):
+        calls.append({"url": url, "payload": payload, "token": token})
+        assert token == IG_TOKEN
+        assert url == instagram_messages_url(IG_ACCOUNT_ID)
+        assert payload["recipient"] == {"comment_id": comment_id}
+        assert "id" not in payload["recipient"]
+        return _DummyResponse(200, {"message_id": "mid.priv.ig.1", "recipient_id": sender})
+
+    monkeypatch.setattr(meta_comments, "_post_graph_messages", _ok)
+    first = client.post(
+        SEND_PATH,
+        json={
+            "channel": "instagram",
+            "contact_id": str(contact.id),
+            "conversation_key": comment_conversation_key(comment_id),
+            "text": "Ozel IG",
+            "kind": "private_reply",
+        },
+    )
+    second = client.post(
+        SEND_PATH,
+        json={
+            "channel": "instagram",
+            "contact_id": str(contact.id),
+            "conversation_key": comment_conversation_key(comment_id),
+            "text": "Ozel IG 2",
+            "kind": "private_reply",
+        },
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["provider_message_id"] == "mid.priv.ig.1"
+    assert second.status_code == 409
+    assert second.json()["detail"] == PUBLIC_PRIVATE_REPLY_ALREADY_SENT
+    assert len(calls) == 1
+    db.expire_all()
+    outgoing = db.scalar(
+        select(CrmCommunication).where(
+            CrmCommunication.channel == "instagram",
+            CrmCommunication.direction == "outbound",
+        )
+    )
+    assert outgoing is not None
+    assert (outgoing.metadata_json or {}).get("kind") == "dm"
+    assert (outgoing.metadata_json or {}).get("private_reply") is True
+    assert outgoing.conversation_key == sender
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 0
+
+
+def test_facebook_private_reply_requires_capability(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    comment_id = f"{PAGE_ID}_nopriv_{uuid4().hex[:8]}"
+    _post(client, _fb_comment_payload(comment_id=comment_id))
+    db.expire_all()
+    contact = db.scalar(select(CrmContact))
+    assert contact is not None
+    monkeypatch.setenv("META_PAGE_ACCESS_TOKEN", PAGE_TOKEN)
+    get_settings.cache_clear()
+    called = {"n": 0}
+
+    def _fake_post(url: str, payload: dict, token: str):
+        called["n"] += 1
+        return _DummyResponse(200, {"message_id": "should-not"})
+
+    monkeypatch.setattr(meta_comments, "_post_graph_messages", _fake_post)
+    denied = client.post(
+        SEND_PATH,
+        json={
+            "channel": "facebook",
+            "contact_id": str(contact.id),
+            "conversation_key": comment_conversation_key(comment_id),
+            "text": "Ozel FB",
+            "kind": "private_reply",
+        },
+    )
+    assert denied.status_code == 400
+    assert denied.json()["detail"] == PUBLIC_PRIVATE_REPLY_UNAVAILABLE
+    assert called["n"] == 0
+
+
+def test_facebook_private_reply_when_permitted(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    comment_id = f"{PAGE_ID}_priv_{uuid4().hex[:8]}"
+    sender = "1029384756108888"
+    _post(client, _fb_comment_payload(comment_id=comment_id, sender=sender))
+    db.expire_all()
+    contact = db.scalar(select(CrmContact))
+    assert contact is not None
+    monkeypatch.setenv("META_PAGE_ACCESS_TOKEN", PAGE_TOKEN)
+    get_settings.cache_clear()
+
+    def _fake_get(url: str, *, token: str, fields: str):
+        if comment_id in url:
+            return {"id": comment_id, "can_reply_privately": True, "user_likes": False}
+        return None
+
+    def _ok(url: str, payload: dict, token: str):
+        assert url == FACEBOOK_MESSAGES_URL
+        assert payload["recipient"] == {"comment_id": comment_id}
+        return _DummyResponse(200, {"message_id": "mid.priv.fb.1", "recipient_id": sender})
+
+    monkeypatch.setattr(meta_comments, "_graph_get", _fake_get)
+    monkeypatch.setattr(meta_comments, "_post_graph_messages", _ok)
+    ok = client.post(
+        SEND_PATH,
+        json={
+            "channel": "facebook",
+            "contact_id": str(contact.id),
+            "conversation_key": comment_conversation_key(comment_id),
+            "text": "Ozel FB",
+            "kind": "private_reply",
+        },
+    )
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["provider_message_id"] == "mid.priv.fb.1"
+    db.expire_all()
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 0
+
+
+def test_facebook_private_reply_graph_error_is_not_fake_success(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    comment_id = f"{PAGE_ID}_privfail_{uuid4().hex[:8]}"
+    _post(client, _fb_comment_payload(comment_id=comment_id, sender="1029384756107771"))
+    db.expire_all()
+    contact = db.scalar(select(CrmContact))
+    assert contact is not None
+    monkeypatch.setenv("META_PAGE_ACCESS_TOKEN", PAGE_TOKEN)
+    get_settings.cache_clear()
+
+    def _fake_get(url: str, *, token: str, fields: str):
+        if comment_id in url:
+            return {"id": comment_id, "can_reply_privately": True, "user_likes": False}
+        return None
+
+    def _fail(url: str, payload: dict, token: str):
+        return _DummyResponse(400, {"error": {"message": "window closed"}})
+
+    monkeypatch.setattr(meta_comments, "_graph_get", _fake_get)
+    monkeypatch.setattr(meta_comments, "_post_graph_messages", _fail)
+    failed = client.post(
+        SEND_PATH,
+        json={
+            "channel": "facebook",
+            "contact_id": str(contact.id),
+            "conversation_key": comment_conversation_key(comment_id),
+            "text": "Olmasin",
+            "kind": "private_reply",
+        },
+    )
+    assert failed.status_code == 502
+    assert failed.json()["detail"] == meta_comments.PUBLIC_PRIVATE_REPLY_FAILED
+    db.expire_all()
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 0
+    outbound = list(
+        db.scalars(
+            select(CrmCommunication).where(
+                CrmCommunication.channel == "facebook",
+                CrmCommunication.direction == "outbound",
+            )
+        ).all()
+    )
+    assert outbound == []
+
+
+def test_instagram_comment_matches_existing_dm_contact(client: TestClient, db: Session) -> None:
+    sender = "17841400005555555"
+    dm, _ = _post(client, _ig_payload(message_id=f"mid.{uuid4().hex}", sender=sender, text="Once DM"))
+    assert dm.json()["ingested"] == 1
+    db.expire_all()
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 1
+    comment, _ = _post(
+        client, _ig_comment_payload(comment_id=f"igmatch_{uuid4().hex[:10]}", sender=sender, username="c_hasan_acar")
+    )
+    assert comment.json()["ingested"] == 1
+    db.expire_all()
+    assert int(db.scalar(select(func.count()).select_from(CrmContact)) or 0) == 1
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 1
+    contact = db.scalar(select(CrmContact))
+    assert contact is not None
+    assert (contact.metadata_json or {}).get(INSTAGRAM_IGSID_KEY) == sender
+
+
+def test_comment_like_capability_by_platform(client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    ig_comment = f"iglike_{uuid4().hex[:10]}"
+    fb_comment = f"{PAGE_ID}_like_{uuid4().hex[:8]}"
+    _post(client, _ig_comment_payload(comment_id=ig_comment))
+    _post(client, _fb_comment_payload(comment_id=fb_comment, sender="1029384756109999"))
+    db.expire_all()
+    ig_denied = client.post(
+        "/crm/live-communications/comment-action",
+        json={"channel": "instagram", "conversation_key": comment_conversation_key(ig_comment), "action": "like"},
+    )
+    assert ig_denied.status_code == 400
+    assert ig_denied.json()["detail"] == PUBLIC_LIKE_UNSUPPORTED
+    monkeypatch.setenv("META_PAGE_ACCESS_TOKEN", PAGE_TOKEN)
+    get_settings.cache_clear()
+
+    def _ok(url: str, payload: dict, token: str):
+        assert url.endswith(f"/{fb_comment}/likes")
+        assert token == PAGE_TOKEN
+        return _DummyResponse(200, {"success": True})
+
+    monkeypatch.setattr(meta_comments, "_post_graph_messages", _ok)
+    liked = client.post(
+        "/crm/live-communications/comment-action",
+        json={"channel": "facebook", "conversation_key": comment_conversation_key(fb_comment), "action": "like"},
+    )
+    assert liked.status_code == 200, liked.text
+    assert liked.json()["liked"] is True
+    assert liked.json()["can_like"] is True
+    db.expire_all()
+    seed = _comment_row(db, fb_comment)
+    assert (seed.metadata_json or {}).get("user_likes") is True

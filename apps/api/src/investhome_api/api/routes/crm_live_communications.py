@@ -23,6 +23,8 @@ from investhome_api.models.crm_communication import (
 )
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.crm_live_communications import (
+    CommentActionRequest,
+    CommentActionResponse,
     CommunicationAccountCreate,
     CommunicationAccountListResponse,
     CommunicationAccountOut,
@@ -56,7 +58,12 @@ from investhome_api.services.crm.live_accounts import (
     upgrade_legacy_credentials,
 )
 from investhome_api.services.crm.live_ingest import confirm_match, ignore_unmatched, ingest_live_message
-from investhome_api.services.crm.meta_comments import parse_comment_id, send_meta_comment_reply
+from investhome_api.services.crm.meta_comments import (
+    parse_comment_id,
+    send_meta_comment_reply,
+    send_meta_private_reply,
+    set_comment_like,
+)
 from investhome_api.services.crm.meta_send import MetaSendError, send_meta_dm
 from investhome_api.services.permission_service import user_has_permission
 
@@ -239,6 +246,7 @@ def get_whatsapp_conversation(
         chat_id=chat_id,
         channel=channel,
     )
+    db.commit()
     body.request_id = get_request_id() or ""
     return body
 
@@ -250,8 +258,15 @@ def send_live_communication(
     user: User = Depends(require_permission("crm", "send_communications")),
 ) -> LiveSendResponse:
     try:
-        is_comment = (payload.kind or "").strip().lower() == "comment" or bool(parse_comment_id(payload.conversation_key))
-        sender = send_meta_comment_reply if is_comment else send_meta_dm
+        kind = (payload.kind or "").strip().lower()
+        is_private = kind == "private_reply"
+        is_comment = kind == "comment" or (bool(parse_comment_id(payload.conversation_key)) and not is_private)
+        if is_private:
+            sender = send_meta_private_reply
+        elif is_comment:
+            sender = send_meta_comment_reply
+        else:
+            sender = send_meta_dm
         comm, created = sender(
             db,
             channel=payload.channel,
@@ -282,6 +297,34 @@ def send_live_communication(
         contact_id=comm.contact_id,
         lead_id=lead_id,
         duplicate=not created,
+        request_id=get_request_id() or "",
+    )
+
+
+@router.post("/crm/live-communications/comment-action", response_model=CommentActionResponse)
+def comment_action(
+    payload: CommentActionRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("crm", "send_communications")),
+) -> CommentActionResponse:
+    _ = user
+    action = (payload.action or "").strip().lower()
+    if action not in {"like", "unlike"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported comment action")
+    try:
+        result = set_comment_like(
+            db,
+            channel=payload.channel,
+            conversation_key=payload.conversation_key,
+            liked=action == "like" if payload.liked is None else bool(payload.liked),
+        )
+        db.commit()
+    except MetaSendError as exc:
+        db.rollback()
+        raise HTTPException(status_code=exc.status_code, detail=exc.public_detail) from exc
+    return CommentActionResponse(
+        liked=bool(result.get("liked")),
+        can_like=bool(result.get("can_like")),
         request_id=get_request_id() or "",
     )
 

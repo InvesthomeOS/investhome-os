@@ -18,6 +18,7 @@ from investhome_api.models.crm_communication import CrmCommunication, CrmCommuni
 from investhome_api.models.crm_contact import CrmContact
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.crm_live_communications import (
+    CommentCapabilities,
     CommunicationConversationMessage,
     CommunicationConversationResponse,
     CommunicationFeedItem,
@@ -642,8 +643,16 @@ def list_communication_feed(
             and not (item.channel == "whatsapp" and item.conversation_key and item.conversation_key in wa_threads)
         ]
         merged: dict[str, CommunicationFeedItem] = {}
-        for item in [*live_items, *items]:
-            merged[item.source_key] = item
+        for item in [*items, *live_items]:
+            previous = merged.get(item.source_key)
+            if previous is None:
+                merged[item.source_key] = item
+                continue
+            chosen = item if item.source != "activity" else previous
+            other = previous if chosen is item else item
+            if not chosen.comment_context and other.comment_context:
+                chosen.comment_context = other.comment_context
+            merged[item.source_key] = chosen
         items = sorted(
             merged.values(),
             key=lambda item: (item.occurred_at.replace(tzinfo=None) if item.occurred_at and item.occurred_at.tzinfo else item.occurred_at)
@@ -758,9 +767,18 @@ def list_whatsapp_conversation(
                 seen.add(provider_id)
         messages.sort(key=lambda item: item.created_at)
     contact = db.get(CrmContact, person_id) if person_id else None
+    comment_context = None
+    comment_capabilities = None
+    if resolved in {"facebook", "instagram"} and chat:
+        from investhome_api.services.crm.meta_comments import load_comment_thread_meta
+
+        comment_context, caps = load_comment_thread_meta(db, conversation_key=chat, channel=resolved)
+        comment_capabilities = CommentCapabilities(**caps) if caps else None
     return CommunicationConversationResponse(
         contact_id=person_id,
         contact_name=contact.display_name if contact else None,
         conversation_key=chat or None,
         messages=messages,
+        comment_context=comment_context,
+        comment_capabilities=comment_capabilities,
     )

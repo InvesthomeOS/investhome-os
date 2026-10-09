@@ -188,11 +188,24 @@ class CommunicationConversationMessage(BaseModel):
     metadata: dict[str, Any] | None = None
 
 
+class CommentCapabilities(BaseModel):
+    can_public_reply: bool = False
+    can_private_reply: bool = False
+    can_like: bool = False
+    liked: bool = False
+    reply_prefix: str | None = None
+    commenter_name: str | None = None
+    context_status: str | None = None
+    context_error: str | None = None
+
+
 class CommunicationConversationResponse(BaseModel):
     contact_id: UUID | None = None
     contact_name: str | None = None
     conversation_key: str | None = None
     messages: list[CommunicationConversationMessage] = Field(default_factory=list)
+    comment_context: dict[str, Any] | None = None
+    comment_capabilities: CommentCapabilities | None = None
     request_id: str = ""
 
 
@@ -212,4 +225,18 @@ class LiveSendResponse(BaseModel):
     contact_id: UUID | None = None
     lead_id: UUID | None = None
     duplicate: bool = False
+    request_id: str = ""
+
+
+class CommentActionRequest(BaseModel):
+    channel: str = Field(min_length=3, max_length=40)
+    conversation_key: str | None = Field(default=None, max_length=255)
+    contact_id: UUID | None = None
+    action: str = Field(min_length=3, max_length=40)
+    liked: bool | None = None
+
+
+class CommentActionResponse(BaseModel):
+    liked: bool = False
+    can_like: bool = False
     request_id: str = ""

@@ -469,6 +469,17 @@ export async function fetchCommunicationFeed(
   return apiFetch(`/crm/live-communications/feed?${q.toString()}`);
 }
 
+export type CommentCapabilities = {
+  can_public_reply: boolean;
+  can_private_reply: boolean;
+  can_like: boolean;
+  liked: boolean;
+  reply_prefix?: string | null;
+  commenter_name?: string | null;
+  context_status?: string | null;
+  context_error?: string | null;
+};
+
 export async function fetchWhatsappConversation(params: {
   activity_id?: string;
   contact_id?: string;
@@ -479,6 +490,8 @@ export async function fetchWhatsappConversation(params: {
   contact_name: string | null;
   conversation_key: string | null;
   messages: CommunicationConversationMessage[];
+  comment_context?: Record<string, unknown> | null;
+  comment_capabilities?: CommentCapabilities | null;
 }> {
   const q = buildParams({
     activity_id: params.activity_id,
@@ -505,6 +518,19 @@ export async function sendLiveCommunication(payload: {
   duplicate: boolean;
 }> {
   return apiFetch('/crm/live-communications/send', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function sendCommentAction(payload: {
+  channel: string;
+  conversation_key?: string | null;
+  contact_id?: string | null;
+  action: 'like' | 'unlike';
+  liked?: boolean;
+}): Promise<{ liked: boolean; can_like: boolean }> {
+  return apiFetch('/crm/live-communications/comment-action', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

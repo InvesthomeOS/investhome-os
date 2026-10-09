@@ -13,7 +13,7 @@ import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { fetchActivity } from '@/workspaces/crm/api/activities';
 import { ApiError } from '@/lib/api/client';
 import type { CommunicationFeedItem } from '@/workspaces/crm/api/communication';
-import { sendLiveCommunication } from '@/workspaces/crm/api/communication';
+import { sendCommentAction, sendLiveCommunication } from '@/workspaces/crm/api/communication';
 import { EmailDetail } from '@/workspaces/crm/contact-card/crm-email-view';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import {
@@ -97,26 +97,27 @@ function contextText(value: unknown): string {
 }
 
 function CommentParentCard({
-  item,
+  context,
   locale,
   t,
 }: {
-  item: CommunicationFeedItem;
+  context: Record<string, unknown>;
   locale: string;
   t: (key: string) => string;
 }) {
-  const context = item.comment_context || {};
   const caption = contextText(context.caption) || contextText(context.message);
   const previewUrl = contextText(context.preview_url);
   const permalink = contextText(context.permalink);
   const mediaType = contextText(context.media_type);
   const accountName = contextText(context.account_name);
-  const parentId = contextText(context.parent_id) || contextText(context.comment_id);
+  const parentId = contextText(context.parent_id);
   const published = contextText(context.published_time);
   const adName = contextText(context.ad_name);
   const adId = contextText(context.ad_id);
   const campaignName = contextText(context.campaign_name);
   const campaignId = contextText(context.campaign_id);
+  const platform = contextText(context.platform);
+  const unavailable = !previewUrl && !caption;
   return (
     <article className="crm-comm-parent" data-testid="crm-comm-parent-card">
       {previewUrl ? (
@@ -124,8 +125,14 @@ function CommentParentCard({
         <img className="crm-comm-parent__media" src={previewUrl} alt="" />
       ) : null}
       {caption ? <p className="crm-comm-parent__caption">{caption}</p> : null}
+      {unavailable ? (
+        <p className="crm-comm-parent__unavailable" data-testid="crm-comm-parent-unavailable">
+          {t('parentUnavailable')}
+        </p>
+      ) : null}
       <div className="crm-comm-parent__meta">
         <span>{t('parentPost')}</span>
+        {platform ? <span>{platform}</span> : null}
         {accountName ? <span>{accountName}</span> : null}
         {mediaType ? <span>{mediaType}</span> : null}
         {parentId ? <span>{parentId}</span> : null}
@@ -274,6 +281,7 @@ export function CrmCommunicationLiveWorkspace() {
   const [menuId, setMenuId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [replyError, setReplyError] = useState('');
+  const [composerMode, setComposerMode] = useState<'public' | 'private' | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -293,6 +301,7 @@ export function CrmCommunicationLiveWorkspace() {
   useEffect(() => {
     setReplyText('');
     setReplyError('');
+    setComposerMode(null);
   }, [selected?.id]);
 
   const listParams = useMemo(
@@ -357,6 +366,17 @@ export function CrmCommunicationLiveWorkspace() {
     mutationFn: sendLiveCommunication,
     onSuccess: async () => {
       setReplyText('');
+      setReplyError('');
+      setComposerMode(null);
+      await queryClient.invalidateQueries({ queryKey: ['crm', 'communications'] });
+    },
+    onError: (error) => {
+      setReplyError(error instanceof ApiError ? error.message : t('sendFailed'));
+    },
+  });
+  const likeMutation = useMutation({
+    mutationFn: sendCommentAction,
+    onSuccess: async () => {
       setReplyError('');
       await queryClient.invalidateQueries({ queryKey: ['crm', 'communications'] });
     },
@@ -823,7 +843,7 @@ export function CrmCommunicationLiveWorkspace() {
         <>
           <button type="button" className="crm-comm-drawer-backdrop" aria-label={tCommon('close')} onClick={() => setSelected(null)} />
           <aside
-            className={`crm-comm-drawer${isThreadChannel ? ' is-wide' : ''}`}
+            className={`crm-comm-drawer${isThreadChannel ? ' is-wide' : ''}${isCommentItem(selected) ? ' is-comment' : ''}`}
             role="dialog"
             aria-label={t('drawerTitle')}
             data-testid="crm-comm-drawer"
@@ -873,78 +893,205 @@ export function CrmCommunicationLiveWorkspace() {
                   </a>
                 ) : null}
               </div>
-              {isCommentItem(selected) ? <CommentParentCard item={selected} locale={locale} t={t} /> : null}
-              {isThreadChannel ? (
-                conversationQuery.data?.messages?.length ? (
-                  <WhatsAppThread
-                    messages={conversationQuery.data.messages.map((message) => ({
-                      id: message.id,
-                      activity_type: message.activity_type,
-                      title: message.title,
-                      summary: message.summary,
-                      actor_name: message.actor_name,
-                      created_at: message.created_at,
-                      metadata: message.metadata,
-                    }))}
-                    locale={locale}
-                    channels={[selected.channel]}
-                    testId={
-                      selected.channel === 'whatsapp'
-                        ? 'whatsapp-thread'
-                        : isCommentItem(selected)
-                          ? 'meta-comment-thread'
-                          : 'meta-dm-thread'
-                    }
-                  />
-                ) : (
-                  <div className="crm-comm-note">{drawerBody || rowCopy(selected).preview || rowCopy(selected).subject}</div>
-                )
-              ) : (
-                <div className="crm-comm-note">{drawerBody || rowCopy(selected).preview || rowCopy(selected).subject}</div>
-              )}
-              {canReplySelected ? (
-                <form
-                  className="crm-comm-reply"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    if (sendMutation.isPending) return;
-                    const text = replyText.trim();
-                    if (!text || !selected.contact_id) return;
-                    setReplyError('');
-                    sendMutation.mutate({
-                      channel: selected.channel,
-                      contact_id: selected.contact_id,
-                      conversation_key: selected.conversation_key,
-                      text,
-                      kind: isCommentItem(selected) ? 'comment' : 'dm',
-                    });
-                  }}
-                >
-                  <textarea
-                    value={replyText}
-                    onChange={(event) => setReplyText(event.target.value)}
-                    placeholder={t('replyPlaceholder')}
-                    disabled={sendMutation.isPending}
-                    data-testid="crm-comm-reply-input"
-                  />
-                  {replyError ? (
-                    <p className="crm-comm-reply__error" role="alert" data-testid="crm-comm-reply-error">
-                      {replyError}
-                    </p>
-                  ) : null}
-                  <div className="crm-comm-reply__actions">
-                    <Button
-                      type="submit"
-                      size="sm"
-                      loading={sendMutation.isPending}
-                      disabled={sendMutation.isPending || !replyText.trim()}
-                      data-testid="crm-comm-reply-send"
-                    >
-                      {sendMutation.isPending ? t('sending') : t('send')}
-                    </Button>
+              {isCommentItem(selected) ? (
+                <div className="crm-comm-comment-layout">
+                  <div className="crm-comm-comment-main">
+                    {conversationQuery.data?.messages?.length ? (
+                      <WhatsAppThread
+                        messages={conversationQuery.data.messages.map((message) => ({
+                          id: message.id,
+                          activity_type: message.activity_type,
+                          title: message.title,
+                          summary: message.summary,
+                          actor_name: message.actor_name,
+                          created_at: message.created_at,
+                          metadata: message.metadata,
+                        }))}
+                        locale={locale}
+                        channels={[selected.channel]}
+                        testId="meta-comment-thread"
+                      />
+                    ) : (
+                      <div className="crm-comm-note">{drawerBody || rowCopy(selected).preview || rowCopy(selected).subject}</div>
+                    )}
+                    {canSendMeta ? (
+                      <div className="crm-comm-comment-actions">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          data-testid="crm-comm-reply-public"
+                          onClick={() => {
+                            const prefix = conversationQuery.data?.comment_capabilities?.reply_prefix || '';
+                            setComposerMode('public');
+                            setReplyError('');
+                            setReplyText(prefix);
+                          }}
+                        >
+                          {t('replyPublic')}
+                        </Button>
+                        {conversationQuery.data?.comment_capabilities?.can_private_reply ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            data-testid="crm-comm-reply-private"
+                            onClick={() => {
+                              setComposerMode('private');
+                              setReplyError('');
+                              setReplyText('');
+                            }}
+                          >
+                            {t('replyPrivate')}
+                          </Button>
+                        ) : null}
+                        {conversationQuery.data?.comment_capabilities?.can_like ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            data-testid="crm-comm-comment-like"
+                            loading={likeMutation.isPending}
+                            disabled={likeMutation.isPending}
+                            onClick={() => {
+                              if (!selected.conversation_key || likeMutation.isPending) return;
+                              const liked = Boolean(conversationQuery.data?.comment_capabilities?.liked);
+                              likeMutation.mutate({
+                                channel: selected.channel,
+                                conversation_key: selected.conversation_key,
+                                contact_id: selected.contact_id,
+                                action: liked ? 'unlike' : 'like',
+                              });
+                            }}
+                          >
+                            {conversationQuery.data?.comment_capabilities?.liked ? t('unlikeComment') : t('likeComment')}
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {canSendMeta && composerMode ? (
+                      <form
+                        className="crm-comm-reply"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          if (sendMutation.isPending) return;
+                          const text = replyText.trim();
+                          if (!text || !selected.contact_id) return;
+                          setReplyError('');
+                          sendMutation.mutate({
+                            channel: selected.channel,
+                            contact_id: selected.contact_id,
+                            conversation_key: selected.conversation_key,
+                            text,
+                            kind: composerMode === 'private' ? 'private_reply' : 'comment',
+                          });
+                        }}
+                      >
+                        <textarea
+                          value={replyText}
+                          onChange={(event) => setReplyText(event.target.value)}
+                          placeholder={composerMode === 'private' ? t('privateReplyPlaceholder') : t('replyPlaceholder')}
+                          disabled={sendMutation.isPending}
+                          data-testid="crm-comm-reply-input"
+                        />
+                        {replyError ? (
+                          <p className="crm-comm-reply__error" role="alert" data-testid="crm-comm-reply-error">
+                            {replyError}
+                          </p>
+                        ) : null}
+                        <div className="crm-comm-reply__actions">
+                          <Button
+                            type="submit"
+                            size="sm"
+                            loading={sendMutation.isPending}
+                            disabled={sendMutation.isPending || !replyText.trim()}
+                            data-testid="crm-comm-reply-send"
+                          >
+                            {sendMutation.isPending ? t('sending') : t('send')}
+                          </Button>
+                        </div>
+                      </form>
+                    ) : replyError ? (
+                      <p className="crm-comm-reply__error" role="alert" data-testid="crm-comm-reply-error">
+                        {replyError}
+                      </p>
+                    ) : null}
                   </div>
-                </form>
-              ) : null}
+                  <CommentParentCard
+                    context={conversationQuery.data?.comment_context || selected.comment_context || {}}
+                    locale={locale}
+                    t={t}
+                  />
+                </div>
+              ) : (
+                <>
+                  {isThreadChannel ? (
+                    conversationQuery.data?.messages?.length ? (
+                      <WhatsAppThread
+                        messages={conversationQuery.data.messages.map((message) => ({
+                          id: message.id,
+                          activity_type: message.activity_type,
+                          title: message.title,
+                          summary: message.summary,
+                          actor_name: message.actor_name,
+                          created_at: message.created_at,
+                          metadata: message.metadata,
+                        }))}
+                        locale={locale}
+                        channels={[selected.channel]}
+                        testId={selected.channel === 'whatsapp' ? 'whatsapp-thread' : 'meta-dm-thread'}
+                      />
+                    ) : (
+                      <div className="crm-comm-note">{drawerBody || rowCopy(selected).preview || rowCopy(selected).subject}</div>
+                    )
+                  ) : (
+                    <div className="crm-comm-note">{drawerBody || rowCopy(selected).preview || rowCopy(selected).subject}</div>
+                  )}
+                  {canReplySelected ? (
+                    <form
+                      className="crm-comm-reply"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        if (sendMutation.isPending) return;
+                        const text = replyText.trim();
+                        if (!text || !selected.contact_id) return;
+                        setReplyError('');
+                        sendMutation.mutate({
+                          channel: selected.channel,
+                          contact_id: selected.contact_id,
+                          conversation_key: selected.conversation_key,
+                          text,
+                          kind: 'dm',
+                        });
+                      }}
+                    >
+                      <textarea
+                        value={replyText}
+                        onChange={(event) => setReplyText(event.target.value)}
+                        placeholder={t('replyPlaceholder')}
+                        disabled={sendMutation.isPending}
+                        data-testid="crm-comm-reply-input"
+                      />
+                      {replyError ? (
+                        <p className="crm-comm-reply__error" role="alert" data-testid="crm-comm-reply-error">
+                          {replyError}
+                        </p>
+                      ) : null}
+                      <div className="crm-comm-reply__actions">
+                        <Button
+                          type="submit"
+                          size="sm"
+                          loading={sendMutation.isPending}
+                          disabled={sendMutation.isPending || !replyText.trim()}
+                          data-testid="crm-comm-reply-send"
+                        >
+                          {sendMutation.isPending ? t('sending') : t('send')}
+                        </Button>
+                      </div>
+                    </form>
+                  ) : null}
+                </>
+              )}
             </div>
           </aside>
         </>
