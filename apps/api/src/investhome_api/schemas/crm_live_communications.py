@@ -164,6 +164,8 @@ class CommunicationFeedItem(BaseModel):
     source_key: str
     activity_id: UUID | None = None
     can_reply: bool = False
+    kind: str | None = None
+    comment_context: dict[str, Any] | None = None
 
 
 class CommunicationFeedResponse(BaseModel):
@@ -199,6 +201,7 @@ class LiveSendRequest(BaseModel):
     contact_id: UUID
     conversation_key: str | None = Field(default=None, max_length=255)
     text: str = Field(min_length=1, max_length=2000)
+    kind: str | None = Field(default=None, max_length=40)
 
 
 class LiveSendResponse(BaseModel):

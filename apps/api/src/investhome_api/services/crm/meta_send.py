@@ -155,6 +155,8 @@ def send_meta_dm(
     if contact is None or contact.archived_at is not None:
         raise MetaSendError(PUBLIC_UNKNOWN_CONTACT, 404)
 
+    if (conversation_key or "").strip().startswith("cmt:"):
+        raise MetaSendError(PUBLIC_RECIPIENT_UNAVAILABLE, 400)
     recipient_id = _recipient_id(contact, channel=normalized, conversation_key=conversation_key)
     if not recipient_id:
         raise MetaSendError(PUBLIC_RECIPIENT_UNAVAILABLE, 400)

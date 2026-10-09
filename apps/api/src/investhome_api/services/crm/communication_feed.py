@@ -68,6 +68,46 @@ CHANNEL_TYPES: dict[str, tuple[CrmActivityType, ...]] = {
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
 _REPLY_CHANNELS = frozenset({"facebook", "instagram"})
+_CHANNEL_KIND_ALIASES = {
+    "facebook_dm": ("facebook", "dm"),
+    "facebook_comment": ("facebook", "comment"),
+    "instagram_dm": ("instagram", "dm"),
+    "instagram_comment": ("instagram", "comment"),
+}
+
+
+def _split_channel(channel: str | None) -> tuple[str | None, str | None]:
+    raw = (channel or "").strip().lower() or None
+    if raw in _CHANNEL_KIND_ALIASES:
+        return _CHANNEL_KIND_ALIASES[raw]
+    return raw, None
+
+
+def _live_kind(row: CrmCommunication) -> str:
+    meta = row.metadata_json if isinstance(row.metadata_json, dict) else {}
+    kind = str(meta.get("kind") or "").strip().lower()
+    return "comment" if kind == "comment" else "dm"
+
+
+def _comment_context_from_meta(meta: object) -> dict | None:
+    if not isinstance(meta, dict):
+        return None
+    context = meta.get("comment_context")
+    if isinstance(context, dict):
+        return context
+    live = meta.get("live_thread")
+    if isinstance(live, dict) and isinstance(live.get("comment_context"), dict):
+        return live["comment_context"]
+    return None
+
+
+def _activity_kind(activity: CrmActivity) -> str:
+    metadata = activity.metadata_json if isinstance(activity.metadata_json, dict) else {}
+    live = metadata.get("live_thread") if isinstance(metadata.get("live_thread"), dict) else {}
+    kind = str(live.get("message_kind") or metadata.get("kind") or "").strip().lower()
+    return "comment" if kind == "comment" else "dm"
+
+
 _THREAD_ACTIVITY_TYPES = {
     "whatsapp": CrmActivityType.WHATSAPP,
     "facebook": CrmActivityType.FACEBOOK,
@@ -385,6 +425,8 @@ def _serialize_activity(
             contact_id=contact.id if contact else None,
             conversation_key=str(history.get("chat_id") or "") or None,
         ),
+        kind=_activity_kind(activity),
+        comment_context=_comment_context_from_meta(activity.metadata_json),
     )
 
 
@@ -408,6 +450,7 @@ def _serialize_live(
     channel = "call" if row.channel in {"phone", "call"} else row.channel
     direction = row.direction if row.direction in {"inbound", "outbound", "internal"} else "inbound"
     source_id = str(row.external_provider_id or row.content_hash or row.id)
+    meta = row.metadata_json if isinstance(row.metadata_json, dict) else {}
     return CommunicationFeedItem(
         id=row.id,
         source=row.source or "live",
@@ -433,6 +476,8 @@ def _serialize_live(
             contact_id=contact.id if contact else None,
             conversation_key=row.conversation_key,
         ),
+        kind=_live_kind(row),
+        comment_context=_comment_context_from_meta(meta),
     )
 
 
@@ -448,6 +493,7 @@ def _matched_live_rows(
     direction: str | None,
     date_from: datetime | None,
     date_to: datetime | None,
+    kind: str | None = None,
 ) -> list[CrmCommunication]:
     query = (
         select(CrmCommunication)
@@ -491,7 +537,7 @@ def _matched_live_rows(
         )
     if direction in {"inbound", "outbound", "internal"}:
         query = query.where(CrmCommunication.direction == direction)
-    return list(
+    rows = list(
         db.scalars(
             query.order_by(
                 func.coalesce(CrmCommunication.occurred_at, CrmCommunication.created_at).desc(),
@@ -499,6 +545,9 @@ def _matched_live_rows(
             ).limit(80)
         ).all()
     )
+    if kind in {"comment", "dm"}:
+        return [row for row in rows if _live_kind(row) == kind]
+    return rows
 
 
 def list_communication_feed(
@@ -517,10 +566,11 @@ def list_communication_feed(
     page_size: int = 25,
 ) -> CommunicationFeedResponse:
     stats = communication_stats(db)
+    base_channel, kind_filter = _split_channel(channel)
     query = _activity_query(
         db,
         search=search,
-        channel=channel,
+        channel=base_channel,
         contact_id=contact_id,
         person=person,
         project_group=project_group,
@@ -536,6 +586,8 @@ def list_communication_feed(
     if direction in {"inbound", "outbound", "internal"}:
         fetched = [row for row in fetched if _direction(row) == direction]
     unique = _group_whatsapp_latest(_dedupe_activities(fetched))
+    if kind_filter in {"comment", "dm"}:
+        unique = [row for row in unique if _activity_kind(row) == kind_filter]
     if start > 0:
         skip = start - max(start - page_size, 0)
         unique = unique[skip:]
@@ -543,7 +595,7 @@ def list_communication_feed(
     live_rows = _matched_live_rows(
         db,
         search=search,
-        channel=channel,
+        channel=base_channel,
         contact_id=contact_id,
         person=person,
         project_group=project_group,
@@ -551,6 +603,7 @@ def list_communication_feed(
         direction=direction,
         date_from=date_from,
         date_to=date_to,
+        kind=kind_filter,
     ) if page == 1 else []
     contact_ids = [
         item
@@ -648,10 +701,62 @@ def list_whatsapp_conversation(
             actor_name=str(_history(row).get("author_name") or "") or None,
             created_at=_occurred(row),
             activity_type=resolved,
-            metadata={"bitrix_history": _history(row), "live_thread": _history(row)},
+            metadata={
+                "bitrix_history": _history(row),
+                "live_thread": _history(row),
+                "comment_context": _comment_context_from_meta(row.metadata_json),
+            },
         )
         for row in unique
     ]
+    if resolved in {"facebook", "instagram"} and chat:
+        live_rows = list(
+            db.scalars(
+                select(CrmCommunication).where(
+                    CrmCommunication.archived_at.is_(None),
+                    CrmCommunication.channel == resolved,
+                    CrmCommunication.conversation_key == chat,
+                    CrmCommunication.match_status == CrmCommunicationMatchStatus.MATCHED.value,
+                )
+            ).all()
+        )
+        seen: set[str] = set()
+        for item in messages:
+            live = item.metadata.get("live_thread") if isinstance(item.metadata, dict) else None
+            message_id = str(live.get("message_id") or "") if isinstance(live, dict) else ""
+            if message_id:
+                seen.add(message_id)
+        for row in sorted(live_rows, key=lambda item: item.occurred_at or item.created_at):
+            provider_id = str(row.external_provider_id or "")
+            if provider_id and provider_id in seen:
+                continue
+            if any(item.id == row.id or item.id == row.activity_id for item in messages):
+                continue
+            meta = row.metadata_json if isinstance(row.metadata_json, dict) else {}
+            live_thread = {
+                "kind": row.channel,
+                "message_kind": _live_kind(row),
+                "chat_id": row.conversation_key,
+                "direction": "outgoing" if row.direction == "outbound" else "incoming",
+                "source": row.source,
+                "message_id": row.external_provider_id,
+                "author_name": row.sender_identity,
+                "comment_context": _comment_context_from_meta(meta),
+            }
+            messages.append(
+                CommunicationConversationMessage(
+                    id=row.id,
+                    title=row.subject or row.preview or resolved,
+                    summary=row.body_text or row.preview,
+                    actor_name=row.sender_identity,
+                    created_at=row.occurred_at or row.created_at,
+                    activity_type=resolved,
+                    metadata={"live_thread": live_thread, "comment_context": live_thread.get("comment_context")},
+                )
+            )
+            if provider_id:
+                seen.add(provider_id)
+        messages.sort(key=lambda item: item.created_at)
     contact = db.get(CrmContact, person_id) if person_id else None
     return CommunicationConversationResponse(
         contact_id=person_id,

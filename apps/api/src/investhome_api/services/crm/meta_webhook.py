@@ -823,17 +823,27 @@ def _ingest_instagram_messages(db: Session, messages: list[InstagramInbound], cl
 
 
 def _process_instagram(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
-    messages = extract_instagram_messages(payload, account_id=configured_instagram_webhook_account_id())
-    if not messages:
-        return {"ok": True, "duplicate": False, "ingested": 0}
-    keys = [f"ig:msg:{item.mid}" for item in messages]
-    claimed, duplicates = _claim_keys(keys)
-    if duplicates:
-        logger.info("meta_webhook_instagram_replay_duplicate count=%s", len(duplicates))
-    if not claimed:
-        return {"ok": True, "duplicate": True, "ingested": 0}
-    ingested = _ingest_instagram_messages(db, messages, set(claimed))
-    return {"ok": True, "duplicate": False, "ingested": ingested}
+    from investhome_api.services.crm.meta_comments import ingest_instagram_comments
+
+    account_id = configured_instagram_webhook_account_id()
+    messages = extract_instagram_messages(payload, account_id=account_id)
+    ingested = 0
+    duplicate = False
+    if messages:
+        keys = [f"ig:msg:{item.mid}" for item in messages]
+        claimed, duplicates = _claim_keys(keys)
+        if duplicates:
+            logger.info("meta_webhook_instagram_replay_duplicate count=%s", len(duplicates))
+        if not claimed:
+            duplicate = True
+        else:
+            ingested += _ingest_instagram_messages(db, messages, set(claimed))
+    comment_result = ingest_instagram_comments(db, payload, account_id=account_id)
+    ingested += int(comment_result.get("ingested") or 0)
+    duplicate = duplicate or bool(comment_result.get("duplicate"))
+    if ingested:
+        return {"ok": True, "duplicate": False, "ingested": ingested}
+    return {"ok": True, "duplicate": duplicate, "ingested": 0}
 
 
 def _claim_keys(keys: list[str]) -> tuple[list[str], list[str]]:
@@ -943,16 +953,23 @@ def process_meta_webhook(
         return {"ok": True, "duplicate": False, "ingested": 0, "ignored": True}
 
     page_id = require_meta_page_id()
+    from investhome_api.services.crm.meta_comments import ingest_page_comments
+
     messages, _unknown_pages = extract_messenger_messages(payload, page_id=page_id)
-    if not messages:
-        return {"ok": True, "duplicate": False, "ingested": 0}
-
-    keys = [f"msg:{item.mid}" for item in messages]
-    claimed, duplicates = _claim_keys(keys)
-    if duplicates:
-        logger.info("meta_webhook_replay_duplicate count=%s", len(duplicates))
-    if not claimed:
-        return {"ok": True, "duplicate": True, "ingested": 0}
-
-    ingested = _ingest_messages(db, messages, set(claimed))
-    return {"ok": True, "duplicate": False, "ingested": ingested}
+    ingested = 0
+    duplicate = False
+    if messages:
+        keys = [f"msg:{item.mid}" for item in messages]
+        claimed, duplicates = _claim_keys(keys)
+        if duplicates:
+            logger.info("meta_webhook_replay_duplicate count=%s", len(duplicates))
+        if not claimed:
+            duplicate = True
+        else:
+            ingested += _ingest_messages(db, messages, set(claimed))
+    comment_result = ingest_page_comments(db, payload, page_id=page_id)
+    ingested += int(comment_result.get("ingested") or 0)
+    duplicate = duplicate or bool(comment_result.get("duplicate"))
+    if ingested:
+        return {"ok": True, "duplicate": False, "ingested": ingested}
+    return {"ok": True, "duplicate": duplicate, "ingested": 0}

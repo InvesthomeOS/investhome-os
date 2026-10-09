@@ -56,6 +56,7 @@ from investhome_api.services.crm.live_accounts import (
     upgrade_legacy_credentials,
 )
 from investhome_api.services.crm.live_ingest import confirm_match, ignore_unmatched, ingest_live_message
+from investhome_api.services.crm.meta_comments import parse_comment_id, send_meta_comment_reply
 from investhome_api.services.crm.meta_send import MetaSendError, send_meta_dm
 from investhome_api.services.permission_service import user_has_permission
 
@@ -249,7 +250,9 @@ def send_live_communication(
     user: User = Depends(require_permission("crm", "send_communications")),
 ) -> LiveSendResponse:
     try:
-        comm, created = send_meta_dm(
+        is_comment = (payload.kind or "").strip().lower() == "comment" or bool(parse_comment_id(payload.conversation_key))
+        sender = send_meta_comment_reply if is_comment else send_meta_dm
+        comm, created = sender(
             db,
             channel=payload.channel,
             contact_id=payload.contact_id,

@@ -427,6 +427,8 @@ export type CommunicationFeedItem = {
   source_key: string;
   activity_id: string | null;
   can_reply?: boolean;
+  kind?: string | null;
+  comment_context?: Record<string, unknown> | null;
 };
 
 export type CommunicationFeedResponse = {
@@ -492,6 +494,7 @@ export async function sendLiveCommunication(payload: {
   contact_id: string;
   conversation_key?: string | null;
   text: string;
+  kind?: string | null;
 }): Promise<{
   id: string;
   channel: string;

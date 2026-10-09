@@ -349,11 +349,15 @@ def project_to_person_timeline(
         direction = "system"
     live_thread = {
         "kind": comm.channel,
+        "message_kind": str(meta.get("kind") or "").strip().lower() or "dm",
         "chat_id": comm.conversation_key,
         "direction": direction,
         "source": comm.source,
         "message_id": comm.external_provider_id,
         "author_name": comm.sender_identity,
+        "comment_context": meta.get("comment_context") if isinstance(meta.get("comment_context"), dict) else None,
+        "comment_id": meta.get("comment_id"),
+        "parent_id": meta.get("parent_id"),
     }
     activity = CrmActivity(
         entity_type=CrmActivityEntityType.CONTACT,
@@ -387,6 +391,8 @@ def project_to_person_timeline(
             "account_id": str(comm.account_id) if comm.account_id else None,
             "agreement_id": str(comm.agreement_id) if comm.agreement_id else None,
             "live_thread": live_thread,
+            "kind": live_thread.get("message_kind"),
+            "comment_context": live_thread.get("comment_context"),
         },
         created_by=actor.id if actor else comm.owner_id,
     )

@@ -671,6 +671,40 @@
   overflow-wrap: anywhere;
 }
 
+.crm-comm-parent {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1.5px solid var(--comm-line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.crm-comm-parent__media {
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #eef2f4;
+}
+
+.crm-comm-parent__caption {
+  margin: 0;
+  color: var(--comm-ink);
+  font-size: 13.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.crm-comm-parent__meta {
+  display: grid;
+  gap: 2px;
+  color: var(--comm-muted);
+  font-size: 12px;
+}
+
 .crm-comm-reply {
   display: grid;
   gap: 8px;

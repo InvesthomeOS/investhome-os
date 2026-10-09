@@ -68,14 +68,78 @@ function formatWhen(value: string | null | undefined, locale: string): string {
 
 function channelKey(channel: string): ChannelKey {
   if (channel === 'whatsapp') return 'whatsapp';
-  if (channel === 'facebook') return 'facebook';
-  if (channel === 'instagram') return 'instagram';
+  if (channel === 'facebook' || channel === 'facebook_dm' || channel === 'facebook_comment') return 'facebook';
+  if (channel === 'instagram' || channel === 'instagram_dm' || channel === 'instagram_comment') return 'instagram';
   if (channel === 'call' || channel === 'phone') return 'call';
   if (channel === 'comment' || channel === 'note') return 'comment';
   if (channel === 'meeting') return 'meeting';
   if (channel === 'sms') return 'sms';
   if (channel === 'email') return 'email';
   return 'other';
+}
+
+function isCommentItem(item: CommunicationFeedItem | null | undefined): boolean {
+  if (!item) return false;
+  return item.kind === 'comment' || Boolean(item.conversation_key?.startsWith('cmt:'));
+}
+
+function itemChannelLabel(
+  item: CommunicationFeedItem,
+  t: (key: string) => string,
+): string {
+  if (item.channel === 'facebook') return t(isCommentItem(item) ? 'channels.facebook_comment' : 'channels.facebook_dm');
+  if (item.channel === 'instagram') return t(isCommentItem(item) ? 'channels.instagram_comment' : 'channels.instagram_dm');
+  return t(`channels.${channelKey(item.channel)}`);
+}
+
+function contextText(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function CommentParentCard({
+  item,
+  locale,
+  t,
+}: {
+  item: CommunicationFeedItem;
+  locale: string;
+  t: (key: string) => string;
+}) {
+  const context = item.comment_context || {};
+  const caption = contextText(context.caption) || contextText(context.message);
+  const previewUrl = contextText(context.preview_url);
+  const permalink = contextText(context.permalink);
+  const mediaType = contextText(context.media_type);
+  const accountName = contextText(context.account_name);
+  const parentId = contextText(context.parent_id) || contextText(context.comment_id);
+  const published = contextText(context.published_time);
+  const adName = contextText(context.ad_name);
+  const adId = contextText(context.ad_id);
+  const campaignName = contextText(context.campaign_name);
+  const campaignId = contextText(context.campaign_id);
+  return (
+    <article className="crm-comm-parent" data-testid="crm-comm-parent-card">
+      {previewUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="crm-comm-parent__media" src={previewUrl} alt="" />
+      ) : null}
+      {caption ? <p className="crm-comm-parent__caption">{caption}</p> : null}
+      <div className="crm-comm-parent__meta">
+        <span>{t('parentPost')}</span>
+        {accountName ? <span>{accountName}</span> : null}
+        {mediaType ? <span>{mediaType}</span> : null}
+        {parentId ? <span>{parentId}</span> : null}
+        {published ? <span>{t('publishedAt')}: {formatWhen(published, locale)}</span> : null}
+        {adName || adId ? <span>{t('adName')}: {adName || adId}</span> : null}
+        {campaignName || campaignId ? <span>{t('campaignName')}: {campaignName || campaignId}</span> : null}
+      </div>
+      {permalink ? (
+        <a className="crm-comm-link" href={permalink} target="_blank" rel="noreferrer">
+          {t('openPost')}
+        </a>
+      ) : null}
+    </article>
+  );
 }
 
 function displayOwner(name: string | null | undefined): string {
@@ -454,8 +518,10 @@ export function CrmCommunicationLiveWorkspace() {
           <option value="">{t('filters.anyChannel')}</option>
           <option value="email">{t('channels.email')}</option>
           <option value="whatsapp">{t('channels.whatsapp')}</option>
-          <option value="facebook">{t('channels.facebook')}</option>
-          <option value="instagram">{t('channels.instagram')}</option>
+          <option value="facebook_dm">{t('channels.facebook_dm')}</option>
+          <option value="facebook_comment">{t('channels.facebook_comment')}</option>
+          <option value="instagram_dm">{t('channels.instagram_dm')}</option>
+          <option value="instagram_comment">{t('channels.instagram_comment')}</option>
           <option value="call">{t('channels.call')}</option>
           <option value="comment">{t('channels.comment')}</option>
           <option value="meeting">{t('channels.meeting')}</option>
@@ -581,7 +647,7 @@ export function CrmCommunicationLiveWorkspace() {
                       <td className="is-channel">
                         <span className={`crm-comm-channel is-${kind}`}>
                           <ChannelIcon channel={kind} />
-                          {t(`channels.${kind}`)}
+                          {itemChannelLabel(item, t)}
                         </span>
                       </td>
                       <td className="is-person">
@@ -767,9 +833,9 @@ export function CrmCommunicationLiveWorkspace() {
                 {selected.channel === 'whatsapp'
                   ? t('conversationTitle')
                   : selected.channel === 'facebook'
-                    ? t('facebookConversationTitle')
+                    ? t(isCommentItem(selected) ? 'facebookCommentTitle' : 'facebookConversationTitle')
                     : selected.channel === 'instagram'
-                      ? t('instagramConversationTitle')
+                      ? t(isCommentItem(selected) ? 'instagramCommentTitle' : 'instagramConversationTitle')
                       : selected.channel === 'meeting'
                         ? t('meetingTitle')
                         : selected.channel === 'comment' || selected.channel === 'note'
@@ -783,7 +849,7 @@ export function CrmCommunicationLiveWorkspace() {
             <div className="crm-comm-drawer__body">
               <dl className="crm-comm-kv">
                 <dt>{t('columns.channel')}</dt>
-                <dd>{t(`channels.${channelKey(selected.channel)}`)}</dd>
+                <dd>{itemChannelLabel(selected, t)}</dd>
                 <dt>{t('columns.when')}</dt>
                 <dd>{formatWhen(selected.occurred_at, locale)}</dd>
                 <dt>{t('columns.person')}</dt>
@@ -807,6 +873,7 @@ export function CrmCommunicationLiveWorkspace() {
                   </a>
                 ) : null}
               </div>
+              {isCommentItem(selected) ? <CommentParentCard item={selected} locale={locale} t={t} /> : null}
               {isThreadChannel ? (
                 conversationQuery.data?.messages?.length ? (
                   <WhatsAppThread
@@ -821,7 +888,13 @@ export function CrmCommunicationLiveWorkspace() {
                     }))}
                     locale={locale}
                     channels={[selected.channel]}
-                    testId={selected.channel === 'whatsapp' ? 'whatsapp-thread' : 'meta-dm-thread'}
+                    testId={
+                      selected.channel === 'whatsapp'
+                        ? 'whatsapp-thread'
+                        : isCommentItem(selected)
+                          ? 'meta-comment-thread'
+                          : 'meta-dm-thread'
+                    }
                   />
                 ) : (
                   <div className="crm-comm-note">{drawerBody || rowCopy(selected).preview || rowCopy(selected).subject}</div>
@@ -843,6 +916,7 @@ export function CrmCommunicationLiveWorkspace() {
                       contact_id: selected.contact_id,
                       conversation_key: selected.conversation_key,
                       text,
+                      kind: isCommentItem(selected) ? 'comment' : 'dm',
                     });
                   }}
                 >
