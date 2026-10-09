@@ -726,10 +726,16 @@ class InstagramInbound:
     occurred_at: datetime | None
 
 
-def extract_instagram_messages(payload: dict[str, Any], *, account_id: str | None) -> list[InstagramInbound]:
+def extract_instagram_messages(
+    payload: dict[str, Any],
+    *,
+    account_id: str | None,
+    object_name: str | None = None,
+) -> list[InstagramInbound]:
     messages: list[InstagramInbound] = []
     seen: set[str] = set()
     expected = (account_id or "").strip() or None
+    object_type = str(object_name or payload.get("object") or "").strip()
     for entry in payload.get("entry") or []:
         if not isinstance(entry, dict):
             continue
@@ -737,7 +743,13 @@ def extract_instagram_messages(payload: dict[str, Any], *, account_id: str | Non
         if not entry_id:
             continue
         if expected and entry_id != expected:
-            logger.info("meta_webhook_unknown_instagram_account")
+            # Temporary diagnostic: IDs and object type only. Never log payload, sender, text, or secrets.
+            logger.info(
+                "meta_webhook_unknown_instagram_account parsed_account_id=%s configured_account_id=%s object=%s",
+                entry_id,
+                expected,
+                object_type,
+            )
             continue
         for event in entry.get("messaging") or []:
             if not isinstance(event, dict):
@@ -819,7 +831,11 @@ def _ingest_instagram_messages(db: Session, messages: list[InstagramInbound], cl
 
 
 def _process_instagram(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
-    messages = extract_instagram_messages(payload, account_id=configured_instagram_account_id())
+    messages = extract_instagram_messages(
+        payload,
+        account_id=configured_instagram_account_id(),
+        object_name=str(payload.get("object") or "").strip(),
+    )
     if not messages:
         return {"ok": True, "duplicate": False, "ingested": 0}
     keys = [f"ig:msg:{item.mid}" for item in messages]
