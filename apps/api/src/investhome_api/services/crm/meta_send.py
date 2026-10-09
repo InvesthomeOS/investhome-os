@@ -67,6 +67,7 @@ def require_instagram_credentials() -> tuple[str, str]:
     settings = get_settings()
     token = (settings.meta_instagram_access_token or "").strip()
     account_id = (settings.meta_instagram_account_id or "").strip()
+    # Outbound Login /me id only. Never fall back to META_INSTAGRAM_WEBHOOK_ACCOUNT_ID.
     if not token or not account_id:
         logger.warning("meta_send_missing_instagram_credentials")
         raise MetaSendError(PUBLIC_INSTAGRAM_NOT_CONFIGURED, 503)

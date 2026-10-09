@@ -27,7 +27,9 @@ from investhome_api.services.crm.meta_send import (
 
 from test_meta_webhook import (
     APP_SECRET,
+    IG_ACCOUNT_ID,
     IG_APP_SECRET,
+    IG_WEBHOOK_ACCOUNT_ID,
     PAGE_ID,
     VERIFY_TOKEN,
     WEBHOOK_PATH,
@@ -38,7 +40,6 @@ from test_meta_webhook import (
 
 PAGE_TOKEN = "unit-test-meta-page-access-token"
 IG_TOKEN = "unit-test-meta-instagram-access-token"
-IG_ACCOUNT_ID = "17841411111111111"
 SEND_PATH = "/crm/live-communications/send"
 
 
@@ -49,6 +50,7 @@ def _meta_send_env(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("META_VERIFY_TOKEN", VERIFY_TOKEN)
     monkeypatch.setenv("META_PAGE_ID", PAGE_ID)
     monkeypatch.setenv("META_PAGE_ACCESS_TOKEN", PAGE_TOKEN)
+    monkeypatch.setenv("META_INSTAGRAM_WEBHOOK_ACCOUNT_ID", IG_WEBHOOK_ACCOUNT_ID)
     get_settings.cache_clear()
     meta.reset_meta_idempotency_for_tests()
     yield
@@ -224,6 +226,7 @@ def test_instagram_outbound_success_and_failure(client: TestClient, db: Session,
         assert token == IG_TOKEN
         assert token != PAGE_TOKEN
         assert url == instagram_messages_url(IG_ACCOUNT_ID)
+        assert IG_WEBHOOK_ACCOUNT_ID not in url
         assert url.startswith("https://graph.instagram.com/")
         assert FACEBOOK_MESSAGES_URL not in url
         assert "graph.facebook.com" not in url
@@ -367,6 +370,7 @@ def test_instagram_outbound_missing_account_id_fails_closed(
     monkeypatch.setenv("META_INSTAGRAM_ACCESS_TOKEN", IG_TOKEN)
     monkeypatch.delenv("META_INSTAGRAM_ACCOUNT_ID", raising=False)
     get_settings.cache_clear()
+    assert (get_settings().meta_instagram_webhook_account_id or "").strip() == IG_WEBHOOK_ACCOUNT_ID
     called = {"n": 0}
 
     def _fake_post(url: str, payload: dict, token: str):

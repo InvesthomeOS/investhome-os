@@ -545,8 +545,9 @@ def extract_messenger_messages(payload: dict[str, Any], *, page_id: str) -> tupl
     return messages, unknown_pages
 
 
-def configured_instagram_account_id() -> str | None:
-    return (get_settings().meta_instagram_account_id or "").strip() or None
+def configured_instagram_webhook_account_id() -> str | None:
+    """Inbound filter only. Never fall back to META_INSTAGRAM_ACCOUNT_ID (outbound Login /me id)."""
+    return (get_settings().meta_instagram_webhook_account_id or "").strip() or None
 
 
 def _instagram_igsid_from_meta(meta: object) -> str | None:
@@ -736,13 +737,16 @@ def extract_instagram_messages(
     seen: set[str] = set()
     expected = (account_id or "").strip() or None
     object_type = str(object_name or payload.get("object") or "").strip()
+    if not expected:
+        logger.warning("meta_webhook_missing_instagram_webhook_account_id")
+        return []
     for entry in payload.get("entry") or []:
         if not isinstance(entry, dict):
             continue
         entry_id = str(entry.get("id") or "").strip()
         if not entry_id:
             continue
-        if expected and entry_id != expected:
+        if entry_id != expected:
             # Temporary diagnostic: IDs and object type only. Never log payload, sender, text, or secrets.
             logger.info(
                 "meta_webhook_unknown_instagram_account parsed_account_id=%s configured_account_id=%s object=%s",
@@ -763,9 +767,9 @@ def extract_instagram_messages(
             recipient = _dict(event.get("recipient"))
             igsid = str(sender.get("id") or "").strip()
             recipient_id = str(recipient.get("id") or "").strip()
-            if not igsid or (expected and igsid == expected):
+            if not igsid or igsid == expected:
                 continue
-            if recipient_id and expected and recipient_id != expected:
+            if recipient_id and recipient_id != expected:
                 continue
             mid = str(message.get("mid") or message.get("id") or "").strip()
             if not mid or mid in seen:
@@ -833,7 +837,7 @@ def _ingest_instagram_messages(db: Session, messages: list[InstagramInbound], cl
 def _process_instagram(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
     messages = extract_instagram_messages(
         payload,
-        account_id=configured_instagram_account_id(),
+        account_id=configured_instagram_webhook_account_id(),
         object_name=str(payload.get("object") or "").strip(),
     )
     if not messages:

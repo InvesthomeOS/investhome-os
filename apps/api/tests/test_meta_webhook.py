@@ -26,7 +26,8 @@ APP_SECRET = "unit-test-meta-app-secret-32charsxxxx"
 IG_APP_SECRET = "unit-test-meta-ig-app-secret-32charsxxx"
 VERIFY_TOKEN = "unit-test-meta-verify-token"
 PAGE_ID = "111222333444555"
-IG_ACCOUNT_ID = "17841411111111111"
+IG_ACCOUNT_ID = "27943000000000001"
+IG_WEBHOOK_ACCOUNT_ID = "17841411111111111"
 WEBHOOK_PATH = "/webhooks/meta"
 
 
@@ -37,6 +38,7 @@ def _meta_webhook_env(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("META_VERIFY_TOKEN", VERIFY_TOKEN)
     monkeypatch.setenv("META_PAGE_ID", PAGE_ID)
     monkeypatch.setenv("META_INSTAGRAM_ACCOUNT_ID", IG_ACCOUNT_ID)
+    monkeypatch.setenv("META_INSTAGRAM_WEBHOOK_ACCOUNT_ID", IG_WEBHOOK_ACCOUNT_ID)
     get_settings.cache_clear()
     meta.reset_meta_idempotency_for_tests()
     yield
@@ -275,7 +277,7 @@ def _ig_payload(
     message_id: str,
     sender: str = "17841400001234567",
     text: str = "Merhaba Instagram",
-    account_id: str = IG_ACCOUNT_ID,
+    account_id: str = IG_WEBHOOK_ACCOUNT_ID,
     timestamp: int = 1710000000000,
 ) -> dict:
     return {
@@ -582,7 +584,7 @@ def test_instagram_duplicate_webhook_does_not_duplicate(client: TestClient, db: 
 def test_instagram_comments_payload_is_not_ingested(client: TestClient, db: Session) -> None:
     payload = {
         "object": "instagram",
-        "entry": [{"id": IG_ACCOUNT_ID, "changes": [{"field": "comments", "value": {"text": "yorum"}}]}],
+        "entry": [{"id": IG_WEBHOOK_ACCOUNT_ID, "changes": [{"field": "comments", "value": {"text": "yorum"}}]}],
     }
     response, _ = _post(client, payload)
     assert response.status_code == 200, response.text
@@ -611,7 +613,8 @@ def test_instagram_unknown_account_is_ignored_with_safe_log(
     joined = "\n".join(record.getMessage() for record in caplog.records)
     assert "meta_webhook_unknown_instagram_account" in joined
     assert f"parsed_account_id={parsed_account_id}" in joined
-    assert f"configured_account_id={IG_ACCOUNT_ID}" in joined
+    assert f"configured_account_id={IG_WEBHOOK_ACCOUNT_ID}" in joined
+    assert IG_ACCOUNT_ID not in joined
     assert "object=instagram" in joined
     assert text not in joined
     assert sender not in joined
@@ -623,9 +626,50 @@ def test_instagram_unknown_account_is_ignored_with_safe_log(
 
 def test_instagram_matching_account_still_ingested(client: TestClient, db: Session) -> None:
     message_id = f"mid.{uuid4().hex}"
-    response, _ = _post(client, _ig_payload(message_id=message_id, account_id=IG_ACCOUNT_ID))
+    response, _ = _post(client, _ig_payload(message_id=message_id, account_id=IG_WEBHOOK_ACCOUNT_ID))
     assert response.status_code == 200, response.text
     assert response.json()["ingested"] == 1
     assert int(db.scalar(select(func.count()).select_from(CrmCommunication).where(
         CrmCommunication.external_provider_id == message_id
     )) or 0) == 1
+    assert int(db.scalar(select(func.count()).select_from(SalesOpportunity)) or 0) == 0
+
+
+def test_instagram_login_account_id_is_not_used_for_inbound(
+    client: TestClient, db: Session
+) -> None:
+    message_id = f"mid.{uuid4().hex}"
+    response, _ = _post(client, _ig_payload(message_id=message_id, account_id=IG_ACCOUNT_ID))
+    assert response.status_code == 200, response.text
+    assert response.json()["ingested"] == 0
+    assert int(db.scalar(select(func.count()).select_from(CrmCommunication)) or 0) == 0
+    assert int(db.scalar(select(func.count()).select_from(CrmContact)) or 0) == 0
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 0
+
+
+def test_instagram_missing_webhook_account_id_skips_safely(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.delenv("META_INSTAGRAM_WEBHOOK_ACCOUNT_ID", raising=False)
+    monkeypatch.setenv("META_INSTAGRAM_ACCOUNT_ID", IG_WEBHOOK_ACCOUNT_ID)
+    get_settings.cache_clear()
+    caplog.set_level("WARNING", logger="investhome.meta.webhook")
+    text = "SECRET_IG_SKIP_TEXT_SHOULD_NOT_LOG"
+    sender = "17841400001234999"
+    message_id = f"mid.{uuid4().hex}"
+    response, _ = _post(
+        client,
+        _ig_payload(message_id=message_id, sender=sender, text=text, account_id=IG_WEBHOOK_ACCOUNT_ID),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["ingested"] == 0
+    assert int(db.scalar(select(func.count()).select_from(CrmCommunication)) or 0) == 0
+    assert int(db.scalar(select(func.count()).select_from(CrmContact)) or 0) == 0
+    joined = "\n".join(record.getMessage() for record in caplog.records)
+    assert "meta_webhook_missing_instagram_webhook_account_id" in joined
+    assert text not in joined
+    assert sender not in joined
+    facebook_id = f"mid.{uuid4().hex}"
+    facebook_response, _ = _post(client, _payload(message_id=facebook_id))
+    assert facebook_response.status_code == 200, facebook_response.text
+    assert facebook_response.json()["ingested"] == 1

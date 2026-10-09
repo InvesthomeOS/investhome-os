@@ -129,8 +129,10 @@ class Settings(BaseSettings):
     meta_page_id: str | None = Field(default=None, alias="META_PAGE_ID")
     # Page access token is server-side only. Required to send Facebook Messenger DMs; fail closed if missing.
     meta_page_access_token: str | None = Field(default=None, alias="META_PAGE_ACCESS_TOKEN")
-    # Instagram professional account id. Used to filter inbound DMs and required to send Instagram DMs.
+    # Instagram Login /me id. Used ONLY for outbound send: graph.instagram.com/{id}/messages. Never used as webhook filter.
     meta_instagram_account_id: str | None = Field(default=None, alias="META_INSTAGRAM_ACCOUNT_ID")
+    # Instagram webhook entry.id. Used ONLY for inbound Instagram account filtering. Never fall back to META_INSTAGRAM_ACCOUNT_ID.
+    meta_instagram_webhook_account_id: str | None = Field(default=None, alias="META_INSTAGRAM_WEBHOOK_ACCOUNT_ID")
     # Instagram Login access token is server-side only. Required to send Instagram DMs; never fall back to the Page token.
     meta_instagram_access_token: str | None = Field(default=None, alias="META_INSTAGRAM_ACCESS_TOKEN")
     # Instagram Login app secret is server-side only. Used to verify Instagram webhook HMAC; never fall back to META_APP_SECRET.
