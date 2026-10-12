@@ -945,7 +945,9 @@ export function CrmCommunicationLiveWorkspace() {
                         >
                           {t('replyPublic')}
                         </Button>
-                        {conversationQuery.data?.comment_capabilities?.can_private_reply ? (
+                        {conversationQuery.data?.comment_capabilities?.can_private_reply
+                        && (selected.channel !== 'facebook'
+                          || Boolean(conversationQuery.data.comment_capabilities.private_reply_target_comment_id)) ? (
                           <Button
                             type="button"
                             size="sm"

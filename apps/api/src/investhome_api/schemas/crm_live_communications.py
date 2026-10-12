@@ -196,6 +196,7 @@ class CommentCapabilities(BaseModel):
     liked: bool = False
     reply_prefix: str | None = None
     commenter_name: str | None = None
+    private_reply_target_comment_id: str | None = None
     context_status: str | None = None
     context_error: str | None = None
 

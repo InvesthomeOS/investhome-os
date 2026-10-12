@@ -781,6 +781,7 @@ def test_facebook_comment_parent_context_fetched_on_detail(
     assert caps["can_like"] is True
     assert caps["can_delete"] is True
     assert caps["can_private_reply"] is True
+    assert caps["private_reply_target_comment_id"] == comment_id
     assert caps["reply_prefix"] is None
     assert any((message.get("summary") or "") == "Fiyat nedir?" for message in listed.json()["messages"])
 
@@ -937,6 +938,192 @@ def test_facebook_private_reply_when_permitted(
     assert ok.json()["provider_message_id"] == "mid.priv.fb.1"
     db.expire_all()
     assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 0
+    inbound = _comment_row(db, comment_id)
+    assert (inbound.metadata_json or {}).get("private_reply_target_comment_id") == comment_id
+
+
+def test_facebook_private_reply_after_public_reply_uses_visitor_comment(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    visitor_id = f"{PAGE_ID}_root_{uuid4().hex[:8]}"
+    page_reply_id = f"{PAGE_ID}_page_{uuid4().hex[:8]}"
+    sender = "1029384756104321"
+    _post(client, _fb_comment_payload(comment_id=visitor_id, sender=sender, text="Ziyaretci"))
+    db.expire_all()
+    contact = db.scalar(select(CrmContact))
+    assert contact is not None
+    monkeypatch.setenv("META_PAGE_ACCESS_TOKEN", PAGE_TOKEN)
+    get_settings.cache_clear()
+    fetched: list[tuple[str, str]] = []
+
+    def _fake_get(url: str, *, token: str, fields: str):
+        fetched.append((url, fields))
+        if page_reply_id in url:
+            return {
+                "id": page_reply_id,
+                "can_reply_privately": False,
+                "from": {"id": PAGE_ID, "name": "InvestHome"},
+            }
+        if visitor_id in url:
+            return {"id": visitor_id, "can_reply_privately": True, "user_likes": False, "from": {"id": sender}}
+        return None
+
+    def _ok(url: str, payload: dict, token: str):
+        if url.endswith(f"/{visitor_id}/comments"):
+            return _DummyResponse(200, {"id": page_reply_id})
+        assert url == FACEBOOK_MESSAGES_URL
+        assert payload["recipient"] == {"comment_id": visitor_id}
+        assert payload["recipient"]["comment_id"] != page_reply_id
+        return _DummyResponse(200, {"message_id": "mid.priv.after", "recipient_id": sender})
+
+    monkeypatch.setattr(meta_comments, "_graph_get", _fake_get)
+    monkeypatch.setattr(meta_comments, "_post_graph_messages", _ok)
+    public = client.post(
+        SEND_PATH,
+        json={
+            "channel": "facebook",
+            "contact_id": str(contact.id),
+            "conversation_key": comment_conversation_key(visitor_id),
+            "text": "Sayfa cevabi",
+            "kind": "comment",
+        },
+    )
+    assert public.status_code == 200, public.text
+    assert public.json()["provider_message_id"] == page_reply_id
+    db.expire_all()
+    outgoing = db.scalar(
+        select(CrmCommunication).where(
+            CrmCommunication.external_provider_id == page_reply_id,
+            CrmCommunication.archived_at.is_(None),
+        )
+    )
+    assert outgoing is not None
+    assert (outgoing.metadata_json or {}).get("comment_id") == page_reply_id
+    assert (outgoing.metadata_json or {}).get("private_reply_target_comment_id") == visitor_id
+    assert (outgoing.metadata_json or {}).get("page_owned") is True
+
+    listed = _conversation(client, comment_id=visitor_id, channel="facebook", contact_id=str(contact.id))
+    assert listed.status_code == 200, listed.text
+    caps = listed.json()["comment_capabilities"]
+    assert caps["private_reply_target_comment_id"] == visitor_id
+    assert caps["can_private_reply"] is True
+    assert listed.json()["comment_context"]["comment_id"] == visitor_id
+
+    private = client.post(
+        SEND_PATH,
+        json={
+            "channel": "facebook",
+            "contact_id": str(contact.id),
+            "conversation_key": comment_conversation_key(visitor_id),
+            "text": "Ozel cevap",
+            "kind": "private_reply",
+        },
+    )
+    assert private.status_code == 200, private.text
+    assert private.json()["provider_message_id"] == "mid.priv.after"
+    assert any(visitor_id in url and "can_reply_privately" in fields for url, fields in fetched)
+    assert not any(page_reply_id in url for url, _fields in fetched)
+    db.expire_all()
+    assert int(db.scalar(select(func.count()).select_from(Lead)) or 0) == 0
+
+
+def test_facebook_page_owned_reply_never_becomes_private_reply_target(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    visitor_id = f"{PAGE_ID}_keep_{uuid4().hex[:8]}"
+    page_reply_id = f"{PAGE_ID}_owned_{uuid4().hex[:8]}"
+    _post(client, _fb_comment_payload(comment_id=visitor_id, sender="1029384756101111", text="Kok"))
+    db.expire_all()
+    contact = db.scalar(select(CrmContact))
+    assert contact is not None
+    monkeypatch.setenv("META_PAGE_ACCESS_TOKEN", PAGE_TOKEN)
+    get_settings.cache_clear()
+
+    def _fake_get(url: str, *, token: str, fields: str):
+        if page_reply_id in url:
+            pytest.fail("page-owned reply must not be fetched for private reply")
+        if visitor_id in url:
+            return {"id": visitor_id, "can_reply_privately": True, "from": {"id": "1029384756101111"}}
+        return None
+
+    def _ok(url: str, payload: dict, token: str):
+        if url.endswith("/comments"):
+            return _DummyResponse(200, {"id": page_reply_id})
+        raise AssertionError(url)
+
+    monkeypatch.setattr(meta_comments, "_graph_get", _fake_get)
+    monkeypatch.setattr(meta_comments, "_post_graph_messages", _ok)
+    first = _conversation(client, comment_id=visitor_id, channel="facebook", contact_id=str(contact.id))
+    target_before = first.json()["comment_capabilities"]["private_reply_target_comment_id"]
+    client.post(
+        SEND_PATH,
+        json={
+            "channel": "facebook",
+            "contact_id": str(contact.id),
+            "conversation_key": comment_conversation_key(visitor_id),
+            "text": "Bizim yanit",
+            "kind": "comment",
+        },
+    )
+    second = _conversation(client, comment_id=visitor_id, channel="facebook", contact_id=str(contact.id))
+    target_after = second.json()["comment_capabilities"]["private_reply_target_comment_id"]
+    assert target_before == visitor_id
+    assert target_after == visitor_id
+    assert second.json()["comment_context"]["comment_id"] == visitor_id
+    seed = meta_comments._comment_seed(
+        db, conversation_key=comment_conversation_key(visitor_id), channel="facebook"
+    )
+    assert seed is not None
+    assert (seed.metadata_json or {}).get("comment_id") == visitor_id
+    assert meta_comments._resolve_private_reply_target(
+        seed, conversation_key=comment_conversation_key(visitor_id)
+    ) == visitor_id
+
+
+def test_facebook_root_comment_id_stable_across_conversation_refresh(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    visitor_id = f"{PAGE_ID}_stable_{uuid4().hex[:8]}"
+    page_reply_id = f"{PAGE_ID}_later_{uuid4().hex[:8]}"
+    _post(client, _fb_comment_payload(comment_id=visitor_id, sender="1029384756102222"))
+    db.expire_all()
+    contact = db.scalar(select(CrmContact))
+    assert contact is not None
+    monkeypatch.setenv("META_PAGE_ACCESS_TOKEN", PAGE_TOKEN)
+    get_settings.cache_clear()
+
+    def _fake_get(url: str, *, token: str, fields: str):
+        if visitor_id in url:
+            return {"id": visitor_id, "can_reply_privately": True, "from": {"id": "1029384756102222"}}
+        if page_reply_id in url:
+            return {"id": page_reply_id, "can_reply_privately": False, "from": {"id": PAGE_ID}}
+        return None
+
+    monkeypatch.setattr(meta_comments, "_graph_get", _fake_get)
+    monkeypatch.setattr(
+        meta_comments,
+        "_post_graph_messages",
+        lambda url, payload, token: _DummyResponse(200, {"id": page_reply_id}),
+    )
+    before = _conversation(client, comment_id=visitor_id, channel="facebook", contact_id=str(contact.id))
+    client.post(
+        SEND_PATH,
+        json={
+            "channel": "facebook",
+            "contact_id": str(contact.id),
+            "conversation_key": comment_conversation_key(visitor_id),
+            "text": "Public",
+            "kind": "comment",
+        },
+    )
+    after = _conversation(client, comment_id=visitor_id, channel="facebook", contact_id=str(contact.id))
+    again = _conversation(client, comment_id=visitor_id, channel="facebook", contact_id=str(contact.id))
+    assert before.json()["comment_capabilities"]["private_reply_target_comment_id"] == visitor_id
+    assert after.json()["comment_capabilities"]["private_reply_target_comment_id"] == visitor_id
+    assert again.json()["comment_capabilities"]["private_reply_target_comment_id"] == visitor_id
+    inbound = _comment_row(db, visitor_id)
+    assert (inbound.metadata_json or {}).get("root_comment_id") == visitor_id
+    assert (inbound.metadata_json or {}).get("private_reply_target_comment_id") == visitor_id
 
 
 def test_facebook_private_reply_graph_error_is_not_fake_success(

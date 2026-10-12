@@ -477,6 +477,7 @@ export type CommentCapabilities = {
   liked: boolean;
   reply_prefix?: string | null;
   commenter_name?: string | null;
+  private_reply_target_comment_id?: string | null;
   context_status?: string | null;
   context_error?: string | null;
 };

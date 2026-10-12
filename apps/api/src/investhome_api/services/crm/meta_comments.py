@@ -64,6 +64,9 @@ logger = get_logger("investhome.meta.comments")
 
 COMMENT_KIND = "comment"
 CONVERSATION_PREFIX = "cmt:"
+ROOT_COMMENT_KEY = "root_comment_id"
+PRIVATE_REPLY_TARGET_KEY = "private_reply_target_comment_id"
+PAGE_OWNED_KEY = "page_owned"
 FACEBOOK_COMMENTER_KEY = "facebook_commenter_id"
 INSTAGRAM_COMMENTER_KEY = "instagram_commenter_id"
 PUBLIC_COMMENT_NOT_CONFIGURED = "Comment reply is not configured"
@@ -128,6 +131,48 @@ def parse_comment_id(conversation_key: str | None) -> str | None:
         comment_id = key[len(CONVERSATION_PREFIX) :].strip()
         return comment_id or None
     return None
+
+
+def _comment_meta(comm: CrmCommunication) -> dict[str, Any]:
+    return dict(comm.metadata_json) if isinstance(comm.metadata_json, dict) else {}
+
+
+def _is_page_owned_comment(comm: CrmCommunication) -> bool:
+    meta = _comment_meta(comm)
+    if comm.direction == "outbound":
+        return True
+    return bool(meta.get("outbound") or meta.get(PAGE_OWNED_KEY))
+
+
+def _stored_comment_id(comm: CrmCommunication) -> str:
+    meta = _comment_meta(comm)
+    return str(meta.get("comment_id") or comm.external_provider_id or "").strip()
+
+
+def _resolve_private_reply_target(comm: CrmCommunication | None, *, conversation_key: str | None) -> str | None:
+    thread_id = parse_comment_id(conversation_key)
+    meta = _comment_meta(comm) if comm is not None else {}
+    page_comment_id = _stored_comment_id(comm) if comm is not None and _is_page_owned_comment(comm) else ""
+    candidates = [
+        str(meta.get(PRIVATE_REPLY_TARGET_KEY) or "").strip(),
+        str(meta.get(ROOT_COMMENT_KEY) or "").strip(),
+        str(meta.get("in_reply_to") or "").strip() if comm is not None and _is_page_owned_comment(comm) else "",
+        _stored_comment_id(comm) if comm is not None and not _is_page_owned_comment(comm) else "",
+        thread_id or "",
+    ]
+    for candidate in candidates:
+        if candidate and candidate != page_comment_id:
+            return candidate
+    return None
+
+
+def _facebook_from_is_page(payload: dict[str, Any] | None) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    frm = payload.get("from")
+    from_id = str(frm.get("id") or "").strip() if isinstance(frm, dict) else ""
+    page_id = (get_settings().meta_page_id or "").strip()
+    return bool(from_id and page_id and from_id == page_id)
 
 
 def _graph_get(url: str, *, token: str, fields: str) -> dict[str, Any] | None:
@@ -667,12 +712,14 @@ def _facebook_post_context(item: MetaCommentInbound) -> dict[str, Any]:
         fields="id,from,message,created_time,permalink_url,can_reply_privately,can_comment,user_likes,attachment",
     )
     if comment_payload:
-        context["can_reply_privately"] = bool(comment_payload.get("can_reply_privately"))
+        page_owned = _facebook_from_is_page(comment_payload)
+        context[PAGE_OWNED_KEY] = page_owned
+        context["can_reply_privately"] = bool(comment_payload.get("can_reply_privately")) and not page_owned
         context["can_comment"] = comment_payload.get("can_comment")
         context["user_likes"] = bool(comment_payload.get("user_likes"))
         context["permalink"] = str(comment_payload.get("permalink_url") or "").strip() or context.get("permalink")
         frm = comment_payload.get("from")
-        if isinstance(frm, dict):
+        if isinstance(frm, dict) and not page_owned:
             context["commenter_name"] = str(frm.get("name") or "").strip() or context.get("commenter_name")
         attachment = comment_payload.get("attachment")
         if isinstance(attachment, dict):
@@ -789,6 +836,8 @@ def _ingest_comment(db: Session, item: MetaCommentInbound, *, claimed: set[str],
         identity = {INSTAGRAM_COMMENTER_KEY: item.commenter_id, INSTAGRAM_IGSID_KEY: item.commenter_id}
         subject = "Instagram comment"
     thread_id = item.parent_comment_id or item.comment_id
+    context[ROOT_COMMENT_KEY] = thread_id
+    context[PRIVATE_REPLY_TARGET_KEY] = thread_id
     comm, created = ingest_live_message(
         db,
         {
@@ -806,6 +855,9 @@ def _ingest_comment(db: Session, item: MetaCommentInbound, *, claimed: set[str],
             "metadata_json": {
                 "kind": COMMENT_KIND,
                 "comment_id": item.comment_id,
+                ROOT_COMMENT_KEY: thread_id,
+                PRIVATE_REPLY_TARGET_KEY: thread_id,
+                PAGE_OWNED_KEY: False,
                 "parent_id": item.parent_id,
                 "comment_context": context,
                 **identity,
@@ -850,7 +902,9 @@ def _inbound_from_communication(comm: CrmCommunication) -> MetaCommentInbound | 
     if str(meta.get("kind") or "").strip().lower() != COMMENT_KIND:
         return None
     ctx = meta.get("comment_context") if isinstance(meta.get("comment_context"), dict) else {}
-    comment_id = str(meta.get("comment_id") or parse_comment_id(comm.conversation_key) or comm.external_provider_id or "").strip()
+    comment_id = _resolve_private_reply_target(comm, conversation_key=comm.conversation_key) or ""
+    if not comment_id:
+        comment_id = str(meta.get("comment_id") or parse_comment_id(comm.conversation_key) or comm.external_provider_id or "").strip()
     parent_id = str(meta.get("parent_id") or ctx.get("parent_id") or "").strip() or comment_id
     if not comment_id:
         return None
@@ -928,14 +982,22 @@ def comment_capabilities(comm: CrmCommunication) -> dict[str, Any]:
         stamp = occurred if occurred.tzinfo else occurred.replace(tzinfo=UTC)
         within_window = datetime.now(UTC) - stamp.astimezone(UTC) <= PRIVATE_REPLY_WINDOW
     already_deleted = comm.archived_at is not None or bool(meta.get("deleted_on_platform") or ctx.get("deleted_on_platform"))
+    target = _resolve_private_reply_target(comm, conversation_key=comm.conversation_key)
+    page_owned_target = _is_page_owned_comment(comm) and _stored_comment_id(comm) == (target or "")
     if comm.channel == "facebook":
-        can_private = bool(ctx.get("can_reply_privately") or meta.get("can_reply_privately")) and not sent and within_window
+        can_private = (
+            bool(target)
+            and not page_owned_target
+            and bool(ctx.get("can_reply_privately") or meta.get("can_reply_privately"))
+            and not sent
+            and within_window
+        )
         can_like = FACEBOOK_LIKE_SUPPORTED
         liked = bool(ctx.get("user_likes") or meta.get("user_likes"))
         prefix = None
         can_delete = FACEBOOK_DELETE_SUPPORTED and not already_deleted
     else:
-        can_private = not sent and within_window
+        can_private = bool(target) and not sent and within_window
         can_like = INSTAGRAM_LIKE_SUPPORTED
         liked = False
         prefix = _reply_prefix(username)
@@ -949,6 +1011,7 @@ def comment_capabilities(comm: CrmCommunication) -> dict[str, Any]:
         "liked": liked,
         "reply_prefix": prefix,
         "commenter_name": str(ctx.get("commenter_name") or comm.sender_identity or "").strip() or None,
+        "private_reply_target_comment_id": target,
         "context_status": "ready" if visible else str(ctx.get("context_status") or "unavailable"),
         "context_error": None if visible else str(ctx.get("context_error") or PUBLIC_CONTEXT_UNAVAILABLE),
     }
@@ -957,37 +1020,22 @@ def comment_capabilities(comm: CrmCommunication) -> dict[str, Any]:
 def load_comment_thread_meta(db: Session, *, conversation_key: str | None, channel: str | None) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     if not parse_comment_id(conversation_key) or channel not in SUPPORTED_CHANNELS:
         return None, None
-    rows = list(
-        db.scalars(
-            select(CrmCommunication).where(
-                CrmCommunication.archived_at.is_(None),
-                CrmCommunication.channel == channel,
-                CrmCommunication.conversation_key == conversation_key,
-            )
-        ).all()
-    )
-    seed = next(
-        (
-            row
-            for row in rows
-            if isinstance(row.metadata_json, dict)
-            and str(row.metadata_json.get("kind") or "") == COMMENT_KIND
-            and row.direction == "inbound"
-        ),
-        next(
-            (
-                row
-                for row in rows
-                if isinstance(row.metadata_json, dict) and str(row.metadata_json.get("kind") or "") == COMMENT_KIND
-            ),
-            None,
-        ),
-    )
+    seed = _comment_seed(db, conversation_key=conversation_key, channel=channel)
     if seed is None:
         return None, None
+    target = _resolve_private_reply_target(seed, conversation_key=conversation_key)
+    if target:
+        _persist_comment_context(
+            db,
+            seed,
+            {ROOT_COMMENT_KEY: target, PRIVATE_REPLY_TARGET_KEY: target},
+            {ROOT_COMMENT_KEY: target, PRIVATE_REPLY_TARGET_KEY: target, PAGE_OWNED_KEY: False},
+        )
     enrich_comment_communication(db, seed)
     db.refresh(seed)
     ctx = seed.metadata_json.get("comment_context") if isinstance(seed.metadata_json, dict) else None
+    if isinstance(ctx, dict) and target:
+        ctx = {**ctx, ROOT_COMMENT_KEY: target, PRIVATE_REPLY_TARGET_KEY: target, "comment_id": target}
     return ctx if isinstance(ctx, dict) else {}, comment_capabilities(seed)
 
 
@@ -1061,18 +1109,16 @@ def send_meta_comment_reply(
 
     source = "live_facebook" if normalized == "facebook" else "live_instagram"
     parent_context: dict[str, Any] = {}
-    seed = db.scalar(
-        select(CrmCommunication).where(
-            CrmCommunication.conversation_key == conversation_key,
-            CrmCommunication.archived_at.is_(None),
-        )
-    )
+    seed = _comment_seed(db, conversation_key=conversation_key, channel=normalized)
+    root_id = _resolve_private_reply_target(seed, conversation_key=conversation_key) or comment_id
     if seed is not None and isinstance(seed.metadata_json, dict):
         ctx = seed.metadata_json.get("comment_context")
         if isinstance(ctx, dict):
             parent_context = dict(ctx)
         parent_context.setdefault("parent_id", seed.metadata_json.get("parent_id"))
-        parent_context.setdefault("comment_id", comment_id)
+        parent_context[ROOT_COMMENT_KEY] = root_id
+        parent_context[PRIVATE_REPLY_TARGET_KEY] = root_id
+        parent_context["comment_id"] = root_id
 
     comm, created = ingest_live_message(
         db,
@@ -1091,8 +1137,11 @@ def send_meta_comment_reply(
             "metadata_json": {
                 "kind": COMMENT_KIND,
                 "outbound": True,
+                PAGE_OWNED_KEY: True,
                 "comment_id": provider_id,
                 "in_reply_to": comment_id,
+                ROOT_COMMENT_KEY: root_id,
+                PRIVATE_REPLY_TARGET_KEY: root_id,
                 "parent_id": parent_context.get("parent_id"),
                 "comment_context": parent_context or None,
             },
@@ -1112,14 +1161,22 @@ def _comment_seed(db: Session, *, conversation_key: str | None, channel: str) ->
             )
         ).all()
     )
-    return next(
-        (
-            row
-            for row in rows
-            if isinstance(row.metadata_json, dict) and str(row.metadata_json.get("kind") or "") == COMMENT_KIND
-        ),
-        None,
-    )
+    inbound = [
+        row
+        for row in rows
+        if isinstance(row.metadata_json, dict)
+        and str(row.metadata_json.get("kind") or "") == COMMENT_KIND
+        and not _is_page_owned_comment(row)
+        and row.direction == "inbound"
+    ]
+    thread_id = parse_comment_id(conversation_key)
+    if thread_id:
+        matched = next((row for row in inbound if _stored_comment_id(row) == thread_id), None)
+        if matched is not None:
+            return matched
+    if inbound:
+        return min(inbound, key=lambda row: row.occurred_at or row.created_at)
+    return None
 
 
 def graph_private_reply(*, channel: str, comment_id: str, text: str) -> tuple[str, str | None]:
@@ -1178,20 +1235,36 @@ def send_meta_private_reply(
     contact = db.get(CrmContact, contact_id)
     if contact is None or contact.archived_at is not None:
         raise MetaSendError(PUBLIC_UNKNOWN_CONTACT, 404)
-    comment_id = parse_comment_id(conversation_key)
-    if not comment_id:
-        raise MetaSendError(PUBLIC_PRIVATE_REPLY_UNAVAILABLE, 400)
     seed = _comment_seed(db, conversation_key=conversation_key, channel=normalized)
     if seed is None:
         raise MetaSendError(PUBLIC_PRIVATE_REPLY_UNAVAILABLE, 400)
+    comment_id = _resolve_private_reply_target(seed, conversation_key=conversation_key)
+    if not comment_id or _is_page_owned_comment(seed):
+        raise MetaSendError(PUBLIC_PRIVATE_REPLY_UNAVAILABLE, 400)
     enrich_comment_communication(db, seed)
     db.refresh(seed)
+    if normalized == "facebook":
+        try:
+            token = require_page_access_token()
+        except MetaSendError:
+            raise MetaSendError(PUBLIC_PRIVATE_REPLY_UNAVAILABLE, 503) from None
+        payload = _graph_get(
+            f"https://graph.facebook.com/{GRAPH_API_VERSION}/{comment_id}",
+            token=token,
+            fields="id,from,can_reply_privately",
+        )
+        if not payload or not bool(payload.get("can_reply_privately")) or _facebook_from_is_page(payload):
+            raise MetaSendError(PUBLIC_PRIVATE_REPLY_UNAVAILABLE, 400)
+        _persist_comment_context(db, seed, {"can_reply_privately": True}, {"can_reply_privately": True})
+        db.refresh(seed)
     caps = comment_capabilities(seed)
     if not caps.get("can_private_reply"):
         meta = seed.metadata_json if isinstance(seed.metadata_json, dict) else {}
         if meta.get("private_reply_sent"):
             raise MetaSendError(PUBLIC_PRIVATE_REPLY_ALREADY_SENT, 409)
         raise MetaSendError(PUBLIC_PRIVATE_REPLY_UNAVAILABLE, 400)
+    if caps.get("private_reply_target_comment_id") and caps["private_reply_target_comment_id"] != comment_id:
+        comment_id = str(caps["private_reply_target_comment_id"])
 
     provider_id, recipient_id = graph_private_reply(channel=normalized, comment_id=comment_id, text=body)
     prefix = "msg" if normalized == "facebook" else "ig:msg"
