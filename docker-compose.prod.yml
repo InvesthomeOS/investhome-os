@@ -110,6 +110,9 @@ services:
       META_INSTAGRAM_WEBHOOK_ACCOUNT_ID: ${META_INSTAGRAM_WEBHOOK_ACCOUNT_ID:-}
       META_INSTAGRAM_ACCESS_TOKEN: ${META_INSTAGRAM_ACCESS_TOKEN:-}
       META_INSTAGRAM_APP_SECRET: ${META_INSTAGRAM_APP_SECRET:-}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      GOOGLE_GEOCODING_ENABLED: ${GOOGLE_GEOCODING_ENABLED:-false}
+      GOOGLE_PLACES_ENABLED: ${GOOGLE_PLACES_ENABLED:-false}
     command:
       [
         "uvicorn",
@@ -150,6 +153,9 @@ services:
     restart: unless-stopped
     environment:
       <<: *app-environment
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      GOOGLE_GEOCODING_ENABLED: ${GOOGLE_GEOCODING_ENABLED:-false}
+      GOOGLE_PLACES_ENABLED: ${GOOGLE_PLACES_ENABLED:-false}
     command: ["arq", "investhome_api.worker.settings.WorkerSettings"]
     depends_on:
       postgres:
