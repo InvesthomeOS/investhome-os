@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from investhome_api.models.activity import ActivityEntityType
 from investhome_api.models.finance import FundingCommitment, ProjectBudget
-from investhome_api.models.inventory import InventoryAsset
+from investhome_api.models.inventory import Floor, InventoryAsset
 from investhome_api.models.investor import Investor
 from investhome_api.models.project import Project, ProjectStatus
 from investhome_api.models.project_team import ProjectTeamMember, ProjectTeamMemberStatus
@@ -577,6 +577,7 @@ def get_units(
 ) -> ProjectUnitsResponse:
     project = _load_project(db, project_id)
     financial_access = _can_view_financial(user)
+    can_view_list_price = financial_access or user_has_permission(user, "inventory", "view_price")
     inventory = _inventory_counts(db, [project.id])
 
     query = select(InventoryAsset).where(
@@ -628,6 +629,13 @@ def get_units(
     pages = max(1, ceil(total / page_size)) if total else 1
     offset = (page - 1) * page_size
     assets = list(db.scalars(query.offset(offset).limit(page_size)).all())
+    floor_ids = {asset.floor_id for asset in assets if asset.floor_id is not None}
+    floors_by_id: dict[UUID, Floor] = {}
+    if floor_ids:
+        floors_by_id = {
+            floor.id: floor
+            for floor in db.scalars(select(Floor).where(Floor.id.in_(floor_ids))).all()
+        }
 
     def inv_metric(key: str):
         if inventory["total_assets"] == 0:
@@ -636,6 +644,7 @@ def get_units(
 
     items = []
     for asset in assets:
+        floor = floors_by_id.get(asset.floor_id) if asset.floor_id else None
         items.append(
             {
                 "id": str(asset.id),
@@ -645,16 +654,18 @@ def get_units(
                 "bedrooms": asset.bedrooms,
                 "bathrooms": asset.bathrooms,
                 "floor_id": str(asset.floor_id) if asset.floor_id else None,
+                "floor_number": floor.floor_number if floor else None,
+                "floor_label": (floor.display_name or str(floor.floor_number)) if floor else None,
                 "square_feet": asset.total_area_sqft or asset.interior_area_sqft,
                 "availability_status": asset.availability_status.value,
                 "sales_status": asset.sales_status.value,
                 "leasing_status": asset.leasing_status.value,
                 "reservation_status": asset.reservation_status.value,
-                "price": asset.list_price if financial_access else None,
-                "price_available": financial_access and asset.list_price is not None,
+                "price": asset.list_price if can_view_list_price else None,
+                "price_available": can_view_list_price and asset.list_price is not None,
                 "rent": None,
                 "rent_available": False,
-                "rent_reason": "Unit rent is not stored on inventory assets",
+                "rent_reason": "Monthly rent is stored as an estimated_rent price, not an asset column",
                 "investor": None,
                 "updated_at": asset.updated_at,
             }

@@ -790,6 +790,10 @@
   min-width: 0;
 }
 
+.proj-detail-ds__units > .proj-detail-ds__banner {
+  grid-column: 1 / -1;
+}
+
 .proj-detail-ds__unit {
   display: grid;
   gap: 8px;

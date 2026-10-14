@@ -2063,14 +2063,33 @@
       "units": {
         "aria": "Project units",
         "floor": "Floor",
-        "price": "Price",
+        "bedBath": "Bed / Bath",
+        "squareFeet": "Square feet",
+        "price": "List price",
+        "priceUnavailable": "—",
         "investor": "Investor",
         "availability": "Availability",
+        "salesStatus": "Sales status",
         "available": "Available",
         "unavailable": "Unavailable",
         "reservation": "Reservation",
         "reserved": "Reserved",
         "rental": "Rental",
+        "loading": "Loading inventory…",
+        "empty": "No inventory assets are linked to this project yet.",
+        "loadError": "Could not load project inventory.",
+        "availabilityStatus": {
+          "not_released": "Not released",
+          "available": "Available",
+          "unavailable": "Unavailable",
+          "hold": "Hold"
+        },
+        "sales": {
+          "not_for_sale": "Not for sale",
+          "available_for_sale": "Available for sale",
+          "under_contract": "Under contract",
+          "sold": "Sold"
+        },
         "status": {
           "available": "Available",
           "reserved": "Reserved",

@@ -2056,14 +2056,33 @@
       "units": {
         "aria": "Proje birimleri",
         "floor": "Kat",
-        "price": "Fiyat",
+        "bedBath": "Yatak / Banyo",
+        "squareFeet": "Metrekare (sf)",
+        "price": "Liste fiyatı",
+        "priceUnavailable": "—",
         "investor": "Yatırımcı",
         "availability": "Müsaitlik",
+        "salesStatus": "Satış durumu",
         "available": "Müsait",
         "unavailable": "Müsait Değil",
         "reservation": "Rezervasyon",
         "reserved": "Rezerve",
         "rental": "Kira",
+        "loading": "Envanter yükleniyor…",
+        "empty": "Bu projeye bağlı envanter kaydı yok.",
+        "loadError": "Proje envanteri yüklenemedi.",
+        "availabilityStatus": {
+          "not_released": "Yayınlanmadı",
+          "available": "Müsait",
+          "unavailable": "Müsait değil",
+          "hold": "Hold"
+        },
+        "sales": {
+          "not_for_sale": "Satışta değil",
+          "available_for_sale": "Satışa hazır",
+          "under_contract": "Sözleşmede",
+          "sold": "Satıldı"
+        },
         "status": {
           "available": "Müsait",
           "reserved": "Rezerve",

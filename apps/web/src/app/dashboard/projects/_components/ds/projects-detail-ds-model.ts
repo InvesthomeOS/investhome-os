@@ -467,25 +467,7 @@ export function buildProjectDetailDsModel(
     };
   });
 
-  const unitStatuses: UnitStatus[] = ['available', 'reserved', 'sold', 'rented', 'blocked'];
-  const units: DetailUnit[] = Array.from({ length: Math.min(12, Math.max(8, unitsTotal)) }, (_, i) => {
-    const status = unitStatuses[(i + hashIndex(seed, unitStatuses.length)) % unitStatuses.length]!;
-    const investor =
-      status === 'sold' || status === 'reserved' || status === 'rented'
-        ? INVESTOR_NAMES[(i + hashIndex(seed, INVESTOR_NAMES.length)) % INVESTOR_NAMES.length]!
-        : null;
-    return {
-      id: `${seed}-unit-${i + 1}`,
-      code: `${String.fromCharCode(65 + (i % 4))}-${String(100 + i * 3).padStart(3, '0')}`,
-      floor: 2 + (i % 18),
-      bedrooms: 1 + (i % 4),
-      areaSqm: 68 + (i % 7) * 12,
-      price: Math.round((budget / Math.max(unitsTotal, 1)) * (0.7 + (i % 5) * 0.08)),
-      status,
-      investor,
-      rentalMonthly: status === 'rented' || status === 'available' ? 1800 + i * 120 : null,
-    };
-  });
+  const units: DetailUnit[] = [];
 
   const investors: DetailInvestor[] = Array.from({ length: investorsCount }, (_, i) => {
     const name = INVESTOR_NAMES[(i + hashIndex(seed, INVESTOR_NAMES.length)) % INVESTOR_NAMES.length]!;
@@ -740,8 +722,6 @@ export function buildProjectDetailDsModel(
       },
       units: {
         value: String(unitsTotal),
-        delta: `+${units.filter((u) => u.status === 'sold').length}`,
-        deltaTone: 'up',
       },
       investors: {
         value: String(investorsCount),

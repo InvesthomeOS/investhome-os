@@ -28,6 +28,7 @@ import {
 import { formatFileSize } from '@/lib/api/documents';
 import {
   fetchProjectDetail,
+  fetchProjectUnits,
   fetchProjects,
   formatShortDate,
   type Project,
@@ -44,7 +45,6 @@ import {
   statusTone,
   type DetailKpiKey,
   type ProjectDetailDsTab,
-  type UnitStatus,
 } from './projects-detail-ds-model';
 import { ProjectDriveSyncPanel } from './project-drive-sync-panel';
 import { ProjectAssistantPanel } from './project-assistant-panel';
@@ -87,14 +87,13 @@ function ProjectCover({ scene }: { scene: string }) {
   );
 }
 
-function unitTone(status: UnitStatus) {
+function salesTone(status: string) {
   switch (status) {
     case 'sold':
-    case 'rented':
       return 'success' as const;
-    case 'reserved':
+    case 'under_contract':
       return 'info' as const;
-    case 'blocked':
+    case 'not_for_sale':
       return 'warning' as const;
     default:
       return 'default' as const;
@@ -386,7 +385,7 @@ export function ProjectsDetailDsWorkspace({
       {resolvedTab === 'construction' ? (
         <ConstructionTab model={model} tD={tD} tDs={tDs} locale={locale} />
       ) : null}
-      {resolvedTab === 'units' ? <UnitsTab model={model} tD={tD} locale={locale} /> : null}
+      {resolvedTab === 'units' ? <UnitsTab projectId={projectId} tD={tD} locale={locale} /> : null}
       {resolvedTab === 'financial' ? (
         <FinancialTab model={model} tD={tD} locale={locale} />
       ) : null}
@@ -663,61 +662,146 @@ function ConstructionTab({
   );
 }
 
+type LiveUnit = {
+  id?: string;
+  unit?: string;
+  floor_label?: string | null;
+  floor_number?: number | null;
+  bedrooms?: string | number | null;
+  bathrooms?: string | number | null;
+  square_feet?: string | number | null;
+  availability_status?: string | null;
+  sales_status?: string | null;
+  price?: string | number | null;
+  price_available?: boolean;
+};
+
+function unitText(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '—';
+  return String(value);
+}
+
+function formatListPrice(value: string | number | null | undefined, locale: string): string {
+  if (value === null || value === undefined || value === '') return '—';
+  const amount = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(amount)) return String(value);
+  const intlLocale = locale === 'tr' ? 'tr-TR' : 'en-US';
+  return new Intl.NumberFormat(intlLocale, {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+function formatArea(value: string | number | null | undefined, locale: string): string {
+  if (value === null || value === undefined || value === '') return '—';
+  const amount = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(amount)) return String(value);
+  const intlLocale = locale === 'tr' ? 'tr-TR' : 'en-US';
+  return `${new Intl.NumberFormat(intlLocale, { maximumFractionDigits: 0 }).format(amount)} sf`;
+}
+
 function UnitsTab({
-  model,
+  projectId,
   tD,
   locale,
 }: {
-  model: Model;
+  projectId: string;
   tD: TranslateFn;
   locale: string;
 }) {
+  const [units, setUnits] = useState<LiveUnit[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const first = await fetchProjectUnits(projectId, {
+          page: 1,
+          page_size: 100,
+          sort_by: 'display_id',
+          sort_order: 'asc',
+        });
+        let items = [...first.items] as LiveUnit[];
+        for (let page = 2; page <= first.pages; page += 1) {
+          const next = await fetchProjectUnits(projectId, {
+            page,
+            page_size: 100,
+            sort_by: 'display_id',
+            sort_order: 'asc',
+          });
+          items = items.concat(next.items as LiveUnit[]);
+        }
+        if (!cancelled) setUnits(items);
+      } catch {
+        if (!cancelled) {
+          setUnits([]);
+          setError(tD('units.loadError'));
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, tD]);
+
   return (
-    <section className="proj-detail-ds__units" aria-label={tD('units.aria')}>
-      {model.units.map((unit) => (
-        <article key={unit.id} className="proj-detail-ds__unit">
-          <div className="proj-detail-ds__unit-top">
-            <span className="proj-detail-ds__unit-code">{unit.code}</span>
-            <StatusChip tone={unitTone(unit.status)}>
-              {tD(`units.status.${unit.status}`)}
-            </StatusChip>
-          </div>
-          <div className="proj-detail-ds__unit-meta">
-            <div>
-              <span>{tD('units.floor')}</span>
-              <strong>{unit.floor}</strong>
+    <section className="proj-detail-ds__units" aria-label={tD('units.aria')} data-testid="project-units-live">
+      {loading ? <p className="proj-detail-ds__banner">{tD('units.loading')}</p> : null}
+      {error ? <p className="proj-detail-ds__banner">{error}</p> : null}
+      {!loading && !error && units.length === 0 ? (
+        <p className="proj-detail-ds__banner">{tD('units.empty')}</p>
+      ) : null}
+      {units.map((unit) => {
+        const salesStatus = unit.sales_status || 'not_for_sale';
+        const availability = unit.availability_status || 'not_released';
+        const floor = unit.floor_label || (unit.floor_number != null ? String(unit.floor_number) : '—');
+        return (
+          <article key={unit.id || unit.unit} className="proj-detail-ds__unit">
+            <div className="proj-detail-ds__unit-top">
+              <span className="proj-detail-ds__unit-code">{unit.unit || '—'}</span>
+              <StatusChip tone={salesTone(salesStatus)}>{tD(`units.sales.${salesStatus}`)}</StatusChip>
             </div>
-            <div>
-              <span>{tD('units.price')}</span>
-              <strong>{formatCompactCurrency(unit.price, locale)}</strong>
+            <div className="proj-detail-ds__unit-meta">
+              <div>
+                <span>{tD('units.floor')}</span>
+                <strong>{floor}</strong>
+              </div>
+              <div>
+                <span>{tD('units.bedBath')}</span>
+                <strong>
+                  {unitText(unit.bedrooms)} / {unitText(unit.bathrooms)}
+                </strong>
+              </div>
+              <div>
+                <span>{tD('units.squareFeet')}</span>
+                <strong>{formatArea(unit.square_feet, locale)}</strong>
+              </div>
+              <div>
+                <span>{tD('units.availability')}</span>
+                <strong>{tD(`units.availabilityStatus.${availability}`)}</strong>
+              </div>
+              <div>
+                <span>{tD('units.salesStatus')}</span>
+                <strong>{tD(`units.sales.${salesStatus}`)}</strong>
+              </div>
+              <div>
+                <span>{tD('units.price')}</span>
+                <strong>
+                  {unit.price_available ? formatListPrice(unit.price, locale) : tD('units.priceUnavailable')}
+                </strong>
+              </div>
             </div>
-            <div>
-              <span>{tD('units.investor')}</span>
-              <strong>{unit.investor ?? '—'}</strong>
-            </div>
-            <div>
-              <span>{tD('units.availability')}</span>
-              <strong>
-                {unit.status === 'available' ? tD('units.available') : tD('units.unavailable')}
-              </strong>
-            </div>
-            <div>
-              <span>{tD('units.reservation')}</span>
-              <strong>
-                {unit.status === 'reserved' ? tD('units.reserved') : '—'}
-              </strong>
-            </div>
-            <div>
-              <span>{tD('units.rental')}</span>
-              <strong>
-                {unit.rentalMonthly
-                  ? formatCompactCurrency(unit.rentalMonthly, locale)
-                  : '—'}
-              </strong>
-            </div>
-          </div>
-        </article>
-      ))}
+          </article>
+        );
+      })}
     </section>
   );
 }
