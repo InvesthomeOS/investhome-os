@@ -149,6 +149,11 @@ from investhome_api.models.project import (
     ProjectStatus,
     ProjectType,
 )
+from investhome_api.models.project_location import (  # noqa: F401
+    ProjectLocationAiSummary,
+    ProjectLocationProfile,
+    ProjectNearbyPlace,
+)
 from investhome_api.models.project_team import (  # noqa: F401
     ProjectTeamMember,
     ProjectTeamMemberStatus,
@@ -296,6 +301,9 @@ __all__ = [
     "ProjectStatus",
     "ProjectPriority",
     "DevelopmentStage",
+    "ProjectLocationProfile",
+    "ProjectNearbyPlace",
+    "ProjectLocationAiSummary",
     "ProjectTeamMember",
     "ProjectTeamRole",
     "ProjectTeamMemberStatus",

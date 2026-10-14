@@ -1110,6 +1110,66 @@ export async function fetchProjectInvestors(projectId: string): Promise<ProjectI
   return apiFetch<ProjectInvestorsResponse>(`/projects/${projectId}/investors`);
 }
 
+export interface LocationPlace {
+  id: string;
+  name: string;
+  category: string;
+  latitude: number;
+  longitude: number;
+  straight_line_distance_meters: number;
+  walking_distance_meters: number | null;
+  walking_duration_minutes: number | null;
+  rating: number | null;
+  address: string | null;
+}
+
+export interface LocationAmenityGroup {
+  category: string;
+  place_count: number;
+  nearest_distance_meters: number | null;
+  places: LocationPlace[];
+}
+
+export interface LocationAiSummary {
+  summary_text: string;
+  model_provider: string | null;
+  model_name: string | null;
+  prompt_version: string | null;
+  generated_at: string | null;
+}
+
+export interface LocationIntelligenceResponse {
+  project_id: string;
+  status: string;
+  formatted_address: string | null;
+  neighborhood: string | null;
+  locality: string | null;
+  county: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  provider: string | null;
+  fetched_at: string | null;
+  refreshed_at: string | null;
+  nearby_places: LocationPlace[];
+  amenity_groups: LocationAmenityGroup[];
+  ai_summary: LocationAiSummary | null;
+  can_refresh: boolean;
+}
+
+export async function fetchProjectLocationIntelligence(
+  projectId: string,
+): Promise<LocationIntelligenceResponse> {
+  return apiFetch<LocationIntelligenceResponse>(`/projects/${projectId}/location-intelligence`);
+}
+
+export async function refreshProjectLocationIntelligence(
+  projectId: string,
+): Promise<{ status: string }> {
+  return apiFetch<{ status: string }>(`/projects/${projectId}/location-intelligence/refresh`, {
+    method: 'POST',
+  });
+}
+
 export async function fetchProjectDocuments(
   projectId: string,
   params: { search?: string; category?: string; status?: string; page?: number; page_size?: number } = {},

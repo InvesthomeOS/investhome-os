@@ -111,6 +111,12 @@ class Settings(BaseSettings):
     )
     google_drive_sync_max_retries: int = Field(default=3, alias="GOOGLE_DRIVE_SYNC_MAX_RETRIES")
 
+    # Google Maps Platform — server-side only. Never expose the key to the frontend.
+    # Both flags default off so a missing key cannot trigger provider calls.
+    google_maps_api_key: str | None = Field(default=None, alias="GOOGLE_MAPS_API_KEY")
+    google_geocoding_enabled: bool = Field(default=False, alias="GOOGLE_GEOCODING_ENABLED")
+    google_places_enabled: bool = Field(default=False, alias="GOOGLE_PLACES_ENABLED")
+
     # Gmail mailbox OAuth reuses GOOGLE_DRIVE_CLIENT_ID / SECRET (Web client).
     # Do not reuse GOOGLE_DRIVE_REFRESH_TOKEN — that token is Drive-only.
     # Redirect URI is exact-match allowlisted (local HTTP in development; HTTPS in production).

@@ -29,6 +29,9 @@ from investhome_api.models.project_team import (
     ProjectTeamRole,
 )
 from investhome_api.models.user_auth import User
+from investhome_api.services.location_intelligence.normalize import ADDRESS_TEXT_FIELDS, format_project_address
+from investhome_api.services.location_intelligence.queue import enqueue_location_refresh
+from investhome_api.services.location_intelligence.service import mark_location_pending
 from investhome_api.schemas.project import (
     FINANCIAL_FIELDS,
     ProjectCreate,
@@ -385,8 +388,11 @@ def create_project(
 
     project = Project(**data)
     db.add(project)
+    address_changed = bool(format_project_address(project))
     try:
         db.flush()
+        if address_changed:
+            mark_location_pending(db, project)
         log_entity_created(
             db,
             entity_type=ActivityEntityType.PROJECT,
@@ -405,6 +411,8 @@ def create_project(
             detail="Project code already exists",
         ) from exc
     db.refresh(project)
+    if address_changed:
+        enqueue_location_refresh(project.id)
     return project
 
 
@@ -458,6 +466,9 @@ def update_project(
         description_key = "activity.project.address_updated"
     elif "project_manager_user_id" in updates:
         description_key = "activity.project.manager_changed"
+    address_text_changed = bool(ADDRESS_TEXT_FIELDS.intersection(updates))
+    if address_text_changed:
+        mark_location_pending(db, project)
 
     try:
         db.flush()
@@ -481,6 +492,8 @@ def update_project(
             detail="Project code already exists",
         ) from exc
     db.refresh(project)
+    if address_text_changed:
+        enqueue_location_refresh(project.id)
     return project
 
 

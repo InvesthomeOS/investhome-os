@@ -1436,6 +1436,13 @@ button.proj-detail-ds__doc-cat {
   min-width: 0;
 }
 
+.proj-detail-ds__twin-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .proj-detail-ds__twin-head h3 {
   margin: 0;
   color: #152a36;

@@ -11,6 +11,15 @@ import {
 } from './projects-detail-media-model';
 
 const CATEGORIES: AmenityCategory[] = [
+  'food',
+  'grocery',
+  'parks',
+  'fitness',
+  'education',
+  'healthcare',
+  'transit',
+  'retail',
+  'landmarks',
   'schools',
   'universities',
   'metro',
@@ -20,8 +29,6 @@ const CATEGORIES: AmenityCategory[] = [
   'shopping',
   'restaurants',
   'coffee',
-  'parks',
-  'fitness',
   'banks',
   'pharmacies',
   'entertainment',
@@ -105,8 +112,8 @@ export function ProjectsDetailAmenities({
             <strong>{localizedName(item, locale)}</strong>
             <div className="proj-detail-ds__amenity-meta">
               <span>{t('amenities.distance', { km: item.distanceKm.toFixed(1) })}</span>
-              <span>{t('amenities.walk', { min: item.walkMin })}</span>
-              <span>{t('amenities.drive', { min: item.driveMin })}</span>
+              {item.walkMin != null ? <span>{t('amenities.walk', { min: item.walkMin })}</span> : null}
+              {item.driveMin != null ? <span>{t('amenities.drive', { min: item.driveMin })}</span> : null}
             </div>
           </article>
         ))}

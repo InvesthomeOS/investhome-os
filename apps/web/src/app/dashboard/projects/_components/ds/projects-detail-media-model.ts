@@ -104,6 +104,15 @@ export type WalkScoreItem = {
 };
 
 export type AmenityCategory =
+  | 'food'
+  | 'grocery'
+  | 'parks'
+  | 'fitness'
+  | 'education'
+  | 'healthcare'
+  | 'transit'
+  | 'retail'
+  | 'landmarks'
   | 'schools'
   | 'universities'
   | 'metro'
@@ -113,8 +122,6 @@ export type AmenityCategory =
   | 'shopping'
   | 'restaurants'
   | 'coffee'
-  | 'parks'
-  | 'fitness'
   | 'banks'
   | 'pharmacies'
   | 'entertainment'
@@ -126,8 +133,8 @@ export type AmenityItem = {
   nameEn: string;
   nameTr: string;
   distanceKm: number;
-  walkMin: number;
-  driveMin: number;
+  walkMin: number | null;
+  driveMin: number | null;
   rating: number | null;
 };
 
@@ -157,6 +164,9 @@ export type LocationIntelligence = {
   overviewTr: string;
   nearbyPlaces: NearbyPlace[];
   radii: RadiusBand[];
+  aiSummary: string | null;
+  canRefresh: boolean;
+  refreshedAt: string | null;
 };
 
 export type MarketMetricKey =
@@ -243,6 +253,9 @@ export function emptyLocation(): LocationIntelligence {
     overviewTr: '',
     nearbyPlaces: [],
     radii: [],
+    aiSummary: null,
+    canRefresh: false,
+    refreshedAt: null,
   };
 }
 

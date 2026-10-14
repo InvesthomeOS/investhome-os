@@ -33,9 +33,12 @@ import {
   fetchProjectDocuments,
   fetchProjectFinancials,
   fetchProjectInvestors,
+  fetchProjectLocationIntelligence,
   fetchProjectUnits,
   fetchProjects,
   formatShortDate,
+  refreshProjectLocationIntelligence,
+  type LocationIntelligenceResponse,
   type Project,
   type ProjectActivityItem,
   type ProjectAlertItem,
@@ -58,9 +61,11 @@ import {
 import { ProjectDriveSyncPanel } from './project-drive-sync-panel';
 import { ProjectAssistantPanel } from './project-assistant-panel';
 import { ProjectsDetailDigitalTwin } from './projects-detail-digital-twin';
+import type { AmenityItem } from './projects-detail-media-model';
 import {
   buildOverviewMedia,
   metricText,
+  overlayLocationIntelligence,
   readOverviewDocument,
   type OverviewDocument,
   type OverviewMedia,
@@ -202,6 +207,8 @@ export function ProjectsDetailDsWorkspace({
   const [investorCount, setInvestorCount] = useState<number | null>(null);
   const [investorItems, setInvestorItems] = useState<Array<Record<string, unknown>>>([]);
   const [projectRisk, setProjectRisk] = useState<ProjectRiskLevel | null>(null);
+  const [locationIntel, setLocationIntel] = useState<LocationIntelligenceResponse | null>(null);
+  const [refreshState, setRefreshState] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -274,11 +281,37 @@ export function ProjectsDetailDsWorkspace({
     };
   }, [canView, projectId]);
 
+  useEffect(() => {
+    if (!canView) return;
+    let cancelled = false;
+    fetchProjectLocationIntelligence(projectId)
+      .then((data) => {
+        if (!cancelled) setLocationIntel(data);
+      })
+      .catch(() => {
+        if (!cancelled) setLocationIntel(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [canView, projectId]);
+
   const model = useMemo(
     () => buildProjectDetailDsModel(project, projectId, locale),
     [project, projectId, locale],
   );
   const media = useMemo(() => buildOverviewMedia(project, documents), [project, documents]);
+  const locationView = useMemo(
+    () => overlayLocationIntelligence(media.location, locationIntel),
+    [media.location, locationIntel],
+  );
+  const refreshLocation = useCallback(() => {
+    if (refreshState === 'working' || refreshState === 'queued') return;
+    setRefreshState('working');
+    refreshProjectLocationIntelligence(projectId)
+      .then((result) => setRefreshState(result.status))
+      .catch(() => setRefreshState('error'));
+  }, [projectId, refreshState]);
   const financeSummary = financials?.summary ?? null;
   const hasBudgetBaseline = Boolean(
     financeSummary?.total_development_budget?.available ||
@@ -500,6 +533,10 @@ export function ProjectsDetailDsWorkspace({
           activity={activity}
           alerts={alerts}
           media={media}
+          location={locationView.location}
+          amenities={locationView.amenities}
+          refreshState={refreshState}
+          onRefreshLocation={refreshLocation}
           projectRisk={projectRisk}
         />
       ) : null}
@@ -545,6 +582,10 @@ function OverviewTab({
   activity,
   alerts,
   media,
+  location,
+  amenities,
+  refreshState,
+  onRefreshLocation,
   projectRisk,
 }: {
   model: Model;
@@ -556,6 +597,10 @@ function OverviewTab({
   activity: ProjectActivityItem[];
   alerts: ProjectAlertItem[];
   media: OverviewMedia;
+  location: OverviewMedia['location'];
+  amenities: AmenityItem[];
+  refreshState: string | null;
+  onRefreshLocation: () => void;
   projectRisk: ProjectRiskLevel | null;
 }) {
   const budgetAlerts = alerts.filter((item) => item.category === 'budget');
@@ -572,8 +617,11 @@ function OverviewTab({
         gallery={media.gallery}
         constructionPhotos={media.constructionPhotos}
         floorPlans={media.floorPlans}
-        location={media.location}
+        location={location}
         mediaStats={media.mediaStats}
+        amenities={amenities}
+        onRefreshLocation={onRefreshLocation}
+        refreshState={refreshState}
       />
       <div className="proj-detail-ds__overview">
         <div className="proj-detail-ds__overview-main">

@@ -1,5 +1,5 @@
 import { documentPreviewUrl } from '@/lib/api/documents';
-import type { MetricValue, Project } from '@/lib/api/projects';
+import type { LocationIntelligenceResponse, MetricValue, Project } from '@/lib/api/projects';
 
 import {
   emptyLocation,
@@ -8,6 +8,8 @@ import {
   type LocationIntelligence,
   type MediaStats,
   type ProjectGalleryItem,
+  type AmenityCategory,
+  type AmenityItem,
 } from './projects-detail-media-model';
 
 export type OverviewDocument = {
@@ -102,9 +104,6 @@ export function buildOverviewMedia(project: Project | null, documents: OverviewD
     .sort()
     .at(-1);
 
-  const latitude = project?.latitude == null ? null : Number(project.latitude);
-  const longitude = project?.longitude == null ? null : Number(project.longitude);
-  const hasCoordinates = Number.isFinite(latitude) && Number.isFinite(longitude);
   const address = [project?.address, project?.city, project?.state, project?.country].filter(Boolean).join(', ');
 
   return {
@@ -139,8 +138,6 @@ export function buildOverviewMedia(project: Project | null, documents: OverviewD
     },
     location: {
       ...emptyLocation(),
-      lat: hasCoordinates ? latitude : null,
-      lng: hasCoordinates ? longitude : null,
       addressEn: address,
       addressTr: address,
     },
@@ -156,4 +153,75 @@ export function metricText(metric: MetricValue | null | undefined, locale: strin
     currency: 'USD',
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+const AMENITY_CATEGORIES = new Set<AmenityCategory>([
+  'food',
+  'grocery',
+  'parks',
+  'fitness',
+  'education',
+  'healthcare',
+  'transit',
+  'retail',
+  'landmarks',
+]);
+
+export function overlayLocationIntelligence(
+  location: LocationIntelligence,
+  intel: LocationIntelligenceResponse | null,
+): { location: LocationIntelligence; amenities: AmenityItem[] } {
+  const verified = intel?.status === 'success' && intel.latitude != null && intel.longitude != null;
+  if (!intel || !verified) {
+    return {
+      location: {
+        ...location,
+        lat: null,
+        lng: null,
+        neighborhoodEn: '',
+        neighborhoodTr: '',
+        aiSummary: null,
+        canRefresh: Boolean(intel?.can_refresh),
+        refreshedAt: intel?.refreshed_at ?? null,
+        nearbyPlaces: [],
+      },
+      amenities: [],
+    };
+  }
+  const identity = intel.neighborhood || intel.locality || '';
+  const places = intel.nearby_places.filter((place) => AMENITY_CATEGORIES.has(place.category as AmenityCategory));
+  return {
+    location: {
+      ...location,
+      lat: intel.latitude,
+      lng: intel.longitude,
+      addressEn: intel.formatted_address || location.addressEn,
+      addressTr: intel.formatted_address || location.addressTr,
+      neighborhoodEn: identity,
+      neighborhoodTr: identity,
+      overviewEn: '',
+      overviewTr: '',
+      aiSummary: intel.ai_summary?.summary_text ?? null,
+      canRefresh: intel.can_refresh,
+      refreshedAt: intel.refreshed_at,
+      nearbyPlaces: places.slice(0, 8).map((place) => ({
+        id: place.id,
+        nameEn: place.name,
+        nameTr: place.name,
+        kindEn: place.category,
+        kindTr: place.category,
+        distanceKm: place.straight_line_distance_meters / 1000,
+      })),
+    },
+    amenities: places.map((place) => ({
+      id: place.id,
+      category: place.category as AmenityCategory,
+      nameEn: place.name,
+      nameTr: place.name,
+      distanceKm: place.straight_line_distance_meters / 1000,
+      walkMin: place.walking_duration_minutes,
+      driveMin: null,
+      rating: place.rating,
+    })),
+  };
 }

@@ -7,6 +7,16 @@ from arq import cron
 from investhome_api.config.settings import get_settings
 from investhome_api.core.logging_config import configure_logging, get_logger
 from investhome_api.services.document_intelligence.queue import JOB_NAME, process_document_job
+from investhome_api.services.location_intelligence.jobs import (
+    refresh_project_geocode_job,
+    refresh_project_location_intelligence_job,
+    refresh_project_nearby_places_job,
+)
+from investhome_api.services.location_intelligence.queue import (
+    JOB_REFRESH_GEOCODE,
+    JOB_REFRESH_LOCATION,
+    JOB_REFRESH_PLACES,
+)
 from investhome_api.services.drawing_intelligence.queue import (
     JOB_NAME as DRAWING_JOB_NAME,
     get_drawing_worker_timeout,
@@ -124,6 +134,9 @@ class WorkerSettings:
         gmail_account_sync_job,
         process_ai_index_job,
         process_ai_index_project_job,
+        refresh_project_geocode_job,
+        refresh_project_nearby_places_job,
+        refresh_project_location_intelligence_job,
     ]
     cron_jobs = [
         cron(expire_soft_holds_job, name=JOB_EXPIRE_SOFT_HOLDS, minute={0, 15, 30, 45}),
@@ -196,5 +209,8 @@ class WorkerSettings:
         JOB_GMAIL_ACCOUNT_SYNC: gmail_account_sync_job,
         AI_INDEX_JOB_NAME: process_ai_index_job,
         AI_INDEX_PROJECT_JOB_NAME: process_ai_index_project_job,
+        JOB_REFRESH_GEOCODE: refresh_project_geocode_job,
+        JOB_REFRESH_PLACES: refresh_project_nearby_places_job,
+        JOB_REFRESH_LOCATION: refresh_project_location_intelligence_job,
     }
     drawing_job_timeout = get_drawing_worker_timeout()

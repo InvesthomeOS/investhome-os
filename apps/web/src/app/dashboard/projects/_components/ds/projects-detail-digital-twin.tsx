@@ -12,6 +12,7 @@ import type {
   LocationIntelligence,
   MediaStats,
   ProjectGalleryItem,
+  AmenityItem,
 } from './projects-detail-media-model';
 
 /**
@@ -25,6 +26,9 @@ export function ProjectsDetailDigitalTwin({
   floorPlans,
   location,
   mediaStats,
+  amenities,
+  onRefreshLocation,
+  refreshState,
 }: {
   locale: string;
   gallery: ProjectGalleryItem[];
@@ -32,6 +36,9 @@ export function ProjectsDetailDigitalTwin({
   floorPlans: FloorPlanItem[];
   location: LocationIntelligence;
   mediaStats: MediaStats;
+  amenities: AmenityItem[];
+  onRefreshLocation?: () => void;
+  refreshState?: string | null;
 }) {
   return (
     <div className="proj-detail-ds__twin" data-testid="projects-detail-digital-twin">
@@ -43,8 +50,14 @@ export function ProjectsDetailDigitalTwin({
         locale={locale}
       />
       <ProjectsDetailFloorPlans plans={floorPlans} locale={locale} />
-      <ProjectsDetailLocation location={location} walkScores={[]} locale={locale} />
-      <ProjectsDetailAmenities amenities={[]} locale={locale} />
+      <ProjectsDetailLocation
+        location={location}
+        walkScores={[]}
+        locale={locale}
+        onRefresh={onRefreshLocation}
+        refreshState={refreshState}
+      />
+      <ProjectsDetailAmenities amenities={amenities} locale={locale} />
       <ProjectsDetailMarket market={{ metrics: [] }} locale={locale} />
     </div>
   );

@@ -33,17 +33,26 @@ export function ProjectsDetailLocation({
   location,
   walkScores,
   locale,
+  onRefresh,
+  refreshState,
 }: {
   location: LocationIntelligence;
   walkScores: WalkScoreItem[];
   locale: string;
+  onRefresh?: () => void;
+  refreshState?: string | null;
 }) {
   const t = useTranslations('projects.detail.twin');
   const tEmpty = useTranslations('projects.detail.empty');
   const neighborhood = locale === 'tr' ? location.neighborhoodTr : location.neighborhoodEn;
   const address = locale === 'tr' ? location.addressTr : location.addressEn;
-  const overview = locale === 'tr' ? location.overviewTr : location.overviewEn;
   const hasCoordinates = location.lat != null && location.lng != null;
+  const refreshLabel =
+    refreshState === 'queued' || refreshState === 'already_queued'
+      ? t(`location.refreshState.${refreshState}`)
+      : refreshState === 'disabled' || refreshState === 'error'
+        ? t(`location.refreshState.${refreshState}`)
+        : null;
 
   return (
     <section className="proj-detail-ds__twin-section" aria-label={t('location.aria')}>
@@ -52,8 +61,26 @@ export function ProjectsDetailLocation({
           <h3>{t('location.title')}</h3>
           <p className="proj-detail-ds__panel-sub">{t('location.subtitle')}</p>
         </div>
-        {neighborhood ? <StatusChip tone="info">{neighborhood}</StatusChip> : null}
+        <div className="proj-detail-ds__twin-head-actions">
+          {neighborhood ? <StatusChip tone="info">{neighborhood}</StatusChip> : null}
+          {location.canRefresh ? (
+            <button
+              type="button"
+              className="proj-detail-ds__gallery-filter"
+              onClick={onRefresh}
+              disabled={refreshState === 'working' || refreshState === 'queued'}
+            >
+              {t('location.refresh')}
+            </button>
+          ) : null}
+        </div>
       </header>
+      {refreshLabel ? <p className="proj-detail-ds__panel-sub">{refreshLabel}</p> : null}
+      {location.refreshedAt ? (
+        <p className="proj-detail-ds__panel-sub">
+          {t('location.refreshedAt', { time: location.refreshedAt.slice(0, 16).replace('T', ' ') })}
+        </p>
+      ) : null}
       {!hasCoordinates ? <p className="proj-detail-ds__banner">{tEmpty('location')}</p> : null}
 
       <div className="proj-detail-ds__location-grid">
@@ -77,7 +104,12 @@ export function ProjectsDetailLocation({
         <div className="proj-detail-ds__location-side">
           <article className="proj-detail-ds__panel proj-detail-ds__location-card">
             <h4>{t('location.neighborhood')}</h4>
-            <p className="proj-detail-ds__panel-sub">{overview || tEmpty('neighborhood')}</p>
+            <p className="proj-detail-ds__panel-sub">{neighborhood || tEmpty('neighborhood')}</p>
+            {location.aiSummary ? (
+              <p className="proj-detail-ds__panel-sub">
+                <strong>{t('location.aiAnalysis')}</strong> {location.aiSummary}
+              </p>
+            ) : null}
             <div className="proj-detail-ds__kv">
               {address ? (
               <div className="proj-detail-ds__kv-row">
@@ -98,7 +130,9 @@ export function ProjectsDetailLocation({
 
           <article className="proj-detail-ds__panel proj-detail-ds__location-card">
             <h4>{t('location.radii')}</h4>
-            {location.radii.length === 0 ? <p className="proj-detail-ds__panel-sub">{tEmpty('location')}</p> : null}
+            {location.radii.length === 0 && !hasCoordinates ? (
+              <p className="proj-detail-ds__panel-sub">{tEmpty('location')}</p>
+            ) : null}
             <div className="proj-detail-ds__radius-row">
               {location.radii.map((r) => (
                 <div key={r.id} className="proj-detail-ds__radius-chip">
@@ -121,7 +155,7 @@ export function ProjectsDetailLocation({
                 <li key={place.id}>
                   <strong>{locale === 'tr' ? place.nameTr : place.nameEn}</strong>
                   <span>
-                    {locale === 'tr' ? place.kindTr : place.kindEn} ·{' '}
+                    {t(`amenities.categories.${place.kindEn}`)} ·{' '}
                     {t('amenities.distance', { km: place.distanceKm.toFixed(1) })}
                   </span>
                 </li>

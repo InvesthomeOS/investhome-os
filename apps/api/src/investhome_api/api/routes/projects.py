@@ -33,6 +33,7 @@ from investhome_api.schemas.project_dashboard import (
     ProjectDashboardResponse,
     ProjectMilestoneListResponse,
 )
+from investhome_api.schemas.project_location import LocationIntelligenceResponse, LocationRefreshResponse
 from investhome_api.schemas.project_detail import (
     ProjectConstructionResponse,
     ProjectDetailShell,
@@ -53,6 +54,9 @@ from investhome_api.schemas.project_executive_finance import (
 from investhome_api.services import project_dashboard_service as dashboard_svc
 from investhome_api.services import project_detail_service as detail_svc
 from investhome_api.services import project_executive_finance_service as executive_finance_svc
+from investhome_api.services.location_intelligence.google_provider import provider_configured
+from investhome_api.services.location_intelligence.queue import enqueue_location_refresh
+from investhome_api.services.location_intelligence.service import read_location_intelligence
 from investhome_api.services import project_service as svc
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -198,6 +202,29 @@ def get_project(
 ) -> ProjectResponse:
     project = svc.get_project_or_404(db, project_id)
     return svc.to_project_response(db, project, user=user, include_team=True)
+
+
+@router.get("/{project_id}/location-intelligence", response_model=LocationIntelligenceResponse)
+def get_location_intelligence(
+    project_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("projects", "view")),
+) -> LocationIntelligenceResponse:
+    project = svc.get_project_or_404(db, project_id)
+    return LocationIntelligenceResponse.model_validate(read_location_intelligence(db, project, user=user))
+
+
+@router.post("/{project_id}/location-intelligence/refresh", response_model=LocationRefreshResponse)
+def refresh_location_intelligence(
+    project_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("projects", "update")),
+) -> LocationRefreshResponse:
+    project = svc.get_project_or_404(db, project_id)
+    if not provider_configured(places=False):
+        return LocationRefreshResponse(status="disabled")
+    queued = enqueue_location_refresh(project.id)
+    return LocationRefreshResponse(status=queued)
 
 
 @router.get("/{project_id}/detail", response_model=ProjectDetailShell)
