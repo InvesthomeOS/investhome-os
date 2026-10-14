@@ -36,6 +36,7 @@ export function ProjectsDetailMediaStats({
   locale: string;
 }) {
   const t = useTranslations('projects.detail.twin');
+  const tEmpty = useTranslations('projects.detail.empty');
 
   return (
     <section className="proj-detail-ds__twin-section proj-detail-ds__twin-section--compact" aria-label={t('mediaStats.aria')}>
@@ -44,12 +45,15 @@ export function ProjectsDetailMediaStats({
           <h3>{t('mediaStats.title')}</h3>
           <p className="proj-detail-ds__panel-sub">{t('mediaStats.subtitle')}</p>
         </div>
-        <StatusChip tone="info">
-          {t('mediaStats.updated', { date: formatShortDate(stats.lastUpdated, locale) })}
-        </StatusChip>
+        {stats.documents > 0 && stats.lastUpdated ? (
+          <StatusChip tone="info">
+            {t('mediaStats.updated', { date: formatShortDate(stats.lastUpdated, locale) })}
+          </StatusChip>
+        ) : null}
       </header>
+      {stats.documents === 0 ? <p className="proj-detail-ds__banner">{tEmpty('media')}</p> : null}
 
-      <div className="proj-detail-ds__media-stats">
+      {stats.documents > 0 ? <div className="proj-detail-ds__media-stats">
         {STAT_KEYS.map((key) => (
           <div key={key} className="proj-detail-ds__media-stat">
             <span className="proj-detail-ds__media-stat-icon" aria-hidden="true">
@@ -61,7 +65,7 @@ export function ProjectsDetailMediaStats({
             </div>
           </div>
         ))}
-      </div>
+      </div> : null}
     </section>
   );
 }

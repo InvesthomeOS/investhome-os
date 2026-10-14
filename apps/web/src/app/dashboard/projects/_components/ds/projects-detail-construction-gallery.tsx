@@ -9,8 +9,10 @@ import { IhIcon } from '@/components/icons/ih-icons';
 
 import {
   localizedCaption,
+  localizedTitle,
   type ConstructionGalleryMilestone,
   type InspectionStatus,
+  type ProjectGalleryItem,
 } from './projects-detail-media-model';
 
 function inspectionTone(status: InspectionStatus) {
@@ -28,12 +30,15 @@ function inspectionTone(status: InspectionStatus) {
 
 export function ProjectsDetailConstructionGallery({
   milestones,
+  photos = [],
   locale,
 }: {
   milestones: ConstructionGalleryMilestone[];
+  photos?: ProjectGalleryItem[];
   locale: string;
 }) {
   const t = useTranslations('projects.detail.twin');
+  const tEmpty = useTranslations('projects.detail.empty');
   const [active, setActive] = useState<{
     milestone: ConstructionGalleryMilestone;
     mediaIndex: number;
@@ -46,10 +51,32 @@ export function ProjectsDetailConstructionGallery({
           <h3>{t('constructionGallery.title')}</h3>
           <p className="proj-detail-ds__panel-sub">{t('constructionGallery.subtitle')}</p>
         </div>
-        <StatusChip tone="info">
-          {t('constructionGallery.milestones', { count: milestones.length })}
-        </StatusChip>
+        {milestones.length > 0 ? (
+          <StatusChip tone="info">
+            {t('constructionGallery.milestones', { count: milestones.length })}
+          </StatusChip>
+        ) : null}
       </header>
+      {milestones.length === 0 && photos.length === 0 ? (
+        <p className="proj-detail-ds__banner">{tEmpty('constructionPhotos')}</p>
+      ) : null}
+      {photos.length > 0 ? (
+        <div className="proj-detail-ds__gallery-grid">
+          {photos.map((photo) => (
+            <article key={photo.id} className="proj-detail-ds__gallery-card">
+              <div className="proj-detail-ds__media-frame" aria-hidden="true">
+                {photo.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photo.imageUrl} alt="" />
+                ) : null}
+              </div>
+              <div className="proj-detail-ds__gallery-meta">
+                <strong>{localizedTitle(photo, locale)}</strong>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : null}
 
       <div className="proj-detail-ds__cg-list">
         {milestones.map((m) => (

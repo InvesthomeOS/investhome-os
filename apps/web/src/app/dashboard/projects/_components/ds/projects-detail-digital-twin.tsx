@@ -1,8 +1,5 @@
 'use client';
 
-import { useMemo } from 'react';
-
-import { getProjectProposalMediaBundle } from './projects-detail-proposal-bundle';
 import { ProjectsDetailAmenities } from './projects-detail-amenities';
 import { ProjectsDetailConstructionGallery } from './projects-detail-construction-gallery';
 import { ProjectsDetailFloorPlans } from './projects-detail-floor-plans';
@@ -10,37 +7,45 @@ import { ProjectsDetailGallery } from './projects-detail-gallery';
 import { ProjectsDetailLocation } from './projects-detail-location';
 import { ProjectsDetailMarket } from './projects-detail-market';
 import { ProjectsDetailMediaStats } from './projects-detail-media-stats';
+import type {
+  FloorPlanItem,
+  LocationIntelligence,
+  MediaStats,
+  ProjectGalleryItem,
+} from './projects-detail-media-model';
 
 /**
- * Digital Twin expansion stack for Project Detail Overview.
- * Full-width sections above the existing overview widget grid.
- * Data comes from getProjectProposalMediaBundle for Proposal Engine reuse.
+ * Digital Twin stack for Project Detail Overview.
+ * Sections stay visible. Content comes from stored project records.
  */
 export function ProjectsDetailDigitalTwin({
-  projectId,
   locale,
+  gallery,
+  constructionPhotos,
+  floorPlans,
+  location,
+  mediaStats,
 }: {
-  projectId: string;
   locale: string;
+  gallery: ProjectGalleryItem[];
+  constructionPhotos: ProjectGalleryItem[];
+  floorPlans: FloorPlanItem[];
+  location: LocationIntelligence;
+  mediaStats: MediaStats;
 }) {
-  const bundle = useMemo(() => getProjectProposalMediaBundle(projectId), [projectId]);
-
   return (
     <div className="proj-detail-ds__twin" data-testid="projects-detail-digital-twin">
-      <ProjectsDetailMediaStats stats={bundle.mediaStats} locale={locale} />
-      <ProjectsDetailGallery items={bundle.gallery} locale={locale} />
+      <ProjectsDetailMediaStats stats={mediaStats} locale={locale} />
+      <ProjectsDetailGallery items={gallery} locale={locale} />
       <ProjectsDetailConstructionGallery
-        milestones={bundle.constructionGallery}
+        milestones={[]}
+        photos={constructionPhotos}
         locale={locale}
       />
-      <ProjectsDetailFloorPlans plans={bundle.floorPlans} locale={locale} />
-      <ProjectsDetailLocation
-        location={bundle.location}
-        walkScores={bundle.walkScores}
-        locale={locale}
-      />
-      <ProjectsDetailAmenities amenities={bundle.amenities} locale={locale} />
-      <ProjectsDetailMarket market={bundle.market} locale={locale} />
+      <ProjectsDetailFloorPlans plans={floorPlans} locale={locale} />
+      <ProjectsDetailLocation location={location} walkScores={[]} locale={locale} />
+      <ProjectsDetailAmenities amenities={[]} locale={locale} />
+      <ProjectsDetailMarket market={{ metrics: [] }} locale={locale} />
     </div>
   );
 }

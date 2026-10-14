@@ -30,6 +30,7 @@ export function ProjectsDetailGallery({
   locale: string;
 }) {
   const t = useTranslations('projects.detail.twin');
+  const tEmpty = useTranslations('projects.detail.empty');
   const [filter, setFilter] = useState<GalleryCategory | 'all'>('all');
   const [active, setActive] = useState<ProjectGalleryItem | null>(null);
 
@@ -53,7 +54,10 @@ export function ProjectsDetailGallery({
           {t('gallery.count', { count: items.length })}
         </StatusChip>
       </header>
+      {items.length === 0 ? <p className="proj-detail-ds__banner">{tEmpty('gallery')}</p> : null}
 
+      {items.length > 0 ? (
+      <>
       <div className="proj-detail-ds__gallery-filters" role="tablist" aria-label={t('gallery.filters')}>
         <button
           type="button"
@@ -82,13 +86,11 @@ export function ProjectsDetailGallery({
             className="proj-detail-ds__gallery-card"
             onClick={() => setActive(item)}
           >
-            <div
-              className={`proj-detail-ds__media-frame is-${item.scene} accent-${item.accent}`}
-              aria-hidden="true"
-            >
-              <i />
-              <i />
-              <i />
+            <div className="proj-detail-ds__media-frame" aria-hidden="true">
+              {item.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={item.imageUrl} alt="" />
+              ) : null}
             </div>
             <div className="proj-detail-ds__gallery-meta">
               <strong>{localizedTitle(item, locale)}</strong>
@@ -103,6 +105,8 @@ export function ProjectsDetailGallery({
           </button>
         ))}
       </div>
+      </>
+      ) : null}
 
       <Dialog
         open={Boolean(active)}
@@ -111,13 +115,12 @@ export function ProjectsDetailGallery({
       >
         {active ? (
           <div className="proj-detail-ds__lightbox">
-            <div
-              className={`proj-detail-ds__media-frame is-lightbox is-${active.scene} accent-${active.accent}`}
-              aria-hidden="true"
+            <div className="proj-detail-ds__media-frame is-lightbox" aria-hidden="true"
             >
-              <i />
-              <i />
-              <i />
+              {active.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={active.imageUrl} alt="" />
+              ) : null}
             </div>
             <div className="proj-detail-ds__lightbox-meta">
               <StatusChip tone="info">{t(`gallery.categories.${active.category}`)}</StatusChip>

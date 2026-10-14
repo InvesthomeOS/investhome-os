@@ -29,6 +29,7 @@ export function ProjectsDetailMarket({
   locale: string;
 }) {
   const t = useTranslations('projects.detail.twin');
+  const tEmpty = useTranslations('projects.detail.empty');
 
   return (
     <section className="proj-detail-ds__twin-section" aria-label={t('market.aria')}>
@@ -39,6 +40,7 @@ export function ProjectsDetailMarket({
         </div>
       </header>
 
+      {market.metrics.length === 0 ? <p className="proj-detail-ds__banner">{tEmpty('market')}</p> : null}
       <div className="proj-detail-ds__market-grid">
         {market.metrics.map((metric) => (
           <KpiCard

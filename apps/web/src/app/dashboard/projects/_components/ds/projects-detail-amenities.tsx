@@ -36,6 +36,7 @@ export function ProjectsDetailAmenities({
   locale: string;
 }) {
   const t = useTranslations('projects.detail.twin');
+  const tEmpty = useTranslations('projects.detail.empty');
   const [filter, setFilter] = useState<AmenityCategory | 'all'>('all');
 
   const visibleItems = useMemo(() => {
@@ -62,9 +63,14 @@ export function ProjectsDetailAmenities({
           <h3>{t('amenities.title')}</h3>
           <p className="proj-detail-ds__panel-sub">{t('amenities.subtitle')}</p>
         </div>
-        <StatusChip tone="info">{t('amenities.count', { count: amenities.length })}</StatusChip>
+        {amenities.length > 0 ? (
+          <StatusChip tone="info">{t('amenities.count', { count: amenities.length })}</StatusChip>
+        ) : null}
       </header>
+      {amenities.length === 0 ? <p className="proj-detail-ds__banner">{tEmpty('amenities')}</p> : null}
 
+      {amenities.length > 0 ? (
+      <>
       <div className="proj-detail-ds__gallery-filters" role="tablist" aria-label={t('amenities.filters')}>
         <button
           type="button"
@@ -105,6 +111,8 @@ export function ProjectsDetailAmenities({
           </article>
         ))}
       </div>
+      </>
+      ) : null}
     </section>
   );
 }

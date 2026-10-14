@@ -27,11 +27,20 @@ import {
 } from '@/lib/api/creative-studio';
 import { formatFileSize } from '@/lib/api/documents';
 import {
+  fetchProjectAlerts,
   fetchProjectDetail,
+  fetchProjectDetailActivity,
+  fetchProjectDocuments,
+  fetchProjectFinancials,
+  fetchProjectInvestors,
   fetchProjectUnits,
   fetchProjects,
   formatShortDate,
   type Project,
+  type ProjectActivityItem,
+  type ProjectAlertItem,
+  type ProjectFinancialsResponse,
+  type ProjectRiskLevel,
 } from '@/lib/api/projects';
 import { useProjectLabels } from '@/lib/i18n/project-labels';
 
@@ -49,6 +58,13 @@ import {
 import { ProjectDriveSyncPanel } from './project-drive-sync-panel';
 import { ProjectAssistantPanel } from './project-assistant-panel';
 import { ProjectsDetailDigitalTwin } from './projects-detail-digital-twin';
+import {
+  buildOverviewMedia,
+  metricText,
+  readOverviewDocument,
+  type OverviewDocument,
+  type OverviewMedia,
+} from './projects-detail-overview-live';
 
 import './projects-ds.css';
 import './projects-detail-ds.css';
@@ -75,16 +91,52 @@ const KPI_ORDER: DetailKpiKey[] = [
   'targetDelivery',
 ];
 
-function ProjectCover({ scene }: { scene: string }) {
-  return (
-    <div className={`proj-ds__cover is-${scene}`} aria-hidden="true">
-      <i />
-      <i />
-      <i />
-      <i />
-      <i />
-    </div>
-  );
+function kpiEmptyKey(key: DetailKpiKey) {
+  switch (key) {
+    case 'units':
+      return 'empty.units' as const;
+    case 'investors':
+      return 'empty.investors' as const;
+    case 'completion':
+      return 'empty.progress' as const;
+    case 'targetDelivery':
+      return 'empty.targetDelivery' as const;
+    default:
+      return 'empty.financial' as const;
+  }
+}
+
+function kpiValue(
+  key: DetailKpiKey,
+  values: {
+    budget: string | null;
+    spent: string | null;
+    remaining: string | null;
+    roi: string | null;
+    units: string | null;
+    investors: string | null;
+    completion: string | null;
+    target: string | null;
+  },
+): string | null {
+  switch (key) {
+    case 'totalBudget':
+      return values.budget;
+    case 'spent':
+      return values.spent;
+    case 'remaining':
+      return values.remaining;
+    case 'expectedRoi':
+      return values.roi;
+    case 'units':
+      return values.units;
+    case 'investors':
+      return values.investors;
+    case 'completion':
+      return values.completion;
+    case 'targetDelivery':
+      return values.target;
+  }
 }
 
 function salesTone(status: string) {
@@ -143,6 +195,13 @@ export function ProjectsDetailDsWorkspace({
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<OverviewDocument[]>([]);
+  const [activity, setActivity] = useState<ProjectActivityItem[]>([]);
+  const [alerts, setAlerts] = useState<ProjectAlertItem[]>([]);
+  const [financials, setFinancials] = useState<ProjectFinancialsResponse | null>(null);
+  const [investorCount, setInvestorCount] = useState<number | null>(null);
+  const [investorItems, setInvestorItems] = useState<Array<Record<string, unknown>>>([]);
+  const [projectRisk, setProjectRisk] = useState<ProjectRiskLevel | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -151,8 +210,10 @@ export function ProjectsDetailDsWorkspace({
       const shell = await fetchProjectDetail(projectId).catch(() => null);
       if (shell?.project) {
         setProject(shell.project);
+        setProjectRisk(shell.risk);
         return;
       }
+      setProjectRisk(null);
       const list = await fetchProjects({
         page: 1,
         page_size: 100,
@@ -178,10 +239,58 @@ export function ProjectsDetailDsWorkspace({
     void load();
   }, [canView, load]);
 
+  useEffect(() => {
+    if (!canView) return;
+    let cancelled = false;
+    void Promise.all([
+      fetchProjectDocuments(projectId, { page: 1, page_size: 100 }),
+      fetchProjectDetailActivity(projectId, { page: 1, page_size: 20 }),
+      fetchProjectAlerts(projectId),
+      fetchProjectFinancials(projectId).catch(() => null),
+      fetchProjectInvestors(projectId).catch(() => null),
+    ]).then(([docs, activityPage, alertPage, finance, investors]) => {
+      if (cancelled) return;
+      setDocuments(
+        docs.items
+          .map((item) => readOverviewDocument(item))
+          .filter((item): item is OverviewDocument => item != null),
+      );
+      setActivity(activityPage.items);
+      setAlerts(alertPage.items);
+      setFinancials(finance);
+      setInvestorItems(investors?.items ?? []);
+      setInvestorCount(investors ? investors.total : null);
+    }).catch(() => {
+      if (cancelled) return;
+      setDocuments([]);
+      setActivity([]);
+      setAlerts([]);
+      setFinancials(null);
+      setInvestorItems([]);
+      setInvestorCount(null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [canView, projectId]);
+
   const model = useMemo(
     () => buildProjectDetailDsModel(project, projectId, locale),
     [project, projectId, locale],
   );
+  const media = useMemo(() => buildOverviewMedia(project, documents), [project, documents]);
+  const financeSummary = financials?.summary ?? null;
+  const hasBudgetBaseline = Boolean(
+    financeSummary?.total_development_budget?.available ||
+      financeSummary?.construction_budget?.available ||
+      model.financial.budget != null,
+  );
+  const spentLabel = hasBudgetBaseline ? metricText(financeSummary?.budget_paid, locale) : null;
+  const remainingLabel = metricText(financeSummary?.budget_remaining, locale);
+  const budgetLabel =
+    model.kpis.totalBudget.value ||
+    metricText(financeSummary?.total_development_budget, locale) ||
+    metricText(financeSummary?.construction_budget, locale);
 
   const tabItems = useMemo(
     () =>
@@ -218,8 +327,13 @@ export function ProjectsDetailDsWorkspace({
 
       <section className="proj-detail-ds__hero" aria-label={tD('hero.aria')}>
         <div className="proj-detail-ds__hero-media">
-          <ProjectCover scene={model.coverScene} />
-          <span className="proj-ds__cover-scrim" aria-hidden="true" />
+          {media.heroImageUrl ? (
+            // Cookie-authenticated document preview; next/image cannot attach the session.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="proj-ds__cover" src={media.heroImageUrl} alt="" />
+          ) : (
+            <p className="proj-detail-ds__banner">{tD('empty.heroImage')}</p>
+          )}
           <span className="proj-detail-ds__hero-code">{model.code}</span>
         </div>
         <div className="proj-detail-ds__hero-body">
@@ -281,11 +395,15 @@ export function ProjectsDetailDsWorkspace({
             </div>
             <div className="proj-detail-ds__stat">
               <span>{tD('hero.progress')}</span>
-              <strong>{model.completion}%</strong>
+              <strong>{model.completion == null ? tD('empty.progress') : `${model.completion}%`}</strong>
             </div>
             <div className="proj-detail-ds__stat">
               <span>{tD('hero.investmentStatus')}</span>
-              <strong>{tD(`investmentStatus.${model.investmentStatus}`)}</strong>
+              <strong>
+                {model.investmentStatus
+                  ? tD(`investmentStatus.${model.investmentStatus}`)
+                  : tD('empty.investment')}
+              </strong>
             </div>
             <div className="proj-detail-ds__stat">
               <span>{tD('hero.lastUpdated')}</span>
@@ -297,31 +415,23 @@ export function ProjectsDetailDsWorkspace({
             <div className="proj-detail-ds__score">
               <div
                 className="proj-detail-ds__score-ring"
-                style={{ ['--pct' as string]: model.healthScore }}
+                style={{ ['--pct' as string]: 0 }}
                 aria-hidden="true"
-              >
-                <span>{model.healthScore}</span>
-              </div>
+              />
               <div>
                 <em>{tD('hero.healthScore')}</em>
-                <strong>
-                  <StatusChip tone={statusTone(model.status)}>
-                    {getStatusLabel(model.status)}
-                  </StatusChip>
-                </strong>
+                <strong>{tD('empty.health')}</strong>
               </div>
             </div>
             <div className="proj-detail-ds__score">
               <div
                 className="proj-detail-ds__score-ring"
-                style={{ ['--pct' as string]: model.aiConfidence }}
+                style={{ ['--pct' as string]: 0 }}
                 aria-hidden="true"
-              >
-                <span>{model.aiConfidence}</span>
-              </div>
+              />
               <div>
                 <em>{tD('hero.aiConfidence')}</em>
-                <strong>{tDs(`risk.${model.risk}`)}</strong>
+                <strong>{tD('empty.health')}</strong>
               </div>
             </div>
           </div>
@@ -330,16 +440,23 @@ export function ProjectsDetailDsWorkspace({
 
       <section className="proj-detail-ds__kpi-row" aria-label={tD('kpis.aria')}>
         {KPI_ORDER.map((key) => {
-          const kpi = model.kpis[key];
+          const value = kpiValue(key, {
+            budget: budgetLabel,
+            spent: spentLabel,
+            remaining: remainingLabel,
+            roi: model.kpis.expectedRoi.value,
+            units: model.kpis.units.value,
+            investors: investorCount && investorCount > 0 ? String(investorCount) : null,
+            completion: model.kpis.completion.value,
+            target: model.kpis.targetDelivery.value,
+          });
           return (
             <KpiCard
               key={key}
               className="proj-detail-ds__kpi"
               label={tD(`kpis.${key}`)}
-              value={loading ? '—' : kpi.value}
+              value={loading ? '—' : value ?? tD(kpiEmptyKey(key))}
               hint={tD(`kpis.hints.${key}`)}
-              delta={kpi.delta}
-              {...(kpi.deltaTone ? { deltaTone: kpi.deltaTone } : {})}
               icon={<IhIcon name={KPI_ICONS[key]} size={16} />}
             />
           );
@@ -380,17 +497,21 @@ export function ProjectsDetailDsWorkspace({
           getStatusLabel={getStatusLabel}
           getPriorityLabel={getPriorityLabel}
           locale={locale}
+          activity={activity}
+          alerts={alerts}
+          media={media}
+          projectRisk={projectRisk}
         />
       ) : null}
       {resolvedTab === 'construction' ? (
-        <ConstructionTab model={model} tD={tD} tDs={tDs} locale={locale} />
+        <ConstructionTab model={model} tD={tD} locale={locale} />
       ) : null}
       {resolvedTab === 'units' ? <UnitsTab projectId={projectId} tD={tD} locale={locale} /> : null}
       {resolvedTab === 'financial' ? (
         <FinancialTab model={model} tD={tD} locale={locale} />
       ) : null}
       {resolvedTab === 'investors' ? (
-        <InvestorsTab model={model} tD={tD} locale={locale} />
+        <InvestorsTab items={investorItems} tD={tD} locale={locale} />
       ) : null}
       {resolvedTab === 'documents' ? (
         <DocumentsTab tD={tD} projectId={projectId} />
@@ -421,6 +542,10 @@ function OverviewTab({
   getStatusLabel,
   getPriorityLabel,
   locale,
+  activity,
+  alerts,
+  media,
+  projectRisk,
 }: {
   model: Model;
   tD: TranslateFn;
@@ -428,15 +553,33 @@ function OverviewTab({
   getStatusLabel: (s: string) => string;
   getPriorityLabel: (s: string) => string;
   locale: string;
+  activity: ProjectActivityItem[];
+  alerts: ProjectAlertItem[];
+  media: OverviewMedia;
+  projectRisk: ProjectRiskLevel | null;
 }) {
+  const budgetAlerts = alerts.filter((item) => item.category === 'budget');
+  const constructionAlerts = alerts.filter(
+    (item) => item.category === 'construction' || item.category === 'schedule',
+  );
+  const otherAlerts = alerts.filter(
+    (item) => item.category !== 'budget' && item.category !== 'construction' && item.category !== 'schedule',
+  );
   return (
     <>
-      <ProjectsDetailDigitalTwin projectId={model.id} locale={locale} />
+      <ProjectsDetailDigitalTwin
+        locale={locale}
+        gallery={media.gallery}
+        constructionPhotos={media.constructionPhotos}
+        floorPlans={media.floorPlans}
+        location={media.location}
+        mediaStats={media.mediaStats}
+      />
       <div className="proj-detail-ds__overview">
         <div className="proj-detail-ds__overview-main">
           <article className="proj-detail-ds__panel">
             <h3>{tD('overview.summary')}</h3>
-            <p className="proj-detail-ds__panel-sub">{model.description}</p>
+            <p className="proj-detail-ds__panel-sub">{model.description || tD('empty.description')}</p>
             <div className="proj-detail-ds__kv">
               <div className="proj-detail-ds__kv-row">
                 <span>{tD('overview.status')}</span>
@@ -448,27 +591,31 @@ function OverviewTab({
               </div>
               <div className="proj-detail-ds__kv-row">
                 <span>{tD('overview.nextMilestone')}</span>
-                <strong>{tDs(`phases.${model.nextMilestone}`)}</strong>
+                <strong>
+                  {model.scheduleDates[0]
+                    ? tD(`schedule.${model.scheduleDates[0].labelKey}`)
+                    : tD('empty.milestones')}
+                </strong>
               </div>
               <div className="proj-detail-ds__kv-row">
                 <span>{tD('overview.manager')}</span>
-                <strong>{model.manager}</strong>
+                <strong>{model.manager || tD('empty.manager')}</strong>
               </div>
               <div className="proj-detail-ds__kv-row">
                 <span>{tD('overview.contractor')}</span>
-                <strong>{model.contractor}</strong>
+                <strong>{model.contractor || tD('empty.contractor')}</strong>
               </div>
               <div className="proj-detail-ds__kv-row">
                 <span>{tD('overview.architect')}</span>
-                <strong>{model.architect}</strong>
+                <strong>{model.architect || tD('empty.architect')}</strong>
               </div>
               <div className="proj-detail-ds__kv-row">
                 <span>{tD('overview.constructionCompany')}</span>
-                <strong>{model.constructionCompany}</strong>
+                <strong>{model.constructionCompany || tD('empty.constructionCompany')}</strong>
               </div>
               <div className="proj-detail-ds__kv-row">
                 <span>{tD('overview.risk')}</span>
-                <strong>{tDs(`risk.${model.risk}`)}</strong>
+                <strong>{projectRisk ? tDs(`risk.${projectRisk}`) : '—'}</strong>
               </div>
               <div className="proj-detail-ds__kv-row">
                 <span>{tD('overview.priority')}</span>
@@ -485,40 +632,47 @@ function OverviewTab({
             <h3>{tD('overview.constructionProgress')}</h3>
             <div className="proj-detail-ds__progress-big">
               <span className="proj-detail-ds__panel-sub">{tD('overview.completionLabel')}</span>
-              <strong>{model.completion}%</strong>
-              <ProgressBar value={model.completion} />
+              <strong>{model.completion == null ? tD('empty.constructionProgress') : `${model.completion}%`}</strong>
+              {model.completion == null ? null : <ProgressBar value={model.completion} />}
             </div>
             <div className="proj-detail-ds__kv">
               <div className="proj-detail-ds__kv-row">
                 <span>{tD('overview.currentPhase')}</span>
-                <strong>{tDs(`phases.${model.currentPhase}`)}</strong>
+                <strong>{tD('empty.phase')}</strong>
               </div>
               <div className="proj-detail-ds__kv-row">
                 <span>{tD('overview.permitStatus')}</span>
-                <strong>{tD(`permits.${model.permitStatus}`)}</strong>
+                <strong>{media.permits.length ? media.permits.map((item) => item.title).join(', ') : tD('empty.permits')}</strong>
               </div>
               <div className="proj-detail-ds__kv-row">
                 <span>{tD('overview.upcomingInspection')}</span>
-                <strong>{formatShortDate(model.upcomingInspection, locale)}</strong>
+                <strong>
+                  {media.permits.find((item) => item.date)?.date
+                    ? formatShortDate(media.permits.find((item) => item.date)?.date ?? '', locale)
+                    : tD('empty.permits')}
+                </strong>
               </div>
               <div className="proj-detail-ds__kv-row">
                 <span>{tD('overview.completionPrediction')}</span>
-                <strong>{formatShortDate(model.completionPrediction, locale)}</strong>
+                <strong>
+                  {model.completionPrediction
+                    ? formatShortDate(model.completionPrediction, locale)
+                    : tD('empty.targetDelivery')}
+                </strong>
               </div>
             </div>
             <div className="proj-detail-ds__milestone-list" aria-label={tD('overview.milestones')}>
-              {model.milestones.map((m) => (
-                <div
-                  key={m.id}
-                  className={`proj-detail-ds__milestone${m.done ? ' is-done' : ''}${
-                    m.phase === model.currentPhase ? ' is-current' : ''
-                  }`}
-                >
-                  <span className="proj-detail-ds__milestone-dot" aria-hidden="true" />
-                  <span>{tDs(`phases.${m.phase}`)}</span>
-                  <em>{formatShortDate(m.date, locale)}</em>
-                </div>
-              ))}
+              {model.scheduleDates.length === 0 ? (
+                <p className="proj-detail-ds__banner">{tD('empty.milestones')}</p>
+              ) : (
+                model.scheduleDates.map((item) => (
+                  <div key={item.id} className="proj-detail-ds__milestone">
+                    <span className="proj-detail-ds__milestone-dot" aria-hidden="true" />
+                    <span>{tD(`schedule.${item.labelKey}`)}</span>
+                    <em>{formatShortDate(item.date, locale)}</em>
+                  </div>
+                ))
+              )}
             </div>
           </article>
         </div>
@@ -526,80 +680,91 @@ function OverviewTab({
         <aside className="proj-detail-ds__widget-grid" aria-label={tD('overview.widgets')}>
           <article className="proj-detail-ds__panel">
             <h3>{tD('overview.recentActivity')}</h3>
-            <ul className="proj-detail-ds__list">
-              {model.recentActivity.map((item) => (
-                <li key={item.id}>
-                  <strong>{item.title}</strong>
-                  <span>{formatShortDate(item.time, locale)}</span>
-                </li>
-              ))}
-            </ul>
+            {activity.length === 0 ? (
+              <p className="proj-detail-ds__banner">{tD('empty.activity')}</p>
+            ) : (
+              <ul className="proj-detail-ds__list">
+                {activity.map((item) => (
+                  <li key={item.id}>
+                    <strong>{item.title}</strong>
+                    <span>{item.description || formatShortDate(item.created_at, locale)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </article>
           <article className="proj-detail-ds__panel">
             <h3>{tD('overview.aiAlerts')}</h3>
-            {model.alerts.ai.map((a) => (
-              <div key={a.id} className={`proj-detail-ds__alert is-${a.tone}`}>
-                {tD(`alerts.${a.textKey}`)}
-              </div>
-            ))}
+            {otherAlerts.length === 0 ? (
+              <p className="proj-detail-ds__banner">{tD('empty.alerts')}</p>
+            ) : (
+              otherAlerts.map((item) => (
+                <div key={item.id} className={`proj-detail-ds__alert is-${item.severity === 'critical' || item.severity === 'high' ? 'critical' : item.severity === 'medium' ? 'warning' : 'info'}`}>
+                  {item.title}
+                </div>
+              ))
+            )}
           </article>
           <article className="proj-detail-ds__panel">
             <h3>{tD('overview.budgetAlerts')}</h3>
-            {model.alerts.budget.map((a) => (
-              <div key={a.id} className={`proj-detail-ds__alert is-${a.tone}`}>
-                {tD(`alerts.${a.textKey}`)}
-              </div>
-            ))}
+            {budgetAlerts.length === 0 ? (
+              <p className="proj-detail-ds__banner">{tD('empty.alerts')}</p>
+            ) : (
+              budgetAlerts.map((item) => (
+                <div key={item.id} className="proj-detail-ds__alert is-warning">
+                  {item.title}
+                </div>
+              ))
+            )}
           </article>
           <article className="proj-detail-ds__panel">
             <h3>{tD('overview.constructionAlerts')}</h3>
-            {model.alerts.construction.map((a) => (
-              <div key={a.id} className={`proj-detail-ds__alert is-${a.tone}`}>
-                {tD(`alerts.${a.textKey}`)}
-              </div>
-            ))}
+            {constructionAlerts.length === 0 ? (
+              <p className="proj-detail-ds__banner">{tD('empty.alerts')}</p>
+            ) : (
+              constructionAlerts.map((item) => (
+                <div key={item.id} className="proj-detail-ds__alert is-info">
+                  {item.title}
+                </div>
+              ))
+            )}
           </article>
           <article className="proj-detail-ds__panel">
             <h3>{tD('overview.weather')}</h3>
-            <div className="proj-detail-ds__weather">
-              <div>
-                <strong>{model.weather.tempC}°C</strong>
-                <p className="proj-detail-ds__panel-sub">
-                  {tD(`weather.${model.weather.condition}`)}
-                </p>
-              </div>
-              <StatusChip tone="info">{model.city}</StatusChip>
-            </div>
+            <p className="proj-detail-ds__banner">{tD('empty.location')}</p>
           </article>
           <article className="proj-detail-ds__panel">
             <h3>{tD('overview.projectHealth')}</h3>
             <div className="proj-detail-ds__score">
-              <div
-                className="proj-detail-ds__score-ring"
-                style={{ ['--pct' as string]: model.healthScore }}
-              >
-                <span>{model.healthScore}</span>
-              </div>
+              <div className="proj-detail-ds__score-ring" style={{ ['--pct' as string]: 0 }} aria-hidden="true" />
               <div>
                 <em>{tD('hero.healthScore')}</em>
-                <strong>
-                  {model.completion}% · {tDs(`risk.${model.risk}`)}
-                </strong>
+                <strong>{tD('empty.health')}</strong>
               </div>
             </div>
           </article>
           <article className="proj-detail-ds__panel">
             <h3>{tD('overview.upcomingTasks')}</h3>
-            <ul className="proj-detail-ds__list">
-              {model.upcomingTasks.map((task) => (
-                <li key={task.id}>
-                  <strong>{task.title}</strong>
-                  <span>
-                    {task.owner} · {formatShortDate(task.dueDate, locale)}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <p className="proj-detail-ds__banner">{tD('empty.tasks')}</p>
+          </article>
+          <article className="proj-detail-ds__panel">
+            <h3>{tD('overview.notes')}</h3>
+            <p className="proj-detail-ds__panel-sub">{model.notes || tD('empty.notes')}</p>
+          </article>
+          <article className="proj-detail-ds__panel">
+            <h3>{tD('overview.updates')}</h3>
+            {activity.length === 0 ? (
+              <p className="proj-detail-ds__banner">{tD('empty.updates')}</p>
+            ) : (
+              <ul className="proj-detail-ds__list">
+                {activity.map((item) => (
+                  <li key={`update-${item.id}`}>
+                    <strong>{item.title}</strong>
+                    <span>{item.description || formatShortDate(item.created_at, locale)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </article>
         </aside>
       </div>
@@ -610,12 +775,10 @@ function OverviewTab({
 function ConstructionTab({
   model,
   tD,
-  tDs,
   locale,
 }: {
   model: Model;
   tD: TranslateFn;
-  tDs: TranslateFn;
   locale: string;
 }) {
   return (
@@ -624,37 +787,34 @@ function ConstructionTab({
         <h3>{tD('construction.title')}</h3>
         <p className="proj-detail-ds__panel-sub">{tD('construction.subtitle')}</p>
         <div className="proj-detail-ds__progress-big">
-          <strong>{model.completion}%</strong>
-          <ProgressBar value={model.completion} />
+          <strong>{model.completion == null ? tD('empty.constructionProgress') : `${model.completion}%`}</strong>
+          {model.completion == null ? null : <ProgressBar value={model.completion} />}
         </div>
         <div className="proj-detail-ds__milestone-list">
-          {model.milestones.map((m) => (
-            <div
-              key={m.id}
-              className={`proj-detail-ds__milestone${m.done ? ' is-done' : ''}${
-                m.phase === model.currentPhase ? ' is-current' : ''
-              }`}
-            >
-              <span className="proj-detail-ds__milestone-dot" />
-              <span>
-                {tDs(`phases.${m.phase}`)} · {m.pct}%
-              </span>
-              <em>{formatShortDate(m.date, locale)}</em>
-            </div>
-          ))}
+          {model.scheduleDates.length === 0 ? (
+            <p className="proj-detail-ds__banner">{tD('empty.milestones')}</p>
+          ) : (
+            model.scheduleDates.map((item) => (
+              <div key={item.id} className="proj-detail-ds__milestone">
+                <span className="proj-detail-ds__milestone-dot" />
+                <span>{tD(`schedule.${item.labelKey}`)}</span>
+                <em>{formatShortDate(item.date, locale)}</em>
+              </div>
+            ))
+          )}
         </div>
         <div className="proj-detail-ds__kv">
           <div className="proj-detail-ds__kv-row">
             <span>{tD('overview.permitStatus')}</span>
-            <strong>{tD(`permits.${model.permitStatus}`)}</strong>
+            <strong>{tD('empty.permits')}</strong>
           </div>
           <div className="proj-detail-ds__kv-row">
             <span>{tD('overview.contractor')}</span>
-            <strong>{model.contractor}</strong>
+            <strong>{model.contractor || tD('empty.contractor')}</strong>
           </div>
           <div className="proj-detail-ds__kv-row">
             <span>{tD('overview.upcomingInspection')}</span>
-            <strong>{formatShortDate(model.upcomingInspection, locale)}</strong>
+            <strong>{tD('empty.permits')}</strong>
           </div>
         </div>
       </article>
@@ -816,17 +976,19 @@ function FinancialTab({
   locale: string;
 }) {
   const f = model.financial;
+  const money = (value: number | null) =>
+    value == null ? tD('empty.financial') : formatCompactCurrency(value, locale);
   const metrics: Array<{ key: string; value: string }> = [
-    { key: 'budget', value: formatCompactCurrency(f.budget, locale) },
-    { key: 'spent', value: formatCompactCurrency(f.spent, locale) },
-    { key: 'remaining', value: formatCompactCurrency(f.remaining, locale) },
-    { key: 'forecast', value: formatCompactCurrency(f.forecast, locale) },
-    { key: 'loan', value: formatCompactCurrency(f.loan, locale) },
-    { key: 'cashFlow', value: formatCompactCurrency(f.cashFlow, locale) },
-    { key: 'roi', value: `${f.roi.toFixed(1)}%` },
-    { key: 'profit', value: formatCompactCurrency(f.profit, locale) },
-    { key: 'revenue', value: formatCompactCurrency(f.revenue, locale) },
-    { key: 'expenses', value: formatCompactCurrency(f.expenses, locale) },
+    { key: 'budget', value: money(f.budget) },
+    { key: 'spent', value: money(f.spent) },
+    { key: 'remaining', value: money(f.remaining) },
+    { key: 'forecast', value: money(f.forecast) },
+    { key: 'loan', value: money(f.loan) },
+    { key: 'cashFlow', value: money(f.cashFlow) },
+    { key: 'roi', value: f.roi == null ? tD('empty.financial') : `${f.roi.toFixed(1)}%` },
+    { key: 'profit', value: money(f.profit) },
+    { key: 'revenue', value: money(f.revenue) },
+    { key: 'expenses', value: money(f.expenses) },
   ];
 
   return (
@@ -842,27 +1004,34 @@ function FinancialTab({
       <article className="proj-detail-ds__panel proj-detail-ds__chart">
         <h3>{tD('financial.cashFlowChart')}</h3>
         <p className="proj-detail-ds__panel-sub">{tD('financial.cashFlowHint')}</p>
-        <div className="proj-detail-ds__bars" aria-hidden="true">
-          {f.series.map((value, i) => (
-            <div key={i} className="proj-detail-ds__bar">
-              <i style={{ height: `${value}%` }} />
-            </div>
-          ))}
-        </div>
+        {f.series.length === 0 ? (
+          <p className="proj-detail-ds__banner">{tD('empty.financial')}</p>
+        ) : (
+          <div className="proj-detail-ds__bars" aria-hidden="true">
+            {f.series.map((value, i) => (
+              <div key={i} className="proj-detail-ds__bar">
+                <i style={{ height: `${value}%` }} />
+              </div>
+            ))}
+          </div>
+        )}
       </article>
     </div>
   );
 }
 
 function InvestorsTab({
-  model,
+  items,
   tD,
   locale,
 }: {
-  model: Model;
+  items: Array<Record<string, unknown>>;
   tD: TranslateFn;
   locale: string;
 }) {
+  if (items.length === 0) {
+    return <p className="proj-detail-ds__banner">{tD('empty.investors')}</p>;
+  }
   return (
     <div className="proj-detail-ds__table-wrap">
       <table className="proj-detail-ds__table" aria-label={tD('investors.aria')}>
@@ -878,34 +1047,28 @@ function InvestorsTab({
           </tr>
         </thead>
         <tbody>
-          {model.investors.map((inv) => (
-            <tr key={inv.id}>
-              <td>
-                <div className="proj-detail-ds__person">
-                  <span className="proj-detail-ds__avatar">{inv.initials}</span>
-                  <span>{inv.name}</span>
-                </div>
-              </td>
-              <td>{formatCompactCurrency(inv.investment, locale)}</td>
-              <td>{inv.ownershipPct}%</td>
-              <td>{inv.expectedReturn}%</td>
-              <td>
-                <StatusChip
-                  tone={
-                    inv.status === 'active'
-                      ? 'success'
-                      : inv.status === 'pending'
-                        ? 'warning'
-                        : 'info'
-                  }
-                >
-                  {tD(`investors.status.${inv.status}`)}
-                </StatusChip>
-              </td>
-              <td>{inv.documents}</td>
-              <td>{formatShortDate(inv.lastContact, locale)}</td>
-            </tr>
-          ))}
+          {items.map((inv) => {
+            const id = String(inv.commitment_id ?? inv.investor_id ?? inv.investor_name);
+            const name = typeof inv.investor_name === 'string' ? inv.investor_name : '—';
+            const committed = typeof inv.committed_amount === 'number' ? inv.committed_amount : null;
+            const status = typeof inv.status === 'string' ? inv.status : null;
+            const last = typeof inv.last_activity === 'string' ? inv.last_activity : null;
+            return (
+              <tr key={id}>
+                <td>
+                  <div className="proj-detail-ds__person">
+                    <span>{name}</span>
+                  </div>
+                </td>
+                <td>{committed == null ? tD('empty.financial') : formatCompactCurrency(committed, locale)}</td>
+                <td>—</td>
+                <td>—</td>
+                <td>{status ?? '—'}</td>
+                <td>—</td>
+                <td>{formatShortDate(last, locale)}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -1225,6 +1388,9 @@ function TasksTab({
   getPriorityLabel: (s: string) => string;
   locale: string;
 }) {
+  if (model.tasks.length === 0) {
+    return <p className="proj-detail-ds__banner">{tD('empty.tasks')}</p>;
+  }
   return (
     <section className="proj-detail-ds__tasks" aria-label={tD('tasks.aria')}>
       {model.tasks.map((task) => (
@@ -1259,35 +1425,19 @@ function TimelineTab({
   tD: TranslateFn;
   locale: string;
 }) {
+  if (model.scheduleDates.length === 0) {
+    return <p className="proj-detail-ds__banner">{tD('empty.milestones')}</p>;
+  }
   return (
     <section className="proj-detail-ds__timeline" aria-label={tD('timeline.aria')}>
-      {model.timeline.map((item) => (
-        <div
-          key={item.id}
-          className={`proj-detail-ds__tl-item is-${item.status}`}
-        >
+      {model.scheduleDates.map((item) => (
+        <div key={item.id} className="proj-detail-ds__tl-item">
           <div className="proj-detail-ds__tl-rail">
             <span className="proj-detail-ds__tl-dot" />
           </div>
           <article className="proj-detail-ds__tl-card">
-            <div className="proj-detail-ds__tl-card-top">
-              <strong>{tD(`timeline.domains.${item.domain}`)}</strong>
-              <StatusChip
-                tone={
-                  item.status === 'completed'
-                    ? 'success'
-                    : item.status === 'current'
-                      ? 'info'
-                      : 'default'
-                }
-              >
-                {tD(`timeline.status.${item.status}`)}
-              </StatusChip>
-            </div>
-            <p>{item.note}</p>
-            <span className="proj-detail-ds__panel-sub">
-              {formatShortDate(item.date, locale)}
-            </span>
+            <strong>{tD(`schedule.${item.labelKey}`)}</strong>
+            <span className="proj-detail-ds__panel-sub">{formatShortDate(item.date, locale)}</span>
           </article>
         </div>
       ))}
@@ -1304,6 +1454,9 @@ function ReportsTab({
   tD: TranslateFn;
   locale: string;
 }) {
+  if (model.reports.length === 0) {
+    return <p className="proj-detail-ds__banner">{tD('empty.reports')}</p>;
+  }
   return (
     <section className="proj-detail-ds__reports" aria-label={tD('reports.aria')}>
       {model.reports.map((report) => (
@@ -1328,6 +1481,9 @@ function ReportsTab({
 }
 
 function AiInsightsTab({ model, tD }: { model: Model; tD: TranslateFn }) {
+  if (model.aiInsights.length === 0) {
+    return <p className="proj-detail-ds__banner">{tD('empty.health')}</p>;
+  }
   return (
     <section className="proj-detail-ds__ai-grid" aria-label={tD('ai.aria')}>
       {model.aiInsights.map((insight) => (
