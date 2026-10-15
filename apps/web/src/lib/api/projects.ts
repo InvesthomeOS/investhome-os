@@ -1,5 +1,6 @@
 import { apiFetch } from '@/lib/api/client';
 import { formatBudget, formatDate } from '@/lib/api/leads';
+import { locationReadPath, locationRefreshPath } from '@/lib/projects/location-refresh-action';
 
 export const PROJECT_TYPES = [
   'residential',
@@ -1159,14 +1160,15 @@ export interface LocationIntelligenceResponse {
 export async function fetchProjectLocationIntelligence(
   projectId: string,
 ): Promise<LocationIntelligenceResponse> {
-  return apiFetch<LocationIntelligenceResponse>(`/projects/${projectId}/location-intelligence`);
+  return apiFetch<LocationIntelligenceResponse>(locationReadPath(projectId));
 }
 
 export async function refreshProjectLocationIntelligence(
   projectId: string,
 ): Promise<{ status: string }> {
-  return apiFetch<{ status: string }>(`/projects/${projectId}/location-intelligence/refresh`, {
+  return apiFetch<{ status: string }>(locationRefreshPath(projectId), {
     method: 'POST',
+    body: '{}',
   });
 }
 

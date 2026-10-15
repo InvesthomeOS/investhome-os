@@ -1526,6 +1526,17 @@ button.proj-detail-ds__doc-cat {
   white-space: nowrap;
 }
 
+.proj-detail-ds__location-refresh {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.proj-detail-ds__location-refresh:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
 .proj-detail-ds__gallery-filter:hover {
   border-color: #c5d4da;
   color: var(--pd-navy);

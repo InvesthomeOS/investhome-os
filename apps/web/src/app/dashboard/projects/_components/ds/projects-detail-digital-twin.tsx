@@ -29,6 +29,7 @@ export function ProjectsDetailDigitalTwin({
   amenities,
   onRefreshLocation,
   refreshState,
+  refreshError,
 }: {
   locale: string;
   gallery: ProjectGalleryItem[];
@@ -37,8 +38,9 @@ export function ProjectsDetailDigitalTwin({
   location: LocationIntelligence;
   mediaStats: MediaStats;
   amenities: AmenityItem[];
-  onRefreshLocation?: () => void;
+  onRefreshLocation: () => void;
   refreshState?: string | null;
+  refreshError?: string | null;
 }) {
   return (
     <div className="proj-detail-ds__twin" data-testid="projects-detail-digital-twin">
@@ -56,6 +58,7 @@ export function ProjectsDetailDigitalTwin({
         locale={locale}
         onRefresh={onRefreshLocation}
         refreshState={refreshState}
+        refreshError={refreshError}
       />
       <ProjectsDetailAmenities amenities={amenities} locale={locale} />
       <ProjectsDetailMarket market={{ metrics: [] }} locale={locale} />

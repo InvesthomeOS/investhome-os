@@ -35,12 +35,14 @@ export function ProjectsDetailLocation({
   locale,
   onRefresh,
   refreshState,
+  refreshError,
 }: {
   location: LocationIntelligence;
   walkScores: WalkScoreItem[];
   locale: string;
-  onRefresh?: () => void;
+  onRefresh: () => void;
   refreshState?: string | null;
+  refreshError?: string | null;
 }) {
   const t = useTranslations('projects.detail.twin');
   const tEmpty = useTranslations('projects.detail.empty');
@@ -48,11 +50,15 @@ export function ProjectsDetailLocation({
   const address = locale === 'tr' ? location.addressTr : location.addressEn;
   const hasCoordinates = location.lat != null && location.lng != null;
   const refreshLabel =
-    refreshState === 'queued' || refreshState === 'already_queued'
+    refreshState === 'working' ||
+    refreshState === 'queued' ||
+    refreshState === 'already_queued' ||
+    refreshState === 'disabled' ||
+    refreshState === 'error'
       ? t(`location.refreshState.${refreshState}`)
-      : refreshState === 'disabled' || refreshState === 'error'
-        ? t(`location.refreshState.${refreshState}`)
-        : null;
+      : null;
+  const refreshBusy =
+    refreshState === 'working' || refreshState === 'queued' || refreshState === 'already_queued';
 
   return (
     <section className="proj-detail-ds__twin-section" aria-label={t('location.aria')}>
@@ -66,16 +72,30 @@ export function ProjectsDetailLocation({
           {location.canRefresh ? (
             <button
               type="button"
-              className="proj-detail-ds__gallery-filter"
-              onClick={onRefresh}
-              disabled={refreshState === 'working' || refreshState === 'queued'}
+              data-testid="project-location-refresh"
+              className="proj-detail-ds__gallery-filter proj-detail-ds__location-refresh"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onRefresh();
+              }}
+              disabled={refreshBusy}
             >
               {t('location.refresh')}
             </button>
           ) : null}
         </div>
       </header>
-      {refreshLabel ? <p className="proj-detail-ds__panel-sub">{refreshLabel}</p> : null}
+      {refreshLabel ? (
+        <p className="proj-detail-ds__panel-sub" role="status">
+          {refreshLabel}
+        </p>
+      ) : null}
+      {refreshError ? (
+        <p className="proj-detail-ds__banner" role="alert">
+          {refreshError}
+        </p>
+      ) : null}
       {location.refreshedAt ? (
         <p className="proj-detail-ds__panel-sub">
           {t('location.refreshedAt', { time: location.refreshedAt.slice(0, 16).replace('T', ' ') })}

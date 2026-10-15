@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 
@@ -46,6 +46,7 @@ import {
   type ProjectRiskLevel,
 } from '@/lib/api/projects';
 import { useProjectLabels } from '@/lib/i18n/project-labels';
+import { createLocationRefreshController } from '@/lib/projects/location-refresh-action';
 
 import {
   buildProjectDetailDsModel,
@@ -209,6 +210,26 @@ export function ProjectsDetailDsWorkspace({
   const [projectRisk, setProjectRisk] = useState<ProjectRiskLevel | null>(null);
   const [locationIntel, setLocationIntel] = useState<LocationIntelligenceResponse | null>(null);
   const [refreshState, setRefreshState] = useState<string | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const refreshControllerRef = useRef<ReturnType<typeof createLocationRefreshController> | null>(null);
+  if (refreshControllerRef.current?.projectId !== projectId) {
+    refreshControllerRef.current?.stop();
+    refreshControllerRef.current = createLocationRefreshController({
+      projectId,
+      post: (path: string) => {
+        if (path !== `/projects/${projectId}/location-intelligence/refresh`) {
+          return Promise.reject(new Error('unexpected location refresh path'));
+        }
+        return refreshProjectLocationIntelligence(projectId);
+      },
+      read: (path: string) => {
+        if (path !== `/projects/${projectId}/location-intelligence`) {
+          return Promise.reject(new Error('unexpected location read path'));
+        }
+        return fetchProjectLocationIntelligence(projectId);
+      },
+    });
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -296,6 +317,32 @@ export function ProjectsDetailDsWorkspace({
     };
   }, [canView, projectId]);
 
+  useEffect(() => {
+    const controller = refreshControllerRef.current;
+    if (!controller || controller.projectId !== projectId) return;
+    const unsubscribe = controller.subscribe((event: {
+      type: string;
+      status?: string;
+      error?: string | null;
+      intel?: LocationIntelligenceResponse;
+    }) => {
+      if (event.type === 'status') {
+        setRefreshState(event.status ?? 'error');
+        setRefreshError(event.error ?? null);
+        return;
+      }
+      if (event.type === 'intel' && event.intel) {
+        setLocationIntel(event.intel);
+        return;
+      }
+      setRefreshState(null);
+      setRefreshError(null);
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [projectId]);
+
   const model = useMemo(
     () => buildProjectDetailDsModel(project, projectId, locale),
     [project, projectId, locale],
@@ -306,12 +353,14 @@ export function ProjectsDetailDsWorkspace({
     [media.location, locationIntel],
   );
   const refreshLocation = useCallback(() => {
-    if (refreshState === 'working' || refreshState === 'queued') return;
-    setRefreshState('working');
-    refreshProjectLocationIntelligence(projectId)
-      .then((result) => setRefreshState(result.status))
-      .catch(() => setRefreshState('error'));
-  }, [projectId, refreshState]);
+    const controller = refreshControllerRef.current;
+    if (!controller) {
+      setRefreshState('error');
+      setRefreshError('Location refresh is unavailable.');
+      return;
+    }
+    void controller.click();
+  }, []);
   const financeSummary = financials?.summary ?? null;
   const hasBudgetBaseline = Boolean(
     financeSummary?.total_development_budget?.available ||
@@ -536,6 +585,7 @@ export function ProjectsDetailDsWorkspace({
           location={locationView.location}
           amenities={locationView.amenities}
           refreshState={refreshState}
+          refreshError={refreshError}
           onRefreshLocation={refreshLocation}
           projectRisk={projectRisk}
         />
@@ -585,6 +635,7 @@ function OverviewTab({
   location,
   amenities,
   refreshState,
+  refreshError,
   onRefreshLocation,
   projectRisk,
 }: {
@@ -600,6 +651,7 @@ function OverviewTab({
   location: OverviewMedia['location'];
   amenities: AmenityItem[];
   refreshState: string | null;
+  refreshError: string | null;
   onRefreshLocation: () => void;
   projectRisk: ProjectRiskLevel | null;
 }) {
@@ -622,6 +674,7 @@ function OverviewTab({
         amenities={amenities}
         onRefreshLocation={onRefreshLocation}
         refreshState={refreshState}
+        refreshError={refreshError}
       />
       <div className="proj-detail-ds__overview">
         <div className="proj-detail-ds__overview-main">

@@ -2351,6 +2351,7 @@
           "aiAnalysis": "YZ analizi",
           "refreshState": {
             "queued": "Yenileme kuyruğa alındı.",
+            "working": "Yenileme sürüyor.",
             "already_queued": "Yenileme zaten kuyrukta.",
             "disabled": "Konum sağlayıcısı yapılandırılmadı.",
             "error": "Yenileme kuyruğa alınamadı."

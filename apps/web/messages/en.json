@@ -2358,6 +2358,7 @@
           "aiAnalysis": "AI analysis",
           "refreshState": {
             "queued": "Refresh queued.",
+            "working": "Refresh in progress.",
             "already_queued": "A refresh is already queued.",
             "disabled": "Location provider is not configured.",
             "error": "Refresh could not be queued."
