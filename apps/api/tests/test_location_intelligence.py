@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
+import logging
 from uuid import uuid4
 
 import httpx
@@ -18,11 +20,18 @@ from investhome_api.schemas.project import ProjectUpdate
 from investhome_api.services.location_intelligence import queue as location_queue
 from investhome_api.services.location_intelligence.google_provider import (
     GEOCODE_URL,
+    PLACES_FIELD_MASK,
+    PLACES_NEW_URL,
     GoogleLocationProvider,
     LocationProviderDisabled,
     LocationProviderError,
 )
 from investhome_api.services.location_intelligence.normalize import (
+    CATEGORY_INCLUDED_TYPES,
+    PLACE_CATEGORIES,
+    PLACE_SEARCHES,
+    SEARCH_RADIUS_METERS,
+    SUPPORTED_INCLUDED_TYPES,
     facts_prompt,
     format_project_address,
     group_places,
@@ -104,27 +113,61 @@ def _geocode(*, neighborhood: str | None = "Adams Morgan", location_type: str = 
 
 def _place(place_id: str = "metro-1", name: str = "Columbia Heights Station", rating: float | None = 4.2) -> dict:
     item = {
-        "place_id": place_id,
-        "name": name,
-        "vicinity": "14th St NW",
-        "geometry": {"location": {"lat": 38.9284, "lng": -77.0326}},
+        "id": place_id,
+        "displayName": {"text": name, "languageCode": "en"},
+        "formattedAddress": "14th St NW, Washington, DC",
+        "location": {"latitude": 38.9284, "longitude": -77.0326},
+        "primaryType": "transit_station",
+        "types": ["transit_station"],
+        "googleMapsUri": "https://maps.google.com/?cid=1",
     }
     if rating is not None:
         item["rating"] = rating
-    return {"status": "OK", "results": [item]}
+    return {"places": [item]}
 
 
-def _transport(geocode: dict, places: dict | None = None, *, fail_places: bool = False):
+def _geocode_transport(geocode: dict):
     def transport(url: str, params: dict[str, str]) -> dict:
         if url == GEOCODE_URL:
             return geocode
+        raise AssertionError(url)
+
+    return transport
+
+
+def _places_transport(
+    places: dict | None,
+    *,
+    fail_places: bool = False,
+    match_types: tuple[str, ...] = ("transit_station",),
+):
+    def transport(url: str, body: dict, headers: dict) -> dict:
+        if "nearbysearch" in url:
+            raise AssertionError("legacy nearby search")
         if fail_places:
             raise LocationProviderError("places unavailable")
-        if places is None or params.get("type") != "transit_station":
-            return {"status": "ZERO_RESULTS", "results": []}
+        included = (body.get("includedTypes") or [None])[0]
+        rows = (places or {}).get("places") or []
+        if not rows or included not in match_types:
+            return {"places": []}
         return places
 
     return transport
+
+
+def _provider(
+    settings,
+    geocode: dict,
+    places: dict | None = None,
+    *,
+    fail_places: bool = False,
+    match_types: tuple[str, ...] = ("transit_station",),
+):
+    return GoogleLocationProvider(
+        settings,
+        _geocode_transport(geocode),
+        places_transport=_places_transport(places, fail_places=fail_places, match_types=match_types),
+    )
 
 
 def test_address_normalization():
@@ -164,7 +207,7 @@ def test_missing_key_makes_no_call():
 def test_successful_geocode_and_places(db):
     project = _project(db)
     settings = _settings()
-    provider = GoogleLocationProvider(settings, _transport(_geocode(), _place()))
+    provider = _provider(settings, _geocode(), _place())
     assert run_location_refresh(db, project.id, settings=settings, geocoder=provider) == "success"
     db.refresh(project)
     assert float(project.latitude) == pytest.approx(38.9321)
@@ -174,7 +217,10 @@ def test_successful_geocode_and_places(db):
     assert profile.locality == "Washington"
     assert profile.provider == "google_geocoding"
     place = db.scalar(select(ProjectNearbyPlace).where(ProjectNearbyPlace.project_id == project.id))
+    assert place.provider == "google_places"
+    assert place.provider_place_id == "metro-1"
     assert place.name == "Columbia Heights Station"
+    assert place.address == "14th St NW, Washington, DC"
     assert place.category == "transit"
     assert place.walking_distance_meters is None
     assert place.walking_duration_minutes is None
@@ -185,7 +231,7 @@ def test_successful_geocode_and_places(db):
 def test_failed_geocode_keeps_empty(db):
     project = _project(db)
     settings = _settings()
-    provider = GoogleLocationProvider(settings, _transport({"status": "ZERO_RESULTS", "results": []}))
+    provider = _provider(settings, {"status": "ZERO_RESULTS", "results": []})
     assert run_location_refresh(db, project.id, settings=settings, geocoder=provider) == "failed"
     db.refresh(project)
     assert project.latitude is None
@@ -196,7 +242,7 @@ def test_failed_geocode_keeps_empty(db):
 def test_geocode_without_neighborhood_stays_null(db):
     project = _project(db)
     settings = _settings()
-    provider = GoogleLocationProvider(settings, _transport(_geocode(neighborhood=None), {"status": "ZERO_RESULTS", "results": []}))
+    provider = _provider(settings, _geocode(neighborhood=None), {"places": []})
     run_location_refresh(db, project.id, settings=settings, geocoder=provider)
     profile = db.scalar(select(ProjectLocationProfile).where(ProjectLocationProfile.project_id == project.id))
     assert profile.neighborhood is None
@@ -208,16 +254,10 @@ def test_duplicate_provider_place_is_stored_once(db):
     project = _project(db)
     places = _place()
 
-    def transport(url, params):
-        if url == GEOCODE_URL:
-            return _geocode()
-        if params.get("type") in {"restaurant", "cafe"}:
-            return places
-        return {"status": "ZERO_RESULTS", "results": []}
-
     settings = _settings()
-    run_location_refresh(db, project.id, settings=settings, geocoder=GoogleLocationProvider(settings, transport))
-    run_location_refresh(db, project.id, settings=settings, geocoder=GoogleLocationProvider(settings, transport))
+    provider = _provider(settings, _geocode(), places, match_types=("restaurant", "cafe"))
+    run_location_refresh(db, project.id, settings=settings, geocoder=provider)
+    run_location_refresh(db, project.id, settings=settings, geocoder=provider)
     count = db.scalar(select(func.count()).select_from(ProjectNearbyPlace).where(ProjectNearbyPlace.project_id == project.id))
     assert count == 1
 
@@ -226,7 +266,7 @@ def test_place_normalization_and_grouping_and_distance():
     origin = (38.9321, -77.0365)
     normalized = normalize_place_result(
         category="grocery",
-        item=_place("grocery-1", "Whole Foods", rating=None)["results"][0],
+        item=_place("grocery-1", "Whole Foods", rating=None)["places"][0],
         origin_lat=origin[0],
         origin_lng=origin[1],
     )
@@ -259,7 +299,7 @@ def test_ai_uses_only_stored_facts_and_skips_repeat(db):
                 output_tokens=1,
             )
 
-    provider = GoogleLocationProvider(settings, _transport(_geocode(), _place()))
+    provider = _provider(settings, _geocode(), _place())
     run_location_refresh(db, project.id, settings=settings, geocoder=provider, llm=Recorder())
     run_location_refresh(db, project.id, settings=settings, geocoder=provider, llm=Recorder())
     assert calls["n"] == 1
@@ -284,7 +324,7 @@ def test_ai_failure_keeps_location_facts(db):
         def generate(self, *, system, user, timeout_seconds=45.0):
             raise LLMProviderError("unavailable", category="request", provider="openai")
 
-    provider = GoogleLocationProvider(settings, _transport(_geocode(), _place()))
+    provider = _provider(settings, _geocode(), _place())
     assert run_location_refresh(db, project.id, settings=settings, geocoder=provider, llm=Boom()) == "success"
     assert db.scalar(select(func.count()).select_from(ProjectNearbyPlace).where(ProjectNearbyPlace.project_id == project.id)) == 1
 
@@ -292,7 +332,7 @@ def test_ai_failure_keeps_location_facts(db):
 def test_same_address_provider_failure_keeps_last_success(db):
     project = _project(db)
     settings = _settings()
-    ok = GoogleLocationProvider(settings, _transport(_geocode(), _place()))
+    ok = _provider(settings, _geocode(), _place())
     run_location_refresh(db, project.id, settings=settings, geocoder=ok)
 
     def fail(url, params):
@@ -412,3 +452,120 @@ def test_dry_run_reads_without_writing_or_leaking_key(db, monkeypatch):
     assert "super-secret-key" not in str(report)
     assert db.scalar(select(func.count()).select_from(ProjectLocationProfile)) == 0
     get_settings.cache_clear()
+
+
+def test_places_api_new_request_and_category_mapping(monkeypatch, caplog):
+    captured = {}
+
+    class Response:
+        status_code = 200
+
+        def json(self):
+            return {"places": []}
+
+    def post(url, json=None, headers=None, timeout=None):
+        captured["url"] = url
+        captured["method"] = "POST"
+        captured["json"] = json
+        captured["headers"] = headers
+        return Response()
+
+    def reject_get(*_args, **_kwargs):
+        raise AssertionError("legacy get")
+
+    monkeypatch.setattr(httpx, "post", post)
+    monkeypatch.setattr(httpx, "get", reject_get)
+    provider = GoogleLocationProvider(_settings())
+    project_id = "d08ffa5a-bb69-4eaf-976c-b8ceae218e41"
+    with caplog.at_level(logging.INFO):
+        rows = provider.nearby(
+            latitude=38.9321,
+            longitude=-77.0365,
+            place_type="transit_station",
+            category="transit",
+            limit=5,
+            project_id=project_id,
+        )
+    assert rows == []
+    assert captured["method"] == "POST"
+    assert captured["url"] == PLACES_NEW_URL
+    assert captured["headers"]["Content-Type"] == "application/json"
+    assert captured["headers"]["X-Goog-Api-Key"] == "test-key"
+    assert captured["headers"]["X-Goog-FieldMask"] == PLACES_FIELD_MASK
+    assert "places.rating" not in PLACES_FIELD_MASK
+    body = captured["json"]
+    assert body["includedTypes"] == ["transit_station"]
+    assert body["maxResultCount"] == 5
+    center = body["locationRestriction"]["circle"]
+    assert center["center"] == {"latitude": 38.9321, "longitude": -77.0365}
+    assert center["radius"] == float(SEARCH_RADIUS_METERS)
+    assert set(CATEGORY_INCLUDED_TYPES) == set(PLACE_CATEGORIES)
+    for category, place_type, limit in PLACE_SEARCHES:
+        assert place_type in CATEGORY_INCLUDED_TYPES[category]
+        assert place_type in SUPPORTED_INCLUDED_TYPES
+        assert 1 <= limit <= 20
+    assert "test-key" not in caplog.text
+    assert project_id in caplog.text
+    assert "results=0" in caplog.text
+
+
+def test_places_structured_error_is_not_empty(monkeypatch, caplog):
+    class Response:
+        status_code = 403
+
+        def json(self):
+            return {
+                "error": {
+                    "code": 403,
+                    "status": "PERMISSION_DENIED",
+                    "message": "Places API (New) has not been used for key test-key",
+                }
+            }
+
+    monkeypatch.setattr(httpx, "post", lambda *args, **kwargs: Response())
+    provider = GoogleLocationProvider(_settings())
+    with caplog.at_level(logging.WARNING), pytest.raises(LocationProviderError) as caught:
+        provider.nearby(
+            latitude=38.9321,
+            longitude=-77.0365,
+            place_type="park",
+            category="parks",
+            limit=4,
+            project_id="project-1",
+        )
+    assert caught.value.http_status == 403
+    assert "PERMISSION_DENIED" in str(caught.value)
+    assert "test-key" not in str(caught.value)
+    assert "test-key" not in caplog.text
+    assert "nearbysearch" not in caplog.text
+
+
+def test_unsupported_place_type_does_not_call_google(monkeypatch):
+    def reject_post(*_args, **_kwargs):
+        raise AssertionError("posted")
+
+    monkeypatch.setattr(httpx, "post", reject_post)
+    provider = GoogleLocationProvider(_settings())
+    with pytest.raises(LocationProviderError, match="unsupported place type"):
+        provider.nearby(
+            latitude=1,
+            longitude=2,
+            place_type="not_a_place_type",
+            category="retail",
+            limit=3,
+        )
+
+
+def test_location_intelligence_does_not_call_legacy_nearby_search():
+    import investhome_api.services.location_intelligence.dry_run as dry_run
+    import investhome_api.services.location_intelligence.google_provider as provider
+    import investhome_api.services.location_intelligence.jobs as jobs
+    import investhome_api.services.location_intelligence.normalize as normalize
+    import investhome_api.services.location_intelligence.queue as queue
+    import investhome_api.services.location_intelligence.service as service
+
+    modules = (dry_run, provider, jobs, normalize, queue, service)
+    source = "\n".join(inspect.getsource(module) for module in modules)
+    assert "nearbysearch" not in source
+    assert PLACES_NEW_URL in source
+

@@ -204,6 +204,7 @@ def run_location_refresh(
                 latitude=geocoded["latitude"],
                 longitude=geocoded["longitude"],
                 searches=PLACE_SEARCHES,
+                project_id=project.id,
             )[:MAX_STORED_PLACES]
         except LocationProviderError as exc:
             profile.last_error = str(exc)

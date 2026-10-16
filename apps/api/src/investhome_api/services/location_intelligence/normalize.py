@@ -22,7 +22,19 @@ PLACE_CATEGORIES = (
     "landmarks",
 )
 
-# One Nearby Search type per category. Result caps keep a refresh small.
+# Places API (New) Table A types. One included type per search so category caps stay stable.
+# https://developers.google.com/maps/documentation/places/web-service/place-types
+CATEGORY_INCLUDED_TYPES: dict[str, tuple[str, ...]] = {
+    "transit": ("transit_station",),
+    "grocery": ("supermarket",),
+    "food": ("restaurant", "cafe"),
+    "parks": ("park",),
+    "education": ("university", "school"),
+    "healthcare": ("hospital",),
+    "fitness": ("gym",),
+    "retail": ("shopping_mall",),
+    "landmarks": ("tourist_attraction",),
+}
 PLACE_SEARCHES: tuple[tuple[str, str, int], ...] = (
     ("transit", "transit_station", 5),
     ("grocery", "supermarket", 4),
@@ -36,6 +48,7 @@ PLACE_SEARCHES: tuple[tuple[str, str, int], ...] = (
     ("retail", "shopping_mall", 3),
     ("landmarks", "tourist_attraction", 3),
 )
+SUPPORTED_INCLUDED_TYPES = frozenset(place_type for _, place_type, _ in PLACE_SEARCHES)
 
 SEARCH_RADIUS_METERS = 1200
 MAX_STORED_PLACES = 30
@@ -126,6 +139,37 @@ def normalize_geocode_result(payload: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def _place_id(item: dict[str, Any]) -> str | None:
+    raw = item.get("id")
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    value = raw.strip()
+    if value.startswith("places/"):
+        value = value.split("/", 1)[1]
+    return value or None
+
+
+def _place_name(item: dict[str, Any]) -> str | None:
+    display = item.get("displayName")
+    if isinstance(display, dict):
+        text = display.get("text")
+        if isinstance(text, str) and text.strip():
+            return text.strip()
+    return None
+
+
+def _place_coordinates(item: dict[str, Any]) -> tuple[float, float] | None:
+    location = item.get("location")
+    if not isinstance(location, dict):
+        return None
+    lat, lng = location.get("latitude"), location.get("longitude")
+    if not isinstance(lat, int | float) or not isinstance(lng, int | float):
+        return None
+    if not (-90 <= float(lat) <= 90 and -180 <= float(lng) <= 180):
+        return None
+    return float(lat), float(lng)
+
+
 def normalize_place_result(
     *,
     category: str,
@@ -133,29 +177,25 @@ def normalize_place_result(
     origin_lat: float,
     origin_lng: float,
 ) -> NormalizedPlace | None:
-    place_id = item.get("place_id")
-    name = item.get("name")
-    location = ((item.get("geometry") or {}).get("location") or {})
-    lat, lng = location.get("lat"), location.get("lng")
-    if not isinstance(place_id, str) or not place_id.strip():
+    place_id = _place_id(item)
+    name = _place_name(item)
+    coordinates = _place_coordinates(item)
+    if place_id is None or name is None or coordinates is None:
         return None
-    if not isinstance(name, str) or not name.strip():
-        return None
-    if not isinstance(lat, (int, float)) or not isinstance(lng, (int, float)):
-        return None
+    lat, lng = coordinates
     rating = item.get("rating")
-    rating_value = float(rating) if isinstance(rating, (int, float)) else None
-    vicinity = item.get("vicinity") or item.get("formatted_address")
+    rating_value = float(rating) if isinstance(rating, int | float) else None
+    formatted = item.get("formattedAddress")
     return NormalizedPlace(
         provider="google_places",
-        provider_place_id=place_id.strip(),
-        name=name.strip(),
+        provider_place_id=place_id,
+        name=name,
         category=category,
-        latitude=float(lat),
-        longitude=float(lng),
-        straight_line_distance_meters=haversine_meters(origin_lat, origin_lng, float(lat), float(lng)),
+        latitude=lat,
+        longitude=lng,
+        straight_line_distance_meters=haversine_meters(origin_lat, origin_lng, lat, lng),
         rating=rating_value,
-        address=vicinity.strip() if isinstance(vicinity, str) and vicinity.strip() else None,
+        address=formatted.strip() if isinstance(formatted, str) and formatted.strip() else None,
         raw_payload=item,
     )
 
