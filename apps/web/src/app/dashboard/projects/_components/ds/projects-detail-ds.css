@@ -1966,6 +1966,13 @@ button.proj-detail-ds__doc-cat {
   align-items: stretch;
 }
 
+.proj-detail-ds__map-column {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-width: 0;
+}
+
 .proj-detail-ds__map {
   position: relative;
   min-height: 360px;
@@ -1973,83 +1980,20 @@ button.proj-detail-ds__doc-cat {
   overflow: hidden;
   border: 1px solid var(--pd-border);
   border-radius: 7px;
-  background:
-    linear-gradient(180deg, rgba(241, 246, 248, 0.9), rgba(225, 236, 240, 0.95)),
-    radial-gradient(circle at 30% 40%, rgba(88, 174, 187, 0.18), transparent 45%),
-    radial-gradient(circle at 70% 60%, rgba(7, 91, 117, 0.12), transparent 40%);
+  background: #eef3f5;
 }
 
-.proj-detail-ds__map-grid {
+.proj-detail-ds__map-canvas {
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(rgba(7, 91, 117, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(7, 91, 117, 0.05) 1px, transparent 1px);
-  background-size: 28px 28px;
-  opacity: 0.85;
 }
 
-.proj-detail-ds__map-rings {
-  position: absolute;
-  inset: 0;
+.proj-detail-ds__map-fallback {
   display: grid;
   place-items: center;
-  pointer-events: none;
-}
-
-.proj-detail-ds__map-rings span {
-  position: absolute;
-  border: 1px dashed rgba(7, 91, 117, 0.22);
-  border-radius: 50%;
-}
-
-.proj-detail-ds__map-rings span:nth-child(1) {
-  width: 28%;
-  height: 28%;
-}
-
-.proj-detail-ds__map-rings span:nth-child(2) {
-  width: 46%;
-  height: 46%;
-}
-
-.proj-detail-ds__map-rings span:nth-child(3) {
-  width: 68%;
-  height: 68%;
-}
-
-.proj-detail-ds__map-pin {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  margin: -17px 0 0 -17px;
-  border-radius: 50% 50% 50% 4px;
-  transform: rotate(-45deg);
-  background: var(--pd-navy);
-  color: #fff;
-  box-shadow: 0 6px 14px rgba(7, 91, 117, 0.28);
-}
-
-.proj-detail-ds__map-pin svg {
-  transform: rotate(45deg);
-}
-
-.proj-detail-ds__map-coords {
-  position: absolute;
-  left: 10px;
-  bottom: 10px;
-  z-index: 1;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
+  padding: 16px;
+  text-align: center;
   color: #152a36;
-  font-size: var(--shot-font-caption);
-  font-weight: 700;
 }
 
 .proj-detail-ds__location-side {

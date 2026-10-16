@@ -2366,6 +2366,22 @@
           "radius": {
             "walk": "{minutes} min walk",
             "drive": "{minutes} min drive"
+          },
+          "mapFilters": "Nearby place categories",
+          "mapMissingKey": "Google Maps is not configured for this environment.",
+          "mapLoadError": "The map could not be loaded.",
+          "projectMarker": "Project",
+          "categories": {
+            "all": "All",
+            "transit": "Transit",
+            "grocery": "Grocery",
+            "food": "Restaurants & Cafes",
+            "parks": "Parks",
+            "education": "Education",
+            "healthcare": "Healthcare",
+            "fitness": "Fitness",
+            "retail": "Retail",
+            "landmarks": "Landmarks"
           }
         },
         "walkScore": {

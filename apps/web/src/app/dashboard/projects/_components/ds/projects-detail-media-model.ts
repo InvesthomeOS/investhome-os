@@ -145,6 +145,9 @@ export type NearbyPlace = {
   kindEn: string;
   kindTr: string;
   distanceKm: number;
+  lat: number | null;
+  lng: number | null;
+  address: string | null;
 };
 
 export type RadiusBand = {

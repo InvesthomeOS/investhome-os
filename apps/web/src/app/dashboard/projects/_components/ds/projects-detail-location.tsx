@@ -1,15 +1,22 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { StatusChip } from '@investhome/ui';
 
 import { IhIcon } from '@/components/icons/ih-icons';
+import {
+  LOCATION_MAP_CATEGORIES,
+  nearbyPlacesForCategory,
+} from '@/lib/projects/project-location-map';
 
 import type {
   LocationIntelligence,
+  NearbyPlace,
   WalkScoreItem,
   WalkScoreKind,
 } from './projects-detail-media-model';
+import { ProjectsDetailLocationMap } from './projects-detail-location-map';
 
 function scoreTone(score: number) {
   if (score >= 90) return 'success' as const;
@@ -49,6 +56,11 @@ export function ProjectsDetailLocation({
   const neighborhood = locale === 'tr' ? location.neighborhoodTr : location.neighborhoodEn;
   const address = locale === 'tr' ? location.addressTr : location.addressEn;
   const hasCoordinates = location.lat != null && location.lng != null;
+  const [category, setCategory] = useState('all');
+  const visiblePlaces = useMemo(
+    () => nearbyPlacesForCategory(location.nearbyPlaces, category) as NearbyPlace[],
+    [category, location.nearbyPlaces],
+  );
   const refreshLabel =
     refreshState === 'working' ||
     refreshState === 'queued' ||
@@ -105,20 +117,34 @@ export function ProjectsDetailLocation({
 
       <div className="proj-detail-ds__location-grid">
         {hasCoordinates ? (
-        <div className="proj-detail-ds__map" role="img" aria-label={t('location.mapAria')}>
-          <div className="proj-detail-ds__map-grid" aria-hidden="true" />
-          <div className="proj-detail-ds__map-rings" aria-hidden="true">
-            <span />
-            <span />
-            <span />
+          <div className="proj-detail-ds__map-column">
+            <div className="proj-detail-ds__gallery-filters" role="tablist" aria-label={t('location.mapFilters')}>
+              <button
+                type="button"
+                className={`proj-detail-ds__gallery-filter${category === 'all' ? ' is-active' : ''}`}
+                data-testid="project-location-map-filter"
+                data-category="all"
+                aria-pressed={category === 'all'}
+                onClick={() => setCategory('all')}
+              >
+                {t('location.categories.all')}
+              </button>
+              {LOCATION_MAP_CATEGORIES.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className={`proj-detail-ds__gallery-filter${category === item ? ' is-active' : ''}`}
+                  data-testid="project-location-map-filter"
+                  data-category={item}
+                  aria-pressed={category === item}
+                  onClick={() => setCategory(item)}
+                >
+                  {t(`location.categories.${item}`)}
+                </button>
+              ))}
+            </div>
+            <ProjectsDetailLocationMap location={location} locale={locale} category={category} />
           </div>
-          <div className="proj-detail-ds__map-pin" aria-hidden="true">
-            <IhIcon name="projects" size={14} />
-          </div>
-          <div className="proj-detail-ds__map-coords">
-            {location.lat?.toFixed(4)}, {location.lng?.toFixed(4)}
-          </div>
-        </div>
         ) : null}
 
         <div className="proj-detail-ds__location-side">
@@ -167,17 +193,18 @@ export function ProjectsDetailLocation({
 
           <article className="proj-detail-ds__panel proj-detail-ds__location-card">
             <h4>{t('location.nearby')}</h4>
-            {location.nearbyPlaces.length === 0 ? (
+            {visiblePlaces.length === 0 ? (
               <p className="proj-detail-ds__panel-sub">{tEmpty('nearby')}</p>
             ) : null}
             <ul className="proj-detail-ds__list">
-              {location.nearbyPlaces.map((place) => (
+              {visiblePlaces.map((place) => (
                 <li key={place.id}>
                   <strong>{locale === 'tr' ? place.nameTr : place.nameEn}</strong>
                   <span>
-                    {t(`amenities.categories.${place.kindEn}`)} ·{' '}
+                    {t(`location.categories.${place.kindEn}`)} ·{' '}
                     {t('amenities.distance', { km: place.distanceKm.toFixed(1) })}
                   </span>
+                  {place.address ? <span>{place.address}</span> : null}
                 </li>
               ))}
             </ul>

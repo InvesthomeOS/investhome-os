@@ -204,13 +204,16 @@ export function overlayLocationIntelligence(
       aiSummary: intel.ai_summary?.summary_text ?? null,
       canRefresh: intel.can_refresh,
       refreshedAt: intel.refreshed_at,
-      nearbyPlaces: places.slice(0, 8).map((place) => ({
+      nearbyPlaces: places.map((place) => ({
         id: place.id,
         nameEn: place.name,
         nameTr: place.name,
         kindEn: place.category,
         kindTr: place.category,
         distanceKm: place.straight_line_distance_meters / 1000,
+        lat: place.latitude,
+        lng: place.longitude,
+        address: place.address,
       })),
     },
     amenities: places.map((place) => ({

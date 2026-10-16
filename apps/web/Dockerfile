@@ -26,7 +26,9 @@ COPY apps/web ./apps/web
 COPY packages/shared ./packages/shared
 COPY packages/ui ./packages/ui
 ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm --filter @investhome/ui build
 RUN pnpm --filter @investhome/web build
