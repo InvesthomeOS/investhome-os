@@ -25,6 +25,14 @@ export const PERMISSIONS_POLICY = [
 
 const LOCAL_API_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000'] as const;
 
+// Hosts referenced by the Maps JavaScript loader this page inserts
+// (maps.googleapis.com/maps/api/js) and the modules it then loads for a
+// roadmap, marker, and info window. Not Places or Geocoding.
+const MAPS_SCRIPT_ORIGIN = 'https://maps.googleapis.com';
+const MAPS_IMAGE_ORIGIN = 'https://maps.gstatic.com';
+const MAPS_FONT_STYLESHEET = 'https://fonts.googleapis.com';
+const MAPS_FONT_FILES = 'https://fonts.gstatic.com';
+
 export function apiOriginsFromEnv(apiUrl?: string | null): string[] {
   const origins = new Set<string>(LOCAL_API_ORIGINS);
   const raw = (apiUrl || '').trim();
@@ -66,7 +74,7 @@ export function createCspNonce(): string {
 }
 
 function styleSrcDirectives(nonce: string, isDev?: boolean): string[] {
-  const nonceSrc = `'self' 'nonce-${nonce}'`;
+  const nonceSrc = `'self' 'nonce-${nonce}' ${MAPS_FONT_STYLESHEET}`;
   // React `style={{}}` becomes HTML style attributes. CSP3 ignores
   // 'unsafe-inline' on style-src when a nonce is present, so attributes
   // must be authorized via style-src-attr. Removing that would require
@@ -76,7 +84,7 @@ function styleSrcDirectives(nonce: string, isDev?: boolean): string[] {
     // Next.js HMR injects un-nonced <style> tags. Do not put a nonce on
     // style-src in development — CSP3 would then ignore 'unsafe-inline'
     // for style elements and break Fast Refresh.
-    return [`style-src 'self' 'unsafe-inline'`, attr];
+    return [`style-src 'self' 'unsafe-inline' ${MAPS_FONT_STYLESHEET}`, attr];
   }
   return [
     `style-src ${nonceSrc}`,
@@ -91,18 +99,18 @@ export function buildContentSecurityPolicy(nonce: string, options?: {
 }): string {
   const api = apiOriginsFromEnv(options?.apiUrl).join(' ');
   const scriptSrc = options?.isDev
-    ? `'self' 'nonce-${nonce}' 'unsafe-eval'`
-    : `'self' 'nonce-${nonce}'`;
+    ? `'self' 'nonce-${nonce}' 'unsafe-eval' ${MAPS_SCRIPT_ORIGIN}`
+    : `'self' 'nonce-${nonce}' ${MAPS_SCRIPT_ORIGIN}`;
   const connectSrc = options?.isDev
-    ? `'self' ${api} ws://localhost:3000 ws://127.0.0.1:3000`
-    : `'self' ${api}`;
+    ? `'self' ${api} ${MAPS_SCRIPT_ORIGIN} ws://localhost:3000 ws://127.0.0.1:3000`
+    : `'self' ${api} ${MAPS_SCRIPT_ORIGIN}`;
 
   return [
     "default-src 'self'",
     `script-src ${scriptSrc}`,
     ...styleSrcDirectives(nonce, options?.isDev),
-    `img-src 'self' blob: data: ${api} https://*.cdninstagram.com https://*.fbcdn.net https://*.instagram.com`,
-    "font-src 'self' data:",
+    `img-src 'self' blob: data: ${api} https://*.cdninstagram.com https://*.fbcdn.net https://*.instagram.com ${MAPS_IMAGE_ORIGIN} ${MAPS_SCRIPT_ORIGIN}`,
+    `font-src 'self' data: ${MAPS_FONT_FILES}`,
     `connect-src ${connectSrc}`,
     `frame-src 'self' blob: ${api}`,
     "frame-ancestors 'none'",

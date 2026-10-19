@@ -51,7 +51,7 @@ describe('security headers', () => {
     }
     assert.match(csp, /script-src[^;]*'self'/);
     assert.match(csp, /script-src[^;]*'nonce-test-nonce'/);
-    assert.doesNotMatch(csp, /script-src[^;]*https:/);
+    assert.doesNotMatch(directiveValue(csp, 'script-src'), /(^|\s)https:(\s|$)/);
     assert.match(csp, /object-src 'none'/);
     assert.match(csp, /frame-ancestors 'none'/);
     assert.doesNotMatch(csp, /default-src \*/);
@@ -66,8 +66,14 @@ describe('security headers', () => {
     const csp = headersMod.buildContentSecurityPolicy('n', {
       apiUrl: 'http://localhost:8000',
     });
-    assert.equal(directiveValue(csp, 'style-src'), `'self' 'nonce-n'`);
-    assert.equal(directiveValue(csp, 'style-src-elem'), `'self' 'nonce-n'`);
+    assert.equal(
+      directiveValue(csp, 'style-src'),
+      `'self' 'nonce-n' https://fonts.googleapis.com`,
+    );
+    assert.equal(
+      directiveValue(csp, 'style-src-elem'),
+      `'self' 'nonce-n' https://fonts.googleapis.com`,
+    );
     assert.equal(directiveValue(csp, 'style-src-attr'), `'unsafe-inline'`);
     assert.doesNotMatch(directiveValue(csp, 'style-src'), /unsafe-inline/);
     assert.doesNotMatch(directiveValue(csp, 'style-src-elem'), /unsafe-inline/);
@@ -82,7 +88,10 @@ describe('security headers', () => {
       apiUrl: 'http://localhost:8000',
     });
     assert.match(directiveValue(csp, 'script-src'), /unsafe-eval/);
-    assert.equal(directiveValue(csp, 'style-src'), `'self' 'unsafe-inline'`);
+    assert.equal(
+      directiveValue(csp, 'style-src'),
+      `'self' 'unsafe-inline' https://fonts.googleapis.com`,
+    );
     assert.equal(directiveValue(csp, 'style-src-elem'), '');
     assert.equal(directiveValue(csp, 'style-src-attr'), `'unsafe-inline'`);
     assert.doesNotMatch(directiveValue(csp, 'style-src'), /nonce-/);
@@ -148,6 +157,32 @@ describe('security headers', () => {
       { nonce: 'abc', protocol: 'https:', cookieSecure: true },
     );
     assert.equal(store.get('strict-transport-security'), 'max-age=31536000');
+  });
+
+  it('permits Maps JavaScript resources without Places, Geocoding, or wildcards', () => {
+    const csp = headersMod.buildContentSecurityPolicy('map-nonce', {
+      apiUrl: 'https://api.investhome.com',
+    });
+    assert.match(directiveValue(csp, 'script-src'), /'nonce-map-nonce'/);
+    assert.match(directiveValue(csp, 'script-src'), /https:\/\/maps\.googleapis\.com/);
+    assert.doesNotMatch(directiveValue(csp, 'script-src'), /maps\.gstatic\.com/);
+    assert.doesNotMatch(directiveValue(csp, 'script-src'), /unsafe-eval/);
+    assert.doesNotMatch(directiveValue(csp, 'script-src'), /\*/);
+    assert.match(directiveValue(csp, 'img-src'), /https:\/\/maps\.gstatic\.com/);
+    assert.match(directiveValue(csp, 'img-src'), /https:\/\/maps\.googleapis\.com/);
+    assert.match(directiveValue(csp, 'font-src'), /https:\/\/fonts\.gstatic\.com/);
+    assert.match(directiveValue(csp, 'style-src'), /https:\/\/fonts\.googleapis\.com/);
+    assert.match(directiveValue(csp, 'connect-src'), /https:\/\/maps\.googleapis\.com/);
+    assert.match(directiveValue(csp, 'connect-src'), /https:\/\/api\.investhome\.com/);
+    assert.match(directiveValue(csp, 'connect-src'), /http:\/\/localhost:8000/);
+    assert.equal(csp.includes('places.googleapis.com'), false);
+    assert.equal(csp.includes('https://*.googleapis.com'), false);
+    assert.equal(csp.includes('https://*.gstatic.com'), false);
+    assert.equal(csp.includes('https://*.google.com'), false);
+    assert.equal(directiveValue(csp, 'object-src'), "'none'");
+    assert.equal(directiveValue(csp, 'frame-ancestors'), "'none'");
+    assert.match(directiveValue(csp, 'style-src-attr'), /unsafe-inline/);
+    assert.doesNotMatch(directiveValue(csp, 'style-src'), /unsafe-inline/);
   });
 
   it('wires middleware nonce CSP and layout nonce without changing auth gates', () => {
