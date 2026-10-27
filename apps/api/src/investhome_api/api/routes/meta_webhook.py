@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from typing import NoReturn
+from typing import Any, NoReturn
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 
 from investhome_api.db.session import get_db
+from investhome_api.services.crm.meta_inbound_notify import enqueue_meta_inbound_email_notifications
 from investhome_api.services.crm.meta_webhook import (
     SIGNATURE_HEADER,
     MetaWebhookRejected,
@@ -44,11 +46,13 @@ def meta_webhook_verify(
 async def meta_webhook_inbound(
     request: Request,
     db: Session = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     raw_body = await request.body()
     signature = request.headers.get(SIGNATURE_HEADER)
+    created_ids: list[UUID] = []
     try:
         result = process_meta_webhook(db, raw_body=raw_body, signature_header=signature)
+        created_ids = list(result.pop("created_ids", []))
         db.commit()
     except MetaWebhookRejected as exc:
         db.rollback()
@@ -70,4 +74,5 @@ async def meta_webhook_inbound(
     except Exception:
         db.rollback()
         raise
+    enqueue_meta_inbound_email_notifications(created_ids)
     return result

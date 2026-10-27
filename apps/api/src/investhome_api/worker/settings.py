@@ -78,6 +78,10 @@ from investhome_api.services.crm.gmail_jobs import (
     gmail_account_sync_job,
     gmail_background_sync_job,
 )
+from investhome_api.services.crm.meta_inbound_notify import (
+    JOB_META_INBOUND_EMAIL,
+    meta_inbound_email_job,
+)
 from investhome_api.services.ai_index.queue import (
     JOB_NAME as AI_INDEX_JOB_NAME,
     JOB_NAME_PROJECT as AI_INDEX_PROJECT_JOB_NAME,
@@ -132,6 +136,7 @@ class WorkerSettings:
         google_drive_background_sync_job,
         gmail_background_sync_job,
         gmail_account_sync_job,
+        meta_inbound_email_job,
         process_ai_index_job,
         process_ai_index_project_job,
         refresh_project_geocode_job,
@@ -207,6 +212,7 @@ class WorkerSettings:
         JOB_DRIVE_BACKGROUND_SYNC: google_drive_background_sync_job,
         JOB_GMAIL_BACKGROUND_SYNC: gmail_background_sync_job,
         JOB_GMAIL_ACCOUNT_SYNC: gmail_account_sync_job,
+        JOB_META_INBOUND_EMAIL: meta_inbound_email_job,
         AI_INDEX_JOB_NAME: process_ai_index_job,
         AI_INDEX_PROJECT_JOB_NAME: process_ai_index_project_job,
         JOB_REFRESH_GEOCODE: refresh_project_geocode_job,

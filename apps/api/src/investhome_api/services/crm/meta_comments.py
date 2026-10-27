@@ -819,10 +819,16 @@ def _instagram_media_context(item: MetaCommentInbound) -> dict[str, Any]:
     return _clean_ctx(context)
 
 
-def _ingest_comment(db: Session, item: MetaCommentInbound, *, claimed: set[str], prefix: str) -> bool:
+def _ingest_comment(
+    db: Session,
+    item: MetaCommentInbound,
+    *,
+    claimed: set[str],
+    prefix: str,
+) -> UUID | None:
     key = f"{prefix}:{item.comment_id}"
     if key not in claimed:
-        return False
+        return None
     if item.platform == "facebook":
         contact = resolve_facebook_commenter(db, user_id=item.commenter_id, display_name=item.commenter_name)
         context = _facebook_post_context(item)
@@ -865,36 +871,58 @@ def _ingest_comment(db: Session, item: MetaCommentInbound, *, claimed: set[str],
         },
         actor=None,
     )
-    _ = comm
-    return created
+    if not created:
+        return None
+    return comm.id
+
+
+def _created_comment_ids(
+    db: Session,
+    comments: list[MetaCommentInbound],
+    claimed: list[str],
+    *,
+    prefix: str,
+) -> list[UUID]:
+    claimed_set = set(claimed)
+    created_ids: list[UUID] = []
+    for item in comments:
+        created_id = _ingest_comment(db, item, claimed=claimed_set, prefix=prefix)
+        if created_id is not None:
+            created_ids.append(created_id)
+    return created_ids
 
 
 def ingest_page_comments(db: Session, payload: dict[str, Any], *, page_id: str) -> dict[str, Any]:
     comments = extract_facebook_comments(payload, page_id=page_id)
     if not comments:
-        return {"ingested": 0, "duplicate": False}
+        return {"ingested": 0, "duplicate": False, "created_ids": []}
     keys = [f"fb:cmt:{item.comment_id}" for item in comments]
     claimed, duplicates = _claim_keys(keys)
     if duplicates:
         logger.info("meta_webhook_facebook_comment_replay count=%s", len(duplicates))
     if not claimed:
-        return {"ingested": 0, "duplicate": True}
-    created = sum(1 for item in comments if _ingest_comment(db, item, claimed=set(claimed), prefix="fb:cmt"))
-    return {"ingested": created, "duplicate": False}
+        return {"ingested": 0, "duplicate": True, "created_ids": []}
+    created_ids = _created_comment_ids(db, comments, claimed, prefix="fb:cmt")
+    return {"ingested": len(created_ids), "duplicate": False, "created_ids": created_ids}
 
 
-def ingest_instagram_comments(db: Session, payload: dict[str, Any], *, account_id: str | None) -> dict[str, Any]:
+def ingest_instagram_comments(
+    db: Session,
+    payload: dict[str, Any],
+    *,
+    account_id: str | None,
+) -> dict[str, Any]:
     comments = extract_instagram_comments(payload, account_id=account_id)
     if not comments:
-        return {"ingested": 0, "duplicate": False}
+        return {"ingested": 0, "duplicate": False, "created_ids": []}
     keys = [f"ig:cmt:{item.comment_id}" for item in comments]
     claimed, duplicates = _claim_keys(keys)
     if duplicates:
         logger.info("meta_webhook_instagram_comment_replay count=%s", len(duplicates))
     if not claimed:
-        return {"ingested": 0, "duplicate": True}
-    created = sum(1 for item in comments if _ingest_comment(db, item, claimed=set(claimed), prefix="ig:cmt"))
-    return {"ingested": created, "duplicate": False}
+        return {"ingested": 0, "duplicate": True, "created_ids": []}
+    created_ids = _created_comment_ids(db, comments, claimed, prefix="ig:cmt")
+    return {"ingested": len(created_ids), "duplicate": False, "created_ids": created_ids}
 
 
 def _inbound_from_communication(comm: CrmCommunication) -> MetaCommentInbound | None:

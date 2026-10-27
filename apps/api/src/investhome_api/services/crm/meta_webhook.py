@@ -777,8 +777,12 @@ def extract_instagram_messages(payload: dict[str, Any], *, account_id: str | Non
     return messages
 
 
-def _ingest_instagram_messages(db: Session, messages: list[InstagramInbound], claimed: set[str]) -> int:
-    created = 0
+def _ingest_instagram_messages(
+    db: Session,
+    messages: list[InstagramInbound],
+    claimed: set[str],
+) -> list[UUID]:
+    created_ids: list[UUID] = []
     for item in messages:
         if f"ig:msg:{item.mid}" not in claimed:
             continue
@@ -806,7 +810,7 @@ def _ingest_instagram_messages(db: Session, messages: list[InstagramInbound], cl
             actor=None,
         )
         if was_created:
-            created += 1
+            created_ids.append(comm.id)
             if lead is not None:
                 _record_meta_dm_on_lead(
                     db,
@@ -819,7 +823,7 @@ def _ingest_instagram_messages(db: Session, messages: list[InstagramInbound], cl
                     description_key="crm.leads.instagram_dm.received",
                     provider=INSTAGRAM_SOURCE,
                 )
-    return created
+    return created_ids
 
 
 def _process_instagram(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
@@ -827,7 +831,7 @@ def _process_instagram(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
 
     account_id = configured_instagram_webhook_account_id()
     messages = extract_instagram_messages(payload, account_id=account_id)
-    ingested = 0
+    created_ids: list[UUID] = []
     duplicate = False
     if messages:
         keys = [f"ig:msg:{item.mid}" for item in messages]
@@ -837,13 +841,14 @@ def _process_instagram(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
         if not claimed:
             duplicate = True
         else:
-            ingested += _ingest_instagram_messages(db, messages, set(claimed))
+            created_ids.extend(_ingest_instagram_messages(db, messages, set(claimed)))
     comment_result = ingest_instagram_comments(db, payload, account_id=account_id)
-    ingested += int(comment_result.get("ingested") or 0)
+    created_ids.extend(list(comment_result.get("created_ids") or []))
+    ingested = len(created_ids)
     duplicate = duplicate or bool(comment_result.get("duplicate"))
     if ingested:
-        return {"ok": True, "duplicate": False, "ingested": ingested}
-    return {"ok": True, "duplicate": duplicate, "ingested": 0}
+        return {"ok": True, "duplicate": False, "ingested": ingested, "created_ids": created_ids}
+    return {"ok": True, "duplicate": duplicate, "ingested": 0, "created_ids": created_ids}
 
 
 def _claim_keys(keys: list[str]) -> tuple[list[str], list[str]]:
@@ -872,8 +877,12 @@ def _claim_keys(keys: list[str]) -> tuple[list[str], list[str]]:
     return claimed, duplicates
 
 
-def _ingest_messages(db: Session, messages: list[MessengerInbound], claimed: set[str]) -> int:
-    created = 0
+def _ingest_messages(
+    db: Session,
+    messages: list[MessengerInbound],
+    claimed: set[str],
+) -> list[UUID]:
+    created_ids: list[UUID] = []
     for item in messages:
         if f"msg:{item.mid}" not in claimed:
             continue
@@ -901,7 +910,7 @@ def _ingest_messages(db: Session, messages: list[MessengerInbound], claimed: set
             actor=None,
         )
         if was_created:
-            created += 1
+            created_ids.append(comm.id)
             if lead is not None:
                 _record_facebook_message_on_lead(
                     db,
@@ -910,7 +919,7 @@ def _ingest_messages(db: Session, messages: list[MessengerInbound], claimed: set
                     message=item,
                     communication_id=comm.id,
                 )
-    return created
+    return created_ids
 
 
 def process_meta_webhook(
@@ -950,13 +959,13 @@ def process_meta_webhook(
         return _process_instagram(db, payload)
     if object_name != "page":
         logger.info("meta_webhook_ignored_object")
-        return {"ok": True, "duplicate": False, "ingested": 0, "ignored": True}
+        return {"ok": True, "duplicate": False, "ingested": 0, "ignored": True, "created_ids": []}
 
     page_id = require_meta_page_id()
     from investhome_api.services.crm.meta_comments import ingest_page_comments
 
     messages, _unknown_pages = extract_messenger_messages(payload, page_id=page_id)
-    ingested = 0
+    created_ids: list[UUID] = []
     duplicate = False
     if messages:
         keys = [f"msg:{item.mid}" for item in messages]
@@ -966,10 +975,11 @@ def process_meta_webhook(
         if not claimed:
             duplicate = True
         else:
-            ingested += _ingest_messages(db, messages, set(claimed))
+            created_ids.extend(_ingest_messages(db, messages, set(claimed)))
     comment_result = ingest_page_comments(db, payload, page_id=page_id)
-    ingested += int(comment_result.get("ingested") or 0)
+    created_ids.extend(list(comment_result.get("created_ids") or []))
+    ingested = len(created_ids)
     duplicate = duplicate or bool(comment_result.get("duplicate"))
     if ingested:
-        return {"ok": True, "duplicate": False, "ingested": ingested}
-    return {"ok": True, "duplicate": duplicate, "ingested": 0}
+        return {"ok": True, "duplicate": False, "ingested": ingested, "created_ids": created_ids}
+    return {"ok": True, "duplicate": duplicate, "ingested": 0, "created_ids": created_ids}

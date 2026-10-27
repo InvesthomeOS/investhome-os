@@ -256,6 +256,12 @@ class Settings(BaseSettings):
     smtp_from_email: str | None = Field(default=None, alias="SMTP_FROM_EMAIL")
     smtp_from_name: str = Field(default="InvestHome OS", alias="SMTP_FROM_NAME")
     app_public_url: str | None = Field(default=None, alias="APP_PUBLIC_URL")
+    # Off until a deployment explicitly turns inbound Meta email notifications on.
+    crm_inbound_email_notifications_enabled: bool = Field(
+        default=False,
+        alias="CRM_INBOUND_EMAIL_NOTIFICATIONS_ENABLED",
+    )
+    crm_inbound_notify_email: str | None = Field(default=None, alias="CRM_INBOUND_NOTIFY_EMAIL")
 
     # Public marketing form abuse protection (no production Turnstile keys yet).
     public_form_bot_verify: bool = Field(default=False, alias="PUBLIC_FORM_BOT_VERIFY")
@@ -352,6 +358,7 @@ class Settings(BaseSettings):
         "smtp_password",
         "smtp_from_email",
         "app_public_url",
+        "crm_inbound_notify_email",
         mode="before",
     )
     @classmethod
@@ -383,6 +390,13 @@ class Settings(BaseSettings):
     def default_smtp_use_tls(cls, value: Any) -> Any:
         if value is None or (isinstance(value, str) and not value.strip()):
             return True
+        return value
+
+    @field_validator("crm_inbound_email_notifications_enabled", mode="before")
+    @classmethod
+    def default_crm_inbound_email_notifications_enabled(cls, value: Any) -> Any:
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return False
         return value
 
     @field_validator("jwt_secret")

@@ -39,6 +39,7 @@ def _meta_webhook_env(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("META_PAGE_ID", PAGE_ID)
     monkeypatch.setenv("META_INSTAGRAM_ACCOUNT_ID", IG_ACCOUNT_ID)
     monkeypatch.setenv("META_INSTAGRAM_WEBHOOK_ACCOUNT_ID", IG_WEBHOOK_ACCOUNT_ID)
+    monkeypatch.setenv("CRM_INBOUND_EMAIL_NOTIFICATIONS_ENABLED", "false")
     get_settings.cache_clear()
     meta.reset_meta_idempotency_for_tests()
     yield

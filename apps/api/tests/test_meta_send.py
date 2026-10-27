@@ -51,6 +51,7 @@ def _meta_send_env(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("META_PAGE_ID", PAGE_ID)
     monkeypatch.setenv("META_PAGE_ACCESS_TOKEN", PAGE_TOKEN)
     monkeypatch.setenv("META_INSTAGRAM_WEBHOOK_ACCOUNT_ID", IG_WEBHOOK_ACCOUNT_ID)
+    monkeypatch.setenv("CRM_INBOUND_EMAIL_NOTIFICATIONS_ENABLED", "false")
     get_settings.cache_clear()
     meta.reset_meta_idempotency_for_tests()
     yield
