@@ -1,4 +1,4 @@
-"""Queue one email after a new inbound Meta CRM communication is committed.
+"""Queue email after a new inbound Meta CRM communication is committed.
 
 The webhook never sends SMTP. This module only receives a communication id.
 """
@@ -7,12 +7,14 @@ from __future__ import annotations
 
 import asyncio
 import threading
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import parseaddr
 from html import escape
 from typing import Any, Protocol
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -22,7 +24,7 @@ from investhome_api.db import session as db_session
 from investhome_api.models.crm_communication import CrmCommunication
 from investhome_api.models.crm_contact import CrmContact
 from investhome_api.models.lead import Lead
-from investhome_api.models.user_auth import User, UserStatus
+from investhome_api.models.user_auth import Role, User, UserRole, UserStatus
 from investhome_api.services.notification_gateway import (
     GatewayMessage,
     NotificationChannel,
@@ -37,6 +39,8 @@ LOCK_TTL_SECONDS = 15 * 60
 ENQUEUE_WAIT_SECONDS = 5
 PREVIEW_LIMIT = 240
 NOTIFY_KEY = "inbound_email_notification"
+SALES_ROLE_CODE = "sales"
+FALLBACK_RECIPIENT_KEY = "fallback"
 
 _INBOUND_CHANNELS = frozenset({"facebook", "instagram"})
 _INBOUND_SOURCES = frozenset({"live_facebook", "live_instagram"})
@@ -235,33 +239,81 @@ def _usable_email(value: str | None) -> str | None:
     return addr
 
 
-def _active_user_email(db: Session, user_id: UUID | None) -> str | None:
-    if user_id is None:
-        return None
-    user = db.get(User, user_id)
-    if user is None or user.archived_at is not None:
-        return None
-    if user.status != UserStatus.ACTIVE:
-        return None
-    return _usable_email(user.email)
+@dataclass(frozen=True)
+class NotifyRecipient:
+    key: str
+    email: str
+    source: str
 
 
-def resolve_recipient(db: Session, comm: CrmCommunication) -> tuple[str, str] | None:
-    """Return (email, source) for one recipient, or None when nobody can be notified."""
+def _active_sales_users(db: Session) -> list[User]:
+    """Users linked to the sales role through user_roles. Role code is the canonical key."""
+    return list(
+        db.scalars(
+            select(User)
+            .join(UserRole, UserRole.user_id == User.id)
+            .join(Role, Role.id == UserRole.role_id)
+            .where(
+                Role.code == SALES_ROLE_CODE,
+                User.status == UserStatus.ACTIVE,
+                User.archived_at.is_(None),
+            )
+            .order_by(User.email.asc())
+        )
+        .unique()
+        .all()
+    )
+
+
+def _append_user(
+    recipients: list[NotifyRecipient],
+    seen_ids: set[UUID],
+    seen_emails: set[str],
+    user: User | None,
+    source: str,
+) -> None:
+    if user is None or user.archived_at is not None or user.status != UserStatus.ACTIVE:
+        return
+    email = _usable_email(user.email)
+    if email is None or user.id in seen_ids or email.casefold() in seen_emails:
+        return
+    seen_ids.add(user.id)
+    seen_emails.add(email.casefold())
+    recipients.append(NotifyRecipient(key=str(user.id), email=email, source=source))
+
+
+def resolve_recipients(db: Session, comm: CrmCommunication) -> list[NotifyRecipient]:
+    """Active sales users, plus an assigned owner or lead manager who is not already included."""
+    recipients: list[NotifyRecipient] = []
+    seen_ids: set[UUID] = set()
+    seen_emails: set[str] = set()
+    for user in _active_sales_users(db):
+        _append_user(recipients, seen_ids, seen_emails, user, "sales_role")
     contact = db.get(CrmContact, comm.contact_id) if comm.contact_id else None
     if contact is not None and contact.archived_at is None:
-        owner_email = _active_user_email(db, contact.owner_user_id)
-        if owner_email:
-            return owner_email, "contact_owner"
+        if contact.owner_user_id is not None:
+            _append_user(
+                recipients,
+                seen_ids,
+                seen_emails,
+                db.get(User, contact.owner_user_id),
+                "contact_owner",
+            )
         lead = db.get(Lead, contact.lead_id) if contact.lead_id else None
-        if lead is not None and lead.archived_at is None:
-            manager_email = _active_user_email(db, lead.assigned_manager_id)
-            if manager_email:
-                return manager_email, "lead_manager"
+        if lead is not None and lead.archived_at is None and lead.assigned_manager_id is not None:
+            _append_user(
+                recipients,
+                seen_ids,
+                seen_emails,
+                db.get(User, lead.assigned_manager_id),
+                "lead_manager",
+            )
+    if recipients:
+        return recipients
     fallback = _usable_email(get_settings().crm_inbound_notify_email)
     if fallback:
-        return fallback, "fallback"
-    return None
+        return [NotifyRecipient(key=FALLBACK_RECIPIENT_KEY, email=fallback, source="fallback")]
+    return []
 
 
 def _display_name(comm: CrmCommunication, contact: CrmContact | None) -> str:
@@ -420,13 +472,61 @@ def _html_body(
     )
 
 
-def _mark_sent(db: Session, comm: CrmCommunication, recipient_source: str) -> None:
-    meta = dict(_meta(comm))
-    meta[NOTIFY_KEY] = {
-        "status": "sent",
-        "sent_at": datetime.now(UTC).isoformat(),
-        "recipient_source": recipient_source,
+def _notice(meta: dict[str, Any]) -> dict[str, Any]:
+    raw = meta.get(NOTIFY_KEY)
+    return dict(raw) if isinstance(raw, dict) else {}
+
+
+def _recipient_state(meta: dict[str, Any]) -> dict[str, Any]:
+    raw = _notice(meta).get("recipients")
+    if not isinstance(raw, dict):
+        return {}
+    return {str(key): value for key, value in raw.items() if isinstance(value, dict)}
+
+
+def _sent_keys(meta: dict[str, Any]) -> set[str]:
+    return {
+        key
+        for key, row in _recipient_state(meta).items()
+        if str(row.get("status") or "").strip().lower() == "sent"
     }
+
+
+def _pending(recipients: list[NotifyRecipient], meta: dict[str, Any]) -> list[NotifyRecipient]:
+    sent = _sent_keys(meta)
+    return [item for item in recipients if item.key not in sent]
+
+
+def _record_recipient_sent(
+    db: Session,
+    comm: CrmCommunication,
+    recipient: NotifyRecipient,
+    expected_keys: set[str],
+) -> None:
+    meta = dict(_meta(comm))
+    notice = _notice(meta)
+    recipients = _recipient_state(meta)
+    sent_at = datetime.now(UTC).isoformat()
+    recipients[recipient.key] = {
+        "status": "sent",
+        "sent_at": sent_at,
+        "source": recipient.source,
+    }
+    sent_now = {
+        key
+        for key, row in recipients.items()
+        if str(row.get("status") or "").strip().lower() == "sent"
+    }
+    complete = bool(expected_keys) and expected_keys <= sent_now
+    notice_out: dict[str, Any] = {
+        "status": "sent" if complete else "partial",
+        "recipients": recipients,
+    }
+    if complete:
+        notice_out["sent_at"] = sent_at
+    elif notice.get("sent_at"):
+        notice_out["sent_at"] = notice.get("sent_at")
+    meta[NOTIFY_KEY] = notice_out
     comm.metadata_json = meta
     flag_modified(comm, "metadata_json")
     db.commit()
@@ -447,7 +547,7 @@ def deliver_meta_inbound_email(
     db: Session | None = None,
     lock: NotifyLock | None = None,
 ) -> str:
-    """Send at most one email for this communication. Raise to ask the worker to retry."""
+    """Send at most one email per recipient. Raise to ask the worker to retry failures."""
     owns_session = db is None
     session = db or db_session.SessionLocal()
     active_lock = lock or _notify_lock()
@@ -463,10 +563,11 @@ def deliver_meta_inbound_email(
             return _skip(communication_id, "already_sent")
         if not _eligible(comm):
             return _skip(communication_id, "ineligible")
-        resolved = resolve_recipient(session, comm)
-        if resolved is None:
+        recipients = resolve_recipients(session, comm)
+        if not recipients:
             return _skip(communication_id, "no_recipient")
-        recipient, recipient_source = resolved
+        if not _pending(recipients, _meta(comm)):
+            return _skip(communication_id, "already_sent")
         try:
             claimed = active_lock.claim(lock_key, LOCK_TTL_SECONDS)
         except Exception as exc:
@@ -480,41 +581,51 @@ def deliver_meta_inbound_email(
         session.refresh(comm)
         if _notification_status(_meta(comm)) == "sent":
             return _skip(communication_id, "already_sent")
+        recipients = resolve_recipients(session, comm)
+        pending = _pending(recipients, _meta(comm))
+        if not pending:
+            return _skip(communication_id, "already_sent")
         contact = session.get(CrmContact, comm.contact_id) if comm.contact_id else None
-        message = _build_message(
-            comm,
-            recipient=recipient,
-            name=_display_name(comm, contact),
-            project=_interested_project(session, contact),
-        )
-        try:
-            result = get_notification_gateway().dispatch(message, provider_id="email_smtp")
-        except Exception as exc:
-            logger.warning(
-                "meta_inbound_email_send_failed communication_id=%s reason=gateway",
+        name = _display_name(comm, contact)
+        project = _interested_project(session, contact)
+        expected = {item.key for item in recipients}
+        failures = 0
+        for recipient in pending:
+            message = _build_message(comm, recipient=recipient.email, name=name, project=project)
+            try:
+                result = get_notification_gateway().dispatch(message, provider_id="email_smtp")
+            except Exception:
+                failures += 1
+                logger.warning(
+                    "meta_inbound_email_send_failed communication_id=%s reason=gateway source=%s",
+                    communication_id,
+                    recipient.source,
+                )
+                continue
+            if not result.ok:
+                failures += 1
+                logger.warning(
+                    "meta_inbound_email_send_failed communication_id=%s reason=%s source=%s",
+                    communication_id,
+                    result.status,
+                    recipient.source,
+                )
+                continue
+            try:
+                _record_recipient_sent(session, comm, recipient, expected)
+            except Exception as exc:
+                logger.warning(
+                    "meta_inbound_email_send_failed communication_id=%s reason=status_commit",
+                    communication_id,
+                )
+                raise MetaInboundEmailRetry("notification status commit failed") from exc
+            logger.info(
+                "meta_inbound_email_sent communication_id=%s recipient_source=%s",
                 communication_id,
+                recipient.source,
             )
-            raise MetaInboundEmailRetry("smtp gateway failed") from exc
-        if not result.ok:
-            logger.warning(
-                "meta_inbound_email_send_failed communication_id=%s reason=%s",
-                communication_id,
-                result.status,
-            )
+        if failures:
             raise MetaInboundEmailRetry("smtp gateway returned failure")
-        try:
-            _mark_sent(session, comm, recipient_source)
-        except Exception as exc:
-            logger.warning(
-                "meta_inbound_email_send_failed communication_id=%s reason=status_commit",
-                communication_id,
-            )
-            raise MetaInboundEmailRetry("notification status commit failed") from exc
-        logger.info(
-            "meta_inbound_email_sent communication_id=%s recipient_source=%s",
-            communication_id,
-            recipient_source,
-        )
         claimed = False
         return "sent"
     finally:
