@@ -73,6 +73,7 @@ class _UnlinkFix:
 class _AgentFix:
     key: str
     person_name: str
+    contact_id: UUID | None = None
 
 
 OWNER_FIXES = (
@@ -143,9 +144,11 @@ UNLINK_FIXES = (
     ),
 )
 
+MUSA_COBANER_CONTACT_ID = UUID("6f809981-a5a7-4956-a0e8-2f1a7ba4f510")
+
 AGENT_FIXES = (
     _AgentFix("agent-kurtulus-goksu", "Kurtulus Goksu"),
-    _AgentFix("agent-musa-cobaner", "Musa Cobaner"),
+    _AgentFix("agent-musa-cobaner", "Musa Cobaner", MUSA_COBANER_CONTACT_ID),
 )
 
 
@@ -340,7 +343,22 @@ def _agent_has_purchase(db: Session, contact_id: UUID) -> bool:
     return agreement is not None or participant is not None
 
 
-def _apply_agent_fix(db: Session, fix: _AgentFix, actor: User | None) -> dict[str, str | None]:
+def _agent_by_exact_id(
+    db: Session, contact_id: UUID
+) -> tuple[CrmContact | None, str | None]:
+    contact = db.get(CrmContact, contact_id)
+    if contact is None or UUID(str(contact.id)) != contact_id:
+        return None, "not_found"
+    if contact.contact_type not in AGENT_TYPES:
+        return contact, "not_agent"
+    if contact.status not in {CrmContactStatus.ACTIVE, CrmContactStatus.ARCHIVED}:
+        return contact, "contact_status"
+    return contact, None
+
+
+def _apply_named_agent_fix(
+    db: Session, fix: _AgentFix, actor: User | None
+) -> dict[str, str | None]:
     matches = _agent_matches(db, fix.person_name)
     if len(matches) != 1:
         return _result(fix.key, "ambiguous" if matches else "not_found", "agent_identity")
@@ -350,6 +368,23 @@ def _apply_agent_fix(db: Session, fix: _AgentFix, actor: User | None) -> dict[st
     if _agent_has_purchase(db, contact.id):
         return _result(fix.key, "ambiguous", "agent_has_purchase")
     status = archive_agent(db, contact.id, actor=actor)
+    return _result(fix.key, "already_applied" if status == "already_archived" else "applied")
+
+
+def _apply_agent_fix(db: Session, fix: _AgentFix, actor: User | None) -> dict[str, str | None]:
+    if fix.contact_id is None:
+        return _apply_named_agent_fix(db, fix, actor)
+    contact, problem = _agent_by_exact_id(db, fix.contact_id)
+    if problem == "not_found" or contact is None:
+        return _result(fix.key, "not_found", "agent_identity")
+    if problem is not None:
+        return _result(fix.key, "ambiguous", problem)
+    if _agent_has_purchase(db, contact.id):
+        return _result(fix.key, "ambiguous", "agent_has_purchase")
+    preserved_name = contact.display_name
+    status = archive_agent(db, contact.id, actor=actor)
+    if contact.display_name != preserved_name:
+        raise RelationshipCorrectionError("contact_renamed")
     return _result(fix.key, "already_applied" if status == "already_archived" else "applied")
 
 
@@ -617,14 +652,27 @@ def _preview_unlink_fix(db: Session, fix: _UnlinkFix) -> dict[str, object]:
     )
 
 
-def _preview_agent_fix(db: Session, fix: _AgentFix) -> dict[str, object]:
+def _preview_named_agent_fix(db: Session, fix: _AgentFix) -> dict[str, object]:
     matches = _agent_matches(db, fix.person_name)
     if not matches:
         return _preview_item(fix.key, "not_found", detail="agent_identity")
     if len(matches) != 1:
         return _preview_item(fix.key, "ambiguous", detail="agent_identity")
-    contact = matches[0]
+    return _preview_resolved_agent(fix, matches[0], db)
+
+
+def _preview_resolved_agent(
+    fix: _AgentFix, contact: CrmContact, db: Session, *, problem: str | None = None
+) -> dict[str, object]:
     current = {"display_name": contact.display_name, "status": contact.status.value}
+    if problem is not None:
+        return _preview_item(
+            fix.key,
+            "blocked",
+            contact_id=contact.id,
+            current=current,
+            detail=problem,
+        )
     if _agent_has_purchase(db, contact.id):
         return _preview_item(
             fix.key,
@@ -633,21 +681,23 @@ def _preview_agent_fix(db: Session, fix: _AgentFix) -> dict[str, object]:
             current=current,
             detail="agent_has_purchase",
         )
-    if contact.status == CrmContactStatus.ARCHIVED:
-        return _preview_item(
-            fix.key,
-            "already_applied",
-            contact_id=contact.id,
-            current=current,
-            intended={"action": "archive", "status": "archived"},
-        )
+    status = "already_applied" if contact.status == CrmContactStatus.ARCHIVED else "ready"
     return _preview_item(
         fix.key,
-        "ready",
+        status,
         contact_id=contact.id,
         current=current,
         intended={"action": "archive", "status": "archived"},
     )
+
+
+def _preview_agent_fix(db: Session, fix: _AgentFix) -> dict[str, object]:
+    if fix.contact_id is None:
+        return _preview_named_agent_fix(db, fix)
+    contact, problem = _agent_by_exact_id(db, fix.contact_id)
+    if problem == "not_found" or contact is None:
+        return _preview_item(fix.key, "not_found", detail="agent_identity")
+    return _preview_resolved_agent(fix, contact, db, problem=problem)
 
 
 def preview_known_crm_corrections(db: Session) -> list[dict[str, object]]:

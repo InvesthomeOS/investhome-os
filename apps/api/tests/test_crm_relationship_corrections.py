@@ -33,7 +33,10 @@ DEMO_PASSWORD = "Demo123!"
 
 
 def _person(
-    db: Session, name: str, contact_type: CrmContactType = CrmContactType.INVESTOR
+    db: Session,
+    name: str,
+    contact_type: CrmContactType = CrmContactType.INVESTOR,
+    contact_id: UUID | None = None,
 ) -> CrmContact:
     contact = CrmContact(
         contact_type=contact_type,
@@ -41,6 +44,8 @@ def _person(
         display_name=name,
         status=CrmContactStatus.ACTIVE,
     )
+    if contact_id is not None:
+        contact.id = contact_id
     db.add(contact)
     db.flush()
     return contact
@@ -507,7 +512,13 @@ def test_known_corrections_are_idempotent_and_skip_ambiguity(db: Session) -> Non
     )
     _owner(db, uniloft, vedat, "100.00", primary=True)
 
-    agent = _person(db, "Musa Çobaner", CrmContactType.REALTOR)
+    decoy = _person(db, "Musa Cobaner", CrmContactType.REALTOR)
+    agent = _person(
+        db,
+        "Musa Acenta Danışmanı 1",
+        CrmContactType.BROKER,
+        contact_id=UUID("6f809981-a5a7-4956-a0e8-2f1a7ba4f510"),
+    )
     wrong_project = _agreement(
         db,
         murat,
@@ -530,7 +541,10 @@ def test_known_corrections_are_idempotent_and_skip_ambiguity(db: Session) -> Non
     assert db.get(CrmContact, gokhan_copy.id) is not None
     assert db.get(CrmContact, vedat.id) is not None
     assert db.get(CrmActivity, note_id).title == "Keep this email"
-    assert db.get(CrmContact, agent.id).status == CrmContactStatus.ARCHIVED
+    archived = db.get(CrmContact, agent.id)
+    assert archived.status == CrmContactStatus.ARCHIVED
+    assert archived.display_name == "Musa Acenta Danışmanı 1"
+    assert db.get(CrmContact, decoy.id).status == CrmContactStatus.ACTIVE
     murat_row = db.scalar(
         select(CrmAgreementParticipant).where(
             CrmAgreementParticipant.agreement_id == ontario.id,
@@ -576,7 +590,12 @@ def test_known_correction_preview_does_not_write(client: TestClient, db: Session
         agreement_id=UUID("b1caae99-c1ab-4840-b9d4-730d406b6ade"),
     )
     _owner(db, uniloft, vedat, "100.00", primary=True)
-    agent = _person(db, "Musa Çobaner", CrmContactType.REALTOR)
+    agent = _person(
+        db,
+        "Musa Acenta Danışmanı 1",
+        CrmContactType.BROKER,
+        contact_id=UUID("6f809981-a5a7-4956-a0e8-2f1a7ba4f510"),
+    )
     db.commit()
     before = db.scalar(select(func.count()).select_from(ActivityLog)) or 0
 
@@ -593,10 +612,13 @@ def test_known_correction_preview_does_not_write(client: TestClient, db: Session
     assert uniloft_plan["contact_id"] == str(vedat.id)
     assert uniloft_plan["intended"]["active_purchaser"] is False
     assert uniloft_plan["intended"]["contact_preserved"] is True
-    assert by_key["agent-musa-cobaner"]["status"] == "ready"
-    assert by_key["agent-musa-cobaner"]["contact_id"] == str(agent.id)
-    assert by_key["agent-musa-cobaner"]["current"]["status"] == "active"
-    assert by_key["agent-musa-cobaner"]["intended"]["action"] == "archive"
+    musa_plan = by_key["agent-musa-cobaner"]
+    assert musa_plan["status"] == "ready"
+    assert musa_plan["contact_id"] == "6f809981-a5a7-4956-a0e8-2f1a7ba4f510"
+    assert musa_plan["contact_id"] == str(agent.id)
+    assert musa_plan["current"]["display_name"] == "Musa Acenta Danışmanı 1"
+    assert musa_plan["current"]["status"] == "active"
+    assert musa_plan["intended"]["action"] == "archive"
     assert by_key["2319-unit-002"]["status"] == "not_found"
 
     db.expire_all()
