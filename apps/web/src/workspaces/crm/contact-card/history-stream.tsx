@@ -421,6 +421,7 @@ export function PilotHistoryStream({
   initialFilter = 'all',
   includeDocuments = false,
   heading = 'Yorumlar / İletişim Akışı',
+  canSendEmail = false,
 }: {
   entries: ContactTimelineEntry[];
   documents: GalleryDocument[];
@@ -429,6 +430,7 @@ export function PilotHistoryStream({
   initialFilter?: PilotHistoryFilter;
   includeDocuments?: boolean;
   heading?: string;
+  canSendEmail?: boolean;
 }) {
   const [filter, setFilter] = useState<PilotHistoryFilter>(initialFilter);
   const [emailFocus, setEmailFocus] = useState<StreamEntry | null>(null);
@@ -549,7 +551,15 @@ export function PilotHistoryStream({
       ) : (
         <p>Kayıt yok</p>
       )}
-      {emailFocus ? <EmailDetail entry={emailFocus} locale={locale} onClose={() => setEmailFocus(null)} /> : null}
+      {emailFocus ? (
+        <EmailDetail
+          entry={emailFocus}
+          locale={locale}
+          canSend={canSendEmail}
+          activityId={emailFocus.id}
+          onClose={() => setEmailFocus(null)}
+        />
+      ) : null}
       {whatsappFocus ? (
         <div className="crm-contact-card__wa-drawer" data-testid="whatsapp-conversation">
           <div className="crm-contact-card__wa-panel">

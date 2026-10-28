@@ -34,10 +34,13 @@ GOOGLE_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
 
+GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send"
+GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
 GMAIL_SCOPES = (
     "openid",
     "https://www.googleapis.com/auth/userinfo.email",
-    "https://www.googleapis.com/auth/gmail.readonly",
+    GMAIL_READONLY_SCOPE,
+    GMAIL_SEND_SCOPE,
 )
 
 GMAIL_CALLBACK_PATH = "/crm/settings/communication-accounts/gmail/callback"
@@ -55,6 +58,19 @@ _memory_states: dict[str, dict[str, Any]] = {}
 
 PILOT_PROVIDER = "gmail"
 PILOT_CHANNEL = "email"
+
+
+def _scope_grants_send(scope: str) -> bool:
+    granted = set(scope.split())
+    return GMAIL_READONLY_SCOPE in granted and GMAIL_SEND_SCOPE in granted
+
+
+def gmail_send_granted(account: CrmUserCommunicationAccount) -> bool:
+    """True only when the stored grant includes gmail.send. Missing scope requires reconnect."""
+    granted = {str(item) for item in (account.scopes or [])}
+    credentials = load_account_credentials(account) or {}
+    granted.update(str(credentials.get("scope") or "").split())
+    return GMAIL_SEND_SCOPE in granted
 
 
 def _is_production_environment() -> bool:
@@ -259,8 +275,9 @@ def exchange_authorization_code(*, code: str, code_verifier: str) -> dict[str, A
     data = response.json()
     if not isinstance(data, dict) or not data.get("access_token"):
         raise ValueError("token_exchange_failed")
-    if "gmail.readonly" not in str(data.get("scope") or " ".join(GMAIL_SCOPES)):
-        logger.warning("gmail_oauth_scope_missing_readonly")
+    if not _scope_grants_send(str(data.get("scope") or "")):
+        logger.warning("gmail_oauth_scope_incomplete")
+        raise ValueError("needs_reauth")
     return data
 
 
@@ -309,7 +326,7 @@ def _token_blob(token_response: dict[str, Any], *, existing: dict[str, Any] | No
         "refresh_token": refresh,
         "token_type": token_response.get("token_type") or "Bearer",
         "expiry": expiry.isoformat(),
-        "scope": token_response.get("scope") or " ".join(GMAIL_SCOPES),
+        "scope": token_response.get("scope") or (existing or {}).get("scope") or "",
         "google_sub": (existing or {}).get("google_sub"),
     }
 
@@ -327,7 +344,11 @@ def persist_gmail_tokens(
     elif existing.get("google_sub"):
         blob["google_sub"] = existing["google_sub"]
     account.encrypted_credentials = seal_secret(blob)
-    account.scopes = list(GMAIL_SCOPES)
+    granted = str(blob.get("scope") or "").split()
+    if granted:
+        account.scopes = granted
+    elif not account.scopes:
+        account.scopes = [item for item in GMAIL_SCOPES if item != GMAIL_SEND_SCOPE]
 
 
 def connected_gmail_accounts(db: Session) -> list[CrmUserCommunicationAccount]:
@@ -372,6 +393,8 @@ def complete_authorization(
         raise ValueError("invalid_state")
 
     tokens = exchange_authorization_code(code=code, code_verifier=str(saved["code_verifier"]))
+    if not _scope_grants_send(str(tokens.get("scope") or "")):
+        raise ValueError("needs_reauth")
     userinfo = fetch_google_userinfo(str(tokens["access_token"]))
     email = normalize_email(str(userinfo.get("email") or ""))
     google_sub = str(userinfo.get("sub") or "").strip() or None

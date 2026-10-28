@@ -885,6 +885,34 @@
   gap: 16px;
 }
 
+.crm-email-detail__actions,
+.crm-email-compose__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.crm-email-compose {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #eaecf0;
+}
+
+.crm-email-compose__from {
+  margin: 0;
+  color: #475467;
+  font-size: 13px;
+}
+
+.crm-email-compose__error {
+  margin: 0;
+  color: #b42318;
+  font-size: 13px;
+}
+
 .crm-email-detail__panel header small {
   color: #667085;
   font-size: 12px;

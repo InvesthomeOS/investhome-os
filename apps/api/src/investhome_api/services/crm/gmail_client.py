@@ -154,6 +154,19 @@ class GoogleGmailMailbox:
             raise _map_gmail_error(exc) from exc
         return _decode_attachment(raw.get("data"))
 
+    def send_message(self, *, raw: str, thread_id: str | None = None) -> dict[str, Any]:
+        service = self._build()
+        body: dict[str, Any] = {"raw": raw}
+        if thread_id:
+            body["threadId"] = thread_id
+        try:
+            sent = service.users().messages().send(userId="me", body=body).execute()
+        except Exception as exc:
+            raise _map_gmail_error(exc) from exc
+        if not isinstance(sent, dict) or not str(sent.get("id") or "").strip():
+            raise GmailApiError("gmail_api_error")
+        return sent
+
     def list_history_message_ids(self, start_history_id: str) -> tuple[list[str], str | None]:
         service = self._build()
         page_token: str | None = None

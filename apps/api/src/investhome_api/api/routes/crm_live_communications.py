@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime
 from urllib.parse import urlencode
@@ -31,6 +32,8 @@ from investhome_api.schemas.crm_live_communications import (
     CommunicationConversationResponse,
     CommunicationFeedResponse,
     ConfirmMatchRequest,
+    EmailReplyContextResponse,
+    EmailSendRequest,
     GmailAuthorizeResponse,
     GmailStatusResponse,
     GmailSyncResponse,
@@ -48,6 +51,11 @@ from investhome_api.services.crm.gmail_oauth import (
     gmail_oauth_configured,
     gmail_redirect_uri,
     start_authorization,
+)
+from investhome_api.services.crm.gmail_send import (
+    GmailCustomerEmailError,
+    email_reply_context,
+    send_customer_email,
 )
 from investhome_api.services.crm.gmail_sync import enqueue_gmail_sync, sync_gmail_account
 from investhome_api.services.crm.live_accounts import (
@@ -67,6 +75,8 @@ from investhome_api.services.crm.meta_comments import (
 )
 from investhome_api.services.crm.meta_send import MetaSendError, send_meta_dm
 from investhome_api.services.permission_service import user_has_permission
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["crm-live-communications"])
 
@@ -284,6 +294,87 @@ def send_live_communication(
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    meta = comm.metadata_json if isinstance(comm.metadata_json, dict) else {}
+    lead_raw = meta.get("lead_id")
+    try:
+        lead_id = UUID(str(lead_raw)) if lead_raw else None
+    except ValueError:
+        lead_id = None
+    return LiveSendResponse(
+        id=comm.id,
+        channel=comm.channel,
+        direction=comm.direction,
+        provider_message_id=comm.external_provider_id,
+        contact_id=comm.contact_id,
+        lead_id=lead_id,
+        duplicate=not created,
+        request_id=get_request_id() or "",
+    )
+
+
+@router.get(
+    "/crm/live-communications/email/reply-context",
+    response_model=EmailReplyContextResponse,
+)
+def email_reply_context_route(
+    communication_id: UUID | None = Query(default=None),
+    activity_id: UUID | None = Query(default=None),
+    db: Session = Depends(get_db),
+    user: User = Depends(_require_view()),
+) -> EmailReplyContextResponse:
+    _ = user
+    if communication_id is None and activity_id is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="communication_not_found")
+    try:
+        body = email_reply_context(
+            db,
+            communication_id=communication_id,
+            activity_id=activity_id,
+        )
+    except GmailCustomerEmailError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.public_detail) from exc
+    return EmailReplyContextResponse(**body, request_id=get_request_id() or "")
+
+
+@router.post("/crm/live-communications/email/send", response_model=LiveSendResponse)
+def send_customer_email_route(
+    payload: EmailSendRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("crm", "send_communications")),
+) -> LiveSendResponse:
+    mode = (payload.mode or "new").strip().lower()
+    if mode not in {"reply", "reply_all", "new"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported_mode")
+    try:
+        comm, created = send_customer_email(
+            db,
+            actor=user,
+            mode=mode,
+            contact_id=payload.contact_id,
+            lead_id=payload.lead_id,
+            communication_id=payload.communication_id,
+            activity_id=payload.activity_id,
+            to=payload.to,
+            cc=payload.cc,
+            subject=payload.subject,
+            body_text=payload.body_text,
+            body_html=payload.body_html,
+        )
+        db.commit()
+        db.refresh(comm)
+    except GmailCustomerEmailError as exc:
+        if exc.persist_account_state:
+            db.commit()
+        else:
+            db.rollback()
+        raise HTTPException(status_code=exc.status_code, detail=exc.public_detail) from exc
+    except Exception:
+        logger.exception("gmail_send_route_failed")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="crm_persist_failed",
+        ) from None
     meta = comm.metadata_json if isinstance(comm.metadata_json, dict) else {}
     lead_raw = meta.get("lead_id")
     try:

@@ -219,6 +219,30 @@ class LiveSendRequest(BaseModel):
     kind: str | None = Field(default=None, max_length=40)
 
 
+class EmailSendRequest(BaseModel):
+    mode: str = Field(default="new", max_length=20)
+    contact_id: UUID | None = None
+    lead_id: UUID | None = None
+    communication_id: UUID | None = None
+    activity_id: UUID | None = None
+    to: list[str] = Field(default_factory=list, max_length=20)
+    cc: list[str] = Field(default_factory=list, max_length=20)
+    subject: str = Field(min_length=1, max_length=500)
+    body_text: str = Field(min_length=1, max_length=20000)
+    body_html: str | None = Field(default=None, max_length=50000)
+
+
+class EmailReplyContextResponse(BaseModel):
+    to: list[str] = Field(default_factory=list)
+    cc: list[str] = Field(default_factory=list)
+    subject: str = ""
+    contact_id: UUID | None = None
+    from_mailbox: str | None = None
+    can_reply_all: bool = False
+    send_block: str | None = None
+    request_id: str = ""
+
+
 class LiveSendResponse(BaseModel):
     id: UUID
     channel: str

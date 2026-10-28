@@ -1140,6 +1140,10 @@ export function CrmCommunicationLiveWorkspace() {
             created_at: emailOpen.occurred_at || new Date().toISOString(),
           }}
           locale={locale}
+          canSend={canSendMeta}
+          communicationId={emailOpen.source === 'activity' ? null : emailOpen.id}
+          activityId={emailOpen.activity_id || (emailOpen.source === 'activity' ? emailOpen.id : null)}
+          contactId={emailOpen.contact_id}
           onClose={() => setEmailOpen(null)}
         />
       ) : null}

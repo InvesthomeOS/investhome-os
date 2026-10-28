@@ -27,6 +27,7 @@ import {
   removeContactTag,
 } from '@/workspaces/crm/api/crm';
 import { notifyContactUpdated, useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
+import { EmailSendComposer } from '@/workspaces/crm/contact-card/email-send-composer';
 import { personCardCopy, type PersonCardCopy } from '@/workspaces/crm/contact-card/person-card-copy';
 import { salesDetailUrl } from '@/workspaces/crm/contact-card/pilot-people';
 import { PilotHistoryStream, type PilotHistoryFilter } from '@/workspaces/crm/contact-card/history-stream';
@@ -293,6 +294,7 @@ export function UnifiedContactCard({
   const router = useRouter();
   const { openPurchase } = useContactCard();
   const { authLoading, canRead, has, user, canViewFinancial } = useCrmAccess();
+  const canSendEmail = has('send_communications');
   const canUpdate = has('update');
   const canViewDocuments = Boolean(user && hasPermission(user, 'documents', 'view'));
   const canLinkDocuments = Boolean(user && hasPermission(user, 'documents', 'update'));
@@ -341,6 +343,7 @@ export function UnifiedContactCard({
   });
 
   const [panel, setPanel] = useState<Panel>(null);
+  const [emailComposeOpen, setEmailComposeOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -935,8 +938,22 @@ export function UnifiedContactCard({
             ))}
           </div>
         ) : null}
+        {emailComposeOpen && contact.primary_email ? (
+          <EmailSendComposer
+            mode="new"
+            contactId={contact.id}
+            leadId={contact.lead_id}
+            defaultTo={contact.primary_email}
+            defaultSubject=""
+            onSent={() => setEmailComposeOpen(false)}
+          />
+        ) : null}
         <div className="crm-person-actions">
-          {contact.primary_email ? (
+          {canSendEmail && contact.primary_email ? (
+            <button type="button" className="crm-person-action" onClick={() => setEmailComposeOpen((open) => !open)}>
+              <IhIcon name="mail" size={14} /> {t.email}
+            </button>
+          ) : contact.primary_email ? (
             <a className="crm-person-action" href={`mailto:${contact.primary_email}`}>
               <IhIcon name="mail" size={14} /> {t.email}
             </a>
@@ -1444,6 +1461,7 @@ export function UnifiedContactCard({
           initialFilter={historyFilter}
           includeDocuments={false}
           heading={t.historyHeading}
+          canSendEmail={canSendEmail}
         />
       ) : null}
 

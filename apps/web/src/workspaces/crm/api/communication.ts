@@ -504,6 +504,53 @@ export async function fetchWhatsappConversation(params: {
   return apiFetch(`/crm/live-communications/conversation?${q.toString()}`);
 }
 
+export type EmailReplyContext = {
+  to: string[];
+  cc: string[];
+  subject: string;
+  contact_id: string | null;
+  from_mailbox: string | null;
+  can_reply_all: boolean;
+  send_block: string | null;
+};
+
+export async function fetchEmailReplyContext(params: {
+  communication_id?: string | null;
+  activity_id?: string | null;
+}): Promise<EmailReplyContext> {
+  const q = buildParams({
+    communication_id: params.communication_id,
+    activity_id: params.activity_id,
+  });
+  return apiFetch(`/crm/live-communications/email/reply-context?${q.toString()}`);
+}
+
+export async function sendCustomerEmail(payload: {
+  mode: 'reply' | 'reply_all' | 'new';
+  contact_id?: string | null;
+  lead_id?: string | null;
+  communication_id?: string | null;
+  activity_id?: string | null;
+  to?: string[];
+  cc?: string[];
+  subject: string;
+  body_text: string;
+  body_html?: string | null;
+}): Promise<{
+  id: string;
+  channel: string;
+  direction: string;
+  provider_message_id: string | null;
+  contact_id: string | null;
+  lead_id: string | null;
+  duplicate: boolean;
+}> {
+  return apiFetch('/crm/live-communications/email/send', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function sendLiveCommunication(payload: {
   channel: string;
   contact_id: string;

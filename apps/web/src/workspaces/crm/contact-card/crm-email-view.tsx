@@ -1,12 +1,15 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@investhome/ui';
 
 import { IhIcon } from '@/components/icons/ih-icons';
 import { fetchActivity } from '@/workspaces/crm/api/activities';
+import { fetchEmailReplyContext } from '@/workspaces/crm/api/communication';
+import { EmailSendComposer } from '@/workspaces/crm/contact-card/email-send-composer';
 import {
   escapeHtml,
   parseEmailContent,
@@ -83,11 +86,31 @@ export function EmailDetail({
   entry,
   locale,
   onClose,
+  canSend = false,
+  communicationId = null,
+  activityId = null,
+  contactId = null,
 }: {
   entry: EmailViewEntry;
   locale: string;
   onClose: () => void;
+  canSend?: boolean;
+  communicationId?: string | null;
+  activityId?: string | null;
+  contactId?: string | null;
 }) {
+  const t = useTranslations('crm.communication.workspace');
+  const [composeMode, setComposeMode] = useState<'reply' | 'reply_all' | null>(null);
+  const canReply = canSend && Boolean(communicationId || activityId);
+  const contextQuery = useQuery({
+    queryKey: ['crm', 'communications', 'email-reply', communicationId || '', activityId || ''],
+    queryFn: () =>
+      fetchEmailReplyContext({
+        communication_id: communicationId,
+        activity_id: activityId,
+      }),
+    enabled: canReply,
+  });
   const detailQuery = useQuery({
     queryKey: ['crm', 'activities', entry.id],
     queryFn: () => fetchActivity(entry.id),
@@ -109,9 +132,27 @@ export function EmailDetail({
             <small>E-posta</small>
             <h2>{parsed.subject}</h2>
           </div>
-          <Button type="button" size="sm" variant="secondary" onClick={onClose}>
-            Kapat
-          </Button>
+          <div className="crm-email-detail__actions">
+            {canReply ? (
+              <Button type="button" size="sm" onClick={() => setComposeMode('reply')} data-testid="crm-email-reply">
+                {t('emailReply')}
+              </Button>
+            ) : null}
+            {canReply && contextQuery.data?.can_reply_all ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => setComposeMode('reply_all')}
+                data-testid="crm-email-reply-all"
+              >
+                {t('emailReplyAll')}
+              </Button>
+            ) : null}
+            <Button type="button" size="sm" variant="secondary" onClick={onClose}>
+              Kapat
+            </Button>
+          </div>
         </header>
         <dl>
           <div>
@@ -166,6 +207,15 @@ export function EmailDetail({
               );
             })}
           </div>
+        ) : null}
+        {composeMode ? (
+          <EmailSendComposer
+            mode={composeMode}
+            contactId={contactId}
+            communicationId={communicationId}
+            activityId={activityId}
+            onSent={() => setComposeMode(null)}
+          />
         ) : null}
       </div>
     </div>

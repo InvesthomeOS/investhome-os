@@ -12,6 +12,7 @@ import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 import { canUpdateCrm } from '@/lib/crm/crm-permissions';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
+import { EmailSendComposer } from '@/workspaces/crm/contact-card/email-send-composer';
 import {
   CRM_LEAD_JUNK_REASONS,
   CRM_LEAD_STAGES,
@@ -424,13 +425,15 @@ function activityLabel(key: string, locale: 'tr' | 'en'): string {
 export function CrmLeadsLiveWorkspace() {
   const locale = useLocale() === 'tr' ? 'tr' : 'en';
   const t = COPY[locale];
-  const { canRead, canCreate, authLoading, user, canManageTasks } = useCrmAccess();
+  const { canRead, canCreate, authLoading, user, canManageTasks, has } = useCrmAccess();
+  const canSendEmail = has('send_communications');
   const canWrite = canCreate || canUpdateCrm(user);
   const canAddTask = canManageTasks;
   const queryClient = useQueryClient();
   const { openContact } = useContactCard();
 
   const [view, setView] = useState<ViewMode>('kanban');
+  const [emailComposeOpen, setEmailComposeOpen] = useState(false);
   const [searchDraft, setSearchDraft] = useState('');
   const [search, setSearch] = useState('');
   const [stage, setStage] = useState('');
@@ -1247,6 +1250,16 @@ export function CrmLeadsLiveWorkspace() {
                     {t.edit}
                   </Button>
                 ) : null}
+                {canSendEmail && selected.email && drawer !== 'convert' ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setEmailComposeOpen((open) => !open)}
+                  >
+                    {locale === 'tr' ? 'E-posta gönder' : 'Send email'}
+                  </Button>
+                ) : null}
                 {canAddTask && drawer !== 'convert' ? (
                   <Button
                     type="button"
@@ -1283,6 +1296,16 @@ export function CrmLeadsLiveWorkspace() {
                   </Button>
                 ) : null}
               </div>
+            ) : null}
+            {emailComposeOpen && selected?.email && drawer !== 'create' ? (
+              <EmailSendComposer
+                mode="new"
+                contactId={selected.contact_id || selected.converted_contact_id}
+                leadId={selected.id}
+                defaultTo={selected.email}
+                defaultSubject=""
+                onSent={() => setEmailComposeOpen(false)}
+              />
             ) : null}
           </aside>
         </>

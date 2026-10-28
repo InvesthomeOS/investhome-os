@@ -131,7 +131,7 @@ def test_gmail_authorize_reuses_drive_client_and_hides_secret(client: TestClient
     qs = parse_qs(parsed.query)
     assert qs["client_id"] == ["drive-client-id"]
     assert "gmail.readonly" in qs["scope"][0]
-    assert "gmail.send" not in qs["scope"][0]
+    assert "https://www.googleapis.com/auth/gmail.send" in qs["scope"][0]
     assert qs["access_type"] == ["offline"]
     assert body["redirect_uri"].endswith("/crm/settings/communication-accounts/gmail/callback")
 
@@ -152,7 +152,10 @@ def test_gmail_callback_stores_encrypted_refresh_and_does_not_leak(
             "access_token": access,
             "refresh_token": refresh,
             "expires_in": 3600,
-            "scope": "https://www.googleapis.com/auth/gmail.readonly",
+            "scope": (
+                "https://www.googleapis.com/auth/gmail.readonly "
+                "https://www.googleapis.com/auth/gmail.send"
+            ),
         },
     )
     monkeypatch.setattr(
@@ -256,7 +259,16 @@ def test_gmail_sync_ingests_inbox_sent_attachments_and_dedupes(
     monkeypatch.setattr(
         gmail_oauth,
         "exchange_authorization_code",
-        lambda **kwargs: {"access_token": "a", "refresh_token": "r", "expires_in": 3600},
+        lambda **kwargs: {
+            "access_token": "a",
+            "refresh_token": "r",
+            "expires_in": 3600,
+            "scope": (
+                "openid https://www.googleapis.com/auth/userinfo.email "
+                "https://www.googleapis.com/auth/gmail.readonly "
+                "https://www.googleapis.com/auth/gmail.send"
+            ),
+        },
     )
     monkeypatch.setattr(
         gmail_oauth,
