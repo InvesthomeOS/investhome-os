@@ -3,9 +3,27 @@
 from __future__ import annotations
 
 import logging
+import re
 import sys
 
 from investhome_api.config.settings import get_settings
+
+_TOKEN_QUERY = re.compile(r"([?&]token=)[^&\s\"]+")
+
+
+class RedactWebhookTokenFilter(logging.Filter):
+    """Drop the Wazzup webhook query token from access-log lines."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple):
+            record.args = tuple(
+                _TOKEN_QUERY.sub(r"\1[redacted]", item) if isinstance(item, str) else item
+                for item in record.args
+            )
+        message = record.msg
+        if isinstance(message, str) and "token=" in message and "%" not in message:
+            record.msg = _TOKEN_QUERY.sub(r"\1[redacted]", message)
+        return True
 
 
 def configure_logging() -> None:
@@ -14,6 +32,10 @@ def configure_logging() -> None:
     level = logging.DEBUG if settings.debug else logging.INFO
     if settings.environment == "production" and not settings.debug:
         level = logging.INFO
+
+    access = logging.getLogger("uvicorn.access")
+    if not any(isinstance(item, RedactWebhookTokenFilter) for item in access.filters):
+        access.addFilter(RedactWebhookTokenFilter())
 
     root = logging.getLogger()
     if root.handlers:

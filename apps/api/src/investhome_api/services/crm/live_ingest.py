@@ -81,6 +81,7 @@ SOURCE_ALIASES = {
     "bitrix": CrmCommunicationSource.BITRIX.value,
     "live_email": CrmCommunicationSource.LIVE_EMAIL.value,
     "live_whatsapp": CrmCommunicationSource.LIVE_WHATSAPP.value,
+    "live_wazzup": CrmCommunicationSource.LIVE_WAZZUP.value,
     "live_facebook": CrmCommunicationSource.LIVE_FACEBOOK.value,
     "live_instagram": CrmCommunicationSource.LIVE_INSTAGRAM.value,
     "manual": CrmCommunicationSource.MANUAL.value,

@@ -46,6 +46,7 @@ class CrmCommunicationSource(str, enum.Enum):
     BITRIX = "bitrix"
     LIVE_EMAIL = "live_email"
     LIVE_WHATSAPP = "live_whatsapp"
+    LIVE_WAZZUP = "live_wazzup"
     LIVE_FACEBOOK = "live_facebook"
     LIVE_INSTAGRAM = "live_instagram"
     MANUAL = "manual"

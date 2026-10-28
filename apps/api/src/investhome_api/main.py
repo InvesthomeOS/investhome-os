@@ -97,6 +97,7 @@ from investhome_api.api.routes import (
     security_center,
     social_design_engine,
     users,
+    wazzup_webhook,
     whatsapp_webhook,
     work_items,
 )
@@ -211,6 +212,7 @@ def create_app() -> FastAPI:
     app.include_router(crm_communications.router)
     app.include_router(crm_live_communications.router)
     app.include_router(whatsapp_webhook.router)
+    app.include_router(wazzup_webhook.router)
     app.include_router(meta_webhook.router)
     app.include_router(crm_search.router)
     app.include_router(marketing.router)

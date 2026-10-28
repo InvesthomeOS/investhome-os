@@ -134,6 +134,14 @@ class Settings(BaseSettings):
     whatsapp_phone_number_id: str | None = Field(default=None, alias="WHATSAPP_PHONE_NUMBER_ID")
     # Not a secret. Default matches the WhatsApp Cloud API text-message examples.
     whatsapp_graph_api_version: str = Field(default="v25.0", alias="WHATSAPP_GRAPH_API_VERSION")
+    # Wazzup QR company line. Webhook secret is the query token, not an Authorization header.
+    # API key is only for calling Wazzup. Neither value is a frontend secret.
+    wazzup_webhook_secret: str | None = Field(default=None, alias="WAZZUP_WEBHOOK_SECRET")
+    wazzup_api_key: str | None = Field(default=None, alias="WAZZUP_API_KEY")
+    wazzup_inbound_email_notifications_enabled: bool = Field(
+        default=False,
+        alias="WAZZUP_INBOUND_EMAIL_NOTIFICATIONS_ENABLED",
+    )
 
     # Meta Page / Messenger inbound webhook. Separate from WhatsApp. No usable defaults.
     meta_app_secret: str | None = Field(default=None, alias="META_APP_SECRET")
@@ -398,7 +406,11 @@ class Settings(BaseSettings):
             return True
         return value
 
-    @field_validator("crm_inbound_email_notifications_enabled", mode="before")
+    @field_validator(
+        "crm_inbound_email_notifications_enabled",
+        "wazzup_inbound_email_notifications_enabled",
+        mode="before",
+    )
     @classmethod
     def default_crm_inbound_email_notifications_enabled(cls, value: Any) -> Any:
         if value is None or (isinstance(value, str) and not value.strip()):
