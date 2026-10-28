@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { fetchActivities } from '@/workspaces/crm/api/activities';
+import { archiveAgent, restoreAgent } from '@/workspaces/crm/api/contacts';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import { contactQueries } from '@/workspaces/crm/hooks/use-contacts';
 import type { ContactListParams } from '@/workspaces/crm/api/contacts';
@@ -58,10 +60,23 @@ async function fetchAgentActivities(ids: string[]): Promise<CrmActivitySummary[]
 export function AgentsWorkspace() {
   const t = useTranslations('crm.agents');
   const { openContact } = useContactCard();
+  const { has } = useCrmAccess();
+  const queryClient = useQueryClient();
   const [view, setView] = useState<ViewId>('kanban');
+  const refreshAgents = () => {
+    void queryClient.invalidateQueries({ queryKey: ['crm', 'contacts'] });
+  };
+  const archiveMutation = useMutation({
+    mutationFn: (id: string) => archiveAgent(id),
+    onSuccess: refreshAgents,
+  });
+  const restoreMutation = useMutation({
+    mutationFn: (id: string) => restoreAgent(id),
+    onSuccess: refreshAgents,
+  });
 
   const query = useQuery(contactQueries.list(LIST_PARAMS));
-  const items = query.data?.items ?? [];
+  const items = useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const agentIds = useMemo(() => items.map((item) => item.id), [items]);
 
   const activityQuery = useQuery({
@@ -123,7 +138,15 @@ export function AgentsWorkspace() {
         <AgentsKanban items={items} activity={activity} onOpen={openAgent} />
       ) : null}
       {!query.isLoading && !query.isError && items.length > 0 && view === 'list' ? (
-        <AgentsList items={items} activity={activity} onOpen={openAgent} />
+        <AgentsList
+          items={items}
+          activity={activity}
+          onOpen={openAgent}
+          canArchive={has('archive')}
+          canRestore={has('restore')}
+          onArchive={(agent) => archiveMutation.mutate(agent.id)}
+          onRestore={(agent) => restoreMutation.mutate(agent.id)}
+        />
       ) : null}
       {!query.isLoading && !query.isError && view === 'activities' ? (
         activityQuery.isLoading ? (

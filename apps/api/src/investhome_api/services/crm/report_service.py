@@ -46,7 +46,10 @@ from investhome_api.schemas.crm_reports import (
     CrmReportsWorkspace,
 )
 from investhome_api.services.crm.agreement_service import _purchase_amount
-from investhome_api.services.crm.bitrix_project_aliases import BITRIX_PROJECT_GROUP_LABELS, BitrixProjectGroup
+from investhome_api.services.crm.bitrix_project_aliases import (
+    BITRIX_PROJECT_GROUP_LABELS,
+    BitrixProjectGroup,
+)
 from investhome_api.services.crm.communication_feed import _contact_ids_for_project
 from investhome_api.services.crm.contact_service import list_crm_contacts
 from investhome_api.services.crm.document_feed import CATEGORY_LABELS, list_document_feed
@@ -54,7 +57,12 @@ from investhome_api.services.crm.financial_visibility import (
     maybe_strip_reports_summary,
     maybe_strip_reports_workspace,
 )
-from investhome_api.services.crm.unit_change import historical_unit_change_clause, is_historical_unit_change
+from investhome_api.services.crm.unit_change import (
+    detached_relationship_clause,
+    historical_unit_change_clause,
+    is_historical_unit_change,
+    is_relationship_detached,
+)
 from investhome_api.services.permission_service import is_super_admin
 
 UNSPECIFIED_CURRENCY = "unspecified"
@@ -171,7 +179,10 @@ def _as_date(value: datetime | date | None) -> date | None:
 
 
 def _grouped_counts(rows: list[tuple[object, int]]) -> list[CrmReportCount]:
-    return [CrmReportCount(key=_enum_key(key) or "unknown", count=int(count or 0)) for key, count in rows]
+    return [
+        CrmReportCount(key=_enum_key(key) or "unknown", count=int(count or 0))
+        for key, count in rows
+    ]
 
 
 def _source_key_expr():
@@ -227,7 +238,9 @@ def can_view_org_wide_crm_reports(user: User | None) -> bool:
     return is_super_admin(user)
 
 
-def resolve_crm_report_owner_scope(user: User | None, requested_owner_id: UUID | None) -> UUID | None:
+def resolve_crm_report_owner_scope(
+    user: User | None, requested_owner_id: UUID | None
+) -> UUID | None:
     """Return None for org-wide access, otherwise the caller's authorized owner id.
 
     Unauthorized owner_id is 403 with a generic detail so the response does not
@@ -290,7 +303,7 @@ def build_crm_reports_summary(db: Session, *, user: User | None = None) -> CrmRe
     pipeline_filters = [SalesOpportunity.crm_contact_id.is_not(None)]
     if pipeline_owner is not None:
         pipeline_filters.append(pipeline_owner)
-    agreement_filters = [~historical_unit_change_clause()]
+    agreement_filters = [~historical_unit_change_clause(), ~detached_relationship_clause()]
     if owner_id is not None:
         agreement_filters.append(CrmAgreement.contact_id.in_(_owned_contact_ids(owner_id)))
     relationship_owner = _relationship_owner_clause(owner_id)
@@ -300,29 +313,42 @@ def build_crm_reports_summary(db: Session, *, user: User | None = None) -> CrmRe
     if owner_id is not None:
         link_filters.append(
             or_(
-                CrmCompanyContact.company_id.in_(select(CrmCompany.id).where(CrmCompany.owner_user_id == owner_id)),
+                CrmCompanyContact.company_id.in_(
+                    select(CrmCompany.id).where(CrmCompany.owner_user_id == owner_id)
+                ),
                 CrmCompanyContact.contact_id.in_(_owned_contact_ids(owner_id)),
             )
         )
 
-    contacts_total = db.scalar(select(func.count()).select_from(CrmContact).where(*contact_filters)) or 0
+    contacts_total = (
+        db.scalar(select(func.count()).select_from(CrmContact).where(*contact_filters)) or 0
+    )
     contacts_active = _contact_count(db, status=CrmContactStatus.ACTIVE, **contact_kwargs)
     contacts_junk = _contact_count(db, bitrix_list="current_junk", **contact_kwargs)
     contacts_agents = _contact_count(db, role_group="agent", **contact_kwargs)
     contacts_agreement = _contact_count(db, category="agreement", **contact_kwargs)
 
-    pipeline_total = db.scalar(
-        select(func.count(func.distinct(SalesOpportunity.crm_contact_id))).where(*pipeline_filters)
-    ) or 0
+    pipeline_total = (
+        db.scalar(
+            select(func.count(func.distinct(SalesOpportunity.crm_contact_id))).where(
+                *pipeline_filters
+            )
+        )
+        or 0
+    )
     pipeline_by_stage = _grouped_counts(
         db.execute(
-            select(SalesOpportunity.stage, func.count(func.distinct(SalesOpportunity.crm_contact_id)))
+            select(
+                SalesOpportunity.stage, func.count(func.distinct(SalesOpportunity.crm_contact_id))
+            )
             .where(*pipeline_filters)
             .group_by(SalesOpportunity.stage)
         ).all()
     )
 
-    activities_total = db.scalar(select(func.count()).select_from(CrmActivity).where(*activity_filters)) or 0
+    activities_total = (
+        db.scalar(select(func.count()).select_from(CrmActivity).where(*activity_filters)) or 0
+    )
     activities_by_type = _grouped_counts(
         db.execute(
             select(CrmActivity.activity_type, func.count())
@@ -337,31 +363,42 @@ def build_crm_reports_summary(db: Session, *, user: User | None = None) -> CrmRe
     )
     completed_task = CrmActivity.task_status == CrmTaskStatus.COMPLETED
     cancelled_task = CrmActivity.task_status.in_([CrmTaskStatus.CANCELLED, CrmTaskStatus.DEFERRED])
-    tasks_pending = db.scalar(
-        select(func.count()).select_from(CrmActivity).where(
-            task_match, ~completed_task, ~cancelled_task, *activity_filters
+    tasks_pending = (
+        db.scalar(
+            select(func.count())
+            .select_from(CrmActivity)
+            .where(task_match, ~completed_task, ~cancelled_task, *activity_filters)
         )
-    ) or 0
-    tasks_completed = db.scalar(
-        select(func.count()).select_from(CrmActivity).where(task_match, completed_task, *activity_filters)
-    ) or 0
+        or 0
+    )
+    tasks_completed = (
+        db.scalar(
+            select(func.count())
+            .select_from(CrmActivity)
+            .where(task_match, completed_task, *activity_filters)
+        )
+        or 0
+    )
     now = datetime.now(tz=UTC)
-    tasks_overdue = db.scalar(
-        select(func.count())
-        .select_from(CrmActivity)
-        .where(
-            task_match,
-            ~completed_task,
-            ~cancelled_task,
-            CrmActivity.due_date.is_not(None),
-            CrmActivity.due_date < now,
-            *activity_filters,
+    tasks_overdue = (
+        db.scalar(
+            select(func.count())
+            .select_from(CrmActivity)
+            .where(
+                task_match,
+                ~completed_task,
+                ~cancelled_task,
+                CrmActivity.due_date.is_not(None),
+                CrmActivity.due_date < now,
+                *activity_filters,
+            )
         )
-    ) or 0
+        or 0
+    )
 
-    agreements_total = db.scalar(
-        select(func.count()).select_from(CrmAgreement).where(*agreement_filters)
-    ) or 0
+    agreements_total = (
+        db.scalar(select(func.count()).select_from(CrmAgreement).where(*agreement_filters)) or 0
+    )
     agreements_by_project = _grouped_counts(
         db.execute(
             select(CrmAgreement.project_group, func.count())
@@ -376,39 +413,52 @@ def build_crm_reports_summary(db: Session, *, user: User | None = None) -> CrmRe
             *agreement_filters,
         )
     ).all()
-    parsed_amounts = [amount for amount, _currency in (_agreement_money(row) for row in reit_rows) if amount is not None]
+    parsed_amounts = [
+        amount
+        for amount, _currency in (_agreement_money(row) for row in reit_rows)
+        if amount is not None
+    ]
     reit_total = CrmReportAmount(
         populated_count=len(parsed_amounts),
         total=round(sum(parsed_amounts), 2) if parsed_amounts else None,
     )
 
-    companies_total = db.scalar(select(func.count()).select_from(CrmCompany).where(*company_filters)) or 0
-    company_contact_links = db.scalar(
-        select(func.count()).select_from(CrmCompanyContact).where(*link_filters)
-    ) or 0
+    companies_total = (
+        db.scalar(select(func.count()).select_from(CrmCompany).where(*company_filters)) or 0
+    )
+    company_contact_links = (
+        db.scalar(select(func.count()).select_from(CrmCompanyContact).where(*link_filters)) or 0
+    )
 
-    relationships_total = db.scalar(
-        select(func.count()).select_from(CrmRelationship).where(*relationship_filters)
-    ) or 0
-    relationships_contact_company = db.scalar(
-        select(func.count())
-        .select_from(CrmRelationship)
-        .where(
-            CrmRelationship.source_entity_type == CrmRelationshipEntityType.CONTACT,
-            CrmRelationship.target_entity_type == CrmRelationshipEntityType.COMPANY,
-            *relationship_filters,
+    relationships_total = (
+        db.scalar(select(func.count()).select_from(CrmRelationship).where(*relationship_filters))
+        or 0
+    )
+    relationships_contact_company = (
+        db.scalar(
+            select(func.count())
+            .select_from(CrmRelationship)
+            .where(
+                CrmRelationship.source_entity_type == CrmRelationshipEntityType.CONTACT,
+                CrmRelationship.target_entity_type == CrmRelationshipEntityType.COMPANY,
+                *relationship_filters,
+            )
         )
-    ) or 0
-    relationships_investor_project = db.scalar(
-        select(func.count())
-        .select_from(CrmRelationship)
-        .where(
-            CrmRelationship.source_entity_type == CrmRelationshipEntityType.CONTACT,
-            CrmRelationship.target_entity_type == CrmRelationshipEntityType.PROJECT,
-            CrmRelationship.relationship_type == "investor",
-            *relationship_filters,
+        or 0
+    )
+    relationships_investor_project = (
+        db.scalar(
+            select(func.count())
+            .select_from(CrmRelationship)
+            .where(
+                CrmRelationship.source_entity_type == CrmRelationshipEntityType.CONTACT,
+                CrmRelationship.target_entity_type == CrmRelationshipEntityType.PROJECT,
+                CrmRelationship.relationship_type == "investor",
+                *relationship_filters,
+            )
         )
-    ) or 0
+        or 0
+    )
 
     return maybe_strip_reports_summary(
         user,
@@ -453,6 +503,8 @@ def _filter_agreements(
     currency_key = _normalize_currency(currency) if currency else None
     filtered: list[CrmAgreement] = []
     for row in rows:
+        if is_relationship_detached(row):
+            continue
         historical = is_historical_unit_change(row)
         if current_only is True and historical:
             continue
@@ -527,7 +579,9 @@ def _sales_section(
             amounts=_money_list(values["amounts"]),  # type: ignore[arg-type]
             href=f"/workspaces/crm/agreements?project={group}",
         )
-        for group, values in sorted(by_project.items(), key=lambda item: (-int(item[1]["current"]), item[0]))
+        for group, values in sorted(
+            by_project.items(), key=lambda item: (-int(item[1]["current"]), item[0])
+        )
     ]
     month_rows = [
         CrmReportCount(key=key, label=key, count=count)
@@ -542,7 +596,9 @@ def _sales_section(
     )
 
 
-def _investor_section(current_rows: list[CrmAgreement], contacts: dict[UUID, CrmContact]) -> CrmReportsInvestors:
+def _investor_section(
+    current_rows: list[CrmAgreement], contacts: dict[UUID, CrmContact]
+) -> CrmReportsInvestors:
     by_contact: dict[UUID, list[CrmAgreement]] = defaultdict(list)
     for row in current_rows:
         by_contact[row.contact_id].append(row)
@@ -604,7 +660,9 @@ def _lead_section(
     if date_to is not None:
         query = query.where(Lead.created_at <= date_to)
     if project_group:
-        query = query.where(func.lower(func.coalesce(Lead.interested_project, "")) == project_group.lower())
+        query = query.where(
+            func.lower(func.coalesce(Lead.interested_project, "")) == project_group.lower()
+        )
     if owner_id is not None:
         query = query.where(Lead.assigned_manager_id == owner_id)
     if source:
@@ -661,8 +719,13 @@ def _lead_section(
     return CrmReportsLeads(
         total=len(rows),
         open_count=open_count,
-        by_source=[CrmReportCount(key=key, label=key, count=count) for key, count in by_source.most_common()],
-        by_stage=[CrmReportCount(key=key, label=key, count=count) for key, count in by_stage.most_common()],
+        by_source=[
+            CrmReportCount(key=key, label=key, count=count)
+            for key, count in by_source.most_common()
+        ],
+        by_stage=[
+            CrmReportCount(key=key, label=key, count=count) for key, count in by_stage.most_common()
+        ],
         by_owner=[
             CrmReportCount(
                 key=key,
@@ -672,7 +735,9 @@ def _lead_section(
             for key, count in by_owner.most_common()
         ],
         by_project=[
-            CrmReportCount(key=key, label=_project_label(key) if key != "unknown" else "—", count=count)
+            CrmReportCount(
+                key=key, label=_project_label(key) if key != "unknown" else "—", count=count
+            )
             for key, count in by_project.most_common()
         ],
         conversion=conversion_rows,
@@ -703,11 +768,17 @@ def _communication_section_python(
         CrmActivity.activity_type.in_(COMM_REPORT_TYPES),
     )
     if date_from is not None:
-        query = query.where(func.coalesce(CrmActivity.start_date, CrmActivity.created_at) >= date_from)
+        query = query.where(
+            func.coalesce(CrmActivity.start_date, CrmActivity.created_at) >= date_from
+        )
     if date_to is not None:
-        query = query.where(func.coalesce(CrmActivity.start_date, CrmActivity.created_at) <= date_to)
+        query = query.where(
+            func.coalesce(CrmActivity.start_date, CrmActivity.created_at) <= date_to
+        )
     if owner_id is not None:
-        query = query.where(or_(CrmActivity.assigned_user_id == owner_id, CrmActivity.owner_id == owner_id))
+        query = query.where(
+            or_(CrmActivity.assigned_user_id == owner_id, CrmActivity.owner_id == owner_id)
+        )
     if project_group:
         contact_ids = _contact_ids_for_project(db, project_group)
         query = query.where(
@@ -756,7 +827,10 @@ def _communication_section_python(
         tasks=by_channel.get("task", 0),
         notes=by_channel.get("note", 0),
         by_channel=channel_table,
-        by_month=[CrmReportCount(key=key, label=key, count=count) for key, count in sorted(by_month.items())],
+        by_month=[
+            CrmReportCount(key=key, label=key, count=count)
+            for key, count in sorted(by_month.items())
+        ],
         by_owner=[
             CrmReportCount(
                 key=key,
@@ -805,7 +879,9 @@ def _communication_section(
     if date_to is not None:
         query = query.where(occurred <= date_to)
     if owner_id is not None:
-        query = query.where(or_(CrmActivity.assigned_user_id == owner_id, CrmActivity.owner_id == owner_id))
+        query = query.where(
+            or_(CrmActivity.assigned_user_id == owner_id, CrmActivity.owner_id == owner_id)
+        )
     if project_group:
         contact_ids = _contact_ids_for_project(db, project_group)
         query = query.where(
@@ -837,11 +913,11 @@ def _communication_section(
             key=key,
             label=key,
             count=by_channel.get(key, 0),
-                href=(
-                    "/workspaces/crm/tasks"
-                    if key == "task"
-                    else f"/workspaces/crm/communication?channel={'comment' if key == 'note' else key}"
-                ),
+            href=(
+                "/workspaces/crm/tasks"
+                if key == "task"
+                else f"/workspaces/crm/communication?channel={'comment' if key == 'note' else key}"
+            ),
         )
         for key in ("email", "whatsapp", "call", "meeting", "task", "note")
     ]
@@ -854,7 +930,10 @@ def _communication_section(
         tasks=by_channel.get("task", 0),
         notes=by_channel.get("note", 0),
         by_channel=channel_table,
-        by_month=[CrmReportCount(key=str(key), label=str(key), count=int(count or 0)) for key, count in month_rows],
+        by_month=[
+            CrmReportCount(key=str(key), label=str(key), count=int(count or 0))
+            for key, count in month_rows
+        ],
         by_owner=[
             CrmReportCount(
                 key=str(user_id) if user_id else "unassigned",
@@ -887,7 +966,9 @@ def _task_section(
     if date_to is not None:
         filters.append(occurred <= date_to)
     if owner_id is not None:
-        filters.append(or_(CrmActivity.assigned_user_id == owner_id, CrmActivity.owner_id == owner_id))
+        filters.append(
+            or_(CrmActivity.assigned_user_id == owner_id, CrmActivity.owner_id == owner_id)
+        )
     if project_group:
         contact_ids = _contact_ids_for_project(db, project_group)
         filters.append(
@@ -896,12 +977,18 @@ def _task_section(
     status_rows = {
         _enum_key(status): int(count or 0)
         for status, count in db.execute(
-            select(CrmActivity.task_status, func.count()).where(*filters).group_by(CrmActivity.task_status)
+            select(CrmActivity.task_status, func.count())
+            .where(*filters)
+            .group_by(CrmActivity.task_status)
         ).all()
     }
     completed = status_rows.get(CrmTaskStatus.COMPLETED.value, 0)
-    in_progress = status_rows.get(CrmTaskStatus.IN_PROGRESS.value, 0) + status_rows.get(CrmTaskStatus.WAITING.value, 0)
-    cancelled = status_rows.get(CrmTaskStatus.CANCELLED.value, 0) + status_rows.get(CrmTaskStatus.DEFERRED.value, 0)
+    in_progress = status_rows.get(CrmTaskStatus.IN_PROGRESS.value, 0) + status_rows.get(
+        CrmTaskStatus.WAITING.value, 0
+    )
+    cancelled = status_rows.get(CrmTaskStatus.CANCELLED.value, 0) + status_rows.get(
+        CrmTaskStatus.DEFERRED.value, 0
+    )
     total = int(sum(status_rows.values()))
     active = max(total - completed - cancelled - in_progress, 0)
     now = datetime.now(tz=UTC)
@@ -911,7 +998,9 @@ def _task_section(
             .select_from(CrmActivity)
             .where(
                 *filters,
-                CrmActivity.task_status.notin_([CrmTaskStatus.COMPLETED, CrmTaskStatus.CANCELLED, CrmTaskStatus.DEFERRED]),
+                CrmActivity.task_status.notin_(
+                    [CrmTaskStatus.COMPLETED, CrmTaskStatus.CANCELLED, CrmTaskStatus.DEFERRED]
+                ),
                 CrmActivity.due_date.is_not(None),
                 CrmActivity.due_date < now,
             )
@@ -929,10 +1018,24 @@ def _task_section(
     owner_ids = {row[0] for row in owner_rows if row[0]}
     owners = _user_names(db, owner_ids)
     table = [
-        CrmReportCount(key="active", label="active", count=active, href="/workspaces/crm/tasks?status=active"),
-        CrmReportCount(key="in_progress", label="in_progress", count=in_progress, href="/workspaces/crm/tasks?status=in_progress"),
-        CrmReportCount(key="completed", label="completed", count=completed, href="/workspaces/crm/tasks?status=completed"),
-        CrmReportCount(key="overdue", label="overdue", count=overdue, href="/workspaces/crm/tasks?due=overdue"),
+        CrmReportCount(
+            key="active", label="active", count=active, href="/workspaces/crm/tasks?status=active"
+        ),
+        CrmReportCount(
+            key="in_progress",
+            label="in_progress",
+            count=in_progress,
+            href="/workspaces/crm/tasks?status=in_progress",
+        ),
+        CrmReportCount(
+            key="completed",
+            label="completed",
+            count=completed,
+            href="/workspaces/crm/tasks?status=completed",
+        ),
+        CrmReportCount(
+            key="overdue", label="overdue", count=overdue, href="/workspaces/crm/tasks?due=overdue"
+        ),
     ]
     return CrmReportsTasks(
         active=active,
@@ -996,16 +1099,40 @@ def _document_section(
                 key=key,
                 label=_project_label(key) if key != "unknown" else "—",
                 count=count,
-                href=f"/workspaces/crm/documents?project={key}" if key != "unknown" else "/workspaces/crm/documents",
+                href=f"/workspaces/crm/documents?project={key}"
+                if key != "unknown"
+                else "/workspaces/crm/documents",
             )
             for key, count in by_project.most_common()
         ],
         table=[
-            CrmReportCount(key="total", label="total", count=len(items), href="/workspaces/crm/documents"),
-            CrmReportCount(key="person", label="person", count=sum(1 for item in items if item.scope == "person"), href="/workspaces/crm/documents?scope=person"),
-            CrmReportCount(key="purchase", label="purchase", count=sum(1 for item in items if item.scope == "purchase"), href="/workspaces/crm/documents?scope=purchase"),
-            CrmReportCount(key="hidden", label="hidden", count=sum(1 for item in items if item.hidden), href="/workspaces/crm/documents?visibility=hidden"),
-            CrmReportCount(key="review", label="review", count=sum(1 for item in items if item.scope == "unresolved"), href="/workspaces/crm/documents?scope=unresolved"),
+            CrmReportCount(
+                key="total", label="total", count=len(items), href="/workspaces/crm/documents"
+            ),
+            CrmReportCount(
+                key="person",
+                label="person",
+                count=sum(1 for item in items if item.scope == "person"),
+                href="/workspaces/crm/documents?scope=person",
+            ),
+            CrmReportCount(
+                key="purchase",
+                label="purchase",
+                count=sum(1 for item in items if item.scope == "purchase"),
+                href="/workspaces/crm/documents?scope=purchase",
+            ),
+            CrmReportCount(
+                key="hidden",
+                label="hidden",
+                count=sum(1 for item in items if item.hidden),
+                href="/workspaces/crm/documents?visibility=hidden",
+            ),
+            CrmReportCount(
+                key="review",
+                label="review",
+                count=sum(1 for item in items if item.scope == "unresolved"),
+                href="/workspaces/crm/documents?scope=unresolved",
+            ),
         ],
     )
 
@@ -1027,15 +1154,11 @@ def _filter_options(
             for contact in contacts.values()
             if (contact.source or "").strip()
         }
-        | {
-            (source or "").strip().lower()
-            for source in db.scalars(lead_query).all()
-            if source
-        }
+        | {(source or "").strip().lower() for source in db.scalars(lead_query).all() if source}
     )
     currencies: set[str] = set()
     for row in agreements:
-        if is_historical_unit_change(row):
+        if is_historical_unit_change(row) or is_relationship_detached(row):
             continue
         amount, currency = _agreement_money(row)
         if amount is not None and currency:
@@ -1043,7 +1166,10 @@ def _filter_options(
     return CrmReportsFilterOptions(
         projects=[CrmReportOption(key=group, label=_project_label(group)) for group in projects],
         sources=[CrmReportOption(key=item, label=item) for item in sources],
-        currencies=[CrmReportOption(key=item, label=item.upper() if item != UNSPECIFIED_CURRENCY else item) for item in sorted(currencies)],
+        currencies=[
+            CrmReportOption(key=item, label=item.upper() if item != UNSPECIFIED_CURRENCY else item)
+            for item in sorted(currencies)
+        ],
     )
 
 
@@ -1061,9 +1187,14 @@ def build_crm_reports_workspace(
     owner_id = resolve_crm_report_owner_scope(user, owner_id)
     agreements = list(db.scalars(select(CrmAgreement)).all())
     contact_ids = {row.contact_id for row in agreements}
-    contacts = {
-        row.id: row for row in db.scalars(select(CrmContact).where(CrmContact.id.in_(contact_ids))).all()
-    } if contact_ids else {}
+    contacts = (
+        {
+            row.id: row
+            for row in db.scalars(select(CrmContact).where(CrmContact.id.in_(contact_ids))).all()
+        }
+        if contact_ids
+        else {}
+    )
     start = _as_date(date_from)
     end = _as_date(date_to)
     current_rows = _filter_agreements(

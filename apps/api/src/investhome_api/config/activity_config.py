@@ -62,6 +62,7 @@ ENTITY_RESOURCE_MAP: dict[ActivityEntityType, str] = {
     ActivityEntityType.WORK_ITEM: "work",
     ActivityEntityType.SALES_READINESS: "sales",
     ActivityEntityType.CRM_CONTACT: "crm",
+    ActivityEntityType.CRM_AGREEMENT: "crm",
     ActivityEntityType.CRM_COMPANY: "crm",
     ActivityEntityType.CRM_RELATIONSHIP: "crm",
     ActivityEntityType.MARKETING_CAMPAIGN: "marketing",

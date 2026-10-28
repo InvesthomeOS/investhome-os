@@ -91,6 +91,7 @@ class ActivityEntityType(str, enum.Enum):
     WORK_ITEM = "work_item"
     SALES_READINESS = "sales_readiness"
     CRM_CONTACT = "crm_contact"
+    CRM_AGREEMENT = "crm_agreement"
     CRM_COMPANY = "crm_company"
     CRM_RELATIONSHIP = "crm_relationship"
     CRM_COMMUNICATION = "crm_communication"

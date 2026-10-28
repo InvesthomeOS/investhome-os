@@ -425,8 +425,25 @@
   }
 }
 
+.crm-pd-owners-edit {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.crm-pd-owners-edit__row,
+.crm-pd-owners-edit__add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: end;
+}
+
 @media (max-width: 720px) {
-  .crm-pd-inline-form {
+  .crm-pd-inline-form,
+  .crm-pd-owners-edit__row,
+  .crm-pd-owners-edit__add {
     grid-template-columns: 1fr;
   }
 }

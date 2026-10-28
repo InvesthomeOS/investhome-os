@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -53,7 +54,7 @@ class CrmAgreementSummary(BaseModel):
     begin_date: str | None = None
     close_date: str | None = None
     joint_owners: bool = False
-    participants: list["CrmAgreementParticipantSummary"] = Field(default_factory=list)
+    participants: list[CrmAgreementParticipantSummary] = Field(default_factory=list)
     has_unit_change: bool = False
 
 
@@ -165,6 +166,24 @@ class CrmPurchaseCard(BaseModel):
 class CrmAgreementPatch(BaseModel):
     hemen_kira: bool | None = None
     amount: str | None = Field(default=None, max_length=80)
+
+
+class CrmAgreementUnitChange(BaseModel):
+    unit_number: str = Field(min_length=1, max_length=40)
+
+
+class CrmAgreementOwnerAdd(BaseModel):
+    contact_id: UUID
+    ownership_pct: Decimal = Field(gt=0, le=100)
+
+
+class CrmAgreementOwnerShare(BaseModel):
+    contact_id: UUID
+    ownership_pct: Decimal = Field(gt=0, le=100)
+
+
+class CrmAgreementOwnerShares(BaseModel):
+    owners: list[CrmAgreementOwnerShare] = Field(min_length=1)
 
 
 class CrmAgreementActivityItem(BaseModel):

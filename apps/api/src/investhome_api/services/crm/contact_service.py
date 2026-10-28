@@ -44,7 +44,12 @@ from investhome_api.models.crm_activity import (
     CrmActivityVisibility,
 )
 from investhome_api.models.crm_agreement import CrmAgreement, CrmAgreementParticipant
-from investhome_api.services.crm.unit_change import historical_unit_change_clause, is_historical_unit_change
+from investhome_api.services.crm.unit_change import (
+    detached_relationship_clause,
+    historical_unit_change_clause,
+    is_historical_unit_change,
+    is_relationship_detached,
+)
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.crm_contacts import (
     CrmBitrixHistory,
@@ -130,7 +135,9 @@ def _reject_unauthorized_sensitive_contact_fields(
     actor: User | None,
 ) -> None:
     owner_change = "owner_user_id" in data and data["owner_user_id"] != contact.owner_user_id
-    compliance_change = "compliance_data" in data and data["compliance_data"] != contact.compliance_data
+    compliance_change = (
+        "compliance_data" in data and data["compliance_data"] != contact.compliance_data
+    )
     if owner_change and not _actor_may(actor, *OWNERSHIP_UPDATE_PERMISSION, db):
         raise ContactSensitiveFieldDenied()
     if compliance_change and not _actor_may(actor, *COMPLIANCE_UPDATE_PERMISSION, db):
@@ -199,7 +206,10 @@ def is_agent_advisor_contact(contact: CrmContact) -> bool:
         return True
     types = set(_contact_types(contact))
     types.add(contact.contact_type)
-    return bool(types & {CrmContactType.BROKER, CrmContactType.REALTOR}) and CrmContactType.BUYER not in types
+    return (
+        bool(types & {CrmContactType.BROKER, CrmContactType.REALTOR})
+        and CrmContactType.BUYER not in types
+    )
 
 
 def _resolve_owner_name(db: Session, owner_user_id: UUID | None) -> str | None:
@@ -237,7 +247,11 @@ def _contact_amount_and_currency(
     *,
     project_context: str | None = None,
 ) -> tuple[str | None, str | None, str | None, str | None]:
-    live = (contact.metadata_json or {}).get("bitrix_live") if isinstance(contact.metadata_json, dict) else None
+    live = (
+        (contact.metadata_json or {}).get("bitrix_live")
+        if isinstance(contact.metadata_json, dict)
+        else None
+    )
     items = live.get("tutar_ve_para_birimi") if isinstance(live, dict) else None
     if is_nedim_pilot_contact(contact.id) or any(True for _ in agreements):
         return None, None, None, None
@@ -262,15 +276,23 @@ def _contact_amount_and_currency(
                 " | ".join(currencies) or None,
             )
     for agreement in agreements:
-        amount = _agreement_meta_text(agreement, ("tutar_ve_para_birimi_amount", "amount_and_currency_amount"))
+        amount = _agreement_meta_text(
+            agreement, ("tutar_ve_para_birimi_amount", "amount_and_currency_amount")
+        )
         if not amount:
             continue
         return (
-            _agreement_meta_text(agreement, ("tutar_ve_para_birimi_label", "amount_and_currency_label"))
+            _agreement_meta_text(
+                agreement, ("tutar_ve_para_birimi_label", "amount_and_currency_label")
+            )
             or "Tutar ve para birimi",
-            _agreement_meta_text(agreement, ("tutar_ve_para_birimi_field_id", "amount_and_currency_field_id")),
+            _agreement_meta_text(
+                agreement, ("tutar_ve_para_birimi_field_id", "amount_and_currency_field_id")
+            ),
             amount,
-            _agreement_meta_text(agreement, ("tutar_ve_para_birimi_currency", "amount_and_currency_currency")),
+            _agreement_meta_text(
+                agreement, ("tutar_ve_para_birimi_currency", "amount_and_currency_currency")
+            ),
         )
     return None, None, None, None
 
@@ -403,7 +425,9 @@ def _verified_amount_totals(rows: list[CrmAgreement]) -> list[CrmVerifiedAmountT
             continue
         buckets[currency] = buckets.get(currency, Decimal("0")) + amount
     items = [
-        CrmVerifiedAmountTotal(currency=currency, total=str(total), label=_format_verified_total(total, currency))
+        CrmVerifiedAmountTotal(
+            currency=currency, total=str(total), label=_format_verified_total(total, currency)
+        )
         for currency, total in buckets.items()
     ]
     items.sort(key=lambda item: (item.currency is None, item.currency or ""))
@@ -423,12 +447,18 @@ def serialize_contact_summary(
     source_channel = None
     bitrix_responsible = None
     bitrix = (contact.metadata_json or {}).get("bitrix_import")
-    live = (contact.metadata_json or {}).get("bitrix_live") if isinstance(contact.metadata_json, dict) else None
+    live = (
+        (contact.metadata_json or {}).get("bitrix_live")
+        if isinstance(contact.metadata_json, dict)
+        else None
+    )
     if isinstance(bitrix, dict):
         raw_stage = bitrix.get("original_asama")
         original_asama = str(raw_stage) if raw_stage else None
         historical_junk = bool(bitrix.get("historical_junk"))
-        extras = bitrix.get("source_extras") if isinstance(bitrix.get("source_extras"), dict) else {}
+        extras = (
+            bitrix.get("source_extras") if isinstance(bitrix.get("source_extras"), dict) else {}
+        )
         source_channel = bitrix.get("source_channel") or extras.get("source_channel")
         if source_channel:
             source_channel = str(source_channel)
@@ -451,24 +481,36 @@ def serialize_contact_summary(
     elif projects is None:
         owned = [
             row.project_group
-            for row in db.scalars(select(CrmAgreement).where(CrmAgreement.contact_id == contact.id)).all()
+            for row in db.scalars(
+                select(CrmAgreement).where(CrmAgreement.contact_id == contact.id)
+            ).all()
+            if not is_historical_unit_change(row) and not is_relationship_detached(row)
         ]
         part_ids = list(
             db.scalars(
-                select(CrmAgreementParticipant.agreement_id).where(CrmAgreementParticipant.contact_id == contact.id)
+                select(CrmAgreementParticipant.agreement_id).where(
+                    CrmAgreementParticipant.contact_id == contact.id
+                )
             ).all()
         )
         extra: list[str] = []
         if part_ids:
             extra = [
                 row.project_group
-                for row in db.scalars(select(CrmAgreement).where(CrmAgreement.id.in_(part_ids))).all()
+                for row in db.scalars(
+                    select(CrmAgreement).where(CrmAgreement.id.in_(part_ids))
+                ).all()
+                if not is_historical_unit_change(row) and not is_relationship_detached(row)
             ]
         projects = []
         for item in owned + extra:
             if item not in projects:
                 projects.append(item)
-    current_agreements = [row for row in (agreements or []) if not is_historical_unit_change(row)]
+    current_agreements = [
+        row
+        for row in (agreements or [])
+        if not is_historical_unit_change(row) and not is_relationship_detached(row)
+    ]
     tag_items = serialize_contact_tag_items(contact)
     tag_names = [item.name for item in tag_items] or contact.tags
     return CrmContactSummary(
@@ -596,12 +638,14 @@ def serialize_contact_detail(
             .order_by(CrmAgreement.created_at.desc())
         ).all()
     )
-    current_agreements = [row for row in agreements if not is_historical_unit_change(row)]
+    current_agreements = [
+        row
+        for row in agreements
+        if not is_historical_unit_change(row) and not is_relationship_detached(row)
+    ]
     summary = serialize_contact_summary(db, contact, agreements=current_agreements)
     contact_types = _contact_types(contact)
-    is_agent = bool(
-        {CrmContactType.BROKER, CrmContactType.REALTOR}.intersection(contact_types)
-    )
+    is_agent = bool({CrmContactType.BROKER, CrmContactType.REALTOR}.intersection(contact_types))
     tutar_label, tutar_field, tutar_amount, tutar_currency = _contact_amount_and_currency(
         contact, agreements, project_context=None
     )
@@ -626,13 +670,19 @@ def serialize_contact_detail(
             else None
         ),
         buyer_profile=(
-            CrmBuyerProfileSchema.model_validate(contact.buyer_profile) if contact.buyer_profile else None
+            CrmBuyerProfileSchema.model_validate(contact.buyer_profile)
+            if contact.buyer_profile
+            else None
         ),
         broker_profile=(
-            CrmBrokerProfileSchema.model_validate(contact.broker_profile) if contact.broker_profile else None
+            CrmBrokerProfileSchema.model_validate(contact.broker_profile)
+            if contact.broker_profile
+            else None
         ),
         vendor_profile=(
-            CrmVendorProfileSchema.model_validate(contact.vendor_profile) if contact.vendor_profile else None
+            CrmVendorProfileSchema.model_validate(contact.vendor_profile)
+            if contact.vendor_profile
+            else None
         ),
         bitrix_history=bitrix_history,
         amount_and_currency_label=tutar_label,
@@ -693,7 +743,9 @@ def serialize_contact_detail(
                     )
                     or None,
                 ),
-                payment_amount=_agreement_meta_text(agreement, ("payment_amount", "ödeme tutarı", "gelir")),
+                payment_amount=_agreement_meta_text(
+                    agreement, ("payment_amount", "ödeme tutarı", "gelir")
+                ),
                 deposit=_agreement_meta_text(agreement, ("deposit", "kapora")),
                 purchase_price=_agreement_meta_text(
                     agreement, ("purchase_price", "agreement_price", "fiyat", "satis fiyati")
@@ -715,15 +767,19 @@ def serialize_contact_detail(
                 relationship="Anlaşma tarafı",
             )
             for agreement in agreements
-            if not is_historical_unit_change(agreement)
+            if not is_historical_unit_change(agreement) and not is_relationship_detached(agreement)
         ],
         agent=(
             CrmContactAgentVerification(
                 is_agent=True,
                 status=contact.status.value,
                 contact_types=contact_types,
-                brokerage_name=contact.broker_profile.brokerage_name if contact.broker_profile else None,
-                specialization=contact.broker_profile.specialization if contact.broker_profile else None,
+                brokerage_name=contact.broker_profile.brokerage_name
+                if contact.broker_profile
+                else None,
+                specialization=contact.broker_profile.specialization
+                if contact.broker_profile
+                else None,
             )
             if is_agent
             else None
@@ -787,7 +843,11 @@ def _upsert_profile(
     if profile_data is None:
         return
     existing = getattr(contact, attr_name)
-    payload = profile_data.model_dump(exclude_unset=True) if hasattr(profile_data, "model_dump") else profile_data
+    payload = (
+        profile_data.model_dump(exclude_unset=True)
+        if hasattr(profile_data, "model_dump")
+        else profile_data
+    )
     if existing is None:
         profile = model_class(contact_id=contact.id, **payload)
         db.add(profile)
@@ -816,7 +876,9 @@ def _apply_tags(db: Session, contact: CrmContact, tag_names: list[str] | None) -
         contact.tag_links.append(CrmContactTag(tag_id=tag.id))
 
 
-def create_contact(db: Session, payload: CrmContactCreate, *, actor: User | None = None) -> CrmContact:
+def create_contact(
+    db: Session, payload: CrmContactCreate, *, actor: User | None = None
+) -> CrmContact:
     del actor
     data = payload.model_dump(
         exclude={
@@ -838,7 +900,9 @@ def create_contact(db: Session, payload: CrmContactCreate, *, actor: User | None
     db.flush()
     _sync_type_assignments(db, contact, payload.contact_type, payload.contact_types)
     _apply_tags(db, contact, payload.tags)
-    _upsert_profile(db, contact, payload.investment_profile, CrmContactInvestmentProfile, "investment_profile")
+    _upsert_profile(
+        db, contact, payload.investment_profile, CrmContactInvestmentProfile, "investment_profile"
+    )
     _upsert_profile(db, contact, payload.buyer_profile, CrmContactBuyerProfile, "buyer_profile")
     _upsert_profile(db, contact, payload.broker_profile, CrmContactBrokerProfile, "broker_profile")
     _upsert_profile(db, contact, payload.vendor_profile, CrmContactVendorProfile, "vendor_profile")
@@ -980,7 +1044,9 @@ def update_contact(
     previous_owner_name = _resolve_owner_name(db, previous_owner) if owner_changed else None
 
     if "communication_prefs" in data and isinstance(data["communication_prefs"], dict):
-        current_prefs = contact.communication_prefs if isinstance(contact.communication_prefs, dict) else {}
+        current_prefs = (
+            contact.communication_prefs if isinstance(contact.communication_prefs, dict) else {}
+        )
         data["communication_prefs"] = {**current_prefs, **data["communication_prefs"]}
     if ("first_name" in data or "last_name" in data) and "display_name" not in data:
         first = str(data.get("first_name", contact.first_name) or "").strip()
@@ -1024,7 +1090,9 @@ def update_contact(
         _sync_type_assignments(db, contact, primary, payload.contact_types)
     if payload.tags is not None:
         _apply_tags(db, contact, payload.tags)
-    _upsert_profile(db, contact, payload.investment_profile, CrmContactInvestmentProfile, "investment_profile")
+    _upsert_profile(
+        db, contact, payload.investment_profile, CrmContactInvestmentProfile, "investment_profile"
+    )
     _upsert_profile(db, contact, payload.buyer_profile, CrmContactBuyerProfile, "buyer_profile")
     _upsert_profile(db, contact, payload.broker_profile, CrmContactBrokerProfile, "broker_profile")
     _upsert_profile(db, contact, payload.vendor_profile, CrmContactVendorProfile, "vendor_profile")
@@ -1157,7 +1225,10 @@ def list_crm_contacts(
     elif flag == "inceleme_gerekli":
         if category == "investor":
             query = query.where(
-                or_(CrmContact.notes.ilike("%INCELEME_GEREKLI%"), CrmContact.review_required.is_(True))
+                or_(
+                    CrmContact.notes.ilike("%INCELEME_GEREKLI%"),
+                    CrmContact.review_required.is_(True),
+                )
             )
         else:
             query = query.where(CrmContact.notes.ilike("%INCELEME_GEREKLI%"))
@@ -1168,30 +1239,34 @@ def list_crm_contacts(
             or_(CrmContact.source.is_(None), func.lower(CrmContact.source) != "bitrix")
         )
     agent_ids = select(CrmContactTypeAssignment.contact_id).where(
-        CrmContactTypeAssignment.contact_type.in_(
-            [CrmContactType.BROKER, CrmContactType.REALTOR]
-        )
+        CrmContactTypeAssignment.contact_type.in_([CrmContactType.BROKER, CrmContactType.REALTOR])
     )
     agent_condition = or_(
         CrmContact.contact_type.in_([CrmContactType.BROKER, CrmContactType.REALTOR]),
         CrmContact.id.in_(agent_ids),
     )
-    owned_investor_ids = select(CrmAgreement.contact_id)
+    owned_investor_ids = select(CrmAgreement.contact_id).where(~detached_relationship_clause())
     if category == "investor":
-        owned = select(CrmAgreement.contact_id)
+        owned = select(CrmAgreement.contact_id).where(~detached_relationship_clause())
         if agreement_project:
             owned = owned.where(CrmAgreement.project_group == agreement_project)
         query = query.where(CrmContact.id.in_(owned))
     elif agreement_project:
         agreement_ids = select(CrmAgreement.contact_id).where(
-            CrmAgreement.project_group == agreement_project
+            CrmAgreement.project_group == agreement_project,
+            ~detached_relationship_clause(),
         )
         participant_ids = (
             select(CrmAgreementParticipant.contact_id)
             .join(CrmAgreement, CrmAgreement.id == CrmAgreementParticipant.agreement_id)
-            .where(CrmAgreement.project_group == agreement_project)
+            .where(
+                CrmAgreement.project_group == agreement_project,
+                ~detached_relationship_clause(),
+            )
         )
-        query = query.where(or_(CrmContact.id.in_(agreement_ids), CrmContact.id.in_(participant_ids)))
+        query = query.where(
+            or_(CrmContact.id.in_(agreement_ids), CrmContact.id.in_(participant_ids))
+        )
     if role_group == "agent" or category == "agent":
         query = query.where(agent_condition)
     elif role_group == "other":
@@ -1199,8 +1274,14 @@ def list_crm_contacts(
     if category == "agreement":
         query = query.where(
             or_(
-                CrmContact.id.in_(select(CrmAgreement.contact_id)),
-                CrmContact.id.in_(select(CrmAgreementParticipant.contact_id)),
+                CrmContact.id.in_(
+                    select(CrmAgreement.contact_id).where(~detached_relationship_clause())
+                ),
+                CrmContact.id.in_(
+                    select(CrmAgreementParticipant.contact_id)
+                    .join(CrmAgreement, CrmAgreement.id == CrmAgreementParticipant.agreement_id)
+                    .where(~detached_relationship_clause())
+                ),
             )
         )
     elif category == "customer":
@@ -1216,7 +1297,9 @@ def list_crm_contacts(
 
     if tag_id is not None:
         query = query.where(
-            CrmContact.id.in_(select(CrmContactTag.contact_id).where(CrmContactTag.tag_id == tag_id))
+            CrmContact.id.in_(
+                select(CrmContactTag.contact_id).where(CrmContactTag.tag_id == tag_id)
+            )
         )
 
     sort_column = getattr(CrmContact, sort_by if sort_by in SORTABLE_COLUMNS else "updated_at")
@@ -1229,10 +1312,12 @@ def list_crm_contacts(
     agreements_by_contact: dict[UUID, list[CrmAgreement]] = defaultdict(list)
     if rows:
         row_ids = [row.id for row in rows]
-        owned_rows = list(db.scalars(select(CrmAgreement).where(CrmAgreement.contact_id.in_(row_ids))).all())
+        owned_rows = list(
+            db.scalars(select(CrmAgreement).where(CrmAgreement.contact_id.in_(row_ids))).all()
+        )
         seen: dict[UUID, set[UUID]] = defaultdict(set)
         for agreement in owned_rows:
-            if is_historical_unit_change(agreement):
+            if is_historical_unit_change(agreement) or is_relationship_detached(agreement):
                 continue
             agreements_by_contact[agreement.contact_id].append(agreement)
             seen[agreement.contact_id].add(agreement.id)
@@ -1244,7 +1329,7 @@ def list_crm_contacts(
             .where(CrmAgreementParticipant.contact_id.in_(row_ids))
         ).all()
         for contact_id, agreement in participant_rows:
-            if is_historical_unit_change(agreement):
+            if is_historical_unit_change(agreement) or is_relationship_detached(agreement):
                 continue
             if agreement.id not in seen[contact_id]:
                 agreements_by_contact[contact_id].append(agreement)
@@ -1533,7 +1618,9 @@ def merge_contacts(
         survivor.linkedin_url = merged.linkedin_url
     if merged.notes:
         survivor.notes = (
-            f"{survivor.notes}\n\n--- Merged ---\n{merged.notes}" if survivor.notes else merged.notes
+            f"{survivor.notes}\n\n--- Merged ---\n{merged.notes}"
+            if survivor.notes
+            else merged.notes
         )
 
     merged_tags = set(survivor.tags or [])
@@ -1552,7 +1639,9 @@ def bulk_update_contacts(
     *,
     actor: User | None = None,
 ) -> int:
-    if payload.owner_user_id is not None and not _actor_may(actor, *OWNERSHIP_UPDATE_PERMISSION, db):
+    if payload.owner_user_id is not None and not _actor_may(
+        actor, *OWNERSHIP_UPDATE_PERMISSION, db
+    ):
         raise ContactSensitiveFieldDenied()
     count = 0
     for contact_id in payload.contact_ids:
@@ -1725,18 +1814,38 @@ def export_contacts_csv(db: Session, *, include_archived: bool = False) -> str:
 
 def people_workspace_counts(db: Session) -> CrmPeopleCounts:
     total = db.scalar(select(func.count()).select_from(CrmContact)) or 0
-    active = db.scalar(
-        select(func.count()).select_from(CrmContact).where(CrmContact.status == CrmContactStatus.ACTIVE)
-    ) or 0
-    junk = db.scalar(
-        select(func.count()).select_from(CrmContact).where(CrmContact.status == CrmContactStatus.ARCHIVED)
-    ) or 0
-    missing_info = db.scalar(
-        select(func.count()).select_from(CrmContact).where(CrmContact.notes.ilike("%BILGI_EKSIK%"))
-    ) or 0
-    review_required = db.scalar(
-        select(func.count()).select_from(CrmContact).where(CrmContact.notes.ilike("%INCELEME_GEREKLI%"))
-    ) or 0
+    active = (
+        db.scalar(
+            select(func.count())
+            .select_from(CrmContact)
+            .where(CrmContact.status == CrmContactStatus.ACTIVE)
+        )
+        or 0
+    )
+    junk = (
+        db.scalar(
+            select(func.count())
+            .select_from(CrmContact)
+            .where(CrmContact.status == CrmContactStatus.ARCHIVED)
+        )
+        or 0
+    )
+    missing_info = (
+        db.scalar(
+            select(func.count())
+            .select_from(CrmContact)
+            .where(CrmContact.notes.ilike("%BILGI_EKSIK%"))
+        )
+        or 0
+    )
+    review_required = (
+        db.scalar(
+            select(func.count())
+            .select_from(CrmContact)
+            .where(CrmContact.notes.ilike("%INCELEME_GEREKLI%"))
+        )
+        or 0
+    )
     return CrmPeopleCounts(
         total=int(total),
         active=int(active),
@@ -1747,29 +1856,51 @@ def people_workspace_counts(db: Session) -> CrmPeopleCounts:
 
 
 def investor_workspace_counts(db: Session) -> CrmInvestorCounts:
-    investor_ids = select(CrmAgreement.contact_id).distinct()
-    total = db.scalar(select(func.count()).select_from(CrmContact).where(CrmContact.id.in_(investor_ids))) or 0
-    active = db.scalar(
-        select(func.count())
-        .select_from(CrmContact)
-        .where(CrmContact.id.in_(investor_ids), CrmContact.status == CrmContactStatus.ACTIVE)
-    ) or 0
-    purchases = db.scalar(
-        select(func.count()).select_from(CrmAgreement).where(~historical_unit_change_clause())
-    ) or 0
-    missing_info = db.scalar(
-        select(func.count())
-        .select_from(CrmContact)
-        .where(CrmContact.id.in_(investor_ids), CrmContact.notes.ilike("%BILGI_EKSIK%"))
-    ) or 0
-    review_required = db.scalar(
-        select(func.count())
-        .select_from(CrmContact)
-        .where(
-            CrmContact.id.in_(investor_ids),
-            or_(CrmContact.notes.ilike("%INCELEME_GEREKLI%"), CrmContact.review_required.is_(True)),
+    investor_ids = select(CrmAgreement.contact_id).where(~detached_relationship_clause()).distinct()
+    total = (
+        db.scalar(
+            select(func.count()).select_from(CrmContact).where(CrmContact.id.in_(investor_ids))
         )
-    ) or 0
+        or 0
+    )
+    active = (
+        db.scalar(
+            select(func.count())
+            .select_from(CrmContact)
+            .where(CrmContact.id.in_(investor_ids), CrmContact.status == CrmContactStatus.ACTIVE)
+        )
+        or 0
+    )
+    purchases = (
+        db.scalar(
+            select(func.count())
+            .select_from(CrmAgreement)
+            .where(~historical_unit_change_clause(), ~detached_relationship_clause())
+        )
+        or 0
+    )
+    missing_info = (
+        db.scalar(
+            select(func.count())
+            .select_from(CrmContact)
+            .where(CrmContact.id.in_(investor_ids), CrmContact.notes.ilike("%BILGI_EKSIK%"))
+        )
+        or 0
+    )
+    review_required = (
+        db.scalar(
+            select(func.count())
+            .select_from(CrmContact)
+            .where(
+                CrmContact.id.in_(investor_ids),
+                or_(
+                    CrmContact.notes.ilike("%INCELEME_GEREKLI%"),
+                    CrmContact.review_required.is_(True),
+                ),
+            )
+        )
+        or 0
+    )
     return CrmInvestorCounts(
         total=int(total),
         active=int(active),
@@ -1781,9 +1912,7 @@ def investor_workspace_counts(db: Session) -> CrmInvestorCounts:
 
 def get_bitrix_verification_summary(db: Session) -> CrmBitrixVerificationSummary:
     bitrix_contacts = list(
-        db.scalars(
-            select(CrmContact).where(func.lower(CrmContact.source) == "bitrix")
-        ).all()
+        db.scalars(select(CrmContact).where(func.lower(CrmContact.source) == "bitrix")).all()
     )
     agreement_rows = list(
         db.scalars(
@@ -1809,20 +1938,14 @@ def get_bitrix_verification_summary(db: Session) -> CrmBitrixVerificationSummary
         total_contacts=db.query(CrmContact).count(),
         bitrix_contacts=len(bitrix_contacts),
         non_bitrix_contacts=db.query(CrmContact).count() - len(bitrix_contacts),
-        active_bitrix=sum(
-            contact.status == CrmContactStatus.ACTIVE for contact in bitrix_contacts
-        ),
+        active_bitrix=sum(contact.status == CrmContactStatus.ACTIVE for contact in bitrix_contacts),
         archived_bitrix=sum(
             contact.status == CrmContactStatus.ARCHIVED for contact in bitrix_contacts
         ),
         bitrix_with_phone=sum(bool(contact.primary_phone) for contact in bitrix_contacts),
         bitrix_with_email=sum(bool(contact.primary_email) for contact in bitrix_contacts),
         bitrix_with_external_id=sum(
-            bool(
-                ((contact.metadata_json or {}).get("bitrix_import") or {}).get(
-                    "external_ids"
-                )
-            )
+            bool(((contact.metadata_json or {}).get("bitrix_import") or {}).get("external_ids"))
             for contact in bitrix_contacts
         ),
         imported_historical_comments=imported_comments,
@@ -1862,9 +1985,7 @@ def export_bitrix_verification_csv(db: Session) -> str:
     for agreement in db.scalars(
         select(CrmAgreement).where(CrmAgreement.contact_id.in_(contact_ids))
     ).all():
-        agreement_groups.setdefault(agreement.contact_id, set()).add(
-            agreement.project_group
-        )
+        agreement_groups.setdefault(agreement.contact_id, set()).add(agreement.project_group)
     for contact_id, project_group in db.execute(
         select(CrmAgreementParticipant.contact_id, CrmAgreement.project_group)
         .join(CrmAgreement, CrmAgreement.id == CrmAgreementParticipant.agreement_id)
@@ -1897,9 +2018,7 @@ def export_bitrix_verification_csv(db: Session) -> str:
             else []
         )
         roles = _contact_types(contact)
-        is_agent = bool(
-            {CrmContactType.BROKER, CrmContactType.REALTOR}.intersection(roles)
-        )
+        is_agent = bool({CrmContactType.BROKER, CrmContactType.REALTOR}.intersection(roles))
         writer.writerow(
             [
                 str(contact.id),
@@ -1922,10 +2041,10 @@ def is_semrin_pilot_contact(contact_id: UUID) -> bool:
     return True
 
 
-def _purchase_household(
-    db: Session, contact_id: UUID
-) -> tuple[set[UUID], set[str]]:
-    owned = list(db.scalars(select(CrmAgreement).where(CrmAgreement.contact_id == contact_id)).all())
+def _purchase_household(db: Session, contact_id: UUID) -> tuple[set[UUID], set[str]]:
+    owned = list(
+        db.scalars(select(CrmAgreement).where(CrmAgreement.contact_id == contact_id)).all()
+    )
     participant_rows = list(
         db.scalars(
             select(CrmAgreement)
@@ -1966,7 +2085,9 @@ def _purchase_household(
 
 def _activity_source_key(activity: CrmActivity) -> str:
     metadata = activity.metadata_json if isinstance(activity.metadata_json, dict) else {}
-    history = metadata.get("bitrix_history") if isinstance(metadata.get("bitrix_history"), dict) else {}
+    history = (
+        metadata.get("bitrix_history") if isinstance(metadata.get("bitrix_history"), dict) else {}
+    )
     kind = str(history.get("kind") or activity.activity_type.value or "activity").strip().lower()
     record_id = str(history.get("bitrix_record_id") or history.get("message_id") or "").strip()
     chat_id = str(history.get("chat_id") or "").strip()
@@ -1977,7 +2098,11 @@ def _activity_source_key(activity: CrmActivity) -> str:
     import_key = str(history.get("import_key") or "").strip()
     if import_key:
         tail = import_key.rsplit(":", 1)[-1].strip()
-        family = import_key.split(":")[1] if import_key.startswith("bitrix:") and ":" in import_key[7:] else kind
+        family = (
+            import_key.split(":")[1]
+            if import_key.startswith("bitrix:") and ":" in import_key[7:]
+            else kind
+        )
         if tail:
             return f"{family}:{tail}"
         return f"import:{import_key}"
@@ -2013,7 +2138,9 @@ def _timeline_entry_from_activity(
     stored = activity.metadata_json if isinstance(activity.metadata_json, dict) else {}
     metadata = dict(stored)
     imported = isinstance(metadata.get("bitrix_historical_comment"), dict)
-    history = metadata.get("bitrix_history") if isinstance(metadata.get("bitrix_history"), dict) else None
+    history = (
+        metadata.get("bitrix_history") if isinstance(metadata.get("bitrix_history"), dict) else None
+    )
     author_name = None
     if isinstance(history, dict):
         author_name = history.get("author_name") or None
@@ -2027,7 +2154,9 @@ def _timeline_entry_from_activity(
                 author_name = "WhatsApp"
         actor_name = author_name
     else:
-        live = metadata.get("live_thread") if isinstance(metadata.get("live_thread"), dict) else None
+        live = (
+            metadata.get("live_thread") if isinstance(metadata.get("live_thread"), dict) else None
+        )
         if live and live.get("author_name"):
             actor_name = str(live.get("author_name"))
         else:
@@ -2073,7 +2202,9 @@ def _load_contact_timeline_activities(
         ),
         user,
     )
-    query = query.order_by(func.coalesce(CrmActivity.start_date, CrmActivity.created_at).desc()).limit(limit)
+    query = query.order_by(
+        func.coalesce(CrmActivity.start_date, CrmActivity.created_at).desc()
+    ).limit(limit)
     return list(db.scalars(query).all())
 
 
@@ -2170,12 +2301,16 @@ def get_contact_timeline(
             if metadata and not is_person_owned_activity(metadata):
                 continue
             history = (metadata or {}).get("bitrix_history") if isinstance(metadata, dict) else None
-            import_key = str((history or {}).get("import_key") or "") if isinstance(history, dict) else ""
+            import_key = (
+                str((history or {}).get("import_key") or "") if isinstance(history, dict) else ""
+            )
             if import_key:
                 if import_key in seen_import_keys:
                     continue
                 seen_import_keys.add(import_key)
-            entries.append(_timeline_entry_from_activity(db, activity, viewer_contact_id=contact_id))
+            entries.append(
+                _timeline_entry_from_activity(db, activity, viewer_contact_id=contact_id)
+            )
 
     contact_id = resolve_nedim_contact_id(contact_id)
     contact = get_contact_or_none(db, contact_id)
@@ -2227,9 +2362,7 @@ def get_contact_timeline(
         limit=min(limit, 80),
     )
     seen_log_keys = {
-        (entry.action, entry.created_at.isoformat())
-        for entry in entries
-        if entry.action
+        (entry.action, entry.created_at.isoformat()) for entry in entries if entry.action
     }
     audit_titles = {
         "activity.crm_contact.created": "Kişi oluşturuldu",

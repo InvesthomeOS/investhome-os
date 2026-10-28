@@ -17,7 +17,11 @@ from investhome_api.models.crm_activity import (
     CrmTaskStatus,
 )
 from investhome_api.models.crm_agreement import CrmAgreement
-from investhome_api.models.crm_contact import CrmContact, CrmContactDuplicateCandidate, CrmContactStatus
+from investhome_api.models.crm_contact import (
+    CrmContact,
+    CrmContactDuplicateCandidate,
+    CrmContactStatus,
+)
 from investhome_api.models.lead import Lead
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.crm import (
@@ -37,8 +41,16 @@ from investhome_api.schemas.crm import (
 )
 from investhome_api.services.activity_service import list_activities
 from investhome_api.services.crm.activity_service import apply_activity_visibility
-from investhome_api.services.crm.bitrix_project_aliases import BITRIX_PROJECT_GROUP_LABELS, BitrixProjectGroup
-from investhome_api.services.crm.crm_lead_service import CRM_STAGES, _kpis as lead_kpis, _live_leads, stage_of
+from investhome_api.services.crm.bitrix_project_aliases import (
+    BITRIX_PROJECT_GROUP_LABELS,
+    BitrixProjectGroup,
+)
+from investhome_api.services.crm.crm_lead_service import (
+    CRM_STAGES,
+    _kpis as lead_kpis,
+    _live_leads,
+    stage_of,
+)
 from investhome_api.services.crm.crm_match_service import OPEN_STATUSES
 from investhome_api.services.crm.document_feed import list_document_feed
 from investhome_api.services.crm.report_service import (
@@ -47,7 +59,10 @@ from investhome_api.services.crm.report_service import (
     _source_key_expr,
     _task_section,
 )
-from investhome_api.services.crm.unit_change import is_historical_unit_change
+from investhome_api.services.crm.unit_change import (
+    is_historical_unit_change,
+    is_relationship_detached,
+)
 from investhome_api.services.crm_contact_service import (
     count_active_contacts,
     count_contacts_with_email,
@@ -190,12 +205,18 @@ def _relationship_alerts(db: Session, *, limit: int = 10) -> list[CrmRelationshi
 
 def _split_agreements(db: Session) -> tuple[list[CrmAgreement], list[CrmAgreement]]:
     rows = list(db.scalars(select(CrmAgreement)).all())
-    current = [row for row in rows if not is_historical_unit_change(row)]
+    current = [
+        row
+        for row in rows
+        if not is_historical_unit_change(row) and not is_relationship_detached(row)
+    ]
     historical = [row for row in rows if is_historical_unit_change(row)]
     return current, historical
 
 
-def _purchase_charts(current: list[CrmAgreement]) -> tuple[list[CrmDashboardCount], list[CrmDashboardCount]]:
+def _purchase_charts(
+    current: list[CrmAgreement],
+) -> tuple[list[CrmDashboardCount], list[CrmDashboardCount]]:
     by_project: Counter[str] = Counter()
     by_month: Counter[str] = Counter()
     for row in current:
@@ -210,7 +231,9 @@ def _purchase_charts(current: list[CrmAgreement]) -> tuple[list[CrmDashboardCoun
             key=group,
             label=_project_label(group) if group != "unknown" else "—",
             count=count,
-            href=f"/workspaces/crm/agreements?project={group}" if group != "unknown" else "/workspaces/crm/agreements",
+            href=f"/workspaces/crm/agreements?project={group}"
+            if group != "unknown"
+            else "/workspaces/crm/agreements",
         )
         for group, count in sorted(by_project.items(), key=lambda item: (-item[1], item[0]))
     ]
@@ -367,7 +390,10 @@ def _contact_names(db: Session, ids: set[UUID]) -> dict[UUID, str]:
 
 
 def _activity_href(row: CrmActivity) -> str:
-    if row.activity_type == CrmActivityType.TASK or row.activity_category == CrmActivityCategory.TASK:
+    if (
+        row.activity_type == CrmActivityType.TASK
+        or row.activity_category == CrmActivityCategory.TASK
+    ):
         return "/workspaces/crm/tasks"
     if row.entity_type.value == "contact":
         return f"/workspaces/crm/contacts/{row.entity_id}"
@@ -462,13 +488,27 @@ def build_crm_dashboard(db: Session, user: User) -> CrmDashboardResponse:
     unresolved_docs = [item for item in docs_sorted if item.scope == "unresolved"]
 
     task_status = [
-        CrmDashboardCount(key=row.key, label=row.key, count=row.count, href=TASK_HREF.get(row.key, "/workspaces/crm/tasks"))
+        CrmDashboardCount(
+            key=row.key,
+            label=row.key,
+            count=row.count,
+            href=TASK_HREF.get(row.key, "/workspaces/crm/tasks"),
+        )
         for row in tasks.table
     ]
     document_status = [
-        CrmDashboardCount(key="person", label="person", count=feed.stats.person, href=DOC_STATUS_HREF["person"]),
-        CrmDashboardCount(key="purchase", label="purchase", count=feed.stats.purchase, href=DOC_STATUS_HREF["purchase"]),
-        CrmDashboardCount(key="hidden", label="hidden", count=feed.stats.hidden, href=DOC_STATUS_HREF["hidden"]),
+        CrmDashboardCount(
+            key="person", label="person", count=feed.stats.person, href=DOC_STATUS_HREF["person"]
+        ),
+        CrmDashboardCount(
+            key="purchase",
+            label="purchase",
+            count=feed.stats.purchase,
+            href=DOC_STATUS_HREF["purchase"],
+        ),
+        CrmDashboardCount(
+            key="hidden", label="hidden", count=feed.stats.hidden, href=DOC_STATUS_HREF["hidden"]
+        ),
         CrmDashboardCount(
             key="unresolved",
             label="unresolved",
@@ -494,7 +534,9 @@ def build_crm_dashboard(db: Session, user: User) -> CrmDashboardResponse:
                 title=row.title,
                 href=_activity_href(row),
                 kind="activity",
-                meta=names.get(row.entity_id) if getattr(row.entity_type, "value", row.entity_type) == "contact" else str(row.activity_type.value),
+                meta=names.get(row.entity_id)
+                if getattr(row.entity_type, "value", row.entity_type) == "contact"
+                else str(row.activity_type.value),
                 occurred_at=row.created_at,
             )
             for row in crm_activities
@@ -507,7 +549,9 @@ def build_crm_dashboard(db: Session, user: User) -> CrmDashboardResponse:
             title=row.title,
             href="/workspaces/crm/tasks",
             kind="task",
-            meta=names.get(row.entity_id) if getattr(row.entity_type, "value", row.entity_type) == "contact" else (row.task_status.value if row.task_status else "aktif"),
+            meta=names.get(row.entity_id)
+            if getattr(row.entity_type, "value", row.entity_type) == "contact"
+            else (row.task_status.value if row.task_status else "aktif"),
             occurred_at=row.due_date,
         )
         for row in upcoming
@@ -518,7 +562,10 @@ def build_crm_dashboard(db: Session, user: User) -> CrmDashboardResponse:
             title=doc.filename,
             href=f"/workspaces/crm/documents/{doc.id}",
             kind="document",
-            meta=" · ".join(part for part in [doc.contact_name, doc.project_label or doc.project_group] if part) or "Belge",
+            meta=" · ".join(
+                part for part in [doc.contact_name, doc.project_label or doc.project_group] if part
+            )
+            or "Belge",
             occurred_at=doc.occurred_at,
         )
         for doc in docs_sorted[:PANEL_LIMIT]
@@ -529,7 +576,9 @@ def build_crm_dashboard(db: Session, user: User) -> CrmDashboardResponse:
             title=lead.full_name,
             href="/workspaces/crm/leads",
             kind="lead",
-            meta=" · ".join(part for part in [stage_of(lead), lead.source, lead.interested_project] if part),
+            meta=" · ".join(
+                part for part in [stage_of(lead), lead.source, lead.interested_project] if part
+            ),
             occurred_at=lead.created_at,
         )
         for lead in recent_lead_rows

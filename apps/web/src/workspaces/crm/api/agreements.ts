@@ -258,6 +258,35 @@ export async function patchAgreement(
   });
 }
 
+export async function replaceAgreementOwners(
+  agreementId: string,
+  owners: Array<{ contact_id: string; ownership_pct: string }>,
+): Promise<CrmPurchaseCard> {
+  return apiFetch<CrmPurchaseCard>(`/crm/agreements/${agreementId}/owners`, {
+    method: 'PUT',
+    body: JSON.stringify({ owners }),
+  });
+}
+
+export async function changeAgreementUnit(
+  agreementId: string,
+  unitNumber: string,
+): Promise<CrmPurchaseCard> {
+  return apiFetch<CrmPurchaseCard>(`/crm/agreements/${agreementId}/unit`, {
+    method: 'PATCH',
+    body: JSON.stringify({ unit_number: unitNumber }),
+  });
+}
+
+export async function removeAgreementOwner(
+  agreementId: string,
+  contactId: string,
+): Promise<CrmPurchaseCard> {
+  return apiFetch<CrmPurchaseCard>(`/crm/agreements/${agreementId}/owners/${contactId}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function fetchAgreementActivities(params: {
   project_group?: string;
   contact_id?: string;

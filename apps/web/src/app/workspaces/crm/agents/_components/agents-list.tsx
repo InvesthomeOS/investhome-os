@@ -52,13 +52,22 @@ export function AgentsList({
   items,
   activity,
   onOpen,
+  canArchive = false,
+  canRestore = false,
+  onArchive,
+  onRestore,
 }: {
   items: CrmContactSummary[];
   activity: AgentActivityIndex;
   onOpen: (agent: CrmContactSummary) => void;
+  canArchive?: boolean;
+  canRestore?: boolean;
+  onArchive?: (agent: CrmContactSummary) => void;
+  onRestore?: (agent: CrmContactSummary) => void;
 }) {
   const t = useTranslations('crm.agents');
   const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState<CrmContactSummary | null>(null);
   const [columns, setColumns] = useState<ColumnId[]>([...DEFAULT_COLUMNS]);
   const [ready, setReady] = useState(false);
 
@@ -155,6 +164,7 @@ export function AgentsList({
                   {t(`listColumns.${id}`)}
                 </th>
               ))}
+              {canArchive || canRestore ? <th scope="col">İşlem</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -185,11 +195,62 @@ export function AgentsList({
                     )}
                   </td>
                 ))}
+                {canArchive || canRestore ? (
+                  <td>
+                    {agent.status === 'archived' && canRestore ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onRestore?.(agent);
+                        }}
+                      >
+                        Geri al
+                      </Button>
+                    ) : null}
+                    {agent.status !== 'archived' && canArchive ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        data-testid={`archive-agent-${agent.id}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setPending(agent);
+                        }}
+                      >
+                        Arşivle
+                      </Button>
+                    ) : null}
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {pending ? (
+        <div role="dialog" aria-modal="true" data-testid="archive-agent-confirm">
+          <p>
+            {pending.display_name} arşivlenecek. Kişi kaydı ve geçmiş etkinlikleri silinmez.
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              onArchive?.(pending);
+              setPending(null);
+            }}
+          >
+            Arşivle
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setPending(null)}>
+            Vazgeç
+          </Button>
+        </div>
+      ) : null}
     </section>
   );
 }

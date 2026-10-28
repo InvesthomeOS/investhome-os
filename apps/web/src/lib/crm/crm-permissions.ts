@@ -16,6 +16,7 @@ export type CrmPermissionAction =
   | 'view_financial'
   | 'view_compliance'
   | 'edit_ownership'
+  | 'correct_relationships'
   | 'transfer_ownership'
   | 'manage_company_contacts'
   | 'bulk_actions'

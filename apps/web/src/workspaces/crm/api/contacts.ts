@@ -54,7 +54,6 @@ export type ContactInput = {
   relationship_status?: string;
   relationship_strength?: string;
   priority?: CrmContactPriority;
-  source?: string;
   tags?: string[];
   status?: CrmContactStatus;
   owner_user_id?: string;
@@ -173,6 +172,14 @@ export async function setCrmDocumentVisibility(payload: {
 
 export async function archiveContact(id: string): Promise<{ contact: CrmContactDetail }> {
   return apiFetch(`/crm/contacts/${id}/archive`, { method: 'POST' });
+}
+
+export async function archiveAgent(id: string): Promise<{ status: string }> {
+  return apiFetch(`/crm/agents/${id}/archive`, { method: 'POST' });
+}
+
+export async function restoreAgent(id: string): Promise<{ status: string }> {
+  return apiFetch(`/crm/agents/${id}/restore`, { method: 'POST' });
 }
 
 export async function restoreContact(id: string): Promise<{ contact: CrmContactDetail }> {

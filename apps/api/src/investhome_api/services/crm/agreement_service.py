@@ -17,7 +17,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from investhome_api.models.crm_activity import CrmActivity, CrmActivityEntityType, CrmActivityType
-from investhome_api.models.crm_agreement import CrmAgreement, CrmAgreementParticipant, CrmAgreementStatus
+from investhome_api.models.crm_agreement import (
+    CrmAgreement,
+    CrmAgreementParticipant,
+    CrmAgreementStatus,
+)
 from investhome_api.models.crm_contact import CrmContact, CrmContactType
 from investhome_api.models.document import Document, DocumentLink
 from investhome_api.schemas.crm_agreements import (
@@ -32,15 +36,26 @@ from investhome_api.schemas.crm_agreements import (
     CrmRelatedPurchase,
     CrmUnitHistoryStep,
 )
-from investhome_api.schemas.crm_contacts import CrmContactTimelineEntry, CrmPurchaseParticipant, CrmPurchaseSummary
-from investhome_api.services.crm.bitrix_project_aliases import BITRIX_PROJECT_GROUP_LABELS, BitrixProjectGroup
+from investhome_api.schemas.crm_contacts import (
+    CrmContactTimelineEntry,
+    CrmPurchaseParticipant,
+    CrmPurchaseSummary,
+)
+from investhome_api.services.crm.bitrix_project_aliases import (
+    BITRIX_PROJECT_GROUP_LABELS,
+    BitrixProjectGroup,
+)
 from investhome_api.services.crm.contact_service import paginate_total_pages
 from investhome_api.services.crm.document_surface import (
     document_notes,
     person_surface_documents,
     purchase_linked_documents,
 )
-from investhome_api.services.crm.identity import displayable_phone, format_display_phone, is_agent_advisor_name
+from investhome_api.services.crm.identity import (
+    displayable_phone,
+    format_display_phone,
+    is_agent_advisor_name,
+)
 from investhome_api.services.crm.nedim_purchase_card import (
     IZZET_CANONICAL_ID,
     NEDIM_CANONICAL_ID,
@@ -50,8 +65,10 @@ from investhome_api.services.crm.nedim_purchase_card import (
     is_nedim_purchase_agreement,
 )
 from investhome_api.services.crm.unit_change import (
+    detached_relationship_clause,
     historical_unit_change_clause,
     is_historical_unit_change,
+    is_relationship_detached,
     unit_history_steps,
 )
 
@@ -74,14 +91,19 @@ def is_purchase_owner_contact(contact: CrmContact) -> bool:
     types = {contact.contact_type}
     for assignment in getattr(contact, "type_assignments", None) or []:
         types.add(assignment.contact_type)
-    if types & {CrmContactType.BROKER, CrmContactType.REALTOR} and CrmContactType.BUYER not in types:
+    if (
+        types & {CrmContactType.BROKER, CrmContactType.REALTOR}
+        and CrmContactType.BUYER not in types
+    ):
         return False
     return True
 
 
 def _project_label(project_group: str, meta: dict[str, Any] | None = None) -> str:
     payload = meta if isinstance(meta, dict) else {}
-    override = str(payload.get("original_project_label") or payload.get("project_label") or "").strip()
+    override = str(
+        payload.get("original_project_label") or payload.get("project_label") or ""
+    ).strip()
     if override:
         return override
     try:
@@ -149,16 +171,25 @@ def _optional_fields(meta: dict[str, Any], live: dict[str, Any]) -> dict[str, st
         *_labeled_values(live.get("payment_fields") or meta.get("payment_fields")),
         *_labeled_values(live.get("llc_fields") or meta.get("llc_fields")),
     ]
-    status_raw = str(meta.get("bitrix_deal_status") or live.get("bitrix_deal_status") or "").strip().lower()
-    deposit = (
-        _labeled_lookup(labeled, "Ön Ödeme Tutarı", "Peşinat", "Kapora")
-        or (str(meta.get("deposit") or live.get("deposit") or meta.get("kapora") or live.get("kapora") or "").strip() or None)
+    status_raw = (
+        str(meta.get("bitrix_deal_status") or live.get("bitrix_deal_status") or "").strip().lower()
+    )
+    deposit = _labeled_lookup(labeled, "Ön Ödeme Tutarı", "Peşinat", "Kapora") or (
+        str(
+            meta.get("deposit")
+            or live.get("deposit")
+            or meta.get("kapora")
+            or live.get("kapora")
+            or ""
+        ).strip()
+        or None
     )
     return {
         "payment_status": _DEAL_STATUS_TR.get(status_raw, status_raw or None),
         "payment_method": _labeled_lookup(labeled, "Ödeme Şekli"),
         "share_ratio": _labeled_lookup(labeled, "Ownership Percentage", "Sahiplik"),
-        "company_details": str(live.get("llc_name") or "").strip() or _labeled_lookup(labeled, "Şirket / LLC", "LLC"),
+        "company_details": str(live.get("llc_name") or "").strip()
+        or _labeled_lookup(labeled, "Şirket / LLC", "LLC"),
         "payment_dates": _labeled_lookup(labeled, "Ödeme Tarihleri"),
         "floor": _labeled_lookup(labeled, "Kat"),
         "deposit_amount": deposit,
@@ -171,8 +202,12 @@ def _optional_fields(meta: dict[str, Any], live: dict[str, Any]) -> dict[str, st
     }
 
 
-def _share_from_participants(participants: list[CrmAgreementParticipantSummary], fallback: str | None) -> str | None:
-    parts = [f"{item.display_name} {item.ownership_pct}%" for item in participants if item.ownership_pct]
+def _share_from_participants(
+    participants: list[CrmAgreementParticipantSummary], fallback: str | None
+) -> str | None:
+    parts = [
+        f"{item.display_name} {item.ownership_pct}%" for item in participants if item.ownership_pct
+    ]
     if parts:
         return " · ".join(parts)
     return fallback
@@ -289,7 +324,9 @@ def _contact_responsible(contact: CrmContact) -> str | None:
 def _participant_summaries(
     participants: list[tuple[CrmAgreementParticipant, CrmContact]],
 ) -> list[CrmAgreementParticipantSummary]:
-    ordered = sorted(participants, key=lambda item: (not item[0].is_primary, item[1].display_name.lower()))
+    ordered = sorted(
+        participants, key=lambda item: (not item[0].is_primary, item[1].display_name.lower())
+    )
     items: list[CrmAgreementParticipantSummary] = []
     for row, contact in ordered:
         items.append(
@@ -311,7 +348,9 @@ def _participant_summaries(
     return items
 
 
-def _owners_label(summaries: list[CrmAgreementParticipantSummary], fallback: str | None) -> str | None:
+def _owners_label(
+    summaries: list[CrmAgreementParticipantSummary], fallback: str | None
+) -> str | None:
     names = [item.display_name for item in summaries if item.display_name]
     if names:
         return " + ".join(names)
@@ -342,16 +381,32 @@ def serialize_agreement(
     )
     name = meta.get("source_name") or fields.get("customer_name") or contact_name
     is_reit = row.project_group == BitrixProjectGroup.REIT.value
-    unit_number = None if is_reit else (row.unit_number or fields.get("unit_number") or meta.get("unit_number"))
-    investment_amount = row.investment_amount or (
-        fields.get("payment_amount") if is_reit else None
-    ) or (meta.get("investment_amount") if is_reit else None)
+    unit_number = (
+        None
+        if is_reit
+        else (row.unit_number or fields.get("unit_number") or meta.get("unit_number"))
+    )
+    investment_amount = (
+        row.investment_amount
+        or (fields.get("payment_amount") if is_reit else None)
+        or (meta.get("investment_amount") if is_reit else None)
+    )
     participant_rows = _participant_summaries(participants or [])
-    owners = _owners_label(participant_rows, str(name) if name else None)
+    detached = bool(meta.get("relationship_detached"))
+    fallback_name = None if detached else (str(name) if name else None)
+    owners = (
+        None
+        if detached and not participant_rows
+        else _owners_label(participant_rows, fallback_name)
+    )
+    visible_contact_name = (
+        None if detached and not participant_rows else (owners or (str(name) if name else None))
+    )
     deal_id = deal_id_for_agreement(row.id, meta)
     live = meta.get("bitrix_live") if isinstance(meta.get("bitrix_live"), dict) else {}
     amount, currency = (
-        str(meta.get("opportunity") or live.get("opportunity") or row.investment_amount or "") or None,
+        str(meta.get("opportunity") or live.get("opportunity") or row.investment_amount or "")
+        or None,
         str(meta.get("currency") or live.get("currency") or "") or None,
     )
     if not amount:
@@ -360,13 +415,17 @@ def serialize_agreement(
     extras = _optional_fields(meta, live)
     journey = None
     if contact is not None and getattr(contact, "lifecycle_stage", None) is not None:
-        raw_stage = contact.lifecycle_stage.value if hasattr(contact.lifecycle_stage, "value") else str(contact.lifecycle_stage)
+        raw_stage = (
+            contact.lifecycle_stage.value
+            if hasattr(contact.lifecycle_stage, "value")
+            else str(contact.lifecycle_stage)
+        )
         journey = _LIFECYCLE_TR.get(raw_stage, raw_stage)
     share = _share_from_participants(participant_rows, extras.get("share_ratio"))
     return CrmAgreementSummary(
         id=row.id,
         contact_id=row.contact_id,
-        contact_name=owners or (str(name) if name else None),
+        contact_name=visible_contact_name,
         project_id=row.project_id,
         project_group=row.project_group,
         project_group_label=label,
@@ -387,7 +446,8 @@ def serialize_agreement(
         amount_label=format_money(amount, currency) if amount else None,
         stage_label=stage_label,
         hemen_kira=bool(getattr(row, "hemen_kira", False)),
-        responsible_name=extras.get("responsible_name") or (participant_rows[0].responsible if participant_rows else None),
+        responsible_name=extras.get("responsible_name")
+        or (participant_rows[0].responsible if participant_rows else None),
         payment_status=extras.get("payment_status"),
         payment_method=extras.get("payment_method"),
         share_ratio=share,
@@ -440,18 +500,24 @@ def list_agreements(
     if status is not None:
         query = query.where(CrmAgreement.status == status)
     else:
-        query = query.where(~historical_unit_change_clause())
+        query = query.where(~historical_unit_change_clause(), ~detached_relationship_clause())
     if contact_id is not None:
         query = query.where(CrmAgreement.contact_id == contact_id)
 
     total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
     rows = list(
         db.scalars(
-            query.order_by(CrmAgreement.agreement_date.desc().nullslast(), CrmAgreement.created_at.desc())
+            query.order_by(
+                CrmAgreement.agreement_date.desc().nullslast(), CrmAgreement.created_at.desc()
+            )
             .offset((page - 1) * page_size)
             .limit(page_size)
         ).all()
     )
+    if status is None:
+        visible = [row for row in rows if not is_relationship_detached(row)]
+        total = max(int(total) - (len(rows) - len(visible)), 0)
+        rows = visible
     contact_ids = {row.contact_id for row in rows}
     contacts: dict[UUID, CrmContact] = {}
     if contact_ids:
@@ -476,13 +542,17 @@ def list_agreements(
         serialize_agreement(
             row,
             contact=contacts.get(row.contact_id),
-            contact_name=(contacts[row.contact_id].display_name if row.contact_id in contacts else None),
+            contact_name=(
+                contacts[row.contact_id].display_name if row.contact_id in contacts else None
+            ),
             participants=participants_map.get(row.id),
         )
         for row in rows
     ]
     for item, row in zip(items, rows, strict=True):
-        _apply_agreement_list_value_display(item, row, siblings_by_key.get((row.contact_id, row.project_group), []))
+        _apply_agreement_list_value_display(
+            item, row, siblings_by_key.get((row.contact_id, row.project_group), [])
+        )
         nxt = next_map.get(item.id)
         if nxt:
             item.next_activity_title = nxt[0]
@@ -551,10 +621,16 @@ def _purchase_amount(row: CrmAgreement) -> tuple[str | None, str | None]:
     return str(amount) if amount else None, str(currency) if currency else None
 
 
-def _deal_tutar_from_contact(contact: CrmContact | None, deal_id: str | None) -> tuple[str | None, str | None]:
+def _deal_tutar_from_contact(
+    contact: CrmContact | None, deal_id: str | None
+) -> tuple[str | None, str | None]:
     if contact is None or not deal_id:
         return None, None
-    live = (contact.metadata_json or {}).get("bitrix_live") if isinstance(contact.metadata_json, dict) else None
+    live = (
+        (contact.metadata_json or {}).get("bitrix_live")
+        if isinstance(contact.metadata_json, dict)
+        else None
+    )
     items = live.get("tutar_ve_para_birimi") if isinstance(live, dict) else None
     if not isinstance(items, list):
         return None, None
@@ -644,7 +720,9 @@ def _iso_date_text(value: Any) -> str | None:
 def _source_begin_date(row: Any) -> str | None:
     meta = _meta(row)
     live = meta.get("bitrix_live") if isinstance(meta.get("bitrix_live"), dict) else {}
-    return _iso_date_text(meta.get("begin_date") or live.get("begin_date") or getattr(row, "agreement_date", None))
+    return _iso_date_text(
+        meta.get("begin_date") or live.get("begin_date") or getattr(row, "agreement_date", None)
+    )
 
 
 def _source_close_date(row: Any) -> str | None:
@@ -746,7 +824,8 @@ def serialize_purchase_summary(
         amount, currency = _deal_tutar_from_contact(contact, deal_id)
     live = meta.get("bitrix_live") if isinstance(meta.get("bitrix_live"), dict) else {}
     summaries = _participant_summaries(participants)
-    if not summaries and contact is not None:
+    detached = is_relationship_detached(row)
+    if not summaries and contact is not None and not detached:
         summaries = [
             CrmAgreementParticipantSummary(
                 contact_id=contact.id,
@@ -782,7 +861,11 @@ def serialize_purchase_summary(
         stage=stage_label,
         begin_date=str(meta.get("begin_date") or live.get("begin_date") or "") or None,
         close_date=str(meta.get("close_date") or live.get("close_date") or "") or None,
-        owners_label=_owners_label(summaries, contact.display_name if contact else None),
+        owners_label=None
+        if detached and not participants
+        else _owners_label(
+            summaries, None if detached else (contact.display_name if contact else None)
+        ),
         participants=purchase_participants,
         opens_purchase_card=True,
         status=stage_label,
@@ -824,7 +907,9 @@ def _step_project_label(row: CrmAgreement | None, *, is_current: bool) -> str | 
     return _compact_change_project(_project_label(row.project_group, meta))
 
 
-def _serialize_unit_history(focus: CrmAgreement, siblings: list[CrmAgreement]) -> list[CrmUnitHistoryStep]:
+def _serialize_unit_history(
+    focus: CrmAgreement, siblings: list[CrmAgreement]
+) -> list[CrmUnitHistoryStep]:
     by_id = {row.id: row for row in siblings}
     by_id[focus.id] = focus
     return [
@@ -834,7 +919,9 @@ def _serialize_unit_history(focus: CrmAgreement, siblings: list[CrmAgreement]) -
             is_current=step.is_current,
             is_historical_unit_change=step.is_historical_unit_change,
             contact_id=step.contact_id,
-            project_label=_step_project_label(by_id.get(step.agreement_id), is_current=step.is_current),
+            project_label=_step_project_label(
+                by_id.get(step.agreement_id), is_current=step.is_current
+            ),
         )
         for step in unit_history_steps(focus, siblings)
     ]
@@ -850,7 +937,9 @@ def _purchase_document_groups(
 ) -> list[CrmPurchaseDocumentGroup]:
     if len(steps) < 2:
         return []
-    ordered = [step for step in steps if step.is_current] + [step for step in steps if not step.is_current]
+    ordered = [step for step in steps if step.is_current] + [
+        step for step in steps if not step.is_current
+    ]
     seen: set[UUID] = set()
     groups: list[CrmPurchaseDocumentGroup] = []
     for step in ordered:
@@ -879,10 +968,14 @@ def _contact_project_agreements(
     contact_id: UUID,
     project_group: str,
 ) -> list[CrmAgreement]:
-    owned_ids = set(db.scalars(select(CrmAgreement.id).where(CrmAgreement.contact_id == contact_id)).all())
+    owned_ids = set(
+        db.scalars(select(CrmAgreement.id).where(CrmAgreement.contact_id == contact_id)).all()
+    )
     participant_ids = set(
         db.scalars(
-            select(CrmAgreementParticipant.agreement_id).where(CrmAgreementParticipant.contact_id == contact_id)
+            select(CrmAgreementParticipant.agreement_id).where(
+                CrmAgreementParticipant.contact_id == contact_id
+            )
         ).all()
     )
     agreement_ids = owned_ids | participant_ids
@@ -907,16 +1000,24 @@ def list_contact_purchases(db: Session, contact_id: UUID) -> list[CrmPurchaseSum
     if viewer is None or is_purchase_owner_contact(viewer):
         participant_ids = set(
             db.scalars(
-                select(CrmAgreementParticipant.agreement_id).where(CrmAgreementParticipant.contact_id == contact_id)
+                select(CrmAgreementParticipant.agreement_id).where(
+                    CrmAgreementParticipant.contact_id == contact_id
+                )
             ).all()
         )
     agreement_ids = owned_ids | participant_ids
     if not agreement_ids:
         return []
-    rows = list(db.scalars(select(CrmAgreement).where(CrmAgreement.id.in_(agreement_ids))).all())
+    rows = [
+        row
+        for row in db.scalars(select(CrmAgreement).where(CrmAgreement.id.in_(agreement_ids))).all()
+        if not is_relationship_detached(row)
+    ]
     contacts = {
         contact.id: contact
-        for contact in db.scalars(select(CrmContact).where(CrmContact.id.in_({row.contact_id for row in rows}))).all()
+        for contact in db.scalars(
+            select(CrmContact).where(CrmContact.id.in_({row.contact_id for row in rows}))
+        ).all()
     }
     participants_map = _load_participants_map(db, {row.id for row in rows})
     summaries = [
@@ -982,7 +1083,9 @@ def _activity_entry(db: Session, activity: CrmActivity) -> CrmContactTimelineEnt
     )
 
 
-def purchase_history(db: Session, *, deal_id: str | None, contact_ids: set[UUID]) -> list[CrmContactTimelineEntry]:
+def purchase_history(
+    db: Session, *, deal_id: str | None, contact_ids: set[UUID]
+) -> list[CrmContactTimelineEntry]:
     if not deal_id or not contact_ids:
         return []
     activities = list(
@@ -1067,7 +1170,10 @@ def _serialize_purchase_documents(
             continue
         seen_docs.add(document.id)
         notes = document_notes(document)
-        filename = _display_filename(document.original_file_name, document.title) or document.original_file_name
+        filename = (
+            _display_filename(document.original_file_name, document.title)
+            or document.original_file_name
+        )
         hidden = document.id in hidden_ids
         if hidden and not include_hidden:
             continue
@@ -1125,7 +1231,9 @@ def purchase_documents(
     )
     hidden_ids = {link.document_id for link in links if link.hidden_from_view}
     documents = purchase_linked_documents(db, agreement_id, include_hidden=include_hidden)
-    return _serialize_purchase_documents(db, documents, hidden_ids=hidden_ids, include_hidden=include_hidden)
+    return _serialize_purchase_documents(
+        db, documents, hidden_ids=hidden_ids, include_hidden=include_hidden
+    )
 
 
 def person_documents_for_purchase(
@@ -1167,7 +1275,9 @@ def person_documents_for_purchase(
                 )
             ).all()
         )
-    return _serialize_purchase_documents(db, documents, hidden_ids=hidden_ids, include_hidden=include_hidden)
+    return _serialize_purchase_documents(
+        db, documents, hidden_ids=hidden_ids, include_hidden=include_hidden
+    )
 
 
 def _labeled_values(raw: Any) -> list[CrmLabeledValue]:
@@ -1267,7 +1377,11 @@ def get_purchase_card(
         elif sources:
             for source in sources:
                 source_meta = _meta(source)
-                source_live = source_meta.get("bitrix_live") if isinstance(source_meta.get("bitrix_live"), dict) else {}
+                source_live = (
+                    source_meta.get("bitrix_live")
+                    if isinstance(source_meta.get("bitrix_live"), dict)
+                    else {}
+                )
                 value = source_meta.get(key) or source_live.get(key)
                 if value:
                     payment[key] = value
@@ -1283,8 +1397,12 @@ def get_purchase_card(
             extra_fields,
             [_row_labeled_fields(source, "extra_fields") for source in sources],
         )
-    if payment.get("payment_notes") and not any(item.label == "Ödeme notu" for item in payment_fields):
-        payment_fields.append(CrmLabeledValue(label="Ödeme notu", value=str(payment["payment_notes"])))
+    if payment.get("payment_notes") and not any(
+        item.label == "Ödeme notu" for item in payment_fields
+    ):
+        payment_fields.append(
+            CrmLabeledValue(label="Ödeme notu", value=str(payment["payment_notes"]))
+        )
     agreement_date = row.agreement_date
     if agreement_date is None and sources:
         for source in sources:
@@ -1323,7 +1441,9 @@ def get_purchase_card(
         comments=_plain_text(live.get("comments") or meta.get("comments")),
         agreement_date=agreement_date,
         related_purchases=related,
-        primary_contact_name=contact.display_name if contact else None,
+        primary_contact_name=None
+        if is_relationship_detached(row)
+        else (contact.display_name if contact else None),
         llc_name=str(live.get("llc_name") or "").strip() or None,
         payment_fields=payment_fields,
         llc_fields=_labeled_values(live.get("llc_fields") or meta.get("llc_fields")),
@@ -1402,7 +1522,9 @@ def patch_agreement(
     return get_purchase_card(db, agreement_id)
 
 
-def patch_agreement_hemen_kira(db: Session, agreement_id: UUID, hemen_kira: bool) -> CrmPurchaseCard | None:
+def patch_agreement_hemen_kira(
+    db: Session, agreement_id: UUID, hemen_kira: bool
+) -> CrmPurchaseCard | None:
     return patch_agreement(db, agreement_id, hemen_kira=hemen_kira)
 
 
@@ -1412,7 +1534,10 @@ def _agreement_index(
     project_group: str | None = None,
     contact_id: UUID | None = None,
 ) -> list[CrmAgreement]:
-    query = select(CrmAgreement).where(~historical_unit_change_clause())
+    query = select(CrmAgreement).where(
+        ~historical_unit_change_clause(),
+        ~detached_relationship_clause(),
+    )
     if project_group:
         query = query.where(CrmAgreement.project_group == project_group)
     if contact_id is not None:
@@ -1460,17 +1585,23 @@ def _next_activity_map(
     now = datetime.now(tz=UTC)
     activities = list(
         db.scalars(
-            select(CrmActivity).where(
+            select(CrmActivity)
+            .where(
                 CrmActivity.entity_type == CrmActivityEntityType.CONTACT,
                 CrmActivity.entity_id.in_(contact_ids),
                 CrmActivity.archived_at.is_(None),
                 or_(CrmActivity.due_date >= now, CrmActivity.start_date >= now),
-            ).order_by(CrmActivity.due_date.asc().nullslast(), CrmActivity.start_date.asc().nullslast())
+            )
+            .order_by(
+                CrmActivity.due_date.asc().nullslast(), CrmActivity.start_date.asc().nullslast()
+            )
         ).all()
     )
     result: dict[UUID, tuple[str, datetime | None]] = {}
     for activity in activities:
-        deal_id = activity_deal_id(activity.metadata_json if isinstance(activity.metadata_json, dict) else None)
+        deal_id = activity_deal_id(
+            activity.metadata_json if isinstance(activity.metadata_json, dict) else None
+        )
         row = deal_map.get(deal_id) if deal_id else None
         if row is None or row.id in result:
             continue
@@ -1516,17 +1647,27 @@ def list_purchase_activities(
             return [], 0
     if date_from is not None:
         query = query.where(
-            or_(CrmActivity.created_at >= date_from, CrmActivity.start_date >= date_from, CrmActivity.due_date >= date_from)
+            or_(
+                CrmActivity.created_at >= date_from,
+                CrmActivity.start_date >= date_from,
+                CrmActivity.due_date >= date_from,
+            )
         )
     if date_to is not None:
         query = query.where(
-            or_(CrmActivity.created_at <= date_to, CrmActivity.start_date <= date_to, CrmActivity.due_date <= date_to)
+            or_(
+                CrmActivity.created_at <= date_to,
+                CrmActivity.start_date <= date_to,
+                CrmActivity.due_date <= date_to,
+            )
         )
     activities = list(db.scalars(query.order_by(CrmActivity.created_at.desc())).all())
     items: list[CrmAgreementActivityItem] = []
     responsible_filter = (responsible or "").strip().casefold()
     for activity in activities:
-        deal_id = activity_deal_id(activity.metadata_json if isinstance(activity.metadata_json, dict) else None)
+        deal_id = activity_deal_id(
+            activity.metadata_json if isinstance(activity.metadata_json, dict) else None
+        )
         row = deal_map.get(deal_id) if deal_id else None
         if row is None:
             continue
@@ -1572,7 +1713,9 @@ def list_purchase_calendar(
     if contact_ids:
         contacts = {
             contact.id: contact
-            for contact in db.scalars(select(CrmContact).where(CrmContact.id.in_(contact_ids))).all()
+            for contact in db.scalars(
+                select(CrmContact).where(CrmContact.id.in_(contact_ids))
+            ).all()
         }
     items: list[CrmAgreementCalendarItem] = []
     for row in rows:
@@ -1635,7 +1778,9 @@ def list_purchase_calendar(
             ).all()
         )
         for activity in activities:
-            deal_id = activity_deal_id(activity.metadata_json if isinstance(activity.metadata_json, dict) else None)
+            deal_id = activity_deal_id(
+                activity.metadata_json if isinstance(activity.metadata_json, dict) else None
+            )
             row = deal_map.get(deal_id) if deal_id else None
             if row is None:
                 continue

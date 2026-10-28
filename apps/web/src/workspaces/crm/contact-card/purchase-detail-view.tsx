@@ -13,6 +13,7 @@ import { linkDocument } from '@/lib/api/documents';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { createTask } from '@/workspaces/crm/api/activities';
 import {
+  changeAgreementUnit,
   patchAgreement,
   type CrmLabeledValue,
   type CrmPurchaseCard,
@@ -22,6 +23,7 @@ import { EmailCard, EmailDetail, type EmailViewEntry } from '@/workspaces/crm/co
 import { DocumentGallery } from '@/workspaces/crm/contact-card/document-gallery';
 import { HemenKiraToggle } from '@/workspaces/crm/contact-card/hemen-kira-toggle';
 import { looksLikePayloadDump, stripHtml, taskStatusLabel } from '@/workspaces/crm/contact-card/history-html';
+import { AgreementOwnersEditor } from '@/workspaces/crm/contact-card/agreement-owners-editor';
 import { UnitHistorySection } from '@/workspaces/crm/contact-card/unit-history';
 import { personCardCopy } from '@/workspaces/crm/contact-card/person-card-copy';
 import { isWhatsappEntry } from '@/workspaces/crm/contact-card/whatsapp-thread';
@@ -115,8 +117,10 @@ function cleanMoneyish(value: string) {
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '•';
-  return ((parts[0][0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] || '' : '')).toUpperCase();
+  const first = parts[0];
+  if (!first) return '•';
+  const last = parts.length > 1 ? parts[parts.length - 1] : undefined;
+  return `${first[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase();
 }
 
 function InfoRow({ label, value, dash = false }: { label: string; value?: string | null; dash?: boolean }) {
@@ -256,6 +260,7 @@ export function PurchaseDetailView({
   const queryClient = useQueryClient();
   const { user, canCreate, canManageTasks, canViewFinancial, has } = useCrmAccess();
   const canUpdate = has('update');
+  const canEditOwnership = has('edit_ownership');
   const canUploadDocuments = Boolean(user && hasPermission(user, 'documents', 'update'));
   const canArchiveDocuments = Boolean(
     user && (hasPermission(user, 'documents', 'archive') || hasPermission(user, 'documents', 'delete')),
@@ -271,8 +276,11 @@ export function PurchaseDetailView({
   const [error, setError] = useState<string | null>(null);
   const [amountEdit, setAmountEdit] = useState(card.amount || card.amount_label || '');
   const [amountOk, setAmountOk] = useState(false);
+  const [unitDraft, setUnitDraft] = useState(card.unit_number || '');
+  const [unitConfirm, setUnitConfirm] = useState(false);
 
   const isReit = card.project_group === 'reit';
+  const canEditUnit = canUpdate && !isReit;
   const stage = statusLabel(card.stage) || statusLabel(card.status) || null;
   const viewer =
     card.participants.find((item) => item.contact_id === contactId) ||
@@ -299,6 +307,17 @@ export function PurchaseDetailView({
   const showDocGroups = documentGroups.length > 1;
   const canAct = Boolean(canCreate || canManageTasks);
   const canEditAmount = Boolean(canUpdate && canViewFinancial);
+
+  const unitMutation = useMutation({
+    mutationFn: () => changeAgreementUnit(card.agreement_id, unitDraft.trim()),
+    onSuccess: () => {
+      setUnitConfirm(false);
+      setError(null);
+      onRefresh();
+      void queryClient.invalidateQueries({ queryKey: ['crm'] });
+    },
+    onError: (err: Error) => setError(err.message),
+  });
 
   const amountMutation = useMutation({
     mutationFn: async () => {
@@ -471,6 +490,9 @@ export function PurchaseDetailView({
               </li>
             ))}
           </ul>
+          {canEditOwnership ? (
+            <AgreementOwnersEditor card={card} onChanged={onRefresh} />
+          ) : null}
         </div>
         <UnitHistorySection steps={card.unit_history} personId={personId} viewingAgreementId={card.agreement_id} />
       </section>
@@ -480,6 +502,35 @@ export function PurchaseDetailView({
           <dl className="crm-pd-info">
             <InfoRow label="Proje / Mülk" value={projectName} dash />
             <InfoRow label="Daire Numarası" value={unitLabel} dash />
+            {canEditUnit ? (
+              <form
+                className="crm-pd-amount-edit"
+                data-testid="purchase-unit-edit"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (!unitDraft.trim() || unitDraft.trim() === (card.unit_number || '')) return;
+                  setUnitConfirm(true);
+                }}
+              >
+                <Input label="Daire" value={unitDraft} onChange={(event) => setUnitDraft(event.target.value)} />
+                <Button type="submit" size="sm">
+                  Daireyi güncelle
+                </Button>
+              </form>
+            ) : null}
+            {unitConfirm ? (
+              <div role="dialog" aria-modal="true" data-testid="change-unit-confirm">
+                <p>
+                  Daire {card.unit_number || '—'} → {unitDraft.trim()} olacak. Kişi kaydı ve geçmişi durur.
+                </p>
+                <Button type="button" size="sm" disabled={unitMutation.isPending} onClick={() => unitMutation.mutate()}>
+                  Daireyi değiştir
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setUnitConfirm(false)}>
+                  Vazgeç
+                </Button>
+              </div>
+            ) : null}
             <InfoRow label={t.purchasePrice} value={amount} dash />
             {canEditAmount ? (
               <form className="crm-pd-amount-edit" onSubmit={submitAmount} data-testid="purchase-amount-edit">

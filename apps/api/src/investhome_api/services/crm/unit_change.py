@@ -33,8 +33,23 @@ def is_historical_unit_change(row: CrmAgreement) -> bool:
 
 
 def historical_unit_change_clause():
-    flag = func.lower(func.coalesce(CrmAgreement.metadata_json["historical_unit_change"].as_string(), "false"))
+    flag = func.lower(
+        func.coalesce(CrmAgreement.metadata_json["historical_unit_change"].as_string(), "false")
+    )
     return or_(CrmAgreement.source == HISTORICAL_UNIT_CHANGE_SOURCE, flag == "true")
+
+
+def is_relationship_detached(row: CrmAgreement) -> bool:
+    """A cancelled purchase whose buyer link was corrected away. The contact row stays."""
+    meta = row.metadata_json if isinstance(row.metadata_json, dict) else {}
+    return bool(meta.get("relationship_detached"))
+
+
+def detached_relationship_clause():
+    flag = func.lower(
+        func.coalesce(CrmAgreement.metadata_json["relationship_detached"].as_string(), "false")
+    )
+    return flag == "true"
 
 
 def _meta(row: Any) -> dict[str, Any]:
@@ -100,7 +115,9 @@ def unit_history_steps(focus: Any, siblings: list[Any]) -> list[UnitHistoryStep]
             current = by_id.get(replaced)
         if current is None:
             final_unit = _single_unit(focus_meta.get("final_unit"))
-            current = next((row for row in currents if getattr(row, "unit_number", None) == final_unit), None)
+            current = next(
+                (row for row in currents if getattr(row, "unit_number", None) == final_unit), None
+            )
         if current is None:
             current = next(
                 (
@@ -153,7 +170,9 @@ def unit_history_steps(focus: Any, siblings: list[Any]) -> list[UnitHistoryStep]
         stored_date = getattr(row, "agreement_date", None)
         stored_created = getattr(row, "created_at", None)
         date_key = stored_date.isoformat() if stored_date is not None else "9999-12-31"
-        created_key = stored_created.isoformat() if stored_created is not None else "9999-12-31T00:00:00"
+        created_key = (
+            stored_created.isoformat() if stored_created is not None else "9999-12-31T00:00:00"
+        )
         return (1, date_key, created_key, unit)
 
     chain_hist.sort(key=sort_key)
