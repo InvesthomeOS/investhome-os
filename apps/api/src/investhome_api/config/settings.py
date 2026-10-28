@@ -125,9 +125,15 @@ class Settings(BaseSettings):
     gmail_sync_interval_minutes: int = Field(default=5, alias="GMAIL_SYNC_INTERVAL_MINUTES")
     gmail_backfill_days: int = Field(default=30, alias="GMAIL_BACKFILL_DAYS")
 
-    # Meta WhatsApp Cloud API inbound webhook. No usable defaults. Do not reuse JWT secrets.
+    # Meta WhatsApp Cloud API. Webhook secrets verify inbound events.
+    # Access token and phone number id are server-side only and send customer texts.
+    # No usable defaults. Do not reuse JWT secrets or Automation Center token names.
     whatsapp_app_secret: str | None = Field(default=None, alias="WHATSAPP_APP_SECRET")
     whatsapp_verify_token: str | None = Field(default=None, alias="WHATSAPP_VERIFY_TOKEN")
+    whatsapp_access_token: str | None = Field(default=None, alias="WHATSAPP_ACCESS_TOKEN")
+    whatsapp_phone_number_id: str | None = Field(default=None, alias="WHATSAPP_PHONE_NUMBER_ID")
+    # Not a secret. Default matches the WhatsApp Cloud API text-message examples.
+    whatsapp_graph_api_version: str = Field(default="v25.0", alias="WHATSAPP_GRAPH_API_VERSION")
 
     # Meta Page / Messenger inbound webhook. Separate from WhatsApp. No usable defaults.
     meta_app_secret: str | None = Field(default=None, alias="META_APP_SECRET")
@@ -398,6 +404,19 @@ class Settings(BaseSettings):
         if value is None or (isinstance(value, str) and not value.strip()):
             return False
         return value
+
+    @field_validator("whatsapp_graph_api_version")
+    @classmethod
+    def whatsapp_graph_api_version_format(cls, value: str) -> str:
+        from investhome_api.services.crm.whatsapp_graph_version import (
+            WhatsAppGraphVersionError,
+            normalize_graph_api_version,
+        )
+
+        try:
+            return normalize_graph_api_version(value)
+        except WhatsAppGraphVersionError as exc:
+            raise ValueError(str(exc)) from None
 
     @field_validator("jwt_secret")
     @classmethod

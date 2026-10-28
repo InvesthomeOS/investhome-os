@@ -1,4 +1,8 @@
-"""WhatsApp provider abstraction — architecture only."""
+"""WhatsApp provider status for the CRM provider list.
+
+Customer texts are sent by whatsapp_send / whatsapp_cloud, not by this stub.
+The stub stays not-connected so a missing Cloud API call cannot report success.
+"""
 
 from __future__ import annotations
 
@@ -64,12 +68,26 @@ WHATSAPP_PROVIDER = StubWhatsAppProviderAdapter()
 
 
 def get_whatsapp_provider_status() -> list[dict[str, Any]]:
+    from investhome_api.config.settings import get_settings
+
+    settings = get_settings()
+    token = (settings.whatsapp_access_token or "").strip()
+    phone_number_id = (settings.whatsapp_phone_number_id or "").strip()
+    configured = bool(token and phone_number_id.isdigit())
     return [
         {
             "provider": WHATSAPP_PROVIDER.provider_name,
             "channel": "whatsapp",
-            "status": WHATSAPP_PROVIDER.get_status().value,
-            "message": "WhatsApp Business API not configured",
+            "status": (
+                ProviderConnectionStatus.AVAILABLE.value
+                if configured
+                else ProviderConnectionStatus.NOT_CONNECTED.value
+            ),
+            "message": (
+                "WhatsApp Cloud API is configured"
+                if configured
+                else "WhatsApp Cloud API credentials are not configured"
+            ),
             "last_sync_at": None,
         }
     ]

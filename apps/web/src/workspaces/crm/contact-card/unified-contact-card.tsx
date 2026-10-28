@@ -28,6 +28,7 @@ import {
 } from '@/workspaces/crm/api/crm';
 import { notifyContactUpdated, useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import { EmailSendComposer } from '@/workspaces/crm/contact-card/email-send-composer';
+import { WhatsAppSendComposer } from '@/workspaces/crm/contact-card/whatsapp-send-composer';
 import { personCardCopy, type PersonCardCopy } from '@/workspaces/crm/contact-card/person-card-copy';
 import { salesDetailUrl } from '@/workspaces/crm/contact-card/pilot-people';
 import { PilotHistoryStream, type PilotHistoryFilter } from '@/workspaces/crm/contact-card/history-stream';
@@ -344,6 +345,7 @@ export function UnifiedContactCard({
 
   const [panel, setPanel] = useState<Panel>(null);
   const [emailComposeOpen, setEmailComposeOpen] = useState(false);
+  const [whatsappComposeOpen, setWhatsappComposeOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -492,6 +494,13 @@ export function UnifiedContactCard({
   const sourceLabel = formatLeadSource(sourceRaw, t);
   const referrerName = referrerQuery.data?.display_name?.trim() || null;
   const waNumber = phoneDigits(contact.whatsapp || contact.primary_phone);
+  const whatsappPhones = Array.from(
+    new Map(
+      [contact.whatsapp, contact.primary_phone, ...(contact.secondary_phones ?? [])]
+        .filter((item): item is string => Boolean(item && phoneDigits(item)))
+        .map((item) => [phoneDigits(item), item]),
+    ).values(),
+  );
   const lastComm = commEntries[0];
   const lastCommChannel = commLabel(lastComm?.activity_type, t) || commLabel(timeline[0]?.activity_type, t);
   const projectCount = new Set(currentPurchases.map((item) => item.project_label).filter(Boolean)).size;
@@ -948,6 +957,15 @@ export function UnifiedContactCard({
             onSent={() => setEmailComposeOpen(false)}
           />
         ) : null}
+        {whatsappComposeOpen && whatsappPhones.length ? (
+          <WhatsAppSendComposer
+            mode="new"
+            contactId={contact.id}
+            leadId={contact.lead_id}
+            phones={whatsappPhones}
+            onSent={() => setWhatsappComposeOpen(false)}
+          />
+        ) : null}
         <div className="crm-person-actions">
           {canSendEmail && contact.primary_email ? (
             <button type="button" className="crm-person-action" onClick={() => setEmailComposeOpen((open) => !open)}>
@@ -962,7 +980,11 @@ export function UnifiedContactCard({
               <IhIcon name="mail" size={14} /> {t.email}
             </button>
           )}
-          {waNumber ? (
+          {canSendEmail && whatsappPhones.length ? (
+            <button type="button" className="crm-person-action" onClick={() => setWhatsappComposeOpen((open) => !open)}>
+              <IhIcon name="inbox" size={14} /> {t.whatsappSend}
+            </button>
+          ) : waNumber ? (
             <a className="crm-person-action" href={`https://wa.me/${waNumber}`} target="_blank" rel="noreferrer">
               <IhIcon name="inbox" size={14} /> {t.whatsapp}
             </a>

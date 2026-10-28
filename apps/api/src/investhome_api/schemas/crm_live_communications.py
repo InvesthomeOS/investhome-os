@@ -219,6 +219,16 @@ class LiveSendRequest(BaseModel):
     kind: str | None = Field(default=None, max_length=40)
 
 
+class WhatsAppSendRequest(BaseModel):
+    contact_id: UUID | None = None
+    lead_id: UUID | None = None
+    communication_id: UUID | None = None
+    activity_id: UUID | None = None
+    to: str | None = Field(default=None, max_length=40)
+    body_text: str = Field(min_length=1, max_length=4096)
+    idempotency_key: str | None = Field(default=None, max_length=80)
+
+
 class EmailSendRequest(BaseModel):
     mode: str = Field(default="new", max_length=20)
     contact_id: UUID | None = None

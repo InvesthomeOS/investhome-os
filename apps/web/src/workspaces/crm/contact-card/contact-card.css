@@ -293,6 +293,10 @@
   white-space: pre-wrap;
 }
 
+.crm-contact-card__wa-delivery.is-failed {
+  color: #b42318;
+}
+
 .crm-contact-card__wa-bubble--outgoing {
   margin-left: auto;
   background: #d9f6e5;

@@ -13,6 +13,7 @@ import { canUpdateCrm } from '@/lib/crm/crm-permissions';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import { EmailSendComposer } from '@/workspaces/crm/contact-card/email-send-composer';
+import { WhatsAppSendComposer } from '@/workspaces/crm/contact-card/whatsapp-send-composer';
 import {
   CRM_LEAD_JUNK_REASONS,
   CRM_LEAD_STAGES,
@@ -434,6 +435,7 @@ export function CrmLeadsLiveWorkspace() {
 
   const [view, setView] = useState<ViewMode>('kanban');
   const [emailComposeOpen, setEmailComposeOpen] = useState(false);
+  const [whatsappComposeOpen, setWhatsappComposeOpen] = useState(false);
   const [searchDraft, setSearchDraft] = useState('');
   const [search, setSearch] = useState('');
   const [stage, setStage] = useState('');
@@ -1260,6 +1262,16 @@ export function CrmLeadsLiveWorkspace() {
                     {locale === 'tr' ? 'E-posta gönder' : 'Send email'}
                   </Button>
                 ) : null}
+                {canSendEmail && selected.phone && drawer !== 'convert' ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setWhatsappComposeOpen((open) => !open)}
+                  >
+                    {locale === 'tr' ? 'WhatsApp mesajı gönder' : 'Send WhatsApp'}
+                  </Button>
+                ) : null}
                 {canAddTask && drawer !== 'convert' ? (
                   <Button
                     type="button"
@@ -1305,6 +1317,15 @@ export function CrmLeadsLiveWorkspace() {
                 defaultTo={selected.email}
                 defaultSubject=""
                 onSent={() => setEmailComposeOpen(false)}
+              />
+            ) : null}
+            {whatsappComposeOpen && selected?.phone && drawer !== 'create' ? (
+              <WhatsAppSendComposer
+                mode="new"
+                contactId={selected.contact_id || selected.converted_contact_id}
+                leadId={selected.id}
+                phones={[selected.phone]}
+                onSent={() => setWhatsappComposeOpen(false)}
               />
             ) : null}
           </aside>

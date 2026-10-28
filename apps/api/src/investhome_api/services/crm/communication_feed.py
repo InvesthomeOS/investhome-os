@@ -669,6 +669,55 @@ def list_communication_feed(
     )
 
 
+def _annotate_whatsapp_delivery(
+    db: Session,
+    messages: list[CommunicationConversationMessage],
+) -> None:
+    from investhome_api.services.crm.whatsapp_send import whatsapp_delivery_label
+
+    wamids: list[str] = []
+    for item in messages:
+        meta = item.metadata if isinstance(item.metadata, dict) else {}
+        live = meta.get("live_thread") if isinstance(meta.get("live_thread"), dict) else {}
+        history = meta.get("bitrix_history") if isinstance(meta.get("bitrix_history"), dict) else {}
+        message_id = str(live.get("message_id") or history.get("message_id") or "").strip()
+        if message_id:
+            wamids.append(message_id)
+    if not wamids:
+        return
+    rows = list(
+        db.scalars(
+            select(CrmCommunication).where(
+                CrmCommunication.external_provider_id.in_(wamids),
+                CrmCommunication.channel == "whatsapp",
+                CrmCommunication.archived_at.is_(None),
+            )
+        ).all()
+    )
+    by_id = {
+        str(row.external_provider_id): row
+        for row in rows
+        if row.direction == "outbound" and row.external_provider_id
+    }
+    for item in messages:
+        meta = dict(item.metadata or {})
+        live = meta.get("live_thread") if isinstance(meta.get("live_thread"), dict) else {}
+        history = meta.get("bitrix_history") if isinstance(meta.get("bitrix_history"), dict) else {}
+        message_id = str(live.get("message_id") or history.get("message_id") or "").strip()
+        row = by_id.get(message_id)
+        if row is None:
+            continue
+        copied = dict(live or history)
+        label = whatsapp_delivery_label(row)
+        if label:
+            copied["delivery_status"] = label
+        if row.failure_reason:
+            copied["failure_reason"] = row.failure_reason
+        meta["live_thread"] = copied
+        meta["bitrix_history"] = copied
+        item.metadata = meta
+
+
 def list_whatsapp_conversation(
     db: Session,
     *,
@@ -718,7 +767,7 @@ def list_whatsapp_conversation(
         )
         for row in unique
     ]
-    if resolved in {"facebook", "instagram"} and chat:
+    if resolved in {"facebook", "instagram", "whatsapp"} and chat:
         live_rows = list(
             db.scalars(
                 select(CrmCommunication).where(
@@ -752,6 +801,14 @@ def list_whatsapp_conversation(
                 "author_name": row.sender_identity,
                 "comment_context": _comment_context_from_meta(meta),
             }
+            if resolved == "whatsapp" and row.direction == "outbound":
+                from investhome_api.services.crm.whatsapp_send import whatsapp_delivery_label
+
+                label = whatsapp_delivery_label(row)
+                if label:
+                    live_thread["delivery_status"] = label
+                if row.failure_reason:
+                    live_thread["failure_reason"] = row.failure_reason
             messages.append(
                 CommunicationConversationMessage(
                     id=row.id,
@@ -774,6 +831,8 @@ def list_whatsapp_conversation(
 
         comment_context, caps = load_comment_thread_meta(db, conversation_key=chat, channel=resolved)
         comment_capabilities = CommentCapabilities(**caps) if caps else None
+    if resolved == "whatsapp":
+        _annotate_whatsapp_delivery(db, messages)
     return CommunicationConversationResponse(
         contact_id=person_id,
         contact_name=contact.display_name if contact else None,

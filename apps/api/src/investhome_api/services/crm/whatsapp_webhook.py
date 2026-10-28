@@ -1,6 +1,7 @@
-"""Meta WhatsApp inbound webhook: HMAC signature, handshake, replay protection.
+"""Meta WhatsApp inbound webhook: HMAC signature, handshake, and replay protection.
 
-Does not send outbound WhatsApp messages and does not expose internal ingest.
+Inbound messages are ingested. Delivery statuses update an existing outbound row.
+Does not send WhatsApp messages and does not expose internal ingest.
 """
 
 from __future__ import annotations
@@ -15,10 +16,19 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from investhome_api.config.settings import get_settings, validate_whatsapp_webhook_secrets
 from investhome_api.core.logging_config import get_logger
+from investhome_api.models.crm_activity import CrmActivity
+from investhome_api.models.crm_communication import (
+    CrmCommunication,
+    CrmCommunicationChannel,
+    CrmCommunicationDirection,
+    CrmCommunicationStatus,
+)
 from investhome_api.services.crm.live_ingest import ingest_live_message
 
 logger = get_logger("investhome.whatsapp.webhook")
@@ -116,7 +126,12 @@ def get_whatsapp_idempotency_store() -> WhatsAppIdempotencyStore:
     return _store
 
 
-def verify_meta_signature(*, app_secret: str, raw_body: bytes, signature_header: str | None) -> bool:
+def verify_meta_signature(
+    *,
+    app_secret: str,
+    raw_body: bytes,
+    signature_header: str | None,
+) -> bool:
     if not signature_header or not app_secret:
         return False
     provided = signature_header.strip()
@@ -187,9 +202,14 @@ def extract_idempotency_keys(payload: dict[str, Any], *, raw_body: bytes) -> lis
                 if not isinstance(status, dict):
                     continue
                 sid = str(status.get("id") or "").strip()
-                if sid and sid not in seen:
-                    seen.add(sid)
-                    keys.append(f"status:{sid}")
+                state = str(status.get("status") or "").strip().lower()
+                stamp = str(status.get("timestamp") or "").strip()
+                if not sid:
+                    continue
+                token = f"status:{sid}:{state}:{stamp}"
+                if token not in seen:
+                    seen.add(token)
+                    keys.append(token)
     if not keys:
         keys.append("body:" + hashlib.sha256(raw_body).hexdigest())
     return keys
@@ -272,6 +292,163 @@ def _ingest_new_messages(db: Session, payload: dict[str, Any], claimed: set[str]
     return created
 
 
+_STATUS_RANK = {"sent": 1, "delivered": 2, "read": 3}
+_STATUS_VALUE = {
+    "sent": CrmCommunicationStatus.SENT.value,
+    "delivered": CrmCommunicationStatus.DELIVERED.value,
+    "read": CrmCommunicationStatus.OPENED.value,
+}
+
+
+def _status_token(status: dict[str, Any]) -> str:
+    sid = str(status.get("id") or "").strip()
+    state = str(status.get("status") or "").strip().lower()
+    stamp = str(status.get("timestamp") or "").strip()
+    return f"status:{sid}:{state}:{stamp}"
+
+
+def _safe_failure_reason(errors: object) -> str | None:
+    if not isinstance(errors, list) or not errors or not isinstance(errors[0], dict):
+        return None
+    first = errors[0]
+    code = str(first.get("code") or "").strip()
+    title = str(first.get("title") or first.get("message") or "").strip()
+    details = ""
+    data = first.get("error_data")
+    if isinstance(data, dict):
+        details = str(data.get("details") or "").strip()
+    text = " ".join(" — ".join(part for part in (code, title, details) if part).split())
+    if "bearer " in text.lower():
+        return None
+    return text[:500] or None
+
+
+def _find_outbound(db: Session, wamid: str) -> CrmCommunication | None:
+    rows = list(
+        db.scalars(
+            select(CrmCommunication).where(
+                CrmCommunication.external_provider_id == wamid,
+                CrmCommunication.channel == CrmCommunicationChannel.WHATSAPP.value,
+                CrmCommunication.archived_at.is_(None),
+            )
+        ).all()
+    )
+    outbound = [row for row in rows if row.direction == CrmCommunicationDirection.OUTBOUND.value]
+    return outbound[0] if outbound else None
+
+
+def _mirror_delivery_activity(db: Session, comm: CrmCommunication, label: str) -> None:
+    if comm.activity_id is None:
+        return
+    activity = db.get(CrmActivity, comm.activity_id)
+    if activity is None or not isinstance(activity.metadata_json, dict):
+        return
+    meta = dict(activity.metadata_json)
+    live = meta.get("live_thread")
+    copied = dict(live) if isinstance(live, dict) else {}
+    copied["delivery_status"] = label
+    if comm.failure_reason:
+        copied["failure_reason"] = comm.failure_reason
+    meta["live_thread"] = copied
+    activity.metadata_json = meta
+    flag_modified(activity, "metadata_json")
+
+
+def _apply_status(db: Session, comm: CrmCommunication, status: dict[str, Any]) -> bool:
+    state = str(status.get("status") or "").strip().lower()
+    ts = _message_timestamp(status.get("timestamp"))
+    meta = dict(comm.metadata_json) if isinstance(comm.metadata_json, dict) else {}
+    try:
+        current_rank = int(meta.get("whatsapp_delivery_rank") or 0)
+    except (TypeError, ValueError):
+        current_rank = 0
+    try:
+        current_at = int(meta.get("whatsapp_delivery_at") or 0)
+    except (TypeError, ValueError):
+        current_at = 0
+    event_at = int(ts.timestamp()) if ts is not None else 0
+    older = bool(current_at and event_at and event_at < current_at)
+
+    if state == "failed":
+        progressed = (
+            current_rank >= 2
+            or comm.delivered_at is not None
+            or comm.opened_at is not None
+        )
+        if progressed or older:
+            return False
+        if comm.failed_at is None:
+            comm.failed_at = ts or datetime.now(UTC)
+        reason = _safe_failure_reason(status.get("errors"))
+        if reason and not comm.failure_reason:
+            comm.failure_reason = reason
+        comm.status = CrmCommunicationStatus.FAILED.value
+        meta["whatsapp_status"] = "failed"
+        meta["whatsapp_failed"] = True
+        meta["whatsapp_delivery_rank"] = max(current_rank, 1)
+        meta["whatsapp_delivery_at"] = event_at or current_at
+        comm.metadata_json = meta
+        flag_modified(comm, "metadata_json")
+        _mirror_delivery_activity(db, comm, "failed")
+        return True
+
+    if state == "sent":
+        if comm.sent_at is None and ts is not None:
+            comm.sent_at = ts
+    elif state == "delivered":
+        if comm.delivered_at is None and ts is not None:
+            comm.delivered_at = ts
+        if comm.sent_at is None and ts is not None:
+            comm.sent_at = ts
+    elif state == "read":
+        if comm.opened_at is None and ts is not None:
+            comm.opened_at = ts
+        if comm.delivered_at is None and ts is not None:
+            comm.delivered_at = ts
+        if comm.sent_at is None and ts is not None:
+            comm.sent_at = ts
+    else:
+        return False
+
+    rank = _STATUS_RANK[state]
+    if older or rank <= current_rank:
+        return False
+    comm.status = _STATUS_VALUE[state]
+    meta["whatsapp_status"] = state
+    meta["whatsapp_delivery_rank"] = rank
+    meta["whatsapp_delivery_at"] = event_at or current_at
+    if rank >= 2:
+        meta["whatsapp_failed"] = False
+    comm.metadata_json = meta
+    flag_modified(comm, "metadata_json")
+    _mirror_delivery_activity(db, comm, state)
+    return True
+
+
+def _apply_status_events(db: Session, payload: dict[str, Any], claimed: set[str]) -> None:
+    for entry in payload.get("entry") or []:
+        if not isinstance(entry, dict):
+            continue
+        for change in entry.get("changes") or []:
+            if not isinstance(change, dict):
+                continue
+            value = change.get("value") if isinstance(change.get("value"), dict) else {}
+            for status in value.get("statuses") or []:
+                if not isinstance(status, dict):
+                    continue
+                token = _status_token(status)
+                if token not in claimed:
+                    continue
+                wamid = str(status.get("id") or "").strip()
+                if not wamid:
+                    continue
+                comm = _find_outbound(db, wamid)
+                if comm is None:
+                    logger.info("whatsapp_status_unmatched wamid=%s", wamid)
+                    continue
+                _apply_status(db, comm, status)
+
+
 def handle_verification_challenge(
     *,
     hub_mode: str | None,
@@ -330,5 +507,7 @@ def process_whatsapp_webhook(
     if not claimed:
         return {"ok": True, "duplicate": True, "ingested": 0}
 
-    ingested = _ingest_new_messages(db, payload, set(claimed))
+    claimed_keys = set(claimed)
+    ingested = _ingest_new_messages(db, payload, claimed_keys)
+    _apply_status_events(db, payload, claimed_keys)
     return {"ok": True, "duplicate": False, "ingested": ingested}

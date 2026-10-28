@@ -79,6 +79,22 @@ export function whatsappSender(entry: WhatsAppEntry): string {
   return channelSenderLabel(entry);
 }
 
+function deliveryStatus(entry: WhatsAppEntry): { status: string; reason: string } {
+  const history = bitrixHistory(entry) as { delivery_status?: string; failure_reason?: string } | null;
+  return {
+    status: String(history?.delivery_status || ''),
+    reason: String(history?.failure_reason || ''),
+  };
+}
+
+function deliveryLabel(status: string, locale?: string): string | null {
+  const tr = (locale || '').toLowerCase().startsWith('tr');
+  const labels: Record<string, string> = tr
+    ? { sent: 'Gönderildi', delivered: 'İletildi', read: 'Okundu', failed: 'Başarısız' }
+    : { sent: 'Sent', delivered: 'Delivered', read: 'Read', failed: 'Failed' };
+  return labels[status] || null;
+}
+
 export function whatsappDirection(entry: WhatsAppEntry): 'incoming' | 'outgoing' | 'system' {
   const direction = String(bitrixHistory(entry)?.direction || '');
   if (direction === 'outgoing' || direction === 'outbound') return 'outgoing';
@@ -194,6 +210,8 @@ export function WhatsAppThread({
       {ordered.map((message) => {
         const direction = whatsappDirection(message);
         const parsed = parseWhatsappMedia(message.summary || message.title);
+        const delivery = deliveryStatus(message);
+        const deliveryText = direction === 'outgoing' ? deliveryLabel(delivery.status, locale) : null;
         return (
           <div
             key={message.id}
@@ -206,6 +224,15 @@ export function WhatsAppThread({
               {new Date(message.created_at).toLocaleString(locale)}
             </small>
             {parsed.text ? <p>{parsed.text}</p> : null}
+            {deliveryText ? (
+              <small
+                className={`crm-contact-card__wa-delivery${delivery.status === 'failed' ? ' is-failed' : ''}`}
+                data-testid="whatsapp-delivery"
+              >
+                {deliveryText}
+                {delivery.status === 'failed' && delivery.reason ? ` · ${delivery.reason}` : ''}
+              </small>
+            ) : null}
             <WhatsAppMediaBlock entry={message} documents={documents} />
           </div>
         );

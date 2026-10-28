@@ -29,10 +29,20 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(HTTPException)
     async def http_exception_handler(_request: Request, exc: HTTPException) -> JSONResponse:
         detail = exc.detail
+        provider_details: list[ErrorDetail] | None = None
         if isinstance(detail, str):
             message = detail
         elif isinstance(detail, dict):
             message = str(detail.get("message") or "Request failed")
+            provider_code = detail.get("provider_code")
+            provider_message = detail.get("provider_message")
+            if isinstance(provider_code, str) or isinstance(provider_message, str):
+                provider_details = [
+                    ErrorDetail(
+                        code=str(provider_code or "provider_error")[:80],
+                        message=str(provider_message or message)[:240],
+                    )
+                ]
             logger.info(
                 "http_exception status=%s message=%s",
                 exc.status_code,
@@ -41,7 +51,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         else:
             message = "Request failed"
         code = _status_to_code(exc.status_code)
-        payload = error_response(code=code, message=message)
+        payload = error_response(code=code, message=message, details=provider_details)
         headers = dict(exc.headers) if exc.headers else None
         return _json_error(payload, exc.status_code, headers=headers)
 

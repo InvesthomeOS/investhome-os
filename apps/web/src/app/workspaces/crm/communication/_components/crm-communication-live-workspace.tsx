@@ -13,7 +13,7 @@ import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { fetchActivity } from '@/workspaces/crm/api/activities';
 import { ApiError } from '@/lib/api/client';
 import type { CommunicationFeedItem } from '@/workspaces/crm/api/communication';
-import { sendCommentAction, sendLiveCommunication } from '@/workspaces/crm/api/communication';
+import { sendCommentAction, sendCustomerWhatsapp, sendLiveCommunication } from '@/workspaces/crm/api/communication';
 import { EmailDetail } from '@/workspaces/crm/contact-card/crm-email-view';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import {
@@ -333,8 +333,15 @@ export function CrmCommunicationLiveWorkspace() {
   const isThreadChannel = selected?.channel === 'whatsapp'
     || selected?.channel === 'facebook'
     || selected?.channel === 'instagram';
+  const canReplyWhatsapp = Boolean(
+    selected
+    && selected.channel === 'whatsapp'
+    && canSendMeta
+    && (selected.contact_id || selected.activity_id || selected.conversation_key),
+  );
   const canReplySelected = Boolean(
     selected
+    && !canReplyWhatsapp
     && canSendMeta
     && (selected.can_reply
       || ((selected.channel === 'facebook' || selected.channel === 'instagram')
@@ -363,6 +370,23 @@ export function CrmCommunicationLiveWorkspace() {
       && selected.channel !== 'email'
       && isActivityId(selected.activity_id),
     ),
+  });
+  const whatsappMutation = useMutation({
+    mutationFn: sendCustomerWhatsapp,
+    onSuccess: async () => {
+      setReplyText('');
+      setReplyError('');
+      await queryClient.invalidateQueries({ queryKey: ['crm', 'communications'] });
+    },
+    onError: (error) => {
+      const code = error instanceof ApiError ? error.message : '';
+      if (code === 'whatsapp_template_required') setReplyError(t('whatsappTemplateRequired'));
+      else if (code === 'whatsapp_not_configured') setReplyError(t('whatsappNotConfigured'));
+      else if (code === 'whatsapp_phone_missing') setReplyError(t('whatsappPhoneMissing'));
+      else if (code === 'whatsapp_phone_invalid') setReplyError(t('whatsappPhoneInvalid'));
+      else if (code === 'crm_persist_failed') setReplyError(t('whatsappStoredFailed'));
+      else setReplyError(t('sendFailed'));
+    },
   });
   const sendMutation = useMutation({
     mutationFn: sendLiveCommunication,
@@ -1080,7 +1104,48 @@ export function CrmCommunicationLiveWorkspace() {
                   ) : (
                     <div className="crm-comm-note">{drawerBody || rowCopy(selected).preview || rowCopy(selected).subject}</div>
                   )}
-                  {canReplySelected ? (
+                  {canReplyWhatsapp ? (
+                    <form
+                      className="crm-comm-reply"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        if (whatsappMutation.isPending || !selected) return;
+                        const text = replyText.trim();
+                        if (!text) return;
+                        setReplyError('');
+                        whatsappMutation.mutate({
+                          contact_id: selected.contact_id,
+                          communication_id: selected.source === 'activity' ? null : selected.id,
+                          activity_id: selected.activity_id || (selected.source === 'activity' ? selected.id : null),
+                          body_text: text,
+                        });
+                      }}
+                    >
+                      <textarea
+                        value={replyText}
+                        onChange={(event) => setReplyText(event.target.value)}
+                        placeholder={t('replyPlaceholder')}
+                        disabled={whatsappMutation.isPending}
+                        data-testid="crm-whatsapp-reply-input"
+                      />
+                      {replyError ? (
+                        <p className="crm-comm-reply__error" role="alert" data-testid="crm-whatsapp-reply-error">
+                          {replyError}
+                        </p>
+                      ) : null}
+                      <div className="crm-comm-reply__actions">
+                        <Button
+                          type="submit"
+                          size="sm"
+                          loading={whatsappMutation.isPending}
+                          disabled={whatsappMutation.isPending || !replyText.trim()}
+                          data-testid="crm-whatsapp-reply-send"
+                        >
+                          {whatsappMutation.isPending ? t('sending') : t('whatsappSend')}
+                        </Button>
+                      </div>
+                    </form>
+                  ) : canReplySelected ? (
                     <form
                       className="crm-comm-reply"
                       onSubmit={(event) => {

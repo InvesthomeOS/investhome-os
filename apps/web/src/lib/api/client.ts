@@ -100,7 +100,7 @@ export async function staffFetch(url: string, init?: RequestInit): Promise<Respo
 
 export type ApiErrorBody = {
   success?: boolean;
-  detail?: string | { msg: string; loc?: string[] }[];
+  detail?: string | { msg?: string; loc?: string[]; code?: string } | { msg: string; loc?: string[] }[];
   error?: { code?: string; message?: string; field?: string | null };
   meta?: { request_id?: string | null };
   details?: { code: string; message: string; field?: string | null }[];
@@ -126,6 +126,14 @@ export function parseApiErrorBody(body: ApiErrorBody, status: number): ApiError 
 
   if (typeof body.detail === 'string') {
     message = body.detail;
+  } else if (
+    body.detail
+    && !Array.isArray(body.detail)
+    && typeof body.detail === 'object'
+    && typeof body.detail.code === 'string'
+  ) {
+    message = body.detail.code;
+    code = code || body.detail.code;
   } else if (body.error?.message) {
     message = body.error.message;
   } else if (Array.isArray(body.detail) && body.detail[0]?.msg) {

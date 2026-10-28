@@ -551,6 +551,29 @@ export async function sendCustomerEmail(payload: {
   });
 }
 
+export async function sendCustomerWhatsapp(payload: {
+  contact_id?: string | null;
+  lead_id?: string | null;
+  communication_id?: string | null;
+  activity_id?: string | null;
+  to?: string | null;
+  body_text: string;
+  idempotency_key?: string | null;
+}): Promise<{
+  id: string;
+  channel: string;
+  direction: string;
+  provider_message_id: string | null;
+  contact_id: string | null;
+  lead_id: string | null;
+  duplicate: boolean;
+}> {
+  return apiFetch('/crm/live-communications/whatsapp/send', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function sendLiveCommunication(payload: {
   channel: string;
   contact_id: string;

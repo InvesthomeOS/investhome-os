@@ -9081,7 +9081,16 @@
         "gmailStoredFailed": "Gmail accepted the email, but the CRM record could not be saved.",
         "contactEmailMissing": "This contact does not have a usable email address.",
         "emailRecipientRejected": "That recipient is not a stored participant on this conversation.",
-        "emailReplyUnavailable": "This record cannot be replied to through Gmail."
+        "emailReplyUnavailable": "This record cannot be replied to through Gmail.",
+        "whatsappSend": "Send WhatsApp",
+        "whatsappPhone": "Phone",
+        "whatsappTemplateRequired": "WhatsApp requires a template because this conversation is outside the customer-care window.",
+        "whatsappNotConfigured": "WhatsApp sending is not configured.",
+        "whatsappPhoneMissing": "This contact does not have a usable phone number.",
+        "whatsappPhoneInvalid": "That phone number cannot be used for WhatsApp.",
+        "whatsappPhoneAmbiguous": "Choose one of the stored phone numbers.",
+        "whatsappRecipientRejected": "That phone number is not stored on this contact.",
+        "whatsappStoredFailed": "WhatsApp accepted the message, but the CRM record could not be saved."
       },
       "accessDenied": "You do not have permission to view communications.",
       "accessDeniedHint": "Contact your administrator for CRM communication access.",

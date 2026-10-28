@@ -43,6 +43,7 @@ from investhome_api.schemas.crm_live_communications import (
     LiveSendResponse,
     UnmatchedCommunicationOut,
     UnmatchedListResponse,
+    WhatsAppSendRequest,
 )
 from investhome_api.services.crm.communication_feed import list_communication_feed, list_whatsapp_conversation
 from investhome_api.services.crm.gmail_oauth import (
@@ -58,6 +59,10 @@ from investhome_api.services.crm.gmail_send import (
     send_customer_email,
 )
 from investhome_api.services.crm.gmail_sync import enqueue_gmail_sync, sync_gmail_account
+from investhome_api.services.crm.whatsapp_send import (
+    WhatsAppCustomerSendError,
+    send_customer_whatsapp,
+)
 from investhome_api.services.crm.live_accounts import (
     disconnect_account,
     list_accounts,
@@ -370,6 +375,54 @@ def send_customer_email_route(
         raise HTTPException(status_code=exc.status_code, detail=exc.public_detail) from exc
     except Exception:
         logger.exception("gmail_send_route_failed")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="crm_persist_failed",
+        ) from None
+    meta = comm.metadata_json if isinstance(comm.metadata_json, dict) else {}
+    lead_raw = meta.get("lead_id")
+    try:
+        lead_id = UUID(str(lead_raw)) if lead_raw else None
+    except ValueError:
+        lead_id = None
+    return LiveSendResponse(
+        id=comm.id,
+        channel=comm.channel,
+        direction=comm.direction,
+        provider_message_id=comm.external_provider_id,
+        contact_id=comm.contact_id,
+        lead_id=lead_id,
+        duplicate=not created,
+        request_id=get_request_id() or "",
+    )
+
+
+@router.post("/crm/live-communications/whatsapp/send", response_model=LiveSendResponse)
+def send_customer_whatsapp_route(
+    payload: WhatsAppSendRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("crm", "send_communications")),
+) -> LiveSendResponse:
+    try:
+        comm, created = send_customer_whatsapp(
+            db,
+            actor=user,
+            contact_id=payload.contact_id,
+            lead_id=payload.lead_id,
+            communication_id=payload.communication_id,
+            activity_id=payload.activity_id,
+            to=payload.to,
+            body_text=payload.body_text,
+            idempotency_key=payload.idempotency_key,
+        )
+        db.commit()
+        db.refresh(comm)
+    except WhatsAppCustomerSendError as exc:
+        db.rollback()
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
+    except Exception:
+        logger.exception("whatsapp_send_route_failed")
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

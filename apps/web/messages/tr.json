@@ -18020,7 +18020,16 @@
         "gmailStoredFailed": "E-posta Gmail tarafından kabul edildi ancak CRM kaydı yazılamadı.",
         "contactEmailMissing": "Kişinin kullanılabilir bir e-posta adresi yok.",
         "emailRecipientRejected": "Alıcı bu konuşmanın kayıtlı katılımcıları arasında değil.",
-        "emailReplyUnavailable": "Bu kayıt Gmail üzerinden yanıtlanamıyor."
+        "emailReplyUnavailable": "Bu kayıt Gmail üzerinden yanıtlanamıyor.",
+        "whatsappSend": "WhatsApp mesajı gönder",
+        "whatsappPhone": "Telefon",
+        "whatsappTemplateRequired": "Bu konuşma müşteri hizmeti penceresinin dışında olduğu için WhatsApp şablon mesajı istiyor.",
+        "whatsappNotConfigured": "WhatsApp gönderimi yapılandırılmamış.",
+        "whatsappPhoneMissing": "Kişinin kullanılabilir bir telefon numarası yok.",
+        "whatsappPhoneInvalid": "Bu telefon numarası WhatsApp için kullanılamaz.",
+        "whatsappPhoneAmbiguous": "Kayıtlı telefon numaralarından birini seçin.",
+        "whatsappRecipientRejected": "Bu telefon numarası kişinin kayıtlı numaraları arasında değil.",
+        "whatsappStoredFailed": "WhatsApp mesajı kabul etti ancak CRM kaydı yazılamadı."
       },
       "accessDenied": "İletişimleri görüntüleme yetkiniz yok.",
       "accessDeniedHint": "CRM iletişim erişimi için yöneticinize başvurun.",
