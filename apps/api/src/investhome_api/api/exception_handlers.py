@@ -36,6 +36,10 @@ def register_exception_handlers(app: FastAPI) -> None:
             message = str(detail.get("message") or "Request failed")
             provider_code = detail.get("provider_code")
             provider_message = detail.get("provider_message")
+            reason_code = detail.get("reason_code")
+            if isinstance(reason_code, str) and reason_code.replace("_", "").isalnum():
+                provider_code = reason_code
+                provider_message = message
             if isinstance(provider_code, str) or isinstance(provider_message, str):
                 provider_details = [
                     ErrorDetail(

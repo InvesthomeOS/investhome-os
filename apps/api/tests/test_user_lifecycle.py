@@ -105,6 +105,7 @@ def test_valid_reset_updates_password_and_rejects_reuse(
         json={"token": token, "new_password": "another-correct-horse-battery-4"},
     )
     assert reused.status_code == 400
+    assert reused.json()["details"][0]["code"] == "reset_used"
     assert _login(auth_client, SALES_EMAIL, DEMO_PASSWORD).status_code == 401
     assert _login(auth_client, SALES_EMAIL, NEW_PASSWORD).status_code == 200
     sales = _user(db, SALES_EMAIL)
@@ -126,6 +127,8 @@ def test_expired_malformed_and_replaced_tokens_are_rejected(
         json={"token": first, "new_password": NEW_PASSWORD},
     )
     assert expired.status_code == 400
+    assert expired.json()["detail"] == "Reset link has expired"
+    assert expired.json()["details"][0]["code"] == "reset_expired"
     reset_login_rate_limiter_for_tests()
 
     malformed = auth_client.post(
@@ -133,6 +136,7 @@ def test_expired_malformed_and_replaced_tokens_are_rejected(
         json={"token": "not-a-token", "new_password": NEW_PASSWORD},
     )
     assert malformed.status_code == 400
+    assert malformed.json()["details"][0]["code"] == "reset_malformed"
     reset_login_rate_limiter_for_tests()
 
     assert auth_client.post("/auth/password/forgot", json={"email": SALES_EMAIL}).status_code == 200
@@ -159,7 +163,17 @@ def test_password_policy_is_enforced(auth_client: TestClient, monkeypatch) -> No
         json={"token": captured["token"], "new_password": "password1234"},
     )
     assert rejected.status_code == 400
+    assert rejected.json()["detail"] == "Password does not meet requirements"
+    assert rejected.json()["details"][0]["code"] == "password_common"
     assert "password1234" not in rejected.text
+    reset_login_rate_limiter_for_tests()
+    short = auth_client.post(
+        "/auth/password/reset",
+        json={"token": captured["token"], "new_password": "too-short"},
+    )
+    assert short.status_code == 400
+    assert short.json()["detail"] == "Password does not meet requirements"
+    assert short.json()["details"][0]["code"] == "password_too_short"
 
 
 def test_reset_revokes_sessions_and_keeps_mfa(

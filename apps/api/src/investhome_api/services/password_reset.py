@@ -37,9 +37,10 @@ DELIVERY_NOT_CONNECTED = "not_connected"
 
 
 class PasswordResetError(ValueError):
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str, *, reason_code: str | None = None) -> None:
         super().__init__(message)
         self.message = message
+        self.reason_code = reason_code
 
 
 @dataclass(frozen=True)
@@ -194,12 +195,18 @@ def reset_token_is_usable(row: PasswordResetToken, *, now: datetime | None = Non
 
 
 def consume_password_reset(db: Session, *, token: str, new_password: str) -> User:
+    if normalize_reset_token(token) is None:
+        raise PasswordResetError("malformed", reason_code="reset_malformed")
     row = lookup_reset_token(db, token)
-    if row is None or not reset_token_is_usable(row):
-        raise PasswordResetError("invalid")
+    if row is None:
+        raise PasswordResetError("invalid", reason_code="reset_invalid")
+    if row.consumed_at is not None:
+        raise PasswordResetError("used", reason_code="reset_used")
+    if not reset_token_is_usable(row):
+        raise PasswordResetError("expired", reason_code="reset_expired")
     user = db.get(User, row.user_id)
     if not user_can_receive_reset(user):
-        raise PasswordResetError("invalid")
+        raise PasswordResetError("invalid", reason_code="reset_invalid")
     assert user is not None
     try:
         validate_new_password(
@@ -209,7 +216,7 @@ def consume_password_reset(db: Session, *, token: str, new_password: str) -> Use
             user_id=user.id,
         )
     except PasswordPolicyError as exc:
-        raise PasswordResetError("password_policy") from exc
+        raise PasswordResetError("password_policy", reason_code=exc.code) from exc
     now = datetime.now(UTC)
     user.hashed_password = hash_password(new_password)
     user.updated_at = now

@@ -65,8 +65,9 @@ _NON_ALNUM = re.compile(r"[^a-z0-9]+")
 
 
 class PasswordPolicyError(ValueError):
-    def __init__(self) -> None:
+    def __init__(self, code: str = "password_rejected") -> None:
         super().__init__(GENERIC_PASSWORD_ERROR)
+        self.code = code
 
 
 def generate_temporary_password() -> str:
@@ -89,19 +90,21 @@ def validate_new_password(
     user_id: UUID | str | None = None,
 ) -> None:
     if not isinstance(password, str):
-        raise PasswordPolicyError()
-    if len(password) < MIN_PASSWORD_LENGTH or len(password) > MAX_PASSWORD_LENGTH:
-        raise PasswordPolicyError()
+        raise PasswordPolicyError("password_invalid")
+    if len(password) < MIN_PASSWORD_LENGTH:
+        raise PasswordPolicyError("password_too_short")
+    if len(password) > MAX_PASSWORD_LENGTH:
+        raise PasswordPolicyError("password_too_long")
     if "\x00" in password:
-        raise PasswordPolicyError()
+        raise PasswordPolicyError("password_invalid")
 
     lowered = password.lower()
     if lowered in _BLOCKED_PASSWORDS:
-        raise PasswordPolicyError()
+        raise PasswordPolicyError("password_common")
     if _is_trivial_pattern(lowered, password):
-        raise PasswordPolicyError()
+        raise PasswordPolicyError("password_trivial")
     if _contains_account_identifier(lowered, email=email, full_name=full_name, user_id=user_id):
-        raise PasswordPolicyError()
+        raise PasswordPolicyError("password_identity")
 
 
 def _is_trivial_pattern(lowered: str, original: str) -> bool:

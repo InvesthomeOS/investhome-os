@@ -7,10 +7,12 @@ import { useSearchParams } from 'next/navigation';
 import { BrandLogo } from '@/components/brand/brand-logo';
 import { MfaRequiredEnrollForm } from '@/components/auth/mfa-required-enroll-form';
 import { MfaVerifyForm } from '@/components/auth/mfa-verify-form';
+import { PasswordField } from '@/components/auth/password-field';
 import { ApiError } from '@/lib/api/client';
 import { requestPasswordReset } from '@/lib/api/auth';
 import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
 import { mapMfaHttpError } from '@/lib/auth/mfa-flow';
+import { classifyForgotFailure } from '@/lib/auth/password-reset-ux';
 import { PublicBrandingProvider, useCompanyBranding } from '@/lib/company/company-context';
 
 function LoginForm() {
@@ -22,8 +24,9 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotBusy, setForgotBusy] = useState(false);
   const [forgotMessage, setForgotMessage] = useState<string | null>(null);
+  const [forgotTone, setForgotTone] = useState<'success' | 'error' | 'note'>('note');
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -50,6 +53,29 @@ function LoginForm() {
     } finally {
       setSubmitting(false);
       setPassword('');
+    }
+  };
+
+  const handleForgot = async () => {
+    if (!email.trim()) {
+      setForgotTone('note');
+      setForgotMessage(t('forgotNeedEmail'));
+      return;
+    }
+    setForgotBusy(true);
+    setForgotMessage(null);
+    try {
+      await requestPasswordReset(email.trim());
+      setForgotTone('success');
+      setForgotMessage(t('forgotSent'));
+    } catch (err) {
+      const status = err instanceof ApiError ? err.status : 0;
+      setForgotTone('error');
+      setForgotMessage(
+        classifyForgotFailure(status) === 'rate_limit' ? t('rateLimited') : t('resetErrors.unexpected'),
+      );
+    } finally {
+      setForgotBusy(false);
     }
   };
 
@@ -89,50 +115,43 @@ function LoginForm() {
                 />
               </label>
 
-              <label className="auth-form__field">
-                <span>{t('passwordLabel')}</span>
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  minLength={8}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
-              </label>
-
-              {error && <p className="auth-form__error">{error}</p>}
+              <PasswordField
+                label={t('passwordLabel')}
+                value={password}
+                onChange={setPassword}
+                autoComplete="current-password"
+                showLabel={t('showPassword')}
+                hideLabel={t('hidePassword')}
+                minLength={8}
+                testId="login-password"
+              />
 
               <button
-                className="auth-form__hint"
+                className="auth-form__text-link"
                 type="button"
-                onClick={() => {
-                  setForgotOpen(true);
-                  setForgotMessage(null);
-                }}
+                data-testid="forgot-password-link"
+                disabled={forgotBusy}
+                onClick={() => void handleForgot()}
               >
                 {t('forgotPassword')}
               </button>
-
-              {forgotOpen ? (
-                <div className="auth-card__hint">
-                  <button
-                    type="button"
-                    disabled={submitting || !email.trim()}
-                    onClick={() => {
-                      setSubmitting(true);
-                      setForgotMessage(null);
-                      void requestPasswordReset(email.trim())
-                        .then(() => setForgotMessage(t('forgotSent')))
-                        .catch(() => setForgotMessage(t('forgotSent')))
-                        .finally(() => setSubmitting(false));
-                    }}
-                  >
-                    {t('forgotPassword')}
-                  </button>
-                  {forgotMessage ? <p>{forgotMessage}</p> : null}
-                </div>
+              {forgotMessage ? (
+                <p
+                  className={
+                    forgotTone === 'success'
+                      ? 'auth-form__success'
+                      : forgotTone === 'error'
+                        ? 'auth-form__error'
+                        : 'auth-form__note'
+                  }
+                  role={forgotTone === 'error' ? 'alert' : 'status'}
+                  data-testid="forgot-password-message"
+                >
+                  {forgotMessage}
+                </p>
               ) : null}
+
+              {error && <p className="auth-form__error">{error}</p>}
 
               <button className="auth-form__submit" type="submit" disabled={submitting}>
                 {submitting ? t('submitting') : t('submit')}

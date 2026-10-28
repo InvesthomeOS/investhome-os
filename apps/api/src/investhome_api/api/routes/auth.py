@@ -368,11 +368,23 @@ def reset_password_with_token(
         if exc.message == "password_policy":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=GENERIC_PASSWORD_ERROR,
+                detail={
+                    "message": GENERIC_PASSWORD_ERROR,
+                    "reason_code": exc.reason_code or "password_rejected",
+                },
             ) from exc
+        reset_messages = {
+            "malformed": "Reset link is malformed",
+            "expired": "Reset link has expired",
+            "used": "Reset link has already been used",
+            "invalid": "Reset link is invalid",
+        }
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Reset link is invalid or expired",
+            detail={
+                "message": reset_messages.get(exc.message, "Reset link is invalid or expired"),
+                "reason_code": exc.reason_code or "reset_invalid",
+            },
         ) from exc
     record_auth_event(
         "security.password_reset",
