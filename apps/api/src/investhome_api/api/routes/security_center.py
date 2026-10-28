@@ -52,8 +52,7 @@ from investhome_api.schemas.security_center import (
 from investhome_api.services import security_center_service as service
 from investhome_api.services import session_service
 from investhome_api.services.audit_service import record_auth_event
-from investhome_api.services.auth_service import hash_password
-from investhome_api.services.password_policy import generate_temporary_password
+from investhome_api.services.password_reset import issue_password_reset
 from investhome_api.services.mfa_admin import reset_user_mfa
 
 router = APIRouter(prefix="/security", tags=["security-center"])
@@ -620,25 +619,24 @@ def reset_password_user(
     actor: User = Depends(require_permission("users", "manage")),
 ) -> MessageResponse:
     user = db.get(User, user_id)
-    if user is None:
+    if user is None or user.archived_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    # Temporary password — operator must communicate out-of-band; never return in response.
-    temp = generate_temporary_password()
-    user.hashed_password = hash_password(temp)
-    user.updated_at = datetime.now(UTC)
-    session_service.revoke_user_sessions(db, user_id, reason="password_reset")
+    issued = issue_password_reset(db, user, requested_by_user_id=actor.id)
     record_auth_event(
-        "security.password_reset",
+        "security.password_reset_requested",
         db=db,
         actor=actor,
         target_id=user_id,
-        metadata={"sessions_revoked": True},
+        metadata={"delivery_status": issued.delivery_status},
         request=request,
         commit=True,
     )
-    return MessageResponse(
-        message="Password reset. Temporary credential must be delivered out-of-band; it is not returned by the API."
-    )
+    messages = {
+        "sent": "Şifre sıfırlama bağlantısı gönderildi.",
+        "not_connected": "Bağlantı oluşturuldu ancak e-posta servisi bağlı değil.",
+        "failed": "Bağlantı oluşturuldu ancak e-posta gönderilemedi. Yeniden deneyin.",
+    }
+    return MessageResponse(message=messages.get(issued.delivery_status, messages["failed"]))
 
 
 @users_security_router.post("/{user_id}/suspend", response_model=MessageResponse)

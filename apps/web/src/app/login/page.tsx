@@ -8,6 +8,7 @@ import { BrandLogo } from '@/components/brand/brand-logo';
 import { MfaRequiredEnrollForm } from '@/components/auth/mfa-required-enroll-form';
 import { MfaVerifyForm } from '@/components/auth/mfa-verify-form';
 import { ApiError } from '@/lib/api/client';
+import { requestPasswordReset } from '@/lib/api/auth';
 import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
 import { mapMfaHttpError } from '@/lib/auth/mfa-flow';
 import { PublicBrandingProvider, useCompanyBranding } from '@/lib/company/company-context';
@@ -21,6 +22,8 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -72,6 +75,7 @@ function LoginForm() {
             <p className="auth-card__subtitle">{t('subtitle')}</p>
 
             {searchParams.get('next') && <p className="auth-card__hint">{t('redirectHint')}</p>}
+            {searchParams.get('reset') === '1' ? <p className="auth-card__hint">{t('resetSuccess')}</p> : null}
 
             <form className="auth-form" onSubmit={(event) => void handleSubmit(event)} data-testid="login-password-form">
               <label className="auth-form__field">
@@ -98,6 +102,37 @@ function LoginForm() {
               </label>
 
               {error && <p className="auth-form__error">{error}</p>}
+
+              <button
+                className="auth-form__hint"
+                type="button"
+                onClick={() => {
+                  setForgotOpen(true);
+                  setForgotMessage(null);
+                }}
+              >
+                {t('forgotPassword')}
+              </button>
+
+              {forgotOpen ? (
+                <div className="auth-card__hint">
+                  <button
+                    type="button"
+                    disabled={submitting || !email.trim()}
+                    onClick={() => {
+                      setSubmitting(true);
+                      setForgotMessage(null);
+                      void requestPasswordReset(email.trim())
+                        .then(() => setForgotMessage(t('forgotSent')))
+                        .catch(() => setForgotMessage(t('forgotSent')))
+                        .finally(() => setSubmitting(false));
+                    }}
+                  >
+                    {t('forgotPassword')}
+                  </button>
+                  {forgotMessage ? <p>{forgotMessage}</p> : null}
+                </div>
+              ) : null}
 
               <button className="auth-form__submit" type="submit" disabled={submitting}>
                 {submitting ? t('submitting') : t('submit')}

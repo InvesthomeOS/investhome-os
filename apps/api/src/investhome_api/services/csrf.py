@@ -18,6 +18,8 @@ STATE_CHANGING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 CSRF_EXEMPT_PATHS = frozenset(
     {
         "/auth/login",
+        "/auth/password/forgot",
+        "/auth/password/reset",
         "/auth/mfa/verify",
         "/auth/mfa/enroll/required",
         "/auth/mfa/enroll/required/confirm",

@@ -245,6 +245,7 @@ from investhome_api.models.user_auth import (
     UserRole,
     UserStatus,
 )
+from investhome_api.models.password_reset import PasswordResetToken  # noqa: F401
 from investhome_api.models.user_invitation import UserInvitation  # noqa: F401
 from investhome_api.models.user_mfa import UserMfa, UserMfaRecoveryCode  # noqa: F401
 

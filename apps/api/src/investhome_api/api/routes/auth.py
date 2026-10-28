@@ -5,6 +5,7 @@ from typing import NoReturn
 from uuid import UUID
 
 from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Request, Response, status
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -23,16 +24,16 @@ from investhome_api.schemas.auth import (
     MfaChallengeRequiredResponse,
     MfaEnrollConfirmRequest,
     MfaEnrollConfirmResponse,
-    MfaEnrollStartResponse,
     MfaEnrollmentChallengeRequest,
     MfaEnrollmentCompleteResponse,
     MfaEnrollmentConfirmRequiredRequest,
     MfaEnrollmentRequiredResponse,
+    MfaEnrollStartResponse,
     MfaVerifyRequest,
 )
 from investhome_api.services import session_service
-from investhome_api.services.csrf import csrf_binding_key, issue_csrf_token
 from investhome_api.services.audit_service import record_auth_event, record_login_failed
+from investhome_api.services.csrf import csrf_binding_key, issue_csrf_token
 from investhome_api.services.auth_service import (
     cookie_samesite,
     create_access_token,
@@ -40,12 +41,6 @@ from investhome_api.services.auth_service import (
     hash_password,
     set_session_cookie,
     verify_password,
-)
-from investhome_api.services.password_policy import (
-    GENERIC_PASSWORD_ERROR,
-    PasswordPolicyError,
-    production_blocks_demo_staff_login,
-    validate_new_password,
 )
 from investhome_api.services.invite_rate_limit import (
     enforce_invite_rate_limit,
@@ -63,12 +58,6 @@ from investhome_api.services.login_rate_limit import (
     record_failed_mfa_confirm,
     record_failed_mfa_verify,
     resolve_client_ip,
-)
-from investhome_api.services.user_invitation import (
-    InvitationError,
-    accept_invitation,
-    invitation_is_redeemable,
-    lookup_invitation_by_token,
 )
 from investhome_api.services.mfa_challenge import (
     consume_mfa_challenge,
@@ -88,7 +77,29 @@ from investhome_api.services.mfa_login import (
     user_requires_mfa_challenge,
     verify_login_mfa_code,
 )
+from investhome_api.services.password_policy import (
+    GENERIC_PASSWORD_ERROR,
+    PasswordPolicyError,
+    production_blocks_demo_staff_login,
+    validate_new_password,
+)
+from investhome_api.services.password_reset import (
+    PasswordResetError,
+    consume_password_reset,
+    issue_password_reset,
+    user_can_receive_reset,
+)
+from investhome_api.services.password_reset_rate_limit import (
+    enforce_password_reset_rate_limit,
+    record_password_reset_attempt,
+)
 from investhome_api.services.permission_service import load_user_with_roles
+from investhome_api.services.user_invitation import (
+    InvitationError,
+    accept_invitation,
+    invitation_is_redeemable,
+    lookup_invitation_by_token,
+)
 from investhome_api.services.user_service import serialize_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -308,6 +319,71 @@ def accept_invite(
     )
     db.commit()
     return MessageResponse(message="Invitation accepted")
+
+
+GENERIC_FORGOT_MESSAGE = (
+    "If an account exists for this email, a password reset link has been sent."
+)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=255)
+
+
+class ResetPasswordPublicRequest(BaseModel):
+    token: str = Field(min_length=8, max_length=256)
+    new_password: str = Field(min_length=1, max_length=256)
+
+
+@router.post("/password/forgot", response_model=MessageResponse)
+def forgot_password(
+    payload: ForgotPasswordRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    identity = normalize_login_identity(payload.email)
+    client_ip = resolve_client_ip(request)
+    enforce_password_reset_rate_limit(ip=client_ip, email=identity)
+    record_password_reset_attempt(ip=client_ip, email=identity)
+    user = db.scalar(select(User).where(User.email == identity))
+    if user_can_receive_reset(user):
+        assert user is not None
+        issue_password_reset(db, user, requested_by_user_id=None)
+        db.commit()
+    return MessageResponse(message=GENERIC_FORGOT_MESSAGE)
+
+
+@router.post("/password/reset", response_model=MessageResponse)
+def reset_password_with_token(
+    payload: ResetPasswordPublicRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    client_ip = resolve_client_ip(request)
+    enforce_password_reset_rate_limit(ip=client_ip, email="reset-token")
+    try:
+        user = consume_password_reset(db, token=payload.token, new_password=payload.new_password)
+    except PasswordResetError as exc:
+        record_password_reset_attempt(ip=client_ip, email="reset-token")
+        if exc.message == "password_policy":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=GENERIC_PASSWORD_ERROR,
+            ) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reset link is invalid or expired",
+        ) from exc
+    record_auth_event(
+        "security.password_reset",
+        db=db,
+        actor=user,
+        actor_id=user.id,
+        target_id=user.id,
+        request=request,
+    )
+    db.commit()
+    return MessageResponse(message="Password updated. Sign in with your new password.")
 
 
 @router.post("/logout", response_model=MessageResponse)

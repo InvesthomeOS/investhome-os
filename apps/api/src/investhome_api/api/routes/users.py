@@ -4,6 +4,8 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -18,8 +20,9 @@ from investhome_api.schemas.auth import (
     UserRolesUpdate,
     UserUpdate,
 )
-from investhome_api.services.audit_service import record_auth_event
 from investhome_api.services import session_service
+from investhome_api.services.audit_service import record_auth_event
+from investhome_api.services.password_reset import invalidate_outstanding_resets
 from investhome_api.services.permission_service import (
     ensure_not_privilege_escalation,
     load_user_with_roles,
@@ -31,6 +34,11 @@ from investhome_api.services.user_invitation import (
     issue_invitation,
     unguessable_password_hash,
 )
+from investhome_api.services.user_lifecycle import (
+    deletion_report,
+    is_last_active_super_admin,
+    transfer_operational_ownership,
+)
 from investhome_api.services.user_service import serialize_user
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -38,6 +46,15 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 def _get_user_or_404(user_id: UUID, db: Session) -> User:
     user = load_user_with_roles(db, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return user
+
+
+def _get_user_including_archived(user_id: UUID, db: Session) -> User:
+    user = db.scalar(
+        select(User).options(selectinload(User.roles)).where(User.id == user_id)
+    )
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
@@ -233,6 +250,11 @@ def activate_user(
     actor: User = Depends(require_manage_users()),
 ) -> UserResponse:
     user = _get_user_or_404(user_id, db)
+    if user.archived_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Archived users must be restored",
+        )
     if user.status == UserStatus.INVITED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -254,6 +276,151 @@ def activate_user(
     )
     db.commit()
     return serialize_user(_get_user_or_404(user.id, db))
+
+
+class OwnershipTransferRequest(BaseModel):
+    target_user_id: UUID
+
+
+def _block_last_super_admin(db: Session, user: User) -> None:
+    if is_last_active_super_admin(db, user):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot remove the last active super admin",
+        )
+
+
+@router.post("/{user_id}/archive", response_model=UserResponse)
+def archive_user(
+    user_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_manage_users()),
+) -> UserResponse:
+    user = _get_user_including_archived(user_id, db)
+    if actor.id == user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot archive your own account",
+        )
+    _block_last_super_admin(db, user)
+    user.archived_at = datetime.now(UTC)
+    if user.status == UserStatus.ACTIVE:
+        user.status = UserStatus.INACTIVE
+    user.updated_at = datetime.now(UTC)
+    session_service.revoke_user_sessions(db, user.id, reason="archived")
+    invalidate_outstanding_invitations(db, user.id)
+    invalidate_outstanding_resets(db, user.id)
+    record_auth_event(
+        "user.archived",
+        db=db,
+        actor=actor,
+        target_id=user.id,
+        request=request,
+    )
+    db.commit()
+    db.refresh(user)
+    return serialize_user(user)
+
+
+@router.post("/{user_id}/restore", response_model=UserResponse)
+def restore_user(
+    user_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_manage_users()),
+) -> UserResponse:
+    user = _get_user_including_archived(user_id, db)
+    if user.archived_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not archived",
+        )
+    user.archived_at = None
+    if user.status == UserStatus.INACTIVE:
+        user.status = UserStatus.ACTIVE
+    user.updated_at = datetime.now(UTC)
+    record_auth_event(
+        "user.restored",
+        db=db,
+        actor=actor,
+        target_id=user.id,
+        request=request,
+    )
+    db.commit()
+    return serialize_user(_get_user_or_404(user.id, db))
+
+
+@router.get("/{user_id}/delete-preflight")
+def delete_user_preflight(
+    user_id: UUID,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_manage_users()),
+) -> dict[str, object]:
+    user = _get_user_including_archived(user_id, db)
+    return deletion_report(db, actor=actor, target=user)
+
+
+@router.post("/{user_id}/transfer-ownership")
+def transfer_user_ownership(
+    user_id: UUID,
+    payload: OwnershipTransferRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_manage_users()),
+) -> dict[str, object]:
+    source = _get_user_including_archived(user_id, db)
+    target = _get_user_including_archived(payload.target_user_id, db)
+    if source.id == target.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Choose a different user",
+        )
+    if target.status != UserStatus.ACTIVE or target.archived_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Target user must be active",
+        )
+    moved = transfer_operational_ownership(
+        db,
+        source_user_id=source.id,
+        target_user_id=target.id,
+    )
+    report = deletion_report(db, actor=actor, target=source)
+    record_auth_event(
+        "user.ownership_transferred",
+        db=db,
+        actor=actor,
+        target_id=source.id,
+        metadata={"target_user_id": str(target.id), "moved": moved},
+        request=request,
+    )
+    db.commit()
+    return {"moved": moved, "deletion": report}
+
+
+@router.delete("/{user_id}")
+def permanently_delete_user(
+    user_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_manage_users()),
+) -> JSONResponse:
+    user = _get_user_including_archived(user_id, db)
+    report = deletion_report(db, actor=actor, target=user)
+    if report["cannot_delete"]:
+        return JSONResponse(status_code=status.HTTP_409_CONFLICT, content=report)
+    record_auth_event(
+        "user.deleted",
+        db=db,
+        actor=actor,
+        target_id=user.id,
+        metadata={"email": user.email},
+        request=request,
+    )
+    db.delete(user)
+    db.commit()
+    return JSONResponse(status_code=status.HTTP_200_OK, content={"deleted": True})
 
 
 def _invite_user(

@@ -10,12 +10,17 @@ import { EntityActivityTimeline } from '@/app/dashboard/_components/entity-activ
 import { EntityDocumentsPanel } from '@/app/dashboard/_components/entity-documents-panel';
 import {
   activateUser,
+  archiveUser,
   assignUserRoles,
   canViewUsers,
   createUser,
   deactivateUser,
+  fetchDeletePreflight,
   fetchRoles,
   fetchUsers,
+  permanentlyDeleteUser,
+  restoreUser,
+  transferUserOwnership,
   resendUserInvite,
   combinePersonName,
   type InviteDelivery,
@@ -63,6 +68,13 @@ export function UsersAdminWorkspace() {
   const canResetMfa = canShowMfaAdminReset(currentUser);
   const [draftFilters, setDraftFilters] = useState<AdminFilterState>(DEFAULT_ADMIN_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState<AdminFilterState>(DEFAULT_ADMIN_FILTERS);
+  const [includeArchived, setIncludeArchived] = useState(false);
+  const [resetTarget, setResetTarget] = useState<UserRecord | null>(null);
+  const [transferTarget, setTransferTarget] = useState<UserRecord | null>(null);
+  const [transferTo, setTransferTo] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<UserRecord | null>(null);
+  const [deleteEmail, setDeleteEmail] = useState('');
+  const [deleteBlock, setDeleteBlock] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,6 +84,7 @@ export function UsersAdminWorkspace() {
         fetchUsers({
           search: appliedFilters.search || undefined,
           status: appliedFilters.status || undefined,
+          include_archived: includeArchived,
         }),
         fetchRoles(),
       ]);
@@ -83,7 +96,7 @@ export function UsersAdminWorkspace() {
     } finally {
       setLoading(false);
     }
-  }, [appliedFilters.search, appliedFilters.status, notifyError, t]);
+  }, [appliedFilters.search, appliedFilters.status, includeArchived, notifyError, t]);
 
   useEffect(() => {
     if (currentUser && !canViewUsers(currentUser)) {
@@ -290,7 +303,12 @@ export function UsersAdminWorkspace() {
       header: t('columns.status'),
       sortable: true,
       exportValue: (row) => row.status,
-      render: (row) => t(`status.${row.status}`),
+      render: (row) => (
+        <>
+          {t(`status.${row.status}`)}
+          {row.archived_at ? ` · ${t('archivedBadge')}` : ''}
+        </>
+      ),
     },
     {
       id: 'roles',
@@ -372,19 +390,11 @@ export function UsersAdminWorkspace() {
               >
                 {tSec('forceLogout')}
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={async () => {
-                  try {
-                    await resetUserPassword(row.id);
-                    notifySuccess(tSec('resetPasswordDone'));
-                  } catch (err) {
-                    notifyError(err, tShell('saveFailed'));
-                  }
-                }}
-              >
-                {tSec('resetPassword')}
+              <Button type="button" variant="ghost" onClick={() => setResetTarget(row)}>
+                {t('sendResetLink')}
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setTransferTarget(row)}>
+                {t('transferOwnership')}
               </Button>
               {row.status === 'active' ? (
                 <Button
@@ -413,9 +423,65 @@ export function UsersAdminWorkspace() {
                   {t('activate')}
                 </Button>
               ) : null}
-              {row.status === 'active' ? (
+              {row.status === 'active' && !row.archived_at ? (
                 <Button type="button" variant="danger" onClick={() => void handleDeactivate(row.id)}>
                   {t('deactivate')}
+                </Button>
+              ) : null}
+              {!row.archived_at ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={async () => {
+                    try {
+                      await archiveUser(row.id);
+                      notifySuccess(t('archive'));
+                      await load();
+                    } catch (err) {
+                      notifyError(err, tShell('saveFailed'));
+                    }
+                  }}
+                >
+                  {t('archive')}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={async () => {
+                    try {
+                      await restoreUser(row.id);
+                      notifySuccess(t('restore'));
+                      await load();
+                    } catch (err) {
+                      notifyError(err, tShell('saveFailed'));
+                    }
+                  }}
+                >
+                  {t('restore')}
+                </Button>
+              )}
+              {row.status !== 'active' || row.archived_at ? (
+                <Button
+                  type="button"
+                  variant="danger"
+                  onClick={() => {
+                    setDeleteEmail('');
+                    setDeleteBlock(null);
+                    setDeleteTarget(row);
+                    void fetchDeletePreflight(row.id)
+                      .then((report) => {
+                        if (report.cannot_delete) {
+                          const parts = Object.entries(report.dependencies)
+                            .map(([key, count]) => `${key}: ${count}`)
+                            .join(', ');
+                          setDeleteBlock(parts ? `${t('deleteBlocked')} ${parts}` : t('deleteBlocked'));
+                        }
+                      })
+                      .catch((err) => notifyError(err, tShell('saveFailed')));
+                  }}
+                >
+                  {t('permanentDelete')}
                 </Button>
               ) : null}
             </>
@@ -439,6 +505,15 @@ export function UsersAdminWorkspace() {
           ) : null
         }
       />
+
+      <label>
+        <input
+          type="checkbox"
+          checked={includeArchived}
+          onChange={(event) => setIncludeArchived(event.target.checked)}
+        />{' '}
+        {t('showArchived')}
+      </label>
 
       <AdminFilters
         filters={draftFilters}
@@ -483,6 +558,118 @@ export function UsersAdminWorkspace() {
           <EntityActivityTimeline entityType="user" entityId={selected.id} />
         </section>
       ) : null}
+
+      <Dialog
+        open={Boolean(resetTarget)}
+        title={t('sendResetLink')}
+        onClose={() => setResetTarget(null)}
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={() => setResetTarget(null)}>
+              {tCommon('cancel')}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (!resetTarget) return;
+                void resetUserPassword(resetTarget.id)
+                  .then((result) => {
+                    notifySuccess(result.message || t('resetLinkSent'));
+                    setResetTarget(null);
+                  })
+                  .catch((err) => notifyError(err, tShell('saveFailed')));
+              }}
+            >
+              {t('sendResetLink')}
+            </Button>
+          </>
+        }
+      >
+        <p>{t('sendResetConfirm', { name: resetTarget?.full_name ?? resetTarget?.email ?? '' })}</p>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(transferTarget)}
+        title={t('transferOwnership')}
+        onClose={() => setTransferTarget(null)}
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={() => setTransferTarget(null)}>
+              {tCommon('cancel')}
+            </Button>
+            <Button
+              type="button"
+              disabled={!transferTo}
+              onClick={() => {
+                if (!transferTarget || !transferTo) return;
+                void transferUserOwnership(transferTarget.id, transferTo)
+                  .then((result) => {
+                    notifySuccess(t('transferDone'));
+                    if (result.deletion.cannot_delete) {
+                      notifySuccess(t('deleteBlocked'));
+                    }
+                    setTransferTarget(null);
+                    return load();
+                  })
+                  .catch((err) => notifyError(err, tShell('saveFailed')));
+              }}
+            >
+              {t('transferOwnership')}
+            </Button>
+          </>
+        }
+      >
+        <label>
+          {t('transferTarget')}
+          <select value={transferTo} onChange={(event) => setTransferTo(event.target.value)}>
+            <option value="">{tCommon('noValue')}</option>
+            {users
+              .filter((item) => item.id !== transferTarget?.id && item.status === 'active' && !item.archived_at)
+              .map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.full_name}
+                </option>
+              ))}
+          </select>
+        </label>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(deleteTarget)}
+        title={t('permanentDelete')}
+        onClose={() => setDeleteTarget(null)}
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={() => setDeleteTarget(null)}>
+              {tCommon('cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              disabled={!deleteTarget || deleteEmail.trim().toLowerCase() !== deleteTarget.email.toLowerCase() || Boolean(deleteBlock)}
+              onClick={() => {
+                if (!deleteTarget) return;
+                void permanentlyDeleteUser(deleteTarget.id)
+                  .then(() => {
+                    notifySuccess(t('deleteDone'));
+                    setDeleteTarget(null);
+                    return load();
+                  })
+                  .catch((err) => notifyError(err, t('deleteBlocked')));
+              }}
+            >
+              {t('permanentDelete')}
+            </Button>
+          </>
+        }
+      >
+        <p>
+          {deleteTarget?.full_name} — {deleteTarget?.email}
+        </p>
+        <p>{t('deleteConfirm')}</p>
+        {deleteBlock ? <p>{deleteBlock}</p> : null}
+        <input value={deleteEmail} onChange={(event) => setDeleteEmail(event.target.value)} />
+      </Dialog>
 
       <Dialog
         open={Boolean(mfaResetTarget)}

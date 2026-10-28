@@ -443,6 +443,7 @@ def _configure_auth(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPa
             "test_security_monitoring.py",
             "test_user_invitations.py",
             "test_invitation_email_delivery.py",
+            "test_user_lifecycle.py",
         )
     )
     monkeypatch.setenv("API_AUTH_ENABLED", "true" if enabled else "false")

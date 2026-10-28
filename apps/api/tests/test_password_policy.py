@@ -234,12 +234,28 @@ def test_admin_password_reset_does_not_return_secret_and_invalidates_old(
         full_name="Policy Reset",
     )
     user_id = created_user["id"]
+    captured: dict[str, str] = {}
+
+    def _capture_email(*, user, raw_token: str) -> str:
+        captured["token"] = raw_token
+        return "sent"
+
+    monkeypatch.setattr(
+        "investhome_api.services.password_reset._send_reset_email",
+        _capture_email,
+    )
     assert _login(auth_client).status_code == 200
     reset = auth_client.post(f"/users/{user_id}/reset-password")
     assert reset.status_code == 200, reset.text
     body = reset.json()
-    assert "password" not in body or "not returned" in body.get("message", "").lower()
+    assert "token" not in body
     assert STRONG_PASSWORD not in reset.text
+    assert captured["token"] not in reset.text
+    completed = auth_client.post(
+        "/auth/password/reset",
+        json={"token": captured["token"], "new_password": "another-correct-horse-battery-4"},
+    )
+    assert completed.status_code == 200, completed.text
     auth_client.post("/auth/logout")
     assert _login(auth_client, email, STRONG_PASSWORD).status_code == 401
 

@@ -227,6 +227,52 @@ export async function deactivateUser(userId: string): Promise<UserRecord> {
   return apiFetch(`/users/${userId}/deactivate`, { method: 'POST' });
 }
 
+export async function requestPasswordReset(email: string): Promise<{ message: string }> {
+  return apiFetch('/auth/password/forgot', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function completePasswordReset(token: string, newPassword: string): Promise<{ message: string }> {
+  return apiFetch('/auth/password/reset', {
+    method: 'POST',
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
+}
+
+export async function archiveUser(userId: string): Promise<UserRecord> {
+  return apiFetch(`/users/${userId}/archive`, { method: 'POST' });
+}
+
+export async function restoreUser(userId: string): Promise<UserRecord> {
+  return apiFetch(`/users/${userId}/restore`, { method: 'POST' });
+}
+
+export type DeletePreflight = {
+  cannot_delete: boolean;
+  reason: string;
+  dependencies: Record<string, number>;
+};
+
+export async function fetchDeletePreflight(userId: string): Promise<DeletePreflight> {
+  return apiFetch(`/users/${userId}/delete-preflight`);
+}
+
+export async function transferUserOwnership(userId: string, targetUserId: string): Promise<{
+  moved: Record<string, number>;
+  deletion: DeletePreflight;
+}> {
+  return apiFetch(`/users/${userId}/transfer-ownership`, {
+    method: 'POST',
+    body: JSON.stringify({ target_user_id: targetUserId }),
+  });
+}
+
+export async function permanentlyDeleteUser(userId: string): Promise<{ deleted: boolean }> {
+  return apiFetch(`/users/${userId}`, { method: 'DELETE' });
+}
+
 export async function assignUserRoles(userId: string, roleIds: string[]): Promise<UserRecord> {
   return apiFetch(`/users/${userId}/roles`, {
     method: 'PUT',
