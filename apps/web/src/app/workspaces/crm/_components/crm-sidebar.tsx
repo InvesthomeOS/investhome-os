@@ -17,18 +17,18 @@ const CRM_NAV_ICONS: Record<string, IhIconName> = {
   'nav.pipeline': 'barChart',
   'nav.matches': 'inventory',
   'nav.contacts': 'users',
-  'nav.junk': 'inbox',
+  'nav.junk': 'alert',
   'nav.agents': 'user',
   'nav.agreements': 'documents',
-  'nav.companies': 'investors',
+  'nav.companies': 'projects',
   'nav.investors': 'trendingUp',
   'nav.relationships': 'crm',
   'nav.timeline': 'activity',
-  'nav.activities': 'calendar',
+  'nav.activities': 'clock',
   'nav.tasks': 'check',
   'nav.calendar': 'calendar',
   'nav.notes': 'documents',
-  'nav.tags': 'target',
+  'nav.tags': 'sparkles',
   'nav.communication': 'inbox',
   'nav.documents': 'documents',
   'nav.reports': 'barChart',
@@ -51,9 +51,7 @@ function isAdminWorkspacePath(pathname: string) {
     pathname === '/dashboard/admin' ||
     pathname.startsWith('/dashboard/admin/') ||
     pathname === '/workspaces/admin' ||
-    pathname.startsWith('/workspaces/admin/') ||
-    pathname.startsWith('/ui-preview/crm/admin') ||
-    pathname.startsWith('/ui-preview/admin')
+    pathname.startsWith('/workspaces/admin/')
   );
 }
 
@@ -110,30 +108,7 @@ export function CrmSidebar() {
           const isActive =
             pathname === item.href ||
             (item.href !== '/workspaces/crm/dashboard' && pathname.startsWith(`${item.href}/`)) ||
-            (item.href === '/workspaces/crm/pipeline' &&
-              pathname.startsWith('/ui-preview/crm/opportunities')) ||
-            (item.href === '/workspaces/crm/matches' &&
-              pathname.startsWith('/ui-preview/crm/matches')) ||
-            (item.href === '/workspaces/crm/documents' &&
-              pathname.startsWith('/ui-preview/crm/documents')) ||
-            (item.href === '/workspaces/crm/activities' &&
-              pathname.startsWith('/ui-preview/crm/activities')) ||
-            (item.href === '/workspaces/crm/tasks' &&
-              pathname.startsWith('/ui-preview/crm/tasks')) ||
-            (item.href === '/workspaces/crm/calendar' &&
-              pathname.startsWith('/ui-preview/crm/calendar')) ||
-            (item.href === '/workspaces/crm/companies' &&
-              pathname.startsWith('/ui-preview/crm/companies')) ||
-            (item.href === '/workspaces/crm/investors' &&
-              (pathname.startsWith('/ui-preview/crm/investors') ||
-                pathname.startsWith('/workspaces/crm/investors'))) ||
-            (item.href === '/workspaces/crm/reports' &&
-              pathname.startsWith('/ui-preview/crm/reports')) ||
-            (item.href === '/workspaces/crm/settings' &&
-              pathname.startsWith('/ui-preview/crm/settings')) ||
-            (item.href === '/workspaces/crm/contacts' &&
-              (pathname.startsWith('/ui-preview/crm/people') ||
-                pathname.startsWith('/workspaces/crm/people')));
+            (item.href === '/workspaces/crm/contacts' && pathname.startsWith('/workspaces/crm/people'));
           const label = t(item.labelKey as 'nav.dashboard');
           const icon = CRM_NAV_ICONS[item.labelKey] ?? 'crm';
           return (

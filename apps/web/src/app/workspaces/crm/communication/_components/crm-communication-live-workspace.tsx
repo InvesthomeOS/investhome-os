@@ -1,5 +1,7 @@
 'use client';
 
+import type { Route } from 'next';
+import Link from 'next/link';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
@@ -158,8 +160,8 @@ function displayOwner(name: string | null | undefined): string {
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return '•';
-  const first = parts[0][0] || '';
-  const last = parts.length > 1 ? parts[parts.length - 1][0] || '' : '';
+  const first = parts[0]?.[0] || '';
+  const last = parts.length > 1 ? parts[parts.length - 1]?.[0] || '' : '';
   return `${first}${last}`.toLocaleUpperCase('tr-TR');
 }
 
@@ -255,9 +257,14 @@ function sortValue(item: CommunicationFeedItem, key: SortKey): string {
 
 export function CrmCommunicationLiveWorkspace() {
   const t = useTranslations('crm.communication.workspace');
+  const tNav = useTranslations('crm.nav');
+  const tSequences = useTranslations('crm.communication.sequences');
+  const tCalls = useTranslations('crm.communication.calls');
+  const tMeetings = useTranslations('crm.communication.meetings');
   const tCommon = useTranslations('common');
   const locale = useLocale();
   const { authLoading, canViewCommunications, has } = useCrmAccess();
+  const canViewAnalytics = has('view_analytics');
   const queryClient = useQueryClient();
   const canSendMeta = has('send_communications');
   const { openContact } = useContactCard();
@@ -534,6 +541,33 @@ export function CrmCommunicationLiveWorkspace() {
         <div className="crm-comm__header-tools">{dateSelect('crm-comm-header-date')}</div>
       </header>
 
+      <nav className="crm-comm-tools" aria-label={tNav('communication')} data-testid="crm-comm-tools">
+        <Link href={'/workspaces/crm/communication/unmatched' as Route} data-testid="crm-comm-link-unmatched">
+          {t('unmatchedTab')}
+        </Link>
+        <Link href={'/workspaces/crm/communication/templates' as Route} data-testid="crm-comm-link-templates">
+          {tNav('templates')}
+        </Link>
+        <Link href={'/workspaces/crm/communication/signatures' as Route} data-testid="crm-comm-link-signatures">
+          {tNav('signatures')}
+        </Link>
+        {canViewAnalytics ? (
+          <Link href={'/workspaces/crm/communication/analytics' as Route} data-testid="crm-comm-link-analytics">
+            {tNav('analytics')}
+          </Link>
+        ) : null}
+        <Link href={'/workspaces/crm/communication/calls' as Route} data-testid="crm-comm-link-calls">
+          {tCalls('title')}
+        </Link>
+        <Link href={'/workspaces/crm/communication/meetings' as Route} data-testid="crm-comm-link-meetings">
+          {tMeetings('title')}
+        </Link>
+        <Link href={'/workspaces/crm/communication/sequences' as Route} data-testid="crm-comm-link-sequences">
+          {tNav('sequences')}
+          <span>{tSequences('architectureNote')}</span>
+        </Link>
+      </nav>
+
       <section className="crm-comm-kpis" aria-label={t('kpis.aria')}>
         {(
           [
@@ -655,7 +689,10 @@ export function CrmCommunicationLiveWorkspace() {
           <UnmatchedCommunicationsView />
         </section>
       ) : feedQuery.isError ? (
-        <ErrorState title={t('title')} message={feedQuery.error.message} />
+        <ErrorState
+          title={t('title')}
+          message={locale.startsWith('tr') ? 'İletişim kayıtları yüklenemedi.' : 'Communications could not be loaded.'}
+        />
       ) : items.length === 0 ? (
         <div className="crm-comm-empty">{t('empty')}</div>
       ) : (

@@ -4,11 +4,13 @@ import type { Route } from 'next';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useLocale } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button, ErrorState, Input, LoadingState, Select } from '@investhome/ui';
 
 import { canUpdateCrm } from '@/lib/crm/crm-permissions';
+import { useDebouncedQueryParam, useListQueryPatch } from '@/lib/crm/list-query';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import {
@@ -189,20 +191,27 @@ export function CrmPipelineLiveWorkspace() {
   const queryClient = useQueryClient();
   const { openContact } = useContactCard();
 
-  const [searchDraft, setSearchDraft] = useState('');
-  const [search, setSearch] = useState('');
-  const [stage, setStage] = useState('');
-  const [source, setSource] = useState('');
-  const [project, setProject] = useState('');
-  const [ownerId, setOwnerId] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const searchParams = useSearchParams();
+  const patchQuery = useListQueryPatch();
+  const [searchDraft, setSearchDraft, search] = useDebouncedQueryParam('q');
+  const stage = searchParams.get('stage') ?? '';
+  const source = searchParams.get('source') ?? '';
+  const project = searchParams.get('project') ?? '';
+  const ownerId = searchParams.get('owner') ?? '';
+  const dateFrom = searchParams.get('from') ?? '';
+  const dateTo = searchParams.get('to') ?? '';
+  const junkReason = searchParams.get('junk') ?? '';
+  const setSource = (value: string) => patchQuery({ source: value });
+  const setProject = (value: string) => patchQuery({ project: value });
+  const setOwnerId = (value: string) => patchQuery({ owner: value });
+  const setDateFrom = (value: string) => patchQuery({ from: value });
+  const setDateTo = (value: string) => patchQuery({ to: value });
+  const setJunkReason = (value: string) => patchQuery({ junk: value });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<CrmLeadStage | null>(null);
   const [stageError, setStageError] = useState<string | null>(null);
-  const [junkReason, setJunkReason] = useState('');
   const [junkPending, setJunkPending] = useState<CrmLeadItem | null>(null);
 
   const filters = useMemo(
@@ -300,14 +309,16 @@ export function CrmPipelineLiveWorkspace() {
 
   const clearFilters = () => {
     setSearchDraft('');
-    setSearch('');
-    setStage('');
-    setSource('');
-    setProject('');
-    setOwnerId('');
-    setDateFrom('');
-    setDateTo('');
-    setJunkReason('');
+    patchQuery({
+      q: null,
+      stage: null,
+      source: null,
+      project: null,
+      owner: null,
+      from: null,
+      to: null,
+      junk: null,
+    });
   };
 
   const openDetail = (item: CrmLeadItem) => {
@@ -382,10 +393,7 @@ export function CrmPipelineLiveWorkspace() {
             type="button"
             className={`crm-leads__kpi${stage === value ? ' is-active' : ''}`}
             data-testid={testId}
-            onClick={() => {
-              setStage(value);
-              if (value !== 'unqualified') setJunkReason('');
-            }}
+            onClick={() => patchQuery(value === 'unqualified' ? { stage: value } : { stage: value, junk: null })}
           >
             <span>{label}</span>
             <strong>{count.toLocaleString(locale)}</strong>
@@ -399,10 +407,6 @@ export function CrmPipelineLiveWorkspace() {
             label={t.search}
             value={searchDraft}
             onChange={(event) => setSearchDraft(event.target.value)}
-            onBlur={() => setSearch(searchDraft.trim())}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') setSearch(searchDraft.trim());
-            }}
             placeholder={t.searchPh}
           />
         </div>
@@ -479,8 +483,7 @@ export function CrmPipelineLiveWorkspace() {
                   className="crm-pipeline__column-btn"
                   onClick={() => {
                     const next = stage === column ? '' : column;
-                    setStage(next);
-                    if (next !== 'unqualified') setJunkReason('');
+                    patchQuery(next === 'unqualified' ? { stage: next } : { stage: next, junk: null });
                   }}
                 >
                   {stageLabel(column, locale)}

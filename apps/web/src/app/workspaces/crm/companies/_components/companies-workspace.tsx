@@ -2,9 +2,9 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocale } from 'next-intl';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import { Button, ErrorState, Input, LoadingState, Select } from '@investhome/ui';
@@ -12,6 +12,7 @@ import { Button, ErrorState, Input, LoadingState, Select } from '@investhome/ui'
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 import { fetchUsers } from '@/lib/api/auth';
 import { canUpdateCrm } from '@/lib/crm/crm-permissions';
+import { useDebouncedQueryParam, useListQueryPatch } from '@/lib/crm/list-query';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { crmCompaniesQueries } from '@/lib/query/crm-companies-queries';
 import type { FetchCrmCompaniesParams } from '@/workspaces/crm/api/companies';
@@ -160,6 +161,14 @@ const COPY = {
 
 type SummaryTab = 'all' | 'brokerage' | 'partner' | 'investor' | 'open';
 
+const COMPANY_TABS: SummaryTab[] = ['all', 'brokerage', 'partner', 'investor', 'open'];
+const COMPANY_SORTS = ['updated_at', 'display_name', 'company_type', 'status'] as const;
+const COMPANY_QUERY_DEFAULTS = { tab: 'all', sort: 'updated_at', dir: 'desc', size: '10', page: '1' };
+
+function companyTab(value: string | null): SummaryTab {
+  return COMPANY_TABS.includes(value as SummaryTab) ? (value as SummaryTab) : 'all';
+}
+
 const TABS: Array<{
   id: SummaryTab;
   countKey: keyof ReturnType<typeof emptyCounts>;
@@ -285,30 +294,30 @@ export function CompaniesWorkspace() {
   const locale = useLocale() === 'tr' ? 'tr' : 'en';
   const copy = COPY[locale];
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const patch = useListQueryPatch(COMPANY_QUERY_DEFAULTS);
+  const [searchDraft, setSearchDraft, search] = useDebouncedQueryParam('q', undefined, { resetPage: true });
   const { openContact } = useContactCard();
   const { authLoading, canReadCompanies, canCreate, user } = useCrmAccess();
   const canEdit = canUpdateCrm(user);
-  const [tab, setTab] = useState<SummaryTab>('all');
-  const [searchDraft, setSearchDraft] = useState('');
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('');
-  const [status, setStatus] = useState('');
-  const [country, setCountry] = useState('');
-  const [relation, setRelation] = useState('');
-  const [ownerId, setOwnerId] = useState('');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(10);
-  const [sortBy, setSortBy] = useState('updated_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const tab = companyTab(searchParams.get('tab'));
+  const category = searchParams.get('category') ?? '';
+  const status = searchParams.get('status') ?? '';
+  const country = searchParams.get('country') ?? '';
+  const relation = searchParams.get('relation') ?? '';
+  const ownerId = searchParams.get('owner') ?? '';
+  const page = Math.max(1, Number(searchParams.get('page') || '1') || 1);
+  const sizeParam = Number(searchParams.get('size'));
+  const pageSize = PAGE_SIZES.includes(sizeParam as (typeof PAGE_SIZES)[number]) ? (sizeParam as (typeof PAGE_SIZES)[number]) : 10;
+  const sortParam = searchParams.get('sort');
+  const sortBy = COMPANY_SORTS.includes(sortParam as (typeof COMPANY_SORTS)[number]) ? (sortParam as string) : 'updated_at';
+  const sortOrder = searchParams.get('dir') === 'asc' ? 'asc' : 'desc';
   const [menuId, setMenuId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setSearch(searchDraft.trim());
-      setPage(1);
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [searchDraft]);
+  const setPage = (value: number | ((current: number) => number)) => {
+    const next = typeof value === 'function' ? value(page) : value;
+    patch({ page: String(next) });
+  };
 
   const params: FetchCrmCompaniesParams = useMemo(() => {
     const next: FetchCrmCompaniesParams = {
@@ -356,32 +365,30 @@ export function CompaniesWorkspace() {
   );
 
   const selectTab = (next: SummaryTab) => {
-    setTab(next);
-    setPage(1);
-    if (next !== 'all') setCategory('');
+    patch({ tab: next, page: null, category: next === 'all' ? category : null });
   };
 
   const toggleSort = (column: string, initial: 'asc' | 'desc') => {
-    setPage(1);
     if (sortBy === column) {
-      setSortOrder((current) => (current === 'asc' ? 'desc' : 'asc'));
+      patch({ sort: column, dir: sortOrder === 'asc' ? 'desc' : 'asc', page: null });
       return;
     }
-    setSortBy(column);
-    setSortOrder(initial);
+    patch({ sort: column, dir: initial, page: null });
   };
 
   const sortMark = (column: string) => (sortBy === column ? (sortOrder === 'asc' ? ' ↑' : ' ↓') : '');
 
   const clearFilters = () => {
     setSearchDraft('');
-    setSearch('');
-    setCategory('');
-    setStatus('');
-    setCountry('');
-    setRelation('');
-    setOwnerId('');
-    setPage(1);
+    patch({
+      q: null,
+      category: null,
+      status: null,
+      country: null,
+      relation: null,
+      owner: null,
+      page: null,
+    });
   };
 
   const openCompany = (id: string) => {
@@ -396,7 +403,17 @@ export function CompaniesWorkspace() {
     return <ErrorState title={copy.title} message="No access" />;
   }
   if (listQuery.isError) {
-    return <ErrorState title={copy.title} message={listQuery.error.message} />;
+    return (
+      <ErrorState
+        title={copy.title}
+        message="Şirketler yüklenemedi. Yeniden deneyin."
+        action={
+          <Button type="button" size="sm" onClick={() => void listQuery.refetch()}>
+            {locale === 'tr' ? 'Yeniden dene' : 'Retry'}
+          </Button>
+        }
+      />
+    );
   }
 
   return (
@@ -453,10 +470,7 @@ export function CompaniesWorkspace() {
           <Select
             label={copy.category}
             value={category}
-            onChange={(event) => {
-              setCategory(event.target.value);
-              setPage(1);
-            }}
+            onChange={(event) => patch({ category: event.target.value, page: null })}
             data-testid="crm-companies-filter-category"
           >
             <option value="">{copy.all}</option>
@@ -470,10 +484,7 @@ export function CompaniesWorkspace() {
         <Select
           label={copy.status}
           value={status}
-          onChange={(event) => {
-            setStatus(event.target.value);
-            setPage(1);
-          }}
+          onChange={(event) => patch({ status: event.target.value, page: null })}
           data-testid="crm-companies-filter-status"
         >
           <option value="">{copy.all}</option>
@@ -486,10 +497,7 @@ export function CompaniesWorkspace() {
         <Select
           label={copy.country}
           value={country}
-          onChange={(event) => {
-            setCountry(event.target.value);
-            setPage(1);
-          }}
+          onChange={(event) => patch({ country: event.target.value, page: null })}
           data-testid="crm-companies-filter-country"
         >
           <option value="">{copy.allCountries}</option>
@@ -502,10 +510,7 @@ export function CompaniesWorkspace() {
         <Select
           label={copy.relation}
           value={relation}
-          onChange={(event) => {
-            setRelation(event.target.value);
-            setPage(1);
-          }}
+          onChange={(event) => patch({ relation: event.target.value, page: null })}
           data-testid="crm-companies-filter-relation"
         >
           <option value="">{copy.allRelations}</option>
@@ -520,10 +525,7 @@ export function CompaniesWorkspace() {
         <Select
           label={copy.owner}
           value={ownerId}
-          onChange={(event) => {
-            setOwnerId(event.target.value);
-            setPage(1);
-          }}
+          onChange={(event) => patch({ owner: event.target.value, page: null })}
           data-testid="crm-companies-filter-owner"
         >
           <option value="">{copy.allOwners}</option>
@@ -731,10 +733,7 @@ export function CompaniesWorkspace() {
                 key={size}
                 type="button"
                 className={pageSize === size ? 'is-active' : undefined}
-                onClick={() => {
-                  setPageSize(size);
-                  setPage(1);
-                }}
+                onClick={() => patch({ size: String(size), page: null })}
               >
                 {size}
               </button>

@@ -57,6 +57,24 @@
   min-width: 168px;
 }
 
+.crm-comm-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 0 0 4px;
+}
+
+.crm-comm-tools a {
+  color: var(--comm-ink, #16343c);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.crm-comm-tools a span {
+  margin-left: 6px;
+  color: var(--comm-muted, #5d7380);
+}
+
 .crm-comm-kpis {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

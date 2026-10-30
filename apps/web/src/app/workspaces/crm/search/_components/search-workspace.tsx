@@ -171,14 +171,7 @@ export function SearchWorkspace() {
           <h1>{t('title')}</h1>
           <p>{t('subtitle')}</p>
         </div>
-        <div className="crm-search-page__header-actions">
-          <Link href={'/workspaces/crm/search/advanced' as Route} className="crm-search-page__link">
-            {t('advanced')}
-          </Link>
-          <Link href={'/workspaces/crm/search/saved' as Route} className="crm-search-page__link">
-            {t('savedSearches')}
-          </Link>
-        </div>
+        <div className="crm-search-page__header-actions" />
       </header>
 
       <form

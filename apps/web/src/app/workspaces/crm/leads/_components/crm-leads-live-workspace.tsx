@@ -4,12 +4,14 @@ import type { Route } from 'next';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useLocale } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button, ErrorState, Input, LoadingState, Select, TextArea } from '@investhome/ui';
 
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 import { canUpdateCrm } from '@/lib/crm/crm-permissions';
+import { useDebouncedQueryParam, useListQueryPatch } from '@/lib/crm/list-query';
 import { confirmDiscardUnsaved, saveFailedMessage } from '@/lib/crm/unsaved-form';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
@@ -440,19 +442,27 @@ export function CrmLeadsLiveWorkspace() {
   const queryClient = useQueryClient();
   const { openContact } = useContactCard();
 
+  const searchParams = useSearchParams();
+  const patchQuery = useListQueryPatch();
+  const [searchDraft, setSearchDraft, search] = useDebouncedQueryParam('q');
   const [view, setView] = useState<ViewMode>('kanban');
   const [emailComposeOpen, setEmailComposeOpen] = useState(false);
   const [whatsappComposeOpen, setWhatsappComposeOpen] = useState(false);
-  const [searchDraft, setSearchDraft] = useState('');
-  const [search, setSearch] = useState('');
-  const [stage, setStage] = useState('');
-  const [source, setSource] = useState('');
-  const [project, setProject] = useState('');
-  const [ownerId, setOwnerId] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [ingestStatus, setIngestStatus] = useState('');
-  const [junkReason, setJunkReason] = useState('');
+  const stage = searchParams.get('stage') ?? '';
+  const source = searchParams.get('source') ?? '';
+  const project = searchParams.get('project') ?? '';
+  const ownerId = searchParams.get('owner') ?? '';
+  const dateFrom = searchParams.get('from') ?? '';
+  const dateTo = searchParams.get('to') ?? '';
+  const ingestStatus = searchParams.get('ingest') ?? '';
+  const junkReason = searchParams.get('junk') ?? '';
+  const setSource = (value: string) => patchQuery({ source: value });
+  const setProject = (value: string) => patchQuery({ project: value });
+  const setOwnerId = (value: string) => patchQuery({ owner: value });
+  const setDateFrom = (value: string) => patchQuery({ from: value });
+  const setDateTo = (value: string) => patchQuery({ to: value });
+  const setIngestStatus = (value: string) => patchQuery({ ingest: value });
+  const setJunkReason = (value: string) => patchQuery({ junk: value });
   const [junkPending, setJunkPending] = useState<LeadView | null>(null);
   const [drawer, setDrawer] = useState<DrawerMode | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -636,15 +646,17 @@ export function CrmLeadsLiveWorkspace() {
 
   const clearFilters = () => {
     setSearchDraft('');
-    setSearch('');
-    setStage('');
-    setSource('');
-    setProject('');
-    setOwnerId('');
-    setDateFrom('');
-    setDateTo('');
-    setIngestStatus('');
-    setJunkReason('');
+    patchQuery({
+      q: null,
+      stage: null,
+      source: null,
+      project: null,
+      owner: null,
+      from: null,
+      to: null,
+      ingest: null,
+      junk: null,
+    });
   };
 
   const openCreate = (nextStage?: CrmLeadStage) => {
@@ -821,10 +833,7 @@ export function CrmLeadsLiveWorkspace() {
             type="button"
             className={`${item.tone}${stage === item.value ? ' is-active' : ''}`}
             data-testid={item.testId}
-            onClick={() => {
-              setStage(item.value);
-              setJunkReason('');
-            }}
+            onClick={() => patchQuery({ stage: item.value, junk: null })}
           >
             <span className="crm-ops-kpis__icon" aria-hidden>
               <IhIcon name={item.icon} size={16} />
@@ -854,10 +863,6 @@ export function CrmLeadsLiveWorkspace() {
           label={t.search}
           value={searchDraft}
           onChange={(event) => setSearchDraft(event.target.value)}
-          onBlur={() => setSearch(searchDraft.trim())}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') setSearch(searchDraft.trim());
-          }}
           placeholder={t.searchPh}
         />
         <Select
@@ -865,8 +870,7 @@ export function CrmLeadsLiveWorkspace() {
           value={stage}
           onChange={(event) => {
             const next = event.target.value;
-            setStage(next);
-            if (next !== 'unqualified') setJunkReason('');
+            patchQuery(next === 'unqualified' ? { stage: next } : { stage: next, junk: null });
           }}
         >
           <option value="">{t.any}</option>

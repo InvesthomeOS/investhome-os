@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocale } from 'next-intl';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 
 import { Button, Input, Select, StatusChip } from '@investhome/ui';
 
 import { fetchUsers } from '@/lib/api/auth';
+import { useDebouncedQueryParam, useListQueryPatch } from '@/lib/crm/list-query';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { fetchCrmTag } from '@/workspaces/crm/api/crm';
 import {
@@ -167,6 +168,19 @@ const COPY = {
 type PeopleTab = 'all' | 'active' | 'junk' | 'review' | 'missing';
 type CategoryFilter = '' | 'customer' | 'agent' | 'agreement';
 
+const PEOPLE_TABS: PeopleTab[] = ['all', 'active', 'junk', 'review', 'missing'];
+const PEOPLE_CATEGORIES: CategoryFilter[] = ['', 'customer', 'agent', 'agreement'];
+const PEOPLE_SORTS = ['updated_at', 'display_name', 'last_contact_at'] as const;
+const PEOPLE_QUERY_DEFAULTS = { tab: 'all', sort: 'updated_at', dir: 'desc', size: '25', page: '1' };
+
+function peopleTab(value: string | null): PeopleTab {
+  return PEOPLE_TABS.includes(value as PeopleTab) ? (value as PeopleTab) : 'all';
+}
+
+function peopleCategory(value: string | null): CategoryFilter {
+  return PEOPLE_CATEGORIES.includes(value as CategoryFilter) ? (value as CategoryFilter) : '';
+}
+
 const TABS: Array<{ id: PeopleTab; countKey: keyof ReturnType<typeof emptyCounts> }> = [
   { id: 'all', countKey: 'total' },
   { id: 'active', countKey: 'active' },
@@ -221,32 +235,31 @@ function avatarTone(id: string) {
 export function PeopleWorkspace() {
   const locale = useLocale();
   const copy = COPY[locale.startsWith('tr') ? 'tr' : 'en'];
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const patch = useListQueryPatch(PEOPLE_QUERY_DEFAULTS);
+  const [searchDraft, setSearchDraft, search] = useDebouncedQueryParam('q', undefined, { resetPage: true });
   const tagId = searchParams.get('tag') || '';
   const { openContact } = useContactCard();
   const { authLoading, canRead, canCreate } = useCrmAccess();
-  const [tab, setTab] = useState<PeopleTab>('all');
-  const [searchDraft, setSearchDraft] = useState('');
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState<CategoryFilter>('');
-  const [ownerId, setOwnerId] = useState('');
-  const [source, setSource] = useState<'' | 'bitrix' | 'other'>('');
-  const [agreementProject, setAgreementProject] = useState('');
-  const [junkReason, setJunkReason] = useState('');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(25);
-  const [sortBy, setSortBy] = useState('updated_at');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const tab = peopleTab(searchParams.get('tab'));
+  const category = peopleCategory(searchParams.get('category'));
+  const ownerId = searchParams.get('owner') ?? '';
+  const sourceParam = searchParams.get('source');
+  const source = sourceParam === 'bitrix' || sourceParam === 'other' ? sourceParam : '';
+  const agreementProject = searchParams.get('project') ?? '';
+  const junkReason = searchParams.get('junk') ?? '';
+  const page = Math.max(1, Number(searchParams.get('page') || '1') || 1);
+  const sizeParam = Number(searchParams.get('size'));
+  const pageSize = PAGE_SIZES.includes(sizeParam as (typeof PAGE_SIZES)[number]) ? (sizeParam as (typeof PAGE_SIZES)[number]) : 25;
+  const sortParam = searchParams.get('sort');
+  const sortBy = PEOPLE_SORTS.includes(sortParam as (typeof PEOPLE_SORTS)[number]) ? (sortParam as string) : 'updated_at';
+  const sortDir = searchParams.get('dir') === 'asc' ? 'asc' : 'desc';
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setSearch(searchDraft.trim());
-      setPage(1);
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [searchDraft]);
+  const setPage = (value: number | ((current: number) => number)) => {
+    const next = typeof value === 'function' ? value(page) : value;
+    patch({ page: String(next) });
+  };
 
   const params: ContactListParams = useMemo(() => {
     const next: ContactListParams = {
@@ -302,34 +315,35 @@ export function PeopleWorkspace() {
   const filtersActive = Boolean(searchDraft || category || ownerId || source || agreementProject || junkReason || tagId);
 
   const toggleSort = (column: string, initial: 'asc' | 'desc') => {
-    setPage(1);
     if (sortBy === column) {
-      setSortDir((current) => (current === 'asc' ? 'desc' : 'asc'));
+      patch({ sort: column, dir: sortDir === 'asc' ? 'desc' : 'asc', page: null });
       return;
     }
-    setSortBy(column);
-    setSortDir(initial);
+    patch({ sort: column, dir: initial, page: null });
   };
 
   const sortMark = (column: string) => (sortBy === column ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '');
 
   const selectTab = (next: PeopleTab) => {
-    setTab(next);
-    setPage(1);
     setSelectedId(null);
-    if (next !== 'junk') setJunkReason('');
+    patch({ tab: next, page: null, junk: next === 'junk' ? junkReason : null });
   };
 
   const clearFilters = () => {
     setSearchDraft('');
-    setSearch('');
-    setCategory('');
-    setOwnerId('');
-    setSource('');
-    setAgreementProject('');
-    setJunkReason('');
-    setPage(1);
-    if (tagId) router.replace('/workspaces/crm/contacts' as Route);
+    patch({
+      q: null,
+      category: null,
+      owner: null,
+      source: null,
+      project: null,
+      junk: null,
+      page: null,
+      sort: null,
+      dir: null,
+      size: null,
+      tag: null,
+    });
   };
 
   return (
@@ -394,10 +408,7 @@ export function PeopleWorkspace() {
             <Select
               label={copy.category}
               value={category}
-              onChange={(event) => {
-                setCategory(event.target.value as CategoryFilter);
-                setPage(1);
-              }}
+              onChange={(event) => patch({ category: event.target.value, page: null })}
               data-testid="crm-people-filter-category"
             >
               <option value="">{copy.all}</option>
@@ -408,10 +419,7 @@ export function PeopleWorkspace() {
             <Select
               label={copy.owner}
               value={ownerId}
-              onChange={(event) => {
-                setOwnerId(event.target.value);
-                setPage(1);
-              }}
+              onChange={(event) => patch({ owner: event.target.value, page: null })}
               data-testid="crm-people-filter-owner"
             >
               <option value="">{copy.allOwners}</option>
@@ -424,10 +432,7 @@ export function PeopleWorkspace() {
             <Select
               label={copy.source}
               value={source}
-              onChange={(event) => {
-                setSource(event.target.value as typeof source);
-                setPage(1);
-              }}
+              onChange={(event) => patch({ source: event.target.value, page: null })}
               data-testid="crm-people-filter-source"
             >
               <option value="">{copy.all}</option>
@@ -437,10 +442,7 @@ export function PeopleWorkspace() {
             <Select
               label={copy.agreementProject}
               value={agreementProject}
-              onChange={(event) => {
-                setAgreementProject(event.target.value);
-                setPage(1);
-              }}
+              onChange={(event) => patch({ project: event.target.value, page: null })}
               data-testid="crm-people-filter-project"
             >
               <option value="">{copy.allProjects}</option>
@@ -454,10 +456,7 @@ export function PeopleWorkspace() {
               <Select
                 label={copy.junkReason}
                 value={junkReason}
-                onChange={(event) => {
-                  setJunkReason(event.target.value);
-                  setPage(1);
-                }}
+                onChange={(event) => patch({ junk: event.target.value, page: null })}
                 data-testid="crm-people-filter-junk-reason"
               >
                 <option value="">{copy.allReasons}</option>
@@ -482,10 +481,7 @@ export function PeopleWorkspace() {
               </span>
               <button
                 type="button"
-                onClick={() => {
-                  setPage(1);
-                  router.replace('/workspaces/crm/contacts' as Route);
-                }}
+                onClick={() => patch({ tag: null, page: null })}
               >
                 {copy.close}
               </button>
@@ -611,10 +607,7 @@ export function PeopleWorkspace() {
                 {copy.pageSize}
                 <select
                   value={pageSize}
-                  onChange={(event) => {
-                    setPageSize(Number(event.target.value) as (typeof PAGE_SIZES)[number]);
-                    setPage(1);
-                  }}
+                  onChange={(event) => patch({ size: event.target.value, page: null })}
                 >
                   {PAGE_SIZES.map((size) => (
                     <option key={size} value={size}>

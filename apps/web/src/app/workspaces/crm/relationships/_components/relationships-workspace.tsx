@@ -1,14 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useMemo, useState, type MouseEvent } from 'react';
 import { useLocale } from 'next-intl';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 
 import { Button, Input, Select, StatusChip } from '@investhome/ui';
 
 import { fetchUsers } from '@/lib/api/auth';
+import { useDebouncedQueryParam, useListQueryPatch } from '@/lib/crm/list-query';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import type { CrmRelationshipSummary, RelationshipListParams } from '@/workspaces/crm/api/relationships';
@@ -95,6 +96,7 @@ const COPY = {
     list: 'Liste',
     network: 'Ağ Grafiği',
     countLabel: '{count} ilişki',
+    clear: 'Filtreleri temizle',
   },
   en: {
     title: 'Relationships',
@@ -130,10 +132,18 @@ const COPY = {
     list: 'List',
     network: 'Network graph',
     countLabel: '{count} relationships',
+    clear: 'Clear filters',
   },
 } as const;
 
 type SummaryTab = 'all' | 'contact_company' | 'contact_project' | 'contact_contact' | 'company_project';
+
+const RELATIONSHIP_TABS: SummaryTab[] = ['all', 'contact_company', 'contact_project', 'contact_contact', 'company_project'];
+const RELATIONSHIP_QUERY_DEFAULTS = { tab: 'all', page: '1' };
+
+function relationshipTab(value: string | null): SummaryTab {
+  return RELATIONSHIP_TABS.includes(value as SummaryTab) ? (value as SummaryTab) : 'all';
+}
 type WorkspaceView = 'list' | 'network';
 
 const TABS: Array<{ id: SummaryTab; countKey: keyof ReturnType<typeof emptyCounts>; labelKey: keyof (typeof COPY)['tr'] }> = [
@@ -168,26 +178,27 @@ export function RelationshipsWorkspace() {
   const locale = useLocale();
   const copy = COPY[locale.startsWith('tr') ? 'tr' : 'en'];
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const patch = useListQueryPatch(RELATIONSHIP_QUERY_DEFAULTS);
+  const [searchDraft, setSearchDraft, search] = useDebouncedQueryParam('q', undefined, { resetPage: true });
   const { openContact, openPurchase } = useContactCard();
   const { authLoading, canRead, canCreate } = useCrmAccess();
   const [view, setView] = useState<WorkspaceView>('list');
-  const [tab, setTab] = useState<SummaryTab>('all');
-  const [searchDraft, setSearchDraft] = useState('');
-  const [search, setSearch] = useState('');
-  const [relationshipType, setRelationshipType] = useState('');
-  const [category, setCategory] = useState('');
-  const [projectGroup, setProjectGroup] = useState('');
-  const [status, setStatus] = useState('');
-  const [ownerId, setOwnerId] = useState('');
-  const [page, setPage] = useState(1);
+  const tab = relationshipTab(searchParams.get('tab'));
+  const relationshipType = searchParams.get('type') ?? '';
+  const category = searchParams.get('category') ?? '';
+  const projectGroup = searchParams.get('project') ?? '';
+  const status = searchParams.get('status') ?? '';
+  const ownerId = searchParams.get('owner') ?? '';
+  const page = Math.max(1, Number(searchParams.get('page') || '1') || 1);
+  const filtersActive = Boolean(
+    searchDraft.trim() || relationshipType || category || projectGroup || status || ownerId || tab !== 'all',
+  );
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setSearch(searchDraft.trim());
-      setPage(1);
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [searchDraft]);
+  const setPage = (value: number | ((current: number) => number)) => {
+    const next = typeof value === 'function' ? value(page) : value;
+    patch({ page: String(next) });
+  };
 
   const params: RelationshipListParams = useMemo(() => {
     const next: RelationshipListParams = {
@@ -225,9 +236,12 @@ export function RelationshipsWorkspace() {
   const counts = countsQuery.data ?? emptyCounts();
 
   const selectTab = (next: SummaryTab) => {
-    setTab(next);
-    setPage(1);
-    if (next !== 'all') setRelationshipType('');
+    patch({ tab: next, page: null, type: next === 'all' ? relationshipType : null });
+  };
+
+  const clearFilters = () => {
+    setSearchDraft('');
+    patch({ q: null, tab: null, type: null, category: null, project: null, status: null, owner: null, page: null });
   };
 
   const openEntity = (
@@ -322,10 +336,7 @@ export function RelationshipsWorkspace() {
         <Select
           label={copy.type}
           value={relationshipType}
-          onChange={(event) => {
-            setRelationshipType(event.target.value);
-            setPage(1);
-          }}
+          onChange={(event) => patch({ type: event.target.value, page: null })}
           data-testid="crm-relationships-filter-type"
         >
           <option value="">{copy.allTypes}</option>
@@ -340,10 +351,7 @@ export function RelationshipsWorkspace() {
         <Select
           label={copy.category}
           value={category}
-          onChange={(event) => {
-            setCategory(event.target.value);
-            setPage(1);
-          }}
+          onChange={(event) => patch({ category: event.target.value, page: null })}
           data-testid="crm-relationships-filter-category"
         >
           <option value="">{copy.allCategories}</option>
@@ -356,10 +364,7 @@ export function RelationshipsWorkspace() {
         <Select
           label={copy.project}
           value={projectGroup}
-          onChange={(event) => {
-            setProjectGroup(event.target.value);
-            setPage(1);
-          }}
+          onChange={(event) => patch({ project: event.target.value, page: null })}
           data-testid="crm-relationships-filter-project"
         >
           <option value="">{copy.allProjects}</option>
@@ -372,10 +377,7 @@ export function RelationshipsWorkspace() {
         <Select
           label={copy.status}
           value={status}
-          onChange={(event) => {
-            setStatus(event.target.value);
-            setPage(1);
-          }}
+          onChange={(event) => patch({ status: event.target.value, page: null })}
           data-testid="crm-relationships-filter-status"
         >
           <option value="">{copy.all}</option>
@@ -388,10 +390,7 @@ export function RelationshipsWorkspace() {
         <Select
           label={copy.owner}
           value={ownerId}
-          onChange={(event) => {
-            setOwnerId(event.target.value);
-            setPage(1);
-          }}
+          onChange={(event) => patch({ owner: event.target.value, page: null })}
           data-testid="crm-relationships-filter-owner"
         >
           <option value="">{copy.allOwners}</option>
@@ -401,12 +400,17 @@ export function RelationshipsWorkspace() {
             </option>
           ))}
         </Select>
+        {filtersActive ? (
+          <button type="button" className="crm-people-clear" data-testid="crm-relationships-clear" onClick={clearFilters}>
+            {copy.clear}
+          </button>
+        ) : null}
       </section>
 
       {view === 'network' ? (
         <RelationshipNetworkView
           embedded
-          search={searchDraft}
+          search={search}
           relationshipType={relationshipType}
           projectGroup={projectGroup}
           pairKind={tab === 'all' ? '' : tab}

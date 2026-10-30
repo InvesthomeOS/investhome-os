@@ -1,14 +1,15 @@
 'use client';
 
 import type { Route } from 'next';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button, ErrorState, Input, Select, TextArea } from '@investhome/ui';
 
 import { fetchUsers } from '@/lib/api/auth';
+import { LIST_SEARCH_DEBOUNCE_MS, useDebouncedQueryParam, useListQueryPatch } from '@/lib/crm/list-query';
 import { confirmDiscardUnsaved, saveFailedMessage } from '@/lib/crm/unsaved-form';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { createNote, fetchActivity, fetchNotes } from '@/workspaces/crm/api/activities';
@@ -35,16 +36,6 @@ type NoteForm = {
   contactLabel: string;
   projectGroup: string;
   agreementId: string;
-};
-
-const EMPTY_FILTERS: OpsFilters = {
-  search: '',
-  ownerId: '',
-  person: '',
-  personId: null,
-  projectGroup: '',
-  dateFrom: '',
-  dateTo: '',
 };
 
 const EMPTY_FORM: NoteForm = {
@@ -293,9 +284,23 @@ export function CrmNotesWorkspace() {
   const { authLoading, canRead, canCreate } = useCrmAccess();
   const canQuery = canRead && !authLoading;
   const queryClient = useQueryClient();
-  const [filters, setFilters] = useState<OpsFilters>(EMPTY_FILTERS);
-  const [searchDraft, setSearchDraft] = useState('');
-  const [personDraft, setPersonDraft] = useState('');
+  const searchParams = useSearchParams();
+  const patch = useListQueryPatch();
+  const [searchDraft, setSearchDraft] = useDebouncedQueryParam('q');
+  const filters = useMemo<OpsFilters>(
+    () => ({
+      search: searchParams.get('q') ?? '',
+      ownerId: searchParams.get('owner') ?? '',
+      person: searchParams.get('person') ?? '',
+      personId: searchParams.get('personId'),
+      projectGroup: searchParams.get('project') ?? '',
+      dateFrom: searchParams.get('from') ?? '',
+      dateTo: searchParams.get('to') ?? '',
+    }),
+    [searchParams],
+  );
+  const [personDraft, setPersonDraft] = useState(filters.person);
+  const pendingPerson = useRef<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSnapshot, setSelectedSnapshot] = useState<CrmActivitySummary | null>(null);
   const [mode, setMode] = useState<'detail' | 'create' | null>(null);
@@ -304,20 +309,22 @@ export function CrmNotesWorkspace() {
   const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setFilters((prev) => ({ ...prev, search: searchDraft })), 220);
-    return () => window.clearTimeout(timer);
-  }, [searchDraft]);
+    if (pendingPerson.current === filters.person) {
+      pendingPerson.current = null;
+      return;
+    }
+    setPersonDraft(filters.person);
+  }, [filters.person]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setFilters((prev) => ({
-        ...prev,
-        person: personDraft,
-        personId: personDraft.trim() ? prev.personId : null,
-      }));
-    }, 220);
+      const next = personDraft.trim();
+      if (next === filters.person.trim() && (next || !filters.personId)) return;
+      pendingPerson.current = next;
+      patch({ person: next, personId: next ? filters.personId : null });
+    }, LIST_SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
-  }, [personDraft]);
+  }, [filters.person, filters.personId, patch, personDraft]);
 
   const apiFilters = useMemo<ActivityListParams>(() => {
     const params: ActivityListParams = { page: 1, page_size: 40 };
@@ -415,11 +422,23 @@ export function CrmNotesWorkspace() {
     },
   });
 
-  const patchFilters = (patch: Partial<OpsFilters>) => setFilters((prev) => ({ ...prev, ...patch }));
+  const patchFilters = (partial: Partial<OpsFilters>) => {
+    const next = { ...filters, ...partial };
+    patch({
+      q: next.search,
+      owner: next.ownerId,
+      person: next.person,
+      personId: next.personId,
+      project: next.projectGroup,
+      from: next.dateFrom,
+      to: next.dateTo,
+    });
+  };
   const clearFilters = () => {
-    setFilters(EMPTY_FILTERS);
     setSearchDraft('');
     setPersonDraft('');
+    pendingPerson.current = '';
+    patch({ q: null, owner: null, person: null, personId: null, project: null, from: null, to: null });
   };
 
   const openCreate = () => {
@@ -514,7 +533,7 @@ export function CrmNotesWorkspace() {
             value={personDraft}
             onChange={(event) => {
               setPersonDraft(event.target.value);
-              patchFilters({ personId: null });
+              if (filters.personId) patch({ personId: null });
             }}
             placeholder={t('filters.personPlaceholder')}
           />
@@ -525,6 +544,7 @@ export function CrmNotesWorkspace() {
                   <button
                     type="button"
                     onClick={() => {
+                      pendingPerson.current = contact.display_name;
                       setPersonDraft(contact.display_name);
                       patchFilters({ person: contact.display_name, personId: contact.id });
                     }}

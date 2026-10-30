@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation';
+import { SearchUnavailable } from '../_components/search-unavailable';
 
-/** Standalone CRM Search removed — use Dashboard header Ctrl/Cmd+K. */
-export default function CrmSavedSearchesPage() {
-  redirect('/workspaces/crm/dashboard');
+export default function CrmSavedSearchPage() {
+  return <SearchUnavailable />;
 }

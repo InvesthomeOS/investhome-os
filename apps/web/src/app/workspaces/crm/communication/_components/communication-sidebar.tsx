@@ -10,10 +10,7 @@ import { useCommunicationUiStore } from '@/workspaces/crm/stores/communication-u
 const SUB_ROUTES = [
   { href: '/workspaces/crm/communication/unmatched', labelKey: 'unmatchedCommunications' },
   { href: '/workspaces/crm/communication/templates', labelKey: 'templates' },
-  { href: '/workspaces/crm/communication/sequences', labelKey: 'sequences' },
   { href: '/workspaces/crm/communication/signatures', labelKey: 'signatures' },
-  { href: '/workspaces/crm/communication/analytics', labelKey: 'analytics' },
-  { href: '/workspaces/crm/communication/preferences', labelKey: 'preferences' },
 ] as const;
 
 type CommunicationSidebarProps = {

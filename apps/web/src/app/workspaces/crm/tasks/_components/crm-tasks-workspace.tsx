@@ -1,7 +1,7 @@
 'use client';
 
 import type { Route } from 'next';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -10,6 +10,7 @@ import { Button, ErrorState, Input, Select, TextArea } from '@investhome/ui';
 
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 import { fetchUsers } from '@/lib/api/auth';
+import { LIST_SEARCH_DEBOUNCE_MS, useDebouncedQueryParam, useListQueryPatch } from '@/lib/crm/list-query';
 import { confirmDiscardUnsaved, saveFailedMessage } from '@/lib/crm/unsaved-form';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { completeTask, createTask, fetchActivity, fetchTasks, updateActivity } from '@/workspaces/crm/api/activities';
@@ -58,18 +59,20 @@ type TaskForm = {
   status: WorkspaceStatus;
 };
 
-const EMPTY_FILTERS: OpsFilters = {
-  search: '',
-  status: '',
-  ownerId: '',
-  person: '',
-  personId: null,
-  projectGroup: '',
-  priority: '',
-  dateFrom: '',
-  dateTo: '',
-  dueBucket: '',
-};
+const TASK_QUERY_DEFAULTS = { status: 'active', page: '1', size: '10' };
+const TASK_PAGE_SIZES = [10, 25, 50] as const;
+
+function taskStatusFromQuery(value: string | null): string {
+  if (value == null) return 'active';
+  if (value === 'any') return '';
+  return value;
+}
+
+function taskStatusToQuery(status: string): string | null {
+  if (status === 'active') return null;
+  if (!status) return 'any';
+  return status;
+}
 
 const EMPTY_FORM: TaskForm = {
   title: '',
@@ -458,15 +461,30 @@ export function CrmTasksWorkspace() {
   const { openContact } = useContactCard();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
-  const [filters, setFilters] = useState<OpsFilters>({
-    ...EMPTY_FILTERS,
-    status: searchParams.get('status') || 'active',
-    dueBucket: searchParams.get('due') || '',
-  });
-  const [searchDraft, setSearchDraft] = useState('');
-  const [personDraft, setPersonDraft] = useState('');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const patch = useListQueryPatch(TASK_QUERY_DEFAULTS);
+  const [searchDraft, setSearchDraft] = useDebouncedQueryParam('q', LIST_SEARCH_DEBOUNCE_MS, { resetPage: true });
+  const filters = useMemo<OpsFilters>(
+    () => ({
+      search: searchParams.get('q') ?? '',
+      status: taskStatusFromQuery(searchParams.get('status')),
+      ownerId: searchParams.get('owner') ?? '',
+      person: searchParams.get('person') ?? '',
+      personId: searchParams.get('personId'),
+      projectGroup: searchParams.get('project') ?? '',
+      priority: searchParams.get('priority') ?? '',
+      dateFrom: searchParams.get('from') ?? '',
+      dateTo: searchParams.get('to') ?? '',
+      dueBucket: searchParams.get('due') ?? '',
+    }),
+    [searchParams],
+  );
+  const [personDraft, setPersonDraft] = useState(filters.person);
+  const pendingPerson = useRef<string | null>(null);
+  const page = Math.max(1, Number(searchParams.get('page') || '1') || 1);
+  const sizeParam = Number(searchParams.get('size'));
+  const pageSize = TASK_PAGE_SIZES.includes(sizeParam as (typeof TASK_PAGE_SIZES)[number])
+    ? sizeParam
+    : 10;
   const [sortKey, setSortKey] = useState<SortKey>('due');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -479,25 +497,28 @@ export function CrmTasksWorkspace() {
 
   const canQuery = !authLoading && canView;
 
+  const setPage = (value: number | ((current: number) => number)) => {
+    const next = typeof value === 'function' ? value(page) : value;
+    patch({ page: String(next) });
+  };
+
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setPage(1);
-      setFilters((prev) => ({ ...prev, search: searchDraft }));
-    }, 220);
-    return () => window.clearTimeout(timer);
-  }, [searchDraft]);
+    if (pendingPerson.current === filters.person) {
+      pendingPerson.current = null;
+      return;
+    }
+    setPersonDraft(filters.person);
+  }, [filters.person]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setPage(1);
-      setFilters((prev) => ({
-        ...prev,
-        person: personDraft,
-        personId: personDraft.trim() ? prev.personId : null,
-      }));
-    }, 220);
+      const next = personDraft.trim();
+      if (next === filters.person.trim() && (next || !filters.personId)) return;
+      pendingPerson.current = next;
+      patch({ person: next, personId: next ? filters.personId : null, page: null });
+    }, LIST_SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
-  }, [personDraft]);
+  }, [filters.person, filters.personId, patch, personDraft]);
 
   useEffect(() => {
     const close = () => setMenuId(null);
@@ -647,15 +668,39 @@ export function CrmTasksWorkspace() {
     },
   });
 
-  const patchFilters = (patch: Partial<OpsFilters>) => {
-    setPage(1);
-    setFilters((prev) => ({ ...prev, ...patch }));
+  const writeFilters = (next: OpsFilters, nextPage = 1) => {
+    patch({
+      q: next.search,
+      status: taskStatusToQuery(next.status),
+      owner: next.ownerId,
+      person: next.person,
+      personId: next.personId,
+      project: next.projectGroup,
+      priority: next.priority,
+      from: next.dateFrom,
+      to: next.dateTo,
+      due: next.dueBucket,
+      page: String(nextPage),
+    });
   };
+  const patchFilters = (partial: Partial<OpsFilters>) => writeFilters({ ...filters, ...partial }, 1);
   const clearFilters = () => {
-    setFilters(EMPTY_FILTERS);
     setSearchDraft('');
     setPersonDraft('');
-    setPage(1);
+    pendingPerson.current = '';
+    patch({
+      q: null,
+      status: null,
+      due: null,
+      owner: null,
+      person: null,
+      personId: null,
+      project: null,
+      priority: null,
+      from: null,
+      to: null,
+      page: null,
+    });
   };
   const hasFilters = Boolean(
     searchDraft || personDraft || filters.ownerId || filters.projectGroup || filters.priority || filters.dateFrom || filters.dateTo || filters.dueBucket || (filters.status && filters.status !== 'active'),
@@ -839,7 +884,7 @@ export function CrmTasksWorkspace() {
             value={personDraft}
             onChange={(event) => {
               setPersonDraft(event.target.value);
-              patchFilters({ personId: null });
+              if (filters.personId) patch({ personId: null });
             }}
             placeholder={t('filters.personPlaceholder')}
           />
@@ -850,6 +895,7 @@ export function CrmTasksWorkspace() {
                   <button
                     type="button"
                     onClick={() => {
+                      pendingPerson.current = contact.display_name;
                       setPersonDraft(contact.display_name);
                       patchFilters({ person: contact.display_name, personId: contact.id });
                     }}
@@ -1149,10 +1195,7 @@ export function CrmTasksWorkspace() {
               {t('pageSize')}
               <select
                 value={pageSize}
-                onChange={(event) => {
-                  setPageSize(Number(event.target.value));
-                  setPage(1);
-                }}
+                onChange={(event) => patch({ size: event.target.value, page: null })}
               >
                 <option value={10}>10</option>
                 <option value={25}>25</option>
