@@ -236,8 +236,8 @@ function displayOwner(name: string | null | undefined): string {
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return '•';
-  const first = parts[0][0] || '';
-  const last = parts.length > 1 ? parts[parts.length - 1][0] || '' : '';
+  const first = parts[0]?.[0] || '';
+  const last = parts.length > 1 ? parts[parts.length - 1]?.[0] || '' : '';
   return `${first}${last}`.toLocaleUpperCase('tr-TR');
 }
 
@@ -298,6 +298,8 @@ export function CompaniesWorkspace() {
   const [ownerId, setOwnerId] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(10);
+  const [sortBy, setSortBy] = useState('updated_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [menuId, setMenuId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -317,8 +319,8 @@ export function CompaniesWorkspace() {
       ownerUserId: ownerId || undefined,
       page,
       pageSize,
-      sortBy: 'updated_at',
-      sortOrder: 'desc',
+      sortBy,
+      sortOrder,
     };
     if (tab === 'brokerage') next.companyType = 'brokerage';
     else if (tab === 'partner') next.companyType = 'partner';
@@ -326,7 +328,7 @@ export function CompaniesWorkspace() {
     else if (category) next.companyType = category;
     if (tab === 'open') next.openRelationships = true;
     return next;
-  }, [category, country, ownerId, page, pageSize, relation, search, status, tab]);
+  }, [category, country, ownerId, page, pageSize, relation, search, sortBy, sortOrder, status, tab]);
 
   const listQuery = useQuery({
     ...crmCompaniesQueries.list(params),
@@ -344,7 +346,7 @@ export function CompaniesWorkspace() {
     enabled: !authLoading && canReadCompanies,
   });
 
-  const rows = listQuery.data?.items ?? [];
+  const rows = useMemo(() => listQuery.data?.items ?? [], [listQuery.data?.items]);
   const pages = Math.max(1, listQuery.data?.pages ?? 1);
   const total = listQuery.data?.total ?? 0;
   const counts = countsQuery.data ?? emptyCounts();
@@ -358,6 +360,18 @@ export function CompaniesWorkspace() {
     setPage(1);
     if (next !== 'all') setCategory('');
   };
+
+  const toggleSort = (column: string, initial: 'asc' | 'desc') => {
+    setPage(1);
+    if (sortBy === column) {
+      setSortOrder((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortBy(column);
+    setSortOrder(initial);
+  };
+
+  const sortMark = (column: string) => (sortBy === column ? (sortOrder === 'asc' ? ' ↑' : ' ↓') : '');
 
   const clearFilters = () => {
     setSearchDraft('');
@@ -539,15 +553,27 @@ export function CompaniesWorkspace() {
             <table className="crm-ops-table">
               <thead>
                 <tr>
-                  <th>{copy.company}</th>
-                  <th>{copy.category}</th>
+                  <th aria-sort={sortBy === 'display_name' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                    <button type="button" className="crm-table-sort" onClick={() => toggleSort('display_name', 'asc')}>
+                      {copy.company}{sortMark('display_name')}
+                    </button>
+                  </th>
+                  <th aria-sort={sortBy === 'company_type' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                    <button type="button" className="crm-table-sort" onClick={() => toggleSort('company_type', 'asc')}>
+                      {copy.category}{sortMark('company_type')}
+                    </button>
+                  </th>
                   <th>{copy.location}</th>
                   <th>{copy.people}</th>
                   <th>{copy.relation}</th>
                   <th>{copy.openWork}</th>
                   <th>{copy.owner}</th>
                   <th>{copy.lastActivity}</th>
-                  <th>{copy.status}</th>
+                  <th aria-sort={sortBy === 'status' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                    <button type="button" className="crm-table-sort" onClick={() => toggleSort('status', 'asc')}>
+                      {copy.status}{sortMark('status')}
+                    </button>
+                  </th>
                   <th>{copy.actions}</th>
                 </tr>
               </thead>
@@ -677,7 +703,8 @@ export function CompaniesWorkspace() {
                                     onClick={(event) => {
                                       event.stopPropagation();
                                       setMenuId(null);
-                                      openContact(people[0].id);
+                                      const person = people[0];
+                                      if (person) openContact(person.id);
                                     }}
                                   >
                                     {copy.people}

@@ -15,6 +15,7 @@ export const PERSON_CARD_COPY = {
     save: 'Kaydet',
     saving: 'Kaydediliyor…',
     saveFailed: 'Kaydedilemedi',
+    saveError: 'Kayıt kaydedilemedi. Yeniden deneyin.',
     cancel: 'İptal',
     edit: 'Düzenle',
     editPerson: 'Kişiyi Düzenle',
@@ -196,6 +197,7 @@ export const PERSON_CARD_COPY = {
     save: 'Save',
     saving: 'Saving…',
     saveFailed: 'Could not save',
+    saveError: 'The record could not be saved. Try again.',
     cancel: 'Cancel',
     edit: 'Edit',
     editPerson: 'Edit person',
@@ -363,7 +365,7 @@ export const PERSON_CARD_COPY = {
   },
 } as const;
 
-export type PersonCardCopy = (typeof PERSON_CARD_COPY)['en'];
+export type PersonCardCopy = (typeof PERSON_CARD_COPY)[keyof typeof PERSON_CARD_COPY];
 
 export function personCardCopy(locale: string): PersonCardCopy {
   return locale === 'tr' ? PERSON_CARD_COPY.tr : PERSON_CARD_COPY.en;

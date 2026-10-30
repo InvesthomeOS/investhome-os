@@ -278,6 +278,56 @@
   overflow-wrap: anywhere;
 }
 
+.crm-ops-table th:first-child,
+.crm-ops-table td:first-child,
+.crm-ops-table th:last-child,
+.crm-ops-table td:last-child {
+  position: sticky;
+  background: #fff;
+}
+
+.crm-ops-table th:first-child,
+.crm-ops-table td:first-child {
+  left: 0;
+  z-index: 1;
+}
+
+.crm-ops-table th:last-child,
+.crm-ops-table td:last-child {
+  right: 0;
+  z-index: 1;
+  white-space: nowrap;
+}
+
+.crm-ops-table thead th:first-child,
+.crm-ops-table thead th:last-child {
+  z-index: 3;
+  background: #f7fbfc;
+}
+
+.crm-ops-row:hover td:first-child,
+.crm-ops-row:hover td:last-child {
+  background: #f4fafb;
+}
+
+.crm-table-sort {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.crm-company-form__error {
+  margin: 0 0 12px;
+  color: #b42318;
+  font-size: 13px;
+  font-weight: 650;
+}
+
 .crm-ops-table thead th {
   position: sticky;
   top: 0;

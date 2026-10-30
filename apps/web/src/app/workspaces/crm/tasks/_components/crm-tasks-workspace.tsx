@@ -10,6 +10,7 @@ import { Button, ErrorState, Input, Select, TextArea } from '@investhome/ui';
 
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 import { fetchUsers } from '@/lib/api/auth';
+import { confirmDiscardUnsaved, saveFailedMessage } from '@/lib/crm/unsaved-form';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { completeTask, createTask, fetchActivity, fetchTasks, updateActivity } from '@/workspaces/crm/api/activities';
 import { fetchAgreements } from '@/workspaces/crm/api/agreements';
@@ -164,8 +165,8 @@ function displayOwner(name: string | null | undefined): string {
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return '•';
-  const first = parts[0][0] || '';
-  const last = parts.length > 1 ? parts[parts.length - 1][0] || '' : '';
+  const first = parts[0]?.[0] || '';
+  const last = parts.length > 1 ? parts[parts.length - 1]?.[0] || '' : '';
   return `${first}${last}`.toLocaleUpperCase('tr-TR');
 }
 
@@ -219,6 +220,7 @@ function TaskDrawer({
   personSuggestions,
   saving,
   completing,
+  formError,
   onClose,
   onEdit,
   onComplete,
@@ -238,6 +240,7 @@ function TaskDrawer({
   personSuggestions: Array<{ id: string; display_name: string }>;
   saving: boolean;
   completing: boolean;
+  formError: string | null;
   onClose: () => void;
   onEdit: () => void;
   onComplete: () => void;
@@ -430,6 +433,11 @@ function TaskDrawer({
                 </option>
               ))}
             </Select>
+            {formError ? (
+              <p className="crm-ops-form__error" role="alert" data-testid="crm-tasks-form-error">
+                {formError}
+              </p>
+            ) : null}
             <div className="crm-ops-drawer__actions">
               <Button type="submit" size="sm" disabled={saving || !form.title.trim()}>
                 {saving ? t('form.saving') : t('form.save')}
@@ -465,6 +473,8 @@ export function CrmTasksWorkspace() {
   const [selectedSnapshot, setSelectedSnapshot] = useState<CrmActivitySummary | null>(null);
   const [mode, setMode] = useState<'detail' | 'create' | 'edit' | null>(null);
   const [form, setForm] = useState<TaskForm>(EMPTY_FORM);
+  const [formBaseline, setFormBaseline] = useState<TaskForm>(EMPTY_FORM);
+  const [formError, setFormError] = useState<string | null>(null);
   const [menuId, setMenuId] = useState<string | null>(null);
 
   const canQuery = !authLoading && canView;
@@ -545,15 +555,15 @@ export function CrmTasksWorkspace() {
   const selectedDetail = selected
     ? {
         ...selected,
-        summary: detailQuery.data?.description || detailQuery.data?.summary || selected.summary,
-        person_name: selected.person_name || detailQuery.data?.person_name,
-        project_label: selected.project_label || detailQuery.data?.project_label,
-        project_group: selected.project_group || detailQuery.data?.project_group,
-        unit_number: selected.unit_number || detailQuery.data?.unit_number,
-        agreement_id: selected.agreement_id || detailQuery.data?.agreement_id,
-        start_date: selected.start_date || detailQuery.data?.start_date,
-        due_date: selected.due_date || detailQuery.data?.due_date,
-        updated_at: selected.updated_at || detailQuery.data?.updated_at,
+        summary: detailQuery.data?.description || detailQuery.data?.summary || selected.summary || null,
+        person_name: selected.person_name || detailQuery.data?.person_name || null,
+        project_label: selected.project_label || detailQuery.data?.project_label || null,
+        project_group: selected.project_group || detailQuery.data?.project_group || null,
+        unit_number: selected.unit_number || detailQuery.data?.unit_number || null,
+        agreement_id: selected.agreement_id || detailQuery.data?.agreement_id || null,
+        start_date: selected.start_date || detailQuery.data?.start_date || null,
+        due_date: selected.due_date || detailQuery.data?.due_date || null,
+        updated_at: selected.updated_at || detailQuery.data?.updated_at || selected.updated_at,
       }
     : null;
 
@@ -624,11 +634,16 @@ export function CrmTasksWorkspace() {
       });
     },
     onSuccess: () => {
+      setFormError(null);
       setMode(null);
       setSelectedId(null);
       setSelectedSnapshot(null);
       setForm(EMPTY_FORM);
+      setFormBaseline(EMPTY_FORM);
       invalidate();
+    },
+    onError: () => {
+      setFormError(saveFailedMessage(locale.startsWith('tr')));
     },
   });
 
@@ -657,6 +672,8 @@ export function CrmTasksWorkspace() {
 
   const openCreate = () => {
     setForm(EMPTY_FORM);
+    setFormBaseline(EMPTY_FORM);
+    setFormError(null);
     setSelectedId(null);
     setSelectedSnapshot(null);
     setMode('create');
@@ -685,7 +702,27 @@ export function CrmTasksWorkspace() {
       priority: priorityKey(item.priority),
       status: workspaceStatus(item),
     });
+    setFormBaseline({
+      title: item.title,
+      description: item.summary || '',
+      contactId: item.entity_type === 'contact' ? item.entity_id : '',
+      contactLabel: personLabel(item, ''),
+      projectGroup: item.project_group || '',
+      agreementId: item.agreement_id || '',
+      ownerId: item.assigned_user_id || item.owner_id || '',
+      dueDate: dateInputValue(item.due_date),
+      priority: priorityKey(item.priority),
+      status: workspaceStatus(item),
+    });
+    setFormError(null);
     setMode('edit');
+  };
+
+  const taskFormDirty = (mode === 'create' || mode === 'edit') && JSON.stringify(form) !== JSON.stringify(formBaseline);
+  const requestClose = () => {
+    if (taskFormDirty && !confirmDiscardUnsaved(locale.startsWith('tr'))) return;
+    setFormError(null);
+    setMode(null);
   };
 
   const shell = (content: ReactNode) => (
@@ -1128,7 +1165,7 @@ export function CrmTasksWorkspace() {
 
       {mode ? (
         <>
-          <button type="button" className="crm-ops-drawer-backdrop" aria-label={t('actions.close')} onClick={() => setMode(null)} />
+          <button type="button" className="crm-ops-drawer-backdrop" aria-label={t('actions.close')} onClick={requestClose} />
           <TaskDrawer
             item={selectedDetail}
             mode={mode}
@@ -1140,7 +1177,8 @@ export function CrmTasksWorkspace() {
             personSuggestions={mode === 'detail' ? [] : personSuggestions}
             saving={saveMutation.isPending}
             completing={completeMutation.isPending}
-            onClose={() => setMode(null)}
+            formError={formError}
+            onClose={requestClose}
             onEdit={() => selected && openEdit(selected)}
             onComplete={() => selected && completeMutation.mutate(selected.id)}
             onSave={() => void saveMutation.mutate()}

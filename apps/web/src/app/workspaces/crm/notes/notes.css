@@ -1,3 +1,10 @@
+.crm-tasks__form-error {
+  margin: 0;
+  color: #b42318;
+  font-size: 13px;
+  font-weight: 650;
+}
+
 .crm-notes .crm-notes__preview {
   display: -webkit-box;
   -webkit-line-clamp: 2;

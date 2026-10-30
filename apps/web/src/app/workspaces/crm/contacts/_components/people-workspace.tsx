@@ -26,7 +26,7 @@ import './ds/contacts-ds.css';
 import './people-workspace.css';
 import { PeopleQuickPreview, initials } from './people-quick-preview';
 
-const PAGE_SIZE = 25;
+const PAGE_SIZES = [10, 25, 50] as const;
 
 const AGREEMENT_PROJECTS = [
   { value: '1307_k_st', label: '1307 K St' },
@@ -108,6 +108,7 @@ const COPY = {
     previewEmpty: 'Kayıt yok.',
     previewLoading: 'Yükleniyor…',
     role: 'Rol',
+    pageSize: 'Sayfa başına',
   },
   en: {
     title: 'People',
@@ -159,6 +160,7 @@ const COPY = {
     previewEmpty: 'No records.',
     previewLoading: 'Loading…',
     role: 'Role',
+    pageSize: 'Per page',
   },
 } as const;
 
@@ -233,6 +235,9 @@ export function PeopleWorkspace() {
   const [agreementProject, setAgreementProject] = useState('');
   const [junkReason, setJunkReason] = useState('');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(25);
+  const [sortBy, setSortBy] = useState('updated_at');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -253,17 +258,17 @@ export function PeopleWorkspace() {
       junk_reason: tab === 'junk' ? junkReason || undefined : undefined,
       tag_id: tagId || undefined,
       include_archived: tab !== 'active',
-      sort_by: 'updated_at',
-      sort_dir: 'desc',
+      sort_by: sortBy,
+      sort_dir: sortDir,
       page,
-      page_size: PAGE_SIZE,
+      page_size: pageSize,
     };
     if (tab === 'active') next.status = 'active';
     if (tab === 'junk') next.status = 'archived';
     if (tab === 'review') next.flag = 'inceleme_gerekli';
     if (tab === 'missing') next.flag = 'bilgi_eksik';
     return next;
-  }, [agreementProject, category, junkReason, ownerId, page, search, source, tab, tagId]);
+  }, [agreementProject, category, junkReason, ownerId, page, pageSize, search, sortBy, sortDir, source, tab, tagId]);
 
   const contactsQuery = useQuery({
     ...contactQueries.list(params),
@@ -295,6 +300,18 @@ export function PeopleWorkspace() {
   const counts = countsQuery.data ?? emptyCounts();
   const selected = rows.find((row) => row.id === selectedId) ?? null;
   const filtersActive = Boolean(searchDraft || category || ownerId || source || agreementProject || junkReason || tagId);
+
+  const toggleSort = (column: string, initial: 'asc' | 'desc') => {
+    setPage(1);
+    if (sortBy === column) {
+      setSortDir((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortBy(column);
+    setSortDir(initial);
+  };
+
+  const sortMark = (column: string) => (sortBy === column ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '');
 
   const selectTab = (next: PeopleTab) => {
     setTab(next);
@@ -490,11 +507,19 @@ export function PeopleWorkspace() {
                 <table className="ctc-ds__table">
                   <thead>
                     <tr>
-                      <th>{copy.name}</th>
+                      <th aria-sort={sortBy === 'display_name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                        <button type="button" className="crm-table-sort" onClick={() => toggleSort('display_name', 'asc')}>
+                          {copy.name}{sortMark('display_name')}
+                        </button>
+                      </th>
                       <th>{copy.contact}</th>
                       <th>{copy.type}</th>
                       <th>{copy.project}</th>
-                      <th>{copy.lastActivity}</th>
+                      <th aria-sort={sortBy === 'last_contact_at' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                        <button type="button" className="crm-table-sort" onClick={() => toggleSort('last_contact_at', 'desc')}>
+                          {copy.lastActivity}{sortMark('last_contact_at')}
+                        </button>
+                      </th>
                       <th>{copy.status}</th>
                       <th>{copy.tags}</th>
                       <th>{copy.actions}</th>
@@ -582,6 +607,22 @@ export function PeopleWorkspace() {
               <span>
                 {page} / {pages}
               </span>
+              <label>
+                {copy.pageSize}
+                <select
+                  value={pageSize}
+                  onChange={(event) => {
+                    setPageSize(Number(event.target.value) as (typeof PAGE_SIZES)[number]);
+                    setPage(1);
+                  }}
+                >
+                  {PAGE_SIZES.map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <div>
                 <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>
                   {copy.previous}

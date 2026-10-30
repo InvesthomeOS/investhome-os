@@ -4,14 +4,15 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 
-import { Button, ErrorState, Input, LoadingState, TextArea } from '@investhome/ui';
+import { Button, ErrorState, Input, TextArea } from '@investhome/ui';
 
 import { canCreateCrm } from '@/lib/crm/crm-permissions';
+import { confirmDiscardUnsaved, saveFailedMessage } from '@/lib/crm/unsaved-form';
 import { crmCompaniesMutations, crmCompaniesQueryKeys } from '@/lib/query/crm-companies-queries';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
@@ -25,6 +26,7 @@ import {
   type CrmCompanyFormValues,
 } from '@/workspaces/crm/schemas/company';
 import { useCrmCompaniesStore } from '@/workspaces/crm/_stores/crm-companies-store';
+import '../companies/companies-ops.css';
 import { useQueryClient } from '@tanstack/react-query';
 import { fetchCrmCompanies } from '@/workspaces/crm/api/companies';
 
@@ -34,6 +36,8 @@ export function CrmCompanyForm({ mode = 'create' }: { mode?: 'create' | 'edit' }
   const t = useTranslations('crm.companies');
   const tCrm = useTranslations('crm');
   const tCommon = useTranslations('common');
+  const locale = useLocale();
+  const [saveError, setSaveError] = useState<string | null>(null);
   const router = useRouter();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -71,9 +75,13 @@ export function CrmCompanyForm({ mode = 'create' }: { mode?: 'create' | 'edit' }
   const createMutation = useMutation({
     ...crmCompaniesMutations.create(),
     onSuccess: async (company) => {
+      setSaveError(null);
       localStorage.removeItem(DRAFT_KEY);
       await queryClient.invalidateQueries({ queryKey: crmCompaniesQueryKeys.all });
       router.push(`/workspaces/crm/companies/${company.id}` as Route);
+    },
+    onError: () => {
+      setSaveError(saveFailedMessage(!locale.startsWith('en')));
     },
   });
 
@@ -91,6 +99,7 @@ export function CrmCompanyForm({ mode = 'create' }: { mode?: 'create' | 'edit' }
   };
 
   const onSubmit = form.handleSubmit((values) => {
+    setSaveError(null);
     const payload: Record<string, unknown> = {
       ...values,
       entity_type: values.entity_type || undefined,
@@ -103,10 +112,6 @@ export function CrmCompanyForm({ mode = 'create' }: { mode?: 'create' | 'edit' }
 
   if (!canCreateCrm(user)) {
     return <ErrorState title={tCrm('accessDenied')} message={tCrm('accessDeniedHint')} />;
-  }
-
-  if (createMutation.isPending) {
-    return <LoadingState label={tCommon('saving')} />;
   }
 
   return (
@@ -189,12 +194,27 @@ export function CrmCompanyForm({ mode = 'create' }: { mode?: 'create' | 'edit' }
       </section>
 
       {duplicateWarning ? <p className="crm-duplicate-warning">{duplicateWarning}</p> : null}
+      {saveError ? (
+        <p className="crm-company-form__error" role="alert" data-testid="crm-company-form-error">
+          {saveError}
+        </p>
+      ) : null}
 
       <div className="crm-form-actions">
-        <Link href={'/workspaces/crm/companies' as Route} className="ih-btn ih-btn--secondary">
+        <Link
+          href={'/workspaces/crm/companies' as Route}
+          className="ih-btn ih-btn--secondary"
+          onClick={(event) => {
+            if (form.formState.isDirty && !confirmDiscardUnsaved(!locale.startsWith('en'))) {
+              event.preventDefault();
+            }
+          }}
+        >
           {tCommon('cancel')}
         </Link>
-        <Button type="submit">{mode === 'create' ? t('actions.create') : tCommon('save')}</Button>
+        <Button type="submit" disabled={createMutation.isPending}>
+          {createMutation.isPending ? tCommon('saving') : mode === 'create' ? t('actions.create') : tCommon('save')}
+        </Button>
       </div>
     </form>
   );

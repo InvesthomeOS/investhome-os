@@ -9,6 +9,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { Button, ErrorState, Input, Select, TextArea } from '@investhome/ui';
 
 import { fetchUsers } from '@/lib/api/auth';
+import { confirmDiscardUnsaved, saveFailedMessage } from '@/lib/crm/unsaved-form';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { createNote, fetchActivity, fetchNotes } from '@/workspaces/crm/api/activities';
 import { fetchAgreements } from '@/workspaces/crm/api/agreements';
@@ -133,6 +134,7 @@ function NoteDrawer({
   purchases,
   personSuggestions,
   saving,
+  formError,
   onClose,
   onSave,
   onFormChange,
@@ -147,6 +149,7 @@ function NoteDrawer({
   purchases: Array<{ id: string; label: string }>;
   personSuggestions: Array<{ id: string; display_name: string }>;
   saving: boolean;
+  formError: string | null;
   onClose: () => void;
   onSave: () => void;
   onFormChange: (patch: Partial<NoteForm>) => void;
@@ -268,6 +271,11 @@ function NoteDrawer({
                 </option>
               ))}
             </Select>
+            {formError ? (
+              <p className="crm-tasks__form-error" role="alert" data-testid="crm-notes-form-error">
+                {formError}
+              </p>
+            ) : null}
             <Button type="submit" size="sm" disabled={saving || !form.body.trim() || !form.contactId}>
               {saving ? t('form.saving') : t('form.save')}
             </Button>
@@ -292,6 +300,8 @@ export function CrmNotesWorkspace() {
   const [selectedSnapshot, setSelectedSnapshot] = useState<CrmActivitySummary | null>(null);
   const [mode, setMode] = useState<'detail' | 'create' | null>(null);
   const [form, setForm] = useState<NoteForm>(EMPTY_FORM);
+  const [formBaseline, setFormBaseline] = useState<NoteForm>(EMPTY_FORM);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setFilters((prev) => ({ ...prev, search: searchDraft })), 220);
@@ -381,9 +391,9 @@ export function CrmNotesWorkspace() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const body = form.body.trim();
-      if (!body || !form.contactId) throw new Error(t('form.personRequired'));
+      if (!body || !form.contactId) throw new Error('note_form_incomplete');
       await createNote({
-        title: body.split('\n')[0].slice(0, 120),
+        title: (body.split('\n')[0] ?? body).slice(0, 120),
         description: body,
         contact_id: form.contactId,
         project_group: form.projectGroup || undefined,
@@ -391,11 +401,17 @@ export function CrmNotesWorkspace() {
       });
     },
     onSuccess: () => {
+      setFormError(null);
       setMode(null);
       setSelectedId(null);
       setSelectedSnapshot(null);
       setForm(EMPTY_FORM);
+      setFormBaseline(EMPTY_FORM);
       void queryClient.invalidateQueries({ queryKey: ['crm'] });
+    },
+    onError: (error) => {
+      const incomplete = error instanceof Error && error.message === 'note_form_incomplete';
+      setFormError(incomplete ? t('form.personRequired') : saveFailedMessage(locale.startsWith('tr')));
     },
   });
 
@@ -408,9 +424,18 @@ export function CrmNotesWorkspace() {
 
   const openCreate = () => {
     setForm(EMPTY_FORM);
+    setFormBaseline(EMPTY_FORM);
+    setFormError(null);
     setSelectedId(null);
     setSelectedSnapshot(null);
     setMode('create');
+  };
+
+  const noteFormDirty = mode === 'create' && JSON.stringify(form) !== JSON.stringify(formBaseline);
+  const requestClose = () => {
+    if (noteFormDirty && !confirmDiscardUnsaved(locale.startsWith('tr'))) return;
+    setFormError(null);
+    setMode(null);
   };
 
   const openDetail = (item: CrmActivitySummary) => {
@@ -612,7 +637,7 @@ export function CrmNotesWorkspace() {
 
       {mode ? (
         <>
-          <button type="button" className="crm-tasks__drawer-backdrop" aria-label={t('actions.close')} onClick={() => setMode(null)} />
+          <button type="button" className="crm-tasks__drawer-backdrop" aria-label={t('actions.close')} onClick={requestClose} />
           <NoteDrawer
             item={selectedDetail}
             mode={mode}
@@ -622,7 +647,8 @@ export function CrmNotesWorkspace() {
             purchases={purchases}
             personSuggestions={mode === 'detail' ? [] : personSuggestions}
             saving={saveMutation.isPending}
-            onClose={() => setMode(null)}
+            formError={formError}
+            onClose={requestClose}
             onSave={() => void saveMutation.mutate()}
             onFormChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
             onPersonQuery={(value) => setForm((prev) => ({ ...prev, contactLabel: value, contactId: '', agreementId: '' }))}

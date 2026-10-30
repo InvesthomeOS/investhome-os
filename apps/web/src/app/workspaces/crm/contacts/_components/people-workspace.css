@@ -219,7 +219,52 @@
   color: #0a6f8a;
 }
 
+.crm-people-table .ctc-ds__table th:first-child,
+.crm-people-table .ctc-ds__table td:first-child,
+.crm-people-table .ctc-ds__table th:last-child,
+.crm-people-table .ctc-ds__table td:last-child {
+  position: sticky;
+  background: #fff;
+}
+
+.crm-people-table .ctc-ds__table th:first-child,
+.crm-people-table .ctc-ds__table td:first-child {
+  left: 0;
+  z-index: 1;
+  min-width: 180px;
+}
+
+.crm-people-table .ctc-ds__table th:last-child,
+.crm-people-table .ctc-ds__table td:last-child {
+  right: 0;
+  z-index: 1;
+  white-space: nowrap;
+}
+
+.crm-people-table .ctc-ds__table th:first-child,
+.crm-people-table .ctc-ds__table th:last-child {
+  z-index: 3;
+  background: #f7f9fa;
+}
+
+.crm-people-table .ctc-ds__row.is-selected td:first-child,
+.crm-people-table .ctc-ds__row.is-selected td:last-child {
+  background: #eef6f8;
+}
+
+.crm-table-sort {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 .crm-people-row-open {
+  white-space: nowrap;
   min-height: 28px;
   padding: 0 10px;
   border: 1px solid var(--people-line);

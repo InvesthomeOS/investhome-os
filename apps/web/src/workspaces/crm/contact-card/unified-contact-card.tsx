@@ -29,6 +29,7 @@ import {
 import { notifyContactUpdated, useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import { EmailSendComposer } from '@/workspaces/crm/contact-card/email-send-composer';
 import { WhatsAppSendComposer } from '@/workspaces/crm/contact-card/whatsapp-send-composer';
+import { confirmDiscardUnsaved } from '@/lib/crm/unsaved-form';
 import { personCardCopy, type PersonCardCopy } from '@/workspaces/crm/contact-card/person-card-copy';
 import { salesDetailUrl } from '@/workspaces/crm/contact-card/pilot-people';
 import { PilotHistoryStream, type PilotHistoryFilter } from '@/workspaces/crm/contact-card/history-stream';
@@ -250,7 +251,63 @@ function nowLocal(): string {
 function friendlyError(message: string, t: PersonCardCopy): string {
   if (message.includes('invalid_phone')) return t.invalidPhone;
   if (message.includes('invalid_email')) return t.invalidEmailMsg;
-  return message;
+  return t.saveError;
+}
+
+function contactEditSignature(input: {
+  displayName: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  extraPhones: string;
+  whatsapp: string;
+  email: string;
+  secondEmail: string;
+  extraEmails: string;
+  address: string;
+  city: string;
+  region: string;
+  country: string;
+  language: string;
+  budgetMin: string;
+  budgetMax: string;
+  company: string;
+  position: string;
+  source: string;
+  notes: string;
+  statusValue: string;
+  junkReason: string;
+  ownerId: string;
+  followUpAt: string;
+  roles: string[];
+}): string {
+  return [
+    input.displayName,
+    input.firstName,
+    input.lastName,
+    input.phone,
+    input.extraPhones,
+    input.whatsapp,
+    input.email,
+    input.secondEmail,
+    input.extraEmails,
+    input.address,
+    input.city,
+    input.region,
+    input.country,
+    input.language,
+    input.budgetMin,
+    input.budgetMax,
+    input.company,
+    input.position,
+    input.source,
+    input.notes,
+    input.statusValue,
+    input.junkReason,
+    input.ownerId,
+    input.followUpAt,
+    input.roles.join('|'),
+  ].join('\u001f');
 }
 
 function splitList(value: string): string[] {
@@ -516,7 +573,107 @@ export function UnifiedContactCard({
     window.history.replaceState(null, '', `${url.pathname}${url.search}`);
   };
 
-  const togglePanel = (next: Panel) => setPanel((current) => (current === next ? null : next));
+  const savedEditSignature = contactEditSignature({
+    displayName: contact.display_name,
+    firstName: contact.first_name ?? '',
+    lastName: contact.last_name ?? '',
+    phone: contact.primary_phone ?? '',
+    extraPhones: (contact.secondary_phones ?? []).join(', '),
+    whatsapp: contact.whatsapp ?? '',
+    email: contact.primary_email ?? '',
+    secondEmail: (contact.secondary_emails ?? [])[0] ?? '',
+    extraEmails: (contact.secondary_emails ?? []).slice(1).join(', '),
+    address: contact.address_line1 ?? '',
+    city: contact.city ?? '',
+    region: contact.state_province ?? '',
+    country: contact.country ?? '',
+    language: typeof contact.communication_prefs?.language === 'string' ? contact.communication_prefs.language : '',
+    budgetMin: contact.buyer_profile?.budget_min != null ? String(contact.buyer_profile.budget_min) : '',
+    budgetMax: contact.buyer_profile?.budget_max != null ? String(contact.buyer_profile.budget_max) : '',
+    company: contact.organization_name ?? '',
+    position: contact.job_title ?? '',
+    source: contact.source ?? contact.bitrix_source_channel ?? '',
+    notes: contact.notes ?? '',
+    statusValue: contact.status === 'archived' ? 'archived' : 'active',
+    junkReason: contact.junk_reason ?? '',
+    ownerId: contact.owner_user_id ?? '',
+    followUpAt: toLocalInput(contact.next_follow_up_at),
+    roles: contact.contact_types.length ? contact.contact_types : [contact.contact_type],
+  });
+  const editDirty =
+    panel === 'edit' &&
+    contactEditSignature({
+      displayName,
+      firstName,
+      lastName,
+      phone,
+      extraPhones,
+      whatsapp,
+      email,
+      secondEmail,
+      extraEmails,
+      address,
+      city,
+      region,
+      country,
+      language,
+      budgetMin,
+      budgetMax,
+      company,
+      position,
+      source,
+      notes,
+      statusValue,
+      junkReason,
+      ownerId,
+      followUpAt,
+      roles,
+    }) !== savedEditSignature;
+
+  const resetEditFields = () => {
+    setDisplayName(contact.display_name);
+    setFirstName(contact.first_name ?? '');
+    setLastName(contact.last_name ?? '');
+    setPhone(contact.primary_phone ?? '');
+    setExtraPhones((contact.secondary_phones ?? []).join(', '));
+    setWhatsapp(contact.whatsapp ?? '');
+    setEmail(contact.primary_email ?? '');
+    setSecondEmail((contact.secondary_emails ?? [])[0] ?? '');
+    setExtraEmails((contact.secondary_emails ?? []).slice(1).join(', '));
+    setAddress(contact.address_line1 ?? '');
+    setCity(contact.city ?? '');
+    setRegion(contact.state_province ?? '');
+    setCountry(contact.country ?? '');
+    const prefs = contact.communication_prefs ?? {};
+    setLanguage(typeof prefs.language === 'string' ? prefs.language : '');
+    const buyer = contact.buyer_profile ?? {};
+    setBudgetMin(buyer.budget_min != null ? String(buyer.budget_min) : '');
+    setBudgetMax(buyer.budget_max != null ? String(buyer.budget_max) : '');
+    setSource(contact.source ?? contact.bitrix_source_channel ?? '');
+    setNotes(contact.notes ?? '');
+    setCompany(contact.organization_name ?? '');
+    setPosition(contact.job_title ?? '');
+    setStatusValue(contact.status === 'archived' ? 'archived' : 'active');
+    setJunkReason(contact.junk_reason ?? '');
+    setRoles(contact.contact_types.length ? contact.contact_types : [contact.contact_type]);
+    setOwnerId(contact.owner_user_id ?? '');
+    setFollowUpAt(toLocalInput(contact.next_follow_up_at));
+    setError(null);
+  };
+
+  const requestCloseEdit = (next: Panel | null) => {
+    if (editDirty && !confirmDiscardUnsaved(!locale.startsWith('en'))) return;
+    resetEditFields();
+    setPanel(next);
+  };
+
+  const togglePanel = (next: Panel) => {
+    if (panel === 'edit') {
+      requestCloseEdit(next === 'edit' ? null : next);
+      return;
+    }
+    setPanel((current) => (current === next ? null : next));
+  };
 
   const submitEdit = (event: FormEvent) => {
     event.preventDefault();
@@ -590,38 +747,7 @@ export function UnifiedContactCard({
     });
   };
 
-  const cancelEdit = () => {
-    if (!contact) return;
-    setDisplayName(contact.display_name);
-    setFirstName(contact.first_name ?? '');
-    setLastName(contact.last_name ?? '');
-    setPhone(contact.primary_phone ?? '');
-    setExtraPhones((contact.secondary_phones ?? []).join(', '));
-    setWhatsapp(contact.whatsapp ?? '');
-    setEmail(contact.primary_email ?? '');
-    setSecondEmail((contact.secondary_emails ?? [])[0] ?? '');
-    setExtraEmails((contact.secondary_emails ?? []).slice(1).join(', '));
-    setAddress(contact.address_line1 ?? '');
-    setCity(contact.city ?? '');
-    setRegion(contact.state_province ?? '');
-    setCountry(contact.country ?? '');
-    const prefs = contact.communication_prefs ?? {};
-    setLanguage(typeof prefs.language === 'string' ? prefs.language : '');
-    const buyer = contact.buyer_profile ?? {};
-    setBudgetMin(buyer.budget_min != null ? String(buyer.budget_min) : '');
-    setBudgetMax(buyer.budget_max != null ? String(buyer.budget_max) : '');
-    setSource(contact.source ?? contact.bitrix_source_channel ?? '');
-    setNotes(contact.notes ?? '');
-    setCompany(contact.organization_name ?? '');
-    setPosition(contact.job_title ?? '');
-    setStatusValue(contact.status === 'archived' ? 'archived' : 'active');
-    setJunkReason(contact.junk_reason ?? '');
-    setRoles(contact.contact_types.length ? contact.contact_types : [contact.contact_type]);
-    setOwnerId(contact.owner_user_id ?? '');
-    setFollowUpAt(toLocalInput(contact.next_follow_up_at));
-    setError(null);
-    setPanel(null);
-  };
+  const cancelEdit = () => requestCloseEdit(null);
 
   const submitNote = (event: FormEvent) => {
     event.preventDefault();
@@ -1084,7 +1210,11 @@ export function UnifiedContactCard({
         </div>
       ) : null}
 
-      {error ? <div className="crm-verify-detail__error">{error}</div> : null}
+      {error ? (
+        <div className="crm-verify-detail__error" role="alert" data-testid="contact-edit-error">
+          {error}
+        </div>
+      ) : null}
       {saveOk && !error ? (
         <div className="crm-verify-detail__success" data-testid="contact-edit-success">
           {t.saved}

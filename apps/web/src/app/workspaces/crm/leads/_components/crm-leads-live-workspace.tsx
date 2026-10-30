@@ -10,6 +10,7 @@ import { Button, ErrorState, Input, LoadingState, Select, TextArea } from '@inve
 
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 import { canUpdateCrm } from '@/lib/crm/crm-permissions';
+import { confirmDiscardUnsaved, saveFailedMessage } from '@/lib/crm/unsaved-form';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import { EmailSendComposer } from '@/workspaces/crm/contact-card/email-send-composer';
@@ -456,6 +457,8 @@ export function CrmLeadsLiveWorkspace() {
   const [drawer, setDrawer] = useState<DrawerMode | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<CrmLeadWrite>(EMPTY_FORM);
+  const [formBaseline, setFormBaseline] = useState<CrmLeadWrite>(EMPTY_FORM);
+  const [formError, setFormError] = useState<string | null>(null);
   const [conflict, setConflict] = useState<CrmLeadConflictError | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -509,6 +512,7 @@ export function CrmLeadsLiveWorkspace() {
       createCrmLead(payload, confirm),
     onSuccess: async (lead) => {
       setConflict(null);
+      setFormError(null);
       setSelectedId(lead.id);
       setDrawer('detail');
       await invalidate();
@@ -519,16 +523,20 @@ export function CrmLeadsLiveWorkspace() {
         setConflict(error);
         return;
       }
-      showToast(error instanceof Error ? error.message : t.save);
+      setFormError(saveFailedMessage(locale === 'tr'));
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: CrmLeadWrite }) => updateCrmLead(id, payload),
     onSuccess: async () => {
+      setFormError(null);
       setDrawer('detail');
       await invalidate();
       showToast(t.updatedOk);
+    },
+    onError: () => {
+      setFormError(saveFailedMessage(locale === 'tr'));
     },
   });
 
@@ -565,7 +573,7 @@ export function CrmLeadsLiveWorkspace() {
         setDrawer('convert');
         return;
       }
-      showToast(error instanceof Error ? error.message : t.convert);
+      showToast(saveFailedMessage(locale === 'tr'));
     },
   });
 
@@ -608,8 +616,8 @@ export function CrmLeadsLiveWorkspace() {
       await invalidate();
       showToast(t.taskCreated);
     },
-    onError: (error) => {
-      setTaskFormError(error instanceof Error ? error.message : t.save);
+    onError: () => {
+      setTaskFormError(saveFailedMessage(locale === 'tr'));
     },
   });
 
@@ -640,7 +648,10 @@ export function CrmLeadsLiveWorkspace() {
   };
 
   const openCreate = (nextStage?: CrmLeadStage) => {
-    setForm({ ...EMPTY_FORM, stage: nextStage || 'yeni' });
+    const next = { ...EMPTY_FORM, stage: nextStage || 'yeni' };
+    setForm(next);
+    setFormBaseline(next);
+    setFormError(null);
     setConflict(null);
     setSelectedId(null);
     setDrawer('create');
@@ -670,16 +681,31 @@ export function CrmLeadsLiveWorkspace() {
       investment_budget_amount: item.investment_budget_amount ?? '',
       investment_budget_currency: item.investment_budget_currency ?? 'USD',
     });
+    setFormBaseline({
+      full_name: item.full_name,
+      phone: item.phone ?? '',
+      email: item.email ?? '',
+      source: item.source ?? 'manual',
+      campaign: item.campaign ?? '',
+      project: item.project ?? '',
+      owner_user_id: item.owner_user_id ?? '',
+      notes: item.notes ?? '',
+      stage: item.stage,
+      investment_budget_amount: item.investment_budget_amount ?? '',
+      investment_budget_currency: item.investment_budget_currency ?? 'USD',
+    });
+    setFormError(null);
     setDrawer('edit');
   };
 
   const submitForm = (confirm = false) => {
+    setFormError(null);
     if (form.stage === 'unqualified' && !form.junk_reason) {
-      showToast(t.junkReasonRequired);
+      setFormError(t.junkReasonRequired);
       return;
     }
     if (form.stage === 'unqualified' && form.junk_reason === 'other' && !(form.junk_reason_detail || '').trim()) {
-      showToast(t.junkReasonDetailRequired);
+      setFormError(t.junkReasonDetailRequired);
       return;
     }
     const payload: CrmLeadWrite = {
@@ -742,6 +768,14 @@ export function CrmLeadsLiveWorkspace() {
 
   const unmatchedCount = kpis.unmatched + kpis.failed;
   const saving = createMutation.isPending || updateMutation.isPending || convertMutation.isPending;
+  const leadFormDirty =
+    (drawer === 'create' || drawer === 'edit') && JSON.stringify(form) !== JSON.stringify(formBaseline);
+  const taskDraftDirty = taskFormOpen && Boolean(taskForm.title.trim() || taskForm.date || taskForm.time);
+  const requestCloseDrawer = () => {
+    if ((leadFormDirty || taskDraftDirty) && !confirmDiscardUnsaved(locale === 'tr')) return;
+    setFormError(null);
+    setDrawer(null);
+  };
   const kpisLive = data?.kpis ?? kpis;
 
   return (
@@ -962,7 +996,6 @@ export function CrmLeadsLiveWorkspace() {
                     <th>{t.budget}</th>
                     <th>{t.owner}</th>
                     <th>{t.lastActivity}</th>
-                    <th>{t.nextTask}</th>
                     <th>{t.created}</th>
                     <th>{t.actions}</th>
                   </tr>
@@ -1004,7 +1037,6 @@ export function CrmLeadsLiveWorkspace() {
                         </td>
                         <td>{displayOwner(item.owner_name) || t.none}</td>
                         <td>{lastActivityLabel(item, locale, t.none)}</td>
-                        <td>{t.none}</td>
                         <td>{formatWhen(item.created_at, locale)}</td>
                         <td>
                           <button
@@ -1040,7 +1072,7 @@ export function CrmLeadsLiveWorkspace() {
 
       {drawer ? (
         <>
-          <button type="button" className="crm-ops-drawer-backdrop" aria-label={t.close} onClick={() => setDrawer(null)} />
+          <button type="button" className="crm-ops-drawer-backdrop" aria-label={t.close} onClick={requestCloseDrawer} />
           <aside className="crm-ops-drawer" role="dialog" data-testid="crm-leads-drawer">
             <div className="crm-ops-drawer__head">
               <h3>
@@ -1052,7 +1084,7 @@ export function CrmLeadsLiveWorkspace() {
                       ? t.convert
                       : (selected ? crmLeadDisplayName(selected) : t.title)}
               </h3>
-              <button type="button" className="crm-ops-link" onClick={() => setDrawer(null)}>
+              <button type="button" className="crm-ops-link" onClick={requestCloseDrawer}>
                 {t.close}
               </button>
             </div>
@@ -1183,6 +1215,11 @@ export function CrmLeadsLiveWorkspace() {
                         </Button>
                       ) : null}
                     </div>
+                  ) : null}
+                  {formError ? (
+                    <p className="crm-ops-form__error" role="alert" data-testid="crm-leads-form-error">
+                      {formError}
+                    </p>
                   ) : null}
                   <Button type="submit" size="sm" disabled={saving}>
                     {saving ? t.saving : t.save}
