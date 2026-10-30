@@ -9969,6 +9969,7 @@
     "notes": {
       "title": "Notes",
       "subtitle": "Live CRM notes and comments.",
+      "immutable": "Notes are create-only. Saved notes are not edited here.",
       "accessDenied": "You do not have permission to view notes.",
       "accessDeniedHint": "Contact your administrator for CRM note access.",
       "loadFailed": "Unable to load notes.",

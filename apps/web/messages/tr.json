@@ -18908,6 +18908,7 @@
     "notes": {
       "title": "Notlar",
       "subtitle": "Canlı CRM notları ve yorumları.",
+      "immutable": "Notlar yalnızca oluşturulur. Kayıtlı notlar burada düzenlenmez.",
       "accessDenied": "Notları görüntüleme yetkiniz yok.",
       "accessDeniedHint": "CRM not erişimi için yöneticinize başvurun.",
       "loadFailed": "Notlar yüklenemedi.",

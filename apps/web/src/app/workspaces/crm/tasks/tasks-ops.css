@@ -266,6 +266,41 @@
   white-space: nowrap;
 }
 
+.crm-ops-table th:first-child,
+.crm-ops-table td:first-child,
+.crm-ops-table th.is-actions,
+.crm-ops-table td.is-actions {
+  position: sticky;
+  background: #fff;
+}
+
+.crm-ops-table th:first-child,
+.crm-ops-table td:first-child {
+  left: 0;
+  z-index: 1;
+  min-width: 180px;
+}
+
+.crm-ops-table th.is-actions,
+.crm-ops-table td.is-actions {
+  right: 0;
+  z-index: 1;
+  white-space: nowrap;
+}
+
+.crm-ops-table thead th:first-child,
+.crm-ops-table thead th.is-actions {
+  z-index: 3;
+  background: #f7fbfc;
+}
+
+.crm-ops-row:hover td:first-child,
+.crm-ops-row:hover td.is-actions,
+.crm-ops-row.is-selected td:first-child,
+.crm-ops-row.is-selected td.is-actions {
+  background: #f4fafb;
+}
+
 .crm-ops-table thead .crm-ops-link {
   color: inherit;
   font-size: inherit;

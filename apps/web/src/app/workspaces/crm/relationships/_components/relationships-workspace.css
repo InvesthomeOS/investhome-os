@@ -134,6 +134,14 @@
   background: #fff;
 }
 
+.crm-rel-table .ctc-ds__table th:last-child,
+.crm-rel-table .ctc-ds__table td:last-child {
+  position: static;
+  right: auto;
+  z-index: auto;
+  white-space: normal;
+}
+
 .crm-rel-entity-results button.is-selected {
   border-color: var(--shot-navy);
   background: #f3f7f8;

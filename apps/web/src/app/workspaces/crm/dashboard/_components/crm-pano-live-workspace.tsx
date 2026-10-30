@@ -12,7 +12,7 @@ import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { crmQueries } from '@/lib/query/crm-queries';
 import type { CrmDashboardCount, CrmDashboardFeedItem, CrmDashboardKpis } from '@/workspaces/crm/types';
 
-import { CompactHorizontalBars, CompactVerticalBars, PanoDonut } from './pano-charts';
+import { CompactVerticalBars, PanoDonut } from './pano-charts';
 
 const COPY = {
   tr: {
@@ -386,7 +386,7 @@ export function CrmPanoLiveWorkspace() {
         </ChartCard>
       </section>
 
-      <section className="crm-pano__row-charts" aria-label={copy.activeProjects}>
+      <section className="crm-pano__row-charts" aria-label={copy.byMonth}>
         <ChartCard
           title={copy.byMonth}
           href="/workspaces/crm/agreements"
@@ -395,15 +395,6 @@ export function CrmPanoLiveWorkspace() {
           hasData={monthChart.some((row) => row.count > 0)}
         >
           <CompactVerticalBars data={monthChart} ariaLabel={copy.byMonth} />
-        </ChartCard>
-        <ChartCard
-          title={copy.activeProjects}
-          href="/workspaces/crm/agreements"
-          viewAll={copy.viewAll}
-          empty={copy.empty}
-          hasData={projectChart.some((row) => row.count > 0)}
-        >
-          <CompactHorizontalBars data={projectChart} ariaLabel={copy.activeProjects} />
         </ChartCard>
       </section>
 

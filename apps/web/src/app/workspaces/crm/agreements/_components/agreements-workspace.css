@@ -366,6 +366,34 @@
   white-space: nowrap;
 }
 
+.crm-agreements-table th:first-child,
+.crm-agreements-table td:first-child,
+.crm-agreements-table th.is-actions,
+.crm-agreements-table td.is-actions {
+  position: sticky;
+  background: #fff;
+}
+
+.crm-agreements-table th:first-child,
+.crm-agreements-table td:first-child {
+  left: 0;
+  z-index: 1;
+  min-width: 160px;
+}
+
+.crm-agreements-table th.is-actions,
+.crm-agreements-table td.is-actions {
+  right: 0;
+  z-index: 1;
+  white-space: nowrap;
+}
+
+.crm-agreements-table thead th:first-child,
+.crm-agreements-table thead th.is-actions {
+  z-index: 3;
+  background: #f7fbfc;
+}
+
 .crm-agreements-table thead th button {
   padding: 0;
   border: 0;

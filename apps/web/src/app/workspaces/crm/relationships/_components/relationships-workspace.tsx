@@ -89,6 +89,7 @@ const COPY = {
     lastActivity: 'Son Etkinlik',
     note: 'Not',
     empty: 'Bu görünümde ilişki yok.',
+    loadFailed: 'İlişkiler yüklenemedi. Yeniden deneyin.',
     loading: 'İlişkiler yükleniyor…',
     previous: 'Önceki',
     next: 'Sonraki',
@@ -125,6 +126,7 @@ const COPY = {
     lastActivity: 'Last activity',
     note: 'Note',
     empty: 'No relationships match this view.',
+    loadFailed: 'Relationships failed to load. Try again.',
     loading: 'Loading relationships…',
     previous: 'Previous',
     next: 'Next',
@@ -423,9 +425,13 @@ export function RelationshipsWorkspace() {
           <p className="crm-agreements-count" data-testid="crm-relationships-filtered-count">
             {copy.countLabel.replace('{count}', String((listQuery.data?.total ?? 0).toLocaleString(locale)))}
           </p>
-          <section className="ctc-ds__table-section crm-people-table" aria-label={copy.title}>
+          <section className="ctc-ds__table-section crm-people-table crm-rel-table" aria-label={copy.title}>
             {listQuery.isLoading ? <div className="ctc-ds__skeleton">{copy.loading}</div> : null}
-            {listQuery.isError ? <div className="ctc-ds__empty">{listQuery.error.message}</div> : null}
+            {listQuery.isError ? (
+              <div className="ctc-ds__empty" data-testid="crm-relationships-load-error">
+                {copy.loadFailed}
+              </div>
+            ) : null}
             {!listQuery.isLoading && !listQuery.isError && rows.length === 0 ? (
               <div className="ctc-ds__empty">{copy.empty}</div>
             ) : null}

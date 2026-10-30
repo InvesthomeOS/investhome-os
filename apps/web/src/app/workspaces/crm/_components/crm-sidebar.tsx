@@ -19,7 +19,7 @@ const CRM_NAV_ICONS: Record<string, IhIconName> = {
   'nav.contacts': 'users',
   'nav.junk': 'alert',
   'nav.agents': 'user',
-  'nav.agreements': 'documents',
+  'nav.agreements': 'finance',
   'nav.companies': 'projects',
   'nav.investors': 'trendingUp',
   'nav.relationships': 'crm',
@@ -27,11 +27,11 @@ const CRM_NAV_ICONS: Record<string, IhIconName> = {
   'nav.activities': 'clock',
   'nav.tasks': 'check',
   'nav.calendar': 'calendar',
-  'nav.notes': 'documents',
+  'nav.notes': 'empty',
   'nav.tags': 'sparkles',
   'nav.communication': 'inbox',
   'nav.documents': 'documents',
-  'nav.reports': 'barChart',
+  'nav.reports': 'sales',
   'nav.settings': 'settings',
 };
 

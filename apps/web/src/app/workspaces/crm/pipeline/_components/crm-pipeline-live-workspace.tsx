@@ -65,6 +65,7 @@ const COPY = {
     emptyTitle: 'Pipeline boş',
     emptyBody: 'Bu görünümde lead yok. Demo kayıt eklenmez.',
     emptyColumn: 'Bu aşamada lead yok.',
+    filteredColumn: 'Bu filtreye uyan lead yok.',
     loadErrorTitle: 'Pipeline yüklenemedi',
     loadError: 'Kayıtlar alınamadı. Yeniden deneyin.',
     retry: 'Yeniden dene',
@@ -113,6 +114,7 @@ const COPY = {
     emptyTitle: 'Pipeline is empty',
     emptyBody: 'No leads in this view. Demo cards are not added.',
     emptyColumn: 'No leads in this stage.',
+    filteredColumn: 'No leads match this filter.',
     loadErrorTitle: 'Pipeline could not be loaded',
     loadError: 'The records could not be loaded. Try again.',
     retry: 'Retry',
@@ -306,6 +308,9 @@ export function CrmPipelineLiveWorkspace() {
   }, [items]);
 
   const columnCount = (column: CrmLeadStage) => grouped[column].length;
+  const filtersActive = Boolean(
+    search || stage || source || project || ownerId || dateFrom || dateTo || junkReason,
+  );
 
   const clearFilters = () => {
     setSearchDraft('');
@@ -493,9 +498,13 @@ export function CrmPipelineLiveWorkspace() {
             </div>
             <div className="crm-ops-kanban__body">
               {grouped[column].length === 0 ? (
-                <div className="crm-ops-col-empty">
-                  <strong>{t.emptyTitle}</strong>
-                  <p>{t.emptyColumn}</p>
+                <div
+                  className="crm-ops-col-empty"
+                  data-testid={
+                    filtersActive ? 'crm-pipeline-column-filtered-empty' : 'crm-pipeline-column-empty'
+                  }
+                >
+                  <p>{filtersActive ? t.filteredColumn : t.emptyColumn}</p>
                 </div>
               ) : (
                 grouped[column].map((item) => (

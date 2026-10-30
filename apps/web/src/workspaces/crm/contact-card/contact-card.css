@@ -8,6 +8,18 @@
 @media (max-width: 768px) {
   .ih-drawer:has(.crm-contact-card) .ih-drawer__panel {
     width: 100vw;
+    max-width: 100vw;
+  }
+
+  .ih-drawer:has(.crm-contact-card) .ih-drawer__header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #fff;
+  }
+
+  .ih-drawer:has(.crm-contact-card) .ih-drawer__close {
+    flex: 0 0 auto;
   }
 }
 

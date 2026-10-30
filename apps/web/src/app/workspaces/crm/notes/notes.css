@@ -28,3 +28,27 @@
   min-width: 220px;
   max-width: 420px;
 }
+
+.crm-notes .crm-tasks__table-wrap {
+  overflow-x: auto;
+}
+
+.crm-notes .crm-tasks__table th:first-child,
+.crm-notes .crm-tasks__table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 140px;
+  background: #fff;
+}
+
+.crm-notes .crm-tasks__table thead th:first-child {
+  z-index: 3;
+  background: #f7fbfc;
+}
+
+.crm-notes__immutable {
+  margin: 4px 0 0;
+  color: var(--shot-muted, #5d727c);
+  font-size: 12.5px;
+}

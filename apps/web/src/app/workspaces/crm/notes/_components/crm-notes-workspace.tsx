@@ -507,6 +507,7 @@ export function CrmNotesWorkspace() {
         <div>
           <h1>{t('title')}</h1>
           <p>{t('subtitle')}</p>
+          <p className="crm-notes__immutable" data-testid="crm-notes-immutable">{t('immutable')}</p>
         </div>
         <div className="crm-tasks__header-actions">
           <span className="crm-tasks__count">{t('pagination.total', { count: total })}</span>

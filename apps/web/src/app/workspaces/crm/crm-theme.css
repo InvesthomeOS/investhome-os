@@ -5734,3 +5734,63 @@ html[data-theme='dark'] .crm-shell .global-search-trigger.crm-search-trigger {
   }
 }
 
+@media (max-width: 720px) {
+  .crm-shell .app-header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px;
+    padding-inline: 12px;
+  }
+
+  .crm-shell .app-header__actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+.crm-shell .crm-ops-drawer,
+.crm-shell .crm-tasks__drawer,
+.crm-shell .crm-comm-drawer,
+.crm-shell .crm-comm-drawer.is-wide,
+.crm-shell .crm-comm-drawer.is-comment,
+.crm-shell .crm-cal-ops__drawer {
+  max-width: 100vw;
+}
+
+.crm-shell .crm-ops-drawer__head,
+.crm-shell .crm-tasks__drawer-head,
+.crm-shell .crm-comm-drawer__head,
+.crm-shell .crm-cal-ops__drawer-head {
+  flex-wrap: wrap;
+}
+
+.crm-shell .crm-ops-drawer__head h3,
+.crm-shell .crm-tasks__drawer-head h3,
+.crm-shell .crm-comm-drawer__head h3 {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.crm-shell .crm-ops-drawer__head button,
+.crm-shell .crm-tasks__drawer-head button,
+.crm-shell .crm-comm-drawer__head button,
+.crm-shell .crm-tasks__link-btn {
+  flex: 0 0 auto;
+}
+
+.crm-shell .crm-ops-drawer__body,
+.crm-shell .crm-tasks__drawer-body,
+.crm-shell .crm-comm-drawer__body {
+  min-width: 0;
+  overflow: auto;
+}
+
+.crm-shell .crm-ops-drawer__body input,
+.crm-shell .crm-ops-drawer__body select,
+.crm-shell .crm-ops-drawer__body textarea,
+.crm-shell .crm-tasks__drawer-body input,
+.crm-shell .crm-tasks__drawer-body select,
+.crm-shell .crm-tasks__drawer-body textarea {
+  max-width: 100%;
+}
+

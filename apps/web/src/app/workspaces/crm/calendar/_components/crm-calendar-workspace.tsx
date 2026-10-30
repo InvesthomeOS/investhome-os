@@ -463,6 +463,7 @@ export function CrmCalendarWorkspace() {
   const { authLoading, canRead: canView, canManageTasks } = useCrmAccess();
   const queryClient = useQueryClient();
   const [view, setView] = useState<CalendarViewMode>('month');
+  const [narrow, setNarrow] = useState(false);
   const [cursor, setCursor] = useState(() => startOfDay(new Date()));
   const [filters, setFilters] = useState<OpsFilters>(EMPTY_FILTERS);
   const [personDraft, setPersonDraft] = useState('');
@@ -471,6 +472,15 @@ export function CrmCalendarWorkspace() {
   const [mode, setMode] = useState<DrawerMode | null>(null);
   const [form, setForm] = useState<EventForm>(EMPTY_FORM);
   const canQuery = !authLoading && canView;
+  const monthAsList = view === 'month' && narrow;
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 720px)');
+    const sync = () => setNarrow(media.matches);
+    sync();
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
+  }, []);
   const range = useMemo(() => rangeForView(view, cursor), [view, cursor]);
   const todayKey = isoDate(new Date());
 
@@ -511,7 +521,7 @@ export function CrmCalendarWorkspace() {
     placeholderData: keepPreviousData,
   });
 
-  const events = listQuery.data?.events ?? [];
+  const events = useMemo(() => listQuery.data?.events ?? [], [listQuery.data?.events]);
   const detailQuery = useQuery({
     queryKey: ['crm', 'activities', selected?.id],
     queryFn: () => fetchActivity(selected?.id || ''),
@@ -790,7 +800,7 @@ export function CrmCalendarWorkspace() {
 
       {listQuery.isError ? <ErrorState title={t('loadFailed')} message={t('emptyDescription')} /> : null}
 
-      {view === 'month' ? (
+      {view === 'month' && !monthAsList ? (
         <section className="crm-ops-board" aria-label={t('views.month')}>
           <div className="crm-ops-month-head">
             {CALENDAR_DAY_KEYS.map((dayKey) => (
@@ -934,8 +944,12 @@ export function CrmCalendarWorkspace() {
         </section>
       ) : null}
 
-      {view === 'list' ? (
-        <section className="crm-ops-board crm-ops-list" aria-label={t('views.list')}>
+      {view === 'list' || monthAsList ? (
+        <section
+          className="crm-ops-board crm-ops-list"
+          aria-label={t('views.list')}
+          data-testid={monthAsList ? 'crm-calendar-narrow-list' : 'crm-calendar-list'}
+        >
           {listQuery.isLoading && listItems.length === 0 ? <div className="crm-ops-skeleton" /> : null}
           {listItems.length === 0 && !listQuery.isLoading ? (
             <div className="crm-ops-empty">
