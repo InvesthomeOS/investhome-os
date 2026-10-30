@@ -9,7 +9,6 @@ import type { CrmAgreementSummary } from '@/workspaces/crm/api/agreements';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 
 import {
-  amountSortValue,
   displayAmount,
   displayDate,
   initials,
@@ -47,7 +46,20 @@ const OPTIONAL_COLUMNS = [
 ] as const;
 
 type ColumnId = (typeof DEFAULT_COLUMNS)[number] | (typeof OPTIONAL_COLUMNS)[number];
-type SortKey = ColumnId | 'musteri';
+type AgreementSortColumn = 'tarih' | 'hemenKira';
+
+function visiblePages(page: number, pages: number): Array<number | 'ellipsis'> {
+  if (pages <= 7) return Array.from({ length: pages }, (_, index) => index + 1);
+  const wanted = new Set([1, pages, page - 1, page, page + 1]);
+  const nums = [...wanted].filter((value) => value >= 1 && value <= pages).sort((a, b) => a - b);
+  const next: Array<number | 'ellipsis'> = [];
+  for (const value of nums) {
+    const last = next[next.length - 1];
+    if (typeof last === 'number' && value - last > 1) next.push('ellipsis');
+    next.push(value);
+  }
+  return next;
+}
 
 function loadColumns(): ColumnId[] {
   if (typeof window === 'undefined') return [...DEFAULT_COLUMNS];
@@ -106,28 +118,36 @@ function cellText(row: CrmAgreementSummary, column: ColumnId): string {
   }
 }
 
-function sortValue(row: CrmAgreementSummary, column: SortKey): string | number {
-  if (column === 'tutar') return amountSortValue(row);
-  if (column === 'tarih') return row.agreement_date || row.begin_date || '';
-  return cellText(row, column as ColumnId).toLocaleLowerCase('tr');
-}
-
 export function AgreementsList({
   items,
   onOpen,
+  sortKey,
+  sortDir,
+  onSort,
+  page,
+  pages,
+  total,
+  pageSize,
+  onPage,
+  onPageSize,
 }: {
   items: CrmAgreementSummary[];
   onOpen: (row: CrmAgreementSummary) => void;
+  sortKey: 'agreement_date' | 'hemen_kira';
+  sortDir: 'asc' | 'desc';
+  onSort: (column: AgreementSortColumn) => void;
+  page: number;
+  pages: number;
+  total: number;
+  pageSize: number;
+  onPage: (page: number) => void;
+  onPageSize: (size: number) => void;
 }) {
   const t = useTranslations('crm.agreements');
   const { openContact } = useContactCard();
   const [open, setOpen] = useState(false);
   const [columns, setColumns] = useState<ColumnId[]>([...DEFAULT_COLUMNS]);
   const [ready, setReady] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>('musteri');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     setColumns(loadColumns());
@@ -139,41 +159,14 @@ export function AgreementsList({
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(columns));
   }, [columns, ready]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [items, pageSize, sortKey, sortDir]);
-
   const allColumns = useMemo(() => [...DEFAULT_COLUMNS, ...OPTIONAL_COLUMNS], []);
-
-  const sorted = useMemo(() => {
-    const next = [...items];
-    next.sort((left, right) => {
-      const a = sortValue(left, sortKey);
-      const b = sortValue(right, sortKey);
-      const compared = typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b), 'tr');
-      return sortDir === 'asc' ? compared : -compared;
-    });
-    return next;
-  }, [items, sortDir, sortKey]);
-
-  const pages = Math.max(1, Math.ceil(sorted.length / pageSize));
-  const safePage = Math.min(page, pages);
-  const start = (safePage - 1) * pageSize;
-  const visible = sorted.slice(start, start + pageSize);
+  const from = total ? (page - 1) * pageSize + 1 : 0;
+  const to = Math.min(page * pageSize, total);
 
   const toggle = (id: ColumnId) => {
     setColumns((current) =>
       current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
     );
-  };
-
-  const toggleSort = (id: ColumnId) => {
-    if (sortKey === id) {
-      setSortDir((value) => (value === 'asc' ? 'desc' : 'asc'));
-      return;
-    }
-    setSortKey(id);
-    setSortDir('asc');
   };
 
   return (
@@ -208,21 +201,36 @@ export function AgreementsList({
         <table className="crm-agreements-table" aria-label={t('tableAria')}>
           <thead>
             <tr>
-              {columns.map((id) => (
-                <th key={id} scope="col" className={`is-${id}`}>
-                  <button type="button" onClick={() => toggleSort(id)}>
-                    {t(`listColumns.${id}`)}
-                    {sortKey === id ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
-                  </button>
-                </th>
-              ))}
+              {columns.map((id) => {
+                const sortable = id === 'tarih' || id === 'hemenKira';
+                const active =
+                  (id === 'tarih' && sortKey === 'agreement_date') ||
+                  (id === 'hemenKira' && sortKey === 'hemen_kira');
+                return (
+                  <th key={id} scope="col" className={`is-${id}`}>
+                    {sortable ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (id === 'tarih' || id === 'hemenKira') onSort(id);
+                        }}
+                      >
+                        {t(`listColumns.${id}`)}
+                        {active ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+                      </button>
+                    ) : (
+                      t(`listColumns.${id}`)
+                    )}
+                  </th>
+                );
+              })}
               <th scope="col" className="is-actions">
                 {t('listColumns.actions')}
               </th>
             </tr>
           </thead>
           <tbody>
-            {visible.map((row) => {
+            {items.map((row) => {
               const owners = ownerList(row);
               const amount = displayAmount(row);
               const pay = paymentLabel(row.payment_status);
@@ -312,27 +320,33 @@ export function AgreementsList({
       </div>
       <footer className="crm-agreements-pager">
         <p>
-          {t('pager', {
-            total: sorted.length,
-            from: sorted.length ? start + 1 : 0,
-            to: Math.min(start + pageSize, sorted.length),
-          })}
+          {t('pager', { total, from, to })}
         </p>
         <div>
-          {Array.from({ length: pages }, (_, index) => index + 1).map((item) => (
-            <button
-              key={item}
-              type="button"
-              className={item === safePage ? 'is-active' : undefined}
-              onClick={() => setPage(item)}
-            >
-              {item}
-            </button>
-          ))}
+          <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+            ‹
+          </button>
+          {visiblePages(page, pages).map((item, index) =>
+            item === 'ellipsis' ? (
+              <span key={`ellipsis-${index}`}>…</span>
+            ) : (
+              <button
+                key={item}
+                type="button"
+                className={item === page ? 'is-active' : undefined}
+                onClick={() => onPage(item)}
+              >
+                {item}
+              </button>
+            ),
+          )}
+          <button type="button" disabled={page >= pages} onClick={() => onPage(page + 1)}>
+            ›
+          </button>
         </div>
         <label>
           {t('pageSize')}
-          <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
+          <select value={pageSize} onChange={(event) => onPageSize(Number(event.target.value))}>
             <option value={10}>10</option>
             <option value={25}>25</option>
             <option value={50}>50</option>

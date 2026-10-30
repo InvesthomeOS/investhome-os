@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -33,7 +34,6 @@ from investhome_api.schemas.crm_activities import (
     CrmActivityMutationResponse,
     CrmActivitySavedFilterCreate,
     CrmActivitySavedFilterResponse,
-    CrmActivitySummary,
     CrmActivityUpdate,
     CrmCalendarEventCreate,
     CrmCalendarResponse,
@@ -84,7 +84,10 @@ def _require_view_activities():
 def _get_activity_or_404(db: Session, activity_id: UUID):
     activity = get_activity_or_none(db, activity_id)
     if activity is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="crm.activities.errors.not_found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="crm.activities.errors.not_found",
+        )
     return activity
 
 
@@ -102,22 +105,22 @@ def _parse_tags(raw: str | None) -> list[str] | None:
 
 @router.get("/timeline", response_model=CrmTimelineResponse)
 def get_crm_timeline(
-    search: str | None = Query(default=None, max_length=255),
-    entity_type: CrmActivityEntityType | None = Query(default=None),
-    entity_id: UUID | None = Query(default=None),
-    contact_search: str | None = Query(default=None, max_length=255),
-    project_group: str | None = Query(default=None, max_length=40),
-    event_kind: str | None = Query(default=None, max_length=40),
-    owner_id: UUID | None = Query(default=None),
-    status_filter: CrmActivityStatus | None = Query(default=None, alias="status"),
-    activity_type: CrmActivityType | None = Query(default=None),
-    activity_types: str | None = Query(default=None),
-    date_from: datetime | None = Query(default=None),
-    date_to: datetime | None = Query(default=None),
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=30, ge=1, le=100),
-    db: Session = Depends(get_db),
-    user: User = Depends(_require_view_activities()),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(_require_view_activities())],
+    search: Annotated[str | None, Query(max_length=255)] = None,
+    entity_type: Annotated[CrmActivityEntityType | None, Query()] = None,
+    entity_id: Annotated[UUID | None, Query()] = None,
+    contact_search: Annotated[str | None, Query(max_length=255)] = None,
+    project_group: Annotated[str | None, Query(max_length=40)] = None,
+    event_kind: Annotated[str | None, Query(max_length=40)] = None,
+    owner_id: Annotated[UUID | None, Query()] = None,
+    status_filter: Annotated[CrmActivityStatus | None, Query(alias="status")] = None,
+    activity_type: Annotated[CrmActivityType | None, Query()] = None,
+    activity_types: Annotated[str | None, Query()] = None,
+    date_from: Annotated[datetime | None, Query()] = None,
+    date_to: Annotated[datetime | None, Query()] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 30,
 ) -> CrmTimelineResponse:
     items, meta = get_timeline(
         db,
@@ -142,32 +145,32 @@ def get_crm_timeline(
 
 @router.get("/activities", response_model=CrmActivityListResponse)
 def get_activities(
-    search: str | None = Query(default=None, max_length=255),
-    entity_type: CrmActivityEntityType | None = Query(default=None),
-    entity_id: UUID | None = Query(default=None),
-    activity_type: CrmActivityType | None = Query(default=None),
-    activity_types: str | None = Query(default=None),
-    activity_category: CrmActivityCategory | None = Query(default=None),
-    status_filter: CrmActivityStatus | None = Query(default=None, alias="status"),
-    priority: CrmActivityPriority | None = Query(default=None),
-    owner_id: UUID | None = Query(default=None),
-    assigned_user_id: UUID | None = Query(default=None),
-    created_by: UUID | None = Query(default=None),
-    responsible_user_id: UUID | None = Query(default=None),
-    visibility: CrmActivityVisibility | None = Query(default=None),
-    tags: str | None = Query(default=None),
-    has_attachments: bool | None = Query(default=None),
-    completed: bool | None = Query(default=None),
-    pending: bool | None = Query(default=None),
-    date_from: datetime | None = Query(default=None),
-    date_to: datetime | None = Query(default=None),
-    include_archived: bool = Query(default=False),
-    sort_by: str = Query(default="created_at", max_length=40),
-    sort_dir: str = Query(default="desc", pattern="^(asc|desc)$"),
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=25, ge=1, le=100),
-    db: Session = Depends(get_db),
-    user: User = Depends(_require_view_activities()),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(_require_view_activities())],
+    search: Annotated[str | None, Query(max_length=255)] = None,
+    entity_type: Annotated[CrmActivityEntityType | None, Query()] = None,
+    entity_id: Annotated[UUID | None, Query()] = None,
+    activity_type: Annotated[CrmActivityType | None, Query()] = None,
+    activity_types: Annotated[str | None, Query()] = None,
+    activity_category: Annotated[CrmActivityCategory | None, Query()] = None,
+    status_filter: Annotated[CrmActivityStatus | None, Query(alias="status")] = None,
+    priority: Annotated[CrmActivityPriority | None, Query()] = None,
+    owner_id: Annotated[UUID | None, Query()] = None,
+    assigned_user_id: Annotated[UUID | None, Query()] = None,
+    created_by: Annotated[UUID | None, Query()] = None,
+    responsible_user_id: Annotated[UUID | None, Query()] = None,
+    visibility: Annotated[CrmActivityVisibility | None, Query()] = None,
+    tags: Annotated[str | None, Query()] = None,
+    has_attachments: Annotated[bool | None, Query()] = None,
+    completed: Annotated[bool | None, Query()] = None,
+    pending: Annotated[bool | None, Query()] = None,
+    date_from: Annotated[datetime | None, Query()] = None,
+    date_to: Annotated[datetime | None, Query()] = None,
+    include_archived: Annotated[bool, Query()] = False,
+    sort_by: Annotated[str, Query(max_length=40)] = "created_at",
+    sort_dir: Annotated[str, Query(pattern="^(asc|desc)$")] = "desc",
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 25,
 ) -> CrmActivityListResponse:
     items, meta = list_activities(
         db,
@@ -202,16 +205,16 @@ def get_activities(
 
 @router.get("/activities/widgets", response_model=CrmActivityDashboardWidgets)
 def get_activity_widgets(
-    db: Session = Depends(get_db),
-    user: User = Depends(_require_view_activities()),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(_require_view_activities())],
 ) -> CrmActivityDashboardWidgets:
     return get_dashboard_widgets(db, user)
 
 
 @router.get("/activities/saved-filters", response_model=list[CrmActivitySavedFilterResponse])
 def get_saved_filters(
-    db: Session = Depends(get_db),
-    user: User = Depends(_require_view_activities()),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(_require_view_activities())],
 ) -> list[CrmActivitySavedFilterResponse]:
     return list_saved_filters(db, user)
 
@@ -223,8 +226,8 @@ def get_saved_filters(
 )
 def post_saved_filter(
     body: CrmActivitySavedFilterCreate,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "update")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "update"))],
 ) -> CrmActivitySavedFilterResponse:
     return create_saved_filter(db, user, body)
 
@@ -232,22 +235,29 @@ def post_saved_filter(
 @router.get("/activities/{activity_id}", response_model=CrmActivityDetail)
 def get_activity(
     activity_id: UUID,
-    db: Session = Depends(get_db),
-    user: User = Depends(_require_view_activities()),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(_require_view_activities())],
 ) -> CrmActivityDetail:
     from investhome_api.services.crm.activity_service import _serialize_detail
 
     activity = get_activity_or_none(db, activity_id)
     if activity is None or not user_can_view_activity(user, activity):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="crm.activities.errors.not_found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="crm.activities.errors.not_found",
+        )
     return _serialize_detail(activity)
 
 
-@router.post("/activities", response_model=CrmActivityMutationResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/activities",
+    response_model=CrmActivityMutationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def post_activity(
     body: CrmActivityCreate,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "create")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "create"))],
 ) -> CrmActivityMutationResponse:
     return CrmActivityMutationResponse(activity=create_activity(db, user, body))
 
@@ -256,8 +266,8 @@ def post_activity(
 def put_activity(
     activity_id: UUID,
     body: CrmActivityUpdate,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "update")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "update"))],
 ) -> CrmActivityMutationResponse:
     activity = _get_activity_or_404(db, activity_id)
     return CrmActivityMutationResponse(activity=update_activity(db, user, activity, body))
@@ -266,8 +276,8 @@ def put_activity(
 @router.post("/activities/{activity_id}/archive", response_model=CrmActivityMutationResponse)
 def post_archive_activity(
     activity_id: UUID,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "archive")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "archive"))],
 ) -> CrmActivityMutationResponse:
     activity = _get_activity_or_404(db, activity_id)
     return CrmActivityMutationResponse(activity=archive_activity(db, user, activity))
@@ -276,8 +286,8 @@ def post_archive_activity(
 @router.post("/activities/{activity_id}/restore", response_model=CrmActivityMutationResponse)
 def post_restore_activity(
     activity_id: UUID,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "restore")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "restore"))],
 ) -> CrmActivityMutationResponse:
     activity = _get_activity_or_404(db, activity_id)
     return CrmActivityMutationResponse(activity=restore_activity(db, user, activity))
@@ -286,8 +296,8 @@ def post_restore_activity(
 @router.delete("/activities/{activity_id}", status_code=status.HTTP_204_NO_CONTENT)
 def remove_activity(
     activity_id: UUID,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "delete")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "delete"))],
 ) -> Response:
     activity = _get_activity_or_404(db, activity_id)
     delete_activity(db, activity)
@@ -297,8 +307,8 @@ def remove_activity(
 @router.post("/activities/{activity_id}/duplicate", response_model=CrmActivityMutationResponse)
 def post_duplicate_activity(
     activity_id: UUID,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "create")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "create"))],
 ) -> CrmActivityMutationResponse:
     activity = _get_activity_or_404(db, activity_id)
     return CrmActivityMutationResponse(activity=duplicate_activity(db, user, activity))
@@ -308,8 +318,8 @@ def post_duplicate_activity(
 def post_activity_comment(
     activity_id: UUID,
     body: CrmActivityCommentInput,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "update")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "update"))],
 ) -> CrmActivityMutationResponse:
     activity = _get_activity_or_404(db, activity_id)
     return CrmActivityMutationResponse(
@@ -327,8 +337,8 @@ def post_activity_comment(
 @router.post("/activities/bulk-update", response_model=CrmActivityBulkUpdateResponse)
 def post_bulk_update(
     body: CrmActivityBulkUpdateRequest,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "bulk_actions")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "bulk_actions"))],
 ) -> CrmActivityBulkUpdateResponse:
     updated = bulk_update_activities(db, user, body)
     return CrmActivityBulkUpdateResponse(updated=updated)
@@ -336,24 +346,26 @@ def post_bulk_update(
 
 @router.get("/tasks", response_model=CrmTaskListResponse)
 def get_tasks(
-    assigned_user_id: UUID | None = Query(default=None),
-    my_tasks: bool = Query(default=False),
-    team_tasks: bool = Query(default=False),
-    task_status: CrmTaskStatus | None = Query(default=None, alias="status"),
-    workspace_status: str | None = Query(default=None, max_length=40),
-    entity_id: UUID | None = Query(default=None),
-    contact_search: str | None = Query(default=None, max_length=255),
-    project_group: str | None = Query(default=None, max_length=40),
-    search: str | None = Query(default=None, max_length=255),
-    priority: CrmActivityPriority | None = Query(default=None),
-    due_from: datetime | None = Query(default=None),
-    due_to: datetime | None = Query(default=None),
-    due_bucket: str | None = Query(default=None, max_length=20),
-    lead_id: UUID | None = Query(default=None),
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=25, ge=1, le=200),
-    db: Session = Depends(get_db),
-    user: User = Depends(_require_view_activities()),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(_require_view_activities())],
+    assigned_user_id: Annotated[UUID | None, Query()] = None,
+    my_tasks: Annotated[bool, Query()] = False,
+    team_tasks: Annotated[bool, Query()] = False,
+    task_status: Annotated[CrmTaskStatus | None, Query(alias="status")] = None,
+    workspace_status: Annotated[str | None, Query(max_length=40)] = None,
+    entity_id: Annotated[UUID | None, Query()] = None,
+    contact_search: Annotated[str | None, Query(max_length=255)] = None,
+    project_group: Annotated[str | None, Query(max_length=40)] = None,
+    search: Annotated[str | None, Query(max_length=255)] = None,
+    priority: Annotated[CrmActivityPriority | None, Query()] = None,
+    due_from: Annotated[datetime | None, Query()] = None,
+    due_to: Annotated[datetime | None, Query()] = None,
+    due_bucket: Annotated[str | None, Query(max_length=20)] = None,
+    lead_id: Annotated[UUID | None, Query()] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=200)] = 25,
+    sort_by: Annotated[str, Query(max_length=40)] = "due_date",
+    sort_dir: Annotated[str, Query(max_length=4)] = "asc",
 ) -> CrmTaskListResponse:
     del team_tasks
     items, meta, counters = list_tasks(
@@ -374,15 +386,26 @@ def get_tasks(
         due_bucket=due_bucket,
         workspace_status=workspace_status,
         lead_id=lead_id,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
     )
-    return CrmTaskListResponse(items=items, request_id=get_request_id() or "", counters=counters, **meta)
+    return CrmTaskListResponse(
+        items=items,
+        request_id=get_request_id() or "",
+        counters=counters,
+        **meta,
+    )
 
 
-@router.post("/tasks", response_model=CrmActivityMutationResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/tasks",
+    response_model=CrmActivityMutationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def post_task(
     body: CrmTaskCreate,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "manage_tasks")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "manage_tasks"))],
 ) -> CrmActivityMutationResponse:
     try:
         return CrmActivityMutationResponse(activity=create_workspace_task(db, user, body))
@@ -393,8 +416,8 @@ def post_task(
 @router.post("/tasks/{activity_id}/complete", response_model=CrmActivityMutationResponse)
 def post_complete_task(
     activity_id: UUID,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "manage_tasks")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "manage_tasks"))],
 ) -> CrmActivityMutationResponse:
     activity = _get_activity_or_404(db, activity_id)
     try:
@@ -405,18 +428,18 @@ def post_complete_task(
 
 @router.get("/notes", response_model=CrmActivityListResponse)
 def get_notes(
-    entity_type: CrmActivityEntityType | None = Query(default=None),
-    entity_id: UUID | None = Query(default=None),
-    search: str | None = Query(default=None, max_length=255),
-    contact_search: str | None = Query(default=None, max_length=255),
-    project_group: str | None = Query(default=None, max_length=40),
-    assigned_user_id: UUID | None = Query(default=None),
-    date_from: datetime | None = Query(default=None),
-    date_to: datetime | None = Query(default=None),
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=25, ge=1, le=100),
-    db: Session = Depends(get_db),
-    user: User = Depends(_require_view_activities()),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(_require_view_activities())],
+    entity_type: Annotated[CrmActivityEntityType | None, Query()] = None,
+    entity_id: Annotated[UUID | None, Query()] = None,
+    search: Annotated[str | None, Query(max_length=255)] = None,
+    contact_search: Annotated[str | None, Query(max_length=255)] = None,
+    project_group: Annotated[str | None, Query(max_length=40)] = None,
+    assigned_user_id: Annotated[UUID | None, Query()] = None,
+    date_from: Annotated[datetime | None, Query()] = None,
+    date_to: Annotated[datetime | None, Query()] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 25,
 ) -> CrmActivityListResponse:
     del entity_type
     items, meta = list_notes(
@@ -435,11 +458,15 @@ def get_notes(
     return CrmActivityListResponse(items=items, request_id=get_request_id() or "", **meta)
 
 
-@router.post("/notes", response_model=CrmActivityMutationResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/notes",
+    response_model=CrmActivityMutationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def post_note(
     body: CrmNoteCreate,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "create")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "create"))],
 ) -> CrmActivityMutationResponse:
     try:
         return CrmActivityMutationResponse(activity=create_workspace_note(db, user, body))
@@ -449,12 +476,12 @@ def post_note(
 
 @router.get("/meetings", response_model=CrmActivityListResponse)
 def get_meetings(
-    entity_type: CrmActivityEntityType | None = Query(default=None),
-    entity_id: UUID | None = Query(default=None),
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=25, ge=1, le=100),
-    db: Session = Depends(get_db),
-    user: User = Depends(_require_view_activities()),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(_require_view_activities())],
+    entity_type: Annotated[CrmActivityEntityType | None, Query()] = None,
+    entity_id: Annotated[UUID | None, Query()] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 25,
 ) -> CrmActivityListResponse:
     items, meta = list_meetings(
         db,
@@ -467,11 +494,15 @@ def get_meetings(
     return CrmActivityListResponse(items=items, request_id=get_request_id() or "", **meta)
 
 
-@router.post("/meetings", response_model=CrmActivityMutationResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/meetings",
+    response_model=CrmActivityMutationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def post_meeting(
     body: CrmActivityCreate,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "manage_meetings")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "manage_meetings"))],
 ) -> CrmActivityMutationResponse:
     activity_type = body.activity_type if body.activity_type in {
         CrmActivityType.MEETING,
@@ -484,14 +515,14 @@ def post_meeting(
 
 @router.get("/follow-ups", response_model=CrmFollowUpListResponse)
 def get_follow_ups(
-    entity_type: CrmActivityEntityType | None = Query(default=None),
-    entity_id: UUID | None = Query(default=None),
-    reason: CrmFollowUpReason | None = Query(default=None),
-    pending: bool = Query(default=True),
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=25, ge=1, le=100),
-    db: Session = Depends(get_db),
-    user: User = Depends(_require_view_activities()),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(_require_view_activities())],
+    entity_type: Annotated[CrmActivityEntityType | None, Query()] = None,
+    entity_id: Annotated[UUID | None, Query()] = None,
+    reason: Annotated[CrmFollowUpReason | None, Query()] = None,
+    pending: Annotated[bool, Query()] = True,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 25,
 ) -> CrmFollowUpListResponse:
     items, meta = list_follow_ups(
         db,
@@ -506,11 +537,15 @@ def get_follow_ups(
     return CrmFollowUpListResponse(items=items, **meta)
 
 
-@router.post("/follow-ups", response_model=CrmActivityMutationResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/follow-ups",
+    response_model=CrmActivityMutationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def post_follow_up(
     body: CrmFollowUpCreate,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "manage_followups")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "manage_followups"))],
 ) -> CrmActivityMutationResponse:
     return CrmActivityMutationResponse(activity=create_follow_up(db, user, body))
 
@@ -518,8 +553,8 @@ def post_follow_up(
 @router.post("/follow-ups/{activity_id}/complete", response_model=CrmActivityMutationResponse)
 def post_complete_follow_up(
     activity_id: UUID,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "manage_followups")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "manage_followups"))],
 ) -> CrmActivityMutationResponse:
     activity = _get_activity_or_404(db, activity_id)
     return CrmActivityMutationResponse(activity=complete_follow_up(db, user, activity))
@@ -527,15 +562,15 @@ def post_complete_follow_up(
 
 @router.get("/calendar", response_model=CrmCalendarResponse)
 def get_crm_calendar(
-    start: datetime = Query(...),
-    end: datetime = Query(...),
-    assigned_user_id: UUID | None = Query(default=None),
-    contact_search: str | None = Query(default=None, max_length=255),
-    entity_id: UUID | None = Query(default=None),
-    project_group: str | None = Query(default=None, max_length=40),
-    event_kind: str | None = Query(default=None, max_length=40),
-    db: Session = Depends(get_db),
-    user: User = Depends(_require_view_activities()),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(_require_view_activities())],
+    start: Annotated[datetime, Query()],
+    end: Annotated[datetime, Query()],
+    assigned_user_id: Annotated[UUID | None, Query()] = None,
+    contact_search: Annotated[str | None, Query(max_length=255)] = None,
+    entity_id: Annotated[UUID | None, Query()] = None,
+    project_group: Annotated[str | None, Query(max_length=40)] = None,
+    event_kind: Annotated[str | None, Query(max_length=40)] = None,
 ) -> CrmCalendarResponse:
     return get_calendar(
         db,
@@ -550,10 +585,14 @@ def get_crm_calendar(
     )
 
 
-@router.post("/calendar/events", response_model=CrmActivityMutationResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/calendar/events",
+    response_model=CrmActivityMutationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def post_calendar_event(
     body: CrmCalendarEventCreate,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "manage_tasks")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "manage_tasks"))],
 ) -> CrmActivityMutationResponse:
     return CrmActivityMutationResponse(activity=create_workspace_event(db, user, body))

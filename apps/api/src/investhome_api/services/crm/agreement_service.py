@@ -6,14 +6,13 @@ import json
 import re
 import urllib.parse
 from collections import defaultdict
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID
 
-from datetime import UTC, date, datetime
-
-from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.orm import Session, aliased
 from sqlalchemy.orm.attributes import flag_modified
 
 from investhome_api.models.crm_activity import CrmActivity, CrmActivityEntityType, CrmActivityType
@@ -91,12 +90,10 @@ def is_purchase_owner_contact(contact: CrmContact) -> bool:
     types = {contact.contact_type}
     for assignment in getattr(contact, "type_assignments", None) or []:
         types.add(assignment.contact_type)
-    if (
+    return not (
         types & {CrmContactType.BROKER, CrmContactType.REALTOR}
         and CrmContactType.BUYER not in types
-    ):
-        return False
-    return True
+    )
 
 
 def _project_label(project_group: str, meta: dict[str, Any] | None = None) -> str:
@@ -230,10 +227,9 @@ def format_money(amount: str | None, currency: str | None) -> str | None:
     currency_code = str(currency or "").strip().upper()
     try:
         number = Decimal(raw.replace(",", ""))
-        if number == number.to_integral_value():
-            formatted = f"{int(number):,}"
-        else:
-            formatted = f"{number:,.2f}"
+        formatted = (
+            f"{int(number):,}" if number == number.to_integral_value() else f"{number:,.2f}"
+        )
     except (InvalidOperation, ValueError):
         formatted = raw
     if currency_code == "USD":
@@ -485,12 +481,54 @@ def _load_participants_map(
     return grouped
 
 
+def _json_flag_text(key: str):
+    return func.lower(func.coalesce(CrmAgreement.metadata_json[key].as_string(), ""))
+
+
+def _json_flag_is_clear(key: str):
+    """Missing, false, and zero stay visible. JSON true is ``true`` or ``1``."""
+    text = _json_flag_text(key)
+    return or_(text == "", text.in_(("0", "0.0", "false", "null", "none")))
+
+
+def _default_list_visibility():
+    """Apply the historical and detached rules before count and paging."""
+    historical_text = _json_flag_text("historical_unit_change")
+    historical = or_(
+        historical_unit_change_clause(),
+        and_(
+            historical_text != "",
+            historical_text.notin_(("0", "0.0", "false", "null", "none")),
+        ),
+    )
+    return and_(~historical, _json_flag_is_clear("relationship_detached"))
+
+
+def _agreement_list_order(sort_by: str, sort_dir: str):
+    """Whitelist agreement sorts. Unknown fields keep the date order."""
+    columns = {
+        "agreement_date": CrmAgreement.agreement_date,
+        "hemen_kira": CrmAgreement.hemen_kira,
+    }
+    column = columns.get(sort_by)
+    if column is None:
+        column = CrmAgreement.agreement_date
+        descending = True
+    else:
+        descending = sort_dir != "asc"
+    primary = column.desc().nulls_last() if descending else column.asc().nulls_last()
+    return primary, CrmAgreement.created_at.desc(), CrmAgreement.id.asc()
+
+
 def list_agreements(
     db: Session,
     *,
     project_group: str | None = None,
     status: CrmAgreementStatus | None = None,
     contact_id: UUID | None = None,
+    search: str | None = None,
+    sort_by: str = "agreement_date",
+    sort_dir: str = "desc",
     page: int = 1,
     page_size: int = 25,
 ) -> tuple[list[CrmAgreementSummary], int]:
@@ -500,24 +538,41 @@ def list_agreements(
     if status is not None:
         query = query.where(CrmAgreement.status == status)
     else:
-        query = query.where(~historical_unit_change_clause(), ~detached_relationship_clause())
+        query = query.where(_default_list_visibility())
     if contact_id is not None:
         query = query.where(CrmAgreement.contact_id == contact_id)
+    needle = (search or "").strip()
+    if needle:
+        like = f"%{needle}%"
+        participant_contact = aliased(CrmContact)
+        participant_match = (
+            select(CrmAgreementParticipant.id)
+            .join(
+                participant_contact,
+                participant_contact.id == CrmAgreementParticipant.contact_id,
+            )
+            .where(
+                CrmAgreementParticipant.agreement_id == CrmAgreement.id,
+                participant_contact.display_name.ilike(like),
+            )
+            .exists()
+        )
+        query = query.outerjoin(CrmContact, CrmContact.id == CrmAgreement.contact_id).where(
+            or_(
+                CrmContact.display_name.ilike(like),
+                CrmAgreement.unit_number.ilike(like),
+                participant_match,
+            )
+        )
 
     total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
     rows = list(
         db.scalars(
-            query.order_by(
-                CrmAgreement.agreement_date.desc().nullslast(), CrmAgreement.created_at.desc()
-            )
+            query.order_by(*_agreement_list_order(sort_by, sort_dir))
             .offset((page - 1) * page_size)
             .limit(page_size)
-        ).all()
+        )        .all()
     )
-    if status is None:
-        visible = [row for row in rows if not is_relationship_detached(row)]
-        total = max(int(total) - (len(rows) - len(visible)), 0)
-        rows = visible
     contact_ids = {row.contact_id for row in rows}
     contacts: dict[UUID, CrmContact] = {}
     if contact_ids:

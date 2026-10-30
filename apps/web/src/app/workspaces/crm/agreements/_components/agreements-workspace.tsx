@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import type { Route } from 'next';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
@@ -8,7 +9,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Button, Input, Select } from '@investhome/ui';
 
 import { IhIcon } from '@/components/icons/ih-icons';
-import { fetchAgreements, type CrmAgreementSummary } from '@/workspaces/crm/api/agreements';
+import { LIST_SEARCH_DEBOUNCE_MS, useDebouncedQueryParam, useListQueryPatch } from '@/lib/crm/list-query';
+import { fetchAgreements, type CrmAgreementStatus, type CrmAgreementSummary } from '@/workspaces/crm/api/agreements';
 import { salesDetailUrl } from '@/workspaces/crm/contact-card/pilot-people';
 
 import { AgreementsActivities } from './agreements-activities';
@@ -37,6 +39,9 @@ const VIEWS = [
 
 type ViewId = (typeof VIEWS)[number]['id'];
 
+const AGREEMENT_LIST_DEFAULTS = { page: '1', size: '10', sort: 'agreement_date', dir: 'desc' };
+const AGREEMENT_PAGE_SIZES = [10, 25, 50] as const;
+
 const STATUS_OPTIONS = [
   { id: '', labelKey: 'statusOptions.allStatus' },
   { id: 'active', labelKey: 'statusOptions.statusActive' },
@@ -48,11 +53,22 @@ export function AgreementsWorkspace() {
   const t = useTranslations('crm.agreements');
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [projectGroup, setProjectGroup] = useState(searchParams.get('project') || '');
+  const patch = useListQueryPatch(AGREEMENT_LIST_DEFAULTS);
+  const projectGroup = searchParams.get('project') ?? '';
+  const statusParam = searchParams.get('status') ?? '';
+  const status: '' | CrmAgreementStatus =
+    statusParam === 'active' || statusParam === 'completed' || statusParam === 'cancelled' ? statusParam : '';
+  const [queryDraft, setQueryDraft] = useDebouncedQueryParam('q', LIST_SEARCH_DEBOUNCE_MS, { resetPage: true });
+  const queryText = searchParams.get('q') ?? '';
+  const listPage = Math.max(1, Number(searchParams.get('page') || '1') || 1);
+  const sizeParam = Number(searchParams.get('size'));
+  const listPageSize = AGREEMENT_PAGE_SIZES.includes(sizeParam as (typeof AGREEMENT_PAGE_SIZES)[number])
+    ? sizeParam
+    : 10;
+  const listSort = searchParams.get('sort') === 'hemen_kira' ? 'hemen_kira' : 'agreement_date';
+  const listDir = searchParams.get('dir') === 'asc' ? 'asc' : 'desc';
   const [view, setView] = useState<ViewId>('kanban');
-  const [queryText, setQueryText] = useState('');
   const [stage, setStage] = useState('');
-  const [status, setStatus] = useState('');
   const [responsible, setResponsible] = useState('');
   const [bucket, setBucket] = useState<StageBucket>('all');
 
@@ -66,7 +82,22 @@ export function AgreementsWorkspace() {
       }),
   });
 
-  const items = query.data?.items ?? [];
+  const listQuery = useQuery({
+    queryKey: ['crm', 'agreements', 'list', projectGroup, status, queryText, listPage, listPageSize, listSort, listDir],
+    queryFn: () =>
+      fetchAgreements({
+        project_group: projectGroup || undefined,
+        status: status || undefined,
+        q: queryText.trim() || undefined,
+        page: listPage,
+        page_size: listPageSize,
+        sort_by: listSort,
+        sort_dir: listDir,
+      }),
+    enabled: view === 'list',
+  });
+
+  const items = useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const groups = useMemo(() => {
     const api = query.data?.project_groups ?? [];
     return PROJECT_SELECTOR.map((item) => ({
@@ -111,23 +142,30 @@ export function AgreementsWorkspace() {
     return baseItems.filter((row) => stageBucket(row.stage_label) === bucket);
   }, [baseItems, bucket]);
 
-  const hasFilters = Boolean(queryText || projectGroup || stage || status || responsible || bucket !== 'all');
+  const hasFilters = Boolean(
+    queryDraft || queryText || projectGroup || stage || status || responsible || bucket !== 'all',
+  );
 
   const resetFilters = () => {
-    setQueryText('');
-    setProjectGroup('');
+    setQueryDraft('');
     setStage('');
-    setStatus('');
     setResponsible('');
     setBucket('all');
+    patch({ q: null, project: null, status: null, page: null, sort: null, dir: null, size: null });
+  };
+
+  const sortList = (column: 'tarih' | 'hemenKira') => {
+    const api = column === 'hemenKira' ? 'hemen_kira' : 'agreement_date';
+    const nextDir = listSort === api ? (listDir === 'asc' ? 'desc' : 'asc') : api === 'agreement_date' ? 'desc' : 'asc';
+    patch({ sort: api, dir: nextDir, page: null });
   };
 
   const openPurchase = (row: CrmAgreementSummary) => {
-    router.push(salesDetailUrl(row.contact_id, row.id));
+    router.push(salesDetailUrl(row.contact_id, row.id) as Route);
   };
 
   const openAgreement = (agreementId: string, contactId: string) => {
-    router.push(salesDetailUrl(contactId, agreementId));
+    router.push(salesDetailUrl(contactId, agreementId) as Route);
   };
 
   return (
@@ -157,15 +195,15 @@ export function AgreementsWorkspace() {
       <section className="crm-agreements-filtercard" aria-label={t('filtersTitle')}>
         <Input
           label={t('searchLabel')}
-          value={queryText}
+          value={queryDraft}
           placeholder={t('searchPlaceholder')}
-          onChange={(event) => setQueryText(event.target.value)}
+          onChange={(event) => setQueryDraft(event.target.value)}
         />
         <Select
           label={t('projectFilter')}
           value={projectGroup}
           data-testid="agreements-project-filter"
-          onChange={(event) => setProjectGroup(event.target.value)}
+          onChange={(event) => patch({ project: event.target.value, page: null })}
         >
           <option value="">{t('allProjects')}</option>
           {groups.map((group) => (
@@ -182,7 +220,11 @@ export function AgreementsWorkspace() {
             </option>
           ))}
         </Select>
-        <Select label={t('statusFilter')} value={status} onChange={(event) => setStatus(event.target.value)}>
+        <Select
+          label={t('statusFilter')}
+          value={status}
+          onChange={(event) => patch({ status: event.target.value, page: null })}
+        >
           {STATUS_OPTIONS.map((item) => (
             <option key={item.id} value={item.id}>
               {t(item.labelKey)}
@@ -206,7 +248,13 @@ export function AgreementsWorkspace() {
             {t('resetFilters')}
           </Button>
           <p className="crm-agreements-count" data-testid="agreements-count">
-            {query.data ? t('count', { count: visibleItems.length }) : t('loading')}
+            {view === 'list'
+              ? listQuery.data
+                ? t('count', { count: listQuery.data.total })
+                : t('loading')
+              : query.data
+                ? t('count', { count: visibleItems.length })
+                : t('loading')}
           </p>
         </div>
       </section>
@@ -236,10 +284,18 @@ export function AgreementsWorkspace() {
         ))}
       </section>
 
-      {query.isLoading ? <p>{t('loading')}</p> : null}
-      {query.isError ? <p>{t('loadError')}</p> : null}
+      {view === 'list' && listQuery.isLoading ? <p>{t('loading')}</p> : null}
+      {view !== 'list' && query.isLoading ? <p>{t('loading')}</p> : null}
+      {view === 'list' && listQuery.isError ? <p>{t('loadError')}</p> : null}
+      {view !== 'list' && query.isError ? <p>{t('loadError')}</p> : null}
 
-      {!query.isLoading && !query.isError && visibleItems.length === 0 && (view === 'kanban' || view === 'list') ? (
+      {view === 'list' && !listQuery.isLoading && !listQuery.isError && (listQuery.data?.items.length ?? 0) === 0 ? (
+        <div className="ctc-ds__empty" data-testid="crm-agreements-empty">
+          <strong>{t('emptyTitle')}</strong>
+          <p>{t('emptyDescription')}</p>
+        </div>
+      ) : null}
+      {view === 'kanban' && !query.isLoading && !query.isError && visibleItems.length === 0 ? (
         <div className="ctc-ds__empty" data-testid="crm-agreements-empty">
           <strong>{t('emptyTitle')}</strong>
           <p>{t('emptyDescription')}</p>
@@ -249,8 +305,20 @@ export function AgreementsWorkspace() {
       {!query.isLoading && !query.isError && visibleItems.length > 0 && view === 'kanban' ? (
         <AgreementsKanban items={visibleItems} onOpen={openPurchase} />
       ) : null}
-      {!query.isLoading && !query.isError && visibleItems.length > 0 && view === 'list' ? (
-        <AgreementsList items={visibleItems} onOpen={openPurchase} />
+      {view === 'list' && !listQuery.isLoading && !listQuery.isError && (listQuery.data?.items.length ?? 0) > 0 ? (
+        <AgreementsList
+          items={listQuery.data?.items ?? []}
+          onOpen={openPurchase}
+          sortKey={listSort}
+          sortDir={listDir}
+          onSort={sortList}
+          page={listPage}
+          pages={listQuery.data?.pages ?? 1}
+          total={listQuery.data?.total ?? 0}
+          pageSize={listPageSize}
+          onPage={(next) => patch({ page: String(next) })}
+          onPageSize={(next) => patch({ size: String(next), page: null })}
+        />
       ) : null}
       {!query.isLoading && !query.isError && view === 'activities' ? (
         <AgreementsActivities projectGroup={projectGroup} items={items} onOpenAgreement={openAgreement} />

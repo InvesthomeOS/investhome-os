@@ -220,6 +220,9 @@ export type AgreementListParams = {
   project_group?: string;
   status?: CrmAgreementStatus;
   contact_id?: string;
+  q?: string;
+  sort_by?: string;
+  sort_dir?: 'asc' | 'desc';
   page?: number;
   page_size?: number;
 };
@@ -233,6 +236,9 @@ export async function fetchAgreements(
   if (params.project_group) search.set('project_group', params.project_group);
   if (params.status) search.set('status', params.status);
   if (params.contact_id) search.set('contact_id', params.contact_id);
+  if (params.q) search.set('q', params.q);
+  if (params.sort_by) search.set('sort_by', params.sort_by);
+  if (params.sort_dir) search.set('sort_dir', params.sort_dir);
   return apiFetch<CrmAgreementListResponse>(`/crm/agreements?${search.toString()}`);
 }
 

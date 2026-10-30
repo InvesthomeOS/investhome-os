@@ -31,7 +31,26 @@ import '../tasks-ops.css';
 
 type WorkspaceStatus = 'open' | 'in_progress' | 'completed' | 'cancelled';
 type PriorityKey = 'low' | 'medium' | 'high' | 'critical';
-type SortKey = 'task' | 'person' | 'project' | 'owner' | 'start' | 'due' | 'priority' | 'status';
+type TaskSortKey = 'task' | 'start' | 'due' | 'priority' | 'status';
+
+const TASK_SORT_API: Record<TaskSortKey, string> = {
+  task: 'title',
+  start: 'start_date',
+  due: 'due_date',
+  priority: 'priority',
+  status: 'status',
+};
+
+const TASK_COLUMNS = [
+  ['task', 'is-task', true],
+  ['person', 'is-person', false],
+  ['project', 'is-project', false],
+  ['owner', 'is-owner', false],
+  ['start', 'is-date', true],
+  ['due', 'is-date', true],
+  ['priority', '', true],
+  ['status', '', true],
+] as const;
 
 type OpsFilters = {
   search: string;
@@ -59,7 +78,7 @@ type TaskForm = {
   status: WorkspaceStatus;
 };
 
-const TASK_QUERY_DEFAULTS = { status: 'active', page: '1', size: '10' };
+const TASK_QUERY_DEFAULTS = { status: 'active', page: '1', size: '10', sort: 'due', dir: 'asc' };
 const TASK_PAGE_SIZES = [10, 25, 50] as const;
 
 function taskStatusFromQuery(value: string | null): string {
@@ -199,17 +218,6 @@ function visiblePages(page: number, pages: number): Array<number | 'ellipsis'> {
     next.push(value);
   }
   return next;
-}
-
-function sortValue(item: CrmActivitySummary, key: SortKey, unresolved: string): string {
-  if (key === 'task') return item.title || '';
-  if (key === 'person') return personLabel(item, unresolved);
-  if (key === 'project') return projectDisplay(item).title;
-  if (key === 'owner') return displayOwner(item.assigned_user_name || item.owner_name);
-  if (key === 'start') return item.start_date || '';
-  if (key === 'due') return item.due_date || '';
-  if (key === 'priority') return priorityKey(item.priority);
-  return workspaceStatus(item);
 }
 
 function TaskDrawer({
@@ -485,8 +493,12 @@ export function CrmTasksWorkspace() {
   const pageSize = TASK_PAGE_SIZES.includes(sizeParam as (typeof TASK_PAGE_SIZES)[number])
     ? sizeParam
     : 10;
-  const [sortKey, setSortKey] = useState<SortKey>('due');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const sortParam = searchParams.get('sort');
+  const sortKey: TaskSortKey =
+    sortParam === 'task' || sortParam === 'start' || sortParam === 'priority' || sortParam === 'status'
+      ? sortParam
+      : 'due';
+  const sortDir = searchParams.get('dir') === 'desc' ? 'desc' : 'asc';
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSnapshot, setSelectedSnapshot] = useState<CrmActivitySummary | null>(null);
   const [mode, setMode] = useState<'detail' | 'create' | 'edit' | null>(null);
@@ -538,8 +550,10 @@ export function CrmTasksWorkspace() {
     if (filters.dateFrom) params.due_from = `${filters.dateFrom}T00:00:00+03:00`;
     if (filters.dateTo) params.due_to = `${filters.dateTo}T23:59:59+03:00`;
     if (filters.dueBucket) params.due_bucket = filters.dueBucket;
+    params.sort_by = TASK_SORT_API[sortKey];
+    params.sort_dir = sortDir;
     return params;
-  }, [filters, page, pageSize]);
+  }, [filters, page, pageSize, sortDir, sortKey]);
 
   const listQuery = useQuery({
     queryKey: activityQueryKeys.tasks(apiFilters),
@@ -547,17 +561,7 @@ export function CrmTasksWorkspace() {
     enabled: canQuery,
   });
 
-  const items = useMemo(() => {
-    const rows = [...(listQuery.data?.items ?? [])];
-    const unresolved = t('unresolvedIdentity');
-    const direction = sortDir === 'asc' ? 1 : -1;
-    rows.sort((left, right) => {
-      const a = sortValue(left, sortKey, unresolved);
-      const b = sortValue(right, sortKey, unresolved);
-      return (a.localeCompare(b, locale === 'tr' ? 'tr' : 'en', { numeric: true, sensitivity: 'base' }) || left.id.localeCompare(right.id)) * direction;
-    });
-    return rows;
-  }, [listQuery.data?.items, locale, sortDir, sortKey, t]);
+  const items = useMemo(() => listQuery.data?.items ?? [], [listQuery.data?.items]);
 
   const counters = listQuery.data?.counters;
   const filteredTotal = listQuery.data?.total ?? 0;
@@ -700,19 +704,17 @@ export function CrmTasksWorkspace() {
       from: null,
       to: null,
       page: null,
+      sort: null,
+      dir: null,
     });
   };
   const hasFilters = Boolean(
     searchDraft || personDraft || filters.ownerId || filters.projectGroup || filters.priority || filters.dateFrom || filters.dateTo || filters.dueBucket || (filters.status && filters.status !== 'active'),
   );
 
-  const toggleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir((value) => (value === 'asc' ? 'desc' : 'asc'));
-      return;
-    }
-    setSortKey(key);
-    setSortDir(key === 'due' || key === 'start' ? 'asc' : 'asc');
+  const toggleSort = (key: TaskSortKey) => {
+    const nextDir = sortKey === key && sortDir === 'asc' ? 'desc' : 'asc';
+    patch({ sort: key, dir: nextDir, page: null });
   };
 
   const openCreate = () => {
@@ -967,23 +969,30 @@ export function CrmTasksWorkspace() {
             <table className="crm-ops-table">
               <thead>
                 <tr>
-                  {(
-                    [
-                      ['task', 'is-task'],
-                      ['person', 'is-person'],
-                      ['project', 'is-project'],
-                      ['owner', 'is-owner'],
-                      ['start', 'is-date'],
-                      ['due', 'is-date'],
-                      ['priority', ''],
-                      ['status', ''],
-                    ] as const
-                  ).map(([key, className]) => (
+                  {TASK_COLUMNS.map(([key, className, sortable]) => (
                     <th key={key} className={className || undefined}>
-                      <button type="button" className="crm-ops-link" onClick={() => toggleSort(key)}>
-                        {t(`table.${key === 'due' ? 'end' : key === 'start' ? 'start' : key}`)}
-                        {sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
-                      </button>
+                      {sortable ? (
+                        <button
+                          type="button"
+                          className="crm-ops-link"
+                          onClick={() => {
+                            if (
+                              key === 'task' ||
+                              key === 'start' ||
+                              key === 'due' ||
+                              key === 'priority' ||
+                              key === 'status'
+                            ) {
+                              toggleSort(key);
+                            }
+                          }}
+                        >
+                          {t(`table.${key === 'due' ? 'end' : key === 'start' ? 'start' : key}`)}
+                          {sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+                        </button>
+                      ) : (
+                        t(`table.${key}`)
+                      )}
                     </th>
                   ))}
                   <th className="is-actions">{t('table.actions')}</th>
