@@ -133,6 +133,20 @@ class UserUpdate(BaseModel):
     avatar_url: str | None = Field(default=None, max_length=500)
 
 
+class ProfileSelfUpdate(BaseModel):
+    """Fields a signed-in user may change on their own profile.
+
+    Role, permissions, email, status, and organization fields are rejected.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    first_name: str | None = Field(default=None, max_length=120)
+    last_name: str | None = Field(default=None, max_length=120)
+    preferred_language: str | None = Field(default=None, pattern=r"^(tr|en)$")
+    timezone: str | None = Field(default=None, max_length=64)
+
+
 class UserRolesUpdate(BaseModel):
     role_ids: list[UUID]
 

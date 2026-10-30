@@ -1,8 +1,9 @@
 """Authentication routes."""
 
 from datetime import UTC, datetime, timedelta
-from typing import NoReturn
+from typing import Annotated, NoReturn
 from uuid import UUID
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
@@ -30,10 +31,10 @@ from investhome_api.schemas.auth import (
     MfaEnrollmentRequiredResponse,
     MfaEnrollStartResponse,
     MfaVerifyRequest,
+    ProfileSelfUpdate,
 )
 from investhome_api.services import session_service
 from investhome_api.services.audit_service import record_auth_event, record_login_failed
-from investhome_api.services.csrf import csrf_binding_key, issue_csrf_token
 from investhome_api.services.auth_service import (
     cookie_samesite,
     create_access_token,
@@ -42,6 +43,7 @@ from investhome_api.services.auth_service import (
     set_session_cookie,
     verify_password,
 )
+from investhome_api.services.csrf import csrf_binding_key, issue_csrf_token
 from investhome_api.services.invite_rate_limit import (
     enforce_invite_rate_limit,
     reject_invite_attempt,
@@ -65,12 +67,12 @@ from investhome_api.services.mfa_challenge import (
     hash_challenge_token,
     peek_mfa_challenge,
 )
-from investhome_api.services.mfa_enrollment import confirm_enrollment, start_enrollment
 from investhome_api.services.mfa_enforcement import (
     PURPOSE_ENROLLMENT,
     PURPOSE_LOGIN,
     user_needs_mfa_enrollment,
 )
+from investhome_api.services.mfa_enrollment import confirm_enrollment, start_enrollment
 from investhome_api.services.mfa_login import (
     INVALID_MFA_MESSAGE,
     mark_recovery_code_used,
@@ -178,13 +180,15 @@ def _issue_authenticated_session(
 
 @router.post(
     "/login",
-    response_model=CurrentUserResponse | MfaChallengeRequiredResponse | MfaEnrollmentRequiredResponse,
+    response_model=(
+        CurrentUserResponse | MfaChallengeRequiredResponse | MfaEnrollmentRequiredResponse
+    ),
 )
 def login(
     payload: LoginRequest,
     response: Response,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ) -> CurrentUserResponse | MfaChallengeRequiredResponse | MfaEnrollmentRequiredResponse:
     identity = normalize_login_identity(str(payload.email))
     client_ip = resolve_client_ip(request)
@@ -269,7 +273,7 @@ def login(
 def preview_invite(
     token: str,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ) -> InvitePreviewResponse:
     client_ip = resolve_client_ip(request)
     enforce_invite_rate_limit(ip=client_ip, token=token)
@@ -291,7 +295,7 @@ def accept_invite(
     token: str,
     payload: InviteAcceptRequest,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ) -> MessageResponse:
     client_ip = resolve_client_ip(request)
     enforce_invite_rate_limit(ip=client_ip, token=token)
@@ -339,7 +343,7 @@ class ResetPasswordPublicRequest(BaseModel):
 def forgot_password(
     payload: ForgotPasswordRequest,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ) -> MessageResponse:
     identity = normalize_login_identity(payload.email)
     client_ip = resolve_client_ip(request)
@@ -357,7 +361,7 @@ def forgot_password(
 def reset_password_with_token(
     payload: ResetPasswordPublicRequest,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ) -> MessageResponse:
     client_ip = resolve_client_ip(request)
     enforce_password_reset_rate_limit(ip=client_ip, email="reset-token")
@@ -402,9 +406,9 @@ def reset_password_with_token(
 def logout(
     response: Response,
     request: Request,
-    db: Session = Depends(get_db),
-    authorization: str | None = Header(default=None),
-    ih_session: str | None = Cookie(default=None),
+    db: Annotated[Session, Depends(get_db)],
+    authorization: Annotated[str | None, Header()] = None,
+    ih_session: Annotated[str | None, Cookie()] = None,
 ) -> MessageResponse:
     """Always clear the session cookie — even when the JWT/session is already invalid.
 
@@ -448,13 +452,89 @@ def logout(
     return MessageResponse(message="Logged out")
 
 
+def _split_full_name(full_name: str) -> tuple[str, str]:
+    parts = full_name.strip().split()
+    if not parts:
+        return "", ""
+    return parts[0], " ".join(parts[1:])
+
+
+def _compose_full_name(first_name: str, last_name: str) -> str:
+    return " ".join(part for part in (first_name.strip(), last_name.strip()) if part)
+
+
+def _validated_timezone(value: str) -> str:
+    zone = value.strip()
+    if not zone or len(zone) > 64:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid timezone",
+        )
+    try:
+        ZoneInfo(zone)
+    except ZoneInfoNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid timezone",
+        ) from exc
+    return zone
+
+
 @router.get("/me", response_model=CurrentUserResponse)
-def current_user(user: User = Depends(get_current_user)) -> CurrentUserResponse:
+def current_user(user: Annotated[User, Depends(get_current_user)]) -> CurrentUserResponse:
     return serialize_current_user(user)
 
 
+@router.patch("/me", response_model=CurrentUserResponse)
+def update_current_user(
+    payload: ProfileSelfUpdate,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> CurrentUserResponse:
+    updates = payload.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fields provided for update",
+        )
+
+    if "first_name" in updates or "last_name" in updates:
+        current_first, current_last = _split_full_name(user.full_name or "")
+        first_name = updates.get("first_name", current_first) or ""
+        last_name = updates.get("last_name", current_last) or ""
+        full_name = _compose_full_name(first_name, last_name)
+        if not full_name or len(full_name) > 255:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Name is required",
+            )
+        user.full_name = full_name
+
+    if "preferred_language" in updates and updates["preferred_language"]:
+        user.preferred_language = updates["preferred_language"]
+
+    if "timezone" in updates and updates["timezone"] is not None:
+        user.timezone = _validated_timezone(str(updates["timezone"]))
+
+    user.updated_at = datetime.now(UTC)
+    db.commit()
+    record_auth_event(
+        "users.updated",
+        db=db,
+        actor=user,
+        target_id=user.id,
+        metadata={"fields": sorted(updates.keys())},
+        request=request,
+    )
+    loaded = load_user_with_roles(db, user.id)
+    if loaded is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return serialize_current_user(loaded)
+
+
 @router.get("/csrf", response_model=CsrfTokenResponse)
-def csrf_token(user: User = Depends(get_current_user)) -> CsrfTokenResponse:
+def csrf_token(user: Annotated[User, Depends(get_current_user)]) -> CsrfTokenResponse:
     binding = csrf_binding_key(user_id=str(user.id), jti=getattr(user, "_session_jti", None))
     return CsrfTokenResponse(csrf_token=issue_csrf_token(binding))
 
@@ -463,8 +543,8 @@ def csrf_token(user: User = Depends(get_current_user)) -> CsrfTokenResponse:
 def change_password(
     payload: ChangePasswordRequest,
     request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
 ) -> MessageResponse:
     if not verify_password(payload.current_password, user.hashed_password):
         raise HTTPException(
@@ -485,11 +565,11 @@ def change_password(
             full_name=user.full_name,
             user_id=user.id,
         )
-    except PasswordPolicyError:
+    except PasswordPolicyError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=GENERIC_PASSWORD_ERROR,
-        )
+        ) from exc
 
     user.hashed_password = hash_password(payload.new_password)
     user.updated_at = datetime.now(UTC)
@@ -514,8 +594,8 @@ def change_password(
 
 @router.post("/mfa/enroll", response_model=MfaEnrollStartResponse)
 def mfa_enroll_start(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> MfaEnrollStartResponse:
     result = start_enrollment(db, current_user)
     db.commit()
@@ -526,8 +606,8 @@ def mfa_enroll_start(
 def mfa_enroll_confirm(
     payload: MfaEnrollConfirmRequest,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> MfaEnrollConfirmResponse:
     client_ip = resolve_client_ip(request)
     user_key = str(current_user.id)
@@ -573,7 +653,7 @@ def _enrollment_challenge_user(
 def mfa_enroll_required_start(
     payload: MfaEnrollmentChallengeRequest,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ) -> MfaEnrollStartResponse:
     client_ip = resolve_client_ip(request)
     user, _challenge = _enrollment_challenge_user(
@@ -589,7 +669,7 @@ def mfa_enroll_required_confirm(
     payload: MfaEnrollmentConfirmRequiredRequest,
     response: Response,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ) -> MfaEnrollmentCompleteResponse:
     client_ip = resolve_client_ip(request)
     user, _challenge = _enrollment_challenge_user(
@@ -604,7 +684,11 @@ def mfa_enroll_required_confirm(
             record_failed_mfa_confirm(ip=client_ip, user_id=user_key)
         raise
     consumed = consume_mfa_challenge(payload.challenge_token)
-    if consumed is None or consumed.user_id != str(user.id) or consumed.purpose != PURPOSE_ENROLLMENT:
+    if (
+        consumed is None
+        or consumed.user_id != str(user.id)
+        or consumed.purpose != PURPOSE_ENROLLMENT
+    ):
         _reject_enrollment_challenge(ip=client_ip, identity=user_key)
     clear_mfa_confirm_failures(user_id=user_key)
     current = _issue_authenticated_session(db=db, user=user, request=request, response=response)
@@ -621,11 +705,15 @@ def mfa_verify(
     payload: MfaVerifyRequest,
     response: Response,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ) -> CurrentUserResponse:
     client_ip = resolve_client_ip(request)
     challenge = peek_mfa_challenge(payload.challenge_token)
-    identity = challenge.user_id if challenge is not None else hash_challenge_token(payload.challenge_token)
+    identity = (
+        challenge.user_id
+        if challenge is not None
+        else hash_challenge_token(payload.challenge_token)
+    )
     enforce_mfa_verify_rate_limit(ip=client_ip, identity=identity)
     if challenge is None or challenge.purpose != PURPOSE_LOGIN:
         _reject_mfa_verify(ip=client_ip, identity=identity)
@@ -649,7 +737,11 @@ def mfa_verify(
         _reject_mfa_verify(ip=client_ip, identity=identity)
 
     consumed = consume_mfa_challenge(payload.challenge_token)
-    if consumed is None or consumed.user_id != str(user.id) or consumed.purpose != PURPOSE_LOGIN:
+    if (
+        consumed is None
+        or consumed.user_id != str(user.id)
+        or consumed.purpose != PURPOSE_LOGIN
+    ):
         _reject_mfa_verify(ip=client_ip, identity=identity)
 
     if verified is not True:

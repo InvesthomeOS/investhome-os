@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import type { Route } from 'next';
 import { usePathname, useRouter } from 'next/navigation';
 
 import {
@@ -12,9 +13,11 @@ import {
   hasPermission,
   login as loginRequest,
   logout as logoutRequest,
-  updateUser,
+  updateMyProfile,
   verifyMfaLogin,
   type CurrentUser,
+  type MfaChallengeRequired,
+  type MfaEnrollmentRequired,
 } from '@/lib/api/auth';
 import { ApiError, ensureCsrfToken } from '@/lib/api/client';
 import type { AppLocale } from '@/i18n/config';
@@ -125,22 +128,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       const result = await loginRequest(email, password);
       if (isMfaChallengeResponse(result)) {
+        const challenge = result as MfaChallengeRequired;
         setUser(null);
         setEnrollmentPending(null);
         setMfaPending({
-          token: result.mfa_challenge_token,
-          method: result.mfa_method ?? 'totp',
-          expiresIn: result.expires_in ?? 300,
+          token: challenge.mfa_challenge_token,
+          method: challenge.mfa_method ?? 'totp',
+          expiresIn: challenge.expires_in ?? 300,
           next: options?.next ?? null,
         });
         return;
       }
       if (isMfaEnrollmentRequiredResponse(result)) {
+        const enrollment = result as MfaEnrollmentRequired;
         setUser(null);
         setMfaPending(null);
         setEnrollmentPending({
-          token: result.mfa_enrollment_challenge_token,
-          expiresIn: result.expires_in ?? 300,
+          token: enrollment.mfa_enrollment_challenge_token,
+          expiresIn: enrollment.expires_in ?? 300,
           next: options?.next ?? null,
         });
         return;
@@ -148,12 +153,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!isCurrentUserResponse(result)) {
         throw new ApiError('Sign in failed.', 500);
       }
+      const signedIn = result as CurrentUser;
       setMfaPending(null);
       setEnrollmentPending(null);
-      setUser(result);
-      applyLocaleFromUser(result.preferred_language);
+      setUser(signedIn);
+      applyLocaleFromUser(signedIn.preferred_language);
       void ensureCsrfToken();
-      router.replace(safeInternalPath(options?.next));
+      router.replace(safeInternalPath(options?.next) as Route);
       router.refresh();
     },
     [router],
@@ -173,7 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(current);
       applyLocaleFromUser(current.preferred_language);
       void ensureCsrfToken();
-      router.replace(safeInternalPath(next));
+      router.replace(safeInternalPath(next) as Route);
       router.refresh();
     },
     [mfaPending, router],
@@ -192,7 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(current);
       applyLocaleFromUser(current.preferred_language);
       void ensureCsrfToken();
-      router.replace(safeInternalPath(next));
+      router.replace(safeInternalPath(next) as Route);
       router.refresh();
     },
     [enrollmentPending, router],
@@ -223,7 +229,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       writeLocaleCookie(locale);
       if (user?.id) {
         try {
-          const updated = await updateUser(user.id, { preferred_language: locale });
+          const updated = await updateMyProfile({ preferred_language: locale });
           setUser((prev) =>
             prev
               ? {

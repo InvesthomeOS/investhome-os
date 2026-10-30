@@ -5,6 +5,8 @@ import type { Route } from 'next';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
+import { useAuth } from '@/lib/auth/auth-context';
+import { formatGreeting, greetingName, greetingPeriod, resolveGreetingTimezone } from '@/lib/auth/greeting';
 
 import { useScreenshotDashboardInteractions } from './screenshot-dashboard-interactions';
 import { useScreenshotDashboardPreferences } from './screenshot-dashboard-preferences';
@@ -88,6 +90,7 @@ function BuildingThumbnail({ scene }: { scene: string }) {
 export function ScreenshotDashboard() {
   const t = useTranslations('screenshotDashboard');
   const locale = useLocale();
+  const { user } = useAuth();
   const { openAi } = useScreenshotDashboardInteractions();
   const { density, formatUsdCurrency } = useScreenshotDashboardPreferences();
   const dateLocale = locale === 'tr' ? 'tr-TR' : 'en-US';
@@ -100,6 +103,19 @@ export function ScreenshotDashboard() {
   const dashboardWeekday = new Intl.DateTimeFormat(dateLocale, { weekday: 'long' }).format(
     dateValue,
   );
+  const browserZone =
+    typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : null;
+  const greetingZone = resolveGreetingTimezone(user?.timezone, browserZone);
+  const greeting = formatGreeting(
+    greetingPeriod(new Date(), greetingZone),
+    greetingName(user),
+    {
+      morning: t('intro.morning'),
+      afternoon: t('intro.afternoon'),
+      evening: t('intro.evening'),
+      night: t('intro.night'),
+    },
+  );
 
   return (
     <main
@@ -111,7 +127,7 @@ export function ScreenshotDashboard() {
     >
       <section className="screenshot-dashboard__intro">
         <div className="screenshot-dashboard__greeting">
-          <h1>{t('intro.greeting')}</h1>
+          <h1>{greeting}</h1>
           <p>{t('intro.subtitle')}</p>
         </div>
         <nav className="screenshot-dashboard__intro-ai" aria-label={t('ai.title')}>

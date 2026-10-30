@@ -216,6 +216,20 @@ export async function activateUser(userId: string): Promise<UserRecord> {
   return apiFetch(`/users/${userId}/activate`, { method: 'POST' });
 }
 
+export type ProfileSelfUpdate = {
+  first_name?: string;
+  last_name?: string;
+  preferred_language?: 'tr' | 'en';
+  timezone?: string;
+};
+
+export async function updateMyProfile(payload: ProfileSelfUpdate): Promise<CurrentUser> {
+  return apiFetch('/auth/me', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function updateUser(userId: string, payload: Record<string, unknown>): Promise<UserRecord> {
   return apiFetch(`/users/${userId}`, {
     method: 'PATCH',
