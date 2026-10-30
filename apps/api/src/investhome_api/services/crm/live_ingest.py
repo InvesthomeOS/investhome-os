@@ -644,6 +644,7 @@ def ingest_live_message(
         raw_source=raw_source,
         recipients=raw_recipients if isinstance(raw_recipients, list) else None,
         cc_recipients=payload.get("cc") or payload.get("cc_recipients"),
+        bcc_recipients=payload.get("bcc") or payload.get("bcc_recipients"),
         thread_id=thread.id if thread else None,
         parent_communication_id=None,
         external_provider_id=external_id,
@@ -685,6 +686,11 @@ def ingest_live_message(
                     "bitrix_activity_id",
                 }
             },
+            **(
+                {"reply_to": str(payload.get("reply_to")).strip()}
+                if str(payload.get("reply_to") or "").strip()
+                else {}
+            ),
         },
     )
     db.add(comm)

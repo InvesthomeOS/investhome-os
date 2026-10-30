@@ -32,7 +32,11 @@ from investhome_api.services.crm.gmail_oauth import (
     gmail_send_granted,
     mark_needs_reauth,
 )
-from investhome_api.services.crm.identity import normalize_email
+from investhome_api.services.crm.identity import (
+    is_valid_email,
+    normalize_email,
+    normalize_valid_email,
+)
 from investhome_api.services.crm.live_ingest import ingest_live_message
 from investhome_api.services.crm_communication_activity import record_communication_audit
 
@@ -85,9 +89,61 @@ def _address_list(values: Any) -> list[str]:
         if isinstance(item, dict):
             raw = item.get("email") or item.get("identity") or item.get("address")
         normalized = normalize_email(str(raw or ""))
-        if normalized and normalized not in found:
+        if normalized and is_valid_email(normalized) and normalized not in found:
             found.append(normalized)
     return found
+
+
+def _valid_address_list(values: Any) -> list[str]:
+    found: list[str] = []
+    if values is None:
+        return found
+    if not isinstance(values, list):
+        raise GmailCustomerEmailError("invalid_email")
+    for item in values:
+        raw = item
+        if isinstance(item, dict):
+            raw = item.get("email") or item.get("identity") or item.get("address")
+        text = str(raw or "").strip()
+        if not text:
+            continue
+        normalized = normalize_valid_email(text)
+        if not normalized:
+            raise GmailCustomerEmailError("invalid_email")
+        if normalized not in found:
+            found.append(normalized)
+    return found
+
+
+def _without(addresses: list[str], blocked: set[str]) -> list[str]:
+    chosen: list[str] = []
+    for item in addresses:
+        if item in blocked or item in chosen:
+            continue
+        chosen.append(item)
+    return chosen
+
+
+def _partition_recipients(
+    to: list[str],
+    cc: list[str],
+    bcc: list[str],
+    *,
+    mailbox: str | None,
+) -> tuple[list[str], list[str], list[str]]:
+    owned = normalize_email(mailbox)
+    blocked = {owned} if owned else set()
+    recipients = _without(to, blocked)
+    blocked.update(recipients)
+    copied = _without(cc, blocked)
+    blocked.update(copied)
+    hidden = _without(bcc, blocked)
+    return recipients, copied, hidden
+
+
+def _reply_to_address(comm: CrmCommunication) -> str | None:
+    meta = comm.metadata_json if isinstance(comm.metadata_json, dict) else {}
+    return normalize_valid_email(str(meta.get("reply_to") or "") or None)
 
 
 def _participants(comm: CrmCommunication, mailbox: str | None) -> list[str]:
@@ -95,6 +151,9 @@ def _participants(comm: CrmCommunication, mailbox: str | None) -> list[str]:
     addresses = _address_list(comm.recipient_identities)
     addresses.extend(item for item in _address_list(comm.recipients) if item not in addresses)
     addresses.extend(item for item in _address_list(comm.cc_recipients) if item not in addresses)
+    reply_to = _reply_to_address(comm)
+    if reply_to and reply_to not in addresses:
+        addresses.insert(0, reply_to)
     if sender and sender not in addresses:
         addresses.insert(0, sender)
     owned = normalize_email(mailbox)
@@ -109,18 +168,20 @@ def _reply_targets(
 ) -> tuple[list[str], list[str]]:
     owned = normalize_email(mailbox)
     sender = normalize_email(comm.sender_identity)
+    reply_to = _reply_to_address(comm)
     inbound = comm.direction in {"inbound", "incoming"}
     direct = _address_list(comm.recipient_identities) or _address_list(comm.recipients)
     copied = _address_list(comm.cc_recipients)
-    if inbound and sender and sender != owned:
-        to = [sender]
+    authoritative = reply_to or sender
+    if inbound and authoritative and authoritative != owned:
+        to = [authoritative]
     else:
         to = [item for item in direct if item != owned]
     if not to:
         to = _participants(comm, mailbox)[:1]
     if not reply_all:
         return to, []
-    pool = [*direct, *copied, *([sender] if sender else [])]
+    pool = [*direct, *copied, *([sender] if sender else []), *([reply_to] if reply_to else [])]
     others = [item for item in pool if item not in to and item != owned]
     cc: list[str] = []
     for item in others:
@@ -199,6 +260,11 @@ def _user_gmail_accounts(db: Session, user_id: UUID) -> list[CrmUserCommunicatio
             .order_by(CrmUserCommunicationAccount.updated_at.desc())
         ).all()
     )
+
+
+def _ensure_actor_owns_account(account: CrmUserCommunicationAccount, actor: User) -> None:
+    if account.user_id != actor.id:
+        raise GmailCustomerEmailError("gmail_account_not_owned", 403)
 
 
 def _ensure_can_send(account: CrmUserCommunicationAccount) -> None:
@@ -286,6 +352,7 @@ def build_customer_mime(
     from_email: str,
     to: list[str],
     cc: list[str],
+    bcc: list[str],
     subject: str,
     body_text: str,
     body_html: str | None,
@@ -298,6 +365,8 @@ def build_customer_mime(
     message["To"] = ", ".join(to)
     if cc:
         message["Cc"] = ", ".join(cc)
+    if bcc:
+        message["Bcc"] = ", ".join(bcc)
     message["Subject"] = subject
     message["Date"] = formatdate(localtime=False)
     rfc_message_id = make_msgid(domain=domain)
@@ -320,6 +389,7 @@ def build_customer_mime(
 def email_reply_context(
     db: Session,
     *,
+    actor: User,
     communication_id: UUID | None,
     activity_id: UUID | None,
 ) -> dict[str, Any]:
@@ -328,6 +398,7 @@ def email_reply_context(
         raise GmailCustomerEmailError("communication_not_found", 404)
     account = db.get(CrmUserCommunicationAccount, comm.account_id) if comm.account_id else None
     mailbox = account.identity if account is not None else None
+    owned = account is not None and account.user_id == actor.id
     to, _cc = _reply_targets(comm, mailbox, reply_all=False)
     _all_to, all_cc = _reply_targets(comm, mailbox, reply_all=True)
     subject = (comm.subject or "").strip()
@@ -336,6 +407,8 @@ def email_reply_context(
     send_block = None
     if account is None or account.archived_at is not None:
         send_block = "gmail_account_missing"
+    elif not owned:
+        send_block = "gmail_account_not_owned"
     else:
         needs_reconnect = account.status == CrmUserCommunicationAccountStatus.NEEDS_REAUTH.value
         if needs_reconnect or not gmail_send_granted(account):
@@ -345,7 +418,7 @@ def email_reply_context(
         "cc": all_cc,
         "subject": subject or "Re:",
         "contact_id": comm.contact_id,
-        "from_mailbox": mailbox,
+        "from_mailbox": mailbox if owned else None,
         "can_reply_all": bool(all_cc),
         "send_block": send_block,
     }
@@ -361,7 +434,8 @@ def send_customer_email(
     communication_id: UUID | None,
     activity_id: UUID | None,
     to: list[str],
-    cc: list[str],
+    cc: list[str] | None,
+    bcc: list[str] | None,
     subject: str,
     body_text: str,
     body_html: str | None,
@@ -386,6 +460,7 @@ def send_customer_email(
         if loaded is None:
             raise GmailCustomerEmailError("gmail_account_missing", 409)
         account = loaded
+        _ensure_actor_owns_account(account, actor)
         _ensure_can_send(account)
         default_to, default_cc = _reply_targets(
             parent,
@@ -393,10 +468,18 @@ def send_customer_email(
             reply_all=mode == "reply_all",
         )
         allowed = _participants(parent, account.identity)
-        requested_to = _address_list(to)
-        requested_cc = _address_list(cc) if mode == "reply_all" else []
+        requested_to = _valid_address_list(to)
+        requested_cc = _valid_address_list(cc)
+        requested_bcc = _valid_address_list(bcc)
         recipients = _subset(requested_to, allowed) if requested_to else default_to
-        copied = _subset(requested_cc, allowed) if requested_cc else default_cc
+        copied = default_cc if mode == "reply_all" and cc is None else requested_cc
+        hidden = requested_bcc
+        recipients, copied, hidden = _partition_recipients(
+            recipients,
+            copied,
+            hidden,
+            mailbox=account.identity,
+        )
         if not recipients:
             raise GmailCustomerEmailError("contact_email_missing", 400)
         contact = db.get(CrmContact, parent.contact_id) if parent.contact_id else None
@@ -407,9 +490,16 @@ def send_customer_email(
         contact, lead, allowed = _resolve_new_target(db, contact_id=contact_id, lead_id=lead_id)
         account = _select_new_account(db, actor)
         _ensure_can_send(account)
-        requested_to = _address_list(to)
+        requested_to = _valid_address_list(to)
         recipients = _subset(requested_to, allowed) if requested_to else allowed[:1]
-        copied = _subset(_address_list(cc), allowed)
+        copied = _valid_address_list(cc)
+        hidden = _valid_address_list(bcc)
+        recipients, copied, hidden = _partition_recipients(
+            recipients,
+            copied,
+            hidden,
+            mailbox=account.identity,
+        )
         if not recipients:
             raise GmailCustomerEmailError("contact_email_missing", 400)
 
@@ -417,6 +507,7 @@ def send_customer_email(
         from_email=account.identity,
         to=recipients,
         cc=copied,
+        bcc=hidden,
         subject=subject.strip(),
         body_text=body_text,
         body_html=body_html,
@@ -474,6 +565,7 @@ def send_customer_email(
         "sender_identity": account.identity,
         "recipients": recipients,
         "cc": copied,
+        "bcc": hidden,
         "occurred_at": datetime.now(UTC),
         "external_provider_id": gmail_id,
         "conversation_id": returned_thread,

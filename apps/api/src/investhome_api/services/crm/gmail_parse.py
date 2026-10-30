@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from email.utils import getaddresses, parsedate_to_datetime
 from typing import Any
 
-from investhome_api.services.crm.identity import normalize_email
+from investhome_api.services.crm.identity import normalize_email, normalize_valid_email
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,8 @@ class ParsedGmailMessage:
     label_ids: list[str]
     skip: bool
     attachments: list[ParsedGmailAttachment] = field(default_factory=list)
+    bcc: list[str] = field(default_factory=list)
+    reply_to: str | None = None
 
 
 def _b64url(data: str | None) -> bytes:
@@ -65,7 +67,7 @@ def _emails(header: str | None) -> list[str]:
         return []
     found: list[str] = []
     for _, address in getaddresses([header]):
-        normalized = normalize_email(address)
+        normalized = normalize_valid_email(address)
         if normalized and normalized not in found:
             found.append(normalized)
     return found
@@ -134,6 +136,8 @@ def parse_gmail_message(message: dict[str, Any], *, account_email: str | None = 
     sender_list = _emails(headers.get("from"))
     recipients = _emails(headers.get("to"))
     cc = _emails(headers.get("cc"))
+    bcc = _emails(headers.get("bcc"))
+    reply_to_list = _emails(headers.get("reply-to"))
     account = normalize_email(account_email)
     if "SENT" in labels or (account and sender_list and sender_list[0] == account):
         direction = "outgoing"
@@ -151,6 +155,8 @@ def parse_gmail_message(message: dict[str, Any], *, account_email: str | None = 
         sender=sender_list[0] if sender_list else None,
         recipients=recipients,
         cc=cc,
+        bcc=bcc,
+        reply_to=reply_to_list[0] if reply_to_list else None,
         subject=(headers.get("subject") or "").strip() or None,
         occurred_at=_occurred_at(message, headers),
         body_html=body_html,
@@ -179,6 +185,8 @@ def parsed_to_ingest_payload(
         "sender_identity": parsed.sender,
         "recipients": parsed.recipients,
         "cc": parsed.cc,
+        "bcc": parsed.bcc,
+        "reply_to": parsed.reply_to,
         "occurred_at": parsed.occurred_at,
         "external_provider_id": parsed.gmail_id,
         "conversation_id": parsed.thread_id,

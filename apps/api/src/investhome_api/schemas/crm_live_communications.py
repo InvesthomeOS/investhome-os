@@ -236,7 +236,8 @@ class EmailSendRequest(BaseModel):
     communication_id: UUID | None = None
     activity_id: UUID | None = None
     to: list[str] = Field(default_factory=list, max_length=20)
-    cc: list[str] = Field(default_factory=list, max_length=20)
+    cc: list[str] | None = Field(default=None, max_length=20)
+    bcc: list[str] | None = Field(default=None, max_length=20)
     subject: str = Field(min_length=1, max_length=500)
     body_text: str = Field(min_length=1, max_length=20000)
     body_html: str | None = Field(default=None, max_length=50000)

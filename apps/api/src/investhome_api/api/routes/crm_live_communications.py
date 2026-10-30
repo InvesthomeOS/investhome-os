@@ -327,12 +327,12 @@ def email_reply_context_route(
     db: Session = Depends(get_db),
     user: User = Depends(_require_view()),
 ) -> EmailReplyContextResponse:
-    _ = user
     if communication_id is None and activity_id is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="communication_not_found")
     try:
         body = email_reply_context(
             db,
+            actor=user,
             communication_id=communication_id,
             activity_id=activity_id,
         )
@@ -361,6 +361,7 @@ def send_customer_email_route(
             activity_id=payload.activity_id,
             to=payload.to,
             cc=payload.cc,
+            bcc=payload.bcc,
             subject=payload.subject,
             body_text=payload.body_text,
             body_html=payload.body_html,

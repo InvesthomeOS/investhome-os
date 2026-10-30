@@ -166,22 +166,12 @@ def _send(client: TestClient, payload: dict) -> object:
     return client.post(SEND_PATH, json=payload)
 
 
-def test_reply_uses_thread_account_headers_and_one_row(
+def test_reply_uses_own_thread_account_headers_and_one_row(
     auth_client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _login(auth_client, "sales@example.com")
     sales = _user(db, "sales@example.com")
-    owner = User(
-        full_name="Mailbox Owner",
-        email=f"owner-{uuid4().hex[:8]}@example.com",
-        hashed_password="x",
-        status=UserStatus.ACTIVE,
-    )
-    db.add(owner)
-    db.commit()
-    db.refresh(owner)
-    thread_account = _account(db, owner, "thread.box@investhome.com.tr")
-    _account(db, sales, "sales.box@investhome.com.tr")
+    thread_account = _account(db, sales, "sales.box@investhome.com.tr")
     contact = _contact(db, "ada@example.com")
     inbound = _seed_inbound(db, thread_account, contact)
     _patch_mailbox(monkeypatch, RecordingMailbox)
@@ -207,7 +197,7 @@ def test_reply_uses_thread_account_headers_and_one_row(
     assert body["contact_id"] == str(contact.id)
 
     call = RecordingMailbox.calls[0]
-    assert call["identity"] == "thread.box@investhome.com.tr"
+    assert call["identity"] == "sales.box@investhome.com.tr"
     assert call["account_id"] == str(thread_account.id)
     assert call["thread_id"] == "thread-ada"
     mime = _decode(str(call["raw"]))
@@ -243,6 +233,95 @@ def test_reply_uses_thread_account_headers_and_one_row(
     )
     assert audit is not None
     assert audit.actor_user_id == sales.id
+
+
+def _foreign_inbound(db: Session, sales: User) -> tuple[CrmCommunication, CrmContact]:
+    owner = User(
+        full_name="Mailbox Owner",
+        email=f"owner-{uuid4().hex[:8]}@example.com",
+        hashed_password="x",
+        status=UserStatus.ACTIVE,
+    )
+    db.add(owner)
+    db.commit()
+    db.refresh(owner)
+    thread_account = _account(db, owner, "thread.box@investhome.com.tr")
+    _account(db, sales, "sales.box@investhome.com.tr")
+    contact = _contact(db, "ada@example.com")
+    return _seed_inbound(db, thread_account, contact), contact
+
+
+def test_reply_rejects_another_users_gmail_account(
+    auth_client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _login(auth_client, "sales@example.com")
+    sales = _user(db, "sales@example.com")
+    inbound, contact = _foreign_inbound(db, sales)
+    before = db.scalar(select(func.count()).select_from(CrmCommunication))
+    _patch_mailbox(monkeypatch, RecordingMailbox)
+    context = auth_client.get(
+        "/crm/live-communications/email/reply-context",
+        params={"communication_id": str(inbound.id)},
+    )
+    assert context.status_code == 200, context.text
+    assert context.json()["send_block"] == "gmail_account_not_owned"
+    assert context.json()["from_mailbox"] is None
+    assert "thread.box@investhome.com.tr" not in context.text
+    response = _send(
+        auth_client,
+        {
+            "mode": "reply",
+            "communication_id": str(inbound.id),
+            "contact_id": str(contact.id),
+            "to": ["ada@example.com"],
+            "subject": "Re: Tapu sorusu",
+            "body_text": "Bu gönderilmemeli",
+        },
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "gmail_account_not_owned"
+    assert RecordingMailbox.calls == []
+    db.expire_all()
+    assert db.scalar(select(func.count()).select_from(CrmCommunication)) == before
+    assert (
+        db.scalar(
+            select(CrmCommunication).where(CrmCommunication.external_provider_id == "gm-sent-1")
+        )
+        is None
+    )
+
+
+def test_reply_all_rejects_another_users_gmail_account(
+    auth_client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _login(auth_client, "sales@example.com")
+    sales = _user(db, "sales@example.com")
+    inbound, contact = _foreign_inbound(db, sales)
+    before = db.scalar(select(func.count()).select_from(CrmCommunication))
+    _patch_mailbox(monkeypatch, RecordingMailbox)
+    response = _send(
+        auth_client,
+        {
+            "mode": "reply_all",
+            "communication_id": str(inbound.id),
+            "contact_id": str(contact.id),
+            "to": ["ada@example.com"],
+            "cc": ["copy@example.com"],
+            "subject": "Re: Tapu sorusu",
+            "body_text": "Bu da gönderilmemeli",
+        },
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "gmail_account_not_owned"
+    assert RecordingMailbox.calls == []
+    db.expire_all()
+    assert db.scalar(select(func.count()).select_from(CrmCommunication)) == before
+    assert (
+        db.scalar(
+            select(CrmCommunication).where(CrmCommunication.external_provider_id == "gm-sent-1")
+        )
+        is None
+    )
 
 
 def test_sent_sync_does_not_duplicate_outbound(
@@ -479,6 +558,8 @@ def test_reply_all_includes_cc_when_stored(
     account = _account(db, sales, "sales.box@investhome.com.tr")
     contact = _contact(db, "ada@example.com")
     inbound = _seed_inbound(db, account, contact)
+    inbound.bcc_recipients = ["hidden@example.com"]
+    db.commit()
     context = auth_client.get(
         "/crm/live-communications/email/reply-context",
         params={"communication_id": str(inbound.id)},
@@ -501,3 +582,136 @@ def test_reply_all_includes_cc_when_stored(
     mime = _decode(str(RecordingMailbox.calls[0]["raw"]))
     assert "copy@example.com" in (mime["Cc"] or "")
     assert mime["To"] == "ada@example.com"
+    assert "sales.box@investhome.com.tr" not in (mime["To"] or "")
+    assert "sales.box@investhome.com.tr" not in (mime["Cc"] or "")
+    assert mime["Bcc"] is None
+    assert "hidden@example.com" not in mime.as_string()
+    db.expire_all()
+    outbound = db.scalar(
+        select(CrmCommunication).where(CrmCommunication.external_provider_id == "gm-sent-1")
+    )
+    assert outbound is not None
+    assert outbound.provider_thread_id == "thread-ada"
+    assert outbound.conversation_key == "thread-ada"
+    assert "hidden@example.com" not in context.json()["cc"]
+    assert "bcc" not in context.json()
+
+
+def test_new_email_sends_cc_bcc_and_persists_recipients(
+    auth_client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _login(auth_client, "sales@example.com")
+    sales = _user(db, "sales@example.com")
+    account = _account(db, sales, "sales.box@investhome.com.tr")
+    contact = _contact(db, "ada@example.com")
+    _patch_mailbox(monkeypatch, RecordingMailbox)
+    response = _send(
+        auth_client,
+        {
+            "mode": "new",
+            "contact_id": str(contact.id),
+            "to": ["Ada@example.com", "ada@example.com"],
+            "cc": ["ada@example.com", " Copy@Example.com ", "partner@example.com"],
+            "bcc": ["copy@example.com", "hidden@example.com", "audit@example.com"],
+            "subject": "Tanışma",
+            "body_text": "Merhaba Ada",
+        },
+    )
+    assert response.status_code == 200, response.text
+    mime = _decode(str(RecordingMailbox.calls[0]["raw"]))
+    assert mime["From"] == "sales.box@investhome.com.tr"
+    assert mime["To"] == "ada@example.com"
+    assert mime["Cc"] == "copy@example.com, partner@example.com"
+    assert mime["Bcc"] == "hidden@example.com, audit@example.com"
+    db.expire_all()
+    row = db.scalar(
+        select(CrmCommunication).where(CrmCommunication.external_provider_id == "gm-sent-1")
+    )
+    assert row is not None
+    assert row.account_id == account.id
+    assert row.created_by == sales.id
+    assert row.sender_identity == "sales.box@investhome.com.tr"
+    assert row.recipient_identities == ["ada@example.com"]
+    assert row.cc_recipients == ["copy@example.com", "partner@example.com"]
+    assert row.bcc_recipients == ["hidden@example.com", "audit@example.com"]
+    assert row.provider_thread_id == "thread-created"
+    assert (row.metadata_json or {})["rfc_message_id"]
+
+
+def test_invalid_email_is_rejected(
+    auth_client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _login(auth_client, "sales@example.com")
+    sales = _user(db, "sales@example.com")
+    _account(db, sales, "sales.box@investhome.com.tr")
+    contact = _contact(db, "ada@example.com")
+    _patch_mailbox(monkeypatch, RecordingMailbox)
+    response = _send(
+        auth_client,
+        {
+            "mode": "new",
+            "contact_id": str(contact.id),
+            "to": ["ada@example.com"],
+            "cc": ["not-an-email"],
+            "subject": "Tanışma",
+            "body_text": "Merhaba",
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "invalid_email"
+    assert RecordingMailbox.calls == []
+
+
+def test_reply_does_not_include_prior_cc(
+    auth_client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _login(auth_client, "sales@example.com")
+    sales = _user(db, "sales@example.com")
+    account = _account(db, sales, "sales.box@investhome.com.tr")
+    contact = _contact(db, "ada@example.com")
+    inbound = _seed_inbound(db, account, contact)
+    _patch_mailbox(monkeypatch, RecordingMailbox)
+    response = _send(
+        auth_client,
+        {
+            "mode": "reply",
+            "communication_id": str(inbound.id),
+            "subject": "Re: Tapu sorusu",
+            "body_text": "Yalnızca Ada",
+        },
+    )
+    assert response.status_code == 200, response.text
+    mime = _decode(str(RecordingMailbox.calls[0]["raw"]))
+    assert mime["To"] == "ada@example.com"
+    assert mime["Cc"] is None
+    assert mime["Bcc"] is None
+    assert RecordingMailbox.calls[0]["thread_id"] == "thread-ada"
+
+
+def test_reply_all_prefers_reply_to(
+    auth_client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _login(auth_client, "sales@example.com")
+    sales = _user(db, "sales@example.com")
+    account = _account(db, sales, "sales.box@investhome.com.tr")
+    contact = _contact(db, "ada@example.com")
+    inbound = _seed_inbound(db, account, contact)
+    inbound.metadata_json = {**(inbound.metadata_json or {}), "reply_to": "desk@example.com"}
+    db.commit()
+    _patch_mailbox(monkeypatch, RecordingMailbox)
+    response = _send(
+        auth_client,
+        {
+            "mode": "reply_all",
+            "communication_id": str(inbound.id),
+            "subject": "Re: Tapu sorusu",
+            "body_text": "Herkese",
+        },
+    )
+    assert response.status_code == 200, response.text
+    mime = _decode(str(RecordingMailbox.calls[0]["raw"]))
+    assert mime["To"] == "desk@example.com"
+    assert "ada@example.com" in (mime["Cc"] or "")
+    assert "copy@example.com" in (mime["Cc"] or "")
+    assert "sales.box@investhome.com.tr" not in (mime["To"] or "")
+    assert "sales.box@investhome.com.tr" not in (mime["Cc"] or "")

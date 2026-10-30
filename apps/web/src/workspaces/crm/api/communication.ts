@@ -519,8 +519,8 @@ export async function fetchEmailReplyContext(params: {
   activity_id?: string | null;
 }): Promise<EmailReplyContext> {
   const q = buildParams({
-    communication_id: params.communication_id,
-    activity_id: params.activity_id,
+    communication_id: params.communication_id ?? undefined,
+    activity_id: params.activity_id ?? undefined,
   });
   return apiFetch(`/crm/live-communications/email/reply-context?${q.toString()}`);
 }
@@ -533,6 +533,7 @@ export async function sendCustomerEmail(payload: {
   activity_id?: string | null;
   to?: string[];
   cc?: string[];
+  bcc?: string[];
   subject: string;
   body_text: string;
   body_html?: string | null;
