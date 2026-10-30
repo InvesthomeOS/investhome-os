@@ -177,7 +177,9 @@ function emptyCounts() {
   return { total: 0, active: 0, junk: 0, review_required: 0, missing_info: 0 };
 }
 
-function typeLabel(contact: CrmContactSummary, copy: (typeof COPY)['tr']): string {
+type PeopleCopy = (typeof COPY)[keyof typeof COPY];
+
+function typeLabel(contact: CrmContactSummary, copy: PeopleCopy): string {
   const types = (contact.contact_types?.length ? contact.contact_types : [contact.contact_type]).filter(Boolean);
   const labels = types.map((item) => TYPE_LABELS[item] || item);
   if (contact.has_agreements && !labels.includes(copy.agreement)) labels.push(copy.agreement);
@@ -221,7 +223,7 @@ export function PeopleWorkspace() {
   const searchParams = useSearchParams();
   const tagId = searchParams.get('tag') || '';
   const { openContact } = useContactCard();
-  const { authLoading, canRead } = useCrmAccess();
+  const { authLoading, canRead, canCreate } = useCrmAccess();
   const [tab, setTab] = useState<PeopleTab>('all');
   const [searchDraft, setSearchDraft] = useState('');
   const [search, setSearch] = useState('');
@@ -324,9 +326,11 @@ export function PeopleWorkspace() {
           <Link href="/workspaces/crm/contacts/tools" className="crm-people-tools" data-testid="crm-people-tools-link">
             {copy.tools}
           </Link>
-          <Link href={'/workspaces/crm/contacts/new' as Route} className="crm-people-new" data-testid="crm-people-new">
-            {copy.newPerson}
-          </Link>
+          {canCreate ? (
+            <Link href={'/workspaces/crm/contacts/new' as Route} className="crm-people-new" data-testid="crm-people-new">
+              {copy.newPerson}
+            </Link>
+          ) : null}
         </div>
       </header>
 

@@ -297,6 +297,7 @@ export function UnifiedContactCard({
   const { authLoading, canRead, has, user, canViewFinancial } = useCrmAccess();
   const canSendEmail = has('send_communications');
   const canUpdate = has('update');
+  const canTransferOwnership = has('transfer_ownership');
   const canViewDocuments = Boolean(user && hasPermission(user, 'documents', 'view'));
   const canLinkDocuments = Boolean(user && hasPermission(user, 'documents', 'update'));
   const canUploadDocuments = canLinkDocuments;
@@ -320,7 +321,7 @@ export function UnifiedContactCard({
   const usersQuery = useQuery({
     queryKey: ['users', 'crm-assign'],
     queryFn: () => fetchUsers({ status: 'active' }),
-    enabled: !authLoading && canUpdate,
+    enabled: !authLoading && (canUpdate || canTransferOwnership),
   });
   const tagsQuery = useQuery({
     queryKey: ['crm', 'tags', { status: 'active' }],
@@ -571,7 +572,9 @@ export function UnifiedContactCard({
       }
       if (notes !== (contact.notes ?? '')) payload.notes = notes;
       if (statusValue !== (contact.status === 'archived' ? 'archived' : 'active')) payload.status = statusValue;
-      if (ownerId && ownerId !== (contact.owner_user_id ?? '')) payload.owner_user_id = ownerId;
+      if (canTransferOwnership && ownerId && ownerId !== (contact.owner_user_id ?? '')) {
+        payload.owner_user_id = ownerId;
+      }
       if (followUpAt !== toLocalInput(contact.next_follow_up_at)) {
         payload.next_follow_up_at = followUpAt ? toIso(followUpAt) : null;
       }
@@ -704,7 +707,7 @@ export function UnifiedContactCard({
 
   const submitOwner = (event: FormEvent) => {
     event.preventDefault();
-    if (!ownerId) return;
+    if (!canTransferOwnership || !ownerId) return;
     actionMutation.mutate(async () => {
       try {
         await assignContactOwner(contactId, ownerId);
@@ -1015,7 +1018,7 @@ export function UnifiedContactCard({
               <IhIcon name="meeting" size={14} /> {t.meeting}
             </button>
           ) : null}
-          {canUpdate ? (
+          {canUpdate || canTransferOwnership ? (
             <button
               type="button"
               className={`crm-person-action${panel === 'more' || panel === 'assign' ? ' is-active' : ''}`}
@@ -1032,27 +1035,33 @@ export function UnifiedContactCard({
         </div>
         {panel === 'more' ? (
           <div className="crm-person-more">
-            <button type="button" onClick={() => togglePanel('assign')}>
-              {t.assignOwner}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setTaskKind('task');
-                togglePanel('task');
-              }}
-            >
-              {t.createTask}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setStatusValue('archived');
-                togglePanel('edit');
-              }}
-            >
-              {t.moveToJunk}
-            </button>
+            {canTransferOwnership ? (
+              <button type="button" data-testid="contact-assign-owner" onClick={() => togglePanel('assign')}>
+                {t.assignOwner}
+              </button>
+            ) : null}
+            {canUpdate ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setTaskKind('task');
+                  togglePanel('task');
+                }}
+              >
+                {t.createTask}
+              </button>
+            ) : null}
+            {canUpdate ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusValue('archived');
+                  togglePanel('edit');
+                }}
+              >
+                {t.moveToJunk}
+              </button>
+            ) : null}
           </div>
         ) : null}
       </header>
@@ -1142,12 +1151,14 @@ export function UnifiedContactCard({
                   <Input label={t.junkReasonFree} value={junkReason} onChange={(event) => setJunkReason(event.target.value)} />
                 </>
               ) : null}
-              <Select label={t.owner} value={ownerId} onChange={(event) => setOwnerId(event.target.value)}>
-                <option value="">{t.select}</option>
-                {users.map((item) => (
-                  <option key={item.id} value={item.id}>{item.full_name}</option>
-                ))}
-              </Select>
+              {canTransferOwnership ? (
+                <Select label={t.owner} value={ownerId} onChange={(event) => setOwnerId(event.target.value)}>
+                  <option value="">{t.select}</option>
+                  {users.map((item) => (
+                    <option key={item.id} value={item.id}>{item.full_name}</option>
+                  ))}
+                </Select>
+              ) : null}
               <Input label={t.nextFollowUp} type="datetime-local" value={followUpAt} onChange={(event) => setFollowUpAt(event.target.value)} />
             </div>
             <TextArea label={t.notes} value={notes} onChange={(event) => setNotes(event.target.value)} />
@@ -1254,7 +1265,7 @@ export function UnifiedContactCard({
         </section>
       ) : null}
 
-      {panel === 'assign' ? (
+      {panel === 'assign' && canTransferOwnership ? (
         <section className="crm-verify-detail__section" data-testid="contact-assign-panel">
           <h2>{t.assignOwner}</h2>
           <p className="crm-contact-card__meta-line">{t.currentOwner}: {ownerName || '—'}</p>

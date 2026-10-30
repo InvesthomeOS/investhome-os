@@ -2,6 +2,7 @@ import { CrmPipelineLiveWorkspace } from './_components/crm-pipeline-live-worksp
 import '../tasks/tasks.css';
 import '@/workspaces/crm/contact-card/contact-card.css';
 import '../leads/leads.css';
+import '../leads/leads-ops.css';
 import './pipeline.css';
 
 export default function CrmPipelinePage() {

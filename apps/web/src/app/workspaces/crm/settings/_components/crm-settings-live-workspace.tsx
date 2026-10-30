@@ -32,6 +32,10 @@ const COPY = {
     connected: 'Bağlı',
     notConnected: 'Bağlı değil',
     none: '—',
+    pipelineValue: 'Pipeline ekranından yönetilir',
+    opportunityValue: 'Anlaşmalar ekranında görüntülenir',
+    activityValue: 'İletişim ekranından yönetilir',
+    taskValue: 'Görevler ekranından yönetilir',
     accessDenied: 'CRM ayarlarını görüntüleme yetkiniz yok.',
     related: 'İlgili ayarlar',
   },
@@ -48,6 +52,10 @@ const COPY = {
     connected: 'Connected',
     notConnected: 'Not connected',
     none: '—',
+    pipelineValue: 'Managed on the Pipeline screen',
+    opportunityValue: 'Viewed on the Agreements screen',
+    activityValue: 'Managed on the Communication screen',
+    taskValue: 'Managed on the Tasks screen',
     accessDenied: 'You do not have permission to view CRM settings.',
     related: 'Related settings',
   },
@@ -101,10 +109,10 @@ export function CrmSettingsLiveWorkspace() {
 
   const rows = useMemo(
     () => [
-      { id: 'pipeline', icon: 'barChart' as const, title: copy.pipeline, value: copy.none, href: '/workspaces/crm/pipeline' },
-      { id: 'opportunity', icon: 'target' as const, title: copy.opportunity, value: copy.none, href: '/workspaces/crm/agreements' },
-      { id: 'activity', icon: 'activity' as const, title: copy.activityTypes, value: copy.none, href: '/workspaces/crm/communication' },
-      { id: 'tasks', icon: 'check' as const, title: copy.taskTypes, value: copy.none, href: '/workspaces/crm/tasks' },
+      { id: 'pipeline', icon: 'barChart' as const, title: copy.pipeline, value: copy.pipelineValue, href: '/workspaces/crm/pipeline' },
+      { id: 'opportunity', icon: 'target' as const, title: copy.opportunity, value: copy.opportunityValue, href: '/workspaces/crm/agreements' },
+      { id: 'activity', icon: 'activity' as const, title: copy.activityTypes, value: copy.activityValue, href: '/workspaces/crm/communication' },
+      { id: 'tasks', icon: 'check' as const, title: copy.taskTypes, value: copy.taskValue, href: '/workspaces/crm/tasks' },
       {
         id: 'tags',
         icon: 'inventory' as const,

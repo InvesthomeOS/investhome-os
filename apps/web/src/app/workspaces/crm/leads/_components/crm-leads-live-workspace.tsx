@@ -73,6 +73,9 @@ const COPY = {
     viewsAria: 'Görünüm',
     emptyTitle: 'Henüz lead yok',
     emptyBody: 'Mevcut tablo boş. Demo kayıt eklenmez. Yeni lead ile başlayın.',
+    loadErrorTitle: 'Leadler yüklenemedi',
+    loadError: 'Kayıtlar alınamadı. Yeniden deneyin.',
+    retry: 'Yeniden dene',
     emptyColumn: 'Bu aşamada lead bulunmuyor.',
     lead: 'Lead',
     name: 'Ad Soyad',
@@ -158,6 +161,9 @@ const COPY = {
     viewsAria: 'View',
     emptyTitle: 'No leads yet',
     emptyBody: 'The board is empty. Demo rows are not seeded. Start with a new lead.',
+    loadErrorTitle: 'Leads could not be loaded',
+    loadError: 'The records could not be loaded. Try again.',
+    retry: 'Retry',
     emptyColumn: 'No leads in this stage.',
     lead: 'Lead',
     name: 'Full name',
@@ -564,7 +570,7 @@ export function CrmLeadsLiveWorkspace() {
   });
 
   const data = listQuery.data;
-  const items = (data?.items ?? []) as LeadView[];
+  const items = useMemo(() => (data?.items ?? []) as LeadView[], [data?.items]);
   const kpis = data?.kpis ?? {
     total: 0,
     active: 0,
@@ -721,7 +727,17 @@ export function CrmLeadsLiveWorkspace() {
     return <ErrorState title={t.title} message="No access" />;
   }
   if (listQuery.isError) {
-    return <ErrorState title={t.title} message={t.emptyBody} />;
+    return (
+      <ErrorState
+        title={t.loadErrorTitle}
+        message={t.loadError}
+        action={
+          <Button type="button" size="sm" onClick={() => void listQuery.refetch()}>
+            {t.retry}
+          </Button>
+        }
+      />
+    );
   }
 
   const unmatchedCount = kpis.unmatched + kpis.failed;

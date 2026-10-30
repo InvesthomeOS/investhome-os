@@ -62,6 +62,11 @@ const COPY = {
     clear: 'Filtreleri Temizle',
     emptyTitle: 'Pipeline boş',
     emptyBody: 'Bu görünümde lead yok. Demo kayıt eklenmez.',
+    emptyColumn: 'Bu aşamada lead yok.',
+    loadErrorTitle: 'Pipeline yüklenemedi',
+    loadError: 'Kayıtlar alınamadı. Yeniden deneyin.',
+    retry: 'Yeniden dene',
+    stageFailed: 'Aşama kaydedilemedi. Yeniden deneyin.',
     phone: 'Telefon',
     email: 'E-posta',
     campaign: 'Kampanya',
@@ -105,6 +110,11 @@ const COPY = {
     clear: 'Clear filters',
     emptyTitle: 'Pipeline is empty',
     emptyBody: 'No leads in this view. Demo cards are not added.',
+    emptyColumn: 'No leads in this stage.',
+    loadErrorTitle: 'Pipeline could not be loaded',
+    loadError: 'The records could not be loaded. Try again.',
+    retry: 'Retry',
+    stageFailed: 'The stage could not be saved. Try again.',
     phone: 'Phone',
     email: 'Email',
     campaign: 'Campaign',
@@ -190,6 +200,8 @@ export function CrmPipelineLiveWorkspace() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverStage, setDragOverStage] = useState<CrmLeadStage | null>(null);
+  const [stageError, setStageError] = useState<string | null>(null);
   const [junkReason, setJunkReason] = useState('');
   const [junkPending, setJunkPending] = useState<CrmLeadItem | null>(null);
 
@@ -246,11 +258,12 @@ export function CrmPipelineLiveWorkspace() {
     }) => moveCrmLeadStage(id, next, { junk_reason, junk_reason_detail }),
     onSuccess: async () => {
       setJunkPending(null);
+      setStageError(null);
       await invalidate();
       showToast(t.stageMoved);
     },
-    onError: (error) => {
-      showToast(error instanceof Error ? error.message : t.stageMoved);
+    onError: () => {
+      setStageError(t.stageFailed);
     },
   });
 
@@ -321,13 +334,34 @@ export function CrmPipelineLiveWorkspace() {
     return <ErrorState title={t.title} message="No access" />;
   }
   if (listQuery.isError) {
-    return <ErrorState title={t.title} message={t.emptyBody} />;
+    return (
+      <ErrorState
+        title={t.loadErrorTitle}
+        message={t.loadError}
+        action={
+          <Button type="button" size="sm" onClick={() => void listQuery.refetch()}>
+            {t.retry}
+          </Button>
+        }
+      />
+    );
   }
 
   const activeEmpty = !stage && items.length === 0;
+  const pipelineKpis: ReadonlyArray<readonly ['' | CrmLeadStage, string, number, string]> = [
+    ['', t.total, kpis.active, 'crm-pipeline-kpi-active'],
+    ['yeni', t.yeni, kpis.yeni, 'crm-pipeline-kpi-yeni'],
+    ['following', t.following, kpis.following, 'crm-pipeline-kpi-following'],
+    ['qualified', t.qualified, kpis.qualified, 'crm-pipeline-kpi-qualified'],
+  ];
 
   return (
-    <div className="crm-tasks crm-tasks--ops crm-leads crm-pipeline" data-testid="crm-pipeline-workspace">
+    <div className="crm-ops crm-tasks crm-tasks--ops crm-leads crm-pipeline" data-testid="crm-pipeline-workspace">
+      {stageError ? (
+        <div className="crm-leads__toast" role="alert" data-testid="crm-pipeline-stage-error">
+          {stageError}
+        </div>
+      ) : null}
       {toast ? (
         <div className="crm-leads__toast" role="status">
           {toast}
@@ -342,14 +376,7 @@ export function CrmPipelineLiveWorkspace() {
       </header>
 
       <section className="crm-leads__kpi-row crm-pipeline__kpi-row" aria-label={t.kpis}>
-        {(
-          [
-            ['', t.total, kpis.active, 'crm-pipeline-kpi-active'],
-            ['yeni', t.yeni, kpis.yeni, 'crm-pipeline-kpi-yeni'],
-            ['following', t.following, kpis.following, 'crm-pipeline-kpi-following'],
-            ['qualified', t.qualified, kpis.qualified, 'crm-pipeline-kpi-qualified'],
-          ] as const
-        ).map(([value, label, count, testId]) => (
+        {pipelineKpis.map(([value, label, count, testId]) => (
           <button
             key={label}
             type="button"
@@ -422,71 +449,93 @@ export function CrmPipelineLiveWorkspace() {
         </div>
       </section>
 
-      <div className="crm-leads__kanban" data-testid="crm-pipeline-kanban">
+      <div className="crm-ops-kanban" data-testid="crm-pipeline-kanban">
         {STAGES.map((column) => (
           <section
             key={column}
-            className={`crm-leads__column${stage === column ? ' is-selected' : ''}`}
+            className={`crm-ops-kanban__col is-${column}${dragOverStage === column ? ' is-drop' : ''}${stage === column ? ' is-selected' : ''}`}
             data-testid={`crm-pipeline-column-${column}`}
             onDragOver={(event) => {
-              if (column !== 'converted') event.preventDefault();
+              if (!draggingId || !canWrite) return;
+              event.preventDefault();
+              if (dragOverStage !== column) setDragOverStage(column);
             }}
-            onDrop={() => {
+            onDragLeave={() => {
+              setDragOverStage((current) => (current === column ? null : current));
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
               const item = (data?.items ?? []).find((row) => row.id === draggingId);
               setDraggingId(null);
+              setDragOverStage(null);
               if (item) handleStageMove(item, column);
             }}
           >
-            <h3>
-              <button
-                type="button"
-                className="crm-pipeline__column-btn"
-                onClick={() => {
-                  const next = stage === column ? '' : column;
-                  setStage(next);
-                  if (next !== 'unqualified') setJunkReason('');
-                }}
-              >
-                {stageLabel(column, locale)}
-              </button>
-              <span>{columnCount(column)}</span>
-            </h3>
-            {grouped[column].map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className="crm-leads__card"
-                data-testid={`crm-pipeline-card-${item.id}`}
-                draggable={canWrite && item.stage !== 'converted'}
-                onDragStart={() => setDraggingId(item.id)}
-                onDragEnd={() => setDraggingId(null)}
-                onClick={() => openDetail(item)}
-              >
-                <strong>{crmLeadDisplayName(item)}</strong>
-                <small>{item.phone || item.email || t.none}</small>
-                <small>
-                  {sourceLabel(item.source, locale)}
-                  {item.project ? ` · ${item.project}` : ''}
-                </small>
-                {item.investment_budget_amount ? (
-                  <small>
-                    {t.budget}:{' '}
-                    {formatCrmInvestmentBudget(
-                      item.investment_budget_amount,
-                      item.investment_budget_currency,
-                      locale,
-                    )}
-                  </small>
-                ) : null}
-                <small>
-                  {item.owner_name || t.none} · {t.lastActivity} {formatWhen(item.updated_at, locale)}
-                </small>
-                <small>
-                  {t.created} {formatWhen(item.created_at, locale)} · {t.stageAge}{' '}
-                  {stageAge(item.updated_at || item.created_at, locale, t)}
-                </small>
-              </button>
-            ))}
+            <div className="crm-ops-kanban__head">
+              <h3>
+                <span className="crm-ops-kanban__dot" aria-hidden />
+                <button
+                  type="button"
+                  className="crm-pipeline__column-btn"
+                  onClick={() => {
+                    const next = stage === column ? '' : column;
+                    setStage(next);
+                    if (next !== 'unqualified') setJunkReason('');
+                  }}
+                >
+                  {stageLabel(column, locale)}
+                </button>
+              </h3>
+              <span className="crm-ops-kanban__count">{columnCount(column)}</span>
+            </div>
+            <div className="crm-ops-kanban__body">
+              {grouped[column].length === 0 ? (
+                <div className="crm-ops-col-empty">
+                  <strong>{t.emptyTitle}</strong>
+                  <p>{t.emptyColumn}</p>
+                </div>
+              ) : (
+                grouped[column].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className="crm-ops-leadcard"
+                    data-testid={`crm-pipeline-card-${item.id}`}
+                    draggable={canWrite && item.stage !== 'converted'}
+                    onDragStart={() => setDraggingId(item.id)}
+                    onDragEnd={() => {
+                      setDraggingId(null);
+                      setDragOverStage(null);
+                    }}
+                    onClick={() => openDetail(item)}
+                  >
+                    <strong>{crmLeadDisplayName(item)}</strong>
+                    <small>{item.phone || item.email || t.none}</small>
+                    <small>
+                      {sourceLabel(item.source, locale)}
+                      {item.project ? ` · ${item.project}` : ''}
+                    </small>
+                    {item.investment_budget_amount ? (
+                      <small>
+                        {t.budget}:{' '}
+                        {formatCrmInvestmentBudget(
+                          item.investment_budget_amount,
+                          item.investment_budget_currency,
+                          locale,
+                        )}
+                      </small>
+                    ) : null}
+                    <small>
+                      {item.owner_name || t.none} · {t.lastActivity} {formatWhen(item.updated_at, locale)}
+                    </small>
+                    <small>
+                      {t.created} {formatWhen(item.created_at, locale)} · {t.stageAge}{' '}
+                      {stageAge(item.updated_at || item.created_at, locale, t)}
+                    </small>
+                  </button>
+                ))
+              )}
+            </div>
           </section>
         ))}
       </div>
