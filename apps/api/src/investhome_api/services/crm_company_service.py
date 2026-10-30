@@ -9,10 +9,11 @@ from datetime import UTC, datetime
 from math import ceil
 from uuid import UUID
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, status
 from sqlalchemy import asc, desc, exists, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from investhome_api.config.settings import get_settings
 from investhome_api.models.crm_agreement import CrmAgreement, CrmAgreementParticipant
 from investhome_api.models.crm_company import (
     CrmCompany,
@@ -34,16 +35,13 @@ from investhome_api.models.crm_company import (
 )
 from investhome_api.models.crm_contact import CrmContact, CrmContactType
 from investhome_api.models.user_auth import User
-from investhome_api.config.settings import get_settings
-from investhome_api.services.crm.unit_change import is_relationship_detached
-from investhome_api.services.permission_service import user_has_permission
 from investhome_api.schemas.crm_companies import (
-    CrmCompanyCounts,
     CrmCompanyAddressCreate,
     CrmCompanyBrokerageProfileSchema,
     CrmCompanyBulkActionResponse,
     CrmCompanyContactCreate,
     CrmCompanyContactUpdate,
+    CrmCompanyCounts,
     CrmCompanyCreate,
     CrmCompanyDetail,
     CrmCompanyDuplicateCandidate,
@@ -56,10 +54,10 @@ from investhome_api.schemas.crm_companies import (
     CrmCompanyLenderProfileSchema,
     CrmCompanyListItem,
     CrmCompanyListResponse,
-    CrmCompanyRelatedAgreement,
-    CrmCompanyRelatedPerson,
     CrmCompanyMergeResponse,
     CrmCompanyPropertyManagementProfileSchema,
+    CrmCompanyRelatedAgreement,
+    CrmCompanyRelatedPerson,
     CrmCompanyRelationshipCreate,
     CrmCompanySavedViewCreate,
     CrmCompanySavedViewResponse,
@@ -68,6 +66,9 @@ from investhome_api.schemas.crm_companies import (
     CrmCompanyUpdate,
     CrmCompanyVendorProfileSchema,
 )
+from investhome_api.services.crm.unit_change import is_relationship_detached
+from investhome_api.services.crm_company_activity import record_crm_company_ownership_changed
+from investhome_api.services.permission_service import user_has_permission
 
 SORTABLE_FIELDS = {
     "display_name": CrmCompany.display_name,
@@ -133,6 +134,7 @@ def can_view_compliance(user: User | None) -> bool:
 
 FINANCIAL_WRITE_PERMISSION = ("crm", "edit_financial")
 LEGAL_TAX_WRITE_PERMISSION = ("crm", "edit_legal")
+OWNERSHIP_TRANSFER_PERMISSION = ("crm", "transfer_ownership")
 _LEGAL_TAX_UPDATE_FIELDS = frozenset({"registration_number", "tax_id", "ein", "legal_data"})
 
 
@@ -148,10 +150,7 @@ def _financial_profile_changed(company: CrmCompany, incoming: dict | None) -> bo
         return existing is not None
     if existing is None:
         return any(value is not None for value in incoming.values())
-    for key, value in incoming.items():
-        if getattr(existing, key, None) != value:
-            return True
-    return False
+    return any(getattr(existing, key, None) != value for key, value in incoming.items())
 
 
 def _legal_tax_value_changed(company: CrmCompany, field: str, incoming) -> bool:
@@ -160,6 +159,14 @@ def _legal_tax_value_changed(company: CrmCompany, field: str, incoming) -> bool:
         incoming = _normalize(incoming) if isinstance(incoming, str) else incoming
         current = _normalize(current) if isinstance(current, str) else current
     return incoming != current
+
+
+def _owner_id(value: object) -> UUID | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, UUID):
+        return value
+    return UUID(str(value))
 
 
 def _reject_unauthorized_sensitive_company_fields(
@@ -188,6 +195,14 @@ def _reject_unauthorized_sensitive_company_fields(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions"
         )
+    if "owner_user_id" in data:
+        # Owner changes belong on PATCH /transfer-ownership, which records the transfer audit.
+        if _owner_id(data["owner_user_id"]) != company.owner_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions",
+            )
+        data.pop("owner_user_id", None)
 
 
 def _check_duplicate(
@@ -250,7 +265,7 @@ def _apply_type_assignments(
     types = company_types or [primary_type]
     if primary_type not in types:
         types = [primary_type, *types]
-    for idx, ctype in enumerate(types):
+    for ctype in types:
         company.type_assignments.append(
             CrmCompanyTypeAssignment(
                 company_type=ctype,
@@ -890,7 +905,6 @@ def update_crm_company(
         "annual_revenue",
         "description",
         "source",
-        "owner_user_id",
         "tags",
         "notes",
     ]
@@ -1006,8 +1020,18 @@ def merge_crm_companies(db: Session, source_id: UUID, target_id: UUID) -> CrmCom
 
 
 def bulk_action(
-    db: Session, company_ids: list[UUID], action: str, payload: dict | None = None
+    db: Session,
+    company_ids: list[UUID],
+    action: str,
+    payload: dict | None = None,
+    *,
+    actor: User | None = None,
+    request: Request | None = None,
 ) -> CrmCompanyBulkActionResponse:
+    if action == "assign_owner" and not _actor_may(actor, *OWNERSHIP_TRANSFER_PERMISSION, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions"
+        )
     affected = 0
     for cid in company_ids:
         company = get_company_or_404(db, cid, include_archived=True)
@@ -1021,8 +1045,12 @@ def bulk_action(
             delete_crm_company(db, company)
             affected += 1
         elif action == "assign_owner" and payload and payload.get("owner_user_id"):
-            company.owner_user_id = UUID(str(payload["owner_user_id"]))
-            affected += 1
+            new_owner = UUID(str(payload["owner_user_id"]))
+            if company.owner_user_id != new_owner:
+                previous_owner = company.owner_user_id
+                company.owner_user_id = new_owner
+                record_crm_company_ownership_changed(db, company, actor, previous_owner, request)
+                affected += 1
     db.flush()
     return CrmCompanyBulkActionResponse(affected=affected)
 

@@ -16,7 +16,7 @@ export default function CrmCompanyNewPage() {
 
   return (
     <CrmModuleShell titleKey="companies.createTitle" descriptionKey="companies.createDescription">
-      <CrmCompanyForm mode="create" />
+      <CrmCompanyForm />
     </CrmModuleShell>
   );
 }

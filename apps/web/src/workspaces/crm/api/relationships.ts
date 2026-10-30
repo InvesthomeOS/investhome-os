@@ -291,3 +291,21 @@ export function upsertDecisionMapRole(companyId: string, payload: Record<string,
     body: JSON.stringify(payload),
   });
 }
+
+export type KnownCorrectionPreview = {
+  key?: string;
+  status?: string;
+  detail?: string | null;
+  agreement_id?: string | null;
+  contact_id?: string | null;
+  current?: Record<string, unknown>;
+  intended?: Record<string, unknown>;
+};
+
+export function previewKnownCorrections() {
+  return apiFetch<{ results: KnownCorrectionPreview[] }>('/crm/corrections/known/preview');
+}
+
+export function applyKnownCorrections() {
+  return apiFetch<{ results: KnownCorrectionPreview[] }>('/crm/corrections/known', { method: 'POST' });
+}

@@ -124,6 +124,16 @@
   cursor: pointer;
 }
 
+.crm-rel-correction {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--ctc-border);
+  border-radius: 8px;
+  background: #fff;
+}
+
 .crm-rel-entity-results button.is-selected {
   border-color: var(--shot-navy);
   background: #f3f7f8;

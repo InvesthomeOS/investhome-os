@@ -9,6 +9,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button, ErrorState, Input, LoadingState, Select } from '@investhome/ui';
 
 import { fetchProjects } from '@/lib/api/projects';
+import { confirmDiscardUnsaved } from '@/lib/crm/unsaved-form';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { fetchCrmCompanies } from '@/workspaces/crm/api/companies';
 import { contactQueries } from '@/workspaces/crm/hooks/use-contacts';
@@ -45,6 +46,13 @@ const COPY = {
     company: 'Şirket',
     project: 'Proje',
     selected: 'Seçildi',
+    cancel: 'Vazgeç',
+    searchHint: 'En az 2 karakter yazın',
+    empty: 'Kayıt bulunamadı',
+    loadFailed: 'Kayıtlar yüklenemedi. Yeniden deneyin.',
+    retry: 'Yeniden dene',
+    loading: 'Yükleniyor…',
+    openExisting: 'Mevcut ilişkiyi aç',
   },
   en: {
     title: 'New relationship',
@@ -65,6 +73,13 @@ const COPY = {
     company: 'Company',
     project: 'Project',
     selected: 'Selected',
+    cancel: 'Cancel',
+    searchHint: 'Type at least 2 characters',
+    empty: 'No records found',
+    loadFailed: 'Records could not be loaded. Try again.',
+    retry: 'Retry',
+    loading: 'Loading…',
+    openExisting: 'Open existing relationship',
   },
 } as const;
 
@@ -115,7 +130,7 @@ function EntityPicker({
   onType: (value: RelationshipEntityType) => void;
   onSearch: (value: string) => void;
   onSelect: (id: string, name: string) => void;
-  copy: (typeof COPY)['tr'];
+  copy: (typeof COPY)[keyof typeof COPY];
 }) {
   const contactsQuery = useQuery({
     ...contactQueries.list({ search: search || undefined, page: 1, page_size: 20 }),
@@ -132,6 +147,8 @@ function EntityPicker({
     enabled: entityType === 'project' && search.trim().length >= 2,
   });
 
+  const activeQuery = entityType === 'contact' ? contactsQuery : entityType === 'company' ? companiesQuery : projectsQuery;
+  const searching = search.trim().length >= 2;
   const options =
     entityType === 'contact'
       ? (contactsQuery.data?.items ?? []).map((item) => ({ id: item.id, name: item.display_name }))
@@ -148,7 +165,22 @@ function EntityPicker({
         <option value="project">{copy.project}</option>
       </Select>
       <Input label={copy.search} value={search} onChange={(event) => onSearch(event.target.value)} placeholder={copy.search} />
-      <div className="crm-rel-entity-results">
+      <div className="crm-rel-entity-results" data-testid="crm-rel-picker">
+        {!searching ? <p data-testid="crm-rel-picker-hint">{copy.searchHint}</p> : null}
+        {searching && (activeQuery.isLoading || activeQuery.isFetching) && !activeQuery.data ? (
+          <p data-testid="crm-rel-picker-loading">{copy.loading}</p>
+        ) : null}
+        {searching && activeQuery.isError ? (
+          <div data-testid="crm-rel-picker-error">
+            <p>{copy.loadFailed}</p>
+            <Button type="button" size="sm" onClick={() => void activeQuery.refetch()}>
+              {copy.retry}
+            </Button>
+          </div>
+        ) : null}
+        {searching && !activeQuery.isLoading && !activeQuery.isFetching && !activeQuery.isError && options.length === 0 ? (
+          <p data-testid="crm-rel-picker-empty">{copy.empty}</p>
+        ) : null}
         {options.map((item) => (
           <button
             key={item.id}
@@ -181,6 +213,8 @@ export function RelationshipCreateWizard() {
   const [relationshipType, setRelationshipType] = useState('contact_company');
   const [notes, setNotes] = useState('');
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  const [duplicateId, setDuplicateId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const typeOptions = useMemo(() => typesForPair(sourceType, targetType), [sourceType, targetType]);
   const selectedType = typeOptions.find((item) => item.value === relationshipType) ?? typeOptions[0];
@@ -194,10 +228,18 @@ export function RelationshipCreateWizard() {
   const createMutation = useMutation({
     mutationFn: relationshipMutations.create,
     onSuccess: () => router.push('/workspaces/crm/relationships'),
+    onError: () => setSaveError(copy.createFailed),
   });
 
+  const dirty = Boolean(sourceId || targetId || sourceSearch.trim() || targetSearch.trim() || notes.trim());
+  const confirmLeave = () => !dirty || confirmDiscardUnsaved(locale.startsWith('tr'));
+  const clearDuplicate = () => {
+    setDuplicateWarning(null);
+    setDuplicateId(null);
+  };
+
   const handleSubmit = async () => {
-    if (!sourceId || !targetId || !selectedType) return;
+    if (!sourceId || !targetId || !selectedType || duplicateWarning) return;
     const payload = {
       source_entity_type: sourceType,
       source_entity_id: sourceId,
@@ -207,12 +249,20 @@ export function RelationshipCreateWizard() {
       category: selectedType.category,
       notes: notes || undefined,
     };
-    const duplicates = await relationshipMutations.checkDuplicates(payload);
-    if (duplicates.length > 0) {
-      setDuplicateWarning(copy.duplicate);
+    setSaveError(null);
+    try {
+      const duplicates = await relationshipMutations.checkDuplicates(payload);
+      if (duplicates.length > 0) {
+        setDuplicateId(duplicates[0]?.existing_id ?? null);
+        setDuplicateWarning(copy.duplicate);
+        return;
+      }
+    } catch {
+      setSaveError(copy.createFailed);
       return;
     }
     setDuplicateWarning(null);
+    setDuplicateId(null);
     createMutation.mutate(payload);
   };
 
@@ -223,7 +273,15 @@ export function RelationshipCreateWizard() {
     <div className="ctc-ds crm-rel-create-form" data-testid="crm-relationships-create">
       <header className="ctc-ds__header">
         <div>
-          <Link href="/workspaces/crm/relationships">{copy.back}</Link>
+          <Link
+            href="/workspaces/crm/relationships"
+            data-testid="crm-relationships-create-back"
+            onClick={(event) => {
+              if (!confirmLeave()) event.preventDefault();
+            }}
+          >
+            {copy.back}
+          </Link>
           <h1>{copy.title}</h1>
           <p>{copy.subtitle}</p>
         </div>
@@ -240,11 +298,13 @@ export function RelationshipCreateWizard() {
             setSourceType(value);
             setSourceId('');
             setSourceName('');
+            clearDuplicate();
           }}
           onSearch={setSourceSearch}
           onSelect={(id, name) => {
             setSourceId(id);
             setSourceName(name);
+            clearDuplicate();
           }}
         />
         <EntityPicker
@@ -257,11 +317,13 @@ export function RelationshipCreateWizard() {
             setTargetType(value);
             setTargetId('');
             setTargetName('');
+            clearDuplicate();
           }}
           onSearch={setTargetSearch}
           onSelect={(id, name) => {
             setTargetId(id);
             setTargetName(name);
+            clearDuplicate();
           }}
         />
       </section>
@@ -289,19 +351,37 @@ export function RelationshipCreateWizard() {
           {copy.notes}
           <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} />
         </label>
-        {duplicateWarning ? <p className="crm-error">{duplicateWarning}</p> : null}
-        {createMutation.isError ? (
-          <p className="crm-error">
-            {copy.createFailed}
-            {createMutation.error instanceof Error && createMutation.error.message
-              ? `: ${createMutation.error.message}`
-              : ''}
+        {duplicateWarning ? (
+          <div className="crm-error" role="status" data-testid="crm-relationship-duplicate">
+            <p>{duplicateWarning}</p>
+            {duplicateId ? (
+              <Link href={`/workspaces/crm/relationships/${duplicateId}`}>{copy.openExisting}</Link>
+            ) : (
+              <button type="button" onClick={() => confirmLeave() && router.push('/workspaces/crm/relationships')}>
+                {copy.back}
+              </button>
+            )}
+          </div>
+        ) : null}
+        {saveError ? (
+          <p className="crm-error" role="alert" data-testid="crm-relationship-save-error">
+            {saveError}
           </p>
         ) : null}
         <Button
           type="button"
+          variant="secondary"
+          data-testid="crm-relationships-create-cancel"
+          onClick={() => {
+            if (confirmLeave()) router.push('/workspaces/crm/relationships');
+          }}
+        >
+          {copy.cancel}
+        </Button>
+        <Button
+          type="button"
           onClick={() => void handleSubmit()}
-          disabled={!sourceId || !targetId || !selectedType || createMutation.isPending}
+          disabled={!sourceId || !targetId || !selectedType || Boolean(duplicateWarning) || createMutation.isPending}
           data-testid="crm-relationships-create-submit"
         >
           {copy.submit}

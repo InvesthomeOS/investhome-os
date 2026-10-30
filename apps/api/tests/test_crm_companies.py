@@ -8,7 +8,14 @@ from sqlalchemy.orm import Session
 from investhome_api.models.activity import ActivityEntityType, ActivityLog
 from investhome_api.models.crm_company import CrmCompany, CrmCompanyType
 from investhome_api.models.crm_contact import CrmContact, CrmContactType, CrmRecordKind
-from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole, UserStatus
+from investhome_api.models.user_auth import (
+    Permission,
+    Role,
+    RolePermission,
+    User,
+    UserRole,
+    UserStatus,
+)
 from investhome_api.services.auth_service import hash_password
 
 
@@ -68,7 +75,11 @@ def test_list_crm_companies(client: TestClient) -> None:
 def test_get_update_delete_crm_company(client: TestClient) -> None:
     created = client.post(
         "/crm/companies",
-        json=_create_company_payload(legal_name="Acme Capital II", primary_email="info2@acme.com", domain="acme2.com"),
+        json=_create_company_payload(
+            legal_name="Acme Capital II",
+            primary_email="info2@acme.com",
+            domain="acme2.com",
+        ),
     )
     company_id = created.json()["id"]
 
@@ -100,7 +111,15 @@ def test_duplicate_legal_name_returns_422(client: TestClient) -> None:
 
 
 def test_hierarchy_circular_prevention(client: TestClient) -> None:
-    parent = client.post("/crm/companies", json=_create_company_payload(display_name="Parent Co", legal_name="Parent Co LLC", primary_email="p@co.com", domain="parent.co"))
+    parent = client.post(
+        "/crm/companies",
+        json=_create_company_payload(
+            display_name="Parent Co",
+            legal_name="Parent Co LLC",
+            primary_email="p@co.com",
+            domain="parent.co",
+        ),
+    )
     child = client.post(
         "/crm/companies",
         json=_create_company_payload(
@@ -120,11 +139,21 @@ def test_hierarchy_circular_prevention(client: TestClient) -> None:
 def test_merge_crm_companies(client: TestClient) -> None:
     source = client.post(
         "/crm/companies",
-        json=_create_company_payload(display_name="Source Co", legal_name="Source Co LLC", primary_email="s@co.com", domain="source.co"),
+        json=_create_company_payload(
+            display_name="Source Co",
+            legal_name="Source Co LLC",
+            primary_email="s@co.com",
+            domain="source.co",
+        ),
     )
     target = client.post(
         "/crm/companies",
-        json=_create_company_payload(display_name="Target Co", legal_name="Target Co LLC", primary_email="t@co.com", domain="target.co"),
+        json=_create_company_payload(
+            display_name="Target Co",
+            legal_name="Target Co LLC",
+            primary_email="t@co.com",
+            domain="target.co",
+        ),
     )
     response = client.post(
         "/crm/companies/merge",
@@ -139,7 +168,12 @@ def test_company_contact_m2m(client: TestClient, db: Session) -> None:
     contact_id = _create_contact(db)
     link_response = client.post(
         f"/crm/companies/{company['id']}/contacts",
-        json={"contact_id": contact_id, "role": "primary", "is_primary": True, "job_title": "Managing Director"},
+        json={
+            "contact_id": contact_id,
+            "role": "primary",
+            "is_primary": True,
+            "job_title": "Managing Director",
+        },
     )
     assert link_response.status_code == 201, link_response.text
     contacts = client.get(f"/crm/companies/{company['id']}/contacts")
@@ -151,10 +185,20 @@ def test_company_contact_m2m(client: TestClient, db: Session) -> None:
 def test_field_stripping_without_financial_permission(auth_client: TestClient, db: Session) -> None:
     from uuid import uuid4
 
-    from investhome_api.models.user_auth import Permission, Role, RolePermission, User, UserRole, UserStatus
+    from investhome_api.models.user_auth import (
+        Permission,
+        Role,
+        RolePermission,
+        User,
+        UserRole,
+        UserStatus,
+    )
     from investhome_api.services.auth_service import hash_password
 
-    assert auth_client.post("/auth/login", json={"email": "admin@example.com", "password": "Demo123!"}).status_code == 200
+    login = auth_client.post(
+        "/auth/login", json={"email": "admin@example.com", "password": "Demo123!"}
+    )
+    assert login.status_code == 200
     created = auth_client.post(
         "/crm/companies",
         json=_create_company_payload(
@@ -191,7 +235,8 @@ def test_field_stripping_without_financial_permission(auth_client: TestClient, d
     db.add(UserRole(user_id=limited.id, role_id=role.id))
     db.commit()
 
-    assert auth_client.post("/auth/login", json={"email": email, "password": "Demo123!"}).status_code == 200
+    login = auth_client.post("/auth/login", json={"email": email, "password": "Demo123!"})
+    assert login.status_code == 200
     detail = auth_client.get(f"/crm/companies/{company_id}")
     assert detail.status_code == 200
     body = detail.json()
@@ -225,7 +270,10 @@ def test_crm_company_audit_events(client: TestClient, db: Session) -> None:
 
 
 def test_import_crm_companies(client: TestClient) -> None:
-    csv_content = "display_name,legal_name,company_type,status,primary_email,domain,industry\nImport Co,Import Co LLC,brokerage,active,info@import.co,import.co,Brokerage\n"
+    csv_content = (
+        "display_name,legal_name,company_type,status,primary_email,domain,industry\n"
+        "Import Co,Import Co LLC,brokerage,active,info@import.co,import.co,Brokerage\n"
+    )
     response = client.post(
         "/crm/companies/import",
         files={"file": ("companies.csv", csv_content, "text/csv")},
@@ -279,8 +327,9 @@ def test_company_workspace_counts_and_person_search(client: TestClient, db: Sess
 
     listed = client.get("/crm/companies?search=Jane")
     assert listed.status_code == 200
-    assert any(item["display_name"] == "Partner Lojistik" for item in listed.json()["items"])
-    found = next(item for item in listed.json()["items"] if item["display_name"] == "Partner Lojistik")
+    items = listed.json()["items"]
+    assert any(item["display_name"] == "Partner Lojistik" for item in items)
+    found = next(item for item in items if item["display_name"] == "Partner Lojistik")
     assert found["contact_count"] >= 1
     assert any(person["display_name"] == "Jane Investor" for person in found["related_people"])
 
@@ -300,7 +349,8 @@ def _company_user_with(db: Session, extra: list[tuple[str, str]], *, label: str)
     db.add(role)
     db.flush()
     for resource, action in grants:
-        db.add(RolePermission(role_id=role.id, permission_id=_ensure_permission(db, resource, action).id))
+        permission = _ensure_permission(db, resource, action)
+        db.add(RolePermission(role_id=role.id, permission_id=permission.id))
     email = f"{label}.{uuid4().hex[:8]}@example.com"
     user = User(
         email=email,
@@ -347,7 +397,9 @@ def _reload_company(db: Session, company_id: str) -> CrmCompany:
     return company
 
 
-def test_crm_update_can_change_ordinary_company_fields(auth_client: TestClient, db: Session) -> None:
+def test_crm_update_can_change_ordinary_company_fields(
+    auth_client: TestClient, db: Session
+) -> None:
     _login(auth_client, "admin@example.com")
     company_id = _seed_sensitive_company(auth_client)
     email = _company_user_with(db, [], label="crm_co_update")
@@ -362,7 +414,9 @@ def test_crm_update_can_change_ordinary_company_fields(auth_client: TestClient, 
     assert body["industry"] == "Hospitality"
 
 
-def test_crm_update_cannot_change_company_financial_fields(auth_client: TestClient, db: Session) -> None:
+def test_crm_update_cannot_change_company_financial_fields(
+    auth_client: TestClient, db: Session
+) -> None:
     _login(auth_client, "admin@example.com")
     company_id = _seed_sensitive_company(auth_client)
     email = _company_user_with(db, [], label="crm_co_fin_blocked")
@@ -379,7 +433,9 @@ def test_crm_update_cannot_change_company_financial_fields(auth_client: TestClie
     assert company.financial_profile.net_worth == 5000000
 
 
-def test_crm_update_cannot_change_company_legal_tax_fields(auth_client: TestClient, db: Session) -> None:
+def test_crm_update_cannot_change_company_legal_tax_fields(
+    auth_client: TestClient, db: Session
+) -> None:
     _login(auth_client, "admin@example.com")
     company_id = _seed_sensitive_company(auth_client)
     original = _reload_company(db, company_id)
@@ -400,7 +456,9 @@ def test_crm_update_cannot_change_company_legal_tax_fields(auth_client: TestClie
     assert company.registration_number == original_reg
 
 
-def test_crm_view_legal_cannot_update_company_legal_tax_fields(auth_client: TestClient, db: Session) -> None:
+def test_crm_view_legal_cannot_update_company_legal_tax_fields(
+    auth_client: TestClient, db: Session
+) -> None:
     _login(auth_client, "admin@example.com")
     company_id = _seed_sensitive_company(auth_client)
     original = _reload_company(db, company_id)
@@ -421,7 +479,9 @@ def test_crm_view_legal_cannot_update_company_legal_tax_fields(auth_client: Test
     assert company.registration_number == original_reg
 
 
-def test_crm_edit_legal_can_update_company_legal_tax_fields(auth_client: TestClient, db: Session) -> None:
+def test_crm_edit_legal_can_update_company_legal_tax_fields(
+    auth_client: TestClient, db: Session
+) -> None:
     _login(auth_client, "admin@example.com")
     company_id = _seed_sensitive_company(auth_client)
     email = _company_user_with(db, [("crm", "edit_legal")], label="crm_co_edit_legal")
@@ -437,7 +497,9 @@ def test_crm_edit_legal_can_update_company_legal_tax_fields(auth_client: TestCli
     assert company.registration_number == "WRITEREG"
 
 
-def test_authorized_user_can_change_company_protected_fields(auth_client: TestClient, db: Session) -> None:
+def test_authorized_user_can_change_company_protected_fields(
+    auth_client: TestClient, db: Session
+) -> None:
     _login(auth_client, "admin@example.com")
     company_id = _seed_sensitive_company(auth_client)
     email = _company_user_with(
@@ -465,7 +527,9 @@ def test_authorized_user_can_change_company_protected_fields(auth_client: TestCl
     assert company.registration_number == "NEWREGID"
 
 
-def test_super_admin_can_change_company_protected_fields(auth_client: TestClient, db: Session) -> None:
+def test_super_admin_can_change_company_protected_fields(
+    auth_client: TestClient, db: Session
+) -> None:
     _login(auth_client, "admin@example.com")
     company_id = _seed_sensitive_company(auth_client)
     financial = auth_client.put(
@@ -533,3 +597,74 @@ def test_view_legal_mixed_payload_cannot_bypass_legal_write_restriction(
     company = _reload_company(db, company_id)
     assert company.display_name == original_name
     assert company.tax_id == original_tax
+
+
+def test_crm_update_cannot_change_company_owner(auth_client: TestClient, db: Session) -> None:
+    _login(auth_client, "admin@example.com")
+    company_id = _seed_sensitive_company(auth_client)
+    original = _reload_company(db, company_id)
+    original_name = original.display_name
+    original_owner = original.owner_user_id
+    email = _company_user_with(db, [], label="crm_co_owner_blocked")
+    actor = db.query(User).filter_by(email=email).one()
+    _login(auth_client, email)
+    response = auth_client.put(
+        f"/crm/companies/{company_id}",
+        json={"display_name": "Owner Smuggle", "owner_user_id": str(actor.id)},
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Insufficient permissions"
+    company = _reload_company(db, company_id)
+    assert company.display_name == original_name
+    assert company.owner_user_id == original_owner
+    denied = auth_client.patch(
+        f"/crm/companies/{company_id}/transfer-ownership",
+        json={"owner_user_id": str(actor.id)},
+    )
+    assert denied.status_code == 403
+    company = _reload_company(db, company_id)
+    assert company.owner_user_id == original_owner
+    kept = auth_client.put(
+        f"/crm/companies/{company_id}",
+        json={"display_name": "Ordinary Kept", "industry": "Hotels"},
+    )
+    assert kept.status_code == 200, kept.text
+    company = _reload_company(db, company_id)
+    assert company.display_name == "Ordinary Kept"
+    assert company.industry == "Hotels"
+    assert company.owner_user_id == original_owner
+
+
+def test_crm_transfer_ownership_can_change_company_owner(
+    auth_client: TestClient, db: Session
+) -> None:
+    _login(auth_client, "admin@example.com")
+    company_id = _seed_sensitive_company(auth_client)
+    original_name = _reload_company(db, company_id).display_name
+    email = _company_user_with(
+        db, [("crm", "transfer_ownership")], label="crm_co_owner_transfer"
+    )
+    actor = db.query(User).filter_by(email=email).one()
+    _login(auth_client, email)
+    blocked = auth_client.put(
+        f"/crm/companies/{company_id}",
+        json={"owner_user_id": str(actor.id)},
+    )
+    assert blocked.status_code == 403
+    transferred = auth_client.patch(
+        f"/crm/companies/{company_id}/transfer-ownership",
+        json={"owner_user_id": str(actor.id)},
+    )
+    assert transferred.status_code == 200, transferred.text
+    company = _reload_company(db, company_id)
+    assert company.owner_user_id == actor.id
+    assert company.display_name == original_name
+    logs = (
+        db.query(ActivityLog)
+        .filter(
+            ActivityLog.entity_type == ActivityEntityType.CRM_COMPANY,
+            ActivityLog.entity_id == UUID(company_id),
+        )
+        .all()
+    )
+    assert any(log.description_key == "activity.crm_company.ownership_changed" for log in logs)

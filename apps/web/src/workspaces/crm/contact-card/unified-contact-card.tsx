@@ -353,8 +353,12 @@ export function UnifiedContactCard({
   const { openPurchase } = useContactCard();
   const { authLoading, canRead, has, user, canViewFinancial } = useCrmAccess();
   const canSendEmail = has('send_communications');
+  const canCreate = has('create');
   const canUpdate = has('update');
   const canTransferOwnership = has('transfer_ownership');
+  const canManageTasks = has('manage_tasks');
+  const canManageMeetings = has('manage_meetings');
+  const canManageFollowUps = has('manage_followups');
   const canViewDocuments = Boolean(user && hasPermission(user, 'documents', 'view'));
   const canLinkDocuments = Boolean(user && hasPermission(user, 'documents', 'update'));
   const canUploadDocuments = canLinkDocuments;
@@ -763,7 +767,7 @@ export function UnifiedContactCard({
         start_date: noteAt ? toIso(noteAt) : new Date().toISOString(),
         status: 'completed',
       });
-      if (noteNeedsFollowUp && noteFollowUpAt) {
+      if (canManageFollowUps && noteNeedsFollowUp && noteFollowUpAt) {
         await createFollowUp({
           entity_type: 'contact',
           entity_id: contactId,
@@ -784,6 +788,9 @@ export function UnifiedContactCard({
   const submitTask = (event: FormEvent) => {
     event.preventDefault();
     if (!taskTitle.trim()) return;
+    if (taskKind === 'meeting' && !canManageMeetings) return;
+    if ((taskKind === 'phone_call' || taskKind === 'email' || taskKind === 'whatsapp') && !canCreate) return;
+    if (taskKind !== 'meeting' && taskKind !== 'phone_call' && taskKind !== 'email' && taskKind !== 'whatsapp' && !canManageTasks) return;
     const kindLabel = taskKindLabel(taskKind, t);
     actionMutation.mutate(async () => {
       if (taskKind === 'meeting') {
@@ -1122,9 +1129,11 @@ export function UnifiedContactCard({
               <IhIcon name="inbox" size={14} /> {t.whatsapp}
             </button>
           )}
+          {canCreate ? (
           <button
             type="button"
             className={`crm-person-action${panel === 'note' ? ' is-active' : ''}`}
+            data-testid="contact-comment-action"
             onClick={() => {
               setNoteType('note');
               togglePanel('note');
@@ -1132,10 +1141,12 @@ export function UnifiedContactCard({
           >
             <IhIcon name="activity" size={14} /> {t.message}
           </button>
-          {canUpdate ? (
+          ) : null}
+          {canManageMeetings ? (
             <button
               type="button"
               className={`crm-person-action${panel === 'task' && taskKind === 'meeting' ? ' is-active' : ''}`}
+              data-testid="contact-meeting-action"
               onClick={() => {
                 setTaskKind('meeting');
                 togglePanel('task');
@@ -1144,7 +1155,7 @@ export function UnifiedContactCard({
               <IhIcon name="meeting" size={14} /> {t.meeting}
             </button>
           ) : null}
-          {canUpdate || canTransferOwnership ? (
+          {canUpdate || canTransferOwnership || canManageTasks ? (
             <button
               type="button"
               className={`crm-person-action${panel === 'more' || panel === 'assign' ? ' is-active' : ''}`}
@@ -1166,9 +1177,10 @@ export function UnifiedContactCard({
                 {t.assignOwner}
               </button>
             ) : null}
-            {canUpdate ? (
+            {canManageTasks ? (
               <button
                 type="button"
+                data-testid="contact-task-action"
                 onClick={() => {
                   setTaskKind('task');
                   togglePanel('task');
@@ -1344,11 +1356,13 @@ export function UnifiedContactCard({
                 ))}
               </Select>
               <Input label={t.datetime} type="datetime-local" value={noteAt} onChange={(event) => setNoteAt(event.target.value)} />
+              {canManageFollowUps ? (
               <Select label={t.createFollowUp} value={noteNeedsFollowUp ? 'yes' : 'no'} onChange={(event) => setNoteNeedsFollowUp(event.target.value === 'yes')}>
                 <option value="no">{t.no}</option>
                 <option value="yes">{t.yes}</option>
               </Select>
-              {noteNeedsFollowUp ? (
+              ) : null}
+              {canManageFollowUps && noteNeedsFollowUp ? (
                 <Input label={t.followUpDate} type="datetime-local" value={noteFollowUpAt} onChange={(event) => setNoteFollowUpAt(event.target.value)} />
               ) : null}
             </div>
@@ -1365,7 +1379,13 @@ export function UnifiedContactCard({
             <TextArea label={t.description} value={taskDescription} onChange={(event) => setTaskDescription(event.target.value)} />
             <div className="crm-contact-card__panel-grid">
               <Select label={t.type} value={taskKind} onChange={(event) => setTaskKind(event.target.value as typeof taskKind)}>
-                {TASK_KINDS.map((item) => (
+                {TASK_KINDS.filter((item) => (
+                  item === 'meeting'
+                    ? canManageMeetings
+                    : item === 'phone_call' || item === 'email' || item === 'whatsapp'
+                      ? canCreate
+                      : canManageTasks
+                )).map((item) => (
                   <option key={item} value={item}>{taskKindLabel(item, t)}</option>
                 ))}
               </Select>
@@ -1538,7 +1558,9 @@ export function UnifiedContactCard({
               <article className="crm-person-panel" data-testid="contact-tasks-preview">
                 <div className="crm-person-panel__head">
                   <h2>{t.tasksHeading}</h2>
-                  <button type="button" onClick={() => { setTaskKind('task'); togglePanel('task'); }}>{t.createTask}</button>
+                  {canManageTasks ? (
+                    <button type="button" data-testid="contact-task-side" onClick={() => { setTaskKind('task'); togglePanel('task'); }}>{t.createTask}</button>
+                  ) : null}
                 </div>
                 {followUpEntries.length ? renderTaskRows(followUpEntries, true) : <p>{t.noTasks}</p>}
               </article>
@@ -1605,8 +1627,8 @@ export function UnifiedContactCard({
         <section className="crm-verify-detail__section" data-testid="contact-tasks">
           <div className="crm-person-panel__head">
             <h2>{t.tasksPlan} <span>{followUpEntries.length}</span></h2>
-            {canUpdate ? (
-              <Button type="button" size="sm" onClick={() => { setTaskKind('task'); togglePanel('task'); }}>
+            {canManageTasks ? (
+              <Button type="button" size="sm" data-testid="contact-task-tab" onClick={() => { setTaskKind('task'); togglePanel('task'); }}>
                 {t.createTask}
               </Button>
             ) : null}

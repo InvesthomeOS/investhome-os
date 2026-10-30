@@ -20,6 +20,7 @@ import '../../contacts/_components/people-workspace.css';
 import '../../contacts/_components/ds/contacts-ds.css';
 import './relationships-workspace.css';
 
+import { HistoricalCorrectionPanel } from './historical-correction-panel';
 import { RelationshipNetworkView } from './relationship-network-view';
 
 const PAGE_SIZE = 50;
@@ -182,7 +183,7 @@ export function RelationshipsWorkspace() {
   const patch = useListQueryPatch(RELATIONSHIP_QUERY_DEFAULTS);
   const [searchDraft, setSearchDraft, search] = useDebouncedQueryParam('q', undefined, { resetPage: true });
   const { openContact, openPurchase } = useContactCard();
-  const { authLoading, canRead, canCreate } = useCrmAccess();
+  const { authLoading, canRead, canCreate, has } = useCrmAccess();
   const [view, setView] = useState<WorkspaceView>('list');
   const tab = relationshipTab(searchParams.get('tab'));
   const relationshipType = searchParams.get('type') ?? '';
@@ -286,6 +287,8 @@ export function RelationshipsWorkspace() {
           </Link>
         </div>
       </header>
+
+      {has('correct_relationships') ? <HistoricalCorrectionPanel /> : null}
 
       <div className="crm-people-sticky">
         <section className="crm-people-summary" aria-label={copy.title}>

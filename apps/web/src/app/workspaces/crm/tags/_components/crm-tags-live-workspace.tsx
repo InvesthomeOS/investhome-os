@@ -145,14 +145,14 @@ function formatWhen(value: string | null | undefined, locale: string): string {
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return '•';
-  return (parts[0][0] || '').toLocaleUpperCase('tr-TR');
+  return (parts[0]?.[0] || '').toLocaleUpperCase('tr-TR');
 }
 
 function TagDrawer({
   mode,
   item,
   form,
-  canWrite,
+  canUpdate,
   saving,
   copy,
   locale,
@@ -165,9 +165,9 @@ function TagDrawer({
   mode: DrawerMode;
   item: CrmTagDetail | CrmTagItem | null;
   form: TagForm;
-  canWrite: boolean;
+  canUpdate: boolean;
   saving: boolean;
-  copy: (typeof COPY)['tr'];
+  copy: (typeof COPY)[keyof typeof COPY];
   locale: string;
   onClose: () => void;
   onFormChange: (patch: Partial<TagForm>) => void;
@@ -263,7 +263,7 @@ function TagDrawer({
           <LoadingState />
         )}
       </div>
-      {item && !isForm && canWrite ? (
+      {item && !isForm && canUpdate ? (
         <div className="crm-ops-drawer__actions">
           <Button type="button" size="sm" onClick={onEdit}>
             {copy.edit}
@@ -281,7 +281,7 @@ export function CrmTagsLiveWorkspace() {
   const locale = useLocale() === 'tr' ? 'tr' : 'en';
   const copy = COPY[locale];
   const { authLoading, canRead, canCreate, has } = useCrmAccess();
-  const canWrite = canCreate || has('update');
+  const canUpdate = has('update');
   const queryClient = useQueryClient();
   const [searchDraft, setSearchDraft] = useState('');
   const [search, setSearch] = useState('');
@@ -313,7 +313,7 @@ export function CrmTagsLiveWorkspace() {
     enabled: Boolean(selectedId) && mode === 'detail' && canRead,
   });
 
-  const items = tagsQuery.data?.items ?? [];
+  const items = useMemo(() => tagsQuery.data?.items ?? [], [tagsQuery.data?.items]);
   const stats = tagsQuery.data?.stats ?? { total_tags: 0, tagged_people: 0, untagged_people: 0 };
   const pages = Math.max(1, Math.ceil(items.length / pageSize));
   const currentPage = Math.min(page, pages);
@@ -403,7 +403,17 @@ export function CrmTagsLiveWorkspace() {
     return <ErrorState title={copy.title} message={copy.accessDenied} />;
   }
   if (tagsQuery.isError) {
-    return <ErrorState title={copy.title} message={tagsQuery.error.message} />;
+    return (
+      <ErrorState
+        title={copy.title}
+        message={locale === 'tr' ? 'Etiketler yüklenemedi. Yeniden deneyin.' : 'Tags could not be loaded. Try again.'}
+        action={
+          <Button type="button" size="sm" onClick={() => void tagsQuery.refetch()}>
+            {locale === 'tr' ? 'Yeniden dene' : 'Retry'}
+          </Button>
+        }
+      />
+    );
   }
 
   return (
@@ -424,7 +434,7 @@ export function CrmTagsLiveWorkspace() {
             <p>{copy.subtitle}</p>
           </div>
         </div>
-        {canWrite ? (
+        {canCreate ? (
           <div className="crm-ops__header-tools">
             <Button type="button" size="sm" onClick={openCreate}>
               {copy.create}
@@ -480,8 +490,8 @@ export function CrmTagsLiveWorkspace() {
           <Button type="button" variant="secondary" size="sm" onClick={clearFilters}>
             {copy.clear}
           </Button>
-          {canWrite ? (
-            <Button type="button" size="sm" onClick={openCreate}>
+          {canCreate ? (
+            <Button type="button" size="sm" data-testid="crm-tags-create" onClick={openCreate}>
               {copy.create}
             </Button>
           ) : null}
@@ -555,7 +565,7 @@ export function CrmTagsLiveWorkspace() {
                         >
                           {copy.view}
                         </button>
-                        {canWrite ? (
+                        {canUpdate ? (
                           <div className="crm-ops-more">
                             <button
                               type="button"
@@ -640,7 +650,7 @@ export function CrmTagsLiveWorkspace() {
             mode={mode}
             item={drawerItem}
             form={form}
-            canWrite={canWrite}
+            canUpdate={canUpdate}
             saving={saveMutation.isPending || statusMutation.isPending}
             copy={copy}
             locale={locale}
@@ -648,7 +658,7 @@ export function CrmTagsLiveWorkspace() {
             onFormChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
             onSave={() => void saveMutation.mutate()}
             onEdit={() => openEdit()}
-            onToggleStatus={() => void statusMutation.mutate()}
+            onToggleStatus={() => void statusMutation.mutate(drawerItem)}
           />
         </>
       ) : null}

@@ -32,7 +32,7 @@ import { fetchCrmCompanies } from '@/workspaces/crm/api/companies';
 
 const DRAFT_KEY = 'investhome-crm-company-draft';
 
-export function CrmCompanyForm({ mode = 'create' }: { mode?: 'create' | 'edit' }) {
+export function CrmCompanyForm() {
   const t = useTranslations('crm.companies');
   const tCrm = useTranslations('crm');
   const tCommon = useTranslations('common');
@@ -43,6 +43,7 @@ export function CrmCompanyForm({ mode = 'create' }: { mode?: 'create' | 'edit' }
   const queryClient = useQueryClient();
   const { draftFormOpen } = useCrmCompaniesStore();
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  const [duplicateConfirmed, setDuplicateConfirmed] = useState(false);
 
   const form = useForm<CrmCompanyFormValues>({
     resolver: zodResolver(crmCompanyFormSchema) as never,
@@ -53,7 +54,6 @@ export function CrmCompanyForm({ mode = 'create' }: { mode?: 'create' | 'edit' }
   const profileKey = PROFILE_TYPES_BY_COMPANY_TYPE[companyType];
 
   useEffect(() => {
-    if (mode !== 'create') return;
     const saved = localStorage.getItem(DRAFT_KEY);
     if (saved && draftFormOpen) {
       try {
@@ -62,15 +62,23 @@ export function CrmCompanyForm({ mode = 'create' }: { mode?: 'create' | 'edit' }
         localStorage.removeItem(DRAFT_KEY);
       }
     }
-  }, [draftFormOpen, form, mode]);
+  }, [draftFormOpen, form]);
 
   useEffect(() => {
-    if (mode !== 'create') return;
-    const subscription = form.watch((values) => {
+    const subscription = form.watch((values, info) => {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(values));
+      if (
+        info.name === 'display_name' ||
+        info.name === 'legal_name' ||
+        info.name === 'domain' ||
+        info.name === 'primary_email'
+      ) {
+        setDuplicateConfirmed(false);
+        setDuplicateWarning(null);
+      }
     });
     return () => subscription.unsubscribe();
-  }, [form, mode]);
+  }, [form]);
 
   const createMutation = useMutation({
     ...crmCompaniesMutations.create(),
@@ -85,20 +93,33 @@ export function CrmCompanyForm({ mode = 'create' }: { mode?: 'create' | 'edit' }
     },
   });
 
-  const checkDuplicates = async () => {
+  const lookupDuplicate = async (): Promise<'found' | 'clear' | 'failed'> => {
     const legalName = form.getValues('legal_name');
     const domain = form.getValues('domain');
     const email = form.getValues('primary_email');
-    if (!legalName && !domain && !email) return;
-    const results = await fetchCrmCompanies({ search: legalName || domain || email, pageSize: 5 });
-    if (results.items.length > 0) {
-      setDuplicateWarning(t('form.duplicateWarning', { name: results.items[0]?.display_name ?? '' }));
-    } else {
+    const displayName = form.getValues('display_name');
+    const search = legalName || domain || email || displayName;
+    if (!search) {
       setDuplicateWarning(null);
+      return 'clear';
+    }
+    try {
+      const results = await fetchCrmCompanies({ search, pageSize: 5 });
+      const match = results.items[0];
+      if (match) {
+        setDuplicateWarning(t('form.duplicateWarning', { name: match.display_name ?? '' }));
+        setDuplicateConfirmed(false);
+        return 'found';
+      }
+      setDuplicateWarning(null);
+      return 'clear';
+    } catch {
+      setSaveError(t('form.duplicateCheckFailed'));
+      return 'failed';
     }
   };
 
-  const onSubmit = form.handleSubmit((values) => {
+  const submitValues = (values: CrmCompanyFormValues) => {
     setSaveError(null);
     const payload: Record<string, unknown> = {
       ...values,
@@ -106,6 +127,14 @@ export function CrmCompanyForm({ mode = 'create' }: { mode?: 'create' | 'edit' }
       employee_count: values.employee_count,
     };
     createMutation.mutate(payload);
+  };
+
+  const onSubmit = form.handleSubmit(async (values) => {
+    if (!duplicateConfirmed) {
+      const outcome = await lookupDuplicate();
+      if (outcome !== 'clear') return;
+    }
+    submitValues(values);
   });
 
   const showProfileSection = useMemo(() => Boolean(profileKey), [profileKey]);
@@ -118,26 +147,29 @@ export function CrmCompanyForm({ mode = 'create' }: { mode?: 'create' | 'edit' }
     <form className="crm-company-form" onSubmit={onSubmit}>
       <section className="crm-form-section">
         <h2>{t('form.sections.identity')}</h2>
-        <Input {...form.register('display_name')} placeholder={t('form.displayName')} required />
-        <Input {...form.register('legal_name')} placeholder={t('form.legalName')} onBlur={() => void checkDuplicates()} />
-        <Input {...form.register('trade_name')} placeholder={t('form.tradeName')} />
-        <select {...form.register('company_type')}>
-          {CRM_COMPANY_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {t(`companyTypes.${type}` as 'companyTypes.other')}
-            </option>
-          ))}
-        </select>
-        <Input {...form.register('industry')} placeholder={t('fields.industry')} />
+        <Input label={t('form.displayName')} {...form.register('display_name')} placeholder={t('form.displayName')} required />
+        <Input label={t('form.legalName')} {...form.register('legal_name')} placeholder={t('form.legalName')} />
+        <Input label={t('form.tradeName')} {...form.register('trade_name')} placeholder={t('form.tradeName')} />
+        <label className="ih-field">
+          <span className="ih-field__label">{t('fields.companyType')}</span>
+          <select className="ih-select" {...form.register('company_type')}>
+            {CRM_COMPANY_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {t(`companyTypes.${type}` as 'companyTypes.other')}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Input label={t('fields.industry')} {...form.register('industry')} placeholder={t('fields.industry')} />
       </section>
 
       <section className="crm-form-section">
         <h2>{t('form.sections.contact')}</h2>
-        <Input {...form.register('primary_email')} placeholder={tCrm('fields.email')} onBlur={() => void checkDuplicates()} />
-        <Input {...form.register('primary_phone')} placeholder={tCrm('fields.phone')} />
-        <Input {...form.register('website')} placeholder={t('form.website')} />
-        <Input {...form.register('domain')} placeholder={t('fields.domain')} onBlur={() => void checkDuplicates()} />
-        <Input {...form.register('linkedin_url')} placeholder={t('form.linkedin')} />
+        <Input label={tCrm('fields.email')} {...form.register('primary_email')} placeholder={tCrm('fields.email')} />
+        <Input label={tCrm('fields.phone')} {...form.register('primary_phone')} placeholder={tCrm('fields.phone')} />
+        <Input label={t('form.website')} {...form.register('website')} placeholder={t('form.website')} />
+        <Input label={t('fields.domain')} {...form.register('domain')} placeholder={t('fields.domain')} />
+        <Input label={t('form.linkedin')} {...form.register('linkedin_url')} placeholder={t('form.linkedin')} />
       </section>
 
       <section className="crm-form-section">
@@ -193,7 +225,35 @@ export function CrmCompanyForm({ mode = 'create' }: { mode?: 'create' | 'edit' }
         <TextArea {...form.register('notes')} placeholder={t('form.notes')} />
       </section>
 
-      {duplicateWarning ? <p className="crm-duplicate-warning">{duplicateWarning}</p> : null}
+      {duplicateWarning ? (
+        <div className="crm-duplicate-warning" role="status" data-testid="crm-company-duplicate">
+          <p>{duplicateWarning}</p>
+          <div className="crm-form-actions">
+            <Button
+              type="button"
+              variant="secondary"
+              data-testid="crm-company-duplicate-review"
+              onClick={() => {
+                setDuplicateWarning(null);
+                setDuplicateConfirmed(false);
+              }}
+            >
+              {t('form.duplicateReview')}
+            </Button>
+            <Button
+              type="button"
+              data-testid="crm-company-duplicate-continue"
+              disabled={createMutation.isPending}
+              onClick={() => {
+                setDuplicateConfirmed(true);
+                void form.handleSubmit((values) => submitValues(values))();
+              }}
+            >
+              {t('form.duplicateContinue')}
+            </Button>
+          </div>
+        </div>
+      ) : null}
       {saveError ? (
         <p className="crm-company-form__error" role="alert" data-testid="crm-company-form-error">
           {saveError}
@@ -213,7 +273,7 @@ export function CrmCompanyForm({ mode = 'create' }: { mode?: 'create' | 'edit' }
           {tCommon('cancel')}
         </Link>
         <Button type="submit" disabled={createMutation.isPending}>
-          {createMutation.isPending ? tCommon('saving') : mode === 'create' ? t('actions.create') : tCommon('save')}
+          {createMutation.isPending ? tCommon('saving') : t('actions.create')}
         </Button>
       </div>
     </form>

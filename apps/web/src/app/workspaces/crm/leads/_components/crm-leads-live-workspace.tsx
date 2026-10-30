@@ -437,7 +437,7 @@ export function CrmLeadsLiveWorkspace() {
   const t = COPY[locale];
   const { canRead, canCreate, authLoading, user, canManageTasks, has } = useCrmAccess();
   const canSendEmail = has('send_communications');
-  const canWrite = canCreate || canUpdateCrm(user);
+  const canUpdate = canUpdateCrm(user);
   const canAddTask = canManageTasks;
   const queryClient = useQueryClient();
   const { openContact } = useContactCard();
@@ -920,8 +920,8 @@ export function CrmLeadsLiveWorkspace() {
           <Button type="button" variant="secondary" size="sm" onClick={clearFilters}>
             {t.clear}
           </Button>
-          {canWrite ? (
-            <Button type="button" size="sm" onClick={() => openCreate()}>
+          {canCreate ? (
+            <Button type="button" size="sm" data-testid="crm-leads-create" onClick={() => openCreate()}>
               {t.create}
             </Button>
           ) : null}
@@ -961,7 +961,7 @@ export function CrmLeadsLiveWorkspace() {
                       item={item}
                       locale={locale}
                       t={t}
-                      canDrag={canWrite && item.stage !== 'converted'}
+                      canDrag={canUpdate && item.stage !== 'converted'}
                       onDragStart={() => setDraggingId(item.id)}
                       onDragEnd={() => setDraggingId(null)}
                       onOpen={() => openDetail(item)}
@@ -969,8 +969,8 @@ export function CrmLeadsLiveWorkspace() {
                   ))
                 )}
               </div>
-              {canWrite ? (
-                <button type="button" className="crm-ops-col-add" onClick={() => openCreate(column)}>
+              {canCreate ? (
+                <button type="button" className="crm-ops-col-add" data-testid="crm-leads-add-column" onClick={() => openCreate(column)}>
                   {t.addLead}
                 </button>
               ) : null}
@@ -1285,7 +1285,7 @@ export function CrmLeadsLiveWorkspace() {
                     item={selected}
                     locale={locale}
                     t={t}
-                    canWrite={canWrite}
+                    canUpdate={canUpdate}
                     onStage={(next) => handleStageMove(selected, next)}
                     onPerson={openContact}
                   />
@@ -1304,8 +1304,8 @@ export function CrmLeadsLiveWorkspace() {
             </div>
             {selected && drawer !== 'create' && drawer !== 'edit' ? (
               <div className="crm-ops-drawer__actions">
-                {canWrite && drawer !== 'convert' && selected.stage !== 'converted' ? (
-                  <Button type="button" size="sm" variant="secondary" onClick={() => openEdit(selected)}>
+                {canUpdate && drawer !== 'convert' && selected.stage !== 'converted' ? (
+                  <Button type="button" size="sm" variant="secondary" data-testid="crm-leads-edit" onClick={() => openEdit(selected)}>
                     {t.edit}
                   </Button>
                 ) : null}
@@ -1342,10 +1342,11 @@ export function CrmLeadsLiveWorkspace() {
                     {t.addTask}
                   </Button>
                 ) : null}
-                {canWrite && selected.stage !== 'converted' ? (
+                {canUpdate && selected.stage !== 'converted' ? (
                   <Button
                     type="button"
                     size="sm"
+                    data-testid="crm-leads-convert"
                     disabled={convertMutation.isPending}
                     onClick={() => {
                       const personId = conflict?.matches.find((item) => item.kind === 'person')?.id;
@@ -1464,14 +1465,14 @@ function LeadDetail({
   item,
   locale,
   t,
-  canWrite,
+  canUpdate,
   onStage,
   onPerson,
 }: {
   item: LeadView;
   locale: 'tr' | 'en';
   t: (typeof COPY)['tr'];
-  canWrite: boolean;
+  canUpdate: boolean;
   onStage: (next: CrmLeadStage) => void;
   onPerson: (id: string) => void;
 }) {
@@ -1523,7 +1524,7 @@ function LeadDetail({
       <h4>{t.comments}</h4>
       {item.notes ? <p className="crm-ops-note">{item.notes}</p> : <p className="crm-ops-muted">{t.none}</p>}
 
-      {canWrite && item.stage !== 'converted' ? (
+      {canUpdate && item.stage !== 'converted' ? (
         <Select label={t.stage} value={item.stage} onChange={(event) => onStage(event.target.value as CrmLeadStage)}>
           {STAGES.filter((stage) => stage !== 'converted').map((stage) => (
             <option key={stage} value={stage}>

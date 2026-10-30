@@ -1,8 +1,9 @@
 """CRM Company API routes — prefix /crm/companies (distinct from org /companies)."""
 
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Query, Request, UploadFile, status
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 
@@ -49,8 +50,8 @@ from investhome_api.services.crm_company_service import (
     add_company_contact,
     add_company_relationship,
     archive_crm_company,
-    bulk_action,
     build_hierarchy,
+    bulk_action,
     company_workspace_counts,
     create_crm_company,
     create_saved_view,
@@ -79,22 +80,22 @@ def _require_crm_companies_read():
 
 @router.get("", response_model=CrmCompanyListResponse)
 def list_companies(
-    search: str | None = Query(default=None, max_length=255),
-    status_filter: str | None = Query(default=None, alias="status"),
-    company_type: str | None = Query(default=None),
-    lifecycle_stage: str | None = Query(default=None),
-    industry: str | None = Query(default=None),
-    owner_user_id: UUID | None = Query(default=None),
-    country: str | None = Query(default=None),
-    relationship_status: str | None = Query(default=None),
-    open_relationships: bool = Query(default=False),
-    include_archived: bool = Query(default=False),
-    sort_by: str = Query(default="updated_at"),
-    sort_order: str = Query(default="desc"),
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
-    db: Session = Depends(get_db),
-    user: User = Depends(_require_crm_companies_read()),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(_require_crm_companies_read())],
+    search: Annotated[str | None, Query(max_length=255)] = None,
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
+    company_type: Annotated[str | None, Query()] = None,
+    lifecycle_stage: Annotated[str | None, Query()] = None,
+    industry: Annotated[str | None, Query()] = None,
+    owner_user_id: Annotated[UUID | None, Query()] = None,
+    country: Annotated[str | None, Query()] = None,
+    relationship_status: Annotated[str | None, Query()] = None,
+    open_relationships: Annotated[bool, Query()] = False,
+    include_archived: Annotated[bool, Query()] = False,
+    sort_by: Annotated[str, Query()] = "updated_at",
+    sort_order: Annotated[str, Query()] = "desc",
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> CrmCompanyListResponse:
     del user
     return list_crm_companies(
@@ -118,8 +119,8 @@ def list_companies(
 
 @router.get("/counts", response_model=CrmCompanyCounts)
 def get_company_counts(
-    db: Session = Depends(get_db),
-    user: User = Depends(_require_crm_companies_read()),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(_require_crm_companies_read())],
 ) -> CrmCompanyCounts:
     del user
     return company_workspace_counts(db)
@@ -129,8 +130,8 @@ def get_company_counts(
 def create_company(
     payload: CrmCompanyCreate,
     request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "create")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "create"))],
 ) -> CrmCompanyDetail:
     company = create_crm_company(db, payload, user)
     record_crm_company_created(db, company, user, request)
@@ -141,9 +142,9 @@ def create_company(
 
 @router.get("/duplicates", response_model=list[CrmCompanyDuplicateCandidate])
 def get_duplicates(
-    company_id: UUID | None = Query(default=None),
-    db: Session = Depends(get_db),
-    user: User = Depends(_require_crm_companies_read()),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(_require_crm_companies_read())],
+    company_id: Annotated[UUID | None, Query()] = None,
 ) -> list[CrmCompanyDuplicateCandidate]:
     del user
     return find_duplicates(db, company_id)
@@ -151,8 +152,8 @@ def get_duplicates(
 
 @router.get("/hierarchy", response_model=CrmCompanyHierarchyResponse)
 def get_hierarchy(
-    db: Session = Depends(get_db),
-    user: User = Depends(_require_crm_companies_read()),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(_require_crm_companies_read())],
 ) -> CrmCompanyHierarchyResponse:
     del user
     return build_hierarchy(db)
@@ -160,9 +161,9 @@ def get_hierarchy(
 
 @router.get("/export", response_class=PlainTextResponse)
 def export_companies(
-    include_archived: bool = Query(default=False),
-    db: Session = Depends(get_db),
-    _user: User = Depends(require_permission("crm", "export")),
+    db: Annotated[Session, Depends(get_db)],
+    _user: Annotated[User, Depends(require_permission("crm", "export"))],
+    include_archived: Annotated[bool, Query()] = False,
 ) -> PlainTextResponse:
     content = export_crm_companies_csv(db, include_archived=include_archived)
     return PlainTextResponse(content, media_type="text/csv")
@@ -170,9 +171,9 @@ def export_companies(
 
 @router.post("/import", response_model=CrmCompanyImportResult)
 async def import_companies(
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "import")),
+    file: Annotated[UploadFile, File()],
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "import"))],
 ) -> CrmCompanyImportResult:
     del user
     content = await read_and_validate_csv_import(file)
@@ -185,11 +186,17 @@ async def import_companies(
 def bulk_companies(
     payload: CrmCompanyBulkActionRequest,
     request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "bulk_actions")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "bulk_actions"))],
 ) -> CrmCompanyBulkActionResponse:
-    del request
-    result = bulk_action(db, payload.company_ids, payload.action, payload.payload)
+    result = bulk_action(
+        db,
+        payload.company_ids,
+        payload.action,
+        payload.payload,
+        actor=user,
+        request=request,
+    )
     db.commit()
     return result
 
@@ -198,8 +205,8 @@ def bulk_companies(
 def merge_companies(
     payload: CrmCompanyMergeRequest,
     request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "merge")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "merge"))],
 ) -> CrmCompanyMergeResponse:
     target = get_company_or_404(db, payload.target_id)
     result = merge_crm_companies(db, payload.source_id, payload.target_id)
@@ -210,17 +217,21 @@ def merge_companies(
 
 @router.get("/saved-views", response_model=list[CrmCompanySavedViewResponse])
 def get_saved_views(
-    db: Session = Depends(get_db),
-    user: User = Depends(_require_crm_companies_read()),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(_require_crm_companies_read())],
 ) -> list[CrmCompanySavedViewResponse]:
     return list_saved_views(db, user.id)
 
 
-@router.post("/saved-views", response_model=CrmCompanySavedViewResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/saved-views",
+    response_model=CrmCompanySavedViewResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def post_saved_view(
     payload: CrmCompanySavedViewCreate,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "create")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "create"))],
 ) -> CrmCompanySavedViewResponse:
     view = create_saved_view(db, user.id, payload)
     db.commit()
@@ -231,8 +242,8 @@ def post_saved_view(
 @router.get("/{company_id}", response_model=CrmCompanyDetail)
 def get_company(
     company_id: UUID,
-    db: Session = Depends(get_db),
-    user: User = Depends(_require_crm_companies_read()),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(_require_crm_companies_read())],
 ) -> CrmCompanyDetail:
     company = get_company_or_404(db, company_id)
     return serialize_company_detail(db, company, user)
@@ -243,8 +254,8 @@ def update_company(
     company_id: UUID,
     payload: CrmCompanyUpdate,
     request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "update")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "update"))],
 ) -> CrmCompanyDetail:
     company = get_company_or_404(db, company_id)
     before = snapshot_entity(company, CRM_COMPANY_ACTIVITY_FIELDS)
@@ -258,22 +269,24 @@ def update_company(
 def archive_company(
     company_id: UUID,
     request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "archive")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "archive"))],
 ) -> CrmCompanyDetail:
     company = get_company_or_404(db, company_id)
     archive_crm_company(db, company)
     record_crm_company_archived(db, company, user, request)
     db.commit()
-    return serialize_company_detail(db, get_company_or_404(db, company_id, include_archived=True), user)
+    return serialize_company_detail(
+        db, get_company_or_404(db, company_id, include_archived=True), user
+    )
 
 
 @router.patch("/{company_id}/restore", response_model=CrmCompanyDetail)
 def restore_company(
     company_id: UUID,
     request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "restore")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "restore"))],
 ) -> CrmCompanyDetail:
     company = get_company_or_404(db, company_id, include_archived=True)
     restore_crm_company(db, company)
@@ -286,8 +299,8 @@ def restore_company(
 def delete_company(
     company_id: UUID,
     request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "delete")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "delete"))],
 ) -> None:
     company = get_company_or_404(db, company_id, include_archived=True)
     display_name = company.display_name
@@ -301,8 +314,8 @@ def transfer_ownership(
     company_id: UUID,
     payload: CrmCompanyTransferOwnershipRequest,
     request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "transfer_ownership")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "transfer_ownership"))],
 ) -> CrmCompanyDetail:
     company = get_company_or_404(db, company_id)
     previous_owner = company.owner_user_id
@@ -315,19 +328,23 @@ def transfer_ownership(
 @router.get("/{company_id}/contacts", response_model=list[CrmCompanyContactResponse])
 def list_company_contacts(
     company_id: UUID,
-    db: Session = Depends(get_db),
-    user: User = Depends(_require_crm_companies_read()),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(_require_crm_companies_read())],
 ) -> list[CrmCompanyContactResponse]:
     company = get_company_or_404(db, company_id)
     return serialize_company_detail(db, company, user).contacts
 
 
-@router.post("/{company_id}/contacts", response_model=CrmCompanyContactResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{company_id}/contacts",
+    response_model=CrmCompanyContactResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_company_contact(
     company_id: UUID,
     payload: CrmCompanyContactCreate,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "manage_company_contacts")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "manage_company_contacts"))],
 ) -> CrmCompanyContactResponse:
     del user
     company = get_company_or_404(db, company_id)
@@ -342,8 +359,8 @@ def update_company_contact_route(
     company_id: UUID,
     link_id: UUID,
     payload: CrmCompanyContactUpdate,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "manage_company_contacts")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "manage_company_contacts"))],
 ) -> CrmCompanyContactResponse:
     del user
     company = get_company_or_404(db, company_id)
@@ -357,8 +374,8 @@ def update_company_contact_route(
 def delete_company_contact(
     company_id: UUID,
     link_id: UUID,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "manage_company_contacts")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "manage_company_contacts"))],
 ) -> None:
     del user
     company = get_company_or_404(db, company_id)
@@ -366,12 +383,16 @@ def delete_company_contact(
     db.commit()
 
 
-@router.post("/{company_id}/relationships", response_model=CrmCompanyRelationshipResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{company_id}/relationships",
+    response_model=CrmCompanyRelationshipResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_company_relationship(
     company_id: UUID,
     payload: CrmCompanyRelationshipCreate,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("crm", "update")),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "update"))],
 ) -> CrmCompanyRelationshipResponse:
     del user
     company = get_company_or_404(db, company_id)
@@ -384,9 +405,9 @@ def create_company_relationship(
 @router.get("/{company_id}/timeline", response_model=CrmCompanyTimelineResponse)
 def get_company_timeline(
     company_id: UUID,
-    limit: int = Query(default=50, ge=1, le=100),
-    db: Session = Depends(get_db),
-    user: User = Depends(_require_crm_companies_read()),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(_require_crm_companies_read())],
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> CrmCompanyTimelineResponse:
     get_company_or_404(db, company_id)
     items, total = list_activities(

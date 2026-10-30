@@ -16,7 +16,7 @@ import {
   crmCompaniesQueries,
   crmCompaniesQueryKeys,
 } from '@/lib/query/crm-companies-queries';
-import { fetchCrmCompanyTimeline } from '@/workspaces/crm/api/companies';
+import { fetchCrmCompanyTimeline, transferCrmCompanyOwnership } from '@/workspaces/crm/api/companies';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import { DocumentGallery } from '@/workspaces/crm/contact-card/document-gallery';
 
@@ -124,7 +124,9 @@ function displayOwner(name: string | null | undefined): string {
 }
 
 export function CrmCompanyDetailView({ companyId }: { companyId: string }) {
-  const { authLoading, user, canReadCompanies: canView } = useCrmAccess();
+  const { authLoading, user, canReadCompanies: canView, has } = useCrmAccess();
+  const canUpdate = canUpdateCrm(user);
+  const canTransferOwnership = has('transfer_ownership');
   const { openContact } = useContactCard();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -155,7 +157,7 @@ export function CrmCompanyDetailView({ companyId }: { companyId: string }) {
   const ownersQuery = useQuery({
     queryKey: ['crm', 'users', 'company-detail-owners'],
     queryFn: () => fetchUsers({ status: 'active' }),
-    enabled: editing && canQuery,
+    enabled: editing && canTransferOwnership && canQuery,
   });
 
   const company = detailQuery.data;
@@ -178,36 +180,47 @@ export function CrmCompanyDetailView({ companyId }: { companyId: string }) {
 
   const saveMutation = useMutation({
     ...crmCompaniesMutations.update(companyId),
-    onSuccess: async () => {
-      setEditing(false);
-      await queryClient.invalidateQueries({ queryKey: crmCompaniesQueryKeys.all });
-    },
   });
+  const transferMutation = useMutation({
+    mutationFn: (ownerUserId: string) => transferCrmCompanyOwnership(companyId, ownerUserId),
+  });
+  const saving = saveMutation.isPending || transferMutation.isPending;
 
-  const save = () => {
+  const save = async () => {
     if (!company) return;
     const payload: Record<string, unknown> = {};
-    const pairs: Array<[string, string | null | undefined]> = [
-      ['display_name', company.display_name],
-      ['primary_phone', company.primary_phone],
-      ['primary_email', company.primary_email],
-      ['website', company.website],
-      ['industry', company.industry],
-      ['source', company.source],
-      ['notes', company.notes],
-      ['owner_user_id', company.owner_user_id],
-    ];
-    for (const [key, current] of pairs) {
-      const next = draft[key] ?? '';
-      if (next !== (current || '')) {
-        payload[key] = next || null;
+    if (canUpdate) {
+      const pairs: Array<[string, string | null | undefined]> = [
+        ['display_name', company.display_name],
+        ['primary_phone', company.primary_phone],
+        ['primary_email', company.primary_email],
+        ['website', company.website],
+        ['industry', company.industry],
+        ['source', company.source],
+        ['notes', company.notes],
+      ];
+      for (const [key, current] of pairs) {
+        const next = draft[key] ?? '';
+        if (next !== (current || '')) {
+          payload[key] = next || null;
+        }
       }
     }
-    if (Object.keys(payload).length === 0) {
+    const nextOwner = draft.owner_user_id ?? '';
+    const ownerChanged =
+      canTransferOwnership && Boolean(nextOwner) && nextOwner !== (company.owner_user_id || '');
+    if (Object.keys(payload).length === 0 && !ownerChanged) {
       setEditing(false);
       return;
     }
-    saveMutation.mutate(payload);
+    try {
+      if (Object.keys(payload).length > 0) await saveMutation.mutateAsync(payload);
+      if (ownerChanged) await transferMutation.mutateAsync(nextOwner);
+      setEditing(false);
+      await queryClient.invalidateQueries({ queryKey: crmCompaniesQueryKeys.all });
+    } catch {
+      await queryClient.invalidateQueries({ queryKey: crmCompaniesQueryKeys.all });
+    }
   };
 
   const brokers = useMemo(
@@ -267,10 +280,10 @@ export function CrmCompanyDetailView({ companyId }: { companyId: string }) {
           ) : null}
         </div>
         <div className="crm-ops__header-tools">
-          {canUpdateCrm(user) ? (
+          {canUpdate || canTransferOwnership ? (
             editing ? (
               <>
-                <Button type="button" size="sm" onClick={save} disabled={saveMutation.isPending}>
+                <Button type="button" size="sm" onClick={() => void save()} disabled={saving}>
                   Kaydet
                 </Button>
                 <Button type="button" size="sm" variant="secondary" onClick={() => setEditing(false)}>
@@ -293,27 +306,34 @@ export function CrmCompanyDetailView({ companyId }: { companyId: string }) {
         <h2>Şirket bilgileri</h2>
         {editing ? (
           <div className="crm-ops-form">
-            <Input label="Şirket adı" value={draft.display_name} onChange={(event) => setDraft((prev) => ({ ...prev, display_name: event.target.value }))} />
-            <Input label="Telefon" value={draft.primary_phone} onChange={(event) => setDraft((prev) => ({ ...prev, primary_phone: event.target.value }))} />
-            <Input label="E-posta" value={draft.primary_email} onChange={(event) => setDraft((prev) => ({ ...prev, primary_email: event.target.value }))} />
-            <Input label="Web sitesi" value={draft.website} onChange={(event) => setDraft((prev) => ({ ...prev, website: event.target.value }))} />
-            <Input label="Sektör" value={draft.industry} onChange={(event) => setDraft((prev) => ({ ...prev, industry: event.target.value }))} />
-            <label className="ih-field">
-              <span className="ih-field__label">Sorumlu</span>
-              <select
-                className="ih-select"
-                value={draft.owner_user_id}
-                onChange={(event) => setDraft((prev) => ({ ...prev, owner_user_id: event.target.value }))}
-              >
-                <option value="">—</option>
-                {(ownersQuery.data?.items ?? []).map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {displayOwner(item.full_name) || item.full_name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <TextArea label="Yorumlar" value={draft.notes} onChange={(event) => setDraft((prev) => ({ ...prev, notes: event.target.value }))} />
+            {canUpdate ? (
+              <>
+                <Input label="Şirket adı" value={draft.display_name} onChange={(event) => setDraft((prev) => ({ ...prev, display_name: event.target.value }))} />
+                <Input label="Telefon" value={draft.primary_phone} onChange={(event) => setDraft((prev) => ({ ...prev, primary_phone: event.target.value }))} />
+                <Input label="E-posta" value={draft.primary_email} onChange={(event) => setDraft((prev) => ({ ...prev, primary_email: event.target.value }))} />
+                <Input label="Web sitesi" value={draft.website} onChange={(event) => setDraft((prev) => ({ ...prev, website: event.target.value }))} />
+                <Input label="Sektör" value={draft.industry} onChange={(event) => setDraft((prev) => ({ ...prev, industry: event.target.value }))} />
+                <TextArea label="Yorumlar" value={draft.notes} onChange={(event) => setDraft((prev) => ({ ...prev, notes: event.target.value }))} />
+              </>
+            ) : null}
+            {canTransferOwnership ? (
+              <label className="ih-field">
+                <span className="ih-field__label">Sorumlu</span>
+                <select
+                  className="ih-select"
+                  data-testid="crm-company-owner"
+                  value={draft.owner_user_id}
+                  onChange={(event) => setDraft((prev) => ({ ...prev, owner_user_id: event.target.value }))}
+                >
+                  <option value="">—</option>
+                  {(ownersQuery.data?.items ?? []).map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {displayOwner(item.full_name) || item.full_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
           </div>
         ) : (
           <dl className="crm-ops-kv">

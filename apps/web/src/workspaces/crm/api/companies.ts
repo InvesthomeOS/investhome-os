@@ -84,6 +84,16 @@ export async function updateCrmCompany(
   });
 }
 
+export async function transferCrmCompanyOwnership(
+  companyId: string,
+  ownerUserId: string,
+): Promise<CrmCompanyDetail> {
+  return apiFetch<CrmCompanyDetail>(`/crm/companies/${companyId}/transfer-ownership`, {
+    method: 'PATCH',
+    body: JSON.stringify({ owner_user_id: ownerUserId }),
+  });
+}
+
 export async function archiveCrmCompany(companyId: string): Promise<CrmCompanyDetail> {
   return apiFetch<CrmCompanyDetail>(`/crm/companies/${companyId}/archive`, { method: 'PATCH' });
 }
