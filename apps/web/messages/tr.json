@@ -6162,6 +6162,31 @@
     "subtitle": "Şirket kimliği, marka, ofisler, organizasyon ve sistem tercihleri.",
     "tabsLabel": "Ayar bölümleri",
     "accessDenied": "Ayarları görüntüleme yetkiniz yok.",
+    "groups": {
+      "personal": "Ayarlarım",
+      "platform": "Platform",
+      "crm": "CRM",
+      "integrations": "Entegrasyonlar",
+      "access": "Kullanıcılar ve erişim",
+      "security": "Güvenlik"
+    },
+    "catalog": {
+      "profile": "Profilim",
+      "communicationAccounts": "İletişim hesapları",
+      "crmSettings": "CRM ayarları",
+      "users": "Kullanıcılar",
+      "teams": "Ekipler",
+      "roles": "Roller",
+      "permissions": "İzinler",
+      "security": "Güvenlik",
+      "authentication": "Kimlik doğrulama",
+      "sessions": "Oturumlar",
+      "apiKeys": "API anahtarları",
+      "secrets": "Gizli bilgiler",
+      "audit": "Denetim",
+      "compliance": "Uyumluluk",
+      "incidents": "Olaylar"
+    },
     "loadFailed": "Ayarlar yüklenemedi.",
     "saveFailed": "Değişiklikler kaydedilemedi.",
     "saved": "Değişiklikler kaydedildi.",
@@ -15850,6 +15875,12 @@
     "emptyPermissions": "Mevcut filtrelere uyan izin yok.",
     "readOnlyPermissions": "İzinleri görüntüleyebilirsiniz ancak rol atamalarını düzenleyemezsiniz.",
     "gapNote": "Mesajlar ve Görevler yönetim modülleri bu depoda uygulanmadı. Şirket ofisleri, departmanlar ve ekipler Ayarlar altında yönetilir. SSO/MFA sağlayıcıları bağlanana kadar dürüst Missing/Not connected durumu gösterir.",
+    "sections": {
+      "access": "Kullanıcılar ve erişim",
+      "security": "Güvenlik",
+      "platform": "Platform",
+      "previews": "Önizlemeler"
+    },
     "nav": {
       "overview": "Genel Bakış",
       "users": "Kullanıcılar",
@@ -15872,6 +15903,7 @@
       "activity": "Aktivite Kayıtları",
       "notifications": "Bildirimler",
       "settings": "Ayarlar",
+      "platformSettings": "Platform ayarları",
       "designSystem": "Tasarım Sistemi",
       "tailadminPreview": "TailAdmin Önizleme",
       "githubUiPreview": "GitHub UI Önizleme",
@@ -15904,6 +15936,7 @@
       "activity": "Güvenlik ve denetim aktivite zaman çizelgesi.",
       "notifications": "Bildirim varsayılanları ve şablonları.",
       "settings": "Platform ve sistem tercihleri.",
+      "platformSettings": "Şirket, marka, ofis, organizasyon, bildirim ve entegrasyon ayarları.",
       "platform": "G15A ortak platform temeli: modüller, bayraklar, yetkilendirmeler, API istemcileri, webhooklar, entegrasyonlar, marka ve dış erişim denetimi."
     },
     "filters": {

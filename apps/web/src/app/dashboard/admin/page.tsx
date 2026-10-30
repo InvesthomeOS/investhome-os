@@ -156,43 +156,21 @@ export default function AdminOverviewPage() {
       visible: hasPermission(user, 'security', 'view') || hasPermission(user, 'settings', 'view'),
     },
     {
-      href: '/dashboard/settings?tab=company' as Route,
-      titleKey: 'nav.company',
-      descriptionKey: 'cards.company',
-      visible: hasPermission(user, 'company', 'view'),
-    },
-    {
-      href: '/dashboard/settings?tab=offices' as Route,
-      titleKey: 'nav.offices',
-      descriptionKey: 'cards.offices',
-      visible: hasPermission(user, 'offices', 'view'),
-    },
-    {
-      href: '/dashboard/settings?tab=organization' as Route,
-      titleKey: 'nav.organization',
-      descriptionKey: 'cards.organization',
-      visible: hasPermission(user, 'organization', 'view'),
-    },
-    {
       href: '/dashboard/activity' as Route,
       titleKey: 'nav.activity',
       descriptionKey: 'cards.activity',
       visible: hasPermission(user, 'activity', 'view'),
     },
     {
-      href: '/dashboard/settings?tab=notifications' as Route,
-      titleKey: 'nav.notifications',
-      descriptionKey: 'cards.notifications',
-      visible: hasPermission(user, 'settings', 'view') || hasPermission(user, 'company', 'view'),
-    },
-    {
       href: '/dashboard/settings' as Route,
-      titleKey: 'nav.settings',
-      descriptionKey: 'cards.settings',
+      titleKey: 'nav.platformSettings',
+      descriptionKey: 'cards.platformSettings',
       visible:
         hasPermission(user, 'settings', 'view') ||
         hasPermission(user, 'company', 'view') ||
-        hasPermission(user, 'offices', 'view'),
+        hasPermission(user, 'offices', 'view') ||
+        hasPermission(user, 'organization', 'view') ||
+        hasPermission(user, 'brand', 'view'),
     },
   ].filter((card) => card.visible);
 

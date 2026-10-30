@@ -38,7 +38,7 @@ export function SecurityDashboardWorkspace() {
       router.replace('/login');
       return;
     }
-    if (!hasPermission(user, 'security', 'view') && !hasPermission(user, 'users', 'view')) {
+    if (!hasPermission(user, 'security', 'view')) {
       router.replace('/forbidden');
       return;
     }

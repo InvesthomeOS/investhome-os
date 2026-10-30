@@ -6271,6 +6271,12 @@
     "emptyPermissions": "No permissions match the current filters.",
     "readOnlyPermissions": "You can view permissions but cannot edit role assignments.",
     "gapNote": "Messages and Tasks admin modules are not implemented in this repository. Company offices, departments, and teams are managed under Settings. SSO/MFA providers show honest Missing/Not connected status until wired.",
+    "sections": {
+      "access": "Users and access",
+      "security": "Security",
+      "platform": "Platform",
+      "previews": "Previews"
+    },
     "nav": {
       "overview": "Overview",
       "users": "Users",
@@ -6293,6 +6299,7 @@
       "activity": "Activity Logs",
       "notifications": "Notifications",
       "settings": "Settings",
+      "platformSettings": "Platform settings",
       "designSystem": "Design System",
       "tailadminPreview": "TailAdmin Preview",
       "githubUiPreview": "GitHub UI Preview",
@@ -6325,6 +6332,7 @@
       "activity": "Security and audit activity timeline.",
       "notifications": "Notification defaults and templates.",
       "settings": "Platform and system preferences.",
+      "platformSettings": "Company, brand, office, organization, notification, and integration settings.",
       "platform": "G15A shared platform foundation: modules, flags, entitlements, API clients, webhooks, integrations, branding, and external access audit."
     },
     "filters": {
@@ -6553,6 +6561,31 @@
     "subtitle": "Company identity, brand, offices, organization, and system preferences.",
     "tabsLabel": "Settings sections",
     "accessDenied": "You do not have permission to view settings.",
+    "groups": {
+      "personal": "My settings",
+      "platform": "Platform",
+      "crm": "CRM",
+      "integrations": "Integrations",
+      "access": "Users and access",
+      "security": "Security"
+    },
+    "catalog": {
+      "profile": "My profile",
+      "communicationAccounts": "Communication accounts",
+      "crmSettings": "CRM settings",
+      "users": "Users",
+      "teams": "Teams",
+      "roles": "Roles",
+      "permissions": "Permissions",
+      "security": "Security",
+      "authentication": "Authentication",
+      "sessions": "Sessions",
+      "apiKeys": "API keys",
+      "secrets": "Secrets",
+      "audit": "Audit",
+      "compliance": "Compliance",
+      "incidents": "Incidents"
+    },
     "loadFailed": "Unable to load settings.",
     "saveFailed": "Unable to save changes.",
     "saved": "Changes saved.",

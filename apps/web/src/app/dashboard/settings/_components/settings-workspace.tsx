@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import type { Route } from 'next';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 import {
@@ -37,23 +39,11 @@ import { hasPermission } from '@/lib/api/auth';
 import { ApiError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useCompanyBranding } from '@/lib/company/company-context';
-
-const TAB_IDS = [
-  'company',
-  'offices',
-  'brand',
-  'brandAssets',
-  'organization',
-  'localization',
-  'currency',
-  'documents',
-  'notifications',
-  'ai',
-  'storage',
-  'integrations',
-] as const;
-
-type SettingsTab = (typeof TAB_IDS)[number];
+import {
+  isSettingsTabAllowed,
+  visibleSettingsEntries,
+  type SettingsGroupId,
+} from '@/lib/settings/settings-catalog';
 
 function BrandPreviewPanel({ brand }: { brand: BrandProfile | null }) {
   const t = useTranslations('settings.brandPreview');
@@ -201,14 +191,21 @@ function ProviderList({ providers }: { providers: ProviderStatus[] }) {
 export function SettingsWorkspace() {
   const t = useTranslations('settings');
   const tCommon = useTranslations('common');
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const { refresh: refreshBranding } = useCompanyBranding();
-
-  const initialTab = (searchParams.get('tab') as SettingsTab | null) ?? 'company';
-  const [activeTab, setActiveTab] = useState<SettingsTab>(
-    TAB_IDS.includes(initialTab) ? initialTab : 'company',
-  );
+  const catalogEntries = useMemo(() => visibleSettingsEntries(user), [user]);
+  const platformTabs = catalogEntries.filter((entry) => entry.group === 'platform' && entry.tab);
+  const integrationTabs = catalogEntries.filter((entry) => entry.group === 'integrations' && entry.tab);
+  const crossLinks = catalogEntries.filter((entry) => entry.tab == null);
+  const urlTab = searchParams.get('tab');
+  const tabDenied = Boolean(urlTab && !isSettingsTabAllowed(user, urlTab));
+  const activeTab =
+    !tabDenied && urlTab && isSettingsTabAllowed(user, urlTab)
+      ? urlTab
+      : (platformTabs[0]?.tab ?? integrationTabs[0]?.tab ?? null);
+  const canOpen = catalogEntries.some((entry) => entry.tab);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [company, setCompany] = useState<CompanyProfile | null>(null);
@@ -224,8 +221,6 @@ export function SettingsWorkspace() {
   const [providers, setProviders] = useState<ProviderStatus[]>([]);
   const [message, setMessage] = useState<string | null>(null);
 
-  const canViewCompany = user ? hasPermission(user, 'company', 'view') : false;
-  const canViewSettings = user ? hasPermission(user, 'settings', 'view') || canViewCompany : false;
   const canUpdateSettings = user ? hasPermission(user, 'settings', 'update') : false;
   const canUpdateCompany = user ? hasPermission(user, 'company', 'update') : false;
   const canManageOffices = user ? hasPermission(user, 'offices', 'manage') : false;
@@ -272,12 +267,12 @@ export function SettingsWorkspace() {
   }, [t]);
 
   useEffect(() => {
-    if (canViewSettings) {
+    if (canOpen) {
       void load();
     } else {
       setLoading(false);
     }
-  }, [canViewSettings, load]);
+  }, [canOpen, load]);
 
   useEffect(() => {
     if (!selectedBrandId) return;
@@ -400,13 +395,45 @@ export function SettingsWorkspace() {
     await refreshBranding();
   };
 
-  if (!canViewSettings) {
+  if (!canOpen) {
     return (
       <main className="dashboard">
         <p>{t('accessDenied')}</p>
       </main>
     );
   }
+
+  const selectTab = (tab: string) => {
+    router.replace(`/dashboard/settings?tab=${tab}` as Route);
+  };
+
+  const renderTabGroup = (group: SettingsGroupId, tabs: typeof platformTabs) => {
+    if (!tabs.length) return null;
+    return (
+      <div className="settings-nav-group">
+        <p className="settings-nav-group__label">{t(`groups.${group}`)}</p>
+        <nav className="documents-tabs settings-tabs" aria-label={t(`groups.${group}`)}>
+          {tabs.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              className={
+                activeTab === entry.tab
+                  ? 'documents-tabs__tab documents-tabs__tab--active'
+                  : 'documents-tabs__tab'
+              }
+              aria-current={activeTab === entry.tab ? 'page' : undefined}
+              onClick={() => selectTab(entry.tab ?? entry.id)}
+            >
+              {t(`tabs.${entry.tab}` as 'tabs.company')}
+            </button>
+          ))}
+        </nav>
+      </div>
+    );
+  };
+
+  const crossGroups: SettingsGroupId[] = ['personal', 'crm', 'integrations', 'access', 'security'];
 
   return (
     <main className="dashboard">
@@ -416,24 +443,36 @@ export function SettingsWorkspace() {
         <p className="dashboard__subtitle">{t('subtitle')}</p>
       </header>
 
-      <nav className="documents-tabs settings-tabs" aria-label={t('tabsLabel')}>
-        {TAB_IDS.map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            className={activeTab === tab ? 'documents-tabs__tab documents-tabs__tab--active' : 'documents-tabs__tab'}
-            onClick={() => setActiveTab(tab)}
-          >
-            {t(`tabs.${tab}` as never)}
-          </button>
-        ))}
-      </nav>
+      <div className="settings-nav-groups">
+        {renderTabGroup('platform', platformTabs)}
+        {renderTabGroup('integrations', integrationTabs)}
+      </div>
+
+      <div className="settings-related">
+        {crossGroups.map((group) => {
+          const links = crossLinks.filter((entry) => entry.group === group);
+          if (!links.length) return null;
+          return (
+            <div key={group}>
+              <p className="settings-nav-group__label">{t(`groups.${group}`)}</p>
+              <div className="settings-related__links">
+                {links.map((entry) => (
+                  <Link key={entry.id} href={entry.href as Route}>
+                    {t(`catalog.${entry.id}` as 'catalog.profile')}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {loading && <p>{tCommon('loading')}</p>}
       {error && <p className="auth-form__error">{error}</p>}
       {message && <p className="auth-form__success">{message}</p>}
+      {tabDenied && <p>{t('accessDenied')}</p>}
 
-      {!loading && activeTab === 'company' && company && (
+      {!loading && !tabDenied && activeTab === 'company' && company && (
         <form className="admin-detail auth-form" onSubmit={(e) => void saveCompany(e)}>
           {[
             'company_name',
@@ -466,7 +505,7 @@ export function SettingsWorkspace() {
         </form>
       )}
 
-      {!loading && activeTab === 'offices' && (
+      {!loading && !tabDenied && activeTab === 'offices' && (
         <section>
           {canManageOffices && (
             <button className="leads__button" type="button" onClick={() => void handleCreateOffice()}>
@@ -508,7 +547,7 @@ export function SettingsWorkspace() {
         </section>
       )}
 
-      {!loading && activeTab === 'brand' && brandDraft && (
+      {!loading && !tabDenied && activeTab === 'brand' && brandDraft && (
         <div className="settings-brand-layout">
           <div className="admin-detail auth-form">
             <label className="auth-form__field">
@@ -574,7 +613,7 @@ export function SettingsWorkspace() {
         </div>
       )}
 
-      {!loading && activeTab === 'brandAssets' && (
+      {!loading && !tabDenied && activeTab === 'brandAssets' && (
         <section>
           {canManageBrand && (
             <button className="leads__button" type="button" onClick={() => void handleLinkAsset()}>
@@ -604,7 +643,7 @@ export function SettingsWorkspace() {
         </section>
       )}
 
-      {!loading && activeTab === 'organization' && (
+      {!loading && !tabDenied && activeTab === 'organization' && (
         <section>
           {canManageOrg && (
             <button className="leads__button" type="button" onClick={() => void handleCreateDepartment()}>
@@ -655,7 +694,7 @@ export function SettingsWorkspace() {
         </section>
       )}
 
-      {!loading && activeTab === 'localization' && (
+      {!loading && !tabDenied && activeTab === 'localization' && (
         <PreferenceEditor
           items={preferences.general ?? []}
           canEdit={canUpdateSettings}
@@ -663,7 +702,7 @@ export function SettingsWorkspace() {
         />
       )}
 
-      {!loading && activeTab === 'currency' && (
+      {!loading && !tabDenied && activeTab === 'currency' && (
         <div>
           <p>{t('currency.supported')}: {options?.currencies.join(', ')}</p>
           <PreferenceEditor
@@ -676,15 +715,15 @@ export function SettingsWorkspace() {
         </div>
       )}
 
-      {!loading && activeTab === 'documents' && (
+      {!loading && !tabDenied && activeTab === 'documents' && (
         <PreferenceEditor items={preferences.documents ?? []} canEdit={canUpdateSettings} onSave={savePrefs} />
       )}
 
-      {!loading && activeTab === 'notifications' && (
+      {!loading && !tabDenied && activeTab === 'notifications' && (
         <PreferenceEditor items={preferences.notifications ?? []} canEdit={canUpdateSettings} onSave={savePrefs} />
       )}
 
-      {!loading && activeTab === 'ai' && (
+      {!loading && !tabDenied && activeTab === 'ai' && (
         <div>
           <p>{t('readinessNotice')}</p>
           <ProviderList providers={providers.filter((p) => p.category === 'ai')} />
@@ -692,7 +731,7 @@ export function SettingsWorkspace() {
         </div>
       )}
 
-      {!loading && activeTab === 'storage' && (
+      {!loading && !tabDenied && activeTab === 'storage' && (
         <div>
           <p>{t('readinessNotice')}</p>
           <ProviderList providers={providers.filter((p) => p.category === 'storage')} />
@@ -700,7 +739,7 @@ export function SettingsWorkspace() {
         </div>
       )}
 
-      {!loading && activeTab === 'integrations' && (
+      {!loading && !tabDenied && activeTab === 'integrations' && (
         <div>
           <p>{t('readinessNotice')}</p>
           <PreferenceEditor items={preferences.integrations ?? []} canEdit={canUpdateSettings} onSave={savePrefs} />

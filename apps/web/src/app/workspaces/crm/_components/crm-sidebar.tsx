@@ -38,13 +38,12 @@ const CRM_NAV_ICONS: Record<string, IhIconName> = {
 /** Presentation-only management rail items (Admin foundation / UX review). */
 const ADMIN_NAV_ITEMS: ReadonlyArray<{
   href: string;
-  labelKey: 'nav.admin' | 'nav.systemLogs' | 'nav.integrations';
+  labelKey: 'nav.admin' | 'nav.systemLogs';
   icon: IhIconName;
   badgeKey?: 'nav.adminBadge';
 }> = [
   { href: '/dashboard/admin', labelKey: 'nav.admin', icon: 'admin', badgeKey: 'nav.adminBadge' },
   { href: '/dashboard/admin/audit', labelKey: 'nav.systemLogs', icon: 'activity' },
-  { href: '/dashboard/admin/platform/integrations', labelKey: 'nav.integrations', icon: 'settings' },
 ];
 
 function isAdminWorkspacePath(pathname: string) {
