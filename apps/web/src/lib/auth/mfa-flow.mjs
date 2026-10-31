@@ -2,6 +2,8 @@
  * Pure MFA frontend helpers. No browser storage. Never log secrets.
  */
 
+import { safeInternalPath } from './session-cookie.mjs';
+
 export const MFA_STORAGE_FORBIDDEN_KEYS = Object.freeze([
   'mfa_challenge_token',
   'mfa_challenge',
@@ -59,20 +61,8 @@ export function shouldLeaveLogin(session) {
   );
 }
 
-const AUTH_ONLY_PREFIXES = ['/reset-password', '/invite', '/portal/login'];
-
-function isAuthOnlyPath(pathOnly) {
-  if (pathOnly.startsWith('/login')) return true;
-  return AUTH_ONLY_PREFIXES.some((prefix) => pathOnly === prefix || pathOnly.startsWith(`${prefix}/`));
-}
-
 export function postLoginDestination(next, fallback = '/dashboard') {
-  if (typeof next !== 'string' || !next.startsWith('/') || next.startsWith('//') || next.includes('\\') || next.includes('://')) {
-    return fallback;
-  }
-  const pathOnly = next.split('?')[0].split('#')[0];
-  if (pathOnly.split('/').includes('..') || isAuthOnlyPath(pathOnly)) return fallback;
-  return next;
+  return safeInternalPath(next, fallback);
 }
 
 export function leaveAuthenticatedLogin(view) {

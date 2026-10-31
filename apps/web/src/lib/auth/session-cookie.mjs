@@ -123,3 +123,26 @@ export async function dashboardSessionGate(token, secret = getSessionJwtSecret()
   if (valid) return { allow: true, redirect: null, clearCookie: false };
   return { allow: false, redirect: '/login', clearCookie: Boolean(token) };
 }
+
+const AUTH_ONLY_PREFIXES = ['/reset-password', '/invite', '/portal/login'];
+
+function isAuthOnlyPath(pathOnly) {
+  if (pathOnly.startsWith('/login')) return true;
+  return AUTH_ONLY_PREFIXES.some((prefix) => pathOnly === prefix || pathOnly.startsWith(`${prefix}/`));
+}
+
+/**
+ * Next.js production webpack resolves ".mjs" before ".ts" for an extensionless
+ * specifier, so this named export is the runtime contract the login page calls.
+ * @param {string | null | undefined} next
+ * @param {string} [fallback]
+ * @returns {string}
+ */
+export function safeInternalPath(next, fallback = '/dashboard') {
+  if (!next || !next.startsWith('/') || next.startsWith('//') || next.includes('\\') || next.includes('://')) {
+    return fallback;
+  }
+  const pathOnly = next.split('?')[0]?.split('#')[0] ?? next;
+  if (pathOnly.split('/').includes('..') || isAuthOnlyPath(pathOnly)) return fallback;
+  return next;
+}

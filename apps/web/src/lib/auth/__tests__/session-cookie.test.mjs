@@ -5,7 +5,7 @@
 
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -131,25 +131,21 @@ assert.equal(
 assert.match(authContext, /err\.status === 401/);
 assert.match(authContext, /clearStaleSession/);
 
-// safeInternalPath is pure — assert via source + duplicate
-const AUTH_ONLY_PREFIXES = ['/reset-password', '/invite', '/portal/login'];
-function isAuthOnlyPath(pathOnly) {
-  if (pathOnly.startsWith('/login')) return true;
-  return AUTH_ONLY_PREFIXES.some((prefix) => pathOnly === prefix || pathOnly.startsWith(`${prefix}/`));
-}
-function safeInternalPath(next, fallback = '/dashboard') {
-  if (!next || !next.startsWith('/') || next.startsWith('//') || next.includes('\\') || next.includes('://')) {
-    return fallback;
+// Production webpack resolves ".mjs" before ".ts". The login page imports
+// `safeInternalPath` from `@/lib/auth/session-cookie` with no extension.
+const NEXT_PRODUCTION_EXTENSIONS = ['.js', '.mjs', '.tsx', '.ts', '.jsx'];
+function resolveLikeNextProduction(basePath) {
+  for (const ext of NEXT_PRODUCTION_EXTENSIONS) {
+    const candidate = `${basePath}${ext}`;
+    if (existsSync(candidate)) return candidate;
   }
-  const pathOnly = next.split('?')[0].split('#')[0];
-  if (pathOnly.split('/').includes('..') || isAuthOnlyPath(pathOnly)) return fallback;
-  return next;
+  throw new Error(`unresolved ${basePath}`);
 }
-const pathSource = readFileSync(join(here, '../session-cookie.ts'), 'utf8');
-assert.match(pathSource, /function isAuthOnlyPath/);
-assert.match(pathSource, /\/reset-password/);
-assert.match(pathSource, /\/invite/);
-assert.match(pathSource, /\/portal\/login/);
+const loginImportPath = resolveLikeNextProduction(join(here, '../session-cookie'));
+assert.match(loginImportPath, /\.mjs$/, 'production resolves session-cookie.mjs before session-cookie.ts');
+const loginSessionModule = await import(pathToFileURL(loginImportPath).href);
+assert.equal(typeof loginSessionModule.safeInternalPath, 'function');
+const { safeInternalPath } = loginSessionModule;
 assert.equal(safeInternalPath('/workspaces/crm'), '/workspaces/crm');
 assert.equal(safeInternalPath('/dashboard/projects'), '/dashboard/projects');
 assert.equal(safeInternalPath('https://evil.example'), '/dashboard');
@@ -160,6 +156,17 @@ assert.equal(safeInternalPath('/reset-password'), '/dashboard');
 assert.equal(safeInternalPath('/invite/token'), '/dashboard');
 assert.equal(safeInternalPath('/portal/login'), '/dashboard');
 assert.equal(safeInternalPath('/dashboard/../login'), '/dashboard');
+assert.equal(safeInternalPath(null), '/dashboard');
+
+const pathSource = readFileSync(sessionModulePath, 'utf8');
+assert.match(pathSource, /export function safeInternalPath/);
+assert.match(pathSource, /function isAuthOnlyPath/);
+assert.match(pathSource, /\/reset-password/);
+assert.match(pathSource, /\/invite/);
+assert.match(pathSource, /\/portal\/login/);
+
+const loginPageSource = readFileSync(join(webSrc, '../app/login/page.tsx'), 'utf8');
+assert.match(loginPageSource, /import \{ safeInternalPath \} from '@\/lib\/auth\/session-cookie'/);
 
 const apiShaped = signHs256(
   {
