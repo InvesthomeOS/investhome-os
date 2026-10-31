@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import re
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -146,9 +146,13 @@ def _parse_junk_reason(
 ) -> tuple[str, str | None]:
     code = (junk_reason or "").strip().lower() or None
     if not code:
-        raise LeadValidationError("junk_reason_required", code="junk_reason_required", status_code=422)
+        raise LeadValidationError(
+            "junk_reason_required", code="junk_reason_required", status_code=422
+        )
     if code not in JUNK_REASON_CODES:
-        raise LeadValidationError("invalid_junk_reason", code="invalid_junk_reason", status_code=422)
+        raise LeadValidationError(
+            "invalid_junk_reason", code="invalid_junk_reason", status_code=422
+        )
     detail = _blank_junk(junk_reason_detail)
     if code == "other":
         if not detail or len(detail) < _JUNK_DETAIL_MIN:
@@ -161,7 +165,9 @@ def _parse_junk_reason(
     return code, None
 
 
-def _apply_junk_reason(lead: Lead, junk_reason: str | None, junk_reason_detail: str | None) -> tuple[str, str | None]:
+def _apply_junk_reason(
+    lead: Lead, junk_reason: str | None, junk_reason_detail: str | None
+) -> tuple[str, str | None]:
     code, detail = _parse_junk_reason(junk_reason, junk_reason_detail)
     lead.junk_reason = code
     lead.junk_reason_detail = detail
@@ -241,7 +247,9 @@ def _is_facebook_messenger_lead(lead: Lead) -> bool:
     meta = lead.metadata_json if isinstance(lead.metadata_json, dict) else {}
     if str(meta.get("intake") or "").strip().lower() == "facebook_messenger":
         return True
-    return (lead.source or "").strip().lower() == "facebook" and (lead.provider or "").strip().lower() == "facebook"
+    return (lead.source or "").strip().lower() == "facebook" and (
+        lead.provider or ""
+    ).strip().lower() == "facebook"
 
 
 def _is_instagram_dm_lead(lead: Lead) -> bool:
@@ -249,7 +257,9 @@ def _is_instagram_dm_lead(lead: Lead) -> bool:
     meta = lead.metadata_json if isinstance(lead.metadata_json, dict) else {}
     if str(meta.get("intake") or "").strip().lower() == "instagram_dm":
         return True
-    return (lead.source or "").strip().lower() == "instagram" and (lead.provider or "").strip().lower() == "instagram"
+    return (lead.source or "").strip().lower() == "instagram" and (
+        lead.provider or ""
+    ).strip().lower() == "instagram"
 
 
 def _is_meta_dm_lead(lead: Lead) -> bool:
@@ -280,7 +290,9 @@ def _exclude_facebook_messenger_pipeline(query):
     return query.where(~_meta_dm_clause())
 
 
-def _find_lead_matches(db: Session, *, email: str | None, phone: str | None, exclude_id: UUID | None = None) -> list[Lead]:
+def _find_lead_matches(
+    db: Session, *, email: str | None, phone: str | None, exclude_id: UUID | None = None
+) -> list[Lead]:
     rows = list(db.scalars(_live_leads(db)).all())
     matches: list[Lead] = []
     for row in rows:
@@ -362,10 +374,16 @@ def _unique_person_matches(matches: list[CrmLeadMatch]) -> list[CrmLeadMatch]:
     return unique
 
 
-def _person_matches(db: Session, *, email: str | None, phone: str | None, name: str | None) -> list[CrmLeadMatch]:
+def _person_matches(
+    db: Session, *, email: str | None, phone: str | None, name: str | None
+) -> list[CrmLeadMatch]:
     payload = CrmDuplicateCheckRequest(primary_email=email, primary_phone=phone, display_name=name)
     found = check_duplicates(db, payload)
-    safe = [item for item in found if item.match_reason in {"phone", "email"} and item.match_score >= 1.0]
+    safe = [
+        item
+        for item in found
+        if item.match_reason in {"phone", "email"} and item.match_score >= 1.0
+    ]
     matches: list[CrmLeadMatch] = []
     for item in safe:
         contact = db.get(CrmContact, item.contact_id)
@@ -400,7 +418,9 @@ def _lead_match_items(rows: list[Lead]) -> list[CrmLeadMatch]:
     ]
 
 
-def _owner_name(db: Session, user_id: UUID | None, cache: dict[UUID, str] | None = None) -> str | None:
+def _owner_name(
+    db: Session, user_id: UUID | None, cache: dict[UUID, str] | None = None
+) -> str | None:
     if user_id is None:
         return None
     if cache is not None and user_id in cache:
@@ -433,7 +453,9 @@ def _linked_contact(db: Session, lead: Lead) -> CrmContact | None:
         if contact is not None and contact.archived_at is None:
             return contact
     return db.scalar(
-        select(CrmContact).where(CrmContact.lead_id == lead.id, CrmContact.archived_at.is_(None)).limit(1)
+        select(CrmContact)
+        .where(CrmContact.lead_id == lead.id, CrmContact.archived_at.is_(None))
+        .limit(1)
     )
 
 
@@ -545,11 +567,15 @@ def _apply_owner(db: Session, lead: Lead, owner_user_id: UUID | None) -> None:
     lead.assigned_to = _owner_name(db, owner_user_id)
 
 
-def _apply_investment_budget(lead: Lead, payload: CrmLeadCreate | CrmLeadUpdate, *, unset_ok: bool = True) -> bool:
+def _apply_investment_budget(
+    lead: Lead, payload: CrmLeadCreate | CrmLeadUpdate, *, unset_ok: bool = True
+) -> bool:
     data = payload.model_dump(exclude_unset=True)
     if "investment_budget_amount" not in data and "investment_budget_currency" not in data:
         return False
-    amount = parse_investment_budget_amount(data.get("investment_budget_amount", lead.estimated_budget))
+    amount = parse_investment_budget_amount(
+        data.get("investment_budget_amount", lead.estimated_budget)
+    )
     if amount is None:
         if not unset_ok:
             return False
@@ -636,20 +662,30 @@ def _log(
 
 
 def _filter_options(db: Session) -> tuple[list[str], list[str], list[CrmLeadOwnerOption]]:
-    source_rows = list(db.scalars(select(Lead.source).where(Lead.archived_at.is_(None), Lead.is_demo.is_(False)).distinct()).all())
+    source_rows = list(
+        db.scalars(
+            select(Lead.source)
+            .where(Lead.archived_at.is_(None), Lead.is_demo.is_(False))
+            .distinct()
+        ).all()
+    )
     project_rows = list(
         db.scalars(
-            select(Lead.interested_project).where(
+            select(Lead.interested_project)
+            .where(
                 Lead.archived_at.is_(None),
                 Lead.is_demo.is_(False),
                 Lead.interested_project.isnot(None),
-            ).distinct()
+            )
+            .distinct()
         ).all()
     )
     sources = list(dict.fromkeys([*KNOWN_SOURCES, *[str(item) for item in source_rows if item]]))
     projects = sorted({str(item) for item in project_rows if item})
     users = list(
-        db.scalars(select(User).where(User.status == UserStatus.ACTIVE).order_by(User.full_name.asc())).all()
+        db.scalars(
+            select(User).where(User.status == UserStatus.ACTIVE).order_by(User.full_name.asc())
+        ).all()
     )
     owners = [CrmLeadOwnerOption(id=user.id, name=user.full_name) for user in users]
     return sources, projects, owners
@@ -736,9 +772,7 @@ def _lead_order():
 
 
 def _status_counts(db: Session, filters: list) -> dict[LeadStatus, int]:
-    rows = db.execute(
-        select(Lead.status, func.count()).where(*filters).group_by(Lead.status)
-    ).all()
+    rows = db.execute(select(Lead.status, func.count()).where(*filters).group_by(Lead.status)).all()
     counts: dict[LeadStatus, int] = {}
     for status, count in rows:
         counts[_as_status(status)] = int(count)
@@ -1072,7 +1106,9 @@ def get_crm_lead(db: Session, lead_id: UUID) -> CrmLeadDetail:
     return _to_detail(db, lead)
 
 
-def _prepare_identity(payload: CrmLeadCreate | CrmLeadUpdate | CrmLeadIngestRequest) -> tuple[str, str | None, str | None]:
+def _prepare_identity(
+    payload: CrmLeadCreate | CrmLeadUpdate | CrmLeadIngestRequest,
+) -> tuple[str, str | None, str | None]:
     email = normalize_email(getattr(payload, "email", None))
     phone_raw = _blank(getattr(payload, "phone", None))
     parsed = parse_phone(phone_raw)
@@ -1091,7 +1127,9 @@ def create_crm_lead(
     name, phone, email = _prepare_identity(payload)
     display = _require_identity(name, phone, email)
     lead_matches = _find_lead_matches(db, email=email, phone=phone)
-    person_matches = _unique_person_matches(_person_matches(db, email=email, phone=phone, name=display))
+    person_matches = _unique_person_matches(
+        _person_matches(db, email=email, phone=phone, name=display)
+    )
     if lead_matches:
         raise LeadConflictError(
             CrmLeadConflictBody(
@@ -1157,7 +1195,11 @@ def create_crm_lead(
             "source": lead.source,
             "provider": lead.provider,
             "contact_id": str(contact.id),
-            **({"junk_reason": created_junk[0], "junk_reason_detail": created_junk[1]} if created_junk else {}),
+            **(
+                {"junk_reason": created_junk[0], "junk_reason_detail": created_junk[1]}
+                if created_junk
+                else {}
+            ),
         },
     )
     db.flush()
@@ -1232,7 +1274,11 @@ def update_crm_lead(
 
 
 def _auto_followup_due_at(transition_at: datetime) -> datetime:
-    local = transition_at.astimezone(_TASK_TZ) if transition_at.tzinfo else transition_at.replace(tzinfo=_TASK_TZ)
+    local = (
+        transition_at.astimezone(_TASK_TZ)
+        if transition_at.tzinfo
+        else transition_at.replace(tzinfo=_TASK_TZ)
+    )
     return (local + timedelta(days=2)).astimezone(UTC)
 
 
@@ -1244,10 +1290,12 @@ def _auto_task_is_active(row) -> bool:
     task_status = getattr(row, "task_status", None)
     status = getattr(row, "status", None)
     closed_task = {CrmTaskStatus.COMPLETED, CrmTaskStatus.CANCELLED, CrmTaskStatus.DEFERRED}
-    closed_status = {CrmActivityStatus.COMPLETED, CrmActivityStatus.CANCELLED, CrmActivityStatus.ARCHIVED}
-    if task_status in closed_task or status in closed_status:
-        return False
-    return True
+    closed_status = {
+        CrmActivityStatus.COMPLETED,
+        CrmActivityStatus.CANCELLED,
+        CrmActivityStatus.ARCHIVED,
+    }
+    return not (task_status in closed_task or status in closed_status)
 
 
 def _find_active_stage_auto_task(db: Session, lead_id: UUID, stage: str):
@@ -1282,7 +1330,10 @@ def _ensure_stage_followup_task(
 ) -> None:
     from investhome_api.models.crm_activity import CrmReminderChannel
     from investhome_api.schemas.crm_activities import CrmActivityReminderInput, CrmTaskCreate
-    from investhome_api.services.crm.activity_service import ActivityValidationError, create_workspace_task
+    from investhome_api.services.crm.activity_service import (
+        ActivityValidationError,
+        create_workspace_task,
+    )
 
     existing = _find_active_stage_auto_task(db, lead.id, stage)
     if existing is not None:
@@ -1295,7 +1346,9 @@ def _ensure_stage_followup_task(
         return
     contact = _linked_contact(db, lead)
     contact_id = contact.id if contact is not None else None
-    name = ((contact.display_name if contact is not None else None) or lead.full_name).strip() or lead.full_name
+    name = (
+        (contact.display_name if contact is not None else None) or lead.full_name
+    ).strip() or lead.full_name
     due = _auto_followup_due_at(transition_at)
     assignee = lead.assigned_manager_id or actor.id
     metadata: dict[str, object] = {
@@ -1423,7 +1476,9 @@ def convert_crm_lead(
 
     email = normalize_email(lead.email)
     phone = lead.phone
-    people = _unique_person_matches(_person_matches(db, email=email, phone=phone, name=lead.full_name))
+    people = _unique_person_matches(
+        _person_matches(db, email=email, phone=phone, name=lead.full_name)
+    )
     reused = False
     contact: CrmContact | None = None
     if confirm_existing_person_id:
@@ -1453,7 +1508,9 @@ def convert_crm_lead(
         first_name, last_name = _split_name(lead.full_name)
         person_notes = (lead.notes or "").strip()
         if history_line:
-            person_notes = f"{person_notes}\n{history_line}".strip() if person_notes else history_line
+            person_notes = (
+                f"{person_notes}\n{history_line}".strip() if person_notes else history_line
+            )
         try:
             contact = create_contact(
                 db,
@@ -1485,7 +1542,9 @@ def convert_crm_lead(
         if history_line:
             existing_notes = (contact.notes or "").strip()
             if history_line not in existing_notes:
-                contact.notes = f"{existing_notes}\n{history_line}".strip() if existing_notes else history_line
+                contact.notes = (
+                    f"{existing_notes}\n{history_line}".strip() if existing_notes else history_line
+                )
         meta = contact.metadata_json if isinstance(contact.metadata_json, dict) else {}
         meta["lead_conversion"] = {
             "lead_id": str(lead.id),
@@ -1541,12 +1600,16 @@ def convert_crm_lead(
     )
 
 
-def ingest_crm_lead(db: Session, payload: CrmLeadIngestRequest, *, actor: User | None) -> CrmLeadDetail:
+def ingest_crm_lead(
+    db: Session, payload: CrmLeadIngestRequest, *, actor: User | None
+) -> CrmLeadDetail:
     """Persist a future-provider lead. Never discard. Does not connect live ad accounts."""
     provider = (_blank(payload.provider) or "unknown").lower()
     name, phone, email = _prepare_identity(payload)
     has_identity = bool(name or phone or email)
-    unique_people = _person_matches(db, email=email, phone=phone, name=name or None) if has_identity else []
+    unique_people = (
+        _person_matches(db, email=email, phone=phone, name=name or None) if has_identity else []
+    )
     ingest_status = "ok"
     display = name or email or phone or UNMATCHED_LEAD
     if not has_identity:
@@ -1579,7 +1642,9 @@ def ingest_crm_lead(db: Session, payload: CrmLeadIngestRequest, *, actor: User |
         form_id=_blank(payload.form_id),
         intake="provider",
         ingest_payload=payload.payload,
-        unmatched_person_ids=[str(item.id) for item in unique_people] if ingest_status == "unmatched" else None,
+        unmatched_person_ids=[str(item.id) for item in unique_people]
+        if ingest_status == "unmatched"
+        else None,
         existing_person_id=str(unique_people[0].id) if len(unique_people) == 1 else None,
     )
     _log(

@@ -181,7 +181,7 @@ class CrmLeadWrite(BaseModel):
     @field_validator("investment_budget_amount", mode="before")
     @classmethod
     def reject_float_budget(cls, value: object) -> object:
-        if isinstance(value, bool) or isinstance(value, float):
+        if isinstance(value, (bool, float)):
             raise ValueError("Yatırım bütçesi geçersiz")
         return value
 

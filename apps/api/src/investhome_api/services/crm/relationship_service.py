@@ -12,14 +12,12 @@ from sqlalchemy.orm import Session
 from investhome_api.models.crm_agreement import CrmAgreement
 from investhome_api.models.crm_company import CrmCompany
 from investhome_api.models.crm_contact import CrmContact
-from investhome_api.models.project import Project
 from investhome_api.models.crm_relationship import (
     CrmDecisionMapRole,
     CrmReferral,
     CrmRelationship,
     CrmRelationshipAlert,
     CrmRelationshipAlertStatus,
-    CrmRelationshipAlertType,
     CrmRelationshipCategory,
     CrmRelationshipDirection,
     CrmRelationshipEntityType,
@@ -28,11 +26,12 @@ from investhome_api.models.crm_relationship import (
     CrmRelationshipStatus,
     CrmRelationshipStrength,
 )
+from investhome_api.models.project import Project
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.crm_relationships import (
+    CrmDecisionMapResponse,
     CrmDecisionMapRoleCreate,
     CrmDecisionMapRoleResponse,
-    CrmDecisionMapResponse,
     CrmEntityRef,
     CrmReferralCreate,
     CrmReferralResponse,
@@ -60,8 +59,8 @@ from investhome_api.services.crm.reciprocal_mapping_service import (
     seed_type_configs,
 )
 from investhome_api.services.crm.relationship_score_service import (
-    calculate_relationship_scores,
     apply_scores_to_relationship,
+    calculate_relationship_scores,
 )
 from investhome_api.services.permission_service import user_has_permission
 
@@ -120,33 +119,45 @@ def _pair_kind_clause(pair_kind: str):
     project = CrmRelationshipEntityType.PROJECT
     if pair_kind == "contact_company":
         return or_(
-            (CrmRelationship.source_entity_type == contact) & (CrmRelationship.target_entity_type == company),
-            (CrmRelationship.source_entity_type == company) & (CrmRelationship.target_entity_type == contact),
+            (CrmRelationship.source_entity_type == contact)
+            & (CrmRelationship.target_entity_type == company),
+            (CrmRelationship.source_entity_type == company)
+            & (CrmRelationship.target_entity_type == contact),
         )
     if pair_kind == "contact_project":
         return or_(
-            (CrmRelationship.source_entity_type == contact) & (CrmRelationship.target_entity_type == project),
-            (CrmRelationship.source_entity_type == project) & (CrmRelationship.target_entity_type == contact),
+            (CrmRelationship.source_entity_type == contact)
+            & (CrmRelationship.target_entity_type == project),
+            (CrmRelationship.source_entity_type == project)
+            & (CrmRelationship.target_entity_type == contact),
         )
     if pair_kind == "contact_contact":
-        return (CrmRelationship.source_entity_type == contact) & (CrmRelationship.target_entity_type == contact)
+        return (CrmRelationship.source_entity_type == contact) & (
+            CrmRelationship.target_entity_type == contact
+        )
     if pair_kind == "company_project":
         return or_(
-            (CrmRelationship.source_entity_type == company) & (CrmRelationship.target_entity_type == project),
-            (CrmRelationship.source_entity_type == project) & (CrmRelationship.target_entity_type == company),
+            (CrmRelationship.source_entity_type == company)
+            & (CrmRelationship.target_entity_type == project),
+            (CrmRelationship.source_entity_type == project)
+            & (CrmRelationship.target_entity_type == company),
         )
     if pair_kind == "company_company":
-        return (CrmRelationship.source_entity_type == company) & (CrmRelationship.target_entity_type == company)
+        return (CrmRelationship.source_entity_type == company) & (
+            CrmRelationship.target_entity_type == company
+        )
     return None
 
 
 def _project_ids_for_group(db: Session, project_group: str) -> list[UUID]:
     return list(
         db.scalars(
-            select(CrmAgreement.project_id).where(
+            select(CrmAgreement.project_id)
+            .where(
                 CrmAgreement.project_group == project_group,
                 CrmAgreement.project_id.is_not(None),
-            ).distinct()
+            )
+            .distinct()
         ).all()
     )
 
@@ -192,7 +203,10 @@ def _linked_agreement(db: Session, rel: CrmRelationship) -> tuple[UUID | None, s
 def serialize_relationship_summary(db: Session, rel: CrmRelationship) -> CrmRelationshipSummary:
     reciprocal_label = None
     if rel.reciprocal_type:
-        from investhome_api.services.crm.reciprocal_mapping_service import get_reciprocal_display_label
+        from investhome_api.services.crm.reciprocal_mapping_service import (
+            get_reciprocal_display_label,
+        )
+
         reciprocal_label = get_reciprocal_display_label(db, rel.relationship_type)
 
     owner_name = None
@@ -257,7 +271,9 @@ def strip_confidential_fields(rel: CrmRelationshipDetail, can_view: bool) -> Crm
     return rel.model_copy(update={"notes": None, "metadata_json": None})
 
 
-def strip_referral_compensation(referral: CrmReferralResponse, can_view: bool) -> CrmReferralResponse:
+def strip_referral_compensation(
+    referral: CrmReferralResponse, can_view: bool
+) -> CrmReferralResponse:
     if can_view:
         return referral
     return referral.model_copy(
@@ -281,7 +297,9 @@ def _validate_endpoints(payload: CrmRelationshipCreate) -> None:
         payload.source_entity_type == payload.target_entity_type
         and payload.source_entity_id == payload.target_entity_id
     ):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Self-relationship not allowed")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Self-relationship not allowed"
+        )
 
 
 def _check_hierarchy_cycle(
@@ -337,9 +355,11 @@ def find_duplicate_candidates(
     existing = db.scalars(
         select(CrmRelationship).where(
             CrmRelationship.archived_at.is_(None),
-            CrmRelationship.source_entity_type == CrmRelationshipEntityType(payload.source_entity_type.value),
+            CrmRelationship.source_entity_type
+            == CrmRelationshipEntityType(payload.source_entity_type.value),
             CrmRelationship.source_entity_id == payload.source_entity_id,
-            CrmRelationship.target_entity_type == CrmRelationshipEntityType(payload.target_entity_type.value),
+            CrmRelationship.target_entity_type
+            == CrmRelationshipEntityType(payload.target_entity_type.value),
             CrmRelationship.target_entity_id == payload.target_entity_id,
             CrmRelationship.relationship_type == payload.relationship_type,
         )
@@ -358,7 +378,9 @@ def find_duplicate_candidates(
     ]
 
 
-def create_relationship(db: Session, payload: CrmRelationshipCreate, user: User | None) -> CrmRelationship:
+def create_relationship(
+    db: Session, payload: CrmRelationshipCreate, user: User | None
+) -> CrmRelationship:
     seed_type_configs(db)
     _validate_endpoints(payload)
     duplicates = find_duplicate_candidates(db, payload)
@@ -370,7 +392,9 @@ def create_relationship(db: Session, payload: CrmRelationshipCreate, user: User 
 
     reciprocal_type, _ = resolve_reciprocal_type(db, payload.relationship_type)
     if payload.category is not None:
-        category_value = payload.category.value if hasattr(payload.category, "value") else payload.category
+        category_value = (
+            payload.category.value if hasattr(payload.category, "value") else payload.category
+        )
         category = CrmRelationshipCategory(category_value)
     else:
         category = resolve_category(db, payload.relationship_type)
@@ -385,8 +409,12 @@ def create_relationship(db: Session, payload: CrmRelationshipCreate, user: User 
     )
 
     status_value = payload.status.value if hasattr(payload.status, "value") else payload.status
-    strength_value = payload.strength.value if hasattr(payload.strength, "value") else payload.strength
-    direction_value = payload.direction.value if hasattr(payload.direction, "value") else payload.direction
+    strength_value = (
+        payload.strength.value if hasattr(payload.strength, "value") else payload.strength
+    )
+    direction_value = (
+        payload.direction.value if hasattr(payload.direction, "value") else payload.direction
+    )
 
     rel = CrmRelationship(
         source_entity_type=CrmRelationshipEntityType(payload.source_entity_type.value),
@@ -491,8 +519,10 @@ def list_relationships(
         et = CrmRelationshipEntityType(entity_type)
         query = query.where(
             or_(
-                (CrmRelationship.source_entity_type == et) & (CrmRelationship.source_entity_id == entity_id),
-                (CrmRelationship.target_entity_type == et) & (CrmRelationship.target_entity_id == entity_id),
+                (CrmRelationship.source_entity_type == et)
+                & (CrmRelationship.source_entity_id == entity_id),
+                (CrmRelationship.target_entity_type == et)
+                & (CrmRelationship.target_entity_id == entity_id),
             )
         )
     if search:
@@ -540,7 +570,9 @@ def list_relationships(
     return CrmRelationshipListResponse(items=items, total=total, page=page, page_size=page_size)
 
 
-def relationship_workspace_counts(db: Session, *, include_archived: bool = False) -> CrmRelationshipCounts:
+def relationship_workspace_counts(
+    db: Session, *, include_archived: bool = False
+) -> CrmRelationshipCounts:
     query = select(CrmRelationship)
     if not include_archived:
         query = query.where(CrmRelationship.archived_at.is_(None))
@@ -577,7 +609,9 @@ def delete_relationship(db: Session, rel: CrmRelationship) -> None:
     db.delete(rel)
 
 
-def bulk_action(db: Session, request: CrmRelationshipBulkActionRequest) -> CrmRelationshipBulkActionResponse:
+def bulk_action(
+    db: Session, request: CrmRelationshipBulkActionRequest
+) -> CrmRelationshipBulkActionResponse:
     updated = 0
     failed = 0
     for rel_id in request.relationship_ids:
@@ -618,7 +652,9 @@ def export_relationships_csv(db: Session, include_confidential: bool = False) ->
     return "\n".join(lines)
 
 
-def list_alerts(db: Session, *, status_filter: str | None = None) -> list[CrmRelationshipAlertResponse]:
+def list_alerts(
+    db: Session, *, status_filter: str | None = None
+) -> list[CrmRelationshipAlertResponse]:
     query = select(CrmRelationshipAlert)
     if status_filter:
         query = query.where(CrmRelationshipAlert.status == status_filter)
@@ -640,7 +676,9 @@ def list_alerts(db: Session, *, status_filter: str | None = None) -> list[CrmRel
     ]
 
 
-def update_alert_status(db: Session, alert_id: UUID, new_status: str) -> CrmRelationshipAlertResponse:
+def update_alert_status(
+    db: Session, alert_id: UUID, new_status: str
+) -> CrmRelationshipAlertResponse:
     alert = db.get(CrmRelationshipAlert, alert_id)
     if not alert:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
@@ -664,27 +702,36 @@ def update_alert_status(db: Session, alert_id: UUID, new_status: str) -> CrmRela
 def get_recommendations(db: Session) -> list[CrmRelationshipRecommendation]:
     recs: list[CrmRelationshipRecommendation] = []
     stale_rels = db.scalars(
-        select(CrmRelationship).where(
+        select(CrmRelationship)
+        .where(
             CrmRelationship.archived_at.is_(None),
             CrmRelationship.engagement_score < 40,
-        ).order_by(CrmRelationship.engagement_score.asc()).limit(5)
+        )
+        .order_by(CrmRelationship.engagement_score.asc())
+        .limit(5)
     ).all()
     for rel in stale_rels:
         recs.append(
             CrmRelationshipRecommendation(
                 id=f"stale-{rel.id}",
                 title="Re-engage stale relationship",
-                description=f"Low engagement score ({rel.engagement_score}) for {rel.relationship_type} link",
+                description=(
+                    f"Low engagement score ({rel.engagement_score}) "
+                    f"for {rel.relationship_type} link"
+                ),
                 priority="medium",
                 relationship_id=rel.id,
                 reason=f"engagement_score={rel.engagement_score} below threshold 40",
             )
         )
     at_risk = db.scalars(
-        select(CrmRelationship).where(
+        select(CrmRelationship)
+        .where(
             CrmRelationship.archived_at.is_(None),
             CrmRelationship.risk_score > 60,
-        ).order_by(CrmRelationship.risk_score.desc()).limit(5)
+        )
+        .order_by(CrmRelationship.risk_score.desc())
+        .limit(5)
     ).all()
     for rel in at_risk:
         recs.append(
@@ -701,43 +748,75 @@ def get_recommendations(db: Session) -> list[CrmRelationshipRecommendation]:
 
 
 def build_intelligence_dashboard(db: Session) -> CrmRelationshipIntelligenceDashboard:
-    total = db.scalar(
-        select(func.count()).select_from(CrmRelationship).where(CrmRelationship.archived_at.is_(None))
-    ) or 0
+    total = (
+        db.scalar(
+            select(func.count())
+            .select_from(CrmRelationship)
+            .where(CrmRelationship.archived_at.is_(None))
+        )
+        or 0
+    )
     if total == 0:
         return CrmRelationshipIntelligenceDashboard()
 
-    active = db.scalar(
-        select(func.count()).select_from(CrmRelationship).where(
-            CrmRelationship.archived_at.is_(None),
-            CrmRelationship.status == CrmRelationshipStatus.ACTIVE,
+    active = (
+        db.scalar(
+            select(func.count())
+            .select_from(CrmRelationship)
+            .where(
+                CrmRelationship.archived_at.is_(None),
+                CrmRelationship.status == CrmRelationshipStatus.ACTIVE,
+            )
         )
-    ) or 0
-    avg_score = db.scalar(
-        select(func.avg(CrmRelationship.relationship_score)).where(CrmRelationship.archived_at.is_(None))
-    ) or 0.0
-    at_risk = db.scalar(
-        select(func.count()).select_from(CrmRelationship).where(
-            CrmRelationship.archived_at.is_(None),
-            CrmRelationship.risk_score > 60,
+        or 0
+    )
+    avg_score = (
+        db.scalar(
+            select(func.avg(CrmRelationship.relationship_score)).where(
+                CrmRelationship.archived_at.is_(None)
+            )
         )
-    ) or 0
-    stale = db.scalar(
-        select(func.count()).select_from(CrmRelationship).where(
-            CrmRelationship.archived_at.is_(None),
-            CrmRelationship.engagement_score < 40,
+        or 0.0
+    )
+    at_risk = (
+        db.scalar(
+            select(func.count())
+            .select_from(CrmRelationship)
+            .where(
+                CrmRelationship.archived_at.is_(None),
+                CrmRelationship.risk_score > 60,
+            )
         )
-    ) or 0
-    open_alerts = db.scalar(
-        select(func.count()).select_from(CrmRelationshipAlert).where(
-            CrmRelationshipAlert.status == CrmRelationshipAlertStatus.OPEN,
+        or 0
+    )
+    stale = (
+        db.scalar(
+            select(func.count())
+            .select_from(CrmRelationship)
+            .where(
+                CrmRelationship.archived_at.is_(None),
+                CrmRelationship.engagement_score < 40,
+            )
         )
-    ) or 0
+        or 0
+    )
+    open_alerts = (
+        db.scalar(
+            select(func.count())
+            .select_from(CrmRelationshipAlert)
+            .where(
+                CrmRelationshipAlert.status == CrmRelationshipAlertStatus.OPEN,
+            )
+        )
+        or 0
+    )
 
     top_influencers: list[CrmEntityRef] = []
     top_rels = db.scalars(
-        select(CrmRelationship).where(CrmRelationship.archived_at.is_(None))
-        .order_by(CrmRelationship.influence_score.desc()).limit(5)
+        select(CrmRelationship)
+        .where(CrmRelationship.archived_at.is_(None))
+        .order_by(CrmRelationship.influence_score.desc())
+        .limit(5)
     ).all()
     seen: set[str] = set()
     for rel in top_rels:
@@ -898,7 +977,9 @@ def serialize_referral(db: Session, referral: CrmReferral) -> CrmReferralRespons
 
 
 def list_referrals(db: Session) -> list[CrmReferralResponse]:
-    referrals = db.scalars(select(CrmReferral).order_by(CrmReferral.created_at.desc()).limit(100)).all()
+    referrals = db.scalars(
+        select(CrmReferral).order_by(CrmReferral.created_at.desc()).limit(100)
+    ).all()
     return [serialize_referral(db, r) for r in referrals]
 
 
@@ -914,7 +995,9 @@ def create_review(db: Session, payload: CrmRelationshipReviewCreate) -> CrmRelat
     return review
 
 
-def list_reviews(db: Session, relationship_id: UUID | None = None) -> list[CrmRelationshipReviewResponse]:
+def list_reviews(
+    db: Session, relationship_id: UUID | None = None
+) -> list[CrmRelationshipReviewResponse]:
     query = select(CrmRelationshipReview)
     if relationship_id:
         query = query.where(CrmRelationshipReview.relationship_id == relationship_id)
@@ -939,7 +1022,9 @@ def list_saved_views(db: Session, user_id: UUID) -> list[CrmRelationshipSavedVie
         select(CrmRelationshipSavedView).where(CrmRelationshipSavedView.user_id == user_id)
     ).all()
     return [
-        CrmRelationshipSavedViewResponse(id=v.id, name=v.name, filters=v.filters, is_default=v.is_default)
+        CrmRelationshipSavedViewResponse(
+            id=v.id, name=v.name, filters=v.filters, is_default=v.is_default
+        )
         for v in views
     ]
 
