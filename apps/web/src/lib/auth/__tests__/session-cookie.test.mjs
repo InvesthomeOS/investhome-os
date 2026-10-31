@@ -7,16 +7,23 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import {
+  clearedSessionCookieOptions,
+  dashboardSessionGate,
+  isValidSessionJwt,
+} from '../session-cookie.mjs';
+import { planLoginRedirect } from '../mfa-flow.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const webSrc = join(here, '../..');
-const sessionModulePath = join(here, '../session-cookie.ts');
+const sessionModulePath = join(here, '../session-cookie.mjs');
 
 // Source-level contract checks (middleware must not treat presence as auth).
 const middleware = readFileSync(join(webSrc, '../middleware.ts'), 'utf8');
 assert.match(middleware, /isValidSessionJwt/);
+assert.match(middleware, /clearedSessionCookieOptions/);
 assert.match(middleware, /pathname === '\/login'/);
 assert.doesNotMatch(
   middleware,
@@ -52,36 +59,6 @@ function signHs256(payload, secret) {
   const data = `${header}.${body}`;
   const sig = createHmac('sha256', secret).update(data).digest('base64url');
   return `${data}.${sig}`;
-}
-
-// Runtime verify via dynamic import of compiled logic is awkward for TS;
-// re-implement the same checks inline for the crypto contract.
-async function isValidSessionJwt(token, secret) {
-  if (!token || !secret) return false;
-  const parts = token.split('.');
-  if (parts.length !== 3) return false;
-  const [headerB64, payloadB64, sigB64] = parts;
-  try {
-    const header = JSON.parse(Buffer.from(headerB64, 'base64url').toString('utf8'));
-    if (header.alg !== 'HS256') return false;
-    const expected = createHmac('sha256', secret)
-      .update(`${headerB64}.${payloadB64}`)
-      .digest('base64url');
-    if (expected !== sigB64) return false;
-    const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
-    if (!payload.sub || typeof payload.exp !== 'number') return false;
-    if (typeof payload.jti !== 'string' || !/^[A-Za-z0-9._-]{1,64}$/.test(payload.jti.trim())) {
-      return false;
-    }
-    if (payload.exp * 1000 <= Date.now() - 30_000) return false;
-    if (typeof payload.auth_time === 'number') {
-      const absoluteMs = 24 * 60 * 60 * 1000;
-      if (payload.auth_time * 1000 + absoluteMs <= Date.now() - 30_000) return false;
-    }
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 const secret = 'unit-test-jwt-secret-not-for-production-32';
@@ -168,11 +145,11 @@ function safeInternalPath(next, fallback = '/dashboard') {
   if (pathOnly.split('/').includes('..') || isAuthOnlyPath(pathOnly)) return fallback;
   return next;
 }
-const sessionSource = readFileSync(sessionModulePath, 'utf8');
-assert.match(sessionSource, /function isAuthOnlyPath/);
-assert.match(sessionSource, /\/reset-password/);
-assert.match(sessionSource, /\/invite/);
-assert.match(sessionSource, /\/portal\/login/);
+const pathSource = readFileSync(join(here, '../session-cookie.ts'), 'utf8');
+assert.match(pathSource, /function isAuthOnlyPath/);
+assert.match(pathSource, /\/reset-password/);
+assert.match(pathSource, /\/invite/);
+assert.match(pathSource, /\/portal\/login/);
 assert.equal(safeInternalPath('/workspaces/crm'), '/workspaces/crm');
 assert.equal(safeInternalPath('/dashboard/projects'), '/dashboard/projects');
 assert.equal(safeInternalPath('https://evil.example'), '/dashboard');
@@ -184,16 +161,89 @@ assert.equal(safeInternalPath('/invite/token'), '/dashboard');
 assert.equal(safeInternalPath('/portal/login'), '/dashboard');
 assert.equal(safeInternalPath('/dashboard/../login'), '/dashboard');
 
-// Ensure TS helper file exists for middleware imports
-assert.equal(
-  readFileSync(sessionModulePath, 'utf8').includes('isValidSessionJwt'),
-  true,
+const apiShaped = signHs256(
+  {
+    sub: '00000000-0000-0000-0000-000000000001',
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    iat: Math.floor(Date.now() / 1000),
+    auth_time: Math.floor(Date.now() / 1000),
+    jti: 'abcdef0123456789abcdef0123456789',
+  },
+  secret,
 );
-assert.equal(
-  readFileSync(sessionModulePath, 'utf8').includes('dev-only-change-in-production'),
-  false,
-  'session-cookie must not ship a default JWT secret',
-);
+const accepted = await dashboardSessionGate(apiShaped, secret);
+assert.equal(accepted.allow, true, 'API-shaped HS256 session is accepted');
+assert.equal(accepted.redirect, null);
+assert.equal(accepted.clearCookie, false);
+const anonymous = await dashboardSessionGate(undefined, secret);
+assert.equal(anonymous.allow, false, 'anonymous dashboard request is blocked');
+assert.equal(anonymous.redirect, '/login');
+assert.equal(anonymous.clearCookie, false);
+const forged = await dashboardSessionGate(apiShaped, 'wrong-secret-not-the-api-secret-32xx');
+assert.equal(forged.allow, false, 'invalid signature is rejected');
+assert.equal(forged.clearCookie, true);
+const stale = await dashboardSessionGate(expired, secret);
+assert.equal(stale.allow, false, 'expired session is rejected');
+assert.equal(stale.clearCookie, true);
+
+const cleared = clearedSessionCookieOptions({
+  AUTH_COOKIE_DOMAIN: 'os.investhome.com',
+  AUTH_COOKIE_SECURE: 'true',
+  AUTH_COOKIE_SAMESITE: 'lax',
+});
+assert.equal(cleared.domain, 'os.investhome.com');
+assert.equal(cleared.path, '/');
+assert.equal(cleared.maxAge, 0);
+assert.equal(cleared.httpOnly, true);
+assert.equal(cleared.secure, true);
+assert.equal(cleared.sameSite, 'lax');
+
+const sessionSource = readFileSync(sessionModulePath, 'utf8');
+assert.match(sessionSource, /process\.env\.JWT_SECRET/);
+assert.match(sessionSource, /isValidSessionJwt/);
+assert.match(sessionSource, /process\.env\.AUTH_COOKIE_DOMAIN/);
+assert.match(sessionSource, /process\.env\.AUTH_COOKIE_SECURE/);
+assert.match(sessionSource, /process\.env\.SESSION_ABSOLUTE_TIMEOUT_MINUTES/);
+assert.doesNotMatch(sessionSource, /process\.env\[/);
+assert.equal(sessionSource.includes('dev-only-change-in-production'), false);
+
+const repoRoot = join(here, '../../../../../..');
+const prodCompose = readFileSync(join(repoRoot, 'docker-compose.prod.yml'), 'utf8');
+const webService = prodCompose.slice(prodCompose.indexOf('\n  web:'), prodCompose.indexOf('\n  caddy:'));
+const apiEnv = prodCompose.slice(prodCompose.indexOf('x-app-environment:'), prodCompose.indexOf('\n  web:'));
+assert.match(webService, /JWT_SECRET:/);
+assert.match(webService, /AUTH_COOKIE_DOMAIN: "os\.investhome\.com"/);
+assert.match(apiEnv, /JWT_SECRET:/);
+assert.match(apiEnv, /AUTH_COOKIE_DOMAIN: "os\.investhome\.com"/);
+
+const loginPage = readFileSync(join(webSrc, '../app/login/page.tsx'), 'utf8');
+assert.doesNotMatch(loginPage, /window\.location\.replace/);
+assert.doesNotMatch(loginPage, /router\.refresh\(\)/);
+const redirect = planLoginRedirect({
+  view: {
+    pathname: '/login',
+    user: { id: '00000000-0000-0000-0000-000000000001', email: 'sales@investhome.demo' },
+    mfaPending: null,
+    enrollmentPending: null,
+    nextPath: null,
+  },
+  started: false,
+});
+assert.equal(redirect.action, 'router.replace');
+assert.equal(redirect.href, '/dashboard');
+assert.equal(redirect.document, false);
+const settled = planLoginRedirect({
+  view: {
+    pathname: '/dashboard',
+    user: { id: '00000000-0000-0000-0000-000000000001', email: 'sales@investhome.demo' },
+    mfaPending: null,
+    enrollmentPending: null,
+    nextPath: null,
+  },
+  started: true,
+});
+assert.equal(settled.action, 'stay');
+assert.notEqual(settled.pathname, '/login');
 
 console.log('session-cookie auth gate checks passed');
 // silence unused import lint for pathToFileURL in some runners

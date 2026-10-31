@@ -19,6 +19,7 @@ export {
   mapEnrollHttpError,
   mapMfaHttpError,
   parseOtpauthSecret,
+  planLoginRedirect,
   postLoginDestination,
   shouldLeaveLogin,
   sourceAvoidsBrowserSecretStorage,

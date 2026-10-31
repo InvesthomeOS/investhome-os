@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import type { Route } from 'next';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -25,16 +25,16 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const nextPath = searchParams.get('next');
   const { login, completeMfaLogin, cancelMfaLogin, finishRequiredEnrollment, cancelEnrollment, user, mfaPending, enrollmentPending } = useAuth();
+  const redirectStartedRef = useRef(false);
 
   useEffect(() => {
+    if (redirectStartedRef.current) return;
     if (!shouldLeaveLogin({ user, mfaPending, enrollmentPending })) return;
     const onLogin = pathname === '/login' || pathname.startsWith('/login/');
     if (!onLogin) return;
     const destination = safeInternalPath(nextPath);
+    redirectStartedRef.current = true;
     router.replace(destination as Route);
-    if (window.location.pathname === '/login' || window.location.pathname.startsWith('/login/')) {
-      window.location.replace(destination);
-    }
   }, [enrollmentPending, mfaPending, nextPath, pathname, router, user]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

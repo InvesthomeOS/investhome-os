@@ -88,6 +88,19 @@ export function leaveAuthenticatedLogin(view) {
   return { left: true, pathname: href, href };
 }
 
+export function planLoginRedirect(input) {
+  const view = input?.view ?? {};
+  const decision = leaveAuthenticatedLogin(view);
+  const started = input?.started === true;
+  if (!decision.left || !decision.href) {
+    return { action: 'stay', href: null, document: false, started };
+  }
+  if (started) {
+    return { action: 'ignore', href: decision.href, document: false, started: true };
+  }
+  return { action: 'router.replace', href: decision.href, document: false, started: true };
+}
+
 export function acceptAuthRefresh(startedEpoch, currentEpoch, result) {
   if (startedEpoch !== currentEpoch) {
     return { apply: false, user: null, logout: false };

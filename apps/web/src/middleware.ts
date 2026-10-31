@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 
 import {
   SESSION_COOKIE,
+  clearedSessionCookieOptions,
   isValidSessionJwt,
 } from '@/lib/auth/session-cookie';
 import {
@@ -46,7 +47,17 @@ function cookieClearOptions() {
 }
 
 function clearSessionCookie(response: NextResponse): void {
-  response.cookies.set(SESSION_COOKIE, '', cookieClearOptions());
+  const cleared = clearedSessionCookieOptions();
+  const sameSite =
+    cleared.sameSite === 'strict' || cleared.sameSite === 'none' ? cleared.sameSite : 'lax';
+  response.cookies.set(SESSION_COOKIE, '', {
+    path: '/',
+    maxAge: 0,
+    httpOnly: true,
+    secure: cleared.secure === true,
+    sameSite,
+    ...(typeof cleared.domain === 'string' && cleared.domain ? { domain: cleared.domain } : {}),
+  });
 }
 
 function clearPortalSessionCookie(response: NextResponse): void {

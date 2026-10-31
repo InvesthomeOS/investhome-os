@@ -22,6 +22,7 @@ import {
   isCurrentUserResponse,
   isMfaChallengeResponse,
   leaveAuthenticatedLogin,
+  planLoginRedirect,
   postLoginDestination,
   shouldLeaveLogin,
   mapEnrollHttpError,
@@ -144,7 +145,9 @@ describe('invalid TOTP / expired challenge / 429 / unavailable', () => {
     assert.match(authContext, /acceptAuthRefresh/);
     assert.match(loginPage, /shouldLeaveLogin\(\{ user, mfaPending, enrollmentPending \}\)/);
     assert.match(loginPage, /safeInternalPath\(nextPath\)/);
-    assert.match(loginPage, /window\.location\.replace\(destination\)/);
+    assert.match(loginPage, /redirectStartedRef/);
+    assert.match(loginPage, /router\.replace\(destination as Route\)/);
+    assert.doesNotMatch(loginPage, /window\.location\.replace/);
     assert.match(loginPage, /pathname === '\/login'/);
     assert.doesNotMatch(loginPage, /router\.replace\('\/login'\)/);
     assert.doesNotMatch(loginPage, /if \(loading\) return/);
@@ -248,6 +251,117 @@ describe('authenticated login leaves /login', () => {
     const failed = leaveAuthenticatedLogin({ pathname: '/login', ...pending, nextPath: '/dashboard' });
     assert.equal(failed.left, false);
     assert.equal(failed.pathname, '/login');
+    assert.equal(failed.href, null);
+  });
+});
+
+describe('login page does not reload in a loop', () => {
+  it('keeps an anonymous login page on /login without navigation', () => {
+    const view = {
+      pathname: '/login',
+      user: null,
+      mfaPending: null,
+      enrollmentPending: null,
+      nextPath: null,
+    };
+    const plan = planLoginRedirect({ view, started: false });
+    assert.equal(plan.action, 'stay');
+    assert.equal(plan.href, null);
+    assert.equal(plan.document, false);
+    assert.equal(plan.started, false);
+    const loginPage = read('app/login/page.tsx');
+    assert.match(loginPage, /type="email"/);
+    assert.match(loginPage, /testId="login-password"/);
+    assert.doesNotMatch(loginPage, /window\.location\.replace/);
+    assert.doesNotMatch(loginPage, /setInterval|setTimeout/);
+  });
+
+  it('replaces once to the dashboard after MFA and does not refresh or reload the document', () => {
+    const pending = applyPasswordLogin(createEmptyMfaSession(), challenge);
+    const verified = { ...currentUser, mfa_enabled: true };
+    const done = applyMfaVerified(pending, verified);
+    const view = {
+      pathname: '/login',
+      user: done.user,
+      mfaPending: done.mfaPending,
+      enrollmentPending: done.enrollmentPending,
+      nextPath: null,
+    };
+    const first = planLoginRedirect({ view, started: false });
+    assert.equal(first.action, 'router.replace');
+    assert.equal(first.href, '/dashboard');
+    assert.equal(first.document, false);
+    const second = planLoginRedirect({ view, started: first.started });
+    assert.equal(second.action, 'ignore');
+    assert.equal(second.document, false);
+    const loginPage = read('app/login/page.tsx');
+    const authContext = read('lib/auth/auth-context.tsx');
+    assert.doesNotMatch(loginPage, /window\.location\.replace/);
+    assert.doesNotMatch(loginPage, /router\.refresh\(\)/);
+    const loginFn = authContext.slice(authContext.indexOf('const login ='), authContext.indexOf('const completeMfaLogin'));
+    const mfaFn = authContext.slice(authContext.indexOf('const completeMfaLogin'), authContext.indexOf('const cancelMfaLogin'));
+    const enrollFn = authContext.slice(
+      authContext.indexOf('const finishRequiredEnrollment'),
+      authContext.indexOf('const cancelEnrollment'),
+    );
+    assert.doesNotMatch(loginFn, /router\.refresh\(\)/);
+    assert.doesNotMatch(mfaFn, /router\.refresh\(\)/);
+    assert.doesNotMatch(enrollFn, /router\.refresh\(\)/);
+  });
+
+  it('redirects an already authenticated login visit once', () => {
+    const view = {
+      pathname: '/login',
+      user: currentUser,
+      mfaPending: null,
+      enrollmentPending: null,
+      nextPath: null,
+    };
+    const first = planLoginRedirect({ view, started: false });
+    const again = planLoginRedirect({ view, started: first.started });
+    assert.equal(first.action, 'router.replace');
+    assert.equal(first.href, '/dashboard');
+    assert.equal(again.action, 'ignore');
+    assert.equal(again.document, false);
+  });
+
+  it('does not repeat a document navigation when the dashboard gate bounces back to login', () => {
+    const view = {
+      pathname: '/login',
+      user: currentUser,
+      mfaPending: null,
+      enrollmentPending: null,
+      nextPath: '/dashboard',
+    };
+    let started = false;
+    let replaces = 0;
+    let reloads = 0;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const plan = planLoginRedirect({ view, started });
+      started = plan.started;
+      if (plan.document) reloads += 1;
+      if (plan.action === 'router.replace') replaces += 1;
+    }
+    assert.equal(replaces, 1);
+    assert.equal(reloads, 0);
+    assert.equal(started, true);
+  });
+
+  it('keeps a wrong password and a failed MFA step from navigating', () => {
+    const anonymous = planLoginRedirect({
+      view: { pathname: '/login', user: null, mfaPending: null, enrollmentPending: null, nextPath: null },
+      started: false,
+    });
+    assert.equal(anonymous.action, 'stay');
+    assert.throws(() => applyPasswordLogin(createEmptyMfaSession(), { error: 'invalid' }), /unexpected_login_response/);
+    const pending = applyPasswordLogin(createEmptyMfaSession(), challenge);
+    assert.throws(() => applyMfaVerified(pending, challenge), /unexpected_verify_response/);
+    const failed = planLoginRedirect({
+      view: { pathname: '/login', ...pending, nextPath: '/dashboard' },
+      started: false,
+    });
+    assert.equal(failed.action, 'stay');
+    assert.equal(failed.document, false);
     assert.equal(failed.href, null);
   });
 });
