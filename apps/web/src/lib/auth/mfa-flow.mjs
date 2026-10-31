@@ -51,6 +51,29 @@ export function canEnterDashboard(session) {
   );
 }
 
+export function shouldLeaveLogin(session) {
+  return Boolean(
+    isCurrentUserResponse(session?.user) &&
+      !session?.mfaPending &&
+      !session?.enrollmentPending,
+  );
+}
+
+export function acceptAuthRefresh(startedEpoch, currentEpoch, result) {
+  if (startedEpoch !== currentEpoch) {
+    return { apply: false, user: null, logout: false };
+  }
+  const pathname = typeof result?.pathname === 'string' ? result.pathname : '';
+  const onLogin = pathname === '/login' || pathname.startsWith('/login/');
+  if (result?.status === 401) {
+    return { apply: true, user: null, logout: !onLogin };
+  }
+  if (isCurrentUserResponse(result?.user)) {
+    return { apply: true, user: result.user, logout: false };
+  }
+  return { apply: true, user: null, logout: false };
+}
+
 export function parseOtpauthSecret(uri) {
   if (!uri || typeof uri !== 'string' || !uri.startsWith('otpauth://')) return null;
   const queryIndex = uri.indexOf('?');

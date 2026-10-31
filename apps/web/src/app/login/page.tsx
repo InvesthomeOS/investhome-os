@@ -1,8 +1,9 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import type { Route } from 'next';
 import { useTranslations } from 'next-intl';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import { BrandLogo } from '@/components/brand/brand-logo';
 import { MfaRequiredEnrollForm } from '@/components/auth/mfa-required-enroll-form';
@@ -11,15 +12,23 @@ import { PasswordField } from '@/components/auth/password-field';
 import { ApiError } from '@/lib/api/client';
 import { requestPasswordReset } from '@/lib/api/auth';
 import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
-import { mapMfaHttpError } from '@/lib/auth/mfa-flow';
+import { mapMfaHttpError, shouldLeaveLogin } from '@/lib/auth/mfa-flow';
+import { safeInternalPath } from '@/lib/auth/session-cookie';
 import { classifyForgotFailure } from '@/lib/auth/password-reset-ux';
 import { PublicBrandingProvider, useCompanyBranding } from '@/lib/company/company-context';
 
 function LoginForm() {
   const t = useTranslations('auth');
   const { displayName, slogan } = useCompanyBranding();
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, completeMfaLogin, cancelMfaLogin, finishRequiredEnrollment, cancelEnrollment, mfaPending, enrollmentPending } = useAuth();
+  const nextPath = searchParams.get('next');
+  const { login, completeMfaLogin, cancelMfaLogin, finishRequiredEnrollment, cancelEnrollment, user, mfaPending, enrollmentPending } = useAuth();
+
+  useEffect(() => {
+    if (!shouldLeaveLogin({ user, mfaPending, enrollmentPending })) return;
+    router.replace(safeInternalPath(nextPath) as Route);
+  }, [enrollmentPending, mfaPending, nextPath, router, user]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);

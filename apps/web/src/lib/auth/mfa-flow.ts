@@ -5,6 +5,7 @@ export {
   applyEnrollConfirmed,
   applyEnrollStart,
   applyMfaVerified,
+  acceptAuthRefresh,
   applyPasswordLogin,
   applyRequiredEnrollConfirmed,
   cancelMfaChallenge,
@@ -17,5 +18,6 @@ export {
   mapEnrollHttpError,
   mapMfaHttpError,
   parseOtpauthSecret,
+  shouldLeaveLogin,
   sourceAvoidsBrowserSecretStorage,
 } from './mfa-flow.mjs';

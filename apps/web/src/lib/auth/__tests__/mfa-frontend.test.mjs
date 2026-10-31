@@ -14,12 +14,14 @@ import {
   acknowledgeRecoveryCodes,
   applyEnrollConfirmed,
   applyEnrollStart,
+  acceptAuthRefresh,
   applyMfaVerified,
   applyPasswordLogin,
   createEmptyMfaSession,
   formatManualSetupKey,
   isCurrentUserResponse,
   isMfaChallengeResponse,
+  shouldLeaveLogin,
   mapEnrollHttpError,
   mapMfaHttpError,
   parseOtpauthSecret,
@@ -77,10 +79,44 @@ describe('MFA login second step', () => {
 describe('valid TOTP completes login', () => {
   it('authenticates only after verify returns the current user', () => {
     const pending = applyPasswordLogin(createEmptyMfaSession(), challenge);
-    const done = applyMfaVerified(pending, { ...currentUser, mfa_enabled: true });
+    const verified = { ...currentUser, mfa_enabled: true };
+    const done = applyMfaVerified(pending, verified);
     assert.equal(done.authenticated, true);
     assert.equal(done.mfaPending, null);
+    assert.equal(done.user.email, verified.email);
     assert.equal(done.user.mfa_enabled, true);
+    assert.equal(shouldLeaveLogin(done), true);
+    assert.equal(shouldLeaveLogin(pending), false);
+    assert.equal(shouldLeaveLogin(done), true);
+  });
+
+  it('ignores a stale anonymous 401 after MFA has moved the auth epoch', () => {
+    const started = 1;
+    const afterMfa = started + 1;
+    const stale = acceptAuthRefresh(started, afterMfa, {
+      status: 401,
+      user: null,
+      pathname: '/login',
+    });
+    assert.equal(stale.apply, false);
+    assert.equal(stale.logout, false);
+    const freshMe = acceptAuthRefresh(afterMfa, afterMfa, {
+      status: 200,
+      user: { ...currentUser, mfa_enabled: true },
+      pathname: '/login',
+    });
+    assert.equal(freshMe.apply, true);
+    assert.equal(freshMe.user.email, currentUser.email);
+    assert.equal(freshMe.logout, false);
+  });
+
+  it('does not clear the session cookie for an anonymous 401 on the login page', () => {
+    const onLogin = acceptAuthRefresh(1, 1, { status: 401, user: null, pathname: '/login' });
+    assert.equal(onLogin.apply, true);
+    assert.equal(onLogin.user, null);
+    assert.equal(onLogin.logout, false);
+    const inApp = acceptAuthRefresh(1, 1, { status: 401, user: null, pathname: '/dashboard' });
+    assert.equal(inApp.logout, true);
   });
 });
 
@@ -88,6 +124,25 @@ describe('invalid TOTP / expired challenge / 429 / unavailable', () => {
   it('maps invalid and expired challenges to a generic key', () => {
     assert.equal(mapMfaHttpError(401), 'invalidOrExpired');
     assert.equal(mapMfaHttpError(400), 'invalidOrExpired');
+  });
+
+  it('keeps a failed verify and a wrong password off the authenticated path', () => {
+    const pending = applyPasswordLogin(createEmptyMfaSession(), challenge);
+    assert.throws(() => applyMfaVerified(pending, challenge), /unexpected_verify_response/);
+    assert.equal(pending.authenticated, false);
+    assert.equal(pending.mfaPending.token, challenge.mfa_challenge_token);
+    assert.equal(shouldLeaveLogin(pending), false);
+    const loginPage = read('app/login/page.tsx');
+    const verifyForm = read('components/auth/mfa-verify-form.tsx');
+    const authContext = read('lib/auth/auth-context.tsx');
+    assert.match(loginPage, /err\.status === 401/);
+    assert.match(loginPage, /invalidCredentials/);
+    assert.match(verifyForm, /mapMfaHttpError\(status\)/);
+    assert.match(authContext, /if \(!isCurrentUserResponse\(current\)\)/);
+    assert.match(authContext, /acceptAuthRefresh/);
+    assert.match(loginPage, /shouldLeaveLogin\(\{ user, mfaPending, enrollmentPending \}\)/);
+    assert.match(loginPage, /safeInternalPath\(nextPath\)/);
+    assert.doesNotMatch(loginPage, /router\.replace\('\/login'\)/);
   });
 
   it('maps 429 to tooManyAttempts', () => {

@@ -22,7 +22,12 @@ import {
 import { ApiError, ensureCsrfToken } from '@/lib/api/client';
 import type { AppLocale } from '@/i18n/config';
 import { readLocaleCookie, resolveClientLocale, writeLocaleCookie } from '@/lib/i18n/locale-cookie';
-import { isCurrentUserResponse, isMfaChallengeResponse, isMfaEnrollmentRequiredResponse } from '@/lib/auth/mfa-flow';
+import {
+  acceptAuthRefresh,
+  isCurrentUserResponse,
+  isMfaChallengeResponse,
+  isMfaEnrollmentRequiredResponse,
+} from '@/lib/auth/mfa-flow';
 import { safeInternalPath } from '@/lib/auth/session-cookie';
 
 export type MfaPendingChallenge = {
@@ -79,6 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const clearingSessionRef = useRef(false);
+  const authEpochRef = useRef(0);
 
   const clearStaleSession = useCallback(async () => {
     if (clearingSessionRef.current) return;
@@ -100,22 +106,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   const refresh = useCallback(async () => {
+    const epoch = authEpochRef.current;
     setLoading(true);
     setError(null);
     try {
       const current = await fetchCurrentUser();
-      setUser(current);
-      applyLocaleFromUser(current.preferred_language);
+      const decision = acceptAuthRefresh(epoch, authEpochRef.current, {
+        status: 200,
+        user: current,
+        pathname: pathnameRef.current,
+      });
+      if (!decision.apply) return;
+      if (!decision.user || !isCurrentUserResponse(decision.user)) {
+        setUser(null);
+        return;
+      }
+      const refreshed = decision.user as CurrentUser;
+      setUser(refreshed);
+      applyLocaleFromUser(refreshed.preferred_language);
       void ensureCsrfToken();
     } catch (err) {
+      const status = err instanceof ApiError && err.status === 401 ? 401 : err instanceof ApiError ? err.status : 0;
+      const decision = acceptAuthRefresh(epoch, authEpochRef.current, {
+        status,
+        user: null,
+        pathname: pathnameRef.current,
+      });
+      if (!decision.apply) return;
       setUser(null);
-      if (err instanceof ApiError && err.status === 401) {
+      if (decision.logout) {
         await clearStaleSession();
-      } else {
+      } else if (!(err instanceof ApiError && err.status === 401)) {
         setError(err instanceof Error ? err.message : 'Unable to load session');
       }
     } finally {
-      setLoading(false);
+      if (epoch === authEpochRef.current) setLoading(false);
     }
   }, [clearStaleSession]);
 
@@ -126,11 +151,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(
     async (email: string, password: string, options?: { next?: string | null }) => {
       setError(null);
+      authEpochRef.current += 1;
       const result = await loginRequest(email, password);
       if (isMfaChallengeResponse(result)) {
         const challenge = result as MfaChallengeRequired;
         setUser(null);
         setEnrollmentPending(null);
+        setLoading(false);
         setMfaPending({
           token: challenge.mfa_challenge_token,
           method: challenge.mfa_method ?? 'totp',
@@ -143,6 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const enrollment = result as MfaEnrollmentRequired;
         setUser(null);
         setMfaPending(null);
+        setLoading(false);
         setEnrollmentPending({
           token: enrollment.mfa_enrollment_challenge_token,
           expiresIn: enrollment.expires_in ?? 300,
@@ -156,6 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const signedIn = result as CurrentUser;
       setMfaPending(null);
       setEnrollmentPending(null);
+      setLoading(false);
       setUser(signedIn);
       applyLocaleFromUser(signedIn.preferred_language);
       void ensureCsrfToken();
@@ -170,12 +199,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!mfaPending) {
         throw new Error('mfa_challenge_missing');
       }
+      authEpochRef.current += 1;
       const current = await verifyMfaLogin(mfaPending.token, code);
       if (!isCurrentUserResponse(current)) {
         throw new ApiError('Unable to verify. Please try again.', 500);
       }
       const next = mfaPending.next;
       setMfaPending(null);
+      setLoading(false);
       setUser(current);
       applyLocaleFromUser(current.preferred_language);
       void ensureCsrfToken();
@@ -193,8 +224,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const finishRequiredEnrollment = useCallback(
     (current: CurrentUser) => {
       const next = enrollmentPending?.next ?? null;
+      authEpochRef.current += 1;
       setEnrollmentPending(null);
       setMfaPending(null);
+      setLoading(false);
       setUser(current);
       applyLocaleFromUser(current.preferred_language);
       void ensureCsrfToken();
