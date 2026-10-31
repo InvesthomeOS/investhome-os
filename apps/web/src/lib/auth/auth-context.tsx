@@ -189,7 +189,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       applyLocaleFromUser(signedIn.preferred_language);
       void ensureCsrfToken();
       router.replace(safeInternalPath(options?.next) as Route);
-      router.refresh();
     },
     [router],
   );
@@ -211,7 +210,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       applyLocaleFromUser(current.preferred_language);
       void ensureCsrfToken();
       router.replace(safeInternalPath(next) as Route);
-      router.refresh();
     },
     [mfaPending, router],
   );
@@ -232,7 +230,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       applyLocaleFromUser(current.preferred_language);
       void ensureCsrfToken();
       router.replace(safeInternalPath(next) as Route);
-      router.refresh();
     },
     [enrollmentPending, router],
   );

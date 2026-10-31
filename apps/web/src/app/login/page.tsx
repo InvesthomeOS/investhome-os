@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import type { Route } from 'next';
 import { useTranslations } from 'next-intl';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { BrandLogo } from '@/components/brand/brand-logo';
 import { MfaRequiredEnrollForm } from '@/components/auth/mfa-required-enroll-form';
@@ -21,14 +21,21 @@ function LoginForm() {
   const t = useTranslations('auth');
   const { displayName, slogan } = useCompanyBranding();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get('next');
   const { login, completeMfaLogin, cancelMfaLogin, finishRequiredEnrollment, cancelEnrollment, user, mfaPending, enrollmentPending } = useAuth();
 
   useEffect(() => {
     if (!shouldLeaveLogin({ user, mfaPending, enrollmentPending })) return;
-    router.replace(safeInternalPath(nextPath) as Route);
-  }, [enrollmentPending, mfaPending, nextPath, router, user]);
+    const onLogin = pathname === '/login' || pathname.startsWith('/login/');
+    if (!onLogin) return;
+    const destination = safeInternalPath(nextPath);
+    router.replace(destination as Route);
+    if (window.location.pathname === '/login' || window.location.pathname.startsWith('/login/')) {
+      window.location.replace(destination);
+    }
+  }, [enrollmentPending, mfaPending, nextPath, pathname, router, user]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);

@@ -59,6 +59,35 @@ export function shouldLeaveLogin(session) {
   );
 }
 
+const AUTH_ONLY_PREFIXES = ['/reset-password', '/invite', '/portal/login'];
+
+function isAuthOnlyPath(pathOnly) {
+  if (pathOnly.startsWith('/login')) return true;
+  return AUTH_ONLY_PREFIXES.some((prefix) => pathOnly === prefix || pathOnly.startsWith(`${prefix}/`));
+}
+
+export function postLoginDestination(next, fallback = '/dashboard') {
+  if (typeof next !== 'string' || !next.startsWith('/') || next.startsWith('//') || next.includes('\\') || next.includes('://')) {
+    return fallback;
+  }
+  const pathOnly = next.split('?')[0].split('#')[0];
+  if (pathOnly.split('/').includes('..') || isAuthOnlyPath(pathOnly)) return fallback;
+  return next;
+}
+
+export function leaveAuthenticatedLogin(view) {
+  const pathname = typeof view?.pathname === 'string' ? view.pathname : '/login';
+  if (!shouldLeaveLogin(view)) {
+    return { left: false, pathname, href: null };
+  }
+  const onLogin = pathname === '/login' || pathname.startsWith('/login/');
+  if (!onLogin) {
+    return { left: false, pathname, href: null };
+  }
+  const href = postLoginDestination(view?.nextPath);
+  return { left: true, pathname: href, href };
+}
+
 export function acceptAuthRefresh(startedEpoch, currentEpoch, result) {
   if (startedEpoch !== currentEpoch) {
     return { apply: false, user: null, logout: false };

@@ -155,16 +155,34 @@ assert.match(authContext, /err\.status === 401/);
 assert.match(authContext, /clearStaleSession/);
 
 // safeInternalPath is pure — assert via source + duplicate
+const AUTH_ONLY_PREFIXES = ['/reset-password', '/invite', '/portal/login'];
+function isAuthOnlyPath(pathOnly) {
+  if (pathOnly.startsWith('/login')) return true;
+  return AUTH_ONLY_PREFIXES.some((prefix) => pathOnly === prefix || pathOnly.startsWith(`${prefix}/`));
+}
 function safeInternalPath(next, fallback = '/dashboard') {
-  if (!next || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/login')) {
+  if (!next || !next.startsWith('/') || next.startsWith('//') || next.includes('\\') || next.includes('://')) {
     return fallback;
   }
+  const pathOnly = next.split('?')[0].split('#')[0];
+  if (pathOnly.split('/').includes('..') || isAuthOnlyPath(pathOnly)) return fallback;
   return next;
 }
+const sessionSource = readFileSync(sessionModulePath, 'utf8');
+assert.match(sessionSource, /function isAuthOnlyPath/);
+assert.match(sessionSource, /\/reset-password/);
+assert.match(sessionSource, /\/invite/);
+assert.match(sessionSource, /\/portal\/login/);
 assert.equal(safeInternalPath('/workspaces/crm'), '/workspaces/crm');
+assert.equal(safeInternalPath('/dashboard/projects'), '/dashboard/projects');
 assert.equal(safeInternalPath('https://evil.example'), '/dashboard');
 assert.equal(safeInternalPath('//evil.example'), '/dashboard');
 assert.equal(safeInternalPath('/login'), '/dashboard');
+assert.equal(safeInternalPath('/login/mfa'), '/dashboard');
+assert.equal(safeInternalPath('/reset-password'), '/dashboard');
+assert.equal(safeInternalPath('/invite/token'), '/dashboard');
+assert.equal(safeInternalPath('/portal/login'), '/dashboard');
+assert.equal(safeInternalPath('/dashboard/../login'), '/dashboard');
 
 // Ensure TS helper file exists for middleware imports
 assert.equal(

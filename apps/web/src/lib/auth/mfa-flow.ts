@@ -15,9 +15,11 @@ export {
   isCurrentUserResponse,
   isMfaChallengeResponse,
   isMfaEnrollmentRequiredResponse,
+  leaveAuthenticatedLogin,
   mapEnrollHttpError,
   mapMfaHttpError,
   parseOtpauthSecret,
+  postLoginDestination,
   shouldLeaveLogin,
   sourceAvoidsBrowserSecretStorage,
 } from './mfa-flow.mjs';

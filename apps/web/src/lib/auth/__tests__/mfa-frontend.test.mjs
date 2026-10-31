@@ -21,6 +21,8 @@ import {
   formatManualSetupKey,
   isCurrentUserResponse,
   isMfaChallengeResponse,
+  leaveAuthenticatedLogin,
+  postLoginDestination,
   shouldLeaveLogin,
   mapEnrollHttpError,
   mapMfaHttpError,
@@ -142,7 +144,16 @@ describe('invalid TOTP / expired challenge / 429 / unavailable', () => {
     assert.match(authContext, /acceptAuthRefresh/);
     assert.match(loginPage, /shouldLeaveLogin\(\{ user, mfaPending, enrollmentPending \}\)/);
     assert.match(loginPage, /safeInternalPath\(nextPath\)/);
+    assert.match(loginPage, /window\.location\.replace\(destination\)/);
+    assert.match(loginPage, /pathname === '\/login'/);
     assert.doesNotMatch(loginPage, /router\.replace\('\/login'\)/);
+    assert.doesNotMatch(loginPage, /if \(loading\) return/);
+    const mfaFn = authContext.slice(
+      authContext.indexOf('const completeMfaLogin'),
+      authContext.indexOf('const cancelMfaLogin'),
+    );
+    assert.match(mfaFn, /router\.replace\(safeInternalPath\(next\)/);
+    assert.doesNotMatch(mfaFn, /router\.refresh\(\)/);
   });
 
   it('maps 429 to tooManyAttempts', () => {
@@ -153,6 +164,91 @@ describe('invalid TOTP / expired challenge / 429 / unavailable', () => {
     assert.equal(mapMfaHttpError(503), 'unavailable');
     assert.equal(mapMfaHttpError(0), 'unavailable');
     assert.equal(mapMfaHttpError(500), 'verifyFailed');
+  });
+});
+
+describe('authenticated login leaves /login', () => {
+  it('follows the production MFA sequence onto the return path and does not loop', () => {
+    let view = {
+      pathname: '/login',
+      user: null,
+      mfaPending: null,
+      enrollmentPending: null,
+      nextPath: '/workspaces/crm',
+    };
+    assert.equal(leaveAuthenticatedLogin(view).left, false);
+    assert.equal(view.pathname, '/login');
+
+    const pending = applyPasswordLogin(createEmptyMfaSession(), challenge);
+    view = { ...view, ...pending };
+    const duringMfa = leaveAuthenticatedLogin(view);
+    assert.equal(duringMfa.left, false);
+    assert.equal(duringMfa.pathname, '/login');
+
+    const verified = { ...currentUser, mfa_enabled: true };
+    const done = applyMfaVerified(pending, verified);
+    view = { ...view, ...done, meStatus: 200 };
+    const left = leaveAuthenticatedLogin(view);
+    assert.equal(left.left, true);
+    assert.equal(left.pathname, '/workspaces/crm');
+    assert.equal(left.href, '/workspaces/crm');
+    assert.equal(view.user.email, verified.email);
+    assert.notEqual(left.pathname, '/login');
+
+    const settled = leaveAuthenticatedLogin({ ...view, pathname: left.pathname });
+    assert.equal(settled.left, false);
+    assert.equal(settled.pathname, '/workspaces/crm');
+  });
+
+  it('redirects an already authenticated visit away from /login', () => {
+    const open = leaveAuthenticatedLogin({
+      pathname: '/login',
+      user: currentUser,
+      mfaPending: null,
+      enrollmentPending: null,
+      nextPath: null,
+    });
+    assert.equal(open.left, true);
+    assert.equal(open.pathname, '/dashboard');
+  });
+
+  it('falls back to the dashboard for an auth-only return path and keeps a valid internal path', () => {
+    assert.equal(postLoginDestination('/login'), '/dashboard');
+    assert.equal(postLoginDestination('/login/mfa'), '/dashboard');
+    assert.equal(postLoginDestination('/reset-password'), '/dashboard');
+    assert.equal(postLoginDestination('/invite/token'), '/dashboard');
+    assert.equal(postLoginDestination('/portal/login'), '/dashboard');
+    assert.equal(postLoginDestination('/dashboard/../login'), '/dashboard');
+    assert.equal(postLoginDestination('/workspaces/crm'), '/workspaces/crm');
+    assert.equal(postLoginDestination('/dashboard/projects'), '/dashboard/projects');
+    const returned = leaveAuthenticatedLogin({
+      pathname: '/login',
+      user: currentUser,
+      mfaPending: null,
+      enrollmentPending: null,
+      nextPath: '/login',
+    });
+    assert.equal(returned.pathname, '/dashboard');
+    assert.notEqual(returned.pathname, '/login');
+  });
+
+  it('keeps a wrong password and a failed MFA challenge on the login screen', () => {
+    const anonymous = leaveAuthenticatedLogin({
+      pathname: '/login',
+      user: null,
+      mfaPending: null,
+      enrollmentPending: null,
+      nextPath: '/dashboard',
+    });
+    assert.equal(anonymous.left, false);
+    assert.equal(anonymous.pathname, '/login');
+    assert.throws(() => applyPasswordLogin(createEmptyMfaSession(), { error: 'invalid' }), /unexpected_login_response/);
+    const pending = applyPasswordLogin(createEmptyMfaSession(), challenge);
+    assert.throws(() => applyMfaVerified(pending, challenge), /unexpected_verify_response/);
+    const failed = leaveAuthenticatedLogin({ pathname: '/login', ...pending, nextPath: '/dashboard' });
+    assert.equal(failed.left, false);
+    assert.equal(failed.pathname, '/login');
+    assert.equal(failed.href, null);
   });
 });
 

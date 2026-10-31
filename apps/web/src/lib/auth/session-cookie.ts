@@ -95,9 +95,18 @@ export async function isValidSessionJwt(
   }
 }
 
+const AUTH_ONLY_PREFIXES = ['/reset-password', '/invite', '/portal/login'] as const;
+
+function isAuthOnlyPath(pathOnly: string): boolean {
+  if (pathOnly.startsWith('/login')) return true;
+  return AUTH_ONLY_PREFIXES.some((prefix) => pathOnly === prefix || pathOnly.startsWith(`${prefix}/`));
+}
+
 export function safeInternalPath(next: string | null | undefined, fallback = '/dashboard'): string {
-  if (!next || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/login')) {
+  if (!next || !next.startsWith('/') || next.startsWith('//') || next.includes('\\') || next.includes('://')) {
     return fallback;
   }
+  const pathOnly = next.split('?')[0]?.split('#')[0] ?? next;
+  if (pathOnly.split('/').includes('..') || isAuthOnlyPath(pathOnly)) return fallback;
   return next;
 }
