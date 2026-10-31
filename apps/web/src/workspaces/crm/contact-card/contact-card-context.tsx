@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import type { Route } from 'next';
 import { usePathname, useRouter } from 'next/navigation';
 
 import { ContactCardDrawer } from './contact-card-drawer';
@@ -69,7 +70,7 @@ export function ContactCardProvider({ children }: { children: ReactNode }) {
     setPurchaseId(personPage ? null : readParam('purchase'));
     const purchase = readParam('purchase');
     if (purchase && fullPage && pathPersonId && !pathname?.includes('/satin-alma/')) {
-      router.replace(salesDetailUrl(pathPersonId, purchase));
+      router.replace(salesDetailUrl(pathPersonId, purchase) as Route);
     }
   }, [fullPage, pathPersonId, pathname, personPage, router]);
 
@@ -96,15 +97,15 @@ export function ContactCardProvider({ children }: { children: ReactNode }) {
         else params.delete('contact');
       }
       const qs = params.toString();
-      router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      router.push((qs ? `${pathname}?${qs}` : pathname) as Route, { scroll: false });
     },
     [pathname, router],
   );
 
   const openContact = useCallback(
-    (id: string, _options?: ContactCardOpenOptions) => {
+    (id: string) => {
       if (fullPage) {
-        router.push(`/workspaces/crm/contacts/${id}`);
+        router.push(`/workspaces/crm/contacts/${id}` as Route);
         return;
       }
       setPurchaseId(null);
@@ -117,7 +118,7 @@ export function ContactCardProvider({ children }: { children: ReactNode }) {
   const openPurchase = useCallback(
     (id: string) => {
       if (pathPersonId) {
-        router.push(salesDetailUrl(pathPersonId, id));
+        router.push(salesDetailUrl(pathPersonId, id) as Route);
         return;
       }
       setPurchaseId(id);
@@ -125,7 +126,7 @@ export function ContactCardProvider({ children }: { children: ReactNode }) {
         pushUrl(fullPage ? null : contactId, id);
         return;
       }
-      router.push(purchaseCardUrl(id), { scroll: false });
+      router.push(purchaseCardUrl(id) as Route, { scroll: false });
     },
     [contactId, fullPage, pathPersonId, pathname, pushUrl, router],
   );
@@ -141,7 +142,7 @@ export function ContactCardProvider({ children }: { children: ReactNode }) {
       const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
       params.delete('purchase');
       const qs = params.toString();
-      router.push(qs ? `${pathname}?${qs}` : pathname || '/workspaces/crm/contacts', { scroll: false });
+      router.push((qs ? `${pathname}?${qs}` : pathname || '/workspaces/crm/contacts') as Route, { scroll: false });
       return;
     }
     pushUrl(contactId, null);
@@ -181,10 +182,10 @@ export function useContactCard(): ContactCardContextValue {
     contactId: null,
     purchaseId: null,
     openContact: (id: string) => {
-      router.push(`/workspaces/crm/contacts/${id}`);
+      router.push(`/workspaces/crm/contacts/${id}` as Route);
     },
     openPurchase: (id: string) => {
-      router.push(purchaseCardUrl(id));
+      router.push(purchaseCardUrl(id) as Route);
     },
     closeContact: () => undefined,
     closePurchase: () => undefined,

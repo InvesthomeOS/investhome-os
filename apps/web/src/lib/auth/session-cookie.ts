@@ -23,6 +23,12 @@ export function getSessionJwtSecret(): string {
   return readRuntimeEnv('JWT_SECRET').trim();
 }
 
+function bytesToBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(copy).set(bytes);
+  return copy;
+}
+
 function base64UrlToBytes(input: string): Uint8Array {
   const padded = input.replace(/-/g, '+').replace(/_/g, '/');
   const pad = padded.length % 4 === 0 ? '' : '='.repeat(4 - (padded.length % 4));
@@ -62,7 +68,7 @@ export async function isValidSessionJwt(
     );
     const data = new TextEncoder().encode(`${headerB64}.${payloadB64}`);
     const signature = base64UrlToBytes(sigB64);
-    const valid = await crypto.subtle.verify('HMAC', key, signature, data);
+    const valid = await crypto.subtle.verify('HMAC', key, bytesToBuffer(signature), bytesToBuffer(data));
     if (!valid) return false;
 
     const payloadJson = new TextDecoder().decode(base64UrlToBytes(payloadB64));

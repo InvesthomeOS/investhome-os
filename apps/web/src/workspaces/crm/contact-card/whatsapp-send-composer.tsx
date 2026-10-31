@@ -41,7 +41,7 @@ export function WhatsAppSendComposer({
 }) {
   const t = useTranslations('crm.communication.workspace');
   const queryClient = useQueryClient();
-  const [phone, setPhone] = useState(phones.length === 1 ? phones[0] : '');
+  const [phone, setPhone] = useState(phones.length === 1 ? (phones[0] ?? '') : '');
   const [body, setBody] = useState('');
   const [error, setError] = useState('');
   const needsPhone = mode === 'new' && phones.length > 1;

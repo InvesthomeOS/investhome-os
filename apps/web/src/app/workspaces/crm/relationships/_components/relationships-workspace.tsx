@@ -194,6 +194,18 @@ export function RelationshipsWorkspace() {
   const status = searchParams.get('status') ?? '';
   const ownerId = searchParams.get('owner') ?? '';
   const page = Math.max(1, Number(searchParams.get('page') || '1') || 1);
+  const requestedSort = searchParams.get('sort') ?? 'updated_at';
+  const sortBy = [
+    'relationship_type',
+    'category',
+    'status',
+    'notes',
+    'last_interaction_at',
+    'updated_at',
+  ].includes(requestedSort)
+    ? requestedSort
+    : 'updated_at';
+  const sortDir = searchParams.get('dir') === 'asc' ? 'asc' : 'desc';
   const filtersActive = Boolean(
     searchDraft.trim() || relationshipType || category || projectGroup || status || ownerId || tab !== 'all',
   );
@@ -202,6 +214,14 @@ export function RelationshipsWorkspace() {
     const next = typeof value === 'function' ? value(page) : value;
     patch({ page: String(next) });
   };
+  const toggleSort = (column: string, initial: 'asc' | 'desc') => {
+    if (sortBy === column) {
+      patch({ sort: column, dir: sortDir === 'asc' ? 'desc' : 'asc', page: null });
+      return;
+    }
+    patch({ sort: column, dir: initial, page: null });
+  };
+  const sortMark = (column: string) => (sortBy === column ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '');
 
   const params: RelationshipListParams = useMemo(() => {
     const next: RelationshipListParams = {
@@ -212,13 +232,14 @@ export function RelationshipsWorkspace() {
       status: status || undefined,
       owner_user_id: ownerId || undefined,
       pair_kind: tab === 'all' ? undefined : tab,
-      sort_by: 'updated_at',
-      sort_order: 'desc',
+      ...(sortBy === 'updated_at'
+        ? { sort_by: 'updated_at', sort_order: sortDir }
+        : { sort_by: sortBy, sort_order: sortDir }),
       page,
       page_size: PAGE_SIZE,
     };
     return next;
-  }, [category, ownerId, page, projectGroup, relationshipType, search, status, tab]);
+  }, [category, ownerId, page, projectGroup, relationshipType, search, sortBy, sortDir, status, tab]);
 
   const listQuery = useQuery({
     ...relationshipQueries.list(params),
@@ -441,14 +462,34 @@ export function RelationshipsWorkspace() {
                   <thead>
                     <tr>
                       <th>{copy.source}</th>
-                      <th>{copy.relationType}</th>
+                      <th>
+                        <button type="button" className="crm-table-sort" onClick={() => toggleSort('relationship_type', 'asc')}>
+                          {copy.relationType}{sortMark('relationship_type')}
+                        </button>
+                      </th>
                       <th>{copy.target}</th>
-                      <th>{copy.category}</th>
+                      <th>
+                        <button type="button" className="crm-table-sort" onClick={() => toggleSort('category', 'asc')}>
+                          {copy.category}{sortMark('category')}
+                        </button>
+                      </th>
                       <th>{copy.linked}</th>
                       <th>{copy.owner}</th>
-                      <th>{copy.lastActivity}</th>
-                      <th>{copy.status}</th>
-                      <th>{copy.note}</th>
+                      <th>
+                        <button type="button" className="crm-table-sort" onClick={() => toggleSort('last_interaction_at', 'desc')}>
+                          {copy.lastActivity}{sortMark('last_interaction_at')}
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" className="crm-table-sort" onClick={() => toggleSort('status', 'asc')}>
+                          {copy.status}{sortMark('status')}
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" className="crm-table-sort" onClick={() => toggleSort('notes', 'asc')}>
+                          {copy.note}{sortMark('notes')}
+                        </button>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>

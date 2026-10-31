@@ -1,7 +1,8 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import type { ForceGraphMethods, LinkObject } from 'react-force-graph-2d';
 import Link from 'next/link';
 import { useLocale } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -54,7 +55,9 @@ export function RelationshipNetworkView({
   const router = useRouter();
   const { openContact } = useContactCard();
   const { authLoading, canRead } = useCrmAccess();
-  const graphRef = useRef<{ zoomToFit?: (ms?: number) => void } | undefined>(undefined);
+  const graphRef = useRef<ForceGraphMethods | undefined>(undefined) as MutableRefObject<
+    ForceGraphMethods | undefined
+  >;
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [localSearch, setLocalSearch] = useState(search);
@@ -133,11 +136,12 @@ export function RelationshipNetworkView({
     [graphQuery.data?.nodes, openNode],
   );
 
-  const handleLinkClick = useCallback((link: { id?: string | number; relationship_id?: string }) => {
-    const edgeId = link?.id ? String(link.id) : null;
+  const handleLinkClick = useCallback((link: LinkObject) => {
+    const edgeId = link.id ? String(link.id) : null;
     setSelectedEdgeId(edgeId);
     setSelectedNodeId(null);
-    const relationshipId = link?.relationship_id || edgeId;
+    const storedId = link.relationship_id;
+    const relationshipId = typeof storedId === 'string' && storedId ? storedId : edgeId;
     if (relationshipId) router.push(`/workspaces/crm/relationships/${relationshipId}`);
   }, [router]);
 
@@ -208,8 +212,7 @@ export function RelationshipNetworkView({
       ) : (
         <div className="crm-rel-graph-canvas">
           <ForceGraph2D
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ref={graphRef as any}
+            ref={graphRef}
             graphData={graphData}
             nodeLabel="label"
             nodeColor="color"

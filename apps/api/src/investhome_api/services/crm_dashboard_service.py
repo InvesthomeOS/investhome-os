@@ -47,8 +47,10 @@ from investhome_api.services.crm.bitrix_project_aliases import (
 )
 from investhome_api.services.crm.crm_lead_service import (
     CRM_STAGES,
-    _kpis as lead_kpis,
-    _live_leads,
+    _kpis_for,
+    _lead_filters,
+    _stage_totals,
+    _status_counts,
     stage_of,
 )
 from investhome_api.services.crm.crm_match_service import OPEN_STATUSES
@@ -294,19 +296,25 @@ def _matches_pending(db: Session) -> int:
 
 
 def _lead_pipeline(db: Session) -> tuple[int, list[CrmDashboardCount], list[Lead]]:
-    rows = list(db.scalars(_live_leads(db).order_by(Lead.created_at.desc())).all())
-    kpis = lead_kpis(rows)
-    stage_counts = Counter(stage_of(row) for row in rows)
+    """Stage totals for every live lead. The recent panel is a separate short list."""
+    filters = _lead_filters()
+    kpis = _kpis_for(db, filters)
+    totals = _stage_totals(_status_counts(db, filters))
+    recent = list(
+        db.scalars(
+            select(Lead).where(*filters).order_by(Lead.created_at.desc()).limit(PANEL_LIMIT)
+        ).all()
+    )
     pipeline = [
         CrmDashboardCount(
             key=stage,
             label=stage,
-            count=int(stage_counts.get(stage, 0)),
+            count=totals.get(stage, 0),
             href=LEAD_STAGE_HREF[stage],
         )
         for stage in CRM_STAGES
     ]
-    return kpis.active, pipeline, rows[:PANEL_LIMIT]
+    return kpis.active, pipeline, recent
 
 
 _QA_NOISE = (

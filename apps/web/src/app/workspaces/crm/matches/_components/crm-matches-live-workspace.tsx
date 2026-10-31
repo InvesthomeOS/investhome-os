@@ -197,7 +197,7 @@ function reasonsLabel(reasons: string[], locale: 'tr' | 'en'): string {
   return [...new Set(labels)].join(', ') || '—';
 }
 
-function statusLabel(value: CrmMatchStatus, copy: (typeof COPY)['tr']): string {
+function statusLabel(value: CrmMatchStatus, copy: (typeof COPY)[keyof typeof COPY]): string {
   if (value === 'pending') return copy.waiting;
   if (value === 'in_review') return copy.inReview;
   if (value === 'same_person') return copy.approved;
@@ -222,18 +222,20 @@ function sourceLabel(value: string | null | undefined, locale: 'tr' | 'en', none
 function parsePersonLabel(name: string): { sourceId: string; display: string } {
   const trimmed = name.trim();
   const match = trimmed.match(/^(#?\d+)\s+(.+)$/);
-  if (!match) return { sourceId: '', display: trimmed };
-  const id = match[1].startsWith('#') ? match[1] : `#${match[1]}`;
-  return { sourceId: id, display: match[2] };
+  const rawId = match?.[1];
+  const display = match?.[2];
+  if (!rawId || !display) return { sourceId: '', display: trimmed };
+  const id = rawId.startsWith('#') ? rawId : `#${rawId}`;
+  return { sourceId: id, display };
 }
 
 function initials(name: string): string {
   const display = parsePersonLabel(name).display;
   const parts = display.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '•';
-  const first = parts[0][0] || '';
-  const last = parts.length > 1 ? parts[parts.length - 1][0] || '' : '';
-  return `${first}${last}`.toLocaleUpperCase('tr-TR');
+  const first = parts[0];
+  if (!first) return '•';
+  const last = parts.length > 1 ? parts[parts.length - 1] : undefined;
+  return `${first[0] || ''}${last?.[0] || ''}`.toLocaleUpperCase('tr-TR');
 }
 
 function purchaseLine(row: CrmMatchPurchase, historical: string): string {
@@ -815,7 +817,7 @@ function MatchCompare({
   canWrite,
 }: {
   selected: CrmMatchDetail;
-  t: (typeof COPY)['tr'];
+  t: (typeof COPY)[keyof typeof COPY];
   locale: 'tr' | 'en';
   note: string;
   onNoteChange: (value: string) => void;
@@ -897,7 +899,7 @@ function PersonPane({
 }: {
   title: string;
   person: CrmMatchPerson;
-  t: (typeof COPY)['tr'];
+  t: (typeof COPY)[keyof typeof COPY];
   locale: 'tr' | 'en';
   tone: 'is-person-a' | 'is-person-b';
   same: { name: boolean; phone: boolean; email: boolean; source: boolean };

@@ -461,7 +461,8 @@ export function clusterCommunicationEvents(events: TimelineEvent[]): TimelineFee
   let index = 0;
   while (index < events.length) {
     const current = events[index]!;
-    if (!CLUSTERABLE.has(current.eventKind)) {
+    const kind = current.eventKind;
+    if (!kind || !CLUSTERABLE.has(kind)) {
       rows.push({ type: 'event', event: current });
       index += 1;
       continue;
@@ -470,11 +471,8 @@ export function clusterCommunicationEvents(events: TimelineEvent[]): TimelineFee
     let cursor = index + 1;
     while (cursor < events.length) {
       const next = events[cursor]!;
-      if (
-        next.eventKind === current.eventKind &&
-        next.entityId === current.entityId &&
-        CLUSTERABLE.has(next.eventKind)
-      ) {
+      const nextKind = next.eventKind;
+      if (nextKind && nextKind === kind && next.entityId === current.entityId && CLUSTERABLE.has(nextKind)) {
         bucket.push(next);
         cursor += 1;
         continue;
@@ -484,10 +482,10 @@ export function clusterCommunicationEvents(events: TimelineEvent[]): TimelineFee
     if (bucket.length >= 3) {
       rows.push({
         type: 'cluster',
-        id: `cluster-${current.eventKind}-${current.entityId}-${current.id}`,
-        eventKind: current.eventKind,
-        sourceBadge: current.sourceBadge,
-        personName: current.personName,
+        id: `cluster-${kind}-${current.entityId}-${current.id}`,
+        eventKind: kind,
+        sourceBadge: current.sourceBadge ?? '',
+        personName: current.personName ?? null,
         events: bucket,
       });
     } else {

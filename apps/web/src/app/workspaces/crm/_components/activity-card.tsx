@@ -26,10 +26,14 @@ type ActivityCardProps = {
   selected?: boolean;
 };
 
+function isTimelineEntry(item: CrmActivitySummary | CrmTimelineEntry): item is CrmTimelineEntry {
+  return 'is_system_event' in item;
+}
+
 export function ActivityCard({ item, compact = false, onSelect, selected = false }: ActivityCardProps) {
   const t = useTranslations('crm.activities');
   const locale = useLocale();
-  const isTimeline = 'source' in item;
+  const isTimeline = isTimelineEntry(item);
   const activityType = isTimeline ? item.activity_type : item.activity_type;
   const createdAt = item.created_at;
   const id = item.id.replace(/^log-/, '');

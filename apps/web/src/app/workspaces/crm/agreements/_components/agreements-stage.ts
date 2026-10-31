@@ -107,8 +107,10 @@ export function ownerList(row: CrmAgreementSummary): Array<{ contact_id: string;
 
 export function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '•';
-  return ((parts[0][0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] || '' : '')).toUpperCase();
+  const first = parts[0];
+  if (!first) return '•';
+  const last = parts.length > 1 ? parts[parts.length - 1] : undefined;
+  return `${first[0] || ''}${last?.[0] || ''}`.toUpperCase();
 }
 
 export function matchesQuery(row: CrmAgreementSummary, query: string): boolean {

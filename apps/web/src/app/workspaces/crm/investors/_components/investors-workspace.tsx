@@ -186,13 +186,13 @@ function displayOwner(name: string | null | undefined): string {
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '•';
-  const first = parts[0][0] || '';
-  const last = parts.length > 1 ? parts[parts.length - 1][0] || '' : '';
-  return `${first}${last}`.toLocaleUpperCase('tr-TR');
+  const first = parts[0];
+  if (!first) return '•';
+  const last = parts.length > 1 ? parts[parts.length - 1] : undefined;
+  return `${first[0] || ''}${last?.[0] || ''}`.toLocaleUpperCase('tr-TR');
 }
 
-function statusLabel(status: string | null | undefined, copy: (typeof COPY)['tr']): string {
+function statusLabel(status: string | null | undefined, copy: (typeof COPY)[keyof typeof COPY]): string {
   if (status === 'active') return copy.active;
   if (status === 'inactive') return copy.inactive;
   if (status === 'archived') return copy.archived;

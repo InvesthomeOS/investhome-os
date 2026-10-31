@@ -524,8 +524,17 @@ def list_relationships(
         )
 
     total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
-    sort_col = getattr(CrmRelationship, sort_by, CrmRelationship.updated_at)
-    query = query.order_by(sort_col.desc() if sort_order == "desc" else sort_col.asc())
+    sort_columns = {
+        "relationship_type": CrmRelationship.relationship_type,
+        "category": CrmRelationship.category,
+        "status": CrmRelationship.status,
+        "notes": CrmRelationship.notes,
+        "last_interaction_at": CrmRelationship.last_interaction_at,
+        "updated_at": CrmRelationship.updated_at,
+    }
+    sort_col = sort_columns.get(sort_by, CrmRelationship.updated_at)
+    direction = sort_col.asc() if sort_order == "asc" else sort_col.desc()
+    query = query.order_by(direction, CrmRelationship.id.asc())
     query = query.offset((page - 1) * page_size).limit(page_size)
     items = [serialize_relationship_summary(db, rel) for rel in db.scalars(query).all()]
     return CrmRelationshipListResponse(items=items, total=total, page=page, page_size=page_size)

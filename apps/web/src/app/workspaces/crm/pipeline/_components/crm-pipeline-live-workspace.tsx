@@ -2,7 +2,7 @@
 
 import type { Route } from 'next';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useLocale } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -21,7 +21,8 @@ import {
   crmLeadStageLabel,
   emptyCrmLeadStageBuckets,
   fetchCrmLead,
-  fetchCrmLeads,
+  fetchCrmLeadBoard,
+  fetchCrmLeadBoardCards,
   formatCrmInvestmentBudget,
   moveCrmLeadStage,
   type CrmLeadItem,
@@ -65,6 +66,7 @@ const COPY = {
     emptyTitle: 'Pipeline boş',
     emptyBody: 'Bu görünümde lead yok. Demo kayıt eklenmez.',
     emptyColumn: 'Bu aşamada lead yok.',
+    more: 'Daha fazla',
     filteredColumn: 'Bu filtreye uyan lead yok.',
     loadErrorTitle: 'Pipeline yüklenemedi',
     loadError: 'Kayıtlar alınamadı. Yeniden deneyin.',
@@ -114,6 +116,7 @@ const COPY = {
     emptyTitle: 'Pipeline is empty',
     emptyBody: 'No leads in this view. Demo cards are not added.',
     emptyColumn: 'No leads in this stage.',
+    more: 'Load more',
     filteredColumn: 'No leads match this filter.',
     loadErrorTitle: 'Pipeline could not be loaded',
     loadError: 'The records could not be loaded. Try again.',
@@ -233,9 +236,16 @@ export function CrmPipelineLiveWorkspace() {
 
   const listQuery = useQuery({
     queryKey: ['crm-leads', 'pipeline', filters],
-    queryFn: () => fetchCrmLeads(filters),
+    queryFn: () => fetchCrmLeadBoard(filters),
     enabled: canRead && !authLoading,
   });
+  const [extraCards, setExtraCards] = useState<Partial<Record<CrmLeadStage, CrmLeadItem[]>>>({});
+  const filterKey = JSON.stringify(filters);
+  const seenFilter = useRef(filterKey);
+  if (seenFilter.current !== filterKey) {
+    seenFilter.current = filterKey;
+    setExtraCards({});
+  }
 
   const detailQuery = useQuery({
     queryKey: ['crm-lead', selectedId],
@@ -290,24 +300,19 @@ export function CrmPipelineLiveWorkspace() {
     unmatched: 0,
     failed: 0,
   };
-  const items = useMemo(() => {
-    const rows = data?.items ?? [];
-    if (stage) {
-      return rows.filter((item) => item.stage === stage);
-    }
-    return rows;
-  }, [data?.items, stage]);
-  const selected = detailQuery.data ?? items.find((item) => item.id === selectedId) ?? null;
-
+  const boardColumns = useMemo(() => data?.columns ?? [], [data?.columns]);
   const grouped = useMemo(() => {
     const buckets = emptyCrmLeadStageBuckets<CrmLeadItem>();
-    for (const item of items) {
-      buckets[item.stage]?.push(item);
+    for (const column of boardColumns) {
+      buckets[column.stage] = [...column.items, ...(extraCards[column.stage] ?? [])];
     }
     return buckets;
-  }, [items]);
+  }, [boardColumns, extraCards]);
+  const items = STAGES.flatMap((column) => grouped[column]);
+  const selected = detailQuery.data ?? items.find((item) => item.id === selectedId) ?? null;
 
-  const columnCount = (column: CrmLeadStage) => grouped[column].length;
+  const columnCount = (column: CrmLeadStage) =>
+    boardColumns.find((entry) => entry.stage === column)?.total ?? 0;
   const filtersActive = Boolean(
     search || stage || source || project || ownerId || dateFrom || dateTo || junkReason,
   );
@@ -474,7 +479,7 @@ export function CrmPipelineLiveWorkspace() {
             }}
             onDrop={(event) => {
               event.preventDefault();
-              const item = (data?.items ?? []).find((row) => row.id === draggingId);
+              const item = items.find((row) => row.id === draggingId);
               setDraggingId(null);
               setDragOverStage(null);
               if (item) handleStageMove(item, column);
@@ -497,7 +502,7 @@ export function CrmPipelineLiveWorkspace() {
               <span className="crm-ops-kanban__count">{columnCount(column)}</span>
             </div>
             <div className="crm-ops-kanban__body">
-              {grouped[column].length === 0 ? (
+              {columnCount(column) === 0 ? (
                 <div
                   className="crm-ops-col-empty"
                   data-testid={
@@ -547,6 +552,31 @@ export function CrmPipelineLiveWorkspace() {
                   </button>
                 ))
               )}
+              {grouped[column].length < columnCount(column) ? (
+                <button
+                  type="button"
+                  className="crm-ops-col-add"
+                  data-testid="crm-pipeline-column-more"
+                  onClick={() => {
+                    const loaded = grouped[column].length;
+                    const nextPage = Math.floor(loaded / 25) + 1;
+                    void fetchCrmLeadBoardCards({
+                      ...filters,
+                      stage: column,
+                      page: nextPage,
+                      pageSize: 25,
+                    }).then((result) => {
+                      setExtraCards((current) => {
+                        const seen = new Set(grouped[column].map((row) => row.id));
+                        const fresh = result.items.filter((row) => !seen.has(row.id));
+                        return { ...current, [column]: [...(current[column] ?? []), ...fresh] };
+                      });
+                    });
+                  }}
+                >
+                  {t.more}
+                </button>
+              ) : null}
             </div>
           </section>
         ))}

@@ -473,6 +473,7 @@ export function CrmCalendarWorkspace() {
   const [form, setForm] = useState<EventForm>(EMPTY_FORM);
   const canQuery = !authLoading && canView;
   const monthAsList = view === 'month' && narrow;
+  const weekAsList = view === 'week' && narrow;
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 720px)');
@@ -842,7 +843,7 @@ export function CrmCalendarWorkspace() {
         </section>
       ) : null}
 
-      {view === 'week' ? (
+      {view === 'week' && !weekAsList ? (
         <section className="crm-ops-board" aria-label={t('views.week')}>
           <div className="crm-ops-week">
             <div className="crm-ops-week__gutter" />
@@ -944,11 +945,11 @@ export function CrmCalendarWorkspace() {
         </section>
       ) : null}
 
-      {view === 'list' || monthAsList ? (
+      {view === 'list' || monthAsList || weekAsList ? (
         <section
           className="crm-ops-board crm-ops-list"
           aria-label={t('views.list')}
-          data-testid={monthAsList ? 'crm-calendar-narrow-list' : 'crm-calendar-list'}
+          data-testid={monthAsList ? 'crm-calendar-narrow-list' : weekAsList ? 'crm-calendar-narrow-list' : 'crm-calendar-list'}
         >
           {listQuery.isLoading && listItems.length === 0 ? <div className="crm-ops-skeleton" /> : null}
           {listItems.length === 0 && !listQuery.isLoading ? (

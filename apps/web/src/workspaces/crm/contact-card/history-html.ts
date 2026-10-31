@@ -306,7 +306,7 @@ function safeEmailHref(value: string | null | undefined): string | null {
 
   if (/^mailto:/i.test(href)) {
     const rest = href.slice(7);
-    const address = rest.split('?')[0].trim();
+    const address = (rest.split('?')[0] ?? '').trim();
     if (!address || /[\s<>]/.test(address)) return null;
     if (/^(javascript|vbscript|data):/i.test(address)) return null;
     return href;
@@ -355,7 +355,7 @@ function fillEmptyMailto(el: AttrNode) {
   const href = el.getAttribute('href') || '';
   if (!/^mailto:/i.test(href)) return;
   if ((el.textContent || '').trim()) return;
-  const address = href.replace(/^mailto:/i, '').split('?')[0].trim();
+  const address = (href.replace(/^mailto:/i, '').split('?')[0] ?? '').trim();
   if (address) el.textContent = address;
 }
 
@@ -457,8 +457,8 @@ function parseParty(raw: string | null | undefined): EmailParty | null {
   if (!text) return null;
   const angle = text.match(/^(.*)<([^>]+)>$/);
   if (angle) {
-    const name = angle[1].replace(/["']/g, '').trim();
-    const address = angle[2].trim();
+    const name = (angle[1] ?? '').replace(/["']/g, '').trim();
+    const address = (angle[2] ?? '').trim();
     return { name: name || undefined, address, label: name ? `${name} <${address}>` : address };
   }
   const email = text.match(EMAIL_RE)?.[0];
@@ -479,7 +479,7 @@ function splitParties(raw: string | null | undefined): EmailParty[] {
 function headerValue(text: string, labels: string[]): string | null {
   for (const label of labels) {
     const match = text.match(new RegExp(`(?:^|\\n)\\s*${label}\\s*[:：]\\s*(.+)`, 'i'));
-    if (match?.[1]) return match[1].split('\n')[0].trim();
+    if (match?.[1]) return (match[1].split('\n')[0] ?? '').trim();
   }
   return null;
 }

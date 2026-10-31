@@ -172,10 +172,14 @@ def _apply_junk_reason(lead: Lead, junk_reason: str | None, junk_reason_detail: 
 def _as_status(value: LeadStatus | str) -> LeadStatus:
     if isinstance(value, LeadStatus):
         return value
+    text = str(value)
     try:
-        return LeadStatus(value)
+        return LeadStatus(text)
     except ValueError:
-        return LeadStatus.NEW
+        try:
+            return LeadStatus[text]
+        except KeyError:
+            return LeadStatus.NEW
 
 
 def stage_of(lead: Lead) -> CrmLeadStage:
@@ -252,20 +256,28 @@ def _is_meta_dm_lead(lead: Lead) -> bool:
     return _is_facebook_messenger_lead(lead) or _is_instagram_dm_lead(lead)
 
 
+def _meta_dm_clause():
+    """Messenger and Instagram DM leads are contacts, not pipeline cards."""
+    intake = func.lower(func.trim(func.coalesce(Lead.metadata_json["intake"].as_string(), "")))
+    source = func.lower(func.coalesce(Lead.source, ""))
+    provider = func.lower(func.coalesce(Lead.provider, ""))
+    return or_(
+        intake.in_(
+            (
+                "facebook_messenger",
+                "instagram_dm",
+                '"facebook_messenger"',
+                '"instagram_dm"',
+            )
+        ),
+        and_(source == "facebook", provider == "facebook"),
+        and_(source == "instagram", provider == "instagram"),
+    )
+
+
 def _exclude_facebook_messenger_pipeline(query):
     """Hide Facebook Messenger and Instagram DM leads from the sales pipeline kanban."""
-    return query.where(
-        ~or_(
-            and_(
-                func.lower(func.coalesce(Lead.source, "")) == "facebook",
-                func.lower(func.coalesce(Lead.provider, "")) == "facebook",
-            ),
-            and_(
-                func.lower(func.coalesce(Lead.source, "")) == "instagram",
-                func.lower(func.coalesce(Lead.provider, "")) == "instagram",
-            ),
-        )
-    )
+    return query.where(~_meta_dm_clause())
 
 
 def _find_lead_matches(db: Session, *, email: str | None, phone: str | None, exclude_id: UUID | None = None) -> list[Lead]:
@@ -425,9 +437,28 @@ def _linked_contact(db: Session, lead: Lead) -> CrmContact | None:
     )
 
 
-def _to_item(db: Session, lead: Lead, *, owners: dict[UUID, str] | None = None) -> CrmLeadItem:
+class _UnsetType:
+    pass
+
+
+_UNSET = _UnsetType()
+
+
+def _to_item(
+    db: Session,
+    lead: Lead,
+    *,
+    owners: dict[UUID, str] | None = None,
+    linked: CrmContact | None | _UnsetType = _UNSET,
+    converted_name: str | None | _UnsetType = _UNSET,
+) -> CrmLeadItem:
     meta = _meta(lead)
-    linked = _linked_contact(db, lead)
+    resolved = _linked_contact(db, lead) if isinstance(linked, _UnsetType) else linked
+    name = (
+        _contact_name(db, lead.converted_contact_id)
+        if isinstance(converted_name, _UnsetType)
+        else converted_name
+    )
     return CrmLeadItem(
         id=lead.id,
         full_name=lead.full_name,
@@ -445,9 +476,9 @@ def _to_item(db: Session, lead: Lead, *, owners: dict[UUID, str] | None = None) 
         provider=lead.provider,
         ingest_status=lead.ingest_status or "ok",
         converted_contact_id=lead.converted_contact_id,
-        converted_contact_name=_contact_name(db, lead.converted_contact_id),
-        contact_id=linked.id if linked is not None else None,
-        contact_name=linked.display_name if linked is not None else None,
+        converted_contact_name=name,
+        contact_id=resolved.id if resolved is not None else None,
+        contact_name=resolved.display_name if resolved is not None else None,
         investment_budget_amount=lead.estimated_budget,
         investment_budget_currency=lead.estimated_budget_currency,
         junk_reason=lead.junk_reason,
@@ -624,27 +655,246 @@ def _filter_options(db: Session) -> tuple[list[str], list[str], list[CrmLeadOwne
     return sources, projects, owners
 
 
+LEAD_LIST_PAGE_SIZE = 25
+LEAD_LIST_PAGE_MAX = 100
+LEAD_CARD_PAGE_SIZE = 25
+LEAD_CARD_PAGE_MAX = 50
+
+
+def _page_count(total: int, page_size: int) -> int:
+    if page_size <= 0:
+        return 1
+    return max(1, (total + page_size - 1) // page_size)
+
+
+def _list_page_size(page_size: int) -> int:
+    return min(max(page_size, 1), LEAD_LIST_PAGE_MAX)
+
+
+def _card_page_size(page_size: int) -> int:
+    return min(max(page_size, 1), LEAD_CARD_PAGE_MAX)
+
+
+def _lead_filters(
+    *,
+    search: str | None = None,
+    stage: str | None = None,
+    source: str | None = None,
+    project: str | None = None,
+    owner_id: UUID | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    ingest_status: str | None = None,
+    junk_reason: str | None = None,
+    surface: str | None = None,
+) -> list:
+    """Shared visibility and workspace filters for the list, KPIs, and pipeline."""
+    filters: list = [Lead.archived_at.is_(None), Lead.is_demo.is_(False)]
+    if (surface or "").strip().lower() == "pipeline":
+        filters.append(~_meta_dm_clause())
+    needle = _blank(search)
+    if needle:
+        like = f"%{needle}%"
+        clauses = [
+            Lead.full_name.ilike(like),
+            Lead.email.ilike(like),
+            Lead.phone.ilike(like),
+            Lead.notes.ilike(like),
+            Lead.campaign.ilike(like),
+            Lead.interested_project.ilike(like),
+        ]
+        if is_phone_lookup_query(needle):
+            for phone_needle in phone_sql_needles(needle):
+                clauses.append(Lead.phone.ilike(f"%{phone_needle}%"))
+        filters.append(or_(*clauses))
+    if stage and stage in STAGE_TO_STATUS:
+        filters.append(Lead.status == STAGE_TO_STATUS[stage])
+    if source:
+        filters.append(func.lower(Lead.source) == source.strip().lower())
+    if project:
+        filters.append(Lead.interested_project == project)
+    if owner_id:
+        filters.append(Lead.assigned_manager_id == owner_id)
+    if date_from:
+        filters.append(Lead.created_at >= date_from)
+    if date_to:
+        filters.append(Lead.created_at <= date_to)
+    if ingest_status == "attention":
+        filters.append(Lead.ingest_status.in_(["unmatched", "failed"]))
+    elif ingest_status:
+        filters.append(Lead.ingest_status == ingest_status)
+    reason_code = (junk_reason or "").strip().lower() or None
+    if reason_code:
+        filters.append(Lead.junk_reason == reason_code)
+        if not stage:
+            filters.append(Lead.status == LeadStatus.LOST)
+    return filters
+
+
+def _lead_order():
+    return Lead.created_at.desc(), Lead.id.asc()
+
+
+def _status_counts(db: Session, filters: list) -> dict[LeadStatus, int]:
+    rows = db.execute(
+        select(Lead.status, func.count()).where(*filters).group_by(Lead.status)
+    ).all()
+    counts: dict[LeadStatus, int] = {}
+    for status, count in rows:
+        counts[_as_status(status)] = int(count)
+    return counts
+
+
 def _kpis(rows: list[Lead]) -> CrmLeadKpis:
-    kpis = CrmLeadKpis(total=len(rows))
+    """Row counts for callers that already hold the live lead set, such as the CRM dashboard."""
+    counts: dict[LeadStatus, int] = {}
+    unmatched = 0
+    failed = 0
     for row in rows:
         status = _as_status(row.status)
-        if status == LeadStatus.NEW:
-            kpis.yeni += 1
-        elif status in FOLLOWING_STATUSES:
-            kpis.following += 1
-        elif status == LeadStatus.QUALIFIED:
-            kpis.qualified += 1
-        elif status == LeadStatus.WON:
-            kpis.converted += 1
-        elif status == LeadStatus.LOST:
-            kpis.unqualified += 1
+        counts[status] = counts.get(status, 0) + 1
         ingest = (row.ingest_status or "ok").lower()
         if ingest == "unmatched":
-            kpis.unmatched += 1
+            unmatched += 1
         elif ingest == "failed":
-            kpis.failed += 1
-    kpis.active = kpis.total - kpis.converted - kpis.unqualified
-    return kpis
+            failed += 1
+    total = len(rows)
+    converted = counts.get(LeadStatus.WON, 0)
+    unqualified = counts.get(LeadStatus.LOST, 0)
+    return CrmLeadKpis(
+        total=total,
+        active=total - converted - unqualified,
+        yeni=counts.get(LeadStatus.NEW, 0),
+        following=sum(counts.get(status, 0) for status in FOLLOWING_STATUSES),
+        qualified=counts.get(LeadStatus.QUALIFIED, 0),
+        converted=converted,
+        unqualified=unqualified,
+        unmatched=unmatched,
+        failed=failed,
+    )
+
+
+def _kpis_for(db: Session, filters: list) -> CrmLeadKpis:
+    counts = _status_counts(db, filters)
+    total = sum(counts.values())
+    ingest = func.lower(func.coalesce(Lead.ingest_status, "ok"))
+    ingest_rows = db.execute(select(ingest, func.count()).where(*filters).group_by(ingest)).all()
+    unmatched = 0
+    failed = 0
+    for label, count in ingest_rows:
+        text = str(label or "ok")
+        if text == "unmatched":
+            unmatched = int(count)
+        elif text == "failed":
+            failed = int(count)
+    converted = counts.get(LeadStatus.WON, 0)
+    unqualified = counts.get(LeadStatus.LOST, 0)
+    return CrmLeadKpis(
+        total=total,
+        active=total - converted - unqualified,
+        yeni=counts.get(LeadStatus.NEW, 0),
+        following=sum(counts.get(status, 0) for status in FOLLOWING_STATUSES),
+        qualified=counts.get(LeadStatus.QUALIFIED, 0),
+        converted=converted,
+        unqualified=unqualified,
+        unmatched=unmatched,
+        failed=failed,
+    )
+
+
+def _stage_totals(counts: dict[LeadStatus, int]) -> dict[str, int]:
+    totals = {stage: 0 for stage in CRM_STAGES}
+    for status, count in counts.items():
+        totals[STATUS_TO_STAGE[status]] += count
+    return totals
+
+
+def _items_for_leads(db: Session, rows: list[Lead]) -> list[CrmLeadItem]:
+    owner_ids = {row.assigned_manager_id for row in rows if row.assigned_manager_id}
+    owners: dict[UUID, str] = {}
+    if owner_ids:
+        for user in db.scalars(select(User).where(User.id.in_(owner_ids))).all():
+            owners[user.id] = user.full_name
+    contact_ids: set[UUID] = set()
+    for row in rows:
+        if row.converted_contact_id is not None:
+            contact_ids.add(row.converted_contact_id)
+        raw_person = _meta(row).get("existing_person_id")
+        if raw_person:
+            try:
+                contact_ids.add(UUID(str(raw_person)))
+            except ValueError:
+                continue
+    contacts: dict[UUID, CrmContact] = {}
+    if contact_ids:
+        for contact in db.scalars(select(CrmContact).where(CrmContact.id.in_(contact_ids))).all():
+            contacts[contact.id] = contact
+    by_lead: dict[UUID, CrmContact] = {}
+    lead_ids = [row.id for row in rows]
+    if lead_ids:
+        for contact in db.scalars(
+            select(CrmContact).where(
+                CrmContact.lead_id.in_(lead_ids),
+                CrmContact.archived_at.is_(None),
+            )
+        ).all():
+            if contact.lead_id is not None:
+                by_lead.setdefault(contact.lead_id, contact)
+    items: list[CrmLeadItem] = []
+    for row in rows:
+        linked = contacts.get(row.converted_contact_id) if row.converted_contact_id else None
+        if linked is not None and linked.archived_at is not None:
+            linked = None
+        if linked is None:
+            raw_person = _meta(row).get("existing_person_id")
+            if raw_person:
+                try:
+                    linked = contacts.get(UUID(str(raw_person)))
+                except ValueError:
+                    linked = None
+                if linked is not None and linked.archived_at is not None:
+                    linked = None
+        if linked is None:
+            linked = by_lead.get(row.id)
+        converted_name = (
+            contacts[row.converted_contact_id].display_name
+            if row.converted_contact_id in contacts
+            else None
+        )
+        items.append(
+            _to_item(
+                db,
+                row,
+                owners=owners,
+                linked=linked,
+                converted_name=converted_name,
+            )
+        )
+    return items
+
+
+def _page_leads(
+    db: Session,
+    filters: list,
+    *,
+    page: int,
+    page_size: int,
+    stage: str | None = None,
+) -> tuple[list[CrmLeadItem], int]:
+    narrowed = list(filters)
+    if stage and stage in STAGE_TO_STATUS:
+        narrowed.append(Lead.status == STAGE_TO_STATUS[stage])
+    total = db.scalar(select(func.count()).select_from(Lead).where(*narrowed)) or 0
+    rows = list(
+        db.scalars(
+            select(Lead)
+            .where(*narrowed)
+            .order_by(*_lead_order())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        ).all()
+    )
+    return _items_for_leads(db, rows), int(total)
 
 
 def list_crm_leads(
@@ -660,68 +910,159 @@ def list_crm_leads(
     ingest_status: str | None = None,
     junk_reason: str | None = None,
     surface: str | None = None,
+    page: int = 1,
+    page_size: int = LEAD_LIST_PAGE_SIZE,
 ) -> CrmLeadListResponse:
-    query = _live_leads(db)
-    pipeline_surface = (surface or "").strip().lower() == "pipeline"
-    if pipeline_surface:
-        query = _exclude_facebook_messenger_pipeline(query)
-    needle = _blank(search)
-    if needle:
-        like = f"%{needle}%"
-        clauses = [
-            Lead.full_name.ilike(like),
-            Lead.email.ilike(like),
-            Lead.phone.ilike(like),
-            Lead.notes.ilike(like),
-            Lead.campaign.ilike(like),
-            Lead.interested_project.ilike(like),
-        ]
-        if is_phone_lookup_query(needle):
-            for phone_needle in phone_sql_needles(needle):
-                clauses.append(Lead.phone.ilike(f"%{phone_needle}%"))
-        query = query.where(or_(*clauses))
-    if stage:
-        if stage in STAGE_TO_STATUS:
-            query = query.where(Lead.status == STAGE_TO_STATUS[stage])
-    if source:
-        query = query.where(func.lower(Lead.source) == source.strip().lower())
-    if project:
-        query = query.where(Lead.interested_project == project)
-    if owner_id:
-        query = query.where(Lead.assigned_manager_id == owner_id)
-    if date_from:
-        query = query.where(Lead.created_at >= date_from)
-    if date_to:
-        query = query.where(Lead.created_at <= date_to)
-    if ingest_status == "attention":
-        query = query.where(Lead.ingest_status.in_(["unmatched", "failed"]))
-    elif ingest_status:
-        query = query.where(Lead.ingest_status == ingest_status)
-    reason_code = (junk_reason or "").strip().lower() or None
-    if reason_code:
-        query = query.where(Lead.junk_reason == reason_code)
-        if not stage:
-            query = query.where(Lead.status == LeadStatus.LOST)
-
-    rows = list(db.scalars(query.order_by(Lead.created_at.desc()).limit(500)).all())
-    kpi_query = _live_leads(db)
-    if pipeline_surface:
-        kpi_query = _exclude_facebook_messenger_pipeline(kpi_query)
-    kpi_rows = list(db.scalars(kpi_query).all())
-    if pipeline_surface:
-        rows = [row for row in rows if not _is_meta_dm_lead(row)]
-        kpi_rows = [row for row in kpi_rows if not _is_meta_dm_lead(row)]
-    owners_cache: dict[UUID, str] = {}
+    filters = _lead_filters(
+        search=search,
+        stage=stage,
+        source=source,
+        project=project,
+        owner_id=owner_id,
+        date_from=date_from,
+        date_to=date_to,
+        ingest_status=ingest_status,
+        junk_reason=junk_reason,
+        surface=surface,
+    )
+    size = _list_page_size(page_size)
+    current = max(page, 1)
+    items, total = _page_leads(db, filters, page=current, page_size=size)
     sources, projects, owners = _filter_options(db)
     return CrmLeadListResponse(
-        items=[_to_item(db, row, owners=owners_cache) for row in rows],
-        total=len(rows),
-        kpis=_kpis(kpi_rows),
+        items=items,
+        total=total,
+        page=current,
+        page_size=size,
+        pages=_page_count(total, size),
+        kpis=_kpis_for(db, filters),
         sources=sources,
         projects=projects,
         owners=owners,
         stages=list(CRM_STAGES),
     )
+
+
+def lead_board(
+    db: Session,
+    *,
+    search: str | None = None,
+    stage: str | None = None,
+    source: str | None = None,
+    project: str | None = None,
+    owner_id: UUID | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    ingest_status: str | None = None,
+    junk_reason: str | None = None,
+    surface: str | None = None,
+    page_size: int = LEAD_CARD_PAGE_SIZE,
+) -> dict[str, object]:
+    """Stage totals and the first card page for the filtered lead set."""
+    filters = _lead_filters(
+        search=search,
+        stage=stage,
+        source=source,
+        project=project,
+        owner_id=owner_id,
+        date_from=date_from,
+        date_to=date_to,
+        ingest_status=ingest_status,
+        junk_reason=junk_reason,
+        surface=surface,
+    )
+    size = _card_page_size(page_size)
+    selected = (stage or "").strip() or None
+    columns = []
+    for name in CRM_STAGES:
+        hidden = (selected and name != selected) or (
+            not selected and bool((junk_reason or "").strip()) and name != "unqualified"
+        )
+        if hidden:
+            columns.append(
+                {
+                    "stage": name,
+                    "total": 0,
+                    "page": 1,
+                    "page_size": size,
+                    "pages": 1,
+                    "items": [],
+                }
+            )
+            continue
+        column_filters = _lead_filters(
+            search=search,
+            stage=selected or name,
+            source=source,
+            project=project,
+            owner_id=owner_id,
+            date_from=date_from,
+            date_to=date_to,
+            ingest_status=ingest_status,
+            junk_reason=junk_reason,
+            surface=surface,
+        )
+        items, counted = _page_leads(db, column_filters, page=1, page_size=size)
+        columns.append(
+            {
+                "stage": name,
+                "total": counted,
+                "page": 1,
+                "page_size": size,
+                "pages": _page_count(counted, size),
+                "items": items,
+            }
+        )
+    sources, projects, owners = _filter_options(db)
+    return {
+        "total": sum(column["total"] for column in columns),
+        "kpis": _kpis_for(db, filters),
+        "columns": columns,
+        "sources": sources,
+        "projects": projects,
+        "owners": owners,
+        "stages": list(CRM_STAGES),
+    }
+
+
+def lead_board_cards(
+    db: Session,
+    *,
+    stage: str,
+    search: str | None = None,
+    source: str | None = None,
+    project: str | None = None,
+    owner_id: UUID | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    ingest_status: str | None = None,
+    junk_reason: str | None = None,
+    surface: str | None = None,
+    page: int = 1,
+    page_size: int = LEAD_CARD_PAGE_SIZE,
+) -> dict[str, object]:
+    filters = _lead_filters(
+        search=search,
+        source=source,
+        project=project,
+        owner_id=owner_id,
+        date_from=date_from,
+        date_to=date_to,
+        ingest_status=ingest_status,
+        junk_reason=junk_reason,
+        surface=surface,
+    )
+    size = _card_page_size(page_size)
+    current = max(page, 1)
+    items, total = _page_leads(db, filters, page=current, page_size=size, stage=stage)
+    return {
+        "stage": stage,
+        "total": total,
+        "page": current,
+        "page_size": size,
+        "pages": _page_count(total, size),
+        "items": items,
+    }
 
 
 def get_crm_lead(db: Session, lead_id: UUID) -> CrmLeadDetail:

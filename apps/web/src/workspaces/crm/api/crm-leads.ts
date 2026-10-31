@@ -169,11 +169,42 @@ export type CrmLeadKpis = {
 export type CrmLeadListResponse = {
   items: CrmLeadItem[];
   total: number;
+  page: number;
+  page_size: number;
+  pages: number;
   kpis: CrmLeadKpis;
   sources: string[];
   projects: string[];
   owners: CrmLeadOwnerOption[];
   stages: CrmLeadStage[];
+};
+
+export type CrmLeadBoardColumn = {
+  stage: CrmLeadStage;
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+  items: CrmLeadItem[];
+};
+
+export type CrmLeadBoardResponse = {
+  total: number;
+  kpis: CrmLeadKpis;
+  columns: CrmLeadBoardColumn[];
+  sources: string[];
+  projects: string[];
+  owners: CrmLeadOwnerOption[];
+  stages: CrmLeadStage[];
+};
+
+export type CrmLeadBoardCardsResponse = {
+  stage: CrmLeadStage;
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+  items: CrmLeadItem[];
 };
 
 export type CrmLeadWrite = {
@@ -213,6 +244,8 @@ export type CrmLeadListParams = {
   ingest_status?: string;
   junk_reason?: string;
   surface?: 'leads' | 'pipeline';
+  page?: number;
+  pageSize?: number;
 };
 
 export class CrmLeadConflictError extends Error {
@@ -237,7 +270,7 @@ function buildParams(values: Record<string, string | undefined>): URLSearchParam
   return params;
 }
 
-export async function fetchCrmLeads(params: CrmLeadListParams = {}): Promise<CrmLeadListResponse> {
+function leadQuery(params: CrmLeadListParams, includePage: boolean): URLSearchParams {
   const query = buildParams({
     search: params.search,
     stage: params.stage,
@@ -250,8 +283,32 @@ export async function fetchCrmLeads(params: CrmLeadListParams = {}): Promise<Crm
     junk_reason: params.junk_reason,
     surface: params.surface,
   });
+  if (includePage) {
+    query.set('page', String(params.page ?? 1));
+    if (params.pageSize) query.set('page_size', String(params.pageSize));
+  } else if (params.pageSize) {
+    query.set('page_size', String(params.pageSize));
+  }
+  return query;
+}
+
+export async function fetchCrmLeads(params: CrmLeadListParams = {}): Promise<CrmLeadListResponse> {
+  const query = leadQuery(params, true);
   const suffix = query.toString() ? `?${query.toString()}` : '';
   return apiFetch<CrmLeadListResponse>(`/crm/leads${suffix}`);
+}
+
+export async function fetchCrmLeadBoard(params: CrmLeadListParams = {}): Promise<CrmLeadBoardResponse> {
+  const query = leadQuery(params, false);
+  const suffix = query.toString() ? `?${query.toString()}` : '';
+  return apiFetch<CrmLeadBoardResponse>(`/crm/leads/board${suffix}`);
+}
+
+export async function fetchCrmLeadBoardCards(
+  params: CrmLeadListParams & { stage: string },
+): Promise<CrmLeadBoardCardsResponse> {
+  const query = leadQuery(params, true);
+  return apiFetch<CrmLeadBoardCardsResponse>(`/crm/leads/board/cards?${query.toString()}`);
 }
 
 export async function fetchCrmLead(id: string): Promise<CrmLeadItem> {

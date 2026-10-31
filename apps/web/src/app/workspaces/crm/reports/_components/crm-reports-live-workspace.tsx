@@ -920,7 +920,7 @@ function SalesTable({
   locale,
 }: {
   rows: CrmReportsSalesRow[];
-  copy: (typeof COPY)['tr'];
+  copy: (typeof COPY)[keyof typeof COPY];
   locale: string;
 }) {
   return (
@@ -955,7 +955,7 @@ function InvestorTable({
   locale,
 }: {
   rows: CrmReportsInvestorRow[];
-  copy: (typeof COPY)['tr'];
+  copy: (typeof COPY)[keyof typeof COPY];
   locale: string;
 }) {
   return (

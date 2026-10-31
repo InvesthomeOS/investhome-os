@@ -2,7 +2,7 @@
 
 import type { Route } from 'next';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -28,6 +28,8 @@ import {
   crmLeadStageLabel,
   emptyCrmLeadStageBuckets,
   fetchCrmLead,
+  fetchCrmLeadBoard,
+  fetchCrmLeadBoardCards,
   fetchCrmLeads,
   formatCrmInvestmentBudget,
   moveCrmLeadStage,
@@ -76,6 +78,9 @@ const COPY = {
     viewsAria: 'Görünüm',
     emptyTitle: 'Henüz lead yok',
     emptyBody: 'Mevcut tablo boş. Demo kayıt eklenmez. Yeni lead ile başlayın.',
+    previous: 'Önceki',
+    next: 'Sonraki',
+    more: 'Daha fazla',
     loadErrorTitle: 'Leadler yüklenemedi',
     loadError: 'Kayıtlar alınamadı. Yeniden deneyin.',
     retry: 'Yeniden dene',
@@ -164,6 +169,9 @@ const COPY = {
     viewsAria: 'View',
     emptyTitle: 'No leads yet',
     emptyBody: 'The board is empty. Demo rows are not seeded. Start with a new lead.',
+    previous: 'Previous',
+    next: 'Next',
+    more: 'Load more',
     loadErrorTitle: 'Leads could not be loaded',
     loadError: 'The records could not be loaded. Try again.',
     retry: 'Retry',
@@ -456,13 +464,14 @@ export function CrmLeadsLiveWorkspace() {
   const dateTo = searchParams.get('to') ?? '';
   const ingestStatus = searchParams.get('ingest') ?? '';
   const junkReason = searchParams.get('junk') ?? '';
-  const setSource = (value: string) => patchQuery({ source: value });
-  const setProject = (value: string) => patchQuery({ project: value });
-  const setOwnerId = (value: string) => patchQuery({ owner: value });
-  const setDateFrom = (value: string) => patchQuery({ from: value });
-  const setDateTo = (value: string) => patchQuery({ to: value });
-  const setIngestStatus = (value: string) => patchQuery({ ingest: value });
-  const setJunkReason = (value: string) => patchQuery({ junk: value });
+  const page = Math.max(1, Number(searchParams.get('page') || '1') || 1);
+  const setSource = (value: string) => patchQuery({ source: value, page: null });
+  const setProject = (value: string) => patchQuery({ project: value, page: null });
+  const setOwnerId = (value: string) => patchQuery({ owner: value, page: null });
+  const setDateFrom = (value: string) => patchQuery({ from: value, page: null });
+  const setDateTo = (value: string) => patchQuery({ to: value, page: null });
+  const setIngestStatus = (value: string) => patchQuery({ ingest: value, page: null });
+  const setJunkReason = (value: string) => patchQuery({ junk: value, page: null });
   const [junkPending, setJunkPending] = useState<LeadView | null>(null);
   const [drawer, setDrawer] = useState<DrawerMode | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -492,11 +501,30 @@ export function CrmLeadsLiveWorkspace() {
   );
 
   const listQuery = useQuery({
-    queryKey: ['crm-leads', filters],
-    queryFn: () => fetchCrmLeads(filters),
-    enabled: canRead && !authLoading,
+    queryKey: ['crm-leads', 'list', filters, page],
+    queryFn: () => fetchCrmLeads({ ...filters, page, pageSize: 25 }),
+    enabled: canRead && !authLoading && view === 'list',
     placeholderData: keepPreviousData,
   });
+  const boardQuery = useQuery({
+    queryKey: ['crm-leads', 'board', filters],
+    queryFn: () => fetchCrmLeadBoard({ ...filters, pageSize: 25 }),
+    enabled: canRead && !authLoading && view === 'kanban',
+    placeholderData: keepPreviousData,
+  });
+  const [extraCards, setExtraCards] = useState<Partial<Record<CrmLeadStage, LeadView[]>>>({});
+  const filterKey = JSON.stringify(filters);
+  const seenFilter = useRef(filterKey);
+  if (seenFilter.current !== filterKey) {
+    seenFilter.current = filterKey;
+    setExtraCards({});
+  }
+  const searchPage = useRef(search);
+  useEffect(() => {
+    if (searchPage.current === search) return;
+    searchPage.current = search;
+    patchQuery({ page: null });
+  }, [patchQuery, search]);
 
   const detailQuery = useQuery({
     queryKey: ['crm-lead', selectedId],
@@ -587,8 +615,9 @@ export function CrmLeadsLiveWorkspace() {
     },
   });
 
-  const data = listQuery.data;
-  const items = useMemo(() => (data?.items ?? []) as LeadView[], [data?.items]);
+  const data = view === 'list' ? listQuery.data : boardQuery.data;
+  const listItems = useMemo(() => (listQuery.data?.items ?? []) as LeadView[], [listQuery.data?.items]);
+  const boardColumns = useMemo(() => boardQuery.data?.columns ?? [], [boardQuery.data?.columns]);
   const kpis = data?.kpis ?? {
     total: 0,
     active: 0,
@@ -600,6 +629,15 @@ export function CrmLeadsLiveWorkspace() {
     unmatched: 0,
     failed: 0,
   };
+  const grouped = useMemo(() => {
+    const buckets = emptyCrmLeadStageBuckets<LeadView>();
+    for (const column of boardColumns) {
+      const extra = extraCards[column.stage] ?? [];
+      buckets[column.stage] = [...(column.items as LeadView[]), ...extra];
+    }
+    return buckets;
+  }, [boardColumns, extraCards]);
+  const items = view === 'list' ? listItems : STAGES.flatMap((column) => grouped[column]);
   const selected = (detailQuery.data ?? items.find((item) => item.id === selectedId) ?? null) as LeadView | null;
 
   const taskMutation = useMutation({
@@ -631,14 +669,6 @@ export function CrmLeadsLiveWorkspace() {
     },
   });
 
-  const grouped = useMemo(() => {
-    const buckets = emptyCrmLeadStageBuckets<LeadView>();
-    for (const item of items) {
-      buckets[item.stage]?.push(item);
-    }
-    return buckets;
-  }, [items]);
-
   const sourceOptions = useMemo(() => {
     const live = (data?.sources ?? []).filter(Boolean);
     return live.length ? live : [...CREATE_SOURCES];
@@ -649,6 +679,7 @@ export function CrmLeadsLiveWorkspace() {
     patchQuery({
       q: null,
       stage: null,
+      page: null,
       source: null,
       project: null,
       owner: null,
@@ -758,13 +789,14 @@ export function CrmLeadsLiveWorkspace() {
     stageMutation.mutate({ id: item.id, next });
   };
 
-  if (authLoading || (listQuery.isLoading && !data)) {
+  const activeQuery = view === 'list' ? listQuery : boardQuery;
+  if (authLoading || (activeQuery.isLoading && !activeQuery.data)) {
     return <LoadingState />;
   }
   if (!canRead) {
     return <ErrorState title={t.title} message="No access" />;
   }
-  if (listQuery.isError) {
+  if (activeQuery.isError) {
     return (
       <ErrorState
         title={t.loadErrorTitle}
@@ -833,7 +865,7 @@ export function CrmLeadsLiveWorkspace() {
             type="button"
             className={`${item.tone}${stage === item.value ? ' is-active' : ''}`}
             data-testid={item.testId}
-            onClick={() => patchQuery({ stage: item.value, junk: null })}
+            onClick={() => patchQuery({ stage: item.value, junk: null, page: null })}
           >
             <span className="crm-ops-kpis__icon" aria-hidden>
               <IhIcon name={item.icon} size={16} />
@@ -946,10 +978,12 @@ export function CrmLeadsLiveWorkspace() {
                   <span className="crm-ops-kanban__dot" aria-hidden />
                   {stageLabel(column, locale)}
                 </h3>
-                <span className="crm-ops-kanban__count">{grouped[column].length}</span>
+                <span className="crm-ops-kanban__count">
+                  {boardColumns.find((entry) => entry.stage === column)?.total ?? 0}
+                </span>
               </div>
               <div className="crm-ops-kanban__body">
-                {grouped[column].length === 0 ? (
+                {(boardColumns.find((entry) => entry.stage === column)?.total ?? 0) === 0 ? (
                   <div className="crm-ops-col-empty">
                     <strong>{t.emptyTitle}</strong>
                     <p>{t.emptyColumn}</p>
@@ -968,6 +1002,26 @@ export function CrmLeadsLiveWorkspace() {
                     />
                   ))
                 )}
+                {grouped[column].length < (boardColumns.find((entry) => entry.stage === column)?.total ?? 0) ? (
+                  <button
+                    type="button"
+                    className="crm-ops-col-add"
+                    data-testid="crm-leads-column-more"
+                    onClick={() => {
+                      const loaded = grouped[column].length;
+                      const nextPage = Math.floor(loaded / 25) + 1;
+                      void fetchCrmLeadBoardCards({ ...filters, stage: column, page: nextPage, pageSize: 25 }).then((result) => {
+                        setExtraCards((current) => {
+                          const seen = new Set(grouped[column].map((row) => row.id));
+                          const fresh = result.items.filter((row) => !seen.has(row.id)) as LeadView[];
+                          return { ...current, [column]: [...(current[column] ?? []), ...fresh] };
+                        });
+                      });
+                    }}
+                  >
+                    {t.more}
+                  </button>
+                ) : null}
               </div>
               {canCreate ? (
                 <button type="button" className="crm-ops-col-add" data-testid="crm-leads-add-column" onClick={() => openCreate(column)}>
@@ -1061,10 +1115,29 @@ export function CrmLeadsLiveWorkspace() {
               </table>
             </div>
           )}
+          {(listQuery.data?.total ?? 0) > 0 ? (
+            <div className="crm-ops-filtercard__actions" data-testid="crm-leads-pager">
+              <Button type="button" variant="secondary" size="sm" disabled={page <= 1} onClick={() => patchQuery({ page: String(page - 1) })}>
+                {t.previous}
+              </Button>
+              <span>
+                {page} / {listQuery.data?.pages ?? 1}
+              </span>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={page >= (listQuery.data?.pages ?? 1)}
+                onClick={() => patchQuery({ page: String(page + 1) })}
+              >
+                {t.next}
+              </Button>
+            </div>
+          ) : null}
         </div>
       )}
 
-      {view === 'kanban' && items.length === 0 ? (
+      {view === 'kanban' && (boardQuery.data?.total ?? 0) === 0 ? (
         <div className="crm-ops-empty" data-testid="crm-leads-empty">
           <span className="crm-ops-empty__icon" aria-hidden>
             <IhIcon name="empty" size={20} />

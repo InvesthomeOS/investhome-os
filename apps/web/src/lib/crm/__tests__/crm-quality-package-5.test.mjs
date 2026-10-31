@@ -101,7 +101,9 @@ test('pipeline empty columns distinguish a real empty stage from an active filte
   assert.match(pipeline, /crm-pipeline-column-filtered-empty/)
   assert.match(pipeline, /crm-pipeline-column-empty/)
   assert.match(pipeline, /const filtersActive = Boolean/)
-  assert.match(pipeline, /const columnCount = \(column: CrmLeadStage\) => grouped\[column\]\.length/)
+  assert.match(pipeline, /const columnCount = \(column: CrmLeadStage\) =>/)
+  assert.match(pipeline, /\?\.total \?\? 0/)
+  assert.doesNotMatch(pipeline, /columnCount = \(column: CrmLeadStage\) => grouped\[column\]\.length/)
   assert.match(pipeline, /const activeEmpty = !stage && items\.length === 0/)
 })
 
@@ -163,7 +165,11 @@ test('notes stay create-only and say so', () => {
 
 test('narrow calendar month uses the existing list and permissions stay put', () => {
   assert.match(calendar, /const monthAsList = view === 'month' && narrow/)
-  assert.match(calendar, /data-testid=\{monthAsList \? 'crm-calendar-narrow-list' : 'crm-calendar-list'\}/)
+  assert.match(calendar, /const weekAsList = view === 'week' && narrow/)
+  assert.match(
+    calendar,
+    /data-testid=\{monthAsList \? 'crm-calendar-narrow-list' : weekAsList \? 'crm-calendar-narrow-list' : 'crm-calendar-list'\}/,
+  )
   assert.match(calendar, /rangeForView\(view, cursor\)/)
   assert.match(leads, /canCreate/)
   assert.match(leads, /canUpdate/)

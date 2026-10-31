@@ -1,6 +1,6 @@
 """CRM Pano live dashboard — current vs historical purchases, no demo metrics."""
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -64,6 +64,59 @@ def test_dashboard_has_operational_payload(client: TestClient) -> None:
         "recent_leads",
     ):
         assert isinstance(panels[key], list)
+
+
+def test_dashboard_lead_counts_match_the_unfiltered_lead_list(
+    client: TestClient, db: Session
+) -> None:
+    start = datetime(2024, 6, 1, tzinfo=UTC)
+    for index in range(10):
+        db.add(
+            Lead(
+                full_name=f"Pano Lead {index:02d}",
+                status=LeadStatus.NEW,
+                source="website",
+                ingest_status="ok",
+                is_demo=False,
+                created_at=start + timedelta(seconds=index),
+                updated_at=start + timedelta(seconds=index),
+            )
+        )
+    db.add(
+        Lead(
+            full_name="Pano Lost",
+            status=LeadStatus.LOST,
+            source="website",
+            ingest_status="ok",
+            is_demo=False,
+            created_at=start + timedelta(days=1),
+            updated_at=start + timedelta(days=1),
+        )
+    )
+    db.add(
+        Lead(
+            full_name="Pano Demo",
+            status=LeadStatus.NEW,
+            source="website",
+            ingest_status="ok",
+            is_demo=True,
+            created_at=start + timedelta(days=2),
+            updated_at=start + timedelta(days=2),
+        )
+    )
+    db.commit()
+
+    listed = client.get("/crm/leads")
+    assert listed.status_code == 200, listed.text
+    dashboard = client.get("/crm/dashboard")
+    assert dashboard.status_code == 200, dashboard.text
+    body = dashboard.json()
+    assert body["kpis"]["open_leads"] == listed.json()["kpis"]["active"] == 10
+    stages = {row["key"]: row["count"] for row in body["charts"]["lead_pipeline"]}
+    assert stages["yeni"] == listed.json()["kpis"]["yeni"] == 10
+    assert stages["unqualified"] == listed.json()["kpis"]["unqualified"] == 1
+    assert sum(stages.values()) == listed.json()["kpis"]["total"] == 11
+    assert len(body["panels"]["recent_leads"]) == 8
 
 
 def test_dashboard_current_purchases_exclude_historical_and_dedupe_investors(
@@ -146,7 +199,9 @@ def test_dashboard_current_purchases_exclude_historical_and_dedupe_investors(
             due_date=datetime(2030, 1, 15, tzinfo=UTC),
         )
     )
-    left_id, right_id = (owner.id, other.id) if owner.id.hex < other.id.hex else (other.id, owner.id)
+    left_id, right_id = (
+        (owner.id, other.id) if owner.id.hex < other.id.hex else (other.id, owner.id)
+    )
     db.add(
         CrmContactDuplicateCandidate(
             contact_id_a=left_id,

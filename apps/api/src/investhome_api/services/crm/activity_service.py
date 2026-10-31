@@ -593,7 +593,7 @@ def list_activities(
     }.get(sort_by, CrmActivity.created_at)
     order = sort_column.desc() if sort_dir == "desc" else sort_column.asc()
     rows = db.scalars(
-        query.order_by(order).offset((page - 1) * page_size).limit(page_size)
+        query.order_by(order, CrmActivity.id.asc()).offset((page - 1) * page_size).limit(page_size)
     ).all()
     return _summaries_for_rows(db, list(rows)), _paginate(total, page, page_size)
 
@@ -1722,7 +1722,7 @@ def list_notes(
     rows = list(
         db.scalars(
             query.options(selectinload(CrmActivity.attachments), selectinload(CrmActivity.comments))
-            .order_by(CrmActivity.created_at.desc())
+            .order_by(CrmActivity.created_at.desc(), CrmActivity.id.asc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         ).all()

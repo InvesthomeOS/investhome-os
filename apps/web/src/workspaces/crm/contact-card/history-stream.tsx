@@ -7,6 +7,7 @@ import { Button, Input, Select, TextArea } from '@investhome/ui';
 
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 import { fetchActivity, updateActivity } from '@/workspaces/crm/api/activities';
+import type { CrmTaskStatus } from '@/workspaces/crm/types/activities';
 import type { ContactTimelineEntry } from '@/workspaces/crm/api/contacts';
 import {
   DocumentPreviewDialog,
@@ -334,7 +335,7 @@ function TaskDetailDrawer({
   const item = query.data;
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [taskStatus, setTaskStatus] = useState('not_started');
+  const [taskStatus, setTaskStatus] = useState<CrmTaskStatus>('not_started');
   const save = useMutation({
     mutationFn: async () => {
       await updateActivity(activityId, {
@@ -354,7 +355,7 @@ function TaskDetailDrawer({
     if (!item) return;
     setTitle(item.title);
     setDescription(item.description || '');
-    setTaskStatus(item.task_status || 'not_started');
+    setTaskStatus(item.task_status ?? 'not_started');
     setMode('edit');
   };
 
@@ -396,7 +397,16 @@ function TaskDetailDrawer({
             <form onSubmit={submit} className="crm-contact-card__panel">
               <Input label="Başlık" value={title} onChange={(event) => setTitle(event.target.value)} />
               <TextArea label="Açıklama" value={description} onChange={(event) => setDescription(event.target.value)} />
-              <Select label="Durum" value={taskStatus} onChange={(event) => setTaskStatus(event.target.value)}>
+              <Select
+                label="Durum"
+                value={taskStatus}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  if (next === 'not_started' || next === 'in_progress' || next === 'waiting' || next === 'completed') {
+                    setTaskStatus(next);
+                  }
+                }}
+              >
                 <option value="not_started">Başlamadı</option>
                 <option value="in_progress">Devam ediyor</option>
                 <option value="waiting">Beklemede</option>

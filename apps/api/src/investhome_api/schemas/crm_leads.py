@@ -111,6 +111,9 @@ class CrmLeadKpis(BaseModel):
 class CrmLeadListResponse(BaseModel):
     items: list[CrmLeadItem]
     total: int
+    page: int = 1
+    page_size: int = 25
+    pages: int = 1
     kpis: CrmLeadKpis
     sources: list[str] = Field(default_factory=list)
     projects: list[str] = Field(default_factory=list)
@@ -128,6 +131,34 @@ class CrmLeadListResponse(BaseModel):
             "converted",
         ]
     )
+
+
+class CrmLeadBoardColumn(BaseModel):
+    stage: str
+    total: int
+    page: int
+    page_size: int
+    pages: int
+    items: list[CrmLeadItem]
+
+
+class CrmLeadBoardResponse(BaseModel):
+    total: int
+    kpis: CrmLeadKpis
+    columns: list[CrmLeadBoardColumn]
+    sources: list[str] = Field(default_factory=list)
+    projects: list[str] = Field(default_factory=list)
+    owners: list[CrmLeadOwnerOption] = Field(default_factory=list)
+    stages: list[str] = Field(default_factory=list)
+
+
+class CrmLeadBoardCardsResponse(BaseModel):
+    stage: str
+    total: int
+    page: int
+    page_size: int
+    pages: int
+    items: list[CrmLeadItem]
 
 
 class CrmLeadWrite(BaseModel):
