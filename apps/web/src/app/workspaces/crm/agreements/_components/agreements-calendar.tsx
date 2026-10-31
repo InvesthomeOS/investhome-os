@@ -8,7 +8,7 @@ import { Button, Select } from '@investhome/ui';
 
 import {
   fetchAgreementCalendar,
-  type CrmAgreementSummary,
+  type CrmAgreementBoardContact,
 } from '@/workspaces/crm/api/agreements';
 
 const WEEKDAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
@@ -31,17 +31,13 @@ function monthBounds(year: number, month: number) {
   };
 }
 
-function latestCursor(items: CrmAgreementSummary[]) {
-  const dates = items
-    .flatMap((row) => [row.close_date, row.begin_date, row.agreement_date])
-    .map((value) => (value ? new Date(value) : null))
-    .filter((value): value is Date => Boolean(value && !Number.isNaN(value.getTime())));
-  if (!dates.length) {
+function cursorFromDate(value?: string | null) {
+  const parsed = value ? new Date(value) : null;
+  if (!parsed || Number.isNaN(parsed.getTime())) {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
   }
-  const latest = dates.reduce((max, item) => (item > max ? item : max));
-  return { year: latest.getFullYear(), month: latest.getMonth() };
+  return { year: parsed.getFullYear(), month: parsed.getMonth() };
 }
 
 function gridDays(year: number, month: number) {
@@ -58,26 +54,26 @@ function gridDays(year: number, month: number) {
 
 export function AgreementsCalendar({
   projectGroup,
-  items,
+  contacts,
+  latestAgreementDate,
   onOpenAgreement,
 }: {
   projectGroup: string;
-  items: CrmAgreementSummary[];
+  contacts: CrmAgreementBoardContact[];
+  latestAgreementDate: string | null;
   onOpenAgreement: (agreementId: string, contactId: string) => void;
 }) {
   const t = useTranslations('crm.agreements');
-  const [cursor, setCursor] = useState(() => latestCursor(items));
+  const [cursor, setCursor] = useState<{ year: number; month: number } | null>(null);
+  const activeCursor = cursor ?? cursorFromDate(latestAgreementDate);
   const [personId, setPersonId] = useState('');
-  const bounds = monthBounds(cursor.year, cursor.month);
+  const bounds = monthBounds(activeCursor.year, activeCursor.month);
 
   const people = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const row of items) {
-      for (const owner of row.participants || []) map.set(owner.contact_id, owner.display_name);
-      if (row.contact_id && row.contact_name) map.set(row.contact_id, row.contact_name);
-    }
-    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1], 'tr'));
-  }, [items]);
+    return contacts
+      .map((contact) => [contact.id, contact.name] as const)
+      .sort((a, b) => a[1].localeCompare(b[1], 'tr'));
+  }, [contacts]);
 
   const query = useQuery({
     queryKey: ['crm', 'agreements', 'calendar', projectGroup, personId, bounds.start, bounds.end],
@@ -98,9 +94,9 @@ export function AgreementsCalendar({
       map.set(item.date, list);
     }
     return map;
-  }, [query.data]);
+  }, [query]);
 
-  const title = new Date(cursor.year, cursor.month, 1).toLocaleDateString('tr-TR', {
+  const title = new Date(activeCursor.year, activeCursor.month, 1).toLocaleDateString('tr-TR', {
     month: 'long',
     year: 'numeric',
   });
@@ -108,17 +104,17 @@ export function AgreementsCalendar({
   return (
     <section className="crm-agreements-calendar" data-testid="agreements-calendar">
       <div className="crm-agreements-calendar__nav">
-        <Button type="button" variant="secondary" size="sm" onClick={() => setCursor((value) => {
-          const date = new Date(value.year, value.month - 1, 1);
-          return { year: date.getFullYear(), month: date.getMonth() };
-        })}>
+        <Button type="button" variant="secondary" size="sm" onClick={() => {
+          const date = new Date(activeCursor.year, activeCursor.month - 1, 1);
+          setCursor({ year: date.getFullYear(), month: date.getMonth() });
+        }}>
           ←
         </Button>
         <h2>{title}</h2>
-        <Button type="button" variant="secondary" size="sm" onClick={() => setCursor((value) => {
-          const date = new Date(value.year, value.month + 1, 1);
-          return { year: date.getFullYear(), month: date.getMonth() };
-        })}>
+        <Button type="button" variant="secondary" size="sm" onClick={() => {
+          const date = new Date(activeCursor.year, activeCursor.month + 1, 1);
+          setCursor({ year: date.getFullYear(), month: date.getMonth() });
+        }}>
           →
         </Button>
       </div>
@@ -139,15 +135,15 @@ export function AgreementsCalendar({
             {day}
           </div>
         ))}
-        {gridDays(cursor.year, cursor.month).map((day) => {
+        {gridDays(activeCursor.year, activeCursor.month).map((day) => {
           const key = isoDate(day);
-          const muted = day.getMonth() !== cursor.month;
+          const muted = day.getMonth() !== activeCursor.month;
           const events = byDay.get(key) ?? [];
           return (
             <div key={key} className={`crm-agreements-day${muted ? ' is-muted' : ''}`}>
               <strong>{day.getDate()}</strong>
               {events.map((item) => {
-                const contactId = items.find((row) => row.id === item.agreement_id)?.contact_id;
+                const contactId = item.contact_id;
                 return (
                   <button
                     key={item.id}

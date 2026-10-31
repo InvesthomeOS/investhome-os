@@ -16,6 +16,8 @@ from investhome_api.models.crm_agreement import CrmAgreementStatus
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.crm_agreements import (
     CrmAgreementActivityListResponse,
+    CrmAgreementBoardCardsResponse,
+    CrmAgreementBoardResponse,
     CrmAgreementCalendarResponse,
     CrmAgreementListResponse,
     CrmAgreementPatch,
@@ -23,6 +25,9 @@ from investhome_api.schemas.crm_agreements import (
     agreement_project_group_options,
 )
 from investhome_api.services.crm.agreement_service import (
+    BOARD_CARD_PAGE_SIZE,
+    agreement_board,
+    agreement_board_cards,
     agreement_list_meta,
     get_purchase_card,
     list_agreements,
@@ -78,6 +83,88 @@ def get_agreements(
         request_id=get_request_id() or "",
         project_groups=agreement_project_group_options(),
         **meta,
+    )
+
+
+def _board_filters(
+    *,
+    project_group: str | None,
+    status_filter: CrmAgreementStatus | None,
+    contact_id: UUID | None,
+    q: str | None,
+    stage: str | None,
+    responsible: str | None,
+) -> dict[str, object]:
+    return {
+        "project_group": project_group,
+        "status": status_filter,
+        "contact_id": contact_id,
+        "search": q,
+        "stage": stage,
+        "responsible": responsible,
+    }
+
+
+@router.get("/board/cards", response_model=CrmAgreementBoardCardsResponse)
+def get_agreement_board_cards(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "read"))],
+    stage: Annotated[str, Query(min_length=1, max_length=120)],
+    project_group: Annotated[str | None, Query(max_length=40)] = None,
+    status_filter: Annotated[CrmAgreementStatus | None, Query(alias="status")] = None,
+    contact_id: Annotated[UUID | None, Query()] = None,
+    q: Annotated[str | None, Query(max_length=255)] = None,
+    responsible: Annotated[str | None, Query(max_length=120)] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=50)] = BOARD_CARD_PAGE_SIZE,
+) -> CrmAgreementBoardCardsResponse:
+    payload = agreement_board_cards(
+        db,
+        page=page,
+        page_size=page_size,
+        **_board_filters(
+            project_group=project_group,
+            status_filter=status_filter,
+            contact_id=contact_id,
+            q=q,
+            stage=stage,
+            responsible=responsible,
+        ),
+    )
+    payload["items"] = maybe_strip_agreement_summaries(user, payload["items"])
+    return CrmAgreementBoardCardsResponse(**payload, request_id=get_request_id() or "")
+
+
+@router.get("/board", response_model=CrmAgreementBoardResponse)
+def get_agreement_board(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "read"))],
+    project_group: Annotated[str | None, Query(max_length=40)] = None,
+    status_filter: Annotated[CrmAgreementStatus | None, Query(alias="status")] = None,
+    contact_id: Annotated[UUID | None, Query()] = None,
+    q: Annotated[str | None, Query(max_length=255)] = None,
+    stage: Annotated[str | None, Query(max_length=120)] = None,
+    responsible: Annotated[str | None, Query(max_length=120)] = None,
+    page_size: Annotated[int, Query(ge=1, le=50)] = BOARD_CARD_PAGE_SIZE,
+) -> CrmAgreementBoardResponse:
+    payload = agreement_board(
+        db,
+        page_size=page_size,
+        **_board_filters(
+            project_group=project_group,
+            status_filter=status_filter,
+            contact_id=contact_id,
+            q=q,
+            stage=stage,
+            responsible=responsible,
+        ),
+    )
+    for column in payload["columns"]:
+        column["items"] = maybe_strip_agreement_summaries(user, column["items"])
+    return CrmAgreementBoardResponse(
+        **payload,
+        project_groups=agreement_project_group_options(),
+        request_id=get_request_id() or "",
     )
 
 

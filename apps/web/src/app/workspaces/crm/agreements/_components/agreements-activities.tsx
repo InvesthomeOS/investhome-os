@@ -8,7 +8,7 @@ import { Select } from '@investhome/ui';
 
 import {
   fetchAgreementActivities,
-  type CrmAgreementSummary,
+  type CrmAgreementBoardContact,
 } from '@/workspaces/crm/api/agreements';
 import { emailPreviewText } from '@/workspaces/crm/contact-card/history-html';
 
@@ -39,11 +39,13 @@ const TYPE_LABELS: Record<string, string> = {
 
 export function AgreementsActivities({
   projectGroup,
-  items,
+  contacts,
+  responsibles,
   onOpenAgreement,
 }: {
   projectGroup: string;
-  items: CrmAgreementSummary[];
+  contacts: CrmAgreementBoardContact[];
+  responsibles: string[];
   onOpenAgreement: (agreementId: string, contactId: string) => void;
 }) {
   const t = useTranslations('crm.agreements');
@@ -54,21 +56,10 @@ export function AgreementsActivities({
   const [dateTo, setDateTo] = useState('');
 
   const people = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const row of items) {
-      for (const owner of row.participants || []) {
-        map.set(owner.contact_id, owner.display_name);
-      }
-      if (row.contact_id && row.contact_name) map.set(row.contact_id, row.contact_name);
-    }
-    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1], 'tr'));
-  }, [items]);
-
-  const responsibles = useMemo(() => {
-    return [...new Set(items.map((item) => item.responsible_name).filter(Boolean) as string[])].sort((a, b) =>
-      a.localeCompare(b, 'tr'),
-    );
-  }, [items]);
+    return contacts
+      .map((contact) => [contact.id, contact.name] as const)
+      .sort((a, b) => a[1].localeCompare(b[1], 'tr'));
+  }, [contacts]);
 
   const query = useQuery({
     queryKey: ['crm', 'agreements', 'activities', projectGroup, personId, responsible, activityType, dateFrom, dateTo],

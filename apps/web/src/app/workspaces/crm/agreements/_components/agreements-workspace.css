@@ -226,6 +226,18 @@
   gap: 12px;
 }
 
+.crm-agreements-column__more {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--ag-line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ag-petrol);
+  font: inherit;
+  cursor: pointer;
+}
+
 .crm-agreements-card {
   display: grid;
   gap: 6px;

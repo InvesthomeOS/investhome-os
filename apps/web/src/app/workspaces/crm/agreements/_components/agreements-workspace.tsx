@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Route } from 'next';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -10,21 +10,20 @@ import { Button, Input, Select } from '@investhome/ui';
 
 import { IhIcon } from '@/components/icons/ih-icons';
 import { LIST_SEARCH_DEBOUNCE_MS, useDebouncedQueryParam, useListQueryPatch } from '@/lib/crm/list-query';
-import { fetchAgreements, type CrmAgreementStatus, type CrmAgreementSummary } from '@/workspaces/crm/api/agreements';
+import {
+  fetchAgreementBoard,
+  fetchAgreementBoardCards,
+  fetchAgreements,
+  type CrmAgreementStatus,
+  type CrmAgreementSummary,
+} from '@/workspaces/crm/api/agreements';
 import { salesDetailUrl } from '@/workspaces/crm/contact-card/pilot-people';
 
 import { AgreementsActivities } from './agreements-activities';
 import { AgreementsCalendar } from './agreements-calendar';
 import { AgreementsKanban } from './agreements-kanban';
 import { AgreementsList } from './agreements-list';
-import {
-  PROJECT_SELECTOR,
-  kanbanColumns,
-  matchesQuery,
-  normalizeStage,
-  stageBucket,
-  type StageBucket,
-} from './agreements-stage';
+import { PROJECT_SELECTOR, stageBucket, type StageBucket } from './agreements-stage';
 
 import '../../contacts/_components/ds/contacts-ds.css';
 import '@/workspaces/crm/contact-card/contact-card.css';
@@ -72,15 +71,25 @@ export function AgreementsWorkspace() {
   const [responsible, setResponsible] = useState('');
   const [bucket, setBucket] = useState<StageBucket>('all');
 
-  const query = useQuery({
-    queryKey: ['crm', 'agreements', projectGroup],
+  const boardQuery = useQuery({
+    queryKey: ['crm', 'agreements', 'board', projectGroup, status, queryText, stage, responsible],
     queryFn: () =>
-      fetchAgreements({
+      fetchAgreementBoard({
         project_group: projectGroup || undefined,
-        page: 1,
-        page_size: 200,
+        status: status || undefined,
+        q: queryText.trim() || undefined,
+        stage: stage || undefined,
+        responsible: responsible || undefined,
       }),
   });
+  const [extraCards, setExtraCards] = useState<Record<string, CrmAgreementSummary[]>>({});
+  const [loadingStage, setLoadingStage] = useState<string | null>(null);
+  const boardFilterKey = `${projectGroup}|${status}|${queryText}|${stage}|${responsible}`;
+  const boardFilterRef = useRef(boardFilterKey);
+  boardFilterRef.current = boardFilterKey;
+  useEffect(() => {
+    setExtraCards({});
+  }, [boardFilterKey]);
 
   const listQuery = useQuery({
     queryKey: ['crm', 'agreements', 'list', projectGroup, status, queryText, listPage, listPageSize, listSort, listDir],
@@ -97,50 +106,38 @@ export function AgreementsWorkspace() {
     enabled: view === 'list',
   });
 
-  const items = useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const groups = useMemo(() => {
-    const api = query.data?.project_groups ?? [];
+    const api = boardQuery.data?.project_groups ?? [];
     return PROJECT_SELECTOR.map((item) => ({
       id: item.id,
       label: item.label,
       apiLabel: api.find((group) => group.id === item.id)?.label || item.label,
     }));
-  }, [query.data?.project_groups]);
+  }, [boardQuery.data?.project_groups]);
 
-  const stages = useMemo(() => {
-    return kanbanColumns(items);
-  }, [items]);
-
-  const responsibles = useMemo(() => {
-    return [...new Set(items.map((item) => item.responsible_name).filter(Boolean) as string[])].sort((a, b) =>
-      a.localeCompare(b, 'tr'),
-    );
-  }, [items]);
-
-  const baseItems = useMemo(() => {
-    return items.filter((row) => {
-      if (!matchesQuery(row, queryText)) return false;
-      if (status && row.status !== status) return false;
-      if (responsible && row.responsible_name !== responsible) return false;
-      if (stage && normalizeStage(row.stage_label) !== stage) return false;
-      return true;
-    });
-  }, [items, queryText, responsible, stage, status]);
-
-  const kpis = useMemo(() => {
-    return {
-      total: baseItems.length,
-      won: baseItems.filter((row) => stageBucket(row.stage_label) === 'won').length,
-      progress: baseItems.filter((row) => stageBucket(row.stage_label) === 'progress').length,
-      capital: baseItems.filter((row) => stageBucket(row.stage_label) === 'capital').length,
-      unstaged: baseItems.filter((row) => stageBucket(row.stage_label) === 'unstaged').length,
-    };
-  }, [baseItems]);
-
-  const visibleItems = useMemo(() => {
-    if (bucket === 'all') return baseItems;
-    return baseItems.filter((row) => stageBucket(row.stage_label) === bucket);
-  }, [baseItems, bucket]);
+  const stages = boardQuery.data?.stages ?? [];
+  const responsibles = boardQuery.data?.responsibles ?? [];
+  const kpis = boardQuery.data?.kpis ?? { total: 0, won: 0, progress: 0, capital: 0, unstaged: 0 };
+  const visibleColumns = useMemo(() => {
+    return (boardQuery.data?.columns ?? [])
+      .filter((column) => bucket === 'all' || stageBucket(column.stage) === bucket)
+      .map((column) => {
+        const seen = new Set(column.items.map((item) => item.id));
+        const items = [
+          ...column.items,
+          ...(extraCards[column.stage] ?? []).filter((item) => !seen.has(item.id)),
+        ];
+        return {
+          stage: column.stage,
+          total: column.total,
+          pageSize: column.page_size,
+          items,
+          hasMore: items.length < column.total,
+          loadingMore: loadingStage === column.stage,
+        };
+      });
+  }, [boardQuery.data?.columns, bucket, extraCards, loadingStage]);
+  const visibleTotal = visibleColumns.reduce((sum, column) => sum + column.total, 0);
 
   const hasFilters = Boolean(
     queryDraft || queryText || projectGroup || stage || status || responsible || bucket !== 'all',
@@ -166,6 +163,34 @@ export function AgreementsWorkspace() {
 
   const openAgreement = (agreementId: string, contactId: string) => {
     router.push(salesDetailUrl(contactId, agreementId) as Route);
+  };
+
+  const loadMore = async (columnStage: string) => {
+    const column = visibleColumns.find((item) => item.stage === columnStage);
+    if (!column || !column.hasMore || loadingStage) return;
+    const nextPage = Math.floor(column.items.length / column.pageSize) + 1;
+    const requestedKey = boardFilterKey;
+    setLoadingStage(columnStage);
+    try {
+      const data = await fetchAgreementBoardCards({
+        project_group: projectGroup || undefined,
+        status: status || undefined,
+        q: queryText.trim() || undefined,
+        stage: columnStage,
+        responsible: responsible || undefined,
+        page: nextPage,
+        page_size: column.pageSize,
+      });
+      setExtraCards((current) => {
+        if (boardFilterRef.current !== requestedKey) return current;
+        const previous = current[columnStage] ?? [];
+        const seen = new Set(column.items.map((item) => item.id));
+        const added = data.items.filter((item) => !seen.has(item.id));
+        return { ...current, [columnStage]: [...previous, ...added] };
+      });
+    } finally {
+      setLoadingStage(null);
+    }
   };
 
   return (
@@ -252,8 +277,8 @@ export function AgreementsWorkspace() {
               ? listQuery.data
                 ? t('count', { count: listQuery.data.total })
                 : t('loading')
-              : query.data
-                ? t('count', { count: visibleItems.length })
+              : boardQuery.data
+                ? t('count', { count: visibleTotal })
                 : t('loading')}
           </p>
         </div>
@@ -285,9 +310,9 @@ export function AgreementsWorkspace() {
       </section>
 
       {view === 'list' && listQuery.isLoading ? <p>{t('loading')}</p> : null}
-      {view !== 'list' && query.isLoading ? <p>{t('loading')}</p> : null}
+      {view !== 'list' && boardQuery.isLoading ? <p>{t('loading')}</p> : null}
       {view === 'list' && listQuery.isError ? <p>{t('loadError')}</p> : null}
-      {view !== 'list' && query.isError ? <p>{t('loadError')}</p> : null}
+      {view !== 'list' && boardQuery.isError ? <p>{t('loadError')}</p> : null}
 
       {view === 'list' && !listQuery.isLoading && !listQuery.isError && (listQuery.data?.items.length ?? 0) === 0 ? (
         <div className="ctc-ds__empty" data-testid="crm-agreements-empty">
@@ -295,15 +320,15 @@ export function AgreementsWorkspace() {
           <p>{t('emptyDescription')}</p>
         </div>
       ) : null}
-      {view === 'kanban' && !query.isLoading && !query.isError && visibleItems.length === 0 ? (
+      {view === 'kanban' && !boardQuery.isLoading && !boardQuery.isError && visibleTotal === 0 ? (
         <div className="ctc-ds__empty" data-testid="crm-agreements-empty">
           <strong>{t('emptyTitle')}</strong>
           <p>{t('emptyDescription')}</p>
         </div>
       ) : null}
 
-      {!query.isLoading && !query.isError && visibleItems.length > 0 && view === 'kanban' ? (
-        <AgreementsKanban items={visibleItems} onOpen={openPurchase} />
+      {!boardQuery.isLoading && !boardQuery.isError && visibleTotal > 0 && view === 'kanban' ? (
+        <AgreementsKanban columns={visibleColumns} onOpen={openPurchase} onLoadMore={loadMore} />
       ) : null}
       {view === 'list' && !listQuery.isLoading && !listQuery.isError && (listQuery.data?.items.length ?? 0) > 0 ? (
         <AgreementsList
@@ -320,11 +345,21 @@ export function AgreementsWorkspace() {
           onPageSize={(next) => patch({ size: String(next), page: null })}
         />
       ) : null}
-      {!query.isLoading && !query.isError && view === 'activities' ? (
-        <AgreementsActivities projectGroup={projectGroup} items={items} onOpenAgreement={openAgreement} />
+      {!boardQuery.isLoading && !boardQuery.isError && view === 'activities' ? (
+        <AgreementsActivities
+          projectGroup={projectGroup}
+          contacts={boardQuery.data?.contacts ?? []}
+          responsibles={responsibles}
+          onOpenAgreement={openAgreement}
+        />
       ) : null}
-      {!query.isLoading && !query.isError && view === 'calendar' ? (
-        <AgreementsCalendar projectGroup={projectGroup} items={items} onOpenAgreement={openAgreement} />
+      {!boardQuery.isLoading && !boardQuery.isError && view === 'calendar' ? (
+        <AgreementsCalendar
+          projectGroup={projectGroup}
+          contacts={boardQuery.data?.contacts ?? []}
+          latestAgreementDate={boardQuery.data?.latest_agreement_date ?? null}
+          onOpenAgreement={openAgreement}
+        />
       ) : null}
     </div>
   );

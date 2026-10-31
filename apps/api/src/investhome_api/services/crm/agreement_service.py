@@ -11,7 +11,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, false, func, or_, select
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -21,7 +21,7 @@ from investhome_api.models.crm_agreement import (
     CrmAgreementParticipant,
     CrmAgreementStatus,
 )
-from investhome_api.models.crm_contact import CrmContact, CrmContactType
+from investhome_api.models.crm_contact import CrmContact, CrmContactType, CrmContactTypeAssignment
 from investhome_api.models.document import Document, DocumentLink
 from investhome_api.schemas.crm_agreements import (
     CrmAgreementActivityItem,
@@ -344,6 +344,20 @@ def _participant_summaries(
     return items
 
 
+def agreement_responsible_name(
+    meta: dict[str, Any],
+    live: dict[str, Any],
+    participant_rows: list[CrmAgreementParticipantSummary],
+) -> str | None:
+    """Agreement fields win. Otherwise use the first purchase owner's contact responsible."""
+    direct = str(live.get("assigned_name") or meta.get("responsible_person") or "").strip()
+    if direct:
+        return direct
+    if participant_rows:
+        return participant_rows[0].responsible
+    return None
+
+
 def _owners_label(
     summaries: list[CrmAgreementParticipantSummary], fallback: str | None
 ) -> str | None:
@@ -442,8 +456,7 @@ def serialize_agreement(
         amount_label=format_money(amount, currency) if amount else None,
         stage_label=stage_label,
         hemen_kira=bool(getattr(row, "hemen_kira", False)),
-        responsible_name=extras.get("responsible_name")
-        or (participant_rows[0].responsible if participant_rows else None),
+        responsible_name=agreement_responsible_name(meta, live, participant_rows),
         payment_status=extras.get("payment_status"),
         payment_method=extras.get("payment_method"),
         share_ratio=share,
@@ -479,6 +492,178 @@ def _load_participants_map(
             continue
         grouped[participant.agreement_id].append((participant, contact))
     return grouped
+
+
+_STAGE_CODE = re.compile(r"(?:C\d+:)?[A-Z0-9_]+")
+_UNUSABLE_STAGE = re.compile(r"^(unknown|null|undefined|n/a|none)$", re.I)
+_CODEISH_STAGE = re.compile(r"^[A-Z0-9_:]+$")
+_PREFERRED_STAGES = (
+    "Kimlik Bilgileri",
+    "Satış Sözleşmesi",
+    "Docusign",
+    "Para Transferi",
+    "Ev Teslim Süreci",
+    "Tapu Teslim Süreci",
+    "Kazanıldı",
+    "Kapital Kazançlar",
+)
+BOARD_CARD_PAGE_SIZE = 25
+BOARD_CARD_PAGE_MAX = 50
+
+
+def _json_path_text(*keys: str):
+    expr = CrmAgreement.metadata_json
+    for key in keys:
+        expr = expr[key]
+    return func.trim(func.coalesce(expr.as_string(), ""))
+
+
+def _stage_label_sql():
+    meta = _json_path_text("stage_label")
+    live = _json_path_text("bitrix_live", "stage_label")
+    return func.trim(func.coalesce(func.nullif(meta, ""), live, ""))
+
+
+def _stage_id_sql():
+    meta = _json_path_text("stage_id")
+    live = _json_path_text("bitrix_live", "stage_id")
+    return func.trim(func.coalesce(func.nullif(meta, ""), live, ""))
+
+
+def _responsible_sql():
+    assigned = _json_path_text("bitrix_live", "assigned_name")
+    person = _json_path_text("responsible_person")
+    return func.trim(func.coalesce(func.nullif(assigned, ""), person, ""))
+
+
+def _contact_json_text(contact, *keys: str):
+    expr = contact.metadata_json
+    for key in keys:
+        expr = expr[key]
+    return func.trim(func.coalesce(expr.as_string(), ""))
+
+
+def _contact_responsible_sql(contact):
+    assigned = _contact_json_text(contact, "bitrix_live", "assigned_name")
+    extras = _contact_json_text(contact, "bitrix_import", "source_extras", "responsible")
+    return func.trim(func.coalesce(func.nullif(assigned, ""), extras, ""))
+
+
+def _advisor_name_clause(contact):
+    """Portable form of the agent-advisor name check used by purchase-owner filtering."""
+    folded = contact.display_name
+    for source, target in (
+        ("İ", "i"),
+        ("ı", "i"),
+        ("Ş", "s"),
+        ("ş", "s"),
+        ("Ğ", "g"),
+        ("ğ", "g"),
+        ("Ü", "u"),
+        ("ü", "u"),
+        ("Ö", "o"),
+        ("ö", "o"),
+        ("Ç", "c"),
+        ("ç", "c"),
+    ):
+        folded = func.replace(folded, source, target)
+    compact = func.replace(func.lower(folded), " ", "")
+    return compact.like("%acentadanisman%")
+
+
+def _purchase_owner_sql(contact):
+    brokerish = contact.contact_type.in_((CrmContactType.BROKER, CrmContactType.REALTOR))
+    buyer_assignment = (
+        select(CrmContactTypeAssignment.id)
+        .where(
+            CrmContactTypeAssignment.contact_id == contact.id,
+            CrmContactTypeAssignment.contact_type == CrmContactType.BUYER,
+        )
+        .exists()
+    )
+    excluded_type = and_(
+        brokerish,
+        contact.contact_type != CrmContactType.BUYER,
+        ~buyer_assignment,
+    )
+    return and_(~_advisor_name_clause(contact), ~excluded_type)
+
+
+def _first_owner_responsible_sql():
+    participant = aliased(CrmAgreementParticipant)
+    contact = aliased(CrmContact)
+    return (
+        select(_contact_responsible_sql(contact))
+        .select_from(participant)
+        .join(contact, contact.id == participant.contact_id)
+        .where(
+            participant.agreement_id == CrmAgreement.id,
+            _purchase_owner_sql(contact),
+        )
+        .order_by(participant.is_primary.desc(), func.lower(contact.display_name).asc())
+        .limit(1)
+        .correlate(CrmAgreement)
+        .scalar_subquery()
+    )
+
+
+def _resolved_responsible_sql():
+    """Same order as agreement_responsible_name: agreement fields, then first owner."""
+    direct = _responsible_sql()
+    fallback = func.coalesce(_first_owner_responsible_sql(), "")
+    return func.trim(func.coalesce(func.nullif(direct, ""), func.nullif(fallback, ""), ""))
+
+
+def _semantic_stage(label: str, stage_id: str) -> str | None:
+    text = label.strip()
+    if not text:
+        return None
+    if stage_id and text == stage_id.strip():
+        return None
+    if _STAGE_CODE.fullmatch(text):
+        return None
+    return text
+
+
+def normalize_agreement_stage(label: str | None, stage_id: str | None = "") -> str:
+    """Match the agreements board labels used by the workspace."""
+    shown = _semantic_stage(label or "", stage_id or "")
+    value = (shown or "").strip()
+    if (
+        not value
+        or _UNUSABLE_STAGE.fullmatch(value)
+        or (_CODEISH_STAGE.fullmatch(value) and len(value) <= 24)
+    ):
+        return "Aşamasız"
+    if re.search(r"kimlik", value, re.I):
+        return "Kimlik Bilgileri"
+    if re.fullmatch(r"deal won|won|kazanıldı|satın alındı", value, re.I):
+        return "Kazanıldı"
+    if re.search(r"kapital kazanç|kapatılan kazanç", value, re.I):
+        return "Kapital Kazançlar"
+    return value
+
+
+def agreement_stage_bucket(stage: str) -> str:
+    if stage == "Aşamasız":
+        return "unstaged"
+    if stage == "Kapital Kazançlar":
+        return "capital"
+    if stage == "Kazanıldı":
+        return "won"
+    return "progress"
+
+
+def order_agreement_stages(names: list[str]) -> list[str]:
+    present = set(names)
+    ordered = [name for name in _PREFERRED_STAGES if name in present]
+    extras = sorted(
+        (name for name in present if name not in _PREFERRED_STAGES and name != "Aşamasız"),
+        key=str.casefold,
+    )
+    if "Aşamasız" in present:
+        extras.append("Aşamasız")
+    return [*ordered, *extras]
 
 
 def _json_flag_text(key: str):
@@ -520,27 +705,30 @@ def _agreement_list_order(sort_by: str, sort_dir: str):
     return primary, CrmAgreement.created_at.desc(), CrmAgreement.id.asc()
 
 
-def list_agreements(
-    db: Session,
+def _plain_json_text(value: object) -> str:
+    text = "" if value is None else str(value).strip()
+    if len(text) >= 2 and text[0] == '"' and text[-1] == '"':
+        return text[1:-1].strip()
+    return text
+
+
+def _agreement_filters(
     *,
     project_group: str | None = None,
     status: CrmAgreementStatus | None = None,
     contact_id: UUID | None = None,
     search: str | None = None,
-    sort_by: str = "agreement_date",
-    sort_dir: str = "desc",
-    page: int = 1,
-    page_size: int = 25,
-) -> tuple[list[CrmAgreementSummary], int]:
-    query = select(CrmAgreement)
+) -> list:
+    """Shared visibility and list filters. Status replaces the default visibility rule."""
+    filters = []
     if project_group:
-        query = query.where(CrmAgreement.project_group == project_group)
+        filters.append(CrmAgreement.project_group == project_group)
     if status is not None:
-        query = query.where(CrmAgreement.status == status)
+        filters.append(CrmAgreement.status == status)
     else:
-        query = query.where(_default_list_visibility())
+        filters.append(_default_list_visibility())
     if contact_id is not None:
-        query = query.where(CrmAgreement.contact_id == contact_id)
+        filters.append(CrmAgreement.contact_id == contact_id)
     needle = (search or "").strip()
     if needle:
         like = f"%{needle}%"
@@ -557,22 +745,36 @@ def list_agreements(
             )
             .exists()
         )
-        query = query.outerjoin(CrmContact, CrmContact.id == CrmAgreement.contact_id).where(
-            or_(
+        owner_match = (
+            select(CrmContact.id)
+            .where(
+                CrmContact.id == CrmAgreement.contact_id,
                 CrmContact.display_name.ilike(like),
-                CrmAgreement.unit_number.ilike(like),
-                participant_match,
             )
+            .exists()
         )
+        filters.append(or_(owner_match, CrmAgreement.unit_number.ilike(like), participant_match))
+    return filters
 
-    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
-    rows = list(
-        db.scalars(
-            query.order_by(*_agreement_list_order(sort_by, sort_dir))
-            .offset((page - 1) * page_size)
-            .limit(page_size)
-        )        .all()
+
+def _filtered_agreements(
+    *,
+    project_group: str | None = None,
+    status: CrmAgreementStatus | None = None,
+    contact_id: UUID | None = None,
+    search: str | None = None,
+):
+    return select(CrmAgreement).where(
+        *_agreement_filters(
+            project_group=project_group,
+            status=status,
+            contact_id=contact_id,
+            search=search,
+        )
     )
+
+
+def _summaries_for_rows(db: Session, rows: list[CrmAgreement]) -> list[CrmAgreementSummary]:
     contact_ids = {row.contact_id for row in rows}
     contacts: dict[UUID, CrmContact] = {}
     if contact_ids:
@@ -612,7 +814,259 @@ def list_agreements(
         if nxt:
             item.next_activity_title = nxt[0]
             item.next_activity_at = nxt[1]
-    return items, int(total)
+    return items
+
+
+def list_agreements(
+    db: Session,
+    *,
+    project_group: str | None = None,
+    status: CrmAgreementStatus | None = None,
+    contact_id: UUID | None = None,
+    search: str | None = None,
+    sort_by: str = "agreement_date",
+    sort_dir: str = "desc",
+    page: int = 1,
+    page_size: int = 25,
+) -> tuple[list[CrmAgreementSummary], int]:
+    query = _filtered_agreements(
+        project_group=project_group,
+        status=status,
+        contact_id=contact_id,
+        search=search,
+    )
+    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
+    rows = list(
+        db.scalars(
+            query.order_by(*_agreement_list_order(sort_by, sort_dir))
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        ).all()
+    )
+    return _summaries_for_rows(db, rows), int(total)
+
+
+def _stage_pair_rows(db: Session, filters: list) -> list[tuple[str, str, int]]:
+    label = _stage_label_sql()
+    stage_id = _stage_id_sql()
+    rows = db.execute(
+        select(label, stage_id, func.count()).where(*filters).group_by(label, stage_id)
+    ).all()
+    return [
+        (
+            "" if raw_label is None else str(raw_label),
+            "" if raw_id is None else str(raw_id),
+            int(count),
+        )
+        for raw_label, raw_id, count in rows
+    ]
+
+
+def _fold_stage_counts(rows: list[tuple[str, str, int]]) -> dict[str, int]:
+    totals: dict[str, int] = defaultdict(int)
+    for label, stage_id, count in rows:
+        stage = normalize_agreement_stage(_plain_json_text(label), _plain_json_text(stage_id))
+        totals[stage] += count
+    return totals
+
+
+def _pairs_for_stage(rows: list[tuple[str, str, int]], stage: str) -> list[tuple[str, str]]:
+    return [
+        (label, stage_id)
+        for label, stage_id, _count in rows
+        if normalize_agreement_stage(_plain_json_text(label), _plain_json_text(stage_id)) == stage
+    ]
+
+
+def _stage_pair_clause(pairs: list[tuple[str, str]]):
+    if not pairs:
+        return false()
+    label = _stage_label_sql()
+    stage_id = _stage_id_sql()
+    return or_(*[and_(label == raw_label, stage_id == raw_stage) for raw_label, raw_stage in pairs])
+
+
+def _responsible_names(db: Session, filters: list) -> dict[str, list[str]]:
+    expr = _resolved_responsible_sql()
+    rows = db.execute(select(expr).where(*filters).group_by(expr)).all()
+    grouped: dict[str, list[str]] = defaultdict(list)
+    for (raw,) in rows:
+        name = _plain_json_text(raw)
+        if name:
+            grouped[name].append("" if raw is None else str(raw))
+    return grouped
+
+
+def _board_contacts(db: Session, filters: list) -> list[dict[str, str]]:
+    owner_ids = set(db.scalars(select(CrmAgreement.contact_id).where(*filters).distinct()).all())
+    participant_ids = set(
+        db.scalars(
+            select(CrmAgreementParticipant.contact_id)
+            .join(CrmAgreement, CrmAgreement.id == CrmAgreementParticipant.agreement_id)
+            .where(*filters)
+            .distinct()
+        ).all()
+    )
+    contact_ids = owner_ids | participant_ids
+    if not contact_ids:
+        return []
+    contacts = db.scalars(select(CrmContact).where(CrmContact.id.in_(contact_ids))).all()
+    named = [
+        {"id": str(contact.id), "name": contact.display_name}
+        for contact in contacts
+        if contact.display_name
+    ]
+    named.sort(key=lambda item: item["name"].casefold())
+    return named
+
+
+def _kpi_payload(counts: dict[str, int]) -> dict[str, int]:
+    return {
+        "total": sum(counts.values()),
+        "won": sum(
+            count for stage, count in counts.items() if agreement_stage_bucket(stage) == "won"
+        ),
+        "progress": sum(
+            count for stage, count in counts.items() if agreement_stage_bucket(stage) == "progress"
+        ),
+        "capital": sum(
+            count for stage, count in counts.items() if agreement_stage_bucket(stage) == "capital"
+        ),
+        "unstaged": sum(
+            count for stage, count in counts.items() if agreement_stage_bucket(stage) == "unstaged"
+        ),
+    }
+
+
+def _card_page_size(page_size: int) -> int:
+    return min(max(page_size, 1), BOARD_CARD_PAGE_MAX)
+
+
+def _page_stage_cards(
+    db: Session,
+    filters: list,
+    *,
+    stage: str,
+    page: int,
+    page_size: int,
+    pair_rows: list[tuple[str, str, int]] | None = None,
+) -> tuple[list[CrmAgreementSummary], int]:
+    rows = pair_rows if pair_rows is not None else _stage_pair_rows(db, filters)
+    pairs = _pairs_for_stage(rows, stage)
+    total = sum(
+        count
+        for label, stage_id, count in rows
+        if normalize_agreement_stage(_plain_json_text(label), _plain_json_text(stage_id)) == stage
+    )
+    query = select(CrmAgreement).where(*filters, _stage_pair_clause(pairs))
+    rows = list(
+        db.scalars(
+            query.order_by(*_agreement_list_order("agreement_date", "desc"))
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        ).all()
+    )
+    return _summaries_for_rows(db, rows), total
+
+
+def agreement_board(
+    db: Session,
+    *,
+    project_group: str | None = None,
+    status: CrmAgreementStatus | None = None,
+    contact_id: UUID | None = None,
+    search: str | None = None,
+    stage: str | None = None,
+    responsible: str | None = None,
+    page_size: int = BOARD_CARD_PAGE_SIZE,
+) -> dict[str, object]:
+    """Counts and the first card page for the same filtered agreement set as the list."""
+    base = _agreement_filters(
+        project_group=project_group,
+        status=status,
+        contact_id=contact_id,
+        search=search,
+    )
+    option_rows = _stage_pair_rows(db, base)
+    option_counts = _fold_stage_counts(option_rows)
+    responsibles = _responsible_names(db, base)
+    narrowed = list(base)
+    selected = (responsible or "").strip()
+    if selected:
+        raws = responsibles.get(selected, [])
+        narrowed.append(_resolved_responsible_sql().in_(raws or [selected]))
+    selected_stage = (stage or "").strip()
+    kpi_rows = _stage_pair_rows(db, narrowed)
+    counts = _fold_stage_counts(kpi_rows)
+    if selected_stage:
+        counts = {selected_stage: counts.get(selected_stage, 0)}
+    size = _card_page_size(page_size)
+    columns = []
+    for name in order_agreement_stages([item for item, count in counts.items() if count > 0]):
+        items, total = _page_stage_cards(
+            db,
+            narrowed,
+            stage=name,
+            page=1,
+            page_size=size,
+            pair_rows=kpi_rows,
+        )
+        columns.append(
+            {
+                "stage": name,
+                "total": total,
+                "page": 1,
+                "page_size": size,
+                "pages": paginate_total_pages(total, size),
+                "items": items,
+            }
+        )
+    latest = db.scalar(select(func.max(CrmAgreement.agreement_date)).where(*base))
+    return {
+        "total": sum(counts.values()),
+        "kpis": _kpi_payload(counts),
+        "stages": order_agreement_stages(
+            [item for item, count in option_counts.items() if count > 0]
+        ),
+        "responsibles": sorted(responsibles, key=str.casefold),
+        "contacts": _board_contacts(db, base),
+        "latest_agreement_date": latest,
+        "columns": columns,
+    }
+
+
+def agreement_board_cards(
+    db: Session,
+    *,
+    stage: str,
+    project_group: str | None = None,
+    status: CrmAgreementStatus | None = None,
+    contact_id: UUID | None = None,
+    search: str | None = None,
+    responsible: str | None = None,
+    page: int = 1,
+    page_size: int = BOARD_CARD_PAGE_SIZE,
+) -> dict[str, object]:
+    base = _agreement_filters(
+        project_group=project_group,
+        status=status,
+        contact_id=contact_id,
+        search=search,
+    )
+    selected = (responsible or "").strip()
+    if selected:
+        raws = _responsible_names(db, base).get(selected, [])
+        base.append(_resolved_responsible_sql().in_(raws or [selected]))
+    size = _card_page_size(page_size)
+    items, total = _page_stage_cards(db, base, stage=stage, page=page, page_size=size)
+    return {
+        "stage": stage,
+        "total": total,
+        "page": page,
+        "page_size": size,
+        "pages": paginate_total_pages(total, size),
+        "items": items,
+    }
 
 
 def agreement_list_meta(*, total: int, page: int, page_size: int) -> dict[str, int]:
@@ -1795,6 +2249,7 @@ def list_purchase_calendar(
                     date=parsed,
                     kind=kind,
                     agreement_id=row.id,
+                    contact_id=row.contact_id,
                     contact_name=name,
                     project_label=label,
                 )
@@ -1872,6 +2327,7 @@ def list_purchase_calendar(
                     date=day,
                     kind=kind,
                     agreement_id=row.id,
+                    contact_id=row.contact_id,
                     contact_name=contact.display_name if contact else None,
                     project_label=_project_label(row.project_group, _meta(row)),
                     activity_type=activity.activity_type.value,

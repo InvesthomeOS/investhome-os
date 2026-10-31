@@ -195,9 +195,54 @@ export type CrmAgreementCalendarItem = {
   date: string;
   kind: string;
   agreement_id: string | null;
+  contact_id: string | null;
   contact_name: string | null;
   project_label: string | null;
   activity_type: string | null;
+};
+
+export type CrmAgreementBoardKpis = {
+  total: number;
+  won: number;
+  progress: number;
+  capital: number;
+  unstaged: number;
+};
+
+export type CrmAgreementBoardColumn = {
+  stage: string;
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+  items: CrmAgreementSummary[];
+};
+
+export type CrmAgreementBoardContact = {
+  id: string;
+  name: string;
+};
+
+export type CrmAgreementBoardResponse = {
+  total: number;
+  kpis: CrmAgreementBoardKpis;
+  stages: string[];
+  responsibles: string[];
+  contacts: CrmAgreementBoardContact[];
+  latest_agreement_date: string | null;
+  columns: CrmAgreementBoardColumn[];
+  project_groups: Array<{ id: string; label: string }>;
+  request_id: string;
+};
+
+export type CrmAgreementBoardCardsResponse = {
+  stage: string;
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+  items: CrmAgreementSummary[];
+  request_id: string;
 };
 
 export type CrmAgreementCalendarResponse = {
@@ -240,6 +285,45 @@ export async function fetchAgreements(
   if (params.sort_by) search.set('sort_by', params.sort_by);
   if (params.sort_dir) search.set('sort_dir', params.sort_dir);
   return apiFetch<CrmAgreementListResponse>(`/crm/agreements?${search.toString()}`);
+}
+
+export type AgreementBoardParams = {
+  project_group?: string;
+  status?: CrmAgreementStatus;
+  contact_id?: string;
+  q?: string;
+  stage?: string;
+  responsible?: string;
+  page?: number;
+  page_size?: number;
+};
+
+function agreementBoardSearch(params: AgreementBoardParams, includePage: boolean) {
+  const search = new URLSearchParams();
+  if (params.project_group) search.set('project_group', params.project_group);
+  if (params.status) search.set('status', params.status);
+  if (params.contact_id) search.set('contact_id', params.contact_id);
+  if (params.q) search.set('q', params.q);
+  if (params.stage) search.set('stage', params.stage);
+  if (params.responsible) search.set('responsible', params.responsible);
+  if (includePage) search.set('page', String(params.page ?? 1));
+  if (params.page_size) search.set('page_size', String(params.page_size));
+  return search;
+}
+
+export async function fetchAgreementBoard(
+  params: AgreementBoardParams = {},
+): Promise<CrmAgreementBoardResponse> {
+  const search = agreementBoardSearch(params, false);
+  const query = search.toString();
+  return apiFetch<CrmAgreementBoardResponse>(`/crm/agreements/board${query ? `?${query}` : ''}`);
+}
+
+export async function fetchAgreementBoardCards(
+  params: AgreementBoardParams & { stage: string },
+): Promise<CrmAgreementBoardCardsResponse> {
+  const search = agreementBoardSearch(params, true);
+  return apiFetch<CrmAgreementBoardCardsResponse>(`/crm/agreements/board/cards?${search.toString()}`);
 }
 
 export async function fetchPurchaseCard(

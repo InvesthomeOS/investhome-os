@@ -2,36 +2,36 @@
 
 import type { CrmAgreementSummary } from '@/workspaces/crm/api/agreements';
 
-import {
-  displayAmount,
-  initials,
-  kanbanColumns,
-  normalizeStage,
-  ownerList,
-  projectName,
-} from './agreements-stage';
+import { displayAmount, initials, normalizeStage, ownerList, projectName } from './agreements-stage';
+
+export type AgreementsKanbanColumn = {
+  stage: string;
+  total: number;
+  items: CrmAgreementSummary[];
+  hasMore: boolean;
+  loadingMore: boolean;
+};
 
 export function AgreementsKanban({
-  items,
+  columns,
   onOpen,
+  onLoadMore,
 }: {
-  items: CrmAgreementSummary[];
+  columns: AgreementsKanbanColumn[];
   onOpen: (row: CrmAgreementSummary) => void;
+  onLoadMore: (stage: string) => void;
 }) {
-  const columns = kanbanColumns(items);
-
   return (
     <div className="crm-agreements-kanban" data-testid="agreements-kanban">
       {columns.map((column) => {
-        const cards = items.filter((item) => normalizeStage(item.stage_label) === column);
         return (
-          <section key={column} className="crm-agreements-column" data-testid={`agreements-column-${column}`}>
-            <h2 title={column}>
-              <span>{column}</span>
-              <strong>{cards.length}</strong>
+          <section key={column.stage} className="crm-agreements-column" data-testid={`agreements-column-${column.stage}`}>
+            <h2 title={column.stage}>
+              <span>{column.stage}</span>
+              <strong data-testid={`agreements-column-total-${column.stage}`}>{column.total}</strong>
             </h2>
             <div className="crm-agreements-column__cards">
-              {cards.map((row) => {
+              {column.items.map((row) => {
                 const owners = ownerList(row);
                 const amount = displayAmount(row);
                 return (
@@ -66,6 +66,17 @@ export function AgreementsKanban({
                 );
               })}
             </div>
+            {column.hasMore ? (
+              <button
+                type="button"
+                className="crm-agreements-column__more"
+                data-testid={`agreements-column-more-${column.stage}`}
+                disabled={column.loadingMore}
+                onClick={() => onLoadMore(column.stage)}
+              >
+                Daha fazla
+              </button>
+            ) : null}
           </section>
         );
       })}

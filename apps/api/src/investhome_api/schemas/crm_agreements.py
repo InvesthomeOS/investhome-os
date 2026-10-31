@@ -218,6 +218,7 @@ class CrmAgreementCalendarItem(BaseModel):
     date: date
     kind: str
     agreement_id: UUID | None = None
+    contact_id: UUID | None = None
     contact_name: str | None = None
     project_label: str | None = None
     activity_type: str | None = None
@@ -237,6 +238,50 @@ class CrmAgreementListResponse(BaseModel):
     pages: int
     request_id: str = ""
     project_groups: list[dict[str, str]] = Field(default_factory=list)
+
+
+class CrmAgreementBoardKpis(BaseModel):
+    total: int
+    won: int
+    progress: int
+    capital: int
+    unstaged: int
+
+
+class CrmAgreementBoardContact(BaseModel):
+    id: UUID
+    name: str
+
+
+class CrmAgreementBoardColumn(BaseModel):
+    stage: str
+    total: int
+    page: int
+    page_size: int
+    pages: int
+    items: list[CrmAgreementSummary]
+
+
+class CrmAgreementBoardResponse(BaseModel):
+    total: int
+    kpis: CrmAgreementBoardKpis
+    stages: list[str]
+    responsibles: list[str]
+    contacts: list[CrmAgreementBoardContact]
+    latest_agreement_date: date | None = None
+    columns: list[CrmAgreementBoardColumn]
+    project_groups: list[dict[str, str]] = Field(default_factory=list)
+    request_id: str = ""
+
+
+class CrmAgreementBoardCardsResponse(BaseModel):
+    stage: str
+    total: int
+    page: int
+    page_size: int
+    pages: int
+    items: list[CrmAgreementSummary]
+    request_id: str = ""
 
 
 def agreement_project_group_options() -> list[dict[str, str]]:
