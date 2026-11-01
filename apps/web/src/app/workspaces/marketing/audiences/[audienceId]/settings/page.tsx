@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -73,7 +75,7 @@ export default function AudienceSettingsPage() {
         </div>
         {saveMutation.isError ? (
           <p className="marketing-form__error" role="alert">
-            {saveMutation.error instanceof ApiError ? saveMutation.error.message : tCommon('error')}
+            {uiError(saveMutation.error, tCommon('error'))}
           </p>
         ) : null}
         {saveMutation.isSuccess ? <p className="marketing-form__success">{t('saved')}</p> : null}

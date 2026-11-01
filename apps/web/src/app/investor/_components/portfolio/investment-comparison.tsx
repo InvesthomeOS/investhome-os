@@ -1,14 +1,12 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
+import { investorChrome, investorLabel } from '@/app/investor/_components/investor-labels';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useEffect, useRef } from 'react';
 
-import {
-  INVESTMENT_STATUS_LABELS,
-  INVESTMENT_TYPE_LABELS,
-  RISK_LEVEL_LABELS,
-} from '../../_data/investments';
 import type { PerformanceTableRow } from '../../_data/portfolio-types';
 import { formatInvestorCurrency, formatInvestorPercent } from '../../_data/mock-data';
 
@@ -27,6 +25,9 @@ export function InvestmentComparison({
   selectedIds,
   currency,
 }: InvestmentComparisonProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tCommon = useTranslations('common');
+  const tLabels = useTranslations('investorPortal.labels');
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -66,8 +67,8 @@ export function InvestmentComparison({
         onClick={(e) => e.stopPropagation()}
       >
         <header className="inv-portfolio-modal__header">
-          <h2 id="compare-title">Compare Investments</h2>
-          <button type="button" className="inv-portfolio-modal__close" onClick={onClose} aria-label="Close">
+          <h2 id="compare-title">{tChrome('ka858b5a4ad')}</h2>
+          <button type="button" className="inv-portfolio-modal__close" onClick={onClose} aria-label={tCommon('close')}>
             ×
           </button>
         </header>
@@ -83,7 +84,7 @@ export function InvestmentComparison({
                 <article key={inv.id} className="inv-portfolio-compare-card">
                   <h3>{inv.projectName}</h3>
                   <p className="inv-portfolio-compare-card__meta">
-                    {INVESTMENT_TYPE_LABELS[inv.type]} · {INVESTMENT_STATUS_LABELS[inv.status]}
+                    {investorLabel(tLabels, 'investmentType', inv.type)} · {investorLabel(tLabels, 'investmentStatus', inv.status)}
                   </p>
                   <dl>
                     <div>
@@ -95,12 +96,12 @@ export function InvestmentComparison({
                       <dd>{formatInvestorPercent(inv.irr)}</dd>
                     </div>
                     <div>
-                      <dt>Value</dt>
+                      <dt>{tChrome('k8dce170de2')}</dt>
                       <dd>{formatInvestorCurrency(inv.currentValue, currency)}</dd>
                     </div>
                     <div>
-                      <dt>Risk</dt>
-                      <dd>{RISK_LEVEL_LABELS[inv.riskLevel]}</dd>
+                      <dt>{tChrome('k5a8f23f567')}</dt>
+                      <dd>{investorLabel(tLabels, 'riskLevel', inv.riskLevel)}</dd>
                     </div>
                   </dl>
                   <Link href={`/investor/investments/${inv.slug}` as Route} className="inv-portfolio-table__link">
@@ -114,7 +115,7 @@ export function InvestmentComparison({
               <table className="inv-portfolio-table">
                 <thead>
                   <tr>
-                    <th scope="col">Metric</th>
+                    <th scope="col">{tChrome('kb2bb7604c8')}</th>
                     {selected.map((inv) => (
                       <th key={inv.id} scope="col">
                         {inv.projectName}
@@ -125,7 +126,7 @@ export function InvestmentComparison({
                 <tbody>
                   {metrics.map((m) => (
                     <tr key={m.label}>
-                      <th scope="row">{m.label}</th>
+                      <th scope="row">{investorChrome(tChrome, m.label)}</th>
                       {selected.map((inv) => (
                         <td key={inv.id}>{m.get(inv)}</td>
                       ))}

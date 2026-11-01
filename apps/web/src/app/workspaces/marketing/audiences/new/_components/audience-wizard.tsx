@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
@@ -253,7 +255,7 @@ export function AudienceWizard() {
           {createMutation.isError ? (
             <ErrorState
               title={tCommon('error')}
-              message={createMutation.error instanceof ApiError ? createMutation.error.message : tCommon('error')}
+              message={uiError(createMutation.error, tCommon('error'))}
             />
           ) : null}
         </div>

@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { useMemo } from 'react';
 
 import { documentPreviewUrl } from '@/lib/api/documents';
@@ -152,6 +154,7 @@ function WhatsAppMediaBlock({
   entry: WhatsAppEntry;
   documents: GalleryDocument[];
 }) {
+  const tCard = useTranslations('crm.contactCard.ui');
   const parsed = parseWhatsappMedia(entry.summary || entry.title);
   const linked = matchDocument(entry, documents);
   const remote = parsed.media.filter((item) => /^https?:/i.test(item.url) && !isDecorativeMediaUrl(item.url));
@@ -185,7 +188,7 @@ function WhatsAppMediaBlock({
         )
       ) : null}
       {!remote.length && !linked && Number(bitrixHistory(entry)?.attachment_count || 0) > 0 ? (
-        <em>Ek kaydı var; dosya içeriği OS’ta yok</em>
+        <em>{tCard('k9423d4be9f')}</em>
       ) : null}
     </div>
   );

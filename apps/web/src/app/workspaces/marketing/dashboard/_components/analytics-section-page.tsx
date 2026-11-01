@@ -1,5 +1,6 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import { useTranslations } from 'next-intl';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 
@@ -65,7 +66,7 @@ export function AnalyticsSectionPage<T>({
       <DashboardPageShell title={t(titleKey as 'executive.title')} subtitle={t(subtitleKey as 'executive.subtitle')}>
         <ErrorState
           title={t('loadFailed')}
-          message={query.error?.message ?? t('loadFailed')}
+          message={uiError(query.error, t('loadFailed'))}
           action={
             <Button type="button" onClick={() => void query.refetch()}>
               {tCommon('retry')}

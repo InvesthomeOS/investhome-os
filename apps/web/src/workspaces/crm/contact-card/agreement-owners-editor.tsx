@@ -1,11 +1,13 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 
 import { Button, Input } from '@investhome/ui';
 
-import { ApiError } from '@/lib/api/client';
+import { uiError } from '@/lib/i18n/ui-error';
 import { ownershipShareError } from '@/lib/crm/ownership-share';
 import { fetchContacts } from '@/workspaces/crm/api/contacts';
 import {
@@ -31,6 +33,8 @@ export function AgreementOwnersEditor({
   card: CrmPurchaseCard;
   onChanged: () => void;
 }) {
+  const tCard = useTranslations('crm.contactCard.ui');
+  const tCommon = useTranslations('common');
   const [shares, setShares] = useState<Share[]>(() => asShares(card));
   const [query, setQuery] = useState('');
   const [matches, setMatches] = useState<Array<{ id: string; display_name: string }>>([]);
@@ -51,7 +55,7 @@ export function AgreementOwnersEditor({
       onChanged();
     },
     onError: (err: unknown) => {
-      setError(err instanceof ApiError ? err.message : 'Sahiplik kaydedilemedi.');
+      setError(uiError(err, tCommon('actionFailed')));
     },
   });
 
@@ -63,7 +67,7 @@ export function AgreementOwnersEditor({
       onChanged();
     },
     onError: (err: unknown) => {
-      setError(err instanceof ApiError ? err.message : 'Kişi ilişkiden çıkarılamadı.');
+      setError(uiError(err, tCommon('actionFailed')));
     },
   });
 
@@ -76,12 +80,12 @@ export function AgreementOwnersEditor({
 
   return (
     <div className="crm-pd-owners-edit" data-testid="agreement-owners-editor">
-      <p>Sahiplik düzeltmesi kişi kaydını, notları, e-postaları veya belgeleri silmez.</p>
+      <p>{tCard('k3891500e31')}</p>
       {shares.map((owner) => (
         <div key={owner.contact_id} className="crm-pd-owners-edit__row">
           <strong>{owner.display_name}</strong>
           <Input
-            label="Pay %"
+            label={tCard('kd81459ceb7')}
             value={owner.ownership_pct}
             onChange={(event) =>
               setShares((current) =>
@@ -93,13 +97,11 @@ export function AgreementOwnersEditor({
               )
             }
           />
-          <Button type="button" size="sm" variant="ghost" onClick={() => setPendingRemove(owner)}>
-            Sahibi çıkar
-          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setPendingRemove(owner)}>{tCard('k3a90235f66')}</Button>
         </div>
       ))}
       <div className="crm-pd-owners-edit__add">
-        <Input label="Kişi ara" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <Input label={tCard('k35a35afacf')} value={query} onChange={(event) => setQuery(event.target.value)} />
         <Button type="button" size="sm" onClick={() => void search()}>
           Ara
         </Button>
@@ -121,18 +123,14 @@ export function AgreementOwnersEditor({
           </button>
         ))}
       </div>
-      <Button type="button" size="sm" disabled={save.isPending} onClick={() => save.mutate()}>
-        Sahipliği kaydet
-      </Button>
+      <Button type="button" size="sm" disabled={save.isPending} onClick={() => save.mutate()}>{tCard('ke447d264d7')}</Button>
       {error ? <p className="crm-pd-error">{error}</p> : null}
       {pendingRemove ? (
         <div role="dialog" aria-modal="true" data-testid="remove-owner-confirm">
           <p>
             {pendingRemove.display_name} bu satın alma ilişkisinden çıkarılacak. Kişi kaydı ve geçmişi durur.
           </p>
-          <Button type="button" size="sm" disabled={remove.isPending} onClick={() => remove.mutate(pendingRemove.contact_id)}>
-            İlişkiyi kaldır
-          </Button>
+          <Button type="button" size="sm" disabled={remove.isPending} onClick={() => remove.mutate(pendingRemove.contact_id)}>{tCard('kbd815c284e')}</Button>
           <Button type="button" size="sm" variant="ghost" onClick={() => setPendingRemove(null)}>
             Vazgeç
           </Button>

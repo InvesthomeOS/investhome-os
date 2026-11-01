@@ -1,6 +1,8 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+
+import { uiError } from '@/lib/i18n/ui-error';
 import { useQuery } from '@tanstack/react-query';
 
 import { Button, ErrorState } from '@investhome/ui';
@@ -55,7 +57,7 @@ export default function MarketingAIBriefingsPage() {
       ) : briefingQuery.isError ? (
         <ErrorState
           title={t('loadFailed')}
-          message={briefingQuery.error?.message}
+          message={uiError(briefingQuery.error, tCommon('error'))}
           action={
             <Button type="button" onClick={() => void briefingQuery.refetch()}>
               {tCommon('retry')}

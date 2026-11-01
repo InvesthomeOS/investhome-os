@@ -1,5 +1,6 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
@@ -46,7 +47,7 @@ export function RelationshipDetailView({ relationshipId }: Props) {
     return (
       <ErrorState
         title={t('loadFailed')}
-        message={detailQuery.error?.message ?? t('loadFailed')}
+        message={uiError(detailQuery.error, t('loadFailed'))}
         action={
           <Button type="button" onClick={() => void detailQuery.refetch()}>
             {t('loadFailed')}

@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -45,6 +47,7 @@ const DEFAULT_FILTERS: BranchFilterState = {
 
 export function BranchesWorkspace() {
   const t = useTranslations('company.branches');
+  const tCommon = useTranslations('common');
   const tTypes = useTranslations('company.branches.types');
   const tStatuses = useTranslations('company.branches.statuses');
   const { user } = useAuth();
@@ -75,7 +78,7 @@ export function BranchesWorkspace() {
       setSelectedId(result.branch.id);
       setDrawerOpen(true);
     },
-    onError: (error: Error) => setFormError(error.message),
+    onError: (error: Error) => setFormError(uiError(error, tCommon('actionFailed'))),
   });
 
   const updateMutation = useMutation({
@@ -84,7 +87,7 @@ export function BranchesWorkspace() {
       await invalidate();
       setFormMode(null);
     },
-    onError: (error: Error) => setFormError(error.message),
+    onError: (error: Error) => setFormError(uiError(error, tCommon('actionFailed'))),
   });
 
   const actionMutation = useMutation({
@@ -162,7 +165,7 @@ export function BranchesWorkspace() {
     return (
       <ErrorState
         title={t('loadError')}
-        message={listQuery.error instanceof ApiError ? listQuery.error.message : t('loadError')}
+        message={uiError(listQuery.error, t('loadError'))}
         action={
           <Button type="button" variant="secondary" onClick={() => void listQuery.refetch()}>
             {t('applyFilters')}

@@ -15,6 +15,7 @@ import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
 import { mapMfaHttpError, shouldLeaveLogin } from '@/lib/auth/mfa-flow';
 import { safeInternalPath } from '@/lib/auth/session-cookie';
 import { classifyForgotFailure } from '@/lib/auth/password-reset-ux';
+import { loginHeading } from '@/lib/company/brand-slogan';
 import { PublicBrandingProvider, useCompanyBranding } from '@/lib/company/company-context';
 
 function LoginForm() {
@@ -113,7 +114,7 @@ function LoginForm() {
           />
         ) : (
           <>
-            <h1 className="auth-card__title">{slogan ?? t('title')}</h1>
+            <h1 className="auth-card__title">{loginHeading(slogan, t('brandSlogan'), t('title'))}</h1>
             <p className="auth-card__subtitle">{t('subtitle')}</p>
 
             {searchParams.get('next') && <p className="auth-card__hint">{t('redirectHint')}</p>}

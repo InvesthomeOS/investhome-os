@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -23,13 +25,14 @@ export interface InsightsPanelProps {
 }
 
 export function InsightsPanel({ insights }: InsightsPanelProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const slugMap = new Map(getAllInvestments().map((i) => [i.id, i.slug]));
 
   return (
     <section className="inv-portfolio-panel inv-portfolio-insights">
       <SectionHeader
-        title="Portfolio Insights"
-        subtitle="Deterministic analysis derived from your holdings"
+        title={tChrome('k7f5bc8ab8f')}
+        subtitle={tChrome('k5e147c892f')}
       />
       <ul className="inv-portfolio-insights__list">
         {insights.map((insight) => (

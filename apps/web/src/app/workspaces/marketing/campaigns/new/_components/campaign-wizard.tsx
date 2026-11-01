@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Route } from 'next';
@@ -257,7 +259,7 @@ export function CampaignWizard() {
       {createMutation.isError && (
         <ErrorState
           title={t('createFailed')}
-          message={createMutation.error instanceof Error ? createMutation.error.message : t('createFailed')}
+          message={uiError(createMutation.error, t('createFailed'))}
         />
       )}
     </main>

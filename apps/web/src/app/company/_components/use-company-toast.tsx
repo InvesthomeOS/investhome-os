@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { ApiError } from '@/lib/api/client';
 
@@ -30,6 +31,7 @@ function toastId(): string {
 }
 
 export function CompanyToastProvider({ children }: { children: ReactNode }) {
+  const tCommon = useTranslations('common');
   const [toasts, setToasts] = useState<CompanyToast[]>([]);
 
   const dismissToast = useCallback((id: string) => {
@@ -48,21 +50,19 @@ export function CompanyToastProvider({ children }: { children: ReactNode }) {
   const notifySuccess = useCallback((message: string) => pushToast('success', message), [pushToast]);
   const notifyError = useCallback(
     (error: unknown, fallback: string) => {
-      if (error instanceof ApiError) {
-        if (error.status === 403) {
-          pushToast('permission', error.message);
-          return;
-        }
-        pushToast('error', error.message || fallback);
+      const raw = error instanceof Error ? error.message : '';
+      if (raw && raw !== fallback) console.error(raw);
+      if (error instanceof ApiError && error.status === 403) {
+        pushToast('permission', tCommon('permissionDenied'));
         return;
       }
       pushToast('error', fallback);
     },
-    [pushToast],
+    [pushToast, tCommon],
   );
   const notifyPermissionDenied = useCallback(
-    (message = 'You do not have permission to perform this action.') => pushToast('permission', message),
-    [pushToast],
+    (message?: string) => pushToast('permission', message ?? tCommon('permissionDenied')),
+    [pushToast, tCommon],
   );
 
   const value = useMemo(

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { sanitizePlainText } from '../../_utils/sanitize-text';
 import { useMessagingState } from '../../_state/messaging-state';
@@ -11,6 +12,8 @@ interface MessageComposerProps {
 }
 
 export function MessageComposer({ conversationId, onSent }: MessageComposerProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const t = useTranslations('investorPortal');
   const { getDraft, saveDraft, clearDraft, sendMessage } = useMessagingState();
   const [body, setBody] = useState('');
   const [attachMock, setAttachMock] = useState(false);
@@ -44,15 +47,15 @@ export function MessageComposer({ conversationId, onSent }: MessageComposerProps
   };
 
   return (
-    <div className="inv-msg-composer" role="form" aria-label="Compose message">
+    <div className="inv-msg-composer" role="form" aria-label={tChrome('ke6172c488b')}>
       <textarea
         className="inv-msg-composer__input"
         value={body}
         onChange={(e) => handleChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Type your message… (Ctrl+Enter to send)"
+        placeholder={t('placeholders.message')}
         rows={3}
-        aria-label="Message text"
+        aria-label={tChrome('k723e79cd24')}
       />
       <div className="inv-msg-composer__toolbar">
         <button
@@ -60,15 +63,15 @@ export function MessageComposer({ conversationId, onSent }: MessageComposerProps
           className={`inv-msg-composer__tool${attachMock ? ' inv-msg-composer__tool--active' : ''}`}
           onClick={() => setAttachMock((v) => !v)}
           aria-pressed={attachMock}
-          title="Attach file (demo)"
+          title={tChrome('kc266c5717c')}
         >
           📎 Attach
         </button>
-        <button type="button" className="inv-msg-composer__tool" title="Link reference (demo)" disabled>
+        <button type="button" className="inv-msg-composer__tool" title={tChrome('k5b02e26fcf')} disabled>
           🔗 Reference
         </button>
         {attachMock ? (
-          <span className="inv-msg-composer__mock-att">demo-document.pdf (mock)</span>
+          <span className="inv-msg-composer__mock-att">{tChrome('k163d828a3b')}</span>
         ) : null}
         <div className="inv-msg-composer__actions">
           <button

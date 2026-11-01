@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { useCallback, useEffect, useRef } from 'react';
 
 import {
@@ -13,6 +15,7 @@ export interface InvestmentDetailNavProps {
 }
 
 export function InvestmentDetailNav({ activeTab, onTabChange }: InvestmentDetailNavProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const navRef = useRef<HTMLElement>(null);
 
   const handleKeyDown = useCallback(
@@ -54,7 +57,7 @@ export function InvestmentDetailNav({ activeTab, onTabChange }: InvestmentDetail
     <nav
       ref={navRef}
       className="inv-detail-nav"
-      aria-label="Investment detail sections"
+      aria-label={tChrome('k028c1c76e9')}
     >
       <div className="inv-detail-nav__scroll" role="tablist">
         {INVESTMENT_DETAIL_TABS.map((tab, index) => (

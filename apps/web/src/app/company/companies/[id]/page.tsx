@@ -1,5 +1,6 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useParams } from 'next/navigation';
@@ -36,7 +37,7 @@ export default function CompanyDetailPage() {
     return (
       <ErrorState
         title={t('loadFailed')}
-        message={detailQuery.error?.message ?? t('loadFailed')}
+        message={uiError(detailQuery.error, t('loadFailed'))}
         action={
           <Button type="button" onClick={() => void detailQuery.refetch()}>
             {tCommon('retry')}

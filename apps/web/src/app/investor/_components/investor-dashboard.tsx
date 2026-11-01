@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import {
   dashboardKpis,
   formatInvestorCurrency,
@@ -15,43 +17,44 @@ import { MetricCard } from './metric-card';
 import { SectionHeader } from './section-header';
 
 export function InvestorDashboard() {
+  const t = useTranslations('investorPortal');
   const kpis = dashboardKpis;
   const activeInvestments = investments.filter((inv) => inv.status === 'active').slice(0, 3);
 
   return (
     <div className="investor-page">
-      <h1 className="investor-page__title">Dashboard</h1>
+      <h1 className="investor-page__title">{t('dashboard.title')}</h1>
       <p className="investor-page__subtitle">
-        Your portfolio overview and recent activity at a glance.
+        {t('dashboard.subtitle')}
       </p>
 
-      <section className="inv-dashboard__kpi-grid" aria-label="Portfolio KPIs">
+      <section className="inv-dashboard__kpi-grid" aria-label={t('dashboard.kpiAria')}>
         <InvestorKpiCard
-          label="Total Invested"
+          label={t('dashboard.totalInvested')}
           value={formatInvestorCurrency(kpis.totalInvested, kpis.currency)}
         />
         <InvestorKpiCard
-          label="Portfolio Value"
+          label={t('dashboard.portfolioValue')}
           value={formatInvestorCurrency(kpis.portfolioValue, kpis.currency)}
-          delta="+18.0% lifetime"
+          delta={t('dashboard.lifetimeDelta')}
         />
         <InvestorKpiCard
-          label="Estimated Equity"
+          label={t('dashboard.estimatedEquity')}
           value={formatInvestorPercent(kpis.estimatedEquity)}
-          meta="Weighted across active holdings"
+          meta={t('dashboard.equityMeta')}
         />
         <InvestorKpiCard
-          label="Annual Cash Flow"
+          label={t('dashboard.annualCashFlow')}
           value={formatInvestorCurrency(kpis.annualCashFlow, kpis.currency)}
-          delta="Projected 2025"
+          delta={t('dashboard.projectedYear')}
         />
         <InvestorKpiCard
-          label="Projected ROI"
+          label={t('dashboard.projectedRoi')}
           value={formatInvestorPercent(kpis.projectedRoi)}
         />
         <InvestorKpiCard label="IRR" value={formatInvestorPercent(kpis.irr)} />
         <InvestorKpiCard
-          label="Next Distribution"
+          label={t('dashboard.nextDistribution')}
           value={formatInvestorCurrency(
             kpis.nextDistribution.amount,
             kpis.nextDistribution.currency,
@@ -59,24 +62,24 @@ export function InvestorDashboard() {
           meta={`${formatInvestorDate(kpis.nextDistribution.date)} · ${kpis.nextDistribution.investmentName}`}
         />
         <InvestorKpiCard
-          label="Unread Messages"
+          label={t('dashboard.unreadMessages')}
           value={kpis.unreadMessages}
-          delta={kpis.unreadMessages > 0 ? 'Requires attention' : undefined}
+          delta={kpis.unreadMessages > 0 ? t('dashboard.requiresAttention') : undefined}
         />
-        <InvestorKpiCard label="Pending Documents" value={kpis.pendingDocuments} />
+        <InvestorKpiCard label={t('dashboard.pendingDocuments')} value={kpis.pendingDocuments} />
         <InvestorKpiCard
-          label="Pending Signatures"
+          label={t('dashboard.pendingSignatures')}
           value={kpis.pendingSignatures}
-          delta={kpis.pendingSignatures > 0 ? 'Action required' : undefined}
+          delta={kpis.pendingSignatures > 0 ? t('dashboard.actionRequired') : undefined}
         />
       </section>
 
       <div className="inv-dashboard__row">
         <section className="inv-dashboard__panel">
           <SectionHeader
-            title="Recent Activity"
-            subtitle="Latest updates across your investments"
-            actionLabel="View all"
+            title={t('dashboard.recentActivity')}
+            subtitle={t('dashboard.recentActivityHint')}
+            actionLabel={t('dashboard.viewAll')}
             onAction={() => {}}
           />
           <ActivityTimeline events={timelineEvents} maxItems={5} />
@@ -84,9 +87,9 @@ export function InvestorDashboard() {
 
         <section className="inv-dashboard__panel">
           <SectionHeader
-            title="Active Investments"
-            subtitle="Top performing holdings"
-            actionLabel="View portfolio"
+            title={t('dashboard.activeInvestments')}
+            subtitle={t('dashboard.activeInvestmentsHint')}
+            actionLabel={t('dashboard.viewPortfolio')}
             onAction={() => {}}
           />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

@@ -36,7 +36,7 @@ import {
   type Team,
 } from '@/lib/api/company-foundation';
 import { hasPermission } from '@/lib/api/auth';
-import { ApiError } from '@/lib/api/client';
+import { uiError } from '@/lib/i18n/ui-error';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useCompanyBranding } from '@/lib/company/company-context';
 import {
@@ -132,7 +132,7 @@ function PreferenceEditor({
       await onSave(updates);
       setMessage(t('saved'));
     } catch (err) {
-      setMessage(err instanceof ApiError ? err.message : t('saveFailed'));
+      setMessage(uiError(err, t('saveFailed')));
     } finally {
       setSaving(false);
     }
@@ -260,7 +260,7 @@ export function SettingsWorkspace() {
         setTeams(await fetchTeams(deptRes[0].id));
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('loadFailed'));
+      setError(uiError(err, t('loadFailed')));
     } finally {
       setLoading(false);
     }
@@ -296,7 +296,7 @@ export function SettingsWorkspace() {
       setMessage(t('saved'));
       await refreshBranding();
     } catch (err) {
-      setMessage(err instanceof ApiError ? err.message : t('saveFailed'));
+      setMessage(uiError(err, t('saveFailed')));
     }
   };
 
@@ -331,7 +331,7 @@ export function SettingsWorkspace() {
       setMessage(t('saved'));
       await refreshBranding();
     } catch (err) {
-      setMessage(err instanceof ApiError ? err.message : t('saveFailed'));
+      setMessage(uiError(err, t('saveFailed')));
     }
   };
 

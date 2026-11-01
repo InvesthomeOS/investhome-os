@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
@@ -27,6 +29,7 @@ export default function DocumentDetailPage({
 }: {
   params: Promise<{ documentId: string }>;
 }) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const [documentId, setDocumentId] = useState<string | null>(null);
   const { documents, markAsRead, archiveDocument } = useDocumentsState();
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -100,7 +103,7 @@ export default function DocumentDetailPage({
         <aside className="inv-docs__detail-sidebar">
           {signatureRequest ? (
             <section className="inv-docs__detail-panel">
-              <h2>Signature Status</h2>
+              <h2>{tChrome('k8171d32530')}</h2>
               <p>{signatureRequest.status.replace(/_/g, ' ')}</p>
               {doc.requiresSignature && signatureRequest.status === 'action_required' ? (
                 <Link

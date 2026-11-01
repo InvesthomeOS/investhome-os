@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 /** Phase 13.0 FINAL — HUMAN_APPROVED production UI. Do not redesign. */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -93,9 +95,13 @@ export function PremiumCampaignWorkspace({ familyId }: { familyId: string }) {
     setCampaign(detail);
     if (detail.selected_format) setFormat(detail.selected_format);
     const result = detail.result;
-    if (result?.message) {
+    if (result?.message && result.ok) {
       setMessage(result.message);
-      setMessageTone(result.ok ? 'ok' : 'err');
+      setMessageTone('ok');
+    } else if (result?.message) {
+      console.error(result.message);
+      setMessage(t('premium.loadError'));
+      setMessageTone('err');
     } else if (result && !result.ok) {
       setMessage(t('premium.loadError'));
       setMessageTone('err');
@@ -118,7 +124,7 @@ export function PremiumCampaignWorkspace({ familyId }: { familyId: string }) {
       });
       applyResult(detail);
     } catch (error) {
-      const text = error instanceof ApiError ? error.message : t('premium.loadError');
+      const text = uiError(error, t('premium.loadError'));
       setMessage(text);
       setMessageTone('err');
     } finally {

@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 
 import { BrandLogo } from '@/components/brand/brand-logo';
 import { ApiError } from '@/lib/api/client';
+import { uiError } from '@/lib/i18n/ui-error';
 import {
   acceptInvite,
   combinePersonName,
@@ -92,7 +93,7 @@ function InviteAcceptForm() {
       router.replace('/login');
     } catch (err) {
       if (err instanceof ApiError && err.status === 400) {
-        setError(err.message);
+        setError(uiError(err, t('invite.failed')));
       } else if (err instanceof ApiError && err.status === 404) {
         setError(t('invite.invalid'));
       } else {

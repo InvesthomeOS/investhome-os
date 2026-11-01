@@ -1,13 +1,12 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
+import { investorLabel } from '@/app/investor/_components/investor-labels';
 import Link from 'next/link';
 import type { Route } from 'next';
 
 import { formatDocumentBytes } from '../../_data/document-calculations';
-import {
-  DOCUMENT_CATEGORY_LABELS,
-  DOCUMENT_STATUS_LABELS,
-} from '../../_data/documents';
 import type { InvestorDocument } from '../../_data/document-types';
 import { formatInvestorDate } from '../../_data/mock-data';
 
@@ -40,6 +39,7 @@ export function DocumentGrid({
   onPreview,
   onDownload,
 }: DocumentGridProps) {
+  const tLabels = useTranslations('investorPortal.labels');
   return (
     <div className="inv-docs__grid">
       {documents.map((doc) => (
@@ -63,9 +63,9 @@ export function DocumentGrid({
           </Link>
           <p className="inv-docs__grid-sub">{doc.investmentName}</p>
           <div className="inv-docs__grid-meta">
-            <span>{DOCUMENT_CATEGORY_LABELS[doc.category]}</span>
+            <span>{investorLabel(tLabels, 'documentCategory', doc.category)}</span>
             <span className={`inv-docs__status inv-docs__status--${doc.status}`}>
-              {DOCUMENT_STATUS_LABELS[doc.status]}
+              {investorLabel(tLabels, 'documentStatus', doc.status)}
             </span>
           </div>
           <p className="inv-docs__grid-date">

@@ -1,6 +1,9 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
+
+import { uiError } from '@/lib/i18n/ui-error';
 
 import {
   createCreativeStudioDocument,
@@ -72,6 +75,7 @@ export type WebsiteBuilderBootstrapResult =
   | { ok: false; error: string };
 
 export function useWebsiteBuilderDocument(): UseWebsiteBuilderDocumentResult {
+  const tCommon = useTranslations('common');
   const [loadStatus, setLoadStatus] = useState<WbLoadStatus>('idle');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<WbSaveStatus>('idle');
@@ -110,7 +114,7 @@ export function useWebsiteBuilderDocument(): UseWebsiteBuilderDocumentResult {
         return { ...draft, linkedProjectId };
       };
 
-      let draft = withLinked(resolved.draft);
+      const draft = withLinked(resolved.draft);
 
       if (resolved.shouldMigrateToApi && draft) {
         const body = serializeWebsiteBuilderDraft({
@@ -266,7 +270,7 @@ export function useWebsiteBuilderDocument(): UseWebsiteBuilderDocumentResult {
       setSaveStatus(draft ? 'saved' : 'idle');
       return { ok: true, draft };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Load failed';
+      const message = uiError(err, tCommon('loadFailed'));
       if (gen !== bootGenRef.current) {
         return { ok: false, error: message };
       }
@@ -300,7 +304,7 @@ export function useWebsiteBuilderDocument(): UseWebsiteBuilderDocumentResult {
       } catch (err) {
         if (gen !== bootGenRef.current) return null;
         readyRef.current = false;
-        const message = err instanceof Error ? err.message : 'Load failed';
+        const message = uiError(err, tCommon('loadFailed'));
         setLoadError(message);
         setLoadStatus('error');
         return null;

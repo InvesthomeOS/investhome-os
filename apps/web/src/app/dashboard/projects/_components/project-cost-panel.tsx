@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
@@ -67,7 +69,7 @@ export function ProjectCostPanel({ projectId, locale, subTab }: ProjectCostPanel
       setPayments(paymentData.items);
       setRetainage(retainageData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('detailWorkspace.tabLoadError'));
+      setError(uiError(err, t('detailWorkspace.tabLoadError')));
     } finally {
       setLoading(false);
     }
@@ -84,7 +86,7 @@ export function ProjectCostPanel({ projectId, locale, subTab }: ProjectCostPanel
       await action();
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('detailWorkspace.actionError'));
+      setError(uiError(err, t('detailWorkspace.actionError')));
     } finally {
       setBusy(false);
     }

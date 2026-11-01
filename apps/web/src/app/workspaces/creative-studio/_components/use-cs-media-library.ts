@@ -6,6 +6,9 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
+
+import { uiError } from '@/lib/i18n/ui-error';
 
 import {
   fetchCreativeStudioMediaBlob,
@@ -117,6 +120,7 @@ export function useCsMediaLibrary(options?: {
    */
   scopeToLinkedProject?: boolean;
 }): UseCsMediaLibraryResult {
+  const tCommon = useTranslations('common');
   const linkedProjectId = options?.linkedProjectId ?? null;
   const scopeToLinkedProject = options?.scopeToLinkedProject === true;
   const enabled =
@@ -290,7 +294,7 @@ export function useCsMediaLibrary(options?: {
           if (abort.signal.aborted || gen !== listGenRef.current || !mountedRef.current) {
             return;
           }
-          const message = err instanceof Error ? err.message : 'Media library load failed';
+          const message = uiError(err, tCommon('loadFailed'));
           setError(message);
           setStatus('error');
           setRawAssets((prev) => {
@@ -349,7 +353,7 @@ export function useCsMediaLibrary(options?: {
         return uploaded;
       } catch (err) {
         if (mountedRef.current) {
-          const message = err instanceof Error ? err.message : 'Upload failed';
+          const message = uiError(err, tCommon('actionFailed'));
           setError(message);
         }
         return null;

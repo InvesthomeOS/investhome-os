@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -27,27 +29,28 @@ const PRIORITY_CLASS: Record<Task['priority'], string> = {
 };
 
 export function TaskTable({ tasks }: TaskTableProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   if (tasks.length === 0) {
     return (
       <div className="inv-task-table__empty">
-        <p>No tasks match your filters.</p>
+        <p>{tChrome('k462bb6a249')}</p>
       </div>
     );
   }
 
   return (
     <div className="inv-task-table__wrap">
-      <table className="inv-task-table" aria-label="Tasks">
+      <table className="inv-task-table" aria-label={tChrome('k090ec5f560')}>
         <thead>
           <tr>
-            <th scope="col">Task</th>
-            <th scope="col">Investment</th>
-            <th scope="col">Category</th>
-            <th scope="col">Priority</th>
-            <th scope="col">Status</th>
-            <th scope="col">Due Date</th>
-            <th scope="col">Progress</th>
-            <th scope="col">Assignee</th>
+            <th scope="col">{tChrome('k7bb0ddf922')}</th>
+            <th scope="col">{tChrome('k0401729c31')}</th>
+            <th scope="col">{tChrome('ka3c686e711')}</th>
+            <th scope="col">{tChrome('k886cbff9d9')}</th>
+            <th scope="col">{tChrome('kbae7d5be70')}</th>
+            <th scope="col">{tChrome('ka1b308ec70')}</th>
+            <th scope="col">{tChrome('k1b90271d66')}</th>
+            <th scope="col">{tChrome('k049e3ce547')}</th>
           </tr>
         </thead>
         <tbody>
@@ -96,7 +99,7 @@ export function TaskTable({ tasks }: TaskTableProps) {
         </tbody>
       </table>
 
-      <ul className="inv-task-table__mobile" aria-label="Tasks">
+      <ul className="inv-task-table__mobile" aria-label={tChrome('k090ec5f560')}>
         {tasks.map((task) => (
           <li key={task.id} className="inv-task-table__mobile-card">
             <Link href={`/investor/tasks/${task.id}` as Route}>

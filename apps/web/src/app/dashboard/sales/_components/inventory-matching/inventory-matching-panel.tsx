@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -85,7 +87,7 @@ export function InventoryMatchingPanel({ leadId, opportunityId }: InventoryMatch
       setMatches(matchList);
       setShortlists(shortlistList);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('errors.loadFailed'));
+      setError(uiError(e, t('errors.loadFailed')));
     } finally {
       setLoading(false);
     }

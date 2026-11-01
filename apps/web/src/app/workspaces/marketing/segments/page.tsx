@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useMemo } from 'react';
@@ -69,7 +71,7 @@ export default function SegmentsWorkspacePage() {
     return (
       <ErrorState
         title={tCommon('error')}
-        message={listQuery.error instanceof ApiError ? listQuery.error.message : tCommon('error')}
+        message={uiError(listQuery.error, tCommon('error'))}
       />
     );
   }

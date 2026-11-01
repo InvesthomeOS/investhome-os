@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+
+import { uiError } from '@/lib/i18n/ui-error';
 import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -393,7 +395,7 @@ export function CrmDocumentsLiveWorkspace() {
       </section>
 
       {feedQuery.isError ? (
-        <ErrorState title={t('title')} message={feedQuery.error.message} />
+        <ErrorState title={t('title')} message={uiError(feedQuery.error, tCommon('loadFailed'))} />
       ) : items.length === 0 ? (
         <div className="crm-docs-empty">{t('empty')}</div>
       ) : (

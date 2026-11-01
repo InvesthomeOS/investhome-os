@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 
@@ -45,7 +47,7 @@ export default function MarketingSettingsPage() {
       ) : providersQuery.isError ? (
         <ErrorState
           title={tCommon('error')}
-          message={providersQuery.error instanceof ApiError ? providersQuery.error.message : tCommon('error')}
+          message={uiError(providersQuery.error, tCommon('error'))}
         />
       ) : (providersQuery.data?.providers ?? []).length === 0 ? (
         <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />

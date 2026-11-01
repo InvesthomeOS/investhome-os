@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 interface MessagesHeaderProps {
   onCompose: () => void;
   onAnnouncements: () => void;
@@ -15,10 +17,11 @@ export function MessagesHeader({
   unreadAnnouncements,
   unreadNotifications,
 }: MessagesHeaderProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
     <header className="inv-msg-page-header">
       <div>
-        <h1 className="investor-page__title">Messages</h1>
+        <h1 className="investor-page__title">{tChrome('kf1702b4686')}</h1>
         <p className="investor-page__subtitle">
           Communications with your relationship manager and investment team.
         </p>

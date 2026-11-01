@@ -1,5 +1,6 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import { useState } from 'react';
 import type { Route } from 'next';
 import { useLocale, useTranslations } from 'next-intl';
@@ -361,7 +362,7 @@ function ContactDetailLiveView({ contactId }: { contactId: string }) {
     return (
       <ErrorState
         title={t('loadError')}
-        message={detailQuery.error?.message ?? t('loadError')}
+        message={uiError(detailQuery.error, t('loadError'))}
         action={
           <Button type="button" onClick={() => void detailQuery.refetch()}>
             {tCommon('retry')}

@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Route } from 'next';
@@ -73,7 +75,7 @@ export default function ReportBuilderPage() {
               });
               router.push('/dashboard/analytics/reports' as Route);
             } catch (err) {
-              setError(err instanceof Error ? err.message : t('states.error'));
+              setError(uiError(err, t('states.error')));
               setSaving(false);
             }
           }}

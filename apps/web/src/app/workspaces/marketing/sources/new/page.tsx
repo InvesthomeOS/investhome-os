@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Route } from 'next';
@@ -24,7 +26,7 @@ export default function NewLeadSourcePage() {
       const source = await createLeadSource({ name, source_type: 'paid' });
       router.push(`/workspaces/marketing/sources/${source.id}` as Route);
     } catch (err) {
-      setError(err instanceof Error ? err.message : tCommon('error'));
+      setError(uiError(err, tCommon('error')));
     } finally {
       setPending(false);
     }

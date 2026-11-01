@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { useState } from 'react';
 
 import type { CashFlowPeriod, DistributionDateRange, DistributionFilterState } from '../../_data/distribution-types';
@@ -52,6 +54,7 @@ export function CashFlowChart({
   dateRange: initialRange,
   currency,
 }: CashFlowChartProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const [preset, setPreset] = useState<DistributionDateRange['preset']>(initialRange.preset);
   const [granularity, setGranularity] = useState<'monthly' | 'quarterly'>('quarterly');
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
@@ -71,10 +74,10 @@ export function CashFlowChart({
 
   return (
     <section className="inv-distributions__panel">
-      <SectionHeader title="Cash Flow Over Time" subtitle="Historical distributions by source type" />
+      <SectionHeader title={tChrome('k01504ec187')} subtitle={tChrome('k9aeaf6bae6')} />
 
       <div className="inv-distributions__chart-controls">
-        <div className="inv-distributions__toggle-group" role="group" aria-label="Date range">
+        <div className="inv-distributions__toggle-group" role="group" aria-label={tChrome('kc65ea4ae01')}>
           {DATE_PRESETS.map((p) => (
             <button
               key={p.value}
@@ -87,7 +90,7 @@ export function CashFlowChart({
             </button>
           ))}
         </div>
-        <div className="inv-distributions__toggle-group" role="group" aria-label="Granularity">
+        <div className="inv-distributions__toggle-group" role="group" aria-label={tChrome('kdab817f5ca')}>
           {(['monthly', 'quarterly'] as const).map((g) => (
             <button
               key={g}

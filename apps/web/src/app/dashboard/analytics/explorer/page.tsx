@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+
+import { uiError } from '@/lib/i18n/ui-error';
 import { LoadingState } from '@investhome/ui';
 
 import {
@@ -17,6 +19,7 @@ import { BiWorkspaceShell } from '../_components/bi-workspace-shell';
 
 export default function AnalyticsExplorerPage() {
   const t = useTranslations('analytics');
+  const tCommon = useTranslations('common');
   const { user } = useAuth();
   const [datasets, setDatasets] = useState<GovernedDataset[]>([]);
   const [selected, setSelected] = useState('executive_daily');
@@ -34,7 +37,7 @@ export default function AnalyticsExplorerPage() {
         setDatasets(ds);
         if (ds[0]) setSelected(ds[0].dataset_key);
       })
-      .catch((err: Error) => setError(err.message))
+      .catch((err: Error) => setError(uiError(err, tCommon('loadFailed'))))
       .finally(() => setLoading(false));
   }, [user]);
 
@@ -43,7 +46,7 @@ export default function AnalyticsExplorerPage() {
     setLoading(true);
     void exploreDataset(selected)
       .then(setResult)
-      .catch((err: Error) => setError(err.message))
+      .catch((err: Error) => setError(uiError(err, tCommon('loadFailed'))))
       .finally(() => setLoading(false));
   }, [selected, user]);
 
@@ -63,7 +66,7 @@ export default function AnalyticsExplorerPage() {
             data-testid="explorer-export-audit"
             onClick={() => {
               void auditWarehouseExport(selected, result?.row_count).catch((err: Error) =>
-                setError(err.message),
+                setError(uiError(err, tCommon('loadFailed'))),
               );
             }}
           >

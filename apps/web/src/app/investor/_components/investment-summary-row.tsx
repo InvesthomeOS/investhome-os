@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { computeInvestmentSummary } from '../_data/investments';
 import type { PortfolioInvestment } from '../_data/investment-types';
 import { formatInvestorCurrency, formatInvestorPercent } from '../_data/mock-data';
@@ -10,12 +12,13 @@ export interface InvestmentSummaryRowProps {
 }
 
 export function InvestmentSummaryRow({ investments }: InvestmentSummaryRowProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const summary = computeInvestmentSummary(investments);
 
   return (
     <section
       className="inv-investments__summary"
-      aria-label="Portfolio investment summary"
+      aria-label={tChrome('k980fbbe174')}
     >
       <InvestorKpiCard
         label="Total Investments"

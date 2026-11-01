@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { useState } from 'react';
 
 import { HorizontalBarChart } from './chart-primitives';
@@ -16,6 +18,7 @@ export function GeographicAllocationSection({
   geographic,
   currency,
 }: GeographicAllocationSectionProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const [view, setView] = useState<'city' | 'state'>('city');
 
   const slices = view === 'city' ? geographic.byCity : geographic.byState;
@@ -23,7 +26,7 @@ export function GeographicAllocationSection({
 
   return (
     <section className="inv-portfolio-panel">
-      <SectionHeader title="Geographic Allocation" subtitle="Exposure by market" />
+      <SectionHeader title={tChrome('k8bff4c60c8')} subtitle={tChrome('ka07e5d795c')} />
       <div className="inv-portfolio-tabs" role="tablist">
         <button
           type="button"

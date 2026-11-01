@@ -1,9 +1,11 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
+import { investorLabel } from '@/app/investor/_components/investor-labels';
 import Link from 'next/link';
 import type { Route } from 'next';
 
-import { SIGNATURE_STATUS_LABELS } from '../../_data/signature-requests';
 import type { SignatureRequest } from '../../_data/document-types';
 import { formatInvestorDate } from '../../_data/mock-data';
 
@@ -12,6 +14,7 @@ export interface SignatureCardProps {
 }
 
 export function SignatureCard({ request }: SignatureCardProps) {
+  const tLabels = useTranslations('investorPortal.labels');
   const currentRecipient = request.recipients.find((r) => r.isCurrentUser);
   const canSign =
     request.status === 'action_required' &&
@@ -26,7 +29,7 @@ export function SignatureCard({ request }: SignatureCardProps) {
           <p>{request.investmentName} · {request.entityName}</p>
         </div>
         <span className={`inv-sig__status inv-sig__status--${request.status}`}>
-          {SIGNATURE_STATUS_LABELS[request.status]}
+          {investorLabel(tLabels, 'signatureStatus', request.status)}
         </span>
       </div>
       <p className="inv-sig__card-message">{request.message}</p>

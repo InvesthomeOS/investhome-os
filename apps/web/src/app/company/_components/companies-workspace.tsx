@@ -4,6 +4,8 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+
+import { uiError } from '@/lib/i18n/ui-error';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button, EmptyState, ErrorState, FilterBar, Input, LoadingState, PageHeader } from '@investhome/ui';
@@ -470,7 +472,7 @@ export function CompaniesWorkspace() {
           ) : listQuery.isError ? (
             <ErrorState
               title={t('loadFailed')}
-              message={listQuery.error?.message}
+              message={uiError(listQuery.error, t('loadFailed'))}
               action={
                 <Button type="button" onClick={() => void listQuery.refetch()}>
                   {tCommon('retry')}

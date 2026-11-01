@@ -1,3 +1,8 @@
+'use client';
+
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+
+import { useTranslations } from 'next-intl';
 import type { InvestmentDetail } from '../../_data/investment-detail-types';
 import { formatInvestorCurrency } from '../../_data/mock-data';
 import { SectionHeader } from '../section-header';
@@ -18,6 +23,7 @@ export interface ProjectProgressSectionProps {
 }
 
 export function ProjectProgressSection({ detail }: ProjectProgressSectionProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const { progress, milestones, investment: inv } = detail;
 
   const bars = [
@@ -30,8 +36,8 @@ export function ProjectProgressSection({ detail }: ProjectProgressSectionProps) 
     <div className="inv-detail-progress">
       <section className="inv-detail-panel" aria-labelledby="progress-heading">
         <SectionHeader
-          title="Project Progress"
-          subtitle={`${progress.overallPercent}% complete · ${TIMELINE_STATUS_LABELS[progress.timelineStatus]}`}
+          title={tChrome('k6b62b9e8fa')}
+          subtitle={`${progress.overallPercent}% complete · ${investorChrome(tChrome, TIMELINE_STATUS_LABELS[progress.timelineStatus])}`}
         />
 
         <div className="inv-detail-progress__summary">
@@ -42,7 +48,7 @@ export function ProjectProgressSection({ detail }: ProjectProgressSectionProps) 
               aria-valuenow={progress.overallPercent}
               aria-valuemin={0}
               aria-valuemax={100}
-              aria-label="Overall project progress"
+              aria-label={tChrome('k9ca4932fdc')}
             >
               <svg viewBox="0 0 100 100" aria-hidden="true">
                 <circle cx="50" cy="50" r="42" fill="none" stroke="var(--inv-border)" strokeWidth="6" />
@@ -63,7 +69,7 @@ export function ProjectProgressSection({ detail }: ProjectProgressSectionProps) 
             <div>
               <p className="inv-detail-progress__phase">Current Phase: {progress.currentPhase}</p>
               <p className="inv-detail-progress__timeline">
-                Timeline: {TIMELINE_STATUS_LABELS[progress.timelineStatus]}
+                Timeline: {investorChrome(tChrome, TIMELINE_STATUS_LABELS[progress.timelineStatus])}
               </p>
               <p className="inv-detail-progress__completion">
                 Est. Completion: {progress.estimatedCompletion} · {progress.daysRemaining} days remaining
@@ -95,15 +101,15 @@ export function ProjectProgressSection({ detail }: ProjectProgressSectionProps) 
 
           <dl className="inv-detail-progress__budget">
             <div>
-              <dt>Budget Spent</dt>
+              <dt>{tChrome('k26812d487b')}</dt>
               <dd>{formatInvestorCurrency(progress.budgetSpent, inv.currency)}</dd>
             </div>
             <div>
-              <dt>Total Budget</dt>
+              <dt>{tChrome('k9cbf868b72')}</dt>
               <dd>{formatInvestorCurrency(progress.totalBudget, inv.currency)}</dd>
             </div>
             <div>
-              <dt>Budget Utilization</dt>
+              <dt>{tChrome('k14c4c13059')}</dt>
               <dd>{progress.budgetSpentPercent}%</dd>
             </div>
           </dl>
@@ -111,7 +117,7 @@ export function ProjectProgressSection({ detail }: ProjectProgressSectionProps) 
       </section>
 
       <section className="inv-detail-panel" aria-labelledby="milestones-heading">
-        <SectionHeader title="Milestone Timeline" subtitle={`${milestones.length} milestones tracked`} />
+        <SectionHeader title={tChrome('k9d7ca35f2c')} subtitle={`${milestones.length} milestones tracked`} />
         <MilestoneTimeline milestones={milestones} />
       </section>
     </div>

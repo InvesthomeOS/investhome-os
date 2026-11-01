@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 interface MessagesSearchBarProps {
   value: string;
   onChange: (value: string) => void;
@@ -11,6 +13,7 @@ export function MessagesSearchBar({
   onChange,
   placeholder = 'Search messages, tasks, announcements…',
 }: MessagesSearchBarProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
     <div className="inv-msg-search">
       <span className="inv-msg-search__icon" aria-hidden="true">
@@ -22,14 +25,14 @@ export function MessagesSearchBar({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        aria-label="Search messages module"
+        aria-label={tChrome('k0a16590e9c')}
       />
       {value ? (
         <button
           type="button"
           className="inv-msg-search__clear"
           onClick={() => onChange('')}
-          aria-label="Clear search"
+          aria-label={tChrome('k67300d0fed')}
         >
           ×
         </button>

@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
@@ -160,7 +162,7 @@ export function AutomationsWorkspace() {
     return (
       <ErrorState
         title={tCommon('error')}
-        message={listQuery.error instanceof ApiError ? listQuery.error.message : tCommon('error')}
+        message={uiError(listQuery.error, tCommon('error'))}
       />
     );
   }

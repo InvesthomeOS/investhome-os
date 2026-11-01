@@ -1,5 +1,6 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 
@@ -34,7 +35,7 @@ export function CrmContactsList() {
     return (
       <ErrorState
         title={t('loadFailed')}
-        message={contactsQuery.error?.message ?? t('loadFailed')}
+        message={uiError(contactsQuery.error, t('loadFailed'))}
         action={
           <Button type="button" onClick={() => void contactsQuery.refetch()}>
             {tCommon('retry')}

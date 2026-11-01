@@ -21,6 +21,7 @@ import {
 } from '@/lib/api/auth';
 import { ApiError, ensureCsrfToken } from '@/lib/api/client';
 import type { AppLocale } from '@/i18n/config';
+import { authSessionLoadFailedMessage } from '@/lib/i18n/auth-unavailable';
 import { readLocaleCookie, resolveClientLocale, writeLocaleCookie } from '@/lib/i18n/locale-cookie';
 import {
   acceptAuthRefresh,
@@ -137,7 +138,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (decision.logout) {
         await clearStaleSession();
       } else if (!(err instanceof ApiError && err.status === 401)) {
-        setError(err instanceof Error ? err.message : 'Unable to load session');
+        if (err instanceof Error && err.message) console.error(err.message);
+        setError(authSessionLoadFailedMessage(readLocaleCookie() ?? undefined));
       }
     } finally {
       if (epoch === authEpochRef.current) setLoading(false);

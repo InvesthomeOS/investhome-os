@@ -6,12 +6,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { IhIcon } from '@/components/icons/ih-icons';
+import { investorChrome } from '@/app/investor/_components/investor-labels';
 
 import { investorProfile, notifications } from '../_data/mock-data';
 import { formatInvestorDateTime } from '../_data/mock-data';
 
 export function InvestorHeader() {
   const t = useTranslations('investorPortal');
+  const tChrome = useTranslations('investorPortal.chrome');
   const [searchQuery, setSearchQuery] = useState('');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -83,8 +85,8 @@ export function InvestorHeader() {
                   className={`investor-header__dropdown-item${!notif.read ? ' investor-header__dropdown-item--unread' : ''}`}
                   role="menuitem"
                 >
-                  <p className="investor-header__dropdown-item-title">{notif.title}</p>
-                  <p className="investor-header__dropdown-item-msg">{notif.message}</p>
+                  <p className="investor-header__dropdown-item-title">{investorChrome(tChrome, notif.title)}</p>
+                  <p className="investor-header__dropdown-item-msg">{investorChrome(tChrome, notif.message)}</p>
                   <time
                     className="inv-timeline__time"
                     dateTime={notif.timestamp}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { sanitizePlainText } from '../../_utils/sanitize-text';
 import type { TaskComment } from '../../_data/messaging-types';
@@ -13,6 +14,8 @@ interface TaskCommentsProps {
 }
 
 export function TaskComments({ taskId, comments }: TaskCommentsProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const t = useTranslations('investorPortal');
   const { addTaskComment } = useMessagingState();
   const [body, setBody] = useState('');
 
@@ -26,10 +29,10 @@ export function TaskComments({ taskId, comments }: TaskCommentsProps) {
 
   return (
     <section className="inv-task-comments" aria-labelledby="comments-title">
-      <h3 id="comments-title">Comments</h3>
+      <h3 id="comments-title">{tChrome('kfce06e20e5')}</h3>
 
       {comments.length === 0 ? (
-        <p className="inv-task-comments__empty">No comments yet.</p>
+        <p className="inv-task-comments__empty">{tChrome('k207b24fc9b')}</p>
       ) : (
         <ul className="inv-task-comments__list">
           {comments.map((comment) => (
@@ -60,7 +63,7 @@ export function TaskComments({ taskId, comments }: TaskCommentsProps) {
           id="task-comment-input"
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder="Add a comment…"
+          placeholder={t('placeholders.comment')}
           rows={3}
         />
         <button type="submit" disabled={!body.trim()}>

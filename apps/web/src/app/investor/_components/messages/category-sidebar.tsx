@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import type { MessageCategory } from '../../_data/messaging-types';
 
 interface CategorySidebarProps {
@@ -27,8 +29,9 @@ export function CategorySidebar({
   onCategoryChange,
   counts,
 }: CategorySidebarProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
-    <nav className="inv-msg-categories" aria-label="Message categories">
+    <nav className="inv-msg-categories" aria-label={tChrome('k767d4d06f1')}>
       <ul className="inv-msg-categories__list">
         {CATEGORIES.map((cat) => (
           <li key={cat.id}>

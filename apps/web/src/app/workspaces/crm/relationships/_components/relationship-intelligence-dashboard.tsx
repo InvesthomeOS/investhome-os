@@ -1,5 +1,6 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
@@ -32,7 +33,7 @@ export function RelationshipIntelligenceDashboard() {
     return (
       <ErrorState
         title={t('loadFailed')}
-        message={dashboardQuery.error?.message ?? t('loadFailed')}
+        message={uiError(dashboardQuery.error, t('loadFailed'))}
         action={
           <Button type="button" onClick={() => void dashboardQuery.refetch()}>
             {t('loadFailed')}

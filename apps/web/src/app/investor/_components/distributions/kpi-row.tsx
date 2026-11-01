@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { InvestorKpiCard } from '../kpi-card';
 import type { CashFlowSummary } from '../../_data/distribution-types';
 import { computeNextScheduledAmount } from '../../_data/distribution-calculations';
@@ -16,6 +18,7 @@ export interface DistributionKpiRowProps {
 }
 
 export function DistributionKpiRow({ summary, distributions }: DistributionKpiRowProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const nextScheduled = computeNextScheduledAmount(distributions);
   const { currency } = summary;
 
@@ -67,7 +70,7 @@ export function DistributionKpiRow({ summary, distributions }: DistributionKpiRo
   ];
 
   return (
-    <section className="inv-distributions__kpi-grid" aria-label="Distribution key performance indicators">
+    <section className="inv-distributions__kpi-grid" aria-label={tChrome('kc27050bdea')}>
       {kpis.map((kpi) => (
         <InvestorKpiCard
           key={kpi.label}

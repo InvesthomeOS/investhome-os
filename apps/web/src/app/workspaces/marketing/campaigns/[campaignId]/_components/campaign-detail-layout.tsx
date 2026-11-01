@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useParams, usePathname } from 'next/navigation';
@@ -118,7 +120,7 @@ export function CampaignDetailLayout({ children }: { children?: React.ReactNode 
     return (
       <ErrorState
         title={tCommon('error')}
-        message={detailQuery.error instanceof ApiError ? detailQuery.error.message : t('notFound')}
+        message={uiError(detailQuery.error, t('notFound'))}
       />
     );
   }

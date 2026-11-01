@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { Button, Input, Select, TextArea } from '@investhome/ui';
 
@@ -16,6 +17,7 @@ import {
   type DocumentLink,
   type DocumentType,
 } from '@/lib/api/documents';
+import { useDocumentLabels } from '@/lib/i18n/document-labels';
 import { setCrmDocumentVisibility } from '@/workspaces/crm/api/contacts';
 
 export type GalleryDocument = {
@@ -90,16 +92,18 @@ function usePreviewBlob(doc: GalleryDocument, enabled: boolean) {
 }
 
 function PreviewThumb({ doc }: { doc: GalleryDocument }) {
+  const t = useTranslations('crm.documentGallery');
   const src = usePreviewBlob(doc, isImage(doc));
   if (src) {
     return <img src={src} alt={doc.original_file_name || doc.title} className="crm-doc-gallery__thumb-img" />;
   }
   if (isPdf(doc)) return <span className="crm-doc-gallery__icon">PDF</span>;
-  if (isImage(doc)) return <span className="crm-doc-gallery__icon">GÖRSEL</span>;
-  return <span className="crm-doc-gallery__icon">DOSYA</span>;
+  if (isImage(doc)) return <span className="crm-doc-gallery__icon">{t('image')}</span>;
+  return <span className="crm-doc-gallery__icon">{t('file')}</span>;
 }
 
 export function PreviewBody({ doc }: { doc: GalleryDocument }) {
+  const t = useTranslations('crm.documentGallery');
   const src = usePreviewBlob(doc, isImage(doc) || isPdf(doc));
   if (src && isImage(doc)) {
     return <img src={src} alt={doc.original_file_name || doc.title} />;
@@ -107,10 +111,10 @@ export function PreviewBody({ doc }: { doc: GalleryDocument }) {
   if (src && isPdf(doc)) {
     return <iframe title={doc.title} src={src} />;
   }
-  if (isImage(doc) || isPdf(doc)) return <p>Önizleme yükleniyor…</p>;
+  if (isImage(doc) || isPdf(doc)) return <p>{t('previewLoading')}</p>;
   return (
     <p>
-      Bu dosya türü için önizleme yok. <a href={documentDownloadUrl(doc.id)}>İndir / aç</a>
+      {t('noPreview')} <a href={documentDownloadUrl(doc.id)}>{t('downloadOpen')}</a>
     </p>
   );
 }
@@ -122,13 +126,14 @@ export function DocumentPreviewDialog({
   doc: GalleryDocument;
   onClose: () => void;
 }) {
+  const tCommon = useTranslations('common');
   return (
     <div className="crm-doc-gallery__modal" data-testid="crm-doc-preview-modal" role="dialog">
       <div className="crm-doc-gallery__modal-panel">
         <header>
           <strong>{doc.original_file_name || doc.title}</strong>
           <Button type="button" size="sm" variant="secondary" onClick={onClose}>
-            Kapat
+            {tCommon('close')}
           </Button>
         </header>
         <PreviewBody doc={doc} />
@@ -167,6 +172,10 @@ export function DocumentGallery({
   canUnlink?: boolean;
   canArchive?: boolean;
 }) {
+  const t = useTranslations('crm.documentGallery');
+  const tCommon = useTranslations('common');
+  const locale = useLocale();
+  const { getTypeLabel } = useDocumentLabels();
   const [showHidden, setShowHidden] = useState(false);
   const [preview, setPreview] = useState<GalleryDocument | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -191,8 +200,8 @@ export function DocumentGallery({
     try {
       await work();
       onChanged();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Belge işlemi başarısız');
+    } catch {
+      setError(t('actionFailed'));
     } finally {
       setBusyId(null);
     }
@@ -220,15 +229,15 @@ export function DocumentGallery({
       });
       for (const result of results) {
         if (!result.success || !result.document) {
-          throw new Error(result.error || 'Yükleme başarısız');
+          throw new Error(t('uploadFailed'));
         }
         await linkDocument(result.document.id, entityType, entityId);
       }
       setUploadTitle('');
       setUploadDescription('');
       onChanged();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Yükleme başarısız');
+    } catch {
+      setError(t('uploadFailed'));
     } finally {
       setUploading(false);
     }
@@ -255,7 +264,7 @@ export function DocumentGallery({
     if (kind === 'unlink') {
       const link = entityLink(doc, entityType, entityId);
       if (!link) {
-        setError('Bu belge bu kayda bağlı değil');
+        setError(t('notLinked'));
         return;
       }
       await run(doc.id, () => unlinkDocument(doc.id, link.id));
@@ -281,37 +290,37 @@ export function DocumentGallery({
                 event.currentTarget.value = '';
               }}
             />
-            <span>{uploading ? 'Yükleniyor…' : 'Belge yükle'}</span>
+            <span>{uploading ? tCommon('loading') : t('upload')}</span>
           </label>
         ) : null}
         <Button type="button" size="sm" variant="secondary" onClick={() => setShowHidden((value) => !value)}>
-          {showHidden ? 'Gizlenenleri Gizle' : 'Gizlenenleri Göster'}
+          {showHidden ? t('hideHidden') : t('showHidden')}
           {hiddenCount ? ` (${hiddenCount})` : ''}
         </Button>
       </div>
       {canUpload ? (
         <div className="crm-contact-card__panel-grid">
-          <Input label="Belge adı" value={uploadTitle} onChange={(event) => setUploadTitle(event.target.value)} />
+          <Input label={t('documentName')} value={uploadTitle} onChange={(event) => setUploadTitle(event.target.value)} />
           <Select
-            label="Tür"
+            label={t('type')}
             value={uploadType}
             onChange={(event) => setUploadType(event.target.value as DocumentType)}
           >
             {DOCUMENT_TYPES.map((type) => (
               <option key={type} value={type}>
-                {type}
+                {getTypeLabel(type)}
               </option>
             ))}
           </Select>
           <TextArea
-            label="Açıklama"
+            label={t('description')}
             value={uploadDescription}
             onChange={(event) => setUploadDescription(event.target.value)}
           />
         </div>
       ) : null}
       {error ? <p className="crm-verify-detail__error">{error}</p> : null}
-      {!visible.length ? <p>Bu görünümde belge yok.</p> : null}
+      {!visible.length ? <p>{t('empty')}</p> : null}
       <ul className="crm-doc-gallery__list">
         {visible.map((doc) => (
           <li
@@ -331,20 +340,20 @@ export function DocumentGallery({
               <strong>{doc.original_file_name || doc.title}</strong>
               <small>
                 {[
-                  doc.document_type,
+                  doc.document_type ? getTypeLabel(doc.document_type) : null,
                   doc.category,
                   doc.source,
-                  doc.created_at ? new Date(doc.created_at).toLocaleDateString('tr-TR') : null,
-                  doc.hidden_from_view ? 'Gizli' : null,
+                  doc.created_at ? new Date(doc.created_at).toLocaleDateString(locale) : null,
+                  doc.hidden_from_view ? t('hidden') : null,
                 ]
                   .filter(Boolean)
                   .join(' · ')}
               </small>
               <div className="crm-doc-gallery__actions">
                 <button type="button" onClick={() => setPreview(doc)}>
-                  Aç
+                  {t('open')}
                 </button>
-                <a href={documentDownloadUrl(doc.id)}>İndir</a>
+                <a href={documentDownloadUrl(doc.id)}>{tCommon('download')}</a>
                 {canEditMeta ? (
                   <button
                     type="button"
@@ -359,7 +368,7 @@ export function DocumentGallery({
                       setEditDescription(doc.description || '');
                     }}
                   >
-                    Bilgileri düzenle
+                    {t('editInfo')}
                   </button>
                 ) : null}
                 {doc.hidden_from_view ? (
@@ -369,7 +378,7 @@ export function DocumentGallery({
                     disabled={busyId === doc.id}
                     onClick={() => void toggleHidden(doc, false)}
                   >
-                    Geri Getir
+                    {t('restore')}
                   </button>
                 ) : (
                   <button
@@ -378,7 +387,7 @@ export function DocumentGallery({
                     disabled={busyId === doc.id}
                     onClick={() => void toggleHidden(doc, true)}
                   >
-                    Görünümden Kaldır
+                    {t('hideFromView')}
                   </button>
                 )}
                 {canUnlink && entityLink(doc, entityType, entityId) ? (
@@ -388,7 +397,7 @@ export function DocumentGallery({
                     disabled={busyId === doc.id}
                     onClick={() => setConfirm({ kind: 'unlink', doc })}
                   >
-                    Kişiden kaldır
+                    {t('unlink')}
                   </button>
                 ) : null}
                 {canArchive ? (
@@ -398,7 +407,7 @@ export function DocumentGallery({
                     disabled={busyId === doc.id}
                     onClick={() => setConfirm({ kind: 'archive', doc })}
                   >
-                    Arşivle
+                    {t('archive')}
                   </button>
                 ) : null}
               </div>
@@ -411,27 +420,27 @@ export function DocumentGallery({
         <div className="crm-doc-gallery__modal" role="dialog" data-testid="crm-doc-edit-modal">
           <div className="crm-doc-gallery__modal-panel">
             <header>
-              <strong>Belge bilgileri</strong>
+              <strong>{t('infoTitle')}</strong>
               <Button type="button" size="sm" variant="secondary" onClick={() => setEditing(null)}>
-                İptal
+                {tCommon('cancel')}
               </Button>
             </header>
-            <Input label="Ad" value={editTitle} onChange={(event) => setEditTitle(event.target.value)} />
-            <Select label="Tür" value={editType} onChange={(event) => setEditType(event.target.value as DocumentType)}>
+            <Input label={t('name')} value={editTitle} onChange={(event) => setEditTitle(event.target.value)} />
+            <Select label={t('type')} value={editType} onChange={(event) => setEditType(event.target.value as DocumentType)}>
               {DOCUMENT_TYPES.map((type) => (
                 <option key={type} value={type}>
-                  {type}
+                  {getTypeLabel(type)}
                 </option>
               ))}
             </Select>
-            <Input label="Kategori" value={editCategory} onChange={(event) => setEditCategory(event.target.value)} />
+            <Input label={t('category')} value={editCategory} onChange={(event) => setEditCategory(event.target.value)} />
             <TextArea
-              label="Açıklama"
+              label={t('description')}
               value={editDescription}
               onChange={(event) => setEditDescription(event.target.value)}
             />
             <Button type="button" size="sm" disabled={busyId === editing.id} onClick={() => void saveMeta()}>
-              Kaydet
+              {tCommon('save')}
             </Button>
           </div>
         </div>
@@ -440,19 +449,17 @@ export function DocumentGallery({
         <div className="crm-doc-gallery__modal" role="alertdialog" data-testid="crm-doc-confirm-modal">
           <div className="crm-doc-gallery__modal-panel">
             <header>
-              <strong>{confirm.kind === 'archive' ? 'Belgeyi arşivle?' : 'Belgeyi bu kayıttan kaldır?'}</strong>
+              <strong>{confirm.kind === 'archive' ? t('archiveTitle') : t('unlinkTitle')}</strong>
             </header>
             <p>
-              {confirm.kind === 'archive'
-                ? 'Bu işlem belgeyi yumuşak siler. Başka kayıtlara bağlıysa orada da görünmez.'
-                : 'Belge depodan silinmez. Yalnızca bu kişi/anlaşma bağlantısı kaldırılır.'}
+              {confirm.kind === 'archive' ? t('archiveBody') : t('unlinkBody')}
             </p>
             <div className="crm-doc-gallery__actions">
               <Button type="button" size="sm" variant="secondary" onClick={() => setConfirm(null)}>
-                Vazgeç
+                {tCommon('cancel')}
               </Button>
               <Button type="button" size="sm" data-testid="crm-doc-confirm" onClick={() => void applyConfirm()}>
-                Onayla
+                {tCommon('confirm')}
               </Button>
             </div>
           </div>

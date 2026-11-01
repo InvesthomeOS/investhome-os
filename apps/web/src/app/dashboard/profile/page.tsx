@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 
 import { MfaEnrollCard } from '@/components/auth/mfa-enroll-card';
 import { changePassword, updateMyProfile } from '@/lib/api/auth';
-import { ApiError } from '@/lib/api/client';
+import { uiError } from '@/lib/i18n/ui-error';
 import { useAuth } from '@/lib/auth/auth-context';
 import { profileNameParts } from '@/lib/auth/greeting';
 
@@ -62,7 +62,7 @@ export default function ProfilePage() {
       event.currentTarget.reset();
       await refresh();
     } catch (err) {
-      setPasswordError(err instanceof ApiError ? err.message : t('passwordUpdateFailed'));
+      setPasswordError(uiError(err, t('passwordUpdateFailed')));
     }
   };
 

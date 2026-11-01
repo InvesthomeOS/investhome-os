@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useCallback, useEffect, useState } from 'react';
@@ -17,6 +19,7 @@ import type { PortfolioInvestment } from '../_data/investment-types';
 const SHOW_ERROR_PLACEHOLDER = false;
 
 export default function InvestmentsPage() {
+  const tChrome = useTranslations('investorPortal.chrome');
   const {
     filters,
     filteredInvestments,
@@ -57,7 +60,7 @@ export default function InvestmentsPage() {
     <div className="investor-page inv-investments">
       <header className="inv-investments__page-header">
         <div>
-          <h1 className="investor-page__title">My Investments</h1>
+          <h1 className="investor-page__title">{tChrome('k297aaf4837')}</h1>
           <p className="investor-page__subtitle">
             Track your active, completed, and upcoming real estate investments.
           </p>
@@ -101,7 +104,7 @@ export default function InvestmentsPage() {
           {filteredInvestments.length === 0 ? (
             <EmptyState
               icon="◇"
-              title="No search results"
+              title={tChrome('kc927142036')}
               description={
                 hasFilters
                   ? 'No investments match your current filters. Try adjusting your search or clearing filters.'

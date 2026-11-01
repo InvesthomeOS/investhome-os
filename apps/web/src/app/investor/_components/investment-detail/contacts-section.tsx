@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import type { InvestmentDetail } from '../../_data/investment-detail-types';
 import { SectionHeader } from '../section-header';
 
@@ -17,11 +19,12 @@ export interface ContactsSectionProps {
 }
 
 export function ContactsSection({ detail, onPlaceholderAction }: ContactsSectionProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const { contacts } = detail;
 
   return (
     <section className="inv-detail-panel" aria-labelledby="contacts-heading">
-      <SectionHeader title="Project Team" subtitle="Your dedicated contacts for this investment" />
+      <SectionHeader title={tChrome('k13b24f9c83')} subtitle={tChrome('kea02aeba67')} />
 
       <div className="inv-detail-contacts" role="list">
         {contacts.map((contact) => (
@@ -38,19 +41,19 @@ export function ContactsSection({ detail, onPlaceholderAction }: ContactsSection
               <p className="inv-detail-contacts__title">{contact.title}</p>
               <dl className="inv-detail-contacts__details">
                 <div>
-                  <dt>Email</dt>
+                  <dt>{tChrome('k84add5b295')}</dt>
                   <dd>
                     <a href={`mailto:${contact.email}`}>{contact.email}</a>
                   </dd>
                 </div>
                 <div>
-                  <dt>Phone</dt>
+                  <dt>{tChrome('k77064d5265')}</dt>
                   <dd>
                     <a href={`tel:${contact.phone.replace(/\D/g, '')}`}>{contact.phone}</a>
                   </dd>
                 </div>
                 <div>
-                  <dt>Availability</dt>
+                  <dt>{tChrome('k681b5b5ae1')}</dt>
                   <dd>{contact.availability}</dd>
                 </div>
               </dl>

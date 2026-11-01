@@ -1,8 +1,8 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
+import { investorLabel } from '@/app/investor/_components/investor-labels';
 import type { InvestmentDetail } from '../../_data/investment-detail-types';
-import {
-  INVESTMENT_STATUS_LABELS,
-  RISK_LEVEL_LABELS,
-} from '../../_data/investments';
 import {
   formatInvestorCurrency,
   formatInvestorDate,
@@ -14,32 +14,34 @@ export interface InvestmentSummaryPanelProps {
 }
 
 export function InvestmentSummaryPanel({ detail }: InvestmentSummaryPanelProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tLabels = useTranslations('investorPortal.labels');
   const { investment: inv, summaryPanel } = detail;
 
   return (
-    <aside className="inv-detail-summary" aria-label="Investment summary">
+    <aside className="inv-detail-summary" aria-label={tChrome('k3fd0423cd9')}>
       <div className="inv-detail-summary__card">
-        <h2 className="inv-detail-summary__title">At a Glance</h2>
+        <h2 className="inv-detail-summary__title">{tChrome('ka25567010c')}</h2>
 
         <dl className="inv-detail-summary__list">
           <div>
-            <dt>Status</dt>
+            <dt>{tChrome('kbae7d5be70')}</dt>
             <dd>
               <span className={`inv-investment-card__status inv-investment-card__status--${inv.status}`}>
-                {INVESTMENT_STATUS_LABELS[inv.status]}
+                {investorLabel(tLabels, 'investmentStatus', inv.status)}
               </span>
             </dd>
           </div>
           <div>
-            <dt>Current Value</dt>
+            <dt>{tChrome('k4f99315301')}</dt>
             <dd>{formatInvestorCurrency(inv.currentValue, inv.currency)}</dd>
           </div>
           <div>
-            <dt>Ownership</dt>
+            <dt>{tChrome('k3e90e4cbf4')}</dt>
             <dd>{formatInvestorPercent(inv.ownershipPercent)}</dd>
           </div>
           <div>
-            <dt>Next Distribution</dt>
+            <dt>{tChrome('k4ba00f0c12')}</dt>
             <dd>
               {inv.distribution.nextDistributionDate
                 ? formatInvestorDate(inv.distribution.nextDistributionDate)
@@ -47,29 +49,29 @@ export function InvestmentSummaryPanel({ detail }: InvestmentSummaryPanelProps) 
             </dd>
           </div>
           <div>
-            <dt>Completion</dt>
+            <dt>{tChrome('k2ff255684a')}</dt>
             <dd>{inv.progressPercent}%</dd>
           </div>
           <div>
-            <dt>Next Milestone</dt>
+            <dt>{tChrome('k89884c1481')}</dt>
             <dd>{summaryPanel.nextMilestone}</dd>
           </div>
           <div>
-            <dt>Milestone Date</dt>
+            <dt>{tChrome('kecbab4e55e')}</dt>
             <dd>{formatInvestorDate(summaryPanel.nextMilestoneDate)}</dd>
           </div>
           <div>
-            <dt>Projected Exit</dt>
+            <dt>{tChrome('k2bb25d81c8')}</dt>
             <dd>{inv.exitDate ? formatInvestorDate(inv.exitDate) : '—'}</dd>
           </div>
           <div>
-            <dt>Overall Risk</dt>
-            <dd>{RISK_LEVEL_LABELS[summaryPanel.overallRiskLevel]}</dd>
+            <dt>{tChrome('kbf78c7922a')}</dt>
+            <dd>{investorLabel(tLabels, 'riskLevel', summaryPanel.overallRiskLevel)}</dd>
           </div>
         </dl>
 
         <div className="inv-detail-summary__ir">
-          <h3>Investor Relations</h3>
+          <h3>{tChrome('k3a49ad474d')}</h3>
           <p className="inv-detail-summary__ir-name">{summaryPanel.irContactName}</p>
           <a href={`mailto:${summaryPanel.irContactEmail}`}>{summaryPanel.irContactEmail}</a>
         </div>

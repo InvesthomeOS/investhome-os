@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { InvestorKpiCard } from '../kpi-card';
 import { formatTrendDelta } from '../../_data/portfolio-analytics';
 import type { PortfolioSummary } from '../../_data/portfolio-types';
@@ -10,6 +12,7 @@ export interface PortfolioKpiRowProps {
 }
 
 export function PortfolioKpiRow({ summary }: PortfolioKpiRowProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const { currency, trends } = summary;
 
   const kpis = [
@@ -63,7 +66,7 @@ export function PortfolioKpiRow({ summary }: PortfolioKpiRowProps) {
   ];
 
   return (
-    <section className="inv-portfolio-kpi-grid" aria-label="Portfolio key performance indicators">
+    <section className="inv-portfolio-kpi-grid" aria-label={tChrome('k94b6755f74')}>
       {kpis.map((kpi) => (
         <InvestorKpiCard
           key={kpi.label}

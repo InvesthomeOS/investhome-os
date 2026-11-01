@@ -18,6 +18,7 @@ import {
 import { useScreenshotDashboardInteractions } from '@/app/dashboard/_components/screenshot-dashboard-interactions';
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 import { hasPermission } from '@/lib/api/auth';
+import { uiError } from '@/lib/i18n/ui-error';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
   listCreativeStudioMediaAssets,
@@ -1211,8 +1212,7 @@ function DocumentsTab({
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        const message = err instanceof Error ? err.message : tD('documents.foldersLoadError');
-        setFoldersError(message || tD('documents.foldersLoadError'));
+        setFoldersError(uiError(err, tD('documents.foldersLoadError')));
         setFolders([]);
       })
       .finally(() => {
@@ -1247,8 +1247,7 @@ function DocumentsTab({
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        const message = err instanceof Error ? err.message : tD('documents.loadError');
-        setLoadError(message || tD('documents.loadError'));
+        setLoadError(uiError(err, tD('documents.loadError')));
         setAssets([]);
       })
       .finally(() => {

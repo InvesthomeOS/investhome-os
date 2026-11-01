@@ -1,5 +1,8 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
+import { investorChrome, investorLabel } from '@/app/investor/_components/investor-labels';
 import { useMemo, useState } from 'react';
 
 import {
@@ -32,6 +35,8 @@ export function DocumentFolderView({
   onPreview,
   onDownload,
 }: DocumentFolderViewProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tLabels = useTranslations('investorPortal.labels');
   const [groupMode, setGroupMode] = useState<FolderGroupMode>('investment');
   const [folderKey, setFolderKey] = useState<string | null>(null);
 
@@ -47,14 +52,14 @@ export function DocumentFolderView({
 
   const folderName = useMemo(() => {
     if (!folderKey) return null;
-    if (groupMode === 'category') return DOCUMENT_CATEGORY_LABELS[folderKey as keyof typeof DOCUMENT_CATEGORY_LABELS] ?? folderKey;
+    if (groupMode === 'category') return investorLabel(tLabels, 'documentCategory', folderKey as keyof typeof DOCUMENT_CATEGORY_LABELS) ?? folderKey;
     return folderKey;
-  }, [folderKey, groupMode]);
+  }, [folderKey, groupMode, tLabels]);
 
   return (
     <div className="inv-docs__folder-view">
       <div className="inv-docs__folder-toolbar">
-        <div className="inv-docs__folder-modes" role="tablist" aria-label="Folder grouping">
+        <div className="inv-docs__folder-modes" role="tablist" aria-label={tChrome('k94c1ef03b6')}>
           {(Object.keys(GROUP_LABELS) as FolderGroupMode[]).map((mode) => (
             <button
               key={mode}
@@ -67,13 +72,13 @@ export function DocumentFolderView({
                 setFolderKey(null);
               }}
             >
-              {GROUP_LABELS[mode]}
+              {investorChrome(tChrome, GROUP_LABELS[mode])}
             </button>
           ))}
         </div>
       </div>
 
-      <nav className="inv-docs__breadcrumbs" aria-label="Folder breadcrumbs">
+      <nav className="inv-docs__breadcrumbs" aria-label={tChrome('k17d187fb04')}>
         <button type="button" onClick={() => setFolderKey(null)}>
           All Folders
         </button>

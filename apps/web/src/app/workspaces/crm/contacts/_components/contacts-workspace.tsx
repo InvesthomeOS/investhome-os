@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
@@ -204,7 +206,7 @@ export function ContactsWorkspace() {
     return (
       <ErrorState
         title={t('loadError')}
-        message={listQuery.error instanceof ApiError ? listQuery.error.message : t('loadError')}
+        message={uiError(listQuery.error, t('loadError'))}
         action={
           <Button type="button" onClick={() => void listQuery.refetch()}>
             {tCommon('retry')}

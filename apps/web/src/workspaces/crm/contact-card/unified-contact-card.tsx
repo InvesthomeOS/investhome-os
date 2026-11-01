@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import type { Route } from 'next';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -342,6 +342,8 @@ export function UnifiedContactCard({
   contactId: string;
   variant?: 'page' | 'drawer';
 }) {
+  const tCard = useTranslations('crm.contactCard.ui');
+  const tTask = useTranslations('crm.contactCard.taskStatus');
   const params = useParams<{ contactId?: string }>();
   const pathname = usePathname();
   const routeContactId = personIdFromRoute(pathname, params.contactId);
@@ -543,7 +545,7 @@ export function UnifiedContactCard({
   if (authLoading || query.isLoading) return <LoadingState label={t.loading} />;
   if (!canRead) return <EmptyState title="CRM" description={t.accessDenied} />;
   if (query.isError || !contact) {
-    return <ErrorState title="CRM" message={query.error?.message ?? t.loadError} />;
+    return <ErrorState title="CRM" message={t.loadError} />;
   }
 
   const isJunk = contact.status === 'archived';
@@ -894,9 +896,9 @@ export function UnifiedContactCard({
           <thead>
             <tr>
               <th>{t.purchases}</th>
-              <th>Daire</th>
-              <th>Tutar</th>
-              <th>Durum</th>
+              <th>{tCard('k863ba1e79c')}</th>
+              <th>{tCard('k72eb23dcb0')}</th>
+              <th>{tCard('kf7c81d57e2')}</th>
             </tr>
           </thead>
           <tbody>
@@ -917,10 +919,10 @@ export function UnifiedContactCard({
     <table className="crm-person-table crm-person-table--tasks">
       <thead>
         <tr>
-          <th>Tarih</th>
+          <th>{tCard('k06fda6345b')}</th>
           <th>{t.task}</th>
-          <th>Tip</th>
-          <th>Durum</th>
+          <th>{tCard('k81be10b716')}</th>
+          <th>{tCard('kf7c81d57e2')}</th>
           {!compact ? <th>{t.description}</th> : null}
           <th>{t.assignee}</th>
           <th></th>
@@ -944,7 +946,7 @@ export function UnifiedContactCard({
                       ? t.waiting
                       : String(entry.metadata?.task_status || entry.status || '') === 'completed'
                         ? t.completed
-                        : taskStatusLabel(String(entry.metadata?.task_status || entry.status || ''))}
+                        : taskStatusLabel(String(entry.metadata?.task_status || entry.status || ''), tTask)}
               </td>
               {!compact ? <td>{entry.summary || '—'}</td> : null}
               <td>{String(entry.metadata?.assigned_user_name || entry.actor_name || ownerName || '—')}</td>
@@ -1022,7 +1024,7 @@ export function UnifiedContactCard({
                       onClick={() => {
                         void removeContactTag(contactId, tag.id)
                           .then(() => refresh())
-                          .catch((err: Error) => setError(err.message));
+                          .catch((err: Error) => setError(friendlyError(err.message, t)));
                       }}
                     >
                       ×
@@ -1040,7 +1042,7 @@ export function UnifiedContactCard({
                     if (!tagId) return;
                     void assignContactTag(contactId, tagId)
                       .then(() => refresh())
-                      .catch((err: Error) => setError(err.message));
+                      .catch((err: Error) => setError(friendlyError(err.message, t)));
                   }}
                 >
                   <option value="">+</option>

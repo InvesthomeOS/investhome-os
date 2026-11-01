@@ -1,5 +1,9 @@
 'use client';
 
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+
+import { useTranslations } from 'next-intl';
+
 import { useState } from 'react';
 
 import { DonutChart, HorizontalBarChart } from './chart-primitives';
@@ -15,6 +19,7 @@ export interface AllocationSectionProps {
 type AllocationView = 'assetClass' | 'type' | 'stage' | 'status';
 
 export function AllocationSection({ allocation, currency }: AllocationSectionProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const [view, setView] = useState<AllocationView>('assetClass');
   const [chartType, setChartType] = useState<'donut' | 'bar'>('donut');
 
@@ -30,8 +35,8 @@ export function AllocationSection({ allocation, currency }: AllocationSectionPro
 
   return (
     <section className="inv-portfolio-panel">
-      <SectionHeader title="Asset Allocation" subtitle="Portfolio composition by category" />
-      <div className="inv-portfolio-tabs" role="tablist" aria-label="Allocation dimension">
+      <SectionHeader title={tChrome('k9cd81b57b2')} subtitle={tChrome('k2f5bb773b7')} />
+      <div className="inv-portfolio-tabs" role="tablist" aria-label={tChrome('kc0ca3b21c8')}>
         {(
           [
             ['assetClass', 'Asset Class'],
@@ -48,7 +53,7 @@ export function AllocationSection({ allocation, currency }: AllocationSectionPro
             className={`inv-portfolio-tabs__tab${view === id ? ' inv-portfolio-tabs__tab--active' : ''}`}
             onClick={() => setView(id)}
           >
-            {label}
+            {investorChrome(tChrome, label)}
           </button>
         ))}
       </div>

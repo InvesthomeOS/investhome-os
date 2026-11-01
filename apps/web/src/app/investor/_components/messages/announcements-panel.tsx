@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -18,6 +20,8 @@ function formatFileSize(bytes: number): string {
 }
 
 export function AnnouncementsPanel({ open, onClose }: AnnouncementsPanelProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tCommon = useTranslations('common');
   const { announcements, markAnnouncementRead, markAllAnnouncementsRead } = useMessagingState();
 
   if (!open) return null;
@@ -28,7 +32,7 @@ export function AnnouncementsPanel({ open, onClose }: AnnouncementsPanelProps) {
         type="button"
         className="inv-panel-overlay"
         onClick={onClose}
-        aria-label="Close announcements"
+        aria-label={tChrome('k40bb648cd3')}
       />
       <aside
         className="inv-panel inv-panel--announcements"
@@ -37,12 +41,12 @@ export function AnnouncementsPanel({ open, onClose }: AnnouncementsPanelProps) {
         aria-modal="true"
       >
         <header className="inv-panel__header">
-          <h2 id="announcements-title">Announcement Center</h2>
+          <h2 id="announcements-title">{tChrome('kec105b2078')}</h2>
           <div className="inv-panel__header-actions">
             <button type="button" onClick={markAllAnnouncementsRead}>
               Mark all read
             </button>
-            <button type="button" onClick={onClose} aria-label="Close">
+            <button type="button" onClick={onClose} aria-label={tCommon('close')}>
               ×
             </button>
           </div>
@@ -50,7 +54,7 @@ export function AnnouncementsPanel({ open, onClose }: AnnouncementsPanelProps) {
 
         <div className="inv-panel__body">
           {announcements.length === 0 ? (
-            <p className="inv-panel__empty">No announcements.</p>
+            <p className="inv-panel__empty">{tChrome('kc32aa8cd5b')}</p>
           ) : (
             <ul className="inv-announcements-list">
               {announcements.map((ann: Announcement) => (
@@ -84,7 +88,7 @@ export function AnnouncementsPanel({ open, onClose }: AnnouncementsPanelProps) {
                     {ann.actionHref ? (
                       <Link href={ann.actionHref as Route}>{ann.actionLabel ?? 'View'}</Link>
                     ) : ann.actionLabel ? (
-                      <button type="button" disabled title="Demo only">
+                      <button type="button" disabled title={tChrome('kbb23f6a3e1')}>
                         {ann.actionLabel}
                       </button>
                     ) : null}

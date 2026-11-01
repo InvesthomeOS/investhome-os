@@ -9,6 +9,7 @@ import { Button, ErrorState, Input, LoadingState, Select } from '@investhome/ui'
 
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 import { fetchUsers } from '@/lib/api/auth';
+import { uiError } from '@/lib/i18n/ui-error';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { fetchInvestorCounts, type ContactListParams } from '@/workspaces/crm/api/contacts';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
@@ -67,6 +68,8 @@ const COPY = {
     lastActivity: 'Son Etkinlik',
     warning: 'Uyarı',
     empty: 'Bu görünümde yatırımcı yok.',
+    noAccess: 'Bu kayıtlara erişiminiz yok.',
+    loadFailed: 'Yatırımcılar yüklenemedi.',
     previous: 'Önceki',
     next: 'Sonraki',
     tools: 'Araçlar',
@@ -111,6 +114,8 @@ const COPY = {
     lastActivity: 'Last activity',
     warning: 'Warning',
     empty: 'No investors match this view.',
+    noAccess: 'You do not have access to these records.',
+    loadFailed: 'Investors could not be loaded.',
     previous: 'Previous',
     next: 'Next',
     tools: 'Tools',
@@ -307,10 +312,10 @@ export function InvestorsWorkspace() {
     return <LoadingState />;
   }
   if (!canRead) {
-    return <ErrorState title={copy.title} message="No access" />;
+    return <ErrorState title={copy.title} message={copy.noAccess} />;
   }
   if (listQuery.isError) {
-    return <ErrorState title={copy.title} message={listQuery.error.message} />;
+    return <ErrorState title={copy.title} message={uiError(listQuery.error, copy.loadFailed)} />;
   }
 
   return (

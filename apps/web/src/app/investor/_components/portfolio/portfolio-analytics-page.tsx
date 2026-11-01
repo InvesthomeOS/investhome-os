@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { EmptyState } from '../empty-state';
@@ -45,6 +47,7 @@ const SHOW_ERROR_PLACEHOLDER = false;
 const SHOW_EMPTY_PORTFOLIO = false;
 
 export function PortfolioAnalyticsPage() {
+  const tChrome = useTranslations('investorPortal.chrome');
   const allInvestments = useMemo(() => getEnrichedPortfolio(), []);
   const { dateRange, filters, setDateRange, updateFilter, clearFilters } = usePortfolioControls();
 
@@ -147,7 +150,7 @@ export function PortfolioAnalyticsPage() {
     return (
       <div className="investor-page inv-portfolio">
         <EmptyState
-          title="No investments yet"
+          title={tChrome('kbd028bb854')}
           description="Your portfolio analytics will appear once you have active investments."
         />
       </div>
@@ -174,7 +177,7 @@ export function PortfolioAnalyticsPage() {
 
       {filteredInvestments.length === 0 ? (
         <EmptyState
-          title="No matching investments"
+          title={tChrome('k1191cf2137')}
           description="Adjust or clear your filters to see portfolio analytics."
           actionLabel="Clear filters"
           onAction={clearFilters}

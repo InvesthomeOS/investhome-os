@@ -22,7 +22,9 @@ export function useSalesProposalLabels() {
       ? errorKey.slice('sales.proposal.errors.'.length)
       : errorKey.replace('sales.proposal.errors.', '');
     try {
-      return tErrors(key as never);
+      const translated = tErrors(key as never);
+      if (translated === key || translated.endsWith(`.${key}`)) return fallback;
+      return translated;
     } catch {
       return fallback;
     }

@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import type { DistributionInsight } from '../../_data/distribution-types';
 import { SectionHeader } from '../section-header';
 
@@ -14,9 +16,10 @@ const ICONS: Record<DistributionInsight['type'], string> = {
 };
 
 export function InsightsPanel({ insights }: InsightsPanelProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
     <section className="inv-distributions__panel inv-distributions__insights">
-      <SectionHeader title="Insights" subtitle="Derived from your distribution history" />
+      <SectionHeader title={tChrome('kb4510362a5')} subtitle={tChrome('k2572ecff02')} />
 
       <ul className="inv-distributions__insights-list">
         {insights.map((insight) => (

@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
@@ -152,7 +154,7 @@ export function QuickCreativeWorkspace() {
     try {
       applyCreative(await action());
     } catch (error) {
-      const text = error instanceof ApiError ? error.message : t('quick.loadError');
+      const text = uiError(error, t('quick.loadError'));
       setMessage(text);
       setMessageTone('err');
     } finally {

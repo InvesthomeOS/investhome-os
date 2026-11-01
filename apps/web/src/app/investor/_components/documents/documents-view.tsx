@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
@@ -28,6 +30,7 @@ import { DocumentsHeader, DocumentsKpiRow } from './documents-header';
 import { MissingDocumentsSection } from './missing-documents-section';
 
 export function DocumentsView() {
+  const tChrome = useTranslations('investorPortal.chrome');
   const {
     documents,
     summary,
@@ -113,8 +116,8 @@ export function DocumentsView() {
 
       <section className="inv-docs__library" aria-labelledby="library-heading">
         <div className="inv-docs__library-toolbar">
-          <h2 id="library-heading">Document Library</h2>
-          <div className="inv-docs__view-toggle" role="tablist" aria-label="View mode">
+          <h2 id="library-heading">{tChrome('ke6c50b8e4f')}</h2>
+          <div className="inv-docs__view-toggle" role="tablist" aria-label={tChrome('k1b3603298f')}>
             {(['table', 'grid', 'folder'] as LibraryViewMode[]).map((mode) => (
               <button
                 key={mode}
@@ -149,12 +152,12 @@ export function DocumentsView() {
                 }))
               }
             >
-              <option value="uploadedAt">Upload Date</option>
-              <option value="title">Title</option>
-              <option value="investmentName">Investment</option>
-              <option value="category">Category</option>
-              <option value="status">Status</option>
-              <option value="fileSizeBytes">Size</option>
+              <option value="uploadedAt">{tChrome('k596389621a')}</option>
+              <option value="title">{tChrome('k768e0c1c69')}</option>
+              <option value="investmentName">{tChrome('k0401729c31')}</option>
+              <option value="category">{tChrome('ka3c686e711')}</option>
+              <option value="status">{tChrome('kbae7d5be70')}</option>
+              <option value="fileSizeBytes">{tChrome('kb7152342a2')}</option>
             </select>
           </label>
           <button
@@ -180,7 +183,7 @@ export function DocumentsView() {
         {filtered.length === 0 ? (
           <EmptyState
             icon="📄"
-            title="No documents match your filters"
+            title={tChrome('k29baeadc54')}
             description="Try adjusting your search or filter criteria."
             actionLabel="Reset Filters"
             onAction={() => setFilters(DEFAULT_DOCUMENT_FILTERS)}

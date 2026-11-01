@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 
@@ -27,7 +29,7 @@ export function CampaignLeadsPanel({ campaignId }: { campaignId: string }) {
     return (
       <ErrorState
         title={tCommon('error')}
-        message={query.error instanceof ApiError ? query.error.message : tCommon('error')}
+        message={uiError(query.error, tCommon('error'))}
       />
     );
   }

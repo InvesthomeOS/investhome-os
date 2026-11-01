@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+
+import { uiError } from '@/lib/i18n/ui-error';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button, ErrorState, LoadingState } from '@investhome/ui';
@@ -77,7 +79,7 @@ export function ActivityFormModal({
       await queryClient.invalidateQueries({ queryKey: ['crm', 'timeline'] });
       onClose();
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err: Error) => setError(uiError(err, tCommon('actionFailed'))),
   });
 
   if (!open) return null;

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+
+import { uiError } from '@/lib/i18n/ui-error';
 import { LoadingState } from '@investhome/ui';
 import { Sparkline } from '@/components/design-system/charts/Sparkline';
 
@@ -12,6 +14,7 @@ import { BiWorkspaceShell } from '../_components/bi-workspace-shell';
 
 export default function AnalyticsPortfolioPage() {
   const t = useTranslations('analytics');
+  const tCommon = useTranslations('common');
   const { user } = useAuth();
   const [data, setData] = useState<ExploreResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +27,7 @@ export default function AnalyticsPortfolioPage() {
     }
     void exploreDataset('executive_daily')
       .then(setData)
-      .catch((err: Error) => setError(err.message))
+      .catch((err: Error) => setError(uiError(err, tCommon('loadFailed'))))
       .finally(() => setLoading(false));
   }, [user]);
 

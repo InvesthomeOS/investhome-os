@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
@@ -90,7 +92,7 @@ export function PricingPanel({ asset, onChanged }: PricingPanelProps) {
       await load();
       onChanged?.();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('actionError'));
+      setError(uiError(err, t('actionError')));
     } finally {
       setBusy(false);
     }

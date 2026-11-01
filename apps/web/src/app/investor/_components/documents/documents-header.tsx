@@ -1,5 +1,9 @@
 'use client';
 
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -12,6 +16,7 @@ export interface DocumentsKpiRowProps {
 }
 
 export function DocumentsKpiRow({ summary }: DocumentsKpiRowProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const kpis = [
     { label: 'Total Documents', value: summary.totalDocuments, meta: 'Active in library' },
     { label: 'New / Unread', value: summary.newDocuments, meta: 'Require attention' },
@@ -36,7 +41,7 @@ export function DocumentsKpiRow({ summary }: DocumentsKpiRowProps) {
   ];
 
   return (
-    <section className="inv-docs__kpi-grid" aria-label="Document key performance indicators">
+    <section className="inv-docs__kpi-grid" aria-label={tChrome('k1b010e9162')}>
       {kpis.map((kpi) => (
         <InvestorKpiCard key={kpi.label} label={kpi.label} value={kpi.value} meta={kpi.meta} />
       ))}
@@ -49,21 +54,20 @@ export interface DocumentsHeaderProps {
 }
 
 export function DocumentsHeader({ onOpenPreferences }: DocumentsHeaderProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
     <header className="inv-docs__header">
       <div>
-        <h1 className="investor-page__title">Documents</h1>
+        <h1 className="investor-page__title">{tChrome('k687c82861c')}</h1>
         <p className="investor-page__subtitle">
-          Investment documents, tax forms, agreements, and e-signatures — all in one place.
+          {investorChrome(tChrome, 'Investment documents, tax forms, agreements, and e-signatures — all in one place.')}
         </p>
       </div>
       <div className="inv-docs__header-actions">
         <Link href={'/investor/signatures' as Route} className="inv-docs__btn inv-docs__btn--secondary">
-          Signatures
+          {investorChrome(tChrome, 'Signatures')}
         </Link>
-        <button type="button" className="inv-docs__btn inv-docs__btn--ghost" onClick={onOpenPreferences}>
-          Preferences
-        </button>
+        <button type="button" className="inv-docs__btn inv-docs__btn--ghost" onClick={onOpenPreferences}>{investorChrome(tChrome, "Preferences")}</button>
       </div>
     </header>
   );

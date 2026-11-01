@@ -1,5 +1,6 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useTranslations } from 'next-intl';
@@ -57,7 +58,7 @@ export default function MarketingAttributionPage() {
       ) : healthQuery.isError ? (
         <ErrorState
           title={tCommon('error')}
-          message={healthQuery.error?.message ?? tAnalytics('loadFailed')}
+          message={uiError(healthQuery.error, tAnalytics('loadFailed'))}
           action={
             <Button type="button" onClick={() => void healthQuery.refetch()}>
               {tGlobal('retry')}

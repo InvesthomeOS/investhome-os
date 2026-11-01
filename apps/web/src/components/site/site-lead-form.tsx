@@ -91,7 +91,8 @@ export function SiteLeadForm({
       const result = await submitSiteLead(intent, payload, { email: true });
       if (!result.ok) {
         setStatus('error');
-        setError(result.message);
+        if (result.message) console.error(result.message);
+        setError(t('submitFailed'));
         return;
       }
       trackSiteEvent('site_lead_submit', { intent, offline: Boolean(result.offline) });
@@ -99,7 +100,8 @@ export function SiteLeadForm({
       onSuccess?.();
     } catch (err) {
       setStatus('error');
-      setError(err instanceof Error ? err.message : 'Submission failed');
+      if (err instanceof Error && err.message) console.error(err.message);
+      setError(t('submitFailed'));
     }
   };
 

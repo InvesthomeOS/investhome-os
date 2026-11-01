@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useTranslations } from 'next-intl';
+
+import { uiError } from '@/lib/i18n/ui-error';
 import { EmptyState, LoadingState } from '@investhome/ui';
 
 import { BiAreaPlaceholder, BiFunnel, DonutChart, HorizontalBarChart } from '@/components/analytics/bi-charts';
@@ -37,6 +39,7 @@ export function BiDomainPage({
   subtitleKey: string;
 }) {
   const t = useTranslations('analytics');
+  const tCommon = useTranslations('common');
   const { user } = useAuth();
   const { openCopilot } = useAiCopilot();
   const { filters } = useBiFilters();
@@ -67,7 +70,7 @@ export function BiDomainPage({
       })
       .catch((err: Error) => {
         if (!cancelled) {
-          setError(err.message || 'error');
+          setError(uiError(err, tCommon('loadFailed')));
           setLoading(false);
         }
       });

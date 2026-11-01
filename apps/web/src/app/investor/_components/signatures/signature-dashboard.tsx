@@ -1,13 +1,14 @@
 'use client';
 
+import { investorLabel } from '@/app/investor/_components/investor-labels';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 import {
   filterSignatureRequests,
   filterSignatureRequestsByTab,
 } from '../../_data/document-calculations';
 import type { SignatureFilterState, SignatureTab } from '../../_data/document-types';
-import { SIGNATURE_TAB_LABELS } from '../../_data/signature-requests';
 import { getAllInvestments } from '../../_data/investments';
 import { LoadingSkeletonGrid } from '../loading-skeleton';
 import { EmptyState } from '../empty-state';
@@ -35,6 +36,9 @@ const DEFAULT_FILTERS: SignatureFilterState = {
 };
 
 export function SignatureDashboard() {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tLabels = useTranslations('investorPortal.labels');
+  const t = useTranslations('investorPortal');
   const { signatureRequests, signatureSummary } = useDocumentsState();
   const [tab, setTab] = useState<SignatureTab>('action_required');
   const [filters, setFilters] = useState<SignatureFilterState>(DEFAULT_FILTERS);
@@ -70,7 +74,7 @@ export function SignatureDashboard() {
       <SignaturesHeader />
       <SignatureKpiRow summary={signatureSummary} />
 
-      <div className="inv-sig__tabs" role="tablist" aria-label="Signature request tabs">
+      <div className="inv-sig__tabs" role="tablist" aria-label={tChrome('k20906b39db')}>
         {TABS.map((t) => (
           <button
             key={t}
@@ -80,7 +84,7 @@ export function SignatureDashboard() {
             className={tab === t ? 'inv-sig__tab--active' : undefined}
             onClick={() => setTab(t)}
           >
-            {SIGNATURE_TAB_LABELS[t]}
+            {investorLabel(tLabels, 'signatureTab', t)}
           </button>
         ))}
       </div>
@@ -90,15 +94,15 @@ export function SignatureDashboard() {
           type="search"
           value={filters.search}
           onChange={(e) => updateFilters({ search: e.target.value })}
-          placeholder="Search signature requests…"
-          aria-label="Search signature requests"
+          placeholder={t('placeholders.searchSignatures')}
+          aria-label={tChrome('k1530d7be56')}
         />
         <select
           value={filters.investmentId}
           onChange={(e) => updateFilters({ investmentId: e.target.value })}
-          aria-label="Filter by investment"
+          aria-label={tChrome('k3132ed40f5')}
         >
-          <option value="all">All Investments</option>
+          <option value="all">{tChrome('k7b247b9d1a')}</option>
           {investments.map((inv) => (
             <option key={inv.id} value={inv.id}>{inv.projectName}</option>
           ))}
@@ -108,8 +112,8 @@ export function SignatureDashboard() {
       {filtered.length === 0 ? (
         <EmptyState
           icon="✍"
-          title="No signature requests"
-          description={`No requests in the "${SIGNATURE_TAB_LABELS[tab]}" tab match your filters.`}
+          title={tChrome('k3079c9d6ef')}
+          description={`No requests in the "${investorLabel(tLabels, 'signatureTab', tab)}" tab match your filters.`}
         />
       ) : (
         <div className="inv-sig__card-grid">

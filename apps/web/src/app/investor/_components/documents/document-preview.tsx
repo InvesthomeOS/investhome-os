@@ -1,12 +1,11 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
+import { investorLabel } from '@/app/investor/_components/investor-labels';
 import { useEffect, useRef } from 'react';
 
 import { formatDocumentBytes } from '../../_data/document-calculations';
-import {
-  DOCUMENT_CATEGORY_LABELS,
-  DOCUMENT_TYPE_LABELS,
-} from '../../_data/documents';
 import type { InvestorDocument } from '../../_data/document-types';
 import { formatInvestorDate } from '../../_data/mock-data';
 import { sanitizePlainText } from '../../_utils/sanitize-text';
@@ -57,18 +56,20 @@ function MockPdfPreview({ doc }: { doc: InvestorDocument }) {
 }
 
 function MockImagePreview({ doc }: { doc: InvestorDocument }) {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
     <div className="inv-docs__preview-image">
       <div className="inv-docs__preview-image-placeholder" role="img" aria-label={`Image preview of ${doc.title}`}>
         <span aria-hidden="true">🖼</span>
         <p>{sanitizePlainText(doc.title)}</p>
-        <p className="inv-docs__preview-demo-note">Image preview placeholder</p>
+        <p className="inv-docs__preview-demo-note">{tChrome('k25e8be8ac8')}</p>
       </div>
     </div>
   );
 }
 
 function MockSpreadsheetPreview({ doc }: { doc: InvestorDocument }) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const rows = ['Investment', 'Period', 'Amount', 'Status'];
   return (
     <div className="inv-docs__preview-sheet">
@@ -86,12 +87,12 @@ function MockSpreadsheetPreview({ doc }: { doc: InvestorDocument }) {
               <td>{sanitizePlainText(doc.investmentName)}</td>
               <td>{period}</td>
               <td>—</td>
-              <td>Demo</td>
+              <td>{tChrome('ke52c854d56')}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="inv-docs__preview-demo-note">Spreadsheet preview placeholder</p>
+      <p className="inv-docs__preview-demo-note">{tChrome('k12b7acb3f7')}</p>
     </div>
   );
 }
@@ -117,6 +118,8 @@ export function DocumentPreview({
   onDownload,
   onMarkRead,
 }: DocumentPreviewProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tLabels = useTranslations('investorPortal.labels');
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -144,7 +147,7 @@ export function DocumentPreview({
           <div>
             <h2 id="doc-preview-title">{sanitizePlainText(doc.title)}</h2>
             <p>
-              {doc.investmentName} · {DOCUMENT_TYPE_LABELS[doc.documentType]} ·{' '}
+              {doc.investmentName} · {investorLabel(tLabels, 'documentType', doc.documentType)} ·{' '}
               {formatDocumentBytes(doc.fileSizeBytes)}
             </p>
           </div>
@@ -152,7 +155,7 @@ export function DocumentPreview({
             <button type="button" onClick={() => onDownload(doc)}>
               Download
             </button>
-            <button type="button" onClick={onClose} aria-label="Close preview">
+            <button type="button" onClick={onClose} aria-label={tChrome('kbaa5503537')}>
               ✕
             </button>
           </div>
@@ -161,20 +164,20 @@ export function DocumentPreview({
         <aside className="inv-docs__preview-sidebar">
           <dl className="inv-docs__preview-meta">
             <div>
-              <dt>Category</dt>
-              <dd>{DOCUMENT_CATEGORY_LABELS[doc.category]}</dd>
+              <dt>{tChrome('ka3c686e711')}</dt>
+              <dd>{investorLabel(tLabels, 'documentCategory', doc.category)}</dd>
             </div>
             <div>
-              <dt>Uploaded</dt>
+              <dt>{tChrome('k80c494898a')}</dt>
               <dd>{formatDocDate(doc.uploadedAt)}</dd>
             </div>
             <div>
-              <dt>Entity</dt>
+              <dt>{tChrome('kc7fb317725')}</dt>
               <dd>{sanitizePlainText(doc.entityName)}</dd>
             </div>
             {doc.taxYear ? (
               <div>
-                <dt>Tax Year</dt>
+                <dt>{tChrome('kc80ec709bc')}</dt>
                 <dd>{doc.taxYear}</dd>
               </div>
             ) : null}
@@ -185,7 +188,7 @@ export function DocumentPreview({
           <MockContent doc={doc} />
         </div>
       </div>
-      <button type="button" className="inv-docs__preview-backdrop" onClick={onClose} aria-label="Close preview" tabIndex={-1} />
+      <button type="button" className="inv-docs__preview-backdrop" onClick={onClose} aria-label={tChrome('kbaa5503537')} tabIndex={-1} />
     </div>
   );
 }

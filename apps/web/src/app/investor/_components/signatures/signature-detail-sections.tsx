@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -8,9 +10,10 @@ import type { SignatureAuditEntry, SignatureRequest } from '../../_data/document
 import { sanitizePlainText } from '../../_utils/sanitize-text';
 
 export function SignatureAuditTrail({ entries }: { entries: SignatureAuditEntry[] }) {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
     <section className="inv-sig__audit" aria-labelledby="audit-heading">
-      <h2 id="audit-heading">Audit Trail</h2>
+      <h2 id="audit-heading">{tChrome('ke01eacc119')}</h2>
       <p className="inv-sig__audit-note">
         Mock audit log for demonstration. Not legally valid or admissible as evidence.
       </p>
@@ -35,9 +38,10 @@ export interface SignatureDetailRecipientsProps {
 }
 
 export function SignatureDetailRecipients({ request }: SignatureDetailRecipientsProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
     <section className="inv-sig__recipients" aria-labelledby="recipients-heading">
-      <h2 id="recipients-heading">Recipients</h2>
+      <h2 id="recipients-heading">{tChrome('k78cbf8eb1d')}</h2>
       <ol className="inv-sig__recipient-list">
         {request.recipients
           .sort((a, b) => a.order - b.order)
@@ -61,10 +65,11 @@ export function SignatureDetailRecipients({ request }: SignatureDetailRecipients
 }
 
 export function SignatureNotFound() {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
     <div className="inv-docs__not-found">
-      <h1>Signature Request Not Found</h1>
-      <p>This signature request does not exist or is no longer available.</p>
+      <h1>{tChrome('k7f8f3496d4')}</h1>
+      <p>{tChrome('kcc4279776a')}</p>
       <Link href={'/investor/signatures' as Route} className="inv-docs__btn inv-docs__btn--primary">
         Back to Signatures
       </Link>

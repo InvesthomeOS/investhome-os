@@ -562,13 +562,21 @@ export function parseWhatsappMedia(value: string | null | undefined): { text: st
   return { text, media };
 }
 
-export function taskStatusLabel(status: string | null | undefined): string {
-  const value = String(status || '').toLowerCase();
-  if (value === 'completed') return 'Tamamlandı';
-  if (value === 'in_progress') return 'Devam ediyor';
-  if (value === 'waiting') return 'Beklemede';
-  if (value === 'cancelled') return 'İptal';
-  if (value === 'deferred') return 'Ertelendi';
-  if (value === 'not_started' || value === 'planned') return 'Başlamadı';
+const TASK_STATUS_KEYS: Record<string, string> = {
+  completed: 'completed',
+  in_progress: 'in_progress',
+  waiting: 'waiting',
+  cancelled: 'cancelled',
+  deferred: 'deferred',
+  not_started: 'not_started',
+  planned: 'not_started',
+};
+
+export function taskStatusLabel(
+  status: string | null | undefined,
+  label?: (key: string) => string,
+): string {
+  const key = TASK_STATUS_KEYS[String(status || '').toLowerCase()];
+  if (label && key) return label(key);
   return status || '—';
 }

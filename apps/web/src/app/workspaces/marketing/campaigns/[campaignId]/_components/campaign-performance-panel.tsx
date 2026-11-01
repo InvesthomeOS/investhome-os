@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 
@@ -50,7 +52,7 @@ export function CampaignPerformancePanel({
     return (
       <ErrorState
         title={tCommon('error')}
-        message={detailQuery.error instanceof ApiError ? detailQuery.error.message : tCommon('error')}
+        message={uiError(detailQuery.error, tCommon('error'))}
       />
     );
   }

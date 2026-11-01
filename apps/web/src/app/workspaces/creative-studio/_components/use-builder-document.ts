@@ -8,6 +8,9 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
+
+import { uiError } from '@/lib/i18n/ui-error';
 
 import {
   createCreativeStudioDocument,
@@ -94,6 +97,7 @@ export function useBuilderDocument(options: {
   preferredConstructionProject?: BuilderPreferredConstructionProject;
 }): UseBuilderDocumentResult {
   const { documentType, preferredConstructionProject } = options;
+  const tCommon = useTranslations('common');
   const kindLabel = BUILDER_KIND_LABELS[documentType];
   const preferredRef = useRef(preferredConstructionProject);
   preferredRef.current = preferredConstructionProject;
@@ -238,7 +242,7 @@ export function useBuilderDocument(options: {
       setSaveStatus(draft ? 'saved' : 'idle');
       return { ok: true, draft };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Load failed';
+      const message = uiError(err, tCommon('loadFailed'));
       if (gen !== bootGenRef.current) {
         return { ok: false, error: message };
       }
@@ -272,7 +276,7 @@ export function useBuilderDocument(options: {
       } catch (err) {
         if (gen !== bootGenRef.current) return null;
         readyRef.current = false;
-        const message = err instanceof Error ? err.message : 'Load failed';
+        const message = uiError(err, tCommon('loadFailed'));
         setLoadError(message);
         setLoadStatus('error');
         return null;

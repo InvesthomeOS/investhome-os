@@ -1,13 +1,16 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { formatInvestorDate, investorProfile } from '../_data/mock-data';
 import { SectionHeader } from '../_components/section-header';
 
 export default function ProfilePage() {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
     <div className="investor-page">
-      <h1 className="investor-page__title">Profile</h1>
-      <p className="investor-page__subtitle">Your investor account details and membership.</p>
+      <h1 className="investor-page__title">{tChrome('kff4fc0276e')}</h1>
+      <p className="investor-page__subtitle">{tChrome('k22adf0a36c')}</p>
 
       <div className="inv-dashboard__panel" style={{ maxWidth: '36rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '1.5rem' }}>
@@ -26,7 +29,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <SectionHeader title="Account Details" />
+        <SectionHeader title={tChrome('ka951f4d0a0')} />
 
         <dl style={{ margin: 0, display: 'grid', gap: '1rem' }}>
           {[

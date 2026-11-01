@@ -1,5 +1,9 @@
 'use client';
 
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+
+import { useTranslations } from 'next-intl';
+
 export interface PortfolioHeaderProps {
   onExportReport: () => void;
   onDownloadSummary: () => void;
@@ -11,10 +15,11 @@ export function PortfolioHeader({
   onDownloadSummary,
   onCompareInvestments,
 }: PortfolioHeaderProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
     <header className="inv-portfolio-header">
       <div>
-        <h1 className="investor-page__title">Portfolio Analytics</h1>
+        <h1 className="investor-page__title">{tChrome('k5139673c0c')}</h1>
         <p className="investor-page__subtitle">
           Monitor portfolio value, diversification, performance, cash flow, and risk across all
           investments.
@@ -31,9 +36,7 @@ export function PortfolioHeader({
           type="button"
           className="investor-header__action-btn investor-header__action-btn--primary"
           onClick={onCompareInvestments}
-        >
-          Compare Investments
-        </button>
+        >{investorChrome(tChrome, "Compare Investments")}</button>
       </div>
     </header>
   );

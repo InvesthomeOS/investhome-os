@@ -1,5 +1,6 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import type { Route } from 'next';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -303,7 +304,7 @@ function TimelineDsWorkspaceInner() {
     return (
       <ErrorState
         title={tRoot('loadFailed')}
-        message={timelineQuery.error?.message ?? tRoot('loadFailed')}
+        message={uiError(timelineQuery.error, tRoot('loadFailed'))}
         action={
           <Button type="button" onClick={() => void timelineQuery.refetch()}>
             {tCommon('retry')}

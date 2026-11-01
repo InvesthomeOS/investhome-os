@@ -1,8 +1,11 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 
+import { investorChrome } from '@/app/investor/_components/investor-labels';
 import { formatInvestorDateTime } from '../../_data/mock-data';
 import { useMessagingState } from '../../_state/messaging-state';
 
@@ -12,6 +15,8 @@ interface NotificationsPanelProps {
 }
 
 export function NotificationsPanel({ open, onClose }: NotificationsPanelProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tCommon = useTranslations('common');
   const {
     notifications,
     markNotificationRead,
@@ -27,7 +32,7 @@ export function NotificationsPanel({ open, onClose }: NotificationsPanelProps) {
         type="button"
         className="inv-panel-overlay"
         onClick={onClose}
-        aria-label="Close notifications"
+        aria-label={tChrome('kf0252bf7d6')}
       />
       <aside
         className="inv-panel inv-panel--notifications"
@@ -36,12 +41,12 @@ export function NotificationsPanel({ open, onClose }: NotificationsPanelProps) {
         aria-modal="true"
       >
         <header className="inv-panel__header">
-          <h2 id="notifications-title">Notification Center</h2>
+          <h2 id="notifications-title">{tChrome('kb72611ad09')}</h2>
           <div className="inv-panel__header-actions">
             <button type="button" onClick={markAllNotificationsRead}>
               Mark all read
             </button>
-            <button type="button" onClick={onClose} aria-label="Close">
+            <button type="button" onClick={onClose} aria-label={tCommon('close')}>
               ×
             </button>
           </div>
@@ -49,7 +54,7 @@ export function NotificationsPanel({ open, onClose }: NotificationsPanelProps) {
 
         <div className="inv-panel__body">
           {notifications.length === 0 ? (
-            <p className="inv-panel__empty">No notifications.</p>
+            <p className="inv-panel__empty">{tChrome('k273d131f0c')}</p>
           ) : (
             <ul className="inv-notifications-list">
               {notifications.map((notif) => (
@@ -58,26 +63,26 @@ export function NotificationsPanel({ open, onClose }: NotificationsPanelProps) {
                   className={`inv-notifications-list__item${!notif.isRead ? ' inv-notifications-list__item--unread' : ''}`}
                 >
                   <div className="inv-notifications-list__meta">
-                    <span className="inv-notifications-list__category">{notif.category}</span>
+                    <span className="inv-notifications-list__category">{investorChrome(tChrome, notif.category)}</span>
                     <span className={`inv-notifications-list__priority inv-notifications-list__priority--${notif.priority}`}>
-                      {notif.priority}
+                      {investorChrome(tChrome, notif.priority)}
                     </span>
                   </div>
-                  <h3>{notif.title}</h3>
-                  <p>{notif.message}</p>
+                  <h3>{investorChrome(tChrome, notif.title)}</h3>
+                  <p>{investorChrome(tChrome, notif.message)}</p>
                   <time dateTime={notif.timestamp}>{formatInvestorDateTime(notif.timestamp)}</time>
                   <div className="inv-notifications-list__actions">
                     {!notif.isRead ? (
                       <button type="button" onClick={() => markNotificationRead(notif.id)}>
-                        Mark read
+                        {investorChrome(tChrome, 'Mark read')}
                       </button>
                     ) : null}
                     <button type="button" onClick={() => dismissNotification(notif.id)}>
-                      Dismiss
+                      {investorChrome(tChrome, 'Dismiss')}
                     </button>
                     {notif.actionHref ? (
                       <Link href={notif.actionHref as Route} onClick={onClose}>
-                        {notif.actionLabel ?? 'Open'}
+                        {investorChrome(tChrome, notif.actionLabel ?? 'Open')}
                       </Link>
                     ) : null}
                   </div>

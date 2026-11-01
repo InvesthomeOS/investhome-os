@@ -14,6 +14,7 @@ import { fetchUsers } from '@/lib/api/auth';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { fetchActivity } from '@/workspaces/crm/api/activities';
 import { ApiError } from '@/lib/api/client';
+import { uiError } from '@/lib/i18n/ui-error';
 import type { CommunicationFeedItem } from '@/workspaces/crm/api/communication';
 import { sendCommentAction, sendCustomerWhatsapp, sendLiveCommunication } from '@/workspaces/crm/api/communication';
 import { EmailDetail } from '@/workspaces/crm/contact-card/crm-email-view';
@@ -404,7 +405,7 @@ export function CrmCommunicationLiveWorkspace() {
       await queryClient.invalidateQueries({ queryKey: ['crm', 'communications'] });
     },
     onError: (error) => {
-      setReplyError(error instanceof ApiError ? error.message : t('sendFailed'));
+      setReplyError(uiError(error, t('sendFailed')));
     },
   });
   const likeMutation = useMutation({
@@ -414,7 +415,7 @@ export function CrmCommunicationLiveWorkspace() {
       await queryClient.invalidateQueries({ queryKey: ['crm', 'communications'] });
     },
     onError: (error) => {
-      setReplyError(error instanceof ApiError ? error.message : t('sendFailed'));
+      setReplyError(uiError(error, t('sendFailed')));
     },
   });
   const deleteMutation = useMutation({
@@ -427,7 +428,7 @@ export function CrmCommunicationLiveWorkspace() {
     },
     onError: (error) => {
       setDeleteConfirmOpen(false);
-      setReplyError(error instanceof ApiError ? error.message : t('sendFailed'));
+      setReplyError(uiError(error, t('sendFailed')));
     },
   });
 

@@ -1,5 +1,9 @@
 'use client';
 
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useParams } from 'next/navigation';
@@ -11,6 +15,7 @@ import { useMessagingState } from '../../_state/messaging-state';
 import type { Task } from '../../_data/messaging-types';
 
 export default function TaskDetailPage() {
+  const tChrome = useTranslations('investorPortal.chrome');
   const params = useParams<{ taskId: string }>();
   const taskId = params.taskId;
   const { tasks } = useMessagingState();
@@ -22,14 +27,12 @@ export default function TaskDetailPage() {
       <div className="investor-page">
         <EmptyState
           icon="☑"
-          title="Task not found"
+          title={tChrome('k69113b7701')}
           description="This task may have been completed or removed."
           actionLabel="Back to tasks"
           onAction={() => {}}
         />
-        <Link href={'/investor/tasks' as Route} className="inv-task-detail__back">
-          ← Back to Tasks
-        </Link>
+        <Link href={'/investor/tasks' as Route} className="inv-task-detail__back">{investorChrome(tChrome, "← Back to Tasks")}</Link>
       </div>
     );
   }

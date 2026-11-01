@@ -1,5 +1,6 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import type { Route } from 'next';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -483,7 +484,7 @@ export function CrmNotesWorkspace() {
     return (
       <ErrorState
         title={t('loadFailed')}
-        message={listQuery.error?.message ?? t('loadFailed')}
+        message={uiError(listQuery.error, t('loadFailed'))}
         action={
           <Button type="button" onClick={() => void listQuery.refetch()}>
             {tCommon('retry')}

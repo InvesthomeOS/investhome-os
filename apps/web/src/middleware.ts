@@ -12,6 +12,8 @@ import {
   portalAccessDecision,
   safePortalPath,
 } from '@/lib/auth/portal-session-cookie';
+import { LOCALE_COOKIE } from '@/i18n/config';
+import { authServiceUnavailableMessage } from '@/lib/i18n/auth-unavailable';
 import { applySecurityHeaders, createCspNonce } from '@/lib/security/security-headers';
 
 function withSecurity(request: NextRequest, response: NextResponse, nonce: string): NextResponse {
@@ -66,7 +68,7 @@ function clearPortalSessionCookie(response: NextResponse): void {
 
 function authUnavailable(request: NextRequest): NextResponse {
   const nonce = createCspNonce();
-  const response = new NextResponse('Authentication service is temporarily unavailable.', {
+  const response = new NextResponse(authServiceUnavailableMessage(request.cookies.get(LOCALE_COOKIE)?.value), {
     status: 503,
     headers: {
       'content-type': 'text/plain; charset=utf-8',

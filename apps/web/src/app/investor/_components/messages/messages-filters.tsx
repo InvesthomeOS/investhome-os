@@ -1,5 +1,9 @@
 'use client';
 
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+
+import { useTranslations } from 'next-intl';
+
 import type { ConversationFilterState, ConversationSortState } from '../../_data/messaging-types';
 import { getAllInvestments } from '../../_data/investments';
 
@@ -16,17 +20,18 @@ export function MessagesFilters({
   onFiltersChange,
   onSortChange,
 }: MessagesFiltersProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const investments = getAllInvestments();
 
   return (
-    <div className="inv-msg-filters" role="search" aria-label="Filter conversations">
+    <div className="inv-msg-filters" role="search" aria-label={tChrome('ka70369ae33')}>
       <select
         className="inv-msg-filters__select"
         value={filters.investmentId}
         onChange={(e) => onFiltersChange({ investmentId: e.target.value })}
-        aria-label="Filter by investment"
+        aria-label={tChrome('k3132ed40f5')}
       >
-        <option value="all">All investments</option>
+        <option value="all">{tChrome('k294eded6ec')}</option>
         {investments.map((inv) => (
           <option key={inv.id} value={inv.id}>
             {inv.projectName}
@@ -42,13 +47,13 @@ export function MessagesFilters({
             priority: e.target.value as ConversationFilterState['priority'],
           })
         }
-        aria-label="Filter by priority"
+        aria-label={tChrome('k870c2d046e')}
       >
-        <option value="all">All priorities</option>
-        <option value="urgent">Urgent</option>
-        <option value="high">High</option>
-        <option value="normal">Normal</option>
-        <option value="low">Low</option>
+        <option value="all">{tChrome('kbc6ba0d1bb')}</option>
+        <option value="urgent">{tChrome('kecb26f46e3')}</option>
+        <option value="high">{tChrome('kb1a5954a48')}</option>
+        <option value="normal">{tChrome('k45e118d056')}</option>
+        <option value="low">{tChrome('ka124947cbd')}</option>
       </select>
 
       <select
@@ -59,12 +64,12 @@ export function MessagesFilters({
             status: e.target.value as ConversationFilterState['status'],
           })
         }
-        aria-label="Filter by status"
+        aria-label={tChrome('kf43653d7fa')}
       >
-        <option value="all">All statuses</option>
-        <option value="active">Active</option>
-        <option value="archived">Archived</option>
-        <option value="closed">Closed</option>
+        <option value="all">{tChrome('k6405179d24')}</option>
+        <option value="active">{tChrome('ka733b809d2')}</option>
+        <option value="archived">{tChrome('keddc813f35')}</option>
+        <option value="closed">{tChrome('k88d86b7721')}</option>
       </select>
 
       <label className="inv-msg-filters__check">
@@ -83,9 +88,7 @@ export function MessagesFilters({
           onChange={(e) =>
             onFiltersChange({ hasAttachments: e.target.checked ? true : null })
           }
-        />
-        Has attachments
-      </label>
+        />{investorChrome(tChrome, "Has attachments")}</label>
 
       <select
         className="inv-msg-filters__select"
@@ -97,13 +100,13 @@ export function MessagesFilters({
           ];
           onSortChange({ field, direction });
         }}
-        aria-label="Sort conversations"
+        aria-label={tChrome('kefe8028c4e')}
       >
-        <option value="lastMessageAt-desc">Newest first</option>
-        <option value="lastMessageAt-asc">Oldest first</option>
-        <option value="subject-asc">Subject A–Z</option>
-        <option value="priority-asc">Priority</option>
-        <option value="unreadCount-desc">Most unread</option>
+        <option value="lastMessageAt-desc">{tChrome('kf5ec7772ca')}</option>
+        <option value="lastMessageAt-asc">{tChrome('k6a99c65c33')}</option>
+        <option value="subject-asc">{tChrome('k301e1a06ad')}</option>
+        <option value="priority-asc">{tChrome('k886cbff9d9')}</option>
+        <option value="unreadCount-desc">{tChrome('kaf99f3225b')}</option>
       </select>
     </div>
   );

@@ -1,14 +1,12 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
+import { investorLabel } from '@/app/investor/_components/investor-labels';
 import Link from 'next/link';
 import type { Route } from 'next';
 
 import { formatDocumentBytes } from '../../_data/document-calculations';
-import {
-  DOCUMENT_CATEGORY_LABELS,
-  DOCUMENT_STATUS_LABELS,
-  DOCUMENT_TYPE_LABELS,
-} from '../../_data/documents';
 import type { InvestorDocument } from '../../_data/document-types';
 import { formatInvestorDate } from '../../_data/mock-data';
 
@@ -33,6 +31,8 @@ export function DocumentTable({
   onPreview,
   onDownload,
 }: DocumentTableProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tLabels = useTranslations('investorPortal.labels');
   const allSelected = documents.length > 0 && documents.every((d) => selectedIds.includes(d.id));
 
   return (
@@ -47,16 +47,16 @@ export function DocumentTable({
                 onChange={() =>
                   onSelectAll(allSelected ? [] : documents.map((d) => d.id))
                 }
-                aria-label="Select all documents"
+                aria-label={tChrome('k6697d5e578')}
               />
             </th>
-            <th scope="col">Document</th>
-            <th scope="col">Investment</th>
-            <th scope="col">Category</th>
-            <th scope="col">Status</th>
-            <th scope="col">Date</th>
-            <th scope="col">Size</th>
-            <th scope="col">Actions</th>
+            <th scope="col">{tChrome('ke214b8a299')}</th>
+            <th scope="col">{tChrome('k0401729c31')}</th>
+            <th scope="col">{tChrome('ka3c686e711')}</th>
+            <th scope="col">{tChrome('kbae7d5be70')}</th>
+            <th scope="col">{tChrome('keb9a4bc1c0')}</th>
+            <th scope="col">{tChrome('kb7152342a2')}</th>
+            <th scope="col">{tChrome('kc3cd636a58')}</th>
           </tr>
         </thead>
         <tbody>
@@ -75,16 +75,16 @@ export function DocumentTable({
               </td>
               <td>
                 <Link href={`/investor/documents/${doc.id}` as Route} className="inv-docs__doc-link">
-                  {!doc.isRead ? <span className="inv-docs__unread-dot" aria-label="Unread" /> : null}
+                  {!doc.isRead ? <span className="inv-docs__unread-dot" aria-label={tChrome('k07b032b56f')} /> : null}
                   <span>{doc.title}</span>
                 </Link>
-                <span className="inv-docs__doc-meta">{DOCUMENT_TYPE_LABELS[doc.documentType]}</span>
+                <span className="inv-docs__doc-meta">{investorLabel(tLabels, 'documentType', doc.documentType)}</span>
               </td>
               <td>{doc.investmentName}</td>
-              <td>{DOCUMENT_CATEGORY_LABELS[doc.category]}</td>
+              <td>{investorLabel(tLabels, 'documentCategory', doc.category)}</td>
               <td>
                 <span className={`inv-docs__status inv-docs__status--${doc.status}`}>
-                  {DOCUMENT_STATUS_LABELS[doc.status]}
+                  {investorLabel(tLabels, 'documentStatus', doc.status)}
                 </span>
               </td>
               <td>

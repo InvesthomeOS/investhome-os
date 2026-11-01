@@ -1,6 +1,8 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+
+import { uiError } from '@/lib/i18n/ui-error';
 import { useQuery } from '@tanstack/react-query';
 
 import { Button, ErrorState } from '@investhome/ui';
@@ -38,7 +40,7 @@ export default function MarketingAISettingsPage() {
       ) : settingsQuery.isError ? (
         <ErrorState
           title={t('loadFailed')}
-          message={settingsQuery.error?.message}
+          message={uiError(settingsQuery.error, tCommon('error'))}
           action={
             <Button type="button" onClick={() => void settingsQuery.refetch()}>
               {tCommon('retry')}

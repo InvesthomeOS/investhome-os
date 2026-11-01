@@ -157,10 +157,11 @@ export function RelationshipNetworkView({
   }
   if (graphQuery.isLoading) return <LoadingState label={tr ? 'Ağ yükleniyor…' : 'Loading graph…'} />;
   if (graphQuery.isError) {
+    if (graphQuery.error instanceof Error && graphQuery.error.message) console.error(graphQuery.error.message);
     return (
       <ErrorState
         title={tr ? 'Ağ yüklenemedi' : 'Graph failed'}
-        message={graphQuery.error?.message ?? (tr ? 'Ağ yüklenemedi' : 'Graph failed')}
+        message={tr ? 'Ağ yüklenemedi' : 'Graph failed'}
         action={
           <Button type="button" onClick={() => void graphQuery.refetch()}>
             {tr ? 'Yeniden dene' : 'Retry'}

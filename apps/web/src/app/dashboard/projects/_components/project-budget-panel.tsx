@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
@@ -171,7 +173,7 @@ export function ProjectBudgetPanel({
           : { ...current, category_id: categoryData[0].id },
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('detailWorkspace.tabLoadError'));
+      setError(uiError(err, t('detailWorkspace.tabLoadError')));
     } finally {
       setLoading(false);
     }
@@ -188,7 +190,7 @@ export function ProjectBudgetPanel({
       await action();
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('detailWorkspace.actionError'));
+      setError(uiError(err, t('detailWorkspace.actionError')));
     } finally {
       setBusy(false);
     }

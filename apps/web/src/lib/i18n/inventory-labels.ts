@@ -52,6 +52,7 @@ export function useInventoryLabels() {
   const tPriceStatuses = useTranslations('inventory.pricing.priceStatuses');
   const tPriceRequestStatuses = useTranslations('inventory.pricing.requestStatuses');
   const tErrors = useTranslations('inventory.errors');
+  const tCommon = useTranslations('common');
   const tPricingErrors = useTranslations('inventory.pricing.errors');
   const tAssignmentTypes = useTranslations('inventory.assignments.requestTypes');
   const tAssignmentStatuses = useTranslations('inventory.assignments.requestStatuses');
@@ -96,18 +97,23 @@ export function useInventoryLabels() {
     const pricingKey = key.startsWith('inventory.pricing.errors.')
       ? key.replace('inventory.pricing.errors.', '')
       : null;
+    const fallback = tCommon('actionFailed');
     if (pricingKey) {
       try {
-        return tPricingErrors(pricingKey as never);
+        const translated = tPricingErrors(pricingKey as never);
+        if (translated === pricingKey || translated.endsWith(`.${pricingKey}`)) return fallback;
+        return translated;
       } catch {
-        return key;
+        return fallback;
       }
     }
     const normalized = key.startsWith('inventory.errors.') ? key.replace('inventory.errors.', '') : key;
     try {
-      return tErrors(normalized as never);
+      const translated = tErrors(normalized as never);
+      if (translated === normalized || translated.endsWith(`.${normalized}`)) return fallback;
+      return translated;
     } catch {
-      return key;
+      return fallback;
     }
   };
 

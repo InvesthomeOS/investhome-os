@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { useState } from 'react';
 
 import type { DistributionDateRange, DistributionFilterState } from '../../_data/distribution-types';
@@ -22,15 +24,16 @@ export function SourceBreakdown({
   dateRange,
   currency,
 }: SourceBreakdownProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const [view, setView] = useState<'donut' | 'bar'>('donut');
   const slices = computeSourceBreakdown(distributions, filters, dateRange);
   const chartData = slices.map((s) => ({ label: s.label, value: s.value }));
 
   return (
     <section className="inv-distributions__panel">
-      <SectionHeader title="Cash Flow Source Breakdown" subtitle="Net distribution amounts by type" />
+      <SectionHeader title={tChrome('kb64e9b885f')} subtitle={tChrome('kfc2bf43b15')} />
 
-      <div className="inv-distributions__toggle-group" role="group" aria-label="Chart type">
+      <div className="inv-distributions__toggle-group" role="group" aria-label={tChrome('k25590b02d9')}>
         <button
           type="button"
           className={`inv-distributions__toggle${view === 'donut' ? ' inv-distributions__toggle--active' : ''}`}
@@ -50,7 +53,7 @@ export function SourceBreakdown({
       </div>
 
       {chartData.length === 0 ? (
-        <p className="inv-distributions__empty-note">No completed distributions in range.</p>
+        <p className="inv-distributions__empty-note">{tChrome('kd16acc9553')}</p>
       ) : view === 'donut' ? (
         <DonutChart data={chartData} ariaLabel="Cash flow source breakdown donut chart" />
       ) : (

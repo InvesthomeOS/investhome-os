@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useMemo, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { Button, ErrorState, Input, LoadingState, TextArea } from '@investhome/ui';
@@ -23,53 +24,43 @@ import { DocumentGallery } from '@/workspaces/crm/contact-card/document-gallery'
 import '@/workspaces/crm/contact-card/contact-card.css';
 import '../companies/companies-ops.css';
 
-const TYPE_LABELS: Record<string, string> = {
-  investment_company: 'Yatırımcı',
-  buyer_entity: 'Alıcı şirketi',
-  brokerage: 'Broker / Acenta',
-  law_firm: 'Hukuk',
-  bank: 'Banka',
-  lender: 'Finansör',
-  property_management: 'Yönetim',
-  construction: 'İnşaat',
-  contractor: 'Yüklenici',
-  architecture: 'Mimarlık',
-  accounting: 'Muhasebe',
-  consulting: 'Danışmanlık',
-  insurance: 'Sigorta',
-  media: 'Medya',
-  government: 'Kamu',
-  vendor: 'Tedarikçi',
-  partner: 'Partner',
-  internal_entity: 'İç şirket',
-  other: 'Diğer',
-};
+const COMPANY_TYPE_KEYS = new Set([
+  'investment_company',
+  'buyer_entity',
+  'brokerage',
+  'law_firm',
+  'bank',
+  'lender',
+  'property_management',
+  'construction',
+  'contractor',
+  'architecture',
+  'accounting',
+  'consulting',
+  'insurance',
+  'media',
+  'government',
+  'vendor',
+  'partner',
+  'internal_entity',
+  'other',
+]);
 
-const STATUS_LABELS: Record<string, string> = {
-  active: 'Aktif',
-  inactive: 'Pasif',
-  prospect: 'Aday',
-  archived: 'Arşiv',
-};
+const RECORD_STATUS_KEYS = new Set(['active', 'inactive', 'prospect', 'archived']);
 
-const RELATION_TYPE_LABELS: Record<string, string> = {
-  parent: 'Ana şirket',
-  subsidiary: 'Bağlı şirket',
-  affiliate: 'İştirak',
-  partner: 'Partner',
-  competitor: 'Rakip',
-  vendor: 'Tedarikçi',
-  client: 'Müşteri',
-  investor: 'Yatırımcı',
-  other: 'Diğer',
-  broker: 'Broker',
-  realtor: 'Acenta',
-};
-
-const FLAG_LABELS: Record<string, string> = {
-  BILGI_EKSIK: 'Bilgi Eksik',
-  INCELEME_GEREKLI: 'İnceleme Gerekli',
-};
+const RELATION_TYPE_KEYS = new Set([
+  'parent',
+  'subsidiary',
+  'affiliate',
+  'partner',
+  'competitor',
+  'vendor',
+  'client',
+  'investor',
+  'other',
+  'broker',
+  'realtor',
+]);
 
 const PROJECT_LABELS: Record<string, string> = {
   '1812_h_pl': '1812 H Place',
@@ -124,6 +115,9 @@ function displayOwner(name: string | null | undefined): string {
 }
 
 export function CrmCompanyDetailView({ companyId }: { companyId: string }) {
+  const t = useTranslations('crm.companies');
+  const tCommon = useTranslations('common');
+  const locale = useLocale();
   const { authLoading, user, canReadCompanies: canView, has } = useCrmAccess();
   const canUpdate = canUpdateCrm(user);
   const canTransferOwnership = has('transfer_ownership');
@@ -232,20 +226,29 @@ export function CrmCompanyDetailView({ companyId }: { companyId: string }) {
     [company],
   );
 
+  const companyTypeLabel = (type: string | null | undefined) =>
+    type && COMPANY_TYPE_KEYS.has(type) ? t(`companyTypes.${type}` as 'companyTypes.other') : t('companyTypes.other');
+  const statusLabel = (status: string | null | undefined) =>
+    status && RECORD_STATUS_KEYS.has(status) ? t(`recordStatus.${status}` as 'recordStatus.active') : tCommon('noValue');
+  const relationLabel = (type: string | null | undefined) =>
+    type && RELATION_TYPE_KEYS.has(type) ? t(`relationTypes.${type}` as 'relationTypes.other') : '';
+  const flagLabel = (flag: string) =>
+    flag === 'BILGI_EKSIK' ? t('flags.missingInfo') : flag === 'INCELEME_GEREKLI' ? t('flags.reviewRequired') : flag;
+
   if (authLoading || detailQuery.isLoading) {
-    return <LoadingState label="Şirket yükleniyor…" />;
+    return <LoadingState label={t('detail.loading')} />;
   }
   if (!canView) {
-    return <ErrorState title="Erişim yok" message="Şirketleri görüntüleme izniniz yok." />;
+    return <ErrorState title={t('detail.accessDeniedTitle')} message={t('detail.accessDeniedMessage')} />;
   }
   if (detailQuery.isError || !company) {
     return (
       <ErrorState
-        title="Yüklenemedi"
-        message={detailQuery.error?.message ?? 'Şirket bulunamadı'}
+        title={t('detail.loadFailedTitle')}
+        message={t('detail.notFound')}
         action={
           <Button type="button" onClick={() => void detailQuery.refetch()}>
-            Yeniden dene
+            {tCommon('retry')}
           </Button>
         }
       />
@@ -268,12 +271,12 @@ export function CrmCompanyDetailView({ companyId }: { companyId: string }) {
       <header className="crm-ops__header">
         <div>
           <h1>{company.display_name}</h1>
-          <p>{TYPE_LABELS[company.company_type] || 'Diğer'}</p>
+          <p>{companyTypeLabel(company.company_type)}</p>
           {flags.length ? (
             <div className="crm-ops-flags">
               {flags.map((flag) => (
                 <span key={flag} className={`crm-ops-badge ${flag === 'BILGI_EKSIK' ? 'is-missing' : 'is-review'}`}>
-                  {FLAG_LABELS[flag] || flag}
+                  {flagLabel(flag)}
                 </span>
               ))}
             </div>
@@ -284,41 +287,41 @@ export function CrmCompanyDetailView({ companyId }: { companyId: string }) {
             editing ? (
               <>
                 <Button type="button" size="sm" onClick={() => void save()} disabled={saving}>
-                  Kaydet
+                  {t('actions.save')}
                 </Button>
                 <Button type="button" size="sm" variant="secondary" onClick={() => setEditing(false)}>
-                  Vazgeç
+                  {tCommon('cancel')}
                 </Button>
               </>
             ) : (
               <Button type="button" size="sm" variant="secondary" onClick={startEdit} data-testid="crm-company-edit">
-                Düzenle
+                {t('actions.edit')}
               </Button>
             )
           ) : null}
           <Link href={'/workspaces/crm/companies' as Route} className="ih-btn ih-btn--secondary">
-            Listeye dön
+            {t('actions.backToList')}
           </Link>
         </div>
       </header>
 
       <section className="crm-ops-section">
-        <h2>Şirket bilgileri</h2>
+        <h2>{t('detail.companyInfo')}</h2>
         {editing ? (
           <div className="crm-ops-form">
             {canUpdate ? (
               <>
-                <Input label="Şirket adı" value={draft.display_name} onChange={(event) => setDraft((prev) => ({ ...prev, display_name: event.target.value }))} />
-                <Input label="Telefon" value={draft.primary_phone} onChange={(event) => setDraft((prev) => ({ ...prev, primary_phone: event.target.value }))} />
-                <Input label="E-posta" value={draft.primary_email} onChange={(event) => setDraft((prev) => ({ ...prev, primary_email: event.target.value }))} />
-                <Input label="Web sitesi" value={draft.website} onChange={(event) => setDraft((prev) => ({ ...prev, website: event.target.value }))} />
-                <Input label="Sektör" value={draft.industry} onChange={(event) => setDraft((prev) => ({ ...prev, industry: event.target.value }))} />
-                <TextArea label="Yorumlar" value={draft.notes} onChange={(event) => setDraft((prev) => ({ ...prev, notes: event.target.value }))} />
+                <Input label={t('detail.companyName')} value={draft.display_name} onChange={(event) => setDraft((prev) => ({ ...prev, display_name: event.target.value }))} />
+                <Input label={t('detail.phone')} value={draft.primary_phone} onChange={(event) => setDraft((prev) => ({ ...prev, primary_phone: event.target.value }))} />
+                <Input label={t('detail.email')} value={draft.primary_email} onChange={(event) => setDraft((prev) => ({ ...prev, primary_email: event.target.value }))} />
+                <Input label={t('detail.website')} value={draft.website} onChange={(event) => setDraft((prev) => ({ ...prev, website: event.target.value }))} />
+                <Input label={t('detail.industry')} value={draft.industry} onChange={(event) => setDraft((prev) => ({ ...prev, industry: event.target.value }))} />
+                <TextArea label={t('detail.comments')} value={draft.notes} onChange={(event) => setDraft((prev) => ({ ...prev, notes: event.target.value }))} />
               </>
             ) : null}
             {canTransferOwnership ? (
               <label className="ih-field">
-                <span className="ih-field__label">Sorumlu</span>
+                <span className="ih-field__label">{t('detail.owner')}</span>
                 <select
                   className="ih-select"
                   data-testid="crm-company-owner"
@@ -337,32 +340,32 @@ export function CrmCompanyDetailView({ companyId }: { companyId: string }) {
           </div>
         ) : (
           <dl className="crm-ops-kv">
-            <dt>Şirket adı</dt>
+            <dt>{t('detail.companyName')}</dt>
             <dd>{company.display_name}</dd>
-            <dt>Kategori</dt>
-            <dd>{TYPE_LABELS[company.company_type] || 'Diğer'}</dd>
-            <dt>Durum</dt>
-            <dd>{STATUS_LABELS[company.status] || '—'}</dd>
-            <dt>Telefon</dt>
+            <dt>{t('detail.category')}</dt>
+            <dd>{companyTypeLabel(company.company_type)}</dd>
+            <dt>{t('detail.status')}</dt>
+            <dd>{statusLabel(company.status)}</dd>
+            <dt>{t('detail.phone')}</dt>
             <dd>{dash(company.primary_phone)}</dd>
-            <dt>E-posta</dt>
+            <dt>{t('detail.email')}</dt>
             <dd>{dash(company.primary_email)}</dd>
-            <dt>Web sitesi</dt>
+            <dt>{t('detail.website')}</dt>
             <dd>{dash(company.website)}</dd>
-            <dt>Adres</dt>
+            <dt>{t('detail.address')}</dt>
             <dd>{dash(addressLine)}</dd>
-            <dt>Ülke / Şehir</dt>
+            <dt>{t('detail.countryCity')}</dt>
             <dd>{dash([address?.country, address?.city].filter(Boolean).join(' / '))}</dd>
-            <dt>Sorumlu</dt>
+            <dt>{t('detail.owner')}</dt>
             <dd>{dash(displayOwner(company.owner_name))}</dd>
-            <dt>Son etkinlik</dt>
-            <dd>{lastActivity ? new Date(lastActivity).toLocaleString('tr-TR') : '—'}</dd>
+            <dt>{t('detail.lastActivity')}</dt>
+            <dd>{lastActivity ? new Date(lastActivity).toLocaleString(locale) : tCommon('noValue')}</dd>
           </dl>
         )}
       </section>
 
       <section className="crm-ops-section">
-        <h2>İlgili kişiler</h2>
+        <h2>{t('detail.relatedPeople')}</h2>
         {company.contacts.length === 0 ? (
           <p className="crm-ops-muted">—</p>
         ) : (
@@ -372,7 +375,7 @@ export function CrmCompanyDetailView({ companyId }: { companyId: string }) {
                 <button type="button" className="crm-ops-link" onClick={() => openContact(contact.contact_id)}>
                   {contact.contact_display_name ?? contact.contact_id}
                 </button>
-                <span>{contact.job_title || RELATION_TYPE_LABELS[contact.role] || ''}</span>
+                <span>{contact.job_title || relationLabel(contact.role)}</span>
               </li>
             ))}
           </ul>
@@ -381,7 +384,7 @@ export function CrmCompanyDetailView({ companyId }: { companyId: string }) {
 
       {brokerPeople.length ? (
         <section className="crm-ops-section">
-          <h2>Broker / Acenta kişileri</h2>
+          <h2>{t('detail.brokers')}</h2>
           <ul className="crm-ops-list">
             {brokerPeople.map((person) => (
               <li key={person.id}>
@@ -395,7 +398,7 @@ export function CrmCompanyDetailView({ companyId }: { companyId: string }) {
       ) : null}
 
       <section className="crm-ops-section">
-        <h2>Açık proje / işler</h2>
+        <h2>{t('detail.openWork')}</h2>
         {(company.related_agreements ?? []).length === 0 ? (
           <p className="crm-ops-muted">—</p>
         ) : (
@@ -417,7 +420,7 @@ export function CrmCompanyDetailView({ companyId }: { companyId: string }) {
       </section>
 
       <section className="crm-ops-section">
-        <h2>İlişki türleri</h2>
+        <h2>{t('detail.relationshipTypes')}</h2>
         {company.relationships.length === 0 ? (
           <p className="crm-ops-muted">—</p>
         ) : (
@@ -427,7 +430,7 @@ export function CrmCompanyDetailView({ companyId }: { companyId: string }) {
                 <Link href={`/workspaces/crm/companies/${rel.target_company_id}` as Route} className="crm-ops-link">
                   {rel.target_display_name ?? rel.target_company_id}
                 </Link>
-                <span>{RELATION_TYPE_LABELS[rel.relationship_type] || '—'}</span>
+                <span>{relationLabel(rel.relationship_type) || tCommon('noValue')}</span>
               </li>
             ))}
           </ul>
@@ -435,12 +438,12 @@ export function CrmCompanyDetailView({ companyId }: { companyId: string }) {
       </section>
 
       <section className="crm-ops-section">
-        <h2>Yorumlar</h2>
+        <h2>{t('detail.comments')}</h2>
         {comments ? <p className="crm-ops-note">{comments}</p> : <p className="crm-ops-muted">—</p>}
       </section>
 
       <section className="crm-ops-section">
-        <h2>Belgeler</h2>
+        <h2>{t('detail.documents')}</h2>
         <DocumentGallery
           documents={documentsQuery.data ?? []}
           entityType="crm_company"

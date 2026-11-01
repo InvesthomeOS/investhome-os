@@ -1,10 +1,13 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 
 import type { Conversation, MessageCategory } from '../../_data/messaging-types';
 import { formatInvestorDateTime } from '../../_data/mock-data';
+import { investorChrome } from '../investor-labels';
 import { useMessagingState } from '../../_state/messaging-state';
 
 interface ConversationListProps {
@@ -21,15 +24,20 @@ const PRIORITY_CLASS: Record<Conversation['priority'], string> = {
   low: 'inv-conv-list__priority--low',
 };
 
-function formatRelativeTime(dateStr: string): string {
+function formatRelativeTime(
+  dateStr: string,
+  justNow: string,
+  hoursAgo: (count: number) => string,
+  daysAgo: (count: number) => string,
+): string {
   const date = new Date(dateStr);
   const now = new Date('2025-07-16T12:00:00Z');
   const diffMs = now.getTime() - date.getTime();
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  if (diffHours < 1) return 'Just now';
-  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffHours < 1) return justNow;
+  if (diffHours < 24) return hoursAgo(diffHours);
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 7) return daysAgo(diffDays);
   return formatInvestorDateTime(dateStr);
 }
 
@@ -39,18 +47,20 @@ export function ConversationList({
   onSelect,
   showCheckbox = false,
 }: ConversationListProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tMessages = useTranslations('investorPortal.messages');
   const { selectedConversationIds, toggleConversationSelection } = useMessagingState();
 
   if (conversations.length === 0) {
     return (
       <div className="inv-conv-list__empty">
-        <p>No conversations match your filters.</p>
+        <p>{tChrome('k571da4f5e8')}</p>
       </div>
     );
   }
 
   return (
-    <ul className="inv-conv-list" role="listbox" aria-label="Conversations">
+    <ul className="inv-conv-list" role="listbox" aria-label={tChrome('k07c59b4412')}>
       {conversations.map((conv) => {
         const isSelected = selectedId === conv.id;
         const isChecked = selectedConversationIds.includes(conv.id);
@@ -75,7 +85,7 @@ export function ConversationList({
                     toggleConversationSelection(conv.id);
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  aria-label={`Select ${conv.subject}`}
+                  aria-label={`${investorChrome(tChrome, 'Select')} ${investorChrome(tChrome, conv.subject)}`}
                 />
               ) : null}
 
@@ -85,24 +95,31 @@ export function ConversationList({
 
               <div className="inv-conv-list__content">
                 <div className="inv-conv-list__top">
-                  <strong className="inv-conv-list__subject">{conv.subject}</strong>
+                  <strong className="inv-conv-list__subject">{investorChrome(tChrome, conv.subject)}</strong>
                   <time className="inv-conv-list__time" dateTime={conv.lastMessageAt}>
-                    {formatRelativeTime(conv.lastMessageAt)}
+                    {formatRelativeTime(
+                      conv.lastMessageAt,
+                      tMessages('justNow'),
+                      (count) => tMessages('hoursAgo', { count }),
+                      (count) => tMessages('daysAgo', { count }),
+                    )}
                   </time>
                 </div>
                 <div className="inv-conv-list__middle">
                   <span className="inv-conv-list__project">{conv.investmentName}</span>
-                  {conv.isStarred ? <span aria-label="Starred">★</span> : null}
-                  {conv.hasAttachments ? <span aria-label="Has attachments">📎</span> : null}
+                  {conv.isStarred ? <span aria-label={tChrome('ke61561a80e')}>★</span> : null}
+                  {conv.hasAttachments ? <span aria-label={tChrome('kfa7f9ec22a')}>📎</span> : null}
                 </div>
-                <p className="inv-conv-list__preview">{conv.lastMessagePreview}</p>
+                <p className="inv-conv-list__preview">{investorChrome(tChrome, conv.lastMessagePreview)}</p>
                 <div className="inv-conv-list__badges">
                   <span className={`inv-conv-list__priority ${PRIORITY_CLASS[conv.priority]}`}>
-                    {conv.priority}
+                    {investorChrome(tChrome, conv.priority)}
                   </span>
-                  <span className="inv-conv-list__category">{conv.messageType.replace(/_/g, ' ')}</span>
+                  <span className="inv-conv-list__category">
+                    {investorChrome(tChrome, conv.messageType.replace(/_/g, ' '))}
+                  </span>
                   {conv.unreadCount > 0 ? (
-                    <span className="inv-conv-list__unread-badge" aria-label={`${conv.unreadCount} unread`}>
+                    <span className="inv-conv-list__unread-badge" aria-label={tMessages('unread', { count: conv.unreadCount })}>
                       {conv.unreadCount}
                     </span>
                   ) : null}

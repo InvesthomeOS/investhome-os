@@ -1,12 +1,14 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
+import { investorLabel } from '@/app/investor/_components/investor-labels';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useMemo, useState } from 'react';
 
 import type { DistributionEvent } from '../../_data/distribution-types';
 import { DISTRIBUTION_REFERENCE_DATE } from '../../_data/distributions';
-import { DISTRIBUTION_STATUS_LABELS, DISTRIBUTION_TYPE_LABELS } from '../../_data/distributions';
 import { formatInvestorCurrency, formatInvestorDate } from '../../_data/mock-data';
 import { SectionHeader } from '../section-header';
 
@@ -17,6 +19,8 @@ export interface DistributionCalendarProps {
 }
 
 export function DistributionCalendar({ events }: DistributionCalendarProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tLabels = useTranslations('investorPortal.labels');
   const [view, setView] = useState<CalendarView>('list');
   const [monthOffset, setMonthOffset] = useState(0);
 
@@ -58,9 +62,9 @@ export function DistributionCalendar({ events }: DistributionCalendarProps) {
 
   return (
     <section className="inv-distributions__panel">
-      <SectionHeader title="Distribution Calendar" subtitle="Scheduled and completed distribution events" />
+      <SectionHeader title={tChrome('k5c44e5a3ec')} subtitle={tChrome('kc6ec0dbcbd')} />
 
-      <div className="inv-distributions__toggle-group" role="group" aria-label="Calendar view">
+      <div className="inv-distributions__toggle-group" role="group" aria-label={tChrome('k2b4d4585e1')}>
         {(['list', 'month', 'timeline'] as const).map((v) => (
           <button
             key={v}
@@ -84,7 +88,7 @@ export function DistributionCalendar({ events }: DistributionCalendarProps) {
                   {e.title}
                 </Link>
                 <span className={`inv-distributions__status inv-distributions__status--${e.status}`}>
-                  {DISTRIBUTION_STATUS_LABELS[e.status]}
+                  {investorLabel(tLabels, 'distributionStatus', e.status)}
                 </span>
               </div>
               <strong>{formatInvestorCurrency(e.amount, 'USD')}</strong>
@@ -96,7 +100,7 @@ export function DistributionCalendar({ events }: DistributionCalendarProps) {
       {view === 'month' && (
         <>
           <div className="inv-distributions__calendar-nav">
-            <button type="button" onClick={() => setMonthOffset((o) => o - 1)} aria-label="Previous month">
+            <button type="button" onClick={() => setMonthOffset((o) => o - 1)} aria-label={tChrome('k46a2992153')}>
               ‹
             </button>
             <strong>
@@ -106,11 +110,11 @@ export function DistributionCalendar({ events }: DistributionCalendarProps) {
                 timeZone: 'UTC',
               })}
             </strong>
-            <button type="button" onClick={() => setMonthOffset((o) => o + 1)} aria-label="Next month">
+            <button type="button" onClick={() => setMonthOffset((o) => o + 1)} aria-label={tChrome('k8abf7cf1d0')}>
               ›
             </button>
           </div>
-          <div className="inv-distributions__calendar-grid" role="grid" aria-label="Monthly calendar">
+          <div className="inv-distributions__calendar-grid" role="grid" aria-label={tChrome('k93636ef257')}>
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
               <div key={d} className="inv-distributions__calendar-dow" role="columnheader">
                 {d}
@@ -132,7 +136,7 @@ export function DistributionCalendar({ events }: DistributionCalendarProps) {
                         className="inv-distributions__calendar-event"
                         title={e.title}
                       >
-                        {DISTRIBUTION_TYPE_LABELS[e.type].split(' ')[0]}
+                        {investorLabel(tLabels, 'distributionType', e.type).split(' ')[0]}
                       </Link>
                     ))}
                   </>
@@ -141,7 +145,7 @@ export function DistributionCalendar({ events }: DistributionCalendarProps) {
             ))}
           </div>
           {monthEvents.length === 0 ? (
-            <p className="inv-distributions__empty-note">No events this month.</p>
+            <p className="inv-distributions__empty-note">{tChrome('kf8f4518ac1')}</p>
           ) : null}
         </>
       )}
@@ -156,9 +160,9 @@ export function DistributionCalendar({ events }: DistributionCalendarProps) {
                 <Link href={`/investor/distributions/${e.distributionId}` as Route} className="inv-distributions__link">
                   {e.investmentName}
                 </Link>
-                <p>{DISTRIBUTION_TYPE_LABELS[e.type]} · {formatInvestorCurrency(e.amount, 'USD')}</p>
+                <p>{investorLabel(tLabels, 'distributionType', e.type)} · {formatInvestorCurrency(e.amount, 'USD')}</p>
                 <span className={`inv-distributions__status inv-distributions__status--${e.status}`}>
-                  {DISTRIBUTION_STATUS_LABELS[e.status]}
+                  {investorLabel(tLabels, 'distributionStatus', e.status)}
                 </span>
               </div>
             </li>

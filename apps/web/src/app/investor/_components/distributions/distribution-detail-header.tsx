@@ -1,13 +1,12 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
+import { investorLabel } from '@/app/investor/_components/investor-labels';
 import Link from 'next/link';
 import type { Route } from 'next';
 
 import type { Distribution } from '../../_data/distribution-types';
-import {
-  DISTRIBUTION_STATUS_LABELS,
-  DISTRIBUTION_TYPE_LABELS,
-} from '../../_data/distributions';
 import { formatInvestorCurrency, formatInvestorDate } from '../../_data/mock-data';
 
 export interface DistributionDetailHeaderProps {
@@ -23,6 +22,8 @@ export function DistributionDetailHeader({
   onContactIr,
   onReportIssue,
 }: DistributionDetailHeaderProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tLabels = useTranslations('investorPortal.labels');
   return (
     <header className="inv-distributions__detail-header">
       <Link href={'/investor/distributions' as Route} className="inv-distributions__back-link">
@@ -40,25 +41,25 @@ export function DistributionDetailHeader({
           </p>
         </div>
         <span className={`inv-distributions__status inv-distributions__status--${d.status}`}>
-          {DISTRIBUTION_STATUS_LABELS[d.status]}
+          {investorLabel(tLabels, 'distributionStatus', d.status)}
         </span>
       </div>
 
       <dl className="inv-distributions__detail-meta">
         <div>
-          <dt>Type</dt>
-          <dd>{DISTRIBUTION_TYPE_LABELS[d.distributionType]}</dd>
+          <dt>{tChrome('k3deb745651')}</dt>
+          <dd>{investorLabel(tLabels, 'distributionType', d.distributionType)}</dd>
         </div>
         <div>
-          <dt>Payment Date</dt>
+          <dt>{tChrome('k4b0bd4b926')}</dt>
           <dd>{formatInvestorDate(d.paymentDate)}</dd>
         </div>
         <div>
-          <dt>Net Amount</dt>
+          <dt>{tChrome('k5a29eae164')}</dt>
           <dd>{formatInvestorCurrency(d.breakdown.netAmount, d.currency)}</dd>
         </div>
         <div>
-          <dt>Reference</dt>
+          <dt>{tChrome('kdb1c784524')}</dt>
           <dd>{d.reference}</dd>
         </div>
       </dl>

@@ -4,7 +4,7 @@ import type { FormEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Route } from 'next';
 import Link from 'next/link';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 
@@ -48,44 +48,41 @@ type WorkspaceState = 'ready' | 'loading' | 'error' | 'empty';
 
 const PAGE_SIZE = 6;
 
-const STATUS_LABELS: Record<JourneyEventStatus, string> = {
-  completed: 'Completed',
-  sent: 'Sent',
-  scheduled: 'Scheduled',
-  due: 'Due today',
-  pending: 'Pending',
-  signed: 'Signed',
-  paid: 'Paid',
-};
-
-const AI_ACTIONS = [
-  'Summarize Journey',
-  'Detect Risks',
-  'Next Best Action',
-  'Missing Follow-up',
-  'Buying Signals',
+const AI_ACTION_KEYS = [
+  'ai.summarize',
+  'ai.risks',
+  'ai.nextBest',
+  'ai.missingFollowUp',
+  'ai.buyingSignals',
 ] as const;
 
-function eventTitle(event: JourneyTimelineEvent): string {
-  if (event.id === 'journey-follow-up') return 'Follow up proposal';
-  if (event.id === 'journey-proposal') return 'Proposal sent – North Towers A-1204';
-  if (event.id === 'journey-viewing') return 'Unit viewed – North Towers A-1204';
-  if (event.id === 'journey-call') return 'Intro call';
-  return getCrmEventIdentity(event.activityType).label;
+type JourneyCopy = (key: string, values?: Record<string, string | number>) => string;
+
+function eventTitle(event: JourneyTimelineEvent, t: JourneyCopy): string {
+  if (event.id === 'journey-follow-up') return t('titles.followUp');
+  if (event.id === 'journey-proposal') return t('titles.proposal');
+  if (event.id === 'journey-viewing') return t('titles.viewing');
+  if (event.id === 'journey-call') return t('titles.call');
+  return t(`activity.${event.activityType}`);
+}
+
+function statusLabel(status: JourneyEventStatus, t: JourneyCopy): string {
+  return t(`status.${status}`);
 }
 
 function relativeFixtureActivity(
   event: JourneyTimelineEvent | undefined,
   anchor: JourneyTimelineEvent | undefined,
   locale: string,
+  t: JourneyCopy,
 ): string {
-  if (!event || !anchor) return 'No recent activity';
+  if (!event || !anchor) return t('relative.none');
   const eventDate = new Date(event.occurredAt);
   const anchorDate = new Date(anchor.occurredAt);
   const eventDay = Date.UTC(eventDate.getUTCFullYear(), eventDate.getUTCMonth(), eventDate.getUTCDate());
   const anchorDay = Date.UTC(anchorDate.getUTCFullYear(), anchorDate.getUTCMonth(), anchorDate.getUTCDate());
   const dayDifference = Math.max(0, Math.round((anchorDay - eventDay) / 86_400_000));
-  const relative = dayDifference === 0 ? 'Today' : dayDifference === 1 ? 'Yesterday' : `${dayDifference} days ago`;
+  const relative = dayDifference === 0 ? t('relative.today') : dayDifference === 1 ? t('relative.yesterday') : t('relative.daysAgo', { count: dayDifference });
   const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(eventDate);
   return `${relative} · ${time}`;
 }
@@ -130,6 +127,7 @@ function toActivityDetail(
   event: JourneyTimelineEvent,
   contactId: string,
   canViewInternalNotes: boolean,
+  t: JourneyCopy,
 ): CrmActivityDetail {
   const activityType = mapActivityType(event.activityType);
   const status = mapActivityStatus(event.status);
@@ -141,7 +139,7 @@ function toActivityDetail(
     related_entity_id: event.relatedProject ? `local-${event.relatedProject.toLowerCase().replaceAll(' ', '-')}` : null,
     activity_type: activityType,
     activity_category: mapActivityCategory(event.activityType),
-    title: eventTitle(event),
+    title: eventTitle(event, t),
     summary: event.summary,
     status,
     task_status: activityType === 'follow_up' ? 'not_started' : null,
@@ -221,20 +219,21 @@ function JourneyActivityDetail({
   canViewInternalNotes: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations('crm.journey');
   const activity = useMemo(
-    () => toActivityDetail(event, contactId, canViewInternalNotes),
-    [canViewInternalNotes, contactId, event],
+    () => toActivityDetail(event, contactId, canViewInternalNotes, t),
+    [canViewInternalNotes, contactId, event, t],
   );
 
   return (
     <div className="journey-workspace__detail-shell">
       <ActivityDetailPanel activity={activity} loading={false} onClose={onClose} />
-      <div className="journey-workspace__detail-indicators" aria-label="Activity indicators">
+      <div className="journey-workspace__detail-indicators" aria-label={t('indicatorsAria')}>
         {canViewInternalNotes && event.internalSalesNote ? (
-          <span><IhIcon name="user" size={14} />Private team note</span>
+          <span><IhIcon name="user" size={14} />{t('privateTeamNote')}</span>
         ) : null}
         {event.attachment ? (
-          <span><IhIcon name="documents" size={14} />Attachment: {event.attachment.fileName}</span>
+          <span><IhIcon name="documents" size={14} />{t('attachmentNamed', { name: event.attachment.fileName })}</span>
         ) : null}
       </div>
     </div>
@@ -252,6 +251,8 @@ function ContactJourneyWorkspacePresentation({
   enableDebugStates?: boolean;
   contactHref?: Route;
 }) {
+  const t = useTranslations('crm.journey');
+  const tCommon = useTranslations('common');
   const locale = useLocale();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -299,7 +300,7 @@ function ContactJourneyWorkspacePresentation({
     if (workspaceState === 'empty') return [];
     return JOURNEY_TIMELINE_EVENTS.filter((event) => {
       if (!effectiveCanViewInternalNotes && event.activityType === 'internal_note') return false;
-      const searchable = `${eventTitle(event)} ${event.summary} ${event.relatedProject ?? ''} ${event.assignedTo.name}`.toLowerCase();
+      const searchable = `${eventTitle(event, t)} ${event.summary} ${event.relatedProject ?? ''} ${event.assignedTo.name}`.toLowerCase();
       const eventDate = event.occurredAt.slice(0, 10);
       return (
         (!search || searchable.includes(search)) &&
@@ -318,6 +319,7 @@ function ContactJourneyWorkspacePresentation({
     memberId,
     project,
     search,
+    t,
     workspaceState,
   ]);
 
@@ -338,18 +340,18 @@ function ContactJourneyWorkspacePresentation({
     );
     const documents = JOURNEY_TIMELINE_EVENTS.filter((event) => event.attachment);
     const expectedValue =
-      typeof contact.buyer_profile?.budget === 'string' ? contact.buyer_profile.budget : 'Not specified';
+      typeof contact.buyer_profile?.budget === 'string' ? contact.buyer_profile.budget : t('summary.notSpecified');
     return {
-      lastActivity: relativeFixtureActivity(lastActivity, JOURNEY_TIMELINE_EVENTS[0], locale),
-      opportunity: proposal?.relatedProject ?? projects[0] ?? 'No active project',
-      opportunityStage: proposal ? `${getCrmEventIdentity(proposal.activityType).label} · ${STATUS_LABELS[proposal.status]}` : 'No stage',
+      lastActivity: relativeFixtureActivity(lastActivity, JOURNEY_TIMELINE_EVENTS[0], locale, t),
+      opportunity: proposal?.relatedProject ?? projects[0] ?? t('summary.noProject'),
+      opportunityStage: proposal ? `${t(`activity.${proposal.activityType}`)} · ${statusLabel(proposal.status, t)}` : t('summary.noStage'),
       expectedValue,
-      nextMeeting: meeting ? `${eventTitle(meeting)} · ${dateFormatter.format(new Date(meeting.occurredAt))}` : 'No meeting scheduled',
-      dueFollowUp: followUp ? `${eventTitle(followUp)} · ${dateFormatter.format(new Date(followUp.occurredAt))}` : 'No open follow-up',
+      nextMeeting: meeting ? `${eventTitle(meeting, t)} · ${dateFormatter.format(new Date(meeting.occurredAt))}` : t('summary.noMeeting'),
+      dueFollowUp: followUp ? `${eventTitle(followUp, t)} · ${dateFormatter.format(new Date(followUp.occurredAt))}` : t('summary.noFollowUp'),
       properties: projects,
       documents,
     };
-  }, [contact.buyer_profile, dateFormatter, locale, projects]);
+  }, [contact.buyer_profile, dateFormatter, locale, projects, t]);
 
   function replaceParams(nextParams: URLSearchParams) {
     const query = nextParams.toString();
@@ -436,26 +438,26 @@ function ContactJourneyWorkspacePresentation({
       <header className="journey-workspace__context">
         <Link href={resolvedContactHref} className="journey-workspace__back">
           <IhIcon name="chevronLeft" size={15} />
-          Back to customer
+          {t('back')}
         </Link>
         <div className="journey-workspace__identity">
           <span className="journey-workspace__avatar" aria-hidden="true">AY</span>
           <div>
             <div className="journey-workspace__title-row">
               <h1 id="journey-workspace-title">{contact.display_name}</h1>
-              <StatusChip tone="success">Active buyer</StatusChip>
+              <StatusChip tone="success">{t('activeBuyer')}</StatusChip>
             </div>
             <p>{contact.primary_phone} · {contact.primary_email}</p>
-            <span>Owner <strong>{contact.owner_name}</strong></span>
+            <span>{t('owner')} <strong>{contact.owner_name}</strong></span>
           </div>
         </div>
         <div className="journey-workspace__context-summary">
           <span>
-            <small>Customer journey</small>
-            <strong>{JOURNEY_TIMELINE_EVENTS.length} Activities</strong>
+            <small>{t('customerJourney')}</small>
+            <strong>{t('activities', { count: JOURNEY_TIMELINE_EVENTS.length })}</strong>
           </span>
           <span>
-            <small>Last activity</small>
+            <small>{t('lastActivity')}</small>
             <strong>{executiveSummary.lastActivity}</strong>
           </span>
         </div>
@@ -464,62 +466,62 @@ function ContactJourneyWorkspacePresentation({
       <form className="journey-workspace__toolbar" onSubmit={submitSearch}>
         <div className="journey-workspace__search-group">
           <label className="journey-workspace__search">
-            <span className="sr-only">Search journey</span>
+            <span className="sr-only">{t('searchPlaceholder')}</span>
             <IhIcon name="search" size={16} />
-            <input key={search} name="q" defaultValue={searchParams.get('q') ?? ''} placeholder="Search journey" />
+            <input key={search} name="q" defaultValue={searchParams.get('q') ?? ''} placeholder={t('searchPlaceholder')} />
           </label>
-          <button type="submit" className="journey-workspace__search-button">Search</button>
+          <button type="submit" className="journey-workspace__search-button">{t('search')}</button>
         </div>
         <label>
-          <span>From</span>
+          <span>{t('from')}</span>
           <input type="date" value={dateFrom} onChange={(event) => setParam('from', event.target.value)} />
         </label>
         <label>
-          <span>To</span>
+          <span>{t('to')}</span>
           <input type="date" value={dateTo} onChange={(event) => setParam('to', event.target.value)} />
         </label>
         <label>
-          <span>Activity type</span>
+          <span>{t('activityType')}</span>
           <select value={activityType} onChange={(event) => setParam('type', event.target.value)}>
-            <option value="">All types</option>
+            <option value="">{t('allTypes')}</option>
             {(Object.keys(CRM_EVENT_IDENTITIES) as JourneyActivityType[]).map((type) => (
-              <option key={type} value={type}>{CRM_EVENT_IDENTITIES[type].label}</option>
+              <option key={type} value={type}>{t(`activity.${type}`)}</option>
             ))}
           </select>
         </label>
         <label>
-          <span>Team member</span>
+          <span>{t('teamMember')}</span>
           <select value={memberId} onChange={(event) => setParam('member', event.target.value)}>
-            <option value="">All members</option>
+            <option value="">{t('allMembers')}</option>
             {teamMembers.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
           </select>
         </label>
         <label>
-          <span>Project</span>
+          <span>{t('project')}</span>
           <select value={project} onChange={(event) => setParam('project', event.target.value)}>
-            <option value="">All projects</option>
+            <option value="">{t('allProjects')}</option>
             {projects.map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
         </label>
         <div className="journey-workspace__toolbar-meta">
-          <strong aria-live="polite">{filteredEvents.length} results</strong>
-          <button type="button" onClick={() => window.history.replaceState(null, '', pathname)}>Clear filters</button>
+          <strong aria-live="polite">{t('results', { count: filteredEvents.length })}</strong>
+          <button type="button" onClick={() => window.history.replaceState(null, '', pathname)}>{t('clearFilters')}</button>
         </div>
       </form>
 
       {workspaceState === 'loading' ? (
-        <div className="journey-workspace__state"><LoadingState label="Loading journey…" /></div>
+        <div className="journey-workspace__state"><LoadingState label={t('loading')} /></div>
       ) : workspaceState === 'error' ? (
         <div className="journey-workspace__state">
           <ErrorState
-            title="Journey unavailable"
-            message="The local presentation could not be displayed."
-            action={<button type="button" onClick={() => setParam('state', '')}>Retry</button>}
+            title={t('unavailableTitle')}
+            message={t('unavailableMessage')}
+            action={<button type="button" onClick={() => setParam('state', '')}>{tCommon('retry')}</button>}
           />
         </div>
       ) : (
         <div className="journey-workspace__layout">
-          <main className="journey-workspace__timeline" aria-label="Customer journey activity">
+          <main className="journey-workspace__timeline" aria-label={t('timelineAria')}>
             {visibleEvents.length > 0 ? (
               <>
                 <ol className="journey-workspace__events">
@@ -542,8 +544,8 @@ function ContactJourneyWorkspacePresentation({
                         >
                         <span className="journey-workspace__event-topline">
                           <span>
-                            <strong>{eventTitle(event)}</strong>
-                            <small>{identity.label}</small>
+                            <strong>{eventTitle(event, t)}</strong>
+                            <small>{t(`activity.${event.activityType}`)}</small>
                           </span>
                           <time dateTime={event.occurredAt}>{dateFormatter.format(new Date(event.occurredAt))}</time>
                         </span>
@@ -552,12 +554,12 @@ function ContactJourneyWorkspacePresentation({
                           <span>{event.assignedTo.initials} · {event.assignedTo.name}</span>
                           {event.relatedProject ? <span><IhIcon name="projects" size={13} />{event.relatedProject}</span> : null}
                           <span className={`journey-workspace__event-status journey-workspace__event-status--${event.status}`}>
-                            {STATUS_LABELS[event.status]}
+                            {statusLabel(event.status, t)}
                           </span>
                           {effectiveCanViewInternalNotes && event.internalSalesNote ? (
-                            <span className="journey-workspace__private-indicator"><IhIcon name="user" size={12} />Private note</span>
+                            <span className="journey-workspace__private-indicator"><IhIcon name="user" size={12} />{t('privateNote')}</span>
                           ) : null}
-                          {event.attachment ? <span><IhIcon name="documents" size={12} />Attachment</span> : null}
+                          {event.attachment ? <span><IhIcon name="documents" size={12} />{t('attachment')}</span> : null}
                         </span>
                         </button>
                       </li>
@@ -565,7 +567,7 @@ function ContactJourneyWorkspacePresentation({
                   })}
                 </ol>
                 <div className="journey-workspace__pagination">
-                  <span>Showing {visibleEvents.length} of {filteredEvents.length}</span>
+                  <span>{t('showing', { shown: visibleEvents.length, total: filteredEvents.length })}</span>
                   {visibleEvents.length < filteredEvents.length ? (
                     <button
                       type="button"
@@ -575,62 +577,62 @@ function ContactJourneyWorkspacePresentation({
                         replaceParams(nextParams);
                       }}
                     >
-                      Load more
+                      {t('loadMore')}
                     </button>
-                  ) : <span>End of journey</span>}
+                  ) : <span>{t('end')}</span>}
                 </div>
               </>
             ) : (
-              <EmptyState title="No journey activity" description="Clear or adjust the filters to see more results." />
+              <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />
             )}
           </main>
 
-          <aside className="journey-workspace__rail" aria-label="Journey support">
+          <aside className="journey-workspace__rail" aria-label={t('supportAria')}>
             <section>
-              <span className="journey-workspace__rail-eyebrow">Next action</span>
-              <h2>Follow up proposal</h2>
-              <StatusChip tone="warning">Due today · 4:00 PM</StatusChip>
-              <p>Send the revised payment-plan terms and confirm Monday’s reservation window.</p>
+              <span className="journey-workspace__rail-eyebrow">{t('nextAction')}</span>
+              <h2>{t('titles.followUp')}</h2>
+              <StatusChip tone="warning">{t('dueChip')}</StatusChip>
+              <p>{t('followUpBody')}</p>
             </section>
             <section>
-              <span className="journey-workspace__rail-eyebrow">Journey snapshot</span>
+              <span className="journey-workspace__rail-eyebrow">{t('snapshot')}</span>
               <dl>
-                <div><dt>Last interaction</dt><dd>Jul 24, 9:12 AM</dd></div>
-                <div><dt>Total activities</dt><dd>{JOURNEY_TIMELINE_EVENTS.length}</dd></div>
-                <div><dt>Open tasks / follow-ups</dt><dd>3</dd></div>
-                <div><dt>Most recent project</dt><dd>North Towers A-1204</dd></div>
+                <div><dt>{t('lastInteraction')}</dt><dd>{t('snapshotWhen')}</dd></div>
+                <div><dt>{t('totalActivities')}</dt><dd>{JOURNEY_TIMELINE_EVENTS.length}</dd></div>
+                <div><dt>{t('openTasks')}</dt><dd>3</dd></div>
+                <div><dt>{t('recentProject')}</dt><dd>North Towers A-1204</dd></div>
               </dl>
             </section>
             <section className="journey-workspace__decision">
-              <span className="journey-workspace__rail-eyebrow">Executive context</span>
+              <span className="journey-workspace__rail-eyebrow">{t('executive')}</span>
               <div className="journey-workspace__decision-grid">
                 <article>
-                  <span><IhIcon name="target" size={15} />Active opportunity</span>
+                  <span><IhIcon name="target" size={15} />{t('activeOpportunity')}</span>
                   <strong>{executiveSummary.opportunity}</strong>
                   <small>{executiveSummary.opportunityStage} · {executiveSummary.expectedValue}</small>
                 </article>
                 <article>
-                  <span><IhIcon name="calendar" size={15} />Upcoming meetings</span>
+                  <span><IhIcon name="calendar" size={15} />{t('upcomingMeetings')}</span>
                   <strong>{executiveSummary.nextMeeting}</strong>
                   <small>{executiveSummary.dueFollowUp}</small>
                 </article>
                 <article>
-                  <span><IhIcon name="inventory" size={15} />Related properties</span>
-                  <strong>{executiveSummary.properties.length} selected unit</strong>
-                  <small>{executiveSummary.properties.join(', ') || 'No related property'}</small>
+                  <span><IhIcon name="inventory" size={15} />{t('relatedProperties')}</span>
+                  <strong>{t('selectedUnit', { count: executiveSummary.properties.length })}</strong>
+                  <small>{executiveSummary.properties.join(', ') || t('noProperty')}</small>
                 </article>
                 <article>
-                  <span><IhIcon name="documents" size={15} />Recent documents</span>
-                  <strong>{executiveSummary.documents.length} files in journey</strong>
+                  <span><IhIcon name="documents" size={15} />{t('recentDocuments')}</span>
+                  <strong>{t('filesInJourney', { count: executiveSummary.documents.length })}</strong>
                   <small>{executiveSummary.documents.slice(0, 2).map((event) => event.attachment?.fileName).join(' · ')}</small>
                 </article>
               </div>
             </section>
             <section className="journey-workspace__ai">
-              <span className="journey-workspace__rail-eyebrow"><IhIcon name="sparkles" size={14} />AI insights</span>
-              <p>Presentation placeholders only. No AI service or processing is connected.</p>
+              <span className="journey-workspace__rail-eyebrow"><IhIcon name="sparkles" size={14} />{t('aiInsights')}</span>
+              <p>{t('ai.placeholder')}</p>
               <ul>
-                {AI_ACTIONS.map((action) => <li key={action}>{action}<span>Future</span></li>)}
+                {AI_ACTION_KEYS.map((action) => <li key={action}>{t(action)}<span>{t('ai.future')}</span></li>)}
               </ul>
             </section>
           </aside>
@@ -645,7 +647,7 @@ function ContactJourneyWorkspacePresentation({
             className="journey-workspace__drawer"
             role="dialog"
             aria-modal="true"
-            aria-label={`${eventTitle(selectedEvent)} activity detail`}
+            aria-label={t('detailAria', { title: eventTitle(selectedEvent, t) })}
           >
             <JourneyActivityDetail
               event={selectedEvent}
@@ -667,10 +669,12 @@ function ContactJourneyWorkspaceLive({ contactId }: { contactId: string }) {
     enabled: !authLoading && canRead,
   });
 
-  if (authLoading || detailQuery.isLoading) return <LoadingState label="Loading customer journey…" />;
-  if (!canRead) return <EmptyState title="Access denied" description="You cannot view this customer journey." />;
+  const t = useTranslations('crm.journey');
+
+  if (authLoading || detailQuery.isLoading) return <LoadingState label={t('liveLoading')} />;
+  if (!canRead) return <EmptyState title={t('accessDeniedTitle')} description={t('accessDeniedDescription')} />;
   if (detailQuery.isError || !detailQuery.data) {
-    return <ErrorState title="Journey unavailable" message={detailQuery.error?.message ?? 'Unable to load customer.'} />;
+    return <ErrorState title={t('unavailableTitle')} message={t('customerUnavailable')} />;
   }
 
   return (

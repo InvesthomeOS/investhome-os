@@ -1,6 +1,8 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+
+import { uiError } from '@/lib/i18n/ui-error';
 import { useQuery } from '@tanstack/react-query';
 
 import { Button, ErrorState, LoadingState } from '@investhome/ui';
@@ -51,7 +53,7 @@ export default function MarketingAIPredictionsPage() {
       ) : predictionsQuery.isError ? (
         <ErrorState
           title={t('loadFailed')}
-          message={predictionsQuery.error?.message}
+          message={uiError(predictionsQuery.error, tCommon('error'))}
           action={
             <Button type="button" onClick={() => void predictionsQuery.refetch()}>
               {tCommon('retry')}

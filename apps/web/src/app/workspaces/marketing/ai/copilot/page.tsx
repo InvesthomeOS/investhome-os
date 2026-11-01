@@ -1,6 +1,8 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+
+import { uiError } from '@/lib/i18n/ui-error';
 import { useMutation } from '@tanstack/react-query';
 
 import { Button, ErrorState } from '@investhome/ui';
@@ -14,6 +16,7 @@ import { AIPageShell, AIConfidenceBadge } from '../_components/ai-shell';
 
 export default function MarketingAICopilotPage() {
   const t = useTranslations('marketing.ai.copilot');
+  const tCommon = useTranslations('common');
   const { user } = useAuth();
   const canQuery = canQueryCopilot(user);
   const copilotInput = useAIUiStore((s) => s.copilotInput);
@@ -98,7 +101,7 @@ export default function MarketingAICopilotPage() {
           </div>
         </form>
         {mutation.isError ? (
-          <ErrorState title={t('error')} message={mutation.error.message} />
+          <ErrorState title={t('error')} message={uiError(mutation.error, tCommon('error'))} />
         ) : null}
       </div>
     </AIPageShell>

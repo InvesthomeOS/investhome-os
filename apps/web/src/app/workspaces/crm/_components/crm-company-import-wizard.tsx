@@ -1,5 +1,6 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useRef, useState } from 'react';
@@ -60,7 +61,7 @@ export function CrmCompanyImportWizard() {
         </Link>
       </div>
       {importMutation.isError ? (
-        <p className="crm-import-wizard__error">{importMutation.error?.message ?? t('import.failed')}</p>
+        <p className="crm-import-wizard__error">{uiError(importMutation.error, t('import.failed'))}</p>
       ) : null}
       {result ? (
         <div className="crm-import-wizard__result">

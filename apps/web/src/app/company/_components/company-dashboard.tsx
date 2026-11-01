@@ -1,5 +1,6 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useLocale, useTranslations } from 'next-intl';
@@ -80,7 +81,7 @@ export function CompanyDashboard() {
       <main className="dashboard company-dashboard">
         <ErrorState
           title={t('loadFailed')}
-          message={dashboardQuery.error?.message ?? t('loadFailed')}
+          message={uiError(dashboardQuery.error, t('loadFailed'))}
           action={
             <Button type="button" onClick={() => void dashboardQuery.refetch()}>
               {tCommon('retry')}
@@ -146,7 +147,7 @@ export function CompanyDashboard() {
         ) : activityQuery.isError ? (
           <ErrorState
             title={t('activity.loadFailed')}
-            message={activityQuery.error?.message}
+            message={uiError(activityQuery.error, t('activity.loadFailed'))}
             action={
               <Button type="button" onClick={() => void activityQuery.refetch()}>
                 {tCommon('retry')}

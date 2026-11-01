@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -26,6 +28,7 @@ export interface DistributionsSectionProps {
 }
 
 export function DistributionsSection({ detail }: DistributionsSectionProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const { distributions, investment: inv } = detail;
   const totalPaid = distributions
     .filter((d) => d.status === 'paid')
@@ -36,8 +39,8 @@ export function DistributionsSection({ detail }: DistributionsSectionProps) {
   return (
     <section className="inv-detail-panel" aria-labelledby="distributions-heading">
       <SectionHeader
-        title="Distributions"
-        subtitle="Distribution history and upcoming payments"
+        title={tChrome('k71fff5ea85')}
+        subtitle={tChrome('k895888f642')}
         actionLabel="View All"
         onAction={() => {
           window.location.href = '/investor/distributions';
@@ -46,15 +49,15 @@ export function DistributionsSection({ detail }: DistributionsSectionProps) {
 
       <div className="inv-detail-distributions__summary">
         <div className="inv-detail-distributions__metric">
-          <span>Total Distributed</span>
+          <span>{tChrome('k7544a03486')}</span>
           <strong>{formatInvestorCurrency(inv.distribution.totalDistributed, inv.currency)}</strong>
         </div>
         <div className="inv-detail-distributions__metric">
-          <span>Payments Received</span>
+          <span>{tChrome('k91316df3da')}</span>
           <strong>{formatInvestorCurrency(totalPaid, inv.currency)}</strong>
         </div>
         <div className="inv-detail-distributions__metric">
-          <span>Next Distribution</span>
+          <span>{tChrome('k4ba00f0c12')}</span>
           <strong>
             {inv.distribution.nextDistributionDate
               ? formatInvestorDate(inv.distribution.nextDistributionDate)
@@ -62,7 +65,7 @@ export function DistributionsSection({ detail }: DistributionsSectionProps) {
           </strong>
         </div>
         <div className="inv-detail-distributions__metric">
-          <span>Last Payment</span>
+          <span>{tChrome('kcec3d948d9')}</span>
           <strong>
             {lastPaid ? formatInvestorDate(lastPaid.date) : '—'}
           </strong>
@@ -71,16 +74,16 @@ export function DistributionsSection({ detail }: DistributionsSectionProps) {
 
       <div className="inv-detail-table-wrap">
         <table className="inv-detail-table">
-          <caption className="inv-investments__sr-only">Distribution history</caption>
+          <caption className="inv-investments__sr-only">{tChrome('k189c46c3a8')}</caption>
           <thead>
             <tr>
-              <th scope="col">Date</th>
-              <th scope="col">Type</th>
-              <th scope="col">Amount</th>
-              <th scope="col">Status</th>
-              <th scope="col">Tax Year</th>
-              <th scope="col">Method</th>
-              <th scope="col">Reference</th>
+              <th scope="col">{tChrome('keb9a4bc1c0')}</th>
+              <th scope="col">{tChrome('k3deb745651')}</th>
+              <th scope="col">{tChrome('k43dc8532f7')}</th>
+              <th scope="col">{tChrome('kbae7d5be70')}</th>
+              <th scope="col">{tChrome('kc80ec709bc')}</th>
+              <th scope="col">{tChrome('k88306943fe')}</th>
+              <th scope="col">{tChrome('kdb1c784524')}</th>
             </tr>
           </thead>
           <tbody>

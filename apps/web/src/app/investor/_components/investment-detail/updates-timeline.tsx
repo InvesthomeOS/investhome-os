@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { useCallback, useState } from 'react';
 
 import type { InvestmentDetail, InvestmentUpdate } from '../../_data/investment-detail-types';
@@ -21,6 +23,7 @@ export interface UpdatesTimelineProps {
 }
 
 export function UpdatesTimeline({ detail, onPlaceholderAction }: UpdatesTimelineProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const [updates, setUpdates] = useState<InvestmentUpdate[]>(detail.updates);
   const unreadCount = updates.filter((u) => !u.isRead).length;
 
@@ -33,11 +36,11 @@ export function UpdatesTimeline({ detail, onPlaceholderAction }: UpdatesTimeline
   return (
     <section className="inv-detail-panel" aria-labelledby="updates-heading">
       <SectionHeader
-        title="Updates"
+        title={tChrome('kc76d18079a')}
         subtitle={unreadCount > 0 ? `${unreadCount} unread update${unreadCount > 1 ? 's' : ''}` : 'All updates read'}
       />
 
-      <ul className="inv-detail-updates" aria-label="Investment updates">
+      <ul className="inv-detail-updates" aria-label={tChrome('kb8f894cb67')}>
         {updates.map((update) => (
           <li
             key={update.id}
@@ -48,7 +51,7 @@ export function UpdatesTimeline({ detail, onPlaceholderAction }: UpdatesTimeline
                 {CATEGORY_LABELS[update.category] ?? update.category}
               </span>
               {!update.isRead ? (
-                <span className="inv-detail-updates__unread-badge" aria-label="Unread">
+                <span className="inv-detail-updates__unread-badge" aria-label={tChrome('k07b032b56f')}>
                   New
                 </span>
               ) : null}

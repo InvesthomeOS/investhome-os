@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button, Input, Select, StatusChip } from '@investhome/ui';
 
 import { fetchUsers } from '@/lib/api/auth';
+import { uiError } from '@/lib/i18n/ui-error';
 import { useDebouncedQueryParam, useListQueryPatch } from '@/lib/crm/list-query';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { fetchCrmTag } from '@/workspaces/crm/api/crm';
@@ -91,6 +92,7 @@ const COPY = {
     actions: 'İşlem',
     open: 'Aç',
     empty: 'Bu görünümde kişi yok.',
+    loadFailed: 'Kişiler yüklenemedi.',
     loading: 'Kişiler yükleniyor…',
     previous: 'Önceki',
     next: 'Sonraki',
@@ -143,6 +145,7 @@ const COPY = {
     actions: 'Action',
     open: 'Open',
     empty: 'No people match this view.',
+    loadFailed: 'People could not be loaded.',
     loading: 'Loading people…',
     previous: 'Previous',
     next: 'Next',
@@ -494,7 +497,7 @@ export function PeopleWorkspace() {
 
           <section className="ctc-ds__table-section crm-people-table" aria-label={copy.title}>
             {contactsQuery.isLoading ? <div className="ctc-ds__skeleton">{copy.loading}</div> : null}
-            {contactsQuery.isError ? <div className="ctc-ds__empty">{contactsQuery.error.message}</div> : null}
+            {contactsQuery.isError ? <div className="ctc-ds__empty">{uiError(contactsQuery.error, copy.loadFailed)}</div> : null}
             {!contactsQuery.isLoading && !contactsQuery.isError && rows.length === 0 ? (
               <div className="ctc-ds__empty">{copy.empty}</div>
             ) : null}

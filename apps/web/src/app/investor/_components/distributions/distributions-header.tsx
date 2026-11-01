@@ -1,5 +1,9 @@
 'use client';
 
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -14,10 +18,11 @@ export function DistributionsHeader({
   onExportCashFlow,
   onOpenPaymentInfo,
 }: DistributionsHeaderProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
     <header className="inv-distributions__page-header">
       <div>
-        <h1 className="investor-page__title">Distributions & Cash Flow</h1>
+        <h1 className="investor-page__title">{tChrome('k2fd0378f0a')}</h1>
         <p className="investor-page__subtitle">
           Track distribution history, projected cash flow, tax summaries, and payment activity
           across your portfolio. Mock UI — no real payments are processed.
@@ -40,9 +45,7 @@ export function DistributionsHeader({
           type="button"
           className="investor-header__action-btn investor-header__action-btn--primary"
           onClick={onOpenPaymentInfo}
-        >
-          Payment Information
-        </button>
+        >{investorChrome(tChrome, "Payment Information")}</button>
       </div>
     </header>
   );

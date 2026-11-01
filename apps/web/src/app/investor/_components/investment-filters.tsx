@@ -1,11 +1,10 @@
 'use client';
 
+import { investorChrome, investorLabel } from '@/app/investor/_components/investor-labels';
 import { useId, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 import {
-  INVESTMENT_STATUS_LABELS,
-  INVESTMENT_TYPE_LABELS,
-  PROJECT_STAGE_LABELS,
   SORT_FIELD_LABELS,
   getInvestmentLocations,
 } from '../_data/investments';
@@ -38,6 +37,9 @@ export function InvestmentFilters({
   onClearFilters,
   onToggleSortDirection,
 }: InvestmentFiltersProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tLabels = useTranslations('investorPortal.labels');
+  const t = useTranslations('investorPortal');
   const baseId = useId();
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const locations = getInvestmentLocations();
@@ -48,9 +50,7 @@ export function InvestmentFilters({
     <div className="inv-investments__toolbar">
       <div className="inv-investments__toolbar-row">
         <div className="inv-investments__search">
-          <label htmlFor={`${baseId}-search`} className="inv-investments__sr-only">
-            Search investments
-          </label>
+          <label htmlFor={`${baseId}-search`} className="inv-investments__sr-only">{investorChrome(tChrome, "Search investments")}</label>
           <span className="inv-investments__search-icon" aria-hidden="true">
             ⌕
           </span>
@@ -58,7 +58,7 @@ export function InvestmentFilters({
             id={`${baseId}-search`}
             type="search"
             className="inv-investments__search-input"
-            placeholder="Search by property, location, entity, or project..."
+            placeholder={t('placeholders.searchProperties')}
             value={filters.search}
             onChange={(e) => onUpdateFilter('search', e.target.value)}
           />
@@ -81,9 +81,7 @@ export function InvestmentFilters({
           </button>
 
           <div className="inv-investments__sort">
-            <label htmlFor={`${baseId}-sort`} className="inv-investments__sr-only">
-              Sort investments
-            </label>
+            <label htmlFor={`${baseId}-sort`} className="inv-investments__sr-only">{investorChrome(tChrome, "Sort investments")}</label>
             <select
               id={`${baseId}-sort`}
               className="inv-investments__select"
@@ -92,7 +90,7 @@ export function InvestmentFilters({
             >
               {sortOptions.map(([value, label]) => (
                 <option key={value} value={value}>
-                  {label}
+                  {investorChrome(tChrome, label)}
                 </option>
               ))}
             </select>
@@ -107,23 +105,19 @@ export function InvestmentFilters({
             </button>
           </div>
 
-          <div className="inv-investments__view-toggle" role="group" aria-label="View mode">
+          <div className="inv-investments__view-toggle" role="group" aria-label={tChrome('k1b3603298f')}>
             <button
               type="button"
               className={`inv-investments__view-btn${filters.viewMode === 'grid' ? ' inv-investments__view-btn--active' : ''}`}
               aria-pressed={filters.viewMode === 'grid'}
               onClick={() => onUpdateFilter('viewMode', 'grid' as InvestmentViewMode)}
-            >
-              Grid
-            </button>
+            >{investorChrome(tChrome, "Grid")}</button>
             <button
               type="button"
               className={`inv-investments__view-btn${filters.viewMode === 'table' ? ' inv-investments__view-btn--active' : ''}`}
               aria-pressed={filters.viewMode === 'table'}
               onClick={() => onUpdateFilter('viewMode', 'table' as InvestmentViewMode)}
-            >
-              Table
-            </button>
+            >{investorChrome(tChrome, "Table")}</button>
           </div>
         </div>
       </div>
@@ -134,7 +128,7 @@ export function InvestmentFilters({
       >
         <div className="inv-investments__filter-grid">
           <div className="inv-investments__filter-field">
-            <label htmlFor={`${baseId}-status`}>Status</label>
+            <label htmlFor={`${baseId}-status`}>{tChrome('kbae7d5be70')}</label>
             <select
               id={`${baseId}-status`}
               className="inv-investments__select"
@@ -143,17 +137,17 @@ export function InvestmentFilters({
                 onUpdateFilter('status', e.target.value as InvestmentFilterState['status'])
               }
             >
-              <option value="all">All</option>
+              <option value="all">{tChrome('k6a72085653')}</option>
               {INVESTMENT_STATUSES.map((status) => (
                 <option key={status} value={status}>
-                  {INVESTMENT_STATUS_LABELS[status]}
+                  {investorLabel(tLabels, 'investmentStatus', status)}
                 </option>
               ))}
             </select>
           </div>
 
           <div className="inv-investments__filter-field">
-            <label htmlFor={`${baseId}-type`}>Investment Type</label>
+            <label htmlFor={`${baseId}-type`}>{tChrome('kbae0f451fe')}</label>
             <select
               id={`${baseId}-type`}
               className="inv-investments__select"
@@ -162,24 +156,24 @@ export function InvestmentFilters({
                 onUpdateFilter('type', e.target.value as InvestmentFilterState['type'])
               }
             >
-              <option value="all">All Types</option>
+              <option value="all">{tChrome('keb672cb3ba')}</option>
               {INVESTMENT_TYPES.map((type) => (
                 <option key={type} value={type}>
-                  {INVESTMENT_TYPE_LABELS[type]}
+                  {investorLabel(tLabels, 'investmentType', type)}
                 </option>
               ))}
             </select>
           </div>
 
           <div className="inv-investments__filter-field">
-            <label htmlFor={`${baseId}-location`}>Location</label>
+            <label htmlFor={`${baseId}-location`}>{tChrome('kd219c68101')}</label>
             <select
               id={`${baseId}-location`}
               className="inv-investments__select"
               value={filters.location}
               onChange={(e) => onUpdateFilter('location', e.target.value)}
             >
-              <option value="all">All Locations</option>
+              <option value="all">{tChrome('k3094bd3844')}</option>
               {locations.map((location) => (
                 <option key={location} value={location}>
                   {location}
@@ -189,7 +183,7 @@ export function InvestmentFilters({
           </div>
 
           <div className="inv-investments__filter-field">
-            <label htmlFor={`${baseId}-stage`}>Project Stage</label>
+            <label htmlFor={`${baseId}-stage`}>{tChrome('kbcc83b4ed0')}</label>
             <select
               id={`${baseId}-stage`}
               className="inv-investments__select"
@@ -198,17 +192,17 @@ export function InvestmentFilters({
                 onUpdateFilter('stage', e.target.value as InvestmentFilterState['stage'])
               }
             >
-              <option value="all">All Stages</option>
+              <option value="all">{tChrome('k6c4e12af0a')}</option>
               {PROJECT_STAGES.map((stage) => (
                 <option key={stage} value={stage}>
-                  {PROJECT_STAGE_LABELS[stage]}
+                  {investorLabel(tLabels, 'projectStage', stage)}
                 </option>
               ))}
             </select>
           </div>
 
           <div className="inv-investments__filter-field">
-            <label htmlFor={`${baseId}-date-from`}>Investment Date From</label>
+            <label htmlFor={`${baseId}-date-from`}>{tChrome('k31ca113508')}</label>
             <input
               id={`${baseId}-date-from`}
               type="date"
@@ -219,7 +213,7 @@ export function InvestmentFilters({
           </div>
 
           <div className="inv-investments__filter-field">
-            <label htmlFor={`${baseId}-date-to`}>Investment Date To</label>
+            <label htmlFor={`${baseId}-date-to`}>{tChrome('k00482d9a10')}</label>
             <input
               id={`${baseId}-date-to`}
               type="date"
@@ -245,7 +239,7 @@ export function InvestmentFilters({
 
       <div className="inv-investments__filter-grid inv-investments__filter-grid--desktop">
         <div className="inv-investments__filter-field">
-          <label htmlFor={`${baseId}-status-desktop`}>Status</label>
+          <label htmlFor={`${baseId}-status-desktop`}>{tChrome('kbae7d5be70')}</label>
           <select
             id={`${baseId}-status-desktop`}
             className="inv-investments__select"
@@ -254,17 +248,17 @@ export function InvestmentFilters({
               onUpdateFilter('status', e.target.value as InvestmentFilterState['status'])
             }
           >
-            <option value="all">All</option>
+            <option value="all">{tChrome('k6a72085653')}</option>
             {INVESTMENT_STATUSES.map((status) => (
               <option key={status} value={status}>
-                {INVESTMENT_STATUS_LABELS[status]}
+                {investorLabel(tLabels, 'investmentStatus', status)}
               </option>
             ))}
           </select>
         </div>
 
         <div className="inv-investments__filter-field">
-          <label htmlFor={`${baseId}-type-desktop`}>Investment Type</label>
+          <label htmlFor={`${baseId}-type-desktop`}>{tChrome('kbae0f451fe')}</label>
           <select
             id={`${baseId}-type-desktop`}
             className="inv-investments__select"
@@ -273,24 +267,24 @@ export function InvestmentFilters({
               onUpdateFilter('type', e.target.value as InvestmentFilterState['type'])
             }
           >
-            <option value="all">All Types</option>
+            <option value="all">{tChrome('keb672cb3ba')}</option>
             {INVESTMENT_TYPES.map((type) => (
               <option key={type} value={type}>
-                {INVESTMENT_TYPE_LABELS[type]}
+                {investorLabel(tLabels, 'investmentType', type)}
               </option>
             ))}
           </select>
         </div>
 
         <div className="inv-investments__filter-field">
-          <label htmlFor={`${baseId}-location-desktop`}>Location</label>
+          <label htmlFor={`${baseId}-location-desktop`}>{tChrome('kd219c68101')}</label>
           <select
             id={`${baseId}-location-desktop`}
             className="inv-investments__select"
             value={filters.location}
             onChange={(e) => onUpdateFilter('location', e.target.value)}
           >
-            <option value="all">All Locations</option>
+            <option value="all">{tChrome('k3094bd3844')}</option>
             {locations.map((location) => (
               <option key={location} value={location}>
                 {location}
@@ -300,7 +294,7 @@ export function InvestmentFilters({
         </div>
 
         <div className="inv-investments__filter-field">
-          <label htmlFor={`${baseId}-stage-desktop`}>Project Stage</label>
+          <label htmlFor={`${baseId}-stage-desktop`}>{tChrome('kbcc83b4ed0')}</label>
           <select
             id={`${baseId}-stage-desktop`}
             className="inv-investments__select"
@@ -309,17 +303,17 @@ export function InvestmentFilters({
               onUpdateFilter('stage', e.target.value as InvestmentFilterState['stage'])
             }
           >
-            <option value="all">All Stages</option>
+            <option value="all">{tChrome('k6c4e12af0a')}</option>
             {PROJECT_STAGES.map((stage) => (
               <option key={stage} value={stage}>
-                {PROJECT_STAGE_LABELS[stage]}
+                {investorLabel(tLabels, 'projectStage', stage)}
               </option>
             ))}
           </select>
         </div>
 
         <div className="inv-investments__filter-field">
-          <label htmlFor={`${baseId}-date-from-desktop`}>From</label>
+          <label htmlFor={`${baseId}-date-from-desktop`}>{tChrome('k3f66052a10')}</label>
           <input
             id={`${baseId}-date-from-desktop`}
             type="date"
@@ -330,7 +324,7 @@ export function InvestmentFilters({
         </div>
 
         <div className="inv-investments__filter-field">
-          <label htmlFor={`${baseId}-date-to-desktop`}>To</label>
+          <label htmlFor={`${baseId}-date-to-desktop`}>{tChrome('kae79ea1e9c')}</label>
           <input
             id={`${baseId}-date-to-desktop`}
             type="date"

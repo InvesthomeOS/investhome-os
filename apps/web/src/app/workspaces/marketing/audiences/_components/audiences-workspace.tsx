@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useMemo } from 'react';
@@ -70,7 +72,7 @@ export function AudiencesWorkspace() {
     return (
       <ErrorState
         title={tCommon('error')}
-        message={err instanceof ApiError ? err.message : tCommon('error')}
+        message={uiError(err, tCommon('error'))}
         action={
           <Button type="button" onClick={() => void listQuery.refetch()}>
             Retry

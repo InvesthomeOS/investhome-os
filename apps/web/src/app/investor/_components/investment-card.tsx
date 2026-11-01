@@ -1,14 +1,11 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
+import { investorLabel } from '@/app/investor/_components/investor-labels';
 import Link from 'next/link';
 import type { Route } from 'next';
 
-import {
-  INVESTMENT_STATUS_LABELS,
-  INVESTMENT_TYPE_LABELS,
-  PROJECT_STAGE_LABELS,
-  RISK_LEVEL_LABELS,
-} from '../_data/investments';
 import type { PortfolioInvestment } from '../_data/investment-types';
 import {
   formatInvestorCurrency,
@@ -21,6 +18,8 @@ export interface InvestmentCardProps {
 }
 
 export function InvestmentCard({ investment }: InvestmentCardProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tLabels = useTranslations('investorPortal.labels');
   const detailHref = `/investor/investments/${investment.id}` as Route;
   const location = `${investment.city}, ${investment.state}`;
 
@@ -37,12 +36,12 @@ export function InvestmentCard({ investment }: InvestmentCardProps) {
         <span
           className={`inv-investment-card__status inv-investment-card__status--${investment.status}`}
         >
-          {INVESTMENT_STATUS_LABELS[investment.status]}
+          {investorLabel(tLabels, 'investmentStatus', investment.status)}
         </span>
         <span
           className={`inv-investment-card__risk inv-investment-card__risk--${investment.riskLevel}`}
         >
-          {RISK_LEVEL_LABELS[investment.riskLevel]}
+          {investorLabel(tLabels, 'riskLevel', investment.riskLevel)}
         </span>
       </div>
 
@@ -58,13 +57,13 @@ export function InvestmentCard({ investment }: InvestmentCardProps) {
         </header>
 
         <div className="inv-investment-card__tags">
-          <span className="inv-investment-card__tag">{INVESTMENT_TYPE_LABELS[investment.type]}</span>
-          <span className="inv-investment-card__tag">{PROJECT_STAGE_LABELS[investment.stage]}</span>
+          <span className="inv-investment-card__tag">{investorLabel(tLabels, 'investmentType', investment.type)}</span>
+          <span className="inv-investment-card__tag">{investorLabel(tLabels, 'projectStage', investment.stage)}</span>
         </div>
 
         <div className="inv-investment-card__progress" aria-label={`${investment.progressPercent}% complete`}>
           <div className="inv-investment-card__progress-header">
-            <span>Progress</span>
+            <span>{tChrome('k1b90271d66')}</span>
             <span>{investment.progressPercent}%</span>
           </div>
           <div className="inv-investment-card__progress-track">
@@ -81,15 +80,15 @@ export function InvestmentCard({ investment }: InvestmentCardProps) {
 
         <dl className="inv-investment-card__stats">
           <div>
-            <dt>Invested</dt>
+            <dt>{tChrome('ka13c9ad2ae')}</dt>
             <dd>{formatInvestorCurrency(investment.investedAmount, investment.currency)}</dd>
           </div>
           <div>
-            <dt>Current Value</dt>
+            <dt>{tChrome('k4f99315301')}</dt>
             <dd>{formatInvestorCurrency(investment.currentValue, investment.currency)}</dd>
           </div>
           <div>
-            <dt>Ownership</dt>
+            <dt>{tChrome('k3e90e4cbf4')}</dt>
             <dd>{formatInvestorPercent(investment.ownershipPercent)}</dd>
           </div>
           <div>
@@ -109,7 +108,7 @@ export function InvestmentCard({ investment }: InvestmentCardProps) {
             </dd>
           </div>
           <div>
-            <dt>Cash Flow</dt>
+            <dt>{tChrome('k4d78e9f9ed')}</dt>
             <dd>
               {investment.performance.annualCashFlow > 0
                 ? formatInvestorCurrency(investment.performance.annualCashFlow, investment.currency)
@@ -117,11 +116,11 @@ export function InvestmentCard({ investment }: InvestmentCardProps) {
             </dd>
           </div>
           <div>
-            <dt>Invested On</dt>
+            <dt>{tChrome('k5f3fc5b59f')}</dt>
             <dd>{formatInvestorDate(investment.investmentDate)}</dd>
           </div>
           <div>
-            <dt>Next Distribution</dt>
+            <dt>{tChrome('k4ba00f0c12')}</dt>
             <dd>
               {investment.distribution.nextDistributionDate
                 ? formatInvestorDate(investment.distribution.nextDistributionDate)
@@ -129,7 +128,7 @@ export function InvestmentCard({ investment }: InvestmentCardProps) {
             </dd>
           </div>
           <div>
-            <dt>Exit Date</dt>
+            <dt>{tChrome('k2fc2138254')}</dt>
             <dd>{investment.exitDate ? formatInvestorDate(investment.exitDate) : '—'}</dd>
           </div>
         </dl>

@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { useParams } from 'next/navigation';
 import { useMemo } from 'react';
 
@@ -9,6 +11,7 @@ import { EmptyState } from '../../_components/empty-state';
 import { useMessagingState } from '../../_state/messaging-state';
 
 export default function ConversationDetailPage() {
+  const tChrome = useTranslations('investorPortal.chrome');
   const params = useParams<{ conversationId: string }>();
   const conversationId = params.conversationId;
   const { conversations } = useMessagingState();
@@ -25,7 +28,7 @@ export default function ConversationDetailPage() {
         mainContent={
           <EmptyState
             icon="✉"
-            title="Conversation not found"
+            title={tChrome('k907a1bb0bf')}
             description="This conversation may have been removed or archived."
           />
         }

@@ -1,16 +1,13 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
+import { investorChrome, investorLabel } from '@/app/investor/_components/investor-labels';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { InvestmentDetail } from '../../_data/investment-detail-types';
-import {
-  INVESTMENT_STATUS_LABELS,
-  INVESTMENT_TYPE_LABELS,
-  PROJECT_STAGE_LABELS,
-  RISK_LEVEL_LABELS,
-} from '../../_data/investments';
 import { formatInvestorDate } from '../../_data/mock-data';
 
 export interface InvestmentDetailHeaderProps {
@@ -24,6 +21,8 @@ export function InvestmentDetailHeader({
   onScrollToSection,
   onPlaceholderAction,
 }: InvestmentDetailHeaderProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tLabels = useTranslations('investorPortal.labels');
   const { investment: inv } = detail;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -69,12 +68,12 @@ export function InvestmentDetailHeader({
           <p className="inv-detail-header__entity">{inv.entityName}</p>
           <div className="inv-detail-header__badges">
             <span className={`inv-investment-card__status inv-investment-card__status--${inv.status}`}>
-              {INVESTMENT_STATUS_LABELS[inv.status]}
+              {investorLabel(tLabels, 'investmentStatus', inv.status)}
             </span>
-            <span className="inv-investment-card__tag">{INVESTMENT_TYPE_LABELS[inv.type]}</span>
-            <span className="inv-investment-card__tag">{PROJECT_STAGE_LABELS[inv.stage]}</span>
+            <span className="inv-investment-card__tag">{investorLabel(tLabels, 'investmentType', inv.type)}</span>
+            <span className="inv-investment-card__tag">{investorLabel(tLabels, 'projectStage', inv.stage)}</span>
             <span className={`inv-investment-card__risk inv-investment-card__risk--${inv.riskLevel}`}>
-              {RISK_LEVEL_LABELS[inv.riskLevel]}
+              {investorLabel(tLabels, 'riskLevel', inv.riskLevel)}
             </span>
           </div>
           <div className="inv-detail-header__dates">
@@ -139,11 +138,11 @@ export function InvestmentDetailHeader({
                     if (key === 'distributions') {
                       onScrollToSection('distributions');
                     } else {
-                      handleMenuAction(`${label} will be available in a future release.`);
+                      handleMenuAction(`${investorChrome(tChrome, label ?? '')} ${investorChrome(tChrome, 'will be available in a future release.')}`);
                     }
                   }}
                 >
-                  {label}
+                  {investorChrome(tChrome, label ?? '')}
                 </button>
               ))}
             </div>

@@ -1,9 +1,12 @@
 'use client';
 
+import { useLocale, useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useEffect } from 'react';
 
+import { investorChrome } from '../investor-labels';
 import { getVisibleMessages } from '../../_data/conversations';
 import type { Conversation } from '../../_data/messaging-types';
 import { useMessagingState } from '../../_state/messaging-state';
@@ -15,9 +18,9 @@ interface ConversationDetailProps {
   conversation: Conversation;
 }
 
-function formatDateSeparator(dateStr: string): string {
+function formatDateSeparator(dateStr: string, locale: string): string {
   const iso = /^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? `${dateStr}T12:00:00.000Z` : dateStr;
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat(locale, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -41,6 +44,8 @@ function groupMessagesByDate(messages: Conversation['messages']) {
 }
 
 export function ConversationDetail({ conversation }: ConversationDetailProps) {
+  const locale = useLocale();
+  const tChrome = useTranslations('investorPortal.chrome');
   const { markConversationRead, toggleStarConversation } = useMessagingState();
   const visibleMessages = getVisibleMessages(conversation);
   const groups = groupMessagesByDate(visibleMessages);
@@ -56,10 +61,10 @@ export function ConversationDetail({ conversation }: ConversationDetailProps) {
     <div className="inv-conv-detail">
       <header className="inv-conv-detail__header">
         <div>
-          <h2 className="inv-conv-detail__subject">{conversation.subject}</h2>
+          <h2 className="inv-conv-detail__subject">{investorChrome(tChrome, conversation.subject)}</h2>
           <p className="inv-conv-detail__meta">
             {conversation.investmentName} · {conversation.irMember.name} ·{' '}
-            {conversation.irMember.role}
+            {investorChrome(tChrome, conversation.irMember.role)}
           </p>
         </div>
         <div className="inv-conv-detail__actions">
@@ -68,12 +73,12 @@ export function ConversationDetail({ conversation }: ConversationDetailProps) {
             className={`inv-conv-detail__star${isStarred ? ' inv-conv-detail__star--active' : ''}`}
             onClick={() => toggleStarConversation(conversation.id)}
             aria-pressed={isStarred}
-            aria-label={isStarred ? 'Unstar conversation' : 'Star conversation'}
+            aria-label={investorChrome(tChrome, isStarred ? 'Unstar conversation' : 'Star conversation')}
           >
             {isStarred ? '★' : '☆'}
           </button>
-          <button type="button" className="inv-conv-detail__action" disabled title="Export (demo)">
-            Export
+          <button type="button" className="inv-conv-detail__action" disabled title={tChrome('k9182314637')}>
+            {investorChrome(tChrome, 'Export')}
           </button>
         </div>
       </header>
@@ -81,30 +86,30 @@ export function ConversationDetail({ conversation }: ConversationDetailProps) {
       {(conversation.relatedDocumentIds.length > 0 ||
         conversation.relatedSignatureIds.length > 0 ||
         conversation.relatedTaskIds.length > 0) && (
-        <aside className="inv-conv-detail__refs" aria-label="Related items">
+        <aside className="inv-conv-detail__refs" aria-label={tChrome('k3567847da8')}>
           {conversation.relatedTaskIds.map((id) => (
             <Link key={id} href={`/investor/tasks/${id}` as Route} className="inv-conv-detail__ref">
-              Task: {id}
+              {investorChrome(tChrome, 'Task')}: {id}
             </Link>
           ))}
           {conversation.relatedDocumentIds.map((id) => (
             <Link key={id} href={'/investor/documents' as Route} className="inv-conv-detail__ref">
-              Document: {id}
+              {investorChrome(tChrome, 'Document')}: {id}
             </Link>
           ))}
           {conversation.relatedSignatureIds.map((id) => (
             <Link key={id} href={'/investor/documents' as Route} className="inv-conv-detail__ref">
-              Signature: {id}
+              {investorChrome(tChrome, 'Signature')}: {id}
             </Link>
           ))}
         </aside>
       )}
 
-      <div className="inv-conv-detail__messages" role="log" aria-live="polite" aria-label="Messages">
+      <div className="inv-conv-detail__messages" role="log" aria-live="polite" aria-label={tChrome('kf1702b4686')}>
         {groups.map((group) => (
           <div key={group.date}>
             <div className="inv-conv-detail__date-sep" role="separator">
-              <span>{formatDateSeparator(group.date)}</span>
+              <span>{formatDateSeparator(group.date, locale)}</span>
             </div>
             {group.messages.map((msg) => (
               <MessageBubble key={msg.id} message={msg} />

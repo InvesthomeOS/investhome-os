@@ -1,5 +1,6 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -94,7 +95,7 @@ export function TasksWorkspace() {
     return (
       <ErrorState
         title={t('loadFailed')}
-        message={tasksQuery.error?.message ?? t('loadFailed')}
+        message={uiError(tasksQuery.error, t('loadFailed'))}
         action={
           <Button type="button" onClick={() => void tasksQuery.refetch()}>
             {tCommon('retry')}

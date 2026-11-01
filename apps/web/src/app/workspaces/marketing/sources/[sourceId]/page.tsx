@@ -1,5 +1,6 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
@@ -16,7 +17,7 @@ export default function LeadSourceDetailPage() {
 
   if (detailQuery.isLoading) return <LoadingState label={tCommon('loading')} />;
   if (detailQuery.isError) {
-    return <ErrorState title={tCommon('error')} message={detailQuery.error?.message ?? tCommon('error')} />;
+    return <ErrorState title={tCommon('error')} message={uiError(detailQuery.error, tCommon('error'))} />;
   }
 
   const source = detailQuery.data;

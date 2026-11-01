@@ -1,3 +1,6 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
 import type { CapitalStructure } from '../../_data/investment-detail-types';
 import { formatInvestorCurrency } from '../../_data/mock-data';
 import { SectionHeader } from '../section-header';
@@ -8,14 +11,15 @@ export interface CapitalStructureCardProps {
 }
 
 export function CapitalStructureCard({ structure, currency = 'USD' }: CapitalStructureCardProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
     <section className="inv-detail-panel inv-capital-structure" aria-labelledby="capital-heading">
       <SectionHeader
-        title="Capital Structure"
+        title={tChrome('kd911ca20ab')}
         subtitle={`Total capitalization ${formatInvestorCurrency(structure.totalCapitalization, currency)}`}
       />
       <div className="inv-capital-structure__body">
-        <div className="inv-capital-structure__chart" role="img" aria-label="Capital allocation chart">
+        <div className="inv-capital-structure__chart" role="img" aria-label={tChrome('k371a718bcd')}>
           <svg viewBox="0 0 120 120" className="inv-capital-structure__donut">
             {(() => {
               let offset = 0;
@@ -43,7 +47,7 @@ export function CapitalStructureCard({ structure, currency = 'USD' }: CapitalStr
           </svg>
           <div className="inv-capital-structure__donut-center">
             <strong>{structure.items.length}</strong>
-            <span>Tranches</span>
+            <span>{tChrome('kd5df272608')}</span>
           </div>
         </div>
         <ul className="inv-capital-structure__legend">
@@ -59,7 +63,7 @@ export function CapitalStructureCard({ structure, currency = 'USD' }: CapitalStr
         </ul>
         <dl className="inv-capital-structure__summary">
           <div>
-            <dt>Your Equity Share</dt>
+            <dt>{tChrome('kd64626c4e8')}</dt>
             <dd>{formatInvestorCurrency(structure.investorEquity, currency)}</dd>
           </div>
         </dl>

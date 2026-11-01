@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import type { DocumentPreferences } from '../../_state/documents-state';
 import type { LibraryViewMode } from '../../_data/document-types';
 
@@ -16,14 +18,16 @@ export function DocumentPreferencesDrawer({
   onClose,
   onChange,
 }: DocumentPreferencesDrawerProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tCommon = useTranslations('common');
   if (!open) return null;
 
   return (
     <div className="inv-docs__drawer-overlay" role="dialog" aria-modal="true" aria-labelledby="doc-prefs-title">
       <div className="inv-docs__drawer">
         <header className="inv-docs__drawer-header">
-          <h2 id="doc-prefs-title">Document Preferences</h2>
-          <button type="button" onClick={onClose} aria-label="Close preferences">
+          <h2 id="doc-prefs-title">{tChrome('k13d64d1f05')}</h2>
+          <button type="button" onClick={onClose} aria-label={tChrome('ke9bbd004de')}>
             ✕
           </button>
         </header>
@@ -51,21 +55,21 @@ export function DocumentPreferencesDrawer({
           </label>
 
           <label className="inv-docs__pref-field">
-            <span>Default library view</span>
+            <span>{tChrome('k0d527fb1bf')}</span>
             <select
               value={preferences.defaultView}
               onChange={(e) =>
                 onChange({ defaultView: e.target.value as LibraryViewMode })
               }
             >
-              <option value="table">Table</option>
-              <option value="grid">Grid</option>
-              <option value="folder">Folder</option>
+              <option value="table">{tChrome('k0424f6e702')}</option>
+              <option value="grid">{tChrome('k701c483f81')}</option>
+              <option value="folder">{tChrome('k30baa24967')}</option>
             </select>
           </label>
 
           <label className="inv-docs__pref-field">
-            <span>Download format preference</span>
+            <span>{tChrome('k5a982761fc')}</span>
             <select
               value={preferences.downloadFormat}
               onChange={(e) =>
@@ -74,8 +78,8 @@ export function DocumentPreferencesDrawer({
                 })
               }
             >
-              <option value="original">Original format</option>
-              <option value="pdf">PDF (demo placeholder)</option>
+              <option value="original">{tChrome('k32d4ceda71')}</option>
+              <option value="pdf">{tChrome('kceeb2eb55c')}</option>
             </select>
           </label>
         </div>
@@ -85,7 +89,7 @@ export function DocumentPreferencesDrawer({
           </button>
         </footer>
       </div>
-      <button type="button" className="inv-docs__drawer-backdrop" onClick={onClose} aria-label="Close" tabIndex={-1} />
+      <button type="button" className="inv-docs__drawer-backdrop" onClick={onClose} aria-label={tCommon('close')} tabIndex={-1} />
     </div>
   );
 }

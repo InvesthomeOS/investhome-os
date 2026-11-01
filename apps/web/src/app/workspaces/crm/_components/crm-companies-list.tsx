@@ -1,5 +1,6 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useMemo } from 'react';
@@ -127,7 +128,7 @@ export function CrmCompaniesList() {
     return (
       <ErrorState
         title={tCrm('loadFailed')}
-        message={listQuery.error?.message ?? tCrm('loadFailed')}
+        message={uiError(listQuery.error, tCrm('loadFailed'))}
         action={
           <Button type="button" onClick={() => void listQuery.refetch()}>
             {tCommon('retry')}

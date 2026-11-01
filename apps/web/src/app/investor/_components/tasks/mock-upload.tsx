@@ -1,5 +1,9 @@
 'use client';
 
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+
+import { useTranslations } from 'next-intl';
+
 import { useCallback, useState } from 'react';
 
 const ACCEPTED_TYPES = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/png', 'image/jpeg'];
@@ -11,6 +15,7 @@ interface MockUploadProps {
 }
 
 export function MockUpload({ label = 'Upload document', onMockUpload }: MockUploadProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const [dragOver, setDragOver] = useState(false);
   const [uploaded, setUploaded] = useState<string[]>([]);
 
@@ -33,7 +38,7 @@ export function MockUpload({ label = 'Upload document', onMockUpload }: MockUplo
 
   return (
     <div className="inv-mock-upload">
-      <p className="inv-mock-upload__label">{label}</p>
+      <p className="inv-mock-upload__label">{investorChrome(tChrome, label)}</p>
       <div
         className={`inv-mock-upload__dropzone${dragOver ? ' inv-mock-upload__dropzone--active' : ''}`}
         onDragOver={(e) => {
@@ -58,7 +63,7 @@ export function MockUpload({ label = 'Upload document', onMockUpload }: MockUplo
         <span className="inv-mock-upload__icon" aria-hidden="true">
           ↑
         </span>
-        <p>Drag & drop or click to browse</p>
+        <p>{tChrome('ka964e34151')}</p>
         <p className="inv-mock-upload__hint">{ACCEPTED_LABELS} — UI only, no storage</p>
         <input
           id="mock-upload-input"
@@ -72,7 +77,7 @@ export function MockUpload({ label = 'Upload document', onMockUpload }: MockUplo
         />
       </div>
       {uploaded.length > 0 ? (
-        <ul className="inv-mock-upload__files" aria-label="Uploaded files (mock)">
+        <ul className="inv-mock-upload__files" aria-label={tChrome('kbe30ecae31')}>
           {uploaded.map((name) => (
             <li key={name}>📎 {name} (mock)</li>
           ))}

@@ -1,5 +1,6 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -83,7 +84,7 @@ export function ActivitiesWorkspace() {
     return (
       <ErrorState
         title={t('loadFailed')}
-        message={listQuery.error?.message ?? t('loadFailed')}
+        message={uiError(listQuery.error, t('loadFailed'))}
         action={
           <Button type="button" onClick={() => void listQuery.refetch()}>
             {tCommon('retry')}
@@ -165,7 +166,7 @@ export function ActivitiesWorkspace() {
           <ActivityDetailPanel
             activity={detailQuery.data}
             loading={detailQuery.isLoading}
-            error={detailQuery.error?.message}
+            error={detailQuery.isError ? uiError(detailQuery.error, t('loadFailed')) : undefined}
             onClose={() => setSelectedActivityId(null)}
             onComplete={async (id) => {
               await activityMutations.completeTask(id);

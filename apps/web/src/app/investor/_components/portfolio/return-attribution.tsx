@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { WaterfallChart } from './chart-primitives';
 import { SectionHeader } from '../section-header';
 import type { ReturnAttributionItem } from '../../_data/portfolio-types';
@@ -11,6 +13,7 @@ export interface ReturnAttributionProps {
 }
 
 export function ReturnAttribution({ items, currency }: ReturnAttributionProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const chartData = items.slice(0, 8).map((item) => ({
     label: item.label.length > 12 ? `${item.label.slice(0, 12)}…` : item.label,
     value: item.contribution,
@@ -19,8 +22,8 @@ export function ReturnAttribution({ items, currency }: ReturnAttributionProps) {
   return (
     <section className="inv-portfolio-panel">
       <SectionHeader
-        title="Return Attribution"
-        subtitle="Contribution to total portfolio gain by investment"
+        title={tChrome('kdfef9ed146')}
+        subtitle={tChrome('k7b2ab80e6d')}
       />
       <WaterfallChart
         data={chartData}
@@ -31,9 +34,9 @@ export function ReturnAttribution({ items, currency }: ReturnAttributionProps) {
         <table className="inv-portfolio-table">
           <thead>
             <tr>
-              <th scope="col">Investment</th>
-              <th scope="col">Contribution</th>
-              <th scope="col">% of Total</th>
+              <th scope="col">{tChrome('k0401729c31')}</th>
+              <th scope="col">{tChrome('k982d5a7346')}</th>
+              <th scope="col">{tChrome('ke5dded70cb')}</th>
             </tr>
           </thead>
           <tbody>

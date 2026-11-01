@@ -1,5 +1,6 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -110,7 +111,7 @@ export function TimelineWorkspace() {
     return (
       <ErrorState
         title={t('loadFailed')}
-        message={timelineQuery.error?.message ?? t('loadFailed')}
+        message={uiError(timelineQuery.error, t('loadFailed'))}
         action={
           <Button type="button" onClick={() => void timelineQuery.refetch()}>
             {tCommon('retry')}
@@ -202,7 +203,7 @@ export function TimelineWorkspace() {
           <ActivityDetailPanel
             activity={detailQuery.data}
             loading={detailQuery.isLoading}
-            error={detailQuery.error?.message}
+            error={detailQuery.isError ? uiError(detailQuery.error, t('loadFailed')) : undefined}
             onClose={() => setSelectedActivityId(null)}
             onComplete={(id) => completeMutation.mutate(id)}
           />

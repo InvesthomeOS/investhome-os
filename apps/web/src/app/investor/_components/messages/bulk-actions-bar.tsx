@@ -1,5 +1,9 @@
 'use client';
 
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+
+import { useTranslations } from 'next-intl';
+
 import { useMessagingState } from '../../_state/messaging-state';
 
 interface BulkActionsBarProps {
@@ -7,6 +11,7 @@ interface BulkActionsBarProps {
 }
 
 export function BulkActionsBar({ visible }: BulkActionsBarProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const {
     selectedConversationIds,
     markConversationsRead,
@@ -17,7 +22,7 @@ export function BulkActionsBar({ visible }: BulkActionsBarProps) {
   if (!visible || selectedConversationIds.length === 0) return null;
 
   return (
-    <div className="inv-bulk-actions" role="toolbar" aria-label="Bulk actions">
+    <div className="inv-bulk-actions" role="toolbar" aria-label={tChrome('k3268f92bfe')}>
       <span className="inv-bulk-actions__count">
         {selectedConversationIds.length} selected
       </span>
@@ -30,13 +35,11 @@ export function BulkActionsBar({ visible }: BulkActionsBarProps) {
       <button
         type="button"
         onClick={() => archiveConversations(selectedConversationIds)}
-      >
-        Archive
-      </button>
-      <button type="button" disabled title="Demo only">
+      >{investorChrome(tChrome, "Archive")}</button>
+      <button type="button" disabled title={tChrome('kbb23f6a3e1')}>
         Assign category
       </button>
-      <button type="button" disabled title="Demo only">
+      <button type="button" disabled title={tChrome('kbb23f6a3e1')}>
         Export
       </button>
       <button type="button" onClick={clearConversationSelection}>

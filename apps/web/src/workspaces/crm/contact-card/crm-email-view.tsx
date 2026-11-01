@@ -53,6 +53,7 @@ export function EmailCard({
   locale: string;
   onOpen: () => void;
 }) {
+  const tCard = useTranslations('crm.contactCard.ui');
   const parsed = parseEmailContent(entry.title, entry.summary);
   return (
     <article className="crm-stream-card" data-testid="stream-email-card" data-activity-type="email">
@@ -61,21 +62,19 @@ export function EmailCard({
       </span>
       <div className="crm-stream-card__body">
         <div className="crm-stream-card__top">
-          <strong>E-posta</strong>
+          <strong>{tCard('k6fe4c6c71e')}</strong>
           <time>{formatWhen(entry.created_at, locale)}</time>
         </div>
         <h3>{parsed.subject}</h3>
         <p>
-          <span>Gönderen:</span> {parsed.sender?.label || entry.actor_name || '—'}
+          <span>{tCard('k27a531eaf9')}</span> {parsed.sender?.label || entry.actor_name || '—'}
         </p>
         <p>
-          <span>Alıcı:</span> {parsed.recipients.map((item) => item.label).join(', ') || '—'}
+          <span>{tCard('k210d38d342')}</span> {parsed.recipients.map((item) => item.label).join(', ') || '—'}
         </p>
         {parsed.preview ? <p className="crm-stream-card__preview">{parsed.preview}</p> : null}
         <div className="crm-stream-card__actions">
-          <Button type="button" size="sm" onClick={onOpen}>
-            Aç
-          </Button>
+          <Button type="button" size="sm" onClick={onOpen}>{tCard('k019f2bd44b')}</Button>
         </div>
       </div>
     </article>
@@ -99,6 +98,7 @@ export function EmailDetail({
   activityId?: string | null;
   contactId?: string | null;
 }) {
+  const tCard = useTranslations('crm.contactCard.ui');
   const t = useTranslations('crm.communication.workspace');
   const [composeMode, setComposeMode] = useState<'reply' | 'reply_all' | null>(null);
   const canReply = canSend && Boolean(communicationId || activityId);
@@ -129,7 +129,7 @@ export function EmailDetail({
       <div className="crm-email-detail__panel">
         <header>
           <div>
-            <small>E-posta</small>
+            <small>{tCard('k6fe4c6c71e')}</small>
             <h2>{parsed.subject}</h2>
           </div>
           <div className="crm-email-detail__actions">
@@ -156,15 +156,15 @@ export function EmailDetail({
         </header>
         <dl>
           <div>
-            <dt>Konu</dt>
+            <dt>{tCard('k92a6eb36f4')}</dt>
             <dd>{parsed.subject}</dd>
           </div>
           <div>
-            <dt>Gönderen</dt>
+            <dt>{tCard('k44cf7471cc')}</dt>
             <dd>{parsed.sender?.label || entry.actor_name || '—'}</dd>
           </div>
           <div>
-            <dt>Alıcı</dt>
+            <dt>{tCard('k2f73c087e6')}</dt>
             <dd>{parsed.recipients.map((item) => item.label).join(', ') || '—'}</dd>
           </div>
           {parsed.cc.length ? (
@@ -174,7 +174,7 @@ export function EmailDetail({
             </div>
           ) : null}
           <div>
-            <dt>Tarih / Saat</dt>
+            <dt>{tCard('kd7be79c145')}</dt>
             <dd>{formatWhen(entry.created_at, locale)}</dd>
           </div>
         </dl>
@@ -185,7 +185,7 @@ export function EmailDetail({
         />
         {parsed.links.length ? (
           <div className="crm-email-detail__links">
-            <strong>Bağlantılar</strong>
+            <strong>{tCard('k14155eeb2d')}</strong>
             {parsed.links.map((link) => (
               <a key={link.href} href={link.href} target="_blank" rel="noopener noreferrer nofollow">
                 {link.label.replace(/^mailto:/i, '')}
@@ -195,7 +195,7 @@ export function EmailDetail({
         ) : null}
         {attachments.length ? (
           <div className="crm-email-detail__attachments">
-            <strong>Ekler</strong>
+            <strong>{tCard('k5aa5396c53')}</strong>
             {attachments.map((item) => {
               const href = attachmentHref(item);
               return href ? (

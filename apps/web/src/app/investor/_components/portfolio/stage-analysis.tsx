@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { SectionHeader } from '../section-header';
 import type { StageAllocation } from '../../_data/portfolio-types';
 import { formatInvestorCurrency, formatInvestorPercent } from '../../_data/mock-data';
@@ -10,13 +12,14 @@ export interface StageAnalysisProps {
 }
 
 export function StageAnalysis({ stages, currency }: StageAnalysisProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const maxValue = Math.max(...stages.map((s) => s.currentValue), 1);
 
   return (
     <section className="inv-portfolio-panel">
       <SectionHeader
-        title="Project Stage Analysis"
-        subtitle="Capital, value, and risk metrics by lifecycle stage"
+        title={tChrome('k3195375b12')}
+        subtitle={tChrome('k7fb64386b4')}
       />
       <div className="inv-portfolio-stage-grid">
         {stages.map((stage) => (
@@ -30,27 +33,27 @@ export function StageAnalysis({ stages, currency }: StageAnalysisProps) {
             </div>
             <dl className="inv-portfolio-stage-card__stats">
               <div>
-                <dt>Investments</dt>
+                <dt>{tChrome('k5de64aff09')}</dt>
                 <dd>{stage.count}</dd>
               </div>
               <div>
-                <dt>Capital</dt>
+                <dt>{tChrome('k2bd8d2658c')}</dt>
                 <dd>{formatInvestorCurrency(stage.investedCapital, currency)}</dd>
               </div>
               <div>
-                <dt>Value</dt>
+                <dt>{tChrome('k8dce170de2')}</dt>
                 <dd>{formatInvestorCurrency(stage.currentValue, currency)}</dd>
               </div>
               <div>
-                <dt>Equity</dt>
+                <dt>{tChrome('k0786ff3b19')}</dt>
                 <dd>{formatInvestorCurrency(stage.equity, currency)}</dd>
               </div>
               <div>
-                <dt>Avg ROI</dt>
+                <dt>{tChrome('ke6cf1d69cc')}</dt>
                 <dd>{formatInvestorPercent(stage.avgRoi)}</dd>
               </div>
               <div>
-                <dt>Avg Risk</dt>
+                <dt>{tChrome('k68e9782e45')}</dt>
                 <dd>{stage.avgRiskScore.toFixed(0)}</dd>
               </div>
             </dl>

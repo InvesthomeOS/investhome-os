@@ -1,5 +1,9 @@
 'use client';
 
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+
+import { useTranslations } from 'next-intl';
+
 import { useMemo, useState } from 'react';
 
 import {
@@ -32,6 +36,7 @@ interface MessagesViewProps {
 }
 
 export function MessagesView({ selectedConversationId = null, mainContent }: MessagesViewProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const { conversations, announcements, notifications, tasks, messagesSummary } =
     useMessagingState();
 
@@ -99,9 +104,7 @@ export function MessagesView({ selectedConversationId = null, mainContent }: Mes
           className={`inv-messages-page__bulk-toggle${bulkMode ? ' inv-messages-page__bulk-toggle--active' : ''}`}
           onClick={() => setBulkMode((b) => !b)}
           aria-pressed={bulkMode}
-        >
-          Bulk actions
-        </button>
+        >{investorChrome(tChrome, "Bulk actions")}</button>
       </div>
 
       <GlobalSearchPanel
@@ -139,7 +142,7 @@ export function MessagesView({ selectedConversationId = null, mainContent }: Mes
           mainContent ?? (
             <EmptyState
               icon="✉"
-              title="Select a conversation"
+              title={tChrome('k1acb49b8f0')}
               description="Choose a conversation from the list to view messages, or compose a new message to your relationship manager."
               actionLabel="Compose message"
               onAction={() => setComposeOpen(true)}

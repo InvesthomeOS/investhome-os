@@ -8,6 +8,7 @@ import { Button, ErrorState, Input, LoadingState, Select, TextArea } from '@inve
 
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 import { canUpdateCrm } from '@/lib/crm/crm-permissions';
+import { uiError } from '@/lib/i18n/ui-error';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import {
@@ -82,6 +83,7 @@ const COPY = {
     name: 'Ad Soyad',
     historical: 'geçmiş birim',
     mergeBlocked: 'Kayıtlar birleştirilmedi.',
+    decisionSaved: 'Karar kaydedildi.',
     nameReviewHint: 'Benzer ad yalnızca inceleme ipucudur; birleştirme kanıtı değildir.',
     countLabel: '{count} eşleşme',
     totalFooter: 'Toplam {count} eşleşme',
@@ -140,6 +142,7 @@ const COPY = {
     name: 'Full name',
     historical: 'historical unit',
     mergeBlocked: 'Records were not merged.',
+    decisionSaved: 'Decision saved.',
     nameReviewHint: 'Similar name is a review clue only, never merge evidence.',
     countLabel: '{count} matches',
     totalFooter: 'Total {count} matches',
@@ -377,10 +380,11 @@ export function CrmMatchesLiveWorkspace({ initialId }: { initialId?: string }) {
       setNote('');
       await queryClient.invalidateQueries({ queryKey: ['crm-matches'] });
       await queryClient.invalidateQueries({ queryKey: ['crm-match', detail.id] });
-      showToast(detail.merge_message || t.mergeBlocked);
+      if (detail.merge_message) console.info(detail.merge_message);
+      showToast(t.decisionSaved);
     },
     onError: (error) => {
-      showToast(error instanceof Error ? error.message : t.mergeBlocked);
+      showToast(uiError(error, t.mergeBlocked));
     },
   });
 
@@ -834,7 +838,7 @@ function MatchCompare({
   return (
     <>
       {selected.protected ? <p className="crm-ops-warn">{t.protected}</p> : null}
-      {selected.merge_message ? <p className="crm-ops-warn">{selected.merge_message}</p> : null}
+      {selected.merge_message && !selected.protected ? <p className="crm-ops-warn">{t.mergeBlocked}</p> : null}
       <div className="crm-ops-compare" aria-label={t.compare}>
         <PersonPane
           title={t.person1}

@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { useState } from 'react';
 
 import { MultiLineChart } from './chart-primitives';
@@ -28,6 +30,7 @@ const TABS: { id: PerformanceTab; label: string }[] = [
 ];
 
 export function PerformanceCharts({ points, currency }: PerformanceChartsProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const [tab, setTab] = useState<PerformanceTab>('cumulativeRoi');
 
   const chartData = points.map((p) => ({
@@ -60,8 +63,8 @@ export function PerformanceCharts({ points, currency }: PerformanceChartsProps) 
 
   return (
     <section className="inv-portfolio-panel">
-      <SectionHeader title="Performance Over Time" subtitle="Track returns and cash generation" />
-      <div className="inv-portfolio-tabs" role="tablist" aria-label="Performance metrics">
+      <SectionHeader title={tChrome('k819d4e6579')} subtitle={tChrome('k56f70ff460')} />
+      <div className="inv-portfolio-tabs" role="tablist" aria-label={tChrome('k90e13ada7d')}>
         {TABS.map((t) => (
           <button
             key={t.id}

@@ -1,5 +1,9 @@
 'use client';
 
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+
+import { useTranslations } from 'next-intl';
+
 import { MultiLineChart } from './chart-primitives';
 import { SectionHeader } from '../section-header';
 import type { PortfolioCashFlowSummary } from '../../_data/portfolio-types';
@@ -11,6 +15,7 @@ export interface CashFlowSectionProps {
 }
 
 export function CashFlowSection({ cashFlow, currency }: CashFlowSectionProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const trendData = cashFlow.trend.map((m) => ({
     label: m.label,
     actual: m.actual,
@@ -20,8 +25,8 @@ export function CashFlowSection({ cashFlow, currency }: CashFlowSectionProps) {
   return (
     <section className="inv-portfolio-panel">
       <SectionHeader
-        title="Cash Flow"
-        subtitle="Historical distributions and 12-month projection"
+        title={tChrome('k4d78e9f9ed')}
+        subtitle={tChrome('k087d68d074')}
       />
       <MultiLineChart
         data={trendData}
@@ -33,14 +38,14 @@ export function CashFlowSection({ cashFlow, currency }: CashFlowSectionProps) {
         formatValue={(v) => formatInvestorCurrency(v, currency)}
       />
 
-      <h3 className="inv-portfolio-subheading">By Investment</h3>
+      <h3 className="inv-portfolio-subheading">{tChrome('k45e839d674')}</h3>
       <div className="inv-portfolio-table-wrap">
         <table className="inv-portfolio-table">
           <thead>
             <tr>
-              <th scope="col">Investment</th>
-              <th scope="col">Annual</th>
-              <th scope="col">Monthly Avg</th>
+              <th scope="col">{tChrome('k0401729c31')}</th>
+              <th scope="col">{tChrome('k0930f3f899')}</th>
+              <th scope="col">{tChrome('k677951c6b1')}</th>
             </tr>
           </thead>
           <tbody>
@@ -55,19 +60,19 @@ export function CashFlowSection({ cashFlow, currency }: CashFlowSectionProps) {
         </table>
       </div>
 
-      <h3 className="inv-portfolio-subheading">Next 12 Months (Projected)</h3>
+      <h3 className="inv-portfolio-subheading">{tChrome('k62cb42c7f9')}</h3>
       <div className="inv-portfolio-table-wrap">
         <table className="inv-portfolio-table">
           <thead>
             <tr>
-              <th scope="col">Month</th>
-              <th scope="col">Projected</th>
+              <th scope="col">{tChrome('k082bc378cd')}</th>
+              <th scope="col">{tChrome('k204be1a53a')}</th>
             </tr>
           </thead>
           <tbody>
             {cashFlow.nextTwelveMonths.map((m) => (
               <tr key={m.date}>
-                <td>{m.label}</td>
+                <td>{investorChrome(tChrome, m.label)}</td>
                 <td>{formatInvestorCurrency(m.projected, currency)}</td>
               </tr>
             ))}

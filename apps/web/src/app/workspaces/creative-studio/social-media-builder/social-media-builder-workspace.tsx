@@ -167,30 +167,8 @@ import {
 import './social-media-builder.css';
 
 function generateErrorMessage(err: unknown, fallback: string): string {
-  if (err instanceof ApiError) {
-    const status = err.status;
-    const detail = (err.message || '').trim();
-    if (detail && !/^Request failed with status \d+$/i.test(detail)) {
-      return `${status}: ${detail}`;
-    }
-    if (status === 401) return '401: Unauthorized';
-    if (status === 402) return detail || '402: Payment required';
-    if (status === 403) return detail || '403: Forbidden';
-    if (status === 422) return '422: Invalid generation request';
-    if (status === 429) return '429: Rate limited';
-    if (status === 500) return '500: Generation server error';
-    if (status === 502) return detail || '502: Image provider error';
-    return `${status}: ${fallback}`;
-  }
-  if (err instanceof Error) {
-    if (err.name === 'AbortError' || /abort/i.test(err.message)) {
-      return `Aborted: ${fallback}`;
-    }
-    if (/json|schema|malformed/i.test(err.message)) {
-      return err.message;
-    }
-    if (err.message.trim()) return err.message;
-  }
+  const raw = err instanceof Error ? err.message : '';
+  if (raw && raw !== fallback) console.error(raw);
   return fallback;
 }
 

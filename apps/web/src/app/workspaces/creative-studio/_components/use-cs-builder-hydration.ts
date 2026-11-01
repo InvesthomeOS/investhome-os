@@ -7,6 +7,9 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
+
+import { uiError } from '@/lib/i18n/ui-error';
 
 export type CsBuilderHydrationPhase = 'loading' | 'ready' | 'error';
 
@@ -28,6 +31,7 @@ export function useCsBuilderHydration<TDraft>(options: {
   onSuccess: (draft: TDraft | null) => void;
 }): UseCsBuilderHydrationResult {
   const { bootstrap, onSuccess } = options;
+  const tCommon = useTranslations('common');
   const [phase, setPhase] = useState<CsBuilderHydrationPhase>('loading');
   const [error, setError] = useState<string | null>(null);
 
@@ -50,11 +54,11 @@ export function useCsBuilderHydration<TDraft>(options: {
         setPhase('ready');
         return;
       }
-      setError(result.error || 'Load failed');
+      setError(result.error || tCommon('loadFailed'));
       setPhase('error');
     } catch (err) {
       if (gen !== genRef.current) return;
-      const message = err instanceof Error ? err.message : 'Load failed';
+      const message = uiError(err, tCommon('loadFailed'));
       setError(message);
       setPhase('error');
     }

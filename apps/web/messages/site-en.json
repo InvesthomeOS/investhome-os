@@ -213,6 +213,7 @@
     "forms": {
       "success": "Thank you — your request was submitted to Marketing lead capture.",
       "offlineSuccess": "Thank you — your request was saved locally. Publish the matching marketing form slug to enable live CRM capture.",
+      "submitFailed": "The request could not be sent. Please try again.",
       "submitting": "Sending…",
       "marketingConsent": "I agree to receive marketing updates (optional).",
       "fields": {

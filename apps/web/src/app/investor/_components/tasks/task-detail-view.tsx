@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -22,13 +24,14 @@ function formatFileSize(bytes: number): string {
 }
 
 export function TaskDetailView({ task }: TaskDetailViewProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const { completeTask } = useMessagingState();
   const isComplete = task.status === 'completed';
 
   return (
     <div className="inv-task-detail">
-      <nav className="inv-task-detail__back" aria-label="Breadcrumb">
-        <Link href={'/investor/tasks' as Route}>← Back to Tasks</Link>
+      <nav className="inv-task-detail__back" aria-label={tChrome('kc766e66518')}>
+        <Link href={'/investor/tasks' as Route}>{tChrome('kf87efea85f')}</Link>
       </nav>
 
       <header className="inv-task-detail__header">
@@ -49,19 +52,19 @@ export function TaskDetailView({ task }: TaskDetailViewProps) {
 
       <div className="inv-task-detail__meta-grid">
         <div>
-          <span className="inv-task-detail__meta-label">Due date</span>
+          <span className="inv-task-detail__meta-label">{tChrome('k4c1aeebc43')}</span>
           <time dateTime={task.dueDate}>{formatInvestorDate(task.dueDate)}</time>
         </div>
         <div>
-          <span className="inv-task-detail__meta-label">Owner</span>
+          <span className="inv-task-detail__meta-label">{tChrome('k89ff31225c')}</span>
           <span>{task.owner.name} ({task.owner.role})</span>
         </div>
         <div>
-          <span className="inv-task-detail__meta-label">Assignee</span>
+          <span className="inv-task-detail__meta-label">{tChrome('k049e3ce547')}</span>
           <span>{task.assignee.name}</span>
         </div>
         <div>
-          <span className="inv-task-detail__meta-label">Last updated</span>
+          <span className="inv-task-detail__meta-label">{tChrome('k583c9e2357')}</span>
           <time dateTime={task.updatedAt}>{formatInvestorDateTime(task.updatedAt)}</time>
         </div>
       </div>
@@ -75,7 +78,7 @@ export function TaskDetailView({ task }: TaskDetailViewProps) {
       ) : null}
 
       <section className="inv-task-detail__description">
-        <h2>Description</h2>
+        <h2>{tChrome('k55f8ebc805')}</h2>
         <p>{task.description}</p>
       </section>
 
@@ -87,11 +90,11 @@ export function TaskDetailView({ task }: TaskDetailViewProps) {
 
           {task.attachments.length > 0 ? (
             <section className="inv-task-detail__attachments" aria-labelledby="attachments-title">
-              <h3 id="attachments-title">Attachments</h3>
+              <h3 id="attachments-title">{tChrome('k6771ade6e8')}</h3>
               <ul>
                 {task.attachments.map((att) => (
                   <li key={att.id}>
-                    <button type="button" disabled title="Demo only">
+                    <button type="button" disabled title={tChrome('kbb23f6a3e1')}>
                       📎 {att.fileName} ({formatFileSize(att.fileSizeBytes)})
                     </button>
                     <span>Uploaded by {att.uploadedBy}</span>
@@ -112,7 +115,7 @@ export function TaskDetailView({ task }: TaskDetailViewProps) {
             task.relatedConversationIds.length > 0 ||
             task.relatedDistributionIds.length > 0) && (
             <section className="inv-task-detail__related" aria-labelledby="related-title">
-              <h3 id="related-title">Related Items</h3>
+              <h3 id="related-title">{tChrome('k5b2acaa785')}</h3>
               <ul>
                 {task.relatedDocumentIds.map((id) => (
                   <li key={id}>
@@ -126,7 +129,7 @@ export function TaskDetailView({ task }: TaskDetailViewProps) {
                 ))}
                 {task.relatedConversationIds.map((id) => (
                   <li key={id}>
-                    <Link href={`/investor/messages/${id}` as Route}>Message thread</Link>
+                    <Link href={`/investor/messages/${id}` as Route}>{tChrome('k59be495db7')}</Link>
                   </li>
                 ))}
                 {task.relatedDistributionIds.map((id) => (

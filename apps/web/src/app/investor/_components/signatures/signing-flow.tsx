@@ -1,11 +1,14 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
+import { investorChrome, investorLabel } from '@/app/investor/_components/investor-labels';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { getSignatureRequestById, SIGNATURE_STATUS_LABELS } from '../../_data/signature-requests';
+import { getSignatureRequestById, } from '../../_data/signature-requests';
 import { formatInvestorDate, formatInvestorDateTime, investorProfile } from '../../_data/mock-data';
 import { DEMO_VERIFICATION_CODE } from '../../_data/document-types';
 import { useDocumentsState } from '../../_state/documents-state';
@@ -23,6 +26,7 @@ export interface SigningFlowProps {
 }
 
 export function SigningFlow({ signatureRequestId }: SigningFlowProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const router = useRouter();
   const { signatureRequests, completeSignature } = useDocumentsState();
   const request = useMemo(
@@ -85,7 +89,7 @@ export function SigningFlow({ signatureRequestId }: SigningFlowProps) {
         <p>{request.investmentName}</p>
       </header>
 
-      <nav className="inv-sig__flow-steps" aria-label="Signing steps">
+      <nav className="inv-sig__flow-steps" aria-label={tChrome('k6a6df0169a')}>
         {STEPS.map((s, i) => (
           <span
             key={s}
@@ -99,7 +103,7 @@ export function SigningFlow({ signatureRequestId }: SigningFlowProps) {
       <div className="inv-sig__flow-content">
         {step === 'Review' ? (
           <section>
-            <h2>Review Document</h2>
+            <h2>{tChrome('ke11307a6f7')}</h2>
             <p>{request.message}</p>
             <p className="inv-sig__flow-meta">Expires {formatInvestorDate(request.expiresAt)}</p>
             <div className="inv-sig__flow-doc-preview">
@@ -115,7 +119,7 @@ export function SigningFlow({ signatureRequestId }: SigningFlowProps) {
 
         {step === 'Identity' ? (
           <section>
-            <h2>Verify Identity</h2>
+            <h2>{tChrome('ke3cc57f24c')}</h2>
             <p>
               Enter the demo verification code: <strong>{DEMO_VERIFICATION_CODE}</strong>
             </p>
@@ -138,7 +142,7 @@ export function SigningFlow({ signatureRequestId }: SigningFlowProps) {
 
         {step === 'Fields' ? (
           <section>
-            <h2>Complete Fields</h2>
+            <h2>{tChrome('k6d93d586b8')}</h2>
             {myFields.map((f) => (
               <label key={f.id} className="inv-sig__flow-field">
                 {f.label}{f.required ? ' *' : ''}
@@ -170,15 +174,13 @@ export function SigningFlow({ signatureRequestId }: SigningFlowProps) {
 
         {step === 'Adopt Signature' ? (
           <section>
-            <h2>Adopt Your Signature</h2>
+            <h2>{tChrome('k714485982c')}</h2>
             <div className="inv-sig__method-toggle">
               <button
                 type="button"
                 className={signatureMethod === 'typed' ? 'inv-sig__method--active' : undefined}
                 onClick={() => setSignatureMethod('typed')}
-              >
-                Type
-              </button>
+              >{investorChrome(tChrome, "Type")}</button>
               <button
                 type="button"
                 className={signatureMethod === 'drawn' ? 'inv-sig__method--active' : undefined}
@@ -194,7 +196,7 @@ export function SigningFlow({ signatureRequestId }: SigningFlowProps) {
                   type="text"
                   value={typedSignature}
                   onChange={(e) => setTypedSignature(sanitizePlainText(e.target.value, 100))}
-                  aria-label="Typed signature"
+                  aria-label={tChrome('kbc6ffe46fd')}
                 />
                 <div className="inv-sig__typed-preview" aria-hidden="true">
                   {typedSignature || 'Your signature'}
@@ -208,12 +210,12 @@ export function SigningFlow({ signatureRequestId }: SigningFlowProps) {
 
         {step === 'Confirm' ? (
           <section>
-            <h2>Confirm & Sign</h2>
-            <p>By clicking Complete, you acknowledge this is a demonstration signature only.</p>
+            <h2>{tChrome('ke7c7adbc51')}</h2>
+            <p>{tChrome('kd1ce1420a8')}</p>
             <dl className="inv-sig__confirm-dl">
-              <div><dt>Document</dt><dd>{request.documentTitle}</dd></div>
-              <div><dt>Signature</dt><dd>{signatureMethod === 'typed' ? typedSignature : 'Drawn signature'}</dd></div>
-              <div><dt>Fields completed</dt><dd>{myFields.length}</dd></div>
+              <div><dt>{tChrome('ke214b8a299')}</dt><dd>{request.documentTitle}</dd></div>
+              <div><dt>{tChrome('k2f32be1dc7')}</dt><dd>{signatureMethod === 'typed' ? typedSignature : 'Drawn signature'}</dd></div>
+              <div><dt>{tChrome('k914cd1da5b')}</dt><dd>{myFields.length}</dd></div>
             </dl>
           </section>
         ) : null}
@@ -294,6 +296,8 @@ export interface SignatureDetailViewProps {
 }
 
 export function SignatureDetailView({ signatureRequestId }: SignatureDetailViewProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tLabels = useTranslations('investorPortal.labels');
   const { signatureRequests, declineSignature } = useDocumentsState();
   const [declineOpen, setDeclineOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -327,17 +331,17 @@ export function SignatureDetailView({ signatureRequestId }: SignatureDetailViewP
           <p>{request.investmentName} · {request.entityName}</p>
         </div>
         <span className={`inv-sig__status inv-sig__status--${request.status}`}>
-          {SIGNATURE_STATUS_LABELS[request.status]}
+          {investorLabel(tLabels, 'signatureStatus', request.status)}
         </span>
       </header>
 
       <p className="inv-sig__detail-message">{request.message}</p>
 
       <dl className="inv-sig__detail-meta">
-        <div><dt>Created</dt><dd>{formatInvestorDateTime(request.createdAt)}</dd></div>
-        <div><dt>Expires</dt><dd>{formatInvestorDate(request.expiresAt)}</dd></div>
+        <div><dt>{tChrome('kaccf40c89b')}</dt><dd>{formatInvestorDateTime(request.createdAt)}</dd></div>
+        <div><dt>{tChrome('ka99be3da0c')}</dt><dd>{formatInvestorDate(request.expiresAt)}</dd></div>
         {request.completedAt ? (
-          <div><dt>Completed</dt><dd>{formatInvestorDateTime(request.completedAt)}</dd></div>
+          <div><dt>{tChrome('k1798b3ba42')}</dt><dd>{formatInvestorDateTime(request.completedAt)}</dd></div>
         ) : null}
       </dl>
 

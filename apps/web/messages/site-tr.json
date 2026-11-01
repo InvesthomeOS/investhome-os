@@ -213,6 +213,7 @@
     "forms": {
       "success": "Teşekkürler — talebiniz Marketing lead capture’a iletildi.",
       "offlineSuccess": "Teşekkürler — talebiniz yerel olarak kaydedildi. Canlı CRM yakalama için eşleşen marketing form slug’ını yayımlayın.",
+      "submitFailed": "Talep gönderilemedi. Lütfen yeniden deneyin.",
       "submitting": "Gönderiliyor…",
       "marketingConsent": "Pazarlama güncellemeleri almak istiyorum (isteğe bağlı).",
       "fields": {

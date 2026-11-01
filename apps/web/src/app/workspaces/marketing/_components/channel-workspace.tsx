@@ -1,5 +1,6 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useMemo } from 'react';
@@ -7,7 +8,6 @@ import { useTranslations } from 'next-intl';
 
 import { EmptyState, ErrorState, LoadingState, StatusChip, Button } from '@investhome/ui';
 
-import { ApiError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
 import { hasMarketingPermission, type MarketingPermissionAction } from '@/lib/marketing/marketing-permissions';
 
@@ -117,7 +117,7 @@ export function ChannelWorkspace({
     return (
       <ErrorState
         title={tCommon('error')}
-        message={err instanceof ApiError ? err.message : tCommon('error')}
+        message={uiError(err, tCommon('error'))}
         action={
           <Button type="button" onClick={() => void listQuery.refetch()}>
             {tGlobal('retry')}
@@ -169,7 +169,7 @@ export function ChannelWorkspace({
           <SummaryWidget
             title={t('summary.providerMessage')}
             state="ready"
-            value={dashboard?.provider_status?.message ?? tCommon('notConnected')}
+            value={tCommon('notConnected')}
           />
         ) : null}
       </div>

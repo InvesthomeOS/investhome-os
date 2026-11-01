@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useMemo, useState } from 'react';
@@ -134,7 +136,7 @@ export function AssetsWorkspace() {
       await queryClient.invalidateQueries({ queryKey: ['marketing', 'assets'] });
     },
     onError: (error) => {
-      setUploadError(error instanceof Error ? error.message : t('upload.failed'));
+      setUploadError(uiError(error, t('upload.failed')));
     },
   });
 
@@ -353,7 +355,7 @@ export function AssetsWorkspace() {
       ) : listQuery.isError ? (
         <ErrorState
           title={t('loadFailed')}
-          message={listQuery.error instanceof ApiError ? listQuery.error.message : t('loadFailed')}
+          message={uiError(listQuery.error, t('loadFailed'))}
         />
       ) : listQuery.data?.total === 0 ? (
         <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />

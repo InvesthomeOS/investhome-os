@@ -2,7 +2,7 @@
 
 import { FormEvent, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { useLocale } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { Button, Input, StatusChip } from '@investhome/ui';
@@ -11,6 +11,7 @@ import { IhIcon } from '@/components/icons/ih-icons';
 import { hasPermission } from '@/lib/api/auth';
 import { linkDocument } from '@/lib/api/documents';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
+import { uiError } from '@/lib/i18n/ui-error';
 import { createTask } from '@/workspaces/crm/api/activities';
 import {
   changeAgreementUnit,
@@ -79,13 +80,16 @@ function displayDateTime(value?: string | null): string {
   });
 }
 
-function statusLabel(raw?: string | null): string | null {
+function statusLabel(
+  raw: string | null | undefined,
+  label: (key: 'purchased' | 'completed' | 'lost' | 'active') => string,
+): string | null {
   const value = (raw || '').trim();
   if (!value) return null;
-  if (/deal\s*won|^won$|^kazan[ıi]ld[ıi]$/i.test(value)) return 'Satın Alındı';
-  if (/^completed$|^tamamland[ıi]$/i.test(value)) return 'Tamamlandı';
-  if (/^lost$|^kaybedildi$/i.test(value)) return 'Kaybedildi';
-  if (/^active$|^aktif$/i.test(value)) return 'Aktif';
+  if (/deal\s*won|^won$|^kazan[ıi]ld[ıi]$/i.test(value)) return label('purchased');
+  if (/^completed$|^tamamland[ıi]$/i.test(value)) return label('completed');
+  if (/^lost$|^kaybedildi$/i.test(value)) return label('lost');
+  if (/^active$|^aktif$/i.test(value)) return label('active');
   if (/^[A-Z0-9_:]+$/.test(value)) return null;
   if (/final_invoice|c\d+:/i.test(value)) return null;
   return value;
@@ -169,14 +173,8 @@ function kindFromActivity(type: string, title: string, imported?: boolean): Hist
   return 'other';
 }
 
-function kindLabel(kind: HistoryFilter) {
-  if (kind === 'comment') return 'Yorum';
-  if (kind === 'email') return 'E-posta';
-  if (kind === 'whatsapp') return 'WhatsApp';
-  if (kind === 'meeting') return 'Toplantı';
-  if (kind === 'task') return 'Görev';
-  if (kind === 'document') return 'Belge';
-  return 'Diğer';
+function kindLabel(kind: HistoryFilter, label: (key: HistoryFilter) => string) {
+  return label(kind);
 }
 
 function buildTimeline(card: CrmPurchaseCard): TimelineItem[] {
@@ -256,6 +254,11 @@ export function PurchaseDetailView({
   onRefresh: () => void;
   pageTestId?: string;
 }) {
+  const tCard = useTranslations('crm.contactCard.ui');
+  const tCommon = useTranslations('common');
+  const tTask = useTranslations('crm.contactCard.taskStatus');
+  const tFilters = useTranslations('crm.contactCard.filters');
+  const tStage = useTranslations('crm.contactCard.purchaseStatus');
   const t = personCardCopy(useLocale());
   const queryClient = useQueryClient();
   const { user, canCreate, canManageTasks, canViewFinancial, has } = useCrmAccess();
@@ -281,7 +284,7 @@ export function PurchaseDetailView({
 
   const isReit = card.project_group === 'reit';
   const canEditUnit = canUpdate && !isReit;
-  const stage = statusLabel(card.stage) || statusLabel(card.status) || null;
+  const stage = statusLabel(card.stage, tStage) || statusLabel(card.status, tStage) || null;
   const viewer =
     card.participants.find((item) => item.contact_id === contactId) ||
     card.participants.find((item) => item.is_primary) ||
@@ -316,7 +319,7 @@ export function PurchaseDetailView({
       onRefresh();
       void queryClient.invalidateQueries({ queryKey: ['crm'] });
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err: Error) => setError(uiError(err, tCommon('actionFailed'))),
   });
 
   const amountMutation = useMutation({
@@ -333,7 +336,7 @@ export function PurchaseDetailView({
     },
     onError: (err: Error) => {
       setAmountOk(false);
-      setError(err.message);
+      setError(uiError(err, tCommon('actionFailed')));
     },
   });
 
@@ -365,7 +368,7 @@ export function PurchaseDetailView({
       onRefresh();
       void queryClient.invalidateQueries({ queryKey: ['crm'] });
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err: Error) => setError(uiError(err, tCommon('actionFailed'))),
   });
 
   const docMutation = useMutation({
@@ -379,7 +382,7 @@ export function PurchaseDetailView({
       setError(null);
       onRefresh();
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err: Error) => setError(uiError(err, tCommon('actionFailed'))),
   });
 
   const submitTask = (event: FormEvent) => {
@@ -394,7 +397,7 @@ export function PurchaseDetailView({
   return (
     <div className="crm-pd" data-testid={pageTestId}>
       <header className="crm-pd-pagehead">
-        <nav className="crm-pd-crumb" aria-label="Konum" data-testid="sales-breadcrumb">
+        <nav className="crm-pd-crumb" aria-label={tCard('k90e4d14c18')} data-testid="sales-breadcrumb">
           <Link href="/workspaces/crm">CRM</Link>
           <span>›</span>
           <Link href="/workspaces/crm/contacts">{t.people}</Link>
@@ -420,17 +423,13 @@ export function PurchaseDetailView({
                 <IhIcon name="documents" size={14} /> Belge Ekle
               </Button>
             ) : null}
-            <Button type="button" size="sm" variant="secondary" onClick={() => setShowMore((value) => !value)}>
-              Diğer
-            </Button>
+            <Button type="button" size="sm" variant="secondary" onClick={() => setShowMore((value) => !value)}>{tCard('k00793b714f')}</Button>
           </div>
         </div>
         {showDocLink && canUploadDocuments ? (
           <form className="crm-pd-inline-form" onSubmit={submitDoc}>
-            <Input label="Mevcut belge ID" value={docId} onChange={(event) => setDocId(event.target.value)} />
-            <Button type="submit" size="sm" disabled={docMutation.isPending || !docId.trim()}>
-              Belgeyi bağla
-            </Button>
+            <Input label={tCard('k62573cd707')} value={docId} onChange={(event) => setDocId(event.target.value)} />
+            <Button type="submit" size="sm" disabled={docMutation.isPending || !docId.trim()}>{tCard('kf58960e965')}</Button>
           </form>
         ) : null}
         {showMore ? (
@@ -500,8 +499,8 @@ export function PurchaseDetailView({
       <section className="crm-pd-grid">
         <Card title={t.basics} testId="purchase-overview">
           <dl className="crm-pd-info">
-            <InfoRow label="Proje / Mülk" value={projectName} dash />
-            <InfoRow label="Daire Numarası" value={unitLabel} dash />
+            <InfoRow label={tCard('k1e798a7b63')} value={projectName} dash />
+            <InfoRow label={tCard('k91977ddb0e')} value={unitLabel} dash />
             {canEditUnit ? (
               <form
                 className="crm-pd-amount-edit"
@@ -512,10 +511,8 @@ export function PurchaseDetailView({
                   setUnitConfirm(true);
                 }}
               >
-                <Input label="Daire" value={unitDraft} onChange={(event) => setUnitDraft(event.target.value)} />
-                <Button type="submit" size="sm">
-                  Daireyi güncelle
-                </Button>
+                <Input label={tCard('k863ba1e79c')} value={unitDraft} onChange={(event) => setUnitDraft(event.target.value)} />
+                <Button type="submit" size="sm">{tCard('k068551b70a')}</Button>
               </form>
             ) : null}
             {unitConfirm ? (
@@ -523,9 +520,7 @@ export function PurchaseDetailView({
                 <p>
                   Daire {card.unit_number || '—'} → {unitDraft.trim()} olacak. Kişi kaydı ve geçmişi durur.
                 </p>
-                <Button type="button" size="sm" disabled={unitMutation.isPending} onClick={() => unitMutation.mutate()}>
-                  Daireyi değiştir
-                </Button>
+                <Button type="button" size="sm" disabled={unitMutation.isPending} onClick={() => unitMutation.mutate()}>{tCard('kd93b11b3fd')}</Button>
                 <Button type="button" size="sm" variant="ghost" onClick={() => setUnitConfirm(false)}>
                   Vazgeç
                 </Button>
@@ -551,18 +546,18 @@ export function PurchaseDetailView({
             <InfoRow label={t.purchaseDate} value={agreementDate} dash />
             <InfoRow label={t.status} value={stage} dash />
             <InfoRow
-              label="Owner / Ortaklar"
+              label={tCard('kf0d45053be')}
               value={card.participants.map((item) => item.display_name).join(', ') || card.owners_label}
               dash
             />
-            <InfoRow label="Şirket" value={card.llc_name} />
+            <InfoRow label={tCard('k0904d198dd')} value={card.llc_name} />
             {(card.llc_fields ?? [])
               .filter((item) => !isTechnicalField(item.label, item.value) && !/llc name|şirket/i.test(item.label))
               .map((item) => (
                 <InfoRow key={`llc:${item.label}:${item.value}`} label={item.label} value={item.value} />
               ))}
-            <InfoRow label="Sorumlu kullanıcı" value={card.responsible_name} />
-            <InfoRow label="Not" value={card.comments ? stripHtml(card.comments) : null} />
+            <InfoRow label={tCard('k4368875e76')} value={card.responsible_name} />
+            <InfoRow label={tCard('kd10aec6ad4')} value={card.comments ? stripHtml(card.comments) : null} />
             {(card.extra_fields ?? [])
               .filter((item) => {
                 if (isTechnicalField(item.label, item.value)) return false;
@@ -577,13 +572,21 @@ export function PurchaseDetailView({
           </dl>
         </Card>
 
-        <Card title="Ödeme Planı / Finansal Bilgiler" testId="purchase-payment">
+        <Card title={tCard('keb7e02fca9')} testId="purchase-payment">
           {payments.length ? (
             <>
               <ul className="crm-pd-pay">
                 {payments.map((row) => (
                   <li key={`${row.label}:${row.value}`}>
-                    <span>{row.label}</span>
+                    <span>
+                      {row.label === 'Ödenen'
+                        ? tCard('paid')
+                        : row.label === 'Kalan'
+                          ? tCard('remaining')
+                          : row.label === 'Kapora / Depozito'
+                            ? tCard('deposit')
+                            : row.label}
+                    </span>
                     <strong>{row.value}</strong>
                   </li>
                 ))}
@@ -595,15 +598,15 @@ export function PurchaseDetailView({
               ) : null}
             </>
           ) : (
-            <p className="crm-pd-empty">Ödeme planı bilgisi bulunmuyor</p>
+            <p className="crm-pd-empty">{tCard('kabef6d6563')}</p>
           )}
         </Card>
 
-        <Card title="Durum ve Tarihler" testId="purchase-dates">
+        <Card title={tCard('k4ced93a1b1')} testId="purchase-dates">
           <dl className="crm-pd-info">
-            <InfoRow label="Durum" value={stage} dash />
-            <InfoRow label="Sözleşme Tarihi" value={displayDate(card.agreement_date || card.begin_date)} />
-            <InfoRow label="Tahmini / Gerçek Kapanış" value={displayDate(card.close_date)} />
+            <InfoRow label={tCard('kf7c81d57e2')} value={stage} dash />
+            <InfoRow label={tCard('k77bfbbeef2')} value={displayDate(card.agreement_date || card.begin_date)} />
+            <InfoRow label={tCard('ke387f6e700')} value={displayDate(card.close_date)} />
             {extrasDates.map((item) => (
               <InfoRow key={`${item.label}:${item.value}`} label={item.label} value={item.value} />
             ))}
@@ -611,7 +614,7 @@ export function PurchaseDetailView({
         </Card>
 
         <Card
-          title="Daire / Proje Bilgileri"
+          title={tCard('k780d7a72db')}
           action={
             <Link className="crm-pd-link" href={`/workspaces/crm/agreements?project=${encodeURIComponent(card.project_group)}`}>
               Projeyi Aç
@@ -619,9 +622,9 @@ export function PurchaseDetailView({
           }
         >
           <dl className="crm-pd-info">
-            <InfoRow label="Proje" value={projectName} dash />
-            <InfoRow label="Adres" value={address} />
-            <InfoRow label="Daire" value={unitLabel} dash />
+            <InfoRow label={tCard('k22a7a2f2ea')} value={projectName} dash />
+            <InfoRow label={tCard('kfdd5dc6cb9')} value={address} />
+            <InfoRow label={tCard('k863ba1e79c')} value={unitLabel} dash />
             {extrasUnit.map((item) => (
               <InfoRow key={`${item.label}:${item.value}`} label={item.label} value={cleanMoneyish(item.value)} />
             ))}
@@ -668,7 +671,7 @@ export function PurchaseDetailView({
                         onChanged={onRefresh}
                       />
                     ) : (
-                      <p className="crm-pd-empty">Bu daire dönemine bağlı belge yok.</p>
+                      <p className="crm-pd-empty">{tCard('k092bd5c8fd')}</p>
                     )}
                   </div>
                 );
@@ -686,12 +689,12 @@ export function PurchaseDetailView({
               onChanged={onRefresh}
             />
           ) : (
-            <p className="crm-pd-empty">Bu satın almaya bağlı belge yok.</p>
+            <p className="crm-pd-empty">{tCard('k41635ec1f6')}</p>
           )}
           {personDocs.length ? (
             <div className="crm-pd-person-docs" data-testid="sales-person-documents">
-              <h3>Kişi Belgeleri <span>{personDocs.length}</span></h3>
-              <p>Pasaport / kimlik gibi kişi belgeleri bu satın almaya ait değildir.</p>
+              <h3>{tCard('personDocuments')} <span>{personDocs.length}</span></h3>
+              <p>{tCard('k2277ddaf1f')}</p>
               <DocumentGallery
                 documents={personDocs}
                 entityType="crm_contact"
@@ -707,7 +710,7 @@ export function PurchaseDetailView({
         </Card>
 
         <Card
-          title="İlgili Görevler"
+          title={tCard('kee87b9f9b8')}
           testId="purchase-related-tasks"
           action={
             <>
@@ -726,8 +729,8 @@ export function PurchaseDetailView({
         >
           {showTaskForm ? (
             <form className="crm-pd-inline-form" onSubmit={submitTask}>
-              <Input label="Görev" value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} />
-              <Input label="Tarih" type="datetime-local" value={taskDue} onChange={(event) => setTaskDue(event.target.value)} />
+              <Input label={tCard('k7d4cc3d67f')} value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} />
+              <Input label={tCard('k06fda6345b')} type="datetime-local" value={taskDue} onChange={(event) => setTaskDue(event.target.value)} />
               <Button type="submit" size="sm" disabled={taskMutation.isPending || !taskTitle.trim()}>
                 Kaydet
               </Button>
@@ -737,11 +740,11 @@ export function PurchaseDetailView({
             <table className="crm-pd-table">
               <thead>
                 <tr>
-                  <th>Tarih</th>
-                  <th>Görev</th>
-                  <th>Tip</th>
-                  <th>Durum</th>
-                  <th>Sorumlu</th>
+                  <th>{tCard('k06fda6345b')}</th>
+                  <th>{tCard('k7d4cc3d67f')}</th>
+                  <th>{tCard('k81be10b716')}</th>
+                  <th>{tCard('kf7c81d57e2')}</th>
+                  <th>{tCard('k9edaf12d30')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -749,25 +752,25 @@ export function PurchaseDetailView({
                   <tr key={item.id}>
                     <td>{displayDateTime(item.created_at)}</td>
                     <td>{item.title}</td>
-                    <td>{kindLabel(item.kind)}</td>
-                    <td>{taskStatusLabel(item.status)}</td>
+                    <td>{kindLabel(item.kind, tFilters)}</td>
+                    <td>{taskStatusLabel(item.status, tTask)}</td>
                     <td>{item.actor || '—'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           ) : (
-            <p className="crm-pd-empty">Bu satın almaya bağlı görev kaydı yok.</p>
+            <p className="crm-pd-empty">{tCard('k57df130e9c')}</p>
           )}
         </Card>
       </section>
 
       <Card
         className="crm-pd-card--wide"
-        title="Satın Alma Geçmişi / İletişim Akışı"
+        title={tCard('k033367fa8f')}
         testId="purchase-history"
       >
-        <nav className="crm-pd-filters" aria-label="Geçmiş filtreleri">
+        <nav className="crm-pd-filters" aria-label={tCard('k33ebd88002')}>
           {HISTORY_FILTERS.map((item) => (
             <button
               key={item.id}
@@ -775,7 +778,7 @@ export function PurchaseDetailView({
               className={filter === item.id ? 'is-active' : undefined}
               onClick={() => setFilter(item.id)}
             >
-              {item.label}
+              {tFilters(item.id)}
             </button>
           ))}
         </nav>
@@ -792,7 +795,7 @@ export function PurchaseDetailView({
               ) : (
                 <article key={entry.id} className="crm-pd-stream__item" data-kind={entry.kind}>
                   <small>
-                    {kindLabel(entry.kind)}
+                    {kindLabel(entry.kind, tFilters)}
                     {' · '}
                     {displayDateTime(entry.created_at)}
                     {entry.actor ? ` · ${entry.actor}` : ''}
@@ -800,7 +803,7 @@ export function PurchaseDetailView({
                   <strong>{entry.kind === 'comment' ? stripHtml(entry.summary || entry.title) || 'Yorum' : entry.title}</strong>
                   {entry.kind !== 'comment' && entry.summary ? <p>{stripHtml(entry.summary)}</p> : null}
                   {entry.kind === 'document' ? (
-                    <a href={`/workspaces/crm/documents/${entry.id.replace(/^doc-/, '')}`}>Aç / Önizle</a>
+                    <a href={`/workspaces/crm/documents/${entry.id.replace(/^doc-/, '')}`}>{tCard('kcede6c7499')}</a>
                   ) : null}
                 </article>
               ),

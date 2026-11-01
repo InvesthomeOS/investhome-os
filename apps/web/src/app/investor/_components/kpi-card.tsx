@@ -1,3 +1,8 @@
+'use client';
+
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+
+import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 
 export interface InvestorKpiCardProps {
@@ -15,12 +20,13 @@ export function InvestorKpiCard({
   meta,
   className,
 }: InvestorKpiCardProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
     <article className={`inv-kpi-card${className ? ` ${className}` : ''}`}>
-      <p className="inv-kpi-card__label">{label}</p>
+      <p className="inv-kpi-card__label">{investorChrome(tChrome, label)}</p>
       <strong className="inv-kpi-card__value">{value}</strong>
       {delta ? <span className="inv-kpi-card__delta">{delta}</span> : null}
-      {meta ? <span className="inv-kpi-card__meta">{meta}</span> : null}
+      {meta ? <span className="inv-kpi-card__meta">{investorChrome(tChrome, meta)}</span> : null}
     </article>
   );
 }

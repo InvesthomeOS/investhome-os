@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useSearchParams } from 'next/navigation';
@@ -180,7 +182,7 @@ export function AssistantWorkspace() {
           setUiState('ready');
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : t('errors.generateFailed');
+        const message = uiError(err, t('errors.generateFailed'));
         if (message.toLowerCase().includes('timeout') || message.includes('504')) {
           setUiState('timeout');
         } else if (message.toLowerCase().includes('unavailable') || message.includes('503')) {

@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
@@ -167,7 +169,7 @@ export default function MarketingReportsPage() {
       ) : overviewQuery.isError ? (
         <ErrorState
           title={tCommon('error')}
-          message={overviewQuery.error instanceof ApiError ? overviewQuery.error.message : tCommon('error')}
+          message={uiError(overviewQuery.error, tCommon('error'))}
           action={
             <Button type="button" onClick={() => void overviewQuery.refetch()}>
               {t('retry')}

@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useTranslations } from 'next-intl';
@@ -29,7 +31,7 @@ export function TemplatesWorkspace() {
       {listQuery.isLoading ? (
         <LoadingState label={t('loading')} />
       ) : listQuery.isError ? (
-        <ErrorState title={t('loadFailed')} message={listQuery.error instanceof ApiError ? listQuery.error.message : t('loadFailed')} />
+        <ErrorState title={t('loadFailed')} message={uiError(listQuery.error, t('loadFailed'))} />
       ) : listQuery.data?.total === 0 ? (
         <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />
       ) : (

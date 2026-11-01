@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useLocale } from 'next-intl';
+
+import { uiError } from '@/lib/i18n/ui-error';
 import { useQuery } from '@tanstack/react-query';
 
 import { Button, Input, Select, StatusChip } from '@investhome/ui';
@@ -31,6 +33,8 @@ const COPY = {
     owner: 'Sorumlu',
     allReasons: 'Tüm sebepler',
     empty: 'Bu filtrelerle eşleşen Junk kişi yok.',
+    loadFailed: 'Kişiler yüklenemedi.',
+    loading: 'Yükleniyor…',
     previous: 'Önceki',
     next: 'Sonraki',
     archived: 'Junk / Arşiv',
@@ -50,6 +54,8 @@ const COPY = {
     owner: 'Owner',
     allReasons: 'All reasons',
     empty: 'No Junk contacts match these filters.',
+    loadFailed: 'People could not be loaded.',
+    loading: 'Loading…',
     previous: 'Previous',
     next: 'Next',
     archived: 'Junk / Archived',
@@ -132,8 +138,8 @@ export function JunkWorkspace() {
       </section>
 
       <section className="ctc-ds__table-section" aria-label={copy.title}>
-        {query.isLoading ? <div className="ctc-ds__skeleton">Loading…</div> : null}
-        {query.isError ? <div className="ctc-ds__empty">{query.error.message}</div> : null}
+        {query.isLoading ? <div className="ctc-ds__skeleton">{copy.loading}</div> : null}
+        {query.isError ? <div className="ctc-ds__empty">{uiError(query.error, copy.loadFailed)}</div> : null}
         {!query.isLoading && !query.isError && rows.length === 0 ? (
           <div className="ctc-ds__empty" data-testid="crm-junk-empty">{copy.empty}</div>
         ) : null}

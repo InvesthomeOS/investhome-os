@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
@@ -70,7 +72,7 @@ export default function MarketingBudgetsPage() {
       ) : listQuery.isError ? (
         <ErrorState
           title={tCommon('error')}
-          message={listQuery.error instanceof ApiError ? listQuery.error.message : tCommon('error')}
+          message={uiError(listQuery.error, tCommon('error'))}
         />
       ) : listQuery.data?.total === 0 ? (
         <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />

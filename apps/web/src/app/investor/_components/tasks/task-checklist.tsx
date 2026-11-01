@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import type { TaskChecklist as TaskChecklistType } from '../../_data/messaging-types';
 import { useMessagingState } from '../../_state/messaging-state';
 
@@ -9,6 +11,7 @@ interface TaskChecklistProps {
 }
 
 export function TaskChecklist({ taskId, checklist }: TaskChecklistProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const { toggleChecklistItem } = useMessagingState();
   const completed = checklist.items.filter((i) => i.isCompleted).length;
   const total = checklist.items.length;
@@ -29,7 +32,7 @@ export function TaskChecklist({ taskId, checklist }: TaskChecklistProps) {
         aria-valuenow={percent}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label="Checklist progress"
+        aria-label={tChrome('kd3f60983f9')}
       >
         <div className="inv-task-checklist__bar-fill" style={{ width: `${percent}%` }} />
       </div>

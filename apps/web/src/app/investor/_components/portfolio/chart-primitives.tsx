@@ -1,5 +1,8 @@
 'use client';
 
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+import { useTranslations } from 'next-intl';
+
 import type { ChartDataPoint } from '../../_data/investment-detail-types';
 
 export interface MultiSeriesPoint {
@@ -210,6 +213,7 @@ export function StackedBarChart({
   colors = DEFAULT_DONUT_COLORS,
   ariaLabel,
 }: StackedBarChartProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const totals = data.map((d) => d.segments.reduce((s, seg) => s + seg.value, 0));
   const max = Math.max(...totals, 1);
 
@@ -219,7 +223,7 @@ export function StackedBarChart({
         const total = row.segments.reduce((s, seg) => s + seg.value, 0);
         return (
           <div key={row.label} className="inv-portfolio-stacked__row">
-            <span className="inv-portfolio-stacked__label">{row.label}</span>
+            <span className="inv-portfolio-stacked__label">{investorChrome(tChrome, row.label)}</span>
             <div className="inv-portfolio-stacked__bar">
               {row.segments.map((seg, i) => (
                 <div

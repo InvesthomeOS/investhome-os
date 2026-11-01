@@ -1,6 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
+
+import { uiError } from '@/lib/i18n/ui-error';
 
 import {
   createCreativeStudioMediaFolder,
@@ -57,6 +60,7 @@ function sanitizeFolderId(folderId: string | null | undefined): string | null {
 }
 
 export function useMediaLibrary(options?: { enabled?: boolean }): UseMediaLibraryResult {
+  const tCommon = useTranslations('common');
   const enabled = options?.enabled !== false;
 
   const [status, setStatus] = useState<MlMediaStatus>('idle');
@@ -247,7 +251,7 @@ export function useMediaLibrary(options?: { enabled?: boolean }): UseMediaLibrar
         setStatus('ready');
       } catch (err) {
         if (gen !== listGenRef.current || abort.signal.aborted || !mountedRef.current) return;
-        const message = err instanceof Error ? err.message : 'Media library load failed';
+        const message = uiError(err, tCommon('loadFailed'));
         setError(message);
         setStatus('error');
         // DEMO only before any successful API session — never overwrite a live API list.
@@ -314,7 +318,7 @@ export function useMediaLibrary(options?: { enabled?: boolean }): UseMediaLibrar
         return lastUploaded;
       } catch (err) {
         if (mountedRef.current) {
-          const message = err instanceof Error ? err.message : 'Upload failed';
+          const message = uiError(err, tCommon('actionFailed'));
           setError(message);
         }
         return null;
@@ -343,7 +347,7 @@ export function useMediaLibrary(options?: { enabled?: boolean }): UseMediaLibrar
         return folder;
       } catch (err) {
         if (mountedRef.current) {
-          const message = err instanceof Error ? err.message : 'Folder create failed';
+          const message = uiError(err, tCommon('actionFailed'));
           setError(message);
         }
         return null;
@@ -377,7 +381,7 @@ export function useMediaLibrary(options?: { enabled?: boolean }): UseMediaLibrar
         return updated;
       } catch (err) {
         if (mountedRef.current) {
-          const message = err instanceof Error ? err.message : 'Tag update failed';
+          const message = uiError(err, tCommon('actionFailed'));
           setError(message);
         }
         return null;
@@ -404,7 +408,7 @@ export function useMediaLibrary(options?: { enabled?: boolean }): UseMediaLibrar
         return archived;
       } catch (err) {
         if (mountedRef.current) {
-          const message = err instanceof Error ? err.message : 'Archive failed';
+          const message = uiError(err, tCommon('actionFailed'));
           setError(message);
         }
         return null;
@@ -431,7 +435,7 @@ export function useMediaLibrary(options?: { enabled?: boolean }): UseMediaLibrar
         return true;
       } catch (err) {
         if (mountedRef.current) {
-          const message = err instanceof Error ? err.message : 'Download failed';
+          const message = uiError(err, tCommon('actionFailed'));
           setError(message);
         }
         return false;

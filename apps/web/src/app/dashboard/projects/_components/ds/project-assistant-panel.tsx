@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
@@ -52,7 +54,7 @@ export function ProjectAssistantPanel({ projectId }: ProjectAssistantPanelProps)
       setResult(next);
       setConversationId(next.conversation_id);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t('error');
+      const message = uiError(err, t('error'));
       setError(message);
     } finally {
       setLoading(false);

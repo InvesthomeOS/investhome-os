@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -22,6 +24,7 @@ export interface DocumentsSectionProps {
 }
 
 export function DocumentsSection({ detail, onPlaceholderAction }: DocumentsSectionProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const { documents } = detail;
   const byCategory = documents.reduce<Record<string, typeof documents>>((acc, doc) => {
     const cat = doc.category;
@@ -32,7 +35,7 @@ export function DocumentsSection({ detail, onPlaceholderAction }: DocumentsSecti
 
   return (
     <section className="inv-detail-panel" aria-labelledby="documents-heading">
-      <SectionHeader title="Documents" subtitle="Recent documents by category" />
+      <SectionHeader title={tChrome('k687c82861c')} subtitle={tChrome('kb5d5cd3c1e')} />
 
       <div className="inv-detail-documents">
         {Object.entries(byCategory).map(([category, docs]) => (

@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -12,9 +14,10 @@ export interface AlertsSectionProps {
 }
 
 export function AlertsSection({ alerts, onAction }: AlertsSectionProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
     <section className="inv-distributions__panel inv-distributions__alerts">
-      <SectionHeader title="Alerts & Exceptions" subtitle="Issues requiring attention" />
+      <SectionHeader title={tChrome('k249beea250')} subtitle={tChrome('kb32f7808bd')} />
 
       <ul className="inv-distributions__alerts-list">
         {alerts.map((alert) => (

@@ -1,5 +1,9 @@
 'use client';
 
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+
+import { useTranslations } from 'next-intl';
+
 import { useCallback, useEffect, useRef } from 'react';
 
 export interface PaymentInfoDrawerProps {
@@ -19,6 +23,8 @@ const MOCK_PAYMENT_INFO = {
 };
 
 export function PaymentInfoDrawer({ open, onClose }: PaymentInfoDrawerProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tCommon = useTranslations('common');
   const panelRef = useRef<HTMLDivElement>(null);
 
   const handleKeyDown = useCallback(
@@ -49,8 +55,8 @@ export function PaymentInfoDrawer({ open, onClose }: PaymentInfoDrawerProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <header className="inv-distributions__drawer-header">
-          <h2 id="payment-info-title">Payment Information</h2>
-          <button type="button" className="inv-distributions__drawer-close" onClick={onClose} aria-label="Close">
+          <h2 id="payment-info-title">{tChrome('k88b8328c7c')}</h2>
+          <button type="button" className="inv-distributions__drawer-close" onClick={onClose} aria-label={tCommon('close')}>
             ×
           </button>
         </header>
@@ -61,43 +67,41 @@ export function PaymentInfoDrawer({ open, onClose }: PaymentInfoDrawerProps) {
 
         <dl className="inv-distributions__payment-info">
           <div>
-            <dt>Primary Method</dt>
+            <dt>{tChrome('k9ecea1ea86')}</dt>
             <dd>{MOCK_PAYMENT_INFO.primaryMethod}</dd>
           </div>
           <div>
-            <dt>Bank</dt>
+            <dt>{tChrome('k9e89988cc3')}</dt>
             <dd>{MOCK_PAYMENT_INFO.bankName}</dd>
           </div>
           <div>
-            <dt>Account Type</dt>
+            <dt>{tChrome('kff69626f5c')}</dt>
             <dd>{MOCK_PAYMENT_INFO.accountType}</dd>
           </div>
           <div>
-            <dt>Account Number</dt>
+            <dt>{tChrome('k0bd62e3d44')}</dt>
             <dd>•••• •••• •••• {MOCK_PAYMENT_INFO.accountLast4}</dd>
           </div>
           <div>
-            <dt>Routing Number</dt>
+            <dt>{tChrome('k6d3dc90a0c')}</dt>
             <dd>•••••{MOCK_PAYMENT_INFO.routingLast4}</dd>
           </div>
           <div>
-            <dt>Beneficiary</dt>
+            <dt>{tChrome('k3f327acd78')}</dt>
             <dd>{MOCK_PAYMENT_INFO.beneficiaryName}</dd>
           </div>
           <div>
-            <dt>Wire Instructions</dt>
+            <dt>{tChrome('kea86b2a0d6')}</dt>
             <dd>{MOCK_PAYMENT_INFO.wireInstructions}</dd>
           </div>
           <div>
-            <dt>Last Updated</dt>
+            <dt>{tChrome('k66f3e18075')}</dt>
             <dd>{MOCK_PAYMENT_INFO.updatedAt}</dd>
           </div>
         </dl>
 
         <footer className="inv-distributions__drawer-footer">
-          <button type="button" className="investor-header__action-btn" onClick={onClose}>
-            Close
-          </button>
+          <button type="button" className="investor-header__action-btn" onClick={onClose}>{investorChrome(tChrome, "Close")}</button>
           <button
             type="button"
             className="investor-header__action-btn investor-header__action-btn--primary"

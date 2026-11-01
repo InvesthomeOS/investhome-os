@@ -1,3 +1,8 @@
+'use client';
+
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+
+import { useTranslations } from 'next-intl';
 import type { ProjectMilestone } from '../../_data/investment-detail-types';
 
 const STATUS_LABELS: Record<ProjectMilestone['status'], string> = {
@@ -13,8 +18,9 @@ export interface MilestoneTimelineProps {
 }
 
 export function MilestoneTimeline({ milestones }: MilestoneTimelineProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
-    <ol className="inv-milestone-timeline" aria-label="Project milestones">
+    <ol className="inv-milestone-timeline" aria-label={tChrome('k253767ebd5')}>
       {milestones.map((ms, index) => (
         <li
           key={ms.id}
@@ -27,7 +33,7 @@ export function MilestoneTimeline({ milestones }: MilestoneTimelineProps) {
             <div className="inv-milestone-timeline__header">
               <h4 className="inv-milestone-timeline__title">{ms.title}</h4>
               <span className={`inv-milestone-timeline__status inv-milestone-timeline__status--${ms.status}`}>
-                {STATUS_LABELS[ms.status]}
+                {investorChrome(tChrome, STATUS_LABELS[ms.status])}
               </span>
             </div>
             <p className="inv-milestone-timeline__desc">{ms.description}</p>

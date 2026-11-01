@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useMemo, useState } from 'react';
@@ -106,7 +108,7 @@ export function ContentWorkspace() {
         {dashboardQuery.isLoading ? (
           <LoadingState label={tCommon('loading')} />
         ) : dashboardQuery.isError ? (
-          <ErrorState title={t('loadFailed')} message={dashboardQuery.error instanceof ApiError ? dashboardQuery.error.message : tCommon('unknownError')} />
+          <ErrorState title={t('loadFailed')} message={uiError(dashboardQuery.error, tCommon('unknownError'))} />
         ) : (
           <>
             <SummaryWidget title={t('summary.total')} state="ready" value={String(dashboardQuery.data?.total ?? t('notSet'))} />
@@ -164,7 +166,7 @@ export function ContentWorkspace() {
       {listQuery.isLoading ? (
         <LoadingState label={tCommon('loading')} />
       ) : listQuery.isError ? (
-        <ErrorState title={t('loadFailed')} message={listQuery.error instanceof ApiError ? listQuery.error.message : tCommon('unknownError')} />
+        <ErrorState title={t('loadFailed')} message={uiError(listQuery.error, tCommon('unknownError'))} />
       ) : listQuery.data?.items.length === 0 ? (
         <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />
       ) : viewMode === 'table' ? (

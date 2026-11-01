@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import type { TimelineEvent } from '../../_data/messaging-types';
 import { formatInvestorDateTime } from '../../_data/mock-data';
 
@@ -18,11 +20,12 @@ const TYPE_ICONS: Record<TimelineEvent['type'], string> = {
 };
 
 export function ConversationTimeline({ events }: ConversationTimelineProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   if (events.length === 0) return null;
 
   return (
-    <section className="inv-conv-timeline" aria-label="Project timeline">
-      <h3 className="inv-conv-timeline__title">Project Timeline</h3>
+    <section className="inv-conv-timeline" aria-label={tChrome('k307c9b3705')}>
+      <h3 className="inv-conv-timeline__title">{tChrome('k8f42135ac1')}</h3>
       <ol className="inv-conv-timeline__list">
         {events.map((event) => (
           <li key={event.id} className="inv-conv-timeline__item">

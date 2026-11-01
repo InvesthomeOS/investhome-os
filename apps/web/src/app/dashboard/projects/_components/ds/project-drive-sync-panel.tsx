@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
@@ -102,7 +104,7 @@ export function ProjectDriveSyncPanel({ projectId }: ProjectDriveSyncPanelProps)
       const next = await fetchProjectDriveStatus(projectId);
       setStatus(next);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t('loadError');
+      const message = uiError(err, t('loadError'));
       setLoadError(sanitizeError(message, t('loadError')));
     } finally {
       setLoading(false);
@@ -133,7 +135,7 @@ export function ProjectDriveSyncPanel({ projectId }: ProjectDriveSyncPanelProps)
         );
         await refreshStatus();
       } catch (err) {
-        const message = err instanceof Error ? err.message : t('toasts.syncFailed');
+        const message = uiError(err, t('toasts.syncFailed'));
         showToast(sanitizeError(message, t('toasts.syncFailed')));
         await refreshStatus();
       } finally {
@@ -157,7 +159,7 @@ export function ProjectDriveSyncPanel({ projectId }: ProjectDriveSyncPanelProps)
       );
       await refreshStatus();
     } catch (err) {
-      const message = err instanceof Error ? err.message : t('toasts.toggleFailed');
+      const message = uiError(err, t('toasts.toggleFailed'));
       showToast(sanitizeError(message, t('toasts.toggleFailed')));
     } finally {
       setToggling(false);
@@ -178,7 +180,7 @@ export function ProjectDriveSyncPanel({ projectId }: ProjectDriveSyncPanelProps)
       showToast(t('toasts.mapped'));
       await refreshStatus();
     } catch (err) {
-      const message = err instanceof Error ? err.message : t('toasts.mapFailed');
+      const message = uiError(err, t('toasts.mapFailed'));
       setMapError(sanitizeError(message, t('toasts.mapFailed')));
     } finally {
       setMapping(false);

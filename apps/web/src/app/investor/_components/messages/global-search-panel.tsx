@@ -1,5 +1,9 @@
 'use client';
 
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -21,20 +25,21 @@ const TYPE_LABELS: Record<MessagingSearchResult['type'], string> = {
 };
 
 export function GlobalSearchPanel({ results, query, onClose }: GlobalSearchPanelProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   if (!query.trim()) return null;
 
   return (
-    <div className="inv-global-search" role="region" aria-label="Search results">
+    <div className="inv-global-search" role="region" aria-label={tChrome('k0144dae8fb')}>
       <div className="inv-global-search__header">
         <span>
           {results.length} result{results.length !== 1 ? 's' : ''} for &ldquo;{query}&rdquo;
         </span>
-        <button type="button" onClick={onClose} aria-label="Close search results">
+        <button type="button" onClick={onClose} aria-label={tChrome('k7e9ff47d1e')}>
           ×
         </button>
       </div>
       {results.length === 0 ? (
-        <p className="inv-global-search__empty">No matches found.</p>
+        <p className="inv-global-search__empty">{tChrome('ke3d92ad624')}</p>
       ) : (
         <ul className="inv-global-search__list">
           {results.slice(0, 12).map((result) => (
@@ -44,7 +49,7 @@ export function GlobalSearchPanel({ results, query, onClose }: GlobalSearchPanel
                 className="inv-global-search__item"
                 onClick={onClose}
               >
-                <span className="inv-global-search__type">{TYPE_LABELS[result.type]}</span>
+                <span className="inv-global-search__type">{investorChrome(tChrome, TYPE_LABELS[result.type])}</span>
                 <strong>{result.title}</strong>
                 <span className="inv-global-search__subtitle">{result.subtitle}</span>
                 <time dateTime={result.timestamp}>

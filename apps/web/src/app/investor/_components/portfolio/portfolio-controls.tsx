@@ -1,5 +1,8 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
+import { investorChrome, investorLabel } from '@/app/investor/_components/investor-labels';
 import { useCallback, useMemo, useState } from 'react';
 
 import {
@@ -12,12 +15,6 @@ import {
   type ProjectStage,
   type RiskLevel,
 } from '../../_data/investment-types';
-import {
-  INVESTMENT_STATUS_LABELS,
-  INVESTMENT_TYPE_LABELS,
-  PROJECT_STAGE_LABELS,
-  RISK_LEVEL_LABELS,
-} from '../../_data/investments';
 import type { PortfolioDatePreset, PortfolioFilterState } from '../../_data/portfolio-types';
 
 export interface PortfolioControlsState {
@@ -102,25 +99,27 @@ export function PortfolioControls({
   onFilterChange,
   onClearFilters,
 }: PortfolioControlsProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tLabels = useTranslations('investorPortal.labels');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
 
   const filterFields = (
     <>
       <FilterSelect
-        label="Status"
+        label={tChrome('kbae7d5be70')}
         value={state.filters.status}
         onChange={(v) => onFilterChange('status', v as InvestmentStatus | 'all')}
         options={[
           { value: 'all', label: 'All Statuses' },
           ...INVESTMENT_STATUSES.map((s) => ({
             value: s,
-            label: INVESTMENT_STATUS_LABELS[s],
+            label: investorLabel(tLabels, 'investmentStatus', s),
           })),
         ]}
       />
       <FilterSelect
-        label="Asset Class"
+        label={tChrome('k78d4bd027f')}
         value={state.filters.assetClass}
         onChange={(v) => onFilterChange('assetClass', v)}
         options={[
@@ -129,19 +128,19 @@ export function PortfolioControls({
         ]}
       />
       <FilterSelect
-        label="Investment Type"
+        label={tChrome('kbae0f451fe')}
         value={state.filters.type}
         onChange={(v) => onFilterChange('type', v as InvestmentType | 'all')}
         options={[
           { value: 'all', label: 'All Types' },
           ...INVESTMENT_TYPES.map((t) => ({
             value: t,
-            label: INVESTMENT_TYPE_LABELS[t],
+            label: investorLabel(tLabels, 'investmentType', t),
           })),
         ]}
       />
       <FilterSelect
-        label="Location"
+        label={tChrome('kd219c68101')}
         value={state.filters.location}
         onChange={(v) => onFilterChange('location', v)}
         options={[
@@ -150,14 +149,14 @@ export function PortfolioControls({
         ]}
       />
       <FilterSelect
-        label="Project Stage"
+        label={tChrome('kbcc83b4ed0')}
         value={state.filters.stage}
         onChange={(v) => onFilterChange('stage', v as ProjectStage | 'all')}
         options={[
           { value: 'all', label: 'All Stages' },
           ...PROJECT_STAGES.map((s) => ({
             value: s,
-            label: PROJECT_STAGE_LABELS[s],
+            label: investorLabel(tLabels, 'projectStage', s),
           })),
         ]}
       />
@@ -169,7 +168,7 @@ export function PortfolioControls({
           { value: 'all', label: 'All Risk Levels' },
           ...RISK_LEVELS.map((r) => ({
             value: r,
-            label: RISK_LEVEL_LABELS[r],
+            label: investorLabel(tLabels, 'riskLevel', r),
           })),
         ]}
       />
@@ -179,8 +178,8 @@ export function PortfolioControls({
   return (
     <div className="inv-portfolio-controls">
       <div className="inv-portfolio-controls__date-row">
-        <span className="inv-portfolio-controls__label">Date range</span>
-        <div className="inv-portfolio-controls__presets" role="group" aria-label="Date range presets">
+        <span className="inv-portfolio-controls__label">{tChrome('kc65ea4ae01')}</span>
+        <div className="inv-portfolio-controls__presets" role="group" aria-label={tChrome('k308efe9e87')}>
           {DATE_PRESETS.map((preset) => (
             <button
               key={preset.value}
@@ -192,7 +191,7 @@ export function PortfolioControls({
                 if (preset.value === 'custom') setCustomOpen(true);
               }}
             >
-              {preset.label}
+              {investorChrome(tChrome, preset.label)}
             </button>
           ))}
         </div>
@@ -226,7 +225,7 @@ export function PortfolioControls({
       </div>
 
       {drawerOpen ? (
-        <div className="inv-portfolio-controls__drawer" role="region" aria-label="Portfolio filters">
+        <div className="inv-portfolio-controls__drawer" role="region" aria-label={tChrome('k196b055009')}>
           <div className="inv-portfolio-controls__filter-grid">{filterFields}</div>
         </div>
       ) : null}
@@ -245,11 +244,12 @@ function FilterSelect({
   onChange: (value: string) => void;
   options: { value: string; label: string }[];
 }) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const id = label.replace(/\s/g, '-').toLowerCase();
   return (
     <div className="inv-portfolio-controls__field">
       <label htmlFor={id} className="inv-portfolio-controls__field-label">
-        {label}
+        {investorChrome(tChrome, label)}
       </label>
       <select
         id={id}
@@ -259,7 +259,7 @@ function FilterSelect({
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
-            {opt.label}
+            {investorChrome(tChrome, opt.label)}
           </option>
         ))}
       </select>

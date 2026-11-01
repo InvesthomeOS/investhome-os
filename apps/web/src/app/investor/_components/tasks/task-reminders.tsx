@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import type { TaskReminder } from '../../_data/messaging-types';
 import { formatInvestorDateTime } from '../../_data/mock-data';
 
@@ -8,6 +10,7 @@ interface TaskRemindersProps {
 }
 
 export function TaskReminders({ reminders }: TaskRemindersProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const upcoming = reminders.filter((r) => r.status === 'upcoming');
   const dueToday = reminders.filter((r) => r.status === 'due_today');
   const overdue = reminders.filter((r) => r.status === 'overdue');
@@ -17,11 +20,11 @@ export function TaskReminders({ reminders }: TaskRemindersProps) {
 
   return (
     <section className="inv-task-reminders" aria-labelledby="reminders-title">
-      <h3 id="reminders-title">Reminders</h3>
+      <h3 id="reminders-title">{tChrome('kae8c393938')}</h3>
 
       {dueToday.length > 0 ? (
         <div className="inv-task-reminders__group inv-task-reminders__group--today">
-          <h4>Due Today</h4>
+          <h4>{tChrome('ke2219e75f0')}</h4>
           <ul>
             {dueToday.map((r) => (
               <ReminderItem key={r.id} reminder={r} />
@@ -32,7 +35,7 @@ export function TaskReminders({ reminders }: TaskRemindersProps) {
 
       {overdue.length > 0 ? (
         <div className="inv-task-reminders__group inv-task-reminders__group--overdue">
-          <h4>Overdue</h4>
+          <h4>{tChrome('k07217c7719')}</h4>
           <ul>
             {overdue.map((r) => (
               <ReminderItem key={r.id} reminder={r} />
@@ -43,7 +46,7 @@ export function TaskReminders({ reminders }: TaskRemindersProps) {
 
       {upcoming.length > 0 ? (
         <div className="inv-task-reminders__group">
-          <h4>Upcoming</h4>
+          <h4>{tChrome('k523baab918')}</h4>
           <ul>
             {upcoming.map((r) => (
               <ReminderItem key={r.id} reminder={r} />
@@ -54,7 +57,7 @@ export function TaskReminders({ reminders }: TaskRemindersProps) {
 
       {history.length > 0 ? (
         <div className="inv-task-reminders__group inv-task-reminders__group--history">
-          <h4>History</h4>
+          <h4>{tChrome('k90ccd64974')}</h4>
           <ul>
             {history.map((r) => (
               <ReminderItem key={r.id} reminder={r} />

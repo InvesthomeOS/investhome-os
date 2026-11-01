@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { useEffect, useState } from 'react';
 import { Drawer } from '@investhome/ui';
 
@@ -13,6 +15,7 @@ type PurchaseCardDrawerProps = {
 };
 
 export function PurchaseCardDrawer({ agreementId, onClose }: PurchaseCardDrawerProps) {
+  const tCard = useTranslations('crm.contactCard.ui');
   const [compact, setCompact] = useState(false);
 
   useEffect(() => {
@@ -28,9 +31,9 @@ export function PurchaseCardDrawer({ agreementId, onClose }: PurchaseCardDrawerP
       <Drawer
         open
         onClose={onClose}
-        title="Satın Alma Detayı"
+        title={tCard('k394c0f77c0')}
         size={compact ? 'full' : 'lg'}
-        ariaLabel="Satın alma detayı"
+        ariaLabel={tCard('k394c0f77c0')}
       >
         <PurchaseCard agreementId={agreementId} />
       </Drawer>

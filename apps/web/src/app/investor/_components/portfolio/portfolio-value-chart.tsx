@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { useState } from 'react';
 
 import { MultiLineChart } from './chart-primitives';
@@ -25,6 +27,7 @@ export function PortfolioValueChart({
   currency,
   hasHistoricalFallback,
 }: PortfolioValueChartProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const [hidden, setHidden] = useState<Set<string>>(new Set());
 
   const chartData = points.map((p) => ({
@@ -47,15 +50,15 @@ export function PortfolioValueChart({
   return (
     <section className="inv-portfolio-panel">
       <SectionHeader
-        title="Portfolio Value Over Time"
-        subtitle="Invested capital, portfolio value, equity, and benchmark comparison"
+        title={tChrome('kc8e8772bfc')}
+        subtitle={tChrome('k3e0a4e369d')}
       />
       {hasHistoricalFallback ? (
         <p className="inv-portfolio-panel__notice" role="status">
           Some investments use estimated historical values where full monthly data is unavailable.
         </p>
       ) : null}
-      <div className="inv-portfolio-chart-legend" role="group" aria-label="Toggle chart series">
+      <div className="inv-portfolio-chart-legend" role="group" aria-label={tChrome('kedbea44ae7')}>
         {SERIES.map((s) => (
           <button
             key={s.key}

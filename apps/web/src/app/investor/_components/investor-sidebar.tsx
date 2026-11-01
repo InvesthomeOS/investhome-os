@@ -1,5 +1,7 @@
 'use client';
 
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 import { usePathname } from 'next/navigation';
@@ -67,15 +69,17 @@ interface InvestorSidebarProps {
 }
 
 function NavBadge({ count, label }: { count: number; label: string }) {
+  const tChrome = useTranslations('investorPortal.chrome');
   if (count <= 0) return null;
   return (
-    <span className="dashboard-shell__nav-badge investor-sidebar__badge" aria-label={label}>
+    <span className="dashboard-shell__nav-badge investor-sidebar__badge" aria-label={investorChrome(tChrome, label)}>
       {count > 99 ? '99+' : count}
     </span>
   );
 }
 
 export function InvestorSidebar({ collapsed, onToggleCollapsed }: InvestorSidebarProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const pathname = usePathname();
   const tNav = useTranslations('navigation');
   const t = useTranslations('investorPortal');
@@ -122,7 +126,7 @@ export function InvestorSidebar({ collapsed, onToggleCollapsed }: InvestorSideba
               <span className="dashboard-shell__nav-link-icon">
                 <IhIcon name={NAV_ICONS[item.id]} size={18} />
               </span>
-              <span className="dashboard-shell__nav-link-label">{label}</span>
+              <span className="dashboard-shell__nav-link-label">{investorChrome(tChrome, label)}</span>
               {item.id === 'documents' ? (
                 <NavBadge count={sidebarBadges.total} label={t('badgeAttention', { count: sidebarBadges.total })} />
               ) : null}
@@ -146,7 +150,7 @@ export function InvestorSidebar({ collapsed, onToggleCollapsed }: InvestorSideba
               <span className="dashboard-shell__nav-link-icon">
                 <IhIcon name={NAV_ICONS[item.id]} size={18} />
               </span>
-              <span className="dashboard-shell__nav-link-label">{label}</span>
+              <span className="dashboard-shell__nav-link-label">{investorChrome(tChrome, label)}</span>
               {badge !== null ? (
                 <span className="dashboard-shell__nav-badge" aria-label={t('badgePending', { count: badge })}>
                   {badge > 99 ? '99+' : badge}

@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -14,13 +16,14 @@ export interface CashFlowByInvestmentProps {
 }
 
 export function CashFlowByInvestment({ distributions }: CashFlowByInvestmentProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const rows = computeCashFlowByInvestment(distributions);
   const currency = rows[0]?.currency ?? 'USD';
   const chartData = rows.slice(0, 8).map((r) => ({ label: r.investmentName, value: r.netTotal }));
 
   return (
     <section className="inv-distributions__panel">
-      <SectionHeader title="Cash Flow by Investment" subtitle="Cumulative net distributions per holding" />
+      <SectionHeader title={tChrome('k1d493b523d')} subtitle={tChrome('k555d12a122')} />
 
       <HorizontalBarChart
         data={chartData}
@@ -32,13 +35,13 @@ export function CashFlowByInvestment({ distributions }: CashFlowByInvestmentProp
         <table className="inv-distributions__table">
           <thead>
             <tr>
-              <th scope="col">Investment</th>
-              <th scope="col">Gross</th>
-              <th scope="col">Net</th>
-              <th scope="col">Preferred</th>
-              <th scope="col">ROC</th>
-              <th scope="col">Count</th>
-              <th scope="col">Last Payment</th>
+              <th scope="col">{tChrome('k0401729c31')}</th>
+              <th scope="col">{tChrome('k9580a6176f')}</th>
+              <th scope="col">{tChrome('k9bb81c2ecc')}</th>
+              <th scope="col">{tChrome('k0a3e0d9cf2')}</th>
+              <th scope="col">{tChrome('k3027a4a390')}</th>
+              <th scope="col">{tChrome('k66e12969c2')}</th>
+              <th scope="col">{tChrome('kcec3d948d9')}</th>
             </tr>
           </thead>
           <tbody>

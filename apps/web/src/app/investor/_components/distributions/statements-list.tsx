@@ -1,5 +1,8 @@
 'use client';
 
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useMemo, useState } from 'react';
@@ -16,6 +19,8 @@ export interface StatementsListProps {
 }
 
 export function StatementsList({ onPreview, onDownload }: StatementsListProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const t = useTranslations('investorPortal');
   const [search, setSearch] = useState('');
   const [investmentId, setInvestmentId] = useState<string | 'all'>('all');
   const [taxYear, setTaxYear] = useState<number | 'all'>('all');
@@ -49,11 +54,11 @@ export function StatementsList({ onPreview, onDownload }: StatementsListProps) {
 
       <div className="inv-distributions__table-toolbar">
         <label className="inv-distributions__search">
-          <span className="inv-investments__sr-only">Search statements</span>
+          <span className="inv-investments__sr-only">{investorChrome(tChrome, "Search statements")}</span>
           <input
             type="search"
             className="inv-investments__search-input"
-            placeholder="Search statements…"
+            placeholder={t('placeholders.searchStatements')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -64,7 +69,7 @@ export function StatementsList({ onPreview, onDownload }: StatementsListProps) {
           onChange={(e) => setInvestmentId(e.target.value)}
           aria-label="Filter by investment"
         >
-          <option value="all">All investments</option>
+          <option value="all">{investorChrome(tChrome, "All investments")}</option>
           {investments.map((inv) => (
             <option key={inv.id} value={inv.id}>
               {inv.projectName}
@@ -79,7 +84,7 @@ export function StatementsList({ onPreview, onDownload }: StatementsListProps) {
           }
           aria-label="Filter by year"
         >
-          <option value="all">All years</option>
+          <option value="all">{investorChrome(tChrome, "All years")}</option>
           {years.map((y) => (
             <option key={y} value={y}>
               {y}
@@ -92,10 +97,10 @@ export function StatementsList({ onPreview, onDownload }: StatementsListProps) {
           onChange={(e) => setType(e.target.value as typeof type)}
           aria-label="Filter by type"
         >
-          <option value="all">All types</option>
+          <option value="all">{investorChrome(tChrome, "All types")}</option>
           {Object.entries(DISTRIBUTION_TYPE_LABELS).map(([k, v]) => (
             <option key={k} value={k}>
-              {v}
+              {investorChrome(tChrome, v)}
             </option>
           ))}
         </select>
@@ -105,10 +110,10 @@ export function StatementsList({ onPreview, onDownload }: StatementsListProps) {
           onChange={(e) => setStatus(e.target.value as typeof status)}
           aria-label="Filter by status"
         >
-          <option value="all">All statuses</option>
+          <option value="all">{investorChrome(tChrome, "All statuses")}</option>
           {Object.entries(STATEMENT_STATUS_LABELS).map(([k, v]) => (
             <option key={k} value={k}>
-              {v}
+              {investorChrome(tChrome, v)}
             </option>
           ))}
         </select>
@@ -118,13 +123,13 @@ export function StatementsList({ onPreview, onDownload }: StatementsListProps) {
         <table className="inv-distributions__table">
           <thead>
             <tr>
-              <th scope="col">Date</th>
-              <th scope="col">Investment</th>
-              <th scope="col">Period</th>
-              <th scope="col">Type</th>
-              <th scope="col">Net</th>
-              <th scope="col">Status</th>
-              <th scope="col">Actions</th>
+              <th scope="col">{investorChrome(tChrome, "Date")}</th>
+              <th scope="col">{investorChrome(tChrome, "Investment")}</th>
+              <th scope="col">{investorChrome(tChrome, "Period")}</th>
+              <th scope="col">{investorChrome(tChrome, "Type")}</th>
+              <th scope="col">{investorChrome(tChrome, "Net")}</th>
+              <th scope="col">{investorChrome(tChrome, "Status")}</th>
+              <th scope="col">{investorChrome(tChrome, "Actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -140,11 +145,11 @@ export function StatementsList({ onPreview, onDownload }: StatementsListProps) {
                   </Link>
                 </td>
                 <td>{s.periodLabel}</td>
-                <td>{DISTRIBUTION_TYPE_LABELS[s.distributionType]}</td>
+                <td>{investorChrome(tChrome, DISTRIBUTION_TYPE_LABELS[s.distributionType])}</td>
                 <td>{formatInvestorCurrency(s.netAmount, s.currency)}</td>
                 <td>
                   <span className={`inv-distributions__stmt-status inv-distributions__stmt-status--${s.status}`}>
-                    {STATEMENT_STATUS_LABELS[s.status]}
+                    {investorChrome(tChrome, STATEMENT_STATUS_LABELS[s.status])}
                   </span>
                 </td>
                 <td>
@@ -167,7 +172,7 @@ export function StatementsList({ onPreview, onDownload }: StatementsListProps) {
       </div>
 
       {statements.length === 0 ? (
-        <p className="inv-distributions__empty-note">No statements match your filters.</p>
+        <p className="inv-distributions__empty-note">{investorChrome(tChrome, "No statements match your filters.")}</p>
       ) : null}
     </section>
   );

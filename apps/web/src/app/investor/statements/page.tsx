@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useCallback, useEffect, useState } from 'react';
@@ -8,6 +10,7 @@ import { StatementsList } from '../_components/distributions/statements-list';
 import { LoadingSkeleton } from '../_components/loading-skeleton';
 
 export default function StatementsPage() {
+  const tChrome = useTranslations('investorPortal.chrome');
   const [isLoading, setIsLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -40,7 +43,7 @@ export default function StatementsPage() {
           <Link href={'/investor/distributions' as Route} className="inv-distributions__back-link">
             ← Back to Distributions
           </Link>
-          <h1 className="investor-page__title">Distribution Statements</h1>
+          <h1 className="investor-page__title">{tChrome('k7fb77e9b5c')}</h1>
           <p className="investor-page__subtitle">
             Search and download distribution statements linked to your payments. Mock UI — preview and
             download are placeholders.

@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 
@@ -27,6 +29,7 @@ import { UpdatesTimeline } from './investment-detail/updates-timeline';
 const SHOW_ERROR_PLACEHOLDER = false;
 
 export function InvestmentDetailView() {
+  const tChrome = useTranslations('investorPortal.chrome');
   const params = useParams<{ investmentId: string }>();
   const [isLoading, setIsLoading] = useState(true);
   const [hasError] = useState(SHOW_ERROR_PLACEHOLDER);
@@ -98,8 +101,8 @@ export function InvestmentDetailView() {
     return (
       <div className="investor-page inv-investments-detail">
         <div className="inv-detail-error" role="alert">
-          <h2>Unable to load investment</h2>
-          <p>Please try again later or contact investor relations.</p>
+          <h2>{tChrome('k2e5954f24b')}</h2>
+          <p>{tChrome('k14f22558a8')}</p>
         </div>
       </div>
     );
@@ -116,18 +119,18 @@ export function InvestmentDetailView() {
         onPlaceholderAction={handlePlaceholderAction}
       />
 
-      <section className="inv-detail-kpis" aria-label="Investment KPIs">
+      <section className="inv-detail-kpis" aria-label={tChrome('k79b44141d3')}>
         <InvestorKpiCard
           label="Initial Investment"
           value={formatInvestorCurrency(inv.investedAmount, inv.currency)}
         />
         <InvestorKpiCard
-          label="Current Value"
+          label={tChrome('k4f99315301')}
           value={formatInvestorCurrency(inv.currentValue, inv.currency)}
           delta={equity > 0 ? `+${formatInvestorCurrency(equity, inv.currency)} gain` : undefined}
         />
         <InvestorKpiCard
-          label="Equity"
+          label={tChrome('k0786ff3b19')}
           value={formatInvestorCurrency(Math.max(0, equity), inv.currency)}
           meta="Unrealized appreciation"
         />

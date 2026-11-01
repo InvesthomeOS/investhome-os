@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { useState } from 'react';
 
 import type { Distribution } from '../../_data/distribution-types';
@@ -12,6 +14,7 @@ export interface TaxSummarySectionProps {
 }
 
 export function TaxSummarySection({ distributions }: TaxSummarySectionProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const summaries = computeTaxSummary(distributions);
   const [activeYear, setActiveYear] = useState(summaries[0]?.taxYear ?? new Date().getFullYear());
   const active = summaries.find((s) => s.taxYear === activeYear) ?? summaries[0];
@@ -19,8 +22,8 @@ export function TaxSummarySection({ distributions }: TaxSummarySectionProps) {
   if (!active) {
     return (
       <section className="inv-distributions__panel">
-        <SectionHeader title="Tax & Withholding Summary" />
-        <p className="inv-distributions__empty-note">No tax data available.</p>
+        <SectionHeader title={tChrome('kaed50143ba')} />
+        <p className="inv-distributions__empty-note">{tChrome('k396b4f5640')}</p>
       </section>
     );
   }
@@ -28,8 +31,8 @@ export function TaxSummarySection({ distributions }: TaxSummarySectionProps) {
   return (
     <section className="inv-distributions__panel">
       <SectionHeader
-        title="Tax & Withholding Summary"
-        subtitle="Withholding and income breakdown by tax year"
+        title={tChrome('kaed50143ba')}
+        subtitle={tChrome('k54cbefdf37')}
       />
 
       <p className="inv-distributions__disclaimer" role="note">
@@ -37,7 +40,7 @@ export function TaxSummarySection({ distributions }: TaxSummarySectionProps) {
         Consult your tax advisor for guidance on reporting distribution income.
       </p>
 
-      <div className="inv-distributions__tax-tabs" role="tablist" aria-label="Tax year">
+      <div className="inv-distributions__tax-tabs" role="tablist" aria-label={tChrome('kf49b6066b6')}>
         {summaries.map((s) => (
           <button
             key={s.taxYear}
@@ -55,31 +58,31 @@ export function TaxSummarySection({ distributions }: TaxSummarySectionProps) {
       <div role="tabpanel" className="inv-distributions__tax-panel">
         <dl className="inv-distributions__tax-grid">
           <div>
-            <dt>Gross Income</dt>
+            <dt>{tChrome('k2a584a50b9')}</dt>
             <dd>{formatInvestorCurrency(active.grossIncome, 'USD')}</dd>
           </div>
           <div>
-            <dt>Preferred Return</dt>
+            <dt>{tChrome('k3e0a85a342')}</dt>
             <dd>{formatInvestorCurrency(active.preferredReturn, 'USD')}</dd>
           </div>
           <div>
-            <dt>Profit Share / Sale</dt>
+            <dt>{tChrome('k5cb0bbf986')}</dt>
             <dd>{formatInvestorCurrency(active.profitShare, 'USD')}</dd>
           </div>
           <div>
-            <dt>Return of Capital</dt>
+            <dt>{tChrome('ke5955ff3aa')}</dt>
             <dd>{formatInvestorCurrency(active.returnOfCapital, 'USD')}</dd>
           </div>
           <div>
-            <dt>Total Withholding</dt>
+            <dt>{tChrome('k2c9e729c10')}</dt>
             <dd>{formatInvestorCurrency(active.totalWithholding, 'USD')}</dd>
           </div>
           <div>
-            <dt>Net Received</dt>
+            <dt>{tChrome('ka2a3e74753')}</dt>
             <dd>{formatInvestorCurrency(active.netReceived, 'USD')}</dd>
           </div>
           <div>
-            <dt>Distributions</dt>
+            <dt>{tChrome('k71fff5ea85')}</dt>
             <dd>{active.distributionCount}</dd>
           </div>
         </dl>

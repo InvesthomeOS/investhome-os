@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
@@ -200,7 +202,7 @@ export function OwnershipPanel({ asset, onChanged, focusRequestId }: OwnershipPa
       await load();
       onChanged?.();
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : t('actionError');
+      const message = uiError(err, t('actionError'));
       setError(message);
     } finally {
       setBusy(false);

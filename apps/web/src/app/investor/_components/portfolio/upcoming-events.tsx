@@ -1,5 +1,9 @@
 'use client';
 
+import { investorChrome } from '@/app/investor/_components/investor-labels';
+
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -20,14 +24,15 @@ const EVENT_LABELS: Record<PortfolioExitEvent['eventType'], string> = {
 };
 
 export function UpcomingEvents({ events, currency }: UpcomingEventsProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
     <section className="inv-portfolio-panel">
       <SectionHeader
-        title="Upcoming Exits & Milestones"
-        subtitle="Scheduled events across the portfolio"
+        title={tChrome('k4be21b6781')}
+        subtitle={tChrome('kb2ea6a55eb')}
       />
       {events.length === 0 ? (
-        <p className="inv-portfolio-panel__empty">No upcoming events in the selected portfolio.</p>
+        <p className="inv-portfolio-panel__empty">{tChrome('kaa2c126821')}</p>
       ) : (
         <ol className="inv-portfolio-events">
           {events.map((event) => (
@@ -36,7 +41,7 @@ export function UpcomingEvents({ events, currency }: UpcomingEventsProps) {
                 <time dateTime={event.date}>{formatInvestorDate(event.date)}</time>
               </div>
               <div className="inv-portfolio-events__body">
-                <span className="inv-portfolio-events__type">{EVENT_LABELS[event.eventType]}</span>
+                <span className="inv-portfolio-events__type">{investorChrome(tChrome, EVENT_LABELS[event.eventType])}</span>
                 <h3 className="inv-portfolio-events__title">
                   <Link
                     href={`/investor/investments/${event.slug}` as Route}
@@ -47,15 +52,15 @@ export function UpcomingEvents({ events, currency }: UpcomingEventsProps) {
                 </h3>
                 <dl className="inv-portfolio-events__meta">
                   <div>
-                    <dt>Probability</dt>
+                    <dt>{tChrome('kd9fdae55f9')}</dt>
                     <dd>{(event.probability * 100).toFixed(0)}%</dd>
                   </div>
                   <div>
-                    <dt>Proceeds</dt>
+                    <dt>{tChrome('k434652b901')}</dt>
                     <dd>{formatInvestorCurrency(event.projectedProceeds, currency)}</dd>
                   </div>
                   <div>
-                    <dt>Status</dt>
+                    <dt>{tChrome('kbae7d5be70')}</dt>
                     <dd>{event.status}</dd>
                   </div>
                 </dl>

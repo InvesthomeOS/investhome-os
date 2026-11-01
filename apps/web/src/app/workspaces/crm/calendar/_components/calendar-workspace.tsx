@@ -1,5 +1,6 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
@@ -82,7 +83,7 @@ export function CalendarWorkspace() {
     return (
       <ErrorState
         title={t('loadFailed')}
-        message={calendarQuery.error?.message ?? t('loadFailed')}
+        message={uiError(calendarQuery.error, t('loadFailed'))}
         action={
           <Button type="button" onClick={() => void calendarQuery.refetch()}>
             {tCommon('retry')}

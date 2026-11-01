@@ -1,16 +1,12 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
+import { investorChrome, investorLabel } from '@/app/investor/_components/investor-labels';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
-import {
-  INVESTMENT_STATUS_LABELS,
-  INVESTMENT_TYPE_LABELS,
-  PROJECT_STAGE_LABELS,
-  RISK_LEVEL_LABELS,
-  SORT_FIELD_LABELS,
-} from '../_data/investments';
 import type { InvestmentSortField, PortfolioInvestment } from '../_data/investment-types';
 import {
   formatInvestorCurrency,
@@ -39,6 +35,7 @@ function SortButton({
   sortDirection: 'asc' | 'desc';
   onSort: (field: InvestmentSortField) => void;
 }) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const isActive = sortField === field;
   return (
     <button
@@ -46,7 +43,7 @@ function SortButton({
       className={`inv-investment-table__sort${isActive ? ' inv-investment-table__sort--active' : ''}`}
       onClick={() => onSort(field)}
     >
-      {label}
+      {investorChrome(tChrome, label)}
       {isActive ? (
         <span aria-hidden="true">{sortDirection === 'asc' ? ' ↑' : ' ↓'}</span>
       ) : null}
@@ -143,6 +140,8 @@ export function InvestmentTable({
   onSort,
   onDownloadSummary,
 }: InvestmentTableProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tLabels = useTranslations('investorPortal.labels');
   return (
     <div className="inv-investment-table__wrap">
       <table className="inv-investment-table">
@@ -160,22 +159,22 @@ export function InvestmentTable({
                 onSort={onSort}
               />
             </th>
-            <th scope="col">Location</th>
-            <th scope="col">Entity</th>
-            <th scope="col">Type</th>
+            <th scope="col">{tChrome('kd219c68101')}</th>
+            <th scope="col">{tChrome('kc7fb317725')}</th>
+            <th scope="col">{tChrome('k3deb745651')}</th>
             <th scope="col">
               <SortButton
-                label="Status"
+                label={tChrome('kbae7d5be70')}
                 field="status"
                 sortField={sortField}
                 sortDirection={sortDirection}
                 onSort={onSort}
               />
             </th>
-            <th scope="col">Stage</th>
+            <th scope="col">{tChrome('kca6d0e3aaa')}</th>
             <th scope="col">
               <SortButton
-                label="Invested"
+                label={tChrome('ka13c9ad2ae')}
                 field="investedAmount"
                 sortField={sortField}
                 sortDirection={sortDirection}
@@ -184,14 +183,14 @@ export function InvestmentTable({
             </th>
             <th scope="col">
               <SortButton
-                label="Value"
+                label={tChrome('k8dce170de2')}
                 field="currentValue"
                 sortField={sortField}
                 sortDirection={sortDirection}
                 onSort={onSort}
               />
             </th>
-            <th scope="col">Ownership</th>
+            <th scope="col">{tChrome('k3e90e4cbf4')}</th>
             <th scope="col">
               <SortButton
                 label="ROI"
@@ -210,27 +209,27 @@ export function InvestmentTable({
                 onSort={onSort}
               />
             </th>
-            <th scope="col">Cash Flow</th>
+            <th scope="col">{tChrome('k4d78e9f9ed')}</th>
             <th scope="col">
               <SortButton
-                label="Date"
+                label={tChrome('keb9a4bc1c0')}
                 field="investmentDate"
                 sortField={sortField}
                 sortDirection={sortDirection}
                 onSort={onSort}
               />
             </th>
-            <th scope="col">Risk</th>
+            <th scope="col">{tChrome('k5a8f23f567')}</th>
             <th scope="col">
               <SortButton
-                label="Progress"
+                label={tChrome('k1b90271d66')}
                 field="progressPercent"
                 sortField={sortField}
                 sortDirection={sortDirection}
                 onSort={onSort}
               />
             </th>
-            <th scope="col">Actions</th>
+            <th scope="col">{tChrome('kc3cd636a58')}</th>
           </tr>
         </thead>
         <tbody>
@@ -248,15 +247,15 @@ export function InvestmentTable({
                 </td>
                 <td>{location}</td>
                 <td>{investment.entityName}</td>
-                <td>{INVESTMENT_TYPE_LABELS[investment.type]}</td>
+                <td>{investorLabel(tLabels, 'investmentType', investment.type)}</td>
                 <td>
                   <span
                     className={`inv-investment-card__status inv-investment-card__status--${investment.status}`}
                   >
-                    {INVESTMENT_STATUS_LABELS[investment.status]}
+                    {investorLabel(tLabels, 'investmentStatus', investment.status)}
                   </span>
                 </td>
-                <td>{PROJECT_STAGE_LABELS[investment.stage]}</td>
+                <td>{investorLabel(tLabels, 'projectStage', investment.stage)}</td>
                 <td>{formatInvestorCurrency(investment.investedAmount, investment.currency)}</td>
                 <td>{formatInvestorCurrency(investment.currentValue, investment.currency)}</td>
                 <td>{formatInvestorPercent(investment.ownershipPercent)}</td>
@@ -283,7 +282,7 @@ export function InvestmentTable({
                   <span
                     className={`inv-investment-card__risk inv-investment-card__risk--${investment.riskLevel}`}
                   >
-                    {RISK_LEVEL_LABELS[investment.riskLevel]}
+                    {investorLabel(tLabels, 'riskLevel', investment.riskLevel)}
                   </span>
                 </td>
                 <td>{investment.progressPercent}%</td>
@@ -304,7 +303,7 @@ export function InvestmentTable({
         </tbody>
       </table>
       <p className="inv-investments__sr-only">
-        Sorted by {SORT_FIELD_LABELS[sortField]} ({sortDirection === 'asc' ? 'ascending' : 'descending'})
+        Sorted by {investorLabel(tLabels, 'sortField', sortField)} ({sortDirection === 'asc' ? 'ascending' : 'descending'})
       </p>
     </div>
   );

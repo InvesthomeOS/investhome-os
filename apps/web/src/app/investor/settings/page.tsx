@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { EmptyState } from '../_components/empty-state';
 import { SectionHeader } from '../_components/section-header';
 
@@ -11,12 +13,13 @@ const SETTINGS_SECTIONS = [
 ];
 
 export default function SettingsPage() {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
     <div className="investor-page">
-      <h1 className="investor-page__title">Settings</h1>
-      <p className="investor-page__subtitle">Manage your investor workspace preferences.</p>
+      <h1 className="investor-page__title">{tChrome('kc7f73bb54d')}</h1>
+      <p className="investor-page__subtitle">{tChrome('k26bc549293')}</p>
 
-      <SectionHeader title="Preferences" subtitle="Configure your account settings" />
+      <SectionHeader title={tChrome('k9dfd349ebe')} subtitle={tChrome('kaf36fc7dc8')} />
 
       <div style={{ display: 'grid', gap: '1rem', maxWidth: '40rem' }}>
         {SETTINGS_SECTIONS.map((section) => (
@@ -30,7 +33,7 @@ export default function SettingsPage() {
       <div style={{ marginTop: '2rem' }}>
         <EmptyState
           icon="⚙"
-          title="Settings are UI-only"
+          title={tChrome('kadd2c9538f')}
           description="Preference controls will be wired to backend services in a future release. This module uses mock data only."
         />
       </div>

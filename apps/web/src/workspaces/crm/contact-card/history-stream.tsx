@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
@@ -209,6 +211,7 @@ function WhatsAppCard({
   locale: string;
   onOpen: () => void;
 }) {
+  const tCard = useTranslations('crm.contactCard.ui');
   const parsed = parseWhatsappMedia(entry.summary || entry.title);
   const count = Number(entry.metadata?.grouped_message_count || 1);
   const direction = whatsappDirection(entry);
@@ -221,16 +224,14 @@ function WhatsAppCard({
           <time>{formatWhen(entry.created_at, locale)}</time>
         </div>
         <p>
-          {direction === 'outgoing' ? 'Giden' : direction === 'system' ? 'Sistem' : 'Gelen'}
+          {direction === 'outgoing' ? tCard('outgoing') : direction === 'system' ? tCard('system') : tCard('incoming')}
           {' · '}
           {whatsappSender(entry)}
         </p>
         <p className="crm-stream-card__preview">{parsed.text || entry.title.replace(/^WhatsApp:\s*/i, '') || '—'}</p>
-        {count > 1 ? <p className="crm-stream-card__meta">{count} mesaj</p> : null}
+        {count > 1 ? <p className="crm-stream-card__meta">{tCard('messageCount', { count })}</p> : null}
         <div className="crm-stream-card__actions">
-          <Button type="button" size="sm" onClick={onOpen}>
-            Aç
-          </Button>
+          <Button type="button" size="sm" onClick={onOpen}>{tCard('k019f2bd44b')}</Button>
         </div>
       </div>
     </article>
@@ -265,6 +266,8 @@ function TaskCard({
   locale: string;
   onOpen: () => void;
 }) {
+  const tCard = useTranslations('crm.contactCard.ui');
+  const tTask = useTranslations('crm.contactCard.taskStatus');
   const due = typeof entry.metadata?.due_date === 'string' ? entry.metadata.due_date : null;
   const status = String(entry.metadata?.task_status || entry.status || '');
   const owner = String(entry.metadata?.assigned_user_name || entry.actor_name || '—');
@@ -273,17 +276,15 @@ function TaskCard({
       <StreamIcon type="task" />
       <div className="crm-stream-card__body">
         <div className="crm-stream-card__top">
-          <strong>Görev</strong>
+          <strong>{tCard('k7d4cc3d67f')}</strong>
           <time>{formatWhen(entry.created_at, locale)}</time>
         </div>
-        <p className="crm-stream-card__meta">{taskStatusLabel(status)}</p>
+        <p className="crm-stream-card__meta">{taskStatusLabel(status, tTask)}</p>
         <h3>{entry.title.replace(/^Görev:\s*/i, '')}</h3>
-        <p>Son tarih: {due ? formatWhen(due, locale) : '—'}</p>
-        <p>Sorumlu: {owner}</p>
+        <p>{tCard('dueDate')}: {due ? formatWhen(due, locale) : '—'}</p>
+        <p>{tCard('owner')}: {owner}</p>
         <div className="crm-stream-card__actions">
-          <Button type="button" size="sm" onClick={onOpen}>
-            Aç
-          </Button>
+          <Button type="button" size="sm" onClick={onOpen}>{tCard('k019f2bd44b')}</Button>
         </div>
       </div>
     </article>
@@ -299,13 +300,14 @@ function DocumentCard({
   locale: string;
   onOpen: () => void;
 }) {
+  const tCard = useTranslations('crm.contactCard.ui');
   const doc = entry.document;
   return (
     <article className="crm-stream-card" data-testid="stream-document-card" data-activity-type="document">
       <StreamIcon type="document" />
       <div className="crm-stream-card__body">
         <div className="crm-stream-card__top">
-          <strong>Belge</strong>
+          <strong>{tCard('k40c4211670')}</strong>
           <time>{formatWhen(entry.created_at, locale)}</time>
         </div>
         <h3>{doc?.original_file_name || entry.title}</h3>
@@ -327,6 +329,9 @@ function TaskDetailDrawer({
   activityId: string;
   onClose: () => void;
 }) {
+  const tCommon = useTranslations('common');
+  const tCard = useTranslations('crm.contactCard.ui');
+  const tTask = useTranslations('crm.contactCard.taskStatus');
   const query = useQuery({
     queryKey: ['crm', 'activities', activityId],
     queryFn: () => fetchActivity(activityId),
@@ -368,37 +373,37 @@ function TaskDetailDrawer({
     <div className="crm-contact-card__wa-drawer" data-testid="crm-tasks-drawer" role="dialog">
       <div className="crm-contact-card__wa-panel crm-task-drawer">
         <div className="crm-contact-card__wa-head">
-          <strong>{mode === 'edit' ? 'Görevi düzenle' : 'Görev'}</strong>
+          <strong>{mode === 'edit' ? tCard('k06b7b1b8d3') : tCard('k7d4cc3d67f')}</strong>
           <Button type="button" size="sm" variant="secondary" onClick={onClose}>
-            Kapat
+            {tCommon('close')}
           </Button>
         </div>
         <div className="crm-task-drawer__body">
-          {query.isLoading ? <p>Yükleniyor…</p> : null}
-          {query.isError ? <p>Görev açılamadı.</p> : null}
+          {query.isLoading ? <p>{tCommon('loading')}</p> : null}
+          {query.isError ? <p>{tCard('kad9abf1627')}</p> : null}
           {item && mode === 'detail' ? (
             <>
               <h3>{item.title}</h3>
               <dl className="crm-task-drawer__kv">
-                <dt>Durum</dt>
-                <dd>{taskStatusLabel(item.task_status || item.status)}</dd>
-                <dt>Sorumlu</dt>
+                <dt>{tCard('kf7c81d57e2')}</dt>
+                <dd>{taskStatusLabel(item.task_status || item.status, tTask)}</dd>
+                <dt>{tCard('k9edaf12d30')}</dt>
                 <dd>{item.assigned_user_name || item.owner_name || '—'}</dd>
-                <dt>Son tarih</dt>
+                <dt>{tCard('dueDate')}</dt>
                 <dd>{item.due_date ? new Date(item.due_date).toLocaleString() : '—'}</dd>
               </dl>
               {item.description ? <p className="crm-stream-card__preview">{stripHtml(item.description)}</p> : null}
               <Button type="button" size="sm" onClick={startEdit}>
-                Düzenle
+                {tCommon('edit')}
               </Button>
             </>
           ) : null}
           {item && mode === 'edit' ? (
             <form onSubmit={submit} className="crm-contact-card__panel">
-              <Input label="Başlık" value={title} onChange={(event) => setTitle(event.target.value)} />
-              <TextArea label="Açıklama" value={description} onChange={(event) => setDescription(event.target.value)} />
+              <Input label={tCard('k48afa7123d')} value={title} onChange={(event) => setTitle(event.target.value)} />
+              <TextArea label={tCard('k6ea4df4a39')} value={description} onChange={(event) => setDescription(event.target.value)} />
               <Select
-                label="Durum"
+                label={tCard('kf7c81d57e2')}
                 value={taskStatus}
                 onChange={(event) => {
                   const next = event.target.value;
@@ -407,13 +412,13 @@ function TaskDetailDrawer({
                   }
                 }}
               >
-                <option value="not_started">Başlamadı</option>
-                <option value="in_progress">Devam ediyor</option>
-                <option value="waiting">Beklemede</option>
-                <option value="completed">Tamamlandı</option>
+                <option value="not_started">{tCard('k97efb1abd7')}</option>
+                <option value="in_progress">{tCard('kc4e552882a')}</option>
+                <option value="waiting">{tCard('kd9d8afd7e1')}</option>
+                <option value="completed">{tCard('k9bfa9294f8')}</option>
               </Select>
               <Button type="submit" size="sm" disabled={save.isPending}>
-                Kaydet
+                {tCommon('save')}
               </Button>
             </form>
           ) : null}
@@ -430,7 +435,7 @@ export function PilotHistoryStream({
   loading,
   initialFilter = 'all',
   includeDocuments = false,
-  heading = 'Yorumlar / İletişim Akışı',
+  heading,
   canSendEmail = false,
 }: {
   entries: ContactTimelineEntry[];
@@ -442,6 +447,9 @@ export function PilotHistoryStream({
   heading?: string;
   canSendEmail?: boolean;
 }) {
+  const tCard = useTranslations('crm.contactCard.ui');
+  const tCommon = useTranslations('common');
+  const tFilters = useTranslations('crm.contactCard.filters');
   const [filter, setFilter] = useState<PilotHistoryFilter>(initialFilter);
   const [emailFocus, setEmailFocus] = useState<StreamEntry | null>(null);
 
@@ -496,7 +504,7 @@ export function PilotHistoryStream({
   return (
     <section className="crm-verify-detail__section" data-testid="contact-timeline">
       <h2>
-        {heading} <span>{filtered.length}</span>
+        {heading ?? tCard('historyHeading')} <span>{filtered.length}</span>
       </h2>
       <div className="crm-contact-card__history-filters" data-testid="contact-timeline-filters">
         {PILOT_HISTORY_FILTERS.map((item) => (
@@ -507,11 +515,11 @@ export function PilotHistoryStream({
             data-testid={`timeline-filter-${item.id}`}
             onClick={() => setFilter(item.id)}
           >
-            {item.label}
+            {tFilters(item.id)}
           </button>
         ))}
       </div>
-      {loading ? <p>Loading…</p> : null}
+      {loading ? <p>{tCommon('loading')}</p> : null}
       {groups.length ? (
         <div className="crm-verify-detail__timeline crm-stream">
           {groups.map((group) => (
@@ -559,7 +567,7 @@ export function PilotHistoryStream({
           ))}
         </div>
       ) : (
-        <p>Kayıt yok</p>
+        <p>{tCard('kc62afd2667')}</p>
       )}
       {emailFocus ? (
         <EmailDetail
@@ -574,9 +582,9 @@ export function PilotHistoryStream({
         <div className="crm-contact-card__wa-drawer" data-testid="whatsapp-conversation">
           <div className="crm-contact-card__wa-panel">
             <div className="crm-contact-card__wa-head">
-              <strong>WhatsApp konuşması</strong>
+              <strong>{tCard('ke6c1503260')}</strong>
               <Button type="button" size="sm" variant="secondary" onClick={() => setWhatsappFocus(null)}>
-                Kapat
+                {tCommon('close')}
               </Button>
             </div>
             <WhatsAppThread messages={conversation} locale={locale} documents={documents} testId="whatsapp-pilot-thread" />

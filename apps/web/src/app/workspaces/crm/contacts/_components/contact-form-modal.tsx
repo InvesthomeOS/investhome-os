@@ -6,6 +6,7 @@ import { useMutation } from '@tanstack/react-query';
 
 import { Button, Dialog, Input, Select, TextArea } from '@investhome/ui';
 
+import { uiError } from '@/lib/i18n/ui-error';
 import { checkDuplicates, createContact, type ContactInput } from '@/workspaces/crm/api/contacts';
 import { CRM_CONTACT_TYPES, type CrmContactType } from '@/workspaces/crm/types';
 import { useContactUiStore } from '@/workspaces/crm/stores/contact-ui-store';
@@ -33,6 +34,7 @@ function emptyForm(): ContactInput {
 
 export function ContactFormModal({ open, onClose, onSuccess }: ContactFormModalProps) {
   const t = useTranslations('crm.contacts.form');
+  const tCommon = useTranslations('common');
   const tTypes = useTranslations('crm.contactTypes');
   const { draftStorageKey } = useContactUiStore();
   const [form, setForm] = useState<ContactInput>(emptyForm());
@@ -65,7 +67,7 @@ export function ContactFormModal({ open, onClose, onSuccess }: ContactFormModalP
       sessionStorage.removeItem(draftStorageKey);
       onSuccess(result.contact.id);
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err: Error) => setError(uiError(err, tCommon('actionFailed'))),
   });
 
   const submit = async (skipDuplicateCheck = false) => {

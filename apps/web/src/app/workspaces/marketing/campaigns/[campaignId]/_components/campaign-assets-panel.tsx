@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useTranslations } from 'next-intl';
@@ -26,7 +28,7 @@ export function CampaignAssetsPanel({ campaignId }: CampaignAssetsPanelProps) {
     return (
       <ErrorState
         title={t('loadFailed')}
-        message={listQuery.error instanceof ApiError ? listQuery.error.message : t('loadFailed')}
+        message={uiError(listQuery.error, t('loadFailed'))}
       />
     );
   }

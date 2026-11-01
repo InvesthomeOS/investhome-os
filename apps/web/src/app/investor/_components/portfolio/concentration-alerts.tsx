@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { SectionHeader } from '../section-header';
 import type { PortfolioConcentrationAlert } from '../../_data/portfolio-types';
 import { formatInvestorCurrency } from '../../_data/mock-data';
@@ -17,14 +19,15 @@ const SEVERITY_CLASS: Record<PortfolioConcentrationAlert['severity'], string> = 
 };
 
 export function ConcentrationAlerts({ alerts, currency }: ConcentrationAlertsProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
     <section className="inv-portfolio-panel">
       <SectionHeader
-        title="Concentration Analysis"
-        subtitle="Automated alerts based on portfolio exposure thresholds"
+        title={tChrome('kca1ace90ac')}
+        subtitle={tChrome('k656e75e5f5')}
       />
       {alerts.length === 0 ? (
-        <p className="inv-portfolio-panel__empty">No concentration alerts — portfolio is within thresholds.</p>
+        <p className="inv-portfolio-panel__empty">{tChrome('k4b5138f00e')}</p>
       ) : (
         <ul className="inv-portfolio-alerts">
           {alerts.map((alert) => (
@@ -40,18 +43,18 @@ export function ConcentrationAlerts({ alerts, currency }: ConcentrationAlertsPro
               <p className="inv-portfolio-alert__desc">{alert.description}</p>
               <dl className="inv-portfolio-alert__meta">
                 <div>
-                  <dt>Exposure</dt>
+                  <dt>{tChrome('k862ee3b17a')}</dt>
                   <dd>
                     {formatInvestorCurrency(alert.exposure, currency)} ({alert.exposurePercent.toFixed(1)}%)
                   </dd>
                 </div>
                 <div>
-                  <dt>Threshold</dt>
+                  <dt>{tChrome('kc51f7b7227')}</dt>
                   <dd>{alert.threshold}%</dd>
                 </div>
               </dl>
               <p className="inv-portfolio-alert__action">
-                <strong>Suggested action:</strong> {alert.suggestedAction}
+                <strong>{tChrome('kff3bf4a012')}</strong> {alert.suggestedAction}
               </p>
             </li>
           ))}

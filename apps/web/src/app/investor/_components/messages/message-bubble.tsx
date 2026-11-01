@@ -1,5 +1,8 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
+import { investorChrome } from '../investor-labels';
 import { sanitizePlainText } from '../../_utils/sanitize-text';
 import type { Message, MessageReference } from '../../_data/messaging-types';
 import { formatInvestorDateTime } from '../../_data/mock-data';
@@ -16,13 +19,14 @@ function formatFileSize(bytes: number): string {
 }
 
 export function MessageBubble({ message, showAuthor = true }: MessageBubbleProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const isInvestor = message.author.isInvestor;
-  const body = sanitizePlainText(message.body, 5000);
+  const body = sanitizePlainText(investorChrome(tChrome, message.body), 5000);
 
   return (
     <article
       className={`inv-msg-bubble${isInvestor ? ' inv-msg-bubble--outgoing' : ' inv-msg-bubble--incoming'}${message.isPinned ? ' inv-msg-bubble--pinned' : ''}`}
-      aria-label={`Message from ${message.author.name}`}
+      aria-label={`${investorChrome(tChrome, 'Message from')} ${message.author.name}`}
     >
       {showAuthor && !isInvestor ? (
         <header className="inv-msg-bubble__header">
@@ -31,7 +35,7 @@ export function MessageBubble({ message, showAuthor = true }: MessageBubbleProps
           </span>
           <div>
             <strong className="inv-msg-bubble__author">{message.author.name}</strong>
-            <span className="inv-msg-bubble__role">{message.author.role}</span>
+            <span className="inv-msg-bubble__role">{investorChrome(tChrome, message.author.role)}</span>
           </div>
         </header>
       ) : null}
@@ -39,10 +43,10 @@ export function MessageBubble({ message, showAuthor = true }: MessageBubbleProps
       <div className="inv-msg-bubble__body">
         <p>{body}</p>
         {message.attachments.length > 0 ? (
-          <ul className="inv-msg-bubble__attachments" aria-label="Attachments">
+          <ul className="inv-msg-bubble__attachments" aria-label={tChrome('k6771ade6e8')}>
             {message.attachments.map((att) => (
               <li key={att.id}>
-                <button type="button" className="inv-msg-bubble__attachment" disabled title="Demo only">
+                <button type="button" className="inv-msg-bubble__attachment" disabled title={tChrome('kbb23f6a3e1')}>
                   <span aria-hidden="true">📎</span>
                   <span>{att.fileName}</span>
                   <span className="inv-msg-bubble__file-size">{formatFileSize(att.fileSizeBytes)}</span>
@@ -52,10 +56,10 @@ export function MessageBubble({ message, showAuthor = true }: MessageBubbleProps
           </ul>
         ) : null}
         {message.references.length > 0 ? (
-          <ul className="inv-msg-bubble__refs" aria-label="Related items">
+          <ul className="inv-msg-bubble__refs" aria-label={tChrome('k3567847da8')}>
             {message.references.map((ref: MessageReference) => (
               <li key={`${ref.type}-${ref.id}`}>
-                <span className="inv-msg-bubble__ref-badge">{ref.type}</span>
+                <span className="inv-msg-bubble__ref-badge">{investorChrome(tChrome, ref.type)}</span>
                 {ref.label}
               </li>
             ))}
@@ -65,9 +69,9 @@ export function MessageBubble({ message, showAuthor = true }: MessageBubbleProps
 
       <footer className="inv-msg-bubble__footer">
         <time dateTime={message.sentAt}>{formatInvestorDateTime(message.sentAt)}</time>
-        {message.isPinned ? <span className="inv-msg-bubble__pin" aria-label="Pinned">📌</span> : null}
+        {message.isPinned ? <span className="inv-msg-bubble__pin" aria-label={tChrome('kf9312169ef')}>📌</span> : null}
         {!message.isRead && !isInvestor ? (
-          <span className="inv-msg-bubble__unread" aria-label="Unread">Unread</span>
+          <span className="inv-msg-bubble__unread" aria-label={tChrome('k07b032b56f')}>{tChrome('k07b032b56f')}</span>
         ) : null}
       </footer>
     </article>

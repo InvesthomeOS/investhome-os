@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -13,25 +15,26 @@ export interface PreferredReturnSectionProps {
 }
 
 export function PreferredReturnSection({ distributions }: PreferredReturnSectionProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
   const tracking = computePreferredReturnByInvestment(distributions);
 
   return (
     <section className="inv-distributions__panel">
       <SectionHeader
-        title="Preferred Return Tracking"
-        subtitle="Cumulative preferred return accrued vs. paid by investment"
+        title={tChrome('k222c0eb86f')}
+        subtitle={tChrome('k2c098d4160')}
       />
 
       <div className="inv-distributions__table-wrap">
         <table className="inv-distributions__table">
           <thead>
             <tr>
-              <th scope="col">Investment</th>
-              <th scope="col">Rate</th>
-              <th scope="col">Accrued</th>
-              <th scope="col">Paid</th>
-              <th scope="col">Outstanding</th>
-              <th scope="col">Progress</th>
+              <th scope="col">{tChrome('k0401729c31')}</th>
+              <th scope="col">{tChrome('k3a9c736b31')}</th>
+              <th scope="col">{tChrome('k8bf7ef1ac9')}</th>
+              <th scope="col">{tChrome('kdc9d4584a5')}</th>
+              <th scope="col">{tChrome('kf8ee57ec86')}</th>
+              <th scope="col">{tChrome('k1b90271d66')}</th>
             </tr>
           </thead>
           <tbody>

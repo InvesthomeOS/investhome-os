@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { useMemo, useState } from 'react';
 
 import {
@@ -16,6 +18,7 @@ import { TaskKpiRow } from './task-kpi-row';
 import { TaskTable } from './task-table';
 
 export function TaskDashboard() {
+  const tChrome = useTranslations('investorPortal.chrome');
   const { tasks, tasksSummary } = useMessagingState();
   const [filters, setFilters] = useState<TaskFilterState>(DEFAULT_TASK_FILTERS);
   const [sort, setSort] = useState<TaskSortState>(DEFAULT_TASK_SORT);
@@ -31,7 +34,7 @@ export function TaskDashboard() {
 
   return (
     <div className="investor-page inv-tasks-page">
-      <h1 className="investor-page__title">Tasks</h1>
+      <h1 className="investor-page__title">{tChrome('k090ec5f560')}</h1>
       <p className="investor-page__subtitle">
         Action items and deadlines requiring your attention.
       </p>
@@ -39,7 +42,7 @@ export function TaskDashboard() {
       <TaskKpiRow summary={tasksSummary} />
 
       <SectionHeader
-        title="Task List"
+        title={tChrome('ka998e6e7d4')}
         subtitle={`${openCount} open · ${filtered.length} shown`}
       />
 

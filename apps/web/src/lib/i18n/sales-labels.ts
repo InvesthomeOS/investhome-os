@@ -64,7 +64,9 @@ export function useSalesLabels() {
       : errorKey;
     if (OPPORTUNITY_STAGES.includes(key as OpportunityStage)) return fallback;
     try {
-      return tErrors(key as never);
+      const translated = tErrors(key as never);
+      if (translated === key || translated.endsWith(`.${key}`)) return fallback;
+      return translated;
     } catch {
       return fallback;
     }

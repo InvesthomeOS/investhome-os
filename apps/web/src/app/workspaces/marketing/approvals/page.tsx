@@ -1,5 +1,7 @@
 'use client';
 
+import { uiError } from '@/lib/i18n/ui-error';
+
 import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 
@@ -25,7 +27,7 @@ export default function MarketingApprovalsPage() {
       {approvalsQuery.isLoading ? (
         <LoadingState label={t('loading')} />
       ) : approvalsQuery.isError ? (
-        <ErrorState title={t('loadFailed')} message={approvalsQuery.error instanceof ApiError ? approvalsQuery.error.message : t('loadFailed')} />
+        <ErrorState title={t('loadFailed')} message={uiError(approvalsQuery.error, t('loadFailed'))} />
       ) : approvalsQuery.data?.total === 0 ? (
         <EmptyState title={t('emptyTitle')} description={t('emptyDescription')} />
       ) : (

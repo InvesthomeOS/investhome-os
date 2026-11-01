@@ -1,13 +1,11 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
+import { investorChrome, investorLabel } from '@/app/investor/_components/investor-labels';
 import Link from 'next/link';
 import type { Route } from 'next';
 
-import {
-  DOCUMENT_CATEGORY_LABELS,
-  DOCUMENT_STATUS_LABELS,
-  DOCUMENT_TYPE_LABELS,
-} from '../../_data/documents';
 import type { InvestorDocument } from '../../_data/document-types';
 import { formatInvestorDate } from '../../_data/mock-data';
 
@@ -29,6 +27,8 @@ export function DocumentDetailHeader({
   onDownload,
   onArchive,
 }: DocumentDetailHeaderProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tLabels = useTranslations('investorPortal.labels');
   return (
     <header className="inv-docs__detail-header">
       <Link href={'/investor/documents' as Route} className="inv-docs__back-link">
@@ -49,9 +49,7 @@ export function DocumentDetailHeader({
             Download
           </button>
           {!doc.isArchived ? (
-            <button type="button" className="inv-docs__btn inv-docs__btn--ghost" onClick={onArchive}>
-              Archive
-            </button>
+            <button type="button" className="inv-docs__btn inv-docs__btn--ghost" onClick={onArchive}>{investorChrome(tChrome, "Archive")}</button>
           ) : null}
           {doc.signatureRequestId && doc.requiresSignature ? (
             <Link
@@ -65,34 +63,35 @@ export function DocumentDetailHeader({
       </div>
       <div className="inv-docs__detail-badges">
         <span className={`inv-docs__status inv-docs__status--${doc.status}`}>
-          {DOCUMENT_STATUS_LABELS[doc.status]}
+          {investorLabel(tLabels, 'documentStatus', doc.status)}
         </span>
-        <span className="inv-docs__detail-badge">{DOCUMENT_CATEGORY_LABELS[doc.category]}</span>
-        <span className="inv-docs__detail-badge">{DOCUMENT_TYPE_LABELS[doc.documentType]}</span>
-        {!doc.isRead ? <span className="inv-docs__detail-badge inv-docs__detail-badge--new">Unread</span> : null}
+        <span className="inv-docs__detail-badge">{investorLabel(tLabels, 'documentCategory', doc.category)}</span>
+        <span className="inv-docs__detail-badge">{investorLabel(tLabels, 'documentType', doc.documentType)}</span>
+        {!doc.isRead ? <span className="inv-docs__detail-badge inv-docs__detail-badge--new">{tChrome('k07b032b56f')}</span> : null}
       </div>
     </header>
   );
 }
 
 export function DocumentDetailMetadata({ document: doc }: { document: InvestorDocument }) {
+  const tChrome = useTranslations('investorPortal.chrome');
   return (
     <section className="inv-docs__detail-panel" aria-labelledby="doc-metadata-heading">
-      <h2 id="doc-metadata-heading">Metadata</h2>
+      <h2 id="doc-metadata-heading">{tChrome('k251edc0eb5')}</h2>
       <dl className="inv-docs__detail-dl">
-        <div><dt>File Name</dt><dd>{doc.fileName}</dd></div>
-        <div><dt>Format</dt><dd>{doc.fileType.toUpperCase()}</dd></div>
-        <div><dt>Size</dt><dd>{formatDocumentBytes(doc.fileSizeBytes)}</dd></div>
-        <div><dt>Pages</dt><dd>{doc.pageCount ?? '—'}</dd></div>
-        <div><dt>Uploaded</dt><dd>{formatDocDate(doc.uploadedAt)}</dd></div>
-        <div><dt>Updated</dt><dd>{formatDocDate(doc.updatedAt)}</dd></div>
-        <div><dt>Access Level</dt><dd>{doc.accessLevel}</dd></div>
-        {doc.taxYear ? <div><dt>Tax Year</dt><dd>{doc.taxYear}</dd></div> : null}
+        <div><dt>{tChrome('k2aabcfc266')}</dt><dd>{doc.fileName}</dd></div>
+        <div><dt>{tChrome('k041a5dec48')}</dt><dd>{doc.fileType.toUpperCase()}</dd></div>
+        <div><dt>{tChrome('kb7152342a2')}</dt><dd>{formatDocumentBytes(doc.fileSizeBytes)}</dd></div>
+        <div><dt>{tChrome('k600584c2d5')}</dt><dd>{doc.pageCount ?? '—'}</dd></div>
+        <div><dt>{tChrome('k80c494898a')}</dt><dd>{formatDocDate(doc.uploadedAt)}</dd></div>
+        <div><dt>{tChrome('kf2f8570ddd')}</dt><dd>{formatDocDate(doc.updatedAt)}</dd></div>
+        <div><dt>{tChrome('k2cdd20a60b')}</dt><dd>{doc.accessLevel}</dd></div>
+        {doc.taxYear ? <div><dt>{tChrome('kc80ec709bc')}</dt><dd>{doc.taxYear}</dd></div> : null}
         {doc.expiresAt ? (
-          <div><dt>Expires</dt><dd>{formatInvestorDate(doc.expiresAt)}</dd></div>
+          <div><dt>{tChrome('ka99be3da0c')}</dt><dd>{formatInvestorDate(doc.expiresAt)}</dd></div>
         ) : null}
         {doc.distributionStatementId ? (
-          <div><dt>Statement ID</dt><dd>{doc.distributionStatementId}</dd></div>
+          <div><dt>{tChrome('ka0ff2d9d9a')}</dt><dd>{doc.distributionStatementId}</dd></div>
         ) : null}
       </dl>
       <p className="inv-docs__detail-desc">{doc.description}</p>

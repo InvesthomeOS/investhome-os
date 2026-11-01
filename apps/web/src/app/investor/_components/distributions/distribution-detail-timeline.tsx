@@ -1,7 +1,9 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
+import { investorLabel } from '@/app/investor/_components/investor-labels';
 import type { Distribution } from '../../_data/distribution-types';
-import { PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from '../../_data/distributions';
 import { formatInvestorDate } from '../../_data/mock-data';
 import { SectionHeader } from '../section-header';
 
@@ -10,9 +12,11 @@ export interface DistributionDetailTimelineProps {
 }
 
 export function DistributionDetailTimeline({ distribution: d }: DistributionDetailTimelineProps) {
+  const tChrome = useTranslations('investorPortal.chrome');
+  const tLabels = useTranslations('investorPortal.labels');
   return (
     <section className="inv-distributions__panel">
-      <SectionHeader title="Payment Status Timeline" subtitle="Distribution lifecycle stages" />
+      <SectionHeader title={tChrome('k929027ea0c')} subtitle={tChrome('k62edab40f0')} />
 
       <ol className="inv-distributions__payment-timeline">
         {d.paymentTimeline.map((step) => (
@@ -26,7 +30,7 @@ export function DistributionDetailTimeline({ distribution: d }: DistributionDeta
               {step.date ? (
                 <time dateTime={step.date}>{formatInvestorDate(step.date)}</time>
               ) : (
-                <span className="inv-distributions__payment-pending">Pending</span>
+                <span className="inv-distributions__payment-pending">{tChrome('k96f608c16c')}</span>
               )}
             </div>
           </li>
@@ -35,19 +39,19 @@ export function DistributionDetailTimeline({ distribution: d }: DistributionDeta
 
       <dl className="inv-distributions__payment-meta">
         <div>
-          <dt>Payment Method</dt>
-          <dd>{PAYMENT_METHOD_LABELS[d.paymentMethod]}</dd>
+          <dt>{tChrome('kf383f6a23c')}</dt>
+          <dd>{investorLabel(tLabels, 'paymentMethod', d.paymentMethod)}</dd>
         </div>
         <div>
-          <dt>Payment Status</dt>
-          <dd>{PAYMENT_STATUS_LABELS[d.paymentStatus]}</dd>
+          <dt>{tChrome('k584e977886')}</dt>
+          <dd>{investorLabel(tLabels, 'paymentStatus', d.paymentStatus)}</dd>
         </div>
         <div>
-          <dt>Declared</dt>
+          <dt>{tChrome('k8df7435bef')}</dt>
           <dd>{formatInvestorDate(d.declaredDate)}</dd>
         </div>
         <div>
-          <dt>Record Date</dt>
+          <dt>{tChrome('ka05f5755ac')}</dt>
           <dd>{formatInvestorDate(d.recordDate)}</dd>
         </div>
       </dl>
