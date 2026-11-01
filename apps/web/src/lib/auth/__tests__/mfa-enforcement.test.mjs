@@ -155,7 +155,7 @@ describe('frontend cannot bypass enrollment', () => {
     assert.match(form, /onComplete\(user\)/);
     assert.match(form, /data-testid="mfa-enroll-required-recovery"/);
     const middleware = readFileSync(join(webSrc, 'middleware.ts'), 'utf8');
-    assert.match(middleware, /isValidSessionJwt\(session\)/);
+    assert.match(middleware, /authorizeStaffSession\(session\)/);
   });
 
   it('does not persist enrollment tokens or secrets in browser storage', () => {

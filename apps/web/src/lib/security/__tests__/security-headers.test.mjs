@@ -187,7 +187,7 @@ describe('security headers', () => {
 
   it('wires middleware nonce CSP and layout nonce without changing auth gates', () => {
     const middleware = read('src/middleware.ts');
-    assert.match(middleware, /isValidSessionJwt/);
+    assert.match(middleware, /authorizeStaffSession\(session\)/);
     assert.match(middleware, /pathname === '\/login'/);
     assert.match(middleware, /Content-Security-Policy|applySecurityHeaders/);
     assert.match(middleware, /x-nonce/);

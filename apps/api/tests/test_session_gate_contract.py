@@ -165,3 +165,17 @@ def test_wrong_password_and_failed_mfa_do_not_authenticate(auth_client: TestClie
     assert verified.status_code == 200, verified.text
     assert auth_client.get("/auth/me").status_code == 200
     assert auth_client.cookies.get("ih_session")
+
+
+def test_revoked_database_session_rejects_a_still_signed_token(auth_client: TestClient) -> None:
+    login = auth_client.post(
+        "/auth/login",
+        json={"email": SALES_EMAIL, "password": DEMO_PASSWORD},
+    )
+    assert login.status_code == 200
+    token = auth_client.cookies.get("ih_session")
+    assert isinstance(token, str) and token
+    assert decode_access_token(token) is not None
+    assert auth_client.post("/auth/logout").status_code == 200
+    auth_client.cookies.set("ih_session", token)
+    assert auth_client.get("/auth/me").status_code == 401

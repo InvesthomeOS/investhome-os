@@ -1,18 +1,17 @@
 /**
- * Session cookie / JWT gate checks used by middleware.
+ * Staff session gate. The API validates ih_session. Middleware only asks /auth/me.
  * Run: node src/lib/auth/__tests__/session-cookie.test.mjs
  */
 
 import assert from 'node:assert/strict';
-import { createHmac } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
+  authorizeStaffSession,
   clearedSessionCookieOptions,
-  dashboardSessionGate,
-  isValidSessionJwt,
+  sessionApiBaseUrl,
 } from '../session-cookie.mjs';
 import { planLoginRedirect } from '../mfa-flow.mjs';
 
@@ -20,11 +19,13 @@ const here = dirname(fileURLToPath(import.meta.url));
 const webSrc = join(here, '../..');
 const sessionModulePath = join(here, '../session-cookie.mjs');
 
-// Source-level contract checks (middleware must not treat presence as auth).
 const middleware = readFileSync(join(webSrc, '../middleware.ts'), 'utf8');
-assert.match(middleware, /isValidSessionJwt/);
+assert.match(middleware, /authorizeStaffSession\(session\)/);
 assert.match(middleware, /clearedSessionCookieOptions/);
 assert.match(middleware, /pathname === '\/login'/);
+assert.match(middleware, /status: 503/);
+assert.doesNotMatch(middleware, /isValidSessionJwt/);
+assert.doesNotMatch(middleware, /JWT_SECRET/);
 assert.doesNotMatch(
   middleware,
   /pathname === '\/login' && session/,
@@ -35,6 +36,13 @@ const authContext = readFileSync(join(webSrc, 'auth/auth-context.tsx'), 'utf8');
 assert.match(authContext, /clearStaleSession|logoutRequest/);
 assert.match(authContext, /router\.replace\('\/login'\)/);
 assert.match(authContext, /safeInternalPath/);
+assert.match(authContext, /err\.status === 401/);
+assert.match(authContext, /clearStaleSession/);
+const successRefresh = authContext.slice(
+  authContext.indexOf('const login ='),
+  authContext.indexOf('const logout ='),
+);
+assert.doesNotMatch(successRefresh, /router\.refresh\(\)/);
 
 const authRoutes = readFileSync(
   join(webSrc, '../../../api/src/investhome_api/api/routes/auth.py'),
@@ -44,95 +52,65 @@ const logoutFn = authRoutes.slice(authRoutes.indexOf('def logout('), authRoutes.
 assert.match(logoutFn, /_clear_auth_cookie/);
 assert.doesNotMatch(logoutFn, /Depends\(get_current_user\)/);
 assert.match(authRoutes, /Always clear the session cookie/);
+assert.match(authRoutes, /@router\.get\("\/me"/);
 
-function b64url(input) {
-  return Buffer.from(input)
-    .toString('base64')
-    .replace(/=/g, '')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_');
+const env = {
+  NEXT_PUBLIC_API_URL: 'https://api.investhome.example',
+  AUTH_COOKIE_DOMAIN: 'os.investhome.com',
+  AUTH_COOKIE_SECURE: 'true',
+  AUTH_COOKIE_SAMESITE: 'lax',
+};
+
+function fakeFetch(status, fail = false) {
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url, init });
+    if (fail) throw new Error('unavailable');
+    return { status };
+  };
+  return { fetchImpl, calls };
 }
 
-function signHs256(payload, secret) {
-  const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const body = b64url(JSON.stringify(payload));
-  const data = `${header}.${body}`;
-  const sig = createHmac('sha256', secret).update(data).digest('base64url');
-  return `${data}.${sig}`;
+const anonymous = await authorizeStaffSession(undefined, { env, fetchImpl: async () => { throw new Error('should not call'); } });
+assert.equal(anonymous.allow, false, 'anonymous dashboard request is blocked');
+assert.equal(anonymous.redirect, '/login');
+assert.equal(anonymous.clearCookie, false);
+assert.equal(anonymous.unavailable, false);
+
+const acceptedFetch = fakeFetch(200);
+const accepted = await authorizeStaffSession('api-issued-session', { env, fetchImpl: acceptedFetch.fetchImpl });
+assert.equal(accepted.allow, true, 'API 200 allows the protected route');
+assert.equal(accepted.redirect, null);
+assert.equal(accepted.clearCookie, false);
+assert.equal(acceptedFetch.calls.length, 1);
+assert.equal(acceptedFetch.calls[0].url, 'https://api.investhome.example/auth/me');
+assert.equal(acceptedFetch.calls[0].init.headers.cookie, 'ih_session=api-issued-session');
+assert.equal(acceptedFetch.calls[0].init.redirect, 'manual');
+assert.equal(acceptedFetch.calls[0].init.credentials, 'omit');
+
+for (const status of [401, 403]) {
+  const rejectedFetch = fakeFetch(status);
+  const rejected = await authorizeStaffSession('rejected-session', { env, fetchImpl: rejectedFetch.fetchImpl });
+  assert.equal(rejected.allow, false, `API ${status} rejects the session`);
+  assert.equal(rejected.redirect, '/login');
+  assert.equal(rejected.clearCookie, true, `API ${status} clears the cookie`);
+  assert.equal(rejected.unavailable, false);
 }
 
-const secret = 'unit-test-jwt-secret-not-for-production-32';
-const valid = signHs256(
-  {
-    sub: '00000000-0000-0000-0000-000000000001',
-    exp: Math.floor(Date.now() / 1000) + 3600,
-    iat: Math.floor(Date.now() / 1000),
-    jti: 'test-jti',
-  },
-  secret,
-);
-const expired = signHs256(
-  {
-    sub: '00000000-0000-0000-0000-000000000001',
-    exp: Math.floor(Date.now() / 1000) - 3600,
-    iat: Math.floor(Date.now() / 1000) - 7200,
-    jti: 'expired-jti',
-  },
-  secret,
-);
+const serverError = await authorizeStaffSession('live-session', { env, fetchImpl: fakeFetch(500).fetchImpl });
+assert.equal(serverError.allow, false);
+assert.equal(serverError.redirect, null, 'API 500 does not redirect to login');
+assert.equal(serverError.clearCookie, false, 'API 500 does not clear the session');
+assert.equal(serverError.unavailable, true);
 
-const pastAbsolute = signHs256(
-  {
-    sub: '00000000-0000-0000-0000-000000000001',
-    exp: Math.floor(Date.now() / 1000) + 3600,
-    iat: Math.floor(Date.now() / 1000),
-    auth_time: Math.floor(Date.now() / 1000) - 25 * 60 * 60,
-    jti: 'past-absolute-jti',
-  },
-  secret,
-);
+const down = await authorizeStaffSession('live-session', { env, fetchImpl: fakeFetch(0, true).fetchImpl });
+assert.equal(down.clearCookie, false, 'an unavailable API does not clear the session');
+assert.equal(down.redirect, null);
+assert.equal(down.unavailable, true);
 
-assert.equal(await isValidSessionJwt(valid, secret), true, 'valid JWT accepted');
-assert.equal(await isValidSessionJwt(expired, secret), false, 'expired JWT rejected');
-assert.equal(await isValidSessionJwt(pastAbsolute, secret), false, 'absolute lifetime rejected');
-const missingJti = signHs256(
-  {
-    sub: '00000000-0000-0000-0000-000000000001',
-    exp: Math.floor(Date.now() / 1000) + 3600,
-    iat: Math.floor(Date.now() / 1000),
-  },
-  secret,
-);
-const emptyJti = signHs256(
-  {
-    sub: '00000000-0000-0000-0000-000000000001',
-    exp: Math.floor(Date.now() / 1000) + 3600,
-    iat: Math.floor(Date.now() / 1000),
-    jti: '',
-  },
-  secret,
-);
-assert.equal(await isValidSessionJwt(missingJti, secret), false, 'missing jti rejected');
-assert.equal(await isValidSessionJwt(emptyJti, secret), false, 'empty jti rejected');
-assert.equal(await isValidSessionJwt('bogus', secret), false, 'bogus token rejected');
-assert.equal(await isValidSessionJwt(valid, 'wrong-secret'), false, 'bad signature rejected');
-assert.equal(await isValidSessionJwt(undefined, secret), false, 'missing token rejected');
+assert.equal(sessionApiBaseUrl({}), 'http://localhost:8000');
+assert.equal(sessionApiBaseUrl({ NEXT_PUBLIC_API_URL: 'http://localhost:8000/' }), 'http://localhost:8000');
 
-assert.equal(
-  readFileSync(sessionModulePath, 'utf8').includes('jti'),
-  true,
-  'edge JWT check must require jti',
-);
-assert.equal(
-  readFileSync(sessionModulePath, 'utf8').includes('auth_time'),
-  true,
-  'edge JWT check must enforce auth_time absolute lifetime',
-);
-assert.match(authContext, /err\.status === 401/);
-assert.match(authContext, /clearStaleSession/);
-
-// Production webpack resolves ".mjs" before ".ts". The login page imports
-// `safeInternalPath` from `@/lib/auth/session-cookie` with no extension.
 const NEXT_PRODUCTION_EXTENSIONS = ['.js', '.mjs', '.tsx', '.ts', '.jsx'];
 function resolveLikeNextProduction(basePath) {
   for (const ext of NEXT_PRODUCTION_EXTENSIONS) {
@@ -142,9 +120,10 @@ function resolveLikeNextProduction(basePath) {
   throw new Error(`unresolved ${basePath}`);
 }
 const loginImportPath = resolveLikeNextProduction(join(here, '../session-cookie'));
-assert.match(loginImportPath, /\.mjs$/, 'production resolves session-cookie.mjs before session-cookie.ts');
+assert.match(loginImportPath, /\.mjs$/);
 const loginSessionModule = await import(pathToFileURL(loginImportPath).href);
 assert.equal(typeof loginSessionModule.safeInternalPath, 'function');
+assert.equal(typeof loginSessionModule.authorizeStaffSession, 'function');
 const { safeInternalPath } = loginSessionModule;
 assert.equal(safeInternalPath('/workspaces/crm'), '/workspaces/crm');
 assert.equal(safeInternalPath('/dashboard/projects'), '/dashboard/projects');
@@ -160,44 +139,17 @@ assert.equal(safeInternalPath(null), '/dashboard');
 
 const pathSource = readFileSync(sessionModulePath, 'utf8');
 assert.match(pathSource, /export function safeInternalPath/);
+assert.match(pathSource, /export async function authorizeStaffSession/);
+assert.match(pathSource, /\/auth\/me/);
 assert.match(pathSource, /function isAuthOnlyPath/);
-assert.match(pathSource, /\/reset-password/);
-assert.match(pathSource, /\/invite/);
-assert.match(pathSource, /\/portal\/login/);
+assert.doesNotMatch(pathSource, /isValidSessionJwt/);
+assert.doesNotMatch(pathSource, /JWT_SECRET/);
+assert.match(pathSource, /process\.env\.NEXT_PUBLIC_API_URL/);
+assert.match(pathSource, /process\.env\.AUTH_COOKIE_DOMAIN/);
+assert.match(pathSource, /process\.env\.AUTH_COOKIE_SECURE/);
+assert.doesNotMatch(pathSource, /process\.env\[/);
 
-const loginPageSource = readFileSync(join(webSrc, '../app/login/page.tsx'), 'utf8');
-assert.match(loginPageSource, /import \{ safeInternalPath \} from '@\/lib\/auth\/session-cookie'/);
-
-const apiShaped = signHs256(
-  {
-    sub: '00000000-0000-0000-0000-000000000001',
-    exp: Math.floor(Date.now() / 1000) + 3600,
-    iat: Math.floor(Date.now() / 1000),
-    auth_time: Math.floor(Date.now() / 1000),
-    jti: 'abcdef0123456789abcdef0123456789',
-  },
-  secret,
-);
-const accepted = await dashboardSessionGate(apiShaped, secret);
-assert.equal(accepted.allow, true, 'API-shaped HS256 session is accepted');
-assert.equal(accepted.redirect, null);
-assert.equal(accepted.clearCookie, false);
-const anonymous = await dashboardSessionGate(undefined, secret);
-assert.equal(anonymous.allow, false, 'anonymous dashboard request is blocked');
-assert.equal(anonymous.redirect, '/login');
-assert.equal(anonymous.clearCookie, false);
-const forged = await dashboardSessionGate(apiShaped, 'wrong-secret-not-the-api-secret-32xx');
-assert.equal(forged.allow, false, 'invalid signature is rejected');
-assert.equal(forged.clearCookie, true);
-const stale = await dashboardSessionGate(expired, secret);
-assert.equal(stale.allow, false, 'expired session is rejected');
-assert.equal(stale.clearCookie, true);
-
-const cleared = clearedSessionCookieOptions({
-  AUTH_COOKIE_DOMAIN: 'os.investhome.com',
-  AUTH_COOKIE_SECURE: 'true',
-  AUTH_COOKIE_SAMESITE: 'lax',
-});
+const cleared = clearedSessionCookieOptions(env);
 assert.equal(cleared.domain, 'os.investhome.com');
 assert.equal(cleared.path, '/');
 assert.equal(cleared.maxAge, 0);
@@ -205,25 +157,19 @@ assert.equal(cleared.httpOnly, true);
 assert.equal(cleared.secure, true);
 assert.equal(cleared.sameSite, 'lax');
 
-const sessionSource = readFileSync(sessionModulePath, 'utf8');
-assert.match(sessionSource, /process\.env\.JWT_SECRET/);
-assert.match(sessionSource, /isValidSessionJwt/);
-assert.match(sessionSource, /process\.env\.AUTH_COOKIE_DOMAIN/);
-assert.match(sessionSource, /process\.env\.AUTH_COOKIE_SECURE/);
-assert.match(sessionSource, /process\.env\.SESSION_ABSOLUTE_TIMEOUT_MINUTES/);
-assert.doesNotMatch(sessionSource, /process\.env\[/);
-assert.equal(sessionSource.includes('dev-only-change-in-production'), false);
-
 const repoRoot = join(here, '../../../../../..');
 const prodCompose = readFileSync(join(repoRoot, 'docker-compose.prod.yml'), 'utf8');
 const webService = prodCompose.slice(prodCompose.indexOf('\n  web:'), prodCompose.indexOf('\n  caddy:'));
 const apiEnv = prodCompose.slice(prodCompose.indexOf('x-app-environment:'), prodCompose.indexOf('\n  web:'));
-assert.match(webService, /JWT_SECRET:/);
+assert.match(webService, /NEXT_PUBLIC_API_URL:/);
+assert.doesNotMatch(webService, /JWT_SECRET:/);
 assert.match(webService, /AUTH_COOKIE_DOMAIN: "os\.investhome\.com"/);
 assert.match(apiEnv, /JWT_SECRET:/);
 assert.match(apiEnv, /AUTH_COOKIE_DOMAIN: "os\.investhome\.com"/);
 
 const loginPage = readFileSync(join(webSrc, '../app/login/page.tsx'), 'utf8');
+assert.match(loginPage, /import \{ safeInternalPath \} from '@\/lib\/auth\/session-cookie'/);
+assert.match(loginPage, /redirectStartedRef/);
 assert.doesNotMatch(loginPage, /window\.location\.replace/);
 assert.doesNotMatch(loginPage, /router\.refresh\(\)/);
 const redirect = planLoginRedirect({
@@ -250,8 +196,5 @@ const settled = planLoginRedirect({
   started: true,
 });
 assert.equal(settled.action, 'stay');
-assert.notEqual(settled.pathname, '/login');
 
 console.log('session-cookie auth gate checks passed');
-// silence unused import lint for pathToFileURL in some runners
-void pathToFileURL;

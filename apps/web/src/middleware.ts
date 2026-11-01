@@ -3,8 +3,8 @@ import type { NextRequest } from 'next/server';
 
 import {
   SESSION_COOKIE,
+  authorizeStaffSession,
   clearedSessionCookieOptions,
-  isValidSessionJwt,
 } from '@/lib/auth/session-cookie';
 import {
   PORTAL_SESSION_COOKIE,
@@ -64,6 +64,18 @@ function clearPortalSessionCookie(response: NextResponse): void {
   response.cookies.set(PORTAL_SESSION_COOKIE, '', cookieClearOptions());
 }
 
+function authUnavailable(request: NextRequest): NextResponse {
+  const nonce = createCspNonce();
+  const response = new NextResponse('Authentication service is temporarily unavailable.', {
+    status: 503,
+    headers: {
+      'content-type': 'text/plain; charset=utf-8',
+      'cache-control': 'no-store',
+    },
+  });
+  return withSecurity(request, response, nonce);
+}
+
 function redirectToLogin(request: NextRequest, clearCookie: boolean): NextResponse {
   const loginUrl = new URL('/login', request.url);
   loginUrl.searchParams.set('next', request.nextUrl.pathname);
@@ -102,11 +114,10 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/company') ||
     pathname.startsWith('/workspaces')
   ) {
-    const valid = await isValidSessionJwt(session);
-    if (!valid) {
-      return redirectToLogin(request, Boolean(session));
-    }
-    return continueRequest(request);
+    const decision = await authorizeStaffSession(session);
+    if (decision.allow) return continueRequest(request);
+    if (decision.unavailable) return authUnavailable(request);
+    return redirectToLogin(request, decision.clearCookie);
   }
 
   if (pathname === '/portal' || pathname.startsWith('/portal/')) {
