@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -326,8 +327,9 @@ export function CrmMatchesLiveWorkspace({ initialId }: { initialId?: string }) {
   const queryClient = useQueryClient();
   const { openContact } = useContactCard();
 
-  const [searchDraft, setSearchDraft] = useState('');
-  const [search, setSearch] = useState('');
+  const initialQuery = useSearchParams().get('q') ?? '';
+  const [searchDraft, setSearchDraft] = useState(initialQuery);
+  const [search, setSearch] = useState(initialQuery);
   const [matchType, setMatchType] = useState('');
   const [status, setStatus] = useState('');
   const [source, setSource] = useState('');

@@ -740,3 +740,36 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+@media (max-width: 720px) {
+  .crm-ops-kpis {
+    grid-template-columns: 1fr;
+  }
+}
+
+.crm-task-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.crm-task-views a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1.5px solid color-mix(in srgb, #075b75 18%, #c8d5db);
+  border-radius: 10px;
+  background: #fff;
+  color: #6b7c84;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.crm-task-views a.is-active {
+  background: #075b75;
+  border-color: #075b75;
+  color: #fff;
+}

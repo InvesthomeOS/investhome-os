@@ -11,6 +11,7 @@ import { fetchContacts } from '@/workspaces/crm/api/contacts';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import { buildInvestorsPreview } from '@/workspaces/crm/lib/map-live-workspace';
 
+/** CRM investor identity consolidation required. Do not merge with /dashboard/investors here. */
 export function CrmInvestorsWorkspace({
   preview: previewProp,
   onOpenAi,

@@ -52,7 +52,7 @@ const CREATE_SOURCES = ['instagram', 'facebook', 'website', 'whatsapp', 'referra
 
 const COPY = {
   tr: {
-    title: 'Leadler',
+    title: 'Pipeline',
     subtitle: 'Operasyonel lead çalışma alanı. Canlı CRM verisi, demo kayıt yok.',
     kpis: 'Lead özeti',
     total: 'Toplam Lead',
@@ -75,6 +75,10 @@ const COPY = {
     addLead: '+ Lead Ekle',
     kanban: 'Kanban',
     list: 'Liste',
+    junkView: 'Junk / Lost',
+    messages: 'Mesajlar',
+    matches: 'Eşleşmeler',
+    agreements: 'Anlaşmalar',
     viewsAria: 'Görünüm',
     emptyTitle: 'Henüz lead yok',
     emptyBody: 'Mevcut tablo boş. Demo kayıt eklenmez. Yeni lead ile başlayın.',
@@ -143,7 +147,7 @@ const COPY = {
     taskTimeRequired: 'Saat gerekli',
   },
   en: {
-    title: 'Leads',
+    title: 'Pipeline',
     subtitle: 'Operational lead workspace. Live CRM data only, no demo rows.',
     kpis: 'Lead summary',
     total: 'Total leads',
@@ -166,6 +170,10 @@ const COPY = {
     addLead: '+ Add lead',
     kanban: 'Kanban',
     list: 'List',
+    junkView: 'Junk / Lost',
+    messages: 'Messages',
+    matches: 'Matches',
+    agreements: 'Agreements',
     viewsAria: 'View',
     emptyTitle: 'No leads yet',
     emptyBody: 'The board is empty. Demo rows are not seeded. Start with a new lead.',
@@ -847,6 +855,8 @@ export function CrmLeadsLiveWorkspace() {
           <button type="button" className={view === 'list' ? 'is-active' : ''} onClick={() => setView('list')}>
             {t.list}
           </button>
+          <Link href={'/workspaces/crm/junk' as Route}>{t.junkView}</Link>
+          <Link href={'/workspaces/crm/communication' as Route}>{t.messages}</Link>
         </div>
       </header>
 
@@ -1377,6 +1387,18 @@ export function CrmLeadsLiveWorkspace() {
             </div>
             {selected && drawer !== 'create' && drawer !== 'edit' ? (
               <div className="crm-ops-drawer__actions">
+                <Link
+                  href={`/workspaces/crm/matches?q=${encodeURIComponent(crmLeadDisplayName(selected))}` as Route}
+                  className="crm-ops-link"
+                >
+                  {t.matches}
+                </Link>
+                <Link
+                  href={`/workspaces/crm/agreements?q=${encodeURIComponent(crmLeadDisplayName(selected))}` as Route}
+                  className="crm-ops-link"
+                >
+                  {t.agreements}
+                </Link>
                 {canUpdate && drawer !== 'convert' && selected.stage !== 'converted' ? (
                   <Button type="button" size="sm" variant="secondary" data-testid="crm-leads-edit" onClick={() => openEdit(selected)}>
                     {t.edit}

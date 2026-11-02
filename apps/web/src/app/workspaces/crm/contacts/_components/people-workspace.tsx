@@ -26,6 +26,7 @@ import type { CrmContactSummary } from '@/workspaces/crm/types';
 import '../../agreements/_components/agreements-workspace.css';
 import './ds/contacts-ds.css';
 import './people-workspace.css';
+import { AgentsWorkspace } from '../../agents/_components/agents-workspace';
 import { PeopleQuickPreview, initials } from './people-quick-preview';
 
 const PAGE_SIZES = [10, 25, 50] as const;
@@ -78,6 +79,8 @@ const COPY = {
     otherSource: 'Diğer',
     customer: 'Müşteri',
     agent: 'Acenta',
+    agents: 'Acentalar',
+    audienceAria: 'Kişi kapsamı',
     agreement: 'Anlaşmalı',
     allOwners: 'Tüm sorumlular',
     allReasons: 'Tüm sebepler',
@@ -131,6 +134,8 @@ const COPY = {
     otherSource: 'Other',
     customer: 'Customer',
     agent: 'Agent',
+    agents: 'Agents',
+    audienceAria: 'People scope',
     agreement: 'Agreement',
     allOwners: 'All owners',
     allReasons: 'All reasons',
@@ -244,6 +249,7 @@ export function PeopleWorkspace() {
   const tagId = searchParams.get('tag') || '';
   const { openContact } = useContactCard();
   const { authLoading, canRead, canCreate } = useCrmAccess();
+  const audience = searchParams.get('audience') === 'agents' ? 'agents' : 'all';
   const tab = peopleTab(searchParams.get('tab'));
   const category = peopleCategory(searchParams.get('category'));
   const ownerId = searchParams.get('owner') ?? '';
@@ -368,6 +374,31 @@ export function PeopleWorkspace() {
         </div>
       </header>
 
+      <section className="crm-people-summary" aria-label={copy.audienceAria}>
+        <button
+          type="button"
+          className={audience === 'all' ? 'is-active' : undefined}
+          onClick={() => patch({ audience: null })}
+        >
+          <span>
+            <span>{copy.all}</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          className={audience === 'agents' ? 'is-active' : undefined}
+          onClick={() => patch({ audience: 'agents', page: null })}
+        >
+          <span>
+            <span>{copy.agents}</span>
+          </span>
+        </button>
+      </section>
+
+      {audience === 'agents' ? <AgentsWorkspace /> : null}
+
+      {audience === 'all' ? (
+      <>
       <div className="crm-people-sticky">
         <section className="crm-people-summary" aria-label={copy.title}>
           {TABS.map((item) => {
@@ -660,6 +691,8 @@ export function PeopleWorkspace() {
           />
         ) : null}
       </div>
+      </>
+      ) : null}
     </div>
   );
 }

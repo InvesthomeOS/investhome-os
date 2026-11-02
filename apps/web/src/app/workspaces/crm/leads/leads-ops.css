@@ -19,7 +19,7 @@
   --ops-line: color-mix(in srgb, #075b75 18%, #c8d5db);
   --ops-soft: #eef3f5;
   display: grid;
-  gap: 18px;
+  gap: 14px;
   max-width: none;
   min-width: 0;
 }
@@ -81,7 +81,7 @@
 }
 
 .crm-ops .ih-btn {
-  min-height: 34px;
+  min-height: 32px;
   border-radius: 10px;
   font-size: 13px;
   font-weight: 650;
@@ -120,12 +120,14 @@
   gap: 6px;
 }
 
-.crm-ops-views button {
+.crm-ops-views button,
+.crm-ops-views a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 34px;
-  padding: 0 12px;
+  min-height: 30px;
+  padding: 0 10px;
+  text-decoration: none;
   border: 1.5px solid var(--ops-line);
   border-radius: 10px;
   background: #fff;
@@ -135,7 +137,8 @@
   cursor: pointer;
 }
 
-.crm-ops-views button:hover {
+.crm-ops-views button:hover,
+.crm-ops-views a:hover {
   color: var(--ops-petrol);
   border-color: color-mix(in srgb, var(--ops-petrol) 40%, #c8d5db);
 }
@@ -154,13 +157,13 @@
 
 .crm-ops-kpis button {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-columns: 28px minmax(0, 1fr);
   grid-template-rows: auto auto;
   column-gap: 8px;
   align-items: center;
   min-width: 0;
-  min-height: 84px;
-  padding: 12px;
+  min-height: 0;
+  padding: 8px 12px;
   border: 1.5px solid var(--ops-line);
   border-radius: 16px;
   background: #fff;
@@ -180,9 +183,9 @@
   display: grid;
   place-items: center;
   grid-row: 1 / span 2;
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   background: #e7f3f6;
   color: var(--ops-petrol);
 }
@@ -262,9 +265,9 @@
 .crm-ops-filtercard {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 14px;
+  gap: 8px 10px;
   align-items: end;
-  padding: 14px 16px;
+  padding: 10px 12px;
   border: 1.5px solid var(--ops-line);
   border-radius: 16px;
   background: #fff;
@@ -289,8 +292,9 @@
   width: 100%;
 }
 
-.crm-ops-filtercard select {
-  min-height: 38px;
+.crm-ops-filtercard select,
+.crm-ops-filtercard input {
+  min-height: 32px;
   overflow: visible;
   text-overflow: clip;
 }
@@ -457,9 +461,9 @@
 
 .crm-ops-leadcard {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   width: 100%;
-  padding: 10px 11px;
+  padding: 8px;
   border: 1.5px solid var(--ops-line);
   border-radius: 12px;
   background: #fff;
@@ -538,8 +542,8 @@
 .crm-ops-badge {
   display: inline-flex;
   align-items: center;
-  min-height: 20px;
-  padding: 0 7px;
+  min-height: 18px;
+  padding: 0 6px;
   border-radius: 999px;
   background: #e7f3f6;
   color: var(--ops-petrol);
@@ -902,6 +906,16 @@
   border-top: 1px solid #e4ecef;
 }
 
+.crm-ops-drawer__actions .crm-ops-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1.5px solid var(--ops-line);
+  border-radius: 8px;
+  text-decoration: none;
+}
+
 .crm-ops-form {
   display: grid;
   gap: 12px;
@@ -966,5 +980,16 @@
 @media (max-width: 1100px) {
   .crm-ops-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .crm-ops-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .crm-ops-filtercard .ih-field,
+  .crm-ops-filtercard .ih-field:first-child {
+    flex-basis: 100%;
   }
 }

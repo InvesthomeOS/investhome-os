@@ -350,30 +350,20 @@ export type CrmNavItem = {
   labelKey: string;
 };
 
+/** Sidebar only. Hidden CRM routes stay mounted and are not deleted. */
 export const CRM_NAV_ITEMS: CrmNavItem[] = [
   { href: '/workspaces/crm/dashboard', labelKey: 'nav.dashboard' },
-  { href: '/workspaces/crm/leads', labelKey: 'nav.leads' },
-  { href: '/workspaces/crm/pipeline', labelKey: 'nav.pipeline' },
-  { href: '/workspaces/crm/matches', labelKey: 'nav.matches' },
+  { href: '/workspaces/crm/leads', labelKey: 'nav.pipeline' },
   { href: '/workspaces/crm/contacts', labelKey: 'nav.contacts' },
-  { href: '/workspaces/crm/junk', labelKey: 'nav.junk' },
-  { href: '/workspaces/crm/agents', labelKey: 'nav.agents' },
-  { href: '/workspaces/crm/agreements', labelKey: 'nav.agreements' },
   { href: '/workspaces/crm/companies', labelKey: 'nav.companies' },
-  { href: '/workspaces/crm/investors', labelKey: 'nav.investors' },
-  { href: '/workspaces/crm/relationships', labelKey: 'nav.relationships' },
-  { href: '/workspaces/crm/timeline', labelKey: 'nav.timeline' },
-  { href: '/workspaces/crm/activities', labelKey: 'nav.activities' },
   { href: '/workspaces/crm/tasks', labelKey: 'nav.tasks' },
-  { href: '/workspaces/crm/calendar', labelKey: 'nav.calendar' },
-  { href: '/workspaces/crm/notes', labelKey: 'nav.notes' },
-  { href: '/workspaces/crm/tags', labelKey: 'nav.tags' },
-  { href: '/workspaces/crm/communication', labelKey: 'nav.communication' },
-  { href: '/workspaces/crm/documents', labelKey: 'nav.documents' },
-  { href: '/workspaces/crm/reports', labelKey: 'nav.reports' },
-  { href: '/workspaces/crm/settings', labelKey: 'nav.settings' },
 ];
 
+/**
+ * CRM investor identity consolidation required.
+ * Contact type `investor` and `/dashboard/investors` stay separate in this phase.
+ * Do not merge the records or run a data migration here.
+ */
 export const CRM_CONTACT_TYPES: CrmContactType[] = [
   'investor',
   'prospect',
