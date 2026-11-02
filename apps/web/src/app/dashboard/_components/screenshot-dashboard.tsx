@@ -77,12 +77,8 @@ function ArrowLink({ href, children }: { href: Route; children: React.ReactNode 
 
 function BuildingThumbnail({ scene }: { scene: string }) {
   return (
-    <span className={`screenshot-dashboard__project-image is-${scene}`} aria-hidden="true">
-      <i />
-      <i />
-      <i />
-      <i />
-      <i />
+    <span className="screenshot-dashboard__project-image" data-scene={scene} aria-hidden="true">
+      <IhIcon name="projects" size={16} />
     </span>
   );
 }
@@ -185,7 +181,10 @@ export function ScreenshotDashboard() {
 
       <section className="screenshot-dashboard__row screenshot-dashboard__row--middle">
         <article className="screenshot-dashboard__card screenshot-dashboard__funnel">
-          <h2>{t('funnel.title')}</h2>
+          <header className="screenshot-dashboard__card-header">
+            <h2>{t('funnel.title')}</h2>
+            <ArrowLink href={'/dashboard/sales' as Route}>{t('funnel.viewAll')}</ArrowLink>
+          </header>
           <div className="screenshot-dashboard__funnel-list">
             {FUNNEL_DATA.map((stage) => (
               <div className="screenshot-dashboard__funnel-stage" key={stage.labelKey}>
@@ -198,11 +197,15 @@ export function ScreenshotDashboard() {
               </div>
             ))}
           </div>
-          <ArrowLink href={'/dashboard/sales' as Route}>{t('funnel.viewAll')}</ArrowLink>
         </article>
 
         <article className="screenshot-dashboard__card screenshot-dashboard__availability">
-          <h2>{t('availability.title')}</h2>
+          <header className="screenshot-dashboard__card-header">
+            <h2>{t('availability.title')}</h2>
+            <ArrowLink href={'/dashboard/inventory' as Route}>
+              {t('availability.viewInventory')}
+            </ArrowLink>
+          </header>
           <div className="screenshot-dashboard__availability-body">
             <div
               className="screenshot-dashboard__donut"
@@ -238,9 +241,6 @@ export function ScreenshotDashboard() {
               </li>
             </ul>
           </div>
-          <ArrowLink href={'/dashboard/inventory' as Route}>
-            {t('availability.viewInventory')}
-          </ArrowLink>
         </article>
       </section>
 
@@ -295,7 +295,6 @@ export function ScreenshotDashboard() {
               </article>
             ))}
           </div>
-          <ArrowLink href={'/dashboard/projects' as Route}>{t('projects.viewAll')}</ArrowLink>
         </article>
       </section>
 
