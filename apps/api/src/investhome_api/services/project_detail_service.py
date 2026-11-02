@@ -47,6 +47,7 @@ from investhome_api.schemas.project_detail import (
 from investhome_api.services import project_service as project_svc
 from investhome_api.services.activity_service import list_activities
 from investhome_api.services.document_service import build_list_query, enrich_response
+from investhome_api.services.operational_child_scope import operational_child_clause
 from investhome_api.services.permission_service import user_has_permission
 from investhome_api.services.project_alerts import compute_project_risk, generate_alerts_for_project
 from investhome_api.services.project_dashboard_service import _budget_maps, _inventory_counts
@@ -387,11 +388,21 @@ def get_financials(db: Session, user: User, project_id: UUID) -> ProjectFinancia
             margin = (project.projected_profit / project.projected_revenue) * Decimal("100")
 
     budgets = list(
-        db.scalars(select(ProjectBudget).where(ProjectBudget.project_id == project.id)).all()
+        db.scalars(
+            select(ProjectBudget).where(
+                ProjectBudget.project_id == project.id,
+                operational_child_clause(ProjectBudget.is_demo, ProjectBudget.project_id),
+            )
+        ).all()
     )
     commitments = list(
         db.scalars(
-            select(FundingCommitment).where(FundingCommitment.project_id == project.id)
+            select(FundingCommitment).where(
+                FundingCommitment.project_id == project.id,
+                operational_child_clause(
+                    FundingCommitment.is_demo, FundingCommitment.project_id
+                ),
+            )
         ).all()
     )
     warnings: list[str] = []
@@ -583,6 +594,7 @@ def get_units(
     query = select(InventoryAsset).where(
         InventoryAsset.project_id == project.id,
         InventoryAsset.archived_at.is_(None),
+        operational_child_clause(InventoryAsset.is_demo, InventoryAsset.project_id),
     )
     count_query = (
         select(func.count())
@@ -590,6 +602,7 @@ def get_units(
         .where(
             InventoryAsset.project_id == project.id,
             InventoryAsset.archived_at.is_(None),
+            operational_child_clause(InventoryAsset.is_demo, InventoryAsset.project_id),
         )
     )
 
@@ -821,6 +834,7 @@ def get_leasing(db: Session, user: User, project_id: UUID) -> ProjectLeasingResp
             .where(
                 InventoryAsset.project_id == project.id,
                 InventoryAsset.archived_at.is_(None),
+                operational_child_clause(InventoryAsset.is_demo, InventoryAsset.project_id),
             )
             .order_by(InventoryAsset.display_id.asc())
             .limit(100)
@@ -871,7 +885,10 @@ def get_investors(db: Session, user: User, project_id: UUID) -> ProjectInvestors
     rows = db.execute(
         select(FundingCommitment, Investor)
         .join(Investor, Investor.id == FundingCommitment.investor_id)
-        .where(FundingCommitment.project_id == project.id)
+        .where(
+            FundingCommitment.project_id == project.id,
+            operational_child_clause(FundingCommitment.is_demo, FundingCommitment.project_id),
+        )
         .order_by(FundingCommitment.updated_at.desc())
     ).all()
 

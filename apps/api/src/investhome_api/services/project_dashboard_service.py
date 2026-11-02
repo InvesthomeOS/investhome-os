@@ -48,6 +48,7 @@ from investhome_api.schemas.project_dashboard import (
     unavailable,
 )
 from investhome_api.services.activity_service import list_activities
+from investhome_api.services.operational_child_scope import operational_child_clause
 from investhome_api.services.permission_service import user_has_permission
 from investhome_api.services.project_alerts import compute_project_risk, generate_portfolio_alerts
 from investhome_api.services.project_milestones import derive_upcoming_milestones
@@ -209,7 +210,10 @@ def _budget_maps(
                     0,
                 ),
             )
-            .where(ProjectBudget.project_id.in_(legacy_ids))
+            .where(
+                ProjectBudget.project_id.in_(legacy_ids),
+                operational_child_clause(ProjectBudget.is_demo, ProjectBudget.project_id),
+            )
             .group_by(ProjectBudget.project_id)
         ).all()
         for project_id, paid, budget in rows:
@@ -283,6 +287,7 @@ def _inventory_counts(
         ).where(
             InventoryAsset.project_id.in_(project_ids),
             InventoryAsset.archived_at.is_(None),
+            operational_child_clause(InventoryAsset.is_demo, InventoryAsset.project_id),
         )
     ).one()
     return {

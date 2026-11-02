@@ -46,6 +46,7 @@ from investhome_api.schemas.project_executive_finance import (
     ProjectCashFlowSummaryResponse,
     ProjectExecutiveFinanceResponse,
 )
+from investhome_api.services.operational_child_scope import operational_child_clause
 from investhome_api.services.permission_service import user_has_permission
 from investhome_api.services.project_cost_service import (
     project_cost_totals,
@@ -109,6 +110,7 @@ def _funding_totals(db: Session, project_id: UUID) -> dict[str, Decimal | None]:
             select(FundingCommitment).where(
                 FundingCommitment.project_id == project_id,
                 FundingCommitment.status != CANCELLED_COMMITMENT,
+                operational_child_clause(FundingCommitment.is_demo, FundingCommitment.project_id),
             )
         ).all()
     )
@@ -140,7 +142,12 @@ def _funding_totals(db: Session, project_id: UUID) -> dict[str, Decimal | None]:
 
 def _legacy_paid(db: Session, project_id: UUID) -> Decimal | None:
     rows = list(
-        db.scalars(select(ProjectBudget).where(ProjectBudget.project_id == project_id)).all()
+        db.scalars(
+            select(ProjectBudget).where(
+                ProjectBudget.project_id == project_id,
+                operational_child_clause(ProjectBudget.is_demo, ProjectBudget.project_id),
+            )
+        ).all()
     )
     if not rows:
         return None
@@ -277,6 +284,7 @@ def _cash_events(
         select(FundingCommitment).where(
             FundingCommitment.project_id == project_id,
             FundingCommitment.status != CANCELLED_COMMITMENT,
+            operational_child_clause(FundingCommitment.is_demo, FundingCommitment.project_id),
         )
     ).all()
     for commitment in commitments:

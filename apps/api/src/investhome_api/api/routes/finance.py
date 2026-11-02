@@ -58,6 +58,7 @@ from investhome_api.services.finance_service import (
     compute_executive_summary,
     compute_finance_stats,
 )
+from investhome_api.services.operational_child_scope import operational_child_clause
 
 router = APIRouter(prefix="/finance", tags=["finance"])
 
@@ -455,7 +456,10 @@ def list_transactions(
     if date_to is not None:
         query = query.where(FinanceTransaction.transaction_date <= date_to)
     if project_id is not None:
-        query = query.where(FinanceTransaction.project_id == project_id)
+        query = query.where(
+            FinanceTransaction.project_id == project_id,
+            operational_child_clause(FinanceTransaction.is_demo, FinanceTransaction.project_id),
+        )
     if investor_id is not None:
         query = query.where(FinanceTransaction.investor_id == investor_id)
     if account_id is not None:
@@ -613,7 +617,10 @@ def list_budgets(
 
     query = select(ProjectBudget)
     if project_id is not None:
-        query = query.where(ProjectBudget.project_id == project_id)
+        query = query.where(
+            ProjectBudget.project_id == project_id,
+            operational_child_clause(ProjectBudget.is_demo, ProjectBudget.project_id),
+        )
 
     total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
     offset = (page - 1) * page_size
@@ -709,7 +716,10 @@ def list_commitments(
 
     query = select(FundingCommitment)
     if project_id is not None:
-        query = query.where(FundingCommitment.project_id == project_id)
+        query = query.where(
+            FundingCommitment.project_id == project_id,
+            operational_child_clause(FundingCommitment.is_demo, FundingCommitment.project_id),
+        )
     if investor_id is not None:
         query = query.where(FundingCommitment.investor_id == investor_id)
 

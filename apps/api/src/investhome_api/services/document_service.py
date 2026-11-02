@@ -34,6 +34,7 @@ from investhome_api.schemas.document import (
     DocumentTypeCount,
     DocumentWorkspaceOverviewResponse,
 )
+from investhome_api.services.operational_child_scope import operational_child_clause
 from investhome_api.services.permission_service import is_super_admin, user_has_permission
 from investhome_api.services.storage import get_storage_provider
 
@@ -353,6 +354,11 @@ def build_list_query(
     if project_id:
         query = query.where(Document.project_id == project_id)
         count_query = count_query.where(Document.project_id == project_id)
+        visible_documents = operational_child_clause(Document.is_demo, Document.project_id)
+        query = query.where(visible_documents)
+        count_query = count_query.where(
+            operational_child_clause(Document.is_demo, Document.project_id)
+        )
     if investor_id:
         query = query.where(Document.investor_id == investor_id)
         count_query = count_query.where(Document.investor_id == investor_id)
