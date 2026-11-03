@@ -53,6 +53,10 @@ export const SALES_STATUSES = [
 
 export type SalesStatus = (typeof SALES_STATUSES)[number];
 
+export const SALES_MARKETS = ['turkey', 'usa'] as const;
+
+export type SalesMarket = (typeof SALES_MARKETS)[number];
+
 export const CONSTRUCTION_STATUSES = [
   'planned',
   'foundation',
@@ -174,6 +178,7 @@ export interface InventoryAsset {
   availability_status: AvailabilityStatus;
   reservation_status: ReservationStatus;
   sales_status: SalesStatus;
+  sales_market: SalesMarket | null;
   construction_status: ConstructionStatus;
   closing_status: ClosingStatus;
   leasing_status: LeasingStatus;
@@ -245,6 +250,7 @@ export interface InventoryAssetFilters {
   availability_status?: AvailabilityStatus | '';
   reservation_status?: ReservationStatus | '';
   sales_status?: SalesStatus | '';
+  sales_market?: SalesMarket | '';
   construction_status?: ConstructionStatus | '';
   closing_status?: ClosingStatus | '';
   leasing_status?: LeasingStatus | '';
@@ -272,6 +278,7 @@ export interface InventoryAssetInput {
   total_area_sqft?: number | null;
   orientation?: string | null;
   view_type?: string | null;
+  sales_market?: SalesMarket | null;
   currency?: string;
   release_date?: string | null;
   delivery_date?: string | null;
@@ -371,6 +378,7 @@ function assetFilterQuery(filters: InventoryAssetFilters = {}): string {
     availability_status: filters.availability_status,
     reservation_status: filters.reservation_status,
     sales_status: filters.sales_status,
+    sales_market: filters.sales_market,
     construction_status: filters.construction_status,
     closing_status: filters.closing_status,
     leasing_status: filters.leasing_status,

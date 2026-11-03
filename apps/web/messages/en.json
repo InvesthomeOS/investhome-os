@@ -2173,6 +2173,21 @@
           "unavailable": "Unavailable",
           "hold": "Hold"
         },
+        "marketFilter": "Sales market",
+        "marketEmpty": "No units are allocated to this sales market.",
+        "marketUnallocated": "Not allocated",
+        "kpi": {
+          "total": "Total units",
+          "turkey": "Turkey",
+          "usa": "USA",
+          "sold": "Sold",
+          "available": "Available"
+        },
+        "markets": {
+          "all": "All",
+          "turkey": "Turkey",
+          "usa": "USA"
+        },
         "sales": {
           "not_for_sale": "Not for sale",
           "available_for_sale": "Available for sale",
@@ -5285,6 +5300,7 @@
       "availability": "Availability",
       "reservation": "Reservation",
       "sales": "Sales",
+      "salesMarket": "Sales market",
       "construction": "Construction",
       "closing": "Closing",
       "leasing": "Leasing",
@@ -5296,7 +5312,12 @@
       "allFloors": "All floors",
       "allTypes": "All types",
       "allUsage": "All usage",
-      "allStatuses": "All statuses"
+      "allStatuses": "All statuses",
+      "allMarkets": "All markets"
+    },
+    "markets": {
+      "turkey": "Turkey",
+      "usa": "USA"
     },
     "sort": {
       "updatedDesc": "Updated (newest)",
@@ -5312,6 +5333,7 @@
     },
     "columns": {
       "displayId": "Display ID",
+      "salesMarket": "Sales market",
       "systemCode": "System Code",
       "legalIdentifier": "Legal ID",
       "assetType": "Type",
@@ -5401,6 +5423,8 @@
       "project": "Project",
       "selectProject": "Select project",
       "displayId": "Display ID",
+      "salesMarket": "Sales market",
+      "marketUnallocated": "Not allocated",
       "legalIdentifier": "Legal identifier",
       "assetType": "Asset type",
       "usageType": "Usage type",
@@ -5472,7 +5496,8 @@
       "floor_building_mismatch": "Floor does not belong to the selected building.",
       "building_code_duplicate": "Building code already exists for this project.",
       "floor_identifier_duplicate": "Floor identifier already exists for this building.",
-      "display_id_duplicate": "Display ID already exists for this project.",
+      "display_id_duplicate": "Display ID already exists for this project and building.",
+      "system_code_duplicate": "System code already exists.",
       "system_code_immutable": "System code cannot be changed after creation.",
       "invalid_status_value": "Invalid status value for this category.",
       "status_unchanged": "Status is already set to this value.",

@@ -673,7 +673,7 @@ def _mark_duplicate_units(rows: list[PilotRow]) -> list[PilotRow]:
     for row in rows:
         if not row.display_id or row.status == "rejected" and "unit number" in " ".join(row.reasons).lower():
             continue
-        key = row.display_id.casefold()
+        key = f"{BUILDING_CODE.casefold()}::{row.display_id.casefold()}"
         if key in seen:
             row.status = "rejected"
             row.reasons.append(f"Duplicate unit number {row.display_id} (also on row {seen[key]}).")
@@ -907,8 +907,8 @@ def _ensure_asset(
     existing = db.scalar(
         select(InventoryAsset).where(
             InventoryAsset.project_id == project.id,
+            InventoryAsset.building_id == building.id,
             InventoryAsset.display_id == row.display_id,
-            InventoryAsset.archived_at.is_(None),
         )
     )
     if existing is not None:

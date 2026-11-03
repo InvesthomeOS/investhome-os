@@ -23,6 +23,7 @@ from investhome_api.models.inventory import (
     InventorySalesStatus,
     LeasingStatus,
     ReservationStatus,
+    SalesMarket,
     StatusCategory,
     StructureStatus,
     UsageType,
@@ -60,7 +61,9 @@ from investhome_api.services.inventory.status_service import (
 )
 from investhome_api.services.inventory.system_code_service import generate_system_code
 from investhome_api.services.inventory.validation_service import (
+    InventoryConflictError,
     InventoryValidationError,
+    assert_unique_display_identity,
     validate_asset_create,
     validate_asset_update,
 )
@@ -79,8 +82,16 @@ ASSET_ACTIVITY_FIELDS = [
     "floor_id",
     "availability_status",
     "sales_status",
+    "sales_market",
     "construction_status",
 ]
+
+
+def _integrity_detail(exc: IntegrityError) -> str:
+    message = str(getattr(exc, "orig", exc)).lower()
+    if "system_code" in message:
+        return "inventory.errors.system_code_duplicate"
+    return "inventory.errors.display_id_duplicate"
 
 
 def _validation_http_error(exc: InventoryValidationError) -> HTTPException:
@@ -526,6 +537,7 @@ def _apply_asset_filters(
     availability_status: AvailabilityStatus | None,
     reservation_status: ReservationStatus | None,
     sales_status: InventorySalesStatus | None,
+    sales_market: SalesMarket | None,
     construction_status: ConstructionStatus | None,
     closing_status: ClosingStatus | None,
     leasing_status: LeasingStatus | None,
@@ -550,6 +562,8 @@ def _apply_asset_filters(
         query = query.where(InventoryAsset.reservation_status == reservation_status)
     if sales_status is not None:
         query = query.where(InventoryAsset.sales_status == sales_status)
+    if sales_market is not None:
+        query = query.where(InventoryAsset.sales_market == sales_market)
     if construction_status is not None:
         query = query.where(InventoryAsset.construction_status == construction_status)
     if closing_status is not None:
@@ -589,6 +603,7 @@ def list_assets(
     availability_status: AvailabilityStatus | None = None,
     reservation_status: ReservationStatus | None = None,
     sales_status: InventorySalesStatus | None = None,
+    sales_market: SalesMarket | None = None,
     construction_status: ConstructionStatus | None = None,
     closing_status: ClosingStatus | None = None,
     leasing_status: LeasingStatus | None = None,
@@ -621,6 +636,7 @@ def list_assets(
         availability_status=availability_status,
         reservation_status=reservation_status,
         sales_status=sales_status,
+        sales_market=sales_market,
         construction_status=construction_status,
         closing_status=closing_status,
         leasing_status=leasing_status,
@@ -673,6 +689,16 @@ def create_asset(
     except InventoryValidationError as exc:
         raise _validation_http_error(exc) from exc
 
+    try:
+        assert_unique_display_identity(
+            db,
+            project_id=payload.project_id,
+            building_id=payload.building_id,
+            display_id=payload.display_id,
+        )
+    except InventoryConflictError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=exc.error_key) from exc
+
     system_code = generate_system_code(
         db,
         project_id=payload.project_id,
@@ -700,7 +726,7 @@ def create_asset(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="inventory.errors.display_id_duplicate",
+            detail=_integrity_detail(exc),
         ) from exc
     db.refresh(asset)
     return InventoryAssetResponse.model_validate(asset)
@@ -742,6 +768,18 @@ def update_asset(
     except InventoryValidationError as exc:
         raise _validation_http_error(exc) from exc
 
+    next_display_id = updates.get("display_id", asset.display_id)
+    try:
+        assert_unique_display_identity(
+            db,
+            project_id=asset.project_id,
+            building_id=building_id,
+            display_id=next_display_id,
+            exclude_asset_id=asset.id,
+        )
+    except InventoryConflictError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=exc.error_key) from exc
+
     before = snapshot_entity(asset, ASSET_ACTIVITY_FIELDS)
     for field, value in updates.items():
         setattr(asset, field, value)
@@ -766,7 +804,7 @@ def update_asset(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="inventory.errors.display_id_duplicate",
+            detail=_integrity_detail(exc),
         ) from exc
     db.refresh(asset)
     return InventoryAssetResponse.model_validate(asset)

@@ -15,6 +15,7 @@ from investhome_api.models.inventory import (
     InventorySalesStatus,
     LeasingStatus,
     ReservationStatus,
+    SalesMarket,
     StatusCategory,
     StructureStatus,
     UsageType,
@@ -124,6 +125,7 @@ class InventoryAssetBase(BaseModel):
     availability_status: AvailabilityStatus = AvailabilityStatus.NOT_RELEASED
     reservation_status: ReservationStatus = ReservationStatus.NONE
     sales_status: InventorySalesStatus = InventorySalesStatus.NOT_FOR_SALE
+    sales_market: SalesMarket | None = None
     construction_status: ConstructionStatus = ConstructionStatus.PLANNED
     closing_status: ClosingStatus = ClosingStatus.NOT_STARTED
     leasing_status: LeasingStatus = LeasingStatus.NOT_APPLICABLE
@@ -154,6 +156,7 @@ class InventoryAssetUpdate(BaseModel):
     orientation: str | None = Field(default=None, max_length=20)
     view_type: str | None = Field(default=None, max_length=80)
     currency: str | None = Field(default=None, min_length=3, max_length=3)
+    sales_market: SalesMarket | None = None
     release_date: date | None = None
     delivery_date: date | None = None
     description: str | None = None

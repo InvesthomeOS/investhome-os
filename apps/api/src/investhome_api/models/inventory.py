@@ -174,6 +174,13 @@ class ClosingStatus(str, enum.Enum):
     FALLEN_THROUGH = "fallen_through"
 
 
+class SalesMarket(str, enum.Enum):
+    """Sales allocation. Stored as a string so new markets do not need a PostgreSQL enum."""
+
+    TURKEY = "turkey"
+    USA = "usa"
+
+
 class LeasingStatus(str, enum.Enum):
     NOT_APPLICABLE = "not_applicable"
     VACANT = "vacant"
@@ -277,13 +284,20 @@ class Floor(Base):
 class InventoryAsset(Base):
     __tablename__ = "inventory_assets"
     __table_args__ = (
-        UniqueConstraint("project_id", "display_id", name="uq_inventory_assets_project_display_id"),
+        UniqueConstraint(
+            "project_id",
+            "building_id",
+            "display_id",
+            name="uq_inventory_assets_project_building_display",
+            postgresql_nulls_not_distinct=True,
+        ),
         Index("ix_inventory_assets_project_id", "project_id"),
         Index("ix_inventory_assets_building_id", "building_id"),
         Index("ix_inventory_assets_floor_id", "floor_id"),
         Index("ix_inventory_assets_system_code", "system_code", unique=True),
         Index("ix_inventory_assets_availability_status", "availability_status"),
         Index("ix_inventory_assets_sales_status", "sales_status"),
+        Index("ix_inventory_assets_sales_market", "sales_market"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -335,6 +349,10 @@ class InventoryAsset(Base):
         Enum(InventorySalesStatus, native_enum=False, length=50),
         nullable=False,
         default=InventorySalesStatus.NOT_FOR_SALE,
+    )
+    sales_market: Mapped[SalesMarket | None] = mapped_column(
+        Enum(SalesMarket, native_enum=False, length=20),
+        nullable=True,
     )
     construction_status: Mapped[ConstructionStatus] = mapped_column(
         Enum(ConstructionStatus, native_enum=False, length=50),

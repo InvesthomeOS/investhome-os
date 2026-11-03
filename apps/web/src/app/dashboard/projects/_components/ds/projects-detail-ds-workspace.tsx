@@ -42,6 +42,7 @@ import {
   type Project,
   type ProjectActivityItem,
   type ProjectAlertItem,
+  type MetricValue,
   type ProjectFinancialsResponse,
 } from '@/lib/api/projects';
 import { useProjectLabels } from '@/lib/i18n/project-labels';
@@ -939,6 +940,8 @@ function ConstructionTab({
 type LiveUnit = {
   id?: string;
   unit?: string;
+  unit_label?: string | null;
+  building_label?: string | null;
   floor_label?: string | null;
   floor_number?: number | null;
   bedrooms?: string | number | null;
@@ -946,9 +949,25 @@ type LiveUnit = {
   square_feet?: string | number | null;
   availability_status?: string | null;
   sales_status?: string | null;
+  sales_market?: string | null;
   price?: string | number | null;
   price_available?: boolean;
 };
+
+type SalesMarketFilter = 'all' | 'turkey' | 'usa';
+
+function metricCount(summary: Record<string, MetricValue> | null, key: string): number | null {
+  const metric = summary?.[key];
+  if (!metric || metric.available === false || metric.value == null) return null;
+  const value = typeof metric.value === 'number' ? metric.value : Number(metric.value);
+  return Number.isFinite(value) ? value : null;
+}
+
+function unitHeading(unit: LiveUnit): string {
+  if (unit.unit_label) return unit.unit_label;
+  if (unit.building_label && unit.unit) return `${unit.building_label} · ${unit.unit}`;
+  return unit.unit || '—';
+}
 
 function unitText(value: string | number | null | undefined): string {
   if (value === null || value === undefined || value === '') return '—';
@@ -985,6 +1004,8 @@ function UnitsTab({
   locale: string;
 }) {
   const [units, setUnits] = useState<LiveUnit[]>([]);
+  const [summary, setSummary] = useState<Record<string, MetricValue> | null>(null);
+  const [market, setMarket] = useState<SalesMarketFilter>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -994,26 +1015,26 @@ function UnitsTab({
       setLoading(true);
       setError(null);
       try {
-        const first = await fetchProjectUnits(projectId, {
-          page: 1,
+        const params = {
           page_size: 100,
-          sort_by: 'display_id',
-          sort_order: 'asc',
-        });
+          sort_by: 'display_id' as const,
+          sort_order: 'asc' as const,
+          ...(market === 'all' ? {} : { sales_market: market }),
+        };
+        const first = await fetchProjectUnits(projectId, { ...params, page: 1 });
         let items = [...first.items] as LiveUnit[];
         for (let page = 2; page <= first.pages; page += 1) {
-          const next = await fetchProjectUnits(projectId, {
-            page,
-            page_size: 100,
-            sort_by: 'display_id',
-            sort_order: 'asc',
-          });
+          const next = await fetchProjectUnits(projectId, { ...params, page });
           items = items.concat(next.items as LiveUnit[]);
         }
-        if (!cancelled) setUnits(items);
+        if (!cancelled) {
+          setUnits(items);
+          setSummary(first.summary);
+        }
       } catch {
         if (!cancelled) {
           setUnits([]);
+          setSummary(null);
           setError(tD('units.loadError'));
         }
       } finally {
@@ -1024,24 +1045,73 @@ function UnitsTab({
     return () => {
       cancelled = true;
     };
-  }, [projectId, tD]);
+  }, [market, projectId, tD]);
+
+  const counts = {
+    total: metricCount(summary, 'total_physical_units'),
+    turkey: metricCount(summary, 'turkey_allocation'),
+    usa: metricCount(summary, 'usa_allocation'),
+    sold: metricCount(summary, 'sold_units'),
+    available: metricCount(summary, 'available_for_sale'),
+  };
+  const physicalTotal = counts.total ?? 0;
 
   return (
     <section className="proj-detail-ds__units" aria-label={tD('units.aria')} data-testid="project-units-live">
+      <div className="proj-detail-ds__unit-toolbar">
+        <div className="proj-detail-ds__unit-stats" data-testid="project-unit-counts">
+          {(
+            [
+              ['total', counts.total],
+              ['turkey', counts.turkey],
+              ['usa', counts.usa],
+              ['sold', counts.sold],
+              ['available', counts.available],
+            ] as const
+          ).map(([key, value]) => (
+            <div key={key} className="proj-detail-ds__stat">
+              <span>{tD(`units.kpi.${key}`)}</span>
+              <strong>{value == null ? '—' : value}</strong>
+            </div>
+          ))}
+        </div>
+        <div className="proj-detail-ds__work-views" role="tablist" aria-label={tD('units.marketFilter')}>
+          {(['all', 'turkey', 'usa'] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              className="proj-detail-ds__work-view"
+              aria-pressed={market === value}
+              data-testid={`project-units-market-${value}`}
+              onClick={() => setMarket(value)}
+            >
+              {tD(`units.markets.${value}`)}
+            </button>
+          ))}
+        </div>
+      </div>
       {loading ? <p className="proj-detail-ds__quiet">{tD('units.loading')}</p> : null}
       {error ? <p className="proj-detail-ds__banner">{error}</p> : null}
       {!loading && !error && units.length === 0 ? (
-        <p className="proj-detail-ds__quiet">{tD('empty.short')}</p>
+        <p className="proj-detail-ds__quiet">
+          {physicalTotal > 0 ? tD('units.marketEmpty') : tD('empty.short')}
+        </p>
       ) : null}
       {units.map((unit) => {
         const salesStatus = unit.sales_status || 'not_for_sale';
         const availability = unit.availability_status || 'not_released';
         const floor = unit.floor_label || (unit.floor_number != null ? String(unit.floor_number) : '—');
+        const marketLabel = unit.sales_market
+          ? tD(`units.markets.${unit.sales_market}`)
+          : tD('units.marketUnallocated');
         return (
           <article key={unit.id || unit.unit} className="proj-detail-ds__unit">
             <div className="proj-detail-ds__unit-top">
-              <span className="proj-detail-ds__unit-code">{unit.unit || '—'}</span>
-              <StatusChip tone={salesTone(salesStatus)}>{tD(`units.sales.${salesStatus}`)}</StatusChip>
+              <span className="proj-detail-ds__unit-code">{unitHeading(unit)}</span>
+              <span className="proj-detail-ds__unit-chips">
+                <StatusChip tone="default">{marketLabel}</StatusChip>
+                <StatusChip tone={salesTone(salesStatus)}>{tD(`units.sales.${salesStatus}`)}</StatusChip>
+              </span>
             </div>
             <div className="proj-detail-ds__unit-meta">
               <div>

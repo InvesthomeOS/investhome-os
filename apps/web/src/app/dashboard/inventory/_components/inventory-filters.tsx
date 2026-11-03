@@ -130,6 +130,7 @@ export function InventoryFilters({
       chips.push({ key: 'reservation_status', label: filters.reservation_status });
     }
     if (filters.sales_status) chips.push({ key: 'sales_status', label: filters.sales_status });
+    if (filters.sales_market) chips.push({ key: 'sales_market', label: filters.sales_market });
     if (filters.construction_status) {
       chips.push({ key: 'construction_status', label: filters.construction_status });
     }
@@ -150,6 +151,7 @@ export function InventoryFilters({
     else if (key === 'availability_status') next.availability_status = '';
     else if (key === 'reservation_status') next.reservation_status = '';
     else if (key === 'sales_status') next.sales_status = '';
+    else if (key === 'sales_market') next.sales_market = '';
     else if (key === 'construction_status') next.construction_status = '';
     else if (key === 'closing_status') next.closing_status = '';
     else if (key === 'leasing_status') next.leasing_status = '';
@@ -290,6 +292,22 @@ export function InventoryFilters({
           }
         >
           {renderOptions([{ value: '', label: t('filters.allStatuses') }, ...salesOptions])}
+        </Select>
+        <Select
+          label={t('filters.salesMarket')}
+          value={filters.sales_market ?? ''}
+          onChange={(event) =>
+            onChange({
+              ...filters,
+              sales_market: event.target.value as InventoryFilterState['sales_market'],
+            })
+          }
+        >
+          {renderOptions([
+            { value: '', label: t('filters.allMarkets') },
+            { value: 'turkey', label: t('markets.turkey') },
+            { value: 'usa', label: t('markets.usa') },
+          ])}
         </Select>
         <Select
           label={t('filters.construction')}

@@ -83,6 +83,7 @@ const EMPTY_FILTERS: InventoryFilterState = {
   availability_status: '',
   reservation_status: '',
   sales_status: '',
+  sales_market: '',
   construction_status: '',
   closing_status: '',
   leasing_status: '',
@@ -109,6 +110,7 @@ function kpiToFilter(key: InventoryKpiKey): Partial<InventoryFilterState> {
     availability_status: '' as const,
     reservation_status: '' as const,
     sales_status: '' as const,
+    sales_market: '' as const,
     closing_status: '' as const,
     leasing_status: '' as const,
   };

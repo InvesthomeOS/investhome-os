@@ -860,8 +860,28 @@
   min-width: 0;
 }
 
-.proj-detail-ds__units > .proj-detail-ds__banner {
+.proj-detail-ds__units > .proj-detail-ds__banner,
+.proj-detail-ds__units > .proj-detail-ds__quiet,
+.proj-detail-ds__unit-toolbar {
   grid-column: 1 / -1;
+}
+
+.proj-detail-ds__unit-toolbar {
+  display: grid;
+  gap: 10px;
+}
+
+.proj-detail-ds__unit-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.proj-detail-ds__unit-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
 }
 
 .proj-detail-ds__unit {
@@ -893,9 +913,11 @@
 }
 
 .proj-detail-ds__unit-code {
+  min-width: 0;
   color: #152a36;
   font-size: var(--shot-font-heading);
   font-weight: 750;
+  overflow-wrap: anywhere;
 }
 
 .proj-detail-ds__unit-meta {
@@ -1355,7 +1377,8 @@ button.proj-detail-ds__doc-cat {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
   }
 
-  .proj-detail-ds__hero-stats {
+  .proj-detail-ds__hero-stats,
+  .proj-detail-ds__unit-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1435,7 +1458,8 @@ button.proj-detail-ds__doc-cat {
   .proj-detail-ds__reports,
   .proj-detail-ds__ai-grid,
   .proj-detail-ds__fin-grid,
-  .proj-detail-ds__hero-stats {
+  .proj-detail-ds__hero-stats,
+  .proj-detail-ds__unit-stats {
     grid-template-columns: 1fr;
   }
 

@@ -8,12 +8,19 @@ from math import ceil
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session
 
 from investhome_api.models.activity import ActivityEntityType
 from investhome_api.models.finance import FundingCommitment, ProjectBudget
-from investhome_api.models.inventory import Floor, InventoryAsset
+from investhome_api.models.inventory import (
+    AvailabilityStatus,
+    Building,
+    Floor,
+    InventoryAsset,
+    InventorySalesStatus,
+    SalesMarket,
+)
 from investhome_api.models.investor import Investor
 from investhome_api.models.project import Project, ProjectStatus
 from investhome_api.models.project_team import ProjectTeamMember, ProjectTeamMemberStatus
@@ -571,6 +578,41 @@ def get_construction(db: Session, user: User, project_id: UUID) -> ProjectConstr
     )
 
 
+def _sales_allocation_counts(db: Session, project_id: UUID) -> dict[str, int]:
+    """Count real inventory rows. Sold and available use the sales pair, not closing."""
+    row = db.execute(
+        select(
+            func.count(InventoryAsset.id),
+            func.sum(case((InventoryAsset.sales_market == SalesMarket.TURKEY, 1), else_=0)),
+            func.sum(case((InventoryAsset.sales_market == SalesMarket.USA, 1), else_=0)),
+            func.sum(case((InventoryAsset.sales_status == InventorySalesStatus.SOLD, 1), else_=0)),
+            func.sum(
+                case(
+                    (
+                        and_(
+                            InventoryAsset.sales_status == InventorySalesStatus.AVAILABLE_FOR_SALE,
+                            InventoryAsset.availability_status == AvailabilityStatus.AVAILABLE,
+                        ),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ),
+        ).where(
+            InventoryAsset.project_id == project_id,
+            InventoryAsset.archived_at.is_(None),
+            operational_child_clause(InventoryAsset.is_demo, InventoryAsset.project_id),
+        )
+    ).one()
+    return {
+        "total_physical_units": int(row[0] or 0),
+        "turkey_allocation": int(row[1] or 0),
+        "usa_allocation": int(row[2] or 0),
+        "sold_units": int(row[3] or 0),
+        "available_for_sale": int(row[4] or 0),
+    }
+
+
 def get_units(
     db: Session,
     user: User,
@@ -579,6 +621,7 @@ def get_units(
     search: str | None = None,
     availability_status: str | None = None,
     sales_status: str | None = None,
+    sales_market: str | None = None,
     leasing_status: str | None = None,
     asset_type: str | None = None,
     page: int = 1,
@@ -621,6 +664,9 @@ def get_units(
     if sales_status:
         query = query.where(InventoryAsset.sales_status == sales_status)
         count_query = count_query.where(InventoryAsset.sales_status == sales_status)
+    if sales_market:
+        query = query.where(InventoryAsset.sales_market == sales_market)
+        count_query = count_query.where(InventoryAsset.sales_market == sales_market)
     if leasing_status:
         query = query.where(InventoryAsset.leasing_status == leasing_status)
         count_query = count_query.where(InventoryAsset.leasing_status == leasing_status)
@@ -649,6 +695,14 @@ def get_units(
             floor.id: floor
             for floor in db.scalars(select(Floor).where(Floor.id.in_(floor_ids))).all()
         }
+    building_ids = {asset.building_id for asset in assets if asset.building_id is not None}
+    buildings_by_id: dict[UUID, Building] = {}
+    if building_ids:
+        buildings_by_id = {
+            building.id: building
+            for building in db.scalars(select(Building).where(Building.id.in_(building_ids))).all()
+        }
+    allocation = _sales_allocation_counts(db, project.id)
 
     def inv_metric(key: str):
         if inventory["total_assets"] == 0:
@@ -658,10 +712,20 @@ def get_units(
     items = []
     for asset in assets:
         floor = floors_by_id.get(asset.floor_id) if asset.floor_id else None
+        building = buildings_by_id.get(asset.building_id) if asset.building_id else None
+        building_label = building.name if building else None
+        unit_label = (
+            f"{building_label} · {asset.display_id}" if building_label else asset.display_id
+        )
+        market = asset.sales_market.value if asset.sales_market else None
         items.append(
             {
                 "id": str(asset.id),
                 "unit": asset.display_id,
+                "unit_label": unit_label,
+                "building_id": str(asset.building_id) if asset.building_id else None,
+                "building_code": building.code if building else None,
+                "building_label": building_label,
                 "unit_code": asset.system_code,
                 "type": asset.asset_type.value if asset.asset_type else None,
                 "bedrooms": asset.bedrooms,
@@ -672,6 +736,7 @@ def get_units(
                 "square_feet": asset.total_area_sqft or asset.interior_area_sqft,
                 "availability_status": asset.availability_status.value,
                 "sales_status": asset.sales_status.value,
+                "sales_market": market,
                 "leasing_status": asset.leasing_status.value,
                 "reservation_status": asset.reservation_status.value,
                 "price": asset.list_price if can_view_list_price else None,
@@ -691,10 +756,15 @@ def get_units(
     return ProjectUnitsResponse(
         summary={
             "total_units": metric(inventory["total_assets"]),
+            "total_physical_units": metric(allocation["total_physical_units"]),
+            "turkey_allocation": metric(allocation["turkey_allocation"]),
+            "usa_allocation": metric(allocation["usa_allocation"]),
             "available": inv_metric("available"),
+            "available_for_sale": metric(allocation["available_for_sale"]),
             "reserved": inv_metric("reserved"),
             "under_contract": inv_metric("under_contract"),
             "sold": inv_metric("sold"),
+            "sold_units": metric(allocation["sold_units"]),
             "occupied": inv_metric("leased"),
             "vacant": inv_metric("vacant"),
         },

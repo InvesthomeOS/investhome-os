@@ -2173,6 +2173,21 @@
           "unavailable": "Müsait değil",
           "hold": "Hold"
         },
+        "marketFilter": "Satış pazarı",
+        "marketEmpty": "Bu satış pazarına ayrılmış ünite yok.",
+        "marketUnallocated": "Henüz ayrılmadı",
+        "kpi": {
+          "total": "Toplam ünite",
+          "turkey": "Türkiye",
+          "usa": "ABD",
+          "sold": "Satıldı",
+          "available": "Müsait"
+        },
+        "markets": {
+          "all": "Tümü",
+          "turkey": "Türkiye",
+          "usa": "ABD"
+        },
         "sales": {
           "not_for_sale": "Satışta değil",
           "available_for_sale": "Satışa hazır",
@@ -5285,6 +5300,7 @@
       "availability": "Müsaitlik",
       "reservation": "Rezervasyon",
       "sales": "Satış",
+      "salesMarket": "Satış pazarı",
       "construction": "İnşaat",
       "closing": "Kapanış",
       "leasing": "Kiralama",
@@ -5296,7 +5312,12 @@
       "allFloors": "Tüm katlar",
       "allTypes": "Tüm türler",
       "allUsage": "Tüm kullanımlar",
-      "allStatuses": "Tüm durumlar"
+      "allStatuses": "Tüm durumlar",
+      "allMarkets": "Tüm pazarlar"
+    },
+    "markets": {
+      "turkey": "Türkiye",
+      "usa": "ABD"
     },
     "sort": {
       "updatedDesc": "Güncelleme (yeniden eskiye)",
@@ -5312,6 +5333,7 @@
     },
     "columns": {
       "displayId": "Görünen Kod",
+      "salesMarket": "Satış pazarı",
       "systemCode": "Sistem Kodu",
       "legalIdentifier": "Yasal Kimlik",
       "assetType": "Tür",
@@ -5362,6 +5384,8 @@
       "project": "Proje",
       "selectProject": "Proje seçin",
       "displayId": "Görünen Kod",
+      "salesMarket": "Satış pazarı",
+      "marketUnallocated": "Henüz ayrılmadı",
       "legalIdentifier": "Tapu / Yasal Kimlik",
       "assetType": "Varlık türü",
       "usageType": "Kullanım türü",
@@ -5433,7 +5457,8 @@
       "floor_building_mismatch": "Kat seçilen binaya ait değil.",
       "building_code_duplicate": "Bu proje için bina kodu zaten mevcut.",
       "floor_identifier_duplicate": "Bu bina için kat tanımlayıcısı zaten mevcut.",
-      "display_id_duplicate": "Bu proje için görünen kod zaten mevcut.",
+      "display_id_duplicate": "Bu proje ve bina için görünen kod zaten mevcut.",
+      "system_code_duplicate": "Sistem kodu zaten mevcut.",
       "system_code_immutable": "Sistem kodu oluşturulduktan sonra değiştirilemez.",
       "invalid_status_value": "Bu kategori için geçersiz durum değeri.",
       "status_unchanged": "Durum zaten bu değere ayarlı.",

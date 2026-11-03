@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from investhome_api.db.demo.markers import INTEGRATED_DEMO_SOURCE
 from investhome_api.db.session import SessionLocal
 from investhome_api.models.inventory import (
+    Building,
     InventoryAsset,
     InventoryReservation,
     ReservationRecordStatus,
@@ -173,6 +174,37 @@ OPPORTUNITY_SPECS: list[dict[str, object]] = [
 ]
 
 
+def _asset_for_unit(
+    session: Session,
+    project: Project,
+    display_id: str,
+    building_code: object | None,
+) -> InventoryAsset | None:
+    """Resolve a unit by project, building, and display id.
+
+    Specs without a building code match only when that display id is unique
+    in the project. Repeated unit numbers across buildings are left unmatched.
+    """
+    query = select(InventoryAsset).where(
+        InventoryAsset.project_id == project.id,
+        InventoryAsset.display_id == display_id,
+    )
+    if building_code:
+        building_id = session.scalar(
+            select(Building.id).where(
+                Building.project_id == project.id,
+                Building.code == str(building_code),
+            )
+        )
+        if building_id is None:
+            return None
+        return session.scalar(query.where(InventoryAsset.building_id == building_id))
+    matches = list(session.scalars(query).all())
+    if len(matches) == 1:
+        return matches[0]
+    return None
+
+
 def seed_sales_chain(session: Session | None = None) -> dict[str, int]:
     own_session = session is None
     session = session or SessionLocal()
@@ -222,11 +254,11 @@ def seed_sales_chain(session: Session | None = None) -> dict[str, int]:
             unit_display = spec.get("unit")
             asset = None
             if project is not None and unit_display:
-                asset = session.scalar(
-                    select(InventoryAsset).where(
-                        InventoryAsset.project_id == project.id,
-                        InventoryAsset.display_id == str(unit_display),
-                    )
+                asset = _asset_for_unit(
+                    session,
+                    project,
+                    str(unit_display),
+                    spec.get("building"),
                 )
 
             reservation = None

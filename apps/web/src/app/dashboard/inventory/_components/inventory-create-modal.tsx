@@ -44,6 +44,7 @@ const EMPTY_FORM: InventoryAssetInput = {
   total_area_sqft: null,
   orientation: null,
   view_type: null,
+  sales_market: null,
   currency: 'USD',
   release_date: null,
   delivery_date: null,
@@ -87,6 +88,7 @@ export function InventoryCreateModal({
         total_area_sqft: asset.total_area_sqft ? Number(asset.total_area_sqft) : null,
         orientation: asset.orientation,
         view_type: asset.view_type,
+        sales_market: asset.sales_market,
         currency: asset.currency,
         release_date: asset.release_date,
         delivery_date: asset.delivery_date,
@@ -136,6 +138,7 @@ export function InventoryCreateModal({
       notes: form.notes?.trim() || null,
       building_id: form.building_id || null,
       floor_id: form.floor_id || null,
+      sales_market: form.sales_market || null,
     });
   };
 
@@ -196,6 +199,21 @@ export function InventoryCreateModal({
             onChange={(event) => setForm((current) => ({ ...current, display_id: event.target.value }))}
           />
         </label>
+
+        <Select
+          label={t('form.salesMarket')}
+          value={form.sales_market ?? ''}
+          onChange={(event) =>
+            setForm((current) => ({
+              ...current,
+              sales_market: (event.target.value || null) as InventoryAssetInput['sales_market'],
+            }))
+          }
+        >
+          <option value="">{t('form.marketUnallocated')}</option>
+          <option value="turkey">{t('markets.turkey')}</option>
+          <option value="usa">{t('markets.usa')}</option>
+        </Select>
 
         <label className="ih-field">
           <span className="ih-field__label">{t('form.legalIdentifier')}</span>

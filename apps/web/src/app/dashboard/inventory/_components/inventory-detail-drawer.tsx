@@ -270,6 +270,14 @@ export function InventoryDetailDrawer({
         <>
           <DetailSection title={t('detail.sections.identifiers')}>
             <DetailField label={t('columns.displayId')} value={asset.display_id} />
+            <DetailField
+              label={t('columns.salesMarket')}
+              value={
+                asset.sales_market
+                  ? t(`markets.${asset.sales_market}`)
+                  : t('form.marketUnallocated')
+              }
+            />
             <DetailField label={t('columns.systemCode')} value={asset.system_code} />
             <DetailField
               label={t('columns.legalIdentifier')}

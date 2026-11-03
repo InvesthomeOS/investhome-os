@@ -61,7 +61,12 @@ def update_asset_status(
     actor: User | None,
     effective_at: datetime | None = None,
 ) -> InventoryAssetStatusHistory:
-    """Update one status dimension and append history row."""
+    """Update one status dimension and append history row.
+
+    Dimensions stay independent. Setting sales to sold does not change
+    availability or closing. Closing becomes closed only when that
+    dimension is updated directly.
+    """
     enum_cls = STATUS_ENUM_BY_CATEGORY[category]
     try:
         parsed_status = enum_cls(new_status)

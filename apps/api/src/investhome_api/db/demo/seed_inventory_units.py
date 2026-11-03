@@ -156,7 +156,7 @@ def _get_or_create_floor(session: Session, building_id, floor_number: int) -> Fl
 
 
 def seed_inventory_units(session: Session | None = None) -> dict[str, int]:
-    """Ensure ≥30 inventory assets across projects. Idempotent by project+display_id."""
+    """Ensure at least 30 inventory assets. Idempotent by project, building, and display id."""
     own_session = session is None
     session = session or SessionLocal()
     inserted = {"buildings": 0, "floors": 0, "assets": 0}
@@ -203,6 +203,7 @@ def seed_inventory_units(session: Session | None = None) -> dict[str, int]:
                 existing = session.scalar(
                     select(InventoryAsset).where(
                         InventoryAsset.project_id == project.id,
+                        InventoryAsset.building_id == building.id,
                         InventoryAsset.display_id == display_id,
                     )
                 )

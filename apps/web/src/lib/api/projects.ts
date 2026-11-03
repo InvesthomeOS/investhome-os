@@ -1087,6 +1087,7 @@ export async function fetchProjectUnits(
     search?: string;
     availability_status?: string;
     sales_status?: string;
+    sales_market?: string;
     leasing_status?: string;
     asset_type?: string;
     page?: number;
@@ -1099,6 +1100,7 @@ export async function fetchProjectUnits(
   if (params.search?.trim()) query.set('search', params.search.trim());
   if (params.availability_status) query.set('availability_status', params.availability_status);
   if (params.sales_status) query.set('sales_status', params.sales_status);
+  if (params.sales_market) query.set('sales_market', params.sales_market);
   if (params.leasing_status) query.set('leasing_status', params.leasing_status);
   if (params.asset_type) query.set('asset_type', params.asset_type);
   if (params.page) query.set('page', String(params.page));

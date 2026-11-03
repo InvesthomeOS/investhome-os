@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from investhome_api.models.inventory import (
@@ -21,6 +22,10 @@ class InventoryValidationError(ValueError):
     def __init__(self, error_key: str, *, detail: str | None = None) -> None:
         self.error_key = error_key
         super().__init__(detail or error_key)
+
+
+class InventoryConflictError(InventoryValidationError):
+    """Uniqueness conflict. Routes map this to HTTP 409."""
 
 
 BUILDING_FLOOR_REQUIRED_TYPES = frozenset(
@@ -106,6 +111,33 @@ def validate_structure_references(
             raise InventoryValidationError("inventory.errors.floor_project_mismatch")
         if building_id is not None and floor.building_id != building_id:
             raise InventoryValidationError("inventory.errors.floor_building_mismatch")
+
+
+def assert_unique_display_identity(
+    db: Session,
+    *,
+    project_id: UUID,
+    building_id: UUID | None,
+    display_id: str,
+    exclude_asset_id: UUID | None = None,
+) -> None:
+    """Reject a repeated unit number inside one project and building.
+
+    PostgreSQL enforces the same rule with UNIQUE NULLS NOT DISTINCT.
+    This check also covers SQLite, which treats null building ids as distinct.
+    """
+    query = select(InventoryAsset.id).where(
+        InventoryAsset.project_id == project_id,
+        InventoryAsset.display_id == display_id,
+    )
+    if building_id is None:
+        query = query.where(InventoryAsset.building_id.is_(None))
+    else:
+        query = query.where(InventoryAsset.building_id == building_id)
+    if exclude_asset_id is not None:
+        query = query.where(InventoryAsset.id != exclude_asset_id)
+    if db.scalar(query.limit(1)) is not None:
+        raise InventoryConflictError("inventory.errors.display_id_duplicate")
 
 
 def validate_asset_create(
