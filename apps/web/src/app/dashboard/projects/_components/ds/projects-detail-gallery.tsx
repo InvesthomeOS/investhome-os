@@ -16,6 +16,9 @@ const CATEGORIES: GalleryCategory[] = [
   'cover',
   'exterior',
   'interior',
+  'rendering',
+  'floorPlan',
+  'sitePlan',
   'drone',
   'street',
   'marketing',
@@ -54,7 +57,7 @@ export function ProjectsDetailGallery({
           {t('gallery.count', { count: items.length })}
         </StatusChip>
       </header>
-      {items.length === 0 ? <p className="proj-detail-ds__banner">{tEmpty('gallery')}</p> : null}
+      {items.length === 0 ? <p className="proj-detail-ds__quiet">{tEmpty('short')}</p> : null}
 
       {items.length > 0 ? (
       <>
@@ -66,7 +69,7 @@ export function ProjectsDetailGallery({
         >
           {t('gallery.all')} · {items.length}
         </button>
-        {CATEGORIES.map((cat) => (
+        {CATEGORIES.filter((cat) => counts[cat] > 0).map((cat) => (
           <button
             key={cat}
             type="button"

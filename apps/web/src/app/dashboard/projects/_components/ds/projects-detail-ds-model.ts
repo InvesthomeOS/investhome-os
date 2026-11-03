@@ -73,6 +73,8 @@ export type PermitStatus = 'approved' | 'pending' | 'in_review' | 'expiring';
 export type InvestmentStatus = 'fundraising' | 'funded' | 'partial' | 'exiting';
 
 export type DetailKpiKey =
+  | 'acquisition'
+  | 'equityRequired'
   | 'totalBudget'
   | 'spent'
   | 'remaining'
@@ -239,8 +241,19 @@ function finiteNumber(value: string | number | null | undefined): number | null 
 
 function storedMoney(value: string | number | null | undefined, locale: string): string | null {
   const amount = finiteNumber(value);
-  if (amount == null) return null;
+  if (amount == null || amount === 0) return null;
   return formatCompactCurrency(amount, locale);
+}
+
+function exactMoney(value: string | number | null | undefined, locale: string): string | null {
+  const amount = finiteNumber(value);
+  if (amount == null || amount === 0) return null;
+  return new Intl.NumberFormat(locale === 'tr' ? 'tr-TR' : 'en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
 }
 
 function investmentStatusFor(project: Project): InvestmentStatus | null {
@@ -290,6 +303,8 @@ function emptyFinancial(): ProjectDetailDsModel['financial'] {
 
 function emptyKpis(): ProjectDetailDsModel['kpis'] {
   return {
+    acquisition: { value: null },
+    equityRequired: { value: null },
     totalBudget: { value: null },
     spent: { value: null },
     remaining: { value: null },
@@ -374,6 +389,7 @@ export function buildProjectDetailDsModel(
   const revenue = finiteNumber(project.projected_revenue);
   const profit = finiteNumber(project.projected_profit);
   const unitsTotal = project.total_units ?? project.residential_units;
+  const unitCount = unitsTotal == null || unitsTotal === 0 ? null : String(unitsTotal);
   const scheduleDates = (
     [
       ['acquisition', project.acquisition_date],
@@ -425,11 +441,13 @@ export function buildProjectDetailDsModel(
     completionPrediction: project.target_completion_date?.slice(0, 10) ?? null,
     weather: null,
     kpis: {
+      acquisition: { value: storedMoney(project.acquisition_price, locale) },
+      equityRequired: { value: exactMoney(project.equity_required, locale) },
       totalBudget: { value: storedMoney(budget, locale) },
       spent: { value: null },
       remaining: { value: null },
-      expectedRoi: { value: roi == null ? null : `${roi.toFixed(1)}%` },
-      units: { value: unitsTotal == null ? null : String(unitsTotal) },
+      expectedRoi: { value: roi == null || roi === 0 ? null : `${roi.toFixed(1)}%` },
+      units: { value: unitCount },
       investors: { value: null },
       completion: { value: completion == null ? null : `${completion}%` },
       targetDelivery: { value: project.target_completion_date?.slice(0, 10) ?? null },

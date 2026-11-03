@@ -113,7 +113,7 @@ export function ProjectsDetailLocation({
           {t('location.refreshedAt', { time: location.refreshedAt.slice(0, 16).replace('T', ' ') })}
         </p>
       ) : null}
-      {!hasCoordinates ? <p className="proj-detail-ds__banner">{tEmpty('location')}</p> : null}
+      {!hasCoordinates && !address ? <p className="proj-detail-ds__quiet">{tEmpty('short')}</p> : null}
 
       <div className="proj-detail-ds__location-grid">
         {hasCoordinates ? (
@@ -150,7 +150,7 @@ export function ProjectsDetailLocation({
         <div className="proj-detail-ds__location-side">
           <article className="proj-detail-ds__panel proj-detail-ds__location-card">
             <h4>{t('location.neighborhood')}</h4>
-            <p className="proj-detail-ds__panel-sub">{neighborhood || tEmpty('neighborhood')}</p>
+            {neighborhood ? <p className="proj-detail-ds__panel-sub">{neighborhood}</p> : null}
             {location.aiSummary ? (
               <p className="proj-detail-ds__panel-sub">
                 <strong>{t('location.aiAnalysis')}</strong> {location.aiSummary}
@@ -174,11 +174,9 @@ export function ProjectsDetailLocation({
             </div>
           </article>
 
+          {location.radii.length > 0 ? (
           <article className="proj-detail-ds__panel proj-detail-ds__location-card">
             <h4>{t('location.radii')}</h4>
-            {location.radii.length === 0 && !hasCoordinates ? (
-              <p className="proj-detail-ds__panel-sub">{tEmpty('location')}</p>
-            ) : null}
             <div className="proj-detail-ds__radius-row">
               {location.radii.map((r) => (
                 <div key={r.id} className="proj-detail-ds__radius-chip">
@@ -190,12 +188,11 @@ export function ProjectsDetailLocation({
               ))}
             </div>
           </article>
+          ) : null}
 
+          {visiblePlaces.length > 0 ? (
           <article className="proj-detail-ds__panel proj-detail-ds__location-card">
             <h4>{t('location.nearby')}</h4>
-            {visiblePlaces.length === 0 ? (
-              <p className="proj-detail-ds__panel-sub">{tEmpty('nearby')}</p>
-            ) : null}
             <ul className="proj-detail-ds__list">
               {visiblePlaces.map((place) => (
                 <li key={place.id}>
@@ -209,10 +206,11 @@ export function ProjectsDetailLocation({
               ))}
             </ul>
           </article>
+          ) : null}
         </div>
       </div>
 
-      {walkScores.length === 0 ? <p className="proj-detail-ds__banner">{tEmpty('scores')}</p> : null}
+      {walkScores.length > 0 ? (
       <div className="proj-detail-ds__walk-grid" aria-label={t('walkScore.aria')}>
         {walkScores.map((item) => (
           <article key={item.kind} className="proj-detail-ds__walk-card">
@@ -234,6 +232,7 @@ export function ProjectsDetailLocation({
           </article>
         ))}
       </div>
+      ) : null}
     </section>
   );
 }

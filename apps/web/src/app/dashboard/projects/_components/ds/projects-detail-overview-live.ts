@@ -1,5 +1,13 @@
-import { documentPreviewUrl } from '@/lib/api/documents';
+import {
+  getCreativeStudioMediaContentUrl,
+  type CreativeStudioMediaAsset,
+} from '@/lib/api/creative-studio';
 import type { LocationIntelligenceResponse, MetricValue, Project } from '@/lib/api/projects';
+import {
+  heroRank,
+  isOperationalProjectMedia,
+  projectMediaCategory,
+} from '@/lib/projects/project-gallery-media';
 
 import {
   emptyLocation,
@@ -25,10 +33,6 @@ export type OverviewDocument = {
   tags: string;
 };
 
-const GALLERY_TYPES = new Set(['photo', 'image', 'video', 'marketing_material']);
-const DRAWING_TYPES = new Set(['architectural_drawing', 'construction_drawing']);
-const PERMIT_TYPES = new Set(['permit', 'inspection']);
-
 function text(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
@@ -50,30 +54,28 @@ export function readOverviewDocument(raw: Record<string, unknown>): OverviewDocu
   };
 }
 
-function isImage(doc: OverviewDocument): boolean {
-  return doc.fileKind === 'image' || doc.mimeType.startsWith('image/');
+function isImageAsset(asset: CreativeStudioMediaAsset): boolean {
+  return asset.content_type.toLowerCase().startsWith('image/');
 }
 
-function isVideo(doc: OverviewDocument): boolean {
-  return doc.documentType === 'video' || doc.fileKind === 'video' || doc.mimeType.startsWith('video/');
+function isVideoAsset(asset: CreativeStudioMediaAsset): boolean {
+  return asset.content_type.toLowerCase().startsWith('video/');
 }
 
-function galleryCategory(doc: OverviewDocument): ProjectGalleryItem['category'] {
-  if (doc.documentType === 'marketing_material' || doc.folder === 'marketing') return 'marketing';
-  if (doc.folder === 'construction') return 'construction';
-  return 'cover';
-}
-
-function toGalleryItem(doc: OverviewDocument): ProjectGalleryItem {
+function toGalleryItem(asset: CreativeStudioMediaAsset): ProjectGalleryItem {
+  const title = asset.filename || asset.id;
+  const category = projectMediaCategory(asset);
   return {
-    id: doc.id,
-    category: galleryCategory(doc),
-    titleEn: doc.title,
-    titleTr: doc.title,
-    uploadedAt: (doc.documentDate || doc.updatedAt).slice(0, 10),
-    photographer: doc.uploadedByName,
-    source: doc.documentType,
-    imageUrl: isImage(doc) ? documentPreviewUrl(doc.id) : null,
+    id: asset.id,
+    category: category as ProjectGalleryItem['category'],
+    titleEn: title,
+    titleTr: title,
+    uploadedAt: (asset.updated_at || asset.created_at || '').slice(0, 10),
+    photographer: asset.source_type === 'google_drive' ? 'Google Drive' : 'Upload',
+    source: asset.folder_category || asset.content_type,
+    imageUrl: isImageAsset(asset)
+      ? getCreativeStudioMediaContentUrl(asset.id, { linked_project_id: asset.linked_project_id })
+      : null,
     scene: 'plaza',
     accent: 0,
   };
@@ -89,52 +91,61 @@ export type OverviewMedia = {
   location: LocationIntelligence;
 };
 
-export function buildOverviewMedia(project: Project | null, documents: OverviewDocument[]): OverviewMedia {
-  const galleryDocs = documents.filter((doc) => GALLERY_TYPES.has(doc.documentType));
-  const drawingDocs = documents.filter((doc) => DRAWING_TYPES.has(doc.documentType));
-  const constructionDocs = documents.filter(
-    (doc) => doc.folder === 'construction' && (GALLERY_TYPES.has(doc.documentType) || isImage(doc) || isVideo(doc)),
-  );
-  const permitDocs = documents.filter((doc) => PERMIT_TYPES.has(doc.documentType));
-  const gallery = galleryDocs.map(toGalleryItem);
-  const hero = galleryDocs.find(isImage) ?? null;
-  const latest = documents
-    .map((doc) => doc.updatedAt)
+export function buildOverviewMedia(
+  project: Project | null,
+  assets: CreativeStudioMediaAsset[],
+): OverviewMedia {
+  const projectId = project?.id ?? null;
+  const gallery = assets
+    .filter((asset) => (projectId ? asset.linked_project_id === projectId : false))
+    .filter((asset) => isOperationalProjectMedia(asset))
+    .map(toGalleryItem)
+    .sort((a, b) => heroRank(a.category) - heroRank(b.category) || a.titleEn.localeCompare(b.titleEn));
+  const hero = gallery.find((item) => item.imageUrl) ?? null;
+  const latest = gallery
+    .map((item) => item.uploadedAt)
     .filter(Boolean)
     .sort()
     .at(-1);
+  const floorPlans = gallery.filter((item) => item.category === 'floorPlan');
 
   const address = [project?.address, project?.city, project?.state, project?.country].filter(Boolean).join(', ');
 
   return {
-    heroImageUrl: hero ? documentPreviewUrl(hero.id) : null,
+    heroImageUrl: hero?.imageUrl ?? null,
     gallery,
-    constructionPhotos: constructionDocs.map(toGalleryItem),
-    floorPlans: drawingDocs.map((doc) => ({
-      id: doc.id,
+    constructionPhotos: gallery.filter((item) => item.category === 'construction'),
+    floorPlans: floorPlans.map((item) => ({
+      id: item.id,
       type: null,
-      label: doc.title,
+      label: item.titleEn,
       areaSqm: null,
       unitCount: null,
-      pdfUrl: documentPreviewUrl(doc.id),
-      imageUrl: isImage(doc) ? documentPreviewUrl(doc.id) : null,
+      pdfUrl: '',
+      imageUrl: item.imageUrl,
       scene: 'plaza' as const,
       accent: 0,
     })),
-    permits: permitDocs.map((doc) => ({
-      id: doc.id,
-      title: doc.title,
-      date: doc.documentDate,
-    })),
+    permits: [],
     mediaStats: {
       ...emptyMediaStats(),
-      photos: documents.filter(isImage).length,
-      videos: documents.filter(isVideo).length,
-      drone: documents.filter((doc) => doc.tags.toLowerCase().includes('drone')).length,
-      renderings: 0,
-      floorPlans: drawingDocs.length,
-      documents: documents.length,
-      lastUpdated: latest ? latest.slice(0, 10) : '',
+      photos: gallery.filter((item) => Boolean(item.imageUrl)).length,
+      videos: assets.filter(
+        (asset) =>
+          asset.linked_project_id === projectId &&
+          isOperationalProjectMedia(asset) &&
+          isVideoAsset(asset),
+      ).length,
+      drone: gallery.filter((item) => item.category === 'drone').length,
+      renderings: gallery.filter(
+        (item) =>
+          item.category === 'rendering' ||
+          item.category === 'exterior' ||
+          item.category === 'interior',
+      ).length,
+      floorPlans: floorPlans.length,
+      documents: 0,
+      lastUpdated: latest ?? '',
     },
     location: {
       ...emptyLocation(),

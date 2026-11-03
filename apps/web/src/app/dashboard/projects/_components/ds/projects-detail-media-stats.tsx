@@ -45,16 +45,18 @@ export function ProjectsDetailMediaStats({
           <h3>{t('mediaStats.title')}</h3>
           <p className="proj-detail-ds__panel-sub">{t('mediaStats.subtitle')}</p>
         </div>
-        {stats.documents > 0 && stats.lastUpdated ? (
+        {(stats.photos + stats.videos + stats.renderings + stats.floorPlans) > 0 && stats.lastUpdated ? (
           <StatusChip tone="info">
             {t('mediaStats.updated', { date: formatShortDate(stats.lastUpdated, locale) })}
           </StatusChip>
         ) : null}
       </header>
-      {stats.documents === 0 ? <p className="proj-detail-ds__banner">{tEmpty('media')}</p> : null}
+      {stats.photos + stats.videos + stats.renderings + stats.floorPlans === 0 ? (
+        <p className="proj-detail-ds__quiet">{tEmpty('short')}</p>
+      ) : null}
 
-      {stats.documents > 0 ? <div className="proj-detail-ds__media-stats">
-        {STAT_KEYS.map((key) => (
+      {stats.photos + stats.videos + stats.renderings + stats.floorPlans > 0 ? <div className="proj-detail-ds__media-stats">
+        {STAT_KEYS.filter((key) => stats[key] > 0).map((key) => (
           <div key={key} className="proj-detail-ds__media-stat">
             <span className="proj-detail-ds__media-stat-icon" aria-hidden="true">
               <IhIcon name={ICONS[key]} size={14} />

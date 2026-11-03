@@ -1995,7 +1995,11 @@
         "investors": "Yatırımcılar",
         "completion": "Tamamlanma",
         "targetDelivery": "Hedef Teslim",
+        "acquisition": "Satın Alma Bedeli",
+        "equityRequired": "Gerekli Özkaynak",
         "hints": {
+          "acquisition": "Kayıtlı satın alma bedeli",
+          "equityRequired": "Proje için gereken özkaynak",
           "totalBudget": "Onaylı geliştirme bütçesi",
           "spent": "Bugüne kadar taahhüt ve ödenen",
           "remaining": "Kullanılabilir kalan bütçe",
@@ -2020,6 +2024,8 @@
         "ai-insights": "YZ İçgörüleri"
       },
       "empty": {
+        "short": "Henüz veri yok",
+        "added": "Henüz veri eklenmedi",
         "heroImage": "Proje görseli henüz eklenmedi.",
         "progress": "İlerleme yüzdesi henüz girilmedi.",
         "investment": "Yatırım durumu henüz girilmedi.",
@@ -2201,6 +2207,7 @@
         "foldersLoading": "Klasörler yükleniyor…",
         "foldersLoadError": "Drive klasörleri yüklenemedi.",
         "folderEmpty": "Bu klasörde belge yok.",
+        "records": "Proje kayıtları",
         "recent": "Proje Belgeleri",
         "loading": "Proje belgeleri yükleniyor…",
         "loadError": "Proje belgeleri yüklenemedi.",
@@ -2300,7 +2307,10 @@
           "categories": {
             "cover": "Kapak",
             "exterior": "Dış Renderlar",
-            "interior": "İç Renderlar",
+            "interior": "İç Mekan",
+            "rendering": "Render",
+            "floorPlan": "Kat Planı",
+            "sitePlan": "Vaziyet Planı",
             "drone": "Drone Görüntüleri",
             "street": "Sokak Görünümü",
             "marketing": "Pazarlama Görselleri",

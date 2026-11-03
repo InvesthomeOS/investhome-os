@@ -1995,7 +1995,11 @@
         "investors": "Investors",
         "completion": "Completion",
         "targetDelivery": "Target Delivery",
+        "acquisition": "Acquisition Price",
+        "equityRequired": "Equity Required",
         "hints": {
+          "acquisition": "Recorded acquisition price",
+          "equityRequired": "Equity required for the project",
           "totalBudget": "Approved development budget",
           "spent": "Committed and paid to date",
           "remaining": "Budget still available",
@@ -2020,6 +2024,8 @@
         "ai-insights": "AI Insights"
       },
       "empty": {
+        "short": "No data yet",
+        "added": "Not added yet",
         "heroImage": "Project image has not been added yet.",
         "progress": "Completion percentage has not been entered yet.",
         "investment": "Investment status has not been entered yet.",
@@ -2201,6 +2207,7 @@
         "foldersLoading": "Loading folders…",
         "foldersLoadError": "Could not load Drive folders.",
         "folderEmpty": "No documents in this folder.",
+        "records": "Project records",
         "recent": "Project Documents",
         "loading": "Loading project documents…",
         "loadError": "Could not load project documents.",
@@ -2300,7 +2307,10 @@
           "categories": {
             "cover": "Cover",
             "exterior": "Exterior Renderings",
-            "interior": "Interior Renderings",
+            "interior": "Interior",
+            "rendering": "Rendering",
+            "floorPlan": "Floor Plan",
+            "sitePlan": "Site Plan",
             "drone": "Drone Images",
             "street": "Street View",
             "marketing": "Marketing Images",

@@ -1,14 +1,10 @@
 'use client';
 
 import { ProjectsDetailAmenities } from './projects-detail-amenities';
-import { ProjectsDetailConstructionGallery } from './projects-detail-construction-gallery';
-import { ProjectsDetailFloorPlans } from './projects-detail-floor-plans';
 import { ProjectsDetailGallery } from './projects-detail-gallery';
 import { ProjectsDetailLocation } from './projects-detail-location';
-import { ProjectsDetailMarket } from './projects-detail-market';
 import { ProjectsDetailMediaStats } from './projects-detail-media-stats';
 import type {
-  FloorPlanItem,
   LocationIntelligence,
   MediaStats,
   ProjectGalleryItem,
@@ -16,14 +12,12 @@ import type {
 } from './projects-detail-media-model';
 
 /**
- * Digital Twin stack for Project Detail Overview.
- * Sections stay visible. Content comes from stored project records.
+ * Project overview media. Empty sections stay hidden.
+ * Images come from linked project media, never from operational documents.
  */
 export function ProjectsDetailDigitalTwin({
   locale,
   gallery,
-  constructionPhotos,
-  floorPlans,
   location,
   mediaStats,
   amenities,
@@ -33,8 +27,6 @@ export function ProjectsDetailDigitalTwin({
 }: {
   locale: string;
   gallery: ProjectGalleryItem[];
-  constructionPhotos: ProjectGalleryItem[];
-  floorPlans: FloorPlanItem[];
   location: LocationIntelligence;
   mediaStats: MediaStats;
   amenities: AmenityItem[];
@@ -42,26 +34,28 @@ export function ProjectsDetailDigitalTwin({
   refreshState?: string | null;
   refreshError?: string | null;
 }) {
+  const hasVisuals =
+    mediaStats.photos + mediaStats.videos + mediaStats.renderings + mediaStats.floorPlans > 0;
+  const hasAddress = Boolean(location.addressEn || location.addressTr);
+  const hasCoordinates = location.lat != null && location.lng != null;
+
   return (
     <div className="proj-detail-ds__twin" data-testid="projects-detail-digital-twin">
-      <ProjectsDetailMediaStats stats={mediaStats} locale={locale} />
-      <ProjectsDetailGallery items={gallery} locale={locale} />
-      <ProjectsDetailConstructionGallery
-        milestones={[]}
-        photos={constructionPhotos}
-        locale={locale}
-      />
-      <ProjectsDetailFloorPlans plans={floorPlans} locale={locale} />
-      <ProjectsDetailLocation
-        location={location}
-        walkScores={[]}
-        locale={locale}
-        onRefresh={onRefreshLocation}
-        refreshState={refreshState}
-        refreshError={refreshError}
-      />
-      <ProjectsDetailAmenities amenities={amenities} locale={locale} />
-      <ProjectsDetailMarket market={{ metrics: [] }} locale={locale} />
+      {hasVisuals ? <ProjectsDetailMediaStats stats={mediaStats} locale={locale} /> : null}
+      {gallery.length > 0 ? <ProjectsDetailGallery items={gallery} locale={locale} /> : null}
+      {hasAddress || hasCoordinates ? (
+        <ProjectsDetailLocation
+          location={location}
+          walkScores={[]}
+          locale={locale}
+          onRefresh={onRefreshLocation}
+          refreshState={refreshState}
+          refreshError={refreshError}
+        />
+      ) : null}
+      {amenities.length > 0 ? (
+        <ProjectsDetailAmenities amenities={amenities} locale={locale} />
+      ) : null}
     </div>
   );
 }
