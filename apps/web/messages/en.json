@@ -2081,6 +2081,7 @@
         "architect": "Architect",
         "constructionCompany": "Construction Company",
         "risk": "Risk Level",
+        "missingDetails": "Missing details",
         "priority": "Priority",
         "constructionProgress": "Construction Progress",
         "completionLabel": "Overall completion",
@@ -2099,6 +2100,28 @@
         "projectHealth": "Project Health",
         "notes": "Notes",
         "updates": "Updates"
+      },
+      "notices": {
+        "riskUncalculated": "Not calculated yet",
+        "missingManager": "No project manager assigned",
+        "missingTeam": "No project team members",
+        "missingBudget": "Budget data has not been added yet",
+        "missingCompletion": "Completion percentage has not been entered yet"
+      },
+      "activityEvents": {
+        "created": "Project created",
+        "updated": "Project updated",
+        "financialUpdated": "Financial details updated",
+        "scheduleUpdated": "Schedule updated",
+        "addressUpdated": "Address updated",
+        "managerChanged": "Project manager changed",
+        "archived": "Project archived",
+        "restored": "Project restored",
+        "statusChanged": "Project status changed",
+        "teamMemberAdded": "Team member added",
+        "teamMemberUpdated": "Team member updated",
+        "teamMemberRemoved": "Team member removed",
+        "generic": "Activity"
       },
       "construction": {
         "title": "Construction Command",

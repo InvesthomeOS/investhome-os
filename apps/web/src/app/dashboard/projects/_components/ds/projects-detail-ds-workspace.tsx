@@ -43,7 +43,6 @@ import {
   type ProjectActivityItem,
   type ProjectAlertItem,
   type ProjectFinancialsResponse,
-  type ProjectRiskLevel,
 } from '@/lib/api/projects';
 import { useProjectLabels } from '@/lib/i18n/project-labels';
 import { createLocationRefreshController } from '@/lib/projects/location-refresh-action';
@@ -203,7 +202,6 @@ export function ProjectsDetailDsWorkspace({
   const [financials, setFinancials] = useState<ProjectFinancialsResponse | null>(null);
   const [investorCount, setInvestorCount] = useState<number | null>(null);
   const [investorItems, setInvestorItems] = useState<Array<Record<string, unknown>>>([]);
-  const [projectRisk, setProjectRisk] = useState<ProjectRiskLevel | null>(null);
   const [locationIntel, setLocationIntel] = useState<LocationIntelligenceResponse | null>(null);
   const [refreshState, setRefreshState] = useState<string | null>(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
@@ -234,10 +232,8 @@ export function ProjectsDetailDsWorkspace({
       const shell = await fetchProjectDetail(projectId).catch(() => null);
       if (shell?.project) {
         setProject(shell.project);
-        setProjectRisk(shell.risk);
         return;
       }
-      setProjectRisk(null);
       const list = await fetchProjects({
         page: 1,
         page_size: 100,
@@ -606,7 +602,6 @@ export function ProjectsDetailDsWorkspace({
         <OverviewTab
           model={model}
           tD={tD}
-          tDs={tDs}
           getStatusLabel={getStatusLabel}
           getPriorityLabel={getPriorityLabel}
           locale={locale}
@@ -618,7 +613,6 @@ export function ProjectsDetailDsWorkspace({
           refreshState={refreshState}
           refreshError={refreshError}
           onRefreshLocation={refreshLocation}
-          projectRisk={projectRisk}
         />
       ) : null}
       {resolvedTab === 'construction' ? (
@@ -652,10 +646,44 @@ export function ProjectsDetailDsWorkspace({
 type Model = ReturnType<typeof buildProjectDetailDsModel>;
 type TranslateFn = ReturnType<typeof useTranslations>;
 
+const MISSING_DATA_NOTICE_KEYS = {
+  'No project manager assigned': 'notices.missingManager',
+  'No project team members': 'notices.missingTeam',
+  'Budget data missing': 'notices.missingBudget',
+  'Completion percentage missing': 'notices.missingCompletion',
+} as const;
+
+const ACTIVITY_EVENT_KEYS = {
+  'activity.project.created': 'activityEvents.created',
+  'activity.project.updated': 'activityEvents.updated',
+  'activity.project.financial_updated': 'activityEvents.financialUpdated',
+  'activity.project.schedule_updated': 'activityEvents.scheduleUpdated',
+  'activity.project.address_updated': 'activityEvents.addressUpdated',
+  'activity.project.manager_changed': 'activityEvents.managerChanged',
+  'activity.project.archived': 'activityEvents.archived',
+  'activity.project.restored': 'activityEvents.restored',
+  'activity.project.status_changed': 'activityEvents.statusChanged',
+  'activity.project.team_member_added': 'activityEvents.teamMemberAdded',
+  'activity.project.team_member_updated': 'activityEvents.teamMemberUpdated',
+  'activity.project.team_member_removed': 'activityEvents.teamMemberRemoved',
+} as const;
+
+function missingDataNoticeKey(
+  title: string,
+): (typeof MISSING_DATA_NOTICE_KEYS)[keyof typeof MISSING_DATA_NOTICE_KEYS] | null {
+  return MISSING_DATA_NOTICE_KEYS[title as keyof typeof MISSING_DATA_NOTICE_KEYS] ?? null;
+}
+
+function activityEventLabel(title: string, tD: TranslateFn): string {
+  const key = ACTIVITY_EVENT_KEYS[title as keyof typeof ACTIVITY_EVENT_KEYS];
+  if (key) return tD(key);
+  if (title.startsWith('activity.')) return tD('activityEvents.generic');
+  return title;
+}
+
 function OverviewTab({
   model,
   tD,
-  tDs,
   getStatusLabel,
   getPriorityLabel,
   locale,
@@ -667,11 +695,9 @@ function OverviewTab({
   refreshState,
   refreshError,
   onRefreshLocation,
-  projectRisk,
 }: {
   model: Model;
   tD: TranslateFn;
-  tDs: TranslateFn;
   getStatusLabel: (s: string) => string;
   getPriorityLabel: (s: string) => string;
   locale: string;
@@ -683,13 +709,14 @@ function OverviewTab({
   refreshState: string | null;
   refreshError: string | null;
   onRefreshLocation: () => void;
-  projectRisk: ProjectRiskLevel | null;
 }) {
-  const budgetAlerts = alerts.filter((item) => item.category === 'budget');
-  const constructionAlerts = alerts.filter(
+  const realAlerts = alerts.filter((item) => missingDataNoticeKey(item.title) == null);
+  const missingDetails = alerts.filter((item) => missingDataNoticeKey(item.title) != null);
+  const budgetAlerts = realAlerts.filter((item) => item.category === 'budget');
+  const constructionAlerts = realAlerts.filter(
     (item) => item.category === 'construction' || item.category === 'schedule',
   );
-  const otherAlerts = alerts.filter(
+  const otherAlerts = realAlerts.filter(
     (item) => item.category !== 'budget' && item.category !== 'construction' && item.category !== 'schedule',
   );
   return (
@@ -748,12 +775,10 @@ function OverviewTab({
                 <strong>{model.constructionCompany}</strong>
               </div>
               ) : null}
-              {projectRisk ? (
-              <div className="proj-detail-ds__kv-row">
+              <div className="proj-detail-ds__kv-row" data-testid="project-risk-level">
                 <span>{tD('overview.risk')}</span>
-                <strong>{tDs(`risk.${projectRisk}`)}</strong>
+                <strong className="proj-detail-ds__quiet">{tD('notices.riskUncalculated')}</strong>
               </div>
-              ) : null}
               <div className="proj-detail-ds__kv-row">
                 <span>{tD('overview.priority')}</span>
                 <strong>
@@ -799,11 +824,24 @@ function OverviewTab({
             <ul className="proj-detail-ds__list">
               {activity.map((item) => (
                 <li key={item.id}>
-                  <strong>{item.title}</strong>
+                  <strong>{activityEventLabel(item.title, tD)}</strong>
                   <span>{item.description || formatShortDate(item.created_at, locale)}</span>
                 </li>
               ))}
             </ul>
+          </article>
+          ) : null}
+          {missingDetails.length > 0 ? (
+          <article className="proj-detail-ds__panel" data-testid="project-missing-details">
+            <h3>{tD('overview.missingDetails')}</h3>
+            {missingDetails.map((item) => {
+              const key = missingDataNoticeKey(item.title);
+              return (
+                <p key={item.id} className="proj-detail-ds__quiet">
+                  {key ? tD(key) : item.title}
+                </p>
+              );
+            })}
           </article>
           ) : null}
           {otherAlerts.length > 0 ? (

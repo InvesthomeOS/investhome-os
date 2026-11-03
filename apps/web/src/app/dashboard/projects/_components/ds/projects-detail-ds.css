@@ -584,6 +584,11 @@
   font-weight: 650;
 }
 
+.proj-detail-ds__kv-row strong.proj-detail-ds__quiet {
+  color: var(--pd-muted, #5c7280);
+  font-weight: 500;
+}
+
 .proj-detail-ds__kv-row strong {
   color: #243842;
   font-size: var(--shot-font-small);

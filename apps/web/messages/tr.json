@@ -2081,6 +2081,7 @@
         "architect": "Mimar",
         "constructionCompany": "İnşaat Şirketi",
         "risk": "Risk Seviyesi",
+        "missingDetails": "Eksik bilgiler",
         "priority": "Öncelik",
         "constructionProgress": "İnşaat İlerlemesi",
         "completionLabel": "Genel tamamlanma",
@@ -2099,6 +2100,28 @@
         "projectHealth": "Proje Sağlığı",
         "notes": "Notlar",
         "updates": "Güncellemeler"
+      },
+      "notices": {
+        "riskUncalculated": "Henüz hesaplanmadı",
+        "missingManager": "Proje yöneticisi henüz atanmadı",
+        "missingTeam": "Proje ekibi henüz oluşturulmadı",
+        "missingBudget": "Bütçe verisi henüz eklenmedi",
+        "missingCompletion": "Tamamlanma oranı henüz girilmedi"
+      },
+      "activityEvents": {
+        "created": "Proje oluşturuldu",
+        "updated": "Proje güncellendi",
+        "financialUpdated": "Finans bilgisi güncellendi",
+        "scheduleUpdated": "Takvim güncellendi",
+        "addressUpdated": "Adres güncellendi",
+        "managerChanged": "Proje yöneticisi değişti",
+        "archived": "Proje arşivlendi",
+        "restored": "Proje geri yüklendi",
+        "statusChanged": "Proje durumu değişti",
+        "teamMemberAdded": "Ekip üyesi eklendi",
+        "teamMemberUpdated": "Ekip üyesi güncellendi",
+        "teamMemberRemoved": "Ekip üyesi çıkarıldı",
+        "generic": "Aktivite"
       },
       "construction": {
         "title": "İnşaat Komuta",
