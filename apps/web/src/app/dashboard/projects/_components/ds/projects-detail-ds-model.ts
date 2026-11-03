@@ -9,14 +9,19 @@ import {
   type StatusTone,
 } from './projects-ds-model';
 
-export const PROJECT_DETAIL_DS_TABS = [
+/** Primary project detail navigation. Reports and AI stay routable off this bar. */
+export const PROJECT_DETAIL_NAV_TABS = [
   'overview',
-  'construction',
   'units',
-  'financial',
   'investors',
+  'financial',
+  'construction',
   'documents',
   'tasks',
+] as const;
+
+export const PROJECT_DETAIL_DS_TABS = [
+  ...PROJECT_DETAIL_NAV_TABS,
   'timeline',
   'reports',
   'ai-insights',

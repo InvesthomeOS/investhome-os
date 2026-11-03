@@ -231,9 +231,12 @@ def _apply_filters(
     start_date_from: date | None,
     start_date_to: date | None,
     include_archived: bool,
+    include_demo: bool = False,
 ):
     if not include_archived:
         query = query.where(Project.archived_at.is_(None))
+    if not include_demo:
+        query = query.where(Project.is_demo.is_(False))
 
     if status_filter is not None:
         query = query.where(Project.project_status == status_filter)
@@ -283,8 +286,13 @@ def _apply_filters(
     return query
 
 
-def get_project_stats(db: Session, *, user: User | None) -> ProjectStatsResponse:
-    projects = list(db.scalars(select(Project).where(Project.archived_at.is_(None))).all())
+def get_project_stats(
+    db: Session, *, user: User | None, include_demo: bool = False
+) -> ProjectStatsResponse:
+    query = select(Project).where(Project.archived_at.is_(None))
+    if not include_demo:
+        query = query.where(Project.is_demo.is_(False))
+    projects = list(db.scalars(query).all())
     active_projects = [p for p in projects if p.project_status in ACTIVE_PROJECT_STATUSES]
     under_construction = sum(1 for p in projects if p.project_status == ProjectStatus.CONSTRUCTION)
     completed = sum(1 for p in projects if p.project_status == ProjectStatus.COMPLETED)
@@ -330,6 +338,7 @@ def list_projects(
     start_date_from: date | None = None,
     start_date_to: date | None = None,
     include_archived: bool = False,
+    include_demo: bool = False,
     sort_by: str = "updated_at",
     sort_order: str = "desc",
     page: int = 1,
@@ -357,6 +366,7 @@ def list_projects(
         start_date_from=start_date_from,
         start_date_to=start_date_to,
         include_archived=include_archived,
+        include_demo=include_demo,
     )
 
     total = db.scalar(select(func.count()).select_from(query.subquery())) or 0

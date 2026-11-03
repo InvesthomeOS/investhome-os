@@ -78,9 +78,12 @@ def _apply_project_filters(
     country: str | None,
     completion_year: int | None,
     include_archived: bool,
+    include_demo: bool = False,
 ):
     if not include_archived:
         query = query.where(Project.archived_at.is_(None))
+    if not include_demo:
+        query = query.where(Project.is_demo.is_(False))
     if status is not None:
         query = query.where(Project.project_status == status)
     if project_type is not None:
@@ -126,6 +129,7 @@ def _load_filtered_projects(
     country: str | None = None,
     completion_year: int | None = None,
     include_archived: bool = False,
+    include_demo: bool = False,
 ) -> list[Project]:
     query = select(Project)
     query = _apply_project_filters(
@@ -141,6 +145,7 @@ def _load_filtered_projects(
         country=country,
         completion_year=completion_year,
         include_archived=include_archived,
+        include_demo=include_demo,
     )
     return list(db.scalars(query.order_by(Project.updated_at.desc())).all())
 
@@ -331,6 +336,7 @@ def build_dashboard(
     country: str | None = None,
     completion_year: int | None = None,
     include_archived: bool = False,
+    include_demo: bool = False,
     milestone_days: int = 30,
     activity_limit: int = 20,
     alert_limit: int = 50,
@@ -350,6 +356,7 @@ def build_dashboard(
         country=country,
         completion_year=completion_year,
         include_archived=include_archived,
+        include_demo=include_demo,
     )
     project_ids = [project.id for project in projects]
     warnings: list[str] = []

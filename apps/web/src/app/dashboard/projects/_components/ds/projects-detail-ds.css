@@ -440,6 +440,32 @@
   scrollbar-width: thin;
 }
 
+.proj-detail-ds__work-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.proj-detail-ds__work-view {
+  min-height: 30px;
+  padding: 5px 11px;
+  border: 1px solid #d5e0e6;
+  border-radius: 6px;
+  background: #fff;
+  color: #58717d;
+  font-size: var(--shot-font-small);
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.proj-detail-ds__work-view[aria-pressed='true'] {
+  border-color: #243842;
+  background: #f1f6f8;
+  color: #243842;
+}
+
 .proj-detail-ds__tabs .ih-tabs__tab {
   flex: 0 0 auto;
   min-height: 30px;

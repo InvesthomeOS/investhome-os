@@ -15,7 +15,6 @@ import {
   Tabs,
 } from '@investhome/ui';
 
-import { useScreenshotDashboardInteractions } from '@/app/dashboard/_components/screenshot-dashboard-interactions';
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 import { hasPermission } from '@/lib/api/auth';
 import { uiError } from '@/lib/i18n/ui-error';
@@ -53,7 +52,7 @@ import { collectLinkedProjectMedia } from '@/lib/projects/project-gallery-media'
 import {
   buildProjectDetailDsModel,
   formatCompactCurrency,
-  PROJECT_DETAIL_DS_TABS,
+  PROJECT_DETAIL_NAV_TABS,
   priorityTone,
   projectDetailDsHref,
   resolveProjectDetailDsTab,
@@ -67,6 +66,7 @@ import { ProjectsDetailDigitalTwin } from './projects-detail-digital-twin';
 import type { AmenityItem } from './projects-detail-media-model';
 import {
   buildOverviewMedia,
+  isOperationalProjectDocument,
   metricText,
   overlayLocationIntelligence,
   readOverviewDocument,
@@ -183,7 +183,6 @@ export function ProjectsDetailDsWorkspace({
   const locale = useLocale();
   const router = useRouter();
   const { user } = useAuth();
-  const { openAi } = useScreenshotDashboardInteractions();
   const {
     getStatusLabel,
     getTypeLabel,
@@ -198,7 +197,6 @@ export function ProjectsDetailDsWorkspace({
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [documents, setDocuments] = useState<OverviewDocument[]>([]);
   const [projectMedia, setProjectMedia] = useState<CreativeStudioMediaAsset[]>([]);
   const [activity, setActivity] = useState<ProjectActivityItem[]>([]);
   const [alerts, setAlerts] = useState<ProjectAlertItem[]>([]);
@@ -269,18 +267,12 @@ export function ProjectsDetailDsWorkspace({
     if (!canView) return;
     let cancelled = false;
     void Promise.all([
-      fetchProjectDocuments(projectId, { page: 1, page_size: 100 }),
       fetchProjectDetailActivity(projectId, { page: 1, page_size: 20 }),
       fetchProjectAlerts(projectId),
       fetchProjectFinancials(projectId).catch(() => null),
       fetchProjectInvestors(projectId).catch(() => null),
-    ]).then(([docs, activityPage, alertPage, finance, investors]) => {
+    ]).then(([activityPage, alertPage, finance, investors]) => {
       if (cancelled) return;
-      setDocuments(
-        docs.items
-          .map((item) => readOverviewDocument(item))
-          .filter((item): item is OverviewDocument => item != null),
-      );
       setActivity(activityPage.items);
       setAlerts(alertPage.items);
       setFinancials(finance);
@@ -288,7 +280,6 @@ export function ProjectsDetailDsWorkspace({
       setInvestorCount(investors ? investors.total : null);
     }).catch(() => {
       if (cancelled) return;
-      setDocuments([]);
       setActivity([]);
       setAlerts([]);
       setFinancials(null);
@@ -395,7 +386,7 @@ export function ProjectsDetailDsWorkspace({
 
   const tabItems = useMemo(
     () =>
-      PROJECT_DETAIL_DS_TABS.map((id) => ({
+      PROJECT_DETAIL_NAV_TABS.map((id) => ({
         id,
         label: tD(`tabs.${id}`),
       })),
@@ -476,17 +467,20 @@ export function ProjectsDetailDsWorkspace({
                 {tD('actions.export')}
               </Button>
               <Button
+                variant="secondary"
+                size="sm"
+                type="button"
+                data-testid="project-detail-reports"
+                onClick={() => router.push(projectDetailDsHref(projectId, 'reports') as Route)}
+              >
+                {tD('tabs.reports')}
+              </Button>
+              <Button
                 variant="primary"
                 size="sm"
                 type="button"
-                onClick={() =>
-                  openAi(
-                    tD('ai.openPrompt', {
-                      name: model.name,
-                      code: model.code,
-                    }),
-                  )
-                }
+                data-testid="project-detail-ai"
+                onClick={() => router.push(projectDetailDsHref(projectId, 'ai-insights') as Route)}
               >
                 <IhIcon name="sparkles" size={13} />
                 {tD('actions.ai')}
@@ -583,7 +577,7 @@ export function ProjectsDetailDsWorkspace({
         <Tabs
           className="proj-detail-ds__tabs"
           tabs={tabItems}
-          activeId={resolvedTab}
+          activeId={resolvedTab === 'timeline' ? 'tasks' : resolvedTab}
           onChange={onTabChange}
           ariaLabel={tD('tabs.aria')}
         />
@@ -591,10 +585,13 @@ export function ProjectsDetailDsWorkspace({
           <Select
             className="proj-detail-ds__tabs-select"
             label={tD('tabs.aria')}
-            value={resolvedTab}
+            value={resolvedTab === 'timeline' ? 'tasks' : resolvedTab}
             onChange={(e) => onTabChange(e.target.value)}
           >
-            {PROJECT_DETAIL_DS_TABS.map((id) => (
+            {(resolvedTab === 'reports' || resolvedTab === 'ai-insights'
+              ? [...PROJECT_DETAIL_NAV_TABS, resolvedTab]
+              : [...PROJECT_DETAIL_NAV_TABS]
+            ).map((id) => (
               <option key={id} value={id}>
                 {tD(`tabs.${id}`)}
               </option>
@@ -634,11 +631,11 @@ export function ProjectsDetailDsWorkspace({
       {resolvedTab === 'investors' ? (
         <InvestorsTab items={investorItems} tD={tD} locale={locale} />
       ) : null}
-      {resolvedTab === 'documents' ? (
-        <DocumentsTab tD={tD} projectId={projectId} documents={documents} />
-      ) : null}
-      {resolvedTab === 'tasks' ? (
-        <TasksTab
+      {resolvedTab === 'documents' ? <DocumentsTab tD={tD} projectId={projectId} /> : null}
+      {resolvedTab === 'tasks' || resolvedTab === 'timeline' ? (
+        <WorkTab
+          view={resolvedTab === 'timeline' ? 'timeline' : 'tasks'}
+          projectId={projectId}
           model={model}
           tD={tD}
           tDs={tDs}
@@ -646,7 +643,6 @@ export function ProjectsDetailDsWorkspace({
           locale={locale}
         />
       ) : null}
-      {resolvedTab === 'timeline' ? <TimelineTab model={model} tD={tD} locale={locale} /> : null}
       {resolvedTab === 'reports' ? <ReportsTab model={model} tD={tD} locale={locale} /> : null}
       {resolvedTab === 'ai-insights' ? <AiInsightsTab model={model} tD={tD} /> : null}
     </div>
@@ -1155,16 +1151,71 @@ function InvestorsTab({
   );
 }
 
+function WorkTab({
+  view,
+  projectId,
+  model,
+  tD,
+  tDs,
+  getPriorityLabel,
+  locale,
+}: {
+  view: 'tasks' | 'timeline';
+  projectId: string;
+  model: Model;
+  tD: TranslateFn;
+  tDs: TranslateFn;
+  getPriorityLabel: (s: string) => string;
+  locale: string;
+}) {
+  const router = useRouter();
+  return (
+    <div data-testid="project-work-tab">
+      <div className="proj-detail-ds__work-views" role="tablist" aria-label={tD('tabs.tasks')}>
+        <button
+          type="button"
+          className="proj-detail-ds__work-view"
+          aria-pressed={view === 'tasks'}
+          data-testid="project-work-tasks"
+          onClick={() => router.push(projectDetailDsHref(projectId, 'tasks') as Route)}
+        >
+          {tD('work.tasks')}
+        </button>
+        <button
+          type="button"
+          className="proj-detail-ds__work-view"
+          aria-pressed={view === 'timeline'}
+          data-testid="project-work-timeline"
+          onClick={() => router.push(projectDetailDsHref(projectId, 'timeline') as Route)}
+        >
+          {tD('work.timeline')}
+        </button>
+      </div>
+      {view === 'tasks' ? (
+        <TasksTab
+          model={model}
+          tD={tD}
+          tDs={tDs}
+          getPriorityLabel={getPriorityLabel}
+          locale={locale}
+        />
+      ) : (
+        <TimelineTab model={model} tD={tD} locale={locale} />
+      )}
+    </div>
+  );
+}
+
 function DocumentsTab({
   tD,
   projectId,
-  documents,
 }: {
   tD: TranslateFn;
   projectId: string;
-  documents: OverviewDocument[];
 }) {
   const tCommon = useTranslations('common');
+  const [records, setRecords] = useState<OverviewDocument[]>([]);
+  const [recordsState, setRecordsState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [folders, setFolders] = useState<CreativeStudioMediaFolder[]>([]);
   const [foldersLoading, setFoldersLoading] = useState(true);
   const [foldersError, setFoldersError] = useState<string | null>(null);
@@ -1239,6 +1290,30 @@ function DocumentsTab({
     };
   }, [projectId, selectedFolderId, tD]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setRecordsState('loading');
+    void fetchProjectDocuments(projectId, { page: 1, page_size: 100 })
+      .then((page) => {
+        if (cancelled) return;
+        const next = page.items
+          .map((item) => item as unknown as Record<string, unknown>)
+          .filter((item) => isOperationalProjectDocument(item))
+          .map((item) => readOverviewDocument(item))
+          .filter((item): item is OverviewDocument => item != null);
+        setRecords(next);
+        setRecordsState('ready');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setRecords([]);
+        setRecordsState('error');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
   const folderById = useMemo(() => {
     const map = new Map<string, CreativeStudioMediaFolder>();
     for (const folder of folders) map.set(folder.id, folder);
@@ -1304,12 +1379,20 @@ function DocumentsTab({
   return (
     <div style={{ display: 'grid', gap: 12 }} data-testid="project-documents-tab">
       <article className="proj-detail-ds__panel" data-testid="project-record-documents">
-        <h3>{tD('documents.records')}</h3>
-        {documents.length === 0 ? (
-          <p className="proj-detail-ds__quiet">{tD('empty.short')}</p>
+        <h3>{tD('documents.recent')}</h3>
+        {recordsState === 'loading' ? (
+          <p className="proj-detail-ds__quiet">{tD('documents.loading')}</p>
+        ) : recordsState === 'error' ? (
+          <p className="proj-detail-ds__quiet" data-testid="project-record-documents-error">
+            {tD('documents.loadError')}
+          </p>
+        ) : records.length === 0 ? (
+          <p className="proj-detail-ds__quiet" data-testid="project-record-documents-empty">
+            {tD('documents.recordsEmpty')}
+          </p>
         ) : (
           <div className="proj-detail-ds__doc-list">
-            {documents.map((doc) => (
+            {records.map((doc) => (
               <div
                 key={doc.id}
                 className="proj-detail-ds__doc-row"
@@ -1424,11 +1507,9 @@ function DocumentsTab({
         )}
       </section>
 
-      <article className="proj-detail-ds__panel">
+      <article className="proj-detail-ds__panel" data-testid="project-drive-documents">
         <h3>
-          {selectedFolder
-            ? selectedFolder.name
-            : tD('documents.recent')}
+          {selectedFolder ? selectedFolder.name : tD('documents.drive')}
         </h3>
         {loading ? (
           <p className="proj-detail-ds__drive-empty" data-testid="project-documents-loading">

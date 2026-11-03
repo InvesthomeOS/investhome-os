@@ -64,10 +64,11 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 
 @router.get("/stats", response_model=ProjectStatsResponse)
 def get_project_stats(
+    include_demo: bool = Query(default=False),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("projects", "view")),
 ) -> ProjectStatsResponse:
-    return svc.get_project_stats(db, user=user)
+    return svc.get_project_stats(db, user=user, include_demo=include_demo)
 
 
 @router.get("", response_model=ProjectListResponse)
@@ -87,6 +88,7 @@ def list_projects(
     start_date_from: date | None = None,
     start_date_to: date | None = None,
     include_archived: bool = Query(default=False),
+    include_demo: bool = Query(default=False),
     sort_by: str = Query(default="updated_at"),
     sort_order: str = Query(default="desc", pattern="^(asc|desc)$"),
     page: int = Query(default=1, ge=1),
@@ -112,6 +114,7 @@ def list_projects(
         start_date_from=start_date_from,
         start_date_to=start_date_to,
         include_archived=include_archived,
+        include_demo=include_demo,
         sort_by=sort_by,
         sort_order=sort_order,
         page=page,
@@ -132,6 +135,7 @@ def get_projects_dashboard(
     project_manager_user_id: UUID | None = None,
     completion_year: int | None = Query(default=None, ge=1900, le=2100),
     include_archived: bool = Query(default=False),
+    include_demo: bool = Query(default=False),
     milestone_days: int = Query(default=30, ge=1, le=365),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("projects", "view")),
@@ -150,6 +154,7 @@ def get_projects_dashboard(
         country=country,
         completion_year=completion_year,
         include_archived=include_archived,
+        include_demo=include_demo,
         milestone_days=milestone_days,
     )
 

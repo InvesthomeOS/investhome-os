@@ -37,6 +37,13 @@ function text(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
+export function isOperationalProjectDocument(raw: Record<string, unknown> | null | undefined): boolean {
+  if (!raw || typeof raw !== 'object') return false;
+  if (raw.is_demo === true) return false;
+  if (raw.archived_at != null && raw.archived_at !== '') return false;
+  return readOverviewDocument(raw) != null;
+}
+
 export function readOverviewDocument(raw: Record<string, unknown>): OverviewDocument | null {
   const id = text(raw.id);
   if (!id) return null;

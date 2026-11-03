@@ -114,9 +114,13 @@ export function matchesBudgetRange(project: Project, range: BudgetRange): boolea
   }
 }
 
+export function operationalProjects(projects: Project[]): Project[] {
+  return projects.filter((project) => project.is_demo !== true);
+}
+
 export function filterProjects(projects: Project[], filters: DsFilters): Project[] {
   const q = filters.search.trim().toLowerCase();
-  return projects.filter((project) => {
+  return operationalProjects(projects).filter((project) => {
     if (filters.status && project.project_status !== filters.status) return false;
     if (filters.project_type && project.project_type !== filters.project_type) return false;
     if (filters.priority && project.priority !== filters.priority) return false;
@@ -169,58 +173,32 @@ export function deriveKpis(
   stats: ProjectStats | null,
   locale: string,
 ): ProjectsKpi[] {
-  const total = stats?.total ?? projects.length;
+  const source = operationalProjects(projects);
+  const total = stats?.total ?? source.length;
   const active =
     stats?.active ??
-    projects.filter((p) => p.project_status !== 'completed' && p.project_status !== 'cancelled')
+    source.filter((p) => p.project_status !== 'completed' && p.project_status !== 'cancelled')
       .length;
   const portfolio =
     Number(stats?.current_portfolio_value) ||
-    projects.reduce((sum, p) => sum + projectValue(p), 0);
-  const constructionBudget = projects.reduce((sum, p) => {
+    source.reduce((sum, p) => sum + projectValue(p), 0);
+  const constructionBudget = source.reduce((sum, p) => {
     const n = Number(
       p.construction_budget ?? p.total_development_cost ?? p.current_project_value ?? 0,
     );
     return sum + (Number.isFinite(n) ? n : 0);
   }, 0);
   const completion =
-    projects.length === 0
+    source.length === 0
       ? 0
-      : Math.round(
-          projects.reduce((sum, p) => sum + projectCompletion(p), 0) / projects.length,
-        );
+      : Math.round(source.reduce((sum, p) => sum + projectCompletion(p), 0) / source.length);
 
   return [
-    {
-      key: 'total',
-      value: String(total),
-      delta: '+12%',
-      deltaTone: 'up',
-    },
-    {
-      key: 'active',
-      value: String(active),
-      delta: '+8%',
-      deltaTone: 'up',
-    },
-    {
-      key: 'portfolioValue',
-      value: formatCompactCurrency(portfolio, locale),
-      delta: '+5%',
-      deltaTone: 'up',
-    },
-    {
-      key: 'constructionBudget',
-      value: formatCompactCurrency(constructionBudget, locale),
-      delta: '+3%',
-      deltaTone: 'up',
-    },
-    {
-      key: 'completionRate',
-      value: `${completion}%`,
-      delta: '+2%',
-      deltaTone: 'up',
-    },
+    { key: 'total', value: String(total) },
+    { key: 'active', value: String(active) },
+    { key: 'portfolioValue', value: formatCompactCurrency(portfolio, locale) },
+    { key: 'constructionBudget', value: formatCompactCurrency(constructionBudget, locale) },
+    { key: 'completionRate', value: `${completion}%` },
   ];
 }
 
@@ -327,7 +305,8 @@ export function deriveRail(
   timeline: RailTimelineItem[];
   health: RailHealthItem[];
 } {
-  const withDates = [...projects]
+  const source = operationalProjects(projects);
+  const withDates = [...source]
     .filter((p) => p.target_completion_date)
     .sort((a, b) =>
       String(a.target_completion_date).localeCompare(String(b.target_completion_date)),
@@ -345,7 +324,7 @@ export function deriveRail(
   }));
 
   const typeBuckets = new Map<string, number>();
-  for (const p of projects) {
+  for (const p of source) {
     const budget = Number(p.construction_budget ?? p.total_development_cost ?? 0);
     if (!Number.isFinite(budget) || budget <= 0) continue;
     typeBuckets.set(p.project_type, (typeBuckets.get(p.project_type) ?? 0) + budget);
@@ -362,7 +341,7 @@ export function deriveRail(
       color: BUDGET_DONUT_COLORS[i % BUDGET_DONUT_COLORS.length] ?? BUDGET_DONUT_COLORS[0],
     }));
 
-  const activities: RailActivity[] = projects.slice(0, 5).map((p, i) => {
+  const activities: RailActivity[] = source.slice(0, 5).map((p, i) => {
     const manager =
       p.project_manager?.full_name ?? p.assigned_project_manager ?? '—';
     return {
@@ -376,13 +355,13 @@ export function deriveRail(
 
   void locale;
 
-  const timeline: RailTimelineItem[] = projects.slice(0, 5).map((p) => ({
+  const timeline: RailTimelineItem[] = source.slice(0, 5).map((p) => ({
     id: p.id,
     label: p.project_name,
     pct: projectCompletion(p),
   }));
 
-  const health: RailHealthItem[] = projects.slice(0, 3).map((p) => {
+  const health: RailHealthItem[] = source.slice(0, 3).map((p) => {
     const completion = projectCompletion(p);
     const risk = deriveAiRisk(p);
     let tone: StatusTone = 'success';

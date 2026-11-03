@@ -33,7 +33,8 @@ describe('Project Documents — real media assets', () => {
     assert.doesNotMatch(detailModel, /DOC_NAMES/);
     assert.doesNotMatch(detailModel, /EPC Agreement/);
     assert.doesNotMatch(detailModel, /Sarah Chen/);
-    assert.match(detailModel, /const documents: DetailDocument\[] = \[]/);
+    assert.match(detailWorkspace, /fetchProjectDocuments/);
+    assert.match(detailWorkspace, /data-testid="project-record-documents"/);
   });
 
   it('DocumentsTab loads assets with linked_project_id and excludes archived by default', () => {

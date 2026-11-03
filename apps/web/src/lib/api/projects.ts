@@ -256,6 +256,7 @@ export interface ProjectFilters {
   country?: string;
   assigned_project_manager?: string;
   include_archived?: boolean;
+  include_demo?: boolean;
   sort_by?: string;
   sort_order?: 'asc' | 'desc';
   page?: number;
@@ -288,6 +289,7 @@ function buildQuery(filters: ProjectFilters = {}): string {
     params.set('assigned_project_manager', filters.assigned_project_manager.trim());
   }
   if (filters.include_archived) params.set('include_archived', 'true');
+  if (filters.include_demo) params.set('include_demo', 'true');
   if (filters.sort_by) params.set('sort_by', filters.sort_by);
   if (filters.sort_order) params.set('sort_order', filters.sort_order);
   if (filters.page) params.set('page', String(filters.page));
@@ -301,8 +303,13 @@ export async function fetchProjects(filters: ProjectFilters = {}): Promise<Proje
   return apiFetch<ProjectListResponse>(`/projects${buildQuery(filters)}`);
 }
 
-export async function fetchProjectStats(): Promise<ProjectStats> {
-  return apiFetch<ProjectStats>('/projects/stats');
+export async function fetchProjectStats(
+  options: { include_demo?: boolean } = {},
+): Promise<ProjectStats> {
+  const params = new URLSearchParams();
+  if (options.include_demo) params.set('include_demo', 'true');
+  const query = params.toString();
+  return apiFetch<ProjectStats>(`/projects/stats${query ? `?${query}` : ''}`);
 }
 
 export async function fetchProject(id: string): Promise<Project> {
@@ -705,6 +712,7 @@ export interface ProjectDashboardFilters {
   project_manager_user_id?: string;
   completion_year?: number;
   include_archived?: boolean;
+  include_demo?: boolean;
   milestone_days?: number;
 }
 
@@ -724,6 +732,7 @@ function buildDashboardQuery(filters: ProjectDashboardFilters = {}): string {
   }
   if (filters.completion_year) params.set('completion_year', String(filters.completion_year));
   if (filters.include_archived) params.set('include_archived', 'true');
+  if (filters.include_demo) params.set('include_demo', 'true');
   if (filters.milestone_days) params.set('milestone_days', String(filters.milestone_days));
 
   const query = params.toString();
@@ -742,6 +751,7 @@ export function toDashboardFilters(filters: ProjectFilters): ProjectDashboardFil
     state: filters.state,
     country: filters.country,
     include_archived: filters.include_archived,
+    include_demo: filters.include_demo,
   };
 }
 
