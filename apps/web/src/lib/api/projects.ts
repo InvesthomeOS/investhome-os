@@ -1171,8 +1171,11 @@ export interface LocationIntelligenceResponse {
 
 export async function fetchProjectLocationIntelligence(
   projectId: string,
+  locale: string = 'tr',
 ): Promise<LocationIntelligenceResponse> {
-  return apiFetch<LocationIntelligenceResponse>(locationReadPath(projectId));
+  return apiFetch<LocationIntelligenceResponse>(locationReadPath(projectId), {
+    headers: { 'Accept-Language': locale },
+  });
 }
 
 export async function refreshProjectLocationIntelligence(

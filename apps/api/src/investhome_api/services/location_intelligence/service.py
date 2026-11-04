@@ -45,7 +45,17 @@ from investhome_api.services.project_assistant.llm_provider import (
 
 logger = logging.getLogger(__name__)
 
-SUMMARY_TYPE = "neighborhood"
+SUMMARY_TYPE_PREFIX = "neighborhood"
+SUMMARY_LOCALES = ("tr", "en")
+
+
+def _normalize_summary_locale(locale: str | None) -> str:
+    value = (locale or "tr").strip().lower()
+    return "en" if value.startswith("en") else "tr"
+
+
+def _summary_type(locale: str | None) -> str:
+    return f"{SUMMARY_TYPE_PREFIX}_{_normalize_summary_locale(locale)}"
 SUMMARY_SYSTEM = (
     "You summarize only the FACTS block. "
     "Do not add place names, distances, travel times, scores, prices, demographics, "
@@ -67,7 +77,13 @@ def mark_location_pending(db: Session, project: Project) -> ProjectLocationProfi
     return profile
 
 
-def read_location_intelligence(db: Session, project: Project, *, user: User | None) -> dict:
+def read_location_intelligence(
+    db: Session,
+    project: Project,
+    *,
+    user: User | None,
+    locale: str = "tr",
+) -> dict:
     profile = _profile(db, project.id)
     status = profile.geocode_status.value if profile else "none"
     current_fp = address_fingerprint(project)
@@ -79,7 +95,7 @@ def read_location_intelligence(db: Session, project: Project, *, user: User | No
         and project.longitude is not None
     )
     places = _places(db, project.id) if visible else []
-    summary = _summary(db, project.id) if visible else None
+    summary = _summary(db, project.id, locale=locale) if visible else None
     if summary is not None and profile is not None and summary.source_fingerprint != source_fingerprint(
         neighborhood=profile.neighborhood,
         locality=profile.locality,
@@ -209,16 +225,16 @@ def run_location_refresh(
         except LocationProviderError as exc:
             profile.last_error = str(exc)
             db.commit()
-            _refresh_summary(db, project, profile, llm=llm, settings=settings)
+            _refresh_summaries(db, project, profile, llm=llm, settings=settings)
             return "places_failed"
         _replace_places(db, project.id, places, fetched_at=now)
     db.commit()
     db.refresh(profile)
-    _refresh_summary(db, project, profile, llm=llm, settings=settings)
+    _refresh_summaries(db, project, profile, llm=llm, settings=settings)
     return "success"
 
 
-def _refresh_summary(
+def _refresh_summaries(
     db: Session,
     project: Project,
     profile: ProjectLocationProfile,
@@ -226,6 +242,20 @@ def _refresh_summary(
     llm: LLMProvider | None,
     settings: Settings,
 ) -> None:
+    for locale in SUMMARY_LOCALES:
+        _refresh_summary(db, project, profile, locale=locale, llm=llm, settings=settings)
+
+
+def _refresh_summary(
+    db: Session,
+    project: Project,
+    profile: ProjectLocationProfile,
+    *,
+    locale: str,
+    llm: LLMProvider | None,
+    settings: Settings,
+) -> None:
+    locale = _normalize_summary_locale(locale)
     places = _places(db, project.id)
     if not places and not profile.neighborhood and not profile.locality:
         return
@@ -234,7 +264,7 @@ def _refresh_summary(
         locality=profile.locality,
         places=places,
     )
-    existing = _summary(db, project.id)
+    existing = _summary(db, project.id, locale=locale)
     if existing is not None and existing.source_fingerprint == fingerprint:
         return
     provider_name = (settings.ai_provider or "local").strip().lower()
@@ -248,8 +278,11 @@ def _refresh_summary(
     if selected.name in LOCAL_PROVIDER_ALIASES and llm is None:
         return
     try:
+        language_instruction = (
+            "Respond in Turkish." if locale == "tr" else "Respond in English."
+        )
         result = selected.generate(
-            system=SUMMARY_SYSTEM,
+            system=f"{SUMMARY_SYSTEM} {language_instruction}",
             user=facts_prompt(neighborhood=profile.neighborhood, locality=profile.locality, places=places),
         )
     except Exception:
@@ -262,7 +295,7 @@ def _refresh_summary(
     if existing is None:
         existing = ProjectLocationAiSummary(
             project_id=project.id,
-            summary_type=SUMMARY_TYPE,
+            summary_type=_summary_type(locale),
             summary_text=text,
             source_fingerprint=fingerprint,
             generated_at=now,
@@ -338,11 +371,16 @@ def _places(db: Session, project_id: UUID) -> list[ProjectNearbyPlace]:
     )
 
 
-def _summary(db: Session, project_id: UUID) -> ProjectLocationAiSummary | None:
+def _summary(
+    db: Session,
+    project_id: UUID,
+    *,
+    locale: str,
+) -> ProjectLocationAiSummary | None:
     return db.scalar(
         select(ProjectLocationAiSummary).where(
             ProjectLocationAiSummary.project_id == project_id,
-            ProjectLocationAiSummary.summary_type == SUMMARY_TYPE,
+            ProjectLocationAiSummary.summary_type == _summary_type(locale),
         )
     )
 

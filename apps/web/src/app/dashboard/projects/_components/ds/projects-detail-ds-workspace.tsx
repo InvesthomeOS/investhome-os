@@ -207,7 +207,8 @@ export function ProjectsDetailDsWorkspace({
   const [refreshState, setRefreshState] = useState<string | null>(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const refreshControllerRef = useRef<ReturnType<typeof createLocationRefreshController> | null>(null);
-  if (refreshControllerRef.current?.projectId !== projectId) {
+  const refreshLocaleRef = useRef<string | null>(null);
+  if (refreshControllerRef.current?.projectId !== projectId || refreshLocaleRef.current !== locale) {
     refreshControllerRef.current?.stop();
     refreshControllerRef.current = createLocationRefreshController({
       projectId,
@@ -221,9 +222,10 @@ export function ProjectsDetailDsWorkspace({
         if (path !== `/projects/${projectId}/location-intelligence`) {
           return Promise.reject(new Error('unexpected location read path'));
         }
-        return fetchProjectLocationIntelligence(projectId);
+        return fetchProjectLocationIntelligence(projectId, locale);
       },
     });
+    refreshLocaleRef.current = locale;
   }
 
   const load = useCallback(async () => {
@@ -309,7 +311,7 @@ export function ProjectsDetailDsWorkspace({
   useEffect(() => {
     if (!canView) return;
     let cancelled = false;
-    fetchProjectLocationIntelligence(projectId)
+    fetchProjectLocationIntelligence(projectId, locale)
       .then((data) => {
         if (!cancelled) setLocationIntel(data);
       })
@@ -319,7 +321,7 @@ export function ProjectsDetailDsWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [canView, projectId]);
+  }, [canView, projectId, locale]);
 
   useEffect(() => {
     const controller = refreshControllerRef.current;
@@ -345,7 +347,7 @@ export function ProjectsDetailDsWorkspace({
     return () => {
       unsubscribe();
     };
-  }, [projectId]);
+  }, [projectId, locale]);
 
   const model = useMemo(
     () => buildProjectDetailDsModel(project, projectId, locale),

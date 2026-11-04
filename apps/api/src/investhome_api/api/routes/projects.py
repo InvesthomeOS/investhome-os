@@ -212,11 +212,16 @@ def get_project(
 @router.get("/{project_id}/location-intelligence", response_model=LocationIntelligenceResponse)
 def get_location_intelligence(
     project_id: UUID,
+    request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("projects", "view")),
 ) -> LocationIntelligenceResponse:
     project = svc.get_project_or_404(db, project_id)
-    return LocationIntelligenceResponse.model_validate(read_location_intelligence(db, project, user=user))
+    raw_locale = request.headers.get("accept-language") or "tr"
+    locale = "en" if raw_locale.lower().startswith("en") else "tr"
+    return LocationIntelligenceResponse.model_validate(
+        read_location_intelligence(db, project, user=user, locale=locale)
+    )
 
 
 @router.post("/{project_id}/location-intelligence/refresh", response_model=LocationRefreshResponse)
