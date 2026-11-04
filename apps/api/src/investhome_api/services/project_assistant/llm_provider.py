@@ -185,7 +185,6 @@ class OpenAILLMProvider(LLMProvider):
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            "temperature": 0.1,
         }
         if (
             "CONTENT_PACKAGE_JSON" in (user or "")

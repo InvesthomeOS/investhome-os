@@ -24,7 +24,10 @@ x-app-environment: &app-environment
   FEATURE_N8N_AUTOMATION: "false"
   PUBLIC_FORM_BOT_VERIFY: "false"
   DOCUMENT_PROCESSING_SYNC: "false"
-  AI_PROVIDER: local
+  AI_PROVIDER: ${AI_PROVIDER:-local}
+  AI_MODEL: ${AI_MODEL:-local-heuristic-v1}
+  AI_API_KEY: ${AI_API_KEY:-}
+  AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
   OCR_PROVIDER: local
   DOCUMENT_STORAGE_PROVIDER: local
   DOCUMENT_STORAGE_ROOT: /var/lib/investhome/documents
