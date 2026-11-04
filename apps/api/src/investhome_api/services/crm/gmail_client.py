@@ -138,6 +138,9 @@ class GoogleGmailMailbox:
                 .execute()
             )
         except Exception as exc:
+            status = getattr(getattr(exc, "resp", None), "status", None)
+            if status == 404:
+                raise GmailApiError("message_not_found") from exc
             raise _map_gmail_error(exc) from exc
 
     def get_attachment(self, message_id: str, attachment_id: str) -> bytes:
@@ -186,10 +189,10 @@ class GoogleGmailMailbox:
                     .execute()
                 )
             except Exception as exc:
-                mapped = _map_gmail_error(exc)
-                if mapped.code == "history_expired":
-                    raise mapped from exc
-                raise mapped from exc
+                status = getattr(getattr(exc, "resp", None), "status", None)
+                if status == 404:
+                    raise GmailApiError("history_expired") from exc
+                raise _map_gmail_error(exc) from exc
             latest = str(response.get("historyId") or latest or "")
             for event in response.get("history") or []:
                 for added in event.get("messagesAdded") or []:
@@ -211,5 +214,5 @@ def _map_gmail_error(exc: Exception) -> GmailApiError:
         return GmailApiError("needs_reauth", needs_reauth=True)
     if status == 404 and "history" in text:
         return GmailApiError("history_expired")
-    logger.warning("gmail_api_error type=%s", type(exc).__name__)
+    logger.warning("gmail_api_error type=%s status=%s", type(exc).__name__, status)
     return GmailApiError("gmail_api_error")

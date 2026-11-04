@@ -90,7 +90,11 @@ def _ingest_ids(
                 ingested += 1
             else:
                 duplicates += 1
-        except GmailApiError:
+        except GmailApiError as exc:
+            if exc.code == "message_not_found":
+                skipped += 1
+                logger.warning("gmail_message_not_found id=%s", message_id)
+                continue
             raise
         except Exception:
             logger.exception("gmail_message_ingest_failed id=%s", message_id)
